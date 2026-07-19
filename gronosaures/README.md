@@ -74,7 +74,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v18), 206 entrées (globes inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v19), 206 entrées (globes inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -341,6 +341,39 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Retours de playtest — v19
+
+**Le bouton ⚙ ne faisait rien : c'était un bug de ma part.** `ouvrirReglages()`
+lisait `etat.sites[s.id]` alors que la clé réelle est `etat.sitesOuverts`. La
+lecture levait une exception, le gestionnaire de clic mourait en silence, et rien
+ne s'affichait. Le panneau est en outre réduit à son seul usage réel : une
+confirmation « Voulez-vous forcer la mise à jour ? » avec Oui / Annuler.
+
+**Bourse.** Les packs étaient bien réordonnés dans `data.js` depuis la v16, mais
+`menuPacks()` affichait le groupe `base` avant le groupe `histoire` : le tri des
+données était masqué par l'ordre d'affichage. « Histoire et philosophie » passe
+devant. La ligne du bas — « l'entraînement rapporte davantage » — était obsolète
+depuis l'égalisation des barèmes en v8 : elle est retirée.
+
+**La frise n'est plus un onglet.** Elle devient le quatrième bouton de vue de la
+Collection, à côté de Par chantier / Par période / Par famille. Trois onglets au
+lieu de quatre, et une vue rarement ouverte cesse d'occuper une place permanente
+dans le schéma mental de l'application.
+
+**Zoom minimum de la carte.** Le zoom arrière était borné par la *largeur* de la
+carte : sur un téléphone, un viewBox large de 1 535 px devient haut de 2 800 px, et
+l'on voyait du vide au-dessus et au-dessous. `maxWDyn()` borne désormais par la
+*hauteur* — la carte remplit toujours l'écran. Conséquence assumée : sur un écran
+très allongé, on ne peut plus voir toute la largeur du monde d'un coup (viewBox
+maximal de 461 px sur un Pixel 8, contre 1 535 auparavant).
+
+**Vignettes de chantier.** Les cases non trouvées portent maintenant « Créature non
+découverte » sous le point d'interrogation, comme dans la collection.
+
+**Navigation.** Quitter l'onglet Fouille depuis un chantier puis y revenir rendait
+la carte du monde. `montrer('fouille')` ne rappelle plus `vueCarte()` quand
+`siteActif` est renseigné : on retrouve l'écran qu'on avait quitté.
 
 ## Trois packs — v18
 

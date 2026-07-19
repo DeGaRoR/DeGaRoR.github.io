@@ -113,9 +113,14 @@ function majFondGlobal(){
 function montrer(ecran){
   $$('.ecran').forEach(e=>e.classList.toggle('actif', e.id==='ecran-'+ecran));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ecran===ecran));
-  if(ecran==='fouille'){ vueCarte(); requestAnimationFrame(()=>{ if(pzMonde) pzMonde.refit(); }); }
+  /* Revenir à l'onglet Fouille depuis un autre onglet doit rendre l'écran qu'on
+     avait quitté. Repartir de la carte du monde oblige à refaire tout le chemin
+     et donne l'impression d'avoir perdu sa place. */
+  if(ecran==='fouille'){
+    if(!siteActif) vueCarte();
+    requestAnimationFrame(()=>{ if(pzMonde && $('#vue-carte').style.display!=='none') pzMonde.refit(); });
+  }
   if(ecran==='collection'){ majFondGlobal(); rendreCollection(); }
-  if(ecran==='frise'){ majFondGlobal(); rendreFrise(); }
   if(ecran==='bourse'){ majFondGlobal(); menuPacks(); }
 }
 
@@ -154,7 +159,16 @@ function panzoom(svg,opt){
   const vb=svg.viewBox.baseVal;
   function aspect(){const a=svg.clientWidth>0?svg.clientHeight/svg.clientWidth:1;return (isFinite(a)&&a>0)?a:0.667;}
   function fitH(){vb.height=vb.width*aspect();}
-  const clampW=w=>Math.min(opt.maxW,Math.max(opt.minW,w));
+  /* La carte doit toujours remplir l'écran. Sur un téléphone, un viewBox large
+     de 1 535 px devient haut de 2 800 px : on voit alors du vide au-dessus et
+     au-dessous de la carte, ce qui casse l'immersion. On borne donc le zoom
+     arrière à la hauteur de la carte plutôt qu'à sa largeur, et la borne se
+     recalcule à chaque rotation d'écran. */
+  function maxWDyn(){
+    const b=opt.bounds;
+    return Math.max(opt.minW, Math.min(opt.maxW, b.h/Math.max(aspect(),1e-3)));
+  }
+  const clampW=w=>Math.min(maxWDyn(),Math.max(opt.minW,w));
   function clampPan(){
     const b=opt.bounds;
     vb.x = vb.width>=b.w ? b.x+(b.w-vb.width)/2 : Math.min(b.x+b.w-vb.width, Math.max(b.x, vb.x));
@@ -167,7 +181,7 @@ function panzoom(svg,opt){
     const p=toVB(cx,cy); const nw=clampW(vb.width*f); const g=nw/vb.width;
     vb.x=p.x-(p.x-vb.x)*g; vb.y=p.y-(p.y-vb.y)*g; vb.width=nw; fitH(); upd();
   }
-  function refit(){fitH(); upd();}
+  function refit(){vb.width=clampW(vb.width); fitH(); upd();}
   /* Cadrer une région : sert à ouvrir une grappe d'épingles trop serrées. */
   function cadrer(b,marge){
     const m=(marge==null?70:marge);
@@ -415,11 +429,14 @@ function chantier(id){
   const cs=creaturesDe(id);
   $('#ch-vignettes').style.gridTemplateColumns=
     'repeat('+(cs.length<=6?cs.length:Math.ceil(cs.length/2))+',1fr)';
+  /* Une case vide ne dit pas si elle est vide parce qu'il n'y a rien à trouver
+     ou parce qu'on n'a pas encore trouvé. On l'écrit, comme dans la collection. */
   $('#ch-vignettes').innerHTML=cs.map(c=>{
     const ok=possede(c.id);
     return `<button class="vig${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}
-      title="${ok?esc(c.nom):'Non découverte'}">
-      ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">`:'<span class="vig-q">?</span>'}</button>`;
+      title="${ok?esc(c.nom):'Créature non découverte'}">
+      ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">`
+          :'<span class="vig-q">?</span><span class="vig-inconnu">Créature non découverte</span>'}</button>`;
   }).join('');
   $('#ch-cout').textContent=COUT_FOUILLE;
   majSolde();
@@ -629,8 +646,9 @@ function vignette(c){
 function rendreCollection(){
   const tot=CREATURES.length, n=trouvees().length;
   $('#col-compte').textContent=n+' / '+tot;
-  const mode=TRIS[etat.tri]?etat.tri:'chantier';
+  const mode=(etat.tri==='frise'||TRIS[etat.tri])?etat.tri:'chantier';
   $$('#col-tri button').forEach(b=>b.classList.toggle('on', b.dataset.tri===mode));
+  if(mode==='frise'){ rendreFrise(); return; }
   $('#col-corps').innerHTML=TRIS[mode].sections()
     .filter(s=>s.cs.length)
     .map(s=>{
@@ -641,7 +659,11 @@ function rendreCollection(){
         <div class="grille">${s.cs.map(vignette).join('')}</div></section>`;
     }).join('');
 }
-function changerTri(m){ if(!TRIS[m])return; etat.tri=m; sauver(); rendreCollection(); }
+/* « frise » n'est pas un tri au sens des autres — elle ne range pas les mêmes
+   objets — mais elle occupe la même place dans la tête : une manière de
+   regarder sa collection. Un onglet de plus aurait alourdi le schéma mental
+   pour une vue qu'on ouvre rarement. */
+function changerTri(m){ if(m!=='frise' && !TRIS[m])return; etat.tri=m; sauver(); rendreCollection(); }
 /* ---- Frise verticale ----
    Le tri « par période » de la collection range les créatures par tranche, mais
    toutes les tranches y ont la même hauteur : on n'y sent pas que le Crétacé
@@ -674,8 +696,6 @@ function ageMoyenSite(id){
 let friseOuvert=null;
 
 function rendreFrise(){
-  const t=trouvees();
-  $('#fri-compte').textContent=t.length+' / '+CREATURES.length;
   const H=yFrise(0)+30;
 
   const eres=[{nom:'Protérozoïque',de:650,a:538.8},{nom:'Paléozoïque',de:538.8,a:251.9},
@@ -708,7 +728,9 @@ function rendreFrise(){
     </div>`;
   }).join('');
 
-  $('#fri-corps').innerHTML=`
+  $('#col-corps').innerHTML=`
+    <p class="fri-aide">Le temps de haut en bas, à l’échelle : chaque graduation
+      vaut le même nombre d’années. Touche un chantier pour déplier ses créatures.</p>
     <div class="fri-avant">
       <b>4,54 milliards d’années avant cette frise</b>
       <span>De la formation de la Terre à l’Édiacarien. À l’échelle utilisée ici,
@@ -721,9 +743,9 @@ function rendreFrise(){
 }
 function friseBascule(id){
   friseOuvert = friseOuvert===id ? null : id;
-  const av=$('#ecran-frise').scrollTop;
+  const el=$('#ecran-collection'), av=el?el.scrollTop:0;
   rendreFrise();
-  $('#ecran-frise').scrollTop=av;
+  if(el) el.scrollTop=av;
 }
 
 /* ---- Réglages ----
@@ -731,18 +753,18 @@ function friseBascule(id){
    été livrée mais que le service worker sert encore l'ancienne, et savoir où
    l'on en est. Rien d'autre : un écran d'options est un endroit où l'on se perd. */
 function ouvrirReglages(){
-  const t=trouvees().length;
+  /* Le panneau ne sert qu'à une chose : forcer la mise à jour. Une fenêtre
+     d'options serait un endroit de plus où se perdre. */
   $('#reglages-corps').innerHTML=`
-    <p class="md-sur">Réglages</p>
-    <h3>Gronosaures et Trilobytes</h3>
-    <p class="rg-ligne"><span>Version</span><b>${esc(VERSION_APP)}</b></p>
-    <p class="rg-ligne"><span>Créatures trouvées</span><b>${t} / ${CREATURES.length}</b></p>
-    <p class="rg-ligne"><span>Chantiers ouverts</span><b>${SITES.filter(s=>etat.sites[s.id]).length} / ${SITES.length}</b></p>
-    <p class="rg-note">Si une nouvelle version a été installée mais que l’application
-      affiche encore l’ancienne, force la mise à jour. Ta progression n’est pas
-      touchée : elle est enregistrée séparément.</p>
-    <button class="btn-primaire" onclick="forcerMaj(this)">Forcer la mise à jour</button>
-    <button class="btn-fant" onclick="fermerReglages()">Fermer</button>`;
+    <p class="md-sur">Mise à jour</p>
+    <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
+    <p class="rg-note">À faire seulement si une nouvelle version a été installée
+      mais que l’application affiche encore l’ancienne. Ta progression n’est pas
+      touchée : elle est enregistrée séparément des fichiers de l’application.</p>
+    <p class="rg-ligne"><span>Version affichée</span><b>${esc(VERSION_APP)}</b></p>
+    <p class="rg-ligne"><span>Avancement</span><b>${trouvees().length} / ${CREATURES.length} créatures</b></p>
+    <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
+    <button class="btn-fant" onclick="fermerReglages()">Annuler</button>`;
   $('#reglages').classList.add('on');
 }
 function fermerReglages(){ $('#reglages').classList.remove('on'); }
@@ -831,11 +853,10 @@ function avancePack(p){
 function menuPacks(){
   $('#bourse-corps').innerHTML=`
     <p class="intro-p">Une mission compte ${NB_MISSION} exercices. Les crédits gagnés financent l'ouverture des chantiers et chaque coup de pioche. Une réponse trouvée après l'indice rapporte moins, mais rien n'est jamais retiré.</p>
-    <h3 class="grp">Entraînement <em>${BAREME.base.juste} \u25C8 par bonne réponse</em></h3>
-    ${PACKS.filter(p=>p.cat==='base').map(carteP).join('')}
-    <h3 class="grp">Histoire <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
+    <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
-    <p class="bourse-note">L'entraînement rapporte davantage : il demande plus d'effort, il ne doit jamais être le choix perdant.</p>`;
+    <h3 class="grp">Entraînement <em>${BAREME.base.juste} \u25C8 par bonne réponse</em></h3>
+    ${PACKS.filter(p=>p.cat==='base').map(carteP).join('')}`;
 }
 function carteP(p){
   const a=avancePack(p), st=statPack(p.id);

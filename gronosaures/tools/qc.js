@@ -307,7 +307,12 @@ SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id)))
   const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
   const ordre=[...html.matchAll(/data-ecran="([a-z]+)"/g)].map(m=>m[1]);
   T('onglets dans l’ordre voulu',
-    ordre.join(' ')==='bourse fouille collection frise', ordre.join(' '));
+    ordre.join(' ')==='bourse fouille collection', ordre.join(' '));
+  /* La frise a été repliée dans la collection : elle ne doit plus être un onglet,
+     mais rester atteignable comme quatrième bouton de tri. */
+  T('la frise n’est plus un onglet', !html.includes('data-ecran="frise"'));
+  T('la frise est un bouton de tri', html.includes('data-tri="frise"'));
+  T('quatre vues de collection', (html.match(/data-tri="/g)||[]).length===4);
   T('un seul onglet marqué actif',
     (html.match(/data-ecran="[a-z]+" class="on"/g)||[]).length===1);
   T('la pastille d’aide de la carte a été retirée', !html.includes('carte-aide'));
