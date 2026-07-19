@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0a0f1a">
+<meta name="description" content="Atlas de paléontologie : fouiller, documenter, comprendre.">
+<title>Le Grand Atlas du Temps profond</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icones/icone-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Fond illustré global : une créature déjà découverte, jamais un écran nu -->
+<div id="fond-global"></div>
+
+<header id="entete">
+  <div class="ent-titre">
+    <span class="ent-nom">Le Grand Atlas</span>
+    <span class="ent-sous">du Temps profond</span>
+  </div>
+  <div id="solde" title="Crédits de recherche">
+    <span class="sol-ico">◈</span><span id="solde-nb">0</span>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ============ FOUILLE ============ -->
+  <section id="ecran-fouille" class="ecran actif">
+
+    <!-- 1. Carte du monde -->
+    <div id="vue-carte">
+      <svg id="svg-monde" viewBox="0 0 1535 1024" preserveAspectRatio="xMidYMid slice"
+           xmlns="http://www.w3.org/2000/svg" role="application" aria-label="Carte des sites de fouille">
+        <image href="monde.jpg" xlink:href="monde.jpg" x="0" y="0" width="1535" height="1024"/>
+        <g id="pins"></g>
+      </svg>
+      <div class="carte-aide">Touche un site pour l'ouvrir · fais glisser pour te déplacer · pince pour zoomer</div>
+    </div>
+
+    <!-- 2. Chantier : plein écran, fond illustré, un seul bouton -->
+    <div id="vue-chantier" style="display:none">
+      <div id="chantier-fond"></div>
+      <div class="ch-corps">
+        <div class="ch-haut">
+          <button id="ch-retour" class="retour" aria-label="Retour à la carte">←</button>
+          <div class="ch-ident">
+            <h2 id="ch-nom"></h2>
+            <p id="ch-meta"></p>
+          </div>
+        </div>
+        <div class="ch-bas">
+          <div id="ch-vignettes" class="ch-vignettes"></div>
+          <div id="ch-jauge"></div>
+          <p id="ch-avance" class="ch-avance"></p>
+          <button id="btn-fouiller" class="btn-primaire btn-pioche">
+            Fouiller · <b id="ch-cout"></b> ◈
+          </button>
+          <button id="ch-relire" class="btn-fant">Relire la présentation du site</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COLLECTION ============ -->
+  <section id="ecran-collection" class="ecran">
+    <div class="col-tete">
+      <h2>Collection</h2>
+      <span id="col-compte" class="col-compte"></span>
+    </div>
+    <div id="col-corps"></div>
+  </section>
+
+  <!-- ============ BOURSE ============ -->
+  <section id="ecran-bourse" class="ecran">
+    <div class="col-tete"><h2>Bourse de recherche</h2></div>
+    <div id="bourse-corps"></div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button data-ecran="fouille" class="on"><span>⛏️</span>Fouille</button>
+  <button data-ecran="collection"><span>🧬</span>Collection</button>
+  <button data-ecran="bourse"><span>🎓</span>Bourse</button>
+</nav>
+
+<!-- ============ SUPERPOSITIONS ============ -->
+
+<!-- Déblocage d'un site -->
+<div id="modal"><div class="md-panneau" id="modal-corps"></div></div>
+
+<!-- Introduction théorique d'un site -->
+<div id="intro">
+  <div id="intro-fond"></div>
+  <div class="intro-corps">
+    <p id="intro-accroche" class="intro-accroche"></p>
+    <h2 id="intro-titre"></h2>
+    <p id="intro-txt"></p>
+    <div id="intro-dots" class="dots"></div>
+    <button id="intro-next" class="btn-primaire"></button>
+  </div>
+</div>
+
+<!-- Question d'entrée en tranchée -->
+<div id="tranchee"><div class="tr-panneau" id="tranchee-corps"></div></div>
+
+<!-- Révélation de la pièce extraite -->
+<div id="reveal"><div id="reveal-corps"></div></div>
+
+<!-- Fiche documentaire -->
+<div id="fiche">
+  <div class="fi-panneau">
+    <button id="fiche-fermer" class="fermer" aria-label="Fermer">✕</button>
+    <div id="fiche-corps"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
