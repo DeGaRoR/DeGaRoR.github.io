@@ -54,7 +54,7 @@ const ctx={};
 new Function(fs.readFileSync(path.join(R,'data.js'),'utf8')
   +'\n'+fs.readFileSync(path.join(R,'app.js'),'utf8')
   +'\n;Object.assign(this,{etat,CREATURES,SITES,PACKS,QUIZ_PALEO,HISTOIRE,COUT_FOUILLE,'
-  +'NB_MISSION,BAREME,BONUS_SITE,SEUILS_DOC,CREDITS_DEPART,fouiller,niveauDoc,fragments,'
+  +'NB_MISSION,BAREME,BONUS_SITE,BONUS_PART,bonusDe,SEUILS_DOC,CREDITS_DEPART,fouiller,niveauDoc,fragments,'
   +'possede,siteComplet,nbTrouvees,ouvert,debloquer,ouvrirSite,genConjugaison,genMaths,'
   +'choisirBanque,choisirQuestionSite,poserQuestionSite,repFouille,tirage,egal,normRep,'
   +'avancePack,prog,packNiv,creaturesDe,fondsDuSite,bareme,'
@@ -151,7 +151,7 @@ for(const s of ctx.SITES){
     ctx.repFouille(q.q.r, {classList:{add(){}}});   // on répond juste
     ctx.tirage();
     ctx.fermerVoile(); tirages++; garde++;
-    const bonus=(!bonusAv && ctx.etat.sitesBonus[s.id]) ? ctx.BONUS_SITE : 0;
+    const bonus=(!bonusAv && ctx.etat.sitesBonus[s.id]) ? ctx.bonusDe(s.id) : 0;
     if(ctx.etat.credits !== soldeAv - ctx.COUT_FOUILLE + bonus) anomalies++;
     if(ctx.nbTrouvees(s.id) < nAv) anomalies++;     // la collection ne régresse jamais
   }
@@ -165,9 +165,17 @@ T('comptabilité exacte sur '+tirages+' fouilles', anomalies===0, anomalies+' é
    la pondération 3:1 en faveur des inédits porte la moyenne autour de 55. Une
    dérive nette de cette moyenne signalerait une pondération cassée. */
 const moy=fouillesParSite.reduce((a,b)=>a+b,0)/fouillesParSite.length;
-T('un site se documente en 36 fouilles au minimum', Math.min(...fouillesParSite)>=36,
-  Math.min(...fouillesParSite)+'');
-T('moyenne de 45 à 70 fouilles par site', moy>=45&&moy<=70, moy.toFixed(1));
+/* Le minimum théorique dépend de la taille du site : six fragments par créature.
+   Yixian en compte huit, donc 48 et non 36. On raisonne donc par créature. */
+const parCreature=ctx.SITES.map((s,i)=>fouillesParSite[i]/ctx.creaturesDe(s.id).length);
+ctx.SITES.forEach((s,i)=>{
+  const mini=6*ctx.creaturesDe(s.id).length;
+  T('site '+s.id+' : au moins '+mini+' fouilles', fouillesParSite[i]>=mini,
+    fouillesParSite[i]+'');
+});
+const moyParCrea=parCreature.reduce((a,b)=>a+b,0)/parCreature.length;
+T('effort moyen de 7,5 à 11,5 fouilles par créature',
+  moyParCrea>=7.5&&moyParCrea<=11.5, moyParCrea.toFixed(2));
 T('tous les sites achevés', ctx.SITES.every(s=>ctx.siteComplet(s.id)));
 T('une fouille finit toujours par livrer quelque chose',
   ctx.CREATURES.every(c=>ctx.fragments(c.id)>0));

@@ -19,20 +19,20 @@ const src=lire('data.js');
 const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
-  +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,HISTOIRE,'
+  +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
   +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,'
   +'SEUILS_DOC,FOUILLE_VIDE});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
-       BAREME,BONUS_SITE,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN}=sandbox;
+       BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde.jpg']
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('six créatures par site', CREATURES.length===SITES.length*6, CREATURES.length+' trouvées');
+T('110 créatures', CREATURES.length===110, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
@@ -46,10 +46,11 @@ CREATURES.forEach(c=>{
 });
 
 /* ---------- 3. Sites ---------- */
-T('treize sites', SITES.length===13, SITES.length+'');
+T('dix-huit sites', SITES.length===18, SITES.length+'');
 SITES.forEach(s=>{
   T('fond satellite '+s.id, existe(s.fond), s.fond);
-  T('6 créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length===6);
+  T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
+    CREATURES.filter(c=>c.site===s.id).length+'');
   T('pin dans la carte '+s.id, s.x>0&&s.x<1535&&s.y>0&&s.y<1024, s.x+','+s.y);
   T('introduction développée '+s.id, Array.isArray(s.intro)&&s.intro.length>=5, (s.intro||[]).length+' volets');
   s.intro.forEach((p,i)=>T('volet '+(i+1)+' substantiel ('+s.id+')', p.length>200, p.length+' car.'));
@@ -233,7 +234,14 @@ T('sites classés du plus ancien au plus récent',
 T('coûts tous distincts', new Set(SITES.map(s=>s.cout)).size===SITES.length);
 T('coûts étalés sur au moins un facteur 4',
   Math.max(...SITES.map(s=>s.cout))>=4*Math.min(...SITES.map(s=>s.cout)));
-T('le bonus de site dépasse le coût du site le moins cher', BONUS_SITE>moinsCher);
+const bonusDe=s=>Math.max(BONUS_SITE, Math.round(s.cout*BONUS_PART));
+T('le bonus de site dépasse le coût du site le moins cher', bonusDe(SITES[0])>moinsCher);
+T('part de bonus comprise entre 0 et 1', BONUS_PART>0 && BONUS_PART<1, BONUS_PART+'');
+/* Le plancher fait qu'un site bon marché rend plus qu'il n'a coûté à ouvrir :
+   c'est voulu, cela récompense les premiers pas. Ce qui ne doit jamais arriver,
+   c'est qu'ouvrir puis compléter un site rapporte de l'argent. */
+SITES.forEach(s=>T('compléter '+s.id+' ne rapporte pas d’argent net',
+  s.cout + 13*COUT_FOUILLE > bonusDe(s), bonusDe(s)+' rendu pour '+(s.cout+13*COUT_FOUILLE)+' dépensé'));
 T('seuils documentaires croissants',
   SEUILS_DOC.length===3 && SEUILS_DOC[0]===0 && SEUILS_DOC[1]<SEUILS_DOC[2]);
 /* Environ 50 coups de pioche par site : 20 questions vues 2 à 3 fois. */

@@ -64,6 +64,11 @@ let etat=normaliser(lireLS()||etatVide());
 function sauver(){try{localStorage.setItem(ATLAS_CLE,JSON.stringify(etat));}catch(e){toast('Sauvegarde impossible');}}
 
 const creaturesDe=site=>CREATURES.filter(c=>c.site===site);
+/* Le bonus d'achèvement suit le coût du site : ouvrir Ouadi al-Hitan coûte
+   près de dix fois Burgess, le rendre ne peut pas rapporter autant. Le plancher
+   garde les premiers sites généreux. */
+const bonusDe=id=>{const s=SITES.find(x=>x.id===id);
+  return s?Math.max(BONUS_SITE,Math.round(s.cout*BONUS_PART)):BONUS_SITE;};
 const possede=id=>(etat.collection[id]||0)>0;
 const fragments=id=>etat.collection[id]||0;
 const ouvert=id=>!!etat.sitesOuverts[id];
@@ -367,7 +372,12 @@ function chantier(id){
   $('#ch-meta').textContent=s.region+' · '+s.ere;
   $('#ch-jauge').innerHTML=`<div class="jauge"><i style="width:${n/tot*100}%"></i></div>`;
   $('#ch-avance').textContent=n+' / '+tot+' créatures identifiées';
-  $('#ch-vignettes').innerHTML=creaturesDe(id).map(c=>{
+  /* Les sites n'ont plus tous six créatures : Yixian en compte huit. Au-delà
+     de six, on répartit sur deux rangées plutôt que d'en laisser une dépareillée. */
+  const cs=creaturesDe(id);
+  $('#ch-vignettes').style.gridTemplateColumns=
+    'repeat('+(cs.length<=6?cs.length:Math.ceil(cs.length/2))+',1fr)';
+  $('#ch-vignettes').innerHTML=cs.map(c=>{
     const ok=possede(c.id);
     return `<button class="vig${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}
       title="${ok?esc(c.nom):'Non découverte'}">
@@ -486,7 +496,7 @@ function tirage(){
   if(!etat.ordre[c.id]) etat.ordre[c.id]=++etat.ordreN;
   const apres=niveauDoc(c.id);
   const complet=siteComplet(siteActif) && !etat.sitesBonus[siteActif];
-  if(complet){ etat.sitesBonus[siteActif]=true; etat.credits+=BONUS_SITE; }
+  if(complet){ etat.sitesBonus[siteActif]=true; etat.credits+=bonusDe(siteActif); }
   sauver(); majSolde(true);
   revealCarte(c, avant===0?'nouvelle':(apres>avant?'dossier':'fragment'), apres, complet);
 }
@@ -507,7 +517,7 @@ function revealCarte(c,type,niv,bonusSite){
     <div class="rev-etat ${type}">${esc(bandeau)}</div>
     <div class="rev-nom">${esc(c.nom)}</div>
     <div class="rev-sous">${esc(sous)}</div>
-    ${bonusSite?`<div class="rev-bonus">🏅 ${esc(s.court)} complété — +${BONUS_SITE} \u25C8</div>`:''}
+    ${bonusSite?`<div class="rev-bonus">🏅 ${esc(s.court)} complété — +${bonusDe(s.id)} \u25C8</div>`:''}
     <button class="btn-primaire" onclick="fermerReveal('${c.id}')">Consulter la fiche</button>
     <button class="btn-fant" onclick="fermerReveal()">Rester sur le chantier</button>`;
   $('#reveal').classList.add('on');

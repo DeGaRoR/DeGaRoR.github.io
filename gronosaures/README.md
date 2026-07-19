@@ -34,7 +34,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~4150 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js      # ~5370 assertions : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -49,7 +49,7 @@ de Madagascar, et que personne ne l'avait vu pendant trois versions. Elle a ress
 depuis, en attrapant l'Anti-Atlas posé sur un liseré côtier.
 
 `smoke.js` joue la boucle réelle — ouvrir un chantier, poser la question, répondre,
-tirer — jusqu'à documenter intégralement les treize sites, et contrôle la
+tirer — jusqu'à documenter intégralement les dix-huit sites, et contrôle la
 comptabilité des crédits à l'unité près ainsi que la platitude de la répartition des
 questions. Il fixe la graine de `Math.random` : un harnais qui échoue une fois sur
 quinze finit par être ignoré. `GRAINE`, en tête de fichier, permet de rejouer une
@@ -63,41 +63,52 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v4), 100 entrées ; incrémenter VERSION pour publier
+sw.js           cache-first versionné (atlas-v6), 137 entrées ; la liste est dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
-cartes/         78 illustrations, nommées d'après creature_id
-sites/          13 vues de site, fond des écrans d'ouverture et d'introduction
+cartes/         110 illustrations, nommées d'après creature_id
+sites/          18 vues de site
 tools/          qc.js, smoke.js, ingest.py, pins.py, masque_terre.json, AJOUT_PACK.md
 ```
 
 ## Contenu
 
-Treize sites, 78 créatures, 260 questions de fouille. `SITES` est classé du plus
+Dix-huit sites, 110 créatures, 360 questions de fouille. `SITES` est classé du plus
 ancien au plus récent, et c'est cet ordre qui structure la collection :
 
-| | Site | Époque | Coût |
-|---|---|---|---|
-| 1 | Côte d'Hiver, mer Blanche | Édiacarien, 558–550 Ma | 560 ◈ |
-| 2 | Anti-Atlas marocain | Cambrien → Dévonien, 509–393 Ma | 260 ◈ |
-| 3 | Schiste de Burgess | Cambrien moyen, 508–505 Ma | 80 ◈ |
-| 4 | Groupe de Yezo, Hokkaidō | Ordovicien → Crétacé, 470–66 Ma | 680 ◈ |
-| 5 | Calcaire de Bear Gulch | Dévonien → Permien, 410–272 Ma | 740 ◈ |
-| 6 | Schistes du Hunsrück | Dévonien inférieur, 408–400 Ma | 500 ◈ |
-| 7 | Carrière d'East Kirkton | Carbonifère, 340–299 Ma | 440 ◈ |
-| 8 | Mazon Creek | Carbonifère, 310–307 Ma | 320 ◈ |
-| 9 | Bassin du Karoo | Permien → Trias, 265–247 Ma | 200 ◈ |
-| 10 | Biote de Luoping | Trias moyen, 247–242 Ma | 620 ◈ |
-| 11 | De Bernissart à Maastricht | Crétacé, 130–66 Ma | 140 ◈ |
-| 12 | Formation de Yixian | Crétacé inférieur, 126–120 Ma | 380 ◈ |
-| 13 | Ouadi al-Hitan | Éocène → Oligocène, 51–24 Ma | 800 ◈ |
+| | Site | Époque | Créatures | Coût |
+|---|---|---|---|---|
+| 1 | Côte d'Hiver, mer Blanche | Édiacarien, 558–550 Ma | 6 | 600 ◈ |
+| 2 | Anti-Atlas marocain | Cambrien → Dévonien, 509–393 Ma | 6 | 280 ◈ |
+| 3 | Schiste de Burgess | Cambrien moyen, 508–505 Ma | 6 | 80 ◈ |
+| 4 | Groupe de Yezo, Hokkaidō | Ordovicien → Crétacé, 470–66 Ma | 6 | 680 ◈ |
+| 5 | Calcaire de Bear Gulch | Dévonien → Permien, 410–272 Ma | 6 | 720 ◈ |
+| 6 | Schistes du Hunsrück | Dévonien inférieur, 408–400 Ma | 6 | 520 ◈ |
+| 7 | Falaise de Miguasha | Dévonien supérieur, 385–360 Ma | 6 | 480 ◈ |
+| 8 | Carrière d'East Kirkton | Carbonifère, 340–299 Ma | 6 | 400 ◈ |
+| 9 | Mazon Creek | Carbonifère, 310–307 Ma | 6 | 320 ◈ |
+| 10 | Bassin du Karoo | Permien → Trias, 265–247 Ma | 6 | 160 ◈ |
+| 11 | Biote de Luoping | Trias moyen, 247–242 Ma | 6 | 640 ◈ |
+| 12 | Faune de Zhenghe | Jurassique, 186–150 Ma | 6 | 560 ◈ |
+| 13 | Formation de Morrison | Jurassique supérieur, 157–148 Ma | 6 | 200 ◈ |
+| 14 | De Bernissart à Maastricht | Crétacé, 130–66 Ma | 6 | 120 ◈ |
+| 15 | Formation de Yixian | Crétacé inférieur, 126–120 Ma | **8** | 360 ◈ |
+| 16 | Bassin de Nemegt | Crétacé supérieur, 70–68 Ma | 6 | 440 ◈ |
+| 17 | Hell Creek | Crétacé terminal, 68–66 Ma | 6 | 240 ◈ |
+| 18 | Ouadi al-Hitan | Éocène → Oligocène, 51–24 Ma | 6 | 760 ◈ |
 
 Les coûts d'ouverture ne suivent pas l'ordre chronologique : ils dessinent un
-parcours de jeu, treize paliers de 60 ◈ à partir de 80.
+parcours de jeu, dix-huit paliers de 40 ◈ à partir de 80.
 
-Cinq de ces « sites » suivent en réalité un groupe ou une lignée plutôt qu'un
-gisement : l'Anti-Atlas pour les trilobites, Hokkaidō pour les céphalopodes,
-Bear Gulch pour les chondrichthyens paléozoïques, East Kirkton pour les géants du
-Carbonifère, Ouadi al-Hitan pour l'origine des cétacés. Le lieu n'est alors qu'un
+Les sites n'ont pas tous le même nombre de créatures. Yixian en compte huit depuis
+l'index complet ; la grille de vignettes, les portes de qualité et le calcul d'effort
+du harnais raisonnent donc par créature et non par site.
+
+Huit de ces « sites » suivent en réalité un groupe, une lignée, une formation ou
+même une démarche plutôt qu'un gisement ponctuel : l'Anti-Atlas pour les trilobites,
+Hokkaidō pour les céphalopodes, Bear Gulch pour les chondrichthyens paléozoïques,
+Miguasha pour l'origine des membres, East Kirkton pour les géants du Carbonifère,
+Dinosaur National Monument pour le Morrison, Zhenghe pour les révisions récentes,
+Ouadi al-Hitan pour l'origine des cétacés. Le lieu n'est alors qu'un
 point d'ancrage, et le cinquième volet de leur introduction le dit explicitement.
 La règle de choix est écrite dans `tools/AJOUT_PACK.md` § 5.
 
@@ -123,9 +134,15 @@ Trois constantes gouvernent cela dans le bloc 2 — `CARTE_ZOOM_MIN`, `CARTE_GRO
   position des grands groupes. **Écrite à la main, sans source attachée** : à relire
   si un chiffre paraît douteux.
 
-Les 260 QCM paléontologiques (20 par site) ne sont pas un pack : ils servent de droit
-d'entrée à chaque coup de pioche, dans l'onglet Fouille. Ceux-là viennent des JSON
-sources avec leurs références.
+Les 360 QCM paléontologiques (20 par site) ne sont pas un pack : ils servent de droit
+d'entrée à chaque coup de pioche, dans l'onglet Fouille.
+
+Trois cents d'entre eux viennent de la banque source, avec leurs références. Les
+soixante autres — packs Zhenghe, Nemegt et Hell Creek — ont été rédigés faute de
+source disponible, et rassemblés dans `w/quiz_complement.json` au même format. Chacun
+porte un lien de lecture : musées (NHM, Carnegie, Field Museum), revues (PNAS,
+iScience), universités, agences de presse scientifique. **À relire** : c'est du texte
+écrit, pas recopié.
 
 ## Ajouter un pack
 
@@ -137,10 +154,16 @@ python3 tools/ingest.py --packs EDI,TRI,... --assets /chemin --sortie w/data_blo
 python3 tools/pins.py                      # position proposée pour une épingle
 ```
 
-`ingest.py` recopie l'index créatures et la banque de questions sans les reformuler,
-et convertit les illustrations. Il gère les écarts de nommage déjà rencontrés :
-`LOU_` pour le pack `LUO`, `BEL_` pour le pack `NWE`, et deux conventions de numéro
-(`TRI-01 …` et `TRI1_…`).
+`ingest.py` lit `06_Index_creatures_MVP_complete.csv` (à défaut le JSON d'origine),
+recopie les fiches et la banque de questions sans les reformuler, et convertit les
+illustrations. Il gère les écarts de nommage rencontrés — alias de pack `LOU→LUO`,
+`BEL→NWE`, `GOBI→NEM`, `HELL→HC`, `JURNEW→JUR`, `YIX2→YIX` — et trois conventions de
+fichier : `HUN-01 #U2014 Nom.png`, `TRI1_Nom.png`, `GOBI_Nom scientifique.png`.
+L'appariement se fait d'abord par nom d'espèce : la forme courte « pack + numéro »
+entre en collision avec les alias numérotés, `YIX` + créature 2 donnant `YIX2`.
+
+Il n'émet jamais une fiche dont le JPEG n'existe pas : une créature sans
+illustration afficherait une image cassée dans la collection.
 
 La seule partie rédigée à la main est le bloc `SITES` : ancrage géographique,
 coordonnées de l'épingle, accroche, introduction en cinq volets, coût. C'est donc la
@@ -154,11 +177,12 @@ Tout est en tête du bloc 2 de `data.js` :
 |---|---|---|
 | `CREDITS_DEPART` | 260 | Burgess plus six coups de pioche |
 | `COUT_FOUILLE` | 30 | prix d'un coup de pioche |
-| `SITES[].cout` | 80 → 800 | ouverture d'un chantier, treize paliers de 60 ◈ |
+| `SITES[].cout` | 80 → 760 | ouverture d'un chantier, dix-huit paliers de 40 ◈ |
 | `BAREME.base` | 10 / 4 / 12 | juste · après aide · prime de mission |
 | `BAREME.histoire` | 6 / 3 / 8 | idem, filière Histoire |
 | `NB_MISSION` | 6 | exercices par mission |
-| `BONUS_SITE` | 200 | les six créatures d'un site trouvées |
+| `BONUS_SITE` | 200 | plancher du bonus d'achèvement |
+| `BONUS_PART` | 0,6 | part du coût d'ouverture rendue quand le site est complété |
 | `SEUILS_DOC` | `[0,2,5]` | fragments requis pour les niveaux 1 / 2 / 3 |
 | `FOUILLE_VIDE` | `false` | `true` autorise une fouille stérile malgré une bonne réponse |
 | `NB_ESSAIS` | 2 | essais sur la question de fouille (en tête de la section 4e d'`app.js`) |
@@ -168,8 +192,10 @@ rapporte 72 ◈, soit 2,4 coups de pioche ; une mission d'histoire, 44 ◈, soit
 Documenter un site au niveau 3 sur ses six créatures demande 53 fouilles en médiane,
 ce qui fait revenir chacune des 20 questions du site deux à trois fois.
 
-Sur les treize sites : découvrir les 78 créatures coûte environ 7 700 ◈ nets, soit
-une centaine de missions ; tout documenter au niveau 3 en coûte près de 23 000.
+Sur les dix-huit sites : découvrir les 110 créatures coûte environ 9 600 ◈ nets, soit
+134 missions. Depuis la v6, le bonus d'achèvement vaut 60 % du coût d'ouverture du
+site, avec un plancher de 200 ◈ : ouvrir Ouadi al-Hitan coûte près de dix fois
+Burgess, le compléter ne pouvait pas rapporter la même chose.
 
 Aucune pénalité ne retire de crédits acquis. Une réponse trouvée après l'indice ou au
 second essai rapporte moins et ne compte pas comme maîtrise autonome, mais donne
@@ -177,10 +203,13 @@ quand même droit au tirage.
 
 ## Ce qui n'est pas fait
 
-- **`DEV` — « Inventer les jambes »** est prêt côté données (six créatures, vingt
-  questions) et les six illustrations sont converties dans le lot reçu, mais la vue
-  de site manque. Le pack est en attente : la modale d'ouverture et l'introduction
-  s'appuient dessus. Il reste également `MOR` (Morrison) dans l'index, sans assets.
+- **Trois créatures du Morrison sont écartées** faute d'illustration : `MOR-03`
+  Camarasaurus lentus, `MOR-05` Apatosaurus louisae, `MOR-06` Dryosaurus altus.
+  L'index en déclare neuf, le jeu en propose six.
+- **Trente-deux masses restent « non estimables »** — l'Édiacarien, Mazon Creek, le
+  Hunsrück, les trilobites, deux céphalopodes. Ce n'est pas un oubli de l'index : ces
+  organismes à corps mou ou à squelette externe n'ont pas de masse publiée robuste.
+  Y mettre un chiffre serait inventer une donnée.
 - Les 120 questions de `03_Banque_complete_questions_MVP.docx` ne sont pas intégrées :
   les trois packs d'entraînement sont générés à la place.
 - Pas de mode révision ciblé sur les erreurs passées.
