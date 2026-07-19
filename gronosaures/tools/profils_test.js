@@ -71,5 +71,38 @@ const partiel=o.normaliser({credits:5});
 T('import : état partiel complété', partiel.tri==='chantier' && typeof partiel.collection==='object');
 T('import : valeur fournie préservée', partiel.credits===5);
 
+/* 7. L'accueil ne doit se montrer qu'une fois, et jamais à un profil avancé. */
+{
+  const neuf=o.normaliser(o.etatVide());
+  T('accueil : un état neuf le réclame', neuf.accueilVu===false);
+  const vu=o.normaliser(Object.assign(o.etatVide(),{accueilVu:true}));
+  T('accueil : une fois vu, il ne revient pas', vu.accueilVu===true);
+  /* Une sauvegarde d'avant l'accueil est complétée par normaliser : le champ
+     existe, et c'est la progression qui décide si l'écran s'affiche. */
+  const ancien=o.normaliser({credits:999, collection:{'EDI-01':3}});
+  T('accueil : champ ajouté aux anciennes sauvegardes', ancien.accueilVu===false);
+  const avance=Object.keys(ancien.collection).filter(k=>ancien.collection[k]>0).length>0;
+  T('accueil : un profil déjà avancé ne le verrait pas', avance===true);
+}
+
+/* 8. L'aperçu d'une partie doit se lire sans la charger, et désigner comme
+   vignette la dernière créature déterrée. */
+{
+  const id=o.idNeuf();
+  o.ecritJSON(o.cleEtat(id), o.normaliser({
+    collection:{'EDI-01':2,'BURG-01':1,'MOR-02':3},
+    ordre:{'EDI-01':1,'BURG-01':2,'MOR-02':3}, ordreN:3}));
+  const e=o.normaliser(o.litJSON(o.cleEtat(id)));
+  const trouvees=Object.keys(e.collection).filter(k=>e.collection[k]>0);
+  let derniere=null,rang=-1;
+  trouvees.forEach(k=>{const r=(e.ordre||{})[k]||0; if(r>rang){rang=r;derniere=k;}});
+  T('aperçu : bon décompte', trouvees.length===3, String(trouvees.length));
+  T('aperçu : vignette = dernière trouvée', derniere==='MOR-02', String(derniere));
+  T('aperçu : l’état courant n’a pas bougé', o.etat.credits===999, String(o.etat.credits));
+  const vide=o.normaliser(o.etatVide());
+  const rien=Object.keys(vide.collection).filter(k=>vide.collection[k]>0);
+  T('aperçu : une partie neuve n’a pas de vignette', rien.length===0);
+}
+
 console.log('\n  RÉUSSITES ('+A+')\n  ÉCHECS ('+E+')');
 process.exit(E?1:0);

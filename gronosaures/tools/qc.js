@@ -21,12 +21,12 @@ try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
   +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,'
-  +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE});')).call(sandbox); }
+  +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE,CREATURE_ACCUEIL});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
-       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,ART_EU,ART_MONDE}=sandbox;
+       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
@@ -425,6 +425,56 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     const poids=ill.reduce((a,p)=>a+fs.statSync(path.join(R,p)).size,0);
     T('images d\u2019art sous 2 Mo', poids<2e6, (poids/1e6).toFixed(2)+' Mo');
   }
+}
+
+/* ---------- 8 nonies. Accueil ----------
+   Le premier écran décide de ce qu'on croit ouvrir. On vérifie qu'il existe,
+   qu'il nomme la joueuse, qu'il explique les trois écrans et le but, et surtout
+   qu'il ne revient pas : un écran d'accueil qui se rejoue est une punition. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  T('écran d’accueil présent', html.includes('id="accueil"') && css.includes('#accueil'));
+  T('l’accueil demande un nom', html.includes('id="acc-nom"'));
+  T('l’accueil ne se rejoue pas', app.includes('etat.accueilVu=true'));
+  T('accueilVu fait partie de l’état', app.includes('accueilVu:false'));
+  T('un profil déjà avancé saute l’accueil', app.includes('trouvees().length===0'));
+  T('le guide couvre les trois écrans',
+    app.includes('<b>Bourse.</b>') && app.includes('<b>Fouille.</b>') && app.includes('<b>Collection.</b>'));
+  T('le guide énonce le but', app.includes('<b>Le but</b>'));
+  T('le nombre de chantiers du guide est calculé', app.includes('${SITES.length} chantiers'));
+  /* La créature d'accueil doit exister et son illustration être présente. */
+  const c=CREATURES.find(x=>x.id===CREATURE_ACCUEIL);
+  T('créature d’accueil déclarée', !!c, String(CREATURE_ACCUEIL));
+  if(c) T('illustration d’accueil présente et en cache',
+    fs.existsSync(path.join(R,c.img)) && fs.readFileSync(path.join(R,'sw.js'),'utf8').includes(c.img));
+  T('un seul dialogue natif pour nommer', !/prompt\('Nom du nouveau profil/.test(app));
+}
+
+/* ---------- 8 decies. Choix de la partie ----------
+   Il n'y a ni mot de passe ni compte : le risque n'est pas l'intrusion mais la
+   méprise, jouer une heure sur la partie de quelqu'un d'autre. L'écran ne doit
+   donc apparaître que s'il y a réellement un choix, et il doit montrer assez
+   pour qu'on reconnaisse sa partie sans l'ouvrir. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  T('écran de choix présent',
+    html.includes('id="choix-profil"') && css.includes('#choix-profil'));
+  T('il ne s’affiche qu’à partir de deux parties',
+    app.includes('registre.liste.length>1'));
+  T('chaque tuile montre le nom et l’avancement',
+    app.includes('cp-nom') && app.includes('cp-compte'));
+  T('la vignette vient de la dernière créature trouvée',
+    app.includes('function apercuProfil') && app.includes('(e.ordre||{})[k]'));
+  T('on peut créer une partie depuis l’écran', app.includes('profilDepuisChoix'));
+  T('l’aperçu ne charge pas l’état courant', app.includes('litJSON(cleEtat(id))'));
+  T('aucun mot de passe nulle part', !/password|motDePasse|mot_de_passe/i.test(app));
+  /* La liste redondante du panneau a été retirée au profit de cet écran. */
+  T('pas deux listes de profils concurrentes',
+    !app.includes("vueReglages==='liste'") && !css.includes('.rg-profil'));
 }
 
 /* ---------- 9. Économie ---------- */

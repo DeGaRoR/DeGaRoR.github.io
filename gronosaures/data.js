@@ -727,6 +727,12 @@ const SITES=[
    1 535 px de large — on aurait grossi la source huit fois et demie. Avec la carte
    en 6 140 px, un viewBox de 40 px ne demande qu'un grossissement de 2,1 : c'est
    la haute résolution qui rend ce niveau de zoom lisible. */
+/* Créature de l'écran d'accueil. Helicoprion : cinq à huit mètres, et une scie
+   de dents enroulée en spirale dans la mâchoire inférieure — on a mis un siècle
+   à comprendre où cet organe se plaçait. Changer cette constante suffit à changer
+   l'accueil ; toute créature de l'atlas fait l'affaire. */
+const CREATURE_ACCUEIL='CHO-05';
+
 const CARTE_ZOOM_MIN=40;      // largeur minimale du viewBox, en px de carte
 const CARTE_GROUPE=56;        // en deçà de cette distance à l'écran, deux épingles fusionnent
 const CARTE_LARGEUR_MIN=340;  // largeur d'affichage la plus étroite envisagée

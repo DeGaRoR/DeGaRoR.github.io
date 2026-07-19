@@ -47,7 +47,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 node --check data.js && node --check app.js && node --check sw.js
 node tools/qc.js           # ~8190 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
-node tools/profils_test.js # 22 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
+node tools/profils_test.js # 30 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -76,7 +76,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v22), 212 entrées (globes et art inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v24), 212 entrées (globes et art inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -343,6 +343,56 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Choix de la partie — v24
+
+Un écran « Qui joue ? » au lancement, sur le modèle des sélecteurs de profil
+habituels, mais **entièrement local et sans mot de passe** : il n'y a pas de compte
+à protéger, seulement une méprise à éviter — jouer une heure sur la partie de
+quelqu'un d'autre ne se voit qu'après coup.
+
+**Il n'apparaît qu'à partir de deux parties.** Avec une seule, ce serait une
+formalité qui retarde l'entrée : l'application ouvre directement.
+
+**La vignette d'une partie est la dernière créature qu'elle a déterrée.** Personne
+n'a d'avatar à choisir : on reconnaît sa partie à ce qu'on y a trouvé, et la vignette
+change au fur et à mesure. Une partie neuve montre un losange vide. L'aperçu lit
+directement la clé d'état du profil concerné sans toucher à la partie en cours.
+
+Le panneau ⚙ renvoie désormais vers ce même écran plutôt que d'afficher une seconde
+liste : deux listes de profils concurrentes auraient fini par diverger. La branche
+correspondante et ses six règles CSS ont été retirées, et `qc.js` vérifie qu'elles ne
+reviennent pas.
+
+## Écran d'accueil — v23
+
+Un profil neuf commence par un écran plein cadre : **Helicoprion**, cinq à huit mètres,
+avec sa scie de dents enroulée en spirale dans la mâchoire inférieure. On a mis un
+siècle à comprendre où cet organe se plaçait. La constante `CREATURE_ACCUEIL` la
+désigne ; n'importe laquelle des 151 créatures de l'atlas peut la remplacer en changeant
+une ligne.
+
+L'image occupe tout l'écran avec un lent zoom de vingt-quatre secondes, un voile qui
+monte du bas, et trois éléments seulement : la phrase, le champ, le bouton.
+
+> **Gronosaures et Trilobytes**
+> Prête à remonter les âges et à rencontrer les bêtes les plus invraisemblables qui
+> aient jamais existé ?
+> *Comment veux-tu qu'on t'appelle ?*
+
+Le nom saisi renomme le profil actif — c'est le même mécanisme que les profils de la
+v20, sans dialogue supplémentaire. `nouveauProfil()` ne demande d'ailleurs plus rien :
+un profil créé part sur cet écran, qui le nommera dans son propre décor.
+
+Vient ensuite le guide, en trois lignes et un but, puis plus jamais.
+
+**Ce qui est vérifié.** `etat.accueilVu` retient que l'écran a été vu ; un écran
+d'accueil qui se rejoue est une punition. Un profil migré d'une version antérieure,
+qui a déjà des créatures, ne le voit pas du tout : il sait à quoi il joue. `qc.js`
+contrôle que l'écran existe, qu'il demande un nom, qu'il ne se rejoue pas, que le guide
+couvre bien les trois onglets et le but, que le nombre de chantiers y est calculé
+plutôt qu'écrit en dur, et que l'illustration d'accueil est dans le cache hors ligne.
+`tools/profils_test.js` ajoute quatre assertions sur le champ `accueilVu`.
 
 ## Accompagnement scolaire — v22
 

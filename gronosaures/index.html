@@ -89,6 +89,30 @@
 
 </main>
 
+<!-- Accueil : premier écran d'un profil neuf. Il nomme la joueuse et explique
+     la boucle de jeu en trois lignes, puis ne revient plus. -->
+<div id="accueil">
+  <div id="acc-fond"></div>
+  <div class="acc-voile"></div>
+  <div class="acc-corps">
+    <p class="acc-sur">Atlas du temps profond</p>
+    <h1 class="acc-titre">Gronosaures<br><span>et Trilobytes</span></h1>
+    <p class="acc-phrase">Prête à remonter les âges et à rencontrer les bêtes
+      les plus invraisemblables qui aient jamais existé&nbsp;?</p>
+    <label class="acc-lab" for="acc-nom">Comment veux-tu qu’on t’appelle&nbsp;?</label>
+    <input id="acc-nom" type="text" maxlength="24" autocomplete="off"
+           placeholder="Ton nom" enterkeyhint="go">
+    <button class="btn-primaire acc-go" onclick="validerAccueil()">C’est parti</button>
+    <p class="acc-credit" id="acc-credit"></p>
+  </div>
+</div>
+
+<!-- Choix du profil au lancement, dès qu'il y en a plus d'un. Aucun mot de passe :
+     tout est local, et le seul enjeu est de ne pas jouer sur la mauvaise partie. -->
+<div id="choix-profil"><div class="cp-corps" id="cp-corps"></div></div>
+
+<div id="guide"><div class="md-panneau" id="guide-corps"></div></div>
+
 <div id="reglages"><div class="md-panneau" id="reglages-corps"></div></div>
 <input type="file" id="fichier-import" accept="application/json,.json" hidden
        onchange="importerProgression(this.files[0]); this.value='';">

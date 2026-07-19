@@ -60,7 +60,7 @@ const SCHEMA=1;                             // version du format d'échange
 function etatVide(){
   return {credits:CREDITS_DEPART, collection:{}, packprog:{}, sitesOuverts:{},
           introVue:{}, sitesBonus:{}, qSite:{}, fouilles:0, echecs:0,
-          stats:{}, ordre:{}, ordreN:0, tri:'chantier'};
+          stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false};
 }
 function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
 
@@ -116,7 +116,8 @@ function basculerProfil(id){
   fermerReglages();
   siteActif=null;
   majNomProfil(); majSolde(); majFondGlobal(); vueCarte(); montrer('fouille');
-  toast('Profil : '+(profilActif()||{}).nom);
+  if(besoinAccueil()) ouvrirAccueil();
+  else toast('Profil : '+(profilActif()||{}).nom);
 }
 
 function creerProfil(nom){
@@ -896,19 +897,7 @@ function ouvrirReglages(v){
   const n=trouvees().length, ch=SITES.filter(s=>etat.sitesOuverts[s.id]).length;
   let html;
 
-  if(vueReglages==='liste'){
-    html=`<p class="md-sur">Profils</p>
-      <h3>Qui joue&nbsp;?</h3>
-      <div class="rg-profils">${registre.liste.map(x=>{
-        const e=normaliser(litJSON(cleEtat(x.id))||etatVide());
-        const t=Object.keys(e.collection||{}).filter(k=>e.collection[k]>0).length;
-        return `<button class="rg-profil${x.id===registre.actif?' on':''}"
-          onclick="basculerProfil('${x.id}')">
-          <b>${esc(x.nom)}</b><small>${t} / ${CREATURES.length} créatures</small></button>`;
-      }).join('')}</div>
-      <button class="btn-fant" onclick="nouveauProfil()">＋ Nouveau profil</button>
-      <button class="btn-fant" onclick="ouvrirReglages('profil')">Retour</button>`;
-  }else if(vueReglages==='maj'){
+  if(vueReglages==='maj'){
     html=`<p class="md-sur">Mise à jour</p>
       <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
       <p class="rg-note">À faire seulement si une nouvelle version a été installée
@@ -925,7 +914,7 @@ function ouvrirReglages(v){
       <p class="rg-ligne"><span>Crédits</span><b>${etat.credits} \u25C8</b></p>
       <p class="rg-ligne"><span>Version</span><b>${esc(VERSION_APP)}</b></p>
       <div class="rg-actions">
-        <button class="btn-fant" onclick="ouvrirReglages('liste')">Changer de profil</button>
+        <button class="btn-fant" onclick="fermerReglages(); ouvrirChoixProfil()">Changer de partie</button>
         <button class="btn-fant" onclick="renommerActif()">Renommer</button>
         <button class="btn-fant" onclick="exporterProgression()">Exporter la progression</button>
         <button class="btn-fant" onclick="choisirFichierImport()">Importer un fichier</button>
@@ -944,6 +933,116 @@ function fermerReglages(){ vueReglages='profil'; $('#reglages').classList.remove
 
 /* Rappeler le profil courant dans le bandeau. Appelé à chaque bascule et au
    démarrage : c'est la seule chose à l'écran qui distingue deux progressions. */
+/* ---------- Choix du profil ----------
+   Aucun mot de passe : tout est local, et le seul risque n'est pas l'intrusion
+   mais la méprise — jouer une heure sur la partie de quelqu'un d'autre. L'écran
+   ne s'affiche donc que s'il y a réellement un choix à faire. */
+
+/* Résumé d'un profil sans le charger : on lit sa clé d'état directement. */
+function apercuProfil(id){
+  const e=normaliser(litJSON(cleEtat(id))||etatVide());
+  const trouvees=Object.keys(e.collection||{}).filter(k=>e.collection[k]>0);
+  /* La vignette est la DERNIÈRE créature déterrée : on reconnaît sa partie à ce
+     qu'on y a trouvé, ce qui évite d'avoir à choisir une image. */
+  let derniere=null, rang=-1;
+  trouvees.forEach(k=>{ const r=(e.ordre||{})[k]||0; if(r>rang){rang=r; derniere=k;} });
+  const c=derniere?CREATURES.find(x=>x.id===derniere):null;
+  return {n:trouvees.length, creature:c};
+}
+
+function ouvrirChoixProfil(){
+  $('#cp-corps').innerHTML=`
+    <p class="cp-sur">Atlas du temps profond</p>
+    <h2 class="cp-titre">Qui joue&nbsp;?</h2>
+    <div class="cp-grille">
+      ${registre.liste.map(p=>{
+        const a=apercuProfil(p.id);
+        return `<button class="cp-tuile${p.id===registre.actif?' actif':''}"
+          onclick="entrerProfil('${p.id}')">
+          <span class="cp-vig">${a.creature
+            ? `<img src="${a.creature.img}" loading="lazy" alt="">`
+            : '<span class="cp-vide">\u25C8</span>'}</span>
+          <span class="cp-nom">${esc(p.nom)}</span>
+          <span class="cp-compte">${a.n} / ${CREATURES.length} créatures</span>
+        </button>`;
+      }).join('')}
+      <button class="cp-tuile cp-neuf" onclick="profilDepuisChoix()">
+        ＋<br>Nouvelle partie</button>
+    </div>`;
+  $('#choix-profil').classList.add('on');
+}
+function fermerChoixProfil(){ $('#choix-profil').classList.remove('on'); }
+
+/* Entrer dans un profil depuis l'écran de choix : si c'est déjà l'actif, il n'y
+   a rien à basculer, seulement l'écran à refermer. */
+function entrerProfil(id){
+  fermerChoixProfil();
+  if(id===registre.actif){
+    if(besoinAccueil()) ouvrirAccueil();
+    return;
+  }
+  basculerProfil(id);
+}
+
+function profilDepuisChoix(){ fermerChoixProfil(); creerProfil(''); }
+
+/* ---------- Accueil et guide ----------
+   Un profil neuf commence par un écran qui le nomme et par trois lignes
+   d'explication. Ensuite, plus jamais : `etat.accueilVu` le retient.
+   Un profil qui a déjà de la progression n'y passe pas — il a été migré
+   d'une version antérieure et sait déjà à quoi il joue. */
+function besoinAccueil(){
+  return !etat.accueilVu && trouvees().length===0;
+}
+
+function ouvrirAccueil(){
+  const c=CREATURES.find(x=>x.id===CREATURE_ACCUEIL)||CREATURES[0];
+  const el=$('#acc-fond');
+  if(el && c) el.style.backgroundImage='url("'+c.img+'")';
+  const cr=$('#acc-credit');
+  if(cr && c) cr.textContent=c.nom+' \u2014 '+c.periode;
+  const nom=$('#acc-nom');
+  if(nom){
+    const p=profilActif();
+    /* On ne pré-remplit pas « Profil 1 » : un champ occupé n'invite pas à écrire. */
+    nom.value=(p && !/^Profil \d+$/.test(p.nom)) ? p.nom : '';
+    nom.addEventListener('keydown',e=>{ if(e.key==='Enter') validerAccueil(); });
+  }
+  $('#accueil').classList.add('on');
+  setTimeout(()=>{ if(nom) nom.focus(); },420);
+}
+
+function validerAccueil(){
+  const nom=$('#acc-nom');
+  const v=(nom?nom.value:'').trim().slice(0,24);
+  const p=profilActif();
+  if(p && v){ p.nom=v; ecritJSON(PROFILS_CLE, registre); majNomProfil(); }
+  etat.accueilVu=true; sauver();
+  $('#accueil').classList.remove('on');
+  ouvrirGuide();
+}
+
+function ouvrirGuide(){
+  $('#guide-corps').innerHTML=`
+    <p class="md-sur">Comment ça marche</p>
+    <h3>Trois écrans, un seul but</h3>
+    <div class="gd-ligne"><span class="gd-ico">🎓</span>
+      <p class="gd-txt"><b>Bourse.</b> Tu réponds à des questions et tu gagnes
+        des crédits de recherche. C’est ce qui finance les fouilles.</p></div>
+    <div class="gd-ligne"><span class="gd-ico">⛏️</span>
+      <p class="gd-txt"><b>Fouille.</b> Tu ouvres un chantier sur la carte du monde,
+        puis tu creuses : chaque bonne réponse sur le site dégage une créature.</p></div>
+    <div class="gd-ligne"><span class="gd-ico">🧬</span>
+      <p class="gd-txt"><b>Collection.</b> Tout ce que tu as trouvé, à classer par
+        chantier, par période, par famille, ou à voir sur la frise du temps.</p></div>
+    <div class="gd-but"><b>Le but</b>
+      Fouiller les ${SITES.length} chantiers du monde et reconstituer l’histoire du
+      vivant, des premiers organismes d’il y a 560 millions d’années jusqu’à hier.</div>
+    <button class="btn-primaire" onclick="fermerGuide()">Commencer à fouiller</button>`;
+  $('#guide').classList.add('on');
+}
+function fermerGuide(){ $('#guide').classList.remove('on'); }
+
 function choisirFichierImport(){
   const el=document.getElementById('fichier-import');
   if(el) el.click(); else toast('Import indisponible');
@@ -956,10 +1055,9 @@ function majNomProfil(){
 
 /* Saisie de texte : l'application n'a aucun champ ailleurs, on garde donc le
    dialogue natif plutôt que d'inventer un clavier maison. */
-function nouveauProfil(){
-  const n=prompt('Nom du nouveau profil ?','Profil '+(registre.liste.length+1));
-  if(n!==null) creerProfil(n);
-}
+/* On ne demande pas le nom ici : le profil neuf part sur l'écran d'accueil,
+   qui le demande dans son propre décor. Un dialogue de moins. */
+function nouveauProfil(){ creerProfil(''); }
 function renommerActif(){
   const p=profilActif(); if(!p) return;
   const n=prompt('Nouveau nom ?',p.nom);
@@ -1298,6 +1396,12 @@ function init(){
      le premier affichage. */
   if('requestIdleCallback' in window) requestIdleCallback(chargerCarteFine,{timeout:4000});
   else setTimeout(chargerCarteFine,1500);
+  if(!etat.accueilVu && trouvees().length>0){ etat.accueilVu=true; sauver(); }
+  /* Une seule partie : on entre directement, l'écran de choix serait une
+     formalité. Plusieurs : on demande, parce que se tromper de partie ne se
+     voit qu'après coup. */
+  if(registre.liste.length>1) ouvrirChoixProfil();
+  else if(besoinAccueil()) ouvrirAccueil();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',init);
