@@ -4306,3 +4306,318 @@ const PACKS=[
   gens:GEN_MATHS,
   theorie:"POURCENTAGES. Un pourcentage est une fraction sur 100. Augmenter de p %, c'est multiplier par (1 + p/100) ; réduire de p %, c'est multiplier par (1 − p/100). Une hausse de 20 % suivie d'une baisse de 20 % ne ramène pas au point de départ : 1,2 × 0,8 = 0,96.\n\nPROPORTIONS. La règle de trois consiste à passer par la valeur d'une unité. C'est plus lent que les produits croisés, mais on se trompe beaucoup moins.\n\nÉCHELLES. Une échelle 1:50 000 signifie que 1 cm sur la carte vaut 50 000 cm en réalité, soit 500 m. Les aires, elles, suivent le CARRÉ du rapport : 1 m² = 10 000 cm², pas 100.\n\nORDRES DE GRANDEUR. En géologie, « Ma » signifie million d'années. 500 Ma = 5 × 10⁸ ans. La notation scientifique impose une mantisse entre 1 et 10."}
 ];
+
+/* ================================================================
+   Bloc 17 : les rappels théoriques, réécrits en prose.
+
+   Ils étaient bâtis en rubriques à titre capitalisé — un catalogue
+   qu'on parcourt sans le lire. Le contenu était bon, la forme
+   décourageait d'y entrer.
+
+   Chacun est désormais un texte suivi qui va quelque part : il part
+   d'un cas concret, déroule ce qu'il faut savoir, et se referme sur ce
+   qui reste ouvert. Aucun fait n'a été retiré ; quelques-uns ont
+   gagné le détail qui les rend racontables.
+
+   Là où une liste reste la bonne forme — les tests de substitution en
+   orthographe, l'emploi des temps — elle est amenée par une phrase et
+   énoncée en phrases, plutôt que jetée en puces.
+
+   Les textes sont assignés après la déclaration de PACKS, pour rester
+   tous ensemble et lisibles d'un seul tenant.
+   ================================================================ */
+
+const RAPPELS={
+
+philomonde:
+`Au XIᵉ siècle, Avicenne demande à son lecteur d'imaginer un homme créé à l'instant, suspendu dans le vide, les yeux bandés, les membres écartés pour qu'aucun n'en touche un autre. Privé de toute sensation, cet homme saurait pourtant qu'il existe. Six siècles plus tard, Descartes écrira le cogito. Vers 1095, al-Ghazali remarque que nous n'observons jamais la nécessité entre le feu et le coton qui brûle, seulement leur succession — Hume écrira la même chose vers 1740. Et dix-neuf siècles avant les Méditations, Zhuangzi se réveille sans pouvoir décider s'il a rêvé qu'il était un papillon, ou s'il est un papillon en train de rêver.
+
+Ces textes ne sont pas des ébauches maladroites de la pensée européenne. Ce sont des réponses entières, formulées ailleurs, à des problèmes qu'on nous présente comme européens. D'où la seconde question de ce pack, inséparable de la première : si c'était là, pourquoi ne l'apprend-on pas ?
+
+La réponse n'est pas l'oubli. Kant et Hegel n'ont pas ignoré l'Afrique et l'Asie : ils les ont écartées avec des arguments, noir sur blanc. La frontière du canon est un acte, pas un constat.
+
+Le même réflexe traverse l'histoire de l'art. Devant les têtes d'Ifé, Frobenius conclut à l'Atlantide, parce qu'un tel naturalisme lui paraissait incompatible avec une origine africaine. Conti Rossini déclare le Hatata éthiopien apocryphe, en partie parce que de telles idées ne lui semblaient pas attendues en Éthiopie. Deux disciplines, un seul préjugé — et dans les deux cas une érudition réelle mise au service d'une supposition jamais examinée.
+
+L'affaire du Hatata n'est d'ailleurs pas close : un volume collectif lui a été consacré en 2024, et le désaccord traverse les chercheurs éthiopiens autant que les occidentaux. Ce pack te le dit plutôt que de trancher à ta place.
+
+Reste une gêne qu'il vaut mieux nommer. « Philosophie non européenne » range ensemble Nagarjuna, Ibn Khaldoun et les tlamatinime, qui n'ont en commun que de ne pas être grecs. La catégorie signale un manque réel et reconduit en même temps le centre qu'elle voudrait déplacer.`,
+
+philosophie:
+`En 1899, un paléontologue décrit une spirale de dents magnifiquement conservée. Sa description est exacte ; elle n'a jamais été corrigée. Ce qui a mis plus d'un siècle à se fixer, c'est l'endroit où cet organe se trouvait sur l'animal — dans la gueule, sur le museau, enroulé dans la gorge, on a tout proposé. La donnée était solide, l'interprétation restait ouverte. Ce sont deux opérations distinctes, et les confondre est l'erreur la plus commune de toute la démarche scientifique.
+
+Pour savoir si une explication vaut quelque chose, Karl Popper propose un test d'une simplicité désarmante : peux-tu dire ce qui la mettrait en défaut ? Une théorie compatible avec n'importe quel résultat n'apprend rien, parce qu'elle n'interdit rien. « Il y a plusieurs causes » ne devient un énoncé sérieux qu'à partir du moment où l'on précise lesquelles, dans quel ordre, et pour quelle part.
+
+Un piège plus discret tient à ce qu'on ne trouve pas. Ne pas trouver un fossile n'établit pas que l'animal n'a pas existé : il peut n'avoir jamais existé, n'avoir laissé aucun reste, ou n'avoir pas encore été cherché au bon endroit. Le registre fossile mesure d'abord les conditions de fossilisation, et seulement ensuite ce qui vivait.
+
+Quand plusieurs explications tiennent debout, on préfère la plus économique — c'est le rasoir d'Ockham. Il faut l'entendre pour ce qu'il est : une règle de choix entre des hypothèses, pas une affirmation sur le monde. Il ne dit nulle part que la nature est simple.
+
+Cette prudence prend un tour très concret quand il s'agit de nommer une espèce. On ne peut pas vérifier l'interfécondité d'animaux morts depuis cent millions d'années ; les espèces fossiles se délimitent donc sur la forme, c'est-à-dire par un jugement révisable. Marsh et Cope en ont nommé cent trente à eux deux, dans une rivalité féroce, et une bonne part n'étaient que des doublons.
+
+Il arrive enfin que deux hypothèses restent également compatibles avec tout ce qu'on sait. Ne pas trancher est alors une position argumentée, à condition de dire ce qui manquerait pour décider. Trancher sans motif reviendrait à présenter une préférence comme un résultat.`,
+
+artmonde:
+`Représenter un visage, occuper l'espace, honorer un mort, figurer le divin : ces questions ne sont d'aucune région du monde en particulier. Ce pack ne cherche donc pas à ajouter un supplément exotique au cursus, mais à constater que d'autres traditions les ont traitées, avec d'autres réponses, parfois des siècles plus tôt.
+
+Ces réponses sont techniquement autonomes. La fonte à la cire perdue est maîtrisée à Ifé comme chez les Chola. Les rouleaux peints de la dynastie Song se passent d'un point de fuite unique, parce qu'ils supposent un regard qui se déplace et non un observateur immobile. La miniature persane ouvre les murs pour rendre tout visible à la fois. Aucune de ces solutions n'ignore la perspective européenne : elles répondent simplement à d'autres questions.
+
+Le regard européen, lui, a longtemps refusé de le voir. Devant les têtes d'Ifé, en 1910, Frobenius conclut à l'Atlantide : un tel naturalisme lui semblait incompatible avec une origine africaine. Devant le Grand Zimbabwe, l'archéologie officielle rhodésienne a cherché des bâtisseurs phéniciens, arabes, n'importe lesquels sauf shona. Ces hypothèses étaient savantes dans la forme et racistes dans la prémisse.
+
+Il faut aussi savoir comment ces objets sont arrivés jusqu'à nos musées. Les bronzes du Bénin proviennent du sac de Benin City par une expédition punitive britannique en 1897. Les restitutions ont commencé : l'Allemagne a transféré la propriété de 1 130 pièces en 2022, les Pays-Bas en ont rendu 119 en juin 2025. Le British Museum en conserve plus de neuf cents.
+
+Un dernier mot sur un mot. « Primitif » suppose un stade antérieur au nôtre. Il désigne en réalité des arts contemporains des cathédrales, avec leurs écoles, leurs commandes et leurs maîtres.`,
+
+arteu:
+`Le plan que tu as appris à l'école a un auteur. En 1550, Giorgio Vasari publie ses Vies des meilleurs peintres : l'art atteint un sommet dans l'Antiquité, déchoit, renaît avec Giotto, et culmine avec Michel-Ange — qui se trouve être son ami. De lui viennent le mot « Renaissance » et l'usage de « gothique » comme insulte. Cinq siècles plus tard, nos manuels suivent encore ce fil, y compris quand ils croient le contester.
+
+Sur ce fil se greffent quelques bascules qui, elles, sont techniques. La perspective linéaire est démontrée par Brunelleschi vers 1415 et mise en règles par Alberti en 1435 : c'est une construction géométrique, pas une découverte sur la vision. La peinture à l'huile, portée à maturité par Van Eyck, sèche lentement — d'où les glacis, les fondus, les reprises, et une profondeur que la détrempe ne permettait pas. Et en 1841, le tube d'étain rend la couleur transportable : on peut enfin peindre dehors, en une séance, devant le motif.
+
+Entre-temps, l'Académie a fixé une hiérarchie des genres : peinture d'histoire d'abord, puis portrait, scène de genre, paysage, nature morte. Elle ne classe pas la qualité mais le sujet, et elle commande les prix comme les carrières. Une bonne part du XIXᵉ siècle consiste à la renverser — Courbet peignant des villageois au format réservé aux batailles.
+
+Les noms de mouvements, eux, sont presque tous des insultes retournées : gothique, baroque, impressionnisme, fauvisme, cubisme. Aucun n'a été choisi par ceux qu'il désigne.
+
+Reste à demander qui ce récit laisse dehors. Les femmes, exclues des académies et de l'étude du nu, donc des grands genres — et parfois effacées après coup par réattribution, comme Judith Leyster vendue sous le nom de Frans Hals. Et les sources non européennes, massivement mobilisées puis rangées sous le mot commode d'« influence primitive ».`,
+
+histoire:
+`Le temps géologique se lit à quatre échelles emboîtées : éons, ères, périodes, époques, du plus large au plus fin. Nous sommes dans l'éon Phanérozoïque, l'ère Cénozoïque, la période Quaternaire. Le Phanérozoïque compte trois ères, et les retenir dans l'ordre suffit déjà à ne plus jamais être perdue : Paléozoïque de 539 à 252 millions d'années, Mésozoïque de 252 à 66, Cénozoïque de 66 à aujourd'hui.
+
+Trois dates portent tout le reste. 539 marque la base du Cambrien, à partir de laquelle les fossiles deviennent abondants. 252 est l'extinction de la fin du Permien, la plus sévère qu'ait connue la vie. 66 est la limite entre Crétacé et Paléogène, celle des dinosaures non-aviens.
+
+Ce découpage cache pourtant une disproportion qu'il faut avoir en tête. Le Précambrien couvre à lui seul près de 88 % de l'histoire de la Terre. Tout ce dont on parle d'habitude — les trilobites, les forêts, les dinosaures, nous — tient dans les 12 % restants.
+
+Comment sait-on tout cela ? Rarement en datant le fossile lui-même. Le carbone 14 plafonne vers cinquante mille ans, ce qui ne mène nulle part à cette échelle ; au-delà, on date les cendres volcaniques par la méthode uranium-plomb sur zircon. Un fossile se date donc presque toujours par la couche qui le contient, encadrée entre deux niveaux datables.
+
+Cette discipline s'est construite par étapes, et chacune a coûté une bataille. Sténon pose le principe de superposition au XVIIᵉ siècle. Cuvier démontre vers 1800 que des espèces ont réellement disparu, ce qui n'allait pas de soi. Smith cartographie l'Angleterre par ses fossiles en 1815. Owen forge le mot « dinosaure » en 1842, Darwin publie en 1859, Walcott découvre Burgess en 1909, et les Alvarez proposent l'hypothèse de l'impact en 1980.`,
+
+biologie:
+`Un trilobite renforce sa carapace de calcite : on le trouve partout dans les roches. Un requin n'a que du cartilage : il n'en reste que les dents. Une holothurie ne possède que des spicules microscopiques : elle est presque invisible. Ces trois groupes ont très bien pu être également abondants — le registre fossile mesure d'abord la minéralisation, et seulement ensuite le succès.
+
+Le comptage réserve un second piège. Un arthropode change de carapace pour grandir, si bien qu'un unique trilobite laisse derrière lui des dizaines de mues et un seul cadavre. Compter des fossiles n'est jamais compter des individus.
+
+Les échinodermes rassemblent les étoiles de mer, les oursins, les ophiures, les crinoïdes et les holothuries. Leur symétrie à cinq branches est célèbre, mais elle n'apparaît que chez l'adulte : la larve, elle, est bilatérale comme nous. La pentaradialité est donc acquise, pas originelle. Ils disposent en outre d'un tissu conjonctif mutable qui change de rigidité en quelques secondes sous contrôle nerveux — ce n'est pas du muscle, et rien chez nous n'y ressemble.
+
+Les chondrichthyens — requins, raies, chimères — ont un squelette de cartilage, une peau couverte de denticules qui ont exactement la structure de leurs dents, un remplacement dentaire continu, et pas de vessie natatoire : leur flottabilité vient d'un foie très huileux. Leurs ampoules de Lorenzini détectent les champs électriques des proies.
+
+Les cétacés, eux, sont des artiodactyles retournés à la mer. Leurs narines ont migré au sommet du crâne, leurs voies respiratoires se sont isolées du tube digestif, les mysticètes ont troqué leurs dents contre des fanons de kératine, et seuls les odontocètes pratiquent l'écholocation.
+
+Une dernière chose, qui vaut pour tout ce pack. Un requin, un ichtyosaure et un dauphin — un poisson, un reptile, un mammifère — ont presque la même silhouette. L'eau impose sa forme à qui veut y aller vite. Se ressembler ne prouve donc aucune parenté, et c'est une des leçons les plus utiles de toute la biologie.`,
+
+lecture:
+`Ce pack ne porte pas sur l'orthographe mais sur la lecture : comprendre, analyser, résumer. C'est la compétence que le secondaire évalue le plus souvent sans jamais l'appeler par son nom, et celle qui sert le plus longtemps ensuite.
+
+On classe les textes en quatre familles selon ce qu'ils font : le narratif raconte, le descriptif montre, l'argumentatif défend une thèse, l'informatif expose. Un texte réel les mêle presque toujours ; la question utile n'est pas de choisir mais de repérer lequel domine.
+
+Quand un texte raconte, il suit d'ordinaire le même mouvement : une situation initiale, un élément qui vient en rompre l'équilibre, des péripéties, un dénouement, une situation finale. Sans rupture d'équilibre, il n'y a pas de récit — seulement une description qui dure. Et il faut toujours se demander qui raconte. Un narrateur interne dit « je » et ne sait que ce que sait son personnage ; un narrateur externe ne rapporte que le visible, comme une caméra ; un narrateur omniscient entre dans toutes les têtes. Ce choix n'est jamais neutre : il décide de ce que le lecteur a le droit de savoir.
+
+Quand un texte argumente, trois niveaux se distinguent. La thèse est ce dont on veut te convaincre. L'argument est une raison de l'admettre. L'exemple illustre l'argument, et ne démontre rien à lui seul — c'est l'erreur la plus fréquente dans les copies. Les connecteurs signalent l'articulation, à condition de ne pas les confondre : « parce que », « car », « puisque » introduisent une cause ; « donc », « par conséquent » une conséquence ; « mais », « or », « en revanche » une opposition ; « bien que », « quoique », « certes… mais » une concession, c'est-à-dire un point qu'on accorde avant de maintenir le sien.
+
+Quelques figures reviennent sans cesse. La comparaison garde son outil — comme, tel — là où la métaphore le supprime. La personnification fait agir une chose comme un vivant. L'hyperbole exagère, la litote dit moins pour suggérer plus, et l'ironie affirme le contraire de ce qu'elle pense : c'est la plus difficile à repérer à l'écrit, parce que le mot à mot y trompe et qu'il faut lire ce qui entoure la phrase.
+
+Le plus intéressant est souvent ce qui n'est pas dit. Le présupposé est porté par la phrase elle-même et résiste même à la négation : « tu as encore oublié tes clés » suppose un précédent, et « tu n'as pas encore oublié tes clés » aussi. Le sous-entendu, lui, dépend entièrement du contexte.
+
+Il en découle un réflexe qui vaut pour tout texte inconnu. Lire d'abord le paratexte — titre, auteur, source, date. Chercher ensuite la thèse. Demander enfin d'où viennent les chiffres : « une étude montre que… », sans nom d'étude, n'est pas une source.`,
+
+histscol:
+`L'histoire scolaire se découpe en cinq périodes : Préhistoire, Antiquité, Moyen Âge, Temps modernes, Époque contemporaine. Les bornes usuelles sont l'apparition de l'écriture vers 3300 avant notre ère, puis 476, 1492 et 1789.
+
+Il faut savoir d'emblée ce que valent ces bornes. Rien n'a changé pour les habitants de Rome en 476, année où l'on dépose un empereur d'Occident déjà sans pouvoir. Et la découpe décrit très mal l'histoire de la Chine ou de l'Afrique, où ces ruptures n'ont pas de sens. Une périodisation est un outil de travail, pas une propriété du passé.
+
+Le vrai cœur du cours n'est d'ailleurs pas la date, c'est la source. Une source primaire a été produite à l'époque étudiée : lettre, registre, outil, image. Une source secondaire commente les primaires. La critique consiste à demander qui a produit le document, quand, pour qui et pourquoi — parce qu'un texte n'est pas neutre du seul fait d'être ancien, et que le chroniqueur d'un roi écrit pour son roi.
+
+Restent les repères, qu'il faut bien tenir. L'écriture naît en Mésopotamie de la comptabilité, pour compter des sacs de grain. La démocratie athénienne fait voter peut-être un habitant sur dix, femmes, esclaves et métèques exclus. La féodalité tisse des liens personnels fondés sur la terre, sans État au sens moderne. L'imprimerie arrive vers 1450, la Réforme s'ouvre en 1517, la monarchie absolue domine le XVIIᵉ siècle, 1789 proclame que les hommes naissent libres et égaux en droits. La révolution industrielle part de Grande-Bretagne, et la Belgique devient le deuxième pays industrialisé du continent avant même d'être indépendante, en 1830.
+
+Un dernier point mérite qu'on y prête l'oreille : les mots portent des jugements. « Moyen Âge » a été forgé par des lettrés de la Renaissance pour désigner un entre-deux qu'ils méprisaient. « Découverte de l'Amérique » fait des habitants du continent un décor. Les repérer est un exercice scolaire, pas une opinion politique.
+
+Tout cela se ramène à une distinction. Que la Bastille ait été prise le 14 juillet 1789 est un fait, établi par les sources. Que ce soit le début de la Révolution est une interprétation — solide, mais construite. Les manuels mêlent les deux sans toujours le signaler, et c'est précisément pour cela qu'ils changent d'une génération à l'autre.`,
+
+geographie:
+`Devant une carte inconnue, quatre réflexes dans l'ordre : la légende, l'échelle, l'orientation, la date. Une carte sans légende n'est pas lisible, seulement décorative.
+
+L'échelle se lit comme un rapport. Au 1:50 000, un centimètre sur le papier vaut cinquante mille centimètres sur le terrain, soit cinq cents mètres. Plus le dénominateur grandit, plus l'échelle est petite et moins la carte détaille : une carte au millionième montre un pays, une carte au dix-millième montre un quartier. Attention aux surfaces, qui suivent le carré du rapport et non le rapport lui-même.
+
+Pour se situer, la latitude se compte de 0° à l'équateur jusqu'à 90° aux pôles, la longitude à l'est ou à l'ouest du méridien de Greenwich — et l'usage veut qu'on écrive toujours la latitude d'abord. Le relief, lui, se lit par les courbes de niveau, qui joignent les points de même altitude : serrées, la pente est raide ; espacées, le terrain est plat.
+
+Il faut savoir qu'aucune carte plane n'est exacte, et que ce n'est pas un défaut de fabrication. La projection de Mercator conserve les angles, ce qui la rendait précieuse pour naviguer, mais elle gonfle les surfaces à mesure qu'on s'éloigne de l'équateur : le Groenland y paraît grand comme l'Afrique alors qu'il est quatorze fois plus petit. Toute projection sacrifie quelque chose, et le choix de ce qu'on sacrifie est un argument.
+
+Le climat d'un lieu dépend de quatre facteurs : sa latitude, son altitude, sa distance à la mer et les courants marins qui la longent. C'est pourquoi la Belgique, à la latitude de Québec, connaît des hivers doux : la mer amortit les écarts et la dérive nord-atlantique réchauffe toute l'Europe de l'Ouest. On parle de climat tempéré océanique — étés frais, pluies réparties sur l'année, faible amplitude.
+
+La Belgique elle-même se découpe de trois façons qui ne se superposent pas : trois Régions, trois Communautés, dix provinces. Son relief monte régulièrement du nord-ouest au sud-est, des polders jusqu'à l'Ardenne et au Signal de Botrange, à 694 mètres. Deux fleuves la traversent, la Meuse et l'Escaut — la Sambre et la Lys ne sont que des affluents, puisqu'un fleuve se jette dans la mer.
+
+L'eau se pense par bassins versants : le territoire dont toutes les eaux rejoignent un même cours d'eau, délimité par les lignes de crête. C'est la bonne unité pour comprendre une inondation, qui ignore les frontières administratives. À l'arrivée, le fleuve se ramifie en delta quand il dépose plus que la mer n'emporte, ou s'ouvre en estuaire quand les marées l'emportent.
+
+Un dernier chiffre, à manier avec prudence : la densité de population est un rapport entre des habitants et des kilomètres carrés. C'est donc une moyenne, et une moyenne masque toujours ses écarts.`,
+
+conjugaison:
+`Un temps se choisit pour ce qu'il fait, jamais pour ce qu'il décore. C'est la seule idée à retenir, et tout le reste en découle.
+
+Le présent installe un fait en cours, une habitude, ou une vérité qu'on énonce sans la dater. L'imparfait pose un arrière-plan qui dure, une habitude passée, un décor : « il pleuvait quand elle est arrivée » — l'imparfait tient la toile de fond, le passé composé y découpe l'événement. Ce dernier rattache d'ailleurs toujours son fait au moment où l'on parle, ce qui le distingue du passé simple des récits littéraires.
+
+Le futur simple présente ce qui est donné pour certain. Le conditionnel présent fait exactement l'inverse : il marque l'hypothèse, la politesse, ou l'information qu'on ne confirme pas — c'est le temps des journalistes prudents. Quant au subjonctif présent, il apparaît après les verbes de volonté, de doute ou d'émotion, et derrière « bien que », « avant que », « pour que ».
+
+Deux pièges reviennent sans cesse. « Après que » se construit avec l'indicatif, parce que le fait qui suit est réel, alors que « avant que » demande le subjonctif, parce qu'il ne l'est pas encore — c'est la faute la plus répandue, y compris chez les bons rédacteurs. Et le conditionnel en -rais ne se confond avec le futur en -rai que si l'on oublie de regarder la personne : à la première du singulier, « je serai » annonce, « je serais » suppose.`,
+
+orthographe:
+`La plupart des fautes d'adulte ne viennent pas d'un vocabulaire mal connu. Ce sont des confusions entre mots qui se prononcent de la même façon, et elles se règlent presque toutes par un seul geste : remplacer.
+
+Pour « a » et « à », remplace par « avait » : si la phrase tient debout, c'est « a » sans accent. Pour « ou » et « où », remplace par « ou bien » : si ça passe, pas d'accent. Pour « son » et « sont », remplace par « étaient ». Pour « ce » et « se », remplace par « cela ». Pour « ces » et « ses », essaie « ceux-là », puis « les siens ». Et « leur » devant un nom s'accorde avec ce nom : leur maison, leurs maisons.
+
+L'accord du participe passé se ramène, lui aussi, à peu de chose. Avec l'auxiliaire être, il s'accorde avec le sujet, sans exception à retenir. Avec avoir, il ne s'accorde avec le complément d'objet direct que si celui-ci est placé avant le verbe — « les lettres qu'elle a écrites », mais « elle a écrit les lettres ». Les verbes pronominaux suivent la même logique une fois qu'on a identifié la fonction du pronom : accord s'il est complément d'objet direct, pas d'accord s'il est indirect. « Elles se sont lavées », mais « elles se sont parlé », parce qu'on parle à quelqu'un.
+
+Une relecture qui cherche tout à la fois ne trouve rien. Mieux vaut relire une fois pour les accords de participe, une fois pour les homophones, une fois pour les accords sujet-verbe.`,
+
+maths:
+`Un pourcentage n'est rien d'autre qu'une fraction dont le dénominateur est cent. Augmenter de p %, c'est multiplier par 1 + p/100 ; réduire de p %, c'est multiplier par 1 − p/100. Cette écriture révèle immédiatement un piège célèbre : une hausse de 20 % suivie d'une baisse de 20 % ne ramène pas au point de départ, puisque 1,2 × 0,8 fait 0,96. On a perdu 4 %.
+
+Pour les proportions, la règle de trois consiste à passer par la valeur d'une seule unité avant de remonter. C'est plus lent que les produits croisés et l'on s'y trompe beaucoup moins, parce que chaque étape reste interprétable.
+
+Les échelles fonctionnent sur le même principe de rapport. Au 1:50 000, un centimètre sur la carte vaut cinquante mille centimètres sur le terrain, soit cinq cents mètres. Les longueurs suivent le rapport, mais les aires suivent son carré : un mètre carré vaut dix mille centimètres carrés, et non cent. C'est l'erreur qui coûte le plus de points.
+
+Reste la question des ordres de grandeur, indispensable dès qu'on parle de temps profond. « Ma » signifie million d'années, si bien que 500 Ma s'écrit 5 × 10⁸ ans. La notation scientifique n'est utile qu'à une condition : garder la mantisse entre 1 et 10, faute de quoi on ne compare plus rien.`
+
+};
+
+Object.keys(RAPPELS).forEach(id=>{
+  const p=PACKS.find(x=>x.id===id);
+  if(p) p.theorie=RAPPELS[id].trim();
+});
+
+/* ================================================================
+   Bloc 18 : rééquilibrage des options de QCM.
+
+   DIAGNOSTIC. Sur les 752 questions à choix de l'atlas, la bonne
+   réponse était la plus longue des quatre dans 67 % des cas, contre
+   25 % attendus au hasard, et 1,76 fois plus longue que la moyenne
+   des leurres. Autrement dit : on pouvait répondre juste deux fois
+   sur trois en choisissant la ligne la plus longue, sans rien
+   connaître au sujet. Pour une application qui prétend apprendre
+   quelque chose, c'est un défaut de fond — elle entraînait à deviner.
+
+   CAUSE. Une dissymétrie de forme, pas de contenu. La bonne réponse
+   était rédigée comme une proposition complète, portant la nuance et
+   les réserves ; les leurres étaient de courts groupes nominaux,
+   souvent invraisemblables. Deux signaux s'ajoutaient : les leurres
+   contenaient des absolus (« jamais », « aucun », « toujours ») qui
+   trahissent le faux, et quelques-uns étaient si grossiers qu'ils ne
+   leurraient personne.
+
+   CORRECTION. Trois règles appliquées à chaque question reprise :
+     1. la clé est ramenée à une réponse, la nuance passant dans
+        l'explication, qui est faite pour ça ;
+     2. les leurres deviennent des énoncés parallèles à la clé —
+        même nature grammaticale, longueur du même ordre, contenu
+        plausible pour qui a mal révisé plutôt qu'absurde ;
+     3. aucun absolu dans un leurre s'il n'y en a pas dans la clé.
+
+   PORTÉE. Ce bloc traite les deux banques les plus atteintes,
+   `philomonde` (ratio 2,50) et `biologie` (2,33). Les autres restent
+   à reprendre ; `tools/qcm.js` mesure l'écart banque par banque et
+   `qc.js` refuse toute aggravation.
+   ================================================================ */
+
+/* Les items de `biologie` avaient été écrits sans champ `n`, si bien que
+   l'interface affichait « undefined » partout où le numéro est repris. */
+(function numeroterBiologie(){
+  const p=PACKS.find(x=>x.id==='biologie');
+  if(p) p.bank().forEach((it,i)=>{ if(it.n===undefined) it.n=i+1; });
+})();
+
+const OPTIONS_REVUES={
+
+philomonde:[
+[1,"Un traité philosophique éthiopien du XVIIᵉ siècle",
+ ["Un recueil de prières de l’Église copte","Une chronique des rois du Gondar","Un traité de médecine traduit de l’arabe au XVIᵉ siècle"]],
+[2,"À Descartes, pour avoir fondé sa réflexion sur le doute",
+ ["À Platon, pour sa théorie des Idées séparées du sensible","À Aristote, pour sa classification des vivants","À Marx, pour sa critique de l’économie politique"]],
+[3,"Un orientaliste l’a jugé fabriqué par le moine qui l’a fait connaître",
+ ["Deux versions du texte se contrediraient entièrement","Le manuscrit original aurait brûlé avant tout examen","Sa datation oscillerait entre le XVᵉ siècle et l’époque coloniale"]],
+[4,"Que de telles idées n’étaient pas à attendre en Éthiopie",
+ ["Que le manuscrit était trop récent pour être tenu pour original","Que la langue employée trahissait un copiste tardif","Que l’auteur n’est cité par aucune autre source"]],
+[5,"Une analyse statistique du style, comparée aux écrits d’Urbino",
+ ["Un témoignage oral recueilli auprès des moines du monastère du Gondar","La datation au carbone 14 du parchemin du manuscrit","Un second manuscrit du même texte retrouvé au Caire"]],
+[6,"Des chercheurs éthiopiens et occidentaux se trouvent des deux côtés",
+ ["Les chercheurs éthiopiens y croient, les occidentaux non","La question est tenue pour réglée depuis les années 1970","Le sujet n’est plus travaillé par personne depuis une trentaine d’années"]],
+[7,"Les « connaisseurs des choses », lettrés du Mexique préhispanique",
+ ["Les prêtres chargés du calendrier et des sacrifices","Les gouverneurs des provinces soumises au pouvoir de Tenochtitlan","Les scribes qui tenaient les registres du tribut"]],
+[8,"La poésie, tenue pour le seul moyen de dire quelque chose de vrai",
+ ["Le rite funéraire réservé aux guerriers tombés au combat au loin","Le cycle agricole qui règle les semailles et la récolte","L’impôt en nature versé par les cités vassales"]],
+[9,"La cohésion d’un groupe, moteur de la montée des dynasties",
+ ["L’impôt foncier prélevé sur les terres conquises","L’école de droit dominante dans le Maghreb de son époque","Le genre littéraire des chroniques de cour"]],
+[10,"Une expérience de pensée sur la conscience de soi",
+ ["Un traité d’astronomie sur le mouvement des sphères","Une méthode de calcul héritée des mathématiciens indiens","Un poème mystique sur l’ascension de l’âme"]],
+[11,"Que nous observons une succession constante, jamais une nécessité",
+ ["Que la combustion est une illusion produite par les sens","Que le feu agit par une qualité cachée de sa substance","Que la cause véritable échappe par principe à l’entendement humain"]],
+[12,"Par des traductions arabes, retraduites en latin dès le XIIᵉ siècle",
+ ["Par des copies grecques conservées sans interruption à Rome","Par des papyrus exhumés en Égypte à l’époque moderne","Par la transmission jamais interrompue des écoles monastiques d’Irlande"]],
+[13,"Un schéma à quatre branches : vrai, faux, les deux, ni l’un ni l’autre",
+ ["Une méthode de méditation progressant en quatre étapes","Un recueil de quatre sutras que la tradition attribue au Bouddha","Une règle monastique fixant quatre interdits fondamentaux"]],
+[14,"Presque uniquement par les citations de ses adversaires",
+ ["Par ses traités complets, conservés dans des copies tardives","Par des inscriptions royales gravées sur des piliers","Par les récits des voyageurs chinois passés en Inde"]],
+[15,"Sur le caractère bon ou mauvais de la nature humaine au départ",
+ ["Sur la date de naissance et la biographie exacte de Confucius","Sur l’existence d’un ciel doté d’une volonté propre","Sur la légitimité de la guerre menée par un souverain"]],
+[16,"La possibilité de distinguer avec certitude la veille du rêve",
+ ["La réalité des animaux et leur place dans la nature","La valeur du travail manuel dans la conduite d’une vie juste","L’autorité que l’empereur tient du mandat du ciel"]],
+[17,"Ils l’ont explicitement exclue, par des arguments écrits",
+ ["Ils n’en ont jamais eu connaissance de leur vivant","Ils l’ont étudiée avec intérêt sans jamais la citer nommément","Ils l’ont tenue pour l’égale de la tradition grecque"]],
+[18,"De prêter à un peuple entier une vision du monde unique",
+ ["D’avoir été écrit en français plutôt qu’en langue locale","De s’appuyer trop lourdement sur les catégories d’Aristote","D’être trop bref pour un sujet d’une telle ampleur"]],
+[19,"Que l’identité se constitue dans la relation, non avant elle",
+ ["Que l’individu n’a aucune valeur propre en dehors du groupe","Que la solitude est une faute contre la communauté","Que l’autorité des anciens ne se discute jamais"]],
+[20,"Elle définit des traditions diverses par ce qu’elles ne sont pas",
+ ["Elle repose sur une découpe géographique trop récente","Elle confond les traditions religieuses et les traditions philosophiques","Elle laisse la Grèce antique hors de son propre champ"]]
+],
+
+biologie:[
+[1,"De chitine renforcée de calcite",
+ ["D’os dermique, comme les poissons cuirassés","De cartilage souple, comme les requins","De kératine épaisse, comme une corne"]],
+[2,"Des mues abandonnées au cours de la croissance",
+ ["Des œufs fossilisés en position de ponte","Des empreintes laissées par leur déplacement","Des rejets digestifs conservés dans le sédiment"]],
+[3,"Leurs cristallins sont en calcite, un minéral",
+ ["Leur vision s’étendait jusque dans l’infrarouge","Ils étaient portés par des pédoncules mobiles","Ils se reconstituaient après une blessure"]],
+[4,"Il se protège en ne laissant dehors que sa carapace",
+ ["Il se reproduit en enfermant sa ponte au centre","Il facilite la sortie de son ancienne carapace","Il augmente sa vitesse de nage en pleine eau"]],
+[5,"Environ 270 millions d’années",
+ ["Environ 30 millions d’années","Environ 800 millions d’années","Environ 5 millions d’années"]],
+[6,"Aux échinodermes",
+ ["Aux mollusques","Aux annélides","Aux arthropodes"]],
+[7,"Dans les cinq rangées longitudinales de podia",
+ ["Dans la couronne de tentacules qui entoure sa bouche","Dans la forme pentagonale de son ouverture buccale","Nulle part : elle a entièrement perdu ce caractère"]],
+[8,"Elle expulse une partie de ses organes internes",
+ ["Elle change de couleur pour se confondre au fond","Elle libère un nuage d’encre avant de s’enfuir","Elle se gonfle d’eau et se laisse emporter"]],
+[9,"Un tissu dont la rigidité change en quelques secondes",
+ ["Un muscle capable de repousser après amputation","Un tissu glandulaire qui sécrète un venin paralysant","Une couche de graisse qui isole des eaux froides"]],
+[10,"Leur squelette se réduit à des spicules microscopiques",
+ ["Le groupe n’est apparu qu’au cours du Cénozoïque","Elles ne vivent que dans des milieux d’eau douce","Leurs tissus se décomposent en quelques minutes"]],
+[11,"De cartilage, parfois renforcé de sels de calcium",
+ ["D’os compact, comme chez les poissons osseux","De chitine, comme chez les grands arthropodes","De kératine souple, sans minéralisation aucune"]],
+[12,"Ce sont les mêmes structures : les dents dérivent des denticules",
+ ["Ce sont des formations d’origines entièrement distinctes","Les écailles sont des dents usées puis rejetées vers l’arrière","Les dents sont des écailles qui se minéralisent après la mort"]],
+[13,"En continu, par des rangées qui avancent vers l’avant",
+ ["Une seule fois, au moment du passage à l’âge adulte","Jamais : la denture initiale le suit toute sa vie","Chaque année, à l’approche de la saison de reproduction"]],
+[14,"À détecter les champs électriques des proies",
+ ["À percevoir les odeurs à très grande distance","À mesurer la pression et donc la profondeur","À produire de la lumière dans les eaux sombres"]],
+[15,"Par un foie volumineux, riche en huile peu dense",
+ ["Par des poumons hérités d’ancêtres d’eau douce","En avalant de l’air à la surface avant de plonger","Par des cavités remplies de gaz dans son cartilage"]],
+[16,"Des artiodactyles, les mammifères à doigts pairs",
+ ["Des carnivores, proches des phoques et des otaries","Des périssodactyles, à nombre de doigts impair","Des insectivores, proches des taupes et des musaraignes"]],
+[17,"De kératine, comme les ongles et les cheveux",
+ ["D’os spongieux issu des mâchoires","D’émail dentaire étiré en longues lames","De cartilage souple recouvert de muqueuse"]],
+[18,"L’émission de clics et l’analyse de leur écho",
+ ["L’émission de chants portant sur des centaines de kilomètres","L’orientation d’après le champ magnétique terrestre","La détection des courants par les récepteurs de la peau"]],
+[19,"Ses voies respiratoires sont séparées du tube digestif",
+ ["Ses poumons ont disparu au profit d’échanges cutanés","Sa bouche reste hermétiquement close sous l’eau","Elle absorbe l’oxygène dissous par la paroi de la gorge"]],
+[20,"Une convergence évolutive",
+ ["Une homologie","Une hérédité commune récente","Un atavisme"]]
+]
+
+};
+
+(function appliquerOptionsRevues(){
+  Object.keys(OPTIONS_REVUES).forEach(id=>{
+    const p=PACKS.find(x=>x.id===id); if(!p) return;
+    const banque=p.bank();
+    OPTIONS_REVUES[id].forEach(([n,r,autres])=>{
+      const it=banque.find(x=>x.n===n);
+      if(!it) return;
+      it.r=r; it.autres=autres;
+    });
+  });
+})();

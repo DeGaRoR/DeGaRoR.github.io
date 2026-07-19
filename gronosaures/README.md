@@ -45,9 +45,12 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js           # ~8240 assertions
+node tools/qc.js           # ~8260 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
-node tools/profils_test.js # 30 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
+node tools/profils_test.js # 30 assertions, localStorage simulé
+node tools/qcm.js          # biais exploitables des questions à choix
+node tools/version_test.js # 12 assertions, cascade de diagnostic de version
+node tools/version.js      # état des versions ; `+` ou <n> pour les porter : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -73,10 +76,13 @@ autre partie.
 ```
 index.html      3 onglets + 6 superpositions
 styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les titres)
-data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
+data.js         concaténation de 17 blocs, dans cet ordre :
+                1 2 4 5 6 7 12 16 8 9 10 11 13 14 15 3 17 18
+                (1 généré par tools/ingest.py, le reste écrit à la main ;
+                 3 déclare les packs, 17 leur assigne les rappels théoriques)
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           atlas-v26 · CODE réseau d'abord, IMAGES cache d'abord ; 212 entrées ; liste dérivée de data.js
+sw.js           atlas-v31 · CODE réseau d'abord, IMAGES cache d'abord ; 213 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -343,6 +349,199 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Versions dans le menu — v31
+
+Le menu affichait « Version v2 », qui est en réalité la version du **format de
+sauvegarde** : elle ne bouge que si la structure d'un export change, et n'a rien à dire
+sur la fraîcheur du code. Elle est conservée sous son vrai nom, en pied de panneau.
+
+À sa place, **trois nombres**, parce que trois choses peuvent diverger alors que le
+symptôme est le même — une application qui ne change pas après un déploiement.
+
+| Ligne | Ce qu'elle dit |
+|---|---|
+| **Application** | la version du code effectivement chargé |
+| **Cache hors ligne** | ce que le service worker garde sous la main ; s'il reste en retard, c'est lui qui sert des fichiers périmés |
+| **Sur le serveur** | ce qui est en ligne |
+
+La troisième est lue **directement dans `sw.js`, hors de tout cache** — `cache:'no-store'`
+pour le cache HTTP, et un paramètre d'horodatage pour que le service worker ne
+reconnaisse pas la requête. Sans ces deux précautions, on demanderait au cache s'il est
+à jour.
+
+Une phrase conclut, et l'ordre de lecture privilégie ce qui est réparable sur place :
+cache en retard d'abord, puis réseau injoignable, puis version disponible, puis « tout
+est à jour ». Le panneau s'ouvre immédiatement ; les deux lignes qui demandent un
+aller-retour se remplissent ensuite.
+
+### Le risque que cela crée, et sa parade
+
+La version est désormais écrite à deux endroits qui doivent concorder : `VERSION` dans
+`sw.js` et `VERSION_ATLAS` dans `app.js`. Les laisser diverger produirait exactement la
+panne que ce bloc sert à diagnostiquer.
+
+`node tools/version.js +` les porte toutes les deux d'un coup, `node tools/version.js`
+affiche leur état, et **`qc.js` refuse un désaccord**. `tools/version_test.js` rejoue la
+cascade de diagnostic dans ses neuf situations, dont deux qui se trompent facilement :
+un cache en retard *et* un serveur en avance doit faire réparer le cache d'abord, et la
+comparaison doit être numérique — `v9` est antérieure à `v30`, ce qu'une comparaison de
+texte affirmerait à l'envers.
+
+### Correction annexe
+
+L'assertion qui vérifie que tout `$('#id')` d'`app.js` correspond à un élément réel
+tenait une **liste figée** des identifiants créés dynamiquement. Elle oubliait donc
+chaque nouvel ajout et signalait un faux défaut. Elle relève maintenant les deux
+sources : le markup statique et les gabarits d'`app.js`.
+
+## Chantier périmé et nouvelle icône — v30
+
+### Une créature déterrée restait verrouillée sur son chantier
+
+Signalé depuis un playtest : le mosasaure de Bernissart, une fois trouvé, apparaissait
+bien dans la Collection mais restait « non découvert » sur son chantier. Les données
+étaient saines — NWE contient bien ses six créatures, image comprise.
+
+**C'était une régression introduite en v19.** Après une découverte, le bouton principal
+« Consulter la fiche » bascule vers la Collection sans reconstruire le chantier. Et
+depuis la v19, revenir à l'onglet Fouille *réaffichait* le chantier conservé au lieu de
+le *régénérer* — pour éviter de renvoyer à la carte du monde et faire refaire tout le
+chemin. Les deux décisions étaient bonnes séparément ; ensemble elles montraient un
+écran daté d'avant la trouvaille.
+
+Correction en deux points : `montrer('fouille')` reconstruit le chantier au lieu de le
+réafficher, et `fermerReveal()` le régénère dans les deux branches, y compris quand on
+part consulter la fiche. Un balayage vérifie que les trois onglets se reconstruisent —
+Collection et Bourse le faisaient déjà.
+
+### Icône
+
+Régénérée depuis **HC-01, Tyrannosaurus rex** (`python3 tools/icone.py HC-01 --haut 18`).
+
+Le choix a été mesuré plutôt que deviné, sur les trois propriétés qui décident de la
+lisibilité d'une icône à 64 px : contraste, énergie de contour, et surtout **répartition
+du détail vers le centre** — Android rogne les icônes maskables en cercle, et ce qui
+touche les bords disparaît. Le T. rex obtient la meilleure masse centrale (1,00) pour un
+contraste comparable aux autres candidats. Le Dilophosaurus avait plus de contour mais
+débordait vers les bords.
+
+Pour en changer, une commande suffit : `python3 tools/icone.py <ID> --haut <%>`, puis
+`--apercu` pour contrôler sans rien écrire.
+
+**Trouvaille annexe** : `icone-maskable-512.png` était déclarée au manifeste mais absente
+du cache hors ligne. Une assertion vérifie désormais que toute icône du manifeste est à
+la fois présente sur le disque et dans la liste du service worker.
+
+## Biais de QCM — v29
+
+Sur les 752 questions à choix, **la bonne réponse était la plus longue des quatre dans
+67 % des cas**, contre 25 % attendus au hasard, et 1,76 fois plus longue que la moyenne
+des leurres. On pouvait répondre juste deux fois sur trois en choisissant la ligne la
+plus longue, sans rien connaître au sujet — une application censée apprendre quelque
+chose entraînait à deviner.
+
+La cause est une dissymétrie de forme, pas de contenu : la clé était rédigée comme une
+proposition complète portant la nuance, les leurres étaient de courts groupes nominaux
+parfois franchement absurdes — « Des plumes » face à une réponse de quatre-vingt-treize
+caractères. Deux biais secondaires s'y ajoutent : **17 % des questions ont un leurre
+contenant un absolu** (« jamais », « aucun ») quand la clé n'en a pas, ce qui le désigne
+comme faux ; et 3 % voient la clé reprendre des mots rares de l'énoncé.
+
+**La position n'est pas en cause.** `app.js` mélange les options à chaque affichage par
+un Fisher-Yates complet : l'ordre du fichier n'atteint jamais la joueuse. Trois
+assertions vérifient que ce mélange reste en place.
+
+### Trois règles de correction
+
+1. La clé est ramenée à une réponse, la nuance passant dans l'explication.
+2. Les leurres deviennent parallèles à la clé — même nature grammaticale, longueur du
+   même ordre, contenu plausible pour qui a mal révisé plutôt qu'absurde.
+3. Au moins un leurre est plus long que la clé, pour que la ligne la plus longue cesse
+   d'être un pari gagnant.
+
+| Banque | avant | après |
+|---|---|---|
+| `philomonde` | 100 % · ratio 2,50 | 35 % · ratio 1,11 |
+| `biologie` | 85 % · ratio 2,33 | 35 % · ratio 1,04 |
+
+### Ce qui reste
+
+**Sept banques, 620 questions**, dont les 500 de fouille qui portent la boucle
+principale. `tools/qcm.js` les mesure et les classe, `--banque <id>` sort le détail,
+`--pires` les vingt cas les plus déséquilibrés. `qc.js` affiche le reste à faire à
+chaque passage et **refuse toute aggravation** : seuil ferme sur les banques reprises,
+plafond global sur l'ensemble. Le travail se fait à la main, question par question —
+un leurre plausible ne se génère pas.
+
+### Trouvaille annexe
+
+Les vingt items de `biologie` avaient été écrits **sans champ `n`** : l'interface
+affichait « undefined » partout où le numéro est repris. Ils sont numérotés à
+l'exécution, dans `data_bloc18.js`.
+
+## Dégraissage et réécriture des rappels — v28
+
+L'écran d'un pack portait un objectif, une jauge, une ligne de statistiques et un
+barème avant d'arriver au bouton. Ne restent que l'icône, le titre, le sous-titre, un
+gros bouton et le rappel replié — la progression reste lisible sur la carte du pack.
+Sont partis aussi le paragraphe d'explication en tête de Bourse et la note du groupe
+scolaire, redondants avec ce qui les entoure.
+
+Les douze **rappels théoriques sont réécrits en prose suivie** (`data_bloc17.js`). Ils
+étaient bâtis en rubriques capitalisées — un catalogue qu'on parcourt sans le lire.
+Chacun part désormais d'un cas concret, déroule, et se referme sur ce qui reste ouvert.
+Aucun fait retiré ; trois mille caractères gagnés, non pas de matière mais de liant.
+Trois assertions par pack vérifient qu'aucun ne retombe en liste.
+
+## Rendu hors Chrome — v27
+
+Quatre signalements depuis un iPhone, tous dus à un rendu tenu pour acquis.
+
+### Étiquettes de carte
+
+Les étiquettes reposaient sur un **contour de texte épais** posé derrière les
+glyphes (`paint-order:stroke`) en guise de fond. Chrome le dessine finement, Safari
+l'épaissit au point d'empâter les lettres — et d'autant plus que la ligne est longue,
+ce qui explique exactement le symptôme : « Fezouata » restait lisible, « zoomer pour
+ouvrir » ne l'était plus.
+
+Plutôt que de chercher le bon réglage de contour moteur par moteur, une **plaque
+opaque** est posée derrière les deux lignes. Sa largeur est estimée d'après le nombre
+de caractères : SVG ne mesure pas un texte avant de l'avoir rendu, et une estimation
+large coûte moins qu'un reflow par épingle à chaque déplacement de la carte. Grappes
+et sites partagent désormais la même fabrique d'étiquette.
+
+### Flèches et croix
+
+Le retour était le caractère « ← », la fermeture de fiche « ✕ » : deux glyphes dont le
+dessin dépend de la police du système. Remplacés par des **tracés SVG**, identiques
+partout. Un balayage a trouvé deux autres boutons dans le même cas — le retour du
+détail de pack et celui de la mission.
+
+**Et le bouton de fermeture de fiche n'avait aucune règle CSS**, donc l'apparence par
+défaut du navigateur. Il figurait dans une liste que j'avais écartée comme du bruit
+deux versions plus tôt ; le contrôle refait sur les seules classes ne laisse que
+`zsc`, marqueur lu par le JS. **Ce contrôle est désormais une assertion** : toute
+classe employée doit avoir une règle.
+
+Le retour de chantier est aussi **répété en bas de page**, là où l'on arrive après
+avoir parcouru les vignettes.
+
+### Introduction : balayage et retour
+
+Un enchaînement de volets sans retour oblige à tout relire depuis le début pour
+retrouver une phrase. Trois accès désormais : **balayage horizontal**, bouton
+**Précédent**, et **pastilles cliquables** — elles indiquaient la position sans y
+mener, ce qui est une promesse non tenue. Le balayage exige 45 px et une dominante
+horizontale, pour ne pas se déclencher sur un défilement du texte.
+
+### Nom d'espèce et groupe
+
+« Prognathodon saturator » puis « Mosasaure prognathodontidé » se suivaient sans que
+rien ne dise laquelle des deux dénominations était laquelle. Les deux portent
+maintenant leur étiquette, dans le même registre que la liste Période / Découvert en /
+Site qui suit. La carte de révélation d'une créature préfixe également « Groupe : ».
 
 ## Reprise d'interface — v26
 

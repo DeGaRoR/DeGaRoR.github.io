@@ -47,7 +47,7 @@
       <div id="chantier-fond"></div>
       <div class="ch-corps">
         <div class="ch-haut">
-          <button id="ch-retour" class="retour" aria-label="Retour à la carte">←</button>
+          <button id="ch-retour" class="retour" aria-label="Retour à la carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg><span>Carte</span></button>
           <div class="ch-ident">
             <h2 id="ch-nom"></h2>
             <p id="ch-meta"></p>
@@ -61,6 +61,7 @@
             Fouiller · <b id="ch-cout"></b> ◈
           </button>
           <button id="ch-relire" class="btn-fant">Relire la présentation du site</button>
+        <button id="ch-retour-bas" class="retour retour-bas" aria-label="Retour à la carte"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg><span>Retour à la carte du monde</span></button>
         </div>
       </div>
     </div>
@@ -140,7 +141,11 @@
     <p id="intro-accroche" class="intro-accroche"></p>
     <h2 id="intro-titre"></h2>
     <p id="intro-txt"></p>
-    <div id="intro-dots" class="dots"></div>
+    <div class="intro-nav">
+      <button id="intro-prec" class="retour" onclick="introPrecedent()"
+              aria-label="Volet précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg><span>Précédent</span></button>
+      <div id="intro-dots" class="dots"></div>
+    </div>
     <button id="intro-next" class="btn-primaire"></button>
   </div>
 </div>
@@ -154,7 +159,7 @@
 <!-- Fiche documentaire -->
 <div id="fiche">
   <div class="fi-panneau">
-    <button id="fiche-fermer" class="fermer" aria-label="Fermer">✕</button>
+    <button id="fiche-fermer" class="fermer" aria-label="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18"/></svg></button>
     <div id="fiche-corps"></div>
   </div>
 </div>

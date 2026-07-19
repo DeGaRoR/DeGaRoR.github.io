@@ -496,8 +496,45 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     code.includes('skipWaiting') && code.includes('clients.claim'));
   T('sw : les anciens caches sont supprimés', code.includes('caches.delete'));
   T('sw : l’attente réseau est bornée', /DELAI_RESEAU/.test(code));
+  /* Toute icône déclarée au manifeste doit être dans le cache hors ligne :
+     l'icône maskable y manquait, donc elle n'était pas disponible hors ligne. */
+  {
+    const man=JSON.parse(fs.readFileSync(path.join(R,'manifest.json'),'utf8'));
+    (man.icons||[]).forEach(i=>{
+      T('icône en cache : '+i.src, sw.includes(i.src) && fs.existsSync(path.join(R,i.src)));
+    });
+  }
   T('sw : version alignée sur le manifeste',
     /const VERSION='atlas-v\d+'/.test(code));
+
+  /* La version est écrite à deux endroits qui doivent concorder. Les laisser
+     diverger produit exactement la panne que le bloc de versions du menu sert à
+     diagnostiquer : une application qui se croit à jour pendant que le cache
+     sert l'ancienne. `node tools/version.js <n>` porte les deux d'un coup. */
+  {
+    const vSw=(sw.match(/VERSION='atlas-(v\d+)'/)||[])[1];
+    const vApp=(fs.readFileSync(path.join(R,'app.js'),'utf8')
+      .match(/VERSION_ATLAS='(v\d+)'/)||[])[1];
+    T('version : sw.js et app.js concordent', !!vSw && vSw===vApp,
+      'sw='+vSw+' app='+vApp+'  → node tools/version.js '+String(vSw||'').replace('v',''));
+  }
+
+  /* Le bloc de versions du menu, et la précaution qui le rend utile : demander
+     au réseau, pas au cache — sinon on demande au cache s'il est à jour. */
+  {
+    const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+    const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+    T('menu : bloc de versions présent', app.includes('id="rg-vers"') && css.includes('.rg-vers'));
+    T('menu : les trois lignes y sont',
+      app.includes('Application') && app.includes('Cache hors ligne') && app.includes('Sur le serveur'));
+    T('menu : la vérification est déclenchée', app.includes('majBlocVersion()'));
+    T('la version en ligne est lue hors cache',
+      /cache:'no-store'/.test(app) && /sw\.js\?maj=/.test(app),
+      'sans quoi on relit sa propre copie');
+    T('l’échec réseau est dit, pas masqué', app.includes('hors ligne'));
+    T('la version de sauvegarde reste distincte',
+      app.includes('VERSION_APP') && app.includes('Format de sauvegarde'));
+  }
 }
 
 /* ---------- 8 duodecies. Mise en page de l'accueil ----------
@@ -544,6 +581,158 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
   const emp=new Set([...css.matchAll(/var\((--[a-z0-9-]+)/g)].map(m=>m[1]));
   const abs=[...emp].filter(v=>!decl.has(v));
   T('css : toute variable employée est déclarée', abs.length===0, abs.join(', '));
+}
+
+/* ---------- 8 terdecies. Rendu hors Chrome ----------
+   Trois défauts signalés sur iPhone, tous dus à un rendu tenu pour acquis. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+
+  /* Les étiquettes de carte reposaient sur un contour de texte épais tenant lieu
+     de fond. Safari l'épaissit au point d'empâter les lettres, et d'autant plus
+     que la ligne est longue — d'où des noms de site lisibles et des étiquettes
+     de grappe illisibles. Une plaque opaque ne dépend d'aucun moteur. */
+  T('carte : les étiquettes ont une plaque', app.includes('pin-plaque') && css.includes('.pin-plaque'));
+  T('carte : plus de contour de texte tenant lieu de fond',
+    !/\.pin-(lbl|sub)\{[^}]*paint-order/.test(css));
+  T('carte : une seule fabrique d’étiquette', (app.match(/plaqueTexte\(/g)||[]).length===3,
+    'la grappe et le site doivent partager le même rendu');
+
+  /* Un glyphe de flèche dépend de la police du système. */
+  T('retour : tracé vectoriel et non caractère',
+    !/>←</.test(html) && /class="retour"[^>]*>\s*<svg/.test(html));
+  T('retour : présent aussi en bas de chantier', html.includes('id="ch-retour-bas"'));
+  T('retour : les deux ramènent à la carte',
+    (app.match(/#ch-retour(-bas)?'\)\.addEventListener\('click',vueCarte\)/g)||[]).length===2);
+
+  /* Une suite de volets sans retour oblige à tout relire pour une phrase. */
+  T('intro : balayage horizontal', app.includes('armerBalayageIntro') && app.includes('touchend'));
+  T('intro : le balayage ignore le défilement vertical',
+    /Math\.abs\(dx\)<Math\.abs\(dy\)/.test(app));
+  T('intro : bouton précédent', html.includes('id="intro-prec"'));
+  T('intro : pastilles atteignables', app.includes('introAller('));
+
+  /* Deux dénominations qui se suivent doivent dire laquelle est laquelle. */
+  T('fiche : le nom d’espèce est étiqueté', app.includes('Nom d’espèce'));
+  T('fiche : le groupe est étiqueté', /fi-groupe"><span>Groupe<\/span>/.test(app));
+  T('révélation : le groupe est étiqueté', app.includes("'Groupe : '+c.groupe"));
+
+  /* Contrôle inverse de celui des classes orphelines : toute classe employée
+     dans le markup ou dans un gabarit doit avoir au moins une règle. Une classe
+     sans règle laisse l'élément à l'apparence par défaut du navigateur, ce qui
+     passe inaperçu sur Chrome et se voit sur iOS — c'est ainsi que le bouton de
+     fermeture de fiche est resté sans style. `zsc` est exempté : c'est un
+     marqueur lu par le JS pour la contre-échelle, il n'a rien à styler. */
+  {
+    const EXEMPTES=new Set(['zsc']);
+    const cls=new Set();
+    [...(html+app).matchAll(/class=["'\\]*([a-zà-ÿ0-9 _-]+)/gi)].forEach(m=>
+      m[1].trim().split(/\s+/).forEach(c=>{ if(c.length>2 && !EXEMPTES.has(c)) cls.add(c); }));
+    const sans=[...cls].filter(c=>!new RegExp('\\.'+c+'[\\s,{:.>]').test(css));
+    T('toute classe employée a une règle CSS', sans.length===0, sans.join(', '));
+  }
+}
+
+/* ---------- 8 quaterdecies. Rappels théoriques et écran de pack ----------
+   Les rappels étaient des catalogues à rubriques capitalisées : on les
+   parcourait sans les lire. Ils sont désormais en prose suivie, et l'écran d'un
+   pack ne porte plus que le thème, le bouton et le rappel replié. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  PACKS.filter(p=>p.theorie).forEach(p=>{
+    const t=p.theorie;
+    T('rappel en prose : '+p.id, !/^[A-ZÀ-Ÿ][A-ZÀ-Ÿ' ,]{8,}[.:]/m.test(t) && !/^•/m.test(t),
+      'ni rubrique capitalisée ni puce');
+    T('rappel étoffé : '+p.id, t.length>1100, t.length+' caractères');
+    T('rappel en paragraphes : '+p.id, t.split(/\n{2,}/).length>=4);
+  });
+  T('les douze packs ont un rappel', PACKS.filter(p=>p.theorie).length===12);
+  T('le rappel est rendu en paragraphes', app.includes('function theorieHTML'));
+  T('le rappel a une mesure de ligne bornée', /\.theo > div\{[^}]*max-width/.test(css));
+  /* Écran de pack dégraissé : plus d'objectif, de jauge ni de barème. */
+  T('écran de pack : plus d’objectif affiché', !app.includes('class="pk-obj"'));
+  T('écran de pack : plus de jauge ni de barème', !app.includes('class="pk-st2"'));
+  T('écran de pack : le thème et le bouton', app.includes('pk-hero') && app.includes('pk-lancer'));
+  T('écran de pack : le rappel reste accessible', app.includes('<details class="theo"'));
+  /* Les classes de l'en-tête ne doivent pas entrer en collision avec celles des
+     cartes de la liste, qui emploient déjà pk-ico et pk-go. */
+  T('pas de collision de classes de pack',
+    app.includes('pk-hero-ico') && !/pk-hero[\s\S]{0,80}class="pk-ico"/.test(app));
+}
+
+/* ---------- 8 quindecies. Biais de QCM ----------
+   Une question à choix se résout sans rien connaître au sujet dès qu'un indice
+   de forme trahit la bonne réponse. Le plus courant est la longueur : la clé
+   porte la nuance, les leurres sont expédiés. Mesuré sur l'atlas, cela donnait
+   67 % de bonnes réponses reconnaissables comme la plus longue option, contre
+   25 % attendus au hasard — de quoi jouer deux fois sur trois en devinant.
+
+   Le travail se fait banque par banque. Les banques déjà reprises sont tenues
+   à un seuil ferme ; les autres sont mesurées et affichées, pour que le reste
+   à faire soit visible et que rien ne s'aggrave en silence.
+
+   La position n'a pas à être surveillée dans les données : app.js mélange les
+   options à chaque affichage. C'est ce mélange qu'on vérifie. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  T('les options sont mélangées à l’affichage',
+    /function melange\(/.test(app) && app.includes('melange(q.choix)'),
+    'sans quoi l’ordre du fichier deviendrait un indice');
+  T('le mélange est un Fisher-Yates complet',
+    /for\(let i=a\.length-1;i>0;i--\)\{const j=rnd\(0,i\)/.test(app));
+  T('les banques mélangent aussi leurs options', app.includes('melange([q.r,...q.autres])'));
+
+  /* Un écran réaffiché sans être reconstruit montre l'état d'avant. C'est ainsi
+     qu'une créature déterrée puis consultée dans la collection restait
+     verrouillée sur son chantier : le retour à l'onglet Fouille redonnait un
+     écran périmé. Les trois onglets doivent se régénérer. */
+  {
+    const m=(app.match(/function montrer\(ecran\)\{[\s\S]*?\n\}/)||[''])[0];
+    [['fouille',/chantier\(siteActif\)/],['collection',/rendreCollection\(\)/],
+     ['bourse',/menuPacks\(\)/]].forEach(([e,re])=>{
+      const i=m.indexOf("ecran==='"+e+"'");
+      T('onglet '+e+' : reconstruit et non réaffiché', i>=0 && re.test(m.slice(i,i+260)));
+    });
+    T('la carte n’est rendue que sans chantier actif', /if\(siteActif\) chantier\(siteActif\);\s*else vueCarte\(\)/.test(m));
+  }
+  T('après une découverte, le chantier est régénéré dans les deux cas',
+    /fermerReveal\(voirFiche\)\{[\s\S]{0,420}if\(siteActif\) chantier\(siteActif\);[\s\S]{0,120}if\(voirFiche\)/.test(app),
+    'y compris quand on part consulter la fiche');
+
+  const lot=[];
+  QUIZ_PALEO.forEach(x=>lot.push({src:'fouille',r:x.r,autres:x.choix.filter(c=>c!==x.r)}));
+  PACKS.filter(p=>p.type==='bank').forEach(p=>p.bank().forEach(x=>{
+    if(Array.isArray(x.autres)&&x.autres.length>=2) lot.push({src:p.id,r:x.r,autres:x.autres});
+  }));
+  const moy=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  const mes=b=>{const l=lot.filter(t=>t.src===b);
+    return {n:l.length,
+            pl:100*l.filter(t=>t.autres.every(a=>t.r.length>a.length)).length/l.length,
+            ra:moy(l.map(t=>t.r.length/Math.max(1,moy(t.autres.map(a=>a.length)))))};};
+
+  /* Banques reprises : seuil ferme. Une régression doit faire échouer la porte. */
+  const REPRISES={philomonde:1, biologie:1, orthographe:1, histoire:1};
+  Object.keys(REPRISES).forEach(b=>{
+    const m=mes(b);
+    T('qcm '+b+' : clé rarement la plus longue', m.pl<=45, m.pl.toFixed(0)+' % (seuil 45)');
+    T('qcm '+b+' : longueurs comparables', m.ra<=1.35, m.ra.toFixed(2)+' (seuil 1,35)');
+  });
+
+  /* Banques encore à reprendre : mesurées et annoncées, sans faire échouer. */
+  const restantes=[...new Set(lot.map(t=>t.src))].filter(b=>!REPRISES[b])
+    .map(b=>[b,mes(b)]).sort((a,b)=>b[1].ra-a[1].ra);
+  if(restantes.length){
+    console.log('   \u26a0 biais de longueur restant à corriger (node tools/qcm.js) :');
+    restantes.forEach(([b,m])=>console.log('       '+b.padEnd(13)+String(m.n).padStart(4)
+      +' questions   clé la plus longue '+m.pl.toFixed(0).padStart(3)+' %   ratio '+m.ra.toFixed(2)));
+  }
+  /* Garde-fou global : la situation ne doit pas empirer. */
+  const tous={n:lot.length,
+    pl:100*lot.filter(t=>t.autres.every(a=>t.r.length>a.length)).length/lot.length};
+  T('qcm : le biais global ne s’aggrave pas', tous.pl<=66, tous.pl.toFixed(1)+' % (plafond 66)');
 }
 
 /* ---------- 9. Économie ---------- */
@@ -618,11 +807,17 @@ const app=lire('app.js'), html=lire('index.html'), sw=lire('sw.js');
 const vus=new Set();
 let m; const rx=/\$\('#([a-zA-Z0-9_-]+)'\)/g;
 while((m=rx.exec(app))) vus.add(m[1]);
-/* Les identifiants créés dynamiquement par app.js lui-même sont exclus. */
-const dyn=new Set(['rev-flip','q-rep','q-input','q-fb','btn-indice',
-  'tr-rep','tr-indice','tr-fb','tr-essais','md-vue','pins']);
-[...vus].filter(id=>!dyn.has(id)).forEach(id=>
-  T('app.js interroge #'+id+' : présent dans index.html', html.includes('id="'+id+'"')));
+/* Un identifiant interrogé doit exister quelque part : soit dans le markup
+   statique, soit dans un gabarit d'app.js qui le fabrique. La liste figée que
+   tenait cette assertion oubliait chaque nouvel identifiant dynamique et
+   signalait un faux défaut ; on relève désormais les deux sources. */
+const fabriques=new Set();
+{ let d; const rd=/id="([a-zA-Z0-9_-]+)"/g;
+  while((d=rd.exec(app))) fabriques.add(d[1]); }
+[...vus].forEach(id=>
+  T('app.js interroge #'+id+' : cet élément existe',
+    html.includes('id="'+id+'"') || fabriques.has(id),
+    'ni dans index.html ni dans un gabarit'));
 
 ['fouille','collection','bourse'].forEach(e=>{
   T('écran '+e+' présent', html.includes('id="ecran-'+e+'"'));

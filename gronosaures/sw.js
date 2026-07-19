@@ -3,11 +3,12 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v26';
+const VERSION='atlas-v31';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
   './monde-min.webp', './icones/icone-192.png', './icones/icone-512.png',
+  './icones/icone-maskable-512.png',
 ];
 const IMAGES=[
   './cartes/EDI-01.webp', './cartes/EDI-02.webp', './cartes/EDI-03.webp', './cartes/EDI-04.webp',

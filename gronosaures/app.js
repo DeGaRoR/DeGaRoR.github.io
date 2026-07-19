@@ -14,7 +14,17 @@
      1. Utilitaires       2. État        3. Navigation et fonds
      4. Fouille           5. Collection  6. Bourse       7. Init
    ================================================================ */
+/* Deux versions distinctes, qu'on confondait sous un seul nom.
+
+   VERSION_APP est la version du FORMAT DE SAUVEGARDE. Elle ne bouge que si la
+   structure d'un export change, et sert à l'import. Elle n'a rien à dire sur la
+   fraîcheur du code.
+
+   VERSION_ATLAS est la version de l'APPLICATION. Elle doit être identique à
+   celle du service worker, faute de quoi le code chargé et le cache qui le sert
+   ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
+const VERSION_ATLAS='v31';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -198,6 +208,12 @@ function importerProgression(fichier){
   fr.readAsText(fichier);
 }
 
+/* Tracés d'interface. Un caractère de flèche ou de croix est dessiné par la
+   police du système : sur iOS le rendu était mauvais et peu lisible. Ces deux
+   tracés sont identiques partout et se colorent par `currentColor`. */
+const FLECHE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg>';
+const CROIX_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>';
+
 const creaturesDe=site=>CREATURES.filter(c=>c.site===site);
 /* Le bonus d'achèvement suit le coût du site : ouvrir Ouadi al-Hitan coûte
    près de dix fois Burgess, le rendre ne peut pas rapporter autant. Le plancher
@@ -248,11 +264,17 @@ function majFondGlobal(){
 function montrer(ecran){
   $$('.ecran').forEach(e=>e.classList.toggle('actif', e.id==='ecran-'+ecran));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ecran===ecran));
-  /* Revenir à l'onglet Fouille depuis un autre onglet doit rendre l'écran qu'on
-     avait quitté. Repartir de la carte du monde oblige à refaire tout le chemin
-     et donne l'impression d'avoir perdu sa place. */
+  /* Revenir à l'onglet Fouille doit rendre l'écran qu'on avait quitté — repartir
+     de la carte oblige à refaire tout le chemin. Mais il faut le RECONSTRUIRE et
+     pas seulement le réafficher : sinon il montre l'état d'avant.
+
+     C'est ainsi qu'une créature déterrée puis consultée dans la collection
+     restait verrouillée sur son chantier. Le bouton « Consulter la fiche »
+     quittait la fouille sans la régénérer, et le retour se contentait de
+     redonner un écran périmé. */
   if(ecran==='fouille'){
-    if(!siteActif) vueCarte();
+    if(siteActif) chantier(siteActif);
+    else vueCarte();
     requestAnimationFrame(()=>{ if(pzMonde && $('#vue-carte').style.display!=='none') pzMonde.refit(); });
   }
   if(ecran==='collection'){ majFondGlobal(); rendreCollection(); }
@@ -414,20 +436,42 @@ function marqueurSite(s){
     ${ouv?'<circle class="pin-shine" cx="-4" cy="-4" r="3.5"/>'
          :'<path class="pin-cadenas" d="M-4,-1 h8 v6 h-8 z M-2.4,-1 v-2.6 a2.4,2.4 0 0 1 4.8,0 v2.6"/>'}
     ${fini?'<path class="pin-sceau" d="M-6,0 L-2,4.5 L6.5,-4.5"/>':''}
-    <text class="pin-lbl" y="34">${esc(s.court)}</text>
-    <text class="pin-sub" y="48">${esc(sous)}</text></g>`;
+    ${plaqueTexte(s.court, sous, 28)}</g>`;
 }
 function marqueurGrappe(g){
   const b=boiteDe(g), cx=Math.round(b.x+b.w/2), cy=Math.round(b.y+b.h/2);
   const ouverts=g.filter(s=>ouvert(s.id)).length;
+  const l1=g.length+' chantiers';
+  const l2=ouverts?ouverts+' ouvert'+(ouverts>1?'s':''):'zoomer pour ouvrir';
   return `<g class="zsc grappe" data-x="${cx}" data-y="${cy}"
             data-sites="${g.map(s=>s.id).join(',')}" tabindex="0" role="button"
             aria-label="${g.length} chantiers : ${esc(g.map(s=>s.court).join(', '))}">
     <circle class="pin-halo" r="30"/>
     <circle class="grappe-core" r="17"/>
     <text class="grappe-nb" y="6">${g.length}</text>
-    <text class="pin-lbl" y="38">${g.length} chantiers</text>
-    <text class="pin-sub" y="52">${ouverts?ouverts+' ouvert'+(ouverts>1?'s':''):'zoomer pour ouvrir'}</text></g>`;
+    ${plaqueTexte(l1, l2, 32)}</g>`;
+}
+
+/* Étiquette sur plaque opaque.
+
+   Les étiquettes reposaient sur un contour noir épais posé derrière le texte
+   (`paint-order:stroke`). Sur Android le rendu passe ; sur Safari il empâte les
+   lettres au point de les rendre illisibles, et d'autant plus que la ligne est
+   longue — c'est pourquoi les noms de site courts restaient lisibles quand
+   « zoomer pour ouvrir » ne l'était plus.
+
+   Plutôt que de parier sur le rendu d'un contour, on pose une plaque opaque
+   derrière les deux lignes. La largeur est estimée à partir du nombre de
+   caractères : SVG ne mesure pas le texte avant de l'avoir rendu, et une
+   estimation large vaut mieux qu'une mesure qui coûterait un reflow par
+   épingle à chaque déplacement de la carte. */
+const LARG_CAR_LBL=0.55, LARG_CAR_SUB=0.52;
+function plaqueTexte(l1, l2, yHaut){
+  const w1=l1.length*15*LARG_CAR_LBL, w2=l2.length*12*LARG_CAR_SUB;
+  const w=Math.ceil(Math.max(w1,w2))+20;
+  return `<rect class="pin-plaque" x="${-w/2}" y="${yHaut}" width="${w}" height="34" rx="9"/>
+    <text class="pin-lbl" y="${yHaut+15}">${esc(l1)}</text>
+    <text class="pin-sub" y="${yHaut+28}">${esc(l2)}</text>`;
 }
 let signature='';
 function construireCarte(force){
@@ -519,8 +563,45 @@ function introSite(id,relecture){
 function afficheIntro(){
   const s=SITES.find(x=>x.id===introSiteId);
   $('#intro-txt').textContent=s.intro[introI];
-  $('#intro-dots').innerHTML=s.intro.map((_,i)=>`<span class="${i===introI?'on':''}"></span>`).join('');
+  /* Les pastilles deviennent atteignables : elles indiquaient la position sans
+     permettre d'y aller, ce qui est une promesse non tenue. */
+  $('#intro-dots').innerHTML=s.intro.map((_,i)=>
+    `<span class="${i===introI?'on':''}" role="button" tabindex="0"
+       aria-label="Volet ${i+1}" onclick="introAller(${i})"></span>`).join('');
   $('#intro-next').textContent = introI===s.intro.length-1 ? 'Descendre sur le chantier →' : 'Continuer ›';
+  const p=$('#intro-prec');
+  if(p) p.style.visibility = introI>0 ? 'visible' : 'hidden';
+}
+
+function introAller(i){
+  const s=SITES.find(x=>x.id===introSiteId);
+  if(!s || i<0 || i>=s.intro.length || i===introI) return;
+  introI=i; afficheIntro();
+}
+function introPrecedent(){ if(introI>0){ introI--; afficheIntro(); } }
+
+/* Balayage horizontal sur l'introduction.
+
+   Un enchaînement de volets sans possibilité de revenir oblige à tout relire
+   depuis le début pour retrouver une phrase. Le bouton « Précédent » couvre le
+   cas, le balayage le rend naturel.
+
+   Le seuil de 45 px et la contrainte d'horizontalité évitent de déclencher sur
+   un défilement vertical du texte, qui reste prioritaire. */
+function armerBalayageIntro(){
+  const el=$('#intro'); if(!el) return;
+  let x0=0, y0=0, actif=false;
+  el.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){ actif=false; return; }
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; actif=true;
+  },{passive:true});
+  el.addEventListener('touchend',e=>{
+    if(!actif) return; actif=false;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-x0, dy=t.clientY-y0;
+    if(Math.abs(dx)<45 || Math.abs(dx)<Math.abs(dy)*1.4) return;
+    if(dx<0) introSuivant(); else introPrecedent();
+  },{passive:true});
 }
 function introSuivant(){
   const s=SITES.find(x=>x.id===introSiteId);
@@ -719,7 +800,7 @@ function revealCarte(c,type,niv,bonusSite,note){
     : type==='dossier' ? 'Dossier enrichi — niveau '+niv : 'Fragment supplémentaire';
   const reste = niv<3 ? (SEUILS_DOC[niv]+1-fragments(c.id)) : 0;
   const sous = note ? note
-    : type==='nouvelle' ? c.groupe
+    : type==='nouvelle' ? 'Groupe : '+c.groupe
     : type==='dossier' ? 'De nouvelles informations sont lisibles sur la fiche.'
     : (niv<3 ? 'Encore '+reste+' fragment'+(reste>1?'s':'')+' avant le niveau '+(niv+1)
              : 'Dossier déjà complet — la pièce rejoint la réserve.');
@@ -739,8 +820,11 @@ function revealCarte(c,type,niv,bonusSite,note){
 }
 function fermerReveal(voirFiche){
   $('#reveal').classList.remove('on');
+  /* Le chantier est reconstruit dans les deux cas, y compris quand on part vers
+     la fiche : son état doit être juste au moment où l'on y revient, pas au
+     moment où l'on choisit d'y revenir. */
+  if(siteActif) chantier(siteActif);
   if(voirFiche){ montrer('collection'); ouvrirFiche(voirFiche); }
-  else if(siteActif) chantier(siteActif);
 }
 
 /* ---------------- 5. Collection et fiches ---------------- */
@@ -962,11 +1046,21 @@ function ouvrirReglages(v){
         ? `<button class="rg-suppr" onclick="supprimerActif()">Supprimer cette partie</button>`
         : ''}
 
+      <div class="rg-vers" id="rg-vers">
+        <p class="rg-vers-t">Version</p>
+        <div class="rg-vl"><span>Application</span><b>${esc(VERSION_ATLAS)}</b></div>
+        <div class="rg-vl"><span>Cache hors ligne</span><b id="rg-cache">…</b></div>
+        <div class="rg-vl"><span>Sur le serveur</span><b id="rg-serveur">…</b></div>
+        <p class="rg-etat" id="rg-etat">Vérification…</p>
+      </div>
       <p class="rg-pied">Tout est enregistré sur cet appareil seulement.
-        Version ${esc(VERSION_APP)}.</p>
+        Format de sauvegarde ${esc(VERSION_APP)}.</p>
       <button class="btn-primaire" onclick="fermerReglages()">Fermer</button>`;
   }
   $('#reglages-corps').innerHTML=html;
+  /* Le panneau s'affiche tout de suite ; les deux lignes qui demandent un aller-
+     retour se remplissent ensuite. Rien n'attend le réseau pour s'ouvrir. */
+  if($('#rg-vers')) majBlocVersion();
   $('#reglages').classList.add('on');
 }
 function fermerReglages(){ vueReglages='profil'; $('#reglages').classList.remove('on'); }
@@ -1113,6 +1207,67 @@ function supprimerActif(){
 
 /* Vider les caches du service worker puis recharger. La progression vit dans
    localStorage, que l'on ne touche pas. */
+/* ---------- Vérification de version ----------
+
+   Trois nombres, parce que trois choses peuvent diverger et que le symptôme est
+   le même — une application qui ne change pas après un déploiement.
+
+     Application       la version du code effectivement chargé.
+     Cache hors ligne  ce que le service worker garde sous la main. S'il reste
+                       en retard, c'est lui qui sert des fichiers périmés.
+     Sur le serveur    ce qui est en ligne. Lu directement dans sw.js, sans
+                       passer par le cache, sinon la question n'aurait pas de
+                       sens : on demanderait au cache s'il est à jour.
+
+   Tout se fait au mieux : hors ligne, ou sans service worker, chaque ligne le
+   dit plutôt que de mentir ou de rester à trois points de suspension. */
+async function nomsCacheAtlas(){
+  if(!('caches' in window)) return [];
+  try{ return (await caches.keys()).filter(n=>/^atlas-v\d+$/.test(n)); }
+  catch(_){ return []; }
+}
+
+async function versionEnLigne(){
+  /* `cache:'no-store'` court-circuite le cache HTTP ; le paramètre d'horodatage
+     court-circuite le service worker, qui ignore la requête faute de la
+     reconnaître. Sans ces deux précautions on relit sa propre copie. */
+  const r=await fetch('./sw.js?maj='+Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error('réponse '+r.status);
+  const m=(await r.text()).match(/VERSION='atlas-(v\d+)'/);
+  if(!m) throw new Error('version illisible');
+  return m[1];
+}
+
+const numVer=v=>parseInt(String(v).replace(/\D/g,''),10)||0;
+
+async function majBlocVersion(){
+  const cache=$('#rg-cache'), serveur=$('#rg-serveur'), etat=$('#rg-etat');
+  if(!cache) return;
+
+  const noms=await nomsCacheAtlas();
+  const vCache=noms.length?noms.map(n=>n.replace('atlas-','')).join(', '):null;
+  cache.textContent = vCache || (('serviceWorker' in navigator)?'aucun':'non géré');
+
+  let vServeur=null, err=null;
+  try{ vServeur=await versionEnLigne(); }catch(e){ err=e; }
+  serveur.textContent = vServeur || 'hors ligne';
+
+  /* Le diagnostic se lit dans cet ordre : d'abord ce qui est réparable ici. */
+  if(vCache && vCache!==VERSION_ATLAS){
+    etat.textContent='Le cache est en retard sur le code chargé. Force la mise à jour.';
+    etat.className='rg-etat alerte';
+  }else if(err){
+    etat.textContent='Impossible de joindre le serveur — vérification reportée.';
+    etat.className='rg-etat neutre';
+  }else if(numVer(vServeur)>numVer(VERSION_ATLAS)){
+    etat.textContent='Version '+vServeur+' disponible. Force la mise à jour pour l’installer.';
+    etat.className='rg-etat alerte';
+  }else{
+    etat.textContent='Tout est à jour.';
+    etat.className='rg-etat ok';
+  }
+}
+
 async function forcerMaj(btn){
   if(btn){ btn.disabled=true; btn.textContent='Mise à jour…'; }
   try{
@@ -1135,8 +1290,9 @@ function ouvrirFiche(id){
   let h=`<img class="fi-img" src="${c.img}" alt="${esc(c.nom)}">
     <div class="fi-corps">
       <div class="fi-niv">${'●'.repeat(nv)}${'○'.repeat(3-nv)} <span>Niveau documentaire ${nv} / 3</span></div>
+      <p class="fi-sur">Nom d’espèce</p>
       <h2>${esc(c.nom)}</h2>
-      <p class="fi-groupe">${esc(c.groupe)}</p>
+      <p class="fi-groupe"><span>Groupe</span>${esc(c.groupe)}</p>
       <dl class="fi-dl">
         <dt>Période</dt><dd>${esc(c.periode)} — ${esc(c.age)}</dd>
         <dt>Découvert en</dt><dd>${esc(c.lieu)}</dd>
@@ -1194,37 +1350,45 @@ function avancePack(p){
 }
 function menuPacks(){
   $('#bourse-corps').innerHTML=`
-    <p class="intro-p">Une mission compte ${NB_MISSION} exercices. Les crédits gagnés financent l'ouverture des chantiers et chaque coup de pioche. Une réponse trouvée après l'indice rapporte moins, mais rien n'est jamais retiré.</p>
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
     <h3 class="grp">Accompagnement scolaire
       <em>secondaire inférieur · ${BAREME.ecole.juste} \u25C8 par bonne réponse</em></h3>
-    <p class="grp-note">Ces six packs suivent le programme de 12-15 ans, pour pouvoir
-      aider aux devoirs sans être prise de court.</p>
     ${PACKS.filter(p=>p.cat==='ecole').map(carteP).join('')}`;
 }
 function carteP(p){
   const a=avancePack(p), st=statPack(p.id);
-  const taux=st.tot?Math.round(st.ok/st.tot*100)+' %':'—';
+  const taux=st.tot?' · réussite '+Math.round(st.ok/st.tot*100)+' %':'';
   return `<button class="pack" onclick="ouvrirPack('${p.id}')">
     <span class="pk-ico">${p.ico}</span>
     <span class="pk-txt"><b>${esc(p.nom)}</b><small>${esc(p.sous)}</small>
       <span class="jauge sm"><i style="width:${a.pct}%"></i></span>
-      <small class="pk-st">${esc(a.txt)} · réussite ${taux}</small></span>
+      <small class="pk-st">${esc(a.txt)}${taux}</small></span>
     <span class="pk-go">›</span></button>`;
 }
 let packActif=null;
+/* Le rappel est écrit en prose, en paragraphes séparés par une ligne vide. */
+function theorieHTML(p){
+  return String(p.theorie||'').split(/\n{2,}/)
+    .map(par=>'<p>'+esc(par.trim()).replace(/\n/g,'<br>')+'</p>').join('');
+}
+
 function ouvrirPack(id){
   packActif=PACKS.find(p=>p.id===id);
-  const p=packActif, a=avancePack(p), b=bareme(p);
+  const p=packActif;
+  /* L'écran d'un pack portait un objectif, une jauge, une ligne de statistiques
+     et un barème. Rien de tout cela n'aide à commencer : la progression est déjà
+     lisible sur la carte du pack, dans la liste. Ne restent que le thème, le
+     bouton, et le rappel replié. */
   $('#bourse-corps').innerHTML=`
-    <div class="pk-tete"><button class="retour" onclick="menuPacks()">←</button>
-      <div><b>${p.ico} ${esc(p.nom)}</b><small>${esc(p.sous)}</small></div></div>
-    <p class="pk-obj">${esc(p.objectif)}</p>
-    <div class="jauge"><i style="width:${a.pct}%"></i></div>
-    <p class="pk-st2">${esc(a.txt)} · ${b.juste} \u25C8 par bonne réponse, ${b.mission} \u25C8 à l'arrivée</p>
-    <button class="btn-primaire" onclick="lancerMission()">Commencer une mission (${NB_MISSION} exercices)</button>
-    <details class="theo"><summary>📖 Rappel théorique</summary><div>${esc(p.theorie).replace(/\n/g,'<br>')}</div></details>`;
+    <div class="pk-tete"><button class="retour" onclick="menuPacks()" aria-label="Retour aux packs">${FLECHE_SVG}<span>Packs</span></button></div>
+    <div class="pk-hero">
+      <span class="pk-hero-ico">${p.ico}</span>
+      <h2 class="pk-nom">${esc(p.nom)}</h2>
+      <p class="pk-sous">${esc(p.sous)}</p>
+    </div>
+    <button class="btn-primaire pk-lancer" onclick="lancerMission()">Commencer une mission</button>
+    <details class="theo"><summary>Rappel théorique</summary><div>${theorieHTML(p)}</div></details>`;
 }
 function genConjugaison(niv){
   const V=verbesNiv(niv);
@@ -1292,7 +1456,7 @@ function rendreExo(){
   fondDefi();                       // une créature différente à chaque question
   const q=mission.q, p=packActif, saisie=!q.choix;
   $('#bourse-corps').innerHTML=`
-    <div class="q-tete"><button class="retour" onclick="abandonner()">←</button>
+    <div class="q-tete"><button class="retour" onclick="abandonner()" aria-label="Quitter la mission">${FLECHE_SVG}<span>Quitter</span></button>
       <div class="q-prog"><span>${p.ico} ${esc(p.nom)}</span>
         <span class="q-pts">${mission.i+1} / ${NB_MISSION}</span></div></div>
     <div class="q-barre"><i style="width:${mission.i/NB_MISSION*100}%"></i></div>
@@ -1411,6 +1575,8 @@ function init(){
   $('#intro').addEventListener('click',introSuivant);
   $('#btn-fouiller').addEventListener('click',fouiller);
   $('#ch-retour').addEventListener('click',vueCarte);
+  armerBalayageIntro();
+  $('#ch-retour-bas').addEventListener('click',vueCarte);
   $('#ch-relire').addEventListener('click',()=>{ if(siteActif) introSite(siteActif,true); });
   $('#fiche-fermer').addEventListener('click',fermerFiche);
   $('#fiche').addEventListener('click',e=>{ if(e.target.id==='fiche') fermerFiche(); });

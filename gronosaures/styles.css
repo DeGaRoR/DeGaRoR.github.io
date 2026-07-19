@@ -80,7 +80,6 @@ button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer}
   display:block; margin-top:5px; font-size:.6rem; line-height:1.25;
   color:var(--txt3); letter-spacing:.2px;
 }
-.grp-note{clear:both; font-size:.79rem; color:var(--txt3); margin:-2px 0 13px; line-height:1.5}
 .col-tri{display:flex; gap:6px; margin:0 0 16px; flex-wrap:wrap}
 .col-tri button{
   flex:1 1 auto; min-width:88px; padding:8px 10px; font-size:.8rem;
@@ -327,6 +326,32 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
   opacity:.85;
 }
 .rg-suppr:active{opacity:1}
+/* Trois versions plutôt qu'une : le code chargé, le cache qui le sert, et ce
+   qui est en ligne. Quand une mise à jour ne « prend » pas, la ligne fautive se
+   voit immédiatement. */
+.rg-vers{
+  margin:16px 0 0; padding:13px 14px 12px; border-radius:var(--r);
+  background:rgba(255,255,255,.03); border:1px solid var(--bord);
+}
+.rg-vers-t{
+  margin:0 0 9px; font-size:.63rem; letter-spacing:2px; text-transform:uppercase;
+  color:var(--patine);
+}
+.rg-vl{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  padding:5px 0; font-size:.82rem; color:var(--txt3);
+  border-top:1px dotted rgba(255,255,255,.09);
+}
+.rg-vl:first-of-type{border-top:0}
+.rg-vl b{
+  color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums;
+  text-align:right; overflow-wrap:anywhere;
+}
+.rg-etat{margin:10px 0 0; font-size:.76rem; line-height:1.45}
+.rg-etat.ok{color:var(--bon)}
+.rg-etat.alerte{color:var(--ocre-clair)}
+.rg-etat.neutre{color:var(--txt3)}
+
 .rg-pied{
   margin:16px 0 14px; font-size:.71rem; line-height:1.5; color:var(--txt3);
   text-align:center;
@@ -371,14 +396,20 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 .pin.fini .pin-core{fill:var(--ocre); stroke:var(--ocre-clair)}
 .pin.fini .pin-halo{fill:var(--patine); opacity:.22}
 .pin-sceau{fill:none; stroke:#101725; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round}
+/* Plaque opaque derrière les étiquettes : voir `plaqueTexte` dans app.js. Le
+   contour de texte, qui servait auparavant de fond, empâtait les lettres sur
+   Safari. Aucun `paint-order` ici : plus rien n'en dépend. */
+.pin-plaque{
+  fill:rgba(8,13,22,.88); stroke:rgba(200,150,79,.34); stroke-width:1;
+}
 .pin-lbl{
   fill:#fff; font-family:Georgia,serif; font-size:15px; text-anchor:middle;
-  paint-order:stroke; stroke:#060a12; stroke-width:4; stroke-linejoin:round;
 }
 .pin-sub{
-  fill:#c8964f; font-size:12px; text-anchor:middle; font-family:var(--sans);
-  paint-order:stroke; stroke:#060a12; stroke-width:3.4; stroke-linejoin:round;
+  fill:var(--ocre-clair); font-size:12px; text-anchor:middle; font-family:var(--sans);
 }
+.pin.verrouille .pin-plaque{stroke:rgba(255,255,255,.14)}
+.pin.fini .pin-plaque{stroke:rgba(200,150,79,.6)}
 
 /* ---------- Chantier (plein écran) ---------- */
 #vue-carte{position:absolute; inset:0}
@@ -429,9 +460,40 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
   display:block; margin:12px auto 0; background:none; border:0;
   color:var(--patine); font-size:.85rem; text-decoration:underline; text-underline-offset:3px;
 }
+/* Ce bouton n'avait aucune règle : il s'affichait avec l'apparence par défaut du
+   navigateur, ce qui explique son rendu sur iOS. Il ferme la fiche de créature,
+   par-dessus l'image, d'où le fond assombri et le flou d'arrière-plan. */
+.fermer{
+  position:absolute; top:12px; right:12px; z-index:3;
+  width:38px; height:38px; display:grid; place-items:center;
+  background:rgba(6,10,18,.62); border:1px solid rgba(255,255,255,.16);
+  border-radius:50%; color:#fff; backdrop-filter:blur(3px);
+}
+.fermer svg{
+  width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2.2;
+  stroke-linecap:round;
+}
+.fermer:active{background:rgba(6,10,18,.85)}
+
+/* Le retour était le caractère « ← », dont le dessin dépend de la police du
+   système : sur iOS il rendait mal et se lisait mal. Un tracé SVG est identique
+   partout. Le libellé lève l'ambiguïté avec le retour du navigateur, et un
+   second exemplaire attend en bas de la page, là où l'on arrive après avoir
+   parcouru les vignettes. */
 .retour{
-  background:var(--fond3); border:1px solid var(--bord); border-radius:9px;
-  width:38px; height:38px; color:var(--txt2); flex:0 0 auto;
+  display:inline-flex; align-items:center; gap:7px; flex:0 0 auto;
+  padding:0 13px 0 10px; height:38px;
+  background:var(--fond3); border:1px solid var(--bord); border-radius:99px;
+  color:var(--txt2); font-size:.84rem;
+}
+.retour svg{
+  width:17px; height:17px; flex:0 0 auto;
+  fill:none; stroke:currentColor; stroke-width:2.2;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+.retour:active{background:rgba(255,255,255,.09); color:var(--txt)}
+.retour-bas{
+  display:flex; width:100%; justify-content:center; margin-top:10px; height:44px;
 }
 
 /* ---------- Intro de site ---------- */
@@ -470,9 +532,17 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 }
 .intro-corps h2{margin:0 0 12px; font-size:1.6rem}
 #intro-txt{margin:0 0 18px; font-size:1.02rem; line-height:1.6; color:#dfe4ec; max-width:34em}
-.dots{display:flex; gap:7px; margin-bottom:14px}
-.dots span{width:7px; height:7px; border-radius:50%; background:#3a4457}
-.dots span.on{background:var(--ocre); width:20px; border-radius:99px}
+/* Le rang de pastilles partage sa ligne avec le retour arrière. Les pastilles
+   sont cliquables : leur zone tactile est portée à 30 px par une marge
+   intérieure transparente, la puce visible restant petite. */
+.intro-nav{display:flex; align-items:center; gap:14px; margin-bottom:14px; flex-wrap:wrap}
+.dots{display:flex; gap:2px}
+.dots span{
+  width:7px; height:7px; border-radius:50%; background:#3a4457;
+  box-sizing:content-box; padding:11px 5px; background-clip:content-box;
+  cursor:pointer;
+}
+.dots span.on{background:var(--ocre); width:20px; border-radius:99px; background-clip:content-box}
 
 .fri-aide{font-size:.84rem; color:var(--txt3); line-height:1.55; margin:0 0 16px; max-width:36em}
 #ecran-frise{padding:16px 16px 40px}
@@ -606,7 +676,22 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 .fi-corps h2{margin:2px 0 2px; font-style:italic}
 .fi-niv{font-size:.68rem; letter-spacing:1.4px; color:var(--ocre); display:flex; gap:8px; align-items:center}
 .fi-niv span{color:var(--txt3); letter-spacing:.6px; text-transform:uppercase}
-.fi-groupe{margin:0 0 14px; color:var(--patine); font-size:.85rem}
+/* Deux dénominations se suivaient sans qu'on sache laquelle était laquelle :
+   « Prognathodon saturator » puis « Mosasaure prognathodontidé ». La première est
+   le nom d'espèce, la seconde le groupe auquel il appartient. Les deux portent
+   désormais leur étiquette, dans le même registre que la liste qui suit. */
+.fi-sur{
+  margin:0 0 2px; font-size:.65rem; letter-spacing:1.8px; text-transform:uppercase;
+  color:var(--txt3);
+}
+.fi-groupe{
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  margin:2px 0 14px; color:var(--patine); font-size:.85rem;
+}
+.fi-groupe span{
+  flex:0 0 auto; font-size:.65rem; letter-spacing:1.8px; text-transform:uppercase;
+  color:var(--txt3);
+}
 .fi-dl{display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin:10px 0; font-size:.88rem}
 .fi-dl dt{color:var(--txt3); font-size:.78rem; white-space:nowrap}
 .fi-dl dd{margin:0}
@@ -625,7 +710,6 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 .fi-frag{margin-top:20px; padding-top:12px; border-top:1px solid var(--bord); font-size:.76rem; color:var(--txt3)}
 
 /* ---------- Bourse ---------- */
-.intro-p{font-size:.88rem; color:var(--txt2); line-height:1.6; margin:0 0 18px}
 /* Le complément tarifaire était en `float:right` : le flottant s'échappait du
    titre et le paragraphe suivant s'enroulait autour, jusqu'à se superposer.
    Une boîte flexible tient les deux sur la même ligne et les fait passer à la
@@ -649,10 +733,20 @@ h3.grp:first-of-type{margin-top:4px}
 .pk-st{color:var(--txt2)!important; font-variant-numeric:tabular-nums}
 .pk-go{color:var(--txt3); font-size:1.3rem; flex:0 0 auto}
 .pk-tete{display:flex; align-items:center; gap:12px; margin-bottom:14px}
-.pk-tete b{display:block; font-family:var(--serif); font-size:1.15rem}
-.pk-tete small{display:block; color:var(--txt3); font-size:.78rem}
-.pk-obj{font-size:.9rem; color:var(--txt2); margin:0 0 14px; line-height:1.55}
-.pk-st2{font-size:.8rem; color:var(--txt3); margin:7px 0 16px}
+/* En-tête d'un pack : le titre seul, centré, puis le bouton. Les noms sont
+   distincts de ceux des cartes de la liste, qui emploient déjà `.pk-ico` pour
+   une petite icône et `.pk-go` pour le chevron. */
+.pk-hero{text-align:center; padding:14px 4px 26px}
+.pk-hero-ico{display:block; font-size:2.6rem; line-height:1; margin-bottom:14px}
+.pk-nom{font-family:var(--serif); font-size:1.62rem; margin:0 0 7px; line-height:1.2}
+.pk-sous{margin:0; font-size:.85rem; color:var(--txt3); line-height:1.45}
+.pk-lancer{width:100%; padding:17px; font-size:1.05rem}
+/* Le rappel est un texte suivi : il se lit, il ne se parcourt pas. Mesure de
+   ligne bornée et interligne généreux, comme pour un livre. */
+.theo > div p{margin:0 0 .95em; font-size:.9rem; line-height:1.72; color:var(--txt2)}
+.theo > div p:first-child{margin-top:.2em}
+.theo > div p:last-child{margin-bottom:0}
+.theo > div{max-width:38em}
 .theo{
   margin-top:20px; background:var(--fond2); border:1px solid var(--bord);
   border-radius:var(--r); overflow:hidden;
