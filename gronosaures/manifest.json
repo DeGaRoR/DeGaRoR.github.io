@@ -1,6 +1,6 @@
 {
-  "name": "Le Grand Atlas du Temps profond",
-  "short_name": "Atlas",
+  "name": "Gronosaures et Trilobytes",
+  "short_name": "Gronosaures",
   "description": "Fouiller, documenter et comprendre la vie fossile. Application locale, hors ligne.",
   "lang": "fr",
   "start_url": "./index.html",

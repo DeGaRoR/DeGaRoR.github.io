@@ -740,11 +740,17 @@ const BONUS_SITE=200;           // plancher, pour les sites les moins chers
 const SEUILS_DOC=[0,2,5];       // fragments requis pour les niveaux 1, 2, 3
 const FOUILLE_VIDE=false;       // true = une fouille réussie peut ne rien donner
 
-/* Barème par catégorie de pack. L'entraînement paie mieux : c'est lui qui
-   coûte le plus d'effort, il ne doit jamais être le choix perdant. */
+/* Barème identique pour les deux filières.
+   La version précédente payait l'entraînement 64 % de plus que l'histoire, au
+   motif qu'il coûte plus d'effort. Le raisonnement tient pour quelqu'un qui
+   arbitre entre deux matières également accessibles. Il se retourne contre une
+   joueuse pour qui les mathématiques sont une angoisse : l'app la payait
+   davantage pour affronter ce qu'elle redoute, et moins pour ce qui la porte.
+   Chaque session devenait un arbitrage entre son plaisir et son avancement.
+   Le choix du pack est désormais gratuit — il ne coûte que du temps. */
 const BAREME={
-  base:     {juste:10, aide:4, mission:12},
-  histoire: {juste:6,  aide:3, mission:8}
+  base:     {juste:10, aide:7, mission:12},
+  histoire: {juste:10, aide:7, mission:12}
 };
 
 /* ---- Conjugaison : moteur ---- */
@@ -970,6 +976,59 @@ const ORTHO=[
  {niv:3,q:"Ils sont partis ___ prévenir personne.",r:"sans",autres:["s’en","sang","cent"],exp:"« sans » marque l’absence ; « s’en » = se + en."},
  {niv:2,q:"___ les échantillons ont été catalogués.",r:"Tous",autres:["Tout","Toute","Toutes"],exp:"Devant un nom masculin pluriel, « tous » s’accorde."}
 ];
+
+/* ---- Classements de la collection ----
+   Trois façons de ranger les mêmes créatures, et chacune enseigne autre chose.
+   Par chantier : où l'on a creusé. Par période : ce qui a vécu en même temps —
+   c'est le classement qui fait sentir la profondeur du temps. Par grand groupe :
+   qui est parent de qui, indépendamment de l'âge et du lieu.
+
+   Le champ `groupe` des fiches est trop fin pour servir de rubrique : il compte
+   plus de cent valeurs distinctes pour cent dix créatures. On le ramène donc à
+   une douzaine d'ensembles par mots-clés, dans un ordre qui compte — « reptile
+   marin » doit être testé avant « reptile », « cétacé » avant « mammifère ». */
+
+const PERIODES=[
+  {nom:'Édiacarien',  ere:'Précambrien', de:635,   a:538.8},
+  {nom:'Cambrien',    ere:'Paléozoïque', de:538.8, a:485.4},
+  {nom:'Ordovicien',  ere:'Paléozoïque', de:485.4, a:443.8},
+  {nom:'Silurien',    ere:'Paléozoïque', de:443.8, a:419.2},
+  {nom:'Dévonien',    ere:'Paléozoïque', de:419.2, a:358.9},
+  {nom:'Carbonifère', ere:'Paléozoïque', de:358.9, a:298.9},
+  {nom:'Permien',     ere:'Paléozoïque', de:298.9, a:251.9},
+  {nom:'Trias',       ere:'Mésozoïque',  de:251.9, a:201.4},
+  {nom:'Jurassique',  ere:'Mésozoïque',  de:201.4, a:143.1},
+  {nom:'Crétacé',     ere:'Mésozoïque',  de:143.1, a:66},
+  {nom:'Paléogène',   ere:'Cénozoïque',  de:66,    a:23.03},
+  {nom:'Néogène',     ere:'Cénozoïque',  de:23.03, a:2.58},
+  {nom:'Quaternaire', ere:'Cénozoïque',  de:2.58,  a:0}
+];
+function periodeDe(c){
+  const m=(c.ageMin+c.ageMax)/2;
+  return PERIODES.find(p=>m<=p.de && m>p.a) || PERIODES[PERIODES.length-1];
+}
+
+const GRANDS_GROUPES=[
+  ['Organismes édiacariens',            /édiacarien|dickinsonio|trilobozoaire|proarticulé/i],
+  ['Trilobites',                        /trilobite/i],
+  ['Céphalopodes et mollusques',        /nautilo|ammonite|bélemn|vampyromorphe|octopode|céphalopode|mollusque/i],
+  ['Échinodermes',                      /échinoderme|holothur|crinoïde|crinoide|oursin|astéride|ophiur|blastoïde|blastozoaire|échinide|étoile de mer|étoile fragile|cystoïde|homalozoaire/i],
+  ['Poissons cartilagineux',            /chondrichthyen|holocéphale|holocephale|symmoriiforme|eugeneodont|eugénéodonte|petalodonte|pétalodonte|iniopt|requin|élasmobranche/i],
+  ['Poissons cuirassés et agnathes',    /placoderme|arthrodire|hétérostracé|heterostrac|agnathe|ostracoderme|rhénanide|renanide/i],
+  ['Poissons osseux et tétrapodomorphes', /sarcoptérygien|actinoptérygien|tétrapodomorphe|elpistostég|ostéichthyen|poisson/i],
+  ['Premiers tétrapodes',               /tétrapode|amphibien|temnospondyle|lepospondyle|stégocéphale|recumbirostr/i],
+  ['Reptiles marins',                   /ichtyosaur|ichthyosaur|nothosaur|sauroptérygien|mosasaur|saurosphargid|placodonte|plésiosaur|pachypleurosaur|thalattosaur|protorosaur|tanystrophéid|tanystropheid|archosauromorphe/i],
+  ['Dinosaures et oiseaux',             /dinosaur|théropode|sauropode|ornithopode|cératopsien|ankylosaur|stégosaur|tyrannosaur|oviraptor|thérizinosaur|ornithomimosaur|hadrosaur|pachycéphalosaur|dromæosaur|dromaeosaur|troodont|avialien|oiseau|scansorioptérygid|cænagnath|caenagnath|coelurosaur|carnosaur|phorusrhacid|métriacanthosaur|allosauroïde|diplodocoïde|macronaire|iguanodont|thyréophore|marginocéphale|paravien|noasaurid|cératosaur|spinosaur|nodosaur|titanosaur|mamenchisaurid|hétérodontosaurid|ornithomimid|compsognathid|cératopsid|ceratopsid|chasmosaurin/i],
+  ['Synapsides et mammifères',          /synapside|thérapside|dicynodonte|dinocephale|dinocéphale|gorgonopsien|cynodonte|pélycosaure|mammifère|eutriconodonte|artiodactyle|cétacé|archéocète|mysticète|basilosaurid|protocétidé|pakicétidé|raoellidé|xénarthre|paresseux terrestre|cingulé|litopterne|macrauchéniidé|notongulé|toxodontidé|sparassodonte|métathérien|marsupial/i],
+  ['Autres reptiles',                   /parareptile|pareiasaure|reptile|diapside|archosaure|lépidosaure|ptérosaure/i],
+  ['Arthropodes',                       /arthropode|radiodonte|lobopodien|marrellomorphe|chélicérate|myriapode|euryptéride|insecte|pycnogonide|scorpion|crustacé|limule|xiphosure|arachnide|hexapode|diplopode|palæodictyoptère|paleodictyoptere|odonatoptère|thylacocéphale|mille-pattes|méganeurid|meganeurid|griffinfly|paléodictyoptère|paleodictyoptere/i],
+  ['Invertébrés et chordés énigmatiques', /chordé|lophotrochozoaire|cnidaire|méduse|anémone|annélide|wiwaxiidé|problematica|énigmatique|incertain/i]
+];
+function grandGroupe(c){
+  const t=(c.groupe||'')+' '+(c.nom||'');
+  const r=GRANDS_GROUPES.find(g=>g[1].test(t));
+  return r ? r[0] : 'Non classé';
+}
 
 /* ================================================================
    Bloc 4 : pack HISTOIRE.
@@ -1268,6 +1327,912 @@ const BIOLOGIE=[
 ];
 
 /* ================================================================
+   Bloc 6 : pack PHILOSOPHIE.
+
+   Philosophie des sciences prise par le bout que l'atlas manipule déjà :
+   qu'est-ce qu'un fossile prouve, comment on nomme, ce que vaut une
+   absence, pourquoi une reconstitution change sans que l'animal bouge.
+   Chaque question a un ancrage concret dans le jeu — Helicoprion,
+   Atopodentatus, Tullimonstrum, les trois niveaux documentaires.
+
+   Écrit à la main. Chaque item porte un lien de lecture.
+   ================================================================ */
+
+const PHILO=[
+
+{niv:1,q:"Qu'est-ce qu'un énoncé scientifique doit pouvoir supporter, selon Karl Popper ?",
+ r:"Une tentative de réfutation",
+ autres:["Une démonstration mathématique","Un vote de la communauté","Une confirmation par l'expérience"],
+ exp:"Pour Popper, ce qui distingue une théorie scientifique n'est pas d'être prouvée mais de pouvoir être mise en défaut. « Tous les cygnes sont blancs » est scientifique parce qu'un cygne noir suffirait à l'abattre.",
+ lien:["Wikipédia — Réfutabilité","https://fr.wikipedia.org/wiki/R%C3%A9futabilit%C3%A9"]},
+
+{niv:2,q:"Pendant un siècle, on a placé la spirale dentaire d'Helicoprion sur le museau, sur la nageoire, dans la gorge. Que montre cet épisode ?",
+ r:"Qu'une donnée peut être solide et son interprétation entièrement ouverte",
+ autres:["Que les paléontologues du passé travaillaient mal","Que le fossile était un faux","Que la science finit toujours par se tromper"],
+ exp:"La spirale était parfaitement conservée et correctement décrite. Ce qui manquait, c'était le contexte anatomique — livré par une tomographie en 2013. Observer et interpréter sont deux opérations distinctes.",
+ lien:["Wikipédia — Helicoprion","https://fr.wikipedia.org/wiki/Helicoprion"]},
+
+{niv:2,q:"Que signifie l'adage « l'absence de preuve n'est pas la preuve de l'absence » pour un paléontologue ?",
+ r:"Ne pas trouver un fossile ne démontre pas que l'animal n'existait pas",
+ autres:["Toute hypothèse se vaut tant qu'on n'a rien trouvé","Un fossile absent doit être supposé présent","Les lacunes du registre sont sans importance"],
+ exp:"Un groupe peut manquer parce qu'il n'a jamais existé, parce qu'il ne se fossilisait pas, ou parce que personne n'a encore creusé au bon endroit. Alpkarakush a comblé un vide de plusieurs milliers de kilomètres qui n'était qu'un vide de prospection.",
+ lien:["Wikipédia — Argument d'ignorance","https://fr.wikipedia.org/wiki/Argument_d%27ignorance"]},
+
+{niv:3,q:"En quoi consiste le problème de l'induction, posé par David Hume ?",
+ r:"Rien ne garantit logiquement que ce qui s'est toujours produit se reproduira",
+ autres:["Les sens nous trompent systématiquement","Les mathématiques ne s'appliquent pas au réel","On ne peut rien connaître du passé"],
+ exp:"D'un très grand nombre d'observations concordantes, on ne peut pas déduire une loi avec certitude logique. Toute science du passé travaille avec cette limite, et l'assume au lieu de la nier.",
+ lien:["Wikipédia — Problème de l'induction","https://fr.wikipedia.org/wiki/Probl%C3%A8me_de_l%27induction"]},
+
+{niv:1,q:"Que dit le rasoir d'Ockham ?",
+ r:"À pouvoir explicatif égal, l'hypothèse la plus simple est préférable",
+ autres:["Les explications simples sont toujours vraies","Il faut rejeter toute hypothèse invérifiable","La nature ne fait rien d'inutile"],
+ exp:"C'est un principe de choix, pas de vérité. Il ne dit pas que le monde est simple : il dit que multiplier les entités sans nécessité rend une explication moins testable, donc moins utile.",
+ lien:["Wikipédia — Rasoir d'Ockham","https://fr.wikipedia.org/wiki/Rasoir_d%27Ockham"]},
+
+{niv:2,q:"Atopodentatus a d'abord été reconstitué avec un museau fendu verticalement, avant d'être corrigé en tête en marteau. Comment qualifier la première version ?",
+ r:"Une inférence honnête faite à partir d'un matériel abîmé",
+ autres:["Une fraude scientifique","Une erreur de calcul","Une invention destinée à faire parler"],
+ exp:"Elle a été publiée, discutée, puis révisée à la lumière de deux crânes mieux conservés. Ce n'est pas un dysfonctionnement de la science : c'est son fonctionnement normal, rendu visible.",
+ lien:["Wikipédia — Atopodentatus","https://fr.wikipedia.org/wiki/Atopodentatus"]},
+
+{niv:3,q:"Le jeu affiche pour chaque créature un degré de confiance graphique. Pourquoi est-ce plus honnête qu'une image sans mention ?",
+ r:"Parce que l'image montre au même titre ce qui est observé et ce qui est extrapolé",
+ autres:["Parce que les illustrations sont toutes fausses","Parce que la loi l'impose","Parce que cela rend l'image plus belle"],
+ exp:"Un squelette contraint la silhouette ; la couleur, la texture, la posture au repos ne le sont presque jamais. Une reconstitution donne le même degré de netteté aux deux, et c'est là qu'elle induit en erreur.",
+ lien:["Wikipédia — Paléoart","https://fr.wikipedia.org/wiki/Pal%C3%A9oart"]},
+
+{niv:2,q:"Tullimonstrum est connu par des milliers de spécimens, et son embranchement reste indéterminé. Que faut-il en conclure ?",
+ r:"Que la quantité de données ne suffit pas à trancher une question de classification",
+ autres:["Que les spécimens sont mal conservés","Que l'animal n'a jamais existé","Qu'il s'agit forcément d'un vertébré"],
+ exp:"Le désaccord ne porte pas sur ce qu'on voit mais sur ce que les structures visibles signifient. Accumuler des exemplaires n'aide pas si le point litigieux est un critère d'interprétation.",
+ lien:["Wikipédia — Tullimonstrum","https://fr.wikipedia.org/wiki/Tullimonstrum"]},
+
+{niv:3,q:"Qu'appelle-t-on une espèce, si l'on ne peut pas tester la reproduction chez les fossiles ?",
+ r:"Un regroupement fondé sur des critères anatomiques, révisable",
+ autres:["Un fait de nature indiscutable","Une convention purement arbitraire","Un groupe défini par son génome"],
+ exp:"Le critère d'interfécondité est inapplicable au passé. Les espèces fossiles sont délimitées par la morphologie, donc par un jugement — ce qui explique que Marsh et Cope aient pu nommer autant d'espèces qui n'en étaient pas.",
+ lien:["Wikipédia — Espèce","https://fr.wikipedia.org/wiki/Esp%C3%A8ce"]},
+
+{niv:2,q:"Les crânes de Triceratops replacés couche par couche montrent une transformation graduelle. Pourquoi la stratigraphie était-elle indispensable ?",
+ r:"Parce que sans position dans le temps, une différence de forme reste ininterprétable",
+ autres:["Parce qu'elle permet de dater au carbone 14","Parce qu'elle prouve l'existence de l'évolution","Parce qu'elle mesure la taille des populations"],
+ exp:"Les mêmes crânes, sans leur niveau d'origine, auraient pu se lire comme deux espèces contemporaines, ou comme mâles et femelles. C'est l'ordre qui fait l'argument, pas la morphologie seule.",
+ lien:["PNAS — Evolutionary trends in Triceratops","https://www.pnas.org/doi/10.1073/pnas.1313334111"]},
+
+{niv:1,q:"Qu'est-ce qu'un biais d'échantillonnage, dans le registre fossile ?",
+ r:"Une distorsion due à ce qui se conserve et à ce qui est prospecté",
+ autres:["Une erreur de datation","Un défaut du microscope","Un désaccord entre chercheurs"],
+ exp:"Les organismes minéralisés, marins et abondants sont surreprésentés. Compter les espèces fossiles revient d'abord à compter les conditions favorables à la fossilisation.",
+ lien:["Wikipédia — Registre fossile","https://fr.wikipedia.org/wiki/Fossile"]},
+
+{niv:3,q:"Requin, ichtyosaure et dauphin ont des formes voisines sans être proches parents. Quelle leçon épistémologique en tirer ?",
+ r:"La ressemblance n'établit pas la parenté ; il faut d'autres critères",
+ autres:["Les apparences sont toujours trompeuses","Ces trois animaux ont un ancêtre commun récent","La classification est arbitraire"],
+ exp:"C'est pourquoi la systématique ne se fonde pas sur la ressemblance globale mais sur des caractères dérivés partagés. Un raisonnement par analogie doit toujours être contrôlé par une autre source.",
+ lien:["Wikipédia — Évolution convergente","https://fr.wikipedia.org/wiki/%C3%89volution_convergente"]},
+
+{niv:2,q:"Que reproche-t-on à une explication qui peut rendre compte de n'importe quel résultat ?",
+ r:"Elle ne peut être mise en défaut par aucune observation, donc elle n'apprend rien",
+ autres:["Elle est trop compliquée à comprendre","Elle n'est pas assez générale","Elle contredit les mathématiques"],
+ exp:"Une hypothèse qui prédit tout ne prédit rien. C'est la raison pour laquelle « les grandes crises ont plusieurs causes » doit être précisé : lesquelles, dans quel ordre, avec quelle contribution.",
+ lien:["Wikipédia — Réfutabilité","https://fr.wikipedia.org/wiki/R%C3%A9futabilit%C3%A9"]},
+
+{niv:3,q:"Le principe d'actualisme suppose que les lois physiques d'aujourd'hui valaient dans le passé. Est-ce démontrable ?",
+ r:"Non : c'est un postulat de travail, mais il est sans cesse mis à l'épreuve",
+ autres:["Oui, par l'expérience directe","Non, et c'est pourquoi la géologie n'est pas une science","Oui, c'est une conséquence des mathématiques"],
+ exp:"On ne peut pas retourner observer le Dévonien. Mais si les lois avaient changé, on s'attendrait à des incohérences entre méthodes indépendantes — datations, sédimentologie, astronomie. On n'en trouve pas.",
+ lien:["Wikipédia — Actualisme","https://fr.wikipedia.org/wiki/Actualisme_(g%C3%A9ologie)"]},
+
+{niv:2,q:"Pourquoi un fossile se date-t-il presque toujours par la couche qui le contient, et non directement ?",
+ r:"Parce que la datation radiométrique s'applique aux minéraux, pas à l'os fossilisé",
+ autres:["Parce que les os sont trop fragiles","Parce que le carbone 14 est trop coûteux","Parce que les fossiles n'ont pas d'âge propre"],
+ exp:"On date les cendres volcaniques ou les cristaux encadrant le niveau, puis on encadre le fossile. La connaissance passe donc par un intermédiaire — la couche — et non par l'objet qui intéresse.",
+ lien:["Wikipédia — Datation radiométrique","https://fr.wikipedia.org/wiki/Datation_radiom%C3%A9trique"]},
+
+{niv:1,q:"Que veut dire qu'une reconstitution est « provisoire » ?",
+ r:"Qu'elle représente le meilleur état actuel des données, appelé à changer",
+ autres:["Qu'elle est probablement fausse","Qu'elle n'a aucune valeur","Qu'elle sera confirmée un jour"],
+ exp:"Provisoire ne veut pas dire douteux. Une reconstitution provisoire est ce qu'on a de plus solide aujourd'hui — et ce qui devra céder devant un fossile mieux conservé.",
+ lien:["Wikipédia — Paléoart","https://fr.wikipedia.org/wiki/Pal%C3%A9oart"]},
+
+{niv:3,q:"Stephen Jay Gould voyait dans Burgess la preuve d'expérimentations évolutives avortées ; d'autres ont rangé ces animaux dans des groupes existants. De quoi porte ce désaccord ?",
+ r:"De ce que les fossiles autorisent à conclure, pas de ce qu'ils montrent",
+ autres:["De la datation du gisement","De l'authenticité des spécimens","De la qualité des dessins"],
+ exp:"Les deux camps voient les mêmes animaux. Ils divergent sur la portée : Burgess raconte-t-il une explosion de plans corporels perdus, ou la diversification ordinaire d'embranchements toujours vivants ? La question reste ouverte.",
+ lien:["Wikipédia — Schistes de Burgess","https://fr.wikipedia.org/wiki/Schistes_de_Burgess"]},
+
+{niv:2,q:"Pourquoi la mention d'un degré de confiance sur une fiche n'est-elle pas un aveu de faiblesse ?",
+ r:"Parce qu'elle rend l'affirmation vérifiable et permet de la contester",
+ autres:["Parce qu'elle protège juridiquement l'auteur","Parce qu'elle rend le texte plus court","Parce qu'elle décourage les questions"],
+ exp:"Une affirmation sans qualification ne peut être ni évaluée ni corrigée : on ne sait pas sur quoi elle repose. Dire ce qu'on sait, et à quel point, est plus exigeant que d'affirmer.",
+ lien:["Wikipédia — Incertitude","https://fr.wikipedia.org/wiki/Incertitude"]},
+
+{niv:3,q:"Les trilobites ont duré 270 millions d'années, le genre Homo moins de trois. Qu'est-ce que cette échelle devrait tempérer ?",
+ r:"L'idée que l'évolution tendrait vers nous",
+ autres:["L'idée que les trilobites étaient primitifs","La fiabilité des datations","L'importance de l'extinction permienne"],
+ exp:"Lire l'histoire du vivant comme une marche vers l'espèce humaine s'appelle une lecture téléologique. Rien dans les données ne l'appuie : les lignées durables ne sont pas celles qui mènent quelque part.",
+ lien:["Wikipédia — Téléologie","https://fr.wikipedia.org/wiki/T%C3%A9l%C3%A9ologie"]},
+
+{niv:2,q:"Que fait un chercheur qui, devant deux hypothèses également compatibles avec les données, ne tranche pas ?",
+ r:"Il décrit correctement l'état de la question",
+ autres:["Il manque de rigueur","Il refuse de faire son travail","Il choisit implicitement la plus simple"],
+ exp:"Trancher sans motif reviendrait à présenter une préférence comme un résultat. Suspendre le jugement est une position argumentée, à condition de dire précisément ce qui manquerait pour décider.",
+ lien:["Wikipédia — Scepticisme scientifique","https://fr.wikipedia.org/wiki/Scepticisme_scientifique"]}
+
+];
+
+/* ================================================================
+   Bloc 7 : packs HISTOIRE DE L'ART.
+
+   Deux banques symétriques. La première suit le cursus tel qu'il
+   s'enseigne chez nous ; la seconde prend le reste du monde — non
+   comme un supplément exotique, mais comme des traditions qui ont
+   résolu les mêmes problèmes autrement, souvent plus tôt.
+
+   Le fil qui les relie est celui de la conversation sur l'histoire
+   de la philosophie : le cursus n'est pas neutre, il a été construit,
+   et il vaut la peine de savoir par qui.
+
+   Chaque item porte un lien. Le champ `img` est facultatif : il
+   pointe vers une image du domaine public à rapatrier localement
+   avec tools/telecharger_art.py. Sans elle, la question fonctionne.
+   ================================================================ */
+
+const ART_EU=[
+
+{niv:2,q:"Qui formalise la perspective linéaire à un point de fuite, au début du XVᵉ siècle à Florence ?",
+ r:"Filippo Brunelleschi, puis Leon Battista Alberti par écrit",
+ autres:["Léonard de Vinci","Giotto di Bondone","Albrecht Dürer"],
+ exp:"Brunelleschi en fait la démonstration vers 1415 avec deux panneaux peints et un dispositif à miroir. Alberti en donne la théorie écrite dans le De pictura en 1435. C'est une construction géométrique, pas une découverte de la manière dont on voit.",
+ lien:["Wikipédia — Perspective linéaire","https://fr.wikipedia.org/wiki/Perspective_lin%C3%A9aire"]},
+
+{niv:1,q:"Qu'est-ce que le contrapposto, apparu dans la sculpture grecque vers 480 av. J.-C. ?",
+ r:"Une posture où le poids repose sur une jambe, déséquilibrant hanches et épaules",
+ autres:["Une technique de polissage du marbre","Un type de socle","Un canon de proportions du corps"],
+ exp:"L'axe du corps cesse d'être rigide et symétrique. C'est le passage du kouros archaïque, frontal et figé, à une figure qui semble pouvoir bouger. Le Doryphore de Polyclète en est l'exemple canonique.",
+ lien:["Wikipédia — Contrapposto","https://fr.wikipedia.org/wiki/Contrapposto"]},
+
+{niv:2,q:"Pourquoi Giotto fait-il figure de rupture au début du XIVᵉ siècle ?",
+ r:"Il donne à ses figures un volume et un poids, dans un espace qui a de la profondeur",
+ autres:["Il invente la peinture à l'huile","Il abandonne les sujets religieux","Il signe le premier ses œuvres"],
+ exp:"Les fonds d'or byzantins situaient les figures hors du monde. Giotto les pose dans un lieu, leur donne des corps qui occupent de la place et des visages qui réagissent. La chapelle Scrovegni de Padoue, vers 1305, en est la démonstration.",
+ lien:["Wikipédia — Giotto di Bondone","https://fr.wikipedia.org/wiki/Giotto_di_Bondone"]},
+
+{niv:3,q:"Qu'apporte techniquement la peinture à l'huile, généralisée dans les Flandres au XVᵉ siècle ?",
+ r:"Un séchage lent qui permet les glacis, les fondus et les retouches",
+ autres:["Des couleurs plus vives que la fresque","Un coût de production plus faible","Une meilleure résistance au feu"],
+ exp:"La détrempe à l'œuf sèche vite et impose de travailler par hachures. L'huile autorise des couches transparentes superposées, d'où la profondeur des noirs et le rendu des matières chez Van Eyck. Il ne l'a pas inventée, il l'a portée à un point de maîtrise nouveau.",
+ lien:["Wikipédia — Peinture à l'huile","https://fr.wikipedia.org/wiki/Peinture_%C3%A0_l%27huile"],
+ img:"art/annonciation.jpg"},
+
+{niv:3,q:"À qui doit-on le récit de l'art comme progrès continu, de Cimabue à Michel-Ange ?",
+ r:"À Giorgio Vasari, dans ses Vies publiées en 1550",
+ autres:["À Winckelmann au XVIIIᵉ siècle","À Diderot","À Vitruve"],
+ exp:"Vasari écrit une histoire orientée : l'art déchoit après l'Antiquité, renaît avec Giotto, culmine avec Michel-Ange — son contemporain et son ami. C'est de lui que viennent le mot « Renaissance » et l'usage de « gothique » comme insulte. Le plan de nos manuels est encore largement le sien.",
+ lien:["Wikipédia — Giorgio Vasari","https://fr.wikipedia.org/wiki/Giorgio_Vasari"]},
+
+{niv:2,q:"Qu'est-ce que le sfumato ?",
+ r:"Un passage insensible d'un ton à l'autre, sans contour tracé",
+ autres:["Un contraste violent entre ombre et lumière","Une technique de dessin préparatoire","Un vernis final teinté"],
+ exp:"Léonard décrit des contours qui se perdent « comme la fumée ». L'effet supprime la ligne, que la tradition florentine tenait pour le fondement du dessin. C'est une position théorique autant qu'un procédé.",
+ lien:["Wikipédia — Sfumato","https://fr.wikipedia.org/wiki/Sfumato"],
+ img:"art/ginevra.jpg"},
+
+{niv:2,q:"Qu'appelle-t-on ténébrisme, associé au Caravage ?",
+ r:"Un éclairage violent et dirigé, laissant le reste dans une ombre profonde",
+ autres:["L'emploi exclusif de pigments sombres","La peinture de scènes nocturnes","Un fond noir sans modelé"],
+ exp:"La lumière ne baigne plus la scène, elle la découpe. Chez Caravage, elle vient souvent d'une source hors champ et frappe des personnages pris dans la rue — ce qui a autant choqué que la technique elle-même.",
+ lien:["Wikipédia — Ténébrisme","https://fr.wikipedia.org/wiki/T%C3%A9n%C3%A9brisme"]},
+
+{niv:3,q:"Pourquoi « La Ronde de nuit » de Rembrandt porte-t-elle un titre inexact ?",
+ r:"La scène se passe de jour : le tableau avait noirci sous les vernis",
+ autres:["Rembrandt l'avait intitulée ainsi par ironie","Elle représente une ronde militaire nocturne","Le titre vient d'une erreur de traduction"],
+ exp:"Le nettoyage a rendu la lumière du jour. Le titre, apparu bien après, a survécu à sa réfutation — un cas ordinaire : ce qu'on croit savoir d'une œuvre est souvent une couche déposée par sa réception.",
+ lien:["Wikipédia — La Ronde de nuit","https://fr.wikipedia.org/wiki/La_Ronde_de_nuit"]},
+
+{niv:3,q:"Que classait la hiérarchie des genres de l'Académie royale, au sommet et en bas ?",
+ r:"La peinture d'histoire au sommet, la nature morte en bas",
+ autres:["Le portrait au sommet, le paysage en bas","Le paysage au sommet, le portrait en bas","La nature morte au sommet, la peinture d'histoire en bas"],
+ exp:"L'ordre : histoire, portrait, scène de genre, paysage, nature morte. Il ne classe pas la qualité mais le sujet, et détermine les commandes, les prix et les carrières. Une bonne part de l'art du XIXᵉ siècle consiste à le renverser.",
+ lien:["Wikipédia — Hiérarchie des genres","https://fr.wikipedia.org/wiki/Hi%C3%A9rarchie_des_genres"]},
+
+{niv:2,q:"Qu'est-ce que le néoclassicisme cherche dans l'Antiquité, à la fin du XVIIIᵉ siècle ?",
+ r:"Un modèle de rigueur morale et formelle, contre la légèreté rococo",
+ autres:["Des sujets exotiques inédits","Une liberté de couleur nouvelle","Un retour à la peinture religieuse"],
+ exp:"Les fouilles d'Herculanum et Pompéi, puis les écrits de Winckelmann, fournissent un répertoire. David en tire une peinture de la vertu civique — Le Serment des Horaces, 1784 — qui sera aussitôt lue politiquement.",
+ lien:["Wikipédia — Néoclassicisme","https://fr.wikipedia.org/wiki/N%C3%A9oclassicisme"]},
+
+{niv:3,q:"Que représente « Le Radeau de la Méduse » de Géricault, exposé en 1819 ?",
+ r:"Un naufrage récent devenu scandale politique",
+ autres:["Une scène mythologique","Une bataille napoléonienne","Une allégorie de la Révolution"],
+ exp:"La frégate française Méduse s'échoue en 1816 par l'incompétence d'un capitaine nommé par faveur ; cent quarante-sept personnes sont abandonnées sur un radeau. Géricault traite un fait divers accusateur au format monumental réservé à l'histoire — c'est cette transgression qui fait l'œuvre.",
+ lien:["Wikipédia — Le Radeau de la Méduse","https://fr.wikipedia.org/wiki/Le_Radeau_de_La_M%C3%A9duse"]},
+
+{niv:2,q:"Que revendique Gustave Courbet en peignant « Un enterrement à Ornans » en 1850 ?",
+ r:"Que des villageois anonymes méritent le format de la peinture d'histoire",
+ autres:["Que la peinture doit être abstraite","Que l'art doit servir la religion","Que le paysage prime sur la figure"],
+ exp:"Une toile de plus de six mètres, sans héros, sans leçon, sans ciel ouvert. Le scandale ne porte pas sur la technique mais sur ce que l'échelle prétend honorer. Le réalisme est d'abord une décision sur ce qui mérite d'être peint.",
+ lien:["Wikipédia — Un enterrement à Ornans","https://fr.wikipedia.org/wiki/Un_enterrement_%C3%A0_Ornans"]},
+
+{niv:2,q:"D'où vient le mot « impressionnisme » ?",
+ r:"D'une moquerie de critique, reprise par les peintres eux-mêmes",
+ autres:["D'un manifeste écrit par Monet","Du nom de la galerie qui les exposait","D'un terme technique de la peinture à l'huile"],
+ exp:"En 1874, le critique Louis Leroy raille « Impression, soleil levant » de Monet dans Le Charivari. Le groupe adopte le sobriquet. Plusieurs noms de mouvements — gothique, baroque, fauvisme, cubisme — sont d'abord des insultes retournées.",
+ lien:["Wikipédia — Impressionnisme","https://fr.wikipedia.org/wiki/Impressionnisme"]},
+
+{niv:3,q:"Que cherche Cézanne quand il dit vouloir « faire du Poussin sur nature » ?",
+ r:"Retrouver une construction solide sans renoncer à la sensation devant le motif",
+ autres:["Copier littéralement les tableaux de Poussin","Peindre uniquement en atelier","Revenir aux sujets mythologiques"],
+ exp:"Il tient ensemble deux exigences que l'impressionnisme avait dissociées : la structure et l'instant. Les plans colorés qui en résultent ouvrent directement sur le cubisme, d'où la formule de « père de l'art moderne ».",
+ lien:["Wikipédia — Paul Cézanne","https://fr.wikipedia.org/wiki/Paul_C%C3%A9zanne"],
+ img:"art/cezanne_eau.jpg"},
+
+{niv:2,q:"Que fait le cubisme analytique à l'objet, vers 1909-1912 ?",
+ r:"Il le montre sous plusieurs angles simultanément, en fragments",
+ autres:["Il le réduit à des couleurs pures","Il le supprime au profit de l'abstraction","Il l'agrandit jusqu'à l'illisible"],
+ exp:"Cinq siècles après Brunelleschi, le point de vue unique est abandonné. Braque et Picasso travaillent alors si près l'un de l'autre que leurs toiles sont parfois difficiles à départager.",
+ lien:["Wikipédia — Cubisme","https://fr.wikipedia.org/wiki/Cubisme"]},
+
+{niv:3,q:"Quelle source Picasso a-t-il mobilisée pour les visages de droite des « Demoiselles d'Avignon » en 1907 ?",
+ r:"Des masques africains et océaniens vus au musée d'ethnographie du Trocadéro",
+ autres:["Des fresques romaines de Pompéi","Des icônes byzantines","Des gravures japonaises"],
+ exp:"L'emprunt est massif et reconnu. Il a longtemps été qualifié d'« influence primitive », formule qui range les sources du côté de la matière brute et le peintre du côté de l'invention. Les objets en question venaient de traditions savantes, souvent rapportés par la conquête coloniale.",
+ lien:["Wikipédia — Les Demoiselles d'Avignon","https://fr.wikipedia.org/wiki/Les_Demoiselles_d%27Avignon"]},
+
+{niv:2,q:"Qu'est-ce qu'un ready-made, au sens que lui donne Marcel Duchamp en 1917 ?",
+ r:"Un objet manufacturé désigné comme œuvre par le seul choix de l'artiste",
+ autres:["Une sculpture moulée en série","Une œuvre réalisée sans esquisse","Un tableau peint d'après photographie"],
+ exp:"« Fontaine », un urinoir signé d'un pseudonyme, est refusé par une exposition pourtant sans jury. Le geste déplace la question : non plus comment c'est fait, mais qui a le pouvoir de dire que c'en est.",
+ lien:["Wikipédia — Ready-made","https://fr.wikipedia.org/wiki/Ready-made"]},
+
+{niv:3,q:"Pourquoi trouve-t-on si peu de femmes dans le cursus classique d'histoire de l'art ?",
+ r:"Elles étaient exclues des académies et de l'étude du nu, donc des grands genres",
+ autres:["Elles n'ont commencé à peindre qu'au XIXᵉ siècle","Leurs œuvres se sont moins bien conservées","Elles préféraient les arts décoratifs"],
+ exp:"Sans accès au modèle vivant, la peinture d'histoire — sommet de la hiérarchie — leur était fermée. Plusieurs ont percé malgré tout : Sofonisba Anguissola, Artemisia Gentileschi, Élisabeth Vigée Le Brun. D'autres ont été effacées par réattribution : des toiles de Judith Leyster ont longtemps été vendues comme des Frans Hals.",
+ lien:["Wikipédia — Judith Leyster","https://fr.wikipedia.org/wiki/Judith_Leyster"]},
+
+{niv:1,q:"Qu'est-ce qu'une fresque, au sens technique strict ?",
+ r:"Une peinture appliquée sur un enduit encore frais, qui l'incorpore en séchant",
+ autres:["Toute peinture murale de grande dimension","Une peinture sur bois enduit","Une peinture à la cire chauffée"],
+ exp:"Le pigment se lie chimiquement au carbonate de calcium et devient partie du mur. D'où la contrainte : il faut travailler vite, par surfaces quotidiennes, et l'on ne retouche pas. Ce qui est repris à sec vieillit beaucoup moins bien.",
+ lien:["Wikipédia — Fresque","https://fr.wikipedia.org/wiki/Fresque"]},
+
+{niv:3,q:"Qu'est-ce qui change dans la peinture avec l'invention du tube d'étain, en 1841 ?",
+ r:"On peut peindre dehors, en une séance, avec une couleur prête à l'emploi",
+ autres:["Les pigments deviennent moins toxiques","La toile remplace le bois","Les vernis sèchent plus vite"],
+ exp:"Auparavant, on broyait et conservait la couleur en vessie de porc, mal, et brièvement. Renoir disait que sans le tube, il n'y aurait eu ni Cézanne, ni Monet, ni impressionnisme. Une histoire des formes est aussi une histoire des outils.",
+ lien:["Wikipédia — Tube de peinture","https://fr.wikipedia.org/wiki/Tube_de_peinture"],
+ img:"art/falaises_pourville.jpg"}
+
+];
+
+
+const ART_MONDE=[
+
+{niv:2,q:"Devant les têtes d'Ifé découvertes en 1910, quelle explication l'ethnologue Leo Frobenius a-t-il avancée ?",
+ r:"Qu'elles venaient de l'Atlantide ou d'une colonie grecque",
+ autres:["Qu'elles étaient des faux modernes","Qu'elles avaient été importées d'Égypte","Qu'elles dataient du XIXᵉ siècle"],
+ exp:"Frobenius admirait leur naturalisme mais ne pouvait admettre une origine africaine. Les têtes sont l'œuvre de fondeurs yoruba d'Ifé, entre le XIIᵉ et le XVᵉ siècle. Une hypothèse peut être savante dans sa forme et raciste dans sa prémisse.",
+ lien:["National Geographic — Les têtes d'Ifé","https://www.nationalgeographic.com/history/history-magazine/article/nigerian-treasures-ife-heads-bronze"]},
+
+{niv:3,q:"Quelle technique les fondeurs d'Ifé et du Bénin maîtrisaient-ils ?",
+ r:"La fonte à la cire perdue",
+ autres:["Le martelage à froid sur noyau de bois","Le moulage en sable à deux coquilles","Le soudage de plaques découpées"],
+ exp:"Un modèle en cire est enrobé d'argile, la cire est fondue et évacuée, le métal la remplace. La finesse obtenue sur les têtes d'Ifé — paupières, scarifications, lèvres — est comparable à ce que produisaient au même moment les meilleurs ateliers européens.",
+ lien:["Wikipédia — Fonte à la cire perdue","https://fr.wikipedia.org/wiki/Fonte_%C3%A0_la_cire_perdue"]},
+
+{niv:2,q:"Comment les bronzes du Bénin sont-ils arrivés dans les musées européens ?",
+ r:"Par le pillage de Benin City par une expédition punitive britannique en 1897",
+ autres:["Par des achats réguliers auprès de la cour du Bénin","Par des fouilles archéologiques du XXᵉ siècle","Par des dons de missionnaires"],
+ exp:"Le palais royal est saccagé, l'oba exilé, et les milliers de plaques et de têtes dispersés dans plus de cent trente musées. Ces objets n'étaient pas des curiosités mais les archives dynastiques du royaume, fixées dans le métal.",
+ lien:["Wikipédia — Bronzes du Bénin","https://fr.wikipedia.org/wiki/Bronzes_du_B%C3%A9nin"]},
+
+{niv:3,q:"Où en sont les restitutions des bronzes du Bénin ?",
+ r:"Engagées : l'Allemagne a transféré la propriété de plus de 1 100 pièces, les Pays-Bas en ont rendu 119 en 2025",
+ autres:["Aucune restitution n'a eu lieu à ce jour","Toutes les pièces ont été rendues","Seule la France a restitué des objets"],
+ exp:"L'accord germano-nigérian de juillet 2022 porte sur 1 130 objets ; la remise néerlandaise de juin 2025 est la plus importante en une fois. Le British Museum en conserve plus de neuf cents et ne les a pas rendus.",
+ lien:["Euronews — Les Pays-Bas restituent 119 bronzes","https://euronews.com/culture/2025/06/19/netherlands-returns-more-than-100-benin-bronzes-looted-from-nigeria"]},
+
+{niv:2,q:"À quand remontent les terres cuites Nok, au Nigeria ?",
+ r:"Autour du milieu du premier millénaire avant notre ère",
+ autres:["Au XVᵉ siècle de notre ère","Au IIᵉ siècle avant notre ère seulement","Au XIXᵉ siècle"],
+ exp:"La culture Nok produit des figures humaines en terre cuite, aux yeux triangulaires caractéristiques, à peu près à l'époque où la Grèce entre dans sa période classique. Le pillage massif des sites depuis les années 1990 a détruit l'essentiel du contexte archéologique.",
+ lien:["Wikipédia — Culture Nok","https://fr.wikipedia.org/wiki/Culture_Nok"]},
+
+{niv:3,q:"Qu'ont soutenu les archéologues officiels de Rhodésie à propos du Grand Zimbabwe ?",
+ r:"Que des bâtisseurs non africains en étaient les auteurs",
+ autres:["Qu'il datait du XIXᵉ siècle","Qu'il s'agissait d'une formation naturelle","Qu'il avait été construit par les Portugais"],
+ exp:"Phéniciens, Arabes, reine de Saba : toutes les hypothèses ont été essayées sauf la bonne. Les archéologues qui concluaient à une origine shona locale ont été censurés sous le régime rhodésien. Le site date du XIᵉ au XVᵉ siècle et donne son nom au pays.",
+ lien:["Wikipédia — Grand Zimbabwe","https://fr.wikipedia.org/wiki/Grand_Zimbabwe"]},
+
+{niv:2,q:"Comment ont été bâties les églises de Lalibela, en Éthiopie ?",
+ r:"Taillées d'un seul bloc dans la roche, de haut en bas",
+ autres:["Assemblées en pierres de taille","Creusées dans des grottes naturelles","Construites en brique crue"],
+ exp:"On dégage la masse depuis la surface, puis on évide l'intérieur — l'inverse d'une construction. Onze édifices du XIIᵉ ou XIIIᵉ siècle, encore en usage liturgique aujourd'hui.",
+ lien:["Wikipédia — Églises de Lalibela","https://fr.wikipedia.org/wiki/%C3%89glises_de_Lalibela"]},
+
+{niv:3,q:"Comment se regarde un rouleau de paysage chinois de l'époque Song ?",
+ r:"Progressivement, en le déroulant, le regard se déplaçant dans la scène",
+ autres:["D'un seul coup d'œil, comme un tableau accroché","De droite à gauche, à distance fixe","À travers une ouverture ménagée dans un cadre"],
+ exp:"Il n'y a pas de point de fuite unique, parce qu'il n'y a pas d'observateur immobile. La peinture Song n'ignore pas la perspective européenne : elle répond à une autre question, celle du parcours plutôt que de la fenêtre.",
+ lien:["Wikipédia — Peinture chinoise","https://fr.wikipedia.org/wiki/Peinture_chinoise"]},
+
+{niv:2,q:"Qu'est-ce qui distingue les soldats de l'armée de terre cuite de Xi'an ?",
+ r:"Les visages sont individualisés, sur des corps produits en série",
+ autres:["Chaque statue est entièrement unique","Toutes les statues sont identiques","Ce sont des moulages sur des soldats vivants"],
+ exp:"Têtes, mains et torses viennent de moules combinables, puis les traits sont retravaillés un par un. Environ huit mille figures, enfouies vers 210 av. J.-C. : une industrie de la singularité, à l'échelle d'un empire.",
+ lien:["Wikipédia — Armée de terre cuite","https://fr.wikipedia.org/wiki/Arm%C3%A9e_de_terre_cuite"]},
+
+{niv:2,q:"Que signifie « ukiyo-e », le nom de l'estampe japonaise ?",
+ r:"« Images du monde flottant »",
+ autres:["« Gravures sur bois »","« Art des marchands »","« Peinture de l'eau »"],
+ exp:"Le terme désigne les plaisirs éphémères de la ville d'Edo : théâtre, quartiers de divertissement, voyages. C'est un art de série, imprimé, bon marché, produit par une équipe — dessinateur, graveur, imprimeur, éditeur — et non par un auteur solitaire.",
+ lien:["Wikipédia — Ukiyo-e","https://fr.wikipedia.org/wiki/Ukiyo-e"],
+ img:"art/hiroshige_ara.jpg"},
+
+{niv:3,q:"Qu'est-ce que le japonisme, dans la peinture européenne des années 1870-1890 ?",
+ r:"L'assimilation de la composition et des aplats de l'estampe japonaise",
+ autres:["Un goût pour les sujets japonais chez les peintres académiques","Le voyage des impressionnistes au Japon","Une technique d'impression importée"],
+ exp:"Cadrages décentrés, plans coupés par le bord, couleurs en aplat, renoncement au modelé : Degas, Manet, Van Gogh y puisent directement. Le canon européen s'est nourri d'ailleurs bien avant de le reconnaître.",
+ lien:["Wikipédia — Japonisme","https://fr.wikipedia.org/wiki/Japonisme"],
+ img:"art/pont_japonais.jpg"},
+
+{niv:3,q:"Que représente un bronze Chola figurant Shiva Nataraja, en Inde du Sud ?",
+ r:"Shiva dansant dans un cercle de flammes, création et destruction ensemble",
+ autres:["Shiva en méditation sur le mont Kailash","Un roi Chola divinisé","Une scène de bataille"],
+ exp:"Chaque élément est codé : le tambour marque le rythme de la création, la flamme la destruction, le pied levé la délivrance. Ces bronzes des Xᵉ-XIIᵉ siècles sont coulés à la cire perdue et conçus pour être portés en procession, pas pour un socle de musée.",
+ lien:["Wikipédia — Nataraja","https://fr.wikipedia.org/wiki/Nataraja"]},
+
+{niv:3,q:"Pourquoi la calligraphie occupe-t-elle le premier rang dans les arts de l'Islam ?",
+ r:"Parce qu'elle transcrit une parole tenue pour révélée",
+ autres:["Parce que la peinture y est partout interdite","Parce qu'elle est plus facile à transporter","Parce qu'elle sert de signature aux souverains"],
+ exp:"L'interdit de la figure ne vaut pas partout ni toujours : les manuscrits persans, moghols et ottomans regorgent de figures peintes. Il s'applique surtout au domaine religieux, et il a poussé l'écriture et la géométrie à un raffinement sans équivalent.",
+ lien:["Wikipédia — Calligraphie arabe","https://fr.wikipedia.org/wiki/Calligraphie_arabe"]},
+
+{niv:2,q:"Qu'est-ce qu'un muqarnas, dans l'architecture islamique ?",
+ r:"Un décor en alvéoles qui assure le passage d'un plan carré à une coupole",
+ autres:["Une fontaine de cour intérieure","Un type de carreau de faïence","Une porte monumentale"],
+ exp:"C'est une solution structurelle devenue ornement : la transition géométrique se subdivise en cellules qui semblent des stalactites. L'Alhambra de Grenade en donne les exemples les plus vertigineux, au XIVᵉ siècle.",
+ lien:["Wikipédia — Muqarnas","https://fr.wikipedia.org/wiki/Muqarnas"]},
+
+{niv:3,q:"Que fait la miniature persane de la perspective ?",
+ r:"Elle l'ignore délibérément, empilant les plans pour tout rendre visible",
+ autres:["Elle l'applique rigoureusement dès le XIVᵉ siècle","Elle la découvre au contact des Portugais","Elle la remplace par un flou d'éloignement"],
+ exp:"Les murs s'ouvrent, les toits basculent, le lointain monte au lieu de rétrécir. Le but n'est pas de simuler ce qu'un œil verrait d'un point donné, mais de donner accès à toute la scène. Behzad, à Hérat vers 1500, en est le maître reconnu.",
+ lien:["Wikipédia — Miniature persane","https://fr.wikipedia.org/wiki/Miniature_persane"]},
+
+{niv:2,q:"Que sont les têtes colossales olmèques, au Mexique ?",
+ r:"Des portraits de dirigeants sculptés dans des blocs de basalte de plusieurs tonnes",
+ autres:["Des représentations de divinités","Des bornes frontalières","Des couvercles de tombes"],
+ exp:"Dix-sept sont connues, hautes jusqu'à trois mètres, taillées entre 1200 et 400 av. J.-C. Le basalte vient de carrières situées à des dizaines de kilomètres, sans roue ni animal de trait. Chaque visage est distinct.",
+ lien:["Wikipédia — Têtes colossales olmèques","https://fr.wikipedia.org/wiki/T%C3%AAtes_colossales_olm%C3%A8ques"]},
+
+{niv:3,q:"Pourquoi ne reste-t-il presque rien de l'art plumassier aztèque ?",
+ r:"Les plumes se dégradent, et la conquête a détruit ou fondu le reste",
+ autres:["Les Aztèques n'en produisaient que très peu","La technique n'a jamais été documentée","Tout est conservé à Mexico"],
+ exp:"Les amanteca étaient des artisans de très haut rang. Il subsiste une poignée de pièces, dont une coiffe conservée à Vienne. Ce qui manque dans un musée n'est pas toujours ce qui n'a pas existé.",
+ lien:["Wikipédia — Art plumaire mexicain","https://fr.wikipedia.org/wiki/Art_plumaire_mexicain"]},
+
+{niv:2,q:"Qu'ont de particulier les vases-portraits de la culture Moche, au Pérou ?",
+ r:"Ce sont des portraits individuels, reconnaissables d'un vase à l'autre",
+ autres:["Ils représentent uniquement des divinités","Ils sont tous identiques","Ils portent une écriture déchiffrée"],
+ exp:"Certains personnages sont suivis à plusieurs âges de leur vie. Cette pratique du portrait ressemblant, entre le IIᵉ et le VIIIᵉ siècle, est rare hors de la Méditerranée antique — et elle a été très longtemps qualifiée d'« artisanat ».",
+ lien:["Wikipédia — Moche (culture)","https://fr.wikipedia.org/wiki/Moche_(culture)"]},
+
+{niv:3,q:"Que dit-on de la tradition artistique des Aborigènes d'Australie ?",
+ r:"Qu'elle est la plus longue tradition artistique continue connue",
+ autres:["Qu'elle a commencé au XVIIIᵉ siècle","Qu'elle n'a produit que de la peinture sur écorce","Qu'elle est sans lien avec les récits d'origine"],
+ exp:"Les plus anciennes peintures rupestres datées se comptent en dizaines de milliers d'années, et les motifs restent liés à des récits et à des territoires encore vivants. Le mouvement de peinture acrylique de Papunya, dans les années 1970, est la continuation d'une pratique, pas sa naissance.",
+ lien:["Wikipédia — Art aborigène australien","https://fr.wikipedia.org/wiki/Art_aborig%C3%A8ne_australien"]},
+
+{niv:3,q:"Que fait le terme « art primitif », longtemps employé dans les musées ?",
+ r:"Il range des traditions savantes du côté de la spontanéité et de l'origine",
+ autres:["Il désigne précisément l'art préhistorique","Il qualifie les œuvres inachevées","Il vient du vocabulaire des artistes eux-mêmes"],
+ exp:"Le mot suppose un stade antérieur au nôtre, alors qu'il s'agit d'arts contemporains des cathédrales ou de la Renaissance, avec leurs écoles, leurs commandes et leurs maîtres. Les musées ont peu à peu abandonné le terme ; la difficulté qu'il masquait, elle, demande davantage que de le remplacer.",
+ lien:["Wikipédia — Primitivisme","https://fr.wikipedia.org/wiki/Primitivisme"]}
+
+];
+
+/* ================================================================
+   Bloc 8 : extension du site HUN — les échinodermes du Hunsrück.
+
+   Six créatures et vingt questions ajoutées au gisement de Bundenbach,
+   qui passe de six à douze fiches et de vingt à quarante questions.
+
+   Pourquoi ce site plutôt qu'un autre : le Hunsrück est LE gisement à
+   échinodermes fossiles à tissus mous. La pyritisation y a remplacé
+   des podia — les pieds ambulacraires — qui ne se conservent nulle
+   part ailleurs. Le pack Biologie explique pourquoi les holothuries
+   sont invisibles dans les roches ; Bundenbach est l'exception qui
+   rend la règle lisible.
+
+   Tous les taxons ont été vérifiés. Lotusoblastus medusa est un genre
+   érigé en 2024 seulement, absent des listes de faune antérieures :
+   son espèce-type est le Pentremitidea medusa décrit par Jaekel en 1895.
+   ================================================================ */
+
+const HUN_ECHINO=[
+{id:"HUN-07",site:"HUN",nom:"Euzonosoma tischbeiniana",groupe:"Ophiuride, étoile fragile",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach, Rhénanie-Palatinat, Allemagne",milieu:"Marin, fonds vaseux",
+ regime:"Détritivore et prédateur de petites proies",taille:"≈ 10–15 cm de diamètre",
+ masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:4,
+ desc:"Ophiuride à cinq bras étroits, dont certains spécimens conservent la membrane de tissu mou tendue entre les bras — une structure qui ne fossilise pratiquement jamais.",
+ prudence:"La coloration est conjecturale. La membrane inter-bras est attestée sur certains spécimens seulement, pas sur tous.",
+ src:[["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"],
+      ["Fossils of the Hunsrück Slate — Cambridge University Press","https://www.cambridge.org/9780521418928"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-07.jpg"},
+
+{id:"HUN-08",site:"HUN",nom:"Codiacrinus schultzei",groupe:"Crinoïde cyathocrinide",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach, Rhénanie-Palatinat, Allemagne",milieu:"Marin, fixé au fond",
+ regime:"Filtreur",taille:"≈ 20 cm avec la tige",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:4,
+ desc:"Lis de mer fixé par une tige, décrit par Follmann en 1887. Des spécimens conservent des podia pyritisés — la première fois qu'on observe ces organes mous chez un crinoïde fossile.",
+ prudence:"Presque tous les crinoïdes du gisement sont des formes fixées ; ne pas les représenter en nage libre.",
+ src:[["Tube foot preservation in Codiacrinus — Lethaia (2013)","https://www.scup.com/doi/10.1111/let.12023"],
+      ["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-08.jpg"},
+
+{id:"HUN-09",site:"HUN",nom:"Bundenbachia beneckei",groupe:"Ophiuride",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach, Rhénanie-Palatinat, Allemagne",milieu:"Marin, fonds vaseux",
+ regime:"Détritivore",taille:"≈ 10 cm de diamètre",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:4,
+ desc:"Ophiuride décrit par Stürtz, sur lequel six spécimens ont livré des podia pyritisés : la première observation de pieds ambulacraires fossiles chez une ophiure, publiée en 2004.",
+ prudence:"Cette découverte a été rendue possible par des techniques d'abrasion mises au point par des collectionneurs allemands ; les podia ne sont pas visibles sur un spécimen brut.",
+ src:[["Glass & Blake (2004) — Preservation of tube feet in an ophiuroid","https://link.springer.com/article/10.1007/BF03009882"],
+      ["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-09.jpg"},
+
+{id:"HUN-10",site:"HUN",nom:"Rhenechinus hopstaetteri",groupe:"Échinide, oursin primitif",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach, Rhénanie-Palatinat, Allemagne",milieu:"Marin peu profond, remanié en eau plus profonde",
+ regime:"Brouteur",taille:"≈ 3 cm",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Oursin primitif d'une rareté extrême : après des décennies d'exploitation du gisement, seuls deux spécimens certains sont connus, sur une dizaine d'échinides tous confondus.",
+ prudence:"Cette rareté suggère que les oursins ne vivaient pas sur place : ils auraient été emportés depuis des hauts-fonds voisins. Le milieu de vie figuré est donc une déduction.",
+ src:[["Smith et al. — Echinoid specimens from the Hunsrück Slate","https://www.researchgate.net/figure/Echinoid-specimens-from-the-Lower-Devonian-Hunsrueck-Slate_tbl1_258877857"],
+      ["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-10.jpg"},
+
+{id:"HUN-11",site:"HUN",nom:"Palaeocucumaria hunsrueckiana",groupe:"Holothurie, concombre de mer",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach, Rhénanie-Palatinat, Allemagne",milieu:"Marin, fonds vaseux",
+ regime:"Suspensivore",taille:"≈ 5–8 cm",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"L'une des rares holothuries fossiles connues par un corps entier plutôt que par des spicules épars. Le corps mou est conservé par pyritisation, avec la couronne de tentacules buccaux.",
+ prudence:"Les holothuries n'ont qu'un squelette de spicules microscopiques : sans la pyritisation de Bundenbach, il n'en resterait rien. Ce fossile est une exception, pas la norme.",
+ src:[["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"],
+      ["Wikipédia — Holothurie","https://fr.wikipedia.org/wiki/Holothurie"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-11.jpg"},
+
+{id:"HUN-12",site:"HUN",nom:"Lotusoblastus medusa",groupe:"Blastoïde",
+ periode:"Dévonien inférieur",age:"≈ 408–400 Ma",ageMin:400,ageMax:408,
+ lieu:"Bundenbach et Kaub, Rhénanie-Palatinat, Allemagne",milieu:"Marin, fixé au fond",
+ regime:"Filtreur",taille:"≈ 2 cm de calice",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Blastoïde à calice en bouton, décrit par Jaekel en 1895 et reclassé dans un genre nouveau en 2024. Ses brachioles sont conservées raides et droites, ce qui trahit l'état rigide de son tissu conjonctif au moment de l'enfouissement.",
+ prudence:"L'ordre et la famille du genre restent indéterminés. Les blastoïdes forment une classe entièrement éteinte, sans équivalent actuel à qui emprunter des tissus mous.",
+ src:[["Bohatý et al. (2024) — Papers in Palaeontology","https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1584"],
+      ["Feeding postures and mutable collagenous tissue — PMC","https://pmc.ncbi.nlm.nih.gov/articles/PMC11568118/"]],
+ pack:"Hunsrück — La mer de pyrite",img:"cartes/HUN-12.jpg"}
+];
+
+
+/* Vingt questions supplémentaires pour le chantier de Bundenbach.
+   Le site en compte désormais quarante, pour douze créatures. */
+
+const HUN_ECHINO_Q=[
+{id:"HUN-21",site:"HUN",diff:"facile",
+ q:"À quel embranchement appartiennent les étoiles de mer, les oursins et les concombres de mer ?",
+ choix:["Aux échinodermes","Aux mollusques","Aux arthropodes","Aux cnidaires"],r:"Aux échinodermes",
+ exp:"Étoiles, ophiures, oursins, crinoïdes et holothuries forment un même embranchement, reconnaissable à sa symétrie à cinq branches chez l’adulte.",
+ src:["Wikipédia — Échinodermes","https://fr.wikipedia.org/wiki/Echinodermata"]},
+
+{id:"HUN-22",site:"HUN",diff:"facile",
+ q:"Quel minéral a remplacé les tissus mous des fossiles du Hunsrück ?",
+ choix:["La pyrite","Le quartz","La calcite","Le gypse"],r:"La pyrite",
+ exp:"Le sulfure de fer s’est substitué aux tissus avant leur décomposition. C’est ce qui donne aux fossiles de Bundenbach leur éclat métallique et leur célébrité.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-23",site:"HUN",diff:"moyen",
+ q:"Qu’est-ce qu’un podion, chez un échinoderme ?",
+ choix:["Un pied ambulacraire mû par de l’eau sous pression","Une plaque du squelette","Une pièce buccale","Un organe reproducteur"],
+ r:"Un pied ambulacraire mû par de l’eau sous pression",
+ exp:"Les podia sont des tubes extensibles reliés au système aquifère. Ils servent au déplacement, à la capture de nourriture et aux échanges gazeux — et ce sont des tissus mous, donc normalement invisibles dans les roches.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-24",site:"HUN",diff:"difficile",
+ q:"Sur quelle espèce du Hunsrück a-t-on observé pour la première fois des podia fossiles d’ophiure ?",
+ choix:["Bundenbachia beneckei","Euzonosoma tischbeiniana","Codiacrinus schultzei","Rhenechinus hopstaetteri"],
+ r:"Bundenbachia beneckei",
+ exp:"Six spécimens ont livré ces pieds ambulacraires pyritisés, décrits en 2004. C’était le premier signalement de podia fossilisés chez une ophiure.",
+ src:["Glass & Blake (2004) — Preservation of tube feet in an ophiuroid","https://link.springer.com/article/10.1007/BF03009882"]},
+
+{id:"HUN-25",site:"HUN",diff:"moyen",
+ q:"Qu’ont permis d’observer les techniques d’abrasion mises au point par les collectionneurs allemands ?",
+ choix:["Des structures trop fines pour être visibles sur un spécimen brut","La couleur d’origine des animaux","L’âge exact des couches","Le contenu stomacal des poissons"],
+ r:"Des structures trop fines pour être visibles sur un spécimen brut",
+ exp:"Les podia pyritisés ne se voient qu’après un dégagement d’une extrême délicatesse. Une partie de ce qu’on sait de Bundenbach tient à des amateurs qui ont perfectionné la préparation.",
+ src:["Glass & Blake (2004) — Preservation of tube feet in an ophiuroid","https://link.springer.com/article/10.1007/BF03009882"]},
+
+{id:"HUN-26",site:"HUN",diff:"difficile",
+ q:"Chez quel crinoïde du Hunsrück a-t-on signalé des podia pyritisés en 2013 ?",
+ choix:["Codiacrinus schultzei","Bundenbachia beneckei","Palaeocucumaria hunsrueckiana","Lotusoblastus medusa"],
+ r:"Codiacrinus schultzei",
+ exp:"La conservation de tissus mous chez un échinoderme fossile est si rare que la plupart des signalements antérieurs ont été contestés ou réfutés. Celui-ci ne l’a pas été.",
+ src:["Tube foot preservation in Codiacrinus — Lethaia (2013)","https://www.scup.com/doi/10.1111/let.12023"]},
+
+{id:"HUN-27",site:"HUN",diff:"moyen",
+ q:"Que conservent certains spécimens d’Euzonosoma tischbeiniana, entre les bras ?",
+ choix:["Une membrane de tissu mou","Des œufs","Des restes de proies","Des cristaux de sel"],
+ r:"Une membrane de tissu mou",
+ exp:"Cette membrane tendue entre les bras ne se fossilise pratiquement jamais. Sa présence à Bundenbach indique un enfouissement très rapide, avant toute décomposition.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-28",site:"HUN",diff:"difficile",
+ q:"Combien de spécimens certains de l’oursin Rhenechinus hopstaetteri connaît-on ?",
+ choix:["Deux","Deux cents","Une cinquantaine","Plusieurs milliers"],r:"Deux",
+ exp:"Sur une dizaine d’échinides tous confondus, après des décennies d’exploitation du gisement. Les oursins y sont l’exception, alors que les crinoïdes s’y comptent par dizaines d’espèces.",
+ src:["Smith et al. — Echinoid specimens from the Hunsrück Slate","https://www.researchgate.net/figure/Echinoid-specimens-from-the-Lower-Devonian-Hunsrueck-Slate_tbl1_258877857"]},
+
+{id:"HUN-29",site:"HUN",diff:"difficile",
+ q:"Que déduit-on de l’extrême rareté des oursins à Bundenbach ?",
+ choix:["Qu’ils ne vivaient probablement pas sur place","Qu’ils venaient d’apparaître","Qu’ils étaient trop fragiles pour fossiliser","Qu’ils étaient microscopiques"],
+ r:"Qu’ils ne vivaient probablement pas sur place",
+ exp:"On les suppose allochtones : emportés depuis des hauts-fonds voisins jusqu’au bassin où ils se sont déposés. Une espèce rare dans une couche n’y était pas forcément rare de son vivant — elle y était peut-être seulement de passage.",
+ src:["Smith et al. — Echinoid specimens from the Hunsrück Slate","https://www.researchgate.net/figure/Echinoid-specimens-from-the-Lower-Devonian-Hunsrueck-Slate_tbl1_258877857"]},
+
+{id:"HUN-30",site:"HUN",diff:"moyen",
+ q:"Pourquoi les holothuries fossiles sont-elles presque introuvables, hors gisements exceptionnels ?",
+ choix:["Leur squelette se réduit à des spicules microscopiques dispersés","Elles sont apparues très récemment","Elles vivaient en eau douce","Elles étaient trop grandes pour être enfouies"],
+ r:"Leur squelette se réduit à des spicules microscopiques dispersés",
+ exp:"Le corps mou ne laisse rien et les spicules se dispersent au lieu de former une pièce reconnaissable. Palaeocucumaria, à Bundenbach, est l’exception qui rend la règle lisible.",
+ src:["Wikipédia — Holothurie","https://fr.wikipedia.org/wiki/Holothurie"]},
+
+{id:"HUN-31",site:"HUN",diff:"moyen",
+ q:"Qu’est-ce qu’un blastoïde, comme Lotusoblastus medusa ?",
+ choix:["Un échinoderme fixé d’une classe entièrement éteinte","Un mollusque bivalve","Un corail solitaire","Une éponge siliceuse"],
+ r:"Un échinoderme fixé d’une classe entièrement éteinte",
+ exp:"Les blastoïdes vivaient fixés par une tige, avec un calice en bouton. La classe s’étend du Silurien au Permien et disparaît avec la crise de la fin du Permien : aucun représentant actuel.",
+ src:["Bohatý et al. (2024) — Papers in Palaeontology","https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1584"]},
+
+{id:"HUN-32",site:"HUN",diff:"difficile",
+ q:"L’espèce Lotusoblastus medusa a été décrite en 1895, mais son genre actuel date de quand ?",
+ choix:["De 2024","De 1895 également","De 1950","De 1998"],r:"De 2024",
+ exp:"Jaekel l’avait rangée dans le genre Pentremitidea. Une révision de 2024 l’a placée dans un genre nouveau, dont l’ordre et la famille restent indéterminés. Une espèce peut être connue depuis cent trente ans sans que sa place soit fixée.",
+ src:["Bohatý et al. (2024) — Papers in Palaeontology","https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1584"]},
+
+{id:"HUN-33",site:"HUN",diff:"difficile",
+ q:"Les brachioles de Lotusoblastus sont conservées raides et droites. Qu’en déduit-on ?",
+ choix:["Que son tissu conjonctif était en position rigide au moment de l’enfouissement","Qu’elles étaient minéralisées de son vivant","Qu’il s’agissait d’épines défensives","Que l’animal était mort depuis longtemps"],
+ r:"Que son tissu conjonctif était en position rigide au moment de l’enfouissement",
+ exp:"Les échinodermes disposent d’un tissu conjonctif mutable, qui passe de souple à rigide en quelques secondes. Une seconde espèce du gisement, Pentremitella osoleae, montre l’état inverse : des brachioles molles, couchées par le courant.",
+ src:["Feeding postures and mutable collagenous tissue — PMC","https://pmc.ncbi.nlm.nih.gov/articles/PMC11568118/"]},
+
+{id:"HUN-34",site:"HUN",diff:"moyen",
+ q:"Qu’est-ce que le tissu conjonctif mutable des échinodermes ?",
+ choix:["Un tissu dont la rigidité change en quelques secondes","Un muscle capable de repousser","Une couche de graisse isolante","Une membrane productrice de venin"],
+ r:"Un tissu dont la rigidité change en quelques secondes",
+ exp:"Ce n’est pas du muscle : c’est la matrice de collagène elle-même qui se raidit ou se relâche, sous contrôle nerveux. C’est ce qui permet à une étoile de mer de tenir une posture sans se fatiguer.",
+ src:["Feeding postures and mutable collagenous tissue — PMC","https://pmc.ncbi.nlm.nih.gov/articles/PMC11568118/"]},
+
+{id:"HUN-35",site:"HUN",diff:"moyen",
+ q:"Les crinoïdes du Hunsrück comptent une soixantaine d’espèces. Comment vivaient-elles presque toutes ?",
+ choix:["Fixées au fond par une tige","En nage libre","Enfouies dans le sédiment","Accrochées à des algues flottantes"],
+ r:"Fixées au fond par une tige",
+ exp:"Les formes libres, qui dominent chez les crinoïdes actuels, sont quasi absentes du gisement. Un lis de mer dévonien se représente ancré, pas en train de nager.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-36",site:"HUN",diff:"difficile",
+ q:"Sur certaines dalles, les cinq bras des ophiures pointent tous dans la même direction. Qu’indique cette disposition ?",
+ choix:["Le sens du courant juste avant l’enfouissement","Un comportement de reproduction","Une attaque de prédateur","Un artefact de préparation"],
+ r:"Le sens du courant juste avant l’enfouissement",
+ exp:"Les animaux ont été couchés par le flux qui les a ensevelis. Une posture fossile peut ainsi renseigner sur les conditions physiques du dépôt, pas seulement sur l’anatomie.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-37",site:"HUN",diff:"facile",
+ q:"Pourquoi les fossiles du Hunsrück ont-ils été découverts en si grand nombre ?",
+ choix:["Le schiste était exploité en carrière pour couvrir les toits","Un programme de fouilles universitaires les a cherchés","Une rivière les a mis au jour","Ils affleurent naturellement en surface"],
+ r:"Le schiste était exploité en carrière pour couvrir les toits",
+ exp:"L’ardoise de Bundenbach a été extraite pendant des siècles ; la dernière exploitation a fermé en 2000. Sans cette industrie, la faune serait restée sous terre.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-38",site:"HUN",diff:"moyen",
+ q:"À quel moment de la vie d’un échinoderme apparaît la symétrie à cinq branches ?",
+ choix:["Chez l’adulte : la larve est à symétrie bilatérale","Dès l’œuf","Elle n’existe que chez les oursins","Elle apparaît après la reproduction"],
+ r:"Chez l’adulte : la larve est à symétrie bilatérale",
+ exp:"La pentaradialité est acquise au cours du développement, pas originelle. C’est l’un des arguments qui rattachent les échinodermes aux animaux bilatériens, malgré les apparences.",
+ src:["Wikipédia — Échinodermes","https://fr.wikipedia.org/wiki/Echinodermata"]},
+
+{id:"HUN-39",site:"HUN",diff:"difficile",
+ q:"Pourquoi étudie-t-on souvent les fossiles du Hunsrück par radiographie aux rayons X ?",
+ choix:["La pyrite est opaque aux rayons X et se détache du schiste","Le schiste est trop dur à fendre","Les fossiles sont radioactifs","Pour dater les couches"],
+ r:"La pyrite est opaque aux rayons X et se détache du schiste",
+ exp:"On voit ainsi ce qui reste enfoui dans la roche, sans dégager la pièce et sans risquer de la détruire. La méthode a révélé des structures que la préparation mécanique aurait effacées.",
+ src:["The Hunsrück Slate Konservat-Lagerstätte — Geology Today","https://onlinelibrary.wiley.com/doi/full/10.1111/gto.12426"]},
+
+{id:"HUN-40",site:"HUN",diff:"difficile",
+ q:"Tous les fossiles du Hunsrück ne sont pas pyritisés au même degré. Que faut-il en conclure ?",
+ choix:["Que les conditions de fossilisation variaient d’un endroit et d’un organisme à l’autre","Que certains sont des faux","Que les moins pyritisés sont plus récents","Que la pyrite s’est formée après l’extraction"],
+ r:"Que les conditions de fossilisation variaient d’un endroit et d’un organisme à l’autre",
+ exp:"La chimie du sédiment, la vitesse d’enfouissement et la composition du corps entrent toutes en jeu. Ce qu’un gisement livre n’est jamais un échantillon neutre de ce qui y vivait.",
+ src:["The Geologic History and Paleoenvironmental Setting of the Hunsrück Slate","https://www.researchgate.net/publication/324628192_The_Geologic_History_and_Paleoenvironmental_Setting_of_the_Hunsruck_Slate_A_Review"]}
+];
+
+CREATURES.push(...HUN_ECHINO);
+QUIZ_PALEO.push(...HUN_ECHINO_Q);
+
+/* ================================================================
+   Bloc 9 : site SAM — la vallée de Luján, Argentine.
+
+   Dix-neuvième chantier. Il comble le Néogène et le Quaternaire, tous
+   deux vides jusqu'ici, et ouvre un continent absent de l'atlas.
+
+   Deux fils courent dans les questions. Le premier est biologique :
+   trente millions d'années d'isolement produisent des lignées sans
+   équivalent ailleurs, puis l'isthme de Panamá se ferme et la plupart
+   disparaissent. Le second est épistémologique : c'est ici que naît la
+   science de l'extinction, avec le Megatherium décrit par Cuvier en
+   1796 ; et c'est ici que la morphologie a échoué pendant cent quatre-
+   vingts ans avant que les protéines fossiles ne tranchent en 2015.
+
+   Épingle calée à x=412 y=842 : côté atlantique, contrôlée contre
+   masque_terre.json.
+   ================================================================ */
+
+const SAM_SITE={
+ id:"SAM",
+ nom:"Vallée de Luján",
+ court:"Luján",
+ region:"province de Buenos Aires",
+ pays:"Argentine",
+ ere:"Miocène → Pléistocène",
+ age:"≈ 17 Ma – 11 000 ans",
+ x:412, y:842,
+ fond:"sites/SAM.jpg",
+ cout:800,
+ accroche:"Le continent qui a vécu seul",
+ intro:[
+  "À soixante kilomètres à l'ouest de Buenos Aires, une rivière lente entaille la pampa et met à nu des couches de limon. En 1787, sur cette berge, Manuel Torres dégage un squelette qu'il ne reconnaît pas. Les caisses partent pour Madrid, où l'on assemble tant bien que mal un animal de six mètres, dressé sur ses pattes arrière.",
+
+  "Un jeune anatomiste parisien en reçoit les dessins. Il n'a jamais vu l'os, il ne verra jamais le site, et il conclut en 1796 qu'il s'agit d'un paresseux géant, apparenté aux petits animaux arboricoles d'Amérique tropicale, et qu'aucune espèce semblable ne vit plus nulle part. Georges Cuvier vient de fonder l'idée d'extinction sur une pièce à conviction. Il l'appelle Megatherium americanum.",
+
+  "Ce qui rend ce continent si étrange tient à sa géographie. Pendant une trentaine de millions d'années, l'Amérique du Sud est une île. Des ordres entiers de mammifères y évoluent sans contact avec le reste du monde : les litopternes, les notongulés — des herbivores qui ne sont ni des chevaux, ni des ruminants, ni rien de ce qu'on connaît. En l'absence de grands carnivores placentaires, les places de prédateurs reviennent à des marsupiaux et à des oiseaux incapables de voler.",
+
+  "En 1834, un naturaliste de vingt-cinq ans ramasse des os dans ces mêmes couches et achète un crâne à Montevideo pour quelques shillings. Ce que Darwin rapporte de Macrauchenia et de Toxodon restera inclassable pendant cent quatre-vingts ans : selon les auteurs, ces bêtes sont proches des éléphants, des chameaux, des rhinocéros ou des tatous. La question a été tranchée en 2015, non par un os mieux conservé, mais par le collagène extrait de ces os — deux équipes indépendantes, même résultat : ce sont des cousins des chevaux, des tapirs et des rhinocéros.",
+
+  "Un mot sur ce chantier. Il couvre dix-sept millions d'années et plusieurs provinces argentines, pas une seule carrière : Luján lui sert d'ancrage parce que Megatherium et Glyptodon en proviennent, et parce que c'est là que cette science a commencé. Il y a trois millions d'années, l'isthme de Panamá se ferme. Les faunes du nord descendent, celles du sud remontent, et la plupart des lignées que tu vas déterrer ici ne passent pas l'échange."
+ ]
+};
+
+const SAM_CREATURES=[
+{id:"SAM-01",site:"SAM",nom:"Megatherium americanum",groupe:"Xénarthre, paresseux terrestre",
+ periode:"Pléistocène",age:"≈ 0,4–0,011 Ma",ageMin:0.011,ageMax:0.4,
+ lieu:"Luján et pampa argentine",milieu:"Terrestre, plaines et bois clairs",
+ regime:"Herbivore",taille:"≈ 6 m",masse:"≈ 4 t",
+ longevite:"Inconnue ; estimée par comparaison avec de grands mammifères actuels, sans mesure directe",
+ confLong:"Très faible",conf:"Élevée",confN:4,
+ desc:"Paresseux terrestre géant, capable de se dresser sur ses pattes arrière en s'appuyant sur sa queue. C'est sur son squelette que Cuvier démontre en 1796 qu'une espèce peut avoir disparu.",
+ prudence:"La posture dressée est déduite du bassin et des vertèbres caudales, non observée. Le régime exact et l'usage des griffes restent discutés.",
+ src:[["Wikipédia — Megatherium","https://fr.wikipedia.org/wiki/Megatherium"],
+      ["Wikipédia — Georges Cuvier","https://fr.wikipedia.org/wiki/Georges_Cuvier"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-01.jpg"},
+
+{id:"SAM-02",site:"SAM",nom:"Glyptodon reticulatus",groupe:"Xénarthre cingulé",
+ periode:"Pléistocène",age:"≈ 0,8–0,011 Ma",ageMin:0.011,ageMax:0.8,
+ lieu:"Pampa argentine et Uruguay",milieu:"Terrestre, prairies et bords de cours d'eau",
+ regime:"Herbivore brouteur",taille:"≈ 3 m",masse:"≈ 1 t",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:4,
+ desc:"Parent géant des tatous, protégé par une carapace faite de centaines d'ostéodermes soudés en une coupole rigide, et par un anneau osseux autour de la queue.",
+ prudence:"Les espèces du genre Glyptodon ont été très souvent redécrites et réattribuées : la limite entre plusieurs d'entre elles reste débattue. Les carapaces sont fréquentes en collection, les crânes et les membres beaucoup moins.",
+ src:[["Wikipédia — Glyptodon","https://fr.wikipedia.org/wiki/Glyptodon"],
+      ["Wikipédia — Cingulata","https://fr.wikipedia.org/wiki/Cingulata"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-02.jpg"},
+
+{id:"SAM-03",site:"SAM",nom:"Macrauchenia patachonica",groupe:"Litopterne macrauchéniidé",
+ periode:"Pléistocène",age:"≈ 0,7–0,011 Ma",ageMin:0.011,ageMax:0.7,
+ lieu:"Patagonie et pampa, Argentine",milieu:"Terrestre, steppes ouvertes",
+ regime:"Herbivore",taille:"≈ 3 m",masse:"≈ 1 t",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Herbivore d'un ordre aujourd'hui éteint, aux narines placées haut sur le crâne, entre les yeux. Récolté par Darwin en 1834, il n'a été rattaché à aucun groupe connu avant l'analyse de son collagène en 2015.",
+ prudence:"La trompe qu'on lui prête souvent est une déduction contestée tirée de la position des narines. Aucun tissu mou n'est conservé : ni trompe, ni absence de trompe ne sont attestées.",
+ src:[["Welker et al. (2015) — Ancient proteins resolve Darwin's South American ungulates","https://www.nature.com/articles/nature14249"],
+      ["Wikipédia — Macrauchenia","https://fr.wikipedia.org/wiki/Macrauchenia"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-03.jpg"},
+
+{id:"SAM-04",site:"SAM",nom:"Toxodon platensis",groupe:"Notongulé toxodontidé",
+ periode:"Pliocène → Pléistocène",age:"≈ 2,6–0,011 Ma",ageMin:0.011,ageMax:2.6,
+ lieu:"Argentine, Uruguay et Brésil",milieu:"Terrestre, milieux ouverts et humides",
+ regime:"Herbivore",taille:"≈ 2,7 m",masse:"≈ 1,4 t",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Grand herbivore massif d'un ordre éteint, décrit par Owen à partir d'un crâne que Darwin avait acheté quelques shillings à Montevideo.",
+ prudence:"Sa silhouette évoque un rhinocéros ou un hippopotame, sans aucune parenté proche avec l'un ou l'autre. La posture et l'usage des incisives restent discutés.",
+ src:[["Buckley (2015) — Ancient collagen reveals evolutionary history","https://royalsocietypublishing.org/doi/10.1098/rspb.2014.2671"],
+      ["Wikipédia — Toxodon","https://fr.wikipedia.org/wiki/Toxodon"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-04.jpg"},
+
+{id:"SAM-05",site:"SAM",nom:"Phorusrhacos longissimus",groupe:"Oiseau phorusrhacidé",
+ periode:"Miocène",age:"≈ 17–15 Ma",ageMin:15,ageMax:17,
+ lieu:"Formation de Santa Cruz, Patagonie, Argentine",milieu:"Terrestre, prairies ouvertes",
+ regime:"Carnivore",taille:"≈ 2,5 m",masse:"≈ 130 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Oiseau terrestre incapable de voler, au crâne massif terminé par un bec crochu, prédateur de premier rang sur un continent dépourvu de grands carnivores placentaires.",
+ prudence:"Le plumage et la coloration sont entièrement conjecturaux. La vitesse de course qu'on lui prête souvent n'est pas établie.",
+ src:[["Wikipédia — Phorusrhacos","https://fr.wikipedia.org/wiki/Phorusrhacos"],
+      ["Wikipédia — Phorusrhacidae","https://fr.wikipedia.org/wiki/Phorusrhacidae"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-05.jpg"},
+
+{id:"SAM-06",site:"SAM",nom:"Thylacosmilus atrox",groupe:"Sparassodonte, métathérien",
+ periode:"Miocène → Pliocène",age:"≈ 9–3 Ma",ageMin:3,ageMax:9,
+ lieu:"Catamarca et nord-ouest argentin",milieu:"Terrestre",
+ regime:"Carnivore",taille:"≈ 1,2 m",masse:"≈ 100 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Prédateur aux canines à croissance continue, protégées par deux longues brides osseuses de la mâchoire inférieure. Il ressemble à un tigre à dents de sabre sans avoir de lien de parenté proche avec les félins.",
+ prudence:"Ce n'est pas un félin et ce n'est pas un marsupial au sens strict, mais un métathérien d'une lignée éteinte. Ses orbites orientées vers l'avant nourrissent un débat sur son mode de chasse.",
+ src:[["Wikipédia — Thylacosmilus","https://fr.wikipedia.org/wiki/Thylacosmilus"],
+      ["Wikipédia — Sparassodonta","https://fr.wikipedia.org/wiki/Sparassodonta"]],
+ pack:"Luján — Le continent séparé",img:"cartes/SAM-06.jpg"}
+];
+
+const SAM_Q=[
+{id:"SAM-Q01",site:"SAM",diff:"facile",
+ q:"Dans quel pays se trouve la vallée de Luján ?",
+ choix:["En Argentine","Au Pérou","Au Mexique","En Australie"],r:"En Argentine",
+ exp:"À une soixantaine de kilomètres à l’ouest de Buenos Aires, dans la pampa.",
+ src:["Wikipédia — Luján","https://fr.wikipedia.org/wiki/Luj%C3%A1n"]},
+
+{id:"SAM-Q02",site:"SAM",diff:"facile",
+ q:"Qu’est-ce que Megatherium americanum ?",
+ choix:["Un paresseux terrestre géant","Un éléphant primitif","Un grand félin","Un dinosaure tardif"],
+ r:"Un paresseux terrestre géant",
+ exp:"Six mètres, quatre tonnes, et une parenté avec les petits paresseux arboricoles d’Amérique tropicale — c’est Cuvier qui l’a établie, sur les seuls dessins du squelette.",
+ src:["Wikipédia — Megatherium","https://fr.wikipedia.org/wiki/Megatherium"]},
+
+{id:"SAM-Q03",site:"SAM",diff:"moyen",
+ q:"Que démontre Georges Cuvier en 1796 à partir du squelette de Luján ?",
+ choix:["Qu’une espèce peut avoir totalement disparu","Que les espèces se transforment avec le temps","Que la Terre est très ancienne","Que les fossiles se datent par leur couche"],
+ r:"Qu’une espèce peut avoir totalement disparu",
+ exp:"L’idée n’allait pas de soi : on supposait volontiers que l’animal vivait encore dans une région inexplorée. Cuvier fonde l’extinction comme fait établi, sur une pièce à conviction.",
+ src:["Wikipédia — Georges Cuvier","https://fr.wikipedia.org/wiki/Georges_Cuvier"]},
+
+{id:"SAM-Q04",site:"SAM",diff:"moyen",
+ q:"Pendant combien de temps, environ, l’Amérique du Sud est-elle restée un continent isolé ?",
+ choix:["Une trentaine de millions d’années","Un million d’années","Trois cents millions d’années","Cinquante mille ans"],
+ r:"Une trentaine de millions d’années",
+ exp:"Séparée de l’Antarctique par l’ouverture du passage de Drake, et de l’Amérique du Nord jusqu’à la fermeture de l’isthme de Panamá. Cet isolement est la cause directe de l’étrangeté de sa faune.",
+ src:["Buckley (2015) — Ancient collagen reveals evolutionary history","https://royalsocietypublishing.org/doi/10.1098/rspb.2014.2671"]},
+
+{id:"SAM-Q05",site:"SAM",diff:"facile",
+ q:"De quel animal actuel le Glyptodon est-il un parent géant ?",
+ choix:["Du tatou","De la tortue","Du rhinocéros","Du pangolin"],r:"Du tatou",
+ exp:"Comme lui, c’est un xénarthre cingulé. La ressemblance avec une tortue est une convergence : la carapace d’un glyptodon est faite d’ostéodermes de peau, pas de côtes soudées.",
+ src:["Wikipédia — Glyptodon","https://fr.wikipedia.org/wiki/Glyptodon"]},
+
+{id:"SAM-Q06",site:"SAM",diff:"moyen",
+ q:"De quoi est faite la carapace d’un glyptodon ?",
+ choix:["De centaines d’ostéodermes soudés en une coupole rigide","De kératine, comme une corne","De côtes élargies et fusionnées","D’écailles mobiles superposées"],
+ r:"De centaines d’ostéodermes soudés en une coupole rigide",
+ exp:"Les ostéodermes se forment dans la peau. Chez le tatou, ils restent en bandes mobiles ; chez le glyptodon, ils fusionnent, et l’animal ne peut plus se rouler en boule.",
+ src:["Wikipédia — Glyptodon","https://fr.wikipedia.org/wiki/Glyptodon"]},
+
+{id:"SAM-Q07",site:"SAM",diff:"moyen",
+ q:"Quel naturaliste a récolté des ossements de Macrauchenia et acheté un crâne de Toxodon en Amérique du Sud ?",
+ choix:["Charles Darwin","Georges Cuvier","Alfred Wallace","Alexander von Humboldt"],r:"Charles Darwin",
+ exp:"Pendant le voyage du Beagle, en 1833-1834. Le crâne de Toxodon lui a coûté quelques shillings à Montevideo ; Richard Owen l’a décrit à son retour.",
+ src:["Wikipédia — Toxodon","https://fr.wikipedia.org/wiki/Toxodon"]},
+
+{id:"SAM-Q08",site:"SAM",diff:"difficile",
+ q:"En 2015, qu’est-ce qui a permis de trancher la parenté de Macrauchenia et de Toxodon ?",
+ choix:["Le collagène extrait de leurs os","Un crâne mieux conservé","Une nouvelle datation des couches","La découverte de leurs empreintes"],
+ r:"Le collagène extrait de leurs os",
+ exp:"Deux équipes indépendantes ont séquencé cette protéine par spectrométrie de masse et abouti au même arbre. Cent quatre-vingts ans de désaccord tranchés sans le moindre fossile nouveau.",
+ src:["Welker et al. (2015) — Nature","https://www.nature.com/articles/nature14249"]},
+
+{id:"SAM-Q09",site:"SAM",diff:"difficile",
+ q:"De quel groupe actuel Macrauchenia et Toxodon se sont-ils révélés proches ?",
+ choix:["Des chevaux, tapirs et rhinocéros","Des éléphants","Des chameaux et ruminants","Des tatous et paresseux"],
+ r:"Des chevaux, tapirs et rhinocéros",
+ exp:"Ce sont des cousins des périssodactyles, les ongulés à doigts impairs. Le regroupement a reçu le nom de Panperissodactyla, et un travail sur l’ADN mitochondrial l’a confirmé deux ans plus tard.",
+ src:["Welker et al. (2015) — Nature","https://www.nature.com/articles/nature14249"]},
+
+{id:"SAM-Q10",site:"SAM",diff:"difficile",
+ q:"Pourquoi avoir séquencé du collagène plutôt que de l’ADN sur ces fossiles ?",
+ choix:["L’ADN se dégrade vite sous les climats chauds","Le collagène est plus informatif que l’ADN","L’ADN de ces espèces avait déjà été lu","Le collagène est plus facile à dater"],
+ r:"L’ADN se dégrade vite sous les climats chauds",
+ exp:"Les protéines résistent bien plus longtemps que les acides nucléiques. Le collagène porte moins d’information, mais il en porte encore là où l’ADN a disparu.",
+ src:["Buckley (2015) — Proceedings B","https://royalsocietypublishing.org/doi/10.1098/rspb.2014.2671"]},
+
+{id:"SAM-Q11",site:"SAM",diff:"moyen",
+ q:"Que sont les litopternes et les notongulés ?",
+ choix:["Deux ordres de mammifères entièrement éteints, propres à l’Amérique du Sud","Deux familles de marsupiaux australiens","Deux groupes de reptiles du Crétacé","Deux lignées d’oiseaux coureurs"],
+ r:"Deux ordres de mammifères entièrement éteints, propres à l’Amérique du Sud",
+ exp:"Ils n’ont aucun représentant vivant. C’est pourquoi leur place dans l’arbre a résisté si longtemps : il n’existait aucune espèce actuelle à qui les comparer directement.",
+ src:["Buckley (2015) — Proceedings B","https://royalsocietypublishing.org/doi/10.1098/rspb.2014.2671"]},
+
+{id:"SAM-Q12",site:"SAM",diff:"moyen",
+ q:"Qu’a de particulier le crâne de Macrauchenia ?",
+ choix:["Ses narines s’ouvrent haut, entre les yeux","Il n’a aucune dent","Ses orbites sont tournées vers l’arrière","Il porte une corne osseuse"],
+ r:"Ses narines s’ouvrent haut, entre les yeux",
+ exp:"On en a souvent déduit une trompe, comme chez le tapir. La déduction est contestée : la position des narines autorise plusieurs interprétations, et aucun tissu mou n’est conservé.",
+ src:["Wikipédia — Macrauchenia","https://fr.wikipedia.org/wiki/Macrauchenia"]},
+
+{id:"SAM-Q13",site:"SAM",diff:"facile",
+ q:"Qu’était Phorusrhacos longissimus ?",
+ choix:["Un oiseau incapable de voler, prédateur de premier rang","Un dinosaure ayant survécu à la crise","Un grand reptile terrestre","Un mammifère coureur"],
+ r:"Un oiseau incapable de voler, prédateur de premier rang",
+ exp:"Deux mètres cinquante, un bec crochu haut comme une tête de cheval, des ailes réduites. C’est un oiseau moderne, pas un dinosaure attardé — même si les oiseaux sont bien des dinosaures.",
+ src:["Wikipédia — Phorusrhacos","https://fr.wikipedia.org/wiki/Phorusrhacos"]},
+
+{id:"SAM-Q14",site:"SAM",diff:"difficile",
+ q:"Pourquoi des oiseaux ont-ils pu occuper le sommet de la chaîne alimentaire en Amérique du Sud ?",
+ choix:["Le continent était dépourvu de grands carnivores placentaires","Les mammifères y étaient tous herbivores","Le climat empêchait les félins d’y vivre","Ils étaient venus d’Antarctique avec cet avantage"],
+ r:"Le continent était dépourvu de grands carnivores placentaires",
+ exp:"Une place vacante finit par être occupée. Ici, elle l’a été par des oiseaux et par des métathériens — deux groupes qui, ailleurs, n’ont jamais tenu ce rôle à cette taille.",
+ src:["Wikipédia — Phorusrhacidae","https://fr.wikipedia.org/wiki/Phorusrhacidae"]},
+
+{id:"SAM-Q15",site:"SAM",diff:"moyen",
+ q:"Thylacosmilus ressemble beaucoup à un tigre à dents de sabre. Quel est son lien de parenté avec les félins ?",
+ choix:["Aucun lien proche : c’est un métathérien","C’est un félin primitif","C’est l’ancêtre direct de Smilodon","C’est un félin nain d’Amérique du Sud"],
+ r:"Aucun lien proche : c’est un métathérien",
+ exp:"Il appartient aux sparassodontes, une lignée éteinte plus proche des marsupiaux que des chats. La ressemblance est une convergence : deux solutions séparées au même problème.",
+ src:["Wikipédia — Thylacosmilus","https://fr.wikipedia.org/wiki/Thylacosmilus"]},
+
+{id:"SAM-Q16",site:"SAM",diff:"difficile",
+ q:"Quel détail anatomique distingue nettement Thylacosmilus d’un vrai félin à dents de sabre ?",
+ choix:["Deux longues brides osseuses de la mâchoire inférieure protègent ses canines","Ses canines sont plus courtes","Il n’a pas de griffes rétractiles","Sa queue est plus longue"],
+ r:"Deux longues brides osseuses de la mâchoire inférieure protègent ses canines",
+ exp:"Smilodon n’a rien de tel. Regarder les différences est aussi instructif que regarder les ressemblances : c’est ce qui permet de dire qu’il s’agit de convergence et non de parenté.",
+ src:["Wikipédia — Thylacosmilus","https://fr.wikipedia.org/wiki/Thylacosmilus"]},
+
+{id:"SAM-Q17",site:"SAM",diff:"moyen",
+ q:"Quel événement géographique met fin à l’isolement de l’Amérique du Sud ?",
+ choix:["La fermeture de l’isthme de Panamá","L’ouverture du passage de Drake","La montée des Andes","L’assèchement de la Méditerranée"],
+ r:"La fermeture de l’isthme de Panamá",
+ exp:"Les faunes des deux Amériques se mélangent alors. Les espèces du nord descendent plus efficacement que l’inverse, et la plupart des lignées endémiques du sud ne passent pas l’échange.",
+ src:["Wikipédia — Isthme de Panama","https://fr.wikipedia.org/wiki/Isthme_de_Panama"]},
+
+{id:"SAM-Q18",site:"SAM",diff:"moyen",
+ q:"Comment Megatherium atteignait-il les feuilles hautes, selon la reconstitution admise ?",
+ choix:["En se dressant sur ses pattes arrière, en appui sur sa queue","En grimpant aux arbres","En allongeant un cou très long","En abattant les arbres d’un coup d’épaule"],
+ r:"En se dressant sur ses pattes arrière, en appui sur sa queue",
+ exp:"Le bassin massif et les vertèbres caudales soutiennent cette lecture. C’est une déduction anatomique solide, mais une déduction : personne n’a vu l’animal debout.",
+ src:["Wikipédia — Megatherium","https://fr.wikipedia.org/wiki/Megatherium"]},
+
+{id:"SAM-Q19",site:"SAM",diff:"facile",
+ q:"Quand la grande faune de la pampa disparaît-elle ?",
+ choix:["Il y a environ onze mille ans","Il y a soixante-six millions d’années","Il y a un million d’années","Au Moyen Âge"],
+ r:"Il y a environ onze mille ans",
+ exp:"À la fin du Pléistocène, en même temps que les grands mammifères d’autres continents. Les causes — climat, arrivée de l’homme, ou les deux — restent débattues.",
+ src:["Wikipédia — Mégafaune","https://fr.wikipedia.org/wiki/M%C3%A9gafaune"]},
+
+{id:"SAM-Q20",site:"SAM",diff:"difficile",
+ q:"Toxodon a longtemps été rapproché des rhinocéros et des hippopotames. Que retenir de cette erreur ?",
+ choix:["Une silhouette semblable n’établit aucune parenté","Les anciens naturalistes travaillaient mal","Les fossiles étaient mal préparés","La classification est arbitraire"],
+ r:"Une silhouette semblable n’établit aucune parenté",
+ exp:"Un corps massif sur des pattes courtes est une réponse à des contraintes mécaniques, pas une signature de famille. Il a fallu une autre source d’information — les protéines — pour départager.",
+ src:["Welker et al. (2015) — Nature","https://www.nature.com/articles/nature14249"]}
+];
+
+SITES.push(SAM_SITE);
+CREATURES.push(...SAM_CREATURES);
+QUIZ_PALEO.push(...SAM_Q);
+
+/* ================================================================
    Bloc 3 : générateurs de questions et déclaration des packs.
    Un générateur reçoit un niveau (1..3) et renvoie
    {q, r, choix?, exp, indice?}. Sans « choix », la réponse est saisie.
@@ -1382,7 +2347,12 @@ const GEN_MATHS=[
      exp:`La mantisse doit être comprise entre 1 et 10 : ${String(m).replace('.',',')} × 10^${e}.`,
      indice:"Compte les déplacements de la virgule."};}},
  {nom:'Ordre de grandeur géologique',niv:2,gen:n=>{
-   const c=pick(CREATURES);const ma=Math.round((c.ageMin+c.ageMax)/2);
+   /* Les créatures du Quaternaire sont datées en fractions de million
+      d'années : arrondies, elles donnaient « il y a environ 0 millions
+      d'années » et quatre distracteurs tous égaux à zéro. On ne tire donc
+      que parmi celles dont l'âge s'exprime en millions d'années entiers. */
+   const pool=CREATURES.filter(x=>(x.ageMin+x.ageMax)/2>=2);
+   const c=pick(pool);const ma=Math.round((c.ageMin+c.ageMax)/2);
    const r=ma*1000000;
    return {q:`${c.nom} vit il y a environ ${ma} millions d’années. Combien d’années cela fait-il ?`,
      r:String(r),
@@ -1390,8 +2360,10 @@ const GEN_MATHS=[
      exp:`Un million vaut 10⁶, donc ${ma} Ma = ${ma} × 1 000 000 = ${r.toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ')} ans.`,
      indice:"« Ma » se lit « millions d’années »."};}},
  {nom:'Durée entre deux âges',niv:2,gen:n=>{
-   let a=pick(CREATURES),b=pick(CREATURES);let g=0;
-   while(Math.abs(a.ageMax-b.ageMax)<5&&g<30){b=pick(CREATURES);g++;}
+   /* Même précaution : deux créatures pléistocènes donneraient un écart nul. */
+   const pool=CREATURES.filter(x=>x.ageMax>=2);
+   let a=pick(pool),b=pick(pool);let g=0;
+   while(Math.abs(a.ageMax-b.ageMax)<5&&g<30){b=pick(pool);g++;}
    const r=Math.round(Math.abs(a.ageMax-b.ageMax));
    return qcmNum(`${a.nom} est daté de ${a.ageMax} Ma, ${b.nom} de ${b.ageMax} Ma. Combien de millions d’années les séparent ?`,r,
      `|${a.ageMax} − ${b.ageMax}| = ${r} millions d’années.`);}}
@@ -1423,6 +2395,21 @@ const PACKS=[
   objectif:"Comprendre quatre lignées marines par ce que leur corps impose, et par ce qu'elles laissent — ou non — dans les roches.",
   bank:()=>BIOLOGIE,
   theorie:"CE QUI SE FOSSILISE COMMANDE CE QU'ON SAIT. Un trilobite minéralise sa carapace avec de la calcite : il est partout dans les roches. Un requin n'a que du cartilage : il ne reste que les dents. Une holothurie n'a que des spicules microscopiques : elle est presque invisible. Les trois groupes ont pu être également abondants — le registre fossile mesure d'abord la minéralisation, pas le succès.\n\nMUE ET COMPTAGE. Un arthropode change de carapace pour grandir. Un seul trilobite laisse donc des dizaines d'exuvies et un seul cadavre. Compter les fossiles n'est jamais compter les individus.\n\nÉCHINODERMES. Étoiles de mer, oursins, ophiures, crinoïdes et holothuries. Symétrie à cinq branches chez l'adulte, symétrie bilatérale chez la larve : la pentaradialité est acquise, pas originelle. Leur tissu conjonctif mutable change de rigidité en quelques secondes, sous contrôle nerveux — ce n'est pas du muscle.\n\nCHONDRICHTHYENS. Squelette cartilagineux, denticules cutanés de même structure que les dents, remplacement dentaire continu, pas de vessie natatoire mais un foie huileux, et les ampoules de Lorenzini pour détecter les champs électriques.\n\nCÉTACÉS. Des artiodactyles retournés à la mer. Narines migrées au sommet du crâne, voies respiratoires isolées du tube digestif, fanons de kératine chez les mysticètes, écholocation chez les odontocètes seulement.\n\nCONVERGENCE. Requin, ichtyosaure, dauphin : un poisson, un reptile, un mammifère, trois silhouettes presque identiques. L'eau impose sa forme. Se ressembler ne prouve aucune parenté."},
+ {id:'arteu',nom:"Histoire de l'art — Europe",ico:'🖼️',type:'bank',cat:'histoire',
+  sous:'Le cursus tel qu’on l’enseigne ici',
+  objectif:"Parcourir le canon européen, et savoir accessoirement qui l'a construit et selon quel récit.",
+  bank:()=>ART_EU,
+  theorie:"LE PLAN QUE TU CONNAIS N'EST PAS NEUTRE. Il vient de Giorgio Vasari, qui publie ses « Vies » en 1550 : l'art atteint un sommet antique, déchoit, renaît avec Giotto et culmine avec Michel-Ange — son ami. De lui viennent le mot « Renaissance » et l'usage de « gothique » comme insulte. Cinq siècles plus tard, nos manuels suivent encore ce fil.\n\nQUELQUES CHARNIÈRES TECHNIQUES. La perspective linéaire, démontrée par Brunelleschi vers 1415 et théorisée par Alberti en 1435 : une construction géométrique, pas une découverte sur la vision. La peinture à l'huile, portée à maturité par Van Eyck : séchage lent, donc glacis, fondus, reprises. Le tube d'étain en 1841 : la couleur devient transportable, et l'on peut peindre dehors en une séance.\n\nLA HIÉRARCHIE DES GENRES, fixée par l'Académie : histoire, portrait, scène de genre, paysage, nature morte. Elle ne classe pas la qualité mais le sujet, et commande les prix et les carrières. Une bonne part du XIXᵉ siècle consiste à la renverser — Courbet peignant des villageois au format réservé aux batailles.\n\nLES NOMS SONT SOUVENT DES INSULTES RETOURNÉES : gothique, baroque, impressionnisme, fauvisme, cubisme. Aucun n'a été choisi par ceux qu'il désigne.\n\nCE QUE LE CANON A LAISSÉ DEHORS. Les femmes, exclues des académies et de l'étude du nu, donc des grands genres — et parfois effacées par réattribution, comme Judith Leyster vendue en Frans Hals. Et les sources non européennes, massivement mobilisées puis rangées sous le mot « influence primitive »."},
+ {id:'artmonde',nom:"Histoire de l'art — hors d'Europe",ico:'🌏',type:'bank',cat:'histoire',
+  sous:'Ifé, Bénin, Song, Chola, Moche, Edo',
+  objectif:"Aborder des traditions qui ont résolu les mêmes problèmes autrement, souvent plus tôt.",
+  bank:()=>ART_MONDE,
+  theorie:"PRINCIPE DE CE PACK. Il ne s'agit pas d'ajouter un supplément exotique au cursus, mais de constater que d'autres traditions ont traité les mêmes questions — représenter un visage, occuper l'espace, honorer un mort, figurer le divin — avec d'autres réponses, parfois des siècles plus tôt.\n\nCE QUE LE REGARD EUROPÉEN A FAIT DE CES ŒUVRES. Devant les têtes d'Ifé, en 1910, Frobenius conclut à l'Atlantide : le naturalisme lui paraissait incompatible avec une origine africaine. Devant le Grand Zimbabwe, l'archéologie officielle rhodésienne a cherché des bâtisseurs phéniciens, arabes, n'importe lesquels sauf shona. Ces hypothèses étaient savantes dans la forme et racistes dans la prémisse.\n\nCOMMENT CES OBJETS SONT ARRIVÉS ICI. Les bronzes du Bénin viennent du sac de Benin City par une expédition punitive britannique en 1897. Les restitutions ont commencé : l'Allemagne a transféré la propriété de 1 130 pièces en 2022, les Pays-Bas en ont rendu 119 en juin 2025. Le British Museum en conserve plus de neuf cents.\n\nDES SOLUTIONS TECHNIQUES AUTONOMES. Fonte à la cire perdue à Ifé et chez les Chola. Rouleaux Song sans point de fuite unique, parce qu'il n'y a pas d'observateur immobile. Miniature persane qui ouvre les murs pour tout rendre visible. Aucune n'ignore la perspective européenne : elles répondent à d'autres questions.\n\nLE MOT « PRIMITIF » suppose un stade antérieur au nôtre. Il désigne en fait des arts contemporains des cathédrales, avec leurs écoles, leurs commandes et leurs maîtres."},
+ {id:'philosophie',nom:'Philosophie des sciences',ico:'🧭',type:'bank',cat:'histoire',
+  sous:'Preuve, doute, classification, révision',
+  objectif:"Distinguer ce qu'un fossile montre de ce qu'on en conclut, et savoir pourquoi une science se corrige.",
+  bank:()=>PHILO,
+  theorie:"OBSERVER N'EST PAS INTERPRÉTER. La spirale dentaire d'Helicoprion a été parfaitement décrite dès 1899. Sa place sur l'animal a mis plus d'un siècle à se fixer. La donnée était solide, l'interprétation ouverte : ce sont deux opérations distinctes, et les confondre est la source d'erreur la plus commune.\n\nRÉFUTABILITÉ. Pour Karl Popper, une théorie est scientifique si l'on peut dire ce qui la mettrait en défaut. Une explication compatible avec n'importe quel résultat n'apprend rien. « Il y a plusieurs causes » n'est un énoncé sérieux que si l'on précise lesquelles, dans quel ordre, et pour quelle part.\n\nL'ABSENCE DE PREUVE. Ne pas trouver un fossile n'établit pas que l'animal n'existait pas. Il peut n'avoir jamais existé, n'avoir pas laissé de restes, ou n'avoir pas encore été cherché au bon endroit. Le registre fossile mesure d'abord les conditions de fossilisation.\n\nRASOIR D'OCKHAM. À pouvoir explicatif égal, préférer l'hypothèse la plus économique. C'est un principe de choix, pas une affirmation sur le monde : il ne dit pas que la nature est simple.\n\nCE QU'EST UNE ESPÈCE FOSSILE. On ne peut pas tester l'interfécondité chez des animaux morts depuis cent millions d'années. Les espèces fossiles se délimitent sur la morphologie, donc par un jugement révisable. D'où les cent trente espèces nommées par Marsh et Cope, dont une bonne part étaient des doublons.\n\nSUSPENDRE LE JUGEMENT. Devant deux hypothèses également compatibles avec les données, ne pas trancher est une position argumentée — à condition de dire ce qui manquerait pour décider. Trancher sans motif présenterait une préférence comme un résultat."},
  {id:'histoire',nom:'Histoire du temps profond',ico:'🏛️',type:'bank',cat:'histoire',
   sous:'Échelle des temps, extinctions, découvertes',
   objectif:"Situer les époques, les crises et les gens qui ont construit la discipline.",

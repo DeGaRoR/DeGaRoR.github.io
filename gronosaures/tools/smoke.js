@@ -216,9 +216,14 @@ ctx.PACKS.forEach(p=>{
   const b=ctx.bareme(p);
   T('barème résolu pour '+p.id, !!(b&&b.juste>0));
 });
-T('entraînement mieux payé que l’histoire',
-  ctx.bareme(ctx.PACKS.find(p=>p.id==='maths')).juste
-  > ctx.bareme(ctx.PACKS.find(p=>p.id==='histoire')).juste);
+/* Le choix du pack ne doit rien coûter : une mission parfaite rapporte la même
+   chose des deux côtés, sans quoi préférer ce qu'on aime devient un handicap. */
+const gainDe=cat=>{const b=ctx.BAREME[cat]; return ctx.NB_MISSION*b.juste+b.mission;};
+T('les deux filières rapportent autant sur une mission complète',
+  gainDe('base')===gainDe('histoire'), gainDe('base')+' vs '+gainDe('histoire'));
+T('l’indice réduit le gain sans l’annuler',
+  ctx.BAREME.base.aide>0 && ctx.BAREME.base.aide<ctx.BAREME.base.juste,
+  ctx.BAREME.base.aide+' / '+ctx.BAREME.base.juste);
 
 /* ---------- 4. Niveaux documentaires ---------- */
 const c0=ctx.CREATURES[0].id;

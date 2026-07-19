@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0a0f1a">
 <meta name="description" content="Atlas de paléontologie : fouiller, documenter, comprendre.">
-<title>Le Grand Atlas du Temps profond</title>
+<title>Gronosaures et Trilobytes</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icones/icone-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,8 +19,8 @@
 
 <header id="entete">
   <div class="ent-titre">
-    <span class="ent-nom">Le Grand Atlas</span>
-    <span class="ent-sous">du Temps profond</span>
+    <span class="ent-nom">Gronosaures</span>
+    <span class="ent-sous">et Trilobytes</span>
   </div>
   <div id="solde" title="Crédits de recherche">
     <span class="sol-ico">◈</span><span id="solde-nb">0</span>
@@ -71,6 +71,11 @@
     <div class="col-tete">
       <h2>Collection</h2>
       <span id="col-compte" class="col-compte"></span>
+    </div>
+    <div class="col-tri" id="col-tri" role="group" aria-label="Classement de la collection">
+      <button data-tri="chantier" class="on">Par chantier</button>
+      <button data-tri="periode">Par période</button>
+      <button data-tri="groupe">Par famille</button>
     </div>
     <div id="col-corps"></div>
   </section>

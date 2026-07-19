@@ -3,7 +3,7 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v7';
+const VERSION='atlas-v12';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
@@ -37,11 +37,15 @@ const IMAGES=[
   './cartes/YIX-07.jpg', './cartes/YIX-08.jpg', './cartes/HC-01.jpg', './cartes/HC-02.jpg',
   './cartes/HC-03.jpg', './cartes/HC-04.jpg', './cartes/HC-05.jpg', './cartes/HC-06.jpg',
   './cartes/WHA-01.jpg', './cartes/WHA-02.jpg', './cartes/WHA-03.jpg', './cartes/WHA-04.jpg',
-  './cartes/WHA-05.jpg', './cartes/WHA-06.jpg', './sites/EDI.jpg', './sites/TRI.jpg',
+  './cartes/WHA-05.jpg', './cartes/WHA-06.jpg', './cartes/HUN-07.jpg', './cartes/HUN-08.jpg',
+  './cartes/HUN-09.jpg', './cartes/HUN-10.jpg', './cartes/HUN-11.jpg', './cartes/HUN-12.jpg',
+  './cartes/SAM-01.jpg', './cartes/SAM-02.jpg', './cartes/SAM-03.jpg', './cartes/SAM-04.jpg',
+  './cartes/SAM-05.jpg', './cartes/SAM-06.jpg', './sites/EDI.jpg', './sites/TRI.jpg',
   './sites/BURG.jpg', './sites/CEP.jpg', './sites/CHO.jpg', './sites/HUN.jpg',
   './sites/DEV.jpg', './sites/CAR.jpg', './sites/MAZ.jpg', './sites/KAR2.jpg',
   './sites/LUO.jpg', './sites/JUR.jpg', './sites/MOR.jpg', './sites/NWE.jpg',
   './sites/YIX.jpg', './sites/NEM.jpg', './sites/HC.jpg', './sites/WHA.jpg',
+  './sites/SAM.jpg',
 ];
 
 self.addEventListener('install',e=>{

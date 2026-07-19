@@ -20,19 +20,20 @@ const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
-  +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,'
+  +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,'
   +'SEUILS_DOC,FOUILLE_VIDE});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
-       BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN}=sandbox;
+       BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
+       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde.jpg']
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('110 créatures', CREATURES.length===110, CREATURES.length+' trouvées');
+T('122 créatures', CREATURES.length===122, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
@@ -46,7 +47,7 @@ CREATURES.forEach(c=>{
 });
 
 /* ---------- 3. Sites ---------- */
-T('dix-huit sites', SITES.length===18, SITES.length+'');
+T('dix-neuf sites', SITES.length===19, SITES.length+'');
 SITES.forEach(s=>{
   T('fond satellite '+s.id, existe(s.fond), s.fond);
   T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
@@ -59,7 +60,18 @@ SITES.forEach(s=>{
 });
 
 /* ---------- 4. Banque paléo ---------- */
-T('vingt questions par site', QUIZ_PALEO.length===SITES.length*20, QUIZ_PALEO.length+'');
+/* Vingt questions par site est le socle, pas un plafond : Bundenbach en compte
+   quarante depuis qu'il a douze créatures au lieu de six. Ce qu'on vérifie, c'est
+   la PROPORTION — une question ne doit pas se retrouver posée pour un site qui n'a
+   presque rien à montrer, ni un site riche tourner sur trop peu de questions. */
+T('au moins vingt questions par site',
+  SITES.every(s=>QUIZ_PALEO.filter(q=>q.site===s.id).length>=20), QUIZ_PALEO.length+'');
+SITES.forEach(s=>{
+  const nq=QUIZ_PALEO.filter(q=>q.site===s.id).length;
+  const nc=CREATURES.filter(c=>c.site===s.id).length;
+  T('questions proportionnées pour '+s.id, nq>=20 && nq>=nc*2 && nq<=nc*8,
+    nq+' questions / '+nc+' créatures');
+});
 QUIZ_PALEO.forEach(q=>{
   T('site connu '+q.id, SITES.some(s=>s.id===q.site));
   T('4 choix '+q.id, q.choix.length===4);
@@ -67,8 +79,7 @@ QUIZ_PALEO.forEach(q=>{
   T('bonne réponse dans les choix '+q.id, q.choix.includes(q.r));
   T('explication '+q.id, !!(q.exp&&q.exp.length>10));
 });
-SITES.forEach(s=>T('20 questions pour '+s.id,
-  QUIZ_PALEO.filter(q=>q.site===s.id).length===20));
+
 
 /* ---------- 5. Orthographe ---------- */
 ORTHO.forEach((o,i)=>{
@@ -147,7 +158,14 @@ T('générateurs maths : QCM valides', mauvais===0, mauvais+' tirages invalides'
 T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans explication');
 
 /* ---------- 8. Packs ---------- */
-T('cinq packs dans la Bourse', PACKS.length===5, PACKS.length+'');
+T('huit packs dans la Bourse', PACKS.length===8, PACKS.length+'');
+/* Les images d'art sont facultatives : le pack a été écrit dans un environnement
+   sans accès réseau à Wikimedia. Ce qu'on vérifie, c'est qu'aucun chemin déclaré
+   ne pointe hors du dossier prévu, et que le manifeste du script les couvre. */
+const imgsArt=PACKS.filter(p=>p.type==='bank').flatMap(p=>p.bank()).filter(i=>i.img).map(i=>i.img);
+imgsArt.forEach(p=>T('image d’art dans art/ : '+p, /^art\/[a-z0-9_]+\.jpg$/.test(p)));
+const manif=fs.readFileSync(path.join(R,'tools','telecharger_art.py'),'utf8');
+imgsArt.forEach(p=>T('image d’art au manifeste : '+p, manif.includes('"'+p.replace('art/','')+'"')));
 /* Les deux filières doivent rester peuplées : l'entraînement est la source de
    revenu principale, l'histoire la respiration. */
 ['base','histoire'].forEach(c=>T('la filière '+c+' a au moins deux packs',
@@ -225,12 +243,43 @@ for(let i=0;i<SITES.length;i++) for(let j=i+1;j<SITES.length;j++){
 T('toute grappe s’ouvre au zoom maximal', pireD>CARTE_GROUPE,
   pireP+' : '+Math.round(pireD)+' px écran pour un seuil de '+CARTE_GROUPE);
 
+/* ---------- 8 ter. Classements de la collection ----------
+   Un « Non classé » qui traîne est un bug silencieux : la créature disparaît
+   d'une des trois vues sans que rien ne le signale. */
+T('trois classements déclarés', typeof PERIODES!=='undefined' && GRANDS_GROUPES.length>=10);
+const nonClasse=CREATURES.filter(c=>grandGroupe(c)==='Non classé');
+T('toute créature a un grand groupe', nonClasse.length===0,
+  nonClasse.map(c=>c.id+' ('+c.groupe+')').join(', '));
+CREATURES.forEach(c=>{
+  const p=periodeDe(c);
+  T('période de '+c.id, !!p && (c.ageMin+c.ageMax)/2<=p.de, p?p.nom:'aucune');
+});
+/* Un groupe peut légitimement rester vide : « Échinodermes » est déclaré alors
+   qu'aucune créature n'en relève — le pack Biologie explique justement pourquoi
+   les holothuries ne laissent presque rien dans les roches. La vue de collection
+   masque les sections vides. Ce qu'on vérifie, c'est que le classement reste
+   informatif : au moins dix rubriques peuplées. */
+const peuples=GRANDS_GROUPES.filter(g=>CREATURES.some(c=>grandGroupe(c)===g[0]));
+T('au moins dix familles peuplées', peuples.length>=10, peuples.length+' / '+GRANDS_GROUPES.length);
+T('aucune famille ne rassemble plus de la moitié de la collection',
+  Math.max(...GRANDS_GROUPES.map(g=>CREATURES.filter(c=>grandGroupe(c)===g[0]).length))
+    < CREATURES.length/2);
+
 /* ---------- 9. Économie ---------- */
 /* Règle éditoriale : l'entraînement doit toujours payer mieux que l'histoire,
    sinon l'incitation s'inverse et Louise ne fera que du quiz. */
-T('l’entraînement paie mieux à la question', BAREME.base.juste>BAREME.histoire.juste,
-  BAREME.base.juste+' vs '+BAREME.histoire.juste);
-T('l’entraînement paie mieux à l’arrivée', BAREME.base.mission>BAREME.histoire.mission);
+/* Les deux filières paient exactement pareil. Auparavant l'entraînement payait
+   64 % de plus, au motif qu'il coûte plus d'effort — un bon principe quand les
+   deux matières sont également accessibles, un piège quand l'une est redoutée :
+   l'app payait davantage pour affronter ce qui angoisse. Choisir son pack ne
+   doit rien coûter d'autre que du temps. */
+T('les deux filières paient la même chose à la question',
+  BAREME.base.juste===BAREME.histoire.juste, BAREME.base.juste+' vs '+BAREME.histoire.juste);
+T('les deux filières paient la même prime de mission',
+  BAREME.base.mission===BAREME.histoire.mission);
+T('l’indice réduit le gain sans l’annuler',
+  BAREME.base.aide>0 && BAREME.base.aide<BAREME.base.juste,
+  BAREME.base.aide+' / '+BAREME.base.juste);
 Object.keys(BAREME).forEach(k=>{
   const b=BAREME[k];
   T('barème '+k+' : l’aide rapporte moins mais rapporte', b.aide>0&&b.aide<b.juste);

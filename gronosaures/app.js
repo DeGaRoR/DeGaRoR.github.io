@@ -56,7 +56,7 @@ const ATLAS_CLE='atlas_temps_profond_v1';
 function etatVide(){
   return {credits:CREDITS_DEPART, collection:{}, packprog:{}, sitesOuverts:{},
           introVue:{}, sitesBonus:{}, qSite:{}, fouilles:0, echecs:0,
-          stats:{}, ordre:{}, ordreN:0};
+          stats:{}, ordre:{}, ordreN:0, tri:'chantier'};
 }
 function lireLS(){try{const b=localStorage.getItem(ATLAS_CLE);return b?JSON.parse(b):null;}catch(e){return null;}}
 function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
@@ -287,6 +287,7 @@ function vueCarte(){
   clearInterval(fondTimer); fondTimer=null;
   $('#vue-carte').style.display='';
   $('#vue-chantier').style.display='none';
+  $$('#col-tri button').forEach(b=>b.addEventListener('click',()=>changerTri(b.dataset.tri)));
   construireCarte(true);
   if(pzMonde) requestAnimationFrame(()=>pzMonde.refit());
 }
@@ -476,13 +477,27 @@ function repFouille(val,btn){
     +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener">${esc(q.src[0])}</a></div>`:'')
     +`<button class="btn-primaire" onclick="trancheeSterile()">Refermer la tranchée</button>`;
 }
+/* Une fouille qui ne rend rien est le seul endroit du jeu où l'on perdait
+   quelque chose — et il se trouvait du côté du plaisir. Deux réponses fausses
+   sur une question de paléontologie transformaient le refuge en second examen.
+   Désormais la tranchée livre toujours un fragment : moins qu'une pièce
+   complète, jamais rien. */
 function trancheeSterile(){
   qFouille=null;
   $('#tranchee').classList.remove('on');
+  const pool=creaturesDe(siteActif).filter(c=>possede(c.id));
+  if(pool.length){
+    const c=pioche(pool);
+    etat.collection[c.id]=fragments(c.id)+1;
+    const avant=niveauDoc(c.id), apres=niveauDoc(c.id);
+    sauver();
+    return revealCarte(c,'fragment',apres,false,
+      'La pièce principale est restée dans la roche, mais la tranchée a livré des éclats.');
+  }
   $('#reveal-corps').innerHTML=`<div class="rev-vide">
     <div class="rev-vide-ico">⛏️</div>
-    <div class="rev-vide-t">Tranchée stérile</div>
-    <div class="rev-vide-s">Mal identifiée, mal dégagée : la pièce est restée dans la roche. La question reviendra.</div>
+    <div class="rev-vide-t">La pièce est restée dans la roche</div>
+    <div class="rev-vide-s">Ça arrive à tout le monde, et la couche est toujours là. La question reviendra, avec sa réponse en tête cette fois.</div>
     <button class="btn-primaire" onclick="fermerReveal()">Revenir au chantier</button></div>`;
   $('#reveal').classList.add('on');
 }
@@ -506,12 +521,13 @@ function tirage(){
   sauver(); majSolde(true);
   revealCarte(c, avant===0?'nouvelle':(apres>avant?'dossier':'fragment'), apres, complet);
 }
-function revealCarte(c,type,niv,bonusSite){
+function revealCarte(c,type,niv,bonusSite,note){
   const s=SITES.find(x=>x.id===c.site);
   const bandeau = type==='nouvelle' ? 'Créature inédite'
     : type==='dossier' ? 'Dossier enrichi — niveau '+niv : 'Fragment supplémentaire';
   const reste = niv<3 ? (SEUILS_DOC[niv]+1-fragments(c.id)) : 0;
-  const sous = type==='nouvelle' ? c.groupe
+  const sous = note ? note
+    : type==='nouvelle' ? c.groupe
     : type==='dossier' ? 'De nouvelles informations sont lisibles sur la fiche.'
     : (niv<3 ? 'Encore '+reste+' fragment'+(reste>1?'s':'')+' avant le niveau '+(niv+1)
              : 'Dossier déjà complet — la pièce rejoint la réserve.');
@@ -536,22 +552,56 @@ function fermerReveal(voirFiche){
 }
 
 /* ---------------- 5. Collection et fiches ---------------- */
+/* Trois classements des mêmes créatures. Le tri par période est le seul qui
+   fasse sentir la durée : il met côte à côte des bêtes qui ne se sont jamais
+   croisées mais qui partageaient le même monde, et laisse voir les trous. */
+const TRIS={
+  chantier:{
+    titre:'Par chantier',
+    sections:()=>SITES.map(s=>({cle:s.id, titre:s.court, sous:s.ere+' · '+s.age,
+                                cs:creaturesDe(s.id)}))
+  },
+  periode:{
+    titre:'Par période',
+    sections:()=>PERIODES.map(p=>({cle:p.nom, titre:p.nom, sous:p.ere+' · '+p.de+'–'+p.a+' Ma',
+      cs:CREATURES.filter(c=>periodeDe(c).nom===p.nom)
+                  .sort((a,b)=>(b.ageMin+b.ageMax)-(a.ageMin+a.ageMax))}))
+  },
+  groupe:{
+    titre:'Par famille',
+    sections:()=>GRANDS_GROUPES.map(g=>{
+      const cs=CREATURES.filter(c=>grandGroupe(c)===g[0])
+                        .sort((a,b)=>(b.ageMin+b.ageMax)-(a.ageMin+a.ageMax));
+      return {cle:g[0], titre:g[0], cs,
+              sous: cs.length ? 'de '+Math.round(Math.max(...cs.map(c=>c.ageMax)))
+                                +' à '+Math.round(Math.min(...cs.map(c=>c.ageMin)))+' Ma' : ''};
+    })
+  }
+};
+function vignette(c){
+  const ok=possede(c.id), nv=niveauDoc(c.id);
+  return `<button class="carte${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}>
+    ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
+      <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>`
+      :`<span class="c-q">?</span><span class="c-inconnu">Non découverte</span>`}
+  </button>`;
+}
 function rendreCollection(){
   const tot=CREATURES.length, n=trouvees().length;
   $('#col-compte').textContent=n+' / '+tot;
-  $('#col-corps').innerHTML=SITES.map(s=>{
-    const cs=creaturesDe(s.id);
-    return `<section class="col-bloc">
-      <h3>${esc(s.court)} <small>${esc(s.ere)} · ${esc(s.age)}</small></h3>
-      <div class="grille">${cs.map(c=>{
-        const ok=possede(c.id), nv=niveauDoc(c.id);
-        return `<button class="carte${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}>
-          ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
-            <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>`
-            :`<span class="c-q">?</span><span class="c-inconnu">Non découverte</span>`}
-        </button>`;}).join('')}</div></section>`;
-  }).join('');
+  const mode=TRIS[etat.tri]?etat.tri:'chantier';
+  $$('#col-tri button').forEach(b=>b.classList.toggle('on', b.dataset.tri===mode));
+  $('#col-corps').innerHTML=TRIS[mode].sections()
+    .filter(s=>s.cs.length)
+    .map(s=>{
+      const trouve=s.cs.filter(c=>possede(c.id)).length;
+      return `<section class="col-bloc">
+        <h3>${esc(s.titre)} <small>${esc(s.sous)}</small>
+          <em class="col-part">${trouve} / ${s.cs.length}</em></h3>
+        <div class="grille">${s.cs.map(vignette).join('')}</div></section>`;
+    }).join('');
 }
+function changerTri(m){ if(!TRIS[m])return; etat.tri=m; sauver(); rendreCollection(); }
 function ouvrirFiche(id){
   const c=CREATURES.find(x=>x.id===id); if(!c)return;
   const nv=niveauDoc(id), s=SITES.find(x=>x.id===c.site), f=fragments(id);
@@ -691,6 +741,7 @@ function choisirBanque(p){
     ? 'Situe d’abord l’époque, le reste suit.'
     : 'Essaie de remplacer le mot par un équivalent pour trancher.');
   if(q.lien) ex.lien=q.lien;
+  if(q.img)  ex.img=q.img;
   return ex;
 }
 function prochainExo(){
@@ -718,6 +769,8 @@ function rendreExo(){
         <span class="q-pts">${mission.i+1} / ${NB_MISSION}</span></div></div>
     <div class="q-barre"><i style="width:${mission.i/NB_MISSION*100}%"></i></div>
     <div class="q-carte">
+      ${q.img?`<img class="q-img" src="${esc(q.img)}" alt="" loading="lazy"
+                   onerror="this.remove()">`:''}
       <div class="q-txt">${esc(q.q)}</div>
       ${q.sujet?`<div class="q-sujet">${esc(q.sujet)}<span class="q-blanc">…</span></div>`:''}
       <div id="q-rep" class="${saisie?'q-saisie':'q-choix'}">
@@ -766,7 +819,9 @@ function repondre(val,btn){
     const inp=$('#q-input'); if(inp) inp.disabled=true;
     $('#btn-indice').style.display='none';
     fb.className='q-fb bon';
-    fb.innerHTML=`<b>Juste.</b> ${esc(q.exp||'')}<button class="btn-primaire" onclick="suite()">Continuer</button>`;
+    fb.innerHTML=`<b>Juste.</b> ${esc(q.exp||'')}`
+      +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener">${esc(q.lien[0])}</a></div>`:'')
+      +`<button class="btn-primaire" onclick="suite()">Continuer</button>`;
     crediter(g); sauver(); return;
   }
   mission.essais++;
@@ -790,6 +845,16 @@ function abandonner(){
   if(mission&&mission.gagne) toast('Mission interrompue — '+mission.gagne+' \u25C8 conservés');
   mission=null; sauver(); ouvrirPack(packActif.id);
 }
+/* Ce que la joueuse lit en fin de mission décide si elle en relance une. On
+   nomme donc ce qui a été fait, jamais ce qui a manqué : « 2 / 6 » se lit comme
+   un bulletin, « deux d'emblée, le reste après un détour » se lit comme un
+   parcours. Aucune de ces phrases n'est fausse. */
+function phraseFin(justes){
+  if(justes>=NB_MISSION) return 'Les six d’emblée. Rien à ajouter.';
+  if(justes===0) return 'Six questions traversées, six explications lues. C’est comme ça qu’on apprend une matière neuve.';
+  if(justes===1) return 'Une trouvée du premier coup, et cinq explications de plus en tête.';
+  return justes+' trouvées du premier coup, le reste après un détour par l’explication.';
+}
 function finMission(){
   const b=bareme(packActif);
   const total=mission.gagne+crediter(b.mission);
@@ -799,7 +864,7 @@ function finMission(){
     <div class="fin">
       <div class="fin-ico">🎓</div>
       <h2>Mission terminée</h2>
-      <p class="fin-score">${mission.justes} / ${NB_MISSION} du premier coup</p>
+      <p class="fin-score">${phraseFin(mission.justes)}</p>
       <div class="fin-credits">+${total} \u25C8</div>
       <p class="fin-note">${manque
         ? 'Encore '+manque+' \u25C8 avant le prochain coup de pioche.'
