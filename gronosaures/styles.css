@@ -194,6 +194,17 @@ nav.tabs button.on{color:var(--ocre-clair)}
   position:absolute; inset:auto 0 0 0; padding:26px 22px calc(30px + var(--safe-b));
   display:flex; flex-direction:column;
 }
+/* Pastille du globe : au-dessus du voile et du texte, jamais rognée. */
+#intro-globe{
+  position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); right:16px; z-index:2;
+  margin:0; width:84px; height:84px; border-radius:50%; overflow:hidden;
+  border:1px solid rgba(200,150,79,.45);
+  box-shadow:0 6px 22px rgba(0,0,0,.55);
+  background:rgba(6,10,18,.35); backdrop-filter:blur(2px);
+}
+#intro-globe img{width:100%; height:100%; display:block; object-fit:cover}
+@media (min-width:700px){ #intro-globe{width:112px; height:112px; right:24px} }
+
 .intro-accroche{
   margin:0 0 4px; color:var(--ocre); font-size:.74rem; letter-spacing:2.2px;
   text-transform:uppercase;
@@ -203,6 +214,68 @@ nav.tabs button.on{color:var(--ocre-clair)}
 .dots{display:flex; gap:7px; margin-bottom:14px}
 .dots span{width:7px; height:7px; border-radius:50%; background:#3a4457}
 .dots span.on{background:var(--ocre); width:20px; border-radius:99px}
+
+.fri-aide{font-size:.84rem; color:var(--txt3); line-height:1.55; margin:0 0 16px; max-width:36em}
+#ecran-frise{padding:16px 16px 40px}
+
+/* Ce qui ne tient pas à l'échelle, annoncé plutôt que compressé en silence. */
+.fri-avant{
+  border:1px dashed #2f3b50; border-radius:var(--r); padding:14px 15px; margin-bottom:6px;
+  background:linear-gradient(180deg,rgba(20,27,40,.6),transparent);
+}
+.fri-avant b{display:block; font-family:var(--serif); font-size:.98rem; margin-bottom:5px}
+.fri-avant span{display:block; font-size:.79rem; color:var(--txt3); line-height:1.55}
+
+.fri-axe{position:relative; margin-left:74px; padding-top:10px}
+.fri-ligne{position:absolute; left:0; top:0; bottom:0; width:2px;
+  background:linear-gradient(180deg,#2b3547 0%,#3b4258 55%,#4a3a20 100%)}
+.fri-ere{position:absolute; left:-74px; right:-16px; border-top:1px solid var(--bord)}
+.fri-ere span{
+  position:sticky; top:6px; display:inline-block; margin-left:4px;
+  font-family:var(--serif); font-size:.72rem; letter-spacing:1.6px; text-transform:uppercase;
+  color:var(--txt3); background:rgba(10,15,26,.86); padding:3px 8px; border-radius:4px;
+}
+.fri-ere.e0{background:rgba(44,54,74,.20)}
+.fri-ere.e1{background:rgba(46,68,58,.20)}
+.fri-ere.e2{background:rgba(80,60,34,.20)}
+.fri-ere.e3{background:rgba(92,54,52,.20)}
+
+.fri-per{position:absolute; left:-74px; width:66px; text-align:right; transform:translateY(-7px)}
+.fri-per b{display:block; font-size:.7rem; color:var(--txt2); font-weight:600}
+.fri-per i{display:block; font-size:.62rem; color:var(--txt3); font-style:normal;
+  font-variant-numeric:tabular-nums}
+
+/* Un chantier posé sur l'axe. */
+.fri-site{position:absolute; left:10px; right:0; transform:translateY(-15px)}
+.fri-site.ouvert{z-index:3}
+.fri-tete{
+  display:flex; align-items:center; gap:8px; background:rgba(14,20,31,.92);
+  border:1px solid var(--bord); border-radius:99px; padding:4px 11px 4px 4px;
+  cursor:pointer; max-width:100%; transition:border-color .18s;
+}
+.fri-site.ouvert .fri-tete{border-color:var(--ocre)}
+.fri-tete:hover{border-color:#5c6884}
+.fri-globe{width:24px; height:24px; border-radius:50%; flex:0 0 auto; display:block}
+.fri-nom{font-size:.82rem; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fri-cpt{font-size:.7rem; color:var(--txt3); font-variant-numeric:tabular-nums; flex:0 0 auto}
+
+.fri-bêtes{
+  display:flex; flex-wrap:wrap; gap:6px; margin:7px 0 0 6px; padding:9px;
+  background:rgba(10,15,26,.96); border:1px solid var(--bord); border-radius:var(--r);
+  max-width:min(100%,420px);
+}
+.fri-b{
+  width:62px; background:none; border:0; padding:0; cursor:pointer; text-align:center;
+}
+.fri-b img, .fri-b i{
+  display:block; width:62px; height:62px; border-radius:6px; object-fit:cover;
+  border:1px solid var(--bord); margin-bottom:3px;
+}
+.fri-b i{display:grid; place-items:center; background:#141b28; border-style:dashed;
+  color:var(--txt3); font-style:normal; font-size:.9rem}
+.fri-b em{display:block; font-style:italic; font-size:.62rem; color:var(--txt2); line-height:1.25}
+.fri-b.verrou{cursor:default}
+.fri-b.verrou em{color:#3d465a}
 
 /* ---------- Révélation de carte ---------- */
 #reveal{

@@ -1009,6 +1009,7 @@ function periodeDe(c){
 }
 
 const GRANDS_GROUPES=[
+  ['Plantes',                           /plante|lycophyte|végétal|vasculaire primitive|rhyniophyte|bryophyte/i],
   ['Organismes édiacariens',            /édiacarien|dickinsonio|trilobozoaire|proarticulé/i],
   ['Trilobites',                        /trilobite/i],
   ['Céphalopodes et mollusques',        /nautilo|ammonite|bélemn|vampyromorphe|octopode|céphalopode|mollusque/i],
@@ -2231,6 +2232,276 @@ const SAM_Q=[
 SITES.push(SAM_SITE);
 CREATURES.push(...SAM_CREATURES);
 QUIZ_PALEO.push(...SAM_Q);
+
+/* ================================================================
+   Bloc 10 : site SIL — les Welsh Borderlands, autour de Ludlow.
+
+   Vingtième chantier, et dernier trou comblé : le Silurien était la
+   seule période vide de l'atlas entre l'Édiacarien et aujourd'hui.
+
+   Ancrage à Ludlow plutôt qu'à Stonehaven, pour deux raisons. La
+   bonne : c'est la région où Murchison a défini le système silurien
+   en 1835, et d'où vient Cooksonia. La prosaïque : Stonehaven tombait
+   à huit pixels du chantier carbonifère écossais, trop près pour que
+   la grappe d'épingles s'ouvre même au zoom maximal.
+
+   Deux créatures sur six sont des plantes. C'est délibéré : la sortie
+   des eaux est d'abord végétale, et l'atlas n'avait aucun végétal.
+
+   Épingle x=725 y=271, contrôlée contre masque_terre.json.
+   ================================================================ */
+
+const SIL_SITE={
+ id:"SIL",
+ nom:"Les marches galloises",
+ court:"Ludlow",
+ region:"Welsh Borderlands, Shropshire",
+ pays:"Royaume-Uni",
+ ere:"Silurien",
+ age:"≈ 430–412 Ma",
+ x:725, y:271,
+ fond:"sites/SIL.jpg",
+ cout:840,
+ accroche:"Le rivage franchi",
+ intro:[
+  "Une campagne vallonnée à la frontière du pays de Galles, des haies, des moutons. Dans les années 1830, un géologue écossais y passe des étés entiers à relever des couches que personne n'avait ordonnées. Roderick Murchison finit par y définir un système entier de l'histoire de la Terre, et lui donne le nom des Silures, le peuple qui habitait ces collines quand les Romains sont arrivés.",
+
+  "Ce qu'on déterre ici couvre une vingtaine de millions d'années, et c'est probablement la période la plus sautée des récits sur les fossiles. Pas de dinosaures, pas de trilobites spectaculaires, pas de crise majeure. Juste le moment où la vie sort de l'eau — et elle en sort par les plantes.",
+
+  "Cooksonia mesure trois centimètres. Pas de feuilles, pas de racines, une tige nue qui se divise en deux et porte un sporange à son extrémité. Rien qui attire l'œil. Mais cette tige contient des cellules conductrices rigidifiées, capables de faire monter l'eau contre la pesanteur et de tenir debout hors de l'eau. Tout ce qui pousse aujourd'hui sur les continents descend de ce dispositif.",
+
+  "Les animaux suivent. Un mille-pattes d'un centimètre, trouvé par un amateur près de Stonehaven, porte sur ses flancs des stigmates trachéens : des orifices qui ne servent qu'à respirer de l'air. Pneumodesmus newmani a été annoncé en 2004 comme le plus ancien animal terrestre respirant l'air. Puis une datation aux zircons l'a rajeuni de quatorze millions d'années et lui a retiré le titre. Puis une troisième étude le lui a rendu. Tu liras cette histoire en détail sur sa fiche : elle dit quelque chose d'utile sur la façon dont une date se fabrique.",
+
+  "Pendant que la vie s'installe sur les berges, la mer reste occupée. Les euryptérides — que l'on appelle scorpions de mer sans qu'ils soient des scorpions — y atteignent des tailles que plus aucun arthropode n'égalera. Et de petits poissons sans mâchoires, couverts d'écailles allongées, filtrent la vase des estuaires. Ce chantier n'a pas de vedette. Il a un basculement."
+ ]
+};
+
+const SIL_CREATURES=[
+{id:"SIL-01",site:"SIL",nom:"Cooksonia pertoni",groupe:"Plante vasculaire primitive",
+ periode:"Silurien",age:"≈ 427–423 Ma",ageMin:423,ageMax:427,
+ lieu:"Shropshire, Angleterre",milieu:"Terrestre, vasières et berges",
+ regime:"Photosynthèse",taille:"≈ 3 cm",masse:"Non estimable",
+ longevite:"Inconnue ; sans objet pour une plante de cette taille et de cette organisation",
+ confLong:"Sans objet",conf:"Moyenne",confN:3,
+ desc:"Tige nue qui se divise en deux et porte un sporange à son extrémité. Ni feuille, ni racine, mais des cellules conductrices rigidifiées : de quoi faire monter l'eau et tenir debout hors de l'eau.",
+ prudence:"Ne pas la représenter comme une plante moderne miniature : l'absence de feuilles et de racines est établie. Certains spécimens de très petite taille auraient eu du mal à subvenir à leurs besoins par la seule photosynthèse de la tige, ce qui reste discuté.",
+ src:[["Wikipédia — Cooksonia","https://fr.wikipedia.org/wiki/Cooksonia"],
+      ["Natural History Museum — Les premières plantes terrestres","https://www.nhm.ac.uk/discover/first-plants-on-land.html"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-01.jpg"},
+
+{id:"SIL-02",site:"SIL",nom:"Pneumodesmus newmani",groupe:"Myriapode diplopode",
+ periode:"Silurien (datation débattue)",age:"≈ 430–414 Ma",ageMin:414,ageMax:430,
+ lieu:"Cowie, Stonehaven, Aberdeenshire, Écosse",milieu:"Terrestre, berges humides",
+ regime:"Détritivore",taille:"≈ 1 cm",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Mille-pattes connu par un seul fragment, dont les flancs portent des stigmates trachéens : des orifices qui ne servent qu'à respirer de l'air. C'est le plus ancien animal terrestre respirant l'air dont on ait le corps.",
+ prudence:"Son âge a changé trois fois. Décrit en 2004 comme silurien (≈ 428 Ma) d'après des spores prélevées sur des affleurements voisins mais tectoniquement isolés ; rajeuni en 2017 à ≈ 414 Ma par datation uranium-plomb sur zircons, ce qui le faisait basculer dans le Dévonien et lui retirait son titre ; puis ramené au Silurien par une étude de 2024 combinant palynologie et zircons. La fourchette affichée couvre l'ensemble du débat.",
+ src:[["Suarez et al. (2017) — U-Pb zircon age constraint, PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0179262"],
+      ["Journal of the Geological Society (2024) — Stonehaven Group is Silurian","https://doi.org/10.1144/jgs2023-138"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-02.jpg"},
+
+{id:"SIL-03",site:"SIL",nom:"Pterygotus anglicus",groupe:"Euryptéride ptérygotidé",
+ periode:"Dévonien inférieur",age:"≈ 419–412 Ma",ageMin:412,ageMax:419,
+ lieu:"Angus et Forfarshire, Écosse",milieu:"Marin et saumâtre côtier",
+ regime:"Prédateur",taille:"≈ 1,6 m",masse:"≈ 10–20 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Bonne",confN:4,
+ desc:"Grand euryptéride à chélicères en pinces dentelées et à vastes yeux composés, prédateur des eaux côtières peu profondes.",
+ prudence:"Cette espèce est dévonienne, non silurienne : c'est le genre qui traverse la limite. La masse est une estimation volumétrique, pas une mesure, et la coloration est entièrement conjecturale.",
+ src:[["Wikipédia — Pterygotus","https://fr.wikipedia.org/wiki/Pterygotus"],
+      ["Wikipédia — Euryptérides","https://fr.wikipedia.org/wiki/Eurypterida"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-03.jpg"},
+
+{id:"SIL-04",site:"SIL",nom:"Eurypterus remipes",groupe:"Euryptéride euryptéridé",
+ periode:"Silurien",age:"≈ 432–418 Ma",ageMin:418,ageMax:432,
+ lieu:"État de New York, États-Unis",milieu:"Marin peu profond, lagunes hypersalines",
+ regime:"Prédateur et charognard",taille:"≈ 20 cm",masse:"≈ 0,3 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Bonne",confN:4,
+ desc:"L'euryptéride le mieux connu au monde, par des milliers de spécimens tirés des lagunes siluriennes de l'État de New York, dont il est le fossile officiel depuis 1984.",
+ prudence:"L'immense majorité des spécimens sont des mues abandonnées, non des cadavres : leur abondance ne mesure pas une population.",
+ src:[["Wikipédia — Eurypterus","https://fr.wikipedia.org/wiki/Eurypterus"],
+      ["Wikipédia — Euryptérides","https://fr.wikipedia.org/wiki/Eurypterida"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-04.jpg"},
+
+{id:"SIL-05",site:"SIL",nom:"Birkenia elegans",groupe:"Agnathe anaspide",
+ periode:"Silurien",age:"≈ 428–423 Ma",ageMin:423,ageMax:428,
+ lieu:"Lanarkshire, Écosse",milieu:"Marin côtier et estuarien",
+ regime:"Filtreur ou détritivore",taille:"≈ 10 cm",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Moyenne",confN:3,
+ desc:"Petit poisson dépourvu de mâchoires, au corps couvert d'écailles allongées et à la nageoire caudale inclinée vers le bas.",
+ prudence:"L'absence de mâchoires est établie ; le régime alimentaire est déduit de la forme de la bouche et reste discuté.",
+ src:[["Wikipédia — Birkenia","https://fr.wikipedia.org/wiki/Birkenia"],
+      ["Wikipédia — Anaspida","https://en.wikipedia.org/wiki/Anaspida"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-05.jpg"},
+
+{id:"SIL-06",site:"SIL",nom:"Baragwanathia longifolia",groupe:"Lycophyte",
+ periode:"Silurien → Dévonien (datation débattue)",age:"≈ 425–410 Ma",ageMin:410,ageMax:425,
+ lieu:"Victoria, Australie",milieu:"Terrestre humide",
+ regime:"Photosynthèse",taille:"≈ 40 cm",masse:"Non estimable",
+ longevite:"Inconnue ; sans objet pour une plante de cette organisation",
+ confLong:"Sans objet",conf:"Moyenne",confN:3,
+ desc:"Lycophyte aux tiges densément couvertes de petites feuilles en aiguille, d'une complexité surprenante pour son âge : elle possède déjà de vraies feuilles là où Cooksonia n'en a aucune.",
+ prudence:"L'âge silurien des gisements australiens a été longuement débattu, précisément parce que cette complexité paraissait trop précoce. La fourchette affichée couvre le désaccord.",
+ src:[["Wikipédia — Baragwanathia","https://fr.wikipedia.org/wiki/Baragwanathia"],
+      ["Wikipédia — Lycopodiopsida","https://fr.wikipedia.org/wiki/Lycopodiopsida"]],
+ pack:"Ludlow — Le rivage franchi",img:"cartes/SIL-06.jpg"}
+];
+
+const SIL_Q=[
+{id:"SIL-Q01",site:"SIL",diff:"facile",
+ q:"D’où vient le nom de la période silurienne ?",
+ choix:["D’un peuple qui habitait les collines galloises","D’un géologue du XIXᵉ siècle","D’une ville d’Écosse","D’un mot grec signifiant « ancien »"],
+ r:"D’un peuple qui habitait les collines galloises",
+ exp:"Murchison définit le système dans les années 1830 sur les couches des marches galloises, et le nomme d’après les Silures, que les Romains y avaient rencontrés.",
+ src:["Wikipédia — Silurien","https://fr.wikipedia.org/wiki/Silurien"]},
+
+{id:"SIL-Q02",site:"SIL",diff:"facile",
+ q:"Quel événement majeur se joue au Silurien ?",
+ choix:["La colonisation des terres émergées","L’apparition des premiers dinosaures","La plus grande extinction de tous les temps","L’apparition des premiers animaux"],
+ r:"La colonisation des terres émergées",
+ exp:"Les plantes vasculaires s’installent sur les berges, et les premiers arthropodes respirant l’air les suivent. Le continent cesse d’être une roche nue.",
+ src:["Wikipédia — Silurien","https://fr.wikipedia.org/wiki/Silurien"]},
+
+{id:"SIL-Q03",site:"SIL",diff:"moyen",
+ q:"Qu’est-ce qui manque à Cooksonia, par rapport à une plante d’aujourd’hui ?",
+ choix:["Les feuilles et les racines","La photosynthèse","La reproduction","Les cellules conductrices"],
+ r:"Les feuilles et les racines",
+ exp:"Une tige nue de trois centimètres, qui se divise en deux et porte un sporange au sommet. Elle a en revanche déjà des cellules conductrices rigidifiées, ce qui est le point décisif.",
+ src:["Wikipédia — Cooksonia","https://fr.wikipedia.org/wiki/Cooksonia"]},
+
+{id:"SIL-Q04",site:"SIL",diff:"difficile",
+ q:"Pourquoi les cellules conductrices rigidifiées sont-elles la vraie invention des plantes vasculaires ?",
+ choix:["Elles permettent de faire monter l’eau et de tenir debout hors de l’eau","Elles stockent les réserves de sucre","Elles protègent des ultraviolets","Elles servent à la reproduction"],
+ r:"Elles permettent de faire monter l’eau et de tenir debout hors de l’eau",
+ exp:"Sans elles, une plante terrestre reste plaquée au sol et dépendante de l’humidité de surface. Avec elles, la hauteur devient possible — et avec la hauteur, la concurrence pour la lumière.",
+ src:["Natural History Museum — Les premières plantes terrestres","https://www.nhm.ac.uk/discover/first-plants-on-land.html"]},
+
+{id:"SIL-Q05",site:"SIL",diff:"moyen",
+ q:"Qu’est-ce qui, sur le fossile de Pneumodesmus, prouve qu’il respirait de l’air ?",
+ choix:["Des stigmates trachéens sur ses flancs","Des poumons conservés","Sa position hors de l’eau dans la roche","La forme de ses pattes"],
+ r:"Des stigmates trachéens sur ses flancs",
+ exp:"Ce sont des orifices reliés à un réseau de trachées, qui ne fonctionne que dans l’air. Contrairement à une posture ou à un lieu de découverte, c’est un caractère anatomique, donc un argument.",
+ src:["Suarez et al. (2017) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0179262"]},
+
+{id:"SIL-Q06",site:"SIL",diff:"difficile",
+ q:"L’âge de Pneumodesmus newmani a changé plusieurs fois. Que s’est-il passé ?",
+ choix:["Daté du Silurien en 2004, rajeuni au Dévonien en 2017, ramené au Silurien en 2024","Il a été daté une seule fois, avec certitude","Le fossile s’est révélé être un faux","Sa datation dépend du laboratoire qui l’analyse"],
+ r:"Daté du Silurien en 2004, rajeuni au Dévonien en 2017, ramené au Silurien en 2024",
+ exp:"Chaque étape reposait sur une méthode différente : d’abord des spores prélevées sur des affleurements voisins, puis des zircons datés à l’uranium-plomb, puis les deux combinés. Le fossile n’a pas bougé ; ce qui a changé, c’est ce à quoi on l’a comparé.",
+ src:["Journal of the Geological Society (2024)","https://doi.org/10.1144/jgs2023-138"]},
+
+{id:"SIL-Q07",site:"SIL",diff:"difficile",
+ q:"Pourquoi la datation d’origine de Pneumodesmus était-elle fragile ?",
+ choix:["Elle reposait sur des spores venues d’affleurements voisins mais isolés tectoniquement","Le fossile était trop petit pour être daté","Personne n’avait relevé sa position dans la couche","La méthode au carbone 14 était inadaptée"],
+ r:"Elle reposait sur des spores venues d’affleurements voisins mais isolés tectoniquement",
+ exp:"On datait la couche du fossile par corrélation avec d’autres couches supposées équivalentes. Rien ne garantissait cette équivalence — et la couche du fossile elle-même n’a livré aucune spore.",
+ src:["Suarez et al. (2017) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0179262"]},
+
+{id:"SIL-Q08",site:"SIL",diff:"moyen",
+ q:"Sur quoi porte une datation à l’uranium-plomb comme celle appliquée à Stonehaven ?",
+ choix:["Sur des cristaux de zircon des cendres volcaniques encadrant le fossile","Sur l’os fossilisé lui-même","Sur la matière organique conservée","Sur la profondeur d’enfouissement"],
+ r:"Sur des cristaux de zircon des cendres volcaniques encadrant le fossile",
+ exp:"On date les couches au-dessus et au-dessous, et le fossile se trouve encadré. La connaissance passe par un intermédiaire — la roche — et non par l’objet qui intéresse.",
+ src:["Suarez et al. (2017) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0179262"]},
+
+{id:"SIL-Q09",site:"SIL",diff:"facile",
+ q:"Qu’est-ce qu’un euryptéride, comme Pterygotus ou Eurypterus ?",
+ choix:["Un arthropode marin, parent éloigné des limules et des arachnides","Un vrai scorpion terrestre","Un crustacé proche du homard","Un mollusque à carapace"],
+ r:"Un arthropode marin, parent éloigné des limules et des arachnides",
+ exp:"On les appelle scorpions de mer, mais ce ne sont pas des scorpions. Ce sont des chélicérates, comme les limules et les araignées.",
+ src:["Wikipédia — Euryptérides","https://fr.wikipedia.org/wiki/Eurypterida"]},
+
+{id:"SIL-Q10",site:"SIL",diff:"moyen",
+ q:"Qu’ont d’exceptionnel les euryptérides parmi les arthropodes ?",
+ choix:["Ils comptent les plus grands arthropodes ayant jamais existé","Ils étaient les seuls à respirer l’air","Ils ne muaient jamais","Ils vivaient uniquement en eau douce"],
+ r:"Ils comptent les plus grands arthropodes ayant jamais existé",
+ exp:"Certains dépassent deux mètres. Aucun arthropode n’a atteint cette taille depuis — la contrainte n’est pas seulement l’oxygène, mais aussi le coût de la mue à grande échelle.",
+ src:["Wikipédia — Euryptérides","https://fr.wikipedia.org/wiki/Eurypterida"]},
+
+{id:"SIL-Q11",site:"SIL",diff:"moyen",
+ q:"Eurypterus remipes est connu par des milliers de spécimens. Que sont-ils, pour la plupart ?",
+ choix:["Des mues abandonnées","Des cadavres d’individus adultes","Des œufs fossilisés","Des empreintes de déplacement"],
+ r:"Des mues abandonnées",
+ exp:"Un arthropode change de carapace pour grandir : un seul individu en laisse des dizaines. L’abondance d’un fossile ne mesure pas une population.",
+ src:["Wikipédia — Eurypterus","https://fr.wikipedia.org/wiki/Eurypterus"]},
+
+{id:"SIL-Q12",site:"SIL",diff:"difficile",
+ q:"Dans quel type de milieu se sont déposés les gisements à Eurypterus de l’État de New York ?",
+ choix:["Des lagunes peu profondes et très salées","Des rivières de montagne","Des grands fonds océaniques","Des lacs d’eau douce glaciaires"],
+ r:"Des lagunes peu profondes et très salées",
+ exp:"Une salinité élevée éloigne les fouisseurs et les charognards, ce qui favorise la conservation. Ce que livre un gisement dépend d’abord des conditions du dépôt.",
+ src:["Wikipédia — Eurypterus","https://fr.wikipedia.org/wiki/Eurypterus"]},
+
+{id:"SIL-Q13",site:"SIL",diff:"facile",
+ q:"Qu’est-ce qui manque à Birkenia elegans, comme à tous les agnathes ?",
+ choix:["Les mâchoires","La colonne vertébrale","Les nageoires","Les yeux"],
+ r:"Les mâchoires",
+ exp:"Les premiers vertébrés n’ont pas de mâchoires. Elles apparaîtront au Silurien également, mais chez d’autres lignées — et changeront durablement ce qu’un vertébré peut manger.",
+ src:["Wikipédia — Birkenia","https://fr.wikipedia.org/wiki/Birkenia"]},
+
+{id:"SIL-Q14",site:"SIL",diff:"difficile",
+ q:"Qu’est-ce qui rend Baragwanathia surprenante pour son âge ?",
+ choix:["Elle porte déjà de vraies feuilles, là où Cooksonia n’en a aucune","Elle mesurait plusieurs mètres","Elle produisait des graines","Elle poussait en eau salée"],
+ r:"Elle porte déjà de vraies feuilles, là où Cooksonia n’en a aucune",
+ exp:"Cette complexité précoce est précisément ce qui a fait douter de son âge : l’âge silurien des gisements australiens a été longuement débattu, en partie parce que le résultat paraissait trop beau.",
+ src:["Wikipédia — Baragwanathia","https://fr.wikipedia.org/wiki/Baragwanathia"]},
+
+{id:"SIL-Q15",site:"SIL",diff:"moyen",
+ q:"Pourquoi la colonisation des terres commence-t-elle par les plantes plutôt que par les animaux ?",
+ choix:["Les plantes produisent la nourriture et l’abri dont dépendent les animaux","Les animaux ne supportaient pas l’air","Les plantes se déplacent plus facilement","Les animaux n’existaient pas encore"],
+ r:"Les plantes produisent la nourriture et l’abri dont dépendent les animaux",
+ exp:"Un détritivore d’un centimètre a besoin de débris végétaux et d’un sol humide pour survivre. L’ordre n’est pas un hasard : il est imposé par la chaîne alimentaire.",
+ src:["Natural History Museum — Les premières plantes terrestres","https://www.nhm.ac.uk/discover/first-plants-on-land.html"]},
+
+{id:"SIL-Q16",site:"SIL",diff:"difficile",
+ q:"Que veut dire, pour un animal, être « le plus ancien connu » d’une catégorie ?",
+ choix:["Qu’il est le plus ancien trouvé à ce jour, ce qui peut changer demain","Qu’aucun animal plus ancien n’a existé","Que sa datation est définitivement établie","Qu’il est l’ancêtre de tous les suivants"],
+ r:"Qu’il est le plus ancien trouvé à ce jour, ce qui peut changer demain",
+ exp:"Le titre dépend de deux choses fragiles : ce qui a été trouvé, et comment on l’a daté. Pneumodesmus l’a perdu puis retrouvé sans jamais bouger de sa vitrine.",
+ src:["Journal of the Geological Society (2024)","https://doi.org/10.1144/jgs2023-138"]},
+
+{id:"SIL-Q17",site:"SIL",diff:"moyen",
+ q:"Combien de temps dure le Silurien, à peu près ?",
+ choix:["Environ 25 millions d’années","Environ 2 millions d’années","Environ 100 millions d’années","Environ 500 millions d’années"],
+ r:"Environ 25 millions d’années",
+ exp:"De 443,8 à 419,2 Ma. C’est l’une des périodes les plus courtes du Paléozoïque, ce qui explique en partie qu’on la saute si souvent.",
+ src:["Wikipédia — Silurien","https://fr.wikipedia.org/wiki/Silurien"]},
+
+{id:"SIL-Q18",site:"SIL",diff:"facile",
+ q:"Où se trouve la région qui a donné son nom au Silurien ?",
+ choix:["À la frontière entre l’Angleterre et le pays de Galles","En Écosse","En Sibérie","Dans les Appalaches"],
+ r:"À la frontière entre l’Angleterre et le pays de Galles",
+ exp:"Les Welsh Borderlands, autour de Ludlow. Plusieurs systèmes géologiques portent des noms venus de cette région : le Cambrien et l’Ordovicien aussi.",
+ src:["Wikipédia — Silurien","https://fr.wikipedia.org/wiki/Silurien"]},
+
+{id:"SIL-Q19",site:"SIL",diff:"moyen",
+ q:"Que fait un sporange, au sommet d’une tige de Cooksonia ?",
+ choix:["Il produit et libère des spores","Il absorbe l’eau du sol","Il capte la lumière","Il fixe la plante au substrat"],
+ r:"Il produit et libère des spores",
+ exp:"La reproduction par spores précède de loin celle par graines. Ce sont d’ailleurs des spores fossiles qui servent à dater beaucoup de couches continentales — y compris, initialement, celle de Pneumodesmus.",
+ src:["Wikipédia — Cooksonia","https://fr.wikipedia.org/wiki/Cooksonia"]},
+
+{id:"SIL-Q20",site:"SIL",diff:"difficile",
+ q:"Le Silurien est souvent absent des livres grand public. Pourquoi, le plus probablement ?",
+ choix:["Il n’offre ni grande crise ni animal spectaculaire","Ses roches sont trop rares","Il n’a livré aucun fossile","Il est trop récent pour intéresser"],
+ r:"Il n’offre ni grande crise ni animal spectaculaire",
+ exp:"Il y manque ce qui fait un bon récit : une catastrophe ou une vedette. Il n’y manque pas ce qui fait une bascule — c’est là que la vie sort de l’eau pour de bon.",
+ src:["Wikipédia — Silurien","https://fr.wikipedia.org/wiki/Silurien"]}
+];
+
+/* Les chantiers s'affichent du plus ancien au plus récent : le Silurien
+   s'intercale, il ne s'ajoute pas à la fin. On repère le premier site plus
+   jeune plutôt que de coder un indice en dur, qui casserait au prochain ajout. */
+(function insererChronologiquement(s){
+  const debut=x=>parseFloat(String(x.age).replace(',','.').match(/[\d.]+/)[0]);
+  const i=SITES.findIndex(x=>debut(x)<debut(s));
+  SITES.splice(i<0?SITES.length:i, 0, s);
+})(SIL_SITE);
+CREATURES.push(...SIL_CREATURES);
+QUIZ_PALEO.push(...SIL_Q);
 
 /* ================================================================
    Bloc 3 : générateurs de questions et déclaration des packs.

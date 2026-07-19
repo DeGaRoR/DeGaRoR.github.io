@@ -115,6 +115,7 @@ function montrer(ecran){
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ecran===ecran));
   if(ecran==='fouille'){ vueCarte(); requestAnimationFrame(()=>{ if(pzMonde) pzMonde.refit(); }); }
   if(ecran==='collection'){ majFondGlobal(); rendreCollection(); }
+  if(ecran==='frise'){ majFondGlobal(); rendreFrise(); }
   if(ecran==='bourse'){ majFondGlobal(); menuPacks(); }
 }
 
@@ -329,8 +330,17 @@ let introI=0, introSiteId=null, introRelecture=false;
 function introSite(id,relecture){
   introSiteId=id; introI=0; introRelecture=!!relecture;
   const s=SITES.find(x=>x.id===id);
+  /* Le voile ne doit assombrir que ce qui porte du texte. Il partait de 30 % pour
+     finir à 98 % : la vue satellite disparaissait dans sa moitié basse. */
   setFondImg($('#intro-fond'), s.fond,
-    'linear-gradient(180deg,rgba(6,10,18,.30) 0%,rgba(6,10,18,.80) 48%,rgba(6,10,18,.98) 100%)');
+    'linear-gradient(180deg,rgba(6,10,18,.12) 0%,rgba(6,10,18,.34) 40%,rgba(6,10,18,.86) 100%)');
+  /* Chaque vue satellite porte, en bas à droite, un petit globe qui situe le
+     continent sur la Terre d'aujourd'hui. Cadré en `cover` sur un écran de
+     téléphone, ce coin était rogné ; recouvert par le bloc de texte, il
+     disparaissait. Il est donc extrait en pastille (tools/globes.py) et posé
+     au-dessus de tout, en haut à droite, là où rien ne le masque. */
+  const g=$('#intro-globe-img');
+  if(g){ g.src='globes/'+s.id+'.png'; g.alt='Position de '+s.court+' sur le globe actuel'; }
   $('#intro-accroche').textContent=s.accroche;
   $('#intro-titre').textContent=s.nom;
   afficheIntro();
@@ -602,6 +612,90 @@ function rendreCollection(){
     }).join('');
 }
 function changerTri(m){ if(!TRIS[m])return; etat.tri=m; sauver(); rendreCollection(); }
+/* ---- Frise verticale ----
+   Le tri « par période » de la collection range les créatures par tranche, mais
+   toutes les tranches y ont la même hauteur : on n'y sent pas que le Crétacé
+   dure quatre-vingts millions d'années et le Quaternaire deux et demi.
+
+   Ici l'échelle est LINÉAIRE et l'axe est vertical, pensé pour un pouce qui
+   défile. Trois décisions en découlent.
+
+   1. La frise porte les CHANTIERS, pas les créatures une à une. Les douze bêtes
+      du Hunsrück ont le même âge : les empiler verticalement serait faux, les
+      étaler latéralement demanderait quatorze colonnes. Un gisement est un
+      instant, et c'est ce que la frise montre.
+
+   2. Deux chantiers trop proches dans le temps se décalent LATÉRALEMENT, jamais
+      verticalement — Nemegt et Hell Creek sont séparés de deux millions
+      d'années, soit dix-huit pixels : ils sont bel et bien contemporains, et la
+      frise doit le dire. Même principe que les grappes d'épingles de la carte.
+
+   3. Les quatre milliards d'années d'avant l'Édiacarien ne tiennent pas à cette
+      échelle. Plutôt que de les compresser en silence, on les annonce : à huit
+      pixels par million d'années, il faudrait trente et un mètres de haut. */
+const FRISE_DEBUT=650;          // en Ma ; l'Édiacarien commence à 635
+const FRISE_PX_PAR_MA=8;        // hauteur ≈ 5 200 px
+const FRISE_ECART_MIN=46;       // en deçà, deux chantiers se décalent de côté
+function yFrise(ma){ return (FRISE_DEBUT-ma)*FRISE_PX_PAR_MA; }
+function ageMoyenSite(id){
+  const cs=CREATURES.filter(c=>c.site===id);
+  return cs.reduce((a,c)=>a+(c.ageMin+c.ageMax)/2,0)/cs.length;
+}
+let friseOuvert=null;
+
+function rendreFrise(){
+  const t=trouvees();
+  $('#fri-compte').textContent=t.length+' / '+CREATURES.length;
+  const H=yFrise(0)+30;
+
+  const eres=[{nom:'Protérozoïque',de:650,a:538.8},{nom:'Paléozoïque',de:538.8,a:251.9},
+              {nom:'Mésozoïque',de:251.9,a:66},{nom:'Cénozoïque',de:66,a:0}];
+  const bandes=eres.map((e,i)=>`<div class="fri-ere e${i}"
+      style="top:${yFrise(e.de)}px;height:${yFrise(e.a)-yFrise(e.de)}px">
+      <span>${esc(e.nom)}</span></div>`).join('');
+
+  const grads=PERIODES.filter(p=>p.de<=FRISE_DEBUT).map(p=>
+    `<div class="fri-per" style="top:${yFrise(p.de)}px"><b>${esc(p.nom)}</b><i>${p.de} Ma</i></div>`).join('');
+
+  const rangs=SITES.map(s=>({s, y:yFrise(ageMoyenSite(s.id))})).sort((a,b)=>a.y-b.y);
+  const occ=[];
+  const marqueurs=rangs.map(({s,y})=>{
+    let col=0;
+    while(occ[col]!==undefined && y-occ[col]<FRISE_ECART_MIN) col++;
+    occ[col]=y;
+    const cs=creaturesDe(s.id), n=cs.filter(c=>possede(c.id)).length;
+    const ouvert=friseOuvert===s.id;
+    return `<div class="fri-site${ouvert?' ouvert':''}" style="top:${y}px;margin-left:${col*14}px">
+      <button class="fri-tete" onclick="friseBascule('${s.id}')">
+        <img class="fri-globe" src="globes/${s.id}.png" alt="" loading="lazy">
+        <span class="fri-nom">${esc(s.court)}</span>
+        <span class="fri-cpt">${n} / ${cs.length}</span>
+      </button>
+      ${ouvert?`<div class="fri-bêtes">${cs.map(c=>possede(c.id)
+          ? `<button class="fri-b" onclick="ouvrirFiche('${c.id}')" title="${esc(c.nom)}">
+               <img src="${c.img}" loading="lazy" alt="${esc(c.nom)}"><em>${esc(c.nom)}</em></button>`
+          : `<span class="fri-b verrou"><i>?</i><em>Non découverte</em></span>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+
+  $('#fri-corps').innerHTML=`
+    <div class="fri-avant">
+      <b>4,54 milliards d’années avant cette frise</b>
+      <span>De la formation de la Terre à l’Édiacarien. À l’échelle utilisée ici,
+      cette portion mesurerait trente et un mètres de haut, et ne contiendrait
+      presque aucun fossile visible à l’œil nu.</span>
+    </div>
+    <div class="fri-axe" style="height:${H}px">
+      ${bandes}${grads}<div class="fri-ligne"></div>${marqueurs}
+    </div>`;
+}
+function friseBascule(id){
+  friseOuvert = friseOuvert===id ? null : id;
+  const av=$('#ecran-frise').scrollTop;
+  rendreFrise();
+  $('#ecran-frise').scrollTop=av;
+}
+
 function ouvrirFiche(id){
   const c=CREATURES.find(x=>x.id===id); if(!c)return;
   const nv=niveauDoc(id), s=SITES.find(x=>x.id===c.site), f=fragments(id);

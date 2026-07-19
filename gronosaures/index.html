@@ -67,6 +67,16 @@
   </section>
 
   <!-- ============ COLLECTION ============ -->
+  <section id="ecran-frise" class="ecran">
+    <div class="col-tete"><h2>Frise du temps profond</h2>
+      <span id="fri-compte" class="col-compte"></span>
+    </div>
+    <p class="fri-aide">Quatre milliards d’années, de haut en bas. Chaque graduation
+      vaut le même nombre d’années — c’est ce qui rend le Précambrien si long et
+      tout le reste si tassé.</p>
+    <div id="fri-corps"></div>
+  </section>
+
   <section id="ecran-collection" class="ecran">
     <div class="col-tete">
       <h2>Collection</h2>
@@ -91,6 +101,7 @@
 <nav class="tabs">
   <button data-ecran="fouille" class="on"><span>⛏️</span>Fouille</button>
   <button data-ecran="collection"><span>🧬</span>Collection</button>
+  <button data-ecran="frise"><span>⏳</span>Frise</button>
   <button data-ecran="bourse"><span>🎓</span>Bourse</button>
 </nav>
 
@@ -102,6 +113,7 @@
 <!-- Introduction théorique d'un site -->
 <div id="intro">
   <div id="intro-fond"></div>
+  <figure id="intro-globe" aria-hidden="true"><img id="intro-globe-img" src="" alt=""></figure>
   <div class="intro-corps">
     <p id="intro-accroche" class="intro-accroche"></p>
     <h2 id="intro-titre"></h2>

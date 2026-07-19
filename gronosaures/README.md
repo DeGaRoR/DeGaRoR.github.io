@@ -45,7 +45,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~6570 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js      # ~6860 assertions : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -74,7 +74,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v12), 150 entrées ; la liste est dérivée de data.js
+sw.js           cache-first versionné (atlas-v14), 177 entrées (globes inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -341,6 +341,69 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## La frise — quatrième onglet
+
+Une ligne du temps verticale, à échelle **linéaire**, pensée pour le pouce. Elle
+n'a pas la même fonction que le tri « par période » de la collection : là-bas
+toutes les tranches ont la même hauteur, et l'on ne sent pas que le Crétacé dure
+quatre-vingts millions d'années quand le Quaternaire en dure deux et demi.
+
+Trois décisions de conception, chacune imposée par une mesure :
+
+- **La frise porte les chantiers, pas les créatures une à une.** Les douze bêtes du
+  Hunsrück ont le même âge. Les empiler verticalement serait faux ; les étaler
+  latéralement demandait quatorze colonnes, mesurées. Un gisement est un instant.
+  Toucher un chantier déplie ses créatures.
+- **Deux chantiers trop proches se décalent latéralement, jamais verticalement.**
+  Nemegt et Hell Creek sont séparés de deux millions d'années, soit dix-huit
+  pixels : ils sont contemporains et la frise doit le dire. Même principe que les
+  grappes d'épingles de la carte. `qc.js` vérifie que deux colonnes suffisent.
+- **Le Précambrien est annoncé, pas compressé en silence.** La première version
+  partait de 4 540 Ma en linéaire : le Précambrien occupait 88 % de la hauteur pour
+  six créatures, et douze bêtes se superposaient au même pixel. La frise commence
+  donc à 650 Ma, et un encart en tête indique que les quatre milliards d'années
+  précédentes mesureraient trente et un mètres à cette échelle.
+
+## Le globe des vues satellites
+
+Chaque vue de site porte en bas à droite un petit globe qui situe le continent sur
+la Terre d'aujourd'hui. Il était perdu deux fois : le cadrage `cover` rogne les
+côtés d'une image de ratio 1,6 sur un écran de ratio 2,1, et le bloc de texte de
+l'introduction se pose exactement dessus.
+
+Plutôt que de tordre le cadrage, `tools/globes.py` extrait le globe en pastille
+circulaire, et l'introduction la pose en haut à droite, au-dessus du voile, là où
+rien ne le masque. La boîte de découpe est exprimée en **fraction** et non en
+pixels : les vues de site partagent leur largeur mais pas leur hauteur, qui va de
+1 131 à 1 318 px selon les lots. `python3 tools/globes.py --planche` produit une
+planche de contrôle des vingt pastilles.
+
+Le voile de l'introduction a été allégé au passage : il montait de 30 % à 98 %, et
+la vue satellite disparaissait dans sa moitié basse. Il va désormais de 12 % à 86 %.
+
+## Ludlow — le vingtième chantier
+
+Ajouté en v14, il comble le Silurien — **la dernière période vide**. De l'Édiacarien
+à aujourd'hui, la frise n'a plus de trou.
+
+Ancré à Ludlow plutôt qu'à Stonehaven pour deux raisons. La bonne : c'est là que
+Murchison a défini le système silurien dans les années 1830, d'après les Silures, et
+c'est d'où vient *Cooksonia*. La prosaïque : Stonehaven tombait à huit pixels du
+chantier carbonifère écossais, trop près pour que la grappe s'ouvre même au zoom
+maximal — Ludlow est à seize pixels, comme Bernissart et Bundenbach.
+
+Deux créatures sur six sont des **plantes**, ce qui n'existait nulle part ailleurs
+dans l'atlas alors que la sortie des eaux est d'abord végétale. Une rubrique
+« Plantes » a été ajoutée au tri par famille.
+
+**Une datation qui a changé trois fois.** *Pneumodesmus newmani*, le plus ancien
+animal terrestre respirant l'air dont on ait le corps, a été daté du Silurien en
+2004 d'après des spores prélevées sur des affleurements voisins mais tectoniquement
+isolés ; rajeuni au Dévonien en 2017 par datation uranium-plomb sur zircons, ce qui
+lui retirait son titre ; puis ramené au Silurien en 2024 par une étude combinant les
+deux méthodes. Trois questions du pack portent là-dessus. Le fossile n'a jamais
+bougé ; ce qui a changé, c'est ce à quoi on l'a comparé.
 
 ## Luján — le dix-neuvième chantier
 

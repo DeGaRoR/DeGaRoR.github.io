@@ -33,7 +33,7 @@ const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('122 créatures', CREATURES.length===122, CREATURES.length+' trouvées');
+T('128 créatures', CREATURES.length===128, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
@@ -47,7 +47,7 @@ CREATURES.forEach(c=>{
 });
 
 /* ---------- 3. Sites ---------- */
-T('dix-neuf sites', SITES.length===19, SITES.length+'');
+T('vingt sites', SITES.length===20, SITES.length+'');
 SITES.forEach(s=>{
   T('fond satellite '+s.id, existe(s.fond), s.fond);
   T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
@@ -264,6 +264,34 @@ T('au moins dix familles peuplées', peuples.length>=10, peuples.length+' / '+GR
 T('aucune famille ne rassemble plus de la moitié de la collection',
   Math.max(...GRANDS_GROUPES.map(g=>CREATURES.filter(c=>grandGroupe(c)===g[0]).length))
     < CREATURES.length/2);
+
+/* ---------- 8 quater. Pastilles de globe ----------
+   Extraites des vues satellites par tools/globes.py. Un site sans pastille
+   afficherait une image cassée dans l'introduction. */
+SITES.forEach(s=>T('pastille de globe pour '+s.id,
+  fs.existsSync(path.join(R,'globes',s.id+'.png'))));
+
+/* ---------- 8 quinquies. Frise verticale ----------
+   L'échelle est linéaire : deux chantiers proches dans le temps DOIVENT rester
+   proches sur la frise. Ce qu'on vérifie, c'est que le décalage latéral suffit à
+   les rendre distincts, et que la hauteur reste défilable au pouce. */
+const FRI_DEBUT=650, FRI_K=8, FRI_ECART=46;
+const yFri=ma=>(FRI_DEBUT-ma)*FRI_K;
+const ageSite=id=>{const cs=CREATURES.filter(c=>c.site===id);
+  return cs.reduce((a,c)=>a+(c.ageMin+c.ageMax)/2,0)/cs.length;};
+T('la frise couvre le plus ancien chantier',
+  Math.max(...SITES.map(s=>ageSite(s.id)))<FRI_DEBUT,
+  Math.round(Math.max(...SITES.map(s=>ageSite(s.id))))+' Ma');
+T('hauteur de frise raisonnable', yFri(0)>2000 && yFri(0)<9000, Math.round(yFri(0))+' px');
+{
+  const rangs=SITES.map(s=>({id:s.id,y:yFri(ageSite(s.id))})).sort((a,b)=>a.y-b.y);
+  const occ=[]; let colMax=0;
+  rangs.forEach(r=>{let c=0; while(occ[c]!==undefined && r.y-occ[c]<FRI_ECART) c++;
+    occ[c]=r.y; colMax=Math.max(colMax,c);});
+  /* Au-delà de trois colonnes, les pastilles déborderaient d'un écran étroit. */
+  T('les chantiers tiennent en peu de colonnes', colMax<=2, (colMax+1)+' colonnes');
+}
+SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id))));
 
 /* ---------- 9. Économie ---------- */
 /* Règle éditoriale : l'entraînement doit toujours payer mieux que l'histoire,
