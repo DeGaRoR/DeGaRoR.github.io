@@ -52,16 +52,150 @@ function gainAnim(n){
 }
 
 /* ---------------- 2. État ---------------- */
-const ATLAS_CLE='atlas_temps_profond_v1';
+const ATLAS_CLE='atlas_temps_profond_v1';   // sauvegarde d'avant les profils
+const PROFILS_CLE='atlas_profils_v1';       // registre des profils
+const ETAT_PREFIXE='atlas_etat_';           // une clé d'état par profil
+const SCHEMA=1;                             // version du format d'échange
+
 function etatVide(){
   return {credits:CREDITS_DEPART, collection:{}, packprog:{}, sitesOuverts:{},
           introVue:{}, sitesBonus:{}, qSite:{}, fouilles:0, echecs:0,
           stats:{}, ordre:{}, ordreN:0, tri:'chantier'};
 }
-function lireLS(){try{const b=localStorage.getItem(ATLAS_CLE);return b?JSON.parse(b):null;}catch(e){return null;}}
 function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
-let etat=normaliser(lireLS()||etatVide());
-function sauver(){try{localStorage.setItem(ATLAS_CLE,JSON.stringify(etat));}catch(e){toast('Sauvegarde impossible');}}
+
+/* ---------- Profils locaux ----------
+   Tout reste dans localStorage : aucun compte, aucun mot de passe, aucun serveur.
+   « Profil » veut seulement dire « une progression séparée », pour que deux
+   personnes puissent jouer sur le même appareil sans se marcher dessus.
+
+   Le format d'export est volontairement plus large que ce qu'il faut ici :
+   il porte un numéro de schéma, la version de l'application et l'horodatage.
+   Une synchronisation distante n'aurait qu'à transporter cet objet tel quel,
+   sans que le reste du code ait à changer. */
+const litJSON=c=>{try{const b=localStorage.getItem(c);return b?JSON.parse(b):null;}catch(e){return null;}};
+const ecritJSON=(c,v)=>{try{localStorage.setItem(c,JSON.stringify(v));return true;}
+  catch(e){toast('Enregistrement impossible'); return false;}};
+const cleEtat=id=>ETAT_PREFIXE+id;
+const idNeuf=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+function registreVide(){return {actif:null, liste:[]};}
+
+/* Une sauvegarde d'avant les profils devient le premier profil, sans rien perdre.
+   L'ancienne clé est conservée telle quelle : si quelque chose tourne mal, la
+   progression d'origine est encore là. */
+function lireRegistre(){
+  let r=litJSON(PROFILS_CLE);
+  if(r && Array.isArray(r.liste) && r.liste.length) return r;
+  r=registreVide();
+  const ancien=litJSON(ATLAS_CLE);
+  const id=idNeuf();
+  r.liste.push({id, nom:'Profil 1', cree:Date.now(), vue:Date.now()});
+  r.actif=id;
+  ecritJSON(cleEtat(id), normaliser(ancien||etatVide()));
+  ecritJSON(PROFILS_CLE, r);
+  return r;
+}
+
+let registre=lireRegistre();
+const profilActif=()=>registre.liste.find(p=>p.id===registre.actif)||registre.liste[0];
+let etat=normaliser(litJSON(cleEtat(registre.actif))||etatVide());
+
+function sauver(){
+  const p=profilActif(); if(p) p.vue=Date.now();
+  ecritJSON(cleEtat(registre.actif), etat);
+  ecritJSON(PROFILS_CLE, registre);
+}
+
+function basculerProfil(id){
+  if(id===registre.actif) return fermerReglages();
+  sauver();
+  registre.actif=id;
+  etat=normaliser(litJSON(cleEtat(id))||etatVide());
+  ecritJSON(PROFILS_CLE, registre);
+  fermerReglages();
+  siteActif=null;
+  majNomProfil(); majSolde(); majFondGlobal(); vueCarte(); montrer('fouille');
+  toast('Profil : '+(profilActif()||{}).nom);
+}
+
+function creerProfil(nom){
+  nom=(nom||'').trim().slice(0,24) || ('Profil '+(registre.liste.length+1));
+  const id=idNeuf();
+  registre.liste.push({id, nom, cree:Date.now(), vue:Date.now()});
+  ecritJSON(cleEtat(id), etatVide());
+  ecritJSON(PROFILS_CLE, registre);
+  basculerProfil(id);
+}
+
+function renommerProfil(id,nom){
+  const p=registre.liste.find(x=>x.id===id); if(!p) return;
+  nom=(nom||'').trim().slice(0,24); if(!nom) return;
+  p.nom=nom; ecritJSON(PROFILS_CLE, registre); majNomProfil(); ouvrirReglages();
+}
+
+/* On ne supprime jamais le dernier profil : il n'y aurait plus rien où revenir. */
+function supprimerProfil(id){
+  if(registre.liste.length<=1) return toast('C’est le seul profil');
+  registre.liste=registre.liste.filter(p=>p.id!==id);
+  try{localStorage.removeItem(cleEtat(id));}catch(e){}
+  if(registre.actif===id){
+    registre.actif=registre.liste[0].id;
+    etat=normaliser(litJSON(cleEtat(registre.actif))||etatVide());
+  }
+  ecritJSON(PROFILS_CLE, registre);
+  majSolde(); ouvrirReglages();
+}
+
+/* ---- Échange de progression ----
+   Le fichier produit se suffit à lui-même : on peut le lire, le sauvegarder
+   ailleurs, le réimporter sur un autre appareil. C'est aussi exactement ce
+   qu'une synchronisation distante aurait à téléverser. */
+function paquetProgression(){
+  const p=profilActif()||{nom:'Profil'};
+  return {app:'gronosaures', schema:SCHEMA, version:VERSION_APP,
+          exporte:new Date().toISOString(),
+          profil:{nom:p.nom, cree:p.cree||null},
+          resume:{creatures:trouvees().length, total:CREATURES.length,
+                  chantiers:SITES.filter(s=>etat.sitesOuverts[s.id]).length,
+                  credits:etat.credits},
+          etat:etat};
+}
+
+function exporterProgression(){
+  try{
+    const p=profilActif()||{nom:'profil'};
+    const nom='gronosaures-'+p.nom.toLowerCase().replace(/[^a-z0-9]+/g,'-')
+      +'-'+new Date().toISOString().slice(0,10)+'.json';
+    const b=new Blob([JSON.stringify(paquetProgression(),null,2)],{type:'application/json'});
+    const u=URL.createObjectURL(b);
+    const a=document.createElement('a');
+    a.href=u; a.download=nom; document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(u); a.remove();},0);
+    toast('Progression exportée');
+  }catch(e){ toast('Export impossible'); }
+}
+
+/* L'import crée toujours un NOUVEAU profil : écraser une progression existante
+   par mégarde serait irréparable, alors qu'un profil en trop se supprime. */
+function importerProgression(fichier){
+  if(!fichier) return;
+  const fr=new FileReader();
+  fr.onerror=()=>toast('Lecture impossible');
+  fr.onload=()=>{
+    let d=null;
+    try{ d=JSON.parse(fr.result); }catch(e){ return toast('Fichier illisible'); }
+    if(!d || d.app!=='gronosaures' || !d.etat) return toast('Ce n’est pas un export de l’atlas');
+    if(d.schema>SCHEMA) return toast('Fichier trop récent pour cette version');
+    const nom=((d.profil&&d.profil.nom)||'Import')+' (importé)';
+    const id=idNeuf();
+    registre.liste.push({id, nom:nom.slice(0,24), cree:Date.now(), vue:Date.now()});
+    ecritJSON(cleEtat(id), normaliser(d.etat));
+    ecritJSON(PROFILS_CLE, registre);
+    basculerProfil(id);
+  };
+  fr.readAsText(fichier);
+}
 
 const creaturesDe=site=>CREATURES.filter(c=>c.site===site);
 /* Le bonus d'achèvement suit le coût du site : ouvrir Ouadi al-Hitan coûte
@@ -752,22 +886,90 @@ function friseBascule(id){
    Deux besoins seulement : forcer une mise à jour quand une nouvelle version a
    été livrée mais que le service worker sert encore l'ancienne, et savoir où
    l'on en est. Rien d'autre : un écran d'options est un endroit où l'on se perd. */
-function ouvrirReglages(){
-  /* Le panneau ne sert qu'à une chose : forcer la mise à jour. Une fenêtre
-     d'options serait un endroit de plus où se perdre. */
-  $('#reglages-corps').innerHTML=`
-    <p class="md-sur">Mise à jour</p>
-    <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
-    <p class="rg-note">À faire seulement si une nouvelle version a été installée
-      mais que l’application affiche encore l’ancienne. Ta progression n’est pas
-      touchée : elle est enregistrée séparément des fichiers de l’application.</p>
-    <p class="rg-ligne"><span>Version affichée</span><b>${esc(VERSION_APP)}</b></p>
-    <p class="rg-ligne"><span>Avancement</span><b>${trouvees().length} / ${CREATURES.length} créatures</b></p>
-    <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
-    <button class="btn-fant" onclick="fermerReglages()">Annuler</button>`;
+/* Le panneau a deux états seulement : la vue courante, et la liste des profils.
+   Pas de sous-menus, pas d'onglets — c'est un tiroir, pas un tableau de bord. */
+let vueReglages='profil';
+
+function ouvrirReglages(v){
+  if(v) vueReglages=v;
+  const p=profilActif()||{nom:'Profil'};
+  const n=trouvees().length, ch=SITES.filter(s=>etat.sitesOuverts[s.id]).length;
+  let html;
+
+  if(vueReglages==='liste'){
+    html=`<p class="md-sur">Profils</p>
+      <h3>Qui joue&nbsp;?</h3>
+      <div class="rg-profils">${registre.liste.map(x=>{
+        const e=normaliser(litJSON(cleEtat(x.id))||etatVide());
+        const t=Object.keys(e.collection||{}).filter(k=>e.collection[k]>0).length;
+        return `<button class="rg-profil${x.id===registre.actif?' on':''}"
+          onclick="basculerProfil('${x.id}')">
+          <b>${esc(x.nom)}</b><small>${t} / ${CREATURES.length} créatures</small></button>`;
+      }).join('')}</div>
+      <button class="btn-fant" onclick="nouveauProfil()">＋ Nouveau profil</button>
+      <button class="btn-fant" onclick="ouvrirReglages('profil')">Retour</button>`;
+  }else if(vueReglages==='maj'){
+    html=`<p class="md-sur">Mise à jour</p>
+      <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
+      <p class="rg-note">À faire seulement si une nouvelle version a été installée
+        mais que l’application affiche encore l’ancienne. Aucune progression n’est
+        touchée : les profils sont enregistrés séparément des fichiers de
+        l’application.</p>
+      <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
+      <button class="btn-fant" onclick="ouvrirReglages('profil')">Annuler</button>`;
+  }else{
+    html=`<p class="md-sur">Profil</p>
+      <h3>${esc(p.nom)}</h3>
+      <p class="rg-ligne"><span>Créatures</span><b>${n} / ${CREATURES.length}</b></p>
+      <p class="rg-ligne"><span>Chantiers ouverts</span><b>${ch} / ${SITES.length}</b></p>
+      <p class="rg-ligne"><span>Crédits</span><b>${etat.credits} \u25C8</b></p>
+      <p class="rg-ligne"><span>Version</span><b>${esc(VERSION_APP)}</b></p>
+      <div class="rg-actions">
+        <button class="btn-fant" onclick="ouvrirReglages('liste')">Changer de profil</button>
+        <button class="btn-fant" onclick="renommerActif()">Renommer</button>
+        <button class="btn-fant" onclick="exporterProgression()">Exporter la progression</button>
+        <button class="btn-fant" onclick="choisirFichierImport()">Importer un fichier</button>
+        ${registre.liste.length>1?`<button class="btn-fant rg-danger" onclick="supprimerActif()">Supprimer ce profil</button>`:''}
+        <button class="btn-fant" onclick="ouvrirReglages('maj')">Forcer la mise à jour</button>
+      </div>
+      <p class="rg-note">L’export produit un fichier que tu peux conserver ou
+        transférer sur un autre appareil. Un import crée toujours un nouveau profil,
+        pour qu’aucune progression existante ne soit écrasée.</p>
+      <button class="btn-primaire" onclick="fermerReglages()">Fermer</button>`;
+  }
+  $('#reglages-corps').innerHTML=html;
   $('#reglages').classList.add('on');
 }
-function fermerReglages(){ $('#reglages').classList.remove('on'); }
+function fermerReglages(){ vueReglages='profil'; $('#reglages').classList.remove('on'); }
+
+/* Rappeler le profil courant dans le bandeau. Appelé à chaque bascule et au
+   démarrage : c'est la seule chose à l'écran qui distingue deux progressions. */
+function choisirFichierImport(){
+  const el=document.getElementById('fichier-import');
+  if(el) el.click(); else toast('Import indisponible');
+}
+
+function majNomProfil(){
+  const el=$('#btn-profil-nom'), p=profilActif();
+  if(el) el.textContent=(p&&p.nom)||'Profil';
+}
+
+/* Saisie de texte : l'application n'a aucun champ ailleurs, on garde donc le
+   dialogue natif plutôt que d'inventer un clavier maison. */
+function nouveauProfil(){
+  const n=prompt('Nom du nouveau profil ?','Profil '+(registre.liste.length+1));
+  if(n!==null) creerProfil(n);
+}
+function renommerActif(){
+  const p=profilActif(); if(!p) return;
+  const n=prompt('Nouveau nom ?',p.nom);
+  if(n!==null) renommerProfil(p.id,n);
+}
+function supprimerActif(){
+  const p=profilActif(); if(!p) return;
+  if(confirm('Supprimer le profil « '+p.nom+' » et toute sa progression ?\n\nCette action est définitive.'))
+    supprimerProfil(p.id);
+}
 
 /* Vider les caches du service worker puis recharger. La progression vit dans
    localStorage, que l'on ne touche pas. */
@@ -1085,6 +1287,7 @@ function init(){
   });
   window.addEventListener('resize',()=>{ if(pzMonde) pzMonde.refit(); });
   majFondGlobal();
+  majNomProfil();
   majSolde();
   montrer('fouille');
   $('#reglages').addEventListener('click',e=>{ if(e.target.id==='reglages') fermerReglages(); });

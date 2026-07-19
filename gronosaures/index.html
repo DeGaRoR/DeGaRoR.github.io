@@ -25,7 +25,7 @@
   <div id="solde" title="Crédits de recherche">
     <span class="sol-ico">◈</span><span id="solde-nb">0</span>
   </div>
-  <button id="btn-reglages" onclick="ouvrirReglages()" aria-label="Réglages">⚙</button>
+  <button id="btn-reglages" onclick="ouvrirReglages()" aria-label="Profil et réglages"><span id="btn-profil-nom">Profil</span></button>
 </header>
 
 <main id="app">
@@ -90,6 +90,8 @@
 </main>
 
 <div id="reglages"><div class="md-panneau" id="reglages-corps"></div></div>
+<input type="file" id="fichier-import" accept="application/json,.json" hidden
+       onchange="importerProgression(this.files[0]); this.value='';">
 
 <nav class="tabs">
   <button data-ecran="bourse"><span>🎓</span>Bourse</button>

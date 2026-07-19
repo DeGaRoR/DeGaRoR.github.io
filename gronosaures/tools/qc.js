@@ -21,12 +21,12 @@ try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
   +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,'
-  +'SEUILS_DOC,FOUILLE_VIDE});')).call(sandbox); }
+  +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
-       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe}=sandbox;
+       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,ART_EU,ART_MONDE}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
@@ -161,13 +161,15 @@ T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans
 T('icônes de pack distinctes', new Set(PACKS.map(p=>p.ico)).size===PACKS.length,
   PACKS.map(p=>p.ico).join(' '));
 T('neuf packs dans la Bourse', PACKS.length===9, PACKS.length+'');
-/* Les images d'art sont facultatives : le pack a été écrit dans un environnement
-   sans accès réseau à Wikimedia. Ce qu'on vérifie, c'est qu'aucun chemin déclaré
-   ne pointe hors du dossier prévu, et que le manifeste du script les couvre. */
+/* Les images d'art sont stockées en WebP comme tout le reste, alors que le script
+   de téléchargement récupère des JPEG : on compare donc les noms sans extension.
+   Le rapprochement avec le manifeste reste utile — il signale un chemin déclaré
+   dans une banque sans contrepartie dans la liste des œuvres. */
 const imgsArt=PACKS.filter(p=>p.type==='bank').flatMap(p=>p.bank()).filter(i=>i.img).map(i=>i.img);
-imgsArt.forEach(p=>T('image d’art dans art/ : '+p, /^art\/[a-z0-9_]+\.jpg$/.test(p)));
+imgsArt.forEach(p=>T('image d’art dans art/ : '+p, /^art\/[a-z0-9_]+\.webp$/.test(p)));
 const manif=fs.readFileSync(path.join(R,'tools','telecharger_art.py'),'utf8');
-imgsArt.forEach(p=>T('image d’art au manifeste : '+p, manif.includes('"'+p.replace('art/','')+'"')));
+imgsArt.forEach(p=>T('image d’art au manifeste : '+p,
+  manif.includes('"'+p.replace('art/','').replace('.webp','.jpg')+'"')));
 /* Les deux filières doivent rester peuplées : l'entraînement est la source de
    revenu principale, l'histoire la respiration. */
 ['base','histoire'].forEach(c=>T('la filière '+c+' a au moins deux packs',
@@ -353,6 +355,61 @@ T('packs : les matières d’accompagnement en tête',
   const def=SITES.filter(s=>!s.fondProvisoire).map(s=>s.fond);
   T('chaque site définitif a sa propre vue', new Set(def).size===def.length);
   T('les sites provisoires sont peu nombreux', prov.length<=3, prov.length+'');
+}
+
+/* ---------- 8 septies. Profils locaux ----------
+   La couche de profils est éprouvée en propre par tools/profils_test.js, qui
+   simule localStorage. Ici on ne vérifie que ce qui se lit dans les sources :
+   qu'aucune clé de stockage ne se chevauche, que l'échange est versionné, et
+   que le bandeau porte de quoi savoir qui joue. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  T('la couche de profils est présente',
+    app.includes('PROFILS_CLE') && app.includes('ETAT_PREFIXE'));
+  T('l’ancienne sauvegarde est migrée, pas écrasée',
+    app.includes('litJSON(ATLAS_CLE)') && !/removeItem\(ATLAS_CLE\)/.test(app));
+  T('l’échange porte un numéro de schéma', /const SCHEMA=\d+/.test(app));
+  T('l’export est signé', app.includes("app:'gronosaures'"));
+  T('l’import refuse un schéma trop récent', app.includes('d.schema>SCHEMA'));
+  T('l’import crée un profil plutôt que d’écraser',
+    app.includes('L\'import crée toujours un NOUVEAU profil') || app.includes('registre.liste.push'));
+  T('l’état importé est normalisé', app.includes('normaliser(d.etat)'));
+  T('le dernier profil ne peut pas être supprimé', app.includes('registre.liste.length<=1'));
+  T('le bandeau nomme le profil courant',
+    html.includes('id="btn-profil-nom"') && app.includes('majNomProfil'));
+  T('un sélecteur de fichier est prévu pour l’import',
+    html.includes('id="fichier-import"') && html.includes('accept="application/json'));
+  /* Les clés de profil doivent être préfixées, sinon un identifiant malheureux
+     pourrait entrer en collision avec le registre lui-même. */
+  T('les états de profil sont préfixés', app.includes("ETAT_PREFIXE='atlas_etat_'"));
+}
+
+/* ---------- 8 octies. Images d'art ----------
+   Elles sont facultatives — l'application affiche la question sans illustration
+   quand le fichier manque — mais si elles sont là, elles doivent être servies
+   hors ligne et créditées. */
+{
+  const ill=[...ART_EU,...ART_MONDE].filter(q=>q.img).map(q=>q.img);
+  T('six questions illustrées', ill.length===6, ill.length+'');
+  const presentes=ill.filter(p=>fs.existsSync(path.join(R,p)));
+  if(presentes.length===0){
+    console.log('   \u26a0 images d\u2019art absentes : les questions s\u2019afficheront sans illustration');
+  }else{
+    T('toutes les images d\u2019art présentes', presentes.length===ill.length,
+      presentes.length+' / '+ill.length);
+    T('images d\u2019art en WebP', ill.every(p=>p.endsWith('.webp')));
+    T('images d\u2019art dans le cache',
+      ill.every(p=>fs.readFileSync(path.join(R,'sw.js'),'utf8').includes(p)));
+    T('crédits présents', fs.existsSync(path.join(R,'art','CREDITS.md')));
+    /* Un crédit qui ne nomme pas ce qui est réellement affiché ne vaut rien :
+       on vérifie que chaque fichier servi est bien mentionné. */
+    const cred=fs.existsSync(path.join(R,'art','CREDITS.md'))
+      ? fs.readFileSync(path.join(R,'art','CREDITS.md'),'utf8') : '';
+    ill.forEach(p=>T('crédité : '+p, cred.includes(p.split('/').pop())));
+    const poids=ill.reduce((a,p)=>a+fs.statSync(path.join(R,p)).size,0);
+    T('images d\u2019art sous 2 Mo', poids<2e6, (poids/1e6).toFixed(2)+' Mo');
+  }
 }
 
 /* ---------- 9. Économie ---------- */

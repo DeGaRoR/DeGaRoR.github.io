@@ -123,12 +123,31 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
   border-bottom:1px dotted var(--bord); padding-bottom:6px;
 }
 .rg-ligne b{color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums}
-.rg-note{font-size:.79rem; color:var(--txt3); line-height:1.55; margin:14px 0 16px}
-#btn-reglages{
-  flex:0 0 auto; margin-left:8px; width:34px; height:34px; border-radius:50%;
-  background:rgba(255,255,255,.05); border:1px solid var(--bord);
-  color:var(--txt2); font-size:1.05rem; line-height:1; cursor:pointer;
+.rg-actions{display:flex; flex-direction:column; gap:7px; margin:16px 0 4px}
+.rg-actions button{width:100%}
+.rg-danger{color:var(--faux); border-color:rgba(180,87,79,.4)}
+.rg-profils{display:flex; flex-direction:column; gap:7px; margin:12px 0}
+.rg-profil{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  width:100%; padding:11px 14px; text-align:left; border-radius:var(--r);
+  background:rgba(255,255,255,.03); border:1px solid var(--bord); color:var(--txt2);
 }
+.rg-profil b{font-family:var(--serif); font-size:1rem; color:var(--txt)}
+.rg-profil small{font-size:.74rem; color:var(--txt3)}
+.rg-profil.on{border-color:var(--ocre); background:rgba(200,150,79,.1)}
+.rg-profil.on b{color:var(--ocre-clair)}
+.rg-note{font-size:.79rem; color:var(--txt3); line-height:1.55; margin:14px 0 16px}
+/* Le bandeau doit dire qui joue : c'est la seule chose qui distingue deux
+   progressions sur le même appareil, et l'oublier ferait jouer sur le mauvais
+   profil sans s'en apercevoir. */
+#btn-reglages{
+  flex:0 1 auto; min-width:0; margin-left:8px; max-width:34vw;
+  display:flex; align-items:center; gap:6px; padding:5px 11px 5px 9px;
+  background:rgba(255,255,255,.05); border:1px solid var(--bord);
+  border-radius:999px; color:var(--txt2); font-size:.8rem; cursor:pointer;
+}
+#btn-reglages::before{content:'\25C9'; color:var(--patine); font-size:.7rem; flex:0 0 auto}
+#btn-profil-nom{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 #btn-reglages:active{background:rgba(255,255,255,.12)}
 #reglages{
   position:fixed; inset:0; z-index:80; display:none; place-items:center;
@@ -137,7 +156,6 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 #reglages.on{display:grid}
 
 /* ---------- Carte du monde ---------- */
-.carte-wrap{position:absolute; inset:0; background:#060a12}
 #svg-monde{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
 #svg-monde:active{cursor:grabbing}
 .pin{cursor:pointer}
@@ -556,7 +574,6 @@ h3.grp em{
   font-style:normal; float:right; font-size:.66rem; letter-spacing:.6px;
   color:var(--ocre); text-transform:none;
 }
-.bourse-note{margin:18px 0 0; font-size:.78rem; color:var(--txt3); line-height:1.55}
 
 @media (min-width:720px){
   body{font-size:17px}

@@ -1512,7 +1512,7 @@ const ART_EU=[
  autres:["Des couleurs plus vives que la fresque","Un coût de production plus faible","Une meilleure résistance au feu"],
  exp:"La détrempe à l'œuf sèche vite et impose de travailler par hachures. L'huile autorise des couches transparentes superposées, d'où la profondeur des noirs et le rendu des matières chez Van Eyck. Il ne l'a pas inventée, il l'a portée à un point de maîtrise nouveau.",
  lien:["Wikipédia — Peinture à l'huile","https://fr.wikipedia.org/wiki/Peinture_%C3%A0_l%27huile"],
- img:"art/annonciation.jpg"},
+ img:"art/annonciation.webp"},
 
 {niv:3,q:"À qui doit-on le récit de l'art comme progrès continu, de Cimabue à Michel-Ange ?",
  r:"À Giorgio Vasari, dans ses Vies publiées en 1550",
@@ -1525,7 +1525,7 @@ const ART_EU=[
  autres:["Un contraste violent entre ombre et lumière","Une technique de dessin préparatoire","Un vernis final teinté"],
  exp:"Léonard décrit des contours qui se perdent « comme la fumée ». L'effet supprime la ligne, que la tradition florentine tenait pour le fondement du dessin. C'est une position théorique autant qu'un procédé.",
  lien:["Wikipédia — Sfumato","https://fr.wikipedia.org/wiki/Sfumato"],
- img:"art/ginevra.jpg"},
+ img:"art/ginevra.webp"},
 
 {niv:2,q:"Qu'appelle-t-on ténébrisme, associé au Caravage ?",
  r:"Un éclairage violent et dirigé, laissant le reste dans une ombre profonde",
@@ -1574,7 +1574,7 @@ const ART_EU=[
  autres:["Copier littéralement les tableaux de Poussin","Peindre uniquement en atelier","Revenir aux sujets mythologiques"],
  exp:"Il tient ensemble deux exigences que l'impressionnisme avait dissociées : la structure et l'instant. Les plans colorés qui en résultent ouvrent directement sur le cubisme, d'où la formule de « père de l'art moderne ».",
  lien:["Wikipédia — Paul Cézanne","https://fr.wikipedia.org/wiki/Paul_C%C3%A9zanne"],
- img:"art/cezanne_eau.jpg"},
+ img:"art/cezanne_eau.webp"},
 
 {niv:2,q:"Que fait le cubisme analytique à l'objet, vers 1909-1912 ?",
  r:"Il le montre sous plusieurs angles simultanément, en fragments",
@@ -1611,7 +1611,7 @@ const ART_EU=[
  autres:["Les pigments deviennent moins toxiques","La toile remplace le bois","Les vernis sèchent plus vite"],
  exp:"Auparavant, on broyait et conservait la couleur en vessie de porc, mal, et brièvement. Renoir disait que sans le tube, il n'y aurait eu ni Cézanne, ni Monet, ni impressionnisme. Une histoire des formes est aussi une histoire des outils.",
  lien:["Wikipédia — Tube de peinture","https://fr.wikipedia.org/wiki/Tube_de_peinture"],
- img:"art/falaises_pourville.jpg"}
+ img:"art/falaises_pourville.webp"}
 
 ];
 
@@ -1677,14 +1677,14 @@ const ART_MONDE=[
  autres:["« Gravures sur bois »","« Art des marchands »","« Peinture de l'eau »"],
  exp:"Le terme désigne les plaisirs éphémères de la ville d'Edo : théâtre, quartiers de divertissement, voyages. C'est un art de série, imprimé, bon marché, produit par une équipe — dessinateur, graveur, imprimeur, éditeur — et non par un auteur solitaire.",
  lien:["Wikipédia — Ukiyo-e","https://fr.wikipedia.org/wiki/Ukiyo-e"],
- img:"art/hiroshige_ara.jpg"},
+ img:"art/hiroshige_ara.webp"},
 
 {niv:3,q:"Qu'est-ce que le japonisme, dans la peinture européenne des années 1870-1890 ?",
  r:"L'assimilation de la composition et des aplats de l'estampe japonaise",
  autres:["Un goût pour les sujets japonais chez les peintres académiques","Le voyage des impressionnistes au Japon","Une technique d'impression importée"],
  exp:"Cadrages décentrés, plans coupés par le bord, couleurs en aplat, renoncement au modelé : Degas, Manet, Van Gogh y puisent directement. Le canon européen s'est nourri d'ailleurs bien avant de le reconnaître.",
  lien:["Wikipédia — Japonisme","https://fr.wikipedia.org/wiki/Japonisme"],
- img:"art/pont_japonais.jpg"},
+ img:"art/pont_japonais.webp"},
 
 {niv:3,q:"Que représente un bronze Chola figurant Shiva Nataraja, en Inde du Sud ?",
  r:"Shiva dansant dans un cercle de flammes, création et destruction ensemble",

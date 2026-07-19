@@ -45,7 +45,9 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~7890 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js           # ~7910 assertions
+node tools/smoke.js        # 280 assertions, partie réelle
+node tools/profils_test.js # 22 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -74,7 +76,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v19), 206 entrées (globes inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v21), 212 entrées (globes et art inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -341,6 +343,80 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Images d'art — v21
+
+Les six illustrations sont en place, en WebP, pour 1,0 Mo au total. Elles sont dans le
+cache du service worker, donc disponibles hors ligne, et `qc.js` vérifie qu'elles
+existent, qu'elles sont en WebP, qu'elles sont cachées et que **chacune est nommée
+dans `art/CREDITS.md`** — un crédit qui ne dit pas ce qui est affiché ne vaut rien.
+
+**Trois des six fichiers ne sont pas les œuvres initialement visées.** Ils conviennent
+tous à la question qu'ils accompagnent, mais les crédits décrivent ce qui est
+réellement montré :
+
+| Prévu | Affiché |
+|---|---|
+| *Cliffs at Pourville*, 1882, National Gallery of Art | *Falaise de Pourville, le matin*, 1897 (W. 1442) |
+| *The Japanese Footbridge*, 1899, National Gallery of Art | *Les Nymphéas et le pont japonais*, 1899, Princeton |
+| Estampe Hiroshige numérisée par un fonds public | Reproduction commerciale, marge blanche rognée |
+
+Les deux Monet sont des **toiles différentes**, pas d'autres numérisations des mêmes
+toiles : il a peint les falaises de Pourville en 1882 puis de nouveau en 1897, et une
+douzaine de vues du pont japonais. Même sujet, objet différent. Le script
+`tools/telecharger_art.py` n'est plus nécessaire ; il reste comme manifeste et comme
+moyen de refaire la récolte si un fichier se perd.
+
+## Profils locaux — v20
+
+Aucun compte, aucun mot de passe, aucun serveur : tout reste dans `localStorage`.
+« Profil » veut seulement dire *une progression séparée*, pour que deux personnes
+puissent jouer sur le même appareil sans se marcher dessus.
+
+**Stockage.** `atlas_profils_v1` porte le registre `{actif, liste:[{id,nom,cree,vue}]}` ;
+chaque profil a sa propre clé `atlas_etat_<id>`. Une sauvegarde d'avant les profils
+devient automatiquement le premier profil, et **l'ancienne clé est conservée telle
+quelle** — si quelque chose tournait mal, la progression d'origine serait encore là.
+
+**Le bandeau nomme le profil courant.** C'est la seule chose à l'écran qui distingue
+deux progressions : sans elle, on peut jouer une heure sur le mauvais profil sans
+s'en apercevoir. Toucher ce nom ouvre le panneau.
+
+**Export et import.** L'export produit un fichier autonome :
+
+```json
+{ "app":"gronosaures", "schema":1, "version":"v2",
+  "exporte":"2026-07-19T…", "profil":{"nom":"…","cree":…},
+  "resume":{"creatures":…,"total":…,"chantiers":…,"credits":…},
+  "etat":{ … } }
+```
+
+Il porte un numéro de schéma, la version de l'application et un horodatage —
+délibérément plus que ce qu'il faut ici. **Une synchronisation distante n'aurait qu'à
+transporter cet objet tel quel**, sans que le reste du code change : `paquetProgression()`
+produit ce qu'on téléverserait, et le contrôle d'import est déjà écrit (signature de
+l'application, schéma non postérieur, normalisation de l'état reçu).
+
+Deux décisions de sûreté. **Un import crée toujours un nouveau profil** plutôt que
+d'écraser l'existant : un profil en trop se supprime, une progression écrasée ne se
+récupère pas. Et **le dernier profil ne peut pas être supprimé**, sinon il n'y aurait
+plus rien où revenir.
+
+**Éprouvé hors navigateur** par `tools/profils_test.js`, qui simule `localStorage` et
+vérifie en 22 assertions la migration, la stabilité au rechargement, l'isolation entre
+profils, la complétude du paquet d'export et le rejet des fichiers étrangers.
+
+### Passe de polish
+
+- Recherche systématique des clés d'état inexistantes, du genre de celle qui avait
+  cassé le bouton ⚙ en v18 : `etat.sites` était la seule, aucune autre ne subsiste.
+- Toutes les fonctions appelées depuis un attribut `onclick`, dans `index.html` comme
+  dans les gabarits de `app.js`, sont vérifiées comme définies.
+- `.bourse-note` et `.carte-wrap` étaient devenues des règles mortes : retirées.
+  Plus aucune classe CSS orpheline.
+- L'import ne s'appuie plus sur la visibilité d'un `const` global depuis un attribut
+  `onclick` — une fonction déclarée, portée par l'objet global, est plus robuste.
+- Icône régénérée depuis `HUN-11`, *Palaeocucumaria hunsrueckiana*.
 
 ## Retours de playtest — v19
 

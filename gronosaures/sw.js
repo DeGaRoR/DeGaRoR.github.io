@@ -3,7 +3,7 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v19';
+const VERSION='atlas-v21';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
@@ -59,7 +59,8 @@ const IMAGES=[
   './globes/CAR.webp', './globes/MAZ.webp', './globes/KAR2.webp', './globes/LUO.webp',
   './globes/JUR.webp', './globes/MOR.webp', './globes/NWE.webp', './globes/YIX.webp',
   './globes/NEM.webp', './globes/HC.webp', './globes/WHA.webp', './globes/MES.webp',
-  './globes/SAM.webp',
+  './globes/SAM.webp', './art/annonciation.webp', './art/ginevra.webp', './art/cezanne_eau.webp',
+  './art/falaises_pourville.webp', './art/hiroshige_ara.webp', './art/pont_japonais.webp',
 ];
 
 self.addEventListener('install',e=>{

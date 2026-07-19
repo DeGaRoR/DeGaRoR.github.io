@@ -20,6 +20,14 @@ Depuis le dossier `atlas/`, celui qui contient index.html et data.js :
 Sous Windows, écris `python` si `python3` est inconnu. Le script vérifie lui-même
 qu'il est au bon endroit et te l'explique sinon.
 
+ÉTAT : CE SCRIPT N'EST PLUS NÉCESSAIRE
+--------------------------------------
+Les six images ont été fournies à la main et sont déjà dans `atlas/art/`, converties
+en WebP comme le reste des visuels. Le script est conservé pour deux usages : refaire
+la récolte depuis la National Gallery si un fichier est perdu, et servir de manifeste
+des œuvres. Les crédits réellement en vigueur sont dans `art/CREDITS.md`, qui décrit
+ce qui est affiché — et trois des six fichiers ne sont pas les œuvres visées ici.
+
 OÙ ÇA ÉCRIT
 -----------
 Dans `atlas/art/` : six fichiers .jpg et un CREDITS.md. Le dossier est créé s'il
