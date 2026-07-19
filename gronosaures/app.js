@@ -1057,8 +1057,11 @@ function menuPacks(){
     <p class="intro-p">Une mission compte ${NB_MISSION} exercices. Les crédits gagnés financent l'ouverture des chantiers et chaque coup de pioche. Une réponse trouvée après l'indice rapporte moins, mais rien n'est jamais retiré.</p>
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
-    <h3 class="grp">Entraînement <em>${BAREME.base.juste} \u25C8 par bonne réponse</em></h3>
-    ${PACKS.filter(p=>p.cat==='base').map(carteP).join('')}`;
+    <h3 class="grp">Accompagnement scolaire
+      <em>secondaire inférieur · ${BAREME.ecole.juste} \u25C8 par bonne réponse</em></h3>
+    <p class="grp-note">Ces six packs suivent le programme de 12-15 ans, pour pouvoir
+      aider aux devoirs sans être prise de court.</p>
+    ${PACKS.filter(p=>p.cat==='ecole').map(carteP).join('')}`;
 }
 function carteP(p){
   const a=avancePack(p), st=statPack(p.id);

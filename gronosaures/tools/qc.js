@@ -160,7 +160,7 @@ T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans
 /* ---------- 8. Packs ---------- */
 T('icônes de pack distinctes', new Set(PACKS.map(p=>p.ico)).size===PACKS.length,
   PACKS.map(p=>p.ico).join(' '));
-T('neuf packs dans la Bourse', PACKS.length===9, PACKS.length+'');
+T('douze packs dans la Bourse', PACKS.length===12, PACKS.length+'');
 /* Les images d'art sont stockées en WebP comme tout le reste, alors que le script
    de téléchargement récupère des JPEG : on compare donc les noms sans extension.
    Le rapprochement avec le manifeste reste utile — il signale un chemin déclaré
@@ -170,9 +170,10 @@ imgsArt.forEach(p=>T('image d’art dans art/ : '+p, /^art\/[a-z0-9_]+\.webp$/.t
 const manif=fs.readFileSync(path.join(R,'tools','telecharger_art.py'),'utf8');
 imgsArt.forEach(p=>T('image d’art au manifeste : '+p,
   manif.includes('"'+p.replace('art/','').replace('.webp','.jpg')+'"')));
-/* Les deux filières doivent rester peuplées : l'entraînement est la source de
-   revenu principale, l'histoire la respiration. */
-['base','histoire'].forEach(c=>T('la filière '+c+' a au moins deux packs',
+/* Les deux familles doivent rester peuplées : l'accompagnement scolaire est
+   l'objectif déclaré, l'histoire et la philosophie la respiration. Ni l'une ni
+   l'autre ne doit se vider au fil des remaniements. */
+['ecole','histoire'].forEach(c=>T('la famille '+c+' a au moins deux packs',
   PACKS.filter(p=>p.cat===c).length>=2, PACKS.filter(p=>p.cat===c).length+''));
 /* Toute banque déclarée doit répondre et fournir des items exploitables. */
 PACKS.filter(p=>p.type==='bank').forEach(p=>{
@@ -191,9 +192,9 @@ PACKS.filter(p=>p.type==='bank').forEach(p=>{
     if(it.lien) T(ref+' : lien nommé', Array.isArray(it.lien) && !!it.lien[0]);
   });
 });
-['conjugaison','orthographe','maths'].forEach(id=>{
-  T('pack d’entraînement '+id, PACKS.some(p=>p.id===id));
-  T('pack '+id+' classé en base', (PACKS.find(p=>p.id===id)||{}).cat==='base');
+['conjugaison','orthographe','maths','lecture','geographie','histscol'].forEach(id=>{
+  T('pack scolaire '+id, PACKS.some(p=>p.id===id));
+  T('pack '+id+' classé en ecole', (PACKS.find(p=>p.id===id)||{}).cat==='ecole');
 });
 T('pack histoire présent', PACKS.some(p=>p.id==='histoire'));
 T('pack histoire classé en histoire', (PACKS.find(p=>p.id==='histoire')||{}).cat==='histoire');
@@ -320,9 +321,23 @@ SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id)))
   T('la pastille d’aide de la carte a été retirée', !html.includes('carte-aide'));
   T('accès aux réglages présent', html.includes('id="btn-reglages"'));
 }
-T('packs : les matières d’accompagnement en tête',
-  PACKS.slice(0,6).every(p=>p.cat==='histoire') && PACKS.slice(6).every(p=>p.cat==='base'),
+/* Deux familles seulement, et l'intérêt personnel devant l'accompagnement :
+   c'est ce que l'utilisatrice voit en ouvrant la Bourse, donc ce que
+   l'application a l'air d'être. */
+T('packs : deux familles seulement',
+  PACKS.every(p=>p.cat==='histoire'||p.cat==='ecole'),
+  [...new Set(PACKS.map(p=>p.cat))].join(' '));
+T('packs : histoire et philosophie en tête',
+  PACKS.slice(0,6).every(p=>p.cat==='histoire') && PACKS.slice(6).every(p=>p.cat==='ecole'),
   PACKS.map(p=>p.cat[0]).join(''));
+/* Un pack scolaire doit annoncer son objectif : ouvrir « Philosophie hors
+   d'Europe » en croyant réviser le programme serait décourageant. */
+PACKS.filter(p=>p.cat==='ecole').forEach(p=>{
+  T('objectif scolaire annoncé : '+p.id, /[Aa]ccompagnement scolaire/.test(p.objectif||''));
+  T('niveau annoncé : '+p.id, /12-15|secondaire/i.test((p.objectif||'')+(p.sous||'')));
+});
+T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
+  Object.keys(BAREME).join(' '));
 /* Contraste : le gris secondaire le plus clair doit rester lisible sur les fonds
    photo, où le voile ne descend qu'à 86 %. Seuil retenu : luminance ≥ 0,42. */
 {

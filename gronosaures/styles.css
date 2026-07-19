@@ -79,6 +79,7 @@ button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer}
   display:block; margin-top:5px; font-size:.6rem; line-height:1.25;
   color:var(--txt3); letter-spacing:.2px;
 }
+.grp-note{font-size:.79rem; color:var(--txt3); margin:-6px 0 12px; line-height:1.5}
 .col-tri{display:flex; gap:6px; margin:0 0 16px; flex-wrap:wrap}
 .col-tri button{
   flex:1 1 auto; min-width:88px; padding:8px 10px; font-size:.8rem;

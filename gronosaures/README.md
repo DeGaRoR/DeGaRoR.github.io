@@ -45,7 +45,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js           # ~7910 assertions
+node tools/qc.js           # ~8190 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
 node tools/profils_test.js # 22 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
@@ -76,7 +76,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v21), 212 entrées (globes et art inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v22), 212 entrées (globes et art inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -343,6 +343,62 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Accompagnement scolaire — v22
+
+**Douze packs, 252 items de banque.** La Bourse a désormais deux familles déclarées,
+et l'objectif de chacune est écrit noir sur blanc :
+
+- **`cat:'histoire'`** — six packs d'intérêt personnel, délibérément au-dessus du
+  programme scolaire : philosophie hors d'Europe, philosophie des sciences, les deux
+  histoires de l'art, l'histoire du temps profond, la biologie des lignées.
+- **`cat:'ecole'`** — six packs d'accompagnement, au niveau du programme de 12-15 ans
+  et pas en dessous. Chacun commence son objectif par « Accompagnement scolaire
+  (12-15 ans) : … » et son sous-titre porte « Secondaire inférieur ». `qc.js` vérifie
+  les deux, pour qu'aucun remaniement ne fasse perdre l'annonce.
+
+L'ordre place l'intérêt personnel devant, comme décidé en v19 : voir la philosophie
+en tête plutôt qu'un exercice de conjugaison change ce que l'application a l'air
+d'être. La section scolaire porte en revanche une note explicite sous son titre.
+
+### Les trois packs neufs
+
+**📖 Français — lecture** (20). Le pack d'orthographe couvrait l'écriture, pas la
+lecture — qui est pourtant la compétence la plus souvent évaluée sans jamais être
+nommée. Types de textes, schéma narratif, point de vue du narrateur, fait contre
+opinion, thèse-argument-exemple, connecteurs logiques, figures de style, registres,
+discours rapporté, présupposé, résumé, paratexte. Les deux dernières questions portent
+sur la source d'un chiffre et sur le texte argumentatif déguisé en information.
+
+**🗺️ Géographie** (20). Latitude et longitude, échelle, courbes de niveau, climat et
+ses quatre facteurs, diagramme ombrothermique, densité, bassin versant, delta contre
+estuaire, tectonique, tropiques, fuseaux horaires. Et la Belgique concrètement : trois
+Régions qui ne se superposent ni aux trois Communautés ni aux dix provinces, le relief
+des polders à l'Ardenne, le Signal de Botrange, la Meuse et l'Escaut.
+
+Deux questions y font ce que le reste de l'application fait partout : **la projection
+de Mercator gonfle les surfaces vers les pôles**, et deux cartes du même territoire
+peuvent orienter la lecture par leurs seuls choix de couleurs et de cadrage. Une carte
+est un discours — ce qui vaut aussi pour celle de l'atlas.
+
+**📜 Histoire** (20). Les cinq périodes et leurs bornes conventionnelles, source
+primaire contre secondaire, critique de source, puis les repères : écriture
+mésopotamienne, démocratie athénienne et ses exclus, féodalité, imprimerie, Réforme,
+absolutisme, 1789, révolution industrielle, indépendance belge de 1830 et l'élargissement
+du suffrage jusqu'en 1948.
+
+Trois questions portent sur le vocabulaire lui-même : **« Moyen Âge » a été forgé par
+des lettrés de la Renaissance** pour désigner un entre-deux méprisé ; « découverte de
+l'Amérique » fait des habitants du continent un décor ; et la différence entre un fait
+établi par les sources et une interprétation qui se discute. Elles sont au programme,
+et ce sont les plus utiles pour aider un élève à réfléchir plutôt qu'à réciter.
+
+### Deux collisions réglées au passage
+
+`BAREME` était indexé sur `p.cat` avec un repli silencieux : la catégorie `ecole`
+aurait été tarifée par défaut sans que rien ne le signale. Une entrée lui est ajoutée,
+et `qc.js` vérifie désormais que chaque famille a son barème. Et l'icône 🧭 était prise
+par la philosophie des sciences ; la géographie reçoit 🗺️.
 
 ## Images d'art — v21
 

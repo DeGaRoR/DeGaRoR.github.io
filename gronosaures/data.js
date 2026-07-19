@@ -755,8 +755,13 @@ const FOUILLE_VIDE=false;       // true = une fouille réussie peut ne rien donn
    davantage pour affronter ce qu'elle redoute, et moins pour ce qui la porte.
    Chaque session devenait un arbitrage entre son plaisir et son avancement.
    Le choix du pack est désormais gratuit — il ne coûte que du temps. */
+/* Les trois familles rapportent la même chose. L'égalisation date de la refonte
+   bienveillante : faire de l'évitement un mauvais calcul revenait à punir la
+   personne d'avoir contourné ce qui lui coûtait. `base` est conservé comme
+   valeur de repli pour toute catégorie non prévue. */
 const BAREME={
   base:     {juste:10, aide:7, mission:12},
+  ecole:    {juste:10, aide:7, mission:12},
   histoire: {juste:10, aide:7, mission:12}
 };
 
@@ -1891,6 +1896,382 @@ const PHILO_MONDE=[
  autres:["Elle est trop récente","Elle mélange science et religion","Elle exclut la Grèce"],
  exp:"Elle range dans un même tiroir Nagarjuna, Ibn Khaldoun et les tlamatinime, qui n’ont en commun que de ne pas être grecs. Utile pour signaler un manque, la catégorie reproduit le centre qu’elle voudrait déplacer.",
  lien:["Comparative philosophy — Wikipedia","https://en.wikipedia.org/wiki/Comparative_philosophy"]}
+];
+
+/* ================================================================
+   Bloc 16 : trois packs d'accompagnement scolaire.
+
+   Objectif déclaré : pouvoir suivre un élève de secondaire inférieur
+   (12-15 ans) sans être larguée. Ce n'est pas le même objectif que
+   les packs d'histoire de l'art ou de philosophie, qui relèvent de
+   l'intérêt personnel et se situent délibérément plus haut.
+
+   CALIBRAGE. Ces soixante questions portent sur ce qu'un élève de
+   première à troisième secondaire rencontre réellement : notions de
+   lecture, repères géographiques et cartographiques, repères
+   historiques et critique de source. Elles ne sont pas plus faciles
+   que le programme — elles sont AU programme. Une adulte attentive y
+   répond ; c'est exactement le niveau visé.
+
+   CE QUI EST GARDÉ DE L'ESPRIT DE L'APPLICATION. On ne fait pas
+   semblant qu'une convention soit un fait. La périodisation de
+   l'histoire est décidée, pas trouvée ; la projection de Mercator
+   déforme les surfaces ; « Moyen Âge » porte un jugement de valeur.
+   Ces questions-là sont dans le pack parce qu'elles sont au
+   programme, et parce qu'elles sont les plus utiles à connaître pour
+   aider quelqu'un à réfléchir plutôt qu'à réciter.
+   ================================================================ */
+
+const FR_LECTURE=[
+{n:1,q:"Un texte qui raconte une suite d’événements dans le temps est un texte…",
+ r:"narratif", autres:["descriptif","argumentatif","injonctif"],
+ exp:"Narratif : il raconte. Descriptif : il montre. Argumentatif : il défend une thèse. Injonctif : il donne des consignes. Un même texte peut mêler plusieurs types ; on identifie celui qui domine.",
+ lien:["Typologie textuelle — Wikipédia","https://fr.wikipedia.org/wiki/Typologie_textuelle"]},
+
+{n:2,q:"Dans le schéma narratif, qu’est-ce que l’élément déclencheur ?",
+ r:"Ce qui rompt l’équilibre de la situation initiale",
+ autres:["La fin de l’histoire","Le portrait du héros","Le lieu où se déroule l’action"],
+ exp:"Situation initiale, élément déclencheur, péripéties, dénouement, situation finale. Sans rupture d’équilibre, il n’y a pas de récit : seulement une description.",
+ lien:["Schéma narratif — Wikipédia","https://fr.wikipedia.org/wiki/Sch%C3%A9ma_narratif"]},
+
+{n:3,q:"Un narrateur qui dit « je » et participe à l’histoire est un narrateur…",
+ r:"interne", autres:["externe","omniscient","absent"],
+ exp:"Le narrateur interne ne sait que ce que sait son personnage. C’est une contrainte, et souvent l’intérêt du texte : ce qu’il ignore, le lecteur l’ignore aussi.",
+ lien:["Narrateur — Wikipédia","https://fr.wikipedia.org/wiki/Narrateur"]},
+
+{n:4,q:"« La Belgique compte environ onze millions et demi d’habitants. » Est-ce un fait ou une opinion ?",
+ r:"Un fait : c’est vérifiable",
+ autres:["Une opinion : c’est un point de vue","Ni l’un ni l’autre","Une opinion déguisée en fait"],
+ exp:"Un fait peut être vrai ou faux, mais il se vérifie. Une opinion s’argumente et se discute. Le critère n’est pas la certitude, c’est la vérifiabilité.",
+ lien:["Fait — Wikipédia","https://fr.wikipedia.org/wiki/Fait"]},
+
+{n:5,q:"Dans un texte argumentatif, qu’est-ce que la thèse ?",
+ r:"L’idée principale que l’auteur veut faire admettre",
+ autres:["Le premier paragraphe","Le titre du texte","L’avis du lecteur"],
+ exp:"Elle n’est pas toujours écrite noir sur blanc. La repérer, c’est se demander : de quoi ce texte veut-il me convaincre ? Le reste s’organise autour de cette réponse.",
+ lien:["Argumentation — Wikipédia","https://fr.wikipedia.org/wiki/Argumentation"]},
+
+{n:6,q:"Quelle est la différence entre un argument et un exemple ?",
+ r:"L’argument est une raison, l’exemple est un cas qui l’illustre",
+ autres:["Il n’y en a aucune","L’argument est plus long","L’exemple vient toujours en premier"],
+ exp:"« Le vélo est bon pour la ville parce qu’il ne pollue pas » est un argument. « À Copenhague, la moitié des trajets se font à vélo » est un exemple. Un exemple seul ne démontre rien.",
+ lien:["Argumentation — Wikipédia","https://fr.wikipedia.org/wiki/Argumentation"]},
+
+{n:7,q:"Quel connecteur exprime la CAUSE ?",
+ r:"parce que", autres:["donc","cependant","ensuite"],
+ exp:"Cause : parce que, car, puisque, grâce à, à cause de. Conséquence : donc, par conséquent, si bien que. Confondre les deux inverse le raisonnement — c’est la faute de lecture la plus coûteuse.",
+ lien:["Connecteur logique — Wikipédia","https://fr.wikipedia.org/wiki/Connecteur_logique"]},
+
+{n:8,q:"Que marque le connecteur « bien que » ?",
+ r:"La concession : on admet un point avant de maintenir le sien",
+ autres:["La cause","La conséquence","L’addition"],
+ exp:"« Bien qu’il pleuve, je sors. » On reconnaît l’objection sans y céder. C’est le signe d’un texte argumentatif construit : il anticipe ce qu’on pourrait lui opposer.",
+ lien:["Connecteur logique — Wikipédia","https://fr.wikipedia.org/wiki/Connecteur_logique"]},
+
+{n:9,q:"Qu’est-ce qu’un champ lexical ?",
+ r:"L’ensemble des mots d’un texte se rapportant à un même thème",
+ autres:["La liste des mots difficiles","Les mots d’une même famille grammaticale","Le vocabulaire d’un métier"],
+ exp:"Voile, mât, houle, cap, équipage : champ lexical de la navigation. Le repérer révèle souvent l’atmosphère d’un texte avant même qu’on l’ait analysée.",
+ lien:["Champ lexical — Wikipédia","https://fr.wikipedia.org/wiki/Champ_lexical"]},
+
+{n:10,q:"« Cet homme est un lion. » De quelle figure s’agit-il ?",
+ r:"D’une métaphore", autres:["D’une comparaison","D’une hyperbole","D’une litote"],
+ exp:"La comparaison garde l’outil : « comme un lion », « tel un lion ». La métaphore le supprime et pose l’identité. C’est le seul critère, et il est mécanique : cherche le mot de comparaison.",
+ lien:["Métaphore — Wikipédia","https://fr.wikipedia.org/wiki/M%C3%A9taphore"]},
+
+{n:11,q:"« Le vent hurlait dans les arbres. » De quelle figure s’agit-il ?",
+ r:"D’une personnification", autres:["D’une métonymie","D’un oxymore","D’une antithèse"],
+ exp:"On prête à une chose un comportement d’être vivant. Très fréquente dans les descriptions de paysage, où elle sert à installer une menace sans la nommer.",
+ lien:["Personnification — Wikipédia","https://fr.wikipedia.org/wiki/Personnification"]},
+
+{n:12,q:"Comment reconnaît-on l’ironie dans un texte écrit ?",
+ r:"Par le décalage entre ce qui est dit et ce que le contexte impose",
+ autres:["Par les points d’exclamation","Par les guillemets uniquement","Elle est impossible à reconnaître à l’écrit"],
+ exp:"« Quelle merveilleuse idée » après un désastre. C’est l’une des difficultés les plus réelles pour un élève : le mot à mot le trahit, et il faut lire ce qui entoure la phrase.",
+ lien:["Ironie — Wikipédia","https://fr.wikipedia.org/wiki/Ironie"]},
+
+{n:13,q:"« Ce type est vachement sympa » relève de quel registre ?",
+ r:"Du registre familier", autres:["Du registre courant","Du registre soutenu","Du registre littéraire"],
+ exp:"Familier, courant, soutenu. Aucun n’est meilleur : ils sont adaptés ou non à la situation. Ce qu’on demande à un élève, c’est de savoir en changer, pas d’en bannir un.",
+ lien:["Registre de langue — Wikipédia","https://fr.wikipedia.org/wiki/Registre_de_langue"]},
+
+{n:14,q:"Transposons « Il dit : “Je viendrai demain.” » au discours indirect. Que devient « demain » ?",
+ r:"le lendemain", autres:["demain","hier","aujourd’hui"],
+ exp:"Le passage au discours indirect déplace les repères de temps, de lieu et de personne : « je » devient « il », « demain » devient « le lendemain », « ici » devient « là ». C’est mécanique et c’est ce qu’on évalue.",
+ lien:["Discours rapporté — Wikipédia","https://fr.wikipedia.org/wiki/Discours_rapport%C3%A9"]},
+
+{n:15,q:"« Tu as encore oublié tes clés. » Que présuppose cette phrase ?",
+ r:"Que la personne les a déjà oubliées auparavant",
+ autres:["Qu’elle a perdu ses clés","Qu’elle est en retard","Rien du tout"],
+ exp:"Le mot « encore » fait passer une information sans la dire. Le présupposé résiste même à la négation : « tu n’as pas encore oublié tes clés » suppose toujours un précédent.",
+ lien:["Présupposé — Wikipédia","https://fr.wikipedia.org/wiki/Pr%C3%A9suppos%C3%A9"]},
+
+{n:16,q:"Que doit-on garder en priorité dans un résumé ?",
+ r:"Le fil de l’argumentation ou de l’action",
+ autres:["Les phrases les plus belles","Les exemples","Les chiffres cités"],
+ exp:"Un résumé n’est pas un florilège de phrases recopiées. On garde ce qui fait avancer, on supprime ce qui illustre — et l’on reformule, sinon ce n’est pas un résumé mais un montage.",
+ lien:["Résumé — Wikipédia","https://fr.wikipedia.org/wiki/R%C3%A9sum%C3%A9"]},
+
+{n:17,q:"Qu’appelle-t-on le paratexte ?",
+ r:"Tout ce qui entoure le texte : titre, sous-titre, source, date, images",
+ autres:["Le texte lui-même","Les notes de bas de page uniquement","Le brouillon de l’auteur"],
+ exp:"Lire le paratexte avant le texte fait gagner du temps et évite des contresens : qui écrit, quand, où cela paraît-il, à qui cela s’adresse-t-il.",
+ lien:["Paratexte — Wikipédia","https://fr.wikipedia.org/wiki/Paratexte"]},
+
+{n:18,q:"Un narrateur qui connaît les pensées de tous les personnages est dit…",
+ r:"omniscient", autres:["interne","externe","neutre"],
+ exp:"Externe : il ne rapporte que ce qui se voit, comme une caméra. Omniscient : il entre dans toutes les têtes. Le choix du point de vue n’est jamais neutre — il décide de ce que le lecteur a le droit de savoir.",
+ lien:["Focalisation — Wikipédia","https://fr.wikipedia.org/wiki/Focalisation_(narratologie)"]},
+
+{n:19,q:"Dans un texte informatif, à quoi sert de repérer la source d’un chiffre ?",
+ r:"À savoir qui l’a produit et s’il est vérifiable",
+ autres:["À allonger le texte","À montrer que l’auteur a lu","Cela ne sert à rien en secondaire"],
+ exp:"« Une étude montre que… » sans nom d’étude n’est pas une source. Exiger la source est la compétence la plus transférable de tout le programme de français.",
+ lien:["Esprit critique — Wikipédia","https://fr.wikipedia.org/wiki/Esprit_critique"]},
+
+{n:20,q:"Un article qui vante longuement un produit sans le présenter comme une publicité, c’est…",
+ r:"un texte argumentatif déguisé en texte informatif",
+ autres:["un texte narratif","un texte descriptif neutre","une erreur d’impression"],
+ exp:"L’enjeu n’est pas de deviner l’intention mais de repérer les marques : vocabulaire valorisant, absence de contre-arguments, source unique. On juge le texte, pas l’auteur.",
+ lien:["Publicité rédactionnelle — Wikipédia","https://fr.wikipedia.org/wiki/Publireportage"]}
+];
+
+const GEOGRAPHIE=[
+{n:1,q:"Que mesure la latitude ?",
+ r:"La distance angulaire au nord ou au sud de l’équateur",
+ autres:["La distance à Greenwich","L’altitude","La distance au pôle Nord seulement"],
+ exp:"De 0° à l’équateur à 90° aux pôles. La longitude, elle, se compte à l’est ou à l’ouest du méridien de Greenwich. Latitude d’abord, longitude ensuite : c’est la convention d’écriture.",
+ lien:["Latitude — Wikipédia","https://fr.wikipedia.org/wiki/Latitude"]},
+
+{n:2,q:"Sur une carte au 1:50 000, un centimètre représente…",
+ r:"500 mètres", autres:["50 mètres","5 kilomètres","50 kilomètres"],
+ exp:"50 000 cm = 500 m. Plus le dénominateur est grand, plus l’échelle est PETITE et moins la carte est détaillée : une carte au 1:1 000 000 montre un pays, une carte au 1:10 000 montre un quartier.",
+ lien:["Échelle cartographique — Wikipédia","https://fr.wikipedia.org/wiki/%C3%89chelle_(cartographie)"]},
+
+{n:3,q:"Que représentent les courbes de niveau sur une carte topographique ?",
+ r:"Des lignes joignant les points de même altitude",
+ autres:["Les frontières administratives","Les cours d’eau souterrains","Les routes principales"],
+ exp:"Des courbes serrées signalent une pente raide, des courbes espacées un terrain plat. C’est le seul moyen de lire le relief sur une carte plane, et cela s’apprend en quelques minutes.",
+ lien:["Courbe de niveau — Wikipédia","https://fr.wikipedia.org/wiki/Courbe_de_niveau"]},
+
+{n:4,q:"Que déforme la projection de Mercator, utilisée par la plupart des cartes en ligne ?",
+ r:"Les surfaces, d’autant plus qu’on s’éloigne de l’équateur",
+ autres:["Les angles","Les distances est-ouest uniquement","Rien : elle est exacte"],
+ exp:"Elle conserve les angles, ce qui servait à la navigation, mais gonfle les hautes latitudes : le Groenland y paraît aussi grand que l’Afrique alors qu’il est quatorze fois plus petit. Aucune carte plane ne peut tout conserver.",
+ lien:["Projection de Mercator — Wikipédia","https://fr.wikipedia.org/wiki/Projection_de_Mercator"]},
+
+{n:5,q:"Combien la Belgique compte-t-elle de Régions ?",
+ r:"Trois", autres:["Deux","Quatre","Dix"],
+ exp:"Région flamande, Région wallonne, Région de Bruxelles-Capitale. À ne pas confondre avec les trois Communautés (française, flamande, germanophone) ni avec les dix provinces : trois découpages différents qui ne se superposent pas.",
+ lien:["Régions de Belgique — Wikipédia","https://fr.wikipedia.org/wiki/R%C3%A9gions_de_Belgique"]},
+
+{n:6,q:"Quel est le point culminant de la Belgique ?",
+ r:"Le Signal de Botrange, 694 m",
+ autres:["La Baraque de Fraiture, 652 m","Le Mont Saint-Aubert, 149 m","Le Kemmelberg, 156 m"],
+ exp:"Dans les Hautes Fagnes, en Ardenne. Le relief belge monte du nord-ouest au sud-est : polders, plaine, plateaux du Brabant et de Hesbaye, Condroz, puis Ardenne.",
+ lien:["Signal de Botrange — Wikipédia","https://fr.wikipedia.org/wiki/Signal_de_Botrange"]},
+
+{n:7,q:"Quels sont les deux principaux fleuves de Belgique ?",
+ r:"La Meuse et l’Escaut", autres:["La Meuse et la Sambre","L’Escaut et la Lys","Le Rhin et la Meuse"],
+ exp:"La Sambre et la Lys sont des affluents, pas des fleuves : un fleuve se jette dans la mer. La Meuse traverse Liège, l’Escaut passe à Anvers.",
+ lien:["Meuse — Wikipédia","https://fr.wikipedia.org/wiki/Meuse_(fleuve)"]},
+
+{n:8,q:"Qu’est-ce qu’un bassin versant ?",
+ r:"Le territoire dont toutes les eaux s’écoulent vers un même cours d’eau",
+ autres:["Le lit d’une rivière en crue","Un lac artificiel","La zone inondable d’une ville"],
+ exp:"Ses limites sont les lignes de crête. C’est la bonne unité pour penser une inondation ou une pollution : ce qui tombe en amont finit en aval, quelles que soient les frontières administratives.",
+ lien:["Bassin versant — Wikipédia","https://fr.wikipedia.org/wiki/Bassin_versant"]},
+
+{n:9,q:"Quelle est la différence entre un delta et un estuaire ?",
+ r:"Le delta ramifie le fleuve en bras, l’estuaire l’ouvre en un large chenal",
+ autres:["Le delta est en mer, l’estuaire en rivière","L’estuaire est toujours plus grand","Ce sont deux mots pour la même chose"],
+ exp:"Le delta se forme quand le fleuve dépose plus que la mer n’emporte ; l’estuaire quand les marées l’emportent. Le Nil a un delta, l’Escaut un estuaire.",
+ lien:["Delta — Wikipédia","https://fr.wikipedia.org/wiki/Delta_(hydrologie)"]},
+
+{n:10,q:"Quels sont les principaux facteurs qui déterminent le climat d’un lieu ?",
+ r:"La latitude, l’altitude, la distance à la mer et les courants marins",
+ autres:["La latitude uniquement","La densité de population","La nature du sol"],
+ exp:"C’est pourquoi Bruxelles et Québec, presque à la même latitude, n’ont pas du tout le même hiver : la dérive nord-atlantique réchauffe l’Europe de l’Ouest.",
+ lien:["Climat — Wikipédia","https://fr.wikipedia.org/wiki/Climat"]},
+
+{n:11,q:"Comment appelle-t-on le climat de la Belgique ?",
+ r:"Tempéré océanique", autres:["Tempéré continental","Méditerranéen","Subarctique"],
+ exp:"Hivers doux, étés frais, précipitations réparties toute l’année, faible amplitude thermique. La mer amortit les écarts : plus on va vers l’est, plus le climat devient continental.",
+ lien:["Climat océanique — Wikipédia","https://fr.wikipedia.org/wiki/Climat_oc%C3%A9anique"]},
+
+{n:12,q:"Que montre un diagramme ombrothermique ?",
+ r:"Les températures et les précipitations mois par mois",
+ autres:["L’altitude d’un relief","La densité de population","Les vents dominants"],
+ exp:"Courbe pour les températures, barres pour les précipitations. L’exercice classique consiste à en déduire le type de climat : c’est de la lecture de graphique autant que de la géographie.",
+ lien:["Diagramme ombrothermique — Wikipédia","https://fr.wikipedia.org/wiki/Diagramme_ombrothermique"]},
+
+{n:13,q:"Comment calcule-t-on la densité de population ?",
+ r:"En divisant le nombre d’habitants par la superficie",
+ autres:["En divisant la superficie par le nombre d’habitants","En comptant les habitants d’une ville","En additionnant les naissances"],
+ exp:"Elle s’exprime en habitants par kilomètre carré. C’est une moyenne, donc elle masque les écarts : la densité moyenne d’un pays ne dit rien de ses déserts ni de ses métropoles.",
+ lien:["Densité de population — Wikipédia","https://fr.wikipedia.org/wiki/Densit%C3%A9_de_population"]},
+
+{n:14,q:"Combien la Terre compte-t-elle d’océans, selon le découpage le plus courant aujourd’hui ?",
+ r:"Cinq", autres:["Trois","Quatre","Sept"],
+ exp:"Pacifique, Atlantique, Indien, Arctique et Austral. Le nombre a varié : l’océan Austral n’est reconnu comme tel que depuis 2000, et il ne l’est pas partout. Un découpage est une décision, pas une observation.",
+ lien:["Océan — Wikipédia","https://fr.wikipedia.org/wiki/Oc%C3%A9an"]},
+
+{n:15,q:"Qu’est-ce que la tectonique des plaques explique ?",
+ r:"Les séismes, les volcans et la formation des montagnes",
+ autres:["Les marées","Les saisons","Les courants marins"],
+ exp:"La lithosphère est découpée en plaques mobiles. Là où elles s’écartent, la croûte se crée ; là où elles se rencontrent, elle plonge ou se plisse. C’est aussi ce qui a séparé les continents que tu explores dans l’atlas.",
+ lien:["Tectonique des plaques — Wikipédia","https://fr.wikipedia.org/wiki/Tectonique_des_plaques"]},
+
+{n:16,q:"Que marquent les tropiques du Cancer et du Capricorne ?",
+ r:"Les latitudes extrêmes où le Soleil peut passer à la verticale",
+ autres:["Les limites des zones habitées","L’équateur magnétique","Les limites des océans chauds"],
+ exp:"À 23,4° nord et sud, ce qui correspond à l’inclinaison de l’axe terrestre. C’est la même inclinaison qui produit les saisons — et les cercles polaires, à 66,6°.",
+ lien:["Tropique — Wikipédia","https://fr.wikipedia.org/wiki/Tropique"]},
+
+{n:17,q:"Pourquoi existe-t-il des fuseaux horaires ?",
+ r:"Parce que la Terre tourne : il n’est pas midi partout en même temps",
+ autres:["Pour faciliter le commerce","À cause des saisons","Pour séparer les pays"],
+ exp:"Vingt-quatre fuseaux d’environ quinze degrés. Mais leurs limites suivent souvent les frontières plutôt que les méridiens : la géographie physique propose, la politique dispose.",
+ lien:["Fuseau horaire — Wikipédia","https://fr.wikipedia.org/wiki/Fuseau_horaire"]},
+
+{n:18,q:"Qu’appelle-t-on l’exode rural ?",
+ r:"Le départ des habitants des campagnes vers les villes",
+ autres:["Le retour des citadins à la campagne","L’émigration vers l’étranger","La désertification des sols"],
+ exp:"Massif en Europe au XIXᵉ siècle avec l’industrialisation, il se poursuit aujourd’hui ailleurs. Plus de la moitié de l’humanité vit en ville depuis la fin des années 2000.",
+ lien:["Exode rural — Wikipédia","https://fr.wikipedia.org/wiki/Exode_rural"]},
+
+{n:19,q:"À quoi sert la légende d’une carte ?",
+ r:"À donner le sens des couleurs, symboles et figurés employés",
+ autres:["À indiquer l’auteur","À donner l’échelle uniquement","À signaler les erreurs"],
+ exp:"Une carte sans légende n’est pas lisible, seulement décorative. Premier réflexe devant une carte inconnue : légende, échelle, orientation, date. Dans cet ordre.",
+ lien:["Carte géographique — Wikipédia","https://fr.wikipedia.org/wiki/Carte_g%C3%A9ographique"]},
+
+{n:20,q:"Deux cartes du même territoire donnent des impressions très différentes. Pourquoi ?",
+ r:"Le choix de la projection, des couleurs et du découpage oriente la lecture",
+ autres:["L’une des deux est forcément fausse","Cela vient de l’imprimeur","Les cartes ne varient jamais"],
+ exp:"Centrer une carte sur l’Europe ou sur le Pacifique, colorer un écart en rouge ou en dégradé : chaque choix est un argument. Une carte est un discours, et cela s’enseigne dès le secondaire.",
+ lien:["Sémiologie graphique — Wikipédia","https://fr.wikipedia.org/wiki/S%C3%A9miologie_graphique"]}
+];
+
+const HIST_SCOLAIRE=[
+{n:1,q:"Quelles sont les cinq grandes périodes de l’histoire, dans la découpe scolaire habituelle ?",
+ r:"Préhistoire, Antiquité, Moyen Âge, Temps modernes, Époque contemporaine",
+ autres:["Antiquité, Moyen Âge, Renaissance, Révolution, Modernité","Préhistoire, Antiquité, Modernité","Ancien, Médiéval, Moderne"],
+ exp:"C’est une convention européenne, commode et discutée. Elle décrit mal l’histoire de la Chine ou de l’Afrique, où ces ruptures n’ont pas de sens.",
+ lien:["Périodisation — Wikipédia","https://fr.wikipedia.org/wiki/P%C3%A9riodisation"]},
+
+{n:2,q:"Pourquoi fait-on souvent commencer le Moyen Âge en 476 ?",
+ r:"C’est la déposition du dernier empereur romain d’Occident, choisie comme repère",
+ autres:["C’est la naissance de Charlemagne","C’est la chute de Rome, détruite cette année-là","C’est la date du premier roi de France"],
+ exp:"Rome n’a pas été détruite et rien n’a changé pour ses habitants ce jour-là. La date est un repère commode fixé longtemps après coup : les bornes des périodes sont décidées, pas trouvées.",
+ lien:["Chute de l’Empire romain d’Occident — Wikipédia","https://fr.wikipedia.org/wiki/Chute_de_l%27Empire_romain_d%27Occident"]},
+
+{n:3,q:"Qu’est-ce qu’une source primaire ?",
+ r:"Un document produit à l’époque étudiée",
+ autres:["Le livre d’un historien reconnu","Un manuel scolaire","Une encyclopédie"],
+ exp:"Lettre, registre, outil, tableau, photographie. La source secondaire, elle, commente les primaires. Un historien travaille sur les premières et dialogue avec les secondes.",
+ lien:["Source primaire — Wikipédia","https://fr.wikipedia.org/wiki/Source_primaire"]},
+
+{n:4,q:"En quoi consiste la critique d’une source historique ?",
+ r:"À se demander qui l’a produite, quand, pour qui et pourquoi",
+ autres:["À vérifier son orthographe","À juger si l’auteur avait raison","À la comparer au manuel"],
+ exp:"Un document n’est pas neutre parce qu’il est ancien. Le chroniqueur d’un roi écrit pour son roi. C’est la compétence centrale du cours d’histoire, bien avant la mémorisation des dates.",
+ lien:["Critique historique — Wikipédia","https://fr.wikipedia.org/wiki/Critique_historique"]},
+
+{n:5,q:"Où et quand apparaît la première écriture connue ?",
+ r:"En Mésopotamie, vers 3300 avant notre ère",
+ autres:["En Égypte, vers 5000 avant notre ère","En Grèce, vers 800 avant notre ère","En Chine, vers 3000 avant notre ère"],
+ exp:"Des tablettes d’argile, et d’abord pour compter des sacs de grain : l’écriture naît de la comptabilité, pas de la littérature. C’est cette invention qui sert de borne entre Préhistoire et Antiquité.",
+ lien:["Écriture cunéiforme — Wikipédia","https://fr.wikipedia.org/wiki/Cun%C3%A9iforme"]},
+
+{n:6,q:"Qui pouvait voter dans la démocratie athénienne ?",
+ r:"Seuls les hommes citoyens, soit une minorité de la population",
+ autres:["Tous les habitants adultes","Les hommes et les femmes libres","Tous sauf les esclaves"],
+ exp:"Femmes, esclaves et métèques en étaient exclus : peut-être un habitant sur dix votait. Le mot « démocratie » nous vient de là, la chose que nous désignons par ce mot n’en vient pas.",
+ lien:["Démocratie athénienne — Wikipédia","https://fr.wikipedia.org/wiki/D%C3%A9mocratie_ath%C3%A9nienne"]},
+
+{n:7,q:"Qu’est-ce que la féodalité ?",
+ r:"Un système de liens personnels entre seigneurs et vassaux, fondé sur la terre",
+ autres:["Un régime dirigé par l’Église","Une forme de monarchie absolue","Un système de villes libres"],
+ exp:"Le vassal reçoit un fief et doit conseil et service armé. Le pouvoir y est fragmenté : il n’y a pas d’État au sens moderne, mais un enchevêtrement de fidélités.",
+ lien:["Féodalité — Wikipédia","https://fr.wikipedia.org/wiki/F%C3%A9odalit%C3%A9"]},
+
+{n:8,q:"L’expression « Moyen Âge » a été forgée par qui, et dans quel esprit ?",
+ r:"Par des lettrés de la Renaissance, comme un entre-deux méprisé",
+ autres:["Par les gens de l’époque elle-même","Par les historiens du XXᵉ siècle","Par l’Église médiévale"],
+ exp:"Un âge « du milieu » entre l’Antiquité admirée et leur propre temps. Le nom porte donc un jugement, et les historiens passent depuis un siècle à défaire l’image de siècles obscurs qu’il véhicule.",
+ lien:["Moyen Âge — Wikipédia","https://fr.wikipedia.org/wiki/Moyen_%C3%82ge"]},
+
+{n:9,q:"Qu’a changé l’imprimerie à caractères mobiles de Gutenberg, vers 1450 ?",
+ r:"Elle a rendu possible la diffusion rapide et à bas coût des textes",
+ autres:["Elle a inventé le papier","Elle a créé l’alphabet latin","Elle a supprimé les copistes du jour au lendemain"],
+ exp:"Des procédés d’impression existaient déjà en Chine et en Corée. Ce qui bascule en Europe, c’est l’échelle : quelques décennies suffisent pour que les idées circulent plus vite que les autorités ne les contrôlent.",
+ lien:["Imprimerie — Wikipédia","https://fr.wikipedia.org/wiki/Imprimerie"]},
+
+{n:10,q:"Qu’est-ce que l’humanisme de la Renaissance ?",
+ r:"Un mouvement qui replace l’étude des textes antiques et de l’homme au centre",
+ autres:["Le rejet de toute religion","Une doctrine politique républicaine","Un courant artistique uniquement"],
+ exp:"Érasme, Thomas More, Montaigne. Ce n’est pas un athéisme : la plupart des humanistes sont croyants. C’est un déplacement de la méthode — retourner aux textes originaux plutôt qu’aux commentaires.",
+ lien:["Humanisme — Wikipédia","https://fr.wikipedia.org/wiki/Humanisme_de_la_Renaissance"]},
+
+{n:11,q:"Parler de « découverte de l’Amérique » en 1492 pose quel problème ?",
+ r:"Le continent était peuplé depuis des millénaires : c’est un point de vue européen",
+ autres:["La date est fausse de deux ans","Christophe Colomb n’y est jamais allé","Aucun problème, c’est exact"],
+ exp:"On dit plutôt « rencontre » ou « contact ». Le vocabulaire d’un manuel désigne toujours quelqu’un comme le sujet de l’histoire et quelqu’un d’autre comme son décor.",
+ lien:["Découverte de l’Amérique — Wikipédia","https://fr.wikipedia.org/wiki/D%C3%A9couverte_de_l%27Am%C3%A9rique"]},
+
+{n:12,q:"Qu’est-ce que la Réforme protestante du XVIᵉ siècle ?",
+ r:"Une rupture avec l’autorité de Rome, partie des critiques de Luther",
+ autres:["Une réforme interne de l’Église catholique","Un mouvement politique français","Une révolte paysanne"],
+ exp:"Luther en 1517, puis Calvin. L’Église catholique répond par le concile de Trente. L’Europe s’en trouve durablement divisée, et nos régions en portent encore la trace.",
+ lien:["Réforme protestante — Wikipédia","https://fr.wikipedia.org/wiki/R%C3%A9forme_protestante"]},
+
+{n:13,q:"Qu’est-ce que la monarchie absolue ?",
+ r:"Un régime où le roi concentre tous les pouvoirs sans contre-pouvoir institué",
+ autres:["Un régime sans lois","Une monarchie élue","Un régime où le roi partage avec un parlement"],
+ exp:"Louis XIV en est la figure. « Absolu » ne veut pas dire arbitraire sans limite : le roi reste tenu par les lois fondamentales du royaume et par la coutume — mais nul ne peut le contraindre.",
+ lien:["Monarchie absolue — Wikipédia","https://fr.wikipedia.org/wiki/Monarchie_absolue"]},
+
+{n:14,q:"Que proclame la Déclaration des droits de l’homme et du citoyen de 1789 ?",
+ r:"Que les hommes naissent libres et égaux en droits",
+ autres:["L’abolition de l’esclavage","Le droit de vote des femmes","La séparation de l’Église et de l’État"],
+ exp:"Aucune des trois autres n’y figure : l’esclavage colonial est aboli en 1794, rétabli en 1802, aboli définitivement en 1848. Un texte fondateur n’applique pas d’emblée ce qu’il énonce.",
+ lien:["Déclaration des droits de l’homme et du citoyen de 1789 — Wikipédia","https://fr.wikipedia.org/wiki/D%C3%A9claration_des_droits_de_l%27homme_et_du_citoyen_de_1789"]},
+
+{n:15,q:"Où et quand commence la révolution industrielle ?",
+ r:"En Grande-Bretagne, à partir de la seconde moitié du XVIIIᵉ siècle",
+ autres:["En France, après 1789","En Allemagne, vers 1850","Aux États-Unis, vers 1800"],
+ exp:"Charbon, machine à vapeur, textile, chemin de fer. La Belgique est le deuxième pays industrialisé du continent, autour de Liège et du Hainaut — d’où viennent les paysages miniers d’ici.",
+ lien:["Révolution industrielle — Wikipédia","https://fr.wikipedia.org/wiki/R%C3%A9volution_industrielle"]},
+
+{n:16,q:"En quelle année la Belgique devient-elle indépendante ?",
+ r:"En 1830", autres:["En 1789","En 1815","En 1848"],
+ exp:"Après la révolution d’août-septembre contre le royaume uni des Pays-Bas. Le Congrès national choisit une monarchie constitutionnelle et parlementaire ; Léopold Iᵉʳ prête serment en juillet 1831.",
+ lien:["Révolution belge — Wikipédia","https://fr.wikipedia.org/wiki/R%C3%A9volution_belge"]},
+
+{n:17,q:"Qui pouvait voter en Belgique en 1830 ?",
+ r:"Seuls les hommes payant un impôt suffisant : le suffrage était censitaire",
+ autres:["Tous les hommes adultes","Tous les adultes","Les hommes sachant lire"],
+ exp:"Environ un pour cent de la population. Le suffrage universel masculin arrive en 1893 sous une forme plurale, l’égalité stricte en 1919, et le vote des femmes aux législatives en 1948.",
+ lien:["Histoire du droit de vote en Belgique — Wikipédia","https://fr.wikipedia.org/wiki/Suffrage_universel"]},
+
+{n:18,q:"Quel événement déclenche la Première Guerre mondiale en 1914 ?",
+ r:"L’attentat de Sarajevo, dans un système d’alliances déjà tendu",
+ autres:["L’invasion de la Pologne","La révolution russe","Le krach boursier"],
+ exp:"L’attentat est le déclencheur, non la cause : rivalités coloniales, course aux armements et alliances croisées étaient en place depuis des décennies. Distinguer déclencheur et causes est un exercice classique.",
+ lien:["Première Guerre mondiale — Wikipédia","https://fr.wikipedia.org/wiki/Premi%C3%A8re_Guerre_mondiale"]},
+
+{n:19,q:"Quelle est la différence entre un fait historique et son interprétation ?",
+ r:"Le fait s’établit par les sources, l’interprétation lui donne un sens et se discute",
+ autres:["Il n’y en a pas","L’interprétation est toujours fausse","Le fait est ancien, l’interprétation récente"],
+ exp:"Que la Bastille ait été prise le 14 juillet 1789 est un fait. Que ce soit le début de la Révolution est une interprétation — solide, mais construite. Les manuels mêlent les deux sans toujours le signaler.",
+ lien:["Historiographie — Wikipédia","https://fr.wikipedia.org/wiki/Historiographie"]},
+
+{n:20,q:"Pourquoi les manuels scolaires d’histoire changent-ils d’une génération à l’autre ?",
+ r:"Parce que les sources disponibles et les questions posées évoluent",
+ autres:["Parce qu’on découvre que les précédents mentaient","Pour vendre de nouveaux livres","Parce que les dates changent"],
+ exp:"Des archives s’ouvrent, des méthodes apparaissent, et chaque époque interroge le passé à partir de ses propres préoccupations. Ce n’est pas un aveu de faiblesse : c’est le fonctionnement normal d’une discipline.",
+ lien:["Historiographie — Wikipédia","https://fr.wikipedia.org/wiki/Historiographie"]}
 ];
 
 /* ================================================================
@@ -3852,10 +4233,13 @@ const GEN_MATHS=[
    type 'gen'  : questions générées à l'infini, niveau croissant.
    type 'bank' : banque finie, maîtrise par répétition espacée. */
 const PACKS=[
-/* Ordre voulu : les matières que Louise veut pouvoir accompagner passent devant,
-   les exercices de remise à niveau derrière. Voir un pack de philosophie en tête
-   plutôt qu'un exercice de conjugaison change ce que l'application a l'air d'être,
-   et donc ce qu'on se sent en droit d'y venir chercher. */
+/* Deux familles, deux objectifs distincts.
+   'histoire' : intérêt personnel, délibérément au-dessus du programme scolaire.
+   'ecole'    : accompagner un élève de secondaire inférieur (12-15 ans), au niveau
+                du programme et pas en dessous. Chaque pack scolaire le dit dans son
+                objectif, pour qu'on sache ce qu'on ouvre.
+   L'ordre place l'intérêt personnel devant : voir la philosophie en tête plutôt
+   qu'un exercice de conjugaison change ce que l'application a l'air d'être. */
  {id:'philomonde',nom:'Philosophie hors d’Europe',ico:'🌐',type:'bank',cat:'histoire',
   sous:'Ce que le canon a laissé dehors',
   objectif:"Lire quelques traditions philosophiques non européennes, et voir comment la frontière du canon a été tracée.",
@@ -3886,18 +4270,33 @@ const PACKS=[
   objectif:"Comprendre quatre lignées marines par ce que leur corps impose, et par ce qu'elles laissent — ou non — dans les roches.",
   bank:()=>BIOLOGIE,
   theorie:"CE QUI SE FOSSILISE COMMANDE CE QU'ON SAIT. Un trilobite minéralise sa carapace avec de la calcite : il est partout dans les roches. Un requin n'a que du cartilage : il ne reste que les dents. Une holothurie n'a que des spicules microscopiques : elle est presque invisible. Les trois groupes ont pu être également abondants — le registre fossile mesure d'abord la minéralisation, pas le succès.\n\nMUE ET COMPTAGE. Un arthropode change de carapace pour grandir. Un seul trilobite laisse donc des dizaines d'exuvies et un seul cadavre. Compter les fossiles n'est jamais compter les individus.\n\nÉCHINODERMES. Étoiles de mer, oursins, ophiures, crinoïdes et holothuries. Symétrie à cinq branches chez l'adulte, symétrie bilatérale chez la larve : la pentaradialité est acquise, pas originelle. Leur tissu conjonctif mutable change de rigidité en quelques secondes, sous contrôle nerveux — ce n'est pas du muscle.\n\nCHONDRICHTHYENS. Squelette cartilagineux, denticules cutanés de même structure que les dents, remplacement dentaire continu, pas de vessie natatoire mais un foie huileux, et les ampoules de Lorenzini pour détecter les champs électriques.\n\nCÉTACÉS. Des artiodactyles retournés à la mer. Narines migrées au sommet du crâne, voies respiratoires isolées du tube digestif, fanons de kératine chez les mysticètes, écholocation chez les odontocètes seulement.\n\nCONVERGENCE. Requin, ichtyosaure, dauphin : un poisson, un reptile, un mammifère, trois silhouettes presque identiques. L'eau impose sa forme. Se ressembler ne prouve aucune parenté."},
- {id:'conjugaison',nom:'Conjugaison',ico:'🕰️',type:'gen',cat:'base',
-  sous:'Temps, modes, personnes',
-  objectif:"Employer les temps et les modes avec précision, y compris sur les verbes irréguliers.",
+ {id:'lecture',nom:'Français — lecture',ico:'📖',type:'bank',cat:'ecole',
+  sous:'Secondaire inférieur · comprendre un texte',
+  objectif:"Accompagnement scolaire (12-15 ans) : repérer ce qu'un texte dit, ce qu'il veut, et ce qu'il fait passer sans le dire.",
+  bank:()=>FR_LECTURE,
+  theorie:"CE PACK NE PORTE PAS SUR L'ORTHOGRAPHE mais sur la lecture : comprendre, analyser, résumer. C'est la compétence que le secondaire évalue le plus souvent sans jamais l'appeler par son nom.\n\nQUATRE TYPES DE TEXTES. Narratif (il raconte), descriptif (il montre), argumentatif (il défend une thèse), informatif (il expose). Un texte réel les mêle ; on cherche celui qui domine.\n\nLE SCHÉMA NARRATIF. Situation initiale, élément déclencheur, péripéties, dénouement, situation finale. Sans rupture d'équilibre, il n'y a pas de récit.\n\nQUI RACONTE. Narrateur interne (« je », il ne sait que ce que sait son personnage), externe (il ne rapporte que le visible), omniscient (il entre dans toutes les têtes). Le point de vue décide de ce que le lecteur a le droit de savoir.\n\nFAIT ET OPINION. Un fait se vérifie, une opinion s'argumente. Le critère n'est pas la certitude mais la vérifiabilité.\n\nTHÈSE, ARGUMENT, EXEMPLE. La thèse est ce dont on veut vous convaincre ; l'argument est une raison ; l'exemple illustre l'argument. Un exemple seul ne démontre rien — c'est l'erreur la plus fréquente dans les copies.\n\nLES CONNECTEURS. Cause : parce que, car, puisque. Conséquence : donc, par conséquent. Opposition : mais, or, en revanche. Concession : bien que, quoique, certes… mais. Confondre cause et conséquence inverse tout le raisonnement.\n\nQUELQUES FIGURES. Comparaison (avec un outil : comme, tel) contre métaphore (sans outil). Personnification (une chose agit comme un vivant). Hyperbole (exagération). Litote (on dit moins pour suggérer plus). Ironie (on dit le contraire de ce qu'on pense — la plus difficile à repérer à l'écrit).\n\nL'IMPLICITE. Le présupposé est porté par la phrase elle-même et résiste à la négation : « tu as ENCORE oublié tes clés » suppose un précédent. Le sous-entendu dépend du contexte.\n\nLE RÉFLEXE UTILE. Devant un texte inconnu : lire d'abord le paratexte — titre, auteur, source, date. Puis chercher la thèse. Puis demander d'où viennent les chiffres. « Une étude montre que… » sans nom d'étude n'est pas une source."},
+ {id:'histscol',nom:'Histoire',ico:'📜',type:'bank',cat:'ecole',
+  sous:'Secondaire inférieur · repères et critique de source',
+  objectif:"Accompagnement scolaire (12-15 ans) : tenir les grands repères, et distinguer un fait d'une interprétation.",
+  bank:()=>HIST_SCOLAIRE,
+  theorie:"LES CINQ PÉRIODES. Préhistoire, Antiquité, Moyen Âge, Temps modernes, Époque contemporaine. Bornes usuelles : l'écriture vers 3300 avant notre ère, 476, 1492, 1789.\n\nCES BORNES SONT DÉCIDÉES, PAS TROUVÉES. Rien n'a changé pour les habitants de Rome en 476, et la découpe décrit mal l'histoire de la Chine ou de l'Afrique. Une périodisation est un outil de travail, pas une propriété du passé.\n\nLES SOURCES. Primaire : produite à l'époque étudiée (lettre, registre, outil, image). Secondaire : elle commente les primaires. La critique consiste à demander qui a produit le document, quand, pour qui et pourquoi. C'est le cœur du cours d'histoire, bien avant les dates.\n\nQUELQUES REPÈRES. Écriture en Mésopotamie vers 3300 av. n. è. Démocratie athénienne, où votait peut-être un habitant sur dix. Féodalité : des liens personnels fondés sur la terre, sans État au sens moderne. Imprimerie vers 1450. Réforme à partir de 1517. Monarchie absolue au XVIIᵉ. 1789 et la Déclaration des droits. Révolution industrielle depuis la Grande-Bretagne, la Belgique deuxième pays industrialisé du continent. Indépendance belge en 1830.\n\nLES MOTS PORTENT DES JUGEMENTS. « Moyen Âge » a été forgé par des lettrés de la Renaissance pour désigner un entre-deux méprisé. « Découverte de l'Amérique » fait des habitants du continent un décor. Repérer ces mots-là est un exercice scolaire, pas une opinion politique.\n\nFAIT ET INTERPRÉTATION. Que la Bastille ait été prise le 14 juillet 1789 est un fait. Que ce soit le début de la Révolution est une interprétation — solide, mais construite. Les manuels mêlent les deux sans toujours le signaler, et c'est pour cela qu'ils changent d'une génération à l'autre."},
+ {id:'geographie',nom:'Géographie',ico:'🗺️',type:'bank',cat:'ecole',
+  sous:'Secondaire inférieur · cartes, climats, Belgique',
+  objectif:"Accompagnement scolaire (12-15 ans) : lire une carte, situer, et comprendre ce qu'une représentation choisit de montrer.",
+  bank:()=>GEOGRAPHIE,
+  theorie:"LIRE UNE CARTE, DANS L'ORDRE. Légende, échelle, orientation, date. Une carte sans légende est décorative, pas informative.\n\nL'ÉCHELLE. Au 1:50 000, un centimètre vaut 500 mètres. Plus le dénominateur est grand, plus l'échelle est PETITE et moins la carte détaille. Les aires suivent le CARRÉ du rapport.\n\nSE SITUER. La latitude se compte de 0° à l'équateur à 90° aux pôles ; la longitude à l'est ou à l'ouest de Greenwich. On écrit toujours la latitude d'abord.\n\nLE RELIEF. Les courbes de niveau joignent les points de même altitude. Serrées : pente raide. Espacées : terrain plat.\n\nAUCUNE CARTE PLANE N'EST EXACTE. La projection de Mercator conserve les angles — c'est pourquoi elle servait à naviguer — mais gonfle les surfaces vers les pôles : le Groenland y paraît grand comme l'Afrique alors qu'il est quatorze fois plus petit. Toute projection sacrifie quelque chose ; le choix est un argument.\n\nLE CLIMAT. Quatre facteurs : latitude, altitude, distance à la mer, courants marins. La Belgique a un climat tempéré océanique — hivers doux, étés frais, pluies toute l'année — parce que la mer amortit les écarts.\n\nLA BELGIQUE. Trois Régions (flamande, wallonne, Bruxelles-Capitale), trois Communautés (française, flamande, germanophone), dix provinces : trois découpages qui ne se superposent pas. Le relief monte du nord-ouest au sud-est, des polders à l'Ardenne, jusqu'au Signal de Botrange (694 m). Deux fleuves : la Meuse et l'Escaut — la Sambre et la Lys sont des affluents.\n\nL'EAU. Un bassin versant est le territoire dont toutes les eaux rejoignent un même cours d'eau ; ses limites sont les lignes de crête. Un delta ramifie le fleuve, un estuaire l'ouvre en un large chenal.\n\nLA POPULATION. La densité est un rapport habitants/km² — donc une moyenne, qui masque les écarts."},
+ {id:'conjugaison',nom:'Conjugaison',ico:'🕰️',type:'gen',cat:'ecole',
+  sous:'Secondaire inférieur · temps, modes, personnes',
+  objectif:"Accompagnement scolaire (12-15 ans) : employer les temps et les modes avec précision, y compris sur les verbes irréguliers.",
   theorie:"Un temps se choisit pour ce qu'il fait, pas pour ce qu'il décore.\n\n• PRÉSENT : le fait est en cours, habituel, ou énoncé comme une vérité.\n• IMPARFAIT : arrière-plan, durée, habitude passée. « Il pleuvait quand elle est arrivée. »\n• PASSÉ COMPOSÉ : événement achevé, rattaché au moment où l'on parle.\n• FUTUR SIMPLE : ce qui est présenté comme certain.\n• CONDITIONNEL PRÉSENT : hypothèse, politesse, information non confirmée.\n• SUBJONCTIF PRÉSENT : après un verbe de volonté, de doute ou d'émotion, et après « bien que », « avant que », « pour que ».\n\nDeux pièges classiques : « après que » se construit avec l'INDICATIF (le fait est réel), alors que « avant que » demande le subjonctif. Et le conditionnel en -rais ne se confond avec le futur en -rai que si l'on oublie de vérifier la personne."},
- {id:'orthographe',nom:'Orthographe',ico:'✍️',type:'bank',cat:'base',
-  sous:'Homophones, accords, relecture',
-  objectif:"Sécuriser l'écriture courante et la relecture raisonnée.",
+ {id:'orthographe',nom:'Orthographe',ico:'✍️',type:'bank',cat:'ecole',
+  sous:'Secondaire inférieur · homophones, accords, relecture',
+  objectif:"Accompagnement scolaire (12-15 ans) : sécuriser l'écriture courante et la relecture raisonnée.",
   bank:()=>ORTHO,
   theorie:"La plupart des fautes d'adulte ne sont pas des fautes de vocabulaire : ce sont des confusions entre mots qui se prononcent pareil.\n\nLa méthode qui marche presque toujours : REMPLACER.\n• a / à → remplace par « avait ». Si ça passe, c'est « a ».\n• ou / où → remplace par « ou bien ». Si ça passe, pas d'accent.\n• son / sont → remplace par « étaient ». Si ça passe, c'est « sont ».\n• ce / se → remplace par « cela ». Si ça passe, c'est « ce ».\n• ces / ses → remplace par « ceux-là » ou « les siens ».\n• leur / leurs → « leur » devant un nom s'accorde avec ce nom.\n\nACCORD DU PARTICIPE PASSÉ :\n• avec ÊTRE : accord avec le sujet.\n• avec AVOIR : accord avec le complément d'objet direct seulement s'il est placé AVANT le verbe.\n• verbes pronominaux : accord si le pronom est COD ; pas d'accord s'il est COI (« elles se sont parlé »)."},
- {id:'maths',nom:'Mathématiques',ico:'📐',type:'gen',cat:'base',
-  sous:'Proportions, pourcentages, équations',
-  objectif:"Réactiver le calcul utile : proportions, pourcentages, conversions, ordres de grandeur.",
+ {id:'maths',nom:'Mathématiques',ico:'📐',type:'gen',cat:'ecole',
+  sous:'Secondaire inférieur · proportions, pourcentages, équations',
+  objectif:"Accompagnement scolaire (12-15 ans) : proportions, pourcentages, conversions, ordres de grandeur.",
   gens:GEN_MATHS,
   theorie:"POURCENTAGES. Un pourcentage est une fraction sur 100. Augmenter de p %, c'est multiplier par (1 + p/100) ; réduire de p %, c'est multiplier par (1 − p/100). Une hausse de 20 % suivie d'une baisse de 20 % ne ramène pas au point de départ : 1,2 × 0,8 = 0,96.\n\nPROPORTIONS. La règle de trois consiste à passer par la valeur d'une unité. C'est plus lent que les produits croisés, mais on se trompe beaucoup moins.\n\nÉCHELLES. Une échelle 1:50 000 signifie que 1 cm sur la carte vaut 50 000 cm en réalité, soit 500 m. Les aires, elles, suivent le CARRÉ du rapport : 1 m² = 10 000 cm², pas 100.\n\nORDRES DE GRANDEUR. En géologie, « Ma » signifie million d'années. 500 Ma = 5 × 10⁸ ans. La notation scientifique impose une mantisse entre 1 et 10."}
 ];
