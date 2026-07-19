@@ -720,7 +720,14 @@ const SITES=[
    épingles trop proches à l'écran sont donc regroupées, et se séparent au zoom.
    qc.js vérifie qu'au zoom maximal, sur l'écran le plus étroit envisagé, chaque
    paire finit par se séparer. */
-const CARTE_ZOOM_MIN=90;      // largeur minimale du viewBox, en px de carte
+/* Messel et Bundenbach sont distants de cent kilomètres, soit sept pixels sur une
+   carte du monde : deux chantiers réels que la géographie place presque au même
+   point. Pour que leur grappe puisse s'ouvrir, il faut pouvoir zoomer jusqu'à un
+   viewBox de 40 px. Ce n'était pas envisageable tant que monde.jpg mesurait
+   1 535 px de large — on aurait grossi la source huit fois et demie. Avec la carte
+   en 6 140 px, un viewBox de 40 px ne demande qu'un grossissement de 2,1 : c'est
+   la haute résolution qui rend ce niveau de zoom lisible. */
+const CARTE_ZOOM_MIN=40;      // largeur minimale du viewBox, en px de carte
 const CARTE_GROUPE=56;        // en deçà de cette distance à l'écran, deux épingles fusionnent
 const CARTE_LARGEUR_MIN=340;  // largeur d'affichage la plus étroite envisagée
 
@@ -1020,7 +1027,7 @@ const GRANDS_GROUPES=[
   ['Premiers tétrapodes',               /tétrapode|amphibien|temnospondyle|lepospondyle|stégocéphale|recumbirostr/i],
   ['Reptiles marins',                   /ichtyosaur|ichthyosaur|nothosaur|sauroptérygien|mosasaur|saurosphargid|placodonte|plésiosaur|pachypleurosaur|thalattosaur|protorosaur|tanystrophéid|tanystropheid|archosauromorphe/i],
   ['Dinosaures et oiseaux',             /dinosaur|théropode|sauropode|ornithopode|cératopsien|ankylosaur|stégosaur|tyrannosaur|oviraptor|thérizinosaur|ornithomimosaur|hadrosaur|pachycéphalosaur|dromæosaur|dromaeosaur|troodont|avialien|oiseau|scansorioptérygid|cænagnath|caenagnath|coelurosaur|carnosaur|phorusrhacid|métriacanthosaur|allosauroïde|diplodocoïde|macronaire|iguanodont|thyréophore|marginocéphale|paravien|noasaurid|cératosaur|spinosaur|nodosaur|titanosaur|mamenchisaurid|hétérodontosaurid|ornithomimid|compsognathid|cératopsid|ceratopsid|chasmosaurin/i],
-  ['Synapsides et mammifères',          /synapside|thérapside|dicynodonte|dinocephale|dinocéphale|gorgonopsien|cynodonte|pélycosaure|mammifère|eutriconodonte|artiodactyle|cétacé|archéocète|mysticète|basilosaurid|protocétidé|pakicétidé|raoellidé|xénarthre|paresseux terrestre|cingulé|litopterne|macrauchéniidé|notongulé|toxodontidé|sparassodonte|métathérien|marsupial/i],
+  ['Synapsides et mammifères',          /synapside|thérapside|dicynodonte|dinocephale|dinocéphale|gorgonopsien|cynodonte|pélycosaure|mammifère|eutriconodonte|artiodactyle|cétacé|archéocète|mysticète|basilosaurid|protocétidé|pakicétidé|raoellidé|xénarthre|paresseux terrestre|cingulé|équoïde|périssodactyle|chiroptère|chauve-souris|primate|adapiforme|pholidote|pangolin|artiodactyle|litopterne|macrauchéniidé|notongulé|toxodontidé|sparassodonte|métathérien|marsupial/i],
   ['Autres reptiles',                   /parareptile|pareiasaure|reptile|diapside|archosaure|lépidosaure|ptérosaure/i],
   ['Arthropodes',                       /arthropode|radiodonte|lobopodien|marrellomorphe|chélicérate|myriapode|euryptéride|insecte|pycnogonide|scorpion|crustacé|limule|xiphosure|arachnide|hexapode|diplopode|palæodictyoptère|paleodictyoptere|odonatoptère|thylacocéphale|mille-pattes|méganeurid|meganeurid|griffinfly|paléodictyoptère|paleodictyoptere/i],
   ['Invertébrés et chordés énigmatiques', /chordé|lophotrochozoaire|cnidaire|méduse|anémone|annélide|wiwaxiidé|problematica|énigmatique|incertain/i]
@@ -2502,6 +2509,279 @@ const SIL_Q=[
 })(SIL_SITE);
 CREATURES.push(...SIL_CREATURES);
 QUIZ_PALEO.push(...SIL_Q);
+
+/* ================================================================
+   Bloc 11 : site MES — la fosse de Messel, Hesse, Allemagne.
+
+   Vingt-et-unième chantier. Il n'ouvre aucune période neuve : il
+   étoffe le Paléogène, qui ne tenait que sur les six archéocètes
+   d'Ouadi al-Hitan et n'offrait donc aucun animal terrestre.
+
+   Le fil du chantier est la CONSERVATION. Messel est un lac de cratère
+   à fond anoxique : rien n'y remue le sédiment, rien n'y respire. On y
+   trouve des contenus stomacaux, des silhouettes de corps, des poils,
+   des plumes, un utérus. C'est le contrepoint exact du Hunsrück, où
+   c'est la pyrite qui conserve, et de Luján, où l'on n'a que des os.
+
+   Deuxième fil, plus rare et plus précieux : Darwinius masillae, le
+   fossile le plus surexposé de l'histoire récente de la paléontologie.
+   Une conférence de presse, un documentaire, un livre, un site web, et
+   une revendication — le chaînon manquant — que la communauté a réfutée
+   en dix-huit mois. Cinq questions du pack portent là-dessus.
+
+   Épingle x=766 y=301, à sept pixels du Hunsrück : la grappe ne s'ouvre
+   qu'au zoom le plus profond, ce que la carte 6 140 px permet désormais.
+   ================================================================ */
+
+const MES_SITE={
+ id:"MES",
+ nom:"La fosse de Messel",
+ court:"Messel",
+ region:"Hesse, près de Darmstadt",
+ pays:"Allemagne",
+ ere:"Éocène",
+ age:"≈ 48–47 Ma",
+ x:766, y:301,
+ fond:"sites/MES.jpg",
+ cout:880,
+ accroche:"Le lac qui n'oubliait rien",
+ intro:[
+  "Une cuvette ovale d'un kilomètre de large, au sud-est de Francfort. On y a extrait du schiste bitumineux jusqu'en 1971, puis la commune a voulu en faire une décharge d'ordures. Des bénévoles ont passé quinze ans à s'y opposer. Le site a été racheté par le Land de Hesse en 1991 et classé au patrimoine mondial en 1995 — le premier site allemand inscrit pour des raisons purement paléontologiques.",
+
+  "Ce qui s'y est passé il y a quarante-sept millions d'années tient à la forme du trou. Un maar : un cratère creusé par une explosion de vapeur au contact du magma et d'une nappe d'eau. Le cratère se remplit, et il est profond, étroit, abrité du vent. L'eau du fond ne se mélange jamais à celle de la surface. Elle est privée d'oxygène. Rien n'y vit, donc rien n'y fouille et rien n'y dévore.",
+
+  "Le résultat n'a presque pas d'équivalent. On ne récolte pas ici des os épars mais des animaux entiers, aplatis mais complets, avec la silhouette de leur corps dessinée autour du squelette. Cette silhouette n'est d'ailleurs pas la peau : ce sont des tapis de bactéries, qui ont consommé les tissus mous et se sont minéralisées dans leur forme. On lit un contour de chauve-souris dans les cadavres des bactéries qui l'ont mangée.",
+
+  "On y trouve donc ce qu'un gisement ordinaire ne livre jamais. Le dernier repas d'une chauve-souris, papillons de nuit identifiables. Une jument grosse, son fœtus en position de fin de gestation, et les restes de son utérus — le plus ancien connu chez un mammifère placentaire. Le contenu de l'estomac d'un pangolin. Des reflets métalliques encore visibles sur des élytres de scarabées.",
+
+  "Un dernier animal mérite une mise en garde, et tu la trouveras sur sa fiche. En 2009, un primate de Messel a été présenté au monde comme le chaînon manquant de notre lignée, avec conférence de presse, documentaire et livre coordonnés. La revendication était fausse et la communauté l'a établi en moins de deux ans. Le fossile, lui, reste superbe. Il n'a jamais menti : ce sont ses présentateurs qui ont parlé trop fort."
+ ]
+};
+
+const MES_CREATURES=[
+{id:"MES-01",site:"MES",nom:"Eurohippus messelensis",groupe:"Équoïde, parent des chevaux",
+ periode:"Éocène",age:"≈ 48–47 Ma",ageMin:47,ageMax:48,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Terrestre, forêt humide subtropicale",
+ regime:"Herbivore, feuilles et fruits",taille:"≈ 60 cm de long, 30 cm au garrot",masse:"≈ 10 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:5,
+ desc:"Petit herbivore de la taille d'un fox-terrier, à quatre doigts aux mains et trois aux pieds. Plusieurs juments grosses ont été trouvées à Messel, dont une avec son fœtus presque complet et des restes d'utérus : le plus ancien connu chez un mammifère placentaire.",
+ prudence:"Ce n'est pas un cheval : le genre tombe juste en dehors de la famille des équidés actuels. Il en est le parent le plus proche parmi les animaux de Messel, ce qui n'est pas la même chose qu'un ancêtre.",
+ src:[["Franzen et al. (2015) — Fetus of Eurohippus messelensis, PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0137985"],
+      ["Science — Stunning fossil shows pregnant mare and fetus","https://www.science.org/content/article/stunning-fossil-shows-pregnant-mare-and-fetus"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-01.jpg"},
+
+{id:"MES-02",site:"MES",nom:"Palaeochiropteryx tupaiodon",groupe:"Chiroptère, chauve-souris",
+ periode:"Éocène",age:"≈ 48–47 Ma",ageMin:47,ageMax:48,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Aérien, forêt et bordure de lac",
+ regime:"Insectivore",taille:"≈ 25 cm d'envergure",masse:"≈ 10 g",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:5,
+ desc:"Chauve-souris conservée avec la membrane de ses ailes et, chez plusieurs individus, le contenu de son estomac : des papillons de nuit encore identifiables.",
+ prudence:"L'écholocation est déduite de la forme de la cochlée et du contenu stomacal, non observée. Les ailes courtes et larges suggèrent un vol lent sous couvert, ce qui reste une inférence.",
+ src:[["Wikipédia — Palaeochiropteryx","https://fr.wikipedia.org/wiki/Palaeochiropteryx"],
+      ["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-02.jpg"},
+
+{id:"MES-03",site:"MES",nom:"Darwinius masillae",groupe:"Primate adapiforme",
+ periode:"Éocène",age:"≈ 47 Ma",ageMin:47,ageMax:47,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Terrestre et arboricole, forêt humide",
+ regime:"Frugivore et folivore",taille:"≈ 58 cm avec la queue",masse:"≈ 700 g",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Élevée",confN:5,
+ desc:"Jeune primate conservé à quatre-vingt-quinze pour cent, avec silhouette du corps et contenu stomacal. L'un des fossiles de primates les plus complets jamais trouvés.",
+ prudence:"Présenté en 2009 comme un chaînon entre les primates primitifs et notre propre lignée, sous le surnom d'« Ida », avec une campagne médiatique coordonnée. Cette interprétation a été réfutée dès 2009-2010 : c'est un adapiforme, plus proche des lémuriens que des singes et des humains. Le fossile est exceptionnel ; la revendication ne l'était pas.",
+ src:[["Wikipédia — Darwinius","https://fr.wikipedia.org/wiki/Darwinius"],
+      ["Wikipédia — Adapiformes","https://fr.wikipedia.org/wiki/Adapiformes"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-03.jpg"},
+
+{id:"MES-04",site:"MES",nom:"Titanomyrma giganteum",groupe:"Insecte hyménoptère, fourmi",
+ periode:"Éocène",age:"≈ 48–47 Ma",ageMin:47,ageMax:48,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Terrestre, forêt humide",
+ regime:"Régime incertain",taille:"Reine ≈ 5 cm de corps, ailes ≈ 15 cm d'envergure",masse:"Non estimable",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Bonne",confN:4,
+ desc:"La plus grande fourmi connue : une reine ailée de la taille d'un colibri. Le genre est également connu en Amérique du Nord, ce qui implique un passage entre les continents à la faveur d'un épisode chaud.",
+ prudence:"Les spécimens connus sont presque tous des reines ailées, plus grandes et plus susceptibles de tomber dans un lac que les ouvrières. Le régime alimentaire n'est pas établi.",
+ src:[["Wikipédia — Titanomyrma","https://fr.wikipedia.org/wiki/Titanomyrma"],
+      ["Smithsonian — The Evolutionary Secrets Within the Messel Pit","https://www.smithsonianmag.com/travel/evolutionary-secrets-within-messel-pit-180948004/"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-04.jpg"},
+
+{id:"MES-05",site:"MES",nom:"Messelobunodon schaeferi",groupe:"Artiodactyle primitif",
+ periode:"Éocène",age:"≈ 48–47 Ma",ageMin:47,ageMax:48,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Terrestre, sous-bois",
+ regime:"Omnivore",taille:"≈ 50 cm",masse:"≈ 5 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Bonne",confN:4,
+ desc:"Petit ongulé à doigts pairs, au corps souple et à la longue queue, conservé entier avec sa silhouette. Il appartient au groupe dont sortiront les porcs, les ruminants — et les baleines.",
+ prudence:"Sa parenté avec les cétacés passe par les artiodactyles dans leur ensemble, pas par cette espèce en particulier : ce n'est pas un ancêtre des baleines.",
+ src:[["Wikipédia — Messelobunodon","https://en.wikipedia.org/wiki/Messelobunodon"],
+      ["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-05.jpg"},
+
+{id:"MES-06",site:"MES",nom:"Eomanis waldi",groupe:"Pholidote, pangolin",
+ periode:"Éocène",age:"≈ 48–47 Ma",ageMin:47,ageMax:48,
+ lieu:"Fosse de Messel, Hesse, Allemagne",milieu:"Terrestre, sol forestier",
+ regime:"Insectivore",taille:"≈ 50 cm",masse:"≈ 2 kg",
+ longevite:"Inconnue ; non estimable de façon robuste à partir des fossiles disponibles",
+ confLong:"Très faible",conf:"Bonne",confN:4,
+ desc:"Pangolin de quarante-sept millions d'années, conservé avec ses écailles et le contenu de son estomac. Le groupe existe donc déjà, sous une forme très proche de celle d'aujourd'hui.",
+ prudence:"Le contenu stomacal mêle restes d'insectes et débris végétaux ; on discute si les végétaux ont été avalés volontairement ou avec les proies. Les écailles sont conservées sur le corps mais pas sur la queue, ce qui reste discuté.",
+ src:[["Wikipédia — Eomanis","https://en.wikipedia.org/wiki/Eomanis"],
+      ["Wikipédia — Pholidota","https://fr.wikipedia.org/wiki/Pholidota_(mammif%C3%A8re)"]],
+ pack:"Messel — Le lac qui n'oubliait rien",img:"cartes/MES-06.jpg"}
+];
+
+const MES_Q=[
+{id:"MES-Q01",site:"MES",diff:"facile",
+ q:"Dans quel pays se trouve la fosse de Messel ?",
+ choix:["En Allemagne","En Autriche","En Pologne","Au Danemark"],r:"En Allemagne",
+ exp:"En Hesse, au sud-est de Francfort, près de Darmstadt.",
+ src:["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]},
+
+{id:"MES-Q02",site:"MES",diff:"moyen",
+ q:"Qu’est-ce qu’un maar, comme celui qui a formé le lac de Messel ?",
+ choix:["Un cratère creusé par une explosion de vapeur","Un lac de barrage glaciaire","Un cratère d’impact météoritique","Un effondrement de grotte calcaire"],
+ r:"Un cratère creusé par une explosion de vapeur",
+ exp:"Le magma rencontre une nappe d’eau souterraine ; l’eau se vaporise brutalement et creuse un trou. Le trou se remplit, et sa forme — profond, étroit, abrité — décide de tout le reste.",
+ src:["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]},
+
+{id:"MES-Q03",site:"MES",diff:"moyen",
+ q:"Pourquoi les fossiles de Messel sont-ils si complets ?",
+ choix:["L’eau du fond était privée d’oxygène, donc sans fouisseurs ni charognards","Le lac gelait chaque hiver","Les animaux y étaient enterrés vivants","Le sédiment était très acide"],
+ r:"L’eau du fond était privée d’oxygène, donc sans fouisseurs ni charognards",
+ exp:"Un lac profond et abrité du vent ne mélange jamais ses eaux. Au fond, rien ne vit — donc rien ne remue le sédiment et rien ne dévore ce qui s’y dépose.",
+ src:["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]},
+
+{id:"MES-Q04",site:"MES",diff:"difficile",
+ q:"Les silhouettes de corps visibles autour des squelettes de Messel : de quoi sont-elles faites ?",
+ choix:["De tapis de bactéries minéralisées","De la peau conservée telle quelle","D’une empreinte laissée dans la vase","De poils fossilisés"],
+ r:"De tapis de bactéries minéralisées",
+ exp:"Les bactéries ont consommé les tissus mous et se sont minéralisées dans leur forme. On lit donc un contour de chauve-souris dans les cadavres des bactéries qui l’ont mangée — ce qui est conservé n’est pas toujours ce qu’on croit regarder.",
+ src:["Franzen et al. (2015) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0137985"]},
+
+{id:"MES-Q05",site:"MES",diff:"moyen",
+ q:"Qu’a-t-on trouvé dans l’estomac de plusieurs Palaeochiropteryx ?",
+ choix:["Des papillons de nuit encore identifiables","Des graines","De petits poissons","Rien du tout"],
+ r:"Des papillons de nuit encore identifiables",
+ exp:"Un dernier repas identifiable à l’espèce près. C’est une information sur le comportement, pas seulement sur l’anatomie — et elle ne se conserve presque nulle part ailleurs.",
+ src:["Wikipédia — Palaeochiropteryx","https://fr.wikipedia.org/wiki/Palaeochiropteryx"]},
+
+{id:"MES-Q06",site:"MES",diff:"difficile",
+ q:"Qu’a de remarquable la jument d’Eurohippus trouvée à Messel ?",
+ choix:["Son fœtus et des restes de son utérus sont conservés","Elle mesurait deux mètres au garrot","Elle portait des jumeaux","Elle avait des sabots à un seul doigt"],
+ r:"Son fœtus et des restes de son utérus sont conservés",
+ exp:"C’est le plus ancien utérus connu chez un mammifère placentaire, et sa forme correspond à celle des juments actuelles. Le fœtus est en position de fin de gestation.",
+ src:["Franzen et al. (2015) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0137985"]},
+
+{id:"MES-Q07",site:"MES",diff:"moyen",
+ q:"Quelle était la taille d’Eurohippus messelensis ?",
+ choix:["Celle d’un fox-terrier, environ 30 cm au garrot","Celle d’un poney","Celle d’un cheval de trait","Celle d’un chat"],
+ r:"Celle d’un fox-terrier, environ 30 cm au garrot",
+ exp:"Les premiers parents des chevaux sont de petits animaux de sous-bois. La grande taille et la course sur un seul doigt viendront bien plus tard, avec l’ouverture des milieux.",
+ src:["Science — Stunning fossil shows pregnant mare and fetus","https://www.science.org/content/article/stunning-fossil-shows-pregnant-mare-and-fetus"]},
+
+{id:"MES-Q08",site:"MES",diff:"difficile",
+ q:"Peut-on dire qu’Eurohippus est un cheval ?",
+ choix:["Non : le genre tombe juste en dehors de la famille des chevaux actuels","Oui, c’est un cheval nain","Oui, c’est l’ancêtre direct du cheval","Non, c’est un parent des tapirs uniquement"],
+ r:"Non : le genre tombe juste en dehors de la famille des chevaux actuels",
+ exp:"Il en est le parent le plus proche parmi les animaux de Messel, ce qui n’est pas la même chose qu’un ancêtre. La différence entre « cousin » et « ancêtre » est l’une des plus souvent perdues dans les récits d’évolution.",
+ src:["Franzen et al. (2015) — PLOS ONE","https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0137985"]},
+
+{id:"MES-Q09",site:"MES",diff:"facile",
+ q:"Qu’est-ce que Titanomyrma giganteum ?",
+ choix:["La plus grande fourmi connue","Un scarabée géant","Une guêpe fossile","Une termite"],
+ r:"La plus grande fourmi connue",
+ exp:"Une reine ailée de la taille d’un colibri : cinq centimètres de corps, quinze d’envergure.",
+ src:["Smithsonian — The Evolutionary Secrets Within the Messel Pit","https://www.smithsonianmag.com/travel/evolutionary-secrets-within-messel-pit-180948004/"]},
+
+{id:"MES-Q10",site:"MES",diff:"difficile",
+ q:"Presque tous les spécimens de Titanomyrma sont des reines ailées. Pourquoi, le plus probablement ?",
+ choix:["Elles volent, donc elles tombent dans le lac plus souvent que les ouvrières","Les ouvrières n’existaient pas","Les ouvrières étaient trop petites pour fossiliser","Les reines vivaient plus longtemps"],
+ r:"Elles volent, donc elles tombent dans le lac plus souvent que les ouvrières",
+ exp:"Ce qu’un gisement récolte dépend de la façon dont on y arrive. Un lac attrape ce qui vole ou ce qui flotte, pas ce qui court au sol — la collection est biaisée avant même d’être étudiée.",
+ src:["Wikipédia — Titanomyrma","https://fr.wikipedia.org/wiki/Titanomyrma"]},
+
+{id:"MES-Q11",site:"MES",diff:"moyen",
+ q:"Qu’est-ce qu’Eomanis waldi ?",
+ choix:["Un pangolin de 47 millions d’années","Un tatou primitif","Un fourmilier","Un hérisson géant"],
+ r:"Un pangolin de 47 millions d’années",
+ exp:"Conservé avec ses écailles et le contenu de son estomac. Le groupe existe donc déjà, sous une forme déjà très proche de celle d’aujourd’hui.",
+ src:["Wikipédia — Eomanis","https://en.wikipedia.org/wiki/Eomanis"]},
+
+{id:"MES-Q12",site:"MES",diff:"difficile",
+ q:"Le pangolin, le tatou et le fourmilier se ressemblent beaucoup. Que faut-il en conclure ?",
+ choix:["Rien : manger des fourmis impose la même forme à des lignées sans parenté","Qu’ils forment une même famille","Que l’un descend des deux autres","Qu’ils vivaient sur le même continent"],
+ r:"Rien : manger des fourmis impose la même forme à des lignées sans parenté",
+ exp:"Museau allongé, longue langue, griffes fouisseuses, dents réduites ou absentes : c’est le régime qui sculpte, pas l’ascendance. Les pangolins sont d’ailleurs plus proches des carnivores que des tatous.",
+ src:["Wikipédia — Pholidota","https://fr.wikipedia.org/wiki/Pholidota_(mammif%C3%A8re)"]},
+
+{id:"MES-Q13",site:"MES",diff:"moyen",
+ q:"À quel grand groupe appartient Messelobunodon ?",
+ choix:["Aux artiodactyles, les ongulés à doigts pairs","Aux rongeurs","Aux primates","Aux carnivores"],
+ r:"Aux artiodactyles, les ongulés à doigts pairs",
+ exp:"C’est le groupe des porcs, des ruminants — et des baleines, comme l’a établi l’astragale à double poulie des archéocètes que tu as déterrés à Ouadi al-Hitan.",
+ src:["Wikipédia — Messelobunodon","https://en.wikipedia.org/wiki/Messelobunodon"]},
+
+{id:"MES-Q14",site:"MES",diff:"facile",
+ q:"Qu’est-ce que Darwinius masillae ?",
+ choix:["Un primate fossile conservé à 95 %","Un poisson d’eau douce","Un oiseau primitif","Un insecte"],
+ r:"Un primate fossile conservé à 95 %",
+ exp:"Un jeune animal d’environ soixante centimètres avec la queue, l’un des fossiles de primates les plus complets jamais trouvés — silhouette du corps et contenu stomacal compris.",
+ src:["Wikipédia — Darwinius","https://fr.wikipedia.org/wiki/Darwinius"]},
+
+{id:"MES-Q15",site:"MES",diff:"moyen",
+ q:"Comment Darwinius a-t-il été présenté au public en 2009 ?",
+ choix:["Comme le « chaînon manquant » de la lignée humaine","Comme un simple fossile de plus","Comme un faux probable","Comme un ancêtre des lémuriens"],
+ r:"Comme le « chaînon manquant » de la lignée humaine",
+ exp:"Avec conférence de presse, documentaire, livre et site web coordonnés le même jour — une campagne d’un niveau inhabituel pour une publication scientifique.",
+ src:["Wikipédia — Darwinius","https://fr.wikipedia.org/wiki/Darwinius"]},
+
+{id:"MES-Q16",site:"MES",diff:"difficile",
+ q:"Qu’est-il advenu de cette revendication ?",
+ choix:["Elle a été réfutée en moins de deux ans : c’est un adapiforme","Elle a été confirmée","Elle est encore ouverte aujourd’hui","Le fossile s’est révélé être un assemblage"],
+ r:"Elle a été réfutée en moins de deux ans : c’est un adapiforme",
+ exp:"Darwinius se place du côté des lémuriens, pas de celui des singes et des humains. Le fossile reste superbe : ce sont ses présentateurs qui avaient parlé trop fort.",
+ src:["Wikipédia — Adapiformes","https://fr.wikipedia.org/wiki/Adapiformes"]},
+
+{id:"MES-Q17",site:"MES",diff:"difficile",
+ q:"Que retenir de l’épisode Darwinius, du point de vue de la méthode ?",
+ choix:["La qualité d’un fossile ne garantit pas la justesse de ce qu’on en dit","Il ne faut pas faire confiance aux fossiles","Les médias comprennent mal la science","Les primates sont mal classés"],
+ r:"La qualité d’un fossile ne garantit pas la justesse de ce qu’on en dit",
+ exp:"Conservation et interprétation sont deux choses séparées. Un spécimen à quatre-vingt-quinze pour cent complet ne rend pas plus vraie l’hypothèse qu’on lui accroche — et l’ampleur de l’annonce n’y change rien non plus.",
+ src:["Wikipédia — Darwinius","https://fr.wikipedia.org/wiki/Darwinius"]},
+
+{id:"MES-Q18",site:"MES",diff:"moyen",
+ q:"À quoi la fosse de Messel a-t-elle échappé de justesse ?",
+ choix:["À devenir une décharge d’ordures","À être ennoyée par un barrage","À une autoroute","À un lotissement"],
+ r:"À devenir une décharge d’ordures",
+ exp:"Après la fin de l’exploitation en 1971, le projet a été combattu quinze ans par des bénévoles. Le Land de Hesse a racheté le site en 1991 ; il est classé au patrimoine mondial depuis 1995.",
+ src:["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]},
+
+{id:"MES-Q19",site:"MES",diff:"difficile",
+ q:"Titanomyrma est connue en Allemagne et en Amérique du Nord. Qu’implique cette répartition ?",
+ choix:["Un passage entre continents à la faveur d’un épisode climatique chaud","Que les fourmis traversaient l’océan à la nage","Que les deux continents étaient encore soudés","Que ce sont deux espèces sans lien"],
+ r:"Un passage entre continents à la faveur d’un épisode climatique chaud",
+ exp:"Les grandes fourmis d’aujourd’hui vivent sous les tropiques. Pour qu’elles franchissent les hautes latitudes, il faut que celles-ci aient été chaudes — la répartition d’un fossile renseigne sur le climat.",
+ src:["Wikipédia — Titanomyrma","https://fr.wikipedia.org/wiki/Titanomyrma"]},
+
+{id:"MES-Q20",site:"MES",diff:"moyen",
+ q:"Qu’est-ce que Messel apporte que le Hunsrück ne peut pas donner ?",
+ choix:["Des comportements : repas, gestation, régime alimentaire","Des animaux plus anciens","Des fossiles plus nombreux","Des squelettes en trois dimensions"],
+ r:"Des comportements : repas, gestation, régime alimentaire",
+ exp:"Le Hunsrück conserve des formes par la pyrite ; Messel conserve des contenus par l’absence d’oxygène. Deux mécanismes différents, deux types de savoir — et aucun des deux ne remplace l’autre.",
+ src:["UNESCO — Fosse de Messel","https://whc.unesco.org/fr/list/720/"]}
+];
+
+/* Insertion chronologique, comme pour le Silurien : Messel s'intercale entre
+   Ouadi al-Hitan (51 Ma) et Luján (17 Ma). */
+(function insererChronologiquement(s){
+  const debut=x=>parseFloat(String(x.age).replace(',','.').match(/[\d.]+/)[0]);
+  const i=SITES.findIndex(x=>debut(x)<debut(s));
+  SITES.splice(i<0?SITES.length:i, 0, s);
+})(MES_SITE);
+CREATURES.push(...MES_CREATURES);
+QUIZ_PALEO.push(...MES_Q);
 
 /* ================================================================
    Bloc 3 : générateurs de questions et déclaration des packs.

@@ -33,7 +33,7 @@ const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('128 créatures', CREATURES.length===128, CREATURES.length+' trouvées');
+T('134 créatures', CREATURES.length===134, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
@@ -47,7 +47,7 @@ CREATURES.forEach(c=>{
 });
 
 /* ---------- 3. Sites ---------- */
-T('vingt sites', SITES.length===20, SITES.length+'');
+T('vingt-et-un sites', SITES.length===21, SITES.length+'');
 SITES.forEach(s=>{
   T('fond satellite '+s.id, existe(s.fond), s.fond);
   T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
@@ -237,7 +237,12 @@ T('constantes de carte cohérentes',
 let pireP='', pireD=Infinity;
 for(let i=0;i<SITES.length;i++) for(let j=i+1;j<SITES.length;j++){
   const d=Math.hypot(SITES[i].x-SITES[j].x, SITES[i].y-SITES[j].y);
-  T('épingles '+SITES[i].id+' et '+SITES[j].id+' non confondues', d>=8, Math.round(d)+' px');
+  /* Le plancher était fixé à 8 px quand le zoom s'arrêtait à un viewBox de 90.
+     La vraie garantie n'est pas ce plancher arbitraire mais l'assertion
+     suivante, qui dérive le seuil des constantes de la carte. On ne garde ici
+     qu'un minimum absolu : en deçà, deux épingles se recouvrent à tout zoom.
+     Messel et Bundenbach sont à 7 px, soit une centaine de kilomètres. */
+  T('épingles '+SITES[i].id+' et '+SITES[j].id+' non confondues', d>=5, Math.round(d)+' px');
   if(d*facteur<pireD){ pireD=d*facteur; pireP=SITES[i].id+'–'+SITES[j].id; }
 }
 T('toute grappe s’ouvre au zoom maximal', pireD>CARTE_GROUPE,

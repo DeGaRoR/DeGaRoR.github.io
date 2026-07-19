@@ -45,7 +45,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~6860 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js      # ~7100 assertions : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -74,7 +74,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v14), 177 entrées (globes inclus) ; liste dérivée de data.js
+sw.js           cache-first versionné (atlas-v15), 185 entrées (globes inclus) ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -341,6 +341,56 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## La carte du monde
+
+`monde.jpg` fait 6 140 × 4 096 px depuis la v15, en JPEG (2,3 Mo). C'est un
+agrandissement 4× de la carte précédente : écart moyen mesuré de 3,1/255 entre les
+deux, soit rigoureusement la même image. Le `viewBox` du SVG reste fixé à
+`0 0 1535 1024`, donc **aucune épingle ni le masque de terre n'ont bougé**.
+
+Le seul gain est la netteté au zoom, mais il débloque autre chose : `CARTE_ZOOM_MIN`
+est passé de 90 à 40, c'est-à-dire qu'on peut zoomer deux fois plus profond. Avec
+l'ancienne carte, un viewBox de 40 px aurait grossi la source huit fois et demie —
+de la bouillie. Avec 6 140 px de large, il ne demande qu'un facteur 2,1.
+
+Ce zoom plus profond était nécessaire : Messel et Bundenbach sont distants de cent
+kilomètres, soit **sept pixels**, et leur grappe ne s'ouvrait à aucun zoom
+atteignable. Le plancher arbitraire de 8 px entre deux épingles a été ramené à 5 ;
+la vraie garantie est l'assertion qui dérive le seuil des constantes de la carte.
+
+**Sur le fait que cette carte soit générée.** Elle l'est, et c'est le seul élément de
+l'application qui affirme un fait — la forme des continents — sans le dispositif de
+prudence appliqué partout ailleurs. Chaque créature porte un niveau de confiance et
+une mise en garde ; la carte, non. Ses côtes sont approximatives et les silhouettes
+d'animaux qu'elle porte ne correspondent à aucune des 134 créatures de l'atlas.
+
+Ce n'est pas grave tant que la carte sert à **trouver et toucher un chantier**, ce
+qui est son seul rôle ici : on n'y lit aucune coordonnée, aucune distance. Ça le
+deviendrait si l'on prétendait y apprendre la géographie. Deux sorties possibles le
+jour où ça gênera : un fond de carte du domaine public (Natural Earth), au prix d'un
+recalage des 21 épingles et du masque ; ou une mention discrète sur l'écran de carte
+disant que c'est une illustration. La seconde coûte cinq minutes.
+
+## Messel — le vingt-et-unième chantier
+
+Ajouté en v15. Il n'ouvre aucune période neuve : il étoffe le Paléogène, qui ne
+tenait que sur les six archéocètes d'Ouadi al-Hitan et n'offrait donc aucun animal
+terrestre. Le Cénozoïque passe de 8 à 18 créatures.
+
+Le fil du chantier est la **conservation**, en contrepoint direct du Hunsrück. Là-bas
+la pyrite conserve des formes ; ici l'anoxie d'un lac de maar conserve des contenus —
+le dernier repas d'une chauve-souris, un fœtus et son utérus, l'estomac d'un
+pangolin. Une question du pack pose explicitement la comparaison. Et les silhouettes
+de corps si caractéristiques de Messel ne sont pas de la peau : ce sont des tapis de
+bactéries minéralisées dans la forme des tissus qu'elles ont consommés.
+
+Le second fil est **Darwinius masillae**, cinq questions. Présenté en 2009 comme le
+chaînon manquant de la lignée humaine, avec conférence de presse, documentaire et
+livre coordonnés le même jour ; réfuté en moins de deux ans — c'est un adapiforme,
+du côté des lémuriens. Le fossile est superbe et n'a jamais menti. La leçon tient en
+une phrase : conservation et interprétation sont deux choses séparées, et un
+spécimen complet à 95 % ne rend pas plus vraie l'hypothèse qu'on lui accroche.
 
 ## La frise — quatrième onglet
 

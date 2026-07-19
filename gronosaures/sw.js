@@ -3,7 +3,7 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v14';
+const VERSION='atlas-v15';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
@@ -42,16 +42,18 @@ const IMAGES=[
   './cartes/SAM-01.jpg', './cartes/SAM-02.jpg', './cartes/SAM-03.jpg', './cartes/SAM-04.jpg',
   './cartes/SAM-05.jpg', './cartes/SAM-06.jpg', './cartes/SIL-01.jpg', './cartes/SIL-02.jpg',
   './cartes/SIL-03.jpg', './cartes/SIL-04.jpg', './cartes/SIL-05.jpg', './cartes/SIL-06.jpg',
-  './sites/EDI.jpg', './sites/TRI.jpg', './sites/BURG.jpg', './sites/CEP.jpg',
-  './sites/SIL.jpg', './sites/CHO.jpg', './sites/HUN.jpg', './sites/DEV.jpg',
-  './sites/CAR.jpg', './sites/MAZ.jpg', './sites/KAR2.jpg', './sites/LUO.jpg',
-  './sites/JUR.jpg', './sites/MOR.jpg', './sites/NWE.jpg', './sites/YIX.jpg',
-  './sites/NEM.jpg', './sites/HC.jpg', './sites/WHA.jpg', './sites/SAM.jpg',
-  './globes/EDI.png', './globes/TRI.png', './globes/BURG.png', './globes/CEP.png',
-  './globes/SIL.png', './globes/CHO.png', './globes/HUN.png', './globes/DEV.png',
-  './globes/CAR.png', './globes/MAZ.png', './globes/KAR2.png', './globes/LUO.png',
-  './globes/JUR.png', './globes/MOR.png', './globes/NWE.png', './globes/YIX.png',
-  './globes/NEM.png', './globes/HC.png', './globes/WHA.png', './globes/SAM.png',
+  './cartes/MES-01.jpg', './cartes/MES-02.jpg', './cartes/MES-03.jpg', './cartes/MES-04.jpg',
+  './cartes/MES-05.jpg', './cartes/MES-06.jpg', './sites/EDI.jpg', './sites/TRI.jpg',
+  './sites/BURG.jpg', './sites/CEP.jpg', './sites/SIL.jpg', './sites/CHO.jpg',
+  './sites/HUN.jpg', './sites/DEV.jpg', './sites/CAR.jpg', './sites/MAZ.jpg',
+  './sites/KAR2.jpg', './sites/LUO.jpg', './sites/JUR.jpg', './sites/MOR.jpg',
+  './sites/NWE.jpg', './sites/YIX.jpg', './sites/NEM.jpg', './sites/HC.jpg',
+  './sites/WHA.jpg', './sites/MES.jpg', './sites/SAM.jpg', './globes/EDI.png',
+  './globes/TRI.png', './globes/BURG.png', './globes/CEP.png', './globes/SIL.png',
+  './globes/CHO.png', './globes/HUN.png', './globes/DEV.png', './globes/CAR.png',
+  './globes/MAZ.png', './globes/KAR2.png', './globes/LUO.png', './globes/JUR.png',
+  './globes/MOR.png', './globes/NWE.png', './globes/YIX.png', './globes/NEM.png',
+  './globes/HC.png', './globes/WHA.png', './globes/MES.png', './globes/SAM.png',
 ];
 
 self.addEventListener('install',e=>{
