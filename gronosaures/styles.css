@@ -55,7 +55,10 @@ button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer}
 
 /* ---------- Écrans ---------- */
 #fond-global{
-  position:fixed; inset:0; z-index:-1; background-size:cover; background-position:center;
+  position:fixed; inset:0; z-index:-1; background-size:cover;
+  /* Les illustrations sont des portraits : cadrer un peu haut évite de couper
+     la créature quand l'écran est large. */
+  background-position:center 28%;
   transition:background-image .8s ease;
 }
 #app{flex:1 1 auto; position:relative; overflow:hidden}

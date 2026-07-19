@@ -34,7 +34,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js      # ~5370 assertions : contenu, cohérence, conjugueur, économie, carte
+node tools/qc.js      # ~5730 assertions : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
 ```
 
@@ -63,7 +63,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v6), 137 entrées ; la liste est dérivée de data.js
+sw.js           cache-first versionné (atlas-v7), 137 entrées ; la liste est dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -133,6 +133,12 @@ Trois constantes gouvernent cela dans le bloc 2 — `CARTE_ZOOM_MIN`, `CARTE_GRO
   extinctions, méthodes de datation, grandes découvertes de Sténon aux Alvarez,
   position des grands groupes. **Écrite à la main, sans source attachée** : à relire
   si un chiffre paraît douteux.
+- **Biologie des lignées** — banque de 20 QCM sur quatre lignées marines :
+  trilobites, holothuries, requins, cétacés. Cinq questions chacune, plus la
+  convergence évolutive. Le fil est ce que le corps impose et ce qu'il laisse dans
+  les roches : calcite chez les trilobites, cartilage chez les requins, spicules
+  microscopiques chez les holothuries. **Écrite à la main**, mais chaque item porte
+  son lien de lecture.
 
 Les 360 QCM paléontologiques (20 par site) ne sont pas un pack : ils servent de droit
 d'entrée à chaque coup de pioche, dans l'onglet Fouille.
@@ -210,8 +216,14 @@ quand même droit au tirage.
   Hunsrück, les trilobites, deux céphalopodes. Ce n'est pas un oubli de l'index : ces
   organismes à corps mou ou à squelette externe n'ont pas de masse publiée robuste.
   Y mettre un chiffre serait inventer une donnée.
-- Les 120 questions de `03_Banque_complete_questions_MVP.docx` ne sont pas intégrées :
-  les trois packs d'entraînement sont générés à la place.
+- **`03_Banque_complete_questions_MVP.docx` reste très largement inexploitable.**
+  `tools/banque_docx.py --inventaire` en extrait les 120 fiches et n'en retient que
+  32 : le document a été écrit pour une validation humaine, où l'on juge une réponse
+  formulée librement. Ce que l'application sait corriger, c'est un choix parmi quatre
+  ou une frappe exacte — pas « un écosystème marin situé au pied d'un escarpement
+  sous-marin ». Les trois packs thématiques du document (frise du vivant, créatures
+  et lignées, mondes et crises) tombent à deux fiches utilisables sur quarante-quatre.
+  Les rendre jouables demanderait de les réécrire, pas de les importer.
 - Pas de mode révision ciblé sur les erreurs passées.
 - Deux erreurs sur une question de fouille coûtent 30 ◈ sans rien livrer. C'est le
   seul endroit du jeu où l'on perd quelque chose ; `NB_ESSAIS` permet de desserrer.

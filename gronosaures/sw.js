@@ -3,7 +3,7 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v6';
+const VERSION='atlas-v7';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
@@ -40,8 +40,8 @@ const IMAGES=[
   './cartes/WHA-05.jpg', './cartes/WHA-06.jpg', './sites/EDI.jpg', './sites/TRI.jpg',
   './sites/BURG.jpg', './sites/CEP.jpg', './sites/CHO.jpg', './sites/HUN.jpg',
   './sites/DEV.jpg', './sites/CAR.jpg', './sites/MAZ.jpg', './sites/KAR2.jpg',
-  './sites/LUO.jpg', './sites/JUR.jpg', './sites/MOR.jpg', './sites/NEM.jpg',
-  './sites/NWE.jpg', './sites/YIX.jpg', './sites/HC.jpg', './sites/WHA.jpg',
+  './sites/LUO.jpg', './sites/JUR.jpg', './sites/MOR.jpg', './sites/NWE.jpg',
+  './sites/YIX.jpg', './sites/NEM.jpg', './sites/HC.jpg', './sites/WHA.jpg',
 ];
 
 self.addEventListener('install',e=>{

@@ -147,7 +147,28 @@ T('générateurs maths : QCM valides', mauvais===0, mauvais+' tirages invalides'
 T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans explication');
 
 /* ---------- 8. Packs ---------- */
-T('4 packs dans la Bourse', PACKS.length===4, PACKS.length+'');
+T('cinq packs dans la Bourse', PACKS.length===5, PACKS.length+'');
+/* Les deux filières doivent rester peuplées : l'entraînement est la source de
+   revenu principale, l'histoire la respiration. */
+['base','histoire'].forEach(c=>T('la filière '+c+' a au moins deux packs',
+  PACKS.filter(p=>p.cat===c).length>=2, PACKS.filter(p=>p.cat===c).length+''));
+/* Toute banque déclarée doit répondre et fournir des items exploitables. */
+PACKS.filter(p=>p.type==='bank').forEach(p=>{
+  const b=p.bank();
+  T('banque '+p.id+' non vide', Array.isArray(b)&&b.length>=10, (b?b.length:0)+'');
+  b.forEach((it,i)=>{
+    const ref=p.id+' #'+(i+1);
+    T(ref+' : énoncé et réponse', !!it.q && !!it.r);
+    /* Seuil bas : « 42/84 = 1/2, donc 50 %. » suffit pour un calcul.
+       Ce qu'on cherche à attraper, c'est l'explication absente ou bâclée. */
+    T(ref+' : explication', (it.exp||'').length>=20, (it.exp||'').length+' car.');
+    if(it.autres){
+      T(ref+' : trois distracteurs distincts',
+        it.autres.length>=2 && new Set([it.r,...it.autres]).size===it.autres.length+1);
+    }
+    if(it.lien) T(ref+' : lien nommé', Array.isArray(it.lien) && !!it.lien[0]);
+  });
+});
 ['conjugaison','orthographe','maths'].forEach(id=>{
   T('pack d’entraînement '+id, PACKS.some(p=>p.id===id));
   T('pack '+id+' classé en base', (PACKS.find(p=>p.id===id)||{}).cat==='base');

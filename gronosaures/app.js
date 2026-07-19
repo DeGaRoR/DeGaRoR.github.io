@@ -99,7 +99,13 @@ function imageDeFond(){
   const t=trouvees();
   return t.length ? pioche(t).img : pioche(SITES).fond;
 }
-const VOILE='linear-gradient(180deg,rgba(10,15,26,.80) 0%,rgba(10,15,26,.93) 45%,rgba(10,15,26,.985) 100%)';
+/* Le fond change à chaque nouvelle question : sur une mission de six exercices,
+   cela fait défiler six créatures déjà trouvées. */
+function fondDefi(){ majFondGlobal(); }
+/* Le voile doit rendre le texte lisible, pas cacher l'illustration. Les panneaux
+   de question et de pack sont opaques : le fond n'a donc à porter que les marges,
+   et peut rester nettement visible. */
+const VOILE='linear-gradient(180deg,rgba(10,15,26,.30) 0%,rgba(10,15,26,.50) 45%,rgba(10,15,26,.78) 100%)';
 function majFondGlobal(){
   const el=$('#fond-global'); if(!el)return;
   setFondImg(el, imageDeFond(), VOILE);
@@ -676,9 +682,16 @@ function choisirBanque(p){
     for(let i=0;i<SEUIL_MAITRISE-n;i++) pond.push(q); });
   const src = pond.length ? pond : b;
   const q=src[rnd(0,src.length-1)];
-  return {q:q.q, r:q.r, choix:melange([q.r,...q.autres]), exp:q.exp, cle:q.q,
-          indice: p.cat==='histoire' ? 'Situe d’abord l’époque, le reste suit.'
-                                     : 'Essaie de remplacer le mot par un équivalent pour trancher.'};
+  /* Une fiche sans `autres` est une question à saisie libre : les banques
+     extraites du document éditorial en comportent beaucoup. `rendreExo` bascule
+     tout seul sur le champ de saisie quand `choix` est absent. */
+  const ex={q:q.q, r:q.r, exp:q.exp, cle:q.q};
+  if(Array.isArray(q.autres) && q.autres.length>=2) ex.choix=melange([q.r,...q.autres]);
+  ex.indice = q.indice || (p.cat==='histoire'
+    ? 'Situe d’abord l’époque, le reste suit.'
+    : 'Essaie de remplacer le mot par un équivalent pour trancher.');
+  if(q.lien) ex.lien=q.lien;
+  return ex;
 }
 function prochainExo(){
   const p=packActif, niv=packNiv(p.id);
@@ -697,6 +710,7 @@ function exoSuivant(){
   rendreExo();
 }
 function rendreExo(){
+  fondDefi();                       // une créature différente à chaque question
   const q=mission.q, p=packActif, saisie=!q.choix;
   $('#bourse-corps').innerHTML=`
     <div class="q-tete"><button class="retour" onclick="abandonner()">←</button>

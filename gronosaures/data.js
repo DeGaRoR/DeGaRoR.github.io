@@ -1147,6 +1147,127 @@ const HISTOIRE=[
 ];
 
 /* ================================================================
+   Bloc 5 : pack BIOLOGIE.
+
+   Quatre lignées marines choisies pour ce qu'elles enseignent ensemble :
+   ce qui se fossilise et ce qui ne se fossilise pas, ce qu'un squelette
+   contraint, et ce que l'évolution refait plusieurs fois. Trilobites et
+   requins ont des chantiers dans l'atlas ; les baleines aussi ; les
+   holothuries n'en ont pas, et c'est précisément l'intérêt — un groupe
+   abondant, ancien, et presque invisible dans le registre fossile.
+
+   Rédigé à la main. Chaque item porte un lien de lecture.
+   ================================================================ */
+
+const BIOLOGIE=[
+
+/* ---- Trilobites ---- */
+{niv:1,q:"De quoi est faite la carapace d'un trilobite ?",r:"De chitine renforcée de calcite",
+ autres:["D'os","De cartilage","De kératine"],
+ exp:"C'est cette minéralisation par la calcite qui explique l'abondance des trilobites dans les roches : la plupart des arthropodes marins actuels n'ont qu'une cuticule organique, qui disparaît presque toujours.",
+ lien:["Wikipédia — Trilobite","https://fr.wikipedia.org/wiki/Trilobite"]},
+
+{niv:2,q:"La plupart des fossiles de trilobites ne sont pas des cadavres. Que sont-ils ?",r:"Des mues abandonnées",
+ autres:["Des œufs","Des empreintes de déplacement","Des coprolithes"],
+ exp:"Un arthropode grandit en changeant de carapace. Un même individu laisse donc des dizaines d'exuvies au cours de sa vie, et une seule dépouille. Compter les fossiles ne revient pas à compter les animaux.",
+ lien:["Wikipédia — Mue (biologie)","https://fr.wikipedia.org/wiki/Mue"]},
+
+{niv:3,q:"Qu'ont de tout à fait exceptionnel les yeux des trilobites ?",r:"Leurs cristallins sont en calcite, un minéral",
+ autres:["Ils voyaient dans l'infrarouge","Ils étaient mobiles sur pédoncules","Ils repoussaient après blessure"],
+ exp:"Ce sont les seuls yeux minéraux connus chez un animal. Chez les phacopidés, chaque lentille est isolée et sa structure en doublet corrige l'aberration sphérique — une optique établie en analysant la géométrie des cristaux.",
+ lien:["Wikipédia — Trilobite","https://fr.wikipedia.org/wiki/Trilobite"]},
+
+{niv:2,q:"Que fait un trilobite qui s'enroule sur lui-même ?",r:"Il se protège, en ne laissant que sa carapace à l'extérieur",
+ autres:["Il se reproduit","Il mue","Il nage plus vite"],
+ exp:"L'enroulement est une défense, comme chez le cloporte ou le tatou. De nombreux fossiles sont trouvés enroulés, ce qui indique souvent un enfouissement soudain — l'animal s'est protégé au mauvais moment.",
+ lien:["Wikipédia — Trilobite","https://fr.wikipedia.org/wiki/Trilobite"]},
+
+{niv:1,q:"Combien de temps le groupe des trilobites a-t-il existé ?",r:"Environ 270 millions d'années",
+ autres:["Environ 30 millions d'années","Environ 800 millions d'années","Environ 5 millions d'années"],
+ exp:"Du Cambrien inférieur à l'extinction de la fin du Permien. À titre de comparaison, le genre Homo existe depuis moins de trois millions d'années : les trilobites ont duré cent fois plus longtemps.",
+ lien:["Wikipédia — Trilobite","https://fr.wikipedia.org/wiki/Trilobite"]},
+
+/* ---- Holothuries ---- */
+{niv:1,q:"À quel embranchement appartient un concombre de mer ?",r:"Aux échinodermes",
+ autres:["Aux mollusques","Aux annélides","Aux arthropodes"],
+ exp:"Ses parents les plus proches sont les oursins, malgré l'absence totale de ressemblance. Étoiles de mer, oursins, ophiures, crinoïdes et holothuries forment un même embranchement.",
+ lien:["Wikipédia — Holothurie","https://fr.wikipedia.org/wiki/Holothurie"]},
+
+{niv:3,q:"Où retrouve-t-on la symétrie à cinq branches, typique des échinodermes, chez une holothurie ?",r:"Dans les cinq rangées longitudinales de podia le long du corps",
+ autres:["Dans ses cinq tentacules buccaux","Dans la forme de sa bouche","Nulle part : elle l'a perdue"],
+ exp:"La symétrie pentaradiale est là, mais étirée dans la longueur au lieu d'être disposée en étoile. Comme tous les échinodermes, l'holothurie naît d'une larve à symétrie bilatérale et acquiert la symétrie à cinq branches ensuite.",
+ lien:["Wikipédia — Holothurie","https://fr.wikipedia.org/wiki/Holothurie"]},
+
+{niv:2,q:"Que fait une holothurie menacée par un prédateur ?",r:"Elle expulse une partie de ses organes internes",
+ autres:["Elle change de couleur","Elle libère un nuage d'encre","Elle se gonfle d'eau et flotte"],
+ exp:"On appelle cela l'éviscération. L'animal expulse son tube digestif — vers l'avant ou vers l'arrière selon les groupes — puis le régénère entièrement. Chez certaines espèces, l'intestin retrouve sa fonction en une quinzaine de jours.",
+ lien:["Revue sur la régénération intestinale des holothuries","https://pmc.ncbi.nlm.nih.gov/articles/PMC9332576/"]},
+
+{niv:3,q:"Qu'est-ce que le tissu conjonctif mutable des échinodermes ?",r:"Un tissu dont la rigidité change en quelques secondes, sous contrôle nerveux",
+ autres:["Un muscle capable de repousser","Un tissu qui produit du venin","Une couche de graisse isolante"],
+ exp:"C'est ce qui permet à une holothurie de passer de molle à ferme, et de rompre volontairement certaines attaches lors de l'éviscération. Ce ne sont pas des muscles : la matrice de collagène elle-même se raidit ou se relâche.",
+ lien:["Byrne 2023 — Mutable collagenous tissues","https://doi.org/10.3390/md21030134"]},
+
+{niv:2,q:"Pourquoi les holothuries sont-elles presque absentes du registre fossile ?",r:"Leur squelette se réduit à des spicules calcaires microscopiques dispersés",
+ autres:["Elles sont apparues très récemment","Elles vivent uniquement en eau douce","Elles se décomposent en quelques minutes"],
+ exp:"Le corps mou ne laisse rien, et les spicules se dispersent au lieu de former une pièce reconnaissable. Un groupe peut être abondant, ancien et écologiquement majeur tout en étant quasiment invisible dans les roches.",
+ lien:["Wikipédia — Holothurie","https://fr.wikipedia.org/wiki/Holothurie"]},
+
+/* ---- Requins ---- */
+{niv:1,q:"De quoi est fait le squelette d'un requin ?",r:"De cartilage, parfois renforcé de sels de calcium",
+ autres:["D'os compact","De chitine","De kératine"],
+ exp:"C'est ce qui rend le groupe si difficile à lire dans les roches : d'un requin fossile, il ne reste d'ordinaire que les dents et les denticules de la peau. Les gisements à corps entiers, comme Bear Gulch, sont des exceptions.",
+ lien:["Wikipédia — Requin","https://fr.wikipedia.org/wiki/Requin"]},
+
+{niv:3,q:"Quel est le rapport entre les dents d'un requin et les écailles de sa peau ?",r:"Ce sont les mêmes structures : les dents dérivent des denticules cutanés",
+ autres:["Aucun : elles ont des origines différentes","Les écailles sont des dents usées et rejetées","Les dents sont des écailles minéralisées après la mort"],
+ exp:"Denticules et dents partagent la même architecture — un noyau de dentine sous un émail. La peau d'un requin est râpeuse parce qu'elle est couverte de dents miniatures orientées vers l'arrière.",
+ lien:["Wikipédia — Requin","https://fr.wikipedia.org/wiki/Requin"]},
+
+{niv:2,q:"Comment un requin remplace-t-il ses dents ?",r:"En continu, par des rangées qui avancent depuis l'intérieur de la mâchoire",
+ autres:["Une seule fois, au passage à l'âge adulte","Jamais : il conserve les mêmes toute sa vie","Chaque année, à la saison de reproduction"],
+ exp:"C'est pour cette raison qu'un seul individu sème des milliers de dents au cours de sa vie, et que les dents fossiles de requins sont si communes alors que les squelettes sont introuvables.",
+ lien:["Wikipédia — Requin","https://fr.wikipedia.org/wiki/Requin"]},
+
+{niv:3,q:"À quoi servent les ampoules de Lorenzini, sur le museau d'un requin ?",r:"À détecter les champs électriques produits par les muscles des proies",
+ autres:["À détecter les odeurs à grande distance","À mesurer la profondeur","À produire de la lumière"],
+ exp:"Ce sont des pores emplis de gel, sensibles à des différences de potentiel très faibles. Un requin peut ainsi repérer un poisson enfoui dans le sable, sans le voir ni le sentir.",
+ lien:["Wikipédia — Ampoule de Lorenzini","https://fr.wikipedia.org/wiki/Ampoule_de_Lorenzini"]},
+
+{niv:2,q:"Comment un requin compense-t-il l'absence de vessie natatoire ?",r:"Par un foie très volumineux, riche en huile peu dense",
+ autres:["Par des poumons","En avalant de l'air en surface","Par des cavités d'air dans son cartilage"],
+ exp:"Le foie peut représenter le quart de la masse de l'animal. La flottabilité reste néanmoins légèrement négative chez beaucoup d'espèces, ce qui les oblige à nager pour ne pas couler.",
+ lien:["Wikipédia — Requin","https://fr.wikipedia.org/wiki/Requin"]},
+
+/* ---- Cétacés ---- */
+{niv:1,q:"De quel groupe de mammifères terrestres les cétacés sont-ils issus ?",r:"Des artiodactyles, les mammifères à doigts pairs",
+ autres:["Des carnivores","Des périssodactyles","Des insectivores"],
+ exp:"Les données moléculaires les placent à côté des hippopotames. L'anatomie l'a confirmée en 2001 : l'astragale des archéocètes porte la double poulie caractéristique des artiodactyles.",
+ lien:["Wikipédia — Cétacé","https://fr.wikipedia.org/wiki/C%C3%A9tac%C3%A9"]},
+
+{niv:2,q:"De quoi sont faits les fanons d'une baleine ?",r:"De kératine, comme les ongles et les cheveux",
+ autres:["D'os","D'émail dentaire","De cartilage"],
+ exp:"Ce ne sont pas des dents. Les mysticètes ont perdu leur denture fonctionnelle et filtrent l'eau à travers ces lames cornées ; les embryons développent pourtant encore des ébauches de dents, qui régressent avant la naissance.",
+ lien:["Wikipédia — Fanon (baleine)","https://fr.wikipedia.org/wiki/Fanon_(baleine)"]},
+
+{niv:3,q:"Qu'est-ce que l'écholocation chez les cétacés à dents ?",r:"L'émission de clics et l'analyse de leur écho pour localiser des objets",
+ autres:["La communication par chants sur de longues distances","L'orientation grâce au champ magnétique terrestre","La détection des courants par la peau"],
+ exp:"Les clics sont produits dans les voies nasales, focalisés par le melon — une masse grasse du front — et l'écho revient par la mâchoire inférieure jusqu'à l'oreille interne. Les baleines à fanons, elles, ne pratiquent pas l'écholocation.",
+ lien:["Wikipédia — Écholocation","https://fr.wikipedia.org/wiki/%C3%89cholocation"]},
+
+{niv:2,q:"Pourquoi une baleine ne peut-elle pas respirer par la bouche ?",r:"Ses voies respiratoires sont séparées de son tube digestif et débouchent à l'évent",
+ autres:["Elle n'a pas de poumons","Sa bouche reste fermée sous l'eau","Elle respire par la peau"],
+ exp:"Les narines ont migré au sommet du crâne au cours de l'évolution, et le larynx s'est réorganisé pour isoler complètement l'air de la nourriture. Un cétacé ne peut donc pas s'étouffer en avalant.",
+ lien:["Wikipédia — Cétacé","https://fr.wikipedia.org/wiki/C%C3%A9tac%C3%A9"]},
+
+{niv:3,q:"Requins, ichtyosaures et dauphins ont des silhouettes très voisines. Comment appelle-t-on ce phénomène ?",r:"Une convergence évolutive",
+ autres:["Une homologie","Une hérédité commune récente","Un atavisme"],
+ exp:"Trois lignées sans lien proche — un poisson cartilagineux, un reptile, un mammifère — ont abouti au même profil parce que l'eau impose les mêmes contraintes. La ressemblance de forme ne dit rien de la parenté.",
+ lien:["Wikipédia — Convergence évolutive","https://fr.wikipedia.org/wiki/%C3%89volution_convergente"]}
+
+];
+
+/* ================================================================
    Bloc 3 : générateurs de questions et déclaration des packs.
    Un générateur reçoit un niveau (1..3) et renvoie
    {q, r, choix?, exp, indice?}. Sans « choix », la réponse est saisie.
@@ -1297,6 +1418,11 @@ const PACKS=[
   objectif:"Réactiver le calcul utile : proportions, pourcentages, conversions, ordres de grandeur.",
   gens:GEN_MATHS,
   theorie:"POURCENTAGES. Un pourcentage est une fraction sur 100. Augmenter de p %, c'est multiplier par (1 + p/100) ; réduire de p %, c'est multiplier par (1 − p/100). Une hausse de 20 % suivie d'une baisse de 20 % ne ramène pas au point de départ : 1,2 × 0,8 = 0,96.\n\nPROPORTIONS. La règle de trois consiste à passer par la valeur d'une unité. C'est plus lent que les produits croisés, mais on se trompe beaucoup moins.\n\nÉCHELLES. Une échelle 1:50 000 signifie que 1 cm sur la carte vaut 50 000 cm en réalité, soit 500 m. Les aires, elles, suivent le CARRÉ du rapport : 1 m² = 10 000 cm², pas 100.\n\nORDRES DE GRANDEUR. En géologie, « Ma » signifie million d'années. 500 Ma = 5 × 10⁸ ans. La notation scientifique impose une mantisse entre 1 et 10."},
+ {id:'biologie',nom:'Biologie des lignées',ico:'🧬',type:'bank',cat:'histoire',
+  sous:'Trilobites, holothuries, requins, cétacés',
+  objectif:"Comprendre quatre lignées marines par ce que leur corps impose, et par ce qu'elles laissent — ou non — dans les roches.",
+  bank:()=>BIOLOGIE,
+  theorie:"CE QUI SE FOSSILISE COMMANDE CE QU'ON SAIT. Un trilobite minéralise sa carapace avec de la calcite : il est partout dans les roches. Un requin n'a que du cartilage : il ne reste que les dents. Une holothurie n'a que des spicules microscopiques : elle est presque invisible. Les trois groupes ont pu être également abondants — le registre fossile mesure d'abord la minéralisation, pas le succès.\n\nMUE ET COMPTAGE. Un arthropode change de carapace pour grandir. Un seul trilobite laisse donc des dizaines d'exuvies et un seul cadavre. Compter les fossiles n'est jamais compter les individus.\n\nÉCHINODERMES. Étoiles de mer, oursins, ophiures, crinoïdes et holothuries. Symétrie à cinq branches chez l'adulte, symétrie bilatérale chez la larve : la pentaradialité est acquise, pas originelle. Leur tissu conjonctif mutable change de rigidité en quelques secondes, sous contrôle nerveux — ce n'est pas du muscle.\n\nCHONDRICHTHYENS. Squelette cartilagineux, denticules cutanés de même structure que les dents, remplacement dentaire continu, pas de vessie natatoire mais un foie huileux, et les ampoules de Lorenzini pour détecter les champs électriques.\n\nCÉTACÉS. Des artiodactyles retournés à la mer. Narines migrées au sommet du crâne, voies respiratoires isolées du tube digestif, fanons de kératine chez les mysticètes, écholocation chez les odontocètes seulement.\n\nCONVERGENCE. Requin, ichtyosaure, dauphin : un poisson, un reptile, un mammifère, trois silhouettes presque identiques. L'eau impose sa forme. Se ressembler ne prouve aucune parenté."},
  {id:'histoire',nom:'Histoire du temps profond',ico:'🏛️',type:'bank',cat:'histoire',
   sous:'Échelle des temps, extinctions, découvertes',
   objectif:"Situer les époques, les crises et les gens qui ont construit la discipline.",
