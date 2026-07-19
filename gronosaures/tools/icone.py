@@ -19,7 +19,7 @@ part par défaut à 22 % pour rester sur l'animal.
   icone-192.png, icone-512.png          — usage courant
   icone-maskable-512.png                — marge de 12 %, pour le rognage rond d'Android
 """
-import argparse, glob, os, re, sys
+import argparse, glob, hashlib, json, os, re, sys
 from PIL import Image
 
 R = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -86,16 +86,79 @@ def main():
 
     dest = os.path.join(R, "icones")
     os.makedirs(dest, exist_ok=True)
-    for t in (192, 512):
-        carre.resize((t, t), Image.LANCZOS).save(os.path.join(dest, "icone-%d.png" % t))
+
+    # On efface les icônes précédentes : leurs noms portent une empreinte, donc
+    # elles ne seront pas écrasées et s'accumuleraient dans le cache hors ligne.
+    for vieux in glob.glob(os.path.join(dest, "icone-*.png")):
+        os.remove(vieux)
+
+    # Le nom porte l'empreinte du contenu. C'est ce qui permet à une icône déjà
+    # installée d'être remplacée : Chrome compare le CONTENU DU MANIFESTE pour
+    # décider s'il régénère l'icône de l'écran d'accueil. À URL constante, des
+    # octets différents ne changent rien pour lui, et l'ancienne icône reste en
+    # place indéfiniment. Un nom qui change rend la modification visible.
+    ecrites = []
+    def ecrire(img, gabarit):
+        octets = img.tobytes()
+        h = hashlib.sha256(octets).hexdigest()[:8]
+        nom = gabarit % h
+        img.save(os.path.join(dest, nom))
+        ecrites.append(nom)
+        return nom
+
+    n192 = ecrire(carre.resize((192, 192), Image.LANCZOS), "icone-192.%s.png")
+    n512 = ecrire(carre.resize((512, 512), Image.LANCZOS), "icone-512.%s.png")
     t = 512
     b = Image.new("RGB", (t, t), FOND)
     m = int(t * 0.76)
     b.paste(carre.resize((m, m), Image.LANCZOS), ((t - m) // 2, (t - m) // 2))
-    b.save(os.path.join(dest, "icone-maskable-512.png"))
+    nmsk = ecrire(b, "icone-maskable-512.%s.png")
+
+    # Le manifeste et le cache hors ligne doivent suivre, sinon l'application
+    # réclame des fichiers qui n'existent plus.
+    pm = os.path.join(R, "manifest.json")
+    man = json.load(open(pm, encoding="utf-8"))
+    man["icons"] = [
+        {"src": "icones/" + n192, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "icones/" + n512, "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "icones/" + nmsk, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ]
+    with open(pm, "w", encoding="utf-8") as f:
+        json.dump(man, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+    # Toute référence à une ancienne icône doit disparaître, où qu'elle se
+    # trouve sur la ligne : le service worker précharge cette liste d'un bloc et
+    # un seul fichier manquant fait échouer l'installation entière.
+    psw = os.path.join(R, "sw.js")
+    sw = open(psw, encoding="utf-8").read()
+    sw = re.sub(r"'\./icones/icone-[^']*',?\s*", "", sw)
+    sw = sw.replace(
+        "'./monde-min.webp',",
+        "'./monde-min.webp',\n  './icones/%s', './icones/%s',\n  './icones/%s'," % (n192, n512, nmsk),
+        1)
+    open(psw, "w", encoding="utf-8").write(sw)
+
+    # Safari n'ouvre pas le manifeste pour l'écran d'accueil : il lit
+    # `apple-touch-icon` dans le HTML. L'oublier laisserait l'iPhone sur une
+    # référence morte, donc sur une icône générique.
+    ph = os.path.join(R, "index.html")
+    html = open(ph, encoding="utf-8").read()
+    html = re.sub(r'(<link rel="apple-touch-icon" href=")[^"]*(")',
+                  r"\g<1>icones/" + n192 + r"\g<2>", html)
+    open(ph, "w", encoding="utf-8").write(html)
+
     print("  Icônes régénérées depuis %s — %s" % (a.id, N.get(a.id, "")))
-    print("  → %s" % dest)
-    print("  Pense à forcer la mise à jour dans l'application pour les voir changer.")
+    for n in ecrites:
+        print("    %s" % n)
+    print("  manifest.json et sw.js mis à jour.")
+    print()
+    print("  Une icône DÉJÀ INSTALLÉE ne se remplace pas partout de la même façon :")
+    print("    Android  Chrome revérifie le manifeste environ une fois par jour")
+    print("             et réinstalle l'icône seul. L'empreinte dans le nom est")
+    print("             ce qui lui signale le changement.")
+    print("    iPhone   Safari fige l'icône à l'ajout à l'écran d'accueil et ne")
+    print("             la met JAMAIS à jour : il faut retirer puis rajouter.")
     return 0
 
 

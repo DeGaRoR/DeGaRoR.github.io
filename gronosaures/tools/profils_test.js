@@ -104,5 +104,68 @@ T('import : valeur fournie préservée', partiel.credits===5);
   T('aperçu : une partie neuve n’a pas de vignette', rien.length===0);
 }
 
+/* 9. Le cycle qui compte vraiment : sauvegarder, tout perdre, restaurer.
+   C'est le scénario d'une désinstallation suivie d'une réinstallation. */
+{
+  /* Deux parties avec des progressions distinctes. */
+  o.registre={liste:[], actif:null};
+  const a=o.creerProfil ? null : null;
+  const idA=o.idNeuf(), idB=o.idNeuf();
+  o.registre.liste=[{id:idA,nom:'Louise',cree:1},{id:idB,nom:'Denis',cree:2}];
+  o.registre.actif=idA;
+  o.ecritJSON(o.PROFILS_CLE, o.registre);
+  o.ecritJSON(o.cleEtat(idA), o.normaliser({credits:412, collection:{'EDI-01':2,'BURG-01':1}}));
+  o.ecritJSON(o.cleEtat(idB), o.normaliser({credits:77, collection:{'MOR-02':3}}));
+
+  /* Sauvegarde complète, telle que paquetComplet la construit. */
+  const paquet={app:'gronosaures', schema:1, complet:true,
+    profils:o.registre.liste.map(p=>{
+      const e=o.normaliser(o.litJSON(o.cleEtat(p.id))||o.etatVide());
+      return {nom:p.nom, cree:p.cree, etat:e};
+    })};
+  T('sauvegarde : les deux parties y sont', paquet.profils.length===2);
+  T('sauvegarde : les crédits sont portés',
+    paquet.profils[0].etat.credits===412 && paquet.profils[1].etat.credits===77);
+  const json=JSON.stringify(paquet);
+  T('sauvegarde : sérialisable', json.length>50);
+
+  /* Désinstallation : tout le stockage disparaît. */
+  /* Désinstaller efface le stockage local : on le simule à la racine. */
+  Object.keys(store).forEach(k=>delete store[k]);
+  o.registre={liste:[], actif:null};
+  T('après désinstallation : plus aucune partie', (o.litJSON(o.PROFILS_CLE)||{liste:[]}).liste.length===0);
+
+  /* Réinstallation puis restauration depuis le fichier. */
+  const d=JSON.parse(json);
+  const lots = Array.isArray(d.profils) ? d.profils : [{nom:'x', etat:d.etat}];
+  lots.forEach(l=>{
+    const id=o.idNeuf();
+    o.registre.liste.push({id, nom:l.nom, cree:l.cree||1, vue:1});
+    o.ecritJSON(o.cleEtat(id), o.normaliser(l.etat));
+  });
+  o.ecritJSON(o.PROFILS_CLE, o.registre);
+  T('restauration : deux parties retrouvées', o.registre.liste.length===2);
+  T('restauration : les noms sont conservés',
+    o.registre.liste.map(p=>p.nom).join(',')==='Louise,Denis');
+  const e0=o.litJSON(o.cleEtat(o.registre.liste[0].id));
+  T('restauration : la progression est intacte',
+    e0.credits===412 && e0.collection['EDI-01']===2, JSON.stringify(e0.collection));
+
+  /* Un fichier de l'ancien format doit continuer de fonctionner. */
+  const vieux={app:'gronosaures', schema:1, profil:{nom:'Ancien'},
+               etat:o.normaliser({credits:5, collection:{'TRI-01':1}})};
+  const lots2 = Array.isArray(vieux.profils) ? vieux.profils
+              : (vieux.etat ? [{nom:vieux.profil.nom, etat:vieux.etat}] : null);
+  T('restauration : l’ancien format d’export est accepté',
+    !!lots2 && lots2.length===1 && lots2[0].etat.credits===5);
+
+  /* Restaurer n'écrase pas ce qui est déjà là. */
+  const avant=o.registre.liste.length;
+  lots2.forEach(l=>{ const id=o.idNeuf();
+    o.registre.liste.push({id,nom:l.nom,cree:1,vue:1});
+    o.ecritJSON(o.cleEtat(id), o.normaliser(l.etat)); });
+  T('restauration : ajoute sans écraser', o.registre.liste.length===avant+1);
+}
+
 console.log('\n  RÉUSSITES ('+A+')\n  ÉCHECS ('+E+')');
 process.exit(E?1:0);

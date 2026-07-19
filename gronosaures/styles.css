@@ -326,6 +326,20 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
   opacity:.85;
 }
 .rg-suppr:active{opacity:1}
+/* Le bloc de sauvegarde dit trois choses : quand, où, et ce qu'on risque. */
+.rg-sauv{
+  margin:0 0 12px; padding:12px 14px; border-radius:var(--r);
+  background:rgba(255,255,255,.03); border:1px solid var(--bord);
+}
+.rg-sauv .rg-vl{padding:4px 0}
+.rg-sauv b.ok{color:var(--bon)}
+.rg-sauv b.alerte{color:var(--ocre-clair)}
+.rg-avert{
+  margin:9px 0 0; padding-top:9px; font-size:.74rem; line-height:1.5;
+  color:var(--txt3); border-top:1px dotted rgba(255,255,255,.09);
+}
+.rg-avert b{color:var(--txt2); font-weight:600}
+
 /* Trois versions plutôt qu'une : le code chargé, le cache qui le sert, et ce
    qui est en ligne. Quand une mise à jour ne « prend » pas, la ligne fautive se
    voit immédiatement. */

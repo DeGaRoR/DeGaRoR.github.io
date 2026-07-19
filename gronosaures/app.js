@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v31';
+const VERSION_ATLAS='v33';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -173,6 +173,79 @@ function paquetProgression(){
           etat:etat};
 }
 
+/* ---------- Sauvegarde complète ----------
+
+   Ce qui est enregistré ici ne vit que dans le stockage local de CE navigateur,
+   sur CET appareil. Trois conséquences qu'il vaut mieux avoir dites :
+
+     - désinstaller l'application efface ce stockage. Ce n'est pas récupérable ;
+     - l'application installée et le navigateur peuvent ne pas partager le même
+       stockage — c'est systématiquement le cas sur iPhone, où une application
+       ajoutée à l'écran d'accueil reçoit son propre espace ;
+     - forcer la mise à jour, en revanche, ne touche à rien : elle ne vide que
+       les caches de fichiers et désinscrit le service worker.
+
+   Le seul recours durable est donc un fichier, hors du navigateur. L'export ne
+   portait que la partie active : après une réinstallation, il aurait fallu
+   autant de fichiers que de parties, et se souvenir de tous les faire. Il porte
+   désormais l'ensemble. */
+function paquetComplet(){
+  return {app:'gronosaures', schema:SCHEMA, version:VERSION_APP, complet:true,
+    exporte:new Date().toISOString(),
+    profils:registre.liste.map(p=>{
+      const e=normaliser(litJSON(cleEtat(p.id))||etatVide());
+      return {nom:p.nom, cree:p.cree||null,
+        resume:{creatures:Object.keys(e.collection||{}).filter(k=>e.collection[k]>0).length,
+                credits:e.credits},
+        etat:e};
+    })};
+}
+
+function telecharger(nom, contenu){
+  const b=new Blob([contenu],{type:'application/json'});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a');
+  a.href=u; a.download=nom; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(u); a.remove();},0);
+}
+
+function sauvegarderTout(){
+  try{
+    const n=registre.liste.length;
+    telecharger('gronosaures-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json',
+      JSON.stringify(paquetComplet(),null,2));
+    registre.dernierExport=Date.now();
+    ecritJSON(PROFILS_CLE, registre);
+    if($('#rg-sauv')) majBlocSauvegarde();
+    toast(n>1 ? n+' parties sauvegardées' : 'Partie sauvegardée');
+  }catch(e){ toast('Sauvegarde impossible'); }
+}
+
+/* « il y a trois jours » se lit plus vite qu'une date, quand la question est
+   seulement de savoir si c'est vieux. */
+function depuis(ts){
+  if(!ts) return null;
+  const j=Math.floor((Date.now()-ts)/86400000);
+  if(j<=0) return "aujourd'hui";
+  if(j===1) return 'hier';
+  if(j<30) return 'il y a '+j+' jours';
+  const m=Math.floor(j/30);
+  return 'il y a '+m+' mois';
+}
+
+function majBlocSauvegarde(){
+  const l=$('#rg-sauv-date'); if(!l) return;
+  const q=depuis(registre.dernierExport);
+  l.textContent=q||'jamais';
+  l.className = !q ? 'alerte' : (Date.now()-registre.dernierExport>30*86400000 ? 'alerte' : 'ok');
+  const c=$('#rg-contexte');
+  if(c){
+    const seul = (window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+      || navigator.standalone===true;
+    c.textContent = seul ? 'application installée' : 'navigateur';
+  }
+}
+
 function exporterProgression(){
   try{
     const p=profilActif()||{nom:'profil'};
@@ -196,14 +269,30 @@ function importerProgression(fichier){
   fr.onload=()=>{
     let d=null;
     try{ d=JSON.parse(fr.result); }catch(e){ return toast('Fichier illisible'); }
-    if(!d || d.app!=='gronosaures' || !d.etat) return toast('Ce n’est pas un export de l’atlas');
+    if(!d || d.app!=='gronosaures') return toast('Ce n’est pas un export de l’atlas');
     if(d.schema>SCHEMA) return toast('Fichier trop récent pour cette version');
-    const nom=((d.profil&&d.profil.nom)||'Import')+' (importé)';
-    const id=idNeuf();
-    registre.liste.push({id, nom:nom.slice(0,24), cree:Date.now(), vue:Date.now()});
-    ecritJSON(cleEtat(id), normaliser(d.etat));
+
+    /* Deux formats acceptés : la sauvegarde complète, et l'export d'une seule
+       partie produit par les versions antérieures. Un fichier ancien doit
+       continuer de fonctionner — c'est précisément celui qu'on retrouve quand
+       on en a besoin. */
+    const lots = Array.isArray(d.profils) ? d.profils
+               : (d.etat ? [{nom:(d.profil&&d.profil.nom)||'Import', etat:d.etat}] : null);
+    if(!lots || !lots.length) return toast('Fichier sans progression');
+
+    /* On ajoute, on n'écrase jamais : une restauration ne doit pas pouvoir
+       détruire ce qui est déjà là si le fichier n'est pas le bon. */
+    let dernier=null;
+    lots.forEach(l=>{
+      const id=idNeuf();
+      registre.liste.push({id, nom:String(l.nom||'Import').slice(0,24),
+                           cree:l.cree||Date.now(), vue:Date.now()});
+      ecritJSON(cleEtat(id), normaliser(l.etat));
+      dernier=id;
+    });
     ecritJSON(PROFILS_CLE, registre);
-    basculerProfil(id);
+    toast(lots.length>1 ? lots.length+' parties restaurées' : 'Partie restaurée');
+    if(dernier) basculerProfil(dernier);
   };
   fr.readAsText(fichier);
 }
@@ -1024,14 +1113,22 @@ function ouvrirReglages(v){
           <span class="rg-chev">\u203A</span></button>
       </div>
 
+      <div class="rg-sauv" id="rg-sauv">
+        <div class="rg-vl"><span>Dernière sauvegarde</span><b id="rg-sauv-date">…</b></div>
+        <div class="rg-vl"><span>Tu joues dans</span><b id="rg-contexte">…</b></div>
+        <p class="rg-avert">Les parties ne vivent que dans ce navigateur, sur cet
+          appareil. <b>Désinstaller l’application les efface définitivement.</b>
+          Un fichier de sauvegarde est le seul moyen de les retrouver.</p>
+      </div>
+
       <div class="rg-liste">
-        <button class="rg-item" onclick="exporterProgression()">
+        <button class="rg-item" onclick="sauvegarderTout()">
           <span class="rg-ico">\u2193</span>
-          <span class="rg-lab">Exporter la progression<small>Un fichier à conserver ou à transférer</small></span>
+          <span class="rg-lab">Sauvegarder ${registre.liste.length>1?'toutes les parties':'la partie'}<small>Un seul fichier, qui restaure tout</small></span>
           <span class="rg-chev">\u203A</span></button>
         <button class="rg-item" onclick="choisirFichierImport()">
           <span class="rg-ico">\u2191</span>
-          <span class="rg-lab">Importer un fichier<small>Crée toujours une nouvelle partie</small></span>
+          <span class="rg-lab">Restaurer depuis un fichier<small>Ajoute les parties sans écraser les tiennes</small></span>
           <span class="rg-chev">\u203A</span></button>
       </div>
 
@@ -1061,6 +1158,7 @@ function ouvrirReglages(v){
   /* Le panneau s'affiche tout de suite ; les deux lignes qui demandent un aller-
      retour se remplissent ensuite. Rien n'attend le réseau pour s'ouvrir. */
   if($('#rg-vers')) majBlocVersion();
+  if($('#rg-sauv')) majBlocSauvegarde();
   $('#reglages').classList.add('on');
 }
 function fermerReglages(){ vueReglages='profil'; $('#reglages').classList.remove('on'); }

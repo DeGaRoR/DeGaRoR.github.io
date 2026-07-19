@@ -47,7 +47,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 node --check data.js && node --check app.js && node --check sw.js
 node tools/qc.js           # ~8260 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
-node tools/profils_test.js # 30 assertions, localStorage simulé
+node tools/profils_test.js # 39 assertions, localStorage simulé ; cycle désinstaller/restaurer
 node tools/qcm.js          # biais exploitables des questions à choix
 node tools/version_test.js # 12 assertions, cascade de diagnostic de version
 node tools/version.js      # état des versions ; `+` ou <n> pour les porter : contenu, cohérence, conjugueur, économie, carte
@@ -82,7 +82,7 @@ data.js         concaténation de 17 blocs, dans cet ordre :
                  3 déclare les packs, 17 leur assigne les rappels théoriques)
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           atlas-v31 · CODE réseau d'abord, IMAGES cache d'abord ; 213 entrées ; liste dérivée de data.js
+sw.js           atlas-v33 · CODE réseau d'abord, IMAGES cache d'abord ; 213 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -349,6 +349,94 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Sauvegarde qui survit à une réinstallation — v33
+
+Question posée : en désinstallant puis réinstallant, récupère-t-on sa sauvegarde ?
+**Non.** Et l'état antérieur rendait la perte facile.
+
+### Ce qui est vrai du stockage
+
+Les parties vivent dans le stockage local d'un navigateur, sur un appareil. Il en
+découle trois choses qu'il valait mieux dire dans l'application plutôt que de laisser
+découvrir :
+
+- **désinstaller efface ce stockage**, sans recours ;
+- **l'application installée et le navigateur ne partagent pas forcément le même
+  espace** — c'est systématiquement le cas sur iPhone, où une application ajoutée à
+  l'écran d'accueil reçoit son propre stockage. D'où deux progressions distinctes pour
+  ce qui semble être la même application ;
+- **forcer la mise à jour, en revanche, ne touche à rien** : elle ne vide que les
+  caches de fichiers et désinscrit le service worker. Une assertion vérifie que cette
+  fonction ne mentionne aucune clé de stockage.
+
+### Ce qui a changé
+
+**L'export ne portait que la partie active.** Avec deux parties il fallait deux
+fichiers, et se souvenir de faire les deux. `paquetComplet()` porte désormais
+l'ensemble dans un seul fichier, et la restauration le rétablit d'un coup. Les exports
+d'une seule partie déjà téléchargés restent acceptés — c'est justement le fichier qu'on
+retrouve quand on en a besoin.
+
+**Restaurer ajoute, n'écrase jamais.** Un fichier qui ne serait pas le bon ne peut pas
+détruire ce qui est en place.
+
+**Le menu dit désormais où l'on en est** : date de la dernière sauvegarde en clair
+(« hier », « il y a trois jours », « jamais » en couleur d'alerte, comme au-delà d'un
+mois), contexte d'exécution — application installée ou navigateur, ce qui permet
+d'identifier laquelle des deux progressions on est en train de regarder — et la phrase
+qui manquait : désinstaller efface définitivement.
+
+### Le scénario est éprouvé
+
+`tools/profils_test.js` rejoue le cycle complet sur un stockage simulé : deux parties
+avec des progressions distinctes, sauvegarde, effacement total du stockage, puis
+restauration. Il vérifie que les deux parties reviennent, que les noms et les crédits
+sont intacts, qu'un fichier de l'ancien format passe encore, et qu'une restauration
+ajoute sans écraser.
+
+**La marche à suivre avant de désinstaller** tient en une ligne : menu ⚙ →
+« Sauvegarder toutes les parties », garder le fichier, puis « Restaurer depuis un
+fichier » après réinstallation.
+
+## Icônes nommées par empreinte — v32
+
+Question posée après la v30 : une icône déjà installée se met-elle à jour toute seule ?
+**Non, et telle que c'était fait, jamais.**
+
+Ce qui se mettait à jour, c'était le fichier dans le cache de l'application. L'icône
+posée sur l'écran d'accueil est autre chose : le système en fait une copie au moment de
+l'installation.
+
+Sur Android, Chrome revérifie périodiquement le manifeste et réinstalle l'icône seul —
+mais il compare le **contenu du manifeste**, pas les octets des images. Les icônes
+s'appelaient `icone-192.png` : même URL, contenu différent, Chrome ne voyait rien à
+faire. L'ancienne icône serait restée indéfiniment.
+
+### La correction
+
+`tools/icone.py` nomme désormais chaque fichier d'après une empreinte de son contenu —
+`icone-192.43a10919.png`. Changer d'illustration change le nom, donc le manifeste, donc
+Chrome détecte la modification. L'outil met à jour d'un seul geste les quatre endroits
+qui doivent concorder : les fichiers sur le disque, `manifest.json`, la liste du service
+worker, et la balise `apple-touch-icon` d'`index.html`.
+
+Onze assertions vérifient cette concordance, dont deux nées d'erreurs commises en
+écrivant ce correctif : la première version du nettoyage ne retirait les anciennes
+entrées qu'en début de ligne et laissait deux références mortes dans `sw.js` — or
+`cache.addAll` précharge la liste d'un bloc, et **un seul fichier manquant fait échouer
+l'installation entière du service worker**. La seconde oubliait `apple-touch-icon`,
+que Safari lit à la place du manifeste, ce qui aurait laissé l'iPhone sur une référence
+morte et donc une icône générique.
+
+### Ce que cela ne résout pas
+
+| | Comportement |
+|---|---|
+| **Android** | Chrome revérifie le manifeste environ une fois par jour d'usage et réinstalle l'icône sans rien demander. L'empreinte est ce qui le déclenche. |
+| **iPhone** | Safari fige l'icône à l'ajout à l'écran d'accueil et ne la met **jamais** à jour. Il faut retirer le raccourci et le rajouter. |
+
+Aucun code ne contourne le second cas : c'est une limite de la plateforme.
 
 ## Versions dans le menu — v31
 

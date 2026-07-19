@@ -389,7 +389,30 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
   T('l’import refuse un schéma trop récent', app.includes('d.schema>SCHEMA'));
   T('l’import crée un profil plutôt que d’écraser',
     app.includes('L\'import crée toujours un NOUVEAU profil') || app.includes('registre.liste.push'));
-  T('l’état importé est normalisé', app.includes('normaliser(d.etat)'));
+  /* L'invariant est que l'état écrit passe par normaliser, quel que soit le nom
+     de la variable qui le porte — l'assertion précédente visait le nom. */
+  T('l’état importé est normalisé',
+    /ecritJSON\(cleEtat\((?:id|[a-z]+)\),\s*normaliser\(/.test(app));
+  /* Une restauration doit pouvoir rendre plusieurs parties d'un seul fichier,
+     et continuer d'accepter les exports d'une seule partie déjà téléchargés. */
+  T('la sauvegarde porte toutes les parties',
+    app.includes('function paquetComplet') && /profils:registre\.liste\.map/.test(app));
+  T('la restauration accepte l’ancien format',
+    /Array\.isArray\(d\.profils\)[\s\S]{0,120}d\.etat/.test(app));
+  T('la restauration n’écrase jamais', !/localStorage\.clear|caches[\s\S]{0,40}removeItem/.test(
+    (app.match(/function importerProgression[\s\S]*?\n\}/)||[''])[0]));
+  T('la date de sauvegarde est retenue', app.includes('registre.dernierExport'));
+  T('le menu dit ce que la désinstallation efface',
+    app.includes('Désinstaller l’application les efface'));
+  T('le menu dit dans quel contexte on joue',
+    app.includes('display-mode: standalone') && app.includes('navigator.standalone'));
+  /* Forcer la mise à jour ne doit toucher qu'aux caches et au service worker. */
+  {
+    const f=(app.match(/async function forcerMaj[\s\S]*?\n\}/)||[''])[0];
+    T('forcer la mise à jour ne touche pas aux sauvegardes',
+      !/localStorage|removeItem|ATLAS_CLE|PROFILS_CLE|ETAT_PREFIXE/.test(f),
+      'elle ne vide que les caches de fichiers');
+  }
   T('le dernier profil ne peut pas être supprimé', app.includes('registre.liste.length<=1'));
   T('le bandeau nomme le profil courant',
     html.includes('id="btn-profil-nom"') && app.includes('majNomProfil'));
@@ -496,13 +519,39 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     code.includes('skipWaiting') && code.includes('clients.claim'));
   T('sw : les anciens caches sont supprimés', code.includes('caches.delete'));
   T('sw : l’attente réseau est bornée', /DELAI_RESEAU/.test(code));
-  /* Toute icône déclarée au manifeste doit être dans le cache hors ligne :
-     l'icône maskable y manquait, donc elle n'était pas disponible hors ligne. */
+  /* Les icônes doivent concorder de quatre côtés : le fichier sur le disque, le
+     manifeste, la liste du service worker, et la balise que lit Safari.
+
+     Leur nom porte une empreinte du contenu. Ce n'est pas un raffinement : à URL
+     constante, Chrome ne voit aucun changement dans le manifeste et garde
+     indéfiniment l'icône déjà posée sur l'écran d'accueil. Le nom qui change est
+     le seul signal qu'il regarde.
+
+     Corollaire : une référence morte fait échouer `cache.addAll(SHELL)`, donc
+     l'installation entière du service worker. On vérifie donc aussi qu'aucune
+     ancienne icône ne traîne. */
   {
     const man=JSON.parse(fs.readFileSync(path.join(R,'manifest.json'),'utf8'));
-    (man.icons||[]).forEach(i=>{
-      T('icône en cache : '+i.src, sw.includes(i.src) && fs.existsSync(path.join(R,i.src)));
+    const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+    const declarees=(man.icons||[]).map(i=>i.src);
+    T('le manifeste déclare trois icônes', declarees.length===3);
+    declarees.forEach(src=>{
+      T('icône présente sur le disque : '+src, fs.existsSync(path.join(R,src)));
+      T('icône dans le cache hors ligne : '+src, sw.includes(src));
+      T('icône nommée par empreinte : '+src, /icone-[\w-]+\.[0-9a-f]{8}\.png$/.test(src),
+        'sans quoi une icône déjà installée ne sera jamais remplacée');
     });
+    const pomme=(html.match(/apple-touch-icon" href="([^"]+)"/)||[])[1];
+    T('Safari : apple-touch-icon renseigné', !!pomme);
+    T('Safari : elle pointe une icône déclarée', declarees.includes(pomme), String(pomme));
+    /* Aucune icône orpheline sur le disque ni citée dans sw.js. */
+    const surDisque=fs.readdirSync(path.join(R,'icones')).filter(f=>f.endsWith('.png'));
+    const orphelines=surDisque.filter(f=>!declarees.includes('icones/'+f));
+    T('aucune icône orpheline sur le disque', orphelines.length===0, orphelines.join(', '));
+    const citees=[...sw.matchAll(/'\.\/(icones\/[^']+)'/g)].map(m=>m[1]);
+    const mortes=citees.filter(c=>!fs.existsSync(path.join(R,c)));
+    T('aucune référence morte dans sw.js', mortes.length===0,
+      mortes.join(', ')+' — cache.addAll échouerait en bloc');
   }
   T('sw : version alignée sur le manifeste',
     /const VERSION='atlas-v\d+'/.test(code));
