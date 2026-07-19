@@ -15,6 +15,7 @@
      ils passaient sous le seuil de lisibilité dès qu'une photo servait de fond. */
   --txt3:#93a0b4;
   --ocre:#c8964f;
+  --ocre-sombre:#6b4f27;
   --ocre-clair:#e0b878;
   --patine:#6fa8a0;
   --bon:#4f9d6a;
@@ -174,53 +175,85 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 .cp-neuf .cp-vig{display:none}
 
 /* ---------- Accueil ----------
-   Une seule image plein cadre, un voile qui monte du bas, et trois éléments :
-   la phrase, le champ, le bouton. Tout le reste attend l'écran suivant. */
+   Un seul écran, plein cadre, pensé pour un téléphone tenu à une main.
+
+   Trois précautions apprises à la mauvaise version :
+   - le conteneur DÉFILE (`overflow-y:auto`), sinon le bouton passe sous le
+     bord sur un petit écran, ou sous le clavier quand il s'ouvre ;
+   - les tailles de titre sont en `clamp()`, pour ne pas déborder à 360 px ;
+   - le voile combine un dégradé vertical et une vignette radiale, pour que le
+     texte reste lisible quelle que soit l'illustration choisie. */
 #accueil{
   position:fixed; inset:0; z-index:120; display:none;
-  overflow:hidden; background:var(--fond);
+  background:var(--fond); overflow:hidden;
 }
 #accueil.on{display:block}
 #acc-fond{
-  position:absolute; inset:0; background-size:cover; background-position:center 38%;
-  transform:scale(1.06); animation:accZoom 24s ease-out forwards;
+  position:absolute; inset:0; background-size:cover; background-position:50% 42%;
+  background-repeat:no-repeat; transform:scale(1.05); will-change:transform;
+  animation:accZoom 30s ease-out forwards;
 }
-@keyframes accZoom{from{transform:scale(1.06)} to{transform:scale(1.16)}}
+@keyframes accZoom{to{transform:scale(1.14)}}
 .acc-voile{
-  position:absolute; inset:0;
-  background:linear-gradient(180deg,rgba(10,15,26,.55) 0%,rgba(10,15,26,.2) 28%,
-             rgba(10,15,26,.86) 62%,rgba(10,15,26,.98) 100%);
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(125% 78% at 50% 16%, rgba(10,15,26,0) 0%, rgba(10,15,26,.5) 100%),
+    linear-gradient(180deg, rgba(10,15,26,.6) 0%, rgba(10,15,26,.1) 26%,
+                    rgba(10,15,26,.88) 66%, rgba(10,15,26,.985) 100%);
 }
 .acc-corps{
-  position:absolute; inset:auto 0 0 0; padding:0 22px calc(30px + var(--safe-b));
-  display:flex; flex-direction:column; align-items:stretch;
-  animation:accMonte .8s cubic-bezier(.2,.7,.2,1) both;
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:calc(24px + env(safe-area-inset-top,0px)) 22px calc(28px + var(--safe-b));
 }
-@keyframes accMonte{from{opacity:0; transform:translateY(22px)} to{opacity:1; transform:none}}
+.acc-espace{flex:1 1 auto; min-height:88px}
+.acc-bloc{
+  flex:0 0 auto; width:100%; max-width:30rem; margin:0 auto;
+  animation:accMonte .75s cubic-bezier(.2,.75,.2,1) both;
+}
+@keyframes accMonte{from{opacity:0; transform:translateY(20px)} to{opacity:1; transform:none}}
 .acc-sur{
-  margin:0 0 6px; font-size:.68rem; letter-spacing:2.4px; text-transform:uppercase;
+  margin:0 0 9px; font-size:.66rem; letter-spacing:2.6px; text-transform:uppercase;
   color:var(--patine);
 }
 .acc-titre{
-  font-family:var(--serif); font-weight:600; font-size:2.15rem; line-height:1.04;
-  margin:0 0 14px; letter-spacing:.4px;
+  font-family:var(--serif); font-weight:600; margin:0 0 17px;
+  font-size:clamp(1.95rem, 8.6vw, 2.7rem); line-height:1.04; letter-spacing:.3px;
+  text-shadow:0 2px 20px rgba(0,0,0,.55);
 }
-.acc-titre span{color:var(--ocre-clair)}
+.acc-titre span{display:block; color:var(--ocre-clair)}
 .acc-phrase{
-  margin:0 0 22px; font-size:1rem; line-height:1.55; color:var(--txt2);
-  max-width:34ch;
+  margin:0 0 27px; font-size:clamp(.95rem, 4vw, 1.05rem); line-height:1.55;
+  color:var(--txt2); max-width:31ch; text-shadow:0 1px 12px rgba(0,0,0,.55);
 }
-.acc-lab{display:block; font-size:.78rem; color:var(--txt3); margin:0 0 7px}
+.acc-lab{
+  display:block; margin:0 0 8px; font-size:.76rem; letter-spacing:.3px;
+  color:var(--txt3);
+}
 #acc-nom{
-  width:100%; padding:13px 15px; margin:0 0 12px; font-size:1rem;
-  font-family:var(--serif); color:var(--txt);
-  background:rgba(255,255,255,.07); border:1px solid var(--bord);
-  border-radius:var(--r); outline:none;
+  width:100%; box-sizing:border-box; padding:14px 16px; margin:0 0 14px;
+  font-family:var(--serif); font-size:1.05rem; color:var(--txt);
+  background:rgba(12,19,32,.74); border:1px solid rgba(255,255,255,.17);
+  border-radius:var(--r); outline:none; -webkit-appearance:none;
+  transition:border-color .18s, background .18s, box-shadow .18s;
 }
-#acc-nom:focus{border-color:var(--ocre); background:rgba(255,255,255,.1)}
-#acc-nom::placeholder{color:var(--txt3); font-family:var(--sans)}
-.acc-go{width:100%}
-.acc-credit{margin:14px 0 0; font-size:.68rem; color:var(--txt3); text-align:center}
+#acc-nom:focus{
+  border-color:var(--ocre); background:rgba(12,19,32,.92);
+  box-shadow:0 0 0 3px rgba(200,150,79,.17);
+}
+#acc-nom::placeholder{color:#7d8798; font-family:var(--sans); font-size:.95rem}
+.acc-go{
+  width:100%; padding:15px 18px; border:0; border-radius:var(--r);
+  font-family:var(--serif); font-size:1.05rem; font-weight:600; letter-spacing:.3px;
+  color:#1b1308; background:linear-gradient(180deg, var(--ocre-clair), var(--ocre));
+  box-shadow:0 6px 22px rgba(0,0,0,.38);
+}
+.acc-go:active{transform:scale(.985); filter:brightness(1.07)}
+.acc-credit{
+  margin:16px 0 0; font-size:.68rem; letter-spacing:.2px; color:var(--txt3);
+  text-align:center;
+}
+
 
 /* Le guide : trois lignes et un but, rien de plus. */
 #guide{
@@ -350,10 +383,19 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 }
 #intro.on{display:block}
 #intro-fond{position:absolute; inset:0; background-size:cover; background-position:center}
+/* Même correction que pour l'accueil : ancrer le contenu au bas sans lui
+   permettre de défiler rendait le haut du texte inatteignable dès que le volet
+   dépassait la hauteur de l'écran — et le plus long fait 558 caractères, soit
+   plus de 400 px de texte à lui seul. Le pseudo-élément fait office de ressort :
+   il pousse le contenu vers le bas quand il y a de la place, et se comprime
+   quand il n'y en a plus, sans le rognage que produit `justify-content:flex-end`
+   sur un conteneur qui défile. */
 .intro-corps{
-  position:absolute; inset:auto 0 0 0; padding:26px 22px calc(30px + var(--safe-b));
-  display:flex; flex-direction:column;
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:calc(26px + env(safe-area-inset-top,0px)) 22px calc(30px + var(--safe-b));
 }
+.intro-corps::before{content:''; flex:1 1 auto; min-height:56px}
 /* Pastille du globe : au-dessus du voile et du texte, jamais rognée. */
 #intro-globe{
   position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); right:16px; z-index:2;

@@ -3,7 +3,7 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v24';
+const VERSION='atlas-v25';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
@@ -82,39 +82,74 @@ self.addEventListener('activate',e=>{
   })());
 });
 
+/* ----------------------------------------------------------------------
+   STRATÉGIE DE RÉPONSE — corrigée en v25.
+
+   Le défaut précédent : la navigation était servie réseau d'abord, mais le
+   reste cache d'abord. Après un déploiement, la page recevait donc un
+   index.html NEUF pendant que l'ancien service worker, encore actif à cet
+   instant, répondait au styles.css par sa copie PÉRIMÉE. Résultat : un rendu
+   bâtard, markup neuf sans ses règles, à chaque mise en ligne. Et comme le
+   nouveau service worker ne prend la main qu'après ce chargement, le défaut
+   se voyait précisément lors du test qui suit le déploiement.
+
+   Deuxième défaut, plus discret : `caches.match(req)` sans portée cherche
+   dans TOUS les caches de l'origine, anciens compris. Un fichier supprimé du
+   manifeste pouvait continuer d'être servi depuis un cache d'une version
+   antérieure. Toutes les lectures sont désormais bornées au cache courant.
+
+   Règle retenue : le CODE va au réseau d'abord — html, css, js, json — pour
+   qu'une version en ligne soit toujours cohérente avec elle-même. Les IMAGES
+   vont au cache d'abord : elles ne changent qu'en changeant de nom, et ce
+   sont elles qui pèsent. Un délai borne l'attente réseau, pour qu'une
+   connexion lente ne retarde pas l'affichage au-delà du raisonnable.
+   ---------------------------------------------------------------------- */
+
+const DELAI_RESEAU=3500;   // ms avant de se rabattre sur le cache
+
+const estCode=url=> url.pathname.endsWith('/') || /\.(html|css|js|json)$/i.test(url.pathname);
+
+function avecDelai(promesse, ms){
+  return new Promise((ok,ko)=>{
+    const t=setTimeout(()=>ko(new Error('délai réseau dépassé')), ms);
+    promesse.then(v=>{clearTimeout(t); ok(v);}, e=>{clearTimeout(t); ko(e);});
+  });
+}
+
+async function reseauDabord(req){
+  const cache=await caches.open(VERSION);
+  try{
+    const r=await avecDelai(fetch(req), DELAI_RESEAU);
+    if(r && r.status===200 && r.type==='basic') cache.put(req, r.clone());
+    return r;
+  }catch(_){
+    const hit=await cache.match(req,{ignoreSearch:true});
+    if(hit) return hit;
+    if(req.mode==='navigate'){
+      const i=await cache.match('./index.html');
+      if(i) return i;
+    }
+    return new Response('',{status:504,statusText:'hors ligne'});
+  }
+}
+
+async function cacheDabord(req){
+  const cache=await caches.open(VERSION);
+  const hit=await cache.match(req,{ignoreSearch:true});
+  if(hit) return hit;
+  try{
+    const r=await fetch(req);
+    if(r && r.status===200 && r.type==='basic') cache.put(req, r.clone());
+    return r;
+  }catch(_){
+    return new Response('',{status:504,statusText:'hors ligne'});
+  }
+}
+
 self.addEventListener('fetch',e=>{
   const req=e.request;
   if(req.method!=='GET') return;
   const url=new URL(req.url);
   if(url.origin!==location.origin) return;
-
-  /* Navigation : réseau d'abord pour récupérer une version fraîche,
-     repli sur le cache si hors ligne. */
-  if(req.mode==='navigate'){
-    e.respondWith((async()=>{
-      try{
-        const r=await fetch(req);
-        const c=await caches.open(VERSION); c.put('./index.html', r.clone());
-        return r;
-      }catch(_){
-        return (await caches.match('./index.html')) || Response.error();
-      }
-    })());
-    return;
-  }
-
-  /* Reste : cache d'abord. */
-  e.respondWith((async()=>{
-    const hit=await caches.match(req,{ignoreSearch:true});
-    if(hit) return hit;
-    try{
-      const r=await fetch(req);
-      if(r&&r.status===200&&r.type==='basic'){
-        const c=await caches.open(VERSION); c.put(req,r.clone());
-      }
-      return r;
-    }catch(_){
-      return new Response('',{status:504,statusText:'hors ligne'});
-    }
-  })());
+  e.respondWith((req.mode==='navigate' || estCode(url)) ? reseauDabord(req) : cacheDabord(req));
 });

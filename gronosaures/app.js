@@ -1006,10 +1006,12 @@ function ouvrirAccueil(){
     const p=profilActif();
     /* On ne pré-remplit pas « Profil 1 » : un champ occupé n'invite pas à écrire. */
     nom.value=(p && !/^Profil \d+$/.test(p.nom)) ? p.nom : '';
-    nom.addEventListener('keydown',e=>{ if(e.key==='Enter') validerAccueil(); });
+    nom.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); validerAccueil(); } });
   }
+  /* Pas de focus automatique : le clavier surgirait aussitôt et masquerait
+     l'illustration, qui est la seule raison d'être de cet écran. On laisse
+     regarder, on ouvre le clavier quand elle touche le champ. */
   $('#accueil').classList.add('on');
-  setTimeout(()=>{ if(nom) nom.focus(); },420);
 }
 
 function validerAccueil(){

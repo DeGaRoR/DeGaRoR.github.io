@@ -477,6 +477,65 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     !app.includes("vueReglages==='liste'") && !css.includes('.rg-profil'));
 }
 
+/* ---------- 8 undecies. Service worker et mise en ligne ----------
+   Le défaut corrigé en v25 mérite un garde-fou permanent : servir la navigation
+   réseau d'abord et les feuilles de style cache d'abord produit, à chaque
+   déploiement, une page au markup neuf privée de ses règles. Le symptôme est
+   déroutant — on croit à un CSS fautif alors que le CSS n'est jamais arrivé. */
+{
+  const sw=fs.readFileSync(path.join(R,'sw.js'),'utf8');
+  const code=sw.replace(/\/\*[\s\S]*?\*\//g,'');   // hors commentaires
+  T('sw : le code va au réseau d’abord', /estCode|reseauDabord/.test(code));
+  T('sw : html, css, js et json sont traités ensemble',
+    /\\.\(html\|css\|js\|json\)/.test(code));
+  T('sw : les images restent en cache d’abord', code.includes('cacheDabord'));
+  T('sw : aucune lecture de cache non bornée', !/caches\.match\(/.test(code),
+    'caches.match cherche dans TOUS les caches, anciens compris');
+  T('sw : les lectures passent par le cache courant', /cache\.match\(/.test(code));
+  T('sw : la nouvelle version prend la main aussitôt',
+    code.includes('skipWaiting') && code.includes('clients.claim'));
+  T('sw : les anciens caches sont supprimés', code.includes('caches.delete'));
+  T('sw : l’attente réseau est bornée', /DELAI_RESEAU/.test(code));
+  T('sw : version alignée sur le manifeste',
+    /const VERSION='atlas-v\d+'/.test(code));
+}
+
+/* ---------- 8 duodecies. Mise en page de l'accueil ----------
+   Trois règles apprises sur un vrai téléphone plutôt que dans l'abstrait. */
+{
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  T('accueil : le contenu peut défiler',
+    /\.acc-corps\{[^}]*overflow-y:auto/.test(css),
+    'sinon le bouton passe sous le clavier');
+  T('accueil : le titre s’adapte aux petits écrans',
+    /\.acc-titre\{[^}]*clamp\(/.test(css));
+  T('accueil : le champ a un style explicite',
+    /#acc-nom\{[^}]*background/.test(css) && /#acc-nom:focus/.test(css));
+  T('accueil : le bouton a un style explicite', /\.acc-go\{[^}]*background/.test(css));
+  T('accueil : pas de focus automatique', !/acc-nom.*\.focus\(\)/.test(app),
+    'le clavier masquerait l’illustration');
+  T('accueil : la saisie valide à Entrée', app.includes("e.key==='Enter'"));
+  T('accueil : couvre tout l’écran', /#accueil\{[^}]*position:fixed/.test(css));
+  /* Même piège pour l'introduction d'un chantier : ses volets vont jusqu'à
+     558 caractères, largement de quoi dépasser un petit écran. */
+  T('intro de chantier : le contenu peut défiler',
+    /\.intro-corps\{[^}]*overflow-y:auto/.test(css));
+  T('intro de chantier : le contenu n’est plus ancré au bas sans recours',
+    !/\.intro-corps\{[^}]*inset:auto/.test(css));
+  /* L'accueil doit être hors de <main> : un ancêtre en overflow ou en transform
+     briserait son position:fixed. On compare les positions plutôt que d'écrire
+     une expression gloutonne qui traverserait la balise fermante. */
+  T('accueil : hors du flux principal',
+    html.indexOf('id="accueil"') > html.lastIndexOf('</main>'));
+  /* Toute variable employée doit être déclarée, sinon la règle tombe en silence. */
+  const decl=new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gmi)].map(m=>m[1]));
+  const emp=new Set([...css.matchAll(/var\((--[a-z0-9-]+)/g)].map(m=>m[1]));
+  const abs=[...emp].filter(v=>!decl.has(v));
+  T('css : toute variable employée est déclarée', abs.length===0, abs.join(', '));
+}
+
 /* ---------- 9. Économie ---------- */
 /* Règle éditoriale : l'entraînement doit toujours payer mieux que l'histoire,
    sinon l'incitation s'inverse et Louise ne fera que du quiz. */

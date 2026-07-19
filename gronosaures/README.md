@@ -45,7 +45,7 @@ Aucune livraison sans `ÉCHECS (0)` sur les trois commandes :
 
 ```bash
 node --check data.js && node --check app.js && node --check sw.js
-node tools/qc.js           # ~8190 assertions
+node tools/qc.js           # ~8240 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
 node tools/profils_test.js # 30 assertions, localStorage simulé : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
@@ -76,7 +76,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           cache-first versionné (atlas-v24), 212 entrées (globes et art inclus) ; liste dérivée de data.js
+sw.js           atlas-v25 · CODE réseau d'abord, IMAGES cache d'abord ; 212 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -343,6 +343,71 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Le bug qui faussait tous les tests — v25
+
+Un playtest sur téléphone a montré un écran d'accueil sans aucun de ses styles :
+titre en sans-serif, champ de saisie brut, superposition qui ne couvrait pas l'écran.
+Le CSS était pourtant présent, valide et complet. **Le problème était le service
+worker, et il fausse rétrospectivement une partie des tests précédents.**
+
+### Le mécanisme
+
+`index.html` était servi **réseau d'abord**, tout le reste **cache d'abord**. Au
+moment où la page fraîchement téléchargée réclame `styles.css`, le service worker
+encore actif est l'ANCIEN — le nouveau n'est installé qu'après ce chargement. Il
+répond donc avec sa copie périmée. Résultat garanti à chaque déploiement : markup
+neuf, feuille de style d'une version antérieure. Et comme le défaut ne se voit qu'au
+premier chargement suivant la mise en ligne, c'est exactement celui qu'on fait pour
+tester.
+
+Second défaut, plus discret : `caches.match(req)` sans portée cherche dans **tous**
+les caches de l'origine, anciens compris.
+
+### La correction
+
+- Le **code** — html, css, js, json — passe au **réseau d'abord**, avec repli sur le
+  cache et une attente bornée à 3,5 s. Une version en ligne est ainsi toujours
+  cohérente avec elle-même.
+- Les **images** restent en **cache d'abord** : elles ne changent qu'en changeant de
+  nom, et ce sont elles qui pèsent.
+- Toutes les lectures sont bornées à `caches.open(VERSION)`. Aucun cache ancien ne
+  peut plus répondre.
+- Neuf assertions verrouillent cette stratégie, dont une qui interdit purement et
+  simplement `caches.match(` dans le code exécutable.
+
+**Pour débloquer un appareil déjà dans l'état bâtard**, le bouton de mise à jour du
+bandeau vide les caches et désinscrit le service worker avant de recharger : c'est
+précisément son usage.
+
+### Accueil repris
+
+Markup et styles réécrits, avec trois leçons encodées en assertions :
+
+- le conteneur **défile** — ancré au bas sans recours, le bouton passait sous le bord
+  d'un petit écran, ou sous le clavier une fois celui-ci ouvert ;
+- les tailles de titre sont en **`clamp()`**, pour ne pas déborder à 360 px ;
+- le voile combine un dégradé vertical et une **vignette radiale**, pour que le texte
+  reste lisible quelle que soit l'illustration choisie.
+
+Le champ et le bouton ont désormais un style explicite plutôt que l'apparence par
+défaut du navigateur. Et **le focus automatique est retiré** : il ouvrait le clavier
+aussitôt, masquant l'illustration qui est la seule raison d'être de cet écran.
+
+### Revue des étapes précédentes
+
+Trois défauts trouvés en relisant, dont deux jamais signalés :
+
+- **L'introduction des chantiers avait le même piège de mise en page.** Son volet le
+  plus long fait 558 caractères, soit plus de 400 px de texte : ancré au bas sans
+  défilement, le haut devenait inatteignable sur un petit écran. Corrigé de la même
+  façon, et un balayage systématique confirme qu'aucun autre conteneur de texte n'est
+  dans ce cas.
+- **`--ocre-sombre` était employée sans être déclarée.** Elle avait une valeur de
+  repli, donc rien ne se voyait — mais une variable absente fait tomber une règle en
+  silence. Une assertion vérifie désormais que toute variable employée est déclarée.
+- Une assertion que je venais d'écrire était elle-même fautive : son expression
+  régulière gloutonne traversait `</main>`. Corrigée.
 
 ## Choix de la partie — v24
 

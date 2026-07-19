@@ -91,19 +91,23 @@
 
 <!-- Accueil : premier écran d'un profil neuf. Il nomme la joueuse et explique
      la boucle de jeu en trois lignes, puis ne revient plus. -->
-<div id="accueil">
+<div id="accueil" role="dialog" aria-label="Bienvenue">
   <div id="acc-fond"></div>
   <div class="acc-voile"></div>
   <div class="acc-corps">
-    <p class="acc-sur">Atlas du temps profond</p>
-    <h1 class="acc-titre">Gronosaures<br><span>et Trilobytes</span></h1>
-    <p class="acc-phrase">Prête à remonter les âges et à rencontrer les bêtes
-      les plus invraisemblables qui aient jamais existé&nbsp;?</p>
-    <label class="acc-lab" for="acc-nom">Comment veux-tu qu’on t’appelle&nbsp;?</label>
-    <input id="acc-nom" type="text" maxlength="24" autocomplete="off"
-           placeholder="Ton nom" enterkeyhint="go">
-    <button class="btn-primaire acc-go" onclick="validerAccueil()">C’est parti</button>
-    <p class="acc-credit" id="acc-credit"></p>
+    <div class="acc-espace"></div>
+    <div class="acc-bloc">
+      <p class="acc-sur">Atlas du temps profond</p>
+      <h1 class="acc-titre">Gronosaures<span>et Trilobytes</span></h1>
+      <p class="acc-phrase">Prête à remonter les âges et à rencontrer les bêtes
+        les plus invraisemblables qui aient jamais existé&nbsp;?</p>
+      <label class="acc-lab" for="acc-nom">Comment veux-tu qu’on t’appelle&nbsp;?</label>
+      <input id="acc-nom" type="text" maxlength="24" autocomplete="off"
+             autocapitalize="words" spellcheck="false"
+             placeholder="Ton nom" enterkeyhint="go">
+      <button class="acc-go" onclick="validerAccueil()">C’est parti</button>
+      <p class="acc-credit" id="acc-credit"></p>
+    </div>
   </div>
 </div>
 
