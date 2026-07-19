@@ -518,6 +518,16 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     'le clavier masquerait l’illustration');
   T('accueil : la saisie valide à Entrée', app.includes("e.key==='Enter'"));
   T('accueil : couvre tout l’écran', /#accueil\{[^}]*position:fixed/.test(css));
+  /* Un panneau qui reçoit du contenu injecté doit porter sa propre marge : sans
+     elle le texte butte contre le bord et déborde, ce qui s'est vu sur le guide
+     et sur le menu. Et sa hauteur doit être bornée, sinon il est coupé net. */
+  T('panneaux injectés : marge intérieure',
+    /#guide-corps, #reglages-corps\{[^}]*padding:/.test(css));
+  T('panneaux injectés : hauteur bornée et défilement',
+    /#guide-corps, #reglages-corps\{[^}]*max-height[^}]*overflow-y:auto/.test(css));
+  /* Un flottant dans un titre déborde sur le paragraphe suivant. */
+  T('en-tête de groupe : pas de flottant', !/h3\.grp em\{[^}]*float:/.test(css));
+  T('en-tête de groupe : disposition flexible', /h3\.grp\{[^}]*display:flex/.test(css));
   /* Même piège pour l'introduction d'un chantier : ses volets vont jusqu'à
      558 caractères, largement de quoi dépasser un petit écran. */
   T('intro de chantier : le contenu peut défiler',

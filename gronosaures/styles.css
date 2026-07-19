@@ -80,7 +80,7 @@ button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer}
   display:block; margin-top:5px; font-size:.6rem; line-height:1.25;
   color:var(--txt3); letter-spacing:.2px;
 }
-.grp-note{font-size:.79rem; color:var(--txt3); margin:-6px 0 12px; line-height:1.5}
+.grp-note{clear:both; font-size:.79rem; color:var(--txt3); margin:-2px 0 13px; line-height:1.5}
 .col-tri{display:flex; gap:6px; margin:0 0 16px; flex-wrap:wrap}
 .col-tri button{
   flex:1 1 auto; min-width:88px; padding:8px 10px; font-size:.8rem;
@@ -119,12 +119,6 @@ nav.tabs button.on::before{
 }
 nav.tabs button:active{background:rgba(255,255,255,.07)}
 
-.rg-ligne{
-  display:flex; justify-content:space-between; align-items:baseline; gap:14px;
-  margin:0 0 7px; font-size:.86rem; color:var(--txt2);
-  border-bottom:1px dotted var(--bord); padding-bottom:6px;
-}
-.rg-ligne b{color:var(--txt); font-weight:600; font-variant-numeric:tabular-nums}
 /* ---------- Choix du profil ----------
    Chaque profil porte pour vignette la dernière créature qu'il a déterrée : on
    reconnaît sa partie à ce qu'on y a trouvé, pas à une photo qu'il aurait fallu
@@ -273,9 +267,72 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 .gd-but b{display:block; color:var(--ocre-clair); font-family:var(--serif);
   font-size:.95rem; margin-bottom:5px}
 
-.rg-actions{display:flex; flex-direction:column; gap:7px; margin:16px 0 4px}
-.rg-actions button{width:100%}
-.rg-danger{color:var(--faux); border-color:rgba(180,87,79,.4)}
+/* ---------- Menu de la partie ----------
+   Une liste groupée plutôt qu'une pile de boutons identiques : la vignette et
+   les trois chiffres situent la partie, puis chaque famille d'action occupe son
+   propre bloc — changer de partie, déplacer une progression, mettre à jour
+   l'application. La suppression est à l'écart, sans cadre, en retrait. */
+.rg-tete{display:flex; align-items:center; gap:13px; margin:0 0 16px}
+.rg-vig{
+  flex:0 0 auto; width:54px; height:54px; border-radius:14px; overflow:hidden;
+  background:#0e1523; border:1px solid var(--bord); display:grid; place-items:center;
+}
+.rg-vig img{width:100%; height:100%; object-fit:cover; display:block}
+.rg-vide{color:var(--txt3); font-size:1.2rem; opacity:.6}
+.rg-ident{display:flex; flex-direction:column; min-width:0}
+.rg-sur{font-size:.63rem; letter-spacing:2px; text-transform:uppercase; color:var(--patine)}
+.rg-nom{
+  font-family:var(--serif); font-size:1.32rem; line-height:1.2; color:var(--txt);
+  overflow-wrap:anywhere;
+}
+
+.rg-chiffres{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 18px;
+  padding:13px 6px; background:rgba(255,255,255,.03);
+  border:1px solid var(--bord); border-radius:var(--r);
+}
+.rg-chiffres span{display:flex; flex-direction:column; align-items:center; text-align:center}
+.rg-chiffres b{
+  font-family:var(--serif); font-size:1.24rem; color:var(--ocre-clair);
+  line-height:1.1; font-variant-numeric:tabular-nums;
+}
+.rg-chiffres small{margin-top:3px; font-size:.63rem; line-height:1.35; color:var(--txt3)}
+
+.rg-liste{
+  border:1px solid var(--bord); border-radius:var(--r); overflow:hidden;
+  margin:0 0 11px; background:rgba(255,255,255,.022);
+}
+.rg-item{
+  display:flex; align-items:center; gap:12px; width:100%;
+  padding:12px 13px; background:transparent; border:0; text-align:left;
+  color:var(--txt2); border-top:1px solid var(--bord);
+}
+.rg-liste .rg-item:first-child{border-top:0}
+.rg-item:active{background:rgba(255,255,255,.055)}
+.rg-ico{
+  flex:0 0 auto; width:30px; height:30px; border-radius:9px;
+  display:grid; place-items:center; font-size:.95rem;
+  background:rgba(200,150,79,.12); color:var(--ocre-clair);
+}
+.rg-lab{
+  flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px;
+  font-size:.92rem; color:var(--txt); line-height:1.3;
+}
+.rg-lab small{font-size:.71rem; color:var(--txt3); line-height:1.4}
+.rg-chev{flex:0 0 auto; color:var(--txt3); font-size:1.15rem; line-height:1}
+
+.rg-suppr{
+  display:block; width:100%; margin:4px 0 0; padding:11px;
+  background:transparent; border:0; font-size:.8rem; color:var(--faux);
+  opacity:.85;
+}
+.rg-suppr:active{opacity:1}
+.rg-pied{
+  margin:16px 0 14px; font-size:.71rem; line-height:1.5; color:var(--txt3);
+  text-align:center;
+}
+
+
 .rg-note{font-size:.79rem; color:var(--txt3); line-height:1.55; margin:14px 0 16px}
 /* Le bandeau doit dire qui joue : c'est la seule chose qui distingue deux
    progressions sur le même appareil, et l'oublier ferait jouer sur le mauvais
@@ -569,7 +626,13 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 
 /* ---------- Bourse ---------- */
 .intro-p{font-size:.88rem; color:var(--txt2); line-height:1.6; margin:0 0 18px}
+/* Le complément tarifaire était en `float:right` : le flottant s'échappait du
+   titre et le paragraphe suivant s'enroulait autour, jusqu'à se superposer.
+   Une boîte flexible tient les deux sur la même ligne et les fait passer à la
+   ligne proprement quand la largeur ne suffit plus. */
 h3.grp{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:6px 14px; flex-wrap:wrap;
   font-family:var(--sans); font-size:.7rem; letter-spacing:2px; text-transform:uppercase;
   color:var(--txt3); margin:22px 0 9px;
 }
@@ -687,6 +750,18 @@ h3.grp:first-of-type{margin-top:4px}
   width:100%; max-width:420px; background:var(--fond2); border:1px solid var(--bord);
   border-radius:18px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.6);
 }
+/* La fiche de créature porte sa marge dans `.md-txt`, sous une image en pleine
+   largeur. Le guide et le menu injectent leur contenu directement dans le
+   panneau : sans marge, le texte venait butter contre le bord et débordait.
+   Et sans hauteur bornée, un panneau plus haut que l'écran était coupé sans
+   qu'on puisse le faire défiler. */
+#guide-corps, #reglages-corps{
+  padding:22px 20px calc(20px + var(--safe-b));
+  max-height:calc(100dvh - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+@supports not (height:100dvh){
+  #guide-corps, #reglages-corps{max-height:calc(100vh - 40px)}
+}
 .md-vue{height:170px; background-size:cover; background-position:center; position:relative}
 .md-txt{padding:16px 18px 20px; margin-top:-52px; position:relative}
 .md-sur{margin:0 0 2px; font-size:.68rem; letter-spacing:2px; text-transform:uppercase; color:var(--ocre)}
@@ -720,8 +795,8 @@ h3.grp:first-of-type{margin-top:4px}
 
 /* ---------- Bourse : groupes ---------- */
 h3.grp em{
-  font-style:normal; float:right; font-size:.66rem; letter-spacing:.6px;
-  color:var(--ocre); text-transform:none;
+  font-style:normal; flex:0 1 auto; font-size:.66rem; letter-spacing:.6px;
+  color:var(--ocre); text-transform:none; text-align:right;
 }
 
 @media (min-width:720px){

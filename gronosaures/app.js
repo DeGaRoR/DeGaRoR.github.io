@@ -907,23 +907,63 @@ function ouvrirReglages(v){
       <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
       <button class="btn-fant" onclick="ouvrirReglages('profil')">Annuler</button>`;
   }else{
-    html=`<p class="md-sur">Profil</p>
-      <h3>${esc(p.nom)}</h3>
-      <p class="rg-ligne"><span>Créatures</span><b>${n} / ${CREATURES.length}</b></p>
-      <p class="rg-ligne"><span>Chantiers ouverts</span><b>${ch} / ${SITES.length}</b></p>
-      <p class="rg-ligne"><span>Crédits</span><b>${etat.credits} \u25C8</b></p>
-      <p class="rg-ligne"><span>Version</span><b>${esc(VERSION_APP)}</b></p>
-      <div class="rg-actions">
-        <button class="btn-fant" onclick="fermerReglages(); ouvrirChoixProfil()">Changer de partie</button>
-        <button class="btn-fant" onclick="renommerActif()">Renommer</button>
-        <button class="btn-fant" onclick="exporterProgression()">Exporter la progression</button>
-        <button class="btn-fant" onclick="choisirFichierImport()">Importer un fichier</button>
-        ${registre.liste.length>1?`<button class="btn-fant rg-danger" onclick="supprimerActif()">Supprimer ce profil</button>`:''}
-        <button class="btn-fant" onclick="ouvrirReglages('maj')">Forcer la mise à jour</button>
+    /* Le menu était cinq pastilles identiques empilées : rien n'y hiérarchisait
+       ce qui change de partie, ce qui déplace une progression, et ce qui touche
+       à l'application. Il est désormais bâti comme une liste groupée — vignette
+       et chiffres en tête, actions séparées par familles, action destructrice
+       à l'écart et en retrait. */
+    const a=apercuProfil(registre.actif);
+    html=`<div class="rg-tete">
+        <span class="rg-vig">${a.creature
+          ? `<img src="${a.creature.img}" alt="">`
+          : '<span class="rg-vide">\u25C8</span>'}</span>
+        <span class="rg-ident">
+          <span class="rg-sur">Partie en cours</span>
+          <b class="rg-nom">${esc(p.nom)}</b>
+        </span>
       </div>
-      <p class="rg-note">L’export produit un fichier que tu peux conserver ou
-        transférer sur un autre appareil. Un import crée toujours un nouveau profil,
-        pour qu’aucune progression existante ne soit écrasée.</p>
+
+      <div class="rg-chiffres">
+        <span><b>${n}</b><small>créatures<br>sur ${CREATURES.length}</small></span>
+        <span><b>${ch}</b><small>chantiers<br>sur ${SITES.length}</small></span>
+        <span><b>${etat.credits}</b><small>crédits<br>disponibles</small></span>
+      </div>
+
+      <div class="rg-liste">
+        <button class="rg-item" onclick="fermerReglages(); ouvrirChoixProfil()">
+          <span class="rg-ico">\u21C4</span>
+          <span class="rg-lab">Changer de partie<small>Reprendre ou créer une autre progression</small></span>
+          <span class="rg-chev">\u203A</span></button>
+        <button class="rg-item" onclick="renommerActif()">
+          <span class="rg-ico">\u270E</span>
+          <span class="rg-lab">Renommer<small>Modifier le nom de cette partie</small></span>
+          <span class="rg-chev">\u203A</span></button>
+      </div>
+
+      <div class="rg-liste">
+        <button class="rg-item" onclick="exporterProgression()">
+          <span class="rg-ico">\u2193</span>
+          <span class="rg-lab">Exporter la progression<small>Un fichier à conserver ou à transférer</small></span>
+          <span class="rg-chev">\u203A</span></button>
+        <button class="rg-item" onclick="choisirFichierImport()">
+          <span class="rg-ico">\u2191</span>
+          <span class="rg-lab">Importer un fichier<small>Crée toujours une nouvelle partie</small></span>
+          <span class="rg-chev">\u203A</span></button>
+      </div>
+
+      <div class="rg-liste">
+        <button class="rg-item" onclick="ouvrirReglages('maj')">
+          <span class="rg-ico">\u27F3</span>
+          <span class="rg-lab">Forcer la mise à jour<small>Si l’application affiche encore l’ancienne version</small></span>
+          <span class="rg-chev">\u203A</span></button>
+      </div>
+
+      ${registre.liste.length>1
+        ? `<button class="rg-suppr" onclick="supprimerActif()">Supprimer cette partie</button>`
+        : ''}
+
+      <p class="rg-pied">Tout est enregistré sur cet appareil seulement.
+        Version ${esc(VERSION_APP)}.</p>
       <button class="btn-primaire" onclick="fermerReglages()">Fermer</button>`;
   }
   $('#reglages-corps').innerHTML=html;

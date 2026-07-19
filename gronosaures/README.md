@@ -76,7 +76,7 @@ styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les
 data.js         bloc 1 généré par tools/ingest.py + blocs 2/3/4 écrits à la main
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           atlas-v25 · CODE réseau d'abord, IMAGES cache d'abord ; 212 entrées ; liste dérivée de data.js
+sw.js           atlas-v26 · CODE réseau d'abord, IMAGES cache d'abord ; 212 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -343,6 +343,48 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Reprise d'interface — v26
+
+Trois défauts vus sur téléphone, une fois la feuille de style enfin servie.
+
+### Texte rogné dans les panneaux
+
+`.md-panneau` n'avait **aucune marge intérieure**. La fiche de créature s'en sortait
+parce qu'elle porte la sienne dans `.md-txt`, sous une image en pleine largeur — mais
+le guide et le menu injectent leur contenu directement dans le panneau, où il venait
+butter contre le bord et déborder des deux côtés.
+
+`#guide-corps` et `#reglages-corps` reçoivent donc leur propre marge, **et une hauteur
+bornée avec défilement** : sans elle, un panneau plus haut que l'écran était coupé net,
+sans recours. Deux assertions verrouillent les deux points.
+
+Un balayage a listé tous les conteneurs remplis par `innerHTML` pour vérifier qu'ils
+héritent d'une marge : les autres passent par `.ecran` ou par leur parent.
+
+### Chevauchement dans les en-têtes de la Bourse
+
+Le complément tarifaire d'un titre de groupe était en `float:right`. Le flottant
+s'échappait du titre, et le paragraphe suivant s'enroulait autour jusqu'à se
+superposer. `h3.grp` devient une boîte flexible : les deux éléments tiennent sur une
+ligne et passent proprement à la ligne quand la largeur ne suffit plus.
+
+### Menu de la partie
+
+C'était cinq pastilles identiques empilées, sans hiérarchie. Refait en **liste
+groupée** :
+
+- une **vignette** — la dernière créature déterrée, comme sur l'écran de choix — et le
+  nom de la partie ;
+- **trois chiffres** côte à côte : créatures, chantiers, crédits ;
+- les actions **séparées par familles** dans trois blocs distincts : changer de partie
+  et renommer ; exporter et importer ; forcer la mise à jour. Chacune porte une icône
+  et une ligne qui dit ce qu'elle fait — « Crée toujours une nouvelle partie » sous
+  l'import évite d'avoir à lire un paragraphe en bas de panneau ;
+- la **suppression à l'écart**, sans cadre, en retrait, dans la couleur d'erreur.
+
+Les règles `.rg-ligne` de l'ancienne présentation ont été retirées ; plus aucune classe
+CSS n'est orpheline.
 
 ## Le bug qui faussait tous les tests — v25
 
