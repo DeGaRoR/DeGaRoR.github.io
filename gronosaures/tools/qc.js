@@ -20,36 +20,42 @@ const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
-  +'CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,'
+  +'COUT_BASE,COUT_PAS,COUT_PLATEAU,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
   +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE,CREATURE_ACCUEIL});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
-       PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
+       COUT_BASE,COUT_PAS,COUT_PLATEAU,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
   .forEach(f=>T('fichier '+f, existe(f)));
 
 /* ---------- 2. Créatures ---------- */
-T('151 créatures', CREATURES.length===151, CREATURES.length+' trouvées');
+T('créatures : 151 d’origine plus les packs intégrés', CREATURES.length>=151, CREATURES.length+' trouvées');
 const ids=new Set();
 CREATURES.forEach(c=>{
   T('id unique '+c.id, !ids.has(c.id)); ids.add(c.id);
   T('image présente '+c.id, existe(c.img), c.img);
   ['nom','groupe','periode','age','desc','prudence','conf','milieu','regime','taille']
     .forEach(k=>T('champ '+k+' non vide ('+c.id+')', !!(c[k]&&String(c[k]).trim())));
-  T('bornes d’âge cohérentes '+c.id, c.ageMax>=c.ageMin && c.ageMin>0);
+  /* ageMin peut valoir 0 : le pack LIV porte des espèces ACTUELLES, dont
+     l'âge de fin est le présent. Seul un âge négatif serait incohérent. */
+  T('bornes d’âge cohérentes '+c.id, c.ageMax>=c.ageMin && c.ageMin>=0 && c.ageMax>0 || (c.ageMax===0&&c.ageMin===0));
   T('confiance graphique 1-5 '+c.id, c.confN>=1&&c.confN<=5);
   T('au moins une source '+c.id, c.src.some(s=>s&&s[1]&&/^https?:\/\//.test(s[1])));
   T('site déclaré '+c.id, SITES.some(s=>s.id===c.site), c.site);
 });
 
 /* ---------- 3. Sites ---------- */
-T('vingt-trois sites', SITES.length===23, SITES.length+'');
+T('au moins vingt-trois sites', SITES.length>=23, SITES.length+'');
 SITES.forEach(s=>{
-  T('fond satellite '+s.id, existe(s.fond), s.fond);
+  /* La vue satellite est facultative depuis le bloc 31 : à défaut, le fond est
+     l'illustration de la créature emblème. Ce qui doit être garanti n'est donc
+     plus le fichier satellite, mais qu'un fond utilisable existe. */
+  T('fond utilisable '+s.id, existe(fondDe(s)), String(fondDe(s)));
+  if(s.fond) T('vue satellite déclarée présente '+s.id, existe(s.fond), s.fond);
   T('au moins six créatures pour '+s.id, CREATURES.filter(c=>c.site===s.id).length>=6,
     CREATURES.filter(c=>c.site===s.id).length+'');
   T('pin dans la carte '+s.id, s.x>0&&s.x<1535&&s.y>0&&s.y<1024, s.x+','+s.y);
@@ -275,10 +281,30 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   Math.max(...GRANDS_GROUPES.map(g=>CREATURES.filter(c=>grandGroupe(c)===g[0]).length))
     < CREATURES.length/2);
 
+/* ---------- 8 ter bis. Explications réellement rédigées ----------
+   Une question de fouille explique sa réponse. Quand la banque est générée
+   depuis un PACK_*.md, l'explication n'existe pas dans la source : le
+   générateur pose un texte d'attente. Rien ne le signalait, et 120 questions
+   sont passées ainsi. Ce contrôle rend la dette visible et chiffrée. */
+{
+  const stub=QUIZ_PALEO.filter(q=>/Voir la fiche de la créature/.test(q.exp||''));
+  const vides=QUIZ_PALEO.filter(q=>!q.exp || q.exp.trim().length<20);
+  T('aucune question sans explication', vides.length===0, vides.length+' sans texte');
+  if(stub.length){
+    const par={};
+    stub.forEach(q=>par[q.site]=(par[q.site]||0)+1);
+    console.log('   ⚠ explications encore génériques : '+stub.length+' questions ('
+      + Object.keys(par).sort().map(k=>k+' '+par[k]).join(', ') + ')');
+  }
+}
+
 /* ---------- 8 quater. Pastilles de globe ----------
    Extraites des vues satellites par tools/globes.py. Un site sans pastille
    afficherait une image cassée dans l'introduction. */
-SITES.forEach(s=>T('pastille de globe pour '+s.id,
+/* La pastille de globe était extraite des vues satellites. Celles-ci étant
+   devenues facultatives (bloc 31), la pastille l'est aussi : l'introduction
+   masque l'image quand elle manque, plutôt que d'afficher un lien cassé. */
+SITES.filter(s=>fs.existsSync(path.join(R,'globes',s.id+'.webp'))).forEach(s=>T('pastille de globe pour '+s.id,
   fs.existsSync(path.join(R,'globes',s.id+'.webp'))));
 
 /* ---------- 8 quinquies. Frise verticale ----------
@@ -299,7 +325,9 @@ T('hauteur de frise raisonnable', yFri(0)>2000 && yFri(0)<9000, Math.round(yFri(
   rangs.forEach(r=>{let c=0; while(occ[c]!==undefined && r.y-occ[c]<FRI_ECART) c++;
     occ[c]=r.y; colMax=Math.max(colMax,c);});
   /* Au-delà de trois colonnes, les pastilles déborderaient d'un écran étroit. */
-  T('les chantiers tiennent en peu de colonnes', colMax<=2, (colMax+1)+' colonnes');
+  /* Seuil relevé à 4 colonnes : l'atlas est passé de 23 à 30 chantiers, et
+     l'axe garde la même hauteur. Au-delà, il faudra allonger la frise. */
+  T('les chantiers tiennent en peu de colonnes', colMax<=3, (colMax+1)+' colonnes');
 }
 SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id))));
 
@@ -352,7 +380,24 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
 {
   const poids=d=>fs.readdirSync(path.join(R,d)).reduce((a,f)=>a+fs.statSync(path.join(R,d,f)).size,0);
   const tot=poids('cartes')+poids('sites')+poids('globes')+fs.statSync(path.join(R,'monde-min.webp')).size;
-  T('images sous 20 Mo au total', tot<20e6, (tot/1e6).toFixed(1)+' Mo');
+  /* Le plafond de 20 Mo avait été fixé pour vingt-trois chantiers. Sept packs
+     de plus le portent mécaniquement au-delà, sans qu'aucune image ait grossi :
+     la moyenne par carte est restée la même. Dégrader la compression pour
+     rentrer sous un chiffre devenu arbitraire aurait abîmé les illustrations
+     — qui sont l'essentiel de ce que la joueuse regarde — pour un gain de
+     quelques centaines de kilo-octets.
+
+     Le plafond passe donc à 26 Mo, et le contrôle qui compte devient le POIDS
+     PAR CARTE : c'est lui qui dit si une image a été mal exportée, alors que le
+     total ne dit que le nombre de packs. */
+  const cartes=fs.readdirSync(path.join(R,'cartes'));
+  const poidsCartes=cartes.map(f=>fs.statSync(path.join(R,'cartes',f)).size);
+  const moyenneCarte=poidsCartes.reduce((a,b)=>a+b,0)/poidsCartes.length;
+  T('images sous 26 Mo au total', tot<26e6, (tot/1e6).toFixed(1)+' Mo');
+  T('carte moyenne sous 110 ko', moyenneCarte<110e3,
+    (moyenneCarte/1e3).toFixed(0)+' ko sur '+cartes.length+' cartes');
+  T('aucune carte au-dessus de 220 ko', Math.max(...poidsCartes)<220e3,
+    (Math.max(...poidsCartes)/1e3).toFixed(0)+' ko');
   T('carte légère servie en premier',
     fs.statSync(path.join(R,'monde-min.webp')).size<300e3,
     (fs.statSync(path.join(R,'monde-min.webp')).size/1024).toFixed(0)+' Ko');
@@ -367,8 +412,12 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
 {
   const prov=SITES.filter(s=>s.fondProvisoire);
   if(prov.length) console.log('   ⚠ vues satellites provisoires : '+prov.map(s=>s.id).join(', '));
-  const def=SITES.filter(s=>!s.fondProvisoire).map(s=>s.fond);
-  T('chaque site définitif a sa propre vue', new Set(def).size===def.length);
+  /* Depuis le bloc 31, un site sans vue satellite retombe sur l'illustration de
+     son emblème. L'unicité doit donc porter sur le fond EFFECTIF : sinon tous
+     les sites sans clé `fond` se ressemblent, valant `undefined`. */
+  const def=SITES.filter(s=>!s.fondProvisoire).map(s=>fondDe(s));
+  T('chaque site définitif a sa propre vue', new Set(def).size===def.length,
+    def.length-new Set(def).size+' doublon(s)');
   T('les sites provisoires sont peu nombreux', prov.length<=3, prov.length+'');
 }
 
@@ -541,6 +590,21 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
       T('icône nommée par empreinte : '+src, /icone-[\w-]+\.[0-9a-f]{8}\.png$/.test(src),
         'sans quoi une icône déjà installée ne sera jamais remplacée');
     });
+    /* L'icône maskable est la même image que l'icône normale, pleine frame :
+       poser l'illustration sur un fond ajoutait un bandeau que le rognage
+       d'Android ne masquait qu'en partie. Elles doivent donc rester
+       identiques — si l'une reprenait une marge, l'autre non, le bandeau
+       reviendrait sans qu'on s'en aperçoive. */
+    const msk=(man.icons||[]).find(i=>i.purpose==='maskable');
+    const pleine=(man.icons||[]).find(i=>i.purpose==='any' && i.sizes==='512x512');
+    T('icône maskable : pleine frame, sans bandeau',
+      !!msk && !!pleine && msk.src===pleine.src,
+      msk?msk.src+' vs '+(pleine||{}).src:'maskable absente');
+    T('cache : aucun doublon d’icône', (()=>{
+      const l=[...sw.matchAll(/'\.\/(icones\/[^']+)'/g)].map(m=>m[1]);
+      return l.length===new Set(l).size;
+    })());
+
     const pomme=(html.match(/apple-touch-icon" href="([^"]+)"/)||[])[1];
     T('Safari : apple-touch-icon renseigné', !!pomme);
     T('Safari : elle pointe une icône déclarée', declarees.includes(pomme), String(pomme));
@@ -762,13 +826,43 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
             pl:100*l.filter(t=>t.autres.every(a=>t.r.length>a.length)).length/l.length,
             ra:moy(l.map(t=>t.r.length/Math.max(1,moy(t.autres.map(a=>a.length)))))};};
 
-  /* Banques reprises : seuil ferme. Une régression doit faire échouer la porte. */
-  const REPRISES={philomonde:1, biologie:1, orthographe:1, histoire:1};
+  /* Banques reprises : seuil ferme. Une régression doit faire échouer la porte.
+     Les douze packs de la Bourse y sont ; seule la fouille reste à traiter. */
+  const REPRISES={philomonde:1, biologie:1, orthographe:1, histoire:1,
+                  histscol:1, arteu:1, geographie:1,
+                  lecture:1, philosophie:1, artmonde:1};
   Object.keys(REPRISES).forEach(b=>{
     const m=mes(b);
-    T('qcm '+b+' : clé rarement la plus longue', m.pl<=45, m.pl.toFixed(0)+' % (seuil 45)');
-    T('qcm '+b+' : longueurs comparables', m.ra<=1.35, m.ra.toFixed(2)+' (seuil 1,35)');
+    T('qcm '+b+' : clé rarement la plus longue', m.pl<=25, m.pl.toFixed(0)+' % (cible 25)');
+    T('qcm '+b+' : longueurs comparables', m.ra<=1.10, m.ra.toFixed(2)+' (seuil 1,10)');
   });
+
+  /* La fouille se traite chantier par chantier : le détail par chantier dit ce
+     qui est fait et ce qui reste, et tient les chantiers déjà repris. */
+  {
+    /* Les vingt-trois chantiers sont repris : la liste vaut désormais
+       vérification complète, et non plus suivi d'avancement. */
+    const FAITS=SITES.map(s=>s.id);
+    const parSite={};
+    QUIZ_PALEO.forEach(q=>{
+      const s=q.id.split('-')[0];
+      const a=q.choix.filter(c=>c!==q.r);
+      (parSite[s]=parSite[s]||[]).push(a.every(c=>q.r.length>c.length)?1:0);
+    });
+    FAITS.forEach(s=>{
+      const l=parSite[s]||[];
+      const p=100*l.reduce((x,y)=>x+y,0)/Math.max(1,l.length);
+      T('qcm chantier '+s+' : clé rarement la plus longue', p<=25, p.toFixed(0)+' %');
+    });
+    const reste=Object.keys(parSite).filter(s=>!FAITS.includes(s))
+      .map(s=>{const l=parSite[s]; return [s,100*l.reduce((x,y)=>x+y,0)/l.length,l.length];})
+      .sort((a,b)=>b[1]-a[1]);
+    if(reste.length){
+      console.log('   \u26a0 chantiers de fouille restant à reprendre ('
+        +reste.reduce((n,r)=>n+r[2],0)+' questions) :');
+      console.log('       '+reste.map(r=>r[0]+' '+r[1].toFixed(0)+' %').join(' · '));
+    }
+  }
 
   /* Banques encore à reprendre : mesurées et annoncées, sans faire échouer. */
   const restantes=[...new Set(lot.map(t=>t.src))].filter(b=>!REPRISES[b])
@@ -779,9 +873,188 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
       +' questions   clé la plus longue '+m.pl.toFixed(0).padStart(3)+' %   ratio '+m.ra.toFixed(2)));
   }
   /* Garde-fou global : la situation ne doit pas empirer. */
+  const moyenne=x=>x.reduce((s,v)=>s+v,0)/Math.max(1,x.length);
   const tous={n:lot.length,
-    pl:100*lot.filter(t=>t.autres.every(a=>t.r.length>a.length)).length/lot.length};
-  T('qcm : le biais global ne s’aggrave pas', tous.pl<=66, tous.pl.toFixed(1)+' % (plafond 66)');
+    pl:100*lot.filter(t=>t.autres.every(a=>t.r.length>a.length)).length/lot.length,
+    ratio:moyenne(lot.map(t=>t.r.length/Math.max(1,moyenne(t.autres.map(a=>a.length)))))};
+  T('qcm : le biais global tient la cible', tous.pl<=25, tous.pl.toFixed(1)+' % (cible 25)');
+  T('qcm : la clé n’est pas plus longue en moyenne', tous.ratio<=1.10,
+    'ratio '+tous.ratio.toFixed(2)+' (plafond 1,10)');
+
+  /* Sentinelles d'appariement. Réécrire les options d'une banque en les
+     repérant par leur RANG plutôt que par leur énoncé applique chaque
+     correction à la mauvaise question : les données restent formellement
+     valides — quatre choix distincts, clé incluse — mais les réponses ne
+     correspondent plus aux questions. L'erreur a été commise sur `histoire`,
+     où les questions à reprendre étaient dispersées dans une banque de 52.
+
+     Quelques couples question/réponse servent de témoins. Ils n'ont rien
+     d'exhaustif : ils suffisent à faire échouer la porte si un décalage
+     général se reproduit. */
+  {
+    const temoins=[
+      ['histoire','âge donne-t-on à la Terre','4,54'],
+      ['histoire','cratère de Chicxulub','Yucatán'],
+      ['histoire','Mary Anning','Lyme Regis'],
+      ['histoire','stromatolithes','micro-organismes'],
+      ['biologie','concombre de mer','échinodermes'],
+      ['philomonde','asabiyya','cohésion'],
+      ['geographie','point culminant de la Belgique','Botrange'],
+      ['histscol','Belgique devient-elle indépendante','1830'],
+    ];
+    temoins.forEach(([pack,frag,attendu])=>{
+      const p=PACKS.find(x=>x.id===pack);
+      const c=(p?p.bank():[]).filter(x=>x.q.includes(frag));
+      T('appariement '+pack+' « '+frag+' »',
+        c.length===1 && c[0].r.includes(attendu),
+        c.length!==1 ? c.length+' question(s) trouvée(s)' : 'réponse : '+c[0].r);
+    });
+  }
+
+  /* Le repli de fond ne doit pas rester théorique : on vérifie qu'un chantier
+     dépourvu de vue satellite obtient bien une image, et qu'aucun appel n'est
+     resté sur `s.fond` en direct — sinon un futur pack sans satellite
+     afficherait un fond vide sans que rien ne le signale. */
+  {
+    const faux={id:SITES[0].id, fond:null};
+    T('un chantier sans vue satellite obtient un fond', !!fondDe(faux));
+    T('le repli passe par l’emblème',
+      fondDe(faux)===emblemeDe(SITES[0].id).img, String(fondDe(faux)));
+    T('app.js n’interroge plus s.fond en direct',
+      !/[^a-zA-Z]s\.fond[^a-zA-Z]/.test(app.replace(/fondDe\([^)]*\)/g,'')),
+      'un appel direct contournerait le repli');
+    T('la vue satellite prime quand elle existe',
+      SITES.filter(s=>s.fond).every(s=>fondDe(s)===s.fond));
+  }
+
+  /* Frise : emblèmes et bornes de l'axe.
+
+     Le globe des vues satellites ne veut rien dire sur un axe de temps, et
+     vingt-trois pastilles quasi identiques ne se distinguent pas. Chaque
+     chantier porte donc une créature emblème. Un chantier ajouté sans emblème
+     retomberait silencieusement sur sa première créature : on exige l'entrée
+     explicite, le choix par défaut n'ayant aucune raison d'être le bon. */
+  {
+    SITES.forEach(s=>{
+      const id=EMBLEMES[s.id];
+      const c=CREATURES.find(x=>x.id===id);
+      T('emblème déclaré pour '+s.id, !!id, 'ajouter l’entrée dans EMBLEMES (bloc 29)');
+      T('emblème '+s.id+' : créature du chantier', !!c && c.site===s.id,
+        c?('appartient à '+c.site):'introuvable');
+      T('emblème '+s.id+' : illustration présente',
+        !!c && fs.existsSync(path.join(R,c.img)), c?c.img:'—');
+    });
+    T('la frise emploie l’emblème et non le globe',
+      app.includes('fri-embleme') && !/fri-globe" src="globes\//.test(app));
+    T('la frise voile l’emblème d’un chantier vierge', app.includes("' voile'"));
+  }
+
+  /* Placement des étiquettes de la frise.
+
+     Le repère marque la date au pixel près et ne bouge jamais ; l'étiquette
+     glisse pour trouver sa place, un filet relie les deux. On rejoue ici
+     l'algorithme sur les chantiers réels, puis sur un cas de charge — dix
+     gisements quaternaires, tous compris dans les vingt-et-un derniers pixels
+     de la frise — et l'on vérifie ses trois propriétés. */
+  {
+    const DEBUT=650, PX=8, ECART=46, yF=ma=>(DEBUT-ma)*PX;
+    const ageSite=id=>{
+      const cs=CREATURES.filter(c=>c.site===id);
+      return cs.reduce((a,c)=>a+(c.ageMin+c.ageMax)/2,0)/cs.length;
+    };
+    const placer=sup=>{
+      const r=SITES.map(s=>({id:s.id,y:yF(ageSite(s.id))}))
+        .concat(sup.map(([id,ma])=>({id,y:yF(ma)}))).sort((a,b)=>a.y-b.y);
+      r.forEach((x,i)=>{ x.etiq=Math.max(x.y, i?r[i-1].etiq+ECART:-Infinity); });
+      for(let i=r.length-1;i>=0;i--){
+        const maxi = i===r.length-1 ? yF(0) : r[i+1].etiq-ECART;
+        r[i].etiq=Math.min(r[i].etiq, maxi);
+      }
+      return r;
+    };
+    const charge=[['A',0.005],['B',0.01],['C',0.03],['D',0.08],['E',0.2],
+                  ['F',0.4],['G',0.8],['H',1.2],['I',1.8],['J',2.4]];
+    [['chantiers actuels',[]],['dix gisements quaternaires en plus',charge]].forEach(([nom,sup])=>{
+      const r=placer(sup);
+      T('frise ('+nom+') : aucune étiquette ne se recouvre',
+        r.every((x,i)=>!i || x.etiq-r[i-1].etiq >= ECART-0.01));
+      T('frise ('+nom+') : aucune étiquette sous le présent',
+        r.every(x=>x.etiq<=yF(0)+0.01),
+        'une étiquette passée sous « Aujourd’hui » se lirait comme postérieure au présent');
+      T('frise ('+nom+') : l’ordre chronologique est conservé',
+        r.every((x,i)=>!i || x.etiq>=r[i-1].etiq));
+    });
+    /* Le repère, lui, ne doit dépendre que de l'âge. */
+    T('frise : le repère est posé à la date exacte',
+      /class="fri-repere" style="top:\$\{y\}px"/.test(app));
+    T('frise : l’étiquette est posée à sa place ajustée',
+      /class="fri-site\$\{[^}]*\}" style="top:\$\{etiq\}px"/.test(app));
+    T('frise : un filet relie l’étiquette à son repère', app.includes('fri-filet'));
+    T('frise : plus de décalage latéral', !app.includes('margin-left:${col*14}px'));
+  }
+
+  /* L'échelle des temps doit aller jusqu'au présent : on illustre désormais
+     jusqu'à l'Holocène, et un axe qui s'arrêterait avant tronquerait aussi
+     bien la frise que le filtre par période. */
+  {
+    const derniere=PERIODES[PERIODES.length-1];
+    T('les périodes vont jusqu’au présent', derniere.a===0,
+      derniere.nom+' s’arrête à '+derniere.a+' Ma');
+    T('les périodes se suivent sans trou', PERIODES.every((p,i)=>
+      i===0 || PERIODES[i-1].a===p.de), 'bornes discontinues');
+    T('le Quaternaire est couvert', PERIODES.some(p=>p.nom==='Quaternaire' && p.de>=2.5));
+    T('la frise porte un repère du présent',
+      app.includes('fri-fin') && app.includes('Aujourd’hui'));
+    T('la frise descend jusqu’à 0 Ma', /const H=yFrise\(0\)/.test(app));
+    /* Toute créature doit tomber dans une période, y compris la plus récente. */
+    const dansUne=m=>PERIODES.some(p=>m<=p.de && (m>p.a || p.a===0));
+    const orphelines=CREATURES.filter(c=>!dansUne((c.ageMin+c.ageMax)/2));
+    T('chaque créature tombe dans une période', orphelines.length===0,
+      orphelines.map(c=>c.id+' '+((c.ageMin+c.ageMax)/2)+' Ma').join(' · '));
+    /* Les packs à venir comptent des espèces actuelles — cœlacanthe, animaux
+       domestiques. Un âge moyen nul ne doit tomber dans aucun trou : la borne
+       basse est exclusive partout sauf sur la dernière période, qui se referme
+       sur le présent. */
+    T('une espèce actuelle appartient à une période', dansUne(0),
+      'âge moyen 0 Ma : le présent doit appartenir au Quaternaire');
+    T('périodeDe range le présent au Quaternaire',
+      periodeDe({ageMin:0,ageMax:0}).nom==='Quaternaire',
+      periodeDe({ageMin:0,ageMax:0}).nom);
+  }
+
+  /* data.js est un assemblage de blocs. Si l'ordre de concaténation documenté
+     omet un bloc, le travail qu'il porte disparaît en silence : les données
+     restent valides, seules les corrections s'évaporent. Le cas s'est produit —
+     l'ordre inscrit au README s'était arrêté deux blocs trop tôt.
+
+     On vérifie donc que chaque table de correction écrite jusqu'ici est bien
+     présente dans le fichier assemblé. */
+  {
+    const attendus=['OPTIONS_REVUES','OPTIONS_REVUES_2','OPTIONS_REVUES_3',
+      'FOUILLE_REVUE','FOUILLE_REVUE_2','FOUILLE_REVUE_3','FOUILLE_REVUE_4',
+      'FOUILLE_REVUE_5','FOUILLE_REVUE_6','FOUILLE_REVUE_7','OPTIONS_REVUES_4',
+      'EMBLEMES','COUT_PLATEAU','fondDe'];
+    const code=fs.readFileSync(path.join(R,'data.js'),'utf8');
+    attendus.forEach(n=>{
+      T('data.js contient le bloc '+n,
+        new RegExp('(?:const|function)\\s+'+n+'\\s*[=(]').test(code),
+        'bloc absent de l’assemblage — vérifier l’ordre de concaténation');
+    });
+  }
+
+  /* Rééquilibrer une option ne doit jamais se payer d'un nom d'espèce inventé.
+     Un binôme dont le genre appartient à l'atlas mais dont l'espèce n'y figure
+     pas est presque toujours une fabrication — le cas s'est produit. */
+  {
+    const connus=new Set(CREATURES.map(c=>c.nom));
+    const genres=new Set(CREATURES.map(c=>c.nom.split(' ')[0]));
+    const faux=[];
+    QUIZ_PALEO.forEach(q=>q.choix.forEach(c=>{
+      if(/^[A-Z][a-zà-ÿ]+ [a-zà-ÿ]+$/.test(c) && genres.has(c.split(' ')[0]) && !connus.has(c))
+        faux.push(q.id+' : '+c);
+    }));
+    T('aucun binôme inventé dans les options', faux.length===0, faux.join(' · '));
+  }
 }
 
 /* ---------- 9. Économie ---------- */
@@ -820,17 +1093,54 @@ const ageRef=s=>Math.max(...CREATURES.filter(c=>c.site===s.id).map(c=>c.ageMax))
 T('sites classés du plus ancien au plus récent',
   SITES.every((s,i)=>i===0||ageRef(s)<=ageRef(SITES[i-1])),
   SITES.map(s=>s.id+' '+ageRef(s)).join(' → '));
-T('coûts tous distincts', new Set(SITES.map(s=>s.cout)).size===SITES.length);
-T('coûts étalés sur au moins un facteur 4',
-  Math.max(...SITES.map(s=>s.cout))>=4*Math.min(...SITES.map(s=>s.cout)));
+/* Les coûts ne sont plus tous distincts : ils suivent une rampe puis PLAFONNENT.
+   La forme compte plus que le niveau — un coût qui monte sans fin renchérit les
+   derniers chantiers, c'est-à-dire ceux qu'on ouvre quand il ne reste que les
+   banques de questions les moins aimées. */
+{
+  const tries=[...SITES].map(s=>s.cout).sort((a,b)=>a-b);
+  T('coûts en rampe puis plateau', tries.every((c,i)=>
+    c===Math.min(COUT_BASE+COUT_PAS*i, COUT_PLATEAU)),
+    tries.join(' '));
+  T('le plateau est atteint', tries[tries.length-1]===COUT_PLATEAU);
+  T('la rampe existe encore', tries[0]===COUT_BASE && tries[1]>tries[0]);
+  T('le plus cher ne dépasse pas quatre fois le moins cher',
+    COUT_PLATEAU<=4*COUT_BASE, COUT_PLATEAU+' / '+COUT_BASE);
+}
+
+/* Effort réel demandé, en exercices, en jouant au mieux. C'est le seul chiffre
+   que ressent la joueuse ; on le tient par les deux bouts, le total et surtout
+   le PALIER — ce qu'il faut faire pour ouvrir un chantier de plus. */
+{
+  const g=NB_MISSION*BAREME.base.juste+BAREME.base.mission;
+  const nCr=id=>CREATURES.filter(c=>c.site===id).length;
+  let solde=CREDITS_DEPART, total=0, pire=0;
+  [...SITES].sort((a,b)=>a.cout-b.cout).forEach(s=>{
+    const besoin=s.cout+nCr(s.id)*COUT_FOUILLE;
+    let e=0;
+    while(solde<besoin){ solde+=g; total+=NB_MISSION; e+=NB_MISSION; }
+    solde-=besoin;
+    solde+=Math.max(BONUS_SITE, Math.round(s.cout*BONUS_PART));
+    pire=Math.max(pire,e);
+  });
+  T('ouvrir un chantier de plus reste abordable', pire<=30,
+    pire+' exercices au pire palier (plafond 30)');
+  T('l’ensemble reste atteignable', total<=14*SITES.length,
+    total+' exercices pour les '+SITES.length+' chantiers (plafond 420)');
+}
 const bonusDe=s=>Math.max(BONUS_SITE, Math.round(s.cout*BONUS_PART));
 T('le bonus de site dépasse le coût du site le moins cher', bonusDe(SITES[0])>moinsCher);
 T('part de bonus comprise entre 0 et 1', BONUS_PART>0 && BONUS_PART<1, BONUS_PART+'');
 /* Le plancher fait qu'un site bon marché rend plus qu'il n'a coûté à ouvrir :
    c'est voulu, cela récompense les premiers pas. Ce qui ne doit jamais arriver,
    c'est qu'ouvrir puis compléter un site rapporte de l'argent. */
-SITES.forEach(s=>T('compléter '+s.id+' ne rapporte pas d’argent net',
-  s.cout + 13*COUT_FOUILLE > bonusDe(s), bonusDe(s)+' rendu pour '+(s.cout+13*COUT_FOUILLE)+' dépensé'));
+/* On compare au nombre RÉEL de créatures du chantier, non à un majorant : avec
+   un coût de fouille abaissé, le majorant masquait le cas limite. */
+SITES.forEach(s=>{
+  const depense=s.cout + CREATURES.filter(c=>c.site===s.id).length*COUT_FOUILLE;
+  T('compléter '+s.id+' ne rapporte pas d’argent net',
+    bonusDe(s)<=depense, bonusDe(s)+' rendu pour '+depense+' dépensé');
+});
 T('seuils documentaires croissants',
   SEUILS_DOC.length===3 && SEUILS_DOC[0]===0 && SEUILS_DOC[1]<SEUILS_DOC[2]);
 /* Environ 50 coups de pioche par site : 20 questions vues 2 à 3 fois. */

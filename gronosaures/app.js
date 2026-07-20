@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v33';
+const VERSION_ATLAS='v65';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -337,7 +337,7 @@ function crediter(n){
    découverte, ou à défaut une vue satellite de site. */
 function imageDeFond(){
   const t=trouvees();
-  return t.length ? pioche(t).img : pioche(SITES).fond;
+  return t.length ? pioche(t).img : fondDe(pioche(SITES));
 }
 /* Le fond change à chaque nouvelle question : sur une mission de six exercices,
    cela fait défiler six créatures déjà trouvées. */
@@ -612,11 +612,11 @@ function panneauDeblocage(s){
       <button class="btn-fant" onclick="fermerModal()">Plus tard</button>
       ${assez?'':'<p class="md-aide">Les missions de la Bourse rapportent des crédits de recherche.</p>'}
     </div>`;
-  setFondImg($('#md-vue'), s.fond, 'linear-gradient(180deg,rgba(10,15,26,.2),rgba(17,24,38,.96))');
+  setFondImg($('#md-vue'), fondDe(s), 'linear-gradient(180deg,rgba(10,15,26,.2),rgba(17,24,38,.96))');
   /* La même vue sert de fond à l'introduction, juste après. La demander ici la
      met en cache pendant que la personne lit la fenêtre : au moment d'appuyer,
      elle est déjà là, et le bouton ne paraît plus inerte. */
-  new Image().src=s.fond;
+  new Image().src=fondDe(s);
   $('#modal').classList.add('on');
 }
 function fermerModal(){ $('#modal').classList.remove('on'); }
@@ -635,7 +635,7 @@ function introSite(id,relecture){
   const s=SITES.find(x=>x.id===id);
   /* Le voile ne doit assombrir que ce qui porte du texte. Il partait de 30 % pour
      finir à 98 % : la vue satellite disparaissait dans sa moitié basse. */
-  setFondImg($('#intro-fond'), s.fond,
+  setFondImg($('#intro-fond'), fondDe(s),
     'linear-gradient(180deg,rgba(6,10,18,.12) 0%,rgba(6,10,18,.34) 40%,rgba(6,10,18,.86) 100%)');
   /* Chaque vue satellite porte, en bas à droite, un petit globe qui situe le
      continent sur la Terre d'aujourd'hui. Cadré en `cover` sur un écran de
@@ -643,7 +643,13 @@ function introSite(id,relecture){
      disparaissait. Il est donc extrait en pastille (tools/globes.py) et posé
      au-dessus de tout, en haut à droite, là où rien ne le masque. */
   const g=$('#intro-globe-img');
-  if(g){ g.src='globes/'+s.id+'.webp'; g.alt='Position de '+s.court+' sur le globe actuel'; }
+  if(g){
+    /* Pastille facultative : les nouveaux packs n'ont pas de vue satellite,
+       donc pas de globe extrait. On masque plutôt que d'afficher un lien mort. */
+    const dispo=GLOBES_DISPONIBLES.includes(s.id);
+    g.style.display = dispo ? '' : 'none';
+    if(dispo){ g.src='globes/'+s.id+'.webp'; g.alt='Position de '+s.court+' sur le globe actuel'; }
+  }
   $('#intro-accroche').textContent=s.accroche;
   $('#intro-titre').textContent=s.nom;
   afficheIntro();
@@ -708,7 +714,7 @@ function introSuivant(){
 let fondTimer=null, fondI=0;
 function fondsDuSite(s){
   const t=creaturesDe(s).filter(c=>possede(c.id)).map(c=>c.img);
-  return t.length ? t : [SITES.find(x=>x.id===s).fond];
+  return t.length ? t : [fondDe(s)];
 }
 function rotationFond(){
   if(!siteActif)return;
@@ -985,14 +991,35 @@ function changerTri(m){ if(m!=='frise' && !TRIS[m])return; etat.tri=m; sauver();
       étaler latéralement demanderait quatorze colonnes. Un gisement est un
       instant, et c'est ce que la frise montre.
 
-   2. Deux chantiers trop proches dans le temps se décalent LATÉRALEMENT, jamais
-      verticalement — Nemegt et Hell Creek sont séparés de deux millions
-      d'années, soit dix-huit pixels : ils sont bel et bien contemporains, et la
-      frise doit le dire. Même principe que les grappes d'épingles de la carte.
+   2. Deux chantiers trop proches dans le temps ne peuvent pas porter leurs
+      étiquettes au même endroit — Nemegt et Hell Creek sont séparés de deux
+      millions d'années, soit seize pixels, moins que la hauteur d'une pastille.
+
+      On sépare donc ce qui doit être exact de ce qui peut bouger. Un REPÈRE
+      court, posé sur l'axe, marque la date au pixel près et ne se déplace
+      jamais. L'ÉTIQUETTE, elle, glisse verticalement jusqu'à trouver sa place,
+      et un filet la relie à son repère. Rien n'est déformé : la position lue
+      sur l'axe reste vraie, seul le texte s'écarte, et le filet dit de combien.
+
+      C'est préférable au décalage latéral, qui obligeait à comparer des
+      hauteurs sur des colonnes différentes et faisait grimper l'indentation
+      avec le nombre de chantiers contemporains.
 
    3. Les quatre milliards d'années d'avant l'Édiacarien ne tiennent pas à cette
       échelle. Plutôt que de les compresser en silence, on les annonce : à huit
-      pixels par million d'années, il faudrait trente et un mètres de haut. */
+      pixels par million d'années, il faudrait trente et un mètres de haut.
+
+   4. L'échelle étant linéaire, elle se tasse là où l'on ajoute le plus de
+      chantiers récents : le Quaternaire entier tient en vingt-et-un pixels.
+      C'est le prix d'une échelle honnête, et c'est précisément ce qu'elle doit
+      faire sentir. Le décalage latéral du point 2 encaisse l'entassement, et un
+      repère « Aujourd'hui » ferme l'axe pour que le présent ne soit pas
+      seulement le bas de l'écran.
+
+   Chaque chantier est signalé par une créature EMBLÈME plutôt que par la
+   pastille de globe des vues satellites : sur un axe de temps, la position
+   géographique ne se lit pas, et vingt-trois globes se ressemblent tous. Une
+   silhouette situe l'époque d'un coup d'œil. Voir le bloc 29 de data.js. */
 const FRISE_DEBUT=650;          // en Ma ; l'Édiacarien commence à 635
 const FRISE_PX_PAR_MA=8;        // hauteur ≈ 5 200 px
 const FRISE_ECART_MIN=46;       // en deçà, deux chantiers se décalent de côté
@@ -1004,7 +1031,7 @@ function ageMoyenSite(id){
 let friseOuvert=null;
 
 function rendreFrise(){
-  const H=yFrise(0)+30;
+  const H=yFrise(0)+30;   /* l'axe s'arrête au présent ; les étiquettes y sont bornées */
 
   const eres=[{nom:'Protérozoïque',de:650,a:538.8},{nom:'Paléozoïque',de:538.8,a:251.9},
               {nom:'Mésozoïque',de:251.9,a:66},{nom:'Cénozoïque',de:66,a:0}];
@@ -1015,17 +1042,39 @@ function rendreFrise(){
   const grads=PERIODES.filter(p=>p.de<=FRISE_DEBUT).map(p=>
     `<div class="fri-per" style="top:${yFrise(p.de)}px"><b>${esc(p.nom)}</b><i>${p.de} Ma</i></div>`).join('');
 
+  /* Placement des étiquettes : on descend la liste dans l'ordre du temps et on
+     repousse chaque étiquette juste assez pour qu'elle ne recouvre pas la
+     précédente. Une seconde passe, remontante, récupère le jeu laissé au-dessus
+     quand un groupe serré est suivi d'un vide — sans quoi tout un amas dérive
+     vers le bas alors que la place existe plus haut. */
   const rangs=SITES.map(s=>({s, y:yFrise(ageMoyenSite(s.id))})).sort((a,b)=>a.y-b.y);
-  const occ=[];
-  const marqueurs=rangs.map(({s,y})=>{
-    let col=0;
-    while(occ[col]!==undefined && y-occ[col]<FRISE_ECART_MIN) col++;
-    occ[col]=y;
+  rangs.forEach((r,i)=>{
+    const mini = i ? rangs[i-1].etiq + FRISE_ECART_MIN : -Infinity;
+    r.etiq = Math.max(r.y, mini);
+  });
+  /* Le présent borne l'axe : une étiquette poussée sous « Aujourd'hui » se
+     lirait comme postérieure au présent. La passe remontante part donc de cette
+     limite et laisse les étiquettes passer AU-DESSUS de leur repère quand un
+     amas récent l'exige — le filet dit l'écart dans un sens comme dans
+     l'autre. C'est le cas dès qu'on illustre plusieurs gisements quaternaires,
+     tous compris dans les vingt-et-un derniers pixels de la frise. */
+  for(let i=rangs.length-1;i>=0;i--){
+    const maxi = i===rangs.length-1 ? yFrise(0) : rangs[i+1].etiq - FRISE_ECART_MIN;
+    rangs[i].etiq = Math.min(rangs[i].etiq, maxi);
+  }
+
+  const marqueurs=rangs.map(({s,y,etiq})=>{
     const cs=creaturesDe(s.id), n=cs.filter(c=>possede(c.id)).length;
     const ouvert=friseOuvert===s.id;
-    return `<div class="fri-site${ouvert?' ouvert':''}" style="top:${y}px;margin-left:${col*14}px">
+    const haut=Math.min(y,etiq), bas=Math.max(y,etiq);
+    /* Le repère marque la date ; le filet dit de combien l'étiquette s'en
+       écarte. Sans écart, pas de filet : rien à expliquer. */
+    return `<div class="fri-repere" style="top:${y}px"></div>
+    ${bas-haut>1?`<div class="fri-filet" style="top:${haut}px;height:${bas-haut}px"></div>`:''}
+    <div class="fri-site${ouvert?' ouvert':''}" style="top:${etiq}px">
       <button class="fri-tete" onclick="friseBascule('${s.id}')">
-        <img class="fri-globe" src="globes/${s.id}.webp" alt="" loading="lazy">
+        <img class="fri-embleme${n?'':' voile'}" src="${emblemeDe(s.id).img}"
+             alt="" loading="lazy">
         <span class="fri-nom">${esc(s.court)}</span>
         <span class="fri-cpt">${n} / ${cs.length}</span>
       </button>
@@ -1047,6 +1096,8 @@ function rendreFrise(){
     </div>
     <div class="fri-axe" style="height:${H}px">
       ${bandes}${grads}<div class="fri-ligne"></div>${marqueurs}
+      <div class="fri-fin" style="top:${yFrise(0)}px">
+        <b>Aujourd’hui</b><i>0 Ma</i></div>
     </div>`;
 }
 function friseBascule(id){

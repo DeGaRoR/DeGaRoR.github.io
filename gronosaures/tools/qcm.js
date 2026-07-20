@@ -20,6 +20,23 @@
      node tools/qcm.js                résumé global et par banque
      node tools/qcm.js --pires        les vingt questions les plus déséquilibrées
      node tools/qcm.js --banque <id>  le détail d'une banque
+
+   RÈGLES DE RÉDACTION — voir README.md, section « Règles de rédaction
+   des QCM ». En résumé, pour toute question écrite ou générée :
+
+     1. la clé est une réponse, pas une explication : la nuance va
+        dans le champ d'explication ;
+     2. les leurres sont parallèles à la clé — même construction
+        grammaticale, longueur du même ordre ;
+     3. AU MOINS UN LEURRE est plus long que la clé. Règle opératoire,
+        et la plus facile à oublier : tant que la clé reste la plus
+        longue, choisir la ligne la plus longue reste un pari gagnant ;
+     4. un leurre est une erreur que quelqu'un pourrait commettre, pas
+        une absurdité ni une non-réponse.
+
+   Et deux interdits : ne jamais inventer un fait ou un taxon pour
+   allonger un leurre — mieux vaut laisser la question déséquilibrée —
+   et ne pas retoucher les questions déjà équilibrées.
 */
 const fs=require('fs'), path=require('path');
 const R=path.resolve(__dirname,'..');

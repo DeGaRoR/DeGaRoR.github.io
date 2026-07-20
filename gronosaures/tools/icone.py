@@ -17,10 +17,16 @@ part par défaut à 22 % pour rester sur l'animal.
 
 Écrit trois fichiers dans icones/ :
   icone-192.png, icone-512.png          — usage courant
-  icone-maskable-512.png                — marge de 12 %, pour le rognage rond d'Android
+  icone-maskable-512.png                — même image, pleine frame
+
+L'icône maskable est identique à l'icône normale : pleine frame, sans marge.
+Poser l'image sur un fond ajoutait un bandeau visible tout autour, que le
+rognage d'Android ne masquait qu'en partie. Le compromis assumé est l'inverse :
+Android rogne les angles, ce qui coûte quelques pixels de décor mais rien du
+sujet, celui-ci étant centré (voir le critère de masse centrale, plus bas).
 """
 import argparse, glob, hashlib, json, os, re, sys
-from PIL import Image
+from PIL import Image, ImageDraw
 
 R = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 FOND = (10, 15, 26)
@@ -71,17 +77,20 @@ def main():
         for i, t in enumerate((180, 180, 180)):
             v = carre.resize((t, t), Image.LANCZOS)
             if i == 1:
-                b = Image.new("RGB", (t, t), FOND)
-                m = int(t * 0.76)
-                b.paste(carre.resize((m, m), Image.LANCZOS), ((t - m) // 2, (t - m) // 2))
-                v = b
+                # Ce que voit Android une fois le rognage rond appliqué.
+                v = carre.resize((t, t), Image.LANCZOS).copy()
+                masque = Image.new("L", (t, t), 0)
+                ImageDraw.Draw(masque).ellipse((0, 0, t - 1, t - 1), fill=255)
+                rond = Image.new("RGB", (t, t), FOND)
+                rond.paste(v, (0, 0), masque)
+                v = rond
             if i == 2:
                 v = v.resize((64, 64), Image.LANCZOS).resize((t, t), Image.NEAREST)
             pl.paste(v, (10 + i * 195, 10))
         p = os.path.join(R, "icones", "_apercu.png")
         pl.save(p)
         print("  Planche : %s" % p)
-        print("  De gauche à droite : normale, maskable, rendu à 64 px.")
+        print("  De gauche à droite : normale, telle que rognée par Android, rendu à 64 px.")
         return 0
 
     dest = os.path.join(R, "icones")
@@ -108,11 +117,10 @@ def main():
 
     n192 = ecrire(carre.resize((192, 192), Image.LANCZOS), "icone-192.%s.png")
     n512 = ecrire(carre.resize((512, 512), Image.LANCZOS), "icone-512.%s.png")
-    t = 512
-    b = Image.new("RGB", (t, t), FOND)
-    m = int(t * 0.76)
-    b.paste(carre.resize((m, m), Image.LANCZOS), ((t - m) // 2, (t - m) // 2))
-    nmsk = ecrire(b, "icone-maskable-512.%s.png")
+    # L'icône maskable est la même image, pleine frame. Elle est donc identique
+    # au fichier 512 : on la déclare deux fois au manifeste plutôt que d'écrire
+    # deux fois les mêmes octets sous deux noms.
+    nmsk = n512
 
     # Le manifeste et le cache hors ligne doivent suivre, sinon l'application
     # réclame des fichiers qui n'existent plus.
@@ -133,9 +141,15 @@ def main():
     psw = os.path.join(R, "sw.js")
     sw = open(psw, encoding="utf-8").read()
     sw = re.sub(r"'\./icones/icone-[^']*',?\s*", "", sw)
+    # La maskable pointe le même fichier que le 512 : on ne met en cache que les
+    # fichiers réellement distincts, sans quoi la liste contiendrait un doublon.
+    fichiers = []
+    for n in (n192, n512, nmsk):
+        if n not in fichiers:
+            fichiers.append(n)
     sw = sw.replace(
         "'./monde-min.webp',",
-        "'./monde-min.webp',\n  './icones/%s', './icones/%s',\n  './icones/%s'," % (n192, n512, nmsk),
+        "'./monde-min.webp',\n  " + ", ".join("'./icones/%s'" % n for n in fichiers) + ",",
         1)
     open(psw, "w", encoding="utf-8").write(sw)
 

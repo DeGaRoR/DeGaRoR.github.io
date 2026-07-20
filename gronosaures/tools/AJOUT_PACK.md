@@ -115,8 +115,79 @@ automatiquement. Trois règles, appliquées aux packs Zhenghe, Nemegt et Hell Cr
 3. **Une donnée absente reste absente.** Pas de masse inventée, pas de date précise
    affirmée sans source.
 
+### Équilibrer les options — obligatoire, pas optionnel
+
+Les trois règles ci-dessus portent sur le CONTENU. Elles ne suffisent pas : sur les
+752 premières questions écrites ainsi, **la bonne réponse était la plus longue des
+quatre dans 67 % des cas**, pour une cible de 25 %. On pouvait gagner presque toutes
+les questions sans rien connaître au sujet, en choisissant la ligne la plus longue.
+Reprendre l'ensemble a demandé onze passes.
+
+**Les règles de FORME sont donc à appliquer à la rédaction, pas après coup.** Elles
+sont consignées au README, section « Règles de rédaction des QCM », et rappelées en
+tête de `tools/qcm.js`. En résumé :
+
+4. **La clé est une réponse, pas une explication.** La nuance va dans l'explication,
+   qui s'affiche après coup.
+5. **Les leurres sont parallèles à la clé** — même construction grammaticale, longueur
+   du même ordre.
+6. **Au moins un leurre est plus long que la clé.** La plus facile à oublier :
+   raccourcir la clé ne suffit pas, tant qu'elle reste la plus longue la ligne la plus
+   longue reste un pari gagnant.
+7. **Un leurre est une erreur plausible**, pas une absurdité ni une non-réponse. « Aucun
+   problème, c'est exact » ne trompe personne et réduit le choix à trois.
+
+Et l'interdit qui prime sur les six autres : **ne jamais inventer un fait ou un taxon
+pour allonger un leurre**. Si aucun leurre réel ne convient, laisser la question
+déséquilibrée. Une question sur vingt devinable coûte moins cher qu'un faux taxon.
+
 Contrôle avant intégration : distracteurs distincts, réponse cohérente avec
 `correct_choice`, lien présent, explication substantielle, formulation interrogative.
+
+    node tools/qcm_brouillon.js tools/PACK_XXX.md --pires   mesure la banque RÉDIGÉE
+    node tools/qcm.js --banque <id>                         mesure la banque INTÉGRÉE
+
+`qcm_brouillon.js` lit une banque encore en markdown, au format des fiches
+`tools/PACK_XXX.md` :
+
+    1. **Question ?** · *bonne réponse* · leurre · leurre · leurre
+
+C'est là qu'il faut mesurer — au moment où l'on écrit, pas une fois les questions en
+place. Découvrir le biais après coup a coûté onze passes de reprise sur les 752
+premières questions.
+
+`qc.js` refuse la livraison si la nouvelle banque dépasse 25 % de clés les plus longues
+ou un ratio de 1,10. Le contrôle est automatique : la porte lit la liste des sites et
+des packs, un ajout est donc tenu au même seuil que l'existant sans rien déclarer.
+
+## 5 quater. Fond de chantier — facultatif
+
+La vue satellite (`sites/XXX.webp`) est **facultative** depuis le bloc 31. C'était le
+poste le plus coûteux de l'ajout d'un pack, et il ne peut pas suivre le rythme auquel on
+ajoute des chantiers.
+
+Si la clé `fond` est absente, le fond est l'illustration de la **créature emblème** —
+celle qui représente déjà le chantier sur la frise. Ce n'est pas un pis-aller : une carte
+de créature est une scène complète, déjà cadrée, à la bonne palette, et elle dit l'époque
+mieux qu'une vue satellite d'un paysage qui n'existait pas à ce moment-là.
+
+Les vingt-trois vues existantes sont conservées : quand `fond` est renseigné, il prime.
+Ne renseigner `fond` que si l'on dispose réellement de l'image.
+
+## 5 ter. Emblème de frise
+
+Chaque chantier porte, sur la frise du temps, une **créature emblème** — la pastille de
+globe des vues satellites ne dit rien sur un axe de temps, et vingt-trois globes se
+ressemblent tous.
+
+Ajouter l'entrée dans `EMBLEMES` (bloc 29 de `data.js`). Deux critères : la créature
+doit **situer l'époque d'un coup d'œil** et rester **reconnaissable en vignette de
+trente pixels**. À valeur égale, préférer la plus caractéristique de la forme du vivant
+à ce moment-là plutôt que la plus célèbre.
+
+`qc.js` réclame l'entrée explicite, vérifie que la créature appartient bien au chantier
+et que son illustration existe. Un chantier sans emblème retomberait sur sa première
+créature — silencieusement, et sans raison que ce soit le bon choix.
 
 ## 6. Calage de l'épingle
 

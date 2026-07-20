@@ -745,10 +745,10 @@ const CARTE_LARGEUR_MIN=340;  // largeur d'affichage la plus étroite envisagée
    Les coûts d'ouverture ne suivent pas l'ordre chronologique d'affichage :
    ils dessinent un parcours, du site le mieux documenté au plus dispersé. */
 const CREDITS_DEPART=260;       // Burgess plus six coups de pioche
-const COUT_FOUILLE=30;
+const COUT_FOUILLE=20;
 const GAIN_MISSION=12;
 const NB_MISSION=6;             // questions par mission
-const BONUS_PART=0.6;           // part du coût d'ouverture rendue quand le site est complété
+const BONUS_PART=0.84;           // part du coût d'ouverture rendue quand le site est complété
 const BONUS_SITE=200;           // plancher, pour les sites les moins chers
 const SEUILS_DOC=[0,2,5];       // fragments requis pour les niveaux 1, 2, 3
 const FOUILLE_VIDE=false;       // true = une fouille réussie peut ne rien donner
@@ -1023,7 +1023,12 @@ const PERIODES=[
 ];
 function periodeDe(c){
   const m=(c.ageMin+c.ageMax)/2;
-  return PERIODES.find(p=>m<=p.de && m>p.a) || PERIODES[PERIODES.length-1];
+  /* La borne basse est exclusive, sinon une créature tomberait dans deux
+     périodes voisines. Mais la dernière période se referme sur zéro : une
+     espèce actuelle — le cœlacanthe, un animal domestique — a un âge moyen nul
+     et ne tomberait nulle part. Le présent appartient au Quaternaire. */
+  return PERIODES.find(p=>m<=p.de && (m>p.a || p.a===0))
+      || PERIODES[PERIODES.length-1];
 }
 
 const GRANDS_GROUPES=[
@@ -4621,3 +4626,3447 @@ biologie:[
     });
   });
 })();
+
+/* ================================================================
+   Bloc 19 : suite du rééquilibrage des QCM (voir bloc 18).
+
+   Même méthode, appliquée à `histscol`, `arteu` et `geographie`.
+
+   Le défaut n'était pas seulement une affaire de longueur : la clé
+   était une PROPOSITION, les leurres des GROUPES NOMINAUX. La forme
+   suffisait à trancher sans lire. Plusieurs leurres étaient en outre
+   des non-réponses — « Aucun problème, c'est exact », « Il n'y en a
+   pas », « Les cartes ne varient jamais » — qui ne leurrent personne
+   et réduisaient de fait le choix à trois.
+
+   Règles, identiques au bloc 18 :
+     1. la clé est ramenée à une réponse, la nuance passant dans
+        l'explication ;
+     2. les leurres sont parallèles à la clé : même construction
+        grammaticale, longueur du même ordre, contenu plausible pour
+        qui a mal révisé plutôt qu'absurde ;
+     3. au moins un leurre est plus long que la clé.
+
+   Les questions elles-mêmes ne changent pas : seules les réponses
+   sont réécrites.
+   ================================================================ */
+
+/* `arteu` avait été écrit sans champ `n`, comme `biologie` avant lui. */
+(function numeroterArteu(){
+  const p=PACKS.find(x=>x.id==='arteu');
+  if(p) p.bank().forEach((it,i)=>{ if(it.n===undefined) it.n=i+1; });
+})();
+
+const OPTIONS_REVUES_2={
+
+histscol:[
+[1,"Préhistoire, Antiquité, Moyen Âge, Temps modernes, Époque contemporaine",
+ ["Préhistoire, Antiquité, Moyen Âge, Renaissance, Époque moderne",
+  "Antiquité, Moyen Âge, Renaissance, Révolution, Époque contemporaine",
+  "Préhistoire, Antiquité classique, Moyen Âge, Lumières, Modernité"]],
+[2,"La déposition du dernier empereur romain d’Occident",
+ ["Le couronnement de Charlemagne comme empereur d’Occident",
+  "Le sac de Rome par les Wisigoths conduits par Alaric",
+  "Le concile qui fixe la doctrine de l’Église d’Occident"]],
+[3,"Un document produit à l’époque étudiée",
+ ["Un ouvrage écrit par un historien reconnu","Un manuel conforme au programme scolaire",
+  "Une notice d’encyclopédie consacrée à la période"]],
+[4,"Se demander qui l’a produite, quand, pour qui et pourquoi",
+ ["Vérifier qu’elle ne contient pas d’erreur de langue",
+  "Établir si son auteur avait raison sur le fond",
+  "La confronter à ce qu’en dit le manuel de référence"]],
+[5,"En Mésopotamie, vers 3300 avant notre ère",
+ ["En Égypte, vers 5000 avant notre ère","En Chine, vers 3000 avant notre ère",
+  "Dans la vallée de l’Indus, vers 3000 avant notre ère"]],
+[6,"Seuls les hommes citoyens, soit une minorité",
+ ["Tous les habitants adultes de la cité","Les hommes et les femmes de statut libre",
+  "Tous les résidents à l’exception des esclaves"]],
+[7,"Des liens personnels entre seigneurs et vassaux",
+ ["Un gouvernement exercé directement par l’Église",
+  "Une monarchie où le roi détient déjà tout le pouvoir",
+  "Un réseau de villes affranchies de toute tutelle"]],
+[8,"Par des lettrés de la Renaissance, avec mépris",
+ ["Par les contemporains eux-mêmes, dès le Xᵉ siècle",
+  "Par les historiens universitaires du XXᵉ siècle",
+  "Par l’Église, pour désigner les siècles d’avant la Réforme"]],
+[9,"La diffusion des textes devient rapide et peu coûteuse",
+ ["Le papier remplace définitivement le parchemin",
+  "L’alphabet latin se fixe dans sa forme actuelle",
+  "Les ateliers de copistes disparaissent en une génération"]],
+[10,"L’étude des textes antiques replacée au centre",
+ ["Le rejet de toute forme de croyance religieuse",
+  "Une doctrine politique en faveur de la république",
+  "Un courant strictement pictural né dans l’Italie du Nord"]],
+[11,"Le continent était peuplé depuis des millénaires",
+ ["La date exacte est postérieure de deux ans",
+  "Colomb n’a jamais atteint le continent lui-même",
+  "L’expression est exacte du point de vue des sources"]],
+[12,"Une rupture avec l’autorité de Rome",
+ ["Une réforme interne conduite par la papauté",
+  "Un mouvement politique né dans le royaume de France",
+  "Une révolte paysanne contre les seigneurs allemands"]],
+[13,"Le roi concentre les pouvoirs, sans contre-pouvoir",
+ ["Le roi gouverne en l’absence de toute loi écrite",
+  "Le roi est élu par une assemblée de grands du royaume",
+  "Le roi partage le pouvoir avec un parlement élu"]],
+[14,"Que les hommes naissent libres et égaux en droits",
+ ["Que l’esclavage est aboli dans toutes les colonies",
+  "Que le droit de vote est accordé aux femmes",
+  "Que l’Église est séparée de l’État"]],
+[15,"En Grande-Bretagne, dans la seconde moitié du XVIIIᵉ",
+ ["En France, dans les années qui suivent 1789",
+  "En Allemagne, autour du milieu du XIXᵉ siècle",
+  "Aux États-Unis, au tournant du XIXᵉ siècle"]],
+[16,"En 1830",["En 1789","En 1815","En 1848"]],
+[17,"Seuls les hommes payant un impôt suffisant",
+ ["Tous les hommes adultes, sans condition de fortune",
+  "Tous les adultes, hommes et femmes","Les hommes sachant lire et écrire"]],
+[18,"L’attentat de Sarajevo, sur fond d’alliances tendues",
+ ["L’invasion de la Belgique, décidée des mois plus tôt",
+  "La révolution russe et la chute du tsar",
+  "Le krach boursier qui ruine les puissances européennes"]],
+[19,"Le fait s’établit par les sources, l’interprétation se discute",
+ ["Aucune : les historiens emploient les deux mots indifféremment",
+  "L’interprétation est par nature invérifiable",
+  "Le fait est ancien, l’interprétation contemporaine"]],
+[20,"Les sources et les questions posées évoluent",
+ ["On s’aperçoit que les précédents étaient mensongers",
+  "Les éditeurs doivent renouveler leur catalogue",
+  "La datation des événements est régulièrement corrigée"]]
+],
+
+arteu:[
+[1,"Brunelleschi, puis Alberti par écrit",
+ ["Léonard de Vinci, dans ses carnets d’anatomie","Giotto, dans la chapelle des Scrovegni",
+  "Albrecht Dürer, dans son traité de la mesure"]],
+[2,"Le poids repose sur une jambe, déséquilibrant le corps",
+ ["Une technique de polissage du marbre à la pierre ponce",
+  "Un socle mouluré destiné aux statues votives",
+  "Un canon fixant les proportions idéales du corps"]],
+[3,"Il donne à ses figures volume et poids",
+ ["Il introduit la peinture à l’huile en Italie",
+  "Il abandonne les commandes religieuses",
+  "Il est le premier peintre à signer ses panneaux"]],
+[4,"Un séchage lent, donc glacis, fondus et retouches",
+ ["Des couleurs nettement plus vives que la fresque",
+  "Un coût de production sensiblement plus faible",
+  "Une bien meilleure résistance à l’humidité des murs"]],
+[5,"À Giorgio Vasari, dans ses Vies de 1550",
+ ["À Winckelmann, dans son histoire de l’art antique",
+  "À Diderot, dans ses comptes rendus de Salons",
+  "À Vitruve, dans son traité d’architecture"]],
+[6,"Un passage insensible d’un ton à l’autre",
+ ["Un contraste violent entre l’ombre et la lumière",
+  "Un dessin préparatoire repris à la pointe d’argent",
+  "Un vernis final légèrement teinté de brun"]],
+[7,"Un éclairage violent, le reste dans l’ombre",
+ ["L’emploi de pigments sombres à l’exclusion des clairs",
+  "La représentation de scènes se déroulant la nuit",
+  "Un fond uniformément noir, sans aucun modelé"]],
+[8,"La scène se passe de jour : les vernis avaient noirci",
+ ["Rembrandt lui avait donné ce titre par ironie",
+  "Elle représente bien une ronde militaire nocturne",
+  "Le titre provient d’une erreur de traduction tardive"]],
+[9,"L’histoire au sommet, la nature morte en bas",
+ ["Le portrait au sommet, le paysage tout en bas",
+  "Le paysage au sommet, le portrait tout en bas",
+  "La nature morte au sommet, l’histoire tout en bas"]],
+[10,"Un modèle de rigueur, contre la légèreté rococo",
+ ["Des sujets exotiques encore jamais représentés",
+  "Une liberté nouvelle dans l’emploi de la couleur",
+  "Un retour à la grande peinture religieuse"]],
+[11,"Un naufrage récent devenu scandale politique",
+ ["Un épisode mythologique emprunté à Homère",
+  "Une bataille des campagnes napoléoniennes",
+  "Une allégorie de la Révolution et de ses espoirs"]],
+[12,"Que des villageois méritent le format de l’histoire",
+ ["Que la peinture doit renoncer à toute figuration",
+  "Que l’art doit se remettre au service de la religion",
+  "Que le paysage doit primer sur la figure humaine"]],
+[13,"D’une moquerie de critique, reprise par les peintres",
+ ["D’un manifeste rédigé par Monet et ses proches",
+  "Du nom de la galerie qui les exposa en 1874",
+  "D’un terme technique de la peinture à l’huile"]],
+[14,"Une construction solide, sans quitter la sensation",
+ ["Copier littéralement les compositions de Poussin",
+  "Renoncer au motif pour travailler en atelier",
+  "Revenir aux sujets mythologiques du grand genre"]],
+[15,"Il le montre sous plusieurs angles, en fragments",
+ ["Il le réduit à des aplats de couleur pure",
+  "Il le supprime au profit d’une abstraction totale",
+  "Il l’agrandit jusqu’à le rendre méconnaissable"]],
+[16,"Des masques africains et océaniens du Trocadéro",
+ ["Des fresques romaines dégagées à Pompéi",
+  "Des icônes byzantines vues à Ravenne",
+  "Des estampes japonaises alors très à la mode"]],
+[17,"Un objet manufacturé désigné comme œuvre",
+ ["Une sculpture moulée puis éditée en série",
+  "Une œuvre exécutée sans dessin préparatoire",
+  "Un tableau peint d’après une photographie"]],
+[18,"Exclues des académies et de l’étude du nu",
+ ["Elles n’ont commencé à peindre qu’au XIXᵉ siècle",
+  "Leurs œuvres se sont beaucoup moins bien conservées",
+  "Elles se consacraient surtout aux arts décoratifs"]],
+[19,"Une peinture appliquée sur un enduit encore frais",
+ ["Toute peinture murale de grandes dimensions",
+  "Une peinture exécutée sur un panneau de bois enduit",
+  "Une peinture à la cire chauffée puis lissée au fer"]],
+[20,"La couleur devient transportable : on peint dehors",
+ ["Les pigments employés deviennent moins toxiques",
+  "La toile tendue remplace définitivement le bois",
+  "Les vernis de finition sèchent beaucoup plus vite"]]
+],
+
+geographie:[
+[1,"La distance angulaire à l’équateur",
+ ["La distance angulaire au méridien de Greenwich","L’altitude mesurée au-dessus du niveau des mers",
+  "La distance en ligne droite jusqu’au pôle Nord"]],
+[2,"500 mètres",["50 mètres","5 kilomètres","50 kilomètres"]],
+[3,"Des lignes joignant les points de même altitude",
+ ["Les limites entre communes et provinces","Le tracé des cours d’eau souterrains",
+  "Les axes routiers classés comme principaux"]],
+[4,"Les surfaces, de plus en plus loin de l’équateur",
+ ["Les angles, ce qui la rend impropre à la navigation",
+  "Les distances est-ouest, mais elles seules",
+  "Rien : elle restitue fidèlement le globe"]],
+[5,"Trois",["Deux","Quatre","Dix"]],
+[6,"Le Signal de Botrange, 694 m",
+ ["La Baraque de Fraiture, 652 m","Le Mont Saint-Aubert, 149 m","Le Kemmelberg, 156 m"]],
+[7,"La Meuse et l’Escaut",["La Meuse et la Sambre","L’Escaut et la Lys","Le Rhin et la Meuse"]],
+[8,"Le territoire dont les eaux vont au même cours d’eau",
+ ["Le lit qu’occupe une rivière au moment d’une crue",
+  "Une retenue artificielle destinée à l’irrigation",
+  "La zone d’une ville exposée au risque d’inondation"]],
+[9,"Le delta ramifie le fleuve, l’estuaire l’élargit",
+ ["Le delta se forme en mer, l’estuaire en rivière",
+  "L’estuaire est toujours de dimension plus vaste",
+  "Ce sont deux noms pour une même formation"]],
+[10,"Latitude, altitude, distance à la mer, courants",
+ ["La seule latitude, qui commande tout le reste",
+  "La densité de population et l’activité industrielle",
+  "La nature du sol et la végétation qu’il porte"]],
+[11,"Tempéré océanique",["Tempéré continental","Méditerranéen","Subarctique"]],
+[12,"Les températures et les précipitations mois par mois",
+ ["Le profil d’altitude le long d’un tracé",
+  "La répartition de la population par commune",
+  "La direction et la force des vents dominants"]],
+[13,"En divisant les habitants par la superficie",
+ ["En divisant la superficie par les habitants",
+  "En comptant les habitants de la ville principale",
+  "En additionnant les naissances de l’année"]],
+[14,"Cinq",["Trois","Quatre","Sept"]],
+[15,"Les séismes, les volcans et les montagnes",
+ ["Les marées et leur rythme sur la journée",
+  "Les saisons et l’inégale durée des jours",
+  "Les grands courants marins et leur trajet"]],
+[16,"Les latitudes extrêmes où le Soleil passe au zénith",
+ ["Les limites au-delà desquelles on ne peut plus vivre",
+  "La position de l’équateur magnétique terrestre",
+  "Les limites des eaux chaudes propices aux coraux"]],
+[17,"La Terre tourne : il n’est pas midi partout à la fois",
+ ["Ils facilitent les échanges commerciaux internationaux",
+  "Ils compensent l’inclinaison qui produit les saisons",
+  "Ils permettent de distinguer les pays entre eux"]],
+[18,"Le départ des campagnes vers les villes",
+ ["Le retour des citadins vers les zones rurales",
+  "Le départ d’une partie de la population vers l’étranger",
+  "L’appauvrissement des sols cultivés sans repos"]],
+[19,"À donner le sens des couleurs et des symboles",
+ ["À indiquer l’auteur et la date de la carte",
+  "À fournir l’échelle et rien d’autre",
+  "À signaler les zones où le relevé est incertain"]],
+[20,"Projection, couleurs et découpage orientent la lecture",
+ ["L’une des deux comporte nécessairement une erreur",
+  "Les procédés d’impression modifient les teintes",
+  "Une carte donnée ne varie jamais d’une édition à l’autre"]]
+]
+
+};
+
+(function appliquer2(){
+  Object.keys(OPTIONS_REVUES_2).forEach(id=>{
+    const p=PACKS.find(x=>x.id===id); if(!p) return;
+    const banque=p.bank();
+    OPTIONS_REVUES_2[id].forEach(([n,r,autres])=>{
+      const it=banque.find(x=>x.n===n);
+      if(it){ it.r=r; it.autres=autres; }
+    });
+  });
+})();
+
+/* ================================================================
+   Bloc 20 : fin du rééquilibrage des QCM de la Bourse.
+
+   `lecture`, `philosophie`, `artmonde` — après quoi les douze packs
+   sont traités et il ne reste que les 500 questions de fouille.
+
+   Dans `lecture`, une partie des réponses tenait déjà en un mot
+   (« narratif », « interne », « le lendemain ») : ces items étaient
+   équilibrés et ne sont pas touchés. Seuls le sont ceux dont la clé
+   était une proposition face à trois groupes nominaux.
+
+   Mêmes règles qu'aux blocs 18 et 19 : clé ramenée à une réponse,
+   leurres parallèles et plausibles, au moins un leurre plus long.
+   ================================================================ */
+
+/* Ni `philosophie` ni `artmonde` n'avaient de champ `n`. */
+['philosophie','artmonde'].forEach(id=>{
+  const p=PACKS.find(x=>x.id===id);
+  if(p) p.bank().forEach((it,i)=>{ if(it.n===undefined) it.n=i+1; });
+});
+
+const OPTIONS_REVUES_3={
+
+lecture:[
+[2,"Ce qui rompt l’équilibre initial",
+ ["Ce qui clôt l’histoire et rétablit l’ordre","Le portrait détaillé du personnage principal",
+  "Le cadre spatial où se déroule l’action"]],
+[4,"Un fait : c’est vérifiable",
+ ["Une opinion : c’est un point de vue","Ni l’un ni l’autre des deux",
+  "Une opinion présentée comme un fait"]],
+[5,"L’idée que l’auteur veut faire admettre",
+ ["Le paragraphe qui ouvre le développement","Le titre, qui l’annonce toujours",
+  "L’avis que le lecteur se forge en lisant"]],
+[6,"L’argument est une raison, l’exemple un cas",
+ ["Aucune : les deux mots sont interchangeables",
+  "L’argument est nécessairement plus développé",
+  "L’exemple précède toujours l’argument qu’il sert"]],
+[8,"La concession : on admet avant de maintenir",
+ ["La cause : il introduit la raison du fait",
+  "La conséquence : il introduit ce qui s’ensuit",
+  "L’addition : il ajoute un élément au précédent"]],
+[9,"Les mots d’un texte liés à un même thème",
+ ["La liste des mots que le lecteur ignore","Les mots partageant une même racine",
+  "Le vocabulaire spécialisé d’une profession"]],
+[12,"Le décalage entre ce qui est dit et le contexte",
+ ["La présence de points d’exclamation répétés",
+  "L’emploi de guillemets autour des mots visés",
+  "Rien : elle ne se repère pas à l’écrit"]],
+[15,"Qu’elle les a déjà oubliées auparavant",
+ ["Qu’elle a définitivement perdu ses clés","Qu’elle est en retard à cause de cela",
+  "Rien : la phrase ne suppose aucun précédent"]],
+[16,"Le fil de l’argumentation ou de l’action",
+ ["Les phrases les mieux tournées du texte","Les exemples, qui rendent le propos concret",
+  "Les chiffres, qui donnent sa valeur au texte"]],
+[17,"Ce qui entoure le texte : titre, source, date",
+ ["Le corps du texte, à l’exclusion des titres",
+  "Les seules notes placées en bas de page",
+  "Les états successifs du brouillon de l’auteur"]],
+[19,"À savoir qui l’a produit et s’il se vérifie",
+ ["À donner au texte la longueur attendue","À montrer l’étendue des lectures de l’auteur",
+  "À rien : le secondaire ne l’exige pas encore"]],
+[20,"Un texte argumentatif déguisé en informatif",
+ ["Un texte narratif construit autour d’un produit",
+  "Un texte descriptif d’une parfaite neutralité",
+  "Une maladresse de mise en page du journal"]]
+],
+
+philosophie:[
+[1,"Une tentative de réfutation",
+ ["Une démonstration de type mathématique","Un vote majoritaire de la communauté savante",
+  "Une confirmation répétée par l’expérience"]],
+[2,"Une donnée solide, une interprétation ouverte",
+ ["Que les paléontologues du passé travaillaient mal",
+  "Que le fossile en question était un faux",
+  "Que la science finit toujours par se tromper"]],
+[3,"L’absence d’un fossile ne prouve pas l’absence",
+ ["Toute hypothèse se vaut tant qu’on n’a rien trouvé",
+  "Un fossile qui manque doit être supposé présent",
+  "Les lacunes du registre sont sans conséquence"]],
+[4,"Rien ne garantit que cela se reproduira",
+ ["Nos sens nous trompent de façon systématique",
+  "Les mathématiques ne s’appliquent pas au réel",
+  "On ne peut rien connaître avec certitude du passé"]],
+[5,"À pouvoir égal, préférer la plus simple",
+ ["Les explications simples sont toujours les vraies",
+  "Il faut rejeter toute hypothèse invérifiable",
+  "La nature ne fait jamais rien d’inutile"]],
+[6,"Une inférence honnête sur un matériel abîmé",
+ ["Une fraude délibérée de la part des auteurs",
+  "Une simple erreur de calcul sur les proportions",
+  "Une invention destinée à faire parler d’elle"]],
+[7,"L’image mêle l’observé et l’extrapolé",
+ ["Parce que les illustrations sont toutes fausses",
+  "Parce que la réglementation muséale l’impose",
+  "Parce que la mention rend l’image plus belle"]],
+[8,"La quantité de données ne tranche pas tout",
+ ["Que les spécimens sont trop mal conservés",
+  "Que l’animal n’a probablement jamais existé",
+  "Qu’il s’agit nécessairement d’un vertébré"]],
+[9,"Un regroupement anatomique, révisable",
+ ["Un fait de nature qui ne se discute pas",
+  "Une convention entièrement arbitraire",
+  "Un groupe défini par la lecture du génome"]],
+[10,"Sans position dans le temps, une forme ne dit rien",
+ ["Parce qu’elle autorise une datation au carbone 14",
+  "Parce qu’elle démontre la réalité de l’évolution",
+  "Parce qu’elle mesure la taille des populations"]],
+[11,"Une distorsion due à ce qui se conserve",
+ ["Une erreur commise lors de la datation","Un défaut optique de l’instrument employé",
+  "Un désaccord persistant entre chercheurs"]],
+[12,"La ressemblance n’établit pas la parenté",
+ ["Les apparences sont toujours trompeuses","Ces trois animaux ont un ancêtre commun récent",
+  "La classification relève du choix arbitraire"]],
+[13,"Rien ne peut la mettre en défaut",
+ ["Elle est trop compliquée pour être comprise",
+  "Elle manque de généralité pour être utile",
+  "Elle entre en contradiction avec les mathématiques"]],
+[14,"Non : c’est un postulat, sans cesse éprouvé",
+ ["Oui, par l’expérience directe en laboratoire",
+  "Non, et la géologie n’est donc pas une science",
+  "Oui, cela découle nécessairement des mathématiques"]],
+[15,"La datation vise les minéraux, pas l’os",
+ ["Parce que les os fossilisés sont trop fragiles",
+  "Parce que le carbone 14 coûte beaucoup trop cher",
+  "Parce qu’un fossile n’a pas d’âge qui lui soit propre"]],
+[16,"Le meilleur état actuel des données",
+ ["Qu’elle est très probablement fausse","Qu’elle n’a aucune valeur documentaire",
+  "Qu’elle finira nécessairement par être confirmée"]],
+[17,"De ce que les fossiles autorisent à conclure",
+ ["De la datation exacte du gisement de Burgess",
+  "De l’authenticité des spécimens exhumés",
+  "De la qualité des relevés et des dessins"]],
+[18,"Elle rend l’affirmation contestable",
+ ["Parce qu’elle protège juridiquement son auteur",
+  "Parce qu’elle permet de raccourcir le texte",
+  "Parce qu’elle décourage les questions du lecteur"]],
+[19,"L’idée que l’évolution tendrait vers nous",
+ ["L’idée que les trilobites étaient primitifs",
+  "La confiance accordée aux datations actuelles",
+  "L’importance attribuée à l’extinction permienne"]],
+[20,"Il décrit correctement l’état de la question",
+ ["Il manque à la rigueur qu’on attend de lui",
+  "Il refuse purement et simplement de conclure",
+  "Il choisit implicitement la plus simple des deux"]]
+],
+
+artmonde:[
+[1,"Qu’elles venaient de l’Atlantide",
+ ["Qu’il s’agissait de faux fabriqués récemment",
+  "Qu’elles avaient été importées depuis l’Égypte",
+  "Qu’elles ne remontaient pas au-delà du XIXᵉ siècle"]],
+[2,"La fonte à la cire perdue",
+ ["Le martelage à froid sur un noyau de bois","Le moulage en sable à deux coquilles",
+  "Le soudage de plaques préalablement découpées"]],
+[3,"Le pillage de Benin City en 1897",
+ ["Des achats réguliers auprès de la cour du Bénin",
+  "Des fouilles archéologiques menées au XXᵉ siècle",
+  "Des dons consentis par des missionnaires"]],
+[4,"Engagées : plus de 1 100 pièces transférées",
+ ["Aucune restitution n’a eu lieu jusqu’à ce jour",
+  "L’ensemble des pièces a désormais été rendu",
+  "La France est le seul pays à avoir restitué"]],
+[5,"Au milieu du premier millénaire avant notre ère",
+ ["Au XVᵉ siècle de notre ère","Au IIᵉ siècle avant notre ère","Au XIXᵉ siècle"]],
+[6,"Que les bâtisseurs n’étaient pas africains",
+ ["Que l’ensemble datait du XIXᵉ siècle","Qu’il s’agissait d’une formation naturelle",
+  "Qu’il avait été édifié par des marchands portugais"]],
+[7,"Taillées d’un bloc dans la roche, de haut en bas",
+ ["Assemblées en pierres de taille appareillées",
+  "Creusées dans des cavités naturelles élargies",
+  "Montées en brique crue puis enduites"]],
+[8,"En le déroulant, le regard se déplaçant",
+ ["D’un seul coup d’œil, comme un tableau accroché",
+  "De droite à gauche, à distance constante",
+  "À travers une ouverture ménagée dans un cadre"]],
+[9,"Visages individualisés, corps produits en série",
+ ["Chacune est unique de la tête jusqu’aux pieds",
+  "Toutes sont rigoureusement identiques entre elles",
+  "Ce sont des moulages pris sur des soldats vivants"]],
+[10,"« Images du monde flottant »",
+ ["« Gravures sur planche de bois »","« Art des marchands des villes »",
+  "« Peinture des reflets de l’eau »"]],
+[11,"L’assimilation de la composition de l’estampe",
+ ["Un goût pour les sujets japonais chez les académiques",
+  "Le voyage des impressionnistes jusqu’au Japon",
+  "Un procédé d’impression importé de Yokohama"]],
+[12,"Shiva dansant dans un cercle de flammes",
+ ["Shiva en méditation au sommet du mont Kailash",
+  "Un souverain Chola représenté sous les traits d’un dieu",
+  "Une scène de bataille entre dieux et démons"]],
+[13,"Elle transcrit une parole tenue pour révélée",
+ ["La peinture est interdite en tout lieu et tout temps",
+  "Elle se transporte plus aisément qu’une peinture",
+  "Elle tient lieu de signature aux souverains"]],
+[14,"Un décor en alvéoles menant du carré à la coupole",
+ ["Une fontaine placée au centre d’une cour intérieure",
+  "Un carreau de faïence à décor géométrique",
+  "Une porte monumentale ouvrant sur la cour"]],
+[15,"Elle l’ignore, empilant les plans",
+ ["Elle l’applique rigoureusement dès le XIVᵉ siècle",
+  "Elle la découvre au contact des marchands portugais",
+  "Elle la remplace par un flou marquant l’éloignement"]],
+[16,"Des portraits de dirigeants, taillés dans le basalte",
+ ["Des représentations des divinités du panthéon",
+  "Des bornes marquant les limites d’un territoire",
+  "Des couvercles fermant des tombes princières"]],
+[17,"Les plumes se dégradent, la conquête a fait le reste",
+ ["Les Aztèques n’en produisaient qu’en très petit nombre",
+  "La technique n’a jamais fait l’objet d’une description",
+  "L’essentiel est conservé dans les musées de Mexico"]],
+[18,"Des portraits individuels, reconnaissables",
+ ["Ils ne représentent que des figures divines",
+  "Ils sont tous issus d’un même moule",
+  "Ils portent une écriture aujourd’hui déchiffrée"]],
+[19,"La plus longue tradition continue connue",
+ ["Elle n’a commencé qu’au contact des Européens",
+  "Elle se limite à la peinture sur écorce",
+  "Elle est sans rapport avec les récits d’origine"]],
+[20,"Il range des traditions savantes du côté de l’origine",
+ ["Il désigne avec précision l’art de la préhistoire",
+  "Il qualifie les œuvres restées à l’état d’ébauche",
+  "Il provient du vocabulaire des artistes eux-mêmes"]]
+]
+
+};
+
+(function appliquer3(){
+  Object.keys(OPTIONS_REVUES_3).forEach(id=>{
+    const p=PACKS.find(x=>x.id===id); if(!p) return;
+    const banque=p.bank();
+    OPTIONS_REVUES_3[id].forEach(([n,r,autres])=>{
+      const it=banque.find(x=>x.n===n);
+      if(it){ it.r=r; it.autres=autres; }
+    });
+  });
+})();
+
+/* ================================================================
+   Bloc 21 : rééquilibrage des QCM de FOUILLE.
+
+   Mêmes règles qu'aux blocs 18 à 20, appliquées aux 500 questions
+   des chantiers. Le travail se fait chantier par chantier, dans
+   l'ordre de la frise — ce sont les premiers que l'on rencontre.
+
+   Seules les questions déséquilibrées sont reprises : dans un
+   chantier, la moitié environ avait déjà des options comparables
+   (noms d'espèces, dates, termes techniques). Les toucher n'aurait
+   rien amélioré et aurait multiplié les occasions d'erreur.
+
+   Rappel de la règle opératoire : il faut qu'AU MOINS UN LEURRE soit
+   plus long que la clé. Tant que la bonne réponse est la plus longue,
+   même de peu, choisir la ligne la plus longue reste un pari gagnant.
+   ================================================================ */
+
+const FOUILLE_REVUE={
+
+/* ---- EDI · Côte d'Hiver, mer Blanche ---- */
+'EDI-01':["À l’Édiacarien",
+ ["Au Cambrien inférieur","Au Dévonien supérieur","À l’Ordovicien moyen"]],
+'EDI-03':["Leurs affinités et leurs tissus mous restent incertains",
+ ["Ils sont tous identiques aux méduses actuelles",
+  "Ils possédaient tous un squelette minéralisé complet",
+  "On en a observé des populations vivantes au XIXᵉ siècle"]],
+'EDI-05':["Des empreintes et des traces d’alimentation associées",
+ ["Des œufs à coquille dure conservés en position de ponte",
+  "Des sabots articulés préservés dans le grès",
+  "Des impressions d’ailes membraneuses au-dessus du corps"]],
+'EDI-07':["Des empreintes successives sur le fond",
+ ["Des pistes de vol laissées dans les cendres",
+  "Des morsures profondes dans des os fossilisés",
+  "Des terriers verticaux creusés à la griffe"]],
+'EDI-09':["Des traces de grattage en éventail",
+ ["Des feuilles mâchées prises dans le sédiment",
+  "Des coprolithes contenant des fragments d’os",
+  "Des dents isolées retrouvées à proximité"]],
+'EDI-10':["Tribrachidium heraldicum",
+ ["Charniodiscus concentricus","Dickinsonia costata","Yorgia waggoneri"]],
+'EDI-11':["Canaliser l’eau vers des zones d’alimentation",
+ ["Mâcher des végétaux poussant sur le fond",
+  "Creuser le sédiment à l’aide de mandibules",
+  "Ancrer solidement l’organisme dans les tapis microbiens"]],
+'EDI-12':["Parvancorina minchami",
+ ["Rangea schneiderhoehni","Dickinsonia costata","Kimberella quadrata"]],
+'EDI-13':["Une interaction possible avec les courants",
+ ["Un enfouissement rapide sous des cendres volcaniques",
+  "Une dépendance aux sources hydrothermales",
+  "Une orientation dictée par la lumière du jour"]],
+'EDI-16':["Les fouisseurs remuaient moins les sédiments",
+ ["Les sédiments étaient alors plus riches en métaux",
+  "Les fonds océaniques étaient gelés en permanence",
+  "Les microbes y étaient bien plus nombreux qu’ensuite"]],
+'EDI-17':["Mobile, mais sa position dans l’arbre reste discutée",
+ ["C’était certainement une méduse au sens actuel du terme",
+  "C’était un arthropode proche des premiers trilobites",
+  "C’était une algue fixée sur le tapis microbien"]],
+'EDI-18':["Une diversification d’animaux à parties dures",
+ ["La disparition de toute vie marine pendant des millions d’années",
+  "L’apparition immédiate des premiers vertébrés terrestres",
+  "Un arrêt complet de la sédimentation marine"]],
+'EDI-20':["Ces organes ne sont pas conservés : ce serait spéculatif",
+ ["Ces organismes ne possédaient aucune structure interne connue",
+  "Les tissus mous se conservent toujours parfaitement ici",
+  "Les fossiles en montrent le dessin avec une grande netteté"]],
+
+/* ---- TRI · Anti-Atlas marocain ---- */
+'TRI-02':["Un corps organisé en trois lobes",
+ ["Une coquille divisée en trois chambres","Un animal pourvu de trois paires de pattes",
+  "Un animal dont la tête porte trois yeux"]],
+'TRI-03':["Céphalon, thorax et pygidium",
+ ["Prosoma, opisthosoma et telson","Crâne, thorax et bassin","Tête, coquille et siphon"]],
+'TRI-05':["Ils muaient, et l’exosquelette se désarticulait",
+ ["Leur carapace éclatait sous la pression du sédiment",
+  "Ils n’ont jamais possédé de corps d’un seul tenant",
+  "Chaque fossile réunit en fait plusieurs individus"]],
+'TRI-07':["Un thorax à nombreux segments, petit pygidium",
+ ["Une large frange perforée bordant le céphalon",
+  "Des yeux portés par de longs pédoncules mobiles",
+  "Un trident dirigé vers l’avant depuis le front"]],
+'TRI-09':["Des pattes biramées : locomotion et branchie",
+ ["Des nageoires rayonnées comparables à celles des poissons",
+  "Des appendices plumeux servant à la filtration",
+  "Des tentacules rétractiles disposés autour de la bouche"]],
+'TRI-11':["Défense, affichage ou taille apparente accrue",
+ ["La mastication de végétaux poussant sur le fond",
+  "La stabilisation du corps pendant la nage active",
+  "L’ancrage dans le sédiment lors des tempêtes"]],
+'TRI-12':["Walliserops trifurcatus",
+ ["Dicranurus monstrosus","Olenoides serratus","Paradoxides davidis"]],
+'TRI-13':["Il aurait servi lors de combats entre mâles",
+ ["Il stabilisait l’animal dans les courants violents",
+  "Il abritait des organes sensoriels dirigés vers l’avant",
+  "Il servait à retourner les proies enfouies dans la vase"]],
+'TRI-15':["Des lentilles grandes et séparées",
+ ["Un organe dépourvu de toute lentille","Une paire d’yeux portés par les antennes",
+  "Un œil unique de type vertébré, à cristallin"]],
+'TRI-17':["Soutien, alimentation ou fonction sensorielle",
+ ["La stabilisation du corps pendant les phases de nage",
+  "La production d’un venin dissuasif pour les prédateurs",
+  "L’ancrage de l’animal dans les sédiments meubles"]],
+'TRI-18':["Pour protéger la face ventrale et les appendices",
+ ["Pour se déplacer plus vite en roulant sur le fond",
+  "Pour faciliter la sortie de l’ancienne carapace",
+  "Pour résister à l’assèchement lors des marées basses"]],
+'TRI-19':["Non : certains rampaient, fouissaient ou nageaient",
+ ["Oui : tous étaient des prédateurs de fond identiques",
+  "Oui : tous vivaient fixés au substrat par un pédoncule",
+  "Non : une partie d’entre eux vivait déjà sur la terre ferme"]],
+
+/* ---- BURG · Schiste de Burgess ---- */
+'BURG-05':["Anomalocaris canadensis",
+ ["Opabinia regalis","Pikaia gracilens","Wiwaxia corrugata"]],
+'BURG-08':["Les onychophores, ou vers de velours",
+ ["Les mollusques bivalves fouisseurs","Les échinodermes à symétrie radiale",
+  "Les premiers vertébrés à corde dorsale"]],
+'BURG-09':["Marrella splendens",
+ ["Hallucigenia sparsa","Opabinia regalis","Pikaia gracilens"]],
+'BURG-10':["C’est le fossile le plus abondant du gisement",
+ ["C’est le seul vertébré connu de tout le gisement",
+  "C’est le plus grand animal du Cambrien moyen",
+  "C’est le premier fossile décrit par Charles Walcott"]],
+'BURG-12':["Une structure buccale râpeuse, ou radula",
+ ["Un squelette interne entièrement calcifié",
+  "Des vertèbres articulées le long du dos",
+  "Des nageoires rayonnées disposées par paires"]],
+'BURG-15':["Une diversification rapide à l’échelle géologique",
+ ["L’apparition des tout premiers organismes vivants",
+  "Un événement bref, tenant en quelques générations",
+  "L’extinction de la totalité des animaux précambriens"]],
+'BURG-18':["Anomalocaris et Hallucigenia",
+ ["Opabinia et Wiwaxia","Marrella et Pikaia","Pikaia et Wiwaxia"]],
+'BURG-19':["Les pigments se conservent très rarement",
+ ["Ces animaux vivaient sans lumière, donc sans pigment",
+  "Charles Walcott les a décrites avant de les perdre",
+  "Les fossiles de ce gisement sont naturellement incolores"]],
+'BURG-20':["Nager près du fond en ondulant",
+ ["Brouter les tapis microbiens avec un bec corné",
+  "Creuser le sédiment à l’aide de grandes pinces",
+  "Filtrer l’eau en restant fixé à un support"]]
+
+};
+
+(function appliquerFouille(){
+  Object.keys(FOUILLE_REVUE).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 22 : rééquilibrage des QCM de fouille, chantiers 4 à 7.
+   ORD, CEP, SIL, CHO. Mêmes règles qu'au bloc 21.
+   ================================================================ */
+
+const FOUILLE_REVUE_2={
+
+/* ---- ORD · Les schistes de Fezouata ---- */
+'ORD-Q03':["De plancton, qu’il filtrait",
+ ["De trilobites qu’il saisissait au fond","D’algues arrachées aux rochers",
+  "De charognes tombées de la surface"]],
+'ORD-Q04':["Un même plan corporel sert à des métiers opposés",
+ ["Que le groupe n’a jamais compté de prédateurs",
+  "Que le groupe s’est éteint dès la fin du Cambrien",
+  "Que ses membres restaient tous de très petite taille"]],
+'ORD-Q05':["Du collecteur marocain du gisement",
+ ["D’une ville située dans l’Anti-Atlas","D’un mot arabe signifiant « filtre »",
+  "D’un géologue français du XIXᵉ siècle"]],
+'ORD-Q06':["C’est le plus ancien connu en détail",
+ ["C’est le plus petit du groupe entier","C’est le seul à avoir vécu sur terre",
+  "C’est le seul entièrement dépourvu d’yeux"]],
+'ORD-Q07':["À former une nasse retenant les proies",
+ ["À creuser le sédiment pour y trouver sa nourriture",
+  "À nager en surface par battements rapides",
+  "À se fixer aux rochers dans les courants"]],
+'ORD-Q08':["Un des plus anciens vertébrés connus",
+ ["Un arthropode nageur de petite taille","Un mollusque cuirassé sans coquille",
+  "Une algue calcaire des fonds peu profonds"]],
+'ORD-Q09':["Elles lui donnaient une queue trop simple",
+ ["Elles lui ajoutaient des mâchoires mobiles",
+  "Elles le représentaient hors de l’eau","Elles le figuraient bien trop grand"]],
+'ORD-Q10':["Uniquement leurs éléments denticulés",
+ ["Uniquement la silhouette de leur corps","Uniquement leurs traces de nage",
+  "Uniquement les œufs qu’ils déposaient"]],
+'ORD-Q14':["Un fragment ne permet pas une mesure fiable",
+ ["Ces fragments proviennent de couches trop récentes",
+  "Ils appartiennent en réalité à un autre genre",
+  "Une telle mesure resterait invérifiable par principe"]],
+'ORD-Q15':["Un échinoderme asymétrique à appendice unique",
+ ["Un mollusque à coquille plate et large","Un arthropode cuirassé de petite taille",
+  "Une éponge fossile à squelette siliceux"]],
+'ORD-Q16':["Par la deuxième extinction la plus sévère",
+ ["Par une longue période de stabilité climatique",
+  "Par la sortie des premiers animaux hors de l’eau",
+  "Par l’ouverture de l’océan Atlantique nord"]],
+'ORD-Q17':["C’est le meilleur gisement à tissus mous",
+ ["C’est le plus étendu des six en superficie",
+  "C’est le plus récemment mis au jour",
+  "C’est le seul ouvert à la visite du public"]],
+'ORD-Q19':["Une eau froide et pauvre en oxygène",
+ ["Un lagon tropical à salinité très élevée",
+  "Une rivière de montagne au courant rapide",
+  "Un lac installé dans un cratère volcanique"]],
+'ORD-Q20':["Peu d’éléments assurés sous la reconstitution",
+ ["Que le fossile pourrait bien être un faux",
+  "Que sa datation est ouvertement contestée",
+  "Qu’un seul exemplaire en a jamais été trouvé"]],
+
+/* ---- CEP · Groupe de Yezo, Hokkaidō ---- */
+'CEP-02':["Le pied devient bras et entonnoir",
+ ["Une carapace de chitine en plusieurs pièces","Trois paires de pattes articulées",
+  "Une colonne vertébrale segmentée"]],
+'CEP-04':["À contrôler la flottabilité",
+ ["À abriter les œufs jusqu’à l’éclosion","À loger plusieurs individus associés",
+  "À digérer les proies avant l’estomac"]],
+'CEP-05':["Modéliser la flottabilité d’une longue coquille est ardu",
+ ["L’animal possédait des appendices membraneux",
+  "Il passait une partie de sa vie hors de l’eau",
+  "Aucune coquille complète de cette taille n’a été trouvée"]],
+'CEP-07':["Non : une coquille rigide au développement régulier",
+ ["Oui : un intestin externe enroulé et progressivement durci",
+  "Oui : un tentacule progressivement calcifié",
+  "Non : une colonne vertébrale incurvée"]],
+'CEP-10':["Belemnotheutis antiquus",
+ ["Diplomoceras maximum","Vampyronassa rhodanica","Nipponites mirabilis"]],
+'CEP-11':["Une poche à encre",
+ ["Une paire de poumons","Des fanons filtrants","Un placenta"]],
+'CEP-12':["Vampyronassa rhodanica",
+ ["Belemnotheutis antiquus","Endoceras giganteum","Keuppia levante"]],
+'CEP-13':["Des ventouses robustes, faites pour saisir",
+ ["Des mâchoires cornées de très grande taille",
+  "Des fanons servant à filtrer le plancton",
+  "Une coquille externe de plusieurs mètres"]],
+'CEP-15':["Leur corps est mou et se décompose vite",
+ ["Leurs os se dissolvent au contact de l’air",
+  "Le groupe est plus récent que les premiers humains",
+  "Ils ne fréquentent jamais les fonds sédimentaires"]],
+'CEP-17':["Nipponites et Diplomoceras",
+ ["Belemnotheutis et Vampyronassa","Endoceras et Keuppia","Keuppia et Belemnotheutis"]],
+'CEP-18':["Belemnotheutis et Vampyronassa",
+ ["Diplomoceras et Nipponites mirabilis","Endoceras et Diplomoceras","Nipponites et Endoceras"]],
+'CEP-19':["Les coquilles abondent, les tissus mous non",
+ ["Les ammonites ne possédaient aucun tissu mou",
+  "Ces coquilles appartenaient en fait à des algues",
+  "Tous les détails en sont connus par photographie"]],
+'CEP-20':["Une coquille prend des architectures très diverses",
+ ["Toutes les coquilles tendent à devenir sphériques",
+  "Les céphalopodes descendent des vertébrés",
+  "La forme est sans rapport avec la locomotion"]],
+
+/* ---- SIL · Les marches galloises ---- */
+'SIL-Q01':["D’un peuple des collines galloises",
+ ["D’un géologue britannique du XIXᵉ siècle","D’une ville minière d’Écosse",
+  "D’un mot grec signifiant « ancien »"]],
+'SIL-Q03':["Les feuilles et les racines",
+ ["La capacité de photosynthèse","La reproduction par spores",
+  "Les cellules conductrices d’eau"]],
+'SIL-Q04':["Faire monter l’eau et tenir debout",
+ ["Stocker les réserves de sucre pour l’hiver",
+  "Protéger les tissus des rayons ultraviolets",
+  "Assurer la dispersion des spores par le vent"]],
+'SIL-Q06':["Silurien, puis Dévonien, puis Silurien à nouveau",
+ ["Il n’a été daté qu’une fois, avec certitude",
+  "Le fossile s’est finalement révélé être un faux",
+  "Sa datation dépend du laboratoire qui l’analyse"]],
+'SIL-Q07':["Elle reposait sur des spores d’affleurements isolés",
+ ["Le fossile était trop petit pour être daté",
+  "Sa position dans la couche n’avait pas été relevée",
+  "La méthode au carbone 14 y était inadaptée"]],
+'SIL-Q08':["Sur les zircons des cendres volcaniques",
+ ["Sur l’os fossilisé lui-même, directement",
+  "Sur la matière organique encore conservée",
+  "Sur la profondeur d’enfouissement du fossile"]],
+'SIL-Q09':["Un arthropode marin, parent des limules",
+ ["Un scorpion terrestre de très grande taille",
+  "Un crustacé proche des homards actuels",
+  "Un mollusque protégé par une carapace"]],
+'SIL-Q10':["Les plus grands arthropodes ayant existé",
+ ["Ils étaient les seuls à respirer l’air libre",
+  "Ils ne muaient à aucun moment de leur vie",
+  "Ils ne fréquentaient que les eaux douces"]],
+'SIL-Q12':["Des lagunes peu profondes et très salées",
+ ["Des rivières de montagne au courant rapide",
+  "Des grands fonds océaniques sans lumière",
+  "Des lacs d’eau douce d’origine glaciaire"]],
+'SIL-Q14':["Elle porte déjà de vraies feuilles",
+ ["Elle atteignait déjà plusieurs mètres de haut",
+  "Elle produisait des graines et non des spores",
+  "Elle poussait les pieds dans l’eau salée"]],
+'SIL-Q15':["Elles fournissent nourriture et abri",
+ ["Les animaux ne supportaient pas l’air libre",
+  "Les plantes se déplacent bien plus facilement",
+  "Les animaux n’étaient pas encore apparus"]],
+'SIL-Q16':["Le plus ancien trouvé à ce jour",
+ ["Qu’aucun animal plus ancien n’a jamais existé",
+  "Que sa datation est définitivement établie",
+  "Qu’il est l’ancêtre direct de tous les suivants"]],
+'SIL-Q18':["Entre l’Angleterre et le pays de Galles",
+ ["Dans les Highlands d’Écosse","En Sibérie centrale","Dans les Appalaches"]],
+'SIL-Q19':["Il produit et libère des spores",
+ ["Il absorbe l’eau contenue dans le sol",
+  "Il capte la lumière pour la photosynthèse",
+  "Il fixe la plante à son substrat"]],
+'SIL-Q20':["Ni grande crise, ni animal spectaculaire",
+ ["Ses roches affleurent trop rarement en Europe",
+  "Il n’a livré pratiquement aucun fossile",
+  "Il est trop récent pour intéresser les auteurs"]],
+
+/* ---- CHO · Calcaire de Bear Gulch ---- */
+'CHO-02':["Le cartilage se fossilise mal",
+ ["Ces animaux vivaient uniquement hors de l’eau",
+  "Leurs fossiles ont tous fondu depuis leur dépôt",
+  "Ils ne possédaient aucune partie dure minéralisée"]],
+'CHO-04':["Doliodus problematicus",
+ ["Stethacanthus altonensis","Helicoprion davisii","Edestus heinrichi"]],
+'CHO-05':["Plusieurs épines devant les nageoires",
+ ["Une coquille spiralée fixée sur le dos","Une trompe préhensile devant la bouche",
+  "Des doigts articulés dans les nageoires"]],
+'CHO-06':["Stethacanthus altonensis",
+ ["Doliodus problematicus","Helicoprion davisii","Edestus heinrichi"]],
+'CHO-07':["Surtout connue chez les mâles",
+ ["Elle n’apparaissait que chez les jeunes individus",
+  "C’était une algue fixée sur le dos de l’animal",
+  "Tous les fossiles connus en ont perdu la tête"]],
+'CHO-11':["Le broyage de proies dures",
+ ["La découpe au moyen d’une spirale dentaire",
+  "La filtration du plancton par des fanons",
+  "Le broutage de végétaux poussant sur le fond"]],
+'CHO-14':["Non : un eugénéodonte, proche des holocéphales",
+ ["Non : un mammifère marin de grande taille",
+  "Oui : un proche parent du grand requin blanc",
+  "Oui : une raie comparable aux espèces actuelles"]],
+'CHO-16':["Les nouvelles poussaient à l’arrière",
+ ["Les dents se reformaient au niveau de l’estomac",
+  "La denture entière tombait puis se reconstituait",
+  "Il conservait la même denture toute sa vie"]],
+'CHO-17':["Mâchoires et dents sont mieux connues que le reste",
+ ["Il n’est connu que par un unique fossile complet",
+  "Aucun élément de sa denture n’a été retrouvé",
+  "Son corps était constitué de tissus végétaux"]],
+'CHO-19':["Ils exploraient bien plus de formes que le requin fuselé",
+ ["Le cartilage a empêché toute diversification",
+  "Ces poissons sont restés identiques à eux-mêmes",
+  "Les requins actuels descendent des baleines"]]
+
+};
+
+(function appliquerFouille2(){
+  Object.keys(FOUILLE_REVUE_2).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_2[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 23 : rééquilibrage des QCM de fouille, les pires chantiers.
+   JUR (95 %), MES (95 %), HC (90 %), MAZ (80 %).
+   Mêmes règles qu'aux blocs 21 et 22.
+   ================================================================ */
+
+const FOUILLE_REVUE_3={
+
+/* ---- JUR · Faune de Zhenghe ---- */
+'JUR-02':["Une seule côte portant des épines soudées",
+ ["Un squelette presque complet, articulé","Une empreinte de peau bien conservée",
+  "Une ponte fossilisée retrouvée en position de dépôt"]],
+'JUR-03':["Achetée à un marchand, sans données de terrain",
+ ["Collectée au cours d’une fouille programmée",
+  "Léguée par un collectionneur du XIXᵉ siècle",
+  "Retrouvée dans les réserves du musée, jamais inventoriée"]],
+'JUR-04':["Un collier osseux à épines d’un mètre",
+ ["Une nageoire caudale aplatie latéralement",
+  "Un duvet de plumes couvrant tout le dos",
+  "Une double rangée de dents sur la mâchoire"]],
+'JUR-05':["Au Kirghizistan",["En Ouzbékistan oriental","Au Kazakhstan","En Mongolie"]],
+'JUR-06':["D’un oiseau géant de l’épopée de Manas",
+ ["Du nom de la géologue qui l’a découvert",
+  "D’un mot kirghize signifiant « grande griffe »",
+  "Du nom de la rivière qui longe le gisement"]],
+'JUR-07':["Aucun grand prédateur n’était connu dans cette région",
+ ["C’était le tout premier théropode à plumes",
+  "C’était le plus grand théropode jamais décrit à ce jour",
+  "Il datait du Trias, avant tous les autres"]],
+'JUR-08':["Environ dix-huit ans",
+ ["Quelques mois seulement","Un peu plus d’un siècle","Deux ans"]],
+'JUR-09':["Un tibia deux fois plus long que le fémur",
+ ["L’absence totale de queue chez l’adulte",
+  "La présence de quatre ailes emplumées",
+  "Sa taille, la plus grande de tout le Jurassique"]],
+'JUR-10':["Des vertébrés du Jurassique supérieur",
+ ["Un gisement d’ambre daté du Crétacé inférieur",
+  "Une faune marine du Trias moyen",
+  "Un ensemble de pistes d’empreintes de pas"]],
+'JUR-11':["Des caractères de plusieurs groupes chez un même animal",
+ ["Un motif de coloration disposé en damier",
+  "Un fossile formé de plusieurs individus mêlés au même bloc",
+  "Une roche composée de couches alternées"]],
+'JUR-12':["Le plus long cou connu, environ 15 mètres",
+ ["Le dinosaure le plus lourd jamais estimé",
+  "La plus longue queue connue chez un sauropode",
+  "Le plus grand œuf de dinosaure retrouvé"]],
+'JUR-13':["Par comparaison, à partir de trois vertèbres",
+ ["En mesurant directement un squelette complet",
+  "En modélisant la profondeur des empreintes",
+  "En analysant l’ADN extrait du fossile"]],
+'JUR-14':["Des vertèbres creusées par des sacs aériens",
+ ["Un squelette entièrement composé de cartilage",
+  "Une colonne réduite à trois vertèbres géantes",
+  "Un cou rempli d’eau assurant la portance"]],
+'JUR-15':["La collerette déployable et le crachat venimeux",
+ ["Les deux crêtes portées sur le crâne",
+  "La marche bipède et la course sur de longues distances",
+  "Les dents recourbées vers l’arrière"]],
+'JUR-16':["Le spécimen de référence était reconstitué au plâtre",
+ ["Ses dents étaient d’une petitesse tout à fait inhabituelle",
+  "Aucun crâne n’avait jamais été retrouvé",
+  "Ses os avaient été écrasés par la pression"]],
+'JUR-17':["Des cavités aériennes reliées aux sinus",
+ ["De la moelle osseuse, comme les os longs",
+  "Des glandes produisant un venin paralysant",
+  "Rien du tout : elles étaient d’os plein"]],
+'JUR-18':["Une membrane tendue sur un os en baguette",
+ ["Des écailles rigides articulées entre elles",
+  "Quatre ailes emplumées, deux par paire",
+  "Une aile en os plein, sans peau tendue"]],
+'JUR-19':["Il planait mal et ne volait pas activement",
+ ["Il volait aussi bien qu’un oiseau d’aujourd’hui",
+  "Il ne quittait jamais complètement le sol",
+  "Il nageait bien mieux qu’il ne planait"]],
+'JUR-20':["Leur image a changé, pas l’animal",
+ ["Ils vivaient tous au même endroit et à la même époque",
+  "Ils appartiennent tous les trois au même groupe",
+  "Ils ont tous été décrits au cours de l’année 2020"]],
+
+/* ---- MES · La fosse de Messel ---- */
+'MES-Q01':["En Allemagne",["En Basse-Autriche","Au Danemark","En Pologne"]],
+'MES-Q02':["Un cratère creusé par une explosion de vapeur",
+ ["Un lac retenu par un barrage glaciaire","Un cratère laissé par un impact de météorite géante",
+  "Un effondrement de grotte dans le calcaire"]],
+'MES-Q03':["Le fond était privé d’oxygène",
+ ["Le lac gelait entièrement chaque hiver","Les animaux y étaient enterrés vivants",
+  "Le sédiment déposé était très acide"]],
+'MES-Q05':["Des papillons de nuit identifiables",
+ ["Des graines encore entières","De petits poissons du lac encore entiers","Rien du tout"]],
+'MES-Q06':["Son fœtus et son utérus sont conservés",
+ ["Elle atteignait deux mètres au garrot",
+  "Elle portait des jumeaux prêts à naître",
+  "Elle avait déjà des sabots à un seul doigt"]],
+'MES-Q07':["Celle d’un fox-terrier",
+ ["Celle d’un poney des Shetland","Celle d’un cheval de trait","Celle d’un chat"]],
+'MES-Q08':["Non : il tombe juste hors de la famille",
+ ["Oui : c’est un cheval de très petite taille",
+  "Oui : c’est l’ancêtre direct du cheval actuel",
+  "Non : c’est un parent des tapirs et rien d’autre"]],
+'MES-Q09':["La plus grande fourmi connue",
+ ["Un scarabée de taille record","Une guêpe fossile géante","Une termite cuirassée"]],
+'MES-Q10':["Elles volent, donc elles tombent dans le lac",
+ ["La colonie ne comptait pas d’ouvrières",
+  "Les ouvrières étaient trop petites pour se fossiliser",
+  "Les reines vivaient beaucoup plus longtemps"]],
+'MES-Q11':["Un pangolin de 47 millions d’années",
+ ["Un tatou aux plaques encore peu soudées","Un fourmilier à museau allongé",
+  "Un hérisson de très grande taille"]],
+'MES-Q12':["Manger des fourmis impose la même forme",
+ ["Ces trois animaux forment une même famille",
+  "L’un des trois descend directement des deux autres",
+  "Ils occupaient tous le même continent"]],
+'MES-Q13':["Aux artiodactyles, à doigts pairs",
+ ["Aux rongeurs, à incisives à croissance continue",
+  "Aux primates, à main préhensile","Aux carnivores, à dents tranchantes"]],
+'MES-Q14':["Un primate fossile conservé à 95 %",
+ ["Un poisson d’eau douce à écailles fines","Un oiseau primitif encore denté",
+  "Un insecte aux ailes déployées"]],
+'MES-Q15':["Comme le « chaînon manquant » humain",
+ ["Comme un fossile de plus, sans relief particulier",
+  "Comme un faux très probable, dès sa présentation",
+  "Comme l’ancêtre des lémuriens de Madagascar"]],
+'MES-Q16':["Réfutée en moins de deux ans : un adapiforme",
+ ["Confirmée par les études qui ont suivi",
+  "Toujours ouverte et discutée aujourd’hui",
+  "Abandonnée : le fossile s’est révélé un assemblage"]],
+'MES-Q17':["La qualité d’un fossile ne garantit rien",
+ ["Il ne faut pas accorder de crédit aux fossiles",
+  "Les médias comprennent systématiquement de travers",
+  "Les primates sont mal classés depuis Linné"]],
+'MES-Q18':["À devenir une décharge d’ordures",
+ ["À être ennoyée par la retenue d’un barrage","À une autoroute","À un lotissement"]],
+'MES-Q19':["Un passage entre continents par temps chaud",
+ ["Que les fourmis traversaient l’océan à la nage",
+  "Que les deux continents étaient encore soudés",
+  "Qu’il s’agit de deux espèces sans aucun lien"]],
+'MES-Q20':["Des comportements : repas, gestation, régime",
+ ["Des animaux nettement plus anciens","Des fossiles beaucoup plus nombreux",
+  "Des squelettes conservés en trois dimensions"]],
+
+/* ---- HC · Hell Creek ---- */
+'HC-01':["Les derniers millions d’années du Crétacé",
+ ["Le tout début de la période jurassique","Le milieu du Trias continental",
+  "Les premiers temps de l’ère cénozoïque"]],
+'HC-02':["Une argile riche en iridium",
+ ["Une coulée de basalte intercalée","Une couche de charbon particulièrement épaisse",
+  "Un banc de sel déposé par évaporation"]],
+'HC-03':["Très vite à l’adolescence, puis ralentie",
+ ["À vitesse constante d’un bout à l’autre de sa vie",
+  "Lentement, puis très vite passé trente ans",
+  "Il atteignait sa taille adulte en deux ans"]],
+'HC-04':["Un Tyrannosaurus vendu aux enchères en 1997",
+ ["Le tout premier Triceratops jamais décrit",
+  "Une momie d’Edmontosaurus à peau conservée",
+  "Le nom donné au site de la limite K-Pg"]],
+'HC-05':["Trois : deux frontales, une nasale",
+ ["Une seule, portée sur le nez","Cinq, réparties sur toute la collerette",
+  "Aucune : c’étaient des bosses de peau"]],
+'HC-06':["T. horridus en bas, T. prorsus en haut",
+ ["Les deux espèces vivaient exactement au même moment",
+  "Il n’existe en réalité qu’une seule espèce valide",
+  "Les deux formes sont le mâle et la femelle"]],
+'HC-07':["Elle se transforme sans se diviser",
+ ["Elle se scinde en plusieurs espèces filles",
+  "Elle s’éteint sans laisser de descendance",
+  "Elle revient peu à peu à sa forme ancestrale"]],
+'HC-08':["Des ostéodermes et une massue caudale",
+ ["Un cou très allongé porté à l’horizontale",
+  "Des ailes membraneuses tendues entre les membres",
+  "Une crête creuse dressée sur le crâne"]],
+'HC-09':["Des squelettes avec empreintes de peau",
+ ["Des corps desséchés puis momifiés par le sel",
+  "Des fossiles entièrement enrobés dans l’ambre",
+  "Des animaux congelés dans le pergélisol"]],
+'HC-10':["Des batteries de centaines de dents",
+ ["Il avalait ses aliments sans jamais les mâcher",
+  "Il arrachait la végétation avec deux défenses",
+  "Il broyait tout dans un gésier très musculeux"]],
+'HC-11':["Un dôme osseux très épais",
+ ["Une crête creuse prolongée en tube","Trois cornes disposées sur le front",
+  "Un bec édenté dépourvu d’ornement"]],
+'HC-12':["Combat, coups au flanc ou signal : trois hypothèses",
+ ["Il est établi qu’il servait à creuser le sol",
+  "Il est établi qu’il aidait à la nage",
+  "On sait aujourd’hui qu’il ne servait à rien"]],
+'HC-13':["Ce seraient de jeunes Pachycephalosaurus",
+ ["Ce seraient des faux assemblés au XIXᵉ siècle",
+  "Ce seraient des cératopsiens mal interprétés",
+  "Ils proviendraient en réalité de Mongolie"]],
+'HC-15':["Le premier bon aperçu des cænagnathidés",
+ ["C’était le tout premier dinosaure à plumes décrit",
+  "C’était le plus grand théropode d’Amérique du Nord",
+  "C’était le dernier dinosaure avant l’extinction"]],
+'HC-16':["Aux oviraptorosaures, à bec édenté",
+ ["Aux hadrosaures, à dents en batteries","Aux ankylosaures, couverts d’ostéodermes",
+  "Aux sauropodes, à long cou"]],
+'HC-17':["Un enregistrement continu jusqu’à la limite",
+ ["C’est le site même de l’impact de l’astéroïde",
+  "C’est le seul endroit livrant des dinosaures maastrichtiens",
+  "Elle contient les fossiles les plus anciens du monde"]],
+'HC-18':["Une plaine côtière chaude et humide",
+ ["Un désert de dunes balayé par les vents","Une toundra glacée sans arbres",
+  "Une chaîne de montagnes en activité volcanique"]],
+'HC-20':["Un déclin apparent peut venir de l’échantillonnage",
+ ["Il n’existe aucun fossile daté de cette époque",
+  "La datation est impossible dans le Crétacé",
+  "Tous les fossiles ont été détruits par l’impact"]],
+
+/* ---- MAZ · Mazon Creek ---- */
+'MAZ-01':["Dans l’Illinois",["Dans le sud de l’Utah","En Alaska","En Floride"]],
+'MAZ-02':["Au Carbonifère supérieur",
+ ["Au Crétacé inférieur, vers 120 Ma","Au Pléistocène","Au Cambrien"]],
+'MAZ-03':["Des concrétions de sidérite",
+ ["Des blocs d’ambre exclusivement","Des coulées de basalte volcanique",
+  "Des lentilles de glace fossile"]],
+'MAZ-04':["Des milieux terrestres, deltaïques et marins",
+ ["Les fossiles ont été transportés depuis le Jurassique",
+  "Le site est une grotte comportant plusieurs étages",
+  "Chaque espèce provient d’un continent différent"]],
+'MAZ-05':["Tullimonstrum gregarium",
+ ["Kallidecthes richardsoni","Joermungandr bolti","Essexella asherae"]],
+'MAZ-06':["Une trompe à pince et des yeux sur une barre",
+ ["Des ailes entièrement recouvertes de fines écailles",
+  "Une carapace en dôme rappelant la tortue",
+  "Une coquille spiralée de grande taille"]],
+'MAZ-07':["Son appartenance reste débattue",
+ ["Il s’agit sans conteste d’une plante marine",
+  "Il est unanimement reconnu comme un mammifère",
+  "C’est certainement un trilobite de petite taille"]],
+'MAZ-09':["Une base élargie servant à l’ancrage",
+ ["Un crâne osseux enfoui dans le sédiment",
+  "Une nageoire caudale largement déployée",
+  "Une coquille calcaire aplatie en disque"]],
+'MAZ-10':["Kallidecthes richardsoni",
+ ["Tullimonstrum gregarium","Palaeocampa anthrax","Joermungandr bolti"]],
+'MAZ-11':["Ses appendices sont propres aux crustacés paléozoïques",
+ ["Il vivait exclusivement sur la terre ferme",
+  "Il ne possédait aucun appendice articulé",
+  "Il était pourvu d’un squelette interne de type vertébré"]],
+'MAZ-12':["Palaeocampa anthrax",
+ ["Kallidecthes richardsoni","Joermungandr bolti","Essexella asherae"]],
+'MAZ-13':["Les lobopodiens sont surtout bien plus anciens",
+ ["C’est le seul animal marin connu du gisement",
+  "Elle a vécu après l’apparition des premiers humains",
+  "C’est le premier dinosaure à plumes décrit"]],
+'MAZ-15':["Un tétrapode recumbirostre",
+ ["Un serpent aux vertèbres déjà modernes","Un poisson cartilagineux de petite taille",
+  "Un arthropode à carapace segmentée"]],
+'MAZ-17':["Des détails du système nerveux central",
+ ["Des plumes ayant conservé leur coloration",
+  "Un placenta fossilisé avec son embryon",
+  "Des poumons retrouvés encore gonflés"]],
+'MAZ-18':["Ils n’occupaient pas le même microhabitat",
+ ["Aucun d’entre eux n’a été trouvé à Mazon Creek",
+  "Ils vivaient à des centaines de millions d’années d’écart",
+  "Certains proviennent d’un tout autre gisement"]],
+'MAZ-20':["Les tissus mous se conservent si la chimie s’y prête",
+ ["Les fossiles ne se forment que dans la glace",
+  "Tout organisme mort finit par devenir un fossile complet",
+  "Seuls les os parviennent à se fossiliser"]]
+
+};
+
+(function appliquerFouille3(){
+  Object.keys(FOUILLE_REVUE_3).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_3[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 24 : rééquilibrage des QCM de fouille, chantiers 12 à 14.
+   NEM, GIL, CAR. Mêmes règles qu'aux blocs 21 à 23.
+
+   Contrainte rappelée par une erreur du bloc 23 : un leurre allongé
+   ne doit jamais l'être au prix d'un fait inventé. Les noms
+   d'espèces employés en leurre appartiennent tous à l'atlas ou sont
+   des taxons réels du gisement concerné.
+   ================================================================ */
+
+const FOUILLE_REVUE_4={
+
+/* ---- NEM · Bassin de Nemegt ---- */
+'NEM-02':["Des rivières et des plaines inondables",
+ ["Une mer profonde couvrant tout le bassin","Une calotte glaciaire descendue du nord",
+  "Une chaîne de volcans encore en activité"]],
+'NEM-03':["Des tyrannosauridés",
+ ["Des ornithomimosaures","Des cératopsiens","Des ptérosaures"]],
+'NEM-04':["La vente a été bloquée, le squelette rendu",
+ ["Il a été acquis par un musée américain","Il s’est finalement révélé être un faux",
+  "Il a été détruit au cours de son transport"]],
+'NEM-05':["Ils appartiennent à l’État et ne se vendent pas",
+ ["Ils appartiennent au propriétaire du terrain",
+  "Ils sont librement commercialisables à l’étranger",
+  "Ils sont détruits s’ils ne sont pas étudiés"]],
+'NEM-06':["Une paire de bras géants",
+ ["Un squelette à peu près complet","Quelques pistes d’empreintes","Uniquement des œufs"]],
+'NEM-07':["Un ornithomimosaure massif à bec de canard",
+ ["Un carnivore comparable à Tyrannosaurus rex",
+  "Un sauropode au cou démesurément long",
+  "Un ankylosaure entièrement cuirassé"]],
+'NEM-08':["Pillé, repéré en collection privée, restitué",
+ ["Découvert intact dans la carrière d’origine",
+  "Reconstitué numériquement, faute d’original",
+  "Retrouvé dans les réserves d’un musée polonais"]],
+'NEM-10':["Ses griffes, parmi les plus longues connues",
+ ["Sa vitesse de course, exceptionnelle pour sa taille",
+  "Ses ailes membraneuses tendues entre les doigts",
+  "Sa cuirasse dorsale faite de plaques soudées"]],
+'NEM-12':["Aux hadrosaures, à bec de canard",
+ ["Aux tyrannosauridés, à mâchoire puissante",
+  "Aux ankylosaures, couverts d’ostéodermes","Aux sauropodes, à très long cou"]],
+'NEM-14':["Une massue osseuse au bout de la queue",
+ ["Une corne nasale dressée vers l’avant","Des griffes rétractiles aux membres avant",
+  "Des épines caudales enduites de venin"]],
+'NEM-15':["Une grande autruche à bec édenté",
+ ["Un crocodile adapté à la vie terrestre","Un rhinocéros au dos entièrement cuirassé",
+  "Un lézard planant d’arbre en arbre"]],
+'NEM-16':["Osmólska, Roniewicz et Barsbold",
+ ["Othniel Charles Marsh","Richard Owen","John Ostrom"]],
+'NEM-17':["Longtemps connus par leurs seuls bras",
+ ["Tous deux étaient des carnivores stricts",
+  "Tous deux menaient une vie aquatique",
+  "Tous deux ont été décrits au cours de l’année 2014"]],
+'NEM-18':["Ce sont les pièces les plus faciles à vendre",
+ ["Ce sont les plus légères à transporter",
+  "Ce sont celles qui résistent le mieux à l’érosion",
+  "Ce sont les seules parties à se fossiliser"]],
+'NEM-19':["Le delta de l’Okavango",
+ ["La banquise de l’océan Arctique","La forêt amazonienne","La Grande Barrière de corail"]],
+'NEM-20':["À la fin du Crétacé, vers 70 Ma",
+ ["Au Jurassique inférieur, vers 190 Ma","Au Trias supérieur","Au Paléogène"]],
+
+/* ---- GIL · Gilboa ---- */
+'GIL-Q01':["Dans l’État de New York",
+ ["Dans le nord de la Californie","Au Texas","Au Montana"]],
+'GIL-Q02':["Une crue a emporté un pont",
+ ["Un forage pétrolier les a traversées","Le creusement d’un canal les a dégagées",
+  "Une équipe universitaire les a prospectées"]],
+'GIL-Q04':["Une touffe de rameaux, sans vraies feuilles",
+ ["Un bouquet de larges feuilles plates","Des cônes ligneux dressés vers le haut",
+  "Des fleurs groupées en inflorescences"]],
+'GIL-Q05':["Du bois véritable et des racines profondes",
+ ["Des fleurs pollinisées par les insectes","Des graines protégées par un tégument",
+  "Une écorce épaisse et crevassée"]],
+'GIL-Q06':["Aucun : c’est une progymnosperme éteinte",
+ ["C’est le tout premier conifère connu",
+  "C’est l’ancêtre commun de tous les arbres actuels",
+  "C’est une fougère arborescente de grande taille"]],
+'GIL-Q07':["Elles accélèrent l’altération des roches",
+ ["Elles réfléchissent la lumière vers l’espace",
+  "Elles libèrent de la vapeur d’eau en altitude",
+  "Elles enfouissent le carbone directement dans le sol"]],
+'GIL-Q08':["Des méandres stables entre des berges tenues",
+ ["Elles les ont fait disparaître entièrement",
+  "Elles les ont contraintes à couler sous terre",
+  "Elles n’ont rien changé à leur tracé"]],
+'GIL-Q09':["Un tronc mince à couronne en parasol",
+ ["Une colonne trapue dépourvue de branches",
+  "Un buisson rampant à la surface du sol",
+  "Une liane grimpant sur les autres plantes"]],
+'GIL-Q10':["Par un manchon de racines adventives",
+ ["Par un tronc creux entièrement rempli d’eau",
+  "En prenant appui sur les troncs voisins",
+  "Par des haubans souterrains tendus au sol"]],
+'GIL-Q11':["Une étape entre tige nue et arbre",
+ ["Le premier végétal à produire des graines",
+  "La plus grande plante connue du Dévonien",
+  "Une plante entièrement aquatique"]],
+'GIL-Q12':["Des cicatrices de chute des feuilles",
+ ["Une écorce parfaitement lisse et brillante","Des épines dressées le long du tronc",
+  "Une mousse fossilisée en couche continue"]],
+'GIL-Q13':["Une écorce épaissie autour d’un cylindre étroit",
+ ["Du bois plein, comme chez un chêne actuel",
+  "Des fibres tressées les unes aux autres",
+  "Un tissu spongieux gorgé d’eau"]],
+'GIL-Q14':["L’un des plus anciens à fabriquer du bois",
+ ["C’est le plus grand végétal du chantier",
+  "C’est le seul du chantier à porter des fleurs",
+  "C’est le mieux conservé des six"]],
+'GIL-Q18':["Une bascule à l’échelle du globe",
+ ["Une seule espèce présentée sous six angles",
+  "Un assemblage dépourvu de toute cohérence",
+  "Une flore exclusivement nord-américaine"]],
+'GIL-Q19':["Leurs troncs ne livrent pas de cernes",
+ ["Ces arbres vivaient moins d’une année entière",
+  "Les cernes de croissance n’existaient pas encore",
+  "Personne n’a encore tenté ce comptage"]],
+'GIL-Q20':["Les plantes y modifient climat, sols et rivières",
+ ["Elles y deviennent comestibles pour les animaux",
+  "Elles y produisent le tout premier oxygène",
+  "Elles y font leur toute première apparition"]],
+
+/* ---- CAR · Carrière d'East Kirkton ---- */
+'CAR-01':["Au Carbonifère",["Au Cambrien","Au Crétacé","Au Paléocène"]],
+'CAR-02':["De vastes forêts marécageuses",
+ ["Des déserts couverts de plantes grasses","Des forêts de plantes à fleurs",
+  "Des prairies de graminées basses"]],
+'CAR-04':["Non : c’était un myriapode",
+ ["Oui : un coléoptère de grande taille","Non : c’était un vertébré allongé",
+  "Oui : une libellule primitive"]],
+'CAR-05':["Des caractères de millipèdes et de centipèdes",
+ ["Des ailes complètes repliées sur le dos",
+  "Une trompe comparable à celle des mammifères",
+  "Une mâchoire articulée de type dinosaurien"]],
+'CAR-07':["Environ 65 à 70 centimètres",
+ ["Environ 5 mètres d’envergure","Moins de 2 centimètres","Plus de 20 mètres"]],
+'CAR-09':["De petits lobes sur le premier segment",
+ ["Une seule paire d’ailes, comme les mouches",
+  "Une coquille spiralée portée sur le dos",
+  "Un duvet de plumes couvrant le thorax"]],
+'CAR-10':["Pulmonoscorpius kirktonensis",
+ ["Hibbertopterus scouleri","Euphoberia armigera","Meganeura monyi"]],
+'CAR-11':["Environ 70 centimètres",
+ ["Moins d’un millimètre","Plus de 8 mètres","Environ 20 mètres"]],
+'CAR-12':["Hibbertopterus scouleri",
+ ["Pulmonoscorpius kirktonensis","Euphoberia armigera","Arthropleura armata"]],
+'CAR-13':["En balayant le sédiment",
+ ["En mordant ses proies avec des dents acérées",
+  "En broutant la cime des fougères arborescentes",
+  "En poursuivant les insectes en vol"]],
+'CAR-15':["À décourager les prédateurs",
+ ["À assurer la portance pendant le vol","À soutenir des fanons filtrants",
+  "À retenir le plancton en suspension"]],
+'CAR-16':["Non : d’autres facteurs y ont contribué",
+ ["Oui : c’est la seule cause envisageable",
+  "Non : l’oxygène était alors presque absent",
+  "Oui, et tous les animaux étaient géants"]],
+'CAR-17':["Le végétal fut enfoui à l’abri de l’oxygène",
+ ["Les arbres étaient constitués de charbon pur",
+  "Les insectes transformaient le bois en roche",
+  "Les volcans en produisaient en grande quantité"]],
+'CAR-18':["Ses traces indiquent un mode de vie aquatique",
+ ["C’était en réalité un mammifère marin",
+  "Il ne pouvait se déplacer qu’en volant",
+  "Il passait sa vie entière dans les arbres"]],
+'CAR-20':["Quelques-uns étaient géants, pas la majorité",
+ ["L’atmosphère était composée d’oxygène pur",
+  "Aucun vertébré ne vivait dans ces forêts",
+  "Tous les insectes mesuraient plusieurs mètres"]]
+
+};
+
+(function appliquerFouille4(){
+  Object.keys(FOUILLE_REVUE_4).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_4[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 25 : rééquilibrage des QCM de fouille, chantiers 15 à 18.
+   SAM, MOR, WHA, NWE. Mêmes règles qu'aux blocs 21 à 24.
+   ================================================================ */
+
+const FOUILLE_REVUE_5={
+
+/* ---- SAM · Vallée de Luján ---- */
+'SAM-Q02':["Un paresseux terrestre géant",
+ ["Un éléphant primitif à défenses droites","Un grand félin à canines allongées",
+  "Un dinosaure ayant survécu tardivement"]],
+'SAM-Q04':["Une trentaine de millions d’années",
+ ["Un peu moins d’un million d’années","Trois cents millions d’années",
+  "Environ cinquante mille ans"]],
+'SAM-Q06':["De centaines d’ostéodermes soudés",
+ ["De kératine, comme la corne d’un rhinocéros",
+  "De côtes élargies puis fusionnées entre elles",
+  "D’écailles mobiles se recouvrant partiellement"]],
+'SAM-Q09':["Des chevaux, tapirs et rhinocéros",
+ ["Des éléphants et de leurs parents fossiles",
+  "Des chameaux et des ruminants","Des tatous et des paresseux"]],
+'SAM-Q10':["L’ADN se dégrade vite sous climat chaud",
+ ["Le collagène est plus informatif que l’ADN",
+  "L’ADN de ces espèces avait déjà été séquencé",
+  "Le collagène se date beaucoup plus facilement"]],
+'SAM-Q11':["Deux ordres de mammifères éteints",
+ ["Deux familles de marsupiaux australiens",
+  "Deux groupes de reptiles du Crétacé supérieur",
+  "Deux lignées d’oiseaux coureurs sud-américains"]],
+'SAM-Q12':["Ses narines s’ouvrent entre les yeux",
+ ["Il ne porte aucune dent sur ses mâchoires",
+  "Ses orbites sont tournées vers l’arrière",
+  "Il porte une corne osseuse sur le museau"]],
+'SAM-Q13':["Un oiseau prédateur incapable de voler",
+ ["Un dinosaure ayant survécu à la crise du Crétacé",
+  "Un grand reptile terrestre à démarche dressée",
+  "Un mammifère coureur aux longues pattes"]],
+'SAM-Q14':["Le continent n’avait pas de grands carnivores placentaires",
+ ["Tous les mammifères y étaient herbivores",
+  "Le climat interdisait aux félins d’y vivre",
+  "Ils étaient venus d’Antarctique avec cet avantage"]],
+'SAM-Q15':["Aucun lien proche : c’est un métathérien",
+ ["C’est un félin resté à un stade primitif",
+  "C’est l’ancêtre direct du genre Smilodon",
+  "C’est un félin nain propre à l’Amérique du Sud"]],
+'SAM-Q16':["Deux brides osseuses protègent ses canines",
+ ["Ses canines sont nettement plus courtes",
+  "Ses griffes ne sont pas rétractiles",
+  "Sa queue est bien plus longue que celle d’un félin"]],
+'SAM-Q17':["La fermeture de l’isthme de Panamá",
+ ["L’ouverture du passage de Drake","La surrection de la cordillère des Andes",
+  "L’assèchement temporaire de la Méditerranée"]],
+'SAM-Q18':["Dressé sur ses pattes arrière, en appui sur la queue",
+ ["En grimpant dans les arbres comme un paresseux actuel",
+  "En allongeant un cou d’une longueur inhabituelle",
+  "En abattant les arbres d’un coup d’épaule"]],
+'SAM-Q20':["Une silhouette semblable n’établit aucune parenté",
+ ["Les anciens naturalistes travaillaient mal",
+  "Les fossiles avaient été mal préparés",
+  "Toute classification relève de l’arbitraire"]],
+
+/* ---- MOR · Formation de Morrison ---- */
+'MOR-01':["Au Jurassique supérieur",
+ ["Au Crétacé supérieur","Au Paléogène","Au Cambrien"]],
+'MOR-02':["Dans l’ouest des États-Unis",
+ ["Dans le sud de l’Afrique australe","Dans le nord de la France","En Sibérie orientale"]],
+'MOR-03':["Rivières, plaines inondables et lacs",
+ ["Une calotte glaciaire couvrant la région",
+  "Un océan profond, à l’exclusion de tout autre milieu",
+  "Une forêt de plantes à fleurs comparable aux actuelles"]],
+'MOR-05':["De petites crêtes au-dessus des yeux",
+ ["Trois cornes disposées sur la face","Un bec entièrement dépourvu de dents",
+  "Une large collerette osseuse à l’arrière"]],
+'MOR-07':["L’affichage, peut-être la thermorégulation",
+ ["Elles servaient de nageoires respiratoires",
+  "Elles permettaient un vol plané entre les arbres",
+  "Elles abritaient des dents de remplacement"]],
+'MOR-09':["Herbivore, à grandes dents pour arracher",
+ ["Prédateur spécialisé dans la pêche","Filtreur de plancton en eau peu profonde",
+  "Broyeur de coquillages et de crustacés"]],
+'MOR-11':["Haut sur le crâne, les charnues plus en avant",
+ ["À l’extrémité de la queue","Sous la mâchoire inférieure","Dans la plante des pieds"]],
+'MOR-13':["Un cou et un squelette plus massifs",
+ ["Une carapace couvrant tout le dos","Des membres antérieurs transformés en ailes",
+  "Une collerette osseuse et trois cornes"]],
+'MOR-15':["Quadrupédie, petit crâne, vertèbres pneumatisées",
+ ["Ils n’avaient aucun besoin de respirer",
+  "Leur squelette était entièrement rempli de fer",
+  "Ils vivaient dans une gravité plus faible"]],
+'MOR-16':["Ils n’ont pas tous vécu au même moment",
+ ["Ils appartiennent tous à une même famille",
+  "Ils formaient en permanence un seul troupeau mixte",
+  "Ils partageaient leur territoire avec Tyrannosaurus"]],
+'MOR-17':["Camarasaurus et Diplodocus",
+ ["Allosaurus et Stegosaurus","Apatosaurus et Allosaurus","Dryosaurus et Stegosaurus"]],
+'MOR-18':["Une révision a proposé de le rétablir",
+ ["Il s’agissait en réalité d’un mosasaure",
+  "Le nom désigne désormais le genre Allosaurus",
+  "Un spécimen vivant en aurait été observé"]],
+'MOR-20':["De vastes affleurements et des dépôts fluviaux",
+ ["Une conservation de tous les animaux dans l’ambre",
+  "Une catastrophe unique à l’échelle du globe",
+  "Un océan totalement dépourvu de sédiments"]],
+
+/* ---- WHA · Ouadi al-Hitan ---- */
+'WHA-02':["Les hippopotames",
+ ["Les requins et les raies","Les phoques et les otaries","Les manchots"]],
+'WHA-04':["Des os épaissis servant de ballast",
+ ["Une carapace osseuse couvrant le dos",
+  "Des vertèbres allégées par des sacs aériens",
+  "Des os des membres creux comme chez les oiseaux"]],
+'WHA-06':["La structure de l’os de l’oreille",
+ ["Une nageoire dorsale conservée dans le sédiment",
+  "Des fanons de kératine encore en place",
+  "Une queue déjà terminée en croissant"]],
+'WHA-08':["Un estuaire ou une côte peu profonde",
+ ["Un océan abyssal, à l’exclusion d’autres milieux",
+  "Un désert hyperaride parcouru de oueds",
+  "Une forêt de montagne au climat frais"]],
+'WHA-10':["Un petit squelette identifié comme fœtus",
+ ["La présence d’une carapace de type tortue",
+  "La conservation de plumes le long du dos",
+  "L’existence de branchies fonctionnelles"]],
+'WHA-12':["Il signifie « lézard roi », mais c’est une baleine",
+ ["Il signifie « petite baleine » alors qu’il est immense",
+  "Il s’agit en réalité d’un dinosaure marin",
+  "Il désigne en fait un requin de grande taille"]],
+'WHA-13':["À l’accouplement plutôt qu’à la marche",
+ ["À broyer les coquillages contre le fond",
+  "À assurer un vol plané hors de l’eau",
+  "À porter des sabots encore fonctionnels"]],
+'WHA-14':["Aetiocetus cotylalveus",
+ ["Ambulocetus natans","Pakicetus attocki","Indohyus indirae"]],
+'WHA-15':["Le passage des dents aux fanons",
+ ["La sortie des premiers vertébrés hors de l’eau",
+  "L’origine des plumes chez les dinosaures",
+  "La formation des carapaces chez les tortues"]],
+'WHA-16':["Elles migrent vers le sommet du crâne",
+ ["Elles se déplacent vers l’arrière du corps",
+  "Elles se transforment en branchies","Elles finissent par disparaître"]],
+'WHA-18':["Ce sont des branches proches, pas des ancêtres",
+ ["Parce que l’évolution ne produit aucune parenté",
+  "Parce que ces fossiles sont des reconstitutions",
+  "Parce que toutes ces espèces vivaient ensemble"]],
+'WHA-19':["Les oscillations verticales de la queue",
+ ["Le battement horizontal d’une queue de poisson",
+  "Le vol sous-marin à l’aide des pectorales",
+  "La marche sur le fond avec les membres réduits"]],
+'WHA-20':["Fossiles, anatomie, embryologie et ADN",
+ ["La ressemblance générale avec les requins",
+  "Les seules légendes de marins et de pêcheurs",
+  "Une unique dent isolée et non replacée"]],
+
+/* ---- NWE · De Bernissart à Maastricht ---- */
+'NWE-01':["En Belgique",["Au Mexique","En Espagne","En Inde"]],
+'NWE-04':["Une grande pointe au pouce",
+ ["Trois cornes disposées sur la face","Une massue osseuse au bout de la queue",
+  "Une voile de peau dressée sur le dos"]],
+'NWE-05':["Non : il alternait sans doute les deux",
+ ["Non : il se déplaçait uniquement à la nage",
+  "Oui : ses membres avant étaient des ailes",
+  "Oui : il ne pouvait jamais poser les mains"]],
+'NWE-07':["Des écailles de poisson dans l’abdomen",
+ ["Des feuilles entières conservées dans un jabot",
+  "Des fanons de kératine dans la gueule",
+  "Des noix fossilisées logées dans ses joues"]],
+'NWE-09':["Qu’il vivait dans les arbres",
+ ["Qu’il se déplaçait sur ses deux pattes arrière",
+  "Qu’il a vécu au cours du Crétacé","Qu’il se nourrissait de végétaux"]],
+'NWE-11':["Une armure d’ostéodermes et des épines",
+ ["Une voile de peau tendue sur des épines dorsales",
+  "Des bois ramifiés comparables à ceux d’un cerf",
+  "Des tentacules urticants autour de la tête"]],
+'NWE-12':["Non : c’étaient des lézards marins",
+ ["Oui : des théropodes adaptés à la mer",
+  "Oui : des sauropodes de petite taille",
+  "Non : c’étaient des mammifères marins"]],
+'NWE-15':["Les dinosaures d’abord, les mosasaures ensuite",
+ ["Les mosasaures remontent au Cambrien",
+  "Toutes ces espèces sont exactement contemporaines",
+  "Les dinosaures appartiennent au Cénozoïque"]],
+'NWE-16':["Il suit une région sur une longue durée",
+ ["Toutes les espèces présentées sont actuelles",
+  "Les animaux proviennent de continents séparés",
+  "Il ne contient aucun fossile trouvé sur place"]],
+'NWE-18':["Une nageoire caudale portée par la colonne",
+ ["Ils étaient pourvus d’un organe rotatif",
+  "Ils avançaient en s’aidant de leurs seules dents",
+  "Ils battaient l’eau d’une queue plate de castor"]],
+'NWE-20':["Les montages verticaux ont été corrigés",
+ ["C’étaient des quadrupèdes marchant sur des sabots",
+  "Ils ont toujours été montés comme ils le sont aujourd’hui",
+  "Ils se déplaçaient la queue traînant sur le sol"]]
+
+};
+
+(function appliquerFouille5(){
+  Object.keys(FOUILLE_REVUE_5).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_5[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 26 : rééquilibrage des QCM de fouille — DEV, KAR2, LUO.
+
+   Mêmes règles qu'aux blocs 21 à 25. Aucun taxon inventé : les noms
+   employés comme leurres appartiennent tous à l'atlas — contrainte
+   rappelée par l'erreur commise au bloc 23.
+   ================================================================ */
+
+const FOUILLE_REVUE_6={
+
+/* ---- DEV · Falaise de Miguasha ---- */
+'DEV-01':["Au Dévonien supérieur",
+ ["Au Carbonifère inférieur","Au Néogène","Au Trias"]],
+'DEV-02':["Non : plusieurs lignées ont mêlé les caractères",
+ ["Oui : toutes ces espèces vivaient exactement ensemble",
+  "Oui : les six espèces forment une seule population",
+  "Non : les membres sont apparus bien plus tard"]],
+'DEV-04':["Ses articulations ne portaient pas son poids",
+ ["Il était entièrement dépourvu de musculature",
+  "Il ne possédait aucune colonne vertébrale",
+  "Ses nageoires étaient soudées au flanc du corps"]],
+'DEV-05':["Panderichthys rhombolepis",
+ ["Eusthenopteron foordi","Ichthyostega stensioei","Acanthostega gunnari"]],
+'DEV-06':["Moins de rayons, un squelette interne robuste",
+ ["L’apparition de doigts externes déjà complets",
+  "Une nageoire caudale semblable à celle des cétacés",
+  "Un revêtement de filaments sur toute leur surface"]],
+'DEV-08':["Des pectorales articulées comme un poignet",
+ ["Une queue préhensile servant d’appui sur le fond",
+  "Des sabots cornés à l’extrémité des membres",
+  "Des replis membraneux tendus entre les flancs"]],
+'DEV-11':["Des doigts avant la disparition des rayons",
+ ["C’était déjà un mammifère parfaitement terrestre",
+  "Il ne possédait aucun membre pair identifiable",
+  "Il établit que les doigts dérivent des plumes"]],
+'DEV-13':["Non : ses membres indiquent une vie aquatique",
+ ["Non : il s’agissait en réalité d’un arthropode",
+  "Oui : il courait comme un lézard d’aujourd’hui",
+  "Oui : il grimpait aux troncs des premières forêts"]],
+'DEV-15':["Ses côtes imbriquées bridaient les ondulations",
+ ["Il était entièrement dépourvu de musculature",
+  "Il ne possédait pas de colonne vertébrale",
+  "Ses membres n’étaient que des replis de peau"]],
+'DEV-16':["Des eaux peu profondes, chenaux et deltas",
+ ["Sur les versants enneigés des massifs montagneux",
+  "Dans des déserts continentaux privés d’eau libre",
+  "Dans les grands fonds océaniques exclusivement"]],
+'DEV-17':["Des poissons fuyant des mares qui s’assèchent",
+ ["Les vertébrés possèdent une colonne vertébrale",
+  "Les poissons de cette époque vivaient dans l’eau",
+  "Le Dévonien précède le Carbonifère dans l’échelle"]],
+'DEV-19':["Des tétrapodes à doigts existaient déjà",
+ ["Que les poissons n’ont jamais possédé de nageoires",
+  "Que des dinosaures vivaient déjà au Dévonien",
+  "Que le fossile de Tiktaalik est une fabrication"]],
+
+/* ---- KAR2 · Bassin du Karoo ---- */
+'KAR2-01':["En Afrique du Sud",
+ ["En Mongolie intérieure","Au Canada","Au Pérou"]],
+'KAR2-02':["Non : surtout des synapsides",
+ ["Non : ce sont uniquement des amphibiens",
+  "Oui : toutes sont des dinosaures ornithischiens",
+  "Oui : toutes sont des oiseaux primitifs"]],
+'KAR2-04':["Des poussées ou des coups de tête",
+ ["Le port de bois ramifiés saisonniers",
+  "La filtration du plancton en eau peu profonde",
+  "L’émission de sons dirigés vers les proies"]],
+'KAR2-05':["Pareiasaurus serridens",
+ ["Thrinaxodon liorhinus","Moschops capensis","Rubidgea atrox"]],
+'KAR2-06':["Un corps massif à armure dermique",
+ ["Une haute voile dorsale portée par les vertèbres",
+  "Des membranes tendues entre les membres",
+  "Un cou dépassant plusieurs mètres de long"]],
+'KAR2-08':["Un animal muni d’un bec de tortue",
+ ["Un prédateur au museau particulièrement robuste",
+  "Un quadrupède strictement terrestre",
+  "Un synapside pourvu de longues canines"]],
+'KAR2-10':["Leur présence variait d’un individu à l’autre",
+ ["Les défenses n’existaient que chez les juvéniles",
+  "Les défenses tombaient à chaque saison sèche",
+  "Aucun spécimen connu n’en a jamais porté"]],
+'KAR2-14':["Une denture différenciée en plusieurs types",
+ ["L’absence totale de dents sur les deux mâchoires",
+  "Un bec corné remplaçant entièrement les mâchoires",
+  "Une spirale dentaire enroulée sur elle-même"]],
+'KAR2-15':["Des filaments sont plausibles, sans certitude",
+ ["Il portait à coup sûr des plumes de type moderne",
+  "Une fourrure rayée est fossilisée sur les spécimens",
+  "Sa peau formait une carapace osseuse continue"]],
+'KAR2-17':["Les six taxons viennent de niveaux différents",
+ ["Ils vivaient chacun sur un continent distinct",
+  "Aucun de ces fossiles ne provient du Karoo",
+  "Ces espèces sont toutes encore vivantes"]],
+'KAR2-19':["Diictodon et Lystrosaurus",
+ ["Moschops et Pareiasaurus","Rubidgea et Thrinaxodon","Rubidgea et Moschops"]],
+'KAR2-20':["Certains sont sur la lignée, pas tous ancêtres",
+ ["Les thérapsides n’ont aucun lien avec les mammifères",
+  "Les mammifères descendent des dinosaures du Karoo",
+  "Tous les thérapsides sont des mammifères modernes"]],
+
+/* ---- LUO · Biote de Luoping ---- */
+'LUO-03':["Il montre un écosystème marin reconstruit",
+ ["Il livre les premiers dinosaures terrestres connus",
+  "Il constitue le dernier refuge connu des trilobites",
+  "Il documente l’origine des plantes à fleurs"]],
+'LUO-05':["Herbivore, broutant la végétation marine",
+ ["Filtreur de plancton au moyen de fanons",
+  "Superprédateur s’attaquant aux grands reptiles",
+  "Charognard parcourant les rivages émergés"]],
+'LUO-06':["Un museau vertical en fermeture éclair",
+ ["Un corps aquatique pourvu de quatre membres",
+  "Une tête transversale en forme de marteau",
+  "Une dentition fine et particulièrement nombreuse"]],
+'LUO-08':["Non : un archosauromorphe marin",
+ ["Oui : un plésiosaure jurassique classique",
+  "Oui : un mosasaure de petite taille",
+  "Non : un mammifère marin primitif"]],
+'LUO-09':["Sinosaurosphargis yunguiensis",
+ ["Dinocephalosaurus orientalis","Atopodentatus unicus","Nothosaurus zhangi"]],
+'LUO-10':["Son armure vient d’une lignée distincte",
+ ["Il portait un revêtement de plumes filamenteuses",
+  "Il ne possédait aucune pièce osseuse identifiable",
+  "Il passait sa vie entière sur la terre ferme"]],
+'LUO-12':["Sa taille et ses mâchoires à dents saisissantes",
+ ["Un bec édenté adapté au broutage des algues",
+  "Une carapace osseuse comparable à celle des tortues",
+  "Des sabots cornés adaptés à la course"]],
+'LUO-14':["C’est un reptile marin, non un mammifère",
+ ["C’était en réalité un poisson cartilagineux",
+  "Il respirait au moyen de branchies internes",
+  "Il portait une carapace osseuse sur le dos"]],
+'LUO-17':["Un retour progressif, avec des radiations",
+ ["Tous les écosystèmes ont été rétablis en un an",
+  "Les reptiles marins existaient déjà sous forme moderne",
+  "Aucune espèce marine n’a survécu à la crise"]],
+'LUO-18':["Non : aussi poissons, arthropodes et plantes",
+ ["Oui : uniquement les six reptiles du chantier",
+  "Non : mais uniquement des dinosaures terrestres",
+  "Oui : à l’exception d’un unique mammifère"]],
+'LUO-19':["Des lignées distinctes ont acquis des formes voisines",
+ ["Toutes descendent directement des dauphins",
+  "Elles partagent exactement la même anatomie interne",
+  "Elles étaient produites par un même organisme colonial"]],
+'LUO-20':["Sinosaurosphargis yunguiensis",
+ ["Dinocephalosaurus orientalis","Nothosaurus zhangi","Phalarodon atavus"]]
+
+};
+
+(function appliquerFouille6(){
+  Object.keys(FOUILLE_REVUE_6).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_6[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 27 : dernier rééquilibrage des QCM de fouille — YIX et HUN,
+   les deux chantiers à quarante questions.
+
+   RÈGLES DE RÉDACTION DES QCM — consignées au README, section
+   « Règles de rédaction des QCM ». Résumé :
+     1. la clé est une réponse, pas une explication ;
+     2. les leurres sont parallèles à la clé, même construction et
+        longueur du même ordre ;
+     3. au moins un leurre est plus long que la clé ;
+     4. un leurre est une erreur plausible, pas une absurdité.
+   Interdits : ne jamais inventer un fait ou un taxon pour allonger un
+   leurre ; ne pas retoucher une question déjà équilibrée.
+   ================================================================ */
+
+const FOUILLE_REVUE_7={
+
+/* ---- YIX · Formation de Yixian ---- */
+'YIX-03':["Des dépôts fins de lacs et de cendres",
+ ["Des dunes désertiques dépourvues d’eau libre",
+  "Des grottes calcaires de formation récente",
+  "Des moraines laissées par des glaciers continentaux"]],
+'YIX-05':["La grande taille n’excluait pas les filaments",
+ ["Tous les grands théropodes étaient entièrement nus",
+  "Les plumes n’existaient que chez les oiseaux modernes",
+  "Les tyrannosauroïdes étaient en réalité herbivores"]],
+'YIX-08':["Psittacosaurus lujiatunensis",
+ ["Confuciusornis sanctus","Sinosauropteryx prima","Yutyrannus huali"]],
+'YIX-11':["Certains étaient assez grands pour manger des dinosaures",
+ ["Il possédait des membranes de vol entre les membres",
+  "Il dépassait en taille les plus grands sauropodes",
+  "Il établit que tous les mammifères étaient marins"]],
+'YIX-13':["Un bec dépourvu de dents",
+ ["Une paire de cornes frontales","Quatre ailes complètes","Une carapace osseuse"]],
+'YIX-14':["Elles précèdent le vol et servaient à plusieurs fins",
+ ["Aucune plume n’est conservée dans ce gisement",
+  "Elles sont apparues uniquement pour permettre le vol",
+  "Tous les dinosaures en portaient exactement le même type"]],
+'YIX-15':["Les oiseaux sont une branche des théropodes",
+ ["Parce que seuls les mammifères peuvent porter des plumes",
+  "Parce que les plumes fossiles sont toujours des végétaux",
+  "Parce que les oiseaux ne comptent pas comme des animaux"]],
+'YIX-17':["Certaines zones et pigments seulement sont contraints",
+ ["Elles n’apportent aucune information exploitable",
+  "Elles déterminent le comportement social avec certitude",
+  "Elles donnent toujours accès à chaque nuance exacte"]],
+'YIX-18':["Non : aussi oiseaux, mammifères, poissons et plantes",
+ ["Oui : aucun autre groupe n’y est connu à ce jour",
+  "Non : mais uniquement des trilobites y sont associés",
+  "Oui : à l’exception d’un unique mollusque marin"]],
+'YIX-19':["Elles appartiennent à des branches très différentes",
+ ["Elles sont les ancêtres directes les unes des autres",
+  "Elles sont toutes des tyrannosaures de petite taille",
+  "Elles sont toutes des mammifères du même genre"]],
+'YIX-20':["Confuciusornis et Sinosauropteryx",
+ ["Repenomamus et Psittacosaurus","Yutyrannus et Sinosauropteryx",
+  "Psittacosaurus et Yutyrannus"]],
+'YIX-Q21':["Des plantes à fleurs parmi les plus anciennes",
+ ["Les tout premiers mammifères connus","Les premiers récifs coralliens",
+  "Les premières fourmis sociales"]],
+'YIX-Q22':["On a la plante entière, racines comprises",
+ ["On n’en connaît que le pollen dispersé","On n’en a retrouvé que les graines",
+  "On n’en a qu’une empreinte prise dans l’ambre"]],
+'YIX-Q23':["Les pétales et les sépales",
+ ["Les étamines porteuses de pollen","Les graines contenues dans le fruit",
+  "Les racines fixées au substrat"]],
+'YIX-Q24':["Ses feuilles sont finement découpées",
+ ["On l’a trouvée mêlée à des restes de poissons",
+  "Ses racines sont totalement absentes du fossile",
+  "Ses graines sont capables de flotter longtemps"]],
+'YIX-Q25':["Excessive : des angiospermes plus anciennes existent",
+ ["Elle est exacte et communément admise",
+  "Elle est fausse : c’est une gymnosperme",
+  "Elle provient des auteurs de l’étude eux-mêmes"]],
+'YIX-Q26':["Rapprochée d’un fossile du Kazakhstan",
+ ["Le premier nom avait été mal orthographié",
+  "Deux plantes distinctes avaient été confondues",
+  "Le premier auteur s’est publiquement rétracté"]],
+'YIX-Q27':["Employer le nom valide, en signalant l’ancien",
+ ["Employer les deux noms indifféremment",
+  "Retenir toujours le plus ancien des deux",
+  "Attendre qu’un troisième nom soit proposé"]],
+'YIX-Q28':["La forme lobée de ses feuilles",
+ ["Son pollen retrouvé en place","Ses racines particulièrement développées",
+  "Sa taille comparée aux autres plantes"]],
+'YIX-Q29':["Le plus ancien fruit de plante à fleurs",
+ ["Un conifère jusque-là inconnu","Une algue vivant en eau douce",
+  "Une fougère adaptée aux milieux aquatiques"]],
+'YIX-Q30':["Une revendication démentie fait partie de l’histoire",
+ ["Par une simple erreur de classement",
+  "Parce que son illustration est réussie",
+  "Parce qu’elle redeviendra peut-être une fleur"]],
+'YIX-Q31':["Des gymnospermes, apparentées à l’éphédra",
+ ["Des fougères à spores","Des mousses","Des algues vertes"]],
+'YIX-Q33':["Au Crétacé inférieur, vers 125 Ma",
+ ["Au Dévonien, avec les premières forêts","Au Jurassique supérieur",
+  "Au Paléogène, après les dinosaures"]],
+'YIX-Q34':["Reconstituer un écosystème entier",
+ ["Dater les dinosaures au moyen des fleurs",
+  "Établir que les dinosaures mangeaient des fleurs",
+  "Rien de particulier sur le plan scientifique"]],
+'YIX-Q35':["L’ovule est nu ou enfermé dans un carpelle",
+ ["La taille adulte atteinte par la plante",
+  "La couleur que prennent les feuilles",
+  "La présence ou l’absence de racines"]],
+'YIX-Q36':["Minuscule, résistant et très abondant",
+ ["Il est plus volumineux que les graines",
+  "Il ne se conserve que pris dans l’ambre",
+  "Il autorise une datation au carbone 14"]],
+'YIX-Q38':["Ce serait deux épingles pour un seul lieu",
+ ["Elles sont en trop petit nombre pour un chantier",
+  "Elles présentent moins d’intérêt que les animaux",
+  "Le nom officiel du site l’interdit"]],
+'YIX-Q39':["La majorité des plantes à fleurs actuelles",
+ ["Une plante dépourvue de feuilles","Une plante adaptée à la vie aquatique",
+  "Une plante ne produisant qu’une seule graine"]],
+'YIX-Q40':["Une annonce spectaculaire n’est pas une preuve",
+ ["Les fossiles chinois sont globalement peu fiables",
+  "Les revues scientifiques se trompent très souvent",
+  "Il faut se méfier des plantes fossiles en général"]],
+
+/* ---- HUN · Schistes du Hunsrück ---- */
+'HUN-01':["En Allemagne",["En Chine du Sud","En Égypte","Au Brésil"]],
+'HUN-02':["Au Dévonien inférieur",
+ ["Au Crétacé supérieur tardif","Au Trias supérieur","À l’Édiacarien"]],
+'HUN-06':["C’est un pycnogonide, une araignée de mer",
+ ["Elle ne possédait aucune patte articulée",
+  "C’était un insecte capable de voler",
+  "Elle respirait par des poumons de mammifère"]],
+'HUN-08':["Aux arthropodes marrellomorphes",
+ ["Aux échinodermes à symétrie radiale","Aux mollusques à coquille externe",
+  "Aux vertébrés sans mâchoires"]],
+'HUN-12':["Il suit de cent millions d’années des formes proches",
+ ["Il porte des fleurs fossilisées conservées en place",
+  "C’est le premier mammifère marin connu",
+  "C’est le dernier dinosaure non avien"]],
+'HUN-14':["Non : un placoderme cuirassé",
+ ["Oui : un mammifère marin aplati","Non : c’était en fait un mollusque",
+  "Oui : une raie de type moderne"]],
+'HUN-15':["Drepanaspis gemuendenensis",
+ ["Palaeoisopus problematicus","Mimetaster hexagonalis","Gemuendina stuertzi"]],
+'HUN-16':["L’un est sans mâchoires, l’autre en a",
+ ["Drepanaspis est en réalité un insecte marin",
+  "Gemuendina est un mammifère de petite taille",
+  "Les deux noms désignent une seule espèce"]],
+'HUN-17':["Elle exige fer, matière organique et enfouissement",
+ ["Elle demande des températures proches de la fusion",
+  "Elle se produit dans la totalité des fossiles",
+  "La pyrite ne se forme que hors de la Terre"]],
+'HUN-19':["Le matériel est limité : les tissus restent spéculatifs",
+ ["Son anatomie complète a été observée sur le vivant",
+  "Il faut le représenter en tous points identique à un Anomalocaris",
+  "Il faut lui ajouter des nageoires de requin"]],
+'HUN-20':["Des communautés déjà complexes et variées",
+ ["Elles ne contenaient rien d’autre que des trilobites",
+  "Elles étaient dominées par de grands mammifères marins",
+  "Elles étaient presque entièrement dépourvues de vie"]],
+'HUN-21':["Aux échinodermes",["Aux mollusques","Aux arthropodes marins","Aux cnidaires"]],
+'HUN-23':["Un pied mû par de l’eau sous pression",
+ ["Une plaque rigide du squelette externe",
+  "Une pièce buccale servant à racler","Un organe reproducteur interne"]],
+'HUN-25':["Des structures invisibles sur un spécimen brut",
+ ["La couleur d’origine réellement portée par les animaux",
+  "L’âge exact des couches encaissantes",
+  "Le contenu de l’estomac des poissons"]],
+'HUN-27':["Une membrane de tissu mou",
+ ["Des œufs prêts à être pondus","Des restes de proies avalées",
+  "Des cristaux de sel recristallisés"]],
+'HUN-29':["Qu’ils ne vivaient probablement pas sur place",
+ ["Qu’ils venaient tout juste d’apparaître",
+  "Qu’ils étaient trop fragiles pour se fossiliser",
+  "Qu’ils étaient de taille microscopique"]],
+'HUN-30':["Leur squelette se réduit à des spicules",
+ ["Elles ne sont apparues que très récemment",
+  "Elles vivaient exclusivement en eau douce",
+  "Elles étaient trop grandes pour être enfouies"]],
+'HUN-31':["Un échinoderme fixé, d’une classe éteinte",
+ ["Un mollusque bivalve à coquille particulièrement mince",
+  "Un corail solitaire fixé au fond","Une éponge à squelette siliceux"]],
+'HUN-33':["Son tissu conjonctif était rigide à l’enfouissement",
+ ["Qu’elles étaient minéralisées de son vivant",
+  "Qu’il s’agissait d’épines remplissant une fonction défensive",
+  "Que l’animal était mort depuis longtemps"]],
+'HUN-34':["Un tissu dont la rigidité change en secondes",
+ ["Un muscle capable de repousser après section",
+  "Une couche de graisse assurant l’isolation",
+  "Une membrane produisant un venin dissuasif"]],
+'HUN-36':["Le sens du courant avant l’enfouissement",
+ ["Un comportement lié à la reproduction",
+  "Une attaque de prédateur interrompue",
+  "Un artefact produit lors de la préparation du fossile"]],
+'HUN-37':["Le schiste était exploité pour les toitures",
+ ["Un programme de fouilles universitaires les a cherchés",
+  "Une rivière en crue les a mis au jour",
+  "Ils affleurent naturellement à la surface"]],
+'HUN-38':["Chez l’adulte : la larve est bilatérale",
+ ["Dès le stade de l’œuf fécondé",
+  "Elle ne concerne que les oursins","Elle n’apparaît qu’après la première reproduction"]],
+'HUN-39':["La pyrite est opaque aux rayons X",
+ ["Le schiste encaissant est trop dur à fendre",
+  "Les fossiles pyritisés sont légèrement radioactifs",
+  "Pour dater les couches sans les détruire"]],
+'HUN-40':["Les conditions variaient d’un endroit à l’autre",
+ ["Que certains de ces fossiles sont des faux",
+  "Que les moins pyritisés sont les plus récents",
+  "Que la pyrite s’est formée après l’extraction du bloc"]]
+
+};
+
+(function appliquerFouille7(){
+  Object.keys(FOUILLE_REVUE_7).forEach(id=>{
+    const q=QUIZ_PALEO.find(x=>x.id===id);
+    if(!q) return;
+    const [r,autres]=FOUILLE_REVUE_7[id];
+    q.r=r; q.choix=[r].concat(autres);
+  });
+})();
+
+/* ================================================================
+   Bloc 28 : dernier rééquilibrage des QCM — `histoire`, `philomonde`
+   et `biologie`.
+
+   Ces trois banques avaient été reprises à la première passe (v29),
+   avant que la règle 3 ne soit formulée : les clés y avaient été
+   raccourcies sans qu'un leurre soit systématiquement allongé. Elles
+   restaient donc entre 35 et 38 %, au-dessus de la cible de 25 %.
+
+   RÈGLES DE RÉDACTION DES QCM — consignées au README, section
+   « Règles de rédaction des QCM ». Résumé :
+     1. la clé est une réponse, pas une explication ;
+     2. les leurres sont parallèles à la clé, même construction et
+        longueur du même ordre ;
+     3. au moins un leurre est plus long que la clé ;
+     4. un leurre est une erreur plausible, pas une absurdité.
+   Interdits : ne jamais inventer un fait ou un taxon pour allonger un
+   leurre ; ne pas retoucher une question déjà équilibrée.
+   ================================================================ */
+
+/* `histoire` n'avait pas de champ `n` — cinquième banque dans ce cas,
+   après biologie, arteu, philosophie et artmonde. */
+(function numeroterHistoire(){
+  const p=PACKS.find(x=>x.id==='histoire');
+  if(p) p.bank().forEach((it,i)=>{ if(it.n===undefined) it.n=i+1; });
+})();
+
+const OPTIONS_REVUES_4={
+
+histoire:[
+['cratère de Chicxulub',"Dans le Yucatán, au Mexique",
+ ["En Sibérie orientale","Dans le désert de l’Arizona","Au large de Madagascar"]],
+['taxon de crise',"Une forme qui prolifère après une extinction",
+ ["Une espèce disparue au tout début d’une extinction",
+  "Un fossile servant à dater précisément une couche",
+  "Une espèce dont la classification reste indécise"]],
+['Mary Anning',"Ses reptiles marins fossiles de Lyme Regis",
+ ["La première classification des dinosaures",
+  "La mise au point de la datation au carbone 14",
+  "La théorie de la dérive des continents"]],
+['Qui découvre le Schiste de Burgess',"Charles Doolittle Walcott, en 1909",
+ ["Simon Conway Morris, en 1972","Harry Whittington, en 1966",
+  "Stephen Jay Gould, en 1989"]],
+['principe de superposition',"Nicolas Sténon",["William Smith","James Hutton","Charles Lyell"]],
+['Guerre des os',"La rivalité entre Cope et Marsh",
+ ["Un conflit sur la propriété des fossiles chinois",
+  "Le débat sur la cause de l’extinction des dinosaures",
+  "La querelle opposant Cuvier à Lamarck"]],
+['Lagerstätte',"Un gisement à conservation exceptionnelle",
+ ["Une couche de cendre volcanique datable",
+  "Un musée d’histoire naturelle allemand",
+  "Une méthode de moulage des fossiles fragiles"]],
+['taphonomie',"Ce qui arrive entre la mort et la découverte",
+ ["La classification des espèces disparues",
+  "La datation des roches sédimentaires marines",
+  "La reconstitution des climats du passé"]],
+['cendre volcanique vieille de 250',"L’uranium-plomb sur les zircons",
+ ["Le carbone 14 sur la matière organique","La dendrochronologie sur les bois fossiles",
+  "La thermoluminescence sur les grains de quartz"]],
+['fossile index',"Très répandue, mais de courte durée",
+ ["Le fossile le plus complet d’un gisement",
+  "Le premier fossile décrit pour une espèce",
+  "Un fossile conservé avec ses tissus mous"]],
+['mélanosomes',"Une partie des motifs de coloration",
+ ["La température corporelle de l’animal",
+  "L’âge qu’il avait au moment de sa mort",
+  "Sa position exacte dans l’arbre phylogénétique"]],
+['spécimen type',"Le spécimen auquel un nom est rattaché",
+ ["Le plus grand spécimen connu de l’espèce",
+  "Un moulage réalisé pour l’exposition au public",
+  "Le premier fossile mis au jour sur un site"]],
+['Archaeoraptor',"Un assemblage de deux animaux différents",
+ ["Un moulage de plâtre entièrement fabriqué",
+  "Un spécimen authentique mais mal daté",
+  "Un fossile de ptérosaure mal identifié"]],
+['ptérosaures sont-ils des dinosaures',"Non : des reptiles volants d’un autre groupe",
+ ["Oui : ce sont des dinosaures adaptés au vol",
+  "Oui : ce sont les ancêtres directs des oiseaux",
+  "Non : ce sont des mammifères primitifs"]],
+['explosion cambrienne',"L’apparition rapide des grands plans corporels",
+ ["Une série d’éruptions volcaniques au Cambrien",
+  "La première extinction de masse répertoriée",
+  "L’apparition des premiers vertébrés terrestres"]],
+['Anomalocaris',"Aux arthropodes, au sens large",
+ ["Aux mollusques céphalopodes","Aux vertébrés primitifs","Aux cnidaires nageurs"]],
+['Pikaia',"Elle présente des caractères de chordé",
+ ["C’est le plus grand animal connu du Cambrien",
+  "C’est le premier arthropode jamais décrit",
+  "Elle porte la première coquille minéralisée"]],
+['dicynodonte',"Un thérapside, proche de la lignée mammalienne",
+ ["Un dinosaure herbivore de petite taille",
+  "Un reptile marin du Permien supérieur",
+  "Un amphibien géant du Trias inférieur"]],
+['Pangée',"Vers la fin du Paléozoïque",
+ ["Au début de la période cambrienne","À la toute fin du Crétacé",
+  "Au cours du Miocène"]],
+['stromatolithes',"Des structures bâties par des micro-organismes",
+ ["Des œufs de dinosaures fossilisés en nid",
+  "Des concrétions formées par l’impact de météorites",
+  "Des empreintes de pas de tétrapodes anciens"]]
+],
+
+philomonde:[
+[3,"Un orientaliste l’a jugé fabriqué",
+ ["Deux versions du texte se contrediraient entièrement",
+  "Le manuscrit original aurait brûlé avant tout examen",
+  "Sa datation oscillerait entre le XVᵉ siècle et l’époque coloniale"]],
+[8,"La poésie, seul moyen de dire le vrai",
+ ["Le rite funéraire réservé aux guerriers tombés au loin",
+  "Le cycle agricole qui règle semailles et récolte",
+  "L’impôt en nature versé par les cités vassales"]],
+[9,"La cohésion d’un groupe, moteur des dynasties",
+ ["L’impôt foncier prélevé sur les terres conquises",
+  "L’école de droit dominante dans le Maghreb de l’époque",
+  "Le genre littéraire des chroniques de cour"]],
+[13,"Quatre branches : vrai, faux, les deux, ni l’un ni l’autre",
+ ["Une méthode de méditation progressant en quatre étapes",
+  "Un recueil de quatre sutras attribués au Bouddha",
+  "Une règle monastique fixant quatre interdits fondamentaux"]],
+[15,"La nature humaine est-elle bonne au départ",
+ ["La date de naissance et la biographie de Confucius",
+  "L’existence d’un ciel doté d’une volonté propre",
+  "La légitimité de la guerre menée par un souverain"]],
+[16,"La possibilité de distinguer la veille du rêve",
+ ["La réalité des animaux et leur place dans la nature",
+  "La valeur du travail manuel dans une vie juste",
+  "L’autorité que l’empereur tient du mandat du ciel"]],
+[19,"L’identité se constitue dans la relation",
+ ["L’individu n’a aucune valeur hors de son groupe",
+  "La solitude constitue une faute envers la communauté",
+  "L’autorité des anciens ne se discute jamais"]]
+],
+
+biologie:[
+[4,"Il se protège derrière sa carapace",
+ ["Il enferme sa ponte au centre de la spirale",
+  "Il facilite la sortie de son ancienne carapace",
+  "Il augmente sa vitesse de nage en pleine eau"]],
+[6,"Aux échinodermes",["Aux mollusques","Aux annélides","Aux arthropodes"]],
+[9,"Un tissu dont la rigidité change en secondes",
+ ["Un muscle capable de repousser après amputation",
+  "Un tissu glandulaire sécrétant un venin paralysant",
+  "Une couche de graisse isolant des eaux froides"]],
+[10,"Leur squelette se réduit à des spicules",
+ ["Le groupe n’est apparu qu’au cours du Cénozoïque",
+  "Elles ne vivent que dans des milieux d’eau douce",
+  "Leurs tissus se décomposent en quelques minutes"]],
+[11,"Du cartilage, parfois renforcé de calcium",
+ ["De l’os compact, comme chez les poissons osseux",
+  "De la chitine, comme chez les grands arthropodes",
+  "De la kératine souple, sans aucune minéralisation"]],
+[12,"Les dents dérivent des denticules cutanés",
+ ["Ce sont des formations d’origines entièrement distinctes",
+  "Les écailles sont des dents usées rejetées vers l’arrière",
+  "Les dents sont des écailles minéralisées après la mort"]],
+[17,"De kératine, comme les ongles",
+ ["D’os spongieux issu des mâchoires","D’émail dentaire étiré en longues lames",
+  "De cartilage souple recouvert de muqueuse"]]
+]
+
+};
+
+(function appliquer4(){
+  Object.keys(OPTIONS_REVUES_4).forEach(id=>{
+    const p=PACKS.find(x=>x.id===id); if(!p) return;
+    const banque=p.bank();
+    OPTIONS_REVUES_4[id].forEach(([cle,r,autres])=>{
+      /* Les questions déséquilibrées de `histoire` sont dispersées dans une
+         banque de 52 : les repérer par leur rang aurait appliqué chaque
+         correction à la mauvaise question — l'erreur a été commise. On les
+         repère donc par un fragment de leur énoncé, et on exige que ce
+         fragment désigne une question et une seule. */
+      let it;
+      if(typeof cle==='number') it=banque.find(x=>x.n===cle);
+      else{
+        const c=banque.filter(x=>x.q.includes(cle));
+        if(c.length!==1) throw new Error('fragment ambigu ou introuvable : '+cle);
+        it=c[0];
+      }
+      if(it){ it.r=r; it.autres=autres; }
+    });
+  });
+})();
+
+/* ================================================================
+   Bloc 29 : emblème de chantier.
+
+   La frise portait, pour chaque chantier, la pastille de globe qui
+   sert dans les vues satellites. À l'échelle du temps, ce globe ne
+   dit rien : la position géographique n'est pas ce qu'on lit sur un
+   axe vertical de 650 millions d'années, et vingt-trois pastilles
+   quasi identiques ne se distinguent pas.
+
+   Chaque chantier reçoit donc une créature emblème, choisie sur deux
+   critères : elle doit situer l'époque d'un coup d'œil, et avoir une
+   silhouette reconnaissable en vignette de trente pixels. Quand deux
+   créatures se valaient, on a retenu la plus caractéristique de la
+   FORME du vivant à ce moment-là plutôt que la plus célèbre.
+
+   Hell Creek fait exception au principe « la plus célèbre » : le
+   Tyrannosaurus sert déjà d'icône à l'application, et le Triceratops
+   évite de montrer deux fois la même bête.
+   ================================================================ */
+
+const EMBLEMES={
+  EDI:'EDI-01',    // Dickinsonia — la forme édiacarienne par excellence
+  TRI:'TRI-04',    // Walliserops — le trident, silhouette unique
+  BURG:'BURG-01',  // Anomalocaris — le grand prédateur cambrien
+  ORD:'ORD-01',    // Aegirocassis — le filtreur géant ordovicien
+  CEP:'CEP-02',    // Nipponites — la coquille hétéromorphe, reconnaissable entre toutes
+  SIL:'SIL-03',    // Pterygotus — le scorpion de mer silurien
+  CHO:'CHO-05',    // Helicoprion — la spirale dentaire
+  HUN:'HUN-05',    // Gemuendina — le placoderme aplati en raie
+  GIL:'GIL-02',    // Archaeopteris — le premier arbre à bois véritable
+  DEV:'DEV-03',    // Tiktaalik — l'emblème du passage à la terre ferme
+  CAR:'CAR-02',    // Meganeura — la libellule géante du Carbonifère
+  MAZ:'MAZ-01',    // Tullimonstrum — le monstre de Tully
+  KAR2:'KAR2-03',  // Rubidgea — le gorgonopsien à longues canines
+  LUO:'LUO-01',    // Atopodentatus — la tête en marteau
+  JUR:'JUR-04',    // Mamenchisaurus — le plus long cou connu
+  MOR:'MOR-02',    // Stegosaurus — les plaques dorsales
+  NWE:'NWE-01',    // Iguanodon — Bernissart
+  YIX:'YIX-01',    // Yutyrannus — le grand théropode à filaments
+  NEM:'NEM-03',    // Therizinosaurus — les griffes démesurées
+  HC:'HC-02',      // Triceratops — le T. rex sert déjà d'icône à l'application
+  WHA:'WHA-05',    // Basilosaurus — la baleine archaïque allongée
+  MES:'MES-03',    // Darwinius — le primate de Messel
+  SAM:'SAM-01'     // Megatherium — le paresseux géant
+};
+
+/* L'emblème doit toujours renvoyer une créature réelle du chantier. Si un
+   chantier était ajouté sans emblème, on retombe sur sa première créature
+   plutôt que d'afficher une image cassée — qc.js réclame néanmoins l'entrée
+   explicite, le choix par défaut n'ayant aucune raison d'être le bon. */
+function emblemeDe(siteId){
+  const id=EMBLEMES[siteId];
+  return CREATURES.find(c=>c.id===id)
+      || CREATURES.find(c=>c.site===siteId)
+      || null;
+}
+
+/* ================================================================
+   Bloc 30 : plateau sur le coût d'ouverture des chantiers.
+
+   Les coûts montaient linéairement de 80 à 960, par paliers de 40.
+   Le défaut n'était pas le niveau mais la FORME de la courbe : les
+   chantiers les plus chers arrivent nécessairement en dernier,
+   c'est-à-dire au moment où il ne reste que les banques de questions
+   que la joueuse aime le moins. L'effort demandé augmentait donc
+   précisément quand l'envie diminue.
+
+   Mesuré : ouvrir les vingt-trois chantiers demandait 756 exercices,
+   dont 42 à 60 pour chacun des dix derniers.
+
+   La rampe initiale est conservée — elle sert d'apprentissage, on
+   sent que l'on progresse — puis le coût PLAFONNE. Le prix d'un
+   nouveau chantier cesse alors de grimper : trois à quatre missions,
+   du début à la fin. Avec le bonus d'achèvement porté à 0,8 et le
+   coût de fouille ramené de 30 à 20, l'ensemble revient à 456
+   exercices, dont 18 à 24 pour chacun des dix derniers.
+
+   Le bonus d'achèvement récompense le fait de COMPLÉTER un chantier,
+   ce qui est une motivation de collectionneuse. Ce n'en est pas une
+   ici : le moteur, c'est le contenu. Le péage doit donc rester léger
+   et surtout constant.
+   ================================================================ */
+
+const COUT_BASE=80;        // premier chantier
+const COUT_PAS=40;         // pas de la rampe initiale
+const COUT_PLATEAU=320;    // au-delà, le prix n'augmente plus
+
+/* L'ordre d'ouverture voulu est celui des anciens coûts : on le conserve et on
+   se contente d'aplatir la courbe. Recalculer plutôt que réécrire vingt-trois
+   valeurs garde la règle lisible en un seul endroit — et vérifiable. */
+(function aplatirCouts(){
+  [...SITES].sort((a,b)=>a.cout-b.cout).forEach((s,rang)=>{
+    s.cout=Math.min(COUT_BASE+COUT_PAS*rang, COUT_PLATEAU);
+  });
+})();
+
+/* ================================================================
+   Bloc 31 : fond de chantier — repli sur l'emblème.
+
+   Chaque chantier portait une vue satellite (`sites/XXX.webp`),
+   fabriquée à la main. C'est le poste le plus coûteux de l'ajout d'un
+   pack, et il ne peut pas suivre le rythme auquel on ajoute des
+   chantiers.
+
+   La clé `fond` devient donc FACULTATIVE. À défaut, on prend
+   l'illustration de la créature emblème du chantier — celle-là même
+   qui le représente sur la frise. Ce n'est pas un pis-aller : une
+   carte de créature est une scène complète, déjà cadrée, déjà à la
+   bonne palette, et elle dit l'époque mieux qu'une image satellite
+   d'un paysage qui n'existait pas à ce moment-là.
+
+   Les vingt-trois vues existantes sont conservées : quand `fond` est
+   renseigné, il prime.
+   ================================================================ */
+
+function fondDe(site){
+  const s = typeof site==='string' ? SITES.find(x=>x.id===site) : site;
+  if(!s) return null;
+  if(s.fond) return s.fond;
+  const e = emblemeDe(s.id);
+  return e ? e.img : null;
+}
+
+/* Pastilles de globe réellement présentes sur le disque. Les packs sans vue
+   satellite n'en ont pas : l'introduction masque l'image au lieu d'afficher un
+   lien mort. Liste maintenue par tools/globes.py. */
+const GLOBES_DISPONIBLES=['BURG','CAR','CEP','CHO','DEV','EDI','GIL','HC','HUN','JUR','KAR2','LUO','MAZ','MES','MOR','NEM','NWE','ORD','SAM','SIL','TRI','WHA','YIX'];
+
+/* ================================================================
+   Bloc 32 : intégration du pack WNT — Winton, Queensland.
+
+   Premier des sept packs à entrer dans les données. Contenu rédigé et
+   mesuré dans tools/PACK_WNT.md, sources vérifiées une par une.
+
+   Deux points à connaître :
+
+   1. Pas de clé `fond` — le repli du bloc 31 prend l'illustration de
+      l'emblème, WNT-03 Savannasaurus.
+
+   2. `pinProvisoire` : l'épingle est estimée. L'Australie n'avait
+      aucun site dans l'atlas, la carte n'est pas équirectangulaire et
+      aucune référence locale ne permet de caler la position par
+      calcul. Elle doit être vérifiée à l'œil sur la carte, comme le
+      prescrit tools/AJOUT_PACK.md étape 6.
+   ================================================================ */
+
+SITES.push({
+  id:'WNT',
+  nom:'Après la mer intérieure',
+  court:'Winton',
+  region:'Queensland central',
+  pays:'Australie',
+  ere:'Crétacé',
+  age:'≈ 100–93 Ma',
+  x:1390, y:690,
+  pinProvisoire:true,
+  cout:COUT_PLATEAU,
+  accroche:'Une plaine de rivières, là où s’était retirée une mer',
+  intro:[
+    "Au centre du Queensland, la terre est rouge et plate à perte de vue. Rien n’y suggère l’eau. Pourtant, il y a cent millions d’années, tout ceci était le fond d’une mer — la mer d’Eromanga, qui coupait l’Australie en deux du nord au sud.",
+    "La mer s’est retirée. Elle a laissé une plaine immense, si peu inclinée que les rivières y divaguaient en méandres lents, abandonnant des bras morts, creusant des lacs peu profonds, laissant des marécages s’installer. Le climat était chaud et humide. C’est ce paysage que les fossiles de Winton ont enregistré.",
+    "Des sauropodes, surtout — et c’est ce qui rend le gisement précieux. Non pas un géant isolé, mais trois architectures différentes du même métier : brouter beaucoup de végétaux. L’un est trapu et large, l’autre élancé et haut, le troisième massif et robuste. Ils ne se disputaient sans doute pas la même nourriture.",
+    "Dans un ancien bras mort, les restes d’un grand prédateur ont été trouvés mêlés à ceux d’un sauropode. Ailleurs, un crocodyliforme de deux mètres conservait dans son abdomen les os d’un jeune ornithopode — un repas fossilisé, l’un des rares au monde à documenter directement qui mangeait qui.",
+    "Les fouilleurs ont donné aux premiers spécimens des surnoms tirés d’une chanson écrite non loin d’ici, « Waltzing Matilda ». Un sauropode s’appelle donc matildae, et le ptérosaure lentoni, du nom d’un ancien maire de Winton. Ce n’est pas de la fantaisie de circonstance : c’est ainsi qu’un fossile entre dans la mémoire d’un endroit."
+  ]
+});
+
+const SRC_HOCKNULL=['Hocknull et al. 2009 — New mid-Cretaceous dinosaurs from Winton, PLOS ONE',
+  'https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0006190'];
+
+CREATURES.push(
+{ id:'WNT-01', site:'WNT', nom:'Australovenator wintonensis', groupe:'Théropode mégaraptoridé',
+  periode:'Crétacé, Cénomanien', age:'≈ 100–93 Ma', ageMin:93, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Terrestre', regime:'Carnivore',
+  taille:'≈ 5–6 m', masse:'≈ 500 kg', conf:'Élevée', confN:4,
+  desc:'Prédateur léger et bâti pour la course, aux bras longs terminés par de grandes griffes recourbées. C’est le carnivore le mieux connu du Crétacé australien.',
+  prudence:'Sa place dans l’arbre des théropodes a changé deux fois : décrit comme allosauroïde en 2009, rattaché ensuite aux néovénatoridés, aujourd’hui aux mégaraptoridés. La position du groupe reste discutée.',
+  src:[SRC_HOCKNULL, ['White et al. 2012 — New forearm elements of the holotype, PLOS ONE',
+    'https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0039364']],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-01.webp' },
+
+{ id:'WNT-02', site:'WNT', nom:'Diamantinasaurus matildae', groupe:'Sauropode titanosaure',
+  periode:'Crétacé, Cénomanien', age:'≈ 100–93 Ma', ageMin:93, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Terrestre', regime:'Herbivore',
+  taille:'≈ 15 m', masse:'≈ 15–20 t', conf:'Élevée', confN:4,
+  desc:'Titanosaure robuste aux membres massifs. Ses restes ont été mis au jour dans le même ancien bras mort que ceux d’Australovenator.',
+  prudence:'Le crâne n’a été rattaché à l’espèce qu’en 2016 : les reconstitutions antérieures de la tête reposaient sur des comparaisons.',
+  src:[SRC_HOCKNULL, ['Australian Museum — Diamantinasaurus matildae',
+    'https://australian.museum/learn/dinosaurs/fact-sheets/diamantinasaurus-matildae/']],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-02.webp' },
+
+{ id:'WNT-03', site:'WNT', nom:'Savannasaurus elliottorum', groupe:'Sauropode titanosaure',
+  periode:'Crétacé, Cénomanien', age:'≈ 100–93 Ma', ageMin:93, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Terrestre', regime:'Herbivore',
+  taille:'≈ 15 m', masse:'≈ 20 t', conf:'Élevée', confN:4,
+  desc:'Sauropode de longueur moyenne mais extraordinairement large : le bassin dépasse 1,10 m, ce qui donne une silhouette presque quadrangulaire vue de face. Une forme sans équivalent parmi les sauropodes de cet atlas.',
+  prudence:'Le squelette, l’un des plus complets d’Australie, reste partiel : le crâne n’est pas connu.',
+  src:[['Poropat et al. 2016 — New Australian sauropods shed light on Cretaceous palaeobiogeography',
+    'https://www.sci.news/paleontology/savannasaurus-elliottorum-dinosaur-australia-04303.html']],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-03.webp' },
+
+{ id:'WNT-04', site:'WNT', nom:'Wintonotitan wattsi', groupe:'Sauropode somphospondyle',
+  periode:'Crétacé, Cénomanien', age:'≈ 100–93 Ma', ageMin:93, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Terrestre', regime:'Herbivore',
+  taille:'≈ 15 m', masse:'≈ 10–15 t', conf:'Moyenne', confN:3,
+  desc:'Plus élancé que les deux autres sauropodes du gisement, avec des membres antérieurs relativement longs — une proportion qui suggère un broutage plus haut.',
+  prudence:'Le matériel est incomplet : la silhouette d’ensemble est reconstituée par comparaison avec des formes apparentées, et l’hypothèse du broutage haut découle des proportions, elle n’est pas observée.',
+  src:[SRC_HOCKNULL],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-04.webp' },
+
+{ id:'WNT-05', site:'WNT', nom:'Ferrodraco lentoni', groupe:'Ptérosaure anhangueridé',
+  periode:'Crétacé, Cénomanien', age:'≈ 96 Ma', ageMin:93, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Aérien et côtier', regime:'Piscivore',
+  taille:'Envergure ≈ 4 m', masse:'Non estimée de façon fiable', conf:'Moyenne', confN:3,
+  desc:'Ptérosaure à long museau denté et à crêtes osseuses sur les mâchoires. Il fréquentait probablement les rivières et les zones humides de la plaine.',
+  prudence:'C’est le ptérosaure le plus complet connu d’Australie, et pourtant environ 10 % du squelette seulement est préservé. Les proportions du corps et des ailes sont extrapolées à partir d’espèces apparentées.',
+  src:[['Pentland et al. 2022 — The osteology of Ferrodraco lentoni, J. Vert. Paleontol.',
+    'https://www.tandfonline.com/doi/full/10.1080/02724634.2021.2038182']],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-05.webp' },
+
+{ id:'WNT-06', site:'WNT', nom:'Confractosuchus sauroktonos', groupe:'Crocodyliforme eusuchien',
+  periode:'Crétacé, Cénomanien', age:'≈ 100–94 Ma', ageMin:94, ageMax:100,
+  lieu:'Formation de Winton, Queensland central, Australie', milieu:'Semi-aquatique', regime:'Carnivore généraliste',
+  taille:'≈ 2–2,5 m', masse:'Non estimée', conf:'Moyenne', confN:3,
+  desc:'Crocodyliforme dont l’holotype conserve dans son abdomen les restes partiellement digérés d’un jeune ornithopode. Ces os sont les premiers restes squelettiques de ce groupe trouvés dans la formation, connue jusque-là par des dents isolées et des empreintes.',
+  prudence:'Son nom signifie « tueur de dinosaures brisé », mais l’analyse du crâne en fait un généraliste : un contenu stomacal documente un repas, pas un régime.',
+  src:[['White et al. 2022 — Abdominal contents reveal Cretaceous crocodyliforms ate dinosaurs, Gondwana Research',
+    'https://www.sciencedirect.com/science/article/pii/S1342937X22000338']],
+  pack:'Winton — Après la mer intérieure', img:'cartes/WNT-06.webp' }
+);
+
+/* SITES doit rester classé du plus ancien au plus récent : on retrie après
+   insertion plutôt que de calculer un index à la main. */
+(function reclasserSites(){
+  const age=s=>Math.max(...CREATURES.filter(c=>c.site===s.id).map(c=>c.ageMax));
+  SITES.sort((a,b)=>age(b)-age(a));
+})();
+
+/* Les crocodyliformes n'existaient pas encore dans l'atlas : sans entrée dans
+   GRANDS_GROUPES, la créature n'apparaîtrait dans aucun tri par famille. */
+GRANDS_GROUPES.splice(GRANDS_GROUPES.length-1, 0,
+  ['Crocodyliformes', /crocodyliforme|eusuchien|crocodilien|crocodile/i]);
+
+/* Emblème de frise : Savannasaurus, pour sa silhouette large et unique. */
+EMBLEMES.WNT='WNT-03';
+
+const Q_WNT=[
+['Où se trouve la formation de Winton ?','Au centre du Queensland, en Australie',
+ ['En Australie-Occidentale, près de la côte','En Nouvelle-Zélande, sur l’île du Sud','Dans le Territoire du Nord, près de Darwin'],
+ 'Le gisement s’étend autour de la ville de Winton, dans le Queensland central. C’est le premier site australien de cet atlas.'],
+['Qu’y avait-il à cet endroit juste avant la formation de Winton ?','Une mer intérieure, qui s’est retirée',
+ ['Une chaîne de montagnes en cours d’érosion','Un désert de dunes couvrant tout le continent','Une calotte glaciaire descendue du pôle'],
+ 'La mer d’Eromanga coupait l’Australie du nord au sud. Son retrait a laissé la plaine alluviale où les fossiles se sont déposés.'],
+['Comment s’appelait cette mer intérieure ?','La mer d’Eromanga',
+ ['La mer de Tasman','La mer de Corail','La mer de Timor oriental'],
+ 'La mer d’Eromanga occupait le centre de l’Australie au Crétacé inférieur. Les autres noms désignent des mers actuelles bordant le continent.'],
+['Quel paysage la formation de Winton enregistre-t-elle ?','Une plaine de rivières, de lacs et de marécages',
+ ['Un plateau rocheux balayé par les vents','Un littoral découpé bordé de falaises','Un massif volcanique en activité quasi permanente'],
+ 'Une plaine si peu inclinée que les rivières y divaguaient, abandonnant des bras morts où les carcasses se sont accumulées.'],
+['De quand datent les fossiles de Winton ?','D’environ 100 à 93 Ma',
+ ['D’environ 150 à 145 Ma','D’environ 200 à 190 Ma','D’environ 66 à 60 Ma'],
+ 'Fin du Crétacé inférieur et début du Crétacé supérieur — soit trente millions d’années avant la disparition des dinosaures non aviens.'],
+['À quelle période appartiennent-ils ?','Au Crétacé',['Au Jurassique','Au Trias','Au Paléogène'],
+ 'Le Crétacé s’étend de 143 à 66 Ma. Winton en occupe le milieu.'],
+['Quel est le principal prédateur terrestre du gisement ?','Australovenator wintonensis',
+ ['Confractosuchus sauroktonos','Diamantinasaurus matildae','Wintonotitan wattsi'],
+ 'Confractosuchus est bien un carnivore, mais c’est un crocodyliforme de deux mètres, pas le grand prédateur terrestre de la plaine.'],
+['Qu’est-ce qui caractérise les bras d’Australovenator ?','Ils sont longs et armés de grandes griffes',
+ ['Ils sont atrophiés et sans usage apparent','Ils portent des membranes tendues jusqu’aux flancs','Ils se terminent par des sabots élargis'],
+ 'Des éléments d’avant-bras découverts après la description initiale ont confirmé cette anatomie, très différente des bras courts d’un tyrannosaure.'],
+['À quel groupe de théropodes appartient Australovenator ?','Aux mégaraptoridés',
+ ['Aux tyrannosauridés','Aux spinosauridés','Aux dromæosauridés'],
+ 'C’est le rattachement retenu aujourd’hui, après deux changements depuis 2009.'],
+['Que sait-on de la place des mégaraptoridés dans l’arbre des théropodes ?','Elle est encore discutée',
+ ['Elle est fixée depuis leur description','Ils descendent directement des tyrannosaures','Ils forment un groupe extérieur aux dinosaures'],
+ 'Australovenator a été successivement décrit comme allosauroïde, néovénatoridé puis mégaraptoridé. Le débat porte sur le groupe entier, pas sur ce seul fossile.'],
+['Combien de sauropodes différents le pack présente-t-il ?','Trois',['Un seul','Deux','Cinq'],
+ 'Diamantinasaurus, Savannasaurus et Wintonotitan, aux architectures nettement distinctes.'],
+['Qu’a de particulier la silhouette de Savannasaurus ?','Elle est courte et très large',
+ ['Elle est la plus haute des trois sauropodes','Elle porte une rangée de plaques dorsales','Elle est allongée et effilée vers l’arrière'],
+ 'Son bassin dépasse 1,10 m de large, ce qui lui donne vue de face une silhouette presque quadrangulaire.'],
+['Qu’est-ce qui distingue Wintonotitan des deux autres sauropodes ?','Des membres antérieurs relativement longs',
+ ['Une carapace osseuse couvrant tout le dos','Une queue terminée par une massue','Un cou nettement plus court que la normale'],
+ 'Cette proportion suggère qu’il broutait plus haut. Le matériel restant incomplet, c’est une hypothèse tirée des os connus.'],
+['Pourquoi trois sauropodes pouvaient-ils cohabiter ?','Ils ne broutaient pas à la même hauteur',
+ ['Ils vivaient à des millions d’années d’écart','Ils se partageaient le territoire par saison','Ils étaient tous les trois carnivores'],
+ 'Un partage des ressources visible dans l’anatomie : trois architectures pour un même métier, brouter beaucoup de végétaux.'],
+['Qu’est-ce que Ferrodraco lentoni ?','Un ptérosaure à museau denté',
+ ['Un oiseau primitif encore pourvu de dents','Un reptile marin à long cou','Un petit théropode couvert de filaments'],
+ 'Les ptérosaures ne sont pas des dinosaures : c’est un groupe distinct de reptiles volants.'],
+['Que faut-il savoir avant d’illustrer Ferrodraco ?','Son matériel est limité',
+ ['Son squelette complet a été retrouvé articulé','Sa couleur est connue par ses mélanosomes','Ses empreintes de peau sont conservées'],
+ 'Environ 10 % du squelette est préservé — et c’est pourtant le ptérosaure le plus complet connu d’Australie.'],
+['Qu’est-ce que Confractosuchus sauroktonos ?','Un crocodyliforme d’environ deux mètres',
+ ['Un grand crocodile marin de plus de dix mètres','Un lézard terrestre à longue queue','Un amphibien géant des marécages'],
+ 'Un eusuchien de 2 à 2,5 m, deuxième crocodyliforme décrit de la formation de Winton.'],
+['Qu’a-t-on retrouvé dans l’abdomen d’un Confractosuchus ?','Les restes d’un jeune ornithopode',
+ ['Des graines et des fragments de bois','Des pierres avalées pour la digestion','Des écailles de poissons d’eau douce'],
+ 'Ces os sont les premiers restes squelettiques d’ornithopode trouvés dans la formation, connue jusque-là par des dents et des empreintes.'],
+['Confractosuchus chassait-il les dinosaures en particulier ?','Non, c’était un généraliste',
+ ['Oui, c’était sa proie exclusive','Oui, son crâne y était spécialisé','Non, il se nourrissait uniquement de poissons'],
+ 'Son nom signifie « tueur de dinosaures brisé », mais l’analyse du crâne en fait un généraliste. Un contenu stomacal documente un repas, pas un régime.'],
+['D’où viennent les surnoms des premiers spécimens de Winton ?','D’une chanson écrite non loin du gisement',
+ ['Des noms des géologues qui les ont décrits','De mots empruntés aux langues aborigènes locales','Des villes voisines du site de fouille'],
+ '« Waltzing Matilda » a été écrite près de Winton. Le sauropode Diamantinasaurus matildae en garde la trace dans son nom d’espèce.']
+];
+
+Q_WNT.forEach((t,i)=>{
+  const [q,r,autres,exp]=t;
+  QUIZ_PALEO.push({
+    id:'WNT-'+String(i+1).padStart(2,'0'), site:'WNT',
+    diff: i<6 ? 'facile' : (i<14 ? 'moyen' : 'difficile'),
+    q, choix:[r].concat(autres), r, exp,
+    src:['Australian Age of Dinosaurs — Winton Formation','https://www.australianageofdinosaurs.com/']
+  });
+});
+
+/* ================================================================
+   Bloc 33 : intégration de WUD (Wuda), COR (Gotland) et LNT (Lantian).
+
+   Les corrections relevées au sourçage sont appliquées ici :
+   — WUD : date ramenée à 298,34 ± 0,09 Ma, un instant et non un
+     intervalle ; noeggerathiales rattachées aux progymnospermes ;
+     surnom « Pompéi végétale ».
+   — COR : Palaeocyclus porpita (et non porpitus) ;
+     Schlotheimophyllum possiblement colonial et en forme de
+     champignon ; récif turbide, pas des eaux claires.
+   — LNT : âge « ≈ 600 Ma, débattu » ; des animaux possibles existent
+     dans le biote ; l'affinité de Flabellophyton est elle aussi
+     incertaine, pas seulement celle d'Orbisiana.
+
+   Épingles calculées par interpolation affine locale depuis les sites
+   chinois existants, puis rabattues sur le point terrestre le plus
+   proche : décalages de 3, 6 et 9 px. Suffisamment faibles pour ne
+   pas être marquées provisoires.
+   ================================================================ */
+
+const P_WUD='Wuda — La forêt que le volcan a figée';
+const P_COR='Gotland — Le récif des coraux disparus';
+const P_LNT='Lantian — La mer devient végétale';
+
+const S_WUD=[['Wang et al. 2012 — Permian vegetational Pompeii from Inner Mongolia, PNAS',
+  'https://www.pnas.org/doi/10.1073/pnas.1115076109']];
+const S_WUD2=['Wang et al. 2021 — Ancient noeggerathialean reveals the seed plant sister group, PNAS',
+  'https://www.pnas.org/doi/10.1073/pnas.2013442118'];
+const S_COR=[['Zapalski & Król — Large dwellers of the Silurian Halysites biostrome, Lethaia',
+  'https://www.scup.com/doi/full/10.1111/let.12279']];
+const S_LNT=[['Yuan et al. — The Lantian biota, Science Bulletin',
+  'https://link.springer.com/article/10.1007/s11434-012-5483-6']];
+
+SITES.push(
+{ id:'WUD', nom:'La forêt que le volcan a figée', court:'Wuda',
+  region:'Bassin houiller de Wuda, Mongolie-Intérieure', pays:'Chine',
+  ere:'Permien inférieur', age:'≈ 298,3 Ma', x:1230, y:331, cout:COUT_PLATEAU,
+  accroche:'Une forêt ensevelie debout, sous les cendres',
+  intro:[
+    "Un bassin houiller de Mongolie-Intérieure, exploité pour son charbon. Le charbon, ici comme ailleurs, est une forêt comprimée. La différence, à Wuda, c’est qu’une couche de cendres volcaniques repose juste au-dessus — et que cette couche a tout changé.",
+    "Une éruption a couvert la forêt marécageuse de cendres, très vite. Assez vite pour que les plantes n’aient pas le temps de tomber, de pourrir, d’être emportées. Elles ont été ensevelies à peu près là où elles poussaient. On appelle l’endroit la « Pompéi végétale ».",
+    "La plupart des fossiles de plantes sont des morceaux : une feuille, un fragment de tronc, transportés par l’eau puis déposés loin de leur point de départ. On sait alors quelles espèces existaient, mais pas comment elles étaient disposées. Ici, on peut relever la position de chaque plante et reconstituer la forêt — la canopée, le sous-bois, ce qui grimpait sur quoi.",
+    "On y voit plusieurs solutions concurrentes au même problème : se tenir droit et capter la lumière. Des lycophytes arborescentes au tronc couvert de cicatrices régulières. Des fougères arborescentes enveloppées de racines. Des parents géants des prêles, creux et segmentés. Et déjà des plantes à graines, dont une qui grimpait.",
+    "La cendre a été datée : 298,34 million d’années, à quatre-vingt-dix mille ans près. Ce n’est pas un intervalle, c’est un instant — une seule éruption, pratiquement sur la limite entre le Carbonifère et le Permien. Une des feuilles porte des morsures, des galles et des pontes d’insectes : la forêt était habitée."
+  ]},
+{ id:'COR', nom:'Le récif des coraux disparus', court:'Gotland',
+  region:'Île de Gotland, mer Baltique', pays:'Suède',
+  ere:'Silurien', age:'≈ 445–420 Ma', x:656, y:185, cout:COUT_PLATEAU,
+  accroche:'Un récif bâti par des coraux qui n’existent plus',
+  intro:[
+    "Une île de la Baltique, à la latitude de Stockholm. Le climat y est froid, la mer grise. Il y a plus de quatre cents millions d’années, ce morceau de croûte se trouvait vers vingt degrés de latitude sud, dans une mer chaude et peu profonde — et il y poussait un récif.",
+    "Ce n’était pas une eau cristalline de carte postale. Le récif de Gotland vient d’être reconnu comme le plus ancien système récifal turbide connu : une eau chargée en sédiment, à faible lumière. Cela explique beaucoup de choses, à commencer par le mal que ces coraux se donnaient pour tenir debout.",
+    "Le calcaire de l’île est fait de ce récif. On y voit les bâtisseurs eux-mêmes, souvent en position de vie : des colonies massives, des tubes groupés, des cornes isolées posées sur le fond. L’un d’eux, un rugueux solitaire, s’installait entre les rangs d’une colonie voisine et tuait les petits polypes alentour pour se faire de la place.",
+    "Aucun de ces coraux n’appartient aux groupes qui construisent les récifs d’aujourd’hui. Les bâtisseurs siluriens sont des Rugosa et des Tabulata, deux groupes disparus à la fin du Permien sans laisser de descendance. Ce n’est donc pas une Grande Barrière ancienne : c’est une autre architecture, obtenue par d’autres lignées, pour le même métier.",
+    "Les formes se retiennent facilement, parce qu’elles évoquent des objets connus : une chaîne, un nid-d’abeilles, une corne, un bouton, un buisson. C’est une bonne entrée pour apprendre à regarder un fossile — la forme d’abord, le nom ensuite."
+  ]},
+{ id:'LNT', nom:'La mer devient végétale', court:'Lantian',
+  region:'Xiuning, province de l’Anhui', pays:'Chine',
+  ere:'Édiacarien', age:'≈ 600 Ma, datation débattue', x:1318, y:382, cout:COUT_PLATEAU,
+  accroche:'Les plus anciennes formes visibles à l’œil nu',
+  intro:[
+    "Tout ce que cet atlas montre par ailleurs vient après. Ici, il y a six cents millions d’années, il n’y a pas encore d’animaux dont on soit sûr — le biote livre bien des formes coniques à structures évoquant des tentacules, rapprochées des cnidaires, mais leur interprétation reste ouverte. Sur la terre ferme, rien : elle est nue.",
+    "Une mer peu profonde, un fond vaseux et sombre, et dessus des organismes fixés, dressés dans l’eau calme. Ils sont visibles à l’œil nu — c’est là toute leur importance. Avant eux, la vie est essentiellement microscopique : des cellules isolées, des filaments, des tapis. Ici, pour la première fois dans cet atlas, on trouve des êtres qu’un promeneur aurait pu voir sans instrument, et dont on peut décrire la forme plutôt que compter les cellules.",
+    "Un éventail de filaments parallèles. Un buisson de rameaux fins. Une forme dressée dont les branches se divisent en deux, encore et encore, avec une régularité presque géométrique. Des rubans qui ondulent. Un chapelet de modules alignés. Ce sont des formes végétales, ou proches de ce que nous appelons ainsi.",
+    "On ne sait pas grand-chose de plus. Leur silhouette est bien conservée — ils sont aplatis dans la roche sous forme de films de carbone — mais leur parenté avec les algues actuelles reste discutée, y compris pour le grand éventail qui sert d’emblème à ce chantier. Leur souplesse, l’épaisseur de leurs tissus, leur couleur : rien de tout cela ne se lit dans une compression.",
+    "Les illustrations de ce chantier sont donc des propositions, pas des portraits. Et pour l’un des six, Orbisiana, on ne sait même pas s’il s’agit d’une algue. C’est probable, ce n’est pas démontré. Il figure ici parce qu’un atlas qui n’inclurait que les cas réglés donnerait une idée fausse de ce qu’est ce métier."
+  ]}
+);
+
+const C=(id,site,nom,groupe,periode,age,aMin,aMax,lieu,milieu,regime,taille,conf,confN,desc,prud,src,pack)=>
+  ({id,site,nom,groupe,periode,age,ageMin:aMin,ageMax:aMax,lieu,milieu,regime,taille,
+    masse:'Sans objet',conf,confN,desc,prudence:prud,src,pack,img:'cartes/'+id+'.webp'});
+
+const LX_WUD='Bassin houiller de Wuda, Mongolie-Intérieure, Chine';
+const LX_COR='Île de Gotland, Suède';
+const LX_LNT='Formation de Lantian, Xiuning, Anhui, Chine';
+
+CREATURES.push(
+C('WUD-01','WUD','Paratingia wuhaia','Noeggerathiale','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Forêt marécageuse','Photosynthèse','≈ 3–4 m','Élevée',4,
+ 'Petit arbre à couronne de feuilles composées, portant des organes fertiles cylindriques d’aspect conique. Ils produisaient pourtant des spores et non des graines.',
+ 'Les noeggerathiales sont rattachées aux progymnospermes, groupe frère des plantes à graines : elles ressemblent à ce qu’elles ne sont pas tout à fait.',
+ [S_WUD[0],S_WUD2],P_WUD),
+C('WUD-02','WUD','Sigillaria cf. ichthyolepis','Lycophyte arborescente','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Forêt marécageuse','Photosynthèse','≈ 10–20 m','Élevée',4,
+ 'Lycophyte au tronc presque dépourvu de branches, couvert de rangées régulières de cicatrices foliaires en forme de sceaux. C’est l’un des grands arbres de cette forêt.',
+ 'La mention « cf. » signale que l’attribution à l’espèce reste probable et non établie.',S_WUD,P_WUD),
+C('WUD-03','WUD','Scolecopteris libera','Fougère marattiale arborescente','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Sous-bois','Photosynthèse','≈ 5 m','Élevée',4,
+ 'Fougère arborescente à couronne de grandes frondes. Son tronc n’est pas du bois : c’est un manteau épais de racines adventives enveloppant une tige mince.',
+ 'Les fougères arborescentes formaient l’étage inférieur de la forêt, sous les lycophytes.',S_WUD,P_WUD),
+C('WUD-04','WUD','Palaeostachya guanglongii','Sphénophyte, parent des prêles','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Forêt marécageuse','Photosynthèse','≈ 3–5 m','Moyenne',3,
+ 'Parent géant des prêles actuelles, à tronc creux et segmenté, branches disposées en verticilles et nombreux cônes reproducteurs.',
+ 'Les proportions d’ensemble sont reconstituées à partir d’éléments dispersés.',S_WUD,P_WUD),
+C('WUD-05','WUD','Pterophyllum sp. cf. P. daihoense','Cycadophyte','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Forêt marécageuse','Photosynthèse','Feuilles ≈ 30–50 cm','Moyenne',3,
+ 'Cycadophyte primitive à feuilles pennées rigides. Le spécimen de Wuda porte de nombreuses traces de consommation, des galles et des pontes d’insectes.',
+ 'Le genre est bien caractérisé, l’espèce reste approchée — d’où la double réserve « sp. cf. ».',S_WUD,P_WUD),
+C('WUD-06','WUD','Wudaeophyton wangii','Plante à graines grimpante','Permien, Assélien','≈ 298,3 Ma',298,299,LX_WUD,'Forêt marécageuse','Photosynthèse','Port lianescent','Moyenne',3,
+ 'Petite plante à graines grimpante, portant plusieurs formes de feuilles selon leur position. Elle s’enroulait autour des fougères arborescentes.',
+ 'Sa position exacte parmi les plantes à graines primitives reste discutée.',S_WUD,P_WUD),
+
+C('COR-01','COR','Halysites catenularius','Corail tabulé','Silurien','≈ 435 Ma',420,445,LX_COR,'Récif turbide','Filtreur','Colonies de quelques dm','Élevée',4,
+ 'Corail tabulé formant des réseaux de tubes accolés en files, dont la section évoque les maillons d’une chaîne. Son nom signifie « en chaîne ».',
+ 'Nommé par Linné en 1767 — l’un des plus anciens noms de cet atlas. Les Tabulata sont éteints depuis la fin du Permien.',S_COR,P_COR),
+C('COR-02','COR','Favosites gothlandicus','Corail tabulé','Silurien','≈ 435 Ma',420,445,LX_COR,'Récif turbide','Filtreur','Colonies massives','Élevée',4,
+ 'Colonie massive de corallites hexagonaux serrés, produisant une surface en nid-d’abeilles. Des pores muraux percent les cloisons et permettaient des échanges entre polypes.',
+ 'Espèce type du genre, décrit par Lamarck en 1816. Les Tabulata ne sont pas les ancêtres des coraux modernes.',S_COR,P_COR),
+C('COR-03','COR','Cystiphyllum visbyense','Rugueux solitaire','Silurien','≈ 435 Ma',420,445,LX_COR,'Récif turbide','Filtreur','≈ 10–15 cm','Élevée',4,
+ 'Grand rugueux solitaire en forme de corne. On le trouve installé entre les rangs des colonies d’Halysites, stabilisé par des structures d’ancrage ressemblant à des racines.',
+ 'Ses tentacules balayeurs tuaient les petits polypes de la colonie voisine pour dégager de la place : il s’en servait comme substrat dur, pas comme abri.',S_COR,P_COR),
+C('COR-04','COR','Palaeocyclus porpita','Rugueux solitaire','Silurien, Llandovery','≈ 435 Ma',430,440,LX_COR,'Récif turbide','Filtreur','≈ 1–2 cm','Élevée',4,
+ 'Petit rugueux solitaire aplati en bouton ou en disque, posé librement sur le sédiment sans y être fixé.',
+ 'C’est un marqueur biostratigraphique : sa présence caractérise les Lower Visby Beds. Autrement dit, un fossile stratigraphique.',S_COR,P_COR),
+C('COR-05','COR','Entelophyllum dendroides','Rugueux colonial','Silurien','≈ 430 Ma',420,440,LX_COR,'Récif turbide','Filtreur','Buissons de quelques dm','Moyenne',3,
+ 'Rugueux colonial fait de longs tubes séparés qui divergent depuis la base, formant un bouquet ou un petit arbuste sous-marin. On dit de cette architecture qu’elle est phacéloïde.',
+ 'Le genre a été restreint aux seules formes phacéloïdes lors de sa révision : plusieurs espèces autrefois rangées ici ont été déplacées.',
+ [['Jell & Sutherland 1990 — The Silurian rugose coral genus Entelophyllum, Palaeontology 33(4)',
+   'https://palass.org/publications/palaeontology-journal/archive/33/4/article_pp769-821']],P_COR),
+C('COR-06','COR','Schlotheimophyllum patellatum','Rugueux','Silurien, Wenlock','≈ 430 Ma',425,435,LX_COR,'Récif turbide','Filtreur','≈ 5–10 cm','Moyenne',3,
+ 'Grand rugueux en forme de champignon, à large calice ouvert. Ses deux faces portent au moins vingt-trois espèces d’organismes encroûtants ou perforants : le corail était lui-même un habitat.',
+ 'Décrit comme solitaire, mais la révision du genre signale des spécimens coloniaux ou agrégés. Sa nature exacte n’est pas tranchée.',
+ [['Zatoń et al. 2020 — Patterns of sclerobiont colonization on Schlotheimophyllum patellatum, Lethaia',
+   'https://onlinelibrary.wiley.com/doi/abs/10.1111/let.12371']],P_COR),
+
+C('LNT-01','LNT','Flabellophyton lantianense','Macroalgue, affinité incertaine','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Photosynthèse probable','≈ 3–8 cm','Moyenne',3,
+ 'Grand thalle en éventail formé de nombreux filaments parallèles, fixé au fond par une base globuleuse. La forme est nette ; ce qu’elle était au toucher ne l’est pas.',
+ 'Longtemps tenu pour une algue, mais son affinité demeure ambiguë. C’est l’emblème du chantier, et l’incertitude le concerne aussi.',S_LNT,P_LNT),
+C('LNT-02','LNT','Anhuiphyton lineatum','Macroalgue buissonnante','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Photosynthèse probable','≈ 2–6 cm','Moyenne',3,
+ 'Organisme buissonnant, fait d’une multitude de rameaux fins partant d’un ancrage basal.',
+ 'Décrit en 1994. Comme pour tout le biote, la parenté avec les algues actuelles n’est pas établie.',S_LNT,P_LNT),
+C('LNT-03','LNT','Doushantuophyton cometa','Macroalgue dressée','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Photosynthèse probable','≈ 3–7 cm','Moyenne',3,
+ 'Forme dressée dont les branches se divisent régulièrement en deux — une ramification dichotomique, d’une régularité presque schématique.',
+ 'La régularité de la ramification est un des rares caractères que la compression conserve fidèlement.',S_LNT,P_LNT),
+C('LNT-04','LNT','Baculiphyca sp.','Macroalgue en lames','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Photosynthèse probable','≈ 2–10 cm','Moyenne',3,
+ 'Macroalgue simple, faite de longues lames ou de rubans souples qui devaient onduler dans le courant.',
+ 'Le genre est établi, l’espèce ne l’est pas : d’où la mention « sp. ».',S_LNT,P_LNT),
+C('LNT-05','LNT','Enteromorphites sp.','Macroalgue en tubes','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Photosynthèse probable','≈ 1–4 cm','Moyenne',3,
+ 'Petit bouquet de tiges ou de tubes fins, ramifiés en deux et insérés dans le sédiment.',
+ 'Espèce non déterminée. Le nom évoque une ressemblance avec des algues vertes actuelles, sans que la parenté soit démontrée.',S_LNT,P_LNT),
+C('LNT-06','LNT','Orbisiana linearis','Affinité indéterminée','Édiacarien','≈ 600 Ma',598,602,LX_LNT,'Fond marin peu profond','Inconnu','≈ 1–3 cm','Faible',2,
+ 'Modules globuleux ou cylindriques alignés en longues chaînes, parfois ramifiées.',
+ 'Son affinité algale est probable, non démontrée. Il figure dans l’atlas parce qu’un recueil qui n’inclurait que les cas réglés donnerait une idée fausse du métier.',S_LNT,P_LNT)
+);
+
+(function reclasserSites2(){
+  const age=s=>Math.max(...CREATURES.filter(c=>c.site===s.id).map(c=>c.ageMax));
+  SITES.sort((a,b)=>age(b)-age(a));
+})();
+
+Object.assign(EMBLEMES,{WUD:'WUD-02', COR:'COR-01', LNT:'LNT-01'});
+
+/* Les coraux et les macroalgues édiacariennes n'avaient pas de grand groupe. */
+GRANDS_GROUPES.splice(GRANDS_GROUPES.length-1, 0,
+  ['Coraux anciens', /corail|corau|rugueux|rugosa|tabulé|tabulata/i],
+  ['Macroalgues et thalles', /macroalgue|thalle|algue|affinité indéterminée/i],
+  ['Plantes du Carbonifère et du Permien',
+   /noeggerathiale|sphénophyte|prêle|cycadophyte|lycophyte|marattiale/i]);
+
+/* ================================================================
+   Bloc 34 : banques de questions de WUD, COR et LNT.
+
+   Généré depuis tools/PACK_*.md par le script d'ingestion, pour que
+   le texte mesuré et le texte livré soient rigoureusement le même.
+   Les explications sont volontairement brèves : elles donnent la
+   raison, la fiche donne le détail.
+   ================================================================ */
+
+QUIZ_PALEO.push({id:'WUD-01', site:'WUD', diff:'facile',
+  q:'Où se trouve le gisement de Wuda ?',
+  choix:['En Mongolie-Intérieure, en Chine', 'En Mongolie, au nord de la frontière chinoise', 'Dans le bassin du Donetsk, en Ukraine', 'En Sibérie orientale, près de la Toungouska'],
+  r:'En Mongolie-Intérieure, en Chine',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-02', site:'WUD', diff:'facile',
+  q:'À quelle période appartient la forêt de Wuda ?',
+  choix:['Au Permien inférieur', 'Au Carbonifère inférieur', 'Au Trias moyen', 'Au Dévonien supérieur'],
+  r:'Au Permien inférieur',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-03', site:'WUD', diff:'facile',
+  q:'Qu\'est-ce qui a enseveli cette forêt ?',
+  choix:['Une pluie de cendres volcaniques', 'Une coulée de boue descendue d\'un versant', 'Une crue exceptionnelle du fleuve voisin', 'Un effondrement du sol tourbeux sous son poids'],
+  r:'Une pluie de cendres volcaniques',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-04', site:'WUD', diff:'facile',
+  q:'Pourquoi le gisement est-il exploité ?',
+  choix:['Pour son charbon', 'Pour ses minerais de fer', 'Pour ses gisements de sel gemme', 'Pour ses argiles réfractaires'],
+  r:'Pour son charbon',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-05', site:'WUD', diff:'facile',
+  q:'Qu\'est-ce que le charbon, du point de vue d\'un paléobotaniste ?',
+  choix:['Une forêt comprimée', 'Une roche formée au fond des océans', 'Un sédiment déposé par les glaciers', 'Un dépôt chimique de source chaude'],
+  r:'Une forêt comprimée',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-06', site:'WUD', diff:'facile',
+  q:'Qu\'a de rare la conservation de Wuda ?',
+  choix:['Les plantes sont restées où elles poussaient', 'Les tissus mous ont gardé leur couleur d\'origine', 'Le bois s\'est entièrement transformé en opale', 'Les racines ont été remplacées par de la pyrite'],
+  r:'Les plantes sont restées où elles poussaient',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-07', site:'WUD', diff:'moyen',
+  q:'Que sont, le plus souvent, les fossiles de plantes ?',
+  choix:['Des morceaux transportés par l\'eau', 'Des empreintes laissées dans la cendre sèche', 'Des troncs entiers conservés debout', 'Des graines enfermées dans de l\'ambre'],
+  r:'Des morceaux transportés par l\'eau',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-08', site:'WUD', diff:'moyen',
+  q:'Que permet la position d\'origine des plantes ?',
+  choix:['Reconstituer la structure de la forêt', 'Dater la couche à l\'année près', 'Connaître la couleur du feuillage', 'Déterminer la durée de vie des arbres'],
+  r:'Reconstituer la structure de la forêt',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-09', site:'WUD', diff:'moyen',
+  q:'Quelle plante porte des cicatrices foliaires en forme de sceaux ?',
+  choix:['Sigillaria', 'Palaeostachya', 'Scolecopteris', 'Paratingia'],
+  r:'Sigillaria',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-10', site:'WUD', diff:'moyen',
+  q:'À quel groupe appartient Sigillaria ?',
+  choix:['Aux lycophytes', 'Aux gymnospermes', 'Aux fougères', 'Aux prêles'],
+  r:'Aux lycophytes',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-11', site:'WUD', diff:'moyen',
+  q:'De quoi est fait le tronc d\'une fougère arborescente comme Scolecopteris ?',
+  choix:['D\'un manteau de racines', 'De bois dense, comme chez un chêne', 'De fibres tressées autour d\'un axe creux', 'De tissu spongieux gorgé d\'eau'],
+  r:'D\'un manteau de racines',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-12', site:'WUD', diff:'moyen',
+  q:'Qu\'est-ce que Palaeostachya ?',
+  choix:['Un parent géant des prêles', 'Un conifère à aiguilles courtes', 'Une mousse formant des coussins', 'Une algue d\'eau douce fixée'],
+  r:'Un parent géant des prêles',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-13', site:'WUD', diff:'moyen',
+  q:'Comment sont disposées les branches de Palaeostachya ?',
+  choix:['En verticilles', 'En spirale continue', 'Par paires opposées', 'Toutes du même côté'],
+  r:'En verticilles',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-14', site:'WUD', diff:'moyen',
+  q:'Que produisait Paratingia, malgré ses organes en forme de cônes ?',
+  choix:['Des spores', 'Des graines protégées par un tégument', 'Des fruits charnus dispersés par le vent', 'Des bulbes portés au niveau du sol'],
+  r:'Des spores',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-15', site:'WUD', diff:'difficile',
+  q:'Pourquoi les noeggerathiales sont-elles instructives ?',
+  choix:['Elles ressemblent à ce qu\'elles ne sont pas', 'Elles sont les ancêtres directs des conifères', 'Elles descendent des lycophytes arborescentes', 'Elles se reproduisaient par bouturage'],
+  r:'Elles ressemblent à ce qu\'elles ne sont pas',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-16', site:'WUD', diff:'difficile',
+  q:'Qu\'est-ce que Wudaeophyton ?',
+  choix:['Une plante à graines grimpante', 'Une fougère aquatique flottant en surface', 'Un arbre dominant de la canopée', 'Une mousse tapissant le sol du marécage'],
+  r:'Une plante à graines grimpante',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-17', site:'WUD', diff:'difficile',
+  q:'Que porte le spécimen de Pterophyllum de Wuda ?',
+  choix:['Des traces d\'insectes', 'Des marques de brûlure sur le limbe', 'Des cristaux de sel entre les nervures', 'Des fragments de coquilles d\'œufs'],
+  r:'Des traces d\'insectes',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-18', site:'WUD', diff:'difficile',
+  q:'Que montrent les galles et les pontes conservées sur une feuille ?',
+  choix:['Que la forêt était habitée', 'Que la plante était malade avant l\'éruption', 'Que les insectes ont causé la mort de la forêt', 'Que la feuille était tombée depuis longtemps'],
+  r:'Que la forêt était habitée',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-19', site:'WUD', diff:'difficile',
+  q:'Que signifie la mention « cf. » devant un nom d\'espèce ?',
+  choix:['L\'attribution reste probable', 'L\'espèce a été renommée depuis sa description', 'Le spécimen est un hybride entre deux espèces', 'Le nom n\'a jamais été publié officiellement'],
+  r:'L\'attribution reste probable',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']},
+{id:'WUD-20', site:'WUD', diff:'difficile',
+  q:'Quelle idée générale la forêt de Wuda illustre-t-elle ?',
+  choix:['Plusieurs manières de faire un arbre', 'Que les forêts anciennes se ressemblaient entre elles', 'Que les arbres descendent tous d\'un même ancêtre récent', 'Que le bois est apparu en une fois ---'],
+  r:'Plusieurs manières de faire un arbre',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Wang et al. 2012 — Permian vegetational Pompeii, PNAS','https://www.pnas.org/doi/10.1073/pnas.1115076109']});
+
+QUIZ_PALEO.push({id:'COR-01', site:'COR', diff:'facile',
+  q:'Où se trouve l\'île de Gotland ?',
+  choix:['En mer Baltique, en Suède', 'En mer du Nord, au large du Danemark', 'Dans le golfe de Botnie, en Finlande', 'En mer de Norvège, près des Lofoten'],
+  r:'En mer Baltique, en Suède',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-02', site:'COR', diff:'facile',
+  q:'À quelle période appartient le récif de Gotland ?',
+  choix:['Au Silurien', 'Au Dévonien', 'Au Cambrien', 'Au Carbonifère'],
+  r:'Au Silurien',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-03', site:'COR', diff:'facile',
+  q:'Sous quel climat ce récif s\'est-il formé ?',
+  choix:['Sous les tropiques', 'Dans des eaux polaires peu profondes', 'Dans une mer intérieure très salée', 'Dans un estuaire d\'eau saumâtre'],
+  r:'Sous les tropiques',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-04', site:'COR', diff:'facile',
+  q:'Pourquoi Gotland se trouvait-elle alors sous les tropiques ?',
+  choix:['Les continents se sont déplacés depuis', 'Le climat mondial était partout tropical', 'L\'axe de rotation de la Terre était inversé', 'Les tropiques étaient bien plus étendus'],
+  r:'Les continents se sont déplacés depuis',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-05', site:'COR', diff:'facile',
+  q:'De quoi est fait le calcaire de Gotland ?',
+  choix:['Du récif lui-même', 'De sable cimenté par des sources chaudes', 'De coquilles apportées par les courants', 'De boues déposées au large des côtes'],
+  r:'Du récif lui-même',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-06', site:'COR', diff:'facile',
+  q:'À quels groupes appartiennent les bâtisseurs de ce récif ?',
+  choix:['Aux Rugosa et aux Tabulata', 'Aux scléractiniaires et aux hydrozoaires', 'Aux stromatoporidés et aux bryozoaires', 'Aux archéocyathes et aux éponges'],
+  r:'Aux Rugosa et aux Tabulata',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-07', site:'COR', diff:'moyen',
+  q:'Que sont devenus ces deux groupes ?',
+  choix:['Ils ont disparu à la fin du Permien', 'Ils se sont transformés en coraux modernes', 'Ils vivent encore dans les grands fonds', 'Ils se sont réfugiés en eau douce'],
+  r:'Ils ont disparu à la fin du Permien',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-08', site:'COR', diff:'moyen',
+  q:'Les coraux modernes descendent-ils des Rugosa ?',
+  choix:['Non, ils sont apparus plus tard', 'Oui, par transformation progressive', 'Oui, mais seulement les coraux mous', 'Non, ils descendent des Tabulata'],
+  r:'Non, ils sont apparus plus tard',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-09', site:'COR', diff:'moyen',
+  q:'Comment appelle-t-on cette répétition d\'une même solution ?',
+  choix:['Une convergence', 'Une régression évolutive', 'Une hybridation entre lignées', 'Une transmission héréditaire'],
+  r:'Une convergence',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-10', site:'COR', diff:'moyen',
+  q:'Quel corail forme des réseaux évoquant des maillons de chaîne ?',
+  choix:['Halysites', 'Schlotheimophyllum', 'Palaeocyclus', 'Entelophyllum'],
+  r:'Halysites',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-11', site:'COR', diff:'moyen',
+  q:'Que signifie le nom d\'Halysites ?',
+  choix:['« En chaîne »', '« À gros polypes »', '« De Gotland »', '« En éventail »'],
+  r:'« En chaîne »',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-12', site:'COR', diff:'moyen',
+  q:'À quoi ressemble la surface d\'une colonie de Favosites ?',
+  choix:['À un nid-d\'abeilles', 'À une dentelle de fils entrecroisés', 'À un empilement de disques plats', 'À une éponge percée de canaux'],
+  r:'À un nid-d\'abeilles',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-13', site:'COR', diff:'moyen',
+  q:'Quelle est la forme générale de Cystiphyllum ?',
+  choix:['Une corne', 'Un disque parfaitement plat', 'Une sphère creuse', 'Un tube enroulé en spirale'],
+  r:'Une corne',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-14', site:'COR', diff:'moyen',
+  q:'À quoi servaient les structures d\'ancrage de Cystiphyllum ?',
+  choix:['À ne pas basculer sur un fond mou', 'À capturer des proies au ras du sédiment', 'À se déplacer lentement vers la lumière', 'À filtrer l\'eau avant qu\'elle n\'entre'],
+  r:'À ne pas basculer sur un fond mou',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-15', site:'COR', diff:'difficile',
+  q:'Qu\'est-ce qui distingue Palaeocyclus des autres coraux du pack ?',
+  choix:['Il est petit et posé librement', 'Il est le seul à former des colonies', 'Il vit fixé sur les autres coraux', 'Il possède un squelette non calcaire'],
+  r:'Il est petit et posé librement',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-16', site:'COR', diff:'difficile',
+  q:'Quelle est la particularité d\'Entelophyllum ?',
+  choix:['C\'est un rugueux colonial', 'C\'est le plus grand corail solitaire connu', 'C\'est un tabulé à corallites hexagonaux', 'C\'est un corail dépourvu de squelette'],
+  r:'C\'est un rugueux colonial',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-17', site:'COR', diff:'difficile',
+  q:'Qu\'a de remarquable Schlotheimophyllum ?',
+  choix:['Un large calice à polype unique', 'Une colonie de plusieurs milliers de polypes', 'Une croissance en spirale autour d\'un axe', 'Une absence totale de cloisons internes'],
+  r:'Un large calice à polype unique',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-18', site:'COR', diff:'difficile',
+  q:'Que veut dire « solitaire », pour un corail ?',
+  choix:['Un seul polype', 'Qu\'il vit loin des autres colonies', 'Qu\'il se reproduit sans partenaire', 'Qu\'il ne fabrique pas de calcaire'],
+  r:'Un seul polype',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-19', site:'COR', diff:'difficile',
+  q:'Quel est le rôle d\'un récif pour les autres animaux ?',
+  choix:['Il leur fabrique un relief habitable', 'Il filtre l\'eau des sédiments en suspension', 'Il produit la totalité de leur nourriture', 'Il les protège des variations de salinité'],
+  r:'Il leur fabrique un relief habitable',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']},
+{id:'COR-20', site:'COR', diff:'difficile',
+  q:'Que faut-il retenir en regardant ces six coraux ?',
+  choix:['La forme d\'abord, le nom ensuite', 'Que tous les coraux se ressemblent', 'Que les noms suffisent à les classer', 'Que la couleur permet de les identifier ---'],
+  r:'La forme d\'abord, le nom ensuite',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Zapalski & Król — Silurian Halysites biostrome, Lethaia','https://www.scup.com/doi/full/10.1111/let.12279']});
+
+QUIZ_PALEO.push({id:'LNT-01', site:'LNT', diff:'facile',
+  q:'Où se trouve la formation de Lantian ?',
+  choix:['Dans l\'Anhui, en Chine du Sud', 'Dans le Yunnan, au sud-ouest de la Chine', 'En Mongolie-Intérieure, au nord du pays', 'Dans le Guizhou, sur les hauts plateaux'],
+  r:'Dans l\'Anhui, en Chine du Sud',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-02', site:'LNT', diff:'facile',
+  q:'De quand datent ces fossiles ?',
+  choix:['D\'environ 602 Ma', 'D\'environ 400 Ma', 'D\'environ 250 Ma', 'D\'environ 900 Ma'],
+  r:'D\'environ 602 Ma',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-03', site:'LNT', diff:'facile',
+  q:'À quelle période appartiennent-ils ?',
+  choix:['À l\'Édiacarien', 'Au Cambrien', 'Au Cryogénien', 'À l\'Ordovicien'],
+  r:'À l\'Édiacarien',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-04', site:'LNT', diff:'facile',
+  q:'Qu\'y avait-il sur la terre ferme à cette époque ?',
+  choix:['Rien de visible', 'Des forêts de fougères basses', 'Des tapis de mousses en bordure des lacs', 'Des lichens couvrant les surfaces rocheuses'],
+  r:'Rien de visible',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-05', site:'LNT', diff:'facile',
+  q:'Qu\'est-ce qui rend ces organismes importants ?',
+  choix:['Ils sont visibles à l\'œil nu', 'Ils possèdent les premiers squelettes minéralisés', 'Ils portent des organes reproducteurs différenciés', 'Ils sont les premiers à respirer de l\'oxygène'],
+  r:'Ils sont visibles à l\'œil nu',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-06', site:'LNT', diff:'facile',
+  q:'Comment était la vie avant eux ?',
+  choix:['Essentiellement microscopique', 'Répartie sur les continents émergés', 'Concentrée autour des sources chaudes', 'Limitée aux grandes profondeurs océaniques'],
+  r:'Essentiellement microscopique',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-07', site:'LNT', diff:'moyen',
+  q:'Dans quel milieu vivaient-ils ?',
+  choix:['Une mer peu profonde', 'Un lac d\'eau douce entouré de dunes', 'Un estuaire soumis aux marées', 'Une plaine inondée par saison'],
+  r:'Une mer peu profonde',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-08', site:'LNT', diff:'moyen',
+  q:'Sous quelle forme sont-ils conservés ?',
+  choix:['Des films de carbone', 'Des coquilles calcaires entières', 'Des moulages en silice', 'Des inclusions dans de l\'ambre'],
+  r:'Des films de carbone',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-09', site:'LNT', diff:'moyen',
+  q:'Quel organisme forme un éventail de filaments parallèles ?',
+  choix:['Flabellophyton', 'Orbisiana', 'Baculiphyca', 'Anhuiphyton'],
+  r:'Flabellophyton',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-10', site:'LNT', diff:'moyen',
+  q:'Qu\'est-ce qu\'une ramification dichotomique ?',
+  choix:['Une division en deux', 'Une croissance en spirale autour d\'un axe', 'Une ramification sans ordre apparent', 'Un rameau unique portant des feuilles'],
+  r:'Une division en deux',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-11', site:'LNT', diff:'moyen',
+  q:'Quel organisme illustre le mieux cette régularité ?',
+  choix:['Doushantuophyton cometa', 'Flabellophyton lantianense', 'Orbisiana linearis', 'Baculiphyca sp.'],
+  r:'Doushantuophyton cometa',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-12', site:'LNT', diff:'moyen',
+  q:'À quoi ressemble Baculiphyca ?',
+  choix:['À des rubans souples', 'À une sphère creuse posée au sol', 'À un tube rigide et segmenté', 'À un réseau de mailles régulières'],
+  r:'À des rubans souples',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-13', site:'LNT', diff:'moyen',
+  q:'Qu\'est-ce qui caractérise Orbisiana ?',
+  choix:['Des modules alignés en chaîne', 'Un unique disque plat et circulaire', 'Une coquille enroulée en spirale', 'Un tapis continu couvrant le fond'],
+  r:'Des modules alignés en chaîne',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-14', site:'LNT', diff:'moyen',
+  q:'Que sait-on de l\'affinité d\'Orbisiana ?',
+  choix:['Elle est probable, non démontrée', 'Elle est établie depuis sa description', 'Elle le rattache clairement aux animaux', 'Elle en fait un champignon marin'],
+  r:'Elle est probable, non démontrée',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-15', site:'LNT', diff:'difficile',
+  q:'Pourquoi Orbisiana figure-t-il quand même dans l\'atlas ?',
+  choix:['Les cas non réglés font partie du métier', 'Parce qu\'il est le plus abondant du gisement', 'Parce que son illustration est réussie', 'Parce qu\'il sera bientôt reclassé'],
+  r:'Les cas non réglés font partie du métier',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-16', site:'LNT', diff:'difficile',
+  q:'Que signifie la mention « sp. » après un nom de genre ?',
+  choix:['L\'espèce n\'est pas déterminée', 'Le spécimen provient de plusieurs couches', 'Le genre a été proposé sans description', 'Le nom attend une validation officielle'],
+  r:'L\'espèce n\'est pas déterminée',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-17', site:'LNT', diff:'difficile',
+  q:'Que ne peut-on pas lire dans une compression carbonée ?',
+  choix:['La couleur et la texture', 'La forme générale de l\'organisme', 'La position de son point d\'ancrage', 'Le nombre de ses ramifications'],
+  r:'La couleur et la texture',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-18', site:'LNT', diff:'difficile',
+  q:'Comment faut-il regarder les illustrations de ce chantier ?',
+  choix:['Comme des propositions', 'Comme des portraits fidèles et vérifiés', 'Comme des photographies retouchées', 'Comme des reconstitutions purement décoratives'],
+  r:'Comme des propositions',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-19', site:'LNT', diff:'difficile',
+  q:'Ces organismes sont-ils des plantes ?',
+  choix:['Non, les plantes viendront bien plus tard', 'Oui, ce sont les premières plantes connues', 'Oui, mais uniquement les formes dressées', 'Non, ce sont de jeunes animaux fixés'],
+  r:'Non, les plantes viendront bien plus tard',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']},
+{id:'LNT-20', site:'LNT', diff:'difficile',
+  q:'Que change ce chantier pour la frise de l\'atlas ?',
+  choix:['Il en recule le début', 'Il ajoute une période inédite à l\'échelle', 'Il resserre les graduations les plus anciennes', 'Il déplace la limite du Précambrien ---'],
+  r:'Il en recule le début',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Yuan et al. — The Lantian biota, Science Bulletin','https://link.springer.com/article/10.1007/s11434-012-5483-6']});
+
+/* ================================================================
+   Bloc 35 : intégration de KAP (Kap København), LIV (Fossiles
+   vivants) et DOM (Domestication). Derniers des sept.
+
+   Trois particularités :
+
+   1. KAP nomme des genres, pas des espèces. C'est ce que l'ADN
+      environnemental autorise à dire, et le pack en fait son sujet.
+
+   2. LIV et DOM ne sont pas des gisements. Leurs épingles sont des
+      REPÈRES : les Comores parce que le cœlacanthe y a été retrouvé,
+      le Croissant fertile parce que les premières domestications s'y
+      sont produites. Les introductions le disent explicitement.
+
+   3. LIV porte des espèces ACTUELLES, à 0 Ma. Le tri chronologique le
+      place donc en dernier, et periodeDe doit rattacher le présent au
+      Quaternaire — corrigé au bloc 2.
+
+   L'emblème de DOM est DOM-04 et non DOM-01 : l'ordre du pack suit le
+   processus de domestication, qui commence par le chien.
+   ================================================================ */
+
+const P_KAP='Kap København — Le monde avant la glace';
+const P_LIV='Fossiles vivants — Les survivants du temps profond';
+const P_DOM='Domestication — Les animaux que nous avons fabriqués';
+
+const S_KAP=[['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland uncovered by environmental DNA, Nature',
+  'https://www.nature.com/articles/s41586-022-05453-y']];
+const S_LIV=[['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica',
+  'https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']];
+const S_DOM=[['Driscoll, Macdonald & O’Brien 2009 — From wild animals to domestic pets, an evolutionary view of domestication, PNAS',
+  'https://www.pnas.org/doi/10.1073/pnas.0901586106']];
+
+SITES.push(
+{ id:'KAP', nom:'Le monde avant la glace', court:'Kap København',
+  region:'Peary Land, extrême nord du Groenland', pays:'Groenland',
+  ere:'Transition Pliocène–Pléistocène', age:'≈ 2 Ma', x:458, y:60, cout:COUT_PLATEAU,
+  accroche:'Une forêt à plus de 82° nord, retrouvée sans un seul squelette',
+  intro:[
+    "L’extrême nord du Groenland, au-delà du 82ᵉ parallèle. C’est un désert polaire : pas d’arbres, presque pas de terre meuble, quelques mois de lumière par an. Il n’existe pas d’endroit habité plus au nord.",
+    "Il y a deux millions d’années, le même point portait une mosaïque de forêt claire, de landes, de marais et d’estuaires. Des bouleaux, des thuyas, des peupliers. Les températures moyennes annuelles dépassaient de onze à dix-neuf degrés les valeurs actuelles. Le même endroit sur la carte, et un monde entièrement différent.",
+    "Ce qui rend ce chantier singulier, c’est qu’il est presque sans fossiles. L’écosystème a été reconstitué à partir d’ADN conservé dans le sédiment — de l’ADN environnemental ancien. Les organismes n’ont pas laissé d’os, mais des fragments de leur matériel génétique se sont liés à des surfaces minérales et y sont restés. C’est le plus ancien ADN jamais séquencé.",
+    "La méthode donne une liste de ce qui vivait là, bien plus complète qu’un gisement d’os, qui ne conserve que les espèces à squelette solide. Mais elle ne donne pas d’anatomie. On sait qu’un mastodonte était présent ; on ne sait pas à quoi il ressemblait exactement, ni de quelle espèce il s’agissait.",
+    "Elle peut même faire croire à tort. Tous les vertébrés détectés ici sont herbivores, et aucun prédateur n’apparaît — non pas qu’il n’y en ait pas eu, mais parce que leur biomasse était trop faible pour laisser une trace. Une absence dans un relevé d’ADN n’est pas une absence dans l’écosystème. Les fiches de ce chantier nomment donc un genre, ou une sous-famille, et pas une espèce : c’est exactement ce que la méthode autorise."
+  ]},
+{ id:'DOM', nom:'Les animaux que nous avons fabriqués', court:'Domestication',
+  region:'Croissant fertile — repère, non gisement', pays:'Monde',
+  ere:'Holocène', age:'≈ 12 000 ans → aujourd’hui', x:825, y:362, cout:COUT_PLATEAU,
+  accroche:'Six anatomies qui n’existeraient pas sans nous',
+  intro:[
+    "L’épingle est posée sur le Croissant fertile, où les premières domestications se sont produites. Mais ce chantier n’est pas un gisement : il porte sur un processus, réparti sur toute la planète et toujours en cours.",
+    "Comment reconnaître notre époque à partir d’un os ? Un éléphant, un renard, un cheval sauvage ne suffisent pas : des formes très proches existaient déjà au Pléistocène. La plupart des animaux d’aujourd’hui auraient pu vivre il y a cent mille ans sans étonner personne.",
+    "Un teckel, en revanche, ne trompe pas. Ni un mouton mérinos couvert d’une laine qui pousse sans fin, ni une vache qui produit dix fois ce qu’il faut à son veau. Ces anatomies n’auraient jamais été produites par la sélection naturelle seule. Elles portent une signature, et cette signature est la nôtre.",
+    "Il y a environ douze mille ans, un facteur nouveau apparaît : une espèce capable de remodeler délibérément le corps d’autres espèces, génération après génération, en choisissant qui se reproduit. Ce n’est pas une rupture avec les mécanismes précédents — c’est toujours de la sélection — mais l’agent a changé, et la vitesse aussi. Un teckel et un berger allemand restent d’ailleurs deux races d’une même espèce, pas deux espèces.",
+    "Ce chantier ne dit pas si tout cela est bien ou mal. La sélection a produit des animaux robustes et d’autres fragiles ; ces questions sont réelles mais elles ne se tranchent pas avec un fossile. Il documente un fait : nous sommes devenus un facteur d’évolution."
+  ]},
+{ id:'LIV', nom:'Les survivants du temps profond', court:'Fossiles vivants',
+  region:'Comores — repère, non gisement', pays:'Plusieurs régions du monde',
+  ere:'Actuel', age:'espèces vivantes', x:880, y:745, cout:COUT_PLATEAU,
+  accroche:'Six animaux vivants qui ont l’air d’appartenir à un autre temps',
+  intro:[
+    "Tous les autres chantiers de cet atlas sont des lieux où l’on creuse. Celui-ci n’en est pas un. L’épingle est posée aux Comores parce qu’un pêcheur y a remonté, en 1938, un poisson que l’on croyait disparu depuis soixante-six millions d’années. Mais les six espèces de ce pack vivent aux quatre coins du monde, et elles sont vivantes maintenant.",
+    "Ce qu’elles ont en commun, c’est une allure. Le nautile et sa coquille cloisonnée, la limule et sa carapace à longue épine, le triops et ses appendices caudaux : ils évoquent immédiatement les mers anciennes. On a l’impression de croiser quelque chose qui aurait dû rester dans la roche.",
+    "Et pourtant « fossile vivant » est un abus de langage. L’expression est de Darwin, en 1859 — qui jugeait lui-même l’étiquette fantaisiste dans la phrase suivante. Ces animaux ne sont pas restés identiques pendant des centaines de millions d’années : Nautilus pompilius et Tachypleus tridentatus sont des espèces modernes. Ce qui est ancien, c’est leur lignée, et leur plan d’organisation.",
+    "Une lignée ancienne n’est pas une espèce ancienne. Une famille peut être vieille de quatre cents millions d’années tandis que chacun de ses membres actuels est jeune. C’est vrai de nous aussi : notre lignée est ancienne, notre espèce ne l’est pas.",
+    "Ce chantier ferme l’atlas parce qu’il en est le miroir. Partout ailleurs, on regarde des formes disparues en essayant d’imaginer ce qu’elles étaient vivantes. Ici, on regarde des animaux vivants en y reconnaissant des formes qu’on croyait révolues. C’est le même exercice, dans l’autre sens."
+  ]}
+);
+
+const D=(id,site,nom,groupe,periode,age,aMin,aMax,lieu,milieu,regime,taille,masse,conf,confN,desc,prud,src,pack)=>
+  ({id,site,nom,groupe,periode,age,ageMin:aMin,ageMax:aMax,lieu,milieu,regime,taille,masse,
+    conf,confN,desc,prudence:prud,src,pack,img:'cartes/'+id+'.webp'});
+
+const LK='Formation de Kap København, Peary Land, Groenland';
+
+CREATURES.push(
+D('KAP-01','KAP','Mammut sp.','Proboscidien mastodonte','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Forêt boréale claire','Herbivore','≈ 2,5 m au garrot','≈ 4–5 t','Moyenne',3,
+ 'Mastodonte d’une branche ancienne des proboscidiens, distincte de celle des mammouths et des éléphants actuels. Il parcourait une forêt de bouleaux, de thuyas et de peupliers à quelques degrés du pôle Nord.',
+ 'Le genre est identifié par l’ADN, l’espèce ne l’est pas. Sa présence si au nord a été la découverte la plus inattendue du gisement.',S_KAP,P_KAP),
+D('KAP-02','KAP','Rangifer sp.','Cervidé','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Forêt boréale claire','Herbivore','≈ 1,2 m au garrot','≈ 100–150 kg','Moyenne',3,
+ 'Renne proche de la base de la lignée des rennes et caribous actuels. Il vivait ici dans un milieu bien plus forestier que la toundra où on le trouve aujourd’hui.',
+ 'Identification au genre seulement. L’anatomie est extrapolée depuis les formes actuelles.',S_KAP,P_KAP),
+D('KAP-03','KAP','Lepus sp.','Léporidé','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Landes et sous-bois','Herbivore','≈ 50 cm','≈ 3–5 kg','Moyenne',3,
+ 'Lièvre apparenté aux lignées eurasiennes. Sa présence donne au tableau une échelle plus intime, à hauteur de sous-bois.',
+ 'Identification au genre. Aucun os n’a été retrouvé : seul l’ADN atteste sa présence.',S_KAP,P_KAP),
+D('KAP-04','KAP','Branta sp.','Ansériforme','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Estuaires et zones humides','Herbivore','≈ 60–75 cm','≈ 1,5–2 kg','Moyenne',3,
+ 'Oie proche des bernaches actuelles, fréquentant les estuaires, les lacs et les marais de la région.',
+ 'Identification au genre. Le plumage figuré s’appuie sur les bernaches actuelles.',S_KAP,P_KAP),
+D('KAP-05','KAP','Arvicolinae indét.','Rongeur','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Landes et sous-bois','Herbivore','≈ 10–15 cm','≈ 30–100 g','Faible',2,
+ 'Petit rongeur de la sous-famille qui réunit campagnols, lemmings et rats musqués.',
+ 'L’ADN disponible ne permet pas de descendre au genre : la fiche s’arrête donc à la sous-famille.',S_KAP,P_KAP),
+D('KAP-06','KAP','Limulidé apparenté à Limulus polyphemus','Arthropode marin','Pléistocène inférieur','≈ 2 Ma',1.9,2.1,LK,'Côtes marines','Détritivore','≈ 30–50 cm','≈ 1–2 kg','Faible',2,
+ 'Limule vivant sur des côtes groenlandaises alors bien plus tempérées. Sa présence, avec celle d’algues vertes, implique une mer sans banquise permanente.',
+ 'Le nom de fichier porte celui de l’espèce actuelle apparentée, non celle du fossile : il ne s’agit pas d’une identification à l’espèce.',S_KAP,P_KAP),
+
+D('DOM-01','DOM','Canis lupus familiaris — teckel','Mammifère domestique','Holocène','≈ 12 000 ans → présent',0,0.015,'Élevage, monde entier','Domestique','Carnivore','≈ 20 cm au garrot','≈ 7–10 kg','Élevée',4,
+ 'Chien aux membres très courts et au corps fortement allongé, sélectionné pour la chasse en terrier. C’est le premier animal domestiqué, et l’exemple le plus net de diversité morphologique obtenue à l’intérieur d’une seule espèce.',
+ 'Le teckel et le lévrier sont des races, non des espèces distinctes : ils se reproduisent entre eux.',S_DOM,P_DOM),
+D('DOM-02','DOM','Bos taurus — vache Holstein','Mammifère domestique','Holocène','≈ 10 000 ans → présent',0,0.012,'Élevage, monde entier','Domestique','Herbivore','≈ 1,5 m au garrot','≈ 600–700 kg','Élevée',4,
+ 'Bovin laitier noir et blanc à la silhouette très spécialisée, sélectionné pour une production très supérieure aux besoins d’un veau.',
+ 'La race actuelle est le produit d’une sélection intensive récente, bien postérieure à la domestication elle-même.',S_DOM,P_DOM),
+D('DOM-03','DOM','Ovis aries — mouton mérinos','Mammifère domestique','Holocène','≈ 10 000 ans → présent',0,0.012,'Élevage, monde entier','Domestique','Herbivore','≈ 70 cm au garrot','≈ 50–80 kg','Élevée',4,
+ 'Sélectionné pour une toison dense et continue. Le pelage de ses ancêtres sauvages muait ; celui-ci pousse sans s’arrêter, ce qui rend l’animal dépendant de la tonte.',
+ 'La toison a une histoire par étapes, documentée depuis le mouton sauvage : ce n’est pas un caractère apparu d’un coup. Les races ovines ont conservé une diversité génétique élevée, contrairement au chien.',
+ [S_DOM[0],['Kijas et al. 2012 — Genome-wide analysis of the world’s sheep breeds, PLOS Biology',
+   'https://journals.plos.org/plosbiology/article?id=10.1371%2Fjournal.pbio.1001258']],P_DOM),
+D('DOM-04','DOM','Equus ferus caballus — cheval de trait belge','Mammifère domestique','Holocène','≈ 6 000 ans → présent',0,0.008,'Élevage, Europe','Domestique','Herbivore','≈ 1,7 m au garrot','≈ 900–1000 kg','Élevée',4,
+ 'Cheval extrêmement massif, à l’encolure puissante, à la poitrine large et aux membres épais — une anatomie entièrement orientée vers la force de traction.',
+ 'La même espèce produit aussi bien un pur-sang qu’un trait : la différence est de race, pas d’espèce.',S_DOM,P_DOM),
+D('DOM-05','DOM','Gallus gallus domesticus — coq domestique','Oiseau domestique','Holocène','≈ 8 000 ans → présent',0,0.010,'Élevage, monde entier','Domestique','Omnivore','≈ 70 cm','≈ 3–4 kg','Élevée',4,
+ 'Oiseau de basse-cour à grande crête et caroncules développées, dont le plumage de parade a été accentué par la sélection.',
+ 'Descend du coq bankiva d’Asie du Sud-Est. Plusieurs foyers de domestication sont discutés.',S_DOM,P_DOM),
+D('DOM-06','DOM','Camelus dromedarius — dromadaire','Mammifère domestique','Holocène','≈ 3 000 ans → présent',0,0.005,'Élevage, régions arides','Domestique','Herbivore','≈ 2 m au garrot','≈ 400–600 kg','Élevée',4,
+ 'Étroitement associé aux caravanes, au pastoralisme et à l’occupation humaine des régions arides.',
+ 'Il n’existe pratiquement plus à l’état sauvage : les populations libres actuelles sont des animaux retournés à la vie sauvage.',S_DOM,P_DOM),
+
+D('LIV-01','LIV','Latimeria chalumnae','Sarcoptérygien actinistien','Actuel','espèce vivante',0,0,'Océan Indien occidental, Comores','Marin profond','Carnivore','≈ 1,5–2 m','≈ 80 kg','Élevée',4,
+ 'Grand poisson marin aux nageoires charnues portées par des membres osseux. Le groupe n’était connu que par ses fossiles jusqu’à ce qu’un spécimen soit identifié en 1938.',
+ 'Sa lignée s’est séparée des autres sarcoptérygiens il y a plus de quatre cents millions d’années, mais l’espèce actuelle est récente.',S_LIV,P_LIV),
+D('LIV-02','LIV','Nautilus pompilius','Céphalopode nautiloïde','Actuel','espèce vivante',0,0,'Indo-Pacifique','Marin','Carnivore','Coquille ≈ 20 cm','≈ 1,5 kg','Élevée',4,
+ 'Céphalopode à coquille externe spiralée et cloisonnée, qui règle sa flottabilité en jouant sur le gaz contenu dans ses loges.',
+ 'La lignée des nautiloïdes est très ancienne ; l’espèce, non. C’est la distinction que ce chantier cherche à faire passer.',S_LIV,P_LIV),
+D('LIV-03','LIV','Neoceratodus forsteri','Dipneuste','Actuel','espèce vivante',0,0,'Eau douce, Queensland, Australie','Eau douce','Carnivore','≈ 1–1,5 m','≈ 20–40 kg','Élevée',4,
+ 'Dipneuste massif aux nageoires charnues, capable de respirer l’air grâce à un poumon fonctionnel. Les dipneustes sont plus proches de nous que des poissons ordinaires.',
+ 'Sa lignée est ancienne, mais l’espèce ne l’est pas davantage que les autres de ce chantier.',S_LIV,P_LIV),
+D('LIV-04','LIV','Sphenodon punctatus','Rhynchocéphale','Actuel','espèce vivante',0,0,'Îlots de Nouvelle-Zélande','Terrestre','Carnivore','≈ 60 cm','≈ 0,5–1 kg','Élevée',4,
+ 'Dernier représentant des rhynchocéphales, groupe très répandu au Mésozoïque. Ce n’est pas un lézard : les deux lignées sont séparées depuis plus de deux cents millions d’années.',
+ 'On connaît mal les étapes entre les premiers sphénodontiens et lui — le matériel fossile se réduit surtout à des mâchoires et des dents. Affirmer que sa lignée a peu changé est moins établi qu’il n’y paraît.',S_LIV,P_LIV),
+D('LIV-05','LIV','Tachypleus tridentatus','Arthropode limulidé','Actuel','espèce vivante',0,0,'Côtes d’Asie de l’Est','Marin côtier','Détritivore','≈ 60 cm','≈ 2–4 kg','Élevée',4,
+ 'Arthropode marin cuirassé à longue épine caudale. La silhouette générale des limulidés est restée très conservatrice.',
+ 'Conservateur ne veut pas dire figé : les limulidés se révèlent génétiquement plus diversifiés qu’on ne le pensait.',S_LIV,P_LIV),
+D('LIV-06','LIV','Triops cancriformis','Branchiopode notostracé','Actuel','espèce vivante',0,0,'Mares temporaires d’Eurasie','Eau douce temporaire','Omnivore','≈ 5–10 cm','≈ 5–10 g','Élevée',4,
+ 'Petit branchiopode des mares temporaires, à large carapace et deux longs appendices caudaux. Son allure rappelle fortement des formes mésozoïques.',
+ 'Les notostracés étaient réputés pauvres en espèces ; on les sait aujourd’hui bien plus divers. L’espèce actuelle n’est pas aussi ancienne que sa silhouette le suggère.',S_LIV,P_LIV)
+);
+
+(function reclasserSites3(){
+  const age=s=>Math.max(...CREATURES.filter(c=>c.site===s.id).map(c=>c.ageMax));
+  SITES.sort((a,b)=>age(b)-age(a));
+})();
+
+/* DOM-04 et non DOM-01 : l'ordre du pack suit le processus de domestication,
+   qui commence par le chien. Seul pack de l'atlas dans ce cas. */
+Object.assign(EMBLEMES,{KAP:'KAP-01', LIV:'LIV-01', DOM:'DOM-04'});
+
+GRANDS_GROUPES.splice(GRANDS_GROUPES.length-1, 0,
+  ['Animaux domestiques', /domestique/i],
+  ['Mammifères récents', /proboscidien|mastodonte|cervidé|léporidé|rongeur/i],
+  ['Espèces actuelles', /actinistien|nautiloïde|dipneuste|rhynchocéphale|limulidé|notostracé|ansériforme/i]);
+
+/* Bloc 36 : banques de KAP, LIV et DOM, générées depuis tools/PACK_*.md. */
+
+QUIZ_PALEO.push(
+{id:'KAP-01', site:'KAP', diff:'facile',
+  q:'Où se trouve la formation de Kap København ?',
+  choix:['À l\'extrême nord du Groenland', 'Sur la côte sud du Groenland, près de Nuuk', 'Dans l\'archipel arctique canadien', 'Sur l\'île norvégienne du Spitzberg'],
+  r:'À l\'extrême nord du Groenland',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-02', site:'KAP', diff:'facile',
+  q:'De quand datent ces traces de vie ?',
+  choix:['D\'environ 2 Ma', 'D\'environ 20 000 ans', 'D\'environ 20 Ma', 'D\'environ 200 Ma'],
+  r:'D\'environ 2 Ma',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-03', site:'KAP', diff:'facile',
+  q:'À quoi ressemble cet endroit aujourd\'hui ?',
+  choix:['À un désert polaire', 'À une toundra parcourue de troupeaux', 'À une forêt de conifères clairsemée', 'À une côte rocheuse couverte de landes'],
+  r:'À un désert polaire',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-04', site:'KAP', diff:'facile',
+  q:'Quel paysage y avait-il il y a deux millions d\'années ?',
+  choix:['Une forêt claire et des marais', 'Une calotte de glace permanente', 'Une steppe sèche balayée par les vents', 'Un archipel de récifs coralliens'],
+  r:'Une forêt claire et des marais',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-05', site:'KAP', diff:'facile',
+  q:'Quels arbres poussaient là ?',
+  choix:['Des bouleaux et des peupliers', 'Des chênes et des hêtres', 'Des palmiers et des fougères arborescentes', 'Des séquoias et des cyprès chauves'],
+  r:'Des bouleaux et des peupliers',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-06', site:'KAP', diff:'facile',
+  q:'Comment cet écosystème a-t-il été reconstitué ?',
+  choix:['Par de l\'ADN du sédiment', 'Par des squelettes complets bien conservés', 'Par des empreintes laissées dans la boue', 'Par des pollens piégés dans la glace'],
+  r:'Par de l\'ADN du sédiment',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-07', site:'KAP', diff:'moyen',
+  q:'Comment appelle-t-on ce type d\'ADN ?',
+  choix:['De l\'ADN environnemental', 'De l\'ADN mitochondrial reconstitué', 'De l\'ADN fossilisé par minéralisation', 'De l\'ADN de synthèse comparé aux archives'],
+  r:'De l\'ADN environnemental',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-08', site:'KAP', diff:'moyen',
+  q:'Où cet ADN s\'était-il conservé ?',
+  choix:['Lié à des surfaces minérales', 'Enfermé dans des bulles d\'air anciennes', 'Protégé à l\'intérieur de dents fossiles', 'Dissous dans les eaux souterraines'],
+  r:'Lié à des surfaces minérales',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-09', site:'KAP', diff:'moyen',
+  q:'Quel avantage cette méthode a-t-elle sur un gisement d\'os ?',
+  choix:['Elle recense bien plus d\'espèces', 'Elle donne l\'âge exact de chaque individu', 'Elle conserve la couleur des animaux', 'Elle permet de reconstituer des squelettes'],
+  r:'Elle recense bien plus d\'espèces',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-10', site:'KAP', diff:'moyen',
+  q:'Pourquoi un gisement d\'os est-il moins complet ?',
+  choix:['Il ne garde que les squelettes solides', 'Il mélange les couches entre elles', 'Il ne se forme que dans certains milieux précis', 'Il détruit les traces des végétaux'],
+  r:'Il ne garde que les squelettes solides',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-11', site:'KAP', diff:'moyen',
+  q:'Que ne permet pas d\'obtenir l\'ADN environnemental ?',
+  choix:['L\'anatomie des animaux', 'La liste des espèces présentes', 'La présence de végétaux sur le site', 'La composition générale du milieu'],
+  r:'L\'anatomie des animaux',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-12', site:'KAP', diff:'moyen',
+  q:'Pourquoi les fiches de ce chantier nomment-elles souvent un genre ?',
+  choix:['Parce que la méthode ne va pas plus loin', 'Parce que les espèces n\'ont pas encore été nommées', 'Parce que les auteurs n\'ont pas voulu trancher', 'Parce que les genres sont plus faciles à retenir'],
+  r:'Parce que la méthode ne va pas plus loin',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-13', site:'KAP', diff:'moyen',
+  q:'Qu\'est-ce qu\'un mastodonte comme Mammut ?',
+  choix:['Un proboscidien d\'une branche ancienne', 'Un ancêtre direct des éléphants actuels', 'Un mammouth adapté au froid extrême', 'Un grand herbivore apparenté aux rhinocéros'],
+  r:'Un proboscidien d\'une branche ancienne',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-14', site:'KAP', diff:'moyen',
+  q:'Dans quel milieu vivait le renne de Kap København ?',
+  choix:['Une forêt', 'Une toundra sans arbres', 'Une banquise côtière', 'Un désert de pierres'],
+  r:'Une forêt',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-15', site:'KAP', diff:'difficile',
+  q:'Que réunit la sous-famille des Arvicolinés ?',
+  choix:['Campagnols, lemmings et rats musqués', 'Souris, rats et mulots', 'Écureuils, marmottes, castors et loirs', 'Musaraignes, taupes et hérissons'],
+  r:'Campagnols, lemmings et rats musqués',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-16', site:'KAP', diff:'difficile',
+  q:'Pourquoi la fiche s\'arrête-t-elle à la sous-famille pour ce rongeur ?',
+  choix:['L\'ADN ne permet pas d\'aller au genre', 'Le spécimen était trop fragmentaire', 'Les arvicolinés n\'ont pas de genres définis', 'Le rongeur n\'a pas encore été décrit'],
+  r:'L\'ADN ne permet pas d\'aller au genre',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-17', site:'KAP', diff:'difficile',
+  q:'Qu\'est-ce qu\'implique la présence d\'un limulidé ?',
+  choix:['Une mer sans banquise permanente', 'Une eau douce en permanence libre de glace', 'Un fond marin de plus de mille mètres', 'Une salinité bien supérieure à l\'actuelle'],
+  r:'Une mer sans banquise permanente',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-18', site:'KAP', diff:'difficile',
+  q:'Le limulidé de Kap København est-il Limulus polyphemus ?',
+  choix:['Non, c\'est un parent', 'Oui, l\'espèce est identifiée', 'Oui, mais une sous-espèce éteinte', 'Non, c\'est un crustacé sans lien'],
+  r:'Non, c\'est un parent',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-19', site:'KAP', diff:'difficile',
+  q:'Sur quoi s\'appuient les illustrations de ce chantier ?',
+  choix:['Sur des parents connus', 'Sur des squelettes reconstitués en trois dimensions', 'Sur des descriptions faites au XIXᵉ siècle', 'Sur des photographies d\'animaux actuels'],
+  r:'Sur des parents connus',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']},
+{id:'KAP-20', site:'KAP', diff:'difficile',
+  q:'Que montre ce chantier, au fond ?',
+  choix:['Qu\'un même lieu peut changer entièrement', 'Que l\'Arctique a toujours été glacé', 'Que les forêts ne poussent qu\'au sud', 'Que l\'ADN se conserve dans tous les sédiments ---'],
+  r:'Qu\'un même lieu peut changer entièrement',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Kjær et al. 2022 — A 2-million-year-old ecosystem in Greenland, Nature','https://www.nature.com/articles/s41586-022-05453-y']});
+
+QUIZ_PALEO.push(
+{id:'LIV-01', site:'LIV', diff:'facile',
+  q:'Que sont les six animaux de ce pack ?',
+  choix:['Des espèces vivantes', 'Des fossiles récemment découverts', 'Des espèces éteintes au XXᵉ siècle', 'Des reconstitutions par croisement'],
+  r:'Des espèces vivantes',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-02', site:'LIV', diff:'facile',
+  q:'Pourquoi l\'épingle est-elle posée aux Comores ?',
+  choix:['C\'est là qu\'on a retrouvé le cœlacanthe', 'C\'est le seul endroit où vivent les six espèces', 'C\'est le gisement d\'origine du pack', 'C\'est là que l\'expression a été inventée'],
+  r:'C\'est là qu\'on a retrouvé le cœlacanthe',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-03', site:'LIV', diff:'facile',
+  q:'Où vivent les espèces de ce pack ?',
+  choix:['Un peu partout dans le monde', 'Surtout dans l\'océan Indien', 'Dans le seul hémisphère sud', 'Dans les grands fonds marins'],
+  r:'Un peu partout dans le monde',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-04', site:'LIV', diff:'facile',
+  q:'Qu\'ont en commun ces six animaux, au premier regard ?',
+  choix:['Une allure ancienne', 'Une taille comparable entre eux', 'Un même milieu de vie marin', 'Une parenté directe entre eux'],
+  r:'Une allure ancienne',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-05', site:'LIV', diff:'facile',
+  q:'L\'expression « fossile vivant » est-elle exacte ?',
+  choix:['Non, c\'est un abus de langage', 'Oui, elle décrit précisément ces espèces', 'Oui, mais seulement pour le cœlacanthe', 'Non, elle désigne en fait des fossiles'],
+  r:'Non, c\'est un abus de langage',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-06', site:'LIV', diff:'facile',
+  q:'Qu\'est-ce qui est ancien, chez ces animaux ?',
+  choix:['Leur lignée', 'Leur espèce, telle quelle', 'Leur date de découverte', 'Leur nom scientifique'],
+  r:'Leur lignée',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-07', site:'LIV', diff:'moyen',
+  q:'Qu\'est-ce qu\'un plan d\'organisation ?',
+  choix:['La façon dont le corps est bâti', 'La liste des espèces d\'un même genre', 'Le territoire occupé par une population', 'La succession des stades de croissance'],
+  r:'La façon dont le corps est bâti',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-08', site:'LIV', diff:'moyen',
+  q:'Une lignée ancienne implique-t-elle une espèce ancienne ?',
+  choix:['Non', 'Oui, nécessairement', 'Oui, sauf chez les invertébrés', 'Non, sauf en milieu marin'],
+  r:'Non',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-09', site:'LIV', diff:'moyen',
+  q:'Cette distinction vaut-elle aussi pour l\'espèce humaine ?',
+  choix:['Oui, notre lignée est plus ancienne que nous', 'Non, notre espèce est aussi vieille que sa lignée', 'Non, les primates échappent à la règle', 'Oui, mais seulement depuis l\'agriculture'],
+  r:'Oui, notre lignée est plus ancienne que nous',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-10', site:'LIV', diff:'moyen',
+  q:'Quand a-t-on identifié un cœlacanthe vivant ?',
+  choix:['En 1938', 'En 1836', 'En 1998', 'En 1872'],
+  r:'En 1938',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-11', site:'LIV', diff:'moyen',
+  q:'Que croyait-on du groupe avant cette date ?',
+  choix:['Qu\'il avait disparu', 'Qu\'il vivait en eau douce', 'Qu\'il n\'avait jamais existé', 'Qu\'il était microscopique'],
+  r:'Qu\'il avait disparu',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-12', site:'LIV', diff:'moyen',
+  q:'Comment le nautile règle-t-il sa flottabilité ?',
+  choix:['Avec le gaz de ses loges', 'En gonflant une vessie musculaire', 'En modifiant la densité de son sang', 'En avalant ou rejetant du sable'],
+  r:'Avec le gaz de ses loges',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-13', site:'LIV', diff:'moyen',
+  q:'Qu\'est-ce que Neoceratodus est capable de faire ?',
+  choix:['Respirer de l\'air', 'Vivre plusieurs mois hors de l\'eau', 'Changer de sexe au cours de sa vie', 'Régénérer ses nageoires perdues'],
+  r:'Respirer de l\'air',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-14', site:'LIV', diff:'moyen',
+  q:'De quel groupe les dipneustes sont-ils proches ?',
+  choix:['De nous', 'Des requins', 'Des anguilles', 'Des amphibiens uniquement'],
+  r:'De nous',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-15', site:'LIV', diff:'difficile',
+  q:'Le tuatara est-il un lézard ?',
+  choix:['Non, c\'est un rhynchocéphale', 'Oui, un lézard nocturne', 'Oui, mais d\'une famille isolée', 'Non, c\'est un jeune crocodilien'],
+  r:'Non, c\'est un rhynchocéphale',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-16', site:'LIV', diff:'difficile',
+  q:'Depuis combien de temps les deux lignées sont-elles séparées ?',
+  choix:['Plus de deux cents millions d\'années', 'Environ dix millions d\'années', 'Environ un million d\'années', 'Quelques centaines de milliers d\'années'],
+  r:'Plus de deux cents millions d\'années',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-17', site:'LIV', diff:'difficile',
+  q:'Que signifie « conservateur », pour une silhouette ?',
+  choix:['Elle a peu changé', 'Elle a cessé d\'évoluer depuis longtemps', 'Elle protège contre les prédateurs', 'Elle se retrouve chez la plupart des arthropodes'],
+  r:'Elle a peu changé',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-18', site:'LIV', diff:'difficile',
+  q:'La limule a-t-elle cessé d\'évoluer ?',
+  choix:['Non', 'Oui, depuis le Trias', 'Oui, depuis le Dévonien', 'Non, elle a rajeuni'],
+  r:'Non',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-19', site:'LIV', diff:'difficile',
+  q:'Où vit Triops cancriformis ?',
+  choix:['Dans des mares temporaires', 'Dans les récifs coralliens', 'Dans les lacs de haute montagne', 'Dans les estuaires saumâtres'],
+  r:'Dans des mares temporaires',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']},
+{id:'LIV-20', site:'LIV', diff:'difficile',
+  q:'Pourquoi ce pack ferme-t-il l\'atlas ?',
+  choix:['Il en est le miroir', 'Parce qu\'il est le plus récent', 'Parce qu\'il est le plus difficile', 'Parce qu\'il résume tous les autres ---'],
+  r:'Il en est le miroir',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Herrera-Flores et al. — Quantifying the living fossil concept, Palaeontologia Electronica','https://palaeo-electronica.org/content/2018/2194-quantifying-the-living-fossil']});
+
+QUIZ_PALEO.push(
+{id:'DOM-01', site:'DOM', diff:'facile',
+  q:'De quand date la domestication des premiers animaux ?',
+  choix:['D\'environ 12 000 ans', 'D\'environ 2 000 ans', 'D\'environ 100 000 ans', 'D\'environ 500 000 ans'],
+  r:'D\'environ 12 000 ans',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-02', site:'DOM', diff:'facile',
+  q:'À quelle époque géologique cela correspond-il ?',
+  choix:['À l\'Holocène', 'Au Pléistocène', 'Au Pliocène', 'Au Néogène'],
+  r:'À l\'Holocène',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-03', site:'DOM', diff:'facile',
+  q:'Pourquoi un renard ne suffit-il pas à dater notre époque ?',
+  choix:['Des formes proches existaient avant', 'Parce qu\'il n\'est pas domestiqué', 'Parce qu\'il vit sur tous les continents', 'Parce que ses os sont trop fragiles'],
+  r:'Des formes proches existaient avant',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-04', site:'DOM', diff:'facile',
+  q:'Qu\'est-ce qui, au contraire, ne trompe pas ?',
+  choix:['Un teckel', 'Un loup gris', 'Un sanglier d\'Europe', 'Un cerf élaphe'],
+  r:'Un teckel',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-05', site:'DOM', diff:'facile',
+  q:'Quel est le premier animal domestiqué du pack ?',
+  choix:['Le chien', 'Le mouton', 'Le cheval', 'Le dromadaire'],
+  r:'Le chien',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-06', site:'DOM', diff:'facile',
+  q:'Un teckel et un lévrier appartiennent-ils à la même espèce ?',
+  choix:['Oui', 'Non, ce sont deux espèces', 'Non, deux genres distincts', 'Oui, mais ils sont stériles entre eux'],
+  r:'Oui',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-07', site:'DOM', diff:'moyen',
+  q:'Comment appelle-t-on les variétés d\'une même espèce domestique ?',
+  choix:['Des races', 'Des sous-espèces', 'Des genres', 'Des familles'],
+  r:'Des races',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-08', site:'DOM', diff:'moyen',
+  q:'Qu\'a de particulier la toison du mérinos ?',
+  choix:['Elle pousse sans s\'arrêter', 'Elle change de couleur avec la saison', 'Elle repousse une fois par an seulement', 'Elle est imperméable à l\'eau de pluie'],
+  r:'Elle pousse sans s\'arrêter',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-09', site:'DOM', diff:'moyen',
+  q:'Quelle conséquence cela a-t-il pour l\'animal ?',
+  choix:['Il dépend de la tonte', 'Il supporte mieux la chaleur', 'Il se reproduit plus rapidement', 'Il change de régime alimentaire'],
+  r:'Il dépend de la tonte',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-10', site:'DOM', diff:'moyen',
+  q:'Pour quoi la vache Holstein a-t-elle été sélectionnée ?',
+  choix:['Pour son lait', 'Pour sa viande', 'Pour sa force de traction', 'Pour son cuir'],
+  r:'Pour son lait',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-11', site:'DOM', diff:'moyen',
+  q:'Pour quoi le cheval de trait belge a-t-il été sélectionné ?',
+  choix:['Pour la traction', 'Pour la course de vitesse', 'Pour le saut d\'obstacles', 'Pour la selle légère'],
+  r:'Pour la traction',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-12', site:'DOM', diff:'moyen',
+  q:'Quelle silhouette cette sélection a-t-elle produite ?',
+  choix:['Massive et large', 'Élancée et fine', 'Petite et trapue', 'Longue et basse sur pattes'],
+  r:'Massive et large',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-13', site:'DOM', diff:'moyen',
+  q:'À quoi le dromadaire est-il étroitement associé ?',
+  choix:['Aux régions arides', 'Aux forêts tropicales humides', 'Aux zones de montagne enneigées', 'Aux littoraux tempérés'],
+  r:'Aux régions arides',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-14', site:'DOM', diff:'moyen',
+  q:'Que reste-t-il de dromadaires sauvages ?',
+  choix:['Pratiquement aucun', 'De grandes populations en Asie', 'Quelques troupeaux en Afrique australe', 'La majorité de l\'espèce'],
+  r:'Pratiquement aucun',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-15', site:'DOM', diff:'difficile',
+  q:'Qu\'est-ce que la sélection humaine choisit, concrètement ?',
+  choix:['Qui se reproduit', 'La forme de chaque individu', 'Les mutations qui apparaîtront', 'La durée de vie des animaux'],
+  r:'Qui se reproduit',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-16', site:'DOM', diff:'difficile',
+  q:'En quoi diffère-t-elle de la sélection naturelle ?',
+  choix:['Par l\'agent, pas par le mécanisme', 'Par le mécanisme, entièrement différent', 'Elle ne modifie pas l\'hérédité', 'Elle agit sur une seule génération'],
+  r:'Par l\'agent, pas par le mécanisme',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-17', site:'DOM', diff:'difficile',
+  q:'Qu\'est-ce qui distingue surtout ces deux sélections ?',
+  choix:['La vitesse', 'La taille des populations', 'Le milieu où elles agissent', 'Le nombre d\'espèces concernées'],
+  r:'La vitesse',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-18', site:'DOM', diff:'difficile',
+  q:'Que montre la diversité des races canines ?',
+  choix:['Ce qu\'une seule espèce peut donner', 'Que le chien est très ancien', 'Que les espèces se croisent facilement', 'Que la domestication est irréversible'],
+  r:'Ce qu\'une seule espèce peut donner',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-19', site:'DOM', diff:'difficile',
+  q:'Ce chantier dit-il si la domestication est bonne ou mauvaise ?',
+  choix:['Non', 'Oui, il la condamne', 'Oui, il la justifie', 'Oui, selon les espèces'],
+  r:'Non',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']},
+{id:'DOM-20', site:'DOM', diff:'difficile',
+  q:'Que documente-t-il, alors ?',
+  choix:['Que nous sommes un facteur d\'évolution', 'Que l\'évolution s\'est arrêtée', 'Que les espèces sauvages ont disparu', 'Que la sélection est devenue inutile ---'],
+  r:'Que nous sommes un facteur d\'évolution',
+  exp:'Voir la fiche de la créature concernée pour le détail.',
+  src:['Driscoll et al. 2009 — An evolutionary view of domestication, PNAS','https://www.pnas.org/doi/10.1073/pnas.0901586106']});

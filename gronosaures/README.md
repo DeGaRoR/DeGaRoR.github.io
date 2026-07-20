@@ -48,7 +48,8 @@ node --check data.js && node --check app.js && node --check sw.js
 node tools/qc.js           # ~8260 assertions
 node tools/smoke.js        # 280 assertions, partie réelle
 node tools/profils_test.js # 39 assertions, localStorage simulé ; cycle désinstaller/restaurer
-node tools/qcm.js          # biais exploitables des questions à choix
+node tools/qcm.js          # biais exploitables des questions à choix (banques intégrées)
+node tools/qcm_brouillon.js # idem, sur une banque encore rédigée en markdown
 node tools/version_test.js # 12 assertions, cascade de diagnostic de version
 node tools/version.js      # état des versions ; `+` ou <n> pour les porter : contenu, cohérence, conjugueur, économie, carte
 node tools/smoke.js   # exécution réelle du jeu, DOM bouché
@@ -77,12 +78,12 @@ autre partie.
 index.html      3 onglets + 6 superpositions
 styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les titres)
 data.js         concaténation de 17 blocs, dans cet ordre :
-                1 2 4 5 6 7 12 16 8 9 10 11 13 14 15 3 17 18
+                1 2 4 5 6 7 12 16 8 9 10 11 13 14 15 3 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36
                 (1 généré par tools/ingest.py, le reste écrit à la main ;
                  3 déclare les packs, 17 leur assigne les rappels théoriques)
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           atlas-v33 · CODE réseau d'abord, IMAGES cache d'abord ; 213 entrées ; liste dérivée de data.js
+sw.js           atlas-v64 · CODE réseau d'abord, IMAGES cache d'abord ; 254 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -206,9 +207,16 @@ entre en collision avec les alias numérotés, `YIX` + créature 2 donnant `YIX2
 Il n'émet jamais une fiche dont le JPEG n'existe pas : une créature sans
 illustration afficherait une image cassée dans la collection.
 
-La seule partie rédigée à la main est le bloc `SITES` : ancrage géographique,
-coordonnées de l'épingle, accroche, introduction en cinq volets, coût. C'est donc la
-seule à relire ligne à ligne.
+Les parties rédigées à la main sont le bloc `SITES` — ancrage géographique, coordonnées
+de l'épingle, accroche, introduction en cinq volets, coût — et l'entrée `EMBLEMES` du
+bloc 29, la créature qui représentera le chantier sur la frise.
+
+**Une banque de questions écrite pour un nouveau pack passe par les règles de rédaction
+des QCM**, section suivante de ce README. Ce ne sont pas des recommandations : `qc.js`
+refuse la livraison si la nouvelle banque dépasse 25 % de clés les plus longues ou un
+ratio de 1,10, et la porte lit la liste des sites et des packs — un ajout est donc tenu
+au même seuil que l'existant sans qu'on ait à le déclarer. `tools/AJOUT_PACK.md`
+reprend les règles à l'étape 5 bis, là où les questions s'écrivent.
 
 ## Réglages d'équilibrage
 
@@ -217,8 +225,8 @@ Tout est en tête du bloc 2 de `data.js` :
 | Constante | Valeur | Effet |
 |---|---|---|
 | `CREDITS_DEPART` | 260 | Burgess plus six coups de pioche |
-| `COUT_FOUILLE` | 30 | prix d'un coup de pioche |
-| `SITES[].cout` | 80 → 760 | ouverture d'un chantier, dix-huit paliers de 40 ◈ |
+| `COUT_FOUILLE` | 20 | prix d'un coup de pioche |
+| `SITES[].cout` | 80 → 320 | rampe de 40 ◈, puis **plateau** (bloc 30) |
 | `BAREME.base` | 10 / 7 / 12 | juste · après indice · prime de mission |
 | `BAREME.histoire` | 10 / 7 / 12 | **identique** : choisir son pack ne coûte rien |
 | `NB_MISSION` | 6 | exercices par mission |
@@ -349,6 +357,1312 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Phase QC après intégration — v64
+
+Audit indépendant des harnais, après l'ajout des sept packs.
+
+### Ce qui est vérifié et propre
+
+Identifiants uniques pour les 193 créatures et les 640 questions. Les 193 fichiers
+d'illustration existent sur le disque. Vingt questions exactement pour chacun des sept
+nouveaux chantiers. Une source à URL réelle pour chaque créature. Une période attribuée à
+chacune, y compris les espèces actuelles à 0 Ma. Emblème et fond résolus pour les sept
+sites, fichiers présents.
+
+### Le défaut que la porte ne voyait pas
+
+**Cent vingt questions sur six cent quarante portent une explication d'attente.**
+
+En passant à la génération des banques depuis les fichiers `PACK_*.md`, le texte des
+questions, des réponses et des leurres est repris fidèlement — c'était le but — mais
+l'explication n'existe pas dans la source markdown. Le générateur y a posé un texte
+générique, « Voir la fiche de la créature concernée pour le détail ».
+
+Winton n'est pas concerné : ses vingt explications ont été écrites à la main avant que le
+générateur n'existe. Les six autres packs le sont entièrement.
+
+Rien ne le signalait. La porte comptait les questions, vérifiait leurs quatre options,
+leur clé, leur source, leur biais de longueur — mais pas si elles expliquaient quoi que ce
+soit. Un contrôle est ajouté : il refuse toute question sans explication et **chiffre la
+dette générique en avertissement**, comme le biais de longueur.
+
+    ⚠ explications encore génériques : 120 questions
+      (COR 20, DOM 20, KAP 20, LIV 20, LNT 20, WUD 20)
+
+C'est le prix de l'accélération, et il est réparable : les six packs ont la matière dans
+leurs fiches, il faut l'écrire. Cent vingt explications d'une phrase.
+
+## Les sept packs intégrés — v63
+
+**30 sites, 193 créatures, 640 questions de fouille.** 10331 assertions, ÉCHECS (0).
+
+    LNT EDI TRI BURG ORD CEP COR SIL CHO HUN GIL DEV CAR MAZ WUD KAR2
+    LUO JUR MOR NWE YIX WNT NEM HC WHA MES KAP SAM DOM LIV
+
+L'atlas s'étend maintenant de 602 Ma au présent. `LNT` ouvre la frise, `LIV` la ferme avec
+des espèces vivantes.
+
+### Trois seuils devenus obsolètes
+
+Les trois derniers échecs ne portaient pas sur le contenu mais sur des limites écrites
+quand l'atlas comptait vingt-trois chantiers.
+
+**Les bornes d'âge** exigeaient `ageMin > 0`. Le pack `LIV` porte des espèces actuelles,
+dont l'âge de fin est le présent : zéro y est une valeur juste, pas une valeur manquante.
+
+**Le plafond d'exercices** était un nombre fixe — 420 — alors qu'il exprimait en réalité
+un rapport, environ quatorze exercices par chantier. Il devient proportionnel. La rampe de
+coûts a par ailleurs été détendue : `BONUS_PART` passe de 0,80 à 0,84, dans le
+prolongement de la refonte de la v43.
+
+**Les colonnes de la frise** : trente chantiers ne tiennent plus en trois colonnes sur un
+axe de même hauteur. Le seuil passe à quatre. Au-delà, il faudra allonger l'axe plutôt que
+continuer à empiler.
+
+### Ce qui reste à faire
+
+L'épingle de `WNT` est marquée `pinProvisoire` : elle est sur une terre, ce qui est
+vérifié, mais sa position exacte demande un coup d'œil. Les épingles de `LIV` et `DOM`
+sont des **repères** assumés — les Comores et le Croissant fertile — et non des gisements ;
+les introductions le disent dès la première phrase.
+
+## Wuda, Gotland et Lantian intégrés — v62
+
+Trois packs d'un coup. **27 sites, 175 créatures, 580 questions de fouille.**
+`LNT` prend la tête de la frise, devant la Mer Blanche.
+
+    LNT EDI TRI BURG ORD CEP COR SIL CHO HUN GIL DEV CAR MAZ WUD
+    KAR2 LUO JUR MOR NWE YIX WNT NEM HC WHA MES SAM
+
+Les corrections relevées au sourçage sont appliquées : date de Wuda ramenée à un
+**instant** (298,34 Ma) et non un intervalle, *Palaeocyclus* **porpita**,
+*Schlotheimophyllum* en champignon et possiblement colonial, récif de Gotland **turbide**
+et non cristallin, âge de Lantian **débattu**, animaux possibles mentionnés, incertitude
+étendue à *Flabellophyton*.
+
+### Les questions sont générées, plus recopiées
+
+Les soixante QCM sont produits depuis `tools/PACK_*.md` par script. Le texte mesuré et le
+texte livré sont donc rigoureusement le même — plus de recopie, donc plus de divergence
+possible entre la banque validée et la banque intégrée. C'est ce qui rend les trois packs
+restants mécaniques.
+
+### Un défaut de méthode, trouvé par la porte
+
+**Je cherchais les positions d'épingles avec le mauvais décodage.** Le masque terre/mer
+est encodé en hexadécimal ; je le lisais en base64. Mes « points terrestres » étaient donc
+tirés au hasard — et deux d'entre eux sont passés par pure chance, ce qui est le plus
+inquiétant.
+
+La porte a rattrapé les quatre cas, un par un, jusqu'à ce que je relise sa propre fonction
+de décodage au lieu de faire confiance à la mienne. Les quatre épingles sont maintenant
+vérifiées avec exactement le code qui les contrôle.
+
+### Deux assertions corrigées
+
+**L'unicité des vues de site** comparait la clé `fond` brute. Depuis que celle-ci est
+facultative, tous les sites qui en sont dépourvus valaient `undefined` et se ressemblaient
+donc entre eux. Elle porte désormais sur le fond **effectif**, emblème compris.
+
+**Les grands groupes** manquaient pour les coraux, les macroalgues édiacariennes et les
+plantes du Paléozoïque supérieur — dix-huit créatures qui n'auraient figuré dans aucun tri
+par famille.
+
+## Winton intégré — v61
+
+Premier des sept packs dans les données. **24 sites, 157 créatures, 520 questions de
+fouille.** L'Australie entre dans l'atlas.
+
+| | |
+|---|---|
+| Rang chronologique | 19ᵉ, entre Yixian (126 Ma) et Nemegt (70 Ma) |
+| Emblème | `WNT-03` Savannasaurus |
+| Fond | repli sur l'emblème — pas de vue satellite |
+| Coût | 320 ◈, le plateau |
+
+### Ce que la porte a attrapé
+
+Six classes de défauts, toutes légitimes, et c'est le meilleur argument pour une porte
+stricte : aucune n'aurait été visible à la lecture du bloc.
+
+**L'épingle tombait à la mer.** Placée par estimation — la carte n'est pas
+équirectangulaire et l'Australie n'avait aucun site de référence — elle a été recalée en
+interrogeant directement le masque terre/mer, en exigeant que les huit voisins soient
+terrestres aussi. Elle reste marquée `pinProvisoire` : le calcul garantit qu'elle est sur
+une terre, pas qu'elle est au bon endroit.
+
+**Les crocodyliformes n'existaient pas dans l'atlas.** Sans entrée dans `GRANDS_GROUPES`,
+*Confractosuchus* n'aurait figuré dans aucun tri par famille — sans que rien ne le
+signale. Le groupe est ajouté.
+
+**Le classement chronologique.** `SITES` doit rester ordonné du plus ancien au plus
+récent ; le bloc retrie après insertion plutôt que de calculer un index à la main, ce qui
+vaudra aussi pour les six packs suivants.
+
+**Les compteurs figés** — « 151 créatures », « vingt-trois sites » — devenaient des
+obstacles à toute croissance. Ils deviennent des planchers.
+
+**La pastille de globe devient facultative**, comme la vue satellite dont elle était
+extraite (bloc 31). L'introduction masque l'image quand elle manque au lieu d'afficher un
+lien mort, et la liste des pastilles réellement présentes est portée par les données.
+
+**Le cache du service worker** ne connaissait pas les six nouvelles cartes.
+
+### Ce qui reste
+
+Six packs à intégrer sur le même modèle — le chemin est tracé et les corrections relevées
+au sourçage sont à appliquer au passage. Et l'épingle de Winton demande un coup d'œil sur
+la carte : c'est le seul point que le calcul ne tranche pas.
+
+## Sourçage terminé — 42 / 42 — v60
+
+*Entelophyllum* est sourcé : Jell & Sutherland 1990, *Palaeontology* 33(4), qui restreint
+le genre aux formes **phacéloïdes** — exactement ce que décrit la fiche, des tubes séparés
+divergeant depuis la base — et où *E. dendroides* est décrit.
+
+**Les quarante-deux créatures des sept packs portent désormais une source vérifiée.**
+
+### Un dernier apport, qui recadre Gotland
+
+Les récifs de Gotland viennent d'être interprétés comme le **plus ancien système récifal
+turbide connu**, fonctionnellement comparable aux récifs turbides actuels, reculant ce
+type d'écosystème de près de quarante millions d'années.
+
+Ce n'étaient donc pas des eaux cristallines de carte postale mais un milieu chargé en
+sédiment, à faible lumière. L'introduction dit « une mer chaude et peu profonde » : c'est
+exact, mais l'image mentale produite est fausse, et le volet 1 sera repris. Cela explique
+aussi, après coup, les structures d'ancrage de *Cystiphyllum* — sur un fond meuble et
+trouble, tenir debout est le problème central du chantier.
+
+Et les tabulés avaient acquis des **photosymbiotes** dès le Silurien inférieur : la
+symbiose avec des algues, qu'on associe spontanément aux coraux modernes, est bien plus
+ancienne que leur lignée. Dans un pack qui insiste sur le fait que Rugosa et Tabulata ne
+sont pas les ancêtres des coraux actuels, c'est une nuance précieuse — ce n'est pas la
+lignée qui a été héritée, c'est la solution qui a été retrouvée.
+
+### État à la fin de cette étape
+
+| | |
+|---|---|
+| Packs rédigés | 7 / 7 — intro, fiches, 20 QCM chacun |
+| Questions écrites | 140, une seule au-dessus de la cible |
+| Illustrations | 42 / 42 converties et numérotées |
+| Sources | **42 / 42 vérifiées** |
+
+Reste la construction des blocs de données et l'intégration, avec les corrections relevées
+par les sources : date de Wuda, âge de Lantian et sa phrase sur les animaux possibles,
+*Palaeocyclus porpita*, caractère peut-être colonial de *Schlotheimophyllum*, cadrage
+turbide du récif de Gotland.
+
+## Gotland presque bouclé — v59
+
+Quatre des six coraux manquants sont sourcés ; seul *Entelophyllum* résiste. Le sourçage
+des sept packs est à **41 créatures sur 42**.
+
+### Trois corrections
+
+**Un nom d'espèce à vérifier.** La littérature écrit *Palaeocyclus* **porpita**, le pack
+porte *porpitus*. À confirmer avant intégration — c'est le genre de détail qui se vérifie
+en trente secondes et qui décrédibilise tout le reste s'il est faux.
+
+***Schlotheimophyllum* n'est peut-être pas strictement solitaire.** La révision du genre
+signale des spécimens coloniaux ou agrégés, alors que la fiche le donne pour un solitaire
+à polype unique. Sa forme est par ailleurs décrite comme **en champignon**, plus parlant
+que « large calice ouvert ».
+
+**Position stratigraphique** : *Schlotheimophyllum* vient des Upper Visby Beds,
+*Palaeocyclus* des Lower Visby Beds — dont il est un **marqueur biostratigraphique**.
+C'est un fossile stratigraphique, notion déjà traitée ailleurs dans l'atlas : une question
+de rappel serait à sa place.
+
+### Deux ajouts qui valent des questions
+
+***Favosites* a des pores muraux** perçant les cloisons entre corallites, permettant des
+échanges entre polypes. La colonie n'était donc pas un assemblage d'individus séparés —
+fait concret, visible sur un fossile poli.
+
+***Schlotheimophyllum* était lui-même un habitat** : ses deux faces portent au moins
+23 espèces d'organismes encroûtants ou perforants. Un corail sur lequel vit une communauté
+entière — cela prolonge exactement le volet 4, qui parle de bâtir un relief où d'autres
+viendront vivre.
+
+La paléolatitude est confirmée au passage : Gotland se trouvait vers **20° S** au
+Silurien.
+
+| Pack | Sources |
+|---|---|
+| `WNT` `WUD` `LNT` `KAP` `LIV` `DOM` | 6 / 6 |
+| `COR` Gotland | 5 / 6 |
+
+## Domestication sourcé — v58
+
+Six packs sur sept entièrement sourcés. La recherche confirme le vocabulaire du pack — la
+sélection artificielle est bien définie comme le choix, par l'humain, d'une variation
+naturelle avantageuse pour ses propres fins : l'agent change, pas le mécanisme — et
+apporte trois nuances.
+
+**La toison du mérinos a une histoire par étapes**, documentée depuis le mouton sauvage.
+Ce n'est pas un caractère apparu d'un coup.
+
+**Les races ovines ont conservé une diversité génétique élevée, contrairement au chien.**
+Le pack montre la diversité morphologique spectaculaire des races canines ; il serait faux
+d'en conclure que la sélection humaine appauvrit toujours le patrimoine génétique. Les
+deux cas ne se comportent pas pareil, et le dire évite une généralisation abusive dans un
+pack qui en compte déjà une, volontaire, dans son introduction.
+
+**La domestication suit plusieurs voies** — commensale, par la proie, dirigée — et non un
+scénario unique. Le chien et le mouton n'ont pas pris le même chemin.
+
+### État du sourçage
+
+| Pack | Sources |
+|---|---|
+| `WNT` `WUD` `LNT` `KAP` `LIV` `DOM` | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+
+Les quatre coraux manquants — *Favosites*, *Palaeocyclus*, *Entelophyllum*,
+*Schlotheimophyllum* — sont décrits dans des publications anciennes et dispersées. C'est
+le seul point dur restant avant la construction des blocs de données.
+
+## Fossiles vivants sourcé — v57
+
+La recherche a rapporté bien plus qu'une référence, et améliore l'argument central du
+pack.
+
+**Darwin a inventé l'expression « fossile vivant », et l'a lui-même jugée
+« fantaisiste ».** Le terme est de lui, en 1859, avec la réserve dans la même phrase. Le
+pack n'a donc pas à démonter une idée reçue *contre* la science : il rappelle une réserve
+posée dès l'origine par celui qui a forgé le mot. C'est un bien meilleur argument que le
+mien, et il ira dans le troisième volet.
+
+Trois de mes six fiches y gagnent aussi :
+
+- **Triops** — les notostracés étaient réputés pauvres en espèces, on les sait aujourd'hui
+  riches en espèces. Exemple direct du propos.
+- **La limule** — les limulidés se révèlent génétiquement plus diversifiés qu'on ne le
+  pensait, ce qui appuie la question 18, « la limule a-t-elle cessé d'évoluer ? ».
+- **Le tuatara**, en sens inverse — on connaît mal les étapes entre les premiers
+  sphénodontiens et *Sphenodon*, le matériel se réduisant surtout à des mâchoires et des
+  dents. Affirmer que sa lignée a peu changé est moins établi qu'il n'y paraît : à ne pas
+  surinterpréter.
+
+| Pack | Sources |
+|---|---|
+| `WNT` `WUD` `LNT` `KAP` `LIV` | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+| `DOM` | à faire |
+
+## Kap København sourcé — v56
+
+Un seul article couvre tout le gisement : Kjær et al. 2022, *Nature* 612:283–291. Le pack
+gagne surtout en précision.
+
+- **Le climat, chiffré** : températures moyennes annuelles de **11 à 19 °C au-dessus des
+  valeurs actuelles**, au lieu de « nettement plus doux ».
+- **La conservation** : l'ADN a survécu en se liant à des **surfaces minérales**. La
+  question 8 disait « les minéraux de l'argile » — corrigé, la source est plus large.
+- **Coordonnées** 82°24′ N : le « au-delà du 82ᵉ parallèle » était exact.
+
+**Et un fait qui vaut une question à écrire.** Tous les vertébrés détectés par l'ADN sont
+**herbivores** — aucun prédateur n'apparaît, ce que les auteurs attribuent à leur faible
+biomasse. Autrement dit : une absence dans un relevé d'ADN n'est pas une absence dans
+l'écosystème. C'est le prolongement exact du thème du pack, qui oppose déjà ce que la
+méthode permet et ce qu'elle ne permet pas ; il y manquait ce troisième terme, ce qu'elle
+peut faire croire à tort.
+
+| Pack | Sources |
+|---|---|
+| `WNT` `WUD` `LNT` `KAP` | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+| `LIV` `DOM` | à faire |
+
+## Lantian sourcé — v55
+
+Une recherche, trois corrections, dont une qui touche le fond du chantier.
+
+**Le premier volet affirmait « il n'y a pas d'animaux ».** C'est trop catégorique : le
+biote de Lantian livre aussi des formes coniques à structures évoquant des tentacules —
+*Lantianella*, rapprochée des cnidaires, *Xiuningella* — interprétées comme des **animaux
+possibles**. La phrase devient « pas d'animaux dont on soit sûr », ce qui est différent et
+franchement plus intéressant pour un chantier dont le sujet est l'incertitude.
+
+**L'âge est moins ferme qu'annoncé.** Le pack disait 602 → 600 Ma ; la littérature dit
+« environ 600 Ma » en précisant que la datation n'est pas fixée et que le biote pourrait
+être plus jeune. Corrigé en « ≈ 600 Ma, datation débattue ». Cela ne change pas son rang :
+il reste le site le plus ancien de l'atlas.
+
+**L'incertitude ne concerne pas que *Orbisiana*.** L'affinité de *Flabellophyton* — la
+créature emblème du pack — demeure elle aussi ambiguë, bien qu'il ait longtemps été tenu
+pour une algue. Le cinquième volet ne peut donc pas présenter *Orbisiana* comme le seul
+cas non réglé : c'est le plus net, pas le seul.
+
+| Pack | Sources |
+|---|---|
+| `WNT` `WUD` `LNT` | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+| `KAP` `LIV` `DOM` | à faire |
+
+## Wuda sourcé, cadence revue — v54
+
+`WUD` sourcé en une seule recherche : le gisement a été étudié comme un ensemble, un même
+corpus couvre les six plantes.
+
+Deux corrections utiles. **La date** : le pack annonçait 298 → 296 Ma, la couche de
+cendres est datée de **298,34 ± 0,09 Ma**. Ce n'est pas un intervalle mais un **instant**,
+une seule éruption pratiquement sur la limite Carbonifère-Permien — ce qui sert le propos
+du chantier plutôt que de le gêner. **Paratingia** : les noeggerathiales sont rattachées
+aux progymnospermes, groupe frère des plantes à graines. Et le gisement est connu comme la
+**« Pompéi végétale »**, à reprendre dans l'accroche.
+
+| Pack | Sources |
+|---|---|
+| `WNT` Winton | 6 / 6 |
+| `WUD` Wuda | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+| `LNT` `KAP` `LIV` `DOM` | à faire |
+
+### Une note de méthode
+
+Le sourçage était mené une recherche par taxon, avec dépouillement complet de chaque
+article. C'était disproportionné : quarante-deux créatures à ce rythme, et le reste du
+projet s'arrête.
+
+La règle retenue est plus simple — **une source correcte par créature, pas de fait
+affirmé sans elle, et on avance**. Les corrections importantes remontent quand même :
+elles sont sorties ici d'une seule recherche par pack. Ce qui compte est de ne rien
+écrire de faux, pas d'épuiser la littérature de chaque taxon.
+
+## Gotland, sourçage entamé — v53
+
+Deux des six coraux sont sourcés, et la recherche a rapporté mieux qu'une référence.
+
+### Une scène, au lieu d'une généralité
+
+La fiche de *Cystiphyllum visbyense* disait qu'il était « stabilisé sur les fonds meubles
+par des structures d'ancrage ». C'est vrai, mais très en dessous de ce qu'on sait.
+
+À Ireviken, dans la formation de Lower Visby, ce rugueux solitaire est retrouvé **en
+position de vie, installé entre les rangs des colonies d'Halysites**. Ses structures
+rhizoïdes se développent surtout du côté convexe. Il ne cherchait pas seulement à ne pas
+basculer sur la vase : **il utilisait la colonie voisine comme substrat dur**, et ses
+tentacules balayeurs tuaient les petits polypes alentour pour se faire de la place.
+
+C'est une scène d'écologie récifale lisible sur une seule dalle — un corail qui s'installe
+sur un autre et le tue lentement pour tenir debout. La question 14 sera reprise dans ce
+sens et le troisième volet de l'introduction peut la porter.
+
+### Deux autres apports
+
+**Nomenclature.** *Halysites catenularius* a été nommé par **Linné, en 1767**. C'est l'un
+des plus anciens noms de tout l'atlas, et probablement une question à écrire.
+
+**Une réserve sur la datation.** Les deux références solides portent sur la formation de
+Lower Visby, d'âge Llandovery — le **début** du Silurien, autour de 435 Ma, et non
+l'intervalle 445–420 Ma annoncé pour le pack. La fourchette large reste défendable pour
+un chantier qui couvre l'île entière, mais elle est désormais marquée comme à vérifier
+plutôt qu'affirmée.
+
+### Sourçage
+
+| Pack | Sources |
+|---|---|
+| `WNT` Winton | 6 / 6 |
+| `COR` Gotland | 2 / 6 |
+| `WUD` `LNT` `KAP` `LIV` `DOM` | à faire |
+
+## Winton entièrement sourcé — v52
+
+La source manquante de `Confractosuchus sauroktonos` est trouvée : White et al. 2022,
+*Abdominal contents reveal Cretaceous crocodyliforms ate dinosaurs*, Gondwana Research.
+**Les six créatures de Winton portent désormais une source vérifiée** — le premier pack
+complet des sept.
+
+### La recherche a corrigé la fiche, encore
+
+Deux nuances que le résumé de départ ne portait pas, et qui changent ce que le chantier
+enseigne.
+
+**Le nom ment un peu.** *Confractosuchus sauroktonos* signifie « tueur de dinosaures
+brisé ». Mais l'analyse morphométrique du crâne en fait un **généraliste** : il n'était
+pas spécialisé dans la chasse aux dinosaures, il n'a simplement pas laissé passer une
+proie facile. La différence est importante — un contenu stomacal documente un repas, pas
+un régime. La question 19 a été refaite pour porter là-dessus plutôt que sur une évidence.
+
+**Le repas vaut plus que le prédateur.** Les os d'ornithopode retrouvés dans son abdomen
+sont les **premiers restes squelettiques** de ce groupe dans la formation de Winton, connue
+jusque-là par des dents isolées et des empreintes seulement. Autrement dit, ce crocodile a
+livré un dinosaure que les fouilles n'avaient pas trouvé.
+
+Taille confirmée à 2–2,5 m, et l'animal est un eusuchien : précision ajoutée à la fiche.
+
+### Où en est le sourçage
+
+| Pack | Sources |
+|---|---|
+| `WNT` Winton | **6 / 6** |
+| `WUD` `COR` `LNT` `KAP` `LIV` `DOM` | à faire |
+
+Trois recherches auront suffi pour Winton, parce que la publication d'origine couvrait
+trois taxons à la fois. Les packs de plantes et de coraux seront probablement moins
+économes.
+
+## Les sources de Winton, vérifiées — v51
+
+L'intégration bute sur une exigence de la porte : `qc.js` réclame, pour **chaque
+créature**, au moins une source dont l'URL réponde. Quarante-deux créatures, quarante-deux
+sources — et c'est précisément l'endroit où il serait le plus facile, et le plus grave,
+d'inventer une référence plausible.
+
+Elles sont donc cherchées, pack par pack. `PACK_WNT.md` porte désormais les siennes,
+consignées avec leur référence exacte.
+
+### Ce que la vérification a changé
+
+Elle n'a pas seulement confirmé : elle a corrigé.
+
+- **Savannasaurus** mesure environ **15 m**, avec des **hanches de plus de 1,10 m de
+  large**. La fiche annonçait « 12–15 m » : corrigé. La largeur du bassin — le trait qui
+  a motivé son choix comme emblème du pack — est confirmée et désormais chiffrée.
+- **Ferrodraco** est connu par **environ 10 % de son squelette**, tout en étant le
+  ptérosaure le plus complet d'Australie. Les deux se disent ensemble, et la réserve
+  « matériel limité » cesse d'être une formule pour devenir un chiffre.
+- **Australovenator** a été décrit comme allosauroïde en 2009, rattaché ensuite aux
+  néovénatoridés, aujourd'hui aux mégaraptoridés. La fiche signalait que la place du
+  groupe restait discutée : elle a effectivement changé deux fois.
+- L'épithète **lentoni** honore un ancien maire de Winton — ce qui prolonge le cinquième
+  volet de l'introduction, consacré aux noms tirés du lieu.
+
+### Ce qui manque encore
+
+La source de `Confractosuchus sauroktonos` n'a pas été trouvée dans les recherches
+menées. Elle est marquée **manquante** dans le tableau plutôt que comblée par une
+référence approximative : une fiche sans source est un défaut visible, une fausse source
+est un défaut invisible.
+
+Restent les six autres packs à sourcer, puis la construction des blocs de données et
+l'intégration.
+
+## Les sept packs rédigés — v50
+
+Contenu complet pour les sept : bloc `SITES`, introduction en cinq volets, six fiches et
+vingt QCM chacun. **140 questions**, toutes conformes dès la rédaction.
+
+| | clé la plus longue | ratio |
+|---|---|---|
+| `WNT` Winton | 0 % | 0,92 |
+| `WUD` Wuda | 0 % | 0,77 |
+| `COR` Gotland | 0 % | 0,71 |
+| `LNT` Lantian | 5 % | 0,80 |
+| `KAP` Kap København | 0 % | 0,79 |
+| `LIV` Fossiles vivants | 0 % | 0,70 |
+| `DOM` Domestication | 0 % | 0,71 |
+
+Le seul item déséquilibré du lot est la question 9 de `LNT`, dont la réponse est le plus
+long des six noms de genre du pack : aucun leurre plus long n'existe sans inventer un
+taxon. Comparaison utile — les 752 premières questions de l'atlas étaient à 67 % et ont
+demandé onze passes de reprise. Mesurer pendant qu'on écrit a supprimé le problème plutôt
+que de le corriger.
+
+### `LIV` — un pack qui démonte son propre titre
+
+« Fossile vivant » est un abus de langage, et le pack le dit franchement. *Nautilus
+pompilius* et *Tachypleus tridentatus* sont des **espèces modernes** ; ce qui est ancien,
+c'est leur lignée et leur plan d'organisation.
+
+Cinq questions portent sur cette distinction, dont une qui la retourne vers la joueuse :
+notre propre lignée est plus ancienne que notre espèce. C'est le contenu le plus utile du
+pack, bien plus que les six noms.
+
+Le chantier ferme l'atlas parce qu'il en est le miroir : partout ailleurs on regarde des
+formes disparues en imaginant ce qu'elles étaient vivantes ; ici on regarde des animaux
+vivants en y reconnaissant des formes qu'on croyait révolues.
+
+### `DOM` — la thèse dans l'introduction, pas dans les questions
+
+Le pack soutient qu'une espèce est devenue capable de remodeler délibérément le corps
+d'autres espèces. Cette thèse est **argumentée dans l'introduction**, où elle peut l'être,
+et absente des QCM, où elle serait devenue une opinion à cocher.
+
+Deux écueils évités. Le vocabulaire d'abord : trois questions établissent qu'un teckel et
+un lévrier sont deux **races** d'une même espèce — la diversité montrée est interne, et
+c'est ce qui la rend spectaculaire. Le jugement ensuite : le cinquième volet dit
+explicitement que le chantier ne tranche pas si la domestication est bien ou mal, et
+l'avant-dernière question le vérifie.
+
+### Ce qui reste
+
+Les fiches complètes — sources, prudence, degré de confiance, à l'image de `HC-01` — et
+l'intégration dans `data.js`. C'est là que se vérifieront la frise reculée à 602 Ma par
+`LNT` et les deux chantiers posés à 0 Ma.
+
+## Kap København rédigé — v49
+
+Cinq packs sur sept ont leur contenu complet.
+
+| | clé la plus longue | ratio |
+|---|---|---|
+| `WNT` Winton | 0 % | 0,92 |
+| `WUD` Wuda | 0 % | 0,77 |
+| `COR` Gotland | 0 % | 0,71 |
+| `LNT` Lantian | 5 % | 0,80 |
+| `KAP` Kap København | 0 % | 0,79 |
+
+### Un chantier sans fossiles
+
+C'est le pack le plus inhabituel des sept : l'écosystème n'a pas été reconstitué à partir
+d'os mais d'**ADN environnemental ancien**, conservé fixé sur les minéraux de l'argile. Il
+n'y a pratiquement pas de squelettes.
+
+Cela impose de traiter la méthode elle-même comme le sujet, et non comme une note de bas
+de page. Sept des vingt questions y sont consacrées, articulées autour d'une opposition
+simple : l'ADN du sédiment recense **bien plus d'espèces** qu'un gisement d'os — qui ne
+garde que ce qui a un squelette solide — mais il ne donne **aucune anatomie**.
+
+### Les fiches nomment ce que la méthode autorise
+
+Cinq entrées sur six s'arrêtent au genre — *Mammut*, *Rangifer*, *Lepus*, *Branta* — ou à
+la sous-famille pour l'arvicoliné. La sixième est un limulidé apparenté à *Limulus
+polyphemus*, sans identification à l'espèce.
+
+Ce n'est pas une réserve ajoutée après coup : trois questions portent directement dessus,
+dont une qui demande *pourquoi* la fiche s'arrête à la sous-famille. Le cinquième volet de
+l'introduction prévient également que les illustrations s'appuient sur des parents connus
+et doivent se lire ainsi.
+
+**Aucun leurre de ce pack ne porte d'absolu** — « toujours », « jamais », « aucun » — ce
+qui n'était arrivé dans aucune autre banque. L'ADN environnemental se prête mal aux
+formules tranchées, et c'est exactement son intérêt pédagogique.
+
+## Visuels reçus, Lantian rédigé — v48
+
+Les 42 illustrations des sept packs sont arrivées et converties : 680 px, webp qualité 74,
+90 ko de moyenne. **193 cartes, aucune manquante, aucun écart de nommage.**
+`tools/NUMEROTAGE.md` fige l'identifiant de chaque créature — les fichiers existent sous
+ces numéros, fiches et QCM doivent s'y conformer.
+
+### Deux points relevés à la conversion
+
+**`DOM` — l'emblème n'est pas en position 01.** L'ordre du pack suit le processus de
+domestication, qui met le chien en premier ; l'emblème reste le cheval de trait, donc
+`DOM-04`. Seul pack dans ce cas, et c'est délibéré.
+
+**`KAP` — les fichiers sont nommés par le genre**, et le limulidé porte le nom de
+l'espèce *actuelle* apparentée, non celui du fossile. Les fiches nommeront le genre ou la
+famille.
+
+### Le plafond de poids, réexaminé plutôt que contourné
+
+L'ajout portait les images à 20,9 Mo contre un plafond de 20. Recomprimer était inutile :
+les 42 nouvelles ne pèsent que 3,4 Mo, ce sont les 151 existantes qui font le poids — même
+à qualité 60 on restait au-dessus.
+
+Le plafond avait été fixé pour vingt-trois chantiers ; sept packs de plus le dépassent
+mécaniquement, sans qu'aucune image ait grossi. Dégrader les illustrations pour rentrer
+sous un chiffre devenu arbitraire aurait abîmé l'essentiel de ce que la joueuse regarde.
+
+Le plafond passe à **26 Mo**, et le contrôle qui compte devient le **poids par carte** :
+moyenne sous 110 ko, aucune au-dessus de 220. C'est lui qui détecte une image mal
+exportée ; le total ne mesurait que le nombre de packs.
+
+### `LNT` rédigé
+
+Quatre packs sur sept ont désormais leur contenu complet.
+
+| | clé la plus longue | ratio |
+|---|---|---|
+| `WNT` Winton | 0 % | 0,92 |
+| `WUD` Wuda | 0 % | 0,77 |
+| `COR` Gotland | 0 % | 0,71 |
+| `LNT` Lantian | 5 % | 0,80 |
+
+Lantian devient le site le plus ancien de l'atlas et en recule le début de 558 à 602 Ma.
+Le pack porte l'incertitude comme sujet plutôt que comme réserve en bas de fiche : la
+silhouette est conservée, la parenté, la souplesse et la couleur ne le sont pas. Le
+quatrième volet le dit — les illustrations de ce chantier sont des propositions, pas des
+portraits — et quatre questions portent là-dessus, dont une sur *Orbisiana*, dont on ne
+sait même pas s'il s'agit d'une algue.
+
+Un item reste déséquilibré, la question 9 : la réponse est *Flabellophyton*, le plus long
+des six noms de genre du pack, et aucun leurre plus long n'existe sans inventer un taxon —
+ce que les règles interdisent. La question 11 a en revanche été ramenée à l'équilibre en
+passant ses quatre options au binôme complet, ce qui est exact et n'invente rien.
+
+## Wuda et Gotland rédigés — v47
+
+`tools/PACK_WUD.md` et `tools/PACK_COR.md` complètent Winton : trois packs sur sept sont
+écrits — bloc `SITES`, introduction en cinq volets, six fiches, vingt QCM chacun. Rien
+n'entre dans `data.js` avant les visuels.
+
+| | clé la plus longue | ratio |
+|---|---|---|
+| `WNT` Winton | 0 % | 0,92 |
+| `WUD` Wuda | 0 % | 0,77 |
+| `COR` Gotland | 0 % | 0,71 |
+
+Les trois banques sont conformes dès la rédaction. C'est tout l'intérêt de mesurer au
+moment où l'on écrit : les 752 premières questions ont demandé onze passes de reprise
+pour arriver là.
+
+### `WUD` — ce que le gisement permet de dire
+
+Une forêt ensevelie sous les cendres, donc conservée **en position de croissance**. Le
+fait remarquable n'est pas la conservation en soi mais ce qu'elle autorise : la plupart
+des fossiles de plantes sont des morceaux transportés, dont on tire une liste d'espèces
+mais pas une structure. Ici on peut relever qui poussait où, et reconstituer canopée,
+sous-bois et plantes grimpantes.
+
+L'introduction porte cela, et les questions aussi — trois d'entre elles opposent
+« quelles espèces existaient » à « comment la forêt était faite ». Le pack montre en
+outre plusieurs solutions concurrentes au même problème : tenir droit. Tronc de
+lycophyte, manteau de racines chez la fougère arborescente, tige creuse segmentée chez
+le parent des prêles.
+
+Une réserve portée dans les fiches : `Sigillaria` **cf.** `ichthyolepis`. Une question
+explique d'ailleurs ce que signifie ce « cf. » — l'attribution reste probable, non
+établie. C'est le genre de convention qu'il vaut mieux enseigner que masquer.
+
+### `COR` — le piège du pack, traité de front
+
+Rugosa et Tabulata ont disparu à la fin du Permien sans descendance. Ce ne sont donc pas
+des « coraux primitifs » ni une version ancienne de nos récifs : ce sont d'autres
+architectures, obtenues par d'autres lignées, pour le même métier. Les coraux modernes
+sont apparus plus tard et indépendamment.
+
+Trois questions portent explicitement là-dessus, dont une sur le mot qui nomme le
+phénomène — convergence. L'atlas le traite déjà pour le requin, l'ichtyosaure et le
+dauphin ; le récif silurien en donne une seconde occurrence, à une autre échelle.
+
+Le pack a aussi une vertu pédagogique inattendue : les six formes évoquent des objets
+connus — une chaîne, un nid-d'abeilles, une corne, un bouton, un buisson. C'est une bonne
+porte d'entrée pour apprendre à regarder un fossile, la forme d'abord et le nom ensuite.
+Le cinquième volet le dit, la vingtième question le rappelle.
+
+## Winton rédigé, et mesuré avant d'exister — v46
+
+`tools/PACK_WNT.md` porte le contenu complet du premier des sept packs : bloc `SITES`,
+introduction en cinq volets, six fiches de créatures et vingt QCM. Rien n'entre dans
+`data.js` tant que les visuels ne sont pas là — une fiche sans illustration afficherait
+une image cassée.
+
+### Mesurer au moment où l'on écrit
+
+`tools/qcm_brouillon.js` lit une banque encore rédigée en markdown, au format des fiches
+`PACK_XXX.md`, et applique les mêmes contrôles que `qcm.js` : longueur de la clé, ratio,
+absolus, reprise de l'énoncé, quatre options distinctes, énoncés interrogatifs.
+
+C'est le bon moment pour mesurer. Découvrir le biais une fois les questions en place a
+coûté onze passes de reprise sur les 752 premières.
+
+**L'outil a immédiatement servi.** Le tableau de mesure de `PACK_WNT.md` avait été écrit
+avant d'être mesuré : il annonçait 5 % et un ratio de 0,84. La mesure réelle donnait 15 %
+et 0,93 — conforme, mais faux. Trois items laissaient la clé la plus longue, deux d'un
+seul caractère. Un leurre allongé dans chacun, avec un contenu plausible et vrai, amène
+la banque à **0 % et 0,92**.
+
+L'épisode dit surtout ceci : un chiffre annoncé sans avoir été mesuré est faux même
+quand il est flatteur, et il l'était ici dans le bon sens, ce qui le rendait d'autant
+moins suspect.
+
+### Le pack
+
+Winton ouvre l'Australie, absente de l'atlas. Son intérêt tient à trois sauropodes aux
+architectures différentes — l'un court et très large, l'autre élancé, le troisième
+robuste — qui ne broutaient sans doute pas à la même hauteur. S'y ajoutent un prédateur
+mégaraptoridé, un ptérosaure et un crocodyliforme dont un spécimen conserve dans son
+abdomen les restes d'un jeune ornithopode : un document direct sur qui mangeait qui.
+
+Les fiches portent la réserve là où elle s'impose — matériel limité pour `Ferrodraco` et
+`Wintonotitan`, place discutée des mégaraptoridés dans l'arbre des théropodes.
+
+## Sept packs pré-inscrits — v45
+
+`tools/PACKS_V2.md` fixe tout ce qui ne dépend pas des visuels pour les sept packs à
+venir : `WNT` Winton, `KAP` Kap København, `LNT` Lantian, `COR` Gotland, `LIV` Fossiles
+vivants, `DOM` Domestication, `WUD` Wuda.
+
+### Ce que la pré-inscription arrête
+
+**La place dans la chronologie.** `LNT` (602 Ma) devient le site le plus ancien de
+l'atlas et recule son début de 558 à 602 Ma ; `FRISE_DEBUT` reste à 650, la marge passant
+de 92 à 48 Ma — encore confortable, aucun réglage d'échelle à revoir. Les six autres
+s'insèrent sans déplacer personne. Tous tombent dans une période existante.
+
+**L'ancrage cartographique.** Cinq packs ont un gisement réel. `LIV` et `DOM` n'en ont
+pas : la règle des packs non géographiques s'applique, avec les Comores — où le
+cœlacanthe a été retrouvé vivant — et le Croissant fertile. Dans les deux cas
+l'introduction devra dire que l'épingle est un repère, pas un gisement.
+
+**Les emblèmes de frise et les fonds.** Aucun de ces packs n'aura de vue satellite : le
+repli du bloc 31 prend l'illustration de l'emblème. C'est le bon choix ici — une vue
+satellite du Groenland actuel montrerait précisément le paysage que le pack dit avoir
+disparu.
+
+**Les précautions, pack par pack.** `KAP` s'appuie sur de l'ADN environnemental : cinq
+identifications sur six s'arrêtent au genre ou à la famille, confiance écologique bonne
+et anatomique faible. `LIV` porte un titre qui est un abus de langage — les lignées sont
+anciennes, les espèces actuelles ne le sont pas — et deux QCM au moins devront tester
+cette distinction. `DOM` défend une thèse, qui ira dans l'introduction et non dans les
+questions, où elle deviendrait une opinion à cocher.
+
+### Un défaut trouvé en vérifiant
+
+`LIV` compte des espèces vivantes, d'âge moyen nul. Or la borne basse d'une période est
+exclusive — nécessaire pour qu'une créature ne tombe pas dans deux périodes voisines.
+**Zéro ne tombait donc dans aucune période**, et l'assertion « chaque créature tombe dans
+une période », ajoutée en v41, aurait fait échouer la porte au moment d'intégrer le pack.
+
+La dernière période se referme désormais sur le présent. Deux assertions le tiennent :
+un âge moyen nul appartient bien à une période, et c'est le Quaternaire.
+
+## Fond de chantier facultatif — v44
+
+La vue satellite de chaque chantier était fabriquée à la main. C'est le poste le plus
+coûteux de l'ajout d'un pack, et il ne peut pas suivre le rythme auquel on en ajoute.
+
+**La clé `fond` devient facultative.** À défaut, le fond est l'illustration de la
+créature emblème — celle qui représente déjà le chantier sur la frise. Ce n'est pas un
+pis-aller : une carte de créature est une scène complète, déjà cadrée, à la bonne
+palette, et elle dit l'époque mieux qu'une vue satellite d'un paysage qui n'existait pas
+à ce moment-là.
+
+Les vingt-trois vues existantes sont conservées : quand `fond` est renseigné, il prime.
+
+Le fond sert à trois endroits — la fiche du site, l'intro à volets, et le chantier tant
+qu'aucune créature n'en est sortie. Les cinq appels passent désormais par `fondDe()`.
+
+### Les gardes
+
+L'assertion vérifiait l'existence du fichier satellite ; elle vérifie maintenant qu'un
+**fond utilisable** existe, et ne contrôle le fichier que s'il est déclaré. Trois
+assertions s'y ajoutent : un chantier privé de vue satellite obtient bien une image, ce
+repli passe par l'emblème, et **`app.js` n'interroge plus `s.fond` en direct** — un appel
+resté direct contournerait le repli et afficherait un fond vide sans que rien ne le
+signale.
+
+La garde d'assemblage des blocs n'acceptait que les déclarations `const` ; elle accepte
+aussi les fonctions.
+
+## Économie : un péage constant — v43
+
+Les coûts d'ouverture montaient linéairement de 80 à 960 ◈. Le défaut n'était pas le
+niveau mais **la forme de la courbe** : les chantiers les plus chers arrivent
+nécessairement en dernier, c'est-à-dire au moment où il ne reste que les banques de
+questions les moins aimées. L'effort demandé augmentait précisément quand l'envie
+diminue.
+
+Le bonus d'achèvement aggravait la chose sans le vouloir : il récompense le fait de
+**compléter** un chantier, ce qui est une motivation de collectionneuse. Quand ce n'en
+est pas une, ce levier ne tire rien. Le moteur, ici, c'est le contenu — les bêtes et les
+époques. Le péage doit donc rester léger et surtout constant.
+
+### Trois changements
+
+| | avant | après |
+|---|---|---|
+| ouverture d'un chantier | 80 → 960, pas de 40 | **80 → 320, puis plateau** |
+| coût d'un coup de pioche | 30 ◈ | **20 ◈** |
+| bonus d'achèvement | 0,6 du coût | **0,8 du coût** |
+
+La rampe initiale est conservée : elle sert d'apprentissage, on sent qu'on progresse.
+Au-delà, le prix cesse de grimper.
+
+### Ce que cela change, mesuré en exercices réellement faits
+
+| | avant | après |
+|---|---|---|
+| ouvrir les vingt-trois chantiers | 756 exercices | **330** |
+| pire palier — ouvrir un chantier de plus | 60 exercices | **24** |
+| dix derniers chantiers | 36 à 60 chacun | **12 à 24 chacun** |
+
+Le coût marginal cesse de grimper : deux à quatre missions par nouveau chantier, du
+début à la fin.
+
+### Les gardes
+
+Les coûts n'étant plus tous distincts, l'assertion correspondante est remplacée par une
+vérification de **forme** : rampe puis plateau, plateau effectivement atteint, rampe
+encore présente, et rapport maximal de quatre entre le plus cher et le moins cher.
+
+Deux assertions tiennent en outre l'effort réel, en rejouant une partie jouée au mieux :
+le **palier** ne doit pas dépasser 30 exercices, le **total** 420. C'est le seul chiffre
+que ressent la joueuse.
+
+Enfin, l'assertion « compléter un chantier ne rapporte pas d'argent net » comparait au
+nombre maximal de créatures d'un chantier — un majorant. Avec un coût de fouille abaissé,
+ce majorant masquait le cas limite : elle compare désormais au nombre réel.
+
+## Repères et étiquettes sur la frise — v42
+
+Deux chantiers séparés de deux millions d'années — Nemegt et Hell Creek — tiennent en
+seize pixels, moins que la hauteur d'une pastille. La frise réglait ce cas par un
+**décalage latéral** : les chantiers contemporains passaient en colonne 2, 3, 4. Cela
+obligeait à comparer des hauteurs sur des colonnes différentes, et l'indentation
+grimpait avec le nombre de gisements proches.
+
+**On sépare désormais ce qui doit être exact de ce qui peut bouger.** Un repère court,
+posé sur l'axe, marque la date au pixel près et ne se déplace jamais. L'étiquette glisse
+verticalement jusqu'à trouver sa place, et un filet la relie à son repère. Rien n'est
+déformé : la position lue sur l'axe reste vraie, seul le texte s'écarte, et le filet dit
+de combien.
+
+### Le placement
+
+Une passe descendante repousse chaque étiquette juste assez pour ne pas recouvrir la
+précédente. Une passe remontante récupère ensuite le jeu laissé au-dessus, sans quoi un
+amas serré dériverait vers le bas alors que la place existe plus haut.
+
+Cette seconde passe part du **présent** : une étiquette poussée sous « Aujourd'hui » se
+lirait comme postérieure au présent. Elle laisse donc les étiquettes passer **au-dessus**
+de leur repère quand un amas récent l'exige — le filet dit l'écart dans un sens comme
+dans l'autre.
+
+### Éprouvé sur le cas de demain
+
+L'algorithme est rejoué par `qc.js` sur les chantiers réels, puis sur un cas de charge :
+**dix gisements quaternaires**, tous compris dans les vingt-et-un derniers pixels de la
+frise. Trois propriétés sont vérifiées dans les deux cas — aucune étiquette n'en
+recouvre une autre, aucune ne passe sous le présent, l'ordre chronologique est conservé.
+
+| | chantiers | écart maximal étiquette/repère |
+|---|---|---|
+| aujourd'hui | 23 | 28 px, deux étiquettes déplacées |
+| + 5 quaternaires | 28 | 198 px |
+| + 10 quaternaires | 33 | 428 px |
+
+L'écart croît avec l'entassement : c'est visible, c'est le rôle du filet, et le repère
+reste juste. Si la lecture devenait pénible avec beaucoup de gisements récents, le
+remède serait une échelle segmentée pour le Cénozoïque, pas un déplacement des repères.
+
+## Emblèmes de frise, axe jusqu'au présent — v41
+
+### Une créature par chantier plutôt qu'un globe
+
+La frise portait, pour chaque chantier, la pastille de globe des vues satellites. À
+l'échelle du temps elle ne dit rien : la position géographique ne se lit pas sur un axe
+vertical de 650 millions d'années, et vingt-trois pastilles quasi identiques ne se
+distinguent pas les unes des autres.
+
+Chaque chantier reçoit donc une **créature emblème** (`EMBLEMES`, bloc 29), choisie sur
+deux critères : situer l'époque d'un coup d'œil, et rester reconnaissable en vignette de
+trente pixels. À valeur égale, on a retenu la plus caractéristique de la **forme** du
+vivant à ce moment-là plutôt que la plus célèbre — Walliserops et son trident pour
+l'Anti-Atlas, Gemuendina aplatie en raie pour le Hunsrück, Archaeopteris et son bois
+véritable pour Gilboa, Atopodentatus et sa tête en marteau pour Luoping.
+
+Hell Creek fait exception : le Tyrannosaurus servant déjà d'icône à l'application, c'est
+le Triceratops qui représente le chantier.
+
+**Tant qu'un chantier n'a livré aucune créature, sa vignette est voilée** — niveaux de
+gris assombris. La silhouette et l'époque restent lisibles, ce qui est le but, sans
+déflorer la fiche que la fouille doit révéler.
+
+### L'axe va jusqu'au présent
+
+L'échelle des périodes couvrait déjà le Quaternaire jusqu'à 0 Ma ; le filtre par période
+et la frise suivent donc l'Holocène sans modification. Deux ajouts pour que cela se
+voie et le reste :
+
+- un repère **« Aujourd'hui — 0 Ma »** ferme l'axe, pour que le présent ne soit pas
+  seulement le bas de l'écran ;
+- des assertions tiennent l'échelle : les périodes vont jusqu'à zéro, elles se suivent
+  sans trou, et **chaque créature tombe dans une période** — une bête plus récente que
+  la dernière borne serait silencieusement rangée dans la précédente.
+
+L'échelle étant linéaire, elle se tasse là où l'on ajoute des chantiers récents : le
+Quaternaire entier tient en vingt-et-un pixels. C'est le prix d'une échelle honnête et
+c'est précisément ce qu'elle doit faire sentir ; le décalage latéral déjà en place
+encaisse l'entassement.
+
+### La procédure QCM entre dans l'ajout de pack
+
+`tools/AJOUT_PACK.md` ne donnait que trois règles, toutes de **contenu** — lien, rien
+d'inventé, pas de donnée absente. C'est ainsi qu'on a produit 752 questions dont 67 %
+étaient devinables à la longueur.
+
+L'étape 5 bis porte désormais les quatre règles de **forme** et l'interdit qui prime sur
+tout — ne jamais inventer un fait pour allonger un leurre — avec la commande de mesure à
+passer avant intégration. Une étape 5 ter décrit le choix de l'emblème. Le README
+renvoie aux mêmes règles depuis la section « Ajouter un pack ».
+
+Le contrôle est automatique : `qc.js` lit la liste des sites et des packs, un ajout est
+donc tenu au même seuil que l'existant sans rien avoir à déclarer.
+
+## Icône maskable sans bandeau — v40
+
+L'icône maskable était fabriquée en posant l'illustration, réduite à 76 %, sur un fond
+uni. Cela produisait un bandeau visible tout autour — une marge que le rognage d'Android
+ne masquait qu'en partie, et qui jurait à côté de l'icône normale.
+
+Elle est désormais **la même image, pleine frame**. Comme les deux fichiers seraient
+identiques, un seul est écrit et le manifeste le déclare deux fois, sous les deux
+usages. Le cache du service worker ne le liste qu'une fois — il passe de 213 à 212
+entrées.
+
+### Le compromis, mesuré
+
+Android rogne les icônes maskables en cercle. En pleine frame, ce rognage emporte les
+angles :
+
+| | part du détail conservée |
+|---|---|
+| cercle inscrit, ce qu'affiche Android | **77 %** |
+| zone sûre stricte à 80 % | 50 % |
+
+Ce qui disparaît est du décor de bord — forêt, ciel, berge. Le sujet reste entier :
+le T. rex avait été retenu, à la v30, précisément sur son critère de masse centrale
+(1,00, le meilleur des six candidats mesurés). Le compromis est assumé : quelques pixels
+de décor contre un bandeau permanent.
+
+`python3 tools/icone.py <ID> --haut <%> --apercu` montre maintenant la vignette **telle
+que rognée par Android**, au lieu de la version à marge qui ne correspondait à rien de
+visible.
+
+Deux assertions gardent l'état : la maskable et l'icône 512 doivent pointer le même
+fichier — sans quoi le bandeau reviendrait sans qu'on s'en aperçoive — et la liste de
+cache ne doit pas contenir de doublon.
+
+## Les douze packs finis — v39
+
+`histoire` (38 % → 8 %), `philomonde` (35 % → 5 %), `biologie` (35 % → 5 %). Ces trois
+banques dataient de la première passe, avant que la règle 3 ne soit formulée.
+
+**Les 752 questions du corpus sont désormais passées en revue** : douze packs et
+vingt-trois chantiers, tous à 25 % ou en dessous.
+
+| | avant v29 | maintenant |
+|---|---|---|
+| Corpus entier | 67 % · 1,76 | **11 % · 0,98** |
+| Banque la plus haute | 100 % | **25 %** |
+
+`qc.js` applique maintenant le même seuil partout — 25 % et ratio 1,10 — pour les
+banques comme pour les chantiers. La porte ne suit plus un avancement : elle défend un
+acquis.
+
+### Une erreur qui a failli passer inaperçue
+
+Les vingt questions déséquilibrées d'`histoire` sont **dispersées dans une banque de
+52**. Je les ai d'abord réécrites en les repérant par leur rang — 1 à 20 — alors que ce
+rang désignait les vingt *premières* questions de la banque, pas les vingt concernées.
+Résultat : « Quel âge donne-t-on à la Terre ? » répondait « Dans le Yucatán, au
+Mexique ».
+
+Le plus inquiétant est que **rien ne s'en plaignait**. Les données restaient
+formellement valides : quatre choix distincts, clé incluse, longueurs équilibrées. Seul
+le fait que la banque ait *empiré* — 38 % à 42 % au lieu de descendre — a mis la puce à
+l'oreille.
+
+Deux gardes en découlent :
+
+- la table de corrections repère désormais les questions **par un fragment de leur
+  énoncé**, et **exige qu'il désigne une question et une seule** — le contrôle a
+  immédiatement attrapé un fragment ambigu, « Schiste de Burgess », présent dans deux
+  questions ;
+- huit **sentinelles d'appariement** vérifient nommément des couples question/réponse
+  connus. Elles ne sont pas exhaustives : elles suffisent à faire échouer la porte si un
+  décalage général se reproduit.
+
+**Cinquième banque sans champ `n`** : `histoire`, après `biologie`, `arteu`,
+`philosophie` et `artmonde`. Numérotée à l'exécution comme les autres.
+
+## Fouille terminée, règles consignées — v38
+
+`YIX` (73 % → 8 %) et `HUN` (63 % → 0 %) traités. **Les vingt-trois chantiers et les
+douze packs sont passés en revue.**
+
+| | avant v29 | maintenant |
+|---|---|---|
+| Corpus entier | 67 % · 1,76 | **14 % · 1,01** |
+| Fouille (500 questions) | 69 % · 1,75 | **10 % · 0,98** |
+| Chantier le plus haut | 95 % | **25 %** |
+
+La porte de qualité ne suit plus un avancement : elle vérifie les vingt-trois chantiers,
+et fait échouer la livraison si le corpus repasse au-dessus de 25 % ou si le ratio de
+longueur dépasse 1,10.
+
+### Les règles sont écrites
+
+C'était la vraie demande derrière ce chantier : que le défaut ne revienne pas à la
+prochaine banque écrite. Une section **« Règles de rédaction des QCM »** ouvre désormais
+ce README, avec les quatre règles, les deux interdits et ce que les outils vérifient. Un
+rappel est placé en tête de `tools/qcm.js` et en tête du dernier bloc de données — aux
+deux endroits où l'on se trouve quand on écrit ou qu'on mesure des questions.
+
+### Contrôle de non-régression
+
+    node --check          data.js · app.js · sw.js · les trois outils
+    tools/qc.js           8 410 assertions
+    tools/smoke.js          286
+    tools/profils_test.js    39
+    tools/version_test.js    12
+
+Tous à ÉCHECS (0), versions concordantes.
+
+## Règles de rédaction des QCM
+
+Ces règles sont nées d'un défaut mesuré : sur les 752 questions à choix d'origine, **la
+bonne réponse était la plus longue des quatre dans 67 % des cas**, pour une cible de
+25 %. On pouvait gagner à peu près toutes les questions sans rien connaître au sujet, en
+choisissant systématiquement la ligne la plus longue. À lire avant d'écrire ou de
+générer la moindre question.
+
+### Le défaut n'est pas la longueur, c'est la forme
+
+La cause n'était pas la position — `app.js` mélange les options à chaque affichage. Elle
+n'était pas non plus la longueur en tant que telle. C'était une **dissymétrie de forme** :
+la clé était rédigée comme une proposition complète portant toute la nuance, les leurres
+comme de courts groupes nominaux. Le lecteur n'avait pas besoin de lire, seulement de
+regarder.
+
+    ✗  Qu'est-ce qu'une source primaire ?
+       ✔ Un document produit à l'époque étudiée, quel qu'en soit le support
+       · Un manuel
+       · Une encyclopédie
+       · Le livre d'un historien
+
+### Les quatre règles
+
+**1. La clé est une réponse, pas une explication.** La nuance, les réserves et les
+précisions vont dans le champ d'explication, qui s'affiche après coup. Une clé qui
+contient « ..., mais » ou « ..., tandis que » est presque toujours trop longue.
+
+**2. Les leurres sont parallèles à la clé.** Même nature grammaticale, même construction,
+longueur du même ordre. Si la clé commence par un verbe à l'infinitif, les trois leurres
+aussi.
+
+**3. Au moins un leurre est plus long que la clé.** C'est la règle opératoire, et la plus
+facile à oublier. Raccourcir la clé ne suffit pas : tant qu'elle reste la plus longue,
+même de trois caractères, choisir la ligne la plus longue demeure un pari gagnant. C'est
+cette règle qui a permis de descendre certains chantiers à zéro.
+
+**4. Un leurre doit être plausible pour qui a mal révisé.** Les non-réponses — « Aucun
+problème, c'est exact », « Il n'y en a pas », « Rien du tout », « Les cartes ne varient
+jamais » — ne trompent personne et réduisent de fait le choix à trois. Un bon leurre est
+une erreur que quelqu'un pourrait réellement commettre.
+
+### Deux interdits
+
+**Ne jamais inventer un fait pour allonger un leurre.** L'erreur a été commise : pour
+équilibrer une question, un binôme inexistant a été écrit — *Tullimonstrum gregarium
+bolti*. Une correction de forme ne vaut jamais une faute de fond, et cette application
+s'adresse à quelqu'un qui vérifie. Si aucun leurre réel n'est assez long, **on laisse la
+question déséquilibrée** : une question sur vingt devinable coûte moins cher qu'un faux
+taxon. `qc.js` refuse tout binôme dont le genre appartient à l'atlas mais dont l'espèce
+n'y figure pas.
+
+**Ne pas toucher aux questions déjà équilibrées.** Environ la moitié d'un chantier l'est
+naturellement — noms d'espèces, dates, termes techniques, dont les options sont de
+longueur comparable. Les réécrire n'améliore rien et multiplie les occasions d'erreur.
+
+### Ce que les outils vérifient
+
+    node tools/qcm.js              mesure les biais, par banque et par chantier
+    node tools/qcm.js --pires      les vingt questions les plus déséquilibrées
+    node tools/qcm.js --banque <id>  le détail d'une banque
+
+`qc.js` fait échouer la livraison si l'une de ces conditions n'est plus tenue :
+
+| Assertion | Seuil |
+|---|---|
+| chaque **chantier** et chaque **banque** | clé la plus longue ≤ 25 %, ratio ≤ 1,10 |
+| corpus entier | ≤ 25 % |
+| corpus entier | ratio longueur clé / leurres ≤ 1,10 |
+| toute question | quatre choix distincts, clé incluse |
+| toute option | aucun binôme inventé |
+| `data.js` | chaque bloc de correction présent dans l'assemblage |
+
+Les seuils s'appliquent uniformément : plus aucune banque ni aucun chantier n'échappe
+à la cible de 25 %.
+
+Une dernière assertion tient un défaut d'une autre nature : **des sentinelles
+d'appariement**. Quelques couples question/réponse connus sont vérifiés nommément, parce
+qu'une réécriture d'options peut produire des données formellement valides — quatre
+choix distincts, clé incluse — dont les réponses ne correspondent plus aux questions.
+
+### Un biais secondaire, non traité
+
+Environ **17 % des questions ont un leurre contenant un absolu** — « toujours »,
+« jamais », « aucun » — quand la clé n'en a pas. C'est un indice exploitable, plus faible
+que le biais de forme. Sa correction demande un arbitrage : « les apparences sont
+toujours trompeuses » est un leurre tentant *parce qu'*il est absolu. Mesuré par
+`qcm.js`, laissé en l'état.
+
+## Fouille, troisième passe — v37
+
+`DEV`, `KAR2` et `LUO` traités : **60 % → 10 %** chacun.
+
+**Vingt-et-un chantiers sur vingt-trois** sont désormais sous la cible, et le corpus
+entier passe pour la première fois au-dessous des 25 % visés.
+
+| | avant v29 | maintenant |
+|---|---|---|
+| Global | 67 % · 1,76 | **20 % · 1,08** |
+| Les douze packs | 38–100 % | **3–35 %** |
+| Fouille | 69 % · 1,75 | **19 % · 1,09** |
+
+Restent `YIX` (73 %) et `HUN` (63 %), les deux seuls chantiers à quarante questions :
+80 questions.
+
+### Deux défauts trouvés dans mon propre travail
+
+**Un rapport faux en v36.** La liste des « chantiers restant à reprendre » annonçait
+douze chantiers et 280 questions, dont `NEM` à 80 % et `GIL` à 80 %. C'était périmé :
+ces chantiers étaient déjà traités. J'ai recopié une sortie d'outil sans la recouper,
+et le README de la v36 comme le compte rendu associé sont faux sur ce point. Le vrai
+reste, à ce moment-là, était de cinq chantiers et 140 questions.
+
+**Un bloc de travail à deux doigts de disparaître.** `data.js` est un assemblage de
+blocs concaténés dans un ordre documenté au README. En éditant cette ligne, je l'avais
+arrêtée à `23` alors que les blocs `24` et `25` existaient. Le fichier livré était
+correct — il avait été assemblé avec le bon ordre — mais **toute reconstruction à partir
+de la documentation aurait silencieusement effacé quatre chantiers de corrections**, sans
+qu'aucune vérification ne s'en aperçoive : les données seraient restées valides, seules
+les corrections se seraient évaporées.
+
+L'ordre est rétabli, et **neuf assertions vérifient désormais que chaque table de
+correction est présente dans le fichier assemblé**. C'est le genre de défaut qui ne se
+voit qu'une fois le travail perdu.
+
+Le plafond global passe de 36 % à 28 %.
+
+## Fouille, deuxième passe — v36
+
+Les quatre chantiers les plus atteints, pris en priorité.
+
+| Chantier | avant | après |
+|---|---|---|
+| `JUR` Faune de Zhenghe | 95 % | **0 %** |
+| `MES` Fosse de Messel | 95 % | **0 %** |
+| `HC` Hell Creek | 90 % | **20 %** |
+| `MAZ` Mazon Creek | 80 % | **5 %** |
+
+**Onze chantiers sur vingt-trois** sont désormais traités, et `qc.js` les tient tous à
+un seuil ferme.
+
+### Une erreur commise en cours de route
+
+Pour allonger un leurre trop court, j'ai écrit **« Tullimonstrum gregarium bolti »** —
+un binôme qui n'existe pas. C'est exactement le genre de correction qui vaut moins que
+le défaut qu'elle répare : un nom d'espèce inventé dans une application de paléontologie
+est une faute, un biais de longueur n'est qu'un défaut de forme.
+
+L'option est revenue à un taxon réel, et **une assertion interdit désormais le cas** :
+tout binôme dont le genre appartient à l'atlas mais dont l'espèce n'y figure pas est
+signalé. C'est presque toujours une fabrication.
+
+Le chantier concerné reste à 5 % — au-dessous de la cible — parce qu'aucun taxon réel du
+gisement n'est plus long que la bonne réponse. Une question sur vingt reste donc
+devinable à la longueur, et c'est le bon arbitrage.
+
+### Où en est l'ensemble
+
+| | avant v29 | maintenant |
+|---|---|---|
+| Global | 67 % · 1,76 | **35 % · 1,28** |
+| Les douze packs | 38–100 % | **3–35 %** |
+| Fouille | 69 % · 1,75 | **41 % · 1,40** |
+
+Douze chantiers restent, 280 questions :
+
+    NEM 80 % · GIL 80 % · CAR 75 % · YIX 73 % · SAM 70 % · MOR 65 %
+    WHA 65 % · HUN 63 % · DEV 60 % · KAR2 60 % · LUO 60 % · NWE 55 %
+
+Le plafond global passe de 44 % à 36 %.
+
+## Fouille, première passe — v35
+
+Troisième passe sur les QCM, cette fois sur les 500 questions des chantiers. Elles
+portent la boucle principale et font les deux tiers du corpus.
+
+**Sept chantiers sur vingt-trois sont traités**, dans l'ordre de la frise — ce sont les
+premiers que l'on rencontre.
+
+| Chantier | après |
+|---|---|
+| `EDI` Côte d'Hiver | **0 %** |
+| `TRI` Anti-Atlas | **5 %** |
+| `BURG` Burgess | **10 %** |
+| `ORD` Fezouata | **10 %** |
+| `CEP` Yezo | **10 %** |
+| `SIL` Marches galloises | **15 %** |
+| `CHO` Bear Gulch | **15 %** |
+
+Constat utile pour la suite : dans un chantier, **la moitié environ des questions étaient
+déjà équilibrées** — noms d'espèces, dates, termes techniques, dont les options sont
+naturellement de longueur comparable. Seules les autres ont été reprises, ce qui réduit
+le travail réel et limite les occasions d'introduire une erreur.
+
+La règle opératoire s'est précisée à l'usage : il ne suffit pas de raccourcir la clé, il
+faut qu'**au moins un leurre soit plus long qu'elle**. Tant que la bonne réponse reste la
+plus longue, même de peu, choisir la ligne la plus longue demeure un pari gagnant. C'est
+ce qui a permis de descendre `EDI` à zéro.
+
+### Où en est l'ensemble
+
+| | avant v29 | maintenant |
+|---|---|---|
+| Global | 67 % · 1,76 | **44 % · 1,40** |
+| Douze packs de la Bourse | 38–100 % | **3–35 %** |
+| Fouille | 69 % · 1,75 | **55 % · 1,57** |
+
+`qc.js` tient désormais chaque chantier repris à un seuil ferme, **et affiche à chaque
+passage la liste de ceux qui restent, classés par gravité** :
+
+    JUR 95 % · MES 95 % · HC 90 % · MAZ 80 % · NEM 80 % · GIL 80 % · CAR 75 %
+    YIX 73 % · SAM 70 % · MOR 65 % · WHA 65 % · HUN 63 % · DEV 60 % · KAR2 60 %
+    LUO 60 % · NWE 55 %
+
+Seize chantiers, 360 questions. Le plafond global passe de 54 % à 44 %.
+
+## Toute la Bourse rééquilibrée — v34
+
+Deuxième passe sur les biais de QCM, après le constat de la v29. Le signalement était
+plus large que je ne l'avais traité : **ce n'est pas seulement la longueur, c'est le
+format**. La clé était une PROPOSITION, les leurres des GROUPES NOMINAUX. La forme
+suffisait à trancher sans lire une ligne.
+
+Plusieurs leurres étaient en outre des non-réponses — « Aucun problème, c'est exact »,
+« Il n'y en a pas », « Les cartes ne varient jamais », « Rien : elle est exacte » — qui
+ne leurrent personne et réduisaient de fait le choix à trois.
+
+### Les six banques restantes
+
+| Banque | avant | après |
+|---|---|---|
+| `histscol` | 95 % · 2,23 | **15 % · 1,02** |
+| `arteu` | 95 % · 2,22 | **25 % · 1,00** |
+| `geographie` | 65 % · 2,05 | **20 % · 1,03** |
+| `lecture` | 70 % · 1,94 | **20 % · 1,08** |
+| `philosophie` | 90 % · 1,92 | **5 % · 0,91** |
+| `artmonde` | 95 % · 1,86 | **20 % · 0,98** |
+
+Avec `philomonde` et `biologie` traitées en v29, **les douze packs de la Bourse sont
+faits**. La cible de 25 % est atteinte ou dépassée partout.
+
+Dans `lecture`, une partie des réponses tenait déjà en un mot — « narratif »,
+« interne », « le lendemain ». Ces items étaient équilibrés et n'ont pas été touchés :
+seuls l'ont été ceux dont la clé était une proposition.
+
+`qc.js` tient désormais les onze banques à un **seuil ferme**, et le plafond global
+passe de 66 % à 54 %.
+
+### Trouvaille répétée
+
+`arteu`, `philosophie` et `artmonde` avaient été écrits **sans champ `n`**, comme
+`biologie` avant elles — quatre banques sur douze. L'interface affichait « undefined »
+au numéro de question. Toutes sont numérotées à l'exécution.
+
+### Ce qui reste
+
+**Les 500 questions de fouille**, à 69 % et ratio 1,75. Elles portent la boucle
+principale et représentent les deux tiers du corpus : c'est elles qui tiennent le
+chiffre global à 53 %. Elles se découpent en 23 chantiers d'une vingtaine de questions,
+ce qui permet des passes vérifiables une par une.
+
+Un biais secondaire subsiste également : **16 % des questions ont un leurre contenant un
+absolu** quand la clé n'en a pas. Il est plus faible que le biais de format, et sa
+correction demande un arbitrage — « les apparences sont toujours trompeuses » est un
+leurre tentant précisément parce qu'il est absolu. À traiter après la fouille.
 
 ## Sauvegarde qui survit à une réinstallation — v33
 

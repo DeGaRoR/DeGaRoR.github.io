@@ -3,13 +3,12 @@
    Cache-first versionné. Pour publier une mise à jour : incrémenter
    VERSION. L'ancien cache est purgé à l'activation.
    ================================================================ */
-const VERSION='atlas-v33';
+const VERSION='atlas-v65';
 const SHELL=[
   './', './index.html', './styles.css',
   './data.js', './app.js', './manifest.json',
   './monde-min.webp',
   './icones/icone-192.43a10919.png', './icones/icone-512.415ece33.png',
-  './icones/icone-maskable-512.ce6cd785.png',
   ];
 const IMAGES=[
   './cartes/EDI-01.webp', './cartes/EDI-02.webp', './cartes/EDI-03.webp', './cartes/EDI-04.webp',
@@ -36,7 +35,7 @@ const IMAGES=[
   './cartes/NWE-01.webp', './cartes/NWE-02.webp', './cartes/NWE-03.webp', './cartes/NWE-04.webp',
   './cartes/NWE-05.webp', './cartes/NWE-06.webp', './cartes/YIX-01.webp', './cartes/YIX-02.webp',
   './cartes/YIX-03.webp', './cartes/YIX-04.webp', './cartes/YIX-05.webp', './cartes/YIX-06.webp',
-  './cartes/YIX-07.webp', './cartes/YIX-08.webp', './cartes/HC-01.webp', './cartes/HC-02.webp',
+  './cartes/YIX-07.webp', './cartes/YIX-08.webp', './cartes/WNT-01.webp', './cartes/WNT-02.webp', './cartes/WNT-03.webp', './cartes/WNT-04.webp', './cartes/WNT-05.webp', './cartes/WNT-06.webp', './cartes/WUD-01.webp', './cartes/WUD-02.webp', './cartes/WUD-03.webp', './cartes/WUD-04.webp', './cartes/WUD-05.webp', './cartes/WUD-06.webp', './cartes/COR-01.webp', './cartes/COR-02.webp', './cartes/COR-03.webp', './cartes/COR-04.webp', './cartes/COR-05.webp', './cartes/COR-06.webp', './cartes/LNT-01.webp', './cartes/LNT-02.webp', './cartes/LNT-03.webp', './cartes/LNT-04.webp', './cartes/LNT-05.webp', './cartes/LNT-06.webp', './cartes/KAP-01.webp', './cartes/KAP-02.webp', './cartes/KAP-03.webp', './cartes/KAP-04.webp', './cartes/KAP-05.webp', './cartes/KAP-06.webp', './cartes/LIV-01.webp', './cartes/LIV-02.webp', './cartes/LIV-03.webp', './cartes/LIV-04.webp', './cartes/LIV-05.webp', './cartes/LIV-06.webp', './cartes/DOM-01.webp', './cartes/DOM-02.webp', './cartes/DOM-03.webp', './cartes/DOM-04.webp', './cartes/DOM-05.webp', './cartes/DOM-06.webp', './cartes/HC-01.webp', './cartes/HC-02.webp',
   './cartes/HC-03.webp', './cartes/HC-04.webp', './cartes/HC-05.webp', './cartes/HC-06.webp',
   './cartes/WHA-01.webp', './cartes/WHA-02.webp', './cartes/WHA-03.webp', './cartes/WHA-04.webp',
   './cartes/WHA-05.webp', './cartes/WHA-06.webp', './cartes/HUN-07.webp', './cartes/HUN-08.webp',
