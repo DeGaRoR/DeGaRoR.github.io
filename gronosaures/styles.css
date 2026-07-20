@@ -1146,3 +1146,71 @@ details.carnet-e:not([open]) .songe{display:block; margin:0 0 8px 27px; font-siz
 details.carnet-e:not([open]) .carn-txt>div:first-child,
 details.carnet-e:not([open]) .carn-actions{display:none}
 details.carnet-e:not([open])>.carn-txt{padding-bottom:2px}
+
+/* ================================================================
+   v74 — cohérence visuelle. Les champs du carnet empruntaient un
+   style qui n'existe nulle part ailleurs : fond noir dur, bordure
+   franche. Ils adoptent celui des cartes de l'application.
+   ================================================================ */
+.carn-q, .carn-saisie textarea, .carn-ed, .songe-ed, .theo-songe textarea, .doute textarea{
+  background:rgba(20,27,40,.72); border:1px solid var(--bord); color:var(--txt);
+  border-radius:10px; padding:10px 12px; font-size:.82rem; line-height:1.5;
+  font-family:inherit; width:100%; transition:border-color .15s}
+.carn-q:focus, .carn-saisie textarea:focus, .carn-ed:focus,
+.songe-ed:focus, .theo-songe textarea:focus, .doute textarea:focus{
+  outline:none; border-color:var(--ocre-sombre)}
+.carn-q::placeholder, .carn-saisie textarea::placeholder,
+.theo-songe textarea::placeholder{color:var(--txt3); opacity:.6}
+.carn-saisie{border-top:1px solid var(--bord); padding-top:16px; margin-top:20px}
+.carn-saisie button{margin-top:8px; margin-right:8px; border-radius:10px}
+.carn-barre{margin-bottom:14px}
+.carn-mini{border-radius:10px; padding:6px 12px}
+.theo-songe{margin-top:14px; padding-top:12px; border-top:1px solid var(--bord)}
+.theo-songe .carn-mini{margin-top:8px}
+
+/* Le bouton surprise doit tenter, pas titrer. */
+.btn-surprise{display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  margin-bottom:16px; padding:14px 16px; border-radius:14px; cursor:pointer;
+  font-family:var(--sans);
+  background:linear-gradient(120deg,#8a6428,#c8964f 62%,#e0b878);
+  border:none; color:#1a1206; box-shadow:0 4px 16px rgba(200,150,79,.28)}
+.btn-surprise:active{transform:translateY(1px)}
+.bs-ico{font-size:1.5rem; line-height:1; flex:0 0 auto}
+.bs-txt{min-width:0}
+.bs-txt b{display:block; font-size:.98rem; font-weight:700; letter-spacing:.2px}
+.bs-txt em{display:block; margin-top:2px; font-style:normal; font-size:.76rem;
+  color:rgba(26,18,6,.72)}
+
+/* Fin de mission : le gain, une phrase, deux chemins. */
+.fin-credits em{display:block; margin-top:2px; font-style:normal;
+  font-size:.72rem; color:var(--txt3)}
+
+/* Cartes non obtenues : noir et blanc franc, pour que les acquises ressortent. */
+.carte.non-trouvee img{filter:grayscale(1) contrast(.9) brightness(.78); opacity:.9}
+.carte.non-trouvee{border-color:#232c3a}
+.vig.pas-eu img{filter:grayscale(1) contrast(.9) brightness(.72); opacity:.95}
+.vig.eu img{filter:none; opacity:1}
+
+/* --- Bascule entre les deux lectures du carnet. */
+.carn-vue{background:none; border:1px solid var(--bord); color:var(--txt3);
+  border-radius:999px; padding:6px 16px; font-size:.78rem; cursor:pointer; margin-right:6px}
+.carn-vue.on{border-color:var(--ocre); color:var(--ocre-clair);
+  background:rgba(200,150,79,.10)}
+
+/* --- Lot de mission : six exercices sous une seule entrée. */
+details.carnet-e.lot>summary .carn-resume b{display:block; font-size:.86rem; color:var(--txt)}
+details.carnet-e.lot>summary .carn-resume small{display:block; margin-top:2px;
+  font-size:.72rem; color:var(--txt3)}
+.lot-corps{padding:2px 0 6px 8px; margin-left:8px; border-left:1px solid var(--bord)}
+details.carnet-e.dans-lot{border-left:none; padding-left:8px; margin-bottom:2px}
+details.carnet-e.dans-lot>summary{padding:5px 2px}
+details.carnet-e.dans-lot .carn-resume{font-size:.78rem}
+
+/* Nom sur la vignette de collection : une image sans légende ne se retient pas. */
+.c-nom{position:absolute; left:0; right:0; bottom:0; padding:14px 5px 4px;
+  font-size:.6rem; line-height:1.25; text-align:center; color:var(--txt2);
+  background:linear-gradient(180deg,transparent,rgba(10,15,26,.92) 50%);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.carte.non-trouvee .c-nom{color:var(--txt3)}
+/* Ce qu'on n'a pas trouvé se regarde, ne s'ouvre pas. */
+.carte.non-trouvee, .vig.pas-eu{cursor:default}

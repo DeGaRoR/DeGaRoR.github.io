@@ -20,13 +20,13 @@ const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
-  +'COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,FICHES_LIBRES,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
+  +'COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,COUT_MAX,FICHES_LIBRES,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
   +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE,CREATURE_ACCUEIL});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
-       COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,FICHES_LIBRES,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
+       COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,COUT_MAX,FICHES_LIBRES,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
@@ -325,6 +325,39 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
     T('interface posée : '+quoi, app.includes(cl), cl+' absent de app.js');
     T('interface stylée : '+quoi, css.includes('.'+cl), cl+' absent du CSS');
   });
+}
+
+/* ---------- 8 ter quinquies. Décisions d'interface tenues ----------
+   Plusieurs correctifs demandés ont été annoncés faits sans l'être : les
+   patches échouaient au milieu d'un script et personne ne le voyait. Chaque
+   décision arrêtée avec l'utilisateur devient donc une assertion, pour qu'un
+   retour en arrière silencieux soit impossible. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  T('carnet : aucun filtre affiché', !app.includes('carn-f${f===k'));
+  T('carnet : pas de bouton de tri ni de groupement',
+    !app.includes('carnetOrdre()" title'));
+  T('carnet : le plus récent en bas', app.includes("carnetOrdre:'asc'"));
+  T('carnet : fil de temps posé', app.includes('carn-fil'));
+  T('carnet : entrées repliables', app.includes('<details class="carnet-e'));
+  T('carnet : champs au style commun', css.includes('.carn-saisie textarea,'));
+  T('fin de mission : pas de bloc de progression', !app.includes('fin-prog'));
+  T('mission surprise : icône', app.includes('bs-ico') && css.includes('.bs-ico'));
+  T('rappel théorique : champ de saisie direct',
+    app.includes('theo-songe') && css.includes('.theo-songe'));
+  T('cartes non obtenues en noir et blanc', css.includes('grayscale(1)'));
+  T('carnet : exercices groupés par mission',
+    app.includes('lot.mis') && css.includes('.lot-corps'));
+  T('carnet : bascule Parcours / Liens',
+    app.includes('carn-vue') && css.includes('.carn-vue'));
+  T('fiche fermée pour une créature non trouvée',
+    app.includes('${eu?`onclick="ouvrirFiche'));
+  T('carnet : découvertes et notes dépliées', app.includes('const ouvrir=(e.k'));
+  T('note de cours : icône distincte des exercices',
+    app.includes("lab:'Note de cours'"));
+  T('niveaux documentaires pleins', app.includes('NIVEAUX_PROGRESSIFS=false'));
+  T('exercices de la Bourse enregistrés', app.includes('noterExercice(q, packActif'));
 }
 
 /* ---------- 8 quater. Pastilles de globe ----------
@@ -1129,9 +1162,12 @@ T('sites classés du plus ancien au plus récent',
    banques de questions les moins aimées. */
 {
   const tries=[...SITES].map(s=>s.cout).sort((a,b)=>a-b);
+  /* Rampe de dix crédits par chantier, puis plateau : au-delà de COUT_MAX le
+     prix cesserait d'orienter pour se mettre à dissuader. */
   T('coûts en rampe puis plateau', tries.every((c,i)=>
-    c===COUT_DEPART+COUT_MARCHE*i),
+    c===Math.min(COUT_DEPART+COUT_MARCHE*i, COUT_MAX)),
     tries.join(' '));
+  T('le plafond de coût est atteint', tries[tries.length-1]===COUT_MAX);
   T('le dernier chantier reste abordable', tries[tries.length-1]<=4*COUT_DEPART, String(tries[tries.length-1]));
   T('la rampe existe encore', tries[0]===COUT_DEPART && tries[1]>tries[0]);
   T('le plus cher ne dépasse pas quatre fois le moins cher',

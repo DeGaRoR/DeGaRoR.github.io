@@ -8103,10 +8103,13 @@ const FICHES_LIBRES=true;   // false rétablit le déverrouillage à la trouvail
 
 const COUT_DEPART=100;      // premier chantier de la frise
 const COUT_MARCHE=10;       // ajouté à chaque chantier suivant, dans l'ordre du temps
+const COUT_MAX=180;         // au-delà, le prix cesserait d'orienter pour dissuader
 
 /* SITES est déjà classé du plus ancien au plus récent : le rang chronologique
    est donc simplement l'index. On recalcule plutôt que d'écrire trente valeurs,
    pour que la règle tienne en une ligne et reste vérifiable. */
 (function tariferParLeTemps(){
-  SITES.forEach((s,rang)=>{ s.cout=COUT_DEPART+COUT_MARCHE*rang; });
+  SITES.forEach((s,rang)=>{
+    s.cout=Math.min(COUT_DEPART+COUT_MARCHE*rang, COUT_MAX);
+  });
 })();

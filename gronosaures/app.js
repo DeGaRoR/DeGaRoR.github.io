@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v75';
+const VERSION_ATLAS='v78';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -73,7 +73,7 @@ function etatVide(){
           stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false,
           /* Le carnet fait partie de l'état : il est donc porté tel quel par
              l'export de progression et rétabli par normaliser() à l'import. */
-          carnet:[], carnetTri:'tout', carnetOrdre:'desc', carnetGroupe:false};
+          carnet:[], carnetTri:'tout', carnetOrdre:'asc', carnetGroupe:false};
 }
 function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
 
@@ -774,7 +774,9 @@ function chantier(id){
     /* Trois états, et ils doivent se distinguer d'un coup d'œil :
        trouvée (nette, liserée), lisible mais pas trouvée (grisée, marquée
        d'un point creux), inconnue (point d'interrogation). */
-    return `<button class="vig${ok?'':' verrou'}${eu?' eu':' pas-eu'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}
+    /* On montre la créature, on n'ouvre pas son dossier : la fiche complète
+       reste la récompense de la trouvaille. */
+    return `<button class="vig${ok?'':' verrou'}${eu?' eu':' pas-eu'}" ${eu?`onclick="ouvrirFiche('${c.id}')"`:''}
       title="${ok?esc(c.nom)+(eu?'':' — pas encore trouvée'):'Créature non découverte'}">
       ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
             <span class="vig-etat">${eu?'\u25CF':'\u25CB'}</span>
@@ -989,8 +991,9 @@ const TRIS={
 };
 function vignette(c){
   const ok=revele(c.id), nv=niveauDoc(c.id);
-  return `<button class="carte${ok?'':' verrou'}${possede(c.id)?'':' non-trouvee'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}>
+  return `<button class="carte${ok?'':' verrou'}${possede(c.id)?'':' non-trouvee'}" ${possede(c.id)?`onclick="ouvrirFiche('${c.id}')"`:''}>
     ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
+      <span class="c-nom">${esc(c.nom)}</span>
       <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>`
       :`<span class="c-q">?</span><span class="c-inconnu">Non découverte</span>`}
   </button>`;
@@ -1555,8 +1558,10 @@ function avancePack(p){
 }
 function menuPacks(){
   $('#bourse-corps').innerHTML=`
-    <button class="btn-surprise" onclick="missionSurprise()">Mission surprise
-      <em>un pack au hasard, mieux payé</em></button>
+    <button class="btn-surprise" onclick="missionSurprise()">
+      <span class="bs-ico">\u{1F3B2}</span>
+      <span class="bs-txt"><b>Mission surprise</b>
+        <em>Un pack au hasard \u00B7 gains \u00D7 1,6</em></span></button>
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
     <h3 class="grp">Accompagnement scolaire
@@ -1596,8 +1601,11 @@ function ouvrirPack(id){
     </div>
     <button class="btn-primaire pk-lancer" onclick="lancerMission()">Commencer une mission</button>
     <details class="theo"><summary>Rappel théorique</summary><div>${theorieHTML(p)}
+      <div class="theo-songe">
+        <textarea id="sg-pack" rows="2" placeholder="Ce que ça t\u2019inspire"></textarea>
+        <button class="carn-mini" onclick="songePackNoter('${p.id}','${esc(p.nom)}')">Inscrire au carnet</button>
+      </div>
       <div id="songe-hote"></div>
-      <button class="lien-doute" onclick="songePack('${p.id}','${esc(p.nom)}')">Inscrire un songe</button>
     </div></details>`;
 }
 function genConjugaison(niv){
@@ -1654,7 +1662,11 @@ function prochainExo(){
 }
 let mission=null;
 function lancerMission(surprise){
-  mission={i:0, gagne:0, justes:0, aide:false, essais:0, vus:[], surprise:!!surprise};
+  /* Référence de mission : elle voyage avec chaque exercice enregistré, pour
+     que le carnet puisse les regrouper sous une seule entrée dépliable au lieu
+     d'aligner six questions isolées. */
+  mission={i:0, gagne:0, justes:0, aide:false, essais:0, vus:[], surprise:!!surprise,
+           ref:'m'+Date.now()};
   exoSuivant();
 }
 
@@ -1808,20 +1820,10 @@ function finMission(){
   const manque=Math.max(0, COUT_FOUILLE-etat.credits);
   $('#bourse-corps').innerHTML=`
     <div class="fin">
-      <div class="fin-ico">🎓</div>
-      <h2>Mission terminée</h2>
+      <div class="fin-credits">+${total} \u25C8${prime?`<em>dont ${prime} de prime</em>`:''}</div>
       <p class="fin-score">${phraseFin(mission.justes)}</p>
-      <div class="fin-credits">+${total} \u25C8</div>
-      ${prime?`<p class="fin-prime">dont ${prime} \u25C8 de prime surprise</p>`:''}
-      <p class="fin-note">${manque
-        ? 'Encore '+manque+' \u25C8 avant le prochain coup de pioche.'
-        : 'De quoi ouvrir une tranchée dès maintenant.'}</p>
-      <p class="fin-prog">${esc(a.txt)}</p>
-      <div id="songe-hote"></div>
-      <button class="btn-fant" onclick="songePack('${packActif.id}','${esc(packActif.nom)}')">Inscrire un songe</button>
-      <button class="btn-primaire" onclick="lancerMission()">Nouvelle mission</button>
+      <button class="btn-primaire" onclick="lancerMission()">Continuer</button>
       <button class="btn-fant" onclick="montrer('fouille')">Aller fouiller</button>
-      <button class="btn-fant" onclick="menuPacks()">Choisir un autre pack</button>
     </div>`;
   mission=null; sauver();
 }
@@ -1921,6 +1923,7 @@ function refExo(q, pack){
 }
 function noterExercice(q, pack, juste){
   noterEvenement('q', {id:refExo(q,pack), site:'', pack:pack&&pack.nom||'',
+    mis:(mission&&mission.ref)||'',
     q:q.q||q.cle||'', r:q.r, exp:q.exp||'',
     src:q.lien&&q.lien[1]?[q.lien[0],q.lien[1]]:null, lien:false, juste:!!juste});
 }
@@ -1969,7 +1972,7 @@ const CARN_TYPES={
   q:       {ico:'\u2753', lab:'Exercice'},
   creature:{ico:'\u2726', lab:'Découverte'},
   chantier:{ico:'\u26CF', lab:'Chantier'},
-  pack:    {ico:'\u{1F393}', lab:'Cours'},
+  pack:    {ico:'\u270E', lab:'Note de cours'},
   note:    {ico:'\u270E', lab:'Note'},
   doute:   {ico:'\u26A0', lab:'Doute'}
 };
@@ -2069,20 +2072,23 @@ function rendreCarnet(){
   const tri=document.getElementById('carn-tri');
   if(!corps) return;
   const f=etat.carnetTri||'tout';
-  const asc=etat.carnetOrdre==='asc';
+  const asc=etat.carnetOrdre!=='desc';   // le carnet se remplit vers le bas
 
-  if(tri) tri.innerHTML=CARN_FILTRES.map(([k,l])=>
-    `<button class="carn-f${f===k?' on':''}" onclick="carnetFiltrer('${k}')">${l}</button>`).join('');
+  /* Pas de filtres par type — c'était de l'appareillage avant l'usage. Reste
+     une bascule entre deux LECTURES du même carnet : le parcours, et la
+     bibliothèque de liens qu'il a constituée. */
+  if(tri) tri.innerHTML=carnet().some(e=>e.src&&e.src[1])
+    ? `<button class="carn-vue${f!=='liens'?' on':''}" onclick="carnetFiltrer('tout')">Parcours</button>
+       <button class="carn-vue${f==='liens'?' on':''}" onclick="carnetFiltrer('liens')">Liens</button>`
+    : '';
 
   const cpt=document.getElementById('carn-compte');
   if(cpt) cpt.textContent=carnet().length+' entrée'+(carnet().length>1?'s':'');
 
-  const barre=`<div class="carn-barre">
+  const barre = carnet().length>8 ? `<div class="carn-barre">
     <input id="carn-q" class="carn-q" type="search" placeholder="Chercher"
            value="${esc(carnetQ)}" oninput="carnetChercher(this.value)">
-    <button class="carn-mini" onclick="carnetOrdre()" title="Sens du temps">${asc?'\u2191 ancien d\u2019abord':'\u2193 récent d\u2019abord'}</button>
-    <button class="carn-mini${etat.carnetGroupe?' on':''}" onclick="carnetGroupe()">Par chantier</button>
-  </div>`;
+  </div>` : '';
 
   const saisie=`<div class="carn-saisie">
     <textarea id="carn-note-txt" rows="2" placeholder="Ajouter une note libre"></textarea>
@@ -2124,10 +2130,44 @@ function rendreCarnet(){
   const jour=t=>new Date(t).toLocaleDateString('fr-BE',{day:'numeric',month:'long',year:'numeric'});
   const tete=e=>etat.carnetGroupe?nomSite(e.site):jour(e.t);
 
-  let out='', dernier='';
+  /* Une mission d'entraînement produit six exercices d'affilée. Alignés, ils
+     noient tout le reste ; regroupés sous une seule entrée dépliable, ils
+     racontent une séance. On ne regroupe que les suites consécutives, pour ne
+     pas mélanger deux passages sur le même pack à des jours d'écart. */
+  const lots=[];
   c.forEach(e=>{
+    const d=lots[lots.length-1];
+    if(e.k==='q' && e.mis && d && d.mis===e.mis) d.items.push(e);
+    else lots.push(e.k==='q'&&e.mis ? {mis:e.mis, items:[e]} : {seul:e});
+  });
+
+  let out='', dernier='';
+  lots.forEach(lot=>{
+    if(lot.mis && lot.items.length>1){
+      const p=lot.items[0], h=tete(p);
+      if(h!==dernier){ out+=`<div class="carnet-jour">${esc(h)}</div>`; dernier=h; }
+      const justes=lot.items.filter(x=>x.juste).length;
+      const songes=lot.items.filter(x=>x.songe).length;
+      out+=`<details class="carnet-e t-q lot${songes?' a-songe':''}">
+        <summary><span class="carn-ico">\u{1F393}</span>
+          <span class="carn-resume"><b>${esc(p.pack||'Mission')}</b>
+            <small>${lot.items.length} questions \u00B7 ${justes} juste${justes>1?'s':''}${songes?' \u00B7 '+songes+' songe'+(songes>1?'s':''):''}</small>
+          </span></summary>
+        <div class="lot-corps">${lot.items.map(x=>entree(x,true)).join('')}</div>
+      </details>`;
+      return;
+    }
+    const e=lot.seul||lot.items[0];
     const h=tete(e);
     if(h!==dernier){ out+=`<div class="carnet-jour">${esc(h)}</div>`; dernier=h; }
+    out+=entree(e,false);
+  });
+
+  corps.innerHTML=barre+`<div class="carn-fil">${out}</div>`+saisie;
+  requestAnimationFrame(()=>window.scrollTo(0, document.body.scrollHeight));
+
+  /* Rendu d'une entrée, isolée ou prise dans un lot de mission. */
+  function entree(e, dansLot){
     const T=CARN_TYPES[e.k]||CARN_TYPES.note;
     let inner='';
     if(e.k==='q'){
@@ -2135,31 +2175,34 @@ function rendreCarnet(){
         +(e.src?`<a href="${esc(e.src[1])}" target="_blank" rel="noopener"
             onclick="lienSuivi('${e.id}')" class="${e.lien?'lu':''}">${esc(e.src[0])}</a>`:'');
     }else if(e.k==='creature'){
+      /* Le résumé porte déjà le nom : le corps ne le répète pas. */
       inner=`<button class="carn-ouvre" onclick="ouvrirFiche('${e.id}')">
           ${e.img?`<img class="carn-vign" src="${esc(e.img)}" loading="lazy" alt="">`:''}
-          <span><b>${esc(e.nom)}</b><p>${esc(e.detail||'')}</p></span></button>`;
+          <span><p>${esc(e.detail||'')}</p></span></button>`;
     }else if(e.k==='chantier'){
       inner=`<button class="carn-ouvre" onclick="allerChantier('${e.id}')">
-          <span><b>${esc(e.nom)}</b><p>${esc(e.detail||'')}</p></span></button>`;
-    }else if(e.k==='pack'){
-      inner=`<b>${esc(e.sujet||'')}</b><p>${esc(e.note||'')}</p>`;
-    }else if(e.k==='doute'){
-      inner=`<b>${esc(e.sujet||e.id)}</b><p>${esc(e.note)}</p>`;
-    }else{
+          <span><p>${esc(e.detail||'')}</p></span></button>`;
+    }else if(e.k==='pack'||e.k==='doute'){
       inner=`<p>${esc(e.note||'')}</p>`;
+    }else{
+      inner='';
     }
     const modifiable=(e.k==='note'||e.k==='doute'||e.k==='pack');
     /* Repliée par défaut : le carnet capte beaucoup, et une pile de blocs
        dépliés devient illisible bien avant la centième entrée. Le résumé donne
        de quoi reconnaître la trace, le détail s'ouvre à la demande. Un songe
        reste visible plié — c'est ce qu'on revient chercher. */
-    const resume=e.q||e.nom||e.sujet||(e.note||'').slice(0,70)||T.lab;
+    const resume=e.q||e.nom||e.sujet||e.note||T.lab;
     const songe=e.songe
       ? `<blockquote class="songe">${esc(e.songe)}
            <button class="songe-mod" onclick="songeOuvrir(${e.t})" title="Modifier">\u270E</button>
          </blockquote>`
       : '';
-    out+=`<details class="carnet-e t-${e.k}${e.resolu?' resolu':''}${e.songe?' a-songe':''}">
+    /* Ouvertes d'emblée : les découvertes, parce que l'image est la
+       récompense, et tout ce qu'elle a écrit elle-même. Le reste se déplie à
+       la demande. */
+    const ouvrir=(e.k==='creature'||e.k==='note'||e.k==='pack'||e.k==='doute') && !dansLot;
+    return `<details class="carnet-e t-${e.k}${e.resolu?' resolu':''}${e.songe?' a-songe':''}${dansLot?' dans-lot':''}"${ouvrir?' open':''}>
       <summary><span class="carn-ico" title="${T.lab}">${T.ico}</span>
         <span class="carn-resume">${esc(resume)}</span></summary>
       <div class="carn-txt"><div id="corps-${e.t}">${inner}</div>
@@ -2171,11 +2214,7 @@ function rendreCarnet(){
           ${modifiable?`<button class="carn-mini" onclick="carnetOuvrirEdition(${e.t})">Modifier</button>`:''}
           <button class="carn-mini" onclick="carnetSupprimer(${e.t})">Retirer</button>
         </div></div></details>`;
-  });
-  corps.innerHTML=barre+`<div class="carn-fil">${out}</div>`+saisie;
-  /* Le carnet s'ouvre sur sa dernière page, pas sur son commencement : c'est un
-     registre qu'on remplit vers le bas, pas un fil d'actualité. */
-  requestAnimationFrame(()=>window.scrollTo(0, document.body.scrollHeight));
+  }
 }
 
 /* Se rendre au chantier depuis le carnet : on ne relit pas une trace sans
