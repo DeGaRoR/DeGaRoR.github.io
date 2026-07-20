@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v78';
+const VERSION_ATLAS='v82';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -315,11 +315,10 @@ const bonusDe=id=>{const s=SITES.find(x=>x.id===id);
 const possede=id=>(etat.collection[id]||0)>0;
 const fragments=id=>etat.collection[id]||0;
 const ouvert=id=>!!etat.sitesOuverts[id];
-/* Les niveaux documentaires se gagnaient fragment après fragment. Louise ne
-   farme pas : le dossier complet arrive donc dès la première obtention.
-   Passer NIVEAUX_PROGRESSIFS à true rétablit la montée par paliers — le calcul
-   est conservé intact juste en dessous. */
-const NIVEAUX_PROGRESSIFS=false;
+/* Montée par paliers rétablie, mais resserrée : une copie par niveau. Le
+   dossier s'ouvre à la première trouvaille et se complète à la troisième.
+   Passer ce drapeau à false rend le dossier plein d'emblée. */
+const NIVEAUX_PROGRESSIFS=true;
 
 function niveauDoc(id){
   const f=fragments(id); if(f<=0)return 0;
@@ -328,8 +327,63 @@ function niveauDoc(id){
   return n;
 }
 const siteComplet=s=>creaturesDe(s).every(c=>possede(c.id));
+
+/* Deux achèvements distincts, et il faut les distinguer : avoir rencontré les
+   six créatures d'un chantier, et avoir complété les six dossiers. Le premier
+   marque la fin de la découverte, le second celle de la lecture — c'est ce
+   dernier qui compte vraiment ici. */
+const siteDore=s=>creaturesDe(s).every(c=>niveauDoc(c.id)>=SEUILS_DOC.length);
+
+/* Marque d'achèvement, partagée par la carte, la frise et la collection. */
+function sceau(id){
+  if(siteDore(id))   return '<span class="sceau or" title="Tous les dossiers complets">\u2726</span>';
+  if(siteComplet(id))return '<span class="sceau" title="Toutes les créatures rencontrées">\u2713</span>';
+  return '';
+}
 const nbTrouvees=s=>creaturesDe(s).filter(c=>possede(c.id)).length;
 const trouvees=()=>CREATURES.filter(c=>possede(c.id));
+
+/* Légende d'une vignette, sur deux lignes.
+
+   Les noms vont de « Marrella » à « Equus ferus caballus — cheval de trait
+   belge ». Une seule ligne tronquée les rend illisibles et interchangeables ;
+   deux lignes bien réparties les rendent reconnaissables d'un coup d'œil.
+
+   Découpe, par ordre de priorité :
+     — un tiret cadratin sépare le taxon de son nom courant ;
+     — sinon le premier mot est le genre, le reste l'épithète ;
+     — un mot seul occupe la ligne du haut.
+   La ligne basse peut réunir plusieurs mots (« sp. cf. P. daihoense »), qu'on
+   ne coupe jamais : on réduit le corps du texte à la place. */
+function legende(nom){
+  const n=String(nom||'').trim();
+  const tiret=n.indexOf('\u2014');
+  if(tiret>0) return {haut:n.slice(0,tiret).trim(), bas:n.slice(tiret+1).trim()};
+  const i=n.indexOf(' ');
+  if(i<0) return {haut:n, bas:''};
+  return {haut:n.slice(0,i), bas:n.slice(i+1)};
+}
+
+/* Le corps du texte suit la longueur — mais c'est le mot le plus LONG qui
+   contraint, pas la ligne entière : les groupes de mots passent à la ligne,
+   un mot ne se coupe pas.
+
+   Mesures sur les 193 créatures : mot médian de 9 caractères, 90 % sous 13,
+   et un seul cas extrême, Schlotheimophyllum, à 18. La carte de collection
+   offre environ 88 px utiles ; à 0,7 rem elle loge 16 caractères, à 0,6 rem
+   elle en loge 19. Deux paliers suffisent donc, et l'immense majorité des
+   noms reste au corps confortable. */
+function classeLegende(l){
+  const mots=(l.haut+' '+l.bas).split(/\s+/).filter(Boolean);
+  const max=Math.max(0, ...mots.map(m=>m.length));
+  return max>15 ? ' lg-xs' : max>12 ? ' lg-s' : '';
+}
+
+function legendeHTML(nom){
+  const l=legende(nom);
+  return `<span class="lg${classeLegende(l)}">
+    <b>${esc(l.haut)}</b>${l.bas?`<i>${esc(l.bas)}</i>`:''}</span>`;
+}
 
 /* Révélation du CONTENU d'une fiche. À distinguer de possede(), qui reste la
    possession réelle et continue d'alimenter les compteurs et la progression.
@@ -533,9 +587,9 @@ function ouvrirGrappe(ids){
 }
 function marqueurSite(s){
   const n=nbTrouvees(s.id), tot=creaturesDe(s.id).length;
-  const ouv=ouvert(s.id), fini=ouv&&n>=tot;
-  const sous = ouv ? n+'/'+tot : s.cout+' \u25C8';
-  return `<g class="zsc pin${fini?' fini':''}${ouv?'':' verrouille'}" data-x="${s.x}" data-y="${s.y}"
+  const ouv=ouvert(s.id), fini=ouv&&n>=tot, dore=ouv&&siteDore(s.id);
+  const sous = ouv ? (dore?'\u2726 '+n+'/'+tot : n+'/'+tot) : s.cout+' \u25C8';
+  return `<g class="zsc pin${fini?' fini':''}${dore?' dore':''}${ouv?'':' verrouille'}" data-x="${s.x}" data-y="${s.y}"
             data-site="${s.id}" tabindex="0" role="button" aria-label="${esc(s.nom)}">
     <circle class="pin-halo" r="26"/>
     <circle class="pin-core" r="13"/>
@@ -780,7 +834,7 @@ function chantier(id){
       title="${ok?esc(c.nom)+(eu?'':' — pas encore trouvée'):'Créature non découverte'}">
       ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
             <span class="vig-etat">${eu?'\u25CF':'\u25CB'}</span>
-            <span class="vig-nom">${esc(c.nom.split(' ')[0])}</span>`
+            ${legendeHTML(c.nom)}`
           :'<span class="vig-q">?</span>'}</button>`;
   }).join('');
   $('#ch-cout').textContent=COUT_FOUILLE;
@@ -993,8 +1047,8 @@ function vignette(c){
   const ok=revele(c.id), nv=niveauDoc(c.id);
   return `<button class="carte${ok?'':' verrou'}${possede(c.id)?'':' non-trouvee'}" ${possede(c.id)?`onclick="ouvrirFiche('${c.id}')"`:''}>
     ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
-      <span class="c-nom">${esc(c.nom)}</span>
-      <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>`
+      <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>
+      ${legendeHTML(c.nom)}`
       :`<span class="c-q">?</span><span class="c-inconnu">Non découverte</span>`}
   </button>`;
 }
@@ -1008,9 +1062,14 @@ function rendreCollection(){
     .filter(s=>s.cs.length)
     .map(s=>{
       const trouve=s.cs.filter(c=>possede(c.id)).length;
-      return `<section class="col-bloc">
+      /* Le sceau vaut pour tout groupe, pas seulement pour un chantier : un tri
+         par période ou par famille mérite aussi de montrer qu'il est bouclé. */
+      const tousLus=s.cs.every(c=>niveauDoc(c.id)>=SEUILS_DOC.length);
+      const marque = tousLus ? '<span class="sceau or" title="Tous les dossiers complets">\u2726</span>'
+        : trouve===s.cs.length ? '<span class="sceau" title="Toutes les créatures rencontrées">\u2713</span>' : '';
+      return `<section class="col-bloc${tousLus?' dore':''}">
         <h3>${esc(s.titre)} <small>${esc(s.sous)}</small>
-          <em class="col-part">${trouve} / ${s.cs.length}</em></h3>
+          <em class="col-part">${trouve} / ${s.cs.length}${marque}</em></h3>
         <div class="grille">${s.cs.map(vignette).join('')}</div></section>`;
     }).join('');
 }
@@ -1130,7 +1189,7 @@ function rendreFrise(){
              alt="" loading="lazy">
         <span class="fri-nom">${esc(s.court)}
           <em class="fri-epoque">${esc(periodeSite(s.id))}</em></span>
-        <span class="fri-cpt">${n} / ${cs.length}</span>
+        <span class="fri-cpt">${n} / ${cs.length}${sceau(s.id)}</span>
       </button>
       ${ouvert?`<div class="fri-bêtes">${cs.map(c=>revele(c.id)
           ? `<button class="fri-b" onclick="ouvrirFiche('${c.id}')" title="${esc(c.nom)}">

@@ -750,7 +750,13 @@ const GAIN_MISSION=12;
 const NB_MISSION=6;             // questions par mission
 const BONUS_PART=0.84;           // part du coût d'ouverture rendue quand le site est complété
 const BONUS_SITE=200;           // plancher, pour les sites les moins chers
-const SEUILS_DOC=[0,2,5];       // fragments requis pour les niveaux 1, 2, 3
+/* Une copie, un niveau : 1 → 2 → 3. Le barème précédent demandait 3 puis 6
+   copies, ce qui allongeait chaque chantier bien au-delà de ses vingt
+   questions. Trois copies par créature, six créatures : dix-huit fouilles au
+   minimum, et la pondération en faveur des inédits porte le total un peu
+   au-dessus — de quoi voir toute la banque avec un peu de répétition, sans
+   la ressasser. */
+const SEUILS_DOC=[0,1,2];       // fragments requis pour les niveaux 1, 2, 3
 const FOUILLE_VIDE=false;       // true = une fouille réussie peut ne rien donner
 
 /* Barème identique pour les deux filières.

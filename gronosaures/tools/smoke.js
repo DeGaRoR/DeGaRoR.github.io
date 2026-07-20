@@ -173,14 +173,22 @@ const moy=fouillesParSite.reduce((a,b)=>a+b,0)/fouillesParSite.length;
 /* Le minimum théorique dépend de la taille du site : six fragments par créature.
    Yixian en compte huit, donc 48 et non 36. On raisonne donc par créature. */
 const parCreature=ctx.SITES.map((s,i)=>fouillesParSite[i]/ctx.creaturesDe(s.id).length);
+/* Le plancher se déduit des seuils : chaque créature réclame autant de copies
+   qu'il en faut pour le dernier niveau. Le recopier en dur obligeait à corriger
+   le harnais chaque fois que le barème bouge. */
+const copiesPleines=ctx.SEUILS_DOC[ctx.SEUILS_DOC.length-1]+1;
 ctx.SITES.forEach((s,i)=>{
-  const mini=6*ctx.creaturesDe(s.id).length;
+  const mini=copiesPleines*ctx.creaturesDe(s.id).length;
   T('site '+s.id+' : au moins '+mini+' fouilles', fouillesParSite[i]>=mini,
     fouillesParSite[i]+'');
 });
 const moyParCrea=parCreature.reduce((a,b)=>a+b,0)/parCreature.length;
-T('effort moyen de 7,5 à 11,5 fouilles par créature',
-  moyParCrea>=7.5&&moyParCrea<=11.5, moyParCrea.toFixed(2));
+/* La pondération 3:1 en faveur des inédits porte l'effort réel à environ 1,7
+   fois le minimum théorique. On borne autour de cette valeur : en dessous, le
+   tirage ne répéterait plus assez pour parcourir la banque de questions ; très
+   au-dessus, il ressasserait. */
+T('effort par créature entre '+copiesPleines+' et '+(copiesPleines*2.5)+' fouilles',
+  moyParCrea>=copiesPleines && moyParCrea<=copiesPleines*2.5, moyParCrea.toFixed(2));
 T('tous les sites achevés', ctx.SITES.every(s=>ctx.siteComplet(s.id)));
 T('une fouille finit toujours par livrer quelque chose',
   ctx.CREATURES.every(c=>ctx.fragments(c.id)>0));
@@ -235,9 +243,15 @@ const c0=ctx.CREATURES[0].id;
 /* Deux régimes coexistent : la montée par paliers, conservée en réserve, et le
    dossier plein dès la première obtention, en vigueur. Le harnais suit le
    drapeau plutôt qu'une table figée — sinon il testerait un code désactivé. */
-const attendu = ctx.NIVEAUX_PROGRESSIFS
-  ? [0,1,1,2,2,2,3,3]
-  : [0,3,3,3,3,3,3,3];
+/* La table attendue se déduit des seuils plutôt que d'être recopiée : changer
+   SEUILS_DOC ne doit pas obliger à corriger le harnais à la main. */
+const attendu = Array.from({length:8}, (_,f)=>{
+  if(f<=0) return 0;
+  if(!ctx.NIVEAUX_PROGRESSIFS) return ctx.SEUILS_DOC.length;
+  let n=1;
+  for(let i=1;i<ctx.SEUILS_DOC.length;i++) if(f-1>=ctx.SEUILS_DOC[i]) n=i+1;
+  return n;
+});
 for(let f=0;f<attendu.length;f++){
   ctx.etat.collection[c0]=f;
   T('niveau documentaire à '+f+' fragment(s)', ctx.niveauDoc(c0)===attendu[f],

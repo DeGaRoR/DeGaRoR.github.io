@@ -321,7 +321,7 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
   [['carn-fil','fil de temps'],['a-songe','marque de songe'],
    ['carn-resume','résumé replié'],['songe-add','bouton de songe'],
-   ['vig-nom','nom sur la vignette']].forEach(([cl,quoi])=>{
+   ['lg','légende de vignette']].forEach(([cl,quoi])=>{
     T('interface posée : '+quoi, app.includes(cl), cl+' absent de app.js');
     T('interface stylée : '+quoi, css.includes('.'+cl), cl+' absent du CSS');
   });
@@ -356,7 +356,17 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   T('carnet : découvertes et notes dépliées', app.includes('const ouvrir=(e.k'));
   T('note de cours : icône distincte des exercices',
     app.includes("lab:'Note de cours'"));
-  T('niveaux documentaires pleins', app.includes('NIVEAUX_PROGRESSIFS=false'));
+  T('vignettes : légende sur deux lignes',
+    app.includes('legendeHTML') && css.includes('.lg b'));
+  T('vignettes : niveau documentaire hors du bandeau',
+    css.includes('.c-niv{position:absolute; top:'));
+  /* Décision révisée : la montée par paliers est rétablie, resserrée à une
+     copie par niveau, pour que chaque chantier parcoure ses vingt questions
+     avec un peu de répétition. */
+  T('niveaux documentaires progressifs', app.includes('NIVEAUX_PROGRESSIFS=true'));
+  T('un palier par copie', JSON.stringify(SEUILS_DOC)==='[0,1,2]', JSON.stringify(SEUILS_DOC));
+  T('deux achèvements distingués',
+    app.includes('const siteDore=') && css.includes('.sceau.or'));
   T('exercices de la Bourse enregistrés', app.includes('noterExercice(q, packActif'));
 }
 

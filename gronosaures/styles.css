@@ -1093,11 +1093,7 @@ h3.grp em{
 .vig-etat{position:absolute; top:4px; right:5px; font-size:.6rem; color:var(--ocre-clair);
   text-shadow:0 1px 3px #000}
 .vig.pas-eu .vig-etat{color:var(--txt3)}
-.vig-nom{position:absolute; left:0; right:0; bottom:0; padding:3px 4px;
-  font-size:.58rem; line-height:1.2; text-align:center; color:var(--txt2);
-  background:linear-gradient(180deg,transparent,rgba(10,15,26,.9) 45%);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.vig.pas-eu .vig-nom{color:var(--txt3)}
+
 
 /* --- Mission surprise : un bouton, pas un titre. */
 .btn-surprise{background:linear-gradient(120deg,var(--ocre-sombre),rgba(200,150,79,.22));
@@ -1109,7 +1105,7 @@ h3.grp em{
    2 × 3 et se lisent. Au-delà, on élargit progressivement. */
 .ch-vignettes{grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px}
 .vig{aspect-ratio:.82}
-.vig-nom{font-size:.68rem; padding:5px 6px}
+
 .vig-etat{font-size:.7rem; top:6px; right:7px}
 .vig-q{font-size:1.6rem}
 
@@ -1207,10 +1203,77 @@ details.carnet-e.dans-lot>summary{padding:5px 2px}
 details.carnet-e.dans-lot .carn-resume{font-size:.78rem}
 
 /* Nom sur la vignette de collection : une image sans légende ne se retient pas. */
-.c-nom{position:absolute; left:0; right:0; bottom:0; padding:14px 5px 4px;
-  font-size:.6rem; line-height:1.25; text-align:center; color:var(--txt2);
-  background:linear-gradient(180deg,transparent,rgba(10,15,26,.92) 50%);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.carte.non-trouvee .c-nom{color:var(--txt3)}
+
 /* Ce qu'on n'a pas trouvé se regarde, ne s'ouvre pas. */
 .carte.non-trouvee, .vig.pas-eu{cursor:default}
+
+
+/* ================================================================
+   Légende de vignette — v78.
+
+   Deux lignes : genre au-dessus, épithète en dessous. Le binôme est
+   ce qui distingue une créature d'une autre ; le tronquer les rendait
+   interchangeables.
+
+   Le corps du texte est calibré sur le mot le plus LONG, pas sur la
+   ligne : un groupe de mots passe à la ligne, un mot ne se coupe pas.
+   Mesures sur les 193 créatures — mot médian de 9 caractères, 90 %
+   sous 13, un seul cas à 18 (Schlotheimophyllum). Deux paliers
+   suffisent : 135 noms au corps normal, 50 réduits, 8 minimaux.
+
+   Pas de bandeau opaque : la légende se pose sur la carte, avec un
+   voile à peine perceptible et une ombre portée sur le texte. C'est
+   l'ombre qui assure la lisibilité, pas un aplat qui masque l'image.
+   ================================================================ */
+.lg{position:absolute; left:0; right:0; bottom:0; z-index:2;
+  padding:10px 5px 5px; text-align:center; pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(8,12,20,.34))}
+.lg b{display:block; font-family:var(--serif); font-style:italic;
+  font-size:.7rem; line-height:1.16; color:#f2f5fa;
+  overflow-wrap:anywhere;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.8)}
+.lg i{display:block; margin-top:1px; font-style:normal;
+  font-size:.61rem; line-height:1.18; color:#c9d2e0;
+  overflow-wrap:anywhere;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.8)}
+.lg.lg-s b{font-size:.64rem}
+.lg.lg-s i{font-size:.57rem}
+.lg.lg-xs b{font-size:.585rem; line-height:1.12}
+.lg.lg-xs i{font-size:.535rem; line-height:1.12}
+
+.carte.non-trouvee .lg b, .vig.pas-eu .lg b{color:#dde3ec}
+.carte.non-trouvee .lg i, .vig.pas-eu .lg i{color:#aab4c4}
+
+/* Le niveau documentaire quitte le bas de la carte : il y recouvrait le nom. */
+.c-niv{position:absolute; top:5px; left:6px; right:auto; bottom:auto; z-index:3;
+  font-size:.56rem; letter-spacing:1px; color:var(--ocre-clair);
+  text-shadow:0 1px 3px rgba(0,0,0,.95)}
+
+/* Les vignettes de chantier sont deux fois plus larges : le texte y respire. */
+.vig{aspect-ratio:.78}
+.vig .lg{padding:12px 7px 7px}
+.vig .lg b{font-size:.8rem}
+.vig .lg i{font-size:.68rem}
+.vig .lg.lg-s b{font-size:.74rem}
+.vig .lg.lg-s i{font-size:.64rem}
+.vig .lg.lg-xs b{font-size:.67rem}
+.vig .lg.lg-xs i{font-size:.6rem}
+
+/* ================================================================
+   Deux achèvements — v80.
+
+   Rencontrer les six créatures d'un chantier n'est pas la même chose
+   que compléter les six dossiers. Le premier clôt la découverte, le
+   second la lecture — et c'est celui-là qui compte dans cet atlas.
+   Une coche pour le premier, une étoile ocre pour le second.
+   ================================================================ */
+.sceau{display:inline-block; margin-left:6px; font-size:.78rem;
+  color:var(--patine); vertical-align:baseline}
+.sceau.or{color:var(--ocre-clair); text-shadow:0 0 8px rgba(200,150,79,.55)}
+.col-bloc.dore>h3{color:var(--ocre-clair)}
+.col-bloc.dore>h3 small{color:var(--ocre)}
+.fri-cpt .sceau{margin-left:5px; font-size:.7rem}
+/* Épingle dont tous les dossiers sont complets : elle doit se repérer sur la
+   carte sans avoir à lire le compteur. */
+.pin.dore .pin-sous{fill:var(--ocre-clair)}
+.pin.dore circle{stroke:var(--ocre-clair)}
