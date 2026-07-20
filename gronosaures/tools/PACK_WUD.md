@@ -208,6 +208,33 @@ l'accroche ou le volet 2.
 
 ---
 
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. Le bassin houiller de Wuda, exploité pour son charbon, se trouve en Mongolie-Intérieure.
+2. La couche de cendres est datée de 298,34 Ma, soit tout au début du Permien, pratiquement sur la limite avec le Carbonifère.
+3. Une éruption a couvert la forêt de cendres assez vite pour que les plantes n’aient pas le temps de tomber ni de pourrir.
+4. Le charbon exploité ici est la forêt elle-même, comprimée par le poids des sédiments qui l’ont recouverte.
+5. Un gisement de charbon est une ancienne tourbière : de la matière végétale accumulée puis compactée pendant des millions d’années.
+6. Ailleurs, les plantes fossiles ont été transportées avant d’être enfouies. Ici, elles ont été ensevelies à peu près là où elles poussaient.
+7. Une feuille isolée, un fragment de tronc : le transport par l’eau disperse et trie, si bien qu’on récupère rarement une plante entière.
+8. Connaître la position de chaque plante permet de relever la canopée, le sous-bois, et ce qui grimpait sur quoi — pas seulement la liste des espèces.
+9. Ces cicatrices régulières sont les points d’attache des feuilles tombées, disposées en rangées le long du tronc.
+10. Les lycophytes sont aujourd’hui de petites plantes rampantes ; au Paléozoïque, certaines atteignaient vingt mètres.
+11. Sa tige est mince : ce qui donne l’épaisseur du tronc est un manteau de racines adventives qui l’enveloppe.
+12. Les prêles actuelles mesurent quelques dizaines de centimètres. Palaeostachya en était un parent de plusieurs mètres.
+13. Les branches partent toutes du même niveau, en couronne autour de la tige — une disposition caractéristique du groupe.
+14. C’est ce qui rend la plante instructive : l’organe ressemble à un cône de conifère, mais il libère des spores.
+15. Les noeggerathiales sont rattachées aux progymnospermes, groupe frère des plantes à graines : elles annoncent la graine sans la produire.
+16. Elle s’enroulait autour des fougères arborescentes, ce qui suppose déjà une forêt assez dense pour qu’il vaille la peine de grimper.
+17. Le spécimen porte des morsures, des galles et des pontes — trois types de traces laissées par des insectes.
+18. Une galle est une réaction de la plante à un parasite : elle prouve une interaction, pas seulement une cohabitation.
+19. « cf. » signifie « à comparer avec » : le fossile ressemble à cette espèce sans que l’attribution soit établie.
+20. Lycophytes, fougères, sphénophytes et plantes à graines résolvent le même problème — se tenir droit et capter la lumière — par des architectures différentes.
+
+---
+
 ## Mesure
 
     node tools/qcm_brouillon.js tools/PACK_WUD.md --pires

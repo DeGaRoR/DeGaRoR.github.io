@@ -209,6 +209,33 @@ l'occupation humaine des régions arides. Il n'existe pratiquement plus à l'ét
 
 ---
 
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. Il y a environ douze mille ans, avec le chien puis les premiers animaux d’élevage.
+2. À l’Holocène, l’époque en cours, qui commence il y a environ onze mille sept cents ans.
+3. Des formes très proches existaient déjà au Pléistocène : un renard seul ne date rien.
+4. Un teckel. Cette anatomie n’aurait jamais été produite par la sélection naturelle seule.
+5. Le chien. L’ordre de ce pack suit le processus, et c’est pourquoi son emblème n’est pas en première position.
+6. Oui, tous deux Canis lupus familiaris. Ils peuvent se reproduire ensemble.
+7. Des races. La diversité montrée par ce chantier est en grande partie interne à quelques espèces.
+8. Elle pousse sans s’arrêter, là où le pelage des moutons sauvages muait.
+9. Il dépend de la tonte : sans intervention humaine, la toison continue de croître.
+10. Pour son lait, en quantité très supérieure aux besoins d’un veau.
+11. Pour la traction : encolure puissante, poitrine large, membres épais.
+12. Massive et large, entièrement orientée vers la force plutôt que vers la vitesse.
+13. Aux régions arides, aux caravanes et au pastoralisme.
+14. Pratiquement aucun. Les populations libres actuelles sont des animaux retournés à la vie sauvage.
+15. Qui se reproduit. L’humain ne crée pas la variation, il choisit celle qui lui convient.
+16. Par l’agent, pas par le mécanisme : c’est toujours de la sélection, mais quelqu’un la dirige.
+17. La vitesse. Ce qui demandait des milliers de générations peut être obtenu en quelques dizaines.
+18. Ce qu’une seule espèce peut donner. Les moutons, eux, ont gardé une diversité génétique élevée : la sélection n’appauvrit pas toujours.
+19. Non. Ces questions sont réelles mais elles ne se tranchent pas avec un fossile.
+20. Qu’une espèce est devenue capable de remodeler délibérément le corps d’autres espèces.
+
+---
+
 ## Mesure
 
     node tools/qcm_brouillon.js tools/PACK_DOM.md --pires

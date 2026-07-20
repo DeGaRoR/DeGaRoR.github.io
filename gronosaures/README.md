@@ -78,12 +78,12 @@ autre partie.
 index.html      3 onglets + 6 superpositions
 styles.css      registre « carnet de terrain » (ardoise + ocre, serif pour les titres)
 data.js         concaténation de 17 blocs, dans cet ordre :
-                1 2 4 5 6 7 12 16 8 9 10 11 13 14 15 3 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36
+                1 2 4 5 6 7 12 16 8 9 10 11 13 14 15 3 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37
                 (1 généré par tools/ingest.py, le reste écrit à la main ;
                  3 déclare les packs, 17 leur assigne les rappels théoriques)
 app.js          7 sections : utilitaires, état, navigation, fouille, collection, bourse, init
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
-sw.js           atlas-v64 · CODE réseau d'abord, IMAGES cache d'abord ; 254 entrées ; liste dérivée de data.js
+sw.js           atlas-v73 · CODE réseau d'abord, IMAGES cache d'abord ; 254 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
 cartes/         110 illustrations, nommées d'après creature_id
 sites/          18 vues de site
@@ -357,6 +357,409 @@ contient leurs dix-huit fiches au format exact de l'index, prêtes à coller :
 
 Le Quaternaire a été ajouté à `PERIODES` avec le pack SAM. **Le Silurien est
 désormais la seule période vide** de l'Édiacarien à aujourd'hui.
+
+## Grille adaptative et carnet replié — v73
+
+### Le chantier respire
+
+Les six vignettes étaient rangées sur une seule ligne, minuscules, sous un écran vide. La
+grille ne dépend plus du nombre de créatures mais de la largeur disponible :
+
+| Écran | Colonnes |
+|---|---|
+| téléphone | 2 — six créatures en 2 × 3, grandes |
+| ≥ 480 px | 3 |
+| ≥ 760 px | 4, contenu centré |
+| ≥ 1040 px | 6 |
+
+Chaque vignette porte le premier mot du nom et sa pastille d'état. Le bouton de fouille
+devient **collant en bas d'écran** : il reste sous la main pendant qu'on parcourt les
+cartes, au lieu de sortir du champ.
+
+### Les entrées du carnet sont repliées
+
+Chaque entrée devient un `<details>` fermé, résumé sur deux lignes au plus. Le carnet
+capte beaucoup — exercices des deux filières, découvertes, chantiers, cours, notes,
+doutes — et une pile de blocs dépliés deviendrait illisible bien avant la centième trace.
+
+**Un songe reste visible même plié.** C'est ce qu'on revient chercher ; le reste est du
+détail qui s'ouvre à la demande.
+
+### Note depuis le rappel théorique
+
+Le bouton d'inscription figure maintenant dans le rappel théorique des packs de la Bourse,
+là où la théorie se lit — et non plus seulement à la fin d'une mission.
+
+### Trois patches qui n'avaient jamais pris
+
+En réécrivant le gabarit d'entrée, j'ai découvert que **le fil de temps et l'affichage des
+songes annoncés en v70 n'existaient pas**. Les patches avaient échoué sur une assertion
+antérieure ; le CSS était écrit, le HTML jamais produit. Rien ne le signalait : la porte
+vérifiait que toute classe utilisée avait une règle, jamais l'inverse.
+
+Un contrôle le fait désormais dans les deux sens, sur les cinq classes structurantes du
+carnet et des vignettes. C'est la troisième fois cette session qu'un correctif silencieux
+est rattrapé après coup — les deux premières par tes captures.
+
+## Retours de terrain — v72
+
+### Les exercices de la Bourse n'étaient pas enregistrés
+
+Le défaut le plus grave du lot. `noterQuestion` n'était branché que sur les questions de
+fouille : faire une mission entière ne laissait aucune trace au carnet. Les exercices de la
+Bourse y entrent maintenant, avec leur lien et leur bouton de doute.
+
+Ils n'ont pas d'identifiant stable — on en fabrique un depuis le pack et l'énoncé, pour ne
+pas noter deux fois la même question et pour que le lien puisse être marqué comme suivi.
+
+### Le fil de temps n'existait pas
+
+Le conteneur `carn-fil` annoncé en v70 n'a jamais été posé : le patch avait échoué sur une
+assertion précédente et je n'avais pas revérifié. Le CSS était là, le HTML non. Il est
+posé.
+
+### Le carnet se remplit vers le bas
+
+Le plus récent est désormais **en bas**, la saisie sous les entrées, et l'écran s'ouvre sur
+sa dernière page. C'est un registre qu'on remplit, pas un fil d'actualité.
+
+Les huit filtres sont retirés — de l'appareillage avant l'usage. Le mécanisme reste en
+place et pourra réapparaître si le besoin se manifeste. La recherche n'apparaît qu'au-delà
+de six entrées.
+
+Marges franches, contrastes adoucis, fonds retirés.
+
+### Niveaux documentaires pleins d'emblée
+
+`NIVEAUX_PROGRESSIFS=false` : le dossier complet arrive dès la première obtention. Le
+calcul par paliers est conservé intact juste en dessous, prêt à être rétabli.
+
+### Trois états de créature, enfin distincts
+
+Sur l'écran de chantier, les vignettes ne montraient pas ce qui était trouvé.
+
+| État | Rendu |
+|---|---|
+| Trouvée | nette, liseré ocre, pastille pleine |
+| Lisible, pas trouvée | grisée, désaturée, pastille creuse |
+| Inconnue | point d'interrogation |
+
+Chaque vignette porte aussi le premier mot du nom : six carrés muets ne disent rien.
+
+### Mission surprise
+
+Fond ocre plein et ombre portée — elle ressemblait à un titre de section. Retirée de
+l'écran de fin de mission, qui comptait trop de boutons.
+
+## Quatre chantiers — v71
+
+### S1 · Audit de texte
+
+Cinq chapeaux coupés, 237 caractères en moins, sans perte d'information : ils
+expliquaient ce que l'écran montrait déjà.
+
+    Tu réponds à des questions et tu gagnes des crédits de recherche.
+    C'est ce qui finance les fouilles.
+    → Des questions, des crédits. C'est ce qui finance les fouilles.
+
+    Tout ce que tu as trouvé, à classer par chantier, par période,
+    par famille, ou à voir sur la frise du temps.
+    → Par chantier, par période, par famille, ou sur la frise.
+
+L'audit reste partiel : trois chaînes visées n'ont pas été trouvées parce qu'elles sont
+coupées différemment dans la source. À reprendre.
+
+### S3 · La difficulté était une étiquette morte
+
+Le champ `diff` n'est lu **nulle part** dans l'application. Il était attribué par rang de
+question — les six premières faciles, les six dernières difficiles — donc faux, et il
+donnait l'illusion d'un dosage qui n'existait pas.
+
+Retiré des 140 questions générées, ainsi que du générateur. Les 500 questions d'origine
+gardent le leur : c'est une métadonnée écrite à la main, et l'effacer serait détruire un
+travail au lieu de corriger une erreur. Elle reste inutilisée.
+
+### S4 · Mission surprise
+
+Un pack tiré au sort, payé **1,6 fois** le tarif normal. Elle existe pour les jours où
+choisir est déjà un effort : on ouvre, on appuie, on part. La prime compense le fait de ne
+pas décider, et l'écran de fin la détaille.
+
+Accessible en tête du menu des packs et depuis la fin de chaque mission.
+
+### S6 · Le songe de cours
+
+Un bouton en fin de mission inscrit une réflexion sur le pack qu'on vient de traverser.
+Elle rejoint le carnet comme n'importe quelle trace : la Bourse et la Fouille alimentent
+le même récit, ce qui était le point manquant de la v68.
+
+## Le songe — v70
+
+Le carnet enregistrait ce qui arrivait. Il lui manquait ce que ça faisait.
+
+**Toute entrée peut désormais recevoir un songe** : ce qu'elle en a pensé, ce qu'elle
+avait compris de travers, ce que le lien lui a appris. Il s'accroche à la trace plutôt que
+de vivre à côté — rouvrir un lien un mois plus tard, c'est retrouver le lien *et* ce qu'on
+en avait tiré.
+
+Il s'affiche en note de marge, en serif italique sur fond ocre, décalé du texte qu'il
+commente. C'est une voix différente de celle de l'application, et ça doit se voir.
+
+### Le fil
+
+Les entrées sont désormais enfilées sur une ligne de temps continue, chaque trace marquée
+d'un nœud. **Un nœud qui porte un songe s'allume** — ocre, halo. En parcourant le carnet du
+regard, on voit où elle s'est arrêtée pour penser.
+
+Le carnet cesse d'être une pile de fiches pour devenir un parcours.
+
+### Songes comme lecture
+
+Un huitième filtre, « Songes », n'est pas un type d'entrée mais une lecture : toutes les
+traces qui en portent un, quelle que soit leur nature. C'est la ligne de temps de ce
+qu'elle a pensé, détachée de ce qu'elle a fait.
+
+La recherche couvre les songes. L'export leur consacre une section, datée du moment où le
+songe a été inscrit et non de la trace qui l'a déclenché — on relit ses pensées dans
+l'ordre où elles sont venues.
+
+### Les liens s'annotent
+
+Dans la vue Liens, chaque source porte son songe et un bouton pour l'inscrire. Si
+plusieurs questions renvoient à la même source, c'est l'entrée qui porte une réflexion qui
+est retenue.
+
+### Un bug livré en v69, et le contrôle qui manquait
+
+La réécriture de `rendreCarnet` en v69 a emporté deux fonctions voisines,
+`carnetLiens()` et `ajouterNote()`. La vue Liens et le bouton Noter étaient cassés.
+`node --check` passait, la porte passait : rien ne relie un `onclick` à sa définition.
+
+Un contrôle le fait maintenant — toute fonction citée dans un `onclick` doit exister.
+Quarante-cinq gestionnaires vérifiés.
+
+## Le carnet ne perd rien — v69
+
+### Le plafond est supprimé, sans remplacement
+
+La version précédente coupait les entrées les plus anciennes au-delà de six cents. C'est
+correct pour une file d'attente et faux pour un carnet de terrain : ça effaçait le début
+de l'aventure, c'est-à-dire exactement ce qu'on relit.
+
+Il n'y a plus ni plafond ni élagage. Une entrée ne sort du carnet que si Louise la
+supprime elle-même.
+
+Ordre de grandeur, pour lever le doute : une entrée pèse quelques centaines d'octets. Dix
+mille entrées tiennent dans quelques mégaoctets, très en deçà de ce que `localStorage`
+accepte, et il faudrait des années d'usage quotidien pour y arriver. Le plafond n'aurait
+rien protégé et aurait tout coûté.
+
+### Tri, recherche, groupement
+
+Le sens du temps se retourne — récent d'abord ou ancien d'abord, pour remonter son
+parcours depuis le commencement. Un groupement par chantier remplace le groupement par
+date. Une recherche filtre sur tout le texte des entrées, y compris la vue Liens. Les
+trois choix sont conservés d'une session à l'autre.
+
+### Les entrées lui appartiennent
+
+Notes, doutes et commentaires de cours se **modifient**. Toute entrée se **retire**, y
+compris les automatiques : le carnet est à elle, pas un journal système.
+
+Un doute se marque **résolu** sans disparaître — il reste, barré, avec sa date. L'export
+les sépare en « À VÉRIFIER » et « DOUTES RÉSOLUS ».
+
+### Deux corrections
+
+La boîte de doute utilisait un identifiant fixe : deux boîtes ouvertes en même temps se
+volaient leur champ de saisie. Chaque boîte porte désormais sa référence.
+
+Les entrées de découverte et de chantier sont **cliquables** : la vignette d'une créature
+ouvre sa fiche, un chantier y ramène. On ne relit pas une trace sans pouvoir y retourner.
+
+### Export
+
+Deux boutons, copier et télécharger. Le second produit un fichier daté ; les deux
+partagent le même texte, produit par une seule fonction.
+
+## Le carnet devient un lieu — v68
+
+Le carnet passe du tiroir à un **quatrième onglet**. Le tiroir est technique — mise à
+jour, profils, import de progression ; le carnet est du contenu. Le mettre là revenait à
+ranger un journal intime dans la boîte à outils.
+
+Il ferme la barre : c'est là qu'on revient, pas là qu'on commence.
+
+### Six types d'événements
+
+Le carnet n'enregistre plus seulement les exercices. Chaque type garde la même structure
+mais change de couleur d'ancrage, pour qu'on repère ce qu'on cherche sans lire.
+
+| | |
+|---|---|
+| Exercice | énoncé, réponse, explication, source |
+| Découverte | créature rencontrée, sa vignette, son groupe et son âge |
+| Chantier | ouverture d'un site, sa région et son ère |
+| Cours | introduction d'un chantier traversée |
+| Note | saisie libre, à tout moment |
+| Doute | « ça me paraît faux », daté et rattaché à son sujet |
+
+### La vue Liens
+
+Les liens ne sont pas un type d'entrée mais une **vue** : toutes les sources rencontrées,
+dédoublonnées, celles déjà ouvertes marquées, avec le nombre de questions qui y renvoient.
+C'est la bibliothèque que le parcours a constituée sans qu'on la range.
+
+### Filtres et notes
+
+Sept filtres en tête d'écran, le choix étant conservé d'une session à l'autre. Une zone de
+saisie permanente pour ajouter une note libre sans passer par un exercice.
+
+L'export couvre désormais tous les types : doutes en tête sous « À VÉRIFIER », puis notes,
+rencontres, parcours.
+
+### La persistance, vérifiée
+
+`carnet` et `carnetTri` sont déclarés dans `etatVide()`, donc portés tels quels par
+l'export de progression et rétablis par `normaliser()` à l'import. Un profil ancien,
+enregistré avant cette version, reçoit un carnet vide au lieu de planter. Les trois cas
+sont éprouvés.
+
+### Un piège évité de justesse
+
+`rendreCarnet` écrit maintenant dans le DOM au lieu de retourner du HTML. La vue du tiroir
+l'appelait encore dans un gabarit : elle aurait affiché « undefined ». Elle est retirée, et
+l'entrée du tiroir renvoie vers l'onglet.
+
+## Carnet de parcours — v67
+
+La collection dit ce qui manque. Le carnet dit où l'on est allé — même chiffre, sens
+inverse. C'est le pari de cette version : pour une joueuse qui ne complétera pas les 193
+créatures, une trace de ce qu'elle a lu vaut mieux qu'un décompte de ce qui reste.
+
+### Ce qu'il enregistre
+
+Chaque question traversée y laisse une entrée : l'énoncé, la réponse, l'explication et la
+source. L'énoncé et l'explication sont stockés **en clair** plutôt que par référence, pour
+que le carnet reste lisible si la banque change ensuite. Une entrée par question, jamais
+de doublon, plafond à 600.
+
+Les liens suivis sont marqués d'une coche. Le carnet devient donc aussi une bibliothèque :
+les sources vérifiées se retrouvent sans repasser par l'exercice.
+
+### Les doutes y ont leur place
+
+Un bouton « Ça me paraît faux » figure sous chaque explication et sur chaque fiche de
+créature. La remarque est datée, rattachée à son sujet, et rangée dans le carnet.
+
+Ce réflexe devant une inexactitude est un atout, pas un agacement : on l'enregistre au
+lieu de le laisser se perdre dans une conversation.
+
+### L'export
+
+Un bouton copie le tout en texte, doutes en tête sous l'intitulé « À VÉRIFIER », parcours
+ensuite. Ça se colle dans un message et se discute.
+
+### Ce qu'il n'a pas
+
+Aucun score, aucun pourcentage, aucune série, aucune barre de progression. Un tableau de
+bord redeviendrait une complétion, donc une chose à ignorer. Le carnet se lit comme un
+registre de terrain, ce qui est déjà le registre visuel de l'application.
+
+Il vit dans le tiroir du profil et non en quatrième onglet : pas de schéma mental
+supplémentaire.
+
+## Le contenu d'abord — v66
+
+Constat de terrain : le contenu a triplé, mais il restait derrière un péage conçu pour une
+joueuse qui collectionne. Ce n'est pas le profil visé. Le barème avait donc pour effet net
+de cacher précisément ce pour quoi l'application est ouverte.
+
+Deux changements, **sans toucher au moteur**.
+
+### Les fiches sont lisibles tout de suite
+
+`FICHES_LIBRES` révèle les fiches de créatures sans qu'elles aient été trouvées. La
+fouille ne déverrouille plus le savoir ; elle marque ce qu'on a travaillé.
+
+La progression reste entièrement visible : les compteurs « 0 / 6 », la collection et le
+profil continuent de refléter les trouvailles réelles. Une créature lue mais pas encore
+trouvée s'affiche simplement atténuée. On voit où l'on en est, on n'est plus privé de
+lecture.
+
+**Le masquage reste écrit et fonctionnel.** Passer le drapeau à `false` rétablit exactement
+la mécanique précédente : c'est une réserve, pas du code mort.
+
+### Le prix suggère un ordre au lieu de freiner
+
+Le plateau à 320 supposait qu'on voulait ralentir l'ouverture. Le barème devient
+**100 + 10 par chantier**, dans l'ordre chronologique : de 100 pour Lantian à 390 pour
+Fossiles vivants. Total 7350 ◈ au lieu de 9280, et surtout le premier tiers de l'atlas
+s'ouvre entre 100 et 190 — une à deux missions.
+
+Dix crédits d'écart ne bloquent personne : ils indiquent une direction, ils ne l'imposent
+pas.
+
+### Frise : deux causes identifiées, deux corrections
+
+Les chevauchements de la capture n'étaient pas cosmétiques, ils avaient une cause précise.
+
+**Les ères et les périodes partageaient la même colonne** (`left:-74px`), et l'étiquette
+d'ère est `sticky` : elle venait donc se garer sur n'importe quelle période au fil du
+défilement. C'est ce qui empilait « MÉSOZOÏQUE », « Paléogène 66 Ma » et « CÉNOZOÏQUE ».
+La gouttière passe de 74 à 104 px et porte désormais **deux colonnes distinctes**, l'ère
+en vertical tout à gauche, la période à sa droite.
+
+**Les étiquettes de chantier étaient bornées à `yFrise(0)`**, exactement là où se pose le
+repère « Aujourd'hui ». Une garde de 26 px est réservée.
+
+Enfin, chaque chantier **porte son époque** sous son nom : Lantian → Édiacarien, Gotland →
+Silurien, Winton → Crétacé.
+
+### Un bug attrapé au contrôle
+
+`periodeDe` attend une **créature** — il lit `ageMin` et `ageMax` — et non un âge. Lui
+passer un nombre donnait `NaN`, donc le repli silencieux sur la dernière période : tous
+les chantiers s'affichaient « Quaternaire », Lantian à 600 Ma compris. Une fonction
+`periodeSite` fait désormais l'adaptation.
+
+## Les 120 explications écrites — v65
+
+La dette repérée à la v64 est soldée. **Les 640 questions de fouille ont une explication
+rédigée**, aucune générique, longueur moyenne d'environ 110 caractères.
+
+### La source de vérité reste le fichier de pack
+
+Les explications sont écrites dans `tools/PACK_*.md`, section « Les explications », et non
+dans les données. Le générateur les lit avec les énoncés et les leurres : ce qui a été
+relu et mesuré est ce qui est livré.
+
+Le générateur est devenu un outil à part entière, `tools/questions.py`, au lieu d'un
+script jetable. Il **refuse de produire un bloc si une explication manque**, plutôt que de
+poser un texte d'attente comme la première version l'avait fait. C'est la correction de
+fond : le défaut de la v63 venait d'un générateur trop conciliant, pas d'un oubli.
+
+### Une incohérence trouvée en chemin
+
+La question 2 de `LNT` demandait toujours l'âge du gisement avec « environ 602 Ma » pour
+réponse, alors que le sourçage avait ramené la datation à « ≈ 600 Ma, débattue » et que la
+fiche du site le disait déjà. Corrigée. C'est exactement le genre d'écart qu'une relecture
+question par question fait apparaître et qu'aucune assertion ne pouvait attraper.
+
+### Ce que les explications portent
+
+Elles donnent la raison, pas le détail — la fiche s'en charge. Plusieurs prolongent une
+correction du sourçage là où elle compte le plus, au moment où la réponse s'affiche :
+
+- `COR-14` : l'ancrage de *Cystiphyllum* ne sert pas seulement à ne pas basculer, il
+  utilise la colonie voisine comme substrat dur et tue ses petits polypes.
+- `LIV-05` : l'expression « fossile vivant » est de Darwin, qui la jugeait lui-même
+  fantaisiste dans la phrase suivante.
+- `DOM-18` : les races canines montrent ce qu'une seule espèce peut donner — mais les
+  moutons ont gardé une diversité génétique élevée, donc la sélection n'appauvrit pas
+  toujours.
+- `KAP-12` : la fiche nomme un genre parce que l'ADN ne descend pas plus bas, pas par
+  prudence rédactionnelle.
 
 ## Phase QC après intégration — v64
 

@@ -268,6 +268,33 @@ qu'affirmée.
 
 ---
 
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. Gotland est une île suédoise de la Baltique, à la latitude de Stockholm.
+2. Le Silurien s’étend de 443 à 419 Ma. Le calcaire de l’île s’est formé pendant cette période.
+3. Ce morceau de croûte se trouvait alors vers vingt degrés de latitude sud, dans une mer chaude et peu profonde.
+4. La tectonique des plaques a déplacé le continent depuis : la latitude d’une roche aujourd’hui ne dit rien de celle où elle s’est formée.
+5. Le calcaire de Gotland n’est pas un dépôt recouvrant le récif : c’est le récif lui-même, transformé en roche.
+6. Les Rugosa sont les coraux dits rugueux, les Tabulata les coraux tabulés. Ce sont les deux grands bâtisseurs du Paléozoïque.
+7. Ils se sont éteints à la fin du Permien, lors de la plus grande crise biologique connue, sans laisser de descendance.
+8. Les coraux modernes, les Scleractinia, apparaissent au Trias, après l’extinction des deux groupes précédents.
+9. Une convergence, c’est quand des lignées différentes aboutissent à la même solution. Le récif a été réinventé, pas hérité.
+10. Ses corallites sont accolés en files, et une coupe fait apparaître des maillons alignés.
+11. « Halysites » vient du grec halysis, la chaîne. Le nom a été donné par Linné en 1767.
+12. Les corallites hexagonaux, serrés les uns contre les autres, produisent une surface régulière en alvéoles.
+13. C’est un rugueux solitaire : un cône évasé vers le haut, qui pousse en s’élargissant depuis sa pointe.
+14. Sur un fond meuble et trouble, tenir debout est le problème principal. Il s’ancrait entre les rangs d’une colonie voisine, dont il tuait les petits polypes pour se faire de la place.
+15. Il mesure un à deux centimètres et n’est pas fixé : il repose librement sur le sédiment. Sa présence caractérise les Lower Visby Beds.
+16. Les rugueux sont le plus souvent solitaires. Entelophyllum fait exception, avec ses longs tubes séparés divergeant depuis la base.
+17. Un large calice en forme de champignon. La révision du genre signale toutefois des spécimens coloniaux ou agrégés : sa nature n’est pas tranchée.
+18. Un corail solitaire est un animal unique dans son squelette, là où une colonie en abrite des milliers reliés entre eux.
+19. Un récif crée du relief, des cavités, des surfaces dures. Schlotheimophyllum porte à lui seul vingt-trois espèces d’organismes encroûtants.
+20. Chaîne, nid-d’abeilles, corne, bouton, buisson : la forme se retient et se compare, le nom vient ensuite.
+
+---
+
 ## Mesure
 
     node tools/qcm_brouillon.js tools/PACK_COR.md --pires

@@ -139,7 +139,7 @@ fiche le dit, et une question du chantier porte là-dessus.
    Yunnan, au sud-ouest de la Chine · En Mongolie-Intérieure, au nord du pays · Dans le
    Guizhou, sur les hauts plateaux
 
-2. **De quand datent ces fossiles ?** · *D'environ 602 Ma* · D'environ 400 Ma · D'environ
+2. **De quand datent ces fossiles ?** · *D'environ 600 Ma* · D'environ 400 Ma · D'environ
    250 Ma · D'environ 900 Ma
 
 3. **À quelle période appartiennent-ils ?** · *À l'Édiacarien* · Au Cambrien · Au
@@ -207,6 +207,33 @@ fiche le dit, et une question du chantier porte là-dessus.
 20. **Que change ce chantier pour la frise de l'atlas ?** · *Il en recule le début* · Il
     ajoute une période inédite à l'échelle · Il resserre les graduations les plus
     anciennes · Il déplace la limite du Précambrien
+
+---
+
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. La formation de Lantian affleure près de Xiuning, dans la province de l’Anhui.
+2. L’âge tourne autour de 600 Ma, mais la datation n’est pas fixée et le biote pourrait être plus jeune.
+3. L’Édiacarien est la dernière période avant le Cambrien, et la première où des organismes de grande taille apparaissent.
+4. Les continents étaient nus : ni plantes, ni sols, ni animaux terrestres. Toute la vie complexe était marine.
+5. Avant eux, la vie est essentiellement microscopique. Ici, pour la première fois, des êtres qu’un promeneur aurait pu voir sans instrument.
+6. Des cellules isolées, des filaments, des tapis microbiens — visibles en masse, jamais individuellement.
+7. Un fond vaseux et sombre, sous une tranche d’eau modeste, où ces organismes étaient fixés.
+8. Ils sont aplatis dans la roche et réduits à un film de carbone : la silhouette subsiste, l’épaisseur non.
+9. Un grand thalle en éventail formé de filaments parallèles, fixé par une base globuleuse.
+10. Chaque branche se sépare en deux branches égales, qui se séparent à leur tour — d’où une arborescence très régulière.
+11. Sa ramification est d’une régularité presque schématique, et c’est un des rares caractères que la compression conserve fidèlement.
+12. De longues lames ou rubans souples, qui devaient onduler dans le courant.
+13. Des modules globuleux ou cylindriques alignés en longues chaînes, parfois ramifiées.
+14. On le range parmi les algues par défaut, mais rien ne le démontre. C’est le cas le plus ouvert du chantier.
+15. Un atlas qui n’inclurait que les cas réglés donnerait une idée fausse du métier : l’incertitude en fait partie.
+16. « sp. » signale que le genre est établi mais que l’espèce n’a pas été déterminée.
+17. Une compression conserve le contour et parfois la ramification, mais ni la couleur, ni la souplesse, ni l’épaisseur des tissus.
+18. Comme des propositions et non des portraits : la forme est fondée, le reste est une reconstitution raisonnée.
+19. Non. Les plantes terrestres apparaîtront plus de deux cents millions d’années plus tard. Ce sont des organismes marins d’affinité algale probable.
+20. Lantian devient le chantier le plus ancien de l’atlas et en prend la tête, devant la Mer Blanche.
 
 ---
 

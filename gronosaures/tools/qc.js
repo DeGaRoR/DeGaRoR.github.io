@@ -20,13 +20,13 @@ const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
   +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
-  +'COUT_BASE,COUT_PAS,COUT_PLATEAU,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
+  +'COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,FICHES_LIBRES,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
   +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE,CREATURE_ACCUEIL});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
-       COUT_BASE,COUT_PAS,COUT_PLATEAU,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
+       COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,FICHES_LIBRES,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
 ['index.html','styles.css','data.js','app.js','sw.js','manifest.json','monde-min.webp']
@@ -298,6 +298,35 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   }
 }
 
+/* ---------- 8 ter ter. Gestionnaires d'événements ----------
+   Une réécriture de fonction peut emporter une voisine sans que rien ne le
+   signale : `node --check` passe, la porte passe, et le bouton casse à
+   l'usage. C'est arrivé à carnetLiens() et ajouterNote(). On vérifie donc que
+   toute fonction citée dans un onclick existe bien. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const cites=[...app.matchAll(/onclick="([a-zA-Z_][\w]*)\(/g)].map(m=>m[1]);
+  const def=new Set([...app.matchAll(/function\s+([a-zA-Z_][\w]*)/g)].map(m=>m[1]));
+  const orphelins=[...new Set(cites)].filter(f=>!def.has(f));
+  T('tout gestionnaire onclick est défini', orphelins.length===0, orphelins.join(' '));
+}
+
+/* ---------- 8 ter quater. Fragments d'interface effectivement posés ----------
+   Trois patches de suite ont écrit du CSS pour du HTML qui n'a jamais été
+   produit : le fil de temps et l'affichage des songes annoncés en v70
+   n'existaient pas, et rien ne le signalait. On vérifie donc que les classes
+   structurantes du carnet sont bien émises par app.js, pas seulement stylées. */
+{
+  const app=fs.readFileSync(path.join(R,'app.js'),'utf8');
+  const css=fs.readFileSync(path.join(R,'styles.css'),'utf8');
+  [['carn-fil','fil de temps'],['a-songe','marque de songe'],
+   ['carn-resume','résumé replié'],['songe-add','bouton de songe'],
+   ['vig-nom','nom sur la vignette']].forEach(([cl,quoi])=>{
+    T('interface posée : '+quoi, app.includes(cl), cl+' absent de app.js');
+    T('interface stylée : '+quoi, css.includes('.'+cl), cl+' absent du CSS');
+  });
+}
+
 /* ---------- 8 quater. Pastilles de globe ----------
    Extraites des vues satellites par tools/globes.py. Un site sans pastille
    afficherait une image cassée dans l'introduction. */
@@ -333,12 +362,13 @@ SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id)))
 
 /* ---------- 8 sexies. Ordre des onglets et des packs ----------
    L'ordre n'est pas décoratif : il dit ce que l'application est censée être.
-   Les matières d'accompagnement passent devant les exercices de remise à niveau. */
+   Les matières d'accompagnement passent devant les exercices de remise à niveau.
+   Le carnet ferme la barre : c'est là qu'on revient, pas là qu'on commence. */
 {
   const html=fs.readFileSync(path.join(R,'index.html'),'utf8');
   const ordre=[...html.matchAll(/data-ecran="([a-z]+)"/g)].map(m=>m[1]);
   T('onglets dans l’ordre voulu',
-    ordre.join(' ')==='bourse fouille collection', ordre.join(' '));
+    ordre.join(' ')==='bourse fouille collection carnet', ordre.join(' '));
   /* La frise a été repliée dans la collection : elle ne doit plus être un onglet,
      mais rester atteignable comme quatrième bouton de tri. */
   T('la frise n’est plus un onglet', !html.includes('data-ecran="frise"'));
@@ -1100,12 +1130,12 @@ T('sites classés du plus ancien au plus récent',
 {
   const tries=[...SITES].map(s=>s.cout).sort((a,b)=>a-b);
   T('coûts en rampe puis plateau', tries.every((c,i)=>
-    c===Math.min(COUT_BASE+COUT_PAS*i, COUT_PLATEAU)),
+    c===COUT_DEPART+COUT_MARCHE*i),
     tries.join(' '));
-  T('le plateau est atteint', tries[tries.length-1]===COUT_PLATEAU);
-  T('la rampe existe encore', tries[0]===COUT_BASE && tries[1]>tries[0]);
+  T('le dernier chantier reste abordable', tries[tries.length-1]<=4*COUT_DEPART, String(tries[tries.length-1]));
+  T('la rampe existe encore', tries[0]===COUT_DEPART && tries[1]>tries[0]);
   T('le plus cher ne dépasse pas quatre fois le moins cher',
-    COUT_PLATEAU<=4*COUT_BASE, COUT_PLATEAU+' / '+COUT_BASE);
+    COUT_DEPART+COUT_MARCHE*(SITES.length-1)<=4*COUT_DEPART);
 }
 
 /* Effort réel demandé, en exercices, en jouant au mieux. C'est le seul chiffre

@@ -219,6 +219,33 @@ mésozoïques — sans que l'espèce actuelle soit pour autant aussi ancienne.
 
 ---
 
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. Elles sont vivantes aujourd’hui. C’est le seul chantier de l’atlas où l’on ne creuse pas.
+2. Un pêcheur y a remonté en 1938 un cœlacanthe, poisson que l’on croyait disparu depuis soixante-six millions d’années.
+3. Océan Indien, Nouvelle-Zélande, Indo-Pacifique, Australie, mares temporaires d’Eurasie : l’épingle est un repère, pas un gisement.
+4. Une allure qui évoque les mers anciennes — coquille cloisonnée, carapace à épine, appendices caudaux.
+5. L’expression est de Darwin, en 1859, et il jugeait lui-même l’étiquette fantaisiste dans la phrase suivante.
+6. Leur lignée, et leur plan d’organisation. Les espèces actuelles, elles, sont récentes.
+7. La façon dont le corps est bâti : la disposition générale des parties, indépendamment de l’espèce.
+8. Non. Une famille peut être vieille de quatre cents millions d’années tandis que chacun de ses membres actuels est jeune.
+9. Oui, et c’est ce qui rend la distinction concrète : notre lignée est ancienne, notre espèce ne l’est pas.
+10. En 1938, quand un spécimen remonté aux Comores a été identifié.
+11. Qu’il avait disparu à la fin du Crétacé. Il n’était connu que par ses fossiles.
+12. En jouant sur le gaz contenu dans les loges cloisonnées de sa coquille.
+13. Respirer l’air grâce à un poumon fonctionnel, en plus de ses branchies.
+14. De nous. Les dipneustes sont plus proches des tétrapodes que des poissons ordinaires.
+15. Non. C’est un rhynchocéphale, dernier survivant d’un groupe très répandu au Mésozoïque.
+16. Plus de deux cents millions d’années séparent les rhynchocéphales des lézards : la ressemblance est trompeuse.
+17. Qu’elle a peu changé — ce qui ne veut pas dire qu’elle a cessé de changer.
+18. Non. Les limulidés se révèlent génétiquement plus diversifiés qu’on ne le pensait.
+19. Dans des mares temporaires, qui s’assèchent puis se remplissent. Ses œufs résistent à la dessiccation.
+20. Ailleurs on regarde des formes disparues en imaginant ce qu’elles étaient vivantes ; ici on regarde des vivants en y reconnaissant des formes qu’on croyait révolues.
+
+---
+
 ## Mesure
 
     node tools/qcm_brouillon.js tools/PACK_LIV.md --pires

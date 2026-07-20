@@ -212,6 +212,33 @@ fossile** — il ne s'agit pas d'une identification à l'espèce.
 
 ---
 
+## Les explications
+
+Une phrase par question, donnant la raison de la réponse. La fiche donne le détail.
+
+1. Le gisement se trouve en Peary Land, au-delà du 82ᵉ parallèle. Il n’existe pas d’endroit habité plus au nord.
+2. Environ deux millions d’années, à la transition entre le Pliocène et le Pléistocène.
+3. Un désert polaire : pas d’arbres, presque pas de terre meuble, quelques mois de lumière par an.
+4. Une mosaïque de forêt claire, de landes, de marais et d’estuaires, sous des températures de onze à dix-neuf degrés supérieures aux actuelles.
+5. Des bouleaux, des thuyas et des peupliers — une forêt boréale ouverte, à quelques degrés du pôle Nord.
+6. À partir d’ADN conservé dans le sédiment, et non de squelettes. Le gisement est presque sans fossiles.
+7. L’ADN environnemental ancien : des fragments génétiques laissés dans le milieu par les organismes qui y vivaient.
+8. En se liant à des surfaces minérales, ce qui l’a protégé de la dégradation. C’est le plus ancien ADN jamais séquencé.
+9. Elle détecte aussi les organismes sans squelette solide, qui ne laissent aucun fossile.
+10. Seuls les os, les dents et les coquilles se conservent : tout le reste du vivant échappe au dénombrement.
+11. Elle dit qu’un mastodonte était là, pas à quoi il ressemblait ni de quelle espèce il s’agissait.
+12. L’ADN disponible ne descend pas plus bas. Nommer une espèce serait affirmer plus que ce que la méthode autorise.
+13. Une branche ancienne des proboscidiens, distincte de celle des mammouths et des éléphants actuels.
+14. Une forêt claire — bien plus arborée que la toundra où on trouve les rennes aujourd’hui.
+15. Une même sous-famille réunit campagnols, lemmings et rats musqués : le rongeur est l’un d’eux, sans qu’on sache lequel.
+16. Pour ce spécimen, l’ADN s’arrête à la sous-famille. La fiche s’arrête donc là aussi.
+17. Une mer sans banquise permanente : la limule, avec des algues vertes, atteste d’eaux nettement plus chaudes.
+18. C’est un parent. Le nom de fichier porte celui de l’espèce actuelle apparentée, faute d’identification à l’espèce.
+19. Sur des parents connus, puisqu’aucune anatomie n’est conservée. Elles doivent se lire ainsi.
+20. Le même point sur la carte portait une forêt il y a deux millions d’années et un désert polaire aujourd’hui.
+
+---
+
 ## Mesure
 
     node tools/qcm_brouillon.js tools/PACK_KAP.md --pires

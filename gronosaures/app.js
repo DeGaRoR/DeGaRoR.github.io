@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v65';
+const VERSION_ATLAS='v75';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -70,7 +70,10 @@ const SCHEMA=1;                             // version du format d'échange
 function etatVide(){
   return {credits:CREDITS_DEPART, collection:{}, packprog:{}, sitesOuverts:{},
           introVue:{}, sitesBonus:{}, qSite:{}, fouilles:0, echecs:0,
-          stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false};
+          stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false,
+          /* Le carnet fait partie de l'état : il est donc porté tel quel par
+             l'export de progression et rétabli par normaliser() à l'import. */
+          carnet:[], carnetTri:'tout', carnetOrdre:'desc', carnetGroupe:false};
 }
 function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
 
@@ -312,14 +315,27 @@ const bonusDe=id=>{const s=SITES.find(x=>x.id===id);
 const possede=id=>(etat.collection[id]||0)>0;
 const fragments=id=>etat.collection[id]||0;
 const ouvert=id=>!!etat.sitesOuverts[id];
+/* Les niveaux documentaires se gagnaient fragment après fragment. Louise ne
+   farme pas : le dossier complet arrive donc dès la première obtention.
+   Passer NIVEAUX_PROGRESSIFS à true rétablit la montée par paliers — le calcul
+   est conservé intact juste en dessous. */
+const NIVEAUX_PROGRESSIFS=false;
+
 function niveauDoc(id){
   const f=fragments(id); if(f<=0)return 0;
+  if(!NIVEAUX_PROGRESSIFS) return SEUILS_DOC.length;
   let n=1; for(let i=1;i<SEUILS_DOC.length;i++) if(f-1>=SEUILS_DOC[i]) n=i+1;
   return n;
 }
 const siteComplet=s=>creaturesDe(s).every(c=>possede(c.id));
 const nbTrouvees=s=>creaturesDe(s).filter(c=>possede(c.id)).length;
 const trouvees=()=>CREATURES.filter(c=>possede(c.id));
+
+/* Révélation du CONTENU d'une fiche. À distinguer de possede(), qui reste la
+   possession réelle et continue d'alimenter les compteurs et la progression.
+   Avec FICHES_LIBRES, on lit tout de suite ; sans lui, on lit ce qu'on a
+   trouvé — la mécanique d'origine, conservée telle quelle. */
+const revele=id=>FICHES_LIBRES||possede(id);
 
 function majSolde(anim){
   $('#solde-nb').textContent=etat.credits;
@@ -367,6 +383,7 @@ function montrer(ecran){
     requestAnimationFrame(()=>{ if(pzMonde && $('#vue-carte').style.display!=='none') pzMonde.refit(); });
   }
   if(ecran==='collection'){ majFondGlobal(); rendreCollection(); }
+  if(ecran==='carnet'){ majFondGlobal(); rendreCarnet(); }
   if(ecran==='bourse'){ majFondGlobal(); menuPacks(); }
 }
 
@@ -605,12 +622,12 @@ function panneauDeblocage(s){
       <p class="md-sur">Chantier non ouvert</p>
       <h2>${esc(s.nom)}</h2>
       <p class="md-meta">${esc(s.region)} · ${esc(s.pays)}<br>${esc(s.ere)} — ${esc(s.age)}</p>
-      <p class="md-corps">Ouvrir un chantier engage des frais : autorisations, logistique, campagne de terrain. Le coût est unique, le site reste ensuite accessible.</p>
+      <p class="md-corps">Ouvrir un chantier engage des frais de campagne. Le coût est unique, le site reste ensuite accessible.</p>
       <div class="md-cout${assez?'':' court'}">${s.cout} \u25C8
         <span>${assez?'disponible : '+etat.credits+' \u25C8':'il te manque '+(s.cout-etat.credits)+' \u25C8'}</span></div>
       <button class="btn-primaire" ${assez?`onclick="debloquer('${s.id}')"`:'disabled'}>Ouvrir le chantier</button>
       <button class="btn-fant" onclick="fermerModal()">Plus tard</button>
-      ${assez?'':'<p class="md-aide">Les missions de la Bourse rapportent des crédits de recherche.</p>'}
+      ${assez?'':'<p class="md-aide">Les missions rapportent des crédits.</p>'}
     </div>`;
   setFondImg($('#md-vue'), fondDe(s), 'linear-gradient(180deg,rgba(10,15,26,.2),rgba(17,24,38,.96))');
   /* La même vue sert de fond à l'introduction, juste après. La demander ici la
@@ -624,7 +641,7 @@ function debloquer(id){
   const s=SITES.find(x=>x.id===id);
   if(ouvert(id)) return chantier(id);
   if(etat.credits<s.cout) return toast('Crédits insuffisants');
-  etat.credits-=s.cout; etat.sitesOuverts[id]=true; sauver(); majSolde(true);
+  etat.credits-=s.cout; etat.sitesOuverts[id]=true; noterChantier(s); sauver(); majSolde(true);
   fermerModal(); construireCarte(true); introSite(id);
 }
 
@@ -703,7 +720,14 @@ function introSuivant(){
   introI++;
   if(introI>=s.intro.length){
     $('#intro').classList.remove('on');
-    if(!introRelecture){ etat.introVue[introSiteId]=true; sauver(); }
+    if(!introRelecture){
+      etat.introVue[introSiteId]=true;
+      /* L'introduction est le morceau le plus narratif de l'application : on
+         laisse une trace au carnet, où une note pourra s'y accrocher. */
+      noterEvenement('pack', {id:'intro-'+introSiteId, site:introSiteId,
+        sujet:'Introduction — '+s.nom, note:s.accroche||''});
+      sauver();
+    }
     const id=introSiteId; introSiteId=null; chantier(id); return;
   }
   afficheIntro();
@@ -738,16 +762,24 @@ function chantier(id){
   /* Les sites n'ont plus tous six créatures : Yixian en compte huit. Au-delà
      de six, on répartit sur deux rangées plutôt que d'en laisser une dépareillée. */
   const cs=creaturesDe(id);
-  $('#ch-vignettes').style.gridTemplateColumns=
-    'repeat('+(cs.length<=6?cs.length:Math.ceil(cs.length/2))+',1fr)';
+  /* Le nombre de colonnes est désormais posé par la feuille de style, qui seule
+     connaît la largeur disponible : deux colonnes sur téléphone, davantage à
+     mesure que l'écran s'élargit. On efface donc toute valeur en ligne héritée. */
+  $('#ch-vignettes').style.gridTemplateColumns='';
+  $('#ch-vignettes').dataset.n=cs.length;
   /* Une case vide ne dit pas si elle est vide parce qu'il n'y a rien à trouver
      ou parce qu'on n'a pas encore trouvé. On l'écrit, comme dans la collection. */
   $('#ch-vignettes').innerHTML=cs.map(c=>{
-    const ok=possede(c.id);
-    return `<button class="vig${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}
-      title="${ok?esc(c.nom):'Créature non découverte'}">
-      ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">`
-          :'<span class="vig-q">?</span><span class="vig-inconnu">Créature non découverte</span>'}</button>`;
+    const ok=revele(c.id), eu=possede(c.id);
+    /* Trois états, et ils doivent se distinguer d'un coup d'œil :
+       trouvée (nette, liserée), lisible mais pas trouvée (grisée, marquée
+       d'un point creux), inconnue (point d'interrogation). */
+    return `<button class="vig${ok?'':' verrou'}${eu?' eu':' pas-eu'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}
+      title="${ok?esc(c.nom)+(eu?'':' — pas encore trouvée'):'Créature non découverte'}">
+      ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
+            <span class="vig-etat">${eu?'\u25CF':'\u25CB'}</span>
+            <span class="vig-nom">${esc(c.nom.split(' ')[0])}</span>`
+          :'<span class="vig-q">?</span>'}</button>`;
   }).join('');
   $('#ch-cout').textContent=COUT_FOUILLE;
   majSolde();
@@ -799,7 +831,7 @@ function rendreQuestionFouille(){
       <span class="tr-site">${esc(s.court)}</span>
       <span class="tr-essais" id="tr-essais">essai ${qFouille.essais+1} / ${NB_ESSAIS}</span>
     </div>
-    <p class="tr-intro">La tranchée est ouverte. Identifie correctement pour qu'elle livre quelque chose.</p>
+    <p class="tr-intro">Identifie correctement et la tranchée livrera.</p>
     <div class="q-txt">${esc(q.q)}</div>
     <div id="tr-rep" class="q-choix">
       ${qFouille.choix.map(c=>`<button class="rep" onclick="repFouille(this.textContent,this)">${esc(c)}</button>`).join('')}
@@ -823,9 +855,11 @@ function repFouille(val,btn){
     btn.classList.add('bon');
     $$('#tr-rep .rep').forEach(b=>b.disabled=true);
     $('#tr-indice').style.display='none';
+    noterQuestion(q, true);
     const fb=$('#tr-fb'); fb.className='q-fb bon';
     fb.innerHTML=`<b>Juste.</b> ${esc(q.exp)}`
-      +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener">${esc(q.src[0])}</a></div>`:'')
+      +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener" onclick="lienSuivi('${q.id}')">${esc(q.src[0])}</a></div>`:'')
+      +`<div id="doute-hote"></div><button class="lien-doute" onclick="ouvrirDoute('${q.id}','${esc(q.q).replace(/'/g,"\\'")}')">Ça me paraît faux</button>`
       +`<button class="btn-primaire" onclick="tirage()">Extraire la pièce</button>`;
     return;
   }
@@ -840,9 +874,11 @@ function repFouille(val,btn){
   $$('#tr-rep .rep').forEach(b=>{ b.disabled=true; if(egal(b.textContent,q.r)) b.classList.add('bon'); });
   $('#tr-indice').style.display='none';
   etat.echecs=(etat.echecs||0)+1; sauver();
+  noterQuestion(q, false);
   const fb=$('#tr-fb'); fb.className='q-fb faux';
   fb.innerHTML=`<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp)}`
-    +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener">${esc(q.src[0])}</a></div>`:'')
+    +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener" onclick="lienSuivi('${q.id}')">${esc(q.src[0])}</a></div>`:'')
+    +`<div id="doute-hote"></div><button class="lien-doute" onclick="ouvrirDoute('${q.id}','${esc(q.q).replace(/'/g,"\\'")}')">Ça me paraît faux</button>`
     +`<button class="btn-primaire" onclick="trancheeSterile()">Refermer la tranchée</button>`;
 }
 /* Une fouille qui ne rend rien est le seul endroit du jeu où l'on perdait
@@ -856,6 +892,7 @@ function trancheeSterile(){
   const pool=creaturesDe(siteActif).filter(c=>possede(c.id));
   if(pool.length){
     const c=pioche(pool);
+    if(!possede(c.id)) noterCreature(c);
     etat.collection[c.id]=fragments(c.id)+1;
     const avant=niveauDoc(c.id), apres=niveauDoc(c.id);
     sauver();
@@ -881,6 +918,7 @@ function tirage(){
   while(t>poids[k]){ t-=poids[k]; k++; }
   const c=pool[k];
   const avant=niveauDoc(c.id);
+  if(!possede(c.id)) noterCreature(c);
   etat.collection[c.id]=fragments(c.id)+1;
   if(!etat.ordre[c.id]) etat.ordre[c.id]=++etat.ordreN;
   const apres=niveauDoc(c.id);
@@ -950,8 +988,8 @@ const TRIS={
   }
 };
 function vignette(c){
-  const ok=possede(c.id), nv=niveauDoc(c.id);
-  return `<button class="carte${ok?'':' verrou'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}>
+  const ok=revele(c.id), nv=niveauDoc(c.id);
+  return `<button class="carte${ok?'':' verrou'}${possede(c.id)?'':' non-trouvee'}" ${ok?`onclick="ouvrirFiche('${c.id}')"`:''}>
     ${ok?`<img src="${c.img}" loading="lazy" alt="${esc(c.nom)}">
       <span class="c-niv" title="Niveau documentaire">${'●'.repeat(nv)}${'○'.repeat(3-nv)}</span>`
       :`<span class="c-q">?</span><span class="c-inconnu">Non découverte</span>`}
@@ -1023,7 +1061,16 @@ function changerTri(m){ if(m!=='frise' && !TRIS[m])return; etat.tri=m; sauver();
 const FRISE_DEBUT=650;          // en Ma ; l'Édiacarien commence à 635
 const FRISE_PX_PAR_MA=8;        // hauteur ≈ 5 200 px
 const FRISE_ECART_MIN=46;       // en deçà, deux chantiers se décalent de côté
+const FRISE_FIN_GARDE=26;       // hauteur réservée au repère « Aujourd'hui »
 function yFrise(ma){ return (FRISE_DEBUT-ma)*FRISE_PX_PAR_MA; }
+/* periodeDe attend une CRÉATURE (il lit ageMin/ageMax), pas un âge. Lui passer
+   un nombre donnait NaN, donc le repli sur la dernière période : tous les
+   chantiers s'affichaient « Quaternaire », Lantian compris. */
+function periodeSite(id){
+  const a=ageMoyenSite(id);
+  return (periodeDe({ageMin:a, ageMax:a})||{}).nom||'';
+}
+
 function ageMoyenSite(id){
   const cs=CREATURES.filter(c=>c.site===id);
   return cs.reduce((a,c)=>a+(c.ageMin+c.ageMax)/2,0)/cs.length;
@@ -1059,7 +1106,10 @@ function rendreFrise(){
      l'autre. C'est le cas dès qu'on illustre plusieurs gisements quaternaires,
      tous compris dans les vingt-et-un derniers pixels de la frise. */
   for(let i=rangs.length-1;i>=0;i--){
-    const maxi = i===rangs.length-1 ? yFrise(0) : rangs[i+1].etiq - FRISE_ECART_MIN;
+    /* Le dernier chantier s'arrêtait à yFrise(0), c'est-à-dire exactement où se
+       pose le repère « Aujourd'hui » : les deux se superposaient. On réserve
+       la hauteur du repère. */
+    const maxi = i===rangs.length-1 ? yFrise(0)-FRISE_FIN_GARDE : rangs[i+1].etiq - FRISE_ECART_MIN;
     rangs[i].etiq = Math.min(rangs[i].etiq, maxi);
   }
 
@@ -1075,10 +1125,11 @@ function rendreFrise(){
       <button class="fri-tete" onclick="friseBascule('${s.id}')">
         <img class="fri-embleme${n?'':' voile'}" src="${emblemeDe(s.id).img}"
              alt="" loading="lazy">
-        <span class="fri-nom">${esc(s.court)}</span>
+        <span class="fri-nom">${esc(s.court)}
+          <em class="fri-epoque">${esc(periodeSite(s.id))}</em></span>
         <span class="fri-cpt">${n} / ${cs.length}</span>
       </button>
-      ${ouvert?`<div class="fri-bêtes">${cs.map(c=>possede(c.id)
+      ${ouvert?`<div class="fri-bêtes">${cs.map(c=>revele(c.id)
           ? `<button class="fri-b" onclick="ouvrirFiche('${c.id}')" title="${esc(c.nom)}">
                <img src="${c.img}" loading="lazy" alt="${esc(c.nom)}"><em>${esc(c.nom)}</em></button>`
           : `<span class="fri-b verrou"><i>?</i><em>Non découverte</em></span>`).join('')}</div>`:''}
@@ -1124,8 +1175,7 @@ function ouvrirReglages(v){
   if(vueReglages==='maj'){
     html=`<p class="md-sur">Mise à jour</p>
       <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
-      <p class="rg-note">À faire seulement si une nouvelle version a été installée
-        mais que l’application affiche encore l’ancienne. Aucune progression n’est
+      <p class="rg-note">Si l’application affiche encore l’ancienne version. Aucune progression n’est
         touchée : les profils sont enregistrés séparément des fichiers de
         l’application.</p>
       <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
@@ -1167,8 +1217,7 @@ function ouvrirReglages(v){
       <div class="rg-sauv" id="rg-sauv">
         <div class="rg-vl"><span>Dernière sauvegarde</span><b id="rg-sauv-date">…</b></div>
         <div class="rg-vl"><span>Tu joues dans</span><b id="rg-contexte">…</b></div>
-        <p class="rg-avert">Les parties ne vivent que dans ce navigateur, sur cet
-          appareil. <b>Désinstaller l’application les efface définitivement.</b>
+        <p class="rg-avert">Les parties ne vivent que sur cet appareil. <b>Désinstaller l’application les efface définitivement.</b>
           Un fichier de sauvegarde est le seul moyen de les retrouver.</p>
       </div>
 
@@ -1180,6 +1229,13 @@ function ouvrirReglages(v){
         <button class="rg-item" onclick="choisirFichierImport()">
           <span class="rg-ico">\u2191</span>
           <span class="rg-lab">Restaurer depuis un fichier<small>Ajoute les parties sans écraser les tiennes</small></span>
+          <span class="rg-chev">\u203A</span></button>
+      </div>
+
+      <div class="rg-liste">
+        <button class="rg-item" onclick="fermerReglages(); montrer('carnet')">
+          <span class="rg-ico">\u270E</span>
+          <span class="rg-lab">Carnet<small>${carnet().length} entrée${carnet().length>1?'s':''}</small></span>
           <span class="rg-chev">\u203A</span></button>
       </div>
 
@@ -1312,14 +1368,12 @@ function ouvrirGuide(){
     <p class="md-sur">Comment ça marche</p>
     <h3>Trois écrans, un seul but</h3>
     <div class="gd-ligne"><span class="gd-ico">🎓</span>
-      <p class="gd-txt"><b>Bourse.</b> Tu réponds à des questions et tu gagnes
-        des crédits de recherche. C’est ce qui finance les fouilles.</p></div>
+      <p class="gd-txt"><b>Bourse.</b> Des questions, des crédits. C’est ce qui finance les fouilles.</p></div>
     <div class="gd-ligne"><span class="gd-ico">⛏️</span>
       <p class="gd-txt"><b>Fouille.</b> Tu ouvres un chantier sur la carte du monde,
         puis tu creuses : chaque bonne réponse sur le site dégage une créature.</p></div>
     <div class="gd-ligne"><span class="gd-ico">🧬</span>
-      <p class="gd-txt"><b>Collection.</b> Tout ce que tu as trouvé, à classer par
-        chantier, par période, par famille, ou à voir sur la frise du temps.</p></div>
+      <p class="gd-txt"><b>Collection.</b> Par chantier, par période, par famille, ou sur la frise.</p></div>
     <div class="gd-but"><b>Le but</b>
       Fouiller les ${SITES.length} chantiers du monde et reconstituer l’histoire du
       vivant, des premiers organismes d’il y a 560 millions d’années jusqu’à hier.</div>
@@ -1468,6 +1522,8 @@ function ouvrirFiche(id){
         <dt>Fiabilité longévité</dt><dd>${esc(c.confLong)}</dd>
       </dl>
       <h4>Sources</h4>
+      <div id="doute-hote"></div>
+      <button class="lien-doute" onclick="ouvrirDoute('${c.id}','${esc(c.nom)}')">Ça me paraît faux</button>
       <ul class="fi-src">${c.src.filter(x=>x&&x[1]).map(x=>
         `<li><a href="${esc(x[1])}" target="_blank" rel="noopener">${esc(x[0])}</a></li>`).join('')}</ul>`;
   } else if(nv===2){
@@ -1499,6 +1555,8 @@ function avancePack(p){
 }
 function menuPacks(){
   $('#bourse-corps').innerHTML=`
+    <button class="btn-surprise" onclick="missionSurprise()">Mission surprise
+      <em>un pack au hasard, mieux payé</em></button>
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
     <h3 class="grp">Accompagnement scolaire
@@ -1537,7 +1595,10 @@ function ouvrirPack(id){
       <p class="pk-sous">${esc(p.sous)}</p>
     </div>
     <button class="btn-primaire pk-lancer" onclick="lancerMission()">Commencer une mission</button>
-    <details class="theo"><summary>Rappel théorique</summary><div>${theorieHTML(p)}</div></details>`;
+    <details class="theo"><summary>Rappel théorique</summary><div>${theorieHTML(p)}
+      <div id="songe-hote"></div>
+      <button class="lien-doute" onclick="songePack('${p.id}','${esc(p.nom)}')">Inscrire un songe</button>
+    </div></details>`;
 }
 function genConjugaison(niv){
   const V=verbesNiv(niv);
@@ -1592,7 +1653,41 @@ function prochainExo(){
   return choisirBanque(p);
 }
 let mission=null;
-function lancerMission(){ mission={i:0, gagne:0, justes:0, aide:false, essais:0, vus:[]}; exoSuivant(); }
+function lancerMission(surprise){
+  mission={i:0, gagne:0, justes:0, aide:false, essais:0, vus:[], surprise:!!surprise};
+  exoSuivant();
+}
+
+/* Mission surprise : un pack tiré au sort, mieux payé. Elle existe pour les
+   jours où choisir est déjà un effort — on ouvre, on appuie, on part. La prime
+   compense le fait de ne pas décider. */
+const PRIME_SURPRISE=1.6;
+
+/* Le songe de cours rejoint le carnet comme n'importe quelle trace : la Bourse
+   et la Fouille alimentent le même récit. */
+function songePack(id, nom){
+  const h=document.getElementById('songe-hote'); if(!h) return;
+  h.innerHTML=`<textarea class="songe-ed" id="sg-pack" rows="3"
+      placeholder="Ce que ce cours t\u2019a laissé"></textarea>
+    <button class="carn-mini" onclick="songePackNoter('${id}','${(nom||'').replace(/'/g,"\\'")}')">Inscrire</button>`;
+  const z=document.getElementById('sg-pack'); if(z) z.focus();
+}
+function songePackNoter(id, nom){
+  const z=document.getElementById('sg-pack'); const v=z&&z.value.trim();
+  if(!v) return;
+  carnet().push({k:'pack', t:Date.now(), id:'pack-'+id+'-'+Date.now(),
+                 sujet:nom, note:v});
+  sauver();
+  const h=document.getElementById('songe-hote');
+  if(h) h.innerHTML='<span class="doute-ok">Inscrit au carnet.</span>';
+}
+
+function missionSurprise(){
+  const dispo=PACKS.filter(p=>p.id!==(packActif&&packActif.id));
+  const p=dispo[Math.floor(Math.random()*dispo.length)]||PACKS[0];
+  ouvrirPack(p.id);
+  lancerMission(true);
+}
 function exoSuivant(){
   if(mission.i>=NB_MISSION) return finMission();
   let q=null, garde=0;
@@ -1659,10 +1754,13 @@ function repondre(val,btn){
     $$('#q-rep .rep').forEach(x=>x.disabled=true);
     const inp=$('#q-input'); if(inp) inp.disabled=true;
     $('#btn-indice').style.display='none';
+    noterExercice(q, packActif, true);
     fb.className='q-fb bon';
     fb.innerHTML=`<b>Juste.</b> ${esc(q.exp||'')}`
-      +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener">${esc(q.lien[0])}</a></div>`:'')
-      +`<button class="btn-primaire" onclick="suite()">Continuer</button>`;
+      +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener" onclick="lienSuivi('${refExo(q,packActif)}')">${esc(q.lien[0])}</a></div>`:'')
+      +`<div id="doute-hote"></div>
+        <button class="lien-doute" onclick="ouvrirDoute('${refExo(q,packActif)}','${esc(q.q||'').replace(/'/g,"\\'")}')">Ça me paraît faux</button>
+        <button class="btn-primaire" onclick="suite()">Continuer</button>`;
     crediter(g); sauver(); return;
   }
   mission.essais++;
@@ -1677,8 +1775,13 @@ function repondre(val,btn){
   $$('#q-rep .rep').forEach(x=>{ x.disabled=true; if(egal(x.textContent,q.r)) x.classList.add('bon'); });
   const inp=$('#q-input'); if(inp) inp.disabled=true;
   $('#btn-indice').style.display='none';
+  noterExercice(q, packActif, false);
   fb.className='q-fb faux';
-  fb.innerHTML=`<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp||'')}<button class="btn-primaire" onclick="suite()">Continuer</button>`;
+  fb.innerHTML=`<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp||'')}`
+    +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener" onclick="lienSuivi('${refExo(q,packActif)}')">${esc(q.lien[0])}</a></div>`:'')
+    +`<div id="doute-hote"></div>
+      <button class="lien-doute" onclick="ouvrirDoute('${refExo(q,packActif)}','${esc(q.q||'').replace(/'/g,"\\'")}')">Ça me paraît faux</button>
+      <button class="btn-primaire" onclick="suite()">Continuer</button>`;
   sauver();
 }
 function suite(){ mission.i++; exoSuivant(); }
@@ -1698,7 +1801,9 @@ function phraseFin(justes){
 }
 function finMission(){
   const b=bareme(packActif);
-  const total=mission.gagne+crediter(b.mission);
+  const brut=b.mission;
+  const prime=mission.surprise ? Math.round(brut*(PRIME_SURPRISE-1)) : 0;
+  const total=mission.gagne+crediter(brut+prime);
   const a=avancePack(packActif);
   const manque=Math.max(0, COUT_FOUILLE-etat.credits);
   $('#bourse-corps').innerHTML=`
@@ -1707,10 +1812,13 @@ function finMission(){
       <h2>Mission terminée</h2>
       <p class="fin-score">${phraseFin(mission.justes)}</p>
       <div class="fin-credits">+${total} \u25C8</div>
+      ${prime?`<p class="fin-prime">dont ${prime} \u25C8 de prime surprise</p>`:''}
       <p class="fin-note">${manque
         ? 'Encore '+manque+' \u25C8 avant le prochain coup de pioche.'
         : 'De quoi ouvrir une tranchée dès maintenant.'}</p>
       <p class="fin-prog">${esc(a.txt)}</p>
+      <div id="songe-hote"></div>
+      <button class="btn-fant" onclick="songePack('${packActif.id}','${esc(packActif.nom)}')">Inscrire un songe</button>
       <button class="btn-primaire" onclick="lancerMission()">Nouvelle mission</button>
       <button class="btn-fant" onclick="montrer('fouille')">Aller fouiller</button>
       <button class="btn-fant" onclick="menuPacks()">Choisir un autre pack</button>
@@ -1762,3 +1870,381 @@ function init(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',init);
+
+/* ================================================================
+   Carnet de parcours.
+
+   La collection dit ce qui manque. Le carnet dit où l'on est allé :
+   même chiffre, sens inverse. Il enregistre les exercices traversés,
+   leur explication, leur source, et les doutes soulevés.
+
+   Volontairement sans score, sans pourcentage, sans série. Un tableau
+   de bord redeviendrait une complétion, donc une chose à ignorer.
+   ================================================================ */
+
+/* AUCUN PLAFOND, AUCUN ÉLAGAGE. Le carnet est un carnet de terrain : on n'en
+   arrache pas de pages, pas même les plus anciennes, pas même pour faire de la
+   place. Une entrée n'en sort que si Louise la supprime elle-même.
+
+   Ordre de grandeur pour lever le doute : une entrée pèse quelques centaines
+   d'octets. Dix mille entrées tiennent dans quelques mégaoctets, très en deçà
+   de ce que localStorage accepte, et il faudrait des années d'usage quotidien
+   pour y arriver. Le plafond n'aurait rien protégé et aurait tout coûté. */
+
+function carnet(){ return (etat.carnet=etat.carnet||[]); }
+
+/* Une entrée par question traversée. On garde l'énoncé et l'explication en
+   clair : le carnet doit rester lisible même si la banque change ensuite. */
+function noterQuestion(q, juste){
+  const c=carnet();
+  if(c.some(e=>e.k==='q' && e.id===q.id)) return;   /* une trace par question */
+  c.push({k:'q', t:Date.now(), id:q.id, site:q.site||'',
+          q:q.q, r:q.r, exp:q.exp||'',
+          src:q.src&&q.src[1]?[q.src[0],q.src[1]]:null, lien:false, juste:!!juste});
+  sauver();
+}
+
+function noterEvenement(k, champs){
+  const c=carnet();
+  if(champs.id && c.some(e=>e.k===k && e.id===champs.id)) return;
+  c.push(Object.assign({k, t:Date.now()}, champs));
+  sauver();
+}
+
+/* Les exercices de la Bourse n'ont pas d'identifiant stable : on en fabrique
+   un depuis le pack et l'énoncé, pour ne pas noter deux fois la même question
+   et pour que le lien puisse être marqué comme suivi. */
+function refExo(q, pack){
+  const base=(pack&&pack.id||'x')+'|'+(q.q||q.cle||'');
+  let h=0; for(let i=0;i<base.length;i++) h=(h*31+base.charCodeAt(i))|0;
+  return 'ex'+Math.abs(h).toString(36);
+}
+function noterExercice(q, pack, juste){
+  noterEvenement('q', {id:refExo(q,pack), site:'', pack:pack&&pack.nom||'',
+    q:q.q||q.cle||'', r:q.r, exp:q.exp||'',
+    src:q.lien&&q.lien[1]?[q.lien[0],q.lien[1]]:null, lien:false, juste:!!juste});
+}
+
+function noterCreature(cr){
+  noterEvenement('creature', {id:cr.id, nom:cr.nom, img:cr.img, site:cr.site,
+    detail:[cr.groupe, cr.age].filter(Boolean).join(' · ')});
+}
+function noterChantier(s){
+  noterEvenement('chantier', {id:s.id, nom:s.nom, site:s.id,
+    detail:[s.region, s.ere].filter(Boolean).join(' · ')});
+}
+
+function lienSuivi(id){
+  const e=carnet().find(x=>x.id===id);
+  if(e && !e.lien){ e.lien=true; sauver(); }
+}
+
+/* Le réflexe de Louise devant une inexactitude est un atout, pas un agacement :
+   on l'enregistre au lieu de le laisser se perdre. La liste s'exporte. */
+/* Un doute porte un identifiant propre : deux boîtes ouvertes en même temps
+   (une explication et une fiche) ne doivent pas se voler leur champ de saisie. */
+let douteN=0;
+
+function douter(ref, id, sujet){
+  const z=document.getElementById('doute-txt-'+ref);
+  const t=z&&z.value.trim();
+  if(!t) return;
+  carnet().push({k:'doute', t:Date.now(), id:id||'', sujet:sujet||'', note:t, resolu:false});
+  sauver();
+  const b=document.getElementById('doute-boite-'+ref);
+  if(b) b.innerHTML='<span class="doute-ok">Noté au carnet.</span>';
+}
+
+function ouvrirDoute(id, sujet){
+  const h=document.getElementById('doute-hote');
+  if(!h) return;
+  const ref=++douteN;
+  h.innerHTML=`<div class="doute" id="doute-boite-${ref}">
+    <textarea id="doute-txt-${ref}" rows="2" placeholder="Ce qui te paraît faux, et pourquoi"></textarea>
+    <button onclick="douter(${ref},'${id}','${(sujet||'').replace(/'/g,"\\'")}')">Noter au carnet</button>
+  </div>`;
+}
+
+const CARN_TYPES={
+  q:       {ico:'\u2753', lab:'Exercice'},
+  creature:{ico:'\u2726', lab:'Découverte'},
+  chantier:{ico:'\u26CF', lab:'Chantier'},
+  pack:    {ico:'\u{1F393}', lab:'Cours'},
+  note:    {ico:'\u270E', lab:'Note'},
+  doute:   {ico:'\u26A0', lab:'Doute'}
+};
+
+const CARN_FILTRES=[['tout','Tout'],['songes','Songes'],['q','Exercices'],
+  ['creature','Découvertes'],['chantier','Chantiers'],['pack','Cours'],
+  ['note','Notes'],['doute','Doutes'],['liens','Liens']];
+
+/* Les liens ne sont pas un type d'entrée mais une VUE : toutes les sources
+   rencontrées, dédoublonnées, celles suivies marquées. C'est la bibliothèque
+   que le parcours a constituée sans qu'on la range. Un songe peut s'y
+   accrocher : rouvrir un lien un mois plus tard, c'est retrouver le lien ET ce
+   qu'on en avait tiré. */
+function carnetLiens(){
+  const vus=new Map();
+  carnet().filter(e=>e.src&&e.src[1]).forEach(e=>{
+    const k=e.src[1];
+    const p=vus.get(k)||{titre:e.src[0], url:k, lien:false, n:0, site:e.site||'',
+                         t:e.t, id:e.id, songe:e.songe};
+    p.lien=p.lien||!!e.lien; p.n++;
+    if(e.songe && !p.songe){ p.songe=e.songe; p.t=e.t; p.id=e.id; }
+    vus.set(k,p);
+  });
+  return [...vus.values()].sort((a,b)=>(b.lien?1:0)-(a.lien?1:0)||a.titre.localeCompare(b.titre));
+}
+
+function ajouterNote(){
+  const z=document.getElementById('carn-note-txt');
+  const t=z&&z.value.trim();
+  if(!t) return;
+  carnet().push({k:'note', t:Date.now(), note:t});
+  sauver(); rendreCarnet();
+}
+
+function carnetFiltrer(f){ etat.carnetTri=f; sauver(); rendreCarnet(); }
+function carnetOrdre(){ etat.carnetOrdre=etat.carnetOrdre==='asc'?'desc':'asc'; sauver(); rendreCarnet(); }
+function carnetGroupe(){ etat.carnetGroupe=!etat.carnetGroupe; sauver(); rendreCarnet(); }
+function carnetChercher(v){ carnetQ=v; rendreCarnet(); }
+let carnetQ='';
+
+/* Ses propres notes lui appartiennent : elle doit pouvoir les corriger et les
+   effacer. Les entrées automatiques — exercices, découvertes — se suppriment
+   aussi : le carnet est à elle, pas un journal système. */
+function carnetSupprimer(t){
+  const c=carnet(), i=c.findIndex(e=>e.t===t);
+  if(i<0) return;
+  c.splice(i,1); sauver(); rendreCarnet();
+}
+function carnetEditer(t){
+  const c=carnet(), e=c.find(x=>x.t===t);
+  if(!e) return;
+  const z=document.getElementById('ed-'+t);
+  if(!z){ rendreCarnet(); return; }
+  e.note=z.value.trim(); sauver(); rendreCarnet();
+}
+function carnetOuvrirEdition(t){
+  const e=carnet().find(x=>x.t===t); if(!e) return;
+  const h=document.getElementById('corps-'+t); if(!h) return;
+  h.innerHTML=`<textarea class="carn-ed" id="ed-${t}" rows="3">${esc(e.note||'')}</textarea>
+    <button class="carn-mini" onclick="carnetEditer(${t})">Enregistrer</button>
+    <button class="carn-mini" onclick="rendreCarnet()">Annuler</button>`;
+}
+/* LE SONGE.
+
+   Toute entrée du carnet peut recevoir un songe : ce que Louise en a pensé,
+   ce qu'elle a compris de travers, ce que le lien lui a appris. C'est la
+   couche qui transforme un relevé en récit — le relevé dit ce qui est arrivé,
+   le songe dit ce que ça lui a fait.
+
+   Il s'accroche à l'entrée plutôt que de vivre à côté : rouvrir un lien un
+   mois plus tard, c'est retrouver le lien ET ce qu'on en avait tiré. */
+function songeOuvrir(t){
+  const e=carnet().find(x=>x.t===t); if(!e) return;
+  const h=document.getElementById('songe-'+t); if(!h) return;
+  h.innerHTML=`<textarea class="songe-ed" id="sg-${t}" rows="3"
+      placeholder="Ce que ça t’inspire, ce que tu en retiens, ce qui cloche">${esc(e.songe||'')}</textarea>
+    <button class="carn-mini" onclick="songeNoter(${t})">Inscrire</button>
+    <button class="carn-mini" onclick="rendreCarnet()">Annuler</button>`;
+  const z=document.getElementById('sg-'+t); if(z) z.focus();
+}
+function songeNoter(t){
+  const e=carnet().find(x=>x.t===t); if(!e) return;
+  const z=document.getElementById('sg-'+t); if(!z) return;
+  const v=z.value.trim();
+  if(v) { e.songe=v; e.songeT=Date.now(); } else { delete e.songe; delete e.songeT; }
+  sauver(); rendreCarnet();
+}
+
+/* Un doute résolu n'est pas un doute effacé : il reste, barré, avec sa date. */
+function carnetResoudre(t){
+  const e=carnet().find(x=>x.t===t); if(!e) return;
+  e.resolu=!e.resolu; sauver(); rendreCarnet();
+}
+
+function rendreCarnet(){
+  const corps=document.getElementById('carn-corps');
+  const tri=document.getElementById('carn-tri');
+  if(!corps) return;
+  const f=etat.carnetTri||'tout';
+  const asc=etat.carnetOrdre==='asc';
+
+  if(tri) tri.innerHTML=CARN_FILTRES.map(([k,l])=>
+    `<button class="carn-f${f===k?' on':''}" onclick="carnetFiltrer('${k}')">${l}</button>`).join('');
+
+  const cpt=document.getElementById('carn-compte');
+  if(cpt) cpt.textContent=carnet().length+' entrée'+(carnet().length>1?'s':'');
+
+  const barre=`<div class="carn-barre">
+    <input id="carn-q" class="carn-q" type="search" placeholder="Chercher"
+           value="${esc(carnetQ)}" oninput="carnetChercher(this.value)">
+    <button class="carn-mini" onclick="carnetOrdre()" title="Sens du temps">${asc?'\u2191 ancien d\u2019abord':'\u2193 récent d\u2019abord'}</button>
+    <button class="carn-mini${etat.carnetGroupe?' on':''}" onclick="carnetGroupe()">Par chantier</button>
+  </div>`;
+
+  const saisie=`<div class="carn-saisie">
+    <textarea id="carn-note-txt" rows="2" placeholder="Ajouter une note libre"></textarea>
+    <button onclick="ajouterNote()">Noter</button>
+    <button class="carn-exp" onclick="exporterCarnet()">Copier</button>
+    <button class="carn-exp" onclick="telechargerCarnet()">Télécharger</button>
+    <textarea id="carnet-export" class="carnet-export" readonly style="display:none"></textarea>
+  </div>`;
+
+  if(f==='liens'){
+    const L=carnetLiens().filter(l=>!carnetQ||(l.titre+' '+l.url).toLowerCase().includes(carnetQ.toLowerCase()));
+    corps.innerHTML=barre+(L.length
+      ? `<div class="carn-liens">${L.map(l=>`<div class="carn-lien${l.lien?' lu':''}">
+           <a href="${esc(l.url)}" target="_blank" rel="noopener" onclick="lienSuivi('${l.id}')">
+             <b>${esc(l.titre)}</b>
+             <small>${l.lien?'déjà ouvert':'jamais ouvert'}${l.n>1?' · '+l.n+' questions':''}</small></a>
+           ${l.songe?`<blockquote class="songe">${esc(l.songe)}
+             <button class="songe-mod" onclick="songeOuvrir(${l.t})">\u270E</button></blockquote>`
+            :`<button class="carn-mini songe-add" onclick="songeOuvrir(${l.t})">Inscrire un songe</button>`}
+           <div id="songe-${l.t}"></div></div>`).join('')}</div>`
+      : `<p class="carnet-vide">Les sources rencontrées se rangeront ici.</p>`)+saisie;
+    return;
+  }
+
+  const texte=e=>[e.q,e.r,e.exp,e.nom,e.detail,e.sujet,e.note,e.songe].filter(Boolean).join(' ').toLowerCase();
+  /* « Songes » n'est pas un type d'entrée mais une lecture : toutes les traces
+     qui en portent un, quel que soit ce qui les a déclenchées. C'est la ligne
+     de temps de ce qu'elle a pensé, détachée de ce qu'elle a fait. */
+  let c=carnet().filter(e=>(f==='tout' ? true : f==='songes' ? !!e.songe : e.k===f)
+      && (!carnetQ||texte(e).includes(carnetQ.toLowerCase())));
+  c=[...c].sort((a,b)=>asc?a.t-b.t:b.t-a.t);
+
+  if(!c.length){
+    corps.innerHTML=`<p class="carnet-vide">${carnetQ?'Rien qui corresponde.':'Ce que tu traverses s\u2019inscrira ici.'}</p>`+saisie;
+    return;
+  }
+
+  const nomSite=id=>{const s=SITES.find(x=>x.id===id); return s?s.court:'Hors chantier';};
+  const jour=t=>new Date(t).toLocaleDateString('fr-BE',{day:'numeric',month:'long',year:'numeric'});
+  const tete=e=>etat.carnetGroupe?nomSite(e.site):jour(e.t);
+
+  let out='', dernier='';
+  c.forEach(e=>{
+    const h=tete(e);
+    if(h!==dernier){ out+=`<div class="carnet-jour">${esc(h)}</div>`; dernier=h; }
+    const T=CARN_TYPES[e.k]||CARN_TYPES.note;
+    let inner='';
+    if(e.k==='q'){
+      inner=`<b>${esc(e.q)}</b><p>${esc(e.r)} — ${esc(e.exp)}</p>`
+        +(e.src?`<a href="${esc(e.src[1])}" target="_blank" rel="noopener"
+            onclick="lienSuivi('${e.id}')" class="${e.lien?'lu':''}">${esc(e.src[0])}</a>`:'');
+    }else if(e.k==='creature'){
+      inner=`<button class="carn-ouvre" onclick="ouvrirFiche('${e.id}')">
+          ${e.img?`<img class="carn-vign" src="${esc(e.img)}" loading="lazy" alt="">`:''}
+          <span><b>${esc(e.nom)}</b><p>${esc(e.detail||'')}</p></span></button>`;
+    }else if(e.k==='chantier'){
+      inner=`<button class="carn-ouvre" onclick="allerChantier('${e.id}')">
+          <span><b>${esc(e.nom)}</b><p>${esc(e.detail||'')}</p></span></button>`;
+    }else if(e.k==='pack'){
+      inner=`<b>${esc(e.sujet||'')}</b><p>${esc(e.note||'')}</p>`;
+    }else if(e.k==='doute'){
+      inner=`<b>${esc(e.sujet||e.id)}</b><p>${esc(e.note)}</p>`;
+    }else{
+      inner=`<p>${esc(e.note||'')}</p>`;
+    }
+    const modifiable=(e.k==='note'||e.k==='doute'||e.k==='pack');
+    /* Repliée par défaut : le carnet capte beaucoup, et une pile de blocs
+       dépliés devient illisible bien avant la centième entrée. Le résumé donne
+       de quoi reconnaître la trace, le détail s'ouvre à la demande. Un songe
+       reste visible plié — c'est ce qu'on revient chercher. */
+    const resume=e.q||e.nom||e.sujet||(e.note||'').slice(0,70)||T.lab;
+    const songe=e.songe
+      ? `<blockquote class="songe">${esc(e.songe)}
+           <button class="songe-mod" onclick="songeOuvrir(${e.t})" title="Modifier">\u270E</button>
+         </blockquote>`
+      : '';
+    out+=`<details class="carnet-e t-${e.k}${e.resolu?' resolu':''}${e.songe?' a-songe':''}">
+      <summary><span class="carn-ico" title="${T.lab}">${T.ico}</span>
+        <span class="carn-resume">${esc(resume)}</span></summary>
+      <div class="carn-txt"><div id="corps-${e.t}">${inner}</div>
+        ${songe}
+        <div id="songe-${e.t}"></div>
+        <div class="carn-actions">
+          ${e.songe?'':`<button class="carn-mini songe-add" onclick="songeOuvrir(${e.t})">Inscrire un songe</button>`}
+          ${e.k==='doute'?`<button class="carn-mini" onclick="carnetResoudre(${e.t})">${e.resolu?'Rouvrir':'Résolu'}</button>`:''}
+          ${modifiable?`<button class="carn-mini" onclick="carnetOuvrirEdition(${e.t})">Modifier</button>`:''}
+          <button class="carn-mini" onclick="carnetSupprimer(${e.t})">Retirer</button>
+        </div></div></details>`;
+  });
+  corps.innerHTML=barre+`<div class="carn-fil">${out}</div>`+saisie;
+  /* Le carnet s'ouvre sur sa dernière page, pas sur son commencement : c'est un
+     registre qu'on remplit vers le bas, pas un fil d'actualité. */
+  requestAnimationFrame(()=>window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* Se rendre au chantier depuis le carnet : on ne relit pas une trace sans
+   pouvoir y retourner. */
+function allerChantier(id){
+  if(!SITES.some(s=>s.id===id)) return;
+  montrer('fouille');
+  if(etat.sitesOuverts[id]) chantier(id);
+}
+
+function telechargerCarnet(){
+  const txt=texteCarnet();
+  const b=new Blob([txt],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download='carnet-'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
+}
+
+function texteCarnet(){
+  const c=[...carnet()].sort((a,b)=>a.t-b.t);
+  const d=t=>new Date(t).toLocaleDateString('fr-BE');
+  let txt='Carnet — Gronosaures et Trilobytes\n\n';
+  const ouverts=c.filter(e=>e.k==='doute'&&!e.resolu);
+  const clos=c.filter(e=>e.k==='doute'&&e.resolu);
+  if(ouverts.length){
+    txt+='À VÉRIFIER\n';
+    ouverts.forEach(e=>{ txt+='- ['+d(e.t)+'] '+(e.sujet||e.id)+' : '+e.note+'\n'; });
+    txt+='\n';
+  }
+  if(clos.length){
+    txt+='DOUTES RÉSOLUS\n';
+    clos.forEach(e=>{ txt+='- ['+d(e.t)+'] '+(e.sujet||e.id)+' : '+e.note+'\n'; });
+    txt+='\n';
+  }
+  const notes=c.filter(e=>e.k==='note'||e.k==='pack');
+  if(notes.length){
+    txt+='NOTES\n';
+    notes.forEach(e=>{ txt+='- ['+d(e.t)+'] '+(e.sujet?e.sujet+' : ':'')+(e.note||'')+'\n'; });
+    txt+='\n';
+  }
+  const dec=c.filter(e=>e.k==='creature'||e.k==='chantier');
+  if(dec.length){
+    txt+='RENCONTRES\n';
+    dec.forEach(e=>{ txt+='- ['+d(e.t)+'] '+e.nom+(e.detail?' — '+e.detail:'')+'\n'; });
+    txt+='\n';
+  }
+  const songes=c.filter(e=>e.songe);
+  if(songes.length){
+    txt+='SONGES\n';
+    songes.forEach(e=>{
+      const quoi=e.q||e.nom||e.sujet||e.note||'';
+      txt+='- ['+d(e.songeT||e.t)+'] '+quoi+'\n  « '+e.songe+' »\n';
+    });
+    txt+='\n';
+  }
+  txt+='PARCOURS\n';
+  c.filter(e=>e.k==='q').forEach(e=>{
+    txt+='- '+e.q+'\n  '+e.r+' — '+e.exp+'\n';
+    if(e.src) txt+='  '+e.src[0]+' '+e.src[1]+(e.lien?' (suivi)':'')+'\n';
+    if(e.songe) txt+='  songe : '+e.songe+'\n';
+  });
+  return txt;
+}
+
+function exporterCarnet(){
+  const txt=texteCarnet();
+  const zone=document.getElementById('carnet-export');
+  if(zone){ zone.value=txt; zone.style.display='block'; zone.select(); }
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).catch(()=>{});
+}

@@ -54,7 +54,7 @@ const ctx={};
 new Function(fs.readFileSync(path.join(R,'data.js'),'utf8')
   +'\n'+fs.readFileSync(path.join(R,'app.js'),'utf8')
   +'\n;Object.assign(this,{etat,CREATURES,SITES,PACKS,QUIZ_PALEO,HISTOIRE,COUT_FOUILLE,'
-  +'NB_MISSION,BAREME,BONUS_SITE,BONUS_PART,bonusDe,SEUILS_DOC,CREDITS_DEPART,fouiller,niveauDoc,fragments,'
+  +'NB_MISSION,BAREME,BONUS_SITE,BONUS_PART,bonusDe,SEUILS_DOC,CREDITS_DEPART,fouiller,niveauDoc,fragments,NIVEAUX_PROGRESSIFS,'
   +'possede,siteComplet,nbTrouvees,ouvert,debloquer,ouvrirSite,genConjugaison,genMaths,'
   +'choisirBanque,choisirQuestionSite,poserQuestionSite,repFouille,tirage,egal,normRep,'
   +'avancePack,prog,packNiv,creaturesDe,fondsDuSite,bareme,'
@@ -141,7 +141,12 @@ let anomalies=0, tirages=0; const fouillesParSite=[];
 for(const s of ctx.SITES){
   ctx.setSite(s.id);
   let garde=0;
-  const fini=()=>ctx.creaturesDe(s.id).every(c=>ctx.niveauDoc(c.id)===3);
+  /* La condition d'arrêt ne peut pas s'appuyer sur niveauDoc : le régime en
+     vigueur le sature dès le premier fragment, et la simulation s'arrêterait
+     avant d'avoir sollicité les banques de questions. On pilote donc par le
+     nombre de fragments, qui mesure la même chose sans dépendre du drapeau. */
+  const plein=ctx.SEUILS_DOC[ctx.SEUILS_DOC.length-1]+1;
+  const fini=()=>ctx.creaturesDe(s.id).every(c=>ctx.fragments(c.id)>=plein);
   while(!fini() && garde<3000){
     const soldeAv=ctx.etat.credits, nAv=ctx.nbTrouvees(s.id);
     const bonusAv=!!ctx.etat.sitesBonus[s.id];
@@ -227,7 +232,12 @@ T('l’indice réduit le gain sans l’annuler',
 
 /* ---------- 4. Niveaux documentaires ---------- */
 const c0=ctx.CREATURES[0].id;
-const attendu=[0,1,1,2,2,2,3,3];
+/* Deux régimes coexistent : la montée par paliers, conservée en réserve, et le
+   dossier plein dès la première obtention, en vigueur. Le harnais suit le
+   drapeau plutôt qu'une table figée — sinon il testerait un code désactivé. */
+const attendu = ctx.NIVEAUX_PROGRESSIFS
+  ? [0,1,1,2,2,2,3,3]
+  : [0,3,3,3,3,3,3,3];
 for(let f=0;f<attendu.length;f++){
   ctx.etat.collection[c0]=f;
   T('niveau documentaire à '+f+' fragment(s)', ctx.niveauDoc(c0)===attendu[f],
