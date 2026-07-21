@@ -194,12 +194,22 @@ T('une fouille finit toujours par livrer quelque chose',
   ctx.CREATURES.every(c=>ctx.fragments(c.id)>0));
 
 /* La répartition des questions doit rester plate : c'est ce qui produit la
-   répétition voulue (chaque question revue deux à trois fois). */
+   répétition voulue (chaque question revue deux à trois fois).
+
+   On a d'abord exigé que chaque question soit posée au moins une fois. C'est
+   insatisfiable par construction : un chantier chanceux se documente en dix-neuf
+   fouilles alors qu'il porte vingt questions, et l'assertion ne passait que
+   parce que le tirage était rarement aussi favorable. Ce qu'il faut vérifier,
+   c'est qu'aucune question n'est DÉLAISSÉE — que l'écart entre la plus et la
+   moins tirée reste petit. Une question systématiquement évitée signalerait un
+   défaut de tirage ; une question manquée sur un tirage court, non. */
 ctx.SITES.forEach(s=>{
   const c=ctx.etat.qSite[s.id]||{};
   const n=ctx.QUIZ_PALEO.filter(q=>q.site===s.id).map(q=>c[q.id]||0);
   const mini=Math.min(...n), maxi=Math.max(...n);
-  T('questions de '+s.id+' toutes posées', mini>=1, 'min '+mini);
+  const total=n.reduce((a,b)=>a+b,0);
+  T('questions de '+s.id+' toutes posées si le tirage le permet',
+    mini>=1 || total<n.length, 'min '+mini+' pour '+total+' tirages');
   T('répartition plate sur '+s.id, maxi-mini<=1, 'écart '+mini+'–'+maxi);
 });
 

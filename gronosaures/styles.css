@@ -432,15 +432,25 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
   position:absolute; inset:0; background-size:cover; background-position:center 30%;
   transition:opacity .6s ease;
 }
+/* Le contenu défile, le fond ne bouge pas. Avec six grandes vignettes en deux
+   colonnes, la colonne dépassait la hauteur de l'écran et se faisait couper par
+   l'overflow:hidden du conteneur : on voyait deux cartes et deux moitiés, sans
+   aucun moyen d'atteindre les autres.
+
+   `justify-content:space-between` est remplacé par un `margin-top:auto` sur le
+   bas : quand le contenu tient, le bloc reste collé en bas comme avant ; quand
+   il déborde, la marge automatique s'annule et le défilement prend le relais. */
 .ch-corps{
-  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between;
+  position:absolute; inset:0; display:flex; flex-direction:column;
   padding:14px 16px calc(18px + var(--safe-b));
+  overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
 }
-.ch-haut{display:flex; align-items:flex-start; gap:12px}
+.ch-bas{margin-top:auto}
+.ch-haut{display:flex; align-items:flex-start; gap:12px; flex:0 0 auto}
 .ch-ident{min-width:0}
 .ch-ident h2{margin:0 0 1px; font-size:1.3rem; text-shadow:0 2px 12px rgba(0,0,0,.75)}
 .ch-ident p{margin:0; font-size:.78rem; color:var(--txt2); text-shadow:0 1px 6px rgba(0,0,0,.8)}
-.ch-bas{width:100%}
+.ch-bas{width:100%; flex:0 0 auto}
 .ch-vignettes{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:12px}
 /* le nombre de colonnes est posé par chantier() : tous les sites n'ont pas six créatures */
 .ch-avance{margin:6px 0 12px; font-size:.8rem; color:var(--txt2); text-align:center}
@@ -1277,3 +1287,103 @@ details.carnet-e.dans-lot .carn-resume{font-size:.78rem}
    carte sans avoir à lire le compteur. */
 .pin.dore .pin-sous{fill:var(--ocre-clair)}
 .pin.dore circle{stroke:var(--ocre-clair)}
+
+/* Bande de rappel pendant une question de fouille : on répond sur ce qu'on a
+   sous les yeux, pas de mémoire. Défilement horizontal, six créatures. */
+.tr-bande{display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch}
+.tr-bande::-webkit-scrollbar{display:none}
+.tr-b{flex:0 0 auto; width:84px; background:none; border:1px solid var(--bord);
+  border-radius:9px; padding:0; overflow:hidden; cursor:pointer}
+.tr-b img{width:100%; height:74px; object-fit:cover; display:block}
+.tr-b em{display:block; padding:4px 3px; font-family:var(--serif); font-style:italic;
+  font-size:.62rem; line-height:1.15; color:var(--txt2); text-align:center;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+/* La tranchée doit défiler aussi : la bande, l'énoncé et quatre propositions
+   dépassent la hauteur d'un téléphone. */
+#tranchee-corps{max-height:calc(100vh - 90px); overflow-y:auto;
+  -webkit-overflow-scrolling:touch; overscroll-behavior:contain}
+
+/* ================================================================
+   Séries à niveaux — v97.
+
+   Douze séries dépliées noyaient les packs ordinaires. Chacune est
+   maintenant une ligne repliée : nom, avancement, chevron. On déplie
+   ce qu'on veut, et l'état survit à un aller-retour.
+   ================================================================ */
+.serie{margin:0 0 8px; border-radius:12px; overflow:hidden;
+  background:rgba(20,28,44,.5); border:1px solid var(--bord)}
+.serie.ouverte{border-color:rgba(200,150,79,.34)}
+.se-tete{display:flex; gap:10px; align-items:center; width:100%;
+  padding:11px 12px; background:none; border:0; color:inherit;
+  text-align:left; cursor:pointer}
+.se-tete:hover{background:rgba(200,150,79,.06)}
+.se-ico{font-size:1.4rem; line-height:1; flex:0 0 auto}
+.se-txt{flex:1 1 auto; min-width:0}
+.se-txt b{display:block; font-size:.95rem; color:var(--txt)}
+.se-txt small{display:block; font-size:.7rem; color:var(--txt3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.se-etat{flex:0 0 auto; font-size:.72rem; color:var(--txt3);
+  padding:2px 7px; border-radius:99px; background:rgba(10,15,26,.6)}
+.serie.ouverte .se-etat{color:var(--ocre-clair)}
+.se-fleche{flex:0 0 auto; color:var(--txt3); font-size:1.1rem;
+  transition:transform .18s ease}
+.serie.ouverte .se-fleche{transform:rotate(90deg); color:var(--ocre-clair)}
+.se-corps{padding:0 10px 10px}
+
+.niv{display:flex; align-items:center; gap:10px; width:100%; margin:0 0 6px;
+  padding:9px 11px; border-radius:9px; text-align:left; cursor:pointer;
+  background:rgba(10,15,26,.55); border:1px solid var(--bord); color:inherit}
+.niv:hover{border-color:var(--ocre)}
+.nv-n{flex:0 0 auto; width:22px; height:22px; border-radius:50%;
+  display:grid; place-items:center; font-size:.72rem;
+  background:rgba(200,150,79,.16); color:var(--ocre-clair)}
+.nv-txt{flex:1 1 auto; min-width:0}
+.nv-txt b{display:block; font-size:.9rem; color:var(--txt)}
+.nv-txt small{display:block; font-size:.68rem; color:var(--txt3)}
+.nv-etat{flex:0 0 auto; color:var(--txt3); font-size:.9rem}
+.niv.fini{border-color:rgba(200,150,79,.5)}
+.niv.fini .nv-etat{color:var(--ocre-clair); text-shadow:0 0 8px rgba(200,150,79,.5)}
+.nv-revoir{display:block; margin:-2px 0 8px 34px; padding:2px 0;
+  background:none; border:0; color:var(--txt3); font-size:.68rem;
+  text-decoration:underline; cursor:pointer}
+.nv-revoir:hover{color:var(--ocre-clair)}
+
+/* Le tarif majoré des séries doit se voir avant d'entrer : c'est ce qui
+   justifie d'affronter neuf volets de récit pour six questions. */
+.se-tarif{flex:0 0 auto; font-size:.68rem; color:var(--ocre-clair);
+  padding:2px 6px; border-radius:99px; background:rgba(200,150,79,.13)}
+
+/* ================================================================
+   Écran de leçon — v99.
+
+   Le playtest a montré six textes déroulants nus : pas de sortie,
+   pas de sources, pas de note possible, et un bouton précédent
+   masqué par visibility au premier volet. Tout est rétabli ici.
+   ================================================================ */
+.intro-tete{display:flex; align-items:flex-start; gap:10px}
+.intro-tete h2{flex:1 1 auto; margin:0}
+.intro-x{flex:0 0 auto; width:32px; height:32px; border-radius:50%;
+  background:rgba(10,15,26,.6); border:1px solid var(--bord);
+  color:var(--txt3); font-size:1.25rem; line-height:1; cursor:pointer}
+.intro-x:hover{color:var(--ocre-clair); border-color:var(--ocre)}
+.intro-liens{margin:10px 0 0}
+.intro-liens h4{margin:0 0 4px; font-size:.66rem; letter-spacing:1.4px;
+  text-transform:uppercase; color:var(--txt3); font-weight:400}
+.intro-liens a{display:block; font-size:.74rem; color:var(--ocre-clair);
+  padding:2px 0; text-decoration:none; border-bottom:1px solid transparent;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.intro-liens a:hover{border-bottom-color:var(--ocre)}
+.intro-noter{margin:10px 0 0}
+.intro-songe{margin:8px 0 0}
+.intro-rang{flex:0 0 auto; font-size:.68rem; color:var(--txt3)}
+/* Désactivé plutôt que masqué : on voit qu'il existe. */
+.retour.inerte{opacity:.3; cursor:default}
+
+/* La note pendant une question : discrète sous l'indice, même registre. */
+.q-noter{margin:6px 0 0}
+#q-songe{margin:6px 0 0}
+
+/* Illustration d'un volet : pleine largeur, bord doux, sous le texte. */
+.intro-img{display:block; width:100%; max-height:46vh; object-fit:contain;
+  margin:10px 0 0; border-radius:10px; background:rgba(10,15,26,.4)}

@@ -147,14 +147,24 @@
   <figure id="intro-globe" aria-hidden="true"><img id="intro-globe-img" src="" alt=""></figure>
   <div class="intro-corps">
     <p id="intro-accroche" class="intro-accroche"></p>
-    <h2 id="intro-titre"></h2>
+    <div class="intro-tete">
+      <h2 id="intro-titre"></h2>
+      <button id="intro-fermer" class="intro-x" onclick="fermerIntro()"
+              aria-label="Quitter la leçon">×</button>
+    </div>
     <p id="intro-txt"></p>
+    <img id="intro-img" class="intro-img" alt="" style="display:none" loading="lazy">
+    <div id="intro-liens" class="intro-liens"></div>
+    <div id="intro-songe" class="intro-songe"></div>
+    <button id="intro-noter" class="carn-mini intro-noter"
+            onclick="songeIntro()">✎ Prendre une note</button>
     <div class="intro-nav">
       <button id="intro-prec" class="retour" onclick="introPrecedent()"
               aria-label="Volet précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg><span>Précédent</span></button>
       <div id="intro-dots" class="dots"></div>
+      <span id="intro-rang" class="intro-rang"></span>
     </div>
-    <button id="intro-next" class="btn-primaire"></button>
+    <button id="intro-next" class="btn-primaire" onclick="introSuivant()"></button>
   </div>
 </div>
 

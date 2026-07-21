@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420"
+     font-family="Georgia, 'Times New Roman', serif" role="img"
+     aria-label="Tableau de Mendeleïev de 1871, avec les trois cases laissées vides">
+  <title>Le tableau de 1871 et ses cases vides</title>
+
+  <defs>
+    <!-- Le fond de l'atlas : bleu de nuit, pas de blanc de manuel. -->
+    <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#101827"/>
+      <stop offset="100%" stop-color="#0a0f1a"/>
+    </linearGradient>
+    <!-- Halo des cases vides : c'est le sujet de l'image. -->
+    <filter id="lueur" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.2" result="f"/>
+      <feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="760" height="420" fill="url(#fond)"/>
+
+  <!-- ── Titre ─────────────────────────────────────────────── -->
+  <text x="34" y="46" fill="#e8e2d4" font-size="21" font-style="italic">
+    Le tableau de 1871
+  </text>
+  <text x="34" y="68" fill="#8d9bb0" font-size="12.5">
+    Les corps rangés par masse croissante. Ceux qui se ressemblent tombent dans la même colonne.
+  </text>
+
+  <!-- ── En-têtes de colonnes ──────────────────────────────── -->
+  <g fill="#6f7f96" font-size="11" text-anchor="middle">
+    <text x="150" y="104">I</text>
+    <text x="230" y="104">II</text>
+    <text x="310" y="104">III</text>
+    <text x="390" y="104">IV</text>
+    <text x="470" y="104">V</text>
+    <text x="550" y="104">VI</text>
+    <text x="630" y="104">VII</text>
+  </g>
+
+  <!-- ── Cases pleines ─────────────────────────────────────── -->
+  <!-- Chaque case : rectangle sourd, symbole en clair, masse en petit.
+       Le tableau est volontairement partiel — on montre le raisonnement,
+       pas l'inventaire complet, qui serait illisible à cette taille. -->
+  <g>
+    <!-- ligne 1 -->
+    <g transform="translate(110,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Li</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">7</text>
+    </g>
+    <g transform="translate(190,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Be</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">9,4</text>
+    </g>
+    <g transform="translate(270,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">B</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">11</text>
+    </g>
+    <g transform="translate(350,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">C</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">12</text>
+    </g>
+    <g transform="translate(430,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">N</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">14</text>
+    </g>
+    <g transform="translate(510,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">O</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">16</text>
+    </g>
+    <g transform="translate(590,116)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">F</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">19</text>
+    </g>
+
+    <!-- ligne 2 -->
+    <g transform="translate(110,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Na</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">23</text>
+    </g>
+    <g transform="translate(190,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Mg</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">24</text>
+    </g>
+    <g transform="translate(270,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Al</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">27,3</text>
+    </g>
+    <g transform="translate(350,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Si</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">28</text>
+    </g>
+    <g transform="translate(430,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">P</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">31</text>
+    </g>
+    <g transform="translate(510,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">S</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">32</text>
+    </g>
+    <g transform="translate(590,176)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Cl</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">35,5</text>
+    </g>
+
+    <!-- ligne 3 : Ca, puis LA CASE VIDE, puis Ti -->
+    <g transform="translate(110,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">K</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">39</text>
+    </g>
+    <g transform="translate(190,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Ca</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">40</text>
+    </g>
+    <!-- eka-bore → scandium -->
+    <g transform="translate(270,236)" filter="url(#lueur)">
+      <rect width="80" height="52" rx="5" fill="#1c1608" stroke="#c8964f" stroke-width="1.6"
+            stroke-dasharray="5 4"/>
+      <text x="40" y="27" fill="#e0b573" font-size="19" text-anchor="middle">?</text>
+      <text x="40" y="43" fill="#c8964f" font-size="9.5" text-anchor="middle">44</text>
+    </g>
+    <g transform="translate(350,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Ti</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">48</text>
+    </g>
+    <g transform="translate(430,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">V</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">51</text>
+    </g>
+    <g transform="translate(510,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Cr</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">52</text>
+    </g>
+    <g transform="translate(590,236)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Mn</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">55</text>
+    </g>
+
+    <!-- ligne 4 : les deux autres cases vides -->
+    <g transform="translate(110,296)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Cu</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">63</text>
+    </g>
+    <g transform="translate(190,296)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Zn</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">65</text>
+    </g>
+    <!-- eka-aluminium → gallium : la case de l'histoire -->
+    <g transform="translate(270,296)" filter="url(#lueur)">
+      <rect width="80" height="52" rx="5" fill="#1c1608" stroke="#e0b573" stroke-width="2"
+            stroke-dasharray="5 4"/>
+      <text x="40" y="27" fill="#f0cf9a" font-size="19" text-anchor="middle">?</text>
+      <text x="40" y="43" fill="#c8964f" font-size="9.5" text-anchor="middle">68</text>
+    </g>
+    <!-- eka-silicium → germanium -->
+    <g transform="translate(350,296)" filter="url(#lueur)">
+      <rect width="80" height="52" rx="5" fill="#1c1608" stroke="#c8964f" stroke-width="1.6"
+            stroke-dasharray="5 4"/>
+      <text x="40" y="27" fill="#e0b573" font-size="19" text-anchor="middle">?</text>
+      <text x="40" y="43" fill="#c8964f" font-size="9.5" text-anchor="middle">72</text>
+    </g>
+    <g transform="translate(430,296)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">As</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">75</text>
+    </g>
+    <g transform="translate(510,296)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Se</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">78</text>
+    </g>
+    <g transform="translate(590,296)">
+      <rect width="80" height="52" rx="5" fill="#182234" stroke="#2b3b52"/>
+      <text x="40" y="26" fill="#dfe6f0" font-size="17" text-anchor="middle">Br</text>
+      <text x="40" y="42" fill="#7d8ca3" font-size="10" text-anchor="middle">80</text>
+    </g>
+  </g>
+
+  <!-- ── L'annotation : c'est elle qui raconte l'histoire ──── -->
+  <g>
+    <path d="M 310 352 L 310 372 L 250 372" stroke="#c8964f" stroke-width="1.2" fill="none"/>
+    <circle cx="310" cy="352" r="2.6" fill="#e0b573"/>
+    <text x="242" y="376" fill="#e0b573" font-size="12.5" text-anchor="end" font-style="italic">
+      eka-aluminium
+    </text>
+    <text x="242" y="393" fill="#8d9bb0" font-size="11" text-anchor="end">
+      annoncé en 1871 · trouvé en 1875 · le gallium
+    </text>
+  </g>
+
+  <text x="34" y="404" fill="#6f7f96" font-size="11">
+    Trois cases laissées vides plutôt que de tasser le tableau. Les trois ont été remplies.
+  </text>
+</svg>

@@ -1,0 +1,537 @@
+
+  COUVERTURE DES QUESTIONS DE FOUILLE
+  chaque réponse est-elle appuyée par l’introduction ou une fiche ?
+
+  LNT   ███████████·········  55%   5 trouvées · 6 partielles · 9 absentes
+  EDI   ███████████·········  55%   6 trouvées · 5 partielles · 9 absentes
+  TRI   █████████···········  45%   7 trouvées · 2 partielles · 11 absentes
+  BURG  ████████████········  60%   6 trouvées · 6 partielles · 8 absentes
+  ORD   █████████···········  45%   2 trouvées · 7 partielles · 11 absentes
+  CEP   ██████████··········  50%   7 trouvées · 3 partielles · 10 absentes
+  COR   ████████████········  60%   4 trouvées · 8 partielles · 8 absentes
+  SIL   ████████████········  60%   1 trouvées · 11 partielles · 8 absentes
+  CHO   ███████████·········  55%   7 trouvées · 4 partielles · 9 absentes
+  HUN   ███████████·········  53%   10 trouvées · 11 partielles · 19 absentes
+  GIL   ██████████████······  70%   2 trouvées · 12 partielles · 6 absentes
+  DEV   █████████████·······  65%   6 trouvées · 7 partielles · 7 absentes
+  CAR   █████████████·······  65%   6 trouvées · 7 partielles · 7 absentes
+  MAZ   ██████████··········  50%   6 trouvées · 4 partielles · 10 absentes
+  WUD   █████████████████···  85%   5 trouvées · 12 partielles · 3 absentes
+  KAR2  ████████████········  60%   6 trouvées · 6 partielles · 8 absentes
+  LUO   ███████████████·····  75%   7 trouvées · 8 partielles · 5 absentes
+  JUR   █████████···········  45%   0 trouvées · 9 partielles · 11 absentes
+  MOR   █████████···········  45%   4 trouvées · 5 partielles · 11 absentes
+  NWE   ███████████·········  55%   6 trouvées · 5 partielles · 9 absentes
+  YIX   █████████···········  45%   6 trouvées · 12 partielles · 22 absentes
+  WNT   █████████████·······  65%   4 trouvées · 9 partielles · 7 absentes
+  NEM   ███████████·········  55%   0 trouvées · 11 partielles · 9 absentes
+  HC    █████████···········  45%   1 trouvées · 8 partielles · 11 absentes
+  WHA   ████████████········  60%   6 trouvées · 6 partielles · 8 absentes
+  MES   █████████████·······  65%   2 trouvées · 11 partielles · 7 absentes
+  SAM   █████████████████···  85%   2 trouvées · 15 partielles · 3 absentes
+  KAP   ████████████████····  80%   4 trouvées · 12 partielles · 4 absentes
+  DOM   ████████████████····  80%   4 trouvées · 12 partielles · 4 absentes
+  LIV   ████████████████····  80%   7 trouvées · 9 partielles · 4 absentes
+
+  ENSEMBLE   139 trouvées · 243 partielles · 258 absentes  (640 questions)
+  appuyées   60 %
+
+  À REPRENDRE — réponse absente du chantier ET question portant sur
+  une de ses créatures. C’est là qu’on répond au hasard.
+
+  LNT LNT-14
+     Q : Que sait-on de l'affinité d'Orbisiana ?
+     R : Elle est probable, non démontrée
+
+  LNT LNT-15
+     Q : Pourquoi Orbisiana figure-t-il quand même dans l'atlas ?
+     R : Les cas non réglés font partie du métier
+
+  EDI EDI-05
+     Q : Quelle découverte soutient l’idée que Dickinsonia pouvait se déplacer ?
+     R : Des empreintes et des traces d’alimentation associées
+
+  EDI EDI-09
+     Q : Quel indice suggère que Kimberella se nourrissait en raclant les tapis microbiens ?
+     R : Des traces de grattage en éventail
+
+  EDI EDI-11
+     Q : Quelle fonction a été proposée pour la forme triradiale de Tribrachidium ?
+     R : Canaliser l’eau vers des zones d’alimentation
+
+  EDI EDI-13
+     Q : Que suggère l’orientation fréquente de Parvancorina dans certains assemblages ?
+     R : Une interaction possible avec les courants
+
+  EDI EDI-17
+     Q : Quelle affirmation est la plus rigoureuse sur Dickinsonia ?
+     R : Mobile, mais sa position dans l’arbre reste discutée
+
+  TRI TRI-09
+     Q : Que montrent les fossiles à appendices d’Olenoides ?
+     R : Des pattes biramées : locomotion et branchie
+
+  TRI TRI-11
+     Q : Quelle fonction est la plus plausible pour les grandes épines de Dicranurus ?
+     R : Défense, affichage ou taille apparente accrue
+
+  TRI TRI-13
+     Q : Quelle hypothèse récente concerne le trident de Walliserops ?
+     R : Il aurait servi lors de combats entre mâles
+
+  TRI TRI-17
+     Q : Quelle fonction de la frange perforée de Trinucleus reste discutée ?
+     R : Soutien, alimentation ou fonction sensorielle
+
+  BURG BURG-06
+     Q : Quelle affirmation décrit le mieux la bouche d’Anomalocaris ?
+     R : Une structure circulaire composée de plaques
+
+  BURG BURG-08
+     Q : Quel groupe vivant est le plus proche d’Hallucigenia ?
+     R : Les onychophores, ou vers de velours
+
+  BURG BURG-12
+     Q : Quel élément de Wiwaxia alimente les discussions sur ses affinités avec les mollusques ?
+     R : Une structure buccale râpeuse, ou radula
+
+  BURG BURG-14
+     Q : Quelle structure de Pikaia annonce le plan d’organisation des chordés ?
+     R : La notochorde
+
+  BURG BURG-20
+     Q : Quel comportement est le plus plausible pour Pikaia ?
+     R : Nager près du fond en ondulant
+
+  ORD ORD-Q03
+     Q : De quoi se nourrissait Aegirocassis, ce radiodonte de deux mètres ?
+     R : De plancton, qu’il filtrait
+
+  ORD ORD-Q05
+     Q : D’où vient le nom d’espèce d’Aegirocassis benmoulai ?
+     R : Du collecteur marocain du gisement
+
+  ORD ORD-Q07
+     Q : À quoi servaient les longs membres antérieurs épineux de Pentecopterus ?
+     R : À former une nasse retenant les proies
+
+  ORD ORD-Q09
+     Q : Que reproche-t-on aux reconstructions anciennes de Sacabambaspis ?
+     R : Elles lui donnaient une queue trop simple
+
+  ORD ORD-Q11
+     Q : Qu’a changé la découverte de corps de conodontes comme Promissum ?
+     R : Elle a montré que ce sont des vertébrés
+
+  ORD ORD-Q13
+     Q : Quelle taille atteint Isotelus rex, le plus grand trilobite complet décrit ?
+     R : Plus de 70 cm
+
+  ORD ORD-Q14
+     Q : Des fragments suggèrent des Isotelus plus grands encore. Pourquoi ne pas retenir ce chiffre ?
+     R : Un fragment ne permet pas une mesure fiable
+
+  ORD ORD-Q19
+     Q : Le Soom Shale, d’où vient Promissum, s’est déposé dans quelles conditions ?
+     R : Une eau froide et pauvre en oxygène
+
+  ORD ORD-Q20
+     Q : Scotiaecystis est classé « confiance faible à moyenne ». Qu’est-ce que cela signale ?
+     R : Peu d’éléments assurés sous la reconstitution
+
+  CEP CEP-04
+     Q : À quoi servaient les chambres de la coquille d’Endoceras ?
+     R : À contrôler la flottabilité
+
+  CEP CEP-05
+     Q : Pourquoi la posture exacte d’un très grand Endoceras reste-t-elle discutée ?
+     R : Modéliser la flottabilité d’une longue coquille est ardu
+
+  CEP CEP-07
+     Q : La coquille de Nipponites était-elle un tube mou noué ?
+     R : Non : une coquille rigide au développement régulier
+
+  CEP CEP-13
+     Q : Quel trait de Vampyronassa suggère un mode de vie prédateur actif différent du vampire des abysses actuel ?
+     R : Des ventouses robustes, faites pour saisir
+
+  COR COR-14
+     Q : À quoi servaient les structures d'ancrage de Cystiphyllum ?
+     R : À ne pas basculer sur un fond mou
+
+  SIL SIL-Q07
+     Q : Pourquoi la datation d’origine de Pneumodesmus était-elle fragile ?
+     R : Elle reposait sur des spores d’affleurements isolés
+
+  SIL SIL-Q09
+     Q : Qu’est-ce qu’un euryptéride, comme Pterygotus ou Eurypterus ?
+     R : Un arthropode marin, parent des limules
+
+  SIL SIL-Q11
+     Q : Eurypterus remipes est connu par des milliers de spécimens. Que sont-ils, pour la plupart ?
+     R : Des mues abandonnées
+
+  SIL SIL-Q19
+     Q : Que fait un sporange, au sommet d’une tige de Cooksonia ?
+     R : Il produit et libère des spores
+
+  CHO CHO-11
+     Q : Quel type d’alimentation suggèrent les dents de Belantsea ?
+     R : Le broyage de proies dures
+
+  CHO CHO-13
+     Q : Quelle ancienne reconstruction d’Helicoprion est incorrecte ?
+     R : Une scie dentaire externe enroulée sur le museau
+
+  CHO CHO-14
+     Q : Helicoprion était-il un requin moderne au sens strict ?
+     R : Non : un eugénéodonte, proche des holocéphales
+
+  CHO CHO-16
+     Q : Comment Edestus remplaçait-il ses dents ?
+     R : Les nouvelles poussaient à l’arrière
+
+  HUN HUN-08
+     Q : À quel grand groupe appartient Mimetaster ?
+     R : Aux arthropodes marrellomorphes
+
+  HUN HUN-10
+     Q : Quel animal moderne Cheloniellon évoque-t-il superficiellement sans en être un ?
+     R : Une limule
+
+  HUN HUN-16
+     Q : Quel trait distingue Drepanaspis de Gemuendina ?
+     R : L’un est sans mâchoires, l’autre en a
+
+  HUN HUN-19
+     Q : Quelle précaution faut-il prendre avec Schinderhannes ?
+     R : Le matériel est limité : les tissus restent spéculatifs
+
+  HUN HUN-31
+     Q : Qu’est-ce qu’un blastoïde, comme Lotusoblastus medusa ?
+     R : Un échinoderme fixé, d’une classe éteinte
+
+  GIL GIL-Q10
+     Q : Comment un cladoxylopside comme Pseudosporochnus tenait-il debout sans bois ?
+     R : Par un manchon de racines adventives
+
+  DEV DEV-04
+     Q : Pourquoi Eusthenopteron ne pouvait-il probablement pas marcher comme un tétrapode ?
+     R : Ses articulations ne portaient pas son poids
+
+  DEV DEV-08
+     Q : Quel trait permettait à Tiktaalik de relever l’avant du corps dans l’eau peu profonde ?
+     R : Des pectorales articulées comme un poignet
+
+  DEV DEV-15
+     Q : Pourquoi Ichthyostega ne marchait-il probablement pas comme une salamandre moderne ?
+     R : Ses côtes imbriquées bridaient les ondulations
+
+  DEV DEV-18
+     Q : Quel changement libère la tête des mouvements de la ceinture scapulaire chez Tiktaalik ?
+     R : L’apparition d’un cou mobile
+
+  CAR CAR-05
+     Q : Que révèle la découverte récente de la tête d’Arthropleura ?
+     R : Des caractères de millipèdes et de centipèdes
+
+  CAR CAR-09
+     Q : Quel trait distingue les paléodictyoptères comme Mazothairos ?
+     R : De petits lobes sur le premier segment
+
+  CAR CAR-13
+     Q : Comment Hibbertopterus cherchait-il probablement sa nourriture ?
+     R : En balayant le sédiment
+
+  CAR CAR-15
+     Q : À quoi servaient probablement les épines d’Euphoberia ?
+     R : À décourager les prédateurs
+
+  CAR CAR-18
+     Q : Pourquoi Hibbertopterus ne doit-il pas être placé sur un sol forestier sec avec Arthropleura ?
+     R : Ses traces indiquent un mode de vie aquatique
+
+  MAZ MAZ-07
+     Q : Quelle affirmation sur la classification de Tullimonstrum est la plus rigoureuse ?
+     R : Son appartenance reste débattue
+
+  MAZ MAZ-09
+     Q : Quel élément d’Essexella aurait été confondu avec une cloche de méduse ?
+     R : Une base élargie servant à l’ancrage
+
+  MAZ MAZ-11
+     Q : Pourquoi ne faut-il pas dessiner Kallidecthes comme une crevette moderne générique ?
+     R : Ses appendices sont propres aux crustacés paléozoïques
+
+  MAZ MAZ-13
+     Q : Pourquoi Palaeocampa est-elle surprenante dans le Carbonifère ?
+     R : Les lobopodiens sont surtout bien plus anciens
+
+  MAZ MAZ-17
+     Q : Quel type de préservation exceptionnelle est connu chez Euproops ?
+     R : Des détails du système nerveux central
+
+  KAR2 KAR2-04
+     Q : Quelle fonction a parfois été proposée pour le crâne épaissi de Moschops ?
+     R : Des poussées ou des coups de tête
+
+  KAR2 KAR2-06
+     Q : Quel trait distingue visuellement Pareiasaurus ?
+     R : Un corps massif à armure dermique
+
+  KAR2 KAR2-08
+     Q : Quelle reconstruction de Rubidgea serait incorrecte ?
+     R : Un animal muni d’un bec de tortue
+
+  KAR2 KAR2-10
+     Q : Pourquoi ne faut-il pas donner de grandes défenses à tous les Diictodon représentés ?
+     R : Leur présence variait d’un individu à l’autre
+
+  KAR2 KAR2-15
+     Q : Quelle affirmation sur le revêtement de Thrinaxodon est la plus prudente ?
+     R : Des filaments sont plausibles, sans certitude
+
+  LUO LUO-05
+     Q : Quel régime alimentaire est attribué à Atopodentatus ?
+     R : Herbivore, broutant la végétation marine
+
+  LUO LUO-10
+     Q : Pourquoi Sinosaurosphargis n’est-il pas une tortue ?
+     R : Son armure vient d’une lignée distincte
+
+  LUO LUO-12
+     Q : Quel trait de Nothosaurus zhangi suggère un rôle de prédateur supérieur ?
+     R : Sa taille et ses mâchoires à dents saisissantes
+
+  JUR JUR-03
+     Q : Comment la côte fondatrice de Spicomellus est-elle arrivée au Musée d'histoire naturelle de Londres ?
+     R : Achetée à un marchand, sans données de terrain
+
+  JUR JUR-06
+     Q : D'où vient le nom d'Alpkarakush ?
+     R : D’un oiseau géant de l’épopée de Manas
+
+  JUR JUR-08
+     Q : Combien de temps s'est écoulé entre la découverte des premiers restes d'Alpkarakush et sa description ?
+     R : Environ dix-huit ans
+
+  JUR JUR-11
+     Q : Que désigne le « mosaïcisme évolutif » observé chez Fujianvenator ?
+     R : Des caractères de plusieurs groupes chez un même animal
+
+  JUR JUR-15
+     Q : Quels traits attribués à Dilophosaurus par « Jurassic Park » sont des inventions ?
+     R : La collerette déployable et le crachat venimeux
+
+  JUR JUR-16
+     Q : Pourquoi croyait-on Dilophosaurus doté de mâchoires fragiles ?
+     R : Le spécimen de référence était reconstitué au plâtre
+
+  JUR JUR-17
+     Q : Que contenaient les crêtes de Dilophosaurus, d'après l'étude de 2020 ?
+     R : Des cavités aériennes reliées aux sinus
+
+  JUR JUR-20
+     Q : Qu'ont en commun Spicomellus, Dilophosaurus et Mamenchisaurus dans ce chantier ?
+     R : Leur image a changé, pas l’animal
+
+  MOR MOR-07
+     Q : Quelle fonction des plaques de Stegosaurus est la plus prudente ?
+     R : L’affichage, peut-être la thermorégulation
+
+  MOR MOR-11
+     Q : Où se trouvaient les narines osseuses de Diplodocus sur le crâne ?
+     R : Haut sur le crâne, les charnues plus en avant
+
+  MOR MOR-13
+     Q : Quel trait distingue souvent Apatosaurus de Diplodocus ?
+     R : Un cou et un squelette plus massifs
+
+  NWE NWE-01
+     Q : Dans quel pays furent découverts les célèbres iguanodons de Bernissart ?
+     R : En Belgique
+
+  NWE NWE-02
+     Q : Combien de squelettes d’iguanodons relativement complets furent découverts à Bernissart ?
+     R : Environ trente
+
+  NWE NWE-05
+     Q : Iguanodon se déplaçait-il uniquement sur deux pattes ?
+     R : Non : il alternait sans doute les deux
+
+  NWE NWE-07
+     Q : Quel contenu fossile soutient le régime piscivore de Baryonyx ?
+     R : Des écailles de poisson dans l’abdomen
+
+  NWE NWE-09
+     Q : Quelle ancienne idée sur Hypsilophodon est aujourd’hui abandonnée ?
+     R : Qu’il vivait dans les arbres
+
+  NWE NWE-20
+     Q : Quelle affirmation est la plus rigoureuse sur la posture historique des iguanodons de Bernissart ?
+     R : Les montages verticaux ont été corrigés
+
+  YIX YIX-05
+     Q : Que montre Yutyrannus au sujet du plumage chez les grands théropodes ?
+     R : La grande taille n’excluait pas les filaments
+
+  YIX YIX-07
+     Q : Quel détail de coloration a été proposé pour la queue de Sinosauropteryx ?
+     R : Des bandes claires et foncées alternées
+
+  YIX YIX-09
+     Q : À quel grand groupe appartient Psittacosaurus ?
+     R : Aux cératopsiens
+
+  YIX YIX-11
+     Q : Pourquoi Repenomamus a-t-il modifié l’image traditionnelle des mammifères mésozoïques ?
+     R : Certains étaient assez grands pour manger des dinosaures
+
+  YIX YIX-13
+     Q : Quel trait de Confuciusornis contraste avec plusieurs oiseaux mésozoïques plus primitifs ?
+     R : Un bec dépourvu de dents
+
+  YIX YIX-Q24
+     Q : Pourquoi pense-t-on qu’Archaefructus vivait dans l’eau ?
+     R : Ses feuilles sont finement découpées
+
+  YIX YIX-Q25
+     Q : On a présenté Archaefructus comme « la plus ancienne fleur ». Que vaut cette formule ?
+     R : Excessive : des angiospermes plus anciennes existent
+
+  YIX YIX-Q26
+     Q : Hyrcantha decussata a d’abord été nommée Sinocarpus decussatus. Que s’est-il passé ?
+     R : Rapprochée d’un fossile du Kazakhstan
+
+  YIX YIX-Q30
+     Q : Pourquoi garder Chaoyangia dans un pack consacré aux premières fleurs ?
+     R : Une revendication démentie fait partie de l’histoire
+
+  YIX YIX-Q31
+     Q : Que sont les gnétales, auxquelles Chaoyangia est aujourd’hui rattachée ?
+     R : Des gymnospermes, apparentées à l’éphédra
+
+  YIX YIX-Q32
+     Q : Il existe aussi un Chaoyangia beishanensis. De quoi s’agit-il ?
+     R : D’un oiseau du même bassin
+
+  YIX YIX-Q40
+     Q : Quel enseignement commun tirer de Chaoyangia et de Darwinius, à Messel ?
+     R : Une annonce spectaculaire n’est pas une preuve
+
+  WNT WNT-09
+     Q : À quel groupe de théropodes appartient Australovenator ?
+     R : Aux mégaraptoridés
+
+  WNT WNT-12
+     Q : Qu’a de particulier la silhouette de Savannasaurus ?
+     R : Elle est courte et très large
+
+  WNT WNT-16
+     Q : Que faut-il savoir avant d’illustrer Ferrodraco ?
+     R : Son matériel est limité
+
+  WNT WNT-19
+     Q : Confractosuchus chassait-il les dinosaures en particulier ?
+     R : Non, c’était un généraliste
+
+  NEM NEM-03
+     Q : De quel groupe Tarbosaurus bataar fait-il partie ?
+     R : Des tyrannosauridés
+
+  NEM NEM-04
+     Q : Que s'est-il passé en 2012 avec un squelette de Tarbosaurus mis aux enchères à New York ?
+     R : La vente a été bloquée, le squelette rendu
+
+  NEM NEM-09
+     Q : Que mangeait Deinocheirus, d'après les restes conservés dans son abdomen ?
+     R : Des végétaux et des poissons
+
+  NEM NEM-10
+     Q : Pour quoi Therizinosaurus cheloniformis est-il surtout connu ?
+     R : Ses griffes, parmi les plus longues connues
+
+  NEM NEM-12
+     Q : À quel groupe appartient Saurolophus angustirostris ?
+     R : Aux hadrosaures, à bec de canard
+
+  NEM NEM-13
+     Q : Quelle particularité conservent certains spécimens de Saurolophus de Mongolie ?
+     R : Des empreintes de peau écailleuse
+
+  NEM NEM-15
+     Q : À quoi ressemblait Gallimimus bullatus ?
+     R : Une grande autruche à bec édenté
+
+  NEM NEM-17
+     Q : Quel est le point commun entre Deinocheirus et Therizinosaurus ?
+     R : Longtemps connus par leurs seuls bras
+
+  HC HC-03
+     Q : Comment poussait Tyrannosaurus rex, d'après le comptage des lignes de croissance de ses os ?
+     R : Très vite à l’adolescence, puis ralentie
+
+  HC HC-04
+     Q : Qu'est-ce que « Sue », spécimen FMNH PR 2081 ?
+     R : Un Tyrannosaurus vendu aux enchères en 1997
+
+  HC HC-09
+     Q : Que sont les « momies » d'Edmontosaurus ?
+     R : Des squelettes avec empreintes de peau
+
+  HC HC-10
+     Q : Comment Edmontosaurus broutait-il une végétation coriace ?
+     R : Des batteries de centaines de dents
+
+  HC HC-12
+     Q : Où en est le débat sur l'usage du dôme de Pachycephalosaurus ?
+     R : Combat, coups au flanc ou signal : trois hypothèses
+
+  HC HC-13
+     Q : Quelle hypothèse a été avancée à propos des genres Dracorex et Stygimoloch ?
+     R : Ce seraient de jeunes Pachycephalosaurus
+
+  HC HC-14
+     Q : Quel surnom a été donné à Anzu wyliei lors de sa description en 2014 ?
+     R : « Le poulet de l'enfer »
+
+  HC HC-15
+     Q : Pourquoi la description d'Anzu wyliei a-t-elle compté ?
+     R : Le premier bon aperçu des cænagnathidés
+
+  HC HC-16
+     Q : À quel grand groupe appartient Anzu wyliei ?
+     R : Aux oviraptorosaures, à bec édenté
+
+  WHA WHA-08
+     Q : Quel milieu est associé aux fossiles d’Ambulocetus ?
+     R : Un estuaire ou une côte peu profonde
+
+  WHA WHA-12
+     Q : Pourquoi le nom Basilosaurus est-il trompeur ?
+     R : Il signifie « lézard roi », mais c’est une baleine
+
+  WHA WHA-13
+     Q : À quoi servaient probablement les minuscules membres postérieurs de Basilosaurus ?
+     R : À l’accouplement plutôt qu’à la marche
+
+  MES MES-Q06
+     Q : Qu’a de remarquable la jument d’Eurohippus trouvée à Messel ?
+     R : Son fœtus et son utérus sont conservés
+
+  MES MES-Q08
+     Q : Peut-on dire qu’Eurohippus est un cheval ?
+     R : Non : il tombe juste hors de la famille
+
+  MES MES-Q10
+     Q : Presque tous les spécimens de Titanomyrma sont des reines ailées. Pourquoi, le plus probablement ?
+     R : Elles volent, donc elles tombent dans le lac
+
+  MES MES-Q17
+     Q : Que retenir de l’épisode Darwinius, du point de vue de la méthode ?
+     R : La qualité d’un fossile ne garantit rien
+
+  SAM SAM-Q07
+     Q : Quel naturaliste a récolté des ossements de Macrauchenia et acheté un crâne de Toxodon en Amérique du Sud ?
+     R : Charles Darwin
+

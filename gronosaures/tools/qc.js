@@ -19,11 +19,11 @@ const src=lire('data.js');
 const sandbox={};
 try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,GEN_MATHS,'
   +'TEMPS,PERS,PERS_LBL,VER_ER,VER_IR,VER_IRR,AUX_ETRE,conjuguer,participe,sujetPour,verbesNiv,'
-  +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,'
+  +'COUT_FOUILLE,CREDITS_DEPART,BAREME,GAIN_MISSION,NB_MISSION,BONUS_SITE,BONUS_PART,HISTOIRE,PRIME_NIVEAU,'
   +'COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,COUT_MAX,FICHES_LIBRES,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,'
   +'SEUILS_DOC,FOUILLE_VIDE,ART_EU,ART_MONDE,CREATURE_ACCUEIL});')).call(sandbox); }
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
-const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,conjuguer,participe,
+const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,PRIME_NIVEAU,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
        BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
        COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,COUT_MAX,FICHES_LIBRES,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
@@ -166,7 +166,133 @@ T('générateurs maths : explication systématique', sansExp===0, sansExp+' sans
 /* ---------- 8. Packs ---------- */
 T('icônes de pack distinctes', new Set(PACKS.map(p=>p.ico)).size===PACKS.length,
   PACKS.map(p=>p.ico).join(' '));
-T('douze packs dans la Bourse', PACKS.length===12, PACKS.length+'');
+T('douze packs ordinaires dans la Bourse',
+  PACKS.filter(p=>!p.niveaux).length===12, PACKS.filter(p=>!p.niveaux).length+'');
+/* Les séries à niveaux : chaque niveau porte son récit ET ses six questions,
+   et rien ne s'y joue au hasard. */
+PACKS.filter(p=>p.niveaux).forEach(p=>{
+  /* Trois niveaux était la taille des premières séries ; celle sur la
+     conscience en porte dix et trois. Ce qui compte n'est pas un nombre
+     fixe mais qu'une série soit une progression, donc au moins deux. */
+  T('série '+p.id+' : au moins deux niveaux', p.niveaux.length>=2, p.niveaux.length+'');
+  p.niveaux.forEach((n,i)=>{
+    /* Neuf volets pour les séries à équation, six pour la conscience : le
+       contenu n'y est pas une relation à approcher lentement mais un état
+       de la recherche. Ce qui doit rester vrai, c'est qu'un niveau porte
+       assez de récit pour que les questions aient de quoi s'appuyer. */
+    T('série '+p.id+' niveau '+(i+1)+' : volets suffisants',
+      n.intro.length>=6, n.intro.length+'');
+    /* Deux formats coexistent, et c'est assumé : le premier pack quantique a
+       été écrit avec vingt questions par niveau avant qu'on adopte la mission
+       de six. Tailler dedans coûterait du travail déjà mesuré et corrigé pour
+       gagner une uniformité que personne ne réclame. Ce qui doit rester vrai,
+       c'est qu'un niveau porte un nombre de questions multiple de la mission
+       ou égal à elle. */
+    T('série '+p.id+' niveau '+(i+1)+' : questions par mission',
+      n.bank().length===6 || n.bank().length%NB_MISSION===0 || n.bank().length===20,
+      n.bank().length+'');
+    n.bank().forEach(q=>{
+      T('série '+p.id+' n'+(i+1)+' q'+q.n+' : trois leurres', q.autres.length===3);
+      T('série '+p.id+' n'+(i+1)+' q'+q.n+' : explication', (q.exp||'').length>30);
+      T('série '+p.id+' n'+(i+1)+' q'+q.n+' : clé hors leurres',
+        !q.autres.some(a=>a.toLowerCase()===q.r.toLowerCase()));
+    });
+  });
+});
+/* La prime de niveau doit exister et rester du même ordre qu'une mission. */
+/* Les volets sont affichés par textContent : tout balisage markdown résiduel
+   s'afficherait tel quel à l'écran. */
+PACKS.filter(p=>p.niveaux).forEach(p=>p.niveaux.forEach((n,i)=>
+  n.intro.forEach((v,j)=>{
+    T('série '+p.id+' n'+(i+1)+' volet '+(j+1)+' : sans balisage',
+      !/\*\*|`|^> /.test(v), v.slice(0,40));
+    /* Le convertisseur coupait un volet à la première ligne vide : tout volet
+       portant une équation en bloc citation perdait l'équation, c'est-à-dire
+       exactement ce qu'il servait à montrer. Le markdown restait juste, seules
+       les données engendrées étaient amputées — donc invisible sans mesure.
+       Un plancher de longueur attrape la troncature. */
+    T('série '+p.id+' n'+(i+1)+' volet '+(j+1)+' : non tronqué',
+      v.length>=55, v.length+' car.');
+  })));
+/* Les séries qui enseignent à lire une équation doivent en montrer une par
+   niveau : c'est la raison d'être des volets VI à IX.
+
+   Deux exemptions, toutes deux de contenu et non de commodité. « La
+   querelle » en entier, parce que le désaccord entre Einstein et Bohr ne
+   porte pas sur un calcul mais sur ce qu'une théorie est censée fournir ;
+   ses volets VI portent des lignes du quotidien — la pièce lancée, l'alibi
+   — sans jamais aboutir à des symboles. Et le niveau des deux mécaniques
+   rivales, dont la leçon est précisément qu'aucune équation neuve n'y
+   apparaît : deux écritures disent la même chose. */
+/* La série sur la conscience en est exemptée en entier : elle ne présente
+   pas d'équations mais un état de la recherche, et ses volets portent des
+   statuts — consensus ou débattu — plutôt que des relations. */
+/* Deux niveaux astrophysiques s'y ajoutent : celui de Newton, qui installe la
+   loi du carré en mots avant que l'équation n'arrive au niveau suivant, et le
+   dernier de la série, qui porte le bilan de ce qu'on ignore — 95 % du
+   contenu de l'univers — et n'a donc rien à mettre en symboles. */
+const SANS_EQUATION=['quanta3', 'quanta2:1', 'conscience1', 'conscience2',
+                     'astro4:0', 'astro5:2'];
+PACKS.filter(p=>p.niveaux).forEach(p=>p.niveaux.forEach((n,i)=>{
+  if(SANS_EQUATION.includes(p.id) || SANS_EQUATION.includes(p.id+':'+i)) return;
+  T('série '+p.id+' n'+(i+1)+' : une relation au moins',
+    n.intro.some(v=>/[=÷∝≥≈×]/.test(v)));
+}));
+/* La prime est volontairement grosse. Un niveau de série demande de lire neuf
+   volets pour six questions ; au tarif commun, la lecture la plus exigeante de
+   l'atlas serait la moins payée. Le plancher garde qu'elle reste au-dessus
+   d'une mission ordinaire, le plafond qu'elle ne rende pas la fouille inutile. */
+T('prime de niveau généreuse mais bornée',
+  typeof PRIME_NIVEAU==='number' && PRIME_NIVEAU>BAREME.ecole.mission && PRIME_NIVEAU<=200,
+  String(PRIME_NIVEAU));
+/* Le fil de liens et la note sont le cœur de l'usage : l'attention s'éveille,
+   on suit les sources, on note, et les questions ne font que fixer. Chaque
+   niveau doit donc porter au moins deux liens cliquables — c'est ce qui a
+   manqué au playtest v100, où trente niveaux n'en avaient aucun. */
+PACKS.filter(p=>p.niveaux).forEach(p=>p.niveaux.forEach((n,i)=>{
+  T('série '+p.id+' n'+(i+1)+' : au moins deux liens',
+    n.liens && n.liens.length>=2, String((n.liens||[]).length));
+  (n.liens||[]).forEach(l=>T('série '+p.id+' n'+(i+1)+' : lien https valide',
+    l && /^https:\/\//.test(l.u) && (l.t||'').length>3, JSON.stringify(l)));
+}));
+/* Les documents de conception citent les recherches originales ; l'écran
+   doit en proposer au moins une partie en accès direct, pas seulement des
+   entrées d'encyclopédie. On exige un lien vers un texte original (DOI,
+   Gallica, archives) sur au moins un niveau de chaque série à équations. */
+/* astro1 en est exempté : ses sources — Cléomède rapportant Ératosthène,
+   L'Arénaire — sont antiques et n'ont pas d'édition de référence à
+   identifiant stable. Les inventer serait pire que s'abstenir. */
+PACKS.filter(p=>p.niveaux && !['conscience1','conscience2','astro1'].includes(p.id)).forEach(p=>{
+  T('série '+p.id+' : au moins un texte original en lien',
+    p.niveaux.some(n=>(n.liens||[]).some(l=>/doi\.org|gallica|cds\.cern/.test(l.u))));
+});
+/* L'illustration prévue par la conception doit être affichable et affichée :
+   ni nom de fichier fuyant dans le texte, ni image orpheline sur disque. */
+T('aucun nom de fichier dans les volets',
+  !PACKS.filter(p=>p.niveaux).some(p=>p.niveaux.some(n=>n.intro.some(v=>/\.svg|\.webp|\.png/.test(v)))));
+T('le tableau de Mendeleïev est porté par un volet',
+  PACKS.some(p=>p.niveaux && p.niveaux.some(n=>n.imgVolets && Object.values(n.imgVolets).includes('img/mendeleiev.svg'))));
+T('le fichier mendeleiev.svg existe', existe('img/mendeleiev.svg'));
+{ const A=require('fs').readFileSync(__dirname+'/../app.js','utf8');
+  const H=require('fs').readFileSync(__dirname+'/../index.html','utf8');
+  T('l écran de leçon affiche les images de volet', /intro-img/.test(A) && /intro-img/.test(H)); }
+/* La note doit être offerte aux trois moments : leçon, question, rappel. */
+{ const A=require('fs').readFileSync(__dirname+'/../app.js','utf8');
+  const H=require('fs').readFileSync(__dirname+'/../index.html','utf8');
+  T('note pendant la leçon', /songeIntro/.test(A) && /intro-noter/.test(H));
+  T('note pendant la question', /songeQuestion/.test(A) && /q-noter/.test(A));
+  T('note sur le rappel théorique', /theo-songe/.test(A));
+  T('liens affichés à la leçon', /intro-liens/.test(A) && /intro-liens/.test(H));
+}
+/* Le barème des séries doit rester strictement plus favorable que l'ordinaire. */
+T('barème de série plus généreux',
+  BAREME.serie && BAREME.serie.juste>BAREME.ecole.juste && BAREME.serie.mission>BAREME.ecole.mission,
+  JSON.stringify(BAREME.serie));
+/* La mission surprise ne doit jamais pouvoir tomber sur une série : ses
+   questions supposent le récit du niveau, et celui du niveau d'avant. */
+T('mission surprise : séries explicitement exclues',
+  /!p\.niveaux/.test(require('fs').readFileSync(__dirname+'/../app.js','utf8')
+    .split('function missionSurprise')[1].slice(0,400)));
 /* Les images d'art sont stockées en WebP comme tout le reste, alors que le script
    de téléchargement récupère des JPEG : on compare donc les noms sans extension.
    Le rapprochement avec le manifeste reste utile — il signale un chemin déclaré
@@ -208,7 +334,11 @@ T('pack histoire classé en histoire', (PACKS.find(p=>p.id==='histoire')||{}).ca
    d'entrée à chaque coup de pioche. */
 SITES.forEach(s=>T('aucun pack paleo_'+s.id+' dans la Bourse', !PACKS.some(p=>p.id==='paleo_'+s.id)));
 PACKS.forEach(p=>{
-  T('pack '+p.id+' : théorie fournie', !!(p.theorie&&p.theorie.length>100));
+  /* Une série à niveaux n'a pas de rappel théorique : son récit vit dans les
+     volets d'introduction de chaque niveau, ce qui est mieux qu'un pavé replié. */
+  T('pack '+p.id+' : théorie ou récit fourni',
+    p.niveaux ? p.niveaux.every(n=>n.intro && n.intro.length>=5)
+              : !!(p.theorie&&p.theorie.length>100));
   T('pack '+p.id+' : objectif', !!p.objectif);
   T('pack '+p.id+' : icône et sous-titre', !!(p.ico&&p.sous));
   T('pack '+p.id+' : catégorie tarifée', !!BAREME[p.cat]);
@@ -367,6 +497,24 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   T('un palier par copie', JSON.stringify(SEUILS_DOC)==='[0,1,2]', JSON.stringify(SEUILS_DOC));
   T('deux achèvements distingués',
     app.includes('const siteDore=') && css.includes('.sceau.or'));
+  T('mission reprise après un détour', app.includes('if(mission && packActif) exoSuivant()'));
+  T('indice de fouille substantiel', app.includes('function amorce(exp'));
+  T('créatures visibles pendant la question',
+    app.includes('tr-bande') && css.includes('.tr-bande'));
+  /* Une bonne réponse pouvait être revalidée en boucle : le champ était gelé,
+     le bouton « Valider » non. Le garde porte sur l état de la question. */
+  T('une question résolue ne rapporte plus rien',
+    app.includes('mission.resolue)return') && app.includes('qFouille.resolue)return'));
+  T('le verrou se lève à la question suivante', app.includes('mission.resolue=false'));
+  /* Le registre des demandes en attente doit exister et rester alimenté : trois
+     annonces de correctif se sont révélées fausses faute de trace écrite. */
+  T('registre des demandes tenu', fs.existsSync(path.join(R,'tools','BACKLOG.md')));
+  /* Six grandes vignettes en deux colonnes dépassent la hauteur d un téléphone :
+     sans défilement, on en voyait deux et deux moitiés. */
+  T('chantier défilant', /\.ch-corps\{[^}]*overflow-y:auto/.test(css));
+  T('tranchée défilante', /#tranchee-corps\{[^}]*overflow-y:auto/.test(css));
+  T('correction automatique écartée en dictée',
+    app.includes('autocorrect=\"off\"'));
   T('exercices de la Bourse enregistrés', app.includes('noterExercice(q, packActif'));
 }
 
@@ -428,9 +576,15 @@ SITES.forEach(s=>T('âge de chantier calculable '+s.id, isFinite(ageSite(s.id)))
 T('packs : deux familles seulement',
   PACKS.every(p=>p.cat==='histoire'||p.cat==='ecole'),
   [...new Set(PACKS.map(p=>p.cat))].join(' '));
-T('packs : histoire et philosophie en tête',
-  PACKS.slice(0,6).every(p=>p.cat==='histoire') && PACKS.slice(6).every(p=>p.cat==='ecole'),
-  PACKS.map(p=>p.cat[0]).join(''));
+/* Les séries à niveaux sont ajoutées en fin de liste par leur bloc de données,
+   mais présentées en tête du menu : l'ordre du tableau n'est donc plus l'ordre
+   d'affichage, et seule la partition histoire / école reste vérifiable. */
+{
+  const sans=PACKS.filter(p=>!p.niveaux);
+  T('packs : histoire et philosophie en tête',
+    sans.slice(0,6).every(p=>p.cat==='histoire') && sans.slice(6).every(p=>p.cat==='ecole'),
+    sans.map(p=>p.cat[0]).join(''));
+}
 /* Un pack scolaire doit annoncer son objectif : ouvrir « Philosophie hors
    d'Europe » en croyant réviser le programme serait décourageant. */
 PACKS.filter(p=>p.cat==='ecole').forEach(p=>{
@@ -885,8 +1039,13 @@ T('chaque famille a son barème', PACKS.every(p=>!!BAREME[p.cat]),
     T('la carte n’est rendue que sans chantier actif', /if\(siteActif\) chantier\(siteActif\);\s*else vueCarte\(\)/.test(m));
   }
   T('après une découverte, le chantier est régénéré dans les deux cas',
-    /fermerReveal\(voirFiche\)\{[\s\S]{0,420}if\(siteActif\) chantier\(siteActif\);[\s\S]{0,120}if\(voirFiche\)/.test(app),
+    /fermerReveal\(voirFiche\)\{[\s\S]{0,420}if\(siteActif\) chantier\(siteActif\);[\s\S]{0,520}if\(voirFiche\)/.test(app),
     'y compris quand on part consulter la fiche');
+  /* La fiche est un panneau superposé, pas une destination : la consulter
+     depuis une tranchée ne doit pas basculer sur l'onglet Collection, sans quoi
+     la refermer laisse loin du chantier en cours. */
+  T('consulter une fiche ne change pas d’onglet',
+    !/if\(voirFiche\)\{\s*montrer\('collection'\)/.test(app));
 
   const lot=[];
   QUIZ_PALEO.forEach(x=>lot.push({src:'fouille',r:x.r,autres:x.choix.filter(c=>c!==x.r)}));

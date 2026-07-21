@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v82';
+const VERSION_ATLAS='v105';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -70,6 +70,12 @@ const SCHEMA=1;                             // version du format d'échange
 function etatVide(){
   return {credits:CREDITS_DEPART, collection:{}, packprog:{}, sitesOuverts:{},
           introVue:{}, sitesBonus:{}, qSite:{}, fouilles:0, echecs:0,
+          /* Primes de niveau déjà versées, pour qu'une relecture ne les
+             redonne pas. Porté par l'export au même titre que le reste. */
+          niveauxFinis:{},
+          /* Quelle série est dépliée dans la Bourse. Sans mémoire, chaque
+             retour au menu refermerait celle qu'on vient d'ouvrir. */
+          seriesOuvertes:{},
           stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false,
           /* Le carnet fait partie de l'état : il est donc porté tel quel par
              l'export de progression et rétabli par normaliser() à l'import. */
@@ -114,6 +120,11 @@ let registre=lireRegistre();
 const profilActif=()=>registre.liste.find(p=>p.id===registre.actif)||registre.liste[0];
 let etat=normaliser(litJSON(cleEtat(registre.actif))||etatVide());
 
+/* Registre des sujets d'introduction. Déclaré ici, en tête, parce qu'il est
+   alimenté depuis basculerProfil() au démarrage : toute déclaration plus bas
+   dans le fichier serait encore en zone morte à ce moment-là. */
+const SUJETS_INTRO=new Map();
+
 function sauver(){
   const p=profilActif(); if(p) p.vue=Date.now();
   ecritJSON(cleEtat(registre.actif), etat);
@@ -128,6 +139,7 @@ function basculerProfil(id){
   ecritJSON(PROFILS_CLE, registre);
   fermerReglages();
   siteActif=null;
+  enregistrerNiveaux();
   majNomProfil(); majSolde(); majFondGlobal(); vueCarte(); montrer('fouille');
   if(besoinAccueil()) ouvrirAccueil();
   else toast('Profil : '+(profilActif()||{}).nom);
@@ -438,7 +450,14 @@ function montrer(ecran){
   }
   if(ecran==='collection'){ majFondGlobal(); rendreCollection(); }
   if(ecran==='carnet'){ majFondGlobal(); rendreCarnet(); }
-  if(ecran==='bourse'){ majFondGlobal(); menuPacks(); }
+  /* Bourse : une mission en cours n'est pas perdue parce qu'on est allé écrire
+     au carnet. On reprend la question là où on l'avait laissée — prendre note
+     au milieu d'une série était puni par la perte des réponses précédentes,
+     c'est-à-dire exactement le geste qu'on cherche à encourager. */
+  if(ecran==='bourse'){
+    majFondGlobal();
+    if(mission && packActif) exoSuivant(); else menuPacks();
+  }
 }
 
 /* ---------------- 4. Fouille ---------------- */
@@ -676,7 +695,7 @@ function panneauDeblocage(s){
       <p class="md-sur">Chantier non ouvert</p>
       <h2>${esc(s.nom)}</h2>
       <p class="md-meta">${esc(s.region)} · ${esc(s.pays)}<br>${esc(s.ere)} — ${esc(s.age)}</p>
-      <p class="md-corps">Ouvrir un chantier engage des frais de campagne. Le coût est unique, le site reste ensuite accessible.</p>
+      <p class="md-corps">Le coût est unique : le site reste ensuite accessible.</p>
       <div class="md-cout${assez?'':' court'}">${s.cout} \u25C8
         <span>${assez?'disponible : '+etat.credits+' \u25C8':'il te manque '+(s.cout-etat.credits)+' \u25C8'}</span></div>
       <button class="btn-primaire" ${assez?`onclick="debloquer('${s.id}')"`:'disabled'}>Ouvrir le chantier</button>
@@ -701,12 +720,49 @@ function debloquer(id){
 
 /* 4c. Introduction théorique : la vue satellite du site sert de fond. */
 let introI=0, introSiteId=null, introRelecture=false;
+
+/* L'introduction a d'abord été écrite pour les chantiers, et n'allait donc
+   chercher que dans SITES. Les packs de la Bourse en ont maintenant besoin :
+   dans les séries scientifiques, le récit EST le contenu et les questions ne
+   font que le fixer. Plutôt que d'écrire un second écran, on généralise la
+   source — un niveau de pack se présente comme un chantier, avec ses volets et
+   ses pastilles, et se termine par une mission au lieu d'une fouille. */
+function sujetIntro(id){
+  /* Filet : si le registre est vide, on le remplit ici. La première version
+     l'alimentait depuis basculerProfil(), appelé au démarrage AVANT que le
+     const soit initialisé — zone morte temporelle, exception silencieuse,
+     registre vide, et un clic sur un niveau ne faisait rien du tout. */
+  if(!SUJETS_INTRO.size) enregistrerNiveaux();
+  return SUJETS_INTRO.get(id) || SITES.find(x=>x.id===id) || null;
+}
+/* Un niveau de pack devient un sujet d'introduction. Appelé au démarrage pour
+   chaque niveau déclaré, il n'y a donc rien à tenir à jour à la main. */
+function enregistrerNiveaux(){
+  (typeof PACKS==='undefined'?[]:PACKS).forEach(p=>{
+    (p.niveaux||[]).forEach((n,i)=>{
+      SUJETS_INTRO.set('niv:'+p.id+':'+i, {
+        id:'niv:'+p.id+':'+i, pack:p.id, niveau:i,
+        nom:n.titre, court:n.titre, accroche:n.accroche||'',
+        intro:n.intro||[],
+        /* Sans cette ligne, les 81 sources de la série conscience existaient
+           dans les données et n'arrivaient jamais à l'écran. */
+        liens:n.liens||[],
+        /* Illustrations par volet : le SVG de Mendeleïev a existé deux versions
+           sur disque sans jamais être montré — la conception le prévoyait,
+           l'écran l'ignorait. */
+        imgVolets:n.imgVolets||null
+      });
+    });
+  });
+}
 function introSite(id,relecture){
   introSiteId=id; introI=0; introRelecture=!!relecture;
-  const s=SITES.find(x=>x.id===id);
+  const s=sujetIntro(id);
+  if(!s) return;
+  const estNiveau=!!s.pack;
   /* Le voile ne doit assombrir que ce qui porte du texte. Il partait de 30 % pour
      finir à 98 % : la vue satellite disparaissait dans sa moitié basse. */
-  setFondImg($('#intro-fond'), fondDe(s),
+  setFondImg($('#intro-fond'), estNiveau ? imageDeFond() : fondDe(s),
     'linear-gradient(180deg,rgba(6,10,18,.12) 0%,rgba(6,10,18,.34) 40%,rgba(6,10,18,.86) 100%)');
   /* Chaque vue satellite porte, en bas à droite, un petit globe qui situe le
      continent sur la Terre d'aujourd'hui. Cadré en `cover` sur un écran de
@@ -717,7 +773,7 @@ function introSite(id,relecture){
   if(g){
     /* Pastille facultative : les nouveaux packs n'ont pas de vue satellite,
        donc pas de globe extrait. On masque plutôt que d'afficher un lien mort. */
-    const dispo=GLOBES_DISPONIBLES.includes(s.id);
+    const dispo=!estNiveau && GLOBES_DISPONIBLES.includes(s.id);
     g.style.display = dispo ? '' : 'none';
     if(dispo){ g.src='globes/'+s.id+'.webp'; g.alt='Position de '+s.court+' sur le globe actuel'; }
   }
@@ -727,20 +783,52 @@ function introSite(id,relecture){
   $('#intro').classList.add('on');
 }
 function afficheIntro(){
-  const s=SITES.find(x=>x.id===introSiteId);
+  const s=sujetIntro(introSiteId);
+  if(!s) return;
   $('#intro-txt').textContent=s.intro[introI];
+  const im=$('#intro-img');
+  if(im){
+    const src=s.imgVolets && s.imgVolets[introI];
+    if(src){ im.src=src; im.style.display=''; } else { im.removeAttribute('src'); im.style.display='none'; }
+  }
   /* Les pastilles deviennent atteignables : elles indiquaient la position sans
      permettre d'y aller, ce qui est une promesse non tenue. */
   $('#intro-dots').innerHTML=s.intro.map((_,i)=>
     `<span class="${i===introI?'on':''}" role="button" tabindex="0"
        aria-label="Volet ${i+1}" onclick="introAller(${i})"></span>`).join('');
-  $('#intro-next').textContent = introI===s.intro.length-1 ? 'Descendre sur le chantier →' : 'Continuer ›';
-  const p=$('#intro-prec');
-  if(p) p.style.visibility = introI>0 ? 'visible' : 'hidden';
+  $('#intro-next').textContent = introI<s.intro.length-1 ? 'Continuer ›'
+    : (s.pack ? 'Passer aux questions →' : 'Descendre sur le chantier →');
+  /* Le bouton précédent était masqué par visibility au premier volet, donc
+     invisible et sans explication. Il reste maintenant en place, désactivé :
+     on voit qu'il existe et pourquoi il ne répond pas. */
+  const pr=$('#intro-prec');
+  if(pr){ pr.disabled = introI===0; pr.classList.toggle('inerte', introI===0); }
+  const rg=$('#intro-rang');
+  if(rg) rg.textContent = (introI+1)+' / '+s.intro.length;
+
+  /* Liens sourcés du niveau : ils n'étaient chargés nulle part alors que la
+     série sur la conscience en porte quatre-vingt-un. */
+  const li=$('#intro-liens');
+  if(li){
+    /* Un lien accompagne le passage qui l'appelle, pas la fin du livre. Les
+       sources par carte (conscience) portent l'index de leur volet ; celles
+       de niveau (séries à équations, sections Sources des docs) s'affichent
+       sur le dernier volet, là où l'on referme le récit. Les mettre toutes
+       partout revenait à un tas — c'est ce que le playtest a vu. */
+    const tous=s.liens||[];
+    const dernier=introI===s.intro.length-1;
+    const L=tous.filter(x=> x.v!==undefined ? x.v===introI : dernier).slice(0,7);
+    li.innerHTML = L.length
+      ? '<h4>'+(dernier && !tous.some(x=>x.v!==undefined)?'Sources du niveau':'Sources')+'</h4>'
+        +L.map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${esc(x.t)}</a>`).join('')
+      : '';
+  }
+  const sg=$('#intro-songe'); if(sg) sg.innerHTML='';
+  const nx=$('#intro-noter'); if(nx) nx.style.display='';
 }
 
 function introAller(i){
-  const s=SITES.find(x=>x.id===introSiteId);
+  const s=sujetIntro(introSiteId);
   if(!s || i<0 || i>=s.intro.length || i===introI) return;
   introI=i; afficheIntro();
 }
@@ -758,6 +846,9 @@ function armerBalayageIntro(){
   const el=$('#intro'); if(!el) return;
   let x0=0, y0=0, actif=false;
   el.addEventListener('touchstart',e=>{
+    /* Un balayage qui démarre dans la zone de note ou sur un lien n'est pas
+       une navigation : on écrit, ou on vise. */
+    if(e.target.closest('a,button,textarea,input,.intro-liens,.intro-songe')){ actif=false; return; }
     if(e.touches.length!==1){ actif=false; return; }
     x0=e.touches[0].clientX; y0=e.touches[0].clientY; actif=true;
   },{passive:true});
@@ -770,7 +861,8 @@ function armerBalayageIntro(){
   },{passive:true});
 }
 function introSuivant(){
-  const s=SITES.find(x=>x.id===introSiteId);
+  const s=sujetIntro(introSiteId);
+  if(!s) return;
   introI++;
   if(introI>=s.intro.length){
     $('#intro').classList.remove('on');
@@ -778,11 +870,14 @@ function introSuivant(){
       etat.introVue[introSiteId]=true;
       /* L'introduction est le morceau le plus narratif de l'application : on
          laisse une trace au carnet, où une note pourra s'y accrocher. */
-      noterEvenement('pack', {id:'intro-'+introSiteId, site:introSiteId,
+      noterEvenement('pack', {id:'intro-'+introSiteId, site:s.pack||introSiteId,
         sujet:'Introduction — '+s.nom, note:s.accroche||''});
       sauver();
     }
-    const id=introSiteId; introSiteId=null; chantier(id); return;
+    const id=introSiteId; introSiteId=null;
+    /* Un chantier mène à la tranchée, un niveau de pack à sa mission. */
+    if(s.pack) lancerNiveau(s.pack, s.niveau); else chantier(id);
+    return;
   }
   afficheIntro();
 }
@@ -889,6 +984,13 @@ function rendreQuestionFouille(){
     </div>
     <p class="tr-intro">Identifie correctement et la tranchée livrera.</p>
     <div class="q-txt">${esc(q.q)}</div>
+    <!-- Les questions portent sur les créatures du chantier, mais celles-ci
+         n'étaient visibles nulle part pendant qu'on répondait : on devinait.
+         La bande les rappelle, avec leur nom, à portée de regard. -->
+    <div class="tr-bande">${creaturesDe(siteActif).map(c=>
+      `<button class="tr-b" onclick="ouvrirFiche('${c.id}')" title="${esc(c.nom)}">
+         <img src="${c.img}" loading="lazy" alt="">
+         <em>${esc(legende(c.nom).haut)}</em></button>`).join('')}</div>
     <div id="tr-rep" class="q-choix">
       ${qFouille.choix.map(c=>`<button class="rep" onclick="repFouille(this.textContent,this)">${esc(c)}</button>`).join('')}
     </div>
@@ -896,20 +998,58 @@ function rendreQuestionFouille(){
     <div class="q-fb" id="tr-fb"></div>`;
 }
 /* Sur un QCM factuel, écarter une mauvaise réponse aide plus qu'une phrase vague. */
+/* L'indice écartait une proposition au hasard, ce qui n'apprend rien : on
+   devinait un peu mieux sans comprendre davantage. Il donne maintenant le
+   début de l'explication — du contenu vérifié, tiré de la même source que la
+   réponse — et écarte deux propositions plutôt qu'une. On paie l'aide en
+   renonçant à une part du gain, pas en s'interdisant de comprendre. */
+function amorce(exp, reponse){
+  let t=String(exp||'').trim();
+  if(!t) return '';
+  /* Les explications commencent souvent par la réponse — « En 1938, quand un
+     spécimen… » pour la question qui demande la date. Livrer l'amorce telle
+     quelle donnerait la solution : on caviarde d'abord la réponse et ses mots
+     porteurs, puis on coupe. */
+  const r=String(reponse||'').trim();
+  if(r){
+    const mots=r.split(/[\s,;:'\u2019()]+/).filter(m=>m.length>3);
+    [r, ...mots].forEach(m=>{
+      const e=m.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      t=t.replace(new RegExp(e,'gi'), '\u2588\u2588');
+    });
+    t=t.replace(/(\u2588\u2588[\s,]*)+/g,'\u2588\u2588 ');
+  }
+  const coupe=Math.max(30, Math.floor(t.length*0.5));
+  let i=t.indexOf(' ', coupe);
+  if(i<0 || i>t.length-6) i=t.length;
+  const out=t.slice(0,i).replace(/[ ,;:]+$/,'');
+  /* Si tout ce qui reste est du caviardage, l'indice n'apprend rien : on
+     préfère ne rien dire plutôt que d'afficher une ligne vide de sens. */
+  return /[a-zà-ÿ]{4}/i.test(out.replace(/\u2588/g,'')) ? out+'\u2026' : '';
+}
+
 function indiceFouille(){
   qFouille.aide=true;
   $('#tr-indice').style.display='none';
   const faux=$$('#tr-rep .rep').filter(b=>!egal(b.textContent,qFouille.q.r)&&!b.disabled);
-  if(faux.length>1){ const v=faux[rnd(0,faux.length-1)]; v.disabled=true; v.classList.add('ecarte'); }
+  for(let k=0; k<2 && faux.length>1; k++){
+    const v=faux.splice(rnd(0,faux.length-1),1)[0];
+    v.disabled=true; v.classList.add('ecarte');
+  }
+  const a=amorce(qFouille.q.exp, qFouille.q.r);
   const fb=$('#tr-fb'); fb.className='q-fb indice';
-  fb.textContent='💡 Une proposition a été écartée.';
+  fb.innerHTML=a ? `<b>Piste.</b> ${esc(a)}` : 'Deux propositions ont été écartées.';
 }
 function repFouille(val,btn){
-  if(!qFouille)return;
+  /* Même verrou qu'à la Bourse. La fouille n'expose que des boutons, tous
+     désactivés après coup, donc la faille n'y était pas ouverte — mais elle le
+     redeviendrait le jour où une question s'y répondrait au clavier. */
+  if(!qFouille||qFouille.resolue)return;
   const q=qFouille.q;
   if(egal(val,q.r)){
+    qFouille.resolue=true;
     btn.classList.add('bon');
-    $$('#tr-rep .rep').forEach(b=>b.disabled=true);
+    $$('#tr-rep .rep, #tr-rep button').forEach(b=>b.disabled=true);
     $('#tr-indice').style.display='none';
     noterQuestion(q, true);
     const fb=$('#tr-fb'); fb.className='q-fb bon';
@@ -958,7 +1098,7 @@ function trancheeSterile(){
   $('#reveal-corps').innerHTML=`<div class="rev-vide">
     <div class="rev-vide-ico">⛏️</div>
     <div class="rev-vide-t">La pièce est restée dans la roche</div>
-    <div class="rev-vide-s">Ça arrive à tout le monde, et la couche est toujours là. La question reviendra, avec sa réponse en tête cette fois.</div>
+    <div class="rev-vide-s">La couche est toujours là. La question reviendra, avec sa réponse en tête.</div>
     <button class="btn-primaire" onclick="fermerReveal()">Revenir au chantier</button></div>`;
   $('#reveal').classList.add('on');
 }
@@ -1013,7 +1153,11 @@ function fermerReveal(voirFiche){
      la fiche : son état doit être juste au moment où l'on y revient, pas au
      moment où l'on choisit d'y revenir. */
   if(siteActif) chantier(siteActif);
-  if(voirFiche){ montrer('collection'); ouvrirFiche(voirFiche); }
+  /* Consulter la fiche d'une créature qu'on vient de déterrer ne doit pas
+     changer d'onglet : on repartait sur la collection, et refermer la fiche
+     laissait sur un écran qu'on n'avait pas demandé, loin de la tranchée en
+     cours. La fiche est un panneau, elle se superpose à l'écran courant. */
+  if(voirFiche) ouvrirFiche(voirFiche);
 }
 
 /* ---------------- 5. Collection et fiches ---------------- */
@@ -1199,13 +1343,10 @@ function rendreFrise(){
   }).join('');
 
   $('#col-corps').innerHTML=`
-    <p class="fri-aide">Le temps de haut en bas, à l’échelle : chaque graduation
-      vaut le même nombre d’années. Touche un chantier pour déplier ses créatures.</p>
+    <p class="fri-aide">Chaque graduation vaut le même nombre d’années. Touche un chantier pour le déplier.</p>
     <div class="fri-avant">
       <b>4,54 milliards d’années avant cette frise</b>
-      <span>De la formation de la Terre à l’Édiacarien. À l’échelle utilisée ici,
-      cette portion mesurerait trente et un mètres de haut, et ne contiendrait
-      presque aucun fossile visible à l’œil nu.</span>
+      <span>De la formation de la Terre à l’Édiacarien. À cette échelle, trente et un mètres — et presque rien de visible à l’œil nu.</span>
     </div>
     <div class="fri-axe" style="height:${H}px">
       ${bandes}${grads}<div class="fri-ligne"></div>${marqueurs}
@@ -1237,9 +1378,7 @@ function ouvrirReglages(v){
   if(vueReglages==='maj'){
     html=`<p class="md-sur">Mise à jour</p>
       <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
-      <p class="rg-note">Si l’application affiche encore l’ancienne version. Aucune progression n’est
-        touchée : les profils sont enregistrés séparément des fichiers de
-        l’application.</p>
+      <p class="rg-note">Si l’application affiche encore l’ancienne version. Aucune progression n’est touchée.</p>
       <button class="btn-primaire" onclick="forcerMaj(this)">Oui, mettre à jour</button>
       <button class="btn-fant" onclick="ouvrirReglages('profil')">Annuler</button>`;
   }else{
@@ -1432,8 +1571,7 @@ function ouvrirGuide(){
     <div class="gd-ligne"><span class="gd-ico">🎓</span>
       <p class="gd-txt"><b>Bourse.</b> Des questions, des crédits. C’est ce qui finance les fouilles.</p></div>
     <div class="gd-ligne"><span class="gd-ico">⛏️</span>
-      <p class="gd-txt"><b>Fouille.</b> Tu ouvres un chantier sur la carte du monde,
-        puis tu creuses : chaque bonne réponse sur le site dégage une créature.</p></div>
+      <p class="gd-txt"><b>Fouille.</b> Un chantier sur la carte, puis on creuse : chaque bonne réponse dégage une créature.</p></div>
     <div class="gd-ligne"><span class="gd-ico">🧬</span>
       <p class="gd-txt"><b>Collection.</b> Par chantier, par période, par famille, ou sur la frise.</p></div>
     <div class="gd-but"><b>Le but</b>
@@ -1599,7 +1737,10 @@ function fermerFiche(){ $('#fiche').classList.remove('on'); }
 
 /* ---------------- 6. Bourse ---------------- */
 const SEUIL_MAITRISE=2;
-const bareme=p=>BAREME[p.cat]||BAREME.base;
+/* Une serie est payee a son propre tarif, quelle que soit sa categorie
+   d affichage : c est la forme — beaucoup de recit, peu de questions — qui
+   decide, pas le rayon dans lequel elle est rangee. */
+const bareme=p=>(p&&p.niveaux ? BAREME.serie : (BAREME[p&&p.cat]||BAREME.base));
 function prog(id){
   let p=etat.packprog[id];
   if(!p||typeof p.niv!=='number') p=etat.packprog[id]={niv:1,c:{},reussites:0};
@@ -1613,20 +1754,62 @@ function avancePack(p){
   if(!b) return {txt:'Niveau '+packNiv(p.id)+' · sans fin', pct:Math.min(100,prog(p.id).reussites/54*100)};
   const c=prog(p.id).c; let m=0;
   b.forEach(q=>{ if((c[q.q]||0)>=SEUIL_MAITRISE) m++; });
-  return {txt:m+' / '+b.length+' maîtrisées', pct:m/b.length*100};
+  /* « 7 / 20 » ne disait pas ce qu'il comptait. Une question est acquise quand
+     elle a été réussie SEUIL_MAITRISE fois : on l'écrit. */
+  return {txt:m+' questions acquises sur '+b.length
+    +' \u00B7 '+SEUIL_MAITRISE+' bonnes réponses chacune', pct:m/b.length*100};
 }
 function menuPacks(){
+  niveauActif=null;
   $('#bourse-corps').innerHTML=`
     <button class="btn-surprise" onclick="missionSurprise()">
       <span class="bs-ico">\u{1F3B2}</span>
       <span class="bs-txt"><b>Mission surprise</b>
         <em>Un pack au hasard \u00B7 gains \u00D7 1,6</em></span></button>
+    <h3 class="grp">Séries à niveaux <em>récit d'abord, questions ensuite</em></h3>
+    ${PACKS.filter(p=>p.niveaux).map(carteSerie).join('')}
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
-    ${PACKS.filter(p=>p.cat==='histoire').map(carteP).join('')}
+    ${PACKS.filter(p=>p.cat==='histoire' && !p.niveaux).map(carteP).join('')}
     <h3 class="grp">Accompagnement scolaire
       <em>secondaire inférieur · ${BAREME.ecole.juste} \u25C8 par bonne réponse</em></h3>
     ${PACKS.filter(p=>p.cat==='ecole').map(carteP).join('')}`;
 }
+/* Une série ne se présente pas comme un pack : on n'y entre pas au hasard, on
+   y suit des niveaux dans l'ordre. Chacun s'ouvre sur son récit, se termine par
+   six questions, et porte sa marque quand il est acquis. */
+function carteSerie(p){
+  const N=p.niveaux, faits=N.filter((n,i)=>etat.niveauxFinis && etat.niveauxFinis[p.id+':'+i]).length;
+  const ouvert=!!etat.seriesOuvertes[p.id];
+  return `<section class="serie${ouvert?' ouverte':''}">
+    <button class="se-tete" onclick="basculerSerie('${p.id}')" aria-expanded="${ouvert}">
+      <span class="se-ico">${p.ico}</span>
+      <span class="se-txt"><b>${esc(p.nom)}</b><small>${esc(p.sous)}</small></span>
+      <span class="se-etat">${faits}/${N.length}</span>
+      <span class="se-tarif">${BAREME.serie.juste} \u25C8</span>
+      <span class="se-fleche">\u203A</span>
+    </button>
+    ${ouvert ? `<div class="se-corps">${N.map((n,i)=>{
+      const fini=etat.niveauxFinis && etat.niveauxFinis[p.id+':'+i];
+      const lu=etat.introVue['niv:'+p.id+':'+i];
+      return `<button class="niv${fini?' fini':''}" onclick="ouvrirNiveau('${p.id}',${i})">
+        <span class="nv-n">${i+1}</span>
+        <span class="nv-txt"><b>${esc(n.titre)}</b>
+          <small>${n.intro.length} volets \u00B7 ${n.bank().length} questions${fini?' \u00B7 acquis':''}</small></span>
+        <span class="nv-etat">${fini?'\u2726':(lu?'\u203A':'\u25CB')}</span></button>
+      ${lu?`<button class="nv-revoir" onclick="revoirNiveau('${p.id}',${i})">Revoir le récit</button>`:''}`;
+    }).join('')}</div>` : ''}
+  </section>`;
+}
+
+/* Douze séries dépliées occupaient tout l'écran et noyaient les packs
+   ordinaires. Chacune est donc repliée par défaut : on voit son nom, son
+   avancement, et l'on déplie ce qu'on veut. L'état est gardé dans le profil,
+   pour qu'un aller-retour ne referme pas ce qu'on venait d'ouvrir. */
+function basculerSerie(id){
+  etat.seriesOuvertes[id]=!etat.seriesOuvertes[id];
+  sauver(); menuPacks();
+}
+
 function carteP(p){
   const a=avancePack(p), st=statPack(p.id);
   const taux=st.tot?' · réussite '+Math.round(st.ok/st.tot*100)+' %':'';
@@ -1637,7 +1820,7 @@ function carteP(p){
       <small class="pk-st">${esc(a.txt)}${taux}</small></span>
     <span class="pk-go">›</span></button>`;
 }
-let packActif=null;
+let packActif=null, niveauActif=null;
 /* Le rappel est écrit en prose, en paragraphes séparés par une ligne vide. */
 function theorieHTML(p){
   return String(p.theorie||'').split(/\n{2,}/)
@@ -1715,6 +1898,13 @@ function choisirBanque(p){
 }
 function prochainExo(){
   const p=packActif, niv=packNiv(p.id);
+  /* Dans une série, on interroge sur le niveau qu'on vient de lire, jamais sur
+     la banque entière : les questions du niveau 3 supposent les niveaux 1 et 2. */
+  if(niveauActif!=null && p.niveaux && p.niveaux[niveauActif]){
+    const b=p.niveaux[niveauActif].bank();
+    const neufs=b.filter(q=>!mission.vus.includes(q.q));
+    return melange(neufs.length?neufs:b)[0];
+  }
   if(p.id==='conjugaison') return genConjugaison(niv);
   if(p.id==='maths')       return genMaths(niv);
   return choisirBanque(p);
@@ -1753,9 +1943,32 @@ function songePackNoter(id, nom){
   if(h) h.innerHTML='<span class="doute-ok">Inscrit au carnet.</span>';
 }
 
+/* Une mission surprise tire UNE FOIS SUR DEUX dans l'accompagnement scolaire.
+   Le reste du temps, dans les packs de culture. Ce n'est pas un hasard corrigé
+   mais une intention : la révision scolaire est ce qu'on repousse le plus
+   volontiers, et le seul moment où l'on accepte d'en faire est celui où l'on
+   a renoncé à choisir.
+
+   ELLE NE TIRE JAMAIS DANS LES SÉRIES À NIVEAUX, et c'est explicite ici parce
+   que rien dans les données ne l'interdirait. Une série se suit dans l'ordre :
+   ses questions supposent le récit du niveau, qui suppose celui d'avant. Six
+   questions tirées au hasard au milieu d'un raisonnement sur l'indétermination
+   ne seraient pas une révision mais un contresens — on interrogerait sur une
+   histoire qu'on n'a pas lue. Le filtre `!p.niveaux` est donc une règle de
+   contenu, pas une commodité. */
+const PART_SCOLAIRE=0.5;
 function missionSurprise(){
-  const dispo=PACKS.filter(p=>p.id!==(packActif&&packActif.id));
-  const p=dispo[Math.floor(Math.random()*dispo.length)]||PACKS[0];
+  const encours=packActif&&packActif.id;
+  const libres=PACKS.filter(p=>!p.niveaux && p.id!==encours);
+  const ecole=libres.filter(p=>p.cat==='ecole');
+  const autres=libres.filter(p=>p.cat!=='ecole');
+  /* Si l'une des deux familles est vide, on tire dans l'autre plutôt que de
+     ne rien lancer : la surprise doit toujours aboutir. */
+  let bassin = (Math.random()<PART_SCOLAIRE ? ecole : autres);
+  if(!bassin.length) bassin = ecole.length ? ecole : autres;
+  if(!bassin.length) bassin = libres.length ? libres : PACKS.filter(p=>!p.niveaux);
+  const p=bassin[Math.floor(Math.random()*bassin.length)];
+  if(!p) return;
   ouvrirPack(p.id);
   lancerMission(true);
 }
@@ -1782,11 +1995,16 @@ function rendreExo(){
       ${q.sujet?`<div class="q-sujet">${esc(q.sujet)}<span class="q-blanc">…</span></div>`:''}
       <div id="q-rep" class="${saisie?'q-saisie':'q-choix'}">
         ${saisie
-          ? `<input id="q-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Ta réponse">
+          ? `<input id="q-input" type="text" placeholder="Ta réponse"
+               autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" inputmode="text" data-gramm="false"
+               autocapitalize="off" enterkeyhint="done">
              <button class="btn-primaire" onclick="repondre($('#q-input').value)">Valider</button>`
           : q.choix.map(c=>`<button class="rep" onclick="repondre(this.textContent,this)">${esc(c)}</button>`).join('')}
       </div>
       <button class="btn-indice" id="btn-indice" onclick="montrerIndice()">Voir l'indice</button>
+      <button class="carn-mini q-noter" onclick="songeQuestion()">\u270e Prendre une note</button>
+      <div id="q-songe"></div>
       <div class="q-fb" id="q-fb"></div>
     </div>`;
   const inp=$('#q-input');
@@ -1810,7 +2028,13 @@ function egal(a,b){
   return isFinite(na)&&isFinite(nb)&&Math.abs(na-nb)<1e-6;
 }
 function repondre(val,btn){
-  if(!mission||!mission.q)return;
+  /* VERROU. Le champ de saisie et les propositions étaient bien désactivés
+     après une bonne réponse, mais pas le bouton « Valider » : on pouvait le
+     presser en boucle et encaisser le gain autant de fois qu'on voulait. Le
+     garde porte désormais sur l'état de la question, pas sur celui des
+     éléments d'interface — il couvre donc tous les chemins, y compris la
+     touche Entrée. */
+  if(!mission||!mission.q||mission.resolue)return;
   const q=mission.q, bon=egal(val,q.r), b=bareme(packActif);
   ancreGain=btn||null;
   const fb=$('#q-fb');
@@ -1821,8 +2045,10 @@ function repondre(val,btn){
     const st=statPack(packActif.id); st.tot++; if(autonome) st.ok++;
     if(q.cle && autonome){ const c=prog(packActif.id).c; c[q.cle]=(c[q.cle]||0)+1; }
     if(packActif.type==='gen' && autonome) prog(packActif.id).reussites++;
+    mission.resolue=true;
+    if(niveauActif!=null) setTimeout(verifierPrimeNiveau,0);
     if(btn) btn.classList.add('bon');
-    $$('#q-rep .rep').forEach(x=>x.disabled=true);
+    $$('#q-rep .rep, #q-rep button').forEach(x=>x.disabled=true);
     const inp=$('#q-input'); if(inp) inp.disabled=true;
     $('#btn-indice').style.display='none';
     noterExercice(q, packActif, true);
@@ -1842,8 +2068,9 @@ function repondre(val,btn){
     const inp=$('#q-input'); if(inp) inp.select();
     return;
   }
+  mission.resolue=true;
   statPack(packActif.id).tot++;
-  $$('#q-rep .rep').forEach(x=>{ x.disabled=true; if(egal(x.textContent,q.r)) x.classList.add('bon'); });
+  $$('#q-rep .rep, #q-rep button').forEach(x=>{ x.disabled=true; if(egal(x.textContent,q.r)) x.classList.add('bon'); });
   const inp=$('#q-input'); if(inp) inp.disabled=true;
   $('#btn-indice').style.display='none';
   noterExercice(q, packActif, false);
@@ -1855,7 +2082,110 @@ function repondre(val,btn){
       <button class="btn-primaire" onclick="suite()">Continuer</button>`;
   sauver();
 }
-function suite(){ mission.i++; exoSuivant(); }
+function suite(){
+  /* Un double-tap sur « Continuer » après la dernière question appelait suite()
+     alors que finMission avait déjà rendu son écran : mission.i sur null,
+     exception silencieuse. Attrapé en rejouant l'exploit de Louise au harnais. */
+  if(!mission) return;
+  mission.i++; mission.resolue=false; exoSuivant();
+}
+
+/* ---- Niveaux de pack -------------------------------------------------
+   Un niveau est une mission de six questions précédée de son récit. Le
+   récit porte l'essentiel ; les questions ne font que le fixer. */
+function ouvrirNiveau(packId, i){
+  const p=PACKS.find(x=>x.id===packId); if(!p||!p.niveaux||!p.niveaux[i])return;
+  const cle='niv:'+packId+':'+i;
+  /* On ne réimpose pas le récit à chaque passage : vu une fois, il devient
+     accessible mais facultatif, comme l'introduction d'un chantier. */
+  if(etat.introVue[cle]) lancerNiveau(packId,i); else introSite(cle,false);
+}
+function revoirNiveau(packId,i){ introSite('niv:'+packId+':'+i, true); }
+
+/* Quitter une leçon en cours. Il n'existait aucune sortie : une fois entré dans
+   le récit, on n'en ressortait que par le dernier volet. */
+function fermerIntro(){
+  $('#intro').classList.remove('on');
+  introSiteId=null; niveauActif=null; packActif=null; mission=null;
+  montrer('bourse');
+}
+
+/* Prendre une note pendant la leçon, sans la quitter. Le récit est le moment
+   où une idée arrive ; l'obliger à attendre le carnet, c'est la perdre. */
+/* Prendre une note pendant une question. Une bonne question réveille une idée
+   au moment précis où elle se pose — pas à la fin de la mission. La note garde
+   la question comme sujet, pour que le carnet la resitue. */
+function songeQuestion(){
+  const h=$('#q-songe'); if(!h||!mission||!mission.q) return;
+  h.innerHTML=`<textarea class="songe-ed" id="sg-q" rows="3"
+      placeholder="Ce que cette question t\u2019\u00e9voque"></textarea>
+    <button class="carn-mini" onclick="songeQuestionNoter()">Inscrire</button>`;
+  const z=$('#sg-q'); if(z) z.focus();
+}
+function songeQuestionNoter(){
+  const z=$('#sg-q'); const v=z&&z.value.trim();
+  if(!v||!mission||!mission.q) return;
+  carnet().push({k:'pack', t:Date.now(), id:'q-'+Date.now(), ref:mission.ref,
+                 sujet:(packActif?packActif.nom+' \u00B7 ':'')+mission.q.q.slice(0,80), note:v});
+  sauver();
+  const h=$('#q-songe');
+  if(h) h.innerHTML='<span class="doute-ok">Inscrit au carnet.</span>';
+}
+
+function songeIntro(){
+  const h=$('#intro-songe'); if(!h) return;
+  const s=sujetIntro(introSiteId); if(!s) return;
+  h.innerHTML=`<textarea class="songe-ed" id="sg-intro" rows="3"
+      placeholder="Ce que ce passage t\u2019a laissé"></textarea>
+    <button class="carn-mini" onclick="songeIntroNoter()">Inscrire</button>`;
+  const z=$('#sg-intro'); if(z) z.focus();
+}
+function songeIntroNoter(){
+  const z=$('#sg-intro'); const v=z&&z.value.trim();
+  const s=sujetIntro(introSiteId);
+  if(!v||!s) return;
+  carnet().push({k:'pack', t:Date.now(), id:'lecon-'+introSiteId+'-'+Date.now(),
+                 sujet:s.nom+' \u00B7 volet '+(introI+1), note:v});
+  sauver();
+  const h=$('#intro-songe');
+  if(h) h.innerHTML='<span class="doute-ok">Inscrit au carnet.</span>';
+}
+
+function lancerNiveau(packId, i){
+  const p=PACKS.find(x=>x.id===packId); if(!p||!p.niveaux||!p.niveaux[i])return;
+  packActif=p; niveauActif=i;
+  /* La première version fabriquait un objet mission d'une forme inventée, sans
+     vus, gagne, justes ni essais. exoSuivant() faisait mission.vus.push(...)
+     sur undefined, l'exception partait en silence, et l'on restait sur le
+     dernier volet sans qu'aucune question n'apparaisse jamais. La mission d'un
+     niveau doit avoir EXACTEMENT la forme de celle d'un pack : seule la
+     provenance des questions change. */
+  mission={i:0, gagne:0, justes:0, aide:false, essais:0, vus:[], surprise:false,
+           ref:'niv:'+packId+':'+i, niveau:i};
+  montrer('bourse');
+}
+
+/* Un niveau est acquis quand chacune de ses six questions a été réussie
+   SEUIL_MAITRISE fois. La prime ne tombe qu'une fois. */
+function niveauAcquis(packId,i){
+  const p=PACKS.find(x=>x.id===packId); if(!p||!p.niveaux||!p.niveaux[i])return false;
+  const c=prog(packId).c||{};
+  return p.niveaux[i].bank().every(q=>(c[q.n]||0)>=SEUIL_MAITRISE);
+}
+function verifierPrimeNiveau(){
+  if(!packActif || niveauActif==null) return;
+  const cle=packActif.id+':'+niveauActif;
+  etat.niveauxFinis=etat.niveauxFinis||{};
+  if(etat.niveauxFinis[cle] || !niveauAcquis(packActif.id, niveauActif)) return;
+  etat.niveauxFinis[cle]=true;
+  etat.credits+=PRIME_NIVEAU;
+  const n=packActif.niveaux[niveauActif];
+  noterEvenement('pack', {id:'fin-'+cle, site:packActif.id,
+    sujet:'Niveau achevé — '+n.titre,
+    note:'Les six questions sont acquises. Prime : '+PRIME_NIVEAU+' \u25C8.'});
+  majSolde(); sauver();
+  toast('Niveau achevé \u00B7 +'+PRIME_NIVEAU+' \u25C8');
+}
 function abandonner(){
   if(mission&&mission.gagne) toast('Mission interrompue — '+mission.gagne+' \u25C8 conservés');
   mission=null; sauver(); ouvrirPack(packActif.id);
@@ -1866,7 +2196,7 @@ function abandonner(){
    parcours. Aucune de ces phrases n'est fausse. */
 function phraseFin(justes){
   if(justes>=NB_MISSION) return 'Les six d’emblée. Rien à ajouter.';
-  if(justes===0) return 'Six questions traversées, six explications lues. C’est comme ça qu’on apprend une matière neuve.';
+  if(justes===0) return 'Six questions, six explications lues.';
   if(justes===1) return 'Une trouvée du premier coup, et cinq explications de plus en tête.';
   return justes+' trouvées du premier coup, le reste après un détour par l’explication.';
 }
@@ -1890,7 +2220,14 @@ function finMission(){
 /* ---------------- 7. Initialisation ---------------- */
 function init(){
   $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>montrer(b.dataset.ecran)));
-  $('#intro').addEventListener('click',introSuivant);
+  /* Le clic n'importe où faisait avancer le volet — pratique pour lire, mais
+     il AVALAIT tout : la croix, la prise de note, les liens, le bouton
+     précédent. On n'avance donc que si le clic touche le fond de l'écran ou le
+     texte lui-même, jamais un élément actif ni ses enfants. */
+  $('#intro').addEventListener('click',e=>{
+    if(e.target.closest('a,button,textarea,input,.dots,.intro-liens,.intro-songe')) return;
+    introSuivant();
+  });
   $('#btn-fouiller').addEventListener('click',fouiller);
   $('#ch-retour').addEventListener('click',vueCarte);
   armerBalayageIntro();
