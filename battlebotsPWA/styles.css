@@ -208,3 +208,9 @@
 .ovstats .dbtab th:first-child{text-align:left;}
 .ovstats .dbtab td{text-align:right;padding:2px 6px;border-top:1px solid rgba(120,130,150,.15);}
 .ovstats .dbtab td:first-child{text-align:left;color:#9aa3b5;}
+
+/* B3 — occasions */
+.gsec.used{color:#d9a441;}
+.usedcard{outline:1px dashed rgba(217,166,65,.45);}
+.usedwear{color:#d98a45;}
+.gbuy.used s{opacity:.55;margin-right:4px;font-weight:400;}

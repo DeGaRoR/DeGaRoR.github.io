@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v105';
+const VERSION_ATLAS='v108';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -77,6 +77,9 @@ function etatVide(){
              retour au menu refermerait celle qu'on vient d'ouvrir. */
           seriesOuvertes:{},
           stats:{}, ordre:{}, ordreN:0, tri:'chantier', accueilVu:false,
+          /* Fouille payée dont le résultat n'est pas encore livré. Voir la
+             section « Transaction de fouille ». `null` = aucune dette. */
+          fouilleEnCours:null,
           /* Le carnet fait partie de l'état : il est donc porté tel quel par
              l'export de progression et rétabli par normaliser() à l'import. */
           carnet:[], carnetTri:'tout', carnetOrdre:'asc', carnetGroupe:false};
@@ -138,10 +141,11 @@ function basculerProfil(id){
   etat=normaliser(litJSON(cleEtat(id))||etatVide());
   ecritJSON(PROFILS_CLE, registre);
   fermerReglages();
-  siteActif=null;
+  resetSessionTransitoire();
   enregistrerNiveaux();
   majNomProfil(); majSolde(); majFondGlobal(); vueCarte(); montrer('fouille');
   if(besoinAccueil()) ouvrirAccueil();
+  else if(reprendreFouille()) toast('Profil : '+(profilActif()||{}).nom+' \u00B7 tranchée rouverte');
   else toast('Profil : '+(profilActif()||{}).nom);
 }
 
@@ -168,6 +172,10 @@ function supprimerProfil(id){
   if(registre.actif===id){
     registre.actif=registre.liste[0].id;
     etat=normaliser(litJSON(cleEtat(registre.actif))||etatVide());
+    /* Supprimer le profil actif change de partie sans passer par
+       basculerProfil : la session doit y être coupée aussi. */
+    resetSessionTransitoire();
+    majFondGlobal(); vueCarte(); montrer('fouille');
   }
   ecritJSON(PROFILS_CLE, registre);
   majSolde(); ouvrirReglages();
@@ -456,7 +464,7 @@ function montrer(ecran){
      c'est-à-dire exactement le geste qu'on cherche à encourager. */
   if(ecran==='bourse'){
     majFondGlobal();
-    if(mission && packActif) exoSuivant(); else menuPacks();
+    if(mission && packActif) reprendreExo(); else menuPacks();
   }
 }
 
@@ -941,10 +949,69 @@ function chantier(id){
    Deux essais, un indice : l'aide ne prive pas du tirage. */
 const NB_ESSAIS=2;
 let qFouille=null;
+/* ---- Transaction de fouille ---------------------------------------------
+   Une fouille se paie à l'OUVERTURE de la tranchée et ne rend son résultat
+   qu'après la question. Entre les deux, rien n'était écrit sur disque : fermer
+   l'onglet, recharger, ou laisser le téléphone mettre l'application en veille
+   faisait perdre les crédits sans rien livrer. Sur mobile la mise en veille
+   n'est pas un cas limite, c'est le cas courant — et c'est le seul endroit du
+   jeu où la joueuse peut perdre quelque chose.
+
+   La fouille est donc un objet persistant, écrit dans le MÊME `sauver()` que le
+   débit et effacé dans le MÊME `sauver()` que la récompense. À tout instant, la
+   sauvegarde décrit soit une fouille payée et due, soit rien : jamais un débit
+   sans contrepartie. Au démarrage, `reprendreFouille()` reprend la tranchée là
+   où elle en était, ou rembourse si la question n'existe plus.
+
+   Le même verrou rend la récompense IDEMPOTENTE : `tirage()` ne consomme la
+   transaction qu'une fois, ce qui ferme au passage un double-tap sur « Extraire
+   la pièce » qui livrait deux créatures pour une seule fouille. */
+function consommerFouille(){
+  const f=etat.fouilleEnCours; if(!f) return null;
+  etat.fouilleEnCours=null; return f;
+}
+function majTransaction(champs){
+  if(!etat.fouilleEnCours) return;
+  Object.assign(etat.fouilleEnCours, champs);
+  sauver();
+}
+/* Reprise au démarrage et à chaque changement de profil. Trois issues, dans
+   cet ordre : aucune dette → rien à faire ; dette honorable → la tranchée
+   rouvre exactement où elle en était ; dette inhonorable (question disparue
+   d'un corpus qui a changé de version) → remboursement, jamais de perte
+   silencieuse. */
+function reprendreFouille(){
+  const f=etat.fouilleEnCours; if(!f) return false;
+  const q=QUIZ_PALEO.find(x=>x.id===f.qid);
+  const site=SITES.find(x=>x.id===f.site);
+  if(!q || !site){
+    etat.credits+=f.cout||0;
+    etat.fouilleEnCours=null;
+    sauver(); majSolde(true);
+    toast('Fouille interrompue \u00B7 '+(f.cout||0)+' \u25C8 remboursés');
+    return false;
+  }
+  siteActif=f.site;
+  qFouille={q, essais:f.essais||0, aide:!!f.aide,
+            choix:(Array.isArray(f.choix)&&f.choix.length)?f.choix:melange(q.choix),
+            marques:f.marques||{}, ecartes:f.ecartes||[],
+            resolue:f.statut!=='question',
+            juste:f.statut==='recompense'};
+  chantier(f.site);
+  montrer('fouille');
+  rendreQuestionFouille();
+  $('#tranchee').classList.add('on');
+  return true;
+}
 function fouiller(){
   if(!siteActif) return;
+  if(etat.fouilleEnCours) return toast('Une tranchée est déjà ouverte');
   if(etat.credits<COUT_FOUILLE) return toast('Crédits de recherche insuffisants');
   etat.credits-=COUT_FOUILLE; etat.fouilles=(etat.fouilles||0)+1;
+  /* Débit et dette dans la même écriture : il n'existe aucun instant où l'un
+     est enregistré sans l'autre. */
+  etat.fouilleEnCours={site:siteActif, cout:COUT_FOUILLE, qid:null,
+                       essais:0, aide:false, choix:null, statut:'question'};
   sauver(); majSolde(true);
   poserQuestionSite();
 }
@@ -972,6 +1039,10 @@ function poserQuestionSite(){
   const c=etat.qSite[siteActif];
   c[q.id]=(c[q.id]||0)+1;
   qFouille={q, essais:0, aide:false, choix:melange(q.choix)};
+  /* L'ordre des propositions est mémorisé, pas seulement l'identifiant : une
+     reprise qui remélangerait donnerait un écran différent de celui qu'on avait
+     sous les yeux, et le bouton déjà écarté par l'indice changerait de place. */
+  majTransaction({qid:q.id, choix:qFouille.choix, essais:0, aide:false, statut:'question'});
   rendreQuestionFouille();
   $('#tranchee').classList.add('on');
 }
@@ -992,10 +1063,56 @@ function rendreQuestionFouille(){
          <img src="${c.img}" loading="lazy" alt="">
          <em>${esc(legende(c.nom).haut)}</em></button>`).join('')}</div>
     <div id="tr-rep" class="q-choix">
-      ${qFouille.choix.map(c=>`<button class="rep" onclick="repFouille(this.textContent,this)">${esc(c)}</button>`).join('')}
+      ${qFouille.choix.map(c=>{
+        /* Marques, écarts d'indice et verrou sortent de `qFouille`, jamais du
+           DOM : c'est ce qui permet à une tranchée reprise après un
+           rechargement de réapparaître exactement telle qu'on l'avait laissée. */
+        const mq=(qFouille.marques||{})[c] || (qFouille.resolue && egal(c,q.r) ? 'bon' : '');
+        const ec=(qFouille.ecartes||[]).includes(c);
+        const off=qFouille.resolue || ec || mq==='faux';
+        return `<button class="rep${mq?' '+mq:''}${ec?' ecarte':''}"${off?' disabled':''}
+          onclick="repFouille(this.textContent,this)">${esc(c)}</button>`;
+      }).join('')}
     </div>
     <button class="btn-indice" id="tr-indice" onclick="indiceFouille()">Réduire le champ des possibles</button>
     <div class="q-fb" id="tr-fb"></div>`;
+  rendreFbFouille();
+}
+/* Bas de la tranchée — indice, essai raté, correction. Même raison qu'à la
+   Bourse : il doit pouvoir être REJOUÉ, ici parce qu'une fouille payée peut
+   être reprise après un rechargement. */
+function fbFouilleHTML(q, bon){
+  return (bon ? `<b>Juste.</b> ${esc(q.exp)}`
+              : `<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp)}`)
+    +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener" onclick="lienSuivi('${q.id}')">${esc(q.src[0])}</a></div>`:'')
+    +`<div id="doute-hote"></div><button class="lien-doute" onclick="ouvrirDoute('${q.id}','${esc(q.q).replace(/'/g,"\\'")}')">Ça me paraît faux</button>`
+    +(bon ? `<button class="btn-primaire" onclick="tirage()">Extraire la pièce</button>`
+          : `<button class="btn-primaire" onclick="trancheeSterile()">Refermer la tranchée</button>`);
+}
+function rendreFbFouille(){
+  if(!qFouille) return;
+  const q=qFouille.q, fb=$('#tr-fb'); if(!fb) return;
+  const cacherIndice=()=>{ const b=$('#tr-indice'); if(b) b.style.display='none'; };
+  if(qFouille.resolue){
+    cacherIndice();
+    $$('#tr-rep .rep, #tr-rep button').forEach(b=>{ b.disabled=true;
+      if(b.classList.contains('rep') && egal(b.textContent,q.r)) b.classList.add('bon'); });
+    fb.className='q-fb '+(qFouille.juste?'bon':'faux');
+    fb.innerHTML=fbFouilleHTML(q, !!qFouille.juste);
+    return;
+  }
+  const t=$('#tr-essais'); if(t) t.textContent='essai '+(qFouille.essais+1)+' / '+NB_ESSAIS;
+  if(qFouille.aide){
+    cacherIndice();
+    const a=amorce(q.exp, q.r);
+    fb.className='q-fb indice';
+    fb.innerHTML=a ? `<b>Piste.</b> ${esc(a)}` : 'Deux propositions ont été écartées.';
+    return;
+  }
+  if(qFouille.essais>0){
+    fb.className='q-fb retry';
+    fb.textContent='Pas celle-là. Il te reste un essai.';
+  }
 }
 /* Sur un QCM factuel, écarter une mauvaise réponse aide plus qu'une phrase vague. */
 /* L'indice écartait une proposition au hasard, ce qui n'apprend rien : on
@@ -1029,16 +1146,17 @@ function amorce(exp, reponse){
 }
 
 function indiceFouille(){
+  if(!qFouille || qFouille.resolue) return;
   qFouille.aide=true;
-  $('#tr-indice').style.display='none';
+  qFouille.ecartes=qFouille.ecartes||[];
   const faux=$$('#tr-rep .rep').filter(b=>!egal(b.textContent,qFouille.q.r)&&!b.disabled);
   for(let k=0; k<2 && faux.length>1; k++){
     const v=faux.splice(rnd(0,faux.length-1),1)[0];
     v.disabled=true; v.classList.add('ecarte');
+    qFouille.ecartes.push(v.textContent);
   }
-  const a=amorce(qFouille.q.exp, qFouille.q.r);
-  const fb=$('#tr-fb'); fb.className='q-fb indice';
-  fb.innerHTML=a ? `<b>Piste.</b> ${esc(a)}` : 'Deux propositions ont été écartées.';
+  majTransaction({aide:true, ecartes:qFouille.ecartes});
+  rendreFbFouille();
 }
 function repFouille(val,btn){
   /* Même verrou qu'à la Bourse. La fouille n'expose que des boutons, tous
@@ -1046,54 +1164,59 @@ function repFouille(val,btn){
      redeviendrait le jour où une question s'y répondrait au clavier. */
   if(!qFouille||qFouille.resolue)return;
   const q=qFouille.q;
+  qFouille.marques=qFouille.marques||{};
   if(egal(val,q.r)){
-    qFouille.resolue=true;
-    btn.classList.add('bon');
-    $$('#tr-rep .rep, #tr-rep button').forEach(b=>b.disabled=true);
-    $('#tr-indice').style.display='none';
+    qFouille.resolue=true; qFouille.juste=true;
+    qFouille.marques[String(val)]='bon';
     noterQuestion(q, true);
-    const fb=$('#tr-fb'); fb.className='q-fb bon';
-    fb.innerHTML=`<b>Juste.</b> ${esc(q.exp)}`
-      +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener" onclick="lienSuivi('${q.id}')">${esc(q.src[0])}</a></div>`:'')
-      +`<div id="doute-hote"></div><button class="lien-doute" onclick="ouvrirDoute('${q.id}','${esc(q.q).replace(/'/g,"\\'")}')">Ça me paraît faux</button>`
-      +`<button class="btn-primaire" onclick="tirage()">Extraire la pièce</button>`;
+    /* La bonne réponse est acquise AVANT que la pièce ne soit extraite : si
+       l'application se ferme ici, la reprise doit rouvrir la tranchée sur
+       « Extraire la pièce », pas reposer la question. */
+    majTransaction({statut:'recompense', marques:qFouille.marques});
+    rendreFbFouille();
     return;
   }
   qFouille.essais++;
+  qFouille.marques[String(val)]='faux';
   btn.classList.add('faux'); btn.disabled=true;
   if(qFouille.essais<NB_ESSAIS){
-    const fb=$('#tr-fb'); fb.className='q-fb retry';
-    fb.textContent='Pas celle-là. Il te reste un essai.';
-    const t=$('#tr-essais'); if(t) t.textContent='essai '+(qFouille.essais+1)+' / '+NB_ESSAIS;
+    majTransaction({essais:qFouille.essais, marques:qFouille.marques});
+    rendreFbFouille();
     return;
   }
-  $$('#tr-rep .rep').forEach(b=>{ b.disabled=true; if(egal(b.textContent,q.r)) b.classList.add('bon'); });
-  $('#tr-indice').style.display='none';
-  etat.echecs=(etat.echecs||0)+1; sauver();
+  qFouille.resolue=true; qFouille.juste=false;
+  etat.echecs=(etat.echecs||0)+1;
   noterQuestion(q, false);
-  const fb=$('#tr-fb'); fb.className='q-fb faux';
-  fb.innerHTML=`<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp)}`
-    +(q.src?`<div class="q-src"><a href="${esc(q.src[1])}" target="_blank" rel="noopener" onclick="lienSuivi('${q.id}')">${esc(q.src[0])}</a></div>`:'')
-    +`<div id="doute-hote"></div><button class="lien-doute" onclick="ouvrirDoute('${q.id}','${esc(q.q).replace(/'/g,"\\'")}')">Ça me paraît faux</button>`
-    +`<button class="btn-primaire" onclick="trancheeSterile()">Refermer la tranchée</button>`;
+  majTransaction({statut:'sterile', essais:qFouille.essais, marques:qFouille.marques});
+  rendreFbFouille();
 }
 /* Une fouille qui ne rend rien est le seul endroit du jeu où l'on perdait
    quelque chose — et il se trouvait du côté du plaisir. Deux réponses fausses
    sur une question de paléontologie transformaient le refuge en second examen.
    Désormais la tranchée livre toujours un fragment : moins qu'une pièce
    complète, jamais rien. */
-function trancheeSterile(){
+function trancheeSterile(dejaConsommee){
+  /* Sans ce garde, un double-tap sur « Refermer la tranchée » livrait deux
+     fragments pour une seule fouille. La transaction n'est consommable qu'une
+     fois : c'est la même écriture qui efface la dette et pose la récompense. */
+  if(!dejaConsommee && !consommerFouille()) return;
   qFouille=null;
   $('#tranchee').classList.remove('on');
   const pool=creaturesDe(siteActif).filter(c=>possede(c.id));
   if(pool.length){
     const c=pioche(pool);
+    /* `avant` et `apres` étaient tous deux mesurés APRÈS l'incrément : ils
+       étaient donc toujours égaux, et un éclat qui faisait franchir un palier
+       de dossier s'annonçait comme un simple fragment. */
+    const avant=niveauDoc(c.id);
     if(!possede(c.id)) noterCreature(c);
     etat.collection[c.id]=fragments(c.id)+1;
-    const avant=niveauDoc(c.id), apres=niveauDoc(c.id);
+    const apres=niveauDoc(c.id);
     sauver();
-    return revealCarte(c,'fragment',apres,false,
-      'La pièce principale est restée dans la roche, mais la tranchée a livré des éclats.');
+    return revealCarte(c, apres>avant?'dossier':'fragment', apres, false,
+      apres>avant
+        ? 'La pièce principale est restée dans la roche, mais les éclats suffisent à compléter le dossier.'
+        : 'La pièce principale est restée dans la roche, mais la tranchée a livré des éclats.');
   }
   $('#reveal-corps').innerHTML=`<div class="rev-vide">
     <div class="rev-vide-ico">⛏️</div>
@@ -1105,9 +1228,15 @@ function trancheeSterile(){
 /* Le tirage : les créatures inconnues sont favorisées, les doublons
    deviennent des fragments qui enrichissent un dossier. */
 function tirage(){
+  /* Idempotence. `tirage()` ne se déclenchait qu'à la main, mais rien
+     n'empêchait un double-tap sur « Extraire la pièce » de livrer deux
+     créatures pour une seule fouille — et rien ne garantissait qu'une fouille
+     payée puis interrompue soit honorée. La transaction tranche les deux : elle
+     se consomme une fois, et son effacement voyage avec la récompense. */
+  if(!consommerFouille()) return;
   qFouille=null;
   $('#tranchee').classList.remove('on');
-  if(FOUILLE_VIDE && Math.random()<0.15) return trancheeSterile();
+  if(FOUILLE_VIDE && Math.random()<0.15) return trancheeSterile(true);
   const pool=creaturesDe(siteActif);
   const poids=pool.map(c=>possede(c.id)?1:3);
   let tot=poids.reduce((a,b)=>a+b,0), t=Math.random()*tot, k=0;
@@ -1519,6 +1648,7 @@ function entrerProfil(id){
   fermerChoixProfil();
   if(id===registre.actif){
     if(besoinAccueil()) ouvrirAccueil();
+    else reprendreFouille();
     return;
   }
   basculerProfil(id);
@@ -1821,6 +1951,23 @@ function carteP(p){
     <span class="pk-go">›</span></button>`;
 }
 let packActif=null, niveauActif=null;
+
+/* Frontière de profil. `etat` est bien rechargé à chaque bascule, mais les
+   variables de session ne l'étaient pas : une mission commencée sur le profil
+   A se poursuivait après le passage à B, et ses gains, ses statistiques et sa
+   maîtrise s'inscrivaient sur B. Idem pour une tranchée payée et une leçon en
+   cours. Tout ce qui vit hors de `etat` est remis à zéro ici, en un seul
+   endroit — changement, création, suppression et import de profil. */
+function resetSessionTransitoire(){
+  mission=null; packActif=null; niveauActif=null;
+  qFouille=null; siteActif=null;
+  introSiteId=null; introI=0; introRelecture=false;
+  ancreGain=null;
+  if(typeof fondTimer!=='undefined' && fondTimer){ clearInterval(fondTimer); fondTimer=null; }
+  ['intro','tranchee','reveal','fiche','modal'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.remove('on');
+  });
+}
 /* Le rappel est écrit en prose, en paragraphes séparés par une ligne vide. */
 function theorieHTML(p){
   return String(p.theorie||'').split(/\n{2,}/)
@@ -1896,6 +2043,29 @@ function choisirBanque(p){
   if(q.img)  ex.img=q.img;
   return ex;
 }
+/* Clé de maîtrise d'une question de niveau. Les six questions de CHAQUE niveau
+   sont numérotées 1 à 6, et `prog(packId).c` est commun à toute la série : une
+   clé réduite à `q.n` ferait entrer en collision niveau 1 question 1, niveau 2
+   question 1, etc. — maîtriser le premier niveau les rendrait tous acquis. Le
+   rang du niveau fait donc partie de la clé, et `niveauAcquis()` lit EXACTEMENT
+   la même. */
+function cleNiveau(i,n){ return 'n'+i+':'+n; }
+
+/* Une fiche de niveau n'a pas la forme d'un exercice : elle porte `n` et
+   `autres` là où le moteur attend `cle` et `choix`. Sans `cle`, repondre()
+   n'enregistrait aucune maîtrise et le niveau restait éternellement inachevé ;
+   sans `choix`, rendreExo() basculait sur le champ de saisie et exigeait la
+   frappe quasi exacte de réponses conceptuelles longues. La conversion se fait
+   ici, en un seul endroit. */
+function exoDeNiveau(raw,i){
+  const ex={q:raw.q, r:raw.r, exp:raw.exp, cle:cleNiveau(i,raw.n)};
+  if(Array.isArray(raw.autres) && raw.autres.length>=2) ex.choix=melange([raw.r,...raw.autres]);
+  ex.indice = raw.indice || 'Le récit que tu viens de lire contient la réponse.';
+  if(raw.lien) ex.lien=raw.lien;
+  if(raw.img)  ex.img=raw.img;
+  if(raw.sujet)ex.sujet=raw.sujet;
+  return ex;
+}
 function prochainExo(){
   const p=packActif, niv=packNiv(p.id);
   /* Dans une série, on interroge sur le niveau qu'on vient de lire, jamais sur
@@ -1903,7 +2073,7 @@ function prochainExo(){
   if(niveauActif!=null && p.niveaux && p.niveaux[niveauActif]){
     const b=p.niveaux[niveauActif].bank();
     const neufs=b.filter(q=>!mission.vus.includes(q.q));
-    return melange(neufs.length?neufs:b)[0];
+    return exoDeNiveau(melange(neufs.length?neufs:b)[0], niveauActif);
   }
   if(p.id==='conjugaison') return genConjugaison(niv);
   if(p.id==='maths')       return genMaths(niv);
@@ -1978,6 +2148,11 @@ function exoSuivant(){
   do{ q=prochainExo(); garde++; } while(garde<12 && mission.vus.includes(q.q));
   mission.vus.push(q.q);
   mission.q=q; mission.essais=0; mission.aide=false;
+  /* État d'interaction de LA question courante. Il vivait uniquement dans le
+     DOM : quitter l'onglet le détruisait, et le retour dans la Bourse ne
+     pouvait que redistribuer une question neuve. Il vit désormais dans la
+     mission, ce qui rend `rendreExo()` capable de reconstruire à l'identique. */
+  mission.juste=false; mission.marques={};
   rendreExo();
 }
 function rendreExo(){
@@ -2000,7 +2175,12 @@ function rendreExo(){
                spellcheck="false" inputmode="text" data-gramm="false"
                autocapitalize="off" enterkeyhint="done">
              <button class="btn-primaire" onclick="repondre($('#q-input').value)">Valider</button>`
-          : q.choix.map(c=>`<button class="rep" onclick="repondre(this.textContent,this)">${esc(c)}</button>`).join('')}
+          : q.choix.map(c=>{
+              const mq=(mission.marques||{})[c]
+                     || (mission.resolue && egal(c,q.r) ? 'bon' : '');
+              return `<button class="rep${mq?' '+mq:''}"${mission.resolue?' disabled':''}
+                onclick="repondre(this.textContent,this)">${esc(c)}</button>`;
+            }).join('')}
       </div>
       <button class="btn-indice" id="btn-indice" onclick="montrerIndice()">Voir l'indice</button>
       <button class="carn-mini q-noter" onclick="songeQuestion()">\u270e Prendre une note</button>
@@ -2008,13 +2188,62 @@ function rendreExo(){
       <div class="q-fb" id="q-fb"></div>
     </div>`;
   const inp=$('#q-input');
-  if(inp){ inp.focus(); inp.addEventListener('keydown',e=>{ if(e.key==='Enter') repondre(inp.value); }); }
+  if(inp){
+    inp.disabled=!!mission.resolue;
+    if(!mission.resolue){ inp.focus(); inp.addEventListener('keydown',e=>{ if(e.key==='Enter') repondre(inp.value); }); }
+  }
+  rendreFeedback();
+}
+
+/* Le bas de la carte de question — indice, essai raté, correction. Extrait de
+   `repondre()` parce qu'il doit pouvoir être REJOUÉ : sans cela, revenir dans
+   la Bourse après avoir répondu redonnait une question vierge alors que
+   `mission.resolue` restait vrai. Les propositions semblaient actives mais
+   `repondre()` les ignorait, et le bouton Continuer n'était plus nulle part :
+   la mission était verrouillée. */
+function feedbackHTML(q, bon){
+  return (bon ? `<b>Juste.</b> ${esc(q.exp||'')}`
+              : `<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp||'')}`)
+    +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener" onclick="lienSuivi('${refExo(q,packActif)}')">${esc(q.lien[0])}</a></div>`:'')
+    +`<div id="doute-hote"></div>
+      <button class="lien-doute" onclick="ouvrirDoute('${refExo(q,packActif)}','${esc(q.q||'').replace(/'/g,"\\'")}')">Ça me paraît faux</button>
+      <button class="btn-primaire" onclick="suite()">Continuer</button>`;
+}
+function rendreFeedback(){
+  if(!mission||!mission.q) return;
+  const q=mission.q, fb=$('#q-fb'); if(!fb) return;
+  const cacherIndice=()=>{ const b=$('#btn-indice'); if(b) b.style.display='none'; };
+  if(mission.resolue){
+    cacherIndice();
+    /* Verrouillage de la carte. Redondant après un rendu complet — le balisage
+       sort déjà désactivé et marqué depuis `mission` — mais indispensable sur
+       le chemin vif, où l'on ne redessine pas la carte : la redessiner
+       relancerait le fond animé au milieu de la question et effacerait une note
+       en cours de frappe. */
+    $$('#q-rep .rep, #q-rep button').forEach(x=>{
+      x.disabled=true;
+      if(x.classList.contains('rep') && egal(x.textContent,q.r)) x.classList.add('bon');
+    });
+    const inp=$('#q-input'); if(inp) inp.disabled=true;
+    fb.className='q-fb '+(mission.juste?'bon':'faux');
+    fb.innerHTML=feedbackHTML(q, !!mission.juste);
+    return;
+  }
+  if(mission.aide){
+    cacherIndice();
+    fb.className='q-fb indice';
+    fb.innerHTML='💡 '+esc(q.indice||'Relis l’énoncé en isolant la donnée qui commande la réponse.');
+    return;
+  }
+  if(mission.essais===1){
+    fb.className='q-fb retry';
+    fb.textContent='Pas encore. Il te reste un essai — l’indice est disponible.';
+  }
 }
 function montrerIndice(){
+  if(!mission||!mission.q||mission.resolue) return;
   mission.aide=true;
-  $('#btn-indice').style.display='none';
-  const fb=$('#q-fb'); fb.className='q-fb indice';
-  fb.innerHTML='💡 '+esc(mission.q.indice||'Relis l’énoncé en isolant la donnée qui commande la réponse.');
+  rendreFeedback();
 }
 function normRep(s){
   return String(s||'').trim().toLowerCase()
@@ -2037,50 +2266,57 @@ function repondre(val,btn){
   if(!mission||!mission.q||mission.resolue)return;
   const q=mission.q, bon=egal(val,q.r), b=bareme(packActif);
   ancreGain=btn||null;
-  const fb=$('#q-fb');
+  /* Toute trace visible passe par `mission` avant d'atteindre l'écran : c'est
+     ce qui permet à `rendreExo()` de reconstituer la question à l'identique
+     après un aller-retour vers le Carnet ou la Collection. */
+  mission.marques=mission.marques||{};
+  if(btn) mission.marques[String(val)]= bon ? 'bon' : 'faux';
   if(bon){
     const autonome = mission.essais===0 && !mission.aide;
     const g = autonome ? b.juste : b.aide;
-    mission.gagne+=g; mission.justes++;
+    /* `justes` est présenté par phraseFin() comme le nombre de questions
+       trouvées DU PREMIER COUP. Il ne doit donc compter que les réussites
+       autonomes : l'incrémenter après un raté ou après l'indice faisait dire
+       à l'écran de fin « six d'emblée » sur une mission à moitié soufflée. */
+    mission.gagne+=g; if(autonome) mission.justes++;
     const st=statPack(packActif.id); st.tot++; if(autonome) st.ok++;
     if(q.cle && autonome){ const c=prog(packActif.id).c; c[q.cle]=(c[q.cle]||0)+1; }
     if(packActif.type==='gen' && autonome) prog(packActif.id).reussites++;
-    mission.resolue=true;
+    mission.resolue=true; mission.juste=true;
     if(niveauActif!=null) setTimeout(verifierPrimeNiveau,0);
-    if(btn) btn.classList.add('bon');
-    $$('#q-rep .rep, #q-rep button').forEach(x=>x.disabled=true);
-    const inp=$('#q-input'); if(inp) inp.disabled=true;
-    $('#btn-indice').style.display='none';
     noterExercice(q, packActif, true);
-    fb.className='q-fb bon';
-    fb.innerHTML=`<b>Juste.</b> ${esc(q.exp||'')}`
-      +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener" onclick="lienSuivi('${refExo(q,packActif)}')">${esc(q.lien[0])}</a></div>`:'')
-      +`<div id="doute-hote"></div>
-        <button class="lien-doute" onclick="ouvrirDoute('${refExo(q,packActif)}','${esc(q.q||'').replace(/'/g,"\\'")}')">Ça me paraît faux</button>
-        <button class="btn-primaire" onclick="suite()">Continuer</button>`;
+    rendreFeedback();
     crediter(g); sauver(); return;
   }
   mission.essais++;
-  if(btn) btn.classList.add('faux');
   if(mission.essais===1){
-    fb.className='q-fb retry';
-    fb.textContent='Pas encore. Il te reste un essai — l’indice est disponible.';
+    if(btn) btn.classList.add('faux');
+    rendreFeedback();
     const inp=$('#q-input'); if(inp) inp.select();
     return;
   }
-  mission.resolue=true;
+  mission.resolue=true; mission.juste=false;
   statPack(packActif.id).tot++;
-  $$('#q-rep .rep, #q-rep button').forEach(x=>{ x.disabled=true; if(egal(x.textContent,q.r)) x.classList.add('bon'); });
-  const inp=$('#q-input'); if(inp) inp.disabled=true;
-  $('#btn-indice').style.display='none';
   noterExercice(q, packActif, false);
-  fb.className='q-fb faux';
-  fb.innerHTML=`<b>Réponse : ${esc(q.r)}.</b> ${esc(q.exp||'')}`
-    +(q.lien?`<div class="q-src"><a href="${esc(q.lien[1]||'#')}" target="_blank" rel="noopener" onclick="lienSuivi('${refExo(q,packActif)}')">${esc(q.lien[0])}</a></div>`:'')
-    +`<div id="doute-hote"></div>
-      <button class="lien-doute" onclick="ouvrirDoute('${refExo(q,packActif)}','${esc(q.q||'').replace(/'/g,"\\'")}')">Ça me paraît faux</button>
-      <button class="btn-primaire" onclick="suite()">Continuer</button>`;
+  rendreFeedback();
   sauver();
+}
+
+/* Revenir dans la Bourse ne tire JAMAIS de question : il rejoue l'état courant.
+   L'ancien `exoSuivant()` implicite était doublement nuisible.
+   - Avant réponse, il remplaçait silencieusement la question et remettait les
+     essais à zéro : une question difficile se rerollait gratuitement en
+     changeant d'onglet, et une note prise au Carnet coûtait la question.
+   - Après réponse mais avant Continuer, il redistribuait une question alors que
+     `mission.resolue` restait vrai : les propositions paraissaient actives mais
+     `repondre()` les ignorait, et le bouton Continuer n'était plus nulle part.
+     La mission était verrouillée.
+   `rendreExo()` reconstruit tout depuis `mission` — marques, verrou, indice,
+   correction — il n'y a donc rien à rejouer à la main ici. */
+function reprendreExo(){
+  if(!mission) return menuPacks();
+  if(!mission.q) return exoSuivant();   // mission créée par lancerNiveau(), pas encore servie
+  rendreExo();
 }
 function suite(){
   /* Un double-tap sur « Continuer » après la dernière question appelait suite()
@@ -2105,9 +2341,16 @@ function revoirNiveau(packId,i){ introSite('niv:'+packId+':'+i, true); }
 /* Quitter une leçon en cours. Il n'existait aucune sortie : une fois entré dans
    le récit, on n'en ressortait que par le dernier volet. */
 function fermerIntro(){
+  /* La même modale sert au récit d'un niveau de série ET à l'introduction d'un
+     chantier. Renvoyer systématiquement vers la Bourse téléportait hors du
+     chantier qu'on venait d'ouvrir. La sortie rend donc l'écran d'où l'on
+     vient, exactement comme le fait introSuivant() au dernier volet. */
+  const id=introSiteId, s=sujetIntro(id);
   $('#intro').classList.remove('on');
   introSiteId=null; niveauActif=null; packActif=null; mission=null;
-  montrer('bourse');
+  if(s && s.pack) return montrer('bourse');
+  if(id && SITES.some(x=>x.id===id)) siteActif=id;
+  montrer('fouille');
 }
 
 /* Prendre une note pendant la leçon, sans la quitter. Le récit est le moment
@@ -2170,7 +2413,7 @@ function lancerNiveau(packId, i){
 function niveauAcquis(packId,i){
   const p=PACKS.find(x=>x.id===packId); if(!p||!p.niveaux||!p.niveaux[i])return false;
   const c=prog(packId).c||{};
-  return p.niveaux[i].bank().every(q=>(c[q.n]||0)>=SEUIL_MAITRISE);
+  return p.niveaux[i].bank().every(q=>(c[cleNiveau(i,q.n)]||0)>=SEUIL_MAITRISE);
 }
 function verifierPrimeNiveau(){
   if(!packActif || niveauActif==null) return;
@@ -2260,11 +2503,16 @@ function init(){
   if('requestIdleCallback' in window) requestIdleCallback(chargerCarteFine,{timeout:4000});
   else setTimeout(chargerCarteFine,1500);
   if(!etat.accueilVu && trouvees().length>0){ etat.accueilVu=true; sauver(); }
+  /* Une fouille payée avant la fermeture de l'onglet est due : on la rouvre
+     avant tout le reste, sinon la joueuse retrouve un solde amputé sans savoir
+     pourquoi. Elle ne s'affiche pas par-dessus le choix de profil : dans ce
+     cas c'est basculerProfil() qui la reprendra, sur la bonne partie. */
   /* Une seule partie : on entre directement, l'écran de choix serait une
      formalité. Plusieurs : on demande, parce que se tromper de partie ne se
      voit qu'après coup. */
   if(registre.liste.length>1) ouvrirChoixProfil();
   else if(besoinAccueil()) ouvrirAccueil();
+  else reprendreFouille();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',init);

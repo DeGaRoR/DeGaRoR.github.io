@@ -497,7 +497,39 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   T('un palier par copie', JSON.stringify(SEUILS_DOC)==='[0,1,2]', JSON.stringify(SEUILS_DOC));
   T('deux achèvements distingués',
     app.includes('const siteDore=') && css.includes('.sceau.or'));
-  T('mission reprise après un détour', app.includes('if(mission && packActif) exoSuivant()'));
+  /* Cette assertion vérifiait littéralement le bug : elle exigeait que la
+     navigation appelle exoSuivant(). Or reprendre une mission ne doit JAMAIS
+     tirer de question — sinon la question en cours est remplacée (reroll
+     gratuit, essais remis à zéro) et une mission déjà résolue se retrouve sans
+     bouton Continuer. La reprise rejoue l'état courant. */
+  T('mission reprise après un détour', app.includes('if(mission && packActif) reprendreExo()'));
+  T('la navigation ne tire jamais de question', !/montrer[\s\S]{0,900}?exoSuivant\(\)/.test(app.slice(app.indexOf('function montrer('), app.indexOf('function montrer(')+900)));
+  /* Un seul chemin de rendu. L'état d'une question — marques, verrou, indice,
+     correction — vit dans `mission` et `rendreExo()` le reconstruit ; la
+     reprise n'a donc rien à rejouer à la main. Deux fonctions qui produiraient
+     l'écran de correction chacune de leur côté finiraient par diverger, et la
+     divergence ne se verrait que sur le chemin le moins souvent emprunté :
+     justement celui de la reprise. */
+  /* Transaction de fouille. Le crédit part à l'ouverture de la tranchée et le
+     résultat n'arrive qu'après la question : entre les deux, la sauvegarde doit
+     décrire une dette. Sans elle, une mise en veille du téléphone entre le
+     paiement et l'extraction faisait disparaître les crédits sans rien livrer —
+     le seul endroit du jeu où l'on peut perdre quelque chose. */
+  T('la fouille est une transaction persistée',
+    app.includes('etat.fouilleEnCours') && app.includes('function consommerFouille('));
+  T('la dette fait partie du schéma d état', app.includes('fouilleEnCours:null'));
+  T('la récompense de fouille est idempotente',
+    /function tirage\(\)\{[\s\S]{0,600}?if\(!consommerFouille\(\)\) return;/.test(app));
+  T('la tranchée stérile aussi', /function trancheeSterile\(dejaConsommee\)/.test(app));
+  T('une fouille interrompue est reprise ou remboursée',
+    app.includes('function reprendreFouille('));
+  T('reprise : un seul chemin de rendu',
+    app.includes('function rendreFeedback(') && app.includes('function reprendreExo(')
+    && !app.includes('function afficherResolution('));
+  T('reprise : rendreExo rejoue l état de la question',
+    /function rendreExo\(\)[\s\S]*?rendreFeedback\(\);\n\}/.test(app));
+  T('reprise : l état d interaction vit dans la mission',
+    app.includes('mission.marques') && app.includes('mission.juste'));
   T('indice de fouille substantiel', app.includes('function amorce(exp'));
   T('créatures visibles pendant la question',
     app.includes('tr-bande') && css.includes('.tr-bande'));

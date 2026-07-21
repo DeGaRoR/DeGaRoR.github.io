@@ -14,7 +14,8 @@ puis http://localhost:8080. Sur GitHub Pages : pousser le contenu du dossier tel
 - `data.js`     données pures : i18n (STRINGS), sprites base64, taxonomie (TIERS)
 - `engine.js`   moteur pur, déterministe, sans DOM — marqueurs ENGINE-START/END
 - `app.js`      état, éditeur, tournois, rendu, UI
-- `sw.js`       hors-ligne (precache + cache-first)
+- `assets/`     sprites webp (35 fichiers) — la refonte graphique = remplacer ces fichiers
+- `sw.js`       hors-ligne (precache + cache-first, TOUS les assets précachés)
 - `manifest.webmanifest`, `icon.svg`
 
 ## Règles

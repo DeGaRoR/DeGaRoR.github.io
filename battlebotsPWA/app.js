@@ -956,7 +956,7 @@ function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bo
       // dragging one off the hull removes it (pointerup handles the delete)
       const v=viewParams(AB().chassis);
       const colF=Math.round((pt.x/v.cell+v.ccol-0.5)*2)/2, rowF=Math.round((pt.y/v.cell+v.crow-0.5)*2)/2;
-      const inside=cellInChassis("boxy",Math.round(colF),Math.round(rowF));
+      const inside=cellInChassis(AB().chassis,Math.round(colF),Math.round(rowF));
       const d=S.customize.placed[editDrag.sticker];
       d.col=colF; d.row=rowF; editDrag.off=!inside;
       return; }
@@ -1017,7 +1017,9 @@ function renderWorkshop(){
           ENGINE.PARTS[slot].findIndex(p=>p.id===a) - ENGINE.PARTS[slot].findIndex(p=>p.id===b));
         for (const id of ordered){
           const o = document.createElement("option");
-          o.value = id; o.textContent = t("pn_"+id);
+          o.value = id;
+          const nOwn = invCount(id);            // B3 : l'inventaire lisible depuis la liste
+          o.textContent = t("pn_"+id) + (nOwn>1 ? " \u00D7"+nOwn : "");
           if (id === eqId) o.selected = true;
           sel.appendChild(o);
         }
@@ -1347,8 +1349,65 @@ function renderTournaments(){ const el=$("tournaments"); if(!el) return; el.inne
     if(!live){ const sn=document.createElement("div"); sn.className="tvrules"; sn.style.marginTop="4px"; sn.textContent=t("soon"); card.appendChild(sn); }
     strip.appendChild(card); }
   el.appendChild(strip); }
+/* B3 — occasions. Stock DÉTERMINISTE par jour (graine = jour civil) : même
+   étal toute la journée, renouvelé le lendemain — la boutique vit sans serveur.
+   L'usure décote le prix. PROVISION chantier C : quand la condition par
+   instance existera, l'usure achetée suivra la pièce (offer.wear est déjà là). */
+function refreshUsedStock(){
+  const day = Math.floor(Date.now()/86400e3);
+  if (S.usedDay === day && Array.isArray(S.usedStock)) return;
+  let seed = (day*2654435761)>>>0 || 1;
+  const rnd = ()=>{ seed=(Math.imul(seed,48271)>>>0)%2147483647; return seed/2147483647; };
+  const pool = [];
+  for (const sl of Object.keys(ENGINE.PARTS))
+    for (const pt of ENGINE.PARTS[sl]) if (pt.cost > 0) pool.push([sl, pt]);
+  const offers = [];
+  const n = 3 + Math.floor(rnd()*3);                     // 3 à 5 offres
+  for (let i=0; i<n && pool.length; i++){
+    const [sl, pt] = pool.splice(Math.floor(rnd()*pool.length), 1)[0];
+    const wear = Math.round(15 + rnd()*30);              // 15–45 %
+    offers.push({ slot:sl, id:pt.id, wear,
+      price: Math.max(1, Math.round(pt.cost*(1 - wear*0.009))), qty:1 });
+  }
+  S.usedDay = day; S.usedStock = offers; saveState();
+}
+function renderUsedSection(g){
+  refreshUsedStock();
+  if (!S.usedStock.length) return;
+  const h = document.createElement("div"); h.className = "gsec used";
+  h.textContent = t("shopUsed"); g.appendChild(h);
+  const strip = document.createElement("div"); strip.className = "gcarousel";
+  g.appendChild(strip);
+  for (const of_ of S.usedStock){
+    const part = ENGINE.PARTS[of_.slot].find(p=>p.id===of_.id); if (!part) continue;
+    const card = document.createElement("div"); card.className = "gcard usedcard";
+    const cv = document.createElement("canvas"); cv.width = cv.height = 54; cv.className = "gtile";
+    drawPartTile(cv.getContext("2d"), of_.slot, part.id, 27, 27, 40, 30, 0, 1);
+    card.appendChild(cv);
+    const nm = document.createElement("div"); nm.className = "gcname"; nm.textContent = t("pn_"+part.id);
+    card.appendChild(nm);
+    const wr = document.createElement("div"); wr.className = "gcfx usedwear";
+    wr.textContent = t("usedWear", {w:of_.wear});
+    card.appendChild(wr);
+    if (of_.qty <= 0){
+      const so = document.createElement("div"); so.className = "sprice"; so.textContent = t("usedSold");
+      card.appendChild(so);
+    } else {
+      const btn = document.createElement("button"); btn.className = "gbuy used";
+      btn.innerHTML = "<s>"+part.cost+"</s> "+of_.price+" \ud83d\udd29";
+      btn.disabled = S.bolts < of_.price;
+      btn.onclick = ()=>{ if (S.bolts < of_.price || of_.qty<=0) return;
+        S.bolts -= of_.price; of_.qty = 0;
+        S.inventory[of_.id] = (S.inventory[of_.id]||0) + 1;
+        saveState(); showToast(t("bought", {name:t("pn_"+of_.id)})); renderHome(); };
+      card.appendChild(btn);
+    }
+    strip.appendChild(card);
+  }
+}
 function renderGarage(){
   const g = $("garageRows"); g.innerHTML = "";
+  renderUsedSection(g);
   const TYPES = SLOT_ORDER.filter(x=>x!=="chassis").map(x=>[x,"slot_"+x]);
   for (const [type, header] of TYPES){
     const h = document.createElement("div"); h.className = "gsec";
