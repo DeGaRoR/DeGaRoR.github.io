@@ -91,7 +91,8 @@ global.fetch=async (url, opt)=>{
 /* ---- Chargement ------------------------------------------------------- */
 const brut=fs.readFileSync(R+'/data.js','utf8')+'\n'+fs.readFileSync(R+'/app.js','utf8');
 const EXPORTS='CLOUD,etat,registre,carnet,sauver,noterEvenement,normaliser,'
- +'nuagePousser,nuageTirer,nuageMaintenant,nuageEtat:()=>nuage,nuageConfigure,nuageLie,'
+ +'nuagePousser,nuageTirer,nuageDemarrer,nuageMaintenant,nuageEtat:()=>nuage,'
+ +'nuageConfigure,nuageLie,NUAGE_LIBELLE,'
  +'diagNuageHTML,majPastilleNuage,creerProfil,basculerProfil,profilActif,'
  +'carnetSupprimer,fusionnerCarnet,getEtat:()=>etat,setEtat:v=>etat=v';
 function charger(configure){
@@ -133,7 +134,7 @@ const dors=()=>new Promise(r=>setImmediate(r));
   c.sauver(); await dors();
   T('non configuré : aucun appel réseau', serveur.appels===avant, serveur.appels+' appels');
   T('non configuré : la synchro se déclare éteinte', c.nuageConfigure()===false);
-  T('non configuré : le diagnostic reste lisible', /éteinte/.test(c.diagNuageHTML()));
+  T('non configuré : le diagnostic reste lisible', /non configurée/.test(c.diagNuageHTML()));
   T('non configuré : la partie s enregistre quand même', (c.getEtat().carnet||[]).length>0);
 }
 
@@ -278,6 +279,32 @@ let cA;
   T('… mais son carnet est tout de même réuni',
     c.carnet().some(e=>e.note==='locale récente'));
   }
+}
+
+/* ===============================================================
+   7. DÉMARRAGE D'UNE PARTIE ANTÉRIEURE À LA SYNCHRO
+   Le cas qui a échappé à la v112 : une partie créée avant la mise en place
+   n'est liée à aucune ligne distante. `nuageTirer()` sortait en silence et il
+   ne se passait RIEN jusqu'au premier enregistrement — pastille au repos, et
+   aucune explication nulle part. Une partie qui existe doit être mise à l'abri
+   sans qu'on ait à y toucher.
+   =============================================================== */
+{
+  serveur.reinit();
+  const c=charger(true);
+  const p=c.profilActif(); delete p.nid; delete p.ncode;   // partie « d'avant »
+  T('au départ, la partie n est liée à rien', c.nuageLie()===false);
+  await c.nuageDemarrer();
+  T('le démarrage rattache une partie non liée', c.nuageLie()===true);
+  T('le démarrage la met effectivement à l abri', serveur.lignes.size===1);
+  T('le démarrage ne laisse pas la pastille au repos',
+    c.nuageEtat().statut!=='inactif', c.nuageEtat().statut);
+  T('la pastille annonce le succès', c.nuageEtat().statut==='ok', c.nuageEtat().statut);
+  /* Et le statut doit être visible SANS aller chercher le sous-écran : il
+     figure dans les réglages principaux. */
+  const reg=c.reglagesHTML?c.reglagesHTML():'';
+  T('le glyphe de la pastille est un nuage dès le repos',
+    c.NUAGE_LIBELLE.inactif[0]==='\u2601', c.NUAGE_LIBELLE.inactif[0]);
 }
 
 /* ---- Sortie ---- */

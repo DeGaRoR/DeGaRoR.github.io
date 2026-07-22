@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v112';
+const VERSION_ATLAS='v113';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -195,7 +195,7 @@ function basculerProfil(id){
      de profil change donc d'interlocuteur. */
   nuage={statut:'inactif', detail:'', quand:0};
   majPastilleNuage();
-  nuageTirer();
+  nuageDemarrer();
 }
 
 function creerProfil(nom){
@@ -1580,7 +1580,7 @@ function diagNuageHTML(){
   if(!nuageConfigure()){
     return `<div class="nu-diag">
       <p class="nu-t">État</p>
-      <div class="nu-ligne"><span>Sauvegarde en ligne</span><b>éteinte</b></div>
+      <div class="nu-ligne"><span>Sauvegarde en ligne</span><b>non configurée</b></div>
       <p class="nu-aide">L’application fonctionne entièrement sur cet appareil.
         Pour l’activer, renseigne <code>CLOUD.url</code> et <code>CLOUD.key</code>
         dans <code>data.js</code>. Rien d’autre ne change.</p></div>`;
@@ -1684,9 +1684,23 @@ function ouvrirReglages(v){
       <div class="rg-sauv" id="rg-sauv">
         <div class="rg-vl"><span>Dernière sauvegarde</span><b id="rg-sauv-date">…</b></div>
         <div class="rg-vl"><span>Tu joues dans</span><b id="rg-contexte">…</b></div>
-        <p class="rg-avert">Les parties ne vivent que sur cet appareil. <b>Désinstaller l’application les efface définitivement.</b>
-          Un fichier de sauvegarde est le seul moyen de les retrouver.</p>
+        ${nuageConfigure()
+          ? `<div class="rg-vl"><span>Sauvegarde en ligne</span>
+               <b class="${nuage.statut==='ok'?'nu-ok':(nuage.statut==='erreur'||nuage.statut==='refus')?'nu-mal':''}"
+                  >${(NUAGE_LIBELLE[nuage.statut]||[])[1]||'—'}</b></div>
+             <p class="rg-avert">${nuage.statut==='ok'
+               ? 'Cette partie est aussi enregistrée en ligne. Désinstaller l’application ne l’efface plus définitivement.'
+               : 'La partie est enregistrée sur cet appareil. La copie en ligne n’est pas encore à jour — voir le détail ci-dessous.'}</p>`
+          : `<p class="rg-avert">Les parties ne vivent que sur cet appareil. <b>Désinstaller l’application les efface définitivement.</b>
+             Un fichier de sauvegarde est le seul moyen de les retrouver.</p>`}
       </div>
+
+      ${nuageConfigure()?`<div class="rg-liste">
+        <button class="rg-item" onclick="ouvrirReglages('nuage')">
+          <span class="rg-ico">\u2601</span>
+          <span class="rg-lab">Sauvegarde en ligne<small>${esc((NUAGE_LIBELLE[nuage.statut]||[])[1]||'')}${nuage.detail?' \u00B7 '+esc(nuage.detail):''}</small></span>
+          <span class="rg-chev">\u203A</span></button>
+      </div>`:''}
 
       <div class="rg-liste">
         <button class="rg-item" onclick="sauvegarderTout()">
@@ -1724,7 +1738,9 @@ function ouvrirReglages(v){
         <div class="rg-vl"><span>Sur le serveur</span><b id="rg-serveur">…</b></div>
         <p class="rg-etat" id="rg-etat">Vérification…</p>
       </div>
-      <p class="rg-pied">Tout est enregistré sur cet appareil seulement.
+      <p class="rg-pied">${nuageConfigure()
+        ? 'Enregistré sur cet appareil, et recopié en ligne.'
+        : 'Tout est enregistré sur cet appareil seulement.'}
         Format de sauvegarde ${esc(VERSION_APP)}.</p>
       <button class="btn-primaire" onclick="fermerReglages()">Fermer</button>`;
   }
@@ -2689,6 +2705,19 @@ async function nuageRattacher(){
 /* Au démarrage et à chaque changement de profil. La copie distante ne remplace
    la locale que si elle est PLUS RÉCENTE ; dans tous les cas le carnet est
    réuni, jamais choisi — une note ne se rejoue pas. */
+/* Point d'entrée unique au démarrage et au changement de partie.
+   `nuageTirer()` sortait en silence quand la partie n'était liée à aucune ligne
+   distante — c'est-à-dire pour TOUTES les parties créées avant la mise en place
+   de la sauvegarde en ligne. Il ne se passait alors rien jusqu'au premier
+   enregistrement, et la pastille restait au repos sans que rien n'explique
+   pourquoi. On rattache donc d'emblée : une partie qui existe mérite d'être à
+   l'abri sans attendre qu'on y touche. */
+async function nuageDemarrer(){
+  if(!nuageConfigure()) return;
+  if(nuageLie()) return nuageTirer();
+  nuageEtat('encours','Première mise à l’abri');
+  await nuagePousser();
+}
 async function nuageTirer(){
   if(!nuageConfigure() || !nuageLie()) return;
   const p=nuageProfil();
@@ -2768,9 +2797,14 @@ async function nuagePousser(){
    Discrète par construction : un point coloré et un glyphe, sans texte. Elle
    n'a pas à commenter en permanence ; elle doit seulement permettre de repérer
    d'un coup d'œil que quelque chose ne va pas, et de savoir où appuyer. */
+/* Le glyphe reste le MÊME dans tous les états : c'est un nuage, on le
+   reconnaît, et seule sa couleur change. La première version affichait un
+   cercle nu au repos — sur l'appareil de Denis, elle se lisait comme une
+   pastille vide dont personne ne pouvait deviner l'usage. Seul l'échec ajoute
+   un signe, parce qu'il demande une action. */
 const NUAGE_LIBELLE={
-  inactif:  ['\u25CB', 'Sauvegarde en ligne éteinte'],
-  encours:  ['\u21BB', 'Synchronisation en cours'],
+  inactif:  ['\u2601', 'Sauvegarde en ligne — en attente'],
+  encours:  ['\u2601', 'Synchronisation en cours'],
   ok:       ['\u2601', 'Sauvegardé en ligne'],
   horsligne:['\u2601', 'Hors ligne — enregistré sur l’appareil'],
   erreur:   ['\u26A0', 'Synchronisation en échec'],
@@ -2842,7 +2876,7 @@ function init(){
      retarder l'ouverture de rien. Si le réseau manque, on ne le saura qu'à la
      pastille, et la partie aura déjà commencé. */
   majPastilleNuage();
-  nuageTirer();
+  nuageDemarrer();
   if(typeof window!=='undefined' && window.addEventListener){
     window.addEventListener('online',  ()=>{ nuageEtat('encours','Retour du réseau'); nuagePousserBientot(); });
     window.addEventListener('offline', ()=>nuageEtat('horsligne','Hors ligne — enregistré sur l’appareil'));
