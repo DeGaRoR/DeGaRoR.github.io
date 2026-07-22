@@ -10,10 +10,15 @@
    ============================================================ */
 
 let LANG = "fr";
+/* Décision playtest 22/07 : PAS d'accents à l'écran, même en français —
+   les fontes display (Orbitron/Press Start/Saira caps) les rendent mal.
+   Suppression uniforme des diacritiques à la sortie ; les STRINGS gardent
+   leurs accents en source (réversible en retirant da()). */
+const da = (s) => typeof s === "string" ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : s;
 const t = (k, vars) => {
   let s = (STRINGS[LANG][k] ?? STRINGS.en[k] ?? k);
   if (vars) for (const [kk,vv] of Object.entries(vars)) s = s.split("{"+kk+"}").join(vv);
-  return s;
+  return da(s);
 };
 
 const OPP_NAMES = ["GRIZZLI","TRANCHE","RIVET","PIKPIK","MAMMOUTH","VORTEX","CAFARD",
@@ -36,11 +41,12 @@ function validChassis(ch){ return (ch && ENGINE.PHYS.chassis[ch] && ENGINE.CHASS
 const DEF_SLOT = {};                        // def -> slot d'appartenance (catalogue)
 for (const sl in ENGINE.PARTS) for (const p of ENGINE.PARTS[sl]) DEF_SLOT[p.id] = sl;
 const BASE_KIT = { propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0", sensors:"n0" }; // kit de tout châssis neuf
+const BOLT_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" style="vertical-align:-1px"><polygon points="6,1 10.5,3.5 10.5,8.5 6,11 1.5,8.5 1.5,3.5" fill="currentColor"/></svg>';
 function mintInto(inv, def, extra){ const uid = "i"+(++inv.seq);
   inv.items[uid] = Object.assign({ def, wear:0 }, extra||{}); return uid; }
 function bareBot(chassis){
   return { chassis: validChassis(chassis), fit:{},
-    customize:{ color:"#59627a", stickers:[], placed:[] }, layout:null,
+    customize:{ color:"#d98a45", stickers:[], placed:[] }, layout:null,   // jaune-orangé d'usine (= DEFAULT_CHASSIS_COLOR, littéral : TDZ)
     equipped:{}, counts:{} }; }             // caches (voir refit)
 function newBotInto(inv, chassis){
   const b = bareBot(chassis);
@@ -191,7 +197,7 @@ function ensureTourney(){
    HOME SCREEN
    ============================================================ */
 const $ = (id)=>document.getElementById(id);
-const PLAYER_COLOR = "#4da3ff", ENEMY_COLOR = "#ff5252";
+const PLAYER_COLOR = "#b14bff", ENEMY_COLOR = "#ff2a4a";   // DA : violet joueur / rouge adverse
 
 // Displayed figures come bottom-up from the physical reference bank — one
 // coherent source. kg = Σ real component masses; Nm/kW = motor nameplate;
@@ -217,9 +223,10 @@ function renderHome(){
   $("lvlLabel").textContent = t("level")+" "+S.level + (S.champion ? " · "+t("champion")+" 🏆" : "");
   $("dots").textContent = inTourney ? "🏟" :
     "●".repeat(S.beatenAtLevel) + "○".repeat(Math.max(0, 2-S.beatenAtLevel));
-  $("boltsLabel").textContent = S.bolts + " 🔩";
+  $("winsLabel").textContent = " ⚔ " + S.beaten;          // P2 : niveau sommaire = combats gagnes (extensible)
+  $("boltsLabel").innerHTML = BOLT_SVG + " " + S.bolts;
   $("badgesLabel").textContent = S.badges.length ? " " + "🏅".repeat(S.badges.length) : "";
-  $("langBtn").textContent = LANG.toUpperCase();
+  document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>o.classList.toggle("is-active", o.dataset.lang===LANG));
 
   // tournament banner + friendly button
   const banner = $("tourneyBanner");
@@ -248,8 +255,9 @@ function renderHome(){
                  traction:"stTraction", energy:"stEnergy"};
   const sb = $("statBars"); sb.innerHTML = "";
   for (const [k,frac] of Object.entries(bars)){
-    const s = document.createElement("div"); s.className="stat";
-    s.innerHTML = `${t(names[k])}<div class="bar"><i style="width:${Math.round(frac*100)}%"></i></div>`;
+    const s = document.createElement("div");
+    s.innerHTML = `<div class="rc-stat__label">${t(names[k])}</div>
+      <div class="rc-bar"><div class="rc-bar__fill" style="width:${Math.round(frac*100)}%"></div></div>`;
     sb.appendChild(s);
   }
 
@@ -266,6 +274,7 @@ function renderHome(){
   renderCustomize();
 
   document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent = t(el.dataset.i18n));
+  tilesDirty();                                            // B1 : cale les backings sur les tailles CSS réelles
 }
 
 function renderCustomize(){
@@ -299,24 +308,27 @@ function renderCustomize(){
 }
 
 function makeSeg(key){
+  /* FID-2 — les réglages sont des champs de la spec : en-tête rc-field__head
+     (libellé + verrou logiciel + valeur courante) et segments rc-seg. */
   const unlocked = isUnlocked(key);
-  const row = document.createElement("div"); row.className = unlocked ? "row" : "row locked";
-  const lab = document.createElement("label");
+  const field = document.createElement("div"); field.className = "rc-field";
+  if (!unlocked && S.settings[key] !== ENGINE.OPTS[key][0]) S.settings[key] = ENGINE.OPTS[key][0];
+  const head = document.createElement("div"); head.className = "rc-field__head";
   const need = CONTROL_TIER[key];
-  lab.textContent = unlocked ? t(key) : (t(key)+"  🔒 "+t("pn_s"+need));
-  const wrap = document.createElement("div"); wrap.className="selwrap";
-  const sel = document.createElement("select"); sel.className="param"; sel.disabled = !unlocked;
-  if(!unlocked && S.settings[key]!==ENGINE.OPTS[key][0]){ S.settings[key]=ENGINE.OPTS[key][0]; }
-  ENGINE.OPTS[key].forEach(opt=>{
-    const o = document.createElement("option");
-    o.value = opt; o.textContent = t(opt);
-    if (S.settings[key]===opt) o.selected = true;
-    sel.appendChild(o);
-  });
-  sel.onchange = ()=>{ if(!isUnlocked(key)) return; S.settings[key]=sel.value; saveState(); renderHome(); };
-  wrap.appendChild(sel);
-  row.appendChild(lab); row.appendChild(wrap);
-  return row;
+  head.innerHTML = `<span>${t(key)}${unlocked ? "" : " 🔒 " + t("pn_s"+need)}</span>
+    <span class="rc-field__val">${t(S.settings[key])}</span>`;
+  field.appendChild(head);
+  const seg = document.createElement("div"); seg.className = "rc-seg";
+  if (!unlocked) seg.style.cssText = "opacity:.45;pointer-events:none";
+  for (const opt of ENGINE.OPTS[key]){
+    const o = document.createElement("div");
+    o.className = "rc-seg__opt" + (S.settings[key]===opt ? " is-active" : "");
+    o.textContent = t(opt);
+    o.onclick = ()=>{ if(!isUnlocked(key)) return; S.settings[key]=opt; saveState(); renderHome(); };
+    seg.appendChild(o);
+  }
+  field.appendChild(seg);
+  return field;
 }
 
 // part effect summary, generated from the catalog (always accurate)
@@ -356,7 +368,7 @@ const TIER_COLORS = ["#5b6472","#28c39a","#3b82f6","#f0a020","#a78bfa"]; // stoc
 // or muddy colours crush plate detail — every entry here keeps it readable.
 const CHASSIS_COLORS = ["#59627a","#4f83c9","#c9584f","#4fa86b","#d98a45",
   "#9377cc","#3fa8a0","#cfa64f","#c9628f","#8a93a5","#d9c85a","#5566a8","#e8e8e8"];
-const DEFAULT_CHASSIS_COLOR = "#59627a";
+const DEFAULT_CHASSIS_COLOR = "#d98a45";   // jaune-orangé — un Rusty naît solaire, pas gris-bleu
 /* S10 — STICKERS/VSTICKERS viennent de data.js (sprites). */
 function stickerOf(id){ return STICKERS.find(s=>s.id===id) || VSTICKERS.find(v=>v.id===id) || null; }
 const _stkImg = {};
@@ -585,6 +597,24 @@ function tilesDirty(){
     } });
 }
 function regTile(cv, draw){ cv._draw=draw; TILE_REG.add(cv); draw(); }
+/* B1 — plus de constantes de backing bricolées : tileCanvas dessine en
+   coordonnées logiques, et cale le backing sur la taille CSS RÉELLE × dpr
+   à chaque redraw (tilesDirty repasse après insertion et au resize).
+   Un seul rééchantillonnage : sprite source → pixels physiques. */
+function tileCanvas(logical, drawFn){
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = logical*2;                       // amorce avant insertion
+  regTile(cv, ()=>{
+    const dpr = window.devicePixelRatio || 1;
+    const px = Math.max(logical, Math.round((cv.clientWidth || logical)*dpr));
+    if (cv.width !== px){ cv.width = px; cv.height = px; }
+    const c = cv.getContext("2d");
+    c.setTransform(px/logical, 0, 0, px/logical, 0, 0);
+    c.clearRect(0, 0, logical, logical);
+    drawFn(c);
+  });
+  return cv;
+}
 function mkImg(src){
   if(typeof Image==="undefined") return null;
   const im = new Image();
@@ -948,8 +978,10 @@ function editorHit(layout, cell){
     } }
   return null; }
 function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bound=true;
+  cv.style.touchAction = "pan-y";              // P5 : le scroll vertical passe si on ne saisit rien
   cv.addEventListener("pointerdown",(ev)=>{ const L=getLayout(); const pt=editorBoardPoint(cv,ev);
     const cell=pxToCell(AB().chassis,pt.x,pt.y); const hit=editorHit(L,cell); if(!hit) return;
+    ev.preventDefault();                       // une pièce est saisie : le drag prime sur le scroll
     if(typeof hit==="object" && hit.sticker!=null){ editDrag={sticker:hit.sticker}; cv.setPointerCapture(ev.pointerId); return; }
     const slot=hit;
     editDrag={slot, dCol:cell.col-L[slot].col, dRow:cell.row-L[slot].row}; cv.setPointerCapture(ev.pointerId); });
@@ -979,11 +1011,16 @@ function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bo
 }
 function autoArrangeCurrent(){ AB().layout=autoArrange({chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}}); saveState(); }
 function renderLayerTabs(){ const el=$("layerTabs"); if(!el) return; el.innerHTML="";
-  const mk=(label,idx)=>{ const b=document.createElement("button"); b.className="ltab"+(editFocus===idx?" on":"");
+  const mk=(label,idx)=>{ const b=document.createElement("button"); b.className="rc-toolbtn"+(editFocus===idx?" is-on":"");
     b.textContent=label; b.onclick=()=>{ editFocus=(editFocus===idx?-1:idx); renderLayerTabs(); }; el.appendChild(b); };
   mk(t("layAll"),-1); EDIT_LAYERS.forEach((L,i)=>mk(t("lay_"+L.id),i)); mk(t("layStickers"),STICKER_LAYER); }
 function previewLoop(ts){ editSpin=(ts||0)/1000*3;
   if(typeof activeTab!=="undefined"){
+    if(activeTab==="workshop"&&$("editorCv")){
+      const ecv=$("editorCv"), dpr=window.devicePixelRatio||1,
+            need=Math.round((ecv.clientWidth||640)*dpr);
+      if (need>0 && Math.abs(ecv.width-need)>1){ ecv.width=need; ecv.height=need; }
+    }
     if(activeTab==="workshop"&&$("editorCv"))
       drawEditor($("editorCv"), {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed}, getLayout(), editSpin, editFocus, showCG, showHB);
     if($("vsScreen")&&$("vsScreen").style.display==="block"&&$("scoutCv")&&$("scoutCv")._oppBuild){
@@ -1012,34 +1049,41 @@ function renderWorkshop(){
     } else {
       const eqId = S.parts.equipped[slot] ?? EMPTY_ID[slot];
       const part = ENGINE.partOf(slot, eqId);
+      const tile = document.createElement("div"); tile.className = "stile";     // P1 : vignette visuelle
+      const tcv = tileCanvas(44, (c2)=>drawPartTile(c2, slot, eqId, 22, 22, 36, 28, 0, 1));
+      tile.appendChild(tcv); row.appendChild(tile);
       cur.innerHTML = `${t("pn_"+eqId)}<span class="pfx">${partFx(slot, part)}</span>`;
       row.appendChild(cur);
       const owned = S.parts.owned[slot];
       if (owned.length > 1){
-        const sel = document.createElement("select");
+        const tiles = document.createElement("div"); tiles.className = "rc-tiles rc-tiles--fit";
         const ordered = owned.slice().sort((a,b)=>            // ascending capacity (PARTS order)
           ENGINE.PARTS[slot].findIndex(p=>p.id===a) - ENGINE.PARTS[slot].findIndex(p=>p.id===b));
         for (const id of ordered){
-          const o = document.createElement("option");
-          o.value = id;
-          const nOwn = invCount(id);            // B3 : l'inventaire lisible depuis la liste
-          o.textContent = t("pn_"+id) + (nOwn>1 ? " \u00D7"+nOwn : "");
-          if (id === eqId) o.selected = true;
-          sel.appendChild(o);
+          const tl = document.createElement("div");
+          tl.className = "rc-tile" + (id===eqId ? " is-active" : "");
+          const gl = document.createElement("div"); gl.className = "rc-tile__glyph";
+          gl.appendChild(tileCanvas(40, (c2)=>drawPartTile(c2, slot, id, 20, 20, 34, 26, 0, 1)));
+          tl.appendChild(gl);
+          const nOwn = invCount(id);
+          const nmT = document.createElement("div"); nmT.className = "rc-tile__name";
+          nmT.textContent = t("pn_"+id) + (nOwn>1 ? " \u00D7"+nOwn : "");
+          tl.appendChild(nmT);
+          tl.onclick = ()=>{
+            if (id === S.parts.equipped[slot]) return;
+            if (!tryEquip(slot, id)){ showToast(t("noRoom")); return; }
+            saveState(); renderHome(); };
+          tiles.appendChild(tl);
         }
-        sel.onchange = ()=>{
-          const prev = S.parts.equipped[slot];
-          if (!tryEquip(slot, sel.value)){
-            sel.value = prev ?? EMPTY_ID[slot];
-            showToast(t("noRoom")); return; }
-          saveState(); renderHome(); };
-        row.appendChild(sel);
-      } else {
-        const hint = document.createElement("button"); hint.className = "ghosthint";
-        hint.textContent = t("notOwned");
-        hint.onclick = ()=> showTab("shop");
-        row.appendChild(hint);
+        const shopT = document.createElement("div"); shopT.className = "rc-tile rc-tile--shop";
+        shopT.innerHTML = `<div class="rc-tile__glyph" style="background:none;color:var(--rc-amber);font:400 18px var(--rc-f-display);clip-path:none">+</div>
+          <div class="rc-tile__name" style="color:var(--rc-amber)">${t("tabShop")}</div>`;
+        shopT.onclick = ()=>goTab("shop");
+        tiles.appendChild(shopT);
+        row.appendChild(tiles);
       }
+      /* P1 : le bouton Boutique par ligne est retiré — l'accès boutique passe
+         par l'onglet et la cellule du botstrip. */
       if (STACK_SLOTS[slot] && !(slot==="ballast" && eqId==="l0")){   // stack control
         const n = AB().counts[slot]||1;
         const step = document.createElement("div"); step.className="stepper";
@@ -1122,9 +1166,7 @@ function tryEquip(type, id){
 function mkPartCard(type, part, reserved){
   const card = document.createElement("div"); card.className = "rc-gcard";
   const art = document.createElement("div"); art.className = "rc-gcard__art";
-  const cv = document.createElement("canvas"); cv.width = cv.height = 54;
-  regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
-    drawPartTile(c, type, part.id, 27, 27, 40, 30, 0, 1); });
+  const cv = tileCanvas(54, (c)=>drawPartTile(c, type, part.id, 27, 27, 44, 34, 0, 1));
   art.appendChild(cv); card.appendChild(art);
   const nm = document.createElement("div"); nm.className = "rc-gcard__name"; nm.textContent = t("pn_"+part.id);
   card.appendChild(nm);
@@ -1147,7 +1189,7 @@ function mkPartCard(type, part, reserved){
   if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("is-max"); }
   else if (owned){ btn.textContent = t("equip");
     btn.onclick = ()=>{ if(tryEquip(type, part.id)){ saveState(); renderHome(); } else showToast(t("noRoom")); }; }
-  else { btn.textContent = part.cost + " \uD83D\uDD29"; btn.disabled = S.bolts < part.cost;
+  else { btn.innerHTML = BOLT_SVG + " " + part.cost; btn.disabled = S.bolts < part.cost;
     btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
       mintInstance(part.id); recomputeOwned();
       const fits = tryEquip(type, part.id); saveState();
@@ -1197,8 +1239,8 @@ function renderGarageStrip(){ const el=$("garageStrip"); if(!el) return; el.inne
   const strip=document.createElement("div"); strip.className="rc-botstrip";
   S.garage.forEach((bot,i)=>{ const card=document.createElement("div"); card.className="rc-botcell"+(i===S.activeBot?" is-active":"");
     const th=document.createElement("div"); th.className="rc-botcell__thumb";
-    const cv=document.createElement("canvas"); cv.width=cv.height=64;
-    regTile(cv, ()=>drawBotThumb(cv.getContext("2d"), bot.chassis, bot.customize.color)); th.appendChild(cv); card.appendChild(th);
+    const cv = tileCanvas(64, (c)=>drawBotThumb(c, bot.chassis, bot.customize.color));
+    th.appendChild(cv); card.appendChild(th);
     const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=chassisName(bot.chassis); card.appendChild(nm);
     card.onclick=()=>setActiveBot(i);
     if (i===S.activeBot && S.garage.length>1){
@@ -1228,9 +1270,7 @@ function renderInventory(){ const el=$("invStrip"); if(!el) return; el.innerHTML
     const ws=byDef[def], slot=DEF_SLOT[def];
     const card=document.createElement("div"); card.className="rc-gcard";
     const art=document.createElement("div"); art.className="rc-gcard__art";
-    const cv=document.createElement("canvas"); cv.width=cv.height=54;
-    regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
-      drawPartTile(c, slot, def, 27, 27, 40, 30, 0, 1); });
+    const cv = tileCanvas(54, (c)=>drawPartTile(c, slot, def, 27, 27, 44, 34, 0, 1));
     art.appendChild(cv); card.appendChild(art);
     const nm=document.createElement("div"); nm.className="rc-gcard__name"; nm.textContent=t("pn_"+def)+(ws.length>1?" \u00D7"+ws.length:""); card.appendChild(nm);
     const wmin=Math.min(...ws), wmax=Math.max(...ws);
@@ -1247,10 +1287,10 @@ function renderChassisShop(){ const el=$("chassisShop"); if(!el) return; el.inne
   for(const ch of BUYABLE_CHASSIS){ const info=CHASSIS_INFO[ch];
     const card=document.createElement("div"); card.className="rc-botcell"+(S.bolts<info.cost?" cant":"");
     const th=document.createElement("div"); th.className="rc-botcell__thumb";
-    const cv=document.createElement("canvas"); cv.width=cv.height=64;
-    regTile(cv, ()=>drawBotThumb(cv.getContext("2d"), ch, null)); th.appendChild(cv); card.appendChild(th);
+    const cv = tileCanvas(64, (c)=>drawBotThumb(c, ch, null));
+    th.appendChild(cv); card.appendChild(th);
     const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=info.name; card.appendChild(nm);
-    const pr=document.createElement("div"); pr.className="botprice"; pr.textContent=info.cost+" \uD83D\uDD29"; card.appendChild(pr);
+    const pr=document.createElement("div"); pr.className="botprice"; pr.innerHTML=BOLT_SVG+" "+info.cost; card.appendChild(pr);
     card.onclick=()=>buyBot(ch); strip.appendChild(card); }
   el.appendChild(strip); }
 // ---- L2: tournaments — generic scrutineering (rules) + format-extensible data ----
@@ -1475,7 +1515,7 @@ function renderLigues(){
       ? t("nConcours", {n:lg.concours.length}) + (nEng ? " · " + t("kEnCours", {k:nEng}) : "")
       : t("soon");
     a.innerHTML = `<div class="rc-league__crest"${open?' style="color:var(--rc-violet-lt)"':''}>${open?"◈":"🔒"}</div>
-      <div class="rc-league__body"><div class="rc-league__name">${lg.name}</div>
+      <div class="rc-league__body"><div class="rc-league__name">${da(lg.name)}</div>
       <div class="rc-league__meta">${meta}</div></div>
       <div class="rc-league__side">${open ? t("enter") : t("lockedTag")}</div>`;
     if (open) a.onclick = ()=>{ curLigue = lg.id; NAV.push("ligueScreen"); renderLigueScreen(); };
@@ -1506,8 +1546,12 @@ function vsMancheLabel(tr){
 function renderVsScreen(){
   const tr = tournamentById(curVsConcours); if(!tr || !vsOpp) return;
   const lg = ligueById(curLigue);
-  $("vsCrumbLigue").textContent = lg ? lg.name : t("tabFight");
-  $("vsCrumbConcours").textContent = tr.name;
+  $("vsCrumbLigue").textContent = da(lg ? lg.name : t("tabFight"));
+  $("vsCrumbLigue").className = "crumb-link";
+  $("vsCrumbLigue").onclick = ()=>NAV.uiBack();
+  $("vsCrumbConcours").textContent = da(tr.name);
+  $("vsCrumbConcours").className = "crumb-link";
+  $("vsCrumbConcours").onclick = ()=>NAV.uiBack();
   $("vsCrumbManche").textContent = vsMancheLabel(tr);
   $("vsFormat").textContent = (FORMAT_LABEL[tr.format]||tr.format).toUpperCase();
   $("vsManche").textContent = vsMancheLabel(tr);
@@ -1542,8 +1586,14 @@ function renderVsScreen(){
 function renderLigueScreen(){
   const lg = ligueById(curLigue); if(!lg) return;
   $("crumbRoot").textContent = t("tabFight");
-  $("ligueName").textContent = lg.name;
-  const el = $("concoursList"); el.innerHTML = "";
+  $("crumbRoot").className = "crumb-link";
+  $("crumbRoot").onclick = ()=>NAV.uiBack();
+  $("ligueName").textContent = da(lg.name);
+  const el = $("concoursList");
+  // re-parquer les vues de detail AVANT de vider la liste (sinon innerHTML les detruit)
+  for (const did of ["tourneyBanner","champStandings","bracketView"]){
+    const n = $(did); if (n && n.parentElement !== $("ligueScreen")) $("ligueScreen").appendChild(n); }
+  el.innerHTML = "";
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
   for (const id of lg.concours){
     const tr = tournamentById(id); if(!tr) continue;
@@ -1552,7 +1602,7 @@ function renderLigueScreen(){
     card.className = "rc-cup" + (open ? "" : " is-locked") + (st ? " rc-cup--violet" : "");
     const prog = concoursProgress(tr);
     let inner = `<div class="rc-cup__head"><div>
-        <div class="rc-cup__name">${tr.name}</div>
+        <div class="rc-cup__name">${da(tr.name)}</div>
         <div class="rc-cup__struct">${FORMAT_LABEL[tr.format]||tr.format}</div></div>
         <div class="rc-cup__progress"${prog?'':' style="color:var(--rc-muted)"'}>${prog||t("newTag")}</div></div>
       <div class="rc-cup__constraints"><span class="rc-chip">${rulesSummary(tr.rules)}</span>`;
@@ -1582,6 +1632,10 @@ function renderLigueScreen(){
       });
     }
     el.appendChild(card);
+    // la progression du concours vit DANS sa vignette, pas en zone libre
+    if (tr.id === "sumoM" && $("tourneyBanner")) card.appendChild($("tourneyBanner"));
+    if (tr.id === "lightM" && $("champStandings")) card.appendChild($("champStandings"));
+    if (tr.id === "cupM" && $("bracketView")) card.appendChild($("bracketView"));
   }
 }
 /* B3 — occasions. Stock DÉTERMINISTE par jour (graine = jour civil) : même
@@ -1609,17 +1663,17 @@ function refreshUsedStock(){
 function renderUsedSection(g){
   refreshUsedStock();
   if (!S.usedStock.length) return;
+  const plate = document.createElement("div"); plate.id = "usedPlate";         // P1 : plaque de tête distincte
+  g.appendChild(plate);
   const h = document.createElement("div"); h.className = "rc-section used";
-  h.textContent = t("shopUsed"); g.appendChild(h);
+  h.textContent = t("shopUsed"); plate.appendChild(h);
   const strip = document.createElement("div"); strip.className = "rc-carousel";
-  g.appendChild(strip);
+  plate.appendChild(strip);
   for (const of_ of S.usedStock){
     const part = ENGINE.PARTS[of_.slot].find(p=>p.id===of_.id); if (!part) continue;
     const card = document.createElement("div"); card.className = "rc-gcard usedcard";
     const art = document.createElement("div"); art.className = "rc-gcard__art";
-    const cv = document.createElement("canvas"); cv.width = cv.height = 54;
-    regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
-      drawPartTile(c, of_.slot, part.id, 27, 27, 40, 30, 0, 1); });
+    const cv = tileCanvas(54, (c)=>drawPartTile(c, of_.slot, part.id, 27, 27, 44, 34, 0, 1));
     art.appendChild(cv); card.appendChild(art);
     const nm = document.createElement("div"); nm.className = "rc-gcard__name"; nm.textContent = t("pn_"+part.id);
     card.appendChild(nm);
@@ -1631,7 +1685,7 @@ function renderUsedSection(g){
       card.appendChild(so);
     } else {
       const btn = document.createElement("button"); btn.className = "rc-buy used";
-      btn.innerHTML = "<s>"+part.cost+"</s> "+of_.price+" \ud83d\udd29";
+      btn.innerHTML = "<s>"+part.cost+"</s> "+of_.price+" "+BOLT_SVG;
       btn.disabled = S.bolts < of_.price;
       btn.onclick = ()=>{ if (S.bolts < of_.price || of_.qty<=0) return;
         S.bolts -= of_.price; of_.qty = 0;
@@ -1644,7 +1698,7 @@ function renderUsedSection(g){
 }
 function renderGarage(){
   const g = $("garageRows"); g.innerHTML = "";
-  renderUsedSection(g);
+  const ut = $("usedTop"); if (ut){ ut.innerHTML = ""; renderUsedSection(ut); }   // P1 : occasions en tête d'onglet
   const TYPES = SLOT_ORDER.filter(x=>x!=="chassis").map(x=>[x,"slot_"+x]);
   for (const [type, header] of TYPES){
     const h = document.createElement("div"); h.className = "rc-section";
@@ -1670,7 +1724,7 @@ function renderGarage(){
       (owned ? `<div class="rc-gcard__fx">${t("stickerOwned")}</div>` : "");
     if (!owned){
       const btn = document.createElement("button"); btn.className="rc-buy";
-      btn.textContent = `${st.cost} 🔩`;                     // same style as part cards
+      btn.innerHTML = `${BOLT_SVG} ${st.cost}`;                     // same style as part cards
       btn.disabled = S.bolts < st.cost;
       btn.onclick = ()=>{ if (S.bolts < st.cost) return; S.bolts -= st.cost;
         S.customize.stickers.push(st.id); saveState();
@@ -1723,10 +1777,14 @@ let particles=[], trails=[[],[]], flashes=[0,0], wasForfeit=false, odom=[0,0], f
 const cv = $("cv"), ctx = cv.getContext("2d");
 
 function setupCanvas(){
+  /* FID-1 — le bug de cadrage venait d'ici : style.width jamais posé, le CSS
+     width:100% prenait le dessus et étirait le cercle dès que le conteneur
+     dépassait 520 px. Désormais : carré verrouillé sur la plaque .rc-arena. */
   const dpr = window.devicePixelRatio || 1;
-  const w = Math.min(cv.parentElement.clientWidth || 420, 520);
+  const box = $("arenaBox") || cv.parentElement;
+  const w = Math.round(box.clientWidth || 420);
   cv.width = w*dpr; cv.height = w*dpr;
-  cv.style.height = w+"px";
+  cv.style.width = w+"px"; cv.style.height = w+"px";
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
@@ -1782,6 +1840,7 @@ function startMatch(mode){
   particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
   $("hudNameA").textContent = t("you");
   $("hudNameB").textContent = enemy.name || "";
+  $("hudRound").textContent = vsMode===curMode && curVsConcours ? vsMancheLabel(tournamentById(curVsConcours)) : "";
   if (NAV.stack[NAV.stack.length-1] === "vsScreen") NAV.swap("matchScreen");
   else NAV.push("matchScreen");
   $("overlay").style.display="none";
@@ -1885,16 +1944,18 @@ function draw(){
     ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,7); ctx.clip();
     ctx.drawImage(arenaImg, -(AR+8), -(AR+8), (AR+8)*2, (AR+8)*2); ctx.restore();
   } else {
-    ctx.beginPath(); ctx.arc(0,0,AR+8,0,7); ctx.fillStyle="#171a22"; ctx.fill();
-    ctx.beginPath(); ctx.arc(0,0,AR,0,7); ctx.fillStyle="#20242f"; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,AR+8,0,Math.PI*2); ctx.fillStyle="#160c12"; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,AR,0,Math.PI*2); ctx.fillStyle="#1d1119"; ctx.fill();
   }
   // sudden-death: darken the shrinking-out zone + draw the live ring at match.arenaR
   if(match.arenaR < AR-1){
-    ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+8,0,7); ctx.arc(0,0,match.arenaR,0,7,true);
+    /* P4 : angles EXACTS — 0..7 rad dépassait 2π et cousait un rayon clair à ~41°. */
+    ctx.save(); ctx.beginPath();
+    ctx.arc(0,0,AR+8,0,Math.PI*2); ctx.arc(0,0,match.arenaR,0,Math.PI*2,true);
     ctx.fillStyle="rgba(8,9,12,.62)"; ctx.fill("evenodd"); ctx.restore();
   }
-  ctx.beginPath(); ctx.arc(0,0,match.arenaR,0,7);
-  ctx.lineWidth=3; ctx.strokeStyle = match.t>ENGINE.SUDDEN_DEATH_T ? "#ff5252" : "#d9a441"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,match.arenaR,0,Math.PI*2);
+  ctx.lineWidth=3; ctx.strokeStyle = match.t>ENGINE.SUDDEN_DEATH_T ? "#ff2a4a" : "#ff9b3d"; ctx.stroke();
 
   const COLORS = [PLAYER_COLOR, ENEMY_COLOR];
   for (let bi=0;bi<2;bi++){
@@ -2344,6 +2405,7 @@ const NAV = {
   eat: 0,   // popstate à ignorer (échos de notre propre history.back())
   show(id){
     for (const sc of ["homeScreen","ligueScreen","vsScreen","matchScreen"]) $(sc).style.display = (sc===id) ? "block" : "none";
+    try{ $("app").classList.toggle("in-match", id==="matchScreen"); }catch(e){}   // P1 : CRT coupé en combat
     $("navBack").style.display = (this.stack.length>1 && id!=="matchScreen") ? "" : "none";
   },
   swap(id){                                   // remplace le sommet (VS → match) sans toucher au miroir history
@@ -2360,6 +2422,12 @@ const NAV = {
     if (this.stack.length > 1) this.stack.pop();
     else this.stack = ["homeScreen"];
     this.show(this.stack[this.stack.length-1]);
+    renderHome();
+  },
+  homeReset(){                                // onglet cliqué depuis un écran empilé : pile à plat
+    const n = this.hist;
+    this.stack = ["homeScreen"]; this.show("homeScreen");
+    if (n > 0){ this.eat += n; this.hist = 0; try{ history.go(-n); }catch(e){} }
     renderHome();
   },
   uiBack(){
@@ -2385,12 +2453,16 @@ function showTab(name){
   $("tabWorkshop").classList.toggle("is-active", name==="workshop");
   $("tabShop").classList.toggle("is-active", name==="shop");
 }
-$("tabFight").onclick = ()=> showTab("fight");
-$("tabWorkshop").onclick = ()=> showTab("workshop");
-$("tabShop").onclick = ()=> showTab("shop");
+function goTab(name){                          // P2 : les onglets vivent partout — cliquer = pile à plat + onglet
+  if (NAV.stack.length > 1) NAV.homeReset();
+  showTab(name);
+}
+$("tabFight").onclick = ()=> goTab("fight");
+$("tabWorkshop").onclick = ()=> goTab("workshop");
+$("tabShop").onclick = ()=> goTab("shop");
 $("resetLayout").onclick = ()=>{ autoArrangeCurrent(); renderLayerTabs(); };
-$("cgToggle").onclick = ()=>{ showCG=!showCG; $("cgToggle").classList.toggle("on",showCG); $("cgToggle").textContent=t(showCG?"cgHide":"cgShow"); };
-$("hbToggle").onclick = ()=>{ showHB=!showHB; $("hbToggle").classList.toggle("on",showHB); $("hbToggle").textContent=t(showHB?"hbHide":"hbShow"); };
+$("cgToggle").onclick = ()=>{ showCG=!showCG; $("cgToggle").classList.toggle("is-on",showCG); $("cgToggle").textContent=t(showCG?"cgHide":"cgShow"); };
+$("hbToggle").onclick = ()=>{ showHB=!showHB; $("hbToggle").classList.toggle("is-on",showHB); $("hbToggle").textContent=t(showHB?"hbHide":"hbShow"); };
 
 $("fightBtn").onclick = ()=> startMatch(vsMode || (tournamentOpen() ? "tour" : "qual"));
 $("speedBtn").onclick = ()=>{ S.speed = S.speed===1?2:1; saveState();
@@ -2413,7 +2485,23 @@ $("ovMain").onclick = ()=>{
   else startMatch(curMode);                 // retry (tournament restarts at match 1)
 };
 $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
-$("langBtn").onclick = ()=>{ LANG = LANG==="fr"?"en":"fr"; S.lang = LANG; saveState(); renderHome(); };
+/* P2 — panneau de reglages : langue + comparatif de versions */
+function renderVersionsTable(){
+  const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
+  const cache = "v26";                                        // repere de build (CACHE du SW)
+  const rows = [[t("verRow_app"), "PWA", "Single-file"],
+                [t("verRow_build"), cache, "2025"],
+                [t("verRow_off"), "✓", "✗"],
+                [t("verRow_save"), t("verSaveV4"), t("verSaveOld")]];
+  rows.forEach((r,i)=>{ const tr=document.createElement("tr");
+    r.forEach(v=>{ const td=document.createElement(i?"td":"th"); td.textContent=v; tr.appendChild(td); });
+    tb.appendChild(tr); });
+}
+$("settingsBtn").onclick = ()=>{ renderVersionsTable(); $("settingsOv").style.display="flex"; };
+$("settingsClose").onclick = ()=>{ $("settingsOv").style.display="none"; };
+document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>{
+  o.onclick = ()=>{ LANG = o.dataset.lang; S.lang = LANG; saveState(); renderHome(); };
+});
 window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); });
 
 /* [2] Préchargement : réchauffe les caches d'images existants au démarrage,

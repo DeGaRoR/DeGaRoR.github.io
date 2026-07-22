@@ -531,7 +531,90 @@ img{max-width:100%;display:block;}
 .rc-hudcol--foe .rc-hudname{text-align:right;}
 .rc-hudname{font-family:var(--rc-f-dense);font-weight:600;font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--rc-ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.rc-hudrow{display:flex;align-items:center;gap:5px;}
-.rc-hudlabel{font-family:var(--rc-f-pixel);font-size:5px;color:var(--rc-muted);letter-spacing:.02em;flex:0 0 auto;}
-.rc-hudrow .rc-gauge{flex:1;}
+/* P-align : l'étiquette vit DANS la jauge (texte variable = barres décalées, plus jamais) */
+.rc-hudcol .rc-gauge{position:relative;height:13px;}
+.rc-hudlabel{position:absolute;top:50%;left:7px;transform:translateY(-50%);z-index:2;
+  font-family:var(--rc-f-pixel);font-size:5px;color:rgba(255,255,255,.75);letter-spacing:.02em;
+  pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.9);}
+.rc-hudcol--foe .rc-hudlabel{left:auto;right:7px;}
 .rc-gauge__fill--hp{background:linear-gradient(90deg,#2f9e63,#3fe089);box-shadow:0 0 10px rgba(63,224,137,.35);}
+
+
+/* ══ P1 — retours de playtest (22/07) ══ */
+/* [P1-jauge] les remplisseurs sont des <i> : forcer le bloc (le float de --foe
+   masquait le défaut d'un seul côté). */
+.rc-gauge__fill{display:block;}
+/* [P1-carrousel] PC : molette inopérante et scrollbar cachée = inscrollable.
+   Sur pointeur fin, on déplie en grille — plus rien à faire défiler. */
+@media (pointer:fine) and (min-width:700px){
+  .rc-carousel{flex-wrap:wrap;overflow-x:visible;}
+}
+/* [P1-échelle] première montée globale : base, titres, cartes, vignettes.
+   Passe définitive en P3 après retour. */
+:root{--rc-maxw:480px;}
+@media (min-width:760px){ :root{--rc-maxw:600px;} }
+.rc-botcell__thumb{width:84px;height:84px;}
+.rc-botcell__thumb canvas{width:100%;height:100%;}
+.rc-gcard__art canvas{width:100%;height:100%;}
+/* [P1-crumb] les breadcrumbs sont des liens */
+.rc-crumb span[id], .rc-crumb .crumb-link{cursor:pointer;}
+.rc-crumb .crumb-link:hover{color:var(--rc-violet-lt);text-decoration:underline;}
+/* [P1-crt] scanlines coupées pendant les combats (fatigue oculaire) */
+.rc-app.in-match::after{display:none;}
+/* [P1-boutique] occasions du jour : section de tête, visuellement distincte */
+#usedPlate{border:2px solid var(--rc-line);border-top:3px solid var(--rc-amber);
+  border-radius:var(--rc-r);padding:12px;margin-bottom:14px;
+  background:linear-gradient(160deg,rgba(255,155,61,.08),transparent 55%);}
+#usedPlate .rc-section{color:var(--rc-amber);}
+/* [P1-garage] liste de composants : rangées aérées, vignette visuelle */
+.slotrow{display:flex;align-items:center;gap:12px;padding:10px 6px;
+  border-bottom:1px solid rgba(255,42,74,.10);}
+.slotrow:last-child{border-bottom:0;}
+.slotrow .sname{flex:0 0 118px;font-family:var(--rc-f-dense);font-weight:600;
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--rc-muted);}
+.slotrow .stile{flex:0 0 44px;width:44px;height:44px;border-radius:var(--rc-r-xs);
+  background:var(--rc-plate-sunk);display:flex;align-items:center;justify-content:center;}
+.slotrow .scur{flex:1;font-family:var(--rc-f-ui);font-size:14.5px;}
+.slotrow .scur .pfx{display:block;font-size:11.5px;color:var(--rc-muted);}
+
+
+/* ══ P2 — chrome persistant ══ */
+.rc-topbar__side{display:flex;align-items:center;gap:8px;}
+.rc-app.in-match #chrome .rc-tabs{display:none;}   /* pas d'onglets en plein combat */
+#settingsOv{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,3,5,.7);backdrop-filter:blur(3px);}
+#settingsOv .ocard{max-width:380px;width:92%;}
+#langSeg{max-width:200px;}
+
+
+/* ══ P3 — propreté de mise en page (référence graphic design) ══ */
+/* cartes legacy = plaques DA : matière, chant, ombre portée */
+.card{background:var(--rc-plate) !important;border:2px solid var(--rc-line);
+  box-shadow:var(--rc-bevel),var(--rc-drop);border-radius:var(--rc-r) !important;}
+.tbanner{background:var(--rc-plate-warm);border:2px solid var(--rc-line);
+  border-left:3px solid var(--rc-amber);border-radius:var(--rc-r);box-shadow:var(--rc-bevel),var(--rc-drop);}
+select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(255,255,255,.06) !important;
+  color:var(--rc-ink) !important;border-radius:var(--rc-r-sm) !important;}
+/* fini les fonds noirs sur les vignettes : trame diagonale discrète, façon référence */
+.rc-gcard__art{background:repeating-linear-gradient(45deg,#241a2c,#241a2c 6px,#1c1422 6px,#1c1422 12px) !important;
+  box-shadow:none !important;border:1px solid var(--rc-line);}
+.slotrow .stile{background:repeating-linear-gradient(45deg,#241a2c,#241a2c 5px,#1c1422 5px,#1c1422 10px);
+  border:1px solid var(--rc-line);box-shadow:none;}
+/* chrome : wrapper de POSITIONNEMENT pur — zéro visuel propre, la topbar et
+   rc-tabs portent exactement la spec. */
+#chrome{position:sticky;top:0;z-index:40;}
+#chrome .rc-topbar{position:static;}      /* le sticky est porté par le wrapper */
+#settingsBtn{border:1px solid rgba(255,255,255,.12);}
+.slotrow .stile canvas{width:100%;height:100%;}
+
+
+/* ══ FID-1 — cadrage : le canvas de combat vit DANS .rc-arena (spec) ══ */
+.rc-arena canvas{width:100%;height:100%;display:block;border-radius:inherit;}
+/* B2 : retour au 440 EXACT de la spec — la référence était correctement dimensionnée. */
+
+/* FID-3 : rangée de tuiles FIT sous la rangée de slot — la tuile glyphe porte
+   un canvas responsive ; wrap autorisé quand la famille est nombreuse. */
+.slotrow{flex-wrap:wrap;}
+.rc-tiles--fit{flex:1 1 100%;flex-wrap:wrap;margin-top:8px;}
+.rc-tiles--fit .rc-tile{flex:1 1 84px;max-width:120px;}
+.rc-tile__glyph canvas{width:100%;height:100%;display:block;}

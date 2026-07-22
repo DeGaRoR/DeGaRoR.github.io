@@ -1,11 +1,14 @@
 :root{
-    --bg:#14161c; --panel:#1e222b; --panel2:#262b36; --ink:#e8eaf0; --muted:#8a92a6;
-    --red:#ff5252; --blue:#4da3ff; --accent:#ffd166; --good:#6ee7a0;
-    --radius:12px;
+    /* P3 — palette héritée REMAPPÉE sur les tokens Akira Alley : tout le
+       contenu legacy (cartes, chips, selects) bascule dans la DA d'un coup.
+       Le gris-bleu est banni ; le bleu devient le violet « joueur ». */
+    --bg:#120a12; --panel:#1d1119; --panel2:#241722; --ink:#f1e6e6; --muted:#8a6a6a;
+    --red:#ff2a4a; --blue:#b14bff; --accent:#ff9b3d; --good:#3fe089;
+    --radius:9px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{margin:0;} /* fond, encre et fonte : roboclash-ui.css */
-  #app{max-width:var(--rc-maxw); margin:0 auto; padding:10px 12px 40px;}
+  #app{max-width:var(--rc-maxw); margin:0 auto; padding:0 0 40px;} /* FID-1 : le padding vit dans .rc-screen (spec) — bandeau full width */
   /* cédé à roboclash-ui.css */
   /* cédé à roboclash-ui.css */
   .progress{font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center;}
@@ -59,7 +62,7 @@
 
   /* match */
   #matchScreen{display:none;}
-  #cv{width:100%; border-radius:var(--radius); background:#0d0f14; display:block; touch-action:none;}
+  #cv{touch-action:none;} /* FID-1 : taille, fond et rayon viennent de .rc-arena (spec) */
   .hud{display:flex; gap:10px; align-items:center; margin:8px 0;}
   .gauge{flex:1; height:10px; background:var(--panel2); border-radius:5px; overflow:hidden;}
   .gauge i{display:block; height:100%; border-radius:5px;}

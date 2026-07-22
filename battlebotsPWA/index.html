@@ -21,46 +21,50 @@
 </head>
 <body>
 <div id="app" class="rc-app">
+  <div id="chrome">
   <header class="rc-topbar">
-    <div>
+    <div class="rc-brand">
       <div class="rc-logo">Roboclash</div>
       <div class="rc-progress"><span id="lvlLabel"></span><span class="dots" id="dots"></span>
-        <span id="badgesLabel"></span></div>
+        <span id="winsLabel"></span><span id="badgesLabel"></span></div>
     </div>
-    <span class="rc-currency" id="boltsLabel"></span>
-    <button class="lang" id="navBack" style="display:none">←</button>
-    <button class="lang" id="langBtn">FR</button>
+    <div class="rc-topbar__side">
+      <span class="rc-currency" id="boltsLabel"></span>
+      <button class="lang" id="navBack" style="display:none">←</button>
+      <button class="lang" id="settingsBtn" title="Reglages">⚙</button>
+    </div>
   </header>
+  <nav class="rc-tabs">
+    <button class="rc-tab" id="tabWorkshop" data-i18n="tabWorkshop"></button>
+    <button class="rc-tab is-active" id="tabFight" data-i18n="tabFight"></button>
+    <button class="rc-tab" id="tabShop" data-i18n="tabShop"></button>
+  </nav>
+  </div><!-- /chrome -->
 
   <div id="homeScreen">
-    <nav class="rc-tabbar">
-      <button class="rc-tab" id="tabWorkshop" data-i18n="tabWorkshop"></button>
-      <button class="rc-tab is-active" id="tabFight" data-i18n="tabFight"></button>
-      <button class="rc-tab" id="tabShop" data-i18n="tabShop"></button>
-    </nav>
 
-    <div id="fightTab">
+    <div id="fightTab" class="rc-screen">
       <div class="rc-section" data-i18n="secLigues"></div>
       <div id="liguesList"></div>
       <!-- Réserve S6 : l'ancien bloc versus/params reste alimenté par renderHome
            mais masqué ; il renaîtra en écran C (fight.html du mockup). -->
     </div><!-- /fightTab -->
-    <div id="workshopTab" style="display:none">
+    <div id="workshopTab" class="rc-screen" style="display:none">
       <div class="card" id="garageStrip"></div>
       <div class="card" id="invStrip"></div>
-      <div class="card mybot">
-        <div class="editorhead">
-          <div class="layertabs" id="layerTabs"></div>
-          <button class="toolbtn" id="cgToggle" data-i18n="cgShow"></button>
-          <button class="toolbtn" id="hbToggle" data-i18n="hbShow"></button>
-          <button class="toolbtn action" id="resetLayout" data-i18n="editReset"></button>
+      <section class="rc-editor">
+        <div class="rc-editorhead">
+          <span id="layerTabs" style="display:contents"></span>
+          <button class="rc-toolbtn rc-toolbtn--violet rc-toolbtn--push" id="cgToggle" data-i18n="cgShow"></button>
+          <button class="rc-toolbtn" id="hbToggle" data-i18n="hbShow"></button>
+          <button class="rc-toolbtn" id="resetLayout" data-i18n="editReset"></button>
         </div>
-        <div class="editorwrap">
-          <canvas id="editorCv" width="640" height="640"></canvas>
-          <div class="numdash" id="myNums"></div>
+        <div class="rc-editorcanvas rc-editorcanvas--wide">
+          <canvas id="editorCv" width="640" height="640" style="width:100%;height:100%;display:block"></canvas>
         </div>
-        <div class="stats" id="statBars"></div>
-      </div>
+        <div class="numdash" id="myNums"></div>
+        <div class="rc-statgrid" id="statBars" style="margin-top:12px"></div>
+      </section>
       <div class="card">
         <div id="slotRows"></div>
       </div>
@@ -72,7 +76,8 @@
       </div>
     </div>
 
-    <div id="shopTab" style="display:none">
+    <div id="shopTab" class="rc-screen" style="display:none">
+      <div id="usedTop"></div>
       <div class="card" id="chassisShop"></div>
       <div class="card garage">
         <div id="garageRows"></div>
@@ -81,7 +86,7 @@
   </div>
 
   <!-- ═══ Écran B (S5) : une ligue, ses concours, engagement et suivi ═══ -->
-  <div id="ligueScreen" style="display:none">
+  <div id="ligueScreen" class="rc-screen" style="display:none">
     <div class="rc-crumb"><span id="crumbRoot"></span><span class="sep">›</span><span class="here" id="ligueName"></span></div>
     <div id="concoursList"></div>
     <div class="tbanner" id="tourneyBanner" style="display:none">
@@ -93,7 +98,7 @@
   </div>
 
   <!-- ═══ Écran C (S6) : la manche, l'adversaire, le comportement, le lancement ═══ -->
-  <div id="vsScreen" style="display:none">
+  <div id="vsScreen" class="rc-screen" style="display:none">
     <div class="rc-crumb"><span id="vsCrumbLigue"></span><span class="sep">›</span><span id="vsCrumbConcours"></span><span class="sep">›</span><span class="here" id="vsCrumbManche"></span></div>
     <div class="rc-plate rc-plate--edge-red rc-banner">
       <div>
@@ -104,7 +109,7 @@
     <div class="rc-versus">
       <div class="rc-fighter rc-fighter--you">
         <div class="rc-fighter__tag" data-i18n="youTag"></div>
-        <canvas id="playerCv" width="132" height="132"></canvas>
+        <div class="rc-portrait"><canvas id="playerCv" width="132" height="132" style="width:100%;height:100%;display:block"></canvas></div>
         <div class="rc-name" id="playerName">RUSTY</div>
         <div class="rc-label" id="playerClass" style="margin-top:5px"></div>
         <div class="numdash" id="playerNums"></div>
@@ -112,7 +117,7 @@
       <div class="rc-vs">VS</div>
       <div class="rc-fighter rc-fighter--foe">
         <div class="rc-fighter__tag" data-i18n="foeTag"></div>
-        <canvas id="scoutCv" width="132" height="132"></canvas>
+        <div class="rc-portrait"><canvas id="scoutCv" width="132" height="132" style="width:100%;height:100%;display:block"></canvas></div>
         <div class="rc-name" id="oppName"></div>
         <div class="rc-label" id="oppClass" style="margin-top:5px"></div>
         <div class="rc-label" id="oppWeight"></div>
@@ -130,23 +135,22 @@
     <button class="rc-btn rc-btn--primary rc-btn--block" id="fightBtn" data-i18n="fight"></button>
   </div>
 
-  <div id="matchScreen">
-    <canvas id="cv"></canvas>
-    <div class="rc-hud rc-hud--dual">
+  <div id="matchScreen" class="rc-screen">
+    <div class="rc-arena" id="arenaBox"><canvas id="cv"></canvas></div>
+    <div class="rc-row" style="align-items:baseline;justify-content:space-between">
+      <div class="rc-name" id="hudNameA" style="color:var(--rc-violet-lt)"></div>
+      <div class="rc-label" id="hudRound"></div>
+      <div class="rc-name" id="hudNameB" style="color:var(--rc-red-lt)"></div>
+    </div>
+    <div class="rc-hud">
       <div class="rc-hudcol">
-        <div class="rc-hudname" id="hudNameA"></div>
-        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudBattery"></span>
-          <div class="rc-gauge" id="gA"><i class="rc-gauge__fill rc-gauge__fill--you" style="width:100%"></i></div></div>
-        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudHealth"></span>
-          <div class="rc-gauge" id="hA"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i></div></div>
+        <div class="rc-gauge" id="gA"><i class="rc-gauge__fill rc-gauge__fill--you" style="width:100%"></i><span class="rc-hudlabel" data-i18n="hudBattery"></span></div>
+        <div class="rc-gauge" id="hA"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i><span class="rc-hudlabel" data-i18n="hudHealth"></span></div>
       </div>
       <div class="rc-clock" id="clock">0.0</div>
       <div class="rc-hudcol rc-hudcol--foe">
-        <div class="rc-hudname" id="hudNameB"></div>
-        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudBattery"></span>
-          <div class="rc-gauge" id="gB"><i class="rc-gauge__fill rc-gauge__fill--foe" style="width:100%"></i></div></div>
-        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudHealth"></span>
-          <div class="rc-gauge" id="hB"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i></div></div>
+        <div class="rc-gauge" id="gB"><i class="rc-gauge__fill rc-gauge__fill--foe" style="width:100%"></i><span class="rc-hudlabel" data-i18n="hudBattery"></span></div>
+        <div class="rc-gauge" id="hB"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i><span class="rc-hudlabel" data-i18n="hudHealth"></span></div>
       </div>
     </div>
     <div class="rc-row rc-mt" style="gap:10px">
@@ -165,6 +169,20 @@
   <div class="rc-stack rc-mt">
     <button class="rc-btn rc-btn--primary rc-btn--block" id="ovMain"></button>
     <button class="rc-textlink rc-center" id="ovBack" data-i18n="settings"></button>
+  </div>
+</div></div>
+<div id="settingsOv" style="display:none"><div class="ocard rc-plate rc-plate--edge-red">
+  <h2 class="rc-title" data-i18n="settingsTitle"></h2>
+  <div class="rc-section" data-i18n="setLang"></div>
+  <div class="rc-seg" id="langSeg">
+    <div class="rc-seg__opt" data-lang="fr">FR</div>
+    <div class="rc-seg__opt" data-lang="en">EN</div>
+  </div>
+  <div class="rc-section rc-mt" data-i18n="setVersions"></div>
+  <table class="rc-debrief" id="verTable"></table>
+  <a class="rc-textlink rc-center" id="verLegacy" href="../battleBots/ai-roboclash.html" data-i18n="verOpenLegacy"></a>
+  <div class="rc-stack rc-mt">
+    <button class="rc-btn rc-btn--primary rc-btn--block" id="settingsClose" data-i18n="close"></button>
   </div>
 </div></div>
 <div id="toast"><div class="tcard" id="toastText"></div></div>
