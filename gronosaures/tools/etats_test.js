@@ -61,9 +61,11 @@ const EXPORTS='PACKS,SITES,CREATURES,QUIZ_PALEO,etat,registre,PRIME_NIVEAU,SEUIL
  +'NB_MISSION,NB_ESSAIS,COUT_FOUILLE,cleNiveau,niveauAcquis,prog,lancerNiveau,lancerMission,'
  +'repondre,suite,exoSuivant,ouvrirPack,menuPacks,montrer,enregistrerNiveaux,statPack,'
  +'montrerIndice,reprendreExo,sauver,fouiller,repFouille,indiceFouille,tirage,trancheeSterile,'
- +'reprendreFouille,possede,fragments,chantier,'
+ +'reprendreFouille,possede,fragments,chantier,basculerProfil,creerProfil,primeDe,trouvees,'
+ +'carnet,carnetSupprimer,normaliser,eidNeuf,'
  +'mission:()=>mission,setMission:v=>mission=v,packActif:()=>packActif,'
- +'niveauActif:()=>niveauActif,qFouille:()=>qFouille,setSite:v=>siteActif=v';
+ +'niveauActif:()=>niveauActif,qFouille:()=>qFouille,setSite:v=>siteActif=v,'
+ +'getEtat:()=>etat';
 
 /* Recharger l'application, en gardant le MÊME localStorage : c'est la seule
    façon d'éprouver ce qui survit à une fermeture d'onglet ou à une mise en
@@ -358,6 +360,161 @@ if(site){
   const s1=ctx.etat.credits;
   ctx.fouiller();
   T('une seule tranchée ouverte à la fois', ctx.etat.credits===s1);
+  /* Solder la dette avant de sortir : elle est PERSISTANTE — c'est tout
+     l'objet de ce fichier — donc la laisser ouverte contaminerait la section
+     suivante à travers son rechargement. */
+  const qz=(ctx.qFouille()||{}).q;
+  if(qz){ ctx.repFouille(qz.r,{classList:{add(){}},disabled:false}); ctx.tirage(); }
+  T('section 4 sort sans dette', ctx.etat.fouilleEnCours===null);
+}
+
+/* =================================================================
+   5. FRONTIÈRE DE PROFIL
+   `etat` est rechargé à chaque bascule, mais mission, fouille et leçon
+   vivaient hors de lui : une partie commencée sur A se poursuivait sur B,
+   gains et maîtrise inscrits sur la mauvaise progression. Le correctif
+   (resetSessionTransitoire) est dans l'arbre depuis v107 — sans une seule
+   assertion. C'est le schéma exact du bug des niveaux : un correctif que
+   personne ne rejoue est un correctif qui peut disparaître sans bruit.
+   ================================================================= */
+if(P && site){
+  ctx=charger();
+  /* `ctx.etat` est figé au chargement ; basculerProfil RÉASSIGNE la variable
+     module. Toute lecture d'état après une bascule doit passer par le getter,
+     sous peine de mesurer le fantôme du profil précédent — c'est précisément
+     la confusion que cette section teste chez l'application. */
+  const E=()=>ctx.getEtat();
+  const idA=ctx.registre.actif;
+
+  /* --- une mission ne traverse pas la bascule --- */
+  ctx.lancerNiveau(P.id,0);
+  T('mission ouverte sur A', !!ctx.mission() && !!ctx.mission().q);
+  ctx.creerProfil('B-test');
+  const idB=ctx.registre.actif;
+  T('le profil B est actif', idB!==idA);
+  T('la mission de A ne traverse pas', ctx.mission()===null);
+  T('le pack actif de A ne traverse pas', ctx.packActif()===null);
+  T('le niveau actif de A ne traverse pas', ctx.niveauActif()===null);
+
+  /* --- les gains d'une mission jouée sur B restent sur B --- */
+  const creditsB0=E().credits;
+  jouerNiveau(P.id,0);
+  const gainB=E().credits-creditsB0;
+  T('une mission jouée sur B paie B', gainB>0, '+'+gainB+' ◈');
+  ctx.basculerProfil(idA);
+  T('retour sur A : la maîtrise de B n a pas déteint',
+    !ctx.niveauAcquis(P.id,0) || JSON.stringify(ctx.prog(P.id).c)!=='{}');
+  const cA=ctx.prog(P.id).c;
+  ctx.basculerProfil(idB);
+  const cB=ctx.prog(P.id).c;
+  T('progressions de A et B distinctes en mémoire', cA!==cB);
+
+  /* --- une fouille payée sur A est due à A, pas à B --- */
+  ctx.basculerProfil(idA);
+  ctx.setSite(site);
+  E().credits=Math.max(E().credits, 1000); ctx.sauver();
+  const soldeA=E().credits;
+  ctx.fouiller();
+  T('fouille ouverte sur A', !!E().fouilleEnCours);
+  ctx.basculerProfil(idB);
+  T('la dette de A ne traverse pas', !E().fouilleEnCours);
+  T('la tranchée de A n est pas ouverte sur B', ctx.qFouille()===null);
+  ctx.basculerProfil(idA);
+  T('au retour, la dette de A est reprise : tranchée rouverte',
+    !!ctx.qFouille() && !!E().fouilleEnCours);
+  T('reprise sans re-paiement', E().credits===soldeA-ctx.COUT_FOUILLE,
+    E().credits+' vs '+(soldeA-ctx.COUT_FOUILLE));
+  /* solder proprement pour la suite */
+  const qA=ctx.qFouille().q;
+  ctx.repFouille(qA.r,{classList:{add(){}},disabled:false});
+  ctx.tirage();
+  T('la dette de A est soldée', E().fouilleEnCours===null);
+}
+
+/* =================================================================
+   6. PRIME PROPORTIONNELLE — quanta1 garde ses 20 questions, la
+   récompense suit (150 × banque / 6). Décision v109.
+   ================================================================= */
+{
+  const q1=ctx.PACKS.find(p=>p.id==='quanta1');
+  T('quanta1 existe avec ses banques longues',
+    !!q1 && q1.niveaux.every(n=>n.bank().length===20));
+  if(q1){
+    T('prime quanta1 alignée sur la banque', ctx.primeDe(q1,0)===500,
+      String(ctx.primeDe(q1,0)));
+  }
+  if(P) T('prime des niveaux ordinaires inchangée', ctx.primeDe(P,0)===ctx.PRIME_NIVEAU,
+    String(ctx.primeDe(P,0)));
+}
+
+/* =================================================================
+   7. IDENTITÉ DES ENTRÉES DE CARNET
+   Prérequis de la sauvegarde en ligne, et bug local en soi. `t` est un
+   Date.now() en millisecondes : plusieurs entrées naissent dans la même, si
+   bien que « Retirer » pouvait effacer la voisine. Côté serveur, dédoublonner
+   sur `t` aurait détruit un tiers des notes à la première synchronisation.
+   ================================================================= */
+{
+  ctx=charger();
+  const E=()=>ctx.getEtat();
+  const site7=siteJouable(ctx);
+  const P7=ctx.PACKS.find(p=>p.niveaux && p.niveaux[0].bank().length===ctx.NB_MISSION);
+
+  /* Fabriquer du carnet par les deux chemins : missions et fouilles. */
+  E().credits=9000; ctx.sauver();
+  for(let r=0;r<4;r++){
+    ctx.lancerNiveau(P7.id,0);
+    for(let k=0;k<ctx.NB_MISSION;k++){
+      const m=ctx.mission(); if(!m||!m.q) break;
+      ctx.repondre(m.q.r); ctx.suite();
+    }
+  }
+  for(let r=0;r<8;r++){
+    ctx.setSite(site7); ctx.fouiller();
+    const qf=ctx.qFouille(); if(!qf) break;
+    ctx.repFouille(qf.q.r,{classList:{add(){}},disabled:false}); ctx.tirage();
+  }
+  const c=E().carnet||[];
+  T('le carnet s est rempli', c.length>10, c.length+' entrées');
+  T('toute entrée porte un eid', c.every(e=>typeof e.eid==='string' && e.eid.length));
+  T('tous les eid sont distincts', new Set(c.map(e=>e.eid)).size===c.length,
+    new Set(c.map(e=>e.eid)).size+' / '+c.length);
+  /* Le fait qui motive tout : les horodatages, eux, ne le sont pas. */
+  const tsDistincts=new Set(c.map(e=>e.t)).size;
+  T('des entrées partagent bien un horodatage — d où l eid',
+    tsDistincts<c.length, tsDistincts+' horodatages pour '+c.length+' entrées');
+  T('les eid ne contiennent que des caractères sûrs pour un attribut onclick',
+    c.every(e=>/^[a-z0-9:_-]+$/i.test(e.eid)), (c.find(e=>!/^[a-z0-9:_-]+$/i.test(e.eid))||{}).eid);
+
+  /* Suppression : la bonne entrée part, et elle est enterrée. */
+  /* Viser le SECOND d'une paire d'horodatage, jamais le premier : sur le
+     premier, l'ancienne recherche par `t` tombait par chance sur la bonne
+     entrée et le bug restait invisible. */
+  const cible=c.find((e,i)=>c.findIndex(x=>x.t===e.t)<i) || c[0];
+  T('le cas de test vise bien un jumeau non premier',
+    c.findIndex(x=>x.t===cible.t)!==c.indexOf(cible));
+  const avant=c.length, autres=c.filter(e=>e.eid!==cible.eid).map(e=>e.eid);
+  ctx.carnetSupprimer(cible.eid);
+  const apres=E().carnet;
+  T('retirer une entrée en retire exactement une', apres.length===avant-1);
+  T('retirer retire la BONNE entrée', !apres.some(e=>e.eid===cible.eid));
+  T('les entrées de même horodatage survivent au retrait',
+    autres.every(id=>apres.some(e=>e.eid===id)));
+  T('l entrée retirée est enterrée', (E().carnetTombes||[]).includes(cible.eid));
+
+  /* Migration d'un carnet hérité : déterministe, sans doublon ni collision. */
+  const herite={carnet:[{k:'note',t:100,note:'a'},{k:'note',t:100,note:'b'},
+                        {k:'note',t:200,note:'c'}]};
+  const m1=ctx.normaliser(JSON.parse(JSON.stringify(herite)));
+  const m2=ctx.normaliser(JSON.parse(JSON.stringify(herite)));
+  T('un carnet hérité reçoit des eid', m1.carnet.every(e=>!!e.eid));
+  T('les eid hérités sont distincts', new Set(m1.carnet.map(e=>e.eid)).size===3,
+    JSON.stringify(m1.carnet.map(e=>e.eid)));
+  T('la migration est déterministe',
+    JSON.stringify(m1.carnet.map(e=>e.eid))===JSON.stringify(m2.carnet.map(e=>e.eid)));
+  T('le premier eid hérité vaut le repli du serveur',
+    m1.carnet[0].eid==='legacy:100');
+  T('carnetTombes existe après normalisation', Array.isArray(m1.carnetTombes));
 }
 
 /* ---- Sortie ---- */

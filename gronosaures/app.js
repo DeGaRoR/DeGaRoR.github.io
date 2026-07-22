@@ -24,7 +24,7 @@
    celle du service worker, faute de quoi le code chargé et le cache qui le sert
    ne parlent pas de la même chose — qc.js le vérifie à chaque passage. */
 const VERSION_APP='v2';
-const VERSION_ATLAS='v108';
+const VERSION_ATLAS='v112';
 
 /* ---------------- 1. Utilitaires ---------------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -82,9 +82,47 @@ function etatVide(){
           fouilleEnCours:null,
           /* Le carnet fait partie de l'état : il est donc porté tel quel par
              l'export de progression et rétabli par normaliser() à l'import. */
-          carnet:[], carnetTri:'tout', carnetOrdre:'asc', carnetGroupe:false};
+          carnet:[], carnetTri:'tout', carnetOrdre:'asc', carnetGroupe:false,
+          /* Identifiants des entrées de carnet retirées. Une suppression sèche
+             suffirait tant qu'il n'y a qu'un appareil ; dès qu'il y en a deux,
+             l'entrée effacée ici réapparaîtrait à la synchronisation suivante
+             depuis l'autre. La liste ne fait que grandir, ce qui la rend
+             commutative : deux appareils qui poussent en même temps aboutissent
+             au même carnet. */
+          carnetTombes:[]};
 }
-function normaliser(e){const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k]; return e;}
+/* Identité d'une entrée de carnet.
+   `t` ne peut pas jouer ce rôle : c'est un Date.now() en millisecondes, et
+   plusieurs entrées naissent couramment dans la même — mesuré sur une partie
+   jouée, 33 entrées ne portaient que 20 horodatages distincts. Localement,
+   « Retirer » effaçait déjà parfois la voisine ; à la synchronisation, le
+   dédoublonnage en aurait détruit un tiers.
+   Caractères volontairement restreints à [a-z0-9:-] : ces identifiants passent
+   dans des attributs onclick et des id de DOM. */
+function eidNeuf(){
+  return 'c'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+}
+/* Les carnets antérieurs n'ont pas d'eid. On leur en attribue un, dérivé de
+   l'horodatage pour rester déterministe : deux appareils qui normalisent le
+   même carnet hérité aboutissent aux mêmes identifiants, donc à une fusion
+   sans doublon. La première entrée d'une milliseconde donnée prend `legacy:<t>`
+   — exactement le repli qu'applique `atlas_sauver` côté serveur. */
+function eidHerite(e, vus){
+  const base='legacy:'+e.t;
+  const n=vus.get(base)||0; vus.set(base, n+1);
+  return n===0 ? base : base+'-'+n;
+}
+function normaliserCarnet(e){
+  if(!Array.isArray(e.carnet)) return;
+  const vus=new Map();
+  e.carnet.forEach(x=>{ if(!x.eid) x.eid=eidHerite(x, vus); });
+}
+function normaliser(e){
+  const d=etatVide(); for(const k in d) if(e[k]===undefined) e[k]=d[k];
+  if(!Array.isArray(e.carnetTombes)) e.carnetTombes=[];
+  normaliserCarnet(e);
+  return e;
+}
 
 /* ---------- Profils locaux ----------
    Tout reste dans localStorage : aucun compte, aucun mot de passe, aucun serveur.
@@ -130,8 +168,14 @@ const SUJETS_INTRO=new Map();
 
 function sauver(){
   const p=profilActif(); if(p) p.vue=Date.now();
+  /* Horodatage de la dernière écriture LOCALE. Il voyage avec l'état, donc la
+     copie distante porte celui de l'appareil qui l'a poussée : c'est ce qui
+     permet, au démarrage, de savoir laquelle des deux versions est la plus
+     récente sans rien demander de plus au serveur. */
+  etat.majLocal=Date.now();
   ecritJSON(cleEtat(registre.actif), etat);
   ecritJSON(PROFILS_CLE, registre);
+  nuagePousserBientot();
 }
 
 function basculerProfil(id){
@@ -147,6 +191,11 @@ function basculerProfil(id){
   if(besoinAccueil()) ouvrirAccueil();
   else if(reprendreFouille()) toast('Profil : '+(profilActif()||{}).nom+' \u00B7 tranchée rouverte');
   else toast('Profil : '+(profilActif()||{}).nom);
+  /* Chaque partie porte sa propre ligne distante et son propre code : changer
+     de profil change donc d'interlocuteur. */
+  nuage={statut:'inactif', detail:'', quand:0};
+  majPastilleNuage();
+  nuageTirer();
 }
 
 function creerProfil(nom){
@@ -176,6 +225,9 @@ function supprimerProfil(id){
        basculerProfil : la session doit y être coupée aussi. */
     resetSessionTransitoire();
     majFondGlobal(); vueCarte(); montrer('fouille');
+    /* Le profil entrant peut porter une fouille payée : elle est due ici comme
+       partout ailleurs — au démarrage et à la bascule. */
+    reprendreFouille();
   }
   ecritJSON(PROFILS_CLE, registre);
   majSolde(); ouvrirReglages();
@@ -1202,7 +1254,15 @@ function trancheeSterile(dejaConsommee){
   if(!dejaConsommee && !consommerFouille()) return;
   qFouille=null;
   $('#tranchee').classList.remove('on');
-  const pool=creaturesDe(siteActif).filter(c=>possede(c.id));
+  /* « La tranchée livre toujours un fragment : jamais rien » — le commentaire
+     le promettait, le filtre `possede()` le trahissait : sur la toute première
+     fouille ratée d'un site neuf, le pool de consolation était vide et la
+     joueuse payait pour un écran vide. Le pire moment pour la pire punition.
+     Quand on ne possède encore rien, l'éclat vient de n'importe quelle
+     créature du chantier — ce qui rend au passage sa raison d'être à la
+     branche `noterCreature`, morte sous l'ancien filtre. */
+  let pool=creaturesDe(siteActif).filter(c=>possede(c.id));
+  if(!pool.length) pool=creaturesDe(siteActif);
   if(pool.length){
     const c=pioche(pool);
     /* `avant` et `apres` étaient tous deux mesurés APRÈS l'incrément : ils
@@ -1211,6 +1271,10 @@ function trancheeSterile(dejaConsommee){
     const avant=niveauDoc(c.id);
     if(!possede(c.id)) noterCreature(c);
     etat.collection[c.id]=fragments(c.id)+1;
+    /* Même règle que tirage() : une créature qui entre dans la collection —
+       désormais possible ici, par un premier éclat — prend son rang de
+       découverte, sans quoi le tri « ordre de trouvaille » l'ignorerait. */
+    if(!etat.ordre[c.id]) etat.ordre[c.id]=++etat.ordreN;
     const apres=niveauDoc(c.id);
     sauver();
     return revealCarte(c, apres>avant?'dossier':'fragment', apres, false,
@@ -1498,13 +1562,86 @@ function friseBascule(id){
    Pas de sous-menus, pas d'onglets — c'est un tiroir, pas un tableau de bord. */
 let vueReglages='profil';
 
+/* ---- Diagnostic ----
+   Il doit répondre à une seule question, et y répondre sans jargon : est-ce
+   que ma partie est à l'abri ailleurs que sur ce téléphone, oui ou non ?
+   Chaque ligne est donc un fait vérifiable, et la phrase du haut dit ce qu'il
+   faut en penser. Les identifiants restent repliés : on ne s'en sert que le
+   jour d'un changement d'appareil. */
+function diagNuageHTML(){
+  const p=nuageProfil()||{};
+  const q=(d)=>{ if(!d) return 'jamais';
+    const s=Math.round((Date.now()-d)/1000);
+    if(s<60) return 'il y a '+s+' s';
+    if(s<3600) return 'il y a '+Math.round(s/60)+' min';
+    /* `jour()` est local au rendu du carnet : on ne l'emprunte pas. */
+    return new Date(d).toLocaleString('fr-BE',
+      {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); };
+  if(!nuageConfigure()){
+    return `<div class="nu-diag">
+      <p class="nu-t">État</p>
+      <div class="nu-ligne"><span>Sauvegarde en ligne</span><b>éteinte</b></div>
+      <p class="nu-aide">L’application fonctionne entièrement sur cet appareil.
+        Pour l’activer, renseigne <code>CLOUD.url</code> et <code>CLOUD.key</code>
+        dans <code>data.js</code>. Rien d’autre ne change.</p></div>`;
+  }
+  const bon=nuage.statut==='ok';
+  const mal=nuage.statut==='erreur'||nuage.statut==='refus';
+  const phrase={
+    ok:'Ta partie est enregistrée en ligne. Rien à faire.',
+    encours:'Envoi en cours…',
+    horsligne:'Pas de réseau. La partie est enregistrée sur l’appareil et repartira toute seule au retour du réseau.',
+    erreur:'La sauvegarde en ligne ne répond pas. <b>Rien n’est perdu</b> : tout est sur l’appareil, et l’application réessaiera au prochain enregistrement.',
+    refus:'Le serveur refuse les identifiants de cette partie. La partie reste intacte sur l’appareil.',
+    inactif:'Pas encore synchronisée. Cela se fera au prochain enregistrement.'
+  }[nuage.statut]||'';
+  return `<div class="nu-diag">
+    <p class="nu-t">État</p>
+    <div class="nu-ligne"><span>Synchronisation</span>
+      <b class="${bon?'nu-ok':mal?'nu-mal':''}">${(NUAGE_LIBELLE[nuage.statut]||[])[1]||'—'}</b></div>
+    <div class="nu-ligne"><span>Dernier échange</span><b>${q(nuage.quand)}</b></div>
+    <div class="nu-ligne"><span>Réseau</span>
+      <b>${(typeof navigator!=='undefined'&&navigator.onLine===false)?'hors ligne':'disponible'}</b></div>
+    <div class="nu-ligne"><span>Cette partie est liée</span><b>${nuageLie()?'oui':'pas encore'}</b></div>
+    <div class="nu-ligne"><span>Entrées de carnet</span><b>${carnet().length}</b></div>
+    ${nuage.detail?`<div class="nu-ligne"><span>Détail</span><b class="${mal?'nu-mal':''}">${esc(nuage.detail)}</b></div>`:''}
+    <p class="nu-aide">${phrase}</p>
+  </div>
+  <button class="rg-item" onclick="nuageMaintenant(this)">
+    <span class="rg-ico">\u27F3</span>
+    <span class="rg-lab">Synchroniser maintenant<small>Envoyer la partie et récupérer ce qui manque</small></span>
+    <span class="rg-chev">\u203A</span></button>
+  ${nuageLie()?`<details class="nu-diag"><summary class="nu-t">Reprendre sur un autre appareil</summary>
+    <p class="nu-aide">Ces deux lignes suffisent à retrouver la partie ailleurs.
+      Elles ne servent à rien d’autre, et personne n’en a besoin au quotidien.</p>
+    <div class="nu-code">${esc(p.nid||'')}</div>
+    <div class="nu-code">${esc(p.ncode||'')}</div></details>`:''}`;
+}
+function rafraichirDiagNuage(){
+  const h=document.getElementById('nu-diag-hote');
+  if(h) h.innerHTML=diagNuageHTML();
+}
+async function nuageMaintenant(btn){
+  if(btn){ btn.disabled=true; }
+  clearTimeout(nuageTimer);
+  await nuagePousser();
+  await nuageTirer();
+  if(btn){ btn.disabled=false; }
+  rafraichirDiagNuage();
+}
+
 function ouvrirReglages(v){
   if(v) vueReglages=v;
   const p=profilActif()||{nom:'Profil'};
   const n=trouvees().length, ch=SITES.filter(s=>etat.sitesOuverts[s.id]).length;
   let html;
 
-  if(vueReglages==='maj'){
+  if(vueReglages==='nuage'){
+    html=`<p class="md-sur">Sauvegarde en ligne</p>
+      <h3>État de la synchronisation</h3>
+      <div id="nu-diag-hote">${diagNuageHTML()}</div>
+      <button class="btn-primaire" onclick="ouvrirReglages('profil')">Retour</button>`;
+  }else if(vueReglages==='maj'){
     html=`<p class="md-sur">Mise à jour</p>
       <h3>Voulez-vous forcer la mise à jour&nbsp;?</h3>
       <p class="rg-note">Si l’application affiche encore l’ancienne version. Aucune progression n’est touchée.</p>
@@ -1895,7 +2032,7 @@ function menuPacks(){
     <button class="btn-surprise" onclick="missionSurprise()">
       <span class="bs-ico">\u{1F3B2}</span>
       <span class="bs-txt"><b>Mission surprise</b>
-        <em>Un pack au hasard \u00B7 gains \u00D7 1,6</em></span></button>
+        <em>Un pack au hasard \u00B7 prime de fin +60&nbsp;%</em></span></button>
     <h3 class="grp">Séries à niveaux <em>récit d'abord, questions ensuite</em></h3>
     ${PACKS.filter(p=>p.niveaux).map(carteSerie).join('')}
     <h3 class="grp">Histoire et philosophie <em>${BAREME.histoire.juste} \u25C8 par bonne réponse</em></h3>
@@ -1992,7 +2129,7 @@ function ouvrirPack(id){
     <details class="theo"><summary>Rappel théorique</summary><div>${theorieHTML(p)}
       <div class="theo-songe">
         <textarea id="sg-pack" rows="2" placeholder="Ce que ça t\u2019inspire"></textarea>
-        <button class="carn-mini" onclick="songePackNoter('${p.id}','${esc(p.nom)}')">Inscrire au carnet</button>
+        <button class="carn-mini" onclick="songePackNoter('${p.id}','${esc(p.nom).replace(/'/g,"\\'")}')">Inscrire au carnet</button>
       </div>
       <div id="songe-hote"></div>
     </div></details>`;
@@ -2106,7 +2243,7 @@ function songePack(id, nom){
 function songePackNoter(id, nom){
   const z=document.getElementById('sg-pack'); const v=z&&z.value.trim();
   if(!v) return;
-  carnet().push({k:'pack', t:Date.now(), id:'pack-'+id+'-'+Date.now(),
+  carnet().push({k:'pack', t:Date.now(), eid:eidNeuf(), id:'pack-'+id+'-'+Date.now(),
                  sujet:nom, note:v});
   sauver();
   const h=document.getElementById('songe-hote');
@@ -2319,10 +2456,15 @@ function reprendreExo(){
   rendreExo();
 }
 function suite(){
-  /* Un double-tap sur « Continuer » après la dernière question appelait suite()
-     alors que finMission avait déjà rendu son écran : mission.i sur null,
-     exception silencieuse. Attrapé en rejouant l'exploit de Louise au harnais. */
-  if(!mission) return;
+  /* Deux gardes, deux histoires. `!mission` : un double-tap sur « Continuer »
+     après la dernière question appelait suite() alors que finMission avait
+     déjà rendu son écran — exception silencieuse. `!mission.resolue` : le
+     harnais montrait qu'une rafale de suite() traversait une mission entière
+     sans répondre et empochait la prime de fin. Le bouton n'existe à l'écran
+     qu'une fois la question résolue, mais un état atteignable est un état qui
+     sera atteint — la garde ferme le chemin plutôt que d'espérer que
+     l'interface le cache. */
+  if(!mission || !mission.resolue) return;
   mission.i++; mission.resolue=false; exoSuivant();
 }
 
@@ -2368,7 +2510,7 @@ function songeQuestion(){
 function songeQuestionNoter(){
   const z=$('#sg-q'); const v=z&&z.value.trim();
   if(!v||!mission||!mission.q) return;
-  carnet().push({k:'pack', t:Date.now(), id:'q-'+Date.now(), ref:mission.ref,
+  carnet().push({k:'pack', t:Date.now(), eid:eidNeuf(), id:'q-'+Date.now(), ref:mission.ref,
                  sujet:(packActif?packActif.nom+' \u00B7 ':'')+mission.q.q.slice(0,80), note:v});
   sauver();
   const h=$('#q-songe');
@@ -2387,7 +2529,7 @@ function songeIntroNoter(){
   const z=$('#sg-intro'); const v=z&&z.value.trim();
   const s=sujetIntro(introSiteId);
   if(!v||!s) return;
-  carnet().push({k:'pack', t:Date.now(), id:'lecon-'+introSiteId+'-'+Date.now(),
+  carnet().push({k:'pack', t:Date.now(), eid:eidNeuf(), id:'lecon-'+introSiteId+'-'+Date.now(),
                  sujet:s.nom+' \u00B7 volet '+(introI+1), note:v});
   sauver();
   const h=$('#intro-songe');
@@ -2415,19 +2557,32 @@ function niveauAcquis(packId,i){
   const c=prog(packId).c||{};
   return p.niveaux[i].bank().every(q=>(c[cleNiveau(i,q.n)]||0)>=SEUIL_MAITRISE);
 }
+/* La prime d'un niveau est proportionnelle à sa banque. Tous les niveaux
+   valent 150 ◈… mais trois niveaux de quanta1 comptent 20 questions là où les
+   autres en ont 6 : les acquérir demande 40 bonnes réponses autonomes au lieu
+   de 12, pour la même prime. Tant que l'acquisition était cassée, personne ne
+   le sentait ; réparée, l'asymétrie devenait une taxe sur la série la plus
+   longue. La longueur est voulue — c'est la récompense qui s'aligne :
+   150 ◈ × taille de la banque / 6, soit exactement 150 pour tous les niveaux
+   ordinaires et 500 pour ceux de quanta1. */
+function primeDe(pack,i){
+  const b=pack&&pack.niveaux&&pack.niveaux[i] ? pack.niveaux[i].bank().length : NB_MISSION;
+  return Math.round(PRIME_NIVEAU*b/NB_MISSION);
+}
 function verifierPrimeNiveau(){
   if(!packActif || niveauActif==null) return;
   const cle=packActif.id+':'+niveauActif;
   etat.niveauxFinis=etat.niveauxFinis||{};
   if(etat.niveauxFinis[cle] || !niveauAcquis(packActif.id, niveauActif)) return;
   etat.niveauxFinis[cle]=true;
-  etat.credits+=PRIME_NIVEAU;
+  const prime=primeDe(packActif, niveauActif);
+  etat.credits+=prime;
   const n=packActif.niveaux[niveauActif];
   noterEvenement('pack', {id:'fin-'+cle, site:packActif.id,
     sujet:'Niveau achevé — '+n.titre,
-    note:'Les six questions sont acquises. Prime : '+PRIME_NIVEAU+' \u25C8.'});
+    note:'Toutes les questions sont acquises. Prime : '+prime+' \u25C8.'});
   majSolde(); sauver();
-  toast('Niveau achevé \u00B7 +'+PRIME_NIVEAU+' \u25C8');
+  toast('Niveau achevé \u00B7 +'+prime+' \u25C8');
 }
 function abandonner(){
   if(mission&&mission.gagne) toast('Mission interrompue — '+mission.gagne+' \u25C8 conservés');
@@ -2460,7 +2615,177 @@ function finMission(){
   mission=null; sauver();
 }
 
-/* ---------------- 7. Initialisation ---------------- */
+/* ================================================================
+   7. SAUVEGARDE EN LIGNE
+
+   Principe directeur, non négociable : l'appareil est la référence, le serveur
+   est un filet. Rien dans cette section ne doit pouvoir empêcher de jouer.
+   Toute défaillance — pas de configuration, pas de réseau, serveur muet,
+   identifiants refusés — se termine par un état affiché et une partie qui
+   continue exactement comme avant.
+
+   Le code d'un profil est ENGENDRÉ, jamais saisi : Louise ne tape rien et ne
+   retient rien. Il vit à côté du profil, dans le registre local, et n'est donc
+   pas emporté par l'état synchronisé. Il reste lisible dans les réglages pour
+   le jour où l'on voudra reprendre la partie sur un autre appareil.
+   ================================================================ */
+const NUAGE_DELAI=4000;      // temporisation avant poussée, pour ne pas émettre
+                             // un appel par lettre tapée dans un songe
+let nuageTimer=null, nuageEnVol=false, nuageRedemande=false;
+let nuage={statut:'inactif', detail:'', quand:0};
+
+/* `key` est le nom employé par l'Écurie de Légendes, d'où vient cette
+   configuration ; `cle` était le mien. On lit les deux, pour qu'un copier-coller
+   depuis l'un ou l'autre projet fonctionne sans se demander lequel. */
+const nuageCle=()=>(typeof CLOUD!=='undefined' && CLOUD) ? (CLOUD.key||CLOUD.cle||null) : null;
+const nuageConfigure=()=>!!(typeof CLOUD!=='undefined' && CLOUD && CLOUD.url && nuageCle());
+function nuageEtat(statut, detail){
+  nuage={statut, detail:detail||'', quand:Date.now()};
+  majPastilleNuage();
+  if(typeof rafraichirDiagNuage==='function') rafraichirDiagNuage();
+}
+
+/* Un seul point de contact avec le réseau. Toute erreur y est convertie en
+   message lisible : « impossible de joindre le serveur » vaut mieux qu'une
+   trace technique dans un écran destiné à quelqu'un qui veut juste jouer. */
+async function nuageRPC(fn, corps){
+  if(!nuageConfigure()) throw new Error('Sauvegarde en ligne non configurée');
+  let r;
+  try{
+    r=await fetch(CLOUD.url+'/rest/v1/rpc/'+fn, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', apikey:nuageCle(),
+               Authorization:'Bearer '+nuageCle()},
+      body:JSON.stringify(corps)
+    });
+  }catch(e){ throw new Error('Serveur injoignable'); }
+  if(!r.ok) throw new Error('Le serveur a refusé (code '+r.status+')');
+  return r.json();
+}
+
+/* Le code n'est jamais montré à la création ni exigé à l'ouverture. Alphabet
+   sans I, O, 0 ni 1 : il finira lu à voix haute ou recopié à la main le jour
+   d'un changement d'appareil. */
+function codeNeuf(){
+  const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<16;i++){ if(i&&i%4===0) s+='-'; s+=A[Math.floor(Math.random()*A.length)]; }
+  return s;
+}
+const nuageProfil=()=>profilActif()||null;
+const nuageLie=()=>{ const p=nuageProfil(); return !!(p && p.nid && p.ncode); };
+
+/* Rattachement paresseux : on ne crée la ligne distante qu'au premier besoin,
+   pour qu'une partie jamais synchronisée n'occupe rien. */
+async function nuageRattacher(){
+  const p=nuageProfil(); if(!p) return false;
+  if(p.nid && p.ncode) return true;
+  const code=codeNeuf();
+  const id=await nuageRPC('atlas_creer', {p_prenom:p.nom||'Profil', p_code:code, p_etat:etat});
+  p.nid=String(id).replace(/"/g,''); p.ncode=code;
+  ecritJSON(PROFILS_CLE, registre);
+  return true;
+}
+
+/* Au démarrage et à chaque changement de profil. La copie distante ne remplace
+   la locale que si elle est PLUS RÉCENTE ; dans tous les cas le carnet est
+   réuni, jamais choisi — une note ne se rejoue pas. */
+async function nuageTirer(){
+  if(!nuageConfigure() || !nuageLie()) return;
+  const p=nuageProfil();
+  nuageEtat('encours','Lecture');
+  try{
+    const distant=await nuageRPC('atlas_lire', {p_id:p.nid, p_code:p.ncode});
+    if(!distant){ nuageEtat('refus','Identifiants refusés par le serveur'); return; }
+    const fusion=fusionnerCarnet(etat, distant);
+    if((distant.majLocal||0) > (etat.majLocal||0)){
+      etat=normaliser(distant);          // la version distante est la plus fraîche
+    }
+    etat.carnet=fusion.carnet;
+    etat.carnetTombes=fusion.tombes;
+    ecritJSON(cleEtat(registre.actif), etat);
+    majSolde(); majFondGlobal(); vueCarte();
+    nuageEtat('ok','À jour');
+  }catch(e){ nuageEtat('erreur', e.message); }
+}
+
+/* La même union que celle d'`atlas_sauver`, rejouée ici pour la LECTURE : le
+   serveur ne fusionne qu'à l'écriture, et il ne faut pas attendre la prochaine
+   sauvegarde pour voir revenir une note prise ailleurs. */
+function fusionnerCarnet(local, distant){
+  const cle=e=>e.eid || ('legacy:'+e.t);
+  const quand=e=>e.songeT||e.t||0;
+  const tombes=[...new Set([...(local.carnetTombes||[]), ...((distant&&distant.carnetTombes)||[])])];
+  const par=new Map();
+  for(const e of [...(local.carnet||[]), ...((distant&&distant.carnet)||[])]){
+    const k=cle(e);
+    if(tombes.includes(k)) continue;
+    const v=par.get(k);
+    if(!v || quand(e)>quand(v)) par.set(k,e);
+  }
+  return {carnet:[...par.values()].sort((a,b)=>(a.t||0)-(b.t||0)), tombes};
+}
+
+function nuagePousserBientot(){
+  if(!nuageConfigure()) return;
+  clearTimeout(nuageTimer);
+  nuageTimer=setTimeout(nuagePousser, NUAGE_DELAI);
+}
+
+async function nuagePousser(){
+  if(!nuageConfigure()) return;
+  /* Une poussée à la fois. Si l'état change pendant l'envoi, on en refait une
+     APRÈS plutôt que d'en lancer deux en parallèle : deux écritures
+     concurrentes sur la même ligne se répondraient en dernier arrivé gagne. */
+  if(nuageEnVol){ nuageRedemande=true; return; }
+  if(typeof navigator!=='undefined' && navigator.onLine===false){
+    nuageEtat('horsligne','Hors ligne — la partie est enregistrée sur l’appareil');
+    return;
+  }
+  nuageEnVol=true;
+  nuageEtat('encours','Envoi');
+  try{
+    await nuageRattacher();
+    const p=nuageProfil();
+    const fusionne=await nuageRPC('atlas_sauver', {p_id:p.nid, p_code:p.ncode, p_etat:etat});
+    if(!fusionne){ nuageEtat('refus','Identifiants refusés par le serveur'); return; }
+    /* Le serveur rend le carnet fusionné : on l'adopte, sinon la note prise sur
+       l'autre appareil ne reviendrait qu'au prochain démarrage. */
+    if(Array.isArray(fusionne.carnet)) etat.carnet=fusionne.carnet;
+    if(Array.isArray(fusionne.carnetTombes)) etat.carnetTombes=fusionne.carnetTombes;
+    ecritJSON(cleEtat(registre.actif), etat);
+    nuageEtat('ok','Sauvegardé en ligne');
+  }catch(e){
+    /* On ne perd rien : la version locale reste la référence et la prochaine
+       sauvegarde réessaiera. */
+    nuageEtat('erreur', e.message);
+  }finally{
+    nuageEnVol=false;
+    if(nuageRedemande){ nuageRedemande=false; nuagePousserBientot(); }
+  }
+}
+
+/* ---- Pastille d'en-tête ----
+   Discrète par construction : un point coloré et un glyphe, sans texte. Elle
+   n'a pas à commenter en permanence ; elle doit seulement permettre de repérer
+   d'un coup d'œil que quelque chose ne va pas, et de savoir où appuyer. */
+const NUAGE_LIBELLE={
+  inactif:  ['\u25CB', 'Sauvegarde en ligne éteinte'],
+  encours:  ['\u21BB', 'Synchronisation en cours'],
+  ok:       ['\u2601', 'Sauvegardé en ligne'],
+  horsligne:['\u2601', 'Hors ligne — enregistré sur l’appareil'],
+  erreur:   ['\u26A0', 'Synchronisation en échec'],
+  refus:    ['\u26A0', 'Identifiants refusés']
+};
+function majPastilleNuage(){
+  const b=document.getElementById('nuage-etat'); if(!b) return;
+  const [g,t]=NUAGE_LIBELLE[nuage.statut]||NUAGE_LIBELLE.inactif;
+  b.textContent=g;
+  b.className='nuage-'+nuage.statut;
+  b.title=t+(nuage.detail?' \u00B7 '+nuage.detail:'');
+  b.setAttribute('aria-label', t);
+  b.style.display=nuageConfigure()?'':'none';
+}
+/* ---------------- 8. Initialisation ---------------- */
 function init(){
   $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>montrer(b.dataset.ecran)));
   /* Le clic n'importe où faisait avancer le volet — pratique pour lire, mais
@@ -2513,6 +2838,15 @@ function init(){
   if(registre.liste.length>1) ouvrirChoixProfil();
   else if(besoinAccueil()) ouvrirAccueil();
   else reprendreFouille();
+  /* La synchronisation vient APRÈS que l'écran soit en place : elle ne doit
+     retarder l'ouverture de rien. Si le réseau manque, on ne le saura qu'à la
+     pastille, et la partie aura déjà commencé. */
+  majPastilleNuage();
+  nuageTirer();
+  if(typeof window!=='undefined' && window.addEventListener){
+    window.addEventListener('online',  ()=>{ nuageEtat('encours','Retour du réseau'); nuagePousserBientot(); });
+    window.addEventListener('offline', ()=>nuageEtat('horsligne','Hors ligne — enregistré sur l’appareil'));
+  }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',init);
@@ -2544,7 +2878,7 @@ function carnet(){ return (etat.carnet=etat.carnet||[]); }
 function noterQuestion(q, juste){
   const c=carnet();
   if(c.some(e=>e.k==='q' && e.id===q.id)) return;   /* une trace par question */
-  c.push({k:'q', t:Date.now(), id:q.id, site:q.site||'',
+  c.push({k:'q', t:Date.now(), eid:eidNeuf(), id:q.id, site:q.site||'',
           q:q.q, r:q.r, exp:q.exp||'',
           src:q.src&&q.src[1]?[q.src[0],q.src[1]]:null, lien:false, juste:!!juste});
   sauver();
@@ -2553,7 +2887,7 @@ function noterQuestion(q, juste){
 function noterEvenement(k, champs){
   const c=carnet();
   if(champs.id && c.some(e=>e.k===k && e.id===champs.id)) return;
-  c.push(Object.assign({k, t:Date.now()}, champs));
+  c.push(Object.assign({k, t:Date.now(), eid:eidNeuf()}, champs));
   sauver();
 }
 
@@ -2596,7 +2930,7 @@ function douter(ref, id, sujet){
   const z=document.getElementById('doute-txt-'+ref);
   const t=z&&z.value.trim();
   if(!t) return;
-  carnet().push({k:'doute', t:Date.now(), id:id||'', sujet:sujet||'', note:t, resolu:false});
+  carnet().push({k:'doute', t:Date.now(), eid:eidNeuf(), id:id||'', sujet:sujet||'', note:t, resolu:false});
   sauver();
   const b=document.getElementById('doute-boite-'+ref);
   if(b) b.innerHTML='<span class="doute-ok">Noté au carnet.</span>';
@@ -2635,9 +2969,9 @@ function carnetLiens(){
   carnet().filter(e=>e.src&&e.src[1]).forEach(e=>{
     const k=e.src[1];
     const p=vus.get(k)||{titre:e.src[0], url:k, lien:false, n:0, site:e.site||'',
-                         t:e.t, id:e.id, songe:e.songe};
+                         eid:e.eid, id:e.id, songe:e.songe};
     p.lien=p.lien||!!e.lien; p.n++;
-    if(e.songe && !p.songe){ p.songe=e.songe; p.t=e.t; p.id=e.id; }
+    if(e.songe && !p.songe){ p.songe=e.songe; p.eid=e.eid; p.id=e.id; }
     vus.set(k,p);
   });
   return [...vus.values()].sort((a,b)=>(b.lien?1:0)-(a.lien?1:0)||a.titre.localeCompare(b.titre));
@@ -2647,7 +2981,7 @@ function ajouterNote(){
   const z=document.getElementById('carn-note-txt');
   const t=z&&z.value.trim();
   if(!t) return;
-  carnet().push({k:'note', t:Date.now(), note:t});
+  carnet().push({k:'note', t:Date.now(), eid:eidNeuf(), note:t});
   sauver(); rendreCarnet();
 }
 
@@ -2660,23 +2994,31 @@ let carnetQ='';
 /* Ses propres notes lui appartiennent : elle doit pouvoir les corriger et les
    effacer. Les entrées automatiques — exercices, découvertes — se suppriment
    aussi : le carnet est à elle, pas un journal système. */
-function carnetSupprimer(t){
-  const c=carnet(), i=c.findIndex(e=>e.t===t);
+/* Toutes ces fonctions prennent désormais l'eid, jamais l'horodatage : deux
+   entrées peuvent partager `t`, et « Retirer » effaçait alors la première
+   trouvée — pas forcément celle sur laquelle on avait appuyé. */
+const entree=id=>carnet().find(x=>x.eid===id);
+function carnetSupprimer(id){
+  const c=carnet(), i=c.findIndex(e=>e.eid===id);
   if(i<0) return;
-  c.splice(i,1); sauver(); rendreCarnet();
+  c.splice(i,1);
+  /* On enterre plutôt qu'on n'efface : sans cette trace, la synchronisation
+     ferait revenir l'entrée depuis la copie distante. */
+  etat.carnetTombes=etat.carnetTombes||[];
+  if(!etat.carnetTombes.includes(id)) etat.carnetTombes.push(id);
+  sauver(); rendreCarnet();
 }
-function carnetEditer(t){
-  const c=carnet(), e=c.find(x=>x.t===t);
-  if(!e) return;
-  const z=document.getElementById('ed-'+t);
+function carnetEditer(id){
+  const e=entree(id); if(!e) return;
+  const z=document.getElementById('ed-'+id);
   if(!z){ rendreCarnet(); return; }
-  e.note=z.value.trim(); sauver(); rendreCarnet();
+  e.note=z.value.trim(); e.songeT=Date.now(); sauver(); rendreCarnet();
 }
-function carnetOuvrirEdition(t){
-  const e=carnet().find(x=>x.t===t); if(!e) return;
-  const h=document.getElementById('corps-'+t); if(!h) return;
-  h.innerHTML=`<textarea class="carn-ed" id="ed-${t}" rows="3">${esc(e.note||'')}</textarea>
-    <button class="carn-mini" onclick="carnetEditer(${t})">Enregistrer</button>
+function carnetOuvrirEdition(id){
+  const e=entree(id); if(!e) return;
+  const h=document.getElementById('corps-'+id); if(!h) return;
+  h.innerHTML=`<textarea class="carn-ed" id="ed-${id}" rows="3">${esc(e.note||'')}</textarea>
+    <button class="carn-mini" onclick="carnetEditer('${id}')">Enregistrer</button>
     <button class="carn-mini" onclick="rendreCarnet()">Annuler</button>`;
 }
 /* LE SONGE.
@@ -2688,27 +3030,30 @@ function carnetOuvrirEdition(t){
 
    Il s'accroche à l'entrée plutôt que de vivre à côté : rouvrir un lien un
    mois plus tard, c'est retrouver le lien ET ce qu'on en avait tiré. */
-function songeOuvrir(t){
-  const e=carnet().find(x=>x.t===t); if(!e) return;
-  const h=document.getElementById('songe-'+t); if(!h) return;
-  h.innerHTML=`<textarea class="songe-ed" id="sg-${t}" rows="3"
+function songeOuvrir(id){
+  const e=entree(id); if(!e) return;
+  const h=document.getElementById('songe-'+id); if(!h) return;
+  h.innerHTML=`<textarea class="songe-ed" id="sg-${id}" rows="3"
       placeholder="Ce que ça t’inspire, ce que tu en retiens, ce qui cloche">${esc(e.songe||'')}</textarea>
-    <button class="carn-mini" onclick="songeNoter(${t})">Inscrire</button>
+    <button class="carn-mini" onclick="songeNoter('${id}')">Inscrire</button>
     <button class="carn-mini" onclick="rendreCarnet()">Annuler</button>`;
-  const z=document.getElementById('sg-'+t); if(z) z.focus();
+  const z=document.getElementById('sg-'+id); if(z) z.focus();
 }
-function songeNoter(t){
-  const e=carnet().find(x=>x.t===t); if(!e) return;
-  const z=document.getElementById('sg-'+t); if(!z) return;
+function songeNoter(id){
+  const e=entree(id); if(!e) return;
+  const z=document.getElementById('sg-'+id); if(!z) return;
   const v=z.value.trim();
   if(v) { e.songe=v; e.songeT=Date.now(); } else { delete e.songe; delete e.songeT; }
   sauver(); rendreCarnet();
 }
 
 /* Un doute résolu n'est pas un doute effacé : il reste, barré, avec sa date. */
-function carnetResoudre(t){
-  const e=carnet().find(x=>x.t===t); if(!e) return;
-  e.resolu=!e.resolu; sauver(); rendreCarnet();
+function carnetResoudre(id){
+  const e=entree(id); if(!e) return;
+  /* `songeT` sert d'horodatage de DERNIÈRE MODIFICATION pour la fusion
+     distante : sans lui, rouvrir un doute sur un appareil serait écrasé par la
+     version plus ancienne de l'autre. */
+  e.resolu=!e.resolu; e.songeT=Date.now(); sauver(); rendreCarnet();
 }
 
 function rendreCarnet(){
@@ -2750,9 +3095,9 @@ function rendreCarnet(){
              <b>${esc(l.titre)}</b>
              <small>${l.lien?'déjà ouvert':'jamais ouvert'}${l.n>1?' · '+l.n+' questions':''}</small></a>
            ${l.songe?`<blockquote class="songe">${esc(l.songe)}
-             <button class="songe-mod" onclick="songeOuvrir(${l.t})">\u270E</button></blockquote>`
-            :`<button class="carn-mini songe-add" onclick="songeOuvrir(${l.t})">Inscrire un songe</button>`}
-           <div id="songe-${l.t}"></div></div>`).join('')}</div>`
+             <button class="songe-mod" onclick="songeOuvrir('${l.eid}')">\u270E</button></blockquote>`
+            :`<button class="carn-mini songe-add" onclick="songeOuvrir('${l.eid}')">Inscrire un songe</button>`}
+           <div id="songe-${l.eid}"></div></div>`).join('')}</div>`
       : `<p class="carnet-vide">Les sources rencontrées se rangeront ici.</p>`)+saisie;
     return;
   }
@@ -2839,7 +3184,7 @@ function rendreCarnet(){
     const resume=e.q||e.nom||e.sujet||e.note||T.lab;
     const songe=e.songe
       ? `<blockquote class="songe">${esc(e.songe)}
-           <button class="songe-mod" onclick="songeOuvrir(${e.t})" title="Modifier">\u270E</button>
+           <button class="songe-mod" onclick="songeOuvrir('${e.eid}')" title="Modifier">\u270E</button>
          </blockquote>`
       : '';
     /* Ouvertes d'emblée : les découvertes, parce que l'image est la
@@ -2849,14 +3194,14 @@ function rendreCarnet(){
     return `<details class="carnet-e t-${e.k}${e.resolu?' resolu':''}${e.songe?' a-songe':''}${dansLot?' dans-lot':''}"${ouvrir?' open':''}>
       <summary><span class="carn-ico" title="${T.lab}">${T.ico}</span>
         <span class="carn-resume">${esc(resume)}</span></summary>
-      <div class="carn-txt"><div id="corps-${e.t}">${inner}</div>
+      <div class="carn-txt"><div id="corps-${e.eid}">${inner}</div>
         ${songe}
-        <div id="songe-${e.t}"></div>
+        <div id="songe-${e.eid}"></div>
         <div class="carn-actions">
-          ${e.songe?'':`<button class="carn-mini songe-add" onclick="songeOuvrir(${e.t})">Inscrire un songe</button>`}
-          ${e.k==='doute'?`<button class="carn-mini" onclick="carnetResoudre(${e.t})">${e.resolu?'Rouvrir':'Résolu'}</button>`:''}
-          ${modifiable?`<button class="carn-mini" onclick="carnetOuvrirEdition(${e.t})">Modifier</button>`:''}
-          <button class="carn-mini" onclick="carnetSupprimer(${e.t})">Retirer</button>
+          ${e.songe?'':`<button class="carn-mini songe-add" onclick="songeOuvrir('${e.eid}')">Inscrire un songe</button>`}
+          ${e.k==='doute'?`<button class="carn-mini" onclick="carnetResoudre('${e.eid}')">${e.resolu?'Rouvrir':'Résolu'}</button>`:''}
+          ${modifiable?`<button class="carn-mini" onclick="carnetOuvrirEdition('${e.eid}')">Modifier</button>`:''}
+          <button class="carn-mini" onclick="carnetSupprimer('${e.eid}')">Retirer</button>
         </div></div></details>`;
   }
 }

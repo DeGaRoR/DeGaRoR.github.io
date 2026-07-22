@@ -385,6 +385,44 @@ nav.tabs button:active{background:rgba(255,255,255,.07)}
 #btn-reglages::before{content:'\25C9'; color:var(--patine); font-size:.7rem; flex:0 0 auto}
 #btn-profil-nom{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 #btn-reglages:active{background:rgba(255,255,255,.12)}
+/* Pastille de synchronisation. Volontairement muette : un glyphe, une couleur,
+   pas de texte. Elle ne commente pas la partie, elle permet de repérer d'un
+   coup d'œil que quelque chose cloche — et sert de porte vers le diagnostic.
+   Cible tactile portée à 34 px malgré la petite taille visuelle. */
+#nuage-etat{
+  flex:0 0 auto; margin-left:8px; width:34px; height:34px;
+  display:grid; place-items:center;
+  background:transparent; border:1px solid var(--bord); border-radius:999px;
+  color:var(--txt2); font-size:.9rem; line-height:1; cursor:pointer;
+  transition:color .2s ease, border-color .2s ease, opacity .2s ease;
+}
+#nuage-etat:active{background:rgba(255,255,255,.12)}
+#nuage-etat.nuage-inactif{color:var(--txt2); opacity:.35}
+#nuage-etat.nuage-ok{color:var(--patine); border-color:rgba(255,255,255,.10); opacity:.55}
+#nuage-etat.nuage-encours{color:var(--txt2); opacity:.9}
+#nuage-etat.nuage-horsligne{color:var(--txt2); opacity:.45}
+#nuage-etat.nuage-erreur,
+#nuage-etat.nuage-refus{color:#e0a34a; border-color:rgba(224,163,74,.45); opacity:1}
+@media (prefers-reduced-motion:no-preference){
+  #nuage-etat.nuage-encours{animation:nuage-pulse 1.4s ease-in-out infinite}
+}
+@keyframes nuage-pulse{50%{opacity:.35}}
+
+/* Bloc de diagnostic dans les réglages. */
+.nu-diag{margin:14px 0; padding:12px; border:1px solid var(--bord); border-radius:10px}
+.nu-diag .nu-t{margin:0 0 8px; font-size:.72rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--txt2)}
+.nu-ligne{display:flex; justify-content:space-between; gap:12px; padding:4px 0;
+  font-size:.82rem; border-bottom:1px solid rgba(255,255,255,.05)}
+.nu-ligne:last-of-type{border-bottom:0}
+.nu-ligne span{color:var(--txt2)}
+.nu-ligne b{text-align:right; word-break:break-word; font-weight:600}
+.nu-ok{color:var(--patine)}
+.nu-mal{color:#e0a34a}
+.nu-code{margin-top:8px; font-family:ui-monospace,monospace; font-size:.82rem;
+  letter-spacing:.06em; word-break:break-all; color:var(--txt2)}
+.nu-aide{margin:8px 0 0; font-size:.76rem; line-height:1.45; color:var(--txt2)}
+
 #reglages{
   position:fixed; inset:0; z-index:80; display:none; place-items:center;
   background:rgba(6,10,18,.82); padding:20px;

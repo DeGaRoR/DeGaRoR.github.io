@@ -25,7 +25,7 @@ try{ (new Function(src+'\n;Object.assign(this,{CREATURES,QUIZ_PALEO,SITES,PACKS,
 catch(e){ console.error('data.js illisible :',e.message); process.exit(1); }
 const {CREATURES,QUIZ_PALEO,SITES,PACKS,ORTHO,HISTOIRE,GEN_MATHS,TEMPS,PRIME_NIVEAU,conjuguer,participe,
        sujetPour,verbesNiv,VER_IRR,SEUILS_DOC,COUT_FOUILLE,CREDITS_DEPART,NB_MISSION,
-       BAREME,BONUS_SITE,BONUS_PART,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
+       BAREME,BONUS_SITE,BONUS_PART,FOUILLE_VIDE,CARTE_ZOOM_MIN,CARTE_GROUPE,CARTE_LARGEUR_MIN,
        COUT_BASE,COUT_PAS,COUT_PLATEAU,COUT_DEPART,COUT_MARCHE,COUT_MAX,FICHES_LIBRES,PERIODES,GRANDS_GROUPES,grandGroupe,periodeDe,EMBLEMES,emblemeDe,fondDe,ART_EU,ART_MONDE,CREATURE_ACCUEIL}=sandbox;
 
 /* ---------- 1. Fichiers attendus ---------- */
@@ -523,6 +523,13 @@ T('aucune famille ne rassemble plus de la moitié de la collection',
   T('la tranchée stérile aussi', /function trancheeSterile\(dejaConsommee\)/.test(app));
   T('une fouille interrompue est reprise ou remboursée',
     app.includes('function reprendreFouille('));
+/* La prime s'aligne sur la longueur du niveau : trois niveaux de quanta1
+     comptent 20 questions au lieu de 6, donc 40 bonnes réponses autonomes pour
+     l'acquisition au lieu de 12. À prime fixe, la série la plus longue était la
+     moins payée par question acquise. La longueur est un choix assumé ; la
+     récompense suit (150 × banque / 6). */
+  T('la prime suit la taille de la banque', app.includes('function primeDe(')
+    && /PRIME_NIVEAU\*b\/NB_MISSION/.test(app));
   T('reprise : un seul chemin de rendu',
     app.includes('function rendreFeedback(') && app.includes('function reprendreExo(')
     && !app.includes('function afficherResolution('));
@@ -1458,6 +1465,45 @@ CREATURES.forEach(c=>T('sw met en cache '+c.id, sw.includes(c.img)));
 T('manifest référencé', html.includes('manifest.json'));
 const man=JSON.parse(lire('manifest.json'));
 man.icons.forEach(i=>T('icône '+i.src, existe(i.src)));
+
+/* ---------- Le README ne doit pas mentir ----------
+   Pour une application aussi pilotée par les données, une documentation fausse
+   est plus dangereuse qu'une documentation absente : elle se lit avec confiance.
+   Le README annonçait 18 sites, 110 créatures et 360 questions pour 30 / 193 /
+   640, et son tableau de réglages donnait SEUILS_DOC et BONUS_PART à des valeurs
+   abandonnées depuis longtemps — au point que les ordres de grandeur calculés à
+   partir de là étaient faux d'un facteur deux.
+
+   Cette porte ne relit pas la prose : elle vérifie que les nombres qui décrivent
+   l'état COURANT sont ceux de data.js. Les journaux de version datés (« Seize
+   chantiers, 360 questions — v34 ») décrivent le passé et restent exacts : on ne
+   contrôle donc que les sections au présent, en tête de fichier. */
+{
+  const rm=lire('README.md');
+  const presentDoc=rm.slice(0, rm.indexOf('## Packs à venir'));
+  const dit=(quoi,motif)=>T('README à jour : '+quoi, motif.test(presentDoc),
+    'introuvable — '+motif);
+  const nb=n=>new RegExp('\\b'+n+'\\b');
+  const cell=(nom,val)=>new RegExp('`'+nom+'`[^|]*\\|[^|]*'+val);
+  dit('nombre de sites',      nb(SITES.length));
+  dit('nombre de créatures',  nb(CREATURES.length));
+  dit('nombre de questions',  nb(QUIZ_PALEO.length));
+  dit('COUT_FOUILLE',         cell('COUT_FOUILLE', COUT_FOUILLE));
+  dit('CREDITS_DEPART',       cell('CREDITS_DEPART', CREDITS_DEPART));
+  dit('NB_MISSION',           cell('NB_MISSION', NB_MISSION));
+  dit('PRIME_NIVEAU',         cell('PRIME_NIVEAU', PRIME_NIVEAU));
+  dit('SEUILS_DOC',           cell('SEUILS_DOC', '`\\['+SEUILS_DOC.join(',')+'\\]`'));
+  dit('BONUS_PART',           cell('BONUS_PART', String(BONUS_PART).replace('.',',')));
+  dit('FOUILLE_VIDE',         cell('FOUILLE_VIDE', '`'+FOUILLE_VIDE+'`'));
+  dit('FICHES_LIBRES',        cell('FICHES_LIBRES', '`'+FICHES_LIBRES+'`'));
+  const couts=SITES.map(s=>s.cout);
+  dit('fourchette des coûts de site',
+    new RegExp(Math.min(...couts)+'\\s*(?:→|-|–)\\s*'+Math.max(...couts)));
+  /* Les comptes périmés doivent avoir disparu des sections au présent. */
+  [['18 sites',/\b18 sites\b/],['110 créatures',/\b110 créatures\b/],
+   ['360 questions',/\b360 questions\b/],['dix-huit sites',/dix-huit sites/i]]
+   .forEach(([quoi,motif])=>T('README purgé de « '+quoi+' »', !motif.test(presentDoc)));
+}
 
 /* ---------- Rapport ---------- */
 console.log('');

@@ -66,7 +66,7 @@ de Madagascar, et que personne ne l'avait vu pendant trois versions. Elle a ress
 depuis, en attrapant l'Anti-Atlas posé sur un liseré côtier.
 
 `smoke.js` joue la boucle réelle — ouvrir un chantier, poser la question, répondre,
-tirer — jusqu'à documenter intégralement les dix-huit sites, et contrôle la
+tirer — jusqu'à documenter intégralement tous les sites, et contrôle la
 comptabilité des crédits à l'unité près ainsi que la platitude de la répartition des
 questions. Il fixe la graine de `Math.random` : un harnais qui échoue une fois sur
 quinze finit par être ignoré. `GRAINE`, en tête de fichier, permet de rejouer une
@@ -85,45 +85,29 @@ app.js          7 sections : utilitaires, état, navigation, fouille, collection
                 la section 4 explique pourquoi le tap sur les épingles est géré à la main
 sw.js           atlas-v73 · CODE réseau d'abord, IMAGES cache d'abord ; 254 entrées ; liste dérivée de data.js
 monde.jpg       carte du monde, 1535 × 1024 ; repère des coordonnées d'épingles
-cartes/         110 illustrations, nommées d'après creature_id
+cartes/         193 illustrations, nommées d'après creature_id
 sites/          18 vues de site
 tools/          qc.js, smoke.js, ingest.py, pins.py, masque_terre.json, AJOUT_PACK.md
 ```
 
 ## Contenu
 
-Dix-huit sites, 110 créatures, 360 questions de fouille. `SITES` est classé du plus
-ancien au plus récent, et c'est cet ordre qui structure la collection :
+Trente sites, 193 créatures, 640 questions de fouille (20 par site). `SITES` est
+classé du plus ancien au plus récent, et c'est cet ordre qui structure la
+collection. La table complète des sites, avec leurs bornes, leur nombre de
+créatures et leur coût, n'est pas recopiée ici : elle vivrait faux à la première
+retouche de données. Elle se lit directement dans `data.js` (`const SITES=`), qui
+en est la seule source de vérité — et les portes de qualité vérifient que tout le
+reste s'y conforme.
 
-| | Site | Époque | Créatures | Coût |
-|---|---|---|---|---|
-| 1 | Côte d'Hiver, mer Blanche | Édiacarien, 558–550 Ma | 6 | 600 ◈ |
-| 2 | Anti-Atlas marocain | Cambrien → Dévonien, 509–393 Ma | 6 | 280 ◈ |
-| 3 | Schiste de Burgess | Cambrien moyen, 508–505 Ma | 6 | 80 ◈ |
-| 4 | Groupe de Yezo, Hokkaidō | Ordovicien → Crétacé, 470–66 Ma | 6 | 680 ◈ |
-| 5 | Calcaire de Bear Gulch | Dévonien → Permien, 410–272 Ma | 6 | 720 ◈ |
-| 6 | Schistes du Hunsrück | Dévonien inférieur, 408–400 Ma | 6 | 520 ◈ |
-| 7 | Falaise de Miguasha | Dévonien supérieur, 385–360 Ma | 6 | 480 ◈ |
-| 8 | Carrière d'East Kirkton | Carbonifère, 340–299 Ma | 6 | 400 ◈ |
-| 9 | Mazon Creek | Carbonifère, 310–307 Ma | 6 | 320 ◈ |
-| 10 | Bassin du Karoo | Permien → Trias, 265–247 Ma | 6 | 160 ◈ |
-| 11 | Biote de Luoping | Trias moyen, 247–242 Ma | 6 | 640 ◈ |
-| 12 | Faune de Zhenghe | Jurassique, 186–150 Ma | 6 | 560 ◈ |
-| 13 | Formation de Morrison | Jurassique supérieur, 157–148 Ma | 6 | 200 ◈ |
-| 14 | De Bernissart à Maastricht | Crétacé, 130–66 Ma | 6 | 120 ◈ |
-| 15 | Formation de Yixian | Crétacé inférieur, 126–120 Ma | **8** | 360 ◈ |
-| 16 | Bassin de Nemegt | Crétacé supérieur, 70–68 Ma | 6 | 440 ◈ |
-| 17 | Hell Creek | Crétacé terminal, 68–66 Ma | 6 | 240 ◈ |
-| 18 | Ouadi al-Hitan | Éocène → Oligocène, 51–24 Ma | 6 | 760 ◈ |
+Ce qu'il faut en retenir tient en quelques nombres, tenus à jour parce que le
+harnais les recalcule : les coûts d'ouverture s'échelonnent par paliers de 100 à
+180 ◈ et ne suivent pas l'ordre chronologique — ils dessinent un parcours de jeu,
+pas une frise. Les sites n'ont pas tous le même nombre de créatures (de six à
+treize) : la grille de vignettes, les portes et le calcul d'effort du harnais
+raisonnent donc par créature, jamais par site.
 
-Les coûts d'ouverture ne suivent pas l'ordre chronologique : ils dessinent un
-parcours de jeu, dix-huit paliers de 40 ◈ à partir de 80.
-
-Les sites n'ont pas tous le même nombre de créatures. Yixian en compte huit depuis
-l'index complet ; la grille de vignettes, les portes de qualité et le calcul d'effort
-du harnais raisonnent donc par créature et non par site.
-
-Huit de ces « sites » suivent en réalité un groupe, une lignée, une formation ou
+Plusieurs de ces « sites » suivent en réalité un groupe, une lignée, une formation ou
 même une démarche plutôt qu'un gisement ponctuel : l'Anti-Atlas pour les trilobites,
 Hokkaidō pour les céphalopodes, Bear Gulch pour les chondrichthyens paléozoïques,
 Miguasha pour l'origine des membres, East Kirkton pour les géants du Carbonifère,
@@ -176,7 +160,7 @@ Trois constantes gouvernent cela dans le bloc 2 — `CARTE_ZOOM_MIN`, `CARTE_GRO
   microscopiques chez les holothuries. **Écrite à la main**, mais chaque item porte
   son lien de lecture.
 
-Les 360 QCM paléontologiques (20 par site) ne sont pas un pack : ils servent de droit
+Les 640 QCM paléontologiques (20 par site) ne sont pas un pack : ils servent de droit
 d'entrée à chaque coup de pioche, dans l'onglet Fouille.
 
 Trois cents d'entre eux viennent de la banque source, avec leurs références. Les
@@ -226,25 +210,38 @@ Tout est en tête du bloc 2 de `data.js` :
 |---|---|---|
 | `CREDITS_DEPART` | 260 | Burgess plus six coups de pioche |
 | `COUT_FOUILLE` | 20 | prix d'un coup de pioche |
-| `SITES[].cout` | 80 → 320 | rampe de 40 ◈, puis **plateau** (bloc 30) |
+| `SITES[].cout` | 100 → 180 | paliers de 10 ◈, sans rapport avec l'ordre chronologique |
 | `BAREME.base` | 10 / 7 / 12 | juste · après indice · prime de mission |
 | `BAREME.histoire` | 10 / 7 / 12 | **identique** : choisir son pack ne coûte rien |
+| `BAREME.serie` | 20 / 14 / 40 | les séries paient le double : neuf volets de récit pour six questions |
+| `PRIME_NIVEAU` | 150 | prime versée une fois par niveau acquis, **proportionnelle à la taille de la banque** (`primeDe()`) |
 | `NB_MISSION` | 6 | exercices par mission |
+| `SEUIL_MAITRISE` | 2 | bonnes réponses autonomes pour qu'une question soit acquise |
 | `BONUS_SITE` | 200 | plancher du bonus d'achèvement |
-| `BONUS_PART` | 0,6 | part du coût d'ouverture rendue quand le site est complété |
-| `SEUILS_DOC` | `[0,2,5]` | fragments requis pour les niveaux 1 / 2 / 3 |
+| `BONUS_PART` | 0,84 | part du coût d'ouverture rendue quand le site est complété |
+| `SEUILS_DOC` | `[0,1,2]` | fragments requis pour les niveaux 1 / 2 / 3 |
 | `FOUILLE_VIDE` | `false` | `true` autorise une fouille stérile malgré une bonne réponse |
+| `FICHES_LIBRES` | `true` | `false` rétablit le déverrouillage des fiches à la trouvaille |
 | `NB_ESSAIS` | 2 | essais sur la question de fouille (en tête de la section 4e d'`app.js`) |
 
 Ordres de grandeur mesurés par le harnais : une mission parfaite rapporte 72 ◈ dans
-les deux filières, soit 2,4 coups de pioche.
-Documenter un site au niveau 3 sur ses six créatures demande 53 fouilles en médiane,
-ce qui fait revenir chacune des 20 questions du site deux à trois fois.
+les deux filières, soit 3,6 coups de pioche.
+Documenter entièrement un site — troisième palier sur chacune de ses créatures —
+demande environ 20 fouilles en médiane pour un site de six créatures, et une
+cinquantaine pour le plus fourni, qui en compte treize. Chacun des sites porte
+20 questions de fouille (deux en portent 40), qui reviennent donc plusieurs fois
+au cours de sa documentation : c'est voulu, la répétition espacée est le seul
+mécanisme d'ancrage de la filière paléo.
 
-Sur les dix-huit sites : découvrir les 110 créatures coûte environ 9 600 ◈ nets, soit
-134 missions. Depuis la v6, le bonus d'achèvement vaut 60 % du coût d'ouverture du
-site, avec un plancher de 200 ◈ : ouvrir Ouadi al-Hitan coûte près de dix fois
-Burgess, le compléter ne pouvait pas rapporter la même chose.
+Sur les trente sites : documenter les 193 créatures au troisième palier demande
+autour de 700 fouilles, soit environ 13 000 ◈ nets une fois retranchés les bonus
+d'achèvement — de l'ordre de 180 missions parfaites. C'est un long horizon,
+assumé : l'atlas se complète en saisons, pas en une soirée. Le bonus d'achèvement
+vaut 84 % du coût d'ouverture du site avec un plancher de 200 ◈ ; comme les coûts
+actuels s'échelonnent tous de 100 à 180 ◈, le plancher l'emporte partout et chaque
+site rapporte aujourd'hui les mêmes 200 ◈ à l'achèvement. Le versant proportionnel
+de `bonusDe()` est donc en sommeil — c'est un état de fait, pas une panne, et un
+bonus uniforme se lit mieux qu'un barème.
 
 Aucune pénalité ne retire de crédits acquis. Une réponse trouvée après l'indice ou au
 second essai rapporte moins et ne compte pas comme maîtrise autonome, mais donne
@@ -257,7 +254,7 @@ Le classement n'est pas un confort : chacun enseigne autre chose.
 
 | Vue | Sections | Ce qu'elle fait voir |
 |---|---|---|
-| Par chantier | les 18 sites, par ordre chronologique | où l'on a creusé |
+| Par chantier | les 30 sites, par ordre chronologique | où l'on a creusé |
 | Par période | Édiacarien → Néogène, avec l'ère et les bornes en Ma | ce qui a vécu en même temps, et les trous |
 | Par famille | 14 grands groupes | qui est parent de qui, indépendamment de l'âge et du lieu |
 

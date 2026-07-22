@@ -8116,6 +8116,30 @@ QUIZ_PALEO.push(
       c'est-à-dire en une à deux missions.
    ================================================================ */
 
+/* ================================================================
+   SAUVEGARDE EN LIGNE — configuration
+
+   Même projet Supabase que l'Écurie de Légendes, table distincte
+   (`atlas_profils`). L'URL et la clé anonyme vivent ici en clair, comme pour
+   les chevaux : c'est l'usage prévu d'une clé « anon », et elle n'ouvre rien
+   toute seule. La table a la RLS active SANS AUCUNE POLICY, donc elle est
+   inaccessible en direct ; tout passe par trois fonctions, et chacune exige
+   l'identifiant du profil ET son code. La clé permet de frapper à la porte,
+   pas de l'ouvrir.
+
+   Tant que ces deux champs valent `null`, l'application se comporte exactement
+   comme avant : tout est local, aucun appel réseau, et l'icône de synchro reste
+   éteinte. La sauvegarde en ligne est un filet, jamais une dépendance.
+   ================================================================ */
+const CLOUD = {
+  // Project URL Supabase (base, sans /rest/v1)
+  url: 'https://broauveyitegsqzdilwo.supabase.co',
+  // Clé « anon public » — faite pour être publique. Elle ne donne accès à rien
+  // seule : `atlas_profils` a la RLS active sans aucune policy, et les trois
+  // fonctions exigent l'identifiant du profil ET son code.
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb2F1dmV5aXRlZ3NxemRpbHdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNTg5OTAsImV4cCI6MjA5ODczNDk5MH0.7QsK43BDoGFxr8EspxiytACi3JWcrXY1t0xjD7V-6fM'
+};
+
 const FICHES_LIBRES=true;   // false rétablit le déverrouillage à la trouvaille
 
 const COUT_DEPART=100;      // premier chantier de la frise
