@@ -206,19 +206,20 @@
      icon: "chemin"   → forcer une icône (sinon détection auto)
    ============================================================ */
 const APPS = [
-  { title: "AI Roboclash PWA",            desc: "Construis ton robot, détruis les autres.",                          url: "battlebotsPWA/index.html" },
-  { title: "Écurie de Légendes",          desc: "Collectionne les chevaux — gacha familial.",                        url: "ecurieDeLegende/index.html" },
-  { title: "Process This in Space",       desc: "Survie thermodynamique avancée sur Planet X.",                      url: "processor/processThis.html" },
-  { title: "Recycle PWA",                 desc: "Un Factorio inversé — enfin là, et presque fun.",                   url: "recyclePWA/index.html" },
   { title: "X Boson Conquest",            desc: "RTS minimaliste en temps réel.",                                    url: "XBC/index.html" },
-  { title: "Roboclash",                   desc: "Version single-file originale.",                                    url: "battleBots/ai-roboclash.html" },
-  { title: "Random Claw Machine On Fire", desc: "Quel extincteur artistique vas-tu pêcher ?",                        url: "onfire/extincteurGrapinRandom.html" },
+   { title: "Process This in Space",       desc: "Survie thermodynamique avancée sur Planet X.",                      url: "processor/processThis.html" }, 
+  { title: "AI Roboclash",            desc: "Construis ton robot, détruis les autres.",                          url: "battlebotsPWA/index.html" },
+  { title: "Écurie de Légendes",          desc: "Collectionne les chevaux — gacha familial.",                        url: "ecurieDeLegende/index.html" },
   { title: "Gronosaures et trilobytes",   desc: "Deviens paléontologue en testant ta culture générale (niveau adulte).", url: "gronosaures/index.html" },
+  { title: "Recycle",                 desc: "Un Factorio inversé — enfin là, et presque fun.",                   url: "recyclePWA/index.html" },
+
+  { title: "Random Claw Machine On Fire", desc: "Quel extincteur artistique vas-tu pêcher ?",                        url: "onfire/extincteurGrapinRandom.html" },
+
 
   /* --- archives (n'apparaissent que dans la liste du bas) --- */
+    { title: "Roboclash",                   desc: "Version single-file originale.",                                    url: "battleBots/ai-roboclash.html" , archived:true},
   { title: "The God Engineer",            desc: "Survie / gestion au tour par tour.",     url: "TGE/index.html",                                   archived: true },
   { title: "PTIS stable",                 desc: "Ancienne version stable.",               url: "PTIS_stable/processThis.html",                     archived: true },
-  { title: "Kate wants YOU!",             desc: "Prototype abandonné.",                   url: "KATE/index.html",                                  archived: true },
   { title: "Recycle (single-file)",       desc: "Première version.",                      url: "Recycle/recycle.html",                             archived: true },
   { title: "Pugface Production",          desc: "Site du studio.",                        url: "webgames/index.html",                              archived: true },
   { title: "Time Flies",                  desc: "Scroll shooter à travers le temps.",     url: "timeFlies/index.html",                             archived: true },
@@ -299,7 +300,10 @@ async function hydrate(app, card) {
   const link =
     doc.querySelector('link[rel="apple-touch-icon"]') ||
     doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
-  if (link) setIcon(iconBox, new URL(link.getAttribute("href"), appURL));
+  if (link) { setIcon(iconBox, new URL(link.getAttribute("href"), appURL)); return; }
+
+  // 3) convention maison : un icon.png posé dans le dossier de l'app suffit
+  setIcon(iconBox, new URL("icon.png", appURL));
 }
 
 function setIcon(iconBox, url) {

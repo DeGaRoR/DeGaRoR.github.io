@@ -1,7 +1,10 @@
 # AI ROBOCLASH — PWA
 
 ## Lancer en local
-Le service worker exige http(s) — ne pas ouvrir index.html en `file://`.
+Le service worker exige http(s). Ouvrir index.html en `file://` fonctionne
+depuis la v8 mais en MODE DÉGRADÉ : teinte des châssis simplifiée (multiply
+plein au lieu de la séparation peinture/métal), pas de hors-ligne. Pour le
+rendu complet et le SW :
 
     cd pwa
     python3 -m http.server 8080     # ou : npx serve .

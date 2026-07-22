@@ -4,12 +4,10 @@
     --radius:12px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; background:var(--bg); color:var(--ink);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:15px;}
-  #app{max-width:520px; margin:0 auto; padding:10px 12px 40px;}
-  h1{font-size:19px; margin:4px 0 0; letter-spacing:.5px;}
-  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;
-    position:sticky; top:0; z-index:40; background:var(--bg); padding:8px 0 6px;}
+  body{margin:0;} /* fond, encre et fonte : roboclash-ui.css */
+  #app{max-width:var(--rc-maxw); margin:0 auto; padding:10px 12px 40px;}
+  /* cédé à roboclash-ui.css */
+  /* cédé à roboclash-ui.css */
   .progress{font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center;}
   .dots{letter-spacing:2px; color:var(--accent);}
   .lang{font-size:12px; background:var(--panel2); border:0; border-radius:8px;
@@ -93,10 +91,9 @@
     background:var(--accent); color:#1a1c22; cursor:pointer; min-width:74px;}
   .gbuy:disabled{background:var(--panel2); color:var(--muted); cursor:default;}
   .gbuy.maxed{background:var(--panel2); color:var(--good);}
-  .tabs{display:flex; gap:6px; margin:10px 0 2px;}
-  .tab{flex:1; border:0; border-radius:10px; padding:9px 0; font-size:13px; font-weight:700;
-    background:var(--panel); color:var(--muted); cursor:pointer;}
-  .tab.active{background:var(--accent); color:#1a1c22;}
+  /* cédé à roboclash-ui.css */
+  /* cédé à roboclash-ui.css */
+  /* cédé à roboclash-ui.css */
   .botrow{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
   .botrow canvas{width:84px; height:84px; flex:0 0 84px;}
   .botrow.big canvas{width:120px; height:120px; flex:0 0 120px;}

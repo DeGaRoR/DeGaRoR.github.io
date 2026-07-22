@@ -276,7 +276,7 @@ const ENGINE = (() => {
       selfRight:st.selfRight, hasSrimech:st.hasSrimech, drainMul:st.drainMul, edgePush:st.edgePush, escape:st.escape,
       cogFactor:(typeof build.stability==="number"?build.stability:st.cogFactor), lift:0, beachedT:0,
       mode:"stalk", modeChanged:false, dominatedT:0, contactT:0,
-      flippedT:0, throttleL:0, throttleR:0, edgeTime:0,
+      flippedT:0, flipAccT:0, throttleL:0, throttleR:0, edgeTime:0,
     };
   }
 
@@ -492,6 +492,7 @@ const ENGINE = (() => {
       const foe = m.bots[1-bot.id];
       bot.modeChanged = false;
       if (bot.flippedT > 0){
+        bot.flipAccT += Math.min(dt, bot.flippedT);  // cumul réel du temps passé retourné
         bot.flippedT -= dt;
         bot.beachedT = (bot.beachedT || 0) + dt; // cumulative time on your back (attrition)
         bot.throttleL = bot.throttleR = 0;

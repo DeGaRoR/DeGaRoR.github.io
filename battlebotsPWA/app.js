@@ -23,33 +23,75 @@ const OPP_NAMES = ["GRIZZLI","TRANCHE","RIVET","PIKPIK","MAMMOUTH","VORTEX","CAF
    STATE (localStorage, guarded)
    ============================================================ */
 const SKEY = "roboclash_s4";
+/* S2 — PIÈCES EN INSTANCES (SAVE_V=4).
+   Source de vérité : S.inv (instances individuelles) + bot.fit (uid par slot).
+   bot.equipped / bot.counts sont des CACHES dérivés, régénérés par refit()
+   après chaque mutation — ne JAMAIS y écrire directement. Le moteur, le
+   layout, l'homologation et bk.lock consomment ces caches, inchangés.
+   Politique pré-release : pas de migration — toute sauvegarde d'une autre
+   version ou invalide est écartée et remplacée (validState). */
+const SAVE_V = 4;
+// a chassis is valid only if the engine knows it; unknown → fall back rather than crash.
+function validChassis(ch){ return (ch && ENGINE.PHYS.chassis[ch] && ENGINE.CHASSIS[ch]) ? ch : "boxy"; }
+const DEF_SLOT = {};                        // def -> slot d'appartenance (catalogue)
+for (const sl in ENGINE.PARTS) for (const p of ENGINE.PARTS[sl]) DEF_SLOT[p.id] = sl;
+const BASE_KIT = { propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0", sensors:"n0" }; // kit de tout châssis neuf
+function mintInto(inv, def, extra){ const uid = "i"+(++inv.seq);
+  inv.items[uid] = Object.assign({ def, wear:0 }, extra||{}); return uid; }
+function bareBot(chassis){
+  return { chassis: validChassis(chassis), fit:{},
+    customize:{ color:"#59627a", stickers:[], placed:[] }, layout:null,
+    equipped:{}, counts:{} }; }             // caches (voir refit)
+function newBotInto(inv, chassis){
+  const b = bareBot(chassis);
+  for (const sl in BASE_KIT) b.fit[sl] = [ mintInto(inv, BASE_KIT[sl]) ];
+  return b; }
 function defaultState(){
+  const inv = { seq:0, items:{} };
+  const bot = newBotInto(inv, "boxy");
   return {
+    v: SAVE_V,
     lang:"fr", beaten:0, speed:1,           // beaten = qualifier+friendly wins (param unlocks)
     level:1, beatenAtLevel:0,               // 2 qualifier wins open the tournament
     bolts:0,
-    parts:{
-      owned:{ propulsion:["pr0"], motor:["m0"], cpu:["c0"], battery:["b0"],
-        armor:[], weapon1:[], weapon2:[], software:[],
-        ballast:[], sensors:["n0"], srimech:[], cooling:[] },
-      equipped:{ propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0",
-        armor:null, weapon1:null, weapon2:null, software:null,
-        ballast:null, sensors:"n0", srimech:null, cooling:null },
-    },
+    inv, garage:[bot], activeBot:0,
     badges:[], champion:false,
-    customize:{ color:"#59627a", stickers:[], placed:[] },
-    layout:null,                            // per-slot editor positions (null = defaults)
     tourney:null,                           // {idx, opponents:[{name,archetype,build,level}x3]}
+    concours:{},                            // progression par concours engagé (id → état de format, + lock éventuel)
+    concoursDone:{},                        // concours menés à leur terme (unlock déclaratif)
     settings:{...ENGINE.SLICE1.playerBuild},
     opponent:null,                          // current qualifier {name, archetype, build, level}
   };
 }
+/* validState — rejet des schémas étrangers/invalides (remplace les migrations).
+   Vérifie : version, structure inv, uid référencés existants, jamais double-
+   référencés, du bon slot, mono-def par slot, seq cohérent. */
+function validState(st){
+  try{
+    if (!st || st.v !== SAVE_V) return false;
+    if (!st.inv || typeof st.inv.seq !== "number" || !st.inv.items) return false;
+    if (!Array.isArray(st.garage) || !st.garage.length) return false;
+    for (const uid in st.inv.items){
+      const n = parseInt(String(uid).slice(1), 10);
+      if (!(n >= 1 && n <= st.inv.seq)) return false;
+      if (!DEF_SLOT[st.inv.items[uid].def]) return false; }
+    const seen = {};
+    for (const b of st.garage){
+      if (!b || typeof b !== "object" || !b.fit) return false;
+      for (const sl in b.fit){
+        if (!Array.isArray(b.fit[sl])) return false;
+        let d0 = null;
+        for (const uid of b.fit[sl]){
+          const it = st.inv.items[uid];
+          if (!it || seen[uid] || DEF_SLOT[it.def] !== sl) return false;
+          if (d0 && it.def !== d0) return false;       // mono-def par slot
+          d0 = it.def; seen[uid] = 1; } } }
+    return true;
+  } catch(e){ return false; }
+}
 
-// stackable internal slots (L3.5 multiplicity) — declared here: read during boot by installedElsewhere()
+// stackable internal slots (L3.5 multiplicity) — donnée UI : quels slots offrent ±
 const STACK_SLOTS = { motor:1, battery:1, cooling:1, ballast:1 };
-// a chassis is valid only if the engine knows it; unknown → fall back rather than crash.
-// ENGINE-side registries only: app-layer CHASSIS_SPEC is declared after the boot block.
-function validChassis(ch){ return (ch && ENGINE.PHYS.chassis[ch] && ENGINE.CHASSIS[ch]) ? ch : "boxy"; }
 /* A3 — slots optionnels. La pièce d'indice 0 d'un slot à masse 0 ET coût 0 n'est
    pas un objet : c'est l'ABSENCE. L'état stocke null pour ces slots ; le moteur
    garde son descripteur zéro (partOf(slot,null) le résout). Dérivé des données :
@@ -58,18 +100,28 @@ const EMPTY_ID = {}, OPTIONAL_SLOTS = {};
 for (const sl of Object.keys(ENGINE.PARTS)){ const p0 = ENGINE.PARTS[sl][0];
   if (p0.cost === 0 && ENGINE.partMassKg(sl, p0.id) === 0){ OPTIONAL_SLOTS[sl] = true; EMPTY_ID[sl] = p0.id; } }
 const normEquip = (slot, id) => (OPTIONAL_SLOTS[slot] && id === EMPTY_ID[slot]) ? null : id;
-// ---- L1 Garage & Inventory: a bot = chassis + loadout; parts live in a shared pool ----
-function defaultBot(chassis){
-  return { chassis: validChassis(chassis),
-    equipped:{ propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0", armor:null,
-      weapon1:null, weapon2:null, software:null, ballast:null, sensors:"n0", srimech:null, cooling:null },
-    customize:{ color:"#59627a", stickers:[], placed:[] }, layout:null, counts:{} }; }
-function AB(){ return S.garage[S.activeBot]; }                       // active bot (source of truth)
-function syncActive(){ const b=AB(); S.parts=S.parts||{}; S.parts.equipped=b.equipped; S.customize=b.customize; } // live pointers
-function invCount(id){ return (S.inventory&&S.inventory[id])||0; }   // total copies owned
-function installedElsewhere(id){ let n=0; S.garage.forEach((b,i)=>{ if(i===S.activeBot) return;
-  for(const s in b.equipped) if(b.equipped[s]===id) n += (b.counts&&STACK_SLOTS[s]?(b.counts[s]||1):1); }); return n; }
-function availFor(id){ return invCount(id) - installedElsewhere(id); } // copies free for the active bot
+// ---- L1 Garage & Inventory: un bot = châssis + fit (uid par slot) ; les pièces vivent dans S.inv ----
+function AB(){ return S.garage[S.activeBot]; }                       // active bot
+function syncActive(){ const b=AB(); S.parts=S.parts||{}; S.parts.equipped=b.equipped; S.customize=b.customize; } // live pointers (caches)
+/* refit — régénère les caches type-niveau (equipped/counts) depuis fit. */
+function refit(bot, inv){ inv = inv || S.inv;
+  bot.fit = bot.fit || {};
+  bot.equipped = {}; bot.counts = {};
+  for (const sl in ENGINE.PARTS){
+    const arr = bot.fit[sl] || (bot.fit[sl] = []);
+    bot.equipped[sl] = arr.length ? ((inv.items[arr[0]]||{}).def || null) : null;
+    if (arr.length > 1) bot.counts[sl] = arr.length; } }
+function fittedMap(){ const m={}; S.garage.forEach((b,bi)=>{
+  for(const sl in (b.fit||{})) for(const uid of b.fit[sl]) m[uid]={bot:bi, slot:sl}; }); return m; }
+function mintInstance(def, extra){ return mintInto(S.inv, def, extra); }
+function invCount(def){ let n=0; for(const u in S.inv.items) if(S.inv.items[u].def===def) n++; return n; } // total instances possédées
+function installedElsewhere(def){ let n=0; S.garage.forEach((b,i)=>{ if(i===S.activeBot) return;
+  for(const sl in (b.fit||{})) for(const uid of b.fit[sl]) if((S.inv.items[uid]||{}).def===def) n++; }); return n; }
+function availFor(def){ return invCount(def) - installedElsewhere(def); } // copies hors autres bots
+function freeUids(def){ const fm = fittedMap();                       // instances libres, moins usée d'abord
+  return Object.keys(S.inv.items)
+    .filter(u => S.inv.items[u].def===def && !fm[u])
+    .sort((a,b) => (S.inv.items[a].wear||0) - (S.inv.items[b].wear||0)); }
 function recomputeOwned(){ // rebuild S.parts.owned for the active bot: a part shows if a copy is free (or it's already equipped here)
   const owned={}, eq=AB().equipped;
   for(const slot in eq){ owned[slot]=[];
@@ -79,117 +131,26 @@ function recomputeOwned(){ // rebuild S.parts.owned for the active bot: a part s
     if(!owned[slot].length) owned[slot]=[eq[slot]]; }
   S.parts.owned=owned; }
 
-// tier-based mods (slice 2 saves) -> parts chain
-function modsToParts(mods){
-  const m = mods || {};
-  const chain = (list, n) => list.slice(0, Math.max(1, (n||0)+1));
-  const owned = {
-    motor:   chain(["m0","m1","m2"], m.motor),
-    battery: chain(["b0","b1","b2"], m.battery),
-    tires:   chain(["t0","t1","t2"], m.tires),
-    plow:    (m.plow ? ["p0","p1"] : ["p0"]),
-  };
-  return { owned, equipped:{ motor:owned.motor[owned.motor.length-1],
-    battery:owned.battery[owned.battery.length-1],
-    tires:owned.tires[owned.tires.length-1],
-    plow:owned.plow[owned.plow.length-1] } };
-}
-// s3 saves: tires -> propulsion (t*->pr*), plow -> armor (p*->a*), new slots stock
-function s3PartsToS4(p3){
-  const d = defaultState().parts;
-  if (!p3 || !p3.owned) return d;
-  const mapIds = (arr, from, to) => (arr||[]).map(id=>id.replace(from,to));
-  d.owned.motor = p3.owned.motor || ["m0"];
-  d.owned.battery = p3.owned.battery || ["b0"];
-  d.owned.propulsion = mapIds(p3.owned.tires, "t", "pr");
-  d.owned.armor = mapIds(p3.owned.plow, "p", "a");
-  const e = p3.equipped || {};
-  d.equipped.motor = e.motor || "m0";
-  d.equipped.battery = e.battery || "b0";
-  d.equipped.propulsion = (e.tires||"t0").replace("t","pr");
-  d.equipped.armor = (e.plow||"p0").replace("p","a");
-  return d;
-}
 let S = defaultState();
 try {
   const raw = localStorage.getItem(SKEY);
-  if (raw) S = {...defaultState(), ...JSON.parse(raw)};
-  else if (localStorage.getItem("roboclash_s3")){
-    const o = JSON.parse(localStorage.getItem("roboclash_s3"));
-    S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
-      settings:{...S.settings, ...(o.settings||{})},
-      beaten:o.beaten||0, level:o.level||1, beatenAtLevel:o.beatenAtLevel||0,
-      bolts:o.bolts||0, badges:o.badges||[], champion:!!o.champion,
-      parts:s3PartsToS4(o.parts), tourney:null, opponent:null};
-  }
-  else {
-    const s2 = localStorage.getItem("roboclash_s2");
-    const s1 = localStorage.getItem("roboclash_s1");
-    if (s2){ // migrate slice-2: mods -> parts; opponents regenerate (their builds carried mods)
-      const o = JSON.parse(s2);
-      S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
-        settings:{...S.settings, ...(o.settings||{})},
-        beaten:o.beaten||0, level:o.level||1, beatenAtLevel:o.beatenAtLevel||0,
-        bolts:o.bolts||0, badges:o.badges||[], champion:!!o.champion,
-        parts:s3PartsToS4(modsToParts(o.mods)), tourney:null, opponent:null};
-    } else if (s1){ // migrate slice-1
-      const o = JSON.parse(s1);
-      S = {...defaultState(), lang:o.lang??"fr", speed:o.speed??1,
-        settings:{...S.settings, ...(o.settings||{})},
-        beaten:o.beaten||0, opponent:null};
-      S.level = Math.min(5, 1 + Math.floor(S.beaten/2));
-      S.beatenAtLevel = Math.min(2, S.beaten % 2);
-      S.bolts = S.beaten * 20; // grandfather earnings
-    }
+  if (raw){
+    const cand = JSON.parse(raw);
+    if (validState(cand)) S = {...defaultState(), ...cand};
+    /* sinon : schéma d'une autre version ou invalide → état neuf, sauvegarde
+       écrasée à la prochaine écriture. Politique pré-release, pas de migration. */
   }
 } catch(e){}
-if (!S.parts || !S.parts.owned || !S.parts.owned.propulsion) S.parts = defaultState().parts;
-if (!S.customize) S.customize = { color:"#59627a", stickers:[], placed:[] };
-if (!S.customize.placed){ S.customize.placed = []; 
-  if (S.customize.sticker) S.customize.placed.push({id:S.customize.sticker, col:4, row:4}); delete S.customize.sticker; }
-// L1: assemble garage + shared inventory (from a modern save, or migrated from flat parts)
-if (!S.garage || !S.garage.length){
-  const bot = defaultBot("boxy");
-  bot.equipped = {...bot.equipped, ...((S.parts&&S.parts.equipped)||{})};
-  bot.customize = S.customize || bot.customize;
-  bot.layout = (S.layout!==undefined) ? S.layout : null;
-  S.garage=[bot]; S.activeBot=0;
-  S.inventory={};
-  const owned=(S.parts&&S.parts.owned)||{};
-  for(const slot in owned) for(const id of owned[slot]) S.inventory[id]=(S.inventory[id]||0)+1;
-  for(const sl in bot.equipped){ const id=bot.equipped[sl]; if(id && !S.inventory[id]) S.inventory[id]=1; }
-}
+S.garage.forEach(b => refit(b));
 if (S.activeBot==null || S.activeBot>=S.garage.length) S.activeBot=0;
-S.garage.forEach(b=>{ if(!b.counts) b.counts={}; b.chassis = validChassis(b.chassis); });
-if (S.bracket && S.bracket.lock) S.bracket.lock.chassis = validChassis(S.bracket.lock.chassis);
-if (!S.inventory) S.inventory={};
-/* A2 — format de sauvegarde versionné. v absent = 1 (format s4 historique,
-   réparé par les gardes ci-dessus). Chaque migration transforme v → v+1 et ne
-   touche QUE les données. Règle : on ne bosse jamais SAVE_V sans écrire la
-   migration correspondante (même vide et commentée). Une sauvegarde d'une
-   version FUTURE n'est jamais rétrogradée ni mutée. */
-const SAVE_V = 3;
-const MIGRATIONS = {
-  1: (S)=>{ /* 1→2 : pose du champ de version ; aucun changement structurel. */ },
-  2: (S)=>{ /* 2→3 : slots optionnels vides → null ; purge des pseudo-pièces.
-               Table volontairement FIGÉE (une migration décrit le passé,
-               elle ne lit jamais les données vivantes). */
-    const EMPT = { armor:"a0", weapon1:"w0", weapon2:"x0", software:"s0",
-                   ballast:"l0", srimech:"r0", cooling:"k0" };
-    const scrub = (eq)=>{ if(eq) for(const sl in EMPT) if(eq[sl]===EMPT[sl]) eq[sl]=null; };
-    (S.garage||[]).forEach(b=>scrub(b.equipped));
-    scrub(S.parts && S.parts.equipped);
-    scrub(S.bracket && S.bracket.lock && S.bracket.lock.parts);
-    if (S.inventory) for(const sl in EMPT) delete S.inventory[EMPT[sl]];
-  },
-};
-function migrateState(S){
-  let v = S.v || 1;
-  if (v > SAVE_V) return S;                 // sauvegarde plus récente que le code : intacte
-  while (v < SAVE_V){ const m = MIGRATIONS[v]; if (m) m(S); v++; }
-  S.v = SAVE_V; return S;
-}
-migrateState(S);
+S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); });
+S.concours = (S.concours && typeof S.concours === "object") ? S.concours : {};
+S.concoursDone = (S.concoursDone && typeof S.concoursDone === "object") ? S.concoursDone : {};
+for (const cid in S.concours){ const st = S.concours[cid];
+  if (st && st.lock) st.lock.chassis = validChassis(st.lock.chassis); }
+/* A2 — SAVE_V et validState sont déclarés en tête d'état. Les migrations
+   ont été retirées (décision : pré-release, joueur unique) — une sauvegarde
+   d'une autre version est écartée, jamais transformée ni rétrogradée. */
 syncActive(); recomputeOwned();
 function saveState(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
 LANG = S.lang;
@@ -269,44 +230,17 @@ function renderHome(){
     $("tourneyPrize").textContent = S.level >= 5
       ? t("tourneyChampPrize", {p:prize})
       : t("tourneyPrize", {p:prize, n:S.level+1});
-    $("friendlyBtn").style.display = "block";
   } else {
     banner.style.display = "none";
-    $("friendlyBtn").style.display = "none";
   }
 
-  // scouting: tournament bracket opponent, or current qualifier
-  const o = inTourney ? S.tourney.opponents[S.tourney.idx] : S.opponent;
-  $("oppName").textContent = o.name;
-  $("oppClass").textContent = t(weightClass(o.build)) + " · " +
-    ENGINE.physStats(o.build).massKg.toFixed(2) + " kg";
-  $("oppWeight").textContent = t("level")+" "+o.level;
-  $("oppTend").textContent = t(ENGINE.tendencyKey(o.build));
-  renderNums($("oppNums"), {...o.build, power:"mixed"});
-  ensureOppColor(o);
-  $("scoutCv")._oppBuild = o.build;
-  drawEditor($("scoutCv"), o.build, autoArrange(o.build), editSpin, -1);
-
-  // player settings: behavior params (pilot), then power (machine)
-  const rows = $("paramRows"); rows.innerHTML = "";
-  const behaviorKeys = ["strategy","aggression","edgeGuard","approach","chargeDist","handling"];
-  for (const key of behaviorKeys) rows.appendChild(makeSeg(key));
-  $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
-
-  const pr = $("powerRow"); pr.innerHTML = ""; pr.appendChild(makeSeg("power"));
-
   // player machine: live numbers + robot editor with equipped parts
+  // (le versus et les réglages de comportement vivent sur l'écran VS — S6)
   const myBuild = {...S.settings, chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed};
   renderNums($("myNums"), myBuild);
   bindEditor();
   renderLayerTabs();
   drawEditor($("editorCv"), myBuild, getLayout(), editSpin, editFocus, showCG, showHB);
-
-  // fight-tab player card (same visual as the editor → WYSIWYG)
-  $("playerClass").textContent = t(weightClass(myBuild)) + " · " + ENGINE.physStats(myBuild).massKg.toFixed(2) + " kg";
-  renderNums($("playerNums"), myBuild);
-  $("playerCv")._build = myBuild;
-  drawEditor($("playerCv"), myBuild, getLayout(), editSpin, -1);
 
   // stat bars (react to Power AND equipped parts)
   const bars = ENGINE.statBars(myBuild);
@@ -319,11 +253,15 @@ function renderHome(){
     sb.appendChild(s);
   }
 
-  renderTournaments();
+  renderLigues();
+  if ($("ligueScreen").style.display === "block") renderLigueScreen();
+  if ($("vsScreen").style.display === "block") renderVsScreen();
   renderBracketView();
-  renderLeagueStandings();
+  renderChampStandings();
   renderGarage();
   renderGarageStrip();
+  renderInventory();
+  renderChassisShop();
   renderWorkshop();
   renderCustomize();
 
@@ -339,17 +277,19 @@ function renderCustomize(){
       cr.appendChild(sw); } }
   const sr=$("stickerRow");
   if(sr){ sr.innerHTML="";
-    if(!S.customize.stickers.length){ const hint=document.createElement("div");
+    if(!ownedStickerIds().length){ const hint=document.createElement("div");
       hint.className="stickerhint"; hint.textContent=t("stickerShopHint"); sr.appendChild(hint); }
-    for(const id of S.customize.stickers){ const st=stickerOf(id); if(!st) continue;
+    for(const id of ownedStickerIds()){ const st=stickerOf(id); if(!st) continue;
       const count=S.customize.placed.filter(p=>p.id===id).length;
       const sw=document.createElement("div");
-      sw.className="swatch"+(count?" on":""); sw.textContent=st.emoji;
+      sw.className="swatch"+(count?" on":"");
+      const im=document.createElement("img"); im.src=st.src; im.alt=id;
+      im.style.cssText="max-width:80%;max-height:80%;object-fit:contain"; sw.appendChild(im);
       sw.title=t("stickerPlace");
       if(count>1){ const badge=document.createElement("div"); badge.className="px"; badge.textContent="×"+count; sw.appendChild(badge); }
       sw.onclick=()=>{ // each tap adds ONE MORE copy; drag it off the hull to remove
         const cell=freeChassisCell({chassis:AB().chassis,parts:{...S.parts.equipped}, counts:{...AB().counts}}, getLayout())||{col:4.5,row:4};
-        S.customize.placed.push({id, col:cell.col, row:cell.row});
+        S.customize.placed.push({id, x:cell.col+0.5, y:cell.row+0.5});
         saveState(); renderCustomize();
       };
       sr.appendChild(sw); }
@@ -417,12 +357,18 @@ const TIER_COLORS = ["#5b6472","#28c39a","#3b82f6","#f0a020","#a78bfa"]; // stoc
 const CHASSIS_COLORS = ["#59627a","#4f83c9","#c9584f","#4fa86b","#d98a45",
   "#9377cc","#3fa8a0","#cfa64f","#c9628f","#8a93a5","#d9c85a","#5566a8","#e8e8e8"];
 const DEFAULT_CHASSIS_COLOR = "#59627a";
-const STICKERS = [
-  {id:"flame",emoji:"🔥",cost:6},{id:"bolt",emoji:"⚡",cost:6},{id:"skull",emoji:"💀",cost:8},
-  {id:"star",emoji:"⭐",cost:5},{id:"crown",emoji:"👑",cost:10},{id:"robot",emoji:"🤖",cost:8},
-  {id:"target",emoji:"🎯",cost:6},{id:"heart",emoji:"❤️",cost:5},{id:"fist",emoji:"👊",cost:6},
-  {id:"gear",emoji:"⚙️",cost:5},{id:"alien",emoji:"👾",cost:8},{id:"trophy",emoji:"🏆",cost:10}];
-function stickerOf(id){ return STICKERS.find(s=>s.id===id) || null; }
+/* S10 — STICKERS/VSTICKERS viennent de data.js (sprites). */
+function stickerOf(id){ return STICKERS.find(s=>s.id===id) || VSTICKERS.find(v=>v.id===id) || null; }
+const _stkImg = {};
+function stickerImg(id){ const st=stickerOf(id); if(!st) return null;
+  return _stkImg[id] || (_stkImg[id]=mkImg(st.src)); }
+function softwareOwned(def){ return !!def && invCount(def) > 0; }
+/* possédés = achetés (par bot) ∪ plaques de version dérivées du logiciel possédé (global) */
+function ownedStickerIds(){
+  const ids = [...(S.customize.stickers||[])];
+  for (const v of VSTICKERS) if (v.sw === null || softwareOwned(v.sw)) ids.push(v.id);
+  return ids;
+}
 function opponentColor(seed){ // deterministic hull colour for opponents
   let h=(seed>>>0)||1; h=(h*2654435761)>>>0; return CHASSIS_COLORS[h % CHASSIS_COLORS.length]; }
 function nameSeed(s){ let h=0; s=s||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h||1; }
@@ -624,25 +570,47 @@ function colliderVis(chassis){ return CELL_PX / viewParams(chassis).cell; }
 // ---- RUSTY chassis sprite (white plate, colourised via multiply) ----
 
 
-const arenaImg=(typeof Image!=="undefined")?Object.assign(new Image(),{src:ARENA_SRC}):null;
+/* [2] Chargement robuste des sprites.
+   mkImg : toute image notifie son arrivée → les tuiles statiques se redessinent.
+   TILE_REG : canvases dessinés une seule fois (boutique, occasion, vignettes bots),
+   ré-exécutés à l'arrivée d'une image, débouncé sur une frame, purgé si détaché. */
+const TILE_REG = new Set();
+let _tilesRaf = 0;
+function tilesDirty(){
+  if(_tilesRaf || typeof requestAnimationFrame==="undefined") return;
+  _tilesRaf = requestAnimationFrame(()=>{ _tilesRaf=0;
+    for(const cv of [...TILE_REG]){
+      if(!cv.isConnected){ TILE_REG.delete(cv); continue; }
+      cv._draw();
+    } });
+}
+function regTile(cv, draw){ cv._draw=draw; TILE_REG.add(cv); draw(); }
+function mkImg(src){
+  if(typeof Image==="undefined") return null;
+  const im = new Image();
+  im.onload = ()=>tilesDirty();
+  im.src = src;
+  return im;
+}
+const arenaImg = mkImg(ARENA_SRC);
 function arenaReady(){ return !!(arenaImg && arenaImg.complete && arenaImg.naturalWidth>0); }
 
 
 const _compImg = {};
 function componentSprite(slot, id){ const t=COMPONENT_SPRITES[slot]; if(!t||!t[id]) return null;
   const k=slot+"/"+id; let im=_compImg[k];
-  if(!im){ im=_compImg[k]=(typeof Image!=="undefined")?Object.assign(new Image(),{src:t[id].src}):null; }
+  if(!im){ im=_compImg[k]=mkImg(t[id].src); }
   return im; }
 function armorSprite(id){ const d=ARMOR_SPRITES[id]; if(!d) return null;
   const k="armor/"+id; let im=_compImg[k];
-  if(!im){ im=_compImg[k]=(typeof Image!=="undefined")?Object.assign(new Image(),{src:d.src}):null; }
+  if(!im){ im=_compImg[k]=mkImg(d.src); }
   return im; }
 const PAINT_LO = 0.42, PAINT_HI = 0.72;   // L<LO → grime/rust kept, L>HI → paint (coloured)
 const _spriteState = {};                   // chassis -> {def,img,layers,tint}
 function spriteState(ch){ if(ch in _spriteState) return _spriteState[ch];
   const def=CHASSIS_SPRITES[ch];
   if(!def){ return _spriteState[ch]=null; }
-  return _spriteState[ch]={ def, img:(typeof Image!=="undefined")?Object.assign(new Image(),{src:def.src}):null, layers:null, tint:{} }; }
+  return _spriteState[ch]={ def, img:mkImg(def.src), layers:null, tint:{} }; }
 function chassisSpriteReady(ch){ const st=spriteState(ch); return !!(st && st.img && st.img.complete && st.img.naturalWidth>0 && typeof document!=="undefined"); }
 // decompose a plate into white PAINT mask + fixed DIRT overlay (grime/rust/scratches, never tinted)
 function chassisLayers(ch){ const st=spriteState(ch); if(st.layers) return st.layers;
@@ -658,12 +626,33 @@ function chassisLayers(ch){ const st=spriteState(ch); if(st.layers) return st.la
     di.data[i]=r; di.data[i+1]=g; di.data[i+2]=b; di.data[i+3]=Math.round(a*(1-p)); }
   px.putImageData(pm,0,0); dx.putImageData(di,0,0);
   return st.layers={paint,dirt}; }
+/* Sous file://, dessiner une image locale CONTAMINE le canvas : toute lecture de
+   pixels (getImageData) jette SecurityError. Les data-URLs d'avant ne taintaient
+   jamais — d'où la régression à l'externalisation des assets. La composition,
+   elle, reste permise : on dégrade vers une teinte multiply pleine, sans
+   séparation peinture/métal. Servi en http(s), le chemin riche reprend. */
+function chassisLayersSafe(ch){
+  const st=spriteState(ch);
+  if(st.layers!==null && st.layers!==undefined) return st.layers;
+  if(st.taintFallback) return null;
+  try { return chassisLayers(ch); }
+  catch(e){ st.taintFallback=true;
+    if(!window.__taintWarned){ window.__taintWarned=true;
+      console.warn("Sprites en mode dégradé (page ouverte en file:// — servez via http pour la teinte riche)."); }
+    return null; } }
 function tintedChassis(ch, color){ const st=spriteState(ch); if(st.tint[color]) return st.tint[color];
-  const L=chassisLayers(ch), img=st.img, w=img.naturalWidth, h=img.naturalHeight;
+  const L=chassisLayersSafe(ch), img=st.img, w=img.naturalWidth, h=img.naturalHeight;
   const oc=document.createElement("canvas"); oc.width=w; oc.height=h; const o=oc.getContext("2d");
-  o.fillStyle=color; o.fillRect(0,0,w,h);
-  o.globalCompositeOperation="destination-in"; o.drawImage(L.paint,0,0);
-  o.globalCompositeOperation="source-over"; o.drawImage(L.dirt,0,0);
+  if(L){                                       // chemin riche : peinture teintée + métal
+    o.fillStyle=color; o.fillRect(0,0,w,h);
+    o.globalCompositeOperation="destination-in"; o.drawImage(L.paint,0,0);
+    o.globalCompositeOperation="source-over"; o.drawImage(L.dirt,0,0);
+  } else {                                     // repli file:// : sprite × couleur (multiply)
+    o.drawImage(img,0,0);
+    o.globalCompositeOperation="multiply"; o.fillStyle=color; o.fillRect(0,0,w,h);
+    o.globalCompositeOperation="destination-in"; o.drawImage(img,0,0);
+    o.globalCompositeOperation="source-over";
+  }
   return st.tint[color]=oc; }
 function chassisFootBox(chassis){ const v=viewParams(chassis), b=chassisBounds(chassis);
   return { x:(b.minC-v.ccol)*v.cell, y:(b.minR-v.crow)*v.cell, w:(b.maxC-b.minC+1)*v.cell, h:(b.maxR-b.minR+1)*v.cell }; }
@@ -806,6 +795,15 @@ function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0, mi
       c.globalAlpha=alpha*Math.min(1,(slip-0.12)/0.5)*0.45; c.fillStyle="#e24b4a"; c.fillRect(-dw/2,-dh/2,dw,dh); }
     c.restore(); return;
   }
+  if (slot==="software"){                                    // S10 : plaque de version comme visuel
+    const vim = stickerImg("v"+String(id).replace(/^s/,""));
+    if (vim && vim.complete && vim.naturalWidth>0){
+      c.save(); c.globalAlpha=alpha;
+      const s2=Math.min(wpx/vim.naturalWidth, hpx/vim.naturalHeight)*1.5;
+      c.drawImage(vim, cx-vim.naturalWidth*s2/2, cy-vim.naturalHeight*s2/2, vim.naturalWidth*s2, vim.naturalHeight*s2);
+      c.restore(); return;
+    }
+  }
   c.save(); c.globalAlpha=alpha;
   let fill=tierColor(slot,id);
   if(slot==="propulsion"&&slip>0.12){ const k=Math.min(1,(slip-0.12)/0.5); fill=mixHex(fill,"#e24b4a",k*0.7); }
@@ -877,13 +875,18 @@ function drawBotTiles(c, build, layout, spin, opts={}){
     .forEach(drawSlot);
   drawArmorShell(c, chassis, eq.armor||"a0");                              // shell over internals
   EDIT_LAYERS[3].slots.forEach(drawSlot);                                  // externals on top
-  const decals = build.stickers0 || [];                                    // placed decals (movable layer)
+  const decals = build.stickers0 || [];                                    // decals : placement LIBRE (x,y continus)
   if(decals.length){ const v=viewParams(chassis);
-    c.save(); c.font=`${Math.round(v.cell*1.5)}px system-ui`; c.textAlign="center"; c.textBaseline="middle";
+    c.save();
     const dim = (opts.focus!=null && opts.focus>=0 && opts.focus!==STICKER_LAYER);
     c.globalAlpha = dim ? 0.3 : 1;
     for(const d of decals){ const st=stickerOf(d.id); if(!st) continue;
-      c.fillText(st.emoji, (d.col+0.5-v.ccol)*v.cell, (d.row+0.5-v.crow)*v.cell); }
+      const cx = (d.x ?? (d.col+0.5)) - v.ccol, cy = (d.y ?? (d.row+0.5)) - v.crow;   // rétro-lecture col/row
+      const im = stickerImg(d.id);
+      if(im && im.complete && im.naturalWidth>0){
+        const hgt = v.cell*1.6, wdt = Math.min(hgt*st.w/st.h, v.cell*4.2), h2 = wdt*st.h/st.w;
+        c.drawImage(im, cx*v.cell - wdt/2, cy*v.cell - h2/2, wdt, h2);
+      } else { c.fillStyle="rgba(255,255,255,.25)"; c.fillRect(cx*v.cell-6, cy*v.cell-6, 12, 12); } }
     c.restore(); }
 }
 function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
@@ -932,7 +935,8 @@ function pxToCell(chassis,x,y){ const v=viewParams(chassis);
 function editorHit(layout, cell){
   if(editFocus<0 || editFocus===STICKER_LAYER){
     for(let i=S.customize.placed.length-1; i>=0; i--){ const d=S.customize.placed[i];
-      if(Math.abs(d.col-cell.col)<=0.5 && Math.abs(d.row-cell.row)<=0.5) return {sticker:i}; } }
+      const cx = d.x ?? (d.col+0.5), cy = d.y ?? (d.row+0.5);
+      if(Math.abs(cx-(cell.col+0.5))<=1.0 && Math.abs(cy-(cell.row+0.5))<=0.8) return {sticker:i}; } }
   if(editFocus===STICKER_LAYER) return null;
   for(let li=EDIT_LAYERS.length-1; li>=0; li--){ if(editFocus>=0&&editFocus!==li) continue;
     for(const slot of EDIT_LAYERS[li].slots){ const p=layout[slot]; if(!p) continue;
@@ -952,13 +956,13 @@ function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bo
   cv.addEventListener("pointermove",(ev)=>{ if(!editDrag) return; const L=getLayout();
     const pt=editorBoardPoint(cv,ev); const cell=pxToCell(AB().chassis,pt.x,pt.y);
     if(editDrag.sticker!=null){
-      // stickers snap to HALF cells (so they can sit dead-centre on the axis);
-      // dragging one off the hull removes it (pointerup handles the delete)
+      // S10 : placement LIBRE — la grille ne contraint plus les décalcomanies.
+      // Glisser hors de la coque supprime (géré au pointerup).
       const v=viewParams(AB().chassis);
-      const colF=Math.round((pt.x/v.cell+v.ccol-0.5)*2)/2, rowF=Math.round((pt.y/v.cell+v.crow-0.5)*2)/2;
-      const inside=cellInChassis(AB().chassis,Math.round(colF),Math.round(rowF));
+      const cx = pt.x/v.cell + v.ccol, cy = pt.y/v.cell + v.crow;
+      const inside = cellInChassis(AB().chassis, Math.floor(cx), Math.floor(cy));
       const d=S.customize.placed[editDrag.sticker];
-      d.col=colF; d.row=rowF; editDrag.off=!inside;
+      d.x=cx; d.y=cy; delete d.col; delete d.row; editDrag.off=!inside;
       return; }
     let col=cell.col-editDrag.dCol, row=cell.row-editDrag.dRow;
     const slot=editDrag.slot, li=SLOT_LAYER[slot];
@@ -982,7 +986,7 @@ function previewLoop(ts){ editSpin=(ts||0)/1000*3;
   if(typeof activeTab!=="undefined"){
     if(activeTab==="workshop"&&$("editorCv"))
       drawEditor($("editorCv"), {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed}, getLayout(), editSpin, editFocus, showCG, showHB);
-    if(activeTab==="fight"&&$("scoutCv")&&$("scoutCv")._oppBuild){
+    if($("vsScreen")&&$("vsScreen").style.display==="block"&&$("scoutCv")&&$("scoutCv")._oppBuild){
       const ob=$("scoutCv")._oppBuild; if(!ob.color)ob.color=opponentColor(nameSeed(ob.name||"")); drawEditor($("scoutCv"), ob, autoArrange(ob), editSpin, -1);
       if($("playerCv")&&$("playerCv")._build) drawEditor($("playerCv"), $("playerCv")._build, getLayout(), editSpin, -1);
     }
@@ -1025,17 +1029,10 @@ function renderWorkshop(){
         }
         sel.onchange = ()=>{
           const prev = S.parts.equipped[slot];
-          S.parts.equipped[slot] = normEquip(slot, sel.value);
-          // packing guard: the new part must actually FIT the hull (with everything
-          // else re-arranged). If not, revert — free up space or wait for a bigger chassis.
-          const build = {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
-          const L = autoArrange(build);
-          if (!layoutValid(build, L)){
-            S.parts.equipped[slot] = prev; sel.value = prev ?? EMPTY_ID[slot];
-            showToast(t("noRoom"));
-            return;
-          }
-          AB().layout = L; recomputeOwned(); saveState(); renderHome(); };
+          if (!tryEquip(slot, sel.value)){
+            sel.value = prev ?? EMPTY_ID[slot];
+            showToast(t("noRoom")); return; }
+          saveState(); renderHome(); };
         row.appendChild(sel);
       } else {
         const hint = document.createElement("button"); hint.className = "ghosthint";
@@ -1058,43 +1055,80 @@ function renderWorkshop(){
 }
 
 
-// stack N copies of a slot's part: uses a free copy from stock, else buys one — then footprint-gated.
-function setCount(slot, delta){
-  const b=AB(); const cur=b.counts[slot]||1, next=Math.max(1, cur+delta);
-  if(next===cur) return;
-  const id=b.equipped[slot];
-  let buyCost=0;
-  if(delta>0){
-    const spare = invCount(id) - installedElsewhere(id) - cur;   // free copies beyond the current stack
-    if(spare < 1){                                               // none free → must buy another copy
-      buyCost = (ENGINE.partOf(slot,id)||{}).cost||0;
-      if(S.bolts < buyCost){ showToast(t("noBolts")); return; }
-    }
-  }
-  const prev=b.counts[slot]; b.counts[slot]=next;
-  const build={chassis:b.chassis, parts:{...b.equipped}, counts:{...b.counts}};
-  const L=autoArrange(build);
-  if(!layoutValid(build, L)){ if(prev==null) delete b.counts[slot]; else b.counts[slot]=prev; showToast(t("noRoom")); return; }
-  if(buyCost){ S.bolts -= buyCost; S.inventory[id]=(S.inventory[id]||0)+1; }  // commit the purchase (it fits)
-  b.layout=L; recomputeOwned(); saveState(); renderHome();
-}
-// equip only if the new part actually fits the hull (auto-arranged); else revert.
-function tryEquip(type, id){
-  const prev = S.parts.equipped[type];
-  S.parts.equipped[type] = normEquip(type, id);
-  const build = {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
+/* ---- S2 : API de mutation unique. Toute modification d'équipement passe
+   par tryFit ; personne n'écrit fit/equipped/counts directement. ---- */
+function invChanged(){ S.garage.forEach(b=>refit(b)); syncActive(); recomputeOwned(); saveState(); }
+/* tryFit — remplace le contenu d'un slot par ces uids, sous contrat :
+   uids existants, libres (ou déjà dans CE slot de CE bot), tous du même def,
+   def appartenant au slot ; slot obligatoire jamais vide ; validé au layout. */
+function tryFit(bot, slot, uids){
+  const bi = S.garage.indexOf(bot), fm = fittedMap();
+  if (uids.length){
+    const d0 = (S.inv.items[uids[0]]||{}).def;
+    if (new Set(uids).size !== uids.length) return false;
+    for (const uid of uids){
+      const it = S.inv.items[uid];
+      if (!it || it.def !== d0 || DEF_SLOT[it.def] !== slot) return false;
+      const w = fm[uid];
+      if (w && !(w.bot === bi && w.slot === slot)) return false; }
+  } else if (!OPTIONAL_SLOTS[slot]) return false;
+  const prev = bot.fit[slot] || [];
+  bot.fit[slot] = uids; refit(bot);
+  const build = {chassis:bot.chassis, parts:{...bot.equipped}, counts:{...bot.counts}};
   const L = autoArrange(build);
-  if(!layoutValid(build, L)){ S.parts.equipped[type] = prev; return false; }
-  AB().layout = L; recomputeOwned(); return true;
+  if (!layoutValid(build, L)){ bot.fit[slot] = prev; refit(bot); return false; }
+  bot.layout = L; return true;
+}
+// stack ± : monte une instance libre du même def (sinon en achète une), démonte la dernière.
+function setCount(slot, delta){
+  const b = AB(), cur = b.fit[slot] || [];
+  if (!cur.length) return;
+  const def = (S.inv.items[cur[0]]||{}).def;
+  if (delta > 0){
+    let uid = freeUids(def)[0], cost = 0;
+    if (!uid){
+      cost = (ENGINE.partOf(slot, def)||{}).cost || 0;
+      if (S.bolts < cost){ showToast(t("noBolts")); return; }
+      uid = mintInstance(def); }                       // mint spéculatif…
+    if (!tryFit(b, slot, cur.concat([uid]))){
+      if (cost) delete S.inv.items[uid];               // …annulé si ça ne rentre pas
+      showToast(t("noRoom")); return; }
+    if (cost) S.bolts -= cost;                         // payé seulement si monté
+  } else {
+    if (cur.length <= 1) return;
+    if (!tryFit(b, slot, cur.slice(0, -1))) return;
+  }
+  invChanged(); renderHome();
+}
+/* tryEquip — équipe un def dans un slot : réutilise les instances déjà montées
+   du bon def, complète avec les libres (moins usées d'abord), préserve la
+   multiplicité tant que le stock libre le permet. null/« vide » → slot vidé. */
+function tryEquip(type, id){
+  const b = AB(), want = normEquip(type, id);
+  let ok;
+  if (want == null) ok = tryFit(b, type, []);
+  else {
+    const cur = b.fit[type] || [];
+    const keep = cur.filter(u => (S.inv.items[u]||{}).def === want);
+    const free = freeUids(want).filter(u => !keep.includes(u));
+    const n = Math.max(1, Math.min(Math.max(cur.length, 1), keep.length + free.length));
+    const uids = keep.concat(free).slice(0, n);
+    if (!uids.length) return false;
+    ok = tryFit(b, type, uids);
+  }
+  if (ok){ syncActive(); recomputeOwned(); }
+  return ok;
 }
 function mkPartCard(type, part, reserved){
-  const card = document.createElement("div"); card.className = "gcard";
-  const cv = document.createElement("canvas"); cv.width = cv.height = 54; cv.className = "gtile";
-  drawPartTile(cv.getContext("2d"), type, part.id, 27, 27, 40, 30, 0, 1);
-  card.appendChild(cv);
-  const nm = document.createElement("div"); nm.className = "gcname"; nm.textContent = t("pn_"+part.id);
+  const card = document.createElement("div"); card.className = "rc-gcard";
+  const art = document.createElement("div"); art.className = "rc-gcard__art";
+  const cv = document.createElement("canvas"); cv.width = cv.height = 54;
+  regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
+    drawPartTile(c, type, part.id, 27, 27, 40, 30, 0, 1); });
+  art.appendChild(cv); card.appendChild(art);
+  const nm = document.createElement("div"); nm.className = "rc-gcard__name"; nm.textContent = t("pn_"+part.id);
   card.appendChild(nm);
-  const fx = document.createElement("div"); fx.className = "gcfx";
+  const fx = document.createElement("div"); fx.className = "rc-gcard__fx";
   fx.textContent = reserved
     ? ((type==="weapon1"||type==="weapon2") ? t("noneAvail") : t("stock"))
     : partFx(type, part);
@@ -1102,20 +1136,20 @@ function mkPartCard(type, part, reserved){
   if (reserved) return card;
   const total = invCount(part.id), elsewhere = installedElsewhere(part.id);
   if (total > 0){
-    const al = document.createElement("div"); al.className = "gcalloc";
+    const al = document.createElement("div"); al.className = "rc-gcard__fx";
     al.textContent = "\u00D7"+total + (elsewhere>0 ? " \u00B7 "+t("onOtherBot",{n:elsewhere}) : "");
     if (elsewhere>0 && elsewhere>=total) al.classList.add("spoken"); // all copies busy elsewhere
     card.appendChild(al);
   }
   const owned = S.parts.owned[type].includes(part.id);
   const equipped = S.parts.equipped[type] === part.id;
-  const btn = document.createElement("button"); btn.className = "gbuy";
-  if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("maxed"); }
+  const btn = document.createElement("button"); btn.className = "rc-buy";
+  if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("is-max"); }
   else if (owned){ btn.textContent = t("equip");
     btn.onclick = ()=>{ if(tryEquip(type, part.id)){ saveState(); renderHome(); } else showToast(t("noRoom")); }; }
   else { btn.textContent = part.cost + " \uD83D\uDD29"; btn.disabled = S.bolts < part.cost;
     btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
-      S.inventory[part.id]=(S.inventory[part.id]||0)+1; recomputeOwned();
+      mintInstance(part.id); recomputeOwned();
       const fits = tryEquip(type, part.id); saveState();
       showToast(fits ? t("bought", {name:t("pn_"+part.id)}) : t("noRoom")); renderHome(); }; }
   card.appendChild(btn);
@@ -1129,11 +1163,10 @@ function setActiveBot(i){ if(i<0||i>=S.garage.length||i===S.activeBot) return;
 function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   if(S.bolts < info.cost){ showToast(t("noBolts")); return; }
   S.bolts -= info.cost;
-  const bot = defaultBot(chassis);
-  for(const sl in bot.equipped){ const id=bot.equipped[sl]; if(id) S.inventory[id]=(S.inventory[id]||0)+1; } // grant its stock parts
+  const bot = newBotInto(S.inv, chassis); refit(bot);   // châssis neuf = kit de base minté
   S.garage.push(bot); S.activeBot = S.garage.length-1;
   syncActive(); recomputeOwned(); saveState();
-  showToast(t("botBought",{name:info.name})); renderHome(); }
+  showToast(t("botBought",{name:info.name})); showTab("workshop"); renderHome(); }
 function drawBotThumb(ctx, chassis, color){ ctx.clearRect(0,0,64,64);
   if(chassisSpriteReady(chassis)){
     const img = color ? tintedChassis(chassis,color) : spriteState(chassis).img;
@@ -1142,19 +1175,81 @@ function drawBotThumb(ctx, chassis, color){ ctx.clearRect(0,0,64,64);
     ctx.drawImage(img, 32-img.width*s/2, 32-img.height*s/2, img.width*s, img.height*s); ctx.globalAlpha=1;
   } else { ctx.fillStyle=color||"#3a4152"; rr(ctx,10,10,44,44,6); ctx.fill(); }
 }
+/* S7 — garage nouvelle formule.
+   Botstrip : uniquement les bots POSSÉDÉS + une cellule Boutique (on n'achète
+   rien au garage). Jeter un bot = deux taps ; les instances montées redeviennent
+   libres PAR DÉRIVATION (libre = non référencée), jamais de perte silencieuse ;
+   le dernier bot est injetable. */
+function scrapBot(i){
+  if (S.garage.length <= 1){ showToast(t("lastBot")); return false; }
+  if (i < 0 || i >= S.garage.length) return false;
+  const name = chassisName(S.garage[i].chassis);
+  S.garage.splice(i, 1);                       // ses instances sont libres dès lors qu'aucun fit ne les référence
+  if (S.activeBot >= S.garage.length) S.activeBot = S.garage.length - 1;
+  else if (i < S.activeBot) S.activeBot--;
+  syncActive(); recomputeOwned(); saveState();
+  showToast(t("botScrapped", {name}));
+  renderHome();
+  return true;
+}
 function renderGarageStrip(){ const el=$("garageStrip"); if(!el) return; el.innerHTML="";
-  const head=document.createElement("div"); head.className="persohead"; head.textContent=t("garageTitle"); el.appendChild(head);
-  const strip=document.createElement("div"); strip.className="botstrip";
-  S.garage.forEach((bot,i)=>{ const card=document.createElement("div"); card.className="botcell"+(i===S.activeBot?" active":"");
-    const cv=document.createElement("canvas"); cv.width=cv.height=64; cv.className="botthumb";
-    drawBotThumb(cv.getContext("2d"), bot.chassis, bot.customize.color); card.appendChild(cv);
-    const nm=document.createElement("div"); nm.className="botname"; nm.textContent=chassisName(bot.chassis); card.appendChild(nm);
-    card.onclick=()=>setActiveBot(i); strip.appendChild(card); });
+  const head=document.createElement("div"); head.className="rc-section"; head.textContent=t("garageTitle"); el.appendChild(head);
+  const strip=document.createElement("div"); strip.className="rc-botstrip";
+  S.garage.forEach((bot,i)=>{ const card=document.createElement("div"); card.className="rc-botcell"+(i===S.activeBot?" is-active":"");
+    const th=document.createElement("div"); th.className="rc-botcell__thumb";
+    const cv=document.createElement("canvas"); cv.width=cv.height=64;
+    regTile(cv, ()=>drawBotThumb(cv.getContext("2d"), bot.chassis, bot.customize.color)); th.appendChild(cv); card.appendChild(th);
+    const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=chassisName(bot.chassis); card.appendChild(nm);
+    card.onclick=()=>setActiveBot(i);
+    if (i===S.activeBot && S.garage.length>1){
+      const sc=document.createElement("button"); sc.className="rc-btn rc-btn--ghost rc-scrap"; sc.textContent=t("scrap");
+      sc.onclick=(e)=>{ e.stopPropagation();
+        if(!sc._arm){ sc._arm=true; sc.textContent=t("confirmAbandon"); return; }   // deux taps
+        scrapBot(i); };
+      card.appendChild(sc);
+    }
+    strip.appendChild(card); });
+  const plus=document.createElement("div"); plus.className="rc-botcell rc-botcell--shop";
+  plus.innerHTML=`<div class="rc-botcell__thumb" style="background:#130a10;color:var(--rc-amber);font:400 22px var(--rc-f-display);display:flex;align-items:center;justify-content:center">+</div>
+    <div class="rc-botcell__name" style="color:var(--rc-amber)">${t("tabShop")}</div>`;
+  plus.onclick=()=>showTab("shop");
+  strip.appendChild(plus);
+  el.appendChild(strip); }
+/* Inventaire global visible : instances LIBRES, groupées par pièce, usure min–max. */
+function renderInventory(){ const el=$("invStrip"); if(!el) return; el.innerHTML="";
+  const head=document.createElement("div"); head.className="rc-section"; head.textContent=t("garageInv"); el.appendChild(head);
+  const fm=fittedMap(), byDef={};
+  for(const uid in S.inv.items){ if(fm[uid]) continue;
+    const it=S.inv.items[uid]; (byDef[it.def]=byDef[it.def]||[]).push(it.wear||0); }
+  const defs=Object.keys(byDef).sort((a,b)=>(DEF_SLOT[a]||"").localeCompare(DEF_SLOT[b]||"")||a.localeCompare(b));
+  if(!defs.length){ const e=document.createElement("div"); e.className="rc-label"; e.textContent=t("invEmpty"); el.appendChild(e); return; }
+  const strip=document.createElement("div"); strip.className="rc-carousel";
+  for(const def of defs){
+    const ws=byDef[def], slot=DEF_SLOT[def];
+    const card=document.createElement("div"); card.className="rc-gcard";
+    const art=document.createElement("div"); art.className="rc-gcard__art";
+    const cv=document.createElement("canvas"); cv.width=cv.height=54;
+    regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
+      drawPartTile(c, slot, def, 27, 27, 40, 30, 0, 1); });
+    art.appendChild(cv); card.appendChild(art);
+    const nm=document.createElement("div"); nm.className="rc-gcard__name"; nm.textContent=t("pn_"+def)+(ws.length>1?" \u00D7"+ws.length:""); card.appendChild(nm);
+    const wmin=Math.min(...ws), wmax=Math.max(...ws);
+    const fx=document.createElement("div"); fx.className="rc-gcard__fx";
+    fx.textContent = wmax>0 ? t("usedWear", {w: wmin===wmax? wmin : wmin+"\u2013"+wmax}) : t("invNew");
+    card.appendChild(fx);
+    strip.appendChild(card);
+  }
+  el.appendChild(strip); }
+/* Châssis À VENDRE : déménagés en boutique (le garage ne vend rien). */
+function renderChassisShop(){ const el=$("chassisShop"); if(!el) return; el.innerHTML="";
+  const head=document.createElement("div"); head.className="rc-section"; head.textContent=t("shopChassis"); el.appendChild(head);
+  const strip=document.createElement("div"); strip.className="rc-botstrip";
   for(const ch of BUYABLE_CHASSIS){ const info=CHASSIS_INFO[ch];
-    const card=document.createElement("div"); card.className="botcell buy"+(S.bolts<info.cost?" cant":"");
-    const cv=document.createElement("canvas"); cv.width=cv.height=64; cv.className="botthumb";
-    drawBotThumb(cv.getContext("2d"), ch, null); card.appendChild(cv);
-    const nm=document.createElement("div"); nm.className="botname"; nm.textContent=info.name; card.appendChild(nm);
+    const card=document.createElement("div"); card.className="rc-botcell"+(S.bolts<info.cost?" cant":"");
+    const th=document.createElement("div"); th.className="rc-botcell__thumb";
+    const cv=document.createElement("canvas"); cv.width=cv.height=64;
+    regTile(cv, ()=>drawBotThumb(cv.getContext("2d"), ch, null)); th.appendChild(cv); card.appendChild(th);
+    const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=info.name; card.appendChild(nm);
     const pr=document.createElement("div"); pr.className="botprice"; pr.textContent=info.cost+" \uD83D\uDD29"; card.appendChild(pr);
     card.onclick=()=>buyBot(ch); strip.appendChild(card); }
   el.appendChild(strip); }
@@ -1192,22 +1287,52 @@ function checkEntry(build, rules){
     if(val > cap+1e-6) fails.push(t("scrMetric",{m:m.label, v:val.toFixed(m.dp), c:(+cap).toFixed(m.dp), u:m.unit})); }
   return { ok:fails.length===0, fails };
 }
-// tournament catalogue (format-extensible; ladder wired now, league/bracket to follow)
+// catalogue des concours (extensible par format : ladder, championnat, coupe)
 /* B2 — une épreuve = deux axes (palier, classe) + un format + des règles, tout en
    données. NOTE chantier D : pas de plafond de masse automatique au palier tant que
    l'économie n'est pas recalée (le bot de départ pèse 1,38 kg > 1,36 officiel). */
-const TOURNAMENTS = [
-  { id:"sumoM", name:"Sumo Classe M", format:"ladder", levels:5,
-    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
-            maxCount:{ motor:3, battery:3 } } },
-  { id:"lightM", name:"Sumo Léger", format:"league", rounds:10,
-    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, banTracks:true, mode:"sumo",
-            metrics:{ weightKg:2.0 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
-  { id:"cupM", name:"Coupe M", format:"bracket", size:16,
-    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
-            maxCount:{ motor:3, battery:3 } } },
-];
-// format engines: encapsulate a competition's state transitions (ladder wired; league/bracket to follow)
+/* TOURNAMENTS et LIGUES vivent dans data.js (principe 1 : les règles sont des
+   données ; ajouter une ligue ou un concours = une entrée, zéro code).
+   ---- S3 : hiérarchie Ligue → Concours → Manche. API d'engagement. ---- */
+const MODE_CONCOURS = { bracket:"cupM", championnat:"lightM" };   // mode de combat → concours (transitoire, les écrans S5+ passeront l'id)
+const CN = id => (S.concours || {})[id] || null;                  // état de progression d'un concours engagé
+function tournamentById(id){ return TOURNAMENTS.find(x => x.id === id) || null; }
+function ligueById(id){ return LIGUES.find(l => l.id === id) || null; }
+/* unlock déclaratif (décision 3a) : null = ouvert ; {placeholder:true} = jamais
+   (« bientôt ») ; {level:n} = niveau d'échelle ; {concoursDone:id} = avoir mené
+   ce concours à son terme. Ajouter une condition = un champ ici, une entrée là-bas. */
+function unlockMet(u){
+  if (!u) return true;
+  if (u.placeholder) return false;
+  if (u.level != null && S.level < u.level) return false;
+  if (u.concoursDone && !S.concoursDone[u.concoursDone]) return false;
+  return true;
+}
+function snapshotBuild(){                                          // gel du build à l'engagement
+  const b = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+  return { ...b, color:S.customize.color, stickers:[...S.customize.placed], layout:autoArrange(b) };
+}
+/* engageConcours — l'engagement est un acte explicite et nommé (jamais un effet
+   de bord d'un clic). Vérifie déverrouillage + homologation, initialise l'état
+   du format, gèle le build si le concours le déclare (lockBuild). */
+function engageConcours(id){
+  const tr = tournamentById(id);
+  if (!tr) return { ok:false, fails:["?"] };
+  if (CN(id)) return { ok:false, fails:[], already:true };
+  if (!unlockMet(tr.unlock)) return { ok:false, fails:[t("soon")], locked:true };
+  const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+  const chk = checkEntry(myBuild, tr.rules);
+  if (!chk.ok) return chk;
+  const st = FORMATS[tr.format].init(Math.floor(Math.random()*1e9), tr.rounds);
+  if (tr.lockBuild) st.lock = snapshotBuild();
+  S.concours[id] = st; saveState();
+  return { ok:true };
+}
+function abandonConcours(id){                                      // décision 2b : progression perdue, zéro malus
+  if (!CN(id)) return false;
+  delete S.concours[id]; saveState(); return true;
+}
+// format engines: encapsulate a competition's state transitions (ladder wired; championnat/coupe)
 const FORMATS = {
   ladder: {
     // advance ladder state on a tournament match result; returns a UI descriptor (no DOM here)
@@ -1227,12 +1352,12 @@ const FORMATS = {
     }
   },
   // 10 rounds, ranked by average score vs a seeded field of rivals. You need to place, not sweep.
-  league: {
+  championnat: {
     RIVALS: ["MAXIMUS","VORTEX","BRUTUS","NOVA","TITAN","RAZOR","CINDER","JOLT"],
     _rng(seed){ let a=(seed>>>0)||1; return ()=>{ a=(a*1664525+1013904223)>>>0; return a/4294967296; }; },
     init(seed, rounds){ const rng=this._rng(seed);
       const rivals=this.RIVALS.slice(0,5).map(n=>({name:n, strength:0.35+rng()*0.5, score:0}));
-      return { format:"league", round:0, rounds:rounds||10, myScore:0, rivals }; },
+      return { format:"championnat", round:0, rounds:rounds||10, myScore:0, rivals }; },
     // record your match: score = duels you won this bout (0..2 in best-of-3). Returns true when the season ends.
     recordMatch(lg, myDuels){ lg.myScore += Math.max(0, Math.min(2, myDuels|0));
       const rng=this._rng((lg.round+1)*7919);
@@ -1282,27 +1407,18 @@ function rulesSummary(r){ const p=[];
   if(r.maxSoftware) p.push(t("scrSoftware",{v:swTier(r.maxSoftware)+1}));
   if(r.metrics) for(const k in r.metrics){ const m=METRICS[k]; if(m) p.push("\u2264 "+r.metrics[k]+" "+m.unit); }
   return p.join(" \u00B7 ") || t("unlimited"); }
-const FORMAT_LABEL = { ladder:"Ladder \u00B7 5 niveaux", league:"Ligue \u00B7 10 manches", bracket:"Coupe \u00B7 arbre 16" };
+const FORMAT_LABEL = { ladder:"Ladder \u00B7 5 niveaux", championnat:"Championnat \u00B7 10 manches", bracket:"Coupe \u00B7 arbre 16", libre:"Exhibition \u00B7 1 manche" };
 function enterBracket(){
-  if(S.bracket){ startMatch("bracket"); return; }                    // resume
-  const myBuild={chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
-  const chk=checkEntry(myBuild, TOURNAMENTS.find(x=>x.id==="cupM").rules);
-  if(!chk.ok){ showToast(chk.fails[0]); return; }
-  const bk=FORMATS.bracket.init(Math.floor(Math.random()*1e9));
-  bk.lock = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color,
-    stickers:[...S.customize.placed], layout: autoArrange(myBuild) };   // build frozen at entry
-  S.bracket=bk; saveState(); startMatch("bracket");
+  if (!CN("cupM")){ const r = engageConcours("cupM"); if (!r.ok){ showToast(r.fails[0] || t("soon")); return; } }
+  startMatch("bracket");
 }
-function enterLeague(){
-  if(S.league){ startMatch("league"); return; }                       // resume an ongoing season
-  const myBuild={chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
-  const chk=checkEntry(myBuild, TOURNAMENTS.find(x=>x.id==="lightM").rules);
-  if(!chk.ok){ showToast(chk.fails[0]); return; }
-  S.league = FORMATS.league.init(Math.floor(Math.random()*1e9)); saveState(); startMatch("league");
+function enterChampionnat(){
+  if (!CN("lightM")){ const r = engageConcours("lightM"); if (!r.ok){ showToast(r.fails[0] || t("soon")); return; } }
+  startMatch("championnat");
 }
 function renderBracketView(){ const el=$("bracketView"); if(!el) return;
-  if(!S.bracket){ el.style.display="none"; el.innerHTML=""; return; }
-  const bk=S.bracket; el.style.display="block"; el.innerHTML="";
+  if(!S.concours.cupM){ el.style.display="none"; el.innerHTML=""; return; }
+  const bk=S.concours.cupM; el.style.display="block"; el.innerHTML="";
   const head=document.createElement("div"); head.className="persohead";
   head.textContent=t("bracketTitle")+" \u00B7 "+(FORMATS.bracket.isDone(bk)?t("bracketDone"):FORMATS.bracket.roundName(bk)); el.appendChild(head);
   const wrap=document.createElement("div"); wrap.className="bkcols";
@@ -1316,39 +1432,158 @@ function renderBracketView(){ const el=$("bracketView"); if(!el) return;
     else { const n=Math.max(1, 16>>ci); for(let k=0;k<n;k++){ const cell=document.createElement("div"); cell.className="bkcell future"; cell.textContent="?"; col.appendChild(cell); } }
     wrap.appendChild(col); }
   el.appendChild(wrap); }
-function renderLeagueStandings(){ const el=$("leagueStandings"); if(!el) return;
-  if(!S.league){ el.style.display="none"; el.innerHTML=""; return; }
+function renderChampStandings(){ const el=$("champStandings"); if(!el) return;
+  if(!S.concours.lightM){ el.style.display="none"; el.innerHTML=""; return; }
   el.style.display="block"; el.innerHTML="";
   const head=document.createElement("div"); head.className="persohead";
-  head.textContent=t("leagueTable")+" \u00B7 "+t("leagueRound",{r:Math.min(S.league.round+1,S.league.rounds), n:S.league.rounds, rank:FORMATS.league.myRank(S.league)});
+  head.textContent=t("champTable")+" \u00B7 "+t("champRound",{r:Math.min(S.concours.lightM.round+1,S.concours.lightM.rounds), n:S.concours.lightM.rounds, rank:FORMATS.championnat.myRank(S.concours.lightM)});
   el.appendChild(head);
   const tbl=document.createElement("table"); tbl.className="lgtable";
-  for(const e of FORMATS.league.standings(S.league)){
+  for(const e of FORMATS.championnat.standings(S.concours.lightM)){
     const tr=document.createElement("tr"); tr.className=(e.me?"me ":"")+(e.rank<=3?"podium":"");
     tr.innerHTML=`<td class="rk">${e.rank}</td><td>${e.me?t("you"):e.name}</td><td class="sc">${e.score} · ${e.avg.toFixed(2)}</td>`;
     tbl.appendChild(tr);
   }
   el.appendChild(tbl); }
-function renderTournaments(){ const el=$("tournaments"); if(!el) return; el.innerHTML="";
-  const head=document.createElement("div"); head.className="persohead"; head.textContent=t("tournaments"); el.appendChild(head);
-  const strip=document.createElement("div"); strip.className="tvstrip";
-  const myBuild={chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
-  for(const tr of TOURNAMENTS){ const live = tr.format==="ladder" || tr.format==="league" || tr.format==="bracket";
-    const card=document.createElement("div"); card.className="tvcard"+(live?" active":" soon");
-    const nm=document.createElement("div"); nm.className="tvname"; nm.textContent=tr.name; card.appendChild(nm);
-    const fm=document.createElement("div"); fm.className="tvfmt"; fm.textContent=FORMAT_LABEL[tr.format]||tr.format; card.appendChild(fm);
-    const ru=document.createElement("div"); ru.className="tvrules"; ru.textContent=rulesSummary(tr.rules); card.appendChild(ru);
-    const chk=checkEntry(myBuild, tr.rules);
-    const eg=document.createElement("div"); eg.className="tvelig "+(chk.ok?"ok":"no");
-    eg.textContent = chk.ok ? "\u2713 "+t("scrPass") : "\u2717 "+chk.fails[0];
-    card.appendChild(eg);
-    if(tr.format==="bracket"){ card.onclick=()=>enterBracket();
-      if(S.bracket){ const sv=document.createElement("div"); sv.className="tvelig ok"; sv.textContent=FORMATS.bracket.roundName(S.bracket); card.appendChild(sv); } }
-    if(tr.format==="league"){ card.onclick=()=>enterLeague();
-      if(S.league){ const sv=document.createElement("div"); sv.className="tvelig ok"; sv.textContent=t("leagueRound",{r:S.league.round+1,n:S.league.rounds,rank:FORMATS.league.myRank(S.league)}); card.appendChild(sv); } }
-    if(!live){ const sn=document.createElement("div"); sn.className="tvrules"; sn.style.marginTop="4px"; sn.textContent=t("soon"); card.appendChild(sn); }
-    strip.appendChild(card); }
-  el.appendChild(strip); }
+/* ═══ S5 — Écrans Championnats ═══
+   A (renderLigues, dans l'onglet) : bannières de ligue — niveau, contenu,
+   engagements en cours, verrouillage déclaratif.
+   B (renderLigueScreen, empilé sur NAV) : les concours d'une ligue —
+   format, règles, éligibilité détaillée, engagement EXPLICITE, suivi,
+   abandon (deux taps), et lancement de la manche. */
+let curLigue = null;
+function concoursProgress(tr){                       // vue uniforme de progression
+  const st = CN(tr.id);
+  if (tr.format === "ladder")
+    return (S.level >= 5 && S.champion) ? t("champion")+" 🏆"
+         : t("level")+" "+S.level+" · "+"●".repeat(S.beatenAtLevel)+"○".repeat(Math.max(0,2-S.beatenAtLevel));
+  if (!st) return null;
+  if (tr.format === "championnat")
+    return t("champRound", {r:Math.min(st.round+1,st.rounds), n:st.rounds, rank:FORMATS.championnat.myRank(st)});
+  if (tr.format === "bracket")
+    return FORMATS.bracket.isDone(st) ? t("bracketDone") : FORMATS.bracket.roundName(st);
+  return t("enCours");
+}
+function renderLigues(){
+  const el = $("liguesList"); if(!el) return; el.innerHTML = "";
+  for (const lg of LIGUES){
+    const open = unlockMet(lg.unlock);
+    const a = document.createElement("div");
+    a.className = "rc-league" + (open ? " is-open" : " is-locked");
+    const nEng = lg.concours.filter(id => CN(id)).length;
+    const meta = open
+      ? t("nConcours", {n:lg.concours.length}) + (nEng ? " · " + t("kEnCours", {k:nEng}) : "")
+      : t("soon");
+    a.innerHTML = `<div class="rc-league__crest"${open?' style="color:var(--rc-violet-lt)"':''}>${open?"◈":"🔒"}</div>
+      <div class="rc-league__body"><div class="rc-league__name">${lg.name}</div>
+      <div class="rc-league__meta">${meta}</div></div>
+      <div class="rc-league__side">${open ? t("enter") : t("lockedTag")}</div>`;
+    if (open) a.onclick = ()=>{ curLigue = lg.id; NAV.push("ligueScreen"); renderLigueScreen(); };
+    el.appendChild(a);
+  }
+}
+function modeForConcours(id){
+  const tr = tournamentById(id); if(!tr) return "exhib";
+  if (tr.format === "bracket") return "bracket";
+  if (tr.format === "championnat") return "championnat";
+  if (tr.format === "ladder") return tournamentOpen() ? "tour" : "qual";
+  return "exhib";
+}
+function disputeConcours(id){                       // ouvre l'écran VS de la manche
+  curVsConcours = id;
+  vsMode = modeForConcours(id);
+  vsOpp = makeOpponent(vsMode);
+  NAV.push("vsScreen");
+  renderVsScreen();
+}
+function vsMancheLabel(tr){
+  const st = CN(tr.id);
+  if (tr.format === "championnat" && st) return t("mancheN", {r:Math.min(st.round+1,st.rounds), n:st.rounds});
+  if (tr.format === "bracket" && st) return FORMATS.bracket.roundName(st);
+  if (tr.format === "ladder") return tournamentOpen() ? t("tourneyTitle", {l:S.level, i:S.tourney?S.tourney.idx+1:1}) : t("vsQual");
+  return t("vsExhib");
+}
+function renderVsScreen(){
+  const tr = tournamentById(curVsConcours); if(!tr || !vsOpp) return;
+  const lg = ligueById(curLigue);
+  $("vsCrumbLigue").textContent = lg ? lg.name : t("tabFight");
+  $("vsCrumbConcours").textContent = tr.name;
+  $("vsCrumbManche").textContent = vsMancheLabel(tr);
+  $("vsFormat").textContent = (FORMAT_LABEL[tr.format]||tr.format).toUpperCase();
+  $("vsManche").textContent = vsMancheLabel(tr);
+  // mon bot — celui qui combattra VRAIMENT : le build gelé si le concours gèle
+  const lock = (CN(tr.id)||{}).lock || null;
+  const myBuild = {...S.settings,
+    chassis: lock ? lock.chassis : AB().chassis,
+    parts: {...(lock ? lock.parts : S.parts.equipped)},
+    counts: {...(lock ? (lock.counts||{}) : AB().counts)},
+    color: lock ? lock.color : S.customize.color,
+    stickers0: lock ? lock.stickers : S.customize.placed};
+  $("playerClass").textContent = t(weightClass(myBuild)) + " · " + ENGINE.physStats(myBuild).massKg.toFixed(2) + " kg";
+  renderNums($("playerNums"), myBuild);
+  $("playerCv")._build = myBuild;
+  drawEditor($("playerCv"), myBuild, lock ? lock.layout : getLayout(), editSpin, -1);
+  // l'adversaire de CETTE manche
+  const o = vsOpp;
+  $("oppName").textContent = o.name;
+  $("oppClass").textContent = t(weightClass(o.build)) + " · " + ENGINE.physStats(o.build).massKg.toFixed(2) + " kg";
+  $("oppWeight").textContent = t("level")+" "+o.level;
+  $("oppTend").textContent = t(ENGINE.tendencyKey(o.build));
+  renderNums($("oppNums"), {...o.build, power:"mixed"});
+  ensureOppColor(o);
+  $("scoutCv")._oppBuild = o.build;
+  drawEditor($("scoutCv"), o.build, autoArrange(o.build), editSpin, -1);
+  // comportement, ici et seulement ici (une source : S.settings)
+  const rows = $("paramRows"); rows.innerHTML = "";
+  for (const key of ["strategy","aggression","edgeGuard","approach","chargeDist","handling"]) rows.appendChild(makeSeg(key));
+  $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
+  const pr = $("powerRow"); pr.innerHTML = ""; pr.appendChild(makeSeg("power"));
+}
+function renderLigueScreen(){
+  const lg = ligueById(curLigue); if(!lg) return;
+  $("crumbRoot").textContent = t("tabFight");
+  $("ligueName").textContent = lg.name;
+  const el = $("concoursList"); el.innerHTML = "";
+  const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+  for (const id of lg.concours){
+    const tr = tournamentById(id); if(!tr) continue;
+    const st = CN(id), open = unlockMet(tr.unlock), chk = checkEntry(myBuild, tr.rules);
+    const card = document.createElement("div");
+    card.className = "rc-cup" + (open ? "" : " is-locked") + (st ? " rc-cup--violet" : "");
+    const prog = concoursProgress(tr);
+    let inner = `<div class="rc-cup__head"><div>
+        <div class="rc-cup__name">${tr.name}</div>
+        <div class="rc-cup__struct">${FORMAT_LABEL[tr.format]||tr.format}</div></div>
+        <div class="rc-cup__progress"${prog?'':' style="color:var(--rc-muted)"'}>${prog||t("newTag")}</div></div>
+      <div class="rc-cup__constraints"><span class="rc-chip">${rulesSummary(tr.rules)}</span>`;
+    if (!chk.ok && open && !st)                       // éligibilité DÉTAILLÉE si refus
+      inner += chk.fails.map(f=>`<span class="rc-chip rc-chip--red">✗ ${f}</span>`).join("");
+    else if (open && !st && !tr.noEngage)
+      inner += `<span class="rc-chip rc-chip--violet">✓ ${t("scrPass")}</span>`;
+    inner += `</div><div class="rc-cup__foot"></div>`;
+    card.innerHTML = inner;
+    const foot = card.querySelector(".rc-cup__foot");
+    const btn = (label, cls, fn) => { const b=document.createElement("button");
+      b.className="rc-btn "+(cls||""); b.textContent=label; b.onclick=(e)=>{ e.stopPropagation(); fn(); }; foot.appendChild(b); return b; };
+    if (!open){ /* verrouillé : rien à faire */ }
+    else if (tr.noEngage){                            // échelle, combat libre : sans engagement
+      btn(tr.format==="ladder" ? t("dispute") : t("freeFight"), "rc-btn--primary", ()=>disputeConcours(id));
+    } else if (!st){
+      btn(t("engage"), "rc-btn--primary", ()=>{
+        const r = engageConcours(id);
+        if (!r.ok){ showToast((r.fails&&r.fails[0]) || t("soon")); return; }
+        renderLigueScreen(); saveState();
+      });
+    } else {
+      btn(t("dispute"), "rc-btn--primary", ()=>disputeConcours(id));
+      const ab = btn(t("abandon"), "rc-btn--ghost", ()=>{
+        if (!ab._arm){ ab._arm = true; ab.textContent = t("confirmAbandon"); return; }   // deux taps
+        abandonConcours(id); renderLigueScreen(); renderLigues();
+      });
+    }
+    el.appendChild(card);
+  }
+}
 /* B3 — occasions. Stock DÉTERMINISTE par jour (graine = jour civil) : même
    étal toute la journée, renouvelé le lendemain — la boutique vit sans serveur.
    L'usure décote le prix. PROVISION chantier C : quand la condition par
@@ -1374,32 +1609,34 @@ function refreshUsedStock(){
 function renderUsedSection(g){
   refreshUsedStock();
   if (!S.usedStock.length) return;
-  const h = document.createElement("div"); h.className = "gsec used";
+  const h = document.createElement("div"); h.className = "rc-section used";
   h.textContent = t("shopUsed"); g.appendChild(h);
-  const strip = document.createElement("div"); strip.className = "gcarousel";
+  const strip = document.createElement("div"); strip.className = "rc-carousel";
   g.appendChild(strip);
   for (const of_ of S.usedStock){
     const part = ENGINE.PARTS[of_.slot].find(p=>p.id===of_.id); if (!part) continue;
-    const card = document.createElement("div"); card.className = "gcard usedcard";
-    const cv = document.createElement("canvas"); cv.width = cv.height = 54; cv.className = "gtile";
-    drawPartTile(cv.getContext("2d"), of_.slot, part.id, 27, 27, 40, 30, 0, 1);
-    card.appendChild(cv);
-    const nm = document.createElement("div"); nm.className = "gcname"; nm.textContent = t("pn_"+part.id);
+    const card = document.createElement("div"); card.className = "rc-gcard usedcard";
+    const art = document.createElement("div"); art.className = "rc-gcard__art";
+    const cv = document.createElement("canvas"); cv.width = cv.height = 54;
+    regTile(cv, ()=>{ const c=cv.getContext("2d"); c.clearRect(0,0,54,54);
+      drawPartTile(c, of_.slot, part.id, 27, 27, 40, 30, 0, 1); });
+    art.appendChild(cv); card.appendChild(art);
+    const nm = document.createElement("div"); nm.className = "rc-gcard__name"; nm.textContent = t("pn_"+part.id);
     card.appendChild(nm);
-    const wr = document.createElement("div"); wr.className = "gcfx usedwear";
+    const wr = document.createElement("div"); wr.className = "rc-gcard__fx usedwear";
     wr.textContent = t("usedWear", {w:of_.wear});
     card.appendChild(wr);
     if (of_.qty <= 0){
       const so = document.createElement("div"); so.className = "sprice"; so.textContent = t("usedSold");
       card.appendChild(so);
     } else {
-      const btn = document.createElement("button"); btn.className = "gbuy used";
+      const btn = document.createElement("button"); btn.className = "rc-buy used";
       btn.innerHTML = "<s>"+part.cost+"</s> "+of_.price+" \ud83d\udd29";
       btn.disabled = S.bolts < of_.price;
       btn.onclick = ()=>{ if (S.bolts < of_.price || of_.qty<=0) return;
         S.bolts -= of_.price; of_.qty = 0;
-        S.inventory[of_.id] = (S.inventory[of_.id]||0) + 1;
-        saveState(); showToast(t("bought", {name:t("pn_"+of_.id)})); renderHome(); };
+        mintInstance(of_.id, { wear: of_.wear });        // l'usure achetée suit l'instance
+        recomputeOwned(); saveState(); showToast(t("bought", {name:t("pn_"+of_.id)})); renderHome(); };
       card.appendChild(btn);
     }
     strip.appendChild(card);
@@ -1410,10 +1647,10 @@ function renderGarage(){
   renderUsedSection(g);
   const TYPES = SLOT_ORDER.filter(x=>x!=="chassis").map(x=>[x,"slot_"+x]);
   for (const [type, header] of TYPES){
-    const h = document.createElement("div"); h.className = "gsec";
+    const h = document.createElement("div"); h.className = "rc-section";
     h.textContent = t(header);
     g.appendChild(h);
-    const strip = document.createElement("div"); strip.className = "gcarousel";
+    const strip = document.createElement("div"); strip.className = "rc-carousel";
     g.appendChild(strip);
     if (ENGINE.PARTS[type].length === 1){
       strip.appendChild(mkPartCard(type, ENGINE.PARTS[type][0], true));
@@ -1422,25 +1659,39 @@ function renderGarage(){
     for (const part of ENGINE.PARTS[type]) strip.appendChild(mkPartCard(type, part, false));
   }
   // stickers: cheap cosmetics, bought here, placed in the workshop
-  const h = document.createElement("div"); h.className = "gsec"; h.textContent = t("persoSticker");
+  const h = document.createElement("div"); h.className = "rc-section"; h.textContent = t("persoSticker");
   g.appendChild(h);
-  const strip = document.createElement("div"); strip.className = "gcarousel";
+  const strip = document.createElement("div"); strip.className = "rc-carousel";
   g.appendChild(strip);
   for (const st of STICKERS){
     const owned = S.customize.stickers.includes(st.id);
-    const card = document.createElement("div"); card.className = "gcard stickercard"+(owned?" owned":"");
-    card.innerHTML = `<div class="semoji">${st.emoji}</div>`+
-      (owned ? `<div class="sprice">${t("stickerOwned")}</div>` : "");
+    const card = document.createElement("div"); card.className = "rc-gcard stickercard"+(owned?" owned":"");
+    card.innerHTML = `<div class="rc-gcard__art"><img src="${st.src}" alt="${st.id}" style="max-width:92%;max-height:92%;object-fit:contain"></div>`+
+      (owned ? `<div class="rc-gcard__fx">${t("stickerOwned")}</div>` : "");
     if (!owned){
-      const btn = document.createElement("button"); btn.className="gbuy";
+      const btn = document.createElement("button"); btn.className="rc-buy";
       btn.textContent = `${st.cost} 🔩`;                     // same style as part cards
       btn.disabled = S.bolts < st.cost;
       btn.onclick = ()=>{ if (S.bolts < st.cost) return; S.bolts -= st.cost;
         S.customize.stickers.push(st.id); saveState();
-        showToast(t("bought", {name:st.emoji})); renderHome(); };
+        showToast(t("bought", {name:st.id})); renderHome(); };
       card.appendChild(btn);
     }
     strip.appendChild(card);
+  }
+  /* Plaques de version : jamais achetées — offertes avec le logiciel (v0 d'office).
+     Seules les plaques dont le logiciel existe au catalogue sont exposées ;
+     le reste de la banque attend les futurs niveaux. */
+  const vh = document.createElement("div"); vh.className = "rc-section"; vh.textContent = t("stickVersions"); g.appendChild(vh);
+  const vstrip = document.createElement("div"); vstrip.className = "rc-carousel"; g.appendChild(vstrip);
+  const swIds = new Set((ENGINE.PARTS.software||[]).map(p=>p.id));
+  for (const v of VSTICKERS){
+    if (v.sw !== null && !swIds.has(v.sw)) continue;         // en banque
+    const got = v.sw === null || softwareOwned(v.sw);
+    const card = document.createElement("div"); card.className = "rc-gcard stickercard"+(got?" owned":"");
+    card.innerHTML = `<div class="rc-gcard__art"><img src="${v.src}" alt="${v.id}" style="max-width:92%;max-height:92%;object-fit:contain"></div>
+      <div class="rc-gcard__fx">${got ? t("stickerAuto") : t("stickerWithSw", {v:v.id})}</div>`;
+    vstrip.appendChild(card);
   }
 }
 // static assembled preview of a build (player card + scouting)
@@ -1479,34 +1730,40 @@ function setupCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-let curMode = "qual"; // "qual" | "tour" | "exhib" | "league"
-let exhibOpp = null, leagueOpp = null, bracketOpp = null;
+let curMode = "qual"; // "qual" | "tour" | "exhib" | "championnat"
+let exhibOpp = null, champOpp = null, bracketOpp = null;
 
-function startMatch(mode){
-  curMode = mode || (tournamentOpen() ? "tour" : "qual");
-  let enemy;
-  if (curMode === "tour"){ ensureTourney(); enemy = S.tourney.opponents[S.tourney.idx]; }
-  else if (curMode === "exhib"){
+/* S6 — l'adversaire d'une manche est fabriqué UNE fois (à l'entrée de l'écran
+   VS quand on y passe, sinon au lancement) et le combat affronte exactement
+   celui qui a été montré. */
+let vsOpp = null, vsMode = null, curVsConcours = null;
+function makeOpponent(mode){
+  if (mode === "tour"){ ensureTourney(); return S.tourney.opponents[S.tourney.idx]; }
+  if (mode === "exhib"){
     const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
     exhibOpp = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level };
-    enemy = exhibOpp;
+    return exhibOpp;
   }
-  else if (curMode === "league"){
+  if (mode === "championnat"){
     const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
-    leagueOpp = { name: FORMATS.league.RIVALS[S.league.round % 5], archetype:g.archetype, build:g.build, level:S.level };
-    enemy = leagueOpp;
+    champOpp = { name: FORMATS.championnat.RIVALS[S.concours.lightM.round % 5], archetype:g.archetype, build:g.build, level:S.level };
+    return champOpp;
   }
-  else if (curMode === "bracket"){
-    const opp = FORMATS.bracket.myOpponent(S.bracket);
-    const g = ENGINE.genOpponent((S.bracket.seed ^ (S.bracket.round*7))>>>0, S.level);
+  if (mode === "bracket"){
+    const opp = FORMATS.bracket.myOpponent(S.concours.cupM);
+    const g = ENGINE.genOpponent((S.concours.cupM.seed ^ (S.concours.cupM.round*7))>>>0, S.level);
     bracketOpp = { name: opp.name, archetype:g.archetype, build:g.build, level:S.level };
-    enemy = bracketOpp;
+    return bracketOpp;
   }
-  else { ensureOpponent(); enemy = S.opponent; }
+  ensureOpponent(); return S.opponent;
+}
+function startMatch(mode){
+  curMode = mode || (tournamentOpen() ? "tour" : "qual");
+  const enemy = (vsMode === curMode && vsOpp) ? vsOpp : makeOpponent(curMode);
 
   const seed = Math.floor(Math.random()*1e9);
   // bracket: the build is LOCKED at entry — only pilot params (S.settings) change between bouts.
-  const lock = (curMode==="bracket" && S.bracket) ? S.bracket.lock : null;
+  const lock = (CN(MODE_CONCOURS[curMode]) || {}).lock || null;   // build gelé si le concours le déclare
   const pLayout = lock ? lock.layout : getLayout();
   const playerBuild = {...ENGINE.SLICE1.playerBuild, ...S.settings,
     chassis: lock ? lock.chassis : AB().chassis,
@@ -1523,7 +1780,10 @@ function startMatch(mode){
   enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
   match = ENGINE.makeMatch(seed, playerBuild, enemy.build);
   particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
-  NAV.push("matchScreen");
+  $("hudNameA").textContent = t("you");
+  $("hudNameB").textContent = enemy.name || "";
+  if (NAV.stack[NAV.stack.length-1] === "vsScreen") NAV.swap("matchScreen");
+  else NAV.push("matchScreen");
   $("overlay").style.display="none";
   $("speedBtn").textContent = "×"+S.speed;
   setupCanvas();
@@ -1596,6 +1856,9 @@ function frame(ts){
   $("clock").textContent = match.t.toFixed(1);
   $("gA").firstElementChild.style.width = (match.bots[0].battery/match.bots[0].batteryMax*100)+"%";
   $("gB").firstElementChild.style.width = (match.bots[1].battery/match.bots[1].batteryMax*100)+"%";
+  // Santé — plomberie du chantier C : le moteur ne publie pas encore hp, la barre reste pleine.
+  $("hA").firstElementChild.style.width = (((match.bots[0].hp ?? 1))*100)+"%";
+  $("hB").firstElementChild.style.width = (((match.bots[1].hp ?? 1))*100)+"%";
 
   if (match.over && slowmoT<=0){ endToDebrief(); return; }
   raf = requestAnimationFrame(frame);
@@ -1967,14 +2230,14 @@ function renderDebrief(m){
   const rows=[[t("dbBattery"),pc(m.bots[0]),pc(m.bots[1])],
               [t("dbDist"),od[0].toFixed(1)+" m",od[1].toFixed(1)+" m"],
               [t("dbContact"),m.bots[0].contactT.toFixed(1)+" s",m.bots[1].contactT.toFixed(1)+" s"],
-              [t("dbFlipped"),m.bots[0].flippedT.toFixed(1)+" s",m.bots[1].flippedT.toFixed(1)+" s"]];
-  const head=document.createElement("div"); head.className="dbhead";
+              [t("dbFlipped"),(m.bots[0].flipAccT||0).toFixed(1)+" s",(m.bots[1].flipAccT||0).toFixed(1)+" s"]];
+  const head=document.createElement("div"); head.className="rc-eyebrow";
   head.textContent=t("dbTitle")+" — "+m.t.toFixed(0)+" s · "+(endKey?t(endKey):(m.reason||""));
   el.appendChild(head);
-  const tab=document.createElement("table"); tab.className="dbtab";
+  const tab=document.createElement("table"); tab.className="rc-debrief";
   const tr0=document.createElement("tr");
-  for(const h of ["",t("you"),($("oppName")&&$("oppName").textContent)||"—"]){
-    const th=document.createElement("th"); th.textContent=h; tr0.appendChild(th); }
+  [["" ,""],[t("you"),"color:var(--rc-violet-lt)"],[($("hudNameB")&&$("hudNameB").textContent)||"—","color:var(--rc-red-lt)"]]
+    .forEach(([h,st])=>{ const th=document.createElement("th"); th.textContent=h; if(st) th.style.cssText=st; tr0.appendChild(th); });
   tab.appendChild(tr0);
   for(const [l,a,b] of rows){ const tr=document.createElement("tr");
     for(const v of [l,a,b]){ const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); }
@@ -1996,7 +2259,7 @@ function endToDebrief(){
   const w = WIN_BOLTS[S.level];
   let earned;
   if (wasForfeit) earned = Math.max(1, Math.ceil(w*0.1));
-  else if (won) earned = (curMode==="tour"||curMode==="league"||curMode==="bracket") ? Math.ceil(w*0.5) : w;
+  else if (won) earned = (curMode==="tour"||curMode==="championnat"||curMode==="bracket") ? Math.ceil(w*0.5) : w;
   else earned = Math.ceil(w*0.25); // tournament losses pay too: the penalty is the restart, not poverty
   S.bolts += earned;
   $("ovDuels").textContent = t("duelsWon",{a:m.duels[0], b:m.duels[1]})
@@ -2022,29 +2285,31 @@ function endToDebrief(){
       $("ovMain").textContent = t("retry");
     }
   } else if (curMode === "bracket"){
-    const done = FORMATS.bracket.recordMatch(S.bracket, realWin);    // win → advance, loss → eliminated
+    const done = FORMATS.bracket.recordMatch(S.concours.cupM, realWin);    // win → advance, loss → eliminated
     if (!done){
-      $("ovMain").textContent = t("bracketNext", {r: FORMATS.bracket.roundName(S.bracket)});
+      $("ovMain").textContent = t("bracketNext", {r: FORMATS.bracket.roundName(S.concours.cupM)});
     } else {
-      const pr = FORMATS.bracket.prize(S.bracket, w);
+      const pr = FORMATS.bracket.prize(S.concours.cupM, w);
       S.bolts += pr.total;
+      S.concoursDone.cupM = true;                                  // mené à son terme (unlock déclaratif)
       $("ovTitle").textContent = (pr.champ ? t("bracketChamp") : t("bracketOut")) + " 🏆";
       $("ovTitle").style.color = "var(--accent)";
       unlockEl.textContent = t("bracketPrize", {total:pr.total}); unlockEl.style.display = "block";
-      S.bracket = null;
+      S.concours.cupM = null;
       $("ovMain").textContent = t("nextOpp");
     }
-  } else if (curMode === "league"){
-    const done = FORMATS.league.recordMatch(S.league, m.duels[0]);   // your duels this bout (0..2)
-    const rank = FORMATS.league.myRank(S.league);
+  } else if (curMode === "championnat"){
+    const done = FORMATS.championnat.recordMatch(S.concours.lightM, m.duels[0]);   // your duels this bout (0..2)
+    const rank = FORMATS.championnat.myRank(S.concours.lightM);
     if (!done){
-      $("ovMain").textContent = t("leagueRound", {r:S.league.round+1, n:S.league.rounds, rank});
+      $("ovMain").textContent = t("champRound", {r:S.concours.lightM.round+1, n:S.concours.lightM.rounds, rank});
     } else {
-      const pr = FORMATS.league.prize(S.league, w);
+      const pr = FORMATS.championnat.prize(S.concours.lightM, w);
       S.bolts += pr.total;
-      $("ovTitle").textContent = t("leagueDone")+" 🏁"; $("ovTitle").style.color = "var(--accent)";
-      unlockEl.textContent = t("leaguePrize", {rank:pr.rank, total:pr.total}); unlockEl.style.display = "block";
-      S.league = null;
+      S.concoursDone.lightM = true;
+      $("ovTitle").textContent = t("champDone")+" 🏁"; $("ovTitle").style.color = "var(--accent)";
+      unlockEl.textContent = t("champPrize", {rank:pr.rank, total:pr.total}); unlockEl.style.display = "block";
+      S.concours.lightM = null;
       $("ovMain").textContent = t("nextOpp");
     }
   } else { // qual or exhib
@@ -2075,25 +2340,50 @@ const TABS = {fight:"fightTab", workshop:"workshopTab", shop:"shopTab"};
    Le retour matériel (Android) suit via popstate ; tout est gardé pour jsdom. */
 const NAV = {
   stack: ["homeScreen"],
+  hist: 0,  // entrées history poussées par nous, pas encore consommées
+  eat: 0,   // popstate à ignorer (échos de notre propre history.back())
   show(id){
-    for (const sc of ["homeScreen","matchScreen"]) $(sc).style.display = (sc===id) ? "block" : "none";
+    for (const sc of ["homeScreen","ligueScreen","vsScreen","matchScreen"]) $(sc).style.display = (sc===id) ? "block" : "none";
     $("navBack").style.display = (this.stack.length>1 && id!=="matchScreen") ? "" : "none";
   },
-  push(id){ this.stack.push(id); this.show(id);
-    try{ history.pushState({nav:this.stack.length}, ""); }catch(e){} },
-  back(){ if (this.stack.length<=1) return; this.stack.pop();
-    this.show(this.stack[this.stack.length-1]); renderHome(); },
+  swap(id){                                   // remplace le sommet (VS → match) sans toucher au miroir history
+    this.stack[this.stack.length-1] = id; this.show(id);
+  },
+  push(id){
+    // Pousser l'écran déjà au sommet = remplacement (retry), pas empilement.
+    if (this.stack[this.stack.length-1] === id){ this.show(id); return; }
+    this.stack.push(id); this.show(id);
+    try{ history.pushState({nav:this.stack.length}, ""); this.hist++; }catch(e){}
+  },
+  back(){
+    // Retour TOTAL : quoi qu'il arrive, un écran valide est affiché.
+    if (this.stack.length > 1) this.stack.pop();
+    else this.stack = ["homeScreen"];
+    this.show(this.stack[this.stack.length-1]);
+    renderHome();
+  },
+  uiBack(){
+    // Retour déclenché par un bouton : dépile ET consomme l'entrée history miroir.
+    this.back();
+    if (this.hist > 0){ this.hist--; this.eat++; try{ history.back(); }catch(e){} }
+  },
+  onPop(){
+    // Retour matériel : ignorer les échos de uiBack, sinon dépiler.
+    if (this.eat > 0){ this.eat--; return; }
+    if (this.hist > 0) this.hist--;
+    this.back();
+  },
 };
-try{ window.addEventListener("popstate", ()=>NAV.back()); }catch(e){}
-$("navBack").onclick = ()=>NAV.back();
+try{ window.addEventListener("popstate", ()=>NAV.onPop()); }catch(e){}
+$("navBack").onclick = ()=>NAV.uiBack();
 let activeTab = "workshop"; // B1 : on démarre au Garage — préparer, puis combattre
 function showTab(name){
   activeTab = name;
   for (const [k,id] of Object.entries(TABS))
     $(id).style.display = (k===name) ? "block" : "none";
-  $("tabFight").classList.toggle("active", name==="fight");
-  $("tabWorkshop").classList.toggle("active", name==="workshop");
-  $("tabShop").classList.toggle("active", name==="shop");
+  $("tabFight").classList.toggle("is-active", name==="fight");
+  $("tabWorkshop").classList.toggle("is-active", name==="workshop");
+  $("tabShop").classList.toggle("is-active", name==="shop");
 }
 $("tabFight").onclick = ()=> showTab("fight");
 $("tabWorkshop").onclick = ()=> showTab("workshop");
@@ -2102,8 +2392,7 @@ $("resetLayout").onclick = ()=>{ autoArrangeCurrent(); renderLayerTabs(); };
 $("cgToggle").onclick = ()=>{ showCG=!showCG; $("cgToggle").classList.toggle("on",showCG); $("cgToggle").textContent=t(showCG?"cgHide":"cgShow"); };
 $("hbToggle").onclick = ()=>{ showHB=!showHB; $("hbToggle").classList.toggle("on",showHB); $("hbToggle").textContent=t(showHB?"hbHide":"hbShow"); };
 
-$("fightBtn").onclick = ()=> startMatch(S.bracket ? "bracket" : S.league ? "league" : (tournamentOpen() ? "tour" : "qual"));
-$("friendlyBtn").onclick = ()=> startMatch("exhib");
+$("fightBtn").onclick = ()=> startMatch(vsMode || (tournamentOpen() ? "tour" : "qual"));
 $("speedBtn").onclick = ()=>{ S.speed = S.speed===1?2:1; saveState();
   $("speedBtn").textContent = "×"+S.speed; };
 $("forfeitBtn").onclick = ()=>{
@@ -2116,16 +2405,28 @@ $("forfeitBtn").onclick = ()=>{
 $("ovMain").onclick = ()=>{
   $("overlay").style.display="none";
   const realWin = match.winner === 0 && !wasForfeit;
-  const goHome = ()=>NAV.back();
+  const goHome = ()=>NAV.uiBack();
   if (realWin) goHome();                    // scout the next opponent / bracket match
   else if (curMode === "exhib") goHome();   // lost friendly: no forced rematch loop
-  else if (curMode === "league") goHome();  // league plays all 10 bouts, win or lose
+  else if (curMode === "championnat") goHome();  // le championnat joue ses 10 manches, gagné ou perdu
   else if (curMode === "bracket") goHome(); // bracket: win→next round, loss→eliminated
   else startMatch(curMode);                 // retry (tournament restarts at match 1)
 };
-$("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.back(); };
+$("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 $("langBtn").onclick = ()=>{ LANG = LANG==="fr"?"en":"fr"; S.lang = LANG; saveState(); renderHome(); };
 window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); });
 
+/* [2] Préchargement : réchauffe les caches d'images existants au démarrage,
+   au lieu d'attendre le premier dessin de chaque tuile. Première visite
+   (SW absent) : les onload de mkImg redessinent à l'arrivée réseau. */
+function preloadSprites(){
+  if (typeof Image==="undefined") return;
+  for (const slot in COMPONENT_SPRITES) for (const id in COMPONENT_SPRITES[slot]) componentSprite(slot, id);
+  for (const id in ARMOR_SPRITES) armorSprite(id);
+  for (const ch in CHASSIS_SPRITES) spriteState(ch);
+  for (const st of STICKERS) stickerImg(st.id);
+  for (const v of VSTICKERS) stickerImg(v.id);
+}
+preloadSprites();
 renderHome();
 showTab(activeTab);

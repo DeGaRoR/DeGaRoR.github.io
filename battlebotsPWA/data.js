@@ -53,7 +53,7 @@ const STRINGS = {
     garageTitle:"Garage", botBought:"{name} acheté !", onOtherBot:"{n} sur un autre bot",
     scrClass:"Classe {c} requise (ton bot est {got})", scrTracks:"Chenilles interdites",
     scrWeapons:"Armes interdites", scrBanned:"{p} interdit", scrSoftware:"Software max v{v}",
-    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Éligible", scrFail:"Non éligible", shopUsed:"Occasions du jour", usedWear:"usure {w} %", usedSold:"Vendu", scrTier:"Palier {tr} requis", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Débriefing", dbBattery:"Batterie restante", dbDist:"Distance parcourue", dbContact:"Temps au contact", dbFlipped:"Temps retourné", endShrinkOut:"mort subite (piste rétrécie)", endRingOut:"sortie de piste", endKoFlip:"KO retourné", tournaments:"Tournois", unlimited:"Sans limite", soon:"Bientôt jouable", leagueRound:"Manche {r}/{n} · {rank}ᵉ", leagueTable:"Classement", you:"VOUS", bracketNext:"Qualifié · {r}", bracketChamp:"CHAMPION", bracketOut:"Éliminé", bracketPrize:"+{total} 🔩", bracketTitle:"Coupe M", bracketDone:"terminée", leagueDone:"Saison terminée", leaguePrize:"{rank}ᵉ au classement · +{total} 🔩", pn_a0:"(tôle nue)", pn_a1:"Pare-choc", pn_a2:"Lame acier", pn_a3:"Fourche",
+    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Éligible", scrFail:"Non éligible", shopUsed:"Occasions du jour", usedWear:"usure {w} %", usedSold:"Vendu", scrTier:"Palier {tr} requis", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Débriefing", dbBattery:"Batterie restante", dbDist:"Distance parcourue", dbContact:"Temps au contact", dbFlipped:"Temps retourné", endShrinkOut:"mort subite (piste rétrécie)", endRingOut:"sortie de piste", endKoFlip:"KO retourné", tournaments:"Tournois", unlimited:"Sans limite", soon:"Bientôt jouable", secLigues:"LIGUES", enter:"Entrer ›", lockedTag:"Verrouillée", newTag:"Nouveau", nConcours:"{n} concours", kEnCours:"{k} en cours", enCours:"en cours", engage:"S\u2019engager", abandon:"Abandonner", confirmAbandon:"Confirmer ?", dispute:"Disputer la manche", freeFight:"Combattre", youTag:"VOUS", foeTag:"ADVERSAIRE", vsBehaviour:"COMPORTEMENT \u00B7 CETTE MANCHE", mancheN:"MANCHE {r}/{n}", vsQual:"QUALIFICATION", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"SANT\u00C9", stickVersions:"Plaques de version", stickerAuto:"Offerte \u00B7 logiciel", stickerWithSw:"Avec Logiciel {v}", scrap:"Jeter", botScrapped:"{name} d\u00E9moli \u2014 pi\u00E8ces retourn\u00E9es \u00E0 l\u2019inventaire", lastBot:"Impossible : dernier bot du garage", garageInv:"Inventaire \u00B7 pi\u00E8ces libres", invEmpty:"Aucune pi\u00E8ce libre \u2014 tout est mont\u00E9", invNew:"neuve", shopChassis:"Ch\u00E2ssis neufs", champRound:"Manche {r}/{n} · {rank}ᵉ", champTable:"Classement", you:"VOUS", bracketNext:"Qualifié · {r}", bracketChamp:"CHAMPION", bracketOut:"Éliminé", bracketPrize:"+{total} 🔩", bracketTitle:"Coupe M", bracketDone:"terminée", champDone:"Saison terminée", champPrize:"{rank}ᵉ au classement · +{total} 🔩", pn_a0:"(tôle nue)", pn_a1:"Pare-choc", pn_a2:"Lame acier", pn_a3:"Fourche",
     pn_c0:"8-bit récupéré", pn_c1:"Cortex M7", pn_c2:"Pod neuronal",
     pn_n0:"Pare-chocs", pn_n1:"IR 360°", pn_n2:"LIDAR",
     pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
@@ -144,7 +144,7 @@ const STRINGS = {
     garageTitle:"Garage", botBought:"{name} purchased!", onOtherBot:"{n} on another bot",
     scrClass:"Class {c} required (yours is {got})", scrTracks:"Tracks not allowed",
     scrWeapons:"Weapons not allowed", scrBanned:"{p} banned", scrSoftware:"Software max v{v}",
-    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Eligible", scrFail:"Not eligible", shopUsed:"Today's used deals", usedWear:"{w}% wear", usedSold:"Sold", scrTier:"{tr} tier required", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Debrief", dbBattery:"Battery left", dbDist:"Distance covered", dbContact:"Contact time", dbFlipped:"Time flipped", endShrinkOut:"sudden death (shrinking floor)", endRingOut:"ring-out", endKoFlip:"KO (flipped)", tournaments:"Tournaments", unlimited:"No limit", soon:"Coming soon", leagueRound:"Round {r}/{n} · {rank}th", leagueTable:"Standings", you:"YOU", bracketNext:"Through · {r}", bracketChamp:"CHAMPION", bracketOut:"Eliminated", bracketPrize:"+{total} 🔩", bracketTitle:"Cup M", bracketDone:"done", leagueDone:"Season over", leaguePrize:"{rank} in table · +{total} 🔩", pn_a0:"(bare plate)", pn_a1:"Bumper", pn_a2:"Steel blade", pn_a3:"Fork",
+    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Eligible", scrFail:"Not eligible", shopUsed:"Today's used deals", usedWear:"{w}% wear", usedSold:"Sold", scrTier:"{tr} tier required", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Debrief", dbBattery:"Battery left", dbDist:"Distance covered", dbContact:"Contact time", dbFlipped:"Time flipped", endShrinkOut:"sudden death (shrinking floor)", endRingOut:"ring-out", endKoFlip:"KO (flipped)", tournaments:"Tournaments", unlimited:"No limit", soon:"Coming soon", secLigues:"LEAGUES", enter:"Enter ›", lockedTag:"Locked", newTag:"New", nConcours:"{n} events", kEnCours:"{k} ongoing", enCours:"ongoing", engage:"Enter event", abandon:"Withdraw", confirmAbandon:"Confirm?", dispute:"Play round", freeFight:"Fight", youTag:"YOU", foeTag:"FOE", vsBehaviour:"BEHAVIOUR \u00B7 THIS BOUT", mancheN:"ROUND {r}/{n}", vsQual:"QUALIFIER", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"HP", stickVersions:"Version plates", stickerAuto:"Free \u00B7 software", stickerWithSw:"With Software {v}", scrap:"Scrap", botScrapped:"{name} scrapped \u2014 parts returned to inventory", lastBot:"Cannot scrap your last bot", garageInv:"Inventory \u00B7 free parts", invEmpty:"No free parts \u2014 everything is fitted", invNew:"new", shopChassis:"New chassis", champRound:"Round {r}/{n} · {rank}th", champTable:"Standings", you:"YOU", bracketNext:"Through · {r}", bracketChamp:"CHAMPION", bracketOut:"Eliminated", bracketPrize:"+{total} 🔩", bracketTitle:"Cup M", bracketDone:"done", champDone:"Season over", champPrize:"{rank} in table · +{total} 🔩", pn_a0:"(bare plate)", pn_a1:"Bumper", pn_a2:"Steel blade", pn_a3:"Fork",
     pn_c0:"Salvaged 8-bit", pn_c1:"Cortex M7", pn_c2:"Neural pod",
     pn_n0:"Bumpers", pn_n1:"IR 360°", pn_n2:"LIDAR",
     pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
@@ -274,11 +274,111 @@ const TIERS = [
     kgPerCellHint:0.068, botPriceEur:[1500,2500] },
   { id:"heavy",   name:"Heavyweight",   massMaxKg:113.4, grid:{w:34,h:24},
     classBands:[["S",261],["M",392],["L",555],["XXL",9999]],
-    kgPerCellHint:0.28,  botPriceEur:[8000,15000] },
-];
+    kgPerCellHint:0.28,  botPriceEur:[8000,15000] }];
 const TIER_BY_ID = Object.fromEntries(TIERS.map(t=>[t.id,t]));
 function tierOf(ch){ return TIER_BY_ID[CHASSIS_TIER[ch]] || TIER_BY_ID.beetle; }
 function gridW(ch){ return tierOf(ch).grid.w; }
 function gridH(ch){ return tierOf(ch).grid.h; }
 function gridCX(ch){ return tierOf(ch).grid.w/2; }
 const CELL_GAP = 4;
+
+
+/* ============================================================
+   S3 — HIÉRARCHIE DES COMPÉTITIONS (données pures).
+   LIGUE (conteneur) → CONCOURS (compétition à format) → MANCHE.
+   Ajouter une ligue ou un concours = une entrée ici, zéro code.
+   unlock : null = ouvert ; {placeholder:true} = « bientôt » ;
+            {level:n} ; {concoursDone:"id"}.
+   lockBuild : le build est gelé à l'engagement.
+   ============================================================ */
+const TOURNAMENTS = [
+  { id:"sumoM", name:"Sumo Classe M", format:"ladder", levels:5,
+    unlock:null, lockBuild:false, noEngage:true,   // progression longue globale : pas d'acte d'engagement
+    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
+            maxCount:{ motor:3, battery:3 } } },
+  { id:"lightM", name:"Sumo Léger", format:"championnat", rounds:10,
+    unlock:null, lockBuild:true,
+    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, banTracks:true, mode:"sumo",
+            metrics:{ weightKg:2.0 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
+  { id:"cupM", name:"Coupe M", format:"bracket", size:16,
+    unlock:null, lockBuild:true,
+    rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
+            maxCount:{ motor:3, battery:3 } } },
+  { id:"libre", name:"Combat libre", format:"libre",
+    unlock:null, lockBuild:false, noEngage:true,   // exhibition : ni engagement, ni progression
+    rules:{ tier:"beetle" } }];
+const LIGUES = [
+  { id:"regionale", name:"Ligue Régionale", tier:"beetle", unlock:null,
+    concours:["sumoM","lightM","cupM","libre"] },
+  { id:"nationale", name:"Ligue Nationale", tier:"beetle", unlock:{placeholder:true},
+    concours:[] },                          // placeholder assumé
+  { id:"internationale", name:"Ligue Internationale", tier:"beetle", unlock:{placeholder:true},
+    concours:[] },                          // placeholder assumé
+];
+
+
+/* ============================================================
+   S10 — STICKERS SPRITE (remplacent les emojis).
+   Placement LIBRE dans la coque : positions continues {x,y} en cellules,
+   la grille ne contraint plus les décalcomanies.
+   VSTICKERS : banque des plaques de version logicielle — v0 offerte,
+   vN accordée automatiquement et gratuitement quand le logiciel sN est
+   possédé. Les plaques sans logiciel correspondant restent en banque
+   (axe de développement : le tuning logiciel).
+   ============================================================ */
+const STICKERS = [
+  {id:"chev_red", src:"assets/stickers/chev_red.webp", w:160, h:48, cost:8},
+  {id:"chev_yel", src:"assets/stickers/chev_yel.webp", w:160, h:48, cost:8},
+  {id:"stripe_rw", src:"assets/stickers/stripe_rw.webp", w:160, h:40, cost:8},
+  {id:"hazard_worn", src:"assets/stickers/hazard_worn.webp", w:160, h:33, cost:8},
+  {id:"chev_tall", src:"assets/stickers/chev_tall.webp", w:160, h:46, cost:8},
+  {id:"p13", src:"assets/stickers/p13.webp", w:160, h:110, cost:10},
+  {id:"p23", src:"assets/stickers/p23.webp", w:160, h:98, cost:10},
+  {id:"trn88", src:"assets/stickers/trn88.webp", w:160, h:65, cost:10},
+  {id:"push", src:"assets/stickers/push.webp", w:160, h:78, cost:10},
+  {id:"mkii", src:"assets/stickers/mkii.webp", w:132, h:73, cost:10},
+  {id:"co2", src:"assets/stickers/co2.webp", w:130, h:73, cost:10},
+  {id:"ir", src:"assets/stickers/ir.webp", w:136, h:72, cost:10},
+  {id:"lidar", src:"assets/stickers/lidar.webp", w:137, h:72, cost:10},
+  {id:"hotsurf", src:"assets/stickers/hotsurf.webp", w:121, h:108, cost:10},
+  {id:"danger", src:"assets/stickers/danger.webp", w:119, h:109, cost:10},
+  {id:"nostep", src:"assets/stickers/nostep.webp", w:117, h:108, cost:10},
+  {id:"w_bang", src:"assets/stickers/w_bang.webp", w:119, h:107, cost:15},
+  {id:"w_fire", src:"assets/stickers/w_fire.webp", w:117, h:108, cost:15},
+  {id:"w_gears", src:"assets/stickers/w_gears.webp", w:114, h:141, cost:15},
+  {id:"w_crush", src:"assets/stickers/w_crush.webp", w:143, h:141, cost:15},
+  {id:"w_skull", src:"assets/stickers/w_skull.webp", w:109, h:137, cost:15},
+  {id:"skull", src:"assets/stickers/skull.webp", w:81, h:142, cost:15},
+  {id:"target", src:"assets/stickers/target.webp", w:119, h:144, cost:15},
+  {id:"saw", src:"assets/stickers/saw.webp", w:108, h:145, cost:15},
+  {id:"sumo", src:"assets/stickers/sumo.webp", w:152, h:100, cost:25},
+  {id:"arena", src:"assets/stickers/arena.webp", w:149, h:129, cost:25},
+  {id:"season3", src:"assets/stickers/season3.webp", w:124, h:135, cost:25},
+  {id:"top8", src:"assets/stickers/top8.webp", w:133, h:133, cost:25},
+  {id:"first", src:"assets/stickers/first.webp", w:125, h:133, cost:25},
+  {id:"star", src:"assets/stickers/star.webp", w:142, h:139, cost:25},
+  {id:"crown", src:"assets/stickers/crown.webp", w:138, h:107, cost:25},
+  {id:"f_angry", src:"assets/stickers/f_angry.webp", w:99, h:98, cost:12},
+  {id:"f_smile", src:"assets/stickers/f_smile.webp", w:96, h:97, cost:12},
+  {id:"f_blank", src:"assets/stickers/f_blank.webp", w:98, h:97, cost:12},
+  {id:"f_ko", src:"assets/stickers/f_ko.webp", w:98, h:97, cost:12},
+  {id:"tally_r", src:"assets/stickers/tally_r.webp", w:120, h:81, cost:12},
+  {id:"tally_w", src:"assets/stickers/tally_w.webp", w:112, h:82, cost:12},
+  {id:"tally_k", src:"assets/stickers/tally_k.webp", w:153, h:85, cost:12},
+  {id:"scr_gray", src:"assets/stickers/scr_gray.webp", w:160, h:74, cost:12},
+  {id:"scr_red", src:"assets/stickers/scr_red.webp", w:160, h:72, cost:12},
+  {id:"scr_blue", src:"assets/stickers/scr_blue.webp", w:160, h:69, cost:12},
+  {id:"scr_orange", src:"assets/stickers/scr_orange.webp", w:160, h:69, cost:12},
+  {id:"scr_hex", src:"assets/stickers/scr_hex.webp", w:160, h:77, cost:12},
+  {id:"scr_wr", src:"assets/stickers/scr_wr.webp", w:160, h:71, cost:12}];
+const VSTICKERS = [
+  {id:"v0", src:"assets/stickers/v0.webp", w:128, h:123, sw:null},
+  {id:"v1", src:"assets/stickers/v1.webp", w:128, h:123, sw:"s1"},
+  {id:"v2", src:"assets/stickers/v2.webp", w:128, h:124, sw:"s2"},
+  {id:"v3", src:"assets/stickers/v3.webp", w:128, h:119, sw:"s3"},
+  {id:"v4", src:"assets/stickers/v4.webp", w:128, h:118, sw:"s4"},
+  {id:"v5", src:"assets/stickers/v5.webp", w:128, h:121, sw:"s5"},
+  {id:"v6", src:"assets/stickers/v6.webp", w:128, h:122, sw:"s6"},
+  {id:"v7", src:"assets/stickers/v7.webp", w:128, h:120, sw:"s7"},
+  {id:"v8", src:"assets/stickers/v8.webp", w:128, h:122, sw:"s8"},
+  {id:"v9", src:"assets/stickers/v9.webp", w:128, h:122, sw:"s9"}];

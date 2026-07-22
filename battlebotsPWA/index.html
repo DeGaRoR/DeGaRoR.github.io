@@ -4,65 +4,50 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>AI Roboclash</title>
+<link rel="stylesheet" href="roboclash-ui.css">
 <link rel="stylesheet" href="styles.css">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#181b22">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="assets/icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152.png">
+<meta name="theme-color" content="#0e070c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Roboclash">
 </head>
 <body>
-<div id="app">
-  <div class="topbar">
+<div id="app" class="rc-app">
+  <header class="rc-topbar">
     <div>
-      <h1>AI ROBOCLASH</h1>
-      <div class="progress"><span id="lvlLabel"></span><span class="dots" id="dots"></span>
-        <span class="bolts" id="boltsLabel"></span><span id="badgesLabel"></span></div>
+      <div class="rc-logo">Roboclash</div>
+      <div class="rc-progress"><span id="lvlLabel"></span><span class="dots" id="dots"></span>
+        <span id="badgesLabel"></span></div>
     </div>
+    <span class="rc-currency" id="boltsLabel"></span>
     <button class="lang" id="navBack" style="display:none">←</button>
     <button class="lang" id="langBtn">FR</button>
-  </div>
+  </header>
 
   <div id="homeScreen">
-    <div class="tabs">
-      <button class="tab" id="tabWorkshop" data-i18n="tabWorkshop"></button>
-      <button class="tab active" id="tabFight" data-i18n="tabFight"></button>
-      <button class="tab" id="tabShop" data-i18n="tabShop"></button>
-    </div>
+    <nav class="rc-tabbar">
+      <button class="rc-tab" id="tabWorkshop" data-i18n="tabWorkshop"></button>
+      <button class="rc-tab is-active" id="tabFight" data-i18n="tabFight"></button>
+      <button class="rc-tab" id="tabShop" data-i18n="tabShop"></button>
+    </nav>
 
     <div id="fightTab">
-      <div class="card" id="tournaments"></div>
-      <div class="card" id="leagueStandings" style="display:none"></div>
-      <div class="card" id="bracketView" style="display:none"></div>
-      <div class="tbanner" id="tourneyBanner" style="display:none">
-        <div class="ttitle" id="tourneyTitle"></div>
-        <div class="tprize" id="tourneyPrize"></div>
-      </div>
-      <div class="actions">
-        <button class="btn big" id="fightBtn" data-i18n="fight"></button>
-        <button class="btn ghost" id="friendlyBtn" style="display:none" data-i18n="friendly"></button>
-      </div>
-      <div class="versus">
-        <div class="botcard mine">
-          <canvas id="playerCv" width="132" height="132"></canvas>
-          <div class="name" id="playerName">RUSTY</div>
-          <div class="chips"><span class="chip" id="playerClass"></span></div>
-          <div class="numdash" id="playerNums"></div>
-        </div>
-        <div class="vs">VS</div>
-        <div class="botcard foe">
-          <canvas id="scoutCv" width="132" height="132"></canvas>
-          <div class="name" id="oppName"></div>
-          <div class="chips">
-            <span class="chip" id="oppClass"></span>
-            <span class="chip" id="oppWeight"></span>
-            <span class="chip tend" id="oppTend"></span>
-          </div>
-          <div class="numdash" id="oppNums"></div>
-        </div>
-      </div>
-    </div>
-
+      <div class="rc-section" data-i18n="secLigues"></div>
+      <div id="liguesList"></div>
+      <!-- Réserve S6 : l'ancien bloc versus/params reste alimenté par renderHome
+           mais masqué ; il renaîtra en écran C (fight.html du mockup). -->
+    </div><!-- /fightTab -->
     <div id="workshopTab" style="display:none">
       <div class="card" id="garageStrip"></div>
+      <div class="card" id="invStrip"></div>
       <div class="card mybot">
         <div class="editorhead">
           <div class="layertabs" id="layerTabs"></div>
@@ -79,13 +64,6 @@
       <div class="card">
         <div id="slotRows"></div>
       </div>
-      <div class="card params">
-        <h2 data-i18n="yourBot"></h2>
-        <div id="paramRows"></div>
-        <div class="style-line" id="styleLine"></div>
-        <h2 style="margin-top:12px" data-i18n="machine"></h2>
-        <div id="powerRow"></div>
-      </div>
       <div class="card">
         <div class="persohead" data-i18n="persoColor"></div>
         <div id="colorRow" class="swatchrow"></div>
@@ -95,35 +73,98 @@
     </div>
 
     <div id="shopTab" style="display:none">
+      <div class="card" id="chassisShop"></div>
       <div class="card garage">
         <div id="garageRows"></div>
       </div>
     </div>
   </div>
 
+  <!-- ═══ Écran B (S5) : une ligue, ses concours, engagement et suivi ═══ -->
+  <div id="ligueScreen" style="display:none">
+    <div class="rc-crumb"><span id="crumbRoot"></span><span class="sep">›</span><span class="here" id="ligueName"></span></div>
+    <div id="concoursList"></div>
+    <div class="tbanner" id="tourneyBanner" style="display:none">
+      <div class="ttitle" id="tourneyTitle"></div>
+      <div class="tprize" id="tourneyPrize"></div>
+    </div>
+    <div class="card" id="champStandings" style="display:none"></div>
+    <div class="card" id="bracketView" style="display:none"></div>
+  </div>
+
+  <!-- ═══ Écran C (S6) : la manche, l'adversaire, le comportement, le lancement ═══ -->
+  <div id="vsScreen" style="display:none">
+    <div class="rc-crumb"><span id="vsCrumbLigue"></span><span class="sep">›</span><span id="vsCrumbConcours"></span><span class="sep">›</span><span class="here" id="vsCrumbManche"></span></div>
+    <div class="rc-plate rc-plate--edge-red rc-banner">
+      <div>
+        <div class="rc-eyebrow" id="vsFormat"></div>
+        <div class="rc-title" style="font-size:18px;margin-top:7px" id="vsManche"></div>
+      </div>
+    </div>
+    <div class="rc-versus">
+      <div class="rc-fighter rc-fighter--you">
+        <div class="rc-fighter__tag" data-i18n="youTag"></div>
+        <canvas id="playerCv" width="132" height="132"></canvas>
+        <div class="rc-name" id="playerName">RUSTY</div>
+        <div class="rc-label" id="playerClass" style="margin-top:5px"></div>
+        <div class="numdash" id="playerNums"></div>
+      </div>
+      <div class="rc-vs">VS</div>
+      <div class="rc-fighter rc-fighter--foe">
+        <div class="rc-fighter__tag" data-i18n="foeTag"></div>
+        <canvas id="scoutCv" width="132" height="132"></canvas>
+        <div class="rc-name" id="oppName"></div>
+        <div class="rc-label" id="oppClass" style="margin-top:5px"></div>
+        <div class="rc-label" id="oppWeight"></div>
+        <div class="rc-label" id="oppTend"></div>
+        <div class="numdash" id="oppNums"></div>
+      </div>
+    </div>
+    <div class="rc-plate" style="padding:12px">
+      <div class="rc-section" data-i18n="vsBehaviour"></div>
+      <div id="paramRows"></div>
+      <div class="style-line" id="styleLine"></div>
+      <div class="rc-section" data-i18n="machine" style="margin-top:10px"></div>
+      <div id="powerRow"></div>
+    </div>
+    <button class="rc-btn rc-btn--primary rc-btn--block" id="fightBtn" data-i18n="fight"></button>
+  </div>
+
   <div id="matchScreen">
     <canvas id="cv"></canvas>
-    <div class="hud">
-      <div class="gauge" id="gA"><i style="width:100%"></i></div>
-      <div id="clock">0.0</div>
-      <div class="gauge" id="gB"><i style="width:100%"></i></div>
+    <div class="rc-hud rc-hud--dual">
+      <div class="rc-hudcol">
+        <div class="rc-hudname" id="hudNameA"></div>
+        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudBattery"></span>
+          <div class="rc-gauge" id="gA"><i class="rc-gauge__fill rc-gauge__fill--you" style="width:100%"></i></div></div>
+        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudHealth"></span>
+          <div class="rc-gauge" id="hA"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i></div></div>
+      </div>
+      <div class="rc-clock" id="clock">0.0</div>
+      <div class="rc-hudcol rc-hudcol--foe">
+        <div class="rc-hudname" id="hudNameB"></div>
+        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudBattery"></span>
+          <div class="rc-gauge" id="gB"><i class="rc-gauge__fill rc-gauge__fill--foe" style="width:100%"></i></div></div>
+        <div class="rc-hudrow"><span class="rc-hudlabel" data-i18n="hudHealth"></span>
+          <div class="rc-gauge" id="hB"><i class="rc-gauge__fill rc-gauge__fill--hp" style="width:100%"></i></div></div>
+      </div>
     </div>
-    <div class="actions">
-      <button class="btn ghost" id="speedBtn">×1</button>
-      <button class="btn ghost" id="forfeitBtn" data-i18n="forfeit"></button>
+    <div class="rc-row rc-mt" style="gap:10px">
+      <button class="rc-btn rc-btn--ghost" id="speedBtn" style="flex:0 0 auto">×1</button>
+      <button class="rc-btn rc-btn--ghost" id="forfeitBtn" style="flex:1" data-i18n="forfeit"></button>
     </div>
   </div>
 </div>
 
-<div id="overlay"><div class="ocard">
-  <h2 id="ovTitle"></h2>
-  <div id="ovCause"></div>
+<div id="overlay"><div class="ocard rc-plate rc-plate--edge-red">
+  <h2 id="ovTitle" class="rc-title"></h2>
+  <div id="ovCause" class="rc-label"></div>
   <div id="ovDuels"></div>
   <div id="ovStats" class="ovstats"></div>
-  <div id="ovUnlock"></div>
-  <div class="actions" style="justify-content:center">
-    <button class="btn" id="ovMain"></button>
-    <button class="btn ghost" id="ovBack" data-i18n="settings"></button>
+  <div id="ovUnlock" class="rc-unlock"></div>
+  <div class="rc-stack rc-mt">
+    <button class="rc-btn rc-btn--primary rc-btn--block" id="ovMain"></button>
+    <button class="rc-textlink rc-center" id="ovBack" data-i18n="settings"></button>
   </div>
 </div></div>
 <div id="toast"><div class="tcard" id="toastText"></div></div>
