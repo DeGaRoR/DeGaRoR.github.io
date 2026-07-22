@@ -292,7 +292,7 @@ const CELL_GAP = 4;
    lockBuild : le build est gelé à l'engagement.
    ============================================================ */
 const TOURNAMENTS = [
-  { id:"sumoM", name:"Sumo Classe M", format:"ladder", levels:5,
+  { id:"sumoM", arena:"assets/arena_clean.webp", name:"Sumo Classe M", format:"ladder", levels:5,
     unlock:null, lockBuild:false, noEngage:true,   // progression longue globale : pas d'acte d'engagement
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
             maxCount:{ motor:3, battery:3 } } },
@@ -300,11 +300,11 @@ const TOURNAMENTS = [
     unlock:null, lockBuild:true,
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, banTracks:true, mode:"sumo",
             metrics:{ weightKg:2.0 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
-  { id:"cupM", name:"Coupe M", format:"bracket", size:16,
+  { id:"cupM", arena:"assets/arena_grim.webp", name:"Coupe M", format:"bracket", size:16,
     unlock:null, lockBuild:true,
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
             maxCount:{ motor:3, battery:3 } } },
-  { id:"libre", name:"Combat libre", format:"libre",
+  { id:"libre", arena:"assets/arena_kawaii.webp", name:"Combat libre", format:"libre",
     unlock:null, lockBuild:false, noEngage:true,   // exhibition : ni engagement, ni progression
     rules:{ tier:"beetle" } }];
 const LIGUES = [

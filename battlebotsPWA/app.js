@@ -623,6 +623,38 @@ function mkImg(src){
   return im;
 }
 const arenaImg = mkImg(ARENA_SRC);
+/* S11b — arènes par concours : chaque entrée de TOURNAMENTS peut préciser
+   `arena:"assets/arena_x.webp"` ; défaut = ARENA_SRC. Cache d'images partagé. */
+const ARENA_IMGS = {};
+function arenaFor(src){ const k = src || ARENA_SRC;
+  return ARENA_IMGS[k] || (ARENA_IMGS[k] = (k===ARENA_SRC ? arenaImg : mkImg(k))); }
+/* S11c — le rendu du bot passe par un canvas de travail : le MÊME composite
+   sert au bot et à sa silhouette d'ombre (drop shadow exacte, éléments
+   individuels compris ; le retournement et la culbute y sont déjà cuits). */
+const BOT_SCRATCH = {};
+function renderBotComposite(bot, layout, flipped, fa){
+  const vis = colliderVis(bot.build.chassis);
+  const S = Math.ceil(bot.radius*2.9 + 34), Q = 2;
+  let sc = BOT_SCRATCH[bot.id];
+  if (!sc || sc.cv.width !== S*Q){
+    sc = BOT_SCRATCH[bot.id] = { cv:document.createElement("canvas"), sil:document.createElement("canvas") };
+    sc.cv.width = sc.cv.height = sc.sil.width = sc.sil.height = S*Q;
+  }
+  const c = sc.cv.getContext("2d");
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,S*Q,S*Q);
+  c.setTransform(Q,0,0,Q,S*Q/2,S*Q/2);
+  c.rotate(Math.PI/2); c.scale(vis, vis);
+  if (fa > 0){ const k = Math.cos((1-fa)*Math.PI); c.scale(1, Math.max(0.08, Math.abs(k))); }
+  if (flipped){ c.rotate(Math.sin(match.t*9 + bot.id)*0.06); c.scale(1,-1); }
+  drawBotTiles(c, bot.build, layout, wheelPhase[bot.id], {shadow:false, slip:slipR[bot.id], bellyUp:flipped});
+  const s2 = sc.sil.getContext("2d");
+  s2.setTransform(1,0,0,1,0,0); s2.clearRect(0,0,S*Q,S*Q);
+  s2.drawImage(sc.cv, 0, 0);
+  s2.globalCompositeOperation = "source-in";
+  s2.fillStyle = "#000"; s2.fillRect(0,0,S*Q,S*Q);
+  s2.globalCompositeOperation = "source-over";
+  return { S, cv:sc.cv, sil:sc.sil };
+}
 function arenaReady(){ return !!(arenaImg && arenaImg.complete && arenaImg.naturalWidth>0); }
 
 
@@ -1570,6 +1602,11 @@ function renderVsScreen(){
   // l'adversaire de CETTE manche
   const o = vsOpp;
   $("oppName").textContent = o.name;
+  { const pw = $("scoutCv") && $("scoutCv").parentElement;                        // S11a
+    if (pw && pw.classList.contains("rc-portrait")){
+      let h=0; const nm=($("oppName").textContent||""); for(const ch of nm) h=(h*31+ch.charCodeAt(0))>>>0;
+      pw.classList.remove("rc-portrait--foe1","rc-portrait--foe2");
+      pw.classList.add(h%2 ? "rc-portrait--foe2" : "rc-portrait--foe1"); } }
   $("oppClass").textContent = t(weightClass(o.build)) + " · " + ENGINE.physStats(o.build).massKg.toFixed(2) + " kg";
   $("oppWeight").textContent = t("level")+" "+o.level;
   $("oppTend").textContent = t(ENGINE.tendencyKey(o.build));
@@ -1837,6 +1874,8 @@ function startMatch(mode){
   playerBuild.colliders = buildColliders(playerBuild, pLayout);
   enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
   match = ENGINE.makeMatch(seed, playerBuild, enemy.build);
+  { const tr = curVsConcours ? tournamentById(curVsConcours) : null;             // S11b
+    match.arenaSprite = arenaFor(tr && tr.arena); }
   particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
   $("hudNameA").textContent = t("you");
   $("hudNameB").textContent = enemy.name || "";
@@ -1940,9 +1979,10 @@ function draw(){
   ctx.translate(w/2+sx, w/2+sy); ctx.scale(scale, scale);
 
   const AR=ENGINE.ARENA_R;
-  if(arenaReady()){                                   // arena sprite as the static floor
-    ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,7); ctx.clip();
-    ctx.drawImage(arenaImg, -(AR+8), -(AR+8), (AR+8)*2, (AR+8)*2); ctx.restore();
+  const aimg = (match && match.arenaSprite) || arenaImg;          // S11b
+  if(aimg && aimg.complete && aimg.naturalWidth>0){               // arena sprite as the static floor
+    ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,Math.PI*2); ctx.clip();
+    ctx.drawImage(aimg, -(AR+8), -(AR+8), (AR+8)*2, (AR+8)*2); ctx.restore();
   } else {
     ctx.beginPath(); ctx.arc(0,0,AR+8,0,Math.PI*2); ctx.fillStyle="#160c12"; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,AR,0,Math.PI*2); ctx.fillStyle="#1d1119"; ctx.fill();
@@ -1971,25 +2011,27 @@ function draw(){
   match.bots[0].build.stickers0 = S.customize.placed;
   if (!match.bots[1].build.color) ensureOppColor({name:(S.opponent&&S.opponent.name)||"", build:match.bots[1].build});
   for (const bot of match.bots){
+    // WYSIWYG: the live bot is the SAME editor visual — chassis + placed tiles.
+    // editor "front" is up (−y); the bot faces +x, so add π/2 to align (cuit
+    // dans renderBotComposite avec la culbute et le retournement).
+    const fa = flipAnim[bot.id]||0;
+    const flipped = bot.flippedT > 0;
+    const layout = bot.id===0 ? getLayout() : autoArrange(bot.build);
+    const comp = renderBotComposite(bot, layout, flipped, fa);
+    // S11c — ombre portée : silhouette exacte, lumière FIXE-MONDE (bas-droite),
+    // décollée pendant la culbute, resserrée quand le bot gît sur le dos.
+    const lift = 1 + fa*1.6;
+    ctx.save();
+    ctx.translate(bot.pos.x + 4*lift, bot.pos.y + 8*lift);
+    ctx.rotate(bot.angle);
+    ctx.globalAlpha = flipped ? 0.24 : 0.34;
+    if ("filter" in ctx) ctx.filter = "blur(" + (2.2*lift).toFixed(1) + "px)";
+    ctx.drawImage(comp.sil, -comp.S/2, -comp.S/2, comp.S, comp.S);
+    ctx.restore();
     ctx.save();
     ctx.translate(bot.pos.x, bot.pos.y); ctx.rotate(bot.angle);
     const r = bot.radius;
-    // WYSIWYG: the live bot is the SAME editor visual — chassis + placed tiles.
-    // editor "front" is up (−y); the bot faces +x, so add π/2 to align.
-    ctx.save();
-    ctx.rotate(Math.PI/2);
-    const vis = colliderVis(bot.build.chassis);   // cell-true: same px per cell for every hull
-    ctx.scale(vis, vis);
-    // FLIP is a visible event: a fast tumble (squash through the axis) at the
-    // moment it happens, then a belly-up pose (darkened, wheels showing, wobble)
-    // for as long as the bot is on its back.
-    const fa = flipAnim[bot.id]||0;
-    if (fa > 0){ const k = Math.cos((1-fa)*Math.PI); ctx.scale(1, Math.max(0.08, Math.abs(k))); }
-    const flipped = bot.flippedT > 0;
-    if (flipped){ ctx.rotate(Math.sin(match.t*9 + bot.id)*0.06); ctx.scale(1,-1); }
-    const layout = bot.id===0 ? getLayout() : autoArrange(bot.build);
-    drawBotTiles(ctx, bot.build, layout, wheelPhase[bot.id], {shadow:true, slip:slipR[bot.id], bellyUp:flipped});
-    ctx.restore();
+    ctx.drawImage(comp.cv, -comp.S/2, -comp.S/2, comp.S, comp.S);
     // dominated: skid ring
     if (bot.dominatedT>0){ ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=2;
       ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(0,0,r+5,0,7); ctx.stroke(); ctx.setLineDash([]); }
@@ -2488,7 +2530,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v26";                                        // repere de build (CACHE du SW)
+  const cache = "v27";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_off"), "✓", "✗"],
