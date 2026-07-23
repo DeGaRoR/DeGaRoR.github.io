@@ -39,6 +39,13 @@ const ENGINE = (() => {
     tortue:{ mass:1.51, radius:20, leverage:1.4, tractionBase:1.0, speedBase:100, pushBase:130, battery:130, selfRight:2.8 },
     losange:{ mass:1.68, radius:22, leverage:2.0, tractionBase:1.0, speedBase:100, pushBase:130, battery:142, selfRight:2.2 },
     disque:{ mass:2.18, radius:27, leverage:1.2, tractionBase:1.0, speedBase:100, pushBase:130, battery:180, selfRight:3.0 },
+    /* E4 — coques S : rayon ≈ 23 → bots à 0,31 du ring (décision ancres),
+       petites décharges batterie, vives (masse réelle faible + K_FORCE commun). */
+    tortue_s: { mass:0.58, radius:23, leverage:1.2, tractionBase:1.05, speedBase:104, pushBase:120, battery:58, selfRight:3.2 },
+    hex_s:    { mass:0.63, radius:23, leverage:1.3, tractionBase:1.0,  speedBase:102, pushBase:124, battery:60, selfRight:3.0 },
+    coin_s:   { mass:0.63, radius:24, leverage:2.1, tractionBase:0.95, speedBase:106, pushBase:118, battery:58, selfRight:2.2 },
+    losange_s:{ mass:0.72, radius:24, leverage:1.8, tractionBase:1.0,  speedBase:100, pushBase:122, battery:62, selfRight:2.4 },
+    totem_s:  { mass:0.74, radius:24, leverage:1.5, tractionBase:1.0,  speedBase:98,  pushBase:126, battery:64, selfRight:2.8 },
   };
   const OPTS = {
     strategy:   ["adaptive","pressure","counter","ambush"],
@@ -137,13 +144,18 @@ const ENGINE = (() => {
   const DOHYO_MU = 1.0, KINETIC_RATIO = 0.8; // μ_kinetic / μ_static
   const VFREE_K = 1.15; // free-speed headroom above the tuned top speed (torque-speed curve)
   const PHYS = {
+    /* P-MASSE — classes officielles : M = Hobbyweight 12 lb / 5,44 kg.
+       Coques = QC tôle (aire alpha du sprite × 2,5 mm acier, plaques+parois+25 %
+       structure — tools/hull_masses.json fait foi dans la porte, ±30 %). */
     chassis: {
-      dart:  { kg:0.45, r:0.090 }, wedge: { kg:0.60, r:0.100 }, boxy: { kg:0.90, r:0.110 },
-      fleche:{ kg:0.95, r:0.112 },
-      marteau:{ kg:1.12, r:0.116 },
-      tortue:{ kg:0.9, r:0.11 },
-      losange:{ kg:1.01, r:0.113 },
-      disque:{ kg:1.35, r:0.121 },
+      dart:  { kg:2.00, r:0.090 }, wedge: { kg:2.48, r:0.100 }, boxy: { kg:3.25, r:0.110 },
+      fleche:{ kg:4.19, r:0.112 },
+      marteau:{ kg:3.00, r:0.116 },
+      tortue:{ kg:2.93, r:0.11 },
+      losange:{ kg:2.16, r:0.113 },
+      disque:{ kg:3.39, r:0.121 },
+      tortue_s:{ kg:0.58, r:0.045 }, hex_s:{ kg:0.63, r:0.045 },
+      coin_s:{ kg:0.63, r:0.045 }, losange_s:{ kg:0.72, r:0.045 }, totem_s:{ kg:0.74, r:0.045 },
     },
     propulsion: { // mu = grip coefficient, rWheel in metres
       pr0:{ kg:0.12, mu:0.70, rWheel:0.025 }, pr1:{ kg:0.30, mu:0.95, rWheel:0.030 },
@@ -233,15 +245,18 @@ const ENGINE = (() => {
     // the physical bank. push = min(motor force, μ·m·g) — grip-limited torque is
     // wasted, exactly as in reality. Constants pinned so stock RUSTY is unchanged.
     const ph = physStats(build);
-    const K_FORCE = 17.42, K_SPEED = 56.0;
+    const K_FORCE = 47.0, K_SPEED = 56.0;   // P-MASSE : ×2.7 (masses réelles) — même feel
     return {
       speed: ph.vmax * K_SPEED, push: ph.pushN * K_FORCE,
       gripAnchor: ph.gripKN * K_FORCE,                 // anchor = kinetic (sustained slide)
-      fMotorForce: ph.fMotor * K_FORCE,                // what the motor wants (pre-grip)
-      gripS: ph.gripSN * K_FORCE, gripK: ph.gripKN * K_FORCE, // static / kinetic caps
+      /* E3b — l'usure mord : build.eff = {motor,battery,propulsion} ∈ [0,1],
+         calculé par l'app depuis les instances (HS = 0). Défaut 1 partout. */
+      fMotorForce: ph.fMotor * K_FORCE * ((build.eff&&build.eff.motor) ?? 1),
+      gripS: ph.gripSN * K_FORCE * ((build.eff&&build.eff.propulsion) ?? 1),
+      gripK: ph.gripKN * K_FORCE * ((build.eff&&build.eff.propulsion) ?? 1),
       leverage: c.leverage + ar.leverage,
       traction: ph.mu, // display/grip proxy only; the physics use the grip caps
-      energy: ph.packWh * 9.0 * (c.battery/130), weight, // real Wh, scaled by hull discharge capacity
+      energy: ph.packWh * 9.0 * (c.battery/130) * ((build.eff&&build.eff.battery) ?? 1), weight,
       cpuInterval: cp.interval, turnGain: cp.gain, aimNoise: sn.noise,
       selfRight: c.selfRight * sr.srMul, hasSrimech: sr.id !== "r0", drainMul: ko.drain * nOf("motor") / Math.max(1, nOf("cooling")),
       edgePush: !!sw.edgePush, escape: !!sw.escape, cogFactor: ph.cogFactor,
@@ -257,6 +272,13 @@ const ENGINE = (() => {
   }
 
   const ARENA_R = 150, TICK = 1/60, SUDDEN_DEATH_T = 20, SHRINK_RATE = 0.09, MIN_R = 20;
+  /* E3 — seuils de dégâts : en dessous de HIT_J un contact ne compte pas ;
+     au-delà de RIPOFF_J sur un composant EXPOSÉ (= qui a un collider), il est
+     arraché net. DIRECT_MUL surpondère le choc direct dans l'intégrité. */
+  const HIT_J = 70, RIPOFF_J = 260, DIRECT_MUL = 2.2, HIT_COOLDOWN = 0.22;  // P-MASSE : impulsions ∝ masse
+  /* HIT_J au-dessus du bruit de POUSSÉE (le grind sumo génère ~12-20 par tick
+     en appui continu) ; le temps réfractaire par bot fait qu'un contact
+     prolongé compte comme UN choc, pas comme soixante. */
   // deterministic flip model (2b): lift accumulates from leverage × shove,
   // resisted by stability (mass × low CoG). No RNG.
   const LIFT_FLOOR = 2.3, LIFT_GAIN = 0.5, LIFT_DECAY = 8.0, FLIP_K = 17.0, LEVER_CAP = 1.5, BEACH_KO = 5.0;
@@ -277,6 +299,11 @@ const ENGINE = (() => {
       cogFactor:(typeof build.stability==="number"?build.stability:st.cogFactor), lift:0, beachedT:0,
       mode:"stalk", modeChanged:false, dominatedT:0, contactT:0,
       flippedT:0, flipAccT:0, throttleL:0, throttleR:0, edgeTime:0,
+      /* E3 — dégâts positionnels : hits = journal des chocs subis
+         ({t, impulse, part: MON composant frappé directement ou null=coque,
+           ripped: arraché net}), hp = intégrité structurelle 0..1 (barre S9),
+         hpPool ∝ masse. gone[slot] retire collider + contribution. */
+      hits:[], hp:1, hpPool: 300*st.weight,
     };
   }
 
@@ -597,6 +624,23 @@ const ENGINE = (() => {
         b.vel = V.add(b.vel, V.scl(n,  jimp/b.mass));
         if (Math.abs(jimp) > 28) m.events.push({t:m.t, type:"impact", impulse:Math.abs(jimp),
           x:(a.pos.x+b.pos.x)/2, y:(a.pos.y+b.pos.y)/2});
+        // E3 : chaque bot journalise le choc qu'il ENCAISSE, attribué à son
+        // composant frappé (hit.aPart pour a, hit.bPart pour b) ou à la coque.
+        const J = Math.abs(jimp);
+        if (J > HIT_J){
+          for (const [bot, myPart] of [[a, hit.aPart], [b, hit.bPart]]){
+            if (bot._lastHitLogT != null && m.t - bot._lastHitLogT < HIT_COOLDOWN) continue;
+            bot._lastHitLogT = m.t;
+            const direct = myPart != null && !(bot.gone && bot.gone[myPart]);
+            let ripped = false;
+            if (direct && J > RIPOFF_J){
+              bot.gone = bot.gone || {}; bot.gone[myPart] = true; ripped = true;
+              m.events.push({t:m.t, type:"ripoff", bot:bot.id, part:myPart, impulse:J});
+            }
+            bot.hits.push({t:m.t, impulse:J, part: direct ? myPart : null, ripped});
+            bot.hp = Math.max(0, bot.hp - J*(direct ? DIRECT_MUL : 1)/bot.hpPool);
+          }
+        }
         if (Math.abs(relVn) > 55){ a.lastHardHitT = m.t; b.lastHardHitT = m.t; }
       }
       a.contactT += dt; b.contactT += dt;
@@ -744,7 +788,7 @@ const ENGINE = (() => {
     return "tend_wild";
   }
 
-  return { makeMatch, tick, runHeadless, derivedStats, statBars, genOpponent, genTournament, tendencyKey,
+  return { makeMatch, tick, DAMAGE:{HIT_J, RIPOFF_J, DIRECT_MUL}, runHeadless, derivedStats, statBars, genOpponent, genTournament, tendencyKey,
            CHASSIS, OPTS, DEFAULT_BUILD, SLICE1, PARTS, partOf, ARENA_R, TICK, SUDDEN_DEATH_T,
            PHYS, physStats, partMassKg };
 })();

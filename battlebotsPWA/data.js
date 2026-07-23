@@ -48,12 +48,12 @@ const STRINGS = {
     fx_drain:"conso", fx_edgePush:"pousse vers le bord",
     pn_m0:"Bobinage fatigué", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
     pn_m3:"KV90 Couple-Monstre", pn_m4:"KV600 Sprint",
-    pn_b0:"Pack gonflé", pn_b1:"LiPo 4S", pn_b2:"LiPo 6S", pn_b3:"Brique graphène",
+    pn_b0:"Pack gonflé", pn_b1:"LiPo 4S", pn_b2:"LiPo 4S HD", pn_b3:"Brique graphène",
     pn_pr0:"Deux roues + patins", pn_pr1:"4×4 crampons", pn_pr2:"Triporteur sport", pn_pr3:"Chenilles acier",
     garageTitle:"Garage", botBought:"{name} acheté !", onOtherBot:"{n} sur un autre bot",
     scrClass:"Classe {c} requise (ton bot est {got})", scrTracks:"Chenilles interdites",
     scrWeapons:"Armes interdites", scrBanned:"{p} interdit", scrSoftware:"Software max v{v}",
-    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Éligible", scrFail:"Non éligible", shopUsed:"Occasions du jour", usedWear:"usure {w} %", usedSold:"Vendu", scrTier:"Palier {tr} requis", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Débriefing", dbBattery:"Batterie restante", dbDist:"Distance parcourue", dbContact:"Temps au contact", dbFlipped:"Temps retourné", endShrinkOut:"mort subite (piste rétrécie)", endRingOut:"sortie de piste", endKoFlip:"KO retourné", tournaments:"Tournois", unlimited:"Sans limite", soon:"Bientôt jouable", secLigues:"LIGUES", enter:"Entrer ›", lockedTag:"Verrouillée", newTag:"Nouveau", nConcours:"{n} concours", kEnCours:"{k} en cours", enCours:"en cours", engage:"S\u2019engager", abandon:"Abandonner", confirmAbandon:"Confirmer ?", dispute:"Disputer la manche", freeFight:"Combattre", youTag:"VOUS", foeTag:"ADVERSAIRE", vsBehaviour:"COMPORTEMENT \u00B7 CETTE MANCHE", mancheN:"MANCHE {r}/{n}", vsQual:"QUALIFICATION", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"SANT\u00C9", stickVersions:"Plaques de version", stickerAuto:"Offerte \u00B7 logiciel", stickerWithSw:"Avec Logiciel {v}", settingsTitle:"R\u00E9glages", setLang:"Langue", setVersions:"Versions", close:"Fermer", verOpenLegacy:"Ouvrir la version single-file", verRow_app:"", verRow_build:"Build", verRow_off:"Hors-ligne", verRow_save:"Sauvegarde", verSaveV4:"v4 instances", verSaveOld:"ancienne", scrap:"Jeter", botScrapped:"{name} d\u00E9moli \u2014 pi\u00E8ces retourn\u00E9es \u00E0 l\u2019inventaire", lastBot:"Impossible : dernier bot du garage", garageInv:"Inventaire \u00B7 pi\u00E8ces libres", invEmpty:"Aucune pi\u00E8ce libre \u2014 tout est mont\u00E9", invNew:"neuve", shopChassis:"Ch\u00E2ssis neufs", champRound:"Manche {r}/{n} · {rank}ᵉ", champTable:"Classement", you:"VOUS", bracketNext:"Qualifié · {r}", bracketChamp:"CHAMPION", bracketOut:"Éliminé", bracketPrize:"+{total} 🔩", bracketTitle:"Coupe M", bracketDone:"terminée", champDone:"Saison terminée", champPrize:"{rank}ᵉ au classement · +{total} 🔩", pn_a0:"(tôle nue)", pn_a1:"Pare-choc", pn_a2:"Lame acier", pn_a3:"Fourche",
+    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Éligible", scrFail:"Non éligible", shopUsed:"Occasions du jour", usedWear:"usure {w} %", usedSold:"Vendu", scrTier:"Palier {tr} requis", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Débriefing", dbBattery:"Batterie restante", dbDist:"Distance parcourue", dbContact:"Temps au contact", dbFlipped:"Temps retourné", endShrinkOut:"mort subite (piste rétrécie)", endRingOut:"sortie de piste", endKoFlip:"KO retourné", tournaments:"Tournois", unlimited:"Sans limite", soon:"Bientôt jouable", secLigues:"LIGUES", enter:"Entrer ›", lockedTag:"Verrouillée", newTag:"Nouveau", nConcours:"{n} concours", kEnCours:"{k} en cours", enCours:"en cours", engage:"S\u2019engager", abandon:"Abandonner", confirmAbandon:"Confirmer ?", dispute:"Disputer la manche", freeFight:"Combattre", youTag:"VOUS", foeTag:"ADVERSAIRE", vsBehaviour:"COMPORTEMENT \u00B7 CETTE MANCHE", mancheN:"MANCHE {r}/{n}", vsQual:"QUALIFICATION", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"SANT\u00C9", stickVersions:"Plaques de version", stickerAuto:"Offerte \u00B7 logiciel", stickerWithSw:"Avec Logiciel {v}", lockBeaten:"Palmar\u00E8s : {n} victoires", lay_structure:"Structure", sPrime:"PRIME DE MONT\u00C9E \u00B7 +200 \u20AC \u2014 un sponsor t\u2019ouvre les ligues M !", lay_equipement:"\u00C9quipement", shopUsedBot:"Bot d\u2019occasion \u00B7 assembl\u00E9", dmgTitle:"D\u00E9g\u00E2ts subis", dmgNone:"Aucun d\u00E9g\u00E2t notable", dmgHS:"HS", dmgRipped:"ARRACH\u00C9", dmgChassis:"Ch\u00E2ssis", dmgRepairEst:"R\u00E9paration estim\u00E9e : {c} \u20AC", repair:"R\u00E9parer {c} \u20AC", repairAll:"Tout r\u00E9parer \u00B7 {c} \u20AC", wearPct:"usure {w} %", usedBotSold:"Vendu \u2014 nouvelle offre demain", usedBotBought:"{name} d\u2019occasion au garage \u2014 inspecte-le !", settingsTitle:"R\u00E9glages", settingsEyebrow:"ROBOCLASH \u00B7 PWA", moreCtrlHint:"Plus de contr\u00F4les disponibles apr\u00E8s am\u00E9lioration du software.", verRow_install:"Installable", verRow_maj:"Mises \u00E0 jour auto", setLang:"Langue", setVersions:"Versions", close:"Fermer", verOpenLegacy:"Ouvrir la version single-file", verRow_app:"", verRow_build:"Build", verRow_off:"Hors-ligne", verRow_save:"Sauvegarde", verSaveV4:"v4 instances", verSaveOld:"ancienne", scrap:"Jeter", botScrapped:"{name} d\u00E9moli \u2014 pi\u00E8ces retourn\u00E9es \u00E0 l\u2019inventaire", lastBot:"Impossible : dernier bot du garage", garageInv:"Inventaire \u00B7 pi\u00E8ces libres", invEmpty:"Aucune pi\u00E8ce libre \u2014 tout est mont\u00E9", invNew:"neuve", shopChassis:"Ch\u00E2ssis neufs", champRound:"Manche {r}/{n} · {rank}ᵉ", champTable:"Classement", you:"VOUS", bracketNext:"Qualifié · {r}", bracketChamp:"CHAMPION", bracketOut:"Éliminé", bracketPrize:"+{total} €", bracketTitle:"Coupe M", bracketDone:"terminée", champDone:"Saison terminée", champPrize:"{rank}ᵉ au classement · +{total} €", pn_a0:"(tôle nue)", pn_a1:"Pare-choc", pn_a2:"Lame acier", pn_a3:"Fourche",
     pn_c0:"8-bit récupéré", pn_c1:"Cortex M7", pn_c2:"Pod neuronal",
     pn_n0:"Pare-chocs", pn_n1:"IR 360°", pn_n2:"LIDAR",
     pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
@@ -84,13 +84,13 @@ const STRINGS = {
     bought:"{name} installé·e !",
     friendly:"Match amical",
     tourneyTitle:"TOURNOI NIVEAU {l} — Match {i}/3",
-    tourneyPrize:"Prix : {p} 🔩 + badge + niveau {n}",
-    tourneyChampPrize:"Prix : {p} 🔩 + badge + titre de CHAMPION",
+    tourneyPrize:"Prix : {p} € + badge + niveau {n}",
+    tourneyChampPrize:"Prix : {p} € + badge + titre de CHAMPION",
     tourneyNext:"Match {i}/3 →", tourneyWon:"TOURNOI GAGNÉ !",
     tourneyLost:"Tournoi échoué — on repart au match 1. Le bracket ne change pas : tu le connais mieux maintenant.",
     tourneyReroll:"Tournoi échoué — nouveaux inscrits ! Un bracket tout frais t'attend.",
     oppRetired:"Il s'est retiré du circuit. Un nouvel adversaire arrive.",
-    boltsEarned:"+{b} 🔩",
+    boltsEarned:"+{b} €",
     qualif:"Qualifications : {n}/2",
   },
   en: {
@@ -139,12 +139,12 @@ const STRINGS = {
     fx_drain:"drain", fx_edgePush:"edge-push vectoring",
     pn_m0:"Tired windings", pn_m1:"Twin 540", pn_m2:"Vector Brushless",
     pn_m3:"KV90 Torque Monster", pn_m4:"KV600 Sprint",
-    pn_b0:"Puffy pack", pn_b1:"LiPo 4S", pn_b2:"LiPo 6S", pn_b3:"Graphene brick",
+    pn_b0:"Puffy pack", pn_b1:"LiPo 4S", pn_b2:"LiPo 4S HD", pn_b3:"Graphene brick",
     pn_pr0:"Two wheels + skids", pn_pr1:"4×4 lugs", pn_pr2:"Sport trike", pn_pr3:"Steel treads",
     garageTitle:"Garage", botBought:"{name} purchased!", onOtherBot:"{n} on another bot",
     scrClass:"Class {c} required (yours is {got})", scrTracks:"Tracks not allowed",
     scrWeapons:"Weapons not allowed", scrBanned:"{p} banned", scrSoftware:"Software max v{v}",
-    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Eligible", scrFail:"Not eligible", shopUsed:"Today's used deals", usedWear:"{w}% wear", usedSold:"Sold", scrTier:"{tr} tier required", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Debrief", dbBattery:"Battery left", dbDist:"Distance covered", dbContact:"Contact time", dbFlipped:"Time flipped", endShrinkOut:"sudden death (shrinking floor)", endRingOut:"ring-out", endKoFlip:"KO (flipped)", tournaments:"Tournaments", unlimited:"No limit", soon:"Coming soon", secLigues:"LEAGUES", enter:"Enter ›", lockedTag:"Locked", newTag:"New", nConcours:"{n} events", kEnCours:"{k} ongoing", enCours:"ongoing", engage:"Enter event", abandon:"Withdraw", confirmAbandon:"Confirm?", dispute:"Play round", freeFight:"Fight", youTag:"YOU", foeTag:"FOE", vsBehaviour:"BEHAVIOUR \u00B7 THIS BOUT", mancheN:"ROUND {r}/{n}", vsQual:"QUALIFIER", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"HP", stickVersions:"Version plates", stickerAuto:"Free \u00B7 software", stickerWithSw:"With Software {v}", settingsTitle:"Settings", setLang:"Language", setVersions:"Versions", close:"Close", verOpenLegacy:"Open the single-file version", verRow_app:"", verRow_build:"Build", verRow_off:"Offline", verRow_save:"Save format", verSaveV4:"v4 instances", verSaveOld:"legacy", scrap:"Scrap", botScrapped:"{name} scrapped \u2014 parts returned to inventory", lastBot:"Cannot scrap your last bot", garageInv:"Inventory \u00B7 free parts", invEmpty:"No free parts \u2014 everything is fitted", invNew:"new", shopChassis:"New chassis", champRound:"Round {r}/{n} · {rank}th", champTable:"Standings", you:"YOU", bracketNext:"Through · {r}", bracketChamp:"CHAMPION", bracketOut:"Eliminated", bracketPrize:"+{total} 🔩", bracketTitle:"Cup M", bracketDone:"done", champDone:"Season over", champPrize:"{rank} in table · +{total} 🔩", pn_a0:"(bare plate)", pn_a1:"Bumper", pn_a2:"Steel blade", pn_a3:"Fork",
+    scrMetric:"{m} {v}{u} > max {c}{u}", scrPass:"Eligible", scrFail:"Not eligible", shopUsed:"Today's used deals", usedWear:"{w}% wear", usedSold:"Sold", scrTier:"{tr} tier required", scrCount:"{p} ×{n} > max ×{c}", dbTitle:"Debrief", dbBattery:"Battery left", dbDist:"Distance covered", dbContact:"Contact time", dbFlipped:"Time flipped", endShrinkOut:"sudden death (shrinking floor)", endRingOut:"ring-out", endKoFlip:"KO (flipped)", tournaments:"Tournaments", unlimited:"No limit", soon:"Coming soon", secLigues:"LEAGUES", enter:"Enter ›", lockedTag:"Locked", newTag:"New", nConcours:"{n} events", kEnCours:"{k} ongoing", enCours:"ongoing", engage:"Enter event", abandon:"Withdraw", confirmAbandon:"Confirm?", dispute:"Play round", freeFight:"Fight", youTag:"YOU", foeTag:"FOE", vsBehaviour:"BEHAVIOUR \u00B7 THIS BOUT", mancheN:"ROUND {r}/{n}", vsQual:"QUALIFIER", vsExhib:"EXHIBITION", hudBattery:"BATT", hudHealth:"HP", stickVersions:"Version plates", stickerAuto:"Free \u00B7 software", stickerWithSw:"With Software {v}", lockBeaten:"Record: {n} wins", lay_structure:"Structure", sPrime:"PROMOTION BONUS \u00B7 +200 \u20AC \u2014 a sponsor opens the M leagues!", lay_equipement:"Equipment", shopUsedBot:"Secondhand bot \u00B7 assembled", dmgTitle:"Damage report", dmgNone:"No notable damage", dmgHS:"DEAD", dmgRipped:"RIPPED OFF", dmgChassis:"Chassis", dmgRepairEst:"Repair estimate: {c} \u20AC", repair:"Repair {c} \u20AC", repairAll:"Repair all \u00B7 {c} \u20AC", wearPct:"wear {w} %", usedBotSold:"Sold \u2014 new offer tomorrow", usedBotBought:"Secondhand {name} in your garage \u2014 inspect it!", settingsTitle:"Settings", settingsEyebrow:"ROBOCLASH \u00B7 PWA", moreCtrlHint:"More controls unlock with software upgrades.", verRow_install:"Installable", verRow_maj:"Auto updates", setLang:"Language", setVersions:"Versions", close:"Close", verOpenLegacy:"Open the single-file version", verRow_app:"", verRow_build:"Build", verRow_off:"Offline", verRow_save:"Save format", verSaveV4:"v4 instances", verSaveOld:"legacy", scrap:"Scrap", botScrapped:"{name} scrapped \u2014 parts returned to inventory", lastBot:"Cannot scrap your last bot", garageInv:"Inventory \u00B7 free parts", invEmpty:"No free parts \u2014 everything is fitted", invNew:"new", shopChassis:"New chassis", champRound:"Round {r}/{n} · {rank}th", champTable:"Standings", you:"YOU", bracketNext:"Through · {r}", bracketChamp:"CHAMPION", bracketOut:"Eliminated", bracketPrize:"+{total} €", bracketTitle:"Cup M", bracketDone:"done", champDone:"Season over", champPrize:"{rank} in table · +{total} €", pn_a0:"(bare plate)", pn_a1:"Bumper", pn_a2:"Steel blade", pn_a3:"Fork",
     pn_c0:"Salvaged 8-bit", pn_c1:"Cortex M7", pn_c2:"Neural pod",
     pn_n0:"Bumpers", pn_n1:"IR 360°", pn_n2:"LIDAR",
     pn_s0:"Firmware v1", pn_s1:"Firmware v2 VectorPush", pn_s2:"Firmware v3 Escape",
@@ -174,13 +174,13 @@ const STRINGS = {
     bought:"{name} installed!",
     friendly:"Friendly match",
     tourneyTitle:"LEVEL {l} TOURNAMENT — Match {i}/3",
-    tourneyPrize:"Prize: {p} 🔩 + badge + level {n}",
-    tourneyChampPrize:"Prize: {p} 🔩 + badge + CHAMPION title",
+    tourneyPrize:"Prize: {p} € + badge + level {n}",
+    tourneyChampPrize:"Prize: {p} € + badge + CHAMPION title",
     tourneyNext:"Match {i}/3 →", tourneyWon:"TOURNAMENT WON!",
     tourneyLost:"Tournament failed — back to match 1. Same bracket: you know it better now.",
     tourneyReroll:"Tournament failed — new entrants! A fresh bracket awaits.",
     oppRetired:"He retired from the circuit. A new opponent steps in.",
-    boltsEarned:"+{b} 🔩",
+    boltsEarned:"+{b} €",
     qualif:"Qualifiers: {n}/2",
   }
 };
@@ -245,6 +245,30 @@ const CHASSIS_REG = {
             spec:{ mask:["...####...","..######..",".########.",".########.",".########.",".########.","..######..","...####..."], front:0, rear:7 },
             info:{ name:"DISQUE", cost:420 },
             sprite:{ src:DISQUE_SRC, body:{x:30,y:31,w:449,h:448} } },
+  /* ══ E4 — CLASSE S (Beetleweight 3 lb / 1,36 kg imposé par les CONCOURS).
+     Coques 3 cellules de large (9 cm), masques dérivés de l'alpha des sprites,
+     masses = QC tôle 2,5 mm. Catalogue de pièces PARTAGÉ : la limite de poids
+     fait le tri (décision « les concours imposent les règles »). ══ */
+  tortue_s: { tier:"beetle",
+            spec:{ mask:["###", "###", "###"], front:0, rear:2 },
+            info:{ name:"TORTUE S", cost:90 },
+            sprite:{ src:"assets/tortue_s.webp", body:{x:0,y:0,w:804,h:851} } },
+  hex_s:   { tier:"beetle",
+            spec:{ mask:["###", "###", "###"], front:0, rear:2 },
+            info:{ name:"HEX S", cost:95 },
+            sprite:{ src:"assets/hex_s.webp", body:{x:0,y:0,w:762,h:780} } },
+  coin_s:  { tier:"beetle",
+            spec:{ mask:["###", "###", ".#.", ".#."], front:0, rear:3 },
+            info:{ name:"COIN S", cost:105 },
+            sprite:{ src:"assets/coin_s.webp", body:{x:0,y:0,w:698,h:892} } },
+  losange_s:{ tier:"beetle",
+            spec:{ mask:[".#.", "###", "###", ".#."], front:0, rear:3 },
+            info:{ name:"LOSANGE S", cost:110 },
+            sprite:{ src:"assets/losange_s.webp", body:{x:0,y:0,w:586,h:900} } },
+  totem_s: { tier:"beetle",
+            spec:{ mask:["###", "###", "###", ".#."], front:0, rear:3 },
+            info:{ name:"TOTEM S", cost:120 },
+            sprite:{ src:"assets/totem_s.webp", body:{x:0,y:0,w:605,h:900} } },
   wedge:  { tier:"beetle", floors:2, spec:{ front:2, rear:8, hFront:0.9, hRear:2.0 } },
   dart:   { tier:"beetle", floors:2, spec:{ front:2, rear:8, hFront:0.6, hRear:1.8 } },
 };
@@ -266,7 +290,7 @@ const BUYABLE_CHASSIS = Object.keys(CHASSIS_INFO).filter(c=>CHASSIS_INFO[c].cost
    à caler quand leurs châssis existeront.
    ============================================================ */
 const TIERS = [
-  { id:"beetle",  name:"Beetleweight",  massMaxKg:1.36,  grid:{w:10,h:10},
+  { id:"beetle",  name:"Hobbyweight",  massMaxKg:5.44,  grid:{w:10,h:10},   // P-MASSE : classes officielles
     classBands:[["S",32],["M",48],["L",68],["XXL",9999]],
     kgPerCellHint:0.025, botPriceEur:[300,500] },
   { id:"feather", name:"Featherweight", massMaxKg:13.6,  grid:{w:16,h:12},
@@ -279,7 +303,20 @@ const TIER_BY_ID = Object.fromEntries(TIERS.map(t=>[t.id,t]));
 function tierOf(ch){ return TIER_BY_ID[CHASSIS_TIER[ch]] || TIER_BY_ID.beetle; }
 function gridW(ch){ return tierOf(ch).grid.w; }
 function gridH(ch){ return tierOf(ch).grid.h; }
-function gridCX(ch){ return tierOf(ch).grid.w/2; }
+const _gcx = {};
+function gridCX(ch){ /* E4 : axe miroir = centre de la COQUE, lu directement
+   dans le masque (pas de géométrie dérivée : évite toute récursion).
+   Identique à grid.w/2 pour les coques symétriques pleine largeur. */
+  if (_gcx[ch] != null) return _gcx[ch];
+  const sp = CHASSIS_SPEC[ch];
+  if (sp && sp.mask){
+    let lo = 1e9, hi = -1;
+    for (const row of sp.mask) for (let c = 0; c < row.length; c++)
+      if (row[c] === "#"){ if (c < lo) lo = c; if (c > hi) hi = c; }
+    return _gcx[ch] = (lo + hi + 1) / 2;
+  }
+  return _gcx[ch] = tierOf(ch).grid.w / 2;
+}
 const CELL_GAP = 4;
 
 
@@ -292,27 +329,54 @@ const CELL_GAP = 4;
    lockBuild : le build est gelé à l'engagement.
    ============================================================ */
 const TOURNAMENTS = [
+  { id:"sumoS", arena:"assets/arena_s_nerd.webp", name:"Defi du Bureau", format:"championnat", rounds:4,
+    unlock:null, lockBuild:true,
+    rules:{ tier:"beetle", chassisClass:"S", banWeapons:true, banTracks:true, mode:"sumo",
+            maxSoftware:"s1", metrics:{ weightKg:1.36 }, maxCount:{ motor:1, battery:1 } } },
+  { id:"sparS", arena:"assets/arena_clean.webp", name:"Sparring d'Atelier", format:"championnat", rounds:6,
+    unlock:{beaten:6}, lockBuild:true,
+    rules:{ tier:"beetle", chassisClass:"S", banWeapons:true, banTracks:true, mode:"sumo",
+            maxSoftware:"s1", metrics:{ weightKg:1.36 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
+  { id:"cupS", arena:"assets/arena_grim.webp", name:"Coupe des Puces", format:"bracket", size:8,
+    unlock:{beaten:12}, lockBuild:true,
+    rules:{ tier:"beetle", chassisClass:"S", banWeapons:true, banTracks:true, mode:"sumo",
+            maxSoftware:"s1", metrics:{ weightKg:1.36 }, maxCount:{ motor:1, battery:1 } } },
   { id:"sumoM", arena:"assets/arena_clean.webp", name:"Sumo Classe M", format:"ladder", levels:5,
     unlock:null, lockBuild:false, noEngage:true,   // progression longue globale : pas d'acte d'engagement
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
-            maxCount:{ motor:3, battery:3 } } },
-  { id:"lightM", name:"Sumo Léger", format:"championnat", rounds:10,
-    unlock:null, lockBuild:true,
+            metrics:{ weightKg:5.44 }, maxCount:{ motor:3, battery:3 } } },
+  { id:"lightM", arena:"assets/arena_m_shop.webp", name:"Sumo Léger", format:"championnat", rounds:10,
+    unlock:{beaten:12}, lockBuild:true,
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, banTracks:true, mode:"sumo",
-            metrics:{ weightKg:2.0 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
+            metrics:{ weightKg:4.80 }, maxCount:{ motor:1, battery:1, cooling:1, ballast:1 } } },
   { id:"cupM", arena:"assets/arena_grim.webp", name:"Coupe M", format:"bracket", size:16,
-    unlock:null, lockBuild:true,
+    unlock:{beaten:24}, lockBuild:true,
     rules:{ tier:"beetle", chassisClass:"M", banWeapons:true, mode:"sumo",
-            maxCount:{ motor:3, battery:3 } } },
+            metrics:{ weightKg:5.44 }, maxCount:{ motor:3, battery:3 } } },
   { id:"libre", arena:"assets/arena_kawaii.webp", name:"Combat libre", format:"libre",
     unlock:null, lockBuild:false, noEngage:true,   // exhibition : ni engagement, ni progression
     rules:{ tier:"beetle" } }];
+/* E1 — barème de gains en EUROS par niveau d'échelle (source unique).
+   Calibré au simulateur (scénario D) : 1er achat < 15 min, contenu M 11-18 h. */
+const WIN_EUR = [0, 12, 20, 32, 50, 80];
+/* E3b — dégâts : fragilité par slot (l'électronique casse, le lest s'en fiche,
+   le software est immatériel) et constantes de conversion impulsion→usure.
+   Réparation = usure × prix × RATE, jamais sous FLOOR ; le châssis ne se
+   démonte pas : réparation seule, sur une base forfaitaire. */
+const FRAGILITY = { sensors:2.2, cpu:1.6, cooling:1.2, motor:1.0, battery:1.0,
+  weapon1:1.0, weapon2:1.0, srimech:0.8, propulsion:0.7, armor:0.6, ballast:0.3, software:0 };
+const DAMAGE_TUNE = { DIRECT_K:0.081, VIB_K:0.011, GRIND_K:0.35, CHASSIS_J_K:0.0165, CHASSIS_GRIND_K:0.16,
+  REPAIR_RATE:0.6, REPAIR_FLOOR:8, CHASSIS_REPAIR_BASE:180 };
 const LIGUES = [
-  { id:"regionale", name:"Ligue Régionale", tier:"beetle", unlock:null,
+  /* E4 — CIRCUIT GARAGE : l'arc S. Bourses ×0.35 (petites classes, petites
+     primes) ; la finale de la Coupe des Puces paie la PRIME DE MONTÉE (200 €). */
+  { id:"garage", name:"Circuit Garage", tier:"beetle", unlock:null, purseMult:0.35,
+    concours:["sumoS","sparS","cupS"] },
+  { id:"regionale", name:"Ligue Régionale", tier:"beetle", unlock:null, purseMult:1,
     concours:["sumoM","lightM","cupM","libre"] },
-  { id:"nationale", name:"Ligue Nationale", tier:"beetle", unlock:{placeholder:true},
+  { id:"nationale", name:"Ligue Nationale", tier:"beetle", unlock:{placeholder:true}, purseMult:2.5,
     concours:[] },                          // placeholder assumé
-  { id:"internationale", name:"Ligue Internationale", tier:"beetle", unlock:{placeholder:true},
+  { id:"internationale", name:"Ligue Internationale", tier:"beetle", unlock:{placeholder:true}, purseMult:6,
     concours:[] },                          // placeholder assumé
 ];
 

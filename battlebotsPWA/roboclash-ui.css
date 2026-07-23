@@ -123,11 +123,12 @@ img{max-width:100%;display:block;}
 }
 /* CRT scanlines */
 .rc-app::after{
-  content:"";position:absolute;inset:0;pointer-events:none;z-index:40;
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:5;
   background:repeating-linear-gradient(rgba(0,0,0,.2) 0 1px,transparent 1px 3px);
   mix-blend-mode:overlay;
 }
-.rc-app > *{position:relative;z-index:1;}
+.rc-app > *{position:relative;}   /* S13 : PAS de z-index — un contexte d'empilement
+   par écran rendait toute exemption du CRT impossible (enfants plafonnés sous l'overlay). */
 
 /* ----------------------------------------------------------------------------
    3 · PLATE  — the material surface primitive (compose everything from this)
@@ -621,11 +622,50 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
 
 
 /* ══ S11a — fonds d'atelier et de présentation (remplacement du noir) ══ */
-.rc-editorcanvas{
-  background-image:linear-gradient(rgba(14,7,12,.42),rgba(14,7,12,.42)),url("assets/bg/atelier.webp");
-  background-size:cover;background-position:center;}
+/* S14 : voiles allégés — le sol d'atelier doit se VOIR (le .42 le noyait). */
+.rc-editor .rc-editorcanvas{
+  background-image:linear-gradient(rgba(14,7,12,.14),rgba(14,7,12,.14)),url("assets/bg/atelier.webp");
+  background-size:cover;background-position:center;box-shadow:inset 0 0 18px rgba(0,0,0,.45);}
 .rc-botcell__thumb{
-  background:linear-gradient(rgba(14,7,12,.35),rgba(14,7,12,.35)),url("assets/bg/atelier.webp") center/cover !important;}
-.rc-portrait{background:url("assets/bg/atelier.webp") center/cover;}
-.rc-portrait--foe1{background:url("assets/bg/prez1.webp") center/cover;}
-.rc-portrait--foe2{background:url("assets/bg/prez2.webp") center/cover;}
+  background:linear-gradient(rgba(14,7,12,.22),rgba(14,7,12,.22)),url("assets/bg/atelier.webp") center/cover !important;}
+.rc-portrait{background:url("assets/bg/atelier.webp") center/cover !important;}
+.rc-portrait.rc-portrait--foe1{background:url("assets/bg/prez1.webp") center/cover !important;}
+/* E4 — classe S : portrait sur tapis de découpe (le bot occupe ~80 % du cadre,
+   décision design v7 : la grille du tapis est scale-agnostique). */
+.rc-portrait.rc-portrait--cls-s{background:url("assets/bg_s_mat.webp") center/cover !important;}
+.rc-portrait.rc-portrait--foe2{background:url("assets/bg/prez2.webp") center/cover !important;}
+
+
+/* ══ Point 3 (décision) — le CRT ne passe PAS sur les bots : l'éditeur, les
+   portraits VS et les cellules du botstrip flottent AU-DESSUS des scanlines
+   (z 41 > overlay 40). Le reste de l'interface garde l'effet — c'est la DA.
+   Le chrome sticky monte à 50 pour rester au-dessus au scroll. ══ */
+#chrome{z-index:50;}
+/* S13 : exemption CRT effective — overlay à 5, ces éléments à 6 dans le MÊME
+   contexte racine (les écrans ne créent plus de contexte). Pièces de boutique,
+   tuiles FIT et vignettes de liste exemptées aussi (lisibilité). */
+.rc-editorcanvas, .rc-portrait, .rc-botcell__thumb,
+.rc-gcard__art, .slotrow .stile, .rc-tile__glyph, .rc-arena{position:relative;z-index:6;}
+
+
+/* ══ E2 — carte du bot d'occasion assemblé ══ */
+#usedBotPlate{border:2px solid var(--rc-line);border-top:3px solid var(--rc-amber);
+  border-radius:var(--rc-r);padding:12px;margin-top:12px;
+  background:linear-gradient(160deg,rgba(255,155,61,.07),transparent 55%);box-shadow:var(--rc-bevel),var(--rc-drop);}
+#usedBotPlate .rc-section{color:var(--rc-amber);}
+.rc-usedbot{display:flex;align-items:center;gap:12px;}
+.rc-usedbot .rc-botcell__thumb{width:84px;height:84px;flex:0 0 auto;}
+.rc-usedbot__info{flex:1;min-width:0;}
+.rc-usedbot .rc-buy s{opacity:.55;margin-right:4px;}
+
+
+/* ══ E3b — rapport de dégâts et usure au garage ══ */
+.rc-dmg{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
+.rc-dmg__row{font-family:var(--rc-f-ui);font-size:13px;color:var(--rc-ink);
+  border-bottom:1px solid rgba(255,42,74,.1);padding-bottom:4px;}
+.rc-dmg__dw{color:var(--rc-amber-lt);font-family:var(--rc-f-num);font-weight:700;}
+.rc-dmg__bad{color:var(--rc-red-lt);letter-spacing:.06em;}
+.rc-wear{font-family:var(--rc-f-dense);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--rc-amber-lt);border:1px solid rgba(255,155,61,.4);border-radius:99px;padding:2px 8px;flex:0 0 auto;}
+.rc-wear--bad{color:var(--rc-red-lt);border-color:rgba(255,42,74,.5);}
+.rc-wear--hs{color:#fff;background:var(--rc-red);border-color:var(--rc-red);}

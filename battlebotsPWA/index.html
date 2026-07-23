@@ -30,8 +30,8 @@
     </div>
     <div class="rc-topbar__side">
       <span class="rc-currency" id="boltsLabel"></span>
-      <button class="lang" id="navBack" style="display:none">←</button>
-      <button class="lang" id="settingsBtn" title="Reglages">⚙</button>
+      <button class="rc-iconbtn" id="navBack" style="display:none">←</button>
+      <button class="rc-iconbtn" id="settingsBtn" title="Reglages">⚙</button>
     </div>
   </header>
   <nav class="rc-tabs">
@@ -59,7 +59,7 @@
           <button class="rc-toolbtn" id="hbToggle" data-i18n="hbShow"></button>
           <button class="rc-toolbtn" id="resetLayout" data-i18n="editReset"></button>
         </div>
-        <div class="rc-editorcanvas rc-editorcanvas--wide">
+        <div class="rc-editorcanvas">
           <canvas id="editorCv" width="640" height="640" style="width:100%;height:100%;display:block"></canvas>
         </div>
         <div class="numdash" id="myNums"></div>
@@ -172,6 +172,7 @@
   </div>
 </div></div>
 <div id="settingsOv" style="display:none"><div class="ocard rc-plate rc-plate--edge-red">
+  <div class="rc-eyebrow" data-i18n="settingsEyebrow"></div>
   <h2 class="rc-title" data-i18n="settingsTitle"></h2>
   <div class="rc-section" data-i18n="setLang"></div>
   <div class="rc-seg" id="langSeg">
@@ -180,9 +181,9 @@
   </div>
   <div class="rc-section rc-mt" data-i18n="setVersions"></div>
   <table class="rc-debrief" id="verTable"></table>
-  <a class="rc-textlink rc-center" id="verLegacy" href="../battleBots/ai-roboclash.html" data-i18n="verOpenLegacy"></a>
+  <a class="rc-btn rc-btn--ghost rc-btn--block" id="verLegacy" href="../battleBots/ai-roboclash.html" data-i18n="verOpenLegacy"></a>
   <div class="rc-stack rc-mt">
-    <button class="rc-btn rc-btn--primary rc-btn--block" id="settingsClose" data-i18n="close"></button>
+    <button class="rc-btn rc-btn--block" id="settingsClose" data-i18n="close"></button>
   </div>
 </div></div>
 <div id="toast"><div class="tcard" id="toastText"></div></div>
