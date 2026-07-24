@@ -700,3 +700,24 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
 .rc-ct__sub{color:var(--rc-muted);margin-top:2px;}
 .rc-toolbtn--rm{color:#ff9db0;border-color:#5c2634;}
 #addPicker{margin-top:8px;border-top:1px dashed #3a2333;padding-top:8px;}
+
+/* ══ E9 — intro & cérémonie de remise ══ */
+#introOv,#botRecvOv{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  background:rgba(10,5,9,.92);}
+.rc-intro{width:min(430px,92vw);}
+.rc-intro__body{font-family:var(--rc-f-dense);font-size:13.5px;line-height:1.55;color:var(--rc-ink);}
+.rc-recv{width:min(360px,90vw);text-align:center;padding:22px 18px;border-radius:14px;
+  border:1px solid #3a2333;background:linear-gradient(170deg,#221527,#150d16);
+  box-shadow:0 0 40px -8px rgba(177,75,255,.35);}
+.rc-recv__stage{width:256px;height:256px;margin:8px auto;position:relative;}
+.rc-recv__stage::before{content:"";position:absolute;inset:14%;border-radius:50%;
+  background:radial-gradient(circle,rgba(177,75,255,.30),transparent 65%);
+  animation:rc-glow 2.2s ease-in-out infinite;}
+#recvCv{position:relative;width:100%;height:100%;display:block;}
+.rc-recv__name{font-family:var(--rc-f-pixel);font-size:12px;color:var(--rc-amber);letter-spacing:.08em;margin-top:4px;}
+.rc-recv--in #recvCv{animation:rc-botdrop .55s cubic-bezier(.2,1.4,.4,1) both;}
+@keyframes rc-botdrop{
+  0%{transform:scale(1.7) translateY(-26px);opacity:0;}
+  60%{transform:scale(.96) translateY(3px);opacity:1;}
+  100%{transform:scale(1) translateY(0);}}
+@keyframes rc-glow{0%,100%{opacity:.55;}50%{opacity:1;}}

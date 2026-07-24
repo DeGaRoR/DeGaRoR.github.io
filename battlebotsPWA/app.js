@@ -237,6 +237,7 @@ function createCareer(name){
       const fresh = newCareerState(); fresh.careerName = name || ("Carri\u00E8re " + n);
       localStorage.setItem(careerKey(n), JSON.stringify(fresh));
       loadCareerState(n);
+      showIntro(()=>showBotReceived("tortue_s", "PETIT RUSTY", t("recvStarterSub")));   // E9
       return n;
     } }
   return null;                                           // plein (3/3)
@@ -1494,7 +1495,9 @@ function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   const bot = bareBot(chassis); refit(bot);             // E7 : châssis neuf = COQUE NUE (garage v2)
   S.garage.push(bot); S.activeBot = S.garage.length-1;
   syncActive(); recomputeOwned(); saveState();
-  showToast(t("bareHull",{name:info.name})); showTab("workshop"); renderHome(); }
+  showTab("workshop"); renderHome();
+  showBotReceived(chassis, info.name, t("bareHullSub"));                               // E9
+  }
 function drawBotThumb(ctx, chassis, color, L){ L=L||64; ctx.clearRect(0,0,L,L);
   const pad=L*0.92;
   if(chassisSpriteReady(chassis)){
@@ -2107,7 +2110,7 @@ function buyUsedBot(){
   S.garage.push(bot); S.activeBot = S.garage.length-1;
   S.usedBotOffer = null;                                   // vendu — retour demain
   syncActive(); recomputeOwned(); saveState();
-  showToast(t("usedBotBought", {name:chassisName(o.chassis)}));
+  showBotReceived(bot.chassis, chassisName(bot.chassis), t("usedRecvSub"));           // E9
   showTab("workshop"); renderHome();
   return true;
 }
@@ -3015,7 +3018,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v45";                                        // repere de build (CACHE du SW)
+  const cache = "v46";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_install"), "✓", "✗"],
@@ -3061,6 +3064,32 @@ function renderWelcome(){
   tilesDirty();
 }
 function showWelcome(){ $("welcomeOv").style.display = "flex"; renderWelcome(); }
+/* ══ E9 — cérémonie de remise d'un châssis (réutilisée à chaque achat) ══ */
+let _recvNext = null;
+function showBotReceived(chassis, label, sub, next){
+  const ov = $("botRecvOv"); if (!ov){ if (next) next(); return; }
+  _recvNext = next || null;
+  $("recvEyebrow").textContent = t("recvEyebrow");
+  $("recvName").textContent = da(label || chassisName(chassis));
+  $("recvSub").textContent = sub || (t("classe") + " " + chassisClassOf(chassis));
+  const cv = $("recvCv"), c = cv.getContext("2d");
+  c.clearRect(0,0,256,256);
+  drawBotThumb(c, chassis, null, 256);
+  ov.style.display = "flex";
+  const card = ov.querySelector(".rc-recv");
+  card.classList.remove("rc-recv--in"); void card.offsetWidth;   // relance l'animation
+  card.classList.add("rc-recv--in");
+}
+if ($("recvGo")) $("recvGo").onclick = ()=>{ $("botRecvOv").style.display = "none";
+  const n = _recvNext; _recvNext = null; if (n) n(); };
+/* ══ E9 — intro de nouvelle partie ══ */
+function showIntro(next){
+  const ov = $("introOv"); if (!ov){ if (next) next(); return; }
+  $("introBody").innerHTML = t("introBody");
+  ov.style.display = "flex";
+  $("introGo").onclick = ()=>{ ov.style.display = "none"; if (next) next(); };
+}
+
 function hideWelcome(){ $("welcomeOv").style.display = "none"; }
 if ($("careerNew")) $("careerNew").onclick = ()=>{
   const n = createCareer(($("careerName").value||"").trim());
