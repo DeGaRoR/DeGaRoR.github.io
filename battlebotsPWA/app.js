@@ -137,37 +137,102 @@ function recomputeOwned(){ // rebuild S.parts.owned for the active bot: a part s
     if(!owned[slot].length) owned[slot]=[eq[slot]]; }
   S.parts.owned=owned; }
 
+/* ══ CARRIÈRES (E6) — trois slots indépendants + pointeur actif.
+   roboclash_career_<n> porte un état complet ; roboclash_active désigne le
+   slot chargé. L'ancienne clé roboclash_s4 est ADOPTÉE en Carrière 1 au
+   premier boot (déplacement de clé, pas une migration de schéma). ══ */
+const CAREER_MAX = 3;
+const careerKey = (n) => "roboclash_career_" + n;
+function activeCareer(){ const n = parseInt(localStorage.getItem("roboclash_active"), 10);
+  return (n >= 1 && n <= CAREER_MAX) ? n : null; }
+function careersList(){
+  const out = [];
+  for (let n = 1; n <= CAREER_MAX; n++){
+    try { const raw = localStorage.getItem(careerKey(n)); if (!raw) continue;
+      const c = JSON.parse(raw);
+      out.push({ n, name: c.careerName || ("Carri\u00E8re " + n), bolts: c.bolts|0,
+                 level: c.level|0, beaten: c.beaten|0,
+                 chassis: (c.garage && c.garage[c.activeBot||0] || {}).chassis || "boxy" });
+    } catch(e){} }
+  return out;
+}
+(function adoptLegacy(){
+  try {
+    const legacy = localStorage.getItem(SKEY);
+    if (legacy && !localStorage.getItem(careerKey(1))){
+      localStorage.setItem(careerKey(1), legacy);
+      localStorage.removeItem(SKEY);
+      if (!activeCareer()) localStorage.setItem("roboclash_active", "1");
+    }
+  } catch(e){}
+})();
+
 let S = defaultState();
+let CUR_CAREER = activeCareer();
 try {
-  const raw = localStorage.getItem(SKEY);
-  if (raw){
-    const cand = JSON.parse(raw);
-    if (validState(cand)) S = {...defaultState(), ...cand};
-    /* sinon : schéma d'une autre version ou invalide → état neuf, sauvegarde
-       écrasée à la prochaine écriture. Politique pré-release, pas de migration. */
+  if (CUR_CAREER){
+    const raw = localStorage.getItem(careerKey(CUR_CAREER));
+    if (raw){
+      const cand = JSON.parse(raw);
+      if (validState(cand)) S = {...defaultState(), ...cand};
+      /* sinon : schéma d'une autre version → état neuf (pré-release). */
+    }
   }
 } catch(e){}
-S.garage.forEach(b => refit(b));
-if (S.activeBot==null || S.activeBot>=S.garage.length) S.activeBot=0;
-S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); });
-S.concours = (S.concours && typeof S.concours === "object") ? S.concours : {};
-S.concoursDone = (S.concoursDone && typeof S.concoursDone === "object") ? S.concoursDone : {};
-for (const cid in S.concours){ const st = S.concours[cid];
-  if (st && st.lock) st.lock.chassis = validChassis(st.lock.chassis); }
-/* A2 — SAVE_V et validState sont déclarés en tête d'état. Les migrations
-   ont été retirées (décision : pré-release, joueur unique) — une sauvegarde
-   d'une autre version est écartée, jamais transformée ni rétrogradée. */
-/* P-PLAN-UNIQUE : purge du blindage monté des états adoptés (données du
-   slot conservées pour le chantier plaques latérales). */
-(function retireArmor(){
-  if (S.parts && S.parts.equipped && S.parts.equipped.armor) S.parts.equipped.armor = null;
-  if (S.garage) for (const b of S.garage){
-    if (b.fit && b.fit.armor){ for (const u of b.fit.armor) delete S.inv.items[u]; delete b.fit.armor; }
-    if (b.equipped && b.equipped.armor) b.equipped.armor = null;
-  }
-})();
+function bootSanitize(){
+  S.garage.forEach(b => refit(b));
+  if (S.activeBot==null || S.activeBot>=S.garage.length) S.activeBot=0;
+  S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); });
+  S.concours = (S.concours && typeof S.concours === "object") ? S.concours : {};
+  S.concoursDone = (S.concoursDone && typeof S.concoursDone === "object") ? S.concoursDone : {};
+  for (const cid in S.concours){ const st = S.concours[cid];
+    if (st && st.lock) st.lock.chassis = validChassis(st.lock.chassis); }
+  /* A2 — SAVE_V et validState sont déclarés en tête d'état. Les migrations
+     ont été retirées (décision : pré-release, joueur unique) — une sauvegarde
+     d'une autre version est écartée, jamais transformée ni rétrogradée. */
+  /* P-PLAN-UNIQUE : purge du blindage monté des états adoptés (données du
+     slot conservées pour le chantier plaques latérales). */
+  (function retireArmor(){
+    if (S.parts && S.parts.equipped && S.parts.equipped.armor) S.parts.equipped.armor = null;
+    if (S.garage) for (const b of S.garage){
+      if (b.fit && b.fit.armor){ for (const u of b.fit.armor) delete S.inv.items[u]; delete b.fit.armor; }
+      if (b.equipped && b.equipped.armor) b.equipped.armor = null;
+    }
+  })();
+}
+bootSanitize();
 syncActive(); recomputeOwned();
-function saveState(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} }
+
+/* ══ E6 — gestion des carrières (bascule DOUCE : pas de reload, on recharge
+   l'état et on re-rend — le harness comme le navigateur y gagnent). ══ */
+function loadCareerState(n){
+  saveState();                                           // la carrière quittée est bordée
+  localStorage.setItem("roboclash_active", String(n));
+  CUR_CAREER = n;
+  S = defaultState();
+  try { const raw = localStorage.getItem(careerKey(n));
+    if (raw){ const cand = JSON.parse(raw); if (validState(cand)) S = {...defaultState(), ...cand}; }
+  } catch(e){}
+  bootSanitize(); syncActive(); recomputeOwned(); saveState();
+  if (typeof NAV !== "undefined" && NAV.reset) NAV.reset();
+  renderHome();
+}
+function createCareer(name){
+  for (let n = 1; n <= CAREER_MAX; n++){
+    if (!localStorage.getItem(careerKey(n))){
+      const fresh = defaultState(); fresh.careerName = name || ("Carri\u00E8re " + n);
+      localStorage.setItem(careerKey(n), JSON.stringify(fresh));
+      loadCareerState(n);
+      return n;
+    } }
+  return null;                                           // plein (3/3)
+}
+function deleteCareer(n){
+  localStorage.removeItem(careerKey(n));
+  if (CUR_CAREER === n){ localStorage.removeItem("roboclash_active"); CUR_CAREER = null; }
+}
+
+function saveState(){ try{ if (CUR_CAREER) localStorage.setItem(careerKey(CUR_CAREER), JSON.stringify(S)); }catch(e){} }
 LANG = S.lang;
 
 /* E1 : le barème vit dans data.js (WIN_EUR). Alias local pour les lecteurs. */
@@ -2775,6 +2840,7 @@ const TABS = {fight:"fightTab", workshop:"workshopTab", shop:"shopTab"};
    Le retour matériel (Android) suit via popstate ; tout est gardé pour jsdom. */
 const NAV = {
   stack: ["homeScreen"],
+  reset(){ this.stack = ["homeScreen"]; this.show("homeScreen"); },   // E6
   hist: 0,  // entrées history poussées par nous, pas encore consommées
   eat: 0,   // popstate à ignorer (échos de notre propre history.back())
   show(id){
@@ -2862,7 +2928,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v41";                                        // repere de build (CACHE du SW)
+  const cache = "v42";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_install"), "✓", "✗"],
@@ -2875,6 +2941,46 @@ function renderVersionsTable(){
 }
 $("settingsBtn").onclick = ()=>{ renderVersionsTable(); $("settingsOv").style.display="flex"; };
 $("settingsClose").onclick = ()=>{ $("settingsOv").style.display="none"; };
+
+/* ══ E6 — écran d'accueil : carrières ══ */
+function renderWelcome(){
+  const list = $("careerList"); if(!list) return;
+  list.innerHTML = "";
+  const cs = careersList();
+  for (const c of cs){
+    const card = document.createElement("div");
+    card.className = "rc-career" + (c.n === CUR_CAREER ? " is-active" : "");
+    const th = document.createElement("div"); th.className = "rc-career__thumb";
+    th.appendChild(tileCanvas(64, (x)=>drawBotThumb(x, c.chassis, null)));
+    card.appendChild(th);
+    const info = document.createElement("div"); info.className = "rc-career__info";
+    info.innerHTML = `<div class="rc-name">${da(c.name)}</div>
+      <div class="rc-label">${t("careerMeta",{lv:c.level+1, b:c.bolts, w:c.beaten})}</div>`;
+    card.appendChild(info);
+    const del = document.createElement("button"); del.className = "rc-iconbtn rc-career__del";
+    del.textContent = "\u2715";
+    del.onclick = (ev)=>{ ev.stopPropagation();
+      if (del._armed){ deleteCareer(c.n); renderWelcome(); }
+      else { del._armed = true; del.classList.add("is-armed"); setTimeout(()=>{ del._armed=false; del.classList.remove("is-armed"); }, 2200); } };
+    card.appendChild(del);
+    card.onclick = ()=>{ loadCareerState(c.n); hideWelcome(); };
+    list.appendChild(card);
+  }
+  const full = cs.length >= CAREER_MAX;
+  $("careerNew").disabled = full;
+  $("careerName").style.display = full ? "none" : "";
+  $("careerName").placeholder = t("careerNamePh");
+  $("welcomeBack").style.display = CUR_CAREER ? "" : "none";
+  tilesDirty();
+}
+function showWelcome(){ $("welcomeOv").style.display = "flex"; renderWelcome(); }
+function hideWelcome(){ $("welcomeOv").style.display = "none"; }
+if ($("careerNew")) $("careerNew").onclick = ()=>{
+  const n = createCareer(($("careerName").value||"").trim());
+  if (n){ $("careerName").value=""; hideWelcome(); } };
+if ($("welcomeBack")) $("welcomeBack").onclick = hideWelcome;
+if ($("settingsCareers")) $("settingsCareers").onclick = ()=>{ $("settingsOv").style.display="none"; showWelcome(); };
+if (!CUR_CAREER) showWelcome();                                     // premier lancement : accueil
 document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>{
   o.onclick = ()=>{ LANG = o.dataset.lang; S.lang = LANG; saveState(); renderHome(); };
 });
