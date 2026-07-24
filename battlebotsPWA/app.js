@@ -217,10 +217,24 @@ function loadCareerState(n){
   if (typeof NAV !== "undefined" && NAV.reset) NAV.reset();
   renderHome();
 }
+function newCareerState(){
+  /* E7 — une NOUVELLE carrière commence en S : PETIT RUSTY, coque tortue_s
+     assemblée (kit de base en vraies instances), patiné (usure 12 %), 35 €.
+     Les carrières adoptées ne passent jamais par ici. */
+  const st = defaultState();
+  st.inv = { seq:0, items:{} };
+  const bot = newBotInto(st.inv, "tortue_s");
+  bot.customName = "PETIT RUSTY";
+  bot.customize = bot.customize || {}; bot.customize.color = "#b14bff";  // E8 : violet joueur
+  bot.chassisWear = 12;
+  st.garage = [bot]; st.activeBot = 0;
+  st.bolts = 40;   // E7b : la simulation a tranché (35 ratait le premier achat de 2 euros)
+  return st;
+}
 function createCareer(name){
   for (let n = 1; n <= CAREER_MAX; n++){
     if (!localStorage.getItem(careerKey(n))){
-      const fresh = defaultState(); fresh.careerName = name || ("Carri\u00E8re " + n);
+      const fresh = newCareerState(); fresh.careerName = name || ("Carri\u00E8re " + n);
       localStorage.setItem(careerKey(n), JSON.stringify(fresh));
       loadCareerState(n);
       return n;
@@ -445,8 +459,11 @@ const TIER_COLORS = ["#5b6472","#28c39a","#3b82f6","#f0a020","#a78bfa"]; // stoc
 // --- visual customisation ---
 // mid-tone palette: the chassis sprite is colourised via multiply, so very dark
 // or muddy colours crush plate detail — every entry here keeps it readable.
-const CHASSIS_COLORS = ["#59627a","#4f83c9","#c9584f","#4fa86b","#d98a45",
-  "#9377cc","#3fa8a0","#cfa64f","#c9628f","#8a93a5","#d9c85a","#5566a8","#e8e8e8"];
+/* E8 — palette alignée sur les tokens du thème (rc-red / rc-violet / rc-amber
+   + famille néon de même saturation). BLANC = pas de recoloration (sprite nu). */
+const NO_TINT = "#ffffff";
+const CHASSIS_COLORS = [NO_TINT, "#b14bff", "#ff2a4a", "#ff9b3d", "#3de8ff",
+  "#4dff88", "#ff4dd2", "#5a7dff", "#ffe14d"];
 const DEFAULT_CHASSIS_COLOR = "#d98a45";   // jaune-orangé — un Rusty naît solaire, pas gris-bleu
 /* S10 — STICKERS/VSTICKERS viennent de data.js (sprites). */
 function stickerOf(id){ return STICKERS.find(s=>s.id===id) || VSTICKERS.find(v=>v.id===id) || null; }
@@ -535,7 +552,8 @@ const EDIT_LAYERS = [
 const PROTRUDE_OK = { sensors:1, weapon1:1, weapon2:1 };   // ancrés, débord autorisé
 const STICKER_LAYER = 2; // pseudo-calque : décalcos libres
 const NONE_AT_0 = { weapon1:1, weapon2:1, ballast:1, srimech:1, sensors:1 };
-function isMounted(slot, id){ // E4 : tout slot "aucun" (index 0) n'occupe AUCUNE cellule
+function isMounted(slot, id){ // E4 : "aucun" (index 0) n'occupe rien ; E7 : null = absent
+  if(id == null) return false;
   if(!NONE_AT_0[slot]) return true;
   return ENGINE.PARTS[slot].findIndex(p=>p.id===id) > 0; }
 const PLACED_SLOTS = EDIT_LAYERS.flatMap(L=>L.slots);
@@ -547,7 +565,12 @@ function countOf(build, slot){ const b=baseSlot(slot);
 function instanceSlots(build){ const out=[];        // internal layer, expanded by counts
   for(const slot of EDIT_LAYERS[1].slots){ const n=countOf(build, slot);
     out.push(slot); for(let i=1;i<n;i++) out.push(slot+"#"+i); } return out; }
-function idAt(build, slot){ const b=baseSlot(slot); return (build.parts&&build.parts[b])||ENGINE.PARTS[b][0].id; }
+function idAt(build, slot){ const b=baseSlot(slot);
+  /* E7 — coque nue : un slot explicitement null est ABSENT (pas de repli stock).
+     Un slot non déclaré (builds synthétiques : adversaires, tests) garde le
+     défaut historique. */
+  if (build.parts && (b in build.parts) && build.parts[b] == null) return null;
+  return (build.parts && build.parts[b]) || ENGINE.PARTS[b][0].id; }
 function layerOf(slot){ return SLOT_LAYER[baseSlot(slot)]; }
 function placedSlotsOf(build){ return [...EDIT_LAYERS[0].slots, ...instanceSlots(build)]; }
 function tierColor(slot,id){ const i=ENGINE.PARTS[slot].findIndex(p=>p.id===id);
@@ -594,7 +617,10 @@ function propulsionRects(build, layout){
   const mc = mirrorCol(build.chassis, p.col, f.w);
   return [{...p, f}, {col:mc, row:p.row, f}];
 }
-function curId(slot){ return (S.parts&&S.parts.equipped&&S.parts.equipped[slot]) || ENGINE.PARTS[slot][0].id; }
+function curId(slot){
+  const eq = S.parts && S.parts.equipped;
+  if (eq && (slot in eq) && eq[slot] == null) return null;               // E7 : absent
+  return (eq && eq[slot]) || ENGINE.PARTS[slot][0].id; }
 function firstFit(chassis, f, others, mode){ // mode: "contain" | "anchor"
   for(let row=0; row<gridH(chassis); row++) for(let col=0; col<gridW(chassis); col++){
     const pos={col,row};
@@ -808,7 +834,9 @@ function chassisLayersSafe(ch){
     if(!window.__taintWarned){ window.__taintWarned=true;
       console.warn("Sprites en mode dégradé (page ouverte en file:// — servez via http pour la teinte riche)."); }
     return null; } }
-function tintedChassis(ch, color){ const st=spriteState(ch); if(st.tint[color]) return st.tint[color];
+function tintedChassis(ch, color){ const st=spriteState(ch);
+  if (color === NO_TINT || !color) return st.img;                       // E8 : blanc = sprite nu
+  if(st.tint[color]) return st.tint[color];
   const L=chassisLayersSafe(ch), img=st.img, w=img.naturalWidth, h=img.naturalHeight;
   const oc=document.createElement("canvas"); oc.width=w; oc.height=h; const o=oc.getContext("2d");
   if(L){                                       // chemin riche : peinture teintée + métal
@@ -1026,6 +1054,7 @@ function drawBotTiles(c, build, layout, spin, opts={}){
   const drawSlot=(slot)=>{
     const li=layerOf(slot), bs=baseSlot(slot);
     const id=idAt(build, slot);
+    if(id == null) return;                                               // E7 : slot nu
     const NONE_SLOTS={weapon1:1,weapon2:1,ballast:1,srimech:1,sensors:1,software:1};
     if(NONE_SLOTS[bs] && ENGINE.PARTS[bs].findIndex(p=>p.id===id)===0) return; // "aucun" → rien
     const pos=layout[slot]||{col:0,row:0}; const floor=(li===1?(pos.floor||0):0);
@@ -1218,7 +1247,25 @@ requestAnimationFrame(previewLoop);
 
 function renderWorkshop(){
   const rows = $("slotRows"); rows.innerHTML = "";
-  for (const slot of SLOT_ORDER){
+  /* E7b — CONTRÔLE TECHNIQUE : le miroir en jeu de notre porte. */
+  { const build = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+    const fc = functionalCheck(build);
+    const ct = document.createElement("div");
+    ct.id = "ctPanel"; ct.className = "rc-ct " + (fc.ok ? "rc-ct--ok" : "rc-ct--ko");
+    if (fc.ok){
+      const st = ENGINE.physStats(build);
+      ct.innerHTML = `<div class="rc-ct__line">${t("ctOk")}</div>
+        <div class="rc-ct__sub">${t(weightClass(build))} \u00B7 ${st.massKg.toFixed(2)} kg</div>`;
+    } else {
+      ct.innerHTML = fc.fails.map(f=>`<div class="rc-ct__line">\u2717 ${f}</div>`).join("");
+    }
+    rows.appendChild(ct); }
+  /* E7b — garage v2 : le tableau montre CE QUI EST MONTÉ, rien d'autre.
+     L'ajout passe par « + AJOUTER COMPOSANT » (inventaire libre) ; le retrait
+     libère l'instance vers l'inventaire. Plus de catalogue en garage. */
+  const fittedSlots = SLOT_ORDER.filter(sl =>
+    sl === "chassis" || (AB().fit && AB().fit[sl] && AB().fit[sl].length));
+  for (const slot of fittedSlots){
     if (RETIRED_SLOTS[slot]) continue;                       // P-PLAN-UNIQUE
     const row = document.createElement("div"); row.className = "slotrow";
     const nm = document.createElement("div"); nm.className = "sname";
@@ -1227,9 +1274,6 @@ function renderWorkshop(){
     const cur = document.createElement("div"); cur.className = "scur";
     if (slot === "chassis"){
       cur.innerHTML = `${chassisName(AB().chassis)}<span class="pfx">${t("weldedChassis")}</span>`;
-      row.appendChild(cur);
-    } else if (slot === "weapon1" || slot === "weapon2"){
-      cur.innerHTML = `${t("pn_"+(slot==="weapon1"?"w0":"x0"))}<span class="pfx">${t("noneAvail")}</span>`;
       row.appendChild(cur);
     } else {
       const eqId = S.parts.equipped[slot] ?? EMPTY_ID[slot];
@@ -1256,34 +1300,10 @@ function renderWorkshop(){
               if (it && it.wear>0) repairInstance(u); } };
           row.appendChild(rb);
         } }
-      const owned = S.parts.owned[slot];
-      if (owned.length > 1){
-        const tiles = document.createElement("div"); tiles.className = "rc-tiles rc-tiles--fit";
-        const ordered = owned.slice().sort((a,b)=>            // ascending capacity (PARTS order)
-          ENGINE.PARTS[slot].findIndex(p=>p.id===a) - ENGINE.PARTS[slot].findIndex(p=>p.id===b));
-        for (const id of ordered){
-          const tl = document.createElement("div");
-          tl.className = "rc-tile" + (id===eqId ? " is-active" : "");
-          const gl = document.createElement("div"); gl.className = "rc-tile__glyph";
-          gl.appendChild(tileCanvas(40, (c2)=>drawPartTile(c2, slot, id, 20, 20, 36, 31, 0, 1)));
-          tl.appendChild(gl);
-          const nOwn = invCount(id);
-          const nmT = document.createElement("div"); nmT.className = "rc-tile__name";
-          nmT.textContent = t("pn_"+id) + (nOwn>1 ? " \u00D7"+nOwn : "");
-          tl.appendChild(nmT);
-          tl.onclick = ()=>{
-            if (id === S.parts.equipped[slot]) return;
-            if (!tryEquip(slot, id)){ showToast(t("noRoom")); return; }
-            saveState(); renderHome(); };
-          tiles.appendChild(tl);
-        }
-        const shopT = document.createElement("div"); shopT.className = "rc-tile rc-tile--shop";
-        shopT.innerHTML = `<div class="rc-tile__glyph" style="background:none;color:var(--rc-amber);font:400 18px var(--rc-f-display);clip-path:none">+</div>
-          <div class="rc-tile__name" style="color:var(--rc-amber)">${t("tabShop")}</div>`;
-        shopT.onclick = ()=>goTab("shop");
-        tiles.appendChild(shopT);
-        row.appendChild(tiles);
-      }
+      { const rm = document.createElement("button"); rm.className = "rc-toolbtn rc-toolbtn--rm";
+        rm.textContent = t("removePart");
+        rm.onclick = ()=>{ tryEquip(slot, null); };                     // E7b : libère vers l'inventaire
+        row.appendChild(rm); }
       /* P1 : le bouton Boutique par ligne est retiré — l'accès boutique passe
          par l'onglet et la cellule du botstrip. */
       if (STACK_SLOTS[slot] && !(slot==="ballast" && eqId==="l0")){   // stack control
@@ -1298,6 +1318,51 @@ function renderWorkshop(){
     }
     rows.appendChild(row);
   }
+  /* E7b — + AJOUTER COMPOSANT : sélecteur limité à l'INVENTAIRE LIBRE. */
+  { const add = document.createElement("button");
+    add.className = "rc-btn rc-btn--ghost rc-btn--block"; add.id = "addPartBtn";
+    add.textContent = "+ " + t("addPart");
+    add.onclick = ()=>renderAddPicker();
+    rows.appendChild(add);
+    const pick = document.createElement("div"); pick.id = "addPicker"; pick.style.display = "none";
+    rows.appendChild(pick); }
+}
+function renderAddPicker(){
+  const pick = $("addPicker"); if (!pick) return;
+  pick.style.display = "block"; pick.innerHTML = "";
+  const groups = {};
+  for (const u in S.inv.items){ const it = S.inv.items[u];
+    if (fittedMap()[u]) continue;
+    const sl = DEF_SLOT[it.def]; if (!sl) continue;
+    (groups[sl] ||= {})[it.def] = (groups[sl][it.def]||0) + 1; }
+  let any = false;
+  for (const sl of SLOT_ORDER){
+    if (!groups[sl]) continue; any = true;
+    const h = document.createElement("div"); h.className = "rc-section"; h.textContent = t("slot_"+sl);
+    pick.appendChild(h);
+    const strip = document.createElement("div"); strip.className = "rc-tiles";
+    for (const def in groups[sl]){
+      const tl = document.createElement("div"); tl.className = "rc-tile";
+      const gl = document.createElement("div"); gl.className = "rc-tile__glyph";
+      gl.appendChild(tileCanvas(40, (c2)=>drawPartTile(c2, sl, def, 20, 20, 36, 31, 0, 1)));
+      tl.appendChild(gl);
+      const nm = document.createElement("div"); nm.className = "rc-tile__name";
+      nm.textContent = t("pn_"+def) + (groups[sl][def]>1 ? " \u00D7"+groups[sl][def] : "");
+      tl.appendChild(nm);
+      tl.onclick = ()=>{ if (!tryEquip(sl, def)) showToast(t("ct_place")); };
+      strip.appendChild(tl);
+    }
+    pick.appendChild(strip);
+  }
+  if (!any){
+    const e = document.createElement("div"); e.className = "rc-label";
+    e.textContent = t("invEmpty");
+    pick.appendChild(e);
+    const b = document.createElement("button"); b.className = "rc-btn rc-btn--block";
+    b.textContent = t("tabShop"); b.onclick = ()=>goTab("shop");
+    pick.appendChild(b);
+  }
+  tilesDirty();
 }
 
 
@@ -1317,7 +1382,7 @@ function tryFit(bot, slot, uids){
       if (!it || it.def !== d0 || DEF_SLOT[it.def] !== slot) return false;
       const w = fm[uid];
       if (w && !(w.bot === bi && w.slot === slot)) return false; }
-  } else if (!OPTIONAL_SLOTS[slot]) return false;
+  } /* E7b : tout slot peut être vidé — le contrôle technique juge la fonction. */
   const prev = bot.fit[slot] || [];
   bot.fit[slot] = uids; refit(bot);
   const build = {chassis:bot.chassis, parts:{...bot.equipped}, counts:{...bot.counts}};
@@ -1350,6 +1415,23 @@ function setCount(slot, delta){
    du bon def, complète avec les libres (moins usées d'abord), préserve la
    multiplicité tant que le stock libre le permet. null/« vide » → slot vidé. */
 function fitsOnHull(build){ return !autoArrange(build).__nofit; }   // E4 : garde-fou de place
+function opponentOpts(cid){                                            // E7b : adversaires légaux
+  const tr = cid && tournamentById(cid); if (!tr || !tr.rules) return undefined;
+  const r = tr.rules, o = {};
+  if (r.chassisClass) o.allowChassis = Object.keys(CHASSIS_INFO).filter(c=>chassisClassOf(c)===r.chassisClass);
+  if (r.banTracks) o.banTracks = true;
+  if (r.metrics && r.metrics.weightKg) o.maxKg = r.metrics.weightKg;
+  return o;
+}
+/* E7 — contrôle technique : un bot FONCTIONNEL roule, tourne, a du jus et un
+   cerveau, et tout loge sur la coque. Sinon il ne combat pas (même en amical). */
+const CT_CORE = ["propulsion","motor","battery","cpu"];
+function functionalCheck(build){
+  const fails = [];
+  for (const sl of CT_CORE) if (idAt(build, sl) == null) fails.push(t("ct_"+sl));
+  if (!fails.length && !fitsOnHull(build)) fails.push(t("ct_place"));
+  return { ok: fails.length === 0, fails };
+}
 function tryEquip(type, id){
   const b = AB(), want = normEquip(type, id);
   let ok;
@@ -1403,15 +1485,16 @@ function mkPartCard(type, part, reserved){
 // ---- L1: garage strip (active-bot selector + buyable chassis) ----
 
 function chassisName(ch){ return (CHASSIS_INFO[ch]&&CHASSIS_INFO[ch].name)||ch.toUpperCase(); }
+function botName(bot){ return da(bot.customName || chassisName(bot.chassis)); }   // E7
 function setActiveBot(i){ if(i<0||i>=S.garage.length||i===S.activeBot) return;
   S.activeBot=i; syncActive(); recomputeOwned(); saveState(); renderHome(); }
 function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   if(S.bolts < info.cost){ showToast(t("noBolts")); return; }
   S.bolts -= info.cost;
-  const bot = newBotInto(S.inv, chassis); refit(bot);   // châssis neuf = kit de base minté
+  const bot = bareBot(chassis); refit(bot);             // E7 : châssis neuf = COQUE NUE (garage v2)
   S.garage.push(bot); S.activeBot = S.garage.length-1;
   syncActive(); recomputeOwned(); saveState();
-  showToast(t("botBought",{name:info.name})); showTab("workshop"); renderHome(); }
+  showToast(t("bareHull",{name:info.name})); showTab("workshop"); renderHome(); }
 function drawBotThumb(ctx, chassis, color, L){ L=L||64; ctx.clearRect(0,0,L,L);
   const pad=L*0.92;
   if(chassisSpriteReady(chassis)){
@@ -1495,7 +1578,7 @@ function repairChassis(bot){
 function scrapBot(i){
   if (S.garage.length <= 1){ showToast(t("lastBot")); return false; }
   if (i < 0 || i >= S.garage.length) return false;
-  const name = chassisName(S.garage[i].chassis);
+  const name = botName(S.garage[i]);
   S.garage.splice(i, 1);                       // ses instances sont libres dès lors qu'aucun fit ne les référence
   if (S.activeBot >= S.garage.length) S.activeBot = S.garage.length - 1;
   else if (i < S.activeBot) S.activeBot--;
@@ -1511,7 +1594,7 @@ function renderGarageStrip(){ const el=$("garageStrip"); if(!el) return; el.inne
     const th=document.createElement("div"); th.className="rc-botcell__thumb";
     const cv = tileCanvas(64, (c)=>drawBotThumb(c, bot.chassis, bot.customize.color));
     th.appendChild(cv); card.appendChild(th);
-    const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=chassisName(bot.chassis); card.appendChild(nm);
+    const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=botName(bot); card.appendChild(nm);
     card.onclick=()=>setActiveBot(i);
     if (i===S.activeBot && S.garage.length>1){
       const sc=document.createElement("button"); sc.className="rc-btn rc-btn--ghost rc-scrap"; sc.textContent=t("scrap");
@@ -1586,6 +1669,8 @@ const METRICS = {
 function swTier(id){ return ENGINE.PARTS.software.findIndex(p=>p.id===id); }
 // validate a build against a tournament's rules → {ok, fails:[msg]}
 function checkEntry(build, rules){
+  { const fc = functionalCheck(build);                                    // E7 : CT avant les règles
+    if (!fc.ok) return { ok:false, fails: fc.fails }; }
   const fails=[], r=rules||{}, pr=build.parts||{};
   if(r.chassisClass && chassisClassOf(build.chassis)!==r.chassisClass)
     fails.push(t("scrClass",{c:r.chassisClass, got:chassisClassOf(build.chassis)}));
@@ -1830,6 +1915,8 @@ function modeForConcours(id){
   return "exhib";
 }
 function disputeConcours(id){                       // ouvre l'écran VS de la manche
+  { const fc = functionalCheck({chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}});
+    if (!fc.ok){ showToast(fc.fails[0]); return; } }                      // E7 : CT
   curVsConcours = id;
   vsMode = modeForConcours(id);
   vsOpp = makeOpponent(vsMode);
@@ -2193,19 +2280,19 @@ let vsOpp = null, vsMode = null, curVsConcours = null;
 function makeOpponent(mode){
   if (mode === "tour"){ ensureTourney(); return S.tourney.opponents[S.tourney.idx]; }
   if (mode === "exhib"){
-    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
+    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
     exhibOpp = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level };
     return exhibOpp;
   }
   if (mode === "championnat"){
-    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
+    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
     champOpp = { name: FORMATS.championnat.RIVALS[S.concours[curVsConcours].round % 5], archetype:g.archetype, build:g.build, level:S.level };
     return champOpp;
   }
   if (mode === "bracket"){
     const bst = S.concours[curVsConcours];
     const opp = FORMATS.bracket.myOpponent(bst);
-    const g = ENGINE.genOpponent((bst.seed ^ (bst.round*7))>>>0, S.level);
+    const g = ENGINE.genOpponent((bst.seed ^ (bst.round*7))>>>0, S.level, opponentOpts(curVsConcours));
     bracketOpp = { name: opp.name, archetype:g.archetype, build:g.build, level:S.level };
     return bracketOpp;
   }
@@ -2928,7 +3015,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v42";                                        // repere de build (CACHE du SW)
+  const cache = "v45";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_install"), "✓", "✗"],

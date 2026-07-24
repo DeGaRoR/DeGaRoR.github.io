@@ -728,7 +728,10 @@ const ENGINE = (() => {
     chaotic:null, // full random
   };
 
-  function genOpponent(seed, level){
+  function genOpponent(seed, level, opts){
+    /* E7b — opts (facultatif) : contraintes de concours pour des adversaires
+       LÉGAUX. { allowChassis:[ids], banTracks:bool, maxKg:number } */
+    opts = opts || {};
     const rng = makeRng(seed);
     const pool = level <= 1 ? ["bulldozer","mosquito","wedgelord"]
                : level === 2 ? ["bulldozer","mosquito","wedgelord","camper"]
@@ -738,6 +741,9 @@ const ENGINE = (() => {
     const build = {};
     const spec = ARCHETYPES[arch];
     build.chassis = spec ? pick(spec.chassis) : pick(OPPONENT_CHASSIS);
+    if (opts.allowChassis && opts.allowChassis.length &&
+        opts.allowChassis.indexOf(build.chassis) < 0)
+      build.chassis = pick(opts.allowChassis);
     for (const key of Object.keys(OPTS))
       build[key] = spec && spec[key] ? pick(spec[key]) : pick(OPTS[key]);
     // low levels carry an exploitable flaw; high levels are clean
@@ -764,6 +770,18 @@ const ENGINE = (() => {
       cooling:  (level>=4 && rng()<0.35) ? "k1" : "k0",
       weapon1:"w0", weapon2:"x0",
     };
+    if (opts.banTracks && build.parts.propulsion === "pr3")
+      build.parts.propulsion = "pr1";
+    if (opts.maxKg){
+      const order = [["propulsion","pr0"],["battery","b0"],["motor","m0"]];
+      let guard = 0;
+      while (physStats({chassis:build.chassis, parts:build.parts}).massKg > opts.maxKg && guard++ < 6){
+        const hit = order.find(([sl,base]) => build.parts[sl] && build.parts[sl] !== base);
+        if (!hit) break;
+        build.parts[hit[0]] = hit[1];
+      }
+    }
+
     return { build, archetype:arch };
   }
 

@@ -691,3 +691,12 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
 .rc-career__del.is-armed{color:#fff;background:var(--rc-red);}
 .rc-input{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #3a2333;
   background:#160d13;color:var(--rc-ink);font-family:var(--rc-f-dense);font-size:13px;}
+
+/* ══ E7b — contrôle technique & garage v2 ══ */
+.rc-ct{border-radius:10px;padding:9px 12px;margin-bottom:10px;font-family:var(--rc-f-dense);font-size:12px;}
+.rc-ct--ok{border:1px solid #2e5c3a;background:linear-gradient(160deg,#14231a,#0e1a12);color:#7fd89a;}
+.rc-ct--ko{border:1px solid #6b2433;background:linear-gradient(160deg,#2a1218,#1e0d12);color:#ff7d92;}
+.rc-ct__line{letter-spacing:.04em;}
+.rc-ct__sub{color:var(--rc-muted);margin-top:2px;}
+.rc-toolbtn--rm{color:#ff9db0;border-color:#5c2634;}
+#addPicker{margin-top:8px;border-top:1px dashed #3a2333;padding-top:8px;}
