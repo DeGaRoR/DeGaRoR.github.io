@@ -38,6 +38,31 @@ const ENGINE = (() => {
      quiconque ajoutait une coque. Champs restants, tous lus : radius (rayon
      de collision, saveur voulue par coque — PAS dérivable des cellules sans
      déplacer l'équilibre), leverage, battery, selfRight. */
+  /* ══ S24-MATIÈRE — la coque a enfin une propriété MÉCANIQUE autre que sa masse.
+     Jusqu'ici l'intégrité valait 300 × masse totale : une coque plastique et une
+     coque acier de même poids étaient rigoureusement aussi solides, et l'usure
+     comme le prix de réparation étaient des constantes globales. Une série ne
+     pouvait donc être que cosmétique.
+
+     `hull` = ténacité de la matière, facteur sur l'intégrité structurelle ET sur
+     l'usure de coque (les deux faces de la même propriété : ce qui encaisse mal
+     se répare souvent). 1,00 = tôle d'acier, la référence.
+
+     `densite` ne sert PAS au moteur : c'est le facteur d'AUTORAT de la masse
+     (hull_masses.json mesure une aire d'alpha, la matière donne le kg/cm²). La
+     masse reste STOCKÉE et mesurée, comme le rayon — on ne la dérive pas au
+     runtime, on la pose à l'intégration de l'asset. ══ */
+  const MATIERES = {
+    acier:   { hull:1.00, densite:1.00 },  // Tôles d'Antan — la référence
+    recup:   { hull:0.82, densite:0.95 },  // La Casse : tôle fatiguée, soudures d'occasion
+    plastik: { hull:0.62, densite:0.45 },  // Plastik : polymère moulé, léger et cassant
+    polypro: { hull:0.98, densite:0.55 },  // Polymère Pro : composite haute densité
+    circuit: { hull:0.78, densite:0.50 },  // Ligne Circuit : électronique intégrée, fragile
+  };
+  const MAT_DEF = "acier";
+  const matOf = (ch) => MATIERES[(CHASSIS[ch] && CHASSIS[ch].mat) || MAT_DEF] || MATIERES[MAT_DEF];
+  const hullOf = (ch) => matOf(ch).hull;
+
   const CHASSIS = {
     wedge: { radius:17, leverage:2.4, battery:100, selfRight:1.6 },
     boxy:  { radius:20, leverage:0.9, battery:130, selfRight:3.5 },
@@ -80,66 +105,111 @@ const ENGINE = (() => {
     drift:   {turnMax:3.6, latDamp:0.92, jitter:0.05},
   };
 
+  /* S20-GAMME — chaque pièce déclare son RANG DE GAMME. La couleur de tuile se
+     lisait sur la POSITION dans le tableau : une pièce ajoutée en fin de liste
+     s'affichait « haut de gamme » quelle que soit sa nature, et insérer une
+     gamme micro aurait reteinté tout le catalogue. gamme est une DONNÉE
+     d'affichage et de tri — jamais une règle de jeu. Valeurs = positions
+     actuelles : ce correctif ne change aucune couleur, il les dépositionne. */
   // parts catalog v4 — Denis's invariant taxonomy. FROZEN ids (extend, never renumber).
   // Every part carries its own attributes incl. MASS; bot stats aggregate from parts.
   // Slots with no purchasable entries yet (weapons) are reserved by design.
   const PARTS = {
     propulsion: [ // drive architecture: wheels/treads/layout -> traction & style
-      {id:"pr0", cost:0,   traction:1.00, mass:0,    style:"worn"},
-      {id:"pr1", cost:90,  traction:1.12, mass:0.06, style:"lug"},
-      {id:"pr2", cost:140, traction:1.18, mass:0.04, style:"slick"},
-      {id:"pr3", cost:200, traction:1.30, mass:0.16, style:"tread"},
+      {id:"pr0", gamme:0, cost:0,   traction:1.00, mass:0,    style:"worn"},
+      {id:"pr1", gamme:1, cost:90,  traction:1.12, mass:0.06, style:"lug"},
+      {id:"pr2", gamme:2, cost:140, traction:1.18, mass:0.04, style:"slick"},
+      {id:"pr3", gamme:3, cost:200, traction:1.30, mass:0.16, style:"tread"},
+      /* ══ S24-ROUES — train roulant de la classe S (spec Denis, 26/07).
+         SIX formats, DEUX roues par design (une empreinte, miroir L/R — c'est
+         déjà le modèle du slot). pr1 est un 1×4, pr2 un 2×3, pr3 un 2×5 : en
+         9 cellules aucun n'a sa place. Ceux-ci vont du 1×1 au 2×1.
+
+         `guard` = PROTECTION : la roue encaisse à la place du châssis. Les
+         chocs qui la frappent transmettent (1 − guard) de leur énergie à
+         l'intégrité. C'est le crochet que le chantier armes reprendra pour
+         le blindage latéral — ici il vit déjà, en petit.
+
+         Attention à l'intuition : l'adhérence vaut μ·m·g, donc une roue
+         LÉGÈRE accroche moins malgré un bon coefficient. La masse est un
+         avantage en sumo — d'où des roues « high grip » franchement lourdes,
+         et un vrai arbitrage place / masse / plafond de pesée. */
+      {id:"pr4", gamme:1, cost:60,  traction:1.04, mass:0.03, style:"lug",   intendedClass:"S", guard:0},     // 1x1 base
+      {id:"pr5", gamme:2, cost:170, traction:1.14, mass:0.06, style:"lug",   intendedClass:"S", guard:0.30},  // 1x1 grip + protection
+      {id:"pr6", gamme:1, cost:110, traction:1.06, mass:0.05, style:"slick", intendedClass:"S", guard:0},     // 1x2 large, faible grip
+      {id:"pr7", gamme:2, cost:180, traction:1.16, mass:0.08, style:"slick", intendedClass:"S", guard:0},     // 1x2 large, grip moyen
+      {id:"pr8", gamme:3, cost:250, traction:1.26, mass:0.11, style:"slick", intendedClass:"S", guard:0},     // 1x2 large, grip élevé
+      {id:"pr9", gamme:3, cost:330, traction:1.26, mass:0.14, style:"lug",   intendedClass:"S", guard:0.45},  // 2x1 large blindée, grip élevé
     ],
     motor: [
-      {id:"m0", cost:0,   push:1.00, speed:1.00, mass:0},
-      {id:"m1", cost:60,  push:1.15, speed:1.07, mass:0.04},
-      {id:"m2", cost:150, push:1.30, speed:1.14, mass:0.08},
-      {id:"m3", cost:230, push:1.45, speed:1.05, mass:0.14},  // KV90: torque monster
-      {id:"m4", cost:230, push:1.10, speed:1.40, mass:0.06},  // KV600: sprint
+      {id:"m0", gamme:0, cost:0,   push:1.00, speed:1.00, mass:0},
+      {id:"m1", gamme:1, cost:60,  push:1.15, speed:1.07, mass:0.04},
+      {id:"m2", gamme:2, cost:150, push:1.30, speed:1.14, mass:0.08},
+      {id:"m3", gamme:3, cost:230, push:1.45, speed:1.05, mass:0.14},  // KV90: torque monster
+      {id:"m4", gamme:4, cost:230, push:1.10, speed:1.40, mass:0.06},  // KV600: sprint
+      /* S24-MICRO — gamme micro : les moteurs qui RENTRENT en classe S.
+         m1 et m2 sont des 2×2, m3/m4 des 3×2 et 3×3 : sur une coque S de
+         9 cellules avec ses roues, aucun n'entre (mesuré : m1 ne loge que dans
+         totem_s). La classe S n'avait donc AUCUNE montée en moteur. Ceux-ci
+         sont 1×1 et 1×2, plus chers et un peu moins performants que leurs
+         équivalents M — on paie la miniaturisation, comme en vrai. */
+      {id:"m5", gamme:1, cost:130, push:1.13, speed:1.09, mass:0.03, intendedClass:"S"},  // 1x1
+      {id:"m6", gamme:2, cost:260, push:1.27, speed:1.11, mass:0.05, intendedClass:"S"},  // 1x2
     ],
     cpu: [ // decision latency (re-plan cadence) + servo gain (alignment speed)
-      {id:"c0", cost:0,   interval:18, gain:0.85, mass:0},
-      {id:"c1", cost:120, interval:8,  gain:1.05, mass:0.01},
-      {id:"c2", cost:240, interval:3,  gain:1.30, mass:0.02},
+      {id:"c0", gamme:0, cost:0,   interval:18, gain:0.85, mass:0},
+      {id:"c1", gamme:1, cost:120, interval:8,  gain:1.05, mass:0.01},
+      {id:"c2", gamme:2, cost:240, interval:3,  gain:1.30, mass:0.02},
     ],
     battery: [
-      {id:"b0", cost:0,   energy:1.00, mass:0},
-      {id:"b1", cost:50,  energy:1.20, mass:0.03},
-      {id:"b2", cost:120, energy:1.40, mass:0.06},
-      {id:"b3", cost:190, energy:1.65, mass:0.12},
+      {id:"b0", gamme:0, cost:0,   energy:1.00, mass:0},
+      {id:"b1", gamme:1, cost:50,  energy:1.20, mass:0.03},
+      {id:"b2", gamme:2, cost:120, energy:1.40, mass:0.06},
+      {id:"b3", gamme:3, cost:190, energy:1.65, mass:0.12},
     ],
     armor: [ // blindage & prise
-      {id:"a0", cost:0,   leverage:0,    mass:0},
-      {id:"a1", cost:90,  leverage:0.12, mass:0.05},
-      {id:"a2", cost:180, leverage:0.30, mass:0.08},
-      {id:"a3", cost:260, leverage:0.45, mass:0.15},
+      {id:"a0", gamme:0, cost:0,   leverage:0,    mass:0},
+      {id:"a1", gamme:1, cost:90,  leverage:0.12, mass:0.05},
+      {id:"a2", gamme:2, cost:180, leverage:0.30, mass:0.08},
+      {id:"a3", gamme:3, cost:260, leverage:0.45, mass:0.15},
     ],
-    weapon1: [ {id:"w0", cost:0, mass:0} ],   // reserved: sumo rules, no weapons yet
-    weapon2: [ {id:"x0", cost:0, mass:0} ],   // reserved
+    weapon1: [ {id:"w0", gamme:0, cost:0, mass:0} ],   // reserved: sumo rules, no weapons yet
+    weapon2: [ {id:"x0", gamme:0, cost:0, mass:0} ],   // reserved
     software: [ // behavior packs (interacts with sensors)
-      {id:"s0", cost:0,   mass:0},
-      {id:"s1", cost:150, mass:0, edgePush:true}, // v2: steer dominated foes toward the edge
-      {id:"s2", cost:240, mass:0, edgePush:true, escape:true}, // v3: break contact when overpowered
+      {id:"s0", gamme:0, cost:0,   mass:0},
+      {id:"s1", gamme:1, cost:150, mass:0, edgePush:true}, // v2: steer dominated foes toward the edge
+      {id:"s2", gamme:2, cost:240, mass:0, edgePush:true, escape:true}, // v3: break contact when overpowered
+      /* S29 — v3 « Arbitrage ». Le premier vrai saut : ce n'est plus une
+         cascade qui prend la PREMIÈRE règle applicable, c'est un arbitre qui
+         évalue TOUTES les enchères et garde la meilleure. Deux modules de
+         plus (PATIENCE, FEINT) et des enchères graduées au lieu de booléens.
+         id gelé s3 ; le nom d'affichage, lui, dit « v3 » (pn_s3). */
+      {id:"s3", gamme:3, cost:320, mass:0, edgePush:true, escape:true, arbiter:"utility"},
     ],
     ballast: [ // lest: mass + friction (weight -> normal force -> grip)
-      {id:"l0", cost:0,  mass:0,    grip:0},
-      {id:"l1", cost:40, mass:0.07, grip:0.02},
-      {id:"l2", cost:90, mass:0.16, grip:0.045},
+      {id:"l0", gamme:0, cost:0,  mass:0,    grip:0},
+      {id:"l1", gamme:1, cost:40, mass:0.07, grip:0.02},
+      {id:"l2", gamme:2, cost:90, mass:0.16, grip:0.045},
     ],
     sensors: [ // perception quality -> steering noise
-      {id:"n0", cost:0,   noise:1.00, mass:0},
-      {id:"n1", cost:110, noise:0.45, mass:0.02},
-      {id:"n2", cost:230, noise:0.15, mass:0.03},
+      {id:"n0", gamme:0, cost:0,   noise:1.00, mass:0},
+      {id:"n1", gamme:1, cost:110, noise:0.45, mass:0.02},
+      {id:"n2", gamme:2, cost:230, noise:0.15, mass:0.03},
     ],
     srimech: [ // self-righting mechanism: multiplies chassis selfRight time
-      {id:"r0", cost:0,   srMul:1.00, mass:0},
-      {id:"r1", cost:130, srMul:0.60, mass:0.06},
-      {id:"r2", cost:240, srMul:0.35, mass:0.09},
+      {id:"r0", gamme:0, cost:0,   srMul:1.00, mass:0},
+      {id:"r1", gamme:1, cost:130, srMul:0.60, mass:0.06},
+      {id:"r2", gamme:2, cost:240, srMul:0.35, mass:0.09},
+      /* S24-MICRO — r1 est un 2×2 et r2 un 3×2 : se relever était un luxe
+         inaccessible en classe S, alors que c'est là que les retournements
+         décident le plus vite. Formats 1×1 et 1×2. */
+      {id:"r3", gamme:1, cost:150, srMul:0.78, mass:0.04, intendedClass:"S"},  // 1x1 bras à ressort
+      {id:"r4", gamme:2, cost:270, srMul:0.58, mass:0.07, intendedClass:"S"},  // 1x2 vérin double
     ],
     cooling: [ // consumption efficiency (battery = capacity, cooling = drain)
-      {id:"k0", cost:0,   drain:1.00, mass:0},
-      {id:"k1", cost:70,  drain:0.95, mass:0.03},
-      {id:"k2", cost:160, drain:0.89, mass:0.08},
+      {id:"k0", gamme:0, cost:0,   drain:1.00, mass:0},
+      {id:"k1", gamme:1, cost:70,  drain:0.95, mass:0.03},
+      {id:"k2", gamme:2, cost:160, drain:0.89, mass:0.08},
     ],
   };
   const partOf = (type, id) => PARTS[type].find(p=>p.id===id) || PARTS[type][0];
@@ -172,11 +242,27 @@ const ENGINE = (() => {
     propulsion: { // mu = grip coefficient, rWheel in metres
       pr0:{ kg:0.12, mu:0.70, rWheel:0.025 }, pr1:{ kg:0.30, mu:0.95, rWheel:0.030 },
       pr2:{ kg:0.18, mu:1.05, rWheel:0.028 }, pr3:{ kg:0.55, mu:1.15, rWheel:0.022 },
+      // S24-ROUES — banque physique du train roulant S. rWheel : les « larges »
+      // ont un plus grand rayon (vitesse), les galets un petit (couple).
+      /* rWheel = rayon : il fixe la VITESSE de pointe. La poussée, elle, est
+         plafonnée par l'adhérence (min(force moteur, μ·m·g)) — un petit rayon
+         ne gagne donc rien en poussée et perd en vitesse. Les rayons restent
+         proches ; c'est μ qui porte l'échelle de grip, comme spécifié. */
+      pr4:{ kg:0.03, mu:0.80, rWheel:0.026 },   // 1x1 base
+      pr5:{ kg:0.06, mu:0.95, rWheel:0.026 },   // 1x1 grip + protection
+      pr6:{ kg:0.05, mu:0.85, rWheel:0.032 },   // 1x2 large, faible grip
+      pr7:{ kg:0.08, mu:0.98, rWheel:0.032 },   // 1x2 large, grip moyen
+      pr8:{ kg:0.11, mu:1.12, rWheel:0.032 },   // 1x2 large, grip élevé
+      pr9:{ kg:0.14, mu:1.12, rWheel:0.028 },   // 2x1 large blindée, grip élevé
     },
     motor: { // tau = stall torque per motor (Nm), rpm = free output rpm, P = pair nominal (W)
       m0:{ kg:0.22, tau:0.20, rpm:600,  P:40  }, m1:{ kg:0.28, tau:0.28, rpm:650,  P:60  },
       m2:{ kg:0.34, tau:0.42, rpm:750,  P:120 }, m3:{ kg:0.46, tau:0.75, rpm:500,  P:150 },
       m4:{ kg:0.30, tau:0.30, rpm:1400, P:150 },
+      // S24-MICRO : couple honnête sous un volume minuscule, au prix du poids
+      // de cuivre — donc de la puissance. Entre m0 et m2, jamais au-dessus.
+      m5:{ kg:0.16, tau:0.26, rpm:680, P:55 },   // 1x1
+      m6:{ kg:0.21, tau:0.40, rpm:640, P:95 },   // 1x2
     },
     battery: { // real LiPo packs: S cells, mAh -> V, Wh
       b0:{ kg:0.11, S:3, mAh:1300 }, b1:{ kg:0.17, S:4, mAh:1500 },
@@ -185,9 +271,9 @@ const ENGINE = (() => {
     armor:   { a0:{kg:0.00}, a1:{kg:0.20}, a2:{kg:0.35}, a3:{kg:0.55} },
     cpu:     { c0:{kg:0.02}, c1:{kg:0.03}, c2:{kg:0.04} },
     sensors: { n0:{kg:0.01}, n1:{kg:0.03}, n2:{kg:0.05} },
-    software:{ s0:{kg:0.00}, s1:{kg:0.00} },
+    software:{ s0:{kg:0.00}, s1:{kg:0.00}, s2:{kg:0.00}, s3:{kg:0.00} },
     ballast: { l0:{kg:0.00,cog:0}, l1:{kg:0.30,cog:0.30}, l2:{kg:0.60,cog:0.60} }, // slugs sit low → lower CoG, resist flips
-    srimech: { r0:{kg:0.00}, r1:{kg:0.15}, r2:{kg:0.25} },
+    srimech: { r0:{kg:0.00}, r1:{kg:0.15}, r2:{kg:0.25}, r3:{kg:0.04}, r4:{kg:0.07} },
     cooling: { k0:{kg:0.00}, k1:{kg:0.05}, k2:{kg:0.12} },
     weapon1: { w0:{kg:0} }, weapon2:{ x0:{kg:0} },
   };
@@ -257,11 +343,11 @@ const ENGINE = (() => {
     // STAGE 2a: mass is now the real bottom-up assembled mass (kg) from the
     // physical bank — it feeds inertia, the anchor, and collisions. The old
     // per-part sim masses are retired. Drive force/top-speed stay tuned until 2a-bis.
-    const weight = physStats(build).massKg;
     // STAGE 2a-bis: drive force, top speed and the anchor are now derived from
     // the physical bank. push = min(motor force, μ·m·g) — grip-limited torque is
     // wasted, exactly as in reality. Constants pinned so stock RUSTY is unchanged.
-    const ph = physStats(build);
+    const ph = physStats(build);            // S20 : UN seul calcul (il était fait deux fois)
+    const weight = ph.massKg;
     const K_FORCE = 47.0, K_SPEED = 56.0;   // P-MASSE : ×2.7 (masses réelles) — même feel
     return {
       speed: ph.vmax * K_SPEED, push: ph.pushN * K_FORCE,
@@ -277,6 +363,16 @@ const ENGINE = (() => {
       cpuInterval: cp.interval, turnGain: cp.gain, aimNoise: sn.noise,
       selfRight: c.selfRight * sr.srMul, hasSrimech: sr.id !== "r0", drainMul: ko.drain * nOf("motor") / Math.max(1, nOf("cooling")),
       edgePush: !!sw.edgePush, escape: !!sw.escape, cogFactor: ph.cogFactor,
+      /* S29 — pilote résolu depuis le palier logiciel (données SOFTWARE). */
+      arbiter: swOf(build).arbiter,
+      reflexes: swOf(build).modules.map(id => MODULE_BY_ID[id]).filter(mo => mo && mo.reflex),
+      planifies: swOf(build).modules.map(id => MODULE_BY_ID[id]).filter(mo => mo && !mo.reflex),
+      /* S24 — deux chiffres LISIBLES pour l'atelier et la boutique :
+         hullFactor = ténacité de la matière ; integrity = intégrité absolue
+         (ce que la barre de santé consommera au chantier armes). */
+      hullFactor: hullOf(build.chassis||"boxy"),
+      integrity: 300 * weight * hullOf(build.chassis||"boxy"),
+      guard: pp.guard || 0,          // S24-ROUES : protection apportée par le train roulant
     };
   }
   function statBars(build){
@@ -320,7 +416,13 @@ const ENGINE = (() => {
          ({t, impulse, part: MON composant frappé directement ou null=coque,
            ripped: arraché net}), hp = intégrité structurelle 0..1 (barre S9),
          hpPool ∝ masse. gone[slot] retire collider + contribution. */
-      hits:[], hp:1, hpPool: 300*st.weight,
+      /* S24 : l'intégrité tient compte de la MATIÈRE de la coque, plus de la
+         seule masse. hullFactor 1,00 = acier (comportement historique). */
+      hits:[], hp:1, hpPool: 300*st.weight*hullOf(build.chassis||"boxy"), hullFactor: hullOf(build.chassis||"boxy"),
+      guard: st.guard || 0,
+      /* S29 — le pilote est monté au bot : son arbitre et sa liste de modules
+         viennent du LOGICIEL embarqué, résolus une fois pour toutes ici. */
+      arbiter: st.arbiter, reflexes: st.reflexes, planifies: st.planifies,
     };
   }
 
@@ -338,6 +440,25 @@ const ENGINE = (() => {
       makeBot(0, buildA, {x:-R*0.47,y:yA}, 0 + aA),
       makeBot(1, buildB, {x: R*0.47,y:yB}, Math.PI + aB),
     ];
+    /* ══ S22-ÉQUITÉ — les phases ne sont plus indexées sur le CÔTÉ. Le tremblé
+       de visée valait sin(t*5.3 + bot.id*2.7) : à t=0 le bot 0 visait juste
+       (sin 0 = 0) et le bot 1 visait à côté (sin 2,7 = 0,43). Sur un ring où la
+       charge d'ouverture décide du match, c'était un cadeau permanent au bot 0
+       — c'est-à-dire au JOUEUR, toujours à gauche. Même chose pour la cadence
+       de décision, décalée de bot.id*3 ticks.
+       Les deux phases sont désormais TIRÉES par bot : elles restent décorrélées
+       (deux bots ne pensent pas au même tick, ne tremblent pas ensemble) mais
+       aucune des deux ne dépend du côté. ══ */
+    for (const bot of bots){
+      bot.noisePhase = rng() * Math.PI * 2;
+      bot.thinkPhase = Math.floor(rng() * Math.max(1, bot.decideEvery));
+      /* Chaque bot a son PROPRE flux d'aléa. Avec un flux partagé, le bot 0
+         tirait toujours avant le bot 1 : les deux ne recevaient jamais des
+         nombres de même rang, et l'ordre de tirage redevenait un attribut du
+         côté. Bénéfice annexe pour le match-témoin à venir : le compte de
+         tirages devient par bot, indépendant de l'ordre de la boucle. */
+      bot.rng = makeRng((seed >>> 0) ^ Math.imul(0x9E3779B9, bot.id + 1));
+    }
     /* S16-ENDGAME — le plancher du cercle dépend des BOTS : la cage finale
        doit rester un duel de poussée (les deux coques pressées l'une contre
        l'autre y tiennent tout juste), jamais un concours de centre
@@ -352,80 +473,368 @@ const ENGINE = (() => {
     };
   }
 
-  function control(bot, foe, m){
+  /* ══════════════════════════════════════════════════════════════════════
+     S27-BUS — LE BUS DE PERCEPTION.
+
+     `control()` faisait trois choses mélangées. Elles sont désormais séparées,
+     SANS RIEN CHANGER AU COMPORTEMENT (200 matchs témoins rejoués au tick
+     près, tirages d'aléa par bot compris) :
+
+         control(bot, foe, m):
+             P = perceive(bot, foe, m)     1. PERCEVOIR → signaux
+             D = decide(bot, P, m)         2. DÉCIDER   → { mode }
+             actuate(bot, D, P, m)         3. ACTIONNER → throttleL/R
+
+     C'est l'étape 1 des contrats : elle est RÉVERSIBLE et ne prétend rien
+     améliorer. La cascade de `decide` est le code d'origine, déplacé, pas
+     réécrit — c'est elle que l'arbitre remplacera à l'étape suivante.
+
+     Deux invariants tenus, et vérifiés par le témoin :
+       — l'ORDRE et le NOMBRE de tirages d'aléa sont identiques. En clair :
+         `escape` et `hold` sortent avant le tremblé de conduite et ne tirent
+         RIEN ; tout autre mode tire exactement deux fois, dans actuate.
+       — `bot.mode`, `bot.modeChanged` et `bot.orbitT` sont écrits par `decide`,
+         au même moment qu'avant (d'autres couches les lisent). ══ */
+
+  /* perceive — le vecteur de signaux, construit UNE fois par tick.
+     Il porte deux choses de nature différente, et c'est délibéré :
+
+       • `raw` : les grandeurs géométriques d'origine (unités monde). C'est ce
+         que la cascade lit aujourd'hui. Les garder telles quelles est ce qui
+         rend l'étape numériquement neutre — normaliser puis dénormaliser
+         introduirait des écarts de virgule flottante, et le témoin les verrait.
+
+       • les signaux NORMALISÉS du contrat (0..1 ou -1..1), plus les bits de
+         présence capteur. Personne ne les lit encore : ils existent pour que
+         les modules de l'étape suivante s'y branchent sans toucher au reste.
+
+     MASQUAGE : un signal dont le capteur est absent vaut 0, et son bit `have`
+     est faux. Le masque s'applique aux signaux NORMALISÉS SEULEMENT. La
+     cascade, elle, continue de lire `raw` sans masque — sinon ce ne serait
+     plus un refactor mais un changement de règle du jeu déguisé en
+     réorganisation. Le jour où les modules remplaceront la cascade, le masque
+     deviendra effectif, et ce sera une décision assumée, mesurée. */
+  const SENSOR_TIER = { n0:0, n1:1, n2:2, n3:3 };
+  function perceive(bot, foe, m){
     const toFoe = V.sub(foe.pos, bot.pos);
     const distF = V.len(toFoe);
     const distEdge = m.arenaR - V.len(bot.pos);
     const facing = V.fromAngle(bot.angle);
-    const h = HANDLING[bot.build.handling];
-
-    // CPU latency: the planner only re-evaluates every decideEvery ticks
-    // (steering below still runs every tick — servo vs planner). Edge guard
-    // stays reflexive: falling off between two thoughts would feel unfair.
-    /* S16-ENDGAME — la garde au bord est PROPORTIONNELLE au ring : les
-       distances GUARD (données) furent calibrées pour le ring de 145 cm ;
-       sur un desk de 60 cm, « normale » couvrait presque toute la piste et
-       le bot dansait en recentrage perpétuel. La marge du pilote suit
-       l'arène. Et en CAGE (ring ≲ les deux coques), le recentrage n'a plus
-       de sens — tout est bord — : on laisse le duel se jouer. */
-    const guard = GUARD[bot.build.edgeGuard] * (m.arenaR0 ? m.arenaR0/ARENA_R : 1);
-    const caged = m.arenaR < (bot.radius + foe.radius) * 1.6;
-    const think = ((m.n + bot.id*3) % bot.decideEvery) === 0;
-    let mode = bot.mode;
-    // finishing move: while shoving a dominated foe who is closer to the edge
-    // than we are, do NOT bail out to recenter — finish the push.
     const foeEdgeD = m.arenaR - V.len(foe.pos);
-    const finishing = distF < (bot.radius + foe.radius) * 1.25
-      && foe.dominatedT > 0.12 && foeEdgeD < distEdge;
-    if (distEdge < guard && !finishing && !caged) mode = "recenter";
-    // software v3: when overpowered in a shove, don't just take it — break
-    // contact (reverse out) instead of pushing back into a losing duel.
-    else if (bot.escape && bot.dominatedT > 0.3 && distF < (bot.radius+foe.radius)*1.35)
-      mode = "escape";
-    else if (think || bot.mode === "recenter"){
-      mode = "stalk";
-      const strat = bot.build.strategy || "adaptive";
-      const chargeD = CHARGE[bot.build.chargeDist];
-      let want = distF < chargeD;
-      // GRAND STRATEGY — the meta layer the tactical params fit into:
-      //  pressure: relentless forward pressure (always willing to charge)
-      //  counter:  refuse the first engagement; strike only when the foe is
-      //            committed to a charge (fast and closing) or exposed side-on
-      //  ambush:   sit STILL (statue) until the foe is close, then burst
-      if (strat === "pressure") want = true;
-      else if (strat === "counter"){
-        const foeV = Math.hypot(foe.vel.x, foe.vel.y);
-        const vlen = foeV || 1;
-        const foeClosing = ((foe.vel.x*(bot.pos.x-foe.pos.x))+(foe.vel.y*(bot.pos.y-foe.pos.y)))/vlen/Math.max(1,distF) > 0.5;
-        const foeSideOn = Math.abs(V.dot(V.fromAngle(foe.angle), V.norm(toFoe))) < 0.45;
-        const foeSpent  = foeV < 25 && distF < chargeD;      // punish the whiff
-        const sd = m.arenaR < m.arenaR0 - 1;                 // sudden death: waiting stopped paying
-        const stale = (bot.orbitT||0) > 5;                   // …or the foe refuses to commit
-        if (!(sd || stale)) {
-          want = want && (foeSideOn || foeSpent || foe.dominatedT > 0.1);
-          if (!want) mode = "orbit";                          // matador: keep circling
-        }
-      } else if (strat === "ambush"){
-        if (distF > chargeD * 0.55){ mode = "hold"; want = false; }
-        else want = true;
+    const R0 = m.arenaR0 || ARENA_R;
+
+    /* Le palier de capteur du bot. Dérivé du build, jamais stocké : ajouter un
+       capteur au catalogue suffit, rien à tenir à jour ici. */
+    const sid = (bot.build.parts && bot.build.parts.sensors) || "n0";
+    const tier = SENSOR_TIER[sid] != null ? SENSOR_TIER[sid] : 0;
+    const have = { n0:true, n1:tier >= 1, n2:tier >= 2, n3:tier >= 3 };
+    const gate = (ok, v) => ok ? v : 0;
+
+    const foeSpeed = Math.hypot(foe.vel.x, foe.vel.y);
+    const ownSpeed = Math.hypot(bot.vel.x, bot.vel.y);
+    const nToFoe = distF > 1e-9 ? V.scl(toFoe, 1/distF) : {x:1,y:0};
+    const relV = V.sub(foe.vel, bot.vel);
+
+    return {
+      /* — géométrie brute : ce que la cascade consomme — */
+      raw: { toFoe, distF, distEdge, facing, foeEdgeD,
+             guard: GUARD[bot.build.edgeGuard] * (m.arenaR0 ? m.arenaR0/ARENA_R : 1),
+             caged: m.arenaR < (bot.radius + foe.radius) * 1.6,
+             think: ((m.n + (bot.thinkPhase||0)) % bot.decideEvery) === 0 },
+
+      /* — signaux libres (aucun capteur requis) — */
+      shrink:     R0 ? m.arenaR / R0 : 1,
+      battery:    bot.batteryMax ? bot.battery / bot.batteryMax : 0,
+      ownSpeed:   bot.maxSpeed ? clamp(ownSpeed / bot.maxSpeed, 0, 1) : 0,
+      dominatedT: clamp((bot.dominatedT||0) / 0.35, 0, 1),
+
+      /* — n0 pare-chocs — */
+      contact:     gate(have.n0, bot.contactT > 0 ? 1 : 0),
+      contactSide: gate(have.n0, Math.sign(V.dot(V.perp(facing), nToFoe))),
+
+      /* — n1 télémètre — */
+      /* pushOut — l'AXE DE POUSSÉE, le signal qui manquait. +1 : pousser
+         l'adversaire l'envoie droit vers SON bord. -1 : c'est moi que la
+         poussée déporte vers le mien. Un duel de sumo se gagne surtout là :
+         charger n'a pas la même valeur selon l'orientation du dohyo. */
+      pushOut:    gate(have.n1, (() => { const fl = V.len(foe.pos);
+                    return fl > 1e-6 ? clamp(V.dot(nToFoe, V.scl(foe.pos, 1/fl)), -1, 1) : 0; })()),
+      foeRange:   gate(have.n1, R0 ? clamp(distF / R0, 0, 1) : 0),
+      foeBearing: gate(have.n1, angNorm(Math.atan2(toFoe.y, toFoe.x) - bot.angle) / Math.PI),
+      myEdge:     gate(have.n1, R0 ? clamp(distEdge / R0, 0, 1) : 0),
+
+      /* — n2 vision — */
+      foeHeading: gate(have.n2, angNorm(foe.angle - bot.angle) / Math.PI),
+      foeSpeed:   gate(have.n2, foe.maxSpeed ? clamp(foeSpeed / foe.maxSpeed, 0, 1) : 0),
+      closing:    gate(have.n2, clamp(-V.dot(relV, nToFoe) / Math.max(1, bot.maxSpeed), -1, 1)),
+      foeEdge:    gate(have.n2, R0 ? clamp(foeEdgeD / R0, 0, 1) : 0),
+      foeDomT:    gate(have.n2, clamp((foe.dominatedT||0) / 0.35, 0, 1)),
+
+      /* — n3 centrale inertielle (capteur pas encore au catalogue) — */
+      slip:    gate(have.n3, clamp(bot.slipAmt||0, 0, 1)),
+      tilt:    gate(have.n3, clamp((bot.lift||0) / FLIP_K, 0, 1)),
+      yawRate: gate(have.n3, clamp((bot.angVel||0) / 6, -1, 1)),
+
+      have, caged: m.arenaR < (bot.radius + foe.radius) * 1.6,
+    };
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     S28-MODULES — la cascade devient des MODULES qui enchérissent.
+
+     Étape 2 des contrats : le comportement reste IDENTIQUE (témoin vert), mais
+     la décision n'est plus une suite de si/sinon — c'est un catalogue de
+     modules, chacun déclarant ce qu'il consomme et ce qu'il vaut. L'arbitre
+     `priority` prend le premier dont l'enchère est non nulle, dans l'ordre
+     déclaré : appliqué à ces modules-ci, il reproduit exactement la cascade.
+     C'est ce qui rend l'étape réversible — et c'est le point d'accroche de
+     l'arbitre à UTILITÉ, qui remplacera « le premier » par « le meilleur ».
+
+     DEUX ÉTAGES, et c'est le cœur du portage :
+       • RÉFLEXES (`reflex:true`) — évalués à CHAQUE tick, hors cadence CPU.
+         « Tomber entre deux pensées serait injuste » (commentaire d'origine).
+         GUARD et ESCAPE en sont.
+       • PLANIFIÉS — évalués seulement quand le bot PENSE (cadence `decideEvery`),
+         ou en sortant d'un recentrage. Sinon le mode PERSISTE, tel quel.
+
+     Ce qui n'est PAS fait ici, délibérément :
+       — les listes de modules par palier logiciel (v0 = CHARGE, v1 = +GUARD…).
+         Aujourd'hui GUARD s'applique à tous les bots ; l'attacher au logiciel
+         changerait le jeu. Ce sera une décision mesurée, pas un effet de bord.
+       — le REFUS d'enchérir quand un capteur manque. `needs` est DÉCLARÉ et
+         vérifié par la porte (les noms existent bien dans le bus), mais pas
+         encore contraignant : l'imposer maintenant retirerait des modules aux
+         bots en n0 et changerait leur comportement. Même raison qu'au masquage
+         de S27 — on prépare, on ne bascule pas en douce. ══ */
+
+  /* tactique — le contexte partagé d'une décision, calculé UNE fois, comme
+     dans le code d'origine. Les modules le lisent au lieu de recalculer
+     chacun leur coin : recalculer serait l'occasion rêvée d'une divergence. */
+  function tactique(bot, foe, m, P){
+    const { toFoe, distF, distEdge, facing } = P.raw;
+    const strat = bot.build.strategy || "adaptive";
+    const chargeD = CHARGE[bot.build.chargeDist];
+    let want = distF < chargeD, orbite = false, statue = false;
+    // GRAND STRATEGY — the meta layer the tactical params fit into:
+    //  pressure: relentless forward pressure (always willing to charge)
+    //  counter:  refuse the first engagement; strike only when the foe is
+    //            committed to a charge (fast and closing) or exposed side-on
+    //  ambush:   sit STILL (statue) until the foe is close, then burst
+    if (strat === "pressure") want = true;
+    else if (strat === "counter"){
+      const foeV = Math.hypot(foe.vel.x, foe.vel.y);
+      const foeSideOn = Math.abs(V.dot(V.fromAngle(foe.angle), V.norm(toFoe))) < 0.45;
+      const foeSpent  = foeV < 25 && distF < chargeD;      // punish the whiff
+      const sd = m.arenaR < m.arenaR0 - 1;                 // sudden death: waiting stopped paying
+      const stale = (bot.orbitT||0) > 5;                   // …or the foe refuses to commit
+      if (!(sd || stale)){
+        want = want && (foeSideOn || foeSpent || foe.dominatedT > 0.1);
+        if (!want) orbite = true;                          // matador: keep circling
       }
-      if (want){
-        const ag = bot.build.aggression;
-        if (ag === "fierce") { /* always */ }
-        else if (ag === "balanced"){
-          const align = V.dot(facing, V.norm(toFoe));
-          want = align > 0.4;
-        } else {
-          const foeEdge = m.arenaR - V.len(foe.pos);
-          const foeFacesMe = V.dot(V.fromAngle(foe.angle), V.norm(V.sub(bot.pos,foe.pos)));
-          want = (foeEdge < distEdge*0.75) || (foeFacesMe < 0.1);
-        }
-      }
-      if (want) mode = "charge";
+    } else if (strat === "ambush"){
+      if (distF > chargeD * 0.55){ statue = true; want = false; }
+      else want = true;
     }
+    if (want){
+      const ag = bot.build.aggression;
+      if (ag === "fierce") { /* always */ }
+      else if (ag === "balanced"){
+        const align = V.dot(facing, V.norm(toFoe));
+        want = align > 0.4;
+      } else {
+        const foeEdge = m.arenaR - V.len(foe.pos);
+        const foeFacesMe = V.dot(V.fromAngle(foe.angle), V.norm(V.sub(bot.pos,foe.pos)));
+        want = (foeEdge < distEdge*0.75) || (foeFacesMe < 0.1);
+      }
+    }
+    /* Les trois issues planifiées sont mutuellement exclusives PAR
+       CONSTRUCTION : `orbite` et `statue` posent want = false, donc jamais de
+       conflit avec la charge. L'ordre de priorité ci-dessous est donc lisible
+       sans être piégeux. */
+    /* Pour l'arbitre à UTILITÉ, l'agressivité cesse d'être une porte binaire
+       pour devenir un POIDS sur l'enchère : c'est là que vit la richesse
+       paramétrique promise par la spec. `portee` est la porte minimale
+       (l'adversaire est-il à distance d'engagement), sans le filtre
+       d'alignement que la cascade applique en dur. */
+    return { want, orbite, statue, chargeD,
+             portee: distF < chargeD,
+             poids: bot.build.aggression === "fierce" ? 1.30
+                  : bot.build.aggression === "cautious" ? 0.70 : 1.00 };
+  }
+
+  /* Un module : { id, mode, reflex?, needs, bid }. `bid` ne mute RIEN et
+     retourne 0 (inapplicable) ou une valeur d'utilité. En arbitre `priority`,
+     seul « non nul » compte ; les valeurs prendront leur sens en `utility`. */
+  const MODULES = [
+    /* — RÉFLEXES : hors cadence, tous les ticks — */
+    { id:"GUARD", mode:"recenter", reflex:true, needs:["myEdge"],
+      /* Ne pas lâcher une poussée gagnante pour aller se recentrer : si
+         l'adversaire est dominé ET plus près du bord que moi, on finit. */
+      bid(bot, foe, m, P){
+        const { distF, distEdge, foeEdgeD, guard, caged } = P.raw;
+        const finishing = distF < (bot.radius + foe.radius) * 1.25
+          && foe.dominatedT > 0.12 && foeEdgeD < distEdge;
+        return (distEdge < guard && !finishing && !caged) ? 1 : 0;
+      } },
+    { id:"ESCAPE", mode:"escape", reflex:true, needs:["dominatedT","contact"],
+      // software v3: when overpowered in a shove, don't just take it — break contact.
+      bid(bot, foe, m, P){
+        const { distF } = P.raw;
+        return (bot.escape && bot.dominatedT > 0.3
+                && distF < (bot.radius + foe.radius) * 1.35) ? 1 : 0;
+      } },
+
+    /* — PLANIFIÉS : sous cadence CPU, ordre = priorité — */
+    /* Les PORTES (le `? :`) sont celles de la cascade et ne bougent pas :
+       l'arbitre `priority` ne regarde que « non nul », donc son comportement
+       est inchangé. Ce qui change, c'est la VALEUR rendue quand la porte est
+       ouverte — elle devient une utilité, et c'est elle que `utility` compare. */
+    { id:"CHARGE", mode:"charge", needs:["foeRange","foeBearing"],
+      bid(bot, foe, m, P, C){
+        const align = Math.max(0, 1 - Math.abs(P.foeBearing));
+        /* En PRIORITÉ (v0-v2) : la porte de la cascade, inchangée au tick près.
+           En UTILITÉ (v3) : la porte tombe à « il est à portée », et tout le
+           reste — alignement, axe de poussée, vulnérabilité, tempérament —
+           devient une VALEUR que les autres modules peuvent battre. C'est ça,
+           le saut : le pilote ne suit plus une règle, il compare des options. */
+        if (bot.arbiter !== "utility") return C.want ? (0.45 + 0.35*align) : 0;
+        if (!C.portee) return 0;
+        /* DÉGRADATION INTENTIONNELLE. Un signal masqué vaut 0, et 0 a un sens
+           trompeur : un gisement nul veut dire « droit devant », pas
+           « je ne sais pas ». Un bot sans télémètre se croirait donc
+           parfaitement aligné en permanence — il gagnerait par accident.
+           Quand le capteur manque, le module substitue une valeur NEUTRE et
+           assume de décider sans information : dégradé, pas hallucinant. */
+        const vu    = P.have.n1 ? align : 0.5;
+        const axe   = P.have.n1 ? Math.max(0, P.pushOut) : 0.5;
+        const proie = P.have.n2 ? P.foeDomT : 0;
+        return C.poids * (0.10 + 0.35*vu + 0.35*axe + 0.20*proie);
+      } },
+    { id:"HOLD", mode:"hold", needs:["foeRange"],
+      bid(bot, foe, m, P, C){
+        if (!C.statue) return 0;
+        // l'embuscade vaut moins quand le cercle se referme : on ne peut plus attendre
+        return 0.40 + 0.35*P.shrink;
+      } },
+    { id:"ORBIT", mode:"orbit", needs:["foeRange","foeBearing"],
+      bid(bot, foe, m, P, C){
+        if (!C.orbite) return 0;
+        // tourner vaut d'autant plus qu'il fonce sur nous : le manqué est l'ouverture
+        return 0.40 + 0.30*Math.max(0, P.closing);
+      } },
+    /* — MODULES MESURÉS NÉGATIFS, tenus hors de toute liste de palier. Ils
+         restent au catalogue pour ce qu'ils documentent : la tentative, et
+         pourquoi elle a échoué. PATIENCE mappe sur `recenter`, qui RECULE —
+         or dans cette physique céder du terrain fait perdre ; avec eux, v3
+         tombe de 69 % à 64 % contre v2 (n2, 100 matchs). FEINT, lui, ne s'est
+         jamais déclenché : sa fenêtre (closing ≥ 0,25 ET portée 0,06-0,35)
+         ne s'ouvre pas. À reprendre avec un mode qui n'abandonne pas le
+         terrain, et une fenêtre mesurée — pas à rétablir tels quels. — */
+    { id:"PATIENCE", mode:"recenter", needs:["shrink","myEdge","foeEdge"],
+      /* Quand le cercle se referme, la position vaut plus que l'engagement :
+         si je suis plus au centre que lui, attendre le fait sortir tout seul.
+         C'est le module qui apprend à ne PAS charger — le contraire d'un
+         réflexe, et la première fois que le pilote fait un choix négatif. */
+      bid(bot, foe, m, P, C){
+        if (P.shrink > 0.985) return 0;              // le cercle n'a pas commencé à mordre
+        if (!P.have.n2) return 0;                    // sans vision, on ne sait pas où il est
+        const avance = P.myEdge - P.foeEdge;         // > 0 : je suis plus au large que lui
+        if (avance <= 0.02) return 0;
+        return 0.50 + 0.40*Math.min(1, avance*4) + 0.10*(1 - P.shrink);
+      } },
+    { id:"FEINT", mode:"orbit", needs:["closing","foeBearing","foeRange"],
+      /* Il s'est engagé et fonce : se décaler d'un axe fait manquer la charge.
+         Ne vaut qu'à distance utile — collé, il n'y a plus d'axe à changer. */
+      bid(bot, foe, m, P, C){
+        if (!P.have.n2) return 0;
+        if (P.closing < 0.25) return 0;              // il ne vient pas assez vite
+        if (P.foeRange > 0.35 || P.foeRange < 0.06) return 0;
+        return 0.45 + 0.35*Math.min(1, P.closing);
+      } },
+    /* STALK — le module par DÉFAUT. Il enchérit toujours, faiblement : c'est
+       lui qui garantit qu'un bot a un mode même sans capteur et sans module
+       applicable. Sans défaut, un bot entièrement masqué n'aurait aucune
+       décision — et un arbitre sans issue est un bot immobile. */
+    { id:"STALK", mode:"stalk", needs:[], defaut:true,
+      bid(){ return 0.40; } },
+  ];
+  const MODULE_BY_ID = {}; for (const mo of MODULES) MODULE_BY_ID[mo.id] = mo;
+
+  /* SOFTWARE — ce que chaque palier logiciel SAIT faire : son arbitre et sa
+     liste de modules. L'ORDRE de la liste EST la priorité pour `priority`, et
+     départage les égalités pour `utility`. C'est une donnée, pas un accident.
+     s0-s2 portent la liste historique : leur comportement ne bouge pas d'un
+     tick. s3 gagne l'arbitre à utilité et deux modules. */
+  const BASE_MODULES = ["GUARD","ESCAPE","CHARGE","HOLD","ORBIT","STALK"];
+  const SOFTWARE = {
+    s0: { arbiter:"priority", modules: BASE_MODULES },
+    s1: { arbiter:"priority", modules: BASE_MODULES },
+    s2: { arbiter:"priority", modules: BASE_MODULES },
+    s3: { arbiter:"utility",  modules: ["GUARD","ESCAPE","CHARGE","HOLD","ORBIT","STALK"] },
+  };
+  const swOf = (build) => SOFTWARE[(build.parts && build.parts.software) || "s0"] || SOFTWARE.s0;
+
+  /* ARBITRES — la vraie hiérarchie du jeu. `priority` est le premier :
+     premier module dont l'enchère est non nulle, dans l'ordre déclaré.
+     `utility` (le meilleur au lieu du premier) et `rollout` viendront. */
+  const ARBITERS = {
+    priority(mods, bot, foe, m, P, C){
+      for (const mo of mods){ if (mo.bid(bot, foe, m, P, C) > 0) return mo; }
+      return null;
+    },
+    /* utility — TOUTES les enchères sont évaluées, la meilleure l'emporte.
+       C'est la vraie rupture : `priority` prend la première règle applicable
+       et ignore qu'une autre serait bien meilleure ; `utility` compare.
+       Égalité tranchée par l'ORDRE DÉCLARÉ, jamais par l'ordre d'itération —
+       sinon deux exécutions pourraient diverger. */
+    utility(mods, bot, foe, m, P, C){
+      let best = null, bestV = 0;
+      for (const mo of mods){
+        const v = mo.bid(bot, foe, m, P, C);
+        if (v > bestV){ bestV = v; best = mo; }      // « > » strict = premier déclaré gagne l'égalité
+      }
+      return best;
+    },
+  };
+
+  /* decide — même comportement qu'avant, exprimé en modules.
+     Écrit bot.mode / bot.modeChanged / bot.orbitT, au même moment qu'avant. */
+  function decide(bot, P, m){
+    const foe = m.bots[1 - bot.id];
+    const arbitre = ARBITERS[bot.arbiter] || ARBITERS.priority;
+    let mode = bot.mode, modId = null;
+
+    /* Les RÉFLEXES restent en PRIORITÉ même sous arbitre à utilité : une
+       garde au bord ne se met pas aux enchères. « Tomber entre deux pensées
+       serait injuste » vaut aussi pour « tomber parce qu'une charge valait
+       0,02 de plus ». */
+    const reflexe = ARBITERS.priority(bot.reflexes, bot, foe, m, P, null);
+    if (reflexe){ mode = reflexe.mode; modId = reflexe.id; }
+    // 2. PLANIFICATION — seulement quand le bot pense (ou sort d'un recentrage).
+    else if (P.raw.think || bot.mode === "recenter"){
+      const C = tactique(bot, foe, m, P);
+      const gagnant = arbitre(bot.planifies, bot, foe, m, P, C);
+      mode = gagnant ? gagnant.mode : "stalk";
+      modId = gagnant ? gagnant.id : "STALK";
+    }
+    // 3. sinon : le mode PERSISTE entre deux pensées.
+
     if (mode !== bot.mode){ bot.mode = mode; bot.modeChanged = true; }
     bot.orbitT = (mode==="orbit") ? (bot.orbitT||0) + TICK : (bot.orbitT||0);
+    bot.modId = modId;                    // debug : quel module a emporté le tick
+    return { mode, modId };
+  }
 
+  /* actuate — la cible puis le servo. Bloc d'origine, déplacé.
+     ⚠ ORDRE DES TIRAGES : `escape` et `hold` sortent AVANT le tremblé de
+     conduite et ne consomment aucun aléa. Deux tirages exactement dans tous
+     les autres modes. Déplacer ce tirage désynchroniserait toutes les graines
+     — le témoin compte les tirages PAR BOT précisément pour ça. */
+  function actuate(bot, D, P, m){
+    const foe = m.bots[1 - bot.id];
+    const mode = D.mode;
+    const { toFoe, distF } = P.raw;
+    const h = HANDLING[bot.build.handling];
     let target;
     if (mode === "escape"){
       // break contact: if reverse points to safety, floor it backward; if not,
@@ -440,8 +849,12 @@ const ENGINE = (() => {
       return;
     }
     if (mode === "orbit"){
-      // matador: keep moving tangentially around the foe — a committed charge
-      // whiffs past a moving target, and the whiff is the opening.
+      /* ⚠ DETTE CONNUE (constatée à l'extraction S27, PAS corrigée ici) : la
+         cible calculée dans ce bloc est TOUJOURS écrasée par la branche
+         `else` plus bas — mesuré 5820 fois sur 5820, de 70 unités en moyenne.
+         Le mode `orbit` roule donc en réalité sur la cible de standoff.
+         Corriger ici changerait le comportement : ce n'est pas le travail
+         d'un refactor. À trancher devant le simulateur, avec mesure. */
       const rad = V.sub(bot.pos, foe.pos), rl = Math.max(1, V.len(rad));
       const tangent = {x:-rad.y/rl, y:rad.x/rl};
       const ring = CHARGE[bot.build.chargeDist]*0.75;
@@ -490,20 +903,28 @@ const ENGINE = (() => {
     }
 
     const j = h.jitter;
-    target = V.add(target, {x:(m.rng()-0.5)*2*j*180, y:(m.rng()-0.5)*2*j*180});
+    const rnd = bot.rng || m.rng;                    // S22 : flux propre au bot
+    target = V.add(target, {x:(rnd()-0.5)*2*j*180, y:(rnd()-0.5)*2*j*180});
 
     const want = V.sub(target, bot.pos);
     let wantAng = Math.atan2(want.y, want.x);
     // sensor quality: cheap sensors = wandering aim (deterministic wobble).
     // Damped at close range: in contact you FEEL the foe, sensors matter at distance.
     const rangeF = clamp(distF/110, 0.35, 1);
-    wantAng += bot.aimNoise * 0.12 * rangeF * Math.sin(m.t*5.3 + bot.id*2.7);
+    wantAng += bot.aimNoise * 0.12 * rangeF * Math.sin(m.t*5.3 + (bot.noisePhase||0));
     const err = angNorm(wantAng - bot.angle);
     const turn = clamp(err * 3.0 * bot.turnGain, -1, 1);
     let fwd = clamp(Math.cos(err) * 1.4, -0.25, 1);
     if (mode === "charge") fwd = Math.max(fwd, 0.85);
     bot.throttleL = clamp(fwd - turn, -1, 1);
     bot.throttleR = clamp(fwd + turn, -1, 1);
+  }
+
+  function control(bot, foe, m){
+    const P = perceive(bot, foe, m);   // 1. PERCEVOIR
+    const D = decide(bot, P, m);       // 2. DÉCIDER
+    actuate(bot, D, P, m);             // 3. ACTIONNER
+    bot.P = P;                         // dernier vecteur lu (debug, modules à venir)
   }
 
   function leverageDuel(a, b, m){
@@ -556,17 +977,27 @@ const ENGINE = (() => {
     if (m.t > SUDDEN_DEATH_T && m.arenaR > (m.minR || MIN_R))
       m.arenaR = Math.max((m.minR || MIN_R), m.arenaR * (1 - SHRINK_RATE*dt));
 
+    /* ══ S22-ÉQUITÉ — PASSE 1 : DÉCISION. Tous les bots décident sur le MÊME
+       état de début de tick. Avant, la boucle décidait ET intégrait bot par
+       bot : le bot 1 lisait donc la position, la vitesse et l'angle que le
+       bot 0 venait d'écrire dans CE tick, tandis que le bot 0 avait décidé sur
+       l'état du tick précédent. Un tick d'information fraîche, systématique,
+       toujours du même côté. Le joueur étant TOUJOURS le bot 0, il payait ce
+       retard à chaque combat. Mesuré au miroir : jusqu'à ±25 points en
+       classe S, où le petit ring amplifie tout. ══ */
     for (const bot of m.bots){
-      const foe = m.bots[1-bot.id];
       bot.modeChanged = false;
+      if (bot.flippedT > 0) bot.throttleL = bot.throttleR = 0;  // sur le dos : pas de commande
+      else control(bot, m.bots[1-bot.id], m);
+    }
+
+    // PASSE 2 — INTÉGRATION : la physique, une fois toutes les décisions prises.
+    for (const bot of m.bots){
       if (bot.flippedT > 0){
         bot.flipAccT += Math.min(dt, bot.flippedT);  // cumul réel du temps passé retourné
         bot.flippedT -= dt;
         bot.beachedT = (bot.beachedT || 0) + dt; // cumulative time on your back (attrition)
-        bot.throttleL = bot.throttleR = 0;
         if (bot.flippedT <= 0 && m.t > 0) m.events.push({t:m.t, type:"righted", bot:bot.id});
-      } else {
-        control(bot, foe, m);
       }
 
       const use = (Math.abs(bot.throttleL)+Math.abs(bot.throttleR)) * 0.5;
@@ -678,8 +1109,12 @@ const ENGINE = (() => {
               bot.gone = bot.gone || {}; bot.gone[myPart] = true; ripped = true;
               m.events.push({t:m.t, type:"ripoff", bot:bot.id, part:myPart, impulse:J});
             }
+            /* S24-ROUES — la protection est POSITIONNELLE : elle n'agit que
+               sur les chocs reçus PAR la roue. Une roue blindée encaisse à la
+               place du châssis ; frappé ailleurs, le bot ne gagne rien. */
+            const abri = (direct && myPart === "propulsion") ? (1 - (bot.guard||0)) : 1;
             bot.hits.push({t:m.t, impulse:J, part: direct ? myPart : null, ripped});
-            bot.hp = Math.max(0, bot.hp - J*(direct ? DIRECT_MUL : 1)/bot.hpPool);
+            bot.hp = Math.max(0, bot.hp - J*abri*(direct ? DIRECT_MUL : 1)/bot.hpPool);
           }
         }
         if (Math.abs(relVn) > 55){ a.lastHardHitT = m.t; b.lastHardHitT = m.t; }
@@ -745,6 +1180,59 @@ const ENGINE = (() => {
              edgeTime:[m.bots[0].edgeTime, m.bots[1].edgeTime] };
   }
 
+  /* ════════════════════ ÉTALONS — LIGNE CALIBRAGE ════════════════════
+     Adversaires ENTIÈREMENT FIGÉS : châssis, pièces, pilote. Aucun tirage,
+     aucune dépendance au niveau du joueur. C'est la règle graduée : deux
+     mesures prises à un mois d'écart y sont comparables, et c'est là que la
+     forme réelle d'un pilote se juge — pas au banc d'entraînement.
+
+     Un barreau LOGICIEL par niveau (s0 · s0 · s1 · s1 · s2 aujourd'hui ;
+     la table s'étendra quand v3-v5 existeront). Les pilotes sont DÉLIBÉRÉS :
+     le défaut aléatoire de genOpponent (« daredevil » 60 % aux bas niveaux)
+     n'a pas sa place dans un étalon.
+
+     Tous les builds sont vérifiés par la porte : ils LOGENT dans leur coque,
+     et leur classe est celle annoncée. Ne jamais les retoucher sans mesurer :
+     changer un étalon invalide tout l'historique de mesures. */
+  const BENCH_PARTS = (over) => Object.assign({
+    propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0", sensors:"n0",
+    software:"s0", armor:"a0", ballast:"l0", srimech:"r0", cooling:"k0",
+    weapon1:"w0", weapon2:"x0",
+  }, over || {});
+  const BENCH = (name, chassis, parts, pilot) => ({
+    name, build: { ...DEFAULT_BUILD, ...pilot, chassis, parts: BENCH_PARTS(parts), counts:{} },
+  });
+  const BENCHMARKS = {
+    // ---- classe S : trois barreaux, trois coques, gamme MICRO (S24) ----
+    S1: BENCH("ÉTALON S1", "tortue_s", { propulsion:"pr4" },
+      { strategy:"adaptive", aggression:"balanced", edgeGuard:"normal", approach:"frontal",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    S2: BENCH("ÉTALON S2", "hex_s", { motor:"m5", propulsion:"pr6" },
+      { strategy:"adaptive", aggression:"balanced", edgeGuard:"normal", approach:"frontal",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    S3: BENCH("ÉTALON S3", "coin_s", { motor:"m6", propulsion:"pr7", sensors:"n1", software:"s1" },
+      { strategy:"adaptive", aggression:"fierce", edgeGuard:"normal", approach:"opportunist",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    // ---- classe M : cinq barreaux, CINQ COQUES DISTINCTES (décision Denis 26/07).
+    //      L'échelle monte par le MATÉRIEL et le pilote ; la coque donne le
+    //      caractère, et son ordre suit le levier (boxy 0,9 → fleche 2,2). ----
+    M1: BENCH("ÉTALON M1", "boxy", {},
+      { strategy:"adaptive", aggression:"balanced", edgeGuard:"normal", approach:"frontal",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    M2: BENCH("ÉTALON M2", "tortue", { motor:"m1", propulsion:"pr1" },
+      { strategy:"adaptive", aggression:"balanced", edgeGuard:"normal", approach:"frontal",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    M3: BENCH("ÉTALON M3", "marteau", { motor:"m2", battery:"b1", propulsion:"pr1", cpu:"c1", sensors:"n1", software:"s1" },
+      { strategy:"adaptive", aggression:"balanced", edgeGuard:"normal", approach:"opportunist",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    M4: BENCH("ÉTALON M4", "losange", { motor:"m2", battery:"b1", propulsion:"pr2", cpu:"c1", sensors:"n1", software:"s1" },
+      { strategy:"adaptive", aggression:"fierce", edgeGuard:"normal", approach:"opportunist",
+        power:"mixed", chargeDist:"medium", handling:"stable" }),
+    M5: BENCH("ÉTALON M5", "fleche", { motor:"m3", battery:"b1", propulsion:"pr3", cpu:"c2", sensors:"n2", software:"s2" },
+      { strategy:"adaptive", aggression:"fierce", edgeGuard:"normal", approach:"opportunist",
+        power:"torque", chargeDist:"medium", handling:"stable" }),
+  };
+
   /* ---------- SLICE 1: player bot, teaching, opponent generator ---------- */
   const SLICE1 = {
     // the used clunker: fixed chassis, "functional but not optimal" defaults
@@ -803,24 +1291,50 @@ const ENGINE = (() => {
     if (level < 3 && build.chargeDist === "long") build.chargeDist = "medium";
     // high-level opponents come upgraded, keeping pace with the player's shop
     const tier = level >= 5 ? 3 : level >= 4 ? 2 : level >= 3 ? 1 : 0;
-    let motor = ["m0","m1","m2"][Math.min(2,tier)];
-    if (tier >= 3) motor = (arch==="mosquito"||arch==="chaotic") ? "m4" : "m3";
+    /* S24-MICRO — `opts.micro` (posé par le concours quand il impose la classe S)
+       fait puiser dans la gamme MICRO dès le tirage, au lieu de laisser l'app
+       réparer après coup. Sans lui, l'adversaire de classe S restait au moteur
+       d'origine : les gammes historiques sont des 2×2 et 3×2 qui n'entrent pas
+       dans 9 cellules, et la réparation ne pouvait que dégrader. Le moteur
+       n'apprend RIEN des empreintes ici — il lit un drapeau de règlement. */
+    const micro = !!opts.micro;
+    let motor = micro ? ["m0","m5","m6"][Math.min(2,tier)] : ["m0","m1","m2"][Math.min(2,tier)];
+    if (tier >= 3) motor = micro ? "m6" : (arch==="mosquito"||arch==="chaotic") ? "m4" : "m3";
     build.parts = {
       motor,
       battery: ["b0","b1"][Math.min(1,tier)], // capped at 4S: the big bricks do not fit starter hulls
-      propulsion: tier>=3 ? "pr3" : ["pr0","pr1","pr2"][tier],
+      propulsion: micro ? (tier>=3 ? "pr8" : ["pr4","pr6","pr7"][tier])
+                        : (tier>=3 ? "pr3" : ["pr0","pr1","pr2"][tier]),
       armor: (level >= 4 && rng() < (level>=5 ? 0.5 : 0.35))
         ? (level>=5 ? (rng()<0.4?"a3":"a2") : (rng()<0.5?"a2":"a1")) : "a0",
-      cpu:      ["c0","c0","c1","c1","c2"][level-1] || "c0",
+      // S20 : la table s'arrête au niveau 5 ; au-delà l'index sortait du tableau
+      // et retombait sur "c0" — l'adversaire le plus haut placé recevait le pire
+      // processeur. On BORNE au dernier barreau au lieu de retomber au stock.
+      cpu:      ["c0","c0","c1","c1","c2"][Math.min(Math.max(level,1),5)-1],
       sensors:  level>=5 ? "n2" : level>=3 ? "n1" : "n0",
-      software: (level>=4 && rng() < (level>=5 ? 0.7 : 0.3)) ? "s1" : "s0",
+      /* S29 — les adversaires montent enfin jusqu'à l'arbitrage. Ils
+         plafonnaient à s1 : la fin de carrière M se jouait contre des pilotes
+         d'entrée de gamme, et le joueur n'a jamais rencontré ce qu'il venait
+         d'acheter. Le plafond du CONCOURS (opts.maxSoftware) prime — sans
+         quoi l'adversaire aurait un logiciel que le règlement interdit au
+         joueur, ce qui n'est pas une difficulté mais une tricherie. */
+      software: (level>=5 && rng()<0.55) ? "s3"
+              : (level>=4 && rng()<0.60) ? "s2"
+              : (level>=3 && rng()<0.50) ? "s1" : "s0",
       ballast:  (arch==="bulldozer" && level>=3 && rng()<0.5) ? "l1" : "l0",
-      srimech:  (level>=5 && rng()<0.3) ? "r1" : "r0",
-      cooling:  (level>=4 && rng()<0.35) ? "k1" : "k0",
+      srimech:  (level>=5 && rng()<0.3) ? (micro ? "r3" : "r1") : "r0",
+      // pas de refroidisseur micro : k1 est un 2×2, il prendrait la seule
+      // grande place de la coque. En micro on s'en passe, comme le joueur.
+      cooling:  (!micro && level>=4 && rng()<0.35) ? "k1" : "k0",
       weapon1:"w0", weapon2:"x0",
     };
     if (opts.banTracks && build.parts.propulsion === "pr3")
       build.parts.propulsion = "pr1";
+    if (opts.maxSoftware){                       // le règlement du concours prime
+      const cap = PARTS.software.findIndex(p => p.id === opts.maxSoftware);
+      const cur = PARTS.software.findIndex(p => p.id === build.parts.software);
+      if (cap >= 0 && cur > cap) build.parts.software = PARTS.software[cap].id;
+    }
     if (opts.maxKg){
       const order = [["propulsion","pr0"],["battery","b0"],["motor","m0"]];
       let guard = 0;
@@ -856,7 +1370,9 @@ const ENGINE = (() => {
   }
 
   return { makeMatch, tick, DAMAGE:{HIT_J, RIPOFF_J, DIRECT_MUL}, runHeadless, derivedStats, statBars, genOpponent, genTournament, tendencyKey,
+           perceive, decide, actuate,          // S27 : les trois phases, exposées pour la porte et les modules
+           MODULES, ARBITERS, tactique, SOFTWARE,   // S28/S29 : modules, arbitres, paliers
            CHASSIS, OPTS, DEFAULT_BUILD, SLICE1, PARTS, partOf, ARENA_R, TICK, SUDDEN_DEATH_T,
-           PHYS, physStats, partMassKg, BEAM_KG };
+           PHYS, physStats, partMassKg, BEAM_KG, BENCHMARKS, MATIERES, hullOf };
 })();
 // ENGINE-END

@@ -35,7 +35,7 @@ const SKEY = "roboclash_s4";
    layout, l'homologation et bk.lock consomment ces caches, inchangés.
    Politique pré-release : pas de migration — toute sauvegarde d'une autre
    version ou invalide est écartée et remplacée (validState). */
-const SAVE_V = 4;
+const SAVE_V = 5;   // P-PILOTE : le pilote passe de S.settings (global) au bot
 // a chassis is valid only if the engine knows it; unknown → fall back rather than crash.
 function validChassis(ch){ return (ch && ENGINE.PHYS.chassis[ch] && ENGINE.CHASSIS[ch]) ? ch : "boxy"; }
 const DEF_SLOT = {};                        // def -> slot d'appartenance (catalogue)
@@ -44,8 +44,20 @@ const BASE_KIT = { propulsion:"pr0", motor:"m0", cpu:"c0", battery:"b0", sensors
 const BOLT_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" style="vertical-align:-1px"><polygon points="6,1 10.5,3.5 10.5,8.5 6,11 1.5,8.5 1.5,3.5" fill="currentColor"/></svg>';
 function mintInto(inv, def, extra){ const uid = "i"+(++inv.seq);
   inv.items[uid] = Object.assign({ def, wear:0 }, extra||{}); return uid; }
+/* P-PILOTE — le pilote appartient au BOT, pas à la carrière. Les sept réglages
+   de conduite vivaient dans S.settings, global : deux bots du garage
+   partageaient une seule agressivité, et le palier logiciel se lisait sur les
+   pièces POSSÉDÉES. Le pilote entraîné (T) sera attaché au châssis : c'est
+   cette structure qui le portera. Clés DÉRIVÉES d'ENGINE.OPTS, jamais listées. */
+const PILOT_KEYS = Object.keys(ENGINE.OPTS);
+const PILOT_DEF = (()=>{ const d={}; for (const k of PILOT_KEYS) d[k] = ENGINE.SLICE1.playerBuild[k]; return d; })();
+function validPilot(p){                     // durcissement : toute valeur inconnue retombe au défaut
+  const out = {...PILOT_DEF};
+  if (p && typeof p === "object")
+    for (const k of PILOT_KEYS) if (ENGINE.OPTS[k].indexOf(p[k]) >= 0) out[k] = p[k];
+  return out; }
 function bareBot(chassis){
-  return { chassis: validChassis(chassis), fit:{},
+  return { chassis: validChassis(chassis), fit:{}, pilot:{...PILOT_DEF},
     customize:{ color:"#d98a45", stickers:[], placed:[] }, layout:null,   // jaune-orangé d'usine (= DEFAULT_CHASSIS_COLOR, littéral : TDZ)
     equipped:{}, counts:{} }; }             // caches (voir refit)
 function newBotInto(inv, chassis){
@@ -65,7 +77,7 @@ function defaultState(){
     tourney:null,                           // {idx, opponents:[{name,archetype,build,level}x3]}
     concours:{},                            // progression par concours engagé (id → état de format, + lock éventuel)
     concoursDone:{},                        // concours menés à leur terme (unlock déclaratif)
-    settings:{...ENGINE.SLICE1.playerBuild},
+    stars:{},                               // S25 : { concoursId: 0..3 }, MEILLEUR résultat conservé
     opponent:null,                          // current qualifier {name, archetype, build, level}
   };
 }
@@ -108,6 +120,7 @@ for (const sl of Object.keys(ENGINE.PARTS)){ const p0 = ENGINE.PARTS[sl][0];
 const normEquip = (slot, id) => (OPTIONAL_SLOTS[slot] && id === EMPTY_ID[slot]) ? null : id;
 // ---- L1 Garage & Inventory: un bot = châssis + fit (uid par slot) ; les pièces vivent dans S.inv ----
 function AB(){ return S.garage[S.activeBot]; }                       // active bot
+function PILOT(){ return AB().pilot; }                               // P-PILOTE : réglages de conduite du bot actif
 function syncActive(){ const b=AB(); S.parts=S.parts||{}; S.parts.equipped=b.equipped; S.customize=b.customize; } // live pointers (caches)
 /* refit — régénère les caches type-niveau (equipped/counts) depuis fit. */
 function refit(bot, inv){ inv = inv || S.inv;
@@ -184,9 +197,15 @@ try {
 function bootSanitize(){
   S.garage.forEach(b => refit(b));
   if (S.activeBot==null || S.activeBot>=S.garage.length) S.activeBot=0;
-  S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); });
+  S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); b.pilot = validPilot(b.pilot); });
+  delete S.settings;                        // P-PILOTE : plus de pilote global, même adopté d'un état étranger
   S.concours = (S.concours && typeof S.concours === "object") ? S.concours : {};
   S.concoursDone = (S.concoursDone && typeof S.concoursDone === "object") ? S.concoursDone : {};
+  /* S25 — les étoiles sont un AJOUT de champ, pas un changement de schéma :
+     un état qui n'en a pas repart à zéro étoile plutôt que d'être rejeté. */
+  { const st = (S.stars && typeof S.stars === "object") ? S.stars : {}; S.stars = {};
+    for (const cid in st){ const n = st[cid] | 0;
+      if (tournamentById(cid) && n >= 1 && n <= 3) S.stars[cid] = n; } }
   for (const cid in S.concours){ const st = S.concours[cid];
     if (st && st.lock) st.lock.chassis = validChassis(st.lock.chassis); }
   /* A2 — SAVE_V et validState sont déclarés en tête d'état. Les migrations
@@ -233,10 +252,20 @@ function newCareerState(){
   st.bolts = 40;   // E7b : la simulation a tranché (35 ratait le premier achat de 2 euros)
   return st;
 }
+/* P-CRESUS — carrière de TEST. Nommer une carrière « cresus » (accents et
+   casse indifférents) la dote d'un trésor de guerre : de quoi acheter tout le
+   catalogue et mesurer sans grinder. Ce n'est pas un easter egg à trouver,
+   c'est un outil : personne ne le tape par accident, et la carrière porte son
+   nom en clair — on sait toujours qu'on mesure sur une carrière truquée. */
+const CRESUS_MOT = "cresus", CRESUS_BOLTS = 999999;
+const estCresus = (name) => String(name || "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .trim().toLowerCase() === CRESUS_MOT;
 function createCareer(name){
   for (let n = 1; n <= CAREER_MAX; n++){
     if (!localStorage.getItem(careerKey(n))){
       const fresh = newCareerState(); fresh.careerName = name || ("Carri\u00E8re " + n);
+      if (estCresus(name)) fresh.bolts = CRESUS_BOLTS;
       localStorage.setItem(careerKey(n), JSON.stringify(fresh));
       loadCareerState(n);
       showIntro(()=>showBotReceived("tortue_s", "PETIT RUSTY", t("recvStarterSub")));   // E9
@@ -256,8 +285,17 @@ LANG = S.lang;
 const WIN_BOLTS = WIN_EUR;
 // software (behaviour pack) unlocks pilot controls gradually: s0 basics, s1 approach/charge, s2 handling/strategy.
 const CONTROL_TIER = { aggression:0, edgeGuard:0, approach:1, chargeDist:1, handling:2, strategy:2, power:0 };
-function ownedSwTier(){ const o=(S.parts&&S.parts.owned&&S.parts.owned.software)||["s0"]; return o.includes("s2")?2:o.includes("s1")?1:0; }
-const isUnlocked = (key)=>{ const n=CONTROL_TIER[key]; return n==null || ownedSwTier()>=n; };
+/* P-PILOTE — le palier lisait les logiciels POSSÉDÉS : acheter s2 une fois
+   déverrouillait la stratégie sur TOUT le garage, y compris sur un bot resté
+   en s0. Il lit désormais le logiciel MONTÉ sur le bot actif (slot optionnel :
+   equipped.software === null ≡ s0).
+   TODO Phase 1.3 — handling et power sont MÉCANIQUES (propulsion / moteur) :
+   à rattacher là, pas ici. Piège à désamorcer d'abord : makeSeg rabat un
+   contrôle verrouillé sur OPTS[key][0], qui vaut "speed" pour power et
+   "short" pour chargeDist — soit PAS la valeur par défaut du build. */
+function fittedSwTier(){ const id = (AB().equipped && AB().equipped.software) || "s0";
+  return Math.max(0, ENGINE.PARTS.software.findIndex(p=>p.id===id)); }
+const isUnlocked = (key)=>{ const n=CONTROL_TIER[key]; return n==null || fittedSwTier()>=n; };
 const tournamentOpen = ()=> S.beatenAtLevel >= 2;
 const pickName = ()=> OPP_NAMES[2 + Math.floor(Math.random()*(OPP_NAMES.length-2))];
 
@@ -269,7 +307,7 @@ function ensureOpponent(){
     S.opponent = { name:OPP_NAMES[te.nameIdx], archetype:te.archetype,
       build:{...te.build}, level:1 };
   } else {
-    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level);
+    const g = genOpponentFit(Math.floor(Math.random()*1e9), S.level);
     S.opponent = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level,
       gen:true, losses:0 };
   }
@@ -279,7 +317,7 @@ function ensureOpponent(){
 function ensureTourney(){
   if (S.tourney) return;
   const seed = Math.floor(Math.random()*1e9);
-  const opps = ENGINE.genTournament(seed, S.level);
+  const opps = ENGINE.genTournament(seed, S.level).map(g => ({ ...g, build: repairFit(g.build) }));   // S23
   S.tourney = { idx:0, opponents: opps.map(g=>({ name:pickName(),
     archetype:g.archetype, build:g.build, level:S.level })) };
   saveState();
@@ -335,7 +373,7 @@ function renderHome(){
 
   // player machine: live numbers + robot editor with equipped parts
   // (le versus et les réglages de comportement vivent sur l'écran VS — S6)
-  const myBuild = {...S.settings, chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed};
+  const myBuild = {...PILOT(), chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed};
   myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
   renderNums($("myNums"), myBuild);
   bindEditor();
@@ -406,20 +444,20 @@ function makeSeg(key){
      tant que le logiciel requis n'est pas monté (mention unique côté appelant). */
   const unlocked = isUnlocked(key);
   if (!unlocked){
-    if (S.settings[key] !== ENGINE.OPTS[key][0]) S.settings[key] = ENGINE.OPTS[key][0];
+    if (PILOT()[key] !== ENGINE.OPTS[key][0]) PILOT()[key] = ENGINE.OPTS[key][0];
     return null;
   }
   const field = document.createElement("div"); field.className = "rc-field";
   const head = document.createElement("div"); head.className = "rc-field__head";
   head.innerHTML = `<span>${t(key)}</span>
-    <span class="rc-field__val">${t(S.settings[key])}</span>`;
+    <span class="rc-field__val">${t(PILOT()[key])}</span>`;
   field.appendChild(head);
   const seg = document.createElement("div"); seg.className = "rc-seg";
   for (const opt of ENGINE.OPTS[key]){
     const o = document.createElement("div");
-    o.className = "rc-seg__opt" + (S.settings[key]===opt ? " is-active" : "");
+    o.className = "rc-seg__opt" + (PILOT()[key]===opt ? " is-active" : "");
     o.textContent = t(opt);
-    o.onclick = ()=>{ if(!isUnlocked(key)) return; S.settings[key]=opt; saveState(); renderHome(); };
+    o.onclick = ()=>{ if(!isUnlocked(key)) return; PILOT()[key]=opt; saveState(); renderHome(); };
     seg.appendChild(o);
   }
   field.appendChild(seg);
@@ -529,14 +567,22 @@ const FOOT_BASE = {
   sensors:{w:1,d:1,h:6}, weapon1:{w:3,d:3,h:6}, weapon2:{w:3,d:3,h:6},
 };
 const FOOT_TIER = {
-  propulsion:{ pr0:{w:1,d:1}, pr1:{w:1,d:4}, pr2:{w:2,d:3}, pr3:{w:2,d:5} },  // per side: pr0 = 1 slot (S16-EDIT), more wheels / a track
+  /* S24-MICRO — empreintes de la gamme micro. Une coque S fait 9 cellules
+     (3×3) : avec ses roues elle héberge UN bloc 2×2 et quelques 1×1. Tout ce
+     qui vise la classe S est donc 1×1, 1×2 ou 1×3 — jamais deux cellules de
+     large, sinon rien d'autre n'entre à côté. */
+  propulsion:{ pr0:{w:1,d:1}, pr1:{w:1,d:4}, pr2:{w:2,d:3}, pr3:{w:2,d:5},
+               // S24-ROUES : 1×1 base · 1×1 blindée · 1×2 ×3 grips · 2×1 large blindée
+               pr4:{w:1,d:1}, pr5:{w:1,d:1}, pr6:{w:1,d:2}, pr7:{w:1,d:2},
+               pr8:{w:1,d:2}, pr9:{w:2,d:1} },  // per side, miroir L/R : 2 roues par design
   battery:{ b1:{w:2,d:2}, b2:{w:4,d:2}, b3:{w:5,d:3} },
-  motor:{ m1:{w:2,d:2}, m2:{w:2,d:2}, m3:{w:3,d:2}, m4:{w:3,d:3} },
+  motor:{ m1:{w:2,d:2}, m2:{w:2,d:2}, m3:{w:3,d:2}, m4:{w:3,d:3},
+          m5:{w:1,d:1}, m6:{w:1,d:2} },                                    // S24-MICRO
   cpu:{ c2:{w:2,d:1} },
   cooling:{ k1:{w:2,d:2}, k2:{w:3,d:3} },
   ballast:{ l2:{w:2,d:1} },
   sensors:{ n2:{w:2,d:1} },
-  srimech:{ r1:{w:2,d:2}, r2:{w:3,d:2} },
+  srimech:{ r1:{w:2,d:2}, r2:{w:3,d:2}, r3:{w:1,d:1}, r4:{w:1,d:2} },      // S24-MICRO
 };
 function baseSlot(slot){ const i=slot.indexOf("#"); return i<0 ? slot : slot.slice(0,i); } // "motor#1" → "motor"
 function footprintOf(slot,id){ slot=baseSlot(slot); const b=FOOT_BASE[slot]||{w:1,d:1,h:1};
@@ -578,8 +624,12 @@ function idAt(build, slot){ const b=baseSlot(slot);
   return (build.parts && build.parts[b]) || ENGINE.PARTS[b][0].id; }
 function layerOf(slot){ return SLOT_LAYER[baseSlot(slot)]; }
 function placedSlotsOf(build){ return [...EDIT_LAYERS[0].slots, ...instanceSlots(build)]; }
-function tierColor(slot,id){ const i=ENGINE.PARTS[slot].findIndex(p=>p.id===id);
-  return TIER_COLORS[Math.max(0,Math.min(TIER_COLORS.length-1,i))]; }
+/* S20-GAMME — la teinte suit le RANG DÉCLARÉ de la pièce, plus sa position dans
+   le tableau : une micro-pièce ajoutée en fin de catalogue s'affichait « haut de
+   gamme ». Repli sur la position pour toute pièce qui n'aurait pas de gamme. */
+function tierColor(slot,id){ const arr=ENGINE.PARTS[slot], i=arr.findIndex(p=>p.id===id);
+  const g = (i>=0 && typeof arr[i].gamme === "number") ? arr[i].gamme : i;
+  return TIER_COLORS[Math.max(0,Math.min(TIER_COLORS.length-1,g))]; }
 function mixHex(a,b,t){
   const pa=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
   const pb=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)];
@@ -1019,13 +1069,22 @@ function drawChassisSprite(c, chassis, color){ const st=spriteState(chassis);
   c.drawImage(img, dx, dy, img.width*s, img.height*s); }
 function buildColliders(build, layout){
   const chassis=build.chassis||"boxy", eq=build.parts||{};
+  /* S21-COLLIDER — garde de mise en page. Quand autoArrange échoue (__nofit),
+     il empile tout l'équipement en {col:0,row:0} : la roue MIROIR se retrouve
+     alors très loin hors grille et la boîte de collision explose — mesuré à
+     52 u de rayon pour une coque S de 10 u, sur un ring de 62 u. Un adversaire
+     généré dans cet état remplissait presque l'arène de sa hitbox (31 sur 40
+     adversaires S de niveau 3 étaient dans ce cas).
+     Règle : ce qu'on n'a pas su placer ne dépasse pas. On retombe sur la
+     COQUE SEULE — jamais plus gros que le châssis, jamais d'exception. */
+  const nofit = !!(layout && layout.__nofit);
   const v=viewParams(chassis), vis=colliderVis(chassis), list=[];
   const cr=0.6*v.cell; // small per-cell circle: mild overlap, tight union
   const cell=(cc,r,slot)=> list.push({slot, x:-vis*(r+0.5-v.crow)*v.cell, y:vis*(cc+0.5-v.ccol)*v.cell, r:vis*cr});
   const paveFoot=(col,row,f,slot)=>{ for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++) cell(col+dc,row+dr,slot); };
   /* S16-WHEELS — les longerons collisionnent (WYSIWYG) : slot null → un choc
      direct compte coque. L'arrachage individuel viendra au chantier armes. */
-  { const b=beamsOf(build, layout).bar;
+  if(!nofit){ const b=beamsOf(build, layout).bar;
     if(b) for(let c=b.c0;c<=b.c1;c++){
       cell(c, b.rowC-0.5, null);                       // rowC = centre vertical de la roue
       cell(2*gridCX(chassis)-c-1, b.rowC-0.5, null);   // miroir droit
@@ -1041,12 +1100,12 @@ function buildColliders(build, layout){
     for(let r=0;r<gridH(chassis);r++) for(let cc=0;cc<gridW(chassis);cc++)
       if(cellInChassis(chassis,cc,r) && !isCorner(cc,r)) cell(cc,r,"chassis"); }
   // armor blade/fork: one row of reach in FRONT of the hull (the leverage weapon is physical)
-  { const aid=eq.armor||"a0", aidx=ENGINE.PARTS.armor.findIndex(p=>p.id===aid);
+  if(!nofit){ const aid=eq.armor||"a0", aidx=ENGINE.PARTS.armor.findIndex(p=>p.id===aid);
     if(aidx>0){ for(let cc=0;cc<gridW(chassis);cc++){ // one cell ahead of each column's front-most hull cell
       for(let r=0;r<gridH(chassis);r++){ if(cellInChassis(chassis,cc,r)){ cell(cc, r-1, "armor"); break; } } } } }
   // propulsion: pave both mirrored side footprints — avec le MÊME débord
   // extérieur de 0.32 cellule que le dessin (P-OMBRES, WYSIWYG).
-  { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
+  if(!nofit){ const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
     const p=layout.propulsion||{col:0,row:0};
     const OUT=0.32;
     for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++){
@@ -1664,12 +1723,122 @@ function setCount(slot, delta){
    du bon def, complète avec les libres (moins usées d'abord), préserve la
    multiplicité tant que le stock libre le permet. null/« vide » → slot vidé. */
 function fitsOnHull(build){ return !autoArrange(build).__nofit; }   // E4 : garde-fou de place
+/* CALIBRAGE — l'étalon d'un concours, ou null. Donnée pure : une épreuve
+   gagne un adversaire figé en écrivant `benchmark:"M3"`, zéro code. */
+function benchmarkOf(cid){
+  const tr = cid && tournamentById(cid);
+  return (tr && tr.benchmark && ENGINE.BENCHMARKS[tr.benchmark]) || null;
+}
+/* ══ S23-PLAÇABLE — l'adversaire généré doit LOGER dans sa coque.
+   `genOpponent` vit dans le moteur, qui ignore tout des empreintes et des
+   mises en page (règle d'architecture : engine.js ne référence pas app.js).
+   Il produisait donc, en classe S, des bots portant un m3 et des chenilles
+   qui n'entrent pas dans une coque 3×3 : mesuré, 31 sur 40 au niveau 3,
+   27/40 au 4, 32/40 au 5 — et 0 en classe M. Ils combattaient quand même,
+   hitbox rabattue sur la coque nue par la garde S21, en portant la masse et
+   la poussée de pièces INVISIBLES. Un adversaire qui ment.
+
+   La réparation appartient donc à l'app, qui, elle, sait mesurer. Même esprit
+   que `opts.maxKg` côté moteur : on DÉGRADE, dans un ordre déclaré, jusqu'à
+   ce que ça loge — on ne re-tire pas (le tirage doit rester reproductible).
+   L'ordre attaque les plus gros encombrements d'abord. En classe S le moteur
+   finit souvent au stock : c'est la vérité du contenu actuel (m1 est un 2×2,
+   il n'entre que dans totem_s), et elle vaut pour le joueur COMME pour
+   l'adversaire. La gamme micro (µ-moteur 1×1) est la vraie réponse. ══ */
+/* S24-MICRO — SUBSTITUER avant de dégrader. Le moteur tire ses adversaires
+   dans les gammes historiques (m0-m2, pr0-pr3, r1-r2) : il ne connaît pas la
+   gamme micro, et ne peut pas la connaître (il ignore les empreintes). Sans
+   ceci, une pièce qui ne loge pas serait rabattue au STOCK, alors qu'il existe
+   désormais un équivalent de même palier qui, lui, rentre — et l'adversaire de
+   classe S resterait éternellement au moteur d'origine pendant que le joueur
+   s'offre un µ-Couple. On tente donc l'équivalent micro AVANT la dégradation.
+   Même palier, même prix d'ordre de grandeur : ce n'est pas un cadeau, c'est
+   la même pièce dans un autre format. */
+const EQUIV_MICRO = {
+  motor:      { m1:"m5", m2:"m6", m3:"m6", m4:"m5" },
+  propulsion: { pr1:"pr6", pr2:"pr7", pr3:"pr8" },
+  srimech:    { r1:"r3",  r2:"r4" },
+};
+const DEGRADE = [
+  /* Ordre de SACRIFICE, du moins au plus douloureux. Un bot est d'abord une
+     motricité : on lui retire son refroidisseur, son blindage, son lest, puis
+     sa réserve d'énergie AVANT de toucher aux roues et au moteur. L'ordre
+     précédent (roues et moteur en tête) produisait des adversaires de haut
+     niveau au moteur d'origine parce qu'une batterie 2×2 ne rentrait pas —
+     ils perdaient leur machine pour sauver leur batterie.
+     Dans chaque chaîne : capacité décroissante, encombrement décroissant, les
+     formats micro AVANT les stocks (même palier, autre format). */
+  ["cooling",    ["k1","k0"]],
+  ["armor",      ["a2","a1","a0"]],
+  ["ballast",    ["l1","l0"]],
+  ["battery",    ["b2","b1","b0"]],
+  ["srimech",    ["r4","r3","r0"]],
+  ["propulsion", ["pr9","pr8","pr7","pr6","pr5","pr4","pr1","pr0"]],
+  ["motor",      ["m6","m5","m1","m0"]],
+  // EN DERNIER : le CPU et les capteurs. Ce sont les pièces qui portent le
+  // PILOTE — les sacrifier appauvrit le comportement de l'adversaire, pas
+  // seulement sa fiche. On ne les touche que si rien d'autre n'a suffi.
+  ["cpu",        ["c1","c0"]],
+  ["sensors",    ["n1","n0"]],
+];
+/* gammeDe — le RANG de gamme d'une pièce, jamais sa position dans le tableau.
+   Les pièces micro sont ajoutées en fin de catalogue (ids gelés) : m5 est au
+   6e rang du tableau mais de gamme 1. Comparer les positions ferait passer
+   une substitution micro pour une MONTÉE en gamme et la refuserait. */
+function gammeDe(slot, id){
+  const p = ENGINE.PARTS[slot].find(x => x.id === id);
+  return p ? (typeof p.gamme === "number" ? p.gamme : ENGINE.PARTS[slot].indexOf(p)) : 0;
+}
+function repairFit(build){
+  if (fitsOnHull(build)) return build;
+  // 1. l'équivalent micro, à palier ÉGAL : le format change, pas la gamme.
+  //    Appliqué EN BLOC — substituer un seul slot ne libère souvent pas assez.
+  let substitue = false;
+  for (const slot in EQUIV_MICRO){
+    const sub = EQUIV_MICRO[slot][build.parts[slot]];
+    if (sub){ build.parts[slot] = sub; substitue = true; }
+  }
+  if (substitue && fitsOnHull(build)) return build;
+  /* 2. essais SLOT PAR SLOT, avec retour en arrière. Sans le retour, un slot
+        dont la chaîne entière échoue restait à sa pire valeur alors que le
+        vrai bloqueur était ailleurs : on obtenait des adversaires au moteur
+        ET aux roues d'origine parce qu'une batterie 2×2 ne rentrait pas. */
+  for (const [slot, chain] of DEGRADE){
+    const avant = build.parts[slot];
+    for (const id of chain){
+      if (build.parts[slot] === id) continue;
+      if (gammeDe(slot, id) >= gammeDe(slot, avant)) continue;   // ne JAMAIS remonter en gamme
+      build.parts[slot] = id;
+      if (fitsOnHull(build)) return build;
+    }
+    build.parts[slot] = avant;                                    // ce slot n'était pas le problème
+  }
+  // 3. dernier recours : on dégrade CUMULATIVEMENT, sans retour en arrière.
+  for (const [slot, chain] of DEGRADE){
+    for (const id of chain){
+      const cur = build.parts[slot];
+      if (cur === id || gammeDe(slot, id) >= gammeDe(slot, cur)) continue;
+      build.parts[slot] = id;
+      if (fitsOnHull(build)) return build;
+    }
+  }
+  return build;                                          // la garde S21 couvre le reste
+}
+/* genOpponentFit — le SEUL point d'entrée pour fabriquer un adversaire.
+   Déterministe : même graine → même bot, réparation comprise. */
+function genOpponentFit(seed, level, opts){
+  const g = ENGINE.genOpponent(seed, level, opts);
+  g.build = repairFit(g.build);
+  return g;
+}
 function opponentOpts(cid){                                            // E7b : adversaires légaux
   const tr = cid && tournamentById(cid); if (!tr || !tr.rules) return undefined;
   const r = tr.rules, o = {};
   if (r.chassisClass) o.allowChassis = Object.keys(CHASSIS_INFO).filter(c=>chassisClassOf(c)===r.chassisClass);
+  if (r.chassisClass === "S") o.micro = true;    // S24 : la classe S tire dans la gamme micro
   if (r.banTracks) o.banTracks = true;
   if (r.metrics && r.metrics.weightKg) o.maxKg = r.metrics.weightKg;
+  if (r.maxSoftware) o.maxSoftware = r.maxSoftware;   // S29 : l'adversaire subit le même plafond
   return o;
 }
 /* E7 — contrôle technique : un bot FONCTIONNEL roule, tourne, a du jus et un
@@ -1762,6 +1931,58 @@ function chassisName(ch){ return (CHASSIS_INFO[ch]&&CHASSIS_INFO[ch].name)||ch.t
 function botName(bot){ return da(bot.customName || chassisName(bot.chassis)); }   // E7
 function setActiveBot(i){ if(i<0||i>=S.garage.length||i===S.activeBot) return;
   S.activeBot=i; syncActive(); recomputeOwned(); saveState(); renderHome(); }
+/* ══ P-FICHE — ÉCHANGE DE BOTS. Une « fiche » est la description PORTABLE d'un
+   bot : châssis, définitions de pièces, multiplicités, pilote, placement,
+   livrée. Elle ne contient AUCUN uid d'instance (ceux-là appartiennent à une
+   carrière), donc elle voyage entre carrières, entre appareils, et entre le
+   jeu et le banc de mesure (`node tools/bench.js duel --ficheA <json>`).
+   Le placement voyage AVEC : deux bots aux mêmes pièces mais rangées
+   autrement n'ont ni le même CG, ni les mêmes colliders, ni les mêmes
+   longerons — donc pas le même comportement. Une fiche sans layout ne serait
+   pas un build exact. ══ */
+const FICHE_V = 1;
+function exportBot(bot){
+  const b = bot || AB();
+  const parts = {}, counts = {};
+  for (const sl in ENGINE.PARTS){
+    const id = (b.equipped || {})[sl];
+    if (!id) continue;                                   // slot vide (optionnel) : absent de la fiche
+    parts[sl] = id;
+    const n = (b.counts || {})[sl] || 1; if (n > 1) counts[sl] = n;
+  }
+  return { rc: FICHE_V, chassis: b.chassis, parts, counts,
+    pilot: {...(b.pilot || PILOT_DEF)},
+    layout: b.layout || null,
+    color: (b.customize || {}).color || null,
+    stickers: [...((b.customize || {}).placed || [])] };
+}
+/* importBot — tolérante en ENTRÉE, stricte en SORTIE : tout ce qui n'est pas
+   reconnu est écarté en silence, et ce qui sort du garage est toujours un bot
+   valide (châssis connu, pièces du bon slot, pilote légal, placement vérifié). */
+function importBot(json){
+  let f; try { f = typeof json === "string" ? JSON.parse(json) : json; } catch(e){ return null; }
+  if (!f || typeof f !== "object" || !f.chassis) return null;
+  const chassis = validChassis(f.chassis);
+  const bot = bareBot(chassis);
+  bot.pilot = validPilot(f.pilot);
+  const src = (f.parts && typeof f.parts === "object") ? f.parts : {};
+  for (const sl in src){
+    const def = src[sl];
+    if (!ENGINE.PARTS[sl] || DEF_SLOT[def] !== sl) continue;          // pièce inconnue ou mauvais slot
+    const nMax = STACK_SLOTS[sl] ? 3 : 1;
+    const n = Math.max(1, Math.min(nMax, ((f.counts || {})[sl] | 0) || 1));
+    bot.fit[sl] = []; for (let i = 0; i < n; i++) bot.fit[sl].push(mintInstance(def));
+  }
+  refit(bot);
+  if (typeof f.color === "string") bot.customize.color = f.color;
+  if (Array.isArray(f.stickers)) bot.customize.placed = f.stickers.filter(x => x && stickerOf(x.id || x));
+  const build = { chassis, parts: {...bot.equipped}, counts: {...bot.counts} };
+  bot.layout = (f.layout && layoutValid(build, f.layout)) ? f.layout : autoArrange(build);
+  if (bot.layout && bot.layout.__nofit) bot.layout = null;            // rien d'imposable : l'éditeur reprendra
+  S.garage.push(bot); S.activeBot = S.garage.length - 1;
+  syncActive(); recomputeOwned(); saveState();
+  return bot;
+}
 function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   if(S.bolts < info.cost){ showToast(t("noBolts")); return; }
   S.bolts -= info.cost;
@@ -1855,7 +2076,9 @@ function applyMatchDamage(m){
     const dw = totJ*K.VIB_K*FRAGILITY[slot] + me.contactT*K.GRIND_K*FRAGILITY[slot]*0.1;
     if (dw > 0.05) bump(slot, dw, "vib");
   }
-  const dch = totJ*K.CHASSIS_J_K + me.contactT*K.CHASSIS_GRIND_K;   // châssis
+  /* S24-MATIÈRE — l'usure de coque suit la TÉNACITÉ : ce qui encaisse mal se
+     répare souvent. Acier (1,00) = comportement historique inchangé. */
+  const dch = (totJ*K.CHASSIS_J_K + me.contactT*K.CHASSIS_GRIND_K) / ENGINE.hullOf(bot.chassis);
   bot.chassisWear = Math.min(100, Math.round(((bot.chassisWear||0) + dch)*10)/10);
   // agrégation par pièce (une ligne par instance, cumulée)
   const agg = {};
@@ -1988,6 +2211,10 @@ const METRICS = {
   batteryWh:{ get:b=>ENGINE.physStats(b).packWh,  label:"Batterie",     unit:"Wh", dp:1 },
   torqueNm: { get:b=>ENGINE.physStats(b).torqueNm,label:"Couple",       unit:"Nm", dp:2 },
 };
+/* S29 — le palier logiciel s'AFFICHE v0..v3, et l'id reste s0..s3 (taxonomie
+   gelée). Les libellés disaient « Firmware v1 » pour s0 : un décalage de un
+   qui rendait « v3 » ambigu au moment d'ajouter l'arbitrage. Le numéro
+   affiché EST désormais l'indice. */
 function swTier(id){ return ENGINE.PARTS.software.findIndex(p=>p.id===id); }
 // validate a build against a tournament's rules → {ok, fails:[msg]}
 function checkEntry(build, rules){
@@ -2005,7 +2232,7 @@ function checkEntry(build, rules){
   if(r.banComponents) for(const id of r.banComponents)
     if(Object.values(pr).includes(id)) fails.push(t("scrBanned",{p:t("pn_"+id)}));
   if(r.maxSoftware && swTier(pr.software||"s0") > swTier(r.maxSoftware))
-    fails.push(t("scrSoftware",{v:swTier(r.maxSoftware)+1}));
+    fails.push(t("scrSoftware",{v:swTier(r.maxSoftware)}));
   if(r.metrics) for(const key in r.metrics){ const m=METRICS[key]; if(!m) continue;
     const val=m.get(build), cap=r.metrics[key];
     if(val > cap+1e-6) fails.push(t("scrMetric",{m:m.label, v:val.toFixed(m.dp), c:(+cap).toFixed(m.dp), u:m.unit})); }
@@ -2025,6 +2252,90 @@ function ligueById(id){ return LIGUES.find(l => l.id === id) || null; }
 /* unlock déclaratif (décision 3a) : null = ouvert ; {placeholder:true} = jamais
    (« bientôt ») ; {level:n} = niveau d'échelle ; {concoursDone:id} = avoir mené
    ce concours à son terme. Ajouter une condition = un champ ici, une entrée là-bas. */
+/* ══ S25-ÉTOILES — le palmarès devient la clé du contenu.
+   Barème unique (décision Denis) : 1re place ★★★ · 2e ★★ · 3e ★. On garde le
+   MEILLEUR résultat par épreuve, jamais de perte.
+
+   Chaîne de déblocage, jamais punitive :
+     — épreuve suivante d'une ligue : ≥ 1★ dans CHAQUE épreuve précédente ;
+     — ligue suivante : ≥ 1★ dans CHAQUE épreuve de la ligue courante.
+   Les déblocages sont DÉRIVÉS de S.stars à chaque rendu, jamais stockés :
+   une seule source, et rien à migrer si le barème bouge.
+
+   `noStars:true` sort une épreuve du barème ET de la chaîne — le combat libre
+   (exhibition) et les étalons de Calibrage mesurent, ils ne récompensent pas. */
+const starsOf = (cid) => ((S.stars || {})[cid] | 0);
+const STARS_FOR_RANK = { 1:3, 2:2, 3:1 };
+function awardStars(cid, rank){
+  const n = STARS_FOR_RANK[rank] || 0;
+  if (!n) return 0;
+  S.stars = S.stars || {};
+  if (n <= starsOf(cid)) return 0;                       // le meilleur résultat prime
+  S.stars[cid] = n;
+  return n;
+}
+/* Le rang d'une épreuve terminée, par FORMAT. C'est la seule chose qui diffère
+   d'un format à l'autre — le barème, lui, est unique. */
+function rankOfBracket(bk){
+  if (!bk) return 0;
+  if (!bk.out && bk.round >= bk.rounds) return 1;        // champion
+  if (bk.round === bk.rounds - 1) return 2;              // battu en finale
+  if (bk.round === bk.rounds - 2) return 3;              // battu en demi
+  return 0;
+}
+/* Échelle (sumoM) : pas de podium — barème de PROGRESSION. Le niveau atteint
+   vaut le rang, et on le décerne à chaque montée, pas seulement à la fin. */
+function rankOfLadder(level, champion){
+  if (champion) return 1;
+  if (level >= 4) return 2;
+  if (level >= 3) return 3;
+  return 0;
+}
+const starConcours = (lg) => lg.concours.filter(id => { const tr = tournamentById(id); return tr && !tr.noStars; });
+const ligueOfConcours = (cid) => LIGUES.find(l => l.concours.includes(cid)) || null;
+const ligueComplete = (lg) => !!lg && starConcours(lg).every(id => starsOf(id) >= 1);
+/* Une ligue est ouverte si toutes celles qui la PRÉCÈDENT dans LIGUES et qui
+   comptent des étoiles sont complètes. L'ordre du tableau EST la progression. */
+function ligueUnlocked(lg){
+  if (!lg) return false;
+  if (lg.unlock && lg.unlock.placeholder) return false;
+  if (lg.noStars) return true;                            // Calibrage : toujours ouverte
+  for (const l of LIGUES){
+    if (l.id === lg.id) break;
+    if (l.noStars || (l.unlock && l.unlock.placeholder)) continue;
+    if (!ligueComplete(l)) return false;
+  }
+  return true;
+}
+function concoursUnlocked(cid){
+  const tr = tournamentById(cid); if (!tr) return false;
+  const lg = ligueOfConcours(cid);
+  if (!lg) return unlockMet(tr.unlock);                   // hors ligue : règle déclarative
+  if (!ligueUnlocked(lg)) return false;
+  if (tr.noStars) return true;
+  const chain = starConcours(lg);
+  for (const id of chain){ if (id === cid) break;
+    if (starsOf(id) < 1) return false; }
+  return true;
+}
+/* Le seuil MANQUANT, en clair : « 1★ en Coupe des Puces pour ouvrir… ». Un
+   verrou qu'on ne sait pas ouvrir est un verrou qui n'existe pas. */
+function missingStarFor(cid){
+  const tr = tournamentById(cid), lg = ligueOfConcours(cid);
+  if (!tr || !lg || tr.noStars) return null;
+  if (!ligueUnlocked(lg)){
+    for (const l of LIGUES){
+      if (l.id === lg.id) break;
+      if (l.noStars || (l.unlock && l.unlock.placeholder)) continue;
+      const manque = starConcours(l).filter(id => starsOf(id) < 1);
+      if (manque.length) return { ligue:l, concours:manque };
+    }
+    return null;
+  }
+  const manque = starConcours(lg).filter(id => { if (id === cid) return false;
+    return starConcours(lg).indexOf(id) < starConcours(lg).indexOf(cid) && starsOf(id) < 1; });
+  return manque.length ? { ligue:lg, concours:manque } : null;
+}
 function unlockMet(u){
   if (!u) return true;
   if (u.placeholder) return false;
@@ -2036,7 +2347,9 @@ function unlockMet(u){
 /* E1 — bourse ×ligue : toute prime de concours est multipliée par le
    purseMult de sa ligue (données). Le combat isolé (libre/qualif) reste ×1. */
 function purseMult(concoursId){
-  for (const lg of LIGUES) if (lg.concours.includes(concoursId)) return lg.purseMult || 1;
+  /* CALIBRAGE : purseMult 0 est une VALEUR (mesure sans bourse), pas une
+     absence — `|| 1` la transformait silencieusement en bourse pleine. */
+  for (const lg of LIGUES) if (lg.concours.includes(concoursId)) return lg.purseMult ?? 1;
   return 1;
 }
 function snapshotBuild(){                                          // gel du build à l'engagement
@@ -2051,7 +2364,7 @@ function engageConcours(id){
   const tr = tournamentById(id);
   if (!tr) return { ok:false, fails:["?"] };
   if (CN(id)) return { ok:false, fails:[], already:true };
-  if (!unlockMet(tr.unlock)){
+  if (!concoursUnlocked(id)){
     const msg = (tr.unlock && tr.unlock.beaten != null)
       ? t("lockBeaten", {n: tr.unlock.beaten}) + " (" + S.beaten + "/" + tr.unlock.beaten + ")"
       : t("soon");
@@ -2082,6 +2395,9 @@ const FORMATS = {
         if(!S.badges.includes(S.level)) S.badges.push(S.level);
         let champion=false;
         if(S.level >= 5){ S.champion=true; champion=true; } else { S.level++; }
+        /* S25 — l'échelle n'a pas de podium : le NIVEAU ATTEINT fait le rang,
+           décerné à chaque montée et pas seulement au sommet. */
+        awardStars("sumoM", rankOfLadder(S.level, champion));
         S.tourney=null; S.beatenAtLevel=0; S.opponent=null;
         return {kind:"won", prize, champion};
       }
@@ -2159,7 +2475,7 @@ function rulesSummary(r){ const p=[];
   if(r.chassisClass) p.push("Classe "+r.chassisClass);
   if(r.banWeapons) p.push(t("scrWeapons"));
   if(r.banTracks) p.push(t("scrTracks"));
-  if(r.maxSoftware) p.push(t("scrSoftware",{v:swTier(r.maxSoftware)+1}));
+  if(r.maxSoftware) p.push(t("scrSoftware",{v:swTier(r.maxSoftware)}));
   if(r.metrics) for(const k in r.metrics){ const m=METRICS[k]; if(m) p.push("\u2264 "+r.metrics[k]+" "+m.unit); }
   return p.join(" \u00B7 ") || t("unlimited"); }
 function formatLabel(tr){                        // E5b : le libellé lit les DONNÉES du concours
@@ -2232,13 +2548,16 @@ function concoursProgress(tr){                       // vue uniforme de progress
 function renderLigues(){
   const el = $("liguesList"); if(!el) return; el.innerHTML = "";
   for (const lg of LIGUES){
-    const open = unlockMet(lg.unlock);
+    const open = ligueUnlocked(lg);                              // S25 : dérivé des étoiles
+    const chain = starConcours(lg);
+    const gagnees = chain.reduce((n, id) => n + starsOf(id), 0), total = chain.length * 3;
     const a = document.createElement("div");
     a.className = "rc-league" + (open ? " is-open" : " is-locked");
     const nEng = lg.concours.filter(id => CN(id)).length;
     const meta = open
       ? t("nConcours", {n:lg.concours.length}) + (nEng ? " · " + t("kEnCours", {k:nEng}) : "")
-      : t("soon");
+        + (chain.length ? " · \u2605 " + gagnees + "/" + total : "")
+      : (chain.length ? t("lockStars") : t("soon"));
     a.innerHTML = `<div class="rc-league__crest"${open?' style="color:var(--rc-violet-lt)"':''}>${open?"◈":"🔒"}</div>
       <div class="rc-league__body"><div class="rc-league__name">${da(dataName(lg.name))}</div>
       <div class="rc-league__meta">${meta}</div></div>
@@ -2255,8 +2574,22 @@ function modeForConcours(id){
   return "exhib";
 }
 function disputeConcours(id){                       // ouvre l'écran VS de la manche
-  { const fc = functionalCheck({chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}});
-    if (!fc.ok){ showToast(fc.fails[0]); return; } }                      // E7 : CT
+  /* S20-SCRUTIN — homologation à la DISPUTE pour les épreuves sans acte
+     d'engagement (noEngage : échelle sumoM, combat libre). Elles n'avaient
+     jamais rencontré checkEntry : la pesée (5,44 kg) et la multiplicité
+     (motor ≤ 3) de l'échelle M étaient décoratives. Quand un engagement
+     existe, l'homologation a déjà eu lieu à l'engagement et le build est gelé
+     s'il doit l'être : on ne re-juge pas. */
+  const tr0 = tournamentById(id);
+  const live = {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
+  live.beamCells = beamCellsOf(live, getLayout());                        // la pesée compte les longerons
+  if (tr0 && !CN(id)){
+    const chk = checkEntry(live, tr0.rules);                              // E7 : CT incluse
+    if (!chk.ok){ showToast(chk.fails[0]); return; }
+  } else {
+    const fc = functionalCheck(live);
+    if (!fc.ok){ showToast(fc.fails[0]); return; }                        // E7 : CT
+  }
   curVsConcours = id;
   vsMode = modeForConcours(id);
   vsOpp = makeOpponent(vsMode);
@@ -2284,7 +2617,7 @@ function renderVsScreen(){
   $("vsManche").textContent = vsMancheLabel(tr);
   // mon bot — celui qui combattra VRAIMENT : le build gelé si le concours gèle
   const lock = (CN(tr.id)||{}).lock || null;
-  const myBuild = {...S.settings,
+  const myBuild = {...PILOT(),
     chassis: lock ? lock.chassis : AB().chassis,
     parts: {...(lock ? lock.parts : S.parts.equipped)},
     counts: {...(lock ? (lock.counts||{}) : AB().counts)},
@@ -2313,7 +2646,7 @@ function renderVsScreen(){
   ensureOppColor(o);
   $("scoutCv")._oppBuild = o.build;
   drawEditor($("scoutCv"), o.build, autoArrange(o.build), editSpin, -1);
-  // comportement, ici et seulement ici (une source : S.settings)
+  // comportement, ici et seulement ici (une source : le pilote DU BOT)
   const rows = $("paramRows"); rows.innerHTML = "";
   let hidden = 0;
   for (const key of ["strategy","aggression","edgeGuard","approach","chargeDist","handling"]){
@@ -2325,7 +2658,7 @@ function renderVsScreen(){
     hint.textContent = t("moreCtrlHint");
     rows.appendChild(hint);
   }
-  $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
+  $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(PILOT()));
   const pr = $("powerRow"); pr.innerHTML = ""; const pf = makeSeg("power"); if (pf) pr.appendChild(pf);
   anchorVs();
 }
@@ -2357,7 +2690,7 @@ function renderLigueScreen(){
   myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
   for (const id of lg.concours){
     const tr = tournamentById(id); if(!tr) continue;
-    const st = CN(id), open = unlockMet(tr.unlock), chk = checkEntry(myBuild, tr.rules);
+    const st = CN(id), open = concoursUnlocked(id), chk = checkEntry(myBuild, tr.rules);   // S25 : dérivé
     const card = document.createElement("div");
     card.className = "rc-cup" + (open ? "" : " is-locked") + (st ? " rc-cup--violet" : "");
     if (tr.arena){                                                     // E5b : l'arène signe sa carte
@@ -2376,6 +2709,19 @@ function renderLigueScreen(){
       inner += chk.fails.map(f=>`<span class="rc-chip rc-chip--red">✗ ${f}</span>`).join("");
     else if (open && !st && !tr.noEngage)
       inner += `<span class="rc-chip rc-chip--violet">✓ ${t("scrPass")}</span>`;
+    /* S25 — les étoiles obtenues, et QUAND c'est verrouillé, le seuil qui
+       manque, nommé. Un verrou qu'on ne sait pas ouvrir n'est pas un verrou,
+       c'est un mur. */
+    if (!tr.noStars){
+      const n = starsOf(id);
+      inner += `<div class="rc-cup__stars" style="letter-spacing:2px;color:${n?"var(--rc-amber,#ffd166)":"var(--rc-muted)"}">`
+             + "\u2605".repeat(n) + "\u2606".repeat(3-n) + `</div>`;
+    }
+    if (!open){
+      const miss = missingStarFor(id);
+      if (miss) inner += `<div class="rc-cup__hint rc-label" style="color:var(--rc-muted);margin-top:4px">`
+        + t("needStar", { c: miss.concours.map(x=>da(dataName(tournamentById(x).name))).join(", ") }) + `</div>`;
+    }
     inner += `</div><div class="rc-cup__foot"></div>`;
     card.innerHTML = inner;
     const foot = card.querySelector(".rc-cup__foot");
@@ -2679,24 +3025,36 @@ let vsOpp = null, vsMode = null, curVsConcours = null;
 function makeOpponent(mode){
   if (mode === "tour"){ ensureTourney(); return S.tourney.opponents[S.tourney.idx]; }
   if (mode === "exhib"){
-    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
+    /* CALIBRAGE — un concours qui déclare `benchmark` ne TIRE pas son
+       adversaire : il le lit dans ENGINE.BENCHMARKS, figé, châssis, pièces et
+       pilote compris. C'est ce qui rend deux mesures comparables dans le temps. */
+    const bm = benchmarkOf(curVsConcours);
+    if (bm){ exhibOpp = { name:bm.name, archetype:"etalon", build:{...bm.build}, level:0, benchmark:true };
+             return exhibOpp; }
+    const g = genOpponentFit(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
     exhibOpp = { name:pickName(), archetype:g.archetype, build:g.build, level:S.level };
     return exhibOpp;
   }
   if (mode === "championnat"){
-    const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
+    const g = genOpponentFit(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
     champOpp = { name: FORMATS.championnat.faced(S.concours[curVsConcours]).name, archetype:g.archetype, build:g.build, level:S.level };
     return champOpp;
   }
   if (mode === "bracket"){
     const bst = S.concours[curVsConcours];
     const opp = FORMATS.bracket.myOpponent(bst);
-    const g = ENGINE.genOpponent((bst.seed ^ (bst.round*7))>>>0, S.level, opponentOpts(curVsConcours));
+    const g = genOpponentFit((bst.seed ^ (bst.round*7))>>>0, S.level, opponentOpts(curVsConcours));
     bracketOpp = { name: opp.name, archetype:g.archetype, build:g.build, level:S.level };
     return bracketOpp;
   }
   ensureOpponent(); return S.opponent;
 }
+/* S20-SCRUTIN — UNE seule source pour « quel concours se dispute ». MODE_CONCOURS
+   ne mappe que le format vers un id HISTORIQUE (bracket→cupM, championnat→lightM) :
+   s'en servir pour retrouver l'état d'un concours faisait chercher l'engagement
+   de la Coupe M quand on disputait la Coupe des Puces. curVsConcours porte l'id
+   réel, posé par disputeConcours / enterBracket / enterChampionnat. */
+function curConcoursId(){ return curVsConcours || MODE_CONCOURS[curMode] || null; }
 function startMatch(mode){
   curMode = mode || (tournamentOpen() ? "tour" : "qual");
   /* S16-CRASH — gardes de mode. Un vsMode/curMode périmé peut demander une
@@ -2713,10 +3071,15 @@ function startMatch(mode){
   const enemy = (vsMode === curMode && vsOpp) ? vsOpp : makeOpponent(curMode);
 
   const seed = Math.floor(Math.random()*1e9);
-  // bracket: the build is LOCKED at entry — only pilot params (S.settings) change between bouts.
-  const lock = (CN(MODE_CONCOURS[curMode]) || {}).lock || null;   // build gelé si le concours le déclare
+  // bracket: the build is LOCKED at entry — only pilot params (AB().pilot) change between bouts.
+  /* S20-SCRUTIN — le gel se lisait sur MODE_CONCOURS[curMode], donc sur cupM /
+     lightM UNIQUEMENT : pour toute autre épreuve (sumoS, sparS, cupS…) le lock
+     valait null et le combat repartait du build VIVANT du garage. lockBuild
+     était inerte hors des deux concours M, et une pièce ajoutée après
+     l'engagement entrait en piste. */
+  const lock = (CN(curConcoursId()) || {}).lock || null;   // build gelé si le concours le déclare
   const pLayout = lock ? lock.layout : getLayout();
-  const playerBuild = {...ENGINE.SLICE1.playerBuild, ...S.settings,
+  const playerBuild = {...ENGINE.SLICE1.playerBuild, ...PILOT(),
     chassis: lock ? lock.chassis : AB().chassis,
     parts: {...(lock ? lock.parts : S.parts.equipped)},
     counts: {...(lock ? (lock.counts||{}) : AB().counts)},
@@ -2735,7 +3098,7 @@ function startMatch(mode){
   /* S16-SCALE — ring RÉEL par classe (données CLASS_RING), en unités monde.
      La classe vient du concours (ses règles priment) sinon du bot joueur.
      Défaut d'arène hors concours : desk nerd en S, dohyo classique en M. */
-  { const trId = curVsConcours || (curMode==="qual"||curMode==="tour" ? "sumoM" : null);
+  { const trId = curConcoursId() || (curMode==="qual"||curMode==="tour" ? "sumoM" : null);
     const tr = trId ? tournamentById(trId) : null;                               // S11b
     const cls = (tr && tr.rules && tr.rules.chassisClass) || chassisClassOf(playerBuild.chassis);
     const ringCm = CLASS_RING[cls] || CLASS_RING.M;
@@ -3318,9 +3681,11 @@ function endToDebrief(){
       pr.total = Math.round(pr.total*purseMult(bid));                          // E1 : bourse ×ligue
       S.bolts += pr.total;
       S.concoursDone[bid] = true;                                  // mené à son terme (unlock déclaratif)
+      const etoiles = awardStars(bid, rankOfBracket(bst));          // S25
       $("ovTitle").textContent = (pr.champ ? t("bracketChamp") : t("bracketOut")) + " 🏆";
       $("ovTitle").style.color = "var(--accent)";
-      unlockEl.textContent = t("bracketPrize", {total:pr.total}); unlockEl.style.display = "block";
+      unlockEl.textContent = t("bracketPrize", {total:pr.total})
+        + (etoiles ? " \u00B7 " + "\u2605".repeat(etoiles) : ""); unlockEl.style.display = "block";
       if (pr.champ && bid === "cupS" && !S.sPrimeAwarded){          // E4 : PRIME DE MONTÉE, une fois
         S.sPrimeAwarded = true; S.bolts += 200; showToast(t("sPrime"));
       }
@@ -3338,11 +3703,16 @@ function endToDebrief(){
       pr.total = Math.round(pr.total*purseMult(cid));                          // E1 : bourse ×ligue
       S.bolts += pr.total;
       S.concoursDone[cid] = true;
+      const etoiles = awardStars(cid, pr.rank);                     // S25
       $("ovTitle").textContent = t("champDone")+" 🏁"; $("ovTitle").style.color = "var(--accent)";
-      unlockEl.textContent = t("champPrize", {rank:pr.rank, total:pr.total}); unlockEl.style.display = "block";
+      unlockEl.textContent = t("champPrize", {rank:pr.rank, total:pr.total})
+        + (etoiles ? " \u00B7 " + "\u2605".repeat(etoiles) : ""); unlockEl.style.display = "block";
       S.concours[cid] = null;
       $("ovMain").textContent = t("nextOpp");
     }
+  } else if (curMode === "exhib" && benchmarkOf(curVsConcours)){
+    /* CALIBRAGE — ni palmarès ni bourse : l'étalon est une mesure. */
+    $("ovMain").textContent = t("calibNote");
   } else { // qual or exhib
     if (realWin){
       S.beaten++;
@@ -3461,7 +3831,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v58";                                        // repere de build (CACHE du SW)
+  const cache = "v72";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_install"), "✓", "✗"],
@@ -3540,6 +3910,23 @@ if ($("careerNew")) $("careerNew").onclick = ()=>{
   const n = createCareer(($("careerName").value||"").trim());
   if (n){ $("careerName").value=""; hideWelcome(); } };
 if ($("welcomeBack")) $("welcomeBack").onclick = hideWelcome;
+/* P-FICHE — échange de bots depuis les réglages. Le presse-papier n'est pas
+   toujours disponible (http non sécurisé, WebView) : on écrit TOUJOURS la
+   fiche dans la zone de texte, la copie n'est qu'un confort en plus. */
+if ($("ficheExport")) $("ficheExport").onclick = ()=>{
+  const txt = JSON.stringify(exportBot());
+  $("ficheBox").value = txt;
+  $("ficheBox").select?.();
+  try { navigator.clipboard?.writeText(txt); } catch(e){}
+  showToast(t("botCopied"));
+};
+if ($("ficheImport")) $("ficheImport").onclick = ()=>{
+  const bot = importBot(($("ficheBox").value || "").trim());
+  if (!bot){ showToast(t("botBadJson")); return; }
+  $("settingsOv").style.display = "none";
+  showTab("workshop"); renderHome();
+  showToast(t("botImported", { name: dataName((CHASSIS_INFO[bot.chassis]||{}).name) || bot.chassis }));
+};
 if ($("settingsCareers")) $("settingsCareers").onclick = ()=>{ $("settingsOv").style.display="none"; showWelcome(); };
 if (!CUR_CAREER) showWelcome();                                     // premier lancement : accueil
 document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>{
