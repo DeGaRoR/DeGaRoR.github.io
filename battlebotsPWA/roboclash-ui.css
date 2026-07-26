@@ -113,7 +113,11 @@ img{max-width:100%;display:block;}
   min-height:100vh;
   margin:0 auto;
   background:linear-gradient(175deg,var(--rc-bg-1) 0%,var(--rc-bg-2) 60%,var(--rc-bg-3) 100%);
-  overflow:hidden;
+  /* S16-UI — overflow:clip et NON hidden : `hidden` fait de .rc-app un
+     conteneur de defilement, ce qui neutralisait le position:sticky de
+     #chrome (le bandeau partait au scroll, l'argent disparaissait chez le
+     marchand). `clip` decoupe pareil sans creer ce conteneur. */
+  overflow:clip;
 }
 /* red/violet ambience */
 .rc-app::before{
@@ -271,8 +275,11 @@ img{max-width:100%;display:block;}
 .rc-fighter--foe .rc-statnum{color:var(--rc-red-lt);}
 .rc-statnum small{display:block;font-family:var(--rc-f-pixel);font-size:5.5px;color:var(--rc-muted);
   margin-top:3px;font-weight:400;}
+/* S16-UI — le VS s'ancre sur la RANGEE DES PORTRAITS, plus au centre de la
+   carte : des libelles plus longs faisaient descendre ce centre sur les noms.
+   Valeur de repli ici, position exacte posee au rendu (mesure du portrait). */
 .rc-vs{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+  position:absolute;left:50%;top:104px;transform:translate(-50%,-50%);z-index:3;
   font-family:var(--rc-f-display);font-weight:900;font-size:24px;color:var(--rc-red);
   text-shadow:0 0 10px rgba(255,42,74,.9);-webkit-text-stroke:3px var(--rc-bg-1);
 }
@@ -603,7 +610,7 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
   border:1px solid var(--rc-line);box-shadow:none;}
 /* chrome : wrapper de POSITIONNEMENT pur — zéro visuel propre, la topbar et
    rc-tabs portent exactement la spec. */
-#chrome{position:sticky;top:0;z-index:40;}
+#chrome{position:sticky;top:0;z-index:50;}   /* S19 : fusion des deux declarations (40 puis 50) */
 #chrome .rc-topbar{position:static;}      /* le sticky est porté par le wrapper */
 #settingsBtn{border:1px solid rgba(255,255,255,.12);}
 .slotrow .stile canvas{width:100%;height:100%;}
@@ -632,7 +639,11 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
 .rc-portrait.rc-portrait--foe1{background:url("assets/bg/prez1.webp") center/cover !important;}
 /* E4 — classe S : portrait sur tapis de découpe (le bot occupe ~80 % du cadre,
    décision design v7 : la grille du tapis est scale-agnostique). */
-.rc-portrait.rc-portrait--cls-s{background:url("assets/bg_s_mat.webp") center/cover !important;}
+/* S19 — le tapis de classe S l'emporte sur les fonds d'adversaire QUEL QUE
+   SOIT l'ordre du fichier : a specificite egale, c'est la source qui
+   tranchait, et --foe2 (declare apres) gagnait par hasard. Trois classes ici
+   contre deux la-bas : la regle est explicite, plus implicite. */
+.rc-portrait.rc-portrait--cls-s.rc-portrait--cls-s{background:url("assets/bg_s_mat.webp") center/cover !important;}
 .rc-portrait.rc-portrait--foe2{background:url("assets/bg/prez2.webp") center/cover !important;}
 
 
@@ -640,7 +651,6 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
    portraits VS et les cellules du botstrip flottent AU-DESSUS des scanlines
    (z 41 > overlay 40). Le reste de l'interface garde l'effet — c'est la DA.
    Le chrome sticky monte à 50 pour rester au-dessus au scroll. ══ */
-#chrome{z-index:50;}
 /* S13 : exemption CRT effective — overlay à 5, ces éléments à 6 dans le MÊME
    contexte racine (les écrans ne créent plus de contexte). Pièces de boutique,
    tuiles FIT et vignettes de liste exemptées aussi (lisibilité). */
@@ -721,3 +731,20 @@ select, .param{background:var(--rc-plate-sunk) !important;border:1px solid rgba(
   60%{transform:scale(.96) translateY(3px);opacity:1;}
   100%{transform:scale(1) translateY(0);}}
 @keyframes rc-glow{0%,100%{opacity:.55;}50%{opacity:1;}}
+
+
+/* ══ S16-UI — bouton de combat colle en bas d'ecran (arbitrage 25/07) : on ne
+   doit jamais scroller pour lancer un match. Il reste dans le flux (donc a sa
+   place naturelle en fin de page) et se colle pendant le defilement. ══ */
+.rc-btn--sticky{
+  position:sticky;bottom:10px;z-index:30;margin-top:12px;
+  box-shadow:var(--rc-drop),0 8px 26px rgba(0,0,0,.55);
+}
+.rc-screen--vs{padding-bottom:14px;}
+
+/* ══ S18 — bandeau de SÉRIE dans l'étal : une gamme se reconnaît avant même
+   de lire les prix. Le liseré porte l'accent de la série (données). ══ */
+.rc-serie{--serie-accent:var(--rc-amber);margin:14px 0 8px;padding:8px 11px;border-left:3px solid var(--serie-accent);
+  background:linear-gradient(90deg,rgba(255,155,61,.10),transparent 70%);border-radius:0 var(--rc-r-sm) var(--rc-r-sm) 0;}
+.rc-serie__name{font-family:var(--rc-f-pixel);font-size:8px;letter-spacing:.5px;color:var(--serie-accent);}
+.rc-serie__blurb{font-family:var(--rc-f-ui);font-size:11px;color:var(--rc-muted);margin-top:5px;line-height:1.3;}

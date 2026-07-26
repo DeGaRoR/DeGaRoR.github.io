@@ -30,22 +30,34 @@ const ENGINE = (() => {
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const angNorm=(t)=>{ while(t>Math.PI)t-=2*Math.PI; while(t<-Math.PI)t+=2*Math.PI; return t; };
 
+  /* S19 — champs VIVANTS uniquement. `mass`, `tractionBase`, `speedBase` et
+     `pushBase` vivaient ici sans être lus depuis le passage aux masses
+     réelles (P-MASSE) : la masse de simulation vient de physStats →
+     PHYS.chassis[].kg, et pousssée/vitesse de la banque physique. Pire, la
+     `mass` fantôme divergeait du réel (boxy 1,5 contre 3,25 kg) et piégeait
+     quiconque ajoutait une coque. Champs restants, tous lus : radius (rayon
+     de collision, saveur voulue par coque — PAS dérivable des cellules sans
+     déplacer l'équilibre), leverage, battery, selfRight. */
   const CHASSIS = {
-    wedge: { mass:1.1, radius:17, leverage:2.4, tractionBase:1.0, speedBase:105, pushBase:130, battery:100, selfRight:1.6 },
-    boxy:  { mass:1.5, radius:20, leverage:0.9, tractionBase:1.25, speedBase:88,  pushBase:165, battery:130, selfRight:3.5 },
-    dart:  { mass:0.8, radius:14, leverage:1.3, tractionBase:0.85, speedBase:135, pushBase:95,  battery:80,  selfRight:2.2 },
-    fleche:{ mass:1.6, radius:21, leverage:2.2, tractionBase:1.0, speedBase:100, pushBase:130, battery:136, selfRight:2.4 },
-    marteau:{ mass:1.85, radius:24, leverage:1.0, tractionBase:1.0, speedBase:100, pushBase:130, battery:155, selfRight:2.6 },
-    tortue:{ mass:1.51, radius:20, leverage:1.4, tractionBase:1.0, speedBase:100, pushBase:130, battery:130, selfRight:2.8 },
-    losange:{ mass:1.68, radius:22, leverage:2.0, tractionBase:1.0, speedBase:100, pushBase:130, battery:142, selfRight:2.2 },
-    disque:{ mass:2.18, radius:27, leverage:1.2, tractionBase:1.0, speedBase:100, pushBase:130, battery:180, selfRight:3.0 },
-    /* E4 — coques S : rayon ≈ 23 → bots à 0,31 du ring (décision ancres),
-       petites décharges batterie, vives (masse réelle faible + K_FORCE commun). */
-    tortue_s: { mass:0.58, radius:23, leverage:1.2, tractionBase:1.05, speedBase:104, pushBase:120, battery:58, selfRight:3.2 },
-    hex_s:    { mass:0.63, radius:23, leverage:1.3, tractionBase:1.0,  speedBase:102, pushBase:124, battery:60, selfRight:3.0 },
-    coin_s:   { mass:0.63, radius:24, leverage:2.1, tractionBase:0.95, speedBase:106, pushBase:118, battery:58, selfRight:2.2 },
-    losange_s:{ mass:0.72, radius:24, leverage:1.8, tractionBase:1.0,  speedBase:100, pushBase:122, battery:62, selfRight:2.4 },
-    totem_s:  { mass:0.74, radius:24, leverage:1.5, tractionBase:1.0,  speedBase:98,  pushBase:126, battery:64, selfRight:2.8 },
+    wedge: { radius:17, leverage:2.4, battery:100, selfRight:1.6 },
+    boxy:  { radius:20, leverage:0.9, battery:130, selfRight:3.5 },
+    dart:  { radius:14, leverage:1.3,  battery:80,  selfRight:2.2 },
+    fleche:{ radius:21, leverage:2.2, battery:136, selfRight:2.4 },
+    marteau:{ radius:24, leverage:1.0, battery:155, selfRight:2.6 },
+    tortue:{ radius:20, leverage:1.4, battery:130, selfRight:2.8 },
+    losange:{ radius:22, leverage:2.0, battery:142, selfRight:2.2 },
+    disque:{ radius:27, leverage:1.2, battery:180, selfRight:3.0 },
+    /* S16-SCALE — coques S : rayons VÉRITÉ CELLULES (retrade du ratio 0,31,
+       décision 25/07). Convention M conservée : rayon ≈ demi-dimension de la
+       coque en unités (3 cellules = 9 cm = 18,6 u de large → ~9,3-10,5 u
+       selon la profondeur 3-4 cellules). Les colliders par composant étaient
+       DÉJÀ à cette échelle : l'IA rejoint enfin le contact réel.
+       Décharges batterie inchangées (masse réelle faible + K_FORCE commun). */
+    tortue_s: { radius:9.5,  leverage:1.2, battery:58, selfRight:3.2 },
+    hex_s:    { radius:9.5,  leverage:1.3, battery:60, selfRight:3.0 },
+    coin_s:   { radius:10,   leverage:2.1, battery:58, selfRight:2.2 },
+    losange_s:{ radius:10.5, leverage:1.8, battery:62, selfRight:2.4 },
+    totem_s:  { radius:10.5, leverage:1.5, battery:64, selfRight:2.8 },
   };
   const OPTS = {
     strategy:   ["adaptive","pressure","counter","ambush"],
@@ -189,6 +201,7 @@ const ENGINE = (() => {
   // powerKW), the sim reads the geared drive (pushN/vmax). The Power lever is a
   // real gear-ratio choice: Couple trades rpm for torque, Vitesse the reverse.
   const STACKABLE = { motor:1, battery:1, cooling:1, ballast:1 };  // L3.5: these slots stack
+  const BEAM_KG = 0.018;              // S16-WHEELS : masse d'un segment de longeron (3×3 cm, tôle 2,5 mm)
   function physStats(build){
     const pr = build.parts || {};
     const chassis = build.chassis || "boxy";
@@ -197,6 +210,10 @@ const ENGINE = (() => {
     const nOf = (slot)=> (build.counts && STACKABLE[slot]) ? Math.max(1, build.counts[slot]|0) : 1;
     const nMotor = nOf("motor"), nBatt = nOf("battery");
     let massKg = PHYS.chassis[chassis].kg;
+    /* S16-WHEELS — longerons : masse RÉELLE (tôle 2,5 mm, 3×3 cm ≈ 18 g par
+       cellule). beamCells (2 côtés) est DÉRIVÉ du layout côté app et passé
+       dans le build — le moteur reste sans DOM. Écart 0 = 0 cellule. */
+    if (build.beamCells) massKg += build.beamCells * BEAM_KG;
     for (const slot of PHYS_SLOTS) massKg += partMassKg(slot, rid(slot)) * nOf(slot);
     const mo = physOf("motor", rid("motor")),
           ba = physOf("battery", rid("battery")),
@@ -307,16 +324,28 @@ const ENGINE = (() => {
     };
   }
 
-  function makeMatch(seed, buildA, buildB){
+  function makeMatch(seed, buildA, buildB, opts){
+    /* S16-SCALE — le ring n'est plus universel : opts.arenaR (unités) vient
+       des DONNÉES (CLASS_RING de la classe du concours). Défaut = ARENA_R
+       historique (150 u = 145 cm) pour compat harness/headless. Le spawn et
+       la référence mort-subite suivent le ring, pas la constante. */
+    opts = opts || {};
+    const R = opts.arenaR || ARENA_R;
     const rng = makeRng(seed);
-    const yA = (rng()-0.5)*44, yB = (rng()-0.5)*44;
+    const yA = (rng()-0.5)*R*0.29, yB = (rng()-0.5)*R*0.29;
     const aA = (rng()-0.5)*0.7, aB = (rng()-0.5)*0.7;
+    const bots = [
+      makeBot(0, buildA, {x:-R*0.47,y:yA}, 0 + aA),
+      makeBot(1, buildB, {x: R*0.47,y:yB}, Math.PI + aB),
+    ];
+    /* S16-ENDGAME — le plancher du cercle dépend des BOTS : la cage finale
+       doit rester un duel de poussée (les deux coques pressées l'une contre
+       l'autre y tiennent tout juste), jamais un concours de centre
+       géométrique. 0,85×(rA+rB), plancher historique 20 conservé en butée. */
+    const minR = Math.max(MIN_R, (bots[0].radius + bots[1].radius) * 0.85);
     return {
-      seed, rng, t:0, arenaR:ARENA_R, over:false, winner:null, reason:null,
-      bots:[
-        makeBot(0, buildA, {x:-70,y:yA}, 0 + aA),
-        makeBot(1, buildB, {x: 70,y:yB}, Math.PI + aB),
-      ],
+      seed, rng, t:0, arenaR:R, arenaR0:R, minR, floorT:0, over:false, winner:null, reason:null,
+      bots,
       events:[],
       duels:[0,0],
       n:0, // tick counter (CPU decision cadence)
@@ -333,7 +362,14 @@ const ENGINE = (() => {
     // CPU latency: the planner only re-evaluates every decideEvery ticks
     // (steering below still runs every tick — servo vs planner). Edge guard
     // stays reflexive: falling off between two thoughts would feel unfair.
-    const guard = GUARD[bot.build.edgeGuard];
+    /* S16-ENDGAME — la garde au bord est PROPORTIONNELLE au ring : les
+       distances GUARD (données) furent calibrées pour le ring de 145 cm ;
+       sur un desk de 60 cm, « normale » couvrait presque toute la piste et
+       le bot dansait en recentrage perpétuel. La marge du pilote suit
+       l'arène. Et en CAGE (ring ≲ les deux coques), le recentrage n'a plus
+       de sens — tout est bord — : on laisse le duel se jouer. */
+    const guard = GUARD[bot.build.edgeGuard] * (m.arenaR0 ? m.arenaR0/ARENA_R : 1);
+    const caged = m.arenaR < (bot.radius + foe.radius) * 1.6;
     const think = ((m.n + bot.id*3) % bot.decideEvery) === 0;
     let mode = bot.mode;
     // finishing move: while shoving a dominated foe who is closer to the edge
@@ -341,7 +377,7 @@ const ENGINE = (() => {
     const foeEdgeD = m.arenaR - V.len(foe.pos);
     const finishing = distF < (bot.radius + foe.radius) * 1.25
       && foe.dominatedT > 0.12 && foeEdgeD < distEdge;
-    if (distEdge < guard && !finishing) mode = "recenter";
+    if (distEdge < guard && !finishing && !caged) mode = "recenter";
     // software v3: when overpowered in a shove, don't just take it — break
     // contact (reverse out) instead of pushing back into a losing duel.
     else if (bot.escape && bot.dominatedT > 0.3 && distF < (bot.radius+foe.radius)*1.35)
@@ -363,7 +399,7 @@ const ENGINE = (() => {
         const foeClosing = ((foe.vel.x*(bot.pos.x-foe.pos.x))+(foe.vel.y*(bot.pos.y-foe.pos.y)))/vlen/Math.max(1,distF) > 0.5;
         const foeSideOn = Math.abs(V.dot(V.fromAngle(foe.angle), V.norm(toFoe))) < 0.45;
         const foeSpent  = foeV < 25 && distF < chargeD;      // punish the whiff
-        const sd = m.arenaR < ARENA_R - 1;                   // sudden death: waiting stopped paying
+        const sd = m.arenaR < m.arenaR0 - 1;                 // sudden death: waiting stopped paying
         const stale = (bot.orbitT||0) > 5;                   // …or the foe refuses to commit
         if (!(sd || stale)) {
           want = want && (foeSideOn || foeSpent || foe.dominatedT > 0.1);
@@ -411,7 +447,8 @@ const ENGINE = (() => {
       const ring = CHARGE[bot.build.chargeDist]*0.75;
       const inout = V.scl(V.norm(rad), (ring - rl) * 0.5);     // hold the orbit radius
       target = V.add(V.add(bot.pos, V.scl(tangent, 42)), inout);
-      if (V.len(target) > m.arenaR-24) target = V.scl(V.norm(target), m.arenaR-24); // stay on the dohyo
+      { const cap = Math.max(m.arenaR*0.5, m.arenaR-24);           // S16-ENDGAME : jamais négatif sur petit ring
+        if (V.len(target) > cap) target = V.scl(V.norm(target), cap); } // stay on the dohyo
     } else if (mode === "hold"){
       // statue: keep the nose on the foe, wheels stopped (bait + save battery)
       const aim = Math.atan2(toFoe.y, toFoe.x);
@@ -421,7 +458,11 @@ const ENGINE = (() => {
       return;
     }
     if (mode === "recenter"){
-      const away = V.scl(V.norm(V.sub(bot.pos, foe.pos)), 18);
+      /* S16-ENDGAME — la cible de recentrage suit le ring : 18 u fixes
+         plaçaient les deux bots sur des points miroirs à distance constante
+         du centre (l'oscillation du playtest). Bornée à 28% du ring, elle
+         converge vers le centre quand le cercle se resserre. */
+      const away = V.scl(V.norm(V.sub(bot.pos, foe.pos)), Math.min(18, m.arenaR*0.28));
       target = away;
     } else if (mode === "charge"){
       const ap = bot.build.approach;
@@ -512,8 +553,8 @@ const ENGINE = (() => {
     const dt = TICK;
     const [a,b] = m.bots;
 
-    if (m.t > SUDDEN_DEATH_T && m.arenaR > MIN_R)
-      m.arenaR = Math.max(MIN_R, m.arenaR * (1 - SHRINK_RATE*dt));
+    if (m.t > SUDDEN_DEATH_T && m.arenaR > (m.minR || MIN_R))
+      m.arenaR = Math.max((m.minR || MIN_R), m.arenaR * (1 - SHRINK_RATE*dt));
 
     for (const bot of m.bots){
       const foe = m.bots[1-bot.id];
@@ -661,11 +702,19 @@ const ENGINE = (() => {
       if (a.contactT===0 && b.contactT===0){ a.wasDominatedBy = b.wasDominatedBy = -1; }
     }
 
-    if (!m.over && m.t > SUDDEN_DEATH_T && m.arenaR <= MIN_R + 0.5){
-      m.over = true;
-      m.winner = (V.len(a.pos) < V.len(b.pos)) ? 0 : 1;
-      m.reason = "shrinkOut";
-      m.events.push({t:m.t, type:"end", winner:m.winner, reason:m.reason});
+    /* S16-ENDGAME — au plancher, plus de photo-finish instantanée « le plus
+       proche du centre gagne » (elle tranchait un match au hasard de
+       l'oscillation). La cage laisse 8 s de duel réel — la sortie de piste
+       décide presque toujours avant ; l'arbitrage au centre ne reste que
+       comme ultime recours d'un duel figé. */
+    if (!m.over && m.t > SUDDEN_DEATH_T && m.arenaR <= (m.minR || MIN_R) + 0.5){
+      m.floorT = (m.floorT || 0) + dt;
+      if (m.floorT > 8){
+        m.over = true;
+        m.winner = (V.len(a.pos) < V.len(b.pos)) ? 0 : 1;
+        m.reason = "shrinkOut";
+        m.events.push({t:m.t, type:"end", winner:m.winner, reason:m.reason});
+      }
     }
 
     for (const bot of m.bots){
@@ -808,6 +857,6 @@ const ENGINE = (() => {
 
   return { makeMatch, tick, DAMAGE:{HIT_J, RIPOFF_J, DIRECT_MUL}, runHeadless, derivedStats, statBars, genOpponent, genTournament, tendencyKey,
            CHASSIS, OPTS, DEFAULT_BUILD, SLICE1, PARTS, partOf, ARENA_R, TICK, SUDDEN_DEATH_T,
-           PHYS, physStats, partMassKg };
+           PHYS, physStats, partMassKg, BEAM_KG };
 })();
 // ENGINE-END

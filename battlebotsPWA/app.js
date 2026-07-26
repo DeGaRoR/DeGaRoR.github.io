@@ -152,7 +152,9 @@ function careersList(){
       const c = JSON.parse(raw);
       out.push({ n, name: c.careerName || ("Carri\u00E8re " + n), bolts: c.bolts|0,
                  level: c.level|0, beaten: c.beaten|0,
-                 chassis: (c.garage && c.garage[c.activeBot||0] || {}).chassis || "boxy" });
+                 chassis: (c.garage && c.garage[c.activeBot||0] || {}).chassis || "boxy",
+                 bot: (c.garage && c.garage[c.activeBot||0]) || null,        // S16-GARAGE : vignette complète
+                 color: ((c.garage && c.garage[c.activeBot||0] || {}).customize||{}).color || null });
     } catch(e){} }
   return out;
 }
@@ -334,6 +336,7 @@ function renderHome(){
   // player machine: live numbers + robot editor with equipped parts
   // (le versus et les réglages de comportement vivent sur l'écran VS — S6)
   const myBuild = {...S.settings, chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed};
+  myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
   renderNums($("myNums"), myBuild);
   bindEditor();
   renderLayerTabs();
@@ -372,7 +375,8 @@ function renderCustomize(){
   if(cr){ cr.innerHTML="";
     for(const col of CHASSIS_COLORS){ const sw=document.createElement("div");
       sw.className="swatch"+(S.customize.color===col?" on":""); sw.style.background=col;
-      sw.onclick=()=>{ S.customize.color=col; saveState(); renderCustomize(); };
+      sw.onclick=()=>{ S.customize.color=col; saveState(); renderCustomize();
+        tilesDirty(); };                       // S16-GARAGE : vignettes du garage a jour en direct
       cr.appendChild(sw); } }
   const sr=$("stickerRow");
   if(sr){ sr.innerHTML="";
@@ -525,7 +529,7 @@ const FOOT_BASE = {
   sensors:{w:1,d:1,h:6}, weapon1:{w:3,d:3,h:6}, weapon2:{w:3,d:3,h:6},
 };
 const FOOT_TIER = {
-  propulsion:{ pr1:{w:1,d:4}, pr2:{w:2,d:3}, pr3:{w:2,d:5} },  // per side: more wheels / a track
+  propulsion:{ pr0:{w:1,d:1}, pr1:{w:1,d:4}, pr2:{w:2,d:3}, pr3:{w:2,d:5} },  // per side: pr0 = 1 slot (S16-EDIT), more wheels / a track
   battery:{ b1:{w:2,d:2}, b2:{w:4,d:2}, b3:{w:5,d:3} },
   motor:{ m1:{w:2,d:2}, m2:{w:2,d:2}, m3:{w:3,d:2}, m4:{w:3,d:3} },
   cpu:{ c2:{w:2,d:1} },
@@ -599,12 +603,70 @@ function touchesChassis(chassis,pos,f){
     || cellInChassis(chassis,c-1,r) || cellInChassis(chassis,c+1,r)
     || cellInChassis(chassis,c,r-1) || cellInChassis(chassis,c,r+1)); }
 function noOverlap(pos,f,others){ return others.every(o=>!rectsOverlap(pos,f,o,o.f)); }
+/* ══ S16-WHEELS — placement LIBRE des roues + longerons procéduraux (25/07).
+   Les roues ne sont plus tenues de toucher la coque : un écart horizontal de
+   1 à BEAM_MAX cellules est ponté par un LONGERON dérivé (jamais stocké).
+   Par rangée de l'empreinte roue (côté gauche) : la première cellule de coque
+   vers l'axe donne l'écart ; 0 = attache directe, 1..BEAM_MAX = segment de
+   longeron, au-delà = rangée non attachée. Une roue est VALIDE si au moins
+   une rangée s'attache. Miroir garanti par symétrie des coques (tous les
+   masques actuels sont symétriques). Le longeron existe PHYSIQUEMENT :
+   masse (ENGINE.BEAM_KG/cellule ×2 côtés), colliders (slot null → les chocs
+   comptent coque ; l'arrachage viendra au chantier armes), CG. Écart 0 =
+   zéro longeron = zéro masse : le trio S 1,36 kg PILE est préservé. ══ */
+const BEAM_MAX = 2;
+function beamsForWheel(chassis, pos, f){
+  /* S16-WHEELS v3 (retrade 25/07) — UNE seule barre par roue, pas une par
+     rangée : le pod est tenu par un longeron unique, posé au CENTRE VERTICAL
+     de la roue et tendu jusqu'à la coque la plus proche. La validité reste
+     analysée rangée par rangée (la roue tient si UNE rangée atteint la
+     coque), mais la pièce produite est unique — donc masse, colliders et
+     dessin le sont aussi. */
+  let attached=false, minHull=Infinity;
+  for(let dr=0; dr<f.d; dr++){
+    const r=pos.row+dr;
+    if(r<0 || r>=gridH(chassis)) continue;
+    let onHull=false;                                  // la roue chevauche la coque sur cette rangée
+    for(let c=pos.col; c<pos.col+f.w; c++) if(cellInChassis(chassis,c,r)){ onHull=true; break; }
+    if(onHull){ return { valid:true, bar:null, cells:0 }; }
+    let hull=-1;                                       // première cellule de coque vers l'axe
+    for(let c=pos.col+f.w; c<gridW(chassis); c++) if(cellInChassis(chassis,c,r)){ hull=c; break; }
+    if(hull<0) continue;
+    const gap=hull-(pos.col+f.w);
+    if(gap===0) return { valid:true, bar:null, cells:0 };            // attache directe : pas de longeron
+    if(gap<=BEAM_MAX){ attached=true; if(hull<minHull) minHull=hull; }
+  }
+  if(!attached || !isFinite(minHull)) return { valid:attached, bar:null, cells:0 };
+  const bar={ rowC:pos.row+f.d/2, c0:pos.col+f.w, c1:minHull-1 };     // centre vertical de la roue
+  return { valid:true, bar, cells:bar.c1-bar.c0+1 };
+}
+function drawBeams(c, build, layout, dark){
+  const b=beamsOf(build, layout).bar; if(!b) return;
+  const chassis=build.chassis, v=viewParams(chassis);
+  const TH=v.cell*0.26, RH=Math.max(1.6, v.cell*0.11), gcx=gridCX(chassis);
+  const y=(b.rowC-v.crow)*v.cell;                       // centre vertical de la roue
+  const bar=(c0,c1)=>{
+    const x0=(c0-v.ccol)*v.cell-v.cell*0.16, x1=(c1+1-v.ccol)*v.cell+v.cell*0.16;
+    c.fillStyle = dark ? "#3c4046" : "#8b919b"; c.fillRect(x0, y-TH/2, x1-x0, TH);
+    c.fillStyle = dark ? "#2a2d32" : "#3a3f47";         // deux têtes de rivet
+    for(const rx of [x0+RH*1.2, x1-RH*1.2]){ c.beginPath(); c.arc(rx, y, RH, 0, 7); c.fill(); } };
+  bar(b.c0, b.c1);
+  bar(2*gcx-b.c1-1, 2*gcx-b.c0-1);                      // miroir droit
+}
+function beamsOf(build, layout){                       // longerons du bot (côté gauche ; le droit est miroir)
+  const p=(layout&&layout.propulsion)||{col:0,row:0};
+  const f=footprintOf("propulsion", idAt(build,"propulsion"));
+  return beamsForWheel(build.chassis||"boxy", p, f);
+}
+function beamCellsOf(build, layout){ return beamsOf(build, layout).cells*2; }  // deux côtés
 function placementOK(chassis, slot, pos, others){
   const f=footprintOf(slot, curId(slot));
   if(SLOT_LAYER[slot]===0){ // propulsion (left side); right side is its mirror
     if(pos.col + f.w > gridCX(chassis)) return false;          // left side stays left of the axis
+    if(pos.col < -BEAM_MAX) return false;                      // S16-WHEELS : débord borné par la portée des longerons
+    if(!beamsForWheel(chassis, pos, f).valid) return false;    // au moins une rangée attachée (direct ou longeron)
     const mc=mirrorCol(chassis,pos.col,f.w);
-    return touchesChassis(chassis,pos,f) && touchesChassis(chassis,{col:mc,row:pos.row},f); // adjacent or on-hull
+    return noOverlap(pos,f,others) && noOverlap({col:mc,row:pos.row},f,others);
   }
   const geom = PROTRUDE_OK[baseSlot(slot)]
     ? anchoredOnChassis(chassis,pos,f)
@@ -643,11 +705,19 @@ function autoArrange(build){
     return fb.w*fb.d - fa.w*fa.d; });
   const tryWith=(prow)=>{
     const T={};
-    let pcol=-1;
-    for(let cc=0; cc+fP.w<=gridCX(chassis); cc++){
-      const mc=mirrorCol(chassis,cc,fP.w);
-      if(touchesChassis(chassis,{col:cc,row:prow},fP) && touchesChassis(chassis,{col:mc,row:prow},fP)){ pcol=cc; break; } }
-    if(pcol<0) return null;
+    /* S16-WHEELS — défaut inchangé : l'attache directe la plus EXTÉRIEURE
+       (balayage ascendant depuis 0, comme l'historique touchesChassis).
+       Les longerons ne servent qu'en repli si aucune attache directe
+       n'existe : l'arrangeur ne déporte jamais de lui-même, c'est un
+       choix du joueur. */
+    let pcol=null;
+    const ccMax=Math.floor(gridCX(chassis)-fP.w);
+    for(let cc=0; cc<=ccMax; cc++){
+      const bi=beamsForWheel(chassis,{col:cc,row:prow},fP);
+      if(bi.valid && bi.cells===0){ pcol=cc; break; } }
+    if(pcol===null) for(let cc=-BEAM_MAX; cc<=ccMax; cc++){
+      if(beamsForWheel(chassis,{col:cc,row:prow},fP).valid){ pcol=cc; break; } }
+    if(pcol===null) return null;
     T.propulsion={col:pcol,row:prow};
     const pool=propulsionRects(build, T);
     for(const slot of eqList){
@@ -688,8 +758,8 @@ function layoutValid(build, layout){ // every placed slot legal for THIS build/c
     const flOK = (p.floor||0) === 0;                 // plan unique : plus d'étages
     let geomOK, symOK=true;
     if(li===0){ // propulsion: left side left of axis, both mirrored sides mount
-      symOK = p.col + f.w <= gridCX(build.chassis);
-      geomOK = touchesChassis(build.chassis,p,f) && touchesChassis(build.chassis,{col:mirrorCol(build.chassis,p.col,f.w),row:p.row},f);
+      symOK = p.col + f.w <= gridCX(build.chassis) && p.col >= -BEAM_MAX;
+      geomOK = beamsForWheel(build.chassis, p, f).valid;       // S16-WHEELS : attache directe ou longeron
     } else if(li===1){ geomOK = PROTRUDE_OK[baseSlot(slot)]
         ? anchoredOnChassis(build.chassis,p,f)
         : fullyContained(build.chassis,p,f); }
@@ -698,10 +768,48 @@ function layoutValid(build, layout){ // every placed slot legal for THIS build/c
   }
   return true;
 }
+/* S16-EDIT — réparation INCRÉMENTALE du layout. Monter une pièce (2e moteur)
+   déclenchait un autoArrange COMPLET qui déplaçait les roues et tout le
+   reste. Désormais : chaque position existante encore légale est CONSERVÉE
+   (la propulsion d'abord — elle structure le bassin), et seuls les slots
+   nouveaux ou devenus illégaux sont placés dans les cellules restées libres.
+   Repli honnête : autoArrange complet si l'incrémental ne loge pas tout. */
+function repairLayout(build, old){
+  if (!old || old.__nofit) return autoArrange(build);
+  const chassis = build.chassis, idOf = (s)=>idAt(build, s);
+  const fP = footprintOf("propulsion", idOf("propulsion"));
+  const pp = old.propulsion;
+  const pOK = pp && pp.col + fP.w <= gridCX(chassis) && pp.col >= -BEAM_MAX
+           && beamsForWheel(chassis, pp, fP).valid;
+  if (!pOK) return autoArrange(build);
+  const L = { propulsion: {col:pp.col, row:pp.row} };
+  const pool = propulsionRects(build, L);
+  const eqList = instanceSlots(build).sort((a,b)=>{
+    const fa=footprintOf(a,idOf(a)), fb=footprintOf(b,idOf(b));
+    return fb.w*fb.d - fa.w*fa.d; });
+  const missing = [];
+  for (const slot of eqList){                                   // 1re passe : garder l'existant légal
+    if (!isMounted(baseSlot(slot), idOf(slot))){ L[slot] = old[slot] || {col:0,row:0}; continue; }
+    const f = footprintOf(slot, idOf(slot));
+    const p = old[slot];
+    const mode = PROTRUDE_OK[baseSlot(slot)] ? "anchor" : "contain";
+    const geomOK = p && (mode==="anchor" ? anchoredOnChassis(chassis,p,f) : fullyContained(chassis,p,f));
+    if (geomOK && noOverlap(p, f, pool)){ L[slot]={col:p.col,row:p.row}; pool.push({col:p.col,row:p.row,f}); }
+    else missing.push(slot);
+  }
+  for (const slot of missing){                                  // 2e passe : loger le nouveau dans les trous
+    const f = footprintOf(slot, idOf(slot));
+    const mode = PROTRUDE_OK[baseSlot(slot)] ? "anchor" : "contain";
+    const pos = firstFit(chassis, f, pool, mode);
+    if (!pos) return autoArrange(build);
+    L[slot] = {...pos}; pool.push({...pos, f});
+  }
+  return layoutValid(build, L) ? L : autoArrange(build);
+}
 function getLayout(){ // player layout, auto-repaired if stale/illegal
   const build={chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}};
   if(AB().layout && layoutValid(build, AB().layout)) return AB().layout;
-  const L=autoArrange(build); AB().layout=L; return L;
+  const L=repairLayout(build, AB().layout); AB().layout=L; return L;   // S16-EDIT : incrémental d'abord
 }
 
 // ---- per-component hitbox (WYSIWYG collision) ----
@@ -748,12 +856,59 @@ function tileCanvas(logical, drawFn){
   });
   return cv;
 }
+/* ══ S17-IMG — chargement d'images UNIFIÉ (25/07). Un seul registre, trois
+   états explicites (pending / ready / failed), une seule invalidation. Avant :
+   `onload → tilesDirty` sans `onerror` (une image morte laissait un trou
+   silencieux et definitif), et les fonds d'atelier chargeaient hors registre.
+   Le pouls de chargement (sheen) ne tourne QUE tant qu'une image est en vol :
+   il s'eteint tout seul, zero rAF permanent. ══ */
+const IMG_REG = {};                       // src -> { img, state }
 function mkImg(src){
   if(typeof Image==="undefined") return null;
+  const hit = IMG_REG[src]; if (hit) return hit.img;      // dedup global
   const im = new Image();
-  im.onload = ()=>tilesDirty();
+  const rec = IMG_REG[src] = { img:im, state:"pending" };
+  im.onload  = ()=>{ rec.state="ready";  visualsDirty(); };
+  im.onerror = ()=>{ rec.state="failed"; logError("image", "chargement echoue: "+src); visualsDirty(); };
   im.src = src;
+  startLoadPulse();
   return im;
+}
+function imgState(src){ const e=IMG_REG[src]; return e ? e.state : "ready"; }
+function imgReady(im){ return !!(im && im.complete && im.naturalWidth>0); }
+function imagesPending(){ for(const k in IMG_REG) if(IMG_REG[k].state==="pending") return true; return false; }
+/* pouls de chargement : ~11 images/s, s'arrete des que tout est charge */
+let LOAD_PHASE = 0, _loadRaf = 0, _loadLast = 0;
+function startLoadPulse(){
+  if (_loadRaf || typeof requestAnimationFrame==="undefined") return;
+  const step = (ts)=>{
+    LOAD_PHASE = (ts||0)/1000;
+    const more = imagesPending();
+    if (!_loadLast || ts-_loadLast > 90){ _loadLast = ts; tilesDirty(); }
+    _loadRaf = more ? requestAnimationFrame(step) : 0;
+    if (!more) tilesDirty();                              // derniere passe : etat final, sheen eteint
+  };
+  _loadRaf = requestAnimationFrame(step);
+}
+/* Invalidation UNIQUE de tout le visuel. Aujourd'hui elle se ramène à
+   tilesDirty() : les seules vues NON enregistrées (éditeur, portraits VS)
+   sont redessinées à chaque frame par previewLoop, donc rien à réveiller.
+   Point d'entrée conservé pour que les appelants n'aient jamais à savoir
+   quelles vues existent — si une vue hors boucle apparaît, elle se branche
+   ICI et nulle part ailleurs. */
+function visualsDirty(){ tilesDirty(); }
+/* placeholder commun : la VRAIE silhouette, balayee par un sheen tant que
+   l'image charge. Rien de clignotant, rien de bloquant — juste un signe. */
+function drawLoadSheen(c, x, y, w, h, state){
+  if (state !== "pending") return;                        // "failed" : le repli vectoriel EST l'etat final
+  try{
+    const p = (LOAD_PHASE*0.55) % 1.6 - 0.3;              // balayage lent, avec temps mort
+    const g = c.createLinearGradient(x + w*(p-0.22), y, x + w*(p+0.22), y+h);
+    g.addColorStop(0,   "rgba(255,255,255,0)");
+    g.addColorStop(0.5, "rgba(255,255,255,.16)");
+    g.addColorStop(1,   "rgba(255,255,255,0)");
+    c.save(); c.fillStyle = g; c.fillRect(x, y, w, h); c.restore();
+  }catch(_){}
 }
 const arenaImg = mkImg(ARENA_SRC);
 /* S11b — arènes par concours : chaque entrée de TOURNAMENTS peut préciser
@@ -767,7 +922,11 @@ function arenaFor(src){ const k = src || ARENA_SRC;
 const BOT_SCRATCH = {};
 function renderBotComposite(bot, layout, flipped, fa){
   const vis = colliderVis(bot.build.chassis);
-  const S = Math.ceil(bot.radius*2.9 + 34), Q = 2;
+  /* S16-CRASH — un rayon 0/NaN donnerait un canvas de taille invalide, et
+     drawImage d'un canvas vide JETTE en navigateur réel (pas en jsdom).
+     Suspect n°1 du gel playtest : on borne, et la boîte noire journalise. */
+  let S = Math.ceil(bot.radius*2.9 + 34), Q = 2;
+  if (!isFinite(S) || S < 8){ logError("composite", "radius invalide: "+bot.radius); S = 64; }
   let sc = BOT_SCRATCH[bot.id];
   if (!sc || sc.cv.width !== S*Q){
     sc = BOT_SCRATCH[bot.id] = { cv:document.createElement("canvas"), sil:document.createElement("canvas") };
@@ -864,6 +1023,13 @@ function buildColliders(build, layout){
   const cr=0.6*v.cell; // small per-cell circle: mild overlap, tight union
   const cell=(cc,r,slot)=> list.push({slot, x:-vis*(r+0.5-v.crow)*v.cell, y:vis*(cc+0.5-v.ccol)*v.cell, r:vis*cr});
   const paveFoot=(col,row,f,slot)=>{ for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++) cell(col+dc,row+dr,slot); };
+  /* S16-WHEELS — les longerons collisionnent (WYSIWYG) : slot null → un choc
+     direct compte coque. L'arrachage individuel viendra au chantier armes. */
+  { const b=beamsOf(build, layout).bar;
+    if(b) for(let c=b.c0;c<=b.c1;c++){
+      cell(c, b.rowC-0.5, null);                       // rowC = centre vertical de la roue
+      cell(2*gridCX(chassis)-c-1, b.rowC-0.5, null);   // miroir droit
+    } }
   // hull: pave the chassis cells (tapers naturally on wedge/dart — fewer cells up front),
   // but CHAMFER the 4 outer corners — one collider dropped per corner so the hull hugs
   // the plate's cut corners rather than a hard square.
@@ -903,6 +1069,11 @@ function computeCG(build, layout){
   { const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
     const p=layout.propulsion||{col:0,row:0}, m=ENGINE.partMassKg("propulsion",id);
     add(m, 0, (p.row+f.d/2-centerRow)*CELL_CM, LAYER_ELEV_CM.chassis + slotHeight("propulsion")/2); } // 2 sides → x=0
+  /* S16-WHEELS — longerons : masse au ras du plancher, aux positions réelles
+     (les deux côtés se compensent en x, la contribution y/z reste vraie). */
+  { const b=beamsOf(build, layout).bar;
+    if(b) for(let c=b.c0;c<=b.c1;c++)
+      add(2*ENGINE.BEAM_KG, 0, (b.rowC-centerRow)*CELL_CM, LAYER_ELEV_CM.chassis*0.5); }
   for(const slot of instanceSlots(build)){
     const bs=baseSlot(slot), id=idAt(build, slot);
     if((bs==="weapon1"||bs==="weapon2") && ENGINE.PARTS[bs].findIndex(x=>x.id===id)===0) continue;
@@ -932,7 +1103,10 @@ function computeCG(build, layout){
 
 // ---- rendering (zoom to the active chassis) ----
 const BOARD_HALF = 100;
-function viewParams(chassis){ const b=chassisBounds(chassis); const M=2; // cells of margin for overhang
+function viewParams(chassis){ const b=chassisBounds(chassis);
+  /* S16-EDIT — marge par classe : fenetre S ~8,7 cellules = 26 cm (arbitrage
+     25/07, coques S un poil plus petites), M inchangee (10 cellules = 30 cm). */
+  const M = chassisClassOf(chassis)==="S" ? 2.8 : 2; // cells of margin for overhang
   const cols=(b.maxC-b.minC+1)+2*M, rows=(b.maxR-b.minR+1)+2*M;
   const cell=(2*BOARD_HALF)/Math.max(cols,rows);
   return { cell, ccol:(b.minC+b.maxC+1)/2, crow:(b.minR+b.maxR+1)/2 }; }
@@ -949,8 +1123,19 @@ function chassisOutlinePath(c, chassis){ const v=viewParams(chassis);
   c.closePath(); }
 function drawChassisBoard(c, chassis, color){
   if(color && chassisSpriteReady(chassis)){ drawChassisSprite(c, chassis, color); return; } // sprite for any chassis
+  /* S17-IMG — repli = la VRAIE silhouette de coque, balayee par le sheen tant
+     que le sprite charge : le joueur voit la bonne forme tout de suite et sait
+     qu'une image arrive. Si le chargement echoue, ce repli devient definitif. */
   c.save(); c.fillStyle=color||DEFAULT_CHASSIS_COLOR; c.strokeStyle="#3f4654"; c.lineWidth=2;
-  chassisOutlinePath(c, chassis); c.fill(); c.stroke(); c.restore(); }
+  chassisOutlinePath(c, chassis); c.fill(); c.stroke();
+  const st=spriteState(chassis);
+  if(st && st.def){
+    c.clip();                                             // le sheen epouse la coque
+    const b=chassisBounds(chassis), v=viewParams(chassis);
+    const x=(b.minC-v.ccol)*v.cell, y=(b.minR-v.crow)*v.cell;
+    drawLoadSheen(c, x, y, (b.maxC-b.minC+1)*v.cell, (b.maxR-b.minR+1)*v.cell, imgState(st.def.src));
+  }
+  c.restore(); }
 function drawArmorShell(c, chassis, id){ const idx=ENGINE.PARTS.armor.findIndex(p=>p.id===id);
   if(idx<=0) return; // a0 / none → internals exposed
   drawArmorFront(c, chassis, id, idx); }
@@ -973,13 +1158,41 @@ function drawArmorFront(c, chassis, id, idx){
     for(const fx of [-half+pw*0.5, -pw/2, half-pw*1.5]){ c.beginPath();
       c.moveTo(fx, yF+1); c.lineTo(fx+pw, yF+1); c.lineTo(fx+pw*0.5, yF-plen); c.closePath(); c.fill(); c.stroke(); } }
   c.restore(); }
+const ALPHA_BOUNDS = {};                 // S16-EDIT : cache des bornes utiles par sprite
+function spriteAlphaBounds(spr){
+  const key = spr.src || "";
+  if (ALPHA_BOUNDS[key]) return ALPHA_BOUNDS[key];
+  let b = { x:0, y:0, w:spr.naturalWidth, h:spr.naturalHeight };   // repli : plein cadre
+  try{
+    const W = Math.min(96, spr.naturalWidth);
+    const H = Math.max(1, Math.round(W*spr.naturalHeight/spr.naturalWidth));
+    const cv = document.createElement("canvas"); cv.width=W; cv.height=H;
+    const cc = cv.getContext("2d", {willReadFrequently:true});
+    cc.drawImage(spr, 0, 0, W, H);
+    const d = cc.getImageData(0, 0, W, H).data;
+    let x0=W, y0=H, x1=-1, y1=-1;
+    for (let y=0; y<H; y++) for (let x=0; x<W; x++)
+      if (d[(y*W+x)*4+3] > 24){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+    if (x1 >= x0){
+      const kx = spr.naturalWidth/W, ky = spr.naturalHeight/H;
+      b = { x:x0*kx, y:y0*ky, w:(x1-x0+1)*kx, h:(y1-y0+1)*ky };
+    }
+  }catch(_){ /* jsdom / image inaccessible : plein cadre */ }
+  ALPHA_BOUNDS[key] = b; return b;
+}
 function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0, mirror=false){
   const spr = componentSprite(slot, id);
   if(spr && spr.complete && spr.naturalWidth>0){
     c.save(); c.globalAlpha=alpha; c.translate(cx,cy); if(mirror) c.scale(-1,1);
-    const s=Math.min(wpx/spr.naturalWidth, hpx/spr.naturalHeight)*1.06;    // fit to footprint box
-    const dw=spr.naturalWidth*s, dh=spr.naturalHeight*s;
-    c.drawImage(spr, -dw/2, -dh/2, dw, dh);
+    /* S16-EDIT — fit sur les BORNES ALPHA du sprite, pas sur son cadre : les
+       marges d'air varient par asset (95×128 px pour une roue 1×2...), donc
+       le cadre mentait. L'art utile remplit maintenant l'empreinte à marge
+       constante — écarts inter-composants et boîtes fantômes disparaissent.
+       Dérivé (mesuré au chargement, caché), jamais stocké. */
+    const ab=spriteAlphaBounds(spr);
+    const s=Math.min(wpx/ab.w, hpx/ab.h)*1.04;
+    const dw=ab.w*s, dh=ab.h*s;
+    c.drawImage(spr, ab.x, ab.y, ab.w, ab.h, -dw/2, -dh/2, dw, dh);
     if(slot==="propulsion"){                                  // procedural tread motion, driven by spin (no frames)
       const long=dh>=dw, L=long?dh:dw, Wd=long?dw:dh, gap=Math.max(6,L*0.16);
       const off=((spin*3)%gap+gap)%gap, band=Wd*0.6;
@@ -1013,6 +1226,10 @@ function drawPartTile(c, slot, id, cx, cy, wpx, hpx, spin=0, alpha=1, slip=0, mi
       c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+Math.cos(a)*r*0.7, cy+Math.sin(a)*r*0.7); c.stroke(); } }
   else { c.fillStyle="rgba(255,255,255,.95)"; c.font=`700 ${Math.round(r*0.95)}px system-ui,sans-serif`;
     c.textAlign="center"; c.textBaseline="middle"; c.fillText(PART_GLYPH[slot]||"?", cx, cy+1); }
+  /* S17-IMG — meme langage que la coque : la tuile de repli porte le sheen
+     tant que le sprite du composant charge (liste de pieces comprise). */
+  { const t2=COMPONENT_SPRITES[slot], d=t2&&t2[id];
+    if(d) drawLoadSheen(c, cx-wpx/2, cy-hpx/2, wpx, hpx, imgState(d.src)); }
   c.restore();
 }
 function freeChassisCell(build, layout){ // a surface cell not under wheels/weapons/sensors
@@ -1036,13 +1253,19 @@ function drawBotTiles(c, build, layout, spin, opts={}){
     c.fillStyle="#000"; chassisOutlinePath(c, chassis); c.fill();
     c.filter="none"; c.restore(); }
   if(opts.bellyUp){ // on its back: dark underside, wheels sticking up — unmistakable
+    drawBeams(c, build, layout, true);                                    // S16-WHEELS v3 : sous la coque
     drawChassisBoard(c, chassis, mixHex(build.color||DEFAULT_CHASSIS_COLOR, "#14161c", 0.55));
+
     const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
     const p=layout.propulsion||{col:0,row:0};
     for(const [ci,col] of [[0,p.col],[1,mirrorCol(chassis,p.col,f.w)]]){ const b=slotBox(chassis,"propulsion",id,{col,row:p.row});
       drawPartTile(c, "propulsion", id, b.cx, b.cy, b.wpx, b.hpx, spin*0.3, 1, 0, ci===1); }
     return;
   }
+  /* S16-WHEELS v3 — longeron : UNE barre par roue, au centre vertical du pod,
+     dessinée AVANT la coque — donc SOUS le châssis et sous les roues (z bas).
+     Une simple branche + deux têtes de rivet, rien d'autre (arbitrage 25/07). */
+  drawBeams(c, build, layout);
   drawChassisBoard(c, chassis, build.color);
   /* P-OMBRES : chaque composant monté porte sa micro-ombre sur la tôle —
      drop-shadow natif (silhouette exacte du sprite), blur 1.2, +2/+3, .30.
@@ -1091,7 +1314,10 @@ function drawBotTiles(c, build, layout, spin, opts={}){
       const cx = (d.x ?? (d.col+0.5)) - v.ccol, cy = (d.y ?? (d.row+0.5)) - v.crow;   // rétro-lecture col/row
       const im = stickerImg(d.id);
       if(im && im.complete && im.naturalWidth>0){
-        const hgt = v.cell*1.6, wdt = Math.min(hgt*st.w/st.h, v.cell*4.2), h2 = wdt*st.h/st.w;
+        /* S18 — taille dérivée de la CLASSE (données STICKER_SCALE) : le même
+           autocollant couvrait 27 % d'une coque M mais 53 % d'une coque S. */
+        const k = STICKER_SCALE[chassisClassOf(chassis)] || 1;
+        const hgt = v.cell*1.6*k, wdt = Math.min(hgt*st.w/st.h, v.cell*4.2*k), h2 = wdt*st.h/st.w;
         c.drawImage(im, cx*v.cell - wdt/2, cy*v.cell - h2/2, wdt, h2);
       } else { c.fillStyle="rgba(255,255,255,.25)"; c.fillRect(cx*v.cell-6, cy*v.cell-6, 12, 12); } }
     c.restore(); }
@@ -1099,7 +1325,7 @@ function drawBotTiles(c, build, layout, spin, opts={}){
 const EDITOR_BG = { S:"assets/bg_s_nerd.webp", M:"assets/bg_s_mat.webp" };   // E5 : par classe
 const _edBg = {};
 function editorBgImg(cls){ const src=EDITOR_BG[cls]||EDITOR_BG.M;
-  if(!_edBg[src]){ const im=new Image(); im.src=src; _edBg[src]=im; }
+  if(!_edBg[src]) _edBg[src]=mkImg(src);                       // S17-IMG : registre commun
   return _edBg[src]; }
 function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
   const c=canvas.getContext("2d"); const w=canvas.width,h=canvas.height;
@@ -1112,7 +1338,7 @@ function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn
       c.globalAlpha=1;
     } }
   c.save(); c.translate(w/2,h/2);
-  const sc=(Math.min(w,h)*0.47)/BOARD_HALF; c.scale(sc,sc);
+  const sc=(Math.min(w,h)*BOT_FRAME)/BOARD_HALF; c.scale(sc,sc);   // S17-VIEW : constante partagee
   if(focusLayer>=0){ const v=viewParams(build.chassis); c.strokeStyle="rgba(120,130,150,.16)"; c.lineWidth=1;
     const GW=gridW(build.chassis), GH=gridH(build.chassis);
     for(let gc=0;gc<=GW;gc++){ const x=(gc-v.ccol)*v.cell;
@@ -1149,12 +1375,25 @@ function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn
     c.lineWidth = 2.5; c.strokeStyle = `rgba(255,155,61,${(0.5+0.5*pulse).toFixed(2)})`;
     c.shadowColor = "rgba(255,155,61,.8)"; c.shadowBlur = 10*pulse;
     if (editDrag.slot != null && layout[editDrag.slot]){
+      /* S16-EDIT — la boîte suit l'ART DESSINÉ (bornes alpha × fit), plus la
+         cellule brute : fini le cadre qui flotte à côté de la pièce. */
       const p = layout[editDrag.slot], f = footprintOf(editDrag.slot, curId(editDrag.slot));
-      c.strokeRect((p.col-v.ccol)*v.cell-3, (p.row-v.crow)*v.cell-3, f.w*v.cell+6, f.d*v.cell+6);
+      const bs = baseSlot(editDrag.slot);
+      let bx=(p.col-v.ccol)*v.cell, by=(p.row-v.crow)*v.cell, bw=f.w*v.cell, bh=f.d*v.cell;
+      const spr = componentSprite(bs, curId(editDrag.slot));
+      if (spr && spr.complete && spr.naturalWidth>0){
+        const ab=spriteAlphaBounds(spr);
+        const s=Math.min((f.w*v.cell)/ab.w,(f.d*v.cell)/ab.h)*1.04;
+        const dw=ab.w*s, dh=ab.h*s, ocx=bx+bw/2, ocy=by+bh/2;
+        bx=ocx-dw/2; by=ocy-dh/2; bw=dw; bh=dh;
+      }
+      if (bs==="propulsion") bx -= v.cell*0.32;                 // débord extérieur des roues
+      c.strokeRect(bx-3, by-3, bw+6, bh+6);
     } else if (editDrag.sticker != null && S.customize.placed[editDrag.sticker]){
       const d = S.customize.placed[editDrag.sticker];
       const cx = (d.x ?? d.col+0.5) - v.ccol, cy = (d.y ?? d.row+0.5) - v.crow;
-      c.beginPath(); c.arc(cx*v.cell, cy*v.cell, v.cell*0.95, 0, Math.PI*2); c.stroke();
+      const ks = STICKER_SCALE[chassisClassOf(build.chassis)] || 1;      // S18 : anneau a l'echelle
+      c.beginPath(); c.arc(cx*v.cell, cy*v.cell, v.cell*0.95*ks, 0, Math.PI*2); c.stroke();
     }
     c.shadowBlur = 0;
   }
@@ -1164,7 +1403,10 @@ function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn
 // ---- interaction (grid-snap; per-level constraints) ----
 let editFocus=-1, editSpin=0, editDrag=null, showCG=false, showHB=false;
 function editorBoardPoint(canvas, ev){ const rect=canvas.getBoundingClientRect();
-  const sc=(Math.min(canvas.width,canvas.height)*0.47)/BOARD_HALF;
+  /* S17-VIEW — MEME constante que le dessin : cette transformation est son
+     inverse exact. Si les deux divergent, chaque toucher tombe a cote — la
+     source silencieuse des "interactions approximatives" du playtest. */
+  const sc=(Math.min(canvas.width,canvas.height)*BOT_FRAME)/BOARD_HALF;
   const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
   return { x:((ev.clientX-rect.left)*sx-canvas.width/2)/sc, y:((ev.clientY-rect.top)*sy-canvas.height/2)/sc }; }
 function pxToCell(chassis,x,y){ const v=viewParams(chassis);
@@ -1173,7 +1415,10 @@ function editorHit(layout, cell){
   if(editFocus<0 || editFocus===STICKER_LAYER){
     for(let i=S.customize.placed.length-1; i>=0; i--){ const d=S.customize.placed[i];
       const cx = d.x ?? (d.col+0.5), cy = d.y ?? (d.row+0.5);
-      if(Math.abs(cx-(cell.col+0.5))<=1.0 && Math.abs(cy-(cell.row+0.5))<=0.8) return {sticker:i}; } }
+      /* S18 — la zone de saisie suit l'échelle de dessin : sur un bot S le
+         sticket est deux fois plus petit, sa prise doit l'être aussi. */
+      const k = STICKER_SCALE[chassisClassOf(AB().chassis)] || 1;
+      if(Math.abs(cx-(cell.col+0.5))<=1.0*k && Math.abs(cy-(cell.row+0.5))<=0.8*k) return {sticker:i}; } }
   if(editFocus===STICKER_LAYER) return null;
   for(let li=EDIT_LAYERS.length-1; li>=0; li--){ if(editFocus>=0&&editFocus!==li) continue;
     for(const slot of EDIT_LAYERS[li].slots){ const p=layout[slot]; if(!p) continue;
@@ -1230,7 +1475,7 @@ function previewLoop(ts){ editSpin=(ts||0)/1000*3;
       if (need>0 && Math.abs(ecv.width-need)>1){ ecv.width=need; ecv.height=need; }
     }
     if(activeTab==="workshop"&&$("editorCv"))
-      drawEditor($("editorCv"), {chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color, stickers0:S.customize.placed}, getLayout(), editSpin, editFocus, showCG, showHB);
+      drawEditor($("editorCv"), buildOfBot(AB()), getLayout(), editSpin, editFocus, showCG, showHB);   // S17-VIEW
     if($("vsScreen")&&$("vsScreen").style.display==="block"&&$("scoutCv")&&$("scoutCv")._oppBuild){
       const ob=$("scoutCv")._oppBuild; if(!ob.color)ob.color=opponentColor(nameSeed(ob.name||""));
       { const pw=$("scoutCv").parentElement;                                     // S14 : fond adverse garanti
@@ -1303,7 +1548,7 @@ function renderWorkshop(){
         } }
       { const rm = document.createElement("button"); rm.className = "rc-toolbtn rc-toolbtn--rm";
         rm.textContent = t("removePart");
-        rm.onclick = ()=>{ tryEquip(slot, null); };                     // E7b : libère vers l'inventaire
+        rm.onclick = ()=>{ tryEquip(slot, null); };                     // E7b : libère vers l'inventaire (tryEquip rend)
         row.appendChild(rm); }
       /* P1 : le bouton Boutique par ligne est retiré — l'accès boutique passe
          par l'onglet et la cellule du botstrip. */
@@ -1323,11 +1568,13 @@ function renderWorkshop(){
   { const add = document.createElement("button");
     add.className = "rc-btn rc-btn--ghost rc-btn--block"; add.id = "addPartBtn";
     add.textContent = "+ " + t("addPart");
-    add.onclick = ()=>renderAddPicker();
+    add.onclick = ()=>{ ADD_PICKER_OPEN = true; renderAddPicker(); };
     rows.appendChild(add);
     const pick = document.createElement("div"); pick.id = "addPicker"; pick.style.display = "none";
-    rows.appendChild(pick); }
+    rows.appendChild(pick);
+    if (ADD_PICKER_OPEN) renderAddPicker(); }                        // S16-EDIT : survit au re-rendu
 }
+let ADD_PICKER_OPEN = false;                                        // S16-EDIT : etat du selecteur d'ajout
 function renderAddPicker(){
   const pick = $("addPicker"); if (!pick) return;
   pick.style.display = "block"; pick.innerHTML = "";
@@ -1350,7 +1597,8 @@ function renderAddPicker(){
       const nm = document.createElement("div"); nm.className = "rc-tile__name";
       nm.textContent = t("pn_"+def) + (groups[sl][def]>1 ? " \u00D7"+groups[sl][def] : "");
       tl.appendChild(nm);
-      tl.onclick = ()=>{ if (!tryEquip(sl, def)) showToast(t("ct_place")); };
+      tl.onclick = ()=>{ ADD_PICKER_OPEN = true;                     // S16-EDIT : rester ouvert pour enchainer
+        if (!tryEquip(sl, def)){ ADD_PICKER_OPEN = false; showToast(t("ct_place")); } };
       strip.appendChild(tl);
     }
     pick.appendChild(strip);
@@ -1446,7 +1694,13 @@ function tryEquip(type, id){
     if (!uids.length) return false;
     ok = tryFit(b, type, uids);
   }
-  if (ok){ syncActive(); recomputeOwned(); }
+  /* S16-EDIT — la liste ne se rafraichissait PAS apres montage/retrait : la
+     mutation reussissait, le bot se redessinait (canvas anime), mais le DOM
+     restait celui d'avant — d'ou les rangees fantomes et les vignettes
+     fausses (le closure de dessin capture l'id au moment de la creation).
+     tryEquip est le point de mutation unique du garage : il assume donc la
+     sauvegarde ET le rendu, au lieu de compter sur chaque appelant. */
+  if (ok){ syncActive(); recomputeOwned(); saveState(); renderHome(); }
   return ok;
 }
 function mkPartCard(type, part, reserved){
@@ -1474,17 +1728,36 @@ function mkPartCard(type, part, reserved){
   const btn = document.createElement("button"); btn.className = "rc-buy";
   if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("is-max"); }
   else if (owned){ btn.textContent = t("equip");
-    btn.onclick = ()=>{ if(tryEquip(type, part.id)){ saveState(); renderHome(); } else showToast(t("noRoom")); }; }
+    btn.onclick = ()=>{ if(!tryEquip(type, part.id)) showToast(t("noRoom")); }; }   // S16-EDIT : tryEquip rend
   else { btn.innerHTML = BOLT_SVG + " " + part.cost; btn.disabled = S.bolts < part.cost;
     btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
       mintInstance(part.id); recomputeOwned();
       const fits = tryEquip(type, part.id); saveState();
-      showToast(fits ? t("bought", {name:t("pn_"+part.id)}) : t("noRoom")); renderHome(); }; }
+      showToast(fits ? t("bought", {name:t("pn_"+part.id)}) : t("noRoom"));
+      if (!fits) renderHome(); }; }                                  // S16-EDIT : tryEquip rend deja si ok
   card.appendChild(btn);
   return card;
 }
 // ---- L1: garage strip (active-bot selector + buyable chassis) ----
 
+/* ══ S19 — NOM DE DONNÉE : une seule lecture pour toutes les tables.
+   Trois conventions coexistaient (chaîne FR brute pour coques et concours,
+   objet {fr,en} pour les séries, clé i18n pour les pièces). dataName accepte
+   chaîne OU {fr,en} : les noms propres (RUSTY, FLÈCHE) restent des chaînes —
+   un nom propre ne se traduit pas — et tout libellé traduisible passe en
+   {fr,en}. Les pièces gardent leurs clés `pn_*`, déjà dans STRINGS. ══ */
+function dataName(v, fallback){
+  if (v == null) return fallback || "";
+  if (typeof v === "string") return v;
+  return v[LANG] || v.fr || v.en || fallback || "";
+}
+/* ══ S18 — SÉRIES : accès DÉRIVÉ, jamais stocké. Une coque sans série
+   déclarée retombe sur la série d'origine — aucune orpheline possible. ══ */
+function chassisSeriesOf(ch){ return (typeof CHASSIS_SERIE!=="undefined" && CHASSIS_SERIE[ch]) || DEFAULT_SERIES; }
+function serieOf(id){ return CHASSIS_SERIES[id] || CHASSIS_SERIES[DEFAULT_SERIES]; }
+function serieName(id){ return dataName(serieOf(id).name, id); }
+function serieBlurb(id){ return dataName(serieOf(id).blurb, ""); }
+function seriesOrdered(){ return Object.values(CHASSIS_SERIES).sort((a,b)=>(a.order||99)-(b.order||99)); }
 function chassisName(ch){ return (CHASSIS_INFO[ch]&&CHASSIS_INFO[ch].name)||ch.toUpperCase(); }
 function botName(bot){ return da(bot.customName || chassisName(bot.chassis)); }   // E7
 function setActiveBot(i){ if(i<0||i>=S.garage.length||i===S.activeBot) return;
@@ -1498,7 +1771,38 @@ function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   showTab("workshop"); renderHome();
   showBotReceived(chassis, info.name, t("bareHullSub"));                               // E9
   }
-function drawBotThumb(ctx, chassis, color, L){ L=L||64; ctx.clearRect(0,0,L,L);
+/* ══ S17-VIEW — une SEULE verite pour toute representation de bot. Avant,
+   chaque site assemblait son build a sa facon (certains sans couleur, sans
+   stickers, sans multiplicite) et deux constantes de cadrage coexistaient
+   (0,47 editeur / 0,46 vignette) : c'etait ca, le drift. Desormais l'editeur,
+   les vignettes du garage, les portraits VS, les carrieres et le bot
+   d'occasion passent tous par buildOfBot + BOT_FRAME. ══ */
+const BOT_FRAME = 0.47;                      // demi-cadrage commun a TOUTES les vues
+function buildOfBot(bot){
+  return { chassis:bot.chassis,
+           parts:{...(bot.equipped||bot.parts||{})},
+           counts:{...(bot.counts||{})},
+           color:(bot.customize||{}).color || bot.color || null,
+           stickers0:(bot.customize||{}).placed || bot.stickers0 || [] };
+}
+function layoutOfBot(bot, build){
+  return (bot.layout && layoutValid(build, bot.layout)) ? bot.layout : autoArrange(build);
+}
+/* S16-GARAGE — la vignette montre le BOT COMPLET (coque + tout ce qui est
+   monté), plus la coque nue : au garage on veut reconnaître SON robot.
+   `bot` optionnel : si fourni, on dessine son build réel via drawBotTiles ;
+   sinon on retombe sur la silhouette de coque (écran d'accueil, boutique). */
+function drawBotThumb(ctx, chassis, color, L, bot){ L=L||64; ctx.clearRect(0,0,L,L);
+  if (bot){
+    try{
+      const build=buildOfBot(bot);                       // S17-VIEW : meme build partout
+      const lay=layoutOfBot(bot, build);
+      ctx.save(); ctx.translate(L/2, L/2);
+      const sc=(L*BOT_FRAME)/BOARD_HALF; ctx.scale(sc,sc);   // S17-VIEW : meme cadrage que l'editeur
+      drawBotTiles(ctx, build, lay, 0, {shadow:false});
+      ctx.restore(); return;
+    }catch(e){ ctx.restore && ctx.restore(); }          // repli silencieux : silhouette de coque
+  }
   const pad=L*0.92;
   if(chassisSpriteReady(chassis)){
     const img = color ? tintedChassis(chassis,color) : spriteState(chassis).img;
@@ -1595,7 +1899,7 @@ function renderGarageStrip(){ const el=$("garageStrip"); if(!el) return; el.inne
   const strip=document.createElement("div"); strip.className="rc-botstrip";
   S.garage.forEach((bot,i)=>{ const card=document.createElement("div"); card.className="rc-botcell"+(i===S.activeBot?" is-active":"");
     const th=document.createElement("div"); th.className="rc-botcell__thumb";
-    const cv = tileCanvas(64, (c)=>drawBotThumb(c, bot.chassis, bot.customize.color));
+    const cv = tileCanvas(64, (c)=>drawBotThumb(c, bot.chassis, bot.customize.color, 64, bot));  // S16-GARAGE : bot complet
     th.appendChild(cv); card.appendChild(th);
     const nm=document.createElement("div"); nm.className="rc-botcell__name"; nm.textContent=botName(bot); card.appendChild(nm);
     card.onclick=()=>setActiveBot(i);
@@ -1638,9 +1942,23 @@ function renderInventory(){ const el=$("invStrip"); if(!el) return; el.innerHTML
   el.appendChild(strip); }
 /* Châssis À VENDRE : déménagés en boutique (le garage ne vend rien). */
 function renderChassisShop(){ const el=$("chassisShop"); if(!el) return; el.innerHTML="";
-  /* E5 — sections PAR CLASSE (S, M, futures), cartes larges, rendu net */
-  const byClass = {};
-  for(const ch of BUYABLE_CHASSIS) (byClass[chassisClassOf(ch)] ||= []).push(ch);
+  /* S18 — l'étal est organisé PAR SÉRIE, puis par classe (E5). Avec une seule
+     série aujourd'hui, l'en-tête sert de bandeau de gamme ; le jour où le
+     marchand en tiendra plusieurs, l'étal les accueille sans une ligne de
+     code de plus — les coques déclarent leur série, c'est tout. */
+  const bySerie = {};
+  for(const ch of BUYABLE_CHASSIS){
+    const sid = chassisSeriesOf(ch);
+    ((bySerie[sid] ||= {})[chassisClassOf(ch)] ||= []).push(ch); }
+  for(const s of seriesOrdered()){
+  const byClass = bySerie[s.id]; if(!byClass) continue;
+  { const sh=document.createElement("div"); sh.className="rc-serie";
+    sh.style.setProperty("--serie-accent", s.accent || "var(--rc-amber)");   // S19 : variable CSS, pas de couleur en dur
+    const n=document.createElement("div"); n.className="rc-serie__name";
+    n.textContent = da(t("shopSerie")) + " \u00B7 " + da(serieName(s.id));
+    const b=document.createElement("div"); b.className="rc-serie__blurb";
+    b.textContent = serieBlurb(s.id);
+    sh.append(n,b); el.appendChild(sh); }
   for(const cls of ["S","M","L","XXL"]){
     if(!byClass[cls]) continue;
     const head=document.createElement("div"); head.className="rc-section";
@@ -1655,6 +1973,7 @@ function renderChassisShop(){ const el=$("chassisShop"); if(!el) return; el.inne
       const pr=document.createElement("div"); pr.className="botprice"; pr.innerHTML=BOLT_SVG+" "+info.cost; card.appendChild(pr);
       card.onclick=()=>buyBot(ch); strip.appendChild(card); }
     el.appendChild(strip); }
+  }                                                    // S18 : fin de boucle de série
   }
 // ---- L2: tournaments — generic scrutineering (rules) + format-extensible data ----
 const CLASS_BANDS = TIER_BY_ID.beetle.classBands; // alias rétro-compat — la vérité vit dans TIERS
@@ -1739,6 +2058,7 @@ function engageConcours(id){
     return { ok:false, fails:[msg], locked:true };
   }
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+  myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
   const chk = checkEntry(myBuild, tr.rules);
   if (!chk.ok) return chk;
   const st = FORMATS[tr.format].init(Math.floor(Math.random()*1e9), tr.rounds);
@@ -1755,6 +2075,7 @@ const FORMATS = {
   ladder: {
     // advance ladder state on a tournament match result; returns a UI descriptor (no DOM here)
     tourResult(realWin, w){
+      if(!S.tourney) return {kind:"lost"};                     // S16-CRASH : échelle déjà consommée
       if(realWin){
         if(S.tourney.idx < 2){ S.tourney.idx++; return {kind:"next", i:S.tourney.idx+1}; }
         const prize = Math.round(w*5*purseMult("sumoM")); S.bolts += prize;   // E1 : bourse ×ligue
@@ -1771,15 +2092,31 @@ const FORMATS = {
   },
   // 10 rounds, ranked by average score vs a seeded field of rivals. You need to place, not sweep.
   championnat: {
-    RIVALS: ["MAXIMUS","VORTEX","BRUTUS","NOVA","TITAN","RAZOR","CINDER","JOLT"],
+    /* S16-RANK — round-robin HONNÊTE (retrade playtest 25/07) :
+       - participants = manches + 1 : on affronte chaque rival UNE fois
+         (sumoS 4 manches = 5 places, sparS 6 = 7, lightM 10 = 11) ;
+       - le score du joueur suit le RÉSULTAT du match (victoire 2, défaite
+         combative 1 si au moins un duel gagné, sinon 0) — plus jamais les
+         duels de levier seuls (une sortie de piste éclair valait 0 point) ;
+       - le rival affronté cette manche encaisse le résultat inverse (te
+         battre lui refuse ses points) ; les autres jouent entre eux (tirage
+         par force, inchangé). */
+    RIVALS: ["MAXIMUS","VORTEX","BRUTUS","NOVA","TITAN","RAZOR","CINDER","JOLT","PISTON","GRIND"],
     _rng(seed){ let a=(seed>>>0)||1; return ()=>{ a=(a*1664525+1013904223)>>>0; return a/4294967296; }; },
-    init(seed, rounds){ const rng=this._rng(seed);
-      const rivals=this.RIVALS.slice(0,5).map(n=>({name:n, strength:0.35+rng()*0.5, score:0}));
+    init(seed, rounds){ const rng=this._rng(seed); const n=Math.min(rounds||10, this.RIVALS.length);
+      const rivals=this.RIVALS.slice(0,n).map(nm=>({name:nm, strength:0.35+rng()*0.5, score:0}));
       return { format:"championnat", round:0, rounds:rounds||10, myScore:0, rivals }; },
-    // record your match: score = duels you won this bout (0..2 in best-of-3). Returns true when the season ends.
-    recordMatch(lg, myDuels){ lg.myScore += Math.max(0, Math.min(2, myDuels|0));
+    faced(lg){ return lg.rivals[lg.round % lg.rivals.length]; },
+    // record your match. realWin optionnel (compat harness) : dérivé des duels si absent.
+    recordMatch(lg, myDuels, realWin){
+      const won = (realWin === undefined) ? (myDuels|0) >= 2 : !!realWin;
+      lg.myScore += won ? 2 : ((myDuels|0) >= 1 ? 1 : 0);
+      const me = this.faced(lg);
       const rng=this._rng((lg.round+1)*7919);
-      for(const r of lg.rivals){ r.score += (rng()<r.strength ? 2 : (rng()<0.5?1:0)); }
+      for(const r of lg.rivals){
+        if (r === me){ r.score += won ? 0 : 2; continue; }        // ton adversaire encaisse TON résultat
+        r.score += (rng()<r.strength ? 2 : (rng()<0.5?1:0));
+      }
       lg.round++; return lg.round >= lg.rounds; },
     standings(lg){ const all=[{name:"VOUS",score:lg.myScore,me:true}, ...lg.rivals.map(r=>({name:r.name,score:r.score}))];
       all.sort((a,b)=> b.score-a.score || (a.me?-1:b.me?1:0));
@@ -1903,7 +2240,7 @@ function renderLigues(){
       ? t("nConcours", {n:lg.concours.length}) + (nEng ? " · " + t("kEnCours", {k:nEng}) : "")
       : t("soon");
     a.innerHTML = `<div class="rc-league__crest"${open?' style="color:var(--rc-violet-lt)"':''}>${open?"◈":"🔒"}</div>
-      <div class="rc-league__body"><div class="rc-league__name">${da(lg.name)}</div>
+      <div class="rc-league__body"><div class="rc-league__name">${da(dataName(lg.name))}</div>
       <div class="rc-league__meta">${meta}</div></div>
       <div class="rc-league__side">${open ? t("enter") : t("lockedTag")}</div>`;
     if (open) a.onclick = ()=>{ curLigue = lg.id; NAV.push("ligueScreen"); renderLigueScreen(); };
@@ -1936,10 +2273,10 @@ function vsMancheLabel(tr){
 function renderVsScreen(){
   const tr = tournamentById(curVsConcours); if(!tr || !vsOpp) return;
   const lg = ligueById(curLigue);
-  $("vsCrumbLigue").textContent = da(lg ? lg.name : t("tabFight"));
+  $("vsCrumbLigue").textContent = da(lg ? dataName(lg.name) : t("tabFight"));
   $("vsCrumbLigue").className = "crumb-link";
   $("vsCrumbLigue").onclick = ()=>NAV.uiBack();
-  $("vsCrumbConcours").textContent = da(tr.name);
+  $("vsCrumbConcours").textContent = da(dataName(tr.name));
   $("vsCrumbConcours").className = "crumb-link";
   $("vsCrumbConcours").onclick = ()=>NAV.uiBack();
   $("vsCrumbManche").textContent = vsMancheLabel(tr);
@@ -1953,6 +2290,7 @@ function renderVsScreen(){
     counts: {...(lock ? (lock.counts||{}) : AB().counts)},
     color: lock ? lock.color : S.customize.color,
     stickers0: lock ? lock.stickers : S.customize.placed};
+  myBuild.beamCells = beamCellsOf(myBuild, lock ? lock.layout : getLayout());  // S16-WHEELS
   $("playerClass").textContent = t(weightClass(myBuild)) + " · " + ENGINE.physStats(myBuild).massKg.toFixed(2) + " kg";
   renderNums($("playerNums"), myBuild);
   $("playerCv")._build = myBuild;
@@ -1989,19 +2327,34 @@ function renderVsScreen(){
   }
   $("styleLine").textContent = t("styleLabel")+" "+t(ENGINE.tendencyKey(S.settings));
   const pr = $("powerRow"); pr.innerHTML = ""; const pf = makeSeg("power"); if (pf) pr.appendChild(pf);
+  anchorVs();
+}
+/* S16-UI — le « VS » se cale sur le CENTRE DES PORTRAITS. Il etait centre sur
+   toute la carte versus : des lors qu'un camp gagnait une ligne (poids,
+   tendance, libelle long), ce centre descendait et le VS retombait sur les
+   noms. Mesure au rendu, repli CSS si la mise en page n'est pas encore faite. */
+function anchorVs(){
+  try{
+    const vs = document.querySelector(".rc-vs");
+    const port = $("playerCv") && $("playerCv").parentElement;
+    if (!vs || !port) return;
+    const y = port.offsetTop + port.offsetHeight/2;
+    if (y > 8) vs.style.top = Math.round(y) + "px";
+  }catch(_){}
 }
 function renderLigueScreen(){
   const lg = ligueById(curLigue); if(!lg) return;
   $("crumbRoot").textContent = t("tabFight");
   $("crumbRoot").className = "crumb-link";
   $("crumbRoot").onclick = ()=>NAV.uiBack();
-  $("ligueName").textContent = da(lg.name);
+  $("ligueName").textContent = da(dataName(lg.name));
   const el = $("concoursList");
   // re-parquer les vues de detail AVANT de vider la liste (sinon innerHTML les detruit)
   for (const did of ["tourneyBanner","champStandings","bracketView"]){
     const n = $(did); if (n && n.parentElement !== $("ligueScreen")) $("ligueScreen").appendChild(n); }
   el.innerHTML = "";
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
+  myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
   for (const id of lg.concours){
     const tr = tournamentById(id); if(!tr) continue;
     const st = CN(id), open = unlockMet(tr.unlock), chk = checkEntry(myBuild, tr.rules);
@@ -2015,7 +2368,7 @@ function renderLigueScreen(){
     }
     const prog = concoursProgress(tr);
     let inner = `<div class="rc-cup__head"><div>
-        <div class="rc-cup__name">${da(tr.name)}</div>
+        <div class="rc-cup__name">${da(dataName(tr.name))}</div>
         <div class="rc-cup__struct">${formatLabel(tr)}</div></div>
         <div class="rc-cup__progress"${prog?'':' style="color:var(--rc-muted)"'}>${prog||t("newTag")}</div></div>
       <div class="rc-cup__constraints"><span class="rc-chip">${rulesSummary(tr.rules)}</span>`;
@@ -2125,11 +2478,16 @@ function renderUsedBotSection(g){
     e.textContent=t("usedBotSold"); plate.appendChild(e); return; }
   const card = document.createElement("div"); card.className = "rc-usedbot";
   const th = document.createElement("div"); th.className = "rc-botcell__thumb rc-botcell__thumb--big";
-  { const b = { chassis:o.chassis, parts:{}, counts:{} };                 // E5 : le bot ASSEMBLÉ
-    for (const p of o.parts){ const sl = DEF_SLOT[p.id]; if (sl) b.parts[sl] = p.id; }
+  { const parts = {};                                                    // E5 : le bot ASSEMBLÉ
+    for (const p of o.parts){ const sl = DEF_SLOT[p.id]; if (sl) parts[sl] = p.id; }
+    const b = buildOfBot({ chassis:o.chassis, parts, counts:{}, color:o.color||null });   // S17-VIEW
     const cv = document.createElement("canvas"); cv.width = cv.height = 176;
     cv.style.width = "100%"; cv.style.height = "100%"; cv.style.display = "block";
-    try { drawEditor(cv, b, autoArrange(b), 0, -1); } catch(e){}
+    /* S16-GARAGE — le canvas d'occasion etait dessine UNE fois, hors du
+       registre : si le sprite de coque n'etait pas encore decode, le chassis
+       manquait DEFINITIVEMENT (les pieces, elles, ont un repli vectoriel).
+       Enregistre, il se redessine des que l'image arrive. */
+    regTile(cv, ()=>{ try { drawEditor(cv, b, autoArrange(b), 0, -1); } catch(e){} });
     th.appendChild(cv); }
   card.appendChild(th);
   const info = document.createElement("div"); info.className = "rc-usedbot__info";
@@ -2254,6 +2612,44 @@ function showToast(msg, ms=1600){
   setTimeout(()=>{ $("toast").style.display="none"; }, ms);
 }
 
+/* ══ S16-CRASH — boîte noire (25/07). Le « full freeze » du playtest est une
+   exception synchrone qui tue la boucle raf : l'écran combat reste affiché,
+   plus rien ne répond. On ne peut pas la reproduire en jsdom (les erreurs
+   canvas n'existent que dans le vrai navigateur), donc on la rend OBSERVABLE
+   et NON BLOQUANTE :
+   1. window.onerror + unhandledrejection → journal persistant (5 dernières,
+      localStorage roboclash_errlog), consultable dans Réglages ;
+   2. toute erreur pendant un combat → toast + retour propre à l'accueil au
+      lieu d'un écran mort ;
+   3. les entrées critiques (revanche, lancement) sont ceinturées.
+   Au prochain gel : Réglages → la ligne ERREUR donne message + ligne. ══ */
+const ERRLOG_KEY = "roboclash_errlog";
+function errlog(){ try{ return JSON.parse(localStorage.getItem(ERRLOG_KEY)||"[]"); }catch(_){ return []; } }
+function logError(kind, msg, src, line){
+  try{
+    const log = errlog();
+    log.unshift({ t:new Date().toISOString().slice(0,19), kind,
+                  msg:String(msg).slice(0,180), at:(src?String(src).split("/").pop():"")+":"+(line||"?") });
+    localStorage.setItem(ERRLOG_KEY, JSON.stringify(log.slice(0,5)));
+  }catch(_){}
+}
+function crashRecover(where, e){
+  logError(where, e && e.message || e, e && e.fileName, e && e.lineNumber);
+  try{ cancelAnimationFrame(raf); }catch(_){}
+  try{ $("overlay").style.display="none"; }catch(_){}
+  try{ showToast("ERREUR: " + String(e && e.message || e).slice(0,60), 3000); }catch(_){}
+  try{ if (NAV.stack.length > 1) NAV.uiBack(); }catch(_){}
+}
+window.addEventListener("error", (ev)=>{
+  logError("onerror", ev.message, ev.filename, ev.lineno);
+  // un combat mort à l'écran = gel perçu : on récupère
+  const ms = $("matchScreen");
+  if (match && !match.over && ms && ms.style.display !== "none") crashRecover("raf", ev);
+});
+window.addEventListener("unhandledrejection", (ev)=>{
+  logError("promise", ev.reason && ev.reason.message || ev.reason);
+});
+
 /* ============================================================
    MATCH (rendering + loop)
    ============================================================ */
@@ -2289,7 +2685,7 @@ function makeOpponent(mode){
   }
   if (mode === "championnat"){
     const g = ENGINE.genOpponent(Math.floor(Math.random()*1e9), S.level, opponentOpts(curVsConcours));
-    champOpp = { name: FORMATS.championnat.RIVALS[S.concours[curVsConcours].round % 5], archetype:g.archetype, build:g.build, level:S.level };
+    champOpp = { name: FORMATS.championnat.faced(S.concours[curVsConcours]).name, archetype:g.archetype, build:g.build, level:S.level };
     return champOpp;
   }
   if (mode === "bracket"){
@@ -2303,6 +2699,17 @@ function makeOpponent(mode){
 }
 function startMatch(mode){
   curMode = mode || (tournamentOpen() ? "tour" : "qual");
+  /* S16-CRASH — gardes de mode. Un vsMode/curMode périmé peut demander une
+     compétition consommée (échelle gagnée, saison finie, coupe terminée) :
+     on rétrograde ou on refuse PROPREMENT au lieu de déréférencer null. */
+  if (curMode === "tour"){
+    if (!tournamentOpen()) curMode = "qual";                   // échelle fermée : combat de qualification
+    else { ensureTourney(); if (!S.tourney) curMode = "qual"; } // ouverte : recréer si consommée
+  }
+  if (curMode === "championnat" || curMode === "bracket"){
+    const cid = curVsConcours || MODE_CONCOURS[curMode];
+    if (!CN(cid)){ showToast(t("concoursOver")); return; }
+  }
   const enemy = (vsMode === curMode && vsOpp) ? vsOpp : makeOpponent(curMode);
 
   const seed = Math.floor(Math.random()*1e9);
@@ -2318,14 +2725,25 @@ function startMatch(mode){
   ensureOppColor(enemy);
   // Pass 3: CG stability from the actual placement feeds the flip model.
   playerBuild.stability = computeCG(playerBuild, pLayout).stability;
+  playerBuild.beamCells = beamCellsOf(playerBuild, pLayout);                  // S16-WHEELS : masse réelle en combat
   enemy.build.stability = computeCG(enemy.build, autoArrange(enemy.build)).stability;
+  enemy.build.beamCells = beamCellsOf(enemy.build, autoArrange(enemy.build));
   // WYSIWYG per-component hitbox from the same placement.
   playerBuild.colliders = buildColliders(playerBuild, pLayout);
   playerBuild.eff = buildEff(AB());                          // E3b : l'usure mord en combat
   enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
-  match = ENGINE.makeMatch(seed, playerBuild, enemy.build);
-  { const tr = curVsConcours ? tournamentById(curVsConcours) : null;             // S11b
-    match.arenaSprite = arenaFor(tr && tr.arena); }
+  /* S16-SCALE — ring RÉEL par classe (données CLASS_RING), en unités monde.
+     La classe vient du concours (ses règles priment) sinon du bot joueur.
+     Défaut d'arène hors concours : desk nerd en S, dohyo classique en M. */
+  { const trId = curVsConcours || (curMode==="qual"||curMode==="tour" ? "sumoM" : null);
+    const tr = trId ? tournamentById(trId) : null;                               // S11b
+    const cls = (tr && tr.rules && tr.rules.chassisClass) || chassisClassOf(playerBuild.chassis);
+    const ringCm = CLASS_RING[cls] || CLASS_RING.M;
+    match = ENGINE.makeMatch(seed, playerBuild, enemy.build,
+                             { arenaR: (ringCm/CM_PER_UNIT)/2 });
+    const src = (tr && tr.arena) || (cls === "S" ? "assets/arena_s_nerd.webp" : null);
+    match.arenaSprite = arenaFor(src);
+    match.arenaGeom = ARENA_GEOM[src || ARENA_SRC] || { playEdge:0.95 }; }
   particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
   $("hudNameA").textContent = t("you");
   $("hudNameB").textContent = enemy.name || "";
@@ -2422,17 +2840,33 @@ function spawnSparks(x,y,n){
 
 function draw(){
   const w = cv.clientWidth || 420;
-  const scale = w / (ENGINE.ARENA_R*2 + 6); // tight crop: max bot size on screen
+  /* S16-SCALE — l'échelle écran suit le ring du MATCH : un ring S de 60 cm
+     (124 u) zoome naturellement ×2,4 vs le ring M — les bots gardent leur
+     taille cellule, c'est la fenêtre qui change. */
+  const AR = (match && match.arenaR0) || ENGINE.ARENA_R;
+  const scale = w / (AR*2 + 6); // tight crop: max bot size on screen
   ctx.clearRect(0,0,w,w);
   ctx.save();
   const sx = (Math.random()-0.5)*shake, sy = (Math.random()-0.5)*shake;
   ctx.translate(w/2+sx, w/2+sy); ctx.scale(scale, scale);
 
-  const AR=ENGINE.ARENA_R;
+  /* S16-SCALE — le bord du PLATEAU dessiné (playEdge du sprite, en données)
+     coïncide avec le ring logique. Sprites opaques (square) : dessin carré
+     plein cadre, aucun clip circulaire — le décor déborde du canvas, voulu. */
+  const geom = (match && match.arenaGeom) || { playEdge:0.95 };
+  /* S16 — arenes opaques : le repere playEdge du sprite (pour le desk, le
+     bord EXTERNE de la bande blanche) tombe EXACTEMENT sur le ring logique.
+     Purement graphique : ni le moteur ni les tailles ne bougent. Les arenes
+     clippees gardent leur marge de +6 pour couvrir le disque de decoupe. */
+  const side = geom.square ? (2*AR) / (geom.playEdge || 0.95)
+                           : (2*AR + 12) / (geom.playEdge || 0.95);
   const aimg = (match && match.arenaSprite) || arenaImg;          // S11b
   if(aimg && aimg.complete && aimg.naturalWidth>0){               // arena sprite as the static floor
-    ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,Math.PI*2); ctx.clip();
-    ctx.drawImage(aimg, -(AR+8), -(AR+8), (AR+8)*2, (AR+8)*2); ctx.restore();
+    if (geom.square){ ctx.drawImage(aimg, -side/2, -side/2, side, side); }
+    else {
+      ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,Math.PI*2); ctx.clip();
+      ctx.drawImage(aimg, -side/2, -side/2, side, side); ctx.restore();
+    }
   } else {
     ctx.beginPath(); ctx.arc(0,0,AR+8,0,Math.PI*2); ctx.fillStyle="#160c12"; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,AR,0,Math.PI*2); ctx.fillStyle="#1d1119"; ctx.fill();
@@ -2470,12 +2904,14 @@ function draw(){
     const comp = renderBotComposite(bot, layout, flipped, fa);
     // S11c — ombre portée : silhouette exacte, lumière FIXE-MONDE (bas-droite),
     // décollée pendant la culbute, resserrée quand le bot gît sur le dos.
+    /* S16-SCALE — décalage d'ombre ∝ rayon (l'absolu 4/8 faisait flotter les
+       petits bots) : à r=22 (M) on retrouve ~3,5/6,6 ≈ l'ancien réglage. */
     const lift = 1 + fa*1.6;
     ctx.save();
-    ctx.translate(bot.pos.x + 4*lift, bot.pos.y + 8*lift);
+    ctx.translate(bot.pos.x + bot.radius*0.16*lift, bot.pos.y + bot.radius*0.30*lift);
     ctx.rotate(bot.angle);
     ctx.globalAlpha = flipped ? 0.24 : 0.34;
-    if ("filter" in ctx) ctx.filter = "blur(" + (2.2*lift).toFixed(1) + "px)";
+    if ("filter" in ctx) ctx.filter = "blur(" + (bot.radius*0.11*lift).toFixed(1) + "px)";
     ctx.drawImage(comp.sil, -comp.S/2, -comp.S/2, comp.S, comp.S);
     ctx.restore();
     ctx.save();
@@ -2828,6 +3264,11 @@ function renderDebrief(m){
 function endToDebrief(){
   cancelAnimationFrame(raf); raf=null;
   const m = match;
+  /* S16-CRASH — IDEMPOTENCE. Une frame encore en vol peut rappeler ce
+     debrief après un forfait ou un clic rapide : la 2e passe rejouait
+     tourResult/recordMatch sur un état déjà consommé (S.tourney=null →
+     null.idx, le gel du playtest). Un match ne se débriefe qu'UNE fois. */
+  if (m._debriefed) return; m._debriefed = true;
   const won = m.winner === 0;
   renderDebrief(match);
   $("ovTitle").textContent = t(won ? "win" : "lose");
@@ -2888,7 +3329,7 @@ function endToDebrief(){
     }
   } else if (curMode === "championnat"){
     const cid = curVsConcours, cst = S.concours[cid];
-    const done = FORMATS.championnat.recordMatch(cst, m.duels[0]);   // your duels this bout (0..2)
+    const done = FORMATS.championnat.recordMatch(cst, m.duels[0], realWin);   // S16-RANK : le RÉSULTAT prime
     const rank = FORMATS.championnat.myRank(cst);
     if (!done){
       $("ovMain").textContent = t("champRound", {r:cst.round+1, n:cst.rounds, rank});
@@ -2994,7 +3435,7 @@ $("resetLayout").onclick = ()=>{ autoArrangeCurrent(); renderLayerTabs(); };
 $("cgToggle").onclick = ()=>{ showCG=!showCG; $("cgToggle").classList.toggle("is-on",showCG); $("cgToggle").textContent=t(showCG?"cgHide":"cgShow"); };
 $("hbToggle").onclick = ()=>{ showHB=!showHB; $("hbToggle").classList.toggle("is-on",showHB); $("hbToggle").textContent=t(showHB?"hbHide":"hbShow"); };
 
-$("fightBtn").onclick = ()=> startMatch(vsMode || (tournamentOpen() ? "tour" : "qual"));
+$("fightBtn").onclick = ()=>{ try{ startMatch(vsMode || (tournamentOpen() ? "tour" : "qual")); }catch(e){ crashRecover("lancement", e); } };
 $("speedBtn").onclick = ()=>{ S.speed = S.speed===1?2:1; saveState();
   $("speedBtn").textContent = "×"+S.speed; };
 $("forfeitBtn").onclick = ()=>{
@@ -3005,26 +3446,30 @@ $("forfeitBtn").onclick = ()=>{
   endToDebrief();
 };
 $("ovMain").onclick = ()=>{
-  $("overlay").style.display="none";
-  const realWin = match.winner === 0 && !wasForfeit;
-  const goHome = ()=>NAV.uiBack();
-  if (realWin) goHome();                    // scout the next opponent / bracket match
-  else if (curMode === "exhib") goHome();   // lost friendly: no forced rematch loop
-  else if (curMode === "championnat") goHome();  // le championnat joue ses 10 manches, gagné ou perdu
-  else if (curMode === "bracket") goHome(); // bracket: win→next round, loss→eliminated
-  else startMatch(curMode);                 // retry (tournament restarts at match 1)
+  try{                                       // S16-CRASH : la revanche ne fige plus jamais l'ecran
+    $("overlay").style.display="none";
+    const realWin = match.winner === 0 && !wasForfeit;
+    const goHome = ()=>NAV.uiBack();
+    if (realWin) goHome();                    // scout the next opponent / bracket match
+    else if (curMode === "exhib") goHome();   // lost friendly: no forced rematch loop
+    else if (curMode === "championnat") goHome();  // le championnat joue ses 10 manches, gagné ou perdu
+    else if (curMode === "bracket") goHome(); // bracket: win→next round, loss→eliminated
+    else startMatch(curMode);                 // retry (tournament restarts at match 1)
+  }catch(e){ crashRecover("revanche", e); }
 };
 $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
 function renderVersionsTable(){
   const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v46";                                        // repere de build (CACHE du SW)
+  const cache = "v58";                                        // repere de build (CACHE du SW)
   const rows = [[t("verRow_app"), "PWA", "Single-file"],
                 [t("verRow_build"), cache, "2025"],
                 [t("verRow_install"), "✓", "✗"],
                 [t("verRow_off"), "✓", "✗"],
                 [t("verRow_maj"), "✓", "✗"],
                 [t("verRow_save"), t("verSaveV4"), t("verSaveOld")]];
+  for (const e of errlog().slice(0,3))                        // S16-CRASH : boite noire visible
+    rows.push(["ERREUR " + e.t.slice(5,16), e.msg.slice(0,46), e.at]);
   rows.forEach((r,i)=>{ const tr=document.createElement("tr");
     r.forEach(v=>{ const td=document.createElement(i?"td":"th"); td.textContent=v; tr.appendChild(td); });
     tb.appendChild(tr); });
@@ -3041,7 +3486,7 @@ function renderWelcome(){
     const card = document.createElement("div");
     card.className = "rc-career" + (c.n === CUR_CAREER ? " is-active" : "");
     const th = document.createElement("div"); th.className = "rc-career__thumb";
-    th.appendChild(tileCanvas(64, (x)=>drawBotThumb(x, c.chassis, null)));
+    th.appendChild(tileCanvas(64, (x)=>drawBotThumb(x, c.chassis, c.color||null, 64, c.bot||null)));
     card.appendChild(th);
     const info = document.createElement("div"); info.className = "rc-career__info";
     info.innerHTML = `<div class="rc-name">${da(c.name)}</div>
@@ -3100,7 +3545,7 @@ if (!CUR_CAREER) showWelcome();                                     // premier l
 document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>{
   o.onclick = ()=>{ LANG = o.dataset.lang; S.lang = LANG; saveState(); renderHome(); };
 });
-window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); });
+window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); anchorVs(); });  // S16-UI : le VS se recale
 
 /* [2] Préchargement : réchauffe les caches d'images existants au démarrage,
    au lieu d'attendre le premier dessin de chaque tuile. Première visite
