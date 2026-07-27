@@ -204,10 +204,18 @@
     <div class="rc-seg__opt" data-lang="fr">FR</div>
     <div class="rc-seg__opt" data-lang="en">EN</div>
   </div>
-  <div class="rc-section rc-mt" data-i18n="setVersions"></div>
+  <!-- S37-MENU — la version single-file est retiree du produit : plus de
+       comparatif deux colonnes, plus de lien. Le panneau dit ce que CETTE
+       app est (build, sauvegarde, hors-ligne) et rien d'autre. Le journal
+       d'erreurs a sa propre section, avec un bouton pour le vider. -->
+  <details id="setVersionsBox"><summary data-i18n="setVersions"></summary>
   <table class="rc-debrief" id="verTable"></table>
-  <a class="rc-btn rc-btn--ghost rc-btn--block" id="verLegacy" href="../battleBots/ai-roboclash.html" data-i18n="verOpenLegacy"></a>
-  <div class="rc-section rc-mt" data-i18n="setExchange"></div>
+  </details>
+  <details id="setErrlogBox"><summary data-i18n="setErrlog"></summary>
+  <table class="rc-debrief" id="errTable"></table>
+  <button class="rc-btn rc-btn--ghost rc-btn--block" id="errClear" data-i18n="errClear"></button>
+  </details>
+  <details id="setExchangeBox"><summary data-i18n="setExchange"></summary>
   <textarea id="ficheBox" rows="3" spellcheck="false"
     style="width:100%;box-sizing:border-box;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;
            background:var(--rc-ink-2,#160d16);color:var(--rc-fg,#e8dbe8);
@@ -216,7 +224,8 @@
     <button class="rc-btn rc-btn--ghost rc-btn--block" id="ficheExport" data-i18n="botExport"></button>
     <button class="rc-btn rc-btn--ghost rc-btn--block" id="ficheImport" data-i18n="botImport"></button>
   </div>
-  <div class="rc-stack rc-mt">
+  </details>
+  <div class="rc-stack rc-foot">
     <button class="rc-btn rc-btn--ghost rc-btn--block" id="settingsCareers" data-i18n="careersBtn"></button>
     <button class="rc-btn rc-btn--block" id="settingsClose" data-i18n="close"></button>
   </div>

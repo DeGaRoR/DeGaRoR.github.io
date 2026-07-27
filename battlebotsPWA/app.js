@@ -268,7 +268,7 @@ function createCareer(name){
       if (estCresus(name)) fresh.bolts = CRESUS_BOLTS;
       localStorage.setItem(careerKey(n), JSON.stringify(fresh));
       loadCareerState(n);
-      showIntro(()=>showBotReceived("tortue_s", "PETIT RUSTY", t("recvStarterSub")));   // E9
+      showIntro(()=>showBotReceived("tortue_s", "PETIT RUSTY", t("recvStarterSub"), null, AB()));   // E9 + S36 : bot COMPLET
       return n;
     } }
   return null;                                           // plein (3/3)
@@ -765,11 +765,26 @@ function autoArrange(build){
     for(let cc=0; cc<=ccMax; cc++){
       const bi=beamsForWheel(chassis,{col:cc,row:prow},fP);
       if(bi.valid && bi.cells===0){ pcol=cc; break; } }
-    if(pcol===null) for(let cc=-BEAM_MAX; cc<=ccMax; cc++){
+    /* S34-DEPORT — le repli balayait depuis -BEAM_MAX et prenait le PREMIER
+       valide, donc la position la plus EXTERIEURE possible : c'est ce qui
+       gonflait la boite de collision. On cherche desormais du plus proche de la
+       coque vers le large — attache sur coque d'abord, puis 1 cellule de
+       longeron, puis 2. */
+    if(pcol===null) for(let cc=0; cc<=ccMax; cc++){
+      if(beamsForWheel(chassis,{col:cc,row:prow},fP).valid){ pcol=cc; break; } }
+    if(pcol===null) for(let cc=-1; cc>=-BEAM_MAX; cc--){
       if(beamsForWheel(chassis,{col:cc,row:prow},fP).valid){ pcol=cc; break; } }
     if(pcol===null) return null;
     T.propulsion={col:pcol,row:prow};
-    const pool=propulsionRects(build, T);
+    /* S34-CALQUE — les roues sont sur LEUR PROPRE CALQUE. Elles ne reservent
+       rien a l'equipement et l'equipement ne les repousse pas : une roue peut
+       mordre sur la coque, c'est la doctrine d'origine.
+       Ce que faisait le code d'avant : `pool = propulsionRects(build, T)`.
+       Deux roues 1x2 mangeaient 4 des 9 cellules d'une coque S, plus rien ne
+       logeait, et l'arrangeur partait au repli longeron qui deporte au large.
+       Mesure : pr4/pr6/pr8 rendaient __nofit sur tortue_s avec un kit de base,
+       et pr2/pr3 passaient avec une hitbox de 25 a 31 u pour un rayon de 9,5. */
+    const pool=[];
     for(const slot of eqList){
       if(!isMounted(baseSlot(slot), idOf(slot))){ T[slot]={col:0,row:0}; continue; }
       const f=footprintOf(slot,idOf(slot));
@@ -800,8 +815,10 @@ function layoutValid(build, layout){ // every placed slot legal for THIS build/c
     const p=layout[slot];
     const others=SLOTS.filter(o=>o!==slot && layerOf(o)===1 && layerOf(slot)===1
         && isMounted(baseSlot(o), idFor(o)))
-      .map(o=>({...layout[o], f:footprintOf(o, idFor(o))}))
-      .concat(layerOf(slot)===1 ? propulsionRects(build, layout) : []);
+      .map(o=>({...layout[o], f:footprintOf(o, idFor(o))}));
+    /* S34-CALQUE — la propulsion ne compte plus comme occupation pour
+       l'equipement (elle etait concatenee ici). Meme doctrine que autoArrange :
+       sans ca, une mise en page valide etait rejetee au rechargement. */
     // temporarily evaluate with the equipped id of THIS slot
     const f=footprintOf(slot, idFor(slot));
     const li=layerOf(slot);
@@ -833,7 +850,12 @@ function repairLayout(build, old){
            && beamsForWheel(chassis, pp, fP).valid;
   if (!pOK) return autoArrange(build);
   const L = { propulsion: {col:pp.col, row:pp.row} };
-  const pool = propulsionRects(build, L);
+  /* S34-CALQUE — troisieme et dernier site : le placeur INCREMENTAL comptait lui
+     aussi les roues dans l'occupation. Consequence directe, attrapee par S16A :
+     une piece deja posee qui mordait sur une roue etait jugee illegale en 1re
+     passe et se faisait DEPLACER — les pieces sautaient en ajoutant un 2e
+     moteur. Meme doctrine partout : les roues n'occupent rien. */
+  const pool = [];
   const eqList = instanceSlots(build).sort((a,b)=>{
     const fa=footprintOf(a,idOf(a)), fb=footprintOf(b,idOf(b));
     return fb.w*fb.d - fa.w*fa.d; });
@@ -1080,7 +1102,7 @@ function buildColliders(build, layout){
   const nofit = !!(layout && layout.__nofit);
   const v=viewParams(chassis), vis=colliderVis(chassis), list=[];
   const cr=0.6*v.cell; // small per-cell circle: mild overlap, tight union
-  const cell=(cc,r,slot)=> list.push({slot, x:-vis*(r+0.5-v.crow)*v.cell, y:vis*(cc+0.5-v.ccol)*v.cell, r:vis*cr});
+  const cell=(cc,r,slot,rk)=> list.push({slot, x:-vis*(r+0.5-v.crow)*v.cell, y:vis*(cc+0.5-v.ccol)*v.cell, r:vis*cr*(rk||1)});
   const paveFoot=(col,row,f,slot)=>{ for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++) cell(col+dc,row+dr,slot); };
   /* S16-WHEELS — les longerons collisionnent (WYSIWYG) : slot null → un choc
      direct compte coque. L'arrachage individuel viendra au chantier armes. */
@@ -1108,12 +1130,40 @@ function buildColliders(build, layout){
   if(!nofit){ const id=eq.propulsion||ENGINE.PARTS.propulsion[0].id, f=footprintOf("propulsion",id);
     const p=layout.propulsion||{col:0,row:0};
     const OUT=0.32;
+    /* S34-WYSIWYG — le pavage suivait le RECTANGLE D'EMPREINTE, pas le dessin.
+       Une pr2 (2x3) posait six disques par cote la ou le sprite ne montre que
+       deux roues : la hitbox debordait visiblement du visuel. drawPartTile cale
+       le sprite en CONTAIN sur ses bornes alpha (x1,04) ; on reprend exactement
+       ce facteur pour retrecir le pavage autour du centre de l'empreinte. */
+    let kx=1, ky=1;
+    try{ const spr=componentSprite("propulsion", id);
+      if(spr && spr.naturalWidth>0){
+        const ab=spriteAlphaBounds(spr);
+        const wpx=f.w*v.cell-CELL_GAP, hpx=f.d*v.cell-CELL_GAP;
+        const s=Math.min(wpx/ab.w, hpx/ab.h)*1.04;
+        kx=Math.min(1, (ab.w*s)/(f.w*v.cell));
+        ky=Math.min(1, (ab.h*s)/(f.d*v.cell));
+      } }catch(_){ kx=1; ky=1; }
+    const rk=Math.min(kx,ky), mc=mirrorCol(chassis,p.col,f.w);
+    const cCx=p.col+f.w/2-0.5, cCy=p.row+f.d/2-0.5, mCx=mc+f.w/2-0.5;
     for(let dc=0;dc<f.w;dc++) for(let dr=0;dr<f.d;dr++){
-      cell(p.col+dc-OUT, p.row+dr, "propulsion");
-      cell(mirrorCol(chassis,p.col,f.w)+dc+OUT, p.row+dr, "propulsion"); } }
+      const rr=cCy+(p.row+dr-cCy)*ky;
+      cell(cCx+(p.col+dc-cCx)*kx-OUT, rr, "propulsion", rk);
+      cell(mCx+(mc+dc-mCx)*kx+OUT, rr, "propulsion", rk); } }
   // externals (weapons/sensors) overhang the hull; internals are interior → not on the surface
 
   let bound=0; for(const c of list) bound=Math.max(bound, Math.hypot(c.x,c.y)+c.r);
+  /* S34-PLAFOND — la garde S21 ne se declenchait qu'a __nofit. Or une mise en
+     page qui REUSSIT peut deporter les roues assez loin pour que la boite
+     depasse tout ce que le dessin justifie : mesure a 25 u (pr2) et 31 u (pr3)
+     pour une coque S de 9,5 de rayon, soit un mur invisible sur un ring de 62.
+     Regle inconditionnelle : au-dela de CAP fois le rayon de coque, on retombe
+     sur la COQUE SEULE. Ce qu'on n'a pas su placer ne depasse pas. */
+  const CAP=2.4, rad=(ENGINE.CHASSIS[chassis]||{}).radius||10;
+  if(bound > CAP*rad){
+    const hull=list.filter(c=>c.slot==="chassis");
+    if(hull.length){ let b2=0; for(const c of hull) b2=Math.max(b2, Math.hypot(c.x,c.y)+c.r);
+      return { list:hull, bound:b2, capped:true }; } }
   return { list, bound };
 }
 const CELL_CM = 3;
@@ -1486,7 +1536,11 @@ function editorHit(layout, cell){
       const M=0.38;                                 // marge tactile : une 1×1 se saisit au doigt
       const inRect=(col)=>cell.col>=col-M&&cell.col<col+f.w+M&&cell.row>=p.row-M&&cell.row<p.row+f.d+M;
       if(inRect(p.col)) return slot;
-      if(li===0 && inRect(mirrorCol(build.chassis,p.col,f.w))) return slot; // right wheel selects the pair
+      /* S31 — `build` n'existe PAS dans cette portee : editorHit(layout, cell).
+         Chaque pointerdown sur une roue jetait un ReferenceError, le geste mourait
+         et le journal se remplissait. Le chassis actif se lit par AB(), comme
+         partout ailleurs dans ce fichier. */
+      if(li===0 && inRect(mirrorCol(AB().chassis,p.col,f.w))) return slot; // right wheel selects the pair
     } }
   return null; }
 function bindEditor(){ const cv=$("editorCv"); if(!cv||cv._bound) return; cv._bound=true;
@@ -1999,12 +2053,30 @@ function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
    les vignettes du garage, les portraits VS, les carrieres et le bot
    d'occasion passent tous par buildOfBot + BOT_FRAME. ══ */
 const BOT_FRAME = 0.47;                      // demi-cadrage commun a TOUTES les vues
+/* P-PILOTE / S32 — NORMALISATION A L'ENTREE.
+   Le bot STOCKE ses reglages de conduite imbriques (`bot.pilot.handling`), le
+   moteur les LIT a plat (`build.handling`, trois sites : actuate, control,
+   integrate). buildOfBot ne recopiait ni l'un ni l'autre : tout build passe par
+   ici arrivait au moteur SANS pilote, `HANDLING[undefined]` rendait undefined et
+   `h.jitter` jetait un TypeError a chaque tick — manche figee, jamais terminee.
+   Ni la porte ni le temoin ne le voyaient : genOpponent construit ses builds a
+   plat, seul un bot JOUEUR au format sauvegarde traversait ce chemin.
+   Une seule forme canonique en sortie d'ici : PLATE. Cle par cle, avec repli sur
+   PILOT_DEF, pour qu'une sauvegarde ancienne ou partielle ne puisse pas rouvrir
+   le trou. */
+function pilotFlat(bot){
+  const src = (bot && bot.pilot) || {};
+  const out = {};
+  for (const k of PILOT_KEYS) out[k] = src[k] ?? bot?.[k] ?? PILOT_DEF[k];
+  return out;
+}
 function buildOfBot(bot){
   return { chassis:bot.chassis,
            parts:{...(bot.equipped||bot.parts||{})},
            counts:{...(bot.counts||{})},
            color:(bot.customize||{}).color || bot.color || null,
-           stickers0:(bot.customize||{}).placed || bot.stickers0 || [] };
+           stickers0:(bot.customize||{}).placed || bot.stickers0 || [],
+           ...pilotFlat(bot) };
 }
 function layoutOfBot(bot, build){
   return (bot.layout && layoutValid(build, bot.layout)) ? bot.layout : autoArrange(build);
@@ -2022,7 +2094,12 @@ function drawBotThumb(ctx, chassis, color, L, bot){ L=L||64; ctx.clearRect(0,0,L
       const sc=(L*BOT_FRAME)/BOARD_HALF; ctx.scale(sc,sc);   // S17-VIEW : meme cadrage que l'editeur
       drawBotTiles(ctx, build, lay, 0, {shadow:false});
       ctx.restore(); return;
-    }catch(e){ ctx.restore && ctx.restore(); }          // repli silencieux : silhouette de coque
+    }catch(e){ ctx.restore && ctx.restore();            // repli : silhouette de coque
+      /* S36 — ce repli etait MUET, et son symptome est exactement « un bot sans
+         ses pieces ». On a cherche des sprites manquants la ou il y avait
+         peut-etre une exception. Le repli reste (une vignette ne casse jamais
+         un ecran) mais il PARLE. */
+      logError("vignette", "bot " + chassis + " : " + (e && e.message), "app.js", 0); }
   }
   const pad=L*0.92;
   if(chassisSpriteReady(chassis)){
@@ -2809,7 +2886,7 @@ function buyUsedBot(){
   S.garage.push(bot); S.activeBot = S.garage.length-1;
   S.usedBotOffer = null;                                   // vendu — retour demain
   syncActive(); recomputeOwned(); saveState();
-  showBotReceived(bot.chassis, chassisName(bot.chassis), t("usedRecvSub"));           // E9
+  showBotReceived(bot.chassis, chassisName(bot.chassis), t("usedRecvSub"), null, bot); // E9 + S36 : bot COMPLET
   showTab("workshop"); renderHome();
   return true;
 }
@@ -2833,7 +2910,13 @@ function renderUsedBotSection(g){
        registre : si le sprite de coque n'etait pas encore decode, le chassis
        manquait DEFINITIVEMENT (les pieces, elles, ont un repli vectoriel).
        Enregistre, il se redessine des que l'image arrive. */
-    regTile(cv, ()=>{ try { drawEditor(cv, b, autoArrange(b), 0, -1); } catch(e){} });
+    /* S33-VIGNETTE — le catch etait MUET : si drawEditor jetait, le fond
+       d'atelier restait et la coque manquait DEFINITIVEMENT, sans une ligne au
+       journal. On a cherche un probleme de chargement d'image la ou il y avait
+       peut-etre une exception avalee. Le rendu reste protege (une vignette ne
+       doit jamais casser la boutique) mais il PARLE desormais. */
+    regTile(cv, ()=>{ try { drawEditor(cv, b, autoArrange(b), 0, -1); }
+                      catch(e){ logError("vignette", "occasion "+o.chassis+" : "+(e&&e.message), "app.js", 0); } });
     th.appendChild(cv); }
   card.appendChild(th);
   const info = document.createElement("div"); info.className = "rc-usedbot__info";
@@ -3829,22 +3912,32 @@ $("ovMain").onclick = ()=>{
 };
 $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
 /* P2 — panneau de reglages : langue + comparatif de versions */
+/* S37-MENU — une seule app, une seule colonne. Le comparatif PWA/Single-file
+   melait produit et musee, et poussait le journal d'erreurs hors ecran. */
 function renderVersionsTable(){
-  const tb = $("verTable"); if(!tb) return; tb.innerHTML = "";
-  const cache = "v72";                                        // repere de build (CACHE du SW)
-  const rows = [[t("verRow_app"), "PWA", "Single-file"],
-                [t("verRow_build"), cache, "2025"],
-                [t("verRow_install"), "✓", "✗"],
-                [t("verRow_off"), "✓", "✗"],
-                [t("verRow_maj"), "✓", "✗"],
-                [t("verRow_save"), t("verSaveV4"), t("verSaveOld")]];
-  for (const e of errlog().slice(0,3))                        // S16-CRASH : boite noire visible
-    rows.push(["ERREUR " + e.t.slice(5,16), e.msg.slice(0,46), e.at]);
-  rows.forEach((r,i)=>{ const tr=document.createElement("tr");
-    r.forEach(v=>{ const td=document.createElement(i?"td":"th"); td.textContent=v; tr.appendChild(td); });
-    tb.appendChild(tr); });
+  const tb = $("verTable"); if(tb){ tb.innerHTML = "";
+    const cache = "v80";                                      // repere de build (CACHE du SW)
+    const rows = [[t("verRow_build"), cache],
+                  [t("verRow_save"), t("verSaveV4")],
+                  [t("verRow_off"), "✓"],
+                  [t("verRow_maj"), "✓"]];
+    rows.forEach(r=>{ const tr=document.createElement("tr");
+      const th=document.createElement("th"); th.textContent=r[0]; tr.appendChild(th);
+      const td=document.createElement("td"); td.textContent=r[1]; tr.appendChild(td);
+      tb.appendChild(tr); }); }
+  const te = $("errTable");
+  if(te){ te.innerHTML = "";
+    const log = errlog();
+    if(!log.length){ const tr=document.createElement("tr");
+      const td=document.createElement("td"); td.textContent=t("errNone");
+      tr.appendChild(td); te.appendChild(tr); }
+    for (const e of log.slice(0,5)){ const tr=document.createElement("tr");
+      for(const v of [e.t.slice(5,16), e.msg.slice(0,52), e.at]){
+        const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); }
+      te.appendChild(tr); } }
 }
 $("settingsBtn").onclick = ()=>{ renderVersionsTable(); $("settingsOv").style.display="flex"; };
+if($("errClear")) $("errClear").onclick = ()=>{ try{ localStorage.removeItem(ERRLOG_KEY); }catch(_){} renderVersionsTable(); };
 $("settingsClose").onclick = ()=>{ $("settingsOv").style.display="none"; };
 
 /* ══ E6 — écran d'accueil : carrières ══ */
@@ -3881,7 +3974,12 @@ function renderWelcome(){
 function showWelcome(){ $("welcomeOv").style.display = "flex"; renderWelcome(); }
 /* ══ E9 — cérémonie de remise d'un châssis (réutilisée à chaque achat) ══ */
 let _recvNext = null;
-function showBotReceived(chassis, label, sub, next){
+/* S36-CEREMONIE — la remise dessinait `drawBotThumb(c, chassis, null, 256)` :
+   SANS bot, donc la coque nue. Pour un achat de coque c'est juste (on achete
+   bien une coque), mais le bot OFFERT au depart et le bot d'occasion sont des
+   bots ASSEMBLES : on les presentait deshabilles. Le parametre `bot` est
+   optionnel — les appelants qui remettent une coque nue ne changent pas. */
+function showBotReceived(chassis, label, sub, next, bot){
   const ov = $("botRecvOv"); if (!ov){ if (next) next(); return; }
   _recvNext = next || null;
   $("recvEyebrow").textContent = t("recvEyebrow");
@@ -3889,7 +3987,7 @@ function showBotReceived(chassis, label, sub, next){
   $("recvSub").textContent = sub || (t("classe") + " " + chassisClassOf(chassis));
   const cv = $("recvCv"), c = cv.getContext("2d");
   c.clearRect(0,0,256,256);
-  drawBotThumb(c, chassis, null, 256);
+  drawBotThumb(c, chassis, (bot && bot.customize && bot.customize.color) || null, 256, bot || null);
   ov.style.display = "flex";
   const card = ov.querySelector(".rc-recv");
   card.classList.remove("rc-recv--in"); void card.offsetWidth;   // relance l'animation

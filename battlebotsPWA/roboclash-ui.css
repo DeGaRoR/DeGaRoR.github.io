@@ -278,10 +278,17 @@ img{max-width:100%;display:block;}
 /* S16-UI — le VS s'ancre sur la RANGEE DES PORTRAITS, plus au centre de la
    carte : des libelles plus longs faisaient descendre ce centre sur les noms.
    Valeur de repli ici, position exacte posee au rendu (mesure du portrait). */
+/* S33-VS — le libelle passait SOUS les portraits. Deux causes cumulees :
+   `-webkit-text-stroke` peint le contour PAR-DESSUS le remplissage (le contour
+   de 3 px mangeait l'interieur du glyphe, d'ou un VS delave), et z-index:3 ne
+   suffisait pas face aux cartes combattantes. `paint-order` remet le contour
+   sous le remplissage ; c'est la propriete faite pour ca. */
 .rc-vs{
-  position:absolute;left:50%;top:104px;transform:translate(-50%,-50%);z-index:3;
+  position:absolute;left:50%;top:104px;transform:translate(-50%,-50%);z-index:12;
   font-family:var(--rc-f-display);font-weight:900;font-size:24px;color:var(--rc-red);
-  text-shadow:0 0 10px rgba(255,42,74,.9);-webkit-text-stroke:3px var(--rc-bg-1);
+  text-shadow:0 0 10px rgba(255,42,74,.9);
+  -webkit-text-stroke:3px var(--rc-bg-1);paint-order:stroke fill;
+  pointer-events:none;
 }
 
 /* ----------------------------------------------------------------------------
@@ -589,9 +596,26 @@ img{max-width:100%;display:block;}
 /* ══ P2 — chrome persistant ══ */
 .rc-topbar__side{display:flex;align-items:center;gap:8px;}
 .rc-app.in-match #chrome .rc-tabs{display:none;}   /* pas d'onglets en plein combat */
-#settingsOv{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
-  background:rgba(6,3,5,.7);backdrop-filter:blur(3px);}
-#settingsOv .ocard{max-width:380px;width:92%;}
+/* S31-REGLAGES — le centrage flex PIEGE un contenu plus haut que l'ecran : il
+   deborde des DEUX cotes et ni le haut ni le bas ne sont atteignables. Sur
+   telephone, tableau des versions + journal + textarea suffisaient a mettre
+   « fermer » et « carrieres » hors d'atteinte. Ancrage en haut + defilement,
+   sur l'overlay ET sur la carte, et un pied COLLANT pour que la sortie soit
+   toujours joignable quel que soit le contenu. */
+#settingsOv{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;
+  background:rgba(6,3,5,.7);backdrop-filter:blur(3px);
+  overflow-y:auto;overscroll-behavior:contain;padding:20px 0;}
+#settingsOv .ocard{max-width:380px;width:92%;max-height:calc(100dvh - 40px);
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+#settingsOv .rc-foot{position:sticky;bottom:0;z-index:2;padding-top:10px;margin-top:12px;
+  background:linear-gradient(180deg,transparent,var(--rc-bg-1,#160d16) 34%);}
+#settingsOv details{border-top:1px solid var(--rc-line,#3a2b3a);margin-top:10px;}
+#settingsOv details>summary{cursor:pointer;list-style:none;padding:10px 2px;
+  font:600 12px/1.2 var(--rc-f-ui,system-ui);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--rc-accent,#e8a33d);}
+#settingsOv details>summary::-webkit-details-marker{display:none;}
+#settingsOv details>summary::after{content:" +";float:right;opacity:.7;}
+#settingsOv details[open]>summary::after{content:" \2212";}
 #langSeg{max-width:200px;}
 
 

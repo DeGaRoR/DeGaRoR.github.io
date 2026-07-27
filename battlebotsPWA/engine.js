@@ -83,6 +83,23 @@ const ENGINE = (() => {
     coin_s:   { radius:10,   leverage:2.1, battery:58, selfRight:2.2 },
     losange_s:{ radius:10.5, leverage:1.8, battery:62, selfRight:2.4 },
     totem_s:  { radius:10.5, leverage:1.5, battery:64, selfRight:2.8 },
+    /* S30-ASSETS — douze coques S, trois séries, trois matières. Rayon STOCKÉ,
+       proposé depuis le rayon de disque d'aire équivalente × 1,04 (facteur relevé
+       sur les 3×3 existantes). leverage/battery/selfRight sont une SIGNATURE DE
+       SÉRIE, uniforme dans la série : la passe d'équilibrage S est un chantier
+       séparé et postérieur, on ne déguise pas des chiffres inventés en saveur. */
+    boite_s:   { radius:9.5, leverage:1.2, battery:62, selfRight:3.0, mat:"recup" },
+    bois_s:    { radius:10.0, leverage:1.2, battery:62, selfRight:3.0, mat:"recup" },
+    fusible_s: { radius:9.5, leverage:1.2, battery:62, selfRight:3.0, mat:"recup" },
+    couvercle_s:{ radius:10.5, leverage:1.2, battery:62, selfRight:3.0, mat:"recup" },
+    hdd_s:     { radius:10.0, leverage:1.2, battery:62, selfRight:3.0, mat:"recup" },
+    bread_s:   { radius:10.5, leverage:1.4, battery:66, selfRight:2.4, mat:"circuit" },
+    carte_s:   { radius:10.5, leverage:1.4, battery:66, selfRight:2.4, mat:"circuit" },
+    chine_s:   { radius:10.0, leverage:1.6, battery:58, selfRight:2.6, mat:"polypro" },
+    italia_s:  { radius:9.5, leverage:1.6, battery:58, selfRight:2.6, mat:"polypro" },
+    us_s:      { radius:11.0, leverage:1.6, battery:58, selfRight:2.6, mat:"polypro" },
+    deutsch_s: { radius:10.0, leverage:1.6, battery:58, selfRight:2.6, mat:"polypro" },
+    nippon_s:  { radius:10.5, leverage:1.6, battery:58, selfRight:2.6, mat:"polypro" },
   };
   const OPTS = {
     strategy:   ["adaptive","pressure","counter","ambush"],
@@ -238,6 +255,10 @@ const ENGINE = (() => {
       disque:{ kg:3.39, r:0.121 },
       tortue_s:{ kg:0.58, r:0.045 }, hex_s:{ kg:0.63, r:0.045 },
       coin_s:{ kg:0.63, r:0.045 }, losange_s:{ kg:0.72, r:0.045 }, totem_s:{ kg:0.74, r:0.045 },
+      boite_s:{ kg:0.555, r:0.045 }, bois_s:{ kg:0.643, r:0.045 }, fusible_s:{ kg:0.576, r:0.045 },
+      couvercle_s:{ kg:0.698, r:0.045 }, hdd_s:{ kg:0.668, r:0.045 }, bread_s:{ kg:0.367, r:0.045 },
+      carte_s:{ kg:0.368, r:0.045 }, chine_s:{ kg:0.374, r:0.045 }, italia_s:{ kg:0.353, r:0.045 },
+      us_s:{ kg:0.442, r:0.045 }, deutsch_s:{ kg:0.369, r:0.045 }, nippon_s:{ kg:0.407, r:0.045 },
     },
     propulsion: { // mu = grip coefficient, rWheel in metres
       pr0:{ kg:0.12, mu:0.70, rWheel:0.025 }, pr1:{ kg:0.30, mu:0.95, rWheel:0.030 },
@@ -270,7 +291,14 @@ const ENGINE = (() => {
     },
     armor:   { a0:{kg:0.00}, a1:{kg:0.20}, a2:{kg:0.35}, a3:{kg:0.55} },
     cpu:     { c0:{kg:0.02}, c1:{kg:0.03}, c2:{kg:0.04} },
-    sensors: { n0:{kg:0.01}, n1:{kg:0.03}, n2:{kg:0.05} },
+    /* S35-RIEN — n0 « Pare-chocs » pesait 10 g alors qu'il EST le vide du slot
+       capteurs (NONE_AT_0.sensors). Cette masse fantome le faisait sortir de
+       OPTIONAL_SLOTS (derive de cout 0 + masse 0), donc il s'affichait en
+       boutique avec un prix, s'usait a l'inventaire, et n'occupait pourtant
+       aucune cellule. Un objet qui coute, s'use et n'existe pas.
+       Masse a zero : les deux notions de « rien » coincident enfin, et
+       l'invariant S35 de la porte interdit qu'elles redivergent. */
+    sensors: { n0:{kg:0}, n1:{kg:0.03}, n2:{kg:0.05} },
     software:{ s0:{kg:0.00}, s1:{kg:0.00}, s2:{kg:0.00}, s3:{kg:0.00} },
     ballast: { l0:{kg:0.00,cog:0}, l1:{kg:0.30,cog:0.30}, l2:{kg:0.60,cog:0.60} }, // slugs sit low → lower CoG, resist flips
     srimech: { r0:{kg:0.00}, r1:{kg:0.15}, r2:{kg:0.25}, r3:{kg:0.04}, r4:{kg:0.07} },
