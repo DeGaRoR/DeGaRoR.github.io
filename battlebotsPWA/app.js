@@ -33,9 +33,11 @@ const SKEY = "roboclash_s4";
    bot.equipped / bot.counts sont des CACHES dérivés, régénérés par refit()
    après chaque mutation — ne JAMAIS y écrire directement. Le moteur, le
    layout, l'homologation et bk.lock consomment ces caches, inchangés.
-   Politique pré-release : pas de migration — toute sauvegarde d'une autre
-   version ou invalide est écartée et remplacée (validState). */
-const SAVE_V = 5;   // P-PILOTE : le pilote passe de S.settings (global) au bot
+   Migration v4→v5→v6 (migrate) : les anciennes sauvegardes sont ADAPTÉES, jamais
+   perdues (l'état brut est sauvegardé avant transformation). Une version inconnue
+   déclenche un reset EXPLICITE (SAVE_RESET_NOTICE). */
+const SAVE_V = 6;   // v6 : identité stable botId (Phase 2). Chaîne de migration v4→v5→v6 (migrate()).
+let SAVE_RESET_NOTICE = false;   // un état existant mais inadoptable a-t-il dû être réinitialisé ?
 // a chassis is valid only if the engine knows it; unknown → fall back rather than crash.
 function validChassis(ch){ return (ch && ENGINE.PHYS.chassis[ch] && ENGINE.CHASSIS[ch]) ? ch : "boxy"; }
 const DEF_SLOT = {};                        // def -> slot d'appartenance (catalogue)
@@ -64,15 +66,23 @@ function newBotInto(inv, chassis){
   const b = bareBot(chassis);
   for (const sl in BASE_KIT) b.fit[sl] = [ mintInto(inv, BASE_KIT[sl]) ];
   return b; }
+/* Phase 2 — identité stable : chaque bot porte un botId ("B"+n), indépendant de sa
+   position dans S.garage. Le verrou de concours, l'usure et les dégâts se lient à
+   CET id, plus à S.activeBot (qui peut changer entre l'engagement et le match). */
+function assignBotId(bot){
+  if (!bot.botId){ S.botSeq = (S.botSeq || 0) + 1; bot.botId = "B" + S.botSeq; }
+  return bot.botId; }
+function botById(id){ return (S.garage || []).find(b => b && b.botId === id) || null; }
 function defaultState(){
   const inv = { seq:0, items:{} };
   const bot = newBotInto(inv, "boxy");
+  bot.botId = "B1";                        // Phase 2 : identité stable, indépendante de l'index garage
   return {
     v: SAVE_V,
     lang:"fr", beaten:0, speed:1,           // beaten = qualifier+friendly wins (param unlocks)
     level:1, beatenAtLevel:0,               // 2 qualifier wins open the tournament
     bolts:0,
-    inv, garage:[bot], activeBot:0,
+    inv, garage:[bot], activeBot:0, botSeq:1,
     badges:[], champion:false,
     tourney:null,                           // {idx, opponents:[{name,archetype,build,level}x3]}
     concours:{},                            // progression par concours engagé (id → état de format, + lock éventuel)
@@ -81,7 +91,7 @@ function defaultState(){
     opponent:null,                          // current qualifier {name, archetype, build, level}
   };
 }
-/* validState — rejet des schémas étrangers/invalides (remplace les migrations).
+/* validState — valide un état au SAVE_V courant (la migration est faite en amont).
    Vérifie : version, structure inv, uid référencés existants, jamais double-
    référencés, du bon slot, mono-def par slot, seq cohérent. */
 function validState(st){
@@ -106,6 +116,29 @@ function validState(st){
           d0 = it.def; seen[uid] = 1; } } }
     return true;
   } catch(e){ return false; }
+}
+/* Phase 3 — MIGRATION (remplace l'ancienne politique « rejeter tout autre schéma »).
+   Chaîne v4→v5→v6, non destructive : l'état brut est SAUVEGARDÉ avant transformation
+   (roboclash_s4_bak_vN). Une version inconnue (trop vieille/future) renvoie null →
+   reset EXPLICITE (SAVE_RESET_NOTICE), jamais un effacement silencieux. */
+function migrate(raw){
+  if (!raw || typeof raw !== "object") return null;
+  let st = raw, v = st.v | 0;
+  if (v === SAVE_V) return st;
+  try { localStorage.setItem(SKEY + "_bak_v" + v, JSON.stringify(raw)); } catch(_){}
+  if (v === 4){                                    // v4→v5 : le pilote GLOBAL (S.settings) devient celui de CHAQUE bot
+    const g = (st.settings && typeof st.settings === "object") ? st.settings : null;
+    if (Array.isArray(st.garage)) for (const b of st.garage) if (b && !b.pilot && g) b.pilot = {...g};
+    delete st.settings; v = st.v = 5;
+  }
+  if (v === 5){ v = st.v = 6; }                    // v5→v6 : identité stable ; botId backfillé par bootSanitize
+  return st.v === SAVE_V ? st : null;
+}
+function adoptSave(cand){                           // migre puis valide ; renvoie true si l'état est adopté
+  const st = migrate(cand);
+  if (st && validState(st)){ S = {...defaultState(), ...st}; return true; }
+  if (cand) SAVE_RESET_NOTICE = true;               // un état EXISTAIT mais est inadoptable : on le SIGNALE
+  return false;
 }
 
 // stackable internal slots (L3.5 multiplicity) — donnée UI : quels slots offrent ±
@@ -188,14 +221,18 @@ try {
   if (CUR_CAREER){
     const raw = localStorage.getItem(careerKey(CUR_CAREER));
     if (raw){
-      const cand = JSON.parse(raw);
-      if (validState(cand)) S = {...defaultState(), ...cand};
-      /* sinon : schéma d'une autre version → état neuf (pré-release). */
+      adoptSave(JSON.parse(raw));                 // Phase 3 : migre (v4→v5→v6) puis valide ; sinon reset SIGNALÉ
+      /* adoptSave : migré puis validé ; version inconnue → reset explicite. */
     }
   }
 } catch(e){}
 function bootSanitize(){
   S.garage.forEach(b => refit(b));
+  /* Phase 2 — backfill des identités : le compteur dépasse le max existant, puis
+     tout bot sans id en reçoit un (états legacy, carrières adoptées). */
+  S.botSeq = S.botSeq || 0;
+  for (const b of S.garage){ const n = b.botId ? (parseInt(String(b.botId).slice(1), 10) || 0) : 0; if (n > S.botSeq) S.botSeq = n; }
+  S.garage.forEach(b => assignBotId(b));
   if (S.activeBot==null || S.activeBot>=S.garage.length) S.activeBot=0;
   S.garage.forEach(b=>{ b.chassis = validChassis(b.chassis); b.pilot = validPilot(b.pilot); });
   delete S.settings;                        // P-PILOTE : plus de pilote global, même adopté d'un état étranger
@@ -208,9 +245,9 @@ function bootSanitize(){
       if (tournamentById(cid) && n >= 1 && n <= 3) S.stars[cid] = n; } }
   for (const cid in S.concours){ const st = S.concours[cid];
     if (st && st.lock) st.lock.chassis = validChassis(st.lock.chassis); }
-  /* A2 — SAVE_V et validState sont déclarés en tête d'état. Les migrations
-     ont été retirées (décision : pré-release, joueur unique) — une sauvegarde
-     d'une autre version est écartée, jamais transformée ni rétrogradée. */
+  /* A2 — SAVE_V, validState et migrate sont déclarés en tête d'état. Une sauvegarde
+     d'une version antérieure CONNUE est migrée (v4→v5→v6) avec sauvegarde de secours ;
+     une version inconnue déclenche un reset explicite (jamais silencieux). */
   /* P-PLAN-UNIQUE : purge du blindage monté des états adoptés (données du
      slot conservées pour le chantier plaques latérales). */
   (function retireArmor(){
@@ -232,11 +269,12 @@ function loadCareerState(n){
   CUR_CAREER = n;
   S = defaultState();
   try { const raw = localStorage.getItem(careerKey(n));
-    if (raw){ const cand = JSON.parse(raw); if (validState(cand)) S = {...defaultState(), ...cand}; }
+    if (raw){ adoptSave(JSON.parse(raw)); }
   } catch(e){}
   bootSanitize(); syncActive(); recomputeOwned(); saveState();
   if (typeof NAV !== "undefined" && NAV.reset) NAV.reset();
   renderHome();
+  if (SAVE_RESET_NOTICE){ SAVE_RESET_NOTICE = false; try { showToast(t("saveReset")); } catch(_){} }   // Phase 3 : reset EXPLICITE
 }
 function newCareerState(){
   /* E7 — une NOUVELLE carrière commence en S : PETIT RUSTY, coque tortue_s
@@ -296,6 +334,14 @@ const CONTROL_TIER = { aggression:0, edgeGuard:0, approach:1, chargeDist:1, hand
 function fittedSwTier(){ const id = (AB().equipped && AB().equipped.software) || "s0";
   return Math.max(0, ENGINE.PARTS.software.findIndex(p=>p.id===id)); }
 const isUnlocked = (key)=>{ const n=CONTROL_TIER[key]; return n==null || fittedSwTier()>=n; };
+/* P1-d — pilote EFFECTIF : le pilote STOCKÉ (bot.pilot) est intact ; tout contrôle
+   verrouillé par le logiciel monté retombe sur son défaut DÉCLARÉ (PILOT_DEF), pas
+   sur OPTS[key][0]. Seul ce résultat entre en piste ; le rendu ne mute rien. */
+function effectivePilot(bot){
+  const p = (bot && bot.pilot) || PILOT(), out = {...p};
+  for (const key of PILOT_KEYS) if (!isUnlocked(key)) out[key] = PILOT_DEF[key];
+  return out;
+}
 const tournamentOpen = ()=> S.beatenAtLevel >= 2;
 const pickName = ()=> OPP_NAMES[2 + Math.floor(Math.random()*(OPP_NAMES.length-2))];
 
@@ -443,10 +489,10 @@ function makeSeg(key){
   /* FID-2 + S15 — un contrôle verrouillé n'est PAS montré : il n'existe pas
      tant que le logiciel requis n'est pas monté (mention unique côté appelant). */
   const unlocked = isUnlocked(key);
-  if (!unlocked){
-    if (PILOT()[key] !== ENGINE.OPTS[key][0]) PILOT()[key] = ENGINE.OPTS[key][0];
-    return null;
-  }
+  // P1-d : un contrôle verrouillé n'est pas rendu — et le RENDU NE MUTE PLUS le
+  // pilote stocké. Le réglage EFFECTIF (défaut déclaré) est appliqué au combat
+  // par effectivePilot(), pas ici. La distinction stocké/effectif/visible est nette.
+  if (!unlocked) return null;
   const field = document.createElement("div"); field.className = "rc-field";
   const head = document.createElement("div"); head.className = "rc-field__head";
   head.innerHTML = `<span>${t(key)}</span>
@@ -1901,6 +1947,12 @@ const CT_CORE = ["propulsion","motor","battery","cpu"];
 function functionalCheck(build){
   const fails = [];
   for (const sl of CT_CORE) if (idAt(build, sl) == null) fails.push(t("ct_"+sl));
+  /* P0-1 — un organe vital usé à contribution nulle (batterie/moteur/propulsion
+     à eff 0) échoue au CT. `eff` est injecté par l'homologation (engageConcours) ;
+     absent (CT d'un adversaire, aperçu), on ne teste pas. */
+  if (build.eff) for (const sl of ["motor","battery","propulsion"])
+    if (idAt(build, sl) != null && (build.eff[sl] ?? 1) <= 0)
+      fails.push(t("ct_worn", { p: t("pn_" + idAt(build, sl)) }));
   if (!fails.length && !fitsOnHull(build)) fails.push(t("ct_place"));
   return { ok: fails.length === 0, fails };
 }
@@ -2033,7 +2085,7 @@ function importBot(json){
   const build = { chassis, parts: {...bot.equipped}, counts: {...bot.counts} };
   bot.layout = (f.layout && layoutValid(build, f.layout)) ? f.layout : autoArrange(build);
   if (bot.layout && bot.layout.__nofit) bot.layout = null;            // rien d'imposable : l'éditeur reprendra
-  S.garage.push(bot); S.activeBot = S.garage.length - 1;
+  assignBotId(bot); S.garage.push(bot); S.activeBot = S.garage.length - 1;
   syncActive(); recomputeOwned(); saveState();
   return bot;
 }
@@ -2041,7 +2093,7 @@ function buyBot(chassis){ const info=CHASSIS_INFO[chassis]; if(!info) return;
   if(S.bolts < info.cost){ showToast(t("noBolts")); return; }
   S.bolts -= info.cost;
   const bot = bareBot(chassis); refit(bot);             // E7 : châssis neuf = COQUE NUE (garage v2)
-  S.garage.push(bot); S.activeBot = S.garage.length-1;
+  assignBotId(bot); S.garage.push(bot); S.activeBot = S.garage.length-1;
   syncActive(); recomputeOwned(); saveState();
   showTab("workshop"); renderHome();
   showBotReceived(chassis, info.name, t("bareHullSub"));                               // E9
@@ -2130,7 +2182,7 @@ function buildEff(bot){
   return { motor:slotEff(bot,"motor"), battery:slotEff(bot,"battery"), propulsion:slotEff(bot,"propulsion") };
 }
 function applyMatchDamage(m){
-  const me = m.bots[0], bot = AB();
+  const me = m.bots[0], bot = (m.player && botById(m.player.botId)) || AB();   // Phase 2 : dégâts au bot ENGAGÉ
   const rows = [], K = DAMAGE_TUNE;
   const bump = (slot, dw, tag)=>{
     const uids = (bot.fit && bot.fit[slot]) || [];
@@ -2430,8 +2482,11 @@ function purseMult(concoursId){
   return 1;
 }
 function snapshotBuild(){                                          // gel du build à l'engagement
-  const b = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
-  return { ...b, color:S.customize.color, stickers:[...S.customize.placed], layout:autoArrange(b) };
+  const bot = AB();
+  const b = { chassis:bot.chassis, parts:{...S.parts.equipped}, counts:{...bot.counts} };
+  return { ...b, botId: bot.botId,                                // Phase 2 : le bot ENGAGÉ est identifié
+    color:S.customize.color, stickers:[...S.customize.placed],
+    layout: layoutOfBot(bot, b) };                               // P1-a : la VRAIE mise en page validée, pas autoArrange
 }
 /* engageConcours — l'engagement est un acte explicite et nommé (jamais un effet
    de bord d'un clic). Vérifie déverrouillage + homologation, initialise l'état
@@ -2449,9 +2504,10 @@ function engageConcours(id){
   }
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
   myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
+  myBuild.eff = buildEff(AB());                                               // P0-1 : le CT refuse un organe vital HS
   const chk = checkEntry(myBuild, tr.rules);
   if (!chk.ok) return chk;
-  const st = FORMATS[tr.format].init(Math.floor(Math.random()*1e9), tr.rounds);
+  const st = FORMATS[tr.format].init(Math.floor(Math.random()*1e9), tr.format==="bracket" ? tr.size : tr.rounds);
   if (tr.lockBuild) st.lock = snapshotBuild();
   S.concours[id] = st; saveState();
   return { ok:true };
@@ -2525,12 +2581,17 @@ const FORMATS = {
   bracket: {
     NAMES: ["MAXIMUS","VORTEX","BRUTUS","NOVA","TITAN","RAZOR","CINDER","JOLT","HAVOC","ONYX","FANG","BOLT","KRUSH","VIPER","ZENITH"],
     _rng(seed){ let a=(seed>>>0)||1; return ()=>{ a=(a*1664525+1013904223)>>>0; return a/4294967296; }; },
-    init(seed){ const rng=this._rng(seed);
+    init(seed, size){ const rng=this._rng(seed);
+      /* P1-b — la taille est une DONNÉE du concours (tr.size). On valide qu'elle
+         est une puissance de deux ≥2 ; le champ de rivaux est plafonné par NAMES. */
+      let n = size|0;
+      if (!(n>=2) || (n & (n-1))){ logError("bracket","taille "+size+" invalide → 16","app.js",0); n=16; }
+      n = Math.min(n, this.NAMES.length+1);
       const ents=[{name:"VOUS", me:true, strength:0.5}];
       const names=this.NAMES.slice(); // shuffle rivals into the field
       for(let i=names.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [names[i],names[j]]=[names[j],names[i]]; }
-      for(let i=0;i<15;i++) ents.push({ name:names[i], strength:0.3+rng()*0.55 });
-      return { format:"bracket", seed, round:0, rounds:4, out:false, current: ents, path:[ents.slice()] }; },
+      for(let i=0;i<n-1;i++) ents.push({ name:names[i], strength:0.3+rng()*0.55 });
+      return { format:"bracket", seed, size:n, round:0, rounds:Math.log2(n), out:false, current: ents, path:[ents.slice()] }; },
     myOpponent(bk){ return bk.current[1]; },                          // you are always slot 0 of the live round
     recordMatch(bk, iWon){
       const parts=bk.current, winners=[];
@@ -2542,7 +2603,8 @@ const FORMATS = {
       bk.current=winners; bk.path.push(winners.slice());
       return this.isDone(bk); },
     isDone(bk){ return bk.out || bk.round>=bk.rounds; },
-    roundName(bk){ return ["16es","Quarts","Demi","Finale"][Math.min(3,bk.round)]; },
+    roundName(bk){ const rem=(bk.size||16)>>bk.round;                 // P1-b : dérivé de la taille
+      return rem<=2?"Finale":rem===4?"Demi":rem===8?"Quarts":(rem/2)+"es"; },
     prize(bk, w){ const r=bk.round, champ=!bk.out && r>=bk.rounds;
       const total=[w, w*2, w*3, w*5, w*8][Math.min(4,r)];
       return { round:r, champ, total }; }
@@ -2579,7 +2641,7 @@ function renderBracketView(id){ const el=$("bracketView"); if(!el) return;   // 
   head.textContent=t("bracketTitle")+" \u00B7 "+(FORMATS.bracket.isDone(bk)?t("bracketDone"):FORMATS.bracket.roundName(bk)); el.appendChild(head);
   const wrap=document.createElement("div"); wrap.className="bkcols";
   const labels=["16es","Quarts","Demi","Finale","\uD83C\uDFC6"];
-  const totalCols = FORMATS.bracket.isDone(bk) ? bk.path.length : 5;
+  const totalCols = FORMATS.bracket.isDone(bk) ? bk.path.length : ((bk.rounds||4)+1);   // P1-b : colonnes = tours+1
   for(let ci=0; ci<totalCols; ci++){
     const col=document.createElement("div"); col.className="bkcol";
     const cl=document.createElement("div"); cl.className="bklabel"; cl.textContent=labels[ci]||""; col.appendChild(cl);
@@ -2765,6 +2827,7 @@ function renderLigueScreen(){
   el.innerHTML = "";
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
   myBuild.beamCells = beamCellsOf(myBuild, getLayout());                       // S16-WHEELS : la pesee compte les longerons
+  myBuild.eff = buildEff(AB());                                               // P0-1 : le CT refuse un organe vital HS
   for (const id of lg.concours){
     const tr = tournamentById(id); if(!tr) continue;
     const st = CN(id), open = concoursUnlocked(id), chk = checkEntry(myBuild, tr.rules);   // S25 : dérivé
@@ -2883,7 +2946,7 @@ function buyUsedBot(){
   bot.customize.color = CHASSIS_COLORS[1+Math.floor(Math.random()*(CHASSIS_COLORS.length-1))];
   for (const p of o.parts) bot.fit[p.slot] = [ mintInto(S.inv, p.id, { wear:p.wear }) ];
   refit(bot);
-  S.garage.push(bot); S.activeBot = S.garage.length-1;
+  assignBotId(bot); S.garage.push(bot); S.activeBot = S.garage.length-1;
   S.usedBotOffer = null;                                   // vendu — retour demain
   syncActive(); recomputeOwned(); saveState();
   showBotReceived(bot.chassis, chassisName(bot.chassis), t("usedRecvSub"), null, bot); // E9 + S36 : bot COMPLET
@@ -3161,8 +3224,12 @@ function startMatch(mode){
      était inerte hors des deux concours M, et une pièce ajoutée après
      l'engagement entrait en piste. */
   const lock = (CN(curConcoursId()) || {}).lock || null;   // build gelé si le concours le déclare
+  /* Phase 2 — le combat se résout contre le bot ENGAGÉ (par botId), jamais l'actif :
+     changer S.activeBot après l'engagement ne détourne plus ni usure ni dégâts. */
+  const combatBot = (lock && botById(lock.botId)) || AB();
+  if (lock && !botById(lock.botId)) logError("match", "bot engagé "+lock.botId+" introuvable → repli sur l'actif", "app.js", 0);
   const pLayout = lock ? lock.layout : getLayout();
-  const playerBuild = {...ENGINE.SLICE1.playerBuild, ...PILOT(),
+  const playerBuild = {...ENGINE.SLICE1.playerBuild, ...effectivePilot(combatBot),
     chassis: lock ? lock.chassis : AB().chassis,
     parts: {...(lock ? lock.parts : S.parts.equipped)},
     counts: {...(lock ? (lock.counts||{}) : AB().counts)},
@@ -3176,7 +3243,7 @@ function startMatch(mode){
   enemy.build.beamCells = beamCellsOf(enemy.build, autoArrange(enemy.build));
   // WYSIWYG per-component hitbox from the same placement.
   playerBuild.colliders = buildColliders(playerBuild, pLayout);
-  playerBuild.eff = buildEff(AB());                          // E3b : l'usure mord en combat
+  playerBuild.eff = buildEff(combatBot);                     // E3b/Phase 2 : l'usure du bot ENGAGÉ mord en combat
   enemy.build.colliders = buildColliders(enemy.build, autoArrange(enemy.build));
   /* S16-SCALE — ring RÉEL par classe (données CLASS_RING), en unités monde.
      La classe vient du concours (ses règles priment) sinon du bot joueur.
@@ -3190,6 +3257,10 @@ function startMatch(mode){
     const src = (tr && tr.arena) || (cls === "S" ? "assets/arena_s_nerd.webp" : null);
     match.arenaSprite = arenaFor(src);
     match.arenaGeom = ARENA_GEOM[src || ARENA_SRC] || { playEdge:0.95 }; }
+  /* Phase 2 — ENVELOPPE DE MATCH : une seule source pour le rendu ET les dégâts.
+     Rien dans la boucle de match ne relit S.activeBot, getLayout() ou S.customize. */
+  match.player = { botId: combatBot.botId, layout: pLayout, color: playerBuild.color, placed: playerBuild.stickers0 };
+  match.enemyLayout = autoArrange(enemy.build);              // gelé une fois (plus d'autoArrange par frame)
   particles=[]; trails=[[],[]]; flashes=[0,0]; slowmoT=0; shake=0; acc=0; lastTs=0; wasForfeit=false; odom=[0,0]; floaties=[]; wheelPhase=[0,0]; slipR=[0,0]; flipAnim=[0,0]; domShown=[false,false];
   $("hudNameA").textContent = t("you");
   $("hudNameB").textContent = enemy.name || "";
@@ -3335,10 +3406,10 @@ function draw(){
   }
   ctx.globalAlpha = 1;
 
-  // live customisation: the player's colour/decals always reflect the CURRENT
-  // choices (changing a colour then rematching shows instantly).
-  match.bots[0].build.color = S.customize.color;
-  match.bots[0].build.stickers0 = S.customize.placed;
+  // Phase 2 — WYSIWYG : le visuel du joueur est celui GELÉ à l'entrée en piste
+  // (match.player), plus la lecture live du garage — cohérent avec la physique.
+  match.bots[0].build.color = match.player.color;
+  match.bots[0].build.stickers0 = match.player.placed;
   if (!match.bots[1].build.color) ensureOppColor({name:(S.opponent&&S.opponent.name)||"", build:match.bots[1].build});
   for (const bot of match.bots){
     // WYSIWYG: the live bot is the SAME editor visual — chassis + placed tiles.
@@ -3346,7 +3417,7 @@ function draw(){
     // dans renderBotComposite avec la culbute et le retournement).
     const fa = flipAnim[bot.id]||0;
     const flipped = bot.flippedT > 0;
-    const layout = bot.id===0 ? getLayout() : autoArrange(bot.build);
+    const layout = bot.id===0 ? match.player.layout : (match.enemyLayout || autoArrange(bot.build));
     const comp = renderBotComposite(bot, layout, flipped, fa);
     // S11c — ombre portée : silhouette exacte, lumière FIXE-MONDE (bas-droite),
     // décollée pendant la culbute, resserrée quand le bot gît sur le dos.
@@ -3725,8 +3796,10 @@ function endToDebrief(){
 
   // --- bolts ---
   const w = WIN_BOLTS[S.level];
+  const exhib = curMode === "exhib";                        // P1-c : libre ET calibrage sont des exhibitions
   let earned;
-  if (wasForfeit) earned = Math.max(1, Math.ceil(w*0.1));
+  if (exhib) earned = 0;                                     // exhibition/calibrage : aucune bourse par manche
+  else if (wasForfeit) earned = Math.max(1, Math.ceil(w*0.1));
   else if (won) earned = (curMode==="tour"||curMode==="championnat"||curMode==="bracket") ? Math.ceil(w*0.5) : w;
   else earned = Math.ceil(w*0.25); // tournament losses pay too: the penalty is the restart, not poverty
   S.bolts += earned;
@@ -3798,8 +3871,8 @@ function endToDebrief(){
     $("ovMain").textContent = t("calibNote");
   } else { // qual or exhib
     if (realWin){
-      S.beaten++;
-      if (curMode === "qual"){ S.beatenAtLevel++; S.opponent = null; }
+      // P1-c : seul le qualificatif progresse ; le combat libre ne compte pas au palmarès
+      if (curMode === "qual"){ S.beaten++; S.beatenAtLevel++; S.opponent = null; }
       $("ovMain").textContent = t("nextOpp");
     } else {
       if (curMode === "qual" && S.opponent && S.opponent.gen){
@@ -3916,9 +3989,9 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
    melait produit et musee, et poussait le journal d'erreurs hors ecran. */
 function renderVersionsTable(){
   const tb = $("verTable"); if(tb){ tb.innerHTML = "";
-    const cache = "v80";                                      // repere de build (CACHE du SW)
+    const cache = "v81";                                      // repere de build (CACHE du SW)
     const rows = [[t("verRow_build"), cache],
-                  [t("verRow_save"), t("verSaveV4")],
+                  [t("verRow_save"), "v"+SAVE_V+" · "+t("verSaveV4")],
                   [t("verRow_off"), "✓"],
                   [t("verRow_maj"), "✓"]];
     rows.forEach(r=>{ const tr=document.createElement("tr");
@@ -4028,7 +4101,7 @@ if ($("ficheImport")) $("ficheImport").onclick = ()=>{
 if ($("settingsCareers")) $("settingsCareers").onclick = ()=>{ $("settingsOv").style.display="none"; showWelcome(); };
 if (!CUR_CAREER) showWelcome();                                     // premier lancement : accueil
 document.querySelectorAll("#langSeg .rc-seg__opt").forEach(o=>{
-  o.onclick = ()=>{ LANG = o.dataset.lang; S.lang = LANG; saveState(); renderHome(); };
+  o.onclick = ()=>{ LANG = o.dataset.lang; S.lang = LANG; document.documentElement.lang = LANG; saveState(); renderHome(); };
 });
 window.addEventListener("resize", ()=>{ if (match && !match.over) setupCanvas(); anchorVs(); });  // S16-UI : le VS se recale
 
@@ -4044,5 +4117,7 @@ function preloadSprites(){
   for (const v of VSTICKERS) stickerImg(v.id);
 }
 preloadSprites();
+document.documentElement.lang = LANG;   // i18n : <html lang> suit la langue au démarrage
 renderHome();
+if (SAVE_RESET_NOTICE){ SAVE_RESET_NOTICE = false; try { showToast(t("saveReset")); } catch(_){} }   // Phase 3 : reset EXPLICITE
 showTab(activeTab);

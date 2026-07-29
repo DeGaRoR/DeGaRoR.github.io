@@ -1030,7 +1030,7 @@ const ENGINE = (() => {
 
       const use = (Math.abs(bot.throttleL)+Math.abs(bot.throttleR)) * 0.5;
       bot.battery = Math.max(0, bot.battery - use * 3.2 * bot.drainMul * dt);
-      const frac = bot.battery / bot.batteryMax;
+      const frac = bot.batteryMax > 0 ? clamp(bot.battery / bot.batteryMax, 0, 1) : 0;
       // voltage sag: a LiPo droops under load and as it depletes, so the motor
       // loses rpm and torque late in the fight (physical power fade).
       const powerScale = Math.min(1, 0.45 + frac*1.1);

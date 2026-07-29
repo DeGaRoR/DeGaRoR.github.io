@@ -1,0 +1,127 @@
+{
+ "boxy": {
+  "area_cm2": 409,
+  "per_cm": 84,
+  "kg_2mm": 2.6
+ },
+ "fleche": {
+  "area_cm2": 506,
+  "per_cm": 116,
+  "kg_2mm": 3.35
+ },
+ "marteau": {
+  "area_cm2": 315,
+  "per_cm": 99,
+  "kg_2mm": 2.4
+ },
+ "tortue": {
+  "area_cm2": 330,
+  "per_cm": 89,
+  "kg_2mm": 2.34
+ },
+ "losange": {
+  "area_cm2": 266,
+  "per_cm": 59,
+  "kg_2mm": 1.73
+ },
+ "disque": {
+  "area_cm2": 438,
+  "per_cm": 84,
+  "kg_2mm": 2.71
+ },
+ "dart": {
+  "area_cm2": null,
+  "per_cm": null,
+  "kg_2mm": 1.6
+ },
+ "wedge": {
+  "area_cm2": null,
+  "per_cm": null,
+  "kg_2mm": 1.98
+ },
+ "tortue_s": {
+  "area_cm2": 60,
+  "per_cm": null,
+  "kg_2mm": 0.46
+ },
+ "coin_s": {
+  "area_cm2": 60,
+  "per_cm": null,
+  "kg_2mm": 0.5
+ },
+ "totem_s": {
+  "area_cm2": 76,
+  "per_cm": null,
+  "kg_2mm": 0.59
+ },
+ "hex_s": {
+  "area_cm2": 64,
+  "per_cm": null,
+  "kg_2mm": 0.5
+ },
+ "losange_s": {
+  "area_cm2": 68,
+  "per_cm": null,
+  "kg_2mm": 0.58
+ },
+ "boite_s": {
+  "area_cm2": 58,
+  "per_cm": null,
+  "kg_2mm": 0.445
+ },
+ "bois_s": {
+  "area_cm2": 68,
+  "per_cm": null,
+  "kg_2mm": 0.514
+ },
+ "fusible_s": {
+  "area_cm2": 60,
+  "per_cm": null,
+  "kg_2mm": 0.461
+ },
+ "couvercle_s": {
+  "area_cm2": 73,
+  "per_cm": null,
+  "kg_2mm": 0.559
+ },
+ "hdd_s": {
+  "area_cm2": 70,
+  "per_cm": null,
+  "kg_2mm": 0.535
+ },
+ "bread_s": {
+  "area_cm2": 73,
+  "per_cm": null,
+  "kg_2mm": 0.293
+ },
+ "carte_s": {
+  "area_cm2": 74,
+  "per_cm": null,
+  "kg_2mm": 0.294
+ },
+ "chine_s": {
+  "area_cm2": 68,
+  "per_cm": null,
+  "kg_2mm": 0.299
+ },
+ "italia_s": {
+  "area_cm2": 64,
+  "per_cm": null,
+  "kg_2mm": 0.283
+ },
+ "us_s": {
+  "area_cm2": 80,
+  "per_cm": null,
+  "kg_2mm": 0.354
+ },
+ "deutsch_s": {
+  "area_cm2": 67,
+  "per_cm": null,
+  "kg_2mm": 0.295
+ },
+ "nippon_s": {
+  "area_cm2": 74,
+  "per_cm": null,
+  "kg_2mm": 0.326
+ }
+}

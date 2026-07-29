@@ -27,7 +27,9 @@ puis http://localhost:8080. Sur GitHub Pages : pousser le contenu du dossier tel
 2. À chaque livraison : bosser `CACHE = "roboclash-vN"` dans sw.js (invalide l'ancien cache).
 3. Ordre de chargement intangible : data → engine → app.
 4. engine.js ne référence jamais data.js ni app.js (vérifié par la porte).
-5. Sauvegardes versionnées : jamais de bosse de SAVE_V sans migration (app.js).
+5. Sauvegardes versionnées : toute bosse de `SAVE_V` s'accompagne d'une migration
+   (`migrate`, chaîne v4→v5→v6) + une sauvegarde de secours de l'état brut ; une
+   version inconnue déclenche un reset EXPLICITE (`SAVE_RESET_NOTICE`), jamais silencieux.
 
 ## Invariants d'échelle et de rendu (S16-S19)
 - **1 cellule = 3 cm = 6,2 unités monde**, partout, sans exception.

@@ -1,0 +1,10 @@
+{
+  "name": "ai-roboclash-qc",
+  "private": true,
+  "scripts": {
+    "gate": "node tools/gate.js"
+  },
+  "dependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

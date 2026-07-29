@@ -1,0 +1,2 @@
+# QC harness dependencies — rebuildable from package.json, never commit.
+node_modules/
