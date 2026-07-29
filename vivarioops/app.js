@@ -37,8 +37,8 @@ nav.onChange(({ tab, screen, modal }) => {
   for (const [id, b] of Object.entries(buttons)) {
     if (id === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
-  document.title = `Vivarium — ${TAB_LABEL[tab]}`;
-  titleEl.textContent = modal || screen === tab ? TAB_LABEL[tab] : t('Vivarium');
+  document.title = `Vivarioops — ${TAB_LABEL[tab]}`;
+  titleEl.textContent = modal || screen === tab ? TAB_LABEL[tab] : t('Vivarioops');
 });
 
 document.getElementById('build').textContent = VERSION.app;

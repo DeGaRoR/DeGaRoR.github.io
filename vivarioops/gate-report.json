@@ -71,6 +71,6 @@
     "Tier 1: N15 (every user-visible string through t()) has no check yet — t() is in use from A1 but the DOM scan needs the dictionaries.",
     "Tier 3: N16 exception — index.html meta[name=theme-color] holds the only hex outside tokens."
   ],
-  "appV": "0.7.0",
+  "appV": "0.7.1",
   "commit": "uncommitted"
 }

@@ -1,4 +1,7 @@
-# Vivarium — handoff
+# Vivarioops — handoff
+
+Working title as of 0.7.1. Only user-visible strings carry it; module paths, the
+`viv/` directory and the ten spec documents still say Vivarium.
 
 Written at the end of the B4b sitting. **A fresh session needs: this file, the
 ten spec documents, and the zip.** The container filesystem does not persist, so
@@ -18,8 +21,8 @@ the zip is the codebase.
 | B5 First light | not started | — |
 
 Run `npm install && npm run gate`. 57 assertions, 55 pass, 0 fail, 2 pending
-(K3 → C2, R5 → browser), 1504 checks. Both gate suites mutation-tested: B3's
-6 of 7 (one recorded escape, below), B4's 23 of 23.
+(K3 → C2, R5 → browser), 1538 checks. Both gate suites mutation-tested: B3's
+6 of 7 (one recorded escape, below), B4's 27 of 27.
 
 ## Read this first: two checkpoints are owed, and both need YOU
 
@@ -81,6 +84,14 @@ frame budget at 1x, 14% at 4x. This is the typical corpus rather than 10
 **The fallback ladder is unexercised** — if it stutters on a real device, the
 order is 1/60 with 2 substeps, then cap bodies at 16, then population 4, then
 simplify post.
+
+**Fixed at 0.7.1**, all three named at delivery: pinch-zoom (multi-touch was
+unhandled, so zoom was unreachable on a phone and a pinch spun the camera);
+a portrait grid (a constant 3x2 cropped two creatures, and the camera framed
+against the vertical fov only, which is what crops in portrait); and the speed
+label, which measured the fastest BODY rather than the creature and so rewarded
+thrashing — now horizontal centre-of-mass speed, smoothed, with the vertical
+component dropped because it is buoyancy rather than thrust.
 
 What is deliberately absent: the derived binomial is not shown on the specimen
 sheet (10 §8 keeps naming to "function only, no UI"; it is one line when that

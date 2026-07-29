@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.7.1 — 2026-07-29 — Vivarioops · three tank fixes (GATE GREEN)
+
+Working title is now **Vivarioops**. User-visible strings only — `index.html`,
+the top bar, `document.title`, the package description. Module paths, the `viv/`
+directory and the spec documents are untouched, since the name is provisional
+and renaming a tree is a bad thing to undo.
+
+### Fixed — three defects named at delivery, none of which needed a device to see
+- **No pinch-zoom.** Only `wheel` was wired, so zoom was unreachable on the
+  primary target device — and worse, a two-finger pinch fed two independent
+  `pointermove` streams into the orbit handler and spun the camera at random.
+  Every active pointer is now tracked. A second finger cancels whatever the
+  first was doing: not a tap, not a long press, not an orbit. Lifting one finger
+  of a pinch cannot become a tap on the way out.
+- **Portrait cropped two of the six creatures.** The grid was a constant 3x2 —
+  48 m wide by 32 deep — against a portrait window whose visible horizontal
+  extent is about two thirds of its vertical one. `gridFor(aspect)` now rotates
+  the layout to 2x3 below aspect 1, and `frameDistance()` replaces the guessed
+  `uw * 1.25` camera multiplier: it frames the union's bounding sphere against
+  **whichever field of view is narrower**. A perspective camera's `fov` is
+  vertical, so in portrait the horizontal one is what actually crops, and
+  framing against the vertical alone is precisely how content leaves the screen.
+  Both follow the window on resize; the player's own zoom survives a resize
+  unless the grid rotated under them.
+- **The speed label measured the fastest body, not the creature.** A creature
+  thrashing one limb while going nowhere posted a large number — so the one
+  label whose purpose (21 §4.5) is to stop the player selecting on looks alone
+  was rewarding flailing. It is now the **horizontal** speed of the centre of
+  mass, smoothed. Not the full 3-D speed: buoyant drift exceeds locomotion by
+  ~40x and gravity is the only vertical force, so a 3-D number is a rise-and-sink
+  rate that reads nearly the same for all six. Horizontal motion is thrust and
+  nothing else. Smoothing is an exponential average with a 0.6 s time constant
+  in real seconds, so it does not change with frame rate or speed multiplier.
+
+### Gate
+- **GREEN.** 57 assertions, 55 passed, 0 failed, 2 pending. 1538 checks.
+- **Mutation-tested: 27 of 27**, four of them new — a grid that ignores the
+  window, framing against the vertical fov only, a speed label that counts
+  buoyant drift as swimming, and smoothing that is per frame rather than per
+  second (which would read differently on a fast device than a slow one).
+- L1-32 now asserts **both** grid orientations tile without overlap and that the
+  union fits in both fields of view at three aspect ratios. Asserting only the
+  landscape case left the phone — the primary target — unchecked.
+
 ## 0.7.0 — 2026-07-29 — B4b · The tank (GATE GREEN)
 
 The screen. Six creatures under physics, tap-select, Breed, Undo, Pause, Speed.

@@ -19,8 +19,8 @@ import { buildCreature, disposeCreature, token } from '../../render/creature.js'
 import { W1_SLICE } from '../../worlds/w1_slice.js';
 import { button } from '../widgets.js';
 import {
-  cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer,
-  nextSpeed, STATE, BREEDING_MS, TAP,
+  cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, gridFor,
+  frameDistance, smoothSpeed, horizontalSpeed, nextSpeed, STATE, BREEDING_MS, TAP,
 } from '../tank/sim.js';
 
 /** A token that is a length, as a number. N16 forbids the literal; this reads it. */
@@ -69,15 +69,32 @@ export default {
       new THREE.Color(token('--c-accent')), new THREE.Color(token('--c-surface')), 0.5));
 
     // The wireframe is the UNION of the six real tanks (see ui/tank/sim.js), so
-    // what is drawn is a true statement about where creatures can go.
-    const [uw, uh, ud] = unionBounds(W1_SLICE.tankBounds);
-    scene.fog = new THREE.Fog(bg, uw * 0.5, uw * 2.5);
-    const bounds = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(uw, uh, ud)),
-      new THREE.LineBasicMaterial({ color: new THREE.Color(token('--c-line')) }));
-    scene.add(bounds);
+    // what is drawn is a true statement about where creatures can go. Both the
+    // grid and the box follow the window: see gridFor().
+    let grid = gridFor(1);
+    let cells = cellCentres(W1_SLICE.tankBounds, grid);
+    let union = unionBounds(W1_SLICE.tankBounds, grid);
 
-    const cells = cellCentres(W1_SLICE.tankBounds);
+    const boundsMat = new THREE.LineBasicMaterial({ color: new THREE.Color(token('--c-line')) });
+    let bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
+    scene.add(bounds);
+    scene.fog = new THREE.Fog(bg, union[0] * 0.5, union[0] * 2.5);
+
+    function relayout(aspect) {
+      const next = gridFor(aspect);
+      if (next.cols === grid.cols && next.rows === grid.rows) return false;
+      grid = next;
+      cells = cellCentres(W1_SLICE.tankBounds, grid);
+      union = unionBounds(W1_SLICE.tankBounds, grid);
+      scene.remove(bounds);
+      bounds.geometry.dispose();
+      bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
+      scene.add(bounds);
+      scene.fog.near = union[0] * 0.5;
+      scene.fog.far = Math.max(union[0], union[2]) * 2.5;
+      for (const s of slots) s.group.position.set(cells[s.index][0], cells[s.index][1], cells[s.index][2]);
+      return true;
+    }
 
     // ── state ───────────────────────────────────────────────────────────────
     let state = STATE.LOADING;
@@ -90,9 +107,11 @@ export default {
     let stopped = false;
     let ready = false;
 
-    // Orbit, in spherical coordinates about the tank centre.
-    const orbit = { theta: 0.6, phi: 1.15, dist: uw * 1.25 };
-    const HOME = { ...orbit };
+    // Orbit, in spherical coordinates about the tank centre. `home` is computed
+    // from the window on every resize rather than being a multiplier that
+    // happened to look right once — see frameDistance().
+    const orbit = { theta: 0.6, phi: 1.15, dist: 1 };
+    const HOME = { theta: 0.6, phi: 1.15, dist: 1 };
 
     // ── creature slots ──────────────────────────────────────────────────────
     // One simulation per creature, each in its own unmodified W1 tank, drawn at
@@ -155,6 +174,8 @@ export default {
       for (let n = 0; n < steps; n++) for (const s of slots) s.sim.step();
     }
 
+    let lastDt = 0;
+
     function syncPoses() {
       for (const s of slots) {
         s.sim.readPose(s.pose);
@@ -167,12 +188,17 @@ export default {
         // 21 §4.5: one number, always visible — SPEED. Not a score, not fitness.
         // A player selecting on looks alone in a game about locomotion is
         // missing half the subject.
-        let v = 0;
+        //
+        // Mass-weighted mean velocity IS the centre of mass's velocity, and only
+        // its horizontal part is thrust — see smoothSpeed() in ui/tank/sim.js
+        // for why neither the fastest body nor the full 3-D speed will do.
+        let vx = 0, vy = 0, vz = 0, m = 0;
         for (const rb of s.sim.bodies) {
-          const lv = rb.linvel();
-          v = Math.max(v, Math.hypot(lv.x, lv.y, lv.z));
+          const lv = rb.linvel(), bm = rb.mass();
+          vx += lv.x * bm; vy += lv.y * bm; vz += lv.z * bm; m += bm;
         }
-        s.speed = v;
+        if (m > 0) { vx /= m; vy /= m; vz /= m; }
+        s.speed = smoothSpeed(s.speed, horizontalSpeed([vx, vy, vz]), lastDt);
         const c = s.sim.centreOfMass();
         s.world.set(c[0] + cells[s.index][0], c[1] + cells[s.index][1], c[2] + cells[s.index][2]);
       }
@@ -227,6 +253,9 @@ export default {
       raf = requestAnimationFrame(frame);
       const dt = lastMs ? Math.min(nowMs - lastMs, 250) : 0;
       lastMs = nowMs;
+      // Smoothing is per real second, so it does not change with frame rate.
+      // Paused means no new samples, not a decay towards zero.
+      lastDt = (paused || state === STATE.BREEDING) ? 0 : dt / 1000;
 
       if (state === STATE.BREEDING && nowMs >= breedingUntil) {
         state = paused ? STATE.PAUSED : STATE.SIMULATING;
@@ -249,6 +278,18 @@ export default {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let down = null, longPressTimer = 0;
+
+    // MULTI-TOUCH. Every active pointer is tracked, not just the first, because
+    // a phone has no wheel: without this, zoom is unreachable on the primary
+    // target device, and worse, a two-finger pinch feeds two independent
+    // pointermove streams into the orbit handler and spins the camera at random.
+    const pointers = new Map();
+    let pinch = null;   // { dist, orbitDist } while two fingers are down
+
+    const pinchSpan = () => {
+      const [a, b] = [...pointers.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
 
     function pick(clientX, clientY) {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -274,10 +315,26 @@ export default {
       return best;
     }
 
+    const zoomTo = (d) => {
+      orbit.dist = Math.min(HOME.dist * 2.5, Math.max(HOME.dist * 0.3, d));
+    };
+
     view.addEventListener('pointerdown', (e) => {
       if (!ready || state === STATE.BREEDING) return;
-      down = { x: e.clientX, y: e.clientY, at: performance.now(), moved: false, target: pick(e.clientX, e.clientY) };
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       view.setPointerCapture?.(e.pointerId);
+
+      if (pointers.size === 2) {
+        // A second finger cancels whatever the first was doing. It is not a tap,
+        // not a long press and not an orbit — it is the start of a pinch.
+        clearTimeout(longPressTimer);
+        down = null;
+        pinch = { dist: pinchSpan(), orbitDist: orbit.dist };
+        return;
+      }
+      if (pointers.size > 2) { pinch = null; down = null; clearTimeout(longPressTimer); return; }
+
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now(), moved: false, target: pick(e.clientX, e.clientY) };
       clearTimeout(longPressTimer);
       if (down.target) {
         longPressTimer = setTimeout(() => {
@@ -287,7 +344,16 @@ export default {
     });
 
     view.addEventListener('pointermove', (e) => {
-      if (!down) return;
+      const p = pointers.get(e.pointerId);
+      if (p) { p.x = e.clientX; p.y = e.clientY; }
+
+      if (pinch && pointers.size === 2) {
+        const span = pinchSpan();
+        if (pinch.dist > 0 && span > 0) zoomTo(pinch.orbitDist * (pinch.dist / span));
+        return;
+      }
+      if (!down || e.pointerId !== down.id) return;
+
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
       if (Math.hypot(dx, dy) >= TAP.maxMovePx) {
         down.moved = true;
@@ -300,19 +366,23 @@ export default {
       }
     });
 
-    view.addEventListener('pointerup', (e) => {
+    function endPointer(e) {
       clearTimeout(longPressTimer);
-      if (!down) return;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
+      // Lifting one finger of a pinch must not become a tap on the way out.
+      if (!down || e.pointerId !== down.id) { if (pointers.size === 0) down = null; return; }
       const kind = classifyPointer({ dx: e.clientX - down.x, dy: e.clientY - down.y, ms: performance.now() - down.at });
       if (kind === 'tap' && !down.moved && down.target) toggleSelect(down.target.index);
       down = null;
-    });
+    }
 
-    view.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = null; });
+    view.addEventListener('pointerup', endPointer);
+    view.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); pinch = null; down = null; clearTimeout(longPressTimer); });
 
     view.addEventListener('wheel', (e) => {
       e.preventDefault();
-      orbit.dist = Math.min(uw * 3, Math.max(uw * 0.35, orbit.dist * (1 + Math.sign(e.deltaY) * 0.12)));
+      zoomTo(orbit.dist * (1 + Math.sign(e.deltaY) * 0.12));
     }, { passive: false });
 
     view.addEventListener('dblclick', () => { Object.assign(orbit, HOME); });
@@ -455,8 +525,21 @@ export default {
       const w = view.clientWidth, h = view.clientHeight;
       if (!w || !h) return;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
+      const aspect = w / h;
+      camera.aspect = aspect;
       camera.updateProjectionMatrix();
+
+      // Grid first: it changes the union, which changes the framing.
+      const rotated = relayout(aspect);
+      const fovV = (camera.fov * Math.PI) / 180;
+      const home = frameDistance(union, fovV, aspect);
+      const wasHome = Math.abs(orbit.dist - HOME.dist) < HOME.dist * 0.02;
+      HOME.dist = home;
+      // Keep the player's zoom across a resize, unless they had never touched it
+      // or the grid just rotated under them — in which case their old distance
+      // frames a box that no longer exists.
+      if (wasHome || rotated) orbit.dist = home;
+      else zoomTo(orbit.dist);
     }
     const ro = new ResizeObserver(resize);
     ro.observe(view);

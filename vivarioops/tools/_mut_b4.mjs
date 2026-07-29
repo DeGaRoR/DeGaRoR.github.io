@@ -105,6 +105,20 @@ const MUTATIONS = [
 
   ['ui/tank/sim.js', 'L1-33', 'a drag is treated as a tap',
    "if (Math.hypot(dx, dy) >= TAP.maxMovePx) return 'drag';", ''],
+  ['ui/tank/sim.js', 'L1-32', 'the grid ignores the window, cropping portrait',
+   "return aspect >= 1 ? { cols: 3, rows: 2 } : { cols: 2, rows: 3 };",
+   "return { cols: 3, rows: 2 };"],
+
+  ['ui/tank/sim.js', 'L1-32', 'framing uses only the vertical fov, so portrait crops the sides',
+   'return (margin * radius) / Math.sin(Math.min(fovV, fovH) / 2);',
+   'return (margin * radius) / Math.sin(fovV / 2);'],
+
+  ['ui/tank/sim.js', 'L1-33', 'the speed label counts buoyant drift as swimming',
+   'return Math.hypot(velocity[0], velocity[2]);',
+   'return Math.hypot(velocity[0], velocity[1], velocity[2]);'],
+
+  ['ui/tank/sim.js', 'L1-33', 'smoothing is per frame, not per second',
+   'const a = 1 - Math.exp(-dt / tau);', 'const a = 0.1;'],
 ];
 
 let caught = 0;

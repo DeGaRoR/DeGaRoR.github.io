@@ -27,7 +27,8 @@ import { breed, seedPopulation, POPULATION, KIND, MUTATIONS_PER_OFFSPRING } from
 import { binomial, signature, genusSpace, EPITHET_COUNT, NAME_AXES } from '../engine/l1/naming.js';
 import {
   cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, nextSpeed,
-  SPEEDS, GRID, TAP, BREEDING_MS,
+  gridFor, frameDistance, smoothSpeed, horizontalSpeed,
+  SPEEDS, GRID, TAP, BREEDING_MS, SPEED_TAU,
 } from '../ui/tank/sim.js';
 import W1_SLICE from '../worlds/w1_slice.js';
 
@@ -546,32 +547,58 @@ export async function runBreedGate() {
   // presents as "the app froze", and a hit radius without a floor makes the
   // smallest creature in the tank unselectable.
   g.assertion('L1-32', 'Tank layout tiles without overlap and the timestep is clamped', (t) => {
-    const cells = cellCentres(W1_SLICE.tankBounds);
-    t.eq(cells.length, POPULATION, 'there is one cell per creature');
-    t.eq(GRID.cols * GRID.rows, POPULATION, 'the grid holds exactly the population');
-
-    // NO TWO CELLS OVERLAP. Each creature is confined to its own W1 tank, so
-    // cell centres one full tank apart make cross-tank contact impossible —
-    // which is what lets six independent simulations read as one aquarium.
     const [w, h, d] = W1_SLICE.tankBounds;
-    let tooClose = 0;
-    for (let a = 0; a < cells.length; a++) {
-      for (let b = a + 1; b < cells.length; b++) {
-        const dx = Math.abs(cells[a][0] - cells[b][0]);
-        const dz = Math.abs(cells[a][2] - cells[b][2]);
-        if (dx < w - 1e-9 && dz < d - 1e-9) tooClose++;
-      }
-    }
-    t.eq(tooClose, 0, 'no two tank cells overlap');
 
-    // The drawn wireframe is the union of the six real tanks, not a bigger box
-    // invented to look roomy.
-    const u = unionBounds(W1_SLICE.tankBounds);
-    t.eq(JSON.stringify(u), JSON.stringify([w * GRID.cols, h, d * GRID.rows]),
-      'the drawn bounds are exactly the union of the cells');
-    for (const c of cells) {
-      t.ok(Math.abs(c[0]) + w / 2 <= u[0] / 2 + 1e-9 && Math.abs(c[2]) + d / 2 <= u[2] / 2 + 1e-9,
-        'every cell lies inside the drawn bounds', c);
+    // BOTH orientations, because the grid follows the window. Asserting only the
+    // landscape one would leave the portrait layout — the phone case, which is
+    // the primary target — entirely unchecked.
+    t.eq(JSON.stringify(gridFor(1.8)), JSON.stringify({ cols: 3, rows: 2 }), 'landscape lays out 3x2');
+    t.eq(JSON.stringify(gridFor(0.5)), JSON.stringify({ cols: 2, rows: 3 }), 'portrait lays out 2x3');
+    t.eq(JSON.stringify(gridFor(1)), JSON.stringify(GRID), 'a square window keeps the default grid');
+
+    for (const grid of [gridFor(1.8), gridFor(0.5)]) {
+      const tag = `${grid.cols}x${grid.rows}`;
+      const cells = cellCentres(W1_SLICE.tankBounds, grid);
+      t.eq(cells.length, POPULATION, `${tag}: one cell per creature`);
+      t.eq(grid.cols * grid.rows, POPULATION, `${tag}: the grid holds exactly the population`);
+
+      // NO TWO CELLS OVERLAP. Each creature is confined to its own W1 tank, so
+      // cell centres one full tank apart make cross-tank contact impossible —
+      // which is what lets six independent simulations read as one aquarium.
+      let tooClose = 0;
+      for (let a = 0; a < cells.length; a++) {
+        for (let b = a + 1; b < cells.length; b++) {
+          const dx = Math.abs(cells[a][0] - cells[b][0]);
+          const dz = Math.abs(cells[a][2] - cells[b][2]);
+          if (dx < w - 1e-9 && dz < d - 1e-9) tooClose++;
+        }
+      }
+      t.eq(tooClose, 0, `${tag}: no two tank cells overlap`);
+
+      // The drawn wireframe is the union of the six real tanks, not a bigger box
+      // invented to look roomy.
+      const u = unionBounds(W1_SLICE.tankBounds, grid);
+      t.eq(JSON.stringify(u), JSON.stringify([w * grid.cols, h, d * grid.rows]),
+        `${tag}: the drawn bounds are exactly the union of the cells`);
+      for (const c of cells) {
+        t.ok(Math.abs(c[0]) + w / 2 <= u[0] / 2 + 1e-9 && Math.abs(c[2]) + d / 2 <= u[2] / 2 + 1e-9,
+          `${tag}: every cell lies inside the drawn bounds`, c);
+      }
+
+      // FRAMING. The whole union must fit, in BOTH fields of view. A perspective
+      // camera's fov is vertical, so in portrait the horizontal one is narrower
+      // and is what actually crops — framing against the vertical fov alone is
+      // exactly how the outer column ends up off-screen.
+      const fovV = 42 * Math.PI / 180;
+      for (const aspect of [1.8, 1.0, 0.46]) {
+        const dist = frameDistance(u, fovV, aspect);
+        const radius = 0.5 * Math.hypot(u[0], u[1], u[2]);
+        const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
+        t.ok(dist * Math.sin(fovV / 2) >= radius, `${tag} @ ${aspect}: fits vertically`);
+        t.ok(dist * Math.sin(fovH / 2) >= radius, `${tag} @ ${aspect}: fits horizontally`);
+      }
+      t.ok(frameDistance(u, 42 * Math.PI / 180, 0.46) > frameDistance(u, 42 * Math.PI / 180, 1.8),
+        `${tag}: a narrower window needs more distance, not less`);
     }
 
     // The accumulator. 01 §7 fixes the step at 1/120 whatever the display does.
@@ -618,6 +645,26 @@ export async function runBreedGate() {
     t.eq(BREEDING_MS, 600, '21 §4.4: the BREEDING beat is 600 ms');
     t.eq(JSON.stringify(SPEEDS), JSON.stringify([1, 2, 4]), '21 §4.3: speed cycles 1x/2x/4x');
     t.eq(nextSpeed(4), 1, 'speed wraps');
+
+    // THE SPEED LABEL (21 §4.5). Horizontal centre-of-mass motion is thrust;
+    // vertical motion is buoyancy, which exceeds locomotion by ~40x and would
+    // make the label read nearly the same for every creature.
+    t.eq(horizontalSpeed([3, 100, 4]), 5, 'the label ignores vertical drift entirely');
+    t.eq(horizontalSpeed([0, 9, 0]), 0, 'a creature that only rises reads as zero');
+
+    // Smoothing is per real SECOND, so it does not change with frame rate or
+    // with the speed multiplier.
+    t.eq(SPEED_TAU, 0.6, 'the smoothing time constant is 0.6 s');
+    t.eq(smoothSpeed(2, 5, 0), 2, 'a zero-length frame contributes no sample');
+    const oneStep = smoothSpeed(0, 1, SPEED_TAU);
+    t.close(oneStep, 1 - Math.exp(-1), 1e-9, 'one time constant closes 63% of the gap');
+    // Two frames of half the length must land where one full frame does, or the
+    // label reads differently on a fast device than a slow one.
+    t.close(smoothSpeed(smoothSpeed(0, 1, SPEED_TAU / 2), 1, SPEED_TAU / 2), oneStep, 1e-9,
+      'smoothing is frame-rate independent');
+    let v = 0;
+    for (let i = 0; i < 400; i++) v = smoothSpeed(v, 3, 0.016);
+    t.close(v, 3, 1e-3, 'a held speed converges to that speed');
   });
 
   const results = g.results;

@@ -29,6 +29,35 @@
  */
 export const GRID = { cols: 3, rows: 2 };
 
+/**
+ * The grid follows the SCREEN, not a constant.
+ *
+ * A fixed 3x2 lays the six cells out 48 m wide by 32 m deep. On a portrait
+ * phone the visible horizontal extent is roughly two thirds of the vertical
+ * one, so the outer column falls off both edges and two of the six creatures
+ * are simply not there. Rotating the grid costs nothing and the alternative —
+ * pulling the camera back far enough to fit a wide grid into a tall window —
+ * makes every creature smaller than it needs to be.
+ */
+export function gridFor(aspect) {
+  return aspect >= 1 ? { cols: 3, rows: 2 } : { cols: 2, rows: 3 };
+}
+
+/**
+ * The camera distance that FITS the union box, rather than a multiplier that
+ * happened to look right in one window.
+ *
+ * The union's bounding sphere is framed against whichever field of view is
+ * narrower. A perspective camera's `fov` is vertical, so in portrait the
+ * horizontal one is smaller and is what actually crops — computing only against
+ * the vertical fov is exactly how content ends up cut off the sides.
+ */
+export function frameDistance(bounds, fovV, aspect, margin = 1.08) {
+  const radius = 0.5 * Math.hypot(bounds[0], bounds[1], bounds[2]);
+  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
+  return (margin * radius) / Math.sin(Math.min(fovV, fovH) / 2);
+}
+
 /** Cell centres, in world metres, for a tank of `bounds` = [w, h, d]. */
 export function cellCentres(bounds, grid = GRID) {
   const [w, , d] = bounds;
@@ -101,6 +130,37 @@ export function classifyPointer({ dx, dy, ms }) {
   if (ms >= TAP.longPressMs) return 'longpress';
   if (ms < TAP.maxDurationMs) return 'tap';
   return 'hold';
+}
+
+/**
+ * Per-creature speed label (21 §4.5) — HORIZONTAL centre-of-mass speed, smoothed.
+ *
+ * Three things this is deliberately not:
+ *
+ *   - not the fastest body. That was the first version and it is backwards: a
+ *     creature thrashing one limb while going nowhere posts a large number, so
+ *     the one label meant to stop the player selecting on looks alone instead
+ *     rewards flailing.
+ *   - not the full centre-of-mass speed. Buoyant drift exceeds locomotion by
+ *     about 40x (B3) and gravity is the only vertical force, so a 3-D speed is
+ *     mostly a rise-and-sink rate and reads nearly the same for all six.
+ *     Horizontal motion of the centre of mass is thrust and nothing else.
+ *   - not instantaneous. An undulating creature's speed oscillates with its own
+ *     gait, and at 4x the raw number is unreadable.
+ *
+ * Exponential moving average with a time constant in SECONDS, so the smoothing
+ * does not change when the frame rate or the speed multiplier does.
+ */
+export const SPEED_TAU = 0.6;
+
+export function smoothSpeed(previous, sample, dt, tau = SPEED_TAU) {
+  if (!(dt > 0)) return previous;
+  const a = 1 - Math.exp(-dt / tau);
+  return previous + a * (sample - previous);
+}
+
+export function horizontalSpeed(velocity) {
+  return Math.hypot(velocity[0], velocity[2]);
 }
 
 /** 21 §4.3: Speed cycles 1x/2x/4x, and is disabled while paused. */
