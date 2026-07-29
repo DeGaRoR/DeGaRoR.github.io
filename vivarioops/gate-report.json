@@ -1,0 +1,76 @@
+{
+  "name": "trunk-static",
+  "results": [
+    {
+      "id": "N1",
+      "title": "No Math.random() in /engine/",
+      "status": "pass",
+      "checks": 1,
+      "failures": [],
+      "note": "10 file(s) in /engine/"
+    },
+    {
+      "id": "N2",
+      "title": "No Date, performance, window, document in /engine/",
+      "status": "pass",
+      "checks": 1,
+      "failures": [],
+      "note": "10 file(s) in /engine/"
+    },
+    {
+      "id": "N3",
+      "title": "/engine/ imports nothing from /render/, /ui/, /trunk/",
+      "status": "pass",
+      "checks": 1,
+      "failures": [],
+      "note": "10 file(s) in /engine/"
+    },
+    {
+      "id": "N5",
+      "title": "All randomness derives from seed(); no PRNG constructed outside trunk/rng.js",
+      "status": "pass",
+      "checks": 1,
+      "failures": [],
+      "note": "app-wide, stricter than N1"
+    },
+    {
+      "id": "N8",
+      "title": "No localStorage / sessionStorage anywhere",
+      "status": "pass",
+      "checks": 1,
+      "failures": []
+    },
+    {
+      "id": "N14",
+      "title": "No confirm()/alert()/prompt(); destructive actions offer undo",
+      "status": "pass",
+      "checks": 1,
+      "failures": []
+    },
+    {
+      "id": "N16",
+      "title": "No hex colours or raw pixel values in components; tokens only",
+      "status": "pass",
+      "checks": 1,
+      "failures": [],
+      "note": "11 component file(s); trunk/ui/tokens.css is the token source and is out of scope"
+    },
+    {
+      "id": "V1",
+      "title": "version.json, trunk/version.js and contracts/versions.js agree",
+      "status": "pass",
+      "checks": 1,
+      "failures": []
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "pending": 0,
+  "checks": 8,
+  "obligations": [
+    "Tier 1: N15 (every user-visible string through t()) has no check yet — t() is in use from A1 but the DOM scan needs the dictionaries.",
+    "Tier 3: N16 exception — index.html meta[name=theme-color] holds the only hex outside tokens."
+  ],
+  "appV": "0.7.0",
+  "commit": "uncommitted"
+}

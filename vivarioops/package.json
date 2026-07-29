@@ -1,0 +1,16 @@
+{
+  "name": "vivarium",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Vivarium — procedural creature breeding, measurement and ecology. Vertical slice.",
+  "scripts": {
+    "gate": "node gate/run.js",
+    "build": "node tools/build.js",
+    "navsim": "node tools/navsim.js"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.19.3",
+    "three": "0.185.1"
+  }
+}

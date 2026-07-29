@@ -1,0 +1,40 @@
+/* trunk/ui/tokens.css — Tier S minimum.
+ *
+ * N16 forbids hex colours and raw pixel values in components, which requires
+ * tokens to exist. 20 §2 puts the DESIGN SYSTEM in Tier 1; this is not that.
+ * It is the smallest token set that makes N16 a real check rather than a
+ * vacuous one. Tier 1 expands it; component call sites do not change. */
+
+:root {
+  /* colour — dark water, per 02 W1 */
+  --c-bg:        #05080c;
+  --c-surface:   #0c1219;
+  --c-surface-2: #131c26;
+  --c-line:      #1e2b38;
+  --c-text:      #d6e2ee;
+  --c-text-dim:  #708496;
+  --c-accent:    #4fd1c5;
+  --c-warn:      #e0a458;
+  --c-fail:      #e06c75;
+  --c-pass:      #7fc98a;
+
+  /* space */
+  --s-0: 0; --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+
+  /* type */
+  --f-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --t-xs: 11px; --t-sm: 13px; --t-md: 15px; --t-lg: 19px; --t-xl: 24px;
+
+  /* chrome */
+  --r-1: 4px; --r-2: 8px;
+  --tapsize: 44px;          /* 21 §1 phone-first minimum */
+  --tabbar-h: 56px;
+  --topbar-h: 48px;
+
+  /* tank — B4b. Selection rings and per-creature labels. */
+  --c-select:    #4fd1c5;   /* = accent; named separately so selection can diverge */
+  --c-stranger:  #e0a458;   /* = warn; N17's slot must not read as a bug */
+  --ring-w: 2px;
+  --label-pad: 3px;
+}

@@ -1,0 +1,149 @@
+/* ui/base.css — layout only. Every value is a token or a unitless/relative value.
+   No hex colours and no raw pixel values (N16). */
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--f-ui);
+  font-size: var(--t-md);
+  overscroll-behavior: none;
+}
+
+#app { display: flex; flex-direction: column; height: 100%; }
+
+#topbar {
+  height: var(--topbar-h); flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--s-0) var(--s-4);
+  border-bottom: thin solid var(--c-line);
+  background: var(--c-surface);
+}
+#topbar .title { font-size: var(--t-md); font-weight: 600; letter-spacing: 0.02em; }
+#topbar .build { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim); }
+
+#stage { position: relative; flex: 1 1 auto; overflow: hidden; }
+#screen, #overlay { position: absolute; inset: var(--s-0); overflow-y: auto; }
+#overlay { background: var(--c-bg); }
+#overlay[hidden] { display: none; }
+
+#tabbar {
+  height: var(--tabbar-h); flex: none;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  border-top: thin solid var(--c-line);
+  background: var(--c-surface);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#tabbar button {
+  min-height: var(--tapsize);
+  background: none; border: none; color: var(--c-text-dim);
+  font: inherit; font-size: var(--t-sm); cursor: pointer;
+}
+#tabbar button[aria-current="page"] { color: var(--c-accent); }
+
+.placeholder { padding: var(--s-6) var(--s-4); }
+.placeholder h1 { font-size: var(--t-xl); font-weight: 500; margin-bottom: var(--s-2); }
+.placeholder p { color: var(--c-text-dim); font-size: var(--t-sm); }
+
+.sheet { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-5); }
+.section h2 {
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--c-text-dim); margin-bottom: var(--s-2);
+}
+.row {
+  display: flex; justify-content: space-between; gap: var(--s-3);
+  padding: var(--s-2) var(--s-0);
+  border-bottom: thin solid var(--c-line);
+  font-size: var(--t-sm);
+}
+.row-l { color: var(--c-text-dim); }
+.row-v { font-family: var(--f-mono); text-align: right; word-break: break-all; }
+
+.btn {
+  min-height: var(--tapsize); width: 100%;
+  margin-top: var(--s-2);
+  background: var(--c-surface-2); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-2);
+  font: inherit; font-size: var(--t-sm); cursor: pointer;
+}
+.btn:active { background: var(--c-line); }
+
+.field {
+  width: 100%; min-height: var(--tapsize);
+  padding: var(--s-0) var(--s-3);
+  background: var(--c-surface-2); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-2);
+  font-family: var(--f-mono); font-size: var(--t-sm);
+}
+
+.gate-out {
+  margin-top: var(--s-3); padding: var(--s-3);
+  background: var(--c-surface-2); border-radius: var(--r-2);
+  border-left: var(--s-1) solid var(--c-line);
+  font-family: var(--f-mono); font-size: var(--t-xs); line-height: 1.5;
+  white-space: pre-wrap; overflow-x: auto;
+}
+.gate-out[data-state="pass"] { border-left-color: var(--c-pass); }
+.gate-out[data-state="fail"] { border-left-color: var(--c-fail); }
+
+.tank { display: flex; flex-direction: column; height: 100%; }
+.tank-view { flex: 1 1 auto; min-height: var(--s-6); position: relative; }
+.tank-view canvas { display: block; width: 100%; height: 100%; }
+.tank-panel {
+  flex: none; padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: thin solid var(--c-line); background: var(--c-surface);
+}
+
+/* ── tank, B4b ──────────────────────────────────────────────────────────────
+   The view is full-bleed and the controls float over nothing; 21 §4.1 puts the
+   tank in the middle band with a floating control row and Breed as primary. */
+
+.tank-view { position: relative; overflow: hidden; touch-action: none; }
+
+.tank-labels { position: absolute; inset: var(--s-0); pointer-events: none; }
+.tank-label {
+  position: absolute; top: var(--s-0); left: var(--s-0);
+  padding: var(--label-pad) var(--s-2);
+  border-radius: var(--r-1);
+  background: var(--c-surface);
+  color: var(--c-text-dim);
+  font-family: var(--f-mono); font-size: var(--t-xs);
+  border: thin solid transparent;
+  opacity: 0.85;
+}
+.tank-label[data-selected="yes"] { color: var(--c-text); border-color: var(--c-select); opacity: 1; }
+.tank-label[hidden] { display: none; }
+
+.tank-status {
+  flex: none; padding: var(--s-2) var(--s-4);
+  border-top: thin solid var(--c-line); background: var(--c-surface);
+  font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim);
+}
+
+.tank-controls {
+  flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: var(--s-2); padding: var(--s-0) var(--s-4);
+  background: var(--c-surface);
+}
+.tank-controls .btn { margin-top: var(--s-2); }
+.tank-controls .btn:disabled { color: var(--c-text-dim); opacity: 0.5; }
+
+.tank-primary { flex: none; padding: var(--s-2) var(--s-4) var(--s-4); background: var(--c-surface); }
+.btn.primary { background: var(--c-accent); color: var(--c-bg); font-weight: 600; border-color: var(--c-accent); }
+.btn.primary:disabled { background: var(--c-surface-2); color: var(--c-text-dim); border-color: var(--c-line); font-weight: 400; }
+
+/* The 600 ms BREEDING beat: a visible transition, so the player can tell that
+   something happened (21 §4.4). */
+.tank-view[data-breeding="yes"] canvas { opacity: 0.35; transition: opacity 120ms linear; }
+.tank-view canvas { transition: opacity 240ms linear; }
+
+.tank-sheet {
+  position: absolute; inset: auto var(--s-0) var(--s-0) var(--s-0);
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border-top: thin solid var(--c-line);
+  border-radius: var(--r-2) var(--r-2) var(--s-0) var(--s-0);
+}
+.tank-sheet[hidden] { display: none; }
