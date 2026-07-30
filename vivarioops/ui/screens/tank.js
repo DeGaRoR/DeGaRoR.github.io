@@ -11,7 +11,8 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { t } from '../../trunk/i18n.js';
-import { rngFrom } from '../../trunk/rng.js';
+import { rngFrom, freshVivariumSeed } from '../../trunk/rng.js';
+import * as store from '../../trunk/store.js';
 import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
@@ -100,6 +101,7 @@ export default {
     let state = STATE.LOADING;
     let generation = 0;
     let genomes = [], provenance = [], slots = [];
+    let vivariumSeed = 0;   // H7 — this lineage's own seed; see loadOrCreateVivariumSeed
     let previous = null;            // one-step undo: 21 §4.3
     let selected = new Set();
     let speed = 1, paused = false;
@@ -407,7 +409,12 @@ export default {
         [t('Mass'), `${s.mass.toFixed(2)} kg`],
         [t('Radius'), `${s.radius.toFixed(2)} m`],
         [t('Speed'), `${s.speed.toFixed(2)} m/s`],
-        [t('Origin'), t(provenance[s.index]?.kind ?? KIND.STRANGER)],
+        // H3b — a stranger whose viability search was exhausted is filled into
+        // the slot anyway so the tank is never short, but it is never presented
+        // as an ordinary creature. `viable` is absent on elites and offspring,
+        // so only an explicit false says anything.
+        [t('Origin'), t(provenance[s.index]?.kind ?? KIND.STRANGER)
+          + (provenance[s.index]?.viable === false ? t(' · unviable, search exhausted') : '')],
       ];
       for (const [l, v] of rows) {
         const r = document.createElement('div');
@@ -461,7 +468,10 @@ export default {
       const r = breed({
         RAPIER, genomes,
         selected: [...selected],
-        rng: rngFrom('tank', 'breed', generation),
+        // H7 — every stream hangs off this lineage's own seed, so two players
+        // making the same selections get different offspring. Determinism is
+        // preserved WITHIN a lineage: same vivariumSeed, same everything.
+        rng: rngFrom('tank', vivariumSeed, 'breed', generation),
         world: W1_SLICE,
       });
       genomes = r.genomes;
@@ -500,6 +510,24 @@ export default {
       status.textContent = parts.join('  ·  ');
     }
 
+    /**
+     * This lineage's seed: read it, or mint one and persist it (H7).
+     *
+     * Persisted, because a seed regenerated on every load would make the tank
+     * non-reproducible in the other direction — the same lineage would drift
+     * each time it was opened, and no shared fiche could ever be replayed.
+     */
+    async function loadOrCreateVivariumSeed() {
+      const KEY = 'vivarium:seed';
+      try {
+        const stored = await store.get(KEY);
+        if (Number.isInteger(stored) && stored >= 0 && stored <= 0xFFFFFFFF) return stored;
+      } catch { /* first run, or storage unavailable — mint below */ }
+      const fresh = freshVivariumSeed();
+      try { await store.set(KEY, fresh); } catch { /* unpersisted is still better than shared */ }
+      return fresh;
+    }
+
     // ── boot ────────────────────────────────────────────────────────────────
     // RAPIER.init() is async and 01 §4 forbids async inside /engine/, so the
     // screen awaits it once and hands the namespace down. Until then the tank
@@ -512,7 +540,11 @@ export default {
       await RAPIER.init();
       if (stopped) return;
       // 21 §4.6: first run auto-creates a lineage.
-      const seeded = seedPopulation({ RAPIER, rng: rngFrom('tank', 'seed'), world: W1_SLICE });
+      // H7 — created once, then persisted. `rngFrom('tank', 'seed')` gave every
+      // player the same six creatures; reproducibility is meant to replay ONE
+      // lineage, not to issue everyone the same one.
+      vivariumSeed = await loadOrCreateVivariumSeed();
+      const seeded = seedPopulation({ RAPIER, rng: rngFrom('tank', vivariumSeed, 'seed'), world: W1_SLICE });
       genomes = seeded.genomes;
       provenance = seeded.provenance;
       buildSlots();

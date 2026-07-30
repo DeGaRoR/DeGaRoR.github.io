@@ -165,6 +165,117 @@ export function runStaticGate() {
     [...hits(components, R_HEX), ...hits(components, R_PX)],
     { note: `${components.length} component file(s); trunk/ui/tokens.css is the token source and is out of scope` });
 
+  // ── boot resolution (H1) ──────────────────────────────────────────────────
+  //
+  // WHAT THIS IS FOR. A gate that is green while the application cannot BOOT is
+  // the worst kind of green, and that was the state until H1: index.html mapped
+  // `three` and nothing else, so `@dimforge/rapier3d-compat` was unresolvable in
+  // any browser, and the one entry it did map pointed into ./node_modules/,
+  // which .gitignore excludes and the deploy target therefore does not have.
+  // Both failures are invisible to every other assertion here, because both are
+  // about what SHIPS rather than about what the source says.
+  //
+  // /gate/ and /tools/ are excluded: they run under Node, which resolves bare
+  // specifiers from node_modules and never reads the import map. /vendor/ is
+  // third-party and is scanned by nothing — it is out of scope for the project's
+  // own non-negotiables by construction, since APP_ROOTS does not list it.
+  const BROWSER_ROOTS = ['app.js', 'contracts', 'engine', 'render', 'trunk', 'ui', 'worlds', 'workers'];
+  const boot = [];
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const mapText = html.match(/<script[^>]+type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+
+  let imports = null;
+  if (!mapText) boot.push('index.html has no <script type="importmap"> — no bare specifier can resolve in a browser');
+  else {
+    try { imports = JSON.parse(mapText).imports ?? {}; }
+    catch (e) { boot.push(`index.html import map is not valid JSON: ${e.message}`); }
+  }
+
+  if (imports) {
+    // Every bare specifier the BROWSER will actually meet.
+    const needed = new Map();
+    for (const f of files(...BROWSER_ROOTS)) {
+      // Comments are stripped, exactly as hits() does. Without it the prose in
+      // naming.js — a quotation introduced by the word "from" — reads as an
+      // import of a bare specifier called "the single most extreme normalised
+      // trait", which is a funny failure the first time and a waiver the second.
+      const src = stripComments(f.text, extname(f.path) === '.html');
+      for (const m of src.matchAll(/(?:from|import)\s*\(?\s*['"]([^'".][^'"]*)['"]/g)) {
+        const spec = m[1];
+        if (spec.startsWith('node:')) { boot.push(`${f.path}: imports ${spec}, which no browser provides`); continue; }
+        if (!needed.has(spec)) needed.set(spec, f.path);
+      }
+    }
+    for (const [spec, where] of needed) {
+      if (!(spec in imports)) boot.push(`${where}: imports "${spec}", which the index.html import map does not declare`);
+    }
+
+    // A declared target that is absent, or that lives somewhere git does not
+    // carry, fails at boot on the deploy target and nowhere else.
+    for (const [spec, target] of Object.entries(imports)) {
+      if (/(^|\/)node_modules\//.test(target)) {
+        boot.push(`import map "${spec}" -> ${target}: node_modules is in .gitignore and does not ship — vendor it (npm run vendor)`);
+        continue;
+      }
+      if (!existsSync(join(ROOT, target.replace(/^\.\//, '')))) {
+        boot.push(`import map "${spec}" -> ${target}: file does not exist`);
+      }
+    }
+
+    // The map and the vendored artefact must be the same statement about which
+    // VERSION ships. Re-vendoring at a new pin rewrites vendor/ and would
+    // otherwise leave index.html pointing at a directory that no longer exists.
+    const vmPath = join(ROOT, 'vendor/VENDOR.json');
+    if (!existsSync(vmPath)) boot.push('vendor/VENDOR.json is missing — run npm run vendor');
+    else {
+      const vm = JSON.parse(readFileSync(vmPath, 'utf8'));
+      const deps = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).dependencies ?? {};
+      for (const pkg of vm.packages) {
+        // The one drift the checks below cannot see: bump the pin, npm install,
+        // forget npm run vendor. Map, VENDOR.json and vendor/ all still agree
+        // with each other — and all three disagree with what the project claims
+        // to depend on. Pinned versions are load-bearing here (PROVENANCE.md).
+        if (deps[pkg.pkg] !== pkg.version) {
+          boot.push(`${pkg.pkg}: package.json pins ${deps[pkg.pkg] ?? 'nothing'} but vendor/ ships ${pkg.version} — run npm run vendor`);
+        }
+        if (imports[pkg.specifier] !== pkg.target) {
+          boot.push(`import map "${pkg.specifier}" is ${imports[pkg.specifier] ?? 'absent'}, vendor/ wrote ${pkg.target}`);
+        }
+        for (const file of pkg.files) {
+          if (!existsSync(join(ROOT, 'vendor', pkg.dir, file.file))) {
+            boot.push(`vendor/${pkg.dir}/${file.file} is recorded in VENDOR.json but missing on disk`);
+          }
+        }
+      }
+    }
+  }
+
+  check('V2', 'Every browser bare specifier resolves through the import map to a file that ships', boot);
+
+  // ── N24 · the tree is not mid-mutation ────────────────────────────────────
+  //
+  // tools/_mut*.mjs edit engine sources IN PLACE and restore them afterwards. A
+  // runner killed between those two steps leaves a MUTANT in the tree, and a
+  // mutant is indistinguishable from a real regression — the HANDOFF records one
+  // masquerading as an L2-15 failure for two gate runs, and it recurred during
+  // the density delivery when a backgrounded runner was SIGKILLed.
+  //
+  // try/finally CANNOT fix this: SIGKILL is not catchable, and a background job
+  // is exactly what gets SIGKILLed. So the runners write a sentinel BEFORE
+  // mutating and remove it after, and the gate refuses to be green while one
+  // exists. A leftover mutant now announces itself in one line instead of
+  // costing a session to diagnose.
+  const mutant = [];
+  const sentinel = join(ROOT, 'tools', '.mutant-active.json');
+  if (existsSync(sentinel)) {
+    let d = {};
+    try { d = JSON.parse(readFileSync(sentinel, 'utf8')); } catch { /* unreadable is still a fail */ }
+    mutant.push(
+      `tools/.mutant-active.json exists: ${d.file ?? '?'} is MUTATED (${d.mutant ?? '?'}, started ${d.startedAt ?? '?'}).`
+      + ' Restore that file and delete the sentinel. Nothing in this run is trustworthy until you do.');
+  }
+  check('N24', 'No mutation runner left the tree mid-edit', mutant);
+
   // ── version consistency (20 §8) ───────────────────────────────────────────
   const vc = [];
   const vjPath = join(ROOT, 'version.json');

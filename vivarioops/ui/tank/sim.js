@@ -95,7 +95,19 @@ export function unionBounds(bounds, grid = GRID) {
 export function stepBudget(accumulated, dt, maxSteps = 8) {
   const wanted = Math.floor(accumulated / dt);
   const steps = Math.min(wanted, maxSteps);
-  return { steps, carry: accumulated - steps * dt, dropped: wanted > maxSteps };
+
+  // THE DEBT IS ACTUALLY DROPPED, which is what this function has always said
+  // and never did. Carrying `accumulated - steps * dt` keeps every unexecuted
+  // step, so a 400 ms stall asks for 48, runs 8, and carries 40 into the next
+  // frame — which runs 8 again, and again, for six more frames. It avoids the
+  // one catastrophic frame and buys a prolonged catch-up instead, during which
+  // the simulation is off the wall clock and the tank runs visibly slow.
+  //
+  // Dropping means dropping: keep only the sub-step remainder, which is the
+  // fractional part that has not earned a step yet. `carry` is then always less
+  // than `dt` after a capped frame, and the next frame is a normal frame.
+  const carry = wanted > maxSteps ? accumulated - wanted * dt : accumulated - steps * dt;
+  return { steps, carry, dropped: wanted > maxSteps };
 }
 
 /**

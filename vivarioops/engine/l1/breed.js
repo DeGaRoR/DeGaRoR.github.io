@@ -116,8 +116,15 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
   // The stranger is drawn LAST so that its rng consumption cannot shift the
   // offspring, which keeps a breed reproducible while the stranger rule is
   // being argued about.
-  next[strangerSlot] = strangerFor(RAPIER, rng.fork(`stranger:${strangerSlot}`), world, limits, tally);
-  provenance[strangerSlot] = { kind: KIND.STRANGER, parent: null, ops: [], attempts: 0, fellBack: false };
+  const stranger = strangerFor(RAPIER, rng.fork(`stranger:${strangerSlot}`), world, limits, tally);
+  next[strangerSlot] = stranger.genome;
+  provenance[strangerSlot] = {
+    kind: KIND.STRANGER, parent: null, ops: [],
+    attempts: stranger.attempts, fellBack: false,
+    // H3b — false only when the search was exhausted. The UI labels it; nothing
+    // silently presents an unviable creature as an ordinary one.
+    viable: stranger.viable,
+  };
 
   return { genomes: next, provenance, tally, droppedElite };
 }
@@ -147,15 +154,36 @@ function makeOffspring({ RAPIER, parent, rng, world, limits, lockMorphology, tal
  * The stranger is filtered for viability too. An unrelated creature that sits
  * inert on the floor is indistinguishable from a bug, and it wastes the one slot
  * that exists to keep the population from collapsing.
+ *
+ * ── H3b: EXHAUSTION IS REPORTED, NEVER SILENT. ──────────────────────────────
+ *
+ * This used to `return last` — the final candidate, WHETHER OR NOT it passed —
+ * so the one slot that exists to protect the population could knowingly contain
+ * an invalid genome, and nothing downstream could tell. An offspring that
+ * exhausts its attempts falls back to its unmutated parent, which is viable by
+ * definition; a stranger is drawn from nothing and has no such fallback.
+ *
+ * Three ways out were considered. Throwing makes a rare draw crash a running
+ * game. A frozen fallback fixture puts a hand-authored creature in a slot whose
+ * whole point is that it is unrelated and random, and it would drift out of the
+ * generator's distribution the moment step F loosens the factory. So the slot is
+ * filled — the tank is never left short — and the verdict TRAVELS WITH IT:
+ * `viable` reaches provenance, the UI can label it, and the gate can assert it.
+ * Nothing crashes and nothing is quiet.
+ *
+ * @returns {{genome:object, viable:boolean, attempts:number}}
  */
-function strangerFor(RAPIER, rng, world, limits, tally, maxAttempts = VIABILITY.maxAttempts) {
+function strangerFor(RAPIER, rng, world, limits, tally, maxAttempts = VIABILITY.strangerAttempts) {
   let last = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const g = createRandomGenome(rng.fork(`try:${attempt}`), limits);
     last = g;
-    if (record(tally, assessViability(RAPIER, g, world)).ok) return g;
+    if (record(tally, assessViability(RAPIER, g, world)).ok) {
+      return { genome: g, viable: true, attempts: attempt + 1 };
+    }
   }
-  return last;   // the tank is never left with an empty slot
+  // The slot is filled so the tank is never short, and the failure is stated.
+  return { genome: last, viable: false, attempts: maxAttempts };
 }
 
 /**
@@ -164,9 +192,16 @@ function strangerFor(RAPIER, rng, world, limits, tally, maxAttempts = VIABILITY.
  */
 export function seedPopulation({ RAPIER, rng, world, limits = SLICE_LIMITS }) {
   const tally = newTally();
-  const genomes = [];
+  const drawn = [];
   for (let i = 0; i < POPULATION; i++) {
-    genomes.push(strangerFor(RAPIER, rng.fork(`seed:${i}`), world, limits, tally));
+    drawn.push(strangerFor(RAPIER, rng.fork(`seed:${i}`), world, limits, tally));
   }
-  return { genomes, tally, provenance: genomes.map(() => ({ kind: KIND.STRANGER, parent: null, ops: [], attempts: 0, fellBack: false })) };
+  return {
+    genomes: drawn.map(d => d.genome),
+    tally,
+    provenance: drawn.map(d => ({
+      kind: KIND.STRANGER, parent: null, ops: [],
+      attempts: d.attempts, fellBack: false, viable: d.viable,
+    })),
+  };
 }

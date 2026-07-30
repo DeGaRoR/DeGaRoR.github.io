@@ -87,6 +87,8 @@ html, body {
 }
 .gate-out[data-state="pass"] { border-left-color: var(--c-pass); }
 .gate-out[data-state="fail"] { border-left-color: var(--c-fail); }
+/* A partial run is neither pass nor fail, and must not be styled as either (H4). */
+.gate-out[data-state="partial"] { border-left-color: var(--c-warn); }
 
 .tank { display: flex; flex-direction: column; height: 100%; }
 .tank-view { flex: 1 1 auto; min-height: var(--s-6); position: relative; }
@@ -147,3 +149,25 @@ html, body {
   border-radius: var(--r-2) var(--r-2) var(--s-0) var(--s-0);
 }
 .tank-sheet[hidden] { display: none; }
+
+/* Boot fault panel (H1b) — shown by the classic script in index.html when the
+   module graph fails to load or boot stalls. It must be styleable without the
+   application running, so everything it needs is here rather than in a screen. */
+#boot-fault {
+  position: absolute; inset: var(--s-0);
+  overflow-y: auto;
+  background: var(--c-bg);
+  padding: var(--s-5) var(--s-4);
+  display: flex; flex-direction: column; gap: var(--s-4);
+}
+#boot-fault[hidden] { display: none; }
+#boot-fault-head {
+  font-size: var(--t-lg); font-weight: 600; color: var(--c-fail);
+}
+#boot-fault-detail {
+  font-family: var(--f-mono); font-size: var(--t-sm); color: var(--c-text);
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--c-surface); border: thin solid var(--c-line);
+  border-radius: var(--s-1); padding: var(--s-3);
+}
+#boot-fault-hint { font-size: var(--t-sm); color: var(--c-text-dim); line-height: 1.5; }

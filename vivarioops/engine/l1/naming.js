@@ -14,6 +14,14 @@
 // is many-segmented, many-limbed and long. The name is a readable factsheet.
 //
 // SLICE SCOPE: function only, no UI (10 §8). Nothing displays this yet.
+//
+// STILL PURE. The two imports below are constant tables, not state: `RANGE` is
+// the schema and `SLICE_LIMITS` is the generator's configuration. They are read
+// once, at module load, to decide which epithet axes can discriminate at all.
+// Neither introduces a cycle — factory.js imports only genome.js and versions.js.
+
+import { RANGE } from './genome.js';
+import { SLICE_LIMITS } from './factory.js';
 
 /** 10 §A5 correction 5: nodes are referenced by id, never by index. */
 export const GENUS_SUFFIX = { plano: 'us', actino: 'a', ataxo: 'ops' };
@@ -78,6 +86,16 @@ const AXES = [
   ['limbs',          0.000,  0.250,  'multipes',    'apodus'],
   ['reflections',    0.000,  0.500,  'radiatus',    'inornatus'],
 ];
+
+/**
+ * Axes the CURRENT limits cannot vary, and which therefore cannot discriminate.
+ * Derived from SLICE_LIMITS rather than listed, so step F needs no edit here.
+ * See the skip in binomial() for why an invariant axis must not be selected on.
+ */
+export const DEAD_AXES = new Set(
+  (SLICE_LIMITS.density ?? RANGE.density)[1] > (SLICE_LIMITS.density ?? RANGE.density)[0]
+    ? [] : ['density'],
+);
 
 /** Disambiguators, in order, when a binomial is already taken in the Atlas. */
 const DISAMBIGUATORS = ['minor', 'major', 'borealis', 'australis', 'orientalis',
@@ -177,8 +195,22 @@ export function binomial(plan, genome, taken) {
 
   // The most extreme trait, in spreads from the corpus median. Ties resolve by
   // table order, so the function is total and deterministic.
+  //
+  // AXES WITH NO VARIANCE UNDER THE CURRENT LIMITS ARE SKIPPED. "The single most
+  // extreme normalised trait" is a statement about a trait's position in a
+  // POPULATION (10 §A10, as amended at B4). A trait every creature shares to six
+  // decimal places has no position: its z is a constant, so `gravis`/`levis`
+  // would either name nothing or name everything, and which one it did would be
+  // an accident of where the stale B4 reference median happens to sit relative
+  // to the constant. `SLICE_LIMITS.density` is [1, 1], so `density` is exactly
+  // that case today.
+  //
+  // The axis stays in AXES so EPITHET_COUNT remains 24 and A17.5 still holds;
+  // it is skipped at selection, and it returns by itself when step F restores a
+  // real density band. Same shape as mutate.js's nodeFields().
   let best = AXES[0][3], bestScore = -Infinity;
   for (const [trait, median, spread, high, low] of AXES) {
+    if (DEAD_AXES.has(trait)) continue;
     const z = (s.traits[trait] - median) / Math.max(spread, SPREAD_FLOOR);
     if (Math.abs(z) > bestScore) { bestScore = Math.abs(z); best = z >= 0 ? high : low; }
   }

@@ -6,6 +6,7 @@ import { row, section, button } from '../widgets.js';
 import { runContractGate } from '../../gate/contracts.js';
 import { runRuntimeGate } from '../../gate/runtime.js';
 import { runL1Gate } from '../../gate/l1.js';
+import { BROWSER_SUITES, ALL_SUITES, MANIFEST, verdict } from '../../gate/manifest.js';
 
 // Screen 12 — developer (20 §9). A1 scope: run gate, seed override, version readout.
 // Bench, FPS and viability rate arrive with the things they measure.
@@ -63,9 +64,28 @@ export default {
         fail += 1;
       }
 
-      lines.push('', `${pass} passed, ${fail} failed, ${pend} pending`, fail === 0 ? 'GATE GREEN' : 'GATE RED');
+      // THE PANEL IS NOT THE GATE, AND MUST NOT SAY IT IS (H4).
+      //
+      // It ran three suites of eight. It used to print "GATE GREEN" for that,
+      // which is worse than printing nothing: a green badge that excludes motion,
+      // breeding, probes and duels manufactures confidence instead of reporting
+      // it. The verdict line is computed in gate/manifest.js so this screen
+      // cannot invent a friendlier one, and the assertions it did NOT reach are
+      // listed by name — a count would let "3 suites" read as a detail rather
+      // than as the whole point.
+      const ranSuites = staticSuite ? [...BROWSER_SUITES, 'trunk-static'] : [...BROWSER_SUITES];
+      const v = verdict({ failed: fail, suitesRun: ranSuites });
+      const unreached = ALL_SUITES.filter(x => !ranSuites.includes(x));
+
+      lines.push('', `${pass} passed, ${fail} failed, ${pend} pending`);
+      if (unreached.length) {
+        lines.push(`not run here: ${unreached.map(x => `${x} (${MANIFEST[x].length})`).join(', ')}`);
+      }
+      lines.push(v.line);
       out.textContent = lines.join('\n');
-      out.dataset.state = fail === 0 ? 'pass' : 'fail';
+      // 'partial' is its own state, so the panel cannot be styled green on a
+      // subset. N16 keeps the colour itself in a token.
+      out.dataset.state = fail > 0 ? 'fail' : (v.state === 'GREEN' ? 'pass' : 'partial');
     }));
     gateSec.append(out);
 

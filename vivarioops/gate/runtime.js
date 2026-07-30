@@ -4,8 +4,8 @@
 
 import { makeRng, rngFrom } from '../trunk/rng.js';
 import { seed } from '../contracts/hash.js';
-import { envelope, hasEnvelope, migrate, FutureVersionError, registerMigration } from '../trunk/store.js';
-import { GENOME_V } from '../contracts/versions.js';
+import { envelope, hasEnvelope, migrate, FutureVersionError, registerMigration, kindOf, SCHEMA_OF } from '../trunk/store.js';
+import { GENOME_V, BRIDGE_V } from '../contracts/versions.js';
 import { _internals } from '../trunk/nav.js';
 
 function collector() {
@@ -82,13 +82,36 @@ export async function runRuntimeGate() {
 
   // ── R2 · N9 write-path envelope ───────────────────────────────────────────
   await g.assertion('N9', 'Every stored record carries schemaVersion, profileId, updatedAt', (t) => {
-    const e = envelope({ hello: 'world' });
+    const e = envelope({ hello: 'world' }, 'genome');
     t.ok(hasEnvelope(e), 'envelope() produces a complete envelope', e);
-    t.eq(e.schemaVersion, GENOME_V, 'schemaVersion defaults to GENOME_V');
+    t.eq(e.schemaVersion, GENOME_V, "a genome's schemaVersion is GENOME_V");
     t.eq(typeof e.profileId, 'string', 'profileId present');
     t.eq(typeof e.updatedAt, 'number', 'updatedAt present');
     t.ok(!hasEnvelope({ value: 1 }), 'a bare value is not a valid record');
     t.ok(!hasEnvelope({ schemaVersion: 2, profileId: 'x', updatedAt: 1 }), 'an envelope without a value is rejected');
+
+    // ── H5: THE ENVELOPE IS TYPED, AND EACH KIND OWNS ITS SCHEMA. ───────────
+    //
+    // Every record used to be stamped GENOME_V and migrated through the genome
+    // chain regardless of what it held. That is inert only while GENOME_V sits
+    // still; the day it moves, every profile and run result in every player's
+    // database is handed to a genome migration. The kind is derived from the KEY
+    // so no call site can forget it.
+    t.eq(kindOf('profile:devseed'), 'profile', 'the key names the kind');
+    t.eq(kindOf('record:abc:w1'), 'record', 'and does so for records');
+    t.eq(kindOf('nonsense:1'), 'opaque', 'an unrecognised prefix is opaque, never assumed to be a genome');
+    t.eq(envelope({}, 'profile').schemaVersion, SCHEMA_OF.profile, 'a profile carries the profile schema');
+    t.eq(envelope({}, 'record').schemaVersion, BRIDGE_V, 'a record carries the BRIDGE version, not the genome one');
+    t.ok(SCHEMA_OF.record !== SCHEMA_OF.genome,
+      'and those differ, so the distinction is load-bearing rather than decorative');
+    t.eq(envelope({}, 'profile').kind, 'profile', 'the kind travels with the record');
+
+    // A genome migration must never be reachable from another kind. Registered
+    // against 'genome' only, so asking for it as a profile has to fail.
+    registerMigration('genome', 90, (v) => ({ ...v, genomeOnly: true }));
+    t.eq(migrate({ a: 1 }, 90, 'genome', 91).genomeOnly, true, 'the genome chain runs for genomes');
+    t.throws(() => migrate({ a: 1 }, 90, 'profile', 91), Error,
+      'and is unreachable from another kind — a missing step throws rather than silently skipping');
   });
 
   // ── R3 · N10 future-version rejection ─────────────────────────────────────
@@ -100,9 +123,9 @@ export async function runRuntimeGate() {
     t.ok(/\d/.test(msg), 'the message names the versions', msg);
 
     // The registry runs forward and is exercised before it is needed.
-    registerMigration(GENOME_V, (v) => ({ ...v, migrated: true }));
-    t.eq(migrate({ a: 1 }, GENOME_V, GENOME_V + 1).migrated, true, 'forward migration applies');
-    t.eq(migrate({ a: 1 }, GENOME_V, GENOME_V).a, 1, 'same version is a no-op');
+    registerMigration('genome', GENOME_V, (v) => ({ ...v, migrated: true }));
+    t.eq(migrate({ a: 1 }, GENOME_V, 'genome', GENOME_V + 1).migrated, true, 'forward migration applies');
+    t.eq(migrate({ a: 1 }, GENOME_V, 'genome', GENOME_V).a, 1, 'same version is a no-op');
   });
 
   // ── R4 · navigation stack ─────────────────────────────────────────────────

@@ -155,6 +155,61 @@ export function runL1Gate() {
     t.ok(!validateGenome(orphaned).ok, 'connection to an unknown node rejected');
     const wrongVer = { ...pop[0], version: 99 };
     t.ok(!validateGenome(wrongVer).ok, 'wrong version rejected');
+
+    // ── MALFORMED SHAPE, NOT JUST OUT-OF-RANGE VALUES (H6) ──────────────────
+    //
+    // Every case above breaks a VALUE inside a well-formed genome. None of them
+    // breaks the SHAPE, and the validator's holes were all in shape: fields were
+    // walked with `n.joint?.angleLimits?.forEach(...)`, which visits nothing when
+    // the array is absent and reports nothing when it visits nothing. A missing
+    // field therefore validated clean and crashed later in morphogenesis, where
+    // there is no longer any provenance for where it came from.
+    //
+    // This was invisible until H5-H8 were mutation-tested: with the anchors
+    // removed the suite stayed green, because no assertion had ever handed the
+    // validator a genome that was the wrong SHAPE. The rule and its corpus have
+    // to arrive together.
+    const shapes = [
+      ['angleLimits missing entirely', (x) => { delete x.nodes[0].joint.angleLimits; }],
+      ['angleLimits too short', (x) => { x.nodes[0].joint.angleLimits = [0.1, 0.2]; }],
+      ['angleLimits too long', (x) => { x.nodes[0].joint.angleLimits = [0.1, 0.2, 0.3, 0.4]; }],
+      ['angleLimits not an array', (x) => { x.nodes[0].joint.angleLimits = 0.3; }],
+      ['connection position missing', (x) => { delete x.connections[0].position; }],
+      ['connection position has 3 values, not 2', (x) => { x.connections[0].position = [0, 0, 0]; }],
+      ['connection orientation has 2 values, not 3', (x) => { x.connections[0].orientation = [0, 0]; }],
+      ['connection scale missing', (x) => { delete x.connections[0].scale; }],
+      ['seed above uint32', (x) => { x.seed = 0x1_0000_0000; }],
+      ['seed at 2^53', (x) => { x.seed = Number.MAX_SAFE_INTEGER; }],
+    ];
+    for (const [what, wreck] of shapes) {
+      const g2 = structuredClone(pop[0]);
+      wreck(g2);
+      t.ok(!validateGenome(g2).ok, `rejected: ${what}`);
+    }
+
+    // The boundary itself passes, so the bound is a bound and not a ban.
+    const maxSeed = structuredClone(pop[0]);
+    maxSeed.seed = 0xFFFFFFFF;
+    t.ok(validateGenome(maxSeed).ok, 'and the largest legal uint32 seed is still accepted');
+
+    // DESERIALISE MUST VALIDATE (H6). It is the only door external data comes
+    // through — a shared fiche, a pasted genome, a record from an older build —
+    // and it used to return anything that parsed. A parsed-but-unvalidated
+    // genome reaching the engine is the whole failure mode.
+    //
+    // THE DAMAGE IS APPLIED TO THE SERIALISED FORM, which is the only form
+    // external data ever has. Wrecking the hydrated object instead made every
+    // case throw on `controller.jointGenes must be an array` — hydrated genomes
+    // key jointGenes by nodeId, serialised ones list them — so the corpus never
+    // reached the validator at all and the test passed for the wrong reason.
+    // It escaped the mutant that deleted the validate call, which is how it was
+    // found.
+    for (const [what, wreck] of shapes) {
+      const g3 = JSON.parse(serialise(pop[0]));
+      wreck(g3);
+      t.throws(() => deserialise(JSON.stringify(g3)), Error, `deserialise refuses: ${what}`);
+    }
+    t.ok(deserialise(serialise(pop[0])) != null, 'while a well-formed genome still round-trips');
   });
 
   // ── L1-6 · quantisation ───────────────────────────────────────────────────

@@ -12,7 +12,7 @@
 // scale is internally consistent; only MOTOR_SCALE has to be tuned to it,
 // because torque follows area (N19) and does not rescale with mass.
 
-import { computePhases, targetAngles, targetVelocities, DRIVE } from './controller.js';
+import { computePhases, targetAngles, targetVelocities, makeControl, DRIVE } from './controller.js';
 import { qrot, qmul, normalise } from './vecmath.js';
 
 export const FIXED_DT = 1 / 120;      // 01 §7, substepped
@@ -87,36 +87,71 @@ function makeJointData(RAPIER, j, plan) {
 
 const vec = (a) => ({ x: a[0], y: a[1], z: a[2] });
 
-/**
- * Build a live simulation from a body plan.
- * @param {object} RAPIER  already-initialised Rapier namespace
- * @param {object} plan
- * @param {object} genome
- * @param {object} world   W1_SLICE or another World
- * @param {object} [opts]  `{ drive, origin }`
- */
-export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
-  const drive = opts.drive ?? DRIVE.POSITION;
-  const origin = opts.origin ?? [0, 0, 0];
-  const motorScale = opts.motorScale ?? MOTOR_SCALE;
+/** Tank wall thickness, m. viability.js derives `maxPeakSpeed` from this. */
+export const WALL = 0.5;
 
-  // Gravity is applied by hand per body, together with buoyancy, because both
-  // are per-body quantities and letting Rapier apply gravity globally would make
-  // the per-node density genes do nothing (10 §A4).
+/**
+ * Does this body plan fit inside the tank?
+ *
+ * A creature larger than the tank spawns deeply embedded in the walls and the
+ * solver cannot resolve that penetration — Rapier panics outright. Oversize
+ * creatures are a VIABILITY question (B4), not a physics question, so the
+ * boundary is reported and the environment omitted rather than crashing the sim.
+ *
+ * Exported at C1 because `createArena` no longer sees the plan and the duel
+ * harness has to make the same decision one step earlier.
+ */
+export function fitsTank(plan, world) {
+  let reach = 0;
+  for (const b of plan.bodies) {
+    reach = Math.max(reach,
+      Math.abs(b.position[0]) + b.dims[0],
+      Math.abs(b.position[1]) + b.dims[1],
+      Math.abs(b.position[2]) + b.dims[2]);
+  }
+  return reach < Math.min(world.tankBounds[0], world.tankBounds[1], world.tankBounds[2]) / 2;
+}
+
+/**
+ * THE TANK ITSELF — a Rapier world plus its environment colliders.
+ *
+ * EXTRACTED AT C1, and it is the change B4b's tiling was a workaround for.
+ * `createSimulation` used to build its own `RAPIER.World` per call, so two
+ * creatures could never share one; that is why the tank tiles six private tanks
+ * instead of putting six creatures in one (handoff, open decision 5), and why
+ * they cannot touch. A DUEL is contact between two creatures and therefore
+ * requires one world, so the world and its environment are now a separate
+ * object that simulations attach to.
+ *
+ * With no arena passed, `createSimulation` builds a private one in exactly the
+ * old order — environment colliders first, creature bodies after — so handles,
+ * island ordering and every B3 number are unchanged.
+ *
+ * Floor, free surface and tank walls are read from the World (10 §A4). Without
+ * them a creature that is not neutrally buoyant rises or sinks forever, which
+ * reads as "it swam a long way" in any displacement measurement.
+ *
+ * N22: every environment collider is tagged. Ground and wall contacts NEVER
+ * damage; only creature-creature contacts do. Tagging here rather than at the
+ * damage system means the distinction cannot be lost later.
+ *
+ * @param {object} RAPIER  already-initialised
+ * @param {object} world   W1_SLICE or another World
+ * @param {object} [opts]  `{ bounded }` — false builds an open volume
+ */
+export function createArena(RAPIER, world, opts = {}) {
+  const bounded = opts.bounded ?? true;
+
+  // Rapier's own gravity is zero: gravity is applied by hand per body, together
+  // with buoyancy, because both are per-body quantities and letting Rapier apply
+  // gravity globally would make the per-node density genes do nothing (10 §A4).
   const w = new RAPIER.World({ x: 0, y: 0, z: 0 });
   w.timestep = FIXED_DT;
 
-  // ── environment ──────────────────────────────────────────────────────────
-  // Floor, free surface and tank walls, read from the World (10 §A4). Without
-  // them a creature that is not neutrally buoyant rises or sinks forever, which
-  // reads as "it swam a long way" in any displacement measurement.
-  //
-  // N22: every environment collider is tagged. Ground and wall contacts NEVER
-  // damage; only creature-creature contacts do. Tagging here rather than at the
-  // damage system means the distinction cannot be lost later.
   const environment = [];
   const [tw, th, td] = world.tankBounds;
-  const WALL = 0.5;
+  const half = [tw / 2, th / 2, td / 2];
+
   const addStatic = (hx, hy, hz, x, y, z, kind) => {
     const rb = w.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x, y, z));
     const col = w.createCollider(
@@ -128,19 +163,6 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     return col;
   };
 
-  // A creature larger than the tank would spawn deeply embedded in the walls,
-  // and the solver cannot resolve that penetration -- Rapier panics outright.
-  // Oversize creatures are a VIABILITY question (B4), not a physics question, so
-  // the boundary is reported and omitted rather than crashing the sim.
-  const half = [tw / 2, th / 2, td / 2];
-  let reach = 0;
-  for (const b of plan.bodies) {
-    reach = Math.max(reach,
-      Math.abs(b.position[0]) + b.dims[0], Math.abs(b.position[1]) + b.dims[1], Math.abs(b.position[2]) + b.dims[2]);
-  }
-  const fitsTank = reach < Math.min(half[0], half[1], half[2]);
-  const bounded = (opts.bounded ?? true) && fitsTank;
-
   if (bounded && world.floor.present) addStatic(tw, WALL, td, 0, world.floor.y - WALL, 0, 'floor');
   if (bounded && world.surface.present) addStatic(tw, WALL, td, 0, world.surface.y + WALL, 0, 'surface');
   if (bounded) {
@@ -151,6 +173,82 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   }
 
   const environmentHandles = new Set(environment.map(e => e.collider.handle));
+
+  return {
+    world3d: w,
+    world,
+    environment,
+    environmentHandles,
+    bounded,
+    /** N22 — true only for creature-creature contacts. */
+    isDamagingContact(handleA, handleB) {
+      return !environmentHandles.has(handleA) && !environmentHandles.has(handleB);
+    },
+    /**
+     * Advance every attached simulation by one fixed step. Forces from ALL
+     * occupants are applied before the single solve, which is the whole point of
+     * a shared world: apply-then-solve per creature would let the first mover
+     * see a world the second had not yet pushed on.
+     */
+    stepAll(sims) {
+      for (const s of sims) s.applyForces();
+      w.step();
+      for (const s of sims) s.advanceClock();
+    },
+    free() { w.free(); },
+  };
+}
+
+/**
+ * Build a live simulation from a body plan.
+ * @param {object} RAPIER  already-initialised Rapier namespace
+ * @param {object} plan
+ * @param {object} genome
+ * @param {object} world   W1_SLICE or another World
+ * @param {object} [opts]  `{ drive, origin, motorScale, bounded, arena, effort }`
+ */
+/**
+ * Signed swing-twist angle of `qc` relative to `qp` about `axisLocal`.
+ *
+ * EXPORTED SO THE GATE CAN PRESS IT (H9). The live version is a closure over
+ * Rapier bodies, so the invariance property — the thing that was actually broken
+ * — could not be asserted from outside. The arithmetic is the whole rule, so the
+ * arithmetic is what gets tested.
+ *
+ * `axisLocal` MUST be expressed in the parent's frame, because the vector part
+ * of `conj(qp) * qc` is. Passing a world-space axis is the defect this replaces:
+ * it makes the reported angle a function of the parent's global orientation.
+ *
+ * @param {{x:number,y:number,z:number,w:number}} qp parent rotation, world
+ * @param {{x:number,y:number,z:number,w:number}} qc child rotation, world
+ * @param {number[]} axisLocal joint axis in the PARENT's frame
+ */
+export function swingTwistAngle(qp, qc, axisLocal) {
+  // qRel = conj(qp) * qc
+  const cx = -qp.x, cy = -qp.y, cz = -qp.z, cw = qp.w;
+  const rx = cw * qc.x + cx * qc.w + (cy * qc.z - cz * qc.y);
+  const ry = cw * qc.y + cy * qc.w + (cz * qc.x - cx * qc.z);
+  const rz = cw * qc.z + cz * qc.w + (cx * qc.y - cy * qc.x);
+  const rw = cw * qc.w - (cx * qc.x + cy * qc.y + cz * qc.z);
+  const proj = rx * axisLocal[0] + ry * axisLocal[1] + rz * axisLocal[2];
+  return 2 * Math.atan2(proj, rw);
+}
+
+export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
+  const drive = opts.drive ?? DRIVE.POSITION;
+  const origin = opts.origin ?? [0, 0, 0];
+  const motorScale = opts.motorScale ?? MOTOR_SCALE;
+
+  const fits = fitsTank(plan, world);
+
+  // A shared arena is the caller's; a private one is ours to build and to free.
+  const ownsArena = !opts.arena;
+  const arena = opts.arena
+    ?? createArena(RAPIER, world, { bounded: (opts.bounded ?? true) && fits });
+  const w = arena.world3d;
+  const bounded = arena.bounded;
+  const environment = arena.environment;
+  const environmentHandles = arena.environmentHandles;
 
   const bodies = [];
   const colliders = [];
@@ -186,6 +284,48 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // would allocate inside the step loop (N4). The drag limiter below needs both.
   // The SMALLEST principal inertia is the stability-limiting axis: using it makes
   // the limiter conservative on every axis rather than only on the stiffest one.
+  // ── per-body face table, built ONCE (N4: no allocation per step) ──────────
+  //
+  // 24 sample points per limb — 6 faces x 4 quadrants — matching the reference
+  // (mycoolfin/the-simsulator, ApplyFluidForcesSystem.cs). Each entry is a unit
+  // normal in limb space, an offset from the limb centre in limb space, and the
+  // area that quadrant carries. Flat arrays, stride 7, so the hot loop reads
+  // contiguous memory and allocates nothing.
+  //
+  // DEVIATION FROM THE REFERENCE, deliberate: it places the face centre at
+  // 0.5 * unitNormal WITHOUT scaling by the limb dimension, while scaling the
+  // in-plane quadrant offsets. That is dimensionally inconsistent — a
+  // 2.0 x 0.2 x 2.0 plate gets its +X face sampled 0.5 m out instead of 1.0 m,
+  // so its torque arm is wrong by 2x. The normal offset is scaled here.
+  const FACE_N = 24, FACE_STRIDE = 7;
+  const faceTable = new Float64Array(plan.bodyCount * FACE_N * FACE_STRIDE);
+  {
+    //          normal axis, tangent 1, tangent 2
+    const AXES = [[0, 1, 2], [1, 0, 2], [2, 0, 1]];
+    for (let i = 0; i < plan.bodies.length; i++) {
+      const d = plan.bodies[i].dims;
+      let w = i * FACE_N * FACE_STRIDE;
+      for (const [na, t1, t2] of AXES) {
+        for (const sgn of [1, -1]) {
+          const areaQ = 0.25 * d[t1] * d[t2];
+          for (const ii of [-1, 1]) {
+            for (const jj of [-1, 1]) {
+              const n = [0, 0, 0]; n[na] = sgn;
+              const o = [0, 0, 0];
+              o[na] = 0.5 * sgn * d[na];
+              o[t1] = 0.25 * ii * d[t1];
+              o[t2] = 0.25 * jj * d[t2];
+              faceTable[w] = n[0]; faceTable[w + 1] = n[1]; faceTable[w + 2] = n[2];
+              faceTable[w + 3] = o[0]; faceTable[w + 4] = o[1]; faceTable[w + 5] = o[2];
+              faceTable[w + 6] = areaQ;
+              w += FACE_STRIDE;
+            }
+          }
+        }
+      }
+    }
+  }
+
   const massOf = new Float64Array(plan.bodyCount);
   const inertiaOf = new Float64Array(plan.bodyCount);
   for (let i = 0; i < bodies.length; i++) {
@@ -230,117 +370,289 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   const phases = computePhases(plan);
   const targets = new Float64Array(plan.jointCount);
 
-  // Preallocated scratch — no allocation inside the step loop (N4).
-  const scratch = { v: [0, 0, 0], f: [0, 0, 0], axis: [0, 0, 0] };
+  // C1 — the mutable control input. Probes and duels write `effort` and
+  // `turnBias` between steps; `sides` is computed once (N4). At the defaults
+  // (effort 1, turnBias 0) `targetAngles` executes B3's arithmetic unchanged.
+  const control = makeControl(plan, opts);
+
+  // ── N4, STATED HONESTLY (H8) ───────────────────────────────────────────────
+  //
+  // There was a preallocated `scratch` object here, introduced with the comment
+  // "no allocation inside the step loop (N4)". NOTHING EVER READ IT. It was
+  // ceremony: a claim in the shape of code, which is worse than no claim at all,
+  // because a reader takes it as evidence and it is evidence of nothing.
+  //
+  // What the loop actually does, measured rather than asserted: ~173 bytes per
+  // step retained on a 6-body, 5-joint creature over 20 000 steps. `qmul` and
+  // `qrot` return fresh arrays, Rapier's accessors hand back fresh wrapper
+  // objects, and both are called per body and per joint per step.
+  //
+  // So the real invariant is BOUNDED allocation, not zero: nothing here grows
+  // with time or with the number of steps taken, and the per-step cost is a
+  // function of body and joint count alone. That is what the code delivers and
+  // it is what the comment now says. Chasing literal zero would mean scalarising
+  // every quaternion call site — a change that touches every number the project
+  // has measured, for a garbage rate a generational collector absorbs without
+  // noticing. If a profile ever says otherwise, that is the moment to spend it.
+  // What must not happen again is a promise the code does not keep.
 
   let t = 0, steps = 0;
   let work = 0;   // joules, sum |tau . omega| dt (01 §7) — S2 reads this at C1
+
+  // ── kinematic ceiling, DERIVED and not tuned ────────────────────────────────
+  //
+  // A body moving faster than one wall thickness per step can cross a wall
+  // between two collision queries, so WALL / FIXED_DT is the speed above which
+  // the arena stops being solid at all. Nothing physical happens up there; it is
+  // where the discretisation stops describing anything.
+  //
+  // WHY IT IS NEEDED NOW, and it is a real consequence of the amended §A8 rather
+  // than a patch over it. The old law carried an ad-hoc angular term
+  // proportional to r^5, which damped every rotation hard regardless of shape.
+  // The per-face law derives rotational resistance instead, and derives it
+  // CORRECTLY: a thin plate spinning about its own face normal presents only its
+  // edges to the flow and meets almost nothing. That is right — a frisbee does
+  // spin nearly freely — but the joint motors will then drive omega without
+  // bound, and omega x r at the corners feeds the fluid term speeds that no
+  // guard on the fluid term itself can be blamed for. Peak spin reached 1.5e22
+  // rad/s before this existed.
+  //
+  // The angular ceiling is PER BODY, from the same rule: the fastest-moving
+  // point on a limb is its corner, so the limit is the linear ceiling divided by
+  // the corner radius. A small limb may spin faster than a large one, which is
+  // the correct shape for this bound.
+  const MAX_SPEED = WALL / FIXED_DT;
+  const maxSpin = new Float64Array(plan.bodyCount);
+  for (let i = 0; i < plan.bodies.length; i++) {
+    const d = plan.bodies[i].dims;
+    maxSpin[i] = MAX_SPEED / (0.5 * Math.hypot(d[0], d[1], d[2]));
+  }
+
+  function clampKinematics() {
+    for (let i = 0; i < plan.bodies.length; i++) {
+      const rb = bodies[i];
+      const v = rb.linvel();
+      const sp = Math.hypot(v.x, v.y, v.z);
+      if (sp > MAX_SPEED && Number.isFinite(sp)) {
+        const k = MAX_SPEED / sp;
+        rb.setLinvel({ x: v.x * k, y: v.y * k, z: v.z * k }, true);
+      }
+      const a = rb.angvel();
+      const asp = Math.hypot(a.x, a.y, a.z);
+      if (asp > maxSpin[i] && Number.isFinite(asp)) {
+        const k = maxSpin[i] / asp;
+        rb.setAngvel({ x: a.x * k, y: a.y * k, z: a.z * k }, true);
+      }
+    }
+  }
 
   function applyEnvironment() {
     for (let i = 0; i < plan.bodies.length; i++) {
       const b = plan.bodies[i];
       const rb = bodies[i];
       const vol = b.dims[0] * b.dims[1] * b.dims[2];
+      const m = massOf[i];
+      const I = inertiaOf[i];
 
       // Weight down, buoyancy up, both PER BODY (10 §A4). A creature can
       // therefore carry a light anterior float and a dense posterior keel, and
       // swim bladders emerge without being named.
+      //
+      // In W1 this is currently ZERO for every body: SLICE_LIMITS.density is
+      // [1, 1] and mediumDensity is 1.0, so the term cancels exactly and gravity
+      // is dead code here. It is kept because it is the LAW, and the thick-gas
+      // world at step F restores a real density band that needs it.
       const net = (world.mediumDensity - b.density) * vol * world.gravity;
-      rb.addForce({ x: 0, y: net, z: 0 }, true);
+      if (net !== 0) rb.addForce({ x: 0, y: net, z: 0 }, true);
 
-      // BOTH DRAG TERMS ARE INTEGRATED SEMI-IMPLICITLY, divided by
-      // (1 + lambda*dt) where lambda is the decay rate the term implies. Written
-      // as plain explicit forces they are UNCONDITIONALLY UNSTABLE above a
-      // threshold these creatures reach constantly: the force goes as v^2 while
-      // the timestep is fixed, so once lambda*dt > 2 the drag impulse exceeds
-      // the momentum it opposes, reverses the velocity with a LARGER magnitude,
-      // and the next step's drag is larger again. It diverged geometrically —
-      // about x1000 per step — reaching non-finite in a handful of ticks, which
-      // is what made Rapier's broad phase panic. Both terms diverge
-      // independently; disabling either alone leaves the other unstable.
+      if (m <= 0 || I <= 0) continue;
+
+      // ── the fluid, sampled PER FACE ────────────────────────────────────────
       //
-      // The factor is the exact solution of dv/dt = -lambda*v over one step.
-      // Where explicit drag was already valid (lambda*dt << 1) it is the
-      // explicit force to within rounding, so the drag law is unchanged; it only
-      // bounds the blow-up, and the bound is hard: |dv| = v*lambda*dt/(1+lambda*dt)
-      // < v, so drag can never reverse a velocity and never adds energy.
+      // 10 §A8 AS AMENDED. The previous law applied one force at the body
+      // CENTRE, opposing the body's LINEAR velocity, with the true projected
+      // area. Orientation-dependent area was necessary but nowhere near
+      // sufficient, and the measurement said so: median locomotion 0.158 m in
+      // 15 s against a 6-8 m duel separation, and body plan did not predict
+      // travel at all (Spearman |rho| <= 0.16 against wetted area, aspect ratio
+      // and body count). Two things were missing and both are structural.
       //
-      // Quadratic drag opposing motion, with the TRUE PROJECTED AREA of the box
-      // along the direction of travel.
+      //   1. LOCAL VELOCITY. The flow a surface meets is v + omega x r, not v.
+      //      A limb rotating about its own centre has zero centre-of-mass
+      //      velocity and therefore met NO drag at all under the old law. That
+      //      is most of the missing thrust: a paddle felt nothing.
+      //   2. APPLICATION POINT. A force applied at the centre of mass produces
+      //      no torque, so rotational resistance had to be invented separately
+      //      as an ad-hoc r^5 term with a tuned 0.4. Applying each face force AT
+      //      that face makes the torque fall out of the same law, and the ad-hoc
+      //      term is deleted.
       //
-      // This is what makes swimming possible at all, and it was the last thing
-      // stopping B3. The previous approximation used the largest face
-      // regardless of orientation, and an orientation-INDEPENDENT drag area
-      // cannot produce thrust: a limb sweeping back and forth meets identical
-      // resistance on both strokes, so a full cycle nets to zero. Undulation
-      // propels an animal precisely because drag normal to a surface exceeds
-      // drag along it. Measured over the gate corpus with gravity zeroed, so
-      // that displacement is locomotion and nothing else: largest-face drag
-      // moved a creature a median 0.20 m in 15 s — a wiggle in place.
+      // One-sided, as in the reference: a face whose normal points away from the
+      // local flow contributes nothing. That asymmetry is what lets a full
+      // stroke cycle net a non-zero impulse instead of cancelling.
       //
-      // Projected area of a box on a unit direction is the sum of each face
-      // area weighted by that face normal's alignment with the direction. The
-      // direction is rotated into limb space rather than the three face normals
-      // into world space: one rotation instead of three, and no allocation (N4).
+      // NO LIFT TERM YET, and its absence is deliberate rather than an
+      // oversight. The reference carries Cl = 1.2|c|sqrt(1-c^2) perpendicular to
+      // the flow, and it measures another ~6x on top of this. It also diverges
+      // here: a force perpendicular to velocity cannot be bounded by clamping
+      // its MAGNITUDE, because a perpendicular impulse at any bound still grows
+      // |v| by Pythagoras — about 12% per step at the bound tested. It needs an
+      // integration that rotates the velocity rather than adding to it. Kept out
+      // until that exists; see HYDRODYNAMICS.md.
       const lv = rb.linvel();
-      const speed = Math.hypot(lv.x, lv.y, lv.z);
-      const m = massOf[i];
-      if (speed > 1e-6 && m > 0) {
-        const q = rb.rotation();
-        // Limb orientation in world = body rotation composed with the collider's.
-        const lq = qmul([q.x, q.y, q.z, q.w], b.rotation);
-        // Rotate the unit velocity by the CONJUGATE of that, inline, into limb space.
-        const cx = -lq[0], cy = -lq[1], cz = -lq[2], cw = lq[3];
-        const ux = lv.x / speed, uy = lv.y / speed, uz = lv.z / speed;
-        const tx = 2 * (cy * uz - cz * uy);
-        const ty = 2 * (cz * ux - cx * uz);
-        const tz = 2 * (cx * uy - cy * ux);
-        const vx = ux + cw * tx + (cy * tz - cz * ty);
-        const vy = uy + cw * ty + (cz * tx - cx * tz);
-        const vz = uz + cw * tz + (cx * ty - cy * tx);
-        const area = Math.abs(vx) * b.dims[1] * b.dims[2]
-                   + Math.abs(vy) * b.dims[0] * b.dims[2]
-                   + Math.abs(vz) * b.dims[0] * b.dims[1];
-        const k = 0.5 * world.mediumDensity * world.dragScale * world.dragCoefficient * area * speed;
-        const g = 1 / (1 + (k / m) * FIXED_DT);
-        rb.addForce({ x: -k * g * lv.x, y: -k * g * lv.y, z: -k * g * lv.z }, true);
+      const av = rb.angvel();
+      const q = rb.rotation();
+      // Limb orientation in world = body rotation composed with the collider's.
+      const lq = qmul([q.x, q.y, q.z, q.w], b.rotation);
+
+      // One rotation MATRIX per body per step, then 9 multiplies per vector.
+      // Rotating 48 vectors by quaternion instead costs ~3x this (N4).
+      const x = lq[0], y = lq[1], z = lq[2], w = lq[3];
+      const m00 = 1 - 2 * (y * y + z * z), m01 = 2 * (x * y - z * w), m02 = 2 * (x * z + y * w);
+      const m10 = 2 * (x * y + z * w), m11 = 1 - 2 * (x * x + z * z), m12 = 2 * (y * z - x * w);
+      const m20 = 2 * (x * z - y * w), m21 = 2 * (y * z + x * w), m22 = 1 - 2 * (x * x + y * y);
+
+      const rho = world.mediumDensity * world.dragScale * world.dragCoefficient;
+      let fx = 0, fy = 0, fz = 0, tx = 0, ty = 0, tz = 0;
+      const base = i * FACE_N * FACE_STRIDE;
+      for (let k = 0; k < FACE_N; k++) {
+        const o = base + k * FACE_STRIDE;
+        const nlx = faceTable[o], nly = faceTable[o + 1], nlz = faceTable[o + 2];
+        const olx = faceTable[o + 3], oly = faceTable[o + 4], olz = faceTable[o + 5];
+        const area = faceTable[o + 6];
+
+        const nx = m00 * nlx + m01 * nly + m02 * nlz;
+        const ny = m10 * nlx + m11 * nly + m12 * nlz;
+        const nz = m20 * nlx + m21 * nly + m22 * nlz;
+        const rx = m00 * olx + m01 * oly + m02 * olz;
+        const ry = m10 * olx + m11 * oly + m12 * olz;
+        const rz = m20 * olx + m21 * oly + m22 * olz;
+
+        // The flow this quadrant actually meets.
+        const px = lv.x + (av.y * rz - av.z * ry);
+        const py = lv.y + (av.z * rx - av.x * rz);
+        const pz = lv.z + (av.x * ry - av.y * rx);
+
+        // Normal component, signed. Negative means the face is retreating from
+        // the flow and is shielded by the body: it contributes nothing.
+        const vn = px * nx + py * ny + pz * nz;
+        if (vn <= 0) continue;
+
+        // Quadratic in the NORMAL component only, along the inward normal.
+        const mag = 0.5 * rho * area * vn * vn;
+        const Fx = -mag * nx, Fy = -mag * ny, Fz = -mag * nz;
+        fx += Fx; fy += Fy; fz += Fz;
+        tx += ry * Fz - rz * Fy;
+        ty += rz * Fx - rx * Fz;
+        tz += rx * Fy - ry * Fx;
       }
 
-      // Angular drag, so spinning is not free. 00 §9 lists "spin rapidly" as a
-      // crude dominant optimum to guard against with physical cost, not rules.
-      const av = rb.angvel();
-      const aspeed = Math.hypot(av.x, av.y, av.z);
-      const I = inertiaOf[i];
-      if (aspeed > 1e-6 && I > 0) {
-        const r = 0.5 * Math.max(b.dims[0], b.dims[1], b.dims[2]);
-        const ka = 0.5 * world.mediumDensity * world.dragScale * world.dragCoefficient
-                 * Math.pow(r, 5) * aspeed * 0.4;
-        const ga = 1 / (1 + (ka / I) * FIXED_DT);
-        rb.addTorque({ x: -ka * ga * av.x, y: -ka * ga * av.y, z: -ka * ga * av.z }, true);
+      if (fx === 0 && fy === 0 && fz === 0 && tx === 0 && ty === 0 && tz === 0) continue;
+
+      // ── the energy guard, solved rather than clamped ──────────────────────
+      //
+      // The continuous law is strictly dissipative: every sample contributes
+      // F_i . v_i = -mag * vn <= 0, and the rigid-body power is exactly the sum
+      // of those, so P = F.v + T.omega <= 0 identically. Only the DISCRETE step
+      // can add energy, by overshooting.
+      //
+      // Over one explicit step the kinetic energy changes by
+      //     dE = P*dt + 0.5*dt^2*(|F|^2/m + |T|^2/I)
+      // so scaling the fluid force and torque by s gives
+      //     dE(s) = s*P*dt + 0.5*s^2*dt^2*Q,   Q = |F|^2/m + |T|^2/I
+      // and dE(s) <= 0 for s <= -2P/(dt*Q). Taking s = min(1, that) makes the
+      // step provably non-increasing in energy, with no tuned constant and no
+      // clamp that distorts the law when it was already valid.
+      //
+      // THIS REPLACES the old per-term 1/(1+lambda*dt) factor, which worked only
+      // because that law's force was antiparallel to v by construction. It is
+      // not, here — and that is the point, because a force with a component
+      // across the motion is exactly how a fin converts spin into travel.
+      //
+      // inertiaOf is the MINIMUM principal inertia, so Q is over-estimated and
+      // the guard errs toward clamping. Conservative is the right direction.
+      const P = fx * lv.x + fy * lv.y + fz * lv.z + tx * av.x + ty * av.y + tz * av.z;
+      const Q = (fx * fx + fy * fy + fz * fz) / m + (tx * tx + ty * ty + tz * tz) / I;
+      let sc = 1;
+      if (Q > 0) {
+        if (P >= 0) sc = 0;                                  // cannot happen in theory
+        else sc = Math.min(1, (-2 * P) / (FIXED_DT * Q));
       }
+
+      // AND THE IMPULSE MAY NOT EXCEED THE MOMENTUM IT OPPOSES. The energy
+      // condition alone is not enough, and the gate caught it: an EXACT velocity
+      // reversal is energy-neutral, so dE <= 0 permits v -> -v, which is the
+      // precise mechanism B3 diverged by — reverse, overshoot, reverse larger.
+      // At 1e5 m/s the free-body test reversed to -1.03e5 and the energy guard
+      // was satisfied throughout.
+      //
+      // This is the old law's 1/(1+lambda*dt) guarantee restated in a form that
+      // does not require the force to be antiparallel to v: cap the impulse at
+      // the momentum, and the sign cannot flip. The two caps are independent —
+      // energy bounds growth, momentum bounds reversal — and the smaller wins.
+      const sp = Math.hypot(lv.x, lv.y, lv.z);
+      const fm = Math.hypot(fx, fy, fz);
+      if (fm > 0) sc = Math.min(sc, (m * sp) / (FIXED_DT * fm));
+      const asp = Math.hypot(av.x, av.y, av.z);
+      const tm = Math.hypot(tx, ty, tz);
+      if (tm > 0) sc = Math.min(sc, (I * asp) / (FIXED_DT * tm));
+
+      if (!(sc > 0)) continue;
+
+      rb.addForce({ x: fx * sc, y: fy * sc, z: fz * sc }, true);
+      rb.addTorque({ x: tx * sc, y: ty * sc, z: tz * sc }, true);
     }
   }
 
-  /** Signed angle of the child relative to the parent about a world axis. */
-  function relativeAngle(jointIndex, axisWorld) {
+  /**
+   * Signed angle of the child relative to the parent, about the joint axis
+   * EXPRESSED IN THE PARENT'S LOCAL FRAME (H9).
+   *
+   * THE AXIS MUST BE PARENT-LOCAL, AND WAS WORLD-SPACE. `qRel = conj(qp) * qc`
+   * is the child's rotation relative to the parent, and its vector part is
+   * therefore expressed in the PARENT'S frame. Projecting that onto a
+   * world-space axis mixes two coordinate systems, and the two agree only while
+   * the parent sits at its spawn orientation.
+   *
+   * Measured against this project's own vecmath, one articulation of 0.700 rad
+   * held fixed while only the parent's global rotation varied:
+   *
+   *     parent rotation      world axis (was)     parent-local (is)
+   *            0 deg              0.700                0.700
+   *           30 deg              0.671                0.700
+   *           60 deg              0.589                0.700
+   *           90 deg              0.474                0.700
+   *          180 deg              0.235                0.700
+   *
+   * The PD loop's error term is `(want - theta)`, so the effective position-loop
+   * gain was a function of the creature's global pose — falling to about a third
+   * at 180 deg. Corpus creatures average 78 deg of root tilt away from spawn and
+   * peak past 110, so this was not a corner case; it was the normal operating
+   * condition. A loop whose gain varies with pose is also indistinguishable from
+   * one that is bandwidth-limited, which is what C1 concluded about `effort`.
+   *
+   * `jointAxes[i]` is already the axis in the parent body's frame and is already
+   * precomputed, so the correction costs nothing. Torque is still applied about
+   * `axisWorld`, which was always right — only the MEASUREMENT was wrong.
+   */
+  //
+  // NO AXIS PARAMETER, DELIBERATELY. It used to take one, which is what made the
+  // defect expressible: `axisWorld` was in scope at the call site and reads as
+  // the obvious thing to pass. Mutation-testing the fix proved the point — with
+  // the arithmetic pinned but the parameter still there, re-introducing the
+  // original defect ESCAPED the gate, because the assertion tested the maths
+  // with correct arguments while the bug lived in the call. The axis is now
+  // looked up here, so the wrong frame is no longer something a caller can
+  // choose.
+  function relativeAngle(jointIndex) {
     const j = plan.joints[jointIndex];
-    const qp = bodies[j.parentBody].rotation();
-    const qc = bodies[j.childBody].rotation();
-    // qRel = conj(qp) * qc
-    const cx = -qp.x, cy = -qp.y, cz = -qp.z, cw = qp.w;
-    const rx = cw * qc.x + cx * qc.w + (cy * qc.z - cz * qc.y);
-    const ry = cw * qc.y + cy * qc.w + (cz * qc.x - cx * qc.z);
-    const rz = cw * qc.z + cz * qc.w + (cx * qc.y - cy * qc.x);
-    const rw = cw * qc.w - (cx * qc.x + cy * qc.y + cz * qc.z);
-    // Swing-twist: project the rotation vector onto the axis.
-    const proj = rx * axisWorld[0] + ry * axisWorld[1] + rz * axisWorld[2];
-    return 2 * Math.atan2(proj, rw);
+    return swingTwistAngle(bodies[j.parentBody].rotation(), bodies[j.childBody].rotation(), jointAxes[jointIndex]);
   }
 
   function applyMotors() {
     const want = drive === DRIVE.VELOCITY
-      ? targetVelocities(plan, genome, t, phases, targets)
-      : targetAngles(plan, genome, t, phases, targets);
+      ? targetVelocities(plan, genome, t, phases, targets, control)
+      : targetAngles(plan, genome, t, phases, targets, control);
 
     for (let i = 0; i < plan.joints.length; i++) {
       const j = plan.joints[i];
@@ -382,7 +694,7 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         const s = maxTorque * MOTOR_STIFFNESS * (want[i] - relOmega) * 0.5;
         tx = axisWorld[0] * s; ty = axisWorld[1] * s; tz = axisWorld[2] * s;
       } else {
-        const theta = relativeAngle(i, axisWorld);
+        const theta = relativeAngle(i);
         const s = maxTorque * MOTOR_STIFFNESS * (want[i] - theta);
         const d = maxTorque * MOTOR_DAMPING;
         tx = axisWorld[0] * s - d * dwx;
@@ -411,12 +723,20 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
 
   return {
     world: w,
+    arena,
     bodies,
+    colliders,
     joints,
     phases,
     environment,
     bounded,
-    fitsTank,
+    fitsTank: fits,
+    plan,
+    genome,
+    /** C1 — mutable: `{ effort, turnBias, sides }`. Written between steps. */
+    control,
+    /** Capture is contact with the ROOT body (10 §7, 11 §6). This is it. */
+    rootCollider: colliders[0],
     /** N22 — true only for creature-creature contacts. */
     isDamagingContact(handleA, handleB) {
       return !environmentHandles.has(handleA) && !environmentHandles.has(handleB);
@@ -425,7 +745,39 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     get steps() { return steps; },
     get work() { return work; },
 
+    /**
+     * Everything this creature contributes to one step, WITHOUT solving.
+     * A shared arena calls this on every occupant before its single `world.step()`
+     * — see createArena().stepAll. Apply-then-solve per creature would let the
+     * first mover see a world the second had not yet pushed on, and the duel
+     * would then depend on argument order, which is exactly what K4 forbids.
+     */
+    applyForces() {
+      applyEnvironment();
+      applyMotors();
+    },
+
+    /** Clock bookkeeping, separated so the arena advances it after the solve. */
+    advanceClock() {
+      t += FIXED_DT;
+      steps++;
+    },
+
+    /**
+     * Zero the clock and the work accumulator without rebuilding anything.
+     * A probe settles first (11 §5) and then measures; the driven phase must
+     * start at t = 0 or the oscillator jumps by whatever the settle consumed,
+     * which is precisely the instantiation transient the settle exists to remove.
+     */
+    resetClock() {
+      t = 0; steps = 0; work = 0;
+    },
+
     step() {
+      if (!ownsArena) {
+        throw new Error('step() on a shared arena: call arena.stepAll([...]) instead');
+      }
+      clampKinematics();
       applyEnvironment();
       applyMotors();
       w.step();
@@ -458,6 +810,10 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       return dst;
     },
 
-    free() { w.free(); },
+    /**
+     * Frees the Rapier world only if this simulation built it. A SHARED arena
+     * outlives its occupants — a duel frees the arena once, after both creatures.
+     */
+    free() { if (ownsArena) arena.free(); },
   };
 }

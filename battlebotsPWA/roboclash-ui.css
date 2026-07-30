@@ -75,14 +75,17 @@
   --rc-r-xs:5px; --rc-r-sm:7px; --rc-r:9px; --rc-r-lg:12px; --rc-r-pill:999px;
 
   /* type roles */
-  --rc-f-logo:'Monoton',cursive;             /* the brand mark only        */
-  --rc-f-display:'Orbitron',sans-serif;      /* bot names · big numerals   */
-  --rc-f-num:'Orbitron',monospace;           /* stats · currency readouts  */
+  /* fallback 'Barlow/Saira Condensed' = police accent-capable pour les glyphes
+     que les polices décoratives (Orbitron/Michroma/Audiowide/Monoton/PS2P)
+     n'auraient pas — les accents FR rendent toujours proprement. */
+  --rc-f-logo:'Monoton','Barlow Condensed',cursive;          /* the brand mark only        */
+  --rc-f-display:'Orbitron','Barlow Condensed',sans-serif;   /* bot names · big numerals   */
+  --rc-f-num:'Orbitron','Saira Condensed',monospace;         /* stats · currency readouts  */
   --rc-f-ui:'Barlow Condensed',sans-serif;   /* labels · body · controls   */
   --rc-f-dense:'Saira Condensed',sans-serif; /* dense small controls       */
-  --rc-f-nav:'Michroma',sans-serif;          /* tabs · nav chrome          */
-  --rc-f-pixel:'Press Start 2P',monospace;   /* micro eyebrow labels ONLY  */
-  --rc-f-action:'Audiowide',sans-serif;      /* primary CTA text           */
+  --rc-f-nav:'Michroma','Barlow Condensed',sans-serif;       /* tabs · nav chrome          */
+  --rc-f-pixel:'Press Start 2P','Saira Condensed',monospace; /* micro eyebrow labels ONLY  */
+  --rc-f-action:'Audiowide','Barlow Condensed',sans-serif;   /* primary CTA text           */
 
   /* spacing scale */
   --rc-s1:4px; --rc-s2:8px; --rc-s3:12px; --rc-s4:16px; --rc-s5:24px;

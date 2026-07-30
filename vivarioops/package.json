@@ -7,6 +7,8 @@
   "scripts": {
     "gate": "node gate/run.js",
     "build": "node tools/build.js",
+    "vendor": "node tools/vendor.js",
+    "serve": "node tools/serve.js",
     "navsim": "node tools/navsim.js"
   },
   "dependencies": {

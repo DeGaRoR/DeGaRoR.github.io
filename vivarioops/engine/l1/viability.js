@@ -62,6 +62,24 @@ export const VIABILITY = {
   maxPeakSpeed: 0.5 / FIXED_DT,   // 60 m/s
 
   maxAttempts: 12,       // A9: "max 12 attempts, then fall back to unmutated parent".
+
+  /**
+   * The STRANGER's cap, separate from A9's offspring cap and larger (H3b).
+   *
+   * An offspring that exhausts its attempts has a safe fallback: the unmutated
+   * parent, which is by definition viable. A stranger has none — it is drawn
+   * from nothing — so exhaustion used to return the last candidate WHETHER OR
+   * NOT it passed, which put a knowingly invalid genome in the one slot whose
+   * entire purpose is to keep the population healthy (N17).
+   *
+   * 12 attempts is A9's number for a problem that has a fallback. Four times
+   * that costs nothing in the common case, because the loop stops at the first
+   * viable draw and the measured stranger viability rate makes exhaustion
+   * vanishingly rare. It stays DETERMINISTIC: attempt k forks the same stream it
+   * always did, so raising the cap cannot change any lineage that succeeded
+   * before the old one ran out.
+   */
+  strangerAttempts: 48,
 };
 
 export const REASONS = [
@@ -136,6 +154,36 @@ function settle(RAPIER, plan, genome, world, opts = {}) {
 }
 
 /**
+ * The gravity-zero free run's verdict: `'diverged'`, `'inert'`, or null for OK.
+ *
+ * EXTRACTED SO THE GATE CAN REACH IT (H3). A DIVERGED FREE RUN MUST NOT READ AS
+ * MOTION. `settle` reports Infinity travel when the state goes non-finite, and
+ * `Infinity >= minSelfMotion` is TRUE — so a creature that blew up passed the
+ * inertness test as the liveliest thing in the corpus, and the stranger slot,
+ * which exists to keep the population healthy, could be filled by it. The live
+ * settle has rejected divergence since B4; this run never did, and it is the one
+ * whose entire job is to produce a number.
+ *
+ * It is extracted rather than inlined because the corpus cannot press it: over
+ * 1200 random genomes at MOTOR_SCALE 1.0, zero diverge in this run. At scale 6
+ * it is 1 in 600. So the escape is LATENT, and it goes live at exactly the
+ * MOTOR_SCALE 2.0 that B3 carries as its tuning candidate. An assertion against
+ * the live corpus would therefore assert nothing; against this function it
+ * asserts the rule.
+ *
+ * `peak` is deliberately NOT consulted. `maxPeakSpeed` is derived from wall
+ * thickness — a body faster than one wall per step can tunnel out of the tank —
+ * and this run is unbounded by construction, so there is no wall to be about.
+ *
+ * @param {{travel:number, nonFinite:boolean}} free
+ */
+export function freeMotionVerdict(free, min = VIABILITY.minSelfMotion) {
+  if (free.nonFinite || !Number.isFinite(free.travel)) return 'diverged';
+  if (!(free.travel >= min)) return 'inert';
+  return null;
+}
+
+/**
  * @param {object} RAPIER  already-initialised
  * @param {object} genome
  * @param {object} world
@@ -175,7 +223,9 @@ export function assessViability(RAPIER, genome, world, opts = {}) {
   // ── inertness, at gravity zero so the number is locomotion ──────────────
   const free = settle(RAPIER, plan, genome, { ...world, gravity: 0 }, { bounded: false });
   metrics.selfMotion = free.travel;
-  if (!(free.travel >= VIABILITY.minSelfMotion)) return fail('inert');
+
+  const verdict = freeMotionVerdict(free);
+  if (verdict) return fail(verdict);
 
   return { ok: true, reason: null, plan, metrics };
 }

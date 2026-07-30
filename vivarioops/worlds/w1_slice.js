@@ -13,10 +13,20 @@
 //      — 03 §3 had these as literals; 30 D1 forbids hard-coded constants
 // Values are unchanged from the literals they replace, so behaviour is identical.
 
+import { W1_RESIDENT_HASHES } from './w1_residents.js';
+
 export const W1_SLICE = {
   id: 'w1',
   name: 'The Soup',
-  faunaVersion: 1,
+  // BUMPED AT C2, 1 -> 2. The residents stopped being the placeholder strings
+  // 'res_a'/'res_b'/'res_c' and became three real genome hashes, which changes
+  // worldHash and therefore correctly invalidates every record compiled before
+  // C2 (03 §1). This is the swap A0 wrote the placeholder for.
+  // BUMPED AT THE DRAG-LAW DELIVERY, 2 -> 3. 10 §A8 was amended from a single
+  // centre-applied force to the per-face law, which changes every measured
+  // capability, so the residents were re-frozen against the new physics and
+  // every record compiled before it is correctly invalidated (03 §1).
+  faunaVersion: 3,
 
   // ── physics — L1 and L2 ────────────────────────────────
   gravity:         9.81,          // 02 §1a: constant in every world, never a dial
@@ -69,10 +79,17 @@ export const W1_SLICE = {
 };
 
 /**
- * Placeholder resident genome hashes for worldHash() until C2 replaces them with
- * real genome hashes (03 §1, A0 defect 4). faunaVersion bumps at that swap, so
- * every record compiled before C2 is correctly invalidated.
+ * The resident genome hashes fed to `worldHash()`.
+ *
+ * REPLACED AT C2 (A0 defect 4, and the obligation the gate has carried since).
+ * Until now these were the resident IDS standing in for genomes that did not
+ * exist; `worlds/w1_residents.js` now holds the three frozen genomes and their
+ * precomputed hashes, so world identity is derived from the actual fauna. The
+ * old export name is kept as an alias for one step so nothing breaks silently,
+ * and `faunaVersion` was bumped in the same edit — a resident change that did
+ * not move the hash would leave stale records looking valid, which is exactly
+ * what K5 exists to catch.
  */
-export const W1_RESIDENT_HASHES_PLACEHOLDER = W1_SLICE.residents.slice();
+export const W1_RESIDENT_HASHES_PLACEHOLDER = W1_RESIDENT_HASHES;
 
 export default W1_SLICE;

@@ -7,15 +7,122 @@
 <title>Vivarioops</title>
 <link rel="stylesheet" href="./trunk/ui/tokens.css">
 <link rel="stylesheet" href="./ui/base.css">
+<script>
+/* BOOT FAULT PANEL (H1b) — a CLASSIC script, deliberately, and first.
+
+   Three different fatal failures have now presented as the same black screen:
+   a file:// origin refusing every module, an import map missing an entry, and
+   a module that would not fetch. All three are invisible without a console,
+   and two unsigned human checkpoints have been waiting on a screen nobody
+   could get to render.
+
+   This cannot live in app.js. A module that fails to RESOLVE never executes,
+   so nothing inside the module graph can report its own absence. A classic
+   script parsed before that graph can, because it is already running.
+
+   No styling here — N16 keeps every colour and length in a token, so this only
+   sets text and unhides a node that ui/base.css already describes. */
+(function () {
+  var done = false;
+
+  function show(headline, detail, hint) {
+    if (done) return;
+    done = true;
+    var box = document.getElementById('boot-fault');
+    if (!box) return;
+    document.getElementById('boot-fault-head').textContent = headline;
+    document.getElementById('boot-fault-detail').textContent = detail || '';
+    document.getElementById('boot-fault-hint').textContent = hint || '';
+    box.hidden = false;
+  }
+
+  /* The message the browser gives names the symptom; this names the cause. */
+  function diagnose(msg) {
+    msg = String(msg || '');
+    if (/resolve module specifier/i.test(msg)) {
+      return 'No import map declared that name — or the map is present but its '
+           + 'JSON is invalid, in which case the browser discards the whole map '
+           + 'silently and every bare specifier fails exactly like this. '
+           + 'Check the import map in index.html, then run: npm run vendor';
+    }
+    if (/cross origin|CORS|opaque/i.test(msg)) {
+      return 'The page is not being served over http. Run: npm run serve';
+    }
+    if (/dynamically imported|Importing a module script failed|Unexpected token/i.test(msg)) {
+      return 'A file in the module graph did not load, or was served with the '
+           + 'wrong content type. Run: npm run vendor — then check the network tab.';
+    }
+    return 'Open the console for the full trace.';
+  }
+
+  /* file:// is diagnosable before anything has had a chance to fail. */
+  if (location.protocol === 'file:') {
+    document.addEventListener('DOMContentLoaded', function () {
+      show('Vivarioops cannot run from a file',
+           'Opened as ' + location.protocol + '// — every module is then a cross-origin '
+         + 'request from an opaque origin, and the browser blocks all of them.',
+           'Serve it instead. Run: npm run serve');
+    });
+    return;
+  }
+
+  /* Capture phase: a failed script or stylesheet fires an error event that does
+     not bubble, so a listener on the bubble phase never sees it. */
+  window.addEventListener('error', function (e) {
+    var src = e.target && (e.target.src || e.target.href);
+    if (src) show('Vivarioops did not start', 'Failed to load: ' + src,
+                  'The file is missing or was served with the wrong content type. Run: npm run vendor');
+    else show('Vivarioops did not start', e.message, diagnose(e.message));
+  }, true);
+
+  window.addEventListener('unhandledrejection', function (e) {
+    var m = (e.reason && (e.reason.message || e.reason)) || 'unknown rejection';
+    show('Vivarioops did not finish starting', String(m), diagnose(m));
+  });
+
+  /* app.js calls this once the stack is mounted. Without the watchdog a boot
+     that stalls with no error at all still shows nothing. */
+  window.__boot = {
+    ok: function () { done = true; var b = document.getElementById('boot-fault'); if (b) b.hidden = true; },
+  };
+  setTimeout(function () {
+    show('Vivarioops did not finish starting',
+         'No error was reported, and boot did not complete within the watchdog window.',
+         'Open the console — something is stalled rather than broken.');
+  }, 8000);
+})();
+</script>
 </head>
 <body>
 <div id="app">
   <header id="topbar"><span class="title">Vivarioops</span><span class="build" id="build">—</span></header>
-  <main id="stage"><div id="screen"></div><div id="overlay" hidden></div></main>
+  <main id="stage"><div id="screen"></div><div id="overlay" hidden></div>
+  <div id="boot-fault" hidden>
+    <h1 id="boot-fault-head"></h1>
+    <pre id="boot-fault-detail"></pre>
+    <p id="boot-fault-hint"></p>
+  </div>
+</main>
   <nav id="tabbar"></nav>
 </div>
+<!--
+  THE IMPORT MAP IS THE ONLY THING THAT RESOLVES A BARE SPECIFIER IN A BROWSER.
+  It points at ./vendor/, written by tools/vendor.js and committed, NOT at
+  ./node_modules/, which is in .gitignore and does not exist on the deploy
+  target. Rapier was missing here entirely, so the tank could never boot.
+  Assertion V2 checks that this map and what tools/vendor.js writes agree.
+
+  These files must be SERVED. Opening index.html as file:// makes every module a
+  cross-origin request from an opaque origin and the browser blocks all of them:
+  `npm run serve`, then open the printed http:// address.
+-->
 <script type="importmap">
-{ "imports": { "three": "./node_modules/three/build/three.module.js" } }
+{
+  "imports": {
+    "three": "./vendor/three-0.185.1/three.module.js",
+    "@dimforge/rapier3d-compat": "./vendor/dimforge-rapier3d-compat-0.19.3/rapier.mjs"
+  }
+}
 </script>
 <script type="module" src="./app.js"></script>
 </body>

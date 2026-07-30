@@ -14,6 +14,12 @@ import { GENOME_V } from '../../contracts/versions.js';
 // One table. Every range is here and nowhere else, so the factory, the mutation
 // operators and the validator cannot drift apart.
 
+/**
+ * One angle limit per axis (H6). Each is a HALF-RANGE about zero, so physics
+ * applies setLimits(-a, +a). Only axis 0 is read by anything today — see H14.
+ */
+export const ANGLE_AXES = 3;
+
 export const RANGE = {
   // Node — 10 §A5, density amended by A1 (was 0.6..1.4)
   dim:            [0.2, 2.0],       // m, full extent per axis
@@ -228,16 +234,37 @@ export function serialise(g) {
   return JSON.stringify(canonical(g));
 }
 
+/**
+ * parse -> identify schema -> migrate -> VALIDATE -> return (H6).
+ *
+ * The validate step was missing, so this function's contract was "returns
+ * something shaped like a genome, probably". Everything that arrives here is
+ * EXTERNAL — a shared file, a pasted fiche, a record from an older build — and
+ * the persistence philosophy is that external data is rejected cleanly or
+ * accepted whole, never partially interpreted. A parsed-but-unvalidated genome
+ * must not reach the engine, because the next thing that touches it is
+ * morphogenesis, where a missing field is a crash with no provenance.
+ */
 export function deserialise(text) {
   const raw = typeof text === 'string' ? JSON.parse(text) : text;
   if (typeof raw?.version !== 'number') throw new Error('genome: missing version');
   const g = migrate(raw);
+
+  // Shape before content: `for (const jg of ...)` on a non-iterable throws a
+  // TypeError about Symbol.iterator, which tells a player nothing at all.
+  if (!Array.isArray(g?.controller?.jointGenes)) {
+    throw new Error('genome: controller.jointGenes must be an array');
+  }
   // Rebuild jointGenes as a map keyed by nodeId; canonical() re-emits it sorted.
   const jointGenes = {};
   for (const jg of g.controller.jointGenes) {
     jointGenes[jg.nodeId] = { amplitude: jg.amplitude, bias: jg.bias, freqMult: jg.freqMult };
   }
-  return { ...g, controller: { ...g.controller, jointGenes } };
+  const hydrated = { ...g, controller: { ...g.controller, jointGenes } };
+
+  const v = validateGenome(hydrated);
+  if (!v.ok) throw new Error(`genome is not valid: ${v.errors.join('; ')}`);
+  return hydrated;
 }
 
 // ── hash ─────────────────────────────────────────────────────────────────────
@@ -312,7 +339,9 @@ export function validateGenome(g) {
   const e = [];
   if (!g || typeof g !== 'object') return { ok: false, errors: ['genome is not an object'] };
   if (g.version !== GENOME_V) e.push(`version ${g.version}, expected ${GENOME_V}`);
-  if (!Number.isInteger(g.seed) || g.seed < 0) e.push(`seed is not a uint32: ${g.seed}`);
+  // H6 — the message said uint32; the check only said "a non-negative integer",
+  // so 2^53 passed as a seed and then silently lost precision in the PRNG.
+  if (!Number.isInteger(g.seed) || g.seed < 0 || g.seed > 0xFFFFFFFF) e.push(`seed is not a uint32: ${g.seed}`);
   if (!Array.isArray(g.nodes) || g.nodes.length === 0) e.push('nodes is empty');
   if (!Array.isArray(g.connections)) e.push('connections is not an array');
   if (e.length) return { ok: false, errors: e };
@@ -326,7 +355,28 @@ export function validateGenome(g) {
     if (!inRange(n.density, RANGE.density)) e.push(`node ${n.id}: density ${n.density} out of range`);
     if (!Number.isInteger(n.recursiveLimit) || !inRange(n.recursiveLimit, RANGE.recursiveLimit)) e.push(`node ${n.id}: recursiveLimit ${n.recursiveLimit}`);
     if (!JOINT_TYPES.includes(n.joint?.type)) e.push(`node ${n.id}: joint type ${n.joint?.type}`);
-    n.joint?.angleLimits?.forEach((a, i) => { if (!inRange(a, RANGE.angleLimit)) e.push(`node ${n.id}: angleLimits[${i}] = ${a}`); });
+    // H6 — ARITY IS CHECKED, NOT ASSUMED. `n.joint?.angleLimits?.forEach(...)`
+    // ran zero times when the array was MISSING and reported nothing, so a
+    // genome with no angle limits at all validated clean and then crashed in
+    // morphogenesis. Optional chaining turns an absent field into a silent pass,
+    // which is the opposite of what a validator is for.
+    // H6 — ARITY IS CHECKED, NOT ASSUMED. `n.joint?.angleLimits?.forEach(...)`
+    // ran zero times when the array was MISSING and reported nothing, so a
+    // genome with no angle limits at all validated clean and then crashed in
+    // morphogenesis. Optional chaining turns an absent field into a silent pass,
+    // which is the opposite of what a validator is for.
+    //
+    // THREE SCALARS, NOT THREE PAIRS. Each entry is a half-range applied
+    // symmetrically about zero — physics.js does setLimits(-a, +a) — so
+    // RANGE.angleLimit starts at 0 and there is no min-exceeds-max case to
+    // check. (Worth stating: an outside reading of this field as [min, max]
+    // pairs is a natural mistake, and one that would silently change what
+    // ANGLE_AXES means.)
+    if (!Array.isArray(n.joint?.angleLimits) || n.joint.angleLimits.length !== ANGLE_AXES) {
+      e.push(`node ${n.id}: angleLimits must be ${ANGLE_AXES} values, got ${n.joint?.angleLimits?.length ?? 'none'}`);
+    } else {
+      n.joint.angleLimits.forEach((a, i) => { if (!inRange(a, RANGE.angleLimit)) e.push(`node ${n.id}: angleLimits[${i}] = ${a}`); });
+    }
     if (!inRange(n.joint?.phaseLag, RANGE.phaseLag)) e.push(`node ${n.id}: phaseLag ${n.joint?.phaseLag}`);
     for (const k of ['hueShift', 'valueShift', 'patternPhase']) {
       if (!inRange(n.colorGenes?.[k], RANGE[k])) e.push(`node ${n.id}: colorGenes.${k} = ${n.colorGenes?.[k]}`);
@@ -344,9 +394,15 @@ export function validateGenome(g) {
     if (!ids.has(c.childNodeId)) e.push(`connection ${c.id}: unknown child ${c.childNodeId}`);
     outDegree.set(c.parentNodeId, (outDegree.get(c.parentNodeId) || 0) + 1);
     if (!Number.isInteger(c.parentFace) || c.parentFace < 0 || c.parentFace > 5) e.push(`connection ${c.id}: parentFace ${c.parentFace}`);
-    c.position?.forEach((v, i) => { if (!inRange(v, RANGE.position)) e.push(`connection ${c.id}: position[${i}] = ${v}`); });
-    c.orientation?.forEach((v, i) => { if (!inRange(v, RANGE.orientation)) e.push(`connection ${c.id}: orientation[${i}] = ${v}`); });
-    c.scale?.forEach((v, i) => { if (!inRange(v, RANGE.scale)) e.push(`connection ${c.id}: scale[${i}] = ${v}`); });
+    // H6 — same hole, same fix: a missing array iterated zero times and passed.
+    for (const [field, arity] of [['position', 2], ['orientation', 3], ['scale', 3]]) {
+      const arr = c[field];
+      if (!Array.isArray(arr) || arr.length !== arity) {
+        e.push(`connection ${c.id}: ${field} must be ${arity} values, got ${arr?.length ?? 'none'}`);
+        continue;
+      }
+      arr.forEach((v, i) => { if (!inRange(v, RANGE[field])) e.push(`connection ${c.id}: ${field}[${i}] = ${v}`); });
+    }
     for (const k of ['reflectX', 'reflectY', 'reflectZ', 'terminalOnly']) {
       if (typeof c[k] !== 'boolean') e.push(`connection ${c.id}: ${k} is not a boolean`);
     }

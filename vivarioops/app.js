@@ -44,3 +44,8 @@ nav.onChange(({ tab, screen, modal }) => {
 document.getElementById('build').textContent = VERSION.app;
 
 nav.start(document.getElementById('app'));
+
+// The stack is mounted, so the boot watchdog in index.html can stand down. If
+// this line is never reached — a module that would not resolve, a throw above,
+// a stall — the fault panel says so instead of leaving a black screen (H1b).
+window.__boot?.ok();

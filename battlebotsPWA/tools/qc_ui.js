@@ -181,7 +181,7 @@ safe("écrans ligues/concours", () => {
         w5.eval("$('concoursList').querySelectorAll('.rc-cup').length")
           === w5.eval("ligueById(curLigue).concours.length"),
         w5.eval("curLigue + ' ' + ligueById(curLigue).concours.length"));
-  check("B: fil d'Ariane porte le nom de la ligue", w5.eval("$('ligueName').textContent") === "Ligue Regionale");
+  check("B: fil d'Ariane porte le nom de la ligue", w5.eval("$('ligueName').textContent") === "Ligue Régionale");
   /* La chaîne INTERNE à la ligue joue aussi : sans étoile à l'Échelle M, le
      Sumo Léger reste fermé. Le fixe ci-dessus lui en accorde une. */
   // engagement explicite sur le championnat (2e carte : lightM)
@@ -364,8 +364,8 @@ safe("chrome P2", () => {
   check("P2: bascule de langue depuis le panneau", wp.eval("LANG") === "en" && wp.eval("S.lang") === "en");
   wp.eval("$('settingsClose').click()");
   check("P2: fermeture du panneau", wp.eval("$('settingsOv').style.display") === "none");
-  // accents : sortie sans diacritiques
-  check("P2: aucun diacritique en sortie de t()", wp.eval("t('scrPass')") === "Eligible");
+  // accents PRÉSERVÉS : le strip global (da) est neutralisé
+  check("P2: da() ne retire plus les diacritiques", wp.eval("da('Éligible')") === "Éligible");
   check("aucune erreur sur le parcours P2", wp.errors.length === 0, wp.errors[0] || "");
   wp.close();
 });
@@ -627,7 +627,7 @@ safe("dégâts E3b", () => {
   w3.eval("(function(){ const u=AB().fit.battery[0]; S.inv.items[u].wear=45; showTab('workshop'); renderHome(); })()");
   check("E3b: chip d'usure et bouton Réparer au garage",
         w3.eval("!!$('slotRows').querySelector('.rc-wear')") &&
-        w3.eval("[...$('slotRows').querySelectorAll('.rc-toolbtn')].some(b=>b.textContent.includes('Reparer'))"));
+        w3.eval("[...$('slotRows').querySelectorAll('.rc-toolbtn')].some(b=>b.textContent.includes('Réparer'))"));
   check("aucune erreur E3b", w3.errors.length === 0, w3.errors[0] || "");
   w3.close();
 });

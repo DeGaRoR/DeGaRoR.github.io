@@ -22,9 +22,10 @@ import {
 import { mutate, mutateTimes, cloneGenome, jitter } from '../engine/l1/mutate.js';
 import {
   assessViability, newTally, record, viabilityRate, VIABILITY, REASONS,
+  freeMotionVerdict,
 } from '../engine/l1/viability.js';
 import { breed, seedPopulation, POPULATION, KIND, MUTATIONS_PER_OFFSPRING } from '../engine/l1/breed.js';
-import { binomial, signature, genusSpace, EPITHET_COUNT, NAME_AXES } from '../engine/l1/naming.js';
+import { binomial, signature, genusSpace, EPITHET_COUNT, NAME_AXES, DEAD_AXES } from '../engine/l1/naming.js';
 import {
   cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, nextSpeed,
   gridFor, frameDistance, smoothSpeed, horizontalSpeed,
@@ -412,6 +413,26 @@ export async function runBreedGate() {
   const tally = newTally();
   let fellBack = 0, offspringMade = 0;
   g.assertion('L1-30', 'A9 viability: each rule rejects what it names, and the fallback holds', (t) => {
+    // THE GRAVITY-ZERO FREE RUN'S VERDICT (H3), pressed directly. This was a
+    // gate escape: `travel` is Infinity when the state goes non-finite, and
+    // `Infinity >= minSelfMotion` is true, so a creature that blew up was
+    // accepted as the liveliest in the corpus. It is asserted against the
+    // extracted predicate rather than against live genomes because the live
+    // corpus CANNOT reach it — 0 of 1200 diverge in this run at MOTOR_SCALE 1.0,
+    // 1 in 600 at scale 6. Asserting it over the corpus would assert nothing.
+    t.eq(freeMotionVerdict({ travel: Infinity, nonFinite: true }), 'diverged',
+      'a free run that went non-finite is rejected, not read as motion');
+    t.eq(freeMotionVerdict({ travel: Infinity, nonFinite: false }), 'diverged',
+      'and infinite travel is rejected even if the flag was missed');
+    t.eq(freeMotionVerdict({ travel: NaN, nonFinite: false }), 'diverged',
+      'NaN travel is not motion either');
+    t.eq(freeMotionVerdict({ travel: VIABILITY.minSelfMotion / 2, nonFinite: false }), 'inert',
+      'a creature below the threshold is still inert');
+    t.eq(freeMotionVerdict({ travel: VIABILITY.minSelfMotion, nonFinite: false }), null,
+      'the threshold itself passes');
+    t.eq(freeMotionVerdict({ travel: 0.5, nonFinite: false }), null,
+      'and ordinary locomotion passes');
+
     // Constructed cases, one rule at a time. A filter tested only on random
     // genomes is tested only on what the factory happens to produce.
     const base = pop[0];
@@ -470,6 +491,30 @@ export async function runBreedGate() {
     for (const p of kids) {
       const slot = r.provenance.indexOf(p);
       t.eq(serialise(r.genomes[slot]), serialise(seed.genomes[0]), 'the fallback is the unmutated parent');
+    }
+
+    // ── THE STRANGER HAS NO PARENT TO FALL BACK TO (H3b) ────────────────────
+    //
+    // An offspring that exhausts its attempts returns its unmutated parent,
+    // which is viable by definition. A stranger is drawn from nothing. The old
+    // code returned the LAST CANDIDATE whether or not it passed, so the one slot
+    // that exists to keep the population healthy (N17) could knowingly hold an
+    // invalid genome and nothing downstream could tell. The slot is still
+    // filled — the tank is never short — but the verdict now travels with it.
+    const strangers = r.provenance.filter(p => p.kind === KIND.STRANGER);
+    t.eq(strangers.length, 1, 'the impossible world still gets its stranger slot');
+    t.eq(strangers[0].viable, false, 'and an exhausted stranger search says so rather than passing silently');
+    t.eq(strangers[0].attempts, VIABILITY.strangerAttempts,
+      'after the full stranger cap, which is larger than the offspring cap because there is no fallback');
+    t.ok(VIABILITY.strangerAttempts > VIABILITY.maxAttempts,
+      'the stranger tries harder than an offspring, precisely because it cannot fall back');
+
+    // And the normal case must carry the verdict too, or `viable === false` is
+    // indistinguishable from a field nobody wrote.
+    for (const p of seed.provenance) {
+      t.eq(p.viable, true, 'a stranger drawn in a livable world reports itself viable');
+      t.ok(p.attempts >= 1 && p.attempts <= VIABILITY.strangerAttempts,
+        'and reports how many draws it took', p.attempts);
     }
 
     // The standing rate, over mutants — which is the population A9's 60% target
@@ -546,6 +591,123 @@ export async function runBreedGate() {
   // overlap let creatures interpenetrate across tanks, an unclamped accumulator
   // presents as "the app froze", and a hit radius without a floor makes the
   // smallest creature in the tank unselectable.
+  // ── L1-34 · the slice density band is actually enforced ───────────────────
+  //
+  // WHY THIS EXISTS. SLICE_LIMITS.density is [1, 1] so that W1 creatures are
+  // neutrally buoyant by construction, and the whole C2 unblocking rests on it.
+  // But there are THREE draw sites — factory.randomNode, mutate's density
+  // jitter, and mutate's randomNodeLike — and each one reads
+  // `limits.density ?? RANGE.density`. Any of them silently reverting to
+  // RANGE.density restores the 108x buoyant drift, pins creatures to the tank
+  // walls again, and NO OTHER ASSERTION NOTICES: validateGenome checks the
+  // SCHEMA range, which is deliberately still [0.15, 1.8], so an out-of-band
+  // creature is a perfectly valid genome.
+  //
+  // Written against the LIMITS rather than against the literal 1.0, so it keeps
+  // its teeth when step F restores a real band, and it presses the mutation path
+  // rather than only the factory — B4's lesson that an assertion whose corpus
+  // cannot reach the boundary asserts nothing.
+  g.assertion('L1-34', 'Every generated and mutated node respects SLICE_LIMITS.density', (t) => {
+    const band = SLICE_LIMITS.density;
+    t.ok(Array.isArray(band) && band[0] <= band[1], 'the slice band is a well-formed range', band);
+
+    let checked = 0;
+    for (let i = 0; i < CORPUS; i++) {
+      for (const n of pop[i].nodes) {
+        t.ok(n.density >= band[0] && n.density <= band[1],
+          `factory creature ${i}: density ${n.density} inside [${band[0]}, ${band[1]}]`);
+        checked++;
+      }
+    }
+    t.ok(checked > 0, 'the factory corpus contained nodes to check', checked);
+
+    // The mutation path, pressed hard: 40 lineages x 8 mutations each, so the
+    // density jitter and randomNodeLike are both reached many times over.
+    let mutated = 0;
+    for (let i = 0; i < 40; i++) {
+      const r = mutateTimes(pop[i % CORPUS], makeRng(0xD3115 + i), 8);
+      for (const n of r.genome.nodes) {
+        t.ok(n.density >= band[0] && n.density <= band[1],
+          `mutant ${i}: density ${n.density} inside [${band[0]}, ${band[1]}]`);
+        mutated++;
+      }
+    }
+    t.ok(mutated > 0, 'the mutation path produced nodes to check', mutated);
+
+    // And the consequence the band exists FOR: zero net buoyant force in W1.
+    // Asserting the band without asserting what it buys would leave the next
+    // reader guessing why 1.0 rather than 0.9.
+    if (band[0] === band[1]) {
+      t.close(band[0], 1.0, 1e-9, 'the degenerate band sits at the medium density, so buoyancy cancels');
+    }
+
+    // ── the jitter site, pressed through a band it can actually move within ──
+    //
+    // MUTATION-TEST RESULT, and it is why this block exists. Reverting the
+    // jitter site to RANGE.density ESCAPED every assertion, because
+    // nodeFields() drops `density` while the band is degenerate — the mutant
+    // changed unreachable code. Harmless today and a trap at step F: the moment
+    // a real band is restored the site goes live, and nothing would have been
+    // guarding the wiring in the meantime.
+    //
+    // So the site is exercised against a SYNTHETIC band that has width. This
+    // tests the plumbing (`limits.density ?? RANGE.density`) rather than the
+    // current degenerate case, and it is B4's lesson once more: an assertion
+    // whose corpus cannot reach the boundary asserts nothing.
+    const SYNTH = [0.5, 0.6];
+    const synthLimits = { ...SLICE_LIMITS, density: SYNTH };
+    let moved = 0, outside = 0;
+    for (let i = 0; i < 40; i++) {
+      const r = mutateTimes(pop[i % CORPUS], makeRng(0x5B0A + i), 12, { limits: synthLimits });
+      for (const n of r.genome.nodes) {
+        const atRest = Math.abs(n.density - band[0]) < 1e-9 && band[0] === band[1];
+        const inSynth = n.density >= SYNTH[0] && n.density <= SYNTH[1];
+        if (inSynth) moved++;
+        else if (!atRest) outside++;
+      }
+    }
+    t.eq(outside, 0, 'under a synthetic band, no mutated density lands outside it');
+    // The site must actually have been REACHED, or the check above is vacuous.
+    t.ok(moved > 0, 'the density jitter was reached under a band with width', moved);
+  });
+
+  // ── L1-35 · an invariant trait names nothing ──────────────────────────────
+  //
+  // MUTATION-TEST RESULT: emptying naming.js's DEAD_AXES escaped the whole gate,
+  // because the name distribution is a printed DIAGNOSTIC and diagnostics do not
+  // fail. With SLICE_LIMITS.density degenerate the `gravis`/`levis` axis has zero
+  // variance, so its z is the same constant for every creature — it would either
+  // name nothing or name everything, decided by where B4's stale reference median
+  // happens to sit. Either way the epithet would carry no information, which is
+  // the one thing derived naming exists to guarantee (10 §A10).
+  g.assertion('L1-35', 'Every axis the limits hold invariant is excluded from epithet selection', (t) => {
+    const band = SLICE_LIMITS.density ?? RANGE.density;
+    const invariant = band[1] === band[0];
+
+    // STRUCTURAL, and deliberately so. The first version of this assertion
+    // checked the OUTPUT — that no creature is named `gravis` or `levis` — and
+    // a mutation test showed it was VACUOUS: with B4's reference median at
+    // 0.479 and a constant trait value of 0.515, the dead axis scores z = 0.07
+    // and loses the argmax to everything, so emptying DEAD_AXES changed no name
+    // and the assertion passed either way. An assertion whose corpus cannot
+    // violate it asserts nothing — B4's own lesson, and it caught me writing it.
+    //
+    // The property that actually matters is structural: an axis that cannot
+    // vary must not PARTICIPATE in selection. Whether it currently wins is an
+    // accident of where a stale reference constant sits, and re-deriving those
+    // constants is itself an open obligation — so the behavioural consequence
+    // is exactly the thing that could change without warning.
+    t.eq(DEAD_AXES.has('density'), invariant,
+      `density is excluded from selection iff the limits hold it invariant (invariant=${invariant})`);
+
+    for (const [trait] of NAME_AXES) {
+      if (DEAD_AXES.has(trait)) continue;
+      t.ok(true, `axis ${trait} participates in selection`);
+    }
+    t.eq(NAME_AXES.length * 2, EPITHET_COUNT,
+      'excluding an axis from selection does not remove it from the table (A17.5 still counts 24)');
+  });
+
   g.assertion('L1-32', 'Tank layout tiles without overlap and the timestep is clamped', (t) => {
     const [w, h, d] = W1_SLICE.tankBounds;
 
@@ -611,9 +773,36 @@ export async function runBreedGate() {
     // THE CLAMP. A 400 ms stall asks for 48 steps; running them takes longer
     // than a frame, which asks for more next time. Dropping simulated time is
     // the correct failure — the creatures run slow rather than the page hanging.
-    const stall = stepBudget(0.4, FIXED_DT);
+    // THE STALL IS DELIBERATELY NOT A WHOLE NUMBER OF STEPS. 0.4 s is exactly 48
+    // steps at 1/120, so its true remainder is zero — and against that value a
+    // mutant that throws the fraction away as well as the backlog is
+    // INDISTINGUISHABLE from the correct code. It escaped on the first pass.
+    // Half a step of remainder is what makes the two different.
+    const stall = stepBudget(0.4 + FIXED_DT * 0.5, FIXED_DT);
     t.ok(stall.steps <= 8, 'a long stall is clamped rather than spiralling', stall.steps);
     t.eq(stall.dropped, true, 'and the drop is reported rather than hidden');
+
+    // THESE ARE THE POINT, and their absence was a gate escape (H2). The two
+    // assertions above are both satisfied by a clamp that reports a drop and
+    // then carries the entire backlog forward anyway — which is what the code
+    // did. `steps <= maxSteps` and `dropped === true` are properties of the
+    // NEIGHBOURHOOD of the claim; the claim itself is about the debt.
+    t.ok(stall.carry < FIXED_DT,
+      'a capped frame keeps only the sub-step remainder, not the backlog', stall.carry);
+    t.close(stall.carry, FIXED_DT * 0.5, 1e-12,
+      'and it keeps exactly that remainder — the backlog goes, the fraction stays');
+
+    // And the claim as a claim: after a stall the simulation returns to normal
+    // frames immediately, rather than running at the ceiling until it catches
+    // up. A 1/60 frame against a 1/120 step wants exactly two.
+    let carry = stall.carry, burst = 0, ran = 0;
+    for (let f = 0; f < 30; f++) {
+      const r = stepBudget(carry + 1 / 60, FIXED_DT);
+      carry = r.carry; ran += r.steps;
+      if (r.steps > 2) burst++;
+    }
+    t.eq(burst, 0, 'and the frames after a stall run at the normal rate, not a catch-up burst');
+    t.eq(ran, 60, 'thirty 1/60 frames run sixty 1/120 steps, no more and no fewer', ran);
   });
 
   // ── L1-33 · selection is fair to small creatures (21 §4.3) ────────────────
@@ -647,7 +836,8 @@ export async function runBreedGate() {
     t.eq(nextSpeed(4), 1, 'speed wraps');
 
     // THE SPEED LABEL (21 §4.5). Horizontal centre-of-mass motion is thrust;
-    // vertical motion is buoyancy, which exceeds locomotion by ~40x and would
+    // vertical motion WAS buoyancy, which exceeded locomotion by a median 108x
+    // and would
     // make the label read nearly the same for every creature.
     t.eq(horizontalSpeed([3, 100, 4]), 5, 'the label ignores vertical drift entirely');
     t.eq(horizontalSpeed([0, 9, 0]), 0, 'a creature that only rises reads as zero');

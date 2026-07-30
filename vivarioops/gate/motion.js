@@ -10,7 +10,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
 import { createRandomGenome } from '../engine/l1/factory.js';
 import { morphogenesis } from '../engine/l1/morphogen.js';
-import { createSimulation, FIXED_DT, MOTOR_SCALE } from '../engine/l1/physics.js';
+import { createSimulation, FIXED_DT, MOTOR_SCALE, swingTwistAngle } from '../engine/l1/physics.js';
+import { normalise, fromAxisAngle, qmul, qrot } from '../engine/l1/vecmath.js';
 import { computePhases, targetAngles, DRIVE } from '../engine/l1/controller.js';
 import W1_SLICE from '../worlds/w1_slice.js';
 
@@ -160,7 +161,7 @@ export async function runMotionGate() {
   });
 
   // ── L1-20 · phase propagation (10 §A14 #5, 30 §4 "the one detail") ─────────
-  g.assertion('L1-20', 'Phase propagates down the tree: equal lags give an arithmetic sequence', (t) => {
+  g.assertion('L1-20', 'Phase propagates down the tree, and the lag belongs to the PARENT joint', (t) => {
     // A five-segment chain with one lag, exactly as A14 #5 specifies.
     const LAG = 0.37, N = 5;
     const chain = { bodyCount: N + 1, jointCount: N, joints: [] };
@@ -191,30 +192,181 @@ export async function runMotionGate() {
     }
     t.eq(broken, 0, `all ${checked} joints in the sample propagate correctly`);
     t.ok(roots > 0, 'the sample contains root joints, so the phase-0 branch was exercised', roots);
+
+    // ── WHOSE LAG IS IT? Pinned at H10, because nothing above pins it. ───────
+    //
+    // The chain at the top of this assertion uses ONE lag on every joint, and
+    // under a uniform lag BOTH candidate semantics produce an arithmetic
+    // sequence — they differ only by one term. The sample loop does discriminate,
+    // because real plans carry different lags per node, but that is an accident
+    // of the corpus: the day the sample became uniform, the discrimination would
+    // vanish and nothing would say so.
+    //
+    // RESOLVED: the lag belongs to the PARENT joint, so a joint's own lag is
+    // what its CHILDREN inherit and never what it uses itself. The rejected
+    // reading is `childPhase = parentPhase + childJoint.phaseLag`, which puts
+    // the root joint at its own lag rather than at zero and contradicts
+    // 10 §A7. Distinct lags are what make the two visible.
+    const LAGS = [0.11, 0.29, 0.53];
+    const distinct = {
+      bodyCount: 4, jointCount: 3,
+      joints: LAGS.map((lag, i) => ({ index: i, parentBody: i, childBody: i + 1, phaseLag: lag })),
+    };
+    const dp = computePhases(distinct);
+    t.eq(dp[0], 0, 'the root joint is at phase 0, not at its own lag');
+    t.close(dp[1], LAGS[0], 1e-12, "joint 1 carries joint 0's lag");
+    t.close(dp[2], LAGS[0] + LAGS[1], 1e-12, "joint 2 carries joints 0 and 1's lags");
+
+    // Stated as the rejection it is: under child-lag semantics these would be
+    // LAGS[0], LAGS[0]+LAGS[1] and LAGS[0]+LAGS[1]+LAGS[2]. Asserting the
+    // difference explicitly means a silent reinterpretation cannot pass.
+    t.ok(Math.abs(dp[0] - LAGS[0]) > 1e-9, 'and it is NOT the child-lag reading', [dp[0], LAGS[0]]);
+    t.ok(Math.abs(dp[2] - (LAGS[0] + LAGS[1] + LAGS[2])) > 1e-9,
+      'nor at the last joint', [dp[2], LAGS[0] + LAGS[1] + LAGS[2]]);
+
+    // The terminal lag is INERT by construction — nothing inherits from it. It is
+    // asserted rather than merely noted, because it is a named contributor to the
+    // inert-mutation rate and H13 has to be able to rely on it being true.
+    const changedTail = {
+      ...distinct,
+      joints: distinct.joints.map((j, i) => (i === 2 ? { ...j, phaseLag: 1.4 } : j)),
+    };
+    const cp = computePhases(changedTail);
+    t.ok(dp.every((v, i) => Math.abs(v - cp[i]) < 1e-12),
+      "the terminal joint's own lag changes no phase at all — it is inert, and H13 owns that");
   });
 
+  // ── L1-23m · joint angle is measured in one frame (H9) ────────────────────
+  g.assertion('L1-23m', 'A joint angle is invariant under global rotation of the whole creature', (t) => {
+    // THE DEFECT THIS PINS. `conj(qp) * qc` has its vector part in the PARENT's
+    // frame; the code projected it onto a WORLD-space axis. The two agree only
+    // while the parent sits at spawn orientation, so the reported angle decayed
+    // as the creature turned — 0.700 rad read as 0.235 at 180 degrees. The PD
+    // loop's error term is (want - theta), so the position-loop GAIN became a
+    // function of global pose. Corpus creatures average 78 degrees of root tilt,
+    // so this was the normal operating condition, not a corner.
+    //
+    // The property is stated the way the review asked for it: same articulation,
+    // many global orientations, one answer.
+    const axisLocal = normalise([0.3, 0.9, -0.2]);
+    const TRUE = 0.7;
+    const qrel = fromAxisAngle(TRUE, axisLocal);
+
+    const angles = [];
+    for (const deg of [0, 15, 30, 60, 90, 120, 150, 180, 240, 300]) {
+      for (const ax of [[1, 1, 0.3], [0, 1, 0], [1, 0, 0], [-0.4, 0.2, 0.9]]) {
+        const qpA = fromAxisAngle(deg * Math.PI / 180, ax);
+        const qcA = qmul(qpA, qrel);
+        const qp = { x: qpA[0], y: qpA[1], z: qpA[2], w: qpA[3] };
+        const qc = { x: qcA[0], y: qcA[1], z: qcA[2], w: qcA[3] };
+        angles.push(swingTwistAngle(qp, qc, axisLocal));
+      }
+    }
+    const worst = Math.max(...angles.map(a => Math.abs(a - TRUE)));
+    t.ok(worst < 1e-9, `all ${angles.length} global orientations report the same articulation`, worst);
+
+    // And the rejected reading must be visibly different, or this asserts
+    // nothing: at spawn orientation the two agree, so a corpus of upright poses
+    // would pass either way. This is the same trap L1-20 and L1-32 fell into.
+    const qpA = fromAxisAngle(Math.PI, [1, 1, 0.3]);
+    const qcA = qmul(qpA, qrel);
+    const qp = { x: qpA[0], y: qpA[1], z: qpA[2], w: qpA[3] };
+    const qc = { x: qcA[0], y: qcA[1], z: qcA[2], w: qcA[3] };
+    const world = swingTwistAngle(qp, qc, qrot(qpA, axisLocal));
+    t.ok(Math.abs(world - TRUE) > 0.4,
+      'and a world-space axis at 180 deg reports something far wrong — the corpus reaches the boundary', [world, TRUE]);
+
+    // Zero articulation reads as zero from every pose, including upside down.
+    for (const deg of [0, 90, 180]) {
+      const q = fromAxisAngle(deg * Math.PI / 180, [0.2, 0.7, 0.6]);
+      const qq = { x: q[0], y: q[1], z: q[2], w: q[3] };
+      t.close(swingTwistAngle(qq, qq, axisLocal), 0, 1e-12, `an unarticulated joint reads 0 at ${deg} deg`);
+    }
+  });
+
+  // NOT YET PINNED, AND KNOWN: this assertion covers the ARITHMETIC, not the
+  // CALL. Mutation-testing proved the difference — re-introducing the original
+  // defect inside relativeAngle still escapes, because nothing here observes the
+  // live simulation's frame. Removing the axis parameter narrowed the opening;
+  // it did not close it.
+  //
+  // The test that closes it: at ZERO GRAVITY the whole system is rotationally
+  // EQUIVARIANT, so a creature whose plan is rotated by any global R must produce
+  // the trajectory of the unrotated creature, rotated by R. A joint measured in
+  // the wrong frame breaks that equivariance and nothing else does. It needs the
+  // plan-rotation plumbing that H12's arena work will introduce anyway, so it is
+  // recorded here rather than half-built.
+
   // ── L1-21 · drag is dissipative ───────────────────────────────────────────
-  g.assertion('L1-21', 'Drag never adds energy and never reverses a velocity', (t) => {
-    // Written as a plain explicit v² force this fails at high speed: the drag
-    // impulse exceeds the momentum it opposes and flips the sign, which is how
-    // B3 diverged to non-finite and made Rapier panic. Tested at speeds far past
-    // anything the creatures reach, because that is exactly where it broke.
+  g.assertion('L1-21', 'The fluid term never adds energy to a free body', (t) => {
+    // AMENDED WITH THE PER-FACE LAW, and the old wording was the reason the
+    // amendment was needed. It asserted that drag never increases LINEAR speed
+    // and never increases SPIN, separately. That is a property of the old law —
+    // one force at the centre of mass, antiparallel to v by construction — and
+    // not a property of fluids. A rotating limb that pushes a creature forward
+    // is drag converting spin into translation, which the old wording forbids.
+    // It was an assertion that would have blocked swimming to protect a
+    // stability guarantee that can be stated correctly instead:
+    //
+    //   THE FLUID TERM NEVER INCREASES TOTAL KINETIC ENERGY.
+    //
+    // That is what the energy guard in applyEnvironment solves for exactly, it
+    // is what actually prevents the divergence B3 hit, and it permits the
+    // exchange between rotation and translation that thrust requires.
     for (const speed of [1, 10, 100, 1e3, 1e5]) {
       // ONE FREE BODY. With a joint in the plan the solver's corrective impulses
-      // dwarf the drag and the measurement stops being about drag at all.
+      // dwarf the fluid term and the measurement stops being about it at all.
       const plan = twoBodyPlan({ density: 0.15, dims: [2, 2, 0.05] });   // light and broad: worst case
       plan.bodies.length = 1; plan.joints.length = 0; plan.bodyCount = 1; plan.jointCount = 0;
       const sim = createSimulation(RAPIER, plan, testGenome(), { ...W1_SLICE, gravity: 0 },
         { bounded: false, motorScale: 0 });
-      sim.bodies[0].setLinvel({ x: speed, y: 0, z: 0 }, true);
-      sim.bodies[0].setAngvel({ x: 0, y: speed, z: 0 }, true);
+      const rb = sim.bodies[0];
+      rb.setLinvel({ x: speed, y: 0, z: 0 }, true);
+      rb.setAngvel({ x: 0, y: speed, z: 0 }, true);
+
+      // KE WITH THE FULL INERTIA TENSOR, not a scalar. The guard inside
+      // applyEnvironment deliberately uses the MINIMUM principal inertia, which
+      // makes it conservative; measuring energy the same way does not measure
+      // energy. Spin about a high-inertia axis would be under-counted, and
+      // converting it into translation would then read as energy appearing from
+      // nowhere — it showed up as a 1.1e-7 relative rise before this was fixed.
+      const mass = rb.mass();
+      const pi = rb.principalInertia();
+      const ke = (v, a) => {
+        // omega into the body frame, where the principal axes lie.
+        const q = rb.rotation();
+        const cx = -q.x, cy = -q.y, cz = -q.z, cw = q.w;
+        const tX = 2 * (cy * a.z - cz * a.y);
+        const tY = 2 * (cz * a.x - cx * a.z);
+        const tZ = 2 * (cx * a.y - cy * a.x);
+        const wx = a.x + cw * tX + (cy * tZ - cz * tY);
+        const wy = a.y + cw * tY + (cz * tX - cx * tZ);
+        const wz = a.z + cw * tZ + (cx * tY - cy * tX);
+        return 0.5 * mass * (v.x * v.x + v.y * v.y + v.z * v.z)
+             + 0.5 * (pi.x * wx * wx + pi.y * wy * wy + pi.z * wz * wz);
+      };
+      const before = ke(rb.linvel(), rb.angvel());
+
       sim.step();
-      const v = sim.bodies[0].linvel(), a = sim.bodies[0].angvel();
-      t.ok(Number.isFinite(v.x) && Number.isFinite(a.y), `speed ${speed}: still finite`, [v.x, a.y]);
-      t.ok(v.x >= 0, `speed ${speed}: linear drag did not reverse the velocity`, v.x);
-      t.ok(v.x <= speed, `speed ${speed}: linear drag did not add energy`, v.x);
-      t.ok(a.y >= 0, `speed ${speed}: angular drag did not reverse the spin`, a.y);
-      t.ok(a.y <= speed, `speed ${speed}: angular drag did not add energy`, a.y);
+      const v = rb.linvel(), a = rb.angvel();
+      const after = ke(v, a);
+
+      t.ok(Number.isFinite(v.x + v.y + v.z + a.x + a.y + a.z), `speed ${speed}: still finite`, [v.x, a.y]);
+      // A hair of tolerance: Rapier integrates the applied force itself, so the
+      // arithmetic is not bit-identical to the guard's model of it.
+      t.ok(after <= before * (1 + 1e-9) + 1e-9,
+        `speed ${speed}: total kinetic energy did not increase`, [before, after]);
+
+      // PURE TRANSLATION, no spin: here the old invariant DOES hold and is
+      // meaningful, because with omega = 0 every sample sees the same flow and
+      // the net force is antiparallel to v. Keeping it means the amendment
+      // loosened the assertion exactly where it had to and nowhere else.
+      rb.setLinvel({ x: speed, y: 0, z: 0 }, true);
+      rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      sim.step();
+      const v2 = rb.linvel();
+      t.ok(v2.x >= 0, `speed ${speed}: pure translation is never reversed`, v2.x);
+      t.ok(v2.x <= speed, `speed ${speed}: pure translation is never accelerated`, v2.x);
       sim.free();
     }
   });
@@ -251,7 +403,12 @@ export async function runMotionGate() {
     // nothing. The tail is carried as an obligation instead.
     peaks.sort((a, b) => a - b);
     const p50 = peaks[Math.floor(peaks.length * 0.5)] ?? 0;
-    t.ok(p50 < 25, 'the median creature stays under 25 m/s, ~3x buoyant terminal velocity', p50.toFixed(1));
+    // The bound is UNCHANGED; only its justification moved. It used to be read
+    // as a multiple of buoyant terminal velocity, and there is no longer any
+    // buoyancy in W1 to take a multiple of. 25 m/s is now what it always
+    // physically was: half a wall thickness (0.5 m) per 1/120 s step, i.e. the
+    // speed above which a creature can tunnel a boundary in one step.
+    t.ok(p50 < 25, 'the median creature stays under 25 m/s, half a wall thickness per step', p50.toFixed(1));
 
     // STRESS PASS at twice the tuned motor scale. Without it this assertion only
     // says "the value currently checked in does not diverge", which a pumping
@@ -278,7 +435,10 @@ export async function runMotionGate() {
   // ── locomotion diagnostic — not an assertion ──────────────────────────────
   // B3's checkpoint is a human judgement ("it looks alive"), so this is reported
   // rather than asserted. Gravity is zeroed so the number is locomotion and not
-  // buoyant drift, which otherwise dominates it by two orders of magnitude.
+  // buoyant drift, which used to dominate it by two orders of magnitude. Since
+  // SLICE_LIMITS.density went to [1, 1] there is no drift to exclude, so the
+  // zeroed gravity here is now belt-and-braces rather than load-bearing. Kept
+  // because the measurement must not silently depend on a generator setting.
   const travel = [];
   for (let k = 0; k < plans.length; k++) {
     const sim = createSimulation(RAPIER, plans[k], pop[k], { ...W1_SLICE, gravity: 0 },
@@ -307,9 +467,9 @@ export async function runMotionGate() {
     ],
     obligations: [
       'B3 CHECKPOINT IS HUMAN: "at least some undulate rather than twitch" cannot be asserted. Watch the tank screen before calling B3 done.',
-      'B3: about one creature in eleven still reaches an implausible peak speed (p95 220 m/s, worst seen 82000) without going non-finite. The median is 11 m/s against a buoyant terminal velocity of ~7, so this is a tail, not a bias. Bound it before C1 reads work or displacement as a capability.',
+      'B3: the implausible peak-speed tail is LARGELY A BUOYANCY ARTEFACT and mostly went away with the density delivery. In the bounded tank the peak-speed p95 fell from 171 m/s to 20.7 m/s (n=40, 15 s) because most of that tail was buoyant acceleration into a wall, not actuation. What remains is a genuine actuator tail and MOTOR_SCALE 1.0 is still tuned rather than derived. Re-measure the residual before C1 reads work or displacement as a capability; the old figures (p95 220 m/s, worst 82000) no longer describe this generator.',
       'B3: MOTOR_SCALE 1.0 is tuned, not derived. 2.0 roughly doubles locomotion and widens that tail sharply. Revisit once the tail is understood.',
-      'B3: 02 §7 density range 0.15-1.8 against mediumDensity 1.0 means most creatures pin to the surface or the floor within a few seconds. Buoyant drift exceeds locomotion by ~40x. Worth a look at B5.',
+      'B3 RESOLVED at the density delivery, and the figure was worse than recorded: buoyant drift exceeded locomotion by a median 108x, not ~40x, and only 13% of the corpus was within 5% of neutral — A1\u2019s \u201Cneutrally buoyant by chance\u201D was measured false, because bulk density is volume-weighted and not the midpoint of the gene range. SLICE_LIMITS.density is now [1, 1], which is what the reference does (mycoolfin/the-simsulator has no density gene and runs water at zero gravity). Measured after: bulk density 1.000 at every percentile, net buoyant acceleration 0.00 m/s^2, drift 0.000 m, 0/40 pinned. NOTE: world.gravity is therefore DEAD CODE in W1 — (mediumDensity - density) is exactly zero — and it comes back only with a world that needs it. Step F restores the band per world, not per slice.',
     ],
   };
 }

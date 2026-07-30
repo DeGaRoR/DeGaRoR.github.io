@@ -222,11 +222,19 @@ export function runContractGate() {
       t.eq(worldHash(w, RES), base, `non-hashed field leaves the hash alone: ${key}`);
     }
 
-    // Fauna.
-    t.ok(worldHash(W, ['res_a', 'res_b', 'res_X']) !== base, 'resident genome change moves the hash');
-    t.eq(worldHash(W, ['res_c', 'res_a', 'res_b']), base, 'resident order does not (sorted)');
-    t.ok(worldHash(W, ['res_a', 'res_b']) !== base, 'resident count change moves the hash');
+    // Fauna. The permutations are DERIVED from RES rather than written out as
+    // literals: C2 swapped the placeholder ids for real genome hashes and a
+    // restated list silently stopped testing the thing it names.
+    const swapped = RES.slice(); swapped[swapped.length - 1] += 'X';
+    const rotated = RES.slice(1).concat(RES[0]);
+    t.ok(worldHash(W, swapped) !== base, 'resident genome change moves the hash');
+    t.eq(worldHash(W, rotated), base, 'resident order does not (sorted)');
+    t.ok(worldHash(W, RES.slice(0, -1)) !== base, 'resident count change moves the hash');
     t.throws(() => worldHash(W, undefined), 'missing resident hashes rejected');
+
+    // C2: world identity is now derived from the ACTUAL fauna, not placeholders.
+    t.eq(RES.length, W.residents.length, 'one genome hash per declared resident');
+    t.ok(RES.every(h => /^[0-9a-f]{16}$/.test(h)), 'every resident hash is a real genomeHash', RES);
   });
 
   // K6 ───────────────────────────────────────────────────────────────────────

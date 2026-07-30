@@ -1,8 +1,16 @@
 // tools/build.js — the ONLY writer of version.json and trunk/version.js (20 §8).
 // A hand edit of either is a gate failure (assertion V1).
 //
-// Also runs the full gate and records the static section to gate-report.json, so
-// the dev panel can display checks that can only run against a filesystem.
+// ORDER MATTERS, AND IT WAS WRONG (H4). This script used to bump the version,
+// write both version files, and only THEN run a gate — and the gate it ran was
+// the STATIC one, eight filesystem checks out of a manifest of seventy-six. So a
+// build with broken physics wrote a fresh version number, declared itself fit,
+// and left the bumped files behind for the next person to find. The header even
+// claimed it ran "the full gate", which it never did.
+//
+// Now: run the WHOLE gate first, abort before touching anything if it is not
+// green, and only then bump. A version number is a claim that a build is
+// shippable, so it must not exist until that claim has been checked.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -11,6 +19,17 @@ import { GENOME_V, BRIDGE_V, ECOLOGY_V } from '../contracts/versions.js';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const p = (...a) => join(ROOT, ...a);
+
+// ── gate, BEFORE anything is written ─────────────────────────────────────────
+const { runGate, printSummary } = await import('../gate/orchestrator.js');
+const report = await runGate({ log: console.log });
+printSummary(report);
+
+if (report.failed > 0 || report.verdict !== 'GREEN') {
+  console.error(`BUILD ABORTED — ${report.verdictLine}`);
+  console.error('No version was written. Nothing on disk has changed.');
+  process.exit(1);
+}
 
 // ── version ──────────────────────────────────────────────────────────────────
 const bump = process.argv.includes('--minor') ? 'minor'
@@ -46,13 +65,30 @@ export default VERSION;
 `);
 console.log(`version.json  ${VERSION.app}  ${commit}`);
 
-// ── gate ─────────────────────────────────────────────────────────────────────
+// ── report ───────────────────────────────────────────────────────────────────
+// Re-run the static suite against the files just written, so V1 checks the bump
+// itself rather than the previous build's. Then record the WHOLE run: every
+// suite, everything skipped and why, and the dependency versions it ran against.
 const { runStaticGate } = await import('../gate/trunk.js');
 const stat = runStaticGate();
-writeFileSync(p('gate-report.json'), JSON.stringify({ ...stat, appV: VERSION.app, commit }, null, 2) + '\n');
-console.log(`gate-report.json  ${stat.passed} passed, ${stat.failed} failed`);
-
 if (stat.failed > 0) {
-  console.error('\nSTATIC GATE RED — build not fit to ship. Run `npm run gate` for detail.');
+  console.error('\nThe build wrote version files that do not pass V1. This is a build bug.');
+  for (const a of stat.results) for (const f of a.failures) console.error(`  >>> ${f}`);
   process.exit(1);
 }
+
+writeFileSync(p('gate-report.json'), JSON.stringify({
+  ...stat,
+  appV: VERSION.app,
+  commit,
+  fullGate: {
+    verdict: report.verdict,
+    passed: report.passed, failed: report.failed, pending: report.pending, checks: report.checks,
+    suites: report.suites.map(s => ({ name: s.name, passed: s.passed, failed: s.failed, pending: s.pending })),
+    skipped: report.skipped,
+    dependencies: report.dependencies,
+    finishedAt: report.finishedAt,
+  },
+}, null, 2) + '\n');
+console.log(`gate-report.json  full gate ${report.verdict}, ${report.checks} checks`);
+

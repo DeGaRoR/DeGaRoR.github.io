@@ -184,15 +184,36 @@ const NODE_FIELDS = [
   'angle0', 'angle1', 'angle2', 'phaseLag', 'hueShift', 'valueShift', 'patternPhase',
 ];
 
+/**
+ * The fields that can actually CHANGE under these limits.
+ *
+ * `SLICE_LIMITS.density` is [1, 1], and `jitter` against a zero-width range
+ * returns the value unchanged every time — sigma is nonzero but qClamp collapses
+ * it. Leaving `density` in the list would spend 1 draw in 13 on an operator that
+ * provably does nothing, which is B4's own recorded defect verbatim: a mutation
+ * that changed nothing, and A9's named failure mode "simple creatures appear to
+ * produce identical children".
+ *
+ * Derived from the limits rather than hard-coded, so restoring a real density
+ * band at step F re-enables the operator with no further edit.
+ */
+function nodeFields(limits) {
+  const band = limits.density ?? RANGE.density;
+  return band[1] > band[0] ? NODE_FIELDS : NODE_FIELDS.filter(f => f !== 'density');
+}
+
 function mutateRandomNode(g, rng, limits) {
   const n = g.nodes[rng.int(g.nodes.length)];
-  const field = NODE_FIELDS[rng.int(NODE_FIELDS.length)];
+  const fields = nodeFields(limits);
+  const field = fields[rng.int(fields.length)];
   switch (field) {
     case 'dims0': case 'dims1': case 'dims2': {
       const i = +field.slice(4);
       n.dims[i] = jitter(rng, n.dims[i], RANGE.dim); break;
     }
-    case 'density': n.density = jitter(rng, n.density, RANGE.density); break;
+    // Slice-scoped: see SLICE_LIMITS.density. Unreachable while the band is
+    // degenerate, because nodeFields() drops the field.
+    case 'density': n.density = jitter(rng, n.density, limits.density ?? RANGE.density); break;
     case 'recursiveLimit': {
       // Integer: +/-1. The single gene that decides whether a node type becomes
       // a chain of repeated segments — an eel — or one body.
@@ -439,7 +460,7 @@ function randomNodeLike(rng, limits) {
   const u = (r) => qClamp(rng.range(r[0], r[1]), r);
   return makeNode(makeId(rng, 'n'), {
     dims: [u(RANGE.dim), u(RANGE.dim), u(RANGE.dim)],
-    density: u(RANGE.density),
+    density: u(limits.density ?? RANGE.density),   // slice-scoped
     recursiveLimit: RANGE.recursiveLimit[0]
       + rng.int(Math.min(limits.maxRecursion, RANGE.recursiveLimit[1]) - RANGE.recursiveLimit[0] + 1),
     joint: {

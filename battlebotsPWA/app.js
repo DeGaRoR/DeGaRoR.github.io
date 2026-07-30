@@ -14,7 +14,11 @@ let LANG = "fr";
    les fontes display (Orbitron/Press Start/Saira caps) les rendent mal.
    Suppression uniforme des diacritiques à la sortie ; les STRINGS gardent
    leurs accents en source (réversible en retirant da()). */
-const da = (s) => typeof s === "string" ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : s;
+/* da \u2014 historiquement un \u00ab diacritic-stripper \u00bb global (les accents \u00e9taient retir\u00e9s
+   par crainte de polices sans glyphes accentu\u00e9s). Les polices (ou leur repli
+   'Barlow/Saira Condensed') rendent les accents correctement : on NEUTRALISE le
+   strip pour du vrai fran\u00e7ais. Fonction conserv\u00e9e (\u224821 appelants) \u2192 identit\u00e9. */
+const da = (s) => s;
 const t = (k, vars) => {
   let s = (STRINGS[LANG][k] ?? STRINGS.en[k] ?? k);
   if (vars) for (const [kk,vv] of Object.entries(vars)) s = s.split("{"+kk+"}").join(vv);
@@ -2857,7 +2861,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
    melait produit et musee, et poussait le journal d'erreurs hors ecran. */
 function renderVersionsTable(){
   const tb = $("verTable"); if(tb){ tb.innerHTML = "";
-    const cache = "v86";                                      // repere de build (CACHE du SW)
+    const cache = "v87";                                      // repere de build (CACHE du SW)
     const rows = [[t("verRow_build"), cache],
                   [t("verRow_save"), "v"+SAVE_V+" · "+t("verSaveV4")],
                   [t("verRow_off"), "✓"],

@@ -42,6 +42,47 @@ export const SLICE_LIMITS = {
   /** 10 §A17.1: nodeCount = randInt(2,5). maxNodes 8 leaves headroom for mutation. */
   nodeCount: [2, 5],
   extraEdges: [0, 3],
+
+  /**
+   * DENSITY IS NOT A VARIABLE IN THE SLICE. `RANGE.density` stays [0.15, 1.8] —
+   * the schema is unrestricted (10 §3) — but the factory and the mutation
+   * operators draw from this band, so W1 creatures are neutrally buoyant BY
+   * CONSTRUCTION rather than by chance.
+   *
+   * WHY, MEASURED, and it is not a taste call. 10 §2 (amendment A1) claims a
+   * random creature in water is "approximately neutrally buoyant by chance"
+   * because the gene-range midpoint is ~0.98. That is false as generated: the
+   * bulk density of an INSTANTIATED creature is volume-weighted, not the
+   * midpoint of the range. Over 60 factory creatures the mass-weighted bulk
+   * density is p10 0.557 / p50 1.033 / p90 1.442, only 13% land within 5% of
+   * neutral, and the median carries 2.44 m/s^2 of net buoyant acceleration.
+   * Buoyant drift exceeds locomotion by a median factor of 108.
+   *
+   * Pinning against a tank boundary, 40 creatures over 40 s (tools/_dband.mjs):
+   *
+   *     band              pinned    |dy| p90    |dy| worst
+   *     [0.15, 1.8]        27/38      37.8 m      110.8 m
+   *     [0.97, 1.03]        5/39      11.5 m       24.0 m
+   *     [0.99, 1.01]        1/39       9.8 m       13.5 m
+   *     [0.995, 1.005]      2/40       8.4 m       22.5 m
+   *     [1, 1]              0/39       1.6 m        3.5 m
+   *
+   * No non-degenerate band is clean, and the pinned fraction does not fall off
+   * monotonically — half-tank height is 12 m, so a residual 0.005 of density is
+   * still metres of drift inside a 15 s duel. Only exact neutrality works.
+   *
+   * THE REFERENCE AGREES, and it got there first. `mycoolfin/the-simsulator`
+   * has NO density gene at all — limb mass is the product of its dimensions,
+   * i.e. density is implicitly 1.0 — and its aquatic trial runs at zero gravity
+   * with no floor. Gravity and the fluid model are never both active. A1's
+   * widening was justified by the thick-gas world, which the slice does not
+   * contain; it is a step-F requirement that broke the slice.
+   *
+   * STEP F: restore [0.15, 1.8] together with the thick-gas world that needs it,
+   * and re-derive this band per world rather than per slice. Buoyancy is a
+   * world question, not a genome question. Widening is ONE NUMBER here.
+   */
+  density: [1, 1],
 };
 
 const pick = (rng, arr) => arr[rng.int(arr.length)];
@@ -55,9 +96,10 @@ const uniformInt = (rng, [lo, hi]) => lo + rng.int(hi - lo + 1);
 function randomNode(rng, limits) {
   return makeNode(makeId(rng, 'n'), {
     dims: [uniform(rng, RANGE.dim), uniform(rng, RANGE.dim), uniform(rng, RANGE.dim)],
-    // A1 amends A17.1's stale 0.6-1.4. Midpoint ~0.98 = water, so a random
-    // creature in W1 is approximately neutrally buoyant by construction.
-    density: uniform(rng, RANGE.density),
+    // SLICE-SCOPED, not RANGE-scoped. A1's "approximately neutrally buoyant by
+    // chance" was measured false; the band makes it true by construction. See
+    // SLICE_LIMITS.density for the measurement and for the step-F restoration.
+    density: uniform(rng, limits.density ?? RANGE.density),
     recursiveLimit: uniformInt(rng, [RANGE.recursiveLimit[0], Math.min(limits.maxRecursion, RANGE.recursiveLimit[1])]),
     joint: {
       type: pick(rng, limits.jointTypes),

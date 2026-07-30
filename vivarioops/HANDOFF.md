@@ -1,9 +1,9 @@
 # Vivarioops — handoff
 
-Working title as of 0.7.1. Only user-visible strings carry it; module paths, the
+Working title as of 0.8.0. Only user-visible strings carry it; module paths, the
 `viv/` directory and the ten spec documents still say Vivarium.
 
-Written at the end of the B4b sitting. **A fresh session needs: this file, the
+Written at the end of the C2 sitting. **A fresh session needs: this file, the
 ten spec documents, and the zip.** The container filesystem does not persist, so
 the zip is the codebase.
 
@@ -15,16 +15,63 @@ the zip is the codebase.
 | A1 Skeleton | done, device checkpoint unverified | green |
 | B1 Genome | done | green |
 | B2 Morphogenesis | done, visual checkpoint unverified | green |
-| B3 Motion | code-complete — **CHECKPOINT NOW ANSWERABLE, UNSIGNED** | green |
+| B3 Motion | code-complete — CHECKPOINT ANSWERABLE, UNSIGNED | green |
 | B4a Breeding · engine | done, mutation-tested | green |
-| **B4b Breeding · tank UI** | **built — CHECKPOINT UNSIGNED** | **green** |
+| B4b Breeding · tank UI | built — CHECKPOINT UNSIGNED | green |
 | B5 First light | not started | — |
+| C1 Sensors + probes | done, mutation-tested | green, 1 pending |
+| **C2 Duels** | **engine done · UI deferred · CHECKPOINT NOT ANSWERABLE** | **green, mutation test INCOMPLETE** |
+| D1 Ecology core | blocked — see below | — |
 
-Run `npm install && npm run gate`. 57 assertions, 55 pass, 0 fail, 2 pending
-(K3 → C2, R5 → browser), 1538 checks. Both gate suites mutation-tested: B3's
-6 of 7 (one recorded escape, below), B4's 27 of 27.
+Run `npm install && npm run gate`. 75 assertions, 71 pass, 0 fail, 4 pending
+(K3 now live; R5 → browser, L2-5 monotonicity, L2-18 C2 checkpoint), 2019 checks.
 
-## Read this first: two checkpoints are owed, and both need YOU
+## Read this first: C2 is blocked, and the blocker is buoyancy
+
+**The duel harness is correct, deterministic and symmetric. It measures nothing.**
+
+0 captures over 9 resident duels. Median closing distance **0.00 m** over a 15 s
+duel against a start separation of several metres. The matchup matrix is all
+zeros, so `Species.vs` currently adds nothing over a scalar and D1 would inherit
+a fauna that cannot interact.
+
+The cause is measured, not suspected:
+
+- **Capture is reachable.** `tools/c2sweep.js`: 6/45 captures when the pair
+  starts at half the reach sum. The root-contact rule works.
+- **The creatures are not swimming.** In the duel tank, **6 of 10 creatures reach
+  the floor and 2 reach or pass through the surface within 15 s**. They spend the
+  fight pinned against a boundary. Horizontal travel over 13 s: median 0.4 m.
+- **This is the standing B3/B5 obligation coming due.** 02 §7's density range
+  0.15–1.8 against `mediumDensity` 1.0. Solo probes sidestep it by measuring at
+  gravity zero (C1's amendment); a duel cannot, because the tank is where the
+  contact happens.
+
+**Decide the density/buoyancy question before anything else.** It now blocks C2's
+checkpoint, D1's ecology, and B5's art pass, and three sessions have deferred it.
+
+## What to do first in the next session
+
+1. **Finish `node tools/_mut_c2.mjs`.** 26 seeded defects; **14 caught, 0
+   escapes** before the session ended. C2's green is NOT accepted until it
+   completes — that is the project's own standing rule and it has caught six
+   real gate bugs. The 12 unrun mutants are the setup-variation, sensing,
+   resident and fauna-loader groups at the end of the list.
+
+   **THE RUNNER IS NOT CRASH-SAFE, and it cost time here.** It writes a mutant,
+   runs the gate, then restores. Killed in between, it leaves the mutant in the
+   tree — twice in this session, and the second one masqueraded as a real L2-15
+   failure for two gate runs. Before running it again, wrap the mutate/restore in
+   a `try/finally` and add a `SIGTERM`/`SIGINT` handler that restores. **After any
+   interrupted run, re-run the gate before trusting the tree**; a red gate
+   straight after a kill is a left-over mutant until proven otherwise.
+2. **Then the buoyancy decision.** Candidates, cheapest first: narrow the density
+   range toward neutral; raise `mediumDensity`; add a depth-holding term. Each is
+   a `w1_slice.js` change, so measure with `tools/c2sweep.js` and
+   `tools/c2diag.js` rather than by eye.
+3. **Only then** the capability card UI, which was deliberately not built.
+
+## Still owed: two human checkpoints (B3, B4)
 
 Nothing here is blocked. What is missing is a person looking at a screen.
 

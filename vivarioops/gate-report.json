@@ -7,7 +7,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "10 file(s) in /engine/"
+      "note": "15 file(s) in /engine/"
     },
     {
       "id": "N2",
@@ -15,7 +15,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "10 file(s) in /engine/"
+      "note": "15 file(s) in /engine/"
     },
     {
       "id": "N3",
@@ -23,7 +23,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "10 file(s) in /engine/"
+      "note": "15 file(s) in /engine/"
     },
     {
       "id": "N5",
@@ -56,6 +56,13 @@
       "note": "11 component file(s); trunk/ui/tokens.css is the token source and is out of scope"
     },
     {
+      "id": "V2",
+      "title": "Every browser bare specifier resolves through the import map to a file that ships",
+      "status": "pass",
+      "checks": 1,
+      "failures": []
+    },
+    {
       "id": "V1",
       "title": "version.json, trunk/version.js and contracts/versions.js agree",
       "status": "pass",
@@ -63,14 +70,86 @@
       "failures": []
     }
   ],
-  "passed": 8,
+  "passed": 9,
   "failed": 0,
   "pending": 0,
-  "checks": 8,
+  "checks": 9,
   "obligations": [
     "Tier 1: N15 (every user-visible string through t()) has no check yet — t() is in use from A1 but the DOM scan needs the dictionaries.",
     "Tier 3: N16 exception — index.html meta[name=theme-color] holds the only hex outside tokens."
   ],
-  "appV": "0.7.1",
-  "commit": "uncommitted"
+  "appV": "0.8.1",
+  "commit": "uncommitted",
+  "fullGate": {
+    "verdict": "GREEN",
+    "passed": 72,
+    "failed": 0,
+    "pending": 4,
+    "checks": 2052,
+    "suites": [
+      {
+        "name": "contracts",
+        "passed": 8,
+        "failed": 0,
+        "pending": 1
+      },
+      {
+        "name": "trunk-static",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "runtime",
+        "passed": 4,
+        "failed": 0,
+        "pending": 1
+      },
+      {
+        "name": "l1",
+        "passed": 18,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "motion",
+        "passed": 6,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "breed",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "probe",
+        "passed": 8,
+        "failed": 0,
+        "pending": 1
+      },
+      {
+        "name": "duel",
+        "passed": 8,
+        "failed": 0,
+        "pending": 1
+      }
+    ],
+    "skipped": [],
+    "dependencies": {
+      "node": "v22.22.2",
+      "packages": {
+        "@dimforge/rapier3d-compat": {
+          "pinned": "0.19.3",
+          "installed": "0.19.3"
+        },
+        "three": {
+          "pinned": "0.185.1",
+          "installed": "0.185.1"
+        }
+      }
+    },
+    "finishedAt": "2026-07-29T23:56:49.371Z"
+  }
 }
