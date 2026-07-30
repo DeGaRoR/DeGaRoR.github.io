@@ -39,6 +39,9 @@ export const W1_SLICE = {
 
   // ── presentation — label only, never physics ───────────
   phase: 'liquid',
+  // Which --pal-<id>-0..5 ramp the creature renderer indexes (values live in
+  // tokens.css per N16). A new world ships a new ramp and sets this.
+  palette: 'w1',
 
   // ── ecology — L3 ───────────────────────────────────────
   worldSize:     [200, 200],      // m, torus

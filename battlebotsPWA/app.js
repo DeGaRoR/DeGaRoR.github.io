@@ -2861,7 +2861,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
    melait produit et musee, et poussait le journal d'erreurs hors ecran. */
 function renderVersionsTable(){
   const tb = $("verTable"); if(tb){ tb.innerHTML = "";
-    const cache = "v87";                                      // repere de build (CACHE du SW)
+    const cache = "v88";                                      // repere de build (CACHE du SW)
     const rows = [[t("verRow_build"), cache],
                   [t("verRow_save"), "v"+SAVE_V+" · "+t("verSaveV4")],
                   [t("verRow_off"), "✓"],

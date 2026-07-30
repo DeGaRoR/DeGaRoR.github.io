@@ -7,7 +7,7 @@
 
 :root {
   /* colour — dark water, per 02 W1 */
-  --c-bg:        #05080c;
+  --c-bg:        #04070a;   /* deepened for the design-style water/scrims (3D layer) */
   --c-surface:   #0c1219;
   --c-surface-2: #131c26;
   --c-line:      #1e2b38;
@@ -37,4 +37,38 @@
   --c-stranger:  #e0a458;   /* = warn; N17's slot must not read as a bug */
   --ring-w: 2px;
   --label-pad: 3px;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * 3D CREATURE PRESENTATION LAYER — design-style adoption, Phase 1.
+   *
+   * A namespace DELIBERATELY SEPARATE from chrome (--c-*): the generated
+   * creature appearance indexes --pal-* and reads --creature-*; chrome never
+   * draws from these, and creatures never draw from chrome. A rim light in a
+   * chrome literal would paint out-of-ramp colour onto a creature.
+   * ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Water — one gradient, rendered full-bleed as the 3D scene background. Not a
+   * panel background. The fog fades creatures to the deep stop (--c-bg). The two
+   * stops are also exposed singly so the 3D scene can build the gradient without
+   * a hex literal at the call site (N16); --c-water-1 IS --c-bg. */
+  --c-water-0: #0f2130;
+  --c-water:   radial-gradient(115% 70% at 50% -10%, #0f2130 0%, #04070a 68%);
+
+  /* Creature ramp — W1 "cold water". Six stops the hue gene indexes;
+   * hueVariance spreads across ADJACENT stops only. Index 3 is the near-white
+   * bone stop — the luminous branch excludes it or a glowing draw is white by
+   * construction. 4 and 5 (rust, plum) are the rare stops, so a warm creature
+   * is an event. A new world ships its own --pal-<id>-0..5 block. */
+  --pal-w1-0: #2b3a4a;
+  --pal-w1-1: #3f6b6b;
+  --pal-w1-2: #7fa89b;
+  --pal-w1-3: #d9cfbc;   /* bone — excluded from luminous draws */
+  --pal-w1-4: #b5764a;   /* rare */
+  --pal-w1-5: #6b5878;   /* rare */
+
+  /* Presentation constants for the render. Here, not in creature.js, so they
+   * are visible on the dev panel and N16 stays a real check. */
+  --creature-lum-threshold:  0.82;   /* material.iridescence above this glows */
+  --creature-membrane-scale: 1.13;
+  --creature-emissive-floor: 0.3;
 }
