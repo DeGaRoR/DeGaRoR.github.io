@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#e8e6e1;font-family:'IBM Plex Sans',system-ui,sans-serif}
+a{color:#2f6b6b}a:hover{color:#1d4747}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px 'IBM Plex Mono',monospace;padding:3px 7px;background:#15201c;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'IBM Plex Sans',system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'IBM Plex Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'IBM Plex Sans',system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.10);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2f6b6b;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.5 'IBM Plex Sans',system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.dv-sub{margin:30px 0 14px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(0,0,0,.42)}
+</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">The spec — what to ship, as tokens and a change map</span></div>
+
+<div style="max-width:900px;margin-bottom:6px"><p style="margin:0;font:400 14px/1.55 'IBM Plex Sans',system-ui,sans-serif;color:#26302c;text-wrap:pretty">The proposal resolves to one direction: <a class="dv-oid" href="#2a">2a</a> chrome, <a class="dv-oid" href="#1g">1g</a> palette contract, the three-layer procedural body from <a class="dv-oid" href="#3c">3c</a>, and luminosity as a trait per <a class="dv-oid" href="#2c">2c</a>. Below it is written as values and file changes so it can be implemented without re-reading the argument.</p></div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Token sheet — the whole chrome system</div>
+<div class="dv-card" style="width:470px;background:#faf8f4">
+<div style="padding:18px;display:flex;flex-direction:column;gap:16px">
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">SURFACE — DARK ONLY, TWO STEPS</div>
+<div style="display:flex;gap:8px">
+<div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="height:38px;border-radius:4px;background:#04070a;border:1px solid rgba(0,0,0,.15)"></div><span style="font:400 9.5px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--surface-0<br>#04070a</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="height:38px;border-radius:4px;background:#0b1117"></div><span style="font:400 9.5px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--surface-1<br>#0b1117</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="height:38px;border-radius:4px;background:#16222d"></div><span style="font:400 9.5px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--hairline<br>#16222d</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="height:38px;border-radius:4px;background:linear-gradient(#0f2130,#04070a)"></div><span style="font:400 9.5px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--water<br>radial</span></div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">SIGNAL — THREE ROLES, NO OVERLAP</div>
+<div style="display:flex;flex-direction:column;gap:6px;font:400 11.5px/1.4 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;align-items:center;gap:9px"><span style="flex:none;width:22px;height:22px;border-radius:4px;background:#4fd1c5"></span><span style="flex:none;width:104px;font:400 10px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--accent<br>#4fd1c5</span><span>selection, primary action, active tab</span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="flex:none;width:22px;height:22px;border-radius:4px;background:#dd9f56"></span><span style="flex:none;width:104px;font:400 10px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--stranger<br>#dd9f56</span><span>the unrelated slot. <strong>Nothing else, ever.</strong></span></div>
+<div style="display:flex;align-items:center;gap:9px"><span style="flex:none;width:22px;height:22px;border-radius:4px;background:#dbe6f0"></span><span style="flex:none;width:104px;font:400 10px/1.3 'IBM Plex Mono',monospace;color:#5a625d">--ink / --ink-dim<br>#dbe6f0 / #7189a0</span><span>text and telemetry</span></div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">TYPE — TWO FACES, ONE RULE</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:none;width:104px;font:400 10px/1 'IBM Plex Mono',monospace;color:#5a625d">--t-title 15/500</span><span style="font:500 15px/1 'IBM Plex Sans',sans-serif;color:#1d2320">Generation 4</span></div>
+<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:none;width:104px;font:400 10px/1 'IBM Plex Mono',monospace;color:#5a625d">--t-label 12/400</span><span style="font:400 12px/1 'IBM Plex Sans',sans-serif;color:#1d2320">Breed 2 selected</span></div>
+<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:none;width:104px;font:400 10px/1 'IBM Plex Mono',monospace;color:#5a625d">--t-value 11 mono</span><span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#1d2320">1.24 m/s · 21 bodies</span></div>
+<div style="display:flex;align-items:baseline;gap:10px"><span style="flex:none;width:104px;font:400 10px/1 'IBM Plex Mono',monospace;color:#5a625d">--t-name serif</span><span style="font:italic 400 14px/1 Spectral,Georgia,serif;color:#1d2320">Derived binomials only</span></div>
+</div>
+<p style="margin:2px 0 0;font:400 11px/1.5 'IBM Plex Sans',sans-serif;color:#5a625d">The rule: <strong>mono means measured.</strong> Numerals stay mono inside sans sentences; labels never take mono. Spectral italic stays locked until naming ships.</p>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">GEOMETRY &amp; MOTION</div>
+<div style="display:flex;flex-direction:column;gap:5px;font:400 11px/1.45 'IBM Plex Mono',monospace;color:#2b332f">
+<div>--tap-min <span style="color:#5a625d">44px · primary 48–50px</span></div>
+<div>--r-pill 999px <span style="color:#5a625d">controls</span> · --r-card 8px <span style="color:#5a625d">panels</span></div>
+<div>--gutter 16px <span style="color:#5a625d">· --gap 8–11px, flex/grid only</span></div>
+<div>--scrim 96px top / 214px bottom <span style="color:#5a625d">gradient, not panels</span></div>
+<div>--ease 180ms cubic-bezier(.2,.7,.3,1) <span style="color:#5a625d">chrome only</span></div>
+</div>
+</div>
+
+<p style="margin:0;padding-top:12px;border-top:1px solid rgba(0,0,0,.1);font:400 11px/1.5 'IBM Plex Mono',monospace;color:#8c8681">No light theme. The creature ramp (<a class="dv-oid" href="#1g">1g</a>) is a separate namespace — chrome never draws from it, creatures never draw from chrome.</p>
+</div>
+</div>
+<p style="margin:0;width:470px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Every value here already appears in <a class="dv-oid" href="#2a">2a</a>; nothing new is introduced at spec time. N16 holds — components reference tokens only.</p>
+</div>
+
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Change map — file by file, in order</div>
+<div class="dv-card" style="width:470px;background:#faf8f4">
+<div style="padding:18px;display:flex;flex-direction:column;gap:15px">
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">1 · CHROME</div>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 11.5px/1.45 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">trunk/ui/tokens.css</span><span>add the <a class="dv-oid" href="#4a">4a</a> sheet. Surfaces, signal, type, geometry, motion.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">ui/base.css</span><span>full-bleed tank; top/bottom scrims replace panels.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">ui/widgets.js</span><span>pill control cluster + primary action; label strings sentence case.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">ui/screens/tank.js</span><span>generation + selection readouts as overlay, not a bar.</span></div>
+</div>
+</div>
+
+<div style="height:1px;background:rgba(0,0,0,.1)"></div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">2 · CREATURES</div>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 11.5px/1.45 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">worlds/w1_slice.js</span><span>six-stop ramp per world. W1 gets cold water; rust and plum are the rare stops.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">render/creature.js</span><span><code style="font:400 10.5px 'IBM Plex Mono',monospace">colorFor()</code> indexes the ramp; drop <code style="font:400 10.5px 'IBM Plex Mono',monospace">flatShading</code>; generate colour/roughness/bump maps at birth; three material layers; rim light from the ramp, never a literal.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">render/creature.js</span><span>luminous branch at <code style="font:400 10.5px 'IBM Plex Mono',monospace">iridescence &gt; 0.82</code>: opaque flesh, per-segment emissive, halo. Per-segment material instances — a shared one pulses in unison.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;width:120px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#3f6b6b">engine/l1/genome.js</span><span><strong>unchanged.</strong> No new fields — the appearance genes already exist.</span></div>
+</div>
+</div>
+
+<div style="height:1px;background:rgba(0,0,0,.1)"></div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">3 · FALLBACK LADDER, IN DROP ORDER</div>
+<div style="display:flex;flex-direction:column;gap:5px;font:400 11px/1.45 'IBM Plex Mono',monospace;color:#2b332f">
+<div><span style="color:#b5764a">1</span> membrane layer <span style="color:#8c8681">— flesh alone still reads</span></div>
+<div><span style="color:#b5764a">2</span> generated maps <span style="color:#8c8681">— degrade to flat ramp colour</span></div>
+<div><span style="color:#b5764a">3</span> halo sprites <span style="color:#8c8681">— emissive alone carries the gait</span></div>
+<div><span style="color:#b5764a">4</span> motes, rim light</div>
+</div>
+</div>
+
+<p style="margin:0;padding-top:12px;border-top:1px solid rgba(0,0,0,.1);font:400 11px/1.55 'IBM Plex Sans',sans-serif;color:#8c8681"><strong style="color:#2b332f">Open, needs your call:</strong> whether a tank of six holds frame with membranes on — that measurement decides rung 1. And whether Spectral enters now as a reserved token or waits for naming to ship.</p>
+</div>
+</div>
+<p style="margin:0;width:470px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Nothing here touches L2, L3 or the gates — the whole proposal is presentation, which is why it can land while B3/B4 are still unsigned.</p>
+</div>
+
+</div>
+<p class="dv-next">Try next: "write the tokens.css file" · "apply <a class="dv-oid" href="#4a">4a</a> to the Trials and Atlas screens" · "measure six-with-membranes and set the ladder"</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Procedural depth — generated maps, three-layer anatomy, gene-driven appendages</span></div>
+
+<div style="max-width:900px;margin-bottom:6px"><p style="margin:0;font:400 14px/1.55 'IBM Plex Sans',system-ui,sans-serif;color:#26302c;text-wrap:pretty">The elaboration comes from <strong>genes that were already in the schema and unspent</strong> — <code style="font:400 12.5px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">patternScale</code>, <code style="font:400 12.5px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">stripeAnisotropy</code>, <code style="font:400 12.5px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">patternContrast</code>, <code style="font:400 12.5px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">iridescence</code>. Each creature generates its own colour, roughness and bump maps at birth, wears three material layers, and grows fins, cilia and limb pairs by threshold. Still zero authored instances, still capsules and ellipsoids only per 10 §A10 — the elegance is in the profile curve and the layering, not in new primitives.</p></div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Three genomes under the layered treatment — live, one frame each</div>
+<div class="dv-card" style="width:660px;background:#05080c">
+<div style="display:grid;grid-template-rows:repeat(3,1fr);gap:1px;background:#16222d">
+<div style="position:relative;height:200px;background:#05080c"><canvas id="cv-g1" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;top:11px;font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#7189a0">GENOME 01</div></div>
+<div style="position:relative;height:200px;background:#05080c"><canvas id="cv-g2" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;top:11px;display:flex;align-items:baseline;gap:9px"><span style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#7189a0">GENOME 02</span><span style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#e9b57c">LUMINOUS</span></div></div>
+<div style="position:relative;height:200px;background:#05080c"><canvas id="cv-g3" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;top:11px;font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#7189a0">GENOME 03</div></div>
+</div>
+<div style="padding:9px 12px;font:400 9.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.07em;color:#5d7183;border-top:1px solid #16222d">GENERATED MAPS · 3 LAYERS · SHEEN + IRIDESCENCE — SAME BUILDER, NO AUTHORED INSTANCE</div>
+</div>
+<p style="margin:0;width:660px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">One genome per frame, because specimens under comparison must never occlude each other. They read differently while staying obviously one clade — <a class="dv-oid" href="#1g">1g</a>'s ramp does the family work, pattern and silhouette genes do the individuation. Roll <em>Body seed</em> in Tweaks to draw three new genomes.</p>
+</div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>One specimen, close — the layer stack visible</div>
+<div class="dv-card" style="width:440px"><div style="position:relative;height:420px;background:#060a0f"><canvas id="cv-solo" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:14px;bottom:12px;font:400 9.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.07em;color:#7189a0">ORGAN · FLESH · MEMBRANE<br>TOGGLE MEMBRANE IN TWEAKS TO SEE THE COST</div></div></div>
+<p style="margin:0;width:440px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Close enough to see the bump map catch the key light and the dorsal sail carry transmission. The organ inside is what makes the membrane worth its GPU cost — remove it and the shell has nothing to be a shell over.</p>
+</div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>The generation contract — gene → consequence</div>
+<div class="dv-card" style="width:440px;background:#faf8f4">
+<div style="padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">LAYERS, OUTSIDE IN</div>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 12px/1.45 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:74px;font:500 11px/1.45 'IBM Plex Mono',monospace;color:#3f6b6b">MEMBRANE</span><span>Transmissive shell at ×1.13 radius, <code style="font:400 11px 'IBM Plex Mono',monospace">ior 1.36</code>, sheen in the ramp's mid stop. Reads as wet.</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:74px;font:500 11px/1.45 'IBM Plex Mono',monospace;color:#3f6b6b">FLESH</span><span>Generated colour + roughness + bump maps, sheen, iridescence. The only layer patterned.</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:74px;font:500 11px/1.45 'IBM Plex Mono',monospace;color:#3f6b6b">ORGAN</span><span>Opaque elongated body per segment. Gives the shell something to reveal, and carries the glow when luminous.</span></div>
+</div>
+</div>
+<div style="height:1px;background:rgba(0,0,0,.1)"></div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681">GENE → CONSEQUENCE</div>
+<div style="display:flex;flex-direction:column;gap:7px;font:400 12px/1.45 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">patternScale</span><span>band frequency along and around the body</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">stripeAnisotropy</span><span>rings ↔ longitudinal stripes, continuously</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">patternContrast</span><span>edge hardness — smudge to hard-edged livery</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">iridescence</span><span>thin-film sheen; past <code style="font:400 10.5px 'IBM Plex Mono',monospace">0.82</code>, glow (<a class="dv-oid" href="#2c">2c</a>)</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">taper</span><span>radius profile + undulation amplitude</span></div>
+<div style="display:flex;gap:10px;align-items:baseline"><span style="flex:none;width:96px;font:400 10.5px/1.5 'IBM Plex Mono',monospace;color:#5a625d">finHeight</span><span>dorsal sail past <code style="font:400 10.5px 'IBM Plex Mono',monospace">0.3</code>; tail fin by threshold</span></div>
+</div>
+</div>
+<p style="margin:0;padding-top:12px;border-top:1px solid rgba(0,0,0,.1);font:400 11px/1.5 'IBM Plex Mono',monospace;color:#8c8681">Maps are generated once per birth on a 160×80 canvas — no texture files, nothing to ship, and it survives the fallback ladder as the maps degrade to flat colour.</p>
+</div>
+</div>
+<p style="margin:0;width:440px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Worth measuring before promising: three nested transmissive bodies is the real cost here. If a tank of six can't hold frame, membrane is the first thing the ladder drops — the flesh layer alone still reads.</p>
+</div>
+
+</div>
+<p class="dv-next">Try next: "drop membrane and push the flesh layer harder" · "add a second pattern mode — spots as well as bands" · "show <a class="dv-oid" href="#3a">3a</a>'s treatment in the six-creature tank"</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">The pick: <a class="dv-oid" href="#1c">1c</a>'s full-bleed HUD with <a class="dv-oid" href="#1a">1a</a>'s type · <a class="dv-oid" href="#1d">1d</a> by default, glow as a trait</span></div>
+
+<div style="max-width:860px;margin-bottom:6px"><p style="margin:0;font:400 14px/1.55 'IBM Plex Sans',system-ui,sans-serif;color:#26302c;text-wrap:pretty">Two decisions carried out of turn 1. <strong>Chrome:</strong> <a class="dv-oid" href="#1c">1c</a>'s layout keeps the water full-bleed, but its all-caps mono chrome is doing the wrong job — mono is the instrument's voice for <em>measured values</em>, and using it for labels spends that meaning. So labels return to Plex Sans in sentence case per <a class="dv-oid" href="#1a">1a</a>, and mono is reserved strictly for numbers, units and IDs. <strong>Creatures:</strong> <a class="dv-oid" href="#1d">1d</a> is the default flesh; bioluminescence becomes a <em>rare inheritable trait</em> rather than a render mode — see <a class="dv-oid" href="#2c">2c</a>.</p></div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Deep HUD, Plex Sans labels — mono only where something is measured</div>
+<div class="dv-card" style="width:372px;background:#04070a">
+<div style="position:relative;height:700px;overflow:hidden;background:radial-gradient(115% 70% at 50% -10%,#0f2130 0%,#04070a 68%)">
+<div style="position:absolute;inset:9% 5% 26%;border:1px solid #16222d"></div>
+<div style="position:absolute;left:20%;top:29%;transform:translate(-50%,-50%) rotate(-9deg)"><div style="position:relative;width:52px;height:14px;border-radius:999px;background:linear-gradient(155deg,#83ab9d,#3d6a6a)" style-after="content:'';position:absolute;left:-13px;top:3px;width:20px;height:8px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono',monospace;color:#8298a8">0.4</div></div>
+<div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%) rotate(6deg) scale(.86)"><div style="position:relative;width:48px;height:13px;border-radius:999px;background:linear-gradient(155deg,#8d7ba0,#4d3f60)" style-after="content:'';position:absolute;left:-12px;top:3px;width:18px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:22px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono',monospace;color:#8298a8">0.1</div></div>
+<div style="position:absolute;left:80%;top:33%;transform:translate(-50%,-50%) rotate(-3deg) scale(.94)"><div style="position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border:1px solid #dd9f56;border-radius:999px;opacity:.45"></div><div style="position:relative;width:44px;height:16px;border-radius:999px;background:linear-gradient(155deg,#c9895a,#7a4a30)" style-after="content:'';position:absolute;left:-11px;top:4px;width:17px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono',monospace;color:#dd9f56">0.9</div></div>
+<div style="position:absolute;left:20%;top:56%;transform:translate(-50%,-50%) rotate(11deg) scale(1.06)"><div style="position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border:1.5px solid #4fd1c5;border-radius:999px;box-shadow:0 0 18px rgba(79,209,197,.28)"></div><div style="position:relative;width:56px;height:15px;border-radius:999px;background:linear-gradient(155deg,#9dbdae,#446f6c)" style-after="content:'';position:absolute;left:-14px;top:3px;width:21px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:27px;transform:translateX(-50%);font:500 10px/1 'IBM Plex Mono',monospace;color:#4fd1c5">1.2</div></div>
+<div style="position:absolute;left:50%;top:64%;transform:translate(-50%,-50%) rotate(-14deg) scale(.8);opacity:.72;filter:blur(.5px)"><div style="position:relative;width:46px;height:12px;border-radius:999px;background:linear-gradient(155deg,#6f8ea3,#33485c)" style-after="content:'';position:absolute;left:-12px;top:3px;width:17px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:21px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono',monospace;color:#8298a8">0.3</div></div>
+<div style="position:absolute;left:80%;top:52%;transform:translate(-50%,-50%) rotate(4deg) scale(1.02)"><div style="position:absolute;left:50%;top:50%;width:82px;height:82px;margin:-41px 0 0 -41px;border-radius:999px;background:radial-gradient(circle,rgba(226,168,110,.26),rgba(226,168,110,0) 70%)"></div><div style="position:relative;width:50px;height:18px;border-radius:999px;background:linear-gradient(155deg,#f0c795,#a5754a);box-shadow:0 0 14px rgba(233,181,124,.55)" style-after="content:'';position:absolute;left:-13px;top:5px;width:19px;height:10px;border-radius:999px;background:inherit;opacity:.85"></div><div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono',monospace;color:#e9b57c">0.7</div></div>
+
+<div style="position:absolute;top:0;left:0;right:0;height:104px;background:linear-gradient(#04070a,rgba(4,7,10,0))"></div>
+<div style="position:absolute;top:16px;left:16px;right:16px;display:flex;align-items:baseline;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 15px/1 'IBM Plex Sans',sans-serif;color:#dbe6f0">Generation 4</span><span style="font:400 11px/1 'IBM Plex Sans',sans-serif;color:#7189a0">The Soup · <span style="font-family:'IBM Plex Mono',monospace">21</span> bodies</span></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="font:500 12px/1 'IBM Plex Sans',sans-serif;color:#4fd1c5"><span style="font-family:'IBM Plex Mono',monospace">2</span> of <span style="font-family:'IBM Plex Mono',monospace">6</span> selected</span><span style="font:400 11px/1 'IBM Plex Sans',sans-serif;color:#dd9f56">Slot <span style="font-family:'IBM Plex Mono',monospace">3</span> unrelated</span></div>
+</div>
+
+<div style="position:absolute;bottom:0;left:0;right:0;height:214px;background:linear-gradient(rgba(4,7,10,0),#04070a 58%)"></div>
+<div style="position:absolute;bottom:112px;left:16px;right:16px;display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;gap:1px;align-self:center;padding:1px;border:1px solid #223140;border-radius:999px;background:rgba(9,15,21,.72)">
+<button style="min-height:40px;padding:0 18px;background:none;border:none;color:#c9d7e3;font:400 13px/1 'IBM Plex Sans',sans-serif">Pause</button>
+<button style="min-height:40px;padding:0 16px;background:#152230;border:none;border-radius:999px;color:#dbe6f0;font:400 12px/1 'IBM Plex Mono',monospace">1×</button>
+<button style="min-height:40px;padding:0 18px;background:none;border:none;color:#4d5f70;font:400 13px/1 'IBM Plex Sans',sans-serif">Undo</button>
+</div>
+<button style="width:100%;min-height:50px;background:rgba(79,209,197,.14);color:#7ee6db;border:1px solid #4fd1c5;border-radius:999px;font:500 15px/1 'IBM Plex Sans',sans-serif;letter-spacing:.01em">Breed 2 selected</button>
+</div>
+<div style="position:absolute;bottom:0;left:0;right:0;height:56px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;align-items:center;text-align:center;font:400 12px/1 'IBM Plex Sans',sans-serif;letter-spacing:.01em"><span style="color:#4fd1c5">Tank</span><span style="color:#5a6d7e">Trials</span><span style="color:#5a6d7e">World</span><span style="color:#5a6d7e">Atlas</span></div>
+</div>
+</div>
+<p style="margin:0;width:372px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Same DOM as <a class="dv-oid" href="#1c">1c</a>; only the type tokens moved. Numerals stay mono even inside a sans sentence ("<span style="font-family:'IBM Plex Mono',monospace">2</span> of <span style="font-family:'IBM Plex Mono',monospace">6</span> selected"), so a value is always recognisable as a value. Bottom-right creature is luminous — the trait, visible in chrome as glow only, never as a badge.</p>
+</div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Six under <a class="dv-oid" href="#1d">1d</a>, one luminous — live</div>
+<div class="dv-card" style="width:640px"><div style="position:relative;height:400px;background:#05080c"><canvas id="cv-tank" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:14px;bottom:12px;font:400 9.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.07em;color:#6d8294">6 SPECIMENS · FLESH TREATMENT · 1 LUMINOUS<br>ONE RARE TRAIT IS ENOUGH TO CARRY A WHOLE TANK</div></div></div>
+<p style="margin:0;width:640px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">This is the argument for making glow rare rather than global: five ordinary bodies give the sixth its meaning, and the player who breeds toward it is chasing something the system, not the designer, put there. Each creature runs its own frequency, so the tank never pulses in unison.</p>
+</div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Luminosity as a trait — the rule, not the instance</div>
+<div class="dv-card" style="width:400px;background:#faf8f4">
+<div style="padding:18px 18px 20px;display:flex;flex-direction:column;gap:13px">
+<p style="margin:0;font:400 12.5px/1.55 'IBM Plex Sans',sans-serif;color:#2b332f">Bioluminescence rides an existing gene, so it inherits, mutates and drifts without a single new field in the schema or one authored creature.</p>
+<div style="display:flex;flex-direction:column;gap:9px;font:400 12px/1.5 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">01</span><span><strong>Trigger:</strong> <code style="font:400 11.5px 'IBM Plex Mono',monospace">material.iridescence &gt; 0.82</code> switches the body's emissive on. Uniform draw over [0,1] ⇒ about <strong>1 in 6</strong> creatures glows — the tank shows one most generations, never every generation.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">02</span><span><strong>Inheritable:</strong> it is one scalar under the existing jitter operator, so a luminous parent usually yields luminous children and occasionally loses it. That is a lineage the player can pursue and fail at.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">03</span><span><strong>Colour:</strong> emissive uses the creature's own ramp stop from <a class="dv-oid" href="#1g">1g</a>, never white — so a glowing creature is still legibly this world's animal.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">04</span><span><strong>Phase-locked:</strong> brightness follows each segment's oscillator, so the glow is a readout of the gait — <a class="dv-oid" href="#1f">1f</a>'s gate value, kept, but only on the creatures that earned it.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#b5764a">05</span><span><strong>Not a capability.</strong> Presentation only — nothing in L2 or L3 reads it. If it ever wants ecological meaning it needs its own measurement first.</span></div>
+</div>
+<p style="margin:0;padding-top:12px;border-top:1px solid rgba(0,0,0,.1);font:400 11px/1.5 'IBM Plex Mono',monospace;color:#8c8681">One threshold constant in tokens or world config + one branch in <code>render/creature.js</code>. No schema change, no gate change.</p>
+</div>
+</div>
+<p style="margin:0;width:400px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Threshold is the only dial: 0.82 gives ~1 in 6, 0.9 gives ~1 in 10 and makes it a genuine event.</p>
+</div>
+
+</div>
+<p class="dv-next">Try next: "write the tokens.css + creature.js diff for <a class="dv-oid" href="#2a">2a</a> + <a class="dv-oid" href="#2c">2c</a>" · "show <a class="dv-oid" href="#2a">2a</a> as the Trials matchup grid" · "make the luminous one rarer and brighter"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Global UI styling + creature render direction — Vivarioops 0.7.1</span></div>
+
+<div style="max-width:860px;display:flex;flex-direction:column;gap:16px;margin-bottom:8px">
+<p style="margin:0;font:400 15px/1.55 'IBM Plex Sans',system-ui,sans-serif;color:#26302c;text-wrap:pretty">The premise I am designing against: <strong>chrome is authored, creatures are not.</strong> So this proposal is two separate artifacts — a fixed chrome system (a diff to <code style="font:400 13px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">tokens.css</code> + <code style="font:400 13px 'IBM Plex Mono',monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px">widgets.js</code>, not a rewrite) and a <em>presentation contract</em> that constrains generated material without authoring any instance of it. P1, applied to art direction.</p>
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+<div style="flex:1 1 240px;padding:14px 16px;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:6px"><div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681;margin-bottom:7px">ASSUMPTION 01</div><p style="margin:0;font:400 12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;color:#2b332f">N16 already forbids hex and raw px in components, so a restyle is a token swap. All three shells below are the same DOM as <code style="font:400 11.5px 'IBM Plex Mono',monospace">ui/base.css</code> ships today.</p></div>
+<div style="flex:1 1 240px;padding:14px 16px;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:6px"><div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681;margin-bottom:7px">ASSUMPTION 02</div><p style="margin:0;font:400 12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;color:#2b332f">The render is currently candy: the hue gene walks the whole HSL wheel at 0.35–0.75 saturation, so six unrelated hues share one tank and it stops reading as one ecosystem. <code style="font:400 11.5px 'IBM Plex Mono',monospace">flatShading</code> also reads as furniture — the thing 10 §A10 was trying to avoid.</p></div>
+<div style="flex:1 1 240px;padding:14px 16px;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:6px"><div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8c8681;margin-bottom:7px">ASSUMPTION 03</div><p style="margin:0;font:400 12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;color:#2b332f">B3 and B4 are unsigned <em>looking</em> checkpoints. A render treatment that makes undulation legible is doing gate work, not decoration — <a class="dv-oid" href="#1f">1f</a> is aimed straight at "does it undulate or twitch".</p></div>
+</div>
+<p style="margin:0;font:400 13px/1.55 'IBM Plex Sans',system-ui,sans-serif;color:#5a625d"><strong style="color:#26302c">What I would ship:</strong> <a class="dv-oid" href="#1a">1a</a> for chrome, <a class="dv-oid" href="#1d">1d</a> for the tank now, <a class="dv-oid" href="#1g">1g</a> as the standing colour contract, and <a class="dv-oid" href="#1f">1f</a> held for the B5 beauty pass. Type throughout: IBM Plex Sans for chrome, IBM Plex Mono for every measured value (this is an instrument), Spectral italic reserved for derived binomials only — so naming looks earned the day it appears.</p>
+</div>
+
+<div class="dv-sub">Global UI — three shells, same screen (Tank, portrait)</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Field Instrument — refines what exists: hairline rules, mono telemetry, a generation ledger</div>
+<div class="dv-card" style="width:372px;background:#05080c">
+<div style="display:flex;flex-direction:column;height:700px">
+<div style="height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#0b1117;border-bottom:1px solid #1c2833"><span style="font:600 14px/1 'IBM Plex Sans',sans-serif;letter-spacing:.01em;color:#dbe6f0">Vivarium</span><span style="font:400 10px/1 'IBM Plex Mono',monospace;color:#5d7183;letter-spacing:.09em">W1 · THE SOUP</span></div>
+<div style="flex:none;display:flex;gap:14px;align-items:center;padding:7px 14px;background:#080d13;border-bottom:1px solid #131e28;font:400 10px/1 'IBM Plex Mono',monospace;color:#6d8294;letter-spacing:.07em"><span style="color:#dbe6f0">GEN 04</span><span>2/6 SEL</span><span style="margin-left:auto;color:#dd9f56">1 STRANGER</span></div>
+<div style="position:relative;flex:1 1 auto;overflow:hidden;background:radial-gradient(125% 85% at 50% -5%,#0e1c26 0%,#05080c 72%)">
+<div style="position:absolute;inset:7% 5%;border:1px solid #16222d"></div>
+<div style="position:absolute;top:7%;bottom:7%;left:35%;width:1px;background:#111c25"></div>
+<div style="position:absolute;top:7%;bottom:7%;left:65%;width:1px;background:#111c25"></div>
+<div style="position:absolute;left:20%;top:26%;transform:translate(-50%,-50%) rotate(-9deg)"><div style="position:relative;width:52px;height:14px;border-radius:999px;background:linear-gradient(155deg,#83ab9d,#3d6a6a)" style-after="content:'';position:absolute;left:-13px;top:3px;width:20px;height:8px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #1c2833;font:400 9px/1 'IBM Plex Mono',monospace;color:#6d8294">0.4</div></div>
+<div style="position:absolute;left:50%;top:19%;transform:translate(-50%,-50%) rotate(6deg) scale(.86)"><div style="position:relative;width:48px;height:13px;border-radius:999px;background:linear-gradient(155deg,#8d7ba0,#4d3f60)" style-after="content:'';position:absolute;left:-12px;top:3px;width:18px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:22px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #1c2833;font:400 9px/1 'IBM Plex Mono',monospace;color:#6d8294">0.1</div></div>
+<div style="position:absolute;left:80%;top:30%;transform:translate(-50%,-50%) rotate(-3deg) scale(.94)"><div style="position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border:1px solid #dd9f56;border-radius:999px;opacity:.5"></div><div style="position:relative;width:44px;height:16px;border-radius:999px;background:linear-gradient(155deg,#c9895a,#7a4a30)" style-after="content:'';position:absolute;left:-11px;top:4px;width:17px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #46331f;font:400 9px/1 'IBM Plex Mono',monospace;color:#dd9f56">0.9</div></div>
+<div style="position:absolute;left:20%;top:63%;transform:translate(-50%,-50%) rotate(11deg) scale(1.06)"><div style="position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border:1.5px solid #4fd1c5;border-radius:999px;opacity:.9"></div><div style="position:relative;width:56px;height:15px;border-radius:999px;background:linear-gradient(155deg,#9dbdae,#446f6c)" style-after="content:'';position:absolute;left:-14px;top:3px;width:21px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:27px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #2c6a66;font:400 9px/1 'IBM Plex Mono',monospace;color:#dbe6f0">1.2</div></div>
+<div style="position:absolute;left:50%;top:71%;transform:translate(-50%,-50%) rotate(-14deg) scale(.8);opacity:.72;filter:blur(.4px)"><div style="position:relative;width:46px;height:12px;border-radius:999px;background:linear-gradient(155deg,#6f8ea3,#33485c)" style-after="content:'';position:absolute;left:-12px;top:3px;width:17px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:21px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #1c2833;font:400 9px/1 'IBM Plex Mono',monospace;color:#6d8294">0.3</div></div>
+<div style="position:absolute;left:80%;top:59%;transform:translate(-50%,-50%) rotate(4deg) scale(1.02)"><div style="position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border:1.5px solid #4fd1c5;border-radius:999px;opacity:.9"></div><div style="position:relative;width:50px;height:18px;border-radius:999px;background:linear-gradient(155deg,#d3c9b5,#7f7663)" style-after="content:'';position:absolute;left:-13px;top:5px;width:19px;height:10px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);padding:2px 5px;border-radius:3px;background:#0b1117;border:1px solid #2c6a66;font:400 9px/1 'IBM Plex Mono',monospace;color:#dbe6f0">0.7</div></div>
+</div>
+<div style="flex:none;display:flex;justify-content:space-between;padding:7px 14px;background:#0b1117;border-top:1px solid #1c2833;font:400 10px/1 'IBM Plex Mono',monospace;color:#6d8294;letter-spacing:.06em"><span>21 BODIES · 120 HZ</span><span>STRANGER SLOT TOOK ONE</span></div>
+<div style="flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding:10px 14px 0;background:#0b1117">
+<button style="min-height:44px;background:#111c26;color:#dbe6f0;border:1px solid #1c2833;border-radius:8px;font:400 13px/1 'IBM Plex Sans',sans-serif">Pause</button>
+<button style="min-height:44px;background:#111c26;color:#dbe6f0;border:1px solid #1c2833;border-radius:8px;font:400 13px/1 'IBM Plex Mono',monospace">1×</button>
+<button style="min-height:44px;background:#111c26;color:#4a5b6b;border:1px solid #16222d;border-radius:8px;font:400 13px/1 'IBM Plex Sans',sans-serif">Undo</button>
+</div>
+<div style="flex:none;padding:8px 14px 14px;background:#0b1117"><button style="width:100%;min-height:48px;background:#4fd1c5;color:#04090c;border:1px solid #4fd1c5;border-radius:8px;font:600 15px/1 'IBM Plex Sans',sans-serif;letter-spacing:.01em">Breed 2 selected</button></div>
+<div style="height:54px;flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#0b1117;border-top:1px solid #1c2833;align-items:center;text-align:center;font:400 11px/1 'IBM Plex Sans',sans-serif;letter-spacing:.04em"><span style="color:#4fd1c5">Tank</span><span style="color:#5d7183">Trials</span><span style="color:#5d7183">World</span><span style="color:#5d7183">Atlas</span></div>
+</div>
+</div>
+<p style="margin:0;width:372px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Lowest risk, closest to shipped code. Adds: ledger strip (generation is state, not a status string), hairline cell dividers so the tiled tanks are honest, one-word Breed → labelled action, amber reserved exclusively for the stranger slot.</p>
+</div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Specimen Plate — bone chrome frames the dark water; the tank is a plate, the app is a drawer</div>
+<div class="dv-card" style="width:372px;background:#e4dfd4">
+<div style="display:flex;flex-direction:column;height:700px">
+<div style="height:52px;flex:none;display:flex;align-items:baseline;justify-content:space-between;padding:0 16px;background:#e9e4d9;border-bottom:1px solid #c8c0af"><span style="align-self:center;font:400 19px/1 Spectral,Georgia,serif;color:#1d2320">Vivarium</span><span style="align-self:center;font:400 10px/1 'IBM Plex Mono',monospace;color:#7d7566;letter-spacing:.11em">PL. IV · W1</span></div>
+<div style="position:relative;flex:1 1 auto;margin:14px 14px 10px;background:radial-gradient(120% 85% at 50% 0%,#122029 0%,#060a0e 74%);box-shadow:inset 0 0 0 1px #2a3138,0 1px 0 #f2eee4;overflow:hidden">
+<div style="position:absolute;inset:6% 5%;border:1px solid #1b2731"></div>
+<div style="position:absolute;left:20%;top:27%;transform:translate(-50%,-50%) rotate(-9deg)"><div style="position:relative;width:52px;height:14px;border-radius:999px;background:linear-gradient(155deg,#9fbfb0,#42706d)" style-after="content:'';position:absolute;left:-13px;top:3px;width:20px;height:8px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#8d9aa4">0.4</div></div>
+<div style="position:absolute;left:50%;top:20%;transform:translate(-50%,-50%) rotate(6deg) scale(.86)"><div style="position:relative;width:48px;height:13px;border-radius:999px;background:linear-gradient(155deg,#a394b4,#524465)" style-after="content:'';position:absolute;left:-12px;top:3px;width:18px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:22px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#8d9aa4">0.1</div></div>
+<div style="position:absolute;left:80%;top:31%;transform:translate(-50%,-50%) rotate(-3deg) scale(.94)"><div style="position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border:1px dashed #c9955f;border-radius:999px;opacity:.65"></div><div style="position:relative;width:44px;height:16px;border-radius:999px;background:linear-gradient(155deg,#d29a6c,#7e4e33)" style-after="content:'';position:absolute;left:-11px;top:4px;width:17px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#c9955f">0.9</div></div>
+<div style="position:absolute;left:20%;top:64%;transform:translate(-50%,-50%) rotate(11deg) scale(1.06)"><div style="position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border:1px solid #e6ded0;border-radius:999px"></div><div style="position:relative;width:56px;height:15px;border-radius:999px;background:linear-gradient(155deg,#b3cdbe,#4a7673)" style-after="content:'';position:absolute;left:-14px;top:3px;width:21px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:27px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#e6ded0">1.2</div></div>
+<div style="position:absolute;left:50%;top:72%;transform:translate(-50%,-50%) rotate(-14deg) scale(.8);opacity:.7;filter:blur(.4px)"><div style="position:relative;width:46px;height:12px;border-radius:999px;background:linear-gradient(155deg,#7d9aae,#374d61)" style-after="content:'';position:absolute;left:-12px;top:3px;width:17px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:21px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#8d9aa4">0.3</div></div>
+<div style="position:absolute;left:80%;top:60%;transform:translate(-50%,-50%) rotate(4deg) scale(1.02)"><div style="position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border:1px solid #e6ded0;border-radius:999px"></div><div style="position:relative;width:50px;height:18px;border-radius:999px;background:linear-gradient(155deg,#ded4c0,#867d69)" style-after="content:'';position:absolute;left:-13px;top:5px;width:19px;height:10px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#e6ded0">0.7</div></div>
+</div>
+<div style="flex:none;padding:0 16px 12px;display:flex;flex-direction:column;gap:3px"><span style="font:italic 400 15px/1.2 Spectral,Georgia,serif;color:#1d2320">Generation IV, two selected</span><span style="font:400 10px/1.4 'IBM Plex Mono',monospace;color:#7d7566;letter-spacing:.05em">21 BODIES · SLOT 3 UNRELATED · 1.2 M/S BEST</span></div>
+<div style="flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding:0 14px;background:#e4dfd4">
+<button style="min-height:44px;background:#eeeae0;color:#1d2320;border:1px solid #c8c0af;border-radius:3px;font:400 13px/1 'IBM Plex Sans',sans-serif">Pause</button>
+<button style="min-height:44px;background:#eeeae0;color:#1d2320;border:1px solid #c8c0af;border-radius:3px;font:400 13px/1 'IBM Plex Mono',monospace">1×</button>
+<button style="min-height:44px;background:#e4dfd4;color:#a9a294;border:1px solid #d3ccbc;border-radius:3px;font:400 13px/1 'IBM Plex Sans',sans-serif">Undo</button>
+</div>
+<div style="flex:none;padding:10px 14px 14px"><button style="width:100%;min-height:48px;background:#1d2320;color:#f0ece2;border:none;border-radius:3px;font:500 15px/1 'IBM Plex Sans',sans-serif;letter-spacing:.02em">Breed 2 selected</button></div>
+<div style="height:54px;flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#e9e4d9;border-top:1px solid #c8c0af;align-items:center;text-align:center;font:400 11px/1 'IBM Plex Sans',sans-serif;letter-spacing:.05em"><span style="color:#1d2320;text-decoration:underline;text-underline-offset:5px">Tank</span><span style="color:#8c8577">Trials</span><span style="color:#8c8577">World</span><span style="color:#8c8577">Atlas</span></div>
+</div>
+</div>
+<p style="margin:0;width:372px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Makes the Atlas the aesthetic centre of the whole app and gives naming somewhere to land. Costs: a light phone UI at night, two themes to maintain, and the water no longer bleeds to the edges.</p>
+</div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Deep HUD — no chrome at all; full-bleed water with floating hairline readouts</div>
+<div class="dv-card" style="width:372px;background:#04070a">
+<div style="position:relative;height:700px;overflow:hidden;background:radial-gradient(115% 70% at 50% -10%,#0f2130 0%,#04070a 68%)">
+<div style="position:absolute;inset:9% 5% 26%;border:1px solid #16222d"></div>
+<div style="position:absolute;left:20%;top:29%;transform:translate(-50%,-50%) rotate(-9deg)"><div style="position:relative;width:52px;height:14px;border-radius:999px;background:linear-gradient(155deg,#83ab9d,#3d6a6a)" style-after="content:'';position:absolute;left:-13px;top:3px;width:20px;height:8px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#7f94a4;letter-spacing:.04em">0.4</div></div>
+<div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%) rotate(6deg) scale(.86)"><div style="position:relative;width:48px;height:13px;border-radius:999px;background:linear-gradient(155deg,#8d7ba0,#4d3f60)" style-after="content:'';position:absolute;left:-12px;top:3px;width:18px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:22px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#7f94a4">0.1</div></div>
+<div style="position:absolute;left:80%;top:33%;transform:translate(-50%,-50%) rotate(-3deg) scale(.94)"><div style="position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border:1px solid #dd9f56;border-radius:999px;opacity:.45"></div><div style="position:relative;width:44px;height:16px;border-radius:999px;background:linear-gradient(155deg,#c9895a,#7a4a30)" style-after="content:'';position:absolute;left:-11px;top:4px;width:17px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#dd9f56">0.9</div></div>
+<div style="position:absolute;left:20%;top:56%;transform:translate(-50%,-50%) rotate(11deg) scale(1.06)"><div style="position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border:1.5px solid #4fd1c5;border-radius:999px;box-shadow:0 0 18px rgba(79,209,197,.28)"></div><div style="position:relative;width:56px;height:15px;border-radius:999px;background:linear-gradient(155deg,#9dbdae,#446f6c)" style-after="content:'';position:absolute;left:-14px;top:3px;width:21px;height:9px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:27px;transform:translateX(-50%);font:500 9px/1 'IBM Plex Mono',monospace;color:#4fd1c5">1.2</div></div>
+<div style="position:absolute;left:50%;top:64%;transform:translate(-50%,-50%) rotate(-14deg) scale(.8);opacity:.7;filter:blur(.5px)"><div style="position:relative;width:46px;height:12px;border-radius:999px;background:linear-gradient(155deg,#6f8ea3,#33485c)" style-after="content:'';position:absolute;left:-12px;top:3px;width:17px;height:7px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:21px;transform:translateX(-50%);font:400 9px/1 'IBM Plex Mono',monospace;color:#7f94a4">0.3</div></div>
+<div style="position:absolute;left:80%;top:52%;transform:translate(-50%,-50%) rotate(4deg) scale(1.02)"><div style="position:absolute;left:50%;top:50%;width:68px;height:68px;margin:-34px 0 0 -34px;border:1.5px solid #4fd1c5;border-radius:999px;box-shadow:0 0 18px rgba(79,209,197,.28)"></div><div style="position:relative;width:50px;height:18px;border-radius:999px;background:linear-gradient(155deg,#d3c9b5,#7f7663)" style-after="content:'';position:absolute;left:-13px;top:5px;width:19px;height:10px;border-radius:999px;background:inherit;opacity:.8"></div><div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);font:500 9px/1 'IBM Plex Mono',monospace;color:#4fd1c5">0.7</div></div>
+
+<div style="position:absolute;top:0;left:0;right:0;height:96px;background:linear-gradient(#04070a,rgba(4,7,10,0))"></div>
+<div style="position:absolute;top:16px;left:16px;right:16px;display:flex;align-items:baseline;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:3px"><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#dbe6f0">GEN 04</span><span style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#61788c">THE SOUP · 21 BODIES</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#4fd1c5">2/6</span><span style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#dd9f56">SLOT 3 UNRELATED</span></div></div>
+
+<div style="position:absolute;bottom:0;left:0;right:0;height:210px;background:linear-gradient(rgba(4,7,10,0),#04070a 58%)"></div>
+<div style="position:absolute;bottom:112px;left:16px;right:16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:1px;align-self:center;padding:1px;border:1px solid #223140;border-radius:999px;background:rgba(9,15,21,.72)">
+<button style="min-height:40px;padding:0 18px;background:none;border:none;color:#c9d7e3;font:400 12px/1 'IBM Plex Sans',sans-serif">Pause</button>
+<button style="min-height:40px;padding:0 16px;background:#152230;border:none;border-radius:999px;color:#dbe6f0;font:400 12px/1 'IBM Plex Mono',monospace">1×</button>
+<button style="min-height:40px;padding:0 18px;background:none;border:none;color:#4d5f70;font:400 12px/1 'IBM Plex Sans',sans-serif">Undo</button>
+</div>
+<button style="width:100%;min-height:50px;background:rgba(79,209,197,.14);color:#7ee6db;border:1px solid #4fd1c5;border-radius:999px;font:500 15px/1 'IBM Plex Sans',sans-serif;letter-spacing:.02em">Breed 2 selected</button>
+</div>
+<div style="position:absolute;bottom:0;left:0;right:0;height:56px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;align-items:center;text-align:center;font:400 10px/1 'IBM Plex Mono',monospace;letter-spacing:.12em"><span style="color:#4fd1c5">TANK</span><span style="color:#4d5f70">TRIALS</span><span style="color:#4d5f70">WORLD</span><span style="color:#4d5f70">ATLAS</span></div>
+</div>
+</div>
+<p style="margin:0;width:372px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Most immersive and the best fit for "the wait is the spectacle". Costs: readouts sit on moving water (needs the scrims to stay), and 44px targets have to be defended without a panel to sit in.</p>
+</div>
+
+</div>
+
+<div class="dv-sub">Creatures — three render treatments, live three.js, same procedural body</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Wet flesh — the minimal fix: smooth shading, rim light, palette-constrained hue</div>
+<div class="dv-card" style="width:420px"><div style="position:relative;height:320px;background:#05080c"><canvas id="cv-flesh" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;bottom:10px;font:400 9px/1.5 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d8294">flatShading OFF · roughness .42<br>key + hemi + ramp rim</div></div></div>
+<p style="margin:0;width:420px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Three lines in <code style="font:400 11px 'IBM Plex Mono',monospace">render/creature.js</code>: drop flat shading, add a back rim light in the world's accent, and route colour through <a class="dv-oid" href="#1g">1g</a>. Reads as flesh in water, not furniture. Ship this now.</p>
+</div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Specimen in fluid — translucent bodies, hard backlight, measured</div>
+<div class="dv-card" style="width:420px"><div style="position:relative;height:320px;background:#04070a"><canvas id="cv-specimen" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;bottom:10px;display:flex;flex-direction:column;gap:6px;padding:7px 9px;border-radius:3px;background:rgba(232,238,241,.86)"><div style="position:relative;width:84px;height:1px;background:#1d2a33" style-before="content:'';position:absolute;left:0;top:-3px;width:1px;height:7px;background:#1d2a33" style-after="content:'';position:absolute;left:83px;top:-3px;width:1px;height:7px;background:#1d2a33"></div><span style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#1d2a33">1.0 M · TRANSMISSION .62 · IOR 1.33</span></div></div></div>
+<p style="margin:0;width:420px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Bodies read as tissue you can see into; the scale bar makes size a fact rather than a vibe, which matters once biomass budget is the currency. Costs GPU — <code style="font:400 11px 'IBM Plex Mono',monospace">transmission</code> on six creatures needs measuring against the fallback ladder before it is promised.</p>
+</div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Bioluminescent gait — emissive driven by the oscillator phase itself</div>
+<div class="dv-card" style="width:420px"><div style="position:relative;height:320px;background:#020406"><canvas id="cv-biolum" style="display:block;width:100%;height:100%"></canvas><div style="position:absolute;left:12px;bottom:10px;font:400 9px/1.5 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#5f7a8c">emissive = f(phase) per segment<br>the light travels the body with the wave</div></div></div>
+<p style="margin:0;width:420px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">The one treatment that does gate work: each segment brightens on its own phase, so <code style="font:400 11px 'IBM Plex Mono',monospace">phaseLag</code> becomes visible and "undulates vs twitches" is answerable at a glance — a travelling light is a wave, six lights blinking together is a twitch. Read-only view of the controller; no physics touched.</p>
+</div>
+
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Palette contract — how a generated hue becomes an authored colour</div>
+<div class="dv-card" style="width:420px;background:#faf8f4">
+<div style="padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px">
+<p style="margin:0;font:400 12.5px/1.55 'IBM Plex Sans',sans-serif;color:#2b332f">Authoring a ramp is authoring <em>presentation</em>, so P1 holds: no instance is authored, and the hue gene keeps every bit of its range. It just lands somewhere that belongs to the world.</p>
+<div style="display:flex;height:46px;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,.12)"><div style="flex:1;background:#2b3a4a"></div><div style="flex:1;background:#3f6b6b"></div><div style="flex:1;background:#7fa89b"></div><div style="flex:1;background:#d9cfbc"></div><div style="flex:1;background:#b5764a"></div><div style="flex:1;background:#6b5878"></div></div>
+<div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#8c8681;display:flex;justify-content:space-between"><span>W1 · THE SOUP — 6 STOPS</span><span>hue → index</span></div>
+<div style="display:flex;flex-direction:column;gap:8px;font:400 12px/1.5 'IBM Plex Sans',sans-serif;color:#2b332f">
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">01</span><span><strong>hue</strong> indexes the world's ramp instead of the HSL wheel. Six creatures now share a family; two worlds never look alike.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">02</span><span><strong>hueVariance</strong> spreads across <em>adjacent</em> stops only — a recursive chain reads as one animal, never a harlequin.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">03</span><span><strong>valueShift</strong> owns lightness; <strong>patternContrast</strong> owns saturation inside a bounded band. Nothing generated can reach full chroma.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#3f6b6b">04</span><span><strong>stripeAnisotropy</strong> and <strong>patternScale</strong> are unspent genes — they are what <a class="dv-oid" href="#1f">1f</a>'s emissive bands should be keyed to at B5.</span></div>
+<div style="display:flex;gap:9px"><span style="flex:none;font:500 10px/1.6 'IBM Plex Mono',monospace;color:#b5764a">05</span><span>Rust and plum are the rare stops: two of six, so a warm creature is an event. Chrome never uses them — amber stays the stranger, and nothing else.</span></div>
+</div>
+<p style="margin:0;padding-top:12px;border-top:1px solid rgba(0,0,0,.1);font:400 11px/1.5 'IBM Plex Mono',monospace;color:#8c8681">Lands as <code>--pal-w1-0…5</code> in tokens.css + one <code>colorFor()</code> in render/creature.js. N16 stays satisfied; the ramp swaps per world.</p>
+</div>
+</div>
+<p style="margin:0;width:420px;font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)">Switch the Tweaks palette to <em>warm silt</em> or <em>near-mono</em> to see the same six genomes under a different world's ramp.</p>
+</div>
+
+</div>
+
+<p class="dv-next">Try next: "take <a class="dv-oid" href="#1a">1a</a>'s chrome but <a class="dv-oid" href="#1c">1c</a>'s full-bleed tank" · "show <a class="dv-oid" href="#1b">1b</a> as the Atlas screen instead of the Tank" · "apply <a class="dv-oid" href="#1g">1g</a> and write the tokens.css + creature.js diff"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;paletteMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cold water&quot;,&quot;warm silt&quot;,&quot;near-mono&quot;],&quot;default&quot;:&quot;cold water&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Creatures&quot;},&quot;bodySeed&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:200,&quot;step&quot;:1,&quot;default&quot;:41,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Creatures&quot;},&quot;membrane&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Creatures&quot;},&quot;gait&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.3,&quot;max&quot;:2,&quot;step&quot;:0.1,&quot;default&quot;:1,&quot;unit&quot;:&quot;×&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Creatures&quot;},&quot;motes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Creatures&quot;}}">
+const PALETTES = {
+  'cold water': ['#2b3a4a', '#3f6b6b', '#7fa89b', '#d9cfbc', '#b5764a', '#6b5878'],
+  'warm silt':  ['#3a2f28', '#6b5334', '#a8894f', '#d9c9a8', '#7d4a3a', '#4f5a45'],
+  'near-mono':  ['#1f262b', '#39454d', '#5b6a73', '#8b9aa2', '#c2ccd1', '#e6ecef'],
+};
+
+class Component extends DCLogic {
+  componentDidMount() { this.boot(); }
+
+  componentDidUpdate(prev) {
+    if (this.views && (prev.paletteMode !== this.props.paletteMode
+      || prev.bodySeed !== this.props.bodySeed || prev.membrane !== this.props.membrane)) {
+      // Debounced: dragging an int slider would otherwise rebuild once per step.
+      clearTimeout(this.rebuildT);
+      this.rebuildT = setTimeout(() => { if (!this.dead) this.rebuild(); }, 140);
+    }
+    if (this.views) for (const v of this.views) v.motes && (v.motes.visible = this.props.motes !== false);
+  }
+
+  componentWillUnmount() {
+    this.dead = true;
+    cancelAnimationFrame(this.raf);
+    if (this.views) for (const v of this.views) v.ro?.disconnect();
+    this.R?.dispose();
+  }
+
+  rng(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  pal() { return PALETTES[this.props.paletteMode] || PALETTES['cold water']; }
+
+  // Emissive must keep its ramp hue: ACES desaturates hard past its knee, so the
+  // glow colour is pushed to real chroma instead of relying on raw intensity.
+  chroma(col, s) {
+    const h = {};
+    col.getHSL(h);
+    return new this.THREE.Color().setHSL(h.h, Math.max(s, h.s), Math.min(0.52, Math.max(0.36, h.l)));
+  }
+
+  colorFor(hue, valueShift, avoidBone) {
+    const T = this.THREE;
+    // The ramp's bone stop is near-white, so a luminous body that lands on (or
+    // lerps toward) it is white BY CONSTRUCTION — glowing draws skip it.
+    const pal = avoidBone ? this.pal().filter((_, i) => i !== 3) : this.pal();
+    const h = ((hue % 1) + 1) % 1;
+    const c = new T.Color(pal[Math.min(pal.length - 1, Math.floor(h * pal.length))]);
+    if (avoidBone) c.multiplyScalar(1 + Math.max(-0.5, Math.min(0.35, valueShift)));
+    else if (valueShift > 0) c.lerp(new T.Color(this.pal()[3]), Math.min(0.6, valueShift));
+    else c.multiplyScalar(1 + Math.max(-0.5, valueShift));
+    return c;
+  }
+
+  gradTex(top, bot, flat) {
+    const T = this.THREE, c = document.createElement('canvas');
+    c.width = 8; c.height = 64;
+    const g = c.getContext('2d'), lg = g.createLinearGradient(0, 0, 0, 64);
+    lg.addColorStop(0, top); lg.addColorStop(1, bot);
+    g.fillStyle = lg; g.fillRect(0, 0, 8, 64);
+    const t = new T.CanvasTexture(c);
+    if (!flat) t.mapping = T.EquirectangularReflectionMapping;
+    if (T.SRGBColorSpace) t.colorSpace = T.SRGBColorSpace;
+    return t;
+  }
+
+  haloTex() {
+    const T = this.THREE, c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d'), rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    rg.addColorStop(0, 'rgba(255,255,255,1)');
+    rg.addColorStop(0.3, 'rgba(255,255,255,.4)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+    return new T.CanvasTexture(c);
+  }
+
+  // ——— Procedural material layer ———————————————————————————————
+  // Genes already in the schema (patternScale, stripeAnisotropy, patternContrast,
+  // iridescence) generate the maps. Nothing is authored per creature.
+  srgb(c) {
+    const s = c.getHexString();
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+  }
+
+  patternMaps(base, accent, G) {
+    const T = this.THREE, W = 160, H = 80;
+    const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+    const cc = mk(), rc = mk(), bc = mk();
+    const cg = cc.getContext('2d'), rg = rc.getContext('2d'), bg = bc.getContext('2d');
+    const ci = cg.createImageData(W, H), ri = rg.createImageData(W, H), bi = bg.createImageData(W, H);
+    const b = this.srgb(base), a = this.srgb(accent);
+    const su = 1 + G.patternScale * 3, sv = 1 + G.patternScale * 5;
+    const an = G.stripeAnisotropy, k = 1 + G.patternContrast * 7;
+    const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const u = x / W, v = y / H, o = (y * W + x) * 4;
+      let f = an * Math.sin(v * Math.PI * 2 * sv) + (1 - an) * Math.sin(u * Math.PI * 2 * su);
+      f += 0.3 * Math.sin((u * 1.7 + v * 2.3) * Math.PI * 2 * G.patternScale);
+      f = f * 0.5 + 0.5;
+      f = f * 0.84 + hash(Math.floor(u * su * 7), Math.floor(v * sv * 7)) * 0.16;
+      let t = Math.max(0, Math.min(1, (f - 0.5) * k + 0.5));
+      t = t * t * (3 - 2 * t);
+      ci.data[o] = b[0] + (a[0] - b[0]) * t;
+      ci.data[o + 1] = b[1] + (a[1] - b[1]) * t;
+      ci.data[o + 2] = b[2] + (a[2] - b[2]) * t;
+      ci.data[o + 3] = 255;
+      const r = 235 - 120 * t;
+      ri.data[o] = ri.data[o + 1] = ri.data[o + 2] = r; ri.data[o + 3] = 255;
+      const bv = 128 + (t - 0.5) * 90;
+      bi.data[o] = bi.data[o + 1] = bi.data[o + 2] = bv; bi.data[o + 3] = 255;
+    }
+    cg.putImageData(ci, 0, 0); rg.putImageData(ri, 0, 0); bg.putImageData(bi, 0, 0);
+    const tex = (cv, srgb) => {
+      const t2 = new T.CanvasTexture(cv);
+      t2.wrapS = t2.wrapT = T.RepeatWrapping;
+      if (srgb && T.SRGBColorSpace) t2.colorSpace = T.SRGBColorSpace;
+      return t2;
+    };
+    return { map: tex(cc, true), roughnessMap: tex(rc), bumpMap: tex(bc) };
+  }
+
+  genes(seed) {
+    const rng = this.rng(seed);
+    const G = {
+      hue: rng(), hueVariance: 0.04 + rng() * 0.12, valueShift: -0.12 + rng() * 0.3,
+      patternContrast: 0.1 + rng() * 0.75, patternScale: 0.35 + rng() * 1.9,
+      stripeAnisotropy: rng(), iridescence: rng(),
+      nSeg: 4 + Math.floor(rng() * 3), taper: 0.45 + rng() * 0.5,
+      girth: 0.24 + rng() * 0.13, finHeight: rng(), cilia: rng() > 0.42,
+      limbPairs: 1 + Math.floor(rng() * 2), tailFin: rng() > 0.35,
+    };
+    G.lum = G.iridescence > 0.82;
+    return G;
+  }
+
+  // ——— Multi-layer body ————————————————————————————————————————
+  // organ (opaque) → flesh (patterned, iridescent) → membrane (transmissive)
+  buildAdvanced(seed, force) {
+    const T = this.THREE, pal = this.pal();
+    const G = Object.assign(this.genes(seed), force || {});
+    if (G.noLum) G.iridescence = Math.min(G.iridescence, 0.7);  // keep the 1-in-6 claim honest on cards
+    G.lum = G.iridescence > 0.82;   // recompute AFTER the merge, or forcing a gene is a no-op
+    const root = new T.Group(), segs = [], limbs = [];
+    const base = this.colorFor(G.hue, G.valueShift, G.lum);
+    // Brighten the accent by VALUE, not by lerping toward the bone stop — a bone
+    // lerp made every bright stripe the same off-white and greyed the clade out.
+    const accent = this.colorFor(G.hue + G.hueVariance, 0, G.lum).multiplyScalar(1.45);
+    const maps = this.patternMaps(base, accent, G);
+    const glowCol = this.chroma(accent, 0.6);
+
+    const flesh = new T.MeshPhysicalMaterial({
+      map: maps.map, roughnessMap: maps.roughnessMap, bumpMap: maps.bumpMap, bumpScale: 0.015,
+      roughness: 1, metalness: 0.03,
+      // Transmission stays low: enough to read the organ, not enough to wash the
+      // surface toward the background. Luminous bodies go fully opaque below, or
+      // emissive leaks away through the layer and the glow never reaches camera.
+      transmission: 0.14, thickness: 0.4, ior: 1.38, transparent: true,
+      sheen: 0.35, sheenColor: new T.Color(pal[2]), sheenRoughness: 0.55,
+      iridescence: G.iridescence * 0.8, iridescenceIOR: 1.32,
+      iridescenceThicknessRange: [120, 420], clearcoat: 0.2, clearcoatRoughness: 0.5,
+      emissive: glowCol.clone(), emissiveIntensity: 0,
+    });
+    if (G.lum) { flesh.transmission = 0; flesh.transparent = false; }
+    const membrane = new T.MeshPhysicalMaterial({
+      color: base.clone().lerp(new T.Color(pal[3]), 0.5), transmission: 0.8, thickness: 0.3,
+      ior: 1.36, roughness: 0.14, metalness: 0, transparent: true, depthWrite: false,
+      side: T.FrontSide, sheen: 1, sheenColor: new T.Color(pal[2]),
+    });
+    const organM = new T.MeshStandardMaterial({
+      color: accent.clone().multiplyScalar(1.2), roughness: 0.8, metalness: 0,
+      emissive: glowCol.clone(), emissiveIntensity: 0.12,
+    });
+    const finM = new T.MeshPhysicalMaterial({
+      map: maps.map, color: base.clone().multiplyScalar(1.25),
+      roughness: 0.45, metalness: 0, transparent: true, opacity: 0.85,
+      side: T.DoubleSide, transmission: 0.22, thickness: 0.08, sheen: 0.4,
+      sheenColor: new T.Color(pal[2]),
+    });
+
+    let parent = root, prevHalf = 0;
+    for (let i = 0; i < G.nSeg; i++) {
+      const p = i / Math.max(1, G.nSeg - 1);
+      const prof = Math.sin((0.18 + p * 0.78) * Math.PI);
+      const r = G.girth * (0.55 + prof * 0.75) * (1 - p * G.taper * 0.55);
+      const len = 0.9 - p * 0.34;
+      const g = new T.Group();
+      g.position.z = i === 0 ? 0 : -(prevHalf + len * 0.5 + 0.015);
+      prevHalf = len * 0.5;
+
+      // Per-segment material instances: emissive is a PER-SEGMENT value, so a
+      // shared instance would make the whole body pulse in unison (the twitch
+      // 1f exists to rule out). Maps/textures stay shared — clone is cheap.
+      const segFlesh = G.lum ? flesh.clone() : flesh;
+      const segOrgan = G.lum ? organM.clone() : organM;
+      const geo = new T.CapsuleGeometry(r, len, 10, 26);
+      geo.rotateX(Math.PI / 2);
+      g.add(new T.Mesh(geo, segFlesh));
+
+      if (this.props.membrane !== false) {
+        const mg = new T.CapsuleGeometry(r * 1.13, len * 1.02, 8, 20);
+        mg.rotateX(Math.PI / 2);
+        g.add(new T.Mesh(mg, membrane));
+      }
+
+      const og = new T.SphereGeometry(r * 0.46, 14, 10);
+      const organ = new T.Mesh(og, segOrgan);
+      organ.scale.set(1, 0.85, 1.7);
+      g.add(organ);
+
+      let fin = null;
+      if (G.finHeight > 0.3 && i < G.nSeg - 1) {
+        const fh = r * (1.1 + G.finHeight * 2.6);
+        const fg = new T.SphereGeometry(1, 10, 8);
+        fin = new T.Mesh(fg, finM);
+        fin.scale.set(r * 0.09, fh, len * 0.5);
+        fin.position.y = fh * 0.55;
+        g.add(fin);
+      }
+
+      let cilia = null;
+      if (G.cilia) {
+        cilia = new T.Group();
+        for (const side of [-1, 1]) for (let c = 0; c < 4; c++) {
+          const cg2 = new T.ConeGeometry(r * 0.07, r * 0.85, 5);
+          cg2.rotateZ(side * Math.PI * 0.5);
+          cg2.translate(side * r * 0.5, 0, 0);
+          const m = new T.Mesh(cg2, finM);
+          m.position.set(0, -r * 0.2, len * (0.35 - c * 0.23));
+          cilia.add(m);
+        }
+        g.add(cilia);
+      }
+
+      if (i === 0) {
+        for (const side of [-1, 1]) {
+          const e = new T.Mesh(new T.SphereGeometry(r * 0.17, 10, 8),
+            new T.MeshStandardMaterial({ color: new T.Color(pal[0]).multiplyScalar(0.5), roughness: 0.18, metalness: 0.1 }));
+          e.position.set(side * r * 0.62, r * 0.34, len * 0.34);
+          g.add(e);
+        }
+      }
+      if (i === G.nSeg - 1 && G.tailFin) {
+        const tf = new T.Mesh(new T.SphereGeometry(1, 10, 8), finM);
+        tf.scale.set(r * 0.08, r * 2.4, len * 0.62);
+        tf.position.z = -len * 0.55;
+        g.add(tf);
+      }
+
+      let halo = null;
+      if (G.lum) {
+        halo = new T.Sprite(new T.SpriteMaterial({
+          map: this.halo, color: glowCol.clone(), blending: T.AdditiveBlending,
+          transparent: true, opacity: 0.06, depthWrite: false,
+        }));
+        halo.scale.setScalar(r * 6);
+        g.add(halo);
+      }
+      parent.add(g);
+      parent = g;
+      segs.push({ g, mat: segFlesh, organM: segOrgan, fin, cilia, halo, i, amp: 0.24 + G.taper * 0.34 });
+    }
+
+    for (let lp = 0; lp < G.limbPairs; lp++) {
+      const si = Math.min(segs.length - 1, lp);
+      for (const side of [-1, 1]) {
+        const lg = new T.Group();
+        lg.position.set(side * G.girth * 0.72, -0.06, -0.04);
+        // Swept down and back, not broadside: a flat pale slab on the flank read
+        // as a rendering artifact rather than an appendage.
+        lg.rotation.x = -0.5;
+        lg.rotation.y = side * 0.3;
+        const geo = new T.CapsuleGeometry(0.05, 0.32, 6, 12);
+        geo.rotateZ(Math.PI / 2);
+        geo.translate(side * 0.19, 0, 0);
+        const lm = new T.Mesh(geo, segs[si].mat);
+        lg.add(lm);
+        const pad = new T.Mesh(new T.SphereGeometry(0.062, 10, 8), segs[si].mat);
+        pad.scale.set(1.25, 0.7, 1.15);
+        pad.position.x = side * 0.35;
+        lg.add(pad);
+        segs[si].g.add(lg);
+        limbs.push({ g: lg, side, i: si, mat: segs[si].mat });
+      }
+    }
+
+    return { root, segs, limbs, adv: true, lum: G.lum, G };
+  }
+
+  animAdv(c, t, f, off, lag) {
+    c.segs.forEach((s, i) => {
+      const ph = t * f + off - i * lag;
+      if (s.fin) { s.fin.rotation.z = 0.3 * Math.sin(ph - 0.4); s.fin.rotation.y = 0.16 * Math.sin(ph * 1.3); }
+      if (s.cilia) s.cilia.children.forEach((m, ci) => { m.rotation.z = 0.5 * Math.sin(ph * 1.7 - ci * 0.7); });
+      if (c.lum) {
+        const p = Math.max(0, Math.sin(ph));
+        s.mat.emissiveIntensity = 0.1 + 1.0 * p * p;
+        s.organM.emissiveIntensity = 0.25 + 1.1 * p * p;
+        if (s.halo) s.halo.material.opacity = 0.03 + 0.18 * p * p;
+      }
+    });
+  }
+
+  matFor(kind, col) {
+    const T = this.THREE;
+    if (kind === 'specimen') {
+      return new T.MeshPhysicalMaterial({
+        color: col.clone().lerp(new T.Color(this.pal()[3]), 0.55), transmission: 0.62, thickness: 0.7,
+        ior: 1.33, roughness: 0.34, metalness: 0, transparent: true,
+      });
+    }
+    if (kind === 'biolum') {
+      return new T.MeshStandardMaterial({
+        color: col.clone().multiplyScalar(0.5), roughness: 0.72, metalness: 0.02,
+        emissive: this.chroma(col, 0.6), emissiveIntensity: 0,
+      });
+    }
+    return new T.MeshStandardMaterial({ color: col, roughness: 0.42, metalness: 0.06 });
+  }
+
+  buildCreature(kind, seed, lum, haloMul) {
+    const T = this.THREE, rng = this.rng(seed);
+    if (lum) kind = 'biolum';
+    const hm = haloMul ?? 1;   // a single subject needs a far larger corona than one of six
+    const hue = rng(), spread = 0.06 + rng() * 0.1;
+    const nSeg = 3 + Math.floor(rng() * 2);
+    const root = new T.Group();
+    const segs = [];
+    let parent = root, prevHalf = 0;
+
+    for (let i = 0; i < nSeg; i++) {
+      const len = 0.95 - i * 0.13, r = 0.33 * (1 - i * 0.15);
+      const g = new T.Group();
+      g.position.z = i === 0 ? 0 : -(prevHalf + len * 0.5 + 0.02);
+      prevHalf = len * 0.5;
+      const geo = new T.CapsuleGeometry(r, len, 8, 18);
+      geo.rotateX(Math.PI / 2);
+      const mat = this.matFor(kind, this.colorFor(hue + (i ? spread * 0.5 : 0), 0.06 * i, kind === 'biolum'));
+      const mesh = new T.Mesh(geo, mat);
+      g.add(mesh);
+      if (kind === 'specimen') {
+        // A denser interior gives the transmission something to reveal — the
+        // difference between "see-through" and "there is tissue in there".
+        const core = new T.Mesh(
+          new T.SphereGeometry(r * 0.35, 14, 10),
+          new T.MeshStandardMaterial({
+            color: this.colorFor(hue + spread, 0.25), roughness: 0.85, metalness: 0 }));
+        core.scale.set(0.9, 0.9, 1.5);
+        g.add(core);
+      }
+      parent.add(g);
+      parent = g;
+      const s = { g, mat, i };
+      if (kind === 'biolum') {
+        const halo = new T.Sprite(new T.SpriteMaterial({
+          map: this.halo, color: this.chroma(this.colorFor(hue + spread * 0.5, 0, true), 0.62),
+          blending: T.AdditiveBlending, transparent: true, opacity: 0.08,
+          depthWrite: false, depthTest: true,
+        }));
+        // Scaled from segment radius ALONE — a constant term made the corona a
+        // tank-wide disc that washed out neighbouring specimens.
+        halo.scale.setScalar(r * 6 * hm);
+        g.add(halo);
+        s.halo = halo;
+      }
+      segs.push(s);
+    }
+
+    const limbs = [];
+    for (const si of [0, 1]) {
+      if (!segs[si]) continue;
+      for (const side of [-1, 1]) {
+        const lg = new T.Group();
+        lg.position.set(side * 0.22, 0, -0.05);
+        const geo = new T.CapsuleGeometry(0.085, 0.5, 6, 12);
+        geo.rotateZ(Math.PI / 2);
+        geo.translate(side * 0.3, 0, 0);
+        const lmat = this.matFor(kind, this.colorFor(hue + spread, 0.16));
+        const mesh = new T.Mesh(geo, lmat);
+        lg.add(mesh);
+        segs[si].g.add(lg);
+        limbs.push({ g: lg, side, i: si, mat: lmat });
+      }
+    }
+    return { root, segs, limbs, lum: kind === 'biolum', gain: hm };
+  }
+
+  // Solve the orbit distance by PROJECTING the box's corners through the real
+  // camera at every yaw it will visit and scaling until the worst corner lands on
+  // the target NDC. No analytic padding term to get wrong.
+  // World-space vertex sample of the actual bodies — the silhouette, not a box.
+  meshPoints(creatures, stride) {
+    const T = this.THREE, pts = [];
+    for (const c of creatures) c.root.traverse(o => {
+      if (!o.isMesh || !o.geometry?.attributes?.position) return;
+      const a = o.geometry.attributes.position;
+      for (let i = 0; i < a.count; i += stride)
+        pts.push(new T.Vector3(a.getX(i), a.getY(i), a.getZ(i)).applyMatrix4(o.matrixWorld));
+    });
+    return pts;
+  }
+
+  fitDist(camera, pts, ctr, eyeOff, yaws, target) {
+    const T = this.THREE;
+    let d = 0;
+    for (const q of pts) d = Math.max(d, q.distanceTo(ctr) * 2.5);
+    const view = new T.Vector3(), clip = new T.Vector3();
+    for (let it = 0; it < 30; it++) {
+      let worst = 0;
+      for (const th of yaws) {
+        camera.position.set(ctr.x + Math.sin(th) * d, ctr.y + eyeOff, ctr.z + Math.cos(th) * d);
+        camera.lookAt(ctr.x, ctr.y, ctr.z);
+        camera.updateMatrixWorld(true);
+        for (const q of pts) {
+          view.copy(q).applyMatrix4(camera.matrixWorldInverse);
+          if (-view.z <= camera.near) continue;   // behind/at the near plane: |NDC| explodes
+          clip.copy(view).applyMatrix4(camera.projectionMatrix);
+          worst = Math.max(worst, Math.abs(clip.x), Math.abs(clip.y));
+        }
+      }
+      if (!isFinite(worst) || worst <= 0) break;
+      if (Math.abs(worst - target) < 0.005) break;
+      d *= Math.pow(worst / target, 0.8);
+    }
+    return d;
+  }
+
+  makeView(kind, id, bg, seed, force) {
+    const T = this.THREE;
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    const w = canvas.clientWidth || 420, h = canvas.clientHeight || 320;
+    // ONE shared WebGL context for the whole page, blitted into each view's 2D
+    // canvas. Eight live contexts (each with a transmission pass) exceeded the
+    // browser's budget and every one of them was force-lost.
+    const dpr = this.R.getPixelRatio();
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext('2d');
+
+    const scene = new T.Scene();
+    scene.background = new T.Color(bg);
+    scene.fog = kind === 'tank'
+      ? new T.Fog(new T.Color(bg), 10, 30)
+      : new T.Fog(new T.Color(bg), 5, 16);
+    const pal = this.pal();
+
+    if (kind === 'flesh' || kind === 'tank' || kind === 'adv' || kind === 'solo') {
+      scene.environment = this.gradTex(pal[2], bg);
+      if (kind === 'adv' || kind === 'solo') scene.environmentIntensity = 1.15;
+      const key = new T.DirectionalLight(0xffffff, 2.2); key.position.set(2.5, 5, 3); scene.add(key);
+      scene.add(new T.HemisphereLight(new T.Color(pal[1]), new T.Color(bg), 0.75));
+      // The rim comes from the ACTIVE ramp, never a literal: a hard-coded cyan
+      // paints out-of-ramp light onto a warm-silt animal and falsifies 1g.
+      const rim = new T.DirectionalLight(new T.Color(pal[2]), 1.7); rim.position.set(-2, 1.2, -4); scene.add(rim);
+    } else if (kind === 'specimen') {
+      // Transmission needs a bright field BEHIND the body at EVERY camera angle,
+      // so the field is environmental, not a quad: the camera orbits 360°, and a
+      // finite front-facing plane edges into frame and then vanishes.
+      const field = this.gradTex('#aebfc9', '#0b1319');
+      scene.background = field;
+      scene.backgroundIntensity = 0.85;
+      scene.environment = field;
+      scene.environmentIntensity = 1.7;
+      scene.fog = null;
+      // Camera-side light is what gives OPAQUE parts (limbs, organ) tone: a
+      // transmissive shell over a black interior cannot read as translucency.
+      const back2 = new T.DirectionalLight(0xffffff, 2.2); back2.position.set(0.5, 1.5, -5); scene.add(back2);
+      const front = new T.DirectionalLight(new T.Color(pal[3]), 1.6); front.position.set(1.5, 1.2, 5); scene.add(front);
+      scene.add(new T.AmbientLight(new T.Color(pal[3]), 0.8));
+      const fill = new T.DirectionalLight(new T.Color(pal[2]), 1.3); fill.position.set(3, 2, 3); scene.add(fill);
+    } else {
+      // An unlit body part must still have a silhouette, or the trough of the
+      // wave reads as a hole punched in the creature. Diffuse light does that;
+      // an emissive floor cannot.
+      scene.environment = this.gradTex(pal[2], pal[0]);
+      scene.environmentIntensity = 0.5;
+      scene.add(new T.AmbientLight(new T.Color(pal[1]), 0.9));
+      const dim = new T.DirectionalLight(new T.Color(pal[2]), 0.9); dim.position.set(2, 3, 2); scene.add(dim);
+      const under = new T.DirectionalLight(new T.Color(pal[0]), 0.6); under.position.set(-2, -2, -3); scene.add(under);
+    }
+
+    const creatures = [];
+    if (kind === 'tank') {
+      // Six creatures, one tank. Luminosity is a TRAIT, not a mode: slot 4 is the
+      // one whose iridescence gene crosses the threshold.
+      const lumSlot = 3;
+      for (let i = 0; i < 6; i++) {
+        const c = this.buildCreature('flesh', seed + i * 131, i === lumSlot, i === lumSlot ? 1.6 : 1);
+        // A RING, not rows: bodies spread around the frame at every orbit yaw,
+        // where grid rows collapse into one mass at some angles.
+        const a = i * Math.PI / 3 + 0.35, rad = 3.3 + (i % 2 ? 1.3 : 0);
+        c.root.position.set(Math.cos(a) * rad, (i % 3 - 1) * 0.75, Math.sin(a) * rad);
+        c.root.rotation.y = -a + Math.PI / 2;
+        c.root.scale.setScalar(0.8 + ((i * 37) % 5) * 0.09);
+        scene.add(c.root);
+        creatures.push(c);
+      }
+    } else if (kind === 'adv') {
+      const bs = this.props.bodySeed ?? 41;
+      for (let i = 0; i < 3; i++) {
+        // Middle one is forced luminous so the trait is visible in one frame;
+        // the other two are whatever their genes say.
+        const c = this.buildAdvanced(seed + bs * 17 + i * 907, i === 1 ? { iridescence: 0.94 } : null);
+        // Stagger all three in z, not just the middle: a pure x row collapses into
+        // a single occluded line on the broadside pass of a 360° orbit.
+        c.root.position.set((i - 1) * 3.3, [-0.45, 0.4, -0.1][i], [-1.2, 0.5, 1.4][i]);
+        c.root.rotation.y = [-0.75, 0.15, 0.9][i];
+        scene.add(c.root);
+        creatures.push(c);
+      }
+    } else if (kind === 'solo') {
+      const c = this.buildAdvanced(seed + (this.props.bodySeed ?? 41) * 53, force);
+      c.root.rotation.y = -0.35;
+      scene.add(c.root);
+      creatures.push(c);
+    } else {
+      const c = this.buildCreature(kind, seed, false, kind === 'biolum' ? 2.4 : 1);
+      scene.add(c.root);
+      creatures.push(c);
+    }
+
+    let motes = null;
+    if (kind !== 'biolum') {
+      const n = 130, pos = new Float32Array(n * 3), r2 = this.rng(seed + 7);
+      for (let i = 0; i < n; i++) {
+        pos[i * 3] = (r2() - 0.5) * 12;
+        pos[i * 3 + 1] = (r2() - 0.5) * 7;
+        pos[i * 3 + 2] = (r2() - 0.5) * 12;
+      }
+      const geo = new T.BufferGeometry();
+      geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+      // Round, screen-sized dots: an untextured attenuated point renders as a
+      // filled square, and near-camera ones read as glitch pixels.
+      motes = new T.Points(geo, new T.PointsMaterial({
+        color: new T.Color(pal[3]), map: this.halo, size: 2.4, sizeAttenuation: false,
+        transparent: true, opacity: 0.35, depthWrite: false,
+      }));
+      motes.visible = this.props.motes !== false;
+      scene.add(motes);
+    }
+
+    const camera = new T.PerspectiveCamera(38, w / h, 0.1, 200);
+    const v = { kind, canvas, ctx, w, h, scene, camera, creatures, motes,
+      exposure: kind === 'biolum' ? 0.95 : 1.0, dist: 5.6, eye: 0.85, aim: -0.5 };
+
+    // MEASURED fit instead of tuned constants. The camera orbits the ensemble's
+    // own centre at a distance derived from its bounding box, so the worst angle
+    // fits by construction — and fog follows from the same numbers.
+    if (kind === 'adv' || kind === 'solo' || kind === 'tank') {
+      scene.updateMatrixWorld(true);
+      // Sampled body vertices (sprites excluded — a halo is several times the
+      // body's size and would frame the luminous specimen smallest of the set).
+      const pts = this.meshPoints(creatures, 7);
+      const box = new T.Box3().setFromPoints(pts);
+      box.expandByScalar(0.12);          // slack for fin flutter and ±0.14 bob
+      const ctr = box.getCenter(new T.Vector3());
+      const halfY = (box.max.y - box.min.y) / 2;
+      const depth = Math.hypot(box.max.x - ctr.x, box.max.z - ctr.z);
+      // A ring has almost no Y extent, so an eye offset scaled from halfY leaves
+      // the camera IN its plane and it projects as a line. Look down on it.
+      const eyeOff = kind === 'tank' ? depth * 0.62 : halfY * 0.3;
+      const yaws = [];
+      if (kind === 'solo') for (let i = -3; i <= 3; i++) yaws.push(Math.PI / 2 + (i / 3) * 0.61);
+      else for (let i = 0; i < 16; i++) yaws.push(i * Math.PI / 8);
+      const d = this.fitDist(camera, pts, ctr, eyeOff, yaws, 0.92);
+      v.dist = d; v.depth = depth; v.cx = ctr.x; v.cy = ctr.y; v.cz = ctr.z;
+      v.eye = ctr.y + eyeOff;
+      v.aim = ctr.z;
+      scene.fog = new T.Fog(new T.Color(bg), Math.max(0.5, d - depth * 1.1), d + depth * 3);
+    }
+    const ro = new ResizeObserver(() => {
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      if (!cw || !ch) return;
+      v.w = cw; v.h = ch;
+      canvas.width = Math.round(cw * this.R.getPixelRatio());
+      canvas.height = Math.round(ch * this.R.getPixelRatio());
+      camera.aspect = cw / ch;
+      camera.updateProjectionMatrix();
+    });
+    ro.observe(canvas);
+    v.ro = ro;
+    return v;
+  }
+
+  async boot() {
+    try { this.THREE = await import('https://esm.sh/three@0.169.0'); }
+    catch (e) { this.setState({ err: 'three.js could not be loaded' }); return; }
+    if (this.dead) return;
+    const T = this.THREE;
+    const glCanvas = document.createElement('canvas');
+    this.R = new T.WebGLRenderer({ canvas: glCanvas, antialias: true, preserveDrawingBuffer: true });
+    this.R.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.R.setSize(680, 440, false);
+    if (T.SRGBColorSpace) this.R.outputColorSpace = T.SRGBColorSpace;
+    this.R.toneMapping = T.ACESFilmicToneMapping;
+    this.halo = this.haloTex();
+    const ids = ['cv-g1', 'cv-g2', 'cv-g3', 'cv-solo', 'cv-tank', 'cv-flesh', 'cv-specimen', 'cv-biolum'];
+    for (let i = 0; i < 80 && !ids.every(id => document.getElementById(id)); i++) {
+      await new Promise(r => setTimeout(r, 80));
+      if (this.dead) return;
+    }
+    this.build();
+    this.t0 = performance.now();
+    this.loop();
+  }
+
+  build() {
+    this.views = [
+      // One genome per frame: occlusion between compared specimens becomes
+      // structurally impossible, which no camera placement could guarantee.
+      this.makeView('solo', 'cv-g1', '#05080c', 5100, { noLum: true }),
+      this.makeView('solo', 'cv-g2', '#05080c', 6231, { iridescence: 0.94 }),
+      this.makeView('solo', 'cv-g3', '#05080c', 7419, { noLum: true }),
+      this.makeView('solo', 'cv-solo', '#060a0f', 8802, { noLum: true }),
+      this.makeView('tank', 'cv-tank', '#05080c', 2201),
+      this.makeView('flesh', 'cv-flesh', '#05080c', 12),
+      this.makeView('specimen', 'cv-specimen', '#04070a', 4093),
+      this.makeView('biolum', 'cv-biolum', '#020406', 771),
+    ].filter(Boolean);
+
+    // Compared specimens must share ONE scale: per-cell autofit made a world unit
+    // mean different pixels in each cell, so genomes couldn't be read against
+    // each other. Solve each, apply the largest to all.
+    const T = this.THREE;
+    const gs = this.views.filter(v => /^cv-g\d/.test(v.canvas.id));
+    if (gs.length > 1) {
+      const d = Math.max(...gs.map(v => v.dist));
+      for (const v of gs) {
+        v.dist = d;
+        v.scene.fog = new T.Fog(new T.Color('#05080c'),
+          Math.max(0.5, d - v.depth * 1.1), d + v.depth * 3);
+      }
+    }
+  }
+
+  // Every rebuild used to abandon 8 scenes' worth of geometries and generated
+  // textures on the ONE shared context — which is what force-loses it.
+  disposeView(v) {
+    const keep = this.halo;
+    v.scene.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      for (const m of mats) {
+        for (const k of ['map', 'roughnessMap', 'bumpMap', 'normalMap', 'emissiveMap']) {
+          if (m[k] && m[k] !== keep) m[k].dispose();
+        }
+        m.dispose();
+      }
+    });
+    if (v.scene.environment && v.scene.environment !== keep) v.scene.environment.dispose();
+    if (v.scene.background?.isTexture) v.scene.background.dispose();
+    v.scene.clear();
+  }
+
+  rebuild() {
+    for (const v of this.views) { v.ro?.disconnect(); this.disposeView(v); }
+    this.build();
+  }
+
+  loop = () => {
+    if (this.dead) return;
+    this.raf = requestAnimationFrame(this.loop);
+    const t = (performance.now() - this.t0) / 1000;
+    const gait = this.props.gait ?? 1;
+    for (const v of this.views || []) {
+      const lag = 0.95;
+      v.creatures.forEach((c, ci) => {
+        const f = (1.9 + ci * 0.17) * gait, off = ci * 1.3;
+        c.segs.forEach((s, i) => {
+          if (i > 0) s.g.rotation.y = (s.amp ?? 0.4) * Math.sin(t * f + off - i * lag);
+          if (c.lum) {
+            const p = Math.max(0, Math.sin(t * f + off - i * lag));
+            const gn = c.gain ?? 1;
+            // Real floor: with 3–4 segments at 0.95 rad lag there are instants when
+            // every one sits in the wave's negative half and the body went dark.
+            s.mat.emissiveIntensity = 0.3 + 0.62 * gn * p * p;
+            if (s.halo) s.halo.material.opacity = 0.03 + 0.13 * Math.min(2, gn) * p * p;
+          }
+        });
+        c.limbs.forEach(l => {
+          const ph = t * f + off - l.i * lag - 0.6;
+          l.g.rotation.z = l.side * 0.55 * Math.sin(ph);
+          if (c.lum && l.mat) {
+            const p = Math.max(0, Math.sin(ph));
+            l.mat.emissiveIntensity = 0.22 + 0.8 * p * p;
+          }
+        });
+        c.root.position.y = c.base0 ?? (c.base0 = c.root.position.y);
+        c.root.position.y += 0.14 * Math.sin(t * 0.7 + off);
+        c.root.rotation.z = 0.07 * Math.sin(t * 0.5 + off);
+        if (c.adv) this.animAdv(c, t, f, off, lag);
+      });
+      // A full 360° orbit wastes 2.3× the frame at the end-on pass, so a single
+      // subject rocks around BROADSIDE (±35°) — the angle its silhouette is for.
+      // Every SINGLE-subject view rocks around broadside — the angle a segmented
+      // body's silhouette and travelling wave are legible from. Only the tank,
+      // which is an arrangement rather than a specimen, orbits fully.
+      const th = v.kind === 'tank'
+        ? t * 0.07
+        : Math.PI / 2 + Math.sin(t * 0.17) * 0.61;
+      const cx = v.cx ?? 0, cz = v.cz ?? 0;
+      v.camera.position.set(cx + Math.sin(th) * v.dist, v.eye, cz + Math.cos(th) * v.dist);
+      v.camera.lookAt(cx, v.cy ?? 0, v.aim ?? -0.5);
+
+      const R = this.R, gl = R.domElement, dpr = R.getPixelRatio();
+      const sw = Math.min(gl.width, Math.round(v.w * dpr));
+      const sh = Math.min(gl.height, Math.round(v.h * dpr));
+      R.toneMappingExposure = v.exposure;
+      R.setViewport(0, 0, v.w, v.h);
+      R.setScissor(0, 0, v.w, v.h);
+      R.setScissorTest(true);
+      R.render(v.scene, v.camera);
+      // GL viewport origin is bottom-left, so the frame sits at the bottom of the
+      // shared buffer; take that sub-rect.
+      v.ctx.drawImage(gl, 0, gl.height - sh, sw, sh, 0, 0, v.canvas.width, v.canvas.height);
+    }
+  };
+
+  renderVals() { return {}; }
+}
+
+</script>
+</body>
+</html>

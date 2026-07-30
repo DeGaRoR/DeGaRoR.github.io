@@ -97,6 +97,12 @@
     <div class="card" id="bracketView" style="display:none"></div>
   </div>
 
+  <!-- ═══ Sous-page Chassis : tout l'étal, classe S d'abord ═══ -->
+  <div id="chassisScreen" class="rc-screen" style="display:none">
+    <div class="rc-crumb"><span id="chassisCrumbRoot"></span><span class="sep">›</span><span class="here" id="chassisCrumbHere"></span></div>
+    <div class="card" id="chassisList"></div>
+  </div>
+
   <!-- ═══ Écran C (S6) : la manche, l'adversaire, le comportement, le lancement ═══ -->
   <div id="vsScreen" class="rc-screen rc-screen--vs" style="display:none">
     <div class="rc-crumb"><span id="vsCrumbLigue"></span><span class="sep">›</span><span id="vsCrumbConcours"></span><span class="sep">›</span><span class="here" id="vsCrumbManche"></span></div>
@@ -234,6 +240,8 @@
 
 <script src="data.js"></script>
 <script src="engine.js"></script>
+<script src="geometry.js"></script>
+<script src="render.js"></script>
 <script src="app.js"></script>
 <script>
 // PWA : enregistrement du service worker (http(s) seulement ; inoffensif ailleurs)

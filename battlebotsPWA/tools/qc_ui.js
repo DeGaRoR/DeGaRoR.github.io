@@ -240,10 +240,12 @@ safe("garage S7", () => {
   w7.eval("S.bolts = 1e6; renderHome()");
   check("S7: le garage ne vend rien", w7.eval("$('garageStrip').querySelectorAll('.botprice').length") === 0);
   check("S7: cellule Boutique présente", w7.eval("!!$('garageStrip').querySelector('.rc-botcell--shop')"));
-  check("S7: châssis à vendre en boutique", w7.eval("$('chassisShop').querySelectorAll('.rc-botcell').length") > 0);
+  check("S7: bandeau chassis en boutique", w7.eval("!!$('chassisShop').querySelector('.rc-league')"));
   w7.eval("$('garageStrip').querySelector('.rc-botcell--shop').click()");
   check("S7: la cellule Boutique bascule d'onglet", w7.eval("activeTab") === "shop");
-  w7.eval("$('chassisShop').querySelector('.rc-botcell').click()");
+  w7.eval("$('chassisShop').querySelector('.rc-league').click()");        // ouvre la sous-page chassis
+  check("S7: sous-page chassis peuplée", w7.eval("$('chassisList').querySelectorAll('.rc-botcell').length") > 0);
+  w7.eval("$('chassisList').querySelector('.rc-botcell').click()");
   check("S7: achat = nouveau bot + bascule garage", w7.eval("S.garage.length") === 2 && w7.eval("activeTab") === "workshop");
   const nInst = w7.eval("Object.keys(S.inv.items).length");
   const nFreeBefore = w7.eval("Object.keys(S.inv.items).filter(u=>!fittedMap()[u]).length");
@@ -552,8 +554,10 @@ safe("bot d'occasion E2", () => {
         w2b.eval("!!S.usedBotOffer && BUYABLE_CHASSIS.includes(S.usedBotOffer.chassis)"));
   check("E2: usure des pièces entre 20 et 50",
         w2b.eval("S.usedBotOffer.parts.filter(p=>p.cost>0).every(p=>p.wear>=20 && p.wear<=50)"));
-  check("E2: jamais le top-tier du catalogue",
-        w2b.eval("S.usedBotOffer.parts.filter(p=>p.cost>0).every(p=>{ const xs=ENGINE.PARTS[p.slot].filter(x=>x.cost>0); return p.id !== xs[xs.length-1].id; })"));
+  check("E2: jamais la gamme sommet du catalogue",
+        w2b.eval("S.usedBotOffer.parts.filter(p=>p.cost>0).every(p=>{ const xs=ENGINE.PARTS[p.slot].filter(x=>x.cost>0); const maxG=Math.max(...xs.map(x=>gammeDe(p.slot,x.id))); return gammeDe(p.slot,p.id) < maxG; })"));
+  check("E2: l'offre RENTRE sur sa coque (fitsOnHull)",
+        w2b.eval("(function(){ const o=S.usedBotOffer, pm={}; for(const p of o.parts){ const sl=DEF_SLOT[p.id]; if(sl) pm[sl]=p.id; } return fitsOnHull({chassis:o.chassis, parts:pm, counts:{}}); })()"));
   check("E2: prix avantageux mais non nul",
         w2b.eval("S.usedBotOffer.price > 0 && S.usedBotOffer.price < S.usedBotOffer.newPrice"));
   check("E2: relance dans la même journée = même offre (pas de reroll)",
@@ -690,11 +694,13 @@ safe("ombres P-OMBRES", () => {
 // ------------------------------------------------------ E5 : passe visuelle navigateur
 safe("E5 finitions", () => {
   const we = openWorld();
-  we.eval("showTab('shop'); renderHome()");
+  we.eval("showTab('shop'); renderHome(); renderChassisScreen()");   // S20 : l'étal complet est dans la sous-page chassis
+  check("E5: bandeau chassis unique en boutique (cartes déplacées en sous-page)",
+        we.eval("$('chassisShop').querySelectorAll('.rc-league').length===1 && $('chassisShop').querySelectorAll('.rc-botcell--big').length===0"));
   // sections châssis par classe (S et M présents, S en premier)
-  const secs = we.eval("[...$('chassisShop').querySelectorAll('.rc-section')].map(e=>e.textContent).join('|')");
+  const secs = we.eval("[...$('chassisList').querySelectorAll('.rc-section')].map(e=>e.textContent).join('|')");
   check("E5: sections châssis S puis M", /S/.test(secs.split("|")[0]) && secs.split("|").length >= 2, secs);
-  const nS = we.eval("$('chassisShop').querySelectorAll('.rc-botcell--big').length");
+  const nS = we.eval("$('chassisList').querySelectorAll('.rc-botcell--big').length");
   const BUYABLE_CHASSIS_N = we.eval("BUYABLE_CHASSIS.length");
   check("E5: une carte large par coque achetable (23 : 17 S + 5 M + 1 L, Rusty vendu)",
         nS === BUYABLE_CHASSIS_N, String(nS) + "/" + BUYABLE_CHASSIS_N);
@@ -856,7 +862,8 @@ safe("S16 garage", () => {
 // ------------------------------------------------ S17 : images unifiees, zero drift
 safe("S17 images et cohérence", () => {
   const fs = require("fs"), path = require("path");
-  const srcTxt = fs.readFileSync(path.join(__dirname, "..", "pwa", "app.js"), "utf8");
+  const rd = (f) => fs.readFileSync(path.join(__dirname, "..", "pwa", f), "utf8");
+  const srcTxt = rd("app.js") + "\n" + rd("render.js") + "\n" + rd("geometry.js");   // Phase B : le rendu/geometrie vivent hors app.js
   // aucune image ne doit echapper au registre (une seule construction, dans mkImg)
   const rawImgs = (srcTxt.match(/new Image\(\)/g) || []).length;
   check("S17: une seule construction d'Image (tout passe par mkImg)", rawImgs === 1, rawImgs + " occurrences");
@@ -924,15 +931,15 @@ safe("S18 séries et stickers", () => {
     // 3) coque inconnue → série d'origine (aucune orpheline)
     out.fallback = chassisSeriesOf("__inexistant__") === DEFAULT_SERIES;
     // 4) l'étal rend UNE section par série et resterait correct avec deux
-    goTab("shop"); renderHome();
-    out.banners = document.querySelectorAll("#chassisShop .rc-serie").length;
+    goTab("shop"); renderHome(); renderChassisScreen();
+    out.banners = document.querySelectorAll("#chassisList .rc-serie").length;
     CHASSIS_SERIES.__test = { id:"__test", order:2, accent:"#0ff",
                               name:{fr:"Essai",en:"Test"}, blurb:{fr:"x",en:"x"} };
     const keep = CHASSIS_SERIE.disque; CHASSIS_SERIE.disque = "__test";
-    renderChassisShop();
-    out.banners2 = document.querySelectorAll("#chassisShop .rc-serie").length;
-    out.cardsStill = document.querySelectorAll("#chassisShop .rc-botcell").length;
-    CHASSIS_SERIE.disque = keep; delete CHASSIS_SERIES.__test; renderChassisShop();
+    renderChassisScreen();
+    out.banners2 = document.querySelectorAll("#chassisList .rc-serie").length;
+    out.cardsStill = document.querySelectorAll("#chassisList .rc-botcell").length;
+    CHASSIS_SERIE.disque = keep; delete CHASSIS_SERIES.__test; renderChassisScreen();
     // 5) stickers : facteur dérivé de la classe, S deux fois plus petit que M
     out.sc = { S:STICKER_SCALE.S, M:STICKER_SCALE.M, L:STICKER_SCALE.L };
     // la part de coque couverte doit se rapprocher entre S et M

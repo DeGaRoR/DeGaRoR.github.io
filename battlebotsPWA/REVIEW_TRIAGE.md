@@ -67,6 +67,56 @@ high-quality review — not a generic AI pass. A few items need severity nuance
   pilot) loads with bolts preserved, pilot migrated, backup written, no errors.
   Gate 670/1 (+ SW `CACHE` bumped v80→v81 per release rules).
 
+- **Architecture (Option 1+2) — DONE.** *Phase A (decoupling, in `app.js`):*
+  `saveState` no longer swallows errors (logs + one-time toast, returns status);
+  career name rendered via `textContent` not `innerHTML` (self-XSS closed);
+  `partFx`'s false "always accurate" comment corrected (catalog hints, not
+  `PHYS`). *Phase B (extraction, no bundler):* `geometry.js` (358 lines,
+  footprint/layout) and `render.js` (872 lines, registries/composite/colliders/
+  CG/editor-draw/primitives) split out as ordered classic scripts loading
+  `data→engine→geometry→render→app`. `app.js` 4123 → **2911 lines (−29%)**.
+  Gate green after each step (670/1); `qc_ui.js` S17 check updated to span the
+  split files; `CACHE`→v84. Note: this is navigability, not decoupling — globals
+  stay shared (inherent to no-bundler); Phase A handled the real coupling smells.
+  A botched interactive paste emptied `app.js` mid-B2; restored from backup and
+  re-run via the tool (single command string) — no loss.
+
+- **Partial items — now CLOSED.** (1) *Finite-state invariant test*: added
+  `safe("invariants d'état fini (anti-NaN)")` to `tools/qc_engine.js` — steps the
+  battery/motor/grip-at-zero cases 120 ticks each, asserts finite pos/vel/angle/
+  battery/hp/throttle. Proven a real guard: reverting the engine `frac` guard
+  makes it fail at `[batterie morte @tick1]`; restored → green (moteur 142→143).
+  (2) *`invEmpty` semantic split*: restored the shop message as `invShop` for the
+  add-part picker (it sits beside a "go to shop" button), kept `invEmpty`
+  ("everything fitted") for the inventory strip. FR/EN parity holds.
+
+- **Owner-reported bug — FIXED: used-bot ("occasion") thumbnail drew components
+  but NO chassis hull.** *Two distinct issues (I initially misdiagnosed — the fit
+  work below was real but was NOT why the hull was missing; the owner caught it):*
+  - **Actual chassis-render cause:** the thumbnail built the preview with
+    `color: o.color || null`, and `drawChassisBoard` (render.js) only draws the
+    hull SPRITE when a color is truthy (`if(color && chassisSpriteReady)`).
+    Components have vector fallbacks so they drew; the hull didn't. Garage bots
+    always carry `customize.color`, and the *bought* bot gets `#d98a45` from
+    `bareBot` — which is why buying showed the hull but the preview didn't. Fix:
+    preview with the factory colour it will have when bought
+    (`o.color || DEFAULT_CHASSIS_COLOR`). Confirmed visually against the REAL
+    thumbnail canvas — hull now renders.
+    - **Why it looked unfixed at first (SW cache):** the source fix was correct,
+      but the PWA service worker (cache-first) kept serving a stale `app.js`
+      (cached at CACHE v84, before the colour edit), so the browser never ran the
+      fix. Bumped `CACHE`→v85 (ships it to clients) and cleared the SW to verify.
+      Lesson: browser checks of edits made after the last CACHE bump can be masked
+      by the SW; the QC gate isn't (it runs from source, no SW).
+  - **Related correctness fix (bought-bot validity):** `refreshUsedBot` also
+    picked parts ignoring chassis class, so an S hull got M parts → `__nofit`
+    (the *bought* bot would have been un-layoutable). Fixed: gamme-based selection
+    (never top gamme — list-position was stale since micro ids are appended last),
+    `repairFit` micro substitution, and a guaranteed base-kit fallback re-checked
+    on a FRESH build. Verified across all 23 buyable chassis × 12 selections (0
+    non-fitting). QC: stale "jamais le top-tier" check → gamme-based, plus a new
+    "l'offre RENTRE sur sa coque" guard. Gate green (interface 229).
+
 ## P0 — release-blocking
 
 | # | Claim | Verdict | Evidence |

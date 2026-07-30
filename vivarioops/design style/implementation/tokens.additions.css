@@ -1,0 +1,89 @@
+/* tokens.additions.css — append to trunk/ui/tokens.css.
+ *
+ * N16 forbids hex colours and raw pixel values in components, so every value the
+ * chrome and the render need has to exist here. Additive only: no existing token
+ * name changes, so no call site changes.
+ *
+ * Two namespaces, and they do not mix:
+ *   --c-*    chrome. Authored, fixed, dark only.
+ *   --pal-*  creature ramps. Generated appearance indexes these.
+ * Chrome never draws from a ramp; creatures never draw from chrome. A rim light in
+ * --c-accent paints out-of-ramp colour onto a creature and breaks the contract.
+ */
+
+:root {
+  /* ── surface — two steps and a hairline ──────────────── */
+  --c-bg:        #04070a;   /* replaces the old --c-bg; deeper, so scrims read */
+  --c-surface:   #0b1117;
+  --c-surface-2: #16222d;
+  --c-line:      #16222d;
+
+  /* Water. One gradient, used full-bleed. Not a panel background. */
+  --c-water: radial-gradient(115% 70% at 50% -10%, #0f2130 0%, #04070a 68%);
+
+  /* ── signal — three roles, no overlap ────────────────── */
+  --c-text:          #dbe6f0;
+  --c-text-dim:      #7189a0;
+  --c-text-disabled: #4d5f70;
+
+  --c-select:        #4fd1c5;
+  --c-select-bright: #7ee6db;   /* label on the tinted primary action */
+  --c-select-tint:   rgba(79, 209, 197, 0.14);
+  --c-select-glow:   rgba(79, 209, 197, 0.28);
+
+  /* N17's slot must not read as a bug — and must not read as anything else.
+   * This colour is the unrelated slot. Nothing else, ever. */
+  --c-stranger:      #dd9f56;
+
+  /* ── type — two faces, one rule: mono means measured ──
+   * Numerals stay mono inside sans sentences; labels never take mono. Swap the
+   * two families for system-ui/ui-monospace if the webfont is not wanted — the
+   * rule survives the swap. */
+  --f-ui:   "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Reserved for derived binomials. Unused until naming ships, on purpose. */
+  --f-name: Spectral, Georgia, serif;
+
+  --t-title: 15px;   --t-title-w: 500;
+  --t-label: 12px;   --t-label-w: 400;
+  --t-value: 11px;                        /* --f-mono */
+  --t-micro: 10px;                        /* --f-mono, telemetry strip */
+  --t-micro-tracking: 0.07em;
+
+  /* ── geometry ────────────────────────────────────────── */
+  --tapsize:      44px;   /* 21 §1 phone-first minimum */
+  --tapsize-prim: 50px;   /* primary action */
+  --r-pill: 999px;
+  --r-card: 8px;
+  --gutter: 16px;
+  --gap:    8px;
+  --gap-2:  11px;
+
+  /* Scrims, not panels: readouts sit over moving water and need a floor. */
+  --scrim-top:    96px;
+  --scrim-bottom: 214px;
+  --tabbar-h:     56px;
+
+  /* ── motion — chrome only. Never the water, never layout. ── */
+  --ease-chrome: 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* ── creature ramp — W1 "cold water" ─────────────────────
+   * Six stops. The hue gene indexes these; hueVariance spreads across ADJACENT
+   * stops only. Index 3 is the near-white bone stop — the luminous branch must
+   * exclude it or a glowing draw is white by construction. 4 and 5 (rust, plum)
+   * are the rare stops, so a warm creature is an event.
+   * A new world ships a new --pal-<id>-0..5 block and nothing else changes. */
+  --pal-w1-0: #2b3a4a;
+  --pal-w1-1: #3f6b6b;
+  --pal-w1-2: #7fa89b;
+  --pal-w1-3: #d9cfbc;   /* bone — excluded from luminous draws */
+  --pal-w1-4: #b5764a;   /* rare */
+  --pal-w1-5: #6b5878;   /* rare */
+
+  /* Presentation constants for the render. Here rather than in creature.js so
+   * they are visible on the dev panel and so N16 stays a real check. */
+  --creature-lum-threshold: 0.82;   /* material.iridescence above this glows */
+  --creature-membrane-scale: 1.13;
+  --creature-emissive-floor: 0.3;
+}

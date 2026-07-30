@@ -50,6 +50,34 @@ safe("generator", () => {
   check("pas de 'long' aux bas niveaux", longAtLow === 0, longAtLow);
 });
 
+// ------------------------------------------------------- invariants d'état fini
+// P0-1 — garde-fou permanent : aucun tick ne doit produire de NaN/Infinity, même
+// avec un organe à contribution NULLE (batterie/moteur/adhérence usés à 100 %).
+// C'est ce test qui échouerait sans la garde de division au tick (engine.js).
+safe("invariants d'état fini (anti-NaN)", () => {
+  const fin = (v) => Number.isFinite(v);
+  const botFinite = (b) => fin(b.pos.x) && fin(b.pos.y) && fin(b.vel.x) && fin(b.vel.y)
+    && fin(b.angVel) && fin(b.angle) && fin(b.battery) && fin(b.hp) && fin(b.throttleL) && fin(b.throttleR);
+  const healthy = { ...E.DEFAULT_BUILD, eff: { motor: 1, battery: 1, propulsion: 1 } };
+  const cases = [
+    ["batterie morte", { motor: 1, battery: 0, propulsion: 1 }],
+    ["moteur mort",    { motor: 0, battery: 1, propulsion: 1 }],
+    ["adhérence nulle",{ motor: 1, battery: 1, propulsion: 0 }],
+    ["tout à zéro",    { motor: 0, battery: 0, propulsion: 0 }],
+  ];
+  let firstBad = null;
+  for (const [name, eff] of cases) {
+    const m = E.makeMatch(12345, { ...E.DEFAULT_BUILD, eff }, healthy, {});
+    for (let i = 1; i <= 120 && !firstBad; i++) {
+      E.tick(m);
+      if (!fin(m.arenaR) || !m.bots.every(botFinite)) firstBad = name + " @tick" + i;
+    }
+    if (firstBad) break;
+  }
+  check("état fini sur 120 ticks (batterie/moteur/adhérence à zéro incluses)",
+        firstBad === null, firstBad || "OK");
+});
+
 // --------------------------------------------------------------- physics model
 safe("physics", () => {
   const stock = E.physStats(P);
