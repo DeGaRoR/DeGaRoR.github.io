@@ -16,7 +16,7 @@ import * as store from '../../trunk/store.js';
 import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
-import { buildCreature, disposeCreature, token } from '../../render/creature.js';
+import { buildCreature, disposeCreature, token, rampFor, updateCreatureGlow } from '../../render/creature.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
 import { button } from '../widgets.js';
 import {
@@ -26,6 +26,25 @@ import {
 
 /** A token that is a length, as a number. N16 forbids the literal; this reads it. */
 const tokenPx = (name) => parseFloat(token(name));
+
+/** A vertical equirectangular gradient as a CanvasTexture — top colour at the
+ *  surface, bottom colour at depth. Used as the scene background (water) and,
+ *  through PMREM, as the image-based lighting the physical materials read.
+ *  Equirectangular so the gradient follows the camera's pitch as it orbits. */
+function equirectGradient(top, bottom) {
+  const c = document.createElement('canvas');
+  c.width = 16; c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0, `#${top.getHexString()}`);
+  grad.addColorStop(1, `#${bottom.getHexString()}`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  return tex;
+}
 
 export default {
   title: t('Tank'),
@@ -54,20 +73,46 @@ export default {
     view.append(sheet);
 
     // ── scene ───────────────────────────────────────────────────────────────
+    // The 3D layer owns the water: it is the scene background AND the source of
+    // image-based light. A transmissive membrane needs a backdrop to refract and
+    // the fog needs a colour to fade creatures into — a CSS layer behind a
+    // transparent canvas would give the materials neither.
     const bg = new THREE.Color(token('--c-bg'));
+    const ramp = rampFor(W1_SLICE.palette);
     const scene = new THREE.Scene();
-    scene.background = bg;
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // The design's materials are authored against ACES: without it transmission
+    // and iridescence blow out and the ramp reads wrong (render/creature.js
+    // compensates for the ACES knee in its emissive path).
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     view.prepend(renderer.domElement);
 
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
-    key.position.set(2, 8, 3);
+    // Water background — the two --c-water stops, lighter toward the surface.
+    const waterTex = equirectGradient(new THREE.Color(token('--c-water-0')), bg);
+    scene.background = waterTex;
+
+    // Image-based lighting from the ramp, never a chrome literal. PMREM so the
+    // physical materials get a correct roughness response, not a mirror.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envSource = equirectGradient(ramp[2], bg);
+    const envRT = pmrem.fromEquirectangular(envSource);
+    scene.environment = envRT.texture;
+    envSource.dispose();
+    pmrem.dispose();
+
+    // Lights — key + hemi + a rim taken FROM THE RAMP (creature presentation):
+    // a hard-coded accent paints out-of-ramp light onto a warm-silt animal.
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(2.5, 5, 3);
     scene.add(key);
-    scene.add(new THREE.HemisphereLight(
-      new THREE.Color(token('--c-accent')), new THREE.Color(token('--c-surface')), 0.5));
+    scene.add(new THREE.HemisphereLight(ramp[1].clone(), bg.clone(), 0.75));
+    const rim = new THREE.DirectionalLight(ramp[2].clone(), 1.7);
+    rim.position.set(-2, 1.2, -4);
+    scene.add(rim);
 
     // The wireframe is the UNION of the six real tanks (see ui/tank/sim.js), so
     // what is drawn is a true statement about where creatures can go. Both the
@@ -75,11 +120,16 @@ export default {
     let grid = gridFor(1);
     let cells = cellCentres(W1_SLICE.tankBounds, grid);
     let union = unionBounds(W1_SLICE.tankBounds, grid);
+    let unionRadius = 0.5 * Math.hypot(union[0], union[1], union[2]);
 
     const boundsMat = new THREE.LineBasicMaterial({ color: new THREE.Color(token('--c-line')) });
     let bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
     scene.add(bounds);
-    scene.fog = new THREE.Fog(bg, union[0] * 0.5, union[0] * 2.5);
+    // Fog fades creatures into the water. Near/far track the LIVE camera distance
+    // every frame (placeCamera), not the union size: the camera sits far enough
+    // back to frame the union that a union-scaled far plane put the whole scene
+    // beyond the fog and rendered it flat to the background colour.
+    scene.fog = new THREE.Fog(bg, 1, 100);
 
     function relayout(aspect) {
       const next = gridFor(aspect);
@@ -91,8 +141,7 @@ export default {
       bounds.geometry.dispose();
       bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
       scene.add(bounds);
-      scene.fog.near = union[0] * 0.5;
-      scene.fog.far = Math.max(union[0], union[2]) * 2.5;
+      unionRadius = 0.5 * Math.hypot(union[0], union[1], union[2]);
       for (const s of slots) s.group.position.set(cells[s.index][0], cells[s.index][1], cells[s.index][2]);
       return true;
     }
@@ -105,6 +154,11 @@ export default {
     let previous = null;            // one-step undo: 21 §4.3
     let selected = new Set();
     let speed = 1, paused = false;
+    // Fallback ladder rung (render/creature.js): 'full' membrane+flesh+organ,
+    // 'flesh' drops the transmissive membrane, 'flat' drops the generated maps.
+    // Default 'flesh' until the six-creature frame budget is measured (design
+    // open-Q1). Wired to the dev-panel quality control in a later step.
+    let detail = 'flesh';
     let accumulator = 0, lastMs = 0, raf = 0, breedingUntil = 0;
     let stopped = false;
     let ready = false;
@@ -137,7 +191,7 @@ export default {
       slots = genomes.map((genome, i) => {
         const plan = morphogenesis(genome);
         const sim = createSimulation(RAPIER, plan, genome, W1_SLICE);
-        const group = buildCreature(plan, genome);
+        const group = buildCreature(plan, genome, { worldId: W1_SLICE.palette, detail });
         const pivot = new THREE.Group();
         pivot.position.set(cells[i][0], cells[i][1], cells[i][2]);
         pivot.add(group);
@@ -155,8 +209,25 @@ export default {
         ring.visible = false;
         pivot.add(ring);
 
+        // The instantaneous gait phase of the joint feeding each body, so a
+        // luminous creature's glow is a READOUT of its gait (a travelling light
+        // is a wave; six lights in unison a twitch). Assembled from the sim's own
+        // exposed state — sim.phases (per-joint offset), sim.t, sim.control.effort
+        // and the controller genes — so /engine stays untouched. The root body
+        // has no feeding joint and never oscillates, so it returns phase 0.
+        const jointOfBody = new Int32Array(plan.bodyCount).fill(-1);
+        for (const j of plan.joints) jointOfBody[j.childBody] = j.index;
+        const phaseFor = (bodyIndex) => {
+          const ji = jointOfBody[bodyIndex];
+          if (ji < 0) return 0;
+          const jt = plan.joints[ji];
+          const gj = genome.controller.jointGenes[jt.nodeId];
+          return gj.freqMult * (genome.controller.omega * sim.control.effort) * sim.t + sim.phases[ji];
+        };
+
         return {
           index: i, genome, plan, sim, group: pivot, mesh: group, label, ring,
+          phaseFor,
           radius: boundingRadius(plan),
           mass: totalMass(plan),
           pose: sim.readPose(),
@@ -181,9 +252,12 @@ export default {
     function syncPoses() {
       for (const s of slots) {
         s.sim.readPose(s.pose);
-        const meshes = s.mesh.children;
-        for (let i = 0; i < meshes.length && i < s.pose.length; i++) {
-          const p = s.pose[i], m = meshes[i];
+        // Each body now carries more than one mesh (flesh, organ, membrane), so
+        // the live pose is applied by the mesh's own bodyIndex, not by child
+        // order — an index-based map would drive the wrong layer onto each body.
+        for (const m of s.mesh.children) {
+          const p = s.pose[m.userData.bodyIndex];
+          if (!p) continue;
           m.position.set(p.p[0], p.p[1], p.p[2]);
           m.quaternion.set(p.q[0], p.q[1], p.q[2], p.q[3]);
         }
@@ -203,6 +277,11 @@ export default {
         s.speed = smoothSpeed(s.speed, horizontalSpeed([vx, vy, vz]), lastDt);
         const c = s.sim.centreOfMass();
         s.world.set(c[0] + cells[s.index][0], c[1] + cells[s.index][1], c[2] + cells[s.index][2]);
+
+        // Phase-locked emissive — a no-op on the ~5 in 6 creatures below the
+        // luminosity threshold, so it is safe to call for every slot. gain 1 in
+        // the tank (a single close specimen would use ~2.4).
+        updateCreatureGlow(s.mesh, s.phaseFor, 1);
       }
     }
 
@@ -213,6 +292,10 @@ export default {
         r * Math.cos(orbit.phi),
         r * Math.sin(orbit.phi) * Math.cos(orbit.theta));
       camera.lookAt(0, 0, 0);
+      // Fog around the tank at whatever distance the camera actually sits, so the
+      // near face stays crisp and the far wall dissolves into water — at any zoom.
+      scene.fog.near = Math.max(0.1, orbit.dist - unionRadius);
+      scene.fog.far = orbit.dist + unionRadius * 1.6;
     }
 
     const projected = new THREE.Vector3();
@@ -585,6 +668,8 @@ export default {
         clearTimeout(longPressTimer);
         ro.disconnect();
         disposeSlots();
+        waterTex.dispose();
+        envRT.dispose();
         renderer.dispose();
       },
     };
