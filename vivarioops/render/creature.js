@@ -228,8 +228,10 @@ export function buildCreature(plan, genome, opts = {}) {
     // ── flesh ────────────────────────────────────────────
     // Per-body material instance on luminous creatures: a shared instance means
     // the last body's phase wins and the whole animal pulses in unison.
+    // No `color` here: with maps it defaults to white so the map shows as-is,
+    // and the 'flat' rung sets flesh.color explicitly below. Passing
+    // `color: undefined` in the constructor makes three log a warning per body.
     const flesh = new THREE.MeshPhysicalMaterial({
-      color: detail === 'flat' ? bodyColour : undefined,
       map: maps?.map ?? null,
       roughnessMap: maps?.roughnessMap ?? null,
       bumpMap: maps?.bumpMap ?? null,

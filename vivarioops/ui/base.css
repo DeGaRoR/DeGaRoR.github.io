@@ -39,9 +39,20 @@ html, body {
 #tabbar button {
   min-height: var(--tapsize);
   background: none; border: none; color: var(--c-text-dim);
-  font: inherit; font-size: var(--t-sm); cursor: pointer;
+  font-family: var(--f-ui); font-size: var(--t-label); cursor: pointer;
 }
-#tabbar button[aria-current="page"] { color: var(--c-accent); }
+#tabbar button[aria-current="page"] { color: var(--c-select); }
+
+/* ── Tank is full-bleed water (design-style, Phase 2) ────────────────────────
+   On the tank the app chrome gets out of the way: the top bar is gone so water
+   bleeds to the top edge, and the tab bar floats over the tank's own bottom
+   scrim with no top border (the scrim separates it). Other screens keep the
+   standard shell. #app[data-tab] is set by nav.onChange in app.js. */
+#app[data-tab="tank"] #topbar { display: none; }
+#app[data-tab="tank"] #tabbar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  background: transparent; border-top: none;
+}
 
 .placeholder { padding: var(--s-6) var(--s-4); }
 .placeholder h1 { font-size: var(--t-xl); font-weight: 500; margin-bottom: var(--s-2); }
@@ -90,63 +101,119 @@ html, body {
 /* A partial run is neither pass nor fail, and must not be styled as either (H4). */
 .gate-out[data-state="partial"] { border-left-color: var(--c-warn); }
 
-.tank { display: flex; flex-direction: column; height: 100%; }
-.tank-view { flex: 1 1 auto; min-height: var(--s-6); position: relative; }
+/* ── Tank — design-style full-bleed water with floating chrome (Phase 2) ──────
+   The 3D canvas IS the water and bleeds to every edge; the readouts, the
+   control cluster, the primary action and the tab bar float over it on scrims.
+   Sibling groups use flex/grid + gap, never margins (handoff layout rule). */
+
+.tank { position: absolute; inset: 0; overflow: hidden; }
+.tank-view { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
 .tank-view canvas { display: block; width: 100%; height: 100%; }
-.tank-panel {
-  flex: none; padding: var(--s-3) var(--s-4) var(--s-4);
-  border-top: thin solid var(--c-line); background: var(--c-surface);
-}
-
-/* ── tank, B4b ──────────────────────────────────────────────────────────────
-   The view is full-bleed and the controls float over nothing; 21 §4.1 puts the
-   tank in the middle band with a floating control row and Breed as primary. */
-
-.tank-view { position: relative; overflow: hidden; touch-action: none; }
-
-.tank-labels { position: absolute; inset: var(--s-0); pointer-events: none; }
-.tank-label {
-  position: absolute; top: var(--s-0); left: var(--s-0);
-  padding: var(--label-pad) var(--s-2);
-  border-radius: var(--r-1);
-  background: var(--c-surface);
-  color: var(--c-text-dim);
-  font-family: var(--f-mono); font-size: var(--t-xs);
-  border: thin solid transparent;
-  opacity: 0.85;
-}
-.tank-label[data-selected="yes"] { color: var(--c-text); border-color: var(--c-select); opacity: 1; }
-.tank-label[hidden] { display: none; }
-
-.tank-status {
-  flex: none; padding: var(--s-2) var(--s-4);
-  border-top: thin solid var(--c-line); background: var(--c-surface);
-  font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim);
-}
-
-.tank-controls {
-  flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-  gap: var(--s-2); padding: var(--s-0) var(--s-4);
-  background: var(--c-surface);
-}
-.tank-controls .btn { margin-top: var(--s-2); }
-.tank-controls .btn:disabled { color: var(--c-text-dim); opacity: 0.5; }
-
-.tank-primary { flex: none; padding: var(--s-2) var(--s-4) var(--s-4); background: var(--c-surface); }
-.btn.primary { background: var(--c-accent); color: var(--c-bg); font-weight: 600; border-color: var(--c-accent); }
-.btn.primary:disabled { background: var(--c-surface-2); color: var(--c-text-dim); border-color: var(--c-line); font-weight: 400; }
-
-/* The 600 ms BREEDING beat: a visible transition, so the player can tell that
-   something happened (21 §4.4). */
-.tank-view[data-breeding="yes"] canvas { opacity: 0.35; transition: opacity 120ms linear; }
 .tank-view canvas { transition: opacity 240ms linear; }
+/* The 600 ms BREEDING beat: a visible transition so the player can tell that
+   something happened (21 §4.4). Chrome only — never the water gradient itself. */
+.tank-view[data-breeding="yes"] canvas { opacity: 0.35; }
 
+/* Scrims — a floor for telemetry over moving water, not panels. */
+.tank-scrim { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 1; }
+.tank-scrim-top    { top: 0;    height: var(--scrim-top);    background: linear-gradient(var(--c-bg), transparent); }
+.tank-scrim-bottom { bottom: 0; height: var(--scrim-bottom); background: linear-gradient(transparent, var(--c-bg) 58%); }
+
+/* Top readouts — generation/world left, selection/stranger right. Numerals stay
+   mono inside the sans sentences (the "measured" rule). */
+.tank-readouts {
+  position: absolute; top: var(--gutter); left: var(--gutter); right: var(--gutter); z-index: 2;
+  display: flex; justify-content: space-between; align-items: baseline;
+  pointer-events: none;
+}
+.tank-readout-l, .tank-readout-r { display: flex; flex-direction: column; gap: var(--readout-gap); }
+.tank-readout-r { align-items: flex-end; text-align: right; }
+.tank-gen       { font-size: var(--t-title); font-weight: var(--t-title-w); color: var(--c-text); }
+.tank-world     { font-size: var(--t-value); color: var(--c-text-dim); }
+.tank-sel       { font-size: var(--t-label); font-weight: 500; color: var(--c-select); }
+.tank-strangers { font-size: var(--t-value); color: var(--c-stranger); }
+.tank-world[hidden], .tank-strangers[hidden] { display: none; }
+.tank-readouts .num { font-family: var(--f-mono); }
+
+/* Per-creature markers — speed label + selection ring, both follow the body. */
+.tank-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.tank-label {
+  position: absolute; top: 0; left: 0;
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  color: var(--c-text-dim);
+  transition: color var(--ease-chrome);
+}
+.tank-label[hidden] { display: none; }
+.tank-label[data-selected="yes"] { color: var(--c-select); }
+.tank-label[data-kind="stranger"] { color: var(--c-stranger); }
+
+/* Selection ring — CSS chrome (handoff): 1.5px accent + a soft glow. The
+   stranger's ring is quieter (1px, 45%) because it is a fact about provenance,
+   not a selection. Size and position are written by syncOverlay each frame. */
+.tank-ring {
+  position: absolute; top: 0; left: 0;
+  border-radius: var(--r-pill);
+  border: var(--ring-w) solid var(--c-select);
+  box-shadow: var(--ring-glow) var(--c-select-glow);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: border-color var(--ease-chrome), opacity var(--ease-chrome);
+}
+.tank-ring[hidden] { display: none; }
+.tank-ring[data-kind="stranger"] {
+  border-width: thin; border-color: var(--c-stranger); box-shadow: none; opacity: 0.45;
+}
+
+/* First-run coach — three words, once. Removed on the first breed. */
+.tank-coach {
+  position: absolute; left: 0; right: 0; z-index: 2; text-align: center;
+  bottom: calc(var(--tabbar-h) + var(--gap) + var(--tapsize-prim) + var(--gap-2) + var(--tapsize) + var(--gap));
+  pointer-events: none;
+  font-family: var(--f-ui); font-size: var(--t-value); color: var(--c-text-dim);
+}
+.tank-coach[hidden] { display: none; }
+
+/* Control cluster — a pill of transparent buttons over the bottom scrim. */
+.tank-cluster {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 2;
+  bottom: calc(var(--tabbar-h) + var(--gap) + var(--tapsize-prim) + var(--gap-2));
+  display: flex; gap: var(--hairline); padding: var(--hairline);
+  border: thin solid var(--c-line); border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--c-surface) 72%, transparent);
+}
+.tank-chip {
+  min-height: var(--tapsize); padding: 0 var(--chip-pad);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: var(--r-pill);
+  color: var(--c-text); font-family: var(--f-ui); font-size: var(--t-sm); cursor: pointer;
+  transition: color var(--ease-chrome), background-color var(--ease-chrome);
+}
+.tank-chip:disabled { color: var(--c-text-disabled); cursor: default; }
+.tank-chip.speed { padding: 0 var(--gutter); font-family: var(--f-mono); font-size: var(--t-value); }
+.tank-chip.speed.active { background: var(--c-surface-2); }
+
+/* Primary action — Breed, always labelled with its object. */
+.tank-breed {
+  position: absolute; left: var(--gutter); right: var(--gutter); z-index: 2;
+  bottom: calc(var(--tabbar-h) + var(--gap));
+  min-height: var(--tapsize-prim);
+  border-radius: var(--r-pill);
+  border: thin solid var(--c-select);
+  background: var(--c-select-tint);
+  color: var(--c-select-bright);
+  font-family: var(--f-ui); font-size: var(--t-title); font-weight: var(--t-title-w);
+  cursor: pointer;
+  transition: color var(--ease-chrome), border-color var(--ease-chrome), background-color var(--ease-chrome);
+}
+.tank-breed:disabled { border-color: var(--c-text-dim); color: var(--c-text-dim); background: transparent; cursor: default; }
+
+/* Specimen sheet — a bottom sheet over the water. */
 .tank-sheet {
-  position: absolute; inset: auto var(--s-0) var(--s-0) var(--s-0);
-  padding: var(--s-4);
+  position: absolute; inset: auto 0 0 0; z-index: 3;
+  padding: var(--gutter);
   background: var(--c-surface);
   border-top: thin solid var(--c-line);
-  border-radius: var(--r-2) var(--r-2) var(--s-0) var(--s-0);
+  border-radius: var(--r-card) var(--r-card) 0 0;
 }
 .tank-sheet[hidden] { display: none; }
 

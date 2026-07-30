@@ -6,13 +6,15 @@
  * vacuous one. Tier 1 expands it; component call sites do not change. */
 
 :root {
-  /* colour — dark water, per 02 W1 */
-  --c-bg:        #04070a;   /* deepened for the design-style water/scrims (3D layer) */
-  --c-surface:   #0c1219;
-  --c-surface-2: #131c26;
-  --c-line:      #1e2b38;
-  --c-text:      #d6e2ee;
-  --c-text-dim:  #708496;
+  /* colour — dark water, per 02 W1. Surfaces/line/text adopt the design-style
+   * chrome values (Phase 2); the old names are kept, only their values move. */
+  --c-bg:        #04070a;   /* deepened for the design-style water/scrims */
+  --c-surface:   #0b1117;
+  --c-surface-2: #16222d;
+  --c-line:      #16222d;
+  --c-text:      #dbe6f0;
+  --c-text-dim:  #7189a0;
+  --c-text-disabled: #4d5f70;
   --c-accent:    #4fd1c5;
   --c-warn:      #e0a458;
   --c-fail:      #e06c75;
@@ -21,9 +23,11 @@
   /* space */
   --s-0: 0; --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
 
-  /* type */
-  --f-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  /* type — two faces, self-hosted IBM Plex (see fonts.css). Mono means measured;
+   * both stacks fall back to the system face if a woff2 fails to load. */
+  --f-ui:   "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --f-name: Spectral, Georgia, serif;   /* reserved for derived binomials */
   --t-xs: 11px; --t-sm: 13px; --t-md: 15px; --t-lg: 19px; --t-xl: 24px;
 
   /* chrome */
@@ -34,9 +38,45 @@
 
   /* tank — B4b. Selection rings and per-creature labels. */
   --c-select:    #4fd1c5;   /* = accent; named separately so selection can diverge */
-  --c-stranger:  #e0a458;   /* = warn; N17's slot must not read as a bug */
-  --ring-w: 2px;
-  --label-pad: 3px;
+  --c-stranger:  #dd9f56;   /* the unrelated slot. Nothing else, ever (N17). */
+  --ring-w: 1.5px;          /* selection ring border (design-style) */
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * CHROME — design-style adoption, Phase 2. The authored dark UI shell:
+   * signal tints, the two-face type scale (mono means measured), pill/scrim
+   * geometry and chrome-only motion. Separate from the 3D --pal-*/--creature-*
+   * layer above. */
+
+  /* Signal — selection has three faces; the stranger stands alone (see above). */
+  --c-select-bright: #7ee6db;              /* label on the tinted primary action */
+  --c-select-tint:   rgba(79, 209, 197, 0.14);
+  --c-select-glow:   rgba(79, 209, 197, 0.28);
+
+  /* Type scale — numerals stay mono inside sans sentences; labels never mono. */
+  --t-title: 15px;   --t-title-w: 500;
+  --t-label: 12px;   --t-label-w: 400;
+  --t-value: 11px;                          /* --f-mono */
+  --t-micro: 10px;                          /* --f-mono, telemetry strip */
+  --t-micro-tracking: 0.07em;
+
+  /* Geometry */
+  --tapsize-prim: 50px;   /* primary action */
+  --r-pill: 999px;
+  --r-card: 8px;
+  --gutter: 16px;
+  --gap:    8px;
+  --gap-2:  11px;
+  --hairline:    1px;        /* the control pill's 1px seam (padding + gap) */
+  --ring-glow:   0 0 18px;   /* selection ring glow: offset + blur */
+  --chip-pad:    18px;       /* cluster chip horizontal padding (speed uses --gutter) */
+  --readout-gap: 2px;        /* between the two lines of a readout column */
+
+  /* Scrims, not panels: readouts sit over moving water and need a floor. */
+  --scrim-top:    96px;
+  --scrim-bottom: 214px;
+
+  /* Motion — chrome only. Never the water, never layout. */
+  --ease-chrome: 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
 
   /* ═══════════════════════════════════════════════════════════════════════
    * 3D CREATURE PRESENTATION LAYER — design-style adoption, Phase 1.

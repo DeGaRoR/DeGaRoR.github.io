@@ -33,10 +33,14 @@ for (const id of nav.tabs()) {
 }
 
 const titleEl = document.querySelector('#topbar .title');
+const appEl = document.getElementById('app');
 nav.onChange(({ tab, screen, modal }) => {
   for (const [id, b] of Object.entries(buttons)) {
     if (id === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
+  // The tank is full-bleed water; base.css hides the top bar and floats the tab
+  // bar for that tab only. Other tabs keep the standard shell.
+  appEl.dataset.tab = tab;
   document.title = `Vivarioops — ${TAB_LABEL[tab]}`;
   titleEl.textContent = modal || screen === tab ? TAB_LABEL[tab] : t('Vivarioops');
 });

@@ -51,26 +51,44 @@ export default {
 
   mount(el) {
     // ── chrome ──────────────────────────────────────────────────────────────
-    const wrap = document.createElement('div');
-    wrap.className = 'tank';
-    const view = document.createElement('div');
-    view.className = 'tank-view';
-    const labels = document.createElement('div');
-    labels.className = 'tank-labels';
-    view.append(labels);
-    const status = document.createElement('div');
-    status.className = 'tank-status';
-    const controls = document.createElement('div');
-    controls.className = 'tank-controls';
-    const primary = document.createElement('div');
-    primary.className = 'tank-primary';
-    wrap.append(view, status, controls, primary);
+    // Full-bleed water with floating chrome (design-style, Phase 2): the canvas
+    // fills the view and the readouts, cluster and primary action float over it
+    // on scrims. Small DOM helpers keep this readable — element, then text.
+    const mk = (cls, parent, tag = 'div') => {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (parent) parent.append(n);
+      return n;
+    };
+
+    const wrap = mk('tank');
+    const view = mk('tank-view', wrap);
+    const labels = mk('tank-labels', view);
+    mk('tank-scrim tank-scrim-top', wrap);
+    mk('tank-scrim tank-scrim-bottom', wrap);
+
+    // Top readouts — generation/world left, selection/stranger right.
+    const readouts = mk('tank-readouts', wrap);
+    const readoutL = mk('tank-readout-l', readouts);
+    const genEl = mk('tank-gen', readoutL);
+    const worldEl = mk('tank-world', readoutL);
+    const readoutR = mk('tank-readout-r', readouts);
+    const selEl = mk('tank-sel', readoutR);
+    const strangersEl = mk('tank-strangers', readoutR);
+
+    // First-run coach — three words, once (21 §4.6). Removed on the first breed.
+    const coach = mk('tank-coach', wrap);
+    coach.textContent = t('Tap one you like → Breed → repeat');
+
+    // Control cluster (pill) and the primary action. Chips are built in ─controls.
+    const cluster = mk('tank-cluster', wrap);
+    const primary = mk('tank-breed', wrap, 'button');
+    primary.type = 'button';
+
     el.append(wrap);
 
-    const sheet = document.createElement('div');
-    sheet.className = 'tank-sheet';
+    const sheet = mk('tank-sheet', wrap);
     sheet.hidden = true;
-    view.append(sheet);
 
     // ── scene ───────────────────────────────────────────────────────────────
     // The 3D layer owns the water: it is the scene background AND the source of
@@ -182,6 +200,7 @@ export default {
         scene.remove(s.group);
         disposeCreature(s.group);
         s.label.remove();
+        s.ring.remove();
       }
       slots = [];
     }
@@ -197,17 +216,18 @@ export default {
         pivot.add(group);
         scene.add(pivot);
 
+        // Marker chrome lives in the UI layer, not the scene (design-style): a
+        // CSS ring and a speed label, both positioned over the body each frame by
+        // syncOverlay. The ring is hidden until the creature is selected or is the
+        // stranger slot.
+        const ring = document.createElement('div');
+        ring.className = 'tank-ring';
+        ring.hidden = true;
+        labels.append(ring);
+
         const label = document.createElement('div');
         label.className = 'tank-label';
         labels.append(label);
-
-        // The selection ring is a world-space circle facing the camera, so it
-        // stays legible at any zoom and does not need a shader.
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(0.92, 1, 40),
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(token('--c-select')), transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-        ring.visible = false;
-        pivot.add(ring);
 
         // The instantaneous gait phase of the joint feeding each body, so a
         // luminous creature's glow is a READOUT of its gait (a travelling light
@@ -299,36 +319,45 @@ export default {
     }
 
     const projected = new THREE.Vector3();
+    const edgeV = new THREE.Vector3();
+    const rightV = new THREE.Vector3();
 
     function syncOverlay() {
       const w = view.clientWidth, h = view.clientHeight;
+      // Camera-right in world space, so the ring can be sized from the body's
+      // on-screen radius (project centre and a radius-offset point, take the gap).
+      rightV.set(1, 0, 0).applyQuaternion(camera.quaternion);
       for (const s of slots) {
         projected.copy(s.world).project(camera);
         const x = (projected.x * 0.5 + 0.5) * w;
         const y = (-projected.y * 0.5 + 0.5) * h;
         const visible = projected.z < 1;
+        const kind = provenance[s.index]?.kind ?? KIND.STRANGER;
+        const isSelected = selected.has(s.index);
+
         s.label.hidden = !visible;
         if (visible) {
           s.label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
           s.label.textContent = `${s.speed.toFixed(1)}`;
         }
-        s.label.dataset.kind = provenance[s.index]?.kind ?? KIND.STRANGER;
-        s.label.dataset.selected = selected.has(s.index) ? 'yes' : 'no';
+        s.label.dataset.kind = kind;
+        s.label.dataset.selected = isSelected ? 'yes' : 'no';
 
-        // The stranger is marked only once there IS a lineage to be unrelated to.
-        // On first run every creature is a stranger and six warning rings say
-        // nothing.
-        const isStranger = generation > 0 && provenance[s.index]?.kind === KIND.STRANGER;
-        s.ring.visible = selected.has(s.index) || isStranger;
-        if (s.ring.visible) {
-          const rad = Math.max(s.radius * 1.4, 1);
-          s.ring.scale.set(rad, rad, rad);
-          s.ring.position.copy(s.world).sub(s.group.position);
-          s.ring.quaternion.copy(camera.quaternion);
-          // N17's slot is marked differently, or it reads as a bug (21 §4.4).
-          s.ring.material.color.set(
-            selected.has(s.index) ? token('--c-select') : token('--c-stranger'));
-          s.ring.material.opacity = selected.has(s.index) ? 0.9 : 0.45;
+        // Ring shown when selected, or for the stranger slot once there IS a
+        // lineage to be unrelated to — on first run every creature is a stranger
+        // and six rings say nothing (21 §4.4). A selection ring wins over the
+        // quieter stranger ring on the same body.
+        const isStranger = generation > 0 && kind === KIND.STRANGER;
+        const showRing = visible && (isSelected || isStranger);
+        s.ring.hidden = !showRing;
+        if (showRing) {
+          edgeV.copy(rightV).multiplyScalar(Math.max(s.radius * 1.4, 1)).add(s.world).project(camera);
+          const ex = (edgeV.x * 0.5 + 0.5) * w;
+          const ey = (-edgeV.y * 0.5 + 0.5) * h;
+          const rpx = Math.max(8, Math.hypot(ex - x, ey - y));
+          s.ring.style.width = s.ring.style.height = `${2 * rpx}px`;
+          s.ring.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+          s.ring.dataset.kind = isSelected ? 'selected' : 'stranger';
         }
       }
     }
@@ -517,15 +546,24 @@ export default {
     }
 
     // ── controls ────────────────────────────────────────────────────────────
+    // A pill cluster of transparent chips over the bottom scrim, plus the
+    // primary Breed action. Sentence case; the speed chip is mono ("measured").
+    const chip = (cls, onClick) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = cls ? `tank-chip ${cls}` : 'tank-chip';
+      b.addEventListener('click', onClick);
+      return b;
+    };
 
-    const btnPause = button(t('Pause'), () => {
+    const btnPause = chip('', () => {
       paused = !paused;
       state = paused ? STATE.PAUSED : STATE.SIMULATING;
       accumulator = 0;
       renderStatus();
     });
-    const btnSpeed = button(t('Speed 1x'), () => { speed = nextSpeed(speed); renderStatus(); });
-    const btnUndo = button(t('Undo'), () => {
+    const btnSpeed = chip('speed', () => { speed = nextSpeed(speed); renderStatus(); });
+    const btnUndo = chip('', () => {
       if (!previous) return;
       genomes = previous.genomes;
       provenance = previous.provenance;
@@ -535,13 +573,13 @@ export default {
       buildSlots();
       renderStatus();
     });
-    const btnBreed = button(t('Breed'), doBreed);
-    btnBreed.classList.add('primary');
-    controls.append(btnPause, btnSpeed, btnUndo);
-    primary.append(btnBreed);
+    cluster.append(btnPause, btnSpeed, btnUndo);
+    primary.addEventListener('click', doBreed);
 
     function doBreed() {
       if (!ready || selected.size === 0 || state === STATE.BREEDING) return;
+      // The coach has done its job the moment the loop is used once (21 §4.6).
+      coach.hidden = true;
 
       // One-step undo, kept BEFORE the breed. 21 §4.3: "restore previous
       // generation's genomes, re-instantiate from t=0". Cheap, and it removes
@@ -575,22 +613,36 @@ export default {
       renderStatus(r.droppedElite);
     }
 
-    function renderStatus(droppedElite) {
-      btnSpeed.textContent = `${t('Speed')} ${speed}x`;
-      btnSpeed.disabled = paused;
+    function renderStatus() {
+      // Cluster chips.
       btnPause.textContent = paused ? t('Play') : t('Pause');
+      btnSpeed.textContent = `${speed}×`;
+      btnSpeed.classList.add('active');   // the speed chip is the measured value
+      btnSpeed.disabled = paused;
+      btnUndo.textContent = t('Undo');
       btnUndo.disabled = !previous;
-      btnBreed.disabled = !ready || selected.size === 0;
 
-      const parts = [
-        `${t('Gen')} ${generation}`,
-        `${selected.size}/${POPULATION}`,
-      ];
-      if (droppedElite != null) {
-        // N17 beats N18 at six selections, and the player is told which one went.
-        parts.push(t('stranger slot took one'));
-      }
-      status.textContent = parts.join('  ·  ');
+      // Primary action — always labelled with its object (never bare "Breed").
+      primary.disabled = !ready || selected.size === 0;
+      primary.textContent = selected.size
+        ? `${t('Breed')} ${selected.size} ${t('selected')}`
+        : t('Breed');
+
+      // Top-left readout: generation, then world · body-count (numeral mono).
+      genEl.textContent = ready ? `${t('Generation')} ${generation}` : t('Loading…');
+      const bodies = slots.reduce((a, s) => a + s.plan.bodyCount, 0);
+      worldEl.innerHTML = `${W1_SLICE.name} · <span class="num">${bodies}</span> ${t('bodies')}`;
+
+      // Top-right readout: selection count, then the stranger slot(s). The
+      // stranger line is meaningful only once there is a lineage (generation > 0).
+      selEl.innerHTML = `<span class="num">${selected.size}</span> ${t('of')} <span class="num">${POPULATION}</span> ${t('selected')}`;
+      const strangers = generation > 0
+        ? provenance.map((p, i) => (p?.kind === KIND.STRANGER ? i : -1)).filter(i => i >= 0)
+        : [];
+      strangersEl.hidden = strangers.length === 0;
+      strangersEl.innerHTML = strangers.length === 1
+        ? `${t('Slot')} <span class="num">${strangers[0] + 1}</span> ${t('unrelated')}`
+        : `<span class="num">${strangers.length}</span> ${t('unrelated')}`;
     }
 
     /**
@@ -616,7 +668,7 @@ export default {
     // screen awaits it once and hands the namespace down. Until then the tank
     // is LOADING and every control is inert.
 
-    status.textContent = t('Loading…');
+    genEl.textContent = t('Loading…');
     renderStatus();
 
     (async () => {
