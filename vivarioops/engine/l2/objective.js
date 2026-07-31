@@ -123,6 +123,12 @@ export function autoBurst({
   keep = POPULATION,
   seconds = TRIAL_SECONDS,
   selection = 'score',
+  // B2 §7.1 — THE OBJECTIVE IS A PARAMETER. It was `scorePopulation` hardcoded,
+  // which made the burst a locomotion burst by construction and would have
+  // forced a second near-identical function the moment intent needed selecting
+  // for. The null arm, the expansion and the trial accounting are the parts
+  // worth sharing; WHAT is being selected for is not.
+  objective = null,
 }) {
   let pop = genomes.slice();
   const history = [];
@@ -155,7 +161,7 @@ export function autoBurst({
   }
 
   for (let gen = 0; gen < generations; gen++) {
-    const scores = scorePopulation(RAPIER, pop, world, seconds);
+    const scores = objective ? objective(RAPIER, pop) : scorePopulation(RAPIER, pop, world, seconds);
     trials += pop.length;
 
     const order = scores
@@ -202,7 +208,7 @@ export function autoBurst({
   // FINAL SCORING IS A REAL GENERATION, not bookkeeping: without it the returned
   // population is the offspring of the last selection and has never been
   // measured, so `keep` would be picking on the parents' merits.
-  const finalScores = scorePopulation(RAPIER, pop, world, seconds);
+  const finalScores = objective ? objective(RAPIER, pop) : scorePopulation(RAPIER, pop, world, seconds);
   trials += pop.length;
   const ranked = finalScores.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s);
   history.push({
