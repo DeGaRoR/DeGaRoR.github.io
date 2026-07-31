@@ -66,6 +66,14 @@ const median = (xs) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
+// Uniform geometric shrink: scale every node's dims, so morphogenesis rebuilds a
+// proportionally smaller creature (connection scales are ratios, unaffected).
+const scaleGenome = (genome, s) => {
+  const g = structuredClone(genome);
+  for (const n of g.nodes) n.dims = n.dims.map((d) => d * s);
+  return g;
+};
+
 // The tail: deepest body in the recursion, tie-broken by distance from the root.
 function tipIndex(plan) {
   let best = 0, bd = -1, bdist = -1;
@@ -178,5 +186,28 @@ for (const e of EFFORTS) {
     + median(ms.map((m) => m.A)).toFixed(3).padStart(11)
     + median(ms.map((m) => m.St)).toFixed(2).padStart(10));
 }
+// ── size sweep: is L/s scale-free? ────────────────────────────────────────────
+// Uniform geometric scaling of the node dims. L/s is a dimensionless ratio, so if
+// it is INVARIANT the "choose the frame" lever is a mirage — the problem is L/s
+// itself, which no camera or tank size can fix. If it MOVES with scale, the drag
+// regime shifts and smaller creatures are a real lever.
+const SIZES = [1.0, 0.5, 0.25];
+console.log(`  size sweep (uniform genome-dim scale, effort 1.0) — corpus medians\n`);
+console.log('  scale   med L(m)   med U(m/s)   med L/s    med St');
+console.log('  ' + '-'.repeat(50));
+for (const S of SIZES) {
+  const ms = subs.map((s) => {
+    const g = scaleGenome(s.genome, S);
+    let p; try { p = morphogenesis(g); } catch { return null; }
+    if (p.bodyCount < 1) return null;
+    return { L: 2 * boundingRadius(p), ...measure(p, g, 1.0) };
+  }).filter(Boolean);
+  console.log('  ' + S.toFixed(2).padStart(5)
+    + median(ms.map((m) => m.L)).toFixed(2).padStart(10)
+    + median(ms.map((m) => m.U)).toFixed(4).padStart(12)
+    + median(ms.map((m) => m.U / m.L)).toFixed(4).padStart(11)
+    + median(ms.map((m) => m.St)).toFixed(2).padStart(9));
+}
+
 console.log('\n  Reading: efficient swimming is St 0.2–0.4 and L/s 1–10. If U rises as');
 console.log('  effort falls while St drops toward that band, the regime is the finding.\n');

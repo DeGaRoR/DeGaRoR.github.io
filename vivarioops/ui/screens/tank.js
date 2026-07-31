@@ -27,6 +27,24 @@ import {
 /** A token that is a length, as a number. N16 forbids the literal; this reads it. */
 const tokenPx = (name) => parseFloat(token(name));
 
+/* ══ EXPERIMENT (revertible, UNCOMMITTED) — creature + tank size ══════════════
+   PLAN-AFTER-B2 §1 "choose the frame". Measured with tools/_zstrouhal.mjs:
+   shrinking creatures ~0.5× roughly TRIPLES body-lengths/sec (absolute speed
+   holds while length halves; the drag regime is not scale-free). This is a
+   TANK-LOCAL trial only — the engine, worlds/w1_slice.js and the gate are
+   untouched. TO REVERT: EXP_CREATURE_SCALE = 1, EXP_TANK_BOUNDS = null. */
+const EXP_CREATURE_SCALE = 0.5;
+const EXP_TANK_BOUNDS = [10, 15, 10];   // W1_SLICE ships [16, 24, 16]
+
+/** Uniform geometric shrink of a genome (node dims; connection scales are ratios,
+ *  unaffected), so morphogenesis rebuilds a proportionally smaller body. */
+function scaleGenome(genome, s) {
+  if (!s || s === 1) return genome;
+  const g = structuredClone(genome);
+  for (const n of g.nodes) n.dims = n.dims.map((d) => d * s);
+  return g;
+}
+
 /** A vertical equirectangular gradient as a CanvasTexture — top colour at the
  *  surface, bottom colour at depth. Used as the scene background (water) and,
  *  through PMREM, as the image-based lighting the physical materials read.
@@ -175,12 +193,17 @@ export default {
     rim.position.set(-2, 1.2, -4);
     scene.add(rim);
 
+    // EXPERIMENT: a tank-local world with the trial bounds (see EXP_* at top). The
+    // engine/gate still use the shipped W1_SLICE; only this screen's sims + render
+    // see the smaller tank. Revert = EXP_TANK_BOUNDS null.
+    const TANK = EXP_TANK_BOUNDS ? { ...W1_SLICE, tankBounds: EXP_TANK_BOUNDS } : W1_SLICE;
+
     // The wireframe is the UNION of the six real tanks (see ui/tank/sim.js), so
     // what is drawn is a true statement about where creatures can go. Both the
     // grid and the box follow the window: see gridFor().
     let grid = gridFor(1);
-    let cells = cellCentres(W1_SLICE.tankBounds, grid);
-    let union = unionBounds(W1_SLICE.tankBounds, grid);
+    let cells = cellCentres(TANK.tankBounds, grid);
+    let union = unionBounds(TANK.tankBounds, grid);
     let unionRadius = 0.5 * Math.hypot(union[0], union[1], union[2]);
 
     const boundsMat = new THREE.LineBasicMaterial({ color: new THREE.Color(token('--c-line')) });
@@ -196,8 +219,8 @@ export default {
       const next = gridFor(aspect);
       if (next.cols === grid.cols && next.rows === grid.rows) return false;
       grid = next;
-      cells = cellCentres(W1_SLICE.tankBounds, grid);
-      union = unionBounds(W1_SLICE.tankBounds, grid);
+      cells = cellCentres(TANK.tankBounds, grid);
+      union = unionBounds(TANK.tankBounds, grid);
       scene.remove(bounds);
       bounds.geometry.dispose();
       bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
@@ -258,9 +281,12 @@ export default {
 
     function buildSlots() {
       disposeSlots();
-      slots = genomes.map((genome, i) => {
+      slots = genomes.map((canonical, i) => {
+        // EXPERIMENT: shrink the creature for this screen's sim + render only.
+        // The stored genomes[] stay canonical (breeding operates on those).
+        const genome = scaleGenome(canonical, EXP_CREATURE_SCALE);
         const plan = morphogenesis(genome);
-        const sim = createSimulation(RAPIER, plan, genome, W1_SLICE);
+        const sim = createSimulation(RAPIER, plan, genome, TANK);
         const group = buildCreature(plan, genome, { worldId: W1_SLICE.palette, detail });
         const pivot = new THREE.Group();
         pivot.position.set(cells[i][0], cells[i][1], cells[i][2]);
