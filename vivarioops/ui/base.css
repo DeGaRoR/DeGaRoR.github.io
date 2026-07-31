@@ -135,34 +135,11 @@ html, body {
 .tank-world[hidden], .tank-strangers[hidden] { display: none; }
 .tank-readouts .num { font-family: var(--f-mono); }
 
-/* Per-creature markers — speed label + selection ring, both follow the body. */
-.tank-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
-.tank-label {
-  position: absolute; top: 0; left: 0;
-  font-family: var(--f-mono); font-size: var(--t-micro);
-  color: var(--c-text-dim);
-  transition: color var(--ease-chrome);
-}
-.tank-label[hidden] { display: none; }
-.tank-label[data-selected="yes"] { color: var(--c-select); }
-.tank-label[data-kind="stranger"] { color: var(--c-stranger); }
-
-/* Selection ring — CSS chrome (handoff): 1.5px accent + a soft glow. The
-   stranger's ring is quieter (1px, 45%) because it is a fact about provenance,
-   not a selection. Size and position are written by syncOverlay each frame. */
-.tank-ring {
-  position: absolute; top: 0; left: 0;
-  border-radius: var(--r-pill);
-  border: var(--ring-w) solid var(--c-select);
-  box-shadow: var(--ring-glow) var(--c-select-glow);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  transition: border-color var(--ease-chrome), opacity var(--ease-chrome);
-}
-.tank-ring[hidden] { display: none; }
-.tank-ring[data-kind="stranger"] {
-  border-width: thin; border-color: var(--c-stranger); box-shadow: none; opacity: 0.45;
-}
+/* Per-creature markers — the speed label and the selection ring — are NOT chrome
+   CSS: they are objects in the WebGL scene (see ui/screens/tank.js), composited
+   in the same GPU frame as the creature so they never desync from the body during
+   orbit. As CSS overlays they sat on their own compositor layer and flickered
+   directionally on rotation. */
 
 /* First-run coach — three words, once. Removed on the first breed. */
 .tank-coach {

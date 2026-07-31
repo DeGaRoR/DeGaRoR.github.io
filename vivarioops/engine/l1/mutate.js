@@ -23,7 +23,11 @@
 import {
   RANGE, FREQ_MULTS, makeId, makeNode, makeConnection, q, qClamp, reachability,
 } from './genome.js';
-import { SLICE_LIMITS } from './factory.js';
+import { SLICE_LIMITS, ALL_FACES, clampReflection } from './factory.js';
+// SAME LAYER, legal import (N3 forbids upward, not sideways). removeNode needs
+// to know what a removal COSTS in expressed bodies, and morphogenesis is the
+// only thing that knows. It is pure and deterministic, so this adds no state.
+import { morphogenesis } from './morphogen.js';
 
 /**
  * Gaussian field jitter, per A9: "scaled relative to the current value so large
@@ -141,7 +145,26 @@ function addNode(g, rng, limits) {
   const node = randomNodeLike(rng, limits);
   const host = hosts[rng.int(hosts.length)];
   g.nodes.push(node);
-  g.connections.push(randomConnLike(rng, limits, host.id, node.id));
+
+  // FIX A (B2 §2.1) — THE NEW NODE'S ONLY INBOUND EDGE IS NEVER terminalOnly.
+  //
+  // This is the same defect factory.js:165–173 documents and fixes for spanning
+  // edges; `randomConnLike` copied the pre-fix version of the draw. A
+  // terminalOnly connection is only applied once `depth === node.recursiveLimit`
+  // (morphogen.js), and a node reached by exactly one edge from a host sitting
+  // at depth 0 with recursiveLimit >= 1 never reaches that condition. So the
+  // edge NEVER FIRES: the genome grows a node, the animal grows nothing, and the
+  // mutation is invisible.
+  //
+  // Measured on the shipped tree: the flag was drawn true 48.9% of the time, and
+  // those additions grew the body 2.3% of the time against 48.3% for the rest.
+  // That one line is half of the whole neutral-drift ratchet.
+  //
+  // The flag is set AFTER construction rather than by not drawing it, so the rng
+  // stream is unchanged and the difference is attributable to this line alone.
+  const edge = randomConnLike(rng, limits, host.id, node.id);
+  edge.terminalOnly = false;
+  g.connections.push(edge);
   g.controller.jointGenes[node.id] = {
     amplitude: q(rng.range(RANGE.amplitude[0], RANGE.amplitude[1])),
     bias: q(rng.range(RANGE.bias[0], RANGE.bias[1])),
@@ -156,22 +179,58 @@ function removeNode(g, rng, limits) {
   if (g.nodes.length <= 1) return null;
   const candidates = g.nodes.filter(n => n.id !== g.rootNodeId);
 
-  // Try candidates in random order and keep the first whose removal leaves every
+  // Candidates in random order, keeping only those whose removal leaves every
   // remaining node reachable. REFUSING is the whole design: the alternative is a
   // repair pass that reattaches orphans, which would make the call change two
   // things and break the one-mutation invariant.
-  const order = shuffled(rng, candidates);
-  for (const n of order) {
-    const nodes = g.nodes.filter(x => x.id !== n.id);
-    const conns = g.connections.filter(c => c.parentNodeId !== n.id && c.childNodeId !== n.id);
-    if (stillConnected({ ...g, nodes, connections: conns })) {
-      g.nodes = nodes;
-      g.connections = conns;
-      delete g.controller.jointGenes[n.id];
-      return 'removeNode';
-    }
-  }
-  return null;
+  //
+  // FIX B (B2 §2.1) — AMONG THE LEGAL REMOVALS, TAKE THE CHEAPEST.
+  //
+  // Removing a node removes every edge touching it, so a node that is the sole
+  // route to a whole subtree costs far more than one box. Before this, the
+  // choice was the first legal candidate in shuffled order, so `removeNode` cost
+  // a mean of 1.25 bodies against `addNode`'s 0.37 gain and the walk ran
+  // downhill whatever selection wanted. Sorting by cost does not make removal
+  // free — it makes it SYMMETRIC with addition, which is the target: drift ~ 0,
+  // so that SELECTION decides direction rather than the operator tree.
+  //
+  // Note what this is NOT. §2.1: "do not add a retry loop to the add operators."
+  // A retry inverts the ratchet to +0.16 bodies/mutation and inflates every
+  // lineage to the 24-body cap, which is the same defect facing the other way.
+  //
+  // shuffled() first, then a STABLE sort by cost, so ties stay random and the
+  // operator does not develop a systematic preference among equal-cost removals.
+  //
+  // TOURNAMENT, NOT ARGMIN — see SLICE_LIMITS.removalTournament. The sort runs
+  // over a random subset of fixed size rather than over every legal candidate,
+  // because a full argmin gets STRONGER as the body gets wider and stops being
+  // an inverse of addNode at all.
+  const legal = shuffled(rng, candidates)
+    .map((n) => {
+      const nodes = g.nodes.filter(x => x.id !== n.id);
+      const conns = g.connections.filter(c => c.parentNodeId !== n.id && c.childNodeId !== n.id);
+      if (!stillConnected({ ...g, nodes, connections: conns })) return null;
+      return { n, nodes, conns };
+    })
+    .filter(Boolean);
+  if (!legal.length) return null;
+
+  const k = limits.removalTournament ?? Infinity;
+  const entrants = legal.slice(0, Math.max(1, Math.min(k, legal.length)));
+  const scored = entrants.map((e) => {
+    // Bodies SURVIVING the removal — maximising this minimises the cost.
+    // -Infinity, not +, on a plan that will not build: such a candidate must
+    // sort LAST, never first.
+    let survives = -Infinity;
+    try { survives = morphogenesis({ ...g, nodes: e.nodes, connections: e.conns }).bodyCount; } catch { /* sorts last */ }
+    return { ...e, survives };
+  }).sort((a, b) => b.survives - a.survives);
+
+  const best = scored[0];
+  g.nodes = best.nodes;
+  g.connections = best.conns;
+  delete g.controller.jointGenes[best.n.id];
+  return 'removeNode';
 }
 
 /**
@@ -273,6 +332,11 @@ function mutateRandomConnection(g, rng, limits) {
   if (!g.connections.length) return null;
   const c = g.connections[rng.int(g.connections.length)];
   const field = CONN_FIELDS[rng.int(CONN_FIELDS.length)];
+  // BOTH GEOMETRY RULES MUST HOLD UNDER MUTATION TOO, or they decay over
+  // generations: the factory would respect them and the mutation operators would
+  // walk straight back out. Three fields can violate one — pos0, pos1 and
+  // reflect all move the clamp's operands or its precondition — so the clamp is
+  // re-applied at the end of the switch rather than inside three cases.
   switch (field) {
     case 'pos0': case 'pos1': {
       const i = +field.slice(3);
@@ -286,7 +350,7 @@ function mutateRandomConnection(g, rng, limits) {
       const i = +field.slice(5);
       c.scale[i] = jitter(rng, c.scale[i], RANGE.scale); break;
     }
-    case 'parentFace': c.parentFace = resample(rng, [0, 1, 2, 3, 4, 5], c.parentFace); break;
+    case 'parentFace': c.parentFace = resample(rng, limits.allowedFaces ?? ALL_FACES, c.parentFace); break;
     case 'reflect': {
       // Flip ONE axis, and only if the result respects maxReflectionAxes — the
       // cap is structural in the factory (SLICE_LIMITS) and must not be reachable
@@ -301,6 +365,7 @@ function mutateRandomConnection(g, rng, limits) {
     }
     default: c.terminalOnly = !c.terminalOnly;
   }
+  clampReflection(c, limits);
   return `mutateRandomConnection:${field}`;
 }
 
@@ -327,6 +392,24 @@ function mutateRandomConnection(g, rng, limits) {
 function mutateOmega(g, rng) {
   g.controller.omega = jitter(rng, g.controller.omega, RANGE.omega);
   return 'mutateOmega';
+}
+
+/**
+ * THE SENSOR GAINS. Without this operator the two genes are inert whatever the
+ * factory draws: `mutateGenome` rebuilds the controller by copying `preyGain`
+ * and `threatGain` verbatim, so an initial population could vary but a lineage
+ * could never move. Selection needs both — variation to start from and variation
+ * to keep generating — and this supplies the second.
+ *
+ * One gene per call rather than both, for the same reason every other operator
+ * here touches one field: a mutation that moves two genes at once cannot be
+ * attributed, and the approach/avoid decision is exactly the place where the
+ * sign of ONE of them is the whole phenotype.
+ */
+function mutateSensorGain(g, rng) {
+  const which = rng.int(2) ? 'preyGain' : 'threatGain';
+  g.controller[which] = jitter(rng, g.controller[which], RANGE[which]);
+  return `mutateSensorGain:${which}`;
 }
 
 function resampleFreqMult(g, rng) {
@@ -383,11 +466,46 @@ function mutateSocial(g, rng) {
 const BRANCHES = {
   nodes:       [addNode, removeNode, mutateRandomNode],
   connections: [addConnection, removeConnection, mutateRandomConnection],
-  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint],
-  genes:       [mutateMaterial, mutateSocial],
+  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain],
+  material:    [mutateMaterial],
+  social:      [mutateSocial],
 };
 
-const BRANCH_ORDER = ['nodes', 'connections', 'controller', 'genes'];
+/**
+ * EXPLICIT WEIGHTS — B2 §2.3. They were implicit and equal before, and the
+ * declared deviation from A9 ("a fourth branch was added, equal weight with the
+ * other three") turned out to be expensive.
+ *
+ * MEASURED ON THE SHIPPED TREE: 27.3% of all mutations landed on genes that
+ * nothing in the project measures. `social/*` took 12.5% and is L3, unimplemented
+ * — six genes that no probe reads, no duel reads and no gate asserts on. Material
+ * plus node colour took another 14.8%. Better than a quarter of every breeding
+ * budget was spent where neither the player nor any measurement could see it.
+ *
+ * `material` KEEPS ITS SHARE. 10 §A10 is explicit that "MaterialGenes mutate
+ * like everything else. Pattern is inherited, so lineages become visually
+ * recognisable", and that is a player-facing property, not a measured one. It is
+ * the one of the two that earns its 12.5%.
+ *
+ * `social` drops to 2.5% rather than to zero. Zero would make the six genes
+ * absorbing — a lineage could never move them again — and 10 §A9's own hole is
+ * exactly that: a gene with no operator is not "reserved for later", it is dead,
+ * and D2 would then find the ecology decided entirely by morphology. 2.5% keeps
+ * the channel warm at a cost of one mutation in forty. Restore to 12.5% at D.
+ *
+ * The 10 points released go to `nodes` and `connections` — the two branches that
+ * change what the animal IS, and the two the §2.1 fixes just made unbiased.
+ * Weight moved into structure is weight moved into the thing selection can see.
+ */
+const BRANCH_WEIGHTS = {
+  nodes:       0.30,   // was 0.25
+  connections: 0.30,   // was 0.25
+  controller:  0.25,   // unchanged
+  material:    0.125,  // unchanged — 10 §A10
+  social:      0.025,  // was 0.125
+};
+
+const BRANCH_ORDER = Object.keys(BRANCH_WEIGHTS);
 
 function shuffled(rng, arr) {
   const a = arr.slice();
@@ -396,6 +514,39 @@ function shuffled(rng, arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+/**
+ * The branch order for one call: a weighted draw WITHOUT REPLACEMENT over
+ * BRANCH_WEIGHTS.
+ *
+ * Not simply "pick one weighted branch and apply it". The fallback matters: an
+ * operator returns null when it cannot apply — the body is at the node cap,
+ * every removal would orphan something — and `mutate` walks the order until one
+ * succeeds rather than returning an unchanged genome. A single weighted pick
+ * would have to fail the whole call or fall back to an arbitrary order, and the
+ * arbitrary order is where a silent bias lives.
+ *
+ * Drawing the WHOLE order weighted keeps the first pick exactly on the declared
+ * weights and makes the fallback follow them too, so the tail is not uniform by
+ * accident. Integer arithmetic against rng.int rather than a float accumulator,
+ * for the reason trunk/rng.js gives: determinism is exact-integer or it is not
+ * determinism.
+ */
+const WEIGHT_SCALE = 1000;
+
+function weightedOrder(rng) {
+  const pool = BRANCH_ORDER.map(k => ({ k, w: Math.round(BRANCH_WEIGHTS[k] * WEIGHT_SCALE) }));
+  const out = [];
+  while (pool.length) {
+    let total = 0;
+    for (const p of pool) total += p.w;
+    let r = rng.int(total);
+    let i = 0;
+    while (r >= pool[i].w) { r -= pool[i].w; i++; }
+    out.push(pool.splice(i, 1)[0].k);
+  }
+  return out;
 }
 
 /**
@@ -423,7 +574,7 @@ export function mutate(genome, rng, opts = {}) {
   // behaviour varies — "keep this shape, try different swimmers" costs one flag.
   const order = opts.lockMorphology
     ? ['controller']
-    : shuffled(rng, BRANCH_ORDER);
+    : weightedOrder(rng);
 
   const dangling = removeDanglingConnections(g);
 
@@ -482,14 +633,15 @@ function randomConnLike(rng, limits, parentNodeId, childNodeId) {
   const pool = axes.slice();
   for (let i = 0; i < n; i++) flags[pool.splice(rng.int(pool.length), 1)[0]] = true;
 
-  return makeConnection(makeId(rng, 'c'), {
+  const faces = limits.allowedFaces ?? ALL_FACES;
+  return clampReflection(makeConnection(makeId(rng, 'c'), {
     parentNodeId, childNodeId,
-    parentFace: rng.int(6),
+    parentFace: faces[rng.int(faces.length)],   // back-face exclusion, §2.4
     position: [u(RANGE.position), u(RANGE.position)],
     orientation: [u(RANGE.orientation), u(RANGE.orientation), u(RANGE.orientation)],
     scale: [u(RANGE.scale), u(RANGE.scale), u(RANGE.scale)],
     ...flags,
     terminalOnly: rng.int(2) === 0,
-  });
+  }), limits);
 }
 

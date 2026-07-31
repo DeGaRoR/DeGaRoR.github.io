@@ -46,6 +46,37 @@ function equirectGradient(top, bottom) {
   return tex;
 }
 
+/** A per-creature speed label as a billboarded Sprite, rendered IN the scene so
+ *  it tracks the body in the SAME GPU frame and never desyncs from it on orbit
+ *  (a DOM overlay sits on its own compositor layer and flickers directionally).
+ *  Constant screen size (sizeAttenuation off); drawn white, tinted per state via
+ *  the material colour so only a changed string re-rasterises the canvas. */
+const LABEL_FS = 44;   // canvas font px (a bare number: no `NNpx` literal, N16)
+function makeLabel() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 64;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({
+    map: tex, sizeAttenuation: false, depthTest: false, transparent: true, toneMapped: false,
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.renderOrder = 11;
+  return { sprite, canvas, tex, mat, last: null };
+}
+function drawLabel(l, text) {
+  if (l.last === text) return;      // only re-rasterise when the digits change
+  l.last = text;
+  const c = l.canvas, ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = 'white';          // tinted via material.color; 'white' avoids a hex (N16)
+  ctx.font = `600 ${LABEL_FS}px "IBM Plex Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, c.width / 2, c.height / 2);
+  l.tex.needsUpdate = true;
+}
+
 export default {
   title: t('Tank'),
 
@@ -63,7 +94,6 @@ export default {
 
     const wrap = mk('tank');
     const view = mk('tank-view', wrap);
-    const labels = mk('tank-labels', view);
     mk('tank-scrim tank-scrim-top', wrap);
     mk('tank-scrim tank-scrim-bottom', wrap);
 
@@ -99,6 +129,15 @@ export default {
     const ramp = rampFor(W1_SLICE.palette);
     const scene = new THREE.Scene();
 
+    // Selection / stranger / dim colours, read once (a per-frame getComputedStyle
+    // per marker would itself thrash). Rings and labels are scene objects now.
+    const ringSelect = new THREE.Color(token('--c-select'));
+    const ringStranger = new THREE.Color(token('--c-stranger'));
+    const labelDim = new THREE.Color(token('--c-text-dim'));
+    // Sprite scale for sizeAttenuation:false labels — a fraction of the viewport,
+    // 2:1 to match the 128x64 canvas. Tuned by eye for ~micro-label size.
+    const LABEL_SCALE = [0.024, 0.012];
+
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -110,8 +149,12 @@ export default {
     view.prepend(renderer.domElement);
 
     // Water background — the two --c-water stops, lighter toward the surface.
+    // backgroundIntensity lifts the backdrop out of the ACES shadow crush so the
+    // water reads as deep water rather than near-black — it brightens only the
+    // background, not the creature lighting (that is environmentIntensity).
     const waterTex = equirectGradient(new THREE.Color(token('--c-water-0')), bg);
     scene.background = waterTex;
+    scene.backgroundIntensity = 2.6;
 
     // Image-based lighting from the ramp, never a chrome literal. PMREM so the
     // physical materials get a correct roughness response, not a mirror.
@@ -174,9 +217,11 @@ export default {
     let speed = 1, paused = false;
     // Fallback ladder rung (render/creature.js): 'full' membrane+flesh+organ,
     // 'flesh' drops the transmissive membrane, 'flat' drops the generated maps.
-    // Default 'flesh' until the six-creature frame budget is measured (design
-    // open-Q1). Wired to the dev-panel quality control in a later step.
-    let detail = 'flesh';
+    // 'full' — the design's translucent shell over the organ, with luminous
+    // creatures glowing through it. Held ~56 fps at six creatures on desktop;
+    // drop to 'flesh' (or wire this to the dev-panel quality control) if a
+    // weaker GPU can't sustain the transmission passes.
+    let detail = 'full';
     let accumulator = 0, lastMs = 0, raf = 0, breedingUntil = 0;
     let stopped = false;
     let ready = false;
@@ -198,9 +243,15 @@ export default {
         if (!s) continue;
         s.sim.free();
         scene.remove(s.group);
-        disposeCreature(s.group);
-        s.label.remove();
-        s.ring.remove();
+        // disposeCreature frees the creature group's meshes AND its generated
+        // maps (group.userData.textures) — it must be given the creature group
+        // (s.mesh), not the pivot (s.group), or the per-creature textures leak
+        // on every breed. The ring is a separate pivot child, freed explicitly.
+        disposeCreature(s.mesh);
+        s.ring.geometry.dispose();
+        s.ring.material.dispose();
+        s.label.tex.dispose();
+        s.label.mat.dispose();
       }
       slots = [];
     }
@@ -216,18 +267,25 @@ export default {
         pivot.add(group);
         scene.add(pivot);
 
-        // Marker chrome lives in the UI layer, not the scene (design-style): a
-        // CSS ring and a speed label, both positioned over the body each frame by
-        // syncOverlay. The ring is hidden until the creature is selected or is the
-        // stranger slot.
-        const ring = document.createElement('div');
-        ring.className = 'tank-ring';
-        ring.hidden = true;
-        labels.append(ring);
+        // Both markers — the speed label and the selection ring — are rendered
+        // IN the scene, not as CSS overlays: a DOM overlay sits on its own
+        // compositor layer and updates a frame out of step with the WebGL canvas,
+        // so during orbit it desyncs from the body and flickers directionally.
+        // Scene objects are composited in the SAME GPU frame as the creature and
+        // cannot. Both draw over everything (depthTest off) and face the camera.
+        const label = makeLabel();
+        label.sprite.scale.set(LABEL_SCALE[0], LABEL_SCALE[1], 1);
+        pivot.add(label.sprite);
 
-        const label = document.createElement('div');
-        label.className = 'tank-label';
-        labels.append(label);
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.92, 1.0, 48),
+          new THREE.MeshBasicMaterial({
+            color: ringSelect.clone(), transparent: true, opacity: 0.95,
+            side: THREE.DoubleSide, depthTest: false, toneMapped: false,
+          }));
+        ring.visible = false;
+        ring.renderOrder = 10;
+        pivot.add(ring);
 
         // The instantaneous gait phase of the joint feeding each body, so a
         // luminous creature's glow is a READOUT of its gait (a travelling light
@@ -319,45 +377,40 @@ export default {
     }
 
     const projected = new THREE.Vector3();
-    const edgeV = new THREE.Vector3();
-    const rightV = new THREE.Vector3();
 
     function syncOverlay() {
-      const w = view.clientWidth, h = view.clientHeight;
-      // Camera-right in world space, so the ring can be sized from the body's
-      // on-screen radius (project centre and a radius-offset point, take the gap).
-      rightV.set(1, 0, 0).applyQuaternion(camera.quaternion);
       for (const s of slots) {
         projected.copy(s.world).project(camera);
-        const x = (projected.x * 0.5 + 0.5) * w;
-        const y = (-projected.y * 0.5 + 0.5) * h;
         const visible = projected.z < 1;
         const kind = provenance[s.index]?.kind ?? KIND.STRANGER;
         const isSelected = selected.has(s.index);
 
-        s.label.hidden = !visible;
+        // Speed label — a billboarded sprite at the creature's centre of mass,
+        // in the scene so it never desyncs from the body on orbit. White text
+        // tinted per state; only a changed value re-rasterises the canvas.
+        s.label.sprite.visible = visible;
         if (visible) {
-          s.label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-          s.label.textContent = `${s.speed.toFixed(1)}`;
+          drawLabel(s.label, s.speed.toFixed(1));
+          s.label.sprite.position.copy(s.world).sub(s.group.position);
+          s.label.mat.color.copy(
+            isSelected ? ringSelect : (kind === KIND.STRANGER ? ringStranger : labelDim));
         }
-        s.label.dataset.kind = kind;
-        s.label.dataset.selected = isSelected ? 'yes' : 'no';
 
         // Ring shown when selected, or for the stranger slot once there IS a
         // lineage to be unrelated to — on first run every creature is a stranger
         // and six rings say nothing (21 §4.4). A selection ring wins over the
-        // quieter stranger ring on the same body.
+        // quieter stranger ring on the same body. It is a world-space object:
+        // scaled to the body, positioned at its centre-of-mass, and turned to
+        // face the camera so it always reads as a flat circle.
         const isStranger = generation > 0 && kind === KIND.STRANGER;
-        const showRing = visible && (isSelected || isStranger);
-        s.ring.hidden = !showRing;
-        if (showRing) {
-          edgeV.copy(rightV).multiplyScalar(Math.max(s.radius * 1.4, 1)).add(s.world).project(camera);
-          const ex = (edgeV.x * 0.5 + 0.5) * w;
-          const ey = (-edgeV.y * 0.5 + 0.5) * h;
-          const rpx = Math.max(8, Math.hypot(ex - x, ey - y));
-          s.ring.style.width = s.ring.style.height = `${2 * rpx}px`;
-          s.ring.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-          s.ring.dataset.kind = isSelected ? 'selected' : 'stranger';
+        s.ring.visible = visible && (isSelected || isStranger);
+        if (s.ring.visible) {
+          const rad = Math.max(s.radius * 1.4, 1);
+          s.ring.scale.set(rad, rad, rad);
+          s.ring.position.copy(s.world).sub(s.group.position);
+          s.ring.quaternion.copy(camera.quaternion);
+          s.ring.material.color.copy(isSelected ? ringSelect : ringStranger);
+          s.ring.material.opacity = isSelected ? 0.95 : 0.5;
         }
       }
     }

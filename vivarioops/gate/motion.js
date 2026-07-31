@@ -10,7 +10,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
 import { createRandomGenome } from '../engine/l1/factory.js';
 import { morphogenesis } from '../engine/l1/morphogen.js';
-import { createSimulation, FIXED_DT, MOTOR_SCALE, swingTwistAngle } from '../engine/l1/physics.js';
+import { createSimulation, FIXED_DT, MOTOR_SCALE, swingTwistAngle, MUSCLE_STRESS, WALL, fitsTank } from '../engine/l1/physics.js';
 import { normalise, fromAxisAngle, qmul, qrot } from '../engine/l1/vecmath.js';
 import { computePhases, targetAngles, DRIVE } from '../engine/l1/controller.js';
 import W1_SLICE from '../worlds/w1_slice.js';
@@ -68,9 +68,9 @@ const testGenome = (omega = 1.0) => ({
 });
 
 /** Angular speed the child picks up in one step, from rest, motors only. */
-function firstStepSpin(plan, world = W1_SLICE) {
+function firstStepSpin(plan, world = W1_SLICE, opts = {}) {
   // gravity 0 so buoyancy and weight contribute nothing to the measurement.
-  const sim = createSimulation(RAPIER, plan, testGenome(), { ...world, gravity: 0 }, { bounded: false });
+  const sim = createSimulation(RAPIER, plan, testGenome(), { ...world, gravity: 0 }, { bounded: false, ...opts });
   sim.step();
   const a = sim.bodies[1].angvel();
   const s = Math.hypot(a.x, a.y, a.z);
@@ -107,30 +107,111 @@ export async function runMotionGate() {
   });
 
   // ── L1-18 · N19 ───────────────────────────────────────────────────────────
-  g.assertion('L1-18', 'N19: motor strength scales with cross-sectional area, not mass', (t) => {
-    // Torque = MOTOR_SCALE * minCrossSectionalArea. So from rest, in one step:
-    //   spin = torque*dt/I,  I proportional to mass proportional to density.
-    // Doubling the area doubles the torque and leaves inertia alone.
-    // Multiplying the density by 8 leaves the torque alone and multiplies I by 8.
-    // Both ratios are predicted from the RULE, not read back from physics.js.
-    // Geometry is held IDENTICAL in all three, so the moment of inertia is the
-    // only thing that could otherwise move: the first pair varies the recorded
-    // cross-section alone, the second varies density alone.
-    const base = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 1.0 }));
-    const wide = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 2.0 }));
-    const dense = firstStepSpin(twoBodyPlan({ density: 8.0, xsec: 1.0 }));
-    t.ok(base > 1e-6, 'the reference joint actually turns', base);
-    t.close(wide / base, 2.0, 0.05, 'doubling cross-sectional area doubles the spin');
-    t.close(dense / base, 1 / 8, 0.02, 'multiplying density by 8 divides the spin by 8');
-    // The mass-scaling mistake this guards against would make spin independent
-    // of density, i.e. the ratio 1 rather than 1/8.
-    t.ok(Math.abs(dense / base - 1) > 0.5, 'torque does NOT track mass', dense / base);
+  g.assertion('L1-18', 'N19: motor strength scales with joint geometry, not mass', (t) => {
+    // AMENDED FOR THE TORQUE MODELS. The old wording said "scales with
+    // cross-sectional area" and asserted the exponent LITERALLY — doubling A
+    // doubles the spin. That is true of 'scale' (torque = motorScale * A) and
+    // FALSE BY DESIGN of 'stress' (torque = sigma * A^(3/2), where doubling A
+    // multiplies the spin by 2^1.5), so the assertion pinned one model rather
+    // than the rule. N19 is not about the exponent. It says torque comes from
+    // GEOMETRY and never from MASS, and that survives both.
+    //
+    // Both models are now asserted, each against ITS OWN predicted exponent
+    // derived from its own rule, so the exponent is still predicted rather than
+    // read back from physics.js — and neither can be changed silently.
+    // EXTENDED TO THE MOTOR PATHS AT B2 §3.2, for the same reason it was
+    // extended to the torque models: N19 is a statement about where strength
+    // comes from, and it has to hold on whichever actuator is DEFAULT or the
+    // law is only asserted about a path nothing runs.
+    //
+    // THE EXPONENT SURVIVES THE TORQUE BOUND, and this is worth stating because
+    // it is not obvious. The bound scales k and c by f = ceiling/worst, and
+    //     ceiling = motorScale*budget,  worst = motorScale*budget*(kStiff*maxError + kDamp*OMEGA_MAX)
+    // so f = 1/(kStiff*maxError + kDamp*OMEGA_MAX) — the budget cancels. The
+    // reduction is therefore INDEPENDENT of A and of density, and a bounded
+    // solver joint is still exactly as geometric as an unbounded one. If that
+    // ever stops being true this assertion is where it shows up.
+    for (const [model, exponent] of [['scale', 1], ['stress', 1.5]]) {
+      const o = { torqueModel: model, motor: 'pd' };
+      const base = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 1.0 }), W1_SLICE, o);
+      const wide = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 2.0 }), W1_SLICE, o);
+      const dense = firstStepSpin(twoBodyPlan({ density: 8.0, xsec: 1.0 }), W1_SLICE, o);
+      t.ok(base > 1e-6, `${model}/pd: the reference joint actually turns`, base);
+      t.close(wide / base, Math.pow(2, exponent), 0.05 * Math.pow(2, exponent),
+        `${model}/pd: doubling cross-sectional area multiplies the spin by 2^${exponent}`);
+
+      // THE LOAD-BEARING CHECK, and it is identical for both models: geometry is
+      // held fixed and only density moves, so torque must not follow it.
+      t.close(dense / base, 1 / 8, 0.02, `${model}/pd: multiplying density by 8 divides the spin by 8`);
+      t.ok(Math.abs(dense / base - 1) > 0.5, `${model}/pd: torque does NOT track mass`, dense / base);
+    }
+
+    // ── THE SOLVER PATH, WHICH IS NOW THE DEFAULT — B2 §3.2 ──────────────────
+    //
+    // MEASURED FIRST, THEN ASSERTED, because the obvious extension is wrong.
+    // Running firstStepSpin on the solver gives 2.528 where the budget predicts
+    // 2^1.5 = 2.828, and it gives THE SAME 2.528 for both torque models — two
+    // facts that together say what is happening. The solver branch always sizes
+    // its gains from the stress budget and ignores `torqueModel`, so the models
+    // cannot differ there; and an implicit spring's first-step response is
+    // k*dt*e / (I + k*dt^2 + c*dt), whose denominator grows with k, so the
+    // response is SUB-PROPORTIONAL to the torque by construction. Asserting
+    // 2.828 through that integrator would be asserting a property of Rapier's
+    // timestepping and calling it N19.
+    //
+    // So the exponent is asserted where the rule lives — on the configured
+    // torque budget — and the integrator is asserted only for the thing it
+    // cannot distort: that the response rises with geometry and falls with mass.
+    const gains = (opts) => {
+      const sim = createSimulation(RAPIER, twoBodyPlan(opts), testGenome(),
+        { ...W1_SLICE, gravity: 0 }, { bounded: false, motor: 'solver' });
+      const m = sim.motors;
+      const out = { stiff: m.stiff[0], damp: m.damp[0], bounded: m.bounded[0] };
+      sim.free();
+      return out;
+    };
+    const gBase = gains({ density: 1.0, xsec: 1.0 });
+    const gWide = gains({ density: 1.0, xsec: 2.0 });
+    const gDense = gains({ density: 8.0, xsec: 1.0 });
+
+    t.ok(gBase.stiff > 0, 'solver: the reference joint is given a torque budget', gBase.stiff);
+    t.close(gWide.stiff / gBase.stiff, Math.pow(2, 1.5), 0.02 * Math.pow(2, 1.5),
+      'solver: doubling cross-sectional area multiplies the torque budget by 2^1.5');
+    t.close(gDense.stiff / gBase.stiff, 1, 1e-9,
+      'solver: multiplying density by 8 leaves the torque budget UNCHANGED — N19');
+    // The 00 §9 bound must not reintroduce a mass or size dependence: it scales
+    // k and c by ceiling/worst, in which the budget cancels, so the reduction is
+    // the same for every joint. If it ever is not, the two ratios above move.
+    t.close(gWide.damp / gBase.damp, gWide.stiff / gBase.stiff, 1e-9,
+      'solver: the bound scales stiffness and damping together, preserving zeta');
+
+    for (const [label, o] of [['scale', { torqueModel: 'scale' }], ['stress', { torqueModel: 'stress' }]]) {
+      const s = { ...o, motor: 'solver' };
+      const base = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 1.0 }), W1_SLICE, s);
+      const wide = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 2.0 }), W1_SLICE, s);
+      const dense = firstStepSpin(twoBodyPlan({ density: 8.0, xsec: 1.0 }), W1_SLICE, s);
+      t.ok(base > 1e-6, `${label}/solver: the reference joint actually turns`, base);
+      t.ok(wide > base, `${label}/solver: more cross-section turns faster`, wide / base);
+      t.ok(wide / base < Math.pow(2, 1.5), `${label}/solver: and sub-proportionally, as an implicit spring must`, wide / base);
+      t.close(dense / base, 1 / 8, 0.02, `${label}/solver: multiplying density by 8 divides the spin by 8`);
+      t.ok(Math.abs(dense / base - 1) > 0.5, `${label}/solver: torque does NOT track mass`, dense / base);
+    }
     t.ok(MOTOR_SCALE > 0, 'MOTOR_SCALE is a positive tuning constant', MOTOR_SCALE);
+    t.ok(MUSCLE_STRESS > 0, 'MUSCLE_STRESS is a positive derived constant', MUSCLE_STRESS);
   });
 
   // ── L1-19 · N22 ───────────────────────────────────────────────────────────
   g.assertion('L1-19', 'N22: only creature-creature contacts can damage', (t) => {
-    const sim = createSimulation(RAPIER, plans[0], pop[0], W1_SLICE);
+    // NOT plans[0]. `createArena` omits the environment entirely for a creature
+    // that does not fit the tank — oversize is a viability question, not a
+    // physics one, and the alternative is Rapier panicking on a body spawned
+    // inside a wall. So this assertion needs a creature that FITS, and picking
+    // one by index couples a statement about damage tagging to whatever the
+    // factory happens to draw first. B2 §2.2's widening moved the oversize
+    // fraction from 8.7% to 29.6% and plans[0] became one of them.
+    const idx = plans.findIndex(p => fitsTank(p, W1_SLICE));
+    t.ok(idx >= 0, 'the corpus contains at least one tank-sized creature', idx);
+    const sim = createSimulation(RAPIER, plans[idx], pop[idx], W1_SLICE);
     t.ok(sim.environment.length > 0, 'the tank built environment colliders', sim.environment.length);
     t.ok(sim.environment.every(e => e.damaging === false), 'every environment collider is tagged non-damaging');
     t.ok(sim.environment.every(e => ['floor', 'surface', 'wall'].includes(e.kind)), 'every environment collider names its kind');
@@ -160,6 +241,131 @@ export async function runMotionGate() {
     t.ok(kick < 1e-3, 'deeply overlapping jointed limbs are not pushed apart', kick);
   });
 
+  // ── L1-37 · the torus (B2 §4.2) ───────────────────────────────────────────
+  //
+  // The boundary is ABSORBING and that is what corrupts every long measurement:
+  // 30 creatures over 240 s decay from a 6.2 m median wall gap to 1.8 m and lose
+  // 4x of their speed. The torus is the fix for measurement. The rule it has to
+  // obey is that A WRAP IS NOT A PHYSICAL EVENT — the creature must not be able
+  // to feel it, and no measurement may see the seam.
+  g.assertion('L1-37', 'B2 §4.2: the torus wraps atomically and is invisible to physics and to displacement', (t) => {
+    const plan = plans.find(p => fitsTank(p, W1_SLICE)) ?? plans[0];
+    const genome = pop[plans.indexOf(plan)];
+
+    // Launched hard along +X so the seam is reached inside the window. Same
+    // creature, same seed, one wrapping and one not: an infinite tank and a
+    // torus must produce the SAME TRAJECTORY, because they differ only by a
+    // change of coordinates.
+    const run = (wrap) => {
+      const sim = createSimulation(RAPIER, plan, genome, { ...W1_SLICE, gravity: 0 },
+        { bounded: false, wrap, origin: [0, 0, 0] });
+      // TOWED, not launched. A single impulse is killed by the fluid term in
+      // well under a metre, so a one-shot launch never reaches the seam and the
+      // assertion passes vacuously. The velocity is re-imposed every step, in
+      // BOTH runs identically, so the comparison is still a comparison — the
+      // only difference between the arms remains the wrap itself.
+      const path = [];
+      for (let k = 0; k < 1800; k++) {
+        for (const rb of sim.bodies) rb.setLinvel({ x: 3, y: 0, z: 0 }, true);
+        sim.step();
+        if (k % 200 === 0) path.push(sim.centreOfMass());
+      }
+      const out = { path, end: sim.centreOfMass(), raw: sim.rawCentreOfMass(), wraps: sim.wrapCount };
+      sim.free();
+      return out;
+    };
+    const open = run(false);
+    const torus = run(true);
+
+    t.ok(torus.wraps > 0, 'the creature actually crossed the seam', torus.wraps);
+    t.ok(Math.abs(open.end[0]) > W1_SLICE.tankBounds[0] / 2,
+      'the control run left the volume, so the comparison is about the seam', open.end[0]);
+
+    // AND THE CREATURE IS ACTUALLY INSIDE THE BOX. The whole point is a finite
+    // volume; if the raw centre also ran off to infinity the wrap did nothing.
+    for (let a = 0; a < 3; a++) {
+      t.ok(Math.abs(torus.raw[a]) <= W1_SLICE.tankBounds[a] / 2 + 1e-6,
+        `the raw centre stays inside the volume on axis ${a}`, torus.raw[a]);
+    }
+
+    // ── WHAT IS ACTUALLY ASSERTED, AND WHY NOT THE OBVIOUS THING ─────────────
+    //
+    // The obvious assertion is that the unwrapped trajectory equals the
+    // unbounded one. It is true in exact arithmetic and FALSE in floating point,
+    // measured here at 0.49 m over 15 s. The cause is not the wrap: the two arms
+    // run at different distances from the origin — one reaches 45 m, the other
+    // stays inside +-8 m — so they carry different rounding, and a multibody
+    // solver amplifies that difference exponentially. Asserting agreement over a
+    // long window would be asserting that this simulation is not chaotic, which
+    // it is, and the assertion would then fail for a reason having nothing to do
+    // with the torus.
+    //
+    // So the invariant is asserted where it is EXACT: across the wrap step
+    // itself. A wrap is a rigid translation of every body by one world extent,
+    // so shape and velocity are untouched and the displacement is exactly the
+    // extent. That is the whole claim, and it is immune to how chaotic the run
+    // is either side of it.
+    const sim = createSimulation(RAPIER, plan, genome, { ...W1_SLICE, gravity: 0 },
+      { bounded: false, wrap: true, origin: [0, 0, 0] });
+    const snapshot = () => ({
+      pos: sim.bodies.map(b => { const p = b.translation(); return [p.x, p.y, p.z]; }),
+      vel: sim.bodies.map(b => { const v = b.linvel(); return [v.x, v.y, v.z]; }),
+      ang: sim.bodies.map(b => { const a = b.angvel(); return [a.x, a.y, a.z]; }),
+      com: sim.rawCentreOfMass(),
+      shift: sim.wrapShift,
+    });
+    let checked = 0;
+    let before = snapshot();
+    for (let k = 0; k < 1800 && checked < 2; k++) {
+      const wrapsBefore = sim.wrapCount;
+      for (const rb of sim.bodies) rb.setLinvel({ x: 3, y: 0, z: 0 }, true);
+      sim.step();
+      const after = snapshot();
+      if (sim.wrapCount > wrapsBefore) {
+        checked++;
+        // SHAPE. Every pairwise inter-body distance survives, which is what
+        // catches the failure that matters — a PER-BODY wrap, which tears the
+        // creature across the seam and would leave the graph connected in the
+        // genome and shredded in the world.
+        let shape = 0;
+        for (let i = 0; i < after.pos.length; i++) {
+          for (let jj = i + 1; jj < after.pos.length; jj++) {
+            const d0 = Math.hypot(before.pos[i][0] - before.pos[jj][0],
+                                  before.pos[i][1] - before.pos[jj][1],
+                                  before.pos[i][2] - before.pos[jj][2]);
+            const d1 = Math.hypot(after.pos[i][0] - after.pos[jj][0],
+                                  after.pos[i][1] - after.pos[jj][1],
+                                  after.pos[i][2] - after.pos[jj][2]);
+            shape = Math.max(shape, Math.abs(d1 - d0));
+          }
+        }
+        // One step of physics happens too, so shape may move by what a step
+        // moves it — the bound is that it moved by far less than the extent it
+        // would have if one body had wrapped alone.
+        t.ok(shape < 1.0, 'a wrap does not change the creature\'s shape', shape);
+
+        // DISPLACEMENT. The raw centre moved by one world extent, minus whatever
+        // the step itself contributed — 3 m/s at 1/120 s is 25 mm.
+        const jump = Math.abs(after.com[0] - before.com[0]);
+        t.close(jump, W1_SLICE.tankBounds[0], 0.2,
+          'the raw centre moved by exactly one world extent');
+
+        // AND THE UNWRAPPED CENTRE DID NOT JUMP. This is the property every
+        // caller depends on: settle, the probes, assessViability and every
+        // displacement figure read centreOfMass().
+        // before.shift, NOT sim.wrapShift — the latter is the shift AFTER the
+        // wrap, so using it puts the check exactly one world extent out. It
+        // failed at 15.9 m against a 16 m tank, which is the clearest possible
+        // statement of an off-by-one-extent and is kept here as the note.
+        const unwrapped = sim.centreOfMass();
+        const cont = Math.abs(unwrapped[0] - (before.com[0] + before.shift[0]));
+        t.ok(cont < 0.2, 'the unwrapped centre is continuous across the seam', cont);
+      }
+      before = after;
+    }
+    t.ok(checked >= 1, 'at least one wrap was inspected step-by-step', checked);
+    sim.free();
+  });
   // ── L1-20 · phase propagation (10 §A14 #5, 30 §4 "the one detail") ─────────
   g.assertion('L1-20', 'Phase propagates down the tree, and the lag belongs to the PARENT joint', (t) => {
     // A five-segment chain with one lag, exactly as A14 #5 specifies.
@@ -403,12 +609,24 @@ export async function runMotionGate() {
     // nothing. The tail is carried as an obligation instead.
     peaks.sort((a, b) => a - b);
     const p50 = peaks[Math.floor(peaks.length * 0.5)] ?? 0;
-    // The bound is UNCHANGED; only its justification moved. It used to be read
-    // as a multiple of buoyant terminal velocity, and there is no longer any
-    // buoyancy in W1 to take a multiple of. 25 m/s is now what it always
-    // physically was: half a wall thickness (0.5 m) per 1/120 s step, i.e. the
-    // speed above which a creature can tunnel a boundary in one step.
-    t.ok(p50 < 25, 'the median creature stays under 25 m/s, half a wall thickness per step', p50.toFixed(1));
+    // AMENDED AT THE DERIVED-TORQUE DELIVERY, and the number moved for a reason
+    // rather than to go green. 25 m/s was calibrated against MOTOR_SCALE 1.0, an
+    // actuator budget now known to be roughly fifty times below muscle. With
+    // torque derived from muscle stress a limb tip legitimately reaches
+    // OMEGA_MAX * limb radius ~ 10 rad/s * 2 m = 20 m/s, so the old bound
+    // measured the weakness of the motors, not the plausibility of the physics.
+    //
+    // The bound that is actually physical is TUNNELLING: above WALL / FIXED_DT a
+    // body crosses a wall between two collision queries and the arena stops
+    // being solid. That is derived from the timestep and the geometry, and it is
+    // the same rule clampKinematics() uses.
+    //
+    // NOTE WHAT THIS DOES NOT SAY. This is the fastest BODY, not the creature —
+    // a limb tip at 20 m/s belongs to a creature travelling at 0.1 m/s. And the
+    // TAIL still exceeds the tunnelling speed (p90 74.7 at the time of writing),
+    // which is a real recorded obligation rather than something this assertion
+    // waves through: see the peak-speed obligation below.
+    t.ok(p50 < WALL / FIXED_DT, 'the median creature stays under the tunnelling speed', p50.toFixed(1));
 
     // STRESS PASS at twice the tuned motor scale. Without it this assertion only
     // says "the value currently checked in does not diverge", which a pumping
@@ -466,6 +684,14 @@ export async function runMotionGate() {
       `locomotion at gravity 0: median ${q(0.5)} m, p90 ${q(0.9)} m, best ${(travel[travel.length - 1] ?? 0).toFixed(2)} m`,
     ],
     obligations: [
+      'B2 §4.2: THE TORUS IS BUILT AND IS OPT-IN (`wrap: true`), not the default. §4.2 wants it for MEASUREMENT and for the auto-burst; the game still runs bounded, and §4.2\'s other half — the wall as a SENSED field, which is step 9 and the first real instance of intent — is untouched. Every tool in tools/ still passes `bounded: false` and should be moved to `wrap: true` before any long-duration figure is quoted again: that is the whole point of building it.',
+      'B2 §4.2: a wrap is EXACT in exact arithmetic and NOT bit-identical in floating point. Measured: an unwrapped and a wrapped run of the same creature diverge 0.49 m over 15 s, because one arm runs at 45 m from the origin and the other stays inside +-8 m, so they carry different rounding and a multibody solver amplifies it. L1-37 therefore asserts the invariant across the wrap STEP, where it is exact, and not trajectory agreement, which would be asserting that this simulation is not chaotic.',
+      "B2 §3.2 RE-MEASURED, AND THE DESIGN'S SOLVER FIGURES DO NOT REPRODUCE HERE. §0.2 quotes random p50 0.015 m/s and the authored eel at 0.73 m/s through the solver, a ~50x ratio. Measured on this tree: random p50 0.0046 bounded / 0.0070 unbounded, eel 0.049 bounded / 0.139 unbounded — a 11x / 20x ratio. The QUALITATIVE claim survives and is the one the chantier rests on: design matters enormously through the solver. The ABSOLUTE figures are 3-5x below the design's and must not be used as targets. Part of the gap is 00 §9's bound, which every design figure was taken before; the rest is unexplained and is the first thing to check if a locomotion number looks wrong.",
+      "B2 §3.2: THE SOLVER MOTOR IS NOW THE DEFAULT and 00 §9's bound is re-imposed on it (decision B2 §12, written up at the motor setup block). Measured effect on this corpus: peak speed median 31.7 -> 0.9 m/s, p90 60.0 -> 21.6, peak spin 180 -> 64 rad/s. B3's implausible peak-speed tail is largely an unbounded-actuator artefact and mostly goes away here — MOTOR_SCALE 1.0 is still tuned rather than derived, but it is no longer the only thing standing between the corpus and 60 m/s.",
+      'B2 §3.2: `work` on the solver path is a RECONSTRUCTION, not a measurement — Rapier does not expose the motor impulse, so it is rebuilt from the same spring-damper law the motor was configured with, reading state at the start of the step. Exact in steady oscillation, overstates during fast transients. Solver-to-solver cost of transport is comparable without qualification; solver-to-PD is not, below a few percent.',
+      'B2 §3.3: THE OPENING TANK IS NOW QUIET, AND THAT IS CORRECT. Locomotion over the gate window fell from median 0.90 m to 0.10 m. §0.2: through the PD a designed swimmer beats a random creature by ~7x and through the solver by ~50x, so this is the actuator making design matter rather than a regression. IT MAKES §3.3 LOAD-BEARING: the opening population can no longer be purely random, and seeding from worlds/seeds.js plus authored strangers is now the thing that keeps the first screen alive, not a variety nicety. Do not reach for motorFreqHz/motorZeta first.',
+      'B2 §3.2 CARRIED: turnRate median is now 0.0032 rad/s — 0.18 degrees per second, down 10x from C1\'s already-flagged 0.03. N21 clamps every L3 steering decision by this. Chantier 4 (§5, the steering plane) was already the prerequisite for every intent step; this makes it the blocker rather than the prerequisite, and the C1 question "physics problem or units one" must be answered there.',
+      'B2 §3.2: mutation viability is 57% against the 60% target (was 53% after chantier 1, 60%+ before B2). The rejection mix moved as well as the rate: interpenetration 9 -> 2, because a bounded actuator no longer thrashes limbs through each other, and `inert` appears for the first time at 5. Read the mix, not just the rate, before touching any cap.',
       'B3 CHECKPOINT IS HUMAN: "at least some undulate rather than twitch" cannot be asserted. Watch the tank screen before calling B3 done.',
       'B3: the implausible peak-speed tail is LARGELY A BUOYANCY ARTEFACT and mostly went away with the density delivery. In the bounded tank the peak-speed p95 fell from 171 m/s to 20.7 m/s (n=40, 15 s) because most of that tail was buoyant acceleration into a wall, not actuation. What remains is a genuine actuator tail and MOTOR_SCALE 1.0 is still tuned rather than derived. Re-measure the residual before C1 reads work or displacement as a capability; the old figures (p95 220 m/s, worst 82000) no longer describe this generator.',
       'B3: MOTOR_SCALE 1.0 is tuned, not derived. 2.0 roughly doubles locomotion and widens that tail sharply. Revisit once the tail is understood.',

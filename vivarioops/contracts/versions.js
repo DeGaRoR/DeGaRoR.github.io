@@ -11,7 +11,16 @@
 export const GENOME_V = 2;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
-export const BRIDGE_V = 1;
+// BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to
+// every physics step. `straightness` was aliased — the centre of mass wobbles at
+// 12-22 Hz against a 10 Hz Nyquist limit — so every stored record's efficiency
+// was over-reported. New fields comSpeed / netSpeed / efficiency ship with it.
+// B2 §5 bumps this: S3 now emits turnPlaneX/Y/Z and `bearingTo` is expressed in
+// that plane instead of the horizontal one, so every cached record was measured
+// by a different bridge and a different sensor. 11 §4: "BRIDGE_VERSION bumps
+// invalidate every cached record. This is the only invalidation mechanism and it
+// must be respected."
+export const BRIDGE_V = 4;
 
 /** 01 §8 — bumps on L3 rule change; stored runs kept but marked stale. */
 export const ECOLOGY_V = 1;

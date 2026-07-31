@@ -1,0 +1,230 @@
+// engine/l2/objective.js — SELECTION OBJECTIVES AND THE AUTO-BURST (B2 §9 step 6).
+//
+// PURITY (01 §4, N1-N3): no clock, no Math.random, no DOM, no imports from
+// /trunk/, /ui/, /render/. Rapier and the rng arrive injected.
+//
+// NOT A PROBE, DELIBERATELY. 11 §3's probes produce fields of the compiled
+// Species record and every one of them costs a BRIDGE_V bump to change. An
+// objective is what SELECTION reads, it is not part of any creature's identity,
+// and it must stay free to change without invalidating every cached record in
+// the project. S4 and S5 are also already reserved for pursuit and evasion, so
+// taking an S-number here would have been wrong twice.
+//
+// ── WHY THIS EXISTS AT ALL ───────────────────────────────────────────────────
+//
+// B2 §0: "the breeding loop rarely improves — child beats parent 18% of
+// generations; stranger beats elite 3%", and "more strangers makes it worse".
+// A player tapping six creatures is a very weak optimiser. The auto-burst is the
+// cheap fix that was measured to work: 3 generations at population 24 moves taps
+// that improve from 27% to 47%, while 10 generations at population 60 gives 23%
+// at eight times the cost. SHORT BURSTS WORK AND LONG ONES DO NOT, which is the
+// opposite of the obvious intuition and is why the numbers below are small.
+
+import { runSolo } from './probe.js';
+import { morphogenesis } from '../l1/morphogen.js';
+import { breed, seedPopulation, POPULATION } from '../l1/breed.js';
+import { SLICE_LIMITS } from '../l1/factory.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants of the OBJECTIVE. Unlike the probe constants these do NOT bump
+// BRIDGE_V, because nothing they produce is stored on a record.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** B2 §0: "120 trials x 6 sim-seconds in 5.7 s wall; split-half reliability r = 0.78". */
+export const TRIAL_SECONDS = 6.0;
+
+/** §0: 3 generations at population 24. Both numbers are measured, not chosen. */
+export const BURST_GENERATIONS = 3;
+export const BURST_POPULATION = 24;
+
+/**
+ * NET SPEED over a fixed window, ON THE TORUS.
+ *
+ * `bounded: false` would measure open water, which is not the world the player
+ * is in; `bounded: true` would measure the wall, because the boundary is
+ * absorbing and a creature that reaches it stops. `wrap: true` is the only
+ * option that is both finite and boundary-free, and it is the reason §4.2 was
+ * built before this rather than after.
+ *
+ * NET, NOT PATH LENGTH. Distance between the start and end of the window
+ * divided by its duration. A creature that thrashes in place scores zero, which
+ * is what an objective for LOCOMOTION has to say about it — path length would
+ * rank the thrashers first.
+ *
+ * @returns {{score:number, valid:boolean, reason?:string}}
+ */
+export function netSpeed(RAPIER, { plan, genome, world, seconds = TRIAL_SECONDS }) {
+  const r = runSolo(RAPIER, {
+    plan, genome, world,
+    duration: seconds,
+    effort: 1,
+    turnBias: 0,
+    bounded: false,
+    wrap: true,
+  });
+  if (!r.valid) return { score: 0, valid: false, reason: r.reason };
+
+  const tr = r.trace;
+  const n = tr.n;
+  if (n < 2) return { score: 0, valid: false, reason: 'short' };
+
+  // `com` is interleaved xyz, and it is the UNWRAPPED centre — sample() reads
+  // sim.centreOfMass(), which adds the torus shift back. That is exactly why the
+  // wrap was made invisible at the simulation rather than compensated here.
+  const dx = tr.com[(n - 1) * 3 + 0] - tr.com[0];
+  const dy = tr.com[(n - 1) * 3 + 1] - tr.com[1];
+  const dz = tr.com[(n - 1) * 3 + 2] - tr.com[2];
+  const d = Math.hypot(dx, dy, dz);
+  const dt = tr.t[n - 1] - tr.t[0];
+  if (!Number.isFinite(d) || dt <= 0) return { score: 0, valid: false, reason: 'unstable' };
+  return { score: d / dt, valid: true };
+}
+
+/**
+ * Score a whole population. Returns scores aligned with `genomes`.
+ *
+ * A genome that will not build scores zero rather than throwing: an objective
+ * that can crash cannot be used by a UI action, and morphogenesis rejecting a
+ * body IS a verdict about it.
+ */
+export function scorePopulation(RAPIER, genomes, world, seconds = TRIAL_SECONDS) {
+  return genomes.map((genome) => {
+    let plan;
+    try { plan = morphogenesis(genome); } catch { return 0; }
+    if (plan.bodyCount < 2) return 0;
+    const r = netSpeed(RAPIER, { plan, genome, world, seconds });
+    return r.valid ? r.score : 0;
+  });
+}
+
+/**
+ * ONE AUTO-BURST: expand to `population`, run `generations` of scored selection,
+ * and hand back the best `keep` genomes.
+ *
+ * ── THE NULL ARM IS NOT OPTIONAL ─────────────────────────────────────────────
+ *
+ * `selection: 'random'` runs the identical loop and picks survivors AT RANDOM.
+ * B2 §10 leads with this: "run the null arm — a 28x selection result was
+ * reproduced by random survivors." Any claim that this function improves
+ * anything has to be a claim about the DIFFERENCE between the two arms, and the
+ * cheapest way to guarantee that stays possible is for the null arm to be a
+ * parameter of the real function rather than a separate script somebody has to
+ * remember to write.
+ *
+ * @param {object} args `{ RAPIER, genomes, rng, world, limits, generations,
+ *                         population, keep, seconds, selection }`
+ * @returns `{ genomes, scores, history, trials }`
+ */
+export function autoBurst({
+  RAPIER, genomes, rng, world,
+  limits = SLICE_LIMITS,
+  generations = BURST_GENERATIONS,
+  population = BURST_POPULATION,
+  keep = POPULATION,
+  seconds = TRIAL_SECONDS,
+  selection = 'score',
+}) {
+  let pop = genomes.slice();
+  const history = [];
+  let trials = 0;
+
+  // ── EXPAND FIRST, AND IT HAS TO BE DONE HERE ─────────────────────────────
+  //
+  // `breed()` takes its population from `genomes.length` — it FOLLOWS the size
+  // it is handed and cannot grow one. B2 §8 reads it as "already generalised
+  // (POPULATION is a default, strangerCount is a rate)", which is true of
+  // everything except the one thing this needed: passing `population: 24` to
+  // breed is silently ignored, and the first version of this function ran three
+  // generations at population 6 while reporting that it had run them at 24.
+  // Caught by the trial count, which came out at 24 where 3 generations at
+  // population 24 must cost 78.
+  //
+  // Expansion is by fresh strangers rather than by cloning the player's six.
+  // Clones give three generations of mutation on one lineage, which is a much
+  // narrower search than the population number implies, and §0 already measured
+  // that more strangers makes the PLAYER's loop worse — that finding is about
+  // the six-slot tank, where a stranger costs a visible slot. Here it costs
+  // nothing visible and buys the only diversity the burst has.
+  if (pop.length < population) {
+    const extra = seedPopulation({
+      RAPIER, rng: rng.fork('burst:expand'), world, limits,
+      population: population - pop.length,
+      authoredSlots: 0,
+    });
+    pop = pop.concat(extra.genomes);
+  }
+
+  for (let gen = 0; gen < generations; gen++) {
+    const scores = scorePopulation(RAPIER, pop, world, seconds);
+    trials += pop.length;
+
+    const order = scores
+      .map((s, i) => ({ s, i }))
+      .sort((a, b) => b.s - a.s);
+
+    // HALF THE POPULATION SURVIVES, which keeps the pressure mild on purpose.
+    // §0's finding is that this loop is worth running BRIEFLY; a harsh truncation
+    // over three generations converges on one lineage and hands the player back
+    // six copies of the same animal, which is the failure the variety work in
+    // chantier 1 exists to prevent.
+    const nSurvive = Math.max(2, Math.floor(pop.length / 2));
+    let survivors;
+    if (selection === 'random') {
+      const shuffled = pop.map((_, i) => i);
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = rng.int(i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      survivors = shuffled.slice(0, nSurvive);
+    } else {
+      survivors = order.slice(0, nSurvive).map(x => x.i);
+    }
+
+    history.push({
+      gen,
+      best: order.length ? order[0].s : 0,
+      median: median(scores),
+      mean: scores.reduce((a, b) => a + b, 0) / (scores.length || 1),
+    });
+
+    const r = breed({
+      RAPIER,
+      genomes: pop,
+      selected: survivors,
+      rng: rng.fork(`burst:${gen}`),
+      world,
+      limits,
+      population,
+    });
+    pop = r.genomes;
+  }
+
+  // FINAL SCORING IS A REAL GENERATION, not bookkeeping: without it the returned
+  // population is the offspring of the last selection and has never been
+  // measured, so `keep` would be picking on the parents' merits.
+  const finalScores = scorePopulation(RAPIER, pop, world, seconds);
+  trials += pop.length;
+  const ranked = finalScores.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s);
+  history.push({
+    gen: generations, best: ranked.length ? ranked[0].s : 0,
+    median: median(finalScores),
+    mean: finalScores.reduce((a, b) => a + b, 0) / (finalScores.length || 1),
+  });
+
+  const chosen = (selection === 'random'
+    ? finalScores.map((_, i) => i).slice(0, keep)
+    : ranked.slice(0, keep).map(x => x.i));
+
+  return {
+    genomes: chosen.map(i => pop[i]),
+    scores: chosen.map(i => finalScores[i]),
+    history,
+    trials,
+  };
+}
+
+function median(xs) {
+  if (!xs.length) return 0;
+  const a = xs.slice().sort((x, y) => x - y);
+  return a[Math.floor(a.length / 2)];
+}

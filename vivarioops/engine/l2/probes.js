@@ -13,7 +13,9 @@
 import { qrot } from '../l1/vecmath.js';
 import { totalMass, bodyVolume, boundingRadius, centreOfMass } from '../l1/morphogen.js';
 import {
+  turn3d,
   runSolo, indexAt, meanSpeed, meanPower, straightness, gaitFrequency, meanTurnRate,
+  comSpeed, netSpeed,
   SAMPLE_HZ, INVALID,
 } from './probe.js';
 
@@ -397,6 +399,8 @@ export function S2(RAPIER, { plan, genome, world, gravity, bounded }) {
       speed3d: meanSpeed(r.trace, from, to, false),
       power: meanPower(r.trace, from, to),
       straightness: straightness(r.trace, from, to),
+      comSpeed: comSpeed(r.trace, from, to),
+      netSpeed: netSpeed(r.trace, from, to),
       gaitFrequency: gaitFrequency(r.trace, from, to),
       trace: r.trace,
       mass: r.mass,
@@ -446,6 +450,17 @@ export function S2(RAPIER, { plan, genome, world, gravity, bounded }) {
     cotC0: fit.cotC0,
     cotC1: fit.cotC1,
     basalRate,
+    // ── what the selection screen shows, and why there are three numbers ─────
+    //
+    // cruiseSpeed is the mean of |v| — how fast the BODY is moving. comSpeed is
+    // the same thing measured along the path. netSpeed is how fast the creature
+    // actually TRAVELS. For a swimmer all three converge; for a thrasher the
+    // first two stay high while the third collapses, and efficiency is exactly
+    // their ratio. Showing only cruiseSpeed is what made a vibrating creature
+    // look like a fast one.
+    comSpeed: runs[CRUISE].comSpeed,
+    netSpeed: runs[CRUISE].netSpeed,
+    efficiency: runs[CRUISE].straightness,
     straightness: runs[CRUISE].straightness,
     gaitFrequency: runs[CRUISE].gaitFrequency,
     degenerateFit: fit.degenerate,
@@ -506,14 +521,54 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
     });
     if (!r.valid) return { valid: false, reason: r.reason };
     const scratch = new Float64Array(r.trace.n);
+    const t3 = turn3d(r.trace, 0, r.trace.n);
     out.push({
       rate: meanTurnRate(r.trace, 0, r.trace.n, scratch),
       speed: meanSpeed(r.trace, 0, r.trace.n),
+      rate3d: t3.rate, axis3d: t3.axis, localAxis: t3.localAxis,
     });
   }
 
   const turnRate = Math.abs(out[0].rate - out[1].rate) / 2;
   const intrinsicRate = (out[0].rate + out[1].rate) / 2;
+
+  // The same both-directions differencing applied to the 3-D turn and to the
+  // ROTATION AXIS. `turnRate` above is the yaw component and reads near-zero for
+  // a body that turns in pitch; `turnRate3d` is the turn in whatever plane it
+  // happens in. `steeringAuthority` is the axis reversal — 1 means the two bias
+  // directions turn the creature in exactly opposite senses (clean steering),
+  // 0 means the input does not change which way it curls WHATEVER THE RATE SAYS.
+  // A creature can have a large turn rate and zero authority; that is precisely
+  // the confusion this probe's both-directions design prevents for the rate and
+  // left unfixed for the axis.
+  const turnRate3d = Math.abs(out[0].rate3d - out[1].rate3d) / 2;
+
+  // ── THE STEERING PLANE — B2 §5 ──────────────────────────────────────────────
+  //
+  // The plane normal in the ROOT'S LOCAL FRAME, differenced across the two bias
+  // directions exactly as the rate is. Differencing is the point: a creature
+  // curls one way under +bias and the other way under -bias, so the DIFFERENCE
+  // isolates the axis the input controls and cancels whatever the body was doing
+  // on its own. Taking one direction's axis would record the creature's
+  // intrinsic drift as its steering plane.
+  //
+  // §5's finding is that `bearingTo` measured a compass bearing — atan2(fx, fz),
+  // the horizontal plane — while `turnBias` actuates whatever plane the joints
+  // bend in. "The sensor measures one plane and turnBias actuates another, so
+  // the control loop has never been closed. Not poorly closed — open, by
+  // construction, in the coordinate convention." This is the quantity that
+  // closes it, and it has to be MEASURED per creature: a chain of revolute
+  // joints about local X turns in its local YZ plane, which is vertical, and no
+  // convention chosen in advance gets that right for every body plan.
+  const dLocal = [0, 1, 2].map((i) => out[0].localAxis[i] - out[1].localAxis[i]);
+  const dl = Math.hypot(...dLocal);
+  // Falls back to world up — the horizontal plane, i.e. exactly the old compass
+  // behaviour — when the two directions do not disagree. That is the honest
+  // default: a creature with no measurable steering plane has no plane to use,
+  // and steeringAuthority is the field that says so.
+  const turnPlane = dl > 1e-6 ? dLocal.map(v => v / dl) : [0, 1, 0];
+  const dAxis = [0, 1, 2].map((i) => out[0].axis3d[i] - out[1].axis3d[i]);
+  const steeringAuthority = Math.min(1, Math.hypot(...dAxis) / 2);
   const turnSpeed = (out[0].speed + out[1].speed) / 2;
 
   // turnRadius = cruiseSpeed / turnRate. A creature that does not turn has an
@@ -530,6 +585,9 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
     valid: true,
     reason: null,
     turnRate,
+    turnRate3d,
+    steeringAuthority,
+    turnPlaneX: turnPlane[0], turnPlaneY: turnPlane[1], turnPlaneZ: turnPlane[2],
     turnRadius,
     turnSpeedRatio: cruiseSpeed > 1e-9 ? Math.min(4, turnSpeed / cruiseSpeed) : 0,
     intrinsicRate,

@@ -58,11 +58,30 @@ export const SPECIES_FIELDS = [
   { name: 'cotC0',         producer: 'S2', note: 'power(v) = cotC0*v + cotC1*v^3' },
   { name: 'cotC1',         producer: 'S2' },
   { name: 'basalRate',     producer: 'S2', note: 'W at rest' },
+  { name: 'comSpeed',      producer: 'S2', note: 'mean CoM speed ALONG ITS PATH — how fast the body moves' },
+  { name: 'netSpeed',      producer: 'S2', note: 'net displacement / duration — how fast it TRAVELS' },
+  { name: 'efficiency',    producer: 'S2', note: 'netSpeed / comSpeed. A fish is ~0.9; a thrasher ~0.02' },
   { name: 'straightness',  producer: 'S2' },
   { name: 'gaitFrequency', producer: 'S2' },
 
   // ── turning · measured, S3 — N21 depends on turnRate ───
-  { name: 'turnRate',      producer: 'S3', note: 'rad/s. N21 clamps all L3 steering by this' },
+  { name: 'turnRate',      producer: 'S3', note: 'rad/s, YAW only. N21 clamps all L3 steering by this' },
+  // BRIDGE_V 2 -> 3. `turnRate` is a compass bearing and reads near-zero for a
+  // body that bends about its limbs' local X — which is every self-connected
+  // chain, i.e. every good swimmer this project has produced. These two say what
+  // it cannot. They are not a replacement: `turnRate` remains the yaw component
+  // and N21 still reads it, because changing what N21 clamps by is a separate
+  // decision with its own consequences.
+  { name: 'turnRate3d',    producer: 'S3', note: 'rad/s in whatever plane the creature actually turns in' },
+  { name: 'steeringAuthority', producer: 'S3', note: '0..1 axis reversal between +bias and -bias. A creature can have a large turnRate3d and ZERO authority' },
+  // B2 §5 — the steering plane normal, in the ROOT'S LOCAL FRAME, unit length.
+  // Three scalars rather than a vector field because the record is a flat
+  // Float32Array and always has been. Defaults to world up (0,1,0) when the
+  // creature has no measurable steering plane, which is the old compass
+  // behaviour and is exactly what a creature with zero steeringAuthority gets.
+  { name: 'turnPlaneX', producer: 'S3', note: 'steering plane normal, root-local frame' },
+  { name: 'turnPlaneY', producer: 'S3', note: 'steering plane normal, root-local frame' },
+  { name: 'turnPlaneZ', producer: 'S3', note: 'steering plane normal, root-local frame' },
   { name: 'turnRadius',    producer: 'S3' },
   { name: 'turnSpeedRatio',producer: 'S3' },
 

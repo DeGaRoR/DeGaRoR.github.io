@@ -8,9 +8,13 @@
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GENOME_V, BRIDGE_V, ECOLOGY_V } from '../contracts/versions.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: on Windows `new URL('..', import.meta.url).pathname`
+// is `/D:/…` (leading slash, forward slashes) and join() then doubles the drive into
+// `D:\D:\…`. fileURLToPath returns a native path on every platform.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
 const CODE_EXT = new Set(['.js', '.mjs', '.css', '.html', '.json']);
 
@@ -32,7 +36,9 @@ function files(...roots) {
     if (!existsSync(p)) continue;
     if (statSync(p).isDirectory()) walk(p, out); else out.push(p);
   }
-  return out.map(p => ({ path: relative(ROOT, p), text: readFileSync(p, 'utf8') }));
+  // Forward slashes on every platform, so path comparisons like N5's
+  // `f.path !== 'trunk/rng.js'` and the failure output are OS-independent.
+  return out.map(p => ({ path: relative(ROOT, p).replace(/\\/g, '/'), text: readFileSync(p, 'utf8') }));
 }
 
 /**

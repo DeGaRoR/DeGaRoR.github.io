@@ -15,9 +15,12 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GENOME_V, BRIDGE_V, ECOLOGY_V } from '../contracts/versions.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
+// doubles the drive into `D:\D:\…`.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const p = (...a) => join(ROOT, ...a);
 
 // ── gate, BEFORE anything is written ─────────────────────────────────────────

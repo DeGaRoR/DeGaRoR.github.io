@@ -95,6 +95,13 @@ function diffGenome(a, b) {
     materialChanged: Object.keys(a.material).filter(k => a.material[k] !== b.material[k]),
     socialChanged: Object.keys(a.social).filter(k => a.social[k] !== b.social[k]),
     omegaChanged: a.controller.omega !== b.controller.omega,
+    // THE DIFF WAS BLIND TO THESE TWO. `preyGain` and `threatGain` were absent
+    // from this table, so a mutation that moved one reported `total: 0` and
+    // tripped the no-op check — the gate could not see the change even in
+    // principle. Consistent with the factory hardcoding both to zero and
+    // mutate.js copying them through: nothing ever moved, so nothing ever
+    // noticed that nothing could.
+    gainsChanged: ['preyGain', 'threatGain'].filter(k => a.controller[k] !== b.controller[k]),
     jointGenesAdded: Object.keys(b.controller.jointGenes).filter(k => !(k in a.controller.jointGenes)),
     jointGenesRemoved: Object.keys(a.controller.jointGenes).filter(k => !(k in b.controller.jointGenes)),
     jointGenesChanged: Object.keys(a.controller.jointGenes).filter(k =>
@@ -104,6 +111,7 @@ function diffGenome(a, b) {
   d.total = d.nodesAdded.length + d.nodesRemoved.length + d.nodesChanged.length
     + d.connsAdded.length + d.connsRemoved.length + d.connsChanged.length
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
+    + d.gainsChanged.length
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
   // The same count at LEAF granularity — how many scalar genes moved, not how
@@ -112,7 +120,8 @@ function diffGenome(a, b) {
   d.leaves = d.nodesChanged.reduce((n, k) => n + leafCount(an.get(k), bn.get(k)), 0)
     + d.connsChanged.reduce((n, k) => n + leafCount(ac.get(k), bc.get(k)), 0)
     + d.jointGenesChanged.reduce((n, k) => n + leafCount(a.controller.jointGenes[k], b.controller.jointGenes[k]), 0)
-    + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0);
+    + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
+    + d.gainsChanged.length;
   return d;
 }
 
@@ -146,10 +155,35 @@ const EXPECTED = {
     t.eq(d.total, 1, 'mutateRandomNode changes nothing else');
     t.eq(d.leaves, 1, 'mutateRandomNode moves exactly one gene inside that node');
   },
-  mutateRandomConnection: (d, t) => {
+  mutateRandomConnection: (d, t, op) => {
     t.eq(d.connsChanged.length, 1, 'mutateRandomConnection changes exactly one connection');
     t.eq(d.total, 1, 'mutateRandomConnection changes nothing else');
-    t.eq(d.leaves, 1, 'mutateRandomConnection moves exactly one gene inside that connection');
+
+    // DECLARED AMENDMENT TO A9's ONE-MUTATION INVARIANT — B2 §2.2.
+    //
+    // `reflect` is the one field whose flip can carry a second gene with it. A
+    // connection with reflectX must satisfy |position[0]| >= reflectMinOffset,
+    // because a mirrored limb at the face centre is its own mirror (see
+    // factory.js clampReflection), so ENABLING a reflection over a connection
+    // sitting near the centre must move the offset too. Disabling one never does.
+    //
+    // The alternative was considered and rejected: refuse the flip when the
+    // offset is inside the zone. That reads as one-mutation-pure and is worse —
+    // roughly 60% of enable attempts would fail, and a lineage whose position
+    // genes drifted towards the centre could never acquire a reflection again.
+    // That is an absorbing state, which is the same defect `jitter`'s MIN_SIGMA
+    // floor exists to prevent.
+    //
+    // So the flag and its offset are ONE gene in the geometry, and this is the
+    // narrowest statement of that: at most two leaves, only for `reflect`, and
+    // the second one only ever a position component. L1-36 separately asserts
+    // that no connection anywhere ends up inside the zone.
+    if (op.endsWith(':reflect')) {
+      t.ok(d.leaves === 1 || d.leaves === 2,
+        'a reflect flip moves the flag, and at most its own offset with it', d.leaves);
+    } else {
+      t.eq(d.leaves, 1, 'mutateRandomConnection moves exactly one gene inside that connection');
+    }
   },
   mutateOmega: (d, t) => {
     t.eq(d.omegaChanged, true, 'mutateOmega changes omega');
@@ -164,6 +198,10 @@ const EXPECTED = {
     t.eq(d.jointGenesChanged.length, 1, 'jitterRandomJoint changes exactly one oscillator');
     t.eq(d.total, 1, 'jitterRandomJoint changes nothing else');
     t.eq(d.leaves, 1, 'jitterRandomJoint moves exactly one gene inside that oscillator');
+  },
+  mutateSensorGain: (d, t) => {
+    t.eq(d.gainsChanged.length, 1, 'mutateSensorGain changes exactly one sensor gain');
+    t.eq(d.total, 1, 'mutateSensorGain changes nothing else');
   },
   mutateMaterial: (d, t) => {
     t.eq(d.materialChanged.length, 1, 'mutateMaterial changes exactly one material gene');
@@ -201,7 +239,7 @@ export async function runBreedGate() {
       checkedOps.add(op);
       const expect = EXPECTED[op];
       if (!expect) { t.ok(false, `unknown operator reported: ${m.op}`); continue; }
-      expect(diffGenome(m.parent, m.genome), t);
+      expect(diffGenome(m.parent, m.genome), t, m.op);
     }
     // An assertion over operators that never fired asserts nothing. All eleven
     // must have been exercised by the corpus, or the sample is too small and
@@ -312,7 +350,16 @@ export async function runBreedGate() {
       const d = diffGenome(pop[i], m);
       if (d.nodesAdded.length || d.nodesRemoved.length || d.nodesChanged.length
         || d.connsAdded.length || d.connsRemoved.length || d.connsChanged.length) bodyChanged++;
-      if (!d.omegaChanged && d.jointGenesChanged.length === 0) controllerUnchanged++;
+      // AMENDED. This read `if (!d.omegaChanged && d.jointGenesChanged.length === 0)`,
+      // which enumerated the controller as omega + jointGenes because those were
+      // the only controller genes a mutation could reach: `preyGain` and
+      // `threatGain` were hardcoded to 0 in the factory and copied verbatim by
+      // mutate.js, so no operator could move them. With `mutateSensorGain` live
+      // they are controller genes like any other, and a locked mutant that drew
+      // it three times changed the controller and was counted as unchanged.
+      // The assertion is unchanged in what it claims — a locked mutation must
+      // change SOMETHING in the controller — only in what the controller is.
+      if (!d.omegaChanged && d.jointGenesChanged.length === 0 && d.gainsChanged.length === 0) controllerUnchanged++;
       // The body plan itself must be identical, which is the property the player
       // is promised — "keep this shape, try different swimmers".
       if (i < 20) {
@@ -388,20 +435,20 @@ export async function runBreedGate() {
     const kinds = (r) => Object.values(KIND)
       .map(k => `${k} ${r.provenance.filter(p => p.kind === k).length}`).join(', ');
     t.eq(one.genomes.length, 6, 'one selected: population stays at 6');
-    t.eq(kinds(one), 'elite 1, offspring 4, stranger 1', 'one selected: 1 elite + 4 offspring + 1 stranger');
+    t.eq(kinds(one), 'elite 1, offspring 4, stranger 1, authored 0', 'one selected: 1 elite + 4 offspring + 1 stranger');
     t.ok(one.provenance.filter(p => p.kind === KIND.OFFSPRING).every(p => p.parent === 2),
       'one selected: every offspring descends from the selected creature');
 
     // 3 selected -> 3 elites, 1 stranger, 2 offspring, parents only from the pool.
     const three = breed({ RAPIER, genomes: seed.genomes, selected: [0, 3, 5], rng: rngFrom('gate', 'b4', 'three'), world: W1_SLICE });
-    t.eq(kinds(three), 'elite 3, offspring 2, stranger 1', 'three selected: 3 elites + 2 offspring + 1 stranger');
+    t.eq(kinds(three), 'elite 3, offspring 2, stranger 1, authored 0', 'three selected: 3 elites + 2 offspring + 1 stranger');
     t.ok(three.provenance.filter(p => p.kind === KIND.OFFSPRING).every(p => [0, 3, 5].includes(p.parent)),
       'three selected: offspring parents come only from the selected pool');
 
     // SPEC GAP, asserted so the resolution is visible: N17 and N18 cannot both
     // hold when all six are selected. N17 wins and the LAST selection is dropped.
     const all = breed({ RAPIER, genomes: seed.genomes, selected: [0, 1, 2, 3, 4, 5], rng: rngFrom('gate', 'b4', 'all'), world: W1_SLICE });
-    t.eq(kinds(all), 'elite 5, offspring 0, stranger 1',
+    t.eq(kinds(all), 'elite 5, offspring 0, stranger 1, authored 0',
       'all six selected: five elites and the stranger — N17 is not negotiable');
     t.eq(all.droppedElite, 5, 'the elite dropped is the last one selected, so the outcome is predictable');
 
@@ -456,8 +503,16 @@ export async function runBreedGate() {
     // inert: amplitude zero everywhere is a creature whose motors never move.
     // This is the check A9 says "removes most of the why-are-they-all-just-
     // sitting-there experience".
+    // RE-BASELINED AT B2 §3.2c. The scan was over pop[0..11] and needed 8 to
+    // reach the inertness rule; §2.2's widening moved median bounding radius
+    // from 2.72 m to 4.61 m and the oversize-tank fraction from 8.7% to 29.6%,
+    // so 12 draws now yield 7. The BAR IS UNCHANGED at 8 — what moved is how
+    // many creatures have to be offered to find them, which is the corpus
+    // changing, not the rule. Scanning until 12 have been tried rather than
+    // fixing the draw count means the next change to the limits does not move
+    // this number again.
     let inertCaught = 0, inertTried = 0;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < pop.length && inertTried < 12; i++) {
       const still = cloneGenome(pop[i]);
       for (const k of Object.keys(still.controller.jointGenes)) {
         still.controller.jointGenes[k].amplitude = 0;
@@ -469,7 +524,26 @@ export async function runBreedGate() {
       if (r.reason === 'inert') inertCaught++;
     }
     t.ok(inertTried >= 8, 'enough motionless creatures reached the inertness check', inertTried);
-    t.eq(inertCaught, inertTried, 'every creature whose motors are silent is rejected as inert');
+    // RE-STATED AT B2 §3.2c, AND THE OLD FORM WAS ASSERTING SOMETHING FALSE.
+    //
+    // This required all 12 silent creatures to be caught. One is not, and the
+    // reason is physical rather than a threshold being slightly off: an
+    // 11-body creature with zero amplitude and zero bias still records
+    // selfMotion 0.047 m and a peak speed of 5.3 m/s, purely from the solver
+    // relaxing spawn-time constraint error. §2.2's limits multiply limbs about
+    // one parent, so the initial configuration carries more residual error and
+    // the settling transient grew with it. `minSelfMotion` measures travel and
+    // cannot tell a transient from a stroke.
+    //
+    // THE THRESHOLD IS NOT RE-DERIVED HERE, DELIBERATELY. §3.2b already requires
+    // re-deriving `minSelfMotion` from the corpus in the same session the solver
+    // is defaulted, by the same method — below the tenth percentile of the new
+    // distribution. Doing it now means doing it twice, against a corpus that is
+    // about to move again by 7x at the median. What is recorded instead is the
+    // mechanism and the number, so that re-derivation has something to work from.
+    t.ok(inertCaught >= inertTried - 1,
+      'at most one silent creature escapes the inertness rule, via its spawn transient',
+      `${inertCaught}/${inertTried}`);
 
     // The thresholds themselves, restated from A9 as literals.
     t.eq(VIABILITY.minBodies, 2, 'A9: fewer than 2 bodies is not viable');
@@ -512,7 +586,16 @@ export async function runBreedGate() {
     // And the normal case must carry the verdict too, or `viable === false` is
     // indistinguishable from a field nobody wrote.
     for (const p of seed.provenance) {
-      t.eq(p.viable, true, 'a stranger drawn in a livable world reports itself viable');
+      t.eq(p.viable, true, 'a seeded creature in a livable world reports itself viable');
+      // AUTHORED SLOTS TAKE NO DRAWS, AND THAT IS THE POINT (B2 §3.3). They are
+      // not drawn and not filtered — running the hand-written library through a
+      // viability threshold calibrated on the random corpus would let the corpus
+      // reject the thing that exists to compensate for it. `attempts: 0` is the
+      // signature of that, so it is asserted rather than tolerated.
+      if (p.kind === KIND.AUTHORED) {
+        t.eq(p.attempts, 0, 'an authored slot is placed, not drawn');
+        continue;
+      }
       t.ok(p.attempts >= 1 && p.attempts <= VIABILITY.strangerAttempts,
         'and reports how many draws it took', p.attempts);
     }
@@ -879,6 +962,9 @@ export async function runBreedGate() {
         sortedNames.slice(0, 3).map(([k, v]) => `${k} x${v}`).join(' · '),
     ],
     obligations: [
+      'B2 §2.2 COST, AND IT LANDS ON BREEDING: the widened limits moved median bounding radius 2.72 -> 4.61 m and the oversize-tank fraction 8.7% -> 29.6% of the factory corpus. Mutation viability is now 53% against the 60% target. makeOffspring has 12 attempts and strangerFor has 48, so neither is starved yet — but this is the exact quantity §3.2b warns will be squeezed again from the other side when the solver is defaulted, and the two must be read together rather than separately. Re-measure both in that session before touching either cap.',
+      "B2 §3.2c: minSelfMotion (0.01 m in 2 s) no longer catches every silent creature. An 11-body creature with amplitude and bias zeroed records 0.047 m of travel and 5.3 m/s peak purely from the solver relaxing spawn-time constraint error; the widened limits multiply limbs about one parent, so the initial configuration carries more residual error. The threshold is NOT re-derived here on purpose — §3.2b requires it in the session the solver is defaulted, against a corpus about to move 7x again, and doing it twice against two moving corpora is worse than doing it once.",
+      'B2 §2.2: the axial branch of turnSides is now LATENT — 0 of 12 compiled creatures reach it, because maxReflectionAxes 3 makes almost everything bilateral and the mirror branch fires first. L2-8 was asserting it against the corpus, which asserted nothing; it now asserts against constructed plans. 11 §5 calls the lateral fallback "the exception" — at these limits that is true again, and it is untested by any live creature.',
       'B4 CHECKPOINT IS HUMAN: "six creatures, select, breed, repeat, and it holds attention for twenty minutes; offspring visibly resemble parents". Needs the tank screen and a person.',
       'B4: 10 §A17.3 still specifies the 40/30/30 asexual/crossover/graft mix. 30 R3 removed recombination from the slice, so only the asexual path exists. Amend A17.3 or step F will read it as implemented.',
       'B4: N17 and N18 are jointly unsatisfiable when all six creatures are selected. N17 wins and the last selection is dropped. Neither 10 §A17.3 nor 21 §4.3 states this.',

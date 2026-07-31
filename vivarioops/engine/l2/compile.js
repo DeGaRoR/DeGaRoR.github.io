@@ -79,12 +79,18 @@ export function compileSolo(RAPIER, args) {
 
   // ── S2 ────────────────────────────────────────────────────────────────────
   for (const k of ['cruiseSpeed', 'burstSpeed', 'burstRatio', 'burstDuration',
+                   'comSpeed', 'netSpeed', 'efficiency',
                    'cotC0', 'cotC1', 'basalRate', 'straightness', 'gaitFrequency']) {
     sp[k] = loco[k];
   }
 
   // ── S3 ────────────────────────────────────────────────────────────────────
   sp.turnRate = turn.turnRate;
+  sp.turnRate3d = turn.turnRate3d;
+  sp.steeringAuthority = turn.steeringAuthority;
+  sp.turnPlaneX = turn.turnPlaneX;
+  sp.turnPlaneY = turn.turnPlaneY;
+  sp.turnPlaneZ = turn.turnPlaneZ;
   sp.turnRadius = turn.turnRadius;
   sp.turnSpeedRatio = turn.turnSpeedRatio;
 

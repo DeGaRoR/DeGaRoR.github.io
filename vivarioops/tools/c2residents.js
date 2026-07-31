@@ -17,6 +17,8 @@ import { assessViability } from '../engine/l1/viability.js';
 import { compileSolo } from '../engine/l2/compile.js';
 import { worldHash } from '../contracts/world.js';
 import { W1_SLICE, W1_RESIDENT_HASHES_PLACEHOLDER } from '../worlds/w1_slice.js';
+import { createSimulation, FIXED_DT } from '../engine/l1/physics.js';
+import { UNSTABLE_SPEED, runDuel } from '../engine/l2/duel.js';
 
 await RAPIER.init();
 const WH = worldHash(W1_SLICE, W1_RESIDENT_HASHES_PLACEHOLDER);
@@ -33,6 +35,46 @@ for (let i = 0; compiled.length < CANDIDATES && i < 600; i++) {
 }
 
 process.stderr.write(`compiled ${compiled.length} candidates\n`);
+
+// ── a resident must be able to FINISH A FIGHT, against SOMEONE ELSE ─────────
+//
+// runDuel aborts as `unstable` the moment any body exceeds UNSTABLE_SPEED and
+// returns zero work and no outcome. Selecting for spread picks the FASTEST
+// candidate, which is exactly the one that trips it — and the failure is an
+// INTERACTION in the shared arena, a collision, so a solo run cannot see it
+// (tested: a solo overspeed filter dropped nothing while a third of the duels
+// still aborted). Nor is it enough to rank triples and walk down: the offending
+// candidate has the highest spread, so it appears in every high-ranking triple
+// and the top forty all failed on the same pairing.
+//
+// So the test is per CANDIDATE, against a few opponents drawn across the speed
+// range. O(n*k) instead of O(n^3), and it removes the cause rather than
+// searching around it.
+{
+  const before = compiled.length;
+  const byCruise = [...compiled].sort((a, b) => a.sp.cruiseSpeed - b.sp.cruiseSpeed);
+  // REFEREES COME FROM THE QUARTILES, NEVER THE EXTREMES. Using the fastest
+  // candidate as a referee dropped 38 of 40 — it destabilises everyone it meets,
+  // so it convicted the whole field instead of itself. A typical opponent is the
+  // fair test, and the pathological candidate then fails against all three.
+  const q = (f) => byCruise[Math.min(byCruise.length - 1, Math.floor(byCruise.length * f))];
+  const refs = [q(0.25), q(0.5), q(0.75)];
+  const asDuellist = (c) => ({ genome: c.genome, plan: c.plan, hash: genomeHash(c.genome), reach: c.sp.reach });
+  for (let k = compiled.length - 1; k >= 0; k--) {
+    let bad = false;
+    for (const ref of refs) {
+      if (ref === compiled[k]) continue;
+      for (let r = 0; r < W1_SLICE.duelRepeats && !bad; r++) {
+        const res = runDuel(RAPIER, { a: asDuellist(compiled[k]), b: asDuellist(ref), world: W1_SLICE, worldHash: WH, repeat: r });
+        if (!res.valid) bad = true;
+      }
+      if (bad) break;
+    }
+    if (bad) compiled.splice(k, 1);
+  }
+  process.stderr.write(`duel-stable filter: dropped ${before - compiled.length}, ${compiled.length} remain\n`);
+}
+
 
 // ── liveness floor, RELATIVE to the candidate set ───────────────────────────
 //
@@ -70,16 +112,39 @@ for (const a of AXES) {
 const vec = (c) => AXES.map(a => (hi[a] - lo[a] > 1e-12 ? (c.sp[a] - lo[a]) / (hi[a] - lo[a]) : 0));
 const d = (p, q) => Math.hypot(...p.map((x, k) => x - q[k]));
 
-let best = null;
+// Rank EVERY triple by spread, then walk down until one whose three duels can
+// actually be fought. Picking the single best triple is what shipped a pair
+// that aborted as `unstable`: the fastest candidate maximises spread and is
+// also the likeliest to trip UNSTABLE_SPEED, and the failure is an INTERACTION
+// in the shared arena — a collision — so no solo test can see it. The duels
+// themselves are the only honest filter, and they are cheap enough at this size.
+const triples = [];
 for (let a = 0; a < compiled.length; a++) {
   for (let b = a + 1; b < compiled.length; b++) {
     for (let c = b + 1; c < compiled.length; c++) {
       const [va, vb, vc] = [vec(compiled[a]), vec(compiled[b]), vec(compiled[c])];
-      const score = Math.min(d(va, vb), d(vb, vc), d(va, vc));
-      if (!best || score > best.score) best = { score, pick: [compiled[a], compiled[b], compiled[c]] };
+      triples.push({ score: Math.min(d(va, vb), d(vb, vc), d(va, vc)), pick: [compiled[a], compiled[b], compiled[c]] });
     }
   }
 }
+triples.sort((x, y) => y.score - x.score);
+
+const withReach = (c) => ({ genome: c.genome, plan: c.plan, hash: genomeHash(c.genome), reach: c.sp.reach });
+let best = null;
+const MAX_TRIES = 40;
+for (let tI = 0; tI < Math.min(MAX_TRIES, triples.length); tI++) {
+  const cand = triples[tI].pick.map(withReach);
+  let ok = true;
+  for (const [i, j] of [[0, 1], [0, 2], [1, 2]]) {
+    for (let r = 0; r < W1_SLICE.duelRepeats && ok; r++) {
+      const res = runDuel(RAPIER, { a: cand[i], b: cand[j], world: W1_SLICE, worldHash: WH, repeat: r });
+      if (!res.valid) { ok = false; process.stderr.write(`  triple ${tI}: ${i}v${j} r${r} ${res.reason}\n`); }
+    }
+    if (!ok) break;
+  }
+  if (ok) { best = triples[tI]; process.stderr.write(`accepted triple ${tI} of ${triples.length}\n`); break; }
+}
+if (!best) throw new Error(`no triple among the top ${MAX_TRIES} could fight all three duels`);
 
 const chosen = best.pick;
 process.stderr.write(`spread score ${best.score.toFixed(3)}\n`);

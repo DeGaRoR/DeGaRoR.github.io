@@ -48,6 +48,30 @@ export const VIABILITY = {
    * GRAVITY ZERO. See note 2. Set below the corpus's tenth percentile (0.013 m)
    * so it removes creatures that do nothing at all without becoming the dominant
    * rejection cause: measured 9% at 0.01, 13% at 0.02, 46% at A9's 0.05.
+   *
+   * RE-DERIVED AT B2 §3.2b, WHICH REQUIRED IT, AND THE NUMBER DID NOT MOVE.
+   * That percentile was from the PD corpus, and this module calls
+   * createSimulation(..., opts) and therefore follows whatever motor is default
+   * — so defaulting the solver could silently turn a 9% filter into a dominant
+   * one, with the symptom appearing three layers away as makeOffspring burning
+   * its 12 attempts on byte-identical twins and strangerFor exhausting its 48.
+   * Measured under this module's own conditions, 200 genomes, gravity zero,
+   * unbounded (tools/_zsolver.mjs):
+   *
+   *     motor     p10      p50      p90     rejected at 0.01
+   *     pd      0.0708   0.1712   0.4200          1%
+   *     solver  0.0120   0.0410   0.0913          8%
+   *
+   * The solver does move the distribution down as §3.2b predicted — p50 falls
+   * 4.2x — and 0.01 still sits below the new tenth percentile of 0.0120, at an
+   * 8% rejection rate against the 9% the rule was calibrated to.
+   *
+   * IT CANCELS, AND THAT IS LUCK RATHER THAN DESIGN. Chantier 1's widening
+   * pushed the corpus up by roughly as much as the solver pushes it down, so
+   * the two landing in the same phase left the tenth percentile where it was.
+   * Either alone would have moved it. THE RULE IS WHAT IS INHERITED, NOT THE
+   * NUMBER: re-derive at any change to the limits or the actuator, and do not
+   * read this as evidence that the threshold is robust.
    */
   minSelfMotion: 0.01,
 

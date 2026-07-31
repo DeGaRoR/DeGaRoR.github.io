@@ -31,8 +31,11 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
+// doubles the drive into `D:\D:\…`.
+export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /**
  * Recovery sentinel for a kill that CANNOT be caught.

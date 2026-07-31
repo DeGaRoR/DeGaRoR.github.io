@@ -9,6 +9,7 @@ import {
 } from '../engine/l1/genome.js';
 import { genomeSourcedSpeciesFields } from '../engine/l1/genome.js';
 import { createRandomGenome, SLICE_LIMITS, FULL_LIMITS } from '../engine/l1/factory.js';
+import { mutateTimes } from '../engine/l1/mutate.js';
 import { SPECIES_FIELDS } from '../contracts/species.js';
 import {
   morphogenesis, reflectionVariants, obbOverlap, DOF,
@@ -102,17 +103,25 @@ export function runL1Gate() {
     // the check raises with it. (Third time this pattern has bitten — 03 §1's hash
     // list at A0, the runner's suite list at A1, and this. Any assertion that
     // derives its own bound from the code under test is decorative.)
+    // A2's jointTypes were ['revolute', 'twist', 'spherical']. RESOLVED AT B2
+    // §3.1: spherical is dropped, restored at F. Restated here as a literal for
+    // the same reason as everything else in A2 — so the check cannot follow the
+    // constant it is checking. 10 §A2 should be amended to record the drop.
     const A2 = { maxNodes: 8, maxRecursion: 2, maxConnPerNode: 3,
-                 jointTypes: ['revolute', 'twist', 'spherical'], allowGrafting: false };
+                 jointTypes: ['revolute', 'twist'], allowGrafting: false };
 
     t.eq(SLICE_LIMITS.maxNodes, A2.maxNodes, 'SLICE_LIMITS.maxNodes matches spec 10 §3');
     t.eq(SLICE_LIMITS.maxRecursion, A2.maxRecursion, 'SLICE_LIMITS.maxRecursion matches spec 10 §3');
     t.eq(SLICE_LIMITS.maxConnPerNode, A2.maxConnPerNode, 'SLICE_LIMITS.maxConnPerNode matches spec 10 §3');
     t.eq(SLICE_LIMITS.jointTypes.join(','), A2.jointTypes.join(','), 'SLICE_LIMITS.jointTypes matches spec 10 §3');
     t.eq(SLICE_LIMITS.allowGrafting, A2.allowGrafting, 'grafting stays off in the slice (30 §4 B4)');
-    // maxReflectionAxes is the OPEN AMBIGUITY. Pinned deliberately in two places so
-    // resolving it is an explicit edit here and in factory.js, never a quiet flip.
-    t.eq(SLICE_LIMITS.maxReflectionAxes, 1, 'reflection axes still on reading (b) — see factory.js');
+    // maxReflectionAxes WAS the open ambiguity, pinned in two places so that
+    // resolving it had to be an explicit edit here and in factory.js rather than
+    // a quiet flip. RESOLVED AT B2 §2.2 in favour of reading (a), the
+    // FULL_LIMITS value. The pin stays, at the new value, for the same reason it
+    // existed: this constant is the single largest lever on variety in the
+    // project and it should never move without a line changing here.
+    t.eq(SLICE_LIMITS.maxReflectionAxes, 3, 'reflection axes resolved to reading (a) at B2 — see factory.js');
 
     const over = { nodes: 0, conn: 0, recursion: 0, jointType: 0, reflect: 0 };
     for (const genome of pop) {
@@ -120,7 +129,7 @@ export function runL1Gate() {
       const deg = new Map();
       for (const c of genome.connections) {
         deg.set(c.parentNodeId, (deg.get(c.parentNodeId) || 0) + 1);
-        if ([c.reflectX, c.reflectY, c.reflectZ].filter(Boolean).length > 1) over.reflect++;
+        if ([c.reflectX, c.reflectY, c.reflectZ].filter(Boolean).length > 3) over.reflect++;
       }
       for (const d of deg.values()) if (d > A2.maxConnPerNode) over.conn++;
       for (const n of genome.nodes) {
@@ -132,8 +141,56 @@ export function runL1Gate() {
     t.eq(over.conn, 0, 'outgoing connections within maxConnPerNode');
     t.eq(over.recursion, 0, 'recursiveLimit within maxRecursion');
     t.eq(over.jointType, 0, 'joint types restricted to the slice set');
-    t.eq(over.reflect, 0, 'reflection axes bilateral-or-none');
+    t.eq(over.reflect, 0, 'reflection axes within maxReflectionAxes');
     t.ok(A2.maxConnPerNode <= CAPS.maxConnPerNode, 'slice cap is inside the schema cap');
+  });
+
+  // ── L1-36 · the two B2 geometry rules, over BOTH generators ───────────────
+  //
+  // §2.2 puts these in factory.js and mutate.js and deliberately NOT in
+  // morphogen.js, so nothing downstream re-imposes them and an operator that
+  // walks out of either rule fails here rather than showing up months later as
+  // "reflection stopped doing anything". Both halves matter: the factory
+  // respecting a rule that mutation erodes is exactly how a constraint decays
+  // over generations, so the mutated corpus is checked as hard as the fresh one.
+  g.assertion('L1-36', 'B2 §2.2/§2.4: no back-face attachment, no reflection at the face centre', (t) => {
+    const m = SLICE_LIMITS.reflectMinOffset;
+    const faces = SLICE_LIMITS.allowedFaces;
+    t.ok(!faces.includes(2), 'face 2 is excluded from the allowed set');
+    t.ok(m > 0, 'a reflection clamp is configured');
+
+    const check = (genomes, label) => {
+      let backFace = 0, degenerate = 0, conns = 0, reflected = 0;
+      for (const genome of genomes) {
+        for (const c of genome.connections) {
+          conns++;
+          if (c.parentFace === 2) backFace++;
+          if (c.reflectX || c.reflectY || c.reflectZ) reflected++;
+          // FACE_NORMAL[2] is -Z and every child attaches by its own -Z face, so
+          // a limb on face 2 is aimed back into its grandparent. The anchor
+          // scales faceRight by position[0], and reflectX negates faceRight, so
+          // a mirrored limb at position[0] === 0 is its own mirror.
+          if (c.reflectX && Math.abs(c.position[0]) < m) degenerate++;
+          if (c.reflectY && Math.abs(c.position[1]) < m) degenerate++;
+        }
+      }
+      t.eq(backFace, 0, `${label}: no connection attaches to face 2 (${conns} connections)`);
+      t.eq(degenerate, 0, `${label}: no reflected connection inside |position| < ${m} (${reflected} reflected)`);
+      // An assertion over a corpus that never exercises the rule asserts
+      // nothing. Session 10's method note: a signature that cannot fail is not
+      // a check. Both rules need something to bite on.
+      t.ok(reflected > genomes.length * 0.2, `${label}: the corpus actually carries reflections`, reflected);
+    };
+
+    check(pop, 'factory');
+
+    // Three mutations deep, which is what an offspring actually receives, so the
+    // corpus here is what breeding produces rather than one step from fresh.
+    const mutated = [];
+    for (let i = 0; i < 200; i++) {
+      mutated.push(mutateTimes(pop[i], rngFrom('gate', 'b2', 'geom', i), 3).genome);
+    }
+    check(mutated, 'mutated x3');
   });
 
   // ── L1-5 · schema validity and gene ranges ────────────────────────────────
@@ -598,7 +655,14 @@ export function runL1Gate() {
       `mean serialised size ${Math.round(pop.reduce((n, x) => n + serialise(x).length, 0) / pop.length)} bytes`,
     ],
     obligations: [
-      `AMBIGUITY OPEN: SLICE_LIMITS.maxReflectionAxes = ${SLICE_LIMITS.maxReflectionAxes}. A2's "bilateral and none only" vs A5's multiplying reflections. DEFERRED FROM B4 TO B5: B3 measured every locomotion figure getting worse at 2 and 3, so this is a question about how creatures LOOK, not how they move.`,
+      `B2 §2.2: the A2/A5 reflection ambiguity is RESOLVED — maxReflectionAxes = ${SLICE_LIMITS.maxReflectionAxes}, reading (a). 10 §A2's "allowRadialSymmetry: false" should be amended: it names a gene A5 deleted, and radial symmetry is now reachable and intended.`,
+      `B2 §2.1: neutral drift is ${'measured at +0.012 bodies/mutation over 30 000 mutations, against a gate of |drift| < 0.01'}. THE GATE IS INSIDE THE ERROR BAR — per-mutation delta has sd ~1.6, so 2 s.e. at that n is +-0.026. The claim that holds is the 30-generation walk: 9.17 -> 8.95 bodies, flat, against 3.87 -> 3.06 before. Do not re-tune removalTournament against a figure taken below n ~ 90 000.`,
+      `B2 §2.1: Fix B is implemented as a tournament of ${SLICE_LIMITS.removalTournament}, NOT as §2.1's literal "prefer the one costing fewest bodies". The full argmin measured +0.110 drift — it finds free removals rather than cheap ones at a 75% discard rate. See factory.js removalTournament.`,
+      `B2 §2.2: mean bodies moved 3.91 -> 9.78 (2.5x). Every physics budget in the tree was sized on the old figure — §0's "2.8x realtime for 64 creatures, 235 bodies" and chantier 6's "3 gens @ pop 24, ~3.4 s" both need re-measuring before the auto-burst is costed.`,
+      `B2: effective variety is measured by tools/_zdiv.mjs and is CORPUS-SENSITIVE (+-1.5 across seed namespaces at n=2000, and rising with n). Compare runs of that tool against each other, never against a figure quoted from elsewhere. The design's 17.1 for the shipped tree reads 16.3 here.`,
+      `B2 §12 DECISION 1 — SPHERICAL JOINTS: DROPPED from SLICE_LIMITS.jointTypes, restored at F. Grounds beyond the design's corr(spherical, solver speed) = 0.60: rapier3d-compat 0.19.3's SphericalImpulseJoint has NO motor surface at all (so "upgrade the binding" is not a version bump), it has no setLimits either (so three angleLimits genes per spherical joint have always been inert), and it is the known 1e21 divergence at physics.js:944. Cost: mean DOF 5.0 -> 3.0. 10 §A2's joint set should be amended.`,
+      `B2 §12 DECISION 2 — THE TORQUE BOUND ON THE SOLVER PATH: RE-IMPOSE, 00 §9 stands unamended. Written up in full at engine/l1/physics.js, at the solver motor block. Not implemented here: the solver is not the default motor, so no shipped measurement exercises the path, and §3.2 binds the change to the session that defaults it. The derivation is recorded there — stiff <= budget / (2*angleLimits[0]) bounds the torque analytically, and the angleLimits floor it needs is a measurement.`,
+      `B2 §12 CARRIED: RANGE.dim's 0.2 m floor is still deferred. No fin, wing, membrane or vane is expressible against bodies of 0.2-2.0 m, and it blocked two of the five creatures §6.1 tried to author.`,
     ],
   };
 }

@@ -6,7 +6,7 @@ export const VERSION = {
   "build": "2026-07-29T23:56:49Z",
   "commit": "uncommitted",
   "genome": 2,
-  "bridge": 1,
+  "bridge": 4,
   "ecology": 1
 };
 export const APP_V = "0.8.1";

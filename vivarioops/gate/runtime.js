@@ -102,8 +102,18 @@ export async function runRuntimeGate() {
     t.eq(kindOf('nonsense:1'), 'opaque', 'an unrecognised prefix is opaque, never assumed to be a genome');
     t.eq(envelope({}, 'profile').schemaVersion, SCHEMA_OF.profile, 'a profile carries the profile schema');
     t.eq(envelope({}, 'record').schemaVersion, BRIDGE_V, 'a record carries the BRIDGE version, not the genome one');
-    t.ok(SCHEMA_OF.record !== SCHEMA_OF.genome,
-      'and those differ, so the distinction is load-bearing rather than decorative');
+    // AMENDED WHEN BRIDGE_V REACHED 2 AND COLLIDED WITH GENOME_V. The old form
+    // asserted the two NUMBERS differ, which was only ever an accident of where
+    // two independent counters happened to sit — and it went red on a bump that
+    // changed nothing about the mechanism it was guarding.
+    //
+    // What actually makes the distinction load-bearing is that each kind draws
+    // its version from its OWN source, so bumping one cannot move the other.
+    // That is what is asserted now, and it stays true whatever the values are.
+    t.eq(SCHEMA_OF.record, BRIDGE_V, 'the record schema IS the bridge version');
+    t.eq(SCHEMA_OF.genome, GENOME_V, 'the genome schema IS the genome version');
+    t.ok(SCHEMA_OF.record !== undefined && SCHEMA_OF.genome !== undefined,
+      'both kinds declare a schema, so neither silently inherits the other');
     t.eq(envelope({}, 'profile').kind, 'profile', 'the kind travels with the record');
 
     // A genome migration must never be reachable from another kind. Registered

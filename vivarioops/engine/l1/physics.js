@@ -12,7 +12,7 @@
 // scale is internally consistent; only MOTOR_SCALE has to be tuned to it,
 // because torque follows area (N19) and does not rescale with mass.
 
-import { computePhases, targetAngles, targetVelocities, makeControl, DRIVE } from './controller.js';
+import { computePhases, targetAngles, targetVelocities, makeControl, DRIVE, TURN_AUTHORITY } from './controller.js';
 import { qrot, qmul, normalise } from './vecmath.js';
 
 export const FIXED_DT = 1 / 120;      // 01 §7, substepped
@@ -23,6 +23,53 @@ export const FIXED_DT = 1 / 120;      // 01 §7, substepped
  * scale with the density choice.
  */
 export const MOTOR_SCALE = 1.0;
+
+/**
+ * Muscle stress in SLICE UNITS, for the derived torque model.
+ *
+ * Vertebrate skeletal muscle sustains roughly 2e5 Pa. This unit system carries
+ * density RELATIVE TO WATER and mass = density * volume, so a body of water
+ * density and 1 m^3 has mass 1.0 where SI would say 1000 kg. Mass is therefore
+ * numerically 1/1000 of SI, the force unit is 1 kN, and the torque unit is
+ * 1 kN.m. Muscle stress converts as 2e5 Pa / 1000 = 200.
+ *
+ * NOT A DIAL. Changing it is claiming something about muscle, and the only
+ * defensible edits are to the two numbers above.
+ */
+export const MUSCLE_STRESS = 200;
+
+/**
+ * Maximum joint angular velocity under load, rad/s — the Hill force-velocity
+ * ceiling. Muscle shortens at up to ~10 lengths/s; at a moment arm of sqrt(A)
+ * the insertion speed is omega*sqrt(A), so the sqrt(A) cancels and the ceiling
+ * is the same for every joint whatever its size. NOT A DIAL.
+ */
+export const OMEGA_MAX = 10;
+
+/**
+ * Moment arm as a FRACTION of the joint radius sqrt(A).
+ *
+ * The first stress model used the full joint radius, which assumes the muscle
+ * inserts at the rim. Vertebrate tendons insert close to the axis — moment arm
+ * over limb radius is roughly 0.1 to 0.3 — and the difference is a direct
+ * multiplier on torque, so it is not a detail. 0.2 is the middle of that range.
+ */
+export const MOMENT_ARM_FRACTION = 0.2;
+
+/**
+ * Slew-rate limit on the COMMANDED joint angle, rad/s. A joint may not be told
+ * to move faster than its muscle could follow, and OMEGA_MAX is already that
+ * number — so this is derived rather than a second constant. The reference uses
+ * 15 rad/s for its own actuator (UpdateJointAngleActuatorsSystem).
+ */
+export const TARGET_SLEW = OMEGA_MAX;
+
+/**
+ * Low-pass coefficient on the commanded angle, per step: higher is more
+ * responsive. The reference's value, kept, because this is one of the parts of
+ * its model that is already debugged.
+ */
+export const TARGET_FILTER = 0.8;
 export const MOTOR_STIFFNESS = 1.0;
 export const MOTOR_DAMPING = 0.12;
 
@@ -34,7 +81,18 @@ export const MOTOR_DAMPING = 0.12;
  * the parent limb's orientation lives on its collider, not on its body, and the
  * axis has to be rotated out of limb space into body space before Rapier sees it.
  */
-function jointAxisAtSpawn(j, plan) {
+/**
+ * EXPORTED so that measurement code cannot get the axis wrong.
+ *
+ * `tools/_track.mjs` and `tools/_amp.mjs` both read `j.axisLocal ?? [1,0,0]`.
+ * There is no `axisLocal` field anywhere in the engine, so the fallback always
+ * fired and both measured the swing-twist angle about the PARENT BODY'S X AXIS
+ * rather than about the joint's own. Every achieved-versus-commanded number
+ * those two produced was about an arbitrary axis. The fix is not to add the
+ * field — a denormalised copy would go stale — but to make the one correct
+ * computation reachable from outside this module.
+ */
+export function jointAxisAtSpawn(j, plan) {
   const local = j.type === 'twist' ? j.axes.z : j.axes.x;
   return normalise(qrot(plan.bodies[j.parentBody].rotation, local));
 }
@@ -238,6 +296,83 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   const drive = opts.drive ?? DRIVE.POSITION;
   const origin = opts.origin ?? [0, 0, 0];
   const motorScale = opts.motorScale ?? MOTOR_SCALE;
+  /** 'scale' (shipped) or 'stress' (derived from MUSCLE_STRESS). See applyMotors. */
+  // DEFAULT STAYS 'scale' UNTIL THE STRESS MODEL IS FINISHED. It is measured to
+  // work — locomotion p50 goes 0.78 -> 3.87 m and morphology starts to predict
+  // travel — but as derived it is too hot: peak speeds reach 71 m/s median, and
+  // it reds 9 assertions including L1-18, which pins torque proportional to A
+  // and which the A^(3/2) form contradicts BY DESIGN. Flipping this one word is
+  // the whole switch; see HYDRODYNAMICS.md for what has to be settled first.
+  const torqueModel = opts.torqueModel ?? 'stress';
+  const momentArm = opts.momentArm ?? MOMENT_ARM_FRACTION;
+  /** Reference-parity command smoothing. Off by default until measured. */
+  const smooth = opts.smooth ?? false;
+  /** PD gains, exposed so saturation can be measured rather than argued about. */
+  const kStiff = opts.stiffness ?? MOTOR_STIFFNESS;
+  const kDamp = opts.damping ?? MOTOR_DAMPING;
+  /**
+   * 'pd'     the explicit PD, integrated outside the solver (shipped).
+   * 'solver' Rapier's own joint motor, an IMPLICIT spring-damper solved inside
+   *          the constraint solver — the reference's architecture.
+   */
+  // DEFAULT IS NOW 'solver' — B2 §3.2. The two blockers below are discharged:
+  //
+  //   1. WORK NOW ACCUMULATES on the solver path, reconstructed from the same
+  //      spring-damper law the motor is configured with. See the tick loop for
+  //      what the reconstruction is exact about and what it is not; the short
+  //      version is that solver-to-solver cost of transport is comparable
+  //      without qualification and solver-to-PD is not, below a few percent.
+  //   2. L1-18 NOW ASSERTS N19 ON BOTH PATHS, each against its own predicted
+  //      exponent, rather than pinning one actuator.
+  //
+  // And 00 §9's bounded actuator power, which §12 carried as a decision, is
+  // re-imposed here rather than amended away — see the motor setup block.
+  //
+  // WHY THIS IS WORTH THE QUIET TANK. §0.2: through the PD a designed swimmer
+  // beats a random creature by ~7x; through the solver, by ~50x, and session 10
+  // measured the whole authored library collapsing into a 0.006-0.035 band
+  // narrower than noise on the PD path. The PD makes everything look alive and
+  // makes design irrelevant. That gap is not a problem to be tuned away, it is
+  // the game — but it means the opening population cannot be purely random, and
+  // §3.3's authored seeding is now load-bearing rather than a variety nicety.
+  const motorMode = opts.motor ?? 'solver';
+
+  /**
+   * ── ACTUATOR PARAMETRISATION (experimental, off by default) ────────────────
+   *
+   * Both shipped paths set the joint's spring and damper FROM THE TORQUE BUDGET:
+   * k = budget * kStiff, c = budget * kDamp, with budget = sigma * A^1.5 * arm.
+   * That fixes the joint's STRENGTH and leaves its natural frequency and damping
+   * ratio to fall out of whatever inertia the limb happens to have:
+   *
+   *     omega_n = sqrt(k / I)        c/(2 sqrt(k I)) = zeta
+   *
+   * Measured over the viable corpus (tools/_gains.mjs): omega_n p05 2, p50 9,
+   * p95 38 rad/s, and zeta 0.1 to 2.3. The controller commands 1-3 rad/s, so the
+   * slowest joints sit AT their own corner frequency while the fastest sit two
+   * decades below it — and a second-order system's phase lag is a function of
+   * omega/omega_n. Measured consequence (tools/_bode.mjs): per-joint lag spans
+   * 4 to 152 degrees. A commanded pi/2 travelling wave cannot survive a plant
+   * that adds an uncontrolled 150 degrees of its own.
+   *
+   * The reference specifies the OTHER TWO numbers instead — SpringFrequency
+   * 10 Hz, DampingRatio 0.9 — and lets torque fall out. At 10 Hz against a
+   * 1-3 rad/s command every joint sits at omega/omega_n < 0.05, where gain is
+   * 1.00 and lag is a few degrees FOR EVERY JOINT WHATEVER ITS SIZE. That is not
+   * a tuning preference; it is what makes a commanded phase relationship a real
+   * phase relationship.
+   *
+   * Set `motorFreqHz` to switch to that parametrisation: k and c are then
+   * derived from the child limb's own inertia. N19 is NOT abandoned — it moves
+   * from the gain to the bound, which is where the reference has it too
+   * (MaxImpulse = 2 * MinCrossSectionalArea). See the clamp note in the joint
+   * loop for why the bound cannot currently be expressed in this binding.
+   */
+  const motorFreqHz = opts.motorFreqHz ?? null;
+  const motorZeta = opts.motorZeta ?? 0.9;
+
+  /** The reference's lift term. Off by default until it earns the default. */
+  const LIFT = opts.lift ?? false;
 
   const fits = fitsTank(plan, world);
 
@@ -326,6 +461,84 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     }
   }
 
+  /** 1 where Rapier's own motor drives the joint; the PD skips those. */
+  const solverDriven = new Uint8Array(plan.jointCount);
+  const motorStiff = new Float64Array(plan.jointCount);
+  const motorDampC = new Float64Array(plan.jointCount);
+  /** Which solver joints had their gains reduced to honour 00 §9. Reported, not asserted from inside. */
+  const motorBounded = new Uint8Array(plan.jointCount);
+
+  // ── THE TORUS — B2 §4.2 ─────────────────────────────────────────────────────
+  //
+  // THE FINDING THIS EXISTS FOR: the tank boundary is ABSORBING. 30 random
+  // creatures over 240 s in the shipped tank — median speed decays 4x and the
+  // median wall gap decays monotonically from 6.2 m to 1.8 m, with a third of
+  // the corpus below 0.02 m/s in the final window. A creature random-walks,
+  // reaches a wall, and has no mechanism to leave. It takes 2-4 minutes to
+  // develop, which is why every 40 s test in this project showed nothing.
+  //
+  // AND EVERY TOOL IN THE TREE MEASURES WITH `bounded: false` WHILE THE GAME
+  // RUNS BOUNDED. So the numbers were taken in open water and the tank the
+  // player watches is a different world. The torus is the third option: a finite
+  // volume with no boundary, which is the one that makes a long measurement mean
+  // something.
+  //
+  // WRAPPING IS SAFE HERE FOR A SPECIFIC REASON — creatures do not interact.
+  // There is one creature per simulation and no creature-creature contact until
+  // step D, so a body translated by the world extent cannot land inside anything.
+  // The day that stops being true this needs a periodic broad-phase, not a
+  // translate.
+  //
+  // ATOMIC, AND ON THE CENTRE OF MASS. Every body of the creature moves by the
+  // same vector, between steps, decided by where the CENTRE crossed — never
+  // per-body, which would tear a creature in half across the seam. Velocities
+  // and orientations are untouched: a translation is not a physical event and
+  // the creature must not be able to feel it.
+  //
+  // §4.3 — WHAT MUST NOT HAPPEN. No repulsive field, no scripted turn-at-wall,
+  // no clamp on position. The constraint is that creatures are interacted with
+  // without anything being prescripted, and a soft wall force would quietly
+  // become the reason they appear to navigate.
+  /** 00 §9 on the solver path. See the motor setup block. Off ONLY for measurement. */
+  const boundTorque = opts.boundTorque ?? true;
+  const wrap = opts.wrap ?? false;
+  const wrapExtent = opts.wrapExtent ?? world.tankBounds;
+  const wrapShift = [0, 0, 0];
+  let wrapCount = 0;
+
+  function rawCentre() {
+    let m = 0, x = 0, y = 0, z = 0;
+    for (const rb of bodies) {
+      const bm = rb.mass();
+      const p = rb.translation();
+      m += bm; x += p.x * bm; y += p.y * bm; z += p.z * bm;
+    }
+    return m > 0 ? [x / m, y / m, z / m] : [0, 0, 0];
+  }
+
+  function wrapCreature() {
+    const c = rawCentre();
+    let dx = 0, dy = 0, dz = 0;
+    const half = [wrapExtent[0] / 2, wrapExtent[1] / 2, wrapExtent[2] / 2];
+    const cen = [origin[0], origin[1], origin[2]];
+    // A single extent per axis, not a modulo. One step cannot cross more than
+    // one period — clampKinematics caps speed at one wall thickness per step —
+    // so a loop would only ever hide a violation of that bound.
+    if (c[0] - cen[0] > half[0]) dx = -wrapExtent[0]; else if (c[0] - cen[0] < -half[0]) dx = wrapExtent[0];
+    if (c[1] - cen[1] > half[1]) dy = -wrapExtent[1]; else if (c[1] - cen[1] < -half[1]) dy = wrapExtent[1];
+    if (c[2] - cen[2] > half[2]) dz = -wrapExtent[2]; else if (c[2] - cen[2] < -half[2]) dz = wrapExtent[2];
+    if (dx === 0 && dy === 0 && dz === 0) return;
+
+    for (const rb of bodies) {
+      const p = rb.translation();
+      rb.setTranslation({ x: p.x + dx, y: p.y + dy, z: p.z + dz }, true);
+    }
+    // The shift is recorded with the OPPOSITE sign, so that adding it to the raw
+    // centre reconstructs the position in an unbounded tank.
+    wrapShift[0] -= dx; wrapShift[1] -= dy; wrapShift[2] -= dz;
+    wrapCount++;
+  }
+
   const massOf = new Float64Array(plan.bodyCount);
   const inertiaOf = new Float64Array(plan.bodyCount);
   for (let i = 0; i < bodies.length; i++) {
@@ -344,6 +557,144 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   for (const j of plan.joints) {
     const jd = makeJointData(RAPIER, j, plan);
     const handle = w.createImpulseJoint(jd, bodies[j.parentBody], bodies[j.childBody], true);
+
+    // ── SOLVER-SIDE MOTOR (reference parity) ─────────────────────────────────
+    //
+    // The reference drives joints with a RotationMotor CONSTRAINT, solved
+    // implicitly. We integrated a PD outside the solver, and it saturated its
+    // torque clamp 52% of the time — a saturated PD is a relay, and relays
+    // limit-cycle. That was measured as the root cause of every locomotion
+    // problem since session 1.
+    //
+    // ForceBased, not AccelerationBased, and that choice IS N19: a force-based
+    // motor applies a torque, so a heavier limb accelerates less, while an
+    // acceleration-based one would ignore inertia entirely and make motor
+    // strength track nothing at all.
+    //
+    // N19 SURVIVES THE MOVE. The stiffness is the same muscle torque budget the
+    // clamp used — MUSCLE_STRESS * A^(3/2) * momentArm — so torque still comes
+    // from the joint's own cross-section and never from mass. Only the
+    // INTEGRATION moved into the solver, which is not what N19 was about.
+    //
+    // Rapier's JS binding exposes motors on revolute-family joints only;
+    // spherical has no configureMotorPosition. As of B2 §3.1 the slice set is
+    // ['revolute', 'twist'] and spherical is dropped, so every slice joint is
+    // solver-drivable and the PD relay is no longer a per-type fallback. It
+    // stays as the fallback for the schema's other types, which step F restores.
+    //
+    // ── DECISION, IN WRITING — B2 §12: THE TORQUE BOUND ON THE SOLVER PATH ──
+    //
+    // 00 §9 requires bounded actuator power. It is enforced on the PD path by a
+    // final clamp to maxTorque plus the Hill force-velocity term. IT IS NOT
+    // ENFORCED HERE, and the reason is visible two lines below: the budget goes
+    // into STIFFNESS — torque per unit tracking error — not into torque. Torque
+    // is then `stiff * error`, and nothing bounds `error`, so nothing bounds the
+    // torque.
+    //
+    // §12 offers two ways out: re-impose the bound outside the solver, or amend
+    // 00 §9 for this path. THE DECISION IS TO RE-IMPOSE, and 00 §9 stands
+    // unamended. The reason is not conservatism about the spec:
+    //
+    //   - §0.2's whole PD-vs-solver comparison — p50 0.100 against 0.015, the
+    //     measurement the actuator decision rests on — is only a comparison if
+    //     both paths get the same energy budget. Two actuators with different
+    //     power bounds do not measure "efficiency versus speed", they measure
+    //     which one was allowed more energy, and the 7x would be uninterpretable.
+    //   - N19 says joint strength comes from geometry and never from mass, and
+    //     L1-18 asserts it. The `budget` below honours that. An UNBOUNDED torque
+    //     does not violate N19 so much as make it vacuous.
+    //   - B3's peak-speed tail is the standing evidence for what an unbounded
+    //     actuator does to this simulation.
+    //
+    // HOW, when chantier 2 implements it. `setMotorMaxForce` is absent from this
+    // binding — checked, not assumed — so the cap cannot be handed to the solver
+    // and must be imposed on the stiffness instead. The tracking error IS
+    // bounded: setLimits holds each driven joint inside +-angleLimits[0], so the
+    // worst error against a target inside that range is 2*angleLimits[0], and
+    //     stiff <= budget / (2 * angleLimits[0])
+    // bounds the delivered torque by the same muscle budget the PD clamp uses,
+    // analytically, with no per-step work. Degenerate case: angleLimits[0] near
+    // zero gives an unbounded stiffness, so it needs a floor — which is a
+    // measurement, and measurements belong with the rest of chantier 2.
+    //
+    // NOT DONE HERE. The solver is not the default motor yet, so this path is
+    // exercised by no shipped measurement, and §3.2 already binds the change to
+    // the session that defaults it — together with `work` accumulating on this
+    // path and L1-18's model-agnostic treatment. Landing an untested physics
+    // change on a dormant path ahead of the measurements that would catch it is
+    // how the B3 tail happened.
+    //
+    // ALSO OWED THERE: the `motorFreqHz` branch below sets stiffness from
+    // `inertiaOf[j.childBody]`. That is mass-derived, which is the thing N19
+    // exists to forbid. It is default-off today and must not become the default
+    // without answering that.
+    if (motorMode === 'solver' && handle.configureMotorPosition) {
+      const A = j.minCrossSectionalArea;
+      const budget = MUSCLE_STRESS * A * Math.sqrt(A) * momentArm;
+      handle.configureMotorModel(RAPIER.MotorModel.ForceBased);
+      if (motorFreqHz !== null) {
+        // Reference parametrisation: the joint is specified by its RESPONSE, and
+        // the torque it needs to deliver that response follows from the limb.
+        // I is the child's smallest principal inertia — the same conservative
+        // choice the drag limiter makes, so the fastest axis is the one tuned.
+        const wn = 2 * Math.PI * motorFreqHz;
+        const I = inertiaOf[j.childBody];
+        motorStiff[j.index] = motorScale * I * wn * wn;
+        motorDampC[j.index] = motorScale * 2 * motorZeta * I * wn;
+      } else {
+        motorStiff[j.index] = motorScale * budget * kStiff;
+        motorDampC[j.index] = motorScale * budget * kDamp;
+      }
+
+      // ── BOUNDED ACTUATOR POWER ON THE SOLVER PATH (00 §9) — B2 §3.2 ────────
+      //
+      // THE DECISION IS ABOVE; THIS IS THE IMPLEMENTATION. The solver applies
+      // tau = k*(target - theta) - c*omega_rel and nothing inside it caps tau,
+      // so the budget going into k — torque per unit tracking error — bounded
+      // nothing at all. `setMotorMaxForce` is absent from this binding, so the
+      // cap cannot be handed to the solver and has to be imposed on k and c.
+      //
+      // BOTH TERMS ARE BOUNDABLE BECAUSE BOTH OPERANDS ARE. The tracking error
+      // is bounded because setLimits holds theta inside +-range and the CPG's
+      // command is a closed form in the joint's OWN genes (controller.js
+      // targetAngles): |target| <= |bias| + amplitude*range + TURN_AUTHORITY*
+      // range, with turnBias in [-1, 1]. The relative angular velocity is
+      // bounded by OMEGA_MAX, which is the Hill ceiling and already derived.
+      // So the worst-case torque this joint can ever ask for is known at build
+      // time, exactly, per joint, from quantities it already carries.
+      //
+      // CORRECTION TO THE WRITE-UP ABOVE, which proposed k <= budget/(2*range)
+      // and worried about a floor for range near zero. There is no degenerate
+      // case: as range goes to zero the SPRING term vanishes with it and only
+      // the damping term survives, which OMEGA_MAX already bounds. The floor is
+      // not needed and the pair below is the whole rule.
+      //
+      // SCALED TOGETHER, NOT CLAMPED SEPARATELY. k and c fall by the same
+      // factor, so omega_n scales by sqrt(f) and the damping ratio zeta is
+      // EXACTLY preserved — and zeta is the quantity tools/_gains.mjs measured
+      // and 3.3 reaches for. Clamping the two independently would silently
+      // retune the joint's character while claiming only to bound its strength.
+      const range = j.angleLimits[0];
+      const jg = genome.controller.jointGenes[j.nodeId];
+      const maxTarget = Math.abs(jg.bias) + jg.amplitude * range + TURN_AUTHORITY * range;
+      const maxError = maxTarget + range;
+      const ceiling = motorScale * budget;   // the same bound the PD clamp uses
+      const worst = motorStiff[j.index] * maxError + motorDampC[j.index] * OMEGA_MAX;
+      // OPTIONAL ONLY SO THAT THE BOUND'S COST IS MEASURABLE. It is on by
+      // default and 00 §9 is not negotiable; `boundTorque: false` exists because
+      // every solver figure in the B2 design was taken before the bound existed,
+      // and comparing against those figures requires being able to reproduce the
+      // conditions they were taken in. It is not a tuning knob.
+      if (boundTorque && worst > ceiling && worst > 0) {
+        const f = ceiling / worst;
+        motorStiff[j.index] *= f;
+        motorDampC[j.index] *= f;
+        motorBounded[j.index] = 1;
+      }
+
+      handle.configureMotorPosition(0, motorStiff[j.index], motorDampC[j.index]);
+      solverDriven[j.index] = 1;
+    }
 
     // Jointed limbs OVERLAP BY CONSTRUCTION. 10 §A6's overlap rejection exempts
     // the parent — "face contact with the parent is normal" — so a child box may
@@ -397,7 +748,8 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // What must not happen again is a promise the code does not keep.
 
   let t = 0, steps = 0;
-  let work = 0;   // joules, sum |tau . omega| dt (01 §7) — S2 reads this at C1
+  let work = 0;
+  let motorSteps = 0, motorSaturated = 0;   // joules, sum |tau . omega| dt (01 §7) — S2 reads this at C1
 
   // ── kinematic ceiling, DERIVED and not tuned ────────────────────────────────
   //
@@ -538,9 +890,58 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         const vn = px * nx + py * ny + pz * nz;
         if (vn <= 0) continue;
 
+        // Sample speed, needed only by the lift term. The reference skips a
+        // sample below MinSpeedSq = 1e-3; the same guard here keeps the
+        // direction well-conditioned when a face is nearly stationary.
+        const sp2 = px * px + py * py + pz * pz;
+        if (sp2 < 1e-6) continue;
+        const sp = Math.sqrt(sp2);
+
         // Quadratic in the NORMAL component only, along the inward normal.
         const mag = 0.5 * rho * area * vn * vn;
-        const Fx = -mag * nx, Fy = -mag * ny, Fz = -mag * nz;
+        let Fx = -mag * nx, Fy = -mag * ny, Fz = -mag * nz;
+
+        // ── LIFT, from the reference (ApplyFluidForcesSystem.ComputeFluidForce) ──
+        //
+        // A surface meeting flow OBLIQUELY deflects it, and the reaction has a
+        // component ACROSS the flow as well as along it. Drag alone cannot do
+        // this, and it is why an angled fin beats a flat paddle: peak at 45
+        // degrees of incidence, zero head-on and zero edge-on.
+        //
+        //   Cl = 1.2 * |c| * sqrt(1 - c^2),  liftMag = 0.5*rho*speed^2*area*Cl*|c|
+        //
+        // Coefficients are the reference's verbatim — this is the part of its
+        // model that is already debugged, and there is no reason to re-derive it.
+        //
+        // IT DOES NO WORK, and that is what makes it safe here. Lift is
+        // perpendicular to the SAMPLE velocity, so F.v_sample = 0 exactly for
+        // every sample; summing, lift contributes precisely zero to
+        // P = F.v + T.omega. The energy guard below therefore still sees P <= 0
+        // from drag alone and remains valid unchanged. An earlier lab attempt
+        // diverged because it bounded force MAGNITUDE, which a perpendicular
+        // impulse escapes by Pythagoras — the fix was never a bigger clamp.
+        if (LIFT) {
+          const c = vn / sp;                                  // |cos| , positive here
+          const root = Math.sqrt(Math.max(1 - c * c, 0));
+          const Cl = 1.2 * c * root;
+          if (Cl > 0) {
+            const ux = px / sp, uy = py / sp, uz = pz / sp;
+            // k = u x n, then liftDir = (k x u)/|k| — unit, since u is unit and
+            // perpendicular to k. Normalising by |k| is the reference's trick.
+            const kx = uy * nz - uz * ny;
+            const ky = uz * nx - ux * nz;
+            const kz = ux * ny - uy * nx;
+            const km2 = kx * kx + ky * ky + kz * kz;
+            if (km2 > 1e-6) {
+              const km = Math.sqrt(km2);
+              const liftMag = 0.5 * rho * sp2 * area * Cl * c;
+              Fx += liftMag * (ky * uz - kz * uy) / km;
+              Fy += liftMag * (kz * ux - kx * uz) / km;
+              Fz += liftMag * (kx * uy - ky * ux) / km;
+            }
+          }
+        }
+
         fx += Fx; fy += Fy; fz += Fz;
         tx += ry * Fz - rz * Fy;
         ty += rz * Fx - rx * Fz;
@@ -649,10 +1050,53 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     return swingTwistAngle(bodies[j.parentBody].rotation(), bodies[j.childBody].rotation(), jointAxes[jointIndex]);
   }
 
+  /** Previous smoothed target per joint; the filter needs one step of state. */
+  const prevTarget = new Float64Array(plan.jointCount);
+  let targetPrimed = false;
+  const smoothed = new Float64Array(plan.jointCount);
+
+  /**
+   * Slew-limit then low-pass the commanded targets (reference parity).
+   * @param {Float64Array} raw
+   * @returns {Float64Array}
+   */
+  function smoothTargets(raw) {
+    const maxStep = TARGET_SLEW * FIXED_DT;
+    if (!targetPrimed) { prevTarget.set(raw); targetPrimed = true; }
+    for (let i = 0; i < raw.length; i++) {
+      const d = raw[i] - prevTarget[i];
+      const limited = prevTarget[i] + Math.min(maxStep, Math.max(-maxStep, d));
+      prevTarget[i] += (limited - prevTarget[i]) * TARGET_FILTER;
+      smoothed[i] = prevTarget[i];
+    }
+    return smoothed;
+  }
+
   function applyMotors() {
-    const want = drive === DRIVE.VELOCITY
+    const raw = drive === DRIVE.VELOCITY
       ? targetVelocities(plan, genome, t, phases, targets, control)
       : targetAngles(plan, genome, t, phases, targets, control);
+
+    // ── COMMAND SMOOTHING, from the reference ────────────────────────────────
+    //
+    // UpdateJointAngleActuatorsSystem.CalculateTargetAngle does two things we
+    // did not, and it does them to the TARGET rather than to the torque:
+    //
+    //   1. a slew-rate limit — the commanded angle may not change faster than
+    //      MAX_ANGULAR_VELOCITY (15 rad/s there);
+    //   2. a low-pass filter — lerp(current, rateLimited, 0.8) every step.
+    //
+    // Both exist because a physical actuator cannot be commanded to step. Ours
+    // could: the target came straight from a sine and the PD chased it with
+    // whatever torque the clamp allowed. Measured before this: efficiency
+    // (net displacement / COM path length) 0.022 against a fish's ~0.9, and
+    // heading persistence -0.22 — consecutive seconds of travel ANTI-correlated,
+    // which is oscillation in place rather than swimming.
+    //
+    // TARGET_SLEW is ours and derived rather than copied: a joint cannot be
+    // commanded past what its muscle could follow, and OMEGA_MAX is already that
+    // number. The reference's 15 is the same idea with its own actuator.
+    const want = smooth ? smoothTargets(raw) : raw;
 
     for (let i = 0; i < plan.joints.length; i++) {
       const j = plan.joints[i];
@@ -662,7 +1106,6 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // Mass goes with volume, strength with area. Getting this wrong makes all
       // creatures move alike regardless of size, because torque and inertia
       // would then cancel.
-      const maxTorque = motorScale * j.minCrossSectionalArea;
 
       // The axis is stored in the parent's SPAWN frame (see jointAxisAtSpawn)
       // and carried into world space by the parent's current rotation.
@@ -689,14 +1132,69 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // a pump rather than a stiff constraint. Damping the full vector costs
       // nothing on the driven axis and makes the unobserved DOF dissipative,
       // which is also what a fleshy joint does.
+      // ── how much torque a joint may produce (00 §9, bounded actuator power) ──
+      //
+      // 'scale'  maxTorque = motorScale * A. The shipped form, and MOTOR_SCALE
+      //          1.0 has always been tuned rather than derived — the HANDOFF
+      //          says so. It is dimensionally odd too: torque is [force][length]
+      //          and A is [length]^2, so motorScale carries units of pressure x
+      //          length and means nothing on its own.
+      //
+      // 'stress' maxTorque = MUSCLE_STRESS * A^(3/2). Derived. A muscle of
+      //          cross-section A pulling at stress sigma exerts force sigma*A,
+      //          and it inserts roughly one joint-radius from the axis, so the
+      //          moment arm is sqrt(A) and the torque is sigma * A^(3/2). No new
+      //          data is needed — the joint already knows its own cross-section.
+      //
+      // WHY THIS EXISTS: measured, travel rises monotonically with motorScale
+      // (0.32 m at 0.25, 3.99 m at 64), and joints already OVERSHOOT their
+      // targets, so this was never a tracking failure — the motors simply set
+      // the energy budget and the shipped budget is far below muscle.
+      // AND MUSCLE CANNOT PULL AT FULL FORCE WHILE SHORTENING FAST. The Hill
+      // force-velocity relation: force falls roughly linearly with contraction
+      // speed and reaches zero at the maximum shortening velocity. Leaving it
+      // out is what made the first stress run blow up — peak spin 5185 rad/s
+      // past a 343 rad/s ceiling — because a muscle sized realistically, with no
+      // speed limit, accelerates a light limb without bound. The stress number
+      // was right; the actuator was allowed to be infinitely fast.
+      //
+      // OMEGA_MAX is derived too, and it is size-independent, which is why it
+      // needs no per-joint data. Muscle shortens at up to ~10 lengths per
+      // second; the relevant length here is the moment arm sqrt(A), and the
+      // shortening speed at the insertion is omega * sqrt(A). The sqrt(A)
+      // cancels and the ceiling is ~10 rad/s for every joint regardless of size.
+      // HILL APPLIES TO THE ACTIVE TERM ONLY, and getting that wrong is what
+      // made the first attempt useless. Scaling the whole budget by fv also
+      // scales the DAMPING term, so above OMEGA_MAX the joint produced neither
+      // drive nor resistance and a limb that had been spun up simply coasted:
+      // peak spin reached 732 rad/s against a 10 rad/s ceiling, and bodies
+      // thrashed at a sustained 26.7 m/s while the creature travelled at
+      // 0.19 m/s. Real muscle loses ACTIVE force as it shortens; the passive
+      // viscoelasticity of the tissue does not disappear, and at high speed it
+      // is what dominates. So fv multiplies the restoring torque and nothing
+      // else, while damping and the final clamp keep the full structural budget.
+      const A = j.minCrossSectionalArea;
+      // motorScale MULTIPLIES whatever model is in force, and it must, because
+      // `motorScale: 0` is how the gate and every diagnostic say "motors off".
+      // The first stress implementation read motorScale only in the 'scale'
+      // branch, so `motorScale: 0` silently left the motors running and L1-19
+      // caught it: two deeply overlapping jointed limbs, meant to sit still,
+      // picked up 1.6 mm/s of drive that had nothing to do with contact.
+      const maxTorque = motorScale * (torqueModel === 'stress'
+        ? MUSCLE_STRESS * A * Math.sqrt(A) * momentArm
+        : A);
+      const activeTorque = torqueModel === 'stress'
+        ? maxTorque * Math.max(0, 1 - Math.hypot(dwx, dwy, dwz) / OMEGA_MAX)
+        : maxTorque;
+
       let tx, ty, tz;
       if (drive === DRIVE.VELOCITY) {
-        const s = maxTorque * MOTOR_STIFFNESS * (want[i] - relOmega) * 0.5;
+        const s = activeTorque * kStiff * (want[i] - relOmega) * 0.5;
         tx = axisWorld[0] * s; ty = axisWorld[1] * s; tz = axisWorld[2] * s;
       } else {
         const theta = relativeAngle(i);
-        const s = maxTorque * MOTOR_STIFFNESS * (want[i] - theta);
-        const d = maxTorque * MOTOR_DAMPING;
+        const s = activeTorque * kStiff * (want[i] - theta);
+        const d = maxTorque * kDamp;
         tx = axisWorld[0] * s - d * dwx;
         ty = axisWorld[1] * s - d * dwy;
         tz = axisWorld[2] * s - d * dwz;
@@ -708,8 +1206,49 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // fast produces an enormous restoring torque, which spins it faster. That
       // is what took 5 of 12 creatures to NaN before this clamp. Now that the
       // damping term is a vector the clamp is on its magnitude.
+
+      // A solver-driven joint gets its TARGET updated and nothing else — the
+      // spring-damper lives inside the constraint solver, where it cannot ring.
+      if (solverDriven[i]) {
+        joints[i].configureMotorPosition(want[i], motorStiff[i], motorDampC[i]);
+
+        // ── WORK ON THE SOLVER PATH — B2 §3.2, and it is an ESTIMATE ─────────
+        //
+        // Without this every solver measurement prints `n/a` for cost of
+        // transport, which is the reason the solver could not be defaulted.
+        //
+        // Rapier computes the motor torque inside the constraint solver and the
+        // JS binding does not expose the resulting impulse, so this RECONSTRUCTS
+        // it from the same spring-damper law the solver was configured with:
+        // tau = k*(target - theta) - c*omega_rel, about the driven axis. The
+        // motor is axial on revolute and twist — the whole slice set as of §3.1
+        // — so the scalar form is the analogue of the PD path's vector dot, not
+        // a simplification of it.
+        //
+        // WHERE IT DIFFERS FROM THE TRUTH, and this must be carried rather than
+        // forgotten: the implicit solver reaches its target within the step,
+        // so the torque it actually delivers is the one that satisfies the
+        // constraint at the END of the step, while this reads the state at the
+        // START. The estimate therefore lags by one step and overstates work
+        // during fast transients. It is exact in steady oscillation, which is
+        // what a CPG produces and what every locomotion probe measures.
+        //
+        // CONSEQUENCE FOR COMPARISONS: cost of transport is comparable BETWEEN
+        // SOLVER RUNS without qualification. Comparing a solver COT against a PD
+        // COT compares a reconstruction against a measurement, and any claim
+        // that rests on a difference smaller than a few percent is not entitled
+        // to this number. §0.2's 7x is far outside that; a 1.05x would not be.
+        const thetaS = relativeAngle(i);
+        const tau = motorStiff[i] * (want[i] - thetaS) - motorDampC[i] * relOmega;
+        work += Math.abs(tau * relOmega) * FIXED_DT;
+        motorSteps++;
+        continue;
+      }
+
       const mag = Math.hypot(tx, ty, tz);
+      motorSteps++;
       if (mag > maxTorque) {
+        motorSaturated++;
         const f = maxTorque / mag;
         tx *= f; ty *= f; tz *= f;
       }
@@ -735,6 +1274,8 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     genome,
     /** C1 — mutable: `{ effort, turnBias, sides }`. Written between steps. */
     control,
+    /** Joint angle about its own axis, parent-local frame. Exposed for tools/_zturn.mjs. */
+    relativeAngle,
     /** Capture is contact with the ROOT body (10 §7, 11 §6). This is it. */
     rootCollider: colliders[0],
     /** N22 — true only for creature-creature contacts. */
@@ -744,6 +1285,19 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     get t() { return t; },
     get steps() { return steps; },
     get work() { return work; },
+
+    /**
+     * The gains the solver motors were configured with, and which of them the
+     * 00 §9 bound reduced. EXPOSED FOR L1-18 (H3, the same reason viability's
+     * free-run verdict is extracted): on the solver path first-step spin is NOT
+     * proportional to torque, because an implicit spring's first-step response
+     * is k*dt*e/(I + k*dt^2 + c*dt) and the denominator grows with k too. So
+     * measuring the exponent through the integrator measures the integrator.
+     * N19 is a statement about where the TORQUE BUDGET comes from, and this is
+     * where the budget is.
+     */
+    get motors() { return { stiff: motorStiff, damp: motorDampC, bounded: motorBounded }; },
+    get saturation() { return motorSteps ? motorSaturated / motorSteps : 0; },
 
     /**
      * Everything this creature contributes to one step, WITHOUT solving.
@@ -781,20 +1335,43 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       applyEnvironment();
       applyMotors();
       w.step();
+      // AND AGAIN AFTER THE STEP. The ceiling exists so that the arena stays
+      // solid, and the query that needs it is the NEXT step's collision
+      // detection — so the bound has to hold on the velocity the step produced,
+      // not merely the one it started from. Clamping only beforehand let a
+      // single step of lift and motor torque carry a limb tip to 76 m/s past a
+      // 60 m/s limit, which is how a body walks through a wall.
+      clampKinematics();
+      if (wrap) wrapCreature();
       t += FIXED_DT;
       steps++;
     },
 
-    /** Mass-weighted centre of the whole creature, in world space. */
+    /**
+     * Mass-weighted centre of the whole creature, in world space, UNWRAPPED.
+     *
+     * `wrapShift` is the total displacement the torus has removed, so this
+     * returns where the creature would be in an infinite tank. That is what
+     * makes the wrap invisible to every existing caller: `settle`, the
+     * locomotion probes, `assessViability`, `_zwall` and every displacement
+     * figure ever recorded read this function, and a wrapped creature's raw
+     * centre jumps by a whole world extent in one step. Reporting the raw
+     * position and asking each caller to compensate is the version of this that
+     * silently corrupts one measurement in ten.
+     *
+     * `rawCentreOfMass` is available for anything that genuinely wants the
+     * position inside the box — the renderer, and the wrap test itself.
+     */
     centreOfMass() {
-      let m = 0, x = 0, y = 0, z = 0;
-      for (const rb of bodies) {
-        const bm = rb.mass();
-        const p = rb.translation();
-        m += bm; x += p.x * bm; y += p.y * bm; z += p.z * bm;
-      }
-      return m > 0 ? [x / m, y / m, z / m] : [0, 0, 0];
+      const c = rawCentre();
+      return [c[0] + wrapShift[0], c[1] + wrapShift[1], c[2] + wrapShift[2]];
     },
+
+    rawCentreOfMass: rawCentre,
+
+    /** Total displacement the torus has removed. [0,0,0] when not wrapping. */
+    get wrapShift() { return wrapShift.slice(); },
+    get wrapCount() { return wrapCount; },
 
     /** Pose for the renderer. Writes into `out` to avoid per-frame allocation. */
     readPose(out) {

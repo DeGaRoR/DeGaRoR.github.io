@@ -1,0 +1,40 @@
+{
+  "generatedBy": "tools/vendor.js",
+  "packages": [
+    {
+      "specifier": "three",
+      "pkg": "three",
+      "version": "0.185.1",
+      "dir": "three-0.185.1",
+      "entry": "three.module.js",
+      "target": "./vendor/three-0.185.1/three.module.js",
+      "files": [
+        {
+          "file": "three.module.js",
+          "bytes": 650153,
+          "sha256": "bbf5ed13fe4373f5"
+        },
+        {
+          "file": "three.core.js",
+          "bytes": 1443056,
+          "sha256": "3718df126d69c125"
+        }
+      ]
+    },
+    {
+      "specifier": "@dimforge/rapier3d-compat",
+      "pkg": "@dimforge/rapier3d-compat",
+      "version": "0.19.3",
+      "dir": "dimforge-rapier3d-compat-0.19.3",
+      "entry": "rapier.mjs",
+      "target": "./vendor/dimforge-rapier3d-compat-0.19.3/rapier.mjs",
+      "files": [
+        {
+          "file": "rapier.mjs",
+          "bytes": 2238719,
+          "sha256": "bce2c762b440101e"
+        }
+      ]
+    }
+  ]
+}

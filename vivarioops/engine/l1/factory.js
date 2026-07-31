@@ -18,10 +18,47 @@ export const SLICE_LIMITS = {
   maxConnPerNode: 3,        // full: 4
   allowGrafting: false,     // full: true (30% of reproductions)
   allowRadialSymmetry: false,
-  jointTypes: ['revolute', 'twist', 'spherical'],   // full: all 7
+  /**
+   * SPHERICAL DROPPED AT B2 §3.1 / §12. Was `['revolute', 'twist', 'spherical']`.
+   *
+   * The design offered three options and recommended this one on the strength of
+   * a single measurement: `corr(spherical fraction, net speed) = 0.60` on the
+   * solver path against 0.15 on the PD path, because Rapier exposes motors on
+   * revolute-family joints only and spherical joints therefore keep the PD relay.
+   * Any selection run on the solver path would optimise "which joints escaped
+   * the fix" rather than which creature swims.
+   *
+   * CHECKED AGAINST THE PINNED BINDING, and the case is stronger than that.
+   * `SphericalImpulseJoint` in @dimforge/rapier3d-compat 0.19.3 carries NO motor
+   * surface at all — not a missing `setMotorMaxForce`, but no
+   * `configureMotorPosition`, no `configureMotorModel`, nothing. So option 3,
+   * "upgrade the binding", is not a version bump; there is no motorised
+   * spherical joint to bind to.
+   *
+   * AND IT HAS NO `setLimits` EITHER. physics.js:535 skips spherical when
+   * applying angle limits, which the slice set made unavoidable, so every
+   * spherical joint has carried three `angleLimits` genes that do nothing. A gene
+   * that cannot be expressed is worse than an absent one: mutation spends draws
+   * on it and selection cannot see the result.
+   *
+   * AND IT IS THE KNOWN DIVERGENCE. physics.js:944 records a two-body spherical
+   * joint winding from 4 rad/s to 1e21 and taking the whole simulation
+   * non-finite, stable at MOTOR_SCALE 0.5 and divergent at 2.0 — the signature
+   * of a pump. MOTOR_SCALE 2.0 is B3's own tuning candidate.
+   *
+   * WHAT IT COSTS: mean DOF per joint 5.0 -> 3.0, and the 3-DOF joint is gone
+   * from the slice. Measured reliability holds at r = 0.77. That is a real loss
+   * and it is smaller than selecting on an artefact for a whole chantier.
+   *
+   * RESTORED AT STEP F, when either a binding with a motorised spherical joint
+   * exists or the bounded-PD calibration has been done. One array entry, and
+   * `JOINT_TYPES` in genome.js is untouched — the SCHEMA still has all seven, so
+   * this is a config change and never a migration (L1-9 asserts exactly that).
+   */
+  jointTypes: ['revolute', 'twist'],   // full: all 7. spherical dropped at B2 §3.1.
 
   /**
-   * AMBIGUITY, REPORTED — not resolved silently.
+   * AMBIGUITY RESOLVED AT B2 §2.2 — reading (a). Was 1 from B1 to session 10.
    *
    * A2 writes `allowRadialSymmetry: false, // bilateral and none only`, but A5
    * correction 3 drops the global symmetry gene entirely and replaces it with
@@ -31,17 +68,125 @@ export const SLICE_LIMITS = {
    * So "radial symmetry" either (a) names the dropped global gene, making the
    * constraint vacuous, or (b) means at most one reflection axis, since two axes
    * give a four-fold cross and three give eight-fold — neither of which is
-   * bilateral.
+   * bilateral. Reading (b) was implemented because it was the one that
+   * constrained anything, and the decision was parked for B4 "when bodies are
+   * visible", then deferred again to B5.
    *
-   * Reading (b) is implemented because it is the one that constrains anything and
-   * it matches "bounded asymmetry" in 00 §7 B. It is ONE NUMBER: set to 3 for
-   * reading (a). Decide at B4 when bodies are visible.
+   * DECIDED: reading (a), the FULL_LIMITS value. Bodies are visible now and the
+   * question turned out not to be about locomotion at all. B3 deferred this on
+   * the grounds that "every locomotion figure gets worse at 2 and 3", which is
+   * true and is not the point — B2 §0.2 measured the whole authored library
+   * collapsing into a band narrower than noise on the PD path, so the locomotion
+   * figures this was weighed against were not measuring design. What it IS worth
+   * is the single largest lever on variety in the project: effective body-plan
+   * variety 16 -> 118 with nodeCount below, and -> 155+ with the clamp.
+   *
+   * Radial symmetry is now REACHABLE, which is what "bounded asymmetry" in
+   * 00 §7 B should have meant: bounded by the geometry budget (§2.4), not by a
+   * constant. The first radial creature in the project — `jelly`, a bell with a
+   * four-fold tentacle crown — is not expressible at 1.
    */
-  maxReflectionAxes: 1,
+  maxReflectionAxes: 3,
 
-  /** 10 §A17.1: nodeCount = randInt(2,5). maxNodes 8 leaves headroom for mutation. */
-  nodeCount: [2, 5],
-  extraEdges: [0, 3],
+  /**
+   * 10 §A17.1: nodeCount = randInt(2,5). WIDENED at B2 §2.2 to [3, 7] — the
+   * conservative half of FULL_LIMITS' [2, 12]. maxNodes 8 still leaves headroom
+   * for mutation.
+   *
+   * The floor moving 2 -> 3 is the half that matters. At 2 the factory produces
+   * a two-box hinge 28% of the time, which is the single most common creature in
+   * the game and is not a creature.
+   */
+  nodeCount: [3, 7],
+
+  /**
+   * WIDENED to [1, 5] at B2 §2.2, but NOT for the reason §2.2 gives.
+   *
+   * §2.2 offers it as "worth 2.2x on its own; take it if 2.2 leaves headroom",
+   * i.e. as a variety lever. As a variety lever it is not needed — the §2.4 gate
+   * of 155 is met without it. It is taken because of what the FLOOR does to the
+   * mutation operators, which is a §2.1 question and is not mentioned anywhere.
+   *
+   * MEASURED. At a floor of 0 a large share of genomes are pure spanning trees,
+   * and in a spanning tree EVERY edge is load-bearing: `removeConnection`
+   * refuses, because no single removal leaves the graph connected. So the
+   * connection branch degenerates into add-only. Measured over 3000 mutations,
+   * `removeConnection` applied 212 times against `addConnection`'s 361, and the
+   * pair carried +0.043 bodies/mutation of upward drift on its own — four times
+   * the whole §2.1 gate, from an operator that was simply unable to run.
+   *
+   * At a floor of 1 there is always one redundant edge to give back, the pair
+   * closes to -0.068, and the drift becomes something the node operators can
+   * balance. Guaranteeing the inverse operator is APPLICABLE is worth more than
+   * tuning the operator that is.
+   */
+  extraEdges: [1, 5],
+
+  /**
+   * REMOVAL TOURNAMENT SIZE — B2 §2.1 Fix B, and a deliberate weakening of it.
+   *
+   * §2.1 says "among removals that keep the graph connected, prefer the one
+   * costing fewest bodies. One sort." Implemented literally — a full argmin over
+   * every legal candidate — it OVERSHOOTS at the widened limits and inverts the
+   * ratchet: drift +0.110 against a target of zero, and lineages climb towards
+   * the body cap. That is the failure mode §2.1 warns about for retry loops,
+   * arriving through the other operator.
+   *
+   * The mechanism is the geometry budget (§2.4). At a 74% discard rate a full
+   * argmin does not find the CHEAPEST removal, it finds a FREE one: a node whose
+   * limbs were being rejected anyway, or whose removal unblocks limbs that then
+   * survive. Measured, the full argmin grew the body 18% of the time it was
+   * asked to shrink it, and its mean cost collapsed from 1.25 bodies to 0.05. An
+   * operator that costs nothing is not an inverse of addNode, it is a no-op with
+   * a name, and the argmin gets stronger as the candidate pool widens — so the
+   * literal Fix B would need re-tuning at every future change to the limits.
+   *
+   * A tournament of FIXED size does not scale with the pool, which is the whole
+   * point. 2 is the smallest value that is not "no preference at all", and it is
+   * where the drift crosses zero: measured over 30 000 mutations, k=1 gives
+   * -0.139, k=2 gives +0.012, k=infinity gives +0.062.
+   *
+   * READ THE ERROR BAR BEFORE RE-TUNING THIS. Per-mutation delta has sd ~1.6
+   * bodies, so 2 s.e. at n = 30 000 is +-0.026 — larger than the gate itself.
+   * The k=2 figure is not distinguishable from zero and neither is k=1's at
+   * n = 3000, which is how the first pass of this work read k=1 as passing.
+   */
+  removalTournament: 2,
+
+  /**
+   * BACK-FACE EXCLUSION — B2 §2.4. A connection may not select parentFace 2.
+   *
+   * `morphogen.js FACE_NORMAL[2]` is -Z, and every child attaches by its OWN -Z
+   * face (placeChild, "fixed convention, never revisited"). So a child on face 2
+   * is aimed straight back down the axis its parent arrived along, into the
+   * grandparent — and grandparent collision is the largest single rejection
+   * class in the corpus at 34%. Excluding one of six faces is worth +3 effective
+   * variety on its own and rather more in combination with the clamp below.
+   *
+   * This is NOT a slice restriction to be lifted at step F: the geometry is the
+   * same at any limits, which is why FULL_LIMITS carries it too.
+   */
+  allowedFaces: [0, 1, 3, 4, 5],
+
+  /**
+   * REFLECTION CLAMP — B2 §2.2. A connection with `reflectX` must be offset from
+   * the face centre by at least this much in `position[0]`; same for `reflectY`
+   * and `position[1]`.
+   *
+   * `morphogen.js placeChild` builds the anchor as
+   *     faceNormal*pHalf + faceRight*pHalf*position[0] + faceUp*pHalf*position[1]
+   * and reflectX mirrors by NEGATING faceRight. The negation reaches the anchor
+   * only through the term it multiplies, so a limb at position[0] === 0 IS ITS
+   * OWN MIRROR: both variants land on the same point, one is destroyed by the
+   * overlap test, and the connection spent its reflection flag on nothing.
+   * Measured before the clamp: 41% of reflected connections sat inside the zone.
+   *
+   * THE MORPHOGEN IS CORRECT — that is what a reflection about a plane through
+   * the face centre means — so the fix belongs here and in mutate.js, and
+   * morphogen.js is not touched. `reflectZ` negates faceNormal, which no position
+   * component scales, so it has no degenerate zone and no clamp.
+   */
+  reflectMinOffset: 0.6,
 
   /**
    * DENSITY IS NOT A VARIABLE IN THE SLICE. `RANGE.density` stays [0.15, 1.8] —
@@ -86,6 +231,46 @@ export const SLICE_LIMITS = {
 };
 
 const pick = (rng, arr) => arr[rng.int(arr.length)];
+
+/** All six, for callers that pass limits without the field. See `allowedFaces`. */
+export const ALL_FACES = [0, 1, 2, 3, 4, 5];
+
+/**
+ * Push a face coordinate out of the degenerate zone, IN PLACE, for whichever
+ * axes carry a reflection. See SLICE_LIMITS.reflectMinOffset for why.
+ *
+ * Shared with mutate.js rather than duplicated, because the two generators
+ * drifting apart on this rule is exactly how a constraint decays over
+ * generations: the factory would respect it and mutation would walk out of it.
+ *
+ * The remap is a MONOTONE SIGN-PRESERVING RESCALE of the degenerate interval
+ * (-m, m) onto [+-m, +-1], not a redraw and not a hard clamp. Three reasons.
+ *
+ *   - It consumes no rng draw, so the stream is not shifted a second time on top
+ *     of the shift nodeCount already causes.
+ *   - It is IDEMPOTENT: a value already outside the zone is returned untouched.
+ *     This is load-bearing, not tidiness. `mutateRandomConnection` re-applies the
+ *     clamp after every field it touches, so a rescale that moved legal values
+ *     too would ratchet `position` towards +-1 a little on every generation, and
+ *     the drift would be invisible until lineages were all limbs-at-the-corners.
+ *   - It is order-preserving, so `jitter` still moves the value in the direction
+ *     it moved before and a mutation cannot be inverted by the clamp. A hard
+ *     clamp to exactly +-m would instead pile every squeezed draw on one point.
+ *
+ * A value of exactly 0 has no sign and is sent positive.
+ */
+export function clampReflection(c, limits = SLICE_LIMITS) {
+  const m = limits.reflectMinOffset ?? 0;
+  if (m <= 0) return c;
+  const push = (p) => {
+    const a = Math.abs(p);
+    if (a >= m) return p;                       // already legal — untouched
+    return qClamp((p < 0 ? -1 : 1) * (m + (1 - m) * (a / m)), RANGE.position);
+  };
+  if (c.reflectX) c.position[0] = push(c.position[0]);
+  if (c.reflectY) c.position[1] = push(c.position[1]);
+  return c;
+}
 // qClamp, not q: q rounds to the NEAREST micron and can land a draw just
 // outside the range it came from. See genome.js. Never observed here — it needs
 // a draw within 5e-7 of a bound — but it is the same defect that made every
@@ -124,9 +309,13 @@ function randomConnection(rng, limits, parentNodeId, childNodeId) {
   const pool = axes.slice();
   for (let i = 0; i < n; i++) flags[pool.splice(rng.int(pool.length), 1)[0]] = true;
 
-  return makeConnection(makeId(rng, 'c'), {
+  const faces = limits.allowedFaces ?? ALL_FACES;
+  return clampReflection(makeConnection(makeId(rng, 'c'), {
     parentNodeId, childNodeId,
-    parentFace: rng.int(6),
+    // Back-face exclusion, §2.4. Drawn from the allowed set rather than drawn
+    // freely and rejected, so the distribution over the remaining faces stays
+    // uniform and the draw count does not depend on the outcome.
+    parentFace: pick(rng, faces),
     position: [uniform(rng, RANGE.position), uniform(rng, RANGE.position)],
     // NARROW, +/- pi/4. 10 §A5 correction 4: this single constant does more for
     // plausibility than any viability filter.
@@ -134,7 +323,7 @@ function randomConnection(rng, limits, parentNodeId, childNodeId) {
     scale: [uniform(rng, RANGE.scale), uniform(rng, RANGE.scale), uniform(rng, RANGE.scale)],
     ...flags,
     terminalOnly: rng.int(2) === 0,
-  });
+  }), limits);
 }
 
 /**
@@ -215,10 +404,34 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
     },
     controller: {
       omega: uniform(rng, RANGE.omega),
-      // A3: present and DORMANT until C1 wires the sensors. Present from B1 so
-      // that C1 is a behaviour change, not a schema migration.
-      preyGain: 0,
-      threatGain: 0,
+      // ── THE SENSOR GAINS, LIVE ─────────────────────────────────────────────
+      //
+      // These read `preyGain: 0, threatGain: 0` from B1 to C1, under the comment
+      // "present and DORMANT until C1 wires the sensors". C1 wired them —
+      // `controller.js sensorTurnBias` reads both and `duel.js senseOpponent`
+      // calls it — and the constant was never removed. Combined with `mutate.js`
+      // copying both fields straight through with no operator, the value was not
+      // merely initialised to zero, it was UNREACHABLE: no mutation could move
+      // it and no breeding could recombine it, because nothing ever differed.
+      //
+      // Measured consequence: over any random corpus, `sensorTurnBias` returned
+      // clamp(0*bearing + 0*bearing) for every creature, so the sensor's
+      // contribution to a seek trial was identically 0.000 — not close to zero,
+      // exactly zero. No creature with a sensor had ever been born, so no
+      // selection could ever have found one. Every steering result in sessions
+      // 5-10 was measured on a population with the channel switched off.
+      //
+      // 11 §10 and the comment on RANGE.preyGain both say the SIGN IS EVOLVED,
+      // not declared, so the draw is over the full [-1, 1]: a creature that
+      // flees prey and chases threats is legal, and will simply lose.
+      //
+      // NOTE ON THE RNG STREAM. Two draws inserted here shift every subsequent
+      // draw, so `social` genes now differ for a given seed. Morphology, joints
+      // and the rest of the controller are drawn earlier and are untouched — the
+      // physical creature a seed produces is bit-identical. Social genes are L3
+      // and nothing measures them yet.
+      preyGain: uniform(rng, RANGE.preyGain),
+      threatGain: uniform(rng, RANGE.threatGain),
       jointGenes,
     },
     social: {
@@ -232,7 +445,14 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
   };
 }
 
-/** All seven joint types, full recursion, four connections per node. Step F. */
+/**
+ * All seven joint types, full recursion, four connections per node. Step F.
+ *
+ * `allowedFaces` and `reflectMinOffset` are INHERITED from SLICE_LIMITS and are
+ * deliberately not loosened. Both are geometry, not slice policy: face 2 aims a
+ * child at its grandparent and a reflection at the face centre is its own mirror
+ * at any limits. Widening the slice does not make either of those a good idea.
+ */
 export const FULL_LIMITS = {
   ...SLICE_LIMITS,
   maxNodes: 24, maxRecursion: 6, maxConnPerNode: 4,

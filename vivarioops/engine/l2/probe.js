@@ -59,17 +59,27 @@ export function makeTrace(capacity) {
     com:     new Float32Array(capacity * 3),
     vel:     new Float32Array(capacity * 3),
     heading: new Float32Array(capacity),      // yaw, radians, NOT unwrapped
+    // B2 §5 — THE ROOT'S FULL ORIENTATION, not just its yaw. `heading` is a
+    // horizontal angle and cannot express the plane a creature that bends about
+    // its limbs' local X actually turns in. turn3d needs the whole quaternion to
+    // put its measured axis into the BODY frame, where it is a property of the
+    // creature rather than of the orientation it happened to start in.
+    rootQ:   new Float32Array(capacity * 4),
     work:    new Float32Array(capacity),      // cumulative J
+    path:    new Float32Array(capacity),      // cumulative CoM path length, m
     contacts: new Int32Array(capacity),       // encoded contact events
     flags:   new Uint8Array(capacity),
   };
 }
 
 /** Samples a running simulation into the next trace slot. Allocates nothing. */
-export function sample(trace, sim, flags = FLAG.OK, contacts = 0) {
+export function sample(trace, sim, flags = FLAG.OK, contacts = 0, pathAccum = 0) {
   const i = trace.n;
   if (i >= trace.capacity) return false;      // fixed size is fixed
   const c = sim.centreOfMass();
+  const rq = sim.bodies[0].rotation();
+  trace.rootQ[i * 4] = rq.x; trace.rootQ[i * 4 + 1] = rq.y;
+  trace.rootQ[i * 4 + 2] = rq.z; trace.rootQ[i * 4 + 3] = rq.w;
 
   // Mass-weighted mean velocity IS the centre of mass's velocity. Reading one
   // body's would make every measurement depend on which body morphogenesis
@@ -86,6 +96,7 @@ export function sample(trace, sim, flags = FLAG.OK, contacts = 0) {
   trace.vel[i * 3] = vx; trace.vel[i * 3 + 1] = vy; trace.vel[i * 3 + 2] = vz;
   trace.heading[i] = headingOf(sim);
   trace.work[i] = sim.work;
+  trace.path[i] = pathAccum;
   trace.contacts[i] = contacts;
   trace.flags[i] = flags;
   trace.n++;
@@ -190,6 +201,13 @@ export function runSolo(RAPIER, args) {
 
   const sim = createSimulation(RAPIER, plan, genome, w, {
     bounded: args.bounded ?? true,
+    // B2 §4.2 — THE TORUS REACHES THE PROBES. Method, session 10 and again in
+    // B2 §10: "measure in the world the player is in". Every probe in this tree
+    // has run with `bounded: false` while the game runs bounded, and the
+    // difference only appears after two minutes — the boundary is absorbing, so
+    // a long run in a walled tank measures the wall. `wrap` is the third option
+    // and the only one that is both finite and boundary-free.
+    wrap: args.wrap ?? false,
     effort: 0,
     turnBias: 0,
   });
@@ -212,19 +230,40 @@ export function runSolo(RAPIER, args) {
   const every = Math.round((1 / SAMPLE_HZ) / FIXED_DT);    // 6 steps at 120 Hz / 20 Hz
   let reason = null;
 
-  sample(trace, sim);
+  // ── CoM path length, accumulated EVERY STEP ───────────────────────────────
+  //
+  // NOT from the trace. SAMPLE_HZ is 20 and the physics runs at 120, so a path
+  // integrated from trace samples misses everything above the 10 Hz Nyquist
+  // limit — and the centre of mass of these creatures oscillates at 12-22 Hz,
+  // right through it. `straightness` computed that way ALIASES THE WOBBLE AWAY
+  // and reports a thrashing creature as travelling almost straight.
+  //
+  // Accumulating here costs one extra centreOfMass() per step and makes the
+  // number mean what it says. Everything downstream — efficiency, comSpeed,
+  // and the selection screen — depends on this being right.
+  let pathAccum = 0;
+  let prevCom = sim.centreOfMass();
+
+  sample(trace, sim, FLAG.OK, 0, pathAccum);
   for (let s = 1; s <= steps; s++) {
     sim.step();
+    {
+      const c = sim.centreOfMass();
+      if (Number.isFinite(c[0] + c[1] + c[2])) {
+        pathAccum += Math.hypot(c[0] - prevCom[0], c[1] - prevCom[1], c[2] - prevCom[2]);
+        prevCom = c;
+      }
+    }
     const bad = instability(sim);
     if (bad) {
       // 11 §11: the probe is ABORTED and the record marked invalid. The trace is
       // kept as far as it got, because a trace that stops is evidence and a
       // trace that is discarded is not.
-      sample(trace, sim, bad | FLAG.TERMINATED);
+      sample(trace, sim, bad | FLAG.TERMINATED, 0, pathAccum);
       reason = INVALID.UNSTABLE;
       break;
     }
-    if (s % every === 0) sample(trace, sim);
+    if (s % every === 0) sample(trace, sim, FLAG.OK, 0, pathAccum);
   }
 
   sim.free();
@@ -301,15 +340,38 @@ export function meanPower(trace, from, to) {
 }
 
 /** Net displacement / path length. 1 is a straight line, 0 is a closed loop. */
+export function pathLength(trace, from, to) {
+  if (to - from < 2) return 0;
+  return Math.max(0, trace.path[to - 1] - trace.path[from]);
+}
+
+/**
+ * Mean speed of the centre of mass ALONG ITS PATH, m/s — how fast the creature's
+ * body is actually moving, as distinct from how fast it is getting anywhere.
+ * The gap between this and net displacement over the same window IS the thrash.
+ */
+export function comSpeed(trace, from, to) {
+  if (to - from < 2) return 0;
+  const dt = trace.t[to - 1] - trace.t[from];
+  return dt > 0 ? pathLength(trace, from, to) / dt : 0;
+}
+
+/** Net displacement / duration, m/s — the speed a creature actually travels. */
+export function netSpeed(trace, from, to, horizontal = false) {
+  if (to - from < 2) return 0;
+  const dt = trace.t[to - 1] - trace.t[from];
+  if (dt <= 0) return 0;
+  const ax = trace.com[(to - 1) * 3] - trace.com[from * 3];
+  const ay = trace.com[(to - 1) * 3 + 1] - trace.com[from * 3 + 1];
+  const az = trace.com[(to - 1) * 3 + 2] - trace.com[from * 3 + 2];
+  return (horizontal ? Math.hypot(ax, az) : Math.hypot(ax, ay, az)) / dt;
+}
+
 export function straightness(trace, from, to, horizontal = true) {
   if (to - from < 2) return 0;
-  let path = 0;
-  for (let i = from + 1; i < to; i++) {
-    const dx = trace.com[i * 3] - trace.com[(i - 1) * 3];
-    const dy = trace.com[i * 3 + 1] - trace.com[(i - 1) * 3 + 1];
-    const dz = trace.com[i * 3 + 2] - trace.com[(i - 1) * 3 + 2];
-    path += horizontal ? Math.hypot(dx, dz) : Math.hypot(dx, dy, dz);
-  }
+  // TRUE path, accumulated every physics step — see runSolo. Integrating from
+  // the 20 Hz trace samples under-counts it badly and inflates this number.
+  const path = pathLength(trace, from, to);
   const ax = trace.com[(to - 1) * 3] - trace.com[from * 3];
   const ay = trace.com[(to - 1) * 3 + 1] - trace.com[from * 3 + 1];
   const az = trace.com[(to - 1) * 3 + 2] - trace.com[from * 3 + 2];
@@ -353,4 +415,67 @@ export function meanTurnRate(trace, from, to, scratch) {
   unwrap(trace.heading, trace.n, u);
   const dt = trace.t[to - 1] - trace.t[from];
   return dt > 0 ? (u[to - 1] - u[from]) / dt : 0;
+}
+
+/**
+ * TURN OF THE VELOCITY DIRECTION, IN 3-D, AND THE AXIS IT TURNS ABOUT.
+ *
+ * `headingOf` is a compass bearing — `atan2(f[0], f[2])`, deliberately
+ * horizontal, and its comment defends that choice correctly for a compass. But
+ * `jointAxisAtSpawn` gives a revolute joint the limb's local X, so a Z-axial
+ * chain bends in the Y-Z plane: it PITCHES. Measured over a random corpus, such
+ * a creature's yaw response to `turnBias` is essentially zero (0.0, -0.2, 0.2,
+ * 0.9, -1.2 deg/s across a full bias sweep) while its total turn rate rises from
+ * 4.3 to 41.4 deg/s. **`turnRate` reads near-zero for exactly the bodies that
+ * turn best**, and N21 clamps every L3 steering decision by that number.
+ *
+ * This reads the direction of travel from the `com` channel instead of the root
+ * body's attitude, and reports the turn in whatever plane it happens in:
+ *
+ *   rate  — mean angle between successive direction vectors, rad/s
+ *   axis  — mean rotation axis, normalised; the plane the creature turns in is
+ *           the one perpendicular to it
+ *
+ * `stride` samples every k-th point because the CoM oscillates at 12-22 Hz with
+ * the stroke (§4 of the handover) and consecutive samples are dominated by that
+ * wobble rather than by the turn.
+ */
+export function turn3d(trace, from, to, stride = 12) {
+  const dirs = [];
+  for (let i = from + stride; i < to; i += stride) {
+    const a = (i - stride) * 3, b = i * 3;
+    const d = [trace.com[b] - trace.com[a], trace.com[b + 1] - trace.com[a + 1], trace.com[b + 2] - trace.com[a + 2]];
+    const n = Math.hypot(d[0], d[1], d[2]);
+    if (n > 1e-6) dirs.push([d[0] / n, d[1] / n, d[2] / n]);
+  }
+  if (dirs.length < 2) return { rate: 0, axis: [0, 0, 0], localAxis: [0, 0, 0] };
+  let total = 0, ax = [0, 0, 0], lax = [0, 0, 0];
+  for (let i = 1; i < dirs.length; i++) {
+    const p = dirs[i - 1], q = dirs[i];
+    const c = [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+    total += Math.asin(Math.min(1, Math.hypot(c[0], c[1], c[2])));
+    ax[0] += c[0]; ax[1] += c[1]; ax[2] += c[2];
+
+    // AND THE SAME INCREMENT IN THE BODY FRAME — B2 §5. The world-frame axis is
+    // an accident of how the creature was dropped in; the body-frame axis is the
+    // plane it BENDS in, which is a property of its joints and is the same every
+    // time it is measured. Accumulating in the body frame rather than rotating
+    // the world-frame average at the end matters when the creature's orientation
+    // drifts through the run: the average of rotated vectors is not the rotation
+    // of the average.
+    const k = (from + i * stride) * 4;
+    const qi = [trace.rootQ[k], trace.rootQ[k + 1], trace.rootQ[k + 2], trace.rootQ[k + 3]];
+    const inv = [-qi[0], -qi[1], -qi[2], qi[3]];
+    const l = qrot(inv, c);
+    lax[0] += l[0]; lax[1] += l[1]; lax[2] += l[2];
+  }
+  const dt = (trace.t[Math.min(to - 1, trace.n - 1)] - trace.t[from]) || 1;
+  const an = Math.hypot(ax[0], ax[1], ax[2]);
+  const ln = Math.hypot(lax[0], lax[1], lax[2]);
+  return {
+    rate: total / dt,
+    axis: an > 1e-9 ? [ax[0] / an, ax[1] / an, ax[2] / an] : [0, 0, 0],
+    /** The same axis in the ROOT'S LOCAL FRAME — the creature's steering plane normal. */
+    localAxis: ln > 1e-9 ? [lax[0] / ln, lax[1] / ln, lax[2] / ln] : [0, 0, 0],
+  };
 }

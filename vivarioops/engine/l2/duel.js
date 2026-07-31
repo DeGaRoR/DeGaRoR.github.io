@@ -21,6 +21,7 @@ import {
 } from '../../contracts/matchup.js';
 import { createArena, createSimulation, fitsTank, FIXED_DT, WALL } from '../l1/physics.js';
 import { sensorTurnBias } from '../l1/controller.js';
+import { qrot } from '../l1/vecmath.js';
 import { SETTLE_SECONDS, UNSTABLE_SPEED, INVALID } from './probe.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,14 +187,68 @@ export function duelSetup({ aHash, bHash, reachA, reachB, repeat, world, worldHa
  * horizontal: a bearing is a compass bearing, and an opponent directly above is
  * not to the left or the right.
  */
-export function bearingTo(sim, target) {
+export function bearingTo(sim, target, turnPlane = null) {
+  const com = sim.centreOfMass();
+  const q = sim.bodies[0].rotation();
+  const qa = [q.x, q.y, q.z, q.w];
+
+  // ── B2 §5 — MEASURED IN THE PLANE THE CREATURE ACTUALLY TURNS IN ───────────
+  //
+  // The old body of this function projected onto the world's XZ plane and took
+  // atan2(fx, fz): a COMPASS bearing. That is correct for a creature that yaws
+  // and wrong for one that bends about its limbs' local X, which is most of this
+  // slice — a chain of revolute joints turns in its own YZ plane, and a target
+  // directly "above" it is exactly where it CAN steer. So the sensor measured
+  // one plane while turnBias actuated another, and the loop was not poorly
+  // closed but OPEN, by construction, in the coordinate convention. Creatures
+  // homed only inside a +-30 degree forward cone because that is the cone where
+  // the two planes happen to agree.
+  //
+  // `turnPlane` is the root-local normal S3 measures per creature. Rotated into
+  // the world by the CURRENT root orientation, it is the normal of the plane the
+  // creature can steer in right now. Passing null keeps the old horizontal
+  // behaviour, which is what a creature with no measurable plane deserves and
+  // what every caller that has not been updated still gets.
+  const n = turnPlane
+    ? qrot(qa, turnPlane)
+    : [0, 1, 0];
+  const nn = Math.hypot(n[0], n[1], n[2]);
+  const up = nn > 1e-9 ? [n[0] / nn, n[1] / nn, n[2] / nn] : [0, 1, 0];
+
+  // Forward is the root's local +Z, projected into the steering plane.
+  const fwd3 = qrot(qa, [0, 0, 1]);
+  const fdot = fwd3[0] * up[0] + fwd3[1] * up[1] + fwd3[2] * up[2];
+  const f = [fwd3[0] - fdot * up[0], fwd3[1] - fdot * up[1], fwd3[2] - fdot * up[2]];
+  const fn = Math.hypot(f[0], f[1], f[2]);
+  if (fn < 1e-9) return 0;                       // nose along the plane normal
+  const fu = [f[0] / fn, f[1] / fn, f[2] / fn];
+
+  // The target, same projection.
+  const d3 = [target[0] - com[0], target[1] - com[1], target[2] - com[2]];
+  const ddot = d3[0] * up[0] + d3[1] * up[1] + d3[2] * up[2];
+  const d = [d3[0] - ddot * up[0], d3[1] - ddot * up[1], d3[2] - ddot * up[2]];
+  if (d[0] * d[0] + d[1] * d[1] + d[2] * d[2] < 1e-12) return 0;
+
+  // Signed angle from forward to target about the plane normal. atan2 of the
+  // (cross . normal, dot) pair — the same construction the horizontal version
+  // used, with the world's up replaced by the creature's.
+  const cx = fu[1] * d[2] - fu[2] * d[1];
+  const cy = fu[2] * d[0] - fu[0] * d[2];
+  const cz = fu[0] * d[1] - fu[1] * d[0];
+  const sin = cx * up[0] + cy * up[1] + cz * up[2];
+  const cos = fu[0] * d[0] + fu[1] * d[1] + fu[2] * d[2];
+  const rel = Math.atan2(sin, cos);
+  return Math.max(-1, Math.min(1, rel / Math.PI));
+}
+
+/** @deprecated pre-B2 horizontal bearing, kept only for what still reads it. */
+function _legacyBearing(sim, target) {
   const com = sim.centreOfMass();
   const dx = target[0] - com[0];
   const dz = target[2] - com[2];
   if (dx * dx + dz * dz < 1e-12) return 0;
 
   const q = sim.bodies[0].rotation();
-  // Forward is the root's local +Z; heading is its horizontal angle.
   const fx = 2 * (q.x * q.z + q.w * q.y);
   const fz = 1 - 2 * (q.x * q.x + q.y * q.y);
   const heading = Math.atan2(fx, fz);
@@ -214,8 +269,11 @@ export function bearingTo(sim, target) {
  * reversed flees. "A creature that flees prey and chases threats is possible and
  * will simply lose" (11 §10).
  */
-export function senseOpponent(sim, opponentCom) {
-  const bearing = bearingTo(sim, opponentCom);
+export function senseOpponent(sim, opponentCom, turnPlane = null) {
+  // B2 §5: the bearing is now measured in the creature's OWN steering plane when
+  // one is known. Callers that hold a compiled record pass record.turnPlaneXYZ;
+  // callers that do not get the horizontal plane, which is what they got before.
+  const bearing = bearingTo(sim, opponentCom, turnPlane);
   return sensorTurnBias(sim.genome, bearing, bearing);
 }
 

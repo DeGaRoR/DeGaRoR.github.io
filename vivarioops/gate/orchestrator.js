@@ -8,9 +8,12 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MANIFEST, ALL_SUITES, verdict } from './manifest.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
+// doubles the drive into `D:\D:\…`.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 const LOADERS = {
   contracts:      async () => (await import('./contracts.js')).runContractGate(),

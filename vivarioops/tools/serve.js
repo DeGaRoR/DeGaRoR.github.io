@@ -19,8 +19,11 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
+// doubles the drive into `D:\D:\…`, so every request 404s.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PORT = Number(process.env.PORT || 8080);
 
 // .mjs and .wasm are the two that break silently when a server guesses wrong:

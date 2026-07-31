@@ -24,8 +24,11 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
+// doubles the drive into `D:\D:\…`.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const p = (...a) => join(ROOT, ...a);
 
 /**
@@ -139,7 +142,10 @@ export function expectedImportMap(manifest) {
   return { imports };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run-as-main check that holds on every OS: `file://${argv[1]}` never equals
+// import.meta.url on Windows (backslashes vs the URL's forward slashes), so the
+// old guard silently skipped runVendor() and `npm run vendor` did nothing.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const m = runVendor();
   console.log(`vendor/VENDOR.json  ${m.packages.length} package(s)`);
   console.log(JSON.stringify(expectedImportMap(m), null, 2));
