@@ -1,5 +1,17 @@
 # RECYCLE — Changelog
 
+## v1.9.0 — Burden depth: rated throughput is not clean throughput (2026-08-01)
+The lever that turns *one efficient line* into a *plant*. Until now a sorter's accuracy was completely independent of how hard it was driven, so there was never a reason to build a second train — only bigger numbers on the first.
+
+- **A separator's rated t/h is its MECHANICAL throughput, not its clean-sorting throughput.** Drive it hard and material rides deep instead of spread: targets get buried and missed, and neighbours are dragged into the ejected stream. Deep burden now costs **selectivity**, not just speed — the one rule that makes a single line physically unable to run clean at high tonnage.
+- **Burden = utilisation × queue, and both terms are required.** `did/rated` saturates at 1 by construction (the budget *is* the rated allowance), so "perfectly matched to its feed" and "drowning" look identical on throughput alone; a queue on its own only means the unit is blocked downstream, not that material is riding deep past the sensor. A unit that is busy with no queue is unpenalised; one that cannot keep up backs its buffer up and pays.
+- **Measured, not guessed.** The reference plant's worst sorter runs at 0.65 utilisation with a near-empty buffer (burden ≈ 0.01), so the knee sits at 0.35 on the *product* — comfortably clear. Verified end-to-end: **op net €9,030/day and 31.9% recycling, identical to the pre-burden baseline, with burden k = 0 on every sorter.** An existing working plant is untouched.
+- **Driven by an engine-owned EMA, deliberately NOT `nodeRate()`** — that rolling ring is also sampled by the inspector, so keying physics to it would have made the simulation depend on whether anyone was looking at it (a determinism break, NNG-5).
+- **The numbers**, same 60 t of the same mix through one NIR, varying only the delivery window: fed inside its rating **88.7% PET / 0.10% PVC / 20.7 t captured**; drowned at ~5× rating **80.6% PET / 0.89% PVC / 16.8 t**. That 0.89% is above PET's 0.5% PVC cap, so a drowned NIR now **fails spec outright** — and spreading the same tonnage over more sorting capacity recovers it to 89.3%.
+- **Legibility**: the inspector shows `Burden — running deep −30% capture` (and a "near capacity" amber warning before the knee), with an explanation and the fix in the info panel. Without it the purity loss would be invisible and read as a bug. The OVERLOAD badge now also *means* something: it is the same condition that is costing you purity.
+- `BURDEN_LOSS = 0` disables the whole mechanic; knee, smoothing, loss and carry-over are each a single named constant.
+- **Verified**: 472 QC checks / 55 suites, render smoke, i18n (262 literals) and the balance harness green. The `site-vfilm` suite was reworked — it characterised the unit by dumping 30 t into a 0.6 t buffer, i.e. a unit drowning at 50× its rating, which burden correctly collapses; it now drip-feeds for the nominal spec and asserts the drowned case separately. Render smoke now inspects a *burdened* sorter, which caught a real TDZ crash in the new inspector rows that an idle-plant smoke test could never have reached.
+
 ## v1.8.1 — Save-migration hardening, diversion metric fix, product reporting (2026-08-01)
 Three low-risk cleanups taken deliberately *before* any further gameplay work, since the first one removes the biggest landmine standing between the game and a deeper material tree.
 

@@ -66,6 +66,31 @@ const PICK_RATE=1.2,PICK_EFF=0.85,PICK_FALSE=0.02;
 const STARVE_T=1.5; // sim-seconds of CONTINUOUS starvation before STARVED shows (hysteresis: stops the flicker during normal flow)
 const JAM_T=1.2;    // sim-seconds of CONTINUOUS choke (material waiting, nothing moved) before JAMMED shows — a saturated-but-flowing belt is not a jam
 const OVER_T=1.2;   // sim-seconds of CONTINUOUS buffer-saturation before OVERLOAD shows (hysteresis: a transient tick-quantized spike is not an overload)
+/* ── BURDEN DEPTH ──────────────────────────────────────────────────────────────
+ * A separator's rated t/h is its MECHANICAL throughput, not its clean-sorting throughput. Drive it
+ * hard and the material rides deep instead of spread: targets get buried and missed, and neighbours
+ * are dragged into the ejected stream. So selectivity — not just speed — is what a heavy feed costs.
+ * This is the rule that makes ONE line physically unable to run clean at high tonnage: the answer is
+ * to split the stream across parallel sorters, each running below its knee.
+ * Driven by an engine-owned EMA of utilisation (did/rated per tick). Deliberately NOT nodeRate():
+ * that ring is also sampled by the inspector, so physics keyed to it would depend on whether anyone
+ * was looking — a determinism break (NNG-5). Measured reference plant peak utilisation is 0.65, so
+ * the knee sits above it: an existing working plant is untouched.
+ * BURDEN_LOSS = 0 disables the whole mechanic. */
+const BURDEN_KNEE=0.35,  // burden at which selectivity starts to degrade
+      BURDEN_TAU=0.5,    // sim-hours smoothing (tick-quantized did/rated is far too spiky raw)
+      BURDEN_LOSS=0.30,  // at full burden the target capture rate drops by this much (missed / buried)
+      BURDEN_CARRY=0.03; // …and this much of the remaining non-target is dragged along (collateral ejection)
+/* Burden = utilisation × queue. BOTH terms are needed: `did/rated` saturates at 1 by construction
+ * (budget IS the rated allowance), so running flat-out and DROWNING look identical on throughput
+ * alone — while a queue on its own only means the unit is blocked downstream, not that material is
+ * riding deep past the sensor. A unit perfectly matched to its feed (busy, no queue) is unpenalised;
+ * one that cannot keep up backs its buffer up and pays. Reference plant measures ≈0.01, far below the
+ * knee, so an existing balanced plant is untouched. */
+function burdenK(n){const b=(n._burd||0)*Math.min(1,Math.max(0,n.load||0));
+  return BURDEN_KNEE>=1?0:Math.max(0,Math.min(1,(b-BURDEN_KNEE)/(1-BURDEN_KNEE)));}
+function burdenProb(p,k){ if(!(k>0)||!BURDEN_LOSS)return p; // ≥0.5 = what this unit is TRYING to capture
+  return p>=0.5 ? p*(1-k*BURDEN_LOSS) : p+k*BURDEN_CARRY*(1-p);}
 /* ════════════════════════════════════════════════════════════════════════════
  *  ECONOMIC MODEL — SINGLE SOURCE OF TRUTH. Tune the whole game economy HERE.
  *  All € are game-€. Per-tonne unless noted. Mass granularity = PMASS t/particle.
@@ -2016,6 +2041,7 @@ function tick(dt){
     G.carry[n.id]=(G.carry[n.id]||0)+cap*dt/PMASS;let budget=Math.floor(G.carry[n.id]);G.carry[n.id]-=budget;
     n.load=cnt(n.inBuf)>0?Math.min(1.5,cnt(n.inBuf)/(capOf(n)*(isInput(n)?1.0:0.9))):0; // a feeder is a hopper: full = healthy. Process nodes: OVERLOAD only when the backpressure buffer is genuinely saturating (~90% full), not at half — decoupled from the rated t/h, which was tripping a 10 t/h unit at ~5 t/h.
     let jammed=false,wrong=false,did=0;
+    const _ratedTick=cap*dt/PMASS, _bk=burdenK(n); // burden from the PREVIOUS tick's EMA (one-tick lag, imperceptible)
     for(let k=0;k<budget;k++){if(cnt(n.inBuf)<=0)break;const pt=popParticle(n.inBuf);if(!pt)break;
       let mat=pt.mat,st=pt.st,nst=st,port;
       if(t.isPick){const isT=mat===n.target;const take=isT?rng()<techPickEff(PICK_EFF):rng()<PICK_FALSE;port=take?"R":"O";}
@@ -2027,7 +2053,7 @@ function tick(dt){
         if(eA&&eB){let toA=rng()<n.ratio;if(rng()<SPLIT_NOISE)toA=!toA;port=toA?"A":"B";} // both wired → split
         else if(eA)port="A"; else if(eB)port="B"; // one branch only → everything goes there
         else port="A";} // neither wired → route to A (will find no edge below and jam cleanly)
-      else{const bp=t.prob[mat]!==undefined?t.prob[mat]:t.prob.default,p=techProb(n.type,mat,bp);
+      else{const bp=t.prob[mat]!==undefined?t.prob[mat]:t.prob.default,p=burdenProb(techProb(n.type,mat,bp),_bk); // deep burden costs SELECTIVITY, not just speed
         const roll=rng()<p; // F2: draw the rng ALWAYS so forcing a bag pass-through never shifts the deterministic sequence
         if(t.needsItem&&st===0){port=t.other;wrong=true;} // Lot F: a sealed bag is opaque — NO separator can sort by material; it passes straight through (roll discarded)
         else port=roll?t.accept:t.other;}
@@ -2042,6 +2068,8 @@ function tick(dt){
       else n._restMass=(n._restMass||0)+PMASS;                          // to the pass-through/other output
     }
     n.jam=jammed?Math.min(1,n.jam+0.12):Math.max(0,n.jam-0.08);
+    if(_ratedTick>0){const u=did/_ratedTick,a=Math.min(1,dt/BURDEN_TAU); // engine-owned utilisation EMA (deterministic: only dt, cap and did)
+      n._burd=(n._burd||0)+(u-(n._burd||0))*a;}
     if(t.kW&&did>0)G.energy+=techKW(n.type,t.kW)*dt;
     if(did>0&&G.mode==="career"){const f=CAREER.counters.flags;if(f&&f.ran)f.ran[n.type]=true;} // objective: this unit ran
     // failure state

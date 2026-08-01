@@ -1081,6 +1081,8 @@ const LANG={fr:{
   "You have been named operator for this stream. The trucks roll whether or not you have the plant for them — they cannot be turned away. Whatever your bunkers cannot hold goes to landfill, and you pay the gate fee on it. A capital grant lands with the contract.":"Tu es désigné exploitant de ce flux. Les camions roulent que ton usine soit prête ou non — impossible de les refuser. Tout ce que tes fosses ne peuvent absorber part à la décharge, et tu en paies la taxe. Une subvention d’investissement accompagne le contrat.",
   "Landfill allowance":"Quota de décharge","Buried this year":"Enfoui cette année",
   "Imposed":"Imposé","Arrives in":"Arrivée dans","incoming":"à venir",
+  "Burden":"Charge","running deep":"couche trop épaisse","capture":"de capture","near capacity":"proche de la capacité",
+  "Material is riding too deep to sort cleanly: targets are buried and contaminants are dragged along. Split the stream across more sorters, or feed this one less.":"La matière défile en couche trop épaisse pour être triée proprement : les cibles sont enfouies et les contaminants sont entraînés. Répartis le flux sur plusieurs trieurs, ou alimente celui-ci moins fort.",
   "on-spec":"conforme","off-spec":"non conforme","Landfill diversion":"Détournement de décharge",
   "Complete the tutorial":"Terminer le tutoriel","Run an eddy-current separator":"Faire tourner un séparateur à courants de Foucault","Run an air classifier":"Faire tourner un classificateur à air","Run a NIR sorter":"Faire tourner un trieur NIR","Export 100 t on-spec":"Exporter 100 t conformes","Build a 10-unit flowsheet":"Construire une ligne de 10 unités",
   "Trained sorters":"Trieurs formés","Recycling subsidy":"Subvention au recyclage","Binfinity contract":"Contrat Binfinity","Iron Maiden offtake":"Débouché Iron Maiden",
@@ -1554,6 +1556,13 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       b+=row(tr("Sorted out"),'<span style="color:var(--good)">'+rs.toFixed(1)+' t/h</span>')+
          row(tr("Pass-through"),rr.toFixed(1)+' t/h');
     } else b+=row(tr("Out"),(rs+rr).toFixed(1)+' t/h');}
+  // BURDEN DEPTH — without this the purity loss is invisible and reads as a bug.
+  // The advice is stashed and appended after `dsc` is declared further down (it is a `let`; touching it here is a TDZ crash).
+  let _burdAdvice="";
+  if(t.prob&&typeof burdenK==="function"){const bk=burdenK(n);
+    if(bk>0){b+=row(tr("Burden"),'<span style="color:var(--bad)">'+tr("running deep")+' −'+Math.round(bk*BURDEN_LOSS*100)+'% '+tr("capture")+'</span>');
+      _burdAdvice='<p style="color:var(--bad)">'+tr("Material is riding too deep to sort cleanly: targets are buried and contaminants are dragged along. Split the stream across more sorters, or feed this one less.")+'</p>';}
+    else if((n._burd||0)>BURDEN_KNEE*0.8)b+=row(tr("Burden"),'<span style="color:var(--accent)">'+tr("near capacity")+'</span>');}
   if(t.kW)b+=row(tr("Power"),t.kW+' kW \u00B7 \u20AC'+(t.kW*ECON.elec).toFixed(0)+'/h');
   { // EFFECT PER WASTE TYPE — plain, no theory: for each material, how much this unit pulls out vs lets pass.
     let rows2=null,note="";
@@ -1582,7 +1591,7 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
   }
   if(CAPEX[n.type])b+=row(tr("Capex"),euroB(CAPEX[n.type]));
   if(!isOutput(n)&&!isBunker(n)&&!isFeeder(n)&&!isBulk(n)&&!isLandfill(n)&&!isExport(n))b+=row(tr("Buffer"),fillT.toFixed(2)+' / '+capT.toFixed(1)+' t')+compBar(t.isBaler?n.bale:n.inBuf);
-  let dsc=t.real?'<p>'+t.real+'</p>':'';
+  let dsc=(t.real?'<p>'+t.real+'</p>':'')+_burdAdvice;
   if(t.isPick){const cap=(n.workers*PICK_RATE).toFixed(1),wage=(n.workers*WAGE);
     b+=row(tr("Crew"),'<b id="wv">'+n.workers+'</b> \u00B7 '+cap+' t/h \u00B7 \u20AC'+wage+'/h')+
        '<input type="range" min="1" max="6" value="'+n.workers+'" id="crew">'+

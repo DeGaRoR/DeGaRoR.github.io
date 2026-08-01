@@ -667,17 +667,26 @@ const QC_SUITES={
   t.ok(Math.abs((G.ledger.logistics-l0)-expect)<1e-3,"logistics booked exactly = \u03a3(vehicles\u00d7\u20ac/h)\u00d7hours ("+expect.toFixed(0)+" \u20ac)");
 },
 "site-vfilm":function(t){ // Vacuum film extractor: pulls film to S at high purity, mass-conserving & deterministic (additive unit)
-  const run=(seed)=>{newGame("sandbox","standard",seed);
+  // NOTE: the feed is DRIP-fed at a sustainable rate, not dumped into the buffer in one go. Stuffing
+  // 3000 particles (30 t) into a 0.6 t backpressure buffer models a unit drowning at 50× its rating,
+  // and burden-depth (2026-08-01) correctly collapses its selectivity there — which is measured
+  // separately below. This arm characterises the unit's NOMINAL spec, so it must run unburdened.
+  const run=(seed,dump)=>{newGame("sandbox","standard",seed);
     G.contract.supplier=null;G.contract.comp={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
     const vf=addNode("vfilm",100,0);
     const sBuf=addNode("buffer",160,-30),mBuf=addNode("buffer",160,30); // unwired outputs → they pile up the stream so we can read its composition
     G.edges.push({from:vf.id,fromPort:"S",to:sBuf.id,sprites:[],speed:EDGE_SPEED}); // film pulled off
     G.edges.push({from:vf.id,fromPort:"M",to:mBuf.id,sprites:[],speed:EDGE_SPEED}); // the rest
     const N=3000,mix={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
-    for(const m in mix){const k=Math.round(N*mix[m]);for(let i=0;i<k;i++)vf.inBuf[m][1]++;} // LIBERATED items (st=1); a bag opener sits upstream in play
-    const fed=cnt(vf.inBuf);
-    for(let i=0;i<8000;i++)tick(0.004);
-    return {vf,fed,sMass:vf._sortMass||0,mMass:vf._restMass||0,left:cnt(vf.inBuf),sc:comp(sBuf.inBuf)};};
+    const feed=[];for(const m in mix){const k=Math.round(N*mix[m]);for(let i=0;i<k;i++)feed.push(m);} // LIBERATED items (st=1); a bag opener sits upstream in play
+    const fed=feed.length;let peakLoad=0;
+    if(dump)for(const m of feed)vf.inBuf[m][1]++;                         // drown it
+    let fi=0;const FEED_TICKS=6000;
+    for(let i=0;i<8000;i++){
+      if(!dump){const want=Math.min(fed,Math.floor((i+1)*fed/FEED_TICKS))-fi; // ~0.5 particle/tick ≈ 0.9 t/h, well under the 3 t/h rating
+        for(let k=0;k<want;k++)vf.inBuf[feed[fi++]][1]++;}
+      tick(0.004); if((vf.load||0)>peakLoad)peakLoad=vf.load||0;}
+    return {vf,fed,peakLoad,sMass:vf._sortMass||0,mMass:vf._restMass||0,left:cnt(vf.inBuf),sc:comp(sBuf.inBuf)};};
   const r=run(0x71F);
   t.ok(r.left===0,"vfilm drained its input buffer");
   t.ok(Math.abs((r.sMass+r.mMass)-r.fed*PMASS)<1e-9,"conservation: film-pull + rest = fed ("+(r.sMass+r.mMass).toFixed(2)+" t)");
@@ -689,8 +698,15 @@ const QC_SUITES={
   t.ok(pvcFr<=0.005,"PVC cap holds (\u22640.5%): "+(pvcFr*100).toFixed(2)+"%");
   const filmFed=Math.round(3000*0.14)*PMASS;
   t.ok(r.sMass>0.80*filmFed,"captures the bulk of the film ("+(r.sMass/filmFed*100).toFixed(0)+"% of feed film)");
+  t.ok(r.peakLoad<0.9,"the nominal arm really did run unburdened (peak buffer load "+r.peakLoad.toFixed(2)+")");
   const r2=run(0x71F);
   t.ok(Math.abs(r.sMass-r2.sMass)<1e-9,"deterministic per seed");
+  // …and the SAME unit drowned in feed loses its selectivity — this is burden-depth, not a regression
+  const d=run(0x71F,true),dc=d.sc,dtot=dc.film+dc.paper+dc.PET+dc.PVC+dc.steel+dc.alu;
+  const dPur=dtot>0?dc.film/dtot:0;
+  t.ok(d.peakLoad>=1,"the drowned arm is genuinely over-fed (peak buffer load "+d.peakLoad.toFixed(2)+")");
+  t.ok(dPur<filmPur-0.05,"drowning the unit degrades film purity ("+(filmPur*100).toFixed(1)+"% → "+(dPur*100).toFixed(1)+"%)");
+  t.ok(Math.abs((d.sMass+d.mMass)-d.fed*PMASS)<1e-9,"…while still conserving mass exactly");
 },
 
 "site-throughput-10":function(t){ // belts+units carry 10 t/h — supply it from TWO 4 t/h contracts (=8 t/h line, inside the 10 t/h belt ceiling)
@@ -1384,6 +1400,50 @@ QC_SUITES["mandate-save-roundtrip"]=function(t){
   t.ok(!!CAREER.pressure&&CAREER.pressure.armed===false,"an old save back-fills DISARMED (no surprise pressure on load)");
   qcTicks(400);
   t.ok(qcBalanced().ok,"an upgraded old save ticks and stays balanced");
+};
+
+QC_SUITES["burden-depth"]=function(t){ // rated t/h is MECHANICAL throughput; clean sorting needs headroom
+  // Every arm feeds the SAME 60 t of the SAME mix through ONE nir (cap 3 t/h, accept "M" = PET kept)
+  // and lets it fully drain — only the DELIVERY WINDOW changes. That isolates burden from composition:
+  // comparing arms at different feed totals would instead compare different material, because a
+  // cap-limited unit only ever processes a prefix of what it was given.
+  const run=(windowFrac,seed)=>{newGame("sandbox","standard",seed);G.contract.supplier=null;
+    const u=addNode("nir",100,0);
+    const keep=addNode("buffer",160,-30),rej=addNode("buffer",160,30); // unwired outputs pile up so we can read composition
+    G.edges.push({from:u.id,fromPort:"M",to:keep.id,sprites:[],speed:EDGE_SPEED});
+    G.edges.push({from:u.id,fromPort:"S",to:rej.id,sprites:[],speed:EDGE_SPEED});
+    const mix={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+    const TICKS=24000,dt=0.004,TOTAL_T=60,total=Math.round(TOTAL_T/PMASS);
+    // interleave in representative 100-particle blocks: grouped feed would hand a lagging unit a
+    // PET-rich prefix and read as *better* purity under load — an artefact, not physics
+    const feed=[],BLOCK=100;
+    for(let b=0;b<Math.ceil(total/BLOCK);b++)for(const m in mix){const k=Math.round(BLOCK*mix[m]);for(let i=0;i<k;i++)feed.push(m);}
+    feed.length=Math.min(feed.length,total);
+    const FEED_TICKS=Math.max(1,Math.floor(TICKS*windowFrac));
+    let fi=0,ksum=0,kn=0;
+    for(let i=0;i<TICKS;i++){
+      const want=Math.min(feed.length,Math.floor((i+1)*feed.length/FEED_TICKS))-fi;
+      for(let q=0;q<want;q++)u.inBuf[feed[fi++]][1]++;
+      const busy=cnt(u.inBuf)>0; tick(dt);
+      if(busy){ksum+=burdenK(u);kn++;}}   // mean over WORKING ticks; the idle drain tail would dilute it
+    const c=comp(keep.inBuf);let tot=0;for(const m of MAT)tot+=c[m];
+    return {pur:tot>0?c.PET/tot:0,pvc:tot>0?c.PVC/tot:0,kAvg:kn?ksum/kn:0,
+            left:cnt(u.inBuf),procT:(u._sortMass||0)+(u._restMass||0),kept:u._sortMass||0};};
+  const easy=run(0.90,0xB01);  // 60 t trickled over ~86 h ≈ 0.7 t/h — comfortably inside the 3 t/h rating
+  const hard=run(0.04,0xB01);  // the same 60 t dumped in ~4 h ≈ 15 t/h — the unit drowns, then drains
+  t.ok(easy.left===0&&hard.left===0,"both arms fully drained (same material processed either way)");
+  t.ok(Math.abs(easy.procT-hard.procT)<1e-6,"both arms processed the SAME tonnage ("+easy.procT.toFixed(1)+" t) — only burden differs");
+  t.ok(easy.kAvg===0,"a sorter fed inside its rating carries NO burden penalty");
+  t.ok(hard.kAvg>0.5,"a sorter fed ~5× its rating runs heavily burdened (mean k="+hard.kAvg.toFixed(2)+")");
+  t.ok(hard.pur<easy.pur-0.03,"burden costs SELECTIVITY, not just speed ("+(easy.pur*100).toFixed(1)+"% → "+(hard.pur*100).toFixed(1)+"% PET)");
+  t.ok(hard.pvc>easy.pvc,"…contaminant carry-over rises with burden (PVC "+(easy.pvc*100).toFixed(2)+"% → "+(hard.pvc*100).toFixed(2)+"%)");
+  t.ok(hard.kept<easy.kept,"…and target capture falls — burying the feed loses yield too ("+easy.kept.toFixed(1)+" t → "+hard.kept.toFixed(1)+" t)");
+  // THE POINT: spreading the same tonnage over more sorter-hours restores the clean result.
+  const split=run(0.40,0xB01);
+  t.ok(split.pur>hard.pur,"spreading the same tonnage across more sorting capacity recovers purity ("+(hard.pur*100).toFixed(1)+"% → "+(split.pur*100).toFixed(1)+"%)");
+  // the mechanic must be a single switch
+  t.ok(typeof BURDEN_LOSS==="number"&&typeof BURDEN_KNEE==="number","burden is governed by named constants (BURDEN_LOSS=0 disables it)");
+  t.ok(burdenProb(0.96,0)===0.96&&burdenProb(0.002,0)===0.002,"k=0 leaves every probability exactly untouched");
 };
 
 QC_SUITES["diversion-metric"]=function(t){ // the 80%-diversion goal used to be free on day one

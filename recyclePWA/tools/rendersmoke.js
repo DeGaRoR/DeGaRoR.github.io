@@ -150,6 +150,18 @@ const driver = `
   inspectNode(G.nodes[0]);
   const mv=G.vehicles.find(v=>v.state!=="idle")||G.vehicles[0];
   if(mv)inspectVehicle(mv);
+  // ── a BURDENED sorter must inspect cleanly (the burden rows/advice only render when k>0,
+  //    so inspecting an idle plant would not exercise that path at all)
+  {const bn=G.nodes.find(n=>TYPES[n.type].prob);
+   if(bn){const mix={PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07};
+     // enough backlog that the unit is STILL drowning when we sample (a fast sorter clears a small
+     // pile in a few hundred ticks and the burden decays back to zero before the inspector opens)
+     for(let b=0;b<300;b++)for(const m in mix){const k=Math.round(100*mix[m]);for(let i=0;i<k;i++)bn.inBuf[m][1]++;}
+     for(let i=0;i<2000;i++)tick(0.004);
+     if(!(burdenK(bn)>0))throw new Error("burden fixture failed to burden a sorter");
+     inspectNode(bn);
+     const sh=document.getElementById("sheet").innerHTML;
+     if(!/Burden|Charge/.test(sh))throw new Error("burdened sorter inspector shows no burden row");}}
   // ── belt OVERPASS: detected, cached, clipped, and consistent with the tap
   // (capture the plant counts FIRST — the crossing rig below adds units/edges on purpose)
   const nodes0=G.nodes.length,edges0=G.edges.length;
