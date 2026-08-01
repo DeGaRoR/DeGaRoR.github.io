@@ -16,7 +16,10 @@ import * as store from '../../trunk/store.js';
 import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
+import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
+import { binomial } from '../../engine/l1/naming.js';
 import { buildCreature, disposeCreature, token, rampFor, updateCreatureGlow } from '../../render/creature.js';
+import { renderThumbnail } from '../../render/thumbnail.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
 import { button } from '../widgets.js';
 import {
@@ -237,6 +240,10 @@ export default {
     let vivariumSeed = 0;   // H7 — this lineage's own seed; see loadOrCreateVivariumSeed
     let previous = null;            // one-step undo: 21 §4.3
     let selected = new Set();
+    // A saved creature the player has chosen to drop into the stranger slot on the
+    // NEXT breed only (N17's slot, filled by hand). Held here, not persisted: the
+    // choice is "manual each breed" and resets to random once consumed.
+    let pendingStranger = null;     // { genome, commonName } | null
     let speed = 1, paused = false;
     // Fallback ladder rung (render/creature.js): 'full' membrane+flesh+organ,
     // 'flesh' drops the transmissive membrane, 'flat' drops the generated maps.
@@ -583,12 +590,14 @@ export default {
     function toggleSelect(i) {
       if (selected.has(i)) selected.delete(i); else selected.add(i);
       renderStatus();
+      persistLineage();   // selection survives a reload too
     }
 
     // ── specimen sheet ──────────────────────────────────────────────────────
-    // 10 §8 keeps naming to "function only, no UI" in the slice, so the derived
-    // binomial is deliberately NOT shown here. `binomial()` exists and this is
-    // the one line it would take; that is a step-F decision, not a silent one.
+    // The sheet now shows the derived binomial and lets the player keep the
+    // creature: the binomial is a read-only fact about the structure (naming.js),
+    // and the editable field below it is the common name they choose (defaulting
+    // to the binomial). Saving writes a `specimen:` record with a portrait.
 
     function openSheet(s) {
       state = STATE.SHEET_OPEN;
@@ -605,6 +614,7 @@ export default {
         // as an ordinary creature. `viable` is absent on elites and offspring,
         // so only an explicit false says anything.
         [t('Origin'), t(provenance[s.index]?.kind ?? KIND.STRANGER)
+          + (provenance[s.index]?.imported ? t(' · imported') : '')
           + (provenance[s.index]?.viable === false ? t(' · unviable, search exhausted') : '')],
       ];
       for (const [l, v] of rows) {
@@ -615,6 +625,55 @@ export default {
         r.append(a, b);
         sheet.append(r);
       }
+
+      // ── keep this creature ──────────────────────────────────────────────────
+      // The stored genome is the CANONICAL one (genomes[index]); s.genome is the
+      // tank's shrunk render copy (EXP_CREATURE_SCALE). The name and portrait are
+      // both derived from the canonical body so a card matches the specimen.
+      const canonical = genomes[s.index];
+      const cplan = morphogenesis(canonical);
+      const derived = binomial(cplan, canonical).binomial;
+
+      const save = document.createElement('div');
+      save.className = 'spec-save';
+
+      const bino = document.createElement('div');
+      bino.className = 'spec-binomial';
+      bino.textContent = derived;
+      save.append(bino);
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'field spec-name';
+      nameInput.value = derived;
+      nameInput.setAttribute('aria-label', t('Creature name'));
+      save.append(nameInput);
+
+      const saveBtn = button(t('Save creature'), async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = t('Saving…');
+        try {
+          const hash = genomeHash(canonical);
+          const specimen = {
+            genome: canonical,
+            hash,
+            worldId: W1_SLICE.palette,
+            binomial: derived,
+            commonName: nameInput.value.trim() || derived,
+            thumb: renderThumbnail(canonical, { worldId: W1_SLICE.palette }),
+            stats: { bodies: cplan.bodyCount, mass: totalMass(cplan) },
+            createdAt: Date.now(),
+          };
+          await store.set(store.KEY.specimen(hash), specimen);
+          saveBtn.textContent = t('Saved ✓');
+        } catch {
+          saveBtn.disabled = false;
+          saveBtn.textContent = t('Save failed — retry');
+        }
+      });
+      save.append(saveBtn);
+      sheet.append(save);
+
       sheet.append(button(t('Close'), closeSheet));
     }
 
@@ -651,9 +710,78 @@ export default {
       previous = null;
       buildSlots();
       renderStatus();
+      persistLineage();
     });
-    cluster.append(btnPause, btnSpeed, btnUndo);
+    // The stranger chip carries the current choice for the next breed's N17 slot:
+    // "random" by default, or a saved creature the player picked. Tapping opens the
+    // picker; the pick applies to the next breed only, then resets to random.
+    const btnStranger = chip('stranger', openStrangerPicker);
+    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger);
     primary.addEventListener('click', doBreed);
+
+    function updateStrangerChip() {
+      btnStranger.textContent = pendingStranger
+        ? `${t('Stranger')}: ${pendingStranger.commonName}`
+        : `${t('Stranger')}: ${t('random')}`;
+      btnStranger.classList.toggle('picked', !!pendingStranger);
+    }
+
+    /** Reuse the bottom sheet to pick a saved creature (or Random) for the slot. */
+    async function openStrangerPicker() {
+      if (!ready) return;
+      state = STATE.SHEET_OPEN;
+      sheet.hidden = false;
+      sheet.replaceChildren();
+
+      const title = document.createElement('div');
+      title.className = 'spec-picker-title';
+      title.textContent = t('Choose a stranger for the next breed');
+      sheet.append(title);
+
+      sheet.append(button(t('Random (default)'), () => {
+        pendingStranger = null;
+        updateStrangerChip();
+        closeSheet();
+      }));
+
+      let keys = [];
+      try { keys = await store.list('specimen:'); } catch { keys = []; }
+      if (sheet.hidden) return;   // closed while the list was loading
+
+      if (keys.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'spec-empty';
+        empty.textContent = t('No saved creatures yet. Long-press a creature and Save to keep one.');
+        sheet.append(empty);
+      } else {
+        const list = document.createElement('div');
+        list.className = 'spec-picker-list';
+        for (const key of keys) {
+          let spec;
+          try { spec = await store.get(key); } catch { continue; }
+          if (!spec?.genome) continue;
+          const label = spec.commonName || spec.binomial || t('Creature');
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'spec-picker-item';
+          const img = document.createElement('img');
+          img.className = 'spec-picker-thumb'; img.alt = '';
+          if (spec.thumb) img.src = spec.thumb;
+          const name = document.createElement('span');
+          name.className = 'spec-picker-name'; name.textContent = label;
+          item.append(img, name);
+          item.addEventListener('click', () => {
+            pendingStranger = { genome: spec.genome, commonName: label };
+            updateStrangerChip();
+            closeSheet();
+          });
+          list.append(item);
+        }
+        sheet.append(list);
+      }
+
+      sheet.append(button(t('Close'), closeSheet));
+    }
 
     function doBreed() {
       if (!ready || selected.size === 0 || state === STATE.BREEDING) return;
@@ -673,10 +801,15 @@ export default {
         // preserved WITHIN a lineage: same vivariumSeed, same everything.
         rng: rngFrom('tank', vivariumSeed, 'breed', generation),
         world: W1_SLICE,
+        // The player's chosen import fills N17's stranger slot on THIS breed only.
+        injectStrangers: pendingStranger ? [pendingStranger.genome] : [],
       });
       genomes = r.genomes;
       provenance = r.provenance;
       generation++;
+      // The import is spent — the stranger slot returns to a random draw next time.
+      pendingStranger = null;
+      updateStrangerChip();
       // Elites keep their slot and stay selected, so the player's choice
       // survives the breed and repeat-breeding one lineage is one tap.
       selected = new Set(r.provenance
@@ -690,6 +823,7 @@ export default {
       view.dataset.breeding = 'yes';
       breedingUntil = performance.now() + BREEDING_MS;
       renderStatus(r.droppedElite);
+      persistLineage();
     }
 
     function renderStatus() {
@@ -724,6 +858,44 @@ export default {
         : `<span class="num">${strangers.length}</span> ${t('unrelated')}`;
     }
 
+    // ── lineage persistence ──────────────────────────────────────────────────
+    // The tank used to persist only its seed and re-derive generation 0 on every
+    // mount, so all breeding progress was lost on reload (the "reinitialising").
+    // Now the whole lineage is written after each change and hydrated on boot —
+    // the design's `Lineage` shape (01 §; store's `lineage` kind, keyed by seed).
+
+    function lineageRecord() {
+      return {
+        vivariumId: vivariumSeed,
+        generation,
+        genomes,
+        provenance,
+        selected: [...selected],
+        previous: previous && {
+          genomes: previous.genomes, provenance: previous.provenance,
+          generation: previous.generation, selected: previous.selected,
+        },
+      };
+    }
+
+    /** Fire-and-forget: an unpersisted tank is still a working tank (H7 style). */
+    function persistLineage() {
+      store.set(store.KEY.lineage(vivariumSeed), lineageRecord())
+        .catch(() => { /* storage unavailable — the session still runs */ });
+    }
+
+    /** The saved lineage, or null if absent, malformed, or from a future build. */
+    async function loadLineage() {
+      try {
+        const rec = await store.get(store.KEY.lineage(vivariumSeed));
+        if (!rec || !Array.isArray(rec.genomes) || rec.genomes.length !== POPULATION) return null;
+        // Reject anything structurally invalid rather than booting a broken tank;
+        // it falls back to a fresh seed below.
+        for (const g of rec.genomes) if (!validateGenome(g).ok) return null;
+        return rec;
+      } catch { return null; }   // FutureVersionError, parse failure, first run
+    }
+
     /**
      * This lineage's seed: read it, or mint one and persist it (H7).
      *
@@ -749,6 +921,7 @@ export default {
 
     genEl.textContent = t('Loading…');
     renderStatus();
+    updateStrangerChip();
 
     (async () => {
       await RAPIER.init();
@@ -758,12 +931,28 @@ export default {
       // player the same six creatures; reproducibility is meant to replay ONE
       // lineage, not to issue everyone the same one.
       vivariumSeed = await loadOrCreateVivariumSeed();
-      const seeded = seedPopulation({ RAPIER, rng: rngFrom('tank', vivariumSeed, 'seed'), world: W1_SLICE });
-      genomes = seeded.genomes;
-      provenance = seeded.provenance;
+      // Resume the saved lineage if there is one; otherwise seed generation 0 and
+      // persist it so the next reload resumes rather than reseeds.
+      const saved = await loadLineage();
+      if (stopped) return;
+      if (saved) {
+        generation = saved.generation ?? 0;
+        genomes = saved.genomes;
+        provenance = saved.provenance ?? genomes.map(() => ({ kind: KIND.STRANGER }));
+        selected = new Set(Array.isArray(saved.selected) ? saved.selected : []);
+        previous = saved.previous
+          ? { ...saved.previous, selected: saved.previous.selected ?? [] }
+          : null;
+      } else {
+        const seeded = seedPopulation({ RAPIER, rng: rngFrom('tank', vivariumSeed, 'seed'), world: W1_SLICE });
+        genomes = seeded.genomes;
+        provenance = seeded.provenance;
+        persistLineage();
+      }
       buildSlots();
       ready = true;
       state = STATE.SIMULATING;
+      updateStrangerChip();
       renderStatus();
     })();
 

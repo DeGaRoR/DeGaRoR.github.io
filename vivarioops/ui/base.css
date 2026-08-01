@@ -194,6 +194,52 @@ html, body {
 }
 .tank-sheet[hidden] { display: none; }
 
+/* ── Saved creatures — the sheet's "keep" controls, the stranger picker, and the
+   Atlas card grid. Tokens only (N16); binomials use the reserved serif face. */
+
+/* Keep-this-creature block in the specimen sheet. */
+.spec-save { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
+.spec-binomial { font-family: var(--f-name); font-style: italic; font-size: var(--t-value); color: var(--c-text-dim); }
+.spec-name { font-family: var(--f-ui); }
+
+/* Stranger picker — reuses the bottom sheet. */
+.spec-picker-title { font-size: var(--t-value); color: var(--c-text-dim); margin-bottom: var(--s-2); }
+.spec-picker-list { display: flex; flex-direction: column; gap: var(--s-1); max-height: 40vh; overflow-y: auto; margin-top: var(--s-2); }
+.spec-picker-item {
+  display: flex; align-items: center; gap: var(--s-3);
+  min-height: var(--tapsize); padding: var(--s-1) var(--s-2);
+  background: var(--c-surface-2); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-2);
+  font: inherit; font-size: var(--t-sm); text-align: left; cursor: pointer;
+}
+.spec-picker-item:active { background: var(--c-line); }
+.spec-picker-thumb { width: var(--tapsize); height: var(--tapsize); object-fit: cover; border-radius: var(--r-2); background: var(--c-bg); }
+.spec-picker-name { flex: 1; }
+.spec-empty { color: var(--c-text-dim); font-size: var(--t-sm); margin: var(--s-3) 0; }
+
+/* The stranger chip tints to the stranger colour once a creature is picked. */
+.tank-chip.stranger.picked { color: var(--c-stranger); }
+
+/* Atlas — the saved-creature collection, a two-column card grid. */
+.spec-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap);
+  padding: var(--gutter);
+}
+.spec-card {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--c-surface); border: thin solid var(--c-line);
+  border-radius: var(--r-card);
+}
+.spec-card-thumb {
+  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+  border-radius: var(--r-2); background: var(--c-bg);
+}
+.spec-card-bino { font-family: var(--f-name); font-style: italic; font-size: var(--t-value); color: var(--c-text-dim); }
+.spec-card-name { font-size: var(--t-value); color: var(--c-text); }
+.spec-card-stats { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim); }
+.spec-empty-page { padding: var(--s-6) var(--s-4); color: var(--c-text-dim); font-size: var(--t-sm); line-height: 1.5; }
+
 /* Boot fault panel (H1b) — shown by the classic script in index.html when the
    module graph fails to load or boot stalls. It must be styleable without the
    application running, so everything it needs is here rather than in a screen. */

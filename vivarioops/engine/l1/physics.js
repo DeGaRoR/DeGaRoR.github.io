@@ -368,8 +368,34 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
    * (MaxImpulse = 2 * MinCrossSectionalArea). See the clamp note in the joint
    * loop for why the bound cannot currently be expressed in this binding.
    */
-  const motorFreqHz = opts.motorFreqHz ?? null;
+  // C1.3 — THE ACTUATOR IS DEFAULTED. `motorFreqHz: 10` (with zeta 0.9) is the
+  // reference parametrisation: the joint's response is specified by an inertia-
+  // derived (omega_n, zeta) rather than a raw budget-derived stiffness, so the
+  // commanded travelling wave survives the plant instead of being scattered
+  // across 75 degrees of per-joint phase lag. See the N19 decision block below —
+  // the budget stays area-derived, only the response shape uses inertia.
+  // `=== undefined` not `??`, so an EXPLICIT `motorFreqHz: null` still selects the
+  // budget-derived branch (used by L1-18 and by pre-C1 comparisons); only an
+  // absent key takes the default reference response.
+  const motorFreqHz = opts.motorFreqHz === undefined ? 10 : opts.motorFreqHz;
   const motorZeta = opts.motorZeta ?? 0.9;
+  // C1.2/C1.3 — the muscle-budget multiplier, and a 00 §9 DECISION. The torque
+  // ceiling the error-clamp saturates at is `budgetScale * MUSCLE_STRESS * A^1.5
+  // * momentArm`. It scales the CEILING WITHOUT scaling the inertia-derived gains,
+  // so it is the honest lever on muscle STRENGTH — how much torque a joint may
+  // deliver, area-derived (N19 intact) — decoupled from the response shape.
+  //
+  // DEFAULT 6, and it is measured, not tuned (tools/_zladder.mjs). At the shipped
+  // budget (1) the clamp binds so hard that a bounded joint tracks no better than
+  // the old scattered default — gain 0.27 — because the reference response asks
+  // for more torque than MUSCLE_STRESS * A^1.5 * momentArm allows. At 6x, a real
+  // swimmer's spring torque sits at ~0.3 of the ceiling: it tracks EXACTLY as a
+  // free (unbounded) joint does (eel gain 0.77, per-joint lag spread 15 deg) while
+  // the clamp still caps the pathological tail that would otherwise ask for 20-
+  // 1000x. 6x is the reference's own strength: MaxImpulse = 2*A is ~6x our budget
+  // in impulse terms. COT rises ~2-4x for swimmers (only creatures that USE the
+  // torque pay), not the 17x an across-the-board motorScale would cost.
+  const budgetScale = opts.budgetScale ?? 6;
 
   /** The reference's lift term. Off by default until it earns the default. */
   const LIFT = opts.lift ?? false;
@@ -465,8 +491,27 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   const solverDriven = new Uint8Array(plan.jointCount);
   const motorStiff = new Float64Array(plan.jointCount);
   const motorDampC = new Float64Array(plan.jointCount);
+  /**
+   * The N19 torque BUDGET per joint — MUSCLE_STRESS * A^1.5 * momentArm, purely
+   * geometric. This is what N19 governs (see the decision block below); the gains
+   * `motorStiff`/`motorDampC` may be shaped by inertia inside this budget. Exposed
+   * so L1-18 can assert N19 on the budget rather than on the gain, which is the
+   * only form of the assertion that survives the reference actuator.
+   */
+  const motorBudget = new Float64Array(plan.jointCount);
   /** Which solver joints had their gains reduced to honour 00 §9. Reported, not asserted from inside. */
   const motorBounded = new Uint8Array(plan.jointCount);
+  // ── PER-STEP ACTUATOR DIAGNOSTICS (C1.2) ──────────────────────────────────
+  // Filled each step by applyMotors on the solver path, so a probe can read the
+  // realised tracking (want vs theta), the relative angular velocity, and the
+  // reconstructed spring/damping torques against the budget — the numbers C1.2's
+  // clamp is decided on and C1.4 accepts against. Reporting, never behaviour.
+  const motorTheta = new Float64Array(plan.jointCount);
+  const motorWant = new Float64Array(plan.jointCount);
+  const motorRelOmega = new Float64Array(plan.jointCount);
+  const motorSpringTau = new Float64Array(plan.jointCount);
+  const motorDampTau = new Float64Array(plan.jointCount);
+  const motorClamped = new Uint8Array(plan.jointCount);
 
   // ── THE TORUS — B2 §4.2 ─────────────────────────────────────────────────────
   //
@@ -624,19 +669,47 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     // change on a dormant path ahead of the measurements that would catch it is
     // how the B3 tail happened.
     //
-    // ALSO OWED THERE: the `motorFreqHz` branch below sets stiffness from
-    // `inertiaOf[j.childBody]`. That is mass-derived, which is the thing N19
-    // exists to forbid. It is default-off today and must not become the default
-    // without answering that.
+    // ── N19 DECISION, IN WRITING — C1.1 (B3). RESOLVED, no longer owed. ────────
+    //
+    // The `motorFreqHz` branch below sets the gains from `inertiaOf[j.childBody]`,
+    // which is mass-derived. N19 was raised against it three sessions running and
+    // deferred each time with the branch default-off. C1 defaults it, so the
+    // question is answered here rather than deferred a fourth time.
+    //
+    // THE DECISION: N19 constrains where the torque BUDGET comes from — geometry,
+    // area, never mass — and not the RESPONSE SHAPE the joint delivers inside that
+    // budget. The budget is `MUSCLE_STRESS * A^1.5 * momentArm` in BOTH branches
+    // and bounds the delivered torque (the 00 §9 clamp below); the (omega_n, zeta)
+    // that shape how the joint tracks inside it may come from the limb's inertia.
+    // A bigger limb still gets its strength from its cross-section; a heavier limb
+    // still accelerates less under the same torque — which is what N19 means. This
+    // is exactly what the reference does: MaxImpulse = 2 * MinCrossSectionalArea is
+    // the budget, SpringFrequency 10 Hz / DampingRatio 0.9 is the response.
+    //
+    // WHY IT IS NOT A DODGE: a mass-derived BUDGET would let a dense creature push
+    // harder for free, which is the pay-to-win N19 forbids. A mass-derived
+    // RESPONSE only decides how fast a joint converges on its target within a
+    // budget it did not enlarge — the peak torque a dense joint can exert is the
+    // same as a light one of the same cross-section. L1-18 is rewritten to assert
+    // N19 on the budget (geometric, mass-independent) and to allow the gain to be
+    // inertia-shaped, because asserting mass-independence of the GAIN would forbid
+    // the reference actuator outright and is not what N19 claims.
+    // N19 spec amended to match — see design/VIVARIUM_20_TRUNK.md.
     if (motorMode === 'solver' && handle.configureMotorPosition) {
       const A = j.minCrossSectionalArea;
+      // The clamp ceiling carries `budgetScale`; the DEFAULT-branch gains below
+      // use the raw `budget`, so budgetScale loosens the clamp without inflating
+      // the gain. In the motorFreqHz branch the gains are inertia-derived and do
+      // not see the budget at all, so the two are fully decoupled there.
       const budget = MUSCLE_STRESS * A * Math.sqrt(A) * momentArm;
+      motorBudget[j.index] = budget * budgetScale;
       handle.configureMotorModel(RAPIER.MotorModel.ForceBased);
       if (motorFreqHz !== null) {
         // Reference parametrisation: the joint is specified by its RESPONSE, and
         // the torque it needs to deliver that response follows from the limb.
         // I is the child's smallest principal inertia — the same conservative
         // choice the drag limiter makes, so the fastest axis is the one tuned.
+        // N19: this shapes the response; the budget above still caps the torque.
         const wn = 2 * Math.PI * motorFreqHz;
         const I = inertiaOf[j.childBody];
         motorStiff[j.index] = motorScale * I * wn * wn;
@@ -646,52 +719,40 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         motorDampC[j.index] = motorScale * budget * kDamp;
       }
 
-      // ── BOUNDED ACTUATOR POWER ON THE SOLVER PATH (00 §9) — B2 §3.2 ────────
+      // ── BOUNDED ACTUATOR POWER ON THE SOLVER PATH (00 §9) — C1.2 ───────────
       //
-      // THE DECISION IS ABOVE; THIS IS THE IMPLEMENTATION. The solver applies
-      // tau = k*(target - theta) - c*omega_rel and nothing inside it caps tau,
-      // so the budget going into k — torque per unit tracking error — bounded
-      // nothing at all. `setMotorMaxForce` is absent from this binding, so the
-      // cap cannot be handed to the solver and has to be imposed on k and c.
+      // THE DECISION IS ABOVE; THE IMPLEMENTATION MOVED. The old bound scaled k
+      // and c down by ceiling/worst so the WORST-CASE torque fit the budget.
+      // Measured (tools/_zladder.mjs), that cost the gain a factor of ~3.7 to pay
+      // for a large-error transient steady swimming almost never reaches — and,
+      // worse, it clamped the reference parametrisation's inertia-derived gains
+      // straight back down to the budget, so `motorFreqHz: 10` under this bound
+      // tracked at gain 0.23, no better than the shipped default. The bound WAS
+      // the reason normalising the actuator bought nothing.
       //
-      // BOTH TERMS ARE BOUNDABLE BECAUSE BOTH OPERANDS ARE. The tracking error
-      // is bounded because setLimits holds theta inside +-range and the CPG's
-      // command is a closed form in the joint's OWN genes (controller.js
-      // targetAngles): |target| <= |bias| + amplitude*range + TURN_AUTHORITY*
-      // range, with turnBias in [-1, 1]. The relative angular velocity is
-      // bounded by OMEGA_MAX, which is the Hill ceiling and already derived.
-      // So the worst-case torque this joint can ever ask for is known at build
-      // time, exactly, per joint, from quantities it already carries.
+      // THE BOUND NOW LIVES IN applyMotors AS A PER-STEP CLAMP ON THE COMMANDED
+      // ERROR, not on the gain. `setMotorMaxForce` is absent from this binding, so
+      // the cap cannot be handed to the solver; but the spring torque is
+      // k*(target - theta), and clamping the target so |k*(eff - theta)| never
+      // exceeds `motorScale * budget` bounds the SPRING torque exactly, per step,
+      // at one clamp per joint — and costs NOTHING in the linear region, where the
+      // error is small and the clamp does not bind. The joint tracks at its full
+      // designed stiffness and saturates at the budget, which is what a muscle
+      // does. So k and c are left at their DESIGNED values here; the ceiling
+      // travels to the clamp in `motorBudget[j.index]`, set above.
       //
-      // CORRECTION TO THE WRITE-UP ABOVE, which proposed k <= budget/(2*range)
-      // and worried about a floor for range near zero. There is no degenerate
-      // case: as range goes to zero the SPRING term vanishes with it and only
-      // the damping term survives, which OMEGA_MAX already bounds. The floor is
-      // not needed and the pair below is the whole rule.
-      //
-      // SCALED TOGETHER, NOT CLAMPED SEPARATELY. k and c fall by the same
-      // factor, so omega_n scales by sqrt(f) and the damping ratio zeta is
-      // EXACTLY preserved — and zeta is the quantity tools/_gains.mjs measured
-      // and 3.3 reaches for. Clamping the two independently would silently
-      // retune the joint's character while claiming only to bound its strength.
-      const range = j.angleLimits[0];
-      const jg = genome.controller.jointGenes[j.nodeId];
-      const maxTarget = Math.abs(jg.bias) + jg.amplitude * range + TURN_AUTHORITY * range;
-      const maxError = maxTarget + range;
-      const ceiling = motorScale * budget;   // the same bound the PD clamp uses
-      const worst = motorStiff[j.index] * maxError + motorDampC[j.index] * OMEGA_MAX;
-      // OPTIONAL ONLY SO THAT THE BOUND'S COST IS MEASURABLE. It is on by
-      // default and 00 §9 is not negotiable; `boundTorque: false` exists because
-      // every solver figure in the B2 design was taken before the bound existed,
-      // and comparing against those figures requires being able to reproduce the
-      // conditions they were taken in. It is not a tuning knob.
-      if (boundTorque && worst > ceiling && worst > 0) {
-        const f = ceiling / worst;
-        motorStiff[j.index] *= f;
-        motorDampC[j.index] *= f;
-        motorBounded[j.index] = 1;
-      }
-
+      // DAMPING RIDES AS PASSIVE DISSIPATION. The clamp bounds the active/spring
+      // term; the solver's implicit damping is dissipative and, being inside the
+      // constraint solver, cannot ring (the divergence that motivated the old
+      // total-torque clamp was on the EXPLICIT PD path). Measured realised
+      // |omega_rel| is p50 ~0.35, p95 ~1.3-2.2 rad/s against OMEGA_MAX 10, and the
+      // damping torque it produces is p95 ~0.5*budget on the authored corpus —
+      // modest, and dissipative, so it is not reserved against. This is the 00 §9
+      // decision for this path: bound the active torque to the muscle budget, let
+      // passive viscoelastic damping dissipate on top, exactly as the PD path's
+      // Hill factor scales only the active term while damping keeps its budget.
+      // `boundTorque: false` disables the clamp (applyMotors) and still means
+      // "unbounded", so every pre-bound solver figure stays reproducible.
       handle.configureMotorPosition(0, motorStiff[j.index], motorDampC[j.index]);
       solverDriven[j.index] = 1;
     }
@@ -1210,7 +1271,28 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // A solver-driven joint gets its TARGET updated and nothing else — the
       // spring-damper lives inside the constraint solver, where it cannot ring.
       if (solverDriven[i]) {
-        joints[i].configureMotorPosition(want[i], motorStiff[i], motorDampC[i]);
+        const thetaS = relativeAngle(i);
+
+        // ── 00 §9 BOUND: CLAMP THE COMMANDED ERROR, NOT THE GAIN — C1.2 ───────
+        // The spring torque is k*(eff - theta). Clamp the target so it never
+        // exceeds the muscle budget `motorScale * motorBudget[i]`: the joint
+        // tracks at its full designed stiffness and SATURATES at the budget only
+        // when the error is large, instead of having its gain permanently divided
+        // down (the old bound, which negated the reference parametrisation — see
+        // the motor setup block and tools/_zladder.mjs). Costs one clamp per joint
+        // and nothing in the linear region. `boundTorque: false` leaves it off, so
+        // "unbounded" still reproduces every pre-bound solver figure.
+        let eff = want[i];
+        if (boundTorque && motorStiff[i] > 0) {
+          const eMax = (motorScale * motorBudget[i]) / motorStiff[i];
+          const e = want[i] - thetaS;
+          const c = e < -eMax ? -eMax : (e > eMax ? eMax : e);
+          eff = thetaS + c;
+          motorClamped[i] = c !== e ? 1 : 0;
+        } else {
+          motorClamped[i] = 0;
+        }
+        joints[i].configureMotorPosition(eff, motorStiff[i], motorDampC[i]);
 
         // ── WORK ON THE SOLVER PATH — B2 §3.2, and it is an ESTIMATE ─────────
         //
@@ -1238,9 +1320,14 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         // COT compares a reconstruction against a measurement, and any claim
         // that rests on a difference smaller than a few percent is not entitled
         // to this number. §0.2's 7x is far outside that; a 1.05x would not be.
-        const thetaS = relativeAngle(i);
-        const tau = motorStiff[i] * (want[i] - thetaS) - motorDampC[i] * relOmega;
+        // The spring torque is reconstructed from the CLAMPED target `eff`, so it
+        // is the bounded torque the joint actually delivers.
+        const springTau = motorStiff[i] * (eff - thetaS);
+        const dampTau = -motorDampC[i] * relOmega;
+        const tau = springTau + dampTau;
         work += Math.abs(tau * relOmega) * FIXED_DT;
+        motorTheta[i] = thetaS; motorWant[i] = want[i]; motorRelOmega[i] = relOmega;
+        motorSpringTau[i] = springTau; motorDampTau[i] = dampTau;
         motorSteps++;
         continue;
       }
@@ -1296,7 +1383,15 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
      * N19 is a statement about where the TORQUE BUDGET comes from, and this is
      * where the budget is.
      */
-    get motors() { return { stiff: motorStiff, damp: motorDampC, bounded: motorBounded }; },
+    get motors() { return { stiff: motorStiff, damp: motorDampC, bounded: motorBounded, budget: motorBudget }; },
+    /** Per-step actuator diagnostics (C1.2), updated by the last applyMotors call. */
+    get motorDiag() {
+      return {
+        theta: motorTheta, want: motorWant, relOmega: motorRelOmega,
+        springTau: motorSpringTau, dampTau: motorDampTau, clamped: motorClamped,
+        budget: motorBudget, stiff: motorStiff, damp: motorDampC,
+      };
+    },
     get saturation() { return motorSteps ? motorSaturated / motorSteps : 0; },
 
     /**

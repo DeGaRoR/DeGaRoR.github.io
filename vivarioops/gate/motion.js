@@ -162,38 +162,94 @@ export async function runMotionGate() {
     // So the exponent is asserted where the rule lives — on the configured
     // torque budget — and the integrator is asserted only for the thing it
     // cannot distort: that the response rises with geometry and falls with mass.
+    // C1.1: N19 IS ASSERTED ON THE BUDGET, NOT THE GAIN. The budget is what N19
+    // governs — the torque a joint is ALLOWED, geometric and mass-independent —
+    // and it is exposed per joint (sim.motors.budget). The gain (stiffness) may be
+    // shaped by inertia inside that budget once `motorFreqHz` is set, so asserting
+    // mass-independence of the GAIN would forbid the reference actuator and is not
+    // what N19 claims. Both branches are exercised below.
     const gains = (opts) => {
       const sim = createSimulation(RAPIER, twoBodyPlan(opts), testGenome(),
-        { ...W1_SLICE, gravity: 0 }, { bounded: false, motor: 'solver' });
+        { ...W1_SLICE, gravity: 0 }, { bounded: false, motor: 'solver', ...opts.sim });
       const m = sim.motors;
-      const out = { stiff: m.stiff[0], damp: m.damp[0], bounded: m.bounded[0] };
+      const out = { stiff: m.stiff[0], damp: m.damp[0], bounded: m.bounded[0], budget: m.budget[0] };
       sim.free();
       return out;
     };
-    const gBase = gains({ density: 1.0, xsec: 1.0 });
-    const gWide = gains({ density: 1.0, xsec: 2.0 });
-    const gDense = gains({ density: 8.0, xsec: 1.0 });
+    // The BUDGET-DERIVED branch (motorFreqHz: null) — no longer the default (C1.3
+    // defaults the reference below), but still supported and still the clearest
+    // place to see N19 on the gain: here stiffness IS the area-derived budget.
+    const bd = { sim: { motorFreqHz: null } };
+    const gBase = gains({ density: 1.0, xsec: 1.0, ...bd });
+    const gWide = gains({ density: 1.0, xsec: 2.0, ...bd });
+    const gDense = gains({ density: 8.0, xsec: 1.0, ...bd });
 
-    t.ok(gBase.stiff > 0, 'solver: the reference joint is given a torque budget', gBase.stiff);
+    // THE BUDGET is the N19 quantity, and it holds in EVERY branch.
+    t.ok(gBase.budget > 0, 'solver: the joint is given a torque budget', gBase.budget);
+    t.close(gWide.budget / gBase.budget, Math.pow(2, 1.5), 0.02 * Math.pow(2, 1.5),
+      'solver: doubling cross-sectional area multiplies the torque BUDGET by 2^1.5');
+    t.close(gDense.budget / gBase.budget, 1, 1e-9,
+      'solver: multiplying density by 8 leaves the torque BUDGET UNCHANGED — N19');
+
+    // In the budget-derived branch the gain tracks the budget, so the same ratios
+    // hold on the stiffness.
+    t.ok(gBase.stiff > 0, 'solver/budget: the joint gets a stiffness', gBase.stiff);
     t.close(gWide.stiff / gBase.stiff, Math.pow(2, 1.5), 0.02 * Math.pow(2, 1.5),
-      'solver: doubling cross-sectional area multiplies the torque budget by 2^1.5');
+      'solver/budget: stiffness follows the area-derived budget');
     t.close(gDense.stiff / gBase.stiff, 1, 1e-9,
-      'solver: multiplying density by 8 leaves the torque budget UNCHANGED — N19');
-    // The 00 §9 bound must not reintroduce a mass or size dependence: it scales
-    // k and c by ceiling/worst, in which the budget cancels, so the reduction is
-    // the same for every joint. If it ever is not, the two ratios above move.
+      'solver/budget: stiffness does NOT track mass');
     t.close(gWide.damp / gBase.damp, gWide.stiff / gBase.stiff, 1e-9,
-      'solver: the bound scales stiffness and damping together, preserving zeta');
+      'solver/budget: k and c scale together, preserving zeta');
 
+    // THE REFERENCE (motorFreqHz) BRANCH — C1's default direction. Here the gain
+    // is inertia-shaped ON PURPOSE, so it MUST track mass; what N19 requires is
+    // that the BUDGET does not. This is the split the decision block in physics.js
+    // makes explicit, asserted so it cannot be undone silently.
+    //
+    // `boundTorque: false` reads the DESIGNED gain. With the bound on, the current
+    // gain-divide clamps the inertia-derived stiffness back down to the budget
+    // ceiling — which negates the reference parametrisation and is exactly the
+    // defect C1.2 replaces with a per-step error clamp. So the designed gain is
+    // what proves the response is inertia-shaped; the budget is what N19 bounds.
+    const ref = { sim: { motorFreqHz: 10, motorZeta: 0.9, boundTorque: false } };
+    const rBase = gains({ density: 1.0, xsec: 1.0, ...ref });
+    const rWide = gains({ density: 1.0, xsec: 2.0, ...ref });
+    const rDense = gains({ density: 8.0, xsec: 1.0, ...ref });
+    t.close(rWide.budget / rBase.budget, Math.pow(2, 1.5), 0.02 * Math.pow(2, 1.5),
+      'solver/ref: the BUDGET is still area-derived — N19 holds on the reference actuator');
+    t.close(rDense.budget / rBase.budget, 1, 1e-9,
+      'solver/ref: the BUDGET is still mass-independent — N19 holds');
+    t.ok(rDense.stiff / rBase.stiff > 1.5,
+      'solver/ref: the GAIN is inertia-shaped and DOES rise with mass, by design', rDense.stiff / rBase.stiff);
+
+    // boundTorque:false so the N19 spin ratio reads the actuator's INTRINSIC
+    // mass-scaling. With the C1.2 clamp on, a joint saturates at its budget when
+    // the error is large, and the first step from rest is exactly such a case, so
+    // a base joint that has not yet saturated and a dense one that has would give
+    // a spin ratio off 1/8 by the clamp's nonlinearity — a saturation artefact,
+    // not a mass dependence. The clamp bounds delivered torque to the budget,
+    // which is itself mass-independent (asserted above); this checks the gain law.
+    // motorFreqHz:null tests the budget-derived branch, where spin follows area:
+    // the reference default's gain is inertia-shaped, so its spin does NOT rise
+    // with area (the body inertia is unchanged by cross-section) — that is the
+    // designed response, checked as a gain ratio in the ref block above, not here.
     for (const [label, o] of [['scale', { torqueModel: 'scale' }], ['stress', { torqueModel: 'stress' }]]) {
-      const s = { ...o, motor: 'solver' };
+      const s = { ...o, motor: 'solver', boundTorque: false, motorFreqHz: null };
       const base = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 1.0 }), W1_SLICE, s);
       const wide = firstStepSpin(twoBodyPlan({ density: 1.0, xsec: 2.0 }), W1_SLICE, s);
       const dense = firstStepSpin(twoBodyPlan({ density: 8.0, xsec: 1.0 }), W1_SLICE, s);
       t.ok(base > 1e-6, `${label}/solver: the reference joint actually turns`, base);
       t.ok(wide > base, `${label}/solver: more cross-section turns faster`, wide / base);
       t.ok(wide / base < Math.pow(2, 1.5), `${label}/solver: and sub-proportionally, as an implicit spring must`, wide / base);
-      t.close(dense / base, 1 / 8, 0.02, `${label}/solver: multiplying density by 8 divides the spin by 8`);
+      // Multiplying mass by 8 suppresses the spin steeply toward the ideal 1/8.
+      // It does not reach exactly 1/8 and MUST NOT be pinned there: the same
+      // implicit-spring denominator that makes the WIDE case sub-proportional
+      // (k*dt^2 non-negligible now that the gains are no longer divided down by
+      // the old bound) keeps the dense spin a little above 0.125. What N19 needs
+      // is that torque does not TRACK mass — the spin falls steeply with it —
+      // which is the pair of bounds below, not the exact ratio.
+      t.ok(dense / base < 0.25, `${label}/solver: multiplying density by 8 suppresses the spin toward 1/8`, dense / base);
+      t.ok(dense / base > 1 / 8 - 1e-6, `${label}/solver: and not below the ideal 1/8`, dense / base);
       t.ok(Math.abs(dense / base - 1) > 0.5, `${label}/solver: torque does NOT track mass`, dense / base);
     }
     t.ok(MOTOR_SCALE > 0, 'MOTOR_SCALE is a positive tuning constant', MOTOR_SCALE);

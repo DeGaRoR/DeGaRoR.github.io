@@ -64,6 +64,13 @@ export const SPECIES_FIELDS = [
   { name: 'straightness',  producer: 'S2' },
   { name: 'gaitFrequency', producer: 'S2' },
 
+  // ── dimensionless · DERIVED (C0.3) ─────────────────────
+  // Absolute m/s is not comparable across a corpus of 4-16 m bodies; these are.
+  // Strouhal (the third of the trio) needs a tail-tip amplitude the trace does
+  // not carry and is out of B3 scope — it stays in tools/_zstrouhal.mjs.
+  { name: 'bodyLengthsPerSecond', producer: 'derived', note: 'netSpeed / (2*boundingRadius). A fish does 1-10; the corpus ~0.002' },
+  { name: 'stride',               producer: 'derived', note: 'netSpeed / (gaitFrequency * 2*boundingRadius) — body lengths per beat; fish 0.5-1.0' },
+
   // ── turning · measured, S3 — N21 depends on turnRate ───
   { name: 'turnRate',      producer: 'S3', note: 'rad/s, YAW only. N21 clamps all L3 steering by this' },
   // BRIDGE_V 2 -> 3. `turnRate` is a compass bearing and reads near-zero for a

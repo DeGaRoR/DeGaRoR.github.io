@@ -86,9 +86,13 @@ const eliteCap = (population) => population - strangerCount(population);
  * @param {object} args.world
  * @param {object} [args.limits]   defaults to SLICE_LIMITS
  * @param {boolean} [args.lockMorphology]  A9's extra: vary behaviour, keep the body
+ * @param {object[]} [args.injectStrangers]  genomes to place in the stranger slot(s)
+ *        instead of drawing random ones — the player importing a saved creature as
+ *        "the stranger" (N17's slot, filled by hand rather than by the factory).
  * @returns {{genomes:object[], provenance:object[], tally:object, droppedElite:number|null}}
  */
-export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LIMITS, lockMorphology = false }) {
+export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LIMITS,
+                        lockMorphology = false, injectStrangers = [] }) {
   if (!Array.isArray(selected) || selected.length === 0) {
     // 10 §A17.3: "0 selected -> button disabled". Reaching here is a UI bug, and
     // silently breeding from an arbitrary parent would hide it.
@@ -154,7 +158,21 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
   // offspring, which keeps a breed reproducible while the stranger rule is
   // being argued about. Each forks on its own slot index, so the stream is
   // independent of how many there are.
+  // An injected stranger (the player importing a saved creature) fills a stranger
+  // slot BYTE-IDENTICAL and consumes no rng, so a breed with `injectStrangers`
+  // empty is bit-for-bit what it was before — the gate and every seeded result
+  // depend on that. Slots past the supply fall back to a fresh random draw, so a
+  // single import into a one-stranger tank behaves exactly as designed.
+  let injectAt = 0;
   for (const slot of strangerSlots) {
+    if (injectAt < injectStrangers.length) {
+      next[slot] = cloneGenome(injectStrangers[injectAt++]);
+      provenance[slot] = {
+        kind: KIND.STRANGER, parent: null, ops: [],
+        attempts: 0, fellBack: false, viable: true, imported: true,
+      };
+      continue;
+    }
     const stranger = strangerFor(RAPIER, rng.fork(`stranger:${slot}`), world, limits, tally);
     next[slot] = stranger.genome;
     provenance[slot] = {

@@ -17,7 +17,7 @@ import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
 import { assessViability } from '../engine/l1/viability.js';
 import { turnSides, sensorTurnBias, TURN_AUTHORITY } from '../engine/l1/controller.js';
 import {
-  runSolo, makeTrace, sample, seedFor, unwrap, SAMPLE_HZ, INVALID,
+  runSolo, turn3d, makeTrace, sample, seedFor, unwrap, SAMPLE_HZ, INVALID,
 } from '../engine/l2/probe.js';
 import {
   S1, S2, S3, fitPower, rayObb, fibonacciDirections, principalExtent,
@@ -243,6 +243,39 @@ export async function runProbeGate() {
     // no steering — and the half-difference is what reports that as zero.
     t.close(Math.abs(0.4 - 0.4) / 2, 0, 1e-12, 'equal rates under opposite inputs give zero response');
     t.close(Math.abs(0.5 - (-0.3)) / 2, 0.4, 1e-12, 'opposite rates give the half-difference');
+  });
+
+  // ── L2-21 · turn3d reads heading, not the per-stroke wobble (C0.1) ─────────
+  g.assertion('L2-21', 'turn3d: a straight-line swimmer reads a low turn rate, not its stroke', (t) => {
+    // THE DEFECT THIS GUARDS: `turn3d` shipped as the SWEPT MAGNITUDE of the
+    // travel direction, which reverses every stroke, so a creature holding a
+    // straight line read tens of deg/s of turning it was not doing — and after
+    // the ±bias difference S3 could not tell a turn from a wander (SNR 0.2).
+    // The repair reads the heading from the root's forward axis and accumulates
+    // it as a vector. This asserts the two channels have SEPARATED: on a straight
+    // swimmer the heading `rate` is small while `wobbleRate` (the old number,
+    // kept as a diagnostic) is large. If `rate` ever tracks `wobbleRate` again,
+    // magnitude accumulation has come back and this reds.
+    const eel = seedById('eel');
+    const plan = morphogenesis(eel.genome ?? eel);
+    const r = runSolo(RAPIER, {
+      plan, genome: eel.genome ?? eel, world: W1_SLICE,
+      gravity: 0, bounded: false, duration: 16, turnBias: 0,
+    });
+    t.ok(r.valid, 'the straight-swimmer run is valid');
+    const t3 = turn3d(r.trace, 0, r.trace.n);
+    const DEG = 180 / Math.PI;
+    const rateDeg = t3.rate * DEG, wobbleDeg = t3.wobbleRate * DEG;
+    // A no-input eel drifts well under 2 deg/s of coherent heading change; the
+    // shipped magnitude metric read ~5-40. Floor is generous so it catches the
+    // regression without pinning the exact drift.
+    t.ok(rateDeg < 2.0, 'heading rate at turnBias 0 is below 2 deg/s', rateDeg);
+    // And the wobble it is NOW EXCLUDING is genuinely there — this is what makes
+    // the test meaningful rather than passing on a motionless creature.
+    t.ok(wobbleDeg > 5.0, 'the excluded per-stroke wobble is large', wobbleDeg);
+    t.ok(t3.rate <= t3.wobbleRate + 1e-9, 'heading rate never exceeds the raw sweep it is drawn from');
+    t.ok(Array.isArray(t3.headingVec) && t3.headingVec.length === 3, 'headingVec is a 3-vector for S3 to difference');
+    t.close(Math.hypot(...t3.headingVec), t3.rate, 1e-9, 'rate is the magnitude of headingVec');
   });
 
   // ── L2-8 · the sensor amendment (11 §10) ──────────────────────────────────

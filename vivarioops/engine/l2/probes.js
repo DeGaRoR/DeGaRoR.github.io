@@ -525,7 +525,7 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
     out.push({
       rate: meanTurnRate(r.trace, 0, r.trace.n, scratch),
       speed: meanSpeed(r.trace, 0, r.trace.n),
-      rate3d: t3.rate, axis3d: t3.axis, localAxis: t3.localAxis,
+      rate3d: t3.rate, headingVec: t3.headingVec, axis3d: t3.axis, localAxis: t3.localAxis,
     });
   }
 
@@ -541,7 +541,15 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
   // A creature can have a large turn rate and zero authority; that is precisely
   // the confusion this probe's both-directions design prevents for the rate and
   // left unfixed for the axis.
-  const turnRate3d = Math.abs(out[0].rate3d - out[1].rate3d) / 2;
+  //
+  // C0.1: difference the heading rate AS A VECTOR, not as a magnitude. The old
+  // `|rate3d_+ - rate3d_-|/2` subtracted two magnitudes, so a creature that turns
+  // hard LEFT under +bias and hard RIGHT under -bias — clean steering — cancelled
+  // to zero. The vector difference of the two angular-velocity vectors adds the
+  // opposite turns and cancels the shared drift, which is the coherent steering
+  // response the diagnosis measures (0.12 deg/s shipped, ~4.6 normalised).
+  const dHead = [0, 1, 2].map((i) => out[0].headingVec[i] - out[1].headingVec[i]);
+  const turnRate3d = Math.hypot(...dHead) / 2;
 
   // ── THE STEERING PLANE — B2 §5 ──────────────────────────────────────────────
   //

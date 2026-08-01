@@ -2,12 +2,12 @@
 // A hand edit is a gate failure (V1). The three schema versions are declared in
 // contracts/versions.js and mirrored here; APP_V is produced by the build.
 export const VERSION = {
-  "app": "0.8.1",
-  "build": "2026-07-29T23:56:49Z",
-  "commit": "uncommitted",
+  "app": "0.8.3",
+  "build": "2026-08-01T08:14:45Z",
+  "commit": "fb7c137",
   "genome": 2,
-  "bridge": 4,
+  "bridge": 5,
   "ecology": 1
 };
-export const APP_V = "0.8.1";
+export const APP_V = "0.8.3";
 export default VERSION;

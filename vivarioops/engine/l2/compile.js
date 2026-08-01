@@ -18,7 +18,7 @@ import { morphogenesis } from '../l1/morphogen.js';
 import { binomial } from '../l1/naming.js';
 import { assessViability } from '../l1/viability.js';
 import { S1, S2, S3 } from './probes.js';
-import { INVALID } from './probe.js';
+import { INVALID, swimMetrics } from './probe.js';
 
 /** Fields the fauna loader owns. Everything else is compileSolo's obligation. */
 export const FAUNA_FIELDS = ['id', 'vs'];
@@ -97,6 +97,16 @@ export function compileSolo(RAPIER, args) {
   // ── fixture defaults — UNMEASURED until S4/S5 (30 §5 C1) ──────────────────
   sp.pursuitGain = world.pursuitGain;
   sp.evasionGain = world.evasionGain;
+
+  // ── dimensionless · DERIVED (C0.3) ────────────────────────────────────────
+  // The numbers that make locomotion legible across a corpus of different body
+  // lengths. One reduction, shared with tools/_zstrouhal.mjs. L is the bounding
+  // DIAMETER (2 x boundingRadius) — the same body-length proxy the diagnosis and
+  // the gauge use, so a recorded L/s is directly comparable to their figures
+  // (corpus ~0.0023, the C1 target >= 0.008).
+  const swim = swimMetrics(loco.netSpeed, loco.gaitFrequency, 2 * morph.boundingRadius);
+  sp.bodyLengthsPerSecond = swim.bodyLengthsPerSecond;
+  sp.stride = swim.stride;
 
   // ── derived (03 §3) ───────────────────────────────────────────────────────
   sp.massMin = thresholds.massMin;

@@ -380,6 +380,31 @@ export function straightness(trace, from, to, horizontal = true) {
 }
 
 /**
+ * THE DIMENSIONLESS SWIMMING NUMBERS — C0.3.
+ *
+ * Absolute m/s is not comparable across a corpus whose body lengths span 4-16 m,
+ * so every locomotion result should be read through these instead. `U` is travel
+ * speed (netSpeed, m/s), `f` the beat frequency (gaitFrequency, Hz), `L` the body
+ * length — the bounding DIAMETER (2 x boundingRadius), matching the diagnosis and
+ * tools/_zstrouhal.mjs so the figures line up.
+ *
+ *   bodyLengthsPerSecond = U / L        a fish does 1-10; the corpus does ~0.002
+ *   stride               = U / (f * L)  body lengths advanced per beat; fish 0.5-1.0
+ *
+ * Strouhal (f * A / U, which needs the tail peak-to-peak throw A) is the third of
+ * the trio and stays in tools/_zstrouhal.mjs: A needs a tail-tip channel the
+ * trace does not carry, and St is out of B3 scope — it is pinned near 1 until the
+ * fluid model changes (C6). This is the single implementation of the two that ARE
+ * first-class; the tool reads L/s through it too so there is one formula.
+ */
+export function swimMetrics(U, f, L) {
+  return {
+    bodyLengthsPerSecond: L > 1e-9 ? U / L : 0,
+    stride: (f > 1e-9 && L > 1e-9) ? U / (f * L) : 0,
+  };
+}
+
+/**
  * 11 §5: "dominant frequency of vertical CoM oscillation, by zero-crossing count".
  *
  * DETRENDED FIRST, which the spec does not say and which decides the answer. The
@@ -418,29 +443,43 @@ export function meanTurnRate(trace, from, to, scratch) {
 }
 
 /**
- * TURN OF THE VELOCITY DIRECTION, IN 3-D, AND THE AXIS IT TURNS ABOUT.
+ * THE CREATURE'S TURN, IN 3-D, AND THE AXIS IT TURNS ABOUT.
  *
  * `headingOf` is a compass bearing — `atan2(f[0], f[2])`, deliberately
  * horizontal, and its comment defends that choice correctly for a compass. But
  * `jointAxisAtSpawn` gives a revolute joint the limb's local X, so a Z-axial
- * chain bends in the Y-Z plane: it PITCHES. Measured over a random corpus, such
- * a creature's yaw response to `turnBias` is essentially zero (0.0, -0.2, 0.2,
- * 0.9, -1.2 deg/s across a full bias sweep) while its total turn rate rises from
- * 4.3 to 41.4 deg/s. **`turnRate` reads near-zero for exactly the bodies that
- * turn best**, and N21 clamps every L3 steering decision by that number.
+ * chain bends in the Y-Z plane: it PITCHES. `turnRate` (the yaw) reads near-zero
+ * for exactly the bodies that turn best, so this probe reports the turn in
+ * whatever plane it actually happens in.
  *
- * This reads the direction of travel from the `com` channel instead of the root
- * body's attitude, and reports the turn in whatever plane it happens in:
+ * TWO CHANNELS, and the split is the C0.1 repair:
  *
- *   rate  — mean angle between successive direction vectors, rad/s
- *   axis  — mean rotation axis, normalised; the plane the creature turns in is
- *           the one perpendicular to it
+ *   rate / headingVec — the HEADING rate, read from the root body's FORWARD AXIS
+ *           (root +Z). The centre of mass reverses direction every stroke, so a
+ *           rate built on the direction of travel measured the stroke — 3-19
+ *           deg/s of it for a creature holding a straight line. The body's
+ *           attitude does not reverse per stroke. `headingVec` is the turn as a
+ *           rad/s angular-velocity vector (so S3 can difference it across
+ *           +/-bias); `rate` is its magnitude.
+ *   axis / localAxis  — the PLANE the creature bends in, read from the direction
+ *           of travel and accumulated as a VECTOR (the per-stroke sweep cancels).
+ *           Unchanged: B2 §5's steering-plane work depends on these.
+ *   wobbleRate — the old `total/dt` travel-sweep rate, kept as a diagnostic
+ *           because it IS the per-stroke wobble and losing it hides the defect.
  *
  * `stride` samples every k-th point because the CoM oscillates at 12-22 Hz with
  * the stroke (§4 of the handover) and consecutive samples are dominated by that
  * wobble rather than by the turn.
  */
 export function turn3d(trace, from, to, stride = 12) {
+  const dt = (trace.t[Math.min(to - 1, trace.n - 1)] - trace.t[from]) || 1;
+
+  // ── THE PLANE (axis / localAxis): read from the direction of TRAVEL ──────────
+  // Unchanged from B2 §5, and correct as it stands — a creature's steering plane
+  // is the plane its path curves in, and these are already accumulated as VECTORS
+  // so the per-stroke sweep cancels and only the coherent bend survives. What
+  // does NOT survive that cancellation is a rate, which is why `rate` below reads
+  // a different channel.
   const dirs = [];
   for (let i = from + stride; i < to; i += stride) {
     const a = (i - stride) * 3, b = i * 3;
@@ -448,12 +487,11 @@ export function turn3d(trace, from, to, stride = 12) {
     const n = Math.hypot(d[0], d[1], d[2]);
     if (n > 1e-6) dirs.push([d[0] / n, d[1] / n, d[2] / n]);
   }
-  if (dirs.length < 2) return { rate: 0, axis: [0, 0, 0], localAxis: [0, 0, 0] };
-  let total = 0, ax = [0, 0, 0], lax = [0, 0, 0];
+  let wobble = 0, ax = [0, 0, 0], lax = [0, 0, 0];
   for (let i = 1; i < dirs.length; i++) {
     const p = dirs[i - 1], q = dirs[i];
     const c = [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
-    total += Math.asin(Math.min(1, Math.hypot(c[0], c[1], c[2])));
+    wobble += Math.asin(Math.min(1, Math.hypot(c[0], c[1], c[2])));
     ax[0] += c[0]; ax[1] += c[1]; ax[2] += c[2];
 
     // AND THE SAME INCREMENT IN THE BODY FRAME — B2 §5. The world-frame axis is
@@ -469,11 +507,41 @@ export function turn3d(trace, from, to, stride = 12) {
     const l = qrot(inv, c);
     lax[0] += l[0]; lax[1] += l[1]; lax[2] += l[2];
   }
-  const dt = (trace.t[Math.min(to - 1, trace.n - 1)] - trace.t[from]) || 1;
   const an = Math.hypot(ax[0], ax[1], ax[2]);
   const ln = Math.hypot(lax[0], lax[1], lax[2]);
+
+  // ── THE RATE (rate / headingVec): read from the ROOT BODY'S FORWARD AXIS ─────
+  // C0.1. The travel direction reverses every stroke, so a rate built on it
+  // measures the stroke, not the heading — `turn3d` shipped as `total/dt` over
+  // the travel sweep and read 3-19 deg/s of spurious turning for a creature
+  // holding a straight line (tools/_zwobble.mjs, tools/_zorient.mjs). The body's
+  // forward axis (root +Z, the anterior direction every child attaches along)
+  // does not reverse per stroke, and its increments accumulated AS A VECTOR read
+  // the drift floor at 0.4-0.8 deg/s, which is the number the diagnosis names.
+  // `headingVec` is that vector sum as a rad/s angular velocity; `rate` is its
+  // magnitude. S3 differences `headingVec` across +/-bias to isolate the steering
+  // response from the shared drift, exactly as it differences the axis.
+  let axF = [0, 0, 0], pf = null;
+  for (let i = from; i < to; i += stride) {
+    const k = i * 4;
+    const f = qrot([trace.rootQ[k], trace.rootQ[k + 1], trace.rootQ[k + 2], trace.rootQ[k + 3]], [0, 0, 1]);
+    const nf = Math.hypot(f[0], f[1], f[2]);
+    if (nf < 1e-9) continue;
+    const u = [f[0] / nf, f[1] / nf, f[2] / nf];
+    if (pf) {
+      const c = [pf[1] * u[2] - pf[2] * u[1], pf[2] * u[0] - pf[0] * u[2], pf[0] * u[1] - pf[1] * u[0]];
+      axF[0] += c[0]; axF[1] += c[1]; axF[2] += c[2];
+    }
+    pf = u;
+  }
+  const headingVec = [axF[0] / dt, axF[1] / dt, axF[2] / dt];
+
   return {
-    rate: total / dt,
+    rate: Math.hypot(headingVec[0], headingVec[1], headingVec[2]),
+    /** The heading turn as a rad/s angular-velocity VECTOR — differenced by S3. */
+    headingVec,
+    /** The old travel-sweep rate, kept as a diagnostic: this is the per-stroke wobble. */
+    wobbleRate: wobble / dt,
     axis: an > 1e-9 ? [ax[0] / an, ax[1] / an, ax[2] / an] : [0, 0, 0],
     /** The same axis in the ROOT'S LOCAL FRAME — the creature's steering plane normal. */
     localAxis: ln > 1e-9 ? [lax[0] / ln, lax[1] / ln, lax[2] / ln] : [0, 0, 0],

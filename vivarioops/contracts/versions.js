@@ -20,7 +20,22 @@ export const GENOME_V = 2;
 // by a different bridge and a different sensor. 11 §4: "BRIDGE_VERSION bumps
 // invalidate every cached record. This is the only invalidation mechanism and it
 // must be respected."
-export const BRIDGE_V = 4;
+// C0 (B3) bumps 4 -> 5 for TWO reductions landed together to spend one
+// invalidation. (1) turn3d now reads the HEADING from the root's forward axis and
+// accumulates it as a vector, and S3 differences that vector across +/-bias, so
+// `turnRate3d`/`steeringAuthority` mean a coherent steering response rather than a
+// per-stroke wobble — every stored turn number was measured by the old sensor.
+// (2) the record gains `bodyLengthsPerSecond` and `stride` (C0.3), so the schema
+// itself is wider. A record from bridge 4 is rejected, never migrated: a probe
+// reduction has no forward migration, it must be re-measured.
+// (3) C1 defaults the reference actuator (motorFreqHz 10, budgetScale 6, and the
+// 00 §9 bound moved from a gain-divide to a per-step error clamp), so every
+// creature's measured locomotion changes. That is a measured-behaviour change,
+// not a schema one, but it invalidates cached records for the same reason a
+// reduction change does — they were measured by a different actuator. It ships in
+// the SAME session as (1) and (2) and nothing is persisted between them, so it
+// rides this one bump rather than taking a second.
+export const BRIDGE_V = 5;
 
 /** 01 §8 — bumps on L3 rule change; stored runs kept but marked stale. */
 export const ECOLOGY_V = 1;

@@ -95,7 +95,19 @@ quietly lost, so they are pinned here where the gate can see them.
 |---|---|---|---|
 | N17 | **One tank slot is always an unrelated random genome.** | Breeding by taste over six individuals converges to a single animal within ~5 generations. Certain, not probable. | assertion on generation composition |
 | N18 | Selected creatures survive unchanged as elites. | Without it, a creature you liked can vanish in one tap and the loop is punishing. | assertion |
-| N19 | Motor strength scales with **cross-sectional area**, not mass. | Mass goes with volume, strength with area. Getting this wrong makes all creatures move alike regardless of size. | assertion on two scaled genomes |
+| N19 | The motor torque **budget** scales with **cross-sectional area**, not mass. | Mass goes with volume, strength with area. Getting this wrong makes all creatures move alike regardless of size. | assertion on two scaled genomes (L1-18, on the budget) |
+
+> **N19 amendment — C1.1 (B3).** N19 governs the torque **budget** (the peak
+> torque a joint is allowed: `MUSCLE_STRESS · A^1.5 · momentArm`, geometric, never
+> mass), and NOT the **response shape** — the `(ωₙ, ζ)` that decide how the joint
+> tracks its target inside that budget. The reference actuator derives that
+> response from the limb's inertia (`SpringFrequency 10 Hz`, `DampingRatio 0.9`
+> against `MaxImpulse = 2·MinCrossSectionalArea`), and doing so does not violate
+> N19: a heavier limb accelerates less under the same torque, but the peak torque
+> it is allowed is unchanged. L1-18 therefore asserts N19 on the budget and
+> permits the gain to be inertia-shaped. Original wording ("motor strength scales
+> with cross-sectional area") predates the reference parametrisation and read the
+> gain and the budget as one quantity, which they no longer are.
 | N20 | Joint parity: an odd number of mirrorings flips orientation sign. | Mirrored limbs bend the wrong way; very hard to trace. | assertion |
 | N21 | L3 steering is clamped by measured `turnRate`. | This single clamp carries most of the creature's physical identity into the ecosystem. | assertion |
 | N22 | Ground and wall contacts never damage; only creature–creature contacts do. | Otherwise everything dies on landing. | assertion |

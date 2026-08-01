@@ -43,6 +43,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
 import { createRandomGenome } from '../engine/l1/factory.js';
 import { morphogenesis, boundingRadius } from '../engine/l1/morphogen.js';
+import { swimMetrics } from '../engine/l2/probe.js';
 import { createSimulation, FIXED_DT } from '../engine/l1/physics.js';
 import { SEEDS } from '../worlds/seeds.js';
 import { W1_SLICE } from '../worlds/w1_slice.js';
@@ -153,7 +154,9 @@ const base = [];
 for (const s of subs) {
   const L = 2 * boundingRadius(s.plan);
   const m = measure(s.plan, s.genome, 1.0);
-  base.push({ id: s.id, L, ...m, Ls: m.U / L });
+  // Same reduction the species record uses (engine/l2/probe.js), so the gauge and
+  // the recorded field cannot drift apart.
+  base.push({ id: s.id, L, ...m, Ls: swimMetrics(m.U, m.f, L).bodyLengthsPerSecond });
   console.log('  ' + s.id.padEnd(12)
     + L.toFixed(2).padStart(7)
     + m.U.toFixed(4).padStart(10)
