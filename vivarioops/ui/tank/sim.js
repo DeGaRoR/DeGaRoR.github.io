@@ -183,6 +183,10 @@ export const nextSpeed = (s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length];
 export const STATE = {
   LOADING: 'LOADING', EMPTY: 'EMPTY', SIMULATING: 'SIMULATING',
   PAUSED: 'PAUSED', BREEDING: 'BREEDING', SHEET_OPEN: 'SHEET_OPEN',
+  // C3 — the gait burst runs for many seconds; the sim freezes and input is
+  // ignored while it does, exactly as BREEDING does, but it holds until the
+  // async search resolves rather than expiring on a timer.
+  BURSTING: 'BURSTING',
 };
 
 /** 21 §4.4: "The BREEDING beat is not decoration" — 600 ms, visible. */

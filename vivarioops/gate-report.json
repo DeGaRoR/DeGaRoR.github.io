@@ -7,7 +7,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "16 file(s) in /engine/"
+      "note": "17 file(s) in /engine/"
     },
     {
       "id": "N2",
@@ -15,7 +15,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "16 file(s) in /engine/"
+      "note": "17 file(s) in /engine/"
     },
     {
       "id": "N3",
@@ -23,7 +23,7 @@
       "status": "pass",
       "checks": 1,
       "failures": [],
-      "note": "16 file(s) in /engine/"
+      "note": "17 file(s) in /engine/"
     },
     {
       "id": "N5",
@@ -85,14 +85,14 @@
     "Tier 1: N15 (every user-visible string through t()) has no check yet — t() is in use from A1 but the DOM scan needs the dictionaries.",
     "Tier 3: N16 exception — index.html meta[name=theme-color] holds the only hex outside tokens."
   ],
-  "appV": "0.8.3",
-  "commit": "fb7c137",
+  "appV": "0.8.5",
+  "commit": "5f746b7",
   "fullGate": {
     "verdict": "GREEN",
-    "passed": 81,
+    "passed": 82,
     "failed": 0,
     "pending": 4,
-    "checks": 4033,
+    "checks": 4042,
     "suites": [
       {
         "name": "contracts",
@@ -132,7 +132,7 @@
       },
       {
         "name": "probe",
-        "passed": 11,
+        "passed": 12,
         "failed": 0,
         "pending": 1
       },
@@ -157,6 +157,6 @@
         }
       }
     },
-    "finishedAt": "2026-08-01T08:14:45.045Z"
+    "finishedAt": "2026-08-01T09:35:53.200Z"
   }
 }

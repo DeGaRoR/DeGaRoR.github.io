@@ -200,6 +200,11 @@ export function runSolo(RAPIER, args) {
   const trace = makeTrace(capacity);
 
   const sim = createSimulation(RAPIER, plan, genome, w, {
+    // Actuator/experiment overrides FIRST, so the explicit keys below win — a
+    // probe must not let a caller silently change what `bounded`/`wrap`/`effort`
+    // mean, but it may accept an actuator override (boundTorque, budgetScale,
+    // motorFreqHz) for a measurement. Default {} changes nothing.
+    ...(args.simOpts ?? {}),
     bounded: args.bounded ?? true,
     // B2 §4.2 — THE TORUS REACHES THE PROBES. Method, session 10 and again in
     // B2 §10: "measure in the world the player is in". Every probe in this tree

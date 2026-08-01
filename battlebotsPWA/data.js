@@ -427,7 +427,10 @@ const CELL_GAP = 4;
    match = CLASS_RING de la classe du concours (sinon du bot joueur).
    ARENA_GEOM : géométrie des SPRITES d'arène — playEdge = fraction du
    cadre où se trouve le bord du plateau (mesuré sur l'alpha/luminance) ;
-   square = image opaque plein cadre, dessinée carrée SANS clip circulaire.
+   square = image opaque plein cadre, dessinée carrée SANS clip circulaire ;
+   cx/cy = décentrage du plateau dans l'image (fraction de la largeur/hauteur,
+   signé : centre_plateau − centre_image). Défaut 0. Sert quand le cercle dessiné
+   n'est pas au centre du cadre (sinon le ring logique tombe à côté).
    Le rendu aligne le bord du plateau dessiné sur le ring logique. ══ */
 /* S19 — clés alignées sur le VOCABULAIRE DES BANDES (classBands produit
    S/M/L/XXL, jamais "XL") : l'ancienne entrée XL était morte et XXL manquait,
@@ -441,7 +444,7 @@ const ARENA_GEOM = {
   "assets/arena_grim.webp":   { playEdge:0.98 },
   "assets/arena_kawaii.webp": { playEdge:0.98 },
   "assets/arena_s_nerd.webp": { playEdge:0.706, square:true },   // S16 : bord EXTERNE de la bande blanche (mesure 361,5/512 px)
-  "assets/arena_m_shop.webp": { playEdge:0.65, square:true },
+  "assets/arena_m_shop.webp": { playEdge:0.724, square:true, cx:-0.0015, cy:-0.0157 },   // bord EXTERNE de la bande blanche (fit 360 rayons : centre 510,5/496 · Ø 741 / 1024 px)
 };
 const TOURNAMENTS = [
   { id:"sumoS", arena:"assets/arena_s_nerd.webp", name:{fr:"Defi du Bureau",en:"Desk Challenge"}, format:"championnat", rounds:4,
@@ -524,10 +527,16 @@ const WIN_EUR = [0, 12, 20, 32, 50, 80];
    le software est immatériel) et constantes de conversion impulsion→usure.
    Réparation = usure × prix × RATE, jamais sous FLOOR ; le châssis ne se
    démonte pas : réparation seule, sur une base forfaitaire. */
+/* CALIBRAGE 08/01 — l'usure des ROUES mangeait ~100 % de la bourse d'une manche
+   (0→HS en ~6 manches ⇒ ~17 %/manche, réparation pr8 ≈ 25 € ≈ une manche gagnée).
+   En sumo la propulsion EST l'interface de poussée : elle encaissait l'usure de
+   choc direct à chaque appui, ce qui n'a pas de sens pour un pneu. propulsion
+   0,7 → 0,35 (−50 %). Trim global −16 % (usure « trop rapide » en général) et
+   plancher de réparation 8 → 6 pour alléger les petites remises à neuf. */
 const FRAGILITY = { sensors:2.2, cpu:1.6, cooling:1.2, motor:1.0, battery:1.0,
-  weapon1:1.0, weapon2:1.0, srimech:0.8, propulsion:0.7, armor:0.6, ballast:0.3, software:0 };
-const DAMAGE_TUNE = { DIRECT_K:0.081, VIB_K:0.011, GRIND_K:0.35, CHASSIS_J_K:0.0165, CHASSIS_GRIND_K:0.16,
-  REPAIR_RATE:0.6, REPAIR_FLOOR:8, CHASSIS_REPAIR_BASE:180 };
+  weapon1:1.0, weapon2:1.0, srimech:0.8, propulsion:0.35, armor:0.6, ballast:0.3, software:0 };
+const DAMAGE_TUNE = { DIRECT_K:0.068, VIB_K:0.0092, GRIND_K:0.29, CHASSIS_J_K:0.0165, CHASSIS_GRIND_K:0.16,
+  REPAIR_RATE:0.6, REPAIR_FLOOR:6, CHASSIS_REPAIR_BASE:180 };
 const LIGUES = [
   /* E4 — CIRCUIT GARAGE : l'arc S. Bourses ×0.35 (petites classes, petites
      primes) ; la finale de la Coupe des Puces paie la PRIME DE MONTÉE (200 €). */

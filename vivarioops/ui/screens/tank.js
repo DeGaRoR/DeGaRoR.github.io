@@ -16,6 +16,7 @@ import * as store from '../../trunk/store.js';
 import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
+import { adaptGait } from '../../engine/l2/gait.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
 import { binomial } from '../../engine/l1/naming.js';
 import { buildCreature, disposeCreature, token, rampFor, updateCreatureGlow } from '../../render/creature.js';
@@ -351,7 +352,7 @@ export default {
     // ── the loop ────────────────────────────────────────────────────────────
 
     function stepPhysics(dtMs) {
-      if (paused || state === STATE.BREEDING) return;
+      if (paused || state === STATE.BREEDING || state === STATE.BURSTING) return;
       accumulator += (dtMs / 1000) * speed;
       const { steps, carry } = stepBudget(accumulator, FIXED_DT);
       accumulator = carry;
@@ -455,7 +456,7 @@ export default {
       lastMs = nowMs;
       // Smoothing is per real second, so it does not change with frame rate.
       // Paused means no new samples, not a decay towards zero.
-      lastDt = (paused || state === STATE.BREEDING) ? 0 : dt / 1000;
+      lastDt = (paused || state === STATE.BREEDING || state === STATE.BURSTING) ? 0 : dt / 1000;
 
       if (state === STATE.BREEDING && nowMs >= breedingUntil) {
         state = paused ? STATE.PAUSED : STATE.SIMULATING;
@@ -520,7 +521,7 @@ export default {
     };
 
     view.addEventListener('pointerdown', (e) => {
-      if (!ready || state === STATE.BREEDING) return;
+      if (!ready || state === STATE.BREEDING || state === STATE.BURSTING) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       view.setPointerCapture?.(e.pointerId);
 
@@ -716,7 +717,11 @@ export default {
     // "random" by default, or a saved creature the player picked. Tapping opens the
     // picker; the pick applies to the next breed only, then resets to random.
     const btnStranger = chip('stranger', openStrangerPicker);
-    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger);
+    // C3 — teach the whole tank to swim. Freezes the six, runs the gait inner loop
+    // (adaptGait) over an expanded population, breeds on the ADAPTED speed, and
+    // returns the best six. Long — a progress % rides the chip while it runs.
+    const btnBurst = chip('burst', runBurst);
+    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger, btnBurst);
     primary.addEventListener('click', doBreed);
 
     function updateStrangerChip() {
@@ -784,7 +789,7 @@ export default {
     }
 
     function doBreed() {
-      if (!ready || selected.size === 0 || state === STATE.BREEDING) return;
+      if (!ready || selected.size === 0 || state === STATE.BREEDING || state === STATE.BURSTING) return;
       // The coach has done its job the moment the loop is used once (21 §4.6).
       coach.hidden = true;
 
@@ -826,6 +831,95 @@ export default {
       persistLineage();
     }
 
+    // ── the gait burst (C3) ───────────────────────────────────────────────────
+    // "A body is judged by its ADAPTED gait, never its birth gait." The player's
+    // six are frozen; the population is expanded with fresh strangers; every body
+    // has its controller hill-climbed by adaptGait (morphology frozen) and is bred
+    // on that adapted speed, Lamarckian; the best six come back swimming.
+    //
+    // Modest by design: a full burst is many seconds of blocking sim, so the loop
+    // YIELDS to a repaint between bodies (the progress % is why) and the numbers
+    // are the small end of the plan's range. Scoring is in the canonical W1_SLICE,
+    // not the tank's display-scaled world, so a gait adapts for the real physics.
+    const BURST_POP = 12, BURST_GENS = 2, BURST_CAND = 4, BURST_ITER = 2;
+
+    function runBurst() {
+      if (!ready || state === STATE.BREEDING || state === STATE.BURSTING) return;
+      coach.hidden = true;
+      previous = { genomes, provenance, generation, selected: [...selected] };  // one-step undo
+      state = STATE.BURSTING;
+      view.dataset.breeding = 'yes';
+      renderStatus();
+
+      const rng = rngFrom('tank', vivariumSeed, 'burst', generation);
+      // Yield so the progress % paints AND the tab stays responsive. rAF gives a
+      // real paint when visible; the setTimeout fallback keeps the burst advancing
+      // when the tab is hidden (rAF is paused there) so it can never wedge.
+      const repaint = () => new Promise((r) => {
+        let fired = false; const go = () => { if (!fired) { fired = true; r(); } };
+        requestAnimationFrame(go); setTimeout(go, 50);
+      });
+      const totalBodies = BURST_POP * (BURST_GENS + 1);
+      let done = 0;
+      const showProgress = () => { btnBurst.textContent = `${Math.round((100 * done) / totalBodies)}%`; };
+
+      (async () => {
+        // expand to BURST_POP with fresh strangers (never clones — §autoBurst)
+        let pop = genomes.slice();
+        if (pop.length < BURST_POP) {
+          const extra = seedPopulation({
+            RAPIER, rng: rng.fork('expand'), world: W1_SLICE,
+            population: BURST_POP - pop.length, authoredSlots: 0,
+          });
+          pop = pop.concat(extra.genomes);
+        }
+
+        let scores = [];
+        for (let gen = 0; gen <= BURST_GENS; gen++) {
+          const adapted = []; scores = [];
+          for (let i = 0; i < pop.length; i++) {
+            const a = adaptGait(RAPIER, {
+              genome: pop[i], world: W1_SLICE, rng: rng.fork(`g${gen}b${i}`),
+              candidates: BURST_CAND, iterations: BURST_ITER,
+            });
+            adapted.push(a.genome); scores.push(a.score);
+            done++; showProgress();
+            await repaint();                      // yield so the % paints and the tab stays alive
+            if (stopped) return;
+          }
+          pop = adapted;                          // Lamarckian: adapted controllers survive
+          if (gen === BURST_GENS) break;          // final pass adapts only, no breed
+          const order = scores.map((s, i) => ({ s, i })).sort((x, y) => y.s - x.s);
+          const survivors = order.slice(0, Math.max(2, pop.length >> 1)).map((x) => x.i);
+          pop = breed({
+            RAPIER, genomes: pop, selected: survivors,
+            rng: rng.fork(`breed${gen}`), world: W1_SLICE, population: BURST_POP,
+          }).genomes;
+        }
+
+        // keep the best POPULATION by adapted speed
+        const ranked = scores.map((s, i) => ({ s, i })).sort((x, y) => y.s - x.s);
+        genomes = ranked.slice(0, POPULATION).map((x) => pop[x.i]);
+        provenance = genomes.map(() => ({ kind: KIND.OFFSPRING }));
+        generation++;
+        selected = new Set();
+        pendingStranger = null; updateStrangerChip();
+
+        buildSlots();
+        btnBurst.textContent = '';
+        state = STATE.BREEDING;                   // play the transition beat, then resume
+        breedingUntil = performance.now() + BREEDING_MS;
+        renderStatus();
+        persistLineage();
+      })().catch(() => {
+        // A failed burst must not strand the tank frozen — restore and resume.
+        btnBurst.textContent = '';
+        state = paused ? STATE.PAUSED : STATE.SIMULATING;
+        view.dataset.breeding = 'no';
+        renderStatus();
+      });
+    }
+
     function renderStatus() {
       // Cluster chips.
       btnPause.textContent = paused ? t('Play') : t('Pause');
@@ -833,10 +927,17 @@ export default {
       btnSpeed.classList.add('active');   // the speed chip is the measured value
       btnSpeed.disabled = paused;
       btnUndo.textContent = t('Undo');
-      btnUndo.disabled = !previous;
+      btnUndo.disabled = !previous || state === STATE.BURSTING;
+
+      // The burst chip. While it runs, its label is the live % (set in runBurst),
+      // so renderStatus leaves the text alone and only manages disabled state.
+      const busy = state === STATE.BURSTING;
+      if (!busy) btnBurst.textContent = t('Burst');
+      btnBurst.disabled = !ready || busy;
+      btnPause.disabled = busy;
 
       // Primary action — always labelled with its object (never bare "Breed").
-      primary.disabled = !ready || selected.size === 0;
+      primary.disabled = !ready || selected.size === 0 || busy;
       primary.textContent = selected.size
         ? `${t('Breed')} ${selected.size} ${t('selected')}`
         : t('Breed');

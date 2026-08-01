@@ -506,19 +506,19 @@ const QC_SUITES={
   const bulk=G.nodes.find(isBulk);
   if(bulk){let held=0;for(const c of bulk.containers)held+=cnt(c);t.ok(held>=0,"bulk containers hold reject material for composition analysis");}
 },
-"site-input-rate-split":function(t){ // a contract feeds ~5 t/h total, SPLIT across the bunkers sharing it
+"site-input-rate-split":function(t){ // a contract feeds ~4 t/h total, SPLIT across the bunkers sharing it
   const empty=()=>{const z={};for(const m of MAT)z[m]=[0,0];return z;};
   const feed=(sups)=>{newGame("career","site_free",0x1);
     const bs=sups.map((sup,k)=>{const b=sitePlaceUnit("input",null,3+k*5,4,0);b.node.supplier=sup;b.node.gx=null;return b.node;});
     G.running=true;const d0=G.deliveredTot,t0=G.t;
     for(let i=0;i<30000;i++){tick(0.04);bs.forEach(b=>b.inBuf=empty());}
     return (G.deliveredTot-d0)/(G.t-t0);};
-  t.ok(Math.abs(feed(["wasteminster"])-5)<0.5,"one bunker on a contract feeds ~5 t/h");
-  t.ok(Math.abs(feed(["wasteminster","wasteminster"])-5)<0.5,"two bunkers SHARING a contract still total ~5 t/h (split, not duplicated)");
-  t.ok(Math.abs(feed(["wasteminster","binfinity"])-10)<0.7,"two bunkers on DIFFERENT contracts stack (5+5=10 total)");
-  t.ok(Math.abs(feed(["wasteminster","wasteminster","wasteminster"])-5)<0.6,"three bunkers sharing a contract still total ~5 t/h");
-  // throughput pass (2026-07-13): wasteminster 10 t/h, binfinity 8 t/h — a single feeder line can now run at 10
-  t.ok(supplierStream("wasteminster").feedTph===5&&supplierStream("binfinity").feedTph===5,"suppliers are calibrated to 5 t/h each (sign more to scale inbound)");
+  t.ok(Math.abs(feed(["wasteminster"])-4)<0.5,"one bunker on a contract feeds ~4 t/h");
+  t.ok(Math.abs(feed(["wasteminster","wasteminster"])-4)<0.5,"two bunkers SHARING a contract still total ~4 t/h (split, not duplicated)");
+  t.ok(Math.abs(feed(["wasteminster","binfinity"])-8)<0.7,"two bunkers on DIFFERENT contracts stack (4+4=8 total)");
+  t.ok(Math.abs(feed(["wasteminster","wasteminster","wasteminster"])-4)<0.6,"three bunkers sharing a contract still total ~4 t/h");
+  // default feed downscaled to 4 t/h (playtest 2026-08-01) — inbound still scales by signing more suppliers
+  t.ok(supplierStream("wasteminster").feedTph===4&&supplierStream("binfinity").feedTph===4,"suppliers are calibrated to 4 t/h each (sign more to scale inbound)");
 },
 "site-flow-and-util":function(t){ // per-zone flow counters + vehicle utilization accumulate correctly
   newGame("career","site_ref",0x61);G.running=true;
@@ -563,10 +563,16 @@ const QC_SUITES={
   t.ok(Math.abs(r.recurringTotal-recurring)<1,"recurring total excludes capex");
   t.ok(Math.abs(r.operating-(income-recurring))<1,"operating result = income \u2212 recurring costs");
   t.ok(Math.abs(r.capexTotal-l.capex)<1,"capex is a separate line");
-  t.ok(Math.abs(r.net-(g.startCash+r.operating-r.capexTotal))<1,"net = start + operating \u2212 capex");
+  t.ok(Math.abs(r.net-(g.startCash+r.operating+r.grantsTotal-r.capexTotal))<1,"net = start + operating + grants \u2212 capex");
   // the per-day base (income − recurring, capex excluded) must equal the balance-sheet operating result
   const perDayBase=(l.tipping+l.sales+l.subsidies)-(l.labour+l.logistics+l.power+l.landfill);
   t.ok(Math.abs(perDayBase-r.operating)<1,"HUD per-day base matches the balance-sheet operating result");
+  // one-time grants are SEPARATE (playtest 2026-08-01): claiming a milestone must not move the operating result
+  if(objClaimable("a_first")){const op0=pnlReport().operating,gr0=G.ledger.grants||0;
+    claimObjective("a_first");const r2=pnlReport();
+    t.ok((G.ledger.grants||0)>gr0,"a claimed grant lands in the one-time `grants` account, not `subsidies`");
+    t.ok(Math.abs(r2.operating-op0)<1,"claiming a grant does NOT change the recurring operating result");
+    t.ok(Math.abs(r2.net-G.cash)<1,"net still reconciles to cash after a grant");}
 },
 "site-accounting-postTx":function(t){ // A5 (2026-07-12): every cash move routes through postTx; preplaced units refund what they PAID (0)
   newGame("career","site_ref",0xACC7);
@@ -687,13 +693,13 @@ const QC_SUITES={
   t.ok(Math.abs(r.sMass-r2.sMass)<1e-9,"deterministic per seed");
 },
 
-"site-throughput-10":function(t){ // throughput pass (2026-07-13): belts+units carry 10 t/h — supply it from TWO 5 t/h contracts
+"site-throughput-10":function(t){ // belts+units carry 10 t/h — supply it from TWO 4 t/h contracts (=8 t/h line, inside the 10 t/h belt ceiling)
   newGame("career","site_free",0xE1);
   const put=(st,k,x,y,r)=>{const q=sitePlaceUnit(st,k,x,y,r||0,{free:true});if(!q.ok)throw new Error(st+":"+q.reason);return q.node;};
   const wr=(a,pa,b,pb)=>{const q=siteConnect(a,pa,b,pb);if(!q.ok)throw new Error("wire:"+q.reason);};
-  const b1=put("input",null,8,4),b2=put("input",null,10,4);b1.supplier="wasteminster";b2.supplier="binfinity"; // 5+5 = 10 t/h inbound
-  const f1=put("feeder",null,9,10),f2=put("feeder",null,13,10);f1.rate=5;f2.rate=5;
-  const mx=put("mixer",null,11,12);wr(f1,"b",mx,"t");wr(f2,"b",mx,"t"); // merge both contracts onto ONE 10 t/h line
+  const b1=put("input",null,8,4),b2=put("input",null,10,4);b1.supplier="wasteminster";b2.supplier="binfinity"; // 4+4 = 8 t/h inbound
+  const f1=put("feeder",null,9,10),f2=put("feeder",null,13,10);f1.rate=4;f2.rate=4;
+  const mx=put("mixer",null,11,12);wr(f1,"b",mx,"t");wr(f2,"b",mx,"t"); // merge both contracts onto ONE line (8 t/h < 10 t/h belt)
   const op=put("process","opener",11,14),mg=put("process","magnet",11,16);
   const baler=put("baler",null,15,16,180),bulk=put("bulk",null,13,29);
   const ex=put("output",null,3,35);ex.spec="ferrous";const lf=put("landfill",null,10,38);
@@ -702,8 +708,9 @@ const QC_SUITES={
   for(let i=0;i<12/0.004;i++)tick(0.004);
   const d0=G.delivered,t0=G.t;for(let i=0;i<4/0.004;i++)tick(0.004);
   const tph=(G.delivered-d0)/(G.t-t0);
-  t.ok(tph>9.2,"a single line carries ~10 t/h (fed by two 5 t/h contracts): "+tph.toFixed(1));
-  t.ok(op.state!=="jammed"&&mg.state!=="jammed","no false JAMMED at nominal 10 t/h (op="+op.state+", mg="+mg.state+")");
+  t.ok(tph>7.4,"a single line carries ~8 t/h (fed by two 4 t/h contracts): "+tph.toFixed(1));
+  t.ok(op.state!=="jammed"&&mg.state!=="jammed","no false JAMMED below the 10 t/h belt ceiling (op="+op.state+", mg="+mg.state+")");
+  t.ok(op.state!=="overloaded"&&mg.state!=="overloaded","no false OVERLOAD when the line runs under belt capacity (op="+op.state+", mg="+mg.state+")");
   const belt=G.edges.find(e=>e.kind==="conveyor");
   t.ok(belt&&Math.abs(belt.max*belt.speed*PMASS-10)<2.5,"belt capacity is throughput-derived (~10 t/h regardless of length: "+(belt.max*belt.speed*PMASS).toFixed(1)+")");
 },

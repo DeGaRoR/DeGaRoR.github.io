@@ -67,7 +67,7 @@ const driver = `
 ;(function(){
   begin("career","site_ref");
   if(!siteMode())throw new Error("siteMode() false after begin(site_ref)");
-  for(let i=0;i<1800;i++)tick(0.004); // ~7.2 sim-min: covers the reference plant’s cold-start first tip (≈ t=6.2)
+  for(let i=0;i<2600;i++)tick(0.004); // ~10.4 sim-h: covers the reference plant’s cold-start first tip (later since the default feed dropped 5→4 t/h, 2026-08-01)
   const deliveredInRun=G.deliveredTot; // capture NOW: later test blocks call newGame() and reset a fresh site_ref
   UI.viewReset();
   render();render();render();

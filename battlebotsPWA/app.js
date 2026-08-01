@@ -1567,6 +1567,22 @@ function snapshotBuild(){                                          // gel du bui
     color:S.customize.color, stickers:[...S.customize.placed],
     layout: layoutOfBot(bot, b) };                               // P1-a : la VRAIE mise en page validée, pas autoArrange
 }
+/* Phase 2 — AUTO-RÉPARATION d'un verrou CASSÉ. Une sauvegarde antérieure à
+   l'identité stable gelait un lock SANS botId (`undefined`), ou le bot engagé a
+   été jeté depuis : le combat rejouait alors un build fantôme (auto-arrangé,
+   figé), l'éditeur montrant le vrai bot. On NE re-gèle QUE dans ce cas (choix :
+   self-heal des verrous cassés uniquement) — le build gelé est resynchronisé
+   sur le bot actif ; un verrou sain reste intouché (gel à l'engagement). */
+function healBrokenLock(concoursId){
+  const st = concoursId ? CN(concoursId) : null;
+  const lock = st && st.lock;
+  if (lock && !botById(lock.botId)){
+    logError("match", "verrou cassé (botId "+lock.botId+") → resynchronisé sur l'actif", "app.js", 0);
+    st.lock = snapshotBuild(); saveState();
+    return st.lock;
+  }
+  return lock || null;
+}
 /* engageConcours — l'engagement est un acte explicite et nommé (jamais un effet
    de bord d'un clic). Vérifie déverrouillage + homologation, initialise l'état
    du format, gèle le build si le concours le déclare (lockBuild). */
@@ -1834,7 +1850,7 @@ function renderVsScreen(){
   $("vsFormat").textContent = formatLabel(tr).toUpperCase();
   $("vsManche").textContent = vsMancheLabel(tr);
   // mon bot — celui qui combattra VRAIMENT : le build gelé si le concours gèle
-  const lock = (CN(tr.id)||{}).lock || null;
+  const lock = healBrokenLock(tr.id);   // verrou cassé (save ancienne) → resync sur l'actif, sinon le portrait montre un fantôme
   const myBuild = {...PILOT(),
     chassis: lock ? lock.chassis : AB().chassis,
     parts: {...(lock ? lock.parts : S.parts.equipped)},
@@ -2338,12 +2354,23 @@ function startMatch(mode){
      valait null et le combat repartait du build VIVANT du garage. lockBuild
      était inerte hors des deux concours M, et une pièce ajoutée après
      l'engagement entrait en piste. */
-  const lock = (CN(curConcoursId()) || {}).lock || null;   // build gelé si le concours le déclare
+  const lock = healBrokenLock(curConcoursId());   // build gelé si le concours le déclare ; verrou cassé → resync sur l'actif
   /* Phase 2 — le combat se résout contre le bot ENGAGÉ (par botId), jamais l'actif :
      changer S.activeBot après l'engagement ne détourne plus ni usure ni dégâts. */
   const combatBot = (lock && botById(lock.botId)) || AB();
-  if (lock && !botById(lock.botId)) logError("match", "bot engagé "+lock.botId+" introuvable → repli sur l'actif", "app.js", 0);
   const pLayout = lock ? lock.layout : getLayout();
+  /* E7/P0-1 — CT à la DISPUTE. L'homologation d'engagement ne voit l'usure
+     QU'UNE FOIS ; elle grimpe manche après manche et un organe vital (moteur /
+     propulsion / batterie) peut passer HS EN COURS de concours. Un bot HS ne
+     translate plus — grip/force motrice à 0 — mais tourne encore sur place
+     (angVel indépendante) : roues qui patinent, robot immobile. On refuse le
+     combat et on renvoie réparer, au lieu de lancer une manche injouable. */
+  { const ctBuild = { chassis: lock ? lock.chassis : AB().chassis,
+                      parts: {...(lock ? lock.parts : S.parts.equipped)},
+                      counts: {...(lock ? (lock.counts||{}) : AB().counts)},
+                      eff: buildEff(combatBot) };
+    const fc = functionalCheck(ctBuild);
+    if (!fc.ok){ showToast(fc.fails[0]); return; } }
   const playerBuild = {...ENGINE.SLICE1.playerBuild, ...effectivePilot(combatBot),
     chassis: lock ? lock.chassis : AB().chassis,
     parts: {...(lock ? lock.parts : S.parts.equipped)},
@@ -2492,12 +2519,16 @@ function draw(){
      clippees gardent leur marge de +6 pour couvrir le disque de decoupe. */
   const side = geom.square ? (2*AR) / (geom.playEdge || 0.95)
                            : (2*AR + 12) / (geom.playEdge || 0.95);
+  /* S16 — décentrage : quand le cercle du sprite n'est pas au centre du cadre,
+     on décale le dessin pour que le CENTRE DU PLATEAU (pas de l'image) tombe sur
+     l'origine logique. ox = -cx·side amène le point (0,5+cx) de l'image à 0. */
+  const ox = -(geom.cx || 0) * side, oy = -(geom.cy || 0) * side;
   const aimg = (match && match.arenaSprite) || arenaImg;          // S11b
   if(aimg && aimg.complete && aimg.naturalWidth>0){               // arena sprite as the static floor
-    if (geom.square){ ctx.drawImage(aimg, -side/2, -side/2, side, side); }
+    if (geom.square){ ctx.drawImage(aimg, -side/2+ox, -side/2+oy, side, side); }
     else {
       ctx.save(); ctx.beginPath(); ctx.arc(0,0,AR+6,0,Math.PI*2); ctx.clip();
-      ctx.drawImage(aimg, -side/2, -side/2, side, side); ctx.restore();
+      ctx.drawImage(aimg, -side/2+ox, -side/2+oy, side, side); ctx.restore();
     }
   } else {
     ctx.beginPath(); ctx.arc(0,0,AR+8,0,Math.PI*2); ctx.fillStyle="#160c12"; ctx.fill();

@@ -29,6 +29,8 @@ import { seedById } from '../worlds/seeds.js';
 import { createSimulation, FIXED_DT } from '../engine/l1/physics.js';
 import { qrot } from '../engine/l1/vecmath.js';
 import { netSpeed, autoBurst } from '../engine/l2/objective.js';
+import { adaptGait, perturbGait } from '../engine/l2/gait.js';
+import { serialise } from '../engine/l1/genome.js';
 import { W1_SLICE, W1_RESIDENT_HASHES_PLACEHOLDER } from '../worlds/w1_slice.js';
 
 /**
@@ -276,6 +278,40 @@ export async function runProbeGate() {
     t.ok(t3.rate <= t3.wobbleRate + 1e-9, 'heading rate never exceeds the raw sweep it is drawn from');
     t.ok(Array.isArray(t3.headingVec) && t3.headingVec.length === 3, 'headingVec is a 3-vector for S3 to difference');
     t.close(Math.hypot(...t3.headingVec), t3.rate, 1e-9, 'rate is the magnitude of headingVec');
+  });
+
+  // ── L2-22 · the gait inner loop (C3) ──────────────────────────────────────
+  g.assertion('L2-22', 'C3: adaptGait improves or holds, is deterministic, and freezes morphology', (t) => {
+    const { genome } = corpus[0];
+
+    // perturbGait changes exactly the CONTROLLER, never the morphology: a body's
+    // nodes' dims and its connections are byte-identical before and after, so the
+    // search moves through gait space alone and morphogenesis re-derives the same
+    // body. This is what "freeze the morphology" means and it must be exact.
+    const p = perturbGait(genome, rngFrom('gaitgate', 'perturb'));
+    t.eq(p.nodes.length, genome.nodes.length, 'perturbGait keeps the node count');
+    t.eq(p.connections.length, genome.connections.length, 'perturbGait keeps the connection count');
+    t.eq(JSON.stringify(p.nodes.map(n => n.dims)), JSON.stringify(genome.nodes.map(n => n.dims)),
+      'perturbGait leaves every limb dimension untouched — morphology is frozen');
+    t.eq(JSON.stringify(p.connections), JSON.stringify(genome.connections),
+      'perturbGait leaves the connection graph untouched');
+
+    // A small hill climb: cheap params so the gate stays fast. It must never LOWER
+    // the score — a body can only be helped by being adapted, never harmed — and
+    // it must be deterministic in its rng.
+    const opts = { genome, world: W1_SLICE, candidates: 3, iterations: 2, seconds: 2.0 };
+    const a = adaptGait(RAPIER, { ...opts, rng: rngFrom('gaitgate', 'run') });
+    const b = adaptGait(RAPIER, { ...opts, rng: rngFrom('gaitgate', 'run') });
+    t.ok(Number.isFinite(a.score) && a.score >= 0, 'adapted score is a finite non-negative speed', a.score);
+    t.eq(serialise(a.genome), serialise(b.genome), 'adaptGait is deterministic in its seed');
+    t.close(a.score, b.score, 1e-9, 'and its score is deterministic too');
+
+    // Monotone against the SAME-seed birth score: the returned score is the best
+    // seen, so it cannot be below the starting body's own score.
+    const birth = netSpeed(RAPIER, { plan: morphogenesis(genome), genome, world: W1_SLICE, seconds: 2.0 });
+    t.ok(a.score >= (birth.valid ? birth.score : 0) - 1e-9,
+      'the adapted gait is never worse than the birth gait', { adapted: a.score, birth: birth.score });
+    t.eq(a.genome.nodes.length, genome.nodes.length, 'the adapted genome is still the same morphology');
   });
 
   // ── L2-8 · the sensor amendment (11 §10) ──────────────────────────────────

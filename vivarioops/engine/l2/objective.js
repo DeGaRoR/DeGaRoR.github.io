@@ -53,7 +53,7 @@ export const BURST_POPULATION = 24;
  *
  * @returns {{score:number, valid:boolean, reason?:string}}
  */
-export function netSpeed(RAPIER, { plan, genome, world, seconds = TRIAL_SECONDS }) {
+export function netSpeed(RAPIER, { plan, genome, world, seconds = TRIAL_SECONDS, simOpts = {} }) {
   const r = runSolo(RAPIER, {
     plan, genome, world,
     duration: seconds,
@@ -61,6 +61,10 @@ export function netSpeed(RAPIER, { plan, genome, world, seconds = TRIAL_SECONDS 
     turnBias: 0,
     bounded: false,
     wrap: true,
+    // Actuator/world overrides for experiments (e.g. boundTorque:false). Default
+    // {} keeps the shipped actuator, so selection measures the world the player is
+    // in. NOT persisted — an objective carries no record identity.
+    simOpts,
   });
   if (!r.valid) return { score: 0, valid: false, reason: r.reason };
 
@@ -87,12 +91,12 @@ export function netSpeed(RAPIER, { plan, genome, world, seconds = TRIAL_SECONDS 
  * that can crash cannot be used by a UI action, and morphogenesis rejecting a
  * body IS a verdict about it.
  */
-export function scorePopulation(RAPIER, genomes, world, seconds = TRIAL_SECONDS) {
+export function scorePopulation(RAPIER, genomes, world, seconds = TRIAL_SECONDS, simOpts = {}) {
   return genomes.map((genome) => {
     let plan;
     try { plan = morphogenesis(genome); } catch { return 0; }
     if (plan.bodyCount < 2) return 0;
-    const r = netSpeed(RAPIER, { plan, genome, world, seconds });
+    const r = netSpeed(RAPIER, { plan, genome, world, seconds, simOpts });
     return r.valid ? r.score : 0;
   });
 }
@@ -129,10 +133,32 @@ export function autoBurst({
   // for. The null arm, the expansion and the trial accounting are the parts
   // worth sharing; WHAT is being selected for is not.
   objective = null,
+  // C3 — THE GAIT INNER LOOP, INJECTED. When supplied (gait.js `adaptPopulation`,
+  // signature `(RAPIER, genomes, world, {rng}) -> {genomes, scores}`), each body
+  // is adapted before it is scored and the ADAPTED controller REPLACES the birth
+  // one, Lamarckian, so selection and breeding both carry the learned gait. This
+  // is the "a body is judged by its adapted gait, never its birth gait" rule that
+  // turned 0/12 random creatures above 0.02 L/s into more. Injected rather than
+  // imported to keep objective.js free of a gait.js dependency (no import cycle).
+  adaptFn = null,
 }) {
   let pop = genomes.slice();
   const history = [];
   let trials = 0;
+
+  // Score a population, and — with adaptFn — adapt each body's gait first and hand
+  // back the ADAPTED genomes so selection and breeding carry the learned gait.
+  // Returns { genomes, scores }; accumulates the true evaluation count into trials.
+  const evaluate = (population, tag) => {
+    if (adaptFn) {
+      const a = adaptFn(RAPIER, population, world, { rng: rng.fork(`adapt:${tag}`) });
+      trials += a.evals ?? population.length;
+      return { genomes: a.genomes, scores: a.scores };
+    }
+    trials += population.length;
+    const scores = objective ? objective(RAPIER, population) : scorePopulation(RAPIER, population, world, seconds);
+    return { genomes: population, scores };
+  };
 
   // ── EXPAND FIRST, AND IT HAS TO BE DONE HERE ─────────────────────────────
   //
@@ -161,8 +187,9 @@ export function autoBurst({
   }
 
   for (let gen = 0; gen < generations; gen++) {
-    const scores = objective ? objective(RAPIER, pop) : scorePopulation(RAPIER, pop, world, seconds);
-    trials += pop.length;
+    const stepped = evaluate(pop, `${gen}`);
+    pop = stepped.genomes;   // Lamarckian: adapted controllers survive into selection and breed
+    const scores = stepped.scores;
 
     const order = scores
       .map((s, i) => ({ s, i }))
@@ -208,8 +235,9 @@ export function autoBurst({
   // FINAL SCORING IS A REAL GENERATION, not bookkeeping: without it the returned
   // population is the offspring of the last selection and has never been
   // measured, so `keep` would be picking on the parents' merits.
-  const finalScores = objective ? objective(RAPIER, pop) : scorePopulation(RAPIER, pop, world, seconds);
-  trials += pop.length;
+  const finalStep = evaluate(pop, 'final');
+  pop = finalStep.genomes;
+  const finalScores = finalStep.scores;
   const ranked = finalScores.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s);
   history.push({
     gen: generations, best: ranked.length ? ranked[0].s : 0,

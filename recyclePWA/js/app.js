@@ -211,7 +211,7 @@ function drawSiteSprites(e){const P=e.route;if(!P||P.length<2||e.kind==="vehicle
         ctx.drawImage(pi,p.x-4.5,p.y-4.5,9,9);}
       else{ctx.fillStyle=COL[s.mat];ctx.beginPath();ctx.arc(p.x,p.y,SR[1],0,7);ctx.fill();}}}}
 
-const TRUCK_STYLE={supplier:{col:"#3F6FB5",len:76,wid:20},client:{col:"#4E5D75",len:96,wid:20},lftruck:{col:"#7C766D",len:84,wid:20}};
+const TRUCK_STYLE={supplier:{col:"#3F6FB5",len:76,wid:20},client:{col:"#4E5D75",len:96,wid:20},lftruck:{col:"#7C766D",len:96,wid:20}};
 function truckDrawPos(t){return truckPos(t);} // berths already give each truck its own spot — no ad-hoc lane shifting
 function truckSpriteKey(t){
   if(t.cls==="supplier"){const k=bagKey();return k==="green"?"veh_0":(k==="blue"?"veh_2":"veh_1");}
@@ -230,8 +230,8 @@ function drawSiteTrucks(){ if(!G.trucks)return;
           const bx=(i%2?5:-5),by=dh/2-7-Math.floor(i/2)*8;
           const bi=img(BALE_IMG[t.baleDoms[i]]||"bale_0");
           if(bi)ctx.drawImage(bi,bx-BALE_W/2,by-BALE_H/2,BALE_W,BALE_H);}}
-      if(t.cls==="lftruck"&&t.hauled>0){const ci=img("cont_2"); // removed container on the bed, with its own shadow
-        if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,CELL*0.1,CONT_W,CONT_H);noShadow();}}
+      if(t.cls==="lftruck"&&t.hauled>0){const ci=img("cont_2"); // removed container seated on the flatbed behind the cab, with its own shadow
+        if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,-CONT_H/2+CELL*0.2,CONT_W,CONT_H);noShadow();}}
       ctx.restore();}
     else{
     let col=st.col; if(t.cls==="supplier"){col=bagCol();}
@@ -998,11 +998,11 @@ const LANG={fr:{
   "Income":"Revenus","Tipping (gate in)":"Frais de réception","Bale sales":"Vente de ballots","Subsidies":"Subventions","Total income":"Total des revenus",
   "Costs":"Coûts","Landfill / disposal":"Décharge / rebut","Labour":"Main-d’œuvre","Logistics & upkeep":"Logistique & entretien","Total costs":"Total des coûts",
   "Operating costs":"Coûts d’exploitation","Total operating costs":"Total coûts d’exploitation","Operating result":"Résultat d’exploitation","Income − operating costs":"Revenus − coûts d’exploitation","Investment":"Investissement",
-  "Result":"Résultat","Starting cash":"Trésorerie de départ","Net cash":"Trésorerie nette","Tonnage":"Tonnage","PET on-spec":"PET conforme","Landfilled":"Mis en décharge",
+  "Result":"Résultat","Grants (one-off)":"Subventions (ponctuelles)","Starting cash":"Trésorerie de départ","Net cash":"Trésorerie nette","Tonnage":"Tonnage","PET on-spec":"PET conforme","Landfilled":"Mis en décharge",
   "Learn the line, then run your plant.":"Apprends la ligne, puis fais tourner ton usine.","Graduation":"Tutoriel terminé","The plant is yours":"L\u2019usine est à toi",
   "Tutorial done \u2014 the line runs continuously now. Keep the cash positive; as you unlock partners in R&D you\u2019ll pick suppliers on each Intake and buyers on each Output.":"Tutoriel terminé \u2014 la ligne tourne en continu maintenant. Garde la trésorerie positive ; en débloquant des partenaires en R&D, tu choisiras les fournisseurs sur chaque Entrée et les acheteurs sur chaque Sortie.",
   "GOALS":"OBJECTIFS","Balance":"Solde","Progression":"Progression","Milestones":"Jalons","All claimed.":"Tout réclamé.","Claim":"Réclamer","ready":"prêt","Ready to claim":"Prêt à réclamer","Requires":"Requiert","equipment":"équipement",
-  "Growth":"Croissance","Impact":"Impact","PVC":"PVC",
+  "Growth":"Croissance","Impact":"Impact","PVC":"PVC","−20% equipment":"−20% équipement",
   "Sell your first on-spec bale":"Vends ton premier ballot conforme",
   "Reach €5k/day operating profit":"Atteins 5 k€/jour de bénéfice",
   "Reach €10k/day operating profit":"Atteins 10 k€/jour de bénéfice",
@@ -1091,7 +1091,7 @@ function renderObjView(){const ids=Object.keys(OBJ),cats=[["grow","Growth"],["im
         if(lk){const need=(o.req||[]).filter(r=>!objClaimed(r)).map(r=>tr(OBJ[r].name));foot="\uD83D\uDD12 "+tr("Requires")+" "+need.join(", ");}
         else foot=Math.round(pg*100)+"%";}
       const bar=(!cl&&!lk&&pg>0&&pg<1)?'<div class="bar"><i style="width:'+Math.round(pg*100)+'%"></i></div>':'';
-      const tag=o.equip?'<span class="tag">'+tr("equipment")+'</span>':'';
+      const tag=o.equip?'<span class="tag">'+tr("equipment")+'</span>':(o.sponsor?'<span class="tag">'+tr("−20% equipment")+'</span>':'');
       html+='<div class="obj'+(cl?' claimable':lk?' locked':'')+'"><div class="oc">'+svgI(OBJ_ICON[id])+'</div><div class="ob"><div class="on2">'+tr(o.name)+tag+'</div>'+bar+'<div class="mt"><span class="pg">'+foot+'</span>'+right+'</div></div></div>';}}
   html+='</div>';
   const view=document.getElementById("viewObj");view.innerHTML=html;
@@ -1695,7 +1695,7 @@ function balanceSheetHTML(){const r=pnlReport(),E=fmtN;
     head(tr("Income"))+row(tr("Tipping (gate in)"),r.income.tipping,0,G2)+row(tr("Bale sales"),r.income.sales,0,G2)+(r.income.subsidies?row(tr("Subsidies"),r.income.subsidies,0,G2):'')+row(tr("Total income"),r.incomeTotal,1,G2)+
     head(tr("Operating costs"))+row(tr("Landfill / disposal"),-r.costs.landfill,0,O2)+row(tr("Power"),-r.costs.power,0,O2)+(r.costs.labour>0?row(tr("Labour"),-r.costs.labour,0,O2):'')+(r.costs.logistics>0?row(tr("Logistics & upkeep"),-r.costs.logistics,0,O2):'')+row(tr("Total operating costs"),-r.recurringTotal,1,O2)+
     head(tr("Operating result"))+row(tr("Income \u2212 operating costs"),r.operating,1,(r.operating>=0?G2:O2))+
-    head(tr("Investment"))+row(tr("Capex"),-r.capexTotal,1,O2)+
+    head(tr("Investment"))+(r.grantsTotal?row(tr("Grants (one-off)"),r.grantsTotal,0,G2):'')+row(tr("Capex"),-r.capexTotal,1,O2)+
     head(tr("Result"))+row(tr("Starting cash"),G.startCash!=null?G.startCash:ECON.startCash)+row(tr("Net cash"),r.net,1)+
     head(tr("Tonnage"))+ton(tr("PET on-spec"),G.petOn.toFixed(1)+'t')+ton(tr("Landfilled"),G.landfill.toFixed(1)+'t')+ton(tr("Recycling"),diverted.toFixed(0)+'%')+
     opexDayHTML();}

@@ -65,6 +65,7 @@ const OPEN_EFF=1.0,SPLIT_NOISE=0.03; // OPEN_EFF=1.0: every bag opened (rng draw
 const PICK_RATE=1.2,PICK_EFF=0.85,PICK_FALSE=0.02;
 const STARVE_T=1.5; // sim-seconds of CONTINUOUS starvation before STARVED shows (hysteresis: stops the flicker during normal flow)
 const JAM_T=1.2;    // sim-seconds of CONTINUOUS choke (material waiting, nothing moved) before JAMMED shows — a saturated-but-flowing belt is not a jam
+const OVER_T=1.2;   // sim-seconds of CONTINUOUS buffer-saturation before OVERLOAD shows (hysteresis: a transient tick-quantized spike is not an overload)
 /* ════════════════════════════════════════════════════════════════════════════
  *  ECONOMIC MODEL — SINGLE SOURCE OF TRUTH. Tune the whole game economy HERE.
  *  All € are game-€. Per-tonne unless noted. Mass granularity = PMASS t/particle.
@@ -111,7 +112,7 @@ const CAPEX=ECON.capex;   // alias — economic value lives in ECON
 // never drift apart. `cashDelta` is the signed change to G.cash; the matching
 // ledger entry is booked with the account's net-formula sign, so pnlReport().net
 // stays byte-equal to G.cash (income accounts add, cost accounts subtract).
-const LEDGER_INCOME={tipping:1,sales:1,subsidies:1}; // the rest (labour/logistics/power/landfill/capex) are cost accounts
+const LEDGER_INCOME={tipping:1,sales:1,subsidies:1,grants:1}; // the rest (labour/logistics/power/landfill/capex) are cost accounts. `grants` = ONE-TIME milestone/phase rewards, kept out of the recurring daily rate.
 function postTx(account,cashDelta){
   G.cash+=cashDelta;
   if(!G.ledger)return cashDelta;
@@ -195,8 +196,8 @@ const SPECS={
 // name map (coName resolves, default EN). Streams/buyer-pricing get wired as the agreement loop lands.
 const COMPANIES={
   suppliers:[
-    {id:"wasteminster",name:{en:"Wasteminster Council"},tutorial:true,stream:{comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},feedTph:5,gate:55,bag:"blue"}},
-    {id:"binfinity",name:{en:"Binfinity"},stream:{comp:{PET:0.15,steel:0.06,alu:0.02,film:0.30,paper:0.32,PVC:0.15},feedTph:5,gate:75,bag:"grey"}},
+    {id:"wasteminster",name:{en:"Wasteminster Council"},tutorial:true,stream:{comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},feedTph:4,gate:55,bag:"blue"}},
+    {id:"binfinity",name:{en:"Binfinity"},stream:{comp:{PET:0.15,steel:0.06,alu:0.02,film:0.30,paper:0.32,PVC:0.15},feedTph:4,gate:75,bag:"grey"}},
     {id:"hauler_oates",name:{en:"Hauler Oates"}},
     {id:"down_dumps",name:{en:"Down in the Dumps Ltd."}},
     {id:"skip_bizet",name:{en:"Skip Bizet"}},
@@ -327,7 +328,7 @@ function addInbound(wx,wy,supplier){
   const bunker=_addOne("storage",wx-INBOUND_DX,wy,null,"bunker");
   const feeder=_addOne("storage",wx,wy,null,"feeder");
   if(supplier)bunker.supplier=supplier;
-  feeder.rate=(G.contract&&G.contract.feedTph)||5;
+  feeder.rate=(G.contract&&G.contract.feedTph)||4;
   G.edges.push({from:bunker.id,fromPort:"O",to:feeder.id,sprites:[],speed:EDGE_SPEED}); // loader route (no belt sprites)
   return feeder;
 }
@@ -481,7 +482,7 @@ function loadSiteRef(snap){ // build the reference plant from the embedded snaps
     G.nodes.push({id:ns.id,type,x:ns.x,y:ns.y,w:ns.w||78,h:ns.h||66,gx:(ns.gx!=null?ns.gx:null),gy:(ns.gy!=null?ns.gy:null),rot:ns.rot||0,site:ns.site||null,paidCapex:0,
       inBuf:blankBuf(),ratio:ns.ratio==null?0.5:ns.ratio,spec,
       bale:blankBuf(),bales:[],containers:(role==="bulk")?[blankBuf(),blankBuf(),blankBuf()]:null,active:0,disposeHeap:0,evacT:0,truckDue:0,offAllow:0,truckFlash:0,balesSold:0,offSold:0,
-      role,rate:ns.rate||5,jam:0,load:0,state:"ok",wrongSize:0,workers:ns.workers||2,target:ns.target||"film",supplier:ns.supplier||null,buyer:ns.buyer||null,label:ns.label||null,sortSide:ns.sortSide||null,splitLayout:ns.splitLayout||null,contEvac:0,massEvac:0,_inMass:0,_outMass:0,_sortMass:0,_restMass:0});}
+      role,rate:ns.rate||4,jam:0,load:0,state:"ok",wrongSize:0,workers:ns.workers||2,target:ns.target||"film",supplier:ns.supplier||null,buyer:ns.buyer||null,label:ns.label||null,sortSide:ns.sortSide||null,splitLayout:ns.splitLayout||null,contEvac:0,massEvac:0,_inMass:0,_outMass:0,_sortMass:0,_restMass:0});}
   const live=new Set(G.nodes.map(n=>n.id));
   for(const es of snap.edges)if(live.has(es.from)&&live.has(es.to)){
     const wl=(es.kind==="conveyor"&&es.route)?pathLen(es.route):0; // re-derive belt speed+max from the route (10 t/h model) — stored values are legacy
@@ -550,7 +551,7 @@ const TUT={pmc:[
  ],
 ]};
 function applyPhase(i){const ph=G.scenario.phases[i];G.phaseIdx=i;G.delivered=0;G.phaseSoldBase={};for(const k in G.sold)G.phaseSoldBase[k]=G.sold[k].on||0;
-  G.contract={name:ph.name,tonnage:ph.tonnage,comp:ph.comp,product:ph.product||"PET",tiers:ph.tiers||{gold:2.4,silver:3.0},premium:ph.premium||null,units:null,feedTph:ph.feedTph||5,supplier:(G.scenario&&G.scenario.supplier)||null};
+  G.contract={name:ph.name,tonnage:ph.tonnage,comp:ph.comp,product:ph.product||"PET",tiers:ph.tiers||{gold:2.4,silver:3.0},premium:ph.premium||null,units:null,feedTph:ph.feedTph||4,supplier:(G.scenario&&G.scenario.supplier)||null};
   if(ph.grantTech){for(const id of ph.grantTech)if(CAREER.tech.indexOf(id)<0)CAREER.tech.push(id);recomputeTechMod();saveCareer();} // tutorial trunk auto-grants the free unlocks (Step 8: interactive tree-click)
   G.tut=(TUT[G.contractKey]&&TUT[G.contractKey][i])||null;G.tutStep=0;}
 function tutNextChapter(){ // continuous model: the coach (not a tonnage quota) advances tutorial chapters; the feed never stops
@@ -570,9 +571,9 @@ function newGame(mode,contractKey,seed){
   G={mode,contractKey:ck,scenario:scn,phaseIdx:0,unlocked:scn?[]:null,tut:null,tutStep:0,nodes:[],edges:[],cash:cash0,startCash:cash0,seed:_s0,rngState:_s0,delivered:0,deliveredTot:0,landfill:0,
     petOn:0,petOff:0,ferOn:0,sold:{},minCash:cash0,running:false,speed:1,finished:false,tier:null,
     continuous:(mode==="sandbox"||(mode==="career"&&!!scn)),
-    carryEmit:0,carry:{},energy:0,t:0,wageTot:0,ledger:{tipping:0,sales:0,subsidies:0,labour:0,logistics:0,power:0,landfill:0,capex:0},connecting:null,pointer:null,
+    carryEmit:0,carry:{},energy:0,t:0,wageTot:0,ledger:{tipping:0,sales:0,subsidies:0,grants:0,labour:0,logistics:0,power:0,landfill:0,capex:0},connecting:null,pointer:null,
     logi:_lg,fleet:Object.assign({},_lg.fleet0,(scn&&scn.fleet)||{}),vehicles:[],jobs:[],vehId:1,trucks:[],truckId:1,
-    contract:{name:base.name,tonnage:base.tonnage,comp:base.comp,product:base.product||"PET",tiers:base.tiers||{gold:2.4,silver:3.0},premium:base.premium||null,units:base.units||null,feedTph:base.feedTph||5,supplier:(scn&&scn.supplier)||base.supplier||null}};
+    contract:{name:base.name,tonnage:base.tonnage,comp:base.comp,product:base.product||"PET",tiers:base.tiers||{gold:2.4,silver:3.0},premium:base.premium||null,units:base.units||null,feedTph:base.feedTph||4,supplier:(scn&&scn.supplier)||base.supplier||null}};
   G.career=newCareer();G.career.bank=cash0;CAREER=G.career; // per-game progression; CAREER is a live pointer into G
   if(scn)applyPhase(0);
   if(mode==="sandbox"){G.cash=999999;G.contract.tonnage=Infinity;}
@@ -585,7 +586,7 @@ function newGame(mode,contractKey,seed){
   } // grid-native site scenario; siteEmpty ⇒ the player builds the plant (Phase 3)
   else if(scn&&scn.scene){for(const sd of scn.scene)addNode(sd.type,sd.x,sd.y,sd.spec,sd.role);} // pre-placed tutorial scene
   else{addNode("storage",-150,0,null,"input");addNode("storage",150,0,"PET","output");}
-  {const _src=G.nodes.find(isInput);if(_src)_src.rate=G.contract.feedTph||5;} // feeder rate defaults to the contract delivery rate
+  {const _src=G.nodes.find(isInput);if(_src)_src.rate=G.contract.feedTph||4;} // feeder rate defaults to the contract delivery rate
   ensureFleet(); // spawn pool vehicles (loaders home at the feeder) now that the scene exists
   UI.viewReset();
   saveGame();
@@ -681,15 +682,16 @@ function recordOpexDay(){ // §OPEX-HISTORY: at each in-game day rollover, push 
   G.opexHistory=G.opexHistory||[];G.opexHistory.push(e);if(G.opexHistory.length>120)G.opexHistory.shift();
   G._opexDay=day;G._opexStart=now;}
 function pnlReport(){const L=G.ledger;
-  const income=L.tipping+L.sales+L.subsidies;
+  const income=L.tipping+L.sales+L.subsidies;   // RECURRING income only (subsidies = per-tonne bonuses)
+  const grants=L.grants||0;                     // ONE-TIME milestone/phase grants (excluded from operating result)
   const recurring=L.labour+L.logistics+L.power+L.landfill; // operating costs (NO capex)
   const capex=L.capex;
   const start=(G.startCash!=null?G.startCash:ECON.startCash);
   return{income:{tipping:L.tipping,sales:L.sales,subsidies:L.subsidies},
     costs:{labour:L.labour,logistics:L.logistics,power:L.power,landfill:L.landfill,capex:L.capex},
-    incomeTotal:income,recurringTotal:recurring,capexTotal:capex,
-    operating:income-recurring,                 // what the plant earns before investment
-    costTotal:recurring+capex,net:start+income-recurring-capex,cash:G.cash};}
+    incomeTotal:income,recurringTotal:recurring,capexTotal:capex,grantsTotal:grants,
+    operating:income-recurring,                 // what the plant earns before investment (grants excluded)
+    costTotal:recurring+capex,net:start+income+grants-recurring-capex,cash:G.cash};}
 /* ── Save / restore ─────────────────────────────────────────────────────────
  * localStorage autosave so a refresh never wipes progress. Guarded by try/catch:
  * if storage is unavailable (e.g. a sandboxed preview iframe) the game just runs
@@ -839,7 +841,7 @@ const OBJ={
   a_net20:{cat:"grow",  name:"Reach €20k/day operating profit",       cond:{metric:"dailyNet",gte:20000},     reward:400000, req:["a_net10"]},
   a_100t :{cat:"impact",name:"Recover 100 t on-spec",               cond:{metric:"exportedOnSpec",gte:100},  reward:150000, req:["a_first"]},
   a_div  :{cat:"impact",name:"Hit 80% landfill diversion",          cond:{metric:"diversion",gte:0.8},      reward:150000},
-  a_rep  :{cat:"impact",name:"Earn a corporate sponsor (250 t on-spec)",cond:{metric:"exportedOnSpec",gte:250},reward:0, sponsor:true},
+  a_rep  :{cat:"impact",name:"Earn a corporate sponsor (250 t on-spec)",cond:{metric:"exportedOnSpec",gte:250},reward:100000, sponsor:true}, // signing bonus + a permanent −20% equipment-capex discount (flags.sponsored)
 };
 function objMetric(m){const c=CAREER.counters;
   return m==="exportedOnSpec"?c.exportedOnSpec : m==="profitBanked"?c.profitBanked : m==="unitsOnLine"?c.maxUnits : m==="diversion"?c.bestDiversion : m==="dailyNet"?(c.bestDailyNet||0) : m==="contractsWon"?c.contractsWon : 0;}
@@ -857,7 +859,7 @@ function objLocked(id){return !!OBJ[id]&&!objClaimed(id)&&!objReqMet(id);}
 function claimableObjectives(){return Object.keys(OBJ).filter(objClaimable);}
 function hasClaimable(){return claimableObjectives().length>0;}
 function objProgress(id){const o=OBJ[id];if(!o)return 0;if(o.cond.metric)return Math.max(0,Math.min(1,objMetric(o.cond.metric)/o.cond.gte));return objMet(o)?1:0;}
-function claimObjective(id){if(!objClaimable(id))return false;postTx("subsidies",OBJ[id].reward);CAREER.bank=G.cash;CAREER.claimed.push(id);
+function claimObjective(id){if(!objClaimable(id))return false;postTx("grants",OBJ[id].reward);CAREER.bank=G.cash;CAREER.claimed.push(id); // one-time grant → `grants` (not the recurring `subsidies`)
   if(OBJ[id].sponsor&&CAREER.counters.flags)CAREER.counters.flags.sponsored=true;
   saveCareer();saveGame();return true;}
 
@@ -883,10 +885,10 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
     cash:s.cash,startCash:(s.startCash!=null?s.startCash:((scn&&scn.startCash)||ECON.startCash)),seed:(s.seed!=null?s.seed:0x9E3779B9),rngState:(s.rngState!=null?s.rngState:(s.seed!=null?s.seed:0x9E3779B9)),delivered:s.delivered,deliveredTot:(s.deliveredTot!=null?s.deliveredTot:s.delivered),landfill:s.landfill,petOn:s.petOn,petOff:s.petOff,ferOn:s.ferOn,sold:s.sold||{},
     minCash:s.minCash,running:false,speed:1,finished:!!s.finished,tier:s.tier||null,continuous:(s.mode==="sandbox"||(s.mode==="career"&&!!scn))||!!s.continuous,
     carryEmit:0,carry:{},energy:0,t:s.t||0,wageTot:s.wageTot||0,
-    ledger:Object.assign({tipping:0,sales:0,subsidies:0,labour:0,logistics:0,power:0,landfill:0,capex:0},s.ledger||{}),
+    ledger:Object.assign({tipping:0,sales:0,subsidies:0,grants:0,labour:0,logistics:0,power:0,landfill:0,capex:0},s.ledger||{}),
     connecting:null,pointer:null,
     logi:_lg,sprSeq:s.sprSeq||0,fleet:Object.assign({},_lg.fleet0,s.fleet||{}),vehicles:(s.vehicles||[]).map(v=>Object.assign({},v,{payload:v.payload||blankBuf(),baleLoad:v.baleLoad||[]})),jobs:[],vehId:s.vehId||1,trucks:s.trucks||[],truckId:s.truckId||1,
-    contract:{name:base.name,tonnage:base.tonnage,comp:base.comp,product:base.product||"PET",tiers:base.tiers||{gold:2.4,silver:3.0},premium:base.premium||null,units:base.units||null,feedTph:base.feedTph||5,supplier:(scn&&scn.supplier)||base.supplier||null}};
+    contract:{name:base.name,tonnage:base.tonnage,comp:base.comp,product:base.product||"PET",tiers:base.tiers||{gold:2.4,silver:3.0},premium:base.premium||null,units:base.units||null,feedTph:base.feedTph||4,supplier:(scn&&scn.supplier)||base.supplier||null}};
   if(s.mode==="sandbox")G.contract.tonnage=Infinity;
   if(G.continuous)G.contract.tonnage=Infinity;
   // Current-schema restore only (D4: legacy pre-S-BATCH migration deleted 2026-07-11 — the
@@ -895,7 +897,7 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
     if(!TYPES[type])throw new Error("restoreGame: unknown type "+type); // B2: validateSave gates this; defensive so no path can silently drop a node
     G.nodes.push({id:ns.id,type,x:ns.x,y:ns.y,w:ns.w||78,h:ns.h||66,gx:(ns.gx!=null?ns.gx:null),gy:(ns.gy!=null?ns.gy:null),rot:ns.rot||0,site:ns.site||null,paidCapex:(ns.paidCapex!=null?ns.paidCapex:(ns.capex!=null?ns.capex:0)),
       inBuf:migrateBuf(ns.inBuf),ratio:ns.ratio==null?0.5:ns.ratio,spec:spec||"PET",
-      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,role:role||(type==="storage"?"buffer":null),rate:ns.rate||5,
+      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,role:role||(type==="storage"?"buffer":null),rate:ns.rate||4,
       jam:0,load:0,state:"ok",wrongSize:0,workers:ns.workers||2,target:ns.target||"film",supplier:ns.supplier||null,buyer:ns.buyer||null,label:ns.label||null,sortSide:ns.sortSide||null,splitLayout:ns.splitLayout||null,contEvac:ns.contEvac||0,massEvac:ns.massEvac||0,_inMass:ns._inMass||0,_outMass:ns._outMass||0,_sortMass:ns._sortMass||0,_restMass:ns._restMass||0});}
   const live=new Set(G.nodes.map(n=>n.id));
   for(const es of s.edges)if(live.has(es.from)&&live.has(es.to)){const _wl=(es.kind==="conveyor"&&es.route)?pathLen(es.route):0;
@@ -1006,7 +1008,7 @@ const VEH_GEO={ // half-length in world px, from REAL vehicle lengths (1 cell = 
   ctruck:{hl:27,mode:"rear"},    // roll-off ampliroll ~9 m (sized down ~20% for the yard)
   supplier:{hl:29,mode:"rear"},   // refuse truck, sized down ~20%  // refuse truck ~9.5 m
   client:{hl:32,mode:"rear"},    // flatbed bale truck ~8.5 m (was 40 — oversized)
-  lftruck:{hl:27,mode:"rear"}};  // roll-off ~9 m (matches the ctruck: same truck, same size)
+  lftruck:{hl:32,mode:"rear"}};  // roll-off ~9 m — sized to match the client bale truck (was 27, read as visibly smaller than the other yard trucks)
 const BERTH_LANE=26, DOCK_CLEAR=CELL*1.05, PULL_PAST=CELL*0.9, TURN_WIN=16;
 function dockOut(side){return side==="t"?[0,-1]:side==="b"?[0,1]:side==="l"?[-1,0]:[1,0];}
 function truckDockInfo(n){ // boundary trucks serve the apron face
@@ -1177,24 +1179,41 @@ function buildJobs(){const jobs=[];
         // don't pile loaders on a bunker another loader is already draining unless it's much fuller
         if(f>bestFill||(f===bestFill&&(!best||src.id<best.from))){bestFill=f;best={from:src.id};}}
       if(best)jobs.push({cls:"loader",fromId:best.from,toId:n.id}); }
-    // CONTAINER TRUCK: a bulk zone with ≥1 FULL container + a WIRED landfill with room (dedup on the source bulk).
-    if(isBulk(n)){ if(bulkFullCount(n)<=0)continue;
-      if(G.vehicles.some(v=>v.cls==="ctruck"&&v.fromId===n.id&&v.state!=="idle"))continue;
+    // CONTAINER TRUCK: a bulk zone with FULL containers + a WIRED landfill with room. POOLED — many
+    //   trucks may clear one bulk zone (one full container per trip). Reserve containers already owed
+    //   to inbound trucks + landfill room already inbound, so a bigger fleet drains a backed-up zone.
+    if(isBulk(n)){ const full=bulkFullCount(n); if(full<=0)continue;
       const e=G.edges.find(e=>e.from===n.id&&isLandfill(nodeById(e.to))&&cnt(nodeById(e.to).inBuf)<capOf(nodeById(e.to)));
-      if(e)jobs.push({cls:"ctruck",fromId:n.id,toId:e.to}); }
-    // FORKLIFT: a baler with ≥1 stored bale + a WIRED export zone with room (dedup on the source baler).
+      if(e){ const lf=nodeById(e.to),CC=G.logi.containerCap;
+        let commit=0,inbound=0;
+        for(const v of G.vehicles){ if(v.cls!=="ctruck"||v.state==="idle")continue;
+          if(v.fromId===n.id&&(v.state==="toSource"||v.state==="loading"))commit++;   // containers this zone owes an inbound truck
+          if(v.toId===e.to)inbound++; }                                                // containers already heading into this landfill
+        const wantN=Math.max(0,full-commit),roomN=Math.floor(Math.max(0,capOf(lf)-cnt(lf.inBuf))/CC)-inbound;
+        for(let k=Math.min(wantN,roomN);k>0;k--)jobs.push({cls:"ctruck",fromId:n.id,toId:e.to}); } }
+    // FORKLIFT: a baler with stored bales + a WIRED export zone with room. POOLED — many forklifts may
+    //   serve one baler. Reserve bales already owed to inbound forks + export room already spoken for,
+    //   so adding forklifts actually relieves a full baler (was hard-capped 1:1 by a `some()` dedup).
     if(TYPES[n.type].isBaler){ if(!n.bales||n.bales.length<=0)continue;
-      if(G.vehicles.some(v=>v.cls==="forklift"&&v.fromId===n.id&&v.state!=="idle"))continue;
       const e=G.edges.find(e=>e.from===n.id&&isExport(nodeById(e.to))&&nodeById(e.to).bales.length<G.logi.exportCap);
-      if(e)jobs.push({cls:"forklift",fromId:n.id,toId:e.to}); }
+      if(e){ const dep=nodeById(e.to),FB=G.logi.forkBales;
+        let commit=0,roomUsed=0;
+        for(const v of G.vehicles){ if(v.cls!=="forklift"||v.state==="idle")continue;
+          if(v.fromId===n.id&&(v.state==="toSource"||v.state==="loading"))commit+=FB;   // bales this baler owes an inbound fork
+          if(v.toId===e.to)roomUsed+=(v.state==="toSource"||v.state==="loading")?FB:(v.baleLoad?v.baleLoad.length:0); } // export room already inbound
+        const wantLoads=Math.ceil(Math.max(0,n.bales.length-commit)/FB);
+        const roomLoads=Math.floor(Math.max(0,(G.logi.exportCap-dep.bales.length)-roomUsed)/FB);
+        for(let k=Math.min(wantLoads,roomLoads);k>0;k--)jobs.push({cls:"forklift",fromId:n.id,toId:e.to}); } }
   }
   return jobs;}
 // Assign queued jobs to idle pool vehicles of the matching class, in queue order.
 function dispatchJobs(){G.jobs=buildJobs();
-  G.jobs.sort((a,b)=>{ // scarce loaders go to the HUNGRIEST feeder first (stable, deterministic)
-    if(a.cls!=="loader"||b.cls!=="loader")return 0;
-    const fa=cnt(nodeById(a.toId).inBuf),fb=cnt(nodeById(b.toId).inBuf);
-    return fa-fb||a.toId-b.toId;});
+  G.jobs.sort((a,b)=>{ // scarce vehicles go to the most URGENT job first (stable, deterministic)
+    if(a.cls!==b.cls)return 0;                                            // only order within a class
+    if(a.cls==="loader"){const fa=cnt(nodeById(a.toId).inBuf),fb=cnt(nodeById(b.toId).inBuf);return fa-fb||a.toId-b.toId;} // hungriest feeder first
+    if(a.cls==="forklift"){const fa=nodeById(a.fromId).bales.length,fb=nodeById(b.fromId).bales.length;return fb-fa||a.fromId-b.fromId;} // fullest baler first
+    if(a.cls==="ctruck"){const fa=bulkFullCount(nodeById(a.fromId)),fb=bulkFullCount(nodeById(b.fromId));return fb-fa||a.fromId-b.fromId;} // fullest bulk zone first
+    return 0;});
   for(const job of G.jobs){const v=G.vehicles.find(x=>x.cls===job.cls&&x.state==="idle");
     if(!v){ if(job.cls==="loader"){const f=nodeById(job.toId);
       if(f&&cnt(f.inBuf)<G.logi.loaderCap)f.state="noloader";} continue; } // only when genuinely running dry with nobody coming
@@ -1712,7 +1731,7 @@ function tick(dt){
     if(cnt(b.inBuf)<capOf(b)*0.5)G.overflowAlerted=false;                 // re-arm the full-alert once the bunker drains
     const _idle=b.supplier==="__none";
     const _str=(G.continuous&&!_idle)?supplierStream((b.supplier&&b.supplier!=="__none")?b.supplier:(G.contract&&G.contract.supplier)):null;
-    const _comp=(_str&&_str.comp)||G.contract.comp,_frTot=(_str&&_str.feedTph)||G.contract.feedTph||5,_gate=(_str&&_str.gate)||ECON.tipping;
+    const _comp=(_str&&_str.comp)||G.contract.comp,_frTot=(_str&&_str.feedTph)||G.contract.feedTph||4,_gate=(_str&&_str.gate)||ECON.tipping;
     if(_idle)continue;
     if(!(G.continuous||G.delivered<G.contract.tonnage))continue;          // tutorial tonnage gate
     const _sk=(b.supplier&&b.supplier!=="__none")?b.supplier:((G.contract&&G.contract.supplier)||"__default");
@@ -1754,7 +1773,7 @@ function tick(dt){
     if(t.isPick){cap=n.workers*PICK_RATE;const w=n.workers*WAGE*dt;G.cash-=w;G.wageTot+=w;G.ledger.labour+=w;}
     if(!isInput(n))cap=techCap(n.type,cap);
     G.carry[n.id]=(G.carry[n.id]||0)+cap*dt/PMASS;let budget=Math.floor(G.carry[n.id]);G.carry[n.id]-=budget;
-    n.load=cnt(n.inBuf)>0?Math.min(1.5,cnt(n.inBuf)/(capOf(n)*(isInput(n)?1.0:0.45))):0; // a feeder is a hopper: full = healthy
+    n.load=cnt(n.inBuf)>0?Math.min(1.5,cnt(n.inBuf)/(capOf(n)*(isInput(n)?1.0:0.9))):0; // a feeder is a hopper: full = healthy. Process nodes: OVERLOAD only when the backpressure buffer is genuinely saturating (~90% full), not at half — decoupled from the rated t/h, which was tripping a 10 t/h unit at ~5 t/h.
     let jammed=false,wrong=false,did=0;
     for(let k=0;k<budget;k++){if(cnt(n.inBuf)<=0)break;const pt=popParticle(n.inBuf);if(!pt)break;
       let mat=pt.mat,st=pt.st,nst=st,port;
@@ -1787,7 +1806,8 @@ function tick(dt){
     // failure state
     n.idle = (did===0&&cnt(n.inBuf)===0) ? (n.idle||0)+dt : 0;
     n.chok = (did===0&&cnt(n.inBuf)>0) ? (n.chok||0)+dt : 0; // choked = has material but moved nothing (true jam); resets as soon as anything flows
-    if(n.chok>JAM_T)n.state="jammed"; else if(wrong)n.state="bagged"; else if(n.load>1.02)n.state="overloaded";
+    n.over = (n.load>1.02) ? (n.over||0)+dt : 0; // sustained buffer-saturation timer (hysteresis, mirrors chok/idle)
+    if(n.chok>JAM_T)n.state="jammed"; else if(wrong)n.state="bagged"; else if(n.over>OVER_T)n.state="overloaded";
     else if(n.idle>STARVE_T)n.state="starved"; else n.state="ok";
   }
   // 3b. balers: accumulate → pack a bale into n.bales (≤ BALER_BALES). Bales are pulled by a FORKLIFT
@@ -1875,7 +1895,7 @@ function tick(dt){
       G.minCash=Math.min(G.minCash,G.cash);
       if(!G.scenario){const win=contractWon();endGame(win,win?"win":(G.cash<=0?"red":"offspec"));} // plain contract: finite challenge (legacy)
       else{const ph=G.scenario.phases[G.phaseIdx];
-        if(ph.reward){postTx("subsidies",ph.reward);} // phase reward → Subsidies
+        if(ph.reward){postTx("grants",ph.reward);} // one-time phase reward → grants (kept out of the recurring rate)
         G.lastPhase={name:ph.name,name_f:ph.name_f,reward:ph.reward||0,product:ph.product||"PET",recovered:Math.max(0,((G.sold[ph.product]&&G.sold[ph.product].on)||0)-((G.phaseSoldBase&&G.phaseSoldBase[ph.product])||0))};
         if(G.phaseIdx<G.scenario.phases.length-1){applyPhase(G.phaseIdx+1);snapshotPhase();UI.onPhase(G.scenario.phases[G.phaseIdx]);} // advance phase
         else{ // last phase done → graduate into continuous operation (no win screen)
