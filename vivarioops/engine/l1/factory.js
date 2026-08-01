@@ -16,7 +16,58 @@ export const SLICE_LIMITS = {
   maxNodes: 8,              // full: 24 bodies instantiated
   maxRecursion: 2,          // full: 6
   maxConnPerNode: 3,        // full: 4
-  allowGrafting: false,     // full: true (30% of reproductions)
+  /**
+   * GRAFTING IS ON. Was `false` from A2 through B4, on 30 R3's reading that
+   * "10 §3 sets allowGrafting: false; scheduling it here was a contradiction".
+   *
+   * WHAT CHANGED IS NOT THE READING, IT IS THE MEASUREMENT. R3's implicit cost
+   * model was that recombination would push the viability filter past what its
+   * 12 attempts could absorb — a live concern, since mutation viability is 57%
+   * against a 60% target and the B2 §2.2 obligation says exactly this quantity
+   * gets squeezed again from the other side. Measured instead (tools/_xgraft.mjs,
+   * 6 lineages x 8 generations x 5 rates, random 3-7 node parents):
+   *
+   *     graftRate   grafted   viability   attempts/birth   fellBack   nodes/creature
+   *       0.00         0%        76%          1.15            0%           4.91
+   *       0.50        45%        75%          1.24            0%           5.26
+   *       1.00       100%        71%          1.27            0%           5.85
+   *
+   * Recombinant viability is ~75%, ABOVE the asexual path's 57%, and the fallback
+   * to an unmutated parent never fired once in 720 births. The reason is
+   * structural rather than lucky: a graft copies nodes and edges VERBATIM out of
+   * a genome that already passed the filter, and MUTATIONS_PER_RECOMBINANT is
+   * [0, 2] against [1, 3], so a recombinant carries less novelty per birth than a
+   * mutant does — it just carries it from somewhere real.
+   *
+   * The pin in gate/l1.js:110 moves with this line, and stays a pin.
+   */
+  allowGrafting: true,
+
+  /**
+   * Fraction of offspring that mix two parents, when two or more are selected.
+   *
+   * ONE, NOT 10 §A17.3's 0.6 — DECLARED DEVIATION. With two selected there are
+   * three offspring slots; with three selected there are two. At a probabilistic
+   * rate, "did the mixing work?" is a question about a sample of two, and the
+   * answer is indistinguishable from a bug. That is the same argument, at the
+   * same sizes, that breed.js already makes against sampling parents with
+   * replacement. A fractional value is implemented and works; it is simply not
+   * what a six-slot tank should ship.
+   */
+  crossoverRate: 1,
+
+  /**
+   * Of those, the fraction that also transplant a subgraph rather than crossing
+   * the scalar genes alone. ANDed with allowGrafting.
+   *
+   * 0.5 from the sweep above: viability is flat from 0 to 0.75 and only dips at
+   * 1.0, and body inflation is mild here (+7% mean nodes against +19% at 1.0).
+   * Half the children are chimeric and half are this parent wearing the other's
+   * colours — which is also the mix that makes the two readable against each
+   * other on screen.
+   */
+  graftRate: 0.5,
+
   allowRadialSymmetry: false,
   /**
    * SPHERICAL DROPPED AT B2 §3.1 / §12. Was `['revolute', 'twist', 'spherical']`.

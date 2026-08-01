@@ -19,7 +19,8 @@ import { morphogenesis } from '../engine/l1/morphogen.js';
 import {
   serialise, validateGenome, reachability, CAPS, FREQ_MULTS, RANGE,
 } from '../engine/l1/genome.js';
-import { mutate, mutateTimes, cloneGenome, jitter } from '../engine/l1/mutate.js';
+import { mutate, mutateTimes, cloneGenome, jitter, removeDanglingConnections } from '../engine/l1/mutate.js';
+import { crossGenomes, graftSubgraph, CROSS_FIELDS } from '../engine/l1/crossover.js';
 import {
   assessViability, newTally, record, viabilityRate, VIABILITY, REASONS,
   freeMotionVerdict,
@@ -624,6 +625,247 @@ export async function runBreedGate() {
     t.eq(fellBack, 0, `no offspring fell back to its parent over ${offspringMade} births in normal conditions`);
   });
 
+  // ── crossover corpus ──────────────────────────────────────────────────────
+  //
+  // PARENTS PRESSED TO THE NODE CAP, for the reason L1-25's own press loop gives:
+  // a 3-7 node parent leaves budget to spare on every possible cut, so the
+  // graft's node-budget arithmetic is never exercised and an assertion whose
+  // corpus cannot violate the bound asserts nothing. Sixty pressed parents paired
+  // 300 ways — the press is the expensive part, the pairing is free.
+  //
+  // The offsets never coincide: i ≡ 7i+13 (mod 60) requires 6i ≡ 47 (mod 60), and
+  // 6i is always a multiple of 6. So no genome is ever crossed with itself.
+  const pressed = [];
+  for (let i = 0; i < 60; i++) {
+    pressed.push(mutateTimes(pop[i], rngFrom('gate', 'b4', 'xpress', i), 30).genome);
+  }
+  const crossPairs = [];
+  for (let i = 0; i < CORPUS; i++) crossPairs.push([pressed[i % 60], pressed[(i * 7 + 13) % 60]]);
+
+  // The graft is exercised under the configuration it SHIPS in, whatever the A2
+  // flag says at this commit, so L1-38..L1-41 are green on both sides of the flip
+  // and the operator is proved correct before breed.js is allowed to call it.
+  const CROSS_LIMITS = { ...SLICE_LIMITS, allowGrafting: true };
+
+  const degrees = (x) => {
+    const d = new Map();
+    for (const c of x.connections) d.set(c.parentNodeId, (d.get(c.parentNodeId) || 0) + 1);
+    return [...d.values()];
+  };
+
+  // ── L1-38 · every recombinant is legal ────────────────────────────────────
+  g.assertion('L1-38', 'Every recombinant is a valid, connected genome inside the slice limits', (t) => {
+    let invalid = 0, disconnected = 0, overCap = 0, overDegree = 0, overReflect = 0;
+    let danglings = 0, swept = 0, grafts = 0, widest = 0;
+    const firstErrors = [];
+    for (let i = 0; i < CORPUS; i++) {
+      const [a, b] = crossPairs[i];
+      const r = crossGenomes(a, b, rngFrom('gate', 'b4', 'x38', i), { limits: CROSS_LIMITS });
+      const c = r.genome;
+      if (r.grafted) grafts++;
+      widest = Math.max(widest, c.nodes.length);
+
+      const v = validateGenome(c);
+      if (!v.ok) { invalid++; if (firstErrors.length < 3) firstErrors.push(`${i}: ${v.errors[0]}`); }
+      if (!reachability(c).connected) disconnected++;
+      if (c.nodes.length > SLICE_LIMITS.maxNodes) overCap++;
+      for (const d of degrees(c)) if (d > SLICE_LIMITS.maxConnPerNode) overDegree++;
+      for (const cc of c.connections) {
+        const axes = (cc.reflectX ? 1 : 0) + (cc.reflectY ? 1 : 0) + (cc.reflectZ ? 1 : 0);
+        if (axes > SLICE_LIMITS.maxReflectionAxes) overReflect++;
+      }
+      const ids = new Set(c.nodes.map(n => n.id));
+      for (const cc of c.connections) if (!ids.has(cc.parentNodeId) || !ids.has(cc.childNodeId)) danglings++;
+      // The sweep must find NOTHING. mutate.js:114 keeps it as a leak detector
+      // rather than a repair, and the same reasoning holds here: a graft that
+      // needed sweeping would be emitting a broken graph and hiding it.
+      swept += removeDanglingConnections(cloneGenome(c));
+    }
+    t.eq(invalid, 0, `all ${CORPUS} recombinants validate${firstErrors.length ? ` — ${firstErrors.join('; ')}` : ''}`);
+    t.eq(disconnected, 0, 'no graft orphans a node from the root');
+    t.eq(danglings, 0, 'no connection references a node that is not there');
+    t.eq(swept, 0, 'the dangling sweep finds nothing — no hidden repair pass is propping this up');
+    t.eq(overCap, 0, 'no recombinant exceeds the node cap');
+    t.eq(overDegree, 0, 'no recombinant exceeds the per-node connection cap');
+    t.eq(overReflect, 0, 'the graft never exceeds the reflection-axis cap, because it copies edges verbatim');
+    // THE CORPUS MUST PRESS WHAT IT ASSERTS. 8 as a literal from A2, not read back
+    // from SLICE_LIMITS — which is the constant a mutation test would change.
+    t.eq(widest, 8, 'the corpus reaches the node cap, so the budget rule is genuinely under test');
+    t.ok(grafts >= CORPUS / 2, 'the graft fires on most pairs rather than quietly refusing', grafts);
+  });
+
+  // ── L1-39 · determinism and purity ────────────────────────────────────────
+  g.assertion('L1-39', 'Crossover is deterministic in its seed, and neither parent is touched', (t) => {
+    for (let i = 0; i < 25; i++) {
+      const [a, b] = crossPairs[i];
+      const beforeA = serialise(a), beforeB = serialise(b);
+      const x = crossGenomes(a, b, rngFrom('gate', 'b4', 'x39', i), { limits: CROSS_LIMITS });
+      const y = crossGenomes(a, b, rngFrom('gate', 'b4', 'x39', i), { limits: CROSS_LIMITS });
+      t.eq(serialise(x.genome), serialise(y.genome), `seed ${i} reproduces byte-for-byte`);
+      t.eq(x.ops.join(), y.ops.join(), `seed ${i} reports the same operations`);
+      // N18 DEPENDS ON THIS ABSOLUTELY: an elite that fathered a child must
+      // survive the same breed byte-identical, in its own slot. A graft that
+      // mutated either parent in place would break the rule from the inside.
+      t.eq(serialise(a), beforeA, `parent A ${i} is untouched by crossover`);
+      t.eq(serialise(b), beforeB, `parent B ${i} is untouched by crossover`);
+    }
+    let differ = 0;
+    for (let i = 0; i < 25; i++) {
+      const [a, b] = crossPairs[i];
+      const x = crossGenomes(a, b, makeRng(2000 + i), { limits: CROSS_LIMITS });
+      const y = crossGenomes(a, b, makeRng(8000 + i), { limits: CROSS_LIMITS });
+      if (serialise(x.genome) !== serialise(y.genome)) differ++;
+    }
+    t.ok(differ >= 24, 'different seeds give different recombinants', differ);
+  });
+
+  // ── L1-40 · the child is genuinely bipartental ────────────────────────────
+  g.assertion('L1-40', 'Every crossed gene draws from BOTH parents, and nothing is blended', (t) => {
+    const fields = Object.entries(CROSS_FIELDS).flatMap(([blk, ks]) => ks.map(k => [blk, k]));
+    t.eq(fields.length, 15, 'fifteen scalar genes cross by coin flip');
+    const fromA = new Map(), fromB = new Map(), seen = new Map(), foreign = new Map();
+    for (let i = 0; i < CORPUS; i++) {
+      const [a, b] = crossPairs[i];
+      const c = crossGenomes(a, b, rngFrom('gate', 'b4', 'x40', i), { limits: CROSS_LIMITS }).genome;
+      for (const [blk, k] of fields) {
+        const key = `${blk}.${k}`;
+        if (a[blk][k] === b[blk][k]) continue;   // indistinguishable; tells us nothing
+        seen.set(key, (seen.get(key) || 0) + 1);
+        if (c[blk][k] === b[blk][k]) fromB.set(key, (fromB.get(key) || 0) + 1);
+        else if (c[blk][k] === a[blk][k]) fromA.set(key, (fromA.get(key) || 0) + 1);
+        else foreign.set(key, (foreign.get(key) || 0) + 1);
+      }
+    }
+    for (const [blk, k] of fields) {
+      const key = `${blk}.${k}`;
+      t.ok((seen.get(key) || 0) >= 30, `${key} differs between parents often enough to be testable`, seen.get(key) || 0);
+      // A COIN STUCK ON ONE SIDE IS A SILENT NO-OP — this project's single most
+      // repeated defect (mutate.js:250, gate/breed.js:766). Asserted PER FIELD and
+      // in BOTH directions: an aggregate count would hide one field wired to the
+      // wrong parent behind fourteen that work.
+      t.ok((fromA.get(key) || 0) > 0, `${key} is taken from A sometimes`, fromA.get(key) || 0);
+      t.ok((fromB.get(key) || 0) > 0, `${key} is taken from B sometimes`, fromB.get(key) || 0);
+      t.eq(foreign.get(key) || 0, 0, `${key} is never a value neither parent held — this is a pick, not a blend`);
+    }
+
+    // Structurally the same claim: nothing is invented. Every node in the child is
+    // a node of one parent, field for field, with only its id reassigned.
+    let invented = 0;
+    const shape = (n) => JSON.stringify({ ...n, id: '' });
+    for (let i = 0; i < 60; i++) {
+      const [a, b] = crossPairs[i];
+      const c = crossGenomes(a, b, rngFrom('gate', 'b4', 'x40n', i), { limits: CROSS_LIMITS }).genome;
+      const parental = new Set([...a.nodes, ...b.nodes].map(shape));
+      for (const n of c.nodes) if (!parental.has(shape(n))) invented++;
+    }
+    t.eq(invented, 0, 'every node in a recombinant came verbatim from one of the two parents');
+  });
+
+  // ── L1-41 · id hygiene under shared ancestry ──────────────────────────────
+  g.assertion('L1-41', 'A graft mints fresh ids, even when the two parents share ancestry', (t) => {
+    let ran = 0, dupNode = 0, dupConn = 0, jgMismatch = 0, aliased = 0;
+    for (let i = 0; i < 60; i++) {
+      const a = pressed[i];
+      // DELIBERATELY RELATED. This is the case the unconditional-fresh-id rule
+      // exists for, and the one a corpus of unrelated factory genomes can never
+      // produce: three mutations apart, so nearly every node id is common to both.
+      // In the player's tank this is the NORMAL case by generation five.
+      const b = mutateTimes(a, rngFrom('gate', 'b4', 'x41kin', i), 3).genome;
+      if (i < 5) {
+        const shared = b.nodes.filter(n => a.nodes.some(m => m.id === n.id)).length;
+        t.ok(shared > 0, `pair ${i} really does share node ids, so the rule is under test`, shared);
+      }
+
+      const r = graftSubgraph(a, b, rngFrom('gate', 'b4', 'x41', i), CROSS_LIMITS);
+      if (!r) continue;
+      ran++;
+      const c = r.genome;
+      const nodeIds = c.nodes.map(n => n.id);
+      const connIds = c.connections.map(x => x.id);
+      if (new Set(nodeIds).size !== nodeIds.length) dupNode++;
+      if (new Set(connIds).size !== connIds.length) dupConn++;
+
+      // THE DANGEROUS FAILURE, asserted directly. A duplicate id is the harmless
+      // one — validateGenome shouts about it. The silent one is a node of B
+      // arriving under an id A already used: the two collapse into one, carrying
+      // A's fields, and every edge of B quietly reattaches to A's version. So:
+      // any id the child shares with A must still hold A's node, unchanged.
+      const aById = new Map(a.nodes.map(n => [n.id, JSON.stringify(n)]));
+      for (const n of c.nodes) {
+        if (aById.has(n.id) && aById.get(n.id) !== JSON.stringify(n)) aliased++;
+      }
+
+      // jointGenes keys are EXACTLY the node ids — none missing, none orphaned.
+      // validateGenome checks both directions too (genome.js:418, :425); asserted
+      // here as well so a failure names the graft rather than the validator.
+      if (Object.keys(c.controller.jointGenes).sort().join() !== [...nodeIds].sort().join()) jgMismatch++;
+    }
+    t.ok(ran >= 30, 'the graft ran on related pairs rather than refusing them all', ran);
+    t.eq(dupNode, 0, 'no duplicate node ids');
+    t.eq(dupConn, 0, 'no duplicate connection ids');
+    t.eq(aliased, 0, "no node of B arrives under an id of A's, silently overwriting it");
+    t.eq(jgMismatch, 0, 'jointGenes keys are exactly the node ids after a graft');
+  });
+
+  // ── L1-42 · two-parent breed semantics ────────────────────────────────────
+  let recombinants = 0, recGrafted = 0, recTier2 = 0;
+  g.assertion('L1-42', 'Selecting several creatures makes children of two of them, fairly', (t) => {
+    const seed = seedPopulation({ RAPIER, rng: rngFrom('gate', 'b4', 'x42seed'), world: W1_SLICE });
+
+    // ONE SELECTED IS STILL ASEXUAL, asserted rather than assumed. This is the
+    // property that let crossover land without moving a single seeded result:
+    // with no mate there is no coin to flip and no draw to consume.
+    const one = breed({ RAPIER, genomes: seed.genomes, selected: [4], rng: rngFrom('gate', 'b4', 'x42one'), world: W1_SLICE });
+    for (const p of one.provenance.filter(p => p.kind === KIND.OFFSPRING)) {
+      t.eq(p.crossed, false, 'one selected: the child has one parent');
+      t.eq(p.parents.length, 1, 'one selected: provenance records one parent');
+      t.eq(p.parent, 4, 'one selected: and it is the selected creature');
+    }
+
+    // THREE SELECTED — the case the player actually plays. Two offspring slots
+    // and three parents, so fairness is only visible across the whole cycle.
+    const pool = [0, 3, 5];
+    const asA = new Set(), asB = new Set();
+    for (let k = 0; k < 12; k++) {
+      const r = breed({ RAPIER, genomes: seed.genomes, selected: pool, rng: rngFrom('gate', 'b4', 'x42', k), world: W1_SLICE });
+      for (const p of r.provenance.filter(p => p.kind === KIND.OFFSPRING)) {
+        t.eq(p.crossed, true, `run ${k}: three selected makes recombinants`);
+        t.eq(p.parents.length, 2, `run ${k}: the child records two parents`);
+        t.ok(p.parents.every(i => pool.includes(i)), `run ${k}: both parents come from the selection`, p.parents);
+        t.ok(p.parents[0] !== p.parents[1], `run ${k}: a creature is not crossed with itself`);
+        // `parent` still names the primary parent — the one the fallback uses,
+        // and the one L1-29 has always asserted on.
+        t.eq(p.parent, p.parents[0], `run ${k}: parent is parents[0]`);
+        asA.add(p.parents[0]); asB.add(p.parents[1]);
+        recombinants++;
+        if (p.grafted > 0) recGrafted++;
+        if (p.tier === 2) recTier2++;
+      }
+    }
+    // FAIRNESS IN BOTH ROLES, asserted rather than left in a comment. The
+    // round-robin offset is random, so over twelve breeds every selected
+    // creature must have been the primary parent at least once and the mate at
+    // least once — a pairing rule that quietly favoured one creature would show
+    // up here and nowhere else.
+    t.eq([...asA].sort().join(), pool.join(), 'every selected creature is the primary parent sometimes');
+    t.eq([...asB].sort().join(), pool.join(), 'every selected creature is the mate sometimes');
+
+    // And the child really is a mix, not parent A with a new label.
+    const r = breed({ RAPIER, genomes: seed.genomes, selected: pool, rng: rngFrom('gate', 'b4', 'x42mix'), world: W1_SLICE });
+    let mixed = 0;
+    for (let i = 0; i < r.provenance.length; i++) {
+      const p = r.provenance[i];
+      if (p.kind !== KIND.OFFSPRING || p.fellBack) continue;
+      const a = seed.genomes[p.parents[0]], b = seed.genomes[p.parents[1]];
+      const fields = Object.entries(CROSS_FIELDS).flatMap(([blk, ks]) => ks.map(k => [blk, k]));
+      // At least one gene that differs between the parents came from the MATE.
+      // Without this the whole feature could be a no-op and every other check
+      // above would still pass.
+      if (fields.some(([blk, k]) => a[blk][k] !== b[blk][k] && r.genomes[i][blk][k] === b[blk][k])) mixed++;
+    }
+    t.ok(mixed > 0, 'at least one child visibly carries a gene from the mate rather than the primary parent', mixed);
+  });
+
   // ── L1-31 · naming ────────────────────────────────────────────────────────
   const names = new Map();
   g.assertion('L1-31', 'A10: the binomial is derived from structure and is deterministic', (t) => {
@@ -956,6 +1198,13 @@ export async function runBreedGate() {
       `MUTATION VIABILITY RATE: ${(rate * 100).toFixed(0)}% over ${tally.attempts} mutants ` +
         `(target >= 60%) · rejected: ${rejections}`,
       `fallback to unmutated parent: ${fellBack}/${offspringMade} births`,
+      // THE RECOMBINATION HEALTH SIGNAL, and the tier split is the part that
+      // matters. Tier 2 is the ladder giving up on the graft and crossing the
+      // scalars alone; a large share means graftRate or the graft's node-budget
+      // rule is wrong, and it shows on the first gate run rather than three
+      // sessions later. Measured at the flip: 0% tier 2, 0 fallbacks in 720 births.
+      `recombination over ${recombinants} births: ${recGrafted} grafted · ` +
+        `${recTier2} fell back to scalars only (tier 2) · graftRate ${SLICE_LIMITS.graftRate}`,
       `operator mix over ${CORPUS}: ` + [...opCounts.entries()].sort((a, b) => b[1] - a[1])
         .map(([k, v]) => `${k} ${v}`).join(' · '),
       `naming: ${names.size} distinct binomials over ${CORPUS} · most common ` +
@@ -966,7 +1215,7 @@ export async function runBreedGate() {
       "B2 §3.2c: minSelfMotion (0.01 m in 2 s) no longer catches every silent creature. An 11-body creature with amplitude and bias zeroed records 0.047 m of travel and 5.3 m/s peak purely from the solver relaxing spawn-time constraint error; the widened limits multiply limbs about one parent, so the initial configuration carries more residual error. The threshold is NOT re-derived here on purpose — §3.2b requires it in the session the solver is defaulted, against a corpus about to move 7x again, and doing it twice against two moving corpora is worse than doing it once.",
       'B2 §2.2: the axial branch of turnSides is now LATENT — 0 of 12 compiled creatures reach it, because maxReflectionAxes 3 makes almost everything bilateral and the mirror branch fires first. L2-8 was asserting it against the corpus, which asserted nothing; it now asserts against constructed plans. 11 §5 calls the lateral fallback "the exception" — at these limits that is true again, and it is untested by any live creature.',
       'B4 CHECKPOINT IS HUMAN: "six creatures, select, breed, repeat, and it holds attention for twenty minutes; offspring visibly resemble parents". Needs the tank screen and a person.',
-      'B4: 10 §A17.3 still specifies the 40/30/30 asexual/crossover/graft mix. 30 R3 removed recombination from the slice, so only the asexual path exists. Amend A17.3 or step F will read it as implemented.',
+      'B4 DISCHARGED, WITH A REMAINING DEVIATION: recombination is implemented (engine/l1/crossover.js) and SLICE_LIMITS.allowGrafting is now true, so 30 R3\'s "only the asexual path exists" no longer holds. What A17.3 still does not describe is what ships: crossoverRate is 1, not 0.6, because at two or three offspring slots a probabilistic rate is indistinguishable from a bug; and Sims\' ALIGNED-NODE crossover is unrepresentable in this genome — 10 §A5 correction 5 abolished array indices, so there is no canonical node order to align against and no meaning to "node 3 of A vs node 3 of B". Only the graft half of A17.3\'s 30/30 exists. Amend A17.3 to the two-layer scheme (scalar uniform + subgraph graft) rather than to the 40/30/30 mix.',
       'B4: N17 and N18 are jointly unsatisfiable when all six creatures are selected. N17 wins and the last selection is dropped. Neither 10 §A17.3 nor 21 §4.3 states this.',
       "B4: 10 §A9's inertness threshold (0.05 m in 2 s) rejects 46% of this corpus and its size rule (4x the tank) rejects nothing. Both are amended in viability.js against measurement.",
       "B4: A9's controller operators addOscillator/removeOscillator are unrepresentable — 10 §A7 binds exactly one oscillator per node, so adding one IS addNode. Replaced by resampleFreqMult and mutateOmega.",

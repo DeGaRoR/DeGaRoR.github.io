@@ -107,14 +107,25 @@ export function runL1Gate() {
     // §3.1: spherical is dropped, restored at F. Restated here as a literal for
     // the same reason as everything else in A2 — so the check cannot follow the
     // constant it is checking. 10 §A2 should be amended to record the drop.
+    // A2's allowGrafting was `false` from A2 through B4 and is now TRUE. The pin
+    // stays, at the new value, for exactly the reason it existed: this flag is
+    // what decides whether selecting several creatures means anything, and it
+    // must never move without a line changing here and in factory.js. See the
+    // measurement recorded at factory.js SLICE_LIMITS.allowGrafting — mutation
+    // viability 57%, recombinant viability ~75%, fallback 0 in 720 births.
+    // 10 §A2 should be amended to record the flip.
     const A2 = { maxNodes: 8, maxRecursion: 2, maxConnPerNode: 3,
-                 jointTypes: ['revolute', 'twist'], allowGrafting: false };
+                 jointTypes: ['revolute', 'twist'], allowGrafting: true };
 
     t.eq(SLICE_LIMITS.maxNodes, A2.maxNodes, 'SLICE_LIMITS.maxNodes matches spec 10 §3');
     t.eq(SLICE_LIMITS.maxRecursion, A2.maxRecursion, 'SLICE_LIMITS.maxRecursion matches spec 10 §3');
     t.eq(SLICE_LIMITS.maxConnPerNode, A2.maxConnPerNode, 'SLICE_LIMITS.maxConnPerNode matches spec 10 §3');
     t.eq(SLICE_LIMITS.jointTypes.join(','), A2.jointTypes.join(','), 'SLICE_LIMITS.jointTypes matches spec 10 §3');
-    t.eq(SLICE_LIMITS.allowGrafting, A2.allowGrafting, 'grafting stays off in the slice (30 §4 B4)');
+    t.eq(SLICE_LIMITS.allowGrafting, A2.allowGrafting, 'grafting is ON in the slice — the pin moved with it, deliberately');
+    // The two rates that decide what "selected" means. Restated as literals for
+    // the same reason as everything else in A2.
+    t.eq(SLICE_LIMITS.crossoverRate, 1, 'every offspring mixes when two or more are selected');
+    t.eq(SLICE_LIMITS.graftRate, 0.5, 'half of those also transplant a subgraph — see the sweep in factory.js');
     // maxReflectionAxes WAS the open ambiguity, pinned in two places so that
     // resolving it had to be an explicit edit here and in factory.js rather than
     // a quiet flip. RESOLVED AT B2 §2.2 in favour of reading (a), the

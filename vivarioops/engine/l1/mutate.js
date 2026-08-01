@@ -63,7 +63,11 @@ function resample(rng, arr, current) {
 // later without updating this function shows up as a gate failure rather than as
 // a mutation that silently shares state with its parent.
 
-const cloneNode = (n) => ({
+// EXPORTED for crossover.js. A graft copies individual nodes and connections out
+// of the other parent, and writing a second copier there would be two hand-written
+// statements of the same schema that drift apart silently — which is the exact
+// failure the "explicit, not structuredClone" rule above exists to make loud.
+export const cloneNode = (n) => ({
   id: n.id,
   dims: n.dims.slice(),
   density: n.density,
@@ -72,7 +76,7 @@ const cloneNode = (n) => ({
   colorGenes: { ...n.colorGenes },
 });
 
-const cloneConn = (c) => ({
+export const cloneConn = (c) => ({
   id: c.id,
   parentNodeId: c.parentNodeId,
   childNodeId: c.childNodeId,

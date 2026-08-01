@@ -5,16 +5,26 @@
 // selection and the same seed it produces the same next generation, which is
 // what makes undo trivial (keep the previous array) and the gate meaningful.
 //
-// ── ASEXUAL ONLY IN THE SLICE ───────────────────────────────────────────────
-// 10 §A17.3 says "offspring drawn from the selected pool using the 40/30/30
-// asexual/crossover/graft mix", and A9 describes the grafting operator in
-// detail. 30 R3 removed both from B4 — "10 §3 sets allowGrafting: false;
-// scheduling it here was a contradiction. Offspring are mutated descendants of
-// selected elites. Recombination returns at step F." The plan wins on what is in
-// the slice, so there is one reproduction path here. 10 §A17.3 is stale and is
-// reported as a spec defect.
+// ── TWO REPRODUCTION PATHS ──────────────────────────────────────────────────
+//
+// WAS "ASEXUAL ONLY IN THE SLICE". 30 R3 removed recombination from B4 on the
+// grounds that "10 §3 sets allowGrafting: false; scheduling it here was a
+// contradiction", and for six sessions every child had exactly one parent.
+//
+// THE PLAYER-FACING COST OF THAT, which is what brought it back: selecting three
+// creatures produced three unchanged elites, one stranger and two single-parent
+// mutants. Selecting MORE parents produced FEWER children and none of them mixed
+// anything, so the one act the whole screen is built around — choosing which
+// creatures should have children together — did nothing it looked like it did.
+//
+// Now: with ONE creature selected this file behaves exactly as it did, byte for
+// byte and rng draw for rng draw. With two or more, offspring are recombinants of
+// two selected parents (see crossover.js) and then mutated, at a reduced rate.
+// A17.3's 40/30/30 mix is still not what happens — see MUTATIONS_PER_RECOMBINANT
+// and CROSSOVER_RATE below — and the deviation is declared rather than silent.
 
 import { mutateTimes, cloneGenome } from './mutate.js';
+import { crossGenomes } from './crossover.js';
 import { createRandomGenome, SLICE_LIMITS } from './factory.js';
 import { assessViability, newTally, record, VIABILITY } from './viability.js';
 // SIDEWAYS, not upward: /worlds/ is data in the engine's own schema — N3 forbids
@@ -52,6 +62,20 @@ export const strangerCount = (population) => Math.max(1, Math.round(population /
  * nothing" and "breeding scrambles everything".
  */
 export const MUTATIONS_PER_OFFSPRING = [1, 3];
+
+/**
+ * A9's "offspring from matings receive mutations too, but at reduced frequency".
+ *
+ * A separate constant rather than a scaling of the one above, because that one is
+ * pinned as a literal by gate/breed.js and moving it would silently change the
+ * asexual path while nobody was looking at it.
+ *
+ * The floor is 0 ON PURPOSE. It is the only way a pure recombinant — two parents
+ * mixed and nothing else added — ever reaches the tank, and that is the child the
+ * player can actually read as "those two, combined". Every other child carries
+ * mutation noise on top and the mixing is a guess.
+ */
+export const MUTATIONS_PER_RECOMBINANT = [0, 2];
 
 export const KIND = { ELITE: 'elite', OFFSPRING: 'offspring', STRANGER: 'stranger', AUTHORED: 'authored' };
 
@@ -139,17 +163,39 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
   // a random offset. Sampling with replacement, at these sizes, routinely gives
   // five children to one of two selected parents and none to the other, which
   // reads as the game ignoring half the selection.
+  //
+  // THE SECOND PARENT IS THE NEXT ONE ROUND, and it is derived arithmetically
+  // rather than drawn. Two reasons, and the first is the load-bearing one:
+  //
+  //   1. It consumes NO rng. The single `rng.int(elites.length)` below is still
+  //      the only top-level draw this loop makes, so breeding from one selected
+  //      creature is bit-for-bit what it was before crossover existed, and every
+  //      seeded gate result on that path is unmoved.
+  //   2. It is fair in BOTH roles. Over a full cycle each selected creature is A
+  //      exactly once and B exactly once. A randomly drawn B could hand a
+  //      three-selected tank the pairs (0,2) and (0,2) and visibly ignore
+  //      creature 1 — which is the same complaint, at the same sizes, that the
+  //      paragraph above makes against sampling with replacement.
   let turn = rng.int(elites.length);
   for (const slot of free) {
     const parentIndex = elites[turn % elites.length];
+    const mateIndex = elites.length >= 2 ? elites[(turn + 1) % elites.length] : null;
     turn++;
     const child = makeOffspring({
-      RAPIER, parent: genomes[parentIndex], rng: rng.fork(`offspring:${slot}`),
+      RAPIER, parentA: genomes[parentIndex],
+      parentB: mateIndex === null ? null : genomes[mateIndex],
+      rng: rng.fork(`offspring:${slot}`),
       world, limits, lockMorphology, tally,
     });
     next[slot] = child.genome;
     provenance[slot] = {
+      // `parent` KEEPS ITS MEANING — the primary parent, a single index, the one
+      // this child falls back to. `parents` is the new complete fact. Splitting
+      // them rather than widening `parent` into an array is what lets old
+      // persisted lineage records and every existing assertion read on unchanged.
       kind: KIND.OFFSPRING, parent: parentIndex,
+      parents: child.crossed ? [parentIndex, mateIndex] : [parentIndex],
+      crossed: child.crossed, grafted: child.grafted, tier: child.tier,
       ops: child.ops, attempts: child.attempts, fellBack: child.fellBack,
     };
   }
@@ -197,15 +243,77 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
  * operators are producing rubbish, and A9 is explicit that this number is THE
  * diagnostic for whether mutation is healthy.
  */
-function makeOffspring({ RAPIER, parent, rng, world, limits, lockMorphology, tally }) {
-  const [lo, hi] = MUTATIONS_PER_OFFSPRING;
+function makeOffspring({ RAPIER, parentA, parentB, rng, world, limits, lockMorphology, tally }) {
+  const crossed = wantsCrossover(parentB, rng, limits);
+  const [lo, hi] = crossed ? MUTATIONS_PER_RECOMBINANT : MUTATIONS_PER_OFFSPRING;
+  const graftPermille = Math.round((limits.graftRate ?? 0) * RATE_SCALE);
+
   for (let attempt = 1; attempt <= VIABILITY.maxAttempts; attempt++) {
+    let base = parentA;
+    let ops = [];
+    let grafted = 0;
+    let tier = 0;
+
+    if (crossed) {
+      // ── THE LADDER ────────────────────────────────────────────────────────
+      // Tier 1 (attempts 1-8): scalars crossed AND, at graftRate, a subgraph of
+      // B transplanted. Tier 2 (9-12): scalars only.
+      //
+      // WHY TIER 2 EXISTS AND WHY IT IS THE RIGHT MIDDLE RUNG. A graft moves body
+      // count, mass and interpenetration at the same time, so it fails viability
+      // materially more often than a mutation does, and mutation is already at
+      // 57% against a 60% target. Tier 2's morphology is parent A's, untouched —
+      // the only genes differing from an ordinary asexual child are the fifteen
+      // scalars, and of those only `controller.omega` measurably touches
+      // viability (minSelfMotion). So tier 2's success rate is within noise of
+      // the asexual path's: the ladder CANNOT push the fallback rate above what
+      // it was before crossover existed, which is what protects L1-30. And the
+      // child is still genuinely bipartental — colour, pattern, tempo, social.
+      tier = attempt <= GRAFT_ATTEMPTS ? 1 : 2;
+      const graft = tier === 1 && rng.int(RATE_SCALE) < graftPermille;
+      const x = crossGenomes(parentA, parentB, rng, { limits, graft });
+      base = x.genome; ops = x.ops; grafted = x.grafted;
+    }
+
     const n = lo + rng.int(hi - lo + 1);
-    const { genome, ops } = mutateTimes(parent, rng, n, { limits, lockMorphology });
-    const v = record(tally, assessViability(RAPIER, genome, world));
-    if (v.ok) return { genome, ops, attempts: attempt, fellBack: false };
+    const m = mutateTimes(base, rng, n, { limits, lockMorphology });
+    const v = record(tally, assessViability(RAPIER, m.genome, world));
+    if (v.ok) {
+      return { genome: m.genome, ops: [...ops, ...m.ops], attempts: attempt,
+               fellBack: false, crossed, grafted, tier };
+    }
   }
-  return { genome: parent, ops: [], attempts: VIABILITY.maxAttempts, fellBack: true };
+  // THE FALLBACK IS PARENT A, and it is still "the unmutated parent" in the sense
+  // L1-30 asserts: only an unmodified parent is viable by definition, and A is
+  // the creature that would have been this child's sole parent on the asexual
+  // path. A blend of two parents has no such guarantee, which is the whole reason
+  // the last rung is not one.
+  return { genome: parentA, ops: [], attempts: VIABILITY.maxAttempts,
+           fellBack: true, crossed, grafted: 0, tier: 0 };
+}
+
+/** Integer permille, for the reason mutate.js gives: determinism is exact-integer. */
+const RATE_SCALE = 1000;
+
+/** Attempts 1..GRAFT_ATTEMPTS may graft; the rest are scalar-only. See the ladder. */
+const GRAFT_ATTEMPTS = 8;
+
+/**
+ * Whether this child is a recombinant. Decided ONCE per child, not per attempt,
+ * so the ladder retries the same kind of animal rather than drifting between two.
+ *
+ * NO DRAW IS MADE AT RATE 0 OR RATE 1. A coin whose outcome is already determined
+ * is not a decision, and spending an rng draw on one would mean `crossoverRate: 0`
+ * did not reproduce the pre-crossover stream — which is precisely the property
+ * that let this land in two commits, the second of which changed behaviour and
+ * nothing else. A fractional rate in between still works and still costs one draw.
+ */
+function wantsCrossover(parentB, rng, limits) {
+  if (!parentB) return false;
+  const permille = Math.round((limits.crossoverRate ?? 0) * RATE_SCALE);
+  if (permille <= 0) return false;
+  if (permille >= RATE_SCALE) return true;
+  return rng.int(RATE_SCALE) < permille;
 }
 
 /**

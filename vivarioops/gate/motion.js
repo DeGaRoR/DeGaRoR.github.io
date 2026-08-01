@@ -592,6 +592,11 @@ export async function runMotionGate() {
       // energy. Spin about a high-inertia axis would be under-counted, and
       // converting it into translation would then read as energy appearing from
       // nowhere — it showed up as a 1.1e-7 relative rise before this was fixed.
+      // rb.mass(), not the plan's totalMass, and that stays correct under an
+      // added-mass term (C6.2): this assertion is about the energy the SOLVER
+      // integrates, and applyEnvironment's guard is written against the same
+      // mass. The two are equal today and would diverge there — the biological
+      // mass is the one the UI prints, never the one this measures.
       const mass = rb.mass();
       const pi = rb.principalInertia();
       const ke = (v, a) => {

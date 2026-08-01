@@ -220,13 +220,26 @@ export function autoBurst({
       mean: scores.reduce((a, b) => a + b, 0) / (scores.length || 1),
     });
 
+    // CROSSOVER IS OFF IN THE BURST, DELIBERATELY, and this is a scheduling
+    // decision rather than a judgement that it would hurt. `survivors` is half
+    // the population, so the moment SLICE_LIMITS.crossoverRate went to 1 every
+    // burst would have gone sexual for free — and every figure this loop has
+    // ever produced (tools/_zauto.mjs, _zburst.mjs, _zoutcome.mjs, and the
+    // §6 numbers quoted in the session log) would silently stop being comparable
+    // to the runs that produced them. The auto-burst is a MEASUREMENT instrument
+    // before it is a feature, and an instrument that changes under you without
+    // saying so is worse than a slow one.
+    //
+    // It should be turned on, and probably wins: HYDRODYNAMICS.md:1130 recommends
+    // grafting for exactly this kind of locomotion search. That is its own
+    // session, with a null arm, not a side effect of a UI change.
     const r = breed({
       RAPIER,
       genomes: pop,
       selected: survivors,
       rng: rng.fork(`burst:${gen}`),
       world,
-      limits,
+      limits: { ...limits, crossoverRate: 0 },
       population,
     });
     pop = r.genomes;

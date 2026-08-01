@@ -15,7 +15,8 @@ import { rngFrom, freshVivariumSeed } from '../../trunk/rng.js';
 import * as store from '../../trunk/store.js';
 import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
-import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
+import { seedPopulation, breed, strangerCount, POPULATION, KIND } from '../../engine/l1/breed.js';
+import { SLICE_LIMITS } from '../../engine/l1/factory.js';
 import { adaptGait } from '../../engine/l2/gait.js';
 import { bearingTo } from '../../engine/l2/duel.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
@@ -120,6 +121,7 @@ export default {
     const worldEl = mk('tank-world', readoutL);
     const selEl = mk('tank-sel', readoutL);
     const strangersEl = mk('tank-strangers', readoutL);
+    const mixEl = mk('tank-mix', readoutL);
 
     // First-run coach — three words, once (21 §4.6). Removed on the first breed.
     const coach = mk('tank-coach', wrap);
@@ -725,7 +727,19 @@ export default {
         // the slot anyway so the tank is never short, but it is never presented
         // as an ordinary creature. `viable` is absent on elites and offspring,
         // so only an explicit false says anything.
+        // A RECOMBINANT NAMES ITS PARENTS BY SLOT, and the slots are live: N18
+        // keeps every selected creature in its own slot, and parents are always
+        // selected, so "from 1 + 4" points at two creatures still on screen. The
+        // player can look from the child to both parents without remembering
+        // anything. `grafted` is called out separately because it is the visible
+        // half — a limb that came from the other parent, not just its colour.
         [t('Origin'), t(provenance[s.index]?.kind ?? KIND.STRANGER)
+          // NOT `t('from')` here: V2's import scan matches `from` followed by a
+          // quote anywhere in the file, template literals included, and reports
+          // it as an undeclared bare specifier. Cheaper to say "mix of".
+          + (provenance[s.index]?.parents?.length > 1
+            ? ` · ${t('mix of')} ${provenance[s.index].parents.map(i => i + 1).join(' + ')}` : '')
+          + (provenance[s.index]?.grafted > 0 ? t(' · grafted limb') : '')
           + (provenance[s.index]?.imported ? t(' · imported') : '')
           + (provenance[s.index]?.viable === false ? t(' · unviable, search exhausted') : '')],
       ];
@@ -1015,6 +1029,12 @@ export default {
           pop = breed({
             RAPIER, genomes: pop, selected: survivors,
             rng: rng.fork(`breed${gen}`), world: W1_SLICE, population: BURST_POP,
+            // Asexual, matching engine/l2/objective.js autoBurst — see the note
+            // there. The burst selects half the population, so it would go sexual
+            // for free and stop being comparable to tools/_zburst.mjs and every
+            // figure taken with it. Turning it on is its own session, with a
+            // null arm; Breed is the player-facing path and it already mixes.
+            limits: { ...SLICE_LIMITS, crossoverRate: 0 },
           }).genomes;
         }
 
@@ -1081,6 +1101,29 @@ export default {
       strangersEl.innerHTML = strangers.length === 1
         ? `${t('Slot')} <span class="num">${strangers[0] + 1}</span> ${t('unrelated')}`
         : `<span class="num">${strangers.length}</span> ${t('unrelated')}`;
+
+      // WHAT THE NEXT BREED WILL ACTUALLY PRODUCE, before the player commits to
+      // it. This line exists because the screen could not answer the first
+      // question a player asks of it: selecting three creatures does not make
+      // three-parent children, it makes FEWER children — the selected keep their
+      // own slots — and each of the ones it does make mixes two of the three.
+      // The five-selected dead end (five elites, one stranger, no children at
+      // all) was invisible until you tapped Breed and nothing new appeared.
+      //
+      // Derived from the same two rules breed() uses rather than from constants,
+      // so it cannot drift from what actually happens.
+      const strangerSlots = strangerCount(POPULATION);
+      const elites = Math.min(selected.size, POPULATION - strangerSlots);
+      const kids = POPULATION - elites - strangerSlots;
+      // Four selected leaves exactly one free slot, so the plural is reachable in
+      // ordinary play rather than a hypothetical.
+      const kidsLabel = selected.size === 1
+        ? (kids === 1 ? t('child of it') : t('children of it'))
+        : (kids === 1 ? t('child, mixing two of them') : t('children, each mixing two of them'));
+      mixEl.hidden = selected.size === 0;
+      mixEl.innerHTML = kids === 0
+        ? t('no room for children — deselect one')
+        : `<span class="num">${kids}</span> ${kidsLabel}`;
     }
 
     // ── lineage persistence ──────────────────────────────────────────────────

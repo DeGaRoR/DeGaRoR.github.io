@@ -132,7 +132,9 @@ html, body {
 .tank-world     { font-size: var(--t-value); color: var(--c-text-dim); }
 .tank-sel       { font-size: var(--t-label); font-weight: 500; color: var(--c-select); }
 .tank-strangers { font-size: var(--t-value); color: var(--c-stranger); }
-.tank-world[hidden], .tank-strangers[hidden] { display: none; }
+/* What the NEXT breed will produce, stated before the player commits to it. */
+.tank-mix       { font-size: var(--t-value); color: var(--c-text-dim); }
+.tank-world[hidden], .tank-strangers[hidden], .tank-mix[hidden] { display: none; }
 .tank-readouts .num { font-family: var(--f-mono); }
 
 /* Per-creature markers — the speed label and the selection ring — are NOT chrome
