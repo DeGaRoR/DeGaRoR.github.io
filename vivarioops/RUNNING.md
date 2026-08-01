@@ -7,7 +7,7 @@ renders black with the fault only in the console.
 ```
 npm install        # dev dependencies
 npm run vendor     # writes vendor/ from the pinned packages — COMMIT the result
-npm run serve      # http://localhost:8080/
+npm run serve      # http://localhost:8092/  (override with PORT=… npm run serve)
 ```
 
 `vendor/` is not in this archive: it is ~4.2 MB of third-party bytes that

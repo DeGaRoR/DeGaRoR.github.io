@@ -24,7 +24,12 @@ import { fileURLToPath } from 'node:url';
 // fileURLToPath, not `.pathname`: `.pathname` is `/D:/…` on Windows and join()
 // doubles the drive into `D:\D:\…`, so every request 404s.
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PORT = Number(process.env.PORT || 8080);
+// PORT wins, always — a harness that assigns a free port injects it, and the
+// fallback must never fight that. The fallback matches .claude/launch.json's
+// declared port so both paths land in the same place; it was 8080, which is the
+// most contended port on any dev machine and collided with a second server
+// running this same tree.
+const PORT = Number(process.env.PORT || 8092);
 
 // .mjs and .wasm are the two that break silently when a server guesses wrong:
 // a module served as application/octet-stream is refused by the module loader
