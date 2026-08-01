@@ -390,6 +390,17 @@ export function runDuel(RAPIER, args) {
   const handlesA = new Set(simA.colliders.map(c => c.handle));
   const handlesB = new Set(simB.colliders.map(c => c.handle));
 
+  // B2 §5 / C5.3 — STEER IN THE MEASURED PLANE. `bearingTo` defaulted to the
+  // horizontal plane (duel.js:428 passed null), which is the plane a yaw-turner
+  // uses but NOT the plane a chain of revolute joints about local X bends in.
+  // When the combatant carries its compiled S3 record it names the plane it can
+  // actually turn in; pass it. A minimal combatant without the field (the gate's
+  // raw residents) keeps the horizontal default, so this changes nothing there.
+  const planeOf = (c) => (Number.isFinite(c.turnPlaneX)
+    ? [c.turnPlaneX, c.turnPlaneY, c.turnPlaneZ] : null);
+  const planeA = planeOf(a);
+  const planeB = planeOf(b);
+
   // ── settle (11 §6: "Both creatures settled") ──────────────────────────────
   // In place, at effort 0, sensors off — the same preamble runSolo uses and for
   // the same reason. Both settle in the SAME arena so neither is measured in a
@@ -425,8 +436,8 @@ export function runDuel(RAPIER, args) {
     // step, so neither gets to react to the other's reaction within one tick.
     const comA = simA.centreOfMass();
     const comB = simB.centreOfMass();
-    simA.control.turnBias = senseOpponent(simA, comB);
-    simB.control.turnBias = senseOpponent(simB, comA);
+    simA.control.turnBias = senseOpponent(simA, comB, planeA);
+    simB.control.turnBias = senseOpponent(simB, comA, planeB);
 
     arena.stepAll(sims);
 

@@ -47,6 +47,16 @@ export const MUSCLE_STRESS = 200;
 export const OMEGA_MAX = 10;
 
 /**
+ * Stability speed ceiling, m/s (the myriapod fix). A swimmer travels < 1 m/s and
+ * a hard burst a few m/s, so 10 is ~an order of magnitude of headroom; a creature
+ * that reaches it is pumping energy through its own actuator, not swimming, and
+ * this is the speed at which the sim stops it running away and tearing its joints
+ * apart. Held BELOW the wall-tunnelling ceiling (WALL/FIXED_DT ~ 60 m/s), which it
+ * therefore also tightens. NOT A DIAL — it is a divergence guard, not a tuning knob.
+ */
+export const STABLE_SPEED = 10;
+
+/**
  * Moment arm as a FRACTION of the joint radius sqrt(A).
  *
  * The first stress model used the full joint radius, which assumes the muscle
@@ -70,7 +80,14 @@ export const TARGET_SLEW = OMEGA_MAX;
  * its model that is already debugged.
  */
 export const TARGET_FILTER = 0.8;
-export const MOTOR_STIFFNESS = 1.0;
+// The budget-derived spring gain is `motorScale * budget * MOTOR_STIFFNESS`. Was
+// 1.0 (soft — tracking gain 0.27, the original locomotion problem). Raised to 12
+// after the myriapod fix: at 12 the AREA-derived gain tracks as well as the
+// inertia-derived reference (eel gain 0.82, per-joint lag spread ~14 deg) while
+// staying stable on complex creatures the reference tore apart. The error clamp
+// (C1.2) still bounds the delivered torque to the muscle budget, so a stiffer
+// gain only tracks faster inside that budget — it does not exceed it.
+export const MOTOR_STIFFNESS = 8.0;
 export const MOTOR_DAMPING = 0.12;
 
 /**
@@ -368,16 +385,19 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
    * (MaxImpulse = 2 * MinCrossSectionalArea). See the clamp note in the joint
    * loop for why the bound cannot currently be expressed in this binding.
    */
-  // C1.3 — THE ACTUATOR IS DEFAULTED. `motorFreqHz: 10` (with zeta 0.9) is the
-  // reference parametrisation: the joint's response is specified by an inertia-
-  // derived (omega_n, zeta) rather than a raw budget-derived stiffness, so the
-  // commanded travelling wave survives the plant instead of being scattered
-  // across 75 degrees of per-joint phase lag. See the N19 decision block below —
-  // the budget stays area-derived, only the response shape uses inertia.
-  // `=== undefined` not `??`, so an EXPLICIT `motorFreqHz: null` still selects the
-  // budget-derived branch (used by L1-18 and by pre-C1 comparisons); only an
-  // absent key takes the default reference response.
-  const motorFreqHz = opts.motorFreqHz === undefined ? 10 : opts.motorFreqHz;
+  // C1.3, AMENDED BY THE MYRIAPOD FIX. The default is the BUDGET-DERIVED gain
+  // (`motorFreqHz: null`), made stiff enough to track well by MOTOR_STIFFNESS,
+  // NOT the inertia-derived reference response. The reference (`motorFreqHz: 10`)
+  // tracked the eel beautifully but TORE COMPLEX CREATURES APART: its gain is
+  // k = I*wn^2, and for a many-jointed body with elongated limbs (high inertia) it
+  // pumps energy until the joints separate (tools/_zmyria.mjs — Myriapoda multipes
+  // 2 reaches 60 m/s in 2.8 s under freq10, and is calm under budget-derived gains
+  // at every stiffness up to 16). A stiff AREA-derived gain tracks as well or
+  // better (median lag spread 14 deg vs 62) AND stays stable, because k scales
+  // with cross-section, not with an elongated limb's inertia. The reference
+  // branch is kept, opt-in, for anyone who wants it. `?? null` so undefined and
+  // an explicit null both take the budget branch; an explicit number opts in.
+  const motorFreqHz = opts.motorFreqHz ?? null;
   const motorZeta = opts.motorZeta ?? 0.9;
   // C1.2/C1.3 — the muscle-budget multiplier, and a 00 §9 DECISION. The torque
   // ceiling the error-clamp saturates at is `budgetScale * MUSCLE_STRESS * A^1.5
@@ -834,7 +854,16 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // point on a limb is its corner, so the limit is the linear ceiling divided by
   // the corner radius. A small limb may spin faster than a large one, which is
   // the correct shape for this bound.
-  const MAX_SPEED = WALL / FIXED_DT;
+  // Two ceilings, and the lower wins. WALL/FIXED_DT stops a body crossing a wall
+  // in one step (tunnelling). STABLE_SPEED is the MYRIAPOD-FIX stability net: a
+  // small fraction of bred morphologies pump energy through the actuator and, left
+  // unchecked, run away to the tunnelling ceiling (~60 m/s) and tear their own
+  // joints apart. No actuator gain avoids this for every body (tools/_zstab.mjs:
+  // ~15% blow up under any strong gain), so the sim caps the runaway well below
+  // the tearing regime. A swimmer does < 1 m/s and never feels it; a pumper is
+  // held at a bounded thrash it cannot rip itself apart at. `stableSpeed` opt
+  // exposes it for measurement; default is the constant.
+  const MAX_SPEED = Math.min(WALL / FIXED_DT, opts.stableSpeed ?? STABLE_SPEED);
   const maxSpin = new Float64Array(plan.bodyCount);
   for (let i = 0; i < plan.bodies.length; i++) {
     const d = plan.bodies[i].dims;

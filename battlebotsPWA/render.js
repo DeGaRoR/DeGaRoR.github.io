@@ -554,6 +554,33 @@ const _edBg = {};
 function editorBgImg(cls){ const src=EDITOR_BG[cls]||EDITOR_BG.M;
   if(!_edBg[src]) _edBg[src]=mkImg(src);                       // S17-IMG : registre commun
   return _edBg[src]; }
+/* P-OMBRES v2 — ombre au sol de l'ÉDITEUR : même principe qu'en combat
+   (renderBotComposite) — silhouette noire du bot COMPLET (coque + roues
+   débordantes + organes montés), pas seulement le contour de coque. On rend le
+   bot sur un tampon hors-écran, on le noircit par `source-in`, puis on le pose
+   flou et décalé sous le bot réel. Repli (pas de `filter`, ex. jsdom) : ancien
+   contour de coque. Décalage/flou conservés à l'identique. */
+let _edShadowCv = null;
+function editorShadowCv(w,h){
+  if(!_edShadowCv) _edShadowCv = document.createElement("canvas");
+  if(_edShadowCv.width!==w || _edShadowCv.height!==h){ _edShadowCv.width=w; _edShadowCv.height=h; }
+  return _edShadowCv;
+}
+function drawGroundShadow(cDest, build, layout, spin, w, h, sc){
+  if(!("filter" in cDest)){                                                    // repli : contour de coque
+    cDest.save(); cDest.translate(w/2,h/2); cDest.scale(sc,sc);
+    cDest.globalAlpha=0.30; cDest.translate(3,7); cDest.fillStyle="#000";
+    chassisOutlinePath(cDest, build.chassis); cDest.fill(); cDest.restore(); return; }
+  const sil=editorShadowCv(w,h), s=sil.getContext("2d");
+  s.setTransform(1,0,0,1,0,0); s.clearRect(0,0,w,h);
+  s.save(); s.translate(w/2,h/2); s.scale(sc,sc); s.translate(3,7);            // décalage d'ombre (espace bot, comme avant)
+  drawBotTiles(s, build, layout, spin, {shadow:false});                        // bot COMPLET
+  s.restore();
+  s.globalCompositeOperation="source-in"; s.fillStyle="#000"; s.fillRect(0,0,w,h);   // → silhouette pleine
+  s.globalCompositeOperation="source-over";
+  cDest.save(); cDest.globalAlpha=0.30; cDest.filter="blur(5px)";
+  cDest.drawImage(sil,0,0); cDest.filter="none"; cDest.restore();
+}
 function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
   const c=canvas.getContext("2d"); const w=canvas.width,h=canvas.height;
   c.clearRect(0,0,w,h);
@@ -564,15 +591,16 @@ function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn
       c.drawImage(bg,(w-bg.width*s0)/2,(h-bg.height*s0)/2,bg.width*s0,bg.height*s0);
       c.globalAlpha=1;
     } }
-  c.save(); c.translate(w/2,h/2);
-  const sc=(Math.min(w,h)*BOT_FRAME)/BOARD_HALF; c.scale(sc,sc);   // S17-VIEW : constante partagee
+  const sc=(Math.min(w,h)*BOT_FRAME)/BOARD_HALF;   // S17-VIEW : constante partagee
+  if(focusLayer<0) drawGroundShadow(c, build, layout, spin, w, h, sc);         // ombre au sol = silhouette COMPLÈTE (comme en combat)
+  c.save(); c.translate(w/2,h/2); c.scale(sc,sc);
   if(focusLayer>=0){ const v=viewParams(build.chassis); c.strokeStyle="rgba(120,130,150,.16)"; c.lineWidth=1;
     const GW=gridW(build.chassis), GH=gridH(build.chassis);
     for(let gc=0;gc<=GW;gc++){ const x=(gc-v.ccol)*v.cell;
       c.beginPath(); c.moveTo(x,(0-v.crow)*v.cell); c.lineTo(x,(GH-v.crow)*v.cell); c.stroke(); }
     for(let gr=0;gr<=GH;gr++){ const y=(gr-v.crow)*v.cell;
       c.beginPath(); c.moveTo((0-v.ccol)*v.cell,y); c.lineTo((GW-v.ccol)*v.cell,y); c.stroke(); } }
-  drawBotTiles(c, build, layout, spin, {focus:focusLayer, shadow:focusLayer<0});
+  drawBotTiles(c, build, layout, spin, {focus:focusLayer, shadow:false});   // ombre au sol gérée en amont (silhouette complète)
   if(hbOn){ const col=buildColliders(build, layout), vis=colliderVis(build.chassis);
     c.save(); c.lineWidth=2.5;
     for(const k of col.list){ const bx=k.y/vis, by=-k.x/vis, rb=k.r/vis;

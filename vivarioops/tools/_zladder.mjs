@@ -25,8 +25,10 @@ await RAPIER.init();
 
 const DEG = 180 / Math.PI;
 const ARMS = {
-  preC1:   { motor: 'solver', motorFreqHz: null, budgetScale: 1, boundTorque: true }, // old shipped
-  DEFAULT: {}, // the new shipped default (motorFreqHz 10, budgetScale 6, clamp)
+  freq10_UNSTABLE: { motor: 'solver', motorFreqHz: 10, budgetScale: 6 }, // good swim, tears complex creatures
+  k4:  { motor: 'solver', motorFreqHz: null, stiffness: 4, budgetScale: 6 },
+  k8:  { motor: 'solver', motorFreqHz: null, stiffness: 8, budgetScale: 6 },
+  k16: { motor: 'solver', motorFreqHz: null, stiffness: 16, budgetScale: 6 },
 };
 
 function median(a) { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; }

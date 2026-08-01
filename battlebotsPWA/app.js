@@ -453,9 +453,7 @@ function renderHome(){
   renderLigues();
   if ($("ligueScreen").style.display === "block") renderLigueScreen();
   if ($("chassisScreen").style.display === "block") renderChassisScreen();
-  if ($("vsScreen").style.display === "block") renderVsScreen();
-  renderBracketView();
-  renderChampStandings();
+  if ($("vsScreen").style.display === "block") renderVsScreen();   // S38-HUB : le classement vit sur l'écran VS (renderVsScreen le pose)
   renderGarage();
   renderGarageStrip();
   renderInventory();
@@ -1728,7 +1726,7 @@ function enterChampionnat(){
   curVsConcours = "lightM";                                     // E4 : flux générique par id
   startMatch("championnat");
 }
-function renderBracketView(id){ const el=$("bracketView"); if(!el) return;   // E4 : générique par id
+function renderBracketView(id, elArg){ const el=elArg||$("bracketView"); if(!el) return;   // E4 : générique par id ; S38-HUB : cible optionnelle
   id = id || "cupM";
   if(!S.concours[id]){ el.style.display="none"; el.innerHTML=""; return; }
   const bk=S.concours[id]; el.style.display="block"; el.innerHTML="";
@@ -1745,7 +1743,7 @@ function renderBracketView(id){ const el=$("bracketView"); if(!el) return;   // 
     else { const n=Math.max(1, 16>>ci); for(let k=0;k<n;k++){ const cell=document.createElement("div"); cell.className="bkcell future"; cell.textContent="?"; col.appendChild(cell); } }
     wrap.appendChild(col); }
   el.appendChild(wrap); }
-function renderChampStandings(id){ const el=$("champStandings"); if(!el) return; // E4 : générique par id
+function renderChampStandings(id, elArg){ const el=elArg||$("champStandings"); if(!el) return; // E4 : générique par id ; S38-HUB : cible optionnelle
   id = id || "lightM";
   const cst = S.concours[id];
   if(!cst){ el.style.display="none"; el.innerHTML=""; return; }
@@ -1849,6 +1847,13 @@ function renderVsScreen(){
   $("vsCrumbManche").textContent = vsMancheLabel(tr);
   $("vsFormat").textContent = formatLabel(tr).toUpperCase();
   $("vsManche").textContent = vsMancheLabel(tr);
+  /* S38-HUB — l'écran VS EST le hub du championnat : classement (championnat) ou
+     tableau (coupe) juste sous le titre, pour suivre sa progression manche après
+     manche. Vide pour les formats sans suivi (échelle, libre). */
+  { const hub=$("vsStandings");
+    if (tr.format==="championnat") renderChampStandings(tr.id, hub);
+    else if (tr.format==="bracket") renderBracketView(tr.id, hub);
+    else if (hub){ hub.style.display="none"; hub.innerHTML=""; } }
   // mon bot — celui qui combattra VRAIMENT : le build gelé si le concours gèle
   const lock = healBrokenLock(tr.id);   // verrou cassé (save ancienne) → resync sur l'actif, sinon le portrait montre un fantôme
   const myBuild = {...PILOT(),
@@ -1917,7 +1922,7 @@ function renderLigueScreen(){
   $("ligueName").textContent = da(dataName(lg.name));
   const el = $("concoursList");
   // re-parquer les vues de detail AVANT de vider la liste (sinon innerHTML les detruit)
-  for (const did of ["tourneyBanner","champStandings","bracketView"]){
+  for (const did of ["tourneyBanner"]){   // S38-HUB : le classement/tableau a migré sur l'écran VS ; seul le bandeau échelle reste ici
     const n = $(did); if (n && n.parentElement !== $("ligueScreen")) $("ligueScreen").appendChild(n); }
   el.innerHTML = "";
   const myBuild = { chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts} };
@@ -1962,27 +1967,28 @@ function renderLigueScreen(){
     const foot = card.querySelector(".rc-cup__foot");
     const btn = (label, cls, fn) => { const b=document.createElement("button");
       b.className="rc-btn "+(cls||""); b.textContent=label; b.onclick=(e)=>{ e.stopPropagation(); fn(); }; foot.appendChild(b); return b; };
+    /* S38-HUB — HIÉRARCHIE : poursuivre un concours ENGAGÉ (« Disputer ») est
+       l'action forte (rouge, pleine largeur) ; s'ENGAGER dans un nouveau concours
+       est secondaire (fantôme). Plus de mur de boutons rouges identiques. */
     if (!open){ /* verrouillé : rien à faire */ }
-    else if (tr.noEngage){                            // échelle, combat libre : sans engagement
-      btn(tr.format==="ladder" ? t("dispute") : t("freeFight"), "rc-btn--primary", ()=>disputeConcours(id));
+    else if (tr.noEngage){                            // échelle, combat libre : action directe, forte
+      btn(tr.format==="ladder" ? t("dispute") : t("freeFight"), "rc-btn--primary rc-btn--block", ()=>disputeConcours(id));
     } else if (!st){
-      btn(t("engage"), "rc-btn--primary", ()=>{
+      btn(t("engage"), "rc-btn--ghost", ()=>{         // s'engager : secondaire
         const r = engageConcours(id);
         if (!r.ok){ showToast((r.fails&&r.fails[0]) || t("soon")); return; }
         renderLigueScreen(); saveState();
       });
     } else {
-      btn(t("dispute"), "rc-btn--primary", ()=>disputeConcours(id));
+      btn(t("dispute"), "rc-btn--primary rc-btn--block", ()=>disputeConcours(id));   // poursuivre : action forte
       const ab = btn(t("abandon"), "rc-btn--ghost", ()=>{
         if (!ab._arm){ ab._arm = true; ab.textContent = t("confirmAbandon"); return; }   // deux taps
         abandonConcours(id); renderLigueScreen(); renderLigues();
       });
     }
     el.appendChild(card);
-    // la progression du concours vit DANS sa vignette, pas en zone libre
+    // la progression du concours vit DANS sa vignette (échelle) ; championnat/coupe → écran VS (hub)
     if (tr.id === "sumoM" && $("tourneyBanner")) card.appendChild($("tourneyBanner"));
-    if (tr.format === "championnat" && st && $("champStandings")){ renderChampStandings(tr.id); card.appendChild($("champStandings")); }
-    if (tr.format === "bracket" && st && $("bracketView")){ renderBracketView(tr.id); card.appendChild($("bracketView")); }
   }
 }
 /* B3 — occasions. Stock DÉTERMINISTE par jour (graine = jour civil) : même
@@ -2879,9 +2885,16 @@ $("ovMain").onclick = ()=>{
     $("overlay").style.display="none";
     const realWin = match.winner === 0 && !wasForfeit;
     const goHome = ()=>NAV.uiBack();
-    if (realWin) goHome();                    // scout the next opponent / bracket match
+    /* S38-HUB — un championnat EN COURS reboucle sur son hub (écran VS) pour la
+       manche suivante : on regénère l'adversaire et on remplace l'écran de match
+       par le hub (swap, l'historique reste propre). Saison finie (CN nul, posé au
+       débrief) → retour à la ligue. Les autres formats gardent leur routage. */
+    if (curMode === "championnat" && curVsConcours && CN(curVsConcours)){
+      vsOpp = makeOpponent(vsMode); NAV.swap("vsScreen"); renderVsScreen();
+    }
+    else if (realWin) goHome();               // scout the next opponent / bracket match
     else if (curMode === "exhib") goHome();   // lost friendly: no forced rematch loop
-    else if (curMode === "championnat") goHome();  // le championnat joue ses 10 manches, gagné ou perdu
+    else if (curMode === "championnat") goHome();  // saison terminée → retour ligue
     else if (curMode === "bracket") goHome(); // bracket: win→next round, loss→eliminated
     else startMatch(curMode);                 // retry (tournament restarts at match 1)
   }catch(e){ crashRecover("revanche", e); }

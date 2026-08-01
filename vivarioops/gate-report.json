@@ -85,14 +85,14 @@
     "Tier 1: N15 (every user-visible string through t()) has no check yet — t() is in use from A1 but the DOM scan needs the dictionaries.",
     "Tier 3: N16 exception — index.html meta[name=theme-color] holds the only hex outside tokens."
   ],
-  "appV": "0.8.5",
-  "commit": "5f746b7",
+  "appV": "0.8.8",
+  "commit": "a6ee24d",
   "fullGate": {
     "verdict": "GREEN",
     "passed": 82,
     "failed": 0,
     "pending": 4,
-    "checks": 4042,
+    "checks": 4033,
     "suites": [
       {
         "name": "contracts",
@@ -157,6 +157,6 @@
         }
       }
     },
-    "finishedAt": "2026-08-01T09:35:53.200Z"
+    "finishedAt": "2026-08-01T12:31:34.895Z"
   }
 }

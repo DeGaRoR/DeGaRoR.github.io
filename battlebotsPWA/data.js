@@ -530,11 +530,12 @@ const WIN_EUR = [0, 12, 20, 32, 50, 80];
 /* CALIBRAGE 08/01 — l'usure des ROUES mangeait ~100 % de la bourse d'une manche
    (0→HS en ~6 manches ⇒ ~17 %/manche, réparation pr8 ≈ 25 € ≈ une manche gagnée).
    En sumo la propulsion EST l'interface de poussée : elle encaissait l'usure de
-   choc direct à chaque appui, ce qui n'a pas de sens pour un pneu. propulsion
-   0,7 → 0,35 (−50 %). Trim global −16 % (usure « trop rapide » en général) et
-   plancher de réparation 8 → 6 pour alléger les petites remises à neuf. */
+   choc direct à chaque appui, ce qui n'a pas de sens pour un pneu. Passe 1 :
+   0,7 → 0,35. Passe 2 (encore trop dur au playtest) : 0,35 → 0,18 — le pneu se
+   grippe surtout au roulement/vibration, plus guère au choc. Trim global −16 %
+   (usure « trop rapide ») et plancher de réparation 8 → 6. */
 const FRAGILITY = { sensors:2.2, cpu:1.6, cooling:1.2, motor:1.0, battery:1.0,
-  weapon1:1.0, weapon2:1.0, srimech:0.8, propulsion:0.35, armor:0.6, ballast:0.3, software:0 };
+  weapon1:1.0, weapon2:1.0, srimech:0.8, propulsion:0.18, armor:0.6, ballast:0.3, software:0 };
 const DAMAGE_TUNE = { DIRECT_K:0.068, VIB_K:0.0092, GRIND_K:0.29, CHASSIS_J_K:0.0165, CHASSIS_GRIND_K:0.16,
   REPAIR_RATE:0.6, REPAIR_FLOOR:6, CHASSIS_REPAIR_BASE:180 };
 const LIGUES = [

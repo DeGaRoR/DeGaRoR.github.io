@@ -17,6 +17,7 @@ import { morphogenesis, totalMass, boundingRadius } from '../../engine/l1/morpho
 import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, POPULATION, KIND } from '../../engine/l1/breed.js';
 import { adaptGait } from '../../engine/l2/gait.js';
+import { bearingTo } from '../../engine/l2/duel.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
 import { binomial } from '../../engine/l1/naming.js';
 import { buildCreature, disposeCreature, token, rampFor, updateCreatureGlow } from '../../render/creature.js';
@@ -321,6 +322,19 @@ export default {
         ring.renderOrder = 10;
         pivot.add(ring);
 
+        // C5 — the SEEK beacon: a small mark at the creature's home point (sim
+        // origin = this cell's centre). Hidden unless Seek is on, when the
+        // creature steers toward it and the homing is the visible proof that the
+        // actuator now carries a turn. Drawn over everything, camera-facing.
+        // Distinct from the selection ring (which is --c-select) so the Seek
+        // beacon reads as a target, not a selection.
+        const beacon = new THREE.Mesh(
+          new THREE.SphereGeometry(0.16, 16, 12),
+          new THREE.MeshBasicMaterial({ color: ringStranger.clone(), transparent: true, opacity: 0.9, depthTest: false, toneMapped: false }));
+        beacon.visible = seeking;
+        beacon.renderOrder = 11;
+        pivot.add(beacon);
+
         // The instantaneous gait phase of the joint feeding each body, so a
         // luminous creature's glow is a READOUT of its gait (a travelling light
         // is a wave; six lights in unison a twitch). Assembled from the sim's own
@@ -338,7 +352,7 @@ export default {
         };
 
         return {
-          index: i, genome, plan, sim, group: pivot, mesh: group, label, ring,
+          index: i, genome, plan, sim, group: pivot, mesh: group, label, ring, beacon,
           phaseFor,
           radius: boundingRadius(plan),
           mass: totalMass(plan),
@@ -351,12 +365,31 @@ export default {
 
     // ── the loop ────────────────────────────────────────────────────────────
 
+    // C5 — SEEK: steer every creature toward its home point (sim origin). The
+    // bearing runs through the same `bearingTo` the duel uses; turnBias then drives
+    // the joints through TURN_AUTHORITY, so a creature that homes is closing the
+    // exact loop C5 is about. Horizontal plane here (tank creatures carry no
+    // compiled S3 record); a body that turns in another plane homes only partly,
+    // which is C5.2's per-creature steering basis, still to come.
+    let seeking = false;
+    const ORIGIN = [0, 0, 0];
+    function applySeek() {
+      for (const s of slots) {
+        s.sim.control.turnBias = seeking
+          ? Math.max(-1, Math.min(1, bearingTo(s.sim, ORIGIN)))
+          : 0;
+      }
+    }
+
     function stepPhysics(dtMs) {
       if (paused || state === STATE.BREEDING || state === STATE.BURSTING) return;
       accumulator += (dtMs / 1000) * speed;
       const { steps, carry } = stepBudget(accumulator, FIXED_DT);
       accumulator = carry;
-      for (let n = 0; n < steps; n++) for (const s of slots) s.sim.step();
+      for (let n = 0; n < steps; n++) {
+        if (seeking) applySeek();
+        for (const s of slots) s.sim.step();
+      }
     }
 
     let lastDt = 0;
@@ -721,7 +754,15 @@ export default {
     // (adaptGait) over an expanded population, breeds on the ADAPTED speed, and
     // returns the best six. Long — a progress % rides the chip while it runs.
     const btnBurst = chip('burst', runBurst);
-    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger, btnBurst);
+    // C5 — Seek toggle: show the steering loop closing. Flips every creature into
+    // homing on its beacon and back.
+    const btnSeek = chip('seek', () => {
+      seeking = !seeking;
+      for (const s of slots) s.beacon.visible = seeking;
+      applySeek();               // takes effect immediately, even while paused-visible
+      renderStatus();
+    });
+    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger, btnBurst, btnSeek);
     primary.addEventListener('click', doBreed);
 
     function updateStrangerChip() {
@@ -935,6 +976,9 @@ export default {
       if (!busy) btnBurst.textContent = t('Burst');
       btnBurst.disabled = !ready || busy;
       btnPause.disabled = busy;
+      btnSeek.textContent = seeking ? t('Seeking') : t('Seek');
+      btnSeek.classList.toggle('active', seeking);
+      btnSeek.disabled = !ready || busy;
 
       // Primary action — always labelled with its object (never bare "Breed").
       primary.disabled = !ready || selected.size === 0 || busy;
