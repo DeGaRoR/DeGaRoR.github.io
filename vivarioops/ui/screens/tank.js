@@ -18,6 +18,7 @@ import { createSimulation, FIXED_DT } from '../../engine/l1/physics.js';
 import { seedPopulation, breed, strangerCount, POPULATION, KIND } from '../../engine/l1/breed.js';
 import { SLICE_LIMITS } from '../../engine/l1/factory.js';
 import { adaptGait } from '../../engine/l2/gait.js';
+import { OBJECTIVES, scoreBy } from '../../engine/l2/objective.js';
 import { bearingTo } from '../../engine/l2/duel.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
 import { binomial } from '../../engine/l1/naming.js';
@@ -29,6 +30,7 @@ import { button } from '../widgets.js';
 import {
   stepBudget, hitRadius, classifyPointer,
   smoothSpeed, horizontalSpeed, nextSpeed, STATE, BREEDING_MS, TAP,
+  BURST, burstSelection, burstKeep,
 } from '../tank/sim.js';
 
 /** A token that is a length, as a number. N16 forbids the literal; this reads it. */
@@ -843,10 +845,11 @@ export default {
     // "random" by default, or a saved creature the player picked. Tapping opens the
     // picker; the pick applies to the next breed only, then resets to random.
     const btnStranger = chip('stranger', openStrangerPicker);
-    // C3 — teach the whole tank to swim. Freezes the six, runs the gait inner loop
-    // (adaptGait) over an expanded population, breeds on the ADAPTED speed, and
-    // returns the best six. Long — a progress % rides the chip while it runs.
-    const btnBurst = chip('burst', runBurst);
+    // Burst — the breed loop run several rounds with the keeping done by a stated
+    // objective. Opens a sheet first rather than running on the tap: the objective
+    // is a real choice, and "it auto-selects, on what?" was a question the screen
+    // could not answer. A progress % rides the chip while it runs.
+    const btnBurst = chip('burst', openBurstSheet);
     // C5 — Seek toggle: show the steering loop closing. Flips every creature into
     // homing on its beacon and back.
     const btnSeek = chip('seek', () => {
@@ -864,6 +867,61 @@ export default {
       // --c-stranger via `.picked`), otherwise just the label.
       btnStranger.textContent = pendingStranger ? pendingStranger.commonName : t('Stranger');
       btnStranger.classList.toggle('picked', !!pendingStranger);
+    }
+
+    /**
+     * The burst sheet — states what is about to happen, then offers the objective.
+     *
+     * The choice is the reason this is a sheet rather than a chip that just runs.
+     * A burst spends twenty seconds and rewrites most of the tank; the player was
+     * previously given no say in what "best" meant and no warning about what would
+     * be kept. Naming the pins, the round count and the measured quantity turns it
+     * from a slot machine into an instruction.
+     */
+    function openBurstSheet() {
+      if (!ready || state === STATE.BURSTING) return;
+      state = STATE.SHEET_OPEN;
+      sheet.hidden = false;
+      sheet.replaceChildren();
+
+      const pinned = selected.size;
+      const title = document.createElement('div');
+      title.className = 'spec-picker-title';
+      title.textContent = !pinned
+        ? t('Burst — breeds the whole tank')
+        : pinned === 1
+          ? t('Burst — keeps your pick and breeds from it')
+          : `${t('Burst — keeps your')} ${pinned} ${t('picks and breeds from them')}`;
+      sheet.append(title);
+
+      const what = document.createElement('p');
+      what.className = 'spec-empty';
+      what.textContent = pinned
+        ? t('Your picks come back unchanged, in their own slots. The free slots fill with the best of their descendants.')
+        : t('Nothing is selected, so nothing is protected — every slot may be replaced. Select creatures first to keep them.');
+      sheet.append(what);
+
+      const on = document.createElement('div');
+      on.className = 'spec-picker-title';
+      on.textContent = t('Keep the offspring that score best on:');
+      sheet.append(on);
+
+      for (const o of OBJECTIVES) {
+        const rounds = o.adapt ? BURST.physicsRounds : BURST.freeRounds;
+        sheet.append(button(`${t(o.label)} — ${rounds} ${t('rounds')}`, () => {
+          closeSheet();
+          runBurst(o);
+        }));
+        // The note is a VISIBLE line, not a title attribute: this is a phone-first
+        // screen and a tooltip needs a hover that will never happen. It says what
+        // the number actually is, and for the simulated one, what it costs.
+        const note = document.createElement('p');
+        note.className = 'spec-empty';
+        note.textContent = o.adapt ? `${t(o.note)} · ${t('simulated, about 20 s')}` : t(o.note);
+        sheet.append(note);
+      }
+
+      sheet.append(button(t('Close'), closeSheet));
     }
 
     /** Reuse the bottom sheet to pick a saved creature (or Random) for the slot. */
@@ -966,25 +1024,65 @@ export default {
       persistLineage();
     }
 
-    // ── the gait burst (C3) ───────────────────────────────────────────────────
-    // "A body is judged by its ADAPTED gait, never its birth gait." The player's
-    // six are frozen; the population is expanded with fresh strangers; every body
-    // has its controller hill-climbed by adaptGait (morphology frozen) and is bred
-    // on that adapted speed, Lamarckian; the best six come back swimming.
+    // ── the burst ─────────────────────────────────────────────────────────────
     //
-    // Modest by design: a full burst is many seconds of blocking sim, so the loop
-    // YIELDS to a repaint between bodies (the progress % is why) and the numbers
-    // are the small end of the plan's range. Scoring is in the canonical W1_SLICE,
-    // not the tank's display-scaled world, so a gait adapts for the real physics.
-    const BURST_POP = 12, BURST_GENS = 2, BURST_CAND = 4, BURST_ITER = 2;
+    // THE BREED LOOP, AUTOMATED — several rounds of exactly what the player does
+    // by hand, with the keeping done by a stated objective instead of by eye.
+    //
+    // WHAT IT USED TO BE, and why that was wrong: it ignored the selection
+    // completely (`selected` was read only to snapshot undo, then cleared),
+    // hill-climbed every gait including the player's own creatures, and replaced
+    // all six slots ranked on a speed the screen never named. A player who had
+    // spent ten minutes curating three shapes lost all three to one tap, and
+    // could not have known that was going to happen.
+    //
+    // NOW: whatever is selected is PINNED. It breeds every round, it is never
+    // adapted, and it comes back byte-identical in its own slot — the same
+    // promise N18 gives an elite across a single breed, held across the whole
+    // burst. The free slots are filled by the best descendants under the chosen
+    // objective. With nothing selected the pins are empty and the loop degrades
+    // exactly to the old free-for-all, so no capability is lost.
+    //
+    // Scoring is in the canonical W1_SLICE, not the tank's display-scaled world,
+    // so a gait adapts for the real physics. The loop YIELDS to a repaint between
+    // bodies — the progress % is why, and it keeps the tab alive.
+    //
+    // MEASURED (tools/_xburst.mjs, and it is the reproducer for these numbers):
+    //
+    //     objective  pins   best score        trials  wall    pins held
+    //     speed      0+2    0.214 -> 0.687     322    17.7 s  byte-identical
+    //     speed      none   0.214 -> 0.766     336    18.0 s  —
+    //     size       0+2    29.1  -> 39.4      130     3.5 s  byte-identical
+    //     reach      0+2    4.81  -> 8.32      130     2.8 s  byte-identical
+    //
+    // Speed triples in less wall-clock than the OLD burst spent on two rounds,
+    // because the trials go into more rounds of selection rather than into
+    // re-adapting bodies that were never going to be kept. Pinning costs some of
+    // the final score (0.687 against 0.766) and that is the trade being offered,
+    // not a defect: two of the six slots are reserved for creatures chosen on
+    // something the objective cannot see.
+    //
+    // gate/breed.js L1-43 and L1-44 hold the policy and the objective registry.
 
-    function runBurst() {
+    /** The objective the next burst will select on. Chosen in the burst sheet. */
+    let burstObjective = OBJECTIVES[0];
+
+    function runBurst(objective) {
       if (!ready || state === STATE.BREEDING || state === STATE.BURSTING) return;
+      burstObjective = objective ?? burstObjective;
+      const obj = burstObjective;
       coach.hidden = true;
       previous = { genomes, provenance, generation, selected: [...selected] };  // one-step undo
       state = STATE.BURSTING;
       view.dataset.breeding = 'yes';
       renderStatus();
+
+      // The pins, in tank-slot order. `selected` is a Set and its iteration order
+      // is insertion order — the order the player TAPPED — which would make an
+      // identical selection behave differently depending on the order it was
+      // made. Sorted, so a burst is a function of WHAT is selected, not of how.
+      const pinned = [...selected].sort((a, b) => a - b);
+      const rounds = obj.adapt ? BURST.physicsRounds : BURST.freeRounds;
 
       const rng = rngFrom('tank', vivariumSeed, 'burst', generation);
       // Yield so the progress % paints AND the tab stays responsive. rAF gives a
@@ -994,56 +1092,107 @@ export default {
         let fired = false; const go = () => { if (!fired) { fired = true; r(); } };
         requestAnimationFrame(go); setTimeout(go, 50);
       });
-      const totalBodies = BURST_POP * (BURST_GENS + 1);
+      // Bodies that will actually be scored: the initial non-pinned pool, then
+      // whatever each round replaces. Pins are never scored — they are kept
+      // regardless, so measuring them would be trials spent on a foregone
+      // conclusion. An estimate is honest here: the exact count depends on how
+      // many free slots each breed leaves.
+      const perRound = BURST.pool - Math.max(pinned.length, BURST.pool >> 1);
+      const totalBodies = (BURST.pool - pinned.length) + rounds * Math.max(1, perRound);
       let done = 0;
-      const showProgress = () => { btnBurst.textContent = `${Math.round((100 * done) / totalBodies)}%`; };
+      const showProgress = () => {
+        btnBurst.textContent = `${Math.min(99, Math.round((100 * done) / totalBodies))}%`;
+      };
 
       (async () => {
-        // expand to BURST_POP with fresh strangers (never clones — §autoBurst)
+        // expand to the burst pool with fresh strangers (never clones — §autoBurst)
         let pop = genomes.slice();
-        if (pop.length < BURST_POP) {
+        if (pop.length < BURST.pool) {
           const extra = seedPopulation({
             RAPIER, rng: rng.fork('expand'), world: W1_SLICE,
-            population: BURST_POP - pop.length, authoredSlots: 0,
+            population: BURST.pool - pop.length, authoredSlots: 0,
           });
           pop = pop.concat(extra.genomes);
         }
 
-        let scores = [];
-        for (let gen = 0; gen <= BURST_GENS; gen++) {
-          const adapted = []; scores = [];
-          for (let i = 0; i < pop.length; i++) {
+        const isPinned = new Set(pinned);
+        const scores = new Array(pop.length).fill(0);
+        // A SEPARATE FLAG, not a sentinel score, because 0 is a real result: a
+        // creature that will not build, or that thrashes in place, genuinely
+        // scores zero and must not be confused with one that was never measured.
+        let measured = new Array(pop.length).fill(false);
+        for (const i of pinned) measured[i] = true;   // pins are kept, never ranked
+
+        const scoreSlot = async (i) => {
+          if (obj.adapt) {
+            // Lamarckian, and only for the unpinned: the adapted controller is
+            // what gets bred from, because a body must be judged by the gait it
+            // CAN reach rather than the one it was born with (gait.js). A pin is
+            // exempt — adapting it would hand the player back a different animal
+            // than the one they pinned.
             const a = adaptGait(RAPIER, {
-              genome: pop[i], world: W1_SLICE, rng: rng.fork(`g${gen}b${i}`),
-              candidates: BURST_CAND, iterations: BURST_ITER,
+              genome: pop[i], world: W1_SLICE, rng: rng.fork(`b${i}:${done}`),
+              candidates: BURST.candidates, iterations: BURST.iterations,
             });
-            adapted.push(a.genome); scores.push(a.score);
-            done++; showProgress();
-            await repaint();                      // yield so the % paints and the tab stays alive
-            if (stopped) return;
+            pop[i] = a.genome; scores[i] = a.score;
+          } else {
+            scores[i] = scoreBy(RAPIER, obj, [pop[i]], W1_SLICE)[0];
           }
-          pop = adapted;                          // Lamarckian: adapted controllers survive
-          if (gen === BURST_GENS) break;          // final pass adapts only, no breed
-          const order = scores.map((s, i) => ({ s, i })).sort((x, y) => y.s - x.s);
-          const survivors = order.slice(0, Math.max(2, pop.length >> 1)).map((x) => x.i);
+          measured[i] = true;
+          done++; showProgress();
+          // Yield so the % paints and the tab stays alive. A geometric score is
+          // a few microseconds, so yielding per body would spend more time
+          // waiting for frames than measuring — batch those.
+          if (obj.adapt || done % 8 === 0) await repaint();
+        };
+
+        for (let i = 0; i < pop.length; i++) {
+          if (measured[i]) continue;
+          await scoreSlot(i);
+          if (stopped) return;
+        }
+
+        for (let round = 0; round < rounds; round++) {
+          // Half the pool breeds, as before — but the pins take those places
+          // first and only the remainder is decided by score.
+          const selectN = Math.max(2, pop.length >> 1);
+          const parents = burstSelection(pinned, scores, selectN);
+          const before = pop;
           pop = breed({
-            RAPIER, genomes: pop, selected: survivors,
-            rng: rng.fork(`breed${gen}`), world: W1_SLICE, population: BURST_POP,
+            RAPIER, genomes: pop, selected: parents,
+            rng: rng.fork(`breed${round}`), world: W1_SLICE,
             // Asexual, matching engine/l2/objective.js autoBurst — see the note
-            // there. The burst selects half the population, so it would go sexual
+            // there. The burst breeds from half the pool, so it would go sexual
             // for free and stop being comparable to tools/_zburst.mjs and every
             // figure taken with it. Turning it on is its own session, with a
             // null arm; Breed is the player-facing path and it already mixes.
             limits: { ...SLICE_LIMITS, crossoverRate: 0 },
           }).genomes;
+
+          // ONLY THE NEW BODIES ARE RESCORED. N18 returns an elite as the SAME
+          // OBJECT REFERENCE, so identity is an exact test for "this creature did
+          // not change" — no hashing, no comparison, no chance of a stale score
+          // surviving a real change. It is most of the saving that pays for the
+          // extra rounds.
+          measured = pop.map((g, i) => (g === before[i] && measured[i]) || isPinned.has(i));
+          for (let i = 0; i < pop.length; i++) {
+            if (measured[i]) continue;
+            await scoreSlot(i);
+            if (stopped) return;
+          }
         }
 
-        // keep the best POPULATION by adapted speed
-        const ranked = scores.map((s, i) => ({ s, i })).sort((x, y) => y.s - x.s);
-        genomes = ranked.slice(0, POPULATION).map((x) => pop[x.i]);
-        provenance = genomes.map(() => ({ kind: KIND.OFFSPRING }));
+        // Pins back in their own slots, untouched; the rest filled by score.
+        const keep = burstKeep(pinned, scores, POPULATION);
+        genomes = keep.map(i => pop[i]);
+        provenance = keep.map((poolIndex, slot) =>
+          (isPinned.has(poolIndex) && poolIndex === slot
+            ? { kind: KIND.ELITE, parent: slot, ops: [], attempts: 0, fellBack: false }
+            : { kind: KIND.OFFSPRING }));
         generation++;
-        selected = new Set();
+        // The selection SURVIVES the burst. Clearing it threw away the player's
+        // curation on every run, which is the same defect as not honouring it.
+        selected = new Set(pinned);
         pendingStranger = null; updateStrangerChip();
 
         buildSlots();

@@ -25,13 +25,15 @@ import {
   assessViability, newTally, record, viabilityRate, VIABILITY, REASONS,
   freeMotionVerdict,
 } from '../engine/l1/viability.js';
-import { breed, seedPopulation, POPULATION, KIND, MUTATIONS_PER_OFFSPRING } from '../engine/l1/breed.js';
+import { breed, seedPopulation, strangerCount, POPULATION, KIND, MUTATIONS_PER_OFFSPRING } from '../engine/l1/breed.js';
 import { binomial, signature, genusSpace, EPITHET_COUNT, NAME_AXES, DEAD_AXES } from '../engine/l1/naming.js';
 import {
   cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, nextSpeed,
   gridFor, frameDistance, smoothSpeed, horizontalSpeed,
+  burstSelection, burstKeep, BURST,
   SPEEDS, GRID, TAP, BREEDING_MS, SPEED_TAU,
 } from '../ui/tank/sim.js';
+import { OBJECTIVES, objectiveById, scoreBy } from '../engine/l2/objective.js';
 import W1_SLICE from '../worlds/w1_slice.js';
 
 const CORPUS = 300;   // structural checks — no physics, so this can be large
@@ -864,6 +866,114 @@ export async function runBreedGate() {
       if (fields.some(([blk, k]) => a[blk][k] !== b[blk][k] && r.genomes[i][blk][k] === b[blk][k])) mixed++;
     }
     t.ok(mixed > 0, 'at least one child visibly carries a gene from the mate rather than the primary parent', mixed);
+  });
+
+  // ── L1-43 · the burst honours the selection ───────────────────────────────
+  //
+  // The screen is the one thing a gate cannot look at, so the burst's two
+  // decisions are extracted into ui/tank/sim.js and asserted here. Both fail
+  // SILENTLY if they regress: a burst that quietly stopped pinning, or that let
+  // breed() drop a pin, looks from outside exactly like a burst that worked.
+  g.assertion('L1-43', "The burst pins the player's selection and never ranks it away", (t) => {
+    const POOL = BURST.pool;
+    const selectN = Math.max(2, POOL >> 1);
+
+    // Scores contrived so every pin is the WORST thing in the pool. If pinning
+    // were dropped, or applied after ranking, these are the creatures that would
+    // vanish — so the corpus is built to make the failure loud rather than rare.
+    const scores = Array.from({ length: POOL }, (_, i) => i);   // 0 is worst
+
+    for (const pinned of [[], [0], [0, 1], [0, 2, 4], [0, 1, 2, 3, 4, 5]]) {
+      const sel = burstSelection(pinned, scores, selectN);
+      const label = `pins ${pinned.join('+') || 'none'}`;
+
+      for (const p of pinned) t.ok(sel.includes(p), `${label}: every pin breeds`, sel);
+      t.eq(sel.length, Math.max(pinned.length, selectN), `${label}: the selection is the size it asked for`);
+      t.eq(new Set(sel).size, sel.length, `${label}: no creature is selected twice`);
+
+      // PINS COME FIRST, and this is the assertion that protects them from
+      // breed()'s own overflow rule: it drops `selected[ELITE_CAP]`, so anything
+      // after the cap is at risk and a pin must never sit there. Predicted from
+      // the rule (breed.js eliteCap), not read back from the implementation.
+      t.eq(sel.slice(0, pinned.length).join(), pinned.join(), `${label}: pins are first in the array`);
+      const ELITE_CAP = POOL - strangerCount(POOL);
+      t.ok(pinned.length <= ELITE_CAP, `${label}: pins fit inside the elite budget`, pinned.length);
+
+      // The unpinned places go to the best available, in order.
+      const auto = sel.slice(pinned.length);
+      const expect = scores.map((s, i) => ({ s, i })).filter(x => !pinned.includes(x.i))
+        .sort((a, b) => (b.s - a.s) || (a.i - b.i)).slice(0, selectN - pinned.length).map(x => x.i);
+      t.eq(auto.join(), expect.join(), `${label}: the free places go to the highest scores`);
+
+      // AND THERE IS STILL ROOM FOR CHILDREN. A selection that fills every slot
+      // produces nothing new — the same dead end the tank readout now warns
+      // about — and a burst that reached it would spin for six rounds changing
+      // nothing at all.
+      const offspring = POOL - Math.min(sel.length, ELITE_CAP) - strangerCount(POOL);
+      t.ok(offspring >= 1, `${label}: the round still produces offspring`, offspring);
+    }
+
+    // The final tank: pins in their OWN slots, the rest filled by score.
+    for (const pinned of [[], [1], [0, 3], [0, 1, 2, 3, 4, 5]]) {
+      const keep = burstKeep(pinned, scores, POPULATION);
+      const label = `pins ${pinned.join('+') || 'none'}`;
+      t.eq(keep.length, POPULATION, `${label}: the tank comes back full`);
+      t.eq(new Set(keep).size, keep.length, `${label}: no creature is kept twice`);
+      for (const p of pinned) t.eq(keep[p], p, `${label}: pin ${p} returns to its own slot`);
+      // Unpinned slots take the best of what is left, highest first.
+      const free = keep.map((poolIndex, slot) => ({ poolIndex, slot })).filter(x => !pinned.includes(x.slot));
+      const got = free.map(x => x.poolIndex);
+      const want = scores.map((s, i) => ({ s, i })).filter(x => !pinned.includes(x.i))
+        .sort((a, b) => (b.s - a.s) || (a.i - b.i)).slice(0, got.length).map(x => x.i);
+      t.eq(got.join(), want.join(), `${label}: free slots take the best of the rest`);
+    }
+
+    // Ties must not depend on sort stability — an all-zero round (nothing viable)
+    // is the realistic case, and it has to be reproducible.
+    const flat = new Array(POOL).fill(0);
+    t.eq(burstSelection([2], flat, selectN).join(), burstSelection([2], flat, selectN).join(),
+      'a round where everything scores the same is still deterministic');
+  });
+
+  // ── L1-44 · the burst objectives ──────────────────────────────────────────
+  g.assertion('L1-44', 'Every selectable objective is measurable and honestly labelled', (t) => {
+    t.ok(OBJECTIVES.length >= 2, 'the player has a choice at all', OBJECTIVES.length);
+    t.eq(OBJECTIVES[0].id, 'speed', 'speed is the default — the one objective validated against a null arm');
+
+    const ids = new Set();
+    for (const o of OBJECTIVES) {
+      t.ok(!ids.has(o.id), `objective ${o.id} is declared once`);
+      ids.add(o.id);
+      t.ok(typeof o.label === 'string' && o.label.length > 0, `${o.id} has a label for the sheet`);
+      t.ok(typeof o.note === 'string' && o.note.length > 0, `${o.id} says what the number is`);
+      t.eq(objectiveById(o.id).id, o.id, `${o.id} resolves by id`);
+      // TRUSTED IS NOT DECORATION. C1's finding is that S2 yields one trustworthy
+      // number out of eight and turnRate is measurement noise; an objective the
+      // player can point six creatures at must not be one of the untrustworthy
+      // ones. If a future objective needs `trusted: false` it needs a UI that
+      // says so first, and this is where that argument gets forced.
+      t.eq(o.trusted, true, `${o.id} is a number the project stands behind`);
+    }
+
+    // Every objective produces a finite ordering over a real corpus. An objective
+    // that returned NaN or undefined would sort arbitrarily and select nothing —
+    // which looks exactly like selection not working.
+    const sample = pop.slice(0, 12);
+    for (const o of OBJECTIVES) {
+      const s = scoreBy(RAPIER, o, sample, W1_SLICE);
+      t.eq(s.length, sample.length, `${o.id} scores every genome`);
+      t.ok(s.every(x => Number.isFinite(x) && x >= 0), `${o.id} returns finite, non-negative scores`, s.slice(0, 3));
+      // And it must DISCRIMINATE. A constant score ranks nothing, so the burst
+      // would run its rounds and select at random while appearing to work.
+      t.ok(new Set(s).size > 1, `${o.id} tells creatures apart over a corpus of ${sample.length}`, new Set(s).size);
+    }
+
+    // A genome that will not build is a verdict, not a crash: the burst is driven
+    // from a button and an objective that throws would strand the tank frozen.
+    for (const o of OBJECTIVES) {
+      t.eq(scoreBy(RAPIER, o, [{ nodes: [], connections: [] }], W1_SLICE)[0], 0,
+        `${o.id} scores an unbuildable genome zero rather than throwing`);
+    }
   });
 
   // ── L1-31 · naming ────────────────────────────────────────────────────────

@@ -191,3 +191,88 @@ export const STATE = {
 
 /** 21 §4.4: "The BREEDING beat is not decoration" — 600 ms, visible. */
 export const BREEDING_MS = 600;
+
+// ── the burst's selection policy ─────────────────────────────────────────────
+//
+// THE BURST IS NOW THE BREED LOOP, AUTOMATED. It was a separate mechanism that
+// ignored the player's selection entirely, expanded the tank, hill-climbed every
+// gait and replaced all six slots by speed — so a player who had spent ten
+// minutes curating three shapes lost them to one tap, and the screen never said
+// what "best" meant. It is the same act the player performs by hand (select,
+// breed, keep what looks good, repeat) run several rounds with the keeping done
+// by a stated objective.
+//
+// The two decisions that make it that are here, extracted from the screen because
+// they are exactly the kind that fail silently: a policy that quietly stopped
+// pinning, or that let a pinned creature be the one breed() drops, would look
+// like nothing at all from outside.
+
+/** Pool size and round counts. Physics rounds cost ~4 s each; geometry is free. */
+export const BURST = {
+  pool: 12,
+  // Rounds when the objective must simulate. Six is what fits the budget the
+  // old burst already spent (~20 s), now spent on selection rather than on
+  // re-adapting creatures that were never going to be kept.
+  physicsRounds: 6,
+  // Geometry costs no simulation, so the same wall-clock buys far more search.
+  freeRounds: 20,
+  // Hill-climb per body: (1+3)x2 = 7 evaluations. Below gait.js's (1+8)x3
+  // default because the burst now pays for MORE ROUNDS instead of a deeper climb
+  // per body — the outer loop is what the measurements say is worth the trials.
+  candidates: 3,
+  iterations: 2,
+};
+
+/**
+ * Who breeds this round: the player's pins, then the best of the rest.
+ *
+ * PINS COME FIRST IN THE ARRAY AND THAT IS LOAD-BEARING, not cosmetic. breed()
+ * drops `selected[ELITE_CAP]` when the selection overflows the elite budget —
+ * the LAST one, deliberately, so the outcome is predictable from the player's own
+ * last tap. Here it means a pinned creature can only be dropped if the pins alone
+ * overflow, which the caller prevents by construction. Ordering this array the
+ * other way round would silently discard a pin on a full tank.
+ *
+ * @param {number[]} pinned  slot indices the player selected; always breed
+ * @param {number[]} scores  per-slot objective score, aligned with the pool
+ * @param {number} selectN   how many parents this round wants in total
+ * @returns {number[]} indices to hand breed() as `selected`
+ */
+export function burstSelection(pinned, scores, selectN) {
+  const isPinned = new Set(pinned);
+  const room = Math.max(0, selectN - pinned.length);
+  const rest = scores
+    .map((s, i) => ({ s, i }))
+    .filter(x => !isPinned.has(x.i))
+    // Index as the tie-break, so an all-zero round (nothing viable, everything
+    // scores 0) is still deterministic instead of depending on sort stability.
+    .sort((a, b) => (b.s - a.s) || (a.i - b.i))
+    .slice(0, room)
+    .map(x => x.i);
+  return [...pinned, ...rest];
+}
+
+/**
+ * The final tank: every pin back in its OWN slot, untouched, and the free slots
+ * filled by the best of everything else.
+ *
+ * "Untouched" is the whole promise of pinning and it is why this returns indices
+ * into the pool rather than genomes — the caller copies references, so a pinned
+ * creature is the same object it was before the burst, which is the same
+ * guarantee N18 gives an elite across a breed.
+ *
+ * @returns {number[]} length `population`, pool indices, pins at their own slot
+ */
+export function burstKeep(pinned, scores, population) {
+  const isPinned = new Set(pinned);
+  const out = new Array(population).fill(-1);
+  for (const i of pinned) if (i >= 0 && i < population) out[i] = i;
+  const rest = scores
+    .map((s, i) => ({ s, i }))
+    .filter(x => !isPinned.has(x.i))
+    .sort((a, b) => (b.s - a.s) || (a.i - b.i))
+    .map(x => x.i);
+  let k = 0;
+  for (let i = 0; i < population; i++) if (out[i] === -1) out[i] = rest[k++];
+  return out;
+}

@@ -21,7 +21,7 @@
 // opposite of the obvious intuition and is why the numbers below are small.
 
 import { runSolo } from './probe.js';
-import { morphogenesis } from '../l1/morphogen.js';
+import { morphogenesis, totalMass, boundingRadius } from '../l1/morphogen.js';
 import { breed, seedPopulation, POPULATION } from '../l1/breed.js';
 import { SLICE_LIMITS } from '../l1/factory.js';
 
@@ -98,6 +98,102 @@ export function scorePopulation(RAPIER, genomes, world, seconds = TRIAL_SECONDS,
     if (plan.bodyCount < 2) return 0;
     const r = netSpeed(RAPIER, { plan, genome, world, seconds, simOpts });
     return r.valid ? r.score : 0;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE SELECTABLE OBJECTIVES — what the player can point a burst AT.
+//
+// The burst used to have exactly one objective, hard-coded, and the screen never
+// said which. "It auto-selects, on what parameter?" is a question the UI could not
+// answer, so it is answered here and surfaced in the burst sheet.
+//
+// EACH ONE CARRIES ITS OWN RELIABILITY. That is the point of the `trusted` field:
+// the project has measured, for every number it can produce, whether that number
+// means anything, and an objective the player can choose is exactly where that
+// finding has to be visible. Selecting hard on a number that is noise produces
+// six creatures optimised for nothing, and it looks identical to it working.
+//
+// ── WHAT IS DELIBERATELY ABSENT, AND WHY ─────────────────────────────────────
+//
+//   TURNING. `turnRate` is measured at a median of 0.0032 rad/s — 0.18 degrees
+//   per second — so a creature turns under 3 degrees in a 15 s window. Selecting
+//   on it would be selecting on measurement noise. It comes back when B2 §5's
+//   steering-authority blocker is answered, not before.
+//
+//   EFFICIENCY / cost of transport. `cotC0`/`cotC1` fit three near-coincident
+//   power points, and on the solver path `work` is a RECONSTRUCTION rather than a
+//   measurement (Rapier does not expose the motor impulse). C1's own finding is
+//   that S2 yields one trustworthy number out of eight.
+//
+// Adding one here is a data change and nothing else — the burst loop reads this
+// list, and the sheet builds its buttons from it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {object} Objective
+ * @property {string} id
+ * @property {string} label      shown on the burst sheet's button
+ * @property {string} note       one line, shown under it — what the number IS
+ * @property {boolean} adapt     hill-climb the gait before scoring (see below)
+ * @property {boolean} trusted   has this number been validated as a selector?
+ * @property {function} measure  (RAPIER, genome, plan, world, seconds) -> number
+ */
+
+/**
+ * `adapt` MEANS "this objective is meaningless on a birth gait".
+ *
+ * gait.js's finding: a random morphology is almost never handed a controller that
+ * makes it swim, so scoring it as born measures the draw and not the body — 0/12
+ * random creatures clear 0.02 body-lengths/s at birth against 7/12 after a few
+ * hill-climb steps. Any objective that reads MOTION has to adapt first or it is
+ * ranking controller luck.
+ *
+ * Geometry does not: mass and reach are exact functions of the body plan, cost no
+ * simulation at all, and cannot be improved by a better gait. That is why the
+ * geometric bursts return instantly and the speed burst takes twenty seconds —
+ * the difference is real work, not a throttle.
+ *
+ * NOTE THE COUPLING, so it is not discovered later: `adaptGait` hill-climbs NET
+ * SPEED specifically. It is the right adapter for `speed` because they read the
+ * same quantity. A second motion objective added here would need its own adapter
+ * or it would optimise one thing and select on another.
+ */
+export const OBJECTIVES = [
+  {
+    id: 'speed', label: 'Speed', adapt: true, trusted: true,
+    note: 'net distance per second, gait adapted first',
+    measure: (RAPIER, genome, plan, world, seconds) => {
+      const r = netSpeed(RAPIER, { plan, genome, world, seconds });
+      return r.valid ? r.score : 0;
+    },
+  },
+  {
+    id: 'size', label: 'Size', adapt: false, trusted: true,
+    note: 'total mass — exact, no simulation',
+    measure: (_RAPIER, _genome, plan) => totalMass(plan),
+  },
+  {
+    id: 'reach', label: 'Reach', adapt: false, trusted: true,
+    note: 'longest extent from the centre — exact, no simulation',
+    measure: (_RAPIER, _genome, plan) => boundingRadius(plan),
+  },
+];
+
+export const objectiveById = (id) => OBJECTIVES.find(o => o.id === id) ?? OBJECTIVES[0];
+
+/**
+ * Score genomes under a chosen objective. Mirrors `scorePopulation`'s contract —
+ * a genome that will not build scores zero rather than throwing, because
+ * morphogenesis rejecting a body IS a verdict about it and an objective that can
+ * crash cannot be driven from a button.
+ */
+export function scoreBy(RAPIER, objective, genomes, world, seconds = TRIAL_SECONDS) {
+  return genomes.map((genome) => {
+    let plan;
+    try { plan = morphogenesis(genome); } catch { return 0; }
+    if (plan.bodyCount < 2) return 0;
+    try { return objective.measure(RAPIER, genome, plan, world, seconds); } catch { return 0; }
   });
 }
 
