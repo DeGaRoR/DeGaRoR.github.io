@@ -1,6 +1,6 @@
 /* sw.js — hors-ligne simple : precache + cache-first.
    Bosser CACHE à chaque livraison pour invalider l'ancien. */
-const CACHE = "roboclash-v88";
+const CACHE = "roboclash-v89";
 const ASSETS = ["./","index.html","styles.css","data.js","engine.js","geometry.js","render.js","app.js",
                 "manifest.webmanifest","favicon.ico",
                 "assets/icons/icon-128.png","assets/icons/icon-144.png","assets/icons/icon-152.png","assets/icons/icon-167.png","assets/icons/icon-180.png","assets/icons/icon-192.png","assets/icons/icon-256.png","assets/icons/icon-32.png","assets/icons/icon-384.png","assets/icons/icon-48.png","assets/icons/icon-512.png","assets/icons/icon-64.png","assets/icons/icon-72.png","assets/icons/icon-96.png","assets/icons/maskable-192.png","assets/icons/maskable-512.png",

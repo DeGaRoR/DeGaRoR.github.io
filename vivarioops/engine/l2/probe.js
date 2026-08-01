@@ -217,6 +217,9 @@ export function runSolo(RAPIER, args) {
     turnBias: 0,
   });
 
+  // Feeds cost of transport, work/(mass*distance) — a BIOLOGICAL quantity, so
+  // this wants the plan's mass. rb.mass() is equal to it today and would not be
+  // under an added-mass term (C6.2); see the note in ui/screens/tank.js.
   let mass = 0;
   for (const rb of sim.bodies) mass += rb.mass();
 

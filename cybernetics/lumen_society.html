@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#080b12" />
+<title>Lumen Society — social cybernetics sandbox</title>
+<style>
+  :root{
+    --bg:#070a10;
+    --panel:rgba(15,19,30,.88);
+    --panel2:rgba(21,27,42,.82);
+    --line:rgba(255,255,255,.10);
+    --muted:#9ca6bb;
+    --text:#f4f7ff;
+    --accent:#ffd36a;
+    --cyan:#79e8ff;
+    --danger:#ff6f83;
+    --good:#8cf2b1;
+    --shadow:0 20px 60px rgba(0,0,0,.45);
+    --radius:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  button,select,input{font:inherit}
+  button{color:inherit}
+  #app{position:fixed;inset:0;background:
+      radial-gradient(circle at 20% 0%,rgba(62,89,150,.16),transparent 28%),
+      radial-gradient(circle at 90% 90%,rgba(255,200,80,.09),transparent 32%),var(--bg)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+
+  .topbar{
+    position:absolute;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));
+    display:flex;align-items:center;gap:10px;pointer-events:none;z-index:5
+  }
+  .brand{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:9px 12px 9px 10px;border:1px solid var(--line);border-radius:16px;background:rgba(8,11,18,.72);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+  .brandmark{width:30px;height:30px;border-radius:50%;position:relative;background:radial-gradient(circle,#fff8c2 0 8%,#ffd76e 9% 25%,rgba(255,211,106,.32) 26% 45%,transparent 46%);box-shadow:0 0 22px rgba(255,211,106,.4)}
+  .brandmark:before,.brandmark:after{content:"";position:absolute;left:14px;top:2px;width:2px;height:26px;background:rgba(255,255,255,.45);transform:rotate(45deg)}
+  .brandmark:after{transform:rotate(-45deg)}
+  .brand strong{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;line-height:1.1}
+  .brand small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+  .top-actions{margin-left:auto;display:flex;gap:8px;pointer-events:auto}
+  .iconbtn,.pillbtn{
+    min-height:42px;border:1px solid var(--line);background:rgba(8,11,18,.72);backdrop-filter:blur(18px);border-radius:14px;box-shadow:var(--shadow);cursor:pointer
+  }
+  .iconbtn{width:42px;display:grid;place-items:center;font-size:17px}
+  .iconbtn.active{border-color:rgba(255,211,106,.45);background:rgba(255,211,106,.13);color:#ffe49d}
+  .pillbtn{padding:0 14px;font-weight:700;font-size:12px;letter-spacing:.03em}
+
+  .hint{
+    position:absolute;left:50%;top:72px;transform:translateX(-50%);z-index:4;
+    color:#dfe6f7;background:rgba(8,11,18,.65);border:1px solid rgba(255,255,255,.08);border-radius:999px;
+    padding:7px 11px;font-size:11px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(12px);opacity:0;transition:opacity .25s,transform .25s
+  }
+  .hint.show{opacity:1;transform:translateX(-50%) translateY(4px)}
+
+  .bottom{
+    position:absolute;z-index:6;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));
+    pointer-events:none;display:flex;align-items:flex-end;gap:10px
+  }
+  .dock{
+    pointer-events:auto;display:flex;align-items:center;gap:7px;padding:7px;border:1px solid var(--line);border-radius:18px;background:rgba(8,11,18,.78);backdrop-filter:blur(20px);box-shadow:var(--shadow)
+  }
+  .tool{height:44px;min-width:44px;border:0;border-radius:12px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;color:#d9deea}
+  .tool b{font-size:12px}
+  .tool span{font-size:17px}
+  .tool.active{background:linear-gradient(180deg,rgba(255,222,126,.23),rgba(255,197,58,.10));color:#ffe59e;box-shadow:inset 0 0 0 1px rgba(255,219,112,.24)}
+  .tool.danger{color:#ff9cab}
+  .speed{pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;padding:7px;border:1px solid var(--line);border-radius:18px;background:rgba(8,11,18,.78);backdrop-filter:blur(20px);box-shadow:var(--shadow)}
+  .speed button{height:44px;min-width:42px;border:0;border-radius:12px;background:transparent;cursor:pointer;color:#cbd3e6;font-weight:800}
+  .speed button.active{background:rgba(121,232,255,.13);color:#a9f2ff;box-shadow:inset 0 0 0 1px rgba(121,232,255,.20)}
+
+  .panel{
+    position:absolute;z-index:8;right:max(10px,env(safe-area-inset-right));top:68px;bottom:76px;width:min(350px,calc(100vw - 20px));
+    border:1px solid var(--line);border-radius:22px;background:var(--panel);backdrop-filter:blur(24px);box-shadow:var(--shadow);overflow:hidden;
+    transform:translateX(calc(100% + 20px));transition:transform .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column
+  }
+  .panel.open{transform:translateX(0)}
+  .panel header{padding:17px 17px 13px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+  .panel header h2{font-size:16px;margin:0 0 3px}
+  .panel header p{font-size:11px;color:var(--muted);margin:0;line-height:1.45}
+  .panel .close{margin-left:auto;width:34px;height:34px;border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:10px;cursor:pointer}
+  .scroll{overflow:auto;padding:14px 14px 22px;overscroll-behavior:contain}
+  .section{border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);border-radius:16px;padding:12px;margin-bottom:10px}
+  .section h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#c3cada;margin:0 0 10px}
+  .row{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .row label{font-size:12px;color:#dce2ef;min-width:92px}
+  .row output{font-size:11px;color:var(--accent);min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#ffd36a}
+  select{width:100%;height:38px;border:1px solid var(--line);border-radius:10px;color:#eef2fb;background:#111725;padding:0 10px}
+  .switch{margin-left:auto;position:relative;width:42px;height:24px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .switch i{position:absolute;inset:0;border-radius:999px;background:#2a3040;transition:.2s}
+  .switch i:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:white;transition:.2s}
+  .switch input:checked+i{background:#725e25;box-shadow:inset 0 0 0 1px rgba(255,211,106,.28)}
+  .switch input:checked+i:before{transform:translateX(18px);background:#ffe493}
+  .recipe-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .recipe{min-height:70px;text-align:left;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.035);padding:10px;cursor:pointer}
+  .recipe strong{display:block;font-size:12px;margin-bottom:4px}
+  .recipe small{display:block;font-size:10px;color:var(--muted);line-height:1.35}
+  .recipe:hover{background:rgba(255,255,255,.06)}
+  .recipe.active{border-color:rgba(255,211,106,.38);background:rgba(255,211,106,.09)}
+  .fullbtn{width:100%;min-height:40px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.045);cursor:pointer;font-weight:700;font-size:12px;margin-top:7px}
+  .fullbtn.primary{background:linear-gradient(180deg,rgba(255,219,113,.22),rgba(255,189,42,.10));border-color:rgba(255,211,106,.30);color:#ffe59e}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .metric{padding:9px;border-radius:11px;background:rgba(255,255,255,.035);text-align:center}
+  .metric b{font-size:15px;display:block;font-variant-numeric:tabular-nums}
+  .metric small{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .matrix{display:grid;grid-template-columns:46px 1fr 1fr;gap:6px;align-items:center;font-size:10px;color:var(--muted)}
+  .matrix span{text-align:center}
+  .matrix input{width:100%}
+  .legend{font-size:10px;color:var(--muted);line-height:1.55}
+  .legend b{color:#eef2fb}
+
+  .inspector{
+    position:absolute;left:max(10px,env(safe-area-inset-left));top:70px;z-index:7;width:min(300px,calc(100vw - 20px));
+    background:rgba(8,11,18,.80);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(20px);box-shadow:var(--shadow);
+    padding:12px;display:none
+  }
+  .inspector.show{display:block}
+  .inspector .head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .swatch{width:28px;height:28px;border-radius:10px;background:var(--accent);box-shadow:0 0 20px color-mix(in srgb,var(--accent) 50%,transparent)}
+  .inspector h3{font-size:13px;margin:0}
+  .inspector p{font-size:10px;color:var(--muted);margin:2px 0 0}
+  .inspector .x{margin-left:auto;width:30px;height:30px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:9px;color:#d9e1f1;border:1px solid var(--line);padding:4px 6px;border-radius:999px;background:rgba(255,255,255,.035)}
+
+  .toast{position:absolute;z-index:20;left:50%;bottom:88px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#eef3ff;color:#121722;border-radius:12px;padding:10px 13px;font-size:11px;font-weight:750;box-shadow:var(--shadow);transition:.22s}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media(max-width:720px){
+    .brand small{display:none}
+    .brand{padding-right:10px}
+    .pillbtn{display:none}
+    .bottom{display:block}
+    .dock{width:100%;justify-content:space-between}
+    .tool{padding:0 9px;min-width:42px}
+    .tool b{display:none}
+    .speed{position:absolute;right:0;bottom:58px}
+    .panel{left:10px;right:10px;top:auto;bottom:72px;width:auto;max-height:min(72vh,650px);transform:translateY(calc(100% + 90px))}
+    .panel.open{transform:translateY(0)}
+    .inspector{top:auto;bottom:135px}
+  }
+  @media(max-width:390px){.tool{min-width:38px}.dock{gap:3px;padding:5px}.tool span{font-size:16px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="world" aria-label="Lumen Society simulation"></canvas>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brandmark"></div>
+      <div><strong>Lumen Society</strong><small>social cybernetics sandbox</small></div>
+    </div>
+    <div class="top-actions">
+      <button class="pillbtn" id="recipeBtn">Scenes</button>
+      <button class="iconbtn active" id="pauseBtn" title="Pause / play">Ⅱ</button>
+      <button class="iconbtn" id="panelBtn" title="Open laboratory">⚙</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Tap the arena to place a light</div>
+
+  <div class="inspector" id="inspector">
+    <div class="head">
+      <div class="swatch" id="inspectSwatch"></div>
+      <div><h3 id="inspectName">Vehicle</h3><p id="inspectSub">direct sensor → motor wiring</p></div>
+      <button class="x" id="inspectClose">×</button>
+    </div>
+    <div class="chips" id="inspectChips"></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <header>
+      <div><h2>Cybernetics laboratory</h2><p>Change one rule, then watch the society reorganise.</p></div>
+      <button class="close" id="panelClose">×</button>
+    </header>
+    <div class="scroll">
+      <section class="section">
+        <h3>Society recipes</h3>
+        <div class="recipe-grid" id="recipeGrid"></div>
+      </section>
+
+      <section class="section">
+        <h3>Population</h3>
+        <div class="row"><label>Vehicles</label><input id="popRange" type="range" min="4" max="80" step="1" value="26"><output id="popOut">26</output></div>
+        <div class="row"><label>Variation</label><input id="variationRange" type="range" min="0" max="1" step="0.01" value="0.18"><output id="variationOut">18%</output></div>
+        <button class="fullbtn primary" id="reseedBtn">Re-seed society</button>
+      </section>
+
+      <section class="section">
+        <h3>Selected vehicle wiring</h3>
+        <div class="row"><label>Archetype</label><select id="typeSelect"></select></div>
+        <div class="matrix">
+          <span></span><span>Left motor</span><span>Right motor</span>
+          <span>Left eye</span><input id="wLL" type="range" min="-2" max="2" step="0.05"><input id="wLR" type="range" min="-2" max="2" step="0.05">
+          <span>Right eye</span><input id="wRL" type="range" min="-2" max="2" step="0.05"><input id="wRR" type="range" min="-2" max="2" step="0.05">
+        </div>
+        <div class="row"><label>Lamp pattern</label><select id="lampSelect">
+          <option value="steady">Steady</option><option value="pulse">Slow pulse</option><option value="strobe">Strobe</option><option value="echo">Echo sensed light</option><option value="dark">Only in darkness</option><option value="off">Off</option>
+        </select></div>
+        <button class="fullbtn" id="applyAllBtn">Apply wiring to all</button>
+      </section>
+
+      <section class="section">
+        <h3>World</h3>
+        <div class="row"><label>Static lights</label><input id="lightPower" type="range" min="0.25" max="3" step="0.05" value="1.35"><output id="lightPowerOut">1.35</output></div>
+        <div class="row"><label>Light pattern</label><select id="newLightPattern"><option value="steady">Steady</option><option value="pulse">Pulse</option><option value="strobe">Strobe</option></select></div>
+        <div class="row"><label>Soft collisions</label><label class="switch"><input id="collisionToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Wrap edges</label><label class="switch"><input id="wrapToggle" type="checkbox"><i></i></label></div>
+        <button class="fullbtn" id="clearLightsBtn">Remove static lights</button>
+      </section>
+
+      <section class="section">
+        <h3>View</h3>
+        <div class="row"><label>Sensor cones</label><label class="switch"><input id="fovToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Light field</label><label class="switch"><input id="fieldToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Motion trails</label><label class="switch"><input id="trailToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Labels</label><label class="switch"><input id="labelToggle" type="checkbox"><i></i></label></div>
+      </section>
+
+      <section class="section">
+        <h3>Live measures</h3>
+        <div class="metrics"><div class="metric"><b id="mSpeed">0.00</b><small>mean speed</small></div><div class="metric"><b id="mGroups">0</b><small>clusters</small></div><div class="metric"><b id="mOrder">0%</b><small>alignment</small></div></div>
+      </section>
+
+      <section class="section legend">
+        <h3>What is rigorous here?</h3>
+        <b>Two eyes, two wheels.</b> Each eye samples a finite-angle, distance-decaying light field. A 2×2 signed matrix maps sensor intensity directly to wheel velocity. Positive weights excite; negative weights inhibit. The chassis follows differential-drive kinematics. No agent knows positions, identities, goals, or the global scene.<br><br>
+        The anthropomorphic names describe what an observer tends to perceive—not hidden emotions.
+      </section>
+    </div>
+  </aside>
+
+  <div class="bottom">
+    <div class="dock">
+      <button class="tool active" data-tool="select" title="Select vehicles"><span>⌖</span><b>Inspect</b></button>
+      <button class="tool" data-tool="light" title="Place lights"><span>✦</span><b>Light</b></button>
+      <button class="tool" data-tool="agent" title="Add vehicles"><span>◈</span><b>Vehicle</b></button>
+      <button class="tool" id="sparkBtn" title="Random perturbation"><span>⚡</span><b>Disturb</b></button>
+      <button class="tool danger" id="resetBtn" title="Reset scene"><span>↺</span><b>Reset</b></button>
+    </div>
+    <div class="speed" id="speedControl"><button data-speed="0.5">½</button><button class="active" data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div>
+  </div>
+  <div class="toast" id="toast">Done</div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ---------- Utilities ----------
+const TAU = Math.PI * 2;
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const lerp = (a,b,t) => a+(b-a)*t;
+const mod = (n,m) => ((n%m)+m)%m;
+const rand = (a=1,b) => b===undefined ? Math.random()*a : a+Math.random()*(b-a);
+const choose = a => a[(Math.random()*a.length)|0];
+const angleDiff = (a,b) => mod(a-b+Math.PI,TAU)-Math.PI;
+const hsl = (h,s,l,a=1) => `hsla(${h} ${s}% ${l}% / ${a})`;
+function noise(v=1){ return (Math.random()+Math.random()+Math.random()-1.5)*(v/1.5); }
+function hexToRgb(hex){const x=parseInt(hex.slice(1),16);return [(x>>16)&255,(x>>8)&255,x&255]}
+
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d',{alpha:false,desynchronized:true});
+let W=0,H=0,DPR=1;
+let arena={x:0,y:0,w:0,h:0,r:22};
+let lastTime=performance.now();
+let accumulator=0;
+let running=false;
+let time=0;
+let simSpeed=1;
+let tool='select';
+let selected=null;
+let pointer={x:0,y:0,down:false};
+let metricClock=0;
+
+const state={
+  population:26,
+  variation:.18,
+  collision:true,
+  wrap:false,
+  showFov:true,
+  showField:true,
+  trails:true,
+  labels:false,
+  lightPower:1.35,
+  newLightPattern:'steady',
+  recipe:'courtship'
+};
+
+// Each matrix is [leftSensor->leftMotor, leftSensor->rightMotor,
+//                 rightSensor->leftMotor, rightSensor->rightMotor]
+const TYPES={
+  lover:{name:'Lover',subtitle:'same-side inhibition; approaches and settles',matrix:[-1.05,0,0,-1.05],base:.63,gain:1.28,hue:45, lamp:'steady'},
+  pursuer:{name:'Pursuer',subtitle:'crossed excitation; charges and overshoots',matrix:[0,1.15,1.15,0],base:.38,gain:1.14,hue:8,lamp:'steady'},
+  shy:{name:'Shy',subtitle:'same-side excitation; turns away',matrix:[1.10,0,0,1.10],base:.38,gain:1.18,hue:190,lamp:'dark'},
+  explorer:{name:'Explorer',subtitle:'crossed inhibition; accelerates away from light',matrix:[0,-1.0,-1.0,0],base:.72,gain:1.22,hue:280,lamp:'pulse'},
+  orbit:{name:'Orbiter',subtitle:'asymmetric attraction; circles sources',matrix:[-.28,1.18,.82,-.08],base:.52,gain:1.20,hue:128,lamp:'pulse'},
+  custom:{name:'Custom',subtitle:'your current sensor–motor matrix',matrix:[0,1,1,0],base:.45,gain:1.1,hue:325,lamp:'steady'}
+};
+
+const RECIPES={
+  courtship:{name:'Courtship',desc:'Lovers, pursuers and shy lights negotiate unstable clusters.',lights:2,make:i=>choose(i%5===0?['shy','explorer']:['lover','lover','pursuer','orbit'])},
+  murmuration:{name:'Luminous flock',desc:'Mostly orbiters form rotating, splitting mobile assemblies.',lights:1,make:i=>choose(['orbit','orbit','lover'])},
+  panic:{name:'Panic room',desc:'One bright beacon makes excitable agents rush, scatter and return.',lights:1,make:i=>choose(['pursuer','pursuer','shy'])},
+  nightlife:{name:'Nightlife',desc:'Strobing bodies repeatedly create and dissolve temporary leaders.',lights:0,make:i=>choose(['lover','orbit','explorer']),lamp:'strobe'},
+  ecology:{name:'Tiny ecology',desc:'Attractors, repellers and orbiters share one sensory medium.',lights:3,make:i=>['lover','pursuer','shy','explorer','orbit'][i%5]},
+  blank:{name:'Blank laboratory',desc:'A clean slate with a small mixed population.',lights:0,make:i=>choose(['lover','pursuer','shy','orbit'])}
+};
+
+class Light{
+  constructor(x,y,power=1,pattern='steady',hue=45){
+    this.x=x;this.y=y;this.power=power;this.pattern=pattern;this.hue=hue;
+    this.phase=rand(TAU);this.freq=rand(.65,1.15);this.static=true;
+  }
+  modulation(t){
+    if(this.pattern==='pulse') return .20+.80*(.5+.5*Math.sin(t*this.freq*TAU+this.phase));
+    if(this.pattern==='strobe') return mod(t*this.freq+this.phase/TAU,1)<.12?1:.04;
+    return 1;
+  }
+}
+
+let nextId=1;
+class Agent{
+  constructor(x,y,typeKey='lover'){
+    this.id=nextId++;
+    this.x=x;this.y=y;this.theta=rand(TAU);
+    this.vL=0;this.vR=0;this.speed=0;
+    this.radius=8.5;this.wheelBase=15.5;
+    this.eyeForward=7;this.eyeSide=5.5;
+    this.fov=Math.PI*.62;this.range=180;
+    this.sL=0;this.sR=0;this.signal=0;this.arousal=0;
+    this.phase=rand(TAU);this.freq=rand(.72,1.16);
+    this.trail=[];this.trailClock=0;this.bump=0;
+    this.typeKey=typeKey;this.setType(typeKey,true);
+  }
+  setType(k,initial=false){
+    const t=TYPES[k]||TYPES.custom;
+    this.typeKey=k;this.name=t.name;this.subtitle=t.subtitle;
+    this.matrix=t.matrix.slice();this.base=t.base;this.gain=t.gain;
+    this.hue=t.hue+noise(state.variation*35);
+    if(initial||!this.lampPattern)this.lampPattern=t.lamp;
+    this.lampPower=rand(.62,1.04);
+    this.sensorBias=noise(state.variation*.08);
+    this.motorBias=noise(state.variation*.05);
+  }
+  lamp(t){
+    const p=this.lampPattern;
+    if(p==='off')return 0;
+    if(p==='pulse')return this.lampPower*(.18+.82*(.5+.5*Math.sin(t*this.freq*TAU+this.phase)));
+    if(p==='strobe')return this.lampPower*(mod(t*this.freq+this.phase/TAU,1)<.105?1:.025);
+    if(p==='echo')return this.lampPower*clamp(this.signal*.78,0.03,1);
+    if(p==='dark')return this.lampPower*clamp(1-this.signal*.82,.025,1);
+    return this.lampPower;
+  }
+  eyePositions(){
+    const c=Math.cos(this.theta),s=Math.sin(this.theta);
+    const fx=c*this.eyeForward,fy=s*this.eyeForward;
+    const sx=s*this.eyeSide,sy=-c*this.eyeSide;
+    return [{x:this.x+fx+sx,y:this.y+fy+sy},{x:this.x+fx-sx,y:this.y+fy-sy}];
+  }
+}
+
+let agents=[];
+let lights=[];
+
+function pointInArena(x,y,pad=0){return x>=arena.x+pad&&x<=arena.x+arena.w-pad&&y>=arena.y+pad&&y<=arena.y+arena.h-pad}
+function randomArenaPoint(pad=36){return {x:rand(arena.x+pad,arena.x+arena.w-pad),y:rand(arena.y+pad,arena.y+arena.h-pad)}}
+
+function resize(){
+  const old={...arena};
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const top=62,bottom=76,side=10;
+  arena={x:side,y:top,w:W-side*2,h:H-top-bottom,r:22};
+  if(old.w){
+    const sx=arena.w/old.w,sy=arena.h/old.h;
+    agents.forEach(a=>{a.x=arena.x+(a.x-old.x)*sx;a.y=arena.y+(a.y-old.y)*sy});
+    lights.forEach(l=>{l.x=arena.x+(l.x-old.x)*sx;l.y=arena.y+(l.y-old.y)*sy});
+  }
+}
+window.addEventListener('resize',resize,{passive:true});
+resize();
+
+function eyeContribution(ex,ey,c,s,sx,sy,power,range2,cosHalf){
+  let dx=sx-ex,dy=sy-ey;
+  if(state.wrap){
+    if(Math.abs(dx)>arena.w/2)dx-=Math.sign(dx)*arena.w;
+    if(Math.abs(dy)>arena.h/2)dy-=Math.sign(dy)*arena.h;
+  }
+  const d2=dx*dx+dy*dy;
+  if(d2>range2||d2<1e-8)return 0;
+  const facing=(dx*c+dy*s)/Math.sqrt(d2);
+  if(facing<cosHalf)return 0;
+  const angular=(facing-cosHalf)/(1-cosHalf);
+  return power*1000/(d2+22*22)*angular*angular;
+}
+
+function planAgent(a,dt,sources){
+  const eyes=a.eyePositions();
+  // Each eye looks almost forward, with a slight outward cant.
+  const leftAng=a.theta-.13,rightAng=a.theta+.13;
+  const cL=Math.cos(leftAng),sL=Math.sin(leftAng),cR=Math.cos(rightAng),sR=Math.sin(rightAng);
+  const cosHalf=Math.cos(a.fov*.5),range2=a.range*a.range;
+  let rawL=0,rawR=0;
+
+  for(const l of lights){
+    const power=l.power*l.modulation(time);
+    rawL+=eyeContribution(eyes[0].x,eyes[0].y,cL,sL,l.x,l.y,power,range2,cosHalf);
+    rawR+=eyeContribution(eyes[1].x,eyes[1].y,cR,sR,l.x,l.y,power,range2,cosHalf);
+  }
+  for(const source of sources){
+    if(source.agent===a||source.power<=.001)continue;
+    rawL+=eyeContribution(eyes[0].x,eyes[0].y,cL,sL,source.x,source.y,source.power,range2,cosHalf);
+    rawR+=eyeContribution(eyes[1].x,eyes[1].y,cR,sR,source.x,source.y,source.power,range2,cosHalf);
+  }
+  rawL=clamp(rawL,0,2.2);rawR=clamp(rawR,0,2.2);
+
+  // First-order receptor dynamics prevent frame-rate-dependent twitching.
+  const response=1-Math.exp(-dt*9);
+  a.sL=lerp(a.sL,clamp(rawL*(1+a.sensorBias),0,2),response);
+  a.sR=lerp(a.sR,clamp(rawR*(1-a.sensorBias),0,2),response);
+  a.signal=clamp((a.sL+a.sR)*.5,0,1.5);
+  a.arousal=lerp(a.arousal,a.signal,1-Math.exp(-dt*1.8));
+
+  const [wLL,wLR,wRL,wRR]=a.matrix;
+  let targetL=a.base+a.gain*(wLL*a.sL+wRL*a.sR)+a.motorBias;
+  let targetR=a.base+a.gain*(wLR*a.sL+wRR*a.sR)-a.motorBias;
+  // Signed wheel speeds are allowed, but saturated smoothly.
+  a.targetL=Math.tanh(targetL)*58;
+  a.targetR=Math.tanh(targetR)*58;
+}
+
+function integrateAgent(a,dt){
+  const motorResponse=1-Math.exp(-dt*7.5);
+  a.vL=lerp(a.vL,a.targetL,motorResponse);a.vR=lerp(a.vR,a.targetR,motorResponse);
+  const v=(a.vL+a.vR)*.5;
+  // Canvas angles increase clockwise, hence the sign relative to the usual y-up equation.
+  const omega=(a.vL-a.vR)/a.wheelBase;
+  a.theta=mod(a.theta+omega*dt,TAU);
+  a.x+=Math.cos(a.theta)*v*dt;
+  a.y+=Math.sin(a.theta)*v*dt;
+  a.speed=Math.abs(v);
+
+  if(state.wrap){
+    a.x=arena.x+mod(a.x-arena.x,arena.w);
+    a.y=arena.y+mod(a.y-arena.y,arena.h);
+  }else{
+    const pad=a.radius+3;
+    if(a.x<arena.x+pad){a.x=arena.x+pad;a.theta=Math.PI-a.theta+noise(.12);a.bump=1}
+    if(a.x>arena.x+arena.w-pad){a.x=arena.x+arena.w-pad;a.theta=Math.PI-a.theta+noise(.12);a.bump=1}
+    if(a.y<arena.y+pad){a.y=arena.y+pad;a.theta=-a.theta+noise(.12);a.bump=1}
+    if(a.y>arena.y+arena.h-pad){a.y=arena.y+arena.h-pad;a.theta=-a.theta+noise(.12);a.bump=1}
+    a.theta=mod(a.theta,TAU);
+  }
+  a.bump*=Math.exp(-dt*5);
+  a.trailClock+=dt;
+  if(a.trailClock>.075){
+    a.trailClock=0;a.trail.push({x:a.x,y:a.y,a:1});
+    const max=state.trails?34:2;if(a.trail.length>max)a.trail.splice(0,a.trail.length-max);
+  }
+  a.trail.forEach(p=>p.a*=Math.exp(-dt*.9));
+}
+
+function resolveCollisions(){
+  if(!state.collision)return;
+  const cell=28,grid=new Map();
+  for(const a of agents){
+    const gx=Math.floor(a.x/cell),gy=Math.floor(a.y/cell),k=gx+','+gy;
+    if(!grid.has(k))grid.set(k,[]);grid.get(k).push(a);
+  }
+  for(const a of agents){
+    const gx=Math.floor(a.x/cell),gy=Math.floor(a.y/cell);
+    for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
+      const bucket=grid.get((gx+ox)+','+(gy+oy));if(!bucket)continue;
+      for(const b of bucket){if(b.id<=a.id)continue;
+        let dx=b.x-a.x,dy=b.y-a.y;
+        if(state.wrap){if(Math.abs(dx)>arena.w/2)dx-=Math.sign(dx)*arena.w;if(Math.abs(dy)>arena.h/2)dy-=Math.sign(dy)*arena.h}
+        const min=a.radius+b.radius,d2=dx*dx+dy*dy;
+        if(d2>0&&d2<min*min){
+          const d=Math.sqrt(d2),push=(min-d)*.52,nx=dx/d,ny=dy/d;
+          a.x-=nx*push;a.y-=ny*push;b.x+=nx*push;b.y+=ny*push;
+          a.theta+=noise(.10);b.theta+=noise(.10);a.bump=b.bump=1;
+        }
+      }
+    }
+  }
+}
+
+function step(dt){
+  time+=dt;
+  // Snapshot luminous sources before sensing, eliminating update-order bias.
+  const sources=agents.map(a=>({agent:a,x:a.x,y:a.y,power:a.lamp(time)}));
+  agents.forEach(a=>planAgent(a,dt,sources));
+  agents.forEach(a=>integrateAgent(a,dt));
+  resolveCollisions();
+  metricClock+=dt;if(metricClock>.45){metricClock=0;updateMetrics()}
+}
+
+// ---------- Rendering ----------
+function roundedRectPath(c,x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r)}
+function drawArena(){
+  ctx.fillStyle='#070a10';ctx.fillRect(0,0,W,H);
+  // Ambient outer glow
+  const bg=ctx.createRadialGradient(W*.52,H*.42,10,W*.52,H*.42,Math.max(W,H)*.75);
+  bg.addColorStop(0,'#111827');bg.addColorStop(.55,'#0a0e18');bg.addColorStop(1,'#05070c');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  ctx.save();roundedRectPath(ctx,arena.x,arena.y,arena.w,arena.h,arena.r);ctx.clip();
+  ctx.fillStyle='#0c111c';ctx.fillRect(arena.x,arena.y,arena.w,arena.h);
+  const g=ctx.createLinearGradient(arena.x,arena.y,arena.x+arena.w,arena.y+arena.h);
+  g.addColorStop(0,'rgba(36,48,72,.22)');g.addColorStop(.55,'rgba(10,14,24,.05)');g.addColorStop(1,'rgba(63,44,25,.12)');ctx.fillStyle=g;ctx.fillRect(arena.x,arena.y,arena.w,arena.h);
+
+  // Subtle scientific grid
+  ctx.strokeStyle='rgba(255,255,255,.026)';ctx.lineWidth=1;
+  const spacing=34;
+  ctx.beginPath();for(let x=arena.x+(arena.x%spacing);x<arena.x+arena.w;x+=spacing){ctx.moveTo(x,arena.y);ctx.lineTo(x,arena.y+arena.h)}
+  for(let y=arena.y+(arena.y%spacing);y<arena.y+arena.h;y+=spacing){ctx.moveTo(arena.x,y);ctx.lineTo(arena.x+arena.w,y)}ctx.stroke();
+
+  if(state.showField)drawLightField();
+  if(state.trails)drawTrails();
+  if(state.showFov)drawFovs();
+  lights.forEach(drawLight);
+  agents.forEach(drawAgent);
+  ctx.restore();
+
+  roundedRectPath(ctx,arena.x+.5,arena.y+.5,arena.w-1,arena.h-1,arena.r);
+  ctx.strokeStyle='rgba(255,255,255,.14)';ctx.lineWidth=1;ctx.stroke();
+  roundedRectPath(ctx,arena.x+4,arena.y+4,arena.w-8,arena.h-8,arena.r-4);
+  ctx.strokeStyle='rgba(255,211,106,.045)';ctx.stroke();
+}
+
+function drawLightField(){
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  for(const l of lights){
+    const p=l.power*l.modulation(time),r=70+80*Math.sqrt(p);
+    const grad=ctx.createRadialGradient(l.x,l.y,0,l.x,l.y,r);
+    grad.addColorStop(0,hsl(l.hue,95,68,.13*p));grad.addColorStop(.3,hsl(l.hue,95,60,.055*p));grad.addColorStop(1,hsl(l.hue,95,55,0));
+    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(l.x,l.y,r,0,TAU);ctx.fill();
+  }
+  for(const a of agents){
+    const p=a.lamp(time);if(p<.03)continue;const r=38+45*Math.sqrt(p);
+    const grad=ctx.createRadialGradient(a.x,a.y,0,a.x,a.y,r);
+    grad.addColorStop(0,hsl(a.hue,90,63,.07*p));grad.addColorStop(1,hsl(a.hue,90,55,0));ctx.fillStyle=grad;ctx.beginPath();ctx.arc(a.x,a.y,r,0,TAU);ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTrails(){
+  ctx.save();ctx.lineCap='round';
+  for(const a of agents){if(a.trail.length<2)continue;
+    for(let i=1;i<a.trail.length;i++){
+      const p=a.trail[i],q=a.trail[i-1];ctx.strokeStyle=hsl(a.hue,75,60,.13*p.a);ctx.lineWidth=1.15;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+    }
+  }ctx.restore();
+}
+
+function drawFovs(){
+  ctx.save();
+  for(const a of agents){
+    const strong=selected?.kind==='agent'&&selected.agent===a;
+    const R=strong?Math.min(a.range,150):Math.min(a.range,75);
+    const angles=[a.theta-.13,a.theta+.13];
+    for(let i=0;i<2;i++){
+      ctx.fillStyle=hsl(a.hue,82,65,strong?.075:.018);
+      ctx.strokeStyle=hsl(a.hue,80,70,strong?.22:.045);ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.arc(a.x,a.y,R,angles[i]-a.fov/2,angles[i]+a.fov/2);ctx.closePath();ctx.fill();ctx.stroke();
+    }
+  }ctx.restore();
+}
+
+function drawLight(l){
+  const p=l.power*l.modulation(time);
+  ctx.save();ctx.translate(l.x,l.y);
+  ctx.globalCompositeOperation='lighter';
+  ctx.fillStyle=hsl(l.hue,98,70,.16+.28*p);ctx.beginPath();ctx.arc(0,0,13+5*p,0,TAU);ctx.fill();
+  ctx.fillStyle=hsl(l.hue,100,75,.9);ctx.beginPath();ctx.arc(0,0,3.2+1.5*p,0,TAU);ctx.fill();
+  ctx.strokeStyle=hsl(l.hue,100,75,.42);ctx.lineWidth=1;
+  for(let i=0;i<8;i++){const a=i*TAU/8+time*.12;ctx.beginPath();ctx.moveTo(Math.cos(a)*8,Math.sin(a)*8);ctx.lineTo(Math.cos(a)*(12+5*p),Math.sin(a)*(12+5*p));ctx.stroke()}
+  ctx.restore();
+}
+
+function drawAgent(a){
+  ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.theta);
+  const p=a.lamp(time),strong=selected?.kind==='agent'&&selected.agent===a;
+  if(strong){ctx.strokeStyle='rgba(255,255,255,.65)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,a.radius+6,0,TAU);ctx.stroke()}
+  // wheels
+  ctx.fillStyle='#05070b';ctx.beginPath();ctx.roundRect(-7,-10,12,4,2);ctx.roundRect(-7,6,12,4,2);ctx.fill();
+  // body shadow
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(-1,2,10,8,0,0,TAU);ctx.fill();
+  // body
+  const body=ctx.createLinearGradient(-9,-7,9,7);body.addColorStop(0,hsl(a.hue,58,52,1));body.addColorStop(1,hsl(a.hue,58,24,1));
+  ctx.fillStyle=body;ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(3.5,-8);ctx.lineTo(-8,-6);ctx.lineTo(-10,0);ctx.lineTo(-8,6);ctx.lineTo(3.5,8);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=hsl(a.hue,70,76,.42);ctx.lineWidth=1;ctx.stroke();
+  // directional ridge
+  ctx.strokeStyle='rgba(255,255,255,.24)';ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(6,0);ctx.stroke();
+  // eyes
+  const eyeA=.32+.52*clamp(a.sL,0,1),eyeB=.32+.52*clamp(a.sR,0,1);
+  ctx.fillStyle=`rgba(205,245,255,${eyeA})`;ctx.beginPath();ctx.arc(6,-4.5,1.55,0,TAU);ctx.fill();
+  ctx.fillStyle=`rgba(205,245,255,${eyeB})`;ctx.beginPath();ctx.arc(6,4.5,1.55,0,TAU);ctx.fill();
+  // lamp
+  if(p>.01){ctx.globalCompositeOperation='lighter';ctx.fillStyle=hsl(a.hue,98,70,.18+.72*p);ctx.beginPath();ctx.arc(-4,0,2.2+1.5*p,0,TAU);ctx.fill()}
+  if(a.bump>.05){ctx.strokeStyle=`rgba(255,255,255,${a.bump*.5})`;ctx.beginPath();ctx.arc(0,0,a.radius+2+a.bump*2,0,TAU);ctx.stroke()}
+  ctx.restore();
+  if(state.labels){ctx.fillStyle='rgba(230,236,248,.74)';ctx.font='9px system-ui';ctx.textAlign='center';ctx.fillText(a.name,a.x,a.y+18)}
+}
+
+function render(){drawArena()}
+function frame(now){
+  const realDt=Math.min(.05,(now-lastTime)/1000);lastTime=now;
+  if(running){accumulator+=realDt*simSpeed;const fixed=1/90;let loops=0;while(accumulator>=fixed&&loops<12){step(fixed);accumulator-=fixed;loops++}}
+  render();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- Metrics ----------
+function updateMetrics(){
+  const mean=agents.reduce((s,a)=>s+a.speed,0)/Math.max(1,agents.length);
+  let vx=0,vy=0;agents.forEach(a=>{vx+=Math.cos(a.theta);vy+=Math.sin(a.theta)});const order=Math.sqrt(vx*vx+vy*vy)/Math.max(1,agents.length);
+  // Connected components under a proximity threshold: a legible cluster proxy.
+  const seen=new Set();let groups=0;
+  for(const a of agents){if(seen.has(a.id))continue;groups++;const stack=[a];seen.add(a.id);while(stack.length){const q=stack.pop();for(const b of agents){if(seen.has(b.id))continue;let dx=q.x-b.x,dy=q.y-b.y;if(state.wrap){if(Math.abs(dx)>arena.w/2)dx-=Math.sign(dx)*arena.w;if(Math.abs(dy)>arena.h/2)dy-=Math.sign(dy)*arena.h}if(dx*dx+dy*dy<52*52){seen.add(b.id);stack.push(b)}}}}
+  document.getElementById('mSpeed').textContent=(mean/58).toFixed(2);
+  document.getElementById('mGroups').textContent=groups;
+  document.getElementById('mOrder').textContent=Math.round(order*100)+'%';
+}
+
+// ---------- Scene creation ----------
+function addAgent(x,y,typeKey){const a=new Agent(x,y,typeKey);agents.push(a);return a}
+function addStaticLight(x,y,power=state.lightPower,pattern=state.newLightPattern,hue=45){const l=new Light(x,y,power,pattern,hue);lights.push(l);return l}
+function seedLights(n){
+  if(!n)return;
+  if(n===1){addStaticLight(arena.x+arena.w*.5,arena.y+arena.h*.5,1.55,state.recipe==='panic'?'pulse':'steady',48);return}
+  const cx=arena.x+arena.w*.5,cy=arena.y+arena.h*.5,R=Math.min(arena.w,arena.h)*.27;
+  for(let i=0;i<n;i++){const q=i*TAU/n-.35;addStaticLight(cx+Math.cos(q)*R,cy+Math.sin(q)*R,rand(.75,1.55),i%2?'pulse':'steady',i%2?192:44)}
+}
+function loadRecipe(key,keepRunning=true){
+  state.recipe=key;const r=RECIPES[key]||RECIPES.courtship;agents=[];lights=[];selected=null;hideInspector();nextId=1;
+  for(let i=0;i<state.population;i++){const p=randomArenaPoint(32);const type=r.make(i);const a=addAgent(p.x,p.y,type);if(r.lamp)a.lampPattern=r.lamp}
+  seedLights(r.lights);document.querySelectorAll('.recipe').forEach(e=>e.classList.toggle('active',e.dataset.recipe===key));
+  if(keepRunning)running=true;syncPause();toast(r.name+' loaded');
+}
+
+function reseed(){loadRecipe(state.recipe)}
+function perturb(){
+  agents.forEach(a=>{a.theta+=noise(1.5);a.phase+=noise(1.4);a.vL+=noise(25);a.vR+=noise(25)});
+  toast('The society was disturbed');
+}
+
+// ---------- UI ----------
+const $=s=>document.querySelector(s);
+function toast(msg){const e=$('#toast');e.textContent=msg;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1350)}
+function hint(msg){const e=$('#hint');e.textContent=msg;e.classList.add('show');clearTimeout(hint.t);hint.t=setTimeout(()=>e.classList.remove('show'),1650)}
+function syncPause(){const b=$('#pauseBtn');b.textContent=running?'Ⅱ':'▶';b.classList.toggle('active',running)}
+function togglePanel(force){const p=$('#panel');p.classList.toggle('open',force===undefined?!p.classList.contains('open'):force)}
+
+const recipeGrid=$('#recipeGrid');
+for(const [k,r] of Object.entries(RECIPES)){const b=document.createElement('button');b.className='recipe';b.dataset.recipe=k;b.innerHTML=`<strong>${r.name}</strong><small>${r.desc}</small>`;b.onclick=()=>loadRecipe(k);recipeGrid.appendChild(b)}
+const typeSelect=$('#typeSelect');
+for(const [k,t] of Object.entries(TYPES)){const o=document.createElement('option');o.value=k;o.textContent=t.name;typeSelect.appendChild(o)}
+
+function bindRange(id,out,format,callback){const e=$(id),o=$(out);const update=()=>{o.textContent=format(+e.value);callback?.(+e.value)};e.addEventListener('input',update);update()}
+bindRange('#popRange','#popOut',v=>String(v),v=>state.population=v);
+bindRange('#variationRange','#variationOut',v=>Math.round(v*100)+'%',v=>state.variation=v);
+bindRange('#lightPower','#lightPowerOut',v=>v.toFixed(2),v=>state.lightPower=v);
+
+$('#panelBtn').onclick=()=>togglePanel();$('#panelClose').onclick=()=>togglePanel(false);$('#recipeBtn').onclick=()=>togglePanel(true);
+$('#pauseBtn').onclick=()=>{running=!running;syncPause()};
+$('#reseedBtn').onclick=reseed;$('#resetBtn').onclick=reseed;$('#sparkBtn').onclick=perturb;
+$('#clearLightsBtn').onclick=()=>{lights=[];toast('Static lights removed')};
+$('#newLightPattern').onchange=e=>state.newLightPattern=e.target.value;
+$('#collisionToggle').onchange=e=>state.collision=e.target.checked;
+$('#wrapToggle').onchange=e=>state.wrap=e.target.checked;
+$('#fovToggle').onchange=e=>state.showFov=e.target.checked;
+$('#fieldToggle').onchange=e=>state.showField=e.target.checked;
+$('#trailToggle').onchange=e=>state.trails=e.target.checked;
+$('#labelToggle').onchange=e=>state.labels=e.target.checked;
+
+for(const b of document.querySelectorAll('.tool[data-tool]'))b.onclick=()=>{
+  tool=b.dataset.tool;document.querySelectorAll('.tool[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
+  hint(tool==='light'?'Tap to place a '+state.newLightPattern+' beacon':tool==='agent'?'Tap to add a vehicle':'Tap a vehicle to inspect it');
+};
+for(const b of document.querySelectorAll('[data-speed]'))b.onclick=()=>{simSpeed=+b.dataset.speed;document.querySelectorAll('[data-speed]').forEach(x=>x.classList.toggle('active',x===b));toast(simSpeed+'× simulation speed')};
+
+function nearestAgent(x,y){let best=null,bd=26;for(const a of agents){const d=Math.hypot(a.x-x,a.y-y);if(d<bd){bd=d;best=a}}return best}
+function nearestLight(x,y){let best=null,bd=22;for(const l of lights){const d=Math.hypot(l.x-x,l.y-y);if(d<bd){bd=d;best=l}}return best}
+
+function canvasPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+canvas.addEventListener('pointerdown',e=>{pointer.down=true;const p=canvasPoint(e);pointer.x=p.x;pointer.y=p.y;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{const p=canvasPoint(e);pointer.x=p.x;pointer.y=p.y});
+canvas.addEventListener('pointerup',e=>{
+  pointer.down=false;const p=canvasPoint(e);if(!pointInArena(p.x,p.y,4))return;
+  if(tool==='light'){
+    const old=nearestLight(p.x,p.y);if(old){lights=lights.filter(l=>l!==old);toast('Beacon removed')}else{addStaticLight(p.x,p.y);toast(state.newLightPattern+' beacon placed')}
+  }else if(tool==='agent'){
+    const a=addAgent(p.x,p.y,choose(Object.keys(TYPES).filter(k=>k!=='custom')));selectAgent(a);toast(a.name+' added')
+  }else{
+    const a=nearestAgent(p.x,p.y);if(a)selectAgent(a);else hideInspector();
+  }
+});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+function selectAgent(a){
+  selected={kind:'agent',agent:a};
+  $('#inspector').classList.add('show');$('#inspectSwatch').style.background=hsl(a.hue,70,55,1);$('#inspectName').textContent=`${a.name} #${a.id}`;$('#inspectSub').textContent=a.subtitle;
+  $('#inspectChips').innerHTML=`<span class="chip">L ${a.sL.toFixed(2)}</span><span class="chip">R ${a.sR.toFixed(2)}</span><span class="chip">lamp ${a.lampPattern}</span><span class="chip">speed ${(a.speed/58).toFixed(2)}</span>`;
+  typeSelect.value=a.typeKey;$('#lampSelect').value=a.lampPattern;syncMatrix(a.matrix);
+}
+function hideInspector(){selected=null;$('#inspector').classList.remove('show')}
+$('#inspectClose').onclick=hideInspector;
+function syncMatrix(m){['#wLL','#wLR','#wRL','#wRR'].forEach((id,i)=>$(id).value=m[i])}
+function selectedAgent(){return selected?.kind==='agent'?selected.agent:null}
+
+typeSelect.onchange=e=>{const a=selectedAgent();if(!a)return;const key=e.target.value;a.setType(key);a.lampPattern=TYPES[key].lamp;selectAgent(a)};
+$('#lampSelect').onchange=e=>{const a=selectedAgent();if(!a)return;a.lampPattern=e.target.value;selectAgent(a)};
+['#wLL','#wLR','#wRL','#wRR'].forEach((id,i)=>$(id).oninput=e=>{const a=selectedAgent();if(!a)return;a.typeKey='custom';a.name='Custom';a.subtitle='your direct sensor–motor wiring';a.matrix[i]=+e.target.value;typeSelect.value='custom'});
+$('#applyAllBtn').onclick=()=>{const a=selectedAgent();if(!a){toast('Select a vehicle first');return}agents.forEach(b=>{b.typeKey='custom';b.name='Custom';b.subtitle='shared custom wiring';b.matrix=a.matrix.slice();b.lampPattern=a.lampPattern});toast('Wiring applied to all vehicles')};
+
+// periodic live inspector values
+setInterval(()=>{const a=selectedAgent();if(a&&$('#inspector').classList.contains('show'))selectAgent(a)},250);
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();running=!running;syncPause()}
+  if(e.key==='l')document.querySelector('[data-tool="light"]').click();
+  if(e.key==='a')document.querySelector('[data-tool="agent"]').click();
+  if(e.key==='Escape'){hideInspector();togglePanel(false)}
+});
+
+loadRecipe('courtship',false);running=true;syncPause();
+setTimeout(()=>hint('Tap a vehicle to inspect its eyes, lamp and wiring'),650);
+})();
+</script>
+</body>
+</html>

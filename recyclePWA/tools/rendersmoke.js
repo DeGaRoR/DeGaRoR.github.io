@@ -150,7 +150,26 @@ const driver = `
   inspectNode(G.nodes[0]);
   const mv=G.vehicles.find(v=>v.state!=="idle")||G.vehicles[0];
   if(mv)inspectVehicle(mv);
-  __report({nodes:G.nodes.length,veh:G.vehicles.length,edges:G.edges.length,
+  // ── belt OVERPASS: detected, cached, clipped, and consistent with the tap
+  // (capture the plant counts FIRST — the crossing rig below adds units/edges on purpose)
+  const nodes0=G.nodes.length,edges0=G.edges.length;
+  let xings=0;
+  {G.cash=1e7;
+   const a=sitePlaceUnit("process","opener",8,14,0),b=sitePlaceUnit("process","magnet",8,20,0);
+   const c=sitePlaceUnit("process","opener",6,17,0),d=sitePlaceUnit("process","magnet",11,17,0);
+   if(a.ok&&b.ok&&c.ok&&d.ok){
+     siteConnect(a.node,"b",b.node,"t");   // vertical trunk
+     siteConnect(c.node,"r",d.node,"l");   // horizontal spur → crosses it
+     const XS=siteCrossings(); xings=XS.list.length;
+     if(!xings)throw new Error("crossed belts produced no crossing");
+     if(siteCrossings()!==XS)throw new Error("crossing cache rebuilt with no geometry change");
+     render();
+     const x0=XS.list[0],h=hitTest(x0.x,x0.y);
+     if(!h||h.kind!=="edge"||h.e!==x0.top)throw new Error("hitTest disagrees with paint order at a crossing");
+     siteMoveUnit(d.node,12,17,0);
+     if(siteCrossings()===XS)throw new Error("crossing cache went stale after a reroute");
+     render();}}
+  __report({nodes:nodes0,veh:G.vehicles.length,edges:edges0,xings,
     delivered:deliveredInRun,trucks:(G.trucks||[]).length,zoom:cam.zoom,camx:cam.x});
 })();`;
 
@@ -175,5 +194,7 @@ ok((calls.drawImage || 0) >= 3, "base layer blitted every frame (drawImage ×" +
 ok((calls.fill || 0) > 100, "unit cards / chevrons / sprites drawn (fill ×" + (calls.fill || 0) + ")");
 ok((calls.fillText || 0) > 30, "labels drawn (fillText ×" + (calls.fillText || 0) + ")");
 ok(report && report.zoom >= 0.35 && report.zoom <= 1.6, "site view fit produced a sane zoom (" + (report && report.zoom.toFixed(2)) + ")");
+ok(report && report.xings > 0, "belt crossing detected on the built cross (" + (report && report.xings) + ")");
+ok((calls.clip || 0) > 0, "overpass pass clipped the belt below (clip ×" + (calls.clip || 0) + ")"); // ctx.clip( appears nowhere else in js/, so this is an unambiguous marker that the pass ran
 console.log(fail ? "SMOKE: " + fail + " FAILURES" : "SMOKE: all green");
 process.exit(fail ? 1 : 0);

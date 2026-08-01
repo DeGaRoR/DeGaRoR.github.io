@@ -20,13 +20,14 @@ import { adaptGait } from '../../engine/l2/gait.js';
 import { bearingTo } from '../../engine/l2/duel.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
 import { binomial } from '../../engine/l1/naming.js';
-import { buildCreature, disposeCreature, token, rampFor, updateCreatureGlow } from '../../render/creature.js';
-import { renderThumbnail } from '../../render/thumbnail.js';
+import { buildCreature, disposeCreature, token, tokenNumber, updateCreatureGlow } from '../../render/creature.js';
+import { createWater, updateWater, disposeWater, fitAtmosphere, fitOrbit, FIT, renderOverlay } from '../../render/tank.js';
+import { renderThumbnail, RENDER_TAG } from '../../render/thumbnail.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
 import { button } from '../widgets.js';
 import {
-  cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, gridFor,
-  frameDistance, smoothSpeed, horizontalSpeed, nextSpeed, STATE, BREEDING_MS, TAP,
+  stepBudget, hitRadius, classifyPointer,
+  smoothSpeed, horizontalSpeed, nextSpeed, STATE, BREEDING_MS, TAP,
 } from '../tank/sim.js';
 
 /** A token that is a length, as a number. N16 forbids the literal; this reads it. */
@@ -34,12 +35,21 @@ const tokenPx = (name) => parseFloat(token(name));
 
 /* ══ EXPERIMENT (revertible, UNCOMMITTED) — creature + tank size ══════════════
    PLAN-AFTER-B2 §1 "choose the frame". Measured with tools/_zstrouhal.mjs:
-   shrinking creatures ~0.5× roughly TRIPLES body-lengths/sec (absolute speed
-   holds while length halves; the drag regime is not scale-free). This is a
-   TANK-LOCAL trial only — the engine, worlds/w1_slice.js and the gate are
-   untouched. TO REVERT: EXP_CREATURE_SCALE = 1, EXP_TANK_BOUNDS = null. */
-const EXP_CREATURE_SCALE = 0.5;
-const EXP_TANK_BOUNDS = [10, 15, 10];   // W1_SLICE ships [16, 24, 16]
+   shrinking creatures ~0.5× roughly TRIPLES body-lengths/sec.
+
+   CAUSE CORRECTED — it is NOT the drag regime. There is no viscosity term in the
+   engine, so the fluid side is exactly scale-free and has no regime to shift.
+   What holds absolute speed fixed while length shrinks is the muscle/fluid
+   characteristic speed sqrt(sigma/rho) = sqrt(MUSCLE_STRESS) ~ 14 cm/s: under a
+   uniform scale s, muscle torque goes as s^3 against a fluid/inertial load of
+   s^5, so the corpus is TORQUE-limited across the whole tested range and
+   BL/s ~ 1/L. Confirmed by tools/_scale3.mjs (speed 0.112 -> 0.015 over a 64x
+   size range while BL/s rises 0.004 -> 0.032). Square-cube, not Reynolds.
+
+   This is a TANK-LOCAL trial only — the engine, worlds/w1_slice.js and the gate
+   are untouched. TO REVERT: EXP_CREATURE_SCALE = 1, EXP_TANK_BOUNDS = null. */
+const EXP_CREATURE_SCALE = 1;
+const EXP_TANK_BOUNDS = null;   // W1_SLICE ships [16, 24, 16]
 
 /** Uniform geometric shrink of a genome (node dims; connection scales are ratios,
  *  unaffected), so morphogenesis rebuilds a proportionally smaller body. */
@@ -48,25 +58,6 @@ function scaleGenome(genome, s) {
   const g = structuredClone(genome);
   for (const n of g.nodes) n.dims = n.dims.map((d) => d * s);
   return g;
-}
-
-/** A vertical equirectangular gradient as a CanvasTexture — top colour at the
- *  surface, bottom colour at depth. Used as the scene background (water) and,
- *  through PMREM, as the image-based lighting the physical materials read.
- *  Equirectangular so the gradient follows the camera's pitch as it orbits. */
-function equirectGradient(top, bottom) {
-  const c = document.createElement('canvas');
-  c.width = 16; c.height = 256;
-  const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 0, c.height);
-  grad.addColorStop(0, `#${top.getHexString()}`);
-  grad.addColorStop(1, `#${bottom.getHexString()}`);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, c.width, c.height);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.mapping = THREE.EquirectangularReflectionMapping;
-  return tex;
 }
 
 /** A per-creature speed label as a billboarded Sprite, rendered IN the scene so
@@ -121,22 +112,34 @@ export default {
     mk('tank-scrim tank-scrim-bottom', wrap);
 
     // Top readouts — generation/world left, selection/stranger right.
+    // One top ribbon: generation/world/selection stacked at the left, the compact
+    // Stranger / Burst / Seek tools at the right (built in ─controls as `tools`).
     const readouts = mk('tank-readouts', wrap);
     const readoutL = mk('tank-readout-l', readouts);
     const genEl = mk('tank-gen', readoutL);
     const worldEl = mk('tank-world', readoutL);
-    const readoutR = mk('tank-readout-r', readouts);
-    const selEl = mk('tank-sel', readoutR);
-    const strangersEl = mk('tank-strangers', readoutR);
+    const selEl = mk('tank-sel', readoutL);
+    const strangersEl = mk('tank-strangers', readoutL);
 
     // First-run coach — three words, once (21 §4.6). Removed on the first breed.
     const coach = mk('tank-coach', wrap);
     coach.textContent = t('Tap one you like → Breed → repeat');
 
     // Control cluster (pill) and the primary action. Chips are built in ─controls.
+    // The main ribbon stays pure transport — Pause / Speed / Undo. The less-used
+    // Stranger / Burst / Seek live in their own pill up top (`tools`).
     const cluster = mk('tank-cluster', wrap);
+    const tools = mk('tank-tools', wrap);
     const primary = mk('tank-breed', wrap, 'button');
     primary.type = 'button';
+
+    // A scale reference — a bar whose on-screen length is a round number of
+    // CENTIMETRES at the current zoom (01 §7: world units are cm), so the player
+    // can read the true size of the animals — a median creature is ~7 cm and they
+    // span two orders of magnitude. Updated each frame in updateScale().
+    const scaleEl = mk('tank-scale', wrap);
+    const scaleLine = mk('tank-scale-line', scaleEl);
+    const scaleText = mk('tank-scale-text', scaleEl);
 
     el.append(wrap);
 
@@ -148,8 +151,6 @@ export default {
     // image-based light. A transmissive membrane needs a backdrop to refract and
     // the fog needs a colour to fade creatures into — a CSS layer behind a
     // transparent canvas would give the materials neither.
-    const bg = new THREE.Color(token('--c-bg'));
-    const ramp = rampFor(W1_SLICE.palette);
     const scene = new THREE.Scene();
 
     // Selection / stranger / dim colours, read once (a per-frame getComputedStyle
@@ -168,71 +169,61 @@ export default {
     // and iridescence blow out and the ramp reads wrong (render/creature.js
     // compensates for the ACES knee in its emissive path).
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = tokenNumber('--tank-exposure');
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     view.prepend(renderer.domElement);
 
-    // Water background — the two --c-water stops, lighter toward the surface.
-    // backgroundIntensity lifts the backdrop out of the ACES shadow crush so the
-    // water reads as deep water rather than near-black — it brightens only the
-    // background, not the creature lighting (that is environmentIntensity).
-    const waterTex = equirectGradient(new THREE.Color(token('--c-water-0')), bg);
-    scene.background = waterTex;
-    scene.backgroundIntensity = 2.6;
+    // Reef water, the four-light rig, sun shafts and two parallax mote layers —
+    // all built into the scene by render/tank.js. ONE equirect gradient is both
+    // background AND environment map, so a reflection can never disagree with the
+    // water it is reflecting; the rim light is a ramp colour, never white.
+    const water = createWater(scene, W1_SLICE.palette);
 
-    // Image-based lighting from the ramp, never a chrome literal. PMREM so the
-    // physical materials get a correct roughness response, not a mirror.
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const envSource = equirectGradient(ramp[2], bg);
-    const envRT = pmrem.fromEquirectangular(envSource);
-    scene.environment = envRT.texture;
-    envSource.dispose();
-    pmrem.dispose();
-
-    // Lights — key + hemi + a rim taken FROM THE RAMP (creature presentation):
-    // a hard-coded accent paints out-of-ramp light onto a warm-silt animal.
-    const key = new THREE.DirectionalLight(0xffffff, 2.2);
-    key.position.set(2.5, 5, 3);
-    scene.add(key);
-    scene.add(new THREE.HemisphereLight(ramp[1].clone(), bg.clone(), 0.75));
-    const rim = new THREE.DirectionalLight(ramp[2].clone(), 1.7);
-    rim.position.set(-2, 1.2, -4);
-    scene.add(rim);
-
-    // EXPERIMENT: a tank-local world with the trial bounds (see EXP_* at top). The
-    // engine/gate still use the shipped W1_SLICE; only this screen's sims + render
-    // see the smaller tank. Revert = EXP_TANK_BOUNDS null.
+    // EXPERIMENT hook, retained but inert: the tank dimensions are UNCHANGED for
+    // the 3D revamp (reshaping tankBounds would move worldHash — deferred).
     const TANK = EXP_TANK_BOUNDS ? { ...W1_SLICE, tankBounds: EXP_TANK_BOUNDS } : W1_SLICE;
 
-    // The wireframe is the UNION of the six real tanks (see ui/tank/sim.js), so
-    // what is drawn is a true statement about where creatures can go. Both the
-    // grid and the box follow the window: see gridFor().
-    let grid = gridFor(1);
-    let cells = cellCentres(TANK.tankBounds, grid);
-    let union = unionBounds(TANK.tankBounds, grid);
-    let unionRadius = 0.5 * Math.hypot(union[0], union[1], union[2]);
+    // 7a ARRANGEMENT — a tall HELIX, not a tiled grid. A portrait phone frame has
+    // to spend its budget on height; six creatures wound up a helix pass in front
+    // of each other, and that occlusion is what gives the tank depth. Each
+    // creature still swims in its OWN W1 sim (no inter-creature collision) — the
+    // helix is a render-space arrangement of the per-slot pivots, spaced by
+    // creature size so the near-stationary solver-motor undulators stay composed.
+    // No wireframe box (the water is the tank); the fog sits BEHIND the ensemble.
+    let cells = [];              // helix position per slot, world metres
+    let sceneSize = [8, 8, 8];   // bounding box of the helix, for camera framing
+    let sceneRadius = 8;         // half its diagonal, for fog near/far
+    scene.fog = new THREE.Fog(water.fogColour, 1, 100);
 
-    const boundsMat = new THREE.LineBasicMaterial({ color: new THREE.Color(token('--c-line')) });
-    let bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
-    scene.add(bounds);
-    // Fog fades creatures into the water. Near/far track the LIVE camera distance
-    // every frame (placeCamera), not the union size: the camera sits far enough
-    // back to frame the union that a union-scaled far plane put the whole scene
-    // beyond the fog and rendered it flat to the background colour.
-    scene.fog = new THREE.Fog(bg, 1, 100);
-
-    function relayout(aspect) {
-      const next = gridFor(aspect);
-      if (next.cols === grid.cols && next.rows === grid.rows) return false;
-      grid = next;
-      cells = cellCentres(TANK.tankBounds, grid);
-      union = unionBounds(TANK.tankBounds, grid);
-      scene.remove(bounds);
-      bounds.geometry.dispose();
-      bounds = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(...union)), boundsMat);
-      scene.add(bounds);
-      unionRadius = 0.5 * Math.hypot(union[0], union[1], union[2]);
+    // The opening arrangement — a 2-column x 3-row grid (invisible), so the first
+    // frame is an ordered plate rather than a scatter. Cells are tight (spacing
+    // scales with the largest creature) so the fit zooms them in; a small
+    // per-column depth stagger keeps the plate from going degenerate on orbit.
+    const GRID_COLS = 2, GRID_ROWS = 3;
+    function layoutGrid() {
+      const n = slots.length;
+      const rMax = n ? Math.max(...slots.map((s) => s.radius)) : 1;
+      const gx = rMax * 1.6, gy = rMax * 1.6, gz = rMax * 0.6;
+      cells = slots.map((s, i) => {
+        const c = i % GRID_COLS, r = Math.floor(i / GRID_COLS);
+        return [
+          (c - (GRID_COLS - 1) / 2) * gx,
+          ((GRID_ROWS - 1) / 2 - r) * gy,   // row 0 sits at the top
+          (c - (GRID_COLS - 1) / 2) * gz,   // stagger depth by column
+        ];
+      });
       for (const s of slots) s.group.position.set(cells[s.index][0], cells[s.index][1], cells[s.index][2]);
-      return true;
+      let ex = rMax, ey = rMax, ez = rMax;
+      for (const c of cells) {
+        ex = Math.max(ex, Math.abs(c[0]) + rMax);
+        ey = Math.max(ey, Math.abs(c[1]) + rMax);
+        ez = Math.max(ez, Math.abs(c[2]) + rMax);
+      }
+      sceneSize = [ex * 2, ey * 2, ez * 2];
+      sceneRadius = 0.5 * Math.hypot(sceneSize[0], sceneSize[1], sceneSize[2]);
+      // Size the sun shafts and mote layers to the actual scene, or they stay a
+      // tiny clump at the origin (they are authored in unit-space).
+      fitAtmosphere(water, sceneSize);
     }
 
     // ── state ───────────────────────────────────────────────────────────────
@@ -248,21 +239,25 @@ export default {
     let pendingStranger = null;     // { genome, commonName } | null
     let speed = 1, paused = false;
     // Fallback ladder rung (render/creature.js): 'full' membrane+flesh+organ,
-    // 'flesh' drops the transmissive membrane, 'flat' drops the generated maps.
-    // 'full' — the design's translucent shell over the organ, with luminous
-    // creatures glowing through it. Held ~56 fps at six creatures on desktop;
-    // drop to 'flesh' (or wire this to the dev-panel quality control) if a
-    // weaker GPU can't sustain the transmission passes.
-    let detail = 'full';
+    // 'flesh' drops the outer translucent membrane, 'flat' drops the generated
+    // maps. Default 'flesh' (rung 1) — 7a's stated six-creature phone budget: the
+    // flesh layer still reads translucent and luminous creatures still glow
+    // through it. Raise to 'full' on strong hardware, or wire to the dev panel.
+    let detail = 'flesh';
     let accumulator = 0, lastMs = 0, raf = 0, breedingUntil = 0;
     let stopped = false;
     let ready = false;
 
-    // Orbit, in spherical coordinates about the tank centre. `home` is computed
-    // from the window on every resize rather than being a multiplier that
-    // happened to look right once — see frameDistance().
-    const orbit = { theta: 0.6, phi: 1.15, dist: 1 };
-    const HOME = { theta: 0.6, phi: 1.15, dist: 1 };
+    // Orbit, in spherical coordinates about the view target. A near-head-on angle
+    // so the opening 2x3 grid reads as a plate; `dist` is solved on every resize
+    // (see fitOrbit in resize()).
+    const orbit = { theta: 0.4, phi: 1.36, dist: 1 };
+    const HOME = { theta: 0.4, phi: 1.36, dist: 1 };
+    // The orbit pivot is not the origin: `baseTargetY` biases the composition up
+    // into the clear "work area" (the water not covered by the top ribbon and the
+    // bottom controls), and `pan` is the user's own translation (drag/two-finger).
+    const pan = new THREE.Vector3();
+    let baseTargetY = 0;
 
     // ── creature slots ──────────────────────────────────────────────────────
     // One simulation per creature, each in its own unmodified W1 tank, drawn at
@@ -297,8 +292,7 @@ export default {
         const plan = morphogenesis(genome);
         const sim = createSimulation(RAPIER, plan, genome, TANK);
         const group = buildCreature(plan, genome, { worldId: W1_SLICE.palette, detail });
-        const pivot = new THREE.Group();
-        pivot.position.set(cells[i][0], cells[i][1], cells[i][2]);
+        const pivot = new THREE.Group();   // positioned on the grid by layoutGrid()
         pivot.add(group);
         scene.add(pivot);
 
@@ -355,12 +349,24 @@ export default {
           index: i, genome, plan, sim, group: pivot, mesh: group, label, ring, beacon,
           phaseFor,
           radius: boundingRadius(plan),
+          // THE BIOLOGICAL MASS — sum of density x volume over the plan, in
+          // grams (CGS, 01 §7). This is the number the sheet prints and the one
+          // a player reasons about. It is currently EQUAL to what Rapier reports
+          // per body, and that is a coincidence about to end: an added-mass term
+          // (C6.2) would make rb.mass() return m + m_added, the HYDRODYNAMIC
+          // mass the solver integrates. Anything user-visible must keep reading
+          // totalMass(plan); anything about motion must read rb.mass(). Six call
+          // sites currently do not distinguish them — see duel.js rootMass.
           mass: totalMass(plan),
           pose: sim.readPose(),
           speed: 0,
           world: new THREE.Vector3(),
         };
       });
+      // Positions come from the built radii, so the grid is laid out AFTER the
+      // slots exist; then reframe the camera against the new arrangement.
+      layoutGrid();
+      if (view.clientWidth && view.clientHeight) resize();
     }
 
     // ── the loop ────────────────────────────────────────────────────────────
@@ -415,6 +421,9 @@ export default {
         // for why neither the fastest body nor the full 3-D speed will do.
         let vx = 0, vy = 0, vz = 0, m = 0;
         for (const rb of s.sim.bodies) {
+          // rb.mass() is deliberate here: this is a momentum-weighted mean, so it
+          // wants the mass the SOLVER integrates, not the biological one. Under
+          // C6.2 the two diverge and this line is already correct.
           const lv = rb.linvel(), bm = rb.mass();
           vx += lv.x * bm; vy += lv.y * bm; vz += lv.z * bm; m += bm;
         }
@@ -432,15 +441,45 @@ export default {
 
     function placeCamera() {
       const r = orbit.dist;
+      const tx = pan.x, ty = baseTargetY + pan.y, tz = pan.z;
       camera.position.set(
-        r * Math.sin(orbit.phi) * Math.sin(orbit.theta),
-        r * Math.cos(orbit.phi),
-        r * Math.sin(orbit.phi) * Math.cos(orbit.theta));
-      camera.lookAt(0, 0, 0);
+        tx + r * Math.sin(orbit.phi) * Math.sin(orbit.theta),
+        ty + r * Math.cos(orbit.phi),
+        tz + r * Math.sin(orbit.phi) * Math.cos(orbit.theta));
+      camera.lookAt(tx, ty, tz);
       // Fog around the tank at whatever distance the camera actually sits, so the
       // near face stays crisp and the far wall dissolves into water — at any zoom.
-      scene.fog.near = Math.max(0.1, orbit.dist - unionRadius);
-      scene.fog.far = orbit.dist + unionRadius * 1.6;
+      scene.fog.near = Math.max(0.1, orbit.dist - sceneRadius * 1.15);
+      scene.fog.far = orbit.dist + sceneRadius * 2.1;
+    }
+
+    // Scale bar — a nice round length (1/2/5 x 10^n) whose pixel width tracks the
+    // zoom, so the animal sizes are legible. Cheap: two DOM writes, and the label
+    // only re-rasterises when the chosen length changes.
+    //
+    // `L` is in WORLD UNITS, which are CENTIMETRES (01 §7, and the header of
+    // engine/l1/physics.js). It is therefore printed as cm and steps DOWN to mm,
+    // not up from metres — this bar is the most direct answer the screen gives to
+    // "how big is that animal", so a wrong unit here is worse than none.
+    let lastScaleL = -1;
+    const niceLen = (v) => {
+      const p = Math.pow(10, Math.floor(Math.log10(v)));
+      const m = v / p;
+      return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+    };
+    function updateScale() {
+      const wpp = (2 * orbit.dist * Math.tan((camera.fov * Math.PI / 180) / 2)) / Math.max(1, view.clientHeight);
+      const L = niceLen(wpp * 64);           // aim for a ~64 px bar
+      scaleLine.style.width = `${(L / wpp).toFixed(0)}px`;
+      if (L !== lastScaleL) {
+        // L is 1/2/5 x 10^n cm, so every branch divides exactly and never shows a
+        // float. The fitted grid spans ~1 m at six creatures, so the metre branch
+        // is reached at ordinary zoom-out and is not a corner case.
+        scaleText.textContent = L >= 100 ? `${L / 100} m`
+          : L >= 1 ? `${L} cm`
+            : `${Math.round(L * 10)} mm`;
+        lastScaleL = L;
+      }
     }
 
     const projected = new THREE.Vector3();
@@ -501,9 +540,15 @@ export default {
         stepPhysics(dt);
         syncPoses();
       }
+      // Water is never still — the shafts sway and the motes drift. The camera
+      // holds the grid still (the swimming creatures supply the motion); the
+      // player orbits, zooms and pans it themselves.
+      updateWater(water, nowMs / 1000);
       placeCamera();
+      updateScale();
       if (ready) syncOverlay();
       renderer.render(scene, camera);
+      renderOverlay(renderer, water);   // sun shafts, drawn over the water
     }
 
     // ── interaction ─────────────────────────────────────────────────────────
@@ -524,6 +569,23 @@ export default {
       const [a, b] = [...pointers.values()];
       return Math.hypot(a.x - b.x, a.y - b.y);
     };
+    const pinchCentroid = () => {
+      const [a, b] = [...pointers.values()];
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    };
+
+    // Pan — translate the orbit target in the camera's own screen plane, so the
+    // gesture tracks the finger/cursor at any orbit angle. `worldPerPx` converts
+    // a screen delta to world metres at the target depth. Two-finger drag on
+    // mobile (alongside pinch), right- or middle-drag on desktop.
+    const _right = new THREE.Vector3(), _up = new THREE.Vector3();
+    function panBy(dxPx, dyPx) {
+      const wpp = (2 * orbit.dist * Math.tan((camera.fov * Math.PI / 180) / 2)) / Math.max(1, view.clientHeight);
+      _right.setFromMatrixColumn(camera.matrix, 0);
+      _up.setFromMatrixColumn(camera.matrix, 1);
+      pan.addScaledVector(_right, -dxPx * wpp);
+      pan.addScaledVector(_up, dyPx * wpp);
+    }
 
     function pick(clientX, clientY) {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -559,16 +621,19 @@ export default {
       view.setPointerCapture?.(e.pointerId);
 
       if (pointers.size === 2) {
-        // A second finger cancels whatever the first was doing. It is not a tap,
-        // not a long press and not an orbit — it is the start of a pinch.
+        // A second finger cancels whatever the first was doing. It is the start of
+        // a pinch (zoom) AND a two-finger drag (pan) — both run together.
         clearTimeout(longPressTimer);
         down = null;
-        pinch = { dist: pinchSpan(), orbitDist: orbit.dist };
+        const c = pinchCentroid();
+        pinch = { dist: pinchSpan(), orbitDist: orbit.dist, cx: c.x, cy: c.y };
         return;
       }
       if (pointers.size > 2) { pinch = null; down = null; clearTimeout(longPressTimer); return; }
 
-      down = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now(), moved: false, target: pick(e.clientX, e.clientY) };
+      // Right or middle button pans on desktop; left orbits/selects.
+      const panning = e.button === 2 || e.button === 1;
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now(), moved: false, pan: panning, target: panning ? null : pick(e.clientX, e.clientY) };
       clearTimeout(longPressTimer);
       if (down.target) {
         longPressTimer = setTimeout(() => {
@@ -584,6 +649,10 @@ export default {
       if (pinch && pointers.size === 2) {
         const span = pinchSpan();
         if (pinch.dist > 0 && span > 0) zoomTo(pinch.orbitDist * (pinch.dist / span));
+        // Two-finger drag pans by how far the midpoint between the fingers moved.
+        const c = pinchCentroid();
+        panBy(c.x - pinch.cx, c.y - pinch.cy);
+        pinch.cx = c.x; pinch.cy = c.y;
         return;
       }
       if (!down || e.pointerId !== down.id) return;
@@ -592,10 +661,13 @@ export default {
       if (Math.hypot(dx, dy) >= TAP.maxMovePx) {
         down.moved = true;
         clearTimeout(longPressTimer);
-        // Background drag orbits (21 §4.3). Dragging always orbits, whether or
-        // not it started on a creature — a drag is never a selection.
-        orbit.theta -= dx * 0.005;
-        orbit.phi = Math.min(Math.PI - 0.15, Math.max(0.15, orbit.phi - dy * 0.005));
+        // A drag pans (right/middle button) or orbits (left) — never selects.
+        if (down.pan) {
+          panBy(dx, dy);
+        } else {
+          orbit.theta -= dx * 0.005;
+          orbit.phi = Math.min(Math.PI - 0.15, Math.max(0.15, orbit.phi - dy * 0.005));
+        }
         down.x = e.clientX; down.y = e.clientY;
       }
     });
@@ -619,7 +691,9 @@ export default {
       zoomTo(orbit.dist * (1 + Math.sign(e.deltaY) * 0.12));
     }, { passive: false });
 
-    view.addEventListener('dblclick', () => { Object.assign(orbit, HOME); });
+    view.addEventListener('dblclick', () => { Object.assign(orbit, HOME); pan.set(0, 0, 0); });
+    // Right-drag pans, so suppress the browser context menu on the canvas.
+    view.addEventListener('contextmenu', (e) => e.preventDefault());
 
     function toggleSelect(i) {
       if (selected.has(i)) selected.delete(i); else selected.add(i);
@@ -640,9 +714,13 @@ export default {
       const rows = [
         [t('Bodies'), `${s.plan.bodyCount}${s.plan.truncated ? t(' (capped)') : ''}`],
         [t('Joints'), `${s.plan.jointCount} · ${s.plan.dofCount} ${t('dof')}`],
-        [t('Mass'), `${s.mass.toFixed(2)} kg`],
-        [t('Radius'), `${s.radius.toFixed(2)} m`],
-        [t('Speed'), `${s.speed.toFixed(2)} m/s`],
+        // CGS (01 §7, physics.js header): engine units ARE cm / g / s, so these
+        // are relabels, not conversions — no arithmetic belongs on these lines.
+        // `s.mass` is the GEOMETRIC mass, totalMass(plan); see the note at the
+        // slot build below for why that distinction is about to matter.
+        [t('Mass'), `${s.mass.toFixed(2)} g`],
+        [t('Radius'), `${s.radius.toFixed(2)} cm`],
+        [t('Speed'), `${s.speed.toFixed(2)} cm/s`],
         // H3b — a stranger whose viability search was exhausted is filled into
         // the slot anyway so the tank is never short, but it is never presented
         // as an ordinary creature. `viable` is absent on elites and offspring,
@@ -697,6 +775,7 @@ export default {
             thumb: renderThumbnail(canonical, { worldId: W1_SLICE.palette }),
             stats: { bodies: cplan.bodyCount, mass: totalMass(cplan) },
             createdAt: Date.now(),
+            render: RENDER_TAG,
           };
           await store.set(store.KEY.specimen(hash), specimen);
           saveBtn.textContent = t('Saved ✓');
@@ -762,13 +841,14 @@ export default {
       applySeek();               // takes effect immediately, even while paused-visible
       renderStatus();
     });
-    cluster.append(btnPause, btnSpeed, btnUndo, btnStranger, btnBurst, btnSeek);
+    cluster.append(btnPause, btnSpeed, btnUndo);
+    tools.append(btnStranger, btnBurst, btnSeek);
     primary.addEventListener('click', doBreed);
 
     function updateStrangerChip() {
-      btnStranger.textContent = pendingStranger
-        ? `${t('Stranger')}: ${pendingStranger.commonName}`
-        : `${t('Stranger')}: ${t('random')}`;
+      // Compact for the top pill: the chosen creature's name when picked (shown in
+      // --c-stranger via `.picked`), otherwise just the label.
+      btnStranger.textContent = pendingStranger ? pendingStranger.commonName : t('Stranger');
       btnStranger.classList.toggle('picked', !!pendingStranger);
     }
 
@@ -1109,16 +1189,33 @@ export default {
       camera.aspect = aspect;
       camera.updateProjectionMatrix();
 
-      // Grid first: it changes the union, which changes the framing.
-      const rotated = relayout(aspect);
+      // WORK AREA — the water left clear by the top ribbon and the bottom controls
+      // (the Breed button + cluster). Frame the grid to fill THAT band, not the
+      // whole canvas, and bias it upward so it sits centred in the clear region
+      // rather than half-hidden behind the primary action.
+      const topPx = tokenPx('--scrim-top');
+      const botPx = tokenPx('--scrim-bottom');
+      const workFrac = Math.max(0.4, (h - topPx - botPx) / h);
       const fovV = (camera.fov * Math.PI) / 180;
-      const home = frameDistance(union, fovV, aspect);
+
+      // Zoom to fill: project the real bodies through the real camera and solve the
+      // distance that lands the worst vertex on the target NDC — a bounding-sphere
+      // fit over-frames the grid and leaves it small in an empty frame. Sample yaws
+      // AROUND the opening angle so the first frame fills tightly.
+      let home = HOME.dist;
+      if (slots.length) {
+        scene.updateMatrixWorld(true);
+        const target = Math.min(0.92, Math.max(0.5, workFrac * 0.95));
+        const yaws = [HOME.theta - 0.25, HOME.theta, HOME.theta + 0.25];
+        home = fitOrbit(camera, slots.map((s) => s.group), { ...FIT.portrait, target, yaws }).distance;
+        // Ride the composition up by half the top/bottom chrome imbalance, in world
+        // units at the fitted distance, so the clear band is what it sits in.
+        baseTargetY = -((botPx - topPx) / h) * home * Math.tan(fovV / 2);
+      }
       const wasHome = Math.abs(orbit.dist - HOME.dist) < HOME.dist * 0.02;
       HOME.dist = home;
-      // Keep the player's zoom across a resize, unless they had never touched it
-      // or the grid just rotated under them — in which case their old distance
-      // frames a box that no longer exists.
-      if (wasHome || rotated) orbit.dist = home;
+      // Keep the player's zoom across a resize, unless they never touched it.
+      if (wasHome) orbit.dist = home;
       else zoomTo(orbit.dist);
     }
     const ro = new ResizeObserver(resize);
@@ -1133,8 +1230,7 @@ export default {
         clearTimeout(longPressTimer);
         ro.disconnect();
         disposeSlots();
-        waterTex.dispose();
-        envRT.dispose();
+        disposeWater(water);
         renderer.dispose();
       },
     };

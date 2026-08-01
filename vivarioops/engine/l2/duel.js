@@ -299,6 +299,11 @@ export function senseOpponent(sim, opponentCom, turnPlane = null) {
  */
 export function rootContact(world3d, attackerHandles, victim) {
   const root = victim.rootCollider;
+  // BIOLOGICAL mass is what a damage budget should be scaled by, and rb.mass()
+  // happens to BE that today. It stops being that the moment an added-mass term
+  // lands (C6.2), when Rapier would report m + m_added and duel outcomes would
+  // silently start depending on hydrodynamic mass. If that change is made, this
+  // line must move to the plan's totalMass, not follow the solver.
   const rootMass = victim.bodies[0].mass();
   const budget = rootMass * MAX_CONTACT_DV;
 

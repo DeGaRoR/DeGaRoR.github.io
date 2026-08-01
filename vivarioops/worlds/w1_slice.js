@@ -29,13 +29,20 @@ export const W1_SLICE = {
   faunaVersion: 3,
 
   // ── physics — L1 and L2 ────────────────────────────────
-  gravity:         9.81,          // 02 §1a: constant in every world, never a dial
-  mediumDensity:   1.0,           // water
+  // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).
+  // gravity: 02 §1a says constant in every world, never a dial. It SHOULD read
+  // 981 cm/s^2 under this system and is left at 9.81 because it is provably
+  // inert — SLICE_LIMITS.density is [1,1] against mediumDensity 1.0, so the
+  // buoyancy term (mediumDensity - density)*V*g is identically zero, bit-exact
+  // at g = 0 / 9.81 / 981. It must be corrected before the density band unpins
+  // at step F, and not before, so that one change moves one number.
+  gravity:         9.81,          // cm/s^2 — see above; wrong by 100x but inert
+  mediumDensity:   1.0,           // water, g/cm^3
   dragScale:       1.0,
   dragCoefficient: 0.9,
   floor:   { present: true, y: -12.0, friction: 0.3, restitution: 0.1 },
   surface: { present: true, y:  12.0 },
-  tankBounds: [16, 24, 16],       // m — L1 tank
+  tankBounds: [16, 24, 16],       // cm — L1 tank
 
   // ── presentation — label only, never physics ───────────
   phase: 'liquid',
@@ -44,15 +51,15 @@ export const W1_SLICE = {
   palette: 'w1',
 
   // ── ecology — L3 ───────────────────────────────────────
-  worldSize:     [200, 200],      // m, torus
+  worldSize:     [200, 200],      // cm, torus
   substrateGrid: [64, 64],
-  totalMass:     6000,            // kg — THE conserved quantity
+  totalMass:     6000,            // g — THE conserved quantity
   fertility: { noiseScale: 0.05, noiseContrast: 0.4, seed: 0x5EED },
   diffusionRate: 0.08,            // per tick, cell-to-cell
-  HARVEST_RATE:  0.35,            // kg/(m^2 s) at full substrate
+  HARVEST_RATE:  0.35,            // g/(cm^2 s) at full substrate
   PREDATION_EFFICIENCY: 0.6,
   KLEIBER:         0.75,          // basalRate proportional to mass^KLEIBER
-  METABOLIC_SCALE: 0.02,          // W per kg^0.75
+  METABOLIC_SCALE: 0.02,          // erg/s per g^0.75
   REPRO_COOLDOWN: 20.0,           // s
   MAX_AGE:       600.0,           // s
   dt:              0.1,           // s per L3 tick
@@ -64,7 +71,7 @@ export const W1_SLICE = {
   PERCEPTION_WORLD_FRAC: 0.02,    // 02 §3: the most important tuning parameter in the game
 
   // ── run ────────────────────────────────────────────────
-  biomassBudget: 300,             // kg the player may seed
+  biomassBudget: 300,             // g the player may seed
   runDuration:   4000,            // s, about 40 000 ticks
 
   // ── bridge ─────────────────────────────────────────────

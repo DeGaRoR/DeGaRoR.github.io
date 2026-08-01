@@ -7,6 +7,7 @@
 
 import { t } from '../../trunk/i18n.js';
 import * as store from '../../trunk/store.js';
+import { seedAtlas } from '../../worlds/atlas_seed.js';
 
 export default {
   title: t('Atlas'),
@@ -16,6 +17,16 @@ export default {
     const wrap = document.createElement('div');
     wrap.className = 'atlas';
     el.append(wrap);
+
+    // Plant the authored library on first open (idempotent, keyed by hash), so a
+    // fresh Atlas is the shipped creatures rather than an empty page. A failure
+    // here must never blank the screen — the render below still lists whatever
+    // records exist.
+    async function seedThenRender() {
+      try { await seedAtlas(); } catch { /* the library just won't appear */ }
+      if (stopped) return;
+      render();
+    }
 
     async function render() {
       let keys = [];
@@ -74,7 +85,8 @@ export default {
       const mass = spec.stats?.mass;
       const statLine = [
         bodies != null ? `${bodies} ${t('bodies')}` : null,
-        mass != null ? `${mass.toFixed(2)} kg` : null,
+        // CGS (01 §7): engine mass units ARE grams. A relabel, not a conversion.
+        mass != null ? `${mass.toFixed(2)} g` : null,
       ].filter(Boolean).join(' · ');
       if (statLine) {
         const stats = document.createElement('div');
@@ -83,19 +95,29 @@ export default {
         c.append(stats);
       }
 
-      const del = document.createElement('button');
-      del.className = 'btn'; del.type = 'button'; del.textContent = t('Delete');
-      del.addEventListener('click', async () => {
-        del.disabled = true;
-        try { await store.del(key); } catch { /* ignore — re-render reflects reality */ }
-        render();
-      });
-      c.append(del);
+      // Authored specimens are the shipped library: labelled, and not deletable —
+      // the next open would only plant them again, so a Delete button would be a
+      // button that does nothing. Player-kept creatures keep their Delete.
+      if (spec.source === 'authored') {
+        const badge = document.createElement('div');
+        badge.className = 'spec-card-source';
+        badge.textContent = t('From the library');
+        c.append(badge);
+      } else {
+        const del = document.createElement('button');
+        del.className = 'btn'; del.type = 'button'; del.textContent = t('Delete');
+        del.addEventListener('click', async () => {
+          del.disabled = true;
+          try { await store.del(key); } catch { /* ignore — re-render reflects reality */ }
+          render();
+        });
+        c.append(del);
+      }
 
       return c;
     }
 
-    render();
+    seedThenRender();
 
     return { stop() { stopped = true; } };
   },

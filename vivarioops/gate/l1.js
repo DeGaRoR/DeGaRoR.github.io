@@ -649,8 +649,8 @@ export function runL1Gate() {
         `${plans.filter(p => p.truncated).length} truncated at the cap`,
       `rejected limbs: ${plans.reduce((n, p) => n + p.rejected.dimensions, 0)} out-of-bounds, ` +
         `${plans.reduce((n, p) => n + p.rejected.overlap, 0)} overlapping`,
-      `size: median radius ${(() => { const r = plans.map(boundingRadius).sort((a, b) => a - b); return r[Math.floor(r.length / 2)].toFixed(2); })()} m, ` +
-        `median mass ${(() => { const m = plans.map(totalMass).sort((a, b) => a - b); return m[Math.floor(m.length / 2)].toFixed(2); })()} kg`,
+      `size: median radius ${(() => { const r = plans.map(boundingRadius).sort((a, b) => a - b); return r[Math.floor(r.length / 2)].toFixed(2); })()} cm, ` +
+        `median mass ${(() => { const m = plans.map(totalMass).sort((a, b) => a - b); return m[Math.floor(m.length / 2)].toFixed(2); })()} g`,
       `mean ${meanNodes} nodes, ${meanConns} connections · ${((recursive / pop.length) * 100).toFixed(0)}% contain self-recursion`,
       `mean serialised size ${Math.round(pop.reduce((n, x) => n + serialise(x).length, 0) / pop.length)} bytes`,
     ],

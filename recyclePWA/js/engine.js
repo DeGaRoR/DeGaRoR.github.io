@@ -75,8 +75,17 @@ const OVER_T=1.2;   // sim-seconds of CONTINUOUS buffer-saturation before OVERLO
 const ECON={
   startCash:2000000,     // career starting cash (€) — small-plant budget (dev30)
   tipping:60,            // income to ACCEPT feed         (€/t in)  — charged on actual weight
-  landfillGate:110,      // cost to DISPOSE to landfill   (€/t out) — charged on actual weight
+  landfillGate:110,      // cost to DISPOSE to landfill   (€/t out) — charged on actual weight; YEAR-1 headline rate
   burner:20,             // FUTURE: energy-from-waste disposal (€/t), cheaper than landfill
+  // ── Landfill escalation. PURE PRICING: no deadline, no compliance check, no fine. Inert until the
+  //    pressure system is ARMED (all 6 products running), and the year clock starts from that moment.
+  //    Shaped on the real French TGAP (€41→€65/t over 2021-25) and LATS-style tradable allowances.
+  lfEsc:0.12,            // headline gate compounds +12%/pressure-year
+  lfAllowPct:0.35,       // year 1 you may bury 35% of what you ACCEPT before the penalty rate bites
+  lfAllowTaper:0.88,     // the allowance tightens 12%/yr → y5 ≈ 21%, y10 ≈ 11%
+  lfAllowFloorPct:0.10,  // …but never below 10%
+  lfAllowFreeT:200,      // …plus a flat free tonnage each year (protects a small plant; also avoids a divide-by-zero bite at each year boundary)
+  lfPenalty:3.0,         // ×3 on every tonne beyond the allowance
   elec:0.15,             // electricity                   (€/kWh)
   wage:22,               // labour                        (€/h per worker)
   // Product prices (€/t): on-spec base, off-spec penalty (negative = you pay to dump the bale).
@@ -200,13 +209,15 @@ const COMPANIES={
     {id:"binfinity",name:{en:"Binfinity"},stream:{comp:{PET:0.15,steel:0.06,alu:0.02,film:0.30,paper:0.32,PVC:0.15},feedTph:4,gate:75,bag:"grey"}},
     {id:"hauler_oates",name:{en:"Hauler Oates"}},
     {id:"down_dumps",name:{en:"Down in the Dumps Ltd."}},
-    {id:"skip_bizet",name:{en:"Skip Bizet"}},
-    {id:"poubelle_air",name:{en:"Poubelle Air"}},
+    // ── imposed-mandate carriers. Deliberately DIRTIER than the voluntary suppliers (and paying a
+    //    higher gate to match): an imposed stream must be a materials problem, not just more tonnes.
+    {id:"skip_bizet",name:{en:"Skip Bizet"},stream:{comp:{PET:0.18,steel:0.10,alu:0.03,film:0.22,paper:0.28,PVC:0.19},feedTph:3,gate:70,bag:"grey"}},        // 19% PVC vs PET's 0.5% cap → poisons PET bales until a picking station or 2nd NIR exists
+    {id:"poubelle_air",name:{en:"Poubelle Air"},stream:{comp:{PET:0.22,steel:0.18,alu:0.08,film:0.26,paper:0.20,PVC:0.06},feedTph:4,gate:80,bag:"grey"}},    // alu + film rich → rewards eddy / vacuum-film
     {id:"ducasse_dechets",name:{en:"Ducasse Déchets"}},
     {id:"trouville_dechets",name:{en:"Trouville Déchets"}},
     {id:"verviers_nord",name:{en:"Verviers Nord Containers"}},
     {id:"supradel",name:{en:"Supradel"}},
-    {id:"watco_syndicate",name:{en:"Watco Syndicate"}},
+    {id:"watco_syndicate",name:{en:"Watco Syndicate"},stream:{comp:{PET:0.12,steel:0.08,alu:0.02,film:0.30,paper:0.24,PVC:0.24},feedTph:6,gate:95,bag:"grey"}}, // the endgame: 24% PVC, 30% film, only 12% PET
     {id:"van_jesuswinkel",name:{en:"Van Jesuswinkel"}},
   ],
   buyers:[
@@ -296,12 +307,22 @@ const CAPEX_LEGACY_REMOVED=true; // CAPEX now lives in ECON.capex (aliased above
 let G=null, cam={x:0,y:0,zoom:1}, P=[], _id=1, selNode=null, _inspectNode=null, _inspectT=0;
 // Engine→UI hooks. Default no-ops so the ENGINE block has ZERO DOM/render dependencies
 // (the harness loads the engine alone with these no-ops). The UI block overrides them.
-const UI={viewReset(){},onEnd(){},onPhase(){},onOverflow(){},onGraduate(){}};
-const blankBuf=()=>({PET:[0,0],PVC:[0,0],steel:[0,0],film:[0,0],paper:[0,0],alu:[0,0]});
+const UI={viewReset(){},onEnd(){},onPhase(){},onOverflow(){},onGraduate(){},onMandate(){}};
+// Derived from MAT×ST, never a hardcoded literal: a buffer missing a material key is the crash the
+// hot paths (popParticle/stateDist/vehicle unload) would hit first if the material list ever changed.
+const blankBuf=()=>{const o={};for(const m of MAT){const a=[];for(let z=0;z<ST;z++)a.push(0);o[m]=a;}return o;};
 // Rebuild a restored buffer to the current material×state shape (old saves may miss materials/states).
-function migrateBuf(b){const o=blankBuf();if(b)for(const m of MAT)if(b[m])for(let z=0;z<ST;z++)o[m][z]=b[m][z]||0;return o;}
+function migrateBuf(b){const o=blankBuf();if(b){
+  for(const m of MAT)if(b[m])for(let z=0;z<ST;z++)o[m][z]=b[m][z]||0;
+  // A material DROPPED from MAT would otherwise be silently discarded — destroying mass and breaking
+  // NNG-1 (IN === held + landfilled + sold). Fold its particles into the first material instead, so
+  // the count, and therefore the mass balance, survives the migration.
+  for(const k in b){if(MAT.indexOf(k)>=0)continue;const c=b[k];if(!c||!c.length)continue;
+    for(let z=0;z<ST&&z<c.length;z++)o[MAT[0]][z]+=c[z]||0;}
+  }return o;}
 const cnt=b=>{let s=0;for(const m of MAT){const c=b[m];if(c)s+=c[0]+c[1];}return s;};
-const comp=b=>{const c={PET:0,PVC:0,steel:0,film:0,paper:0,alu:0};for(const m of MAT){const v=b[m];if(v)c[m]=v[0]+v[1];}return c;};
+const comp=b=>{const c={};for(const m of MAT)c[m]=0; // MAT-derived: an empty buffer must report 0, not undefined, for EVERY material
+  for(const m of MAT){const v=b[m];if(v)for(let z=0;z<ST;z++)c[m]+=v[z]||0;}return c;};
 const stateDist=b=>{const d=[0,0];for(const m of MAT)for(let z=0;z<ST;z++)d[z]+=b[m][z];return d;};
 function rng(){G.rngState=(G.rngState+0x6d2b79f5)|0;let a=G.rngState,t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;}
 function popParticle(b){const t=cnt(b);if(t<=0)return null;let r=rng()*t;
@@ -625,6 +646,18 @@ function recyclingPct(){ // on-spec product recovered / total intake \u2014 stoc
   if(!G||G.mode==="sandbox")return 0; const di=G.deliveredTot||0; if(di<=0)return 0;
   let recov=0; for(const k in G.sold)recov+=(G.sold[k].on||0);
   return Math.max(0,Math.min(100,recov/di*100));}
+/* Landfill diversion = the share of everything ACCEPTED that stayed out of the ground.
+ * Both terms must be lifetime: G.landfill only ever accumulates, while G.delivered is reset by
+ * applyPhase — mixing them made the reading collapse at every phase boundary. And a plant that has
+ * simply not landfilled anything YET is not a 100%-diversion plant, so a record is only banked once
+ * there is a real operating history behind it (this was handing out the 80% grant on day one). */
+const DIVERSION_MIN_T=50; // lifetime tonnes accepted before a diversion record counts
+function diversionNow(){const di=(G&&G.deliveredTot)||0;if(di<=0)return 0;
+  return Math.max(0,Math.min(1,1-((G.landfill||0)/di)));}
+function bankDiversion(){ // one shared banking rule (was duplicated, divergently, in two places)
+  if(!G||!CAREER||!CAREER.counters)return;
+  if((G.deliveredTot||0)<DIVERSION_MIN_T)return;
+  const dv=diversionNow(); if(dv>(CAREER.counters.bestDiversion||0))CAREER.counters.bestDiversion=dv;}
 function phaseProgress(){ // continuous model: cumulative on-spec EXPORT toward the first tonnage milestone (100 t) — never a contract quota
   if(!G||G.mode==="sandbox")return null;
   const done=(G.mode==="career"&&CAREER&&CAREER.counters&&CAREER.counters.exportedOnSpec)||0,total=100;
@@ -642,7 +675,9 @@ function nodeRate(n,key){ // t/h over a rolling window from the cumulative mass 
 function sellBale(node,tokBuf){const g=grade(tokBuf,node.spec),mass=cnt(tokBuf)*PMASS;
   node._outMass=(node._outMass||0)+mass;
   const rev=g.price*mass*TECHMOD.price; G.cash+=rev;G.ledger.sales+=rev;
-  if(g.ok){node.balesSold++; if(node.spec==="PET")G.petOn+=mass; else G.ferOn+=mass; if(G.mode==="career")CAREER.counters.exportedOnSpec+=mass;}
+  if(g.ok){node.balesSold++; if(node.spec==="PET")G.petOn+=mass; else G.ferOn+=mass;
+    if(G.mode==="career"){CAREER.counters.exportedOnSpec+=mass;
+      const os=CAREER.counters.onSpec||(CAREER.counters.onSpec={}); os[node.spec]=(os[node.spec]||0)+mass;}} // LIVE per-spec tally (was settle-only, i.e. dead in continuous mode) — drives specsCovered
   else {node.offSold++; if(node.spec==="PET")G.petOff+=mass;}
   const sp=G.sold[node.spec]||(G.sold[node.spec]={on:0,off:0}); if(g.ok)sp.on+=mass; else sp.off+=mass;
   if(g.ok&&G.contract&&G.contract.premium&&node.spec===G.contract.premium.product){const pr=G.contract.premium.perTonne*mass;postTx("subsidies",pr);} // phase premium → Subsidies
@@ -655,7 +690,41 @@ function sellBale(node,tokBuf){const g=grade(tokBuf,node.spec),mass=cnt(tokBuf)*
 // Single disposal path — ALWAYS charges on actual weight (mass × landfillGate) and books the
 // Landfill cost center. Used by every route to landfill (loose, bale, leftover; later: flush + disposal contract).
 function budgetBlocks(cost){return cost>0 && G.cash<cost && !(G.scenario&&G.scenario.unlimitedBudget);}
-function dumpToLandfill(mass){G.landfill+=mass;const c=mass*ECON.landfillGate;G.cash-=c;G.ledger.landfill+=c;}
+/* ── Landfill pricing ──────────────────────────────────────────────────────────
+ * Escalating gate + a self-scaling annual allowance. Entirely INERT until the pressure
+ * system is armed (all 6 products proven), and the year clock counts from the arming day,
+ * so a slow learner never arrives to year-5 prices. A PERCENTAGE allowance (not an absolute
+ * quota) self-scales with plant size and makes an imposed overflow doubly punishing: a buried
+ * tonne raises BOTH `t` and `in`, driving the ratio toward the penalty band. */
+function pressureOn(){return !!(G&&G.mode==="career"&&CAREER&&CAREER.pressure&&CAREER.pressure.armed);}
+function pressureYear(){ // 1-based year since arming (not since the campaign start)
+  if(!pressureOn())return 0;
+  const d0=(CAREER.pressure.day||0),d=Math.floor((G.t||0)/24);
+  return 1+Math.max(0,Math.floor((d-d0)/360));}
+function landfillYear(){ // this pressure-year's counters; auto-rolls. null ⇒ flat legacy pricing.
+  if(!pressureOn())return null;
+  const y=pressureYear();
+  let L=CAREER.landfillYr;
+  if(!L||L.y!==y)L=CAREER.landfillYr={y,t:0,in:0};
+  return L;}
+function landfillBase(){return ECON.landfillGate*Math.pow(1+ECON.lfEsc,Math.max(0,pressureYear()-1));} // headline €/t now
+function landfillAllowT(){const L=landfillYear();if(!L)return Infinity; // tonnes still priced at the base rate this year
+  const f=Math.max(ECON.lfAllowFloorPct,ECON.lfAllowPct*Math.pow(ECON.lfAllowTaper,L.y-1));
+  return Math.max(ECON.lfAllowFreeT,(L.in||0)*f);}
+function landfillGateNow(){const L=landfillYear(),b=landfillBase(); // what the NEXT tonne costs (the number the UI shows)
+  return (L&&L.t>=landfillAllowT())?b*ECON.lfPenalty:b;}
+function dumpToLandfill(mass){
+  if(!(mass>0))return 0;
+  G.landfill+=mass;
+  const b=landfillBase(),L=landfillYear();
+  let c;
+  if(!L)c=mass*b;                                     // unarmed / sandbox: flat €110, exactly as before
+  else{const allow=landfillAllowT();
+    const under=Math.max(0,Math.min(mass,allow-L.t)); // a dump STRADDLING the line is split-priced —
+    c=under*b+(mass-under)*b*ECON.lfPenalty;          // otherwise one huge load before the boundary is an exploit
+    L.t+=mass;}
+  G.cash-=c;G.ledger.landfill+=c;                     // booking path UNCHANGED → pnlReport().net===cash holds
+  return c;}
 // Manual flush-to-landfill — the player-driven half of the disposal primitive (Bible §7/§143): dump a
 // storage area's whole content (loose + accumulated bales + dispose heap) to landfill, charged by weight.
 function storageItems(n){let c=cnt(n.inBuf);if(n.bales)for(const t of n.bales)c+=cnt(t);c+=(n.disposeHeap||0);return c;}
@@ -705,7 +774,7 @@ function serializeGame(){if(!G)return null;
     opexHistory:(G.opexHistory||[]).slice(),_opexDay:G._opexDay,_opexStart:G._opexStart||null,_pnlDay:G._pnlDay,_pnlDayStart:G._pnlDayStart,_pnlYesterday:G._pnlYesterday,
     cash:G.cash,delivered:G.delivered,deliveredTot:G.deliveredTot,landfill:G.landfill,petOn:G.petOn,petOff:G.petOff,ferOn:G.ferOn,sold:G.sold,
     minCash:G.minCash,wageTot:G.wageTot,t:G.t,tier:G.tier,finished:G.finished,ledger:Object.assign({},G.ledger),
-    nodes:G.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,w:n.w,h:n.h,gx:(n.gx!=null?n.gx:null),gy:(n.gy!=null?n.gy:null),rot:n.rot||0,site:n.site||null,paidCapex:n.paidCapex||0,spec:n.spec,role:n.role,rate:n.rate,ratio:n.ratio,workers:n.workers,target:n.target,inBuf:n.inBuf,bale:n.bale,bales:n.bales,containers:n.containers,active:n.active,disposeHeap:n.disposeHeap,evacT:n.evacT,truckDue:n.truckDue||0,offAllow:n.offAllow||0,balesSold:n.balesSold||0,offSold:n.offSold||0,supplier:(n.supplier!==undefined?n.supplier:null),buyer:n.buyer||null,label:n.label||null,sortSide:n.sortSide||null,splitLayout:n.splitLayout||null,contEvac:n.contEvac||0,massEvac:n.massEvac||0,_inMass:n._inMass||0,_outMass:n._outMass||0,_sortMass:n._sortMass||0,_restMass:n._restMass||0})),
+    nodes:G.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,w:n.w,h:n.h,gx:(n.gx!=null?n.gx:null),gy:(n.gy!=null?n.gy:null),rot:n.rot||0,site:n.site||null,paidCapex:n.paidCapex||0,spec:n.spec,role:n.role,rate:n.rate,ratio:n.ratio,workers:n.workers,target:n.target,inBuf:n.inBuf,bale:n.bale,bales:n.bales,containers:n.containers,active:n.active,disposeHeap:n.disposeHeap,evacT:n.evacT,truckDue:n.truckDue||0,mandDue:n.mandDue||null,offAllow:n.offAllow||0,balesSold:n.balesSold||0,offSold:n.offSold||0,supplier:(n.supplier!==undefined?n.supplier:null),buyer:n.buyer||null,label:n.label||null,sortSide:n.sortSide||null,splitLayout:n.splitLayout||null,contEvac:n.contEvac||0,massEvac:n.massEvac||0,_inMass:n._inMass||0,_outMass:n._outMass||0,_sortMass:n._sortMass||0,_restMass:n._restMass||0})),
     edges:G.edges.map(e=>({from:e.from,fromPort:e.fromPort,to:e.to,speed:e.speed,kind:e.kind||null,route:e.route||null,max:e.max||null,fromSide:e.fromSide||null,toSide:e.toSide||null,
       sprites:e.sprites.map(sp=>({mat:sp.mat,st:sp.st,t:sp.t,v:sp.v||0,bale:sp.bale?JSON.parse(JSON.stringify(sp.bale)):null}))}))};}
 function saveGame(){if(G&&G.mode==="career"&&CAREER)CAREER.bank=G.cash;try{const s=serializeGame();if(s)localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(e){}}
@@ -747,7 +816,12 @@ function clearSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
 // ── Career layer ── per-career persistence (bank funds R&D; tech + claimed objectives + lifetime counters).
 // Scoped to a career save (not global); Sandbox treats the whole tree as already unlocked.
 const CAREER_KEY="recycle.career",ECON_V=2; // ECON_V bumps when the money scale changes (dev30 reset = v2); older careers get reseeded
-function newCareer(){return{v:1,econV:ECON_V,bank:ECON.startCash,tech:[],claimed:[],counters:{exportedOnSpec:0,onSpec:{},profitBanked:0,bestDiversion:0,bestDailyNet:0,maxUnits:0,contractsWon:0,flags:{ran:{},tutorialComplete:false,sponsored:false}}};}
+function newMandateState(){return{seen:[],pending:[],active:[]};} // seen: ever-triggered ids (never re-fire) · pending: [{id,warnDay,arriveDay}] · active: [{id,day}]
+function newCareer(){return{v:1,econV:ECON_V,bank:ECON.startCash,tech:[],claimed:[],
+  mandates:newMandateState(),
+  pressure:{armed:false,day:0},   // armed once all 6 products run; day = the sim-day it armed (the escalation clock's ZERO — a slow learner is not slammed with year-5 pricing on arrival)
+  landfillYr:{y:1,t:0,in:0},      // this pressure-year's buried tonnes (t) and accepted tonnes (in) — the allowance base
+  counters:{exportedOnSpec:0,onSpec:{},profitBanked:0,bestDiversion:0,bestDailyNet:0,maxUnits:0,contractsWon:0,flags:{ran:{},tutorialComplete:false,sponsored:false}}};}
 let CAREER=newCareer();
 function loadCareer(){CAREER=newCareer();recomputeTechMod();} // no shared career; each game carries its own G.career
 function purgeLegacyCareer(){try{localStorage.removeItem(CAREER_KEY);}catch(e){}} // drop the old shared key if present
@@ -757,7 +831,7 @@ function settleCareer(win){ if(!G||G.mode==="sandbox")return; // settle a finish
   const start=(G.startCash!=null?G.startCash:((G.scenario&&G.scenario.startCash)||ECON.startCash)), profit=G.cash-start;
   CAREER.bank=G.cash; if(profit>0)CAREER.counters.profitBanked+=profit; if(win)CAREER.counters.contractsWon++;
   for(const k in G.sold){const so=G.sold[k]; if(so&&so.on>0)CAREER.counters.onSpec[k]=(CAREER.counters.onSpec[k]||0)+so.on;} // per-material lifetime on-spec mass
-  const div=G.delivered>0?Math.max(0,1-G.landfill/G.delivered):0; if(div>CAREER.counters.bestDiversion)CAREER.counters.bestDiversion=div;
+  bankDiversion();
   const mc=G.nodes.reduce((s,x)=>s+(x.type!=="storage"?1:0),0); if(mc>CAREER.counters.maxUnits)CAREER.counters.maxUnits=mc;
   if(win&&G.contractKey==="pmc"){const f=CAREER.counters.flags;if(f)f.tutorialComplete=true;}
   saveCareer();}
@@ -832,6 +906,11 @@ const DIVERSION_PREMIUM=20;   // €/t baled & sold = kept out of landfill
 const EPR_RATE=0.05;          // +5% of on-spec revenue, green/EPR subsidy
 const SPONSOR_REP=250;        // cumulative on-spec tonnes to earn a corporate sponsor
 const SPONSOR_DISCOUNT=0.80;  // sponsor covers 20% of new-equipment capex
+// ── THE GATE ── the plant is only judged "complete" once every product line genuinely runs.
+// Until then NO pressure applies (no imposed contracts, no landfill escalation): a player still
+// learning the line must never be punished. specsCovered = how many SPECS have cleared SPEC_COVER_T
+// tonnes on-spec — proof of a working line each, not a lucky bale.
+const SPEC_COVER_T=5;         // on-spec tonnes of ONE product before that line counts as proven
 // One-shot milestone grants that fund expansion + R&D fast (Growth = scale, Impact = green track record).
 const OBJ={
   a_first:{cat:"grow",  name:"Sell your first on-spec bale",         cond:{metric:"exportedOnSpec",gte:0.1}, reward:200000},
@@ -842,9 +921,28 @@ const OBJ={
   a_100t :{cat:"impact",name:"Recover 100 t on-spec",               cond:{metric:"exportedOnSpec",gte:100},  reward:150000, req:["a_first"]},
   a_div  :{cat:"impact",name:"Hit 80% landfill diversion",          cond:{metric:"diversion",gte:0.8},      reward:150000},
   a_rep  :{cat:"impact",name:"Earn a corporate sponsor (250 t on-spec)",cond:{metric:"exportedOnSpec",gte:250},reward:100000, sponsor:true}, // signing bonus + a permanent −20% equipment-capex discount (flags.sponsored)
+  a_all6 :{cat:"impact",name:"Run a full line — all 6 products on-spec",cond:{metric:"specsCovered",gte:6},reward:300000, req:["a_first"]}, // THE GATE: claiming is optional, but meeting it ARMS the pressure system (see armPressure)
 };
+function specsCovered(){const os=(CAREER.counters&&CAREER.counters.onSpec)||{};let n=0; // how many products have a PROVEN line
+  for(const k in SPECS)if((os[k]||0)>=SPEC_COVER_T)n++; return n;}
+/* ── IMPOSED MANDATES ──────────────────────────────────────────────────────────
+ * The world forces waste on a proven operator. Declarative, mirroring OBJ so objMetric()
+ * is reused verbatim. There is NO deadline, NO fine, NO compliance check: an imposed truck
+ * simply CANNOT be turned away, and what the bunkers can't hold is buried and billed. That
+ * is the entire enforcement mechanism. Rate/composition/gate live on the COMPANY stream
+ * (single source of truth) so a mandated supplier behaves like any other everywhere else.
+ * Nothing here fires until the pressure system is armed — see armPressure(). */
+const MANDATE={
+  m_kerbside:{name:"Kerbside contract imposed",  cond:{metric:"exportedOnSpec",gte:150}, supplier:"skip_bizet",      warnDays:2, grant:250000},
+  m_commercial:{name:"Commercial waste imposed", cond:{metric:"dailyNet",gte:12000}, req:["m_kerbside"],  supplier:"poubelle_air",    warnDays:2, grant:400000},
+  m_regional:{name:"Regional residual imposed",  cond:{metric:"exportedOnSpec",gte:600}, req:["m_commercial"], supplier:"watco_syndicate", warnDays:3, grant:700000},
+};
+function mandateDef(id){return (id&&MANDATE[id])||null;}
+function mandateSups(){const a=[];if(!G||G.mode!=="career"||!CAREER||!CAREER.mandates)return a; // supplier ids currently imposed
+  for(const m of CAREER.mandates.active||[]){const d=mandateDef(m.id);if(d&&a.indexOf(d.supplier)<0)a.push(d.supplier);}
+  return a;}
 function objMetric(m){const c=CAREER.counters;
-  return m==="exportedOnSpec"?c.exportedOnSpec : m==="profitBanked"?c.profitBanked : m==="unitsOnLine"?c.maxUnits : m==="diversion"?c.bestDiversion : m==="dailyNet"?(c.bestDailyNet||0) : m==="contractsWon"?c.contractsWon : 0;}
+  return m==="exportedOnSpec"?c.exportedOnSpec : m==="profitBanked"?c.profitBanked : m==="unitsOnLine"?c.maxUnits : m==="diversion"?c.bestDiversion : m==="dailyNet"?(c.bestDailyNet||0) : m==="contractsWon"?c.contractsWon : m==="specsCovered"?specsCovered() : 0;}
 function objMet(o){const cd=o.cond,f=CAREER.counters.flags||{};
   if(cd.metric)return objMetric(cd.metric)>=cd.gte;
   if(cd.event==="tutorialComplete")return !!f.tutorialComplete;
@@ -887,7 +985,7 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
     carryEmit:0,carry:{},energy:0,t:s.t||0,wageTot:s.wageTot||0,
     ledger:Object.assign({tipping:0,sales:0,subsidies:0,grants:0,labour:0,logistics:0,power:0,landfill:0,capex:0},s.ledger||{}),
     connecting:null,pointer:null,
-    logi:_lg,sprSeq:s.sprSeq||0,fleet:Object.assign({},_lg.fleet0,s.fleet||{}),vehicles:(s.vehicles||[]).map(v=>Object.assign({},v,{payload:v.payload||blankBuf(),baleLoad:v.baleLoad||[]})),jobs:[],vehId:s.vehId||1,trucks:s.trucks||[],truckId:s.truckId||1,
+    logi:_lg,sprSeq:s.sprSeq||0,fleet:Object.assign({},_lg.fleet0,s.fleet||{}),vehicles:(s.vehicles||[]).map(v=>Object.assign({},v,{payload:migrateBuf(v.payload),baleLoad:(v.baleLoad||[]).map(migrateBuf)})),jobs:[],vehId:s.vehId||1,trucks:s.trucks||[],truckId:s.truckId||1,
     contract:{name:base.name,tonnage:base.tonnage,comp:base.comp,product:base.product||"PET",tiers:base.tiers||{gold:2.4,silver:3.0},premium:base.premium||null,units:base.units||null,feedTph:base.feedTph||4,supplier:(scn&&scn.supplier)||base.supplier||null}};
   if(s.mode==="sandbox")G.contract.tonnage=Infinity;
   if(G.continuous)G.contract.tonnage=Infinity;
@@ -897,18 +995,27 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
     if(!TYPES[type])throw new Error("restoreGame: unknown type "+type); // B2: validateSave gates this; defensive so no path can silently drop a node
     G.nodes.push({id:ns.id,type,x:ns.x,y:ns.y,w:ns.w||78,h:ns.h||66,gx:(ns.gx!=null?ns.gx:null),gy:(ns.gy!=null?ns.gy:null),rot:ns.rot||0,site:ns.site||null,paidCapex:(ns.paidCapex!=null?ns.paidCapex:(ns.capex!=null?ns.capex:0)),
       inBuf:migrateBuf(ns.inBuf),ratio:ns.ratio==null?0.5:ns.ratio,spec:spec||"PET",
-      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,role:role||(type==="storage"?"buffer":null),rate:ns.rate||4,
+      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,mandDue:(ns.mandDue&&typeof ns.mandDue==="object")?Object.assign({},ns.mandDue):null,offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,role:role||(type==="storage"?"buffer":null),rate:ns.rate||4,
       jam:0,load:0,state:"ok",wrongSize:0,workers:ns.workers||2,target:ns.target||"film",supplier:ns.supplier||null,buyer:ns.buyer||null,label:ns.label||null,sortSide:ns.sortSide||null,splitLayout:ns.splitLayout||null,contEvac:ns.contEvac||0,massEvac:ns.massEvac||0,_inMass:ns._inMass||0,_outMass:ns._outMass||0,_sortMass:ns._sortMass||0,_restMass:ns._restMass||0});}
   const live=new Set(G.nodes.map(n=>n.id));
   for(const es of s.edges)if(live.has(es.from)&&live.has(es.to)){const _wl=(es.kind==="conveyor"&&es.route)?pathLen(es.route):0;
   G.edges.push({from:es.from,fromPort:es.fromPort,to:es.to,speed:(_wl>0)?SITE_BELT_SPEED/_wl:(es.speed||EDGE_SPEED),kind:es.kind||null,route:es.route||null,max:(_wl>0)?beltMaxFor(_wl):(es.max||null),fromSide:es.fromSide||null,toSide:es.toSide||null,
-    sprites:(es.sprites||[]).map(sp=>({mat:sp.mat,st:sp.st,t:sp.t||0,v:sp.v||0,bale:sp.bale?migrateBuf(sp.bale):null}))});} // in-transit material survives the round-trip (NNG-1)
+    sprites:(es.sprites||[]).map(sp=>({mat:(MAT.indexOf(sp.mat)>=0?sp.mat:MAT[0]),st:sp.st,t:sp.t||0,v:sp.v||0,bale:sp.bale?migrateBuf(sp.bale):null}))});} // in-transit material survives the round-trip (NNG-1); an unknown material remaps rather than crashing dst.inBuf[mat][st] on arrival
   // per-game progression: rebuild from the save (or seed fresh for legacy saves), then point CAREER at it
   G.opexHistory=s.opexHistory?s.opexHistory.slice():[];
   if(s._opexDay!=null){G._opexDay=s._opexDay;G._opexStart=s._opexStart||null;}
   if(s._pnlDay!=null){G._pnlDay=s._pnlDay;G._pnlDayStart=s._pnlDayStart;G._pnlYesterday=s._pnlYesterday;}
   G.career=s.career?Object.assign(newCareer(),s.career):newCareer();
   {const c=G.career.counters;if(!c.flags)c.flags={ran:{},tutorialComplete:false};if(!c.flags.ran)c.flags.ran={};if(!c.onSpec)c.onSpec={};}
+  {const M=G.career.mandates; // additive fields: default them here (Object.assign above is shallow). Filtering by
+   if(!M||typeof M!=="object")G.career.mandates=newMandateState(); // mandateDef means a mandate DELETED from the
+   else{if(!Array.isArray(M.seen))M.seen=[];if(!Array.isArray(M.pending))M.pending=[];if(!Array.isArray(M.active))M.active=[]; // table degrades gracefully instead
+     M.seen=M.seen.filter(mandateDef);                                                    // of crashing the tick
+     M.pending=M.pending.filter(p=>p&&mandateDef(p.id));M.active=M.active.filter(a=>a&&mandateDef(a.id));}
+   const P=G.career.pressure;
+   if(!P||typeof P!=="object")G.career.pressure={armed:false,day:0};
+   const L=G.career.landfillYr;
+   if(!L||typeof L!=="object")G.career.landfillYr={y:1,t:0,in:0};}
   if(G.career.bank==null)G.career.bank=G.cash;
   CAREER=G.career;recomputeTechMod();
   UI.viewReset();}
@@ -945,6 +1052,49 @@ function pathAt(P,f){if(!P||!P.length)return{x:0,y:0};if(P.length===1||f<=0)retu
   let d=f*T;for(let i=1;i<P.length;i++){const seg=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);
     if(d<=seg){const u=seg>0?d/seg:0;return{x:P[i-1][0]+(P[i][0]-P[i-1][0])*u,y:P[i-1][1]+(P[i][1]-P[i-1][1])*u};}d-=seg;}
   const e=P[P.length-1];return{x:e[0],y:e[1]};}
+/* ── Belt crossings (pure geometry, NNG-4) ─────────────────────────────────────
+ * Conveyor routes are strictly axis-aligned (siteRouteFor), so two belts meet either at ONE
+ * point (an H segment × a V segment) or COLLINEARLY along a shared lane. Only point meets are
+ * bridges: a shared lane has no "under", and masking it would erase a whole run.
+ * Z RULE: the HORIZONTAL run is the overpass. Purely local geometry ⇒ identical after a reroute,
+ * a save/reload and a demolition, with no ids, no G.edges order and no global ranking — and
+ * trivially mirrored in hitTest so the tap always matches what you can see.
+ * Routes are NOT cell-aligned (anchors land on half-cells, V-H-V midpoints on quarter-cells),
+ * so this works in WORLD PX; a per-cell test would miss crossings outright.
+ * e.route is never modified — belt capacity, speed and capex are all derived from it. */
+const XING_PAD=10; // skip a meet this close to ANY route vertex: siteRoundedPath rounds corners (R=9),
+                   // so near an elbow the drawn pixels are not where the maths says they are
+function _axisSeg(a,b){const h=Math.abs(a[1]-b[1])<1e-6,v=Math.abs(a[0]-b[0])<1e-6;
+  return (h&&v)?null:(h?"h":(v?"v":null));} // zero-length or diagonal ⇒ not a belt run
+function _nearVtx(P,x,y,pad){for(let i=0;i<P.length;i++)
+  if(Math.abs(P[i][0]-x)<pad&&Math.abs(P[i][1]-y)<pad)return true; return false;}
+function segCross(a0,a1,b0,b1){ // axis-aligned pair → [x,y] | "overlap" | null
+  const A=_axisSeg(a0,a1),B=_axisSeg(b0,b1); if(!A||!B)return null;
+  const win=(v,p,q)=>v>=Math.min(p,q)-1e-6&&v<=Math.max(p,q)+1e-6;
+  if(A!==B){const V=(A==="v")?[a0,a1]:[b0,b1],H=(A==="v")?[b0,b1]:[a0,a1];
+    const x=V[0][0],y=H[0][1];
+    return (win(x,H[0][0],H[1][0])&&win(y,V[0][1],V[1][1]))?[x,y]:null;}
+  const ax=(A==="v")?0:1;                                   // parallel: same lane?
+  if(Math.abs(a0[ax]-b0[ax])>1e-6)return null;
+  const o=1-ax,lo=Math.max(Math.min(a0[o],a1[o]),Math.min(b0[o],b1[o])),
+              hi=Math.min(Math.max(a0[o],a1[o]),Math.max(b0[o],b1[o]));
+  return (hi-lo>1e-6)?"overlap":null;}
+function siteBeltCrossings(edges,nodes){ // → [{x,y,top,bot,topH}] in world px
+  const E=[];for(const e of (edges||[]))if(e.kind==="conveyor"&&e.route&&e.route.length>1)E.push(e);
+  const inNode=(x,y)=>{if(!nodes)return false;
+    for(const n of nodes){if(n.gx==null)continue;
+      if(Math.abs(x-n.x)<=n.w/2&&Math.abs(y-n.y)<=n.h/2)return true;}return false;};
+  const out=[];
+  for(let i=0;i<E.length;i++)for(let j=i+1;j<E.length;j++){
+    const A=E[i].route,B=E[j].route;
+    for(let a=1;a<A.length;a++)for(let b=1;b<B.length;b++){
+      const p=segCross(A[a-1],A[a],B[b-1],B[b]);
+      if(!p||p==="overlap")continue;                                            // shared lane ≠ bridge
+      if(_nearVtx(A,p[0],p[1],XING_PAD)||_nearVtx(B,p[0],p[1],XING_PAD))continue; // elbow, or a belt ENDING on another (shared inlet)
+      if(inNode(p[0],p[1]))continue;                                            // hidden under a unit card anyway
+      const aH=_axisSeg(A[a-1],A[a])==="h";
+      out.push({x:p[0],y:p[1],top:aH?E[i]:E[j],bot:aH?E[j]:E[i],topH:true});}}
+  return out;}
 function edgeRouteBetween(aId,bId){for(const e of G.edges){if(!e.route)continue;
   if(e.from===aId&&e.to===bId)return e.route.slice();
   if(e.from===bId&&e.to===aId)return e.route.slice().reverse();}return null;}
@@ -1631,7 +1781,7 @@ function truckStopCell(n){ // apron cell adjacent to the node it serves
   return null;}
 function truckPathWorld(a,b){const cells=truckBfs(a,b);if(!cells)return null;
   return _simplifyPts(cells.map(c=>[(c[0]+0.5)*CELL,(c[1]+0.5)*CELL]));}
-function truckInflight(cls,nodeId){let k=0;for(const t of (G.trucks||[]))if(t.cls===cls&&t.nodeId===nodeId&&t.state!=="exit")k++;return k;}
+function truckInflight(cls,nodeId,sup){let k=0;for(const t of (G.trucks||[]))if(t.cls===cls&&t.nodeId===nodeId&&t.state!=="exit"&&(sup==null||t.sup===sup))k++;return k;} // `sup` filter: without it truckMaxInflight becomes a SHARED cap and silently throttles an imposed stream
 function truckDockLegs(n,cls,slot){ // S-MOTION legs for a boundary truck serving node n
   const b=berthPointFor(n,cls,slot,true),o=b.out;
   const lane=[b.x+o[0]*DOCK_CLEAR,b.y+o[1]*DOCK_CLEAR];
@@ -1652,8 +1802,9 @@ function truckDockLegs(n,cls,slot){ // S-MOTION legs for a boundary truck servin
   let backW=_simplifyPts(back.map(w));backW.reverse();backW=_trimNear(backW,lane,CELL*0.8);backW.reverse();
   const exitPath=_cleanPath([[b.x,b.y],lane.slice(),...backW]);
   return{enter:{path:enterPath,revA:0,revB},exit:{path:exitPath,revA:0,revB:0}};}
-function spawnSiteTruck(cls,n){ if(!G.trucks)G.trucks=[];
+function spawnSiteTruck(cls,n,opts){ if(!G.trucks)G.trucks=[];
   const t={id:G.truckId++,cls,nodeId:n.id,state:"toStop",t0:G.t,
+    sup:(opts&&opts.sup)||null,forced:!!(opts&&opts.forced), // which stream this truck carries (G.trucks is serialized wholesale, so these round-trip free)
     tipped:0,balesSold:0,hauled:0,plan:0,loaded:0,dw:0,dwT0:0};
   t.berthAt=n.id;t.berth=claimBerth(n.id,t);
   const dk=truckDockLegs(n,cls,t.berth);if(!dk){G.truckId--;return null;}
@@ -1666,15 +1817,36 @@ function truckPos(t){ // world pose (position + SPRITE heading), pure — S-MOTI
   const f=(t.eta>t.t0)?Math.max(0,Math.min(1,(G.t-t.t0)/(t.eta-t.t0))):1;
   return legPose(leg,f);}
 function baleDomM(b){const c=comp(b);let dom="PET",mx=0;for(const m of MAT)if(c[m]>mx){mx=c[m];dom=m;}return dom;}
+/* ── Inbound tipping ───────────────────────────────────────────────────────────
+ * ONE choke-point shared by the site-truck and non-site paths (they used to duplicate it).
+ * `forced` IS the imposed-mandate mechanic: a voluntary truck is turned away by a full bunker
+ * (no tip, no charge — fork C), while an imposed one tips the WHOLE load and buries what won't
+ * fit, at your cost. Mass balance holds either way (NNG-1): deliveredTot grows by what was
+ * accepted, `fits` particles are held, the remainder goes through dumpToLandfill. */
+function bookTip(b,mass,gate){
+  const v=mass*gate;G.cash+=v;G.ledger.tipping+=v;
+  G.delivered+=mass;G.deliveredTot+=mass;
+  const L=landfillYear();if(L)L.in+=mass;      // allowance base = what we ACCEPTED this pressure-year
+  b.truckFlash=1;b._inMass=(b._inMass||0)+mass;}
+function tipLoad(b,supId,load,forced){ // tip ONE truckload into bunker b → particles actually held
+  const str=supplierStream(supId);
+  const cmp=(str&&str.comp)||G.contract.comp,gate=(str&&str.gate)||ECON.tipping;
+  const room=Math.max(0,capOf(b)-cnt(b.inBuf));
+  const fits=Math.max(0,Math.min(load,room)),over=Math.max(0,load-fits);
+  for(let k=0;k<fits;k++){let r=rng(),a=0,p="paper";for(const m of MAT){a+=cmp[m]||0;if(r<a){p=m;break;}}b.inBuf[p][0]++;}
+  if(forced){
+    if(load>0)bookTip(b,load*PMASS,gate);        // the whole load is accepted and paid for…
+    if(over>0){dumpToLandfill(over*PMASS);       // …and the surplus is buried and billed. NO pause: the
+      b.state="bunkerfull";                      // punishment is a silent economic bleed, not a popup.
+      if(UI.onOverflow)UI.onOverflow("mandate");}
+  }else if(fits>0)bookTip(b,fits*PMASS,gate);
+  return fits;}
 function _truckEvent(t){const n=nodeById(t.nodeId);if(!n)return;
-  if(t.cls==="supplier"){ // TIP: dump what fits, pay gate on the dumped mass, divert the rest (NNG-3)
-    const _idle=n.supplier==="__none";
-    const _str=(!_idle)?supplierStream((n.supplier&&n.supplier!=="__none")?n.supplier:(G.contract&&G.contract.supplier)):null;
-    const _comp=(_str&&_str.comp)||G.contract.comp,_gate=(_str&&_str.gate)||ECON.tipping;
-    let load=Math.min(G.logi.supTruck,capOf(n)-cnt(n.inBuf));
-    for(let k=0;k<load;k++){let r=rng(),a=0,p="paper";for(const m of MAT){a+=_comp[m]||0;if(r<a){p=m;break;}}n.inBuf[p][0]++;}
-    if(load>0){const m=load*PMASS;G.cash+=m*_gate;G.ledger.tipping+=m*_gate;G.delivered+=m;G.deliveredTot+=m;n.truckFlash=1;t.tipped=load;n._inMass=(n._inMass||0)+m;}
-    if(load<G.logi.supTruck){n.state="bunkerfull";if(!G.overflowAlerted){G.overflowAlerted=true;G.running=false;if(UI.onOverflow)UI.onOverflow();}}}
+  if(t.cls==="supplier"){ // TIP: voluntary → dump what fits and divert the rest (NNG-3); imposed → tip it ALL, bury the surplus
+    const sup=t.sup||((n.supplier&&n.supplier!=="__none")?n.supplier:(G.contract&&G.contract.supplier)); // t.sup: the stream this truck was DISPATCHED for — switching the bunker mid-flight no longer swaps its cargo
+    const held=tipLoad(n,sup,G.logi.supTruck,!!t.forced);
+    t.tipped=held;
+    if(!t.forced&&held<G.logi.supTruck){n.state="bunkerfull";if(!G.overflowAlerted){G.overflowAlerted=true;G.running=false;if(UI.onOverflow)UI.onOverflow("full");}}}
   else if(t.cls==="client"){ // finish the planned load (whatever the incremental pass hasn't taken yet)
     const off=buyerOfftake(n),bm=BALE_N*PMASS;
     while(t.loaded<t.plan&&n.bales.length>0&&(off===Infinity||(n.offAllow||0)>=bm)){
@@ -1712,9 +1884,47 @@ function careerDaily(){ if(!G||G.mode!=="career"||!CAREER||!CAREER.counters)retu
   if(G._cDay==null){G._cDay=day;G._cNet=net;return;}
   if(day>G._cDay){const dn=(net-G._cNet)/(day-G._cDay);
     if(dn>(CAREER.counters.bestDailyNet||0))CAREER.counters.bestDailyNet=dn;
-    const dv=G.delivered>0?Math.max(0,1-G.landfill/G.delivered):0; if(dv>CAREER.counters.bestDiversion)CAREER.counters.bestDiversion=dv;
+    bankDiversion();
     const mc=G.nodes.reduce((a,x)=>a+(x.type!=="storage"?1:0),0); if(mc>CAREER.counters.maxUnits)CAREER.counters.maxUnits=mc; // count built OR loaded units
-    G._cDay=day;G._cNet=net;}}
+    G._cDay=day;G._cNet=net;
+    armPressure(day);mandatePoll(day);}}
+/* ── THE GATE ──────────────────────────────────────────────────────────────────
+ * No pressure of any kind — no imposed contract, no landfill escalation — until the player
+ * has PROVEN a full line (all 6 products on-spec). A player still learning must never be
+ * punished. The escalation clock starts here too, so taking ten years to learn does not mean
+ * arriving to year-10 pricing. Arming is one-way and independent of claiming the objective. */
+function armPressure(day){
+  if(!G||G.mode!=="career"||!G.continuous||!CAREER)return;
+  const P=CAREER.pressure||(CAREER.pressure={armed:false,day:0});
+  if(P.armed)return;
+  const f=(CAREER.counters&&CAREER.counters.flags)||{};
+  if(G.scenario&&G.scenario.tuto&&!f.tutorialComplete)return;   // never ambush the guided build
+  if(specsCovered()<6)return;
+  P.armed=true;P.day=day;
+  CAREER.landfillYr={y:1,t:0,in:0};                             // the allowance year starts NOW, not at campaign start
+  saveCareer();saveGame();
+  if(UI.onMandate)UI.onMandate({phase:"armed"});}
+function mandatePoll(day){
+  if(!pressureOn()||!G.continuous)return;                       // armed-only: this is the whole "not until 6 materials" gate
+  const M=CAREER.mandates||(CAREER.mandates=newMandateState());
+  // 1. arrivals — trucks start rolling and the grant lands (mirrors applyPhase: grant → mutate → notify)
+  for(let i=M.pending.length-1;i>=0;i--){const p=M.pending[i];if(day<p.arriveDay)continue;
+    const d=mandateDef(p.id);M.pending.splice(i,1);if(!d)continue;
+    M.active.push({id:p.id,day});
+    if(d.grant)postTx("grants",d.grant);                        // one-time cash — excluded from the recurring daily rate
+    for(const b of G.nodes)if(isBunker(b)){const D=b.mandDue||(b.mandDue={}); // prime, so the first load arrives in minutes
+      if((D[d.supplier]||0)<G.logi.supTruck*0.9)D[d.supplier]=Math.floor(G.logi.supTruck*0.9);} // (primeFirstTruck early-returns on "__none" — exactly the case a mandate must override)
+    G.running=false;saveCareer();saveGame();
+    if(UI.onMandate)UI.onMandate({phase:"arrive",id:p.id,def:d});}
+  // 2. new triggers — at most ONE per day
+  for(const id in MANDATE){const d=MANDATE[id];
+    if(M.seen.indexOf(id)>=0)continue;
+    if((d.req||[]).some(r=>M.seen.indexOf(r)<0))continue;
+    if(!(objMetric(d.cond.metric)>=d.cond.gte))continue;
+    M.seen.push(id);M.pending.push({id,warnDay:day,arriveDay:day+(d.warnDays||2)});
+    saveCareer();saveGame();
+    if(UI.onMandate)UI.onMandate({phase:"warn",id,def:d,days:(d.warnDays||2)});
+    break;}}
 function tick(dt){
   if(G&&G.scenario&&G.scenario.tuto&&!G._tutoDone)tutoAdvance();
   if(G.finished)return; G.energy=0;
@@ -1723,34 +1933,65 @@ function tick(dt){
   //    per bunker; each full truckload (supTruck) dumps what FITS and tips on the dumped weight (NNG-3,
   //    booking moves from per-particle to per-load, same totals). What doesn't fit DIVERTS — no landfill,
   //    no tip (fork C turn-away); the bunker reads BUNKER-FULL. Loaders drain bunker→feeder (stage 3d).
+  //    IMPOSED streams run as a SECOND pass over every bunker: never reassigning n.supplier keeps the
+  //    tonnage genuinely additive (the per-supplier split means stealing a bunker would add nothing,
+  //    and with one bunker it would merely SUBSTITUTE the player's stream) and never fights the picker.
+  const _mand=mandateSups();
+  let _bunkers=0;for(const b of G.nodes)if(isBunker(b))_bunkers++;
   const _supN={}; // how many active bunkers share each supplier — the contract rate is SPLIT among them, not duplicated
   for(const b of G.nodes){ if(!isBunker(b)||b.supplier==="__none")continue;
-    const sk=(b.supplier&&b.supplier!=="__none")?b.supplier:((G.contract&&G.contract.supplier)||"__default");_supN[sk]=(_supN[sk]||0)+1;}
+    const sk=(b.supplier&&b.supplier!=="__none")?b.supplier:((G.contract&&G.contract.supplier)||"__default");
+    if(_mand.indexOf(sk)>=0)continue;                                     // an imposed stream is owned by pass 2 — never deliver it twice
+    _supN[sk]=(_supN[sk]||0)+1;}
+  for(const s of _mand)_supN[s]=Math.max(1,_bunkers);                     // an imposed stream is split across EVERY bunker
   for(const b of G.nodes){ if(!isBunker(b))continue;
     b.state=(cnt(b.inBuf)>=capOf(b))?"bunkerfull":"ok";                   // WYSIWYG: full is full every tick, not only when a truck bounces (NNG-2)
     if(cnt(b.inBuf)<capOf(b)*0.5)G.overflowAlerted=false;                 // re-arm the full-alert once the bunker drains
+    // ── pass 1: the player's chosen stream (refusable) ──
     const _idle=b.supplier==="__none";
-    const _str=(G.continuous&&!_idle)?supplierStream((b.supplier&&b.supplier!=="__none")?b.supplier:(G.contract&&G.contract.supplier)):null;
-    const _comp=(_str&&_str.comp)||G.contract.comp,_frTot=(_str&&_str.feedTph)||G.contract.feedTph||4,_gate=(_str&&_str.gate)||ECON.tipping;
-    if(_idle)continue;
-    if(!(G.continuous||G.delivered<G.contract.tonnage))continue;          // tutorial tonnage gate
     const _sk=(b.supplier&&b.supplier!=="__none")?b.supplier:((G.contract&&G.contract.supplier)||"__default");
-    const _fr=_frTot/Math.max(1,_supN[_sk]||1);                          // SPLIT the contract's rate across its bunkers
-    b.truckDue=(b.truckDue||0)+_fr*dt/PMASS;                              // particles this bunker's share owes
-    if(b.gx!=null){ // SITE bunker (S-TRUCK): each due truckload becomes a visible truck; the gate fee books at the TIP
-      while(b.truckDue>=G.logi.supTruck&&truckInflight("supplier",b.id)<G.logi.truckMaxInflight){
-        b.truckDue-=G.logi.supTruck;spawnSiteTruck("supplier",b);}
-      continue;}
-    while(b.truckDue>=G.logi.supTruck&&(G.continuous||G.delivered<G.contract.tonnage)){
-      b.truckDue-=G.logi.supTruck;
-      let load=Math.min(G.logi.supTruck,capOf(b)-cnt(b.inBuf));             // dump what fits; remainder diverts
-      if(!G.continuous)load=Math.min(load,Math.max(0,Math.ceil((G.contract.tonnage-G.delivered)/PMASS))); // don't overshoot the quota
-      for(let k=0;k<load;k++){let r=rng(),a=0,p="paper";for(const m of MAT){a+=_comp[m]||0;if(r<a){p=m;break;}}b.inBuf[p][0]++;}
-      if(load>0){const m=load*PMASS;G.cash+=m*_gate;G.ledger.tipping+=m*_gate;G.delivered+=m;G.deliveredTot+=m;b.truckFlash=1;}
-      if(capOf(b)-cnt(b.inBuf)<=0||(load<G.logi.supTruck&&cnt(b.inBuf)>=capOf(b))){ // truck turned away on a full bunker
-        b.state="bunkerfull"; if(!G.overflowAlerted){G.overflowAlerted=true;G.running=false;if(UI.onOverflow)UI.onOverflow();} }
+    if(!_idle&&_mand.indexOf(_sk)<0&&(G.continuous||G.delivered<G.contract.tonnage)){
+      const _str=G.continuous?supplierStream(_sk):null;
+      const _frTot=(_str&&_str.feedTph)||G.contract.feedTph||4;
+      const _fr=_frTot/Math.max(1,_supN[_sk]||1);                          // SPLIT the contract's rate across its bunkers
+      b.truckDue=(b.truckDue||0)+_fr*dt/PMASS;                             // particles this bunker's share owes
+      if(b.gx!=null){ // SITE bunker (S-TRUCK): each due truckload becomes a visible truck; the gate fee books at the TIP
+        while(b.truckDue>=G.logi.supTruck&&truckInflight("supplier",b.id,_sk)<G.logi.truckMaxInflight){
+          b.truckDue-=G.logi.supTruck;spawnSiteTruck("supplier",b,{sup:_sk,forced:false});}
+      }else{
+        while(b.truckDue>=G.logi.supTruck&&(G.continuous||G.delivered<G.contract.tonnage)){
+          b.truckDue-=G.logi.supTruck;
+          let load=G.logi.supTruck;
+          if(!G.continuous)load=Math.min(load,Math.max(0,Math.ceil((G.contract.tonnage-G.delivered)/PMASS))); // don't overshoot the quota
+          const held=tipLoad(b,_sk,load,false);
+          if(capOf(b)-cnt(b.inBuf)<=0||(held<load&&cnt(b.inBuf)>=capOf(b))){ // truck turned away on a full bunker
+            b.state="bunkerfull"; if(!G.overflowAlerted){G.overflowAlerted=true;G.running=false;if(UI.onOverflow)UI.onOverflow("full");} }
+        }
+      }
+    }
+    // ── pass 2: IMPOSED streams — no __none guard, no tonnage gate, no turn-away ──
+    for(const ms of _mand){
+      const str=supplierStream(ms);if(!str)continue;
+      const fr=(str.feedTph||0)/Math.max(1,_supN[ms]||1);
+      const D=b.mandDue||(b.mandDue={});
+      D[ms]=(D[ms]||0)+fr*dt/PMASS;
+      if(b.gx!=null){
+        while(D[ms]>=G.logi.supTruck&&truckInflight("supplier",b.id,ms)<G.logi.truckMaxInflight){
+          D[ms]-=G.logi.supTruck;spawnSiteTruck("supplier",b,{sup:ms,forced:true});}
+      }else{
+        while(D[ms]>=G.logi.supTruck){D[ms]-=G.logi.supTruck;tipLoad(b,ms,G.logi.supTruck,true);}
+      }
     }
   }
+  // 0z. NO bunker at all: an imposed stream still arrives — tipped, then buried, then billed.
+  //     The trucks do not care whether you are ready. (Mass balance: in === held(0) + landfilled.)
+  if(_bunkers===0&&_mand.length){
+    for(const ms of _mand){const str=supplierStream(ms);if(!str)continue;
+      const m=(str.feedTph||0)*dt;if(!(m>0))continue;
+      const gate=str.gate||ECON.tipping,v=m*gate;
+      G.cash+=v;G.ledger.tipping+=v;G.delivered+=m;G.deliveredTot+=m;
+      const L=landfillYear();if(L)L.in+=m;
+      dumpToLandfill(m);}}
   // 2. advance sprites
   for(const e of G.edges){const dst=nodeById(e.to);if(!dst){for(const s of e.sprites)if(P.length<600)P.push(s);e.sprites.length=0;continue;}
     const dl=TYPES[dst.type];

@@ -1253,4 +1253,228 @@ const QC_SUITES={
   t.ok(r3>=r1-1e-9,"a hotter feed never lowers steady-state throughput");
 },
 };
+
+// ── THE GATE + imposed mandates + landfill teeth (2026-08-01) ──────────────────
+// Helpers: arm the pressure system by proving all 6 product lines, then step whole days.
+function qcCover6(){const os=CAREER.counters.onSpec={};for(const k in SPECS)os[k]=SPEC_COVER_T+1;}
+function qcDays(n){ // advance n whole in-game days through the real day-rollover path
+  for(let i=0;i<n;i++){G.t+=24;careerDaily();}}
+function qcArm(){qcCover6();qcDays(2);}
+
+QC_SUITES["pressure-gate"]=function(t){ // NOTHING bites until all 6 products actually run
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;
+  t.ok(specsCovered()===0,"a fresh career has proven no product lines");
+  t.ok(!pressureOn(),"pressure starts DISARMED");
+  t.ok(Math.abs(landfillBase()-ECON.landfillGate)<1e-9,"landfill is the flat base rate while disarmed");
+  t.ok(landfillAllowT()===Infinity,"no allowance applies while disarmed");
+  const c0=G.cash;dumpToLandfill(10);
+  t.ok(Math.abs((c0-G.cash)-10*ECON.landfillGate)<1e-6,"disarmed disposal costs exactly base × mass");
+  // partial coverage must NOT arm
+  {const os=CAREER.counters.onSpec={};let i=0;for(const k in SPECS){if(i++>=5)break;os[k]=SPEC_COVER_T+1;}}
+  qcDays(2);
+  t.ok(specsCovered()===5,"5 of 6 products proven");
+  t.ok(!pressureOn(),"5 of 6 does NOT arm the pressure system");
+  CAREER.counters.exportedOnSpec=99999;qcDays(3);
+  t.ok((CAREER.mandates.seen||[]).length===0,"no mandate can fire while disarmed, however successful the plant");
+  // the 6th line arms it
+  qcArm();
+  t.ok(specsCovered()===6&&pressureOn(),"proving all 6 products arms the pressure system");
+  t.ok(pressureYear()===1,"the escalation clock starts at year 1 ON ARMING (not at campaign start)");
+};
+
+QC_SUITES["landfill-escalation"]=function(t){ // pure pricing: escalating gate + self-scaling allowance
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  const d0=CAREER.pressure.day;
+  for(const y of [1,2,5,10]){G.t=(d0+(y-1)*360)*24;
+    t.ok(Math.abs(landfillBase()-ECON.landfillGate*Math.pow(1+ECON.lfEsc,y-1))<1e-6,"year "+y+" base = 110×1.12^"+(y-1)+" = €"+landfillBase().toFixed(0));}
+  G.t=d0*24;
+  CAREER.landfillYr={y:1,t:0,in:10000};                       // accepted 10 000 t → 35% allowance = 3500 t
+  t.ok(Math.abs(landfillAllowT()-3500)<1e-6,"allowance = 35% of accepted tonnage ("+landfillAllowT()+" t)");
+  const b=landfillBase();
+  let c=dumpToLandfill(3400);
+  t.ok(Math.abs(c-3400*b)<1e-6,"under the allowance charges the base rate");
+  c=dumpToLandfill(200);                                       // 100 t under + 100 t over
+  t.ok(Math.abs(c-(100*b+100*b*ECON.lfPenalty))<1e-6,"a dump STRADDLING the line is split-priced (no boundary exploit)");
+  t.ok(Math.abs(landfillGateNow()-b*ECON.lfPenalty)<1e-6,"past the allowance the next tonne costs ×"+ECON.lfPenalty);
+  t.ok(Math.abs(pnlReport().net-G.cash)<1,"net still reconciles to cash after penalty pricing");
+  CAREER.landfillYr={y:1,t:0,in:0};
+  t.ok(Math.abs(landfillAllowT()-ECON.lfAllowFreeT)<1e-6,"a plant that accepted nothing still gets the flat free tonnage");
+  G.t=(d0+360)*24;const L=landfillYear();
+  t.ok(L&&L.y===2&&L.t===0,"the allowance counter auto-rolls at the pressure-year boundary");
+};
+
+QC_SUITES["mandate-fires-once"]=function(t){
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  const first=MANDATE.m_kerbside;
+  CAREER.counters.exportedOnSpec=first.cond.gte+1;
+  const g0=G.ledger.grants;
+  qcDays(1);
+  t.ok(CAREER.mandates.seen.indexOf("m_kerbside")>=0,"the trigger metric queues the mandate");
+  t.ok(CAREER.mandates.pending.length===1,"it lands in PENDING first (a warning, not an ambush)");
+  t.ok(G.ledger.grants===g0,"no grant is paid during the warning window");
+  t.ok(CAREER.mandates.active.length===0,"trucks are not rolling yet");
+  qcDays(first.warnDays);
+  t.ok(CAREER.mandates.active.length===1,"after the warning window it goes ACTIVE");
+  t.ok(CAREER.mandates.pending.length===0,"and leaves pending");
+  t.ok(Math.abs((G.ledger.grants-g0)-first.grant)<1,"the capital grant lands exactly once (+"+first.grant+")");
+  const g1=G.ledger.grants,seen1=CAREER.mandates.seen.length;
+  qcDays(20);
+  t.ok(Math.abs(G.ledger.grants-g1)<1||CAREER.mandates.seen.length>seen1,"no double-payment of an already-active mandate");
+  t.ok(CAREER.mandates.seen.filter(x=>x==="m_kerbside").length===1,"a mandate is recorded once and can never re-fire");
+  // req chains: the 3rd mandate cannot precede the 2nd
+  t.ok(CAREER.mandates.seen.indexOf("m_regional")<0,"a mandate whose req chain is unmet stays dormant");
+};
+
+QC_SUITES["mandate-intake-and-overflow"]=function(t){
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  // rate over a long window AFTER a warm-up — truckloads are 10 t batches, so a cold pipeline reads low
+  const rate=()=>{qcTicks(3000);const t0=G.t,d0=G.deliveredTot;qcTicks(9000);return (G.deliveredTot-d0)/(G.t-t0);};
+  const base=rate();
+  // impose the first mandate
+  CAREER.counters.exportedOnSpec=MANDATE.m_kerbside.cond.gte+1;
+  qcDays(1+MANDATE.m_kerbside.warnDays);
+  t.ok(CAREER.mandates.active.length===1,"mandate active");
+  const add=supplierStream("skip_bizet").feedTph;
+  const withM=rate();
+  t.ok(withM>base+add*0.5,"imposed intake genuinely ADDS tonnage (was "+base.toFixed(2)+", now "+withM.toFixed(2)+" t/h, stream +"+add+")");
+  t.ok(qcBalanced().ok,"mass balance holds with an imposed stream running");
+  // pointing a bunker at the SAME mandated supplier must not double-deliver (the per-supplier split rule)
+  const bunkers=G.nodes.filter(isBunker);
+  if(bunkers.length){bunkers[0].supplier="skip_bizet";
+    const dbl=rate();
+    t.ok(dbl<withM+add*0.5,"aiming a bunker at a mandated supplier does NOT double-deliver ("+dbl.toFixed(2)+" vs "+withM.toFixed(2)+")");}
+  // a bunker set to __none still receives imposed trucks
+  for(const b of G.nodes)if(isBunker(b))b.supplier="__none";
+  t.ok(rate()>add*0.4,"an IDLE (__none) bunker still receives imposed trucks — it cannot be refused");
+  // full bunkers → the surplus is buried and billed, and the sim is NOT paused.
+  // (bump deliveredTot by the injected mass: stuffing buffers directly would create mass from nothing
+  //  and break the very invariant we are about to assert.)
+  {let inject=0;for(const b of G.nodes)if(isBunker(b)){const room=capOf(b)-cnt(b.inBuf);for(let k=0;k<room;k++){b.inBuf.paper[0]++;inject++;}}
+   G.deliveredTot+=inject*PMASS;G.delivered+=inject*PMASS;}
+  t.ok(qcBalanced().ok,"bookkeeping consistent before the overflow test");
+  G.running=true;const lf0=G.landfill,lg0=G.ledger.landfill;
+  qcTicks(4000);
+  t.ok(G.landfill>lf0,"a full bunker buries the imposed surplus ("+(G.landfill-lf0).toFixed(1)+" t)");
+  t.ok(G.ledger.landfill>lg0,"…and is charged for it");
+  t.ok(G.running===true,"imposed overflow does NOT pause the sim (a silent economic bleed, not a popup)");
+  t.ok(qcBalanced().ok,"mass balance holds through imposed overflow");
+};
+
+QC_SUITES["mandate-save-roundtrip"]=function(t){
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  CAREER.counters.exportedOnSpec=MANDATE.m_kerbside.cond.gte+1;
+  qcDays(1+MANDATE.m_kerbside.warnDays);qcTicks(600);
+  const armed=CAREER.pressure.armed,aday=CAREER.pressure.day,act=CAREER.mandates.active.length,seen=CAREER.mandates.seen.slice();
+  const lyr=JSON.stringify(CAREER.landfillYr);
+  const bWith=G.nodes.filter(n=>isBunker(n)&&n.mandDue&&Object.keys(n.mandDue).length).length;
+  const trucks=(G.trucks||[]).filter(x=>x.cls==="supplier"&&x.forced).length;
+  restoreGame(JSON.parse(JSON.stringify(serializeGame())));
+  t.ok(CAREER.pressure.armed===armed&&CAREER.pressure.day===aday,"pressure arming survives serialize→restore");
+  t.ok(JSON.stringify(CAREER.landfillYr)===lyr,"landfill-year counters survive");
+  t.ok(CAREER.mandates.active.length===act&&CAREER.mandates.seen.join()===seen.join(),"mandate state survives");
+  t.ok(G.nodes.filter(n=>isBunker(n)&&n.mandDue&&Object.keys(n.mandDue).length).length===bWith,"per-bunker mandDue accrual survives");
+  t.ok((G.trucks||[]).filter(x=>x.cls==="supplier"&&x.forced).length===trucks,"in-flight forced trucks keep t.forced");
+  t.ok(qcBalanced().ok,"books balanced after restore");
+  // a PRE-mandate save (no new keys at all) must back-fill, not throw
+  const s=JSON.parse(JSON.stringify(serializeGame()));
+  delete s.career.mandates;delete s.career.pressure;delete s.career.landfillYr;
+  for(const n of s.nodes)delete n.mandDue;
+  restoreGame(s);
+  t.ok(!!CAREER.mandates&&Array.isArray(CAREER.mandates.seen),"an old save back-fills mandate state");
+  t.ok(!!CAREER.pressure&&CAREER.pressure.armed===false,"an old save back-fills DISARMED (no surprise pressure on load)");
+  qcTicks(400);
+  t.ok(qcBalanced().ok,"an upgraded old save ticks and stays balanced");
+};
+
+QC_SUITES["diversion-metric"]=function(t){ // the 80%-diversion goal used to be free on day one
+  qcSiteGame();G.continuous=true;
+  const day=()=>{G.t+=24;careerDaily();};
+  G.t=0;careerDaily();
+  // (a) a plant that simply hasn't landfilled anything YET is not a 100%-diversion plant
+  G.delivered=2;G.deliveredTot=2;G.landfill=0;day();
+  t.ok(CAREER.counters.bestDiversion===0,"no diversion record is banked before a real operating history");
+  t.ok(!objMet(OBJ.a_div),"the 80% diversion grant is NOT claimable after 2 t with nothing buried");
+  // (b) past the threshold it banks the true lifetime ratio
+  G.deliveredTot=1000;G.delivered=1000;G.landfill=100;day();
+  t.ok(Math.abs(CAREER.counters.bestDiversion-0.9)<1e-6,"banks the real lifetime ratio (1000 t in, 100 t buried → 90%)");
+  t.ok(objMet(OBJ.a_div),"…and 90% clears the 80% goal");
+  // (c) the phase-reset collapse: G.delivered resets, G.landfill does not — the metric must not care
+  const before=diversionNow();
+  G.delivered=0;                        // exactly what applyPhase does
+  t.ok(Math.abs(diversionNow()-before)<1e-9,"diversion is immune to the phase reset of G.delivered");
+  t.ok(diversionNow()>0,"…and does not collapse to 0 afterwards");
+  // (d) burying more must lower the CURRENT reading (even though the banked best is a high-water mark)
+  const cur=diversionNow();G.landfill=500;
+  t.ok(diversionNow()<cur,"burying more lowers the current diversion");
+  t.ok(Math.abs(diversionNow()-0.5)<1e-6,"1000 t in, 500 t buried → 50%");
+};
+
+QC_SUITES["buffer-migration"]=function(t){ // every buffer that crosses save→restore must be MIGRATED, not trusted
+  t.ok(Object.keys(blankBuf()).join()===MAT.join(),"blankBuf is derived from MAT, not a hardcoded literal");
+  t.ok(MAT.every(m=>blankBuf()[m].length===ST),"every material gets ST state slots");
+  t.ok(MAT.every(m=>comp(blankBuf())[m]===0),"comp reports 0 (never undefined) for every material on an empty buffer");
+  // a buffer from an OLDER material list: missing keys must default, unknown keys must not destroy mass
+  const legacy={PET:[3,4],steel:[1,2],unobtainium:[5,6]};
+  const mg=migrateBuf(legacy);
+  t.ok(MAT.every(m=>!!mg[m]&&mg[m].length===ST),"a legacy buffer is rebuilt to the full MAT×ST shape");
+  t.ok(cnt(mg)===3+4+1+2+5+6,"a DROPPED material's particles are folded in, not silently destroyed (mass conserved)");
+  t.ok(mg.steel[0]===1&&mg.steel[1]===2,"surviving materials keep their exact counts");
+  // the three restore paths that used to bypass migrateBuf: vehicle payload, forklift baleLoad, sprite mat
+  qcSiteGame();qcTicks(4000);
+  const s=JSON.parse(JSON.stringify(serializeGame()));
+  let touched=0;
+  for(const v of (s.vehicles||[])){ if(v.payload){delete v.payload.alu;v.payload.unobtainium=[2,0];touched++;}
+    if(v.baleLoad)for(const b of v.baleLoad){delete b.alu;b.unobtainium=[1,0];touched++;} }
+  for(const e of (s.edges||[]))for(const sp of (e.sprites||[]))if(!sp.bale){sp.mat="unobtainium";touched++;}
+  t.ok(touched>0,"the fixture actually mangled some in-flight state ("+touched+" objects)");
+  let threw=false;try{restoreGame(s);}catch(e){threw=true;}
+  t.ok(!threw,"a save carrying an unknown material restores without throwing");
+  t.ok(G.vehicles.every(v=>MAT.every(m=>!!v.payload[m])),"restored vehicle payloads have every current material");
+  t.ok(G.vehicles.every(v=>(v.baleLoad||[]).every(b=>MAT.every(m=>!!b[m]))),"restored forklift bale loads too");
+  t.ok(G.edges.every(e=>e.sprites.every(sp=>sp.bale||MAT.indexOf(sp.mat)>=0)),"an unknown sprite material is remapped to a live one");
+  let ran=false;try{qcTicks(2000);ran=true;}catch(e){ran=false;}
+  t.ok(ran,"the restored game ticks — in-flight material reaches its destination without a missing-key crash");
+};
+
+QC_SUITES["site-crossings"]=function(t){ // belt overpasses: pure geometry, order-independent, save-stable
+  const B=(...p)=>({kind:"conveyor",route:p,sprites:[]});
+  const V=B([255,450],[255,600]),H=B([210,525],[345,525]);
+  const X=siteBeltCrossings([V,H]);
+  t.ok(X.length===1,"one H×V meet = one crossing (got "+X.length+")");
+  t.ok(X[0].x===255&&X[0].y===525,"crossing sits at the exact world point");
+  t.ok(X[0].top===H&&X[0].bot===V,"the HORIZONTAL run is the overpass");
+  t.ok(siteBeltCrossings([H,V])[0].top===H,"the z rule is order-independent (G.edges order must never decide)");
+  t.ok(siteBeltCrossings([B([127.5,300],[127.5,420]),B([60,375],[300,375])]).length===1,
+       "a quarter-cell crossing is found in world px (a per-CELL test would miss it)");
+  t.ok(siteBeltCrossings([B([0,90],[300,90]),B([120,90],[420,90])]).length===0,"a collinear overlap is a shared lane, not a bridge");
+  t.ok(siteBeltCrossings([B([0,90],[300,90]),B([150,90],[150,240])]).length===0,"a belt ENDING on another (shared inlet) is not a crossing");
+  t.ok(siteBeltCrossings([B([0,90],[300,90]),B([0,120],[300,120])]).length===0,"parallel belts never cross");
+  t.ok(siteBeltCrossings([{kind:"vehicle",route:[[255,450],[255,600]],sprites:[]},H]).length===0,"haul roads are excluded");
+  t.ok(siteBeltCrossings([V,H],[{gx:8,gy:16,x:255,y:525,w:60,h:60}]).length===0,"a meet hidden under a unit card is skipped");
+  // …and on the REAL reference plant: whatever it contains must be self-consistent and save-stable
+  qcSiteGame();
+  const on=(P,x,y)=>{for(let i=1;i<P.length;i++){const p=P[i-1],q=P[i];
+    if(x>=Math.min(p[0],q[0])-0.01&&x<=Math.max(p[0],q[0])+0.01&&
+       y>=Math.min(p[1],q[1])-0.01&&y<=Math.max(p[1],q[1])+0.01)return true;}return false;};
+  const key=cs=>cs.map(z=>z.x+"/"+z.y+"/"+z.top.from+">"+z.top.to).sort().join("|");
+  const X0=siteBeltCrossings(G.edges,G.nodes);
+  t.ok(X0.every(z=>on(z.top.route,z.x,z.y)&&on(z.bot.route,z.x,z.y)),"every crossing lies on BOTH routes ("+X0.length+" found)");
+  t.ok(X0.every(z=>z.top!==z.bot),"a belt never bridges itself");
+  const k0=key(X0);
+  restoreGame(JSON.parse(JSON.stringify(serializeGame())));
+  t.ok(key(siteBeltCrossings(G.edges,G.nodes))===k0,"the crossing set + z rule survive save→reload identically");
+};
+
+QC_SUITES["mandate-truck-carries-its-stream"]=function(t){ // the latent bug fixed by t.sup
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  CAREER.counters.exportedOnSpec=MANDATE.m_kerbside.cond.gte+1;
+  qcDays(1+MANDATE.m_kerbside.warnDays);qcTicks(2000);
+  const forced=(G.trucks||[]).filter(x=>x.cls==="supplier"&&x.forced);
+  t.ok(forced.length>0,"imposed trucks are dispatched ("+forced.length+")");
+  t.ok(forced.every(x=>x.sup==="skip_bizet"),"each imposed truck is stamped with the stream it carries");
+  const vol=(G.trucks||[]).filter(x=>x.cls==="supplier"&&!x.forced);
+  t.ok(vol.every(x=>x.sup&&x.sup!=="skip_bizet"),"voluntary trucks carry their own stream, never the imposed one");
+  t.ok(qcBalanced().ok,"mass balance holds with both stream types in flight");
+};
+
 /*@TESTS-END@*/

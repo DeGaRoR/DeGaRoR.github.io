@@ -6,42 +6,37 @@
 // the one creature in its own scene, at rest, in its own throwaway WebGL context.
 //
 // No physics — a portrait is a rest pose, and morphogenesis fully determines the
-// body without a sim. The lighting mirrors ui/screens/tank.js (its key/hemi/rim +
-// PMREM IBL) so the portrait reads like the animal the player just chose.
+// body without a sim. It reuses render/tank.js createWater() for the reef water
+// and the four-light rig, so a card and the live tank cannot disagree about how
+// an animal is lit or coloured. The atmosphere (sun shafts, mote layers) is turned
+// off: a single specimen at close range wants a clean plate, not weather.
 //
-// N16: no hex, no raw px — colours are ramp/token reads, the size is a caller
-// argument in device pixels (an image dimension, not a layout literal).
+// N16: no hex, no raw px — colours/intensities are token reads via createWater,
+// the size is a caller argument in device pixels (an image dimension).
 
 import * as THREE from 'three';
 import { morphogenesis, boundingRadius } from '../engine/l1/morphogen.js';
-import { buildCreature, disposeCreature, token, rampFor } from './creature.js';
+import { buildCreature, disposeCreature, tokenNumber } from './creature.js';
+import { createWater, disposeWater, setMotesVisible } from './tank.js';
 
-/** A vertical equirectangular gradient CanvasTexture — mirrors tank.js's water. */
-function equirectGradient(top, bottom) {
-  const c = document.createElement('canvas');
-  c.width = 16; c.height = 256;
-  const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 0, c.height);
-  grad.addColorStop(0, `#${top.getHexString()}`);
-  grad.addColorStop(1, `#${bottom.getHexString()}`);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, c.width, c.height);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.mapping = THREE.EquirectangularReflectionMapping;
-  return tex;
-}
+/**
+ * Bumped whenever the render look changes (materials, water, light rig). Stamped
+ * onto saved specimens so a stale thumbnail — one baked by an earlier look — can
+ * be detected and re-rendered rather than shown next to the new tank.
+ */
+export const RENDER_TAG = 'reef-1';
 
 /**
  * Render `genome` to a square PNG data URL.
  *
  * A fresh renderer per call, torn down before returning: a portrait is taken
- * rarely (only when the player saves), and a persistent second WebGL context
- * would sit alongside the tank's for the life of the app for no reason.
+ * rarely (only when the player saves, or when the authored library is seeded),
+ * and a persistent second WebGL context would sit alongside the tank's for the
+ * life of the app for no reason.
  *
  * @param {object} genome
  * @param {object} [opts]
- * @param {string} [opts.worldId='w1']  which --pal-<id>-* ramp to light/colour with
+ * @param {string} [opts.worldId='w1']  which world's --pal / --tank ramp to use
  * @param {number} [opts.size=512]      output edge length, device px
  * @returns {string} a `data:image/png;base64,...` URL
  */
@@ -49,42 +44,27 @@ export function renderThumbnail(genome, { worldId = 'w1', size = 512 } = {}) {
   const plan = morphogenesis(genome);
   const radius = boundingRadius(plan);
 
-  const bg = new THREE.Color(token('--c-bg'));
-  const ramp = rampFor(worldId);
   const scene = new THREE.Scene();
 
   // preserveDrawingBuffer so toDataURL() sees the frame we just drew. alpha off:
-  // the membrane is transmissive and needs the water behind it to refract, exactly
-  // as in the tank — a transparent backdrop would leave the shell reading as glass
-  // over nothing.
+  // a translucent body needs the water behind it, exactly as in the tank — a
+  // transparent backdrop would leave the shell reading as glass over nothing.
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setSize(size, size, false);
   renderer.setPixelRatio(1);   // `size` is already the pixel count we want
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = tokenNumber('--tank-exposure');
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // Water background + PMREM IBL from the ramp — the tank's setup, verbatim.
-  const waterTex = equirectGradient(new THREE.Color(token('--c-water-0')), bg);
-  scene.background = waterTex;
-  scene.backgroundIntensity = 2.6;
-
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envSource = equirectGradient(ramp[2], bg);
-  const envRT = pmrem.fromEquirectangular(envSource);
-  scene.environment = envRT.texture;
-  envSource.dispose();
-  pmrem.dispose();
-
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
-  key.position.set(2.5, 5, 3);
-  scene.add(key);
-  scene.add(new THREE.HemisphereLight(ramp[1].clone(), bg.clone(), 0.75));
-  const rim = new THREE.DirectionalLight(ramp[2].clone(), 1.7);
-  rim.position.set(-2, 1.2, -4);
-  scene.add(rim);
+  // The tank's reef water + four-light rig, verbatim — but no drifting weather on
+  // a specimen plate: hide the sun shafts and both mote layers.
+  const water = createWater(scene, worldId);
+  water.shafts.visible = false;
+  setMotesVisible(water, false);
 
   // buildCreature centres the group on the creature's centre of mass, so the body
-  // sits at the origin and the camera can simply look at it.
+  // sits at the origin and the camera can simply look at it. Full detail — a still
+  // portrait is the one place the membrane always earns its cost.
   const group = buildCreature(plan, genome, { worldId, detail: 'full' });
   scene.add(group);
 
@@ -108,8 +88,7 @@ export function renderThumbnail(genome, { worldId = 'w1', size = 512 } = {}) {
 
   // Give the GPU everything back — this context does not outlive the portrait.
   disposeCreature(group);
-  waterTex.dispose();
-  envRT.dispose();
+  disposeWater(water);
   renderer.dispose();
 
   return url;

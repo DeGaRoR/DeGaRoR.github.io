@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#080a10">
+<title>Machina Speculatrix</title>
+<style>
+:root{
+  --void:#080a10;        /* darkroom */
+  --plate:#0d1118;
+  --enamel:#1c2622;      /* lab instrument enamel, grey-green */
+  --enamel-2:#243029;
+  --line:rgba(214,226,214,.13);
+  --paper:#e7e4d9;       /* notebook cream */
+  --graphite:#8d949c;
+  --tungsten:#ffb45a;    /* 2700K lamp */
+  --mercury:#9ec7ff;     /* cold species */
+  --oxide:#e0674f;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --pad:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--void);color:var(--paper);
+  font-family:var(--sans);overscroll-behavior:none;touch-action:none}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#stage{position:fixed;inset:0;touch-action:none}
+
+/* ---------- engraved instrument labels ---------- */
+.eng{font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--graphite)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--paper)}
+
+/* ---------- header ---------- */
+#head{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 9px) 12px 9px;
+  background:linear-gradient(to bottom,rgba(8,10,16,.92),rgba(8,10,16,0));pointer-events:none}
+#head > *{pointer-events:auto}
+#title{font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--paper);line-height:1.5;white-space:nowrap}
+#title small{display:block;font-size:8.5px;letter-spacing:.16em;color:var(--graphite)}
+#stats{margin-left:auto;display:flex;gap:12px;align-items:baseline}
+.stat{text-align:right}
+.stat b{display:block;font-family:var(--mono);font-size:13px;font-weight:500;line-height:1;
+  font-variant-numeric:tabular-nums}
+.stat span{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:var(--graphite);text-transform:uppercase}
+
+/* ---------- generic control chrome ---------- */
+.btn{appearance:none;border:1px solid var(--line);background:rgba(28,38,34,.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  color:var(--paper);border-radius:3px;padding:7px 9px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{border-color:rgba(255,180,90,.45)}
+.btn:active{background:rgba(255,180,90,.18)}
+.btn.on{border-color:var(--tungsten);color:var(--tungsten);background:rgba(255,180,90,.13)}
+.btn:focus-visible{outline:2px solid var(--tungsten);outline-offset:2px}
+.icobtn{width:34px;height:34px;padding:0;display:grid;place-items:center;font-size:13px}
+
+/* ---------- tool rail ---------- */
+#rail{position:fixed;left:12px;z-index:20;display:flex;flex-direction:column;gap:6px;
+  bottom:calc(78px + var(--pad));transition:bottom .32s cubic-bezier(.2,.8,.2,1)}
+body.open #rail{bottom:calc(50vh + 14px + var(--pad))}
+#rail .tool{width:40px;height:40px;border-radius:3px;display:grid;place-items:center}
+#rail .tool svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.4}
+
+/* ---------- readout card ---------- */
+#read{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:20;
+  width:186px;border:1px solid var(--line);border-radius:4px;background:rgba(13,17,24,.82);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:10px 11px 11px;display:none}
+#read.show{display:block}
+#read h4{margin:0 0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--tungsten);display:flex;justify-content:space-between}
+#read h4 button{background:none;border:0;color:var(--graphite);font-size:13px;cursor:pointer;padding:0 2px}
+.row{display:flex;align-items:center;gap:7px;margin:5px 0}
+.row .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--graphite);
+  width:44px;text-transform:uppercase;flex:none}
+.bar{flex:1;height:4px;background:rgba(255,255,255,.09);border-radius:1px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--tungsten);border-radius:1px}
+.row .v{font-family:var(--mono);font-size:9.5px;width:34px;text-align:right;font-variant-numeric:tabular-nums}
+#read .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+.chip{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--line);border-radius:2px;padding:3px 5px;color:var(--graphite);cursor:pointer}
+.chip.on{border-color:var(--tungsten);color:var(--tungsten);background:rgba(255,180,90,.12)}
+.chip.warn.on{border-color:var(--oxide);color:var(--oxide);background:rgba(224,103,79,.12)}
+
+/* ---------- front panel drawer ---------- */
+#panel{position:fixed;left:0;right:0;bottom:0;z-index:30;max-height:50vh;
+  background:linear-gradient(to bottom,rgba(36,48,41,.93),rgba(13,17,24,.96));
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--line);border-radius:10px 10px 0 0;
+  transform:translateY(calc(100% - 52px - var(--pad)));
+  transition:transform .32s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;padding-bottom:var(--pad)}
+body.open #panel{transform:translateY(0)}
+#grip{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;cursor:pointer;
+  border-bottom:1px solid transparent}
+body.open #grip{border-bottom-color:var(--line)}
+#grip .bar2{width:30px;height:2px;border-radius:2px;background:var(--graphite);opacity:.6}
+#grip span{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--paper)}
+#grip .caret{margin-left:auto;color:var(--graphite);transition:transform .32s}
+body.open #grip .caret{transform:rotate(180deg)}
+#body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 14px 20px}
+.grp{margin-top:14px}
+.grp > h3{margin:0 0 9px;font-family:var(--mono);font-size:8.5px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--tungsten);opacity:.85;
+  display:flex;align-items:center;gap:9px}
+.grp > h3::after{content:"";flex:1;height:1px;background:var(--line)}
+.ctl{margin:0 0 11px}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.ctl label .l{font-size:11.5px;color:var(--paper);letter-spacing:.01em}
+.ctl label .r{font-family:var(--mono);font-size:10px;color:var(--tungsten);font-variant-numeric:tabular-nums}
+.ctl .hint{font-family:var(--mono);font-size:8.5px;color:var(--graphite);letter-spacing:.04em;margin-top:3px;opacity:.8}
+
+/* fader-style range */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(255,255,255,.16);border-radius:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:17px;border-radius:1.5px;
+  background:linear-gradient(to bottom,#f4efe3,#b9b3a4);border:0;margin-top:-7.5px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-track{height:2px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-thumb{width:9px;height:17px;border-radius:1.5px;border:0;
+  background:linear-gradient(to bottom,#f4efe3,#b9b3a4);box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+input[type=range]:focus-visible{outline:2px solid var(--tungsten);outline-offset:4px}
+
+.sw{display:flex;justify-content:space-between;align-items:center;padding:7px 0;cursor:pointer}
+.sw .l{font-size:11.5px}
+.sw .box{width:34px;height:18px;border-radius:2px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);position:relative;flex:none;transition:border-color .18s}
+.sw .box::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:12px;border-radius:1px;
+  background:var(--graphite);transition:transform .18s,background .18s}
+.sw.on .box{border-color:var(--tungsten)}
+.sw.on .box::after{transform:translateX(15px);background:var(--tungsten)}
+
+#presets{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+#presets::-webkit-scrollbar{display:none}
+#presets .btn{flex:none;white-space:nowrap;font-size:9.5px;padding:8px 11px}
+
+/* ---------- notebook overlay ---------- */
+#note{position:fixed;inset:0;z-index:60;background:rgba(6,8,12,.86);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 60px}
+#note.show{display:block}
+#note .sheet{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 26px) 22px 40px}
+#note h1{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--tungsten);margin:0 0 4px}
+#note .sub{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--graphite);margin-bottom:26px}
+#note h2{font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--tungsten);margin:26px 0 8px;opacity:.9}
+#note p,#note li{font-family:var(--serif);font-size:15px;line-height:1.62;color:#d9d5c8;margin:0 0 12px}
+#note ul{padding-left:18px;margin:0 0 12px}
+#note code{font-family:var(--mono);font-size:12.5px;color:var(--tungsten);
+  background:rgba(255,180,90,.08);padding:1px 4px;border-radius:2px}
+#note .eqn{font-family:var(--mono);font-size:12px;color:#cfd6cf;background:rgba(255,255,255,.04);
+  border-left:2px solid var(--tungsten);padding:10px 12px;margin:0 0 14px;overflow-x:auto;white-space:pre;line-height:1.7}
+#note .close{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;z-index:61}
+#note em{color:var(--paper);font-style:italic}
+
+#flash{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + var(--pad));z-index:70;
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  background:rgba(13,17,24,.9);border:1px solid var(--line);border-radius:3px;padding:8px 13px;
+  opacity:0;transition:opacity .3s;pointer-events:none}
+#flash.show{opacity:1}
+
+@media (min-width:760px){
+  #panel{left:auto;right:0;width:380px;max-height:calc(100vh - 20px);border-radius:10px 0 0 0}
+  body.open #rail{bottom:calc(78px + var(--pad))}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="cbg"></canvas>
+  <canvas id="ctr"></canvas>
+  <canvas id="cfg"></canvas>
+</div>
+
+<header id="head">
+  <div id="title">Machina Speculatrix<small>W. Grey Walter · 1948 · colony model</small></div>
+  <div id="stats">
+    <div class="stat"><b id="sPop">0</b><span>bots</span></div>
+    <div class="stat"><b id="sLit">0</b><span>lit</span></div>
+    <div class="stat"><b id="sFps">60</b><span>fps</span></div>
+  </div>
+</header>
+
+<div id="rail">
+  <button class="btn tool on" id="tInspect" title="Inspect — tap a machine to read its sensors, drag to move">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg>
+  </button>
+  <button class="btn tool" id="tLight" title="Place a lamp — tap the field, drag to position">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+  </button>
+  <button class="btn tool" id="tErase" title="Remove — tap a lamp or a machine">
+    <svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>
+  </button>
+  <button class="btn icobtn" id="bPause" title="Pause">❚❚</button>
+  <button class="btn icobtn" id="bPlate" title="Save the exposure as a photograph">▣</button>
+  <button class="btn icobtn" id="bNote" title="How this works">?</button>
+</div>
+
+<aside id="read">
+  <h4><span id="rTitle">Machine</span><button id="rClose">×</button></h4>
+  <div id="rBody"></div>
+</aside>
+
+<section id="panel">
+  <div id="grip"><div class="bar2"></div><span>Front panel</span><div class="caret">▲</div></div>
+  <div id="body">
+    <div id="presets"></div>
+    <div id="controls"></div>
+    <div class="grp">
+      <h3>Field</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" id="bClearLamps">Clear lamps</button>
+        <button class="btn" id="bScatter">Scatter</button>
+        <button class="btn" id="bStagger">Stagger phases</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="note">
+  <button class="btn close" id="nClose">Close</button>
+  <div class="sheet">
+    <h1>Machina Speculatrix</h1>
+    <div class="sub">Notes on the model — what is simulated, and what is not</div>
+
+    <p>In 1948 W. Grey Walter built two three-wheeled machines, <em>Elmer</em> and <em>Elsie</em>, at the Burden Neurological Institute in Bristol. Each had one photocell, one touch contact, two valves, two motors — and a lamp on its nose that switched off whenever the photocell was driven. Because each machine both emitted and read light, a pair of them formed a closed loop through the world. Walter photographed them in a dark room with the shutter open; the lamp drew its own trace on the plate. This page is that dark room.</p>
+
+    <h2>Photoreception</h2>
+    <p>Each machine carries two photocells, splayed symmetrically about its heading, each with a finite field of view and a cosine (Lambertian) angular response. Every lit lamp in the arena — machines and placed beacons alike — contributes to both cells:</p>
+    <div class="eqn">rᵢⱼ  = |xⱼ − xᵢ|
+a(r) = ( r₀ / (r₀ + r) )^p
+raw  = Σⱼ  Iⱼ · a(rᵢⱼ) · max(0, cos φⱼ) · W(φⱼ)</div>
+    <p><code>p = 2</code> is the inverse-square law with the singularity softened at short range; <code>p = 1</code> is easier to read on a small screen and is the default. <code>W</code> is the field-of-view window. Cells saturate the way real photoresistors do, so a bright lamp at arm's length does not swamp the arithmetic:</p>
+    <div class="eqn">s = κ·raw / (1 + κ·raw)     s ∈ [0,1)</div>
+    <p>There is no shadowing: bodies do not occlude one another. That is the one real physical liberty taken here.</p>
+
+    <h2>Motor wiring</h2>
+    <p>Braitenberg's vehicles 2a and 2b, which is also Walter's circuit. Crossed excitation steers toward light, uncrossed steers away:</p>
+    <div class="eqn">toward :  v_left = v₀ + g·s_right
+          v_right = v₀ + g·s_left
+away   :  v_left = v₀ + g·s_left
+          v_right = v₀ + g·s_right</div>
+    <p>Differential drive, integrated directly: <code>v = (v_l+v_r)/2</code>, <code>ω = (v_l−v_r)/b</code>. No inertia, no wheel slip.</p>
+
+    <h2>The dazzle inversion</h2>
+    <p>Walter's tortoise was drawn to moderate light and repelled by bright light — a moth that does not fly into the flame. Above the dazzle threshold the wiring flips from crossed to uncrossed, which is what produces the orbits you see around a strong beacon rather than collisions with it.</p>
+
+    <h2>The lamp, and why it matters</h2>
+    <p>The lamp is not decoration. It is the machine's only output into the shared medium, and it is <em>anti-correlated</em> with its input: the lamp burns while the photocell is dark, and goes out when the cell is driven. Switching uses a Schmitt trigger (thresholds θ±h) so it cannot chatter, and the filament has a thermal lag τ, so brightness rises and falls rather than stepping.</p>
+    <p>This single rule is the whole social engine. Two machines approach each other's lamps; approaching extinguishes both lamps; losing the signal they wander; wandering re-lights them; they approach again. Nothing settles. Walter called it a dance, and read it as a crude model of mutual recognition.</p>
+
+    <h2>Battery and the hutch</h2>
+    <p>With the battery model on, charge drains with speed and with lamp output, and the dazzle threshold scales with charge. A full machine is repelled by bright light. A flat machine is not — so it runs straight at the brightest thing in the room. Mark a beacon as a <em>hutch</em> and that brightest thing is a charger. Walter's tortoises fed themselves this way, and so do these. It is one parameter doing the work of an entire foraging behaviour.</p>
+
+    <h2>The shell</h2>
+    <p>Walter's shell was a contact switch: any obstacle closed a circuit that overrode the photocell with a push-and-turn oscillation, and the lamp flickered while it ran. Here, wall contact triggers the same reflex — spin away for half a second, lamp stuttering.</p>
+
+    <h2>Reading the display</h2>
+    <ul>
+      <li>The cones are the fields of view; their brightness is the live cell reading.</li>
+      <li>The ring around each machine is its charge.</li>
+      <li>Warm bodies are seekers, cold bodies are shy — wired uncrossed, permanently avoidant, until their charge runs low.</li>
+      <li>The persistent trail is a time exposure. <span style="color:var(--tungsten)">▣</span> saves it as a photograph.</li>
+    </ul>
+    <p style="margin-top:26px;color:var(--graphite);font-size:13px">Walter, W. G. (1950). <em>An Imitation of Life.</em> Scientific American 182(5). — Braitenberg, V. (1984). <em>Vehicles: Experiments in Synthetic Psychology.</em></p>
+  </div>
+</div>
+
+<div id="flash"></div>
+
+<script>
+"use strict";
+/* ===================================================================
+   Machina Speculatrix — a colony of Grey Walter tortoises.
+   Single file, no dependencies.
+   =================================================================== */
+
+const TAU = Math.PI*2, DEG = Math.PI/180;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const wrapA=a=>{a=(a+Math.PI)%TAU; if(a<0)a+=TAU; return a-Math.PI;};
+const $=s=>document.querySelector(s);
+
+/* ---------------- parameters ---------------- */
+const P = {
+  n:18, shy:0,
+  fovDeg:110, splayDeg:34, kappa:1.8, falloff:1.65, r0:72,
+  gain:112, v0:20, vmax:170, wheelbase:20, noise:.48,
+  theta:.33, hyst:.06, lampTau:.17, dazzle:.50,
+  battery:true, cones:true, persist:.974
+};
+const DEFAULTS = Object.assign({},P);
+
+/* ---------------- state ---------------- */
+const S = { agents:[], lamps:[], t:0, run:true, tool:'inspect',
+            sel:null, drag:null, W:0, H:0, dpr:1, fps:60, uid:1 };
+
+/* ---------------- canvases ---------------- */
+const cbg=$('#cbg'), ctr=$('#ctr'), cfg=$('#cfg');
+const bg=cbg.getContext('2d'), tr=ctr.getContext('2d'), fg=cfg.getContext('2d');
+let glow = {};
+
+function makeGlow(hex){
+  const N=192, c=document.createElement('canvas'); c.width=c.height=N;
+  const g=c.getContext('2d'), r=N/2;
+  const grd=g.createRadialGradient(r,r,0,r,r,r);
+  grd.addColorStop(0,   'rgba(255,255,255,1)');
+  grd.addColorStop(.055,'rgba(255,255,255,.92)');
+  grd.addColorStop(.14, 'rgba(255,255,255,.42)');
+  grd.addColorStop(.32, 'rgba(255,255,255,.13)');
+  grd.addColorStop(.62, 'rgba(255,255,255,.028)');
+  grd.addColorStop(1,   'rgba(255,255,255,0)');
+  g.fillStyle=grd; g.fillRect(0,0,N,N);
+  g.globalCompositeOperation='source-in'; g.fillStyle=hex; g.fillRect(0,0,N,N);
+  return c;
+}
+function initGlow(){
+  glow = { tungsten:makeGlow('#ffb45a'), mercury:makeGlow('#9ec7ff'),
+           white:makeGlow('#fff3dd'),   oxide:makeGlow('#e0674f') };
+}
+
+function resize(){
+  const w=innerWidth, h=innerHeight, d=Math.min(devicePixelRatio||1, 2.25);
+  S.W=w; S.H=h; S.dpr=d;
+  for(const c of [cbg,ctr,cfg]){ c.width=Math.round(w*d); c.height=Math.round(h*d); }
+  for(const g of [bg,tr,fg]) g.setTransform(d,0,0,d,0,0);
+  paintBackground();
+  for(const a of S.agents){ a.x=clamp(a.x,14,w-14); a.y=clamp(a.y,14,h-14); }
+}
+
+function paintBackground(){
+  const w=S.W,h=S.H;
+  bg.clearRect(0,0,w,h);
+  const g=bg.createRadialGradient(w*.5,h*.42,0,w*.5,h*.5,Math.max(w,h)*.78);
+  g.addColorStop(0,'#0e1219'); g.addColorStop(1,'#06070c');
+  bg.fillStyle=g; bg.fillRect(0,0,w,h);
+  // survey grid — 48px, like graph paper under the plate
+  bg.strokeStyle='rgba(190,214,196,.045)'; bg.lineWidth=1;
+  bg.beginPath();
+  for(let x=48;x<w;x+=48){ bg.moveTo(x+.5,0); bg.lineTo(x+.5,h); }
+  for(let y=48;y<h;y+=48){ bg.moveTo(0,y+.5); bg.lineTo(w,y+.5); }
+  bg.stroke();
+  // arena wall
+  bg.strokeStyle='rgba(190,214,196,.22)'; bg.lineWidth=1;
+  bg.strokeRect(12.5,12.5,w-25,h-25);
+  bg.strokeStyle='rgba(190,214,196,.07)';
+  bg.strokeRect(6.5,6.5,w-13,h-13);
+}
+
+/* ---------------- entities ---------------- */
+function makeAgent(x,y,shy){
+  return { id:S.uid++, x, y, th:rnd(0,TAU), sl:0, sr:0,
+           L:1, lampOn:true, c:rnd(.55,1), spd:0, mode:'seek',
+           bump:0, bumpDir:1, shy:!!shy, vl:0, vr:0, wn:0 };
+}
+function makeLamp(x,y){
+  return { id:S.uid++, x, y, I:1, mode:'steady', period:1.6, duty:.35, phase:Math.random(),
+           hutch:false, out:1 };
+}
+function setPopulation(n){
+  n=Math.round(n);
+  while(S.agents.length>n) S.agents.pop();
+  while(S.agents.length<n)
+    S.agents.push(makeAgent(rnd(40,S.W-40), rnd(60,S.H-90), Math.random()<P.shy));
+  applyShyMix();
+}
+function applyShyMix(){
+  const n=S.agents.length, want=Math.round(P.shy*n);
+  let have=S.agents.filter(a=>a.shy).length;
+  for(const a of S.agents){
+    if(have<want && !a.shy){ a.shy=true; have++; }
+    else if(have>want && a.shy){ a.shy=false; have--; }
+  }
+}
+function scatter(){
+  for(const a of S.agents){ a.x=rnd(40,S.W-40); a.y=rnd(60,S.H-90); a.th=rnd(0,TAU); a.bump=0; }
+  clearTrail();
+}
+function clearTrail(){ tr.setTransform(1,0,0,1,0,0); tr.clearRect(0,0,ctr.width,ctr.height);
+                       tr.setTransform(S.dpr,0,0,S.dpr,0,0); }
+
+/* ---------------- strobe ---------------- */
+function lampOutput(b,t){
+  const u = (t/b.period + b.phase) % 1;
+  let k;
+  switch(b.mode){
+    case 'blink': k = u < b.duty ? 1 : 0; break;
+    case 'pulse': k = .5 - .5*Math.cos(TAU*u); break;
+    case 'firefly': { const d=Math.max(.02,b.duty); k = u<d ? Math.sin(Math.PI*u/d)**.6 : 0; } break;
+    default: k = 1;
+  }
+  return b.I*k;
+}
+
+/* ---------------- sensing ---------------- */
+const srcX=[],srcY=[],srcI=[];
+function buildSources(){
+  srcX.length=srcY.length=srcI.length=0;
+  for(const b of S.lamps){ if(b.out>.004){ srcX.push(b.x); srcY.push(b.y); srcI.push(b.out); } }
+  for(const a of S.agents){ if(a.L>.004){ srcX.push(a.x); srcY.push(a.y); srcI.push(a.L); } }
+}
+/* attenuation lookup — a(r) = (r0/(r0+r))^p, sampled every 2 px.
+   Rebuilt only when r0 or the exponent changes; kills Math.pow in the hot loop. */
+const ATT=new Float32Array(2049);
+let attR0=-1, attP=-1;
+function buildAtt(){
+  if(attR0===P.r0 && attP===P.falloff) return;
+  attR0=P.r0; attP=P.falloff;
+  for(let i=0;i<ATT.length;i++) ATT[i]=Math.pow(P.r0/(P.r0+i*2), P.falloff);
+}
+
+function sense(a){
+  const half=P.fovDeg*DEG*.5, splay=P.splayDeg*DEG;
+  const cosHalf=Math.cos(half), cosIn=Math.cos(Math.max(0,half-.16));
+  const edgeC=Math.max(1e-4,cosIn-cosHalf);
+  const aL=a.th-splay, aR=a.th+splay;
+  const lx=Math.cos(aL), ly=Math.sin(aL), rx=Math.cos(aR), ry=Math.sin(aR);
+  const ax=a.x, ay=a.y;
+  let rl=0, rr=0;
+  for(let j=0;j<srcX.length;j++){
+    const dx=srcX[j]-ax, dy=srcY[j]-ay, d2=dx*dx+dy*dy;
+    if(d2<1e-4) continue;                       // self / coincident
+    const r=Math.sqrt(d2);
+    const f=r*.5, i=f|0;
+    if(i>=2048) continue;
+    const att=ATT[i]+(ATT[i+1]-ATT[i])*(f-i);
+    if(att<.0015) continue;
+    const inv=1/r, ux=dx*inv, uy=dy*inv, E=srcI[j]*att;
+    let c=ux*lx+uy*ly;                          // cos of angle off the cell axis
+    if(c>0 && c>cosHalf) rl += E*c*(c>=cosIn?1:(c-cosHalf)/edgeC);
+    c=ux*rx+uy*ry;
+    if(c>0 && c>cosHalf) rr += E*c*(c>=cosIn?1:(c-cosHalf)/edgeC);
+  }
+  const k=P.kappa;
+  a.sl = k*rl/(1+k*rl);
+  a.sr = k*rr/(1+k*rr);
+}
+
+/* ---------------- integration ---------------- */
+function step(dt){
+  S.t += dt;
+  buildAtt();
+  for(const b of S.lamps) b.out = lampOutput(b, S.t);
+  buildSources();
+  for(const a of S.agents) sense(a);          // all readings taken before any motion
+
+  const lampAlpha = 1-Math.exp(-dt/P.lampTau);
+  for(const a of S.agents){
+    const p = .5*(a.sl+a.sr);
+
+    /* lamp — Schmitt trigger, anti-correlated with the photocell */
+    if(a.lampOn && p > P.theta+P.hyst) a.lampOn=false;
+    else if(!a.lampOn && p < P.theta-P.hyst) a.lampOn=true;
+    let target = a.lampOn ? 1 : 0;
+    if(a.bump>0) target = Math.sin(S.t*46)>0 ? 1 : 0;      // shell flicker
+    if(P.battery) target *= .3+.7*a.c;
+    a.L += (target-a.L)*lampAlpha;
+
+    /* wiring: crossed = toward, uncrossed = away */
+    const D = P.battery ? lerp(2.4, P.dazzle, a.c) : P.dazzle;
+    const flat = P.battery && a.c<.3;
+    const away = a.shy ? !flat : (p>D);
+    a.mode = a.bump>0 ? 'shell' : away ? 'away' : (flat?'hungry':'seek');
+
+    let vl,vr;
+    if(away){ vl=P.v0+P.gain*a.sl; vr=P.v0+P.gain*a.sr; }
+    else    { vl=P.v0+P.gain*a.sr; vr=P.v0+P.gain*a.sl; }
+    if(P.battery && a.c<=.02){ vl*=.22; vr*=.22; }
+
+    /* correlated wander (Ornstein-Uhlenbeck), τ ≈ 0.45 s — white noise averages
+       to nothing at 120 Hz and the machines would only tremble, not explore */
+    a.wn += (-2.2*a.wn + rnd(-1,1)*26)*dt;
+    const nz = P.noise*a.wn*7;
+    vl += nz; vr -= nz;
+
+    if(a.bump>0){ a.bump-=dt; vl = 13+32*a.bumpDir; vr = 13-32*a.bumpDir; }
+
+    vl=clamp(vl,-P.vmax,P.vmax); vr=clamp(vr,-P.vmax,P.vmax);
+    a.vl=vl; a.vr=vr;
+
+    const v=.5*(vl+vr), w=(vl-vr)/P.wheelbase;   // screen coords: y down
+    a.th=wrapA(a.th + w*dt);
+    a.x += Math.cos(a.th)*v*dt;
+    a.y += Math.sin(a.th)*v*dt;
+    a.spd=v;
+
+    /* shell contact */
+    const m=14; let nx=0,ny=0,hit=false;
+    if(a.x<m){a.x=m;nx=1;hit=true;}
+    if(a.x>S.W-m){a.x=S.W-m;nx=-1;hit=true;}
+    if(a.y<m){a.y=m;ny=1;hit=true;}
+    if(a.y>S.H-m){a.y=S.H-m;ny=-1;hit=true;}
+    if(hit && a.bump<=0){
+      a.bump=.62;
+      a.bumpDir = wrapA(Math.atan2(ny,nx)-a.th)>0 ? 1 : -1;
+    }
+
+    /* battery */
+    if(P.battery){
+      a.c -= dt*(.0026 + .0062*Math.abs(a.spd)/P.vmax + .0038*a.L);
+      for(const b of S.lamps){
+        if(!b.hutch) continue;
+        const dx=b.x-a.x, dy=b.y-a.y;
+        if(dx*dx+dy*dy < 46*46) a.c += dt*.26;
+      }
+      a.c=clamp(a.c,0,1);
+    }
+  }
+
+  /* soft bodies — resolve overlap positionally */
+  const R=10;
+  for(let i=0;i<S.agents.length;i++)for(let j=i+1;j<S.agents.length;j++){
+    const A=S.agents[i],B=S.agents[j];
+    let dx=B.x-A.x, dy=B.y-A.y, d2=dx*dx+dy*dy;
+    if(d2>4*R*R||d2<1e-6) continue;
+    const d=Math.sqrt(d2), push=(2*R-d)*.5;
+    dx/=d; dy/=d;
+    A.x-=dx*push; A.y-=dy*push; B.x+=dx*push; B.y+=dy*push;
+  }
+}
+
+/* ---------------- rendering ---------------- */
+function drawGlowSprite(ctx,sprite,x,y,size,alpha){
+  ctx.globalAlpha=alpha;
+  ctx.drawImage(sprite, x-size*.5, y-size*.5, size, size);
+}
+
+function renderTrail(dt){
+  const fade = 1-Math.pow(P.persist, dt*60);
+  tr.globalCompositeOperation='destination-out';
+  tr.globalAlpha=1;
+  tr.fillStyle='rgba(0,0,0,'+fade.toFixed(4)+')';
+  tr.fillRect(0,0,S.W,S.H);
+  tr.globalCompositeOperation='lighter';
+  for(const a of S.agents){
+    if(a.L<.02) continue;
+    drawGlowSprite(tr, a.shy?glow.mercury:glow.tungsten, a.x, a.y, 26+34*a.L, .30*a.L);
+  }
+  for(const b of S.lamps){
+    if(b.out<.02) continue;
+    drawGlowSprite(tr, b.hutch?glow.oxide:glow.white, b.x, b.y, 40+70*b.out, .10*b.out);
+  }
+  tr.globalAlpha=1;
+}
+
+function renderFore(){
+  fg.clearRect(0,0,S.W,S.H);
+
+  /* fields of view */
+  if(P.cones){
+    const half=P.fovDeg*DEG*.5, splay=P.splayDeg*DEG;
+    fg.globalCompositeOperation='lighter';
+    for(const a of S.agents){
+      const on = S.sel===a;
+      for(const side of [-1,1]){
+        const s = side<0 ? a.sl : a.sr;
+        if(s<.012 && !on) continue;
+        const ax=a.th+side*splay;
+        const R=44+150*s;
+        const g=fg.createRadialGradient(a.x,a.y,4,a.x,a.y,R);
+        const base = on ? .30 : .16;
+        const col = a.shy ? '158,199,255' : '255,180,90';
+        g.addColorStop(0,'rgba('+col+','+(base*(.25+s)).toFixed(3)+')');
+        g.addColorStop(1,'rgba('+col+',0)');
+        fg.fillStyle=g;
+        fg.beginPath(); fg.moveTo(a.x,a.y);
+        fg.arc(a.x,a.y,R,ax-half,ax+half); fg.closePath(); fg.fill();
+      }
+    }
+    fg.globalCompositeOperation='source-over';
+  }
+
+  /* beacons */
+  for(const b of S.lamps){
+    const sel=S.sel===b;
+    fg.save(); fg.translate(b.x,b.y);
+    if(b.out>.02){
+      fg.globalCompositeOperation='lighter';
+      drawGlowSprite(fg, b.hutch?glow.oxide:glow.white, 0,0, 44+96*b.out, .5*b.out);
+      fg.globalCompositeOperation='source-over';
+    }
+    fg.rotate(Math.PI/4);
+    fg.lineWidth=1.2;
+    fg.strokeStyle = b.hutch ? 'rgba(224,103,79,.9)' : 'rgba(231,228,217,.75)';
+    fg.fillStyle   = b.hutch ? 'rgba(224,103,79,'+(.15+.6*b.out)+')'
+                             : 'rgba(255,243,221,'+(.12+.7*b.out)+')';
+    fg.beginPath(); fg.rect(-5,-5,10,10); fg.fill(); fg.stroke();
+    fg.rotate(-Math.PI/4);
+    if(b.hutch){ fg.strokeStyle='rgba(224,103,79,.35)'; fg.beginPath(); fg.arc(0,0,42,0,TAU); fg.stroke(); }
+    if(sel){ fg.strokeStyle='rgba(255,180,90,.9)'; fg.lineWidth=1;
+             fg.beginPath(); fg.arc(0,0,16,0,TAU); fg.stroke(); }
+    fg.restore();
+  }
+
+  /* machines */
+  for(const a of S.agents){
+    const sel=S.sel===a;
+    const warm=!a.shy;
+    fg.save(); fg.translate(a.x,a.y); fg.rotate(a.th);
+
+    /* charge ring */
+    if(P.battery){
+      fg.lineWidth=1.6; fg.strokeStyle='rgba(255,255,255,.10)';
+      fg.beginPath(); fg.arc(0,0,13,0,TAU); fg.stroke();
+      const col = a.c<.22 ? '224,103,79' : warm ? '255,180,90' : '158,199,255';
+      fg.strokeStyle='rgba('+col+',.85)';
+      fg.beginPath(); fg.arc(0,0,13,-Math.PI/2,-Math.PI/2+TAU*a.c); fg.stroke();
+    }
+
+    /* shell */
+    fg.beginPath(); fg.ellipse(0,0,9.5,7,0,0,TAU);
+    fg.fillStyle = warm ? 'rgba(58,46,34,.94)' : 'rgba(34,44,60,.94)';
+    fg.fill();
+    fg.lineWidth=1; fg.strokeStyle = warm?'rgba(255,180,90,.55)':'rgba(158,199,255,.55)';
+    fg.stroke();
+    /* nose */
+    fg.beginPath(); fg.moveTo(6,-3.2); fg.lineTo(12,0); fg.lineTo(6,3.2); fg.closePath();
+    fg.fillStyle = warm?'rgba(255,180,90,.35)':'rgba(158,199,255,.35)';
+    fg.fill();
+
+    /* lamp */
+    if(a.L>.02){
+      fg.globalCompositeOperation='lighter';
+      drawGlowSprite(fg, warm?glow.tungsten:glow.mercury, 8,0, 20+40*a.L, .8*a.L);
+      fg.globalCompositeOperation='source-over';
+      fg.beginPath(); fg.arc(8,0,2.1,0,TAU);
+      fg.fillStyle='rgba(255,248,236,'+(.35+.65*a.L)+')'; fg.fill();
+    }
+
+    /* photocells */
+    const splay=P.splayDeg*DEG;
+    for(const side of [-1,1]){
+      const s=side<0?a.sl:a.sr;
+      const px=Math.cos(side*splay)*7.5, py=Math.sin(side*splay)*7.5;
+      fg.beginPath(); fg.arc(px,py,1.7,0,TAU);
+      fg.fillStyle='rgba(231,228,217,'+(.22+.78*s)+')'; fg.fill();
+    }
+    fg.restore();
+
+    if(sel){
+      fg.lineWidth=1; fg.strokeStyle='rgba(255,180,90,.85)';
+      fg.beginPath(); fg.arc(a.x,a.y,19,0,TAU); fg.stroke();
+      fg.setLineDash([2,4]); fg.strokeStyle='rgba(255,180,90,.3)';
+      fg.beginPath(); fg.arc(a.x,a.y,24,0,TAU); fg.stroke(); fg.setLineDash([]);
+    }
+  }
+}
+
+/* ---------------- loop ---------------- */
+let last=performance.now(), acc=0, fCount=0, fTime=0;
+function frame(now){
+  let dt=(now-last)/1000; last=now;
+  dt=Math.min(dt,1/25);
+  fTime+=dt; fCount++;
+  if(fTime>.5){ S.fps=Math.round(fCount/fTime); fTime=0; fCount=0; $('#sFps').textContent=S.fps; }
+
+  if(S.run){
+    // fixed-step integration for stability
+    acc+=dt;
+    const h=1/120; let guard=0;
+    while(acc>=h && guard++<8){ step(h); acc-=h; }
+    renderTrail(dt);
+  }
+  renderFore();
+  updateReadout();
+  requestAnimationFrame(frame);
+}
+
+let statAcc=0;
+function updateReadout(){
+  statAcc++;
+  if(statAcc%10===0){
+    $('#sPop').textContent=S.agents.length;
+    $('#sLit').textContent=S.agents.filter(a=>a.L>.35).length;
+  }
+  const el=$('#read');
+  if(!S.sel){ el.classList.remove('show'); S.selKey=null; return; }
+  el.classList.add('show');
+  const o=S.sel, isBot=o.th!==undefined;
+  const key = o.id+'|'+(isBot?'b'+(P.battery?1:0):'l'+o.mode+(o.hutch?1:0));
+  if(key!==S.selKey){ S.selKey=key; buildReadout(o,isBot); }
+  if(statAcc%4===0) liveReadout(o,isBot);
+}
+function buildReadout(o,isBot){
+  if(isBot){
+    $('#rTitle').textContent = (o.shy?'Shy #':'Machine #')+o.id;
+    $('#rBody').innerHTML =
+      bar('cellL','Cell L') + bar('cellR','Cell R') + bar('lamp','Lamp') +
+      (P.battery?bar('chg','Charge'):'') +
+      '<div class="row"><span class="k">Speed</span><span class="v" id="d_spd" style="width:auto;flex:1;text-align:right">—</span></div>' +
+      '<div class="row"><span class="k">State</span><span class="v" id="d_mode" style="width:auto;flex:1;text-align:right">—</span></div>' +
+      '<div class="chips"><span class="chip warn" id="cKill">Remove</span></div>';
+    $('#cKill').onclick=()=>{ S.agents=S.agents.filter(x=>x!==o); S.sel=null; P.n=S.agents.length; syncUI(); };
+  } else {
+    $('#rTitle').textContent = (o.hutch?'Hutch #':'Lamp #')+o.id;
+    $('#rBody').innerHTML =
+      bar('out','Output') +
+      slider('lI','Intensity',o.I,0,3,.02) +
+      '<div class="chips" id="mChips">'+
+        ['steady','blink','pulse','firefly'].map(m=>'<span class="chip'+(o.mode===m?' on':'')+'" data-m="'+m+'">'+m+'</span>').join('')+
+      '</div>'+
+      (o.mode==='steady'?'':
+        slider('lP','Period',o.period,.15,6,.05,' s')+
+        (o.mode==='pulse'?'':slider('lD','Duty',o.duty,.03,.95,.01))+
+        slider('lPh','Phase',o.phase,0,1,.01)) +
+      '<div class="chips"><span class="chip warn'+(o.hutch?' on':'')+'" id="cHutch">Hutch</span>'+
+      '<span class="chip warn" id="cKill">Remove</span></div>';
+    $('#mChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ o.mode=c.dataset.m; });
+    bindMini('lI',v=>o.I=v); bindMini('lP',v=>o.period=v,' s');
+    bindMini('lD',v=>o.duty=v); bindMini('lPh',v=>o.phase=v);
+    $('#cHutch').onclick=()=>{ o.hutch=!o.hutch; };
+    $('#cKill').onclick=()=>{ S.lamps=S.lamps.filter(x=>x!==o); S.sel=null; };
+  }
+}
+const MODE_TXT={seek:['toward light','var(--tungsten)'],away:['avoiding','var(--mercury)'],
+                shell:['shell reflex','var(--oxide)'],hungry:['seeking hutch','var(--oxide)']};
+function setBar(id,v,col){
+  const f=document.getElementById('f_'+id); if(!f) return;
+  f.style.width=(clamp(v,0,1)*100).toFixed(1)+'%';
+  if(col) f.style.background=col;
+  document.getElementById('n_'+id).textContent=v.toFixed(2);
+}
+function liveReadout(o,isBot){
+  if(isBot){
+    setBar('cellL',o.sl); setBar('cellR',o.sr); setBar('lamp',o.L);
+    if(P.battery) setBar('chg',o.c, o.c<.22?'var(--oxide)':'var(--tungsten)');
+    const sp=document.getElementById('d_spd'); if(sp) sp.textContent=Math.abs(o.spd).toFixed(0)+' px/s';
+    const md=document.getElementById('d_mode');
+    if(md){ const m=MODE_TXT[o.mode]||['—','']; md.textContent=m[0]; md.style.color=m[1]; }
+  } else setBar('out',o.out);
+}
+function bar(id,k){
+  return '<div class="row"><span class="k">'+k+'</span><span class="bar"><i id="f_'+id+'"></i></span>'
+    +'<span class="v" id="n_'+id+'">0.00</span></div>';
+}
+function slider(id,label,val,min,max,stp,unit){
+  return '<div class="ctl" style="margin-bottom:7px"><label><span class="l" style="font-size:10.5px">'+label+
+    '</span><span class="r" id="'+id+'v">'+(+val).toFixed(2)+(unit||'')+'</span></label>'+
+    '<input type="range" id="'+id+'" min="'+min+'" max="'+max+'" step="'+stp+'" value="'+val+'"></div>';
+}
+function bindMini(id,fn,unit){
+  const el=document.getElementById(id); if(!el) return;
+  el.oninput=()=>{ const v=+el.value;
+    document.getElementById(id+'v').textContent=v.toFixed(2)+(unit||''); fn(v); };
+}
+
+/* ---------------- front panel ---------------- */
+const SPEC=[
+  {g:'Colony',items:[
+    {k:'n',    l:'Population',       min:1,max:44,s:1,  f:v=>v.toFixed(0),  hint:'machines in the arena', on:v=>setPopulation(v)},
+    {k:'shy',  l:'Shy fraction',     min:0,max:1,s:.05, f:v=>Math.round(v*100)+'%', hint:'wired uncrossed — permanently avoidant', on:applyShyMix},
+  ]},
+  {g:'Optics',items:[
+    {k:'fovDeg',   l:'Field of view',   min:20,max:200,s:1,  f:v=>v.toFixed(0)+'°', hint:'angular acceptance of each photocell'},
+    {k:'splayDeg', l:'Cell splay',      min:0,max:88,s:1,    f:v=>v.toFixed(0)+'°', hint:'half-angle between the two cells'},
+    {k:'kappa',    l:'Sensitivity κ',   min:.4,max:9,s:.1,   f:v=>v.toFixed(1),     hint:'gain before saturation'},
+    {k:'falloff',  l:'Falloff exponent',min:.4,max:2.2,s:.05,f:v=>v.toFixed(2),     hint:'1 = legible · 2 = inverse-square'},
+    {k:'r0',       l:'Near-field radius',min:20,max:240,s:2, f:v=>v.toFixed(0)+' px',hint:'softens the singularity at contact'},
+  ]},
+  {g:'Nervous system',items:[
+    {k:'gain',   l:'Phototropic gain', min:0,max:220,s:2,  f:v=>v.toFixed(0),  hint:'photocell → opposite wheel'},
+    {k:'v0',     l:'Cruise speed',     min:0,max:90,s:1,   f:v=>v.toFixed(0)+' px/s'},
+    {k:'theta',  l:'Lamp threshold θ', min:.02,max:.9,s:.01,f:v=>v.toFixed(2), hint:'lamp goes out above this reading'},
+    {k:'dazzle', l:'Dazzle threshold', min:.1,max:1.4,s:.02,f:v=>v.toFixed(2), hint:'above it, attraction inverts'},
+    {k:'noise',  l:'Motor noise',      min:0,max:2,s:.05,  f:v=>v.toFixed(2),  hint:'the reason nothing ever repeats'},
+  ]},
+  {g:'Plate',items:[
+    {k:'persist',l:'Exposure',         min:.86,max:.998,s:.002, f:v=>{
+        const s=-1/(60*Math.log(v)); return s>90?'∞':s.toFixed(1)+' s'; }, hint:'how long the trail holds'},
+    {k:'battery',t:1,l:'Battery & hutch',hint:'charge modulates the dazzle threshold'},
+    {k:'cones',  t:1,l:'Show fields of view'},
+  ]}
+];
+
+function buildPanel(){
+  const host=$('#controls'); host.innerHTML='';
+  for(const grp of SPEC){
+    const d=document.createElement('div'); d.className='grp';
+    d.innerHTML='<h3>'+grp.g+'</h3>';
+    for(const it of grp.items){
+      if(it.t){
+        const s=document.createElement('div');
+        s.className='sw'+(P[it.k]?' on':'');
+        s.innerHTML='<div><div class="l">'+it.l+'</div>'+(it.hint?'<div class="hint">'+it.hint+'</div>':'')+'</div><div class="box"></div>';
+        s.onclick=()=>{ P[it.k]=!P[it.k]; s.classList.toggle('on',P[it.k]); };
+        s.tabIndex=0; s.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();s.click();} };
+        d.appendChild(s);
+      } else {
+        const c=document.createElement('div'); c.className='ctl';
+        c.innerHTML='<label><span class="l">'+it.l+'</span><span class="r" id="v_'+it.k+'">'+it.f(P[it.k])+'</span></label>'+
+          '<input type="range" id="r_'+it.k+'" min="'+it.min+'" max="'+it.max+'" step="'+it.s+'" value="'+P[it.k]+'">'+
+          (it.hint?'<div class="hint">'+it.hint+'</div>':'');
+        d.appendChild(c);
+        const inp=c.querySelector('input');
+        inp.oninput=()=>{ const v=+inp.value; P[it.k]=v;
+          document.getElementById('v_'+it.k).textContent=it.f(v);
+          if(it.on) it.on(v); };
+      }
+    }
+    host.appendChild(d);
+  }
+}
+function syncUI(){
+  for(const grp of SPEC) for(const it of grp.items){
+    if(it.t){ const sw=[...document.querySelectorAll('.sw')].find(e=>e.querySelector('.l').textContent===it.l);
+              if(sw) sw.classList.toggle('on',!!P[it.k]); }
+    else {
+      const r=document.getElementById('r_'+it.k), v=document.getElementById('v_'+it.k);
+      if(r){ r.value=P[it.k]; v.textContent=it.f(P[it.k]); }
+    }
+  }
+}
+
+/* ---------------- presets ---------------- */
+const PRESETS=[
+  {name:'Mutual recognition', build(){
+    Object.assign(P,DEFAULTS,{n:2,falloff:1.3,r0:95,kappa:2.0,theta:.24,dazzle:.95,
+                              gain:124,noise:.34,persist:.989,battery:false,shy:0});
+    S.lamps=[]; S.agents=[];
+    S.agents.push(makeAgent(S.W*.32,S.H*.5), makeAgent(S.W*.68,S.H*.5));
+    S.agents[0].th=0; S.agents[1].th=Math.PI;
+  }},
+  {name:'Firefly meadow', build(){
+    Object.assign(P,DEFAULTS,{n:22,falloff:1.7,r0:70,kappa:1.8,theta:.34,gain:110,
+                              noise:.5,dazzle:.72,persist:.985,battery:false,shy:0});
+    S.lamps=[]; S.agents=[]; setPopulation(22);
+  }},
+  {name:'Moth & flame', build(){
+    Object.assign(P,DEFAULTS,{n:16,falloff:1.6,r0:80,kappa:1.6,theta:.55,gain:126,
+                              dazzle:.42,battery:false,persist:.979,shy:0});
+    S.agents=[]; setPopulation(16);
+    S.lamps=[Object.assign(makeLamp(S.W*.5,S.H*.5),{I:1.5})];
+  }},
+  {name:'The hutch', build(){
+    Object.assign(P,DEFAULTS,{n:14,battery:true,persist:.979,shy:0});
+    S.agents=[]; setPopulation(14);
+    S.lamps=[Object.assign(makeLamp(S.W*.5,S.H*.34),{I:2.2,hutch:true})];
+  }},
+  {name:'Strobe garden', build(){
+    Object.assign(P,DEFAULTS,{n:20,falloff:1.7,theta:.32,gain:108,dazzle:.78,
+                              persist:.983,battery:false,shy:0});
+    S.agents=[]; setPopulation(20);
+    S.lamps=[];
+    const pts=[[.26,.3],[.74,.34],[.5,.72]];
+    pts.forEach((p,i)=>S.lamps.push(Object.assign(makeLamp(S.W*p[0],S.H*p[1]),
+      {I:1.2,mode:'firefly',period:2.4,duty:.28,phase:i/3})));
+  }},
+  {name:'Bold & shy', build(){
+    Object.assign(P,DEFAULTS,{n:24,shy:.42,gain:104,persist:.978,battery:true});
+    S.agents=[]; setPopulation(24);
+    S.lamps=[Object.assign(makeLamp(S.W*.5,S.H*.5),{I:2.0,hutch:true})];
+  }},
+];
+function buildPresets(){
+  const host=$('#presets');
+  PRESETS.forEach((p,i)=>{
+    const b=document.createElement('button'); b.className='btn'; b.textContent=p.name;
+    b.onclick=()=>{ p.build(); S.sel=null; clearTrail(); buildPanel(); syncUI();
+                    flash(p.name); host.querySelectorAll('.btn').forEach(x=>x.classList.remove('on'));
+                    b.classList.add('on'); };
+    host.appendChild(b);
+  });
+}
+
+/* ---------------- input ---------------- */
+function pick(x,y){
+  let best=null, bd=30*30;
+  for(const b of S.lamps){ const d=(b.x-x)**2+(b.y-y)**2; if(d<bd){bd=d;best=b;} }
+  for(const a of S.agents){ const d=(a.x-x)**2+(a.y-y)**2; if(d<bd){bd=d;best=a;} }
+  return best;
+}
+const stage=$('#stage');
+stage.addEventListener('pointerdown',e=>{
+  const r=stage.getBoundingClientRect();
+  const x=e.clientX-r.left, y=e.clientY-r.top;
+  const hit=pick(x,y);
+  if(S.tool==='light'){
+    const b=makeLamp(clamp(x,16,S.W-16),clamp(y,16,S.H-16));
+    S.lamps.push(b); S.sel=b; S.drag=b; statAcc=5;
+  } else if(S.tool==='erase'){
+    if(hit){ if(hit.th!==undefined){ S.agents=S.agents.filter(a=>a!==hit); P.n=S.agents.length; syncUI(); }
+             else S.lamps=S.lamps.filter(l=>l!==hit);
+             if(S.sel===hit) S.sel=null; }
+  } else {
+    S.sel=hit; S.drag=hit; statAcc=5;
+    if(hit) closePanel();
+  }
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove',e=>{
+  if(!S.drag) return;
+  const r=stage.getBoundingClientRect();
+  S.drag.x=clamp(e.clientX-r.left,16,S.W-16);
+  S.drag.y=clamp(e.clientY-r.top,16,S.H-16);
+});
+addEventListener('pointerup',()=>{ S.drag=null; });
+addEventListener('pointercancel',()=>{ S.drag=null; });
+
+function setTool(t){
+  S.tool=t;
+  $('#tInspect').classList.toggle('on',t==='inspect');
+  $('#tLight').classList.toggle('on',t==='light');
+  $('#tErase').classList.toggle('on',t==='erase');
+}
+$('#tInspect').onclick=()=>setTool('inspect');
+$('#tLight').onclick=()=>setTool('light');
+$('#tErase').onclick=()=>setTool('erase');
+$('#rClose').onclick=()=>{ S.sel=null; };
+
+$('#bPause').onclick=e=>{ S.run=!S.run; e.currentTarget.textContent=S.run?'❚❚':'▶';
+                          e.currentTarget.classList.toggle('on',!S.run); };
+$('#bNote').onclick=()=>$('#note').classList.add('show');
+$('#nClose').onclick=()=>$('#note').classList.remove('show');
+$('#bClearLamps').onclick=()=>{ S.lamps=[]; if(S.sel&&S.sel.th===undefined)S.sel=null; };
+$('#bScatter').onclick=scatter;
+$('#bStagger').onclick=()=>{ S.lamps.forEach((b,i)=>{ b.phase=i/Math.max(1,S.lamps.length);
+                             if(b.mode==='steady')b.mode='firefly'; }); statAcc=5; };
+
+$('#bPlate').onclick=()=>{
+  const c=document.createElement('canvas');
+  c.width=cbg.width; c.height=cbg.height;
+  const g=c.getContext('2d');
+  g.drawImage(cbg,0,0); g.drawImage(ctr,0,0); g.drawImage(cfg,0,0);
+  c.toBlob(b=>{
+    const u=URL.createObjectURL(b), a=document.createElement('a');
+    a.href=u; a.download='machina-speculatrix-'+Date.now()+'.png'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+    flash('Plate exposed');
+  },'image/png');
+};
+
+const grip=$('#grip');
+grip.onclick=()=>document.body.classList.toggle('open');
+function closePanel(){ document.body.classList.remove('open'); }
+
+let flashT;
+function flash(msg){
+  const f=$('#flash'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(flashT); flashT=setTimeout(()=>f.classList.remove('show'),1400);
+}
+
+addEventListener('keydown',e=>{
+  if(e.key===' '){ e.preventDefault(); $('#bPause').click(); }
+  if(e.key==='1') setTool('inspect');
+  if(e.key==='2') setTool('light');
+  if(e.key==='3') setTool('erase');
+  if(e.key==='Escape'){ S.sel=null; $('#note').classList.remove('show'); }
+});
+addEventListener('resize',()=>{ resize(); });
+addEventListener('orientationchange',()=>setTimeout(resize,220));
+
+/* ---------------- boot ---------------- */
+initGlow();
+resize();
+buildPresets();
+buildPanel();
+PRESETS[3].build();               // open on "The hutch"
+buildPanel(); syncUI();
+$('#presets').children[3].classList.add('on');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

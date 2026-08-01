@@ -4,13 +4,37 @@
 // INJECTED, already-initialised namespace — `RAPIER.init()` is async and 01 §4
 // forbids async in /engine/, so the caller awaits it and passes it in.
 //
-// UNITS (01 §7): density is relative to water = 1.0, and mass = density x volume.
-// A 1 m^3 body at density 1.0 masses 1 kg, which is what Rapier's collider
-// density gives directly. This is 1000x lighter than real water and it is
-// deliberate: it is what makes 03 §5's totalMass 6000 kg and biomassBudget 300 kg
-// yield a sensible population against a median creature mass of ~4.8 kg. The
-// scale is internally consistent; only MOTOR_SCALE has to be tuned to it,
-// because torque follows area (N19) and does not rescale with mass.
+// UNITS (01 §7): THIS IS CGS — centimetres, grams, seconds.
+//
+// Density is relative to water = 1.0 and mass = density x volume, which IS the
+// g/cm^3 convention: a 1 cm^3 body at density 1.0 masses 1 g, which is what
+// Rapier's collider density gives directly. The median creature is then ~7 cm
+// and ~7.5 g, which is what the renderer has always drawn. Force is therefore
+// the dyne (g.cm/s^2) and pressure the barye (0.1 Pa).
+//
+// THE LABELS USED TO SAY "m" AND "kg", which was not any consistent system:
+// under a metre reading the mass unit is a TONNE. Naming the system CGS makes
+// every constant below citable against a real number, and three of them carry a
+// recorded debt against it:
+//
+//   MUSCLE_STRESS   200 barye = 20 Pa, against real muscle's 1e4-1e6 Pa.
+//                   SCHEDULED to become 2e6 (= 2e5 Pa) at C6.7 — decided, not an
+//                   open question. Measured justification: 10^4x muscle buys only
+//                   2.5x speed, so this is a LABELLING correction, NOT the
+//                   locomotion fix it might look like.
+//   world.gravity   must become 981 cm/s^2 before SLICE_LIMITS.density unpins at
+//                   step F. Inert until then — the buoyancy term below is
+//                   identically zero while density is [1,1] against mediumDensity
+//                   1.0, and that is bit-exact at g = 0 / 9.81 / 981.
+//   dragCoefficient the constant-Cd quadratic law in applyEnvironment holds for
+//                   Re >~ 1e3. At this reading and current speeds the corpus sits
+//                   at Re ~ 32, where a bluff body's Cd is ~4x higher and
+//                   Re-dependent. Revisit if the corpus is still under ~0.1
+//                   body-lengths/s. C6.7 does NOT discharge this: 2.5x speed
+//                   only moves Re to ~80. The Re debt and the L/s gap are one gap.
+//
+// Only MOTOR_SCALE has to be tuned to the density choice, because torque follows
+// area (N19) and does not rescale with mass.
 
 import { computePhases, targetAngles, targetVelocities, makeControl, DRIVE, TURN_AUTHORITY } from './controller.js';
 import { qrot, qmul, normalise } from './vecmath.js';
@@ -18,23 +42,31 @@ import { qrot, qmul, normalise } from './vecmath.js';
 export const FIXED_DT = 1 / 120;      // 01 §7, substepped
 
 /**
- * Torque per square metre of joint cross-section, at unit stiffness.
+ * Torque per square CENTIMETRE of joint cross-section, at unit stiffness.
  * Tuned against the unit convention above; it is the one constant that does not
  * scale with the density choice.
  */
 export const MOTOR_SCALE = 1.0;
 
 /**
- * Muscle stress in SLICE UNITS, for the derived torque model.
+ * Muscle stress in SLICE UNITS (barye, = 0.1 Pa), for the derived torque model.
  *
- * Vertebrate skeletal muscle sustains roughly 2e5 Pa. This unit system carries
- * density RELATIVE TO WATER and mass = density * volume, so a body of water
- * density and 1 m^3 has mass 1.0 where SI would say 1000 kg. Mass is therefore
- * numerically 1/1000 of SI, the force unit is 1 kN, and the torque unit is
- * 1 kN.m. Muscle stress converts as 2e5 Pa / 1000 = 200.
+ * Vertebrate skeletal muscle sustains roughly 2e5 Pa, which in CGS is 2e6 barye.
+ * THIS CONSTANT IS 200, i.e. 20 Pa — four orders of magnitude below any animal's
+ * muscle, and below cnidarian mesoglea. It is wrong, it is known to be wrong, and
+ * it is SCHEDULED to become 2e6 at C6.7 rather than carried as an open question.
  *
- * NOT A DIAL. Changing it is claiming something about muscle, and the only
- * defensible edits are to the two numbers above.
+ * WHY IT IS NOT URGENT, measured rather than assumed: sweeping actuator strength
+ * over four orders of magnitude (via motorScale, which multiplies the solver gain
+ * and the C1.2 clamp ceiling together) moves body-lengths/s from 0.023 to 0.058 —
+ * a 10^4x muscle buys 2.5x speed, and the eel's error clamp binds on 0.1% of
+ * joint-steps. The actuator is nowhere near the bottleneck, so correcting this is
+ * a LABELLING fix and must not be mistaken for a locomotion fix.
+ *
+ * It is a worldHash-affecting change (faunaVersion bump, full re-measure,
+ * resident re-freeze), which is why it is sequenced rather than done in place.
+ *
+ * NOT A DIAL. Changing it is claiming something about muscle.
  */
 export const MUSCLE_STRESS = 200;
 
@@ -47,12 +79,20 @@ export const MUSCLE_STRESS = 200;
 export const OMEGA_MAX = 10;
 
 /**
- * Stability speed ceiling, m/s (the myriapod fix). A swimmer travels < 1 m/s and
- * a hard burst a few m/s, so 10 is ~an order of magnitude of headroom; a creature
- * that reaches it is pumping energy through its own actuator, not swimming, and
- * this is the speed at which the sim stops it running away and tearing its joints
- * apart. Held BELOW the wall-tunnelling ceiling (WALL/FIXED_DT ~ 60 m/s), which it
- * therefore also tightens. NOT A DIAL — it is a divergence guard, not a tuning knob.
+ * Stability speed ceiling, cm/s (the myriapod fix). A swimmer travels < 1 cm/s
+ * and a hard burst a few cm/s, so 10 is ~an order of magnitude of headroom; a
+ * creature that reaches it is pumping energy through its own actuator, not
+ * swimming, and this is the speed at which the sim stops it running away and
+ * tearing its joints apart. Held BELOW the wall-tunnelling ceiling
+ * (WALL/FIXED_DT ~ 60 cm/s), which it therefore also tightens. NOT A DIAL — it is
+ * a divergence guard, not a tuning knob.
+ *
+ * IT ALSO BOUNDS THE DIAGNOSTICS. clampKinematics() runs at the TOP of step(), so
+ * any tool that prescribes a state above this and then recovers a force from the
+ * velocity change is measuring the CLAMP, not the fluid law. tools/_dragmicro.mjs
+ * still sweeps to 30 and its top row reads 3.074 for exactly that reason; the
+ * "ratio 1.000 at every point" in HYDRODYNAMICS.md §10 predates this constant and
+ * now holds only up to 10. tools/_zplate.mjs stays under it deliberately.
  */
 export const STABLE_SPEED = 10;
 

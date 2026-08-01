@@ -160,6 +160,36 @@ function _edgeOffsetPath(P,off){ // shift a polyline sideways by `off` px along 
 function _edgeLane(e){ // deterministic small offset per vehicle edge so parallel hauls fan out
   let h=0,s=(e.from+"-"+e.to);for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;
   return ((h%5)-2)*2.6;} // −5.2 … +5.2 px in 2.6 steps
+// ── Belt overpasses: DERIVED, CACHED render geometry. e.route is never touched (belt capacity,
+//    speed and capex are all derived from it — engine.js beltMaxFor / _siteMakeEdge / siteConnect).
+const XING_DECK=7,   // half-width of the raised casing (13 px stroke) + AA slack
+      XING_LAT =9,   // half-width of the hole punched in the belt BELOW (sprite half-extent ≈6 + margin)
+      XING_BOX =17,  // clip box for the deck repaint
+      XING_TAP =13,  // hit-test box: the deck the finger actually sees
+      XING_MAX =24;  // safety cap — a pathological plant must never tank the frame
+let _xs=null,_xsSig=null,_xidSeq=0;
+function _xsSig_(){ // EXACT signature: edge identity + every route vertex. No engine hooks needed, so
+  const s=[];      // connect / reroute / disconnect / demolish / loadSite / restoreGame are covered for free.
+  for(const e of G.edges){if(e.kind!=="conveyor"||!e.route)continue;
+    if(e._xid==null)e._xid=++_xidSeq; // renderer-only id: disconnect→reconnect yields a NEW edge object with
+    s.push(e._xid,e.route.length);    // identical geometry, and without this the cache would hand hitTest a dead
+    for(const p of e.route)s.push(p[0],p[1]);} // belt. (serializeGame maps explicit fields, so _xid is never persisted.)
+  return s;}
+function siteCrossings(){
+  const sig=_xsSig_();
+  if(_xs&&_xsSig&&sig.length===_xsSig.length){let same=true;
+    for(let i=0;i<sig.length;i++)if(sig[i]!==_xsSig[i]){same=false;break;}
+    if(same)return _xs;}
+  _xsSig=sig;
+  const list=siteBeltCrossings(G.edges,G.nodes).slice(0,XING_MAX);
+  const byTop=new Map(),byBot=new Map();
+  for(const c of list){
+    if(!byTop.has(c.top))byTop.set(c.top,[]); byTop.get(c.top).push(c);
+    if(!byBot.has(c.bot))byBot.set(c.bot,[]); byBot.get(c.bot).push(c);}
+  return _xs={list,byTop,byBot};}
+function siteXingHole(c){return c.topH
+  ?[c.x-XING_LAT,c.y-XING_DECK,XING_LAT*2,XING_DECK*2]
+  :[c.x-XING_DECK,c.y-XING_LAT,XING_DECK*2,XING_LAT*2];}
 // ── Drop shadows (S-SHADOW): one clean, contour-following cast under every RAISED object — separation
 //    equipment, vehicles, conveyor belts, containers, bales. Flat zones (bulk/landfill slabs) and waste
 //    particles get NONE. Shadow params are device-space, so the cast stays consistent across zoom.
@@ -168,7 +198,7 @@ function baleShadow(){ctx.shadowColor="rgba(24,18,11,.40)";ctx.shadowBlur=3;ctx.
 function noShadow(){ctx.shadowColor="transparent";ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;}
 const CONT_W=CELL*0.72,CONT_H=CELL*1.44; // roll-off container footprint (~20% down from the old 0.9×1.8)
 const BALE_W=12,BALE_H=8; // one bale footprint (1.6×1.07 m) used in EVERY context: stack, belt, fork, truck bed
-function drawSiteEdge(e){let P=e.route;if(!P||P.length<2)return;
+function drawSiteEdge(e,flat){let P=e.route;if(!P||P.length<2)return; // flat: skip the ground shadow (the overpass repaint re-strokes an already-shadowed belt inside a clip box — casting again would stamp a hard-edged dark square on the ground)
   if(e.kind==="vehicle"){ // haul road route: dashed spline on the dirt (§7), fanned out per edge
     P=_edgeOffsetPath(P,_edgeLane(e));
     ctx.save();ctx.strokeStyle="rgba(126,77,31,.30)";ctx.lineWidth=7;ctx.lineCap="round";siteSmoothPath(P);ctx.stroke();
@@ -182,7 +212,8 @@ function drawSiteEdge(e){let P=e.route;if(!P||P.length<2)return;
     const R=9; // ONE corner radius, ONE path. Every layer is the SAME polyline stroked at a smaller width →
     //           concentric rounded strokes always share the corner, so borders never drift (no offset-path math).
     // casing (outer dark frame) → belt bed → sheen: each is P stroked narrower. Crisp edges fall out for free.
-    siteShadow();ctx.strokeStyle="#1c1916";ctx.lineWidth=13;siteRoundedPath(P,R);ctx.stroke();noShadow(); // dark border rail (drop shadow on the casing only)
+    if(!flat)siteShadow();
+    ctx.strokeStyle="#1c1916";ctx.lineWidth=13;siteRoundedPath(P,R);ctx.stroke();noShadow(); // dark border rail (drop shadow on the casing only)
     ctx.strokeStyle="#6F665C";ctx.lineWidth=11;siteRoundedPath(P,R);ctx.stroke(); // metal frame
     ctx.strokeStyle=jam?"#6a352f":"#3B3833";ctx.lineWidth=9;siteRoundedPath(P,R);ctx.stroke(); // belt trough
     ctx.strokeStyle=jam?"#7a3b34":"#565149";ctx.lineWidth=7;siteRoundedPath(P,R);ctx.stroke(); // rubber bed
@@ -197,7 +228,33 @@ function drawSiteEdge(e){let P=e.route;if(!P||P.length<2)return;
     for(let i=0;i<n;i++){const p=sitePathAngleAt(P,(i+0.5)/n*L);
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);
       ctx.beginPath();ctx.moveTo(-2.6,-3.4);ctx.lineTo(3.4,0);ctx.lineTo(-2.6,3.4);ctx.lineTo(-0.6,0);ctx.closePath();ctx.fill();ctx.restore();}}}
-function drawSiteSprites(e){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bc=bagCol(),_bk=bagKey(),L=pathLen(P);
+// OVERPASS: repaint the raised belt over the one it bridges, and sell it as a deck rather than a Z-fight.
+function drawSiteXings(XS){ if(!XS||!XS.list.length)return;
+  for(const c of XS.list){
+    ctx.save();
+    ctx.beginPath();ctx.rect(c.x-XING_BOX,c.y-XING_BOX,XING_BOX*2,XING_BOX*2);ctx.clip();
+    // 1. contact shadow — the deck's underside cast ON the belt below, spanning THAT belt's width only,
+    //    so it never doubles the ground shadow drawSiteEdge already laid along the raised run.
+    ctx.strokeStyle="rgba(20,15,9,.42)";ctx.lineWidth=15;ctx.lineCap="butt";ctx.beginPath();
+    if(c.topH){ctx.moveTo(c.x-7.5,c.y+4);ctx.lineTo(c.x+7.5,c.y+4);}   // matches siteShadow's own (1,4) offset
+    else      {ctx.moveTo(c.x+1,c.y-7.5);ctx.lineTo(c.x+1,c.y+7.5);}
+    ctx.stroke();
+    // 2. the raised belt, verbatim — SAME helper, so the 4-stroke casing recipe can never drift
+    drawSiteEdge(c.top,true);
+    // 3. deck trim — two hairlines along the raised casing's flanks; this IS the crossing marker
+    if(cam.zoom>0.55){ctx.strokeStyle="rgba(232,222,204,.30)";ctx.lineWidth=1;ctx.beginPath();
+      if(c.topH){ctx.moveTo(c.x-10,c.y-6);ctx.lineTo(c.x+10,c.y-6);
+                 ctx.moveTo(c.x-10,c.y+6);ctx.lineTo(c.x+10,c.y+6);}
+      else      {ctx.moveTo(c.x-6,c.y-10);ctx.lineTo(c.x-6,c.y+10);
+                 ctx.moveTo(c.x+6,c.y-10);ctx.lineTo(c.x+6,c.y+10);}
+      ctx.stroke();}
+    ctx.restore();}}
+function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bc=bagCol(),_bk=bagKey(),L=pathLen(P);
+  const holes=XS&&XS.byBot.get(e); // where THIS belt dives under an overpass
+  if(holes){ctx.save();ctx.beginPath();          // even-odd: the whole world MINUS one rect per deck, so an
+    ctx.rect(-CELL,-CELL,(SITE_LAYOUT.grid.w+2)*CELL,(SITE_LAYOUT.grid.h+2)*CELL); // item is progressively eaten
+    for(const c of holes){const r=siteXingHole(c);ctx.rect(r[0],r[1],r[2],r[3]);}  // by the deck edge, never popped
+    ctx.clip("evenodd");}
   for(const s of e.sprites){const p=sitePathAngleAt(P,Math.min(1,s.t)*L);
     if(s.bale){const bi=img(BALE_IMG[baleDom(s.bale)]||"bale_0");
       if(bi)ctx.drawImage(bi,p.x-BALE_W/2,p.y-BALE_H/2,BALE_W,BALE_H);
@@ -209,7 +266,8 @@ function drawSiteSprites(e){const P=e.route;if(!P||P.length<2||e.kind==="vehicle
       if(pi){ // a soft material-coloured halo behind the item makes streams legible when tiny
         ctx.save();ctx.fillStyle=COL[s.mat];ctx.globalAlpha=0.5;ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fill();ctx.restore();
         ctx.drawImage(pi,p.x-4.5,p.y-4.5,9,9);}
-      else{ctx.fillStyle=COL[s.mat];ctx.beginPath();ctx.arc(p.x,p.y,SR[1],0,7);ctx.fill();}}}}
+      else{ctx.fillStyle=COL[s.mat];ctx.beginPath();ctx.arc(p.x,p.y,SR[1],0,7);ctx.fill();}}}
+  if(holes)ctx.restore();}
 
 const TRUCK_STYLE={supplier:{col:"#3F6FB5",len:76,wid:20},client:{col:"#4E5D75",len:96,wid:20},lftruck:{col:"#7C766D",len:96,wid:20}};
 function truckDrawPos(t){return truckPos(t);} // berths already give each truck its own spot — no ad-hoc lane shifting
@@ -622,8 +680,10 @@ function renderSite(){
   if(cam.zoom>0.5&&(BUILD.mode==="place"||BUILD.mode==="move")){ctx.strokeStyle="rgba(40,34,26,.14)";ctx.lineWidth=1/cam.zoom;ctx.beginPath(); // game grid — shown ONLY while placing/moving a unit; hidden otherwise
     for(let x=0;x<=SITE_LAYOUT.grid.w;x++){ctx.moveTo(x*CELL,0);ctx.lineTo(x*CELL,SITE_LAYOUT.grid.h*CELL);}
     for(let y=0;y<=SITE_LAYOUT.grid.h;y++){ctx.moveTo(0,y*CELL);ctx.lineTo(SITE_LAYOUT.grid.w*CELL,y*CELL);}ctx.stroke();}
+  const XS=siteCrossings();
   for(const e of G.edges)drawSiteEdge(e);      // connections under units (layer model §2)
-  for(const e of G.edges)drawSiteSprites(e);
+  drawSiteXings(XS);                           // overpasses repaint over the belts they bridge
+  for(const e of G.edges)drawSiteSprites(e,XS); // …and the belt below is clipped away under each deck
   for(const n of G.nodes)drawSiteNode(n);
   drawUnconnectedPorts();
   drawVehicles();
@@ -1011,6 +1071,17 @@ const LANG={fr:{
   "Recover 100 t on-spec":"Récupère 100 t conformes",
   "Hit 80% landfill diversion":"Atteins 80 % de détournement",
   "Earn a corporate sponsor (250 t on-spec)":"Décroche un sponsor (250 t conformes)",
+  "Run a full line — all 6 products on-spec":"Ligne complète — les 6 produits conformes",
+  "Imposed contract":"Contrat imposé","Imposed contract arrives":"Contrat imposé — arrivée",
+  "Kerbside contract imposed":"Collecte municipale imposée","Commercial waste imposed":"Déchets commerciaux imposés","Regional residual imposed":"Résiduel régional imposé",
+  "capital grant":"subvention d’investissement","cannot be refused":"non refusable","days":"jours",
+  "Waste contract imposed — trucks arrive in {n} days":"Contrat de déchets imposé — camions dans {n} jours",
+  "Imposed load overflowed — buried at your cost":"Débordement du flux imposé — enfoui à tes frais",
+  "All six products running — the regulator is watching":"Les six produits tournent — le régulateur t’observe",
+  "You have been named operator for this stream. The trucks roll whether or not you have the plant for them — they cannot be turned away. Whatever your bunkers cannot hold goes to landfill, and you pay the gate fee on it. A capital grant lands with the contract.":"Tu es désigné exploitant de ce flux. Les camions roulent que ton usine soit prête ou non — impossible de les refuser. Tout ce que tes fosses ne peuvent absorber part à la décharge, et tu en paies la taxe. Une subvention d’investissement accompagne le contrat.",
+  "Landfill allowance":"Quota de décharge","Buried this year":"Enfoui cette année",
+  "Imposed":"Imposé","Arrives in":"Arrivée dans","incoming":"à venir",
+  "on-spec":"conforme","off-spec":"non conforme","Landfill diversion":"Détournement de décharge",
   "Complete the tutorial":"Terminer le tutoriel","Run an eddy-current separator":"Faire tourner un séparateur à courants de Foucault","Run an air classifier":"Faire tourner un classificateur à air","Run a NIR sorter":"Faire tourner un trieur NIR","Export 100 t on-spec":"Exporter 100 t conformes","Build a 10-unit flowsheet":"Construire une ligne de 10 unités",
   "Trained sorters":"Trieurs formés","Recycling subsidy":"Subvention au recyclage","Binfinity contract":"Contrat Binfinity","Iron Maiden offtake":"Débouché Iron Maiden",
   "Non-ferrous line":"Ligne non-ferreuse","Density separation":"Séparation par densité","Optical sorting":"Tri optique","Film extraction":"Extraction du film","High-strength magnet":"Aimant haute puissance","VFD retrofit":"Variateur de fréquence","Wide belts":"Tapis larges","Flow splitting":"Division du flux","Manual sort cabin":"Cabine de tri manuel","Yard extension I":"Extension de cour I","Yard extension II":"Extension de cour II","Yard extension III":"Extension de cour III",
@@ -1034,7 +1105,7 @@ function applyLang(){buildLegend();const set=(id,s)=>{const el=document.getEleme
   if(G){updateHUD();_coachIdx=-1;if(!(G.scenario&&G.scenario.tuto)&&typeof renderCoach==="function")renderCoach();}}
 // ── Meta views: Process (canvas) / R&D (tech) / Goals (objectives) ──
 const ICN={flag:'<path d="M5 21V4h12l-2 4 2 4H5"/>',eddy:'<circle cx="12" cy="12" r="8"/><path d="M12 6a6 6 0 0 1 5 9"/><path d="M9 18l-1.5-3 3 .4"/>',air:'<path d="M4 9h11a3 3 0 1 0-3-3"/><path d="M4 14h13a3 3 0 1 1-3 3"/>',nir:'<ellipse cx="12" cy="12" rx="9" ry="5"/><circle cx="12" cy="12" r="2.5"/>',baler:'<rect x="5" y="6" width="14" height="12" rx="1.5"/><path d="M11 6v12"/>',units:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',facility:'<path d="M4 20V11l8-5 8 5v9"/><path d="M9 20v-5h6v5"/>',magnet:'<path d="M7 4v8a5 5 0 0 0 10 0V4"/><path d="M7 4h3v8a2 2 0 0 0 4 0V4h3"/>',bolt:'<path d="M13 3 5 13h5l-1 8 8-10h-5z"/>',belt:'<path d="M3 16h18M3 9h18"/><path d="M15 5l3 3-3 3"/>',splitter:'<path d="M5 12h6l4-5M11 12l4 5"/><circle cx="17" cy="7" r="1.6"/><circle cx="17" cy="17" r="1.6"/>',pick:'<circle cx="12" cy="6" r="2.3"/><path d="M9 21v-6l-2-3 2-2h2l2 2-2 3v6"/>',slots:'<rect x="3" y="9" width="8" height="11"/><rect x="13" y="5" width="8" height="15"/>',coin:'<circle cx="12" cy="12" r="8"/><path d="M14.7 9.4a3.2 3.2 0 1 0 0 5.2M8.3 12h5"/>'};
-const OBJ_ICON={a_first:"baler",a_net5:"bolt",a_size:"units",a_net10:"bolt",a_net20:"bolt",a_100t:"baler",a_div:"flag",a_rep:"flag"};
+const OBJ_ICON={a_first:"baler",a_net5:"bolt",a_size:"units",a_net10:"bolt",a_net20:"bolt",a_100t:"baler",a_div:"flag",a_rep:"flag",a_all6:"units"};
 const TECH_META={
   r_eddyU:{name:"Non-ferrous line",cl:"equipment",g:"eddy",fx:"Unlock the eddy-current separator"},
   r_airU :{name:"Density separation",cl:"equipment",g:"air",fx:"Unlock the air classifier"},
@@ -1077,6 +1148,9 @@ function setView(v){if(isSandboxSite()&&(v==="tech"||v==="obj"))v="process"; // 
   document.getElementById("dock").style.display=(v==="process")?"":"none";
   document.querySelectorAll("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   if(v==="tech")renderTechView(); if(v==="obj")renderObjView(); updateBadge(); updateTutFocus(); requestAnimationFrame(syncCoachInset);}
+function _mandSig(){const M=(G&&G.mode==="career"&&CAREER&&CAREER.mandates)||null; // so the Imposed section re-renders as mandates warn/arrive
+  if(!M)return "";
+  return (M.pending||[]).map(p=>p.id+"@"+p.arriveDay).join(",")+"/"+(M.active||[]).map(a=>a.id).join(",")+"/"+Math.floor((G.t||0)/24);}
 function renderObjView(){const ids=Object.keys(OBJ),cats=[["grow","Growth"],["impact","Impact"]];
   const _vb=document.querySelector("#viewObj .vbody"),_sc=_vb?_vb.scrollTop:0;
   let html='<div class="vhead"><span class="vt">'+tr("GOALS")+'</span><div class="bank"><div class="l">'+tr("Balance")+'</div><div class="v">'+euroB(G?G.cash:CAREER.bank)+'</div></div></div><div class="vbody">';
@@ -1093,9 +1167,22 @@ function renderObjView(){const ids=Object.keys(OBJ),cats=[["grow","Growth"],["im
       const bar=(!cl&&!lk&&pg>0&&pg<1)?'<div class="bar"><i style="width:'+Math.round(pg*100)+'%"></i></div>':'';
       const tag=o.equip?'<span class="tag">'+tr("equipment")+'</span>':(o.sponsor?'<span class="tag">'+tr("−20% equipment")+'</span>':'');
       html+='<div class="obj'+(cl?' claimable':lk?' locked':'')+'"><div class="oc">'+svgI(OBJ_ICON[id])+'</div><div class="ob"><div class="on2">'+tr(o.name)+tag+'</div>'+bar+'<div class="mt"><span class="pg">'+foot+'</span>'+right+'</div></div></div>';}}
+  // ── IMPOSED — read-only: these are not offers and there is nothing to claim ──
+  {const M=(G&&G.mode==="career"&&CAREER&&CAREER.mandates)||null;
+   const rows=[];
+   if(M){const day=Math.floor((G.t||0)/24);
+     for(const p of (M.pending||[])){const d=MANDATE[p.id];if(!d)continue;
+       const n=Math.max(0,p.arriveDay-day);
+       rows.push({name:d.name,foot:tr("Arrives in")+" "+n+" "+tr(n===1?"day":"days"),warn:true});}
+     for(const a of (M.active||[])){const d=MANDATE[a.id];if(!d)continue;
+       const s=supplierStream(d.supplier)||{};
+       rows.push({name:d.name,foot:coName(d.supplier)+" · "+(s.feedTph||0)+" t/h · "+tr("cannot be refused"),warn:false});}}
+   if(rows.length){html+='<div class="ohd">'+tr("Imposed")+'</div>';
+     for(const r of rows)html+='<div class="obj locked"><div class="oc">'+svgI("flag")+'</div><div class="ob"><div class="on2">'+tr(r.name)+
+       (r.warn?'<span class="tag">'+tr("incoming")+'</span>':'')+'</div><div class="mt"><span class="pg">'+r.foot+'</span></div></div></div>';}}
   html+='</div>';
   const view=document.getElementById("viewObj");view.innerHTML=html;
-  const _nb=view.querySelector(".vbody");if(_nb)_nb.scrollTop=_sc; _objSig=claimableObjectives().join(",")+"|"+CAREER.claimed.length;
+  const _nb=view.querySelector(".vbody");if(_nb)_nb.scrollTop=_sc; _objSig=claimableObjectives().join(",")+"|"+CAREER.claimed.length+"|"+_mandSig();
   view.querySelectorAll(".clm").forEach(b=>b.addEventListener("click",()=>{const id=b.dataset.id,card=b.closest(".obj");
     if(!claimObjective(id))return;
     card.style.maxHeight=card.offsetHeight+"px"; refreshBanks(true); toast("+"+euroB(OBJ[id].reward)); updateBadge();
@@ -1204,17 +1291,33 @@ function updateHUD(){const cs=document.getElementById("cashStat");const cw=docum
       ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="pointer-events:none"><rect x="6" y="5" width="4.2" height="14" rx="1.6"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6"/></svg>'
       : '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="pointer-events:none"><path d="M8 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 8 5.5z"/></svg>';}
   pb.classList.toggle("on",G.running);
-  {const pp=phaseProgress(),pbE=document.getElementById("phaseBar");
-   if(pp){pbE.classList.add("on");
-     document.getElementById("pbName").textContent=tr("Exported on-spec");
-     document.getElementById("pbNum").textContent=pp.done.toFixed(1)+" / "+pp.total+" t";
-     const f=document.getElementById("pbFill");f.style.width=(pp.frac*100).toFixed(1)+"%";
-     f.style.background="var(--good)";
-   }else pbE.classList.remove("on");}
+  {const pbE=document.getElementById("phaseBar"),f=document.getElementById("pbFill");
+   // priority: an inbound imposed contract > over the landfill allowance > the standing on-spec bar
+   const _pend=(G&&G.mode==="career"&&CAREER&&CAREER.mandates&&CAREER.mandates.pending&&CAREER.mandates.pending[0])||null;
+   const _lf=(G&&G.mode==="career"&&typeof landfillYear==="function")?landfillYear():null;
+   const _allow=_lf?landfillAllowT():Infinity;
+   if(_pend){const day=Math.floor(G.t/24),left=Math.max(0,_pend.arriveDay-day),span=Math.max(1,_pend.arriveDay-_pend.warnDay);
+     pbE.classList.add("on");
+     document.getElementById("pbName").textContent=tr("Imposed contract arrives");
+     document.getElementById("pbNum").textContent=left+" "+tr("days");
+     f.style.width=(Math.max(0,Math.min(1,1-left/span))*100).toFixed(1)+"%";
+     f.style.background="var(--accent)";
+   }else if(_lf&&_lf.t>=_allow){
+     pbE.classList.add("on");
+     document.getElementById("pbName").textContent=tr("Landfill allowance");
+     document.getElementById("pbNum").textContent=Math.round(_lf.t/Math.max(1,_allow)*100)+"% · ×"+ECON.lfPenalty;
+     f.style.width="100%";f.style.background="var(--bad)";
+   }else{const pp=phaseProgress();
+     if(pp){pbE.classList.add("on");
+       document.getElementById("pbName").textContent=tr("Exported on-spec");
+       document.getElementById("pbNum").textContent=pp.done.toFixed(1)+" / "+pp.total+" t";
+       f.style.width=(pp.frac*100).toFixed(1)+"%";
+       f.style.background="var(--good)";
+     }else pbE.classList.remove("on");}}
   const menuHidden=document.getElementById("menu").classList.contains("hide");
   document.getElementById("tabbar").classList.toggle("hide",!menuHidden);
   if(!menuHidden&&curView!=="process")setView("process"); updateBadge();
-  if(curView==="obj"){const sig=claimableObjectives().join(",")+"|"+CAREER.claimed.length; if(sig!==_objSig&&!document.querySelector("#viewObj .obj.swipe"))renderObjView();}}
+  if(curView==="obj"){const sig=claimableObjectives().join(",")+"|"+CAREER.claimed.length+"|"+_mandSig(); if(sig!==_objSig&&!document.querySelector("#viewObj .obj.swipe"))renderObjView();}}
 const pointers=new Map();let mode_=null,grab=null,downPos=null,moved=false,pinchD=0,lastPt=null;
 function hitTest(wx,wy){const PR=Math.max(15,22/cam.zoom),ER=Math.max(11,15/cam.zoom);
   // Ports FIRST (explicit wiring nubs), finger-sized in screen px so they stay tappable at any zoom. (Flowsheet only — site wiring has its own nubs.)
@@ -1223,14 +1326,19 @@ function hitTest(wx,wy){const PR=Math.max(15,22/cam.zoom),ER=Math.max(11,15/cam.
     for(const n of G.nodes){if(!isInput(n)&&!isBunker(n)&&!isLandfill(n)&&!isExport(n)){const ip=inPortPos(n);if(Math.hypot(wx-ip.x,wy-ip.y)<PR)return{kind:"in",n};}}}
   // Body = the drawn card rect (interior taps inspect / drag-move).
   for(const n of G.nodes){if(Math.abs(wx-n.x)<n.w/2&&Math.abs(wy-n.y)<n.h/2)return{kind:"node",n};}
-  let bestE=null,bestD=ER; // at conveyor crossings the NEAREST edge wins the tap (playability, 2026-07-11)
+  let bestE=null,bestD=ER,bestTop=false; // at a crossing the OVERPASS wins the tap — the belt underneath is not
+  const XS=siteMode()?siteCrossings():null; // the one you can see (paint order and tap order must agree)
+  const onDeck=e=>{const cs=XS&&XS.byTop.get(e);if(!cs)return false;
+    for(const c of cs)if(Math.abs(wx-c.x)<=XING_TAP&&Math.abs(wy-c.y)<=XING_TAP)return true;return false;};
   for(const e of G.edges){
     if(e.route&&e.route.length>1){ // site connection: distance to the route polyline
+      const top=onDeck(e); // hoisted: independent of which segment is nearest
       for(let i=1;i<e.route.length;i++){const a=e.route[i-1],b=e.route[i];
         const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;
         const u=L2>0?Math.max(0,Math.min(1,((wx-a[0])*dx+(wy-a[1])*dy)/L2)):0;
         const d=Math.hypot(wx-(a[0]+dx*u),wy-(a[1]+dy*u));
-        if(d<bestD){bestD=d;bestE=e;}}
+        if(d>=ER)continue;
+        if(!bestE||(top&&!bestTop)||(top===bestTop&&d<bestD)){bestE=e;bestD=d;bestTop=top;}}
       continue;}
     const pp=edgePath(e);if(!pp)continue;for(let t=0.15;t<=0.85;t+=0.175){const p=bez(pp,t);
       const d=Math.hypot(wx-p.x,wy-p.y);if(d<bestD){bestD=d;bestE=e;}}}
@@ -1512,8 +1620,11 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
        if(cnt(agg)>0){b+='<div class="slbl" style="margin-top:6px">'+tr("Reject composition")+'</div>'+compBar(agg);}}
       dsc+='<p>'+tr("Reject piles into containers; a container truck hauls each FULL one to the landfill. All full \u21D2 the belt into here backs up.")+'</p>';}
     if(n.role==="landfill"){
+      const _lf=(typeof landfillYear==="function")?landfillYear():null,_now=(typeof landfillGateNow==="function")?landfillGateNow():ECON.landfillGate;
+      const _over=!!(_lf&&_lf.t>=landfillAllowT());
       b+=row(tr("On-site"),(cnt(n.inBuf)*PMASS).toFixed(1)+' / '+(capOf(n)*PMASS).toFixed(0)+' t')+
-        row(tr("Gate"),'<span style="color:var(--bad)">\u2212\u20AC'+ECON.landfillGate+' / t</span>');
+        row(tr("Gate"),'<span style="color:var(--bad)">\u2212\u20AC'+Math.round(_now)+' / t</span>'+(_over?' <span style="color:var(--bad)">\u00D7'+ECON.lfPenalty+'</span>':''));
+      if(_lf)b+=row(tr("Buried this year"),'<span style="color:'+(_over?'var(--bad)':'inherit')+'">'+_lf.t.toFixed(0)+' / '+landfillAllowT().toFixed(0)+' t</span>');
       if(cnt(n.inBuf)>0){b+='<div class="slbl" style="margin-top:6px">'+tr("Landfilled composition")+'</div>'+compBar(n.inBuf);}
       dsc+='<p>'+tr("Container trucks drop here; a landfill truck hauls it off-map on a cadence, charged by weight. Send as little as you can.")+'</p>';}
     if(isExport(n)&&n.bales&&n.bales.length&&n.gx!=null){const ungraded=isHeld(n)||n.spec==="dispose";let on=0;for(const bl of n.bales)if(ungraded||grade(bl,n.spec).ok)on++;
@@ -1644,7 +1755,21 @@ function showBriefing(scnName,title,body,resumeOnClose,doneHTML){
   document.getElementById("brief").classList.add("show");_briefResume=!!resumeOnClose;}
 document.getElementById("briefGo").addEventListener("click",()=>{document.getElementById("brief").classList.remove("show");
   if(_briefResume&&G&&!G.finished){G.running=true;saveGame();}});
-UI.onOverflow=function(){toast(tr("Input full \u2014 overflow forced to landfill (paused)"),"bad");};
+UI.onOverflow=function(kind){
+  if(kind==="mandate"){toast(tr("Imposed load overflowed \u2014 buried at your cost"),"bad");return;} // no pause: the bleed IS the punishment
+  toast(tr("Input full \u2014 overflow forced to landfill (paused)"),"bad");};
+// A mandate is not an offer. The warning is a courtesy; the arrival is an announcement.
+UI.onMandate=function(ev){ if(!ev)return;
+  if(ev.phase==="armed"){toast(tr("All six products running \u2014 the regulator is watching"),"warn");return;}
+  const d=ev.def;if(!d)return;
+  const nm=coName(d.supplier),s=supplierStream(d.supplier)||{};
+  if(ev.phase==="warn"){toast(tr("Waste contract imposed \u2014 trucks arrive in {n} days").replace("{n}",ev.days),"warn");return;}
+  G.running=false;
+  const done='<div class="bdTitle">+'+euroB(d.grant)+' '+tr("capital grant")+'</div>'+
+             '<div class="bdSub">'+nm+' \u00b7 '+(s.feedTph||0)+' t/h \u00b7 '+tr("cannot be refused")+'</div>';
+  showBriefing(tr("Imposed contract"),tr(d.name),
+    tr("You have been named operator for this stream. The trucks roll whether or not you have the plant for them \u2014 they cannot be turned away. Whatever your bunkers cannot hold goes to landfill, and you pay the gate fee on it. A capital grant lands with the contract."),
+    true,done);};
 UI.onPhase=function(phase){if(!G||!G.scenario)return;G.running=false;
   const lp=G.lastPhase; let done="";
   if(lp){const pl=tr(SPECS[lp.product]?SPECS[lp.product].label:lp.product);
@@ -1697,7 +1822,14 @@ function balanceSheetHTML(){const r=pnlReport(),E=fmtN;
     head(tr("Operating result"))+row(tr("Income \u2212 operating costs"),r.operating,1,(r.operating>=0?G2:O2))+
     head(tr("Investment"))+(r.grantsTotal?row(tr("Grants (one-off)"),r.grantsTotal,0,G2):'')+row(tr("Capex"),-r.capexTotal,1,O2)+
     head(tr("Result"))+row(tr("Starting cash"),G.startCash!=null?G.startCash:ECON.startCash)+row(tr("Net cash"),r.net,1)+
-    head(tr("Tonnage"))+ton(tr("PET on-spec"),G.petOn.toFixed(1)+'t')+ton(tr("Landfilled"),G.landfill.toFixed(1)+'t')+ton(tr("Recycling"),diverted.toFixed(0)+'%')+
+    head(tr("Tonnage"))+
+    // per-product on-spec, every SPEC the plant actually sold (the old single "PET on-spec" row was a
+    // two-material vestige and told you nothing once six products were running)
+    Object.keys(SPECS).map(k=>{const sp=G.sold[k];if(!sp||!((sp.on||0)+(sp.off||0)))return '';
+      const off=(sp.off||0)>0?' <span style="opacity:.6">(+'+sp.off.toFixed(1)+'t '+tr("off-spec")+')</span>':'';
+      return ton(tr(SPECS[k].label)+' '+tr("on-spec"),(sp.on||0).toFixed(1)+'t'+off);}).join('')+
+    ton(tr("Landfilled"),G.landfill.toFixed(1)+'t')+ton(tr("Recycling"),diverted.toFixed(0)+'%')+
+    ton(tr("Landfill diversion"),(diversionNow()*100).toFixed(0)+'%')+
     opexDayHTML();}
 function opexDayHTML(){ // per-day OPEX breakdown (capex excluded) + a compact history
   const H=(G&&G.opexHistory)||[];const head=t=>'<div style="margin:12px 0 4px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:11px;opacity:.6">'+t+'</div>';

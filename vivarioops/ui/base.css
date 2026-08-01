@@ -169,6 +169,36 @@ html, body {
 .tank-chip.speed { padding: 0 var(--gutter); font-family: var(--f-mono); font-size: var(--t-value); }
 .tank-chip.speed.active { background: var(--c-surface-2); }
 
+/* Secondary tools — Stranger / Burst / Seek — a compact pill in the top ribbon
+   (top-right), so the bottom ribbon stays pure transport (Pause / Speed / Undo)
+   and the tools take no extra row. */
+.tank-tools {
+  position: absolute; right: var(--gutter); z-index: 2;
+  top: var(--gap);
+  display: flex; gap: var(--hairline); padding: var(--hairline);
+  border: thin solid var(--c-line); border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--c-surface) 72%, transparent);
+}
+.tank-tools .tank-chip { min-height: var(--tapsize-compact); padding: 0 var(--gap-2); font-size: var(--t-value); }
+
+/* Scale reference — a bracket bar of a round CENTIMETRE length at the current
+   zoom (01 §7: world units are cm), lower-left of the work area. Width is set
+   per frame in updateScale(). */
+.tank-scale {
+  position: absolute; z-index: 2; left: var(--gutter);
+  bottom: calc(var(--scrim-bottom) + var(--gap));
+  pointer-events: none; display: flex; flex-direction: column;
+  gap: var(--readout-gap); align-items: flex-start;
+}
+.tank-scale-line {
+  height: var(--scale-tick); box-sizing: border-box; min-width: var(--gap);
+  border: thin solid var(--c-text-dim); border-top: none;
+}
+.tank-scale-text {
+  font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim);
+  letter-spacing: var(--t-micro-tracking);
+}
+
 /* Primary action — Breed, always labelled with its object. */
 .tank-breed {
   position: absolute; left: var(--gutter); right: var(--gutter); z-index: 2;
@@ -238,6 +268,10 @@ html, body {
 .spec-card-bino { font-family: var(--f-name); font-style: italic; font-size: var(--t-value); color: var(--c-text-dim); }
 .spec-card-name { font-size: var(--t-value); color: var(--c-text); }
 .spec-card-stats { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim); }
+.spec-card-source {
+  margin-top: auto; font-family: var(--f-mono); font-size: var(--t-xs);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-text-dim);
+}
 .spec-empty-page { padding: var(--s-6) var(--s-4); color: var(--c-text-dim); font-size: var(--t-sm); line-height: 1.5; }
 
 /* Boot fault panel (H1b) — shown by the classic script in index.html when the

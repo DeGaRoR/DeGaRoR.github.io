@@ -2905,7 +2905,7 @@ $("ovBack").onclick = ()=>{ $("overlay").style.display="none"; NAV.uiBack(); };
    melait produit et musee, et poussait le journal d'erreurs hors ecran. */
 function renderVersionsTable(){
   const tb = $("verTable"); if(tb){ tb.innerHTML = "";
-    const cache = "v88";                                      // repere de build (CACHE du SW)
+    const cache = "v89";                                      // repere de build (CACHE du SW — garder synchro avec sw.js)
     const rows = [[t("verRow_build"), cache],
                   [t("verRow_save"), "v"+SAVE_V+" · "+t("verSaveV4")],
                   [t("verRow_off"), "✓"],
@@ -2927,6 +2927,18 @@ function renderVersionsTable(){
 }
 $("settingsBtn").onclick = ()=>{ renderVersionsTable(); $("settingsOv").style.display="flex"; };
 if($("errClear")) $("errClear").onclick = ()=>{ try{ localStorage.removeItem(ERRLOG_KEY); }catch(_){} renderVersionsTable(); };
+/* MAJ FORCÉE — le SW est cache-first (ignoreSearch), donc une simple actualisation
+   peut resservir l'ancien build. Ce bouton PURGE les caches + désinscrit le SW,
+   puis recharge : index.html réenregistre sw.js qui reprécache le build courant.
+   La sauvegarde vit dans localStorage (intacte). */
+async function forcePwaUpdate(){
+  try{ showToast(t("updating"), 4000); }catch(_){}
+  try{ if (window.caches){ const ks = await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(_){}
+  try{ if (navigator.serviceWorker){ const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister())); } }catch(_){}
+  try{ location.reload(); }catch(_){ try{ location.href = location.pathname; }catch(__){} }
+}
+if($("forceUpdate")) $("forceUpdate").onclick = forcePwaUpdate;
 $("settingsClose").onclick = ()=>{ $("settingsOv").style.display="none"; };
 
 /* ══ E6 — écran d'accueil : carrières ══ */

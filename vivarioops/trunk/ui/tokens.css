@@ -67,6 +67,10 @@
   --hairline:    1px;        /* the control pill's 1px seam (padding + gap) */
   --chip-pad:    18px;       /* cluster chip horizontal padding (speed uses --gutter) */
   --readout-gap: 2px;        /* between the two lines of a readout column */
+  --tapsize-compact: 34px;   /* secondary tools pill — below --tapsize on purpose:
+                                Stranger/Burst/Seek are deliberate, not reflexive,
+                                and the ribbon must not take a second row */
+  --scale-tick:   6px;       /* depth of the scale bar's end brackets */
 
   /* Scrims, not panels: readouts sit over moving water and need a floor. */
   --scrim-top:    96px;
@@ -91,21 +95,129 @@
   --c-water-0: #0f2130;
   --c-water:   radial-gradient(115% 70% at 50% -10%, #0f2130 0%, #04070a 68%);
 
-  /* Creature ramp — W1 "cold water". Six stops the hue gene indexes;
-   * hueVariance spreads across ADJACENT stops only. Index 3 is the near-white
-   * bone stop — the luminous branch excludes it or a glowing draw is white by
-   * construction. 4 and 5 (rust, plum) are the rare stops, so a warm creature
-   * is an event. A new world ships its own --pal-<id>-0..5 block. */
-  --pal-w1-0: #2b3a4a;
-  --pal-w1-1: #3f6b6b;
-  --pal-w1-2: #7fa89b;
-  --pal-w1-3: #d9cfbc;   /* bone — excluded from luminous draws */
-  --pal-w1-4: #b5764a;   /* rare */
-  --pal-w1-5: #6b5878;   /* rare */
+  /* Creature ramp — W1 "reef shallows". Six stops read as a CONTINUOUS GRADIENT
+   * (colourFrom lands the hue gene BETWEEN stops), not six buckets. Index 3 is
+   * the near-white bone stop — the luminous branch excludes it or a glowing draw
+   * is white by construction. 4 and 5 (coral, magenta) are the rare warm stops,
+   * so a hot creature is an event. A new world ships its own --pal-<id>-0..5. */
+  --pal-w1-0: #12557f;
+  --pal-w1-1: #1f9fc4;
+  --pal-w1-2: #63d9cf;
+  --pal-w1-3: #f6ecd8;   /* bone — excluded from luminous draws */
+  --pal-w1-4: #ff8a5e;   /* rare */
+  --pal-w1-5: #e2568f;   /* rare */
 
   /* Presentation constants for the render. Here, not in creature.js, so they
-   * are visible on the dev panel and N16 stays a real check. */
+   * are visible on the dev panel and N16 stays a real check. The rest of the
+   * --creature-* set is in the reef block at the foot of this file. */
   --creature-lum-threshold:  0.82;   /* material.iridescence above this glows */
-  --creature-membrane-scale: 1.13;
-  --creature-emissive-floor: 0.3;
+  --creature-membrane-scale: 1.11;
+  --creature-emissive-floor: 0.16;   /* glow down ~2/3: lit tissue, not a lamp */
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * REEF WATER + LIGHT RIG + CREATURE MATERIAL — 3D revamp (target 7a).
+   *
+   * Ported from design_handoff_vivarium_style/tokens.additions.css. The chrome
+   * --c-* block from that file is intentionally NOT copied: the app's chrome
+   * tokens above are the source of truth and must not be clobbered.
+   *
+   * Three namespaces, none mixing: --tank-* is the water (chrome for the 3D
+   * view, never a creature colour); --pal-* are the creature ramps; --creature-*
+   * are the material constants. See render/tank.js and render/creature.js.
+   * ═══════════════════════════════════════════════════════════════════════ */
+
+  /* ── The water. Three stops per world; the MID stop is the fog colour. One
+   * equirect gradient built surface→deep is BOTH background and environment. */
+  --tank-w1-surface: #bdeff7;
+  --tank-w1-mid:     #3fb0d2;
+  --tank-w1-deep:    #0b4f79;
+
+  --tank-w2-surface: #ffd7ac;
+  --tank-w2-mid:     #4fa4cc;
+  --tank-w2-deep:    #12406b;
+
+  --tank-w3-surface: #d6f7e8;
+  --tank-w3-mid:     #3fb5aa;
+  --tank-w3-deep:    #0f4f5e;
+
+  /* ── Light rig. Four sources plus the image-based light, each one job:
+   * sun (hard key above the surface), hemi (sky over sand), bounce (off the
+   * sand, stops flat silhouettes), rim (side-back, RAMP stop 2, never white). */
+  --tank-sun-intensity:     3.1;
+  --tank-hemi-intensity:    0.95;
+  --tank-bounce-intensity:  1.0;
+  --tank-rim-intensity:     1.1;
+  --tank-env-intensity:     1.1;
+  --tank-bg-intensity:      1.0;
+  --tank-exposure:          1.0;
+
+  /* Sun shafts — additive quads, no volumetrics. The strongest cue that the
+   * water is shallow. Both counts drop to 0 first under frame pressure. */
+  --tank-shaft-count:       3;
+  --tank-shaft-opacity:     0.16;
+
+  /* Two particle layers at different depths and drift rates. One uniform layer
+   * reads as dirt on the lens; parallax between two reads as water. */
+  --tank-motes-far-count:   190;
+  --tank-motes-far-size:    1.9;
+  --tank-motes-far-opacity: 0.42;
+  --tank-motes-near-count:  46;
+  --tank-motes-near-size:   4.6;
+  --tank-motes-near-opacity: 0.26;
+
+  /* ── Creature ramps for the other two worlds (w1 is above). Shipped now;
+   * the app renders w1 only until a world picker exists. */
+  --pal-w2-0: #2b4f9e;
+  --pal-w2-1: #3f9ad6;
+  --pal-w2-2: #8fe0d2;
+  --pal-w2-3: #ffeacb;
+  --pal-w2-4: #ffb03f;
+  --pal-w2-5: #b563d8;
+
+  --pal-w3-0: #155e6e;
+  --pal-w3-1: #2fb39b;
+  --pal-w3-2: #9fdf6b;
+  --pal-w3-3: #fff0d4;
+  --pal-w3-4: #ff6a5c;
+  --pal-w3-5: #d94f9a;
+
+  /* ── Creature material constants (the --creature-lum-threshold / -membrane-
+   * scale / -emissive-floor above complete this set). */
+
+  /* Clarity — NOT a new gene: clarity = max(0, 1 - patternContrast * K). An
+   * unpatterned animal is a glass one; glass AND luminous is the "lantern". */
+  --creature-clarity-k:       1.3;
+  --creature-glass-threshold: 0.45;
+
+  /* Opacity = geometry x trait: base = OPACITY-BASE + OPACITY-SPAN * (body min
+   * dim / creature girth); opacity = base * (1 - OPACITY-TRAIT * clarity), floored. */
+  --creature-opacity-base:  0.34;
+  --creature-opacity-span:  0.66;
+  --creature-opacity-trait: 0.68;
+  --creature-opacity-floor: 0.14;
+
+  /* Part classification, all RELATIVE to the creature's largest girth (scale-free). */
+  --creature-strand-girth:  0.42;   /* min dim < this x girthRef */
+  --creature-strand-round:  1.7;    /* mid dim < this x min dim  */
+  --creature-strand-long:   2.1;    /* max dim > this x min dim  */
+  --creature-vane-flat:     0.34;   /* min dim < this x mid dim  */
+
+  /* Membrane shell on mass bodies (radius scale is above); fallback rung 1 drops it. */
+  --creature-membrane-opacity: 0.3;
+
+  /* Emissive levels. Floors are real, not zero: at ~0.95 rad phase lag every
+   * body can sit in the wave's negative half at once and go dark. */
+  --creature-emissive-floor-glass: 0.05;
+  --creature-emissive-gain:        0.30;
+  --creature-organ-emissive-floor: 0.20;
+  --creature-organ-gain:           0.50;
+  --creature-organ-gain-glass:     0.95;
+  --creature-halo-opacity-floor:   0.015;
+  --creature-halo-opacity-gain:    0.05;
+  --creature-halo-scale:           4.2;
+
+  /* Generated maps — one set per creature, shared by all its bodies, never shipped. */
+  --creature-map-w:   160;
+  --creature-map-h:   80;
+  --creature-uv-ref:  0.55;   /* world units per pattern repeat */
 }

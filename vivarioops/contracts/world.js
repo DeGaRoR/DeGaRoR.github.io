@@ -45,9 +45,9 @@ export const WORLD_SCHEMA = {
   phase:                { type: S, note: "'liquid' | 'gas'", hashed: false },
 
   // ecology — read by L3
-  worldSize:            { type: 'array', len: 2, of: N, note: 'm, torus', hashed: false },
+  worldSize:            { type: 'array', len: 2, of: N, note: 'cm, torus', hashed: false },
   substrateGrid:        { type: 'array', len: 2, of: N, hashed: false },
-  totalMass:            { type: N, note: 'kg — THE conserved quantity', hashed: false },
+  totalMass:            { type: N, note: 'g — THE conserved quantity', hashed: false },
   fertility:            { type: 'object', keys: { noiseScale: N, noiseContrast: N, seed: N }, hashed: false },
   diffusionRate:        { type: N, hashed: false },
   HARVEST_RATE:         { type: N, hashed: false },

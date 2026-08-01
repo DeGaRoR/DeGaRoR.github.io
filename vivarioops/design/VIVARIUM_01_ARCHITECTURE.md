@@ -204,26 +204,48 @@ tick ahead; the UI never blocks on the simulation.
 Fixed once. Every layer obeys. Most of the expensive bugs in a system like this are unit
 mismatches at a boundary.
 
+**THE SYSTEM IS CGS** — centimetre, gram, second. This was not a change of physics: the
+engine has always carried density relative to water with `mass = density × volume`, which
+*is* the g/cm³ convention. What changed is the label. The table previously said "metres"
+and "kilograms" together, which is not any consistent system — under a metre reading the
+mass unit is a **tonne**, and `engine/l1/physics.js` said so in its own header while the
+UI printed "kg". Naming it CGS makes every constant citable against a real number.
+
 | Quantity | Unit | Note |
 |---|---|---|
-| Length | metres | body dims 0.2–2.0 m |
-| Mass | kilograms | derived: density × volume |
-| Density | **relative to water** | water 1.0, air 0.0012, bodies 0.15–1.8 |
+| Length | **centimetres** | body dims 0.2–2.0 cm per axis; median creature ~7 cm |
+| Mass | **grams** | derived: density × volume; median creature ~7.5 g |
+| Density | **relative to water** | g/cm³. water 1.0, air 0.0012, bodies 0.15–1.8 |
 | Time | seconds | |
+| Force | **dynes** (g·cm/s²) | |
+| Pressure / stress | **barye** (0.1 Pa) | `MUSCLE_STRESS` 200 = 20 Pa — see the debt below |
 | Physics step | 1/120 s | fixed, substepped |
 | L3 tick | 0.1 s | fixed |
 | Angle | radians | |
-| Energy / work | joules | `Σ|τ·ω|·dt` |
-| Power | watts | |
-| **L3 mass ≡ energy** | kilograms | one quantity; see 12 §3 |
+| Energy / work | **ergs** | `Σ|τ·ω|·dt` |
+| Power | **erg/s** | |
+| **L3 mass ≡ energy** | grams | one quantity; see 12 §3 |
 
-**Coordinate convention:** Y is up, right-handed. Gravity is `(0, −9.81, 0)`. A creature's
+**Three constants carry a recorded debt against this reading**, all tracked in the header
+of `engine/l1/physics.js`:
+
+- `MUSCLE_STRESS = 200` is 20 Pa against real muscle's 10⁴–10⁶ Pa. **Scheduled** to become
+  `2e6`. Measured: a 10⁴× muscle buys only 2.5× speed, so it is a labelling correction and
+  not a locomotion fix.
+- `world.gravity = 9.81` should be `981`. Provably inert while `SLICE_LIMITS.density` is
+  `[1, 1]` — the buoyancy term is identically zero, bit-exact at g = 0 / 9.81 / 981. Fix
+  before the density band unpins at step F.
+- `dragCoefficient` fronts a constant-`Cd` quadratic law, valid for `Re ≳ 10³`. At this
+  reading and current speeds the corpus sits at `Re ≈ 32`. Revisit if it is still under
+  ~0.1 body-lengths/s. Correcting `MUSCLE_STRESS` does **not** discharge this.
+
+**Coordinate convention:** Y is up, right-handed. Gravity is `(0, −g, 0)`. A creature's
 forward axis is +Z of its root body. L3 is 2D and uses the XZ plane, so "up" is dropped
 rather than remapped.
 
-**Cross-layer conversion:** none. L2 measures in SI and L3 consumes SI. There is
+**Cross-layer conversion:** none. L2 measures in CGS and L3 consumes CGS. There is
 deliberately no scaling factor anywhere, because a scaling factor is a place for an error
-to hide.
+to hide — and that rule is exactly why the labels had to move rather than the numbers.
 
 ---
 
