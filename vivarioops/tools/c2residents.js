@@ -97,7 +97,7 @@ process.stderr.write(`compiled ${compiled.length} candidates\n`);
   for (let k = compiled.length - 1; k >= 0; k--) {
     if (compiled[k].sp.cruiseSpeed < floor) compiled.splice(k, 1);
   }
-  process.stderr.write(`liveness floor ${floor.toFixed(4)} m/s (0.1 x median ${medSpeed.toFixed(4)}): `
+  process.stderr.write(`liveness floor ${floor.toFixed(4)} cm/s (0.1 x median ${medSpeed.toFixed(4)}): `
     + `dropped ${before - compiled.length}, ${compiled.length} remain\n`);
 }
 
@@ -168,8 +168,11 @@ lines.push(`// nothing. Minimum pairwise distance in normalised capability space
 lines.push(``);
 lines.push(`export const W1_RESIDENT_GENOMES = {`);
 chosen.forEach((c, k) => {
-  lines.push(`  // ${ids[k]} — ${c.sp.name}: ${c.sp.bodyCount} bodies, ${c.sp.massBase.toFixed(2)} kg,`);
-  lines.push(`  // cruise ${c.sp.cruiseSpeed.toFixed(3)} m/s, turn ${c.sp.turnRate.toFixed(4)} rad/s, reach ${c.sp.reach.toFixed(2)} m`);
+  // Units are CGS (01 §7): grams, centimetres, seconds. These were emitted as
+  // kg/m/m-per-second, which was never a consistent system — see the header of
+  // engine/l1/physics.js.
+  lines.push(`  // ${ids[k]} — ${c.sp.name}: ${c.sp.bodyCount} bodies, ${c.sp.massBase.toFixed(2)} g,`);
+  lines.push(`  // cruise ${c.sp.cruiseSpeed.toFixed(3)} cm/s, turn ${c.sp.turnRate.toFixed(4)} rad/s, reach ${c.sp.reach.toFixed(2)} cm`);
   lines.push(`  ${ids[k]}: ${serialise(c.genome)},`);
 });
 lines.push(`};`);

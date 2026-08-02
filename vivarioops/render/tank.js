@@ -129,6 +129,7 @@ export function createWater(scene, worldId = 'w1') {
     m.position.set((f - 0.5) * 1.4, 0.3, 0);                 // spread across x, biased up
     m.rotation.z = (i - (shaftCount - 1) / 2) * 0.12;        // a faint fan
     m.userData.x0 = m.position.x;
+    m.userData.r0 = m.rotation.z;   // the fan angle updateWater leans away from
     shafts.add(m);
   }
   overlayScene.add(shafts);
@@ -177,13 +178,29 @@ export function createWater(scene, worldId = 'w1') {
 export function updateWater(water, t) {
   water.far.position.set(Math.sin(t * 0.05) * 0.5, (t * 0.035) % 3 - 1.5, 0);
   water.near.position.set(Math.sin(t * 0.09 + 1) * 0.9, (t * 0.075) % 2.4 - 1.2, 0);
-  // Screen-space shafts: each drifts sideways and breathes in opacity, slightly
-  // out of phase, so the light reads as moving water rather than a fixed gradient.
+  // Screen-space shafts. Three motions, all slow and all out of phase with each
+  // other, because ONE periodic motion reads as a pulse and three read as
+  // caustics — sunlight through a moving surface never repeats.
+  //
+  //   sway    lateral drift, the shaft's foot wandering
+  //   breathe opacity, so a shaft can nearly vanish and return
+  //   lean    a small rotation about its own top, which is what actually sells
+  //           it: a vertical bar that only slides looks like UI, a bar that
+  //           tilts looks like light bending through water
+  //
+  // The amplitudes were raised from ±0.05 / 0.6-1.0: at the old values the
+  // animation was there but under the threshold of noticing, which is the worst
+  // place for it to be — all of the cost and none of the effect.
   const chn = water.shafts.children;
   for (let i = 0; i < chn.length; i++) {
     const m = chn[i];
-    m.position.x = m.userData.x0 + Math.sin(t * 0.08 + i * 1.3) * 0.05;
-    m.material.opacity = water.shaftOpacity * (0.6 + 0.4 * Math.sin(t * 0.25 + i * 1.7));
+    const ph = i * 1.3;
+    m.position.x = m.userData.x0 + Math.sin(t * 0.11 + ph) * 0.16
+                                 + Math.sin(t * 0.037 + ph * 2.1) * 0.09;
+    m.rotation.z = m.userData.r0 + Math.sin(t * 0.06 + ph * 0.7) * 0.05;
+    m.material.opacity = water.shaftOpacity
+      * (0.55 + 0.45 * Math.sin(t * 0.19 + ph * 1.31))
+      * (0.80 + 0.20 * Math.sin(t * 0.071 + ph));
   }
 }
 
@@ -215,11 +232,23 @@ export function setMotesVisible(water, on) { water.motes.visible = on; }
  * @param {object} water  from createWater()
  * @param {number[]} size [w, h, d] world extent the atmosphere should fill
  */
+/**
+ * How much LARGER than the creature grid the mote field is, per side.
+ *
+ * Sizing the motes to the grid put every particle inside the swarm, so the water
+ * read as a lit box with a clump of dust in the middle of it and nothing beyond.
+ * Water has no edge: the field has to run past the frame in every direction, so
+ * that orbiting reveals more of it rather than revealing that it stops. Three
+ * sides means twenty-seven times the volume, which is why the counts in
+ * tokens.css went up with it — spreading the old counts over that box would have
+ * thinned them to invisibility.
+ */
+const MOTE_SPAN = 3;
+
 export function fitAtmosphere(water, [w, h, d]) {
   // Shafts are a screen-space overlay now (fixed in NDC), so nothing to size here.
-  // Motes authored in a ~15-wide box with a compressed Y. Scale to fill the whole
-  // volume so they read as suspended water, not a clump at the centre.
-  water.motes.scale.set(w / 13, h / 11, d / 13);
+  // Motes authored in a ~15-wide box with a compressed Y.
+  water.motes.scale.set((w / 13) * MOTE_SPAN, (h / 11) * MOTE_SPAN, (d / 13) * MOTE_SPAN);
 }
 
 export function disposeWater(water) {

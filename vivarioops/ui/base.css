@@ -116,7 +116,9 @@ html, body {
 
 /* Scrims — a floor for telemetry over moving water, not panels. */
 .tank-scrim { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 1; }
-.tank-scrim-top    { top: 0;    height: var(--scrim-top);    background: linear-gradient(var(--c-bg), transparent); }
+/* .tank-scrim-top is GONE — see the note in ui/screens/tank.js. Chrome over the
+   water carries its own contrast (--c-on-water + a soft shadow) instead of
+   dimming the water to make room for itself. */
 .tank-scrim-bottom { bottom: 0; height: var(--scrim-bottom); background: linear-gradient(transparent, var(--c-bg) 58%); }
 
 /* Top readouts — generation/world left, selection/stranger right. Numerals stay
@@ -125,15 +127,17 @@ html, body {
   position: absolute; top: var(--gutter); left: var(--gutter); right: var(--gutter); z-index: 2;
   display: flex; justify-content: space-between; align-items: baseline;
   pointer-events: none;
+  /* Carries its own contrast now that the top gradient is gone. */
+  text-shadow: var(--shadow-on-water);
 }
 .tank-readout-l, .tank-readout-r { display: flex; flex-direction: column; gap: var(--readout-gap); }
 .tank-readout-r { align-items: flex-end; text-align: right; }
-.tank-gen       { font-size: var(--t-title); font-weight: var(--t-title-w); color: var(--c-text); }
-.tank-world     { font-size: var(--t-value); color: var(--c-text-dim); }
+.tank-gen       { font-size: var(--t-title); font-weight: var(--t-title-w); color: var(--c-on-water); }
+.tank-world     { font-size: var(--t-value); color: var(--c-on-water-dim); }
 .tank-sel       { font-size: var(--t-label); font-weight: 500; color: var(--c-select); }
 .tank-strangers { font-size: var(--t-value); color: var(--c-stranger); }
 /* What the NEXT breed will produce, stated before the player commits to it. */
-.tank-mix       { font-size: var(--t-value); color: var(--c-text-dim); }
+.tank-mix       { font-size: var(--t-value); color: var(--c-on-water-dim); }
 .tank-world[hidden], .tank-strangers[hidden], .tank-mix[hidden] { display: none; }
 .tank-readouts .num { font-family: var(--f-mono); }
 
@@ -148,7 +152,8 @@ html, body {
   position: absolute; left: 0; right: 0; z-index: 2; text-align: center;
   bottom: calc(var(--tabbar-h) + var(--gap) + var(--tapsize-prim) + var(--gap-2) + var(--tapsize) + var(--gap));
   pointer-events: none;
-  font-family: var(--f-ui); font-size: var(--t-value); color: var(--c-text-dim);
+  font-family: var(--f-ui); font-size: var(--t-value); color: var(--c-on-water-dim);
+  text-shadow: var(--shadow-on-water);
 }
 .tank-coach[hidden] { display: none; }
 
@@ -194,11 +199,15 @@ html, body {
 }
 .tank-scale-line {
   height: var(--scale-tick); box-sizing: border-box; min-width: var(--gap);
-  border: thin solid var(--c-text-dim); border-top: none;
+  border: thin solid var(--c-on-water); border-top: none;
+  filter: var(--filter-on-water);
 }
 .tank-scale-text {
-  font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim);
+  /* THE LEGEND. It was --c-text-dim over lit water, i.e. invisible — and it is
+     the one label that tells the player how big these animals actually are. */
+  font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-on-water);
   letter-spacing: var(--t-micro-tracking);
+  text-shadow: var(--shadow-on-water);
 }
 
 /* Primary action — Breed, always labelled with its object. */

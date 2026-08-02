@@ -87,7 +87,10 @@ export async function runDuelGate() {
     // the residents file ever drift, every compiled record is keyed to a world
     // that does not exist.
     t.eq(worldHash(W1_SLICE, W1_RESIDENT_HASHES), WH, 'worldHash derives from the shipped resident hashes');
-    t.eq(W1_SLICE.faunaVersion, 3, 'faunaVersion was bumped when the residents were re-frozen for §A8');
+    // BUMPED 3 -> 4 AT C6.2 (added mass). Pinned as a LITERAL on purpose: the
+    // residents may only be re-frozen together with a version bump, and a check
+    // that read the constant back from w1_slice.js would assert nothing.
+    t.eq(W1_SLICE.faunaVersion, 4, 'faunaVersion was bumped when the residents were re-frozen for C6.2 added mass');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.

@@ -14,6 +14,21 @@
   --c-line:      #16222d;
   --c-text:      #dbe6f0;
   --c-text-dim:  #7189a0;
+
+  /* CHROME THAT SITS OVER THE WATER, not over a surface. --c-text-dim is a
+     desaturated blue-GREY tuned for dark panels; over a lit cyan tank it is the
+     same value as the water behind it and the readouts disappear — the scale
+     legend worst of all. These are drawn from the water ramp's own highlight so
+     they belong to the palette, and they are light enough to hold contrast with
+     no scrim under them. Anything painted on top of the tank uses these. */
+  --c-on-water:     #eaf7fc;
+  --c-on-water-dim: #b8dcea;
+  /* A soft dark halo so the text survives crossing a bright sun shaft. Cheap,
+     and it replaces the whole top gradient. */
+  --shadow-on-water: 0 1px 3px rgba(4, 7, 10, 0.85), 0 0 10px rgba(4, 7, 10, 0.5);
+  /* The same halo for elements that are drawn rather than typed (the scale bar's
+     bracket), where `text-shadow` does nothing and `filter` is the equivalent. */
+  --filter-on-water: drop-shadow(0 1px 2px rgba(4, 7, 10, 0.8));
   --c-text-disabled: #4d5f70;
   --c-accent:    #4fd1c5;
   --c-warn:      #e0a458;
@@ -158,12 +173,21 @@
 
   /* Two particle layers at different depths and drift rates. One uniform layer
    * reads as dirt on the lens; parallax between two reads as water. */
-  --tank-motes-far-count:   190;
-  --tank-motes-far-size:    1.9;
-  --tank-motes-far-opacity: 0.42;
-  --tank-motes-near-count:  46;
-  --tank-motes-near-size:   4.6;
-  --tank-motes-near-opacity: 0.26;
+  /* MOTES. fitAtmosphere spreads these over a box 3x larger on EVERY SIDE, so the
+     volume is 27x and the count has to follow it or the water empties out. It did
+     empty out at 900/220 — the first attempt raised the count ~5x against a 27x
+     volume and the tank looked barer than before the change.
+     COUNT SCALES WITH VOLUME. Sizes and opacities are up separately, because the
+     ask was also for them to be more noticeable.
+     Cost: ~6.5k points in two draw calls, no per-particle work on the CPU
+     (updateWater moves the two GROUPS). Trivial for the GPU; do not "optimise"
+     these down without looking at the tank. */
+  --tank-motes-far-count:   5200;
+  --tank-motes-far-size:    3.0;
+  --tank-motes-far-opacity: 0.55;
+  --tank-motes-near-count:  1250;
+  --tank-motes-near-size:   6.8;
+  --tank-motes-near-opacity: 0.38;
 
   /* ── Creature ramps for the other two worlds (w1 is above). Shipped now;
    * the app renders w1 only until a world picker exists. */

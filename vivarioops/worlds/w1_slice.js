@@ -26,7 +26,13 @@ export const W1_SLICE = {
   // centre-applied force to the per-face law, which changes every measured
   // capability, so the residents were re-frozen against the new physics and
   // every record compiled before it is correctly invalidated (03 §1).
-  faunaVersion: 3,
+  // BUMPED AT C6.2, 3 -> 4. Added mass is now in the mass matrix: a body
+  // accelerating through water drags fluid with it, which was the largest
+  // physical omission in the fluid model. It moves every measured capability
+  // (net speed +31%, cost of transport -37%, body inertia x1.9 median), so every
+  // record compiled before it is correctly invalidated and the residents below
+  // were re-frozen against the new physics in the same commit.
+  faunaVersion: 4,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).

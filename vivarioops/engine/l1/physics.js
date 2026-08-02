@@ -458,13 +458,25 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   const budgetScale = opts.budgetScale ?? 6;
 
   /**
-   * ADDED MASS (C6.2). OFF until it is measured and the corpus is re-frozen —
-   * turning it on is a worldHash-affecting physics change, because it moves every
-   * recorded capability. The derivation is at the body-construction site below.
-   * `addedMassScale` exists so the sweep can find out how much of it the rest of
-   * the model can carry, not as a tuning dial to leave at a fractional value.
+   * ADDED MASS (C6.2). ON. The derivation is at the body-construction site below.
+   *
+   * MEASURED BEFORE DEFAULTING (tools/_zadded.mjs, 30 creatures / 355 bodies):
+   *   inertia    x1.90 median, x10.4 worst — the real effect
+   *   mass       x1.23 median (scalar in Rapier, so it takes the minimum axis)
+   *   net speed  0.0139 -> 0.0182 cm/s, +31%
+   *   cost of transport 430 -> 271, -37%
+   *   peak body speed p90  7.59 -> 6.50 cm/s
+   *
+   * IT BUYS SPEED RATHER THAN COSTING IT, which is the opposite of what the
+   * review predicted, and the reason is the physics: added mass is not only
+   * inertia, it is the REACTIVE thrust mechanism (Lighthill) the model never had.
+   * A limb that accelerates fluid is pushed back by it. The resistive mechanism
+   * alone was half of swimming.
+   *
+   * `addedMassScale` exists so a sweep can ask how much of it the rest of the
+   * model carries. It is not a tuning dial and should not be left fractional.
    */
-  const addedMass = opts.addedMass ?? false;
+  const addedMass = opts.addedMass ?? true;
   const addedMassScale = opts.addedMassScale ?? 1;
 
   const fits = fitsTank(plan, world);

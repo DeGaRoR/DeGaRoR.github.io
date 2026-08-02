@@ -78,6 +78,28 @@ function firstStepSpin(plan, world = W1_SLICE, opts = {}) {
   return s;
 }
 
+/**
+ * First-step spin AND the driven body's inertia about the spin axis, so a caller
+ * can recover the TORQUE that produced it (tau ~ spin * I / dt) instead of using
+ * spin as a proxy for it. Needed since C6.2: total inertia is now body inertia
+ * PLUS added mass, and the added part is fluid — it does not scale with the
+ * body's density, so a spin RATIO no longer isolates the torque law.
+ */
+function firstStepSpinAndInertia(plan, world = W1_SLICE, opts = {}) {
+  const sim = createSimulation(RAPIER, plan, testGenome(), { ...world, gravity: 0 }, { bounded: false, ...opts });
+  sim.step();
+  const a = sim.bodies[1].angvel();
+  const spin = Math.hypot(a.x, a.y, a.z);
+  const pi = sim.bodies[1].principalInertia();
+  // The spin axis in world terms is whatever the joint drove; the plan's bodies
+  // are spawned axis-aligned, so projecting the (already small) first-step
+  // angular velocity onto the principal axes is exact enough to recover I.
+  const n = spin > 1e-12 ? [a.x / spin, a.y / spin, a.z / spin] : [1, 0, 0];
+  const I = pi.x * n[0] * n[0] + pi.y * n[1] * n[1] + pi.z * n[2] * n[2];
+  sim.free();
+  return { spin, I };
+}
+
 export async function runMotionGate() {
   await RAPIER.init();
   const g = collector();
@@ -140,10 +162,29 @@ export async function runMotionGate() {
       t.close(wide / base, Math.pow(2, exponent), 0.05 * Math.pow(2, exponent),
         `${model}/pd: doubling cross-sectional area multiplies the spin by 2^${exponent}`);
 
-      // THE LOAD-BEARING CHECK, and it is identical for both models: geometry is
-      // held fixed and only density moves, so torque must not follow it.
-      t.close(dense / base, 1 / 8, 0.02, `${model}/pd: multiplying density by 8 divides the spin by 8`);
-      t.ok(Math.abs(dense / base - 1) > 0.5, `${model}/pd: torque does NOT track mass`, dense / base);
+      // THE LOAD-BEARING CHECK: geometry held fixed, only density moves, so the
+      // TORQUE must not follow it.
+      //
+      // AMENDED AT C6.2, and for the third time it is the same mistake being
+      // corrected: the check asserted `dense/base === 1/8`, which is a property
+      // of the old implementation rather than of N19. It held only because total
+      // inertia used to be body inertia alone. Added mass puts a FLUID term in
+      // the mass matrix, and fluid does not get denser when flesh does — so at
+      // x8 density the total goes 8*I_body + I_added, not 8*(I_body + I_added),
+      // and the ratio is legitimately 0.203 rather than 0.125. Asserting 1/8
+      // would now forbid correct physics, exactly as the old L1-21 wording would
+      // have forbidden swimming.
+      //
+      // Restated on the quantity N19 is actually about. Torque is recovered from
+      // each run as spin * I, with I measured off the body rather than assumed,
+      // and the invariant is that the two runs were driven by the SAME torque.
+      // That is added-mass-agnostic, model-agnostic, and cannot be satisfied by
+      // an implementation whose torque tracks mass.
+      const bI = firstStepSpinAndInertia(twoBodyPlan({ density: 1.0, xsec: 1.0 }), W1_SLICE, o);
+      const dI = firstStepSpinAndInertia(twoBodyPlan({ density: 8.0, xsec: 1.0 }), W1_SLICE, o);
+      t.close((dI.spin * dI.I) / (bI.spin * bI.I), 1, 0.05,
+        `${model}/pd: x8 density is driven by the SAME torque (spin x inertia)`);
+      t.ok(dense / base < 0.5, `${model}/pd: torque does NOT track mass — spin still falls hard`, dense / base);
     }
 
     // ── THE SOLVER PATH, WHICH IS NOW THE DEFAULT — B2 §3.2 ──────────────────

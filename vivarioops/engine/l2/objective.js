@@ -170,12 +170,22 @@ export const OBJECTIVES = [
   },
   {
     id: 'size', label: 'Size', adapt: false, trusted: true,
-    note: 'total mass — exact, no simulation',
+    note: 'total mass — shape, not swimming',
     measure: (_RAPIER, _genome, plan) => totalMass(plan),
   },
   {
-    id: 'reach', label: 'Reach', adapt: false, trusted: true,
-    note: 'longest extent from the centre — exact, no simulation',
+    // RENAMED FROM "Reach". `reach` is DUEL vocabulary — engagement separation is
+    // k*(reachA+reachB) — and on a burst button it read as "how far it can get",
+    // i.e. as a locomotion objective. It is not: it is boundingRadius, a pure
+    // geometric extent, so it selects big sprawling bodies exactly as `Size`
+    // selects heavy ones. A player choosing it to breed better swimmers got
+    // bigger ones and no way to tell why.
+    //
+    // Same number, honest name. The two geometric objectives now differ only in
+    // WHICH bigness they reward — mass versus span — and both say "no simulation"
+    // so it is clear neither watches the creature move. Speed is the one that does.
+    id: 'reach', label: 'Span', adapt: false, trusted: true,
+    note: 'how far the body sprawls from its centre — shape, not swimming',
     measure: (_RAPIER, _genome, plan) => boundingRadius(plan),
   },
 ];

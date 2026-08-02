@@ -111,7 +111,12 @@ export default {
 
     const wrap = mk('tank');
     const view = mk('tank-view', wrap);
-    mk('tank-scrim tank-scrim-top', wrap);
+    // NO TOP SCRIM. It was a dark gradient behind the readouts; it darkened the
+    // brightest, most legible part of the water for the sake of text that can
+    // hold its own contrast instead (see --c-on-water). The BOTTOM scrim stays —
+    // it separates the tab bar and the primary action from the tank, which is a
+    // different job. `--scrim-top` survives as the top CHROME HEIGHT, used by the
+    // camera fit below to keep the grid out from under the ribbon.
     mk('tank-scrim tank-scrim-bottom', wrap);
 
     // Top readouts — generation/world left, selection/stranger right.
