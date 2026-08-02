@@ -223,7 +223,7 @@ new references where marked TBD. "Session" = roadmap entry that addresses it.
 |---|---|---|---|---|
 | all | approach speed | flapped approaches flown (C172 64 kt/flaps 30 = POH normal; DC-3 ~84 kt) | — | ~~2~~ done |
 | all | flare/float behaviour | ground effect DONE (session 1); tail-in-GE still excluded | — | ~~1~~ done |
-| all | crosswind ops | impossible (no wind) | — | 3 |
+| all | crosswind ops | 3 m/s cross + gusts: circuits gated (Cub, C172), decrab bounded | — | ~~3~~ done |
 | Chinook | landing roll | 111 m (was 122 clean) | book ~90 m (TBD exact brochure figure) | nearly closed |
 | Chinook | glide | 9.8:1 | book 10:1 (gap = no windmilling-prop drag, honest cut) | rider (energy/jets) |
 | DC-3 | unstick run | ~945 m, unstick 46 m/s w/ TO flaps | real ~450-600 m loaded (TBD source) | OPEN — flaps didn't close it; suspect thrust/power loading, audit later |
@@ -244,6 +244,11 @@ Flaps (added session 2): polar-delta model per strip (no slat modeling, no
 Fowler area growth — dCl0 stands in for both), flap deltas scale linearly with
 setting, no asymmetric-flap failure mode, Chinook flaperon droop partial (0.6)
 by AP policy.
+Wind (added session 3): no shear/boundary-layer profile (wind constant with
+height), gusts are 4 deterministic sine components per axis, not true Dryden
+spectra; no thermals/ridge lift YET (the wind(x,y,z,t) plumbing is exactly
+where they plug in); tunnel probes with a wind-bearing world sample wind too
+(set none, or makeSim without world, for clean tunnel numbers).
 Ground effect (added session 1, 2026-08): wing strips only — TAIL EXCLUDED
 (would need a per-surface span datum); one terrain sample per aero pass (flat
 within a span where GE matters); McCormick sigma = (16h/b)^2/(1+(16h/b)^2)
@@ -293,16 +298,34 @@ fleet table re-anchored if physics moved.
    at partial (ldg 0.65). (5) Flapped landings arrive flatter: the Jodel
    tail-up rollout attitude guard recalibrated -2 -> -5 deg (measured
    brake-independent).
-3. **Wind & gusts** — environment velocity field into strip relative flow +
-   Dryden-ish gusts + crosswind AP work (crab, decrab, gust rejection).
-   WHERE: `wind(x,y,z,t)` lives in makeWorld (20_world.js); add the wind
-   vector at the strip position into the relative-flow assembly in aeroPass,
-   AND into the fuselage drag blobs (else no weathercocking — the yaw response
-   would be missing exactly where it matters). DECISION UP FRONT: out.V/alpha
-   and every AP speed loop (speedThrottle, VRot/VClimb/VCruise/VAppr
-   comparisons) are groundspeed-based today; with wind, IAS ≠ groundspeed and
-   the choice affects every gate. Heavy forensic session expected. Same
-   plumbing later = ridge lift/thermals.
+3. **Wind & gusts** — DONE 2026-08-02. world.wind(x,y,z,t) + setWind({base,
+   gust}): steady vector + deterministic sum-of-sines gusts with spatial
+   phase (advecting waves; gates can rely on exact repeatability). Wind feeds
+   the strip relative flow (per-strip sample -> gusts produce roll/twist
+   forcing), the fuselage blobs (weathercocking), and the prop advance term.
+   SPEED SPLIT: out.V/alpha are now AIR-relative (true IAS), out.Vg is
+   groundspeed; the AP flies IAS for aero speeds and Vg for wheels
+   (VBrakeOn/VStop). All wind terms are EXACT ZEROS with no wind set — the
+   calm battery was byte-identical through the plumbing change (that
+   instrument caught nothing because nothing was broken; it then retired
+   when the guidance change below legitimately altered calm trajectories).
+   GATE WIND: Cub + C172 full circuits in 3 m/s crosswind + gusts
+   (touchdown z 0.8 / 3.2 m, drift < 1.8 m/s, gust altitude excursions
+   bounded). Decrab: below decrabAgl the rudder aligns the nose while
+   airLateral keeps killing drift — worked first try.
+   HARD-WON: (1) NOSE-referenced pursuit parks at a standing cross-track
+   offset ~ L*(crab - slip) with e EXACTLY ZERO (C172 froze at z=+21..26 m;
+   two wrong integrator theories died before the trace showed e=0.0 at
+   offset). Air guidance must steer COURSE OVER GROUND (velocity-referenced
+   pursuit, eA/eAR chain) — crab becomes implicit and the offset vanishes
+   (0.8/3.2 m). Ground steering keeps the nose error (velocity is noise at
+   taxi speeds; gate Vg>5). (2) A track INTEGRATOR is the wrong tool: the
+   800 m lateral capture after glideslope intercept rails it and the stored
+   bias re-creates the offset at the flare (classic windup, measured).
+   (3) The settle-uprightness harness check false-fires in wind — a parked
+   aircraft WEATHERVANES (rigid yaw), which a node-drift instrument cannot
+   tell from a structural fall: wind gates set uprightCheck:false, the calm
+   battery keeps the guard.
 4. **Manual controls** — touch/keyboard on the artifact; AP becomes toggle.
    sim.ctl is externally writable (test_stress already drives it mid-flight) —
    injection needs no refactor. MUST FIX FIRST: the holdWas/holdActive bug

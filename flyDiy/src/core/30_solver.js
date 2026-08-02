@@ -11,6 +11,7 @@ function makeSim(def, world) {
   const _treeScratch = [];
   const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0 };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
+  let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0 };
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
@@ -38,6 +39,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
+    simT = 0;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -80,7 +82,26 @@ function makeSim(def, world) {
     let vmx=0, vmy=0, vmz=0;
     for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
     vmx/=totalM; vmy/=totalM; vmz/=totalM;
-    const Vfwd = Math.max(0, -(vmx*xAft[0]+vmy*xAft[1]+vmz*xAft[2]));
+
+    // world samples: ONE terrain height (ground effect) and ONE wind vector
+    // under the wing per pass; strips re-sample wind at their own position
+    // so spatial gust structure produces roll/twist forcing. All wind terms
+    // are exact zeros when no wind is set — the zero-wind battery is
+    // byte-identical to the pre-wind one.
+    let gH = null, wcx = 0, wcy = 0, wcz = 0;
+    if (world) {
+      let sx = 0, sz = 0, sN = 0;
+      for (const st of def.strips) if (st.kind === 'wing') {
+        sx += p[st.fIn*3] + p[st.fOut*3];
+        sz += p[st.fIn*3+2] + p[st.fOut*3+2];
+        sN += 2;
+      }
+      const mx = sx / sN, mz = sz / sN;
+      gH = world.terrainH(mx, mz);
+      if (world.wind) { const wv = world.wind(mx, 0, mz, simT); wcx = wv[0]; wcy = wv[1]; wcz = wv[2]; }
+    }
+    // prop advance ratio uses AIRSPEED (thrust decays with air, not ground)
+    const Vfwd = Math.max(0, -((vmx-wcx)*xAft[0]+(vmy-wcy)*xAft[1]+(vmz-wcz)*xAft[2]));
 
     // prop thrust + far-wake propwash
     let T = 0, wash = 0;
@@ -96,24 +117,15 @@ function makeSim(def, world) {
         f[e*3+2] -= per * xAft[2];
       }
     }
-    // ground effect: one terrain sample under the wing per pass (terrain is
-    // flat within a span everywhere GE matters); per-strip height above it.
-    // null when world is absent (free-air tunnel sims).
-    let gH = null;
-    if (world) {
-      let sx = 0, sz = 0, sN = 0;
-      for (const st of def.strips) if (st.kind === 'wing') {
-        sx += p[st.fIn*3] + p[st.fOut*3];
-        sz += p[st.fIn*3+2] + p[st.fOut*3+2];
-        sN += 2;
-      }
-      gH = world.terrainH(sx / sN, sz / sN);
-    }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     out.thrust = T; out.wash = wash;
-    out.V = Math.hypot(vmx, vmy, vmz);
-    out.alpha = Math.atan2(-(vmx*yUp[0]+vmy*yUp[1]+vmz*yUp[2]),
-                           -(vmx*xAft[0]+vmy*xAft[1]+vmz*xAft[2]));
+    // out.V/alpha are AIR-relative (true IAS/aero alpha); out.Vg is groundspeed
+    const avx = vmx - wcx, avy = vmy - wcy, avz = vmz - wcz;
+    out.V = Math.hypot(avx, avy, avz);
+    out.Vg = Math.hypot(vmx, vmy, vmz);
+    out.windX = wcx; out.windY = wcy; out.windZ = wcz;
+    out.alpha = Math.atan2(-(avx*yUp[0]+avy*yUp[1]+avz*yUp[2]),
+                           -(avx*xAft[0]+avy*xAft[1]+avz*xAft[2]));
     out.vs = vmy;
 
     for (const st of def.strips) {
@@ -136,12 +148,18 @@ function makeSim(def, world) {
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
         sn[0]=zRt[0]; sn[1]=zRt[1]; sn[2]=zRt[2];
       }
-      // --- local velocity via attach weights ---
-      let vx=0, vy=0, vz=0;
-      for (const [i, w] of st.w) { vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w; }
-      // relative air velocity = air motion - node motion (propwash blows aft)
+      // --- local velocity + position via attach weights ---
+      let vx=0, vy=0, vz=0, spx=0, spy=0, spz=0;
+      for (const [i, w] of st.w) {
+        vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w;
+        spx+=p[i*3]*w; spy+=p[i*3+1]*w; spz+=p[i*3+2]*w;
+      }
+      // wind at the strip's own position (spatial gust structure -> roll/twist)
+      let wx_ = wcx, wy_ = wcy, wz_ = wcz;
+      if (world && world.wind) { const wv = world.wind(spx, spy, spz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      // relative air velocity = air motion (wash + wind) - node motion
       const wsh = wash * st.wash;
-      let rx = wsh*xAft[0]-vx, ry = wsh*xAft[1]-vy, rz = wsh*xAft[2]-vz;
+      let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
       const u = rx*sc[0]+ry*sc[1]+rz*sc[2];
       const w_ = rx*sn[0]+ry*sn[1]+rz*sn[2];
       const V2 = u*u + w_*w_;
@@ -202,10 +220,16 @@ function makeSim(def, world) {
     // fuselage blobs: anisotropic CdA in body axes; side/vertical area split
     // between cabin and aft fuselage so yaw and pitch damping are physical
     const blob = (ids, CdA) => {
-      let vx=0, vy=0, vz=0;
-      for (const i of ids) { vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2]; }
-      vx/=4; vy/=4; vz/=4;
-      const rx=-vx, ry=-vy, rz=-vz, Vr = Math.hypot(rx, ry, rz);
+      let vx=0, vy=0, vz=0, bx=0, by=0, bz=0;
+      for (const i of ids) {
+        vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2];
+        bx+=p[i*3]; by+=p[i*3+1]; bz+=p[i*3+2];
+      }
+      vx/=4; vy/=4; vz/=4; bx/=4; by/=4; bz/=4;
+      // wind on the fuselage: without this there is no weathercocking
+      let wx_ = 0, wy_ = 0, wz_ = 0;
+      if (world && world.wind) { const wv = world.wind(bx, by, bz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
+      const rx=wx_-vx, ry=wy_-vy, rz=wz_-vz, Vr = Math.hypot(rx, ry, rz);
       if (Vr < 0.1) return;
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
@@ -343,7 +367,7 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
-    for (let s = 0; s < sub; s++) substep(dt);
+    for (let s = 0; s < sub; s++) { substep(dt); simT += dt; }
   }
 
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----

@@ -82,6 +82,34 @@ function makeWorld() {
     }
     return out;
   }
-  return { terrainH, trees, treesNear, meadows, CELL };
+
+  // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
+  // setWind({ base:[wx,wy,wz], gust:g }) — gusts are sums of incommensurate
+  // sines with spatial phase (advecting waves), amplitude g horizontal and
+  // 0.6*g vertical. Deterministic by construction: gates can rely on it.
+  // Default null: wind() returns the shared zero vector (fast path).
+  let windSpec = null;
+  const W0 = [0, 0, 0], WV = [0, 0, 0];
+  const GC = [ // [freq rad/s, kx, kz, phase, axis weight x,y,z]
+    [0.63, 0.011, 0.005, 0.7, 1.0, 0.35, 0.55],
+    [1.37, 0.004, 0.013, 2.9, 0.55, 0.6, 1.0],
+    [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
+    [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
+  ];
+  function wind(x, y, z, t) {
+    if (!windSpec) return W0;
+    const b = windSpec.base, g = windSpec.gust || 0;
+    WV[0] = b[0]; WV[1] = b[1]; WV[2] = b[2];
+    if (g > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+      const s = Math.sin(om * t + kx * x + kz * z + ph);
+      WV[0] += g * 0.30 * ax * s;
+      WV[1] += g * 0.18 * ay * s;
+      WV[2] += g * 0.30 * az * s;
+    }
+    return WV;
+  }
+  function setWind(spec) { windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0 } : null; }
+
+  return { terrainH, trees, treesNear, meadows, CELL, wind, setWind };
 }
 

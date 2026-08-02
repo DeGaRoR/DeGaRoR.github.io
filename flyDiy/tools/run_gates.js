@@ -12,6 +12,7 @@ const { spawnSync } = require('child_process');
 const GATES = [
   { id: 'GE', file: 'test_ground_effect.js' },
   { id: 'FLAPS', file: 'test_flaps.js' },
+  { id: 'WIND', file: 'test_wind.js' },
   { id: 'M3', file: 'test_m3.js' },
   { id: 'DRONE', file: 'test_drone.js' },
   { id: 'DC3', file: 'test_dc3.js' },

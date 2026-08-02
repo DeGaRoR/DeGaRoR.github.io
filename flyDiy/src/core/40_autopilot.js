@@ -17,6 +17,7 @@ function makeAutopilot(sim, def) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
   ap.update = (dt) => {
@@ -25,7 +26,13 @@ function makeAutopilot(sim, def) {
     const cg = sim.cgPos(), vcg = sim.cgVel();
     if (ap.restAlt === null) ap.restAlt = cg[1];
     const agl = cg[1] - ap.restAlt;
-    const V = Math.hypot(vcg[0], vcg[1], vcg[2]);
+    // V = AIRSPEED (aero speeds: rotation, approach, stall margins);
+    // Vg = groundspeed (wheels: brakes, stop detection). The wind sample is
+    // the solver's last CG wind — exact zeros when no wind is set, so the
+    // zero-wind battery is byte-identical to the pre-wind one.
+    const o_ = sim.out;
+    const Vg = Math.hypot(vcg[0], vcg[1], vcg[2]);
+    const V = Math.hypot(vcg[0] - (o_.windX || 0), vcg[1] - (o_.windY || 0), vcg[2] - (o_.windZ || 0));
     const nose = [-xA[0], -xA[2]];
     const nL = Math.hypot(nose[0], nose[1]) || 1e-9;
     nose[0] /= nL; nose[1] /= nL;
@@ -39,6 +46,17 @@ function makeAutopilot(sim, def) {
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
+    // air guidance steers COURSE OVER GROUND, not the nose: a crabbing /
+    // slipping aircraft with nose-referenced pursuit parks at a standing
+    // cross-track offset ~ L*(crab - slip) with e exactly zero (measured:
+    // C172 frozen at z=+21..26 in a 3 m/s crosswind). Velocity-referenced
+    // pursuit makes the crab implicit. Ground steering keeps the nose error.
+    let eA = e;
+    const tl2 = Math.hypot(vcg[0], vcg[2]);
+    if (tl2 > 5) {
+      const tkx = vcg[0] / tl2, tkz = vcg[2] / tl2;
+      eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
+    }
 
     const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
@@ -50,6 +68,8 @@ function makeAutopilot(sim, def) {
     p += RF * ((ph - phP) / dt - p); phP = ph;
     eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
     eRslow += dt / 2.0 * (eR - eRslow);
+    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
+    eARslow += dt / 2.0 * (eAR - eARslow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(V, 5);
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
@@ -67,10 +87,10 @@ function makeAutopilot(sim, def) {
       c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      const phC = clamp((A.hdgP ?? 0.7) * e + (A.hdgD ?? 0.9) * eR, -bankLim, bankLim);
+      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR, -bankLim, bankLim);
       phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
       c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eR - eRslow)
+      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
                    - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
     };
     const speedThrottle = (Vt) => {
@@ -162,10 +182,17 @@ function makeAutopilot(sim, def) {
           // progressive attitude ramp toward the arrival attitude
           holdPitch(Math.min(thFlare0 + A.flareRate * phaseT, A.flareThMax ?? A.thMax));
         }
-        airLateral(0.10);
+        // crosswind decrab: below decrabAgl, the rudder aligns the nose with
+        // the runway while airLateral keeps killing drift with bank (slip).
+        // Inactive in calm air (windZ gate) — zero-wind identity preserved.
+        if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
+          airLateral(0.12);
+          const hdg = Math.atan2(nose[1], nose[0] * ap.dirX) * ap.dirX;
+          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
+        } else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
-          ap.tdInfo = { sink: -vcg[1], z: cg[2], x: cg[0], V };
+          ap.tdInfo = { sink: -vcg[1], z: cg[2], x: cg[0], V, drift: vcg[2] };
         }
         break;
 
@@ -175,11 +202,11 @@ function makeAutopilot(sim, def) {
           if (V > (A.VDerotate ?? 20)) holdPitch(A.rolloutTh ?? 0.035);
           else c.de = 0.15;
         } else c.de = V > A.VTailUp ? -0.05 : 0.35;           // then stick hard back: pin the tail
-        // progressive brakes only once the tail is pinned; release before stopping
-        if (V < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
-        c.brake = brakeRamp * Math.min(1, Math.max(0, (V - A.VBrakeRelease) / 2.0));
+        // brakes act on WHEELS: thresholds are groundspeed, not airspeed
+        if (Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
+        c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         groundSteer();
-        if (V < A.VStop) { ap.phase = 'STOPPED'; phaseT = 0; }
+        if (Vg < A.VStop) { ap.phase = 'STOPPED'; phaseT = 0; }
         break;
       }
 

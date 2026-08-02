@@ -89,7 +89,10 @@ function runCircuit(cfg) {
   console.log(out.join('\n'));
 
   const results = checks(ctx);
-  results['settled upright (zDrift<0.25m)'] = zDrift < 0.25;
+  // uprightCheck: false — wind gates opt out: a parked aircraft weathervanes
+  // (rigid yaw) in crosswind, which this drift instrument cannot distinguish
+  // from a structural fall. The calm battery keeps the guard.
+  if (cfg.uprightCheck !== false) results['settled upright (zDrift<0.25m)'] = zDrift < 0.25;
   const failed = Object.keys(results).filter(k => !results[k]);
   if (failed.length) console.log(`FAILED CHECKS: ${failed.join(', ')}`);
   const pass = failed.length === 0;
