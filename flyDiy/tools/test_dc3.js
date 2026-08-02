@@ -17,7 +17,7 @@ for (let s0 = 0; s0 < 460*60; s0++) {
     if (b.gear) smaxGr = Math.max(smaxGr, Math.abs(b.strain));
     else smaxCh = Math.max(smaxCh, Math.abs(b.strain));
   }
-  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); process.exit(1); }
+  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); console.log('GATE DC3: FAIL (NaN)'); process.exit(1); }
   if (ap.phase === 'ROLLOUT') rollPitchMin = Math.min(rollPitchMin, ap.dbg.th*57.3);
   if (ap.phase === 'CRUISE') { chat += Math.abs(sim.ctl.de - deP); chatN++; }
   deP = sim.ctl.de;
@@ -38,4 +38,5 @@ console.log(`WING: flap ${flapMin.toFixed(1)}..${flapMax.toFixed(1)} deg (dihedr
 const pass = td && td.sink < 1.8 && Math.abs(td.z) < 5 && td.x > -1060 && td.x < -700
   && cg[0] < 20 && Math.abs(cg[2]) < 9 && smaxCh < 0.06 && smaxGr < 0.40
   && rollPitchMin > 0 && flapMin > 0 && flapMax < 12 && chat/Math.max(1,chatN)*57.3*60 < 6;
-console.log(pass ? 'DC-3 GATE: GREEN' : 'DC-3 GATE: RED');
+console.log(pass ? 'GATE DC3: PASS' : 'GATE DC3: FAIL');
+process.exitCode = pass ? 0 : 1;

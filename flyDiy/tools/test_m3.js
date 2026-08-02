@@ -23,7 +23,7 @@ for (let s = 0; s < 300*60; s++) {
     if (b.gear) smaxGr = Math.max(smaxGr, Math.abs(b.strain));
     else smaxCh = Math.max(smaxCh, Math.abs(b.strain));
   }
-  if (st.bad) { console.log(`NaN at t=${t.toFixed(1)} ${ap.phase}`); process.exit(1); }
+  if (st.bad) { console.log(`NaN at t=${t.toFixed(1)} ${ap.phase}`); console.log('GATE M3: FAIL (NaN)'); process.exit(1); }
   seen[ap.phase] = true;
   const [xB, yB, zB] = sim.axes();
   const dx = sim.p[iWF2*3]-sim.p[iWF1*3], dy = sim.p[iWF2*3+1]-sim.p[iWF1*3+1], dz = sim.p[iWF2*3+2]-sim.p[iWF1*3+2];
@@ -48,4 +48,5 @@ console.log(`STOP: x=${cg[0].toFixed(0)}  z=${cg[2].toFixed(1)}  strain chassis=
 console.log(`WING: flap ${flapMin.toFixed(1)}..${flapMax.toFixed(1)} deg | tip oscillation p2p in turn ${((tipMax-tipMin)*100).toFixed(1)} cm | rudder RMS ${(Math.sqrt(drRMS/Math.max(1,drN))*57.3).toFixed(2)} deg`);
 const pass = td && seen.STOPPED && td.sink < 1.5 && Math.abs(td.z) < 4
   && td.x > -660 && td.x < -240 && cg[0] < 20 && Math.abs(cg[2]) < 8 && smaxCh < 0.08 && smaxGr < 0.35 && flapMin > -4 && flapMax < 12 && Math.sqrt(drRMS/Math.max(1,drN))*57.3 < 4 && (tipMax-tipMin) < 0.12 && finalPitch > 5 && finalPitch < 16 && cg[1] > 1.25 && rollPitchMin > 1;
-console.log(pass ? 'M3 GATE: GREEN' : 'M3 GATE: RED');
+console.log(pass ? 'GATE M3: PASS' : 'GATE M3: FAIL');
+process.exitCode = pass ? 0 : 1;

@@ -43,7 +43,7 @@ for (let s0 = 0; s0 < 240*60; s0++) {
     if (b.gear) smaxGr = Math.max(smaxGr, Math.abs(b.strain));
     else smaxCh = Math.max(smaxCh, Math.abs(b.strain));
   }
-  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); process.exit(1); }
+  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); console.log('GATE DRONE: FAIL (NaN)'); process.exit(1); }
   if (ap.phase === 'ROLLOUT') rollPitchMin = Math.min(rollPitchMin, ap.dbg.th*57.3);
   if (ap.phase === 'CRUISE') { chat += Math.abs(sim.ctl.de - deP); chatN++; }
   deP = sim.ctl.de;
@@ -68,4 +68,5 @@ console.log(`WING: flap ${flapMin.toFixed(1)}..${flapMax.toFixed(1)} deg (dihedr
 console.log(`SMOOTHNESS: elevator chatter ${(chat/Math.max(1,chatN)*57.3*60).toFixed(1)} deg/s | takeoff wing strain ${(toStrain*100).toFixed(0)}%`);
 const pass = td && td.sink < 0.9 && Math.abs(td.z) < 3 && td.x > -560 && td.x < -300
   && cg[0] < 20 && Math.abs(cg[2]) < 6 && smaxCh < 0.16 && smaxGr < 0.45 && rollPitchMin > -3 && flapMin > -4 && flapMax < 14 && (tipMax-tipMin) < 0.09 && chat/Math.max(1,chatN)*57.3*60 < 8 && toStrain < 0.12;
-console.log(pass ? 'DRONE GATE: GREEN' : 'DRONE GATE: RED');
+console.log(pass ? 'GATE DRONE: PASS' : 'GATE DRONE: FAIL');
+process.exitCode = pass ? 0 : 1;

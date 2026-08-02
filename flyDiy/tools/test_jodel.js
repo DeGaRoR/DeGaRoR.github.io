@@ -17,7 +17,7 @@ for (let s0 = 0; s0 < 300*60; s0++) {
     if (b.gear) smaxGr = Math.max(smaxGr, Math.abs(b.strain));
     else smaxCh = Math.max(smaxCh, Math.abs(b.strain));
   }
-  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); process.exit(1); }
+  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); console.log('GATE JODEL: FAIL (NaN)'); process.exit(1); }
   if (ap.phase === 'ROLLOUT') rollPitchMin = Math.min(rollPitchMin, ap.dbg.th*57.3);
   if (ap.phase === 'CRUISE') { chat += Math.abs(sim.ctl.de - deP); chatN++; }
   deP = sim.ctl.de;
@@ -39,4 +39,5 @@ console.log(`AILE (diedre 14): battement ${flapMin.toFixed(1)}..${flapMax.toFixe
 const pass = td && td.sink < 1.2 && Math.abs(td.z) < 5.5 && td.x > -720 && td.x < -420
   && cg[0] < 20 && Math.abs(cg[2]) < 7 && smaxCh < 0.06 && smaxGr < 0.40
   && rollPitchMin > -2 && flapMin > 8 && flapMax < 31 && chat/Math.max(1,chatN)*57.3*60 < 6;
-console.log(pass ? 'JODEL GATE: VERT' : 'JODEL GATE: ROUGE');
+console.log(pass ? 'GATE JODEL: PASS' : 'GATE JODEL: FAIL');
+process.exitCode = pass ? 0 : 1;

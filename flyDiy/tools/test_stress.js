@@ -40,4 +40,6 @@ const c = stress('DC-3  full-deflection abuse', buildDC3, 'WF', 14.3, 7.6, 12);
 const d = stress('JODEL full-deflection abuse', buildJodel, 'WF', 4.36, 2.10, 34);
 const e = stress('C172  full-deflection abuse', buildC172, 'WF', 5.50, 2.30, 12);
 const f = stress('CHNK  full-deflection abuse', buildChinook, 'WF', 5.34, 2.00, 30);
-console.log(a && b && c && d && e && f ? 'STRESS GATE: GREEN' : 'STRESS GATE: RED');
+const pass = a && b && c && d && e && f;
+console.log(pass ? 'GATE STRESS: PASS' : 'GATE STRESS: FAIL');
+process.exitCode = pass ? 0 : 1;

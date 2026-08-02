@@ -18,7 +18,7 @@ for (let s0 = 0; s0 < 300*60; s0++) {
     if (b.gear) smaxGr = Math.max(smaxGr, Math.abs(b.strain));
     else smaxCh = Math.max(smaxCh, Math.abs(b.strain));
   }
-  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); process.exit(1); }
+  if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); console.log('GATE CHINOOK: FAIL (NaN)'); process.exit(1); }
   if (ap.phase === 'ROLLOUT') rollPitchMin = Math.min(rollPitchMin, ap.dbg.th*57.3);
   if (xLiftoff === null && ap.phase === 'LIFTOFF') xLiftoff = sim.cgPos()[0];
   if (xTD === null && ap.phase === 'ROLLOUT') xTD = sim.cgPos()[0];
@@ -43,7 +43,9 @@ console.log(`AILE (Chinook): battement ${flapMin.toFixed(1)}..${flapMax.toFixed(
 const toRoll = xLiftoff === null ? 999 : Math.abs(xLiftoff - 2);
 const ldgRoll = (xTD === null || xStop === null) ? 999 : Math.abs(xStop - xTD);
 console.log(`STOL: roulage decollage ${toRoll.toFixed(0)} m | roulage atterrissage ${ldgRoll.toFixed(0)} m`);
-const pass = td && Math.abs(td.z) < 5 && td.x > -680 && td.x < -380
+const pass = td && td.sink < 1.2 && Math.abs(td.z) < 5 && td.x > -680 && td.x < -380
   && cg[0] < 20 && Math.abs(cg[2]) < 7 && smaxCh < 0.115 && smaxGr < 0.40
   && rollPitchMin > -2.5 && flapMin > -10 && flapMax < 20 && chat/Math.max(1,chatN)*57.3*60 < 6;
-console.log(pass ? 'CHINOOK GATE: VERT' : 'JODEL GATE: ROUGE');
+// td.sink threshold: baseline 2026-08-02 measured 0.61 m/s; gated at ~2x observed
+console.log(pass ? 'GATE CHINOOK: PASS' : 'GATE CHINOOK: FAIL');
+process.exitCode = pass ? 0 : 1;
