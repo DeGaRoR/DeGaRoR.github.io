@@ -1,27 +1,65 @@
 # GARAGE FLIGHT SIM — HANDOVER
 
-Node-beam chassis + strip-theory aero flight sim. Single-file HTML artifact, headless
-node gates. Six validated aircraft, one solver, untouched since M1. This document
-carries everything the code can't: conventions, hard-won rules, validation anchors,
-and the agreed roadmap.
+Node-beam chassis + strip-theory aero flight sim. Six validated aircraft, one
+solver, untouched since M1. Split into part files (src/) with a node build;
+headless node gates that actually fail. This document carries everything the
+code can't: conventions, hard-won rules, validation anchors, and the roadmap.
 
 ## SESSION RITUAL (PTIS-style, non-negotiable)
-1. Upload this zip. Read this file and the relevant code BEFORE editing.
+1. Read this file and the relevant code BEFORE editing.
 2. One chantier per session. Trace-first debugging: measure before hypothesizing —
    this beat guessing in every single forensic episode of this project.
-3. Green gate battery (`sh run_gates.sh`) before building the artifact (`python3 build.py`).
-   Never deliver red. Syntax-check inlined artifact scripts with `node --check`.
-4. New aircraft = new fiche + new gate + entry in test_stress.js + template button.
+3. `node tools/run_gates.js` — rebuilds every generated file, syntax-checks every
+   script blob, runs the full battery, exits non-zero on any FAIL. Never deliver
+   on a non-zero exit. (`node tools/build.js` for a standalone build;
+   `--only=ID[,ID]`, `--verbose`, `--no-build` on the runner.)
+4. New aircraft checklist: new `src/core/1x_aircraft_*.js` fiche + MANIFEST entry
+   in `tools/build.js` + thin gate config (see any `test_*.js`) + entry in
+   `test_stress.js` + button in `src/viewer/body.html` + AIRCRAFT map/selBtns
+   entries in `src/viewer/app.js` + line in the fleet table below.
 
 ## FILES
-- `flight_core.js` — everything: POWERPLANTS/POLARS registries, six build functions
-  (buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook), makeWorld,
-  makeSim, makeAutopilot. Export line stripped by build.py when inlining.
-- `m3_template.html` — viewer; `/*__CORE__*/` marker is where the core inlines.
-- `test_*.js` — per-aircraft circuit gates + test_stress (full-deflection abuse,
-  all six) + test_tree. Gates use PERTURBED starts (lateral offset + velocity
-  noise) on purpose: symmetric ICs mask directional instabilities.
-- `build.py`, `run_gates.sh`.
+Everything under `src/` is SOURCE. `tools/flight_core.js`, `index.html`,
+`dev.html` are GENERATED — edit parts, never outputs; run_gates.js rebuilds
+before every battery so stale hand-edits get overwritten, loudly.
+
+- `src/core/00_registry.js` — RHO, POWERPLANTS/POLARS registries, PAR
+  (rudderSign is live in the solver hot loop), wheel-friction consts CRR/MU_*.
+- `src/core/10..15_aircraft_*.js` — one fiche per aircraft (cub, dc3, chinook,
+  c172, jodel, drone). Fully self-contained builders; only POLARS is external.
+  The ideal parallel-agent boundary: one agent per fiche, zero conflicts.
+- `src/core/20_world.js` — makeWorld: deterministic terrain/trees/meadows.
+- `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
+- `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
+- `src/core/90_node_exports.js` — guarded module.exports (inert in browser,
+  inlined as-is; keep it single-statement, no nested braces).
+- `src/viewer/` — shell.html (slot markers), style.css (theme + vendored
+  @font-face), body.html (UI markup), render_world.js (buildWorldScene — the
+  whole 3D world look lives here), app.js (renderer, camera, aircraft mesh,
+  shadow proxy, phase rail, HUD, loop).
+- `tools/build.js` — MANIFEST is the single ordering authority (registry →
+  fiches → world → solver → autopilot → exports). Concats core →
+  tools/flight_core.js (gates require it unchanged); assembles `index.html`
+  (single-file artifact: three.js + fonts + everything inlined, zero external
+  requests) and `dev.html` (plain <script src> refs — edit a part, refresh the
+  browser, no build; regenerate only when markup or MANIFEST changes).
+  All slot substitution uses replacer functions ($-pattern safety).
+- `tools/run_gates.js` — gate runner; `tools/circuit_harness.js` — shared
+  circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree.
+- `vendor/` — three.js r128 PINNED (renderer code targets r128 APIs; do not
+  upgrade casually) + IBM Plex woff2 (latin).
+- Multi-agent etiquette: core agents own `src/core/`, viewer agents own
+  `src/viewer/`, either regenerates via build.js. Fiche agents never touch the
+  solver; solver changes re-anchor the whole fleet table.
+
+## GATES
+Verdict contract: every gate prints exactly one final `GATE <ID>: PASS|FAIL`
+line and sets a non-zero exit code on failure; the runner requires BOTH.
+Failed checks are listed by label. Gates use PERTURBED starts (lateral offset
++ velocity noise) on purpose: symmetric ICs mask directional instabilities.
+The battery is deterministic — full-output log diffs are a valid checkpoint
+and the cheapest regression instrument this project has.
+Runtimes: DC-3 dominates (~50 s of ~140 s total).
 
 ## AXES & SIGNS (the rudder saga lives here — reread twice)
 - x AFT (nose = −x), y UP, z... **+z is physically the LEFT side** when the nose
@@ -42,6 +80,8 @@ and the agreed roadmap.
   C172 48, DC-3 72, Chinook 48). Stability: omega·dt = sqrt(2k/m)·dt < ~0.6,
   AND damping c·dt/m < ~0.3. The Chinook boom exploded at K=1.5e6 despite
   omega·dt≈0.5 — keep real margin, light nodes bite.
+  The viewer calls `sim.step(1/60)` with NO substep argument — never hardcode
+  one there; that once destabilised 5 of 6 aircraft in a prototype.
 - Ground contact per-node, mass-scaled PIECEWISE (preserves old fleets exactly):
   `KGn = m<=6 ? min(9e4, 2.5e5·m) : 1.5e4·m` ; `CGn = 1.6·sqrt(KGn·m)`.
   The DC-3 buried its wheels half a meter before the heavy branch existed.
@@ -53,7 +93,9 @@ and the agreed roadmap.
 - Wing incidence = rear spar lowered by 0.5·c·tan(incidence). Chord-vector tilt
   gives the alpha; verified sign.
 - wheelsOnGround is terrain-aware (uses world.terrainH; world may be undefined
-  in tunnel-only makeSim calls).
+  in tunnel-only makeSim calls — null-guard anything new that touches it).
+- Latent debug hooks on `sim.out` (trq/trqAero/trqTotal, dump, gndDump,
+  trqDebugOnce) are used by ad-hoc tuning scripts — don't prune.
 
 ## STRUCTURAL RULES (each one paid for in blood)
 1. **Spar box always.** Planar wing + shallow fan = snap-through fold (drone).
@@ -90,6 +132,10 @@ and the agreed roadmap.
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
 - holdPitch command filter thCA re-syncs to current attitude on re-engage
   (holdWas/holdActive) — its zero-init once nosed the DC-3 over at Vr.
+  **KNOWN BUG, blocks the manual-controls session:** holdWas is assigned once
+  at declaration and never updated; holdActive is never reset. The resync fires
+  only on the very first holdPitch call — an AP re-engaged after manual flight
+  will hit exactly the DC-3-at-Vr failure mode. Fix before session 4.
 - Guidance is pure pursuit; **lookahead must scale with turn radius**
   (lookRoll/lookAppr/lookCruise per aircraft). DC-3 flew 600 m weaves with
   Cub lookahead.
@@ -123,6 +169,22 @@ and the agreed roadmap.
   corridor flattened x∈[−3400,400] |z|<750. 2200 collidable trees, exclusion
   covers the corridor. 3 landing meadows with beacons.
 - Physics ground uses terrainH; friction plane still horizontal (known cut).
+- The RENDERED airfield (src/viewer/render_world.js) is scaled to this runway
+  (strip 1100 m centred x=−520, thresholds +20/−1060). A world-geometry change
+  invalidates six fiches' xTurn/xAim/gs AND the airfield decals — re-anchor
+  both, and rerun the whole battery.
+
+## GRAPHICS (post-redesign, 2026-08)
+Golden-hour look: ACES tonemap, sRGB, PCF shadows, camera-parented sky-dome
+shader, baked 2048² terrain texture (~512k terrainH calls at startup — seconds
+of load, accepted), field patchwork, instanced woodland (2-4 render-only
+neighbours per collidable tree, corridor exclusion |z|<90 matches the world),
+billboard cumulus, dynamic shadow frustum following the CG. The aircraft
+itself stays the untinted wireframe: strain ramp neutral→amber (tension) /
+cyan (compression) — deliberate contrast, don't "fix" it.
+The shadow proxy (app.js) stitches an invisible skin across WF/WR tips +
+engine + tailplane nodes; ENGL/ENGR exist only on Cub and DC-3, single-engine
+fiches fall back to ENG — keep that fallback when adding aircraft.
 
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
@@ -145,21 +207,61 @@ swirl/slipstream-over-wing for tractors, no windmilling-prop drag (Chinook glide
 slightly optimistic for exactly this reason), fuel/battery mass frozen, friction
 plane horizontal, no compressibility (<M0.35 fleet).
 
-## AGREED ROADMAP (5 sessions)
+## ROADMAP (5 sessions, with implementation anchors)
+One chantier per session. Every session ends with the battery green AND the
+fleet table re-anchored if physics moved.
+
 1. **Ground effect** — passive per-strip induced-term scaling by height/span.
-   Expect full-fleet flare retune. Recalibrates the ruler.
+   WHERE: `polar(al, P)` in 30_solver.js computes `Cd = Cd0 + Cl²/eAR`; make
+   the induced term (and the lift slope a3d) height-aware via an effective
+   polar at the call site in the strip loop. Strip mid-point height is
+   computable from the live node positions already in scope; ground height via
+   `world.terrainH` — NULL-GUARD (tunnel-only sims have no world). MISSING
+   DATUM: span is not in def.params — derive from the outermost WF node |z| at
+   build time or add a fiche param. GATES: new height-sweep probe gate
+   (CdInd vs h/b curve, Wieselsberger-shaped); expect a FULL-FLEET flare
+   retune — every touchdown-sink anchor recalibrates. This session
+   recalibrates the ruler; do it before flaps.
 2. **High-lift devices** — flaps/slats/flaperons as per-strip polar deltas +
-   one control channel + flap-trim schedules. Validates on Chinook flaperons,
-   DC-3 real approach, Jodel MV (blog approach speeds as targets). Watch Cm0.
+   one control channel + flap-trim schedules.
+   WHERE: add `flap` to the ctl object and reset() in 30_solver.js; per-strip
+   effect must be an EFFECTIVE POLAR object ({Cl0+d, Cd0+d, aStall−d, Cm0+d})
+   built before the polar() call — an alpha shift alone is wrong (no drag, no
+   stall margin change). TRAP: the Cm0 spar couple reads P_.polarWing.Cm0
+   directly — it must read the effective polar or flap pitching moment is
+   silently ignored. PREREQ: unify the six per-fiche `wingStrip` helpers
+   (six different signatures today) before adding a `flap:` strip field.
+   AP: slew block handles only de/da/dr — add a flap rate limit; flap-trim
+   schedules per fiche. GATES: Chinook flaperons (validates vs the modeled-as-
+   ailerons cut), DC-3 real approach speeds, Jodel MV blog approach targets.
 3. **Wind & gusts** — environment velocity field into strip relative flow +
-   Dryden-ish gusts + crosswind AP work (crab, decrab, gust rejection). Heavy
-   forensic session expected. Same plumbing later = ridge lift/thermals.
+   Dryden-ish gusts + crosswind AP work (crab, decrab, gust rejection).
+   WHERE: `wind(x,y,z,t)` lives in makeWorld (20_world.js); add the wind
+   vector at the strip position into the relative-flow assembly in aeroPass,
+   AND into the fuselage drag blobs (else no weathercocking — the yaw response
+   would be missing exactly where it matters). DECISION UP FRONT: out.V/alpha
+   and every AP speed loop (speedThrottle, VRot/VClimb/VCruise/VAppr
+   comparisons) are groundspeed-based today; with wind, IAS ≠ groundspeed and
+   the choice affects every gate. Heavy forensic session expected. Same
+   plumbing later = ridge lift/thermals.
 4. **Manual controls** — touch/keyboard on the artifact; AP becomes toggle.
-5. **STOL competition mode + Valdez-Special-lite** — measured distances, scoring
-   lines, meadow course, per-attempt wind; competition Chinook = stock fiche +
-   slats polar + bigger Rotax registry line. Proves the mod pathway.
+   sim.ctl is externally writable (test_stress already drives it mid-flight) —
+   injection needs no refactor. MUST FIX FIRST: the holdWas/holdActive bug
+   (see AUTOPILOT RULES) + reset AP integrators (Ith, It, thcI, thrC, phCA,
+   servo filters) + re-latch ap.restAlt on re-engage, or the first AP
+   re-engage after manual flight noses over. UI: buttons keep focus after
+   click — blur() them or Space re-fires the last button. HUD/telemetry read
+   ap.dbg — source-switch to sim.out/cgPos when AP is off. GATE: headless
+   scripted-input sequence (deflection script like test_stress) + AP re-engage
+   recovery assertion.
+5. **STOL competition mode + Valdez-Special-lite** — measured distances,
+   scoring lines, meadow course, per-attempt wind; competition Chinook = stock
+   fiche + slats polar + bigger Rotax registry line. The chinook gate already
+   measures xLiftoff/xTD/xStop — promote to scored, gated numbers. Proves the
+   mod pathway.
+
 Riders: energy module (fuel burn + electric packs; refresh mass-derived contact
 arrays ~1 Hz, NOT per-substep) fits session 2 or 5. Then: gliders (atmosphere
 is the feature; winch trivial, aerotow deferred; high-AR wing = structural final
 exam), small jets (registry + spool-lag module + Vmax dive stress case + spool-
-aware AP margins). Graphics pass stays deferred until it's a game.
+aware AP margins).

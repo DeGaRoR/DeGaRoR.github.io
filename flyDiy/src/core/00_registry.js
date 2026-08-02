@@ -60,10 +60,5 @@ const PAR = {
   fusCdA: [0.55, 1.30, 1.30], // body-axis CdA: axial, vertical, lateral
 };
 
-const WING = { a3d: 4.34, Cl0: 0.35, aStall: 0.297, Cd0: 0.010,
-               eAR: Math.PI * 0.75 * 6.95, Cm0: -0.080, chord: 1.6, S: 16.6 };
-const TAILP = { a3d: 3.4, Cl0: 0, aStall: 0.24, Cd0: 0.008, eAR: Math.PI * 0.7 * 3.7 };
-const ELEV_TAU = 0.50, RUD_TAU = 0.55, AIL_TAU = 0.35, DOWNWASH = 0.40;
-const PROP = { Tstatic: 900, kV2: 0.26, R: 0.94, A: Math.PI * 0.94 * 0.94 };
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;
 
