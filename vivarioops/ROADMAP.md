@@ -43,6 +43,7 @@ treat it as abandoned until someone backfills it.
 | **B5 · First light** | the art pass; "would you show someone a screenshot?" | ❌ **never started** |
 | C1 · Sensors + probes | measurable creatures | ⚠️ green but **hollow** — S2 yields 1 trustworthy number of 8 |
 | **C2 · Duels** | "watch three fights, say what it's good at" | ❌ **engine done, UI never built, checkpoint unanswerable** |
+| **Forage** (not a milestone) | food, a mouth, an energy ledger, six rivals | ✅ **built** — no gene, no death |
 | D1 · Ecology core | a population lives and eats | ❌ not started |
 | D2 · Verdict | the world judges | ❌ not started |
 | E1 · The loop | verdict sends you back to breed | ❌ not started |
@@ -62,7 +63,9 @@ been working on.
 
 ## 3. Did the engine finish reasonably?
 
-**Yes, and it should stop here.** The fluid model is now a coherent, measured,
+**Yes — it is now finished, and it should stop here.** The fluid work closed out this
+session: the lift term deleted, the quadrature corrected, the momentum guards fixed,
+added mass shipped. Full account in `HANDOVER-FORAGE.md`. Gate green at 94. The fluid model is now a coherent, measured,
 gate-guarded Newtonian blade-element law with added mass. What remains on the fluid
 side is either blocked (`MUSCLE_STRESS`, which pins 83% of the corpus at the speed
 ceiling) or out of reach without a different geometry (skin friction, wakes,
@@ -159,19 +162,47 @@ thrust for C2. The obligations in `gate/duel.js` have been rewritten to say this
 This *confirms* the ordering below rather than changing it: the food path needs no
 aiming, and it is the one that can move now.
 
-### Step 1 — B5, the art pass (it is already happening)
+### Step 1 — B5, the art pass. PARTLY DONE, informally.
 
-`B5 · First light` was never started, and the tank is being critiqued organically
-anyway. Fold that in: it is the milestone whose checkpoint is *"would you show someone
-a screenshot?"*, and it is the cheapest route to the project feeling like something.
+`B5 · First light` was never started as a session, but the tank has been critiqued and
+reworked: the top scrim removed, chrome given its own contrast over water
+(`--c-on-water`), the scale legend made legible, motes spread over 27× the volume and
+slowed off a one-way drift that implied a current, sun shafts given a third motion.
+The **Forage** screen was built to the same look.
 
-### Step 2 — food + kinesis (the playable one)
+Still owed: `B3` and `B4`'s human checkpoints — both say "watch the tank screen with a
+person" and both are unsigned.
 
-Per `PLAN-AFTER-B2.md` §2–3, with the four constraints in §4 above. This is the first
-thing since B4 that changes what the player *does* rather than what the numbers say.
+### Step 2 — food. DONE as a harness; the gene is not.
 
-**Scope flag, stated as the plan itself states it:** this is D-tier work arriving
-before C2 and D1. That may be exactly right — but do it knowingly, not by drift.
+`engine/l2/forage.js`, `ui/screens/forage.js`, the **Forage** tab. Six creatures from
+the Atlas share one tank and compete for one depleting field. See
+`HANDOVER-FORAGE.md` §5 for the three model faults found and fixed along the way.
+
+Against §4's four conditions:
+
+1. **Local depletion** — yes. No diffusion at all, so depletion is strictly monotone
+   and `eaten` is exactly the field's loss.
+2. **Kinesis, not taxis** — **NOT DONE.** There is no gene. Creatures forage by
+   swimming into food, not by sensing it. This is the next step.
+3. **Control-subtracted** — **NOT DONE**, and it cannot be until (2) exists: there is
+   no behaviour to disable. `eaten` is "food found", not "foraging skill".
+4. **Its own gait adapter** — not yet needed, because nothing selects on food yet.
+
+**Scope flag, honoured rather than drifted past:** this is D-tier work sitting before
+C2 and D1, and it was taken knowingly. It is still L2 — real bodies, real fluid, no
+compiled records — and it is not D1.
+
+### Step 2b — the MOUTH GENE, and it is the next thing to do
+
+`mouthsOf()` derives one mouth on the root body. Placement and **count** should be
+genes: the same shape the sensor gains already have, and **the same shape eyes will
+need**. That is one `GENOME_V` bump with a migration, factory support and a mutation
+operator — worth spending once, and now is the once, because the model it serves has
+been measured. **Only `mouthsOf()` changes.**
+
+Do this before the kinesis gene: they are the same schema decision, and doing them
+together costs one migration instead of two.
 
 ### Step 3 — orientation, and only then light
 
@@ -187,6 +218,22 @@ turn rate), skin friction / wake / circulatory lift (need a different geometry).
 
 ---
 
+## 5b. The order, as it now stands
+
+1. **Mouth + sensor placement genes** (`GENOME_V` bump). Unlocks eyes too.
+2. **Kinesis gene** — sense local food, modulate `effort`. Sign evolved, not declared.
+   Same migration as (1) if done together.
+3. **Control-subtracted forage objective**, which (2) makes possible for the first
+   time. Only then may anything select on food.
+4. **Orientation** — the open research question, and the gate on both C2's capability
+   card and light-following. Do not attempt light before it.
+5. D1 / D2 / E1, still blocked on C2 and on turn rate.
+
+**Not scheduled:** `MUSCLE_STRESS → 2e6` (blocked on `STABLE_SPEED`), skin friction,
+wake modelling, circulatory lift.
+
+---
+
 ## 6. Debts this file does not discharge
 
 - **Two normative planning docs are missing from the repo.** Recover or re-write
@@ -198,3 +245,10 @@ turn rate), skin friction / wake / circulatory lift (need a different geometry).
   its comment is false.
 - **B3 and B4's human checkpoints are still unsigned.** Both say "watch the tank
   screen with a person". That is now overdue by many sessions.
+- **`FOOD_ENERGY` is calibrated, not derived**, and has moved three times as the
+  harvest model changed. Recalibrate whenever `forageStep` or the trial length moves.
+- **The forage objective is not control-subtracted** and must not be selected on yet.
+- **`_myria2.json` no longer reproduces the tear-apart**, so added mass's stability
+  benefit is unproven and needs a fresh repro.
+- **`_dragmicro.mjs`'s "ratio 1.000 to 30 m/s" is stale** — above `STABLE_SPEED` it
+  measures the clamp.

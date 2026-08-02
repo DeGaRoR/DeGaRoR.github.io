@@ -311,9 +311,33 @@ html, body {
 
 /* Forage — the two ledger lines. Mono, because they are measurements, and they
    sit over water so they take the on-water colours like every other readout. */
-/* Forage — one ledger line per creature in the cast. Mono, because they are
-   measurements, and they sit over water so they take the on-water colours. */
-.forage-rows { display: flex; flex-direction: column; gap: var(--readout-gap); }
-.forage-row {
-  font-family: var(--f-mono); font-size: var(--t-value); color: var(--c-on-water-dim);
+/* ── Forage — one ledger line per creature in the cast ───────────────────────
+   Each row carries the creature's OWN colour as a swatch, because "which one is
+   number 3" is otherwise a question the screen cannot answer. The text is mono
+   (measurements) and deliberately short: grams and a ratio. The raw energies
+   live in the stats sheet, one creature at a time — six rows of scientific
+   notation is not something anyone reads. */
+.forage-rows {
+  display: flex; flex-direction: column; gap: var(--readout-gap);
+  /* .tank-readouts is pointer-events:none so the water can be dragged through
+     it. The rows are the exception: they are how you open a creature's stats. */
+  pointer-events: auto;
 }
+.forage-row {
+  display: flex; align-items: center; gap: var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-value); color: var(--c-on-water-dim);
+  cursor: pointer;
+}
+.forage-row[data-state="surplus"] .forage-text { color: var(--c-on-water); }
+.forage-row[data-picked="yes"] .forage-text { text-decoration: underline; }
+.forage-swatch {
+  width: var(--forage-swatch); height: var(--forage-swatch); flex: none;
+  border-radius: var(--r-1);
+  box-shadow: var(--shadow-on-water);
+}
+.forage-text { white-space: nowrap; }
+
+/* The cast picker reuses .spec-picker-*; this is only the chosen/not state. */
+.spec-picker-item[data-on="yes"] { border-color: var(--c-select); }
+.forage-tick { flex: none; color: var(--c-select); width: var(--s-4); text-align: right; }
+.spec-picker-item[data-on="yes"] .forage-tick::after { content: "✓"; }

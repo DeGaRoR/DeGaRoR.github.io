@@ -44,7 +44,7 @@ function shaftTexture() {
 
 /** Round dot for motes. An untextured attenuated point renders as a filled
  *  square, and near-camera ones read as glitch pixels. */
-function dotTexture() {
+export function dotTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d');

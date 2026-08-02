@@ -86,11 +86,21 @@
                                 Stranger/Burst/Seek are deliberate, not reflexive,
                                 and the ribbon must not take a second row */
   --scale-tick:   6px;       /* depth of the scale bar's end brackets */
-  --forage-food-size: 5;     /* food item point size, px (unitless: three.js) */
-  --forage-mouth-opacity: 0.13;  /* the mouth's reach sphere. A HINT: at 1.6 cm it is
-                                    half the length of a small creature, so anything
-                                    bolder reads as a bubble the animal is wearing */
-  --forage-trail-opacity: 0.45;  /* where the mouth has been */
+  /* FOOD. It was --tank-w1-surface (#bdeff7, near white) at size 5 on additive
+     blending, drawn as hard square points — it shouted, and 1400 of them shouted
+     together. Now a soft round dot, dimmer, smaller, and a muted organic
+     green-cyan rather than a highlight colour: food should read as suspended
+     matter you notice, not as pixels lit from within. */
+  --forage-food:         #7fd6b4;
+  --forage-food-size:    4;    /* point size, px (unitless: three.js) */
+  --forage-food-opacity: 0.42;
+  /* THE MOUTH. The shell is BackSide-only so it reads as a bubble you can see
+     THROUGH; a filled additive sphere blows out in the middle and hides the
+     animal. The dot is what actually says where the mouth is. */
+  --forage-mouth-opacity: 0.10;
+  --forage-mouth-dot:     0.42;  /* cm — small, solid, unmistakable */
+  --forage-trail-opacity: 0.55;  /* where the mouth has been — the creature's own colour */
+  --forage-swatch:        9px;   /* the colour chip that ties a row to an animal */
 
   /* Scrims, not panels: readouts sit over moving water and need a floor. */
   --scrim-top:    96px;
