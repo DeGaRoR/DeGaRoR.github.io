@@ -21,6 +21,11 @@ const GATES = [
   { id: 'CHINOOK', file: 'test_chinook.js' },
   { id: 'STRESS', file: 'test_stress.js' },
   { id: 'TREE', file: 'test_tree.js' },
+  // flexbody skin (appended: keeps the physics battery log prefix diffable)
+  { id: 'MODEL', file: 'test_model.js' },
+  { id: 'SKIN', file: 'test_skin.js' },
+  { id: 'CTRL', file: 'test_ctrl.js' },
+  { id: 'UISMOKE', file: 'test_ui_smoke.js' },
 ];
 
 const args = process.argv.slice(2);
