@@ -12,7 +12,7 @@ const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
 const dec = decodeModel(MODEL_PA18);
 chk(MODEL_PA18.v >= 2 && dec.skin.sid, 'payload not v2 / sid missing');
 const S = MODEL_PA18.surfaces;
-chk(S.length === 5, `expected 5 surfaces, got ${S.length}`);
+chk(S.length === 7, `expected 7 surfaces, got ${S.length}`);
 const hb = makeHingeBinding(dec.skin, S);
 hb.per.forEach((g, i) => chk(g.idx.length > 30, `${S[i].name}: only ${g.idx.length} verts`));
 
@@ -80,6 +80,24 @@ console.log(`tailwheel aft dz ${(twDz*100).toFixed(1)} cm (k=0.5)`);
 chk(twDz > 0.005, 'tailwheel should steer with rudder (+z for +dr)');
 chk(twDz < rDz, 'tailwheel throw should be smaller than rudder (k=0.5)');
 
+// flaps: symmetric TE-down for +flap; ctl.flap is a 0..1 fraction, k = full throw
+const posF = base.slice();
+applyHinges(hb, S, base, posF, { flap: 1 });
+const meanIn = (arr, pred, comp) => {
+  let s = 0, n = 0;
+  for (let i = 0; i < dec.skin.nv; i++)
+    if (pred(i)) { s += arr[i*3+comp] - base[i*3+comp]; n++; }
+  return n ? s / n : NaN;
+};
+const fG = meanIn(posF, i => sidOf(i) === 6 && X(i) > -0.45, 1);
+const fD = meanIn(posF, i => sidOf(i) === 7 && X(i) > -0.45, 1);
+const fArm = -0.40 - S[5].p[0];                 // TE band mid minus hinge x
+const fExp = -fArm * Math.sin(S[5].k);          // TE down = -y
+console.log(`flap TE dy: G ${(fG*100).toFixed(1)} cm  D ${(fD*100).toFixed(1)} cm (expect ~${(fExp*100).toFixed(1)}, k=${S[5].k})`);
+chk(fG < 0.5 * fExp && fG > 1.1 * fExp, 'flapG magnitude/sign off (+flap: TE down)');
+chk(Math.abs(fG - fD) < 0.005, 'flaps not symmetric (contrast: ailerons are antisymmetric)');
+chk(Math.abs(meanIn(posF, i => sidOf(i) === 3 && X(i) > 3.25, 1)) < 1e-6, 'flap leaked onto elevator');
+
 // linkage: DC tracking, step speed, dither attenuation at the 3.7 Hz limit cycle
 const link = makeLinkage(0.15);
 let y = 0;
@@ -102,6 +120,11 @@ for (let s = 0; s < 10*60; s++) {
 }
 console.log(`linkage: 3.7 Hz dither +-${(0.08*57.3).toFixed(1)} deg -> +-${(aMax*57.3).toFixed(2)} deg (${(0.08/aMax).toFixed(1)}x)`);
 chk(aMax < 0.08/5, 'linkage should attenuate the limit cycle at least 5x');
+const l4 = makeLinkage(0.15);
+let yf = 0;
+for (let s = 0; s < 5*60; s++) yf = l4.step({ flap: 0.5 }, 1/60).flap;
+chk(yf !== undefined && Math.abs(yf - 0.5) < 0.005,
+    `linkage flap channel ${yf === undefined ? 'missing' : 'off (' + yf.toFixed(3) + ')'}`);
 
 console.log(why.join('\n'));
 console.log(ok ? 'GATE CTRL: PASS' : 'GATE CTRL: FAIL');

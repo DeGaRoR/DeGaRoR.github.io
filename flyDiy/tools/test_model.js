@@ -6,15 +6,21 @@ const dec = decodeModel(MODEL_PA18);
 let ok = true, why = [];
 const chk = (c, msg) => { if (!c) { ok = false; why.push(msg); } };
 
-// structure
-for (const g of ['skin', 'glass', 'prop']) {
+// structure — all groups (v3: exterior + interior per material), counts anchored
+const EXPECT = { skin: 15993, glass: 91, prop: 144, cabin: 229, seat: 1460,
+                 panel: 227, gauge_ai: 744, gauge_asi: 249, gauge_alt: 529,
+                 gauge_turn: 355, gauge_hdg: 318, gauge_vsi: 249, covers: 189 };
+for (const g of Object.keys(EXPECT)) {
   const d = dec[g];
-  chk(d && d.pos.length === d.nv * 3 && d.idx.length === d.nt * 3, `${g}: count mismatch`);
+  chk(!!d, `${g}: group missing`);
+  if (!d) continue;
+  chk(d.pos.length === d.nv * 3 && d.idx.length === d.nt * 3, `${g}: count mismatch`);
   let mx = 0, bad = false;
   for (let i = 0; i < d.idx.length; i++) mx = Math.max(mx, d.idx[i]);
   for (let i = 0; i < d.pos.length; i++) if (!isFinite(d.pos[i])) bad = true;
   chk(mx < d.nv, `${g}: index out of range (${mx} >= ${d.nv})`);
   chk(!bad, `${g}: NaN in positions`);
+  chk(Math.abs(d.nv - EXPECT[g]) / EXPECT[g] < 0.1, `${g}: vert count ${d.nv} vs ~${EXPECT[g]}`);
 }
 // dimensions: PA-18 span 10.71 m, length ~6.9 m
 const s = dec.skin;

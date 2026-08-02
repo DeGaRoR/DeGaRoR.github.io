@@ -65,13 +65,23 @@
   const SKIN_GAINS = [1, 4];
   const LINK_TAU = 0.15;   // s per pole, two poles; 0 -> raw ctl on the surfaces
   let model = null, skinMode = 0;
+  // transparent-pass determinism (r128): gauge covers paint before cabin glass
+  const RENDER_ORDER = { covers: 1, glass: 2 };
   function buildModel(key) {
     if (modelCache[key]) return modelCache[key];
     const data = MODELS3D[key];
     if (!data) return null;
     const dec = decodeModel(data);
-    const tex = new THREE.TextureLoader().load(data.tex);
-    tex.anisotropy = 4;
+    // v3 payloads carry texs/mats tables + per-group mat; v2 shim implies them
+    const texSrcs = data.texs || { skin: data.tex };
+    const mats = data.mats || { skin: { tex: 'skin' }, glass: { opacity: 0.28, color: 0xaad4ea } };
+    const grpMat = name => (data.texs && data.groups[name].mat) ||
+                           (name === 'glass' ? 'glass' : 'skin');
+    const texs = {};
+    for (const t in texSrcs) {
+      texs[t] = new THREE.TextureLoader().load(texSrcs[t]);
+      texs[t].anisotropy = 4;
+    }
     const mkGeo = g => {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(g.pos, 3));
@@ -80,26 +90,35 @@
       geo.computeVertexNormals();
       return geo;
     };
-    const skinMat = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
+    const matCache = {};
+    const matFor = name => {
+      const mn = grpMat(name);
+      if (matCache[mn]) return matCache[mn];
+      const m = mats[mn], op = m.opacity !== undefined ? m.opacity : 1;
+      return matCache[mn] = m.tex
+        ? new THREE.MeshLambertMaterial({ map: texs[m.tex], side: THREE.DoubleSide,
+            transparent: op < 1, opacity: op, depthWrite: op >= 1 })
+        : new THREE.MeshLambertMaterial({ color: m.color !== undefined ? m.color : 0xaad4ea,
+            transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false });
+    };
     const grp = new THREE.Group();
     grp.matrixAutoUpdate = false;
-    const skin = new THREE.Mesh(mkGeo(dec.skin), skinMat);
-    skin.castShadow = true;                 // the skin replaces the proxy's sun shadow
-    grp.add(skin);
-    grp.add(new THREE.Mesh(mkGeo(dec.glass), new THREE.MeshLambertMaterial({
-      color: 0xaad4ea, transparent: true, opacity: 0.28,
-      side: THREE.DoubleSide, depthWrite: false })));
-    const pGeo = mkGeo(dec.prop);
-    pGeo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
-    const prop = new THREE.Mesh(pGeo, skinMat);
-    prop.position.set(data.hub[0], data.hub[1], data.hub[2]);
-    prop.castShadow = true;
-    grp.add(prop);
+    let skin = null, prop = null;
+    for (const name in dec) {
+      const geo = mkGeo(dec[name]);
+      if (name === 'prop') geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
+      const mesh = new THREE.Mesh(geo, matFor(name));
+      mesh.renderOrder = RENDER_ORDER[name] || 0;
+      if (name === 'prop') { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); prop = mesh; }
+      if (name === 'skin') skin = mesh;
+      if (name === 'skin' || name === 'prop')
+        mesh.castShadow = true;             // the skin replaces the proxy's sun shadow
+      grp.add(mesh);
+    }
     grp.frustumCulled = false;
     grp.traverse(o => { o.frustumCulled = false; });
     // deformation binding: wing-band vertices follow the sim spar stations
-    const skinGeo = grp.children[0].geometry;
-    const posAttr = skinGeo.attributes.position;
+    const posAttr = skin.geometry.attributes.position;
     const bind = makeSkinBinding(posAttr.array, dec.skin.nv, AIRCRAFT[key](), SKIN_CFG[key]);
     const deltas = { P: new Float32Array(bind.zs.length * 3),
                      N: new Float32Array(bind.zs.length * 3) };
@@ -123,7 +142,8 @@
       cg[1] + O[0]*xA[1] + O[1]*yU[1],
       cg[2] + O[0]*xA[2] + O[1]*yU[2]);
     model.grp.matrix.copy(mBasis);
-    model.prop.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);   // visual only
+    if (model.prop)
+      model.prop.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);   // visual only
     if (model.hb)
       applyHinges(model.hb, model.surfaces, model.base, model.posAttr.array,
                   model.link.step(sim.ctl, 1/60));

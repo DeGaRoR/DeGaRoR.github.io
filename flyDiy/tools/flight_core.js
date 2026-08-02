@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 17492445766a61d8
+// body-sha256: ef7feda4dc11eaa8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2122,11 +2122,11 @@ function applyHinges(hb, surfaces, base, pos, ctl) {
 // The HUD keeps showing raw sim.ctl; physics is untouched.
 // ---------------------------------------------------------------------------
 function makeLinkage(tau) {
-  const s1 = { de: 0, da: 0, dr: 0 }, s2 = { de: 0, da: 0, dr: 0 };
+  const s1 = { de: 0, da: 0, dr: 0, flap: 0 }, s2 = { de: 0, da: 0, dr: 0, flap: 0 };
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
-      for (const k of ['de', 'da', 'dr']) {
+      for (const k of ['de', 'da', 'dr', 'flap']) {
         s1[k] += a * ((ctl[k] || 0) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }
