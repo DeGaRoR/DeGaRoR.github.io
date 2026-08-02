@@ -26,14 +26,26 @@ before every battery so stale hand-edits get overwritten, loudly.
 
 - `src/core/00_registry.js` — RHO, POWERPLANTS/POLARS registries, PAR
   (rudderSign is live in the solver hot loop), wheel-friction consts CRR/MU_*.
-- `src/core/10..15_aircraft_*.js` — one fiche per aircraft (cub, dc3, chinook,
-  c172, jodel, drone). Fully self-contained builders; only POLARS is external.
-  The ideal parallel-agent boundary: one agent per fiche, zero conflicts.
+- `src/core/10..16_aircraft_*.js` — one fiche per aircraft (cub, dc3, chinook,
+  c172, jodel, drone, pa18). Fully self-contained builders; only POLARS is
+  external. The ideal parallel-agent boundary: one agent per fiche, zero
+  conflicts. The pa18 is a byte-copy of the cub geometry + flap physics and
+  carries the 3D skin; the J-3 stays wireframe (may retire later).
 - `src/core/20_world.js` — makeWorld: deterministic terrain/trees/meadows.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
+- `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
+  binding, control-surface hinges, visual linkage). Pure JS, no THREE; ported
+  byte-identical from the flexbody branch except the linkage's flap channel.
+  See docs/SKIN-PROC.md.
 - `src/core/90_node_exports.js` — guarded module.exports (inert in browser,
   inlined as-is; keep it single-statement, no nested braces).
+- `src/models/` — GENERATED baked model payloads (tools/model_prep.py output;
+  never hand-edit). Inlined via build.js MODELS slot; NOT part of
+  tools/flight_core.js, so `node --check` and the node gates don't parse
+  781 KB of base64 twice per build.
+- `assets/pa18/` — the PA-18 source model (OBJ+MTL+textures, helijah;
+  see CREDITS.md). `docs/` — MODEL-IMPORT-PROC.md + SKIN-PROC.md.
 - `src/viewer/` — shell.html (slot markers), style.css (theme + vendored
   @font-face), body.html (UI markup), render_world.js (buildWorldScene — the
   whole 3D world look lives here), app.js (renderer, camera, aircraft mesh,
@@ -46,7 +58,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   browser, no build; regenerate only when markup or MANIFEST changes).
   All slot substitution uses replacer functions ($-pattern safety).
 - `tools/run_gates.js` — gate runner; `tools/circuit_harness.js` — shared
-  circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree.
+  circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree
+  + the flexbody battery (test_model/skin/ctrl/ui_smoke/pa18).
+- `tools/model_prep.py` (generic bake, needs Pillow) + `tools/models/<key>.py`
+  (per-model config: groups, SURFACES hinge table, texture settings) +
+  `tools/model_inspect.py` (OBJ inventory + hinge-line probe). Procedure:
+  docs/MODEL-IMPORT-PROC.md.
 - `vendor/` — three.js r128 PINNED (renderer code targets r128 APIs; do not
   upgrade casually) + IBM Plex woff2 (latin).
 - Multi-agent etiquette: core agents own `src/core/`, viewer agents own
@@ -63,7 +80,12 @@ and the cheapest regression instrument this project has.
 The harness auto-appends a settle-uprightness check (max lateral node drift
 from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
-Runtimes: DC-3 dominates (~50 s of ~140 s total).
+Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min.
+Flexbody gates (appended, keeping the physics log prefix diffable): MODEL
+(payload decode + wheel calibration), SKIN (flex binding), CTRL (hinges +
+linkage), UISMOKE (executes the built artifact's core+models+app blocks in a
+node vm with DOM/THREE stubs — the vendor and render blocks are deliberately
+NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
 
 ## AXES & SIGNS (the rudder saga lives here — reread twice)
 - x AFT (nose = −x), y UP, z... **+z is physically the LEFT side** when the nose
@@ -165,6 +187,10 @@ Runtimes: DC-3 dominates (~50 s of ~140 s total).
   wheel landing (DC-3: flareThMax BELOW L=W attitude kills float),
   trike rollout (rolloutMode:'trike': hold attitude, derotate at VDerotate,
   brake only nose-down — full-aft at flying speed re-launches the aircraft).
+  Flapped taildragger rollout: VTailDown (default VTailUp) — above it the
+  taildragger rollout holds the tail UP; the PA-18 sets 99 (pin the tail from
+  touchdown) because flap lift + dCm0 turned the tail-up hold into a −25°
+  noseover in the crosswind gate.
 - Approach: glideslope needs DECEL MARGIN vs idle equilibrium (gs below the
   idle-balance slope, thrFloor param) or overspeed persists forever (DC-3 74 s
   float; Jodel; C172). Clean airframes gain energy downhill.
@@ -203,12 +229,36 @@ The shadow proxy (app.js) stitches an invisible skin across WF/WR tips +
 engine + tailplane nodes; ENGL/ENGR exist only on Cub and DC-3, single-engine
 fiches fall back to ENG — keep that fallback when adding aircraft.
 
+## FLEXBODY SKIN (ported from the web team's branch, 2026-08)
+The PA-18 flies with a real textured mesh (helijah's FlightGear model, baked
+to `src/models/pa18_model.js`): rigid body-frame mount + spanwise flex
+binding to the WF/WR spar stations + hinged control surfaces (ailerons,
+elevator, rudder w/ fin ramp, steered tailwheel, flaps) + full interior
+(cabin, seats, panel, six gauges) visible through the glass. The sim is the
+truth; the skin never feeds back. Full contract: docs/SKIN-PROC.md; import
+procedure for the next aircraft: docs/MODEL-IMPORT-PROC.md.
+- Calibration `SKIN_CFG.pa18 = { off:[1.690,-0.070,0], tags:['WF','WR'],
+  zRoot:1.30, xMax:1.5 }` — measured on the cub geometry, valid because the
+  pa18 fiche is a byte-copy of it.
+- bSkin cycles Skin → Flex ×4 → Frame. In skin modes the mesh casts the sun
+  shadow and the proxy hides; Frame restores wireframe + proxy shadow.
+- Drawn surfaces run through a two-pole linkage low-pass (LINK_TAU 0.15) —
+  NOT 1:1 with sim.ctl (HUD shows raw ctl); it filters the AP's ~3.7 Hz
+  roll/yaw limit cycle, whose core-side fix is still open (SKIN-PROC §8 e4).
+- Known limits carried as-is: no twist, rigid tail/fuselage/glass, hinge
+  about the undeformed line (visible only at ×4), P-side-only station keys
+  in makeSkinBinding (exact for mirrored fiches — union+assert before
+  skinning a non-mirrored aircraft), linkage+prop spin hardcode 1/60.
+- The branch's flight_core.js was a fork of the INITIAL commit — never merge
+  anything from it; the port cherry-picked only codec/payload/viewer/gates.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
 | Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 111 m w/ flaperons (book ~90 m: nearly closed; pre-bracing 86/91 was measured with the tail on the ground) |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
+| Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr 0.12, VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); carries the 3D skin |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
 | Douglas DC-3 | 10.9 t | 72 | Vs 32.8 clean / 29.5 flapped (book 34.5 / ~29-30); NP margin 13%; unstick 46 m/s ~945 m w/ TO flaps 1/4; wheel landing 146 km/h @0.56 sink, flaps 0.7 on gs 0.060 |
@@ -262,6 +312,18 @@ project BRANCHES to graphics/world/editor work (specced separately by the
 user). Sessions 4-6 below stay documented as reference but are NOT next.
 One chantier per session. Every session ends with the battery green AND the
 fleet table re-anchored if physics moved.
+
+0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
+   team's flexbody branch (a fork of the initial commit) cherry-picked onto
+   trunk exactly: codec → 50_model_codec.js, payload → src/models/ + build
+   MODELS slot, viewer block → app.js, gates on the trunk verdict contract;
+   then finished: flaps rigged (voletG/D, measured hinge), full interior
+   baked (payload v3, per-material groups), pa18 fiche = cub + flap physics
+   (tunnel 0.900 Vs ratio) carries the skin and boots by default, PA18/
+   W-PA18/STRESS-PA18 gates added, docs ported fixed to docs/, CREDITS.md +
+   footer credit. Flexbody open increments (SKIN-PROC §6): twist, fuselage
+   binding, gauge-needle animation, per-model payload splitting for the
+   six-aircraft budget, J-3 retirement decision.
 
 1. **Ground effect** — DONE 2026-08-02. McCormick sigma per wing strip in
    30_solver.js (induced term + lift slope via the 1/a3d = 1/a0 + 1/eAR
