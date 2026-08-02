@@ -309,10 +309,11 @@ fleet table re-anchored if physics moved.
    calm battery was byte-identical through the plumbing change (that
    instrument caught nothing because nothing was broken; it then retired
    when the guidance change below legitimately altered calm trajectories).
-   GATE WIND: Cub + C172 full circuits in 3 m/s crosswind + gusts
-   (touchdown z 0.8 / 3.2 m, drift < 1.8 m/s, gust altitude excursions
-   bounded). Decrab: below decrabAgl the rudder aligns the nose while
-   airLateral keeps killing drift — worked first try.
+   GATE WIND: the WHOLE FLEET flies full circuits in 3 m/s crosswind + gusts
+   (foam trainer at a scaled 1.5 m/s — half its stall speed is not weather,
+   it is an emergency). Touchdown offsets: DC-3 0.7 m, Chinook 1.0, Cub ~1,
+   drone 3.3, C172 ~3, Jodel 7.3. Decrab: below decrabAgl the rudder aligns
+   the nose while airLateral keeps killing drift — worked first try.
    HARD-WON: (1) NOSE-referenced pursuit parks at a standing cross-track
    offset ~ L*(crab - slip) with e EXACTLY ZERO (C172 froze at z=+21..26 m;
    two wrong integrator theories died before the trace showed e=0.0 at
@@ -325,7 +326,17 @@ fleet table re-anchored if physics moved.
    (3) The settle-uprightness harness check false-fires in wind — a parked
    aircraft WEATHERVANES (rigid yaw), which a node-drift instrument cannot
    tell from a structural fall: wind gates set uprightCheck:false, the calm
-   battery keeps the guard.
+   battery keeps the guard. (4) Slip-heavy airframes (Jodel ariK=0 + 14
+   dihedral; DC-3) need a STANDING BANK to hold a crosswind course; P-only
+   course loops hang 10-20 m off centreline. Cure: a trim integrator that
+   engages ONLY in the trim regime (|eA| < 0.2, leak otherwise) — clamped
+   +-0.10, wind-gated to exact zero in calm air. (5) Align-before-descend
+   (hold altitude until laterally captured, then intercept) is a TRAP with
+   this geometry: the level leg raises the descent start by gs*(leg length),
+   beyond the catch-up authority — Jodel/DC-3 landed 0.6-1.1 km long. The
+   approach catch-up clamp now scales with the aircraft's own slope rate
+   (min(-3, -1.6*V*gs)); capture happens in-descent and the trim integrator
+   closes the residual.
 4. **Manual controls** — touch/keyboard on the artifact; AP becomes toggle.
    sim.ctl is externally writable (test_stress already drives it mid-flight) —
    injection needs no refactor. MUST FIX FIRST: the holdWas/holdActive bug

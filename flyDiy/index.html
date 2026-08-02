@@ -1868,6 +1868,7 @@ function makeAutopilot(sim, def) {
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
+  let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
   ap.update = (dt) => {
@@ -1937,7 +1938,17 @@ function makeAutopilot(sim, def) {
       c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR, -bankLim, bankLim);
+      // standing-disturbance trim: a slipping aircraft (dihedral, ariK=0)
+      // needs a standing bank to hold a crosswind course; P-only leaves a
+      // residual course error and a ~L*residual cross-track hang (Jodel 20 m,
+      // DC-3 11 m measured). Integrate ONLY in the trim regime (|eA| small):
+      // integrating during the capture is the windup failure documented in
+      // HANDOVER. Exact zero in calm air.
+      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
+        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
+        else eTrim -= 0.8 * eTrim * dt;
+      }
+      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bankLim, bankLim);
       phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
       c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
       c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
@@ -2013,10 +2024,12 @@ function makeAutopilot(sim, def) {
         // glideslope) — the turnback exits ~1.2-1.6 km off centreline and a
         // capture flown inside the descent runs out of approach (Jodel landed
         // 16 m off, DC-3 10 m). Calm-air condition untouched.
-        const windy = Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5;
-        if (d > 0 && hGS <= cg[1] + 2 && (!windy || Math.abs(cg[2]) < 60)) {
-          ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;
-        }
+        // NOTE: no align-before-descend gate. It was tried and is geometrically
+        // a trap here: the level alignment leg makes the descent start above
+        // the slope by gs*(leg length), which the catch-up authority cannot
+        // recover (Jodel/DC-3 landed 0.6-1.1 km long). In-descent capture
+        // works once the course loop carries a slip trim (see airLateral).
+        if (d > 0 && hGS <= cg[1] + 2) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
         break;
       }
 
@@ -2024,7 +2037,10 @@ function makeAutopilot(sim, def) {
         speedThrottle(ap.VAppr);
         const d = ap.xAim - cg[0];
         const hGS = ap.restAlt + Math.max(0, d) * ap.gs;
-        holdVS(clamp(-V * ap.gs + 0.12 * (hGS - cg[1]), -3.0, 0.5));
+        // catch-up clamp scales with the aircraft's own slope rate: a flat
+        // -3.0 gave the DC-3 (nominal -2.6 m/s on its slope) only 0.4 m/s of
+        // authority to descend back onto the slope from above
+        holdVS(clamp(-V * ap.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * ap.gs), 0.5));
         airLateral(0.18);
         if (agl < A.flareAgl) { ap.phase = 'FLARE'; phaseT = 0; thFlare0 = th; }
         break;
