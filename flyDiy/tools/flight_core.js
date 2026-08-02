@@ -1,3 +1,5 @@
+// GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
+// body-sha256: 3ff14f295362017e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground

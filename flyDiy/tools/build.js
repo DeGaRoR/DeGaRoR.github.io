@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+// build.js — assembles all GENERATED files from src/ parts. Never edit outputs by hand.
+//   tools/flight_core.js  (node gates require it)
+//   ../index.html         (single-file artifact, fully self-contained: vendor+fonts+core inlined)
+//   ../dev.html           (no-build dev page: <script src>/<link> refs, works from file://)
+// Ordering authority for core concatenation is MANIFEST.core below.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const { spawnSync } = require('child_process');
+
+const ROOT = path.join(__dirname, '..');
+const CORE_DIR = path.join(ROOT, 'src', 'core');
+const VIEW_DIR = path.join(ROOT, 'src', 'viewer');
+const VENDOR_DIR = path.join(ROOT, 'vendor');
+
+const MANIFEST = {
+  core: [
+    '00_registry.js',
+    '10_aircraft_cub.js',
+    '11_aircraft_dc3.js',
+    '12_aircraft_chinook.js',
+    '13_aircraft_c172.js',
+    '14_aircraft_jodel.js',
+    '15_aircraft_drone.js',
+    '20_world.js',
+    '30_solver.js',
+    '40_autopilot.js',
+    '90_node_exports.js',
+  ],
+  viewer: {
+    shell: 'shell.html',
+    style: 'style.css',
+    body: 'body.html',
+    scripts: ['render_world.js', 'app.js'],
+  },
+};
+
+const read = f => fs.readFileSync(f, 'utf8');
+const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+
+function syntaxCheck(label, code) {
+  const tmp = path.join(os.tmpdir(), `flydiy_check_${process.pid}_${label.replace(/[^\w.-]/g, '_')}.js`);
+  fs.writeFileSync(tmp, code);
+  const r = spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf8' });
+  fs.unlinkSync(tmp);
+  if (r.status !== 0) {
+    console.error(`SYNTAX FAIL in ${label}:\n${r.stderr}`);
+    process.exit(1);
+  }
+}
+
+// Slot substitution. Replacer functions are MANDATORY: the core is full of `$`
+// sequences and String.replace treats $&, $', $` as magic patterns.
+function fill(tpl, slot, blob) {
+  const marker = `<!--__${slot}_SLOT__-->`;
+  if (!tpl.includes(marker)) {
+    console.error(`shell.html is missing ${marker}`);
+    process.exit(1);
+  }
+  return tpl.replace(marker, () => blob);
+}
+
+function buildCore() {
+  const parts = MANIFEST.core.map(f => read(path.join(CORE_DIR, f)));
+  parts.forEach((p, i) => syntaxCheck(MANIFEST.core[i], p));
+  const body = parts.join('');
+  syntaxCheck('core-concat', body);
+
+  const outFile = path.join(__dirname, 'flight_core.js');
+  const hash = sha(body);
+  if (fs.existsSync(outFile)) {
+    const old = read(outFile);
+    const m = old.match(/^\/\/ body-sha256: (\w+)\n/m);
+    if (m) {
+      const oldBody = old.split('\n').slice(2).join('\n');
+      if (sha(oldBody) !== m[1])
+        console.warn('WARNING: manual edits detected in generated tools/flight_core.js — they are being overwritten. Edit src/core/ instead.');
+    }
+  }
+  const header = `// GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.\n// body-sha256: ${hash}\n`;
+  fs.writeFileSync(outFile, header + body);
+  return { body, bytes: body.length };
+}
+
+function inlineFonts(css) {
+  // url(../../vendor/fonts/X.woff2) -> data URI (artifact must be self-contained)
+  return css.replace(/url\((['"]?)\.\.\/\.\.\/vendor\/fonts\/([^'")]+)\1\)/g, (_, __, file) => {
+    const buf = fs.readFileSync(path.join(VENDOR_DIR, 'fonts', file));
+    return `url(data:font/woff2;base64,${buf.toString('base64')})`;
+  });
+}
+
+function buildViewer(coreBody) {
+  const V = MANIFEST.viewer;
+  const shellPath = path.join(VIEW_DIR, V.shell);
+  if (!fs.existsSync(shellPath)) {
+    console.log('src/viewer/shell.html not present — core-only build.');
+    return [];
+  }
+  const shell = read(shellPath);
+  const css = read(path.join(VIEW_DIR, V.style));
+  const bodyHtml = read(path.join(VIEW_DIR, V.body));
+  const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
+  scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
+  const three = read(path.join(VENDOR_DIR, 'three.min.js'));
+
+  // --- single-file artifact: everything inlined ---
+  let art = shell;
+  art = fill(art, 'STYLE', `<style>\n${inlineFonts(css)}</style>`);
+  art = fill(art, 'BODY', bodyHtml);
+  art = fill(art, 'VENDOR', `<script>\n${three}\n</script>`);
+  art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
+  art = fill(art, 'RENDER', `<script>\n${scripts[0]}</script>`);
+  art = fill(art, 'APP', `<script>\n${scripts[1]}</script>`);
+  art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
+  if (!art.includes('function makeAutopilot')) {
+    console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
+    process.exit(1);
+  }
+  const artFile = path.join(ROOT, 'index.html');
+  fs.writeFileSync(artFile, art);
+
+  // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
+  let dev = shell;
+  dev = fill(dev, 'STYLE', `<link rel="stylesheet" href="src/viewer/${V.style}">`);
+  dev = fill(dev, 'BODY', bodyHtml);
+  dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
+  dev = fill(dev, 'CORE', MANIFEST.core.map(f => `<script src="src/core/${f}"></script>`).join('\n'));
+  dev = fill(dev, 'RENDER', `<script src="src/viewer/${V.scripts[0]}"></script>`);
+  dev = fill(dev, 'APP', `<script src="src/viewer/${V.scripts[1]}"></script>`);
+  dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
+  const devFile = path.join(ROOT, 'dev.html');
+  fs.writeFileSync(devFile, dev);
+
+  return [
+    { file: 'index.html', bytes: art.length },
+    { file: 'dev.html', bytes: dev.length },
+  ];
+}
+
+function build() {
+  const t0 = Date.now();
+  const core = buildCore();
+  const viewer = buildViewer(core.body);
+  const outs = [{ file: 'tools/flight_core.js', bytes: core.bytes }, ...viewer];
+  console.log(
+    outs.map(o => `${o.file} (${(o.bytes / 1024).toFixed(1)} KB)`).join(', ') +
+    ` — syntax OK, ${Date.now() - t0} ms`
+  );
+}
+
+module.exports = { build, MANIFEST };
+if (require.main === module) build();
