@@ -15,8 +15,9 @@ code can't: conventions, hard-won rules, validation anchors, and the roadmap.
    `--only=ID[,ID]`, `--verbose`, `--no-build` on the runner.)
 4. New aircraft checklist: new `src/core/1x_aircraft_*.js` fiche + MANIFEST entry
    in `tools/build.js` + thin gate config (see any `test_*.js`) + entry in
-   `test_stress.js` + button in `src/viewer/body.html` + AIRCRAFT map/selBtns
-   entries in `src/viewer/app.js` + line in the fleet table below.
+   `test_stress.js` + `<option>` in the aircraft select in
+   `src/viewer/body.html` + AIRCRAFT map entry in `src/viewer/app.js` +
+   line in the fleet table below.
 
 ## FILES
 Everything under `src/` is SOURCE. `tools/flight_core.js`, `index.html`,

@@ -77,10 +77,13 @@
     buildShadowProxy();
     dist = def.params.viewDist;
     const PP = POWERPLANTS[def.params.powerplant];
-    $('acId').textContent = `${def.params.name} — ${PP.engine.name} · ${PP.prop.name}`;
-    $('acMeta').textContent = `${sim.n} nodes · ${nb} beams · ` +
-      (sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg') +
-      ` · full circuit autopilot`;
+    let half = 0;                          // wingspan from the wing strips, like the solver
+    for (const st of def.strips) if (st.kind === 'wing')
+      for (const i of [st.fIn, st.fOut, st.rIn, st.rOut])
+        half = Math.max(half, Math.abs(def.nodes[i].p[2]));
+    const mass = sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg';
+    $('acName').textContent = def.params.name;
+    $('acSpec').textContent = `${mass} · ${PP.engine.name} · ${(half*2).toFixed(1)} m · ${sim.n} nodes`;
   }
 
   const cN = [0.34, 0.49, 0.69], cT = [1, 0.6, 0.24], cC = [0.31, 0.85, 0.91];
@@ -231,12 +234,12 @@
     ap.update(dt);
     record(dt);
     setRail(ap.phase);
-    if (ap.phase === 'STOPPED' && ap.tdInfo && !telWrap.classList.contains('show')) {
+    // telemetry stays on demand — just keep the touchdown summary current
+    // so it's there when the panel is opened
+    if (ap.phase === 'STOPPED' && ap.tdInfo)
       $('tsum').textContent =
         `touchdown ${ap.tdInfo.sink.toFixed(2)} m/s · ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h · ` +
         `${Math.abs(ap.tdInfo.z).toFixed(1)} m off centreline`;
-      telWrap.classList.add('show'); $('bTel').classList.add('on'); drawTel();
-    }
   }
 
   $('bGo').onclick = () => { started = true; };
@@ -249,15 +252,7 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
-  const selBtns = { cub: $('bCub'), drone: $('bDrone'), dc3: $('bDC3'),
-                    jojo: $('bJojo'), c172: $('bC172'), chnk: $('bChnk') };
-  for (const key of ['cub', 'drone', 'dc3', 'jojo', 'c172', 'chnk']) {
-    selBtns[key].onclick = () => {
-      setAircraft(key); fullReset();
-      for (const k in selBtns) selBtns[k].classList.toggle('on', k === key);
-      hud();
-    };
-  }
+  $('selAc').onchange = e => { setAircraft(e.target.value); fullReset(); hud(); };
   $('bPause').onclick = e => {
     running = !running;
     e.target.textContent = running ? 'Pause' : 'Run';
@@ -267,10 +262,6 @@
     const on = telWrap.classList.toggle('show');
     e.target.classList.toggle('on', on);
     drawTel();
-  };
-  $('bSkin').onclick = e => {
-    const min = document.body.classList.toggle('min');
-    e.target.textContent = min ? 'Panelled UI' : 'Minimal UI';
   };
 
   const R = ['ias','alt','vs','aoa','bank','agl','thr','de','da','dr','str']
