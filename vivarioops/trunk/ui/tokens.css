@@ -86,6 +86,11 @@
                                 Stranger/Burst/Seek are deliberate, not reflexive,
                                 and the ribbon must not take a second row */
   --scale-tick:   6px;       /* depth of the scale bar's end brackets */
+  --forage-food-size: 5;     /* food item point size, px (unitless: three.js) */
+  --forage-mouth-opacity: 0.13;  /* the mouth's reach sphere. A HINT: at 1.6 cm it is
+                                    half the length of a small creature, so anything
+                                    bolder reads as a bubble the animal is wearing */
+  --forage-trail-opacity: 0.45;  /* where the mouth has been */
 
   /* Scrims, not panels: readouts sit over moving water and need a floor. */
   --scrim-top:    96px;

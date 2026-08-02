@@ -2009,7 +2009,14 @@ function makeAutopilot(sim, def) {
         airLateral();
         const d = ap.xAim - cg[0];
         const hGS = ap.restAlt + d * ap.gs;
-        if (d > 0 && hGS <= cg[1] + 2) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        // in wind: align laterally BEFORE descending (localizer before
+        // glideslope) — the turnback exits ~1.2-1.6 km off centreline and a
+        // capture flown inside the descent runs out of approach (Jodel landed
+        // 16 m off, DC-3 10 m). Calm-air condition untouched.
+        const windy = Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5;
+        if (d > 0 && hGS <= cg[1] + 2 && (!windy || Math.abs(cg[2]) < 60)) {
+          ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;
+        }
         break;
       }
 

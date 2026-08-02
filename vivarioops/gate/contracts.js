@@ -288,7 +288,11 @@ export function runContractGate() {
     t.eq(certain.kind, 'certain', 'pCapture >= 0.999 -> certain');
     t.eq(certain.at, 10, 'certain capture fires AT timeToCapture, not at tick 1');
 
-    t.eq(engagementRadius(1.0, 1.5, W.engagementK), 10, 'engagementRadius = k x (reachA + reachB)');
+    // 10 -> 5: engagementK was HALVED (4.0 -> 2.0) at the C2 re-measure, because
+    // k=4 asked for up to 44 cm of engagement inside a 32 cm tank. The literal is
+    // pinned here on purpose so that moving the constant costs a deliberate edit
+    // in two places — which is exactly what it just did.
+    t.eq(engagementRadius(1.0, 1.5, W.engagementK), 5, 'engagementRadius = k x (reachA + reachB), k = 2');
   });
 
   // K8 ───────────────────────────────────────────────────────────────────────

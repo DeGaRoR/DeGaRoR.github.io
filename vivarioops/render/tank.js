@@ -176,8 +176,13 @@ export function createWater(scene, worldId = 'w1') {
  * @param {number} t      seconds
  */
 export function updateWater(water, t) {
-  water.far.position.set(Math.sin(t * 0.05) * 0.5, (t * 0.035) % 3 - 1.5, 0);
-  water.near.position.set(Math.sin(t * 0.09 + 1) * 0.9, (t * 0.075) % 2.4 - 1.2, 0);
+  // SLOWED, AND THE SAWTOOTH REMOVED. These used to drift on `(t*0.035) % 3`,
+  // which is a current: a steady one-way flow with a jump every time it wrapped.
+  // There is no current in this tank — the water is still and the creatures are
+  // what moves — so a one-way drift was telling the player something false.
+  // Now both layers just breathe, slowly, on sines that never wrap.
+  water.far.position.set(Math.sin(t * 0.017) * 0.35, Math.sin(t * 0.011 + 2.1) * 0.30, 0);
+  water.near.position.set(Math.sin(t * 0.026 + 1) * 0.45, Math.sin(t * 0.019 + 0.7) * 0.38, 0);
   // Screen-space shafts. Three motions, all slow and all out of phase with each
   // other, because ONE periodic motion reads as a pulse and three read as
   // caustics — sunlight through a moving surface never repeats.

@@ -141,7 +141,9 @@ export async function runRuntimeGate() {
   // ── R4 · navigation stack ─────────────────────────────────────────────────
   await g.assertion('R4', 'Screen stack: tabs are independent roots, routes resolve', (t) => {
     const { parseRoute, TABS, PRIMARY } = _internals;
-    t.eq(TABS.length, 4, 'four tabs');
+    // 4 -> 5: `forage` was added beside `tank`. Pinned as a literal so that adding
+    // a tab is a deliberate edit here and not a silent widening of the shell.
+    t.eq(TABS.length, 5, 'five tabs: tank, forage, atlas, world, settings');
     t.eq(PRIMARY, 'tank', 'primary tab is Tank');
     t.eq(parseRoute('#/world').tab, 'world', 'route names a tab');
     t.eq(parseRoute('#/atlas').screen, 'atlas', 'a tab root screen shares its tab id');

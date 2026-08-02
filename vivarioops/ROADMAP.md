@@ -118,19 +118,46 @@ compiled record — which is D1, and a different job.
 
 ## 5. The plan
 
-### Step 0 — one measurement, before anything (half a sitting)
+### Step 0 — DONE. The duel matrix was re-run, and the diagnosis changed.
 
-**Re-run the duel matrix under the new physics.** The C2 blocker was locomotion, and
-locomotion has changed: added mass, the corrected quadrature, the deleted lift term,
-the fixed guard. The residents were re-frozen and the duel-stability filter **dropped
-0 of 40 candidates where it used to drop 9**.
+**Result: C2 is still blocked, but not by what the obligations said.** The recorded
+blocker was the drag law. The drag law is fixed and the duels still do not capture —
+for a sharper reason.
 
-If captures now happen, **C2's checkpoint becomes answerable for the first time** and
-the capability card — a whole planned, player-visible milestone — is unblocked for the
-cost of building the screen. If it is still all zeros, we learn that in an hour and go
-to step 1 without regret.
+Measured with `tools/c2duel.js`, `c2diag.js`, `c2sweep.js` after the C6 work:
 
-This is the cheapest high-information move available and it should not be skipped.
+| | before | after |
+|---|---|---|
+| captures, 84 duels at spec separation | 0 | **0** |
+| duels aborting as unstable | ~16–33% | **0** |
+| pairs ending nearer than they began | — | **26 / 28** |
+| median closest approach, outside reach sum | — | **0.28 cm** (best pair **overlapped** by 6.06) |
+| captures at 0.5× reach sum | 6/45 | **10/29** |
+
+**The stability half is completely resolved**, and creatures now get within a third of
+a centimetre of contact. But the sweep is what settles it:
+
+```
+ mult   duels  capture  stalemate  unstable   median closing
+ 0.50      29       10         19         0       0.17
+ 0.75      20        0         20         0       0.21
+ 1.00      14        0         14         0       0.18
+ 1.50       9        0          9         0       0.20
+ 2.00       5        0          5         0       0.16
+```
+
+**Closing is FLAT at ~0.2 cm across a 4× range of starting separation.** Closing that
+does not depend on the gap is **drift, not approach** — a creature that were actually
+closing would close further when it started further away. Captures happen only where
+the envelopes already overlap and 0.2 cm of drift is enough to touch.
+
+**So: C2 needs pursuit, pursuit needs orientation, and orientation is the open
+problem** (turn rate ~0.2 °/s — a creature cannot aim at anything inside a 15 s duel).
+**Locomotion is no longer the blocker. Aiming is.** Do not spend another session on
+thrust for C2. The obligations in `gate/duel.js` have been rewritten to say this.
+
+This *confirms* the ordering below rather than changing it: the food path needs no
+aiming, and it is the one that can move now.
 
 ### Step 1 — B5, the art pass (it is already happening)
 

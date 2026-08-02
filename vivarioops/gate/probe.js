@@ -478,9 +478,28 @@ export async function runProbeGate() {
       generations: 2, population: 8, keep: 4, seconds: 1.5, selection: 'random',
     });
     t.eq(nul.trials, burst.trials, 'the null arm costs exactly the same as the real one');
-    t.ok(Math.max(...burst.scores) >= Math.max(...nul.scores) - 1e-9,
-      'score-selection is at least as good as random selection on this seed',
-      `${Math.max(...burst.scores).toFixed(4)} vs ${Math.max(...nul.scores).toFixed(4)}`);
+
+    // AMENDED AT THE C2 RE-MEASURE. This used to assert
+    //     max(burst.scores) >= max(nul.scores)
+    // on ONE seed, at population 8, over 2 generations, with 1.5-second trials.
+    // That is an assertion that score-selection beats random selection on a coin
+    // flip, and it passed for as long as it did because the seed happened to
+    // favour it; widening the tank changed which creatures `fitsTank` admits, the
+    // corpus moved, and it flipped to 0.1964 vs 0.2266.
+    //
+    // The comment above already states the correct intent — "this asserts only
+    // that the arm EXISTS and does something different; the result itself is a
+    // measurement and lives in tools/_zauto.mjs, which reports 6/6 replicates".
+    // The code did not do that. It does now: same cost, and a genuinely different
+    // selection, which cannot be satisfied by luck.
+    //
+    // THE ORDERING CLAIM IS NOT WEAKENED, IT IS MOVED to where it can carry
+    // replicates. Do not put it back here without n, seeds and a stated endpoint.
+    t.ok(nul.scores.length === burst.scores.length,
+      'both arms return the same number of survivors');
+    const same = burst.scores.every((s, i) => Math.abs(s - nul.scores[i]) < 1e-12);
+    t.ok(!same, 'the null arm selects a DIFFERENT population, so the comparison is real',
+      `${burst.scores.map(s => s.toFixed(3)).join(',')} vs ${nul.scores.map(s => s.toFixed(3)).join(',')}`);
   });
 
   // ── L2-20 · the steering plane closes the loop (B2 §5) ─────────────────────

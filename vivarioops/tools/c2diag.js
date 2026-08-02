@@ -30,7 +30,7 @@ for (let i = 0; pool.length < 8 && i < 400; i++) {
 
 // ── 1. what does the geometry even allow? ───────────────────────────────────
 console.log('SEPARATION as specified vs as achievable');
-console.log('  tank', W1_SLICE.tankBounds.join(' x '), 'm · engagementK', W1_SLICE.engagementK);
+console.log('  tank', W1_SLICE.tankBounds.join(' x '), 'cm · engagementK', W1_SLICE.engagementK);
 const reaches = pool.map(p => p.reach).sort((a, b) => a - b);
 console.log(`  reach: min ${reaches[0].toFixed(2)} median ${reaches[4].toFixed(2)} max ${reaches[reaches.length - 1].toFixed(2)}`);
 let wantedAll = [], gotAll = [];
@@ -47,8 +47,8 @@ for (let i = 0; i < pool.length; i++) {
   }
 }
 const med = (a) => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
-console.log(`  11 §6 asks for median ${med(wantedAll).toFixed(1)} m · the tank allows median ${med(gotAll).toFixed(1)} m`);
-console.log(`  03 §4 engagementRadius = 4 x (reachA+reachB) = ${(4 * 2 * med(reaches)).toFixed(0)} m in a ${W1_SLICE.tankBounds[0]} m tank\n`);
+console.log(`  11 §6 asks for median ${med(wantedAll).toFixed(1)} cm · the tank allows median ${med(gotAll).toFixed(1)} cm`);
+console.log(`  03 §4 engagementRadius = ${W1_SLICE.engagementK} x (reachA+reachB) = ${(W1_SLICE.engagementK * 2 * med(reaches)).toFixed(0)} cm in a ${W1_SLICE.tankBounds[0]} cm tank\n`);
 
 // ── 2. does anything close? ─────────────────────────────────────────────────
 console.log('CLOSING over 15 s, at the separation the tank allows');
@@ -66,7 +66,7 @@ for (let i = 0; i < pool.length; i++) {
 }
 gaps.sort((a, b) => a - b);
 console.log(`  ${closed}/${n} pairs ended nearer than they began`);
-console.log(`  minDistance - (reachA+reachB): median ${med(gaps).toFixed(2)} m · best ${gaps[0].toFixed(2)} m`);
+console.log(`  minDistance - (reachA+reachB): median ${med(gaps).toFixed(2)} cm · best ${gaps[0].toFixed(2)} cm`);
 console.log('  (negative means the reach envelopes overlapped: contact was geometrically possible)\n');
 
 // ── 3. what does a duel at TOUCHING range do? ───────────────────────────────

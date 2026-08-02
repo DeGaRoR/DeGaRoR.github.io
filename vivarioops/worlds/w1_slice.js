@@ -32,7 +32,10 @@ export const W1_SLICE = {
   // (net speed +31%, cost of transport -37%, body inertia x1.9 median), so every
   // record compiled before it is correctly invalidated and the residents below
   // were re-frozen against the new physics in the same commit.
-  faunaVersion: 4,
+  // BUMPED AGAIN AT THE C2 RE-MEASURE, 4 -> 5. `tankBounds` is a hashed field, so
+  // widening the tank below invalidates every record compiled against the old one
+  // and the residents are re-frozen with it.
+  faunaVersion: 5,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).
@@ -48,7 +51,17 @@ export const W1_SLICE = {
   dragCoefficient: 0.9,
   floor:   { present: true, y: -12.0, friction: 0.3, restitution: 0.1 },
   surface: { present: true, y:  12.0 },
-  tankBounds: [16, 24, 16],       // cm — L1 tank
+  // WIDENED AT THE C2 RE-MEASURE, [16,24,16] -> [32,24,32]. The old tank could not
+  // hold the separation its own specs asked for, and both specs were unsatisfiable
+  // at once: 11 §6 wants a duel start of k*(reachA+reachB) for k in 2..6, which is
+  // a median of 24.9 cm, and 03 §4 puts L3 engagement at 4*(reachA+reachB) = 26 cm
+  // — inside 16 cm of tank. duelSetup's room along an axis is
+  // 2*(toWall - maxReach - WALL) = 8.5 cm at the old size, so EVERY duel clamped
+  // and the k parameter selected nothing.
+  // At 32 cm the axis room is 24.5 cm, which honours k=2 and k=3 outright and most
+  // of the rest on the diagonal; `fitRatio` still reports what was honoured.
+  // Height is unchanged: it is the buoyancy axis and buoyancy is inert here.
+  tankBounds: [32, 24, 32],       // cm — L1 tank
 
   // ── presentation — label only, never physics ───────────
   phase: 'liquid',
@@ -63,6 +76,28 @@ export const W1_SLICE = {
   fertility: { noiseScale: 0.05, noiseContrast: 0.4, seed: 0x5EED },
   diffusionRate: 0.08,            // per tick, cell-to-cell
   HARVEST_RATE:  0.35,            // g/(cm^2 s) at full substrate
+
+  // ENERGY PER GRAM OF FOOD, erg/g — the conversion the forage ledger compares
+  // across. CALIBRATED, NOT DERIVED, and the distinction is the whole note:
+  //
+  //   Derived, it would be ~1e11 erg/g (real forage is of order 1e7 J/kg). At
+  //   that value the measured ledger runs at intake/spend ~ 7e7 — food is free by
+  //   seven orders of magnitude and the comparison says nothing at all. That is a
+  //   true fact about these animals: 7 cm of near-neutral tissue doing almost no
+  //   mechanical work cannot be energy-limited by real food.
+  //
+  //   4.2e4 is set so the MEDIAN creature roughly breaks even over a 300 s trial
+  //   (tools/_zforage.mjs), which is what makes "is it paying its way?" a question
+  //   with an answer. IT IS TIED TO THE HARVEST MODEL: it was 1.4e3 under the old
+  //   point-sample uptake, 6.4e3 under body-proximity absorption, and moved again
+  //   for the mouth model — because changing how a creature reaches food changes
+  //   what breaking even means. It is also tied to the TRIAL LENGTH, since basal
+  //   cost accrues with time. Recalibrate whenever either changes, and say so.
+  //   It belongs in the world fixture rather than in engine code
+  //   for exactly the reason 12 §5 gives — "all numeric constants come from the
+  //   world fixture; none is hard-coded" — and like HARVEST_RATE beside it, 03 §5
+  //   already says of these: "none is derived from theory."
+  FOOD_ENERGY:   4.2e4,           // erg/g — see above; calibrated at the slice
   PREDATION_EFFICIENCY: 0.6,
   KLEIBER:         0.75,          // basalRate proportional to mass^KLEIBER
   METABOLIC_SCALE: 0.02,          // erg/s per g^0.75
@@ -83,7 +118,13 @@ export const W1_SLICE = {
   // ── bridge ─────────────────────────────────────────────
   duelRepeats:   3,               // slice value; full is 5
   duelDuration: 15.0,             // s
-  engagementK:   4.0,
+  // HALVED at the same re-measure, 4.0 -> 2.0. engagementRadius = k*(reachA+reachB)
+  // and the reach sum runs to ~11 cm on a big pair, so k=4 asked for 44 cm of
+  // engagement inside a tank that is now 32. k=2 gives 13 cm on a median pair and
+  // 22 on the largest, both of which the tank can actually hold. Unlike tankBounds
+  // this field is not hashed, but it ships in the same bump because the two
+  // defects are one defect.
+  engagementK:   2.0,
 
   // ── disposition [A0] — UNMEASURED slice defaults ───────
   // 30 §5 C1: S4 pursuit and S5 evasion are deferred. Flagged on the dev panel.

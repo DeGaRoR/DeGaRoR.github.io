@@ -48,8 +48,10 @@ html, body {
    bleeds to the top edge, and the tab bar floats over the tank's own bottom
    scrim with no top border (the scrim separates it). Other screens keep the
    standard shell. #app[data-tab] is set by nav.onChange in app.js. */
-#app[data-tab="tank"] #topbar { display: none; }
-#app[data-tab="tank"] #tabbar {
+#app[data-tab="tank"] #topbar,
+#app[data-tab="forage"] #topbar { display: none; }
+#app[data-tab="tank"] #tabbar,
+#app[data-tab="forage"] #tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   background: transparent; border-top: none;
 }
@@ -306,3 +308,12 @@ html, body {
   border-radius: var(--s-1); padding: var(--s-3);
 }
 #boot-fault-hint { font-size: var(--t-sm); color: var(--c-text-dim); line-height: 1.5; }
+
+/* Forage — the two ledger lines. Mono, because they are measurements, and they
+   sit over water so they take the on-water colours like every other readout. */
+/* Forage — one ledger line per creature in the cast. Mono, because they are
+   measurements, and they sit over water so they take the on-water colours. */
+.forage-rows { display: flex; flex-direction: column; gap: var(--readout-gap); }
+.forage-row {
+  font-family: var(--f-mono); font-size: var(--t-value); color: var(--c-on-water-dim);
+}

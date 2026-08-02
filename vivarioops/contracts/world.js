@@ -51,6 +51,10 @@ export const WORLD_SCHEMA = {
   fertility:            { type: 'object', keys: { noiseScale: N, noiseContrast: N, seed: N }, hashed: false },
   diffusionRate:        { type: N, hashed: false },
   HARVEST_RATE:         { type: N, hashed: false },
+  // The forage ledger's erg-per-gram conversion (engine/l2/forage.js). NOT hashed:
+  // it converts a measurement for display and selection, and no compiled Species
+  // field depends on it, so changing it must not invalidate a single record.
+  FOOD_ENERGY:          { type: N, note: 'erg/g — calibrated, see w1_slice.js', hashed: false },
   PREDATION_EFFICIENCY: { type: N, hashed: false },
   KLEIBER:              { type: N, hashed: false },
   METABOLIC_SCALE:      { type: N, hashed: false },

@@ -87,10 +87,11 @@ export async function runDuelGate() {
     // the residents file ever drift, every compiled record is keyed to a world
     // that does not exist.
     t.eq(worldHash(W1_SLICE, W1_RESIDENT_HASHES), WH, 'worldHash derives from the shipped resident hashes');
-    // BUMPED 3 -> 4 AT C6.2 (added mass). Pinned as a LITERAL on purpose: the
-    // residents may only be re-frozen together with a version bump, and a check
-    // that read the constant back from w1_slice.js would assert nothing.
-    t.eq(W1_SLICE.faunaVersion, 4, 'faunaVersion was bumped when the residents were re-frozen for C6.2 added mass');
+    // 3 -> 4 at C6.2 (added mass), 4 -> 5 at the C2 re-measure (tankBounds widened
+    // to 32 cm). Pinned as a LITERAL on purpose: the residents may only be
+    // re-frozen together with a version bump, and a check that read the constant
+    // back from w1_slice.js would assert nothing.
+    t.eq(W1_SLICE.faunaVersion, 5, 'faunaVersion was bumped when the residents were re-frozen for the widened tank');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.
@@ -384,8 +385,8 @@ export async function runDuelGate() {
       `non-transitivity over the resident fauna: ${nt.cycles} cycle(s), ${nt.decisive} decisive direction(s) of 6`,
     ],
     obligations: [
-      'C2 CHECKPOINT IS NOT ANSWERABLE AND THIS IS THE BLOCKER: creatures cannot close the distance, so every duel is a stalemate and the matchup matrix is all zeros. Measured: median closing 0.25-0.34 m over a 15 s duel against a start separation of 6-8 m. Capture IS reachable — 6/45 when they start at half the reach sum (tools/c2sweep.js) — so the root-contact rule and the harness are correct and the LOCOMOTION is what fails.',
-      'C2 ROOT CAUSE, HALF RESOLVED. The buoyancy half is fixed: SLICE_LIMITS.density is [1, 1], so creatures no longer pin to the floor or the surface (0/40 over 15 s, down from 28/59) and C1\u2019s zero-gravity amendment can be withdrawn. THE OTHER HALF IS THE DRAG LAW AND IT STILL BLOCKS C2: with buoyancy gone, median horizontal travel is 0.145 m over 15 s against a start separation of 6-8 m, so two creatures need roughly 2-3 m apiece net of reach and get a seventh of it. Measured cause: 10 \u00A7A8 applies drag at the body CENTRE, opposing LINEAR velocity only, so a rotating limb generates no thrust and no torque. The reference (mycoolfin/the-simsulator, ApplyFluidForcesSystem.cs) applies drag per FACE at 24 offset sample points using the local velocity v + omega x r, which measures 6x further with drag alone and 37x with its lift term. Ported and measured in tools/hydro.js; see HYDRODYNAMICS.md. ALSO STILL OWED: the three frozen residents were bred before the density band and carry densities 0.158 to 1.695, so they are out of band and must be re-bred with faunaVersion bumped again.',
+      'C2 CHECKPOINT IS NOT ANSWERABLE, AND THE DIAGNOSIS CHANGED AT C6. The old text here said the blocker was the DRAG LAW. The drag law is fixed — per-face sampling, added mass, corrected quadrature, the reference lift term deleted — and C2 is STILL blocked, for a different and sharper reason. Re-measured after C6.2 (tools/c2duel.js, c2diag.js, c2sweep.js): 84 duels, 0 captures, and crucially ZERO INVALID where ~16-33% used to abort as unstable, so the stability half is fully resolved. 26/28 pairs end nearer than they began and the median closest approach is only 0.28 cm outside the reach sum, with the best pair OVERLAPPING by 6.06 cm. Captures at 0.5x reach sum went 6/45 to 10/29.',
+      'C2 ROOT CAUSE, RESTATED FROM MEASUREMENT: THEY DO NOT PURSUE. tools/c2sweep.js sweeps the start separation and median closing is FLAT at 0.16-0.21 cm across 0.5x, 0.75x, 1.0x, 1.5x and 2.0x of the reach sum. Closing that does not depend on the gap is DRIFT, not approach — a creature that were actually closing would close further when it started further away. Captures happen only at 0.5x, where the envelopes already overlap and 0.2 cm of drift is enough to touch; at 0.75x and beyond it is 0 at every separation. So the chain is: C2 needs pursuit, pursuit needs orientation, and orientation is the open problem (turnRate median 0.0032 rad/s, ~0.2 deg/s — a creature cannot aim at anything inside a 15 s duel). LOCOMOTION IS NO LONGER THE BLOCKER; AIMING IS. Do not spend another session on thrust for C2.',
 
       'C2 SPEC DEFECT: 11 §6 asks for a start separation of k x (reachA+reachB), k in {2..6}. Over a viable corpus that is a median of 29 m inside a 16 x 24 x 16 m tank, and 03 §4 puts L3 engagement at 4 x (reachA+reachB) = 28 m in that same tank. Both are unsatisfiable. Clamping made every k identical, so the parameter selected nothing; the k set is now MAPPED onto the room the tank has, order preserved. engagementRadius records what was achieved.',
       'C2: one creature in ten goes unstable when placed off-centre in the tank for 15 s, which makes ~16% of duels abort. Isolated (tools/c2stab.js): the arena refactor and creature-creature contact are NOT the cause — a lone creature centred in a private tank is 0/10, off-centre is 1/10, alone in a shared arena is 1/10, two in a shared arena is 7/45. It is the B3 peak-speed tail meeting a wall.',

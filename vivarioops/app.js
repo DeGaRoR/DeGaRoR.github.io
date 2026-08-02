@@ -7,17 +7,21 @@ import { VERSION } from './trunk/version.js';
 
 import tank from './ui/screens/tank.js';
 import atlas from './ui/screens/atlas.js';
+import forage from './ui/screens/forage.js';
 import world from './ui/screens/world.js';
 import settings from './ui/screens/settings.js';
 import dev from './ui/screens/dev.js';
 
 nav.register('tank', tank);
 nav.register('atlas', atlas);
+// Forage sits BEFORE World deliberately: it is a single-creature trial, and
+// World is reserved for L3 ecology. See ui/screens/forage.js.
+nav.register('forage', forage);
 nav.register('world', world);
 nav.register('settings', settings);
 nav.register('dev', dev);
 
-const TAB_LABEL = { tank: t('Tank'), atlas: t('Atlas'), world: t('World'), settings: t('Settings') };
+const TAB_LABEL = { tank: t('Tank'), forage: t('Forage'), atlas: t('Atlas'), world: t('World'), settings: t('Settings') };
 
 const bar = document.getElementById('tabbar');
 const buttons = {};

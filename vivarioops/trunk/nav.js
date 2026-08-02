@@ -10,7 +10,11 @@
 // Corollary: pop() is `history.back()`, never a direct stack mutation. If it were,
 // our stack and the browser's would drift and every screen would need a fixup.
 
-const TABS = ['tank', 'atlas', 'world', 'settings'];
+// `forage` sits next to `tank` because it is the same subject — one creature
+// under physics — asked a different question. It is NOT `world`: World is L3
+// (many point agents, no physics), and the forage trial is a full-physics
+// single creature, which L3 cannot represent. See ui/screens/forage.js.
+const TABS = ['tank', 'forage', 'atlas', 'world', 'settings'];
 const PRIMARY = 'tank';
 
 const screens = new Map();
