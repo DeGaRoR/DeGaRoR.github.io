@@ -183,6 +183,7 @@
         <button id="bPause">Pause</button>
       </div>
       <button id="bTel">Telemetry</button>
+    <button id="bSkin">Skin</button>
       <span id="hint">drag to orbit · scroll to zoom</span>
     </div>
   </footer>
@@ -2814,7 +2815,7 @@ function buildWorldScene(scene, world, renderer, camera) {
 (() => {
   const world = makeWorld();
   const AIRCRAFT = { cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
-  let def, sim, ap, nb;
+  let def, sim, ap, nb, curKey;
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -2865,6 +2866,101 @@ function buildWorldScene(scene, world, renderer, camera) {
     scene.add(mesh);
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
   }
+
+  // ================= 3d skin (baked OBJ, cub only for now) =================
+  // Rigid mount in the body frame: model frame is (x aft, y up, z left), RH.
+  // Offset calibrated so model main wheels sit on the sim's axle contact points.
+  const MODELS3D = (typeof MODEL_PA18 !== 'undefined') ? { cub: MODEL_PA18 } : {};
+  // per-aircraft skin config: body-frame mount offset + binding thresholds (SKIN-PROC.md)
+  const SKIN_CFG = { cub: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'],
+                            zRoot: 1.30, xMax: 1.5 } };
+  const modelCache = {};
+  // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame only
+  const SKIN_GAINS = [1, 4];
+  const LINK_TAU = 0.15;   // s per pole, two poles; 0 -> raw ctl on the surfaces
+  let model = null, skinMode = 0;
+  function buildModel(key) {
+    if (modelCache[key]) return modelCache[key];
+    const data = MODELS3D[key];
+    if (!data) return null;
+    const dec = decodeModel(data);
+    const tex = new THREE.TextureLoader().load(data.tex);
+    tex.anisotropy = 4;
+    const mkGeo = g => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(g.pos, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(g.uv, 2));
+      geo.setIndex(new THREE.BufferAttribute(g.idx, 1));
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const skinMat = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
+    const grp = new THREE.Group();
+    grp.matrixAutoUpdate = false;
+    const skin = new THREE.Mesh(mkGeo(dec.skin), skinMat);
+    skin.castShadow = true;                 // the skin replaces the proxy's sun shadow
+    grp.add(skin);
+    grp.add(new THREE.Mesh(mkGeo(dec.glass), new THREE.MeshLambertMaterial({
+      color: 0xaad4ea, transparent: true, opacity: 0.28,
+      side: THREE.DoubleSide, depthWrite: false })));
+    const pGeo = mkGeo(dec.prop);
+    pGeo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
+    const prop = new THREE.Mesh(pGeo, skinMat);
+    prop.position.set(data.hub[0], data.hub[1], data.hub[2]);
+    prop.castShadow = true;
+    grp.add(prop);
+    grp.frustumCulled = false;
+    grp.traverse(o => { o.frustumCulled = false; });
+    // deformation binding: wing-band vertices follow the sim spar stations
+    const skinGeo = grp.children[0].geometry;
+    const posAttr = skinGeo.attributes.position;
+    const bind = makeSkinBinding(posAttr.array, dec.skin.nv, AIRCRAFT[key](), SKIN_CFG[key]);
+    const deltas = { P: new Float32Array(bind.zs.length * 3),
+                     N: new Float32Array(bind.zs.length * 3) };
+    // control surface hinges (payload v2: per-vertex surface ids + hinge table)
+    const hb = (data.v >= 2 && dec.skin.sid) ? makeHingeBinding(dec.skin, data.surfaces) : null;
+    modelCache[key] = { grp, prop, bind, deltas, posAttr, hb, surfaces: data.surfaces,
+                        link: makeLinkage(LINK_TAU),   // visual linkage lag (see SKIN-PROC)
+                        base: posAttr.array.slice() };
+    return modelCache[key];
+  }
+  const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
+        vY = new THREE.Vector3(), vZ = new THREE.Vector3();
+  function poseModel() {
+    if (!model || skinMode === 2) return;
+    const [xA, yU] = sim.axes(), cg = sim.cgPos(), O = SKIN_CFG[curKey].off;
+    vX.set(xA[0], xA[1], xA[2]); vY.set(yU[0], yU[1], yU[2]);
+    vZ.crossVectors(vX, vY);                     // z left: keeps the basis proper (no mirror)
+    mBasis.makeBasis(vX, vY, vZ);
+    mBasis.setPosition(
+      cg[0] + O[0]*xA[0] + O[1]*yU[0],
+      cg[1] + O[0]*xA[1] + O[1]*yU[1],
+      cg[2] + O[0]*xA[2] + O[1]*yU[2]);
+    model.grp.matrix.copy(mBasis);
+    model.prop.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);   // visual only
+    if (model.hb)
+      applyHinges(model.hb, model.surfaces, model.base, model.posAttr.array,
+                  model.link.step(sim.ctl, 1/60));
+    sparDeltas(model.bind, sim, model.deltas);
+    applySkinDeform(model.bind, model.base, model.posAttr.array,
+                    model.deltas.P, model.deltas.N, SKIN_GAINS[skinMode],
+                    model.hb && model.hb.hinged);
+    model.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+  }
+  function applySkinVis() {
+    const b = $('bSkin'), has = !!model;
+    const showSkin = has && skinMode < 2;
+    if (model) model.grp.visible = showSkin;
+    lines.visible = pts.visible = !showSkin;
+    if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
+    b.style.display = has ? '' : 'none';
+    b.textContent = ['Skin', 'Flex ×4', 'Frame'][skinMode];
+    b.classList.toggle('on', showSkin);
+  }
+  $('bSkin').onclick = () => {
+    skinMode = (skinMode + 1) % 3; applySkinVis();
+  };
+
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
@@ -2888,6 +2984,11 @@ function buildWorldScene(scene, world, renderer, camera) {
     pts.frustumCulled = false;
     scene.add(pts);
     buildShadowProxy();
+    curKey = key;
+    if (model) scene.remove(model.grp);
+    model = buildModel(key);
+    if (model) scene.add(model.grp);
+    applySkinVis();
     dist = def.params.viewDist;
     const PP = POWERPLANTS[def.params.powerplant];
     let half = 0;                          // wingspan from the wing strips, like the solver
@@ -3120,6 +3221,7 @@ function buildWorldScene(scene, world, renderer, camera) {
     target.set(cg[0], cg[1], cg[2]);
     placeCamera();
     sync();
+    poseModel();
     if (++frame % 6 === 0) { hud(); if (telWrap.classList.contains('show')) drawTel(); }
     renderer.render(scene, camera);
   }
