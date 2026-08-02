@@ -206,11 +206,11 @@ fiches fall back to ENG — keep that fallback when adding aircraft.
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
-| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 122 m (GE era; pre-bracing 86/91 was measured with the tail on the ground; ldg vs book ~90 m OPEN, flaps/brake sessions) |
+| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 111 m w/ flaperons (book ~90 m: nearly closed; pre-bracing 86/91 was measured with the tail on the ground) |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
-| Douglas DC-3 | 10.9 t | 72 | Vs 32.8 (book 34.5); NP margin 13%; unstick ~49 m/s, ~950 m (GE); wheel landing 150 km/h @1.05 m/s sink |
+| Douglas DC-3 | 10.9 t | 72 | Vs 32.8 clean / 29.5 flapped (book 34.5 / ~29-30); NP margin 13%; unstick 46 m/s ~945 m w/ TO flaps 1/4; wheel landing 146 km/h @0.56 sink, flaps 0.7 on gs 0.060 |
 
 Notable fiche quirks: Chinook is a PUSHER (wing wash=0, tail wash 0.6, thrust
 line above CG = power pitches DOWN). C172 prop refit to cruise-pitch reality
@@ -221,26 +221,29 @@ Living table: every roadmap session must close or re-anchor its lines and add
 new references where marked TBD. "Session" = roadmap entry that addresses it.
 | Aircraft | Metric | Model | Reference | Session |
 |---|---|---|---|---|
-| all | approach speed | 1.25·Vs CLEAN (no flaps exist) | type-specific flapped approach | 2 |
+| all | approach speed | flapped approaches flown (C172 64 kt/flaps 30 = POH normal; DC-3 ~84 kt) | — | ~~2~~ done |
 | all | flare/float behaviour | ground effect DONE (session 1); tail-in-GE still excluded | — | ~~1~~ done |
 | all | crosswind ops | impossible (no wind) | — | 3 |
-| Chinook | landing roll | 122 m | book ~90 m (TBD exact brochure figure) | 2 (+brake retune) |
+| Chinook | landing roll | 111 m (was 122 clean) | book ~90 m (TBD exact brochure figure) | nearly closed |
 | Chinook | glide | 9.8:1 | book 10:1 (gap = no windmilling-prop drag, honest cut) | rider (energy/jets) |
-| DC-3 | unstick run | ~950 m (was ~1000 pre-GE) | real ~450-600 m loaded (TBD source) | 2 |
-| DC-3 | wheel-landing speed | 152 km/h | real ~120-135 km/h flapped (TBD) | 2 |
-| DC-3 | Vs | 32.8 m/s | book 34.5 m/s (-5%, accepted M1) | watch at 1 |
-| C172 | landing distance | not comparable (clean) | POH ~175 m ground roll flaps 30 | 2 |
+| DC-3 | unstick run | ~945 m, unstick 46 m/s w/ TO flaps | real ~450-600 m loaded (TBD source) | OPEN — flaps didn't close it; suspect thrust/power loading, audit later |
+| DC-3 | wheel-landing speed | 146 km/h (flaps 0.7) | real ~120-135 km/h flapped (TBD) | closing; full flaps + slower VAppr would finish |
+| DC-3 | Vs | 32.8 clean / 29.5 flapped | book 34.5 / ~29-30 | flapped matches; clean -5% accepted M1 |
+| C172 | landing ground roll | ~450 m (touchdown 61 kt) | POH ~175 m (touchdown ~49 kt + max brake) | OPEN — short-field AP technique, not physics |
 | C172 | Vmax | 123 KTAS | POH 126 (-2.4%, accepted) | — |
 | Jodel | approach targets | clean only | MV blog speeds (to extract) | 2 |
 | Cub | Vs / top speed | 54 / ~121 km/h | commonly cited ~61 / ~140 km/h — RE-SOURCE before touching; M1 accepted current values | audit at 1 |
 | Drone | Vs | 6.4 m/s | design 6.5-7 (ok) | — |
 
 ## HONEST CUTS
-Analytic polars (no Re), global-AR induced drag per strip,
-no flaps/slats (Chinook flaperons modeled as ailerons!), no wind, no P-factor/
-swirl/slipstream-over-wing for tractors, no windmilling-prop drag (Chinook glide
-slightly optimistic for exactly this reason), fuel/battery mass frozen, friction
-plane horizontal, no compressibility (<M0.35 fleet).
+Analytic polars (no Re), global-AR induced drag per strip, no wind,
+no P-factor/swirl/slipstream-over-wing for tractors, no windmilling-prop drag
+(Chinook glide slightly optimistic for exactly this reason), fuel/battery mass
+frozen, friction plane horizontal, no compressibility (<M0.35 fleet).
+Flaps (added session 2): polar-delta model per strip (no slat modeling, no
+Fowler area growth — dCl0 stands in for both), flap deltas scale linearly with
+setting, no asymmetric-flap failure mode, Chinook flaperon droop partial (0.6)
+by AP policy.
 Ground effect (added session 1, 2026-08): wing strips only — TAIL EXCLUDED
 (would need a per-surface span datum); one terrain sample per aero pass (flat
 within a span where GE matters); McCormick sigma = (16h/b)^2/(1+(16h/b)^2)
@@ -265,18 +268,31 @@ fleet table re-anchored if physics moved.
    brakes fade: DC-3 overran to x=+124 (fix: brake 0.45->0.50, VBrakeOn
    36->39, VAppr 44->43), Jodel to x=+51 (fix: VBrakeOn 12->20). Draggy
    aircraft (Cub, drone, Chinook, C172) passed untouched.
-2. **High-lift devices** — flaps/slats/flaperons as per-strip polar deltas +
-   one control channel + flap-trim schedules.
-   WHERE: add `flap` to the ctl object and reset() in 30_solver.js; per-strip
-   effect must be an EFFECTIVE POLAR object ({Cl0+d, Cd0+d, aStall−d, Cm0+d})
-   built before the polar() call — an alpha shift alone is wrong (no drag, no
-   stall margin change). TRAP: the Cm0 spar couple reads P_.polarWing.Cm0
-   directly — it must read the effective polar or flap pitching moment is
-   silently ignored. PREREQ: unify the six per-fiche `wingStrip` helpers
-   (six different signatures today) before adding a `flap:` strip field.
-   AP: slew block handles only de/da/dr — add a flap rate limit; flap-trim
-   schedules per fiche. GATES: Chinook flaperons (validates vs the modeled-as-
-   ailerons cut), DC-3 real approach speeds, Jodel MV blog approach targets.
+2. **High-lift devices** — DONE 2026-08-02. ctl.flap channel; per-strip polar
+   deltas {dCl0, dCd0, dAStall, dCm0} + optional tau alpha-shift for flaperon
+   droop, scaled by ctl.flap x st.flap; the Cm0 spar couple reads the flap
+   delta (the "watch Cm0" trap was real — see below). AP: rate-limited flap
+   servo, phase-scheduled (TO setting / clean / landing setting / retract on
+   rollout for brake grip). Fiches: C172 + DC-3 + Jodel flaps, Chinook
+   flaperons; Cub and drone flapless (authentic). Tunnel-calibrated: C172
+   Vs0/Vs1 = 0.882 (POH 40/46 kt), DC-3 flapped Vs 29.5 m/s (book ~29-30).
+   GATE FLAPS asserts both + servo rate limit. NOTE: the "unify six wingStrip
+   helpers" prerequisite was NOT done — a per-fiche `flap:` field on 4 fiches
+   was smaller-risk than unifying six different closures; still open.
+   HARD-WON, in order: (1) dCm0 ~ -0.25*dCl0 (thin-airfoil TE device) or the
+   flap lift increment pitches the nose UP and the AP balloons above the
+   glideslope forever (DC-3 overflew the runway by 4 km, Chinook never got
+   below flareAgl). (2) Flapped approaches need a STEEPER gs — with
+   split-flap drag on the clean-era shallow slope the DC-3 railed throttle
+   AND pitch integrators into a powered 1 m/s mush 60 m above the slope
+   (vsFloor deepens too: flaps need a lower nose for the same VS). (3) The
+   wheel-landing flareThMax cap comes DOWN with flaps — they raise CL at a
+   given attitude, the clean cap sat above L=W and the float came back
+   (117 km/h touchdown 300 m past the window). (4) Small plain flaps at FULL
+   deflection are mostly harshness (Jodel sink 1.45, gear strain 3x) — land
+   at partial (ldg 0.65). (5) Flapped landings arrive flatter: the Jodel
+   tail-up rollout attitude guard recalibrated -2 -> -5 deg (measured
+   brake-independent).
 3. **Wind & gusts** — environment velocity field into strip relative flow +
    Dryden-ish gusts + crosswind AP work (crab, decrab, gust rejection).
    WHERE: `wind(x,y,z,t)` lives in makeWorld (20_world.js); add the wind

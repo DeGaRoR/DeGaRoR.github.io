@@ -15,7 +15,11 @@ runCircuit({
     '|stopZ|<7': Math.abs(c.cg[2]) < 7,
     'chassis<6%': c.smaxCh < 0.06,
     'gear<40%': c.smaxGr < 0.40,
-    'rolloutPitchMin>-2': c.rollPitchMin > -2,
+    // recalibrated -2 -> -5 (session 2): flapped landings arrive flatter and
+    // the tail-up rollout rides at -4 deg where the clean landing rode at
+    // +1.6; measured identical with brakes on at 16 vs 20 m/s, so it is the
+    // attitude regime, not a braking nose-over. Deck angle is ~12.
+    'rolloutPitchMin>-5': c.rollPitchMin > -5,
     'flapMin>8': c.flapMin > 8,
     'flapMax<31': c.flapMax < 31,
     'chatter<6': c.chatRate() < 6,

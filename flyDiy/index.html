@@ -508,7 +508,7 @@ function buildDC3() {
     strips.push({ kind: 'wing', side, t, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * (1 - t)], [fOut, cf * t], [rIn, cr * (1 - t)], [rOut, cr * t]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
     for (let b = 0; b < zSt.length - 1; b++) {
@@ -517,10 +517,10 @@ function buildDC3() {
       const wsh = zm < 4.6 ? 0.8 : zm < 6.5 ? 0.3 : 0;
       const ail = b >= zSt.length - 3 ? 1 : 0;
       wingStrip(fr.F[b], fr.F[b + 1], fr.R[b], fr.R[b + 1], 0.5, area, ch, side,
-        { wash: wsh, ail });
+        { wash: wsh, ail, flap: ail ? 0 : 1 });   // split flaps inboard of ailerons
     }
   }
-  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 0.5, 12.5, 4.33, 1, { wash: 0.3 });
+  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 0.5, 12.5, 4.33, 1, { wash: 0.3, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 6.0, chord: 2.3, wash: 0.4,
       w: [[nHT, .5], [TPB, .3], [TPT, .2]] });
@@ -548,24 +548,37 @@ function buildDC3() {
     stabTrim: -0.0120, sparSpacing: 2.16,
     fusCdA: [1.40, 3.0, 3.0], fusCdAAft: [0, 2.0, 2.0],
     twSteer: 0.30,
+    // split flaps: strong drag, quarter flaps for takeoff (shortens unstick)
+    flaps: { to: 0.25, ldg: 0.7, rate: 0.10, dCl0: 0.80, dCd0: 0.090, dAStall: 0.025, dCm0: -0.20 },
     ap: {
       rotate: true,
       VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 43, VTurn: 55,
       thTailUp: 0.030, thRotate: 0.100,
       lookRoll: 45, lookAppr: 650, lookCruise: 900,
-      hCruise: 250, hSafe: 30, xTurn: -5800, xAim: -810, gs: 0.044,
+      // gs 0.044 -> 0.060 (flapped approaches are steeper): with split-flap
+      // drag the shallow clean slope needed 0.70 throttle and the jet of
+      // integrators railed into a powered 1 m/s mush 60 m above the slope
+      hCruise: 250, hSafe: 30, xTurn: -5800, xAim: -810, gs: 0.060,
       thrFloor: 0.05,
       rollDe: 0.06, liftoffTh: 0.15, liftoffRamp: 0.06,
       climbThBase: 0.11, climbThGain: 0.015, thMax: 0.17,
-      flareAgl: 7, flareRate: 0.030, aglGuard: 6, flareThMax: 0.11,
+      // flare from 10 m, faster ramp: the steeper flapped slope arrives at
+      // -2.5 m/s and the old 0.030 ramp from 7 m was a 2.6 m/s carrier landing.
+      // flareThMax 0.11 -> 0.085: flaps raise CL at a given attitude, so the
+      // clean-era cap sat ABOVE the L=W attitude and the float came back
+      // (117 km/h touchdown, 300 m past the window).
+      flareAgl: 10, flareRate: 0.045, aglGuard: 6, flareThMax: 0.085,
       VTailUp: 20, VStop: 0.5, slew: 0.8, thrCruise: 0.55, thrAppr: 0.30,
       // GE retune (session 1): wing keeps lifting through the rollout in
       // ground effect -> less weight on wheels -> longer roll. Brake earlier
       // and harder, approach one knot slower; was 0.45/36/VAppr 44 (overran
       // to x=+124).
-      brakeMax: 0.50, brakeRampRate: 0.18, VBrakeOn: 39, VBrakeRelease: 2.5,
+      // brake later/gentler than the GE retune: flap retraction on rollout
+      // returns weight to the wheels, and braking at 39 with the tail still
+      // flying dipped the nose to -3
+      brakeMax: 0.50, brakeRampRate: 0.14, VBrakeOn: 34, VBrakeRelease: 2.5,
       rateFilt: 0.15, pitchP: 1.6, pitchD: 1.6, pitchI: 0.25,
-      vsP: 0.006, vsI: 0.010, vsFloor: -0.06, altVSGain: 0.06,
+      vsP: 0.006, vsI: 0.010, vsFloor: -0.12, altVSGain: 0.06,
       vsFilt: 0.5, pitchCmdSlew: 0.3,
       hdgP: 0.7, hdgD: 1.2, bankSlew: 0.14, rollP: 1.6, rollD: 2.2,
       betaK: 0.3, yawDampK: 0.7, ariK: 0.3, bankLim: 0.45,
@@ -722,12 +735,13 @@ function buildChinook() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: CH,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: 0, ail: o.ail || 0 });
+      wash: 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
+  // flaperons: the aileron surfaces droop symmetrically -> flap = ail gearing
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 1.77, side, { ail: 0.5 });
-    wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.07, side, { ail: 0.8 });
-    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.00, side, { ail: 1 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 1.77, side, { ail: 0.5, flap: 0.5 });
+    wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.07, side, { ail: 0.8, flap: 0.8 });
+    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.00, side, { ail: 1, flap: 1 });
   }
   wingStrip(wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0], 1.34, 1, {});
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
@@ -755,6 +769,10 @@ function buildChinook() {
     stabTrim: -0.0359, sparSpacing: 0.61,
     fusCdA: [0.59, 0.9, 0.9], fusCdAAft: [0, 0.50, 0.50],
     twSteer: 0.5,
+    // flaperons: droop is an actual surface rotation (tau alpha-shift on the
+    // ail-geared strips) + a little drag; partial droop for landing so the
+    // ailerons keep authority in the flare (1.13*Vs stall history: margins!)
+    flaps: { to: 0, ldg: 0.6, rate: 0.25, tau: 0.08, dCl0: 0.25, dCd0: 0.030, dAStall: 0.02, dCm0: -0.12 },
     ap: {
       VRot: 10, VClimbMin: 12, VClimb: 17, VCruise: 24, VAppr: 16, VTurn: 19,
       lookRoll: 25, lookAppr: 140, lookCruise: 220,
@@ -886,14 +904,14 @@ function buildC172() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.77, 1.63, side, { wash: 0.45 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.77, 1.63, side, { wash: 0.45, flap: 1 });
     wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.31, 1.54, side, { ail: 0.4 });
     wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.12, 1.27, side, { ail: 1 });
   }
-  wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 1.96, 1.63, 1, { wash: 0.9 });
+  wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 1.96, 1.63, 1, { wash: 0.9, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 1.85, chord: 1.20, wash: 0.55,
       w: [[nHT, .55], [TPB, .25], [TPT, .2]] });
@@ -919,6 +937,11 @@ function buildC172() {
     stabTrim: 0.0006, sparSpacing: 0.82,
     fusCdA: [0.46, 1.0, 1.0], fusCdAAft: [0, 0.70, 0.70],
     twSteer: -0.35,          // nosewheel: sign to be verified empirically
+    // barn-door Fowler-ish flaps 30: calibrated in the free-air tunnel against
+    // POH Vs0 ~40-42 kt vs Vs1 46 (see test_flaps.js)
+    // dCm0 ~ -0.25*dCl0 (thin-airfoil TE device): weaker values let the flap
+    // lift increment pitch the nose UP and the AP ballooned above the slope
+    flaps: { to: 0, ldg: 1, rate: 0.14, dCl0: 1.15, dCd0: 0.065, dAStall: 0.02, dCm0: -0.29 },
     ap: {
       rotate: true,
       VRot: 28, VClimbMin: 32, VClimb: 38, VCruise: 58, VAppr: 33.5, VTurn: 44,
@@ -1069,14 +1092,14 @@ function buildJodel() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.65, 1.71, side, { wash: 0.35 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.65, 1.71, side, { wash: 0.35, flap: 1 });
     wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 1.81, 1.51, side, { ail: 0.5 });
     wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 1.20, 1.13, side, { ail: 1 });
   }
-  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 1.90, 1.71, 1, { wash: 0.9 });
+  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 1.90, 1.71, 1, { wash: 0.9, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 1.15, chord: 0.95, wash: 0.85,
       w: [[nHT, .55], [TPB, .25], [TPT, .2]] });
@@ -1102,6 +1125,10 @@ function buildJodel() {
     stabTrim: -0.0411, sparSpacing: 0.75,
     fusCdA: [0.095, 0.50, 0.50], fusCdAAft: [0, 0.32, 0.32],
     twSteer: 0.45,
+    // small plain flaps inboard
+    // ldg 0.65: full deflection of these small plain flaps made the flare
+    // harsh (sink 1.45, rollout nose-dip -8.4, gear strain 3x) for little gain
+    flaps: { to: 0, ldg: 0.65, rate: 0.18, dCl0: 0.55, dCd0: 0.040, dAStall: 0.015, dCm0: -0.14 },
     ap: {
       rotate: true,
       VRot: 27, VClimbMin: 30, VClimb: 41.7, VCruise: 62, VAppr: 33, VTurn: 45,
@@ -1380,7 +1407,8 @@ function makeSim(def, world) {
         r = new Float64Array(n);
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
   const _treeScratch = [];
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0 };
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0 };
+  const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0 };
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
@@ -1407,7 +1435,7 @@ function makeSim(def, world) {
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
-    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = 0;
+    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -1430,13 +1458,15 @@ function makeSim(def, world) {
   // sig = ground-effect downwash factor (1 = free air). It scales the induced
   // drag term AND raises the lift slope via the lifting-line identity
   // 1/a3d = 1/a0 + 1/eAR (a0 reconstructed from the registry constants).
-  function polar(al, P, sig = 1) {
-    const s = Math.min(1, Math.max(0, (Math.abs(al) - P.aStall) / 0.10));
+  // dCl0/dCd0/dAStall = high-lift deltas (already scaled by flap fraction):
+  // flaps are camber + drag + reduced stall margin, never a bare alpha shift.
+  function polar(al, P, sig = 1, dCl0 = 0, dCd0 = 0, dAStall = 0) {
+    const s = Math.min(1, Math.max(0, (Math.abs(al) - (P.aStall - dAStall)) / 0.10));
     let a3 = P.a3d;
     if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
-    const Cl = (P.Cl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
-    const CdAtt = P.Cd0 + sig * Cl * Cl / P.eAR;
-    const Cd = CdAtt * (1 - s) + (P.Cd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
+    const Cl = (P.Cl0 + dCl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
+    const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
+    const Cd = CdAtt * (1 - s) + (P.Cd0 + dCd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
     return [Cl, Cd];
   }
 
@@ -1516,8 +1546,13 @@ function makeSim(def, world) {
       if (V2 < 0.01) continue;
       let al = Math.atan2(w_, u);
       let P = P_.polarWing;
+      let fl = 0;                                  // flap fraction on this strip
       if (st.kind === 'wing') {
         al += P_.ailTau * ctl.da * st.side * st.ail;
+        if (FP && st.flap && ctl.flap > 0) {
+          fl = ctl.flap * st.flap;
+          al += (FP.tau || 0) * fl;                // flaperon droop (surface rotates)
+        }
       } else if (st.kind === 'stab') {
         al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de;
         P = P_.polarTail;
@@ -1534,7 +1569,9 @@ function makeSim(def, world) {
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
-      const [Cl, Cd] = polar(al, P, sig);
+      const [Cl, Cd] = fl > 0
+        ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
+        : polar(al, P, sig);
       const q = 0.5 * RHO * V2 * st.area, iv = 1 / Math.sqrt(V2);
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
@@ -1549,8 +1586,11 @@ function makeSim(def, world) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
+      // flap dCm0 feeds in here — the couple reading polarWing.Cm0 alone would
+      // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
-        const Fc = q * P_.polarWing.Cm0 * st.chord / P_.sparSpacing, t = st.t;
+        const Fc = q * (P_.polarWing.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / P_.sparSpacing, t = st.t;
         const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
         for (const [i, w] of cW) {
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];
@@ -1944,6 +1984,17 @@ function makeAutopilot(sim, def) {
       case 'STOPPED':
         c.thr = 0; c.de = 0.35; c.brake = 0.25; c.da = 0; c.dr = 0;
         break;
+    }
+    // flaps: phase-scheduled, rate-limited (flaps travel over seconds, and the
+    // slow deployment is what lets holdPitch absorb the nose-down dCm0 step).
+    // Retracted for the rollout: weight back on the wheels for brake grip.
+    const FS = def.params.flaps;
+    if (FS) {
+      const tgt = ap.phase === 'APPROACH' || ap.phase === 'FLARE' ? (FS.ldg ?? 1)
+                : ap.phase === 'ROLL' || ap.phase === 'LIFTOFF' ? (FS.to ?? 0)
+                : 0;
+      const rr = (FS.rate ?? 0.15) * dt;
+      c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     }
     // servo slew limits
     aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;

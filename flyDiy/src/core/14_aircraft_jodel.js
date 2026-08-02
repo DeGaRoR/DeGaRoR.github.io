@@ -125,14 +125,14 @@ function buildJodel() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.65, 1.71, side, { wash: 0.35 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.65, 1.71, side, { wash: 0.35, flap: 1 });
     wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 1.81, 1.51, side, { ail: 0.5 });
     wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 1.20, 1.13, side, { ail: 1 });
   }
-  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 1.90, 1.71, 1, { wash: 0.9 });
+  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 1.90, 1.71, 1, { wash: 0.9, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 1.15, chord: 0.95, wash: 0.85,
       w: [[nHT, .55], [TPB, .25], [TPT, .2]] });
@@ -158,6 +158,10 @@ function buildJodel() {
     stabTrim: -0.0411, sparSpacing: 0.75,
     fusCdA: [0.095, 0.50, 0.50], fusCdAAft: [0, 0.32, 0.32],
     twSteer: 0.45,
+    // small plain flaps inboard
+    // ldg 0.65: full deflection of these small plain flaps made the flare
+    // harsh (sink 1.45, rollout nose-dip -8.4, gear strain 3x) for little gain
+    flaps: { to: 0, ldg: 0.65, rate: 0.18, dCl0: 0.55, dCd0: 0.040, dAStall: 0.015, dCm0: -0.14 },
     ap: {
       rotate: true,
       VRot: 27, VClimbMin: 30, VClimb: 41.7, VCruise: 62, VAppr: 33, VTurn: 45,

@@ -134,7 +134,7 @@ function buildDC3() {
     strips.push({ kind: 'wing', side, t, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * (1 - t)], [fOut, cf * t], [rIn, cr * (1 - t)], [rOut, cr * t]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
     for (let b = 0; b < zSt.length - 1; b++) {
@@ -143,10 +143,10 @@ function buildDC3() {
       const wsh = zm < 4.6 ? 0.8 : zm < 6.5 ? 0.3 : 0;
       const ail = b >= zSt.length - 3 ? 1 : 0;
       wingStrip(fr.F[b], fr.F[b + 1], fr.R[b], fr.R[b + 1], 0.5, area, ch, side,
-        { wash: wsh, ail });
+        { wash: wsh, ail, flap: ail ? 0 : 1 });   // split flaps inboard of ailerons
     }
   }
-  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 0.5, 12.5, 4.33, 1, { wash: 0.3 });
+  wingStrip(F[2].BL, F[2].BR, F[3].BL, F[3].BR, 0.5, 12.5, 4.33, 1, { wash: 0.3, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 6.0, chord: 2.3, wash: 0.4,
       w: [[nHT, .5], [TPB, .3], [TPT, .2]] });
@@ -174,24 +174,37 @@ function buildDC3() {
     stabTrim: -0.0120, sparSpacing: 2.16,
     fusCdA: [1.40, 3.0, 3.0], fusCdAAft: [0, 2.0, 2.0],
     twSteer: 0.30,
+    // split flaps: strong drag, quarter flaps for takeoff (shortens unstick)
+    flaps: { to: 0.25, ldg: 0.7, rate: 0.10, dCl0: 0.80, dCd0: 0.090, dAStall: 0.025, dCm0: -0.20 },
     ap: {
       rotate: true,
       VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 43, VTurn: 55,
       thTailUp: 0.030, thRotate: 0.100,
       lookRoll: 45, lookAppr: 650, lookCruise: 900,
-      hCruise: 250, hSafe: 30, xTurn: -5800, xAim: -810, gs: 0.044,
+      // gs 0.044 -> 0.060 (flapped approaches are steeper): with split-flap
+      // drag the shallow clean slope needed 0.70 throttle and the jet of
+      // integrators railed into a powered 1 m/s mush 60 m above the slope
+      hCruise: 250, hSafe: 30, xTurn: -5800, xAim: -810, gs: 0.060,
       thrFloor: 0.05,
       rollDe: 0.06, liftoffTh: 0.15, liftoffRamp: 0.06,
       climbThBase: 0.11, climbThGain: 0.015, thMax: 0.17,
-      flareAgl: 7, flareRate: 0.030, aglGuard: 6, flareThMax: 0.11,
+      // flare from 10 m, faster ramp: the steeper flapped slope arrives at
+      // -2.5 m/s and the old 0.030 ramp from 7 m was a 2.6 m/s carrier landing.
+      // flareThMax 0.11 -> 0.085: flaps raise CL at a given attitude, so the
+      // clean-era cap sat ABOVE the L=W attitude and the float came back
+      // (117 km/h touchdown, 300 m past the window).
+      flareAgl: 10, flareRate: 0.045, aglGuard: 6, flareThMax: 0.085,
       VTailUp: 20, VStop: 0.5, slew: 0.8, thrCruise: 0.55, thrAppr: 0.30,
       // GE retune (session 1): wing keeps lifting through the rollout in
       // ground effect -> less weight on wheels -> longer roll. Brake earlier
       // and harder, approach one knot slower; was 0.45/36/VAppr 44 (overran
       // to x=+124).
-      brakeMax: 0.50, brakeRampRate: 0.18, VBrakeOn: 39, VBrakeRelease: 2.5,
+      // brake later/gentler than the GE retune: flap retraction on rollout
+      // returns weight to the wheels, and braking at 39 with the tail still
+      // flying dipped the nose to -3
+      brakeMax: 0.50, brakeRampRate: 0.14, VBrakeOn: 34, VBrakeRelease: 2.5,
       rateFilt: 0.15, pitchP: 1.6, pitchD: 1.6, pitchI: 0.25,
-      vsP: 0.006, vsI: 0.010, vsFloor: -0.06, altVSGain: 0.06,
+      vsP: 0.006, vsI: 0.010, vsFloor: -0.12, altVSGain: 0.06,
       vsFilt: 0.5, pitchCmdSlew: 0.3,
       hdgP: 0.7, hdgD: 1.2, bankSlew: 0.14, rollP: 1.6, rollD: 2.2,
       betaK: 0.3, yawDampK: 0.7, ariK: 0.3, bankLim: 0.45,

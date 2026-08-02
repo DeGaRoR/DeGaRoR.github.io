@@ -143,12 +143,13 @@ function buildChinook() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: CH,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: 0, ail: o.ail || 0 });
+      wash: 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
+  // flaperons: the aileron surfaces droop symmetrically -> flap = ail gearing
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 1.77, side, { ail: 0.5 });
-    wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.07, side, { ail: 0.8 });
-    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.00, side, { ail: 1 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 1.77, side, { ail: 0.5, flap: 0.5 });
+    wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.07, side, { ail: 0.8, flap: 0.8 });
+    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.00, side, { ail: 1, flap: 1 });
   }
   wingStrip(wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0], 1.34, 1, {});
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
@@ -176,6 +177,10 @@ function buildChinook() {
     stabTrim: -0.0359, sparSpacing: 0.61,
     fusCdA: [0.59, 0.9, 0.9], fusCdAAft: [0, 0.50, 0.50],
     twSteer: 0.5,
+    // flaperons: droop is an actual surface rotation (tau alpha-shift on the
+    // ail-geared strips) + a little drag; partial droop for landing so the
+    // ailerons keep authority in the flare (1.13*Vs stall history: margins!)
+    flaps: { to: 0, ldg: 0.6, rate: 0.25, tau: 0.08, dCl0: 0.25, dCd0: 0.030, dAStall: 0.02, dCm0: -0.12 },
     ap: {
       VRot: 10, VClimbMin: 12, VClimb: 17, VCruise: 24, VAppr: 16, VTurn: 19,
       lookRoll: 25, lookAppr: 140, lookCruise: 220,

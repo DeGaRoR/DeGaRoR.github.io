@@ -9,7 +9,8 @@ function makeSim(def, world) {
         r = new Float64Array(n);
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
   const _treeScratch = [];
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0 };
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0 };
+  const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0 };
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
@@ -36,7 +37,7 @@ function makeSim(def, world) {
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
-    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = 0;
+    ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -59,13 +60,15 @@ function makeSim(def, world) {
   // sig = ground-effect downwash factor (1 = free air). It scales the induced
   // drag term AND raises the lift slope via the lifting-line identity
   // 1/a3d = 1/a0 + 1/eAR (a0 reconstructed from the registry constants).
-  function polar(al, P, sig = 1) {
-    const s = Math.min(1, Math.max(0, (Math.abs(al) - P.aStall) / 0.10));
+  // dCl0/dCd0/dAStall = high-lift deltas (already scaled by flap fraction):
+  // flaps are camber + drag + reduced stall margin, never a bare alpha shift.
+  function polar(al, P, sig = 1, dCl0 = 0, dCd0 = 0, dAStall = 0) {
+    const s = Math.min(1, Math.max(0, (Math.abs(al) - (P.aStall - dAStall)) / 0.10));
     let a3 = P.a3d;
     if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
-    const Cl = (P.Cl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
-    const CdAtt = P.Cd0 + sig * Cl * Cl / P.eAR;
-    const Cd = CdAtt * (1 - s) + (P.Cd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
+    const Cl = (P.Cl0 + dCl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
+    const CdAtt = P.Cd0 + dCd0 + sig * Cl * Cl / P.eAR;
+    const Cd = CdAtt * (1 - s) + (P.Cd0 + dCd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
     return [Cl, Cd];
   }
 
@@ -145,8 +148,13 @@ function makeSim(def, world) {
       if (V2 < 0.01) continue;
       let al = Math.atan2(w_, u);
       let P = P_.polarWing;
+      let fl = 0;                                  // flap fraction on this strip
       if (st.kind === 'wing') {
         al += P_.ailTau * ctl.da * st.side * st.ail;
+        if (FP && st.flap && ctl.flap > 0) {
+          fl = ctl.flap * st.flap;
+          al += (FP.tau || 0) * fl;                // flaperon droop (surface rotates)
+        }
       } else if (st.kind === 'stab') {
         al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de;
         P = P_.polarTail;
@@ -163,7 +171,9 @@ function makeSim(def, world) {
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
-      const [Cl, Cd] = polar(al, P, sig);
+      const [Cl, Cd] = fl > 0
+        ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
+        : polar(al, P, sig);
       const q = 0.5 * RHO * V2 * st.area, iv = 1 / Math.sqrt(V2);
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
@@ -178,8 +188,11 @@ function makeSim(def, world) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
+      // flap dCm0 feeds in here — the couple reading polarWing.Cm0 alone would
+      // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
-        const Fc = q * P_.polarWing.Cm0 * st.chord / P_.sparSpacing, t = st.t;
+        const Fc = q * (P_.polarWing.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / P_.sparSpacing, t = st.t;
         const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
         for (const [i, w] of cW) {
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];

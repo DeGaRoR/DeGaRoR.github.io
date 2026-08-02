@@ -187,6 +187,17 @@ function makeAutopilot(sim, def) {
         c.thr = 0; c.de = 0.35; c.brake = 0.25; c.da = 0; c.dr = 0;
         break;
     }
+    // flaps: phase-scheduled, rate-limited (flaps travel over seconds, and the
+    // slow deployment is what lets holdPitch absorb the nose-down dCm0 step).
+    // Retracted for the rollout: weight back on the wheels for brake grip.
+    const FS = def.params.flaps;
+    if (FS) {
+      const tgt = ap.phase === 'APPROACH' || ap.phase === 'FLARE' ? (FS.ldg ?? 1)
+                : ap.phase === 'ROLL' || ap.phase === 'LIFTOFF' ? (FS.to ?? 0)
+                : 0;
+      const rr = (FS.rate ?? 0.15) * dt;
+      c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
+    }
     // servo slew limits
     aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
     aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;

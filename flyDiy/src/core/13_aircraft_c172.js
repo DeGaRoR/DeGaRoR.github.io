@@ -109,14 +109,14 @@ function buildC172() {
     strips.push({ kind: 'wing', side, t: 0.5, area, chord: ch,
       fIn, fOut, rIn, rOut,
       w: [[fIn, cf * 0.5], [fOut, cf * 0.5], [rIn, cr * 0.5], [rOut, cr * 0.5]],
-      wash: o.wash || 0, ail: o.ail || 0 });
+      wash: o.wash || 0, ail: o.ail || 0, flap: o.flap || 0 });
   };
   for (const [fr, side] of [[wf.R, 1], [wf.L, -1]]) {
-    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.77, 1.63, side, { wash: 0.45 });
+    wingStrip(fr.F[0], fr.F[1], fr.R[0], fr.R[1], 2.77, 1.63, side, { wash: 0.45, flap: 1 });
     wingStrip(fr.F[1], fr.F[2], fr.R[1], fr.R[2], 2.31, 1.54, side, { ail: 0.4 });
     wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 2.12, 1.27, side, { ail: 1 });
   }
-  wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 1.96, 1.63, 1, { wash: 0.9 });
+  wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 1.96, 1.63, 1, { wash: 0.9, flap: 1 });
   for (const [nHT, side] of [[HTL, -1], [HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 1.85, chord: 1.20, wash: 0.55,
       w: [[nHT, .55], [TPB, .25], [TPT, .2]] });
@@ -142,6 +142,11 @@ function buildC172() {
     stabTrim: 0.0006, sparSpacing: 0.82,
     fusCdA: [0.46, 1.0, 1.0], fusCdAAft: [0, 0.70, 0.70],
     twSteer: -0.35,          // nosewheel: sign to be verified empirically
+    // barn-door Fowler-ish flaps 30: calibrated in the free-air tunnel against
+    // POH Vs0 ~40-42 kt vs Vs1 46 (see test_flaps.js)
+    // dCm0 ~ -0.25*dCl0 (thin-airfoil TE device): weaker values let the flap
+    // lift increment pitch the nose UP and the AP ballooned above the slope
+    flaps: { to: 0, ldg: 1, rate: 0.14, dCl0: 1.15, dCd0: 0.065, dAStall: 0.02, dCm0: -0.29 },
     ap: {
       rotate: true,
       VRot: 28, VClimbMin: 32, VClimb: 38, VCruise: 58, VAppr: 33.5, VTurn: 44,
