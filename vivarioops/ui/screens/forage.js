@@ -42,7 +42,7 @@ import {
   createWater, updateWater, disposeWater, fitAtmosphere, renderOverlay, dotTexture,
 } from '../../render/tank.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
-import { stepBudget, hitRadius } from '../tank/sim.js';
+import { stepBudget, hitRadius, classifyPointer, TAP } from '../tank/sim.js';
 
 /**
  * How many creatures share the tank. Six matches the Tank's population, and the
@@ -104,8 +104,24 @@ export default {
     let cast = [];
     let elapsed = 0, running = true, stopped = false, picked = -1;
 
+    /**
+     * WHO IS SELECTED — a Set of cast indices, exactly as the tank keeps it.
+     *
+     * Selection was a mess here because it was a DIFFERENT GESTURE from the tank's:
+     * a tap threw a modal sheet over the aquarium, so choosing a creature to watch
+     * meant reading a sheet and dismissing it, and there was no persistent mark
+     * saying which one you had chosen. The tank had already solved this — tap
+     * toggles a ring, long-press opens the sheet — and two screens showing the same
+     * creatures must not answer the same gesture differently.
+     *
+     * What selection MEANS differs (the tank pins for breeding; here it marks who
+     * you are watching), but the interface is the same one, deliberately.
+     */
+    const selected = new Set();
+
     const ramp = rampFor(W1_SLICE.palette);
     const foodColour = new THREE.Color(token('--forage-food'));
+    const ringSelect = new THREE.Color(token('--c-select'));
 
     /**
      * A creature's OWN colour, from its own genes — the same `colourFrom` call
@@ -165,6 +181,7 @@ export default {
           scene.remove(c.mouthMark);
           c.mouthMark.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
         }
+        if (c.ring) { scene.remove(c.ring); c.ring.geometry.dispose(); c.ring.material.dispose(); }
         if (c.trail) { scene.remove(c.trail); c.trail.geometry.dispose(); c.trail.material.dispose(); }
         if (c.sim) c.sim.free();
       }
@@ -236,6 +253,22 @@ export default {
         mouthMark.add(shell, dot);
         scene.add(mouthMark);
 
+        // THE SELECTION RING — same geometry, same token, same rules as
+        // tank.js:318. A scene object rather than a DOM overlay because a DOM
+        // overlay sits on its own compositor layer and lags the WebGL canvas by a
+        // frame, so it visibly slides off the creature while you orbit. Scaled to
+        // the body and turned to face the camera every frame, so it always reads
+        // as a flat circle around the animal whatever angle you are at.
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.92, 1.0, 48),
+          new THREE.MeshBasicMaterial({
+            color: ringSelect.clone(), transparent: true, opacity: 0.95,
+            side: THREE.DoubleSide, depthTest: false, toneMapped: false,
+          }));
+        ring.visible = false;
+        ring.renderOrder = 10;
+        scene.add(ring);
+
         // The trail takes the CREATURE'S colour, which is the whole point: six
         // identical grey threads say nothing about who went where.
         const trailPos = new Float32Array(TRAIL_START * 3);
@@ -253,10 +286,13 @@ export default {
         const swatch = mk('forage-swatch', row);
         swatch.style.background = `#${colour.getHexString()}`;
         const text = mk('forage-text', row);
-        row.addEventListener('click', () => openStats(cast.findIndex((x) => x.row === row)));
+        // The row answers the SAME gesture as the creature it names: tap to
+        // select, long-press for the sheet. A row that behaved differently from
+        // the body it points at would be the original defect in miniature.
+        bindSelect(row, () => cast.findIndex((x) => x.row === row));
 
         cast.push({
-          i, entry, genome, plan, sim, group, mouthMark, trail, colour,
+          i, entry, genome, plan, sim, group, mouthMark, trail, ring, colour,
           trailPos, trailN: 0, trailAt: 0, trailCap: TRAIL_START,
           mouths, mouthBuf: mouths.map(() => [0, 0, 0]),
           pose: null, eaten: 0, mass: totalMass(plan),
@@ -265,8 +301,22 @@ export default {
           row, text,
         });
       });
+      // POSE ONCE, BEFORE THE FIRST STEP. `syncPose` otherwise runs only when the
+      // sim advances, so a cast spawned into a paused screen leaves every
+      // `c.world` at the origin — which is where the selection ring would draw
+      // and, worse, where the ray-pick would look for six overlapping creatures.
+      // Spawning and then pausing is an ordinary thing to do; it must not break
+      // selection until the player presses Run.
+      for (const c of cast) {
+        syncPose(c);
+        const pts = mouthPoints(c.sim, c.plan, c.mouths, c.mouthBuf);
+        if (pts[0]) c.mouthMark.position.set(pts[0][0], pts[0][1], pts[0][2]);
+      }
       elapsed = 0;
       picked = -1;
+      selected.clear();
+      placeCamera();
+      applyLayers();     // a respawn rebuilds `points` and every trail from scratch
       fitAtmosphere(water, W1_SLICE.tankBounds);
       paint();
     }
@@ -288,7 +338,7 @@ export default {
         const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.work, elapsed);
         c.text.textContent = `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${fmtRatio(L.ratio)}`;
         c.row.dataset.state = Number.isFinite(L.ratio) && L.ratio >= 1 ? 'surplus' : 'deficit';
-        c.row.dataset.picked = cast[picked] === c ? 'yes' : 'no';
+        c.row.dataset.picked = selected.has(cast.indexOf(c)) ? 'yes' : 'no';
       }
       primary.textContent = running ? t('Pause') : t('Run');
     }
@@ -411,9 +461,40 @@ export default {
       b.addEventListener('click', onClick);
       return b;
     };
+
+    /**
+     * LAYERS. Both of these are evidence, and both get in the way of the other
+     * thing you might be looking at: 1400 food dots hide the trails, and six
+     * never-forgetting trails eventually hide the food they were drawn on. They
+     * are also the two answers to different questions — "where has it been" and
+     * "what is left" — so which one is on IS the question you are asking.
+     *
+     * They stay on by default: the screen exists to show foraging, and a player
+     * who has not touched a toggle should see it.
+     */
+    const show = { trails: true, food: true };
+    const toggle = (key, label) => {
+      const b = chip(label, () => { show[key] = !show[key]; applyLayers(); });
+      b.dataset.on = 'yes';
+      return b;
+    };
+    function applyLayers() {
+      if (points) points.visible = show.food;
+      for (const c of cast) c.trail.visible = show.trails;
+      for (const b of cluster.children) {
+        if (b.dataset.layer) b.dataset.on = show[b.dataset.layer] ? 'yes' : 'no';
+      }
+    }
+
     let lastCast = [];
+    const chipTrails = toggle('trails', t('Trails'));
+    const chipFood = toggle('food', t('Food'));
+    chipTrails.dataset.layer = 'trails';
+    chipFood.dataset.layer = 'food';
     cluster.append(
       chip(t('Cast'), openPicker),
+      chipTrails,
+      chipFood,
       chip(t('Reset'), () => { pan.set(0, 0, 0); spawn(lastCast); }),
     );
     primary.addEventListener('click', () => { running = !running; paint(); });
@@ -422,7 +503,56 @@ export default {
     const orbit = { yaw: 0.6, pitch: 0.12, dist: Math.max(...W1_SLICE.tankBounds) * 1.9 };
     const pan = new THREE.Vector3();
     const pointers = new Map();
-    let drag = null, panning = false, pinch = null, moved = false;
+    let drag = null, panning = false, pinch = null, moved = false, longPress = 0;
+
+    function toggleSelect(k) {
+      if (k < 0) return;
+      if (selected.has(k)) selected.delete(k); else selected.add(k);
+      paint();
+    }
+
+    /**
+     * Give any DOM element the creature gesture: tap selects, long-press opens
+     * the sheet. `indexOf` is a thunk because a row's index moves when the cast
+     * is re-spawned, and binding the index itself would go stale.
+     */
+    function bindSelect(el, indexOf) {
+      let at = 0, held = 0, slid = false, x0 = 0, y0 = 0;
+      el.addEventListener('pointerdown', (e) => {
+        at = performance.now(); slid = false; x0 = e.clientX; y0 = e.clientY;
+        clearTimeout(held);
+        held = setTimeout(() => { if (!slid) { at = 0; openStats(indexOf()); } }, TAP.longPressMs);
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (Math.hypot(e.clientX - x0, e.clientY - y0) > TAP.maxMovePx) { slid = true; clearTimeout(held); }
+      });
+      const up = (e) => {
+        clearTimeout(held);
+        if (!at || slid) return;
+        const kind = classifyPointer({ dx: e.clientX - x0, dy: e.clientY - y0, ms: performance.now() - at });
+        if (kind === 'tap') toggleSelect(indexOf());
+        at = 0;
+      };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', () => { clearTimeout(held); at = 0; });
+    }
+
+    /**
+     * Ring upkeep, every frame — NOT only on sim steps. The ring is billboarded,
+     * so it has to be re-aimed whenever the CAMERA moves, and the camera moves
+     * while the sim is paused. Tying this to `steps` would freeze the rings
+     * edge-on the moment you paused and orbited.
+     */
+    function syncRings() {
+      cast.forEach((c, k) => {
+        c.ring.visible = selected.has(k);
+        if (!c.ring.visible) return;
+        const rad = selectRadius(camera.position.distanceTo(c.world));
+        c.ring.scale.set(rad, rad, rad);
+        c.ring.position.copy(c.world);
+        c.ring.quaternion.copy(camera.quaternion);
+      });
+    }
 
     const span = () => {
       const [a, b] = [...pointers.values()];
@@ -439,6 +569,45 @@ export default {
       pan.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
     };
 
+    /**
+     * Put the camera where the orbit says it is. Extracted from `frame()` because
+     * `pick()` RAYCASTS FROM IT: if the first gesture arrives before the first
+     * animation frame, the camera is still at its constructor default at the
+     * origin and every hit test is nonsense. Same defect class as posing the cast
+     * at spawn — anything the pointer path reads must be valid before rAF runs.
+     */
+    function placeCamera() {
+      const cp = Math.cos(orbit.pitch), sp = Math.sin(orbit.pitch);
+      camera.position.set(
+        pan.x + Math.sin(orbit.yaw) * cp * orbit.dist,
+        pan.y + sp * orbit.dist,
+        pan.z + Math.cos(orbit.yaw) * cp * orbit.dist);
+      camera.lookAt(pan);
+      camera.updateMatrixWorld();
+    }
+
+    /**
+     * THE SELECTION RADIUS — a constant number of SCREEN pixels, the same for
+     * every creature, and the same number for the ring and the hit test.
+     *
+     * It deliberately ignores `boundingRadius`, which is what the tank uses. That
+     * rule is right for the tank, where creatures sit in their own grid cells and
+     * cannot overlap; here they share one tank and crowd each other, and a
+     * creature with long tentacles has a bounding radius most of a screen wide.
+     * Its ring then covers its neighbours and — worse, because pick() used the
+     * same radius — its hit sphere SWALLOWED them: tapping the small animal in
+     * front of a big one selected the big one. Size-invariant fixes both, and it
+     * makes selection exactly fair, which is the property the tank's tap-size
+     * floor was reaching for in the first place.
+     *
+     * `hitRadius(0, ...)` is that floor with nothing to beat it, so this is the
+     * project's one hit-testing rule reused, not a second one invented here.
+     */
+    function selectRadius(dist) {
+      return hitRadius(0, dist, (camera.fov * Math.PI) / 180,
+        view.getBoundingClientRect().height, tokenNumber('--forage-select-px'));
+    }
+
     /** Nearest creature to a screen point, within a finger-sized radius. */
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
@@ -446,14 +615,11 @@ export default {
       const r = view.getBoundingClientRect();
       ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
-      const fov = (camera.fov * Math.PI) / 180;
-      const tap = tokenNumber('--tapsize');
       let best = -1, bestD = Infinity;
       cast.forEach((c, k) => {
-        const d = camera.position.distanceTo(c.world);
-        // A SMALL CREATURE IS NEVER HARDER TO SELECT THAN A LARGE ONE — the same
-        // rule the tank uses, and it matters more here where they differ 6x.
-        const hit = hitRadius(c.radius, d, fov, r.height, tap);
+        // EVERY CREATURE IS THE SAME SIZE TO THE FINGER, and it is the size the
+        // ring draws — so what you see is exactly what you can hit.
+        const hit = selectRadius(camera.position.distanceTo(c.world));
         const to = c.world.clone().sub(raycaster.ray.origin);
         const along = to.dot(raycaster.ray.direction);
         if (along <= 0) return;
@@ -465,11 +631,24 @@ export default {
 
     view.addEventListener('pointerdown', (e) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      view.setPointerCapture?.(e.pointerId);
+      // Capture is a CONVENIENCE — it keeps the drag alive if the finger leaves
+      // the canvas — and it must never be able to abort the handler. It throws
+      // NotFoundError for any pointer id the browser is not already tracking,
+      // and it sits ABOVE the lines that initialise the gesture, so a throw here
+      // left `drag`/`down` unset and every subsequent tap silently did nothing.
+      try { view.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
       if (pointers.size === 2) { drag = null; pinch = { d: span(), dist: orbit.dist, c: centroid() }; return; }
       panning = e.button === 1 || e.button === 2 || e.shiftKey;
-      drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
+      drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, at: performance.now() };
       moved = false;
+      // Arm the long press only if the finger actually went down on a creature —
+      // otherwise resting a finger on open water would throw up a sheet.
+      clearTimeout(longPress);
+      if (!panning && pick(e.clientX, e.clientY) >= 0) {
+        longPress = setTimeout(() => {
+          if (drag && !moved) { const k = pick(drag.x, drag.y); drag = null; if (k >= 0) openStats(k); }
+        }, TAP.longPressMs);
+      }
     });
     view.addEventListener('pointermove', (e) => {
       if (!pointers.has(e.pointerId)) return;
@@ -484,7 +663,7 @@ export default {
       }
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 6) moved = true;
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > TAP.maxMovePx) { moved = true; clearTimeout(longPress); }
       if (panning) panBy(dx, dy);
       else {
         orbit.yaw -= dx * 0.006;
@@ -493,17 +672,20 @@ export default {
       drag = { ...drag, x: e.clientX, y: e.clientY };
     });
     const endDrag = (e) => {
+      clearTimeout(longPress);
       const wasSingle = pointers.size === 1 && !panning && !moved && drag;
       const at = drag;
       pointers.delete(e.pointerId);
       if (pointers.size < 2) pinch = null;
       if (pointers.size === 0) { drag = null; panning = false; }
-      // A TAP, not a drag: select the creature under the finger, or clear.
-      if (wasSingle && at) {
-        const k = pick(at.x, at.y);
-        if (k >= 0) openStats(k);
-        else if (picked >= 0) { picked = -1; closeSheet(); paint(); }
-      }
+      if (!wasSingle || !at) return;
+      // TAP TOGGLES THE RING; the sheet is the long press. This is tank.js:691
+      // verbatim in behaviour — the sheet used to fire on tap here, which is why
+      // selecting anything meant dismissing a modal first.
+      if (classifyPointer({ dx: e.clientX - at.x0, dy: e.clientY - at.y0, ms: performance.now() - at.at }) !== 'tap') return;
+      const k = pick(at.x, at.y);
+      if (k >= 0) toggleSelect(k);
+      else { selected.clear(); if (picked >= 0) { picked = -1; closeSheet(); } paint(); }
     };
     view.addEventListener('pointerup', endDrag);
     view.addEventListener('pointercancel', endDrag);
@@ -595,13 +777,8 @@ export default {
       }
 
       updateWater(water, nowMs / 1000);
-      const cp = Math.cos(orbit.pitch), sp = Math.sin(orbit.pitch);
-      camera.position.set(
-        pan.x + Math.sin(orbit.yaw) * cp * orbit.dist,
-        pan.y + sp * orbit.dist,
-        pan.z + Math.cos(orbit.yaw) * cp * orbit.dist);
-      camera.lookAt(pan);
-      camera.updateMatrixWorld();
+      placeCamera();
+      syncRings();
       renderer.render(scene, camera);
       renderOverlay(renderer, water);
 

@@ -97,6 +97,11 @@
   /* THE MOUTH. The shell is BackSide-only so it reads as a bubble you can see
      THROUGH; a filled additive sphere blows out in the middle and hides the
      animal. The dot is what actually says where the mouth is. */
+  /* THE SELECTION TARGET, in SCREEN pixels and the same for every creature —
+     both the ring's diameter and pick()'s hit sphere. Larger than --tapsize so
+     the ring reads as a mark around the animal rather than a dot on it, and
+     size-invariant so a big creature cannot cover its neighbours. */
+  --forage-select-px: 76;
   --forage-mouth-opacity: 0.10;
   --forage-mouth-dot:     0.42;  /* cm — small, solid, unmistakable */
   --forage-trail-opacity: 0.55;  /* where the mouth has been — the creature's own colour */

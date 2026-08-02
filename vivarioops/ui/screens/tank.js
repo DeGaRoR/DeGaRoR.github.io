@@ -627,7 +627,12 @@ export default {
     view.addEventListener('pointerdown', (e) => {
       if (!ready || state === STATE.BREEDING || state === STATE.BURSTING) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      view.setPointerCapture?.(e.pointerId);
+      // Capture is a CONVENIENCE — it keeps the drag alive if the finger leaves
+      // the canvas — and it must never be able to abort the handler. It throws
+      // NotFoundError for any pointer id the browser is not already tracking,
+      // and it sits ABOVE the lines that initialise the gesture, so a throw here
+      // left `drag`/`down` unset and every subsequent tap silently did nothing.
+      try { view.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
 
       if (pointers.size === 2) {
         // A second finger cancels whatever the first was doing. It is the start of

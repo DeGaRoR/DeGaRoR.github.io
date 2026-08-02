@@ -177,6 +177,10 @@ html, body {
 .tank-chip:disabled { color: var(--c-text-disabled); cursor: default; }
 .tank-chip.speed { padding: 0 var(--gutter); font-family: var(--f-mono); font-size: var(--t-value); }
 .tank-chip.speed.active { background: var(--c-surface-2); }
+/* Layer toggles (Forage: Trails / Food). ON is the default and must not shout —
+   it is the state most of the time — so ON is the ordinary chip and OFF is the
+   dimmed one. A lit "on" badge on two of four chips would read as an alert. */
+.tank-chip[data-on="no"] { color: var(--c-text-disabled); }
 
 /* Secondary tools — Stranger / Burst / Seek — a compact pill in the top ribbon
    (top-right), so the bottom ribbon stays pure transport (Pause / Speed / Undo)
@@ -327,9 +331,24 @@ html, body {
   display: flex; align-items: center; gap: var(--s-2);
   font-family: var(--f-mono); font-size: var(--t-value); color: var(--c-on-water-dim);
   cursor: pointer;
+  /* The row answers the same tap/long-press as the creature, so the browser must
+     not claim the gesture first: no double-tap zoom, no text selection on hold,
+     no iOS callout. Without these a long press selects the TEXT instead. */
+  touch-action: manipulation;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  padding: 0 var(--s-1); margin: 0 calc(var(--s-1) * -1);
+  border-radius: var(--r-1);
+  border-left: var(--scale-tick) solid transparent;
 }
 .forage-row[data-state="surplus"] .forage-text { color: var(--c-on-water); }
-.forage-row[data-picked="yes"] .forage-text { text-decoration: underline; }
+/* SELECTED reads the same here as it does in the water: --c-select, the ring's
+   own colour. An underline said "selected" in a different language from the ring
+   and in the same one as a hyperlink. */
+.forage-row[data-picked="yes"] {
+  background: var(--c-select-tint);
+  border-left-color: var(--c-select);
+}
+.forage-row[data-picked="yes"] .forage-text { color: var(--c-select); }
 .forage-swatch {
   width: var(--forage-swatch); height: var(--forage-swatch); flex: none;
   border-radius: var(--r-1);

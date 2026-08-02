@@ -249,3 +249,44 @@ questions and they now have different marks.
 **Method note.** All seven were found by screenshotting the running app, and none of
 them could have been. The gate checks that the numbers are right; it has no way to
 check that a number is *readable* or that a marker does not obscure its subject.
+
+### 10a. Selection now IS the tank's selection
+
+The forage screen had invented its own gesture: **tap opened a modal sheet**. So
+choosing a creature to watch meant reading a sheet and dismissing it, there was no
+persistent mark saying which one you had chosen, and the two screens showing the same
+animals answered the same finger differently. Replaced wholesale with tank.js's:
+
+| gesture | before | now (= tank) |
+|---|---|---|
+| tap a creature | opened the stats sheet | toggles a **selection ring** |
+| tap open water | closed the sheet | clears the selection |
+| long-press a creature | — | opens the stats sheet |
+| tap a row | opened the sheet | toggles the same ring |
+| long-press a row | — | opens the stats sheet |
+
+The ring is `RingGeometry(0.92, 1.0, 48)` in `--c-select`, `depthTest: false`,
+`renderOrder 10`, scaled `max(radius*1.4, 1)` and re-aimed at the camera **every
+frame** — copied from tank.js:318 rather than re-derived, because a DOM overlay lags
+the WebGL canvas by a frame and visibly slides off the body during orbit. Selection is
+a `Set`, multi-select, same as the tank. Row highlight moved from an underline (which
+says "hyperlink", not "selected") to `--c-select-tint` + a `--c-select` left bar, so
+the row and the ring speak the same colour.
+
+**Three latent defects fell out of wiring it, all of the same class — the pointer path
+reads state that only `frame()` maintains:**
+
+1. **`c.world` was only refreshed on sim steps.** Spawn then pause, and every
+   creature's pick-and-ring position is the origin. `spawn()` now poses the cast once
+   before the first step.
+2. **The camera was only positioned inside `frame()`.** `pick()` raycasts *from* it,
+   so a gesture arriving before the first rAF hit-tested from the constructor default
+   at the origin. Extracted as `placeCamera()`, called from `spawn()` and `frame()`.
+3. **`view.setPointerCapture()` throws `NotFoundError`** for a pointer id the browser
+   is not tracking, and it sat *above* the lines that initialise the gesture — so a
+   throw left `drag`/`down` unset and every later tap silently did nothing. Now
+   wrapped. **Fixed in `tank.js` too**, which had the identical ordering.
+
+None of the three is reachable through ordinary use, which is exactly why they had
+survived: rAF always wins the race against a human finger. They are reachable the
+moment anything drives the screen that is not a human finger.

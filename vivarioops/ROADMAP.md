@@ -252,3 +252,73 @@ wake modelling, circulatory lift.
   benefit is unproven and needs a fresh repro.
 - **`_dragmicro.mjs`'s "ratio 1.000 to 30 m/s" is stale** — above `STABLE_SPEED` it
   measures the clamp.
+
+---
+
+## Study — can Tank and Forage be merged? (asked, not decided)
+
+**Short answer: the engine does not prevent it, and a Breed button on Forage would
+work today. What is not ready is the automated half — Burst — and the reason is the
+same one Step 2b names.**
+
+### What is NOT in the way (checked, not assumed)
+
+**Breeding never touches the on-screen simulation.** `doBreed()`
+([tank.js:994](vivarioops/ui/screens/tank.js:994)) takes `genomes`, `selected` and an
+rng, and calls `breed({ RAPIER, genomes, selected, rng, world: W1_SLICE })`. No slot,
+no arena, no pose. `runBurst` scores through `scoreBy(RAPIER, obj, [pop[i]],
+W1_SLICE)` and `adaptGait(...)` — **fresh headless sims in the canonical world**, never
+the display arena. So "private tiled arenas" versus "one shared arena" cannot affect
+what breeding produces. It only affects what you WATCH.
+
+The selection state is already identical — Forage now carries the tank's `Set`, ring,
+tap and long-press verbatim (HANDOVER-FORAGE §10a). Wiring `Breed` to `doBreed` is
+genuinely "and off you go".
+
+### What IS in the way
+
+**1. The two arenas are mutually exclusive, and choosing between them chooses the
+experiment.** The tank gives each creature a PRIVATE sim on an invisible 2×3 grid
+(`layoutGrid`, [tank.js:212](vivarioops/ui/screens/tank.js:212)) precisely so they
+cannot touch. Forage gives them ONE `createArena` + `stepAll`, so they collide and
+compete. A merged screen must pick:
+
+| | you see | "keep the best" means |
+|---|---|---|
+| private, six food fields | each creature's own foraging | its own performance — comparable, reproducible |
+| shared, one field | rivalry | partly **who got the good spawn** |
+
+`foodEaten()` already takes the first side for scoring — "A FRESH FIELD PER CREATURE,
+or the trial order decides the result". A shared display tank next to private scoring
+is defensible, but the screen would then be showing something other than what it
+selects on, and that has to be said out loud rather than discovered.
+
+**2. There is no trustworthy forage objective, and that is the real blocker.**
+`OBJECTIVES` carries exactly three — Speed, Size, Span — each with a `trusted` flag
+whose whole purpose is to record whether the number means anything.
+`foodEaten()` would have to ship `trusted: false`: it is **not control-subtracted**,
+and the seek objective already taught what that costs (raw seek score correlated 0.90
+with netSpeed, so it bred fast swimmers and left the sensor gain drifting).
+Subtraction needs a behaviour to disable; the kinesis gene does not exist.
+
+So: **Breed (manual, by eye) is honest today. Burst on "Food eaten" is not.** That
+split is the answer to the question.
+
+**3. Small, real, and cheap:** Forage has no persistence (the tank has `vivariumSeed`,
+`persistLineage`, one-step undo); the water/atmosphere is sized from the grid in one
+and from `tankBounds` in the other; `R4` pins five tabs
+([runtime.js:146](vivarioops/gate/runtime.js:146)) so dropping one is a literal edit;
+and the combined per-frame load is six bodies plus 1400 proximity tests plus, during a
+burst, dozens of headless sims.
+
+### Recommendation
+
+**Do not merge the screens yet. Add `Breed` to Forage instead** — it reuses machinery
+that already exists, it makes food part of the loop rather than a museum, and
+breeding-by-eye on a depleting field is exactly the fun the project is after. Keep
+Tank as the controlled comparison, where a creature is measured on its own.
+
+Revisit the merge **after Step 2b (the mouth gene)**, when placement and count are
+heritable, a control subtraction has something to disable, and a forage objective can
+be offered with `trusted: true`. At that point the two screens are answering the same
+question and keeping both is the redundancy.
