@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5722b283de8a75e7
+// body-sha256: 5e90d6ae7f3d908c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -448,12 +448,15 @@ function buildChinook() {
   const EM = N(2.05, 1.42, 0, 30, 'ENG');
   B(EM, P[2].T); B(EM, P[2].ML); B(EM, P[2].MR); B(EM, P[1].T);
 
-  // ---- poutre monotube : tube triangulaire fin (8 cm) jusqu a l empennage
+  // ---- poutre monotube : tube triangulaire jusqu a l empennage.
+  // Section 20 cm (le vrai tube est gros) — la section 8 cm etait un mecanisme
+  // en flexion laterale (depth/bay 7%, regle structurelle 5) : la queue,
+  // pendule inverse sur la roulette, tombait sur le cote a l arret.
   const boomY = 1.08;
   const bTri = (x, m) => {
-    const T = N(x, boomY + 0.05, 0, m, 'BOOM');
-    const L = N(x, boomY - 0.03, -0.045, m, 'BOOM');
-    const R = N(x, boomY - 0.03, 0.045, m, 'BOOM');
+    const T = N(x, boomY + 0.10, 0, m, 'BOOM');
+    const L = N(x, boomY - 0.07, -0.10, m, 'BOOM');
+    const R = N(x, boomY - 0.07, 0.10, m, 'BOOM');
     BB(T, L); BB(T, R); BB(L, R);
     return { T, L, R };
   };
@@ -466,6 +469,10 @@ function buildChinook() {
   BB(P[2].T, B1.T); BB(P[2].ML, B1.L); BB(P[2].MR, B1.R);
   BB(P[2].T, B1.L); BB(P[2].T, B1.R); BB(P[2].ML, B1.T); BB(P[2].MR, B1.T);
   BB(P[1].T, B1.T); BB(EM, B1.T); BB(EM, B1.L); BB(EM, B1.R);
+  // jurys d emplanture vers les coins bas du pod : raideur de roulis du 1er
+  // ordre a la racine (les liaisons quasi axiales seules laissaient la poutre
+  // se vriller de 16 deg a la racine quand la queue retombe au reset)
+  BB(B1.L, P[2].BL); BB(B1.R, P[2].BR);
   link(B1, B2); link(B2, B3);
 
   // ---- aile haute haubanee, corde constante 1.22, fleche nulle
@@ -497,7 +504,7 @@ function buildChinook() {
     // haubans vers le bas du pod — grand bras vertical
     const sb = sgn > 0 ? P[1].BR : P[1].BL, sb2 = sgn > 0 ? P[2].BR : P[2].BL;
     BW(sb, WF[1]); BW(sb2, WR[1]); BW(sb, WR[1]); BW(sb2, WF[1]); BW(sb, BF[1]);
-    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR };
+    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR, B: BF };
   };
   mkWing(+1); mkWing(-1);
 
@@ -521,6 +528,19 @@ function buildChinook() {
   BB(HTR, B3.T); BB(HTR, B3.R); BB(HTR, B2.T); BB(HTR, B2.R);
   const FIN = N(5.15, boomY + 0.95, 0, 2.5, 'FIN');
   BB(FIN, B3.T); BB(FIN, B2.T); BB(FIN, B3.L); BB(FIN, B3.R);
+  // haubans d empennage (comme le vrai) : derive <-> saumons de stab.
+  // Sans eux l empennage est un mecanisme en roulis (ressorts axiaux quasi
+  // paralleles a x = raideur du 2e ordre) et la queue tombe sur le cote.
+  BB(FIN, HTL); BB(FIN, HTR);
+  // ...et les deux autres cotes de la pyramide + ancrage large vers l aile.
+  // Mesure (probe 2026-08): CHAQUE jeu seul laisse la queue se coucher en
+  // se verrouillant; les deux ensemble la font revenir droite elastiquement.
+  // Ancrage sur les noeuds BAS du caisson (WB, pas de charge de bande) et
+  // SOUPLE (1.2e5): assez pour retenir ~20 N.m de chute statique, trop mou
+  // pour brider l aeroelasticite en vol (en 6e5 sur le longeron AR: battement
+  // ampute de moitie, roulages TO/ldg derives de 10-30%).
+  BB(HTL, TW); BB(HTR, TW);
+  B(B3.T, wf.L.B[1], 1.2e5, 60); B(B3.T, wf.R.B[1], 1.2e5, 60);
 
   // ---- bandes : pusher -> AUCUN souffle sur l aile, souffle sur l empennage
   const strips = [];
@@ -940,7 +960,11 @@ function buildDrone() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 420, C_G = 9;
+  // K_G 420 -> 1100 (2026-08): the wire legs collapsed in the reset ground-eject
+  // and the bare TPB tail node ended up resting ON the terrain with the
+  // tailwheel floating 17 mm above it. C_G stays 9: the 10 g TW node is at the
+  // c*dt/m damping limit already.
+  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 1100, C_G = 9;
   const B = (a, b, k = K_F, c = C_F) => beams.push({ a, b, k, c, gear: k === K_G });
   const BW = (a, b) => B(a, b, K_W, C_W);
   const BG = (a, b) => B(a, b, K_G, C_G);
@@ -1021,6 +1045,10 @@ function buildDrone() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(0.88, -0.005, 0, 0.010, 'TW', 0.015);
   BG(TW, TPB); BG(TW, S3.BL); BG(TW, S3.BR);
+  // near-vertical member: without it the shallow leg tripod snap-throughs
+  // during the reset ground-eject and latches FOLDED UP (TW above the tail
+  // post, bare TPB resting on the terrain) — the Jodel rule-7 pathology.
+  BG(TW, TPT);
 
   // ---- aero strips: chord 0.25, spar weights c/4 between 15%/60% spars ----
   const strips = [];

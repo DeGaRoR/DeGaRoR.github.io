@@ -7,7 +7,11 @@ function buildDrone() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 420, C_G = 9;
+  // K_G 420 -> 1100 (2026-08): the wire legs collapsed in the reset ground-eject
+  // and the bare TPB tail node ended up resting ON the terrain with the
+  // tailwheel floating 17 mm above it. C_G stays 9: the 10 g TW node is at the
+  // c*dt/m damping limit already.
+  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 1100, C_G = 9;
   const B = (a, b, k = K_F, c = C_F) => beams.push({ a, b, k, c, gear: k === K_G });
   const BW = (a, b) => B(a, b, K_W, C_W);
   const BG = (a, b) => B(a, b, K_G, C_G);
@@ -88,6 +92,10 @@ function buildDrone() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(0.88, -0.005, 0, 0.010, 'TW', 0.015);
   BG(TW, TPB); BG(TW, S3.BL); BG(TW, S3.BR);
+  // near-vertical member: without it the shallow leg tripod snap-throughs
+  // during the reset ground-eject and latches FOLDED UP (TW above the tail
+  // post, bare TPB resting on the terrain) — the Jodel rule-7 pathology.
+  BG(TW, TPT);
 
   // ---- aero strips: chord 0.25, spar weights c/4 between 15%/60% spars ----
   const strips = [];

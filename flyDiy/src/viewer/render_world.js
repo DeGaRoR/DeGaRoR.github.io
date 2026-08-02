@@ -259,16 +259,39 @@ function buildWorldScene(scene, world, renderer, camera) {
       m.receiveShadow = true;
       m.position.set(x, y, z); scene.add(m); return m;
     };
-    decal(1100, 30, 0x6b7a36, 0.05, -520, 0);            // strip (runway x +20 -> -1060)
-    for (let i = 0; i < 7; i++)                          // mowing stripes
-      decal(1100, 3.4, i % 2 ? 0x77873b : 0x5f6f2c, 0.09, -520, -10.5 + i * 3.5);
-    decal(1100, 0.9, 0x8e9a55, 0.13, -520, 12.5);
-    decal(1100, 0.9, 0x8e9a55, 0.13, -520, -12.5);
-    for (const [tx, sgn] of [[20, 1], [-1060, -1]])      // threshold bars
-      for (let k = 0; k < 5; k++)
-        decal(9, 1.5, 0xe9e4d6, 0.17, tx + sgn * 5, -8 + k * 4);
-    for (let i = 0; i < 37; i++)                         // centre dashes
-      decal(11, 0.6, 0xd9d3c0, 0.17, 5 - i * 29, 0);
+    { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
+      // the old per-marking decal stack (5..17 cm) was visibly floating and
+      // buried the foam trainer (14 cm tall) under its own runway markings.
+      const RW = 4096, RH = 128;                       // 1100x30 m -> ~3.7 px/m
+      const cv2 = document.createElement('canvas'); cv2.width = RW; cv2.height = RH;
+      const q = cv2.getContext('2d');
+      const u = x => (x + 1070) / 1100 * RW, vv = z => (z + 15) / 30 * RH;
+      const uw = w => w / 1100 * RW, vw = w => w / 30 * RH;
+      q.fillStyle = '#6b7a36'; q.fillRect(0, 0, RW, RH);
+      for (let i = 0; i < 7; i++) {                    // mowing stripes
+        q.fillStyle = i % 2 ? '#77873b' : '#5f6f2c';
+        q.fillRect(0, vv(-10.5 + i * 3.5 - 1.7), RW, vw(3.4));
+      }
+      q.fillStyle = '#8e9a55';                         // edge lines
+      q.fillRect(0, vv(12.5 - 0.45), RW, vw(0.9));
+      q.fillRect(0, vv(-12.5 - 0.45), RW, vw(0.9));
+      q.fillStyle = '#e9e4d6';                         // threshold bars
+      for (const tx of [25, -1065]) for (let k = 0; k < 5; k++)
+        q.fillRect(u(tx - 4.5), vv(-8 + k * 4 - 0.75), uw(9), vw(1.5));
+      q.fillStyle = '#d9d3c0';                         // centre dashes
+      for (let i = 0; i < 37; i++)
+        q.fillRect(u(5 - i * 29 - 5.5), vv(-0.3), uw(11), vw(0.6));
+      const rtex = new THREE.CanvasTexture(cv2);
+      rtex.encoding = THREE.sRGBEncoding;
+      rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(1100, 30),
+        new THREE.MeshLambertMaterial({ map: rtex, depthWrite: false }));
+      strip.rotation.x = -Math.PI / 2;
+      strip.position.set(-520, 0.02, 0);
+      strip.renderOrder = 2;
+      strip.receiveShadow = true;
+      scene.add(strip);
+    }
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
     const markMat = new THREE.MeshLambertMaterial({ color: C(0xe4dccb) });
@@ -312,10 +335,10 @@ function buildWorldScene(scene, world, renderer, camera) {
       p.castShadow = true; p.receiveShadow = true; scene.add(p);
     }
 
-    // apron + taxiway
-    decal(66, 24, 0xa89a80, 0.06, 44, 48);
-    decal(15, 40, 0xa89a80, 0.07, 40, 36);
-    decal(66, 0.5, 0x8c7f68, 0.08, 44, 36.2);
+    // apron + taxiway (kept as decals, but low — the tall stack showed)
+    decal(66, 24, 0xa89a80, 0.02, 44, 48);
+    decal(15, 40, 0xa89a80, 0.03, 40, 36);
+    decal(66, 0.5, 0x8c7f68, 0.04, 44, 36.2);
 
     const prop = (geo, mat, x, y, z, ry = 0, rz = 0) => {
       const m = new THREE.Mesh(geo, mat);

@@ -59,6 +59,9 @@ Failed checks are listed by label. Gates use PERTURBED starts (lateral offset
 + velocity noise) on purpose: symmetric ICs mask directional instabilities.
 The battery is deterministic — full-output log diffs are a valid checkpoint
 and the cheapest regression instrument this project has.
+The harness auto-appends a settle-uprightness check (max lateral node drift
+from def geometry after settle, net of the perturbation shift, < 0.25 m) —
+added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: DC-3 dominates (~50 s of ~140 s total).
 
 ## AXES & SIGNS (the rudder saga lives here — reread twice)
@@ -123,6 +126,19 @@ Runtimes: DC-3 dominates (~50 s of ~140 s total).
    boom whip).
 9. Material strain limits (empirical fleet table): steel/alu chassis ~6%,
    wood 6%, fabric+tube 11.5%, foam 16%. Gear beams separately, ~40%.
+10. **Near-axial truss chains have second-order torsion/lateral stiffness and
+   can LATCH.** The Chinook tail fell on its side and stayed there with every
+   structural strain under 0.8% — no strain gate can see a mechanism. Reset
+   levels the aircraft on its mains, so a taildragger's tail slams down
+   through the full deck angle every reset: that impact is what kicks
+   latch-prone geometry over its catch point (chinook boom torsion; drone
+   tailwheel tripod folding UP until the bare tail post rested on the
+   terrain). Cures are geometric and need MEASURED trials (probe with a
+   lateral force, release, check elastic return): wide triangulated anchors
+   (fin<->stab wires + stab<->tailwheel pyramid + boom->wing-box wires), a
+   snap-blocking near-vertical member (drone TW->TPT), never more K. Wires
+   that anchor to strip-force-carrying nodes re-rig the aeroelastics — anchor
+   to box nodes (WB) and keep them soft.
 
 ## AUTOPILOT RULES
 - **Gains scale with airframe timescale ~ span/V.** Cub 0.41, DC-3 0.41,
@@ -190,7 +206,7 @@ fiches fall back to ENG — keep that fallback when adding aircraft.
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
-| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 86 m / ldg 91 m |
+| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 94 m / ldg 119 m (re-anchored 2026-08: pre-bracing 86/91 was measured with the tail lying on the ground; ldg vs book ~90 m is now an OPEN divergence for the flaps/brake sessions) |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
@@ -199,6 +215,25 @@ fiches fall back to ENG — keep that fallback when adding aircraft.
 Notable fiche quirks: Chinook is a PUSHER (wing wash=0, tail wash 0.6, thrust
 line above CG = power pitches DOWN). C172 prop refit to cruise-pitch reality
 (Ts 2290, flat curve). Drone flies on blown tail only.
+
+## DIVERGENCE LEDGER (model vs reference — what the roadmap buys, per line)
+Living table: every roadmap session must close or re-anchor its lines and add
+new references where marked TBD. "Session" = roadmap entry that addresses it.
+| Aircraft | Metric | Model | Reference | Session |
+|---|---|---|---|---|
+| all | approach speed | 1.25·Vs CLEAN (no flaps exist) | type-specific flapped approach | 2 |
+| all | flare/float behaviour | no ground effect | — | 1 |
+| all | crosswind ops | impossible (no wind) | — | 3 |
+| Chinook | landing roll | 119 m | book ~90 m (TBD exact brochure figure) | 1+2 (+brake retune) |
+| Chinook | glide | 9.8:1 | book 10:1 (gap = no windmilling-prop drag, honest cut) | rider (energy/jets) |
+| DC-3 | unstick run | ~1000 m | real ~450-600 m loaded (TBD source) | 1+2 |
+| DC-3 | wheel-landing speed | 152 km/h | real ~120-135 km/h flapped (TBD) | 2 |
+| DC-3 | Vs | 32.8 m/s | book 34.5 m/s (-5%, accepted M1) | watch at 1 |
+| C172 | landing distance | not comparable (clean) | POH ~175 m ground roll flaps 30 | 2 |
+| C172 | Vmax | 123 KTAS | POH 126 (-2.4%, accepted) | — |
+| Jodel | approach targets | clean only | MV blog speeds (to extract) | 2 |
+| Cub | Vs / top speed | 54 / ~121 km/h | commonly cited ~61 / ~140 km/h — RE-SOURCE before touching; M1 accepted current values | audit at 1 |
+| Drone | Vs | 6.4 m/s | design 6.5-7 (ok) | — |
 
 ## HONEST CUTS (unchanged)
 Analytic polars (no Re), global-AR induced drag per strip, no ground effect,
@@ -260,8 +295,18 @@ fleet table re-anchored if physics moved.
    measures xLiftoff/xTD/xStop — promote to scored, gated numbers. Proves the
    mod pathway.
 
+6. **Jet module + SubSonex JSX-2 fiche** — new powerplant TYPE in the
+   registry: jet thrust is ~flat with V at low Mach (the prop law
+   Ts − kV2·V² is wrong for it), spool-lag module (idle→full ~3-4 s,
+   spool-aware AP go-around margins), idle residual thrust in the glide,
+   NO propwash (every blown-surface term gets zero — the drone flies on wash
+   alone; the SubSonex is the opposite extreme, control authority must come
+   from speed), Vmax dive stress case. TJ-100 class ~1.1 kN static. Vmax
+   ~390 km/h stays under M0.35 — still no compressibility. High wing loading
+   + speed = the two-spar torsion-box final exam. New fiche + gate + stress
+   entry + button per ritual.
+
 Riders: energy module (fuel burn + electric packs; refresh mass-derived contact
 arrays ~1 Hz, NOT per-substep) fits session 2 or 5. Then: gliders (atmosphere
-is the feature; winch trivial, aerotow deferred; high-AR wing = structural final
-exam), small jets (registry + spool-lag module + Vmax dive stress case + spool-
-aware AP margins).
+is the feature; winch trivial, aerotow deferred; high-AR wing = structural
+final exam).

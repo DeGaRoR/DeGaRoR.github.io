@@ -29,6 +29,16 @@ function runCircuit(cfg) {
   // mandatory asymmetric start: symmetric ICs mask directional instabilities
   for (let i = 0; i < sim.n; i++) { sim.p[i*3+2] += perturb.z; sim.v[i*3+2] += perturb.v * Math.sin(i * 2.7); }
   for (let s0 = 0; s0 < settleS * 60; s0++) sim.step(1/60);
+  // settle-uprightness instrument: max lateral node drift from def geometry,
+  // net of the rigid perturbation shift. Catches a tail falling on its side
+  // (chinook 2026-08: fin drifted 1.5 m with all structural strains <0.8% —
+  // a latch mechanism no strain gate could see).
+  let meanDz = 0;
+  for (let i = 0; i < sim.n; i++) meanDz += sim.p[i*3+2] - def.nodes[i].p[2];
+  meanDz /= sim.n;
+  let zDrift = 0;
+  for (let i = 0; i < sim.n; i++)
+    zDrift = Math.max(zDrift, Math.abs(sim.p[i*3+2] - def.nodes[i].p[2] - meanDz));
   const ap = makeAutopilot(sim, def);
 
   const iW0 = def.nodes.findIndex(n => n.tag === tip.tag && Math.abs(n.p[2] - tip.midZ) < tip.tol && n.p[2] > 0);
@@ -79,6 +89,7 @@ function runCircuit(cfg) {
   console.log(out.join('\n'));
 
   const results = checks(ctx);
+  results['settled upright (zDrift<0.25m)'] = zDrift < 0.25;
   const failed = Object.keys(results).filter(k => !results[k]);
   if (failed.length) console.log(`FAILED CHECKS: ${failed.join(', ')}`);
   const pass = failed.length === 0;

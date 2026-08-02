@@ -42,12 +42,15 @@ function buildChinook() {
   const EM = N(2.05, 1.42, 0, 30, 'ENG');
   B(EM, P[2].T); B(EM, P[2].ML); B(EM, P[2].MR); B(EM, P[1].T);
 
-  // ---- poutre monotube : tube triangulaire fin (8 cm) jusqu a l empennage
+  // ---- poutre monotube : tube triangulaire jusqu a l empennage.
+  // Section 20 cm (le vrai tube est gros) — la section 8 cm etait un mecanisme
+  // en flexion laterale (depth/bay 7%, regle structurelle 5) : la queue,
+  // pendule inverse sur la roulette, tombait sur le cote a l arret.
   const boomY = 1.08;
   const bTri = (x, m) => {
-    const T = N(x, boomY + 0.05, 0, m, 'BOOM');
-    const L = N(x, boomY - 0.03, -0.045, m, 'BOOM');
-    const R = N(x, boomY - 0.03, 0.045, m, 'BOOM');
+    const T = N(x, boomY + 0.10, 0, m, 'BOOM');
+    const L = N(x, boomY - 0.07, -0.10, m, 'BOOM');
+    const R = N(x, boomY - 0.07, 0.10, m, 'BOOM');
     BB(T, L); BB(T, R); BB(L, R);
     return { T, L, R };
   };
@@ -60,6 +63,10 @@ function buildChinook() {
   BB(P[2].T, B1.T); BB(P[2].ML, B1.L); BB(P[2].MR, B1.R);
   BB(P[2].T, B1.L); BB(P[2].T, B1.R); BB(P[2].ML, B1.T); BB(P[2].MR, B1.T);
   BB(P[1].T, B1.T); BB(EM, B1.T); BB(EM, B1.L); BB(EM, B1.R);
+  // jurys d emplanture vers les coins bas du pod : raideur de roulis du 1er
+  // ordre a la racine (les liaisons quasi axiales seules laissaient la poutre
+  // se vriller de 16 deg a la racine quand la queue retombe au reset)
+  BB(B1.L, P[2].BL); BB(B1.R, P[2].BR);
   link(B1, B2); link(B2, B3);
 
   // ---- aile haute haubanee, corde constante 1.22, fleche nulle
@@ -91,7 +98,7 @@ function buildChinook() {
     // haubans vers le bas du pod — grand bras vertical
     const sb = sgn > 0 ? P[1].BR : P[1].BL, sb2 = sgn > 0 ? P[2].BR : P[2].BL;
     BW(sb, WF[1]); BW(sb2, WR[1]); BW(sb, WR[1]); BW(sb2, WF[1]); BW(sb, BF[1]);
-    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR };
+    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR, B: BF };
   };
   mkWing(+1); mkWing(-1);
 
@@ -115,6 +122,19 @@ function buildChinook() {
   BB(HTR, B3.T); BB(HTR, B3.R); BB(HTR, B2.T); BB(HTR, B2.R);
   const FIN = N(5.15, boomY + 0.95, 0, 2.5, 'FIN');
   BB(FIN, B3.T); BB(FIN, B2.T); BB(FIN, B3.L); BB(FIN, B3.R);
+  // haubans d empennage (comme le vrai) : derive <-> saumons de stab.
+  // Sans eux l empennage est un mecanisme en roulis (ressorts axiaux quasi
+  // paralleles a x = raideur du 2e ordre) et la queue tombe sur le cote.
+  BB(FIN, HTL); BB(FIN, HTR);
+  // ...et les deux autres cotes de la pyramide + ancrage large vers l aile.
+  // Mesure (probe 2026-08): CHAQUE jeu seul laisse la queue se coucher en
+  // se verrouillant; les deux ensemble la font revenir droite elastiquement.
+  // Ancrage sur les noeuds BAS du caisson (WB, pas de charge de bande) et
+  // SOUPLE (1.2e5): assez pour retenir ~20 N.m de chute statique, trop mou
+  // pour brider l aeroelasticite en vol (en 6e5 sur le longeron AR: battement
+  // ampute de moitie, roulages TO/ldg derives de 10-30%).
+  BB(HTL, TW); BB(HTR, TW);
+  B(B3.T, wf.L.B[1], 1.2e5, 60); B(B3.T, wf.R.B[1], 1.2e5, 60);
 
   // ---- bandes : pusher -> AUCUN souffle sur l aile, souffle sur l empennage
   const strips = [];

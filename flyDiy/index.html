@@ -617,12 +617,15 @@ function buildChinook() {
   const EM = N(2.05, 1.42, 0, 30, 'ENG');
   B(EM, P[2].T); B(EM, P[2].ML); B(EM, P[2].MR); B(EM, P[1].T);
 
-  // ---- poutre monotube : tube triangulaire fin (8 cm) jusqu a l empennage
+  // ---- poutre monotube : tube triangulaire jusqu a l empennage.
+  // Section 20 cm (le vrai tube est gros) — la section 8 cm etait un mecanisme
+  // en flexion laterale (depth/bay 7%, regle structurelle 5) : la queue,
+  // pendule inverse sur la roulette, tombait sur le cote a l arret.
   const boomY = 1.08;
   const bTri = (x, m) => {
-    const T = N(x, boomY + 0.05, 0, m, 'BOOM');
-    const L = N(x, boomY - 0.03, -0.045, m, 'BOOM');
-    const R = N(x, boomY - 0.03, 0.045, m, 'BOOM');
+    const T = N(x, boomY + 0.10, 0, m, 'BOOM');
+    const L = N(x, boomY - 0.07, -0.10, m, 'BOOM');
+    const R = N(x, boomY - 0.07, 0.10, m, 'BOOM');
     BB(T, L); BB(T, R); BB(L, R);
     return { T, L, R };
   };
@@ -635,6 +638,10 @@ function buildChinook() {
   BB(P[2].T, B1.T); BB(P[2].ML, B1.L); BB(P[2].MR, B1.R);
   BB(P[2].T, B1.L); BB(P[2].T, B1.R); BB(P[2].ML, B1.T); BB(P[2].MR, B1.T);
   BB(P[1].T, B1.T); BB(EM, B1.T); BB(EM, B1.L); BB(EM, B1.R);
+  // jurys d emplanture vers les coins bas du pod : raideur de roulis du 1er
+  // ordre a la racine (les liaisons quasi axiales seules laissaient la poutre
+  // se vriller de 16 deg a la racine quand la queue retombe au reset)
+  BB(B1.L, P[2].BL); BB(B1.R, P[2].BR);
   link(B1, B2); link(B2, B3);
 
   // ---- aile haute haubanee, corde constante 1.22, fleche nulle
@@ -666,7 +673,7 @@ function buildChinook() {
     // haubans vers le bas du pod — grand bras vertical
     const sb = sgn > 0 ? P[1].BR : P[1].BL, sb2 = sgn > 0 ? P[2].BR : P[2].BL;
     BW(sb, WF[1]); BW(sb2, WR[1]); BW(sb, WR[1]); BW(sb2, WF[1]); BW(sb, BF[1]);
-    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR };
+    wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR, B: BF };
   };
   mkWing(+1); mkWing(-1);
 
@@ -690,6 +697,19 @@ function buildChinook() {
   BB(HTR, B3.T); BB(HTR, B3.R); BB(HTR, B2.T); BB(HTR, B2.R);
   const FIN = N(5.15, boomY + 0.95, 0, 2.5, 'FIN');
   BB(FIN, B3.T); BB(FIN, B2.T); BB(FIN, B3.L); BB(FIN, B3.R);
+  // haubans d empennage (comme le vrai) : derive <-> saumons de stab.
+  // Sans eux l empennage est un mecanisme en roulis (ressorts axiaux quasi
+  // paralleles a x = raideur du 2e ordre) et la queue tombe sur le cote.
+  BB(FIN, HTL); BB(FIN, HTR);
+  // ...et les deux autres cotes de la pyramide + ancrage large vers l aile.
+  // Mesure (probe 2026-08): CHAQUE jeu seul laisse la queue se coucher en
+  // se verrouillant; les deux ensemble la font revenir droite elastiquement.
+  // Ancrage sur les noeuds BAS du caisson (WB, pas de charge de bande) et
+  // SOUPLE (1.2e5): assez pour retenir ~20 N.m de chute statique, trop mou
+  // pour brider l aeroelasticite en vol (en 6e5 sur le longeron AR: battement
+  // ampute de moitie, roulages TO/ldg derives de 10-30%).
+  BB(HTL, TW); BB(HTR, TW);
+  B(B3.T, wf.L.B[1], 1.2e5, 60); B(B3.T, wf.R.B[1], 1.2e5, 60);
 
   // ---- bandes : pusher -> AUCUN souffle sur l aile, souffle sur l empennage
   const strips = [];
@@ -1109,7 +1129,11 @@ function buildDrone() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 420, C_G = 9;
+  // K_G 420 -> 1100 (2026-08): the wire legs collapsed in the reset ground-eject
+  // and the bare TPB tail node ended up resting ON the terrain with the
+  // tailwheel floating 17 mm above it. C_G stays 9: the 10 g TW node is at the
+  // c*dt/m damping limit already.
+  const K_F = 3000, C_F = 3.5, K_W = 25000, C_W = 11, K_G = 1100, C_G = 9;
   const B = (a, b, k = K_F, c = C_F) => beams.push({ a, b, k, c, gear: k === K_G });
   const BW = (a, b) => B(a, b, K_W, C_W);
   const BG = (a, b) => B(a, b, K_G, C_G);
@@ -1190,6 +1214,10 @@ function buildDrone() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(0.88, -0.005, 0, 0.010, 'TW', 0.015);
   BG(TW, TPB); BG(TW, S3.BL); BG(TW, S3.BR);
+  // near-vertical member: without it the shallow leg tripod snap-throughs
+  // during the reset ground-eject and latches FOLDED UP (TW above the tail
+  // post, bare TPB resting on the terrain) — the Jodel rule-7 pathology.
+  BG(TW, TPT);
 
   // ---- aero strips: chord 0.25, spar weights c/4 between 15%/60% spars ----
   const strips = [];
@@ -2149,16 +2177,39 @@ function buildWorldScene(scene, world, renderer, camera) {
       m.receiveShadow = true;
       m.position.set(x, y, z); scene.add(m); return m;
     };
-    decal(1100, 30, 0x6b7a36, 0.05, -520, 0);            // strip (runway x +20 -> -1060)
-    for (let i = 0; i < 7; i++)                          // mowing stripes
-      decal(1100, 3.4, i % 2 ? 0x77873b : 0x5f6f2c, 0.09, -520, -10.5 + i * 3.5);
-    decal(1100, 0.9, 0x8e9a55, 0.13, -520, 12.5);
-    decal(1100, 0.9, 0x8e9a55, 0.13, -520, -12.5);
-    for (const [tx, sgn] of [[20, 1], [-1060, -1]])      // threshold bars
-      for (let k = 0; k < 5; k++)
-        decal(9, 1.5, 0xe9e4d6, 0.17, tx + sgn * 5, -8 + k * 4);
-    for (let i = 0; i < 37; i++)                         // centre dashes
-      decal(11, 0.6, 0xd9d3c0, 0.17, 5 - i * 29, 0);
+    { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
+      // the old per-marking decal stack (5..17 cm) was visibly floating and
+      // buried the foam trainer (14 cm tall) under its own runway markings.
+      const RW = 4096, RH = 128;                       // 1100x30 m -> ~3.7 px/m
+      const cv2 = document.createElement('canvas'); cv2.width = RW; cv2.height = RH;
+      const q = cv2.getContext('2d');
+      const u = x => (x + 1070) / 1100 * RW, vv = z => (z + 15) / 30 * RH;
+      const uw = w => w / 1100 * RW, vw = w => w / 30 * RH;
+      q.fillStyle = '#6b7a36'; q.fillRect(0, 0, RW, RH);
+      for (let i = 0; i < 7; i++) {                    // mowing stripes
+        q.fillStyle = i % 2 ? '#77873b' : '#5f6f2c';
+        q.fillRect(0, vv(-10.5 + i * 3.5 - 1.7), RW, vw(3.4));
+      }
+      q.fillStyle = '#8e9a55';                         // edge lines
+      q.fillRect(0, vv(12.5 - 0.45), RW, vw(0.9));
+      q.fillRect(0, vv(-12.5 - 0.45), RW, vw(0.9));
+      q.fillStyle = '#e9e4d6';                         // threshold bars
+      for (const tx of [25, -1065]) for (let k = 0; k < 5; k++)
+        q.fillRect(u(tx - 4.5), vv(-8 + k * 4 - 0.75), uw(9), vw(1.5));
+      q.fillStyle = '#d9d3c0';                         // centre dashes
+      for (let i = 0; i < 37; i++)
+        q.fillRect(u(5 - i * 29 - 5.5), vv(-0.3), uw(11), vw(0.6));
+      const rtex = new THREE.CanvasTexture(cv2);
+      rtex.encoding = THREE.sRGBEncoding;
+      rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(1100, 30),
+        new THREE.MeshLambertMaterial({ map: rtex, depthWrite: false }));
+      strip.rotation.x = -Math.PI / 2;
+      strip.position.set(-520, 0.02, 0);
+      strip.renderOrder = 2;
+      strip.receiveShadow = true;
+      scene.add(strip);
+    }
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
     const markMat = new THREE.MeshLambertMaterial({ color: C(0xe4dccb) });
@@ -2202,10 +2253,10 @@ function buildWorldScene(scene, world, renderer, camera) {
       p.castShadow = true; p.receiveShadow = true; scene.add(p);
     }
 
-    // apron + taxiway
-    decal(66, 24, 0xa89a80, 0.06, 44, 48);
-    decal(15, 40, 0xa89a80, 0.07, 40, 36);
-    decal(66, 0.5, 0x8c7f68, 0.08, 44, 36.2);
+    // apron + taxiway (kept as decals, but low — the tall stack showed)
+    decal(66, 24, 0xa89a80, 0.02, 44, 48);
+    decal(15, 40, 0xa89a80, 0.03, 40, 36);
+    decal(66, 0.5, 0x8c7f68, 0.04, 44, 36.2);
 
     const prop = (geo, mat, x, y, z, ry = 0, rz = 0) => {
       const m = new THREE.Mesh(geo, mat);
