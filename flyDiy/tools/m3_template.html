@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cub M3 — full circuit</title>
+<style>
+  :root { --bg:#0d1b2e; --ink:#c8d8ea; --dim:#5a7291;
+    --tension:#ff9a3c; --compress:#4fd8e8; --panel:rgba(13,27,46,.92); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:var(--bg);
+    font-family: ui-monospace,'Cascadia Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    color:var(--ink); }
+  #c { display:block; width:100%; height:100%; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none; }
+  #c:active { cursor:grabbing; }
+  .hud { position:fixed; top:0; left:0; right:0; padding:14px 18px;
+    display:flex; justify-content:space-between; pointer-events:none; }
+  .hud h1 { font-size:13px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
+  .hud h1 span { color:var(--dim); font-weight:400; }
+  #inst { font-size:12px; line-height:1.8; text-align:right; white-space:pre; color:var(--dim); }
+  #inst b { color:var(--ink); font-weight:600; font-size:14px; }
+  #phase { position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--tension);
+    text-align:center; }
+  .bar { position:fixed; bottom:0; left:0; right:0; padding:14px 18px; display:flex; gap:8px; }
+  button { font:inherit; font-size:12px; letter-spacing:.06em; background:transparent;
+    color:var(--ink); border:1px solid var(--dim); padding:7px 14px; cursor:pointer; border-radius:2px; }
+  button:hover { border-color:var(--ink); }
+  button:focus-visible { outline:2px solid var(--tension); outline-offset:2px; }
+  button.sel.on { border-color:var(--tension); color:var(--tension); }
+  .legend { margin-left:auto; font-size:11px; color:var(--dim); align-self:center; }
+  .legend i { display:inline-block; width:22px; height:2px; vertical-align:middle; margin:0 5px 0 12px; }
+  #telWrap { position:fixed; left:18px; bottom:58px; background:var(--panel);
+    border:1px solid var(--dim); border-radius:2px; padding:10px; display:none; }
+  #telWrap.show { display:block; }
+  #telWrap h2 { font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--dim); margin-bottom:6px; }
+  #tel { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <h1>PIPER J-3 · M3 <span>/ full circuit: takeoff · turnback · glideslope · flare · rollout</span></h1>
+  <div id="inst"></div>
+</div>
+<div id="phase">HOLDING</div>
+<div id="telWrap"><h2>Telemetry — altitude (cyan) · speed km/h (amber)</h2><canvas id="tel" width="460" height="180"></canvas></div>
+<div class="bar">
+  <button id="bCub" class="sel on">J-3 Cub</button>
+  <button id="bDrone" class="sel">Foam Trainer</button>
+  <button id="bDC3" class="sel">DC-3</button>
+  <button id="bJojo" class="sel">Jodel</button>
+  <button id="bC172" class="sel">C172</button>
+  <button id="bChnk" class="sel">Chinook</button>
+  <button id="bGo">Fly the circuit</button>
+  <button id="bReset">Reset</button>
+  <button id="bPause">Pause</button>
+  <button id="bTel">Telemetry</button>
+  <span class="legend">strain<i style="background:var(--compress)"></i>compression<i style="background:var(--tension)"></i>tension</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(() => {
+  const world = makeWorld();
+  const AIRCRAFT = { cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
+  let def, sim, ap, nb;
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0d1b2e);
+  scene.fog = new THREE.Fog(0x0d1b2e, 300, 1900);
+
+  const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
+  const target = new THREE.Vector3(2.2, 1, 0);
+  let az = -2.5, el = 0.22, dist = 14;
+  function placeCamera() {
+    camera.position.set(
+      target.x + dist * Math.cos(el) * Math.cos(az),
+      Math.max(0.4, target.y + dist * Math.sin(el)),
+      target.z + dist * Math.cos(el) * Math.sin(az));
+    camera.lookAt(target);
+  }
+
+  // ================= world rendering (shared generator) =================
+  scene.fog = new THREE.Fog(0x0d1b2e, 400, 2900);
+  scene.add(new THREE.HemisphereLight(0xaec6e8, 0x0a1626, 0.85));
+  const sun = new THREE.DirectionalLight(0xffe3b8, 0.75);
+  sun.position.set(-0.45, 0.8, -0.35);
+  scene.add(sun);
+
+  { // terrain mesh from world.terrainH, lit, height-banded colors
+    const SEG = 200, SIZE = 9000;
+    const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+    geo.rotateX(-Math.PI / 2);
+    const posA = geo.attributes.position, colA = [];
+    const bands = [[0, 0x14304e], [40, 0x1c3c5e], [130, 0x274c72],
+                   [260, 0x3c618a], [430, 0x6d8fb4]];
+    const cA = new THREE.Color(), cB = new THREE.Color();
+    for (let i = 0; i < posA.count; i++) {
+      const x = posA.getX(i), z = posA.getZ(i);
+      const h = world.terrainH(x, z);
+      posA.setY(i, h);
+      let k = 0;
+      while (k < bands.length - 1 && h > bands[k + 1][0]) k++;
+      cA.setHex(bands[k][1]);
+      if (k < bands.length - 1) {
+        cB.setHex(bands[k + 1][1]);
+        cA.lerp(cB, Math.min(1, Math.max(0, (h - bands[k][0]) / (bands[k + 1][0] - bands[k][0]))));
+      }
+      colA.push(cA.r, cA.g, cA.b);
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+    geo.computeVertexNormals();
+    scene.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE),
+      new THREE.MeshBasicMaterial({ color: 0x0a2036 }));
+    water.rotation.x = -Math.PI / 2; water.position.y = -0.4;
+    scene.add(water);
+  }
+
+  { // trees from the shared world list (these are the ones you can hit)
+    const geo = new THREE.ConeGeometry(1.7, 4.6, 6);
+    geo.translate(0, 2.3, 0);
+    const inst = new THREE.InstancedMesh(geo,
+      new THREE.MeshLambertMaterial({ color: 0xffffff }), world.trees.length);
+    const m4 = new THREE.Matrix4(), c3 = new THREE.Color();
+    world.trees.forEach((T, i) => {
+      m4.makeScale(T.s, T.s, T.s); m4.setPosition(T.x, T.h, T.z);
+      inst.setMatrixAt(i, m4);
+      c3.setHex(i % 2 ? 0x1e4066 : 0x275077);
+      inst.setColorAt(i, c3);
+    });
+    inst.instanceMatrix.needsUpdate = true;
+    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    scene.add(inst);
+  }
+
+  { // runway (polygon-offset decals: no z-fighting at distance), pylons, hangar, windsock
+    const mkDecal = (w, h, color, units) => new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color, polygonOffset: true,
+        polygonOffsetFactor: units, polygonOffsetUnits: units }));
+    const runway = mkDecal(1100, 12, 0x1a3050, -2);
+    runway.rotation.x = -Math.PI / 2; runway.position.set(-520, 0.02, 0);
+    scene.add(runway);
+    for (let i = 0; i < 38; i++) {
+      const d = mkDecal(12, 0.5, 0x3d608c, -4);
+      d.rotation.x = -Math.PI / 2; d.position.set(10 - i * 28, 0.03, 0);
+      scene.add(d);
+    }
+    const pylonGeo = new THREE.ConeGeometry(0.5, 1.6, 5);
+    const pylonMat = new THREE.MeshLambertMaterial({ color: 0x557ba3 });
+    for (let x = 0; x >= -1060; x -= 100) for (const zz of [7.5, -7.5]) {
+      const p = new THREE.Mesh(pylonGeo, pylonMat);
+      p.position.set(x, 0.8, zz); scene.add(p);
+    }
+    const hangar = new THREE.Mesh(new THREE.BoxGeometry(14, 5, 10),
+      new THREE.MeshLambertMaterial({ color: 0x1d3d61 }));
+    hangar.position.set(25, 2.5, 26); scene.add(hangar);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5),
+      new THREE.MeshBasicMaterial({ color: 0x5a7291 }));
+    pole.position.set(-1040, 2.5, 12); scene.add(pole);
+    const sock = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.2, 6),
+      new THREE.MeshBasicMaterial({ color: 0xff9a3c }));
+    sock.rotation.z = Math.PI / 2; sock.position.set(-1038.5, 4.6, 12); scene.add(sock);
+  }
+
+  { // landing meadows: pylon ring + amber beacon at terrain height
+    const beaconGeo = new THREE.ConeGeometry(1.2, 6, 6);
+    const ringGeo = new THREE.ConeGeometry(0.6, 2.0, 5);
+    for (const m of world.meadows) {
+      const b = new THREE.Mesh(beaconGeo, new THREE.MeshBasicMaterial({ color: 0xff9a3c }));
+      b.position.set(m.x, m.h + 3, m.z); scene.add(b);
+      for (let a = 0; a < 8; a++) {
+        const px = m.x + Math.cos(a / 8 * 6.283) * m.r * 0.55;
+        const pz = m.z + Math.sin(a / 8 * 6.283) * m.r * 0.55;
+        const p = new THREE.Mesh(ringGeo, new THREE.MeshLambertMaterial({ color: 0x557ba3 }));
+        p.position.set(px, world.terrainH(px, pz) + 1, pz); scene.add(p);
+      }
+    }
+  }
+
+  // ================= aircraft (rebuilt on selection) =================
+  let bGeo, bPos, bCol, lines, pGeo, pPos, pts;
+  function setAircraft(key) {
+    def = AIRCRAFT[key]();
+    sim = makeSim(def, world);
+    sim.reset(0);
+    ap = makeAutopilot(sim, def);
+    nb = sim.beams.length;
+    if (lines) { scene.remove(lines); lines.geometry.dispose(); }
+    if (pts) { scene.remove(pts); pts.geometry.dispose(); }
+    bGeo = new THREE.BufferGeometry();
+    bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
+    bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
+    bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lines.frustumCulled = false;
+    scene.add(lines);
+    pGeo = new THREE.BufferGeometry();
+    pPos = new Float32Array(sim.n * 3);
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
+      size: key === 'drone' ? 0.018 : 0.06 }));
+    pts.frustumCulled = false;
+    scene.add(pts);
+    dist = def.params.viewDist;
+  }
+
+  const cN = [0.34, 0.49, 0.69], cT = [1, 0.6, 0.24], cC = [0.31, 0.85, 0.91];
+  function sCol(s, o) {
+    const t = Math.min(Math.abs(s) / 0.02, 1), c = s > 0 ? cT : cC;
+    bCol[o] = cN[0]+(c[0]-cN[0])*t; bCol[o+1] = cN[1]+(c[1]-cN[1])*t; bCol[o+2] = cN[2]+(c[2]-cN[2])*t;
+  }
+  function sync() {
+    for (let i = 0; i < sim.n; i++) {
+      pPos[i*3] = sim.p[i*3]; pPos[i*3+1] = sim.p[i*3+1]; pPos[i*3+2] = sim.p[i*3+2];
+    }
+    for (let i = 0; i < nb; i++) {
+      const b = sim.beams[i], a3 = b.a*3, b3 = b.b*3, o = i*6;
+      bPos[o] = sim.p[a3]; bPos[o+1] = sim.p[a3+1]; bPos[o+2] = sim.p[a3+2];
+      bPos[o+3] = sim.p[b3]; bPos[o+4] = sim.p[b3+1]; bPos[o+5] = sim.p[b3+2];
+      sCol(b.strain, o); sCol(b.strain, o + 3);
+    }
+    pGeo.attributes.position.needsUpdate = bGeo.attributes.position.needsUpdate =
+      bGeo.attributes.color.needsUpdate = true;
+  }
+
+  // ================= interaction =================
+  const touches = new Map();
+  let px = 0, py = 0, pinch0 = 0, dist0 = 0;
+  canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 1) { px = e.clientX; py = e.clientY; }
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = dist;
+    }
+  });
+  const endTouch = e => touches.delete(e.pointerId);
+  canvas.addEventListener('pointerup', endTouch);
+  canvas.addEventListener('pointercancel', endTouch);
+  canvas.addEventListener('pointermove', e => {
+    if (!touches.has(e.pointerId)) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 1) {
+      az += (e.clientX - px) * 0.006; el += (e.clientY - py) * 0.006;
+      el = Math.max(-0.05, Math.min(1.4, el));
+      px = e.clientX; py = e.clientY;
+    } else if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch0 > 0) dist = Math.max(4, Math.min(200, dist0 * pinch0 / Math.max(20, d)));
+    }
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    dist = Math.max(4, Math.min(120, dist * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+
+  // ================= autopilot + telemetry =================
+  let running = true, started = false;
+  const tel = { t: [], alt: [], V: [], marks: [] };
+  let telAcc = 0, lastPhase = 'ROLL';
+  const phaseEl = document.getElementById('phase');
+  const telWrap = document.getElementById('telWrap');
+
+  function record(dt) {
+    telAcc += dt;
+    if (telAcc < 0.1) return;
+    telAcc = 0;
+    tel.t.push(ap.t); tel.alt.push(ap.dbg.alt || 0); tel.V.push((ap.dbg.V || 0) * 3.6);
+    if (ap.phase !== lastPhase) { tel.marks.push([ap.t, ap.phase]); lastPhase = ap.phase; }
+  }
+  function drawTel() {
+    const cv = document.getElementById('tel'), g = cv.getContext('2d');
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (tel.t.length < 2) return;
+    const t1 = tel.t[tel.t.length - 1], W = cv.width, H = cv.height;
+    const aMax = Math.max(20, ...tel.alt) * 1.1, vMax = Math.max(60, ...tel.V) * 1.1;
+    g.strokeStyle = '#2a4468'; g.beginPath();
+    g.moveTo(0, H - 0.5); g.lineTo(W, H - 0.5); g.stroke();
+    const line = (arr, max, color) => {
+      g.strokeStyle = color; g.beginPath();
+      for (let i = 0; i < tel.t.length; i++) {
+        const x = tel.t[i] / t1 * W, y = H - arr[i] / max * (H - 12);
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+    };
+    line(tel.alt, aMax, '#4fd8e8');
+    line(tel.V, vMax, '#ff9a3c');
+    g.fillStyle = '#5a7291'; g.font = '9px monospace';
+    for (const [tm, ph] of tel.marks) {
+      const x = tm / t1 * W;
+      g.fillRect(x, 0, 1, H);
+      g.save(); g.translate(x + 3, 10); g.rotate(Math.PI / 2); g.fillText(ph, 0, 0); g.restore();
+    }
+  }
+
+  function script(dt) {
+    if (!started) { phaseEl.textContent = 'HOLDING'; return; }
+    ap.update(dt);
+    record(dt);
+    let txt = ap.phase;
+    if (ap.phase === 'STOPPED' && ap.tdInfo) {
+      txt = `STOPPED — touchdown sink ${ap.tdInfo.sink.toFixed(2)} m/s at ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h, ${Math.abs(ap.tdInfo.z).toFixed(1)} m off centerline`;
+      telWrap.classList.add('show'); drawTel();
+    }
+    phaseEl.textContent = txt;
+  }
+
+  document.getElementById('bGo').onclick = () => { started = true; };
+  function fullReset() {
+    sim.reset(0); ap = makeAutopilot(sim, def); started = false;
+    tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
+    lastPhase = 'ROLL'; telWrap.classList.remove('show');
+    phaseEl.textContent = 'HOLDING';
+  }
+  document.getElementById('bReset').onclick = fullReset;
+  const selBtns = { cub: document.getElementById('bCub'), drone: document.getElementById('bDrone'),
+                    dc3: document.getElementById('bDC3'), jojo: document.getElementById('bJojo'), c172: document.getElementById('bC172'), chnk: document.getElementById('bChnk') };
+  for (const key of ['cub', 'drone', 'dc3', 'jojo', 'c172', 'chnk']) {
+    selBtns[key].onclick = () => {
+      setAircraft(key); fullReset();
+      for (const k in selBtns) selBtns[k].classList.toggle('on', k === key);
+      hud();
+    };
+  }
+  document.getElementById('bPause').onclick = e => {
+    running = !running; e.target.textContent = running ? 'Pause' : 'Run';
+  };
+  document.getElementById('bTel').onclick = () => {
+    telWrap.classList.toggle('show'); drawTel();
+  };
+
+  const inst = document.getElementById('inst');
+  function hud() {
+    const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = ap.dbg;
+    inst.innerHTML =
+      `IAS <b>${(o.V * 3.6).toFixed(0)}</b> km/h   ALT <b>${cg[1].toFixed(1)}</b> m   ` +
+      `VS ${o.vs >= 0 ? '+' : ''}${o.vs.toFixed(1)} m/s\n` +
+      `α ${(o.alpha * 57.3).toFixed(1)}°   bank ${((d.ph || 0) * 57.3).toFixed(1)}°   ` +
+      `AGL ${(d.agl || 0).toFixed(1)} m\n` +
+      `thr ${(c.thr * 100).toFixed(0)}%   elev ${(c.de * 57.3).toFixed(1)}°   ` +
+      `ail ${(c.da * 57.3).toFixed(1)}°   rud ${(c.dr * 57.3).toFixed(1)}°\n` +
+      `${def.params.name} — ${POWERPLANTS[def.params.powerplant].engine.name} · ` +
+      `${POWERPLANTS[def.params.powerplant].prop.name}\n` +
+      `${sim.n} nodes · ${nb} beams · ${sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg'}`;
+  }
+
+  setAircraft('cub');
+  function resize() {
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let frame = 0, wdFrame = 0;
+  function loop() {
+    requestAnimationFrame(loop);
+    if (running) {
+      script(1 / 60);
+      sim.step(1 / 60);              // substep rate is a per-aircraft property
+      if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
+        running = false;
+        phaseEl.textContent = 'SIM DIVERGED — press Reset';
+      }
+    }
+    const cg = sim.cgPos();
+    target.set(cg[0], cg[1], cg[2]);
+    placeCamera();
+    sync();
+    if (++frame % 6 === 0) hud();
+    renderer.render(scene, camera);
+  }
+  hud();
+  loop();
+})();
+</script>
+</body>
+</html>

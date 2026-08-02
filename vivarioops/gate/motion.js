@@ -638,6 +638,57 @@ export async function runMotionGate() {
     }
   });
 
+  // ── L1-45 · the cross-flow force points LEEWARD ───────────────────────────
+  g.assertion('L1-45', 'A plate at incidence is pushed toward its leeward side', (t) => {
+    // THIS ASSERTION EXISTS BECAUSE A TERM WAS DELETED, and it is the only thing
+    // standing between the corpus and that term being pasted back.
+    //
+    // The reference's lift block — Cl = 1.2|c|sqrt(1-c^2) applied along
+    // (u x n) x u — was ported on top of a drag term applied along -n. But -n
+    // ALREADY carries the cross-flow force: n = c*u + sqrt(1-c^2)*d, so
+    // F_drag = -mag*c*u - mag*sqrt(1-c^2)*d, and that second term IS lift. The
+    // ported block adds +1.2*mag*sqrt(1-c^2)*d — same axis, opposite sign.
+    // Measured with tools/_zplate.mjs: the combination cuts a plate's cross-flow
+    // force to 20% AND REVERSES it, ratio -0.200 at every incidence from 5 to
+    // 75 degrees. The term is gone; this keeps it gone.
+    //
+    // The invariant is SIGN-ONLY and unit-free, so it survives any later change
+    // to Cd, to the quadrature (C6.4), or to the unit system: a surface meeting
+    // flow obliquely is pushed toward the side its windward normal points away
+    // from — exactly as a hydrofoil lifts toward its suction side.
+    const dims = [2, 0.05, 2];   // big faces +-Y; the edge faces are 2.5% of them
+    const n = [0, 1, 0];         // windward normal for a positive incidence
+    for (const deg of [5, 15, 30, 45, 60, 75]) {
+      const a = (deg * Math.PI) / 180;
+      const u = [Math.cos(a), Math.sin(a), 0];
+      const plan = twoBodyPlan({ density: 1, dims });
+      plan.bodies.length = 1; plan.joints.length = 0; plan.bodyCount = 1; plan.jointCount = 0;
+      const sim = createSimulation(RAPIER, plan, testGenome(), { ...W1_SLICE, gravity: 0 },
+        { bounded: false, motorScale: 0 });
+      const rb = sim.bodies[0];
+      // Rotation locked: this is about the FORCE, and a free plate would tumble
+      // out of its own incidence inside one step.
+      rb.setEnabledRotations(false, false, false, true);
+      const m = rb.mass();
+      rb.setLinvel({ x: u[0], y: u[1], z: u[2] }, true);
+      rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      sim.step();
+      const v1 = rb.linvel();
+      const F = [
+        (m * (v1.x - u[0])) / FIXED_DT,
+        (m * (v1.y - u[1])) / FIXED_DT,
+        (m * (v1.z - u[2])) / FIXED_DT,
+      ];
+      const along = F[0] * u[0] + F[1] * u[1] + F[2] * u[2];
+      const crossN = (F[0] - along * u[0]) * n[0]
+                   + (F[1] - along * u[1]) * n[1]
+                   + (F[2] - along * u[2]) * n[2];
+      t.ok(along < 0, `${deg} deg: the along-flow component opposes motion`, along);
+      t.ok(crossN < 0, `${deg} deg: cross-flow pushes LEEWARD, not windward`, crossN);
+      sim.free();
+    }
+  });
+
   // ── L1-22 · nothing diverges ──────────────────────────────────────────────
   let diverged = 0, peakV = 0, peakW = 0;
   const peaks = [];

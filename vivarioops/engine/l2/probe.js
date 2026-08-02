@@ -399,11 +399,21 @@ export function straightness(trace, from, to, horizontal = true) {
  *   bodyLengthsPerSecond = U / L        a fish does 1-10; the corpus does ~0.002
  *   stride               = U / (f * L)  body lengths advanced per beat; fish 0.5-1.0
  *
- * Strouhal (f * A / U, which needs the tail peak-to-peak throw A) is the third of
- * the trio and stays in tools/_zstrouhal.mjs: A needs a tail-tip channel the
- * trace does not carry, and St is out of B3 scope — it is pinned near 1 until the
- * fluid model changes (C6). This is the single implementation of the two that ARE
- * first-class; the tool reads L/s through it too so there is one formula.
+ * Strouhal (f * A / U) stays in tools/_zstrouhal.mjs, and it is a DIAGNOSTIC —
+ * never a target. The 0.2-0.4 band efficient animals occupy is a WAKE optimum: it
+ * comes out of reverse von Karman vortex spacing, and this model has no shed
+ * vorticity, no circulation and no history force, so no mechanism here would put
+ * an optimum there. "Get St into 0.2-0.4" is chasing a number the physics cannot
+ * produce. Read a high St as what it is — beating hard and going nowhere — and
+ * stop there.
+ *
+ * The dimensionless number this model DOES predict is SLIP, U/V_wave against
+ * resistive-force theory's thrust ~ (1 - U/V) and Froude efficiency ~ (1 + U/V)/2.
+ * Measured in tools/_wave.mjs. Current corpus: U/V = 0.00-0.04 against a real
+ * anguilliform swimmer's 0.5-0.8.
+ *
+ * This is the single implementation of the two that ARE first-class; the tool
+ * reads L/s through it too so there is one formula.
  */
 export function swimMetrics(U, f, L) {
   return {

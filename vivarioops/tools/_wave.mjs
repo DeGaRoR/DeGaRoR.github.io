@@ -14,6 +14,28 @@
 // With that body available, sweep the phase lag against the actuator settings.
 // A pi/2 travelling wave must beat unison on efficiency; that is a property of
 // the fluid model, and it is the sharpest cheap check we have of it.
+//
+// ── SLIP, and why it replaces Strouhal as the number to steer by (C6.5) ───────
+//
+// St 0.2-0.4 is the band efficient animals occupy, and tools/_zstrouhal.mjs
+// measures it — but it is a WAKE optimum. It comes out of reverse von Karman
+// vortex spacing, and this model has no shed vorticity, no circulation and no
+// history force: every limb meets undisturbed fluid. There is therefore NO
+// MECHANISM here that would place an optimum at 0.25, and treating St as a target
+// is chasing a number the physics cannot produce. Read it as a diagnostic
+// ("beating hard, going nowhere") and never as an acceptance criterion.
+//
+// What this model DOES predict is SLIP. For a travelling wave of speed
+//     V_wave = omega * ell / dphi        (ell = segment spacing, dphi = achieved
+//                                         inter-joint lag, in radians)
+// resistive-force theory gives thrust proportional to (1 - U/V) and a Froude
+// efficiency of about (1 + U/V)/2. Real anguilliform swimmers sit at U/V ~ 0.5-0.8.
+// That is a first-principles prediction of the shipped law, so it is the honest
+// thing to hold the fluid model to.
+//
+// NOTE the two efficiencies are NOT the same quantity and are not compared here:
+// `eff` below is net/path, a measure of how STRAIGHT the centre of mass travels.
+// `etaRFT` is the theoretical Froude efficiency implied by the measured slip.
 import RAPIER from '@dimforge/rapier3d-compat';
 import { morphogenesis } from '../engine/l1/morphogen.js';
 import { createSimulation, FIXED_DT, swingTwistAngle } from '../engine/l1/physics.js';
@@ -93,9 +115,28 @@ function trial(genome, opts) {
   const mean = steps.length ? steps.reduce((a, b) => a + b, 0) / steps.length : NaN;
   const sd = steps.length ? Math.sqrt(steps.reduce((a, b) => a + (b - mean) ** 2, 0) / steps.length) : NaN;
   const net = Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]);
+
+  // SLIP. ell is the mean spacing between consecutive body centres, taken from
+  // the built plan rather than the gene, so the taper is included. dphi is the
+  // ACHIEVED lag, not the commanded one — the actuator does not deliver what it
+  // is told and the wave that matters is the one the body actually carries.
+  // Unison is the degenerate case: dphi -> 0 is an infinite-speed wave, so slip
+  // -> 0, which is correct and is why unison generates no thrust.
+  let ell = 0;
+  for (let i = 1; i < plan.bodies.length; i++) {
+    const a = plan.bodies[i - 1].position, b = plan.bodies[i].position;
+    ell += Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  }
+  ell /= Math.max(1, plan.bodies.length - 1);
+  const dphi = Math.abs(mean) * Math.PI / 180;
+  const U = net / SEC;
+  const vWave = dphi > 1e-4 ? (genome.controller.omega * ell) / dphi : Infinity;
+  const slip = Number.isFinite(vWave) && vWave > 0 ? U / vWave : 0;
+
   return {
-    bodies: plan.bodyCount, net: net / SEC, com: path / SEC,
+    bodies: plan.bodyCount, net: U, com: path / SEC,
     eff: net / Math.max(path, 1e-9), work, lagMean: mean, lagSd: sd,
+    ell, vWave, slip, etaRFT: (1 + slip) / 2,
   };
 }
 
@@ -110,13 +151,14 @@ const LAGS = [['unison  0 ', 0], ['pi/4     ', Math.PI / 4], ['pi/2     ', Math.
 
 for (const [label, opts] of CONFIGS) {
   console.log(`\n=== ${label} ===`);
-  console.log('  lag        bodies   net m/s   CoM m/s     eff    achieved inter-joint lag');
+  console.log('  lag       bodies  net cm/s  CoM cm/s    eff   V_wave    U/V   etaRFT   achieved lag');
   let unison = null;
   for (const [lname, lag] of LAGS) {
     const r = trial(serpent({ lag }), opts);
     if (r.err) { console.log(`  ${lname}  ERROR ${r.err}`); continue; }
     if (lag === 0) unison = r.eff;
-    console.log(`  ${lname}   ${String(r.bodies).padStart(4)}   ${r.net.toFixed(4).padStart(7)}   ${r.com.toFixed(3).padStart(7)}   ${r.eff.toFixed(3).padStart(6)}    ${r.lagMean.toFixed(0).padStart(5)} +/- ${r.lagSd.toFixed(0)} deg`);
+    const vw = Number.isFinite(r.vWave) ? r.vWave.toFixed(2) : '  inf';
+    console.log(`  ${lname}  ${String(r.bodies).padStart(4)}  ${r.net.toFixed(4).padStart(8)}  ${r.com.toFixed(3).padStart(8)}  ${r.eff.toFixed(3).padStart(5)}  ${vw.padStart(6)}  ${r.slip.toFixed(3).padStart(5)}  ${r.etaRFT.toFixed(3).padStart(6)}   ${r.lagMean.toFixed(0).padStart(4)} +/- ${r.lagSd.toFixed(0)} deg`);
   }
   const half = trial(serpent({ lag: Math.PI / 2 }), opts);
   if (!half.err && unison) console.log(`  --> pi/2 beats unison on efficiency by ${(half.eff / unison).toFixed(2)}x`);

@@ -165,6 +165,10 @@
     .type-choice:nth-child(n+4){grid-column:auto}
   }
   @media(max-width:390px){.tool{min-width:38px}.dock{gap:3px;padding:5px}.tool span{font-size:16px}}
+
+  /* back to the experiments hub */
+  .backchev{font-size:19px;line-height:1;opacity:.4;margin:0 -2px 0 1px;transition:opacity .15s}
+  a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
 </style>
 </head>
 <body>
@@ -172,10 +176,11 @@
   <canvas id="world" aria-label="Lumen Society simulation"></canvas>
 
   <div class="topbar">
-    <div class="brand">
+    <a class="brand" href="index.html" title="Back to the experiments" style="text-decoration:none;color:inherit">
+      <span class="backchev">‹</span>
       <div class="brandmark"></div>
       <div><strong>Lumen Society</strong><small>social cybernetics sandbox</small></div>
-    </div>
+    </a>
     <div class="top-actions">
       <button class="pillbtn" id="recipeBtn">Scenes</button>
       <button class="iconbtn active" id="pauseBtn" title="Pause / play">Ⅱ</button>

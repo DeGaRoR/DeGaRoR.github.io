@@ -12,6 +12,14 @@
 //         above that — it is slipping, and the wasted lateral motion is exactly
 //         the wobble that broke turnRate3d and drowns the steering signal.
 //
+//         ST IS A DIAGNOSTIC HERE, NOT A TARGET (C6.5). The 0.2-0.4 band is a WAKE
+//         optimum — reverse von Karman vortex spacing — and this model has no shed
+//         vorticity, no circulation and no history force. Nothing in it would
+//         place an optimum at 0.25, so "tune until St lands in the band" is
+//         chasing a number the physics cannot produce. A high St still MEANS
+//         something real (beating hard, going nowhere); the band does not.
+//         The number this model does predict is slip, U/V_wave — tools/_wave.mjs.
+//
 // THE HYPOTHESIS (flagged as one): a single mis-tuned constant — the controller's
 // `omega` — puts the whole corpus near St ~ 2, and dropping it would raise speed
 // while lowering St toward the efficient band. If so the slowness, the wobble and

@@ -457,8 +457,15 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // torque pay), not the 17x an across-the-board motorScale would cost.
   const budgetScale = opts.budgetScale ?? 6;
 
-  /** The reference's lift term. Off by default until it earns the default. */
-  const LIFT = opts.lift ?? false;
+  /**
+   * ADDED MASS (C6.2). OFF until it is measured and the corpus is re-frozen —
+   * turning it on is a worldHash-affecting physics change, because it moves every
+   * recorded capability. The derivation is at the body-construction site below.
+   * `addedMassScale` exists so the sweep can find out how much of it the rest of
+   * the model can carry, not as a tuning dial to leave at a fractional value.
+   */
+  const addedMass = opts.addedMass ?? false;
+  const addedMassScale = opts.addedMassScale ?? 1;
 
   const fits = fitsTank(plan, world);
 
@@ -496,6 +503,70 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         .setFriction(world.floor.friction),
       rb,
     );
+    // ── ADDED MASS (C6.2) — opt-in until it is measured ──────────────────────
+    //
+    // The single largest physical omission in the fluid model. A body accelerating
+    // through water drags fluid with it, and for a flat plate that fluid outweighs
+    // the plate several times over. Without it, limbs are far too cheap to flick:
+    // a correctly-sized muscle spins a fin to speeds real water forbids, which is
+    // the peak-speed tail that STABLE_SPEED exists to cap. Added mass is the
+    // missing PHYSICAL damper; the clamp has been standing in for it.
+    //
+    // IT GOES IN THE MASS MATRIX, NEVER AS A FORCE. An explicit added-mass force
+    // with m_added > m is unconditionally unstable; solved inside the mass matrix
+    // it is unconditionally stable, which is why Rapier's own API is the right
+    // home for it.
+    //
+    // TRANSLATION, per axis, from the flat-plate limit: a face (dj, dk)
+    // accelerating along its normal drags a slab of fluid of order
+    // (pi/4)*min(dj,dk) thick, so
+    //       mAdd_i = rho_f * (pi/4) * dj * dk * min(dj, dk)
+    // Right where it matters (a thin fin) and an OVERESTIMATE for a compact body:
+    // a cube gets 0.785*rho*d^3 against a sphere's 0.5*rho*V = 0.26*rho*d^3.
+    // Rapier's translational added mass is a SCALAR, so the minimum over the three
+    // axes is used — conservative, and for a plate that is the edgewise value,
+    // which is nearly nothing. THE TRANSLATIONAL TERM IS THEREFORE ALMOST INERT
+    // FOR FINS. That is a known limitation of the scalar API, not an oversight.
+    //
+    // ROTATION is where the effect actually lives, and Rapier takes it
+    // ANISOTROPICALLY, so this part can be right. Treating each perpendicular
+    // added-mass distribution as a uniform sheet swept about the axis:
+    //       IAdd_i = mAdd_j * dk^2/12 + mAdd_k * dj^2/12
+    // For a 2 x 0.05 x 2 plate about its in-plane axis that is ~31x the plate's
+    // own inertia — which is correct, and is exactly the "limbs too cheap to
+    // flick" number.
+    //
+    // The local frame is `b.rotation`: the body is spawned world-aligned and the
+    // limb's orientation is carried by the collider (see above), so the added
+    // inertia must be expressed in the limb's frame, not the body's.
+    if (addedMass) {
+      const d = b.dims;
+      const K = Math.PI / 4;
+      const mA = [
+        world.mediumDensity * K * d[1] * d[2] * Math.min(d[1], d[2]),
+        world.mediumDensity * K * d[0] * d[2] * Math.min(d[0], d[2]),
+        world.mediumDensity * K * d[0] * d[1] * Math.min(d[0], d[1]),
+      ];
+      const iA = [
+        (mA[1] * d[2] * d[2] + mA[2] * d[1] * d[1]) / 12,
+        (mA[2] * d[0] * d[0] + mA[0] * d[2] * d[2]) / 12,
+        (mA[0] * d[1] * d[1] + mA[1] * d[0] * d[0]) / 12,
+      ];
+      rb.setAdditionalMassProperties(
+        Math.min(mA[0], mA[1], mA[2]) * addedMassScale,
+        { x: 0, y: 0, z: 0 },                                  // centred on the limb
+        { x: iA[0] * addedMassScale, y: iA[1] * addedMassScale, z: iA[2] * addedMassScale },
+        { x: b.rotation[0], y: b.rotation[1], z: b.rotation[2], w: b.rotation[3] },
+        true,
+      );
+      // RAPIER DEFERS THE MERGE. Without this, mass() and principalInertia() keep
+      // reporting the collider-only values until the first world.step() — and
+      // massOf/inertiaOf below are read BEFORE any step, so the fluid guard would
+      // spend the whole run dividing by the un-augmented inertia. Measured: a
+      // 2 x 0.05 x 2 plate reads Iz 0.0667 before this call and 2.1567 after.
+      rb.recomputeMassPropertiesFromColliders();
+    }
+
     bodies.push(rb);
     colliders.push(col);
   }
@@ -507,18 +578,50 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // the limiter conservative on every axis rather than only on the stiffest one.
   // ── per-body face table, built ONCE (N4: no allocation per step) ──────────
   //
-  // 24 sample points per limb — 6 faces x 4 quadrants — matching the reference
-  // (mycoolfin/the-simsulator, ApplyFluidForcesSystem.cs). Each entry is a unit
-  // normal in limb space, an offset from the limb centre in limb space, and the
-  // area that quadrant carries. Flat arrays, stride 7, so the hot loop reads
-  // contiguous memory and allocates nothing.
+  // 6 faces x QUAD^2 patches per limb. Each entry is a unit normal in limb space,
+  // an offset from the limb centre in limb space, and the area that patch carries.
+  // Flat arrays, stride 7, so the hot loop reads contiguous memory and allocates
+  // nothing.
   //
-  // DEVIATION FROM THE REFERENCE, deliberate: it places the face centre at
-  // 0.5 * unitNormal WITHOUT scaling by the limb dimension, while scaling the
-  // in-plane quadrant offsets. That is dimensionally inconsistent — a
-  // 2.0 x 0.2 x 2.0 plate gets its +X face sampled 0.5 m out instead of 1.0 m,
-  // so its torque arm is wrong by 2x. The normal offset is scaled here.
-  const FACE_N = 24, FACE_STRIDE = 7;
+  // QUAD WAS 2 (4 quadrants, 24 samples), matching the reference
+  // (mycoolfin/the-simsulator, ApplyFluidForcesSystem.cs). MEASURED WRONG for
+  // rotation. A 2x2 midpoint rule puts its samples at +-0.25*d, the midpoint of
+  // each half-face. For a face rotating about the limb centre the flow varies
+  // LINEARLY across it while the force is QUADRATIC in that flow, so integrating
+  // r^2 and r^3 over [0, h] with one sample at h/2:
+  //
+  //     force  ~ mean r^2 : exact h^2/3  vs sampled h^2/4   (-25%)
+  //     torque ~ mean r^3 : exact h^3/4  vs sampled h^3/8   (-50%)
+  //
+  // tools/_zplate.mjs test C measured exactly 0.500, flat in omega — the engine
+  // was delivering HALF the rotational damping its own drag law specifies. That
+  // matters because runaway spin is what STABLE_SPEED exists to cap: the law was
+  // being blamed for an instability the quadrature was creating. QUAD 4 takes
+  // force to -6% and torque to -12%, and also resolves the windward/leeward cut
+  // across a rotating face to quarter-face rather than half-face granularity.
+  //
+  // FALLBACK, if a profile ever says 96 samples is too many: set QUAD = 2. That
+  // reproduces the old table EXACTLY (patch centres fall at +-0.25*d), so it is a
+  // one-character revert rather than a rewrite. MEASURED when this landed
+  // (tools/_zquad.mjs, 18 creatures / 151 bodies / 6 s each): 38.1 -> 40.4 ms per
+  // trial, +6%. Four times the samples cost 6% because the fluid loop is not the
+  // dominant term — Rapier's solve is — so the fallback was not needed.
+  //
+  // IT ALSO DETONATED A LATENT BUG, which is recorded here because the next
+  // person to touch QUAD needs it: at 2x2 a translating box's fluid torque
+  // cancels to EXACTLY zero, and the momentum guard below used to divide by it.
+  // At 4x4 the offsets leave a ~1e-17 residue, |T| became denormal-but-nonzero
+  // against |omega| = 0, and the guard discarded the entire fluid force of every
+  // non-rotating body. The guard is now projected onto the opposed component and
+  // no longer has that cliff — see the note there.
+  //
+  // DEVIATION FROM THE REFERENCE, deliberate and unchanged: it places the face
+  // centre at 0.5 * unitNormal WITHOUT scaling by the limb dimension, while
+  // scaling the in-plane offsets. That is dimensionally inconsistent — a
+  // 2.0 x 0.2 x 2.0 plate gets its +X face sampled 0.5 out instead of 1.0, so its
+  // torque arm is wrong by 2x. The normal offset is scaled here.
+  const QUAD = 4;
+  const FACE_N = 6 * QUAD * QUAD, FACE_STRIDE = 7;
   const faceTable = new Float64Array(plan.bodyCount * FACE_N * FACE_STRIDE);
   {
     //          normal axis, tangent 1, tangent 2
@@ -528,14 +631,18 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       let w = i * FACE_N * FACE_STRIDE;
       for (const [na, t1, t2] of AXES) {
         for (const sgn of [1, -1]) {
-          const areaQ = 0.25 * d[t1] * d[t2];
-          for (const ii of [-1, 1]) {
-            for (const jj of [-1, 1]) {
+          const areaQ = (d[t1] * d[t2]) / (QUAD * QUAD);
+          for (let ii = 0; ii < QUAD; ii++) {
+            for (let jj = 0; jj < QUAD; jj++) {
+              // Patch centre as a fraction of the edge, in [-0.5, 0.5]. At QUAD 2
+              // this is exactly +-0.25, which is what the table used to hold.
+              const u1 = (ii + 0.5) / QUAD - 0.5;
+              const u2 = (jj + 0.5) / QUAD - 0.5;
               const n = [0, 0, 0]; n[na] = sgn;
               const o = [0, 0, 0];
               o[na] = 0.5 * sgn * d[na];
-              o[t1] = 0.25 * ii * d[t1];
-              o[t2] = 0.25 * jj * d[t2];
+              o[t1] = u1 * d[t1];
+              o[t2] = u2 * d[t2];
               faceTable[w] = n[0]; faceTable[w + 1] = n[1]; faceTable[w + 2] = n[2];
               faceTable[w + 3] = o[0]; faceTable[w + 4] = o[1]; faceTable[w + 5] = o[2];
               faceTable[w + 6] = areaQ;
@@ -973,14 +1080,14 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // local flow contributes nothing. That asymmetry is what lets a full
       // stroke cycle net a non-zero impulse instead of cancelling.
       //
-      // NO LIFT TERM YET, and its absence is deliberate rather than an
-      // oversight. The reference carries Cl = 1.2|c|sqrt(1-c^2) perpendicular to
-      // the flow, and it measures another ~6x on top of this. It also diverges
-      // here: a force perpendicular to velocity cannot be bounded by clamping
-      // its MAGNITUDE, because a perpendicular impulse at any bound still grows
-      // |v| by Pythagoras — about 12% per step at the bound tested. It needs an
-      // integration that rotates the velocity rather than adding to it. Kept out
-      // until that exists; see HYDRODYNAMICS.md.
+      // NO SEPARATE LIFT TERM, and that is now a MEASURED decision rather than a
+      // deferred one. The drag term along -n already carries the cross-flow force;
+      // the reference's Cl block is a different decomposition and adding it on top
+      // reverses the result. Full derivation and the measurement at the face loop
+      // below. (The older reason recorded here — that a perpendicular impulse
+      // escapes a magnitude clamp by Pythagoras — is true, and is NOT why the term
+      // is gone: the guard was fixed years of sessions ago and the term is simply
+      // wrong. See HYDRODYNAMICS.md §23-25 for the superseded reasoning.)
       const lv = rb.linvel();
       const av = rb.angvel();
       const q = rb.rotation();
@@ -1020,57 +1127,48 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         const vn = px * nx + py * ny + pz * nz;
         if (vn <= 0) continue;
 
-        // Sample speed, needed only by the lift term. The reference skips a
-        // sample below MinSpeedSq = 1e-3; the same guard here keeps the
-        // direction well-conditioned when a face is nearly stationary.
+        // Sample speed, kept as a GUARD only. The reference skips a sample below
+        // MinSpeedSq = 1e-3; removing the guard would change trajectories at the
+        // 1e-6 level, which L1-17's byte-identical determinism WOULD see, so it
+        // stays even though nothing reads the speed itself any more.
         const sp2 = px * px + py * py + pz * pz;
         if (sp2 < 1e-6) continue;
-        const sp = Math.sqrt(sp2);
 
         // Quadratic in the NORMAL component only, along the inward normal.
         const mag = 0.5 * rho * area * vn * vn;
-        let Fx = -mag * nx, Fy = -mag * ny, Fz = -mag * nz;
+        const Fx = -mag * nx, Fy = -mag * ny, Fz = -mag * nz;
 
-        // ── LIFT, from the reference (ApplyFluidForcesSystem.ComputeFluidForce) ──
+        // ── THERE IS NO LIFT TERM HERE, AND THE REFERENCE'S MUST NOT BE PASTED
+        // BACK. F2, measured by tools/_zplate.mjs. ────────────────────────────
         //
-        // A surface meeting flow OBLIQUELY deflects it, and the reaction has a
-        // component ACROSS the flow as well as along it. Drag alone cannot do
-        // this, and it is why an angled fin beats a flat paddle: peak at 45
-        // degrees of incidence, zero head-on and zero edge-on.
+        // This law applies drag along -n, which ALREADY CONTAINS the correct
+        // Newtonian lift. Decompose the unit normal into along-flow and
+        // cross-flow parts, n = c*u + sqrt(1-c^2)*d, and the cross-flow force
+        // falls out of the drag term by itself:
         //
-        //   Cl = 1.2 * |c| * sqrt(1 - c^2),  liftMag = 0.5*rho*speed^2*area*Cl*|c|
+        //     F_drag = -mag*n = -mag*c*u  -  mag*sqrt(1-c^2)*d
+        //                        ^drag       ^ THIS IS ALREADY LIFT
         //
-        // Coefficients are the reference's verbatim — this is the part of its
-        // model that is already debugged, and there is no reason to re-derive it.
+        // The reference's Cl block belongs to a DIFFERENT decomposition — drag
+        // along -u, lift perpendicular to u, with an incidence-dependent
+        // Cd = 0.5 + 1.5(1-|c|)^2. You may use either decomposition. You may not
+        // mix them, and mixing them is what the port did:
         //
-        // IT DOES NO WORK, and that is what makes it safe here. Lift is
-        // perpendicular to the SAMPLE velocity, so F.v_sample = 0 exactly for
-        // every sample; summing, lift contributes precisely zero to
-        // P = F.v + T.omega. The energy guard below therefore still sees P <= 0
-        // from drag alone and remains valid unchanged. An earlier lab attempt
-        // diverged because it bounded force MAGNITUDE, which a perpendicular
-        // impulse escapes by Pythagoras — the fix was never a bigger clamp.
-        if (LIFT) {
-          const c = vn / sp;                                  // |cos| , positive here
-          const root = Math.sqrt(Math.max(1 - c * c, 0));
-          const Cl = 1.2 * c * root;
-          if (Cl > 0) {
-            const ux = px / sp, uy = py / sp, uz = pz / sp;
-            // k = u x n, then liftDir = (k x u)/|k| — unit, since u is unit and
-            // perpendicular to k. Normalising by |k| is the reference's trick.
-            const kx = uy * nz - uz * ny;
-            const ky = uz * nx - ux * nz;
-            const kz = ux * ny - uy * nx;
-            const km2 = kx * kx + ky * ky + kz * kz;
-            if (km2 > 1e-6) {
-              const km = Math.sqrt(km2);
-              const liftMag = 0.5 * rho * sp2 * area * Cl * c;
-              Fx += liftMag * (ky * uz - kz * uy) / km;
-              Fy += liftMag * (kz * ux - kx * uz) / km;
-              Fz += liftMag * (kx * uy - ky * ux) / km;
-            }
-          }
-        }
+        //   its liftDir = (u x n) x u / |u x n|  is by BAC-CAB exactly
+        //   (n - c*u)/sqrt(1-c^2) = +d — the SAME AXIS as the drag term's
+        //   cross-flow component, opposite sign — while liftMag/mag =
+        //   1.2*sqrt(1-c^2) against that component's own 1.0*sqrt(1-c^2).
+        //
+        // MEASURED, not derived: the combination cuts a plate's cross-flow force
+        // to 20% AND REVERSES it, at every incidence from 5 to 75 degrees, ratio
+        // -0.200 to three figures. It pushes the plate toward its WINDWARD side;
+        // a real hydrofoil lifts toward its LEEWARD one. Gate L1-45 asserts that
+        // sign, so pasting the block back turns the gate red rather than quietly
+        // reversing every fin in the corpus.
+        //
+        // Circulatory lift (Cl ~ 2*pi*alpha, with a stall model) is a DIFFERENT
+        // term and is not this one. It belongs after added mass (C6.2): hydrofoil
+        // fins are only meaningful once fins have the right inertia.
 
         fx += Fx; fy += Fy; fz += Fz;
         tx += ry * Fz - rz * Fy;
@@ -1121,12 +1219,33 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // does not require the force to be antiparallel to v: cap the impulse at
       // the momentum, and the sign cannot flip. The two caps are independent —
       // energy bounds growth, momentum bounds reversal — and the smaller wins.
-      const sp = Math.hypot(lv.x, lv.y, lv.z);
+      // THE BOUND IS ON THE COMPONENT THE IMPULSE OPPOSES, not on the total speed.
+      //
+      // This was `sc <= m*|v| / (dt*|F|)` and `sc <= I*|omega| / (dt*|T|)`, using
+      // the body's TOTAL linear and angular speed. That is degenerate, and C6.4
+      // detonated it: a translating box has zero fluid torque only in EXACT
+      // arithmetic — at 4x4 quadrature the +-0.125/+-0.375 patch offsets leave a
+      // ~1e-17 residue instead of cancelling — so |T| became a denormal while
+      // |omega| was 0, sc went to 0, and the guard threw away the ENTIRE fluid
+      // force of every non-rotating body. Translation drag silently vanished.
+      //
+      // The cap exists to stop a REVERSAL (an exact velocity flip is
+      // energy-neutral, so the energy guard permits it — that was B3's divergence
+      // mechanism). Only the component of the velocity that the impulse OPPOSES
+      // can be reversed, so that is what must be bounded. Where the impulse is
+      // perpendicular to the motion, or accelerating it, there is nothing to
+      // reverse and no cap belongs. A denormal torque now bounds a denormal
+      // amount of counter-rotation instead of everything.
       const fm = Math.hypot(fx, fy, fz);
-      if (fm > 0) sc = Math.min(sc, (m * sp) / (FIXED_DT * fm));
-      const asp = Math.hypot(av.x, av.y, av.z);
+      if (fm > 0) {
+        const opposed = -(fx * lv.x + fy * lv.y + fz * lv.z) / fm;   // >0 when F opposes v
+        if (opposed > 0) sc = Math.min(sc, (m * opposed) / (FIXED_DT * fm));
+      }
       const tm = Math.hypot(tx, ty, tz);
-      if (tm > 0) sc = Math.min(sc, (I * asp) / (FIXED_DT * tm));
+      if (tm > 0) {
+        const opposed = -(tx * av.x + ty * av.y + tz * av.z) / tm;   // >0 when T opposes omega
+        if (opposed > 0) sc = Math.min(sc, (I * opposed) / (FIXED_DT * tm));
+      }
 
       if (!(sc > 0)) continue;
 
@@ -1471,12 +1590,24 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
      * would then depend on argument order, which is exactly what K4 forbids.
      */
     applyForces() {
+      // THE CLAMP BELONGS HERE TOO, and its absence was a real asymmetry: step()
+      // clamped before and after its solve while the SHARED-ARENA path did not
+      // clamp at all — so the duel, the one place two creatures collide and the
+      // one place tunnelling actually matters, ran with no speed or spin ceiling.
+      // Putting it here and in advanceClock() gives stepAll() the same
+      // before-and-after discipline step() has. step() is untouched: it inlines
+      // applyEnvironment/applyMotors rather than calling this, so solo
+      // trajectories — and L1-17's byte-identical determinism — do not move.
+      clampKinematics();
       applyEnvironment();
       applyMotors();
     },
 
     /** Clock bookkeeping, separated so the arena advances it after the solve. */
     advanceClock() {
+      // The AFTER half of the pair above: the ceiling has to hold on the velocity
+      // the solve PRODUCED, because that is what the next collision query sees.
+      clampKinematics();
       t += FIXED_DT;
       steps++;
     },

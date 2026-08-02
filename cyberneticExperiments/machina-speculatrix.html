@@ -168,6 +168,11 @@ input[type=range]:focus-visible{outline:2px solid var(--tungsten);outline-offset
   body.open #rail{bottom:calc(78px + var(--pad))}
 }
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
+
+/* back to the experiments hub */
+#title .backchev{display:inline-block;margin-right:6px;font-size:13px;letter-spacing:0;
+  opacity:.45;transition:opacity .15s}
+a#title:hover .backchev,a#title:active .backchev{opacity:1;color:var(--tungsten)}
 </style>
 </head>
 <body>
@@ -179,7 +184,7 @@ input[type=range]:focus-visible{outline:2px solid var(--tungsten);outline-offset
 </div>
 
 <header id="head">
-  <div id="title">Machina Speculatrix<small>W. Grey Walter · 1948 · colony model</small></div>
+  <a id="title" href="index.html" title="Back to the experiments" style="text-decoration:none;color:inherit;display:block"><span class="backchev">‹</span>Machina Speculatrix<small>W. Grey Walter · 1948 · colony model</small></a>
   <div id="stats">
     <div class="stat"><b id="sPop">0</b><span>bots</span></div>
     <div class="stat"><b id="sLit">0</b><span>lit</span></div>

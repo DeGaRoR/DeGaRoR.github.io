@@ -21,12 +21,13 @@ for (let i = 0; corpus.length < 15 && i < 120; i++) {
 }
 const pct=(a,q)=>{const s=[...a].sort((x,y)=>x-y);return s.length?s[Math.max(0,Math.round((s.length-1)*q))]:NaN;};
 for (const [label, o] of [
+  // The two `stress+lift` arms are GONE: `opts.lift` no longer exists. The term
+  // it enabled was measured wrong (F2 — it reversed the cross-flow force) and was
+  // deleted; gate L1-45 now holds the sign. See tools/_zplate.mjs test B.
   ['POSITION scale', {torqueModel:'scale'}],
   ['POSITION stress', {torqueModel:'stress'}],
-  ['POSITION stress+lift', {torqueModel:'stress', lift:true}],
   ['VELOCITY scale', {torqueModel:'scale', drive:DRIVE.VELOCITY}],
   ['VELOCITY stress', {torqueModel:'stress', drive:DRIVE.VELOCITY}],
-  ['VELOCITY stress+lift', {torqueModel:'stress', lift:true, drive:DRIVE.VELOCITY}],
 ]) {
   const achRev=[], cmdRev=[], travels=[];
   for (const { g, p } of corpus) {

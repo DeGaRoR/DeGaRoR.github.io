@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cybernetic Experiments">
+  <defs>
+    <linearGradient id="loop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e0674f"/>
+      <stop offset=".36" stop-color="#ffd36a"/>
+      <stop offset=".7" stop-color="#a784ff"/>
+      <stop offset="1" stop-color="#6ee7c0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="#0a0e16"/>
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#ffffff" stroke-opacity=".07"/>
+
+  <!-- the feedback loop: two half-arcs chasing each other -->
+  <g fill="none" stroke="url(#loop)" stroke-width="3" stroke-linecap="round">
+    <path d="M32 16 A16 16 0 0 1 45.9 40"/>
+    <path d="M32 48 A16 16 0 0 1 18.1 24"/>
+  </g>
+
+  <!-- arrowheads, tangent to the loop -->
+  <g fill="none" stroke-width="3" stroke-linecap="round">
+    <path d="M45.9 40 l6.1 -3.5 M45.9 40 l0 -7" stroke="#a784ff"/>
+    <path d="M18.1 24 l-6.1 3.5 M18.1 24 l0 7" stroke="#ffd36a"/>
+  </g>
+
+  <!-- the two ends of the loop: sensor and effector -->
+  <circle cx="32" cy="16" r="4" fill="#e0674f"/>
+  <circle cx="32" cy="48" r="4" fill="#6ee7c0"/>
+</svg>

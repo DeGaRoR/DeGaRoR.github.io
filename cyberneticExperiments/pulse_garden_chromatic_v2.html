@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#060811" />
+<title>Pulse Garden — excitable worlds</title>
+<style>
+:root{
+  --bg:#050710;--panel:rgba(11,15,27,.91);--panel2:rgba(21,27,45,.82);--line:rgba(255,255,255,.105);
+  --text:#f4f7ff;--muted:#9da8be;--cyan:#72ecff;--violet:#a784ff;--pink:#ff73c8;--amber:#ffd478;
+  --danger:#ff6f91;--good:#8df2bd;--shadow:0 22px 70px rgba(0,0,0,.52);--radius:18px
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}button{color:inherit}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#app{position:fixed;inset:0;overflow:hidden;background:radial-gradient(circle at 16% 3%,rgba(75,108,190,.14),transparent 31%),radial-gradient(circle at 88% 92%,rgba(167,132,255,.13),transparent 34%),var(--bg)}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.13) 75%,rgba(0,0,0,.43) 120%)}
+.topbar{position:absolute;z-index:8;left:max(11px,env(safe-area-inset-left));right:max(11px,env(safe-area-inset-right));top:max(9px,env(safe-area-inset-top));display:flex;gap:9px;align-items:center;pointer-events:none}
+.brand,.top-actions>*{pointer-events:auto}.brand{display:flex;align-items:center;gap:10px;padding:9px 12px 9px 9px;border:1px solid var(--line);border-radius:16px;background:rgba(7,10,18,.72);backdrop-filter:blur(19px);box-shadow:var(--shadow)}
+.brandmark{width:32px;height:32px;position:relative;border-radius:50%;background:radial-gradient(circle,#fff 0 7%,#9ff4ff 8% 20%,rgba(113,236,255,.25) 21% 37%,transparent 38%);box-shadow:0 0 25px rgba(113,236,255,.35)}
+.brandmark:before,.brandmark:after{content:"";position:absolute;inset:3px;border:2px solid rgba(167,132,255,.66);border-left-color:transparent;border-bottom-color:transparent;border-radius:48% 52% 45% 55%;transform:rotate(23deg)}
+.brandmark:after{inset:8px;border-color:rgba(255,115,200,.75);border-right-color:transparent;transform:rotate(-37deg)}
+.brand strong{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;line-height:1.08}.brand small{display:block;margin-top:3px;font-size:10px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:7px;pointer-events:auto}.iconbtn,.pillbtn{height:42px;border:1px solid var(--line);border-radius:14px;background:rgba(7,10,18,.72);backdrop-filter:blur(18px);box-shadow:var(--shadow);cursor:pointer}
+.iconbtn{width:42px;display:grid;place-items:center;font-size:16px}.iconbtn.active{background:rgba(114,236,255,.11);border-color:rgba(114,236,255,.32);color:#b8f8ff}.iconbtn.danger{color:#ffabc0}.pillbtn{padding:0 14px;font-size:12px;font-weight:800}
+.hud{position:absolute;z-index:5;top:max(68px,calc(env(safe-area-inset-top) + 62px));left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none}
+.hudchip{min-width:78px;padding:7px 9px;border:1px solid rgba(255,255,255,.075);border-radius:12px;background:rgba(7,10,18,.54);backdrop-filter:blur(12px);text-align:center}.hudchip b{display:block;font-size:13px;font-variant-numeric:tabular-nums}.hudchip small{display:block;margin-top:1px;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.1em}
+.activity-card{position:absolute;z-index:5;right:max(11px,env(safe-area-inset-right));top:max(67px,calc(env(safe-area-inset-top) + 61px));width:145px;height:61px;padding:7px 9px;border:1px solid rgba(255,255,255,.075);border-radius:14px;background:rgba(7,10,18,.54);backdrop-filter:blur(12px);pointer-events:none}.activity-card header{display:flex;align-items:center;justify-content:space-between;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}.activity-card canvas{display:block;width:100%;height:36px;margin-top:3px}
+.hint{position:absolute;z-index:6;left:50%;top:140px;transform:translate(-50%,-4px);opacity:0;pointer-events:none;padding:7px 11px;border:1px solid rgba(255,255,255,.09);border-radius:999px;background:rgba(7,10,18,.66);backdrop-filter:blur(12px);font-size:11px;color:#e9edfb;white-space:nowrap;transition:.22s}.hint.show{opacity:1;transform:translate(-50%,0)}
+.bottom{position:absolute;z-index:9;left:max(9px,env(safe-area-inset-left));right:max(9px,env(safe-area-inset-right));bottom:max(9px,env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:9px;pointer-events:none}
+.dock,.speed{pointer-events:auto;border:1px solid var(--line);background:rgba(7,10,18,.80);backdrop-filter:blur(20px);box-shadow:var(--shadow)}.dock{display:flex;gap:5px;padding:6px;border-radius:18px;overflow:auto;max-width:calc(100vw - 210px);scrollbar-width:none}.dock::-webkit-scrollbar{display:none}
+.tool{height:44px;min-width:44px;border:0;border-radius:12px;background:transparent;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 10px;cursor:pointer;color:#d9e0ee;white-space:nowrap}.tool span{font-size:17px}.tool b{font-size:11px}.tool.active{color:#bff9ff;background:linear-gradient(180deg,rgba(114,236,255,.18),rgba(167,132,255,.09));box-shadow:inset 0 0 0 1px rgba(114,236,255,.20)}.tool.danger{color:#ff9eb6}
+.speed{margin-left:auto;display:flex;gap:3px;padding:6px;border-radius:18px}.speed button{height:44px;min-width:39px;border:0;border-radius:12px;background:transparent;color:#c8d0e0;font-size:11px;font-weight:900;cursor:pointer}.speed button.active{color:#d4fbff;background:rgba(114,236,255,.12);box-shadow:inset 0 0 0 1px rgba(114,236,255,.19)}
+.panel{position:absolute;z-index:12;right:max(9px,env(safe-area-inset-right));top:65px;bottom:72px;width:min(360px,calc(100vw - 18px));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--panel);backdrop-filter:blur(24px);box-shadow:var(--shadow);transform:translateX(calc(100% + 24px));transition:transform .28s cubic-bezier(.2,.8,.2,1)}.panel.open{transform:translateX(0)}
+.panel>header{display:flex;align-items:flex-start;gap:11px;padding:16px 16px 13px;border-bottom:1px solid var(--line)}.panel h2{font-size:16px;margin:0 0 3px}.panel header p{margin:0;color:var(--muted);font-size:11px;line-height:1.4}.close{margin-left:auto;width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.035);cursor:pointer}.scroll{overflow:auto;padding:13px 13px 22px;overscroll-behavior:contain}.section{margin-bottom:10px;padding:12px;border:1px solid rgba(255,255,255,.075);border-radius:16px;background:rgba(255,255,255,.025)}.section h3{margin:0 0 10px;color:#c9d2e2;font-size:10px;letter-spacing:.13em;text-transform:uppercase}
+.recipe-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.recipe{min-height:70px;padding:9px;text-align:left;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.035);cursor:pointer}.recipe strong{display:block;margin-bottom:4px;font-size:11px}.recipe small{display:block;color:var(--muted);font-size:9px;line-height:1.35}.recipe.active{border-color:rgba(114,236,255,.34);background:rgba(114,236,255,.075)}
+.row{display:flex;align-items:center;gap:9px;margin:9px 0}.row label{min-width:103px;font-size:11px;color:#dce3f1}.row output{min-width:47px;text-align:right;color:#aef6ff;font-size:10px;font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:#75eaff}select{width:100%;height:37px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:#101628;color:#eef4ff}
+.switch{margin-left:auto;position:relative;width:42px;height:24px;flex:0 0 auto}.switch input{opacity:0;width:0;height:0}.switch i{position:absolute;inset:0;border-radius:999px;background:#293045;transition:.2s}.switch i:before{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}.switch input:checked+i{background:#24556a}.switch input:checked+i:before{transform:translateX(18px);background:#bdf8ff}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.metric{padding:9px 5px;border-radius:11px;background:rgba(255,255,255,.035);text-align:center}.metric b{display:block;font-size:14px;font-variant-numeric:tabular-nums}.metric small{display:block;color:var(--muted);font-size:8px;letter-spacing:.08em;text-transform:uppercase}
+.fullbtn{width:100%;min-height:40px;margin-top:7px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.045);font-size:11px;font-weight:800;cursor:pointer}.fullbtn.primary{color:#c9fbff;border-color:rgba(114,236,255,.26);background:linear-gradient(180deg,rgba(114,236,255,.16),rgba(167,132,255,.07))}.fullbtn.danger{color:#ffafc1}.science{font-size:10px;line-height:1.55;color:var(--muted)}.science b{color:#eef4ff}.equation{margin:8px 0;padding:9px;border-radius:10px;background:rgba(0,0,0,.22);color:#dffaff;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55}.color-key{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 9px;border-radius:10px;background:rgba(0,0,0,.18);color:var(--muted);font-size:9px;line-height:1.35}.swatches{display:flex;gap:3px;flex:0 0 auto}.swatches i{display:block;width:13px;height:13px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.pace-picker{position:absolute;z-index:11;left:max(9px,env(safe-area-inset-left));bottom:max(70px,calc(env(safe-area-inset-bottom) + 70px));width:min(360px,calc(100vw - 18px));padding:9px;border:1px solid var(--line);border-radius:18px;background:rgba(7,10,18,.93);backdrop-filter:blur(22px);box-shadow:var(--shadow);opacity:0;visibility:hidden;pointer-events:none;transform:translateY(9px) scale(.985);transition:.18s}.pace-picker.show{opacity:1;visibility:visible;pointer-events:auto;transform:none}.pace-head{display:flex;align-items:center;margin:1px 3px 8px;font-size:10px;letter-spacing:.11em;text-transform:uppercase}.pace-head small{margin-left:auto;color:var(--muted);font-size:9px;text-transform:none;letter-spacing:0}.pace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.pace-choice{padding:9px 5px 8px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);text-align:center;cursor:pointer}.pace-choice i{display:block;width:20px;height:20px;margin:0 auto 6px;border:2px solid var(--dot);border-radius:50%;box-shadow:0 0 14px color-mix(in srgb,var(--dot) 50%,transparent)}.pace-choice b{display:block;font-size:10px}.pace-choice small{display:block;margin-top:2px;color:var(--muted);font-size:8px}.pace-choice.active{border-color:rgba(114,236,255,.37);background:rgba(114,236,255,.08)}
+.toast{position:absolute;z-index:30;left:50%;bottom:88px;transform:translate(-50%,20px);opacity:0;pointer-events:none;padding:10px 13px;border-radius:12px;background:#eef5ff;color:#101522;font-size:11px;font-weight:800;box-shadow:var(--shadow);transition:.22s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.splash{position:absolute;z-index:20;inset:0;display:grid;place-items:center;padding:20px;background:rgba(3,5,11,.46);backdrop-filter:blur(8px);transition:.28s}.splash.hide{opacity:0;pointer-events:none}.splash-card{width:min(430px,100%);padding:20px;border:1px solid var(--line);border-radius:24px;background:rgba(9,13,24,.91);box-shadow:var(--shadow)}.splash-card .orb{width:58px;height:58px;margin-bottom:13px;border-radius:50%;background:radial-gradient(circle,#fff 0 6%,#89efff 7% 19%,rgba(167,132,255,.35) 20% 40%,transparent 41%);box-shadow:0 0 34px rgba(114,236,255,.35)}.splash h1{margin:0 0 7px;font-size:25px}.splash p{margin:0 0 15px;color:#b4bfd3;font-size:12px;line-height:1.55}.splash .micro{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:15px}.micro div{padding:9px;border-radius:12px;background:rgba(255,255,255,.035);font-size:9px;color:var(--muted)}.micro b{display:block;margin-bottom:3px;color:#f1f5ff;font-size:10px}.start{width:100%;height:44px;border:1px solid rgba(114,236,255,.31);border-radius:13px;background:linear-gradient(180deg,rgba(114,236,255,.20),rgba(167,132,255,.09));font-weight:900;cursor:pointer}
+@media(max-width:760px){.brand small{display:none}.brand{padding-right:10px}.pillbtn{display:none}.hud{top:max(65px,calc(env(safe-area-inset-top) + 60px));gap:4px}.hudchip{min-width:64px;padding:6px 7px}.activity-card{display:none}.bottom{display:block}.dock{max-width:none;width:100%;justify-content:space-between}.tool{padding:0 8px;min-width:40px}.tool b{display:none}.speed{position:absolute;right:0;bottom:57px}.panel{left:9px;right:9px;top:auto;bottom:70px;width:auto;max-height:min(76vh,680px);transform:translateY(calc(100% + 85px))}.panel.open{transform:translateY(0)}.pace-picker{width:calc(100vw - 18px)}}
+@media(max-width:400px){.dock{gap:2px;padding:5px}.tool{min-width:37px}.tool span{font-size:15px}.speed button{min-width:35px}.hudchip:nth-child(3){display:none}}
+
+/* back to the experiments hub */
+.backchev{font-size:19px;line-height:1;opacity:.4;margin:0 -2px 0 1px;transition:opacity .15s}
+a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="world" aria-label="Pulse Garden excitable medium simulation"></canvas>
+  <div class="vignette"></div>
+  <div class="topbar">
+    <a class="brand" href="index.html" title="Back to the experiments" style="text-decoration:none;color:inherit"><span class="backchev">‹</span><div class="brandmark"></div><div><strong>Pulse Garden</strong><small>excitable worlds laboratory</small></div></a>
+    <div class="top-actions">
+      <button class="pillbtn" id="scenesBtn">Scenes</button>
+      <button class="iconbtn danger" id="defibBtn" title="Defibrillate: reset electrical state">⚡</button>
+      <button class="iconbtn active" id="pauseBtn" title="Pause / play">Ⅱ</button>
+      <button class="iconbtn" id="panelBtn" title="Open laboratory">⚙</button>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="hudchip"><b id="activeHud">0.0%</b><small>excited</small></div>
+    <div class="hudchip"><b id="refracHud">0.0%</b><small>recovering</small></div>
+    <div class="hudchip"><b id="paceHud">0</b><small>pacemakers</small></div>
+  </div>
+  <div class="activity-card"><header><span>Global activity</span><span id="rateHud">0 sparks/s</span></header><canvas id="spark"></canvas></div>
+  <div class="hint" id="hint">Tap to excite the tissue</div>
+
+  <aside class="panel" id="panel">
+    <header><div><h2>Excitable-medium laboratory</h2><p>Change one timing rule and topology may reorganise completely.</p></div><button class="close" id="panelClose">×</button></header>
+    <div class="scroll">
+      <section class="section"><h3>Gardens</h3><div class="recipe-grid" id="recipeGrid"></div></section>
+      <section class="section"><h3>Local physiology</h3>
+        <div class="row"><label>Excitation threshold</label><input id="threshold" type="range" min="1" max="6" step="1" value="2"><output id="thresholdOut">2</output></div>
+        <div class="row"><label>Excited duration</label><input id="excited" type="range" min="1" max="7" step="1" value="2"><output id="excitedOut">2</output></div>
+        <div class="row"><label>Refractory duration</label><input id="refractory" type="range" min="6" max="48" step="1" value="21"><output id="refractoryOut">21</output></div>
+        <div class="row"><label>Conduction tempo</label><input id="tempo" type="range" min="12" max="60" step="1" value="34"><output id="tempoOut">34 Hz</output></div>
+        <div class="row"><label>Random reactivity</label><span></span><label class="switch"><input id="reactivityToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Altered cells</label><input id="hetero" type="range" min="0" max="1" step="0.01" value="0.08"><output id="heteroOut">8%</output></div>
+        <button class="fullbtn" id="rerollReactivityBtn">Reroll cell reactivity</button>
+        <div class="row"><label>Random sparks</label><input id="noise" type="range" min="0" max="18" step="0.1" value="0"><output id="noiseOut">0/min</output></div>
+      </section>
+      <section class="section"><h3>Brush & display</h3>
+        <div class="row"><label>Brush radius</label><input id="brush" type="range" min="1" max="12" step="1" value="4"><output id="brushOut">4</output></div>
+        <div class="row"><label>Slow tissue</label><select id="slowSelect"><option value="2">½ speed</option><option value="3">⅓ speed</option><option value="4">¼ speed</option></select></div>
+        <div class="row"><label>Spatial detail</label><select id="detailSelect"><option value="120">Balanced</option><option value="150" selected>Fine</option><option value="180">Ultra</option></select></div>
+        <div class="row"><label>Color language</label><select id="colorSelect"><option value="lineage">Wave ancestry</option><option value="phase" selected>Recovery phase</option><option value="reactivity">Cell reactivity</option><option value="mono">Classic violet</option></select></div>
+        <div class="color-key" id="colorKey"><span class="swatches"><i style="background:#f5fdff"></i><i style="background:#ffc052"></i><i style="background:#ff82a8"></i><i style="background:#5c57c8"></i></span><span>White is excited; amber → magenta → blue traces recovery.</span></div>
+        <div class="row"><label>Soft glow</label><span></span><label class="switch"><input id="glowToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Tissue grain</label><span></span><label class="switch"><input id="grainToggle" type="checkbox" checked><i></i></label></div>
+        <div class="row"><label>Sonification</label><span></span><label class="switch"><input id="soundToggle" type="checkbox"><i></i></label></div>
+        <button class="fullbtn" id="clearSignalBtn">Clear electrical state</button>
+        <button class="fullbtn danger" id="clearAllBtn">Clear tissue, walls & pacemakers</button>
+      </section>
+      <section class="section"><h3>Live readout</h3><div class="metrics">
+        <div class="metric"><b id="mActive">0</b><small>excited cells</small></div><div class="metric"><b id="mRecover">0</b><small>refractory</small></div><div class="metric"><b id="mBirths">0</b><small>new pulses/s</small></div>
+      </div></section>
+      <section class="section"><h3>What is being simulated?</h3><div class="science">
+        This is a <b>Greenberg–Hastings-style excitable cellular automaton</b>, not a calibrated heart model. Each cell is resting, excited, or refractory. It only sees its eight immediate neighbours.
+        <div class="equation">RESTING —enough active neighbours→ EXCITED<br>EXCITED —time→ REFRACTORY —time→ RESTING</div>
+        Waves annihilate because each leaves temporarily inexcitable tissue behind. Spiral waves arise when a front breaks and its free end curls into recovered tissue. Walls, slowed conduction and competing pacemakers can create persistent re-entry. The square lattice introduces a small, deliberately visible directional bias. With <b>Random reactivity</b> enabled, a fixed fraction of cells receives a permanent local threshold offset: cyan cells are easier to excite, amber and magenta cells are harder. This is <i>quenched disorder</i>—the map stays fixed until reset or rerolled, rather than flickering randomly at every step. In <b>Wave ancestry</b> mode, color is observational only: a newly excited cell inherits the label of the active neighbour that triggered it. Higher spatial detail uses more cells and can therefore expose finer wave breaks, at a higher computational cost.
+      </div></section>
+    </div>
+  </aside>
+
+  <div class="pace-picker" id="pacePicker"><div class="pace-head"><b>Pacemaker rhythm</b><small>choose, then tap the tissue</small></div><div class="pace-grid" id="paceGrid"></div></div>
+
+  <div class="bottom">
+    <div class="dock">
+      <button class="tool active" data-tool="pulse"><span>✦</span><b>Pulse</b></button>
+      <button class="tool" data-tool="wave"><span>〰</span><b>Wave</b></button>
+      <button class="tool" data-tool="pace"><span>◎</span><b>Pacemaker</b></button>
+      <button class="tool" data-tool="wall"><span>▰</span><b>Wall</b></button>
+      <button class="tool" data-tool="scar"><span>◫</span><b>Slow tissue</b></button>
+      <button class="tool danger" data-tool="erase"><span>⌫</span><b>Erase</b></button>
+    </div>
+    <div class="speed" id="speed"><button data-speed="0.5">½</button><button class="active" data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="splash" id="splash"><div class="splash-card"><div class="orb"></div><h1>Pulse Garden</h1><p>Draw one pulse into a field of cells with almost no intelligence. Watch waves collide, pacemakers compete, and broken fronts become autonomous-looking spirals.</p><div class="micro"><div><b>Tap</b>launch a circular wave</div><div><b>Draw</b>walls, scars or wavefronts</div><div><b>⚡ Defibrillate</b>silence activity, preserve tissue</div></div><button class="start" id="startBtn">Enter the spiral garden</button></div></div>
+</div>
+<script>
+(()=>{'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const canvas=$('#world'), ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
+const spark=$('#spark'), sctx=spark.getContext('2d');
+const off=document.createElement('canvas'), octx=off.getContext('2d',{alpha:false});
+let W=160,H=110,N=0,state,next,mask,hetero,grain,img,pix,paceMap,lineage,nextLineage;
+let dpr=1,viewW=innerWidth,viewH=innerHeight,scaleX=1,scaleY=1;
+let tick=0,simTime=0,acc=0,last=performance.now(),running=true,speed=1,currentPreset='spiral';
+let tool='pulse',drawing=false,lastCell=null,pointerCell=null,brush=4,selectedPace='steady',slowDiv=2,strokeHue=1;
+let pacemakers=[],activityHistory=new Float32Array(160),historyPos=0,historyTimer=0,hudTimer=0,newActivations=0,activationRate=0;
+let glow=true,showGrain=true,toastTimer=0,hintTimer=0,resizing=0,audioOn=false,audioCtx=null,audioGain=null,audioOsc=null,gridBase=150,colorMode='phase',hueCursor=0;
+const P={threshold:2,excited:2,refractory:21,tempo:34,heterogeneity:.08,randomReactivity:true,noise:0};
+const paceTypes={
+  calm:{name:'Calm',period:62,color:'#72ecff',note:'slow · stable',hue:1},
+  steady:{name:'Steady',period:44,color:'#a784ff',note:'medium rhythm',hue:4},
+  urgent:{name:'Urgent',period:29,color:'#ff73c8',note:'fast capture',hue:3}
+};
+const wavePalette=[
+  [114,236,255],[255,209,102],[255,111,174],[143,124,255],
+  [101,232,161],[255,147,82],[78,176,255],[238,112,255]
+];
+const presets={
+  pond:{name:'Still pond',desc:'Homogeneous and silent. Draw the first disturbance.',params:{threshold:2,excited:2,refractory:21,tempo:34,heterogeneity:.02,randomReactivity:true,noise:0}},
+  duel:{name:'Dueling hearts',desc:'Two rhythms compete to capture the same medium.',params:{threshold:2,excited:2,refractory:20,tempo:34,heterogeneity:.04,randomReactivity:true,noise:0}},
+  spiral:{name:'Spiral garden',desc:'A broken front curls into persistent re-entry.',params:{threshold:2,excited:2,refractory:24,tempo:35,heterogeneity:.05,randomReactivity:true,noise:0}},
+  scar:{name:'Scar labyrinth',desc:'Slow channels and obstacles invite re-entry loops.',params:{threshold:2,excited:2,refractory:20,tempo:35,heterogeneity:.10,randomReactivity:true,noise:0}},
+  fibrillation:{name:'Fibrillation',desc:'Short recovery, disorder and wave breakup.',params:{threshold:1,excited:2,refractory:11,tempo:42,heterogeneity:.48,randomReactivity:true,noise:4.5}},
+  blank:{name:'Blank laboratory',desc:'Absolutely empty: no pulse, wall or pacemaker.',params:{threshold:2,excited:2,refractory:21,tempo:34,heterogeneity:0,randomReactivity:false,noise:0}}
+};
+
+function clamp(v,a,b){return v<a?a:v>b?b:v}
+function rand(a=1,b=0){return b+Math.random()*(a-b)}
+function idx(x,y){return x+y*W}
+function inGrid(x,y){return x>0&&y>0&&x<W-1&&y<H-1}
+function isExcited(s){return s>0&&s<=P.excited}
+function spatialScale(){return gridBase/120}
+function brushCells(){return Math.max(1,Math.round(brush*spatialScale()))}
+function nextWaveHue(){hueCursor=(hueCursor%wavePalette.length)+1;return hueCursor}
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);viewW=innerWidth;viewH=innerHeight;canvas.width=Math.round(viewW*dpr);canvas.height=Math.round(viewH*dpr);canvas.style.width=viewW+'px';canvas.style.height=viewH+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+  const aspect=viewW/viewH,minSide=Math.round(gridBase*1.25),maxSide=Math.round(gridBase*1.92);if(aspect>=1){H=gridBase;W=clamp(Math.round(H*aspect),minSide,maxSide)}else{W=gridBase;H=clamp(Math.round(W/aspect),minSide,maxSide)}
+  off.width=W;off.height=H;N=W*H;scaleX=viewW/W;scaleY=viewH/H;
+  state=new Uint16Array(N);next=new Uint16Array(N);mask=new Uint8Array(N);hetero=new Int8Array(N);grain=new Uint8Array(N);paceMap=new Uint16Array(N);lineage=new Uint8Array(N);nextLineage=new Uint8Array(N);img=octx.createImageData(W,H);pix=img.data;
+  for(let i=0;i<N;i++)grain[i]=(Math.random()*20)|0;
+  reset(currentPreset,false);
+  resizeSpark();
+}
+function resizeSpark(){const r=spark.getBoundingClientRect();spark.width=Math.max(1,Math.round(r.width*dpr));spark.height=Math.max(1,Math.round(r.height*dpr));sctx.setTransform(dpr,0,0,dpr,0,0)}
+function regenerateHetero(){
+  if(!P.randomReactivity){hetero.fill(0);return}
+  const h=P.heterogeneity;
+  for(let i=0;i<N;i++){
+    if(Math.random()<h){
+      const r=Math.random();
+      // A minority are hypersensitive; most altered cells are mildly or strongly resistant.
+      // This asymmetry prevents random maps from becoming runaway ignition fields.
+      hetero[i]=r<.25?-1:r<.77?1:2;
+    }else hetero[i]=0;
+  }
+}
+function setParams(o){Object.assign(P,o);syncControls();regenerateHetero()}
+function reset(name='spiral',announce=true){
+  currentPreset=name;const pr=presets[name]||presets.spiral;state.fill(0);next.fill(0);mask.fill(0);paceMap.fill(0);lineage.fill(0);nextLineage.fill(0);pacemakers=[];tick=0;simTime=0;acc=0;newActivations=0;activationRate=0;activityHistory.fill(0);historyPos=0;hueCursor=0;setParams(pr.params);
+  if(name==='duel')setupDuel();else if(name==='spiral')setupSpiral();else if(name==='scar')setupScar();else if(name==='fibrillation')setupFibrillation();
+  $$('.recipe').forEach(b=>b.classList.toggle('active',b.dataset.preset===name));updateHud(true);if(announce)toast(pr.name+' loaded');
+}
+function setupDuel(){addPacemaker(Math.round(W*.22),Math.round(H*.52),'steady',0);addPacemaker(Math.round(W*.78),Math.round(H*.48),'urgent',13)}
+function setupSpiral(){
+  const sc=spatialScale(),cx=W*.48,cy=H*.53,wave=27*sc,activeBand=.72,refracBand=3.15;
+  for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){
+    const dx=x-cx,dy=y-cy,r=Math.hypot(dx,dy),a=Math.atan2(dy,dx);
+    let ph=(r/wave*Math.PI*2-a+Math.PI*4)%(Math.PI*2);
+    if(r<5*sc){mask[idx(x,y)]=1;continue}
+    const ii=idx(x,y);if(ph<activeBand){state[ii]=1;lineage[ii]=4}
+    else if(ph<refracBand){const q=(ph-activeBand)/(refracBand-activeBand);state[ii]=P.excited+1+Math.floor(q*(P.refractory-1));lineage[ii]=4}
+  }
+  for(let x=Math.round(W*.16);x<Math.round(W*.32);x++)for(let y=Math.round(H*.75);y<Math.round(H*.78);y++)mask[idx(x,y)]=1;
+}
+function setupScar(){
+  addPacemaker(Math.round(W*.13),Math.round(H*.50),'steady',0);
+  const cx=W*.52,cy=H*.51,rx=W*.18,ry=H*.28;for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){const d=Math.sqrt(((x-cx)/rx)**2+((y-cy)/ry)**2);if(d>.76&&d<.94&&!(x>cx+rx*.2&&y>cy-ry*.85&&y<cy-ry*.25))mask[idx(x,y)]=1;else if(d>.52&&d<.72)mask[idx(x,y)]=2}
+  for(let k=0;k<3;k++)stimulateCircle(Math.round(W*(.22+k*.07)),Math.round(H*(.25+k*.18)),Math.max(2,Math.round(3*spatialScale())),1,k+1)
+}
+function setupFibrillation(){
+  const sc=spatialScale();for(let n=0;n<13;n++){const x=(rand(W-18*sc,18*sc))|0,y=(rand(H-20*sc,12*sc))|0,r=(rand(5*sc,2*sc))|0,h=(n%wavePalette.length)+1;stimulateCircle(x,y,r,1,h);for(let a=0;a<r*6;a++){const xx=x+((Math.random()-.5)*r*3)|0,yy=y+((Math.random()-.5)*r*3)|0;if(inGrid(xx,yy)){const ii=idx(xx,yy);state[ii]=P.excited+1+((Math.random()*P.refractory)|0);lineage[ii]=h}}}
+  for(let i=0;i<N;i++)if(Math.random()<.035)mask[i]=2;
+}
+function addPacemaker(x,y,type=selectedPace,phase=0){
+  const p={x,y,type,period:paceTypes[type].period,phase,cells:[],born:tick,hue:paceTypes[type].hue};const r=Math.max(2,Math.round(2*spatialScale()));for(let yy=y-r;yy<=y+r;yy++)for(let xx=x-r;xx<=x+r;xx++)if(inGrid(xx,yy)&&(xx-x)**2+(yy-y)**2<=r*r){p.cells.push(idx(xx,yy))}
+  pacemakers.push(p);rebuildPaceMap();updateHud();return p;
+}
+function rebuildPaceMap(){paceMap.fill(0);for(let pi=0;pi<pacemakers.length;pi++)for(const i of pacemakers[pi].cells)paceMap[i]=pi+1}
+function stimulateCircle(cx,cy,r=brushCells(),phase=1,hue=strokeHue){
+  let made=0;const rr=r*r;for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++)if(inGrid(x,y)&&(x-cx)**2+(y-cy)**2<=rr){const i=idx(x,y);if(mask[i]!==1&&state[i]===0){state[i]=phase;lineage[i]=hue;made++}}
+  newActivations+=made;return made;
+}
+function paintCircle(cx,cy,r,mode){
+  const rr=r*r;for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++)if(inGrid(x,y)&&(x-cx)**2+(y-cy)**2<=rr){const i=idx(x,y);if(mode==='wall'){mask[i]=1;state[i]=0;lineage[i]=0}else if(mode==='scar'){mask[i]=2}else if(mode==='erase'){mask[i]=0;state[i]=0;lineage[i]=0}}
+  if(mode==='erase'){pacemakers=pacemakers.filter(p=>(p.x-cx)**2+(p.y-cy)**2>(r+4)**2);rebuildPaceMap()}
+}
+function drawSegment(a,b,fn){
+  let x0=a.x|0,y0=a.y|0,x1=b.x|0,y1=b.y|0,dx=Math.abs(x1-x0),sx=x0<x1?1:-1,dy=-Math.abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy;
+  for(;;){fn(x0,y0);if(x0===x1&&y0===y1)break;const e2=2*err;if(e2>=dy){err+=dy;x0+=sx}if(e2<=dx){err+=dx;y0+=sy}}
+}
+function neighbourSignal(i){
+  let c=0,h=0,s,j;
+  j=i-W-1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i-W;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i-W+1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i-1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i+1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i+W-1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i+W;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  j=i+W+1;s=state[j];if(isExcited(s)){c++;h=h||lineage[j]}
+  return c|(h<<4)
+}
+function step(){
+  tick++;const total=P.excited+P.refractory;let births=0;
+  next.fill(0);nextLineage.fill(0);
+  for(let y=1;y<H-1;y++){
+    let i=y*W+1;for(let x=1;x<W-1;x++,i++){
+      const m=mask[i],s=state[i];if(m===1){next[i]=0;continue}
+      const localTick=m===2?((tick+(i&3))%slowDiv===0):true;
+      if(s>0){next[i]=localTick?(s<total?s+1:0):s;if(next[i])nextLineage[i]=lineage[i];continue}
+      if(!localTick)continue;
+      const threshold=Math.max(1,P.threshold+hetero[i]+(m===2?1:0)),signal=neighbourSignal(i);if((signal&15)>=threshold){next[i]=1;nextLineage[i]=(signal>>4)||1;births++}
+    }
+  }
+  for(const p of pacemakers){if(((tick+p.phase)%p.period)===0){for(const i of p.cells)if(state[i]===0&&mask[i]!==1){if(next[i]===0)births++;next[i]=1;nextLineage[i]=p.hue}}}
+  const expected=P.noise/60/P.tempo;let sparks=Math.floor(expected);if(Math.random()<expected-sparks)sparks++;for(let k=0;k<sparks;k++){const x=2+((Math.random()*(W-4))|0),y=2+((Math.random()*(H-4))|0);if(mask[idx(x,y)]!==1){const before=next[idx(x,y)];next[idx(x,y)]=1;nextLineage[idx(x,y)]=7;if(before===0)births++}}
+  let t=state;state=next;next=t;t=lineage;lineage=nextLineage;nextLineage=t;newActivations+=births;simTime+=1/P.tempo;
+}
+function clearSignal(announce=true){state.fill(0);next.fill(0);lineage.fill(0);nextLineage.fill(0);if(announce)toast('Electrical state cleared · tissue preserved')}
+function clearAll(){state.fill(0);next.fill(0);lineage.fill(0);nextLineage.fill(0);mask.fill(0);pacemakers=[];paceMap.fill(0);currentPreset='blank';updateHud();$$('.recipe').forEach(b=>b.classList.toggle('active',b.dataset.preset==='blank'));toast('Blank laboratory')}
+function defibrillate(){
+  let active=0;for(let i=0;i<N;i++)if(state[i])active++;clearSignal(false);flash=.9;toast(active?'Defibrillated · '+active.toLocaleString()+' active cells silenced':'The garden was already quiet');if(navigator.vibrate)navigator.vibrate([18,35,28]);
+}
+let flash=0;
+function render(){
+  const e=P.excited,r=P.refractory;let active=0,recover=0;
+  for(let i=0,p=0;i<N;i++,p+=4){const m=mask[i],s=state[i];let R=5,G=8,B=17;
+    if(showGrain){const g=grain[i];R+=g*.15;G+=g*.18;B+=g*.28}
+    if(m===1){R=14;G=19;B=31;if(((i*17+grain[i])%31)<2){R=28;G=36;B=53}}
+    else if(m===2){R=8;G=17;B=29;if(showGrain){B+=grain[i]*.55;G+=grain[i]*.18}}
+    else if(colorMode==='reactivity'){
+      const v=hetero[i];
+      if(v<0){R=7;G=31;B=39}
+      else if(v===1){R=37;G=24;B=9}
+      else if(v>=2){R=42;G=11;B=25}
+      else{R=5;G=9;B=17}
+      if(showGrain){const g=grain[i];R+=g*.10;G+=g*.13;B+=g*.18}
+    }
+    if(s>0){
+      const q=s<=e?(s-1)/Math.max(1,e-1):(s-e)/Math.max(1,r),isFront=s<=e;
+      if(isFront)active++;else recover++;
+      if(colorMode==='phase'){
+        if(isFront){R=245;G=253;B=255}
+        else if(q<.34){const t=q/.34;R=255;G=188-58*t;B=82+83*t}
+        else if(q<.68){const t=(q-.34)/.34;R=255-86*t;G=130-65*t;B=165+69*t}
+        else{const t=(q-.68)/.32;R=169-128*t;G=65+22*t;B=234-122*t}
+      }else if(colorMode==='reactivity'){
+        const v=hetero[i],c=v<0?[82,238,255]:v===1?[255,183,72]:v>=2?[255,82,139]:[151,164,198];
+        if(isFront){R=245;G=253;B=255}
+        else{const fade=Math.pow(1-q,1.08);R=7+c[0]*fade*.66;G=9+c[1]*fade*.66;B=16+c[2]*fade*.72}
+      }else if(colorMode==='mono'){
+        if(isFront){R=210+45*(1-q);G=245-32*q;B=255}
+        else{R=118*(1-q)+18;G=42*(1-q)+10;B=185*(1-q)+35}
+      }else{
+        const c=wavePalette[((lineage[i]||1)-1)%wavePalette.length];
+        if(isFront){const white=.48+.30*(1-q);R=c[0]*(1-white)+255*white;G=c[1]*(1-white)+255*white;B=c[2]*(1-white)+255*white}
+        else{const fade=Math.pow(1-q,1.15),floor=10;R=floor+c[0]*fade*.62;G=floor+c[1]*fade*.62;B=16+c[2]*fade*.72}
+      }
+    }
+    pix[p]=R|0;pix[p+1]=G|0;pix[p+2]=B|0;pix[p+3]=255;
+  }
+  octx.putImageData(img,0,0);ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#050710';ctx.fillRect(0,0,viewW,viewH);
+  if(glow){ctx.imageSmoothingEnabled=true;ctx.globalAlpha=.34;ctx.filter='blur(9px) saturate(1.55)';ctx.drawImage(off,0,0,viewW,viewH);ctx.filter='none'}ctx.globalAlpha=1;ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,viewW,viewH);
+  drawPacemakers();drawCursor();if(flash>0){ctx.fillStyle=`rgba(220,250,255,${flash*.7})`;ctx.fillRect(0,0,viewW,viewH);flash*=.72}ctx.restore();
+  lastActive=active;lastRecover=recover;
+}
+let lastActive=0,lastRecover=0;
+function drawPacemakers(){
+  const sx=scaleX,sy=scaleY;for(const p of pacemakers){const type=paceTypes[p.type],x=(p.x+.5)*sx,y=(p.y+.5)*sy;const phase=((tick+p.phase)%p.period)/p.period;const rr=4+phase*15;ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.strokeStyle=hexAlpha(type.color,(1-phase)*.55);ctx.lineWidth=1.4;ctx.stroke();ctx.beginPath();ctx.arc(x,y,4.5,0,Math.PI*2);ctx.fillStyle=type.color;ctx.shadowColor=type.color;ctx.shadowBlur=12;ctx.fill();ctx.shadowBlur=0;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.strokeStyle=hexAlpha(type.color,.55);ctx.stroke()}
+}
+function drawCursor(){if(!pointerCell)return;const x=(pointerCell.x+.5)*scaleX,y=(pointerCell.y+.5)*scaleY,r=Math.max(scaleX,scaleY)*brushCells();ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle=tool==='wall'?'rgba(230,238,255,.55)':tool==='erase'?'rgba(255,120,150,.65)':tool==='scar'?'rgba(120,160,255,.55)':'rgba(120,240,255,.62)';ctx.lineWidth=1;ctx.setLineDash([4,5]);ctx.stroke();ctx.setLineDash([])}
+function hexAlpha(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`}
+function updateHud(force=false){
+  const activePct=100*lastActive/N,recoverPct=100*lastRecover/N;$('#activeHud').textContent=activePct.toFixed(1)+'%';$('#refracHud').textContent=recoverPct.toFixed(1)+'%';$('#paceHud').textContent=pacemakers.length;$('#mActive').textContent=lastActive.toLocaleString();$('#mRecover').textContent=lastRecover.toLocaleString();$('#mBirths').textContent=activationRate.toFixed(0);$('#rateHud').textContent=activationRate.toFixed(0)+' sparks/s';
+}
+function recordActivity(){activityHistory[historyPos]=lastActive/N;historyPos=(historyPos+1)%activityHistory.length;drawSpark()}
+function drawSpark(){const w=spark.width/dpr,h=spark.height/dpr;sctx.clearRect(0,0,w,h);let max=.01;for(const v of activityHistory)if(v>max)max=v;sctx.beginPath();for(let k=0;k<activityHistory.length;k++){const i=(historyPos+k)%activityHistory.length,x=k/(activityHistory.length-1)*w,y=h-2-(activityHistory[i]/max)*(h-5);if(k===0)sctx.moveTo(x,y);else sctx.lineTo(x,y)}const g=sctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'#72ecff');g.addColorStop(.55,'#a784ff');g.addColorStop(1,'#ff73c8');sctx.strokeStyle=g;sctx.lineWidth=1.4;sctx.stroke();sctx.lineTo(w,h);sctx.lineTo(0,h);sctx.closePath();const fill=sctx.createLinearGradient(0,0,0,h);fill.addColorStop(0,'rgba(114,236,255,.20)');fill.addColorStop(1,'rgba(114,236,255,0)');sctx.fillStyle=fill;sctx.fill()}
+function animate(now){
+  const dt=Math.min(.06,(now-last)/1000);last=now;if(running){acc+=dt*speed;const stepDt=1/P.tempo;let guard=0;while(acc>=stepDt&&guard<10){step();acc-=stepDt;guard++}}
+  historyTimer+=dt;hudTimer+=dt;if(historyTimer>.12){historyTimer=0;recordActivity()}if(hudTimer>.35){activationRate=newActivations/hudTimer;newActivations=0;hudTimer=0;updateHud()}
+  render();updateAudio();requestAnimationFrame(animate)
+}
+function eventCell(e){const r=canvas.getBoundingClientRect();return{x:clamp(Math.floor((e.clientX-r.left)/r.width*W),1,W-2),y:clamp(Math.floor((e.clientY-r.top)/r.height*H),1,H-2)}}
+function useToolAt(c,first=false){
+  if(tool==='pulse'){if(first){stimulateCircle(c.x,c.y,brushCells(),1,strokeHue);pulseFeedback(c)}}
+  else if(tool==='pace'){if(first){addPacemaker(c.x,c.y,selectedPace,(-tick)%paceTypes[selectedPace].period);$('#pacePicker').classList.remove('show');toast(paceTypes[selectedPace].name+' pacemaker placed');pulseFeedback(c)}}
+  else if(tool==='wave'){stimulateCircle(c.x,c.y,Math.max(1,Math.round(brushCells()*.45)),1,strokeHue)}
+  else paintCircle(c.x,c.y,brushCells(),tool);
+}
+function pulseFeedback(c){if(navigator.vibrate)navigator.vibrate(8)}
+canvas.addEventListener('pointerdown',e=>{if(e.button!==undefined&&e.button!==0)return;canvas.setPointerCapture(e.pointerId);drawing=true;strokeHue=(tool==='pulse'||tool==='wave')?nextWaveHue():strokeHue;const c=eventCell(e);pointerCell=c;lastCell=c;useToolAt(c,true);e.preventDefault()});
+canvas.addEventListener('pointermove',e=>{const c=eventCell(e);pointerCell=c;if(drawing&&lastCell&&(tool==='wave'||tool==='wall'||tool==='scar'||tool==='erase')){drawSegment(lastCell,c,(x,y)=>useToolAt({x,y},false));lastCell=c}e.preventDefault()});
+canvas.addEventListener('pointerup',e=>{drawing=false;lastCell=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_){}});canvas.addEventListener('pointercancel',()=>{drawing=false;lastCell=null});canvas.addEventListener('pointerleave',()=>{if(!drawing)pointerCell=null});
+
+function chooseTool(t){tool=t;$$('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('#pacePicker').classList.toggle('show',t==='pace');const hints={pulse:'Tap to excite the tissue',wave:'Drag to draw a wavefront',pace:'Choose a rhythm, then tap to place it',wall:'Draw an impermeable wall',scar:'Draw slow-conduction tissue',erase:'Erase tissue features and activity'};hint(hints[t])}
+$$('.tool').forEach(b=>b.addEventListener('click',()=>chooseTool(b.dataset.tool)));
+function buildUi(){
+  const rg=$('#recipeGrid');for(const [key,p] of Object.entries(presets)){const b=document.createElement('button');b.className='recipe';b.dataset.preset=key;b.innerHTML=`<strong>${p.name}</strong><small>${p.desc}</small>`;b.onclick=()=>reset(key);rg.appendChild(b)}
+  const pg=$('#paceGrid');for(const [key,p] of Object.entries(paceTypes)){const b=document.createElement('button');b.className='pace-choice'+(key===selectedPace?' active':'');b.dataset.pace=key;b.style.setProperty('--dot',p.color);b.innerHTML=`<i></i><b>${p.name}</b><small>${p.note}</small>`;b.onclick=()=>{selectedPace=key;$$('.pace-choice').forEach(x=>x.classList.toggle('active',x.dataset.pace===key));$('#pacePicker').classList.remove('show');hint(p.name+' rhythm selected · tap to place')};pg.appendChild(b)}
+}
+function bindRange(id,key,format,oninput){const el=$(id),out=$(id+'Out');const update=()=>{P[key]=+el.value;out.textContent=format(P[key]);if(oninput)oninput(P[key])};el.addEventListener('input',update);return update}
+bindRange('#threshold','threshold',v=>v);
+bindRange('#excited','excited',v=>v);
+bindRange('#refractory','refractory',v=>v);
+bindRange('#tempo','tempo',v=>v+' Hz');
+bindRange('#hetero','heterogeneity',v=>Math.round(v*100)+'%',()=>regenerateHetero());
+bindRange('#noise','noise',v=>v.toFixed(v<1?1:0)+'/min');
+function syncReactivityUi(){
+  const on=!!P.randomReactivity;
+  $('#reactivityToggle').checked=on;
+  $('#hetero').disabled=!on;
+  $('#rerollReactivityBtn').disabled=!on;
+}
+$('#reactivityToggle').addEventListener('change',e=>{P.randomReactivity=e.target.checked;regenerateHetero();syncReactivityUi();toast(P.randomReactivity?'Random cell reactivity enabled':'Uniform cell reactivity')});
+$('#rerollReactivityBtn').addEventListener('click',()=>{regenerateHetero();toast('Cell reactivity map rerolled')});
+$('#brush').addEventListener('input',()=>{brush=+$('#brush').value;$('#brushOut').textContent=brush});$('#slowSelect').addEventListener('change',()=>slowDiv=+$('#slowSelect').value);$('#detailSelect').addEventListener('change',e=>{gridBase=+e.target.value;resize();toast((gridBase===120?'Balanced':gridBase===150?'Fine':'Ultra')+' detail · '+N.toLocaleString()+' cells')});$('#colorSelect').addEventListener('change',e=>{colorMode=e.target.value;updateColorKey();toast(e.target.options[e.target.selectedIndex].text+' color language')});$('#glowToggle').addEventListener('change',e=>glow=e.target.checked);$('#grainToggle').addEventListener('change',e=>showGrain=e.target.checked);$('#soundToggle').addEventListener('change',e=>toggleAudio(e.target.checked));
+function updateColorKey(){const key=$('#colorKey');if(colorMode==='lineage')key.innerHTML='<span class="swatches"><i style="background:#63e6ff"></i><i style="background:#ffd166"></i><i style="background:#ff6fae"></i><i style="background:#8f7cff"></i></span><span>Hue marks the source of a wave; brightness marks its phase.</span>';else if(colorMode==='phase')key.innerHTML='<span class="swatches"><i style="background:#f5fdff"></i><i style="background:#ffc052"></i><i style="background:#ff82a8"></i><i style="background:#5c57c8"></i></span><span>White is excited; amber → magenta → blue traces recovery.</span>';else if(colorMode==='reactivity')key.innerHTML='<span class="swatches"><i style="background:#52eeff"></i><i style="background:#121725"></i><i style="background:#ffb748"></i><i style="background:#ff528b"></i></span><span>Cyan fires more easily; dark is normal; amber and magenta need more neighbours.</span>';else key.innerHTML='<span class="swatches"><i style="background:#d2f5ff"></i><i style="background:#a784ff"></i><i style="background:#442361"></i></span><span>The original display: white fronts with violet refractory wakes.</span>'}
+function syncControls(){for(const [id,key,fmt] of [['#threshold','threshold',v=>v],['#excited','excited',v=>v],['#refractory','refractory',v=>v],['#tempo','tempo',v=>v+' Hz'],['#hetero','heterogeneity',v=>Math.round(v*100)+'%'],['#noise','noise',v=>v.toFixed(v<1?1:0)+'/min']]){$(id).value=P[key];$(id+'Out').textContent=fmt(P[key])}syncReactivityUi()}
+$('#pauseBtn').onclick=()=>{running=!running;$('#pauseBtn').textContent=running?'Ⅱ':'▶';$('#pauseBtn').classList.toggle('active',running);toast(running?'Garden resumed':'Garden paused')};$('#defibBtn').onclick=defibrillate;$('#clearSignalBtn').onclick=()=>clearSignal();$('#clearAllBtn').onclick=clearAll;
+$('#panelBtn').onclick=()=>$('#panel').classList.toggle('open');$('#panelClose').onclick=()=>$('#panel').classList.remove('open');$('#scenesBtn').onclick=()=>{$('#panel').classList.add('open');$('.scroll').scrollTo({top:0,behavior:'smooth'})};
+$$('#speed button').forEach(b=>b.onclick=()=>{speed=+b.dataset.speed;$$('#speed button').forEach(x=>x.classList.toggle('active',x===b));toast(speed+'× simulation speed')});
+$('#startBtn').onclick=()=>{$('#splash').classList.add('hide');setTimeout(()=>$('#splash').remove(),400);hint('Draw into the tissue · try cutting the spiral with a wall',2800)};
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1700)}
+function hint(msg,ms=1500){const h=$('#hint');h.textContent=msg;h.classList.add('show');clearTimeout(hintTimer);hintTimer=setTimeout(()=>h.classList.remove('show'),ms)}
+function updateAudio(){if(!audioOn||!audioCtx)return;const a=lastActive/N;audioGain.gain.setTargetAtTime(Math.min(.035,a*.35),audioCtx.currentTime,.08);audioOsc.frequency.setTargetAtTime(90+Math.min(420,a*5000),audioCtx.currentTime,.1)}
+function toggleAudio(force){audioOn=typeof force==='boolean'?force:!audioOn;if(audioOn&&!audioCtx){audioCtx=new (window.AudioContext||window.webkitAudioContext)();audioGain=audioCtx.createGain();audioOsc=audioCtx.createOscillator();audioOsc.type='sine';audioGain.gain.value=0;audioOsc.connect(audioGain).connect(audioCtx.destination);audioOsc.start()}if(audioCtx&&audioOn)audioCtx.resume();if(audioGain&&!audioOn)audioGain.gain.setTargetAtTime(0,audioCtx.currentTime,.04);$('#soundToggle').checked=audioOn;toast(audioOn?'Activity sonification on':'Activity sonification off')}
+window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();$('#pauseBtn').click()}else if(e.key.toLowerCase()==='d')defibrillate();else if(e.key.toLowerCase()==='s')toggleAudio()});
+window.addEventListener('resize',()=>{clearTimeout(resizing);resizing=setTimeout(resize,180)});
+buildUi();updateColorKey();resize();requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

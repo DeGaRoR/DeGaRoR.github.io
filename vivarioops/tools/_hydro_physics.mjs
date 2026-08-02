@@ -440,7 +440,10 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // scaling the in-plane quadrant offsets. That is dimensionally
       // inconsistent (a 2 m x 0.2 m box gets its +X face sampled 0.5 m out
       // instead of 1.0 m). Here the normal offset is scaled too.
-      const rho = world.mediumDensity * world.dragScale;
+      // dragCoefficient INCLUDED, as the shipped law does it (physics.js). It was
+      // omitted here, so every lab-vs-shipped comparison this file ever produced
+      // was low by a factor of world.dragCoefficient — 0.9 in W1.
+      const rho = world.mediumDensity * world.dragScale * world.dragCoefficient;
       let fx = 0, fy = 0, fz = 0, txq = 0, tyq = 0, tzq = 0;
       for (let f = 0; f < 6; f++) {
         const [na, t1a, t2a] = FACES[f];

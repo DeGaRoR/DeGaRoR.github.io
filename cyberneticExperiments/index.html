@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070a10">
+<title>Cybernetic Experiments — degaror</title>
+<meta name="description" content="Four self-contained simulations about feedback, autonomy and emergence. Hand-built, vanilla JS, one at a time.">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" href="../favicon.ico">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#070a10;
+    --bg-2:#0d111a;
+    --ink:#eef1f8;
+    --ink-dim:#8d96ab;
+    --ink-faint:#5d6577;
+    --line:rgba(238,241,248,.09);
+    --card:rgba(255,255,255,.022);
+    --radius:16px;
+    --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ background:var(--bg); -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    color:var(--ink);
+    font-family:"Archivo", system-ui, sans-serif;
+    font-variation-settings:"wdth" 100;
+    background:
+      radial-gradient(1100px 480px at 72% -12%, rgba(255,180,90,.055), transparent 62%),
+      radial-gradient(900px 520px at 8% 108%, rgba(110,231,240,.045), transparent 62%),
+      var(--bg);
+    min-height:100vh;
+  }
+
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 22px 72px; }
+
+  /* ---------- header ---------- */
+  header{ padding:52px 0 34px; border-bottom:1px solid var(--line); margin-bottom:34px; }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); margin:0 0 15px;
+  }
+  .eyebrow a{ color:inherit; text-decoration:none; }
+  .eyebrow a:hover{ color:var(--ink-dim); }
+  h1{
+    margin:0;
+    font-size:clamp(38px, 7.5vw, 76px);
+    line-height:.94;
+    font-weight:900;
+    font-variation-settings:"wdth" 120;
+    letter-spacing:-.015em;
+    text-transform:uppercase;
+  }
+  h1 .tint{
+    background:linear-gradient(90deg, #e0674f, #ffd36a 34%, #a784ff 70%, #6ee7c0);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tagline{ margin:18px 0 0; color:var(--ink-dim); font-size:15px; max-width:54ch; line-height:1.58; }
+
+  /* ---------- house rule strip ---------- */
+  .rule{
+    display:flex; gap:12px; align-items:flex-start;
+    margin:26px 0 0; padding:13px 15px;
+    border:1px solid var(--line); border-left:2px solid rgba(255,211,106,.5);
+    border-radius:10px; background:rgba(255,211,106,.035);
+  }
+  .rule .k{
+    font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color:#ffd36a; flex:none; padding-top:2px;
+  }
+  .rule p{ margin:0; font-size:13px; line-height:1.55; color:var(--ink-dim); }
+  .rule b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
+    gap:18px;
+  }
+
+  /* ---------- card ---------- */
+  .sim{
+    --tint:#5aa0ff;
+    position:relative;
+    display:flex; flex-direction:column; gap:13px;
+    padding:20px 19px 17px;
+    border-radius:var(--radius);
+    background:linear-gradient(180deg, color-mix(in srgb, var(--tint) 7%, transparent), transparent 52%), var(--card);
+    border:1px solid color-mix(in srgb, var(--tint) 20%, var(--line));
+    text-decoration:none; color:inherit;
+    overflow:hidden;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .sim::before{
+    content:"";
+    position:absolute; inset:0 0 auto 0; height:3px;
+    background:linear-gradient(90deg, transparent, var(--tint), transparent);
+    opacity:.85;
+  }
+  .sim:hover, .sim:focus-visible{
+    transform:translateY(-3px);
+    border-color:color-mix(in srgb, var(--tint) 52%, var(--line));
+    box-shadow:
+      0 12px 34px -14px color-mix(in srgb, var(--tint) 48%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--tint) 22%, transparent) inset;
+  }
+  .sim:focus-visible{ outline:2px solid var(--tint); outline-offset:3px; }
+
+  .sim-top{ display:flex; align-items:flex-start; gap:15px; }
+
+  .glyph{
+    width:60px; height:60px; flex:none;
+    border-radius:14px;
+    background:color-mix(in srgb, var(--tint) 13%, var(--bg-2));
+    border:1px solid color-mix(in srgb, var(--tint) 32%, transparent);
+    display:grid; place-items:center;
+    color:var(--tint);
+  }
+  .glyph svg{ width:38px; height:38px; display:block; }
+
+  .no{
+    font-family:var(--mono); font-size:10px; letter-spacing:.18em;
+    color:color-mix(in srgb, var(--tint) 70%, var(--ink-faint));
+    display:block; margin-bottom:5px;
+  }
+  .sim h2{
+    margin:0;
+    font-size:19px; font-weight:800; line-height:1.14;
+    font-variation-settings:"wdth" 108;
+  }
+  .sub{
+    margin:6px 0 0;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+    color:var(--ink-faint); line-height:1.4;
+  }
+
+  .sim p.desc{
+    margin:0; flex:1;
+    color:var(--ink-dim); font-size:13.5px; line-height:1.55;
+  }
+
+  .tags{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tag{
+    font-family:var(--mono);
+    font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:color-mix(in srgb, var(--tint) 78%, var(--ink));
+    border:1px solid color-mix(in srgb, var(--tint) 34%, transparent);
+    border-radius:99px; padding:3px 9px;
+  }
+
+  .foot{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    padding-top:12px; border-top:1px solid var(--line);
+  }
+  .go{
+    font-family:var(--mono);
+    font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--tint);
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .go::after{ content:"→"; transition:transform .18s ease; }
+  .sim:hover .go::after{ transform:translateX(4px); }
+  .file{
+    font-family:var(--mono); font-size:9.5px;
+    color:var(--ink-faint); opacity:.7;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  /* ---------- colophon ---------- */
+  .colophon{
+    margin-top:46px; padding-top:24px; border-top:1px solid var(--line);
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:22px;
+  }
+  .colophon h3{
+    margin:0 0 8px;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:500;
+  }
+  .colophon p{ margin:0; font-size:12.5px; line-height:1.6; color:var(--ink-dim); }
+
+  footer{
+    margin-top:44px;
+    font-family:var(--mono);
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-faint); opacity:.75;
+  }
+  footer a{ color:inherit; text-decoration:none; border-bottom:1px solid var(--line); }
+  footer a:hover{ color:var(--ink-dim); }
+
+  @media (prefers-reduced-motion: reduce){
+    .sim, .go::after{ transition:none; }
+    .sim:hover{ transform:none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><a href="../index.html">degaror.github.io</a> / laboratory</p>
+    <h1>Cybernetic <span class="tint">experiments</span></h1>
+    <p class="tagline">Four sandboxes about the same old question: how far can you get with feedback alone? No neural nets, no planners — sensors wired to motors, cells wired to neighbours, energy wired to appetite. Then you watch.</p>
+
+    <div class="rule">
+      <span class="k">House&nbsp;rule</span>
+      <p>Each experiment is a full-screen canvas app that <b>takes over the page</b>. Opening one unloads this menu, so only a single simulation is ever running — nothing stacks up in the background, and phones stay cool. Use <b>Back</b> to return here.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- ============================ 01 ============================ -->
+    <a class="sim" style="--tint:#e0674f" href="machina-speculatrix.html">
+      <div class="sim-top">
+        <div class="glyph">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 14 L4 20 L8 26" opacity=".55"/>
+            <path d="M11 12 L5 20 L11 28" opacity=".8"/>
+            <circle cx="23" cy="20" r="8"/>
+            <circle cx="23" cy="20" r="2.4" fill="currentColor" stroke="none"/>
+            <path d="M31 20 h5"/>
+            <circle cx="23" cy="10.5" r="1.6" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <div>
+          <span class="no">EXP · 01</span>
+          <h2>Machina Speculatrix</h2>
+          <p class="sub">W. Grey Walter · 1948 · colony model</p>
+        </div>
+      </div>
+      <p class="desc">Grey Walter's light-seeking tortoises, rebuilt as a colony. Two photocells, two motors, crossed excitation — plus a lamp on the shell and a hutch to crawl home to when the battery dips. Because every machine carries a light, they end up dazzling each other, and the pack starts behaving like something it was never wired to be.</p>
+      <div class="tags"><span class="tag">phototaxis</span><span class="tag">battery</span><span class="tag">colony</span></div>
+      <div class="foot"><span class="go">Open</span><span class="file">machina-speculatrix.html</span></div>
+    </a>
+
+    <!-- ============================ 02 ============================ -->
+    <a class="sim" style="--tint:#ffd36a" href="lumen_society_optimized_v2.html">
+      <div class="sim-top">
+        <div class="glyph">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="20" cy="20" r="4.2" fill="currentColor" stroke="none" opacity=".9"/>
+            <path d="M20 10 v-3.5 M20 33.5 v-3.5 M10 20 h-3.5 M33.5 20 h-3.5" opacity=".7"/>
+            <path d="M13 13 l-2.4-2.4 M29.4 29.4 l-2.4-2.4 M27 13 l2.4-2.4 M10.6 29.4 l2.4-2.4" opacity=".4"/>
+            <path d="M7.5 8.5 l4.5 2.6 l-4.5 2.6 z" fill="currentColor" stroke="none"/>
+            <path d="M32.5 31.5 l-4.5-2.6 l4.5-2.6 z" fill="currentColor" stroke="none"/>
+            <path d="M31 9 l-1.4 5 l-4.6-2.2 z" fill="currentColor" stroke="none" opacity=".6"/>
+          </svg>
+        </div>
+        <div>
+          <span class="no">EXP · 02</span>
+          <h2>Lumen Society</h2>
+          <p class="sub">social cybernetics sandbox</p>
+        </div>
+      </div>
+      <p class="desc">Braitenberg vehicles — sensor soldered straight to motor, no thinking in between — dropped into a shared arena of lights. Tap to plant a light, tap a vehicle to read its wiring, then change one rule: crossing, decay, population, variation. The society reorganises around it every time.</p>
+      <div class="tags"><span class="tag">braitenberg</span><span class="tag">scenes</span><span class="tag">inspector</span></div>
+      <div class="foot"><span class="go">Open</span><span class="file">lumen_society_optimized_v2.html</span></div>
+    </a>
+
+    <!-- ============================ 03 ============================ -->
+    <a class="sim" style="--tint:#a784ff" href="pulse_garden_chromatic_v2.html">
+      <div class="sim-top">
+        <div class="glyph">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M20 20 C20 15 25 14 25 19 C25 26 17 27 15 20 C12.5 11 22 7 28 12"/>
+            <path d="M20 20 m-13 0 a13 13 0 0 1 5-10.3" opacity=".35"/>
+            <path d="M20 20 m13 0 a13 13 0 0 1-5.4 10.5" opacity=".35"/>
+            <circle cx="20" cy="20" r="1.8" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <div>
+          <span class="no">EXP · 03</span>
+          <h2>Pulse Garden</h2>
+          <p class="sub">excitable worlds laboratory</p>
+        </div>
+      </div>
+      <p class="desc">A field of cells with almost no intelligence at all: rest, fire, refract, rest. Draw a single pulse with your finger and watch fronts collide and annihilate, pacemakers compete for the tissue, and one broken wave curl into a spiral that looks disturbingly deliberate. Retune the timing and the whole topology reorganises.</p>
+      <div class="tags"><span class="tag">excitable medium</span><span class="tag">spirals</span><span class="tag">brush</span></div>
+      <div class="foot"><span class="go">Open</span><span class="file">pulse_garden_chromatic_v2.html</span></div>
+    </a>
+
+    <!-- ============================ 04 ============================ -->
+    <a class="sim" style="--tint:#6ee7c0" href="trophic_vessel_v3.html">
+      <div class="sim-top">
+        <div class="glyph">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="20" cy="20" r="14" opacity=".3"/>
+            <path d="M20 11.5 a8.5 8.5 0 0 1 7.4 12.7" opacity=".85"/>
+            <path d="M27.4 24.2 l.4-3.6 M27.4 24.2 l-3.4-1.2" opacity=".85"/>
+            <path d="M20 28.5 a8.5 8.5 0 0 1-7.4-12.7" opacity=".85"/>
+            <path d="M12.6 15.8 l-.4 3.6 M12.6 15.8 l3.4 1.2" opacity=".85"/>
+            <circle cx="20" cy="11.5" r="2.1" fill="currentColor" stroke="none"/>
+            <circle cx="20" cy="28.5" r="2.1" fill="currentColor" stroke="none" opacity=".55"/>
+          </svg>
+        </div>
+        <div>
+          <span class="no">EXP · 04</span>
+          <h2>Trophic Vessel</h2>
+          <p class="sub">closed ecosystem · heritable behavior</p>
+        </div>
+      </div>
+      <p class="desc">A sealed jar: plants, prey, predators, detritus. Biomass is conserved and every transfer stays in the ledger — energy is the only thing allowed in and out. Behaviour is heritable, so tighten the season or make speed expensive and selection quietly rewrites the population while you watch the charts.</p>
+      <div class="tags"><span class="tag">closed loop</span><span class="tag">selection</span><span class="tag">charts</span></div>
+      <div class="foot"><span class="go">Open</span><span class="file">trophic_vessel_v3.html</span></div>
+    </a>
+
+  </div>
+
+  <div class="colophon">
+    <div>
+      <h3>How to read them</h3>
+      <p>All four are laboratories, not games. There is no score and nothing to win — every one has a settings panel where a single parameter is worth changing at a time. Then leave it running for a minute.</p>
+    </div>
+    <div>
+      <h3>On your phone</h3>
+      <p>Built portrait-first: everything is one-thumb reachable, canvases scale to the screen, and each sim has a pause button in the top bar. Pause before you go digging in the panel — it saves the battery.</p>
+    </div>
+    <div>
+      <h3>Under the hood</h3>
+      <p>Vanilla JS, one self-contained HTML file each, no dependencies and nothing to install. Every simulation loop is <span style="font-family:var(--mono);font-size:11.5px">requestAnimationFrame</span>-driven, so a backgrounded tab does no work at all.</p>
+    </div>
+  </div>
+
+  <footer><a href="../index.html">← degaror arcade</a> · fait main · liège</footer>
+
+</div>
+</body>
+</html>

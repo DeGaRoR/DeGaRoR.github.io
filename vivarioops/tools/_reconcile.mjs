@@ -22,10 +22,14 @@ for (let i = 0; corpus.length < N && i < N * 8; i++) {
   if (p.jointCount >= 1) corpus.push({ g, p });
 }
 const pct=(a,q)=>{const s=[...a].sort((x,y)=>x-y);return s.length?s[Math.max(0,Math.round((s.length-1)*q))]:NaN;};
-for (const lift of [false, true]) {
+// The lift arm is GONE: `opts.lift` no longer exists. The term it enabled was
+// measured wrong (F2 — it reversed the cross-flow force) and was deleted; gate
+// L1-45 now holds the sign. Every "lift ON" figure this tool ever printed —
+// including HYDRODYNAMICS.md §28's reconciliation table — describes that term.
+{
   const net=[], comMean=[], comMax=[], bodyMax=[], tort=[], keEnd=[];
   for (const { g, p } of corpus) {
-    let sim; try { sim = createSimulation(RAPIER,p,g,W,{drive:DRIVE.POSITION,bounded:false,lift}); } catch { continue; }
+    let sim; try { sim = createSimulation(RAPIER,p,g,W,{drive:DRIVE.POSITION,bounded:false}); } catch { continue; }
     const c0 = sim.centreOfMass();
     let prev = c0, path = 0, cmax = 0, bmax = 0, bad = false;
     try {
@@ -50,7 +54,7 @@ for (const lift of [false, true]) {
     net.push(nd / SEC); comMean.push(path / SEC); comMax.push(cmax); bodyMax.push(bmax);
     tort.push(path / Math.max(nd, 1e-9)); keEnd.push(ke);
   }
-  console.log(`\n── lift ${lift ? 'ON' : 'OFF'} ──  n=${net.length}`);
+  console.log(`\n── shipped fluid law ──  n=${net.length}`);
   console.log(`  net speed (displacement/15s)   p50 ${pct(net,0.5).toFixed(3)}  p90 ${pct(net,0.9).toFixed(3)} m/s`);
   console.log(`  COM PATH speed (mean)          p50 ${pct(comMean,0.5).toFixed(2)}  p90 ${pct(comMean,0.9).toFixed(2)} m/s`);
   console.log(`  COM peak instantaneous speed   p50 ${pct(comMax,0.5).toFixed(1)}  p90 ${pct(comMax,0.9).toFixed(1)} m/s`);
