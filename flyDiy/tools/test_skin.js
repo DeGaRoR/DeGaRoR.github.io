@@ -1,6 +1,6 @@
 // Gate: spanwise skin binding is sane and follows the sim's wing flex.
 const { decodeModel, makeSkinBinding, sparDeltas, applySkinDeform,
-        buildCub, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+        buildPA18, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
 const { MODEL_PA18 } = require('../src/models/pa18_model.js');
 
 const CFG = { tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 };  // keep in sync with SKIN_CFG
@@ -8,7 +8,7 @@ let ok = true, why = [];
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
 
 const dec = decodeModel(MODEL_PA18);
-const def = buildCub();
+const def = buildPA18();
 const bind = makeSkinBinding(dec.skin.pos, dec.skin.nv, def, CFG);
 
 // binding structure

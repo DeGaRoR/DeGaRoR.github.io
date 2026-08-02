@@ -138,7 +138,7 @@ try {
   // aircraft switch through the dropdown: model-less path, then cache reuse
   handlers['selAc']({ target: { value: 'drone' } });
   frames(30);
-  handlers['selAc']({ target: { value: 'cub' } });
+  handlers['selAc']({ target: { value: 'pa18' } });
   frames(30);
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);
   console.log(`ran app block: raf x${rafCount}, handlers wired: ${Object.keys(handlers).sort().join(' ')}`);

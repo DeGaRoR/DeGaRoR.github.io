@@ -1,5 +1,5 @@
 // Gate: baked PA-18 payload decodes correctly and lands on the sim's wheels.
-const { decodeModel, buildCub, makeSim, makeWorld } = require('./flight_core.js');
+const { decodeModel, buildPA18, makeSim, makeWorld } = require('./flight_core.js');
 const { MODEL_PA18 } = require('../src/models/pa18_model.js');
 
 const dec = decodeModel(MODEL_PA18);
@@ -39,7 +39,7 @@ chk(dec.prop.nt > 50 && dec.glass.nt > 50, 'prop/glass suspiciously empty');
 // wheel calibration: model wheels (skin ymin + O.y, body frame) must sit within
 // 5 cm of the sim's main-gear contact height at rest
 const world = makeWorld();
-const def = buildCub();
+const def = buildPA18();
 const sim = makeSim(def, world);
 sim.reset(0);
 for (let k = 0; k < 10*60; k++) sim.step(1/60);

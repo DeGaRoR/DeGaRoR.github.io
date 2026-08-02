@@ -26,6 +26,7 @@ const GATES = [
   { id: 'SKIN', file: 'test_skin.js' },
   { id: 'CTRL', file: 'test_ctrl.js' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js' },
+  { id: 'PA18', file: 'test_pa18.js' },
 ];
 
 const args = process.argv.slice(2);

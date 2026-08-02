@@ -224,7 +224,10 @@ function makeAutopilot(sim, def) {
         if (A.rolloutMode === 'trike') {
           if (V > (A.VDerotate ?? 20)) holdPitch(A.rolloutTh ?? 0.035);
           else c.de = 0.15;
-        } else c.de = V > A.VTailUp ? -0.05 : 0.35;           // then stick hard back: pin the tail
+        // VTailDown (default VTailUp): below it, stick hard back pins the tail.
+        // Flapped taildraggers set it above touchdown speed — flap lift +
+        // nose-down dCm0 make the tail-up wheel-landing hold noseover-prone.
+        } else c.de = V > (A.VTailDown ?? A.VTailUp) ? -0.05 : 0.35;
         // brakes act on WHEELS: thresholds are groundspeed, not airspeed
         if (Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));

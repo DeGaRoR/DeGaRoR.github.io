@@ -25,6 +25,7 @@ const MANIFEST = {
     '13_aircraft_c172.js',
     '14_aircraft_jodel.js',
     '15_aircraft_drone.js',
+    '16_aircraft_pa18.js',
     '20_world.js',
     '30_solver.js',
     '40_autopilot.js',

@@ -84,6 +84,10 @@
   #hint { margin-left:auto; align-self:center; font:400 10px/1.6 'IBM Plex Mono', monospace;
     letter-spacing:.10em; color:rgba(251,244,234,.62); text-align:right;
     text-shadow:0 1px 8px rgba(30,16,4,.6); }
+  #credit { margin-left:auto; align-self:center; font:400 9px/1.6 'IBM Plex Mono', monospace;
+    letter-spacing:.06em; color:rgba(251,244,234,.38); text-align:right;
+    text-shadow:0 1px 8px rgba(30,16,4,.6); }
+  #credit + #hint { margin-left:14px; }
 
   /* ---- telemetry: strictly on demand, in flow above the control bar ---- */
   #telp { display:none; padding:13px 15px 14px; width:min(556px, calc(100vw - 28px)); }
@@ -114,7 +118,7 @@
     #rail { justify-self:stretch; justify-content:center; padding:8px 12px; }
     .rd b { font-size:19px; }
     #pfd { gap:14px; padding:8px 12px 9px; }
-    #hint { display:none; }
+    #hint, #credit { display:none; }
     #grid { grid-template-columns:repeat(2, 1fr); }
     #telp { width:calc(100vw - 20px); }
   }

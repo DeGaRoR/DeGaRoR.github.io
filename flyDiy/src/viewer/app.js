@@ -1,6 +1,6 @@
 (() => {
   const world = makeWorld();
-  const AIRCRAFT = { cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
+  const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
   let def, sim, ap, nb, curKey;
   const $ = id => document.getElementById(id);
 
@@ -53,13 +53,14 @@
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
   }
 
-  // ================= 3d skin (baked OBJ, cub only for now) =================
+  // ================= 3d skin (baked OBJ, pa18 only for now) =================
   // Rigid mount in the body frame: model frame is (x aft, y up, z left), RH.
   // Offset calibrated so model main wheels sit on the sim's axle contact points.
-  const MODELS3D = (typeof MODEL_PA18 !== 'undefined') ? { cub: MODEL_PA18 } : {};
+  const MODELS3D = (typeof MODEL_PA18 !== 'undefined') ? { pa18: MODEL_PA18 } : {};
   // per-aircraft skin config: body-frame mount offset + binding thresholds (SKIN-PROC.md)
-  const SKIN_CFG = { cub: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'],
-                            zRoot: 1.30, xMax: 1.5 } };
+  // pa18 geometry is a byte-copy of the cub's, so the calibration is shared
+  const SKIN_CFG = { pa18: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'],
+                             zRoot: 1.30, xMax: 1.5 } };
   const modelCache = {};
   // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame only
   const SKIN_GAINS = [1, 4];
@@ -402,7 +403,7 @@
     R.str.textContent = (sim.stats().smax * 100).toFixed(2) + '%';
   }
 
-  setAircraft('cub');
+  setAircraft('pa18');
   function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight, false);
     camera.aspect = window.innerWidth / window.innerHeight;

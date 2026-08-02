@@ -3,7 +3,7 @@
 // scaled 1.5 m/s + 0.5 (nobody flies a foamie in half its stall speed).
 // Asserts circuits complete, decrab keeps touchdown drift and offset
 // bounded, gust rejection holds cruise altitude, strains stay in limits.
-const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, makeWorld } = require('./flight_core.js');
+const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeWorld } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
 
 function windWorld(v, g) { const w = makeWorld(); w.setWind({ base: [0, 0, v], gust: g }); return w; }
@@ -77,6 +77,18 @@ R.push(runCircuit({
   wingNote: 'crosswind 3 + gust 1', onStep: altCollector,
   checks: c => ({ ...common(c), '|tdZ|<8': c.td && Math.abs(c.td.z) < 8,
     'sink<1.8': c.td && c.td.sink < 1.8, 'chassis<11.5%': c.smaxCh < 0.115, 'gear<40%': c.smaxGr < 0.40 }),
+}));
+
+R.push(runCircuit({
+  id: 'W-PA18', build: buildPA18, world: windWorld(3, 1), uprightCheck: false,
+  perturb: { z: 1.2, v: 0.001 }, settleS: 15, maxS: 300,
+  tip: { tag: 'WF', midZ: 3.4, tipZ: 5.0, tol: 0.1 }, flapDuring: () => true,
+  wingNote: 'crosswind 3 + gust 1', onStep: altCollector,
+  // same taildragger-weathervane stopZ bound as the cub (shared geometry);
+  // flaps are DEPLOYED for this crosswind landing — slower touchdown
+  checks: c => ({ ...common(c, 30),
+    '|tdZ|<6': c.td && Math.abs(c.td.z) < 6,
+    'sink<2.0': c.td && c.td.sink < 2.0, 'chassis<8%': c.smaxCh < 0.08, 'gear<35%': c.smaxGr < 0.35 }),
 }));
 
 const pass = R.every(r => r.pass);

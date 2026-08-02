@@ -3,7 +3,7 @@
 //   +da = right roll -> aileronG (+z, left) TE down, aileronD TE up
 //   +dr = nose left  -> rudder TE toward +z; fin (fwd of hinge) immobile
 const { decodeModel, makeHingeBinding, applyHinges, makeSkinBinding,
-        applySkinDeform, makeLinkage, buildCub } = require('./flight_core.js');
+        applySkinDeform, makeLinkage, buildPA18 } = require('./flight_core.js');
 const { MODEL_PA18 } = require('../src/models/pa18_model.js');
 
 let ok = true, why = [];
@@ -63,7 +63,7 @@ for (let i = 0; i < dec.skin.nv; i++) {
 chk(!nan, 'NaN'); chk(leak === 0, `${leak} non-surface verts moved`);
 
 // composition: flex on top of hinged ailerons (synthetic tip-up delta)
-const bind = makeSkinBinding(base, dec.skin.nv, buildCub(),
+const bind = makeSkinBinding(base, dec.skin.nv, buildPA18(),
                              { tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 });
 const dP = new Float32Array(9), dN = new Float32Array(9);
 dP[7] = dN[7] = 0.10;                       // +10 cm at outer station, y

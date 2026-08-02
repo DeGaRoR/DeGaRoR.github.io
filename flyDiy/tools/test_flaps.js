@@ -1,7 +1,7 @@
 // High-lift gate: free-air tunnel, clean vs flapped, on the two aircraft that
 // anchor the model — C172 (POH Vs0/Vs1 ratio) and Chinook (flaperons must not
 // destroy CLmax) — plus the AP flap-servo rate limit.
-const { buildC172, buildChinook, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const { buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
 
 function tunnel(build) {
   const def = build();
@@ -33,6 +33,8 @@ const C = tunnel(buildC172);
 console.log(`C172: clean CLmax=${C.c.CLmax.toFixed(2)} Vs=${C.c.Vs.toFixed(1)} | flapped CLmax=${C.f.CLmax.toFixed(2)} Vs=${C.f.Vs.toFixed(1)} | ratio=${(C.f.Vs / C.c.Vs).toFixed(3)} | drag x${(C.f.D / C.c.D).toFixed(2)}`);
 const K = tunnel(buildChinook);
 console.log(`CHNK: clean CLmax=${K.c.CLmax.toFixed(2)} | full-droop CLmax=${K.f.CLmax.toFixed(2)} (${(100 * K.f.CLmax / K.c.CLmax - 100).toFixed(1)}%)`);
+const P = tunnel(buildPA18);
+console.log(`PA18: clean CLmax=${P.c.CLmax.toFixed(2)} Vs=${P.c.Vs.toFixed(1)} | flapped CLmax=${P.f.CLmax.toFixed(2)} Vs=${P.f.Vs.toFixed(1)} | ratio=${(P.f.Vs / P.c.Vs).toFixed(3)} | drag x${(P.f.D / P.c.D).toFixed(2)}`);
 
 // AP flap servo: rate-limited deployment on approach
 const world = makeWorld();
@@ -56,6 +58,10 @@ const checks = {
   'C172 dCLmax>0.35': C.f.CLmax - C.c.CLmax > 0.35,
   'C172 flapped drag x1.15+': C.f.D / C.c.D > 1.15,
   'CHNK full-droop CLmax within 8% of clean': Math.abs(K.f.CLmax / K.c.CLmax - 1) < 0.08,
+  // PA-18: slotted flaps calibrated to the POH Vs ratio 43/48 mph (~0.90)
+  'PA18 Vs ratio in 0.87..0.93': P.f.Vs / P.c.Vs > 0.87 && P.f.Vs / P.c.Vs < 0.93,
+  'PA18 dCLmax>0.3': P.f.CLmax - P.c.CLmax > 0.3,
+  'PA18 flapped drag x1.5+': P.f.D / P.c.D > 1.5,
   'servo rate-limited (~rate after 1 s)': flapAt1s > rate * 0.8 && flapAt1s < rate * 1.2,
   'servo reaches full': tFull !== null && tFull < 1 / rate + 2,
 };
