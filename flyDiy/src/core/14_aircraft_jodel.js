@@ -170,7 +170,10 @@ function buildJodel() {
       flareAgl: 4.0, flareRate: 0.055, aglGuard: 3,
       flareMode: 'vs', flareThr: 0.06, flareThMax: 0.11,
       VTailUp: 14, VStop: 0.4, slew: 2.0, thrCruise: 0.62, thrAppr: 0.32,
-      brakeMax: 0.30, brakeRampRate: 0.14, VBrakeOn: 12, VBrakeRelease: 1.5,
+      // GE retune (session 1): coasting from touchdown 32 m/s down to 12
+      // before braking overran the runway once ground effect trimmed the
+      // rolling friction; was VBrakeOn 12 (overran to x=+51).
+      brakeMax: 0.30, brakeRampRate: 0.14, VBrakeOn: 20, VBrakeRelease: 1.5,
       rateFilt: 0.18, attFilt: 0.60, pitchP: 1.3, pitchD: 0.70, pitchI: 0.12,
       pitchCmdSlew: 1.0, vsP: 0.014, vsI: 0.030, vsFloor: -0.10, altVSGain: 0.10,
       vsFilt: 0.40, hdgP: 0.5, hdgD: 0.8, bankSlew: 0.20, rollP: 1.1, rollD: 0.30,

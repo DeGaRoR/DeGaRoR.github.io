@@ -206,11 +206,11 @@ fiches fall back to ENG — keep that fallback when adding aircraft.
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
-| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 94 m / ldg 119 m (re-anchored 2026-08: pre-bracing 86/91 was measured with the tail lying on the ground; ldg vs book ~90 m is now an OPEN divergence for the flaps/brake sessions) |
+| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 122 m (GE era; pre-bracing 86/91 was measured with the tail on the ground; ldg vs book ~90 m OPEN, flaps/brake sessions) |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
-| Douglas DC-3 | 10.9 t | 72 | Vs 32.8 (book 34.5); NP margin 13%; unstick ~50 m/s, ~1000 m; wheel landing 152 km/h |
+| Douglas DC-3 | 10.9 t | 72 | Vs 32.8 (book 34.5); NP margin 13%; unstick ~49 m/s, ~950 m (GE); wheel landing 150 km/h @1.05 m/s sink |
 
 Notable fiche quirks: Chinook is a PUSHER (wing wash=0, tail wash 0.6, thrust
 line above CG = power pitches DOWN). C172 prop refit to cruise-pitch reality
@@ -222,11 +222,11 @@ new references where marked TBD. "Session" = roadmap entry that addresses it.
 | Aircraft | Metric | Model | Reference | Session |
 |---|---|---|---|---|
 | all | approach speed | 1.25·Vs CLEAN (no flaps exist) | type-specific flapped approach | 2 |
-| all | flare/float behaviour | no ground effect | — | 1 |
+| all | flare/float behaviour | ground effect DONE (session 1); tail-in-GE still excluded | — | ~~1~~ done |
 | all | crosswind ops | impossible (no wind) | — | 3 |
-| Chinook | landing roll | 119 m | book ~90 m (TBD exact brochure figure) | 1+2 (+brake retune) |
+| Chinook | landing roll | 122 m | book ~90 m (TBD exact brochure figure) | 2 (+brake retune) |
 | Chinook | glide | 9.8:1 | book 10:1 (gap = no windmilling-prop drag, honest cut) | rider (energy/jets) |
-| DC-3 | unstick run | ~1000 m | real ~450-600 m loaded (TBD source) | 1+2 |
+| DC-3 | unstick run | ~950 m (was ~1000 pre-GE) | real ~450-600 m loaded (TBD source) | 2 |
 | DC-3 | wheel-landing speed | 152 km/h | real ~120-135 km/h flapped (TBD) | 2 |
 | DC-3 | Vs | 32.8 m/s | book 34.5 m/s (-5%, accepted M1) | watch at 1 |
 | C172 | landing distance | not comparable (clean) | POH ~175 m ground roll flaps 30 | 2 |
@@ -235,28 +235,36 @@ new references where marked TBD. "Session" = roadmap entry that addresses it.
 | Cub | Vs / top speed | 54 / ~121 km/h | commonly cited ~61 / ~140 km/h — RE-SOURCE before touching; M1 accepted current values | audit at 1 |
 | Drone | Vs | 6.4 m/s | design 6.5-7 (ok) | — |
 
-## HONEST CUTS (unchanged)
-Analytic polars (no Re), global-AR induced drag per strip, no ground effect,
+## HONEST CUTS
+Analytic polars (no Re), global-AR induced drag per strip,
 no flaps/slats (Chinook flaperons modeled as ailerons!), no wind, no P-factor/
 swirl/slipstream-over-wing for tractors, no windmilling-prop drag (Chinook glide
 slightly optimistic for exactly this reason), fuel/battery mass frozen, friction
 plane horizontal, no compressibility (<M0.35 fleet).
+Ground effect (added session 1, 2026-08): wing strips only — TAIL EXCLUDED
+(would need a per-surface span datum); one terrain sample per aero pass (flat
+within a span where GE matters); McCormick sigma = (16h/b)^2/(1+(16h/b)^2)
+scaling the induced term and the lift slope via 1/a3d = 1/a0 + 1/eAR. No
+stall-margin reduction in GE. Free-air tunnel = makeSim without world.
 
-## ROADMAP (5 sessions, with implementation anchors)
+## ROADMAP (with implementation anchors)
+SCOPE DECISION (user, 2026-08-02): sessions 1-3 only (fidelity), then the
+project BRANCHES to graphics/world/editor work (specced separately by the
+user). Sessions 4-6 below stay documented as reference but are NOT next.
 One chantier per session. Every session ends with the battery green AND the
 fleet table re-anchored if physics moved.
 
-1. **Ground effect** — passive per-strip induced-term scaling by height/span.
-   WHERE: `polar(al, P)` in 30_solver.js computes `Cd = Cd0 + Cl²/eAR`; make
-   the induced term (and the lift slope a3d) height-aware via an effective
-   polar at the call site in the strip loop. Strip mid-point height is
-   computable from the live node positions already in scope; ground height via
-   `world.terrainH` — NULL-GUARD (tunnel-only sims have no world). MISSING
-   DATUM: span is not in def.params — derive from the outermost WF node |z| at
-   build time or add a fiche param. GATES: new height-sweep probe gate
-   (CdInd vs h/b curve, Wieselsberger-shaped); expect a FULL-FLEET flare
-   retune — every touchdown-sink anchor recalibrates. This session
-   recalibrates the ruler; do it before flaps.
+1. **Ground effect** — DONE 2026-08-02. McCormick sigma per wing strip in
+   30_solver.js (induced term + lift slope via the 1/a3d = 1/a0 + 1/eAR
+   reconstruction); span derived from wing-strip def geometry; one terrain
+   sample per aero pass, null-guarded for tunnel sims. GATE GE: height sweep
+   on the Cub probe — drag cut 16.6% and lift gain 8.1% at h/b=0.05,
+   monotonic, free-air converged by h/b=5. Fleet retune outcome: only the two
+   CLEAN airframes needed it, and in the ROLLOUT, not the flare — in GE the
+   wing keeps lifting on the ground, weight comes off the wheels, and the
+   brakes fade: DC-3 overran to x=+124 (fix: brake 0.45->0.50, VBrakeOn
+   36->39, VAppr 44->43), Jodel to x=+51 (fix: VBrakeOn 12->20). Draggy
+   aircraft (Cub, drone, Chinook, C172) passed untouched.
 2. **High-lift devices** — flaps/slats/flaperons as per-strip polar deltas +
    one control channel + flap-trim schedules.
    WHERE: add `flap` to the ctl object and reset() in 30_solver.js; per-strip

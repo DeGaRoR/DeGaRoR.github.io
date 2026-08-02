@@ -176,7 +176,7 @@ function buildDC3() {
     twSteer: 0.30,
     ap: {
       rotate: true,
-      VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 44, VTurn: 55,
+      VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 43, VTurn: 55,
       thTailUp: 0.030, thRotate: 0.100,
       lookRoll: 45, lookAppr: 650, lookCruise: 900,
       hCruise: 250, hSafe: 30, xTurn: -5800, xAim: -810, gs: 0.044,
@@ -185,7 +185,11 @@ function buildDC3() {
       climbThBase: 0.11, climbThGain: 0.015, thMax: 0.17,
       flareAgl: 7, flareRate: 0.030, aglGuard: 6, flareThMax: 0.11,
       VTailUp: 20, VStop: 0.5, slew: 0.8, thrCruise: 0.55, thrAppr: 0.30,
-      brakeMax: 0.45, brakeRampRate: 0.18, VBrakeOn: 36, VBrakeRelease: 2.5,
+      // GE retune (session 1): wing keeps lifting through the rollout in
+      // ground effect -> less weight on wheels -> longer roll. Brake earlier
+      // and harder, approach one knot slower; was 0.45/36/VAppr 44 (overran
+      // to x=+124).
+      brakeMax: 0.50, brakeRampRate: 0.18, VBrakeOn: 39, VBrakeRelease: 2.5,
       rateFilt: 0.15, pitchP: 1.6, pitchD: 1.6, pitchI: 0.25,
       vsP: 0.006, vsI: 0.010, vsFloor: -0.06, altVSGain: 0.06,
       vsFilt: 0.5, pitchCmdSlew: 0.3,

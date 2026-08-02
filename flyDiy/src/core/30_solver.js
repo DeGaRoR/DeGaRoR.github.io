@@ -14,6 +14,14 @@ function makeSim(def, world) {
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
+  // wingspan datum for ground effect: outermost wing-strip node |z| in def
+  // coordinates. Derived, not a fiche param — works for every aircraft.
+  let bSpan = 0;
+  for (const st of def.strips) if (st.kind === 'wing')
+    for (const i of [st.fIn, st.fOut, st.rIn, st.rOut])
+      bSpan = Math.max(bSpan, Math.abs(def.nodes[i].p[2]));
+  bSpan = Math.max(0.1, bSpan * 2);
+
   function reset(drop = 0) {
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
@@ -48,10 +56,15 @@ function makeSim(def, world) {
     zRt[2]=yUp[0]*xAft[1]-yUp[1]*xAft[0]; norm3(zRt);
   }
 
-  function polar(al, P) {
+  // sig = ground-effect downwash factor (1 = free air). It scales the induced
+  // drag term AND raises the lift slope via the lifting-line identity
+  // 1/a3d = 1/a0 + 1/eAR (a0 reconstructed from the registry constants).
+  function polar(al, P, sig = 1) {
     const s = Math.min(1, Math.max(0, (Math.abs(al) - P.aStall) / 0.10));
-    const Cl = (P.Cl0 + P.a3d * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
-    const CdAtt = P.Cd0 + Cl * Cl / P.eAR;
+    let a3 = P.a3d;
+    if (sig < 1) a3 = 1 / (1 / P.a3d - (1 - sig) / P.eAR);
+    const Cl = (P.Cl0 + a3 * al) * (1 - s) + 1.1 * Math.sin(2 * al) * s;
+    const CdAtt = P.Cd0 + sig * Cl * Cl / P.eAR;
     const Cd = CdAtt * (1 - s) + (P.Cd0 + 1.9 * Math.sin(al) * Math.sin(al)) * s;
     return [Cl, Cd];
   }
@@ -79,6 +92,19 @@ function makeSim(def, world) {
         f[e*3+1] -= per * xAft[1];
         f[e*3+2] -= per * xAft[2];
       }
+    }
+    // ground effect: one terrain sample under the wing per pass (terrain is
+    // flat within a span everywhere GE matters); per-strip height above it.
+    // null when world is absent (free-air tunnel sims).
+    let gH = null;
+    if (world) {
+      let sx = 0, sz = 0, sN = 0;
+      for (const st of def.strips) if (st.kind === 'wing') {
+        sx += p[st.fIn*3] + p[st.fOut*3];
+        sz += p[st.fIn*3+2] + p[st.fOut*3+2];
+        sN += 2;
+      }
+      gH = world.terrainH(sx / sN, sz / sN);
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     out.thrust = T; out.wash = wash;
@@ -128,7 +154,16 @@ function makeSim(def, world) {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
         P = P_.polarTail;
       }
-      const [Cl, Cd] = polar(al, P);
+      // ground effect (wing strips only; tail excluded — honest cut):
+      // McCormick sigma = (16h/b)^2 / (1 + (16h/b)^2)
+      let sig = 1;
+      if (gH !== null && st.kind === 'wing') {
+        const hb = Math.max(0.02,
+          ((p[st.fIn*3+1] + p[st.fOut*3+1]) * 0.5 - gH) / bSpan);
+        const g16 = 16 * hb;
+        sig = g16 * g16 / (1 + g16 * g16);
+      }
+      const [Cl, Cd] = polar(al, P, sig);
       const q = 0.5 * RHO * V2 * st.area, iv = 1 / Math.sqrt(V2);
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;

@@ -1,11 +1,12 @@
-const { buildDrone, makeSim, makeWorld } = require('./flight_core.js');
+const { buildDrone, makeSim } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
 
 // ---- wind tunnel: CLmax, stall, trim (probe-only sim) ----
+// NO world: free-air tunnel. With a world the parked aircraft sits at
+// h/b ~ 0.08 and ground effect would pollute every tunnel number.
 {
-  const world = makeWorld();
   const def = buildDrone();
-  const sim = makeSim(def, world);
+  const sim = makeSim(def);
   const W = sim.totalM * 9.81;
   sim.reset(0);
   const cg0 = sim.cgPos();
