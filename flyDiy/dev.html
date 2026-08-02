@@ -9,24 +9,56 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div class="hud">
-  <h1>PIPER J-3 · M3 <span>/ full circuit: takeoff · turnback · glideslope · flare · rollout</span></h1>
-  <div id="inst"></div>
-</div>
-<div id="phase">HOLDING</div>
-<div id="telWrap"><h2>Telemetry — altitude (cyan) · speed km/h (amber)</h2><canvas id="tel" width="460" height="180"></canvas></div>
-<div class="bar">
-  <button id="bCub" class="sel on">J-3 Cub</button>
-  <button id="bDrone" class="sel">Foam Trainer</button>
-  <button id="bDC3" class="sel">DC-3</button>
-  <button id="bJojo" class="sel">Jodel</button>
-  <button id="bC172" class="sel">C172</button>
-  <button id="bChnk" class="sel">Chinook</button>
-  <button id="bGo">Fly the circuit</button>
-  <button id="bReset">Reset</button>
-  <button id="bPause">Pause</button>
-  <button id="bTel">Telemetry</button>
-  <span class="legend">strain<i style="background:var(--compress)"></i>compression<i style="background:var(--tension)"></i>tension</span>
+<div id="ui">
+  <div id="title" class="panel">
+    <h1>GARAGE FLIGHT SIM</h1>
+    <p id="acId"></p>
+    <p id="acMeta"></p>
+  </div>
+  <div id="rail" class="panel"><b id="phName">HOLDING</b><div id="track"></div></div>
+  <div id="pfd" class="panel">
+    <div class="rd"><b id="r-ias">0</b><i>km/h IAS</i></div>
+    <div class="rd"><b id="r-alt">0</b><i>m ALT</i></div>
+    <div class="rd"><b id="r-vs">0.0</b><i>m/s VS</i></div>
+  </div>
+  <section id="telp" class="panel">
+    <header><h2>Telemetry</h2><span id="tsum"></span></header>
+    <canvas id="tel" width="1052" height="264"></canvas>
+    <div id="grid">
+      <div class="cell"><span>AoA</span><b id="r-aoa">0.0°</b></div>
+      <div class="cell"><span>Bank</span><b id="r-bank">0.0°</b></div>
+      <div class="cell"><span>AGL</span><b id="r-agl">0.0 m</b></div>
+      <div class="cell"><span>Throttle</span><b id="r-thr">0%</b></div>
+      <div class="cell"><span>Elevator</span><b id="r-de">0.0°</b></div>
+      <div class="cell"><span>Aileron</span><b id="r-da">0.0°</b></div>
+      <div class="cell"><span>Rudder</span><b id="r-dr">0.0°</b></div>
+      <div class="cell"><span>Peak strain</span><b id="r-str">0</b></div>
+    </div>
+    <div id="legend">
+      <em><i style="background:var(--cyan)"></i>altitude</em>
+      <em><i style="background:var(--amber)"></i>speed</em>
+      <em style="margin-left:auto"><i style="background:var(--cyan)"></i>beam compression</em>
+      <em><i style="background:var(--amber)"></i>beam tension</em>
+    </div>
+  </section>
+  <div id="ctrls">
+    <div id="fleet">
+      <button id="bCub" class="sel on">J-3 Cub</button>
+      <button id="bDrone" class="sel">Foam Trainer</button>
+      <button id="bDC3" class="sel">DC-3</button>
+      <button id="bJojo" class="sel">Jodel</button>
+      <button id="bC172" class="sel">C172</button>
+      <button id="bChnk" class="sel">Chinook</button>
+    </div>
+    <div id="bar">
+      <button id="bGo" class="pri">Fly the circuit</button>
+      <button id="bReset">Reset</button>
+      <button id="bPause">Pause</button>
+      <button id="bTel">Telemetry</button>
+      <button id="bSkin">Minimal UI</button>
+    </div>
+  </div>
+  <div id="hint">drag to orbit · scroll to zoom</div>
 </div>
 
 

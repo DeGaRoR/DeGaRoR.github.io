@@ -2,13 +2,17 @@
   const world = makeWorld();
   const AIRCRAFT = { cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
   let def, sim, ap, nb;
+  const $ = id => document.getElementById(id);
 
-  const canvas = document.getElementById('c');
+  const canvas = $('c');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0d1b2e);
-  scene.fog = new THREE.Fog(0x0d1b2e, 300, 1900);
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
   const target = new THREE.Vector3(2.2, 1, 0);
@@ -21,10 +25,33 @@
     camera.lookAt(target);
   }
 
-  const worldFx = buildWorldScene(scene, world);
+  const WF = buildWorldScene(scene, world, renderer, camera);
 
   // ================= aircraft (rebuilt on selection) =================
-  let bGeo, bPos, bCol, lines, pGeo, pPos, pts;
+  let bGeo, bPos, bCol, lines, pGeo, pPos, pts, proxy;
+  function buildShadowProxy() {
+    // invisible skin stitched across wingtips/engines/tailplane so the
+    // wireframe casts a real sun shadow. ENGL/ENGR exist only on the Cub and
+    // DC-3; single-engine fiches fall back to their lone ENG node.
+    if (proxy) { scene.remove(proxy.mesh); proxy.mesh.geometry.dispose(); proxy = null; }
+    const idx = t => { const o = []; def.nodes.forEach((n, i) => { if (n.tag === t) o.push(i); }); return o; };
+    const wf = idx('WF'), wr = idx('WR'), eng = idx('ENG');
+    const engL = idx('ENGL')[0] ?? eng[0], engR = idx('ENGR')[0] ?? eng[0];
+    const htl = idx('HTL')[0], htr = idx('HTR')[0];
+    if (!wf.length || !wr.length || engL === undefined || htl === undefined || htr === undefined) return;
+    const tip = (arr, sgn) => arr.reduce((best, i) =>
+      sgn * def.nodes[i].p[2] > sgn * def.nodes[best].p[2] ? i : best, arr[0]);
+    const ids = [tip(wf, -1), tip(wf, 1), tip(wr, 1), tip(wr, -1), engL, engR, htr, htl];
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(ids.length * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
+    mesh.castShadow = true; mesh.frustumCulled = false;
+    scene.add(mesh);
+    proxy = { ids, pos, attr: geo.attributes.position, mesh };
+  }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
@@ -47,7 +74,13 @@
       size: key === 'drone' ? 0.018 : 0.06 }));
     pts.frustumCulled = false;
     scene.add(pts);
+    buildShadowProxy();
     dist = def.params.viewDist;
+    const PP = POWERPLANTS[def.params.powerplant];
+    $('acId').textContent = `${def.params.name} — ${PP.engine.name} · ${PP.prop.name}`;
+    $('acMeta').textContent = `${sim.n} nodes · ${nb} beams · ` +
+      (sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg') +
+      ` · full circuit autopilot`;
   }
 
   const cN = [0.34, 0.49, 0.69], cT = [1, 0.6, 0.24], cC = [0.31, 0.85, 0.91];
@@ -67,6 +100,13 @@
     }
     pGeo.attributes.position.needsUpdate = bGeo.attributes.position.needsUpdate =
       bGeo.attributes.color.needsUpdate = true;
+    if (proxy) {
+      for (let k = 0; k < proxy.ids.length; k++) {
+        const i3 = proxy.ids[k] * 3, o = k * 3;
+        proxy.pos[o] = sim.p[i3]; proxy.pos[o+1] = sim.p[i3+1]; proxy.pos[o+2] = sim.p[i3+2];
+      }
+      proxy.attr.needsUpdate = true;
+    }
   }
 
   // ================= interaction =================
@@ -102,12 +142,36 @@
     dist = Math.max(4, Math.min(120, dist * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
+  // ================= phase rail =================
+  const PHASES = [['ROLL','TAKEOFF ROLL'],['LIFTOFF','LIFT-OFF'],['CLIMB','CLIMB'],
+    ['CRUISE','CRUISE'],['TURNBACK','TURNBACK'],['INBOUND','INBOUND'],
+    ['APPROACH','APPROACH'],['FLARE','FLARE'],['ROLLOUT','ROLLOUT'],['STOPPED','STOPPED']];
+  const tickEls = {};
+  { const track = $('track');
+    for (const [k, l] of PHASES) {
+      const d = document.createElement('i');
+      d.title = l; track.appendChild(d); tickEls[k] = d;
+    }
+  }
+  let railPhase = '';
+  function setRail(active) {
+    if (active === railPhase) return;
+    railPhase = active;
+    $('phName').textContent = active === null ? 'HOLDING'
+      : (PHASES.find(p => p[0] === active) || [0, active])[1];
+    let past = active !== null;
+    for (const [k] of PHASES) {
+      const d = tickEls[k];
+      if (k === active) { d.className = 'now'; past = false; }
+      else d.className = past ? 'done' : '';
+    }
+  }
+
   // ================= autopilot + telemetry =================
   let running = true, started = false;
   const tel = { t: [], alt: [], V: [], marks: [] };
   let telAcc = 0, lastPhase = 'ROLL';
-  const phaseEl = document.getElementById('phase');
-  const telWrap = document.getElementById('telWrap');
+  const telWrap = $('telp');
 
   function record(dt) {
     telAcc += dt;
@@ -117,53 +181,76 @@
     if (ap.phase !== lastPhase) { tel.marks.push([ap.t, ap.phase]); lastPhase = ap.phase; }
   }
   function drawTel() {
-    const cv = document.getElementById('tel'), g = cv.getContext('2d');
-    g.clearRect(0, 0, cv.width, cv.height);
+    const cv = $('tel'), g = cv.getContext('2d'), S = 2, W = cv.width / S, H = cv.height / S;
+    g.setTransform(S, 0, 0, S, 0, 0);
+    g.clearRect(0, 0, W, H);
     if (tel.t.length < 2) return;
-    const t1 = tel.t[tel.t.length - 1], W = cv.width, H = cv.height;
-    const aMax = Math.max(20, ...tel.alt) * 1.1, vMax = Math.max(60, ...tel.V) * 1.1;
-    g.strokeStyle = '#2a4468'; g.beginPath();
-    g.moveTo(0, H - 0.5); g.lineTo(W, H - 0.5); g.stroke();
-    const line = (arr, max, color) => {
-      g.strokeStyle = color; g.beginPath();
+    const t1 = Math.max(tel.t[tel.t.length - 1], 1e-3), PAD = 16;
+    const aMax = Math.max(20, ...tel.alt) * 1.15, vMax = Math.max(60, ...tel.V) * 1.15;
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(255,234,206,.09)';
+    for (let k = 0; k <= 4; k++) {
+      const y = Math.round(H - k / 4 * (H - PAD)) - 0.5;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+    }
+    g.font = '500 8px "IBM Plex Mono", monospace';
+    let lastLabelX = -99;
+    for (const [tm, ph] of tel.marks) {
+      const x = Math.round(tm / t1 * W) + 0.5;
+      g.strokeStyle = 'rgba(255,234,206,.16)';
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+      if (x - lastLabelX < 11) continue;           // crowded transitions: tick only
+      lastLabelX = x;
+      g.fillStyle = 'rgba(251,244,234,.42)';
+      g.save(); g.translate(x + 3.5, 3); g.rotate(Math.PI / 2); g.fillText(ph, 0, 0); g.restore();
+    }
+    const path = (arr, max) => {
+      g.beginPath();
       for (let i = 0; i < tel.t.length; i++) {
-        const x = tel.t[i] / t1 * W, y = H - arr[i] / max * (H - 12);
+        const x = tel.t[i] / t1 * W, y = H - arr[i] / max * (H - PAD);
         i ? g.lineTo(x, y) : g.moveTo(x, y);
       }
-      g.stroke();
     };
-    line(tel.alt, aMax, '#4fd8e8');
-    line(tel.V, vMax, '#ff9a3c');
-    g.fillStyle = '#5a7291'; g.font = '9px monospace';
-    for (const [tm, ph] of tel.marks) {
-      const x = tm / t1 * W;
-      g.fillRect(x, 0, 1, H);
-      g.save(); g.translate(x + 3, 10); g.rotate(Math.PI / 2); g.fillText(ph, 0, 0); g.restore();
-    }
+    path(tel.alt, aMax);
+    g.lineTo(W, H); g.lineTo(0, H); g.closePath();
+    g.fillStyle = 'rgba(99,211,204,.13)'; g.fill();
+    g.lineWidth = 1.6; g.lineJoin = 'round';
+    path(tel.alt, aMax); g.strokeStyle = '#63d3cc'; g.stroke();
+    path(tel.V, vMax); g.strokeStyle = '#ffb257'; g.stroke();
+    g.font = '500 8.5px "IBM Plex Mono", monospace';
+    g.fillStyle = 'rgba(99,211,204,.85)';
+    g.fillText(aMax.toFixed(0) + ' m', 4, 10);
+    g.fillStyle = 'rgba(255,178,87,.85)';
+    g.fillText(vMax.toFixed(0) + ' km/h', 52, 10);
+    g.fillStyle = 'rgba(251,244,234,.42)';
+    g.fillText(t1.toFixed(0) + ' s', W - 26, H - 4);
   }
 
   function script(dt) {
-    if (!started) { phaseEl.textContent = 'HOLDING'; return; }
+    if (!started) { setRail(null); return; }
     ap.update(dt);
     record(dt);
-    let txt = ap.phase;
-    if (ap.phase === 'STOPPED' && ap.tdInfo) {
-      txt = `STOPPED — touchdown sink ${ap.tdInfo.sink.toFixed(2)} m/s at ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h, ${Math.abs(ap.tdInfo.z).toFixed(1)} m off centerline`;
-      telWrap.classList.add('show'); drawTel();
+    setRail(ap.phase);
+    if (ap.phase === 'STOPPED' && ap.tdInfo && !telWrap.classList.contains('show')) {
+      $('tsum').textContent =
+        `touchdown ${ap.tdInfo.sink.toFixed(2)} m/s · ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h · ` +
+        `${Math.abs(ap.tdInfo.z).toFixed(1)} m off centreline`;
+      telWrap.classList.add('show'); $('bTel').classList.add('on'); drawTel();
     }
-    phaseEl.textContent = txt;
   }
 
-  document.getElementById('bGo').onclick = () => { started = true; };
+  $('bGo').onclick = () => { started = true; };
   function fullReset() {
-    sim.reset(0); ap = makeAutopilot(sim, def); started = false;
+    sim.reset(0); ap = makeAutopilot(sim, def); started = false; running = true;
+    $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
-    lastPhase = 'ROLL'; telWrap.classList.remove('show');
-    phaseEl.textContent = 'HOLDING';
+    lastPhase = 'ROLL'; telWrap.classList.remove('show'); $('bTel').classList.remove('on');
+    $('tsum').textContent = '';
+    railPhase = ''; setRail(null);
   }
-  document.getElementById('bReset').onclick = fullReset;
-  const selBtns = { cub: document.getElementById('bCub'), drone: document.getElementById('bDrone'),
-                    dc3: document.getElementById('bDC3'), jojo: document.getElementById('bJojo'), c172: document.getElementById('bC172'), chnk: document.getElementById('bChnk') };
+  $('bReset').onclick = fullReset;
+  const selBtns = { cub: $('bCub'), drone: $('bDrone'), dc3: $('bDC3'),
+                    jojo: $('bJojo'), c172: $('bC172'), chnk: $('bChnk') };
   for (const key of ['cub', 'drone', 'dc3', 'jojo', 'c172', 'chnk']) {
     selBtns[key].onclick = () => {
       setAircraft(key); fullReset();
@@ -171,26 +258,37 @@
       hud();
     };
   }
-  document.getElementById('bPause').onclick = e => {
-    running = !running; e.target.textContent = running ? 'Pause' : 'Run';
+  $('bPause').onclick = e => {
+    running = !running;
+    e.target.textContent = running ? 'Pause' : 'Run';
+    e.target.classList.toggle('on', !running);
   };
-  document.getElementById('bTel').onclick = () => {
-    telWrap.classList.toggle('show'); drawTel();
+  $('bTel').onclick = e => {
+    const on = telWrap.classList.toggle('show');
+    e.target.classList.toggle('on', on);
+    drawTel();
+  };
+  $('bSkin').onclick = e => {
+    const min = document.body.classList.toggle('min');
+    e.target.textContent = min ? 'Panelled UI' : 'Minimal UI';
   };
 
-  const inst = document.getElementById('inst');
+  const R = ['ias','alt','vs','aoa','bank','agl','thr','de','da','dr','str']
+    .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   function hud() {
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = ap.dbg;
-    inst.innerHTML =
-      `IAS <b>${(o.V * 3.6).toFixed(0)}</b> km/h   ALT <b>${cg[1].toFixed(1)}</b> m   ` +
-      `VS ${o.vs >= 0 ? '+' : ''}${o.vs.toFixed(1)} m/s\n` +
-      `α ${(o.alpha * 57.3).toFixed(1)}°   bank ${((d.ph || 0) * 57.3).toFixed(1)}°   ` +
-      `AGL ${(d.agl || 0).toFixed(1)} m\n` +
-      `thr ${(c.thr * 100).toFixed(0)}%   elev ${(c.de * 57.3).toFixed(1)}°   ` +
-      `ail ${(c.da * 57.3).toFixed(1)}°   rud ${(c.dr * 57.3).toFixed(1)}°\n` +
-      `${def.params.name} — ${POWERPLANTS[def.params.powerplant].engine.name} · ` +
-      `${POWERPLANTS[def.params.powerplant].prop.name}\n` +
-      `${sim.n} nodes · ${nb} beams · ${sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg'}`;
+    R.ias.textContent = (o.V * 3.6).toFixed(0);
+    R.alt.textContent = cg[1].toFixed(0);
+    R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
+    if (!telWrap.classList.contains('show')) return;
+    R.aoa.textContent = (o.alpha * 57.3).toFixed(1) + '°';
+    R.bank.textContent = ((d.ph || 0) * 57.3).toFixed(1) + '°';
+    R.agl.textContent = (d.agl || 0).toFixed(1) + ' m';
+    R.thr.textContent = (c.thr * 100).toFixed(0) + '%';
+    R.de.textContent = (c.de * 57.3).toFixed(1) + '°';
+    R.da.textContent = (c.da * 57.3).toFixed(1) + '°';
+    R.dr.textContent = (c.dr * 57.3).toFixed(1) + '°';
+    R.str.textContent = (sim.stats().smax * 100).toFixed(2) + '%';
   }
 
   setAircraft('cub');
@@ -210,14 +308,15 @@
       sim.step(1 / 60);              // substep rate is a per-aircraft property
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         running = false;
-        phaseEl.textContent = 'SIM DIVERGED — press Reset';
+        $('phName').textContent = 'SIM DIVERGED — RESET';
       }
     }
     const cg = sim.cgPos();
+    WF.worldUpdate(cg);
     target.set(cg[0], cg[1], cg[2]);
     placeCamera();
     sync();
-    if (++frame % 6 === 0) hud();
+    if (++frame % 6 === 0) { hud(); if (telWrap.classList.contains('show')) drawTel(); }
     renderer.render(scene, camera);
   }
   hud();
