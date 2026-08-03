@@ -101,10 +101,18 @@
      both the ring's diameter and pick()'s hit sphere. Larger than --tapsize so
      the ring reads as a mark around the animal rather than a dot on it, and
      size-invariant so a big creature cannot cover its neighbours. */
+  /* THE GLASS — the tank's real walls, drawn as edges. Dim: it is a reference,
+     not a subject, and it must never compete with the animals inside it. */
+  --forage-glass: #9fd8e8;
+  --forage-glass-opacity: 0.22;
   --forage-select-px: 76;
   --forage-mouth-opacity: 0.10;
   --forage-mouth-dot:     0.42;  /* cm — small, solid, unmistakable */
   --forage-trail-opacity: 0.55;  /* where the mouth has been — the creature's own colour */
+  /* Selecting a creature selects its TRAIL. Against six dense overlapping
+     scribbles a brighter line is invisible, so the others recede instead. */
+  --forage-trail-opacity-hi: 0.95;
+  --forage-trail-opacity-lo: 0.12;
   --forage-swatch:        9px;   /* the colour chip that ties a row to an animal */
 
   /* Scrims, not panels: readouts sit over moving water and need a floor. */

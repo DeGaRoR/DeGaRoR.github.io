@@ -61,6 +61,25 @@ const CAST_MAX = 6;
 const TRAIL_START = 2048;
 const TRAIL_CEIL = 32768;
 
+/**
+ * Time multipliers. The tank's ladder stops at 4x (`SPEEDS` in ui/tank/sim.js) and
+ * that is right for it — you are watching six creatures wiggle and deciding which
+ * to breed, which is a decision you make in seconds.
+ *
+ * FORAGE IS A DIFFERENT TIMESCALE and the ladder has to say so. The energy
+ * multiplier only separates the cast over minutes: at 300 s the field is 2%
+ * grazed, and a creature that starves and one that thrives are still both "about
+ * 1x". An hour of sim is the trial that actually discriminates, and at 4x that is
+ * a quarter of an hour of staring.
+ *
+ * The high rungs are ASPIRATIONAL, not guaranteed. `stepBudget` caps the steps a
+ * single frame may run — deliberately, so one stalled frame cannot spiral — so
+ * asking for 32x on a heavy cast gets whatever the frame can deliver. That is why
+ * the chip marks itself when it is being capped: a speed control that silently
+ * lies about the rate makes every long trial unreproducible.
+ */
+const FORAGE_SPEEDS = [1, 2, 4, 8, 16, 32];
+
 export default {
   title: t('Forage'),
 
@@ -100,9 +119,54 @@ export default {
     view.append(renderer.domElement);
     const water = createWater(scene, W1_SLICE.palette);
 
+    // ── THE GLASS ───────────────────────────────────────────────────────────
+    //
+    // The tank has real walls here and they were invisible, so a creature that
+    // had run into one just looked broken — "everyone is stuck" with nothing on
+    // screen to say what they were stuck ON.
+    //
+    // They are visible ONLY on this screen, and that is not an oversight. The
+    // Tank gives each creature a private, WRAPPED world (physics.js:697, the
+    // torus): a finite volume with no boundary, adopted precisely because "the
+    // tank boundary is ABSORBING... a creature random-walks, reaches a wall, and
+    // has no mechanism to leave". There is no wall there to draw. Forage shares
+    // one arena, and the same note says wrapping is safe only while creatures do
+    // not interact — so Forage must run bounded, and the boundary it runs into
+    // has to be something the player can see.
+    //
+    // Edges only, no faces: a translucent box would tint every creature behind
+    // it and dim the water, and the corner lines are enough to read a volume.
+    const glass = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(...W1_SLICE.tankBounds)),
+      new THREE.LineBasicMaterial({
+        color: new THREE.Color(token('--forage-glass')), transparent: true,
+        opacity: tokenNumber('--forage-glass-opacity'), depthWrite: false,
+      }));
+    scene.add(glass);
+
     let arena = null, food = null, points = null, foodDot = null;
     let cast = [];
     let elapsed = 0, running = true, stopped = false, picked = -1;
+    let speed = 1, capped = false;
+    /**
+     * PAUSED MUST BE NEARLY FREE. A paused screen still drew the full scene 60
+     * times a second — six creature trees, the food field, two mote layers and a
+     * second overlay pass — to show a picture that had not changed.
+     *
+     * `dirty` is set by anything that alters what is on screen (camera, selection,
+     * a layer toggle, a respawn) and forces an immediate frame, so dragging the
+     * water stays responsive. With nothing happening the screen falls back to
+     * IDLE_FPS, which keeps the water alive rather than freezing it solid — a
+     * frozen aquarium reads as a crash, and this is ~87% of the cost either way.
+     */
+    const IDLE_FPS = 8;
+    let dirty = true, lastDraw = 0;
+    const invalidate = () => { dirty = true; };
+    // ACHIEVED rate, sim-seconds per wall-second, smoothed. `capped` says the
+    // setting is not being met; on a heavy cast 32x can deliver 5x, and "not
+    // met" is far less useful than "you are getting 5x" when the question is how
+    // long you must wait for an hour of trial.
+    let achieved = 0, achWall = 0, achSim = 0;
 
     /**
      * WHO IS SELECTED — a Set of cast indices, exactly as the tank keeps it.
@@ -330,6 +394,7 @@ export default {
     // one creature at a time, in the stats sheet.
     function paint() {
       if (!food) return;
+      invalidate();
       titleEl.textContent = `${cast.length} ${t('foraging')} · ${fmtTime(elapsed)}`;
       const pctLeft = food.items.length ? (100 * food.eatenCount()) / food.items.length : 0;
       foodEl.textContent = `${t('Food')} ${food.remaining().toFixed(0)} g ${t('of')} ${food.initialTotal}`
@@ -341,6 +406,12 @@ export default {
         c.row.dataset.picked = selected.has(cast.indexOf(c)) ? 'yes' : 'no';
       }
       primary.textContent = running ? t('Pause') : t('Run');
+      // When the frame budget cannot deliver the setting, the chip stops claiming
+      // it and reports what is actually happening instead.
+      chipSpeed.textContent = capped && achieved > 0
+        ? `${achieved < 10 ? achieved.toFixed(1) : achieved.toFixed(0)}×`
+        : `${speed}×`;
+      chipSpeed.dataset.on = capped ? 'no' : 'yes';
     }
 
     const fmtTime = (s) => (s < 60 ? `${s.toFixed(0)}s` : `${Math.floor(s / 60)}m ${(s % 60).toFixed(0)}s`);
@@ -479,12 +550,19 @@ export default {
       return b;
     };
     function applyLayers() {
+      invalidate();
       if (points) points.visible = show.food;
       for (const c of cast) c.trail.visible = show.trails;
       for (const b of cluster.children) {
         if (b.dataset.layer) b.dataset.on = show[b.dataset.layer] ? 'yes' : 'no';
       }
     }
+
+    const chipSpeed = chip(`${speed}×`, () => {
+      speed = FORAGE_SPEEDS[(FORAGE_SPEEDS.indexOf(speed) + 1) % FORAGE_SPEEDS.length];
+      capped = false;
+      paint();
+    });
 
     let lastCast = [];
     const chipTrails = toggle('trails', t('Trails'));
@@ -495,6 +573,7 @@ export default {
       chip(t('Cast'), openPicker),
       chipTrails,
       chipFood,
+      chipSpeed,
       chip(t('Reset'), () => { pan.set(0, 0, 0); spawn(lastCast); }),
     );
     primary.addEventListener('click', () => { running = !running; paint(); });
@@ -505,10 +584,27 @@ export default {
     const pointers = new Map();
     let drag = null, panning = false, pinch = null, moved = false, longPress = 0;
 
+    /**
+     * ONE GESTURE, THREE STATES: tap to select, tap again for the details, tap
+     * once more to let it go.
+     *
+     * The tank puts the sheet behind a 400 ms long-press, and copying that
+     * wholesale hid the details: a long-press is a natural phone gesture and an
+     * unnatural mouse one, so on desktop the stats simply stopped being
+     * reachable. This keeps the tank's tap-selects rule — the thing that was
+     * actually wrong before was the sheet firing on the FIRST tap, over an
+     * unselected creature, with nothing to say which one you had chosen — while
+     * putting the details back one tap away. The long-press still works, so the
+     * phone gesture is unchanged.
+     *
+     * A cycle rather than a toggle because every state has to be exitable with
+     * the same finger: select -> details -> release -> select.
+     */
     function toggleSelect(k) {
       if (k < 0) return;
-      if (selected.has(k)) selected.delete(k); else selected.add(k);
-      paint();
+      if (!selected.has(k)) { selected.add(k); paint(); return; }
+      if (picked !== k || sheet.hidden) { openStats(k); return; }   // 2nd tap: details
+      selected.delete(k); picked = -1; closeSheet(); paint();       // 3rd tap: release
     }
 
     /**
@@ -544,9 +640,22 @@ export default {
      * edge-on the moment you paused and orbited.
      */
     function syncRings() {
+      // THE TRAIL IS THE POINT OF THIS SCREEN, so selecting a creature has to
+      // select its HISTORY, not just its body. Six never-forgetting trails
+      // eventually overlap into one scribble and the per-creature colour stops
+      // being enough to follow a single animal through it.
+      //
+      // Dimming the others rather than only brightening the chosen one: against
+      // six dense trails, "slightly brighter" is invisible. The unselected stay
+      // present — they are the comparison, and hiding them would answer a
+      // different question than the one you asked by tapping.
+      const anySel = selected.size > 0;
       cast.forEach((c, k) => {
-        c.ring.visible = selected.has(k);
-        if (!c.ring.visible) return;
+        const on = selected.has(k);
+        c.trail.material.opacity = tokenNumber(!anySel ? '--forage-trail-opacity'
+          : on ? '--forage-trail-opacity-hi' : '--forage-trail-opacity-lo');
+        c.ring.visible = on;
+        if (!on) return;
         const rad = selectRadius(camera.position.distanceTo(c.world));
         c.ring.scale.set(rad, rad, rad);
         c.ring.position.copy(c.world);
@@ -563,6 +672,7 @@ export default {
       return { x: v.reduce((s, p) => s + p.x, 0) / v.length, y: v.reduce((s, p) => s + p.y, 0) / v.length };
     };
     const panBy = (dx, dy) => {
+      invalidate();
       const scale = orbit.dist * 0.0022;
       const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
       const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
@@ -654,6 +764,7 @@ export default {
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2 && pinch) {
+        invalidate();
         const d = span();
         if (pinch.d > 0) orbit.dist = Math.max(8, Math.min(400, pinch.dist * (pinch.d / d)));
         const c = centroid();
@@ -666,6 +777,7 @@ export default {
       if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > TAP.maxMovePx) { moved = true; clearTimeout(longPress); }
       if (panning) panBy(dx, dy);
       else {
+        invalidate();
         orbit.yaw -= dx * 0.006;
         orbit.pitch = Math.max(-1.2, Math.min(1.2, orbit.pitch + dy * 0.005));
       }
@@ -692,6 +804,7 @@ export default {
     view.addEventListener('contextmenu', (e) => e.preventDefault());
     view.addEventListener('wheel', (e) => {
       e.preventDefault();
+      invalidate();
       orbit.dist = Math.max(8, Math.min(400, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1)));
     }, { passive: false });
 
@@ -750,9 +863,19 @@ export default {
       const dt = last ? Math.min(0.25, (nowMs - last) / 1000) : 0;
       last = nowMs;
 
+      // Nothing is moving and nothing was touched: skip the whole draw. The rAF
+      // itself is free; it is the render that costs.
+      if (!running && !dirty && nowMs - lastDraw < 1000 / IDLE_FPS) return;
+      lastDraw = nowMs; dirty = false;
+
       if (running && arena && cast.length) {
-        const { steps, carry } = stepBudget(acc + dt, FIXED_DT);
+        const { steps, carry, dropped } = stepBudget(acc + dt * speed, FIXED_DT);
         acc = carry;
+        capped = dropped;
+        // Measured over a one-second wall window, not per frame: a per-frame
+        // ratio is pure jitter and the chip would flicker through a decade.
+        achWall += dt; achSim += steps * FIXED_DT;
+        if (achWall >= 1) { achieved = achSim / achWall; achWall = 0; achSim = 0; }
         const rate = W1_SLICE.INGEST_RATE ?? INGEST_RATE;
         const sims = cast.map((c) => c.sim);
         for (let s = 0; s < steps; s++) {
@@ -788,6 +911,7 @@ export default {
     function resize() {
       const w = view.clientWidth, h = view.clientHeight;
       if (!w || !h) return;
+      invalidate();
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -844,13 +968,25 @@ export default {
       spawn(lastCast);
     })();
 
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      clearCast();
-      disposeWater(water);
-      renderer.dispose();
+    // `{ stop }`, NOT a bare function, because that is the shape trunk/nav.js
+    // hands back to `unmount(instance)` and the shape tank.js already uses. This
+    // screen used to return the function itself AND declare no `unmount`, so
+    // nav had nothing to call: leaving the tab tore down the DOM and left the
+    // rAF loop, six Rapier simulations and a live WebGL context running forever,
+    // rendering into a detached canvas. Every revisit started another one.
+    return {
+      stop() {
+        stopped = true;
+        cancelAnimationFrame(raf);
+        ro.disconnect();
+        clearCast();
+        if (arena) { arena.free(); arena = null; }
+        disposeWater(water);
+        renderer.dispose();
+        renderer.forceContextLoss?.();
+      },
     };
   },
+
+  unmount(instance) { instance?.stop?.(); },
 };

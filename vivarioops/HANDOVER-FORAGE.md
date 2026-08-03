@@ -290,3 +290,258 @@ reads state that only `frame()` maintains:**
 None of the three is reachable through ordinary use, which is exactly why they had
 survived: rAF always wins the race against a human finger. They are reachable the
 moment anything drives the screen that is not a human finger.
+
+---
+
+## 11. The trajectory is a noisy signal, and this is how noisy — MEASURED
+
+`tools/_ztrail.mjs`, 12 creatures, shared arena, 300 s, mouth sampled at 4 Hz (what
+the screen keeps), food radius 2 cm.
+
+### The ruler decides the answer
+
+The SAME trajectory, measured three ways:
+
+| ruler | mean "distance travelled" | share of the 4 Hz figure |
+|---|---|---|
+| 0.25 s (what the trail stores) | **371 cm** | 100% |
+| 1 s | 105 cm | 28% |
+| 4 s | 33 cm | **9%** |
+
+**An 11× spread from the sampling interval alone.** Path length is not a property of
+the path, it is a property of the path AND the ruler — the coastline paradox, and it
+means no "distance travelled" may ever be printed without its sampling scale. At the
+screen's own 4 Hz, **91% of the number is wiggle.**
+
+Same thing in volume: the mouth's naive swept tube (`L × πr²`) is 4662 cm³ against a
+true union of **285 cm³**. **94% of "swept" water is re-visits** — the scribble balls
+on the screen are the animal eating water it has already stripped.
+
+### Which metric actually predicts eating
+
+Pearson against `eaten`, n = 12 — indicative, not established:
+
+| metric | r |
+|---|---|
+| net displacement | **0.715** |
+| path length @ 4 s | 0.691 |
+| radius of gyration | 0.676 |
+| explored volume (swept-sphere union) | 0.671 |
+| straightness (net / L@1s) | 0.550 |
+| path length @ 1 s | 0.540 |
+| path length @ 0.25 s | **0.513** |
+| naive swept volume | 0.513 (it is L@0.25s rescaled) |
+
+**The correlation rises monotonically as the ruler coarsens** — 0.513 → 0.540 → 0.691.
+That is the quantitative form of "it's basically noisy signal": the fine detail is not
+merely uninformative, it is *anti*-informative, and the finest ruler is the worst
+predictor on the list.
+
+**My prediction was wrong.** I expected the swept-sphere union to win clearly, because
+it is the mechanistically right quantity — the water the mouth could have reached, with
+overlap removed. It lands at 0.671, tied with gyration and below plain net
+displacement. In a roughly uniform field, "did it get to fresh water at all" carries
+most of the signal, and the geometry of how it got there carries little.
+
+### What to do with that
+
+- **Never print path length at 4 Hz.** It is the worst number available and it looks
+  like the most precise one.
+- **A readout wants explored volume, not net displacement**, despite net displacement
+  scoring higher here: net displacement is blind to a return trip and decays toward
+  meaninglessness as trials lengthen, while the union only grows. Over 300 s they
+  agree; over an hour they will not.
+- **Everything above is free.** `c.trailPos` already holds mouth positions at 4 Hz —
+  every metric here is a read over a buffer the screen keeps anyway.
+- **`eaten / exploredVolume` is a real foraging EFFICIENCY** — food found per unit of
+  water searched — and it is the natural place a control subtraction would attach when
+  the kinesis gene exists.
+
+**Caveats, stated because n is small:** one seed, one 300 s trial, a shared arena (so a
+creature's result depends on its neighbours), and 12 creatures. Re-run before any of
+this is quoted as settled.
+
+### Two mistakes worth keeping
+
+1. **The first `exploredVol` was too coarse to test its own hypothesis.** One voxel of
+   side `2r` per sample gave 1–12 cells over a whole trial, so the metric was quantised
+   to about ten values and its correlation (0.468) was measuring the quantisation, not
+   the biology. A cell approximating a radius must be well BELOW it, and every cell
+   within `r` of a sample must be marked — not just the one the sample landed in.
+2. **The naive swept column is not an independent metric.** `L × πr²` is path length
+   times a constant, so it correlates identically (0.513). Kept in the table precisely
+   to show that: it is what you get if you trust path length, and it is worth 94% less
+   than it claims.
+
+---
+
+## 12. THE MULTIPLIER IS THE SELECTOR — and the walls were censoring it
+
+`tools/_zthrive.mjs`. One hour of simulation per creature, each in its OWN sim with
+its OWN fresh copy of the same field, ranked on `intake / spend`. **221× realtime** —
+an hour per creature in 16 s.
+
+### Open water costs nothing to run, and the screen cannot have it
+
+The Forage SCREEN must run bounded: the cast shares one arena, and
+[physics.js:711](vivarioops/engine/l1/physics.js:711) permits wrapping only while
+creatures do not interact. **A one-creature-per-trial harness has no such problem** —
+and `foodEaten` already required exactly that ("a fresh field per creature, or the
+trial order decides the result"). So `simOpts: { bounded: false, wrap: true }` is the
+whole change. The field is generated over the wrap extent and the wrap keeps the body
+inside it, so **the field is periodic by construction and its density is exactly the
+tank's**: a creature may swim forever and keeps meeting food, while depletion still
+means something because the field is finite.
+
+### The A/B — same 8 creatures, same hour, walls on vs off
+
+| # | creature | mass g | eaten OPEN | eaten WALLED | ×|
+|---|---|---|---|---|---|
+| 3 | Oligopterus radiatus | 6.32 | **298.9** (field stripped) | 15.7 | **19×** |
+| 4 | Polycheirus multipes | 32.89 | **251.2** | 6.7 | **37×** |
+| 1 | Mesoanguillops elongatus | 0.97 | 12.0 | 5.9 | 2× |
+| 6, 7, 8 | (barely move) | 1.5–2.3 | — | identical | 1× |
+
+**The walls do not add noise, they censor systematically.** The creatures that
+actually travel ate 19× and 37× less against glass; the ones that never reach a wall
+are bit-identical in both arms. The walled tank ranks *the ability to not go anywhere*.
+
+### The finding that matters most: the multiplier is currently a SIZE selector
+
+    multiplier vs mass:  r = -0.863  (log-log, open water, saturated excluded)
+    multiplier vs mass:  r = -0.887  (log-log, walled)
+
+Nearly identical in both arms, so this is **intrinsic, not a wall artefact**. The
+mechanism is structural: basal cost scales with mass (Kleiber), while intake is capped
+by ONE mouth of FIXED radius. A 33 g creature pays ~13× the basal of a 1 g one and
+cannot possibly eat 13× more through the same 2 cm mouth.
+
+**This is not a defect of the multiplier. It is a defect of the fixed mouth — a whale
+has a big mouth.** It is therefore the sharpest possible argument for **Step 2b, the
+mouth gene**: once placement and COUNT are heritable, mouth area can scale with the
+animal and the multiplier stops being a small-creature ranking. Until then, read the
+multiplier as "energy balance for this body plan AT THIS SIZE" and expect selection on
+it to shrink the corpus.
+
+### Two hazards this surfaced
+
+1. **Saturation.** Over an hour the best forager stripped 100% of the field. Its
+   multiplier is then a FLOOR set by how much food existed, not a measurement of the
+   animal, and must not be ranked against unsaturated creatures. The tool marks it
+   with `!`. **An hour-long trial needs a field sized for an hour** — raise `total`
+   in `makeFood`, or shorten the trial.
+2. **Thresholds are editorial.** `<1 dies / 1–2 survives / >=2 thrives`. The 1 line is
+   real (spending more than you eat); the 2 line is a judgement about how much surplus
+   growth and reproduction need, and it is the first number to revisit at D1.
+
+**Caveats:** n = 8, one seed, one field. Indicative.
+
+---
+
+## 13. Speed control on Forage
+
+`FORAGE_SPEEDS = [1, 2, 4, 8, 16, 32]`, deliberately longer than the tank's
+`SPEEDS = [1, 2, 4]`. The tank's ladder is right for the tank — you watch six
+creatures and decide which to breed, a decision made in seconds. **Forage is a
+different timescale:** at 300 s the field is 2% grazed and a starving creature and a
+thriving one both read "about 1×". The trial that discriminates is an hour.
+
+The high rungs are **aspirational, not guaranteed** — `stepBudget` caps the steps one
+frame may run (deliberately, so a stalled frame cannot spiral). When it drops steps
+the chip dims itself via `data-on="no"`, the same vocabulary the layer toggles use. A
+speed control that silently lies about its rate makes every long trial unreproducible.
+
+---
+
+## 14. The torus is not on screen anywhere — confirmed
+
+Asked directly, so it is written down. `wrap` defaults to **false**, and neither
+screen passes it: `tank.js:302` calls `createSimulation(RAPIER, plan, genome, TANK)`
+with no opts, and `forage.js` passes `wrap: false` explicitly. **Both screens run
+bounded, with real walls.** The torus exists in exactly one place —
+[objective.js:62](vivarioops/engine/l2/objective.js:62), `bounded: false, wrap: true`
+— which is the headless scoring path, plus now `_zthrive.mjs`.
+
+So: **everything the player watches has walls; everything the game scores on does
+not.** That gap is the reason `tools/_zsize.mjs` finds tank size bit-identical across
+8× (§ROADMAP tank-size study), and it is the reason the screen and the trial disagree
+about who the good foragers are.
+
+---
+
+## 15. The chunked ocean — step 1 of the open-water screen. DONE.
+
+`makeChunkedFood(world, opts)` in `engine/l2/forage.js`, checked by
+`tools/_zocean.mjs`. An unbounded food field generated on demand, chunk by chunk,
+only where a mouth has actually been.
+
+### It is a drop-in, and that is entirely because of the grid
+
+`forageStep` no longer scans `food.items`; it reads `grid` / `cellSide` / `tick`, so
+**anything maintaining those three IS a food field**. Before the grid, an infinite
+field was not slow — it was undefined, because the loop's cost scaled with the size of
+the world rather than the number of mouths. Measured on the finite field: **8× the
+items cost 10% more wall time** (1400 → 11200, 1.67 s → 1.84 s per 300 s trial), and
+the totals were identical to 9 decimal places.
+
+### Density is now volume-invariant
+
+`FOOD_REFERENCE_VOLUME = 32*24*32` is **a literal on purpose**. Reading it from
+`world.tankBounds` would mean widening the tank silently thinned the food — count fixed
+at 1400 while volume grew — and every swept figure in this file would quietly stop
+applying. Count and mass now follow the volume, so the aquarium and the ocean are the
+same water, which is the only thing that makes the A/B mean anything.
+`makeFood(W1_SLICE)` is unchanged: 1400 items, 300 g.
+
+### Measured
+
+    item density   0.05688 /cm3   vs tank 0.05697   (ref 0.05697)
+    mass density   0.01219 g/cm3  vs tank 0.01221
+    chunk seams    edge slab 1847 vs interior mean 1868.8 (interior spread 1.02x)
+    determinism    same seed -> identical ocean; different seed -> different ocean
+    depletion      stripped region still stripped after leaving and returning
+    an hour        Darter, 3600 s in 21 s wall (172x realtime), ate 36.7 g,
+                   travelled to (3.9, 93.6, 67.8) cm — 115 cm out, far outside any box
+                   52 chunks materialised, 12116 items live
+    conservation   field loss == creature intake, to 1e-9
+
+**Note the escalation across the three arms** — same creature, same hour:
+walled **8.57 g**, torus **22.07 g**, truly open **36.72 g**. The torus is not
+equivalent to open water: a wrapped creature re-enters water it has already stripped,
+and the true ocean always has fresh food ahead. Worth remembering before quoting torus
+numbers as "open".
+
+### THE DEFECT THE TOOL CAUGHT, which had been there all along
+
+    const s = world.fertility?.seed ?? seed;      // in BOTH makeFood and the new one
+
+**The world's fertility seed beat the caller's, so a passed `seed` did nothing** on any
+world carrying one — W1 does. Every `makeFood(world, { seed })` call in the tree was
+silently ignoring its argument. Caught only because `_zocean.mjs` asserts that two
+different seeds give two different oceans; they did not. Now `seed ?? world.fertility
+?.seed ?? 0x5EED`, so an explicit seed wins.
+
+`tools/_zthrive.mjs` was passing `seed: FIELD_SEED` believing it selected the field. It
+did not — every creature met the world's own field, which is what was wanted, but by
+accident. The argument is removed so §12's numbers still describe what was run.
+
+**A parameter that is accepted and discarded is worse than one that does not exist.**
+
+### One of the two failures was MINE, and it is worth keeping
+
+The first depletion check stripped grid cell `'0,0,0'` (covering x,y,z in [0,4)) and
+then measured `|x| < 4` — a region including negative coordinates, which live in cell
+`'-1,-1,-1'`. The two never overlapped, so it reported a defect that did not exist. A
+check whose strip and whose measurement are not the same items is not a check.
+
+### What is NOT done
+
+- **The readout.** `initialTotal` is `Infinity` and `% grazed` is meaningless; the
+  ocean arm must print absolute grams plus LOCAL density, or it prints a lie with a
+  number on it. `remaining()` returns the visited region only and is honestly named
+  `loadedTotal()`.
+- **The mode control** (`Aquarium | Open ocean`) and the `bounded: false` screen arm.
+- **The follow camera**, and re-anchoring water/motes to the camera.
+- **Chunk eviction** — chunks are never freed. Memory grows with EXPLORED volume
+  (12k items per creature-hour), the same way the trail buffer already does. Fine for
+  now; revisit if a session runs for many hours.

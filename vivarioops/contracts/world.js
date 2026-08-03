@@ -39,7 +39,24 @@ export const WORLD_SCHEMA = {
   floor:                { type: 'object', keys: { present: B, y: N, friction: N, restitution: N },
                           hashed: ['present', 'friction', 'restitution', 'y'] },
   surface:              { type: 'object', keys: { present: B, y: N }, hashed: ['present', 'y'] },
-  tankBounds:           { type: 'array', len: 3, of: N, hashed: true, note: 'm — L1 tank' },
+  // TWO SIZES, DELIBERATELY SEPARATE — and the split is the whole point.
+  //
+  // `tankBounds` is the MEASUREMENT VOLUME: the torus period scoring runs on and
+  // the limit viability rejects oversize creatures against. It is hashed because
+  // a compiled record's claims are claims about THAT volume, and it must not move
+  // casually.
+  //
+  // `habitatBounds` is what the PLAYER WATCHES, and it is unhashed on purpose so
+  // it can be changed freely — a slider, even — without invalidating a single
+  // record. tools/_zsize.mjs measured the justification: locomotion scores are
+  // BIT-IDENTICAL across an 8x range of tank size, because objective.js already
+  // scores with `bounded: false, wrap: true`. One field was carrying two meanings
+  // and the stricter one was taxing the looser one for nothing.
+  //
+  // Absent means "same as tankBounds", so every existing World stays valid.
+  tankBounds:           { type: 'array', len: 3, of: N, hashed: true, note: 'cm — measurement volume; hashed' },
+  habitatBounds:        { type: 'array', len: 3, of: N, optional: true, hashed: false,
+                          note: 'cm — what the player watches; FREE to change, never world identity' },
 
   // presentation — label only, never physics
   phase:                { type: S, note: "'liquid' | 'gas'", hashed: false },
@@ -131,7 +148,10 @@ export function validateWorld(world) {
 
   for (const [key, spec] of Object.entries(WORLD_SCHEMA)) {
     const v = world[key];
-    if (v === undefined) { errors.push(`missing: ${key}`); continue; }
+    // `optional` exists for ONE case and should stay rare: `habitatBounds`, which
+    // defaults to `tankBounds` when absent so that every World authored before the
+    // split stays valid without being rewritten.
+    if (v === undefined) { if (!spec.optional) errors.push(`missing: ${key}`); continue; }
 
     if (spec.type === 'object') {
       if (typeof v !== 'object' || v === null) { errors.push(`${key}: not an object`); continue; }

@@ -252,7 +252,11 @@ export function fitsTank(plan, world) {
  *
  * @param {object} RAPIER  already-initialised
  * @param {object} world   W1_SLICE or another World
- * @param {object} [opts]  `{ bounded }` — false builds an open volume
+ * @param {object} [opts]  `{ bounded, bounds }` — `bounded: false` builds an open
+ *   volume; `bounds` overrides which volume the walls enclose. A SCREEN passes
+ *   `world.habitatBounds` (free to change, invalidates nothing); SCORING passes
+ *   nothing and gets `tankBounds`, the hashed measurement volume. The two are
+ *   separate on purpose — see contracts/world.js.
  */
 export function createArena(RAPIER, world, opts = {}) {
   const bounded = opts.bounded ?? true;
@@ -264,7 +268,7 @@ export function createArena(RAPIER, world, opts = {}) {
   w.timestep = FIXED_DT;
 
   const environment = [];
-  const [tw, th, td] = world.tankBounds;
+  const [tw, th, td] = opts.bounds ?? world.tankBounds;
   const half = [tw / 2, th / 2, td / 2];
 
   const addStatic = (hx, hy, hz, x, y, z, kind) => {

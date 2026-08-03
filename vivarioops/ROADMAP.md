@@ -322,3 +322,233 @@ Revisit the merge **after Step 2b (the mouth gene)**, when placement and count a
 heritable, a control subtraction has something to disable, and a forage objective can
 be offered with `trusted: true`. At that point the two screens are answering the same
 question and keeping both is the redundancy.
+
+---
+
+## Study — why is tank size so deeply embedded, and can it be free? (MEASURED)
+
+**The short version: it is not the SIZE that is embedded, it is the HASH, and the
+hash is now over-broad. Measured, tank size does not reach a single number the game
+selects on.**
+
+### The measurement (`tools/_zsize.mjs`)
+
+Same 10 genomes, same `Speed` objective, four tank sizes spanning 8×:
+
+| | 1× (32³) | 2× | 4× | 8× | max rel. diff |
+|---|---|---|---|---|---|
+| every creature | — | — | — | — | **0.0e+0** |
+
+**Bit-identical.** Not close — identical. The reason is in
+[objective.js:62](vivarioops/engine/l2/objective.js:62): scoring already runs
+`bounded: false, wrap: true`. **Selection happens on the torus, in a world with no
+walls at all.** Tank size can only reach it through `wrapExtent`, the torus period,
+and [physics.js:761](vivarioops/engine/l1/physics.js:761) reconstructs the centre as
+if the tank were unbounded, so a wrap is invisible to a measurement — as designed.
+
+Viability reads `tankBounds` too ([viability.js:225,238](vivarioops/engine/l1/viability.js:225))
+but only to REJECT creatures too big for the tank. **Growing the tank can only ever
+relax it** — 0 oversize rejections at every scale, against a corpus of radius
+1.62–5.45 cm.
+
+### So what does tank size actually change?
+
+1. **Duel placement** — [duel.js:145](vivarioops/engine/l2/duel.js:145) starts the
+   pair from the half-extents. This one is real. But C2 already records the tank as
+   **too small for its own spec** (start separation `k × (reachA + reachB)` was
+   "unsatisfiable" and had to be clamped), so a wider tank *repairs* that rather than
+   breaking it.
+2. **Food density** — [forage.js:165](vivarioops/engine/l2/forage.js:165) spreads
+   `FOOD_COUNT` over the volume, so a bigger tank at fixed count is a sparser field.
+   Fixed by scaling the count with volume.
+3. **What the player watches**, which is the whole reason the question came up.
+
+### What is possible, and what each costs
+
+**(a) Bump and widen — 2× now.** `tankBounds → [64,48,64]`, `faunaVersion 5 → 6`, one
+gate pin. ~30 minutes. Invalidates every compiled Species record, which is what the
+mechanism is FOR and not a loss — but it buys a one-off, and the next size change
+costs the same again.
+
+**(b) SPLIT THE FIELD — this is the real answer.** One field is doing two jobs:
+
+| meaning | who needs it | should it be stable? |
+|---|---|---|
+| **the habitat** — how much room, what you watch | the screens, the forage trial | **no — free** |
+| **the measurement volume** — torus period, oversize limit | scoring, viability, records | **yes** |
+
+Add an unhashed `habitatBounds`; keep `tankBounds` hashed as the canonical
+measurement volume. **Adding an unhashed field does not change `worldHash`, so this
+costs ZERO invalidation** — no bump, no re-freeze, K5 unaffected (it checks the hashed
+path list, which does not move). Afterwards the habitat is freely editable forever,
+including from a Settings slider. Cost: one schema entry, and a deliberate decision at
+each of the ~7 `tankBounds` consumers about which of the two it actually wants —
+which is work worth doing anyway, because right now they are all guessing.
+
+**(c) No walls at all** — the boundless tank. Blocked by a real thing, and it is
+written down: [physics.js:711](vivarioops/engine/l1/physics.js:711) — *"WRAPPING IS
+SAFE HERE FOR A SPECIFIC REASON — creatures do not interact... The day that stops
+being true this needs a periodic broad-phase, not a translate."* **Forage is that
+day.** Wrapping a shared arena needs ghost copies of every body within one wrap
+distance of each seam so contacts work across it; Rapier has no periodic world. One
+to two sittings, and a genuine source of subtle bugs (a creature colliding with its
+own ghost).
+
+### Recommendation
+
+**Do (b), and take the 2× as its first free consequence.** It is barely more work than
+(a), it costs no invalidation at all, and it turns "the aquarium is too small" from a
+session into a number anyone can change. Keep (c) available for when boundless
+wandering is actually the point — it is a real feature, not a workaround, and it
+should be costed on its own.
+
+---
+
+## Study — how to make the OPEN environment watchable, not just headless
+
+**The measurement forced the question.** `tools/_zthrive.mjs` ran the player's own
+Atlas cast for 66 minutes each, open water against walls (HANDOVER-FORAGE §12):
+
+| creature | eaten OPEN | eaten WALLED | | multiplier |
+|---|---|---|---|---|
+| Drifter | 26.57 g | 5.79 g | **4.6×** | 8.90 → 8.41 |
+| Polypoda multipes | 44.04 g | 11.05 g | **4.0×** | 0.22 → 0.22 |
+| Darter | 22.07 g | 8.57 g | **2.6×** | **6.91 → 1.96** |
+| Eel | 12.23 g | 5.92 g | 2.1× | 11.91 → 8.38 |
+| Paddletail | 8.82 g | 8.72 g | 1.01× | 8.19 → 8.82 |
+| **Flapper** | **5.641 g** | **5.641 g** | **1.00×** | **5.14 → 5.14** |
+
+**Flapper is bit-identical in both arms** — it never travels far enough to meet a
+wall, so the boundary costs it nothing. Darter changes VERDICT: walled it merely
+survives, open it thrives. The walls do not add noise, they re-rank.
+
+### THE KEY FACT: an unbounded SHARED arena already works
+
+`createArena(RAPIER, world, { bounded: false })` is supported today —
+[physics.js:255](vivarioops/engine/l1/physics.js:255), *"false builds an open
+volume"*. The wall colliders are simply not created. **Creatures still collide with
+each other normally. No wrap, therefore no periodic broad-phase, therefore none of
+the blocker at physics.js:711.**
+
+So the open world is not blocked by physics. It is blocked by **food**: `makeFood`
+generates items inside `world.tankBounds`, and past that edge there is nothing to eat.
+That is the entire gap.
+
+### Two ways to close it
+
+**(T) TILED TORUS — private wrapped sim per creature, laid out like the Tank.**
+Exactly what `_zthrive` measures, so screen and harness would agree by construction.
+Reuses the Tank's existing tiled-arena architecture; **no new physics at all**. The
+creature wraps, so the trail needs a break at each wrap event (and optionally ghost
+copies at ±extent so the seam reads as continuous). **Cost: they stop competing for
+one field** — though `foodEaten` already argues a fresh field per creature is the
+CORRECT comparison, so this is arguably a feature. ~1 sitting.
+
+**(O) OPEN OCEAN — shared unbounded arena, procedurally chunked infinite food.**
+`bounded: false`, and food generated on demand: hash a chunk coordinate into a
+deterministic set of items, keep a sparse Map of what has been eaten. Infinite extent,
+identical density everywhere, memory proportional only to where creatures have
+actually been. Rivalry is preserved and the space is genuinely open — no wrap, no
+seam, no ghosts.
+
+  What it needs beyond the food: **a following camera** (they disperse, so a fixed
+  frame loses them — auto-fit the cast's bounding box, plus a "follow the selected
+  creature" mode that the new trail highlight already sets up), and the water/mote
+  atmosphere re-anchored to the camera instead of to a box. ~1–2 sittings.
+
+  Honest risk: with nothing to hold them together the cast spreads until an auto-fit
+  camera shows six specks. That is a true picture of an open ocean and may simply not
+  be fun to watch — which is an argument for making "follow one creature" the default
+  view rather than a mode.
+
+### Recommendation
+
+**(O).** It is what was actually asked for — creatures wandering in unbounded space —
+the physics flag already exists, and the only genuinely new component is a chunked
+food field, which is self-contained and testable on its own. Keep (T) as the fallback
+if the dispersal turns out to make it unwatchable, since it costs no new physics.
+
+**Do NOT ship either as a replacement for the bounded screen.** The walls are a real
+habitat and the crowded tank is a legitimate (different) experiment; the open world is
+the one that measures foraging rather than cornering. Both should exist, and the
+screen should say which one it is running.
+
+---
+
+## DESIGN — Aquarium vs Open ocean: one screen, two habitats
+
+### The decision: a MODE inside Forage, not a new tab
+
+**Not a new tab.** The two habitats share ~90% of the screen — cast picker, ledger,
+trails, selection rings, layer toggles, speed, stats sheet. A second tab means either
+duplicating ~900 lines (which will drift within two sittings) or a refactor into a
+shared module that is more work than the feature. Six entries is also too many for a
+phone tab bar.
+
+**And comparing them IS the feature.** `_zthrive` measured Darter at 1.96× walled and
+6.91× open — same animal, different verdict. One tap between arms is the whole point;
+a tab switch that respawns from scratch is the same thing with more ceremony.
+
+**But the mode must not hide in the chip row.** `Cast / Trails / Food / 4× / Reset` is
+a row of adjustments; the habitat is not an adjustment, it is *which experiment you are
+running*. It goes in the **title row as a two-segment control**, and the readout names
+it, so a screenshot is self-describing:
+
+```
+  [ Aquarium | Open ocean ]   6 foraging · 6m 14s
+  Food 279 g of 300 · 7% grazed
+```
+
+Switching **respawns** — different arena, different field, the clock restarts. That is
+honest rather than convenient: the two are not the same trial.
+
+### What differs, and it is a short list
+
+| | Aquarium | Open ocean |
+|---|---|---|
+| arena | `bounded: true, bounds: habitatBounds` | **`bounded: false`** |
+| food | finite field over `habitatBounds` | **chunked, infinite** |
+| glass | drawn | none |
+| camera | framed to the box | **follows** |
+| readout | `279 g of 300 · 7% grazed` | `eaten 12.4 g · density 0.9x` |
+
+Everything else is shared verbatim.
+
+### The one new component: chunked food
+
+**And it is already a drop-in.** `forageStep` no longer scans `food.items`; it reads
+`food.grid` / `food.cellSide` / `food.tick`. Any object providing those three plus
+`remaining()` / `eatenCount()` works. Measured: **8× the field costs 10% more wall
+time** (1400 → 11200 items, 1.67 s → 1.84 s per 300 s trial), because the cost is now
+O(mouths) rather than O(field). Before the grid it was a linear scan of every item on
+every step, and an infinite field was simply impossible.
+
+So `makeChunkedFood(world, opts)`:
+- **Chunk** = a cube (start at 16 cm) identified by integer coords. Its items are
+  generated deterministically from `hash3(cx, cy, cz, seed)` — the same hash the patchy
+  field already uses — so the ocean is infinite, reproducible, and needs no storage
+  until visited.
+- `ensureAround(points)` each step: materialise the 3×3×3 chunks around every mouth and
+  splice them into `grid`. Cost is bounded by mouths, not by ocean size.
+- Density matches `habitatBounds`' exactly, so the ocean and the aquarium are the same
+  water — which is what makes the A/B mean anything.
+- Chunks are never evicted. Memory grows with **explored** volume only, the same way
+  the trail buffer already does.
+
+**A real consequence to design for, not paper over:** `initialTotal`, `remaining()` and
+`% grazed` are meaningless in an infinite field. The ocean readout must switch to
+absolute grams eaten plus *local* density, or it will print a lie.
+
+### Camera: follow, and default to following
+
+They disperse — that is the point — so a fixed frame loses them and an auto-fit frame
+eventually shows six specks. **Default to following the selected creature**, which the
+trail highlight already sets up, and fall back to auto-fitting the cast when nothing is
+selected. Water and motes re-anchor to the camera instead of to a box.
+
+### Order of work
+
+1. `makeChunkedFood` + its own tool — testable alone, against the finite field.
+2. The mode control and the `bounded: false` arm.
+3. Follow camera, then the ocean readout.
+

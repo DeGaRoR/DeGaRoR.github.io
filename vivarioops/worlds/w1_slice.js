@@ -61,7 +61,19 @@ export const W1_SLICE = {
   // At 32 cm the axis room is 24.5 cm, which honours k=2 and k=3 outright and most
   // of the rest on the diagonal; `fitRatio` still reports what was honoured.
   // Height is unchanged: it is the buoyancy axis and buoyancy is inert here.
-  tankBounds: [32, 24, 32],       // cm — L1 tank
+  // THE MEASUREMENT VOLUME. Hashed, so moving it invalidates every compiled
+  // record — and it should almost never move, because nothing measured depends
+  // on it: tools/_zsize.mjs shows locomotion scores bit-identical across an 8x
+  // range, since objective.js scores on the torus with no walls at all.
+  tankBounds: [32, 24, 32],       // cm — measurement volume (hashed)
+
+  // WHAT THE PLAYER WATCHES. Unhashed, therefore FREE. Set to 2x the measurement
+  // volume because tools/_zwall.mjs measured the old one as a trap: 4 of 6
+  // creatures on the glass within 104 s and 29% of a ten-minute trial spent
+  // against it, speed and wall gap decaying together — the absorbing boundary
+  // physics.js:697 records. At 2x that is 1 of 6 and 0% of the trial.
+  // Change this at will. It invalidates nothing.
+  habitatBounds: [64, 48, 64],    // cm — the aquarium (NOT world identity)
 
   // ── presentation — label only, never physics ───────────
   phase: 'liquid',

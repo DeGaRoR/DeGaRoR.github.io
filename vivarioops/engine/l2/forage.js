@@ -69,6 +69,19 @@ export const FOOD_COUNT = 1400;
 export const FOOD_RADIUS = 2.0;
 
 /**
+ * The reference volume `FOOD_COUNT` was swept in, and therefore THE DENSITY.
+ *
+ * A LITERAL ON PURPOSE. Reading it from `world.tankBounds` would mean widening
+ * the tank silently thinned the food — the count would stay 1400 while the volume
+ * grew — and every measured figure above would quietly stop applying. Pinning the
+ * reference makes the count follow the volume instead, so water is water whatever
+ * size box it is in. That is what lets the aquarium and the open ocean be compared
+ * at all: they are the same water.
+ */
+export const FOOD_REFERENCE_VOLUME = 32 * 24 * 32;                // cm^3 — W1's tankBounds
+export const FOOD_DENSITY = FOOD_COUNT / FOOD_REFERENCE_VOLUME;   // items / cm^3
+
+/**
  * Grams a mouth ingests per second while inside an item.
  *
  * PER MOUTH, NOT PER AREA. That is the whole point of the rebuild: a big animal
@@ -159,11 +172,21 @@ function fbm(x, y, z, seed, octaves = 3) {
  * patchiness changes WHERE the food is and never HOW MUCH there is.
  */
 export function makeFood(world, {
-  count = FOOD_COUNT, radius = FOOD_RADIUS, total = null,
-  seed = 0x5EED, contrast = 2.0, floor = 0.35,
+  bounds = null, count = null, radius = FOOD_RADIUS, total = null,
+  seed = null, contrast = 2.0, floor = 0.35,
 } = {}) {
-  const [W, H, D] = world.tankBounds;
-  const s = world.fertility?.seed ?? seed;
+  // `bounds` lets a SCREEN fill its habitat while SCORING keeps the measurement
+  // volume (contracts/world.js). Count and mass both follow the volume, so density
+  // is invariant and `makeFood(W1_SLICE)` is bit-identical to before.
+  const [W, H, D] = bounds ?? world.tankBounds;
+  const vol = W * H * D;
+  count = count ?? Math.round(FOOD_DENSITY * vol);
+  // AN EXPLICIT SEED WINS. This read `world.fertility?.seed ?? seed`, so any world
+  // carrying a fertility seed — W1 does — silently ignored the caller's. Passing a
+  // seed did nothing, and `tools/_zocean.mjs` caught it by asserting that two
+  // different seeds give two different oceans: they did not. A parameter that is
+  // accepted and discarded is worse than one that does not exist.
+  const s = seed ?? world.fertility?.seed ?? 0x5EED;
   const scale = (world.fertility?.noiseScale ?? 0.05) * 4;
   const items = [];
 
@@ -184,17 +207,166 @@ export function makeFood(world, {
     if (rnd() > floor + (1 - floor) * v) continue;
     items.push({ x, y, z, r: radius, mass: 0 });
   }
-  const want = total ?? world.biomassBudget ?? 300;
+  const want = total ?? ((world.biomassBudget ?? 300) * vol) / FOOD_REFERENCE_VOLUME;
   const per = items.length ? want / items.length : 0;
   for (const it of items) it.mass = per;
 
+  // THE SPATIAL INDEX, built once. `forageStep` reads it instead of scanning the
+  // field; cells are 2r on a side so a mouth's reach is inside its 3x3x3 block.
+  // Built here rather than lazily so the cost is paid at field creation, and so
+  // the invariant "grid and items describe the same field" cannot drift.
+  const cellSide = 2 * radius;
+  const grid = new Map();
+  for (const it of items) {
+    const key = `${Math.floor(it.x / cellSide)},${Math.floor(it.y / cellSide)},${Math.floor(it.z / cellSide)}`;
+    const cell = grid.get(key);
+    if (cell) cell.push(it); else grid.set(key, [it]);
+  }
+
   return {
     items, radius, initialTotal: want, perItem: per,
+    grid, cellSide, tick: 0,
     remaining() {
       let t = 0;
       for (const it of items) t += it.mass;
       return t;
     },
+    eatenCount() {
+      let n = 0;
+      for (const it of items) if (it.mass <= 0) n++;
+      return n;
+    },
+  };
+}
+
+
+/**
+ * THE OPEN OCEAN — an unbounded food field, generated on demand.
+ *
+ * `makeFood` scatters a fixed number of items through a box, which is exactly
+ * right for an aquarium and impossible for open water: there is no box to fill.
+ * This generates the SAME WATER, chunk by chunk, only where a mouth has been.
+ *
+ * ── WHY THIS IS NOW A DROP-IN ───────────────────────────────────────────────
+ *
+ * `forageStep` used to scan `food.items` — every item, every step — so an
+ * infinite field was not merely slow, it was undefined. It now reads `grid` /
+ * `cellSide` / `tick`, so anything maintaining those three IS a food field.
+ * Measured on the finite field: 8x the items cost 10% more wall time, because the
+ * cost became O(mouths) rather than O(field).
+ *
+ * ── DETERMINISM, AND WHY IT IS NOT OPTIONAL ─────────────────────────────────
+ *
+ * A chunk's contents are a pure function of its integer coordinates and the seed.
+ * Nothing is stored until visited; a visited chunk is KEPT, so depletion persists
+ * and a creature cannot farm the same water twice by leaving and returning. Two
+ * runs of one seed meet the identical ocean. Without that a trial could not be
+ * repeated and the field would be a random number generator in a costume.
+ *
+ * ── NO SEAMS ────────────────────────────────────────────────────────────────
+ *
+ * Patchiness is sampled in ABSOLUTE coordinates, never chunk-local ones, so a
+ * patch straddling a boundary is one patch. Chunk-local noise would tile visibly
+ * and lay a grid of density steps across the ocean — the same class of defect as
+ * the first food model's "glowing graph paper".
+ *
+ * ── WHAT IT CANNOT ANSWER ───────────────────────────────────────────────────
+ *
+ * `initialTotal` and "% grazed" are MEANINGLESS here and are deliberately not
+ * faked: there is no total. `remaining()` reports the visited region only, and
+ * says so in its honest name `loadedTotal()`. A readout printing "7% grazed"
+ * against an infinite ocean would be a lie with a number on it.
+ */
+export function makeChunkedFood(world, {
+  chunk = 16, radius = FOOD_RADIUS, seed = null,
+  density = FOOD_DENSITY, massPerItem = null,
+  contrast = 2.0, floor = 0.35,
+} = {}) {
+  // AN EXPLICIT SEED WINS. This read `world.fertility?.seed ?? seed`, so any world
+  // carrying a fertility seed — W1 does — silently ignored the caller's. Passing a
+  // seed did nothing, and `tools/_zocean.mjs` caught it by asserting that two
+  // different seeds give two different oceans: they did not. A parameter that is
+  // accepted and discarded is worse than one that does not exist.
+  const s = seed ?? world.fertility?.seed ?? 0x5EED;
+  const scale = (world.fertility?.noiseScale ?? 0.05) * 4;
+  // Mass per item matched to the aquarium's, so a gram of ocean is a gram of tank.
+  const per = massPerItem ?? ((world.biomassBudget ?? 300) / FOOD_COUNT);
+
+  const cellSide = 2 * radius;
+  const grid = new Map();
+  const items = [];                 // every LOADED item, for rendering
+  const loaded = new Set();
+  let loadedInitial = 0;
+
+  /** One chunk's worth of items. Pure in (cx, cy, cz, s). */
+  function generate(cx, cy, cz) {
+    const target = Math.round(density * chunk * chunk * chunk);
+    // A per-chunk stream seeded from the chunk's own coordinates: neighbours must
+    // not share a sequence, or the ocean repeats itself.
+    let a = ((hash3(cx, cy, cz, s) * 4294967296) ^ 0x1234567) >>> 0;
+    const rnd = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const out = [];
+    for (let tries = 0; out.length < target && tries < target * 40; tries++) {
+      const x = (cx + rnd()) * chunk, y = (cy + rnd()) * chunk, z = (cz + rnd()) * chunk;
+      const v = Math.pow(fbm(x * scale, y * scale, z * scale, s), contrast);
+      if (rnd() > floor + (1 - floor) * v) continue;
+      out.push({ x, y, z, r: radius, mass: per });
+    }
+    return out;
+  }
+
+  function loadChunk(cx, cy, cz) {
+    const key = `${cx},${cy},${cz}`;
+    if (loaded.has(key)) return;
+    loaded.add(key);
+    for (const it of generate(cx, cy, cz)) {
+      items.push(it);
+      loadedInitial += it.mass;
+      const ck = `${Math.floor(it.x / cellSide)},${Math.floor(it.y / cellSide)},${Math.floor(it.z / cellSide)}`;
+      const cell = grid.get(ck);
+      if (cell) cell.push(it); else grid.set(ck, [it]);
+    }
+  }
+
+  return {
+    items, radius, grid, cellSide, tick: 0, chunk, unbounded: true,
+    /** There is no total. Saying so beats inventing one. */
+    initialTotal: Infinity,
+
+    /**
+     * Materialise everything a mouth could reach this step. The pad is the reach
+     * PLUS one grid cell, because `forageStep` looks at the 3x3x3 CELLS around a
+     * point and those can straddle a chunk boundary. Call before stepping.
+     */
+    ensureAround(points) {
+      const pad = radius + cellSide;
+      for (const p of points) {
+        if (!p || !Number.isFinite(p[0] + p[1] + p[2])) continue;
+        const lo = [0, 1, 2].map((k) => Math.floor((p[k] - pad) / chunk));
+        const hi = [0, 1, 2].map((k) => Math.floor((p[k] + pad) / chunk));
+        for (let i = lo[0]; i <= hi[0]; i++)
+          for (let j = lo[1]; j <= hi[1]; j++)
+            for (let k = lo[2]; k <= hi[2]; k++) loadChunk(i, j, k);
+      }
+    },
+
+    chunkCount() { return loaded.size; },
+    /** Grams still present in the region that has actually been visited. */
+    loadedTotal() {
+      let t = 0;
+      for (const it of items) t += it.mass;
+      return t;
+    },
+    /** Grams removed. Exact, because food never moves and never regrows. */
+    eatenMass() { return loadedInitial - this.loadedTotal(); },
+    /** Named for the interface `makeFood` provides; it is the VISITED remainder. */
+    remaining() { return this.loadedTotal(); },
     eatenCount() {
       let n = 0;
       for (const it of items) if (it.mass <= 0) n++;
@@ -266,16 +438,36 @@ export function forageStep(sim, plan, food, mouths, dt = FIXED_DT, rate = INGEST
   if (!mouths.length) return 0;
   const pts = mouthPoints(sim, plan, mouths, buf);
   let eaten = 0;
-  for (const it of food.items) {
-    if (it.mass <= 0) continue;
-    const r2 = it.r * it.r;
-    for (const p of pts) {
-      const dx = p[0] - it.x, dy = p[1] - it.y, dz = p[2] - it.z;
-      if (dx * dx + dy * dy + dz * dz > r2) continue;
-      const take = Math.min(it.mass, rate * dt);
-      it.mass -= take;
-      eaten += take;
-      break;                        // an item is eaten once per step, not once per mouth
+
+  // A UNIFORM GRID, NOT A SCAN OVER THE FIELD. This loop used to touch every item
+  // on every step: 1400 items x 6 creatures x 240 steps/s is ~2 million distance
+  // tests per simulated second, and it scales with the SIZE OF THE WORLD rather
+  // than with the number of mouths — which is the wrong variable, and fatal for
+  // any field bigger than the current tank.
+  //
+  // Cells are 2r on a side, so everything a point can reach lies inside the 3x3x3
+  // block around its own cell. Cost becomes O(mouths), independent of field size.
+  //
+  // THE TOTAL IS UNCHANGED, not approximately: each item's `take` depends only on
+  // its own mass, so summing them in grid order gives the identical number. The
+  // `tick` guard preserves the old `break` — an item is eaten once per STEP, not
+  // once per mouth — without allocating a Set every step.
+  const g = food.grid, side = food.cellSide;
+  const tick = ++food.tick;
+  for (const p of pts) {
+    const cx = Math.floor(p[0] / side), cy = Math.floor(p[1] / side), cz = Math.floor(p[2] / side);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
+      const cell = g.get(`${cx + i},${cy + j},${cz + k}`);
+      if (!cell) continue;
+      for (const it of cell) {
+        if (it.mass <= 0 || it.tick === tick) continue;
+        const dx = p[0] - it.x, dy = p[1] - it.y, dz = p[2] - it.z;
+        if (dx * dx + dy * dy + dz * dz > it.r * it.r) continue;
+        const take = Math.min(it.mass, rate * dt);
+        it.mass -= take;
+        it.tick = tick;
+        eaten += take;
+      }
     }
   }
   return eaten;
