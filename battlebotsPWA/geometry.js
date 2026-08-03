@@ -19,6 +19,14 @@ const FLOOR_H = 3; // cm of elevation added per internal floor (feeds CG in Pass
 function floorsOf(chassis){ return 1; } // P-PLAN-UNIQUE : une nappe (INTERNAL_FLOORS dort)
 function chassisHalf(chassis,row){ const s=CHASSIS_SPEC[chassis]||CHASSIS_SPEC.boxy;
   if(row<s.front||row>s.rear) return -1;
+  /* E10 — coques à MASQUE : hFront/hRear n'existent pas, l'ancien calcul
+     rendait NaN et chassisOutlinePath produisait un chemin invisible (aucun
+     contour de repli, aucune ombre sans ctx.filter) pour TOUTE coque masquée.
+     La demi-largeur de rang se lit dans le masque. */
+  if(s.mask){ const r=s.mask[row]; if(!r) return -1;
+    let lo=1e9, hi=-1;
+    for(let c=0;c<r.length;c++) if(r[c]==="#"){ if(c<lo)lo=c; if(c>hi)hi=c; }
+    return hi<0 ? -1 : (hi-lo+1)/2; }
   const tt=(row-s.front)/Math.max(1,(s.rear-s.front));
   return s.hFront + (s.hRear-s.hFront)*tt; }
 function cellInChassis(chassis,col,row){ if(col<0||row<0||col>=gridW(chassis)||row>=gridH(chassis)) return false;

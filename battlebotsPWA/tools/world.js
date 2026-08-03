@@ -14,7 +14,7 @@ const path = require("path");
 const { JSDOM, VirtualConsole } = require("jsdom");
 
 const ROOT = path.join(__dirname, "..");
-const PWA_DIR = path.join(ROOT, "pwa");
+const PWA_DIR = ROOT;                     // l'app vit à la racine de battlebotsPWA (pas de sous-dossier pwa/)
 const HTML_PATH = path.join(PWA_DIR, "index.html");
 // jsdom (url https://localhost/) ne résout pas les <script src> locaux :
 // on inline chaque fichier référencé avant de nourrir le DOM.

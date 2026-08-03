@@ -1,5 +1,5 @@
 // tools/qc_engine.js — DOM-free engine invariants. Fast, runs first in the gate.
-const E = require("../engine.js");
+const E = require("./engine.cjs");   // artefact CommonJS produit par extract.js
 const { check, safe, report } = require("./check.js");
 
 const P = E.SLICE1.playerBuild;

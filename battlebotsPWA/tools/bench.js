@@ -25,7 +25,7 @@
 
 const path = require("path");
 const { openWorld } = require("./world.js");
-const E = require(path.join(__dirname, "..", "engine.js"));
+const E = require(path.join(__dirname, "engine.cjs"));   // artefact CommonJS produit par extract.js
 
 /* ─────────────────────────── arguments ─────────────────────────── */
 const ARGV = process.argv.slice(2);

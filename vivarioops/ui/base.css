@@ -321,6 +321,22 @@ html, body {
    (measurements) and deliberately short: grams and a ratio. The raw energies
    live in the stats sheet, one creature at a time — six rows of scientific
    notation is not something anyone reads. */
+/* THE HABITAT CONTROL — which experiment is running, so it sits with the title
+   rather than among the adjustment chips. Two segments, the live one lit. */
+.forage-habitat {
+  display: flex; gap: var(--readout-gap); pointer-events: auto;
+  margin-bottom: var(--readout-gap);
+}
+.forage-seg {
+  min-height: var(--tapsize-compact); padding: 0 var(--gap-2);
+  background: color-mix(in srgb, var(--c-surface) 62%, transparent);
+  border: none; border-radius: var(--r-pill); cursor: pointer;
+  font-family: var(--f-ui); font-size: var(--t-value); color: var(--c-on-water-dim);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  transition: color var(--ease-chrome), background-color var(--ease-chrome);
+}
+.forage-seg[data-on="yes"] { background: var(--c-select-tint); color: var(--c-select); }
+
 .forage-rows {
   display: flex; flex-direction: column; gap: var(--readout-gap);
   /* .tank-readouts is pointer-events:none so the water can be dragged through

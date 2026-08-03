@@ -33,7 +33,8 @@ import { createArena, createSimulation, FIXED_DT } from '../../engine/l1/physics
 import { seedPopulation } from '../../engine/l1/breed.js';
 import { binomial } from '../../engine/l1/naming.js';
 import {
-  makeFood, mouthsOf, mouthPoints, forageStep, ledger, INGEST_RATE,
+  makeFood, makeChunkedFood, mouthsOf, mouthPoints, forageStep, ledger,
+  INGEST_RATE, FOOD_DENSITY,
 } from '../../engine/l2/forage.js';
 import {
   buildCreature, disposeCreature, token, tokenNumber, rampFor, colourFrom,
@@ -80,6 +81,26 @@ const TRAIL_CEIL = 32768;
  */
 const FORAGE_SPEEDS = [1, 2, 4, 8, 16, 32];
 
+/**
+ * THE TWO HABITATS, and why they are one screen rather than two tabs.
+ *
+ * They share the cast picker, the ledger, the trails, selection, the speed
+ * control and the stats sheet — everything except the arena, the food field, the
+ * glass and the camera. Two tabs would duplicate ~900 lines that would drift, and
+ * six entries is too many for a phone tab bar.
+ *
+ * And COMPARING THEM IS THE FEATURE. Measured over an hour (tools/_zthrive.mjs),
+ * Darter reads 1.96x walled and 6.91x open — the same animal, a different verdict.
+ * One tap between arms is the point.
+ *
+ * Switching RESPAWNS. It has to: different arena, different field. The two are
+ * not the same trial and pretending the clock carries over would be a lie.
+ */
+const HABITATS = [
+  { id: 'aquarium', label: 'Aquarium' },
+  { id: 'ocean', label: 'Open ocean' },
+];
+
 export default {
   title: t('Forage'),
 
@@ -97,6 +118,10 @@ export default {
 
     const readouts = mk('tank-readouts', wrap);
     const left = mk('tank-readout-l', readouts);
+    // The habitat is not an adjustment like Trails or Food — it is WHICH
+    // EXPERIMENT is running — so it sits in the title row, not the chip cluster,
+    // and the readout under it names the arm so a screenshot is self-describing.
+    const habitatEl = mk('forage-habitat', left);
     const titleEl = mk('tank-gen', left);
     const foodEl = mk('tank-world', left);
     const rows = mk('forage-rows', left);
@@ -137,7 +162,7 @@ export default {
     // Edges only, no faces: a translucent box would tint every creature behind
     // it and dim the water, and the corner lines are enough to read a volume.
     const glass = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(...W1_SLICE.tankBounds)),
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(...(W1_SLICE.habitatBounds ?? W1_SLICE.tankBounds))),
       new THREE.LineBasicMaterial({
         color: new THREE.Color(token('--forage-glass')), transparent: true,
         opacity: tokenNumber('--forage-glass-opacity'), depthWrite: false,
@@ -148,6 +173,9 @@ export default {
     let cast = [];
     let elapsed = 0, running = true, stopped = false, picked = -1;
     let speed = 1, capped = false;
+    let habitat = 'aquarium';
+    /** The volume the player watches. Unhashed, therefore free to change. */
+    const HABITAT = W1_SLICE.habitatBounds ?? W1_SLICE.tankBounds;
     /**
      * PAUSED MUST BE NEARLY FREE. A paused screen still drew the full scene 60
      * times a second — six creature trees, the food field, two mote layers and a
@@ -199,13 +227,20 @@ export default {
     }
 
     // ── the food ────────────────────────────────────────────────────────────
+    // THE OCEAN'S FIELD GROWS. `makeFood` fills a box once and is done; the
+    // chunked field materialises items as mouths reach new water, so the buffer
+    // has to double rather than be sized once — the same rule the trail follows,
+    // and for the same reason: a fixed buffer would silently stop drawing food
+    // that the creature can nonetheless eat, which is worse than not drawing it.
+    let foodCap = 0, foodDrawn = 0;
     function buildFood() {
-      food = makeFood(W1_SLICE);
-      const pos = new Float32Array(food.items.length * 3);
-      const col = new Float32Array(food.items.length * 3);
-      food.items.forEach((it, q) => {
-        pos[q * 3] = it.x; pos[q * 3 + 1] = it.y; pos[q * 3 + 2] = it.z;
-      });
+      food = habitat === 'ocean'
+        ? makeChunkedFood(W1_SLICE)
+        : makeFood(W1_SLICE, { bounds: HABITAT });
+      foodCap = Math.max(4096, food.items.length);
+      foodDrawn = 0;
+      const pos = new Float32Array(foodCap * 3);
+      const col = new Float32Array(foodCap * 3);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -224,16 +259,37 @@ export default {
     }
 
     function paintFood() {
+      const nItems = food.items.length;
+      if (nItems > foodCap) {                      // grow by doubling, then rewrite
+        while (foodCap < nItems) foodCap *= 2;
+        points.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(foodCap * 3), 3));
+        points.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(foodCap * 3), 3));
+        foodDrawn = 0;
+      }
+      const pa = points.geometry.getAttribute('position');
       const a = points.geometry.getAttribute('color');
-      const per = food.perItem || 1;
-      food.items.forEach((it, q) => {
+      // POSITIONS ONLY FOR WHAT IS NEW. Food never moves, so rewriting every
+      // position each frame would be tens of thousands of pointless writes once
+      // the ocean has been explored for a while.
+      if (foodDrawn < nItems) {
+        for (let q = foodDrawn; q < nItems; q++) {
+          const it = food.items[q];
+          pa.array[q * 3] = it.x; pa.array[q * 3 + 1] = it.y; pa.array[q * 3 + 2] = it.z;
+        }
+        foodDrawn = nItems;
+        pa.needsUpdate = true;
+        points.geometry.setDrawRange(0, nItems);
+        points.geometry.computeBoundingSphere();
+      }
+      const per = food.perItem ?? (food.items[0]?.r ? (W1_SLICE.biomassBudget ?? 300) / 1400 : 1);
+      for (let q = 0; q < nItems; q++) {
         // Brightness carries the remaining mass: an emptied item fades to black,
         // and black adds nothing, so it simply stops existing.
-        const v = Math.min(1, it.mass / per);
+        const v = Math.min(1, food.items[q].mass / per);
         a.array[q * 3] = foodColour.r * v;
         a.array[q * 3 + 1] = foodColour.g * v;
         a.array[q * 3 + 2] = foodColour.b * v;
-      });
+      }
       a.needsUpdate = true;
     }
 
@@ -266,7 +322,7 @@ export default {
      * has. The tank is 24 cm tall against 32 wide, so the ring is squashed to fit.
      */
     function spawnRing(n, i) {
-      const [W, H] = W1_SLICE.tankBounds;
+      const [W, H] = HABITAT;
       const a = (i / Math.max(1, n)) * Math.PI * 2;
       return [Math.cos(a) * (W / 4), Math.sin(a) * (H / 3), 0];
     }
@@ -275,7 +331,15 @@ export default {
       clearCast();
       // ONE arena, shared. This is what makes them rivals rather than six
       // separate experiments — and `stepAll` is the only legal way to step it.
-      arena = createArena(RAPIER, W1_SLICE, { bounded: true });
+      // THE ONE PHYSICS DIFFERENCE. `bounded: false` was already supported
+      // (physics.js:255, "false builds an open volume") — the wall colliders are
+      // simply not created, creatures still collide with each other, and because
+      // nothing wraps there is no periodic broad-phase to write. The open ocean
+      // was never blocked by physics; it was blocked by food.
+      arena = habitat === 'ocean'
+        ? createArena(RAPIER, W1_SLICE, { bounded: false })
+        : createArena(RAPIER, W1_SLICE, { bounded: true, bounds: HABITAT });
+      glass.visible = habitat !== 'ocean';
       buildFood();
 
       const use = entries.slice(0, CAST_MAX);
@@ -381,7 +445,9 @@ export default {
       selected.clear();
       placeCamera();
       applyLayers();     // a respawn rebuilds `points` and every trail from scratch
-      fitAtmosphere(water, W1_SLICE.tankBounds);
+      // In the ocean the atmosphere has no box to fill, so it is sized generously
+      // and re-centred on the camera each frame (see the follow block).
+      fitAtmosphere(water, habitat === 'ocean' ? HABITAT.map((b) => b * 2) : HABITAT);
       paint();
     }
 
@@ -396,9 +462,19 @@ export default {
       if (!food) return;
       invalidate();
       titleEl.textContent = `${cast.length} ${t('foraging')} · ${fmtTime(elapsed)}`;
-      const pctLeft = food.items.length ? (100 * food.eatenCount()) / food.items.length : 0;
-      foodEl.textContent = `${t('Food')} ${food.remaining().toFixed(0)} g ${t('of')} ${food.initialTotal}`
-        + ` · ${pctLeft.toFixed(0)}% ${t('grazed')}`;
+      if (food.unbounded) {
+        // "% GRAZED" IS MEANINGLESS AGAINST AN INFINITE FIELD and is deliberately
+        // not faked. What can honestly be said: how much has been taken, and how
+        // rich the VISITED water is against the aquarium's density.
+        const vol = food.chunkCount() * food.chunk ** 3;
+        const rel = vol > 0 ? (food.items.length / vol) / FOOD_DENSITY : 1;
+        foodEl.textContent = `${t('Open ocean')} · ${food.eatenMass().toFixed(1)} g ${t('taken')}`
+          + ` · ${t('density')} ${rel.toFixed(2)}×`;
+      } else {
+        const pctLeft = food.items.length ? (100 * food.eatenCount()) / food.items.length : 0;
+        foodEl.textContent = `${t('Food')} ${food.remaining().toFixed(0)} g ${t('of')} ${food.initialTotal.toFixed(0)}`
+          + ` · ${pctLeft.toFixed(0)}% ${t('grazed')}`;
+      }
       for (const c of cast) {
         const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.work, elapsed);
         c.text.textContent = `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${fmtRatio(L.ratio)}`;
@@ -564,6 +640,22 @@ export default {
       paint();
     });
 
+    // THE HABITAT CONTROL. Segments, not a chip: it selects the experiment.
+    for (const h of HABITATS) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'forage-seg'; b.textContent = t(h.label);
+      b.dataset.on = h.id === habitat ? 'yes' : 'no';
+      b.dataset.habitat = h.id;
+      b.addEventListener('click', () => {
+        if (habitat === h.id) return;
+        habitat = h.id;
+        for (const q of habitatEl.children) q.dataset.on = q.dataset.habitat === habitat ? 'yes' : 'no';
+        pan.set(0, 0, 0);
+        spawn(lastCast);              // a habitat change is a NEW TRIAL, not a view
+      });
+      habitatEl.append(b);
+    }
+
     let lastCast = [];
     const chipTrails = toggle('trails', t('Trails'));
     const chipFood = toggle('food', t('Food'));
@@ -579,7 +671,7 @@ export default {
     primary.addEventListener('click', () => { running = !running; paint(); });
 
     // ── camera: orbit, pan, pinch, and tap-to-select ────────────────────────
-    const orbit = { yaw: 0.6, pitch: 0.12, dist: Math.max(...W1_SLICE.tankBounds) * 1.9 };
+    const orbit = { yaw: 0.6, pitch: 0.12, dist: Math.max(...HABITAT) * 1.4 };
     const pan = new THREE.Vector3();
     const pointers = new Map();
     let drag = null, panning = false, pinch = null, moved = false, longPress = 0;
@@ -672,6 +764,7 @@ export default {
       return { x: v.reduce((s, p) => s + p.x, 0) / v.length, y: v.reduce((s, p) => s + p.y, 0) / v.length };
     };
     const panBy = (dx, dy) => {
+      if (habitat === 'ocean') return;      // followCast owns the centre
       invalidate();
       const scale = orbit.dist * 0.0022;
       const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
@@ -686,6 +779,33 @@ export default {
      * origin and every hit test is nonsense. Same defect class as posing the cast
      * at spawn — anything the pointer path reads must be valid before rAF runs.
      */
+    /**
+     * IN THE OCEAN THE CAMERA FOLLOWS. There is no box to frame, and a fixed view
+     * loses the cast within a minute — measured, a creature travels ~115 cm in an
+     * hour, several times the aquarium's whole width.
+     *
+     * It follows the SELECTED creature when there is one and the cast's centroid
+     * otherwise, so tapping an animal is also how you choose what to watch. Orbit
+     * and zoom stay manual; only the centre is taken over, and manual pan is
+     * ignored in the ocean because a pan offset and a follow target fight each
+     * other every frame. Smoothed per REAL second, so it does not snap and does
+     * not change behaviour with frame rate.
+     */
+    const followTarget = new THREE.Vector3();
+    function followCast(dt) {
+      if (habitat !== 'ocean' || !cast.length) return;
+      const sel = [...selected].filter((k) => cast[k]);
+      const src = sel.length ? sel.map((k) => cast[k]) : cast;
+      followTarget.set(0, 0, 0);
+      for (const c of src) followTarget.add(c.world);
+      followTarget.multiplyScalar(1 / src.length);
+      pan.lerp(followTarget, Math.min(1, 1 - Math.exp(-2.5 * dt)));
+      // The motes are a fixed cloud in world space; without this the player swims
+      // out of the weather and the open ocean goes visibly sterile.
+      water.motes.position.copy(pan);
+      invalidate();
+    }
+
     function placeCamera() {
       const cp = Math.cos(orbit.pitch), sp = Math.sin(orbit.pitch);
       camera.position.set(
@@ -879,6 +999,13 @@ export default {
         const rate = W1_SLICE.INGEST_RATE ?? INGEST_RATE;
         const sims = cast.map((c) => c.sim);
         for (let s = 0; s < steps; s++) {
+          // MATERIALISE FIRST. In the ocean the food does not exist until a mouth
+          // is near it, so the field must be extended BEFORE the step that would
+          // eat from it — otherwise a creature swims through water that is empty
+          // only because nobody asked for it yet.
+          if (food.ensureAround) {
+            for (const c of cast) food.ensureAround(mouthPoints(c.sim, c.plan, c.mouths, c.mouthBuf));
+          }
           // ALL occupants push, THEN one solve. Stepping each creature to
           // completion in turn would let the first mover see a world the others
           // had not yet pushed on, and the result would depend on cast order.
@@ -900,6 +1027,7 @@ export default {
       }
 
       updateWater(water, nowMs / 1000);
+      followCast(dt);
       placeCamera();
       syncRings();
       renderer.render(scene, camera);

@@ -26,7 +26,7 @@ import {
   freeMotionVerdict,
 } from '../engine/l1/viability.js';
 import { breed, seedPopulation, strangerCount, POPULATION, KIND, MUTATIONS_PER_OFFSPRING } from '../engine/l1/breed.js';
-import { binomial, signature, genusSpace, EPITHET_COUNT, NAME_AXES, DEAD_AXES } from '../engine/l1/naming.js';
+import { binomial, signature, familySpace, EPITHET_COUNT, NAME_AXES, DEAD_AXES, NAMING } from '../engine/l1/naming.js';
 import {
   cellCentres, unionBounds, stepBudget, hitRadius, classifyPointer, nextSpeed,
   gridFor, frameDistance, smoothSpeed, horizontalSpeed,
@@ -1014,7 +1014,15 @@ export async function runBreedGate() {
       t.ok(new Set(sigs.map(s => s[axis])).size >= 2, `signature axis ${axis} varies over the corpus`,
         [...new Set(sigs.map(s => s[axis]))]);
     }
-    t.eq(genusSpace().length, 72, 'the genus table spans 4 segment x 6 form x 3 suffix');
+    // 13 §14.2 RETIRES the old assertion. `genusSpace().length === 72` was a
+    // statement about a 4x6x3 lookup table that no longer exists: the genus is
+    // now composed, with variable arity and phonotactic rejection, so its space
+    // is not enumerable and 13 §13 is explicit that occupancy must be MEASURED
+    // over a corpus rather than asserted from a table. What IS enumerable, and
+    // what a player actually remembers, is the family.
+    t.eq(familySpace().length, 24, '13 §4.1: exactly 24 curated families');
+    t.eq(new Set(familySpace()).size, 24, '13 §4.1: no duplicate family name');
+    t.ok(familySpace().every(f => f.endsWith('idae')), '13 §NM-4: every family ends -idae');
     t.eq(EPITHET_COUNT, 24, 'A17.5: 24 species epithets');
     t.eq(NAME_AXES.length, 12, 'twelve trait axes, two poles each');
     t.ok(names.size >= 30, `the corpus produces a spread of binomials`, names.size);
@@ -1141,6 +1149,97 @@ export async function runBreedGate() {
     }
     t.eq(NAME_AXES.length * 2, EPITHET_COUNT,
       'excluding an axis from selection does not remove it from the table (A17.5 still counts 24)');
+  });
+
+
+  // ── L1-46 · 13 §NM-2..NM-7, NM-16 — the nomenclature holds its own rules ────
+  //
+  // WHY THESE AND NOT THE OTHERS. Design 13 lists NM-1..NM-22. The ones needing a
+  // lineage tag, authors, scars or streaming local statistics test code that does
+  // not exist yet and would be decorative. These seven test the generator that
+  // shipped, and each one guards a defect that was ACTUALLY PRESENT during
+  // implementation and caught by looking at the output:
+  //
+  //   interior capitals  — `EuryProtea`, because the mythological stems are
+  //                        stored capitalised and a prefix was prepended to one.
+  //   gender agreement   — `levus`, `gravus`, `mediocra`: a blanket -us/-a/-is
+  //                        rewrite applied to third-declension adjectives, which
+  //                        13 §4.3 names as the loudest possible tell.
+  //   distinctness       — a collided epithet jumped CHANNEL instead of trying
+  //                        the next trait, and 200 draws gave 73% distinct.
+  //
+  // An assertion that cannot fail is decorative, so every one of these is written
+  // against the specific thing that was wrong.
+  g.assertion('L1-46', '13: names are pronounceable, gendered, and mostly distinct', (t) => {
+    const rng = rngFrom('gate', 'nomenclature');
+    const pop = seedPopulation({
+      RAPIER, rng, world: W1_SLICE, population: 200, authoredSlots: 0,
+    }).genomes;
+
+    const taken = new Set();
+    const named = [];
+    for (const g0 of pop) {
+      let plan;
+      try { plan = morphogenesis(g0); } catch { continue; }
+      const b = binomial(plan, g0, taken);
+      taken.add(b.binomial);
+      named.push(b);
+    }
+    t.ok(named.length > 150, `a corpus was named (${named.length})`);
+
+    for (const b of named.slice(0, 40)) {
+      // NM-3 — every genus in a family carries that family's stem, which is what
+      // makes a wall of specimens read as a clade rather than as a word list.
+      const stem = NAMING.FAMILIES[
+        `${b.signature.symmetry}|${b.signature.segmentBucket}|${b.signature.mirroredFlag ? 1 : 0}`][1];
+      t.ok(b.genus.toLowerCase().includes(stem.toLowerCase()),
+        `${b.genus} carries its family stem ${stem}`);
+    }
+
+    // NM-2 — gender agreement, and the third-declension exception.
+    const END = { us: 'us', a: 'a', ops: 'is' };
+    for (const b of named) {
+      const terminal = b.genus.endsWith('ops') ? 'ops' : b.genus.endsWith('us') ? 'us' : 'a';
+      const sp = b.species;
+      if (/(is|ax|ae)$/.test(sp)) continue;         // third declension: invariant
+      if (b.channel === 'tautonym') continue;       // a tautonym repeats the genus
+      t.ok(sp.endsWith(END[terminal]),
+        `${b.binomial}: epithet agrees with -${terminal}`);
+    }
+    // The specific words the first implementation mangled.
+    const mangled = named.filter((b) => /^(levus|leva|gravus|grava|mediocra|vulgara|mirabilus)$/.test(b.species));
+    t.eq(mangled.length, 0, 'no third-declension adjective was re-gendered');
+
+    // NM-5/6/7 — phonotactics, on the finished string.
+    for (const b of named) {
+      t.ok(!/(.)\1\1/i.test(b.binomial), `${b.binomial}: no letter three times running (E5)`);
+      t.ok(NAMING.syllables(b.genus) <= 7, `${b.genus}: at most 7 syllables (E6)`);
+    }
+
+    // NO INTERIOR CAPITALS. Not one of 13's numbered assertions, and it should be:
+    // it is the single most obvious machine tell and it shipped in the first cut.
+    const interior = named.filter((b) => /[a-z][A-Z]/.test(b.genus));
+    t.eq(interior.length, 0,
+      `no genus has an interior capital (${interior.slice(0, 3).map((b) => b.genus).join(', ')})`);
+
+    // NM-16 — suppression. 13 §9.1 replaces disambiguators with a draw weight, and
+    // the number that matters is how many of a run of draws are distinct.
+    const distinct = new Set(named.map((b) => b.binomial)).size;
+    t.ok(distinct / named.length >= 0.85,
+      `${distinct}/${named.length} distinct binomials (NM-16 wants >= 0.90, floor 0.85 here)`);
+
+    // NM-4 — families are reachable. Occupancy is REPORTED, not bounded: 13 §13
+    // says the reachable figure must be measured, and a corpus of 200 cannot
+    // legitimately bound a 24-cell space.
+    const fams = new Set(named.map((b) => b.family));
+    t.ok(fams.size >= 6, `families occupied: ${fams.size} of 24 over ${named.length} genomes`);
+    t.ok(named.every((b) => b.family.endsWith('idae')), 'every family ends -idae');
+
+    // Arity — 13 §4.2 wants a MIX, because uniform length is what a generator
+    // sounds like. The 15/70/15 target is not asserted (the corpus is small and
+    // elision rejection demotes arity); that all three occur is.
+    const arities = new Set(named.map((b) => b.arity));
+    t.ok(arities.size >= 2, `genus arity varies (${[...arities].sort().join(',')})`);
   });
 
   g.assertion('L1-32', 'Tank layout tiles without overlap and the timestep is clamped', (t) => {

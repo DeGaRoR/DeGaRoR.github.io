@@ -433,7 +433,7 @@ safe("polish P4-P5", () => {
   check("P4: Rusty naît jaune-orangé", wp5.eval("S.garage[0].customize.color") === "#d98a45");
   {
     const fs = require("fs"), path = require("path");
-    const src = fs.readFileSync(path.join(__dirname, "..", "pwa", "app.js"), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
     const i0 = src.indexOf("match.arenaR < AR-1");
     const blk = src.slice(i0, src.indexOf("ctx.stroke()", i0));
     check("P4: le donut d'assombrissement et l'anneau utilisent 2π exact",
@@ -686,8 +686,59 @@ safe("ombres P-OMBRES", () => {
     return Math.max(...wheelY) > Math.max(...hullY) - 1 ? "ok" : "flush";
   })()`);
   check("PO: colliders de roues au débord (WYSIWYG)", spread === "ok", String(spread));
+  /* E10 — l'ombre au sol de l'éditeur SANS ctx.filter (Safari < 18) doit être
+     la silhouette complète (drawImage du tampon), plus jamais le contour de
+     coque : rectangle pour RUSTY, chemin NaN (= AUCUNE ombre) pour les coques
+     à masque. On simule l'absence de filter en le retirant du recorder. */
+  const sh = wo.eval(`(function(){
+    const cv=document.createElement('canvas'); cv.width=cv.height=200; const c=cv.getContext('2d');
+    delete c.filter;
+    const build={chassis:AB().chassis, parts:{...S.parts.equipped}, counts:{...AB().counts}, color:S.customize.color};
+    drawGroundShadow(c, build, getLayout(), 0, 200, 200, 0.4);
+    return { di: c._ops.filter(o=>o.startsWith('drawImage')).length,
+             nan: c._ops.some(o=>o.includes('NaN')) };
+  })()`);
+  check("PO-E10: ombre éditeur sans ctx.filter = silhouette (drawImage, zéro NaN)",
+        sh.di > 0 && sh.nan === false, JSON.stringify(sh));
+  const oc = wo.eval(`(function(){ const cv=document.createElement('canvas'); const c=cv.getContext('2d');
+    chassisOutlinePath(c, 'tortue_s'); chassisOutlinePath(c, 'losange_s');
+    return c._ops.join(';'); })()`);
+  check("PO-E10: contour d'une coque à masque tracé sans NaN (chassisHalf lit le masque)",
+        oc.includes("moveTo") && !oc.includes("NaN"), oc.slice(0, 60));
   check("aucune erreur P-OMBRES", wo.errors.length === 0, wo.errors[0] || "");
   wo.close();
+});
+
+// ------------------------------------------------------ E10 : nom du bot à l'écran VS
+safe("E10 nom du bot au VS", () => {
+  const wv = openWorld();
+  wv.eval("AB().customName='TESTOTRON'; goTab('fight'); disputeConcours('libre')");
+  check("E10: le portrait VS porte le nom du BOT, plus le RUSTY du markup",
+        wv.eval("$('playerName').textContent") === "TESTOTRON",
+        wv.eval("$('playerName').textContent"));
+  wv.eval("delete AB().customName; renderVsScreen()");
+  check("E10: sans nom custom, le portrait porte le nom de la coque",
+        wv.eval("$('playerName').textContent === chassisName(AB().chassis)"),
+        wv.eval("$('playerName').textContent"));
+  check("aucune erreur E10-VS", wv.errors.length === 0, wv.errors[0] || "");
+  wv.close();
+});
+
+// ------------------------------------------------------ E10 : étal des coques (prix décidés 03/08)
+safe("E10 étal des coques", () => {
+  const wc = openWorld();
+  const casse = wc.eval("JSON.stringify(Object.entries(CHASSIS_REG).filter(([,v])=>v.series==='casse'&&v.info).map(([,v])=>v.info.cost))");
+  const cs = JSON.parse(casse);
+  check("E10: La Casse — prix UNIQUE et presque gratuit (≤ 20 €)",
+        cs.length === 5 && cs.every(c => c === cs[0]) && cs[0] > 0 && cs[0] <= 20, casse);
+  const hi = wc.eval("JSON.stringify(['chine_s','us_s','nippon_s','italia_s','deutsch_s'].map(c=>CHASSIS_INFO[c].cost))");
+  const hs = JSON.parse(hi);
+  check("E10: Haute Techno — échelle CHINE < US < NIPPON < ITALIA < DEUTSCH",
+        hs.every((c,i) => i === 0 || c > hs[i-1]), hi);
+  check("E10: DISQUE en classe M (48 cellules) — pas de coque L sans contenu L",
+        wc.eval("chassisClassOf('disque')==='M' && chassisCells('disque')===48"),
+        wc.eval("chassisClassOf('disque') + ' / ' + chassisCells('disque')"));
+  wc.close();
 });
 
 
@@ -792,7 +843,7 @@ safe("S16 liste garage", () => {
 safe("S16 interface collante", () => {
   // les feuilles externes ne sont pas chargees en jsdom : on lit le CSS reel
   const fs = require("fs"), path = require("path");
-  const css = fs.readFileSync(path.join(__dirname, "..", "pwa", "roboclash-ui.css"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "roboclash-ui.css"), "utf8");
   const block = (sel)=>{ const i = css.indexOf(sel+"{"); if (i<0) return null;
     return css.slice(i, css.indexOf("}", i)); };
   const appB = block(".rc-app"), chromeB = block("#chrome"),
@@ -803,7 +854,7 @@ safe("S16 interface collante", () => {
   check("S16U: bouton de combat collé en bas d'écran (classe, pas ID)",
         !!fightB && /position:sticky/.test(fightB) && /bottom:/.test(fightB), fightB);
   { const fs2 = require("fs"), p2 = require("path");
-    const html = fs2.readFileSync(p2.join(__dirname, "..", "pwa", "index.html"), "utf8");
+    const html = fs2.readFileSync(p2.join(__dirname, "..", "index.html"), "utf8");
     check("S19: le markup porte bien les classes rc-btn--sticky / rc-screen--vs",
           /rc-btn--sticky/.test(html) && /rc-screen--vs/.test(html), ""); }
   check("S16U: VS ancré en px (repli), plus au centre vertical de la carte",
@@ -862,7 +913,7 @@ safe("S16 garage", () => {
 // ------------------------------------------------ S17 : images unifiees, zero drift
 safe("S17 images et cohérence", () => {
   const fs = require("fs"), path = require("path");
-  const rd = (f) => fs.readFileSync(path.join(__dirname, "..", "pwa", f), "utf8");
+  const rd = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
   const srcTxt = rd("app.js") + "\n" + rd("render.js") + "\n" + rd("geometry.js");   // Phase B : le rendu/geometrie vivent hors app.js
   // aucune image ne doit echapper au registre (une seule construction, dans mkImg)
   const rawImgs = (srcTxt.match(/new Image\(\)/g) || []).length;
@@ -951,11 +1002,13 @@ safe("S18 séries et stickers", () => {
     return out;
   })()`);
   check("S18: aucune coque orpheline de série", r.orphans.length === 0, r.orphans.join(","));
-  /* S30-ASSETS : 23 coques achetables (17 S, 5 M, 1 L) réparties sur quatre
+  /* S30-ASSETS : 23 coques achetables (17 S, 6 M) réparties sur quatre
      séries — antan, casse, circuit, hightech. Le compte est FIGÉ volontairement :
-     une coque qui perdrait sa série doit faire rougir la porte. */
-  check("S18: 23 coques achetables, toutes rattachées à une série (17 S, 5 M, 1 L)",
-        r.total === 23 && r.covered.S === 17 && r.covered.M === 5 && r.covered.L === 1,
+     une coque qui perdrait sa série doit faire rougir la porte.
+     E10 : le DISQUE est revenu en M (48 cellules) — plus AUCUNE coque L tant
+     que le contenu L n'existe pas ; une L qui apparaît ici est une erreur. */
+  check("S18: 23 coques achetables, toutes rattachées à une série (17 S, 6 M, 0 L)",
+        r.total === 23 && r.covered.S === 17 && r.covered.M === 6 && !r.covered.L,
         JSON.stringify(r.covered));
   check("S18: métadonnée complète et bilingue (nom, accroche, accent)",
         r.meta === true && r.named === true, JSON.stringify({meta:r.meta, named:r.named}));

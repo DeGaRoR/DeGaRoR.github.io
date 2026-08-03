@@ -128,7 +128,15 @@ continuity budget maintained.
 
 ## Session plan (proposed)
 
-1. Extract world → world_core.js + v0 shim; battery green (WORLD-CONTRACT §5).
+1. ~~Extract world + v0 shim; battery green (WORLD-CONTRACT §5).~~ **DONE
+   2026-08-03**: in-place reshape of `src/core/20_world.js` (no separate
+   world_core.js — it was already its own build part), v1 contract + shim,
+   GATE WORLD golden-freeze, battery byte-identical. v1-minimal interiors
+   this pipeline replaces: `waterH` = sea-only (`terrainH<0 ? 0 : −Inf`) →
+   stage 1; `surface` = WATER/ROCK(≥220)/GRASS → stages 2/5. Seed enters as
+   `SALT = imul(seed, 0x9E3779B9)` into hash2 + tree-LCG; the stage-0
+   rework MUST either preserve the seed-0 world or consciously re-capture
+   the GATE WORLD goldens (snippet in WORLD-CONTRACT §4).
 2. Stage 1 on the *current* terrain, gates first — rivers on the existing
    9 km world prove the pipeline before the domain grows.
 3. Stage 0 rework (warp + domain growth) once hydrology gates hold.

@@ -5,7 +5,7 @@
    réparations. Sortie : jalons en HEURES par scénario.
    Unité : euros (parité 1:1 avec l'unité actuelle, décision 22/07). */
 const fs = require("fs"), path = require("path");
-const P = (f)=>path.join(__dirname, "..", "pwa", f);
+const P = (f)=>path.join(__dirname, "..", f);
 const ctx = { window:undefined, console };
 require("vm").createContext(ctx);
 const src = fs.readFileSync(P("data.js"),"utf8") + "\n" + fs.readFileSync(P("engine.js"),"utf8")

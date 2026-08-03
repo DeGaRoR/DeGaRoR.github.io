@@ -1503,12 +1503,19 @@ function buildPA18() {
 // ============================================================
 // WORLD — deterministic procedural terrain + trees, shared by
 // physics and renderer. Integer-hash noise: identical across JS engines.
+// v1 contract (futureDesigns/WORLD-CONTRACT.md) + v0 shim on one object.
+// Seed 0 (or no argument) is the VALIDATED world, bit-identical to the
+// pre-contract makeWorld(); nonzero seeds are coherent but unvalidated.
+// GATE WORLD freezes seed-0 data with golden hashes — intentional terrain
+// changes must re-capture goldens in the same commit.
 // ============================================================
-function makeWorld() {
+function makeWorld(seed) {
+  const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
+  const SALT = Math.imul(SEED, 0x9E3779B9);  // 0 for seed 0 — exact identity in hash2/LCG below
   const smf = t => t * t * (3 - 2 * t);
   const sstep = (a, b, t) => smf(Math.min(1, Math.max(0, (t - a) / (b - a))));
   const hash2 = (ix, iz) => {
-    let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
+    let h = (ix * 374761393 + iz * 668265263 + 1013904223 + SALT) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   };
@@ -1539,13 +1546,33 @@ function makeWorld() {
     h *= sstep(0, 260, Math.hypot(dxR, dzR));
     return h;
   }
-  // landing meadows: blend terrain toward the height at each meadow centre
-  const meadows = [
-    { x: -2200, z: -1500, r: 230 },
-    { x: 1800, z: 1500, r: 260 },
-    { x: -3400, z: 650, r: 240 },
+
+  // surface enum — reserved classes included (PAVED/GRAVEL/... arrive with
+  // WORLD-GEN-PROC stages); the classifier below is the honest v1 minimum.
+  const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
+
+  // aerodrome registry — DESCRIPTIVE for now: the AP still flies the
+  // def.params.ap constants (contract rule 6 deferred), and the h0 runway
+  // carve box / renderer decals are not yet driven from these records.
+  // hdg in radians from +x toward +z; the main strip's takeoff run is
+  // along -x (hdg PI). tdz = touchdown-zone target point. elev for
+  // meadows is filled from h0 below.
+  const aerodromes = [
+    { id: 'HOME', name: 'Home Strip', kind: 'main', x: -520, z: 0, hdg: Math.PI,
+      len: 1100, wid: 30, surface: SURFACE.GRASS, elev: 0, tdz: [-450, 0] },
+    { id: 'M1', name: 'Meadow 1', kind: 'meadow', x: -2200, z: -1500, r: 230,
+      hdg: 0, len: 460, wid: 460, surface: SURFACE.GRASS, elev: 0, tdz: [-2200, -1500] },
+    { id: 'M2', name: 'Meadow 2', kind: 'meadow', x: 1800, z: 1500, r: 260,
+      hdg: 0, len: 520, wid: 520, surface: SURFACE.GRASS, elev: 0, tdz: [1800, 1500] },
+    { id: 'M3', name: 'Meadow 3', kind: 'meadow', x: -3400, z: 650, r: 240,
+      hdg: 0, len: 480, wid: 480, surface: SURFACE.GRASS, elev: 0, tdz: [-3400, 650] },
   ];
+  // landing meadows: blend terrain toward the height at each meadow centre.
+  // v0 shim member, derived from the registry — same literals, same order,
+  // same {x,z,r,h} shape as the pre-contract array.
+  const meadows = aerodromes.filter(a => a.kind === 'meadow').map(a => ({ x: a.x, z: a.z, r: a.r }));
   for (const m of meadows) m.h = h0(m.x, m.z);
+  aerodromes.filter(a => a.kind === 'meadow').forEach((a, i) => { a.elev = meadows[i].h; });
   function terrainH(x, z) {
     let h = h0(x, z);
     for (const m of meadows) {
@@ -1556,7 +1583,7 @@ function makeWorld() {
   }
 
   // trees on terrain, deterministic; spatial hash for collisions
-  const rng = (seed => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296)(7);
+  const rng = (st => () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296)((7 + SALT) >>> 0);
   const trees = [], CELL = 64, grid = new Map();
   let guard = 0;
   while (trees.length < 2200 && guard++ < 60000) {
@@ -1583,6 +1610,40 @@ function makeWorld() {
       if (cell) for (const i of cell) out.push(i);
     }
     return out;
+  }
+
+  // ---- v1 continuous fields: honest minimal interiors, replaced by
+  // WORLD-GEN-PROC stages 1 (hydrology -> waterH) and 2/5 (biomes/cliffs
+  // -> surface). Sea level = 0 per bounds; the sea basin sits at -66..-110.
+  function waterH(x, z) { return terrainH(x, z) < 0 ? 0 : -Infinity; }
+  function surface(x, z) {
+    const h = terrainH(x, z);
+    if (h < 0) return SURFACE.WATER;
+    if (h >= 220) return SURFACE.ROCK;  // renderer's rock-band onset
+    return SURFACE.GRASS;
+  }
+
+  // ---- v1 tiled features: lazy bucketing of the eager tree array.
+  // trees stays ONE flat index-stable array — treesNear returns indices
+  // into it and the solver depends on that; tiles hold the same objects.
+  // rivers/roads/buildings are empty until WORLD-GEN-PROC stages 1/3.
+  // tile() is never called during makeWorld: zero load-time cost.
+  const TILE = 512;
+  let tileIndex = null;
+  function tile(ix, iz) {
+    if (!tileIndex) {
+      tileIndex = new Map();
+      for (const t of trees) {
+        const key = Math.floor(t.x / TILE) + ',' + Math.floor(t.z / TILE);
+        let rec = tileIndex.get(key);
+        if (!rec) tileIndex.set(key, rec = { trees: [], rivers: [], roads: [], buildings: [] });
+        rec.trees.push(t);
+      }
+    }
+    const key = ix + ',' + iz;
+    let rec = tileIndex.get(key);
+    if (!rec) tileIndex.set(key, rec = { trees: [], rivers: [], roads: [], buildings: [] });
+    return rec;
   }
 
   // ---- wind field: steady vector + deterministic Dryden-ish gusts ----
@@ -1612,9 +1673,17 @@ function makeWorld() {
   }
   function setWind(spec) { windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0 } : null; }
 
-  return { terrainH, trees, treesNear, meadows, CELL, wind, setWind };
+  return {
+    // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
+    v: 1, seed: SEED,
+    bounds: { x0: -4500, z0: -4500, x1: 4500, z1: 4500 },
+    terrainH, waterH, surface, SURFACE,
+    TILE, tile, aerodromes, settlements: [],
+    treesNear,
+    // ---- v0 shim: same live objects, byte-identical values ----
+    trees, meadows, CELL, wind, setWind,
+  };
 }
-
 // ============================================================
 function makeSim(def, world) {
   const P_ = def.params;

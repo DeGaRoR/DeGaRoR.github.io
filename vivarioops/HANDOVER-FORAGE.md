@@ -545,3 +545,142 @@ check whose strip and whose measurement are not the same items is not a check.
 - **Chunk eviction** — chunks are never freed. Memory grows with EXPLORED volume
   (12k items per creature-hour), the same way the trail buffer already does. Fine for
   now; revisit if a session runs for many hours.
+
+---
+
+## 16. The mode control and the open-ocean arm. DONE (rendering unverified).
+
+### The control
+
+Two segments in the TITLE ROW — `Aquarium | Open ocean` — not a chip in the cluster.
+The cluster holds adjustments; the habitat is *which experiment is running*, and the
+readout under it names the arm so a screenshot is self-describing. Switching
+**respawns**: different arena, different field, clock from zero. Carrying the clock
+over would imply the two were one trial.
+
+### What actually differs — a short list, as designed
+
+| | Aquarium | Open ocean |
+|---|---|---|
+| arena | `bounded: true, bounds: habitatBounds` | **`bounded: false`** |
+| food | `makeFood(bounds: habitatBounds)` | **`makeChunkedFood`** |
+| glass | drawn | hidden |
+| camera | manual | **follows** |
+| readout | `2348 g of 2400 · 2% grazed` | `Open ocean · 97.9 g taken · density 1.00x` |
+| manual pan | yes | **no** — `followCast` owns the centre |
+
+Everything else — cast picker, ledger, trails, rings, selection, speed, layer
+toggles, stats sheet — is shared verbatim.
+
+### Measured, in the screen's exact configuration
+
+One shared arena, six Atlas creatures, 30 simulated minutes:
+
+| | aquarium | ocean |
+|---|---|---|
+| Paddletail eaten | 5.16 g | **62.89 g** (12x) |
+| Paddletail drift | 12.6 cm | **114.6 cm** |
+| Darter drift | 4.1 cm | 29.8 cm |
+| throughput | 28x realtime | **29x realtime** |
+
+**337 chunks materialised, 78 521 items live, no throughput cost against 56x the
+items.** That is the uniform grid doing its job; on the old linear scan this arm
+would have been ~56x slower in ingestion alone.
+
+### Three implementation notes worth keeping
+
+1. **`ensureAround` runs BEFORE the step, per step.** Food that has not been
+   materialised does not exist, so a creature would swim through water that is empty
+   only because nobody asked for it yet.
+2. **The food buffer doubles**, like the trail. `makeFood` fills a box once; the ocean
+   grows, so a fixed buffer would silently stop drawing food the creature can still
+   eat. Positions are written only for NEW items — food never moves, and rewriting
+   78k positions per frame would be pointless.
+3. **Manual pan is disabled in the ocean.** A pan offset and a follow target fight
+   each other every frame. Orbit and zoom stay manual; only the centre is taken over.
+   The motes follow the camera too, or the player swims out of the weather and the
+   ocean goes visibly sterile.
+
+### NOT VERIFIED: how it LOOKS
+
+The Browser pane has been `visibilityState: hidden`, which stops `requestAnimationFrame`
+entirely — so the on-screen clock reads 0 s and nothing composites. **This is not a
+defect and I spent a while treating it as one.** The DOM, the control, the readout
+branch and both arms' physics are confirmed; the rendering, the follow camera's feel
+and the ocean's look are NOT. Next session should open the pane and look before
+building on this.
+
+**A hidden pane freezes rAF. A frozen clock in a hidden pane is evidence of nothing.**
+
+---
+
+## 17. Nomenclature — design 13, STAGE 1 of 2. DONE.
+
+`design/13-NOMENCLATURE.md` implemented as far as it can go without touching the
+genome schema. Gate green at **95 assertions, 5076 checks** (was 94 / 4464).
+
+### What shipped
+
+| 13 § | | |
+|---|---|---|
+| §3 | six new signature axes | `mirroredFlag, limbClass, depthClass, runClass, dofClass, angleClass` — **added alongside** the four originals, not replacing them, so the old assertions keep testing what they were written for |
+| §4.1 | **24 curated families**, `-idae`, each with a body stem | every genus in *Dolichopodidae* contains `pod` |
+| §4.2 | **variable-arity genus** — 1, 2 or 3 slots by tree depth | *Podus* next to *Oligosphalmatops* |
+| §4.3 | **five weighted species channels** + gender agreement + intensity | descriptive 87% · habitat 11% · typicality 2% · misfit 2% |
+| §5 | the token pools, verbatim | 18 P1 · 12 P2 · 20 qualities · 18 stems · 14 misfits |
+| §6 | **phonotactics E1–E8**, with a deterministic fallback ladder | a rejected composition drops to the next candidate; the bare stem is always legal |
+| §9.1 | `DISAMBIGUATORS` **deleted**, replaced by a suppression weight | no more "elongatus II" |
+
+**Measured over 200 genomes:** 179 distinct binomials (**90%**, NM-16's bar exactly),
+32 genera, 9 of 24 families, 107 distinct epithets, arity mix 27/66/8.
+
+### NOT shipped — stage 2, and it needs a schema bump
+
+`tag` (§7), author citations (§8), subspecies (§4.4), recombination scars (§10),
+streaming local normalisation (§9). All of them need a `GENOME_V` bump with a
+migration, and §14.3's open question — **does `tag` enter `genomeHash`?** — is
+unanswered. Recommendation stands at yes; it changes every existing hash.
+
+**`ctx` is OPTIONAL here**, against §14.1's "every caller must supply ctx". Making it
+required would mean touching every call site in the same commit as a rewrite of the
+generator, and then a naming defect and a plumbing defect would be indistinguishable.
+
+### THE DESIGN DEFECT THIS FOUND: `dofClass` is dead
+
+§5.1 indexes P1 as `limbBucket × dofClass`, 18 prefixes. **Measured over a 300-genome
+corpus, every joint in this world is `revolute` or `twist` — both 1 DOF.** `dofClass`
+is therefore constant and P1 would collapse from 18 prefixes to **6**.
+
+Handled the way `density` already is: fall back to a live axis (a slenderness class),
+**derived from `JOINT_TYPES` rather than listed**, so `dofClass` returns by itself the
+day a multi-DOF joint type becomes reachable. §13's reachability table over-counts
+until then.
+
+Two other axes are weak rather than dead and should be read with that in mind:
+`runClass` puts 270 of 300 in one bucket, and only 10 of 24 family cells are occupied.
+
+### Three defects found by LOOKING at the output, each now a gate check
+
+1. **`EuryProtea`, `OrthoThetia`, `IsoHydra`** — the mythological stems are stored
+   capitalised (they are proper nouns) and a prefix was prepended to one. An interior
+   capital is the single most obvious way a name announces it was assembled by
+   machine. Stems are lowercased before composition; only the first letter is raised.
+2. **`levus`, `gravus`, `mediocra`** — a blanket `-us|-is|-a` rewrite applied to
+   THIRD-DECLENSION adjectives, whose masculine and feminine forms are identical.
+   §4.3 names this exact error as the loudest possible tell. Now `-is`, `-ax` and
+   `-ae` are left alone.
+3. **73% distinct, against NM-16's 90%** — a collided descriptive epithet fell through
+   to another CHANNEL, so a collision turned a described animal into `habitat` or
+   `misfit`. Replaced with a LADDER: the quality still names the most extreme axis and
+   only the stem moves to the next trait worth mentioning. 73% → **90%**.
+
+**L1-46 is mutation-tested.** Restoring defect 1 gives `got 96, expected 0` interior
+capitals; restoring defect 2 gives `got 2, expected 0` re-gendered adjectives. Both
+name the exact fault.
+
+### Retired
+
+`genusSpace().length === 72` — a statement about a 4×6×3 lookup table that no longer
+exists. The genus is composed now, with variable arity and phonotactic rejection, so
+its space is not enumerable; §13 is explicit that occupancy must be **measured** over a
+corpus, not asserted from a table. Replaced by `familySpace()` and three checks on it.

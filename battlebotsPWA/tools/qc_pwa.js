@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const { check, safe, report } = require("./check.js");
-const DIR = path.join(__dirname, "..", "pwa");
+const DIR = path.join(__dirname, "..");   // l'app vit à la racine de battlebotsPWA
 
 safe("emballage", () => {
   const files = fs.readdirSync(DIR);

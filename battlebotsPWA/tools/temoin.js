@@ -33,7 +33,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const E = require(path.join(__dirname, "..", "engine.js"));
+const E = require(path.join(__dirname, "engine.cjs"));   // artefact CommonJS produit par extract.js
 
 const REF = path.join(__dirname, "temoin.json");
 const N_CAS = 200;
@@ -153,7 +153,7 @@ async function generer(){
    pas à invalider (le témoin doit justement survivre à un refactor sans
    changement de comportement) — il sert à DATER la référence dans le rapport. */
 function revMoteur(){
-  try { return fnv(fs.readFileSync(path.join(__dirname, "..", "pwa", "engine.js"), "utf8")); }
+  try { return fnv(fs.readFileSync(path.join(__dirname, "..", "engine.js"), "utf8")); }
   catch(e){ return "?"; }
 }
 

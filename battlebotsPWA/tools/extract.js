@@ -1,15 +1,16 @@
-// tools/extract.js — engine.js est un FICHIER SOURCE (pwa/engine.js).
+// tools/extract.js — engine.js est un FICHIER SOURCE (racine de battlebotsPWA).
 // Ici : validation (marqueurs, IIFE, autonomie) + artefact CommonJS pour les suites.
+// L'artefact vit dans tools/ (engine.cjs) : la SOURCE navigateur n'est JAMAIS réécrite.
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const SRC = path.join(ROOT, "pwa", "engine.js");
-const OUT = path.join(ROOT, "engine.js");
+const SRC = path.join(ROOT, "engine.js");
+const OUT = path.join(__dirname, "engine.cjs");
 
 const body = fs.readFileSync(SRC, "utf8");
 if (!body.includes("// ENGINE-START") || !body.includes("// ENGINE-END")) {
-  console.error("FATAL: marqueurs ENGINE-START/ENGINE-END absents de pwa/engine.js"); process.exit(1);
+  console.error("FATAL: marqueurs ENGINE-START/ENGINE-END absents de engine.js"); process.exit(1);
 }
 if (!/const ENGINE\s*=\s*\(\(\)\s*=>/.test(body)) {
   console.error("FATAL: le bloc ENGINE n'a pas la forme IIFE attendue"); process.exit(1);
@@ -28,4 +29,4 @@ const need = ["makeMatch","tick","runHeadless","derivedStats","statBars","genOpp
               "ARENA_R","TICK","SUDDEN_DEATH_T","PHYS","physStats","partMassKg"];
 const missing = need.filter(k => E[k] === undefined);
 if (missing.length) { console.error("FATAL: exports manquants:", missing.join(", ")); process.exit(1); }
-console.log(`extract: pwa/engine.js validé, ${need.length} exports OK`);
+console.log(`extract: engine.js validé, ${need.length} exports OK`);

@@ -31,7 +31,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   external. The ideal parallel-agent boundary: one agent per fiche, zero
   conflicts. The pa18 is a byte-copy of the cub geometry + flap physics and
   carries the 3D skin; the J-3 stays wireframe (may retire later).
-- `src/core/20_world.js` — makeWorld: deterministic terrain/trees/meadows.
+- `src/core/20_world.js` — makeWorld(seed): v1 world contract (terrainH/
+  waterH/surface/tile/aerodromes/settlements/wind) + v0 shim (trees/meadows/
+  CELL/wind/setWind) on one object. Seed 0 / no arg = the validated world,
+  bit-identical to pre-contract; nonzero seeds coherent but unvalidated.
+  See futureDesigns/WORLD-CONTRACT.md.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
@@ -80,7 +84,14 @@ and the cheapest regression instrument this project has.
 The harness auto-appends a settle-uprightness check (max lateral node drift
 from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
-Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min.
+Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
+(+~2 s WORLD).
+GATE WORLD (appended last) freezes the seed-0 world with golden hashes
+(101² terrain grid + all tree records + meadows + exact anchors, captured
+from the pre-contract build) and checks determinism, the tile/treesNear
+contracts, aerodrome invariants and the terrainH perf budget. **Any
+intentional terrain change must re-capture the goldens (snippet in
+WORLD-CONTRACT §4) in the same commit, with the change explained.**
 Flexbody gates (appended, keeping the physics log prefix diffable): MODEL
 (payload decode + wheel calibration), SKIN (flex binding), CTRL (hinges +
 linkage), UISMOKE (executes the built artifact's core+models+app blocks in a
@@ -205,6 +216,15 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   during liftoff flickers ROLL/LIFTOFF forever.
 
 ## WORLD
+- v1 contract since 2026-08-03 (futureDesigns/WORLD-CONTRACT.md):
+  makeWorld(seed) also exposes waterH/surface/SURFACE (minimal interiors:
+  sea-only water, WATER/ROCK/GRASS), TILE=512 + lazy tile() (buckets the
+  eager tree array — trees MUST stay flat and index-stable, treesNear
+  returns indices into it), and W.aerodromes (runway 'HOME' + 3 meadows).
+  The registry is DESCRIPTIVE until the AP-reads-aerodromes session: the
+  AP still flies def.params.ap constants, and the carve/decals below are
+  not yet driven from it (the runway exists 4× independently: carve, AP
+  constants, decals, patchwork mask).
 - Runway 1100 m: x +20 → −1080 (extended for the DC-3; physics flat pad
   x∈[−1180,130], |z|<90 blend). Takeoff heading −x, landing +x.
 - Mountains −z side (~200 m peaks near (−5500..−6000, −2500) — DC-3 turnback
@@ -312,6 +332,14 @@ project BRANCHES to graphics/world/editor work (specced separately by the
 user). Sessions 4-6 below stay documented as reference but are NOT next.
 One chantier per session. Every session ends with the battery green AND the
 fleet table re-anchored if physics moved.
+
+World branch (futureDesigns/WORLD-CONTRACT.md + WORLD-GEN-PROC.md):
+W1. **World contract v1** — DONE 2026-08-03: pure restructuring of
+    20_world.js (seed plumbing, waterH/surface, tile(), aerodromes registry,
+    v0 shim), battery log byte-identical (timing aside), GATE WORLD golden
+    freeze added. Next on this branch: WORLD-GEN-PROC stage 1 (hydrology on
+    the current terrain, gates first). AP-reads-aerodromes (contract rule 6)
+    deferred to its own session.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

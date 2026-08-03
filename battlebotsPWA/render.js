@@ -499,7 +499,11 @@ function drawBotTiles(c, build, layout, spin, opts={}){
      Les roues DÉBORDENT du chant (WYSIWYG des colliders) : décalage
      latéral vers l'extérieur de 0.32 cellule par côté. */
   const MICRO_SHADOW = 'drop-shadow(2px 3px 1.2px rgba(0,0,0,0.30))';
-  const shadowed = (fn)=>{ if(!("filter" in c)){ fn(); return; }
+  const shadowed = (fn)=>{
+    if(!("filter" in c)){                       // E10 : sans ctx.filter (Safari < 18), l'ombre native du canvas
+      c.save(); c.shadowColor="rgba(0,0,0,0.30)"; c.shadowBlur=2.4;
+      c.shadowOffsetX=2; c.shadowOffsetY=3;
+      fn(); c.restore(); return; }
     const keep=c.filter; c.filter = (keep && keep!=="none" ? keep+" " : "") + MICRO_SHADOW;
     fn(); c.filter = keep || "none"; };
   const drawSlot=(slot)=>{
@@ -567,10 +571,12 @@ function editorShadowCv(w,h){
   return _edShadowCv;
 }
 function drawGroundShadow(cDest, build, layout, spin, w, h, sc){
-  if(!("filter" in cDest)){                                                    // repli : contour de coque
-    cDest.save(); cDest.translate(w/2,h/2); cDest.scale(sc,sc);
-    cDest.globalAlpha=0.30; cDest.translate(3,7); cDest.fillStyle="#000";
-    chassisOutlinePath(cDest, build.chassis); cDest.fill(); cDest.restore(); return; }
+  /* P-OMBRES v3 — MÊME ombre qu'en combat sur TOUT navigateur : la silhouette
+     exacte du bot complet est TOUJOURS dessinée ; le flou (ctx.filter) n'est
+     qu'un confort. L'ancien code retombait sans filter sur le CONTOUR DE
+     COQUE : rectangle pour les coques spec (RUSTY carré) et chemin NaN —
+     donc AUCUNE ombre — pour les coques à masque (toute la classe S).
+     Safari < 18 n'a pas ctx.filter : c'était l'écart éditeur/combat observé. */
   const sil=editorShadowCv(w,h), s=sil.getContext("2d");
   s.setTransform(1,0,0,1,0,0); s.clearRect(0,0,w,h);
   s.save(); s.translate(w/2,h/2); s.scale(sc,sc); s.translate(3,7);            // décalage d'ombre (espace bot, comme avant)
@@ -578,8 +584,11 @@ function drawGroundShadow(cDest, build, layout, spin, w, h, sc){
   s.restore();
   s.globalCompositeOperation="source-in"; s.fillStyle="#000"; s.fillRect(0,0,w,h);   // → silhouette pleine
   s.globalCompositeOperation="source-over";
-  cDest.save(); cDest.globalAlpha=0.30; cDest.filter="blur(5px)";
-  cDest.drawImage(sil,0,0); cDest.filter="none"; cDest.restore();
+  cDest.save(); cDest.globalAlpha=0.30;
+  if("filter" in cDest) cDest.filter="blur(5px)";
+  cDest.drawImage(sil,0,0);
+  if("filter" in cDest) cDest.filter="none";
+  cDest.restore();
 }
 function drawEditor(canvas, build, layout, spin, focusLayer=-1, cgOn=false, hbOn=false){
   const c=canvas.getContext("2d"); const w=canvas.width,h=canvas.height;

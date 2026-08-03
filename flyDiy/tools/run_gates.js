@@ -27,6 +27,8 @@ const GATES = [
   { id: 'CTRL', file: 'test_ctrl.js' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js' },
   { id: 'PA18', file: 'test_pa18.js' },
+  // world contract (appended: keeps the battery log prefix diffable)
+  { id: 'WORLD', file: 'test_world.js' },
 ];
 
 const args = process.argv.slice(2);

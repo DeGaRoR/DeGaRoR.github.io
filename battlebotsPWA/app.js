@@ -1118,17 +1118,29 @@ function importBot(json){
   let f; try { f = typeof json === "string" ? JSON.parse(json) : json; } catch(e){ return null; }
   if (!f || typeof f !== "object" || !f.chassis) return null;
   const chassis = validChassis(f.chassis);
-  const bot = bareBot(chassis);
-  bot.pilot = validPilot(f.pilot);
+  /* E10 — la fiche est un PLAN, pas du matériel : l'importer, c'est faire
+     sourcer coque + pièces par le garage, au prix catalogue NEUF. Sans ça,
+     exporter puis réimporter sa propre fiche dupliquait un bot gratuitement. */
   const src = (f.parts && typeof f.parts === "object") ? f.parts : {};
+  const manifest = [];                                   // [def, n] validés — la frappe attend le paiement
   for (const sl in src){
     const def = src[sl];
     if (!ENGINE.PARTS[sl] || DEF_SLOT[def] !== sl) continue;          // pièce inconnue ou mauvais slot
     const nMax = STACK_SLOTS[sl] ? 3 : 1;
     const n = Math.max(1, Math.min(nMax, ((f.counts || {})[sl] | 0) || 1));
+    manifest.push([sl, def, n]);
+  }
+  const cost = ((CHASSIS_INFO[chassis] || {}).cost || 0)
+    + manifest.reduce((a, [sl, def, n]) => a + ((ENGINE.partOf(sl, def) || {}).cost || 0) * n, 0);
+  if (S.bolts < cost) return "noBolts";
+  S.bolts -= cost;
+  const bot = bareBot(chassis);
+  bot.pilot = validPilot(f.pilot);
+  for (const [sl, def, n] of manifest){
     bot.fit[sl] = []; for (let i = 0; i < n; i++) bot.fit[sl].push(mintInstance(def));
   }
   refit(bot);
+  bot.importCost = cost;                                 // affichage (toast de l'appelant)
   if (typeof f.color === "string") bot.customize.color = f.color;
   if (Array.isArray(f.stickers)) bot.customize.placed = f.stickers.filter(x => x && stickerOf(x.id || x));
   const build = { chassis, parts: {...bot.equipped}, counts: {...bot.counts} };
@@ -1863,6 +1875,11 @@ function renderVsScreen(){
     color: lock ? lock.color : S.customize.color,
     stickers0: lock ? lock.stickers : S.customize.placed};
   myBuild.beamCells = beamCellsOf(myBuild, lock ? lock.layout : getLayout());  // S16-WHEELS
+  /* E10 — le portrait porte le NOM DU BOT (nom custom, sinon nom de coque) :
+     le « RUSTY » du markup n'était jamais réécrit, tous les bots s'appelaient
+     Rusty à l'écran VS. Si le build gelé n'est plus celui du bot actif, on
+     nomme la coque gelée (c'est ELLE qui combat). */
+  $("playerName").textContent = botName(lock && lock.chassis !== AB().chassis ? { chassis: lock.chassis } : AB());
   $("playerClass").textContent = t(weightClass(myBuild)) + " · " + ENGINE.physStats(myBuild).massKg.toFixed(2) + " kg";
   renderNums($("playerNums"), myBuild);
   $("playerCv")._build = myBuild;
@@ -3022,10 +3039,13 @@ if ($("ficheExport")) $("ficheExport").onclick = ()=>{
 };
 if ($("ficheImport")) $("ficheImport").onclick = ()=>{
   const bot = importBot(($("ficheBox").value || "").trim());
+  if (bot === "noBolts"){ showToast(t("noBolts")); return; }        // E10 : la fiche se paie au prix catalogue
   if (!bot){ showToast(t("botBadJson")); return; }
+  const cost = bot.importCost | 0; delete bot.importCost;           // affichage seul, ne persiste pas
   $("settingsOv").style.display = "none";
   showTab("workshop"); renderHome();
-  showToast(t("botImported", { name: dataName((CHASSIS_INFO[bot.chassis]||{}).name) || bot.chassis }));
+  showToast(t("botImported", { name: dataName((CHASSIS_INFO[bot.chassis]||{}).name) || bot.chassis })
+            + (cost ? " · −" + cost + " €" : ""));
 };
 if ($("settingsCareers")) $("settingsCareers").onclick = ()=>{ $("settingsOv").style.display="none"; showWelcome(); };
 if (!CUR_CAREER) showWelcome();                                     // premier lancement : accueil

@@ -133,7 +133,12 @@ const ENGINE = (() => {
   // Slots with no purchasable entries yet (weapons) are reserved by design.
   const PARTS = {
     propulsion: [ // drive architecture: wheels/treads/layout -> traction & style
-      {id:"pr0", gamme:0, cost:0,   traction:1.00, mass:0,    style:"worn"},
+      /* E10 — les pièces de RÉCUP ont un PRIX. À 0 €, chaque copie était
+         gratuite (boutique et empilage ×N) : énergie/poussée multipliées sans
+         dépense. Le kit du bot de départ reste offert (newBotInto frappe les
+         instances sans passer par la boutique). n0/s0/k0 restent à 0 : ce sont
+         des marqueurs d'ABSENCE (OPTIONAL_SLOTS dérive de cost 0 + masse 0). */
+      {id:"pr0", gamme:0, cost:25,  traction:1.00, mass:0,    style:"worn"},
       {id:"pr1", gamme:1, cost:90,  traction:1.12, mass:0.06, style:"lug"},
       {id:"pr2", gamme:2, cost:140, traction:1.18, mass:0.04, style:"slick"},
       {id:"pr3", gamme:3, cost:200, traction:1.30, mass:0.16, style:"tread"},
@@ -159,7 +164,7 @@ const ENGINE = (() => {
       {id:"pr9", gamme:3, cost:330, traction:1.26, mass:0.14, style:"lug",   intendedClass:"S", guard:0.45},  // 2x1 large blindée, grip élevé
     ],
     motor: [
-      {id:"m0", gamme:0, cost:0,   push:1.00, speed:1.00, mass:0},
+      {id:"m0", gamme:0, cost:20,  push:1.00, speed:1.00, mass:0},   // E10 : récup payante (dupes non gratuites)
       {id:"m1", gamme:1, cost:60,  push:1.15, speed:1.07, mass:0.04},
       {id:"m2", gamme:2, cost:150, push:1.30, speed:1.14, mass:0.08},
       {id:"m3", gamme:3, cost:230, push:1.45, speed:1.05, mass:0.14},  // KV90: torque monster
@@ -174,12 +179,12 @@ const ENGINE = (() => {
       {id:"m6", gamme:2, cost:260, push:1.27, speed:1.11, mass:0.05, intendedClass:"S"},  // 1x2
     ],
     cpu: [ // decision latency (re-plan cadence) + servo gain (alignment speed)
-      {id:"c0", gamme:0, cost:0,   interval:18, gain:0.85, mass:0},
+      {id:"c0", gamme:0, cost:15,  interval:18, gain:0.85, mass:0},  // E10 : récup payante
       {id:"c1", gamme:1, cost:120, interval:8,  gain:1.05, mass:0.01},
       {id:"c2", gamme:2, cost:240, interval:3,  gain:1.30, mass:0.02},
     ],
     battery: [
-      {id:"b0", gamme:0, cost:0,   energy:1.00, mass:0},
+      {id:"b0", gamme:0, cost:15,  energy:1.00, mass:0},   // E10 : récup payante (l'empilage ×3 gratuit était un exploit)
       {id:"b1", gamme:1, cost:50,  energy:1.20, mass:0.03},
       {id:"b2", gamme:2, cost:120, energy:1.40, mass:0.06},
       {id:"b3", gamme:3, cost:190, energy:1.65, mass:0.12},

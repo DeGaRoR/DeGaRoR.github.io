@@ -67,4 +67,46 @@ safe("scénario S", () => {
         mEntry !== null && mEntry*60 >= 20 && mEntry*60 <= 75, h(mEntry));
 });
 
+// ------------------------------------------------------ E10 : les doublons se paient (03/08)
+safe("E10 doublons payants", () => {
+  const W = require("./world.js"); const w = W.openWorld();
+  // 1) plus aucune pièce FONCTIONNELLE gratuite : masse > 0 ⇒ prix > 0.
+  //    Les marqueurs d'absence (a0, n0, s0, k0, l0, r0, w0, x0) restent à 0 €
+  //    ET à masse 0 — c'est ce couple qui dérive OPTIONAL_SLOTS.
+  const zeros = w.eval(`(function(){ const out=[];
+    for (const sl in ENGINE.PARTS) for (const p of ENGINE.PARTS[sl])
+      if ((p.cost|0) === 0 && ENGINE.partMassKg(sl, p.id) > 0) out.push(sl+":"+p.id);
+    return out; })()`);
+  check("E10: aucune pièce fonctionnelle à 0 € (masse>0 ⇒ prix>0)", zeros.length === 0, zeros.join(","));
+  check("E10: slots optionnels intacts (les marqueurs d'absence restent gratuits)",
+        w.eval("!!(OPTIONAL_SLOTS.armor && OPTIONAL_SLOTS.ballast && OPTIONAL_SLOTS.srimech)"));
+  // 2) empiler une pièce SANS copie libre = prix catalogue (fini le ×3 gratuit)
+  w.eval("S.bolts = 2000; saveState(); buyBot('boxy'); mintInstance('m0'); tryEquip('motor','m0')");
+  const b0 = w.eval("S.bolts");
+  w.eval("setCount('motor', +1)");
+  const paid = b0 - w.eval("S.bolts");
+  check("E10: +1 moteur de récup = prix catalogue, monté ×2",
+        paid === w.eval("ENGINE.partOf('motor','m0').cost") && paid > 0 && w.eval("AB().counts.motor") === 2,
+        paid + " € · ×" + w.eval("AB().counts.motor||1"));
+  // 3) la fiche est un PLAN : l'import se paie coque + pièces au neuf, refusé sans fonds
+  const fiche = w.eval("JSON.stringify(exportBot())");
+  const b1 = w.eval("S.bolts");
+  const n1 = w.eval("S.garage.length");
+  w.eval(`importBot(${JSON.stringify(fiche)})`);
+  const facture = b1 - w.eval("S.bolts");
+  const attenduCout = w.eval(`(function(){ const f=${fiche};
+    let c=(CHASSIS_INFO[f.chassis]||{}).cost||0;
+    for (const sl in (f.parts||{})) c += ((ENGINE.partOf(sl, f.parts[sl])||{}).cost||0) * (((f.counts||{})[sl])||1);
+    return c; })()`);
+  check("E10: import facturé au prix catalogue neuf (coque + pièces × multiplicité)",
+        facture === attenduCout && facture > 0 && w.eval("S.garage.length") === n1 + 1,
+        facture + " € (attendu " + attenduCout + ")");
+  w.eval("S.bolts = 0");
+  const n2 = w.eval("S.garage.length");
+  check("E10: import refusé sans fonds (garage et inventaire intacts)",
+        w.eval(`importBot(${JSON.stringify(fiche)})`) === "noBolts" && w.eval("S.garage.length") === n2);
+  check("aucune erreur E10", w.errors.length === 0, w.errors[0] || "");
+  w.close();
+});
+
 report("économie");
