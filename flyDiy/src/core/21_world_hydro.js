@@ -357,6 +357,9 @@ function bakeHydrology(sample, cfg) {
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
     carve, water, distW,
+    // stage-1 grids for downstream stages (settlement scoring, roads):
+    // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
+    grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },
     stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
 }

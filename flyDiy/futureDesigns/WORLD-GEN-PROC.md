@@ -138,8 +138,45 @@ grid per tile (deterministic per tile, replaces the global rejection loop).
 Gate: no trees in water/paved/scree, density within envelope per biome,
 riparian strips actually hug rivers.
 
-## Stage 3 — Settlements & roads
+## Stage 3 — Settlements & roads — DONE 2026-08-04
 
+Implemented in `src/core/23_world_settle.js` (`bakeSettlements(deps)`,
+consuming the stage-1 grids now exposed on the bake's `grids` field).
+As-built:
+- **Sites**: scored on a 2× decimated stage-1 grid (flat + near-water +
+  low + confluence knots + coast), greedy min spacing 2.5 km, capped at
+  6 incl. the fixed `Home Field` hamlet by the airfield (index 0 — the
+  road network GROWS from the airfield). Towns are excluded from the
+  circuit band (|z|<400, x∈(−3400,400)) and meadow surrounds; procedural
+  syllable names; pop from score → r. Seed-0: 5 settlements.
+- **Roads**: organic growth — each new settlement connects via Dijkstra
+  to the NEAREST POINT of the existing network (multi-source seeding), so
+  trunks are shared; k extra links ⚙ = 0 for now. Cost = dist·(1+8·slope²),
+  water ×6 (⚙ — was 14, which dodged every river and produced zero
+  bridges), pad zone ×60, meadows ×8. The decimated water mask ORs the
+  full 2×2 fine block — 1-cell river lines must not leave sneak-through
+  gaps (found the hard way). Wet cell runs become `bridge` pieces (2 pts);
+  dry runs DP-simplify (ε 30) into `road`/`track` by pop.
+- **Grading**: flat roadbed core 4.5 m half-width feathered to 12 m,
+  toward a 3-tap-smoothed along-profile, delta clamped ±4 m, never on
+  bridges; masked by padRamp and faded by the meadow blend weight —
+  pad stays exactly 0, meadow centres exact. Residual cross-height at
+  4 m ≈ 1.8 m max where the ±4 m clamp bites on steep hillsides.
+- **Buildings**: two rows along the local road tangent per settlement
+  (26 m pitch, jittered), rejecting water/road/out-of-radius; {x,z,w,l,
+  hgt,rot,kind house|barn}. Seed-0: 76.
+- **Surface**: `GRAVEL` is live within 3.5 m of a road centreline.
+  Trees keep 12 m off roads and out of settlement cores (r·0.75).
+- Renderer: dirt-band tint in the colour bake, instanced house/barn
+  bodies + prism roofs, wooden bridge decks.
+- HONEST CUT: buildings have no physics collision (trees do) — flying
+  through a house is possible; revisit if it ever matters.
+- GATE SETTLE: sanity/spacing/dry sites, geometric road-graph
+  connectivity incl. every settlement, bridges on water, cross-slope
+  bound, pad clearance, buildings sane + tiled, tree clearance,
+  determinism, bake budget (~80 ms).
+
+Original sketch:
 - **Site scoring** on the stage-1 grid: flat + near water + low altitude +
   river confluence bonus + coast bonus; greedy pick with min spacing ⚙ 2.5 km;
   size (pop) from score. Buildings: per-tile procedural footprints inside

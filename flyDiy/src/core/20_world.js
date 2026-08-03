@@ -106,16 +106,47 @@ function makeWorld(seed) {
     { x0: -4500, z0: -4500, x1: 4500, z1: 4500, N: 384,
       lakeMin: 1.5, A0: 500, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
-  function terrainH(x, z) {
+  // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
+  // scores sites and derives grading targets on this)
+  function tV1(x, z) {
     let h = h0(x, z);
     const r = padRamp(x, z);
     if (r > 0) h += (HYD.carve(x, z, h) - h) * r;
     return blendM(x, z, h);
   }
 
+  // ---- stage 3 settlements & roads (WORLD-GEN-PROC): sites scored on
+  // the stage-1 grids, organic road network grown from the home airfield,
+  // bridges across water runs, building footprints. Roads add a shallow
+  // grading term to terrainH below.
+  const SET = bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
+
+  // final terrain: tV1 + road grading, masked off the runway pad (padRamp)
+  // and faded inside meadows (same blend weight — meadow centres stay
+  // EXACTLY at m.h, the WORLD gate pins that).
+  function terrainH(x, z) {
+    let h = h0(x, z);
+    const r = padRamp(x, z);
+    if (r > 0) {
+      h += (HYD.carve(x, z, h) - h) * r;
+      h = blendM(x, z, h);
+      const g = SET.roadDelta(x, z, h) - h;
+      if (g !== 0) {
+        let mw = 1;
+        for (const m of meadows) {
+          const dd = Math.hypot(x - m.x, z - m.z);
+          if (dd < m.r) { mw = sstep(m.r * 0.45, m.r, dd); break; }
+        }
+        h += g * r * mw;
+      }
+      return h;
+    }
+    return blendM(x, z, h);
+  }
+
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
   // (waterAt/terrainH are function declarations — hoisted, safe to bind)
-  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT });
+  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear });
 
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
   // order-independent per point (replaces the v0 sequential LCG loop);
@@ -140,6 +171,8 @@ function makeWorld(seed) {
         if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
       if (nearMeadow) continue;
       if (HYD.water(x, z) > h) continue;
+      if (SET.roadNear(x, z) < 12) continue;   // clear of roads
+      if (SET.inCore(x, z)) continue;          // clear of settlement cores
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > tp.p) continue;
       const idx = trees.length;
@@ -194,17 +227,20 @@ function makeWorld(seed) {
         return rec;
       };
       for (const t of trees) rec0(Math.floor(t.x / TILE) + ',' + Math.floor(t.z / TILE)).trees.push(t);
-      for (const r of HYD.rivers) {
+      const bucketPoly = (obj, list) => {
         const keys = new Set();
-        for (let i = 0; i + 1 < r.pts.length; i++) {
-          const tx0 = Math.floor(Math.min(r.pts[i][0], r.pts[i + 1][0]) / TILE);
-          const tx1 = Math.floor(Math.max(r.pts[i][0], r.pts[i + 1][0]) / TILE);
-          const tz0 = Math.floor(Math.min(r.pts[i][1], r.pts[i + 1][1]) / TILE);
-          const tz1 = Math.floor(Math.max(r.pts[i][1], r.pts[i + 1][1]) / TILE);
+        for (let i = 0; i + 1 < obj.pts.length; i++) {
+          const tx0 = Math.floor(Math.min(obj.pts[i][0], obj.pts[i + 1][0]) / TILE);
+          const tx1 = Math.floor(Math.max(obj.pts[i][0], obj.pts[i + 1][0]) / TILE);
+          const tz0 = Math.floor(Math.min(obj.pts[i][1], obj.pts[i + 1][1]) / TILE);
+          const tz1 = Math.floor(Math.max(obj.pts[i][1], obj.pts[i + 1][1]) / TILE);
           for (let a = tx0; a <= tx1; a++) for (let b = tz0; b <= tz1; b++) keys.add(a + ',' + b);
         }
-        for (const key of keys) rec0(key).rivers.push(r);
-      }
+        for (const key of keys) rec0(key)[list].push(obj);
+      };
+      for (const r of HYD.rivers) bucketPoly(r, 'rivers');
+      for (const r of SET.roads) bucketPoly(r, 'roads');
+      for (const b of SET.buildings) rec0(Math.floor(b.x / TILE) + ',' + Math.floor(b.z / TILE)).buildings.push(b);
     }
     const key = ix + ',' + iz;
     let rec = tileIndex.get(key);
@@ -244,8 +280,11 @@ function makeWorld(seed) {
     v: 1, seed: SEED,
     bounds: { x0: -4500, z0: -4500, x1: 4500, z1: 4500 },
     terrainH, waterH, surface, SURFACE,
-    TILE, tile, aerodromes, settlements: [],
+    TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
+    // informative stage-3 block (not contract surface): road/building
+    // records and queries for gates, renderer and debug.
+    roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, bakeMs: SET.stats.bakeMs },
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },

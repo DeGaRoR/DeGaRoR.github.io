@@ -88,6 +88,9 @@ function buildWorldScene(scene, world, renderer, camera) {
         if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
         else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
         else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
+        // stage-3 roads: dirt band (wider than the 3.5 m GRAVEL truth so
+        // the 28 m texels catch it)
+        if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
       }
       const o = (j * N + i) * 4;
       img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
@@ -487,6 +490,59 @@ function buildWorldScene(scene, world, renderer, camera) {
     const ring = new THREE.TorusGeometry(0.22, 0.05, 6, 10);
     for (const [x, z] of [[36, 44], [50, 44], [43, 52]])
       prop(ring, steel, x, 0.1, z, 0, Math.PI / 2);
+  }
+
+  { // stage-3 settlements: instanced houses/barns + bridge decks
+    const BL = world.roadNet.buildings;
+    if (BL.length) {
+      const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
+      bodyGeo.translate(0, 0.5, 0);
+      const roofGeo = new THREE.CylinderGeometry(1, 1, 1, 3, 1);
+      roofGeo.rotateY(Math.PI / 2); roofGeo.rotateZ(Math.PI / 2);   // prism, axis along x
+      const bodies = new THREE.InstancedMesh(bodyGeo,
+        new THREE.MeshLambertMaterial({ color: 0xffffff }), BL.length);
+      const roofs = new THREE.InstancedMesh(roofGeo,
+        new THREE.MeshLambertMaterial({ color: 0xffffff }), BL.length);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(),
+            up = new THREE.Vector3(0, 1, 0), pv = new THREE.Vector3(),
+            sv = new THREE.Vector3(), c3 = new THREE.Color();
+      const WALLS = [C(0xcbb79a), C(0xd8cbb0), C(0xb9a284), C(0x8a6a4a)];
+      const ROOFS = [C(0x9c5f43), C(0x7a5a43), C(0x6d5744)];
+      BL.forEach((b, i) => {
+        const gy = world.terrainH(b.x, b.z);
+        const hsi = ((b.x * 7 + b.z * 13) & 1048575) | 0;
+        q.setFromAxisAngle(up, -b.rot);
+        pv.set(b.x, gy - 0.15, b.z);
+        sv.set(b.w, b.hgt, b.l);
+        m4.compose(pv, q, sv);
+        bodies.setMatrixAt(i, m4);
+        bodies.setColorAt(i, b.kind === 'barn' ? c3.copy(ROOFS[0]).multiplyScalar(1.05) : WALLS[hsi % 4]);
+        const rr = b.l * 0.58;
+        pv.set(b.x, gy - 0.15 + b.hgt + rr * 0.5 - 0.02, b.z);
+        sv.set(b.w * 1.06, rr, rr);
+        m4.compose(pv, q, sv);
+        roofs.setMatrixAt(i, m4);
+        roofs.setColorAt(i, ROOFS[hsi % 3]);
+      });
+      for (const m of [bodies, roofs]) {
+        m.castShadow = true; m.receiveShadow = true;
+        m.instanceMatrix.needsUpdate = true;
+        if (m.instanceColor) m.instanceColor.needsUpdate = true;
+        scene.add(m);
+      }
+    }
+    const deckMat = new THREE.MeshLambertMaterial({ color: C(0x8a6a4a) });
+    for (const r of world.roadNet.roads) {
+      if (r.cls !== 'bridge') continue;
+      const [a, b] = r.pts;
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const y = Math.max(world.terrainH(a[0], a[1]), world.terrainH(b[0], b[1])) + 0.55;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 5, 0.7, 6.5), deckMat);
+      deck.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
+      deck.rotation.y = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
+      deck.castShadow = true; deck.receiveShadow = true;
+      scene.add(deck);
+    }
   }
 
   { // landing meadows: marker ring + beacon

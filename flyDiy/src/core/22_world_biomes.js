@@ -8,8 +8,8 @@
 // Species (tree.sp): 0 spruce, 1 pine, 2 oak, 3 birch, 4 willow.
 // ============================================================
 function makeBiomes(D) {
-  // D: { terrainH, waterOf(h,x,z), distW, SURFACE, salt }
-  const { terrainH, waterOf, distW, SURFACE, salt } = D;
+  // D: { terrainH, waterOf(h,x,z), distW, SURFACE, salt, roadNear? }
+  const { terrainH, waterOf, distW, SURFACE, salt, roadNear } = D;
   const smf = t => t * t * (3 - 2 * t);
   const clamp01 = v => Math.min(1, Math.max(0, v));
   // decorrelated from the terrain hash: swapped multipliers + own constant
@@ -51,6 +51,7 @@ function makeBiomes(D) {
     if (h < 2.5 && distW(x, z) < 70) return SURFACE.SAND;     // coast + estuary bars
     if (h > 220 || sl > 0.75 || (h > TREELINE && sl > 0.38)) return SURFACE.ROCK;
     if (h > 100 && sl > 0.45) return SURFACE.SCREE;
+    if (roadNear && roadNear(x, z) < 3.5) return SURFACE.GRAVEL;  // stage-3 roads
     if (h < TREELINE && sl < 0.5 && forestness(x, z, h) > 0.48) return SURFACE.FOREST_FLOOR;
     return SURFACE.GRASS;
   }

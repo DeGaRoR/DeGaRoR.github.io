@@ -5,14 +5,15 @@
 // snippet in futureDesigns/WORLD-CONTRACT.md §4, in the same commit.
 const { makeWorld } = require('./flight_core.js');
 
-// goldens re-captured 2026-08-03 for stage 2 biomes (tree placement is
-// now biome-driven with species — records gained sp, count 2200 -> 2336;
-// TERRAIN IS UNTOUCHED: grid/meadow hashes and anchors identical to the
-// stage-1 capture). History: pre-hydro GRID 68852648 TREES fe7ae7d8;
-// stage-1 TREES 38e47146 (2200, no sp).
-const GOLDEN_GRID = 'cdccbc80';
-const GOLDEN_TREES = 'b097b0ed';
-const GOLDEN_TREE_COUNT = 2336;
+// goldens re-captured 2026-08-03 for stage 3 settlements & roads (road
+// grading modifies terrainH off-pad; trees re-laid with road/settlement
+// exclusions, 2336 -> 2285). Meadow hash and all four anchors unchanged
+// (grading masked at pad/meadows; anchors away from roads). History:
+// pre-hydro GRID 68852648 TREES fe7ae7d8; stage-1 GRID cdccbc80 TREES
+// 38e47146; stage-2 TREES b097b0ed (2336).
+const GOLDEN_GRID = '4ade0091';
+const GOLDEN_TREES = 'baa89490';
+const GOLDEN_TREE_COUNT = 2262;
 const GOLDEN_MEADOWS = '27f288de';
 const GOLDEN_ANCHORS = ['0', '0.1927813924095721', '22.029038814851813', '24.310422903189508'];
 
@@ -84,7 +85,7 @@ checks['seeds differ'] = gridHash(makeWorld(1), 225) !== gridHash(W, 225);
       if (!set.has(t)) identity = false;
       if (Math.floor(t.x / W.TILE) !== ix || Math.floor(t.z / W.TILE) !== iz) bounded = false;
     }
-    if (rec.roads.length || rec.buildings.length) bounded = false; // stage 3 features still empty
+    // rivers/roads/buildings bucketing is owned by GATE HYDRO / GATE SETTLE
   }
   checks['tile union==trees'] = count === W.trees.length && identity;
   checks['tile bounds'] = bounded;

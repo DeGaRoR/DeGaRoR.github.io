@@ -44,6 +44,9 @@ before every battery so stale hand-edits get overwritten, loudly.
   biome classifier (drives W.surface) + per-point tree placement
   (density, species 0-4, stand clustering). As-built: WORLD-GEN-PROC
   stage 2.
+- `src/core/23_world_settle.js` — bakeSettlements(deps): stage-3 sites,
+  organic road network (grown from the airfield), bridges, road-grading
+  SDF, building footprints. As-built: WORLD-GEN-PROC stage 3.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
@@ -94,6 +97,10 @@ from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
 (+~2 s WORLD).
+GATE SETTLE (appended after BIOME, ~1 s) holds the stage-3 invariants:
+settlement sanity/spacing/dry, road-graph connectivity, bridges on water,
+cross-slope bound, pad clearance, buildings sane + tiled, tree clearance,
+determinism, bake budget.
 GATE BIOME (appended after HYDRO, ~1 s) holds the stage-2 invariants:
 surface distribution + classifier semantics, trees only on grass/forest
 floor, species diversity + stand clustering, riparian ratio, exclusion
@@ -249,6 +256,13 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   it has sat at −47.9 m in the sea basin since v0 — waterH now honestly
   floods it; relocate/regrade at stage 4. Terrain change re-anchored the
   battery: pre-hydro logs are no longer diffable baselines.
+- Stage 3 settlements & roads since 2026-08-04: W.settlements is live
+  (5 at seed 0: Home Field hamlet by the airfield + 4 procedurally named
+  towns, all outside the circuit band), ~13.5 km of roads grown from the
+  airfield with a wooden bridge, 76 buildings, GRAVEL surface on roads,
+  shallow road grading in terrainH (masked at pad/meadows — pad exactly
+  0, meadow centres exact). Buildings have NO physics collision (honest
+  cut). W.roadNet = informative block (roads/buildings/roadNear/bakeMs).
 - Stage 2 biomes since 2026-08-03: W.surface is the real classifier
   (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/GRASS); trees are biome-placed
   with species (tree.sp 0-4: spruce/pine/oak/birch/willow) on a
@@ -393,10 +407,16 @@ W4. **Stage 2 biomes** — DONE 2026-08-03: 22_world_biomes.js classifier
     species (2200 LCG trees -> 2336 biome trees, sp field), distW added
     to the stage-1 bake, renderer species silhouettes/colours + ground
     tint, GATE BIOME. Terrain untouched (grid golden identical); TREES
-    golden re-captured. Next on this branch: stage 0 rework (domain warp
-    + growth, conscious re-golden), stage 3 settlements & roads, or
-    AP-reads-aerodromes (still pending). Solver-side surface->friction
-    (contract rule 7) is now unblocked — the enum is real.
+    golden re-captured. Solver-side surface->friction (contract rule 7)
+    is unblocked — the enum is real.
+W5. **Stage 3 settlements & roads** — DONE 2026-08-04: 23_world_settle.js
+    (sites, organic road network from the airfield, bridges, grading,
+    buildings), GRAVEL surface, renderer tint/buildings/decks, GATE
+    SETTLE. GRID+TREES goldens re-captured (grading is a terrain change;
+    meadows/anchors held). Next on this branch: stage 0 rework (domain
+    warp + growth), stage 4 aerodromes-per-settlement, stage 5 cliffs, or
+    AP-reads-aerodromes (still pending — now with settlements worth
+    flying to).
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto
