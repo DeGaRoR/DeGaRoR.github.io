@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 84b868204de6afce
+// body-sha256: c9d51aa7cfe100ef
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1409,26 +1409,41 @@ function makeWorld(seed) {
     return blendM(x, z, h);
   }
 
-  // trees on terrain, deterministic; spatial hash for collisions
-  const rng = (st => () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296)((7 + SALT) >>> 0);
+  // ---- stage 2 biomes: analytic classifier + tree placement plan ----
+  // (waterAt/terrainH are function declarations — hoisted, safe to bind)
+  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT });
+
+  // trees: stage-2 biome placement — deterministic jittered 64 m grid,
+  // order-independent per point (replaces the v0 sequential LCG loop);
+  // density + species from the biome module, clustered by stand noise.
+  // v0 exclusions kept verbatim (battery safety): corridor box, meadows
+  // 0.8r; the runway pad self-rejects via h<2 (carve-masked flat at 0).
+  // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
+  // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  let guard = 0;
-  while (trees.length < 2200 && guard++ < 60000) {
-    const x = (rng() - 0.5) * 8400, z = (rng() - 0.5) * 8400;
-    const h = terrainH(x, z);
-    if (h < 2 || h > 160) continue;
-    if (HYD.water(x, z) > h) continue; // no trees in rivers/lakes
-    if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
-    let nearMeadow = false;
-    for (const m of meadows)
-      if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
-    if (nearMeadow) continue;
-    const s = 0.7 + rng() * 1.1;
-    const idx = trees.length;
-    trees.push({ x, z, h, s });
-    const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
-    if (!grid.has(key)) grid.set(key, []);
-    grid.get(key).push(idx);
+  {
+    const G0 = -4224, GN = 132, GS = 64;   // ±4224 m (v0 domain was ±4200)
+    for (let gz = 0; gz < GN; gz++) for (let gx = 0; gx < GN; gx++) {
+      const j1 = hash2(gx + 9173, gz - 2417), j2 = hash2(gx - 5807, gz + 7919),
+            j3 = hash2(gx + 1229, gz + 4051);
+      const x = G0 + (gx + 0.15 + 0.70 * j1) * GS;
+      const z = G0 + (gz + 0.15 + 0.70 * j2) * GS;
+      const h = terrainH(x, z);
+      if (h < 2 || h > B.TREELINE) continue;
+      if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
+      let nearMeadow = false;
+      for (const m of meadows)
+        if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
+      if (nearMeadow) continue;
+      if (HYD.water(x, z) > h) continue;
+      const tp = B.treeAt(x, z, h);
+      if (!tp || j3 > tp.p) continue;
+      const idx = trees.length;
+      trees.push({ x, z, h, s: tp.s, sp: tp.sp });
+      const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(idx);
+    }
   }
   function treesNear(x, z, out) {
     out.length = 0;
@@ -1452,12 +1467,10 @@ function makeWorld(seed) {
     return -Infinity;
   }
   function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
-  function surface(x, z) {
-    const h = terrainH(x, z);
-    if (waterAt(h, x, z) > h) return SURFACE.WATER;
-    if (h >= 220) return SURFACE.ROCK;  // renderer's rock-band onset
-    return SURFACE.GRASS;
-  }
+  // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
+  // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
+  // still reserved for stage 4)
+  const surface = B.surface;
 
   // ---- v1 tiled features: lazy bucketing of the eager tree array plus
   // stage-1 river reaches (a reach spanning several tiles appears in each
@@ -1531,7 +1544,7 @@ function makeWorld(seed) {
     treesNear,
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
-    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW },
+    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
   };
@@ -1777,6 +1790,41 @@ function bakeHydrology(sample, cfg) {
     }
   }
 
+  // ---- distance-to-water: 3-4 chamfer transform over sea + lake/rim +
+  // traced river cells, queried bilinearly in metres (stage-2 biome input)
+  const dGrid = new Float64Array(M).fill(1e9);
+  for (let k = 0; k < M; k++) if (sea[k] || wet[k] || claimed[k]) dGrid[k] = 0;
+  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) {
+    const k = iz * N + ix; let d = dGrid[k];
+    if (ix > 0 && dGrid[k - 1] + 3 < d) d = dGrid[k - 1] + 3;
+    if (iz > 0) {
+      if (dGrid[k - N] + 3 < d) d = dGrid[k - N] + 3;
+      if (ix > 0 && dGrid[k - N - 1] + 4 < d) d = dGrid[k - N - 1] + 4;
+      if (ix + 1 < N && dGrid[k - N + 1] + 4 < d) d = dGrid[k - N + 1] + 4;
+    }
+    dGrid[k] = d;
+  }
+  for (let iz = N - 1; iz >= 0; iz--) for (let ix = N - 1; ix >= 0; ix--) {
+    const k = iz * N + ix; let d = dGrid[k];
+    if (ix + 1 < N && dGrid[k + 1] + 3 < d) d = dGrid[k + 1] + 3;
+    if (iz + 1 < N) {
+      if (dGrid[k + N] + 3 < d) d = dGrid[k + N] + 3;
+      if (ix + 1 < N && dGrid[k + N + 1] + 4 < d) d = dGrid[k + N + 1] + 4;
+      if (ix > 0 && dGrid[k + N - 1] + 4 < d) d = dGrid[k + N - 1] + 4;
+    }
+    dGrid[k] = d;
+  }
+  const DSCALE = dx / 3;
+  function distW(x, z) {
+    let gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
+    gx = Math.min(N - 1.001, Math.max(0, gx)); gz = Math.min(N - 1.001, Math.max(0, gz));
+    const ix = Math.floor(gx), iz = Math.floor(gz);
+    const tx = gx - ix, tz = gz - iz, k = iz * N + ix;
+    const a = dGrid[k] * (1 - tx) + dGrid[k + 1] * tx;
+    const b = dGrid[k + N] * (1 - tx) + dGrid[k + N + 1] * tx;
+    return (a * (1 - tz) + b * tz) * DSCALE;
+  }
+
   // ---- segment spatial index for O(1) hot-path queries ----
   // numeric keys (no per-query string allocation); segments are inserted
   // into every cell their bank-inflated bbox overlaps, so a query only
@@ -1859,9 +1907,100 @@ function bakeHydrology(sample, cfg) {
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water,
+    carve, water, distW,
     stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
+}
+// ============================================================
+// WORLD BIOMES — WORLD-GEN-PROC stage 2: climate -> biomes -> forests.
+// Analytic recombination, no stored map: biome = f(altitude, slope,
+// moisture fBm, distance-to-water). Drives the W.surface classifier and
+// per-point tree placement (density + species, clustered into stands by
+// a coarse stand noise so forests read as stands, not confetti).
+// Pure function of its deps; deterministic (integer-hash noise + salt).
+// Species (tree.sp): 0 spruce, 1 pine, 2 oak, 3 birch, 4 willow.
+// ============================================================
+function makeBiomes(D) {
+  // D: { terrainH, waterOf(h,x,z), distW, SURFACE, salt }
+  const { terrainH, waterOf, distW, SURFACE, salt } = D;
+  const smf = t => t * t * (3 - 2 * t);
+  const clamp01 = v => Math.min(1, Math.max(0, v));
+  // decorrelated from the terrain hash: swapped multipliers + own constant
+  const hash2 = (ix, iz) => {
+    let h = (ix * 668265263 + iz * 374761393 + 69069 + salt) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  function vnoise(x, z, cell) {
+    const fx = x / cell, fz = z / cell;
+    const ix = Math.floor(fx), iz = Math.floor(fz);
+    const tx = smf(fx - ix), tz = smf(fz - iz);
+    const a = hash2(ix, iz), b = hash2(ix + 1, iz),
+          c = hash2(ix, iz + 1), d = hash2(ix + 1, iz + 1);
+    return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
+  }
+  // per-point hash for placement/species decisions, keyed on quantized coords
+  const ph = (x, z, k) => hash2(Math.round(x * 4) + Math.imul(k, 7349), Math.round(z * 4) - Math.imul(k, 4903));
+
+  const TREELINE = 165;                       // no trees above; scrub belt below
+  const moistN = (x, z) =>
+    vnoise(x + 37, z + 911, 900) * 0.50 + vnoise(x + 211, z + 13, 380) * 0.33 +
+    vnoise(x + 555, z + 333, 150) * 0.17;
+  const moist = (x, z) =>
+    clamp01(moistN(x, z) * 0.75 + Math.max(0, 1 - distW(x, z) / 240) * 0.45);
+  const slope = (x, z) => {
+    const e = 8;
+    return Math.hypot(terrainH(x + e, z) - terrainH(x - e, z),
+                      terrainH(x, z + e) - terrainH(x, z - e)) / (2 * e);
+  };
+  const stand = (x, z) => vnoise(x + 77, z + 479, 210);   // stand/species field
+  const forestness = (x, z, h) =>
+    clamp01(0.55 * stand(x, z) + 0.30 * moist(x, z) + 0.15 * clamp01(1 - Math.abs(h - 70) / 140));
+
+  function surface(x, z) {
+    const h = terrainH(x, z);
+    if (waterOf(h, x, z) > h) return SURFACE.WATER;
+    const sl = slope(x, z);
+    if (h < 2.5 && distW(x, z) < 70) return SURFACE.SAND;     // coast + estuary bars
+    if (h > 220 || sl > 0.75 || (h > TREELINE && sl > 0.38)) return SURFACE.ROCK;
+    if (h > 100 && sl > 0.45) return SURFACE.SCREE;
+    if (h < TREELINE && sl < 0.5 && forestness(x, z, h) > 0.48) return SURFACE.FOREST_FLOOR;
+    return SURFACE.GRASS;
+  }
+
+  // tree placement decision for one candidate point (caller already
+  // rejected water / corridor / aerodromes / h out of [2, TREELINE]).
+  // Returns null or { p, sp, s }: keep-probability, species, scale.
+  function treeAt(x, z, h) {
+    const sl = slope(x, z);
+    if (sl > 0.5 || (h > 100 && sl > 0.45)) return null;  // mirrors the SCREE band
+    const dW = distW(x, z);
+    if (h < 2.5 && dW < 70) return null;                      // sand
+    const st = stand(x, z), mo = moist(x, z);
+    const fn = clamp01(0.55 * st + 0.30 * mo + 0.15 * clamp01(1 - Math.abs(h - 70) / 140));
+    const rip = dW < 45 && h < 120 && sl < 0.4;
+    let p;
+    if (rip) p = 0.85;                                        // riparian strip
+    else if (fn > 0.48) p = 0.85;                             // stand interior
+    else if (fn > 0.40) p = 0.25;                             // open woodland
+    else p = 0.05;                                            // lone field trees
+    let scrub = false;
+    if (h > TREELINE - 25) { p = Math.min(p, 0.12); scrub = true; }
+    const r1 = ph(x, z, 1), r2 = ph(x, z, 2);
+    let sp;
+    if (rip) sp = r1 < 0.7 ? 4 : 2;
+    else if (h > 115) sp = st < 0.5 ? 0 : 1;                  // high forest: conifer
+    else if (st < 0.44) sp = mo > 0.55 ? 0 : 1;
+    else if (st > 0.58) sp = r1 < 0.55 ? 2 : 3;
+    else sp = r1 < 0.3 ? 1 : r1 < 0.6 ? 2 : 3;
+    const S0 = [1.15, 1.0, 1.1, 0.9, 0.85][sp];
+    let s = S0 * (0.78 + r2 * 0.5);
+    if (scrub) s *= 0.62;
+    s = Math.min(1.75, Math.max(0.65, s));
+    return { p, sp, s };
+  }
+
+  return { surface, treeAt, moist, slope, stand, TREELINE };
 }
 // ============================================================
 function makeSim(def, world) {

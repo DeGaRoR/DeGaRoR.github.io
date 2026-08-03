@@ -83,6 +83,12 @@ function buildWorldScene(scene, world, renderer, camera) {
       if (h > snowLine) c.lerp(c2.setHex(SNOW), Math.min(1, (h - snowLine) / 90));
       if (h < 6) c.lerp(c2.setHex(SHORE), Math.min(1, (6 - h) / 8) * 0.85);
       c.lerp(c2.setHex(ROCK), Math.max(0, slope - 0.40) * 1.25 * (h > 60 ? 1 : 0.3));
+      { // stage-2 biome tint: forest floor under stands, coastal sand, scree
+        const sc = world.surface(x, z);
+        if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
+        else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
+        else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
+      }
       const o = (j * N + i) * 4;
       img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
     }
@@ -256,6 +262,10 @@ function buildWorldScene(scene, world, renderer, camera) {
                    p[0] + dzv * half, y, p[1] - dxv * half);
         }
         for (let i = 0; i + 1 < spts.length; i++) {
+          // steep drops (lake lips, carve steps) render as vertical blue
+          // walls — skip those segments; the terrain carve reads as rapids
+          const segL = Math.hypot(spts[i + 1][0] - spts[i][0], spts[i + 1][1] - spts[i][1]) || 1;
+          if ((sws[i] - sws[i + 1]) / segL > 0.3) continue;
           const a = base + i * 2;
           idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
@@ -284,7 +294,7 @@ function buildWorldScene(scene, world, renderer, camera) {
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     const P = [];
     world.trees.forEach((T, i) => {
-      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, r: hsh(i, 7) });
+      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, sp: T.sp, r: hsh(i, 7) });
       const n = 2 + (hsh(i, 3) * 3 | 0);
       for (let k = 0; k < n; k++) {
         const a = hsh(i, k * 13 + 1) * 6.283, d = 4 + hsh(i, k * 13 + 2) * 14;
@@ -293,10 +303,12 @@ function buildWorldScene(scene, world, renderer, camera) {
         const h = world.terrainH(x, z);
         if (h < 1.5 || h > 200) continue;
         if (world.waterH(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
-        P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), r: hsh(i, k * 13 + 4) });
+        // neighbours mostly share the stand's species, with strays
+        const sp = hsh(i, k * 13 + 5) < 0.85 ? T.sp : (hsh(i, k * 13 + 6) * 5) | 0;
+        P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
       }
     });
-    const conif = P.filter(t => t.r < 0.64), broad = P.filter(t => t.r >= 0.64);
+    const conif = P.filter(t => t.sp < 2), broad = P.filter(t => t.sp >= 2);
 
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.26, 1.9, 5);
     trunkGeo.translate(0, 0.95, 0);
@@ -315,22 +327,28 @@ function buildWorldScene(scene, world, renderer, camera) {
     const cMesh = mk(coneGeo, conif), bMesh = mk(blobGeo, broad);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
           pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
-    const DARK = C(0x3f5628), MID = C(0x5b7333), WARM = C(0x84813c), OLIVE = C(0x6f7d38);
+    // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
+    const SPC = [
+      [C(0x2e4620), C(0x486327)],
+      [C(0x4c6a2f), C(0x6f8038)],
+      [C(0x5b7333), C(0x84813c)],
+      [C(0x7c8f3f), C(0xa39f55)],
+      [C(0x6d874d), C(0x8fa05e)],
+    ];
     let ci = 0, bi = 0;
     P.forEach((T, i) => {
-      const w = T.r;
+      const w = T.r, sp = T.sp;
       q.setFromAxisAngle(up, w * 6.283);
       pv.set(T.x, T.h - 0.05, T.z);
       sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
+      if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
+      else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
+      else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
       m4.compose(pv, q, sv);
       trunks.setMatrixAt(i, m4);
-      if (w < 0.64) {
-        c3.copy(DARK).lerp(MID, w * 1.5);
-        cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3); ci++;
-      } else {
-        c3.copy(OLIVE).lerp(WARM, (w - 0.64) * 2.6);
-        bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3); bi++;
-      }
+      c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
+      if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3); ci++; }
+      else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3); bi++; }
     });
     trunks.instanceMatrix.needsUpdate = true;
     for (const m of [cMesh, bMesh]) {

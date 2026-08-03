@@ -113,26 +113,41 @@ function makeWorld(seed) {
     return blendM(x, z, h);
   }
 
-  // trees on terrain, deterministic; spatial hash for collisions
-  const rng = (st => () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296)((7 + SALT) >>> 0);
+  // ---- stage 2 biomes: analytic classifier + tree placement plan ----
+  // (waterAt/terrainH are function declarations — hoisted, safe to bind)
+  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT });
+
+  // trees: stage-2 biome placement — deterministic jittered 64 m grid,
+  // order-independent per point (replaces the v0 sequential LCG loop);
+  // density + species from the biome module, clustered by stand noise.
+  // v0 exclusions kept verbatim (battery safety): corridor box, meadows
+  // 0.8r; the runway pad self-rejects via h<2 (carve-masked flat at 0).
+  // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
+  // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  let guard = 0;
-  while (trees.length < 2200 && guard++ < 60000) {
-    const x = (rng() - 0.5) * 8400, z = (rng() - 0.5) * 8400;
-    const h = terrainH(x, z);
-    if (h < 2 || h > 160) continue;
-    if (HYD.water(x, z) > h) continue; // no trees in rivers/lakes
-    if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
-    let nearMeadow = false;
-    for (const m of meadows)
-      if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
-    if (nearMeadow) continue;
-    const s = 0.7 + rng() * 1.1;
-    const idx = trees.length;
-    trees.push({ x, z, h, s });
-    const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
-    if (!grid.has(key)) grid.set(key, []);
-    grid.get(key).push(idx);
+  {
+    const G0 = -4224, GN = 132, GS = 64;   // ±4224 m (v0 domain was ±4200)
+    for (let gz = 0; gz < GN; gz++) for (let gx = 0; gx < GN; gx++) {
+      const j1 = hash2(gx + 9173, gz - 2417), j2 = hash2(gx - 5807, gz + 7919),
+            j3 = hash2(gx + 1229, gz + 4051);
+      const x = G0 + (gx + 0.15 + 0.70 * j1) * GS;
+      const z = G0 + (gz + 0.15 + 0.70 * j2) * GS;
+      const h = terrainH(x, z);
+      if (h < 2 || h > B.TREELINE) continue;
+      if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
+      let nearMeadow = false;
+      for (const m of meadows)
+        if (Math.hypot(x - m.x, z - m.z) < m.r * 0.8) { nearMeadow = true; break; }
+      if (nearMeadow) continue;
+      if (HYD.water(x, z) > h) continue;
+      const tp = B.treeAt(x, z, h);
+      if (!tp || j3 > tp.p) continue;
+      const idx = trees.length;
+      trees.push({ x, z, h, s: tp.s, sp: tp.sp });
+      const key = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(idx);
+    }
   }
   function treesNear(x, z, out) {
     out.length = 0;
@@ -156,12 +171,10 @@ function makeWorld(seed) {
     return -Infinity;
   }
   function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
-  function surface(x, z) {
-    const h = terrainH(x, z);
-    if (waterAt(h, x, z) > h) return SURFACE.WATER;
-    if (h >= 220) return SURFACE.ROCK;  // renderer's rock-band onset
-    return SURFACE.GRASS;
-  }
+  // surface: stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/
+  // GRASS from altitude+slope+moisture+distance-to-water; PAVED/GRAVEL
+  // still reserved for stage 4)
+  const surface = B.surface;
 
   // ---- v1 tiled features: lazy bucketing of the eager tree array plus
   // stage-1 river reaches (a reach spanning several tiles appears in each
@@ -235,7 +248,7 @@ function makeWorld(seed) {
     treesNear,
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
-    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW },
+    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
   };

@@ -5,13 +5,14 @@
 // snippet in futureDesigns/WORLD-CONTRACT.md §4, in the same commit.
 const { makeWorld } = require('./flight_core.js');
 
-// goldens re-captured 2026-08-03 for stage 1 hydrology (rivers/lakes carve
-// terrainH; trees re-laid on the carved terrain + water rejection). The
-// meadow hash and all four anchors are unchanged from the pre-contract
-// world — carves don't reach them. Pre-hydro goldens for reference:
-// GRID 68852648, TREES fe7ae7d8.
+// goldens re-captured 2026-08-03 for stage 2 biomes (tree placement is
+// now biome-driven with species — records gained sp, count 2200 -> 2336;
+// TERRAIN IS UNTOUCHED: grid/meadow hashes and anchors identical to the
+// stage-1 capture). History: pre-hydro GRID 68852648 TREES fe7ae7d8;
+// stage-1 TREES 38e47146 (2200, no sp).
 const GOLDEN_GRID = 'cdccbc80';
-const GOLDEN_TREES = '38e47146';
+const GOLDEN_TREES = 'b097b0ed';
+const GOLDEN_TREE_COUNT = 2336;
 const GOLDEN_MEADOWS = '27f288de';
 const GOLDEN_ANCHORS = ['0', '0.1927813924095721', '22.029038814851813', '24.310422903189508'];
 
@@ -25,7 +26,7 @@ const gridHash = (W, step) => {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) g.push(W.terrainH(-4500 + step * i, -4500 + step * j));
   return fnv(g.join(','));
 };
-const treesHash = W => fnv(W.trees.map(t => t.x + ',' + t.z + ',' + t.h + ',' + t.s).join(';'));
+const treesHash = W => fnv(W.trees.map(t => t.x + ',' + t.z + ',' + t.h + ',' + t.s + ',' + t.sp).join(';'));
 const meadowsHash = W => fnv(W.meadows.map(m => m.x + ',' + m.z + ',' + m.r + ',' + m.h).join(';'));
 
 const W = makeWorld();
@@ -47,7 +48,7 @@ checks['v1 members'] =
 
 // --- golden freeze (seed 0 === pre-contract world, full precision) ---
 checks['golden grid hash'] = gridHash(W, 90) === GOLDEN_GRID;
-checks['golden trees hash'] = treesHash(W) === GOLDEN_TREES && W.trees.length === 2200;
+checks['golden trees hash'] = treesHash(W) === GOLDEN_TREES && W.trees.length === GOLDEN_TREE_COUNT;
 checks['golden meadows hash'] = meadowsHash(W) === GOLDEN_MEADOWS;
 checks['golden anchors'] =
   String(W.terrainH(-320, 0)) === GOLDEN_ANCHORS[0] &&
@@ -122,7 +123,7 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
     const s = W.surface(x, z);
     if (!(s >= 0 && s <= 7)) ok = false;
     if ((s === W.SURFACE.WATER) !== (W.waterH(x, z) > W.terrainH(x, z))) ok = false;
-    if (s === W.SURFACE.ROCK) { rocks++; if (W.terrainH(x, z) < 220) ok = false; }
+    if (s === W.SURFACE.ROCK) rocks++; // classifier semantics live in GATE BIOME
   }
   checks['surface consistency'] = ok && rocks > 0 &&
     W.surface(-520, 0) === W.SURFACE.GRASS && W.surface(-450, 0) === W.aerodromes[0].surface;

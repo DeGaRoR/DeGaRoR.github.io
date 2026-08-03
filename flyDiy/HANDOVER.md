@@ -38,8 +38,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   See futureDesigns/WORLD-CONTRACT.md.
 - `src/core/21_world_hydro.js` — bakeHydrology(sample, cfg): stage-1
   hydrology (priority-flood, D8, accumulation, river polylines, lakes,
-  O(1) carve/water queries). Pure + deterministic; exported for gates.
-  As-built notes: futureDesigns/WORLD-GEN-PROC.md stage 1.
+  distance-to-water transform, O(1) carve/water queries). Pure +
+  deterministic; exported for gates. As-built: WORLD-GEN-PROC stage 1.
+- `src/core/22_world_biomes.js` — makeBiomes(deps): stage-2 analytic
+  biome classifier (drives W.surface) + per-point tree placement
+  (density, species 0-4, stand clustering). As-built: WORLD-GEN-PROC
+  stage 2.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
@@ -90,6 +94,10 @@ from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
 (+~2 s WORLD).
+GATE BIOME (appended after HYDRO, ~1 s) holds the stage-2 invariants:
+surface distribution + classifier semantics, trees only on grass/forest
+floor, species diversity + stand clustering, riparian ratio, exclusion
+zones, determinism, classifier perf.
 GATE HYDRO (appended after WORLD, ~1 s) holds the stage-1 invariants:
 river termination, monotone water surfaces, beds below water, bounded bank
 slopes, pad/meadow-core dryness, hydrology determinism, A0 sweep, bake
@@ -241,11 +249,16 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   it has sat at −47.9 m in the sea basin since v0 — waterH now honestly
   floods it; relocate/regrade at stage 4. Terrain change re-anchored the
   battery: pre-hydro logs are no longer diffable baselines.
+- Stage 2 biomes since 2026-08-03: W.surface is the real classifier
+  (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/GRASS); trees are biome-placed
+  with species (tree.sp 0-4: spruce/pine/oak/birch/willow) on a
+  deterministic jittered 64 m grid — the v0 LCG loop is gone, exclusions
+  kept verbatim. 2336 trees at seed 0.
 - v1 contract since 2026-08-03 (futureDesigns/WORLD-CONTRACT.md):
-  makeWorld(seed) also exposes waterH/surface/SURFACE (minimal interiors:
-  sea-only water, WATER/ROCK/GRASS), TILE=512 + lazy tile() (buckets the
-  eager tree array — trees MUST stay flat and index-stable, treesNear
-  returns indices into it), and W.aerodromes (runway 'HOME' + 3 meadows).
+  makeWorld(seed) also exposes waterH/surface/SURFACE, TILE=512 + lazy
+  tile() (buckets the eager tree array — trees MUST stay flat and
+  index-stable, treesNear returns indices into it), and W.aerodromes
+  (runway 'HOME' + 3 meadows).
   The registry is DESCRIPTIVE until the AP-reads-aerodromes session: the
   AP still flies def.params.ap constants, and the carve/decals below are
   not yet driven from it (the runway exists 4× independently: carve, AP
@@ -374,9 +387,16 @@ W2. **Stage 1 hydrology** — DONE 2026-08-03: 21_world_hydro.js bake
 W3. **Water rendering** — DONE 2026-08-03: river ribbons + lake surfaces
     in render_world.js (see WORLD + GRAPHICS). Remaining renderer-overhaul
     backlog: contour-traced lake outlines, animated water shader, chunked
-    LOD, triplanar splat, tree impostors. Next on this branch: stage 0
-    rework (domain warp + growth) or stage 2 biomes;
-    AP-reads-aerodromes still pending.
+    LOD, triplanar splat, tree impostors.
+W4. **Stage 2 biomes** — DONE 2026-08-03: 22_world_biomes.js classifier
+    (W.surface: sand/scree/forest-floor live) + biome tree placement with
+    species (2200 LCG trees -> 2336 biome trees, sp field), distW added
+    to the stage-1 bake, renderer species silhouettes/colours + ground
+    tint, GATE BIOME. Terrain untouched (grid golden identical); TREES
+    golden re-captured. Next on this branch: stage 0 rework (domain warp
+    + growth, conscious re-golden), stage 3 settlements & roads, or
+    AP-reads-aerodromes (still pending). Solver-side surface->friction
+    (contract rule 7) is now unblocked — the enum is real.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

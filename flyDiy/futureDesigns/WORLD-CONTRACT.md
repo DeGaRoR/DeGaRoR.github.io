@@ -103,9 +103,11 @@ strip hdg = π, takeoff run along −x); main tdz = [−450, 0] (centre of the
 gated M3 touchdown window); meadow records carry their blend radius `r`;
 `waterH` serves stage-1 hydrology since 2026-08-03 (river reach surfaces,
 lake spill heights, sea where the pre-carve base < 0) and `surface` is
-WATER / ROCK(h ≥ 220) / GRASS pending stages 2/5. `W.tile()` rivers are
-live; `W.hydro` is an informative non-contract block (reach records + bake
-stats) for gates/debug. Seed enters as
+the stage-2 biome classifier (WATER/SAND/ROCK/SCREE/FOREST_FLOOR/GRASS;
+PAVED/GRAVEL still reserved for stage 4). Tree records carry `sp`
+(species 0-4). `W.tile()` rivers are live; `W.hydro` is an informative
+non-contract block (reach records + bake stats + distW) for gates/debug.
+Seed enters as
 `SALT = imul(seed, 0x9E3779B9)` added into the noise hash and tree-LCG init;
 stage 0 rework must preserve the seed-0 identity or consciously re-capture
 the GATE WORLD goldens.

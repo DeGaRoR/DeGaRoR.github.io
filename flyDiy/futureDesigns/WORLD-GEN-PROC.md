@@ -96,10 +96,36 @@ Gates (all on data):
 - carve continuity: max |∇terrainH| across bank transitions bounded;
 - determinism across two instances; A₀ sweep sanity (river count monotone).
 
-## Stage 2 — Climate → biomes → forests
+## Stage 2 — Climate → biomes → forests — DONE 2026-08-03
 
-Inputs: height, slope (analytic ∇ of stage 0+1), distance-to-water
-(coarse distance transform of stage 1 water cells), a moisture fBm.
+Implemented in `src/core/22_world_biomes.js` (`makeBiomes(deps)`, analytic
+recombination — no stored map) + a distance-to-water chamfer transform
+added to the stage-1 bake (`distW`, bilinear, metres). As-built:
+- `W.surface`: WATER · SAND (h<2.5, distW<70 — coast + estuary bars) ·
+  ROCK (h>220 | slope>0.75 | h>treeline·slope>0.38) · SCREE (h>100,
+  slope>0.45) · FOREST_FLOOR (forestness>0.48 below treeline 165) · GRASS.
+  forestness = 0.55·stand(210 m noise) + 0.30·moisture + 0.15·altitude
+  preference; moisture = fBm + water proximity. ~1 µs/call (not hot-path).
+- Trees: deterministic jittered 64 m grid over ±4224, order-independent
+  per point (replaced the v0 sequential LCG loop); keep-probability per
+  biome (stand 0.85 / open 0.25 / riparian 0.85 / field 0.05 / alpine
+  scrub ≤0.12·s×0.62); v0 exclusions kept verbatim (corridor, meadows
+  0.8r, water, pad via h<2). Records gained `sp` (0 spruce · 1 pine ·
+  2 oak · 3 birch · 4 willow), clustered by the stand noise. Seed-0:
+  2336 trees, mix 9/16/37/28/10 %, close-pair same-species 43 %
+  (random ≈ 29 %), riparian density 5.2× the grass background.
+- Renderer consumption: species silhouettes (pine narrow/tall, birch
+  slight, willow low/wide) + per-species colour ramps; neighbour clumps
+  inherit the stand species (85 %); ground tint from surface class
+  (forest-floor loam / sand / scree) in the colour bake.
+- GATE BIOME: distribution envelope, classifier semantics, tree/surface
+  consistency, diversity + clustering, riparian ratio > 2.5, exclusions,
+  determinism, perf. TREES golden re-captured; GRID/MEADOWS/anchors
+  identical — stage 2 is placement-only, terrain untouched.
+
+Original sketch — inputs: height, slope (analytic ∇ of stage 0+1),
+distance-to-water (coarse distance transform of stage 1 water cells), a
+moisture fBm.
 
 Biome = f(altitude, slope, moisture): meadow, mixed broadleaf, conifer,
 alpine scrub, rock/scree above ⚙ treeline with slope cutoff, riparian strip

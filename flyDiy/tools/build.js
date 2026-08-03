@@ -28,6 +28,7 @@ const MANIFEST = {
     '16_aircraft_pa18.js',
     '20_world.js',
     '21_world_hydro.js',
+    '22_world_biomes.js',
     '30_solver.js',
     '40_autopilot.js',
     '50_model_codec.js',

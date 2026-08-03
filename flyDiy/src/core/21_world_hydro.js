@@ -239,6 +239,41 @@ function bakeHydrology(sample, cfg) {
     }
   }
 
+  // ---- distance-to-water: 3-4 chamfer transform over sea + lake/rim +
+  // traced river cells, queried bilinearly in metres (stage-2 biome input)
+  const dGrid = new Float64Array(M).fill(1e9);
+  for (let k = 0; k < M; k++) if (sea[k] || wet[k] || claimed[k]) dGrid[k] = 0;
+  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) {
+    const k = iz * N + ix; let d = dGrid[k];
+    if (ix > 0 && dGrid[k - 1] + 3 < d) d = dGrid[k - 1] + 3;
+    if (iz > 0) {
+      if (dGrid[k - N] + 3 < d) d = dGrid[k - N] + 3;
+      if (ix > 0 && dGrid[k - N - 1] + 4 < d) d = dGrid[k - N - 1] + 4;
+      if (ix + 1 < N && dGrid[k - N + 1] + 4 < d) d = dGrid[k - N + 1] + 4;
+    }
+    dGrid[k] = d;
+  }
+  for (let iz = N - 1; iz >= 0; iz--) for (let ix = N - 1; ix >= 0; ix--) {
+    const k = iz * N + ix; let d = dGrid[k];
+    if (ix + 1 < N && dGrid[k + 1] + 3 < d) d = dGrid[k + 1] + 3;
+    if (iz + 1 < N) {
+      if (dGrid[k + N] + 3 < d) d = dGrid[k + N] + 3;
+      if (ix + 1 < N && dGrid[k + N + 1] + 4 < d) d = dGrid[k + N + 1] + 4;
+      if (ix > 0 && dGrid[k + N - 1] + 4 < d) d = dGrid[k + N - 1] + 4;
+    }
+    dGrid[k] = d;
+  }
+  const DSCALE = dx / 3;
+  function distW(x, z) {
+    let gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
+    gx = Math.min(N - 1.001, Math.max(0, gx)); gz = Math.min(N - 1.001, Math.max(0, gz));
+    const ix = Math.floor(gx), iz = Math.floor(gz);
+    const tx = gx - ix, tz = gz - iz, k = iz * N + ix;
+    const a = dGrid[k] * (1 - tx) + dGrid[k + 1] * tx;
+    const b = dGrid[k + N] * (1 - tx) + dGrid[k + N + 1] * tx;
+    return (a * (1 - tz) + b * tz) * DSCALE;
+  }
+
   // ---- segment spatial index for O(1) hot-path queries ----
   // numeric keys (no per-query string allocation); segments are inserted
   // into every cell their bank-inflated bbox overlaps, so a query only
@@ -321,7 +356,7 @@ function bakeHydrology(sample, cfg) {
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water,
+    carve, water, distW,
     stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
 }
