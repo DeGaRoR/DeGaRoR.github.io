@@ -32,11 +32,44 @@ ridged noise (−z), mid-ground hills. Current `h0` is the degenerate case;
 keep its structure, add the warp and one octave.
 Gate: range/percentile envelope of sampled heights; determinism.
 
-## Stage 1 — HYDROLOGY (keystone)
+## Stage 1 — HYDROLOGY (keystone) — DONE 2026-08-03
 
-Everything downstream (biomes, towns, roads, strips) consumes this stage.
+Implemented in `src/core/21_world_hydro.js` (`bakeHydrology(sample, cfg)`,
+pure, exported for gates) on the CURRENT 9 km terrain per the session plan.
+As-built (all ⚙ in the cfg literal in 20_world.js): grid 384² over ±4500
+(23.4 m cells), A₀ 500 cells, w = min(45, 0.35·√acc), d = 0.4·ln(1+acc),
+bank feather 1.4w smoothstep (C¹), lake threshold 1.5 m, lake bed clamp
+spill −2 m (bilinear soft edge), DP ε 25 m, numeric-key segment grid 96 m
+for allocation-free O(1) hot-path queries (terrainH measured 0.27 µs/call
+WITH the carve — 4× under the contract budget). Bake ~120 ms (budget 1.5 s).
+Seed-0 yield: 63 reaches / 24 km, 62 lakes. Trees re-laid (water rejection
+added); WORLD goldens re-captured same-commit per procedure — meadow hash
+and all 4 anchors unchanged.
+Deviations from the sketch below, deliberate:
+- **Drainage domes**: the bake sample adds +3 m bake-only domes over the
+  runway pad and meadows so rivers route AROUND aerodromes; river water
+  surfaces are dome-corrected back (wsAdjust). Stage 4's parameterized
+  grading replaces this.
+- The carve applies BEFORE the meadow blend and is masked to zero on the
+  runway pad (padRamp) — pad stays exactly 0, meadow cores exactly flat.
+- Sea is gated by the PRE-carve base sign: an inland riverbed carved below
+  sea level is a dry trench, not sea.
+- Termination classes: sea | lake | boundary (domain edge = outlet) |
+  junction (confluence with an earlier-traced river).
+- Water surface per vertex = filled height (already non-increasing along
+  D8-on-filled flow), monotone-clamped after dome correction.
+- Flats drain toward the earliest-flooded equal neighbour (priority-flood
+  pop order) — deterministic, no iteration-order dependence; D8 ties break
+  by hash-rotated neighbour scan.
+- M2 quirk surfaced: that meadow has sat at −47.9 m in the sea basin since
+  v0 — waterH now honestly reports sea over it; relocate/regrade at stage 4.
+GATE HYDRO (appended): termination legality, per-reach ws monotonicity,
+beds below water at unmasked centreline vertices, bank transect slope
+< 1.0 (measured 0.40), wet fraction envelope, pad/meadow-core dryness,
+full-hydrology same-seed determinism, A₀ sweep monotone (651≥421≥228
+river cells at A₀ 125/250/500), bake budget.
 
-Grid: ⚙ 384² over the domain (~62 m cells), heights from stage 0.
+Original sketch (grid ⚙ 384² over the domain, heights from stage 0):
 
 1. **Depression filling** — priority-flood (Barnes 2014: flood inward from
    the boundary with a priority queue; cells raised to their spill level).
@@ -137,8 +170,11 @@ continuity budget maintained.
    `SALT = imul(seed, 0x9E3779B9)` into hash2 + tree-LCG; the stage-0
    rework MUST either preserve the seed-0 world or consciously re-capture
    the GATE WORLD goldens (snippet in WORLD-CONTRACT §4).
-2. Stage 1 on the *current* terrain, gates first — rivers on the existing
-   9 km world prove the pipeline before the domain grows.
+2. ~~Stage 1 on the *current* terrain, gates first.~~ **DONE 2026-08-03**
+   (same session pattern: gates first, then tuning — see stage 1 as-built
+   notes above). Rivers are LIVE in world data; the renderer still draws
+   only the flat sea plane, so carved valleys render dry until the
+   renderer session (honest cut).
 3. Stage 0 rework (warp + domain growth) once hydrology gates hold.
 4. Stages 2 → 4 in order; stage 5 opportunistic.
 5. Renderer session only after the data exists to feed it.

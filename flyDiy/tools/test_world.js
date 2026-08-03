@@ -5,9 +5,13 @@
 // snippet in futureDesigns/WORLD-CONTRACT.md §4, in the same commit.
 const { makeWorld } = require('./flight_core.js');
 
-// goldens captured 2026-08-03 from the pre-contract build (seed 0)
-const GOLDEN_GRID = '68852648';
-const GOLDEN_TREES = 'fe7ae7d8';
+// goldens re-captured 2026-08-03 for stage 1 hydrology (rivers/lakes carve
+// terrainH; trees re-laid on the carved terrain + water rejection). The
+// meadow hash and all four anchors are unchanged from the pre-contract
+// world — carves don't reach them. Pre-hydro goldens for reference:
+// GRID 68852648, TREES fe7ae7d8.
+const GOLDEN_GRID = 'cdccbc80';
+const GOLDEN_TREES = '38e47146';
 const GOLDEN_MEADOWS = '27f288de';
 const GOLDEN_ANCHORS = ['0', '0.1927813924095721', '22.029038814851813', '24.310422903189508'];
 
@@ -79,7 +83,7 @@ checks['seeds differ'] = gridHash(makeWorld(1), 225) !== gridHash(W, 225);
       if (!set.has(t)) identity = false;
       if (Math.floor(t.x / W.TILE) !== ix || Math.floor(t.z / W.TILE) !== iz) bounded = false;
     }
-    if (rec.rivers.length || rec.roads.length || rec.buildings.length) bounded = false;
+    if (rec.roads.length || rec.buildings.length) bounded = false; // stage 3 features still empty
   }
   checks['tile union==trees'] = count === W.trees.length && identity;
   checks['tile bounds'] = bounded;

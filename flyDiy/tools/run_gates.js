@@ -29,6 +29,7 @@ const GATES = [
   { id: 'PA18', file: 'test_pa18.js' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js' },
+  { id: 'HYDRO', file: 'test_hydro.js' },
 ];
 
 const args = process.argv.slice(2);

@@ -36,6 +36,10 @@ before every battery so stale hand-edits get overwritten, loudly.
   CELL/wind/setWind) on one object. Seed 0 / no arg = the validated world,
   bit-identical to pre-contract; nonzero seeds coherent but unvalidated.
   See futureDesigns/WORLD-CONTRACT.md.
+- `src/core/21_world_hydro.js` — bakeHydrology(sample, cfg): stage-1
+  hydrology (priority-flood, D8, accumulation, river polylines, lakes,
+  O(1) carve/water queries). Pure + deterministic; exported for gates.
+  As-built notes: futureDesigns/WORLD-GEN-PROC.md stage 1.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
@@ -86,6 +90,10 @@ from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
 (+~2 s WORLD).
+GATE HYDRO (appended after WORLD, ~1 s) holds the stage-1 invariants:
+river termination, monotone water surfaces, beds below water, bounded bank
+slopes, pad/meadow-core dryness, hydrology determinism, A0 sweep, bake
+budget.
 GATE WORLD (appended last) freezes the seed-0 world with golden hashes
 (101² terrain grid + all tree records + meadows + exact anchors, captured
 from the pre-contract build) and checks determinism, the tile/treesNear
@@ -216,6 +224,17 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   during liftoff flickers ROLL/LIFTOFF forever.
 
 ## WORLD
+- Stage 1 hydrology since 2026-08-03 (WORLD-GEN-PROC): 63 river reaches /
+  24 km + 62 lakes carved into terrainH (seed 0), waterH reports reach
+  surfaces + lake spills + sea; trees re-laid with water rejection (still
+  2200). Rivers route AROUND the runway pad and meadows (bake-only
+  drainage domes; carve masked on the pad, meadow blend applied after the
+  carve — pad exactly 0, meadow cores exactly flat, GE gate untouched).
+  RENDERED DRY until the renderer session (only the flat sea plane
+  exists); the carved valleys are visible, water is not. M2 meadow quirk:
+  it has sat at −47.9 m in the sea basin since v0 — waterH now honestly
+  floods it; relocate/regrade at stage 4. Terrain change re-anchored the
+  battery: pre-hydro logs are no longer diffable baselines.
 - v1 contract since 2026-08-03 (futureDesigns/WORLD-CONTRACT.md):
   makeWorld(seed) also exposes waterH/surface/SURFACE (minimal interiors:
   sea-only water, WATER/ROCK/GRASS), TILE=512 + lazy tile() (buckets the
@@ -337,9 +356,15 @@ World branch (futureDesigns/WORLD-CONTRACT.md + WORLD-GEN-PROC.md):
 W1. **World contract v1** — DONE 2026-08-03: pure restructuring of
     20_world.js (seed plumbing, waterH/surface, tile(), aerodromes registry,
     v0 shim), battery log byte-identical (timing aside), GATE WORLD golden
-    freeze added. Next on this branch: WORLD-GEN-PROC stage 1 (hydrology on
-    the current terrain, gates first). AP-reads-aerodromes (contract rule 6)
-    deferred to its own session.
+    freeze added. AP-reads-aerodromes (contract rule 6) deferred to its own
+    session.
+W2. **Stage 1 hydrology** — DONE 2026-08-03: 21_world_hydro.js bake
+    (priority-flood/D8/accumulation/rivers/lakes) composed into terrainH/
+    waterH/tile, GATE HYDRO added, WORLD goldens re-captured (terrain
+    change, documented procedure). Next on this branch: stage 0 rework
+    (domain warp + growth) or stage 2 biomes — both need the renderer
+    session eventually to make water visible; AP-reads-aerodromes still
+    pending.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

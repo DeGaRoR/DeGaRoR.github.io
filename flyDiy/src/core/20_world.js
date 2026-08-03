@@ -71,13 +71,46 @@ function makeWorld(seed) {
   const meadows = aerodromes.filter(a => a.kind === 'meadow').map(a => ({ x: a.x, z: a.z, r: a.r }));
   for (const m of meadows) m.h = h0(m.x, m.z);
   aerodromes.filter(a => a.kind === 'meadow').forEach((a, i) => { a.elev = meadows[i].h; });
-  function terrainH(x, z) {
-    let h = h0(x, z);
+  // meadow blend, factored: used by the pre-hydro base and final terrainH.
+  // Applied AFTER the river carve so meadow interiors stay exactly flat.
+  function blendM(x, z, h) {
     for (const m of meadows) {
       const d = Math.hypot(x - m.x, z - m.z);
       if (d < m.r) { const w = sstep(m.r * 0.45, m.r, d); h = m.h * (1 - w) + h * w; }
     }
     return h;
+  }
+  // runway-pad ramp: 0 inside the pad box, 1 past 260 m out — the same box
+  // the h0 flatten uses; masks the river carve so the pad stays exactly 0.
+  function padRamp(x, z) {
+    const dxR = Math.max(0, Math.max(-1180 - x, x - 130));
+    const dzR = Math.max(0, Math.abs(z) - 90);
+    return sstep(0, 260, Math.hypot(dxR, dzR));
+  }
+  // ---- stage 1 hydrology (WORLD-GEN-PROC): baked on the pre-hydro base
+  // plus bake-only "drainage domes" over the runway pad and meadows so
+  // rivers route AROUND aerodromes (stage 4 grades them properly later).
+  // Domes never touch the real terrain; river water surfaces are
+  // dome-corrected back via wsAdjust.
+  const DOME = 3;
+  function domes(x, z) {
+    let s = DOME * (1 - padRamp(x, z));
+    for (const m of meadows) {
+      const d = Math.hypot(x - m.x, z - m.z);
+      if (d < m.r * 1.6) s += DOME * (1 - sstep(0, m.r * 1.6, d));
+    }
+    return s;
+  }
+  const HYD = bakeHydrology(
+    (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
+    { x0: -4500, z0: -4500, x1: 4500, z1: 4500, N: 384,
+      lakeMin: 1.5, A0: 500, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+      dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
+  function terrainH(x, z) {
+    let h = h0(x, z);
+    const r = padRamp(x, z);
+    if (r > 0) h += (HYD.carve(x, z, h) - h) * r;
+    return blendM(x, z, h);
   }
 
   // trees on terrain, deterministic; spatial hash for collisions
@@ -88,6 +121,7 @@ function makeWorld(seed) {
     const x = (rng() - 0.5) * 8400, z = (rng() - 0.5) * 8400;
     const h = terrainH(x, z);
     if (h < 2 || h > 160) continue;
+    if (HYD.water(x, z) > h) continue; // no trees in rivers/lakes
     if (Math.abs(z) < 60 && x < 150 && x > -3300) continue;
     let nearMeadow = false;
     for (const m of meadows)
@@ -110,32 +144,53 @@ function makeWorld(seed) {
     return out;
   }
 
-  // ---- v1 continuous fields: honest minimal interiors, replaced by
-  // WORLD-GEN-PROC stages 1 (hydrology -> waterH) and 2/5 (biomes/cliffs
-  // -> surface). Sea level = 0 per bounds; the sea basin sits at -66..-110.
-  function waterH(x, z) { return terrainH(x, z) < 0 ? 0 : -Infinity; }
+  // ---- v1 continuous fields. waterH: stage-1 rivers at their monotone
+  // reach surfaces + lakes at spill height + sea (level 0) where the
+  // PRE-CARVE base is below 0 — a riverbed carved under sea level inland
+  // is a dry trench, not sea. surface is still the pre-biome minimum
+  // (stages 2/5 refine ROCK/SCREE/etc.).
+  function waterAt(t, x, z) {
+    const ws = HYD.water(x, z);
+    if (ws > t) return ws;
+    if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
+    return -Infinity;
+  }
+  function waterH(x, z) { return waterAt(terrainH(x, z), x, z); }
   function surface(x, z) {
     const h = terrainH(x, z);
-    if (h < 0) return SURFACE.WATER;
+    if (waterAt(h, x, z) > h) return SURFACE.WATER;
     if (h >= 220) return SURFACE.ROCK;  // renderer's rock-band onset
     return SURFACE.GRASS;
   }
 
-  // ---- v1 tiled features: lazy bucketing of the eager tree array.
+  // ---- v1 tiled features: lazy bucketing of the eager tree array plus
+  // stage-1 river reaches (a reach spanning several tiles appears in each
+  // of them — reach records {pts, ws, w, d, acc, term} are shared refs).
   // trees stays ONE flat index-stable array — treesNear returns indices
   // into it and the solver depends on that; tiles hold the same objects.
-  // rivers/roads/buildings are empty until WORLD-GEN-PROC stages 1/3.
+  // roads/buildings are empty until WORLD-GEN-PROC stage 3.
   // tile() is never called during makeWorld: zero load-time cost.
   const TILE = 512;
   let tileIndex = null;
   function tile(ix, iz) {
     if (!tileIndex) {
       tileIndex = new Map();
-      for (const t of trees) {
-        const key = Math.floor(t.x / TILE) + ',' + Math.floor(t.z / TILE);
+      const rec0 = key => {
         let rec = tileIndex.get(key);
         if (!rec) tileIndex.set(key, rec = { trees: [], rivers: [], roads: [], buildings: [] });
-        rec.trees.push(t);
+        return rec;
+      };
+      for (const t of trees) rec0(Math.floor(t.x / TILE) + ',' + Math.floor(t.z / TILE)).trees.push(t);
+      for (const r of HYD.rivers) {
+        const keys = new Set();
+        for (let i = 0; i + 1 < r.pts.length; i++) {
+          const tx0 = Math.floor(Math.min(r.pts[i][0], r.pts[i + 1][0]) / TILE);
+          const tx1 = Math.floor(Math.max(r.pts[i][0], r.pts[i + 1][0]) / TILE);
+          const tz0 = Math.floor(Math.min(r.pts[i][1], r.pts[i + 1][1]) / TILE);
+          const tz1 = Math.floor(Math.max(r.pts[i][1], r.pts[i + 1][1]) / TILE);
+          for (let a = tx0; a <= tx1; a++) for (let b = tz0; b <= tz1; b++) keys.add(a + ',' + b);
+        }
+        for (const key of keys) rec0(key).rivers.push(r);
       }
     }
     const key = ix + ',' + iz;
@@ -178,6 +233,9 @@ function makeWorld(seed) {
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: [],
     treesNear,
+    // informative stage-1 block (not contract surface): gates/debug read
+    // reach records and bake stats here without walking every tile.
+    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water },
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
   };
