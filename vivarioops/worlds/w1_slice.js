@@ -35,7 +35,17 @@ export const W1_SLICE = {
   // BUMPED AGAIN AT THE C2 RE-MEASURE, 4 -> 5. `tankBounds` is a hashed field, so
   // widening the tank below invalidates every record compiled against the old one
   // and the residents are re-frozen with it.
-  faunaVersion: 5,
+  // BUMPED AT THE SOLVER FIX, 5 -> 6. `SOLVER_ITERATIONS` went from Rapier's
+  // default 4 to 8, because 4 DOES NOT CONVERGE on these joint trees: measured on
+  // a genome taken from a player's own save, a creature swam normally for ~50
+  // minutes and then came apart in a single step, reaching a spread of 1309 times
+  // its own rest radius (tools/_ztear.mjs — 8 and 16 iterations never burst,
+  // and turning added mass off does NOT prevent it, so the solver owns it).
+  // A convergence change moves every integrated trajectory, so every capability
+  // measured before it is correctly invalidated. Shipped with it: the Hill
+  // force-velocity relation on the actuator, which is 00 §9's power bound finally
+  // enforced rather than approximated by a torque bound.
+  faunaVersion: 6,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).

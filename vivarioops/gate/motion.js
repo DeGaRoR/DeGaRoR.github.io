@@ -6,11 +6,12 @@
 //
 // Rapier's init is async, so this suite is async. gate/run.js awaits its loaders.
 
+import { readFileSync } from 'node:fs';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
 import { createRandomGenome } from '../engine/l1/factory.js';
 import { morphogenesis } from '../engine/l1/morphogen.js';
-import { createSimulation, FIXED_DT, MOTOR_SCALE, swingTwistAngle, MUSCLE_STRESS, WALL, fitsTank } from '../engine/l1/physics.js';
+import { createArena, createSimulation, FIXED_DT, MOTOR_SCALE, swingTwistAngle, MUSCLE_STRESS, WALL, fitsTank, SOLVER_ITERATIONS } from '../engine/l1/physics.js';
 import { normalise, fromAxisAngle, qmul, qrot } from '../engine/l1/vecmath.js';
 import { computePhases, targetAngles, DRIVE } from '../engine/l1/controller.js';
 import W1_SLICE from '../worlds/w1_slice.js';
@@ -677,6 +678,75 @@ export async function runMotionGate() {
       t.ok(v2.x <= speed, `speed ${speed}: pure translation is never accelerated`, v2.x);
       sim.free();
     }
+  });
+
+
+  // ── L1-47 · the constraint solver converges, so creatures stay in one piece ──
+  //
+  // THE DEFECT THIS GUARDS. Rapier's default iteration count (4) does not converge
+  // on these joint trees. A creature swims normally for ~50 minutes and then comes
+  // apart in a SINGLE STEP, reaching a spread of 1300 times its own rest radius;
+  // in the open ocean its fragments then sweep the world forever, unlocking food
+  // chunks until the screen is unusable and reporting an intake that is fiction.
+  // Measured on a genome taken from a player's own save
+  // (tools/_zboom_polypoda.json): 4 iterations burst at 3040 s, 8 and 16 never.
+  //
+  // WHY IT IS ASSERTED THIS WAY. The failure itself takes ~50 MINUTES of
+  // simulation to appear, which is far past any gate budget. But the mechanism is
+  // visible immediately: a converging solver moves a jointed body by a small
+  // fraction of a rest radius per step, and a non-converging one does not. So this
+  // measures the per-step joint violation over a few seconds — the CAUSE, at a
+  // cost the gate can afford — rather than waiting for the consequence.
+  //
+  // MUTATION TEST: setting SOLVER_ITERATIONS back to 4 must turn this red.
+  g.assertion('L1-47', 'The constraint solver converges: joints do not slip per step', (t) => {
+    t.ok(SOLVER_ITERATIONS >= 8,
+      `SOLVER_ITERATIONS is ${SOLVER_ITERATIONS}; 4 lets a creature disintegrate after ~50 min`);
+
+    const genome = JSON.parse(readFileSync(
+      new URL('../tools/_zboom_polypoda.json', import.meta.url), 'utf8'));
+    const plan = morphogenesis(genome);
+    const arena = createArena(RAPIER, W1_SLICE, { bounded: false });
+    const sim = createSimulation(RAPIER, plan, genome, W1_SLICE, { arena, wrap: false });
+
+    // Per-step change in spread. This is the quantity that goes to hundreds in one
+    // step when the solver fails, and it is bounded by the joint's own slip when
+    // the solver holds.
+    let prev = sim.integrity().spread;
+    let worstJump = 0, worstSpread = prev;
+    for (let i = 0; i < 240 * 20; i++) {          // 20 s at the fixed timestep
+      arena.stepAll([sim]);
+      const s = sim.integrity().spread;
+      const jump = Math.abs(s - prev);
+      if (jump > worstJump) worstJump = jump;
+      if (s > worstSpread) worstSpread = s;
+      prev = s;
+    }
+
+    // HONESTY ABOUT WHAT HAS TEETH HERE. Mutation-tested: setting
+    // SOLVER_ITERATIONS back to 4 turns this assertion RED — but only through the
+    // literal pin above. The per-step slip below still PASSES at 4 iterations,
+    // because over 20 s the divergence has not yet grown enough to show. It is
+    // kept because it is the right quantity and it guards a different failure
+    // (a solver change that keeps the count but breaks convergence some other
+    // way), but it is NOT what catches a reverted iteration count, and it must
+    // not be mistaken for that. The real detector remains tools/_zboom.mjs, which
+    // needs 50 minutes of simulation the gate cannot afford.
+    t.ok(worstJump < 0.05,
+      `worst single-step joint slip ${worstJump.toFixed(4)} rest radii (converged is ~0.002)`);
+    t.ok(worstSpread < 2,
+      `the creature stays assembled: max spread ${worstSpread.toFixed(2)} (a pose cannot reach 3)`);
+
+    // `integrity()` must actually be able to SEE a separation, or the arrest that
+    // depends on it is decorative. Teleport one body and confirm it reports.
+    const far = sim.bodies[sim.bodies.length - 1];
+    const at = far.translation();
+    far.setTranslation({ x: at.x + 500, y: at.y, z: at.z }, true);
+    t.ok(sim.integrity().spread > 3,
+      `integrity() detects a separated body (${sim.integrity().spread.toFixed(0)} rest radii)`);
+
+    sim.free();
+    arena.free();
   });
 
   // ── L1-45 · the cross-flow force points LEEWARD ───────────────────────────

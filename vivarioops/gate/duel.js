@@ -91,7 +91,7 @@ export async function runDuelGate() {
     // to 32 cm). Pinned as a LITERAL on purpose: the residents may only be
     // re-frozen together with a version bump, and a check that read the constant
     // back from w1_slice.js would assert nothing.
-    t.eq(W1_SLICE.faunaVersion, 5, 'faunaVersion was bumped when the residents were re-frozen for the widened tank');
+    t.eq(W1_SLICE.faunaVersion, 6, 'faunaVersion was bumped at the solver-convergence fix (4 -> 8 iterations)');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.

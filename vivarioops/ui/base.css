@@ -357,6 +357,9 @@ html, body {
   border-left: var(--scale-tick) solid transparent;
 }
 .forage-row[data-state="surplus"] .forage-text { color: var(--c-on-water); }
+/* A creature that came apart. Not a deficit — a different KIND of outcome, and
+   it must not be read as "this one forages badly". */
+.forage-row[data-state="burst"] .forage-text { color: var(--c-fail); text-decoration: line-through; }
 /* SELECTED reads the same here as it does in the water: --c-select, the ring's
    own colour. An underline said "selected" in a different language from the ring
    and in the same one as a hyperlink. */

@@ -684,3 +684,207 @@ name the exact fault.
 exists. The genus is composed now, with variable arity and phonotactic rejection, so
 its space is not enumerable; §13 is explicit that occupancy must be **measured** over a
 corpus, not asserted from a table. Replaced by `familySpace()` and three checks on it.
+
+---
+
+## 18. THE EXPLOSION — diagnosed from the player's own save, and contained
+
+**Symptom.** A 300-minute open-ocean run: one creature reported **7864 g eaten**
+against 31–49 g for its five rivals, its parts were scattered across the whole view,
+and it had unlocked so many food chunks the screen was unusable.
+
+### Getting the actual creature
+
+None of the eight authored creatures burst in isolation over an hour — because the
+culprit was one the PLAYER BRED, which the authored list cannot represent. It was
+pulled out of the running app's IndexedDB (`vivarium` → `kv` → `specimen:178fc97e…`)
+and frozen as **`tools/_zboom_polypoda.json`**, so the repro survives this session.
+
+### What actually happens (`tools/_zboom.mjs`)
+
+| | isolated | SHARED arena |
+|---|---|---|
+| spread over 1 h | 0.8 — intact | **bursts at t = 3670 s** |
+| max spread | 0.8 | **297×** its own rest radius |
+
+**Contact is the trigger, and nothing else changes.** That is why no 15 s duel and no
+300 s forage trial ever saw it: it takes an hour, and it needs company.
+
+The tear is a **single-step position jump** — spread 0.86 → 1.97 in one step — so it is
+a solver event, not a force accumulating over seconds. A joint violation the solver
+cannot repair in one step teleports a body; the joint then hauls it back with enormous
+force and the animal comes apart. After that the fragments sweep the world at the speed
+ceiling, which in an UNBOUNDED arena means unbounded travel, unbounded chunk
+allocation, and an intake figure that is pure fiction.
+
+### A WRONG READING I PUBLISHED AND THEN CORRECTED
+
+The first probe reported `vmax` as a **running maximum**, so one touch of
+`STABLE_SPEED` made the creature look permanently pinned at the ceiling, and I said so.
+It is not: measured as a fraction of body-steps, clamp saturation is **0.00** for most
+of the run and reaches only **0.02** in the 500 s before the burst. `integrity()`
+therefore reports saturation as a fraction and never as a peak — **a peak cannot
+distinguish "touched once" from "held there"**, which is exactly the error that
+produced the wrong diagnosis.
+
+### The fix — detect and arrest, in two layers
+
+**`engine/l1/physics.js` — `sim.integrity()`** returns `{ spread, saturation,
+restRadius }`. It does NOT kill anything: what a burst creature deserves is policy and
+belongs to the caller. The engine's job is to make the state legible.
+
+**`ui/screens/forage.js` — `BURST_SPREAD = 3`.** A normal pose sits at 0.5–1.5 and
+cannot reach 3; a burst creature reaches 297. **Between the two there is nothing, so
+this is not a tuning knob** — anything from 2 to 50 gives the identical verdict. A
+creature past it is FROZEN, not removed: its trail and its ledger are the evidence of
+what happened, and the trail is the most useful thing on the screen. It stops being
+stepped (or its fragments take the survivors with it), stops eating, and its row reads
+`came apart` in `--c-fail`, struck through — a different KIND of outcome from a
+deficit, and it must not be read as "this one forages badly".
+
+### Measured, 90 simulated minutes, six creatures
+
+| | no arrest | with arrest |
+|---|---|---|
+| food chunks materialised | 4067 | **194** |
+| items live | **947 611** | **45 202** |
+| suspect's reported intake | 430.34 g | 43.29 g |
+
+**21× less memory and no fictional intake.** One creature was ruining the trial for all
+six, and the lag was the 947 000 items its fragments had unlocked.
+
+### Owed
+
+- **The root cause is untouched.** This is containment: the solver still tears this
+  creature apart on contact after an hour. A real fix is a joint-impulse limit or more
+  solver iterations, and it needs its own sitting.
+- **No gate assertion.** The repro needs 3670 s of simulation (~2 min wall), far past
+  the gate's budget. `tools/_zboom.mjs` holds it; a cheaper trigger would need to be
+  found first.
+- **Detection fires on transient excursions** — the creature settles back to ~2.4 after
+  crossing 3. That is deliberate (a healthy pose never reaches 3 at all) but it means
+  the verdict is "this animal went unstable", not "this animal is currently in pieces".
+
+---
+
+## 19. THE TEAR-APART, TAKEN TO THE ROOT
+
+**It is a constraint-solver convergence failure. Rapier's default iteration count
+(4) does not converge on these joint trees.**
+
+### The measured matrix (`tools/_ztear.mjs`)
+
+The player's own genome plus five neighbours, 5400 s per arm:
+
+| arm | result |
+|---|---|
+| shipped (4 iterations) | burst at 3040 s, spread **1309** rest radii |
+| addedMass OFF | burst at 3167 s, spread 215 — **not the cause** |
+| addedMass x0.25 | never, spread 0.8 |
+| **8 iterations** | **never, spread 0.8** |
+| **16 iterations** | never, spread 0.8 — buys nothing further |
+
+The signature said so before the matrix did: the tear is a **single-step position
+jump** of hundreds of rest radii, and a converging solver cannot move a jointed body
+by a whole rest radius in one step. Added mass was the obvious suspect — C6.2 put x10
+anisotropic inertia into the mass matrix — and it is **not** the cause.
+
+**Shipped: `SOLVER_ITERATIONS = 8`.** Verified at **3 hours, six creatures, max spread
+0.79** — a normal pose, never any excursion. **The cost is real: roughly 2x solver
+time** (5400 s of six-creature sim went 104 s -> 223 s wall). That is the price of
+creatures not disintegrating, and an hour is well inside a session now.
+
+### TWO WRONG READINGS I PUBLISHED, both corrected by measurement
+
+1. **"Contact is the trigger."** It is not. The isolated arm was stopped at 3600 s and
+   the shared one burst at 3670 — three minutes short. Run alone to 6000 s it bursts at
+   3781 s on its own. **A negative result from a run shorter than the positive one is
+   not a negative result.**
+2. **"It lives permanently on the speed clamp."** An artefact of a probe reporting
+   `vmax` as a RUNNING MAXIMUM: one touch of the ceiling looked like being pinned to
+   it. Measured as a fraction of body-steps, clamp saturation is 0.00 for most of the
+   run. `integrity()` reports saturation as a fraction and never as a peak, because a
+   peak cannot distinguish "touched once" from "held there".
+
+### Also shipped: the force-velocity relation (independent, and physics)
+
+00 §9 requires BOUNDED ACTUATOR POWER; what was implemented bounded TORQUE. Power is
+`tau*omega`, and omega was bounded only by the spin cap, so the actuator delivered full
+torque at any joint speed — which is not a muscle. Real muscle obeys Hill's
+force-velocity relation and produces ZERO force at maximum shortening velocity.
+
+`fv = max(0, 1 - |omega_rel| / OMEGA_MAX)` scales the commanded error. **Alone it moved
+the burst 3781 s -> 6438 s and the spread 495 -> 3.88 — a 130x severity reduction that
+did NOT fix it**, and by the criterion applied to every other knob, a delay is not an
+explanation. Kept because it is correct physics and it is 00 §9's actual requirement,
+not because it fixed the bug. The explicit power clamp beside it never binds at the
+budget as sized and is documented as such.
+
+### The gate assertion, and exactly how far it goes
+
+**`L1-47`** — registered, mutation-tested. Reverting `SOLVER_ITERATIONS` to 4 turns it
+red. **But only through the literal pin**: the per-step slip measurement still PASSES
+at 4 iterations, because over the 20 s the gate can afford the divergence has not yet
+grown. That is stated in the assertion rather than left to be discovered. The real
+detector is `tools/_zboom.mjs`, which needs 50 minutes of simulation.
+
+`L1-47` also checks that `integrity()` can SEE a separation — teleport a body, and it
+must report — because the screen's arrest depends on it and would otherwise be
+decorative.
+
+### Still standing
+
+The **containment** from §18 (`BURST_SPREAD = 3`, freeze not delete) stays. It is now a
+backstop rather than the fix, and that is the right relationship. `worldHash` is
+untouched, but **the solver change moves every measured number**: this is a physics
+change and wants a `faunaVersion` bump and a re-measure before any figure taken before
+it is quoted again.
+
+### 19a. `faunaVersion` 5 -> 6, and the re-measure
+
+Bumped because a convergence change moves **every integrated trajectory**, so every
+capability measured before it is correctly invalidated. `gate/duel.js`'s pin updated.
+`worldHash` itself is unchanged — `SOLVER_ITERATIONS` is engine code, not a hashed
+world field — which is exactly why the version counter has to carry it instead.
+
+**The burst, first, because it is the reason for all of this:**
+
+| | before | after |
+|---|---|---|
+| suspect, alone | burst at 3781 s, spread 495 | — |
+| suspect + 5, shared | burst at 3040 s, spread **1309** | **NEVER at 3 hours, max spread 0.79** |
+
+0.79 is an ordinary swimming pose. Not "survived" — never left the envelope.
+
+**Forage multipliers**, the same six from the Atlas, 66 minutes each, same command:
+
+| creature | eaten before | eaten after | multiplier before | after |
+|---|---|---|---|---|
+| Eel | 12.23 g | 5.36 g | 11.91 | **6.06** |
+| Darter | 22.07 g | 6.00 g | 6.91 | **5.30** |
+| Drifter | 26.57 g | 5.57 g | 8.90 | **9.71** |
+| Flapper | 5.64 g | 6.64 g | 5.14 | **3.57** |
+| Paddletail | 8.82 g | 13.61 g | 8.19 | **7.59** |
+| Polypoda | 44.04 g | 6.77 g | 0.22 | **0.19** |
+
+**Intake fell sharply for the travellers and the ranking reshuffled.** That is the
+expected direction and it is worth being explicit about why: a non-converging solver
+was letting joints slip, and slipping joints move a mouth through water it did not
+earn. Darter's 22.07 g and Polypoda's 44.04 g were partly numerical. Drifter, which
+gained, was never the one exploiting it.
+
+**Locomotion** (20 seeded genomes, `Speed` objective): min 6.16e-3, median 3.01e-2,
+max 3.28e-1. The corpus still swims; nothing collapsed.
+
+**Throughput: 31x realtime** for six creatures — the ~2x solver cost measured earlier,
+absorbed. The Forage screen's 32x rung is now aspirational rather than reachable, and
+the chip already reports the achieved rate rather than the requested one.
+
+**The mass correlation is unchanged at r = -0.973** (was -0.982). The multiplier is
+still a size selector until the mouth gene lands — the solver fix did not touch that,
+and it was never going to.
+
+**Not re-frozen: the three residents.** Their genomes are unchanged; what moved is
+their measured capability, which is precisely what the `faunaVersion` bump invalidates.
+Re-running `tools/c2residents.js` would re-SELECT them on the new physics, which is a
+different decision and deserves its own sitting.

@@ -82,6 +82,22 @@ const TRAIL_CEIL = 32768;
 const FORAGE_SPEEDS = [1, 2, 4, 8, 16, 32];
 
 /**
+ * A creature whose bodies are further apart than this, over its own rest radius,
+ * HAS COME APART and is no longer simulating an animal.
+ *
+ * Measured (tools/_zboom.mjs): a normal pose sits at 0.5–1.5 and cannot reach 3;
+ * a burst creature reaches 297. Between the two is nothing, so the threshold is
+ * not a tuning knob — anything from 2 to 50 gives the identical verdict.
+ *
+ * WHY IT MUST BE CAUGHT. In a bounded tank a burst creature is merely wrong. In
+ * the OPEN OCEAN its fragments sweep at the speed ceiling forever: they unlock
+ * food chunks without limit until the screen is unusable, and they report an
+ * intake that is pure fiction — a 300-minute run had one at 7864 g against 31–49
+ * for its five rivals. One creature ruins the trial for all six.
+ */
+const BURST_SPREAD = 3;
+
+/**
  * THE TWO HABITATS, and why they are one screen rather than two tabs.
  *
  * They share the cast picker, the ledger, the trails, selection, the speed
@@ -423,7 +439,7 @@ export default {
           i, entry, genome, plan, sim, group, mouthMark, trail, ring, colour,
           trailPos, trailN: 0, trailAt: 0, trailCap: TRAIL_START,
           mouths, mouthBuf: mouths.map(() => [0, 0, 0]),
-          pose: null, eaten: 0, mass: totalMass(plan),
+          pose: null, eaten: 0, burst: false, mass: totalMass(plan),
           radius: boundingRadius(plan),
           world: new THREE.Vector3(),
           row, text,
@@ -477,8 +493,11 @@ export default {
       }
       for (const c of cast) {
         const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.work, elapsed);
-        c.text.textContent = `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${fmtRatio(L.ratio)}`;
-        c.row.dataset.state = Number.isFinite(L.ratio) && L.ratio >= 1 ? 'surplus' : 'deficit';
+        c.text.textContent = c.burst
+          ? `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${t('came apart')}`
+          : `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${fmtRatio(L.ratio)}`;
+        c.row.dataset.state = c.burst ? 'burst'
+          : Number.isFinite(L.ratio) && L.ratio >= 1 ? 'surplus' : 'deficit';
         c.row.dataset.picked = selected.has(cast.indexOf(c)) ? 'yes' : 'no';
       }
       primary.textContent = running ? t('Pause') : t('Run');
@@ -997,7 +1016,9 @@ export default {
         achWall += dt; achSim += steps * FIXED_DT;
         if (achWall >= 1) { achieved = achSim / achWall; achWall = 0; achSim = 0; }
         const rate = W1_SLICE.INGEST_RATE ?? INGEST_RATE;
-        const sims = cast.map((c) => c.sim);
+        // A burst creature is not stepped at all. Leaving it in would let its
+        // fragments keep colliding with the survivors and take them with it.
+        const sims = cast.filter((c) => !c.burst).map((c) => c.sim);
         for (let s = 0; s < steps; s++) {
           // MATERIALISE FIRST. In the ocean the food does not exist until a mouth
           // is near it, so the field must be extended BEFORE the step that would
@@ -1011,10 +1032,29 @@ export default {
           // had not yet pushed on, and the result would depend on cast order.
           arena.stepAll(sims);
           for (const c of cast) {
+            if (c.burst) continue;         // a corpse neither eats nor is measured
             c.eaten += forageStep(c.sim, c.plan, food, c.mouths, FIXED_DT, rate, c.mouthBuf);
           }
           elapsed += FIXED_DT;
         }
+        // STRUCTURAL CHECK, once per frame rather than once per step: the burst is
+        // a single-step event but nothing is gained by noticing it 240 times a
+        // second, and integrity() walks every body.
+        for (const c of cast) {
+          if (c.burst || c.sim.integrity().spread <= BURST_SPREAD) continue;
+          c.burst = true;
+          // FROZEN, NOT REMOVED. Deleting it would erase its trail and its ledger
+          // — the evidence of what happened — and the trail is the most useful
+          // thing on this screen. It stops being stepped, stops eating, and says
+          // so in its row.
+          for (const rb of c.sim.bodies) {
+            rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+            rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+          }
+          c.group.visible = false;
+          c.mouthMark.visible = false;
+        }
+
         if (steps) {
           paintFood();
           for (const c of cast) {

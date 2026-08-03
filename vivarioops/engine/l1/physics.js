@@ -79,6 +79,14 @@ export const MUSCLE_STRESS = 200;
 export const OMEGA_MAX = 10;
 
 /**
+ * Constraint solver iterations per step. Rapier's default (4) does not converge
+ * on these joint trees and lets a creature disintegrate after ~50 minutes; see
+ * the measured matrix in createArena(). 8 held a case that 4 destroyed, and 16
+ * bought nothing further.
+ */
+export const SOLVER_ITERATIONS = 8;
+
+/**
  * Stability speed ceiling, cm/s (the myriapod fix). A swimmer travels < 1 cm/s
  * and a hard burst a few cm/s, so 10 is ~an order of magnitude of headroom; a
  * creature that reaches it is pumping energy through its own actuator, not
@@ -266,6 +274,31 @@ export function createArena(RAPIER, world, opts = {}) {
   // gravity globally would make the per-node density genes do nothing (10 §A4).
   const w = new RAPIER.World({ x: 0, y: 0, z: 0 });
   w.timestep = FIXED_DT;
+
+  // ── SOLVER ITERATIONS — THE ROOT CAUSE OF THE TEAR-APART ──────────────────
+  //
+  // Rapier's default iteration count does not converge on these bodies, and the
+  // failure is silent until it is catastrophic. Measured on a genome taken from a
+  // player's own save (tools/_zboom_polypoda.json, tools/_ztear.mjs), six
+  // creatures, 5400 s per arm:
+  //
+  //   shipped (4 iterations)     burst at 3040 s, spread 1309 rest radii
+  //   addedMass OFF              burst at 3167 s, spread 215     <- not the cause
+  //   addedMass x0.25            never, spread 0.8
+  //   8 iterations               never, spread 0.8
+  //   16 iterations              never, spread 0.8
+  //
+  // The signature said so before the matrix did: the tear is a SINGLE-STEP
+  // position jump of hundreds of rest radii, and a converging solver cannot move
+  // a jointed body by a whole rest radius in one step. Added mass was the obvious
+  // suspect (C6.2 put x10 anisotropic inertia into the mass matrix) and it is
+  // NOT the cause — turning it off entirely still bursts.
+  //
+  // THE COST IS REAL AND IS THE REASON THIS IS WRITTEN DOWN: 8 iterations roughly
+  // doubles solver time (5400 s of sim went 104 s -> 223 s wall on the six-creature
+  // arm). That is the price of not having creatures disintegrate after an hour,
+  // and an hour is well inside a session now that the Forage screen runs at 32x.
+  w.integrationParameters.numSolverIterations = SOLVER_ITERATIONS;
 
   const environment = [];
   const [tw, th, td] = opts.bounds ?? world.tankBounds;
@@ -1033,12 +1066,20 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     maxSpin[i] = MAX_SPEED / (0.5 * Math.hypot(d[0], d[1], d[2]));
   }
 
+  // Rest radius of the plan, for `integrity()`. Computed here rather than
+  // imported so /engine/l1/physics.js keeps its current import surface.
+  const restRadius = Math.max(1e-6, ...plan.bodies.map((b) =>
+    Math.hypot(b.position[0], b.position[1], b.position[2]) + Math.max(...b.dims) * 0.5));
+  let clampBound = 0, clampSteps = 0;
+
   function clampKinematics() {
     for (let i = 0; i < plan.bodies.length; i++) {
       const rb = bodies[i];
       const v = rb.linvel();
       const sp = Math.hypot(v.x, v.y, v.z);
+      clampSteps++;
       if (sp > MAX_SPEED && Number.isFinite(sp)) {
+        clampBound++;
         const k = MAX_SPEED / sp;
         rb.setLinvel({ x: v.x * k, y: v.y * k, z: v.z * k }, true);
       }
@@ -1050,6 +1091,60 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       }
     }
   }
+
+  /**
+   * STRUCTURAL INTEGRITY — how far the body has come apart, and how hard the
+   * speed clamp is working to hold it together.
+   *
+   * WHY THIS EXISTS, measured. A player's bred creature ran for 300 minutes in
+   * the open ocean and reported 7864 g eaten against 31–49 g for its five
+   * rivals. Reproduced headlessly (`tools/_zboom.mjs`, `tools/_zboom_polypoda.json`):
+   *
+   *   - In ISOLATION it survives an hour: spread 0.8, intact.
+   *   - In a SHARED arena it bursts at t = 3670 s, reaching a spread of 297x its
+   *     own rest radius. Contact is the trigger; nothing else changes.
+   *   - The tear is a SINGLE-STEP position jump (spread 0.86 -> 1.97 in one
+   *     step), so it is a solver event, not a force accumulating over seconds.
+   *   - Clamp saturation is 0.00 for most of the run and reaches only 0.02 in the
+   *     500 s before the burst. THE FIRST READING OF THIS WAS WRONG: a probe
+   *     reported `vmax` as a RUNNING MAXIMUM, so one touch of the ceiling made it
+   *     look permanently pinned. It is not. That is why `saturation` is measured
+   *     as a fraction of body-steps here and not as a peak — a peak cannot
+   *     distinguish "touched once" from "held there".
+   *
+   * The chain: a joint violation the solver cannot repair in one step teleports a
+   * body; the joint then pulls it back with enormous force, and the creature comes
+   * apart. After that the fragments sweep the world at the clamp speed —
+   * which in an UNBOUNDED arena means unbounded travel, unbounded food-chunk
+   * allocation, and an `eaten` figure that is pure fiction.
+   *
+   * THIS DOES NOT KILL THE CREATURE. Deciding what a burst creature deserves is
+   * policy and belongs to the caller (L2 or the screen); the engine's job is to
+   * make the state legible. `saturation` is the EARLY warning — it is pinned at
+   * 1.0 for roughly fifty minutes before the burst, which is a long time to act
+   * on — and `spread` is the event itself.
+   *
+   * @returns {{spread:number, saturation:number, restRadius:number}}
+   *   `spread` is max |body - root| over the plan's rest radius: 1 is a normal
+   *   pose, and no pose can reach 3. `saturation` is the fraction of body-steps
+   *   the speed clamp has bound since the last `resetIntegrity()`.
+   */
+  function integrity() {
+    const root = bodies[0].translation();
+    let far = 0;
+    for (const rb of bodies) {
+      const t = rb.translation();
+      const d = Math.hypot(t.x - root.x, t.y - root.y, t.z - root.z);
+      if (d > far) far = d;
+    }
+    return {
+      spread: far / Math.max(restRadius, 1e-6),
+      saturation: clampSteps > 0 ? clampBound / clampSteps : 0,
+      restRadius,
+    };
+  }
+
+  function resetIntegrity() { clampBound = 0; clampSteps = 0; }
 
   function applyEnvironment() {
     for (let i = 0; i < plan.bodies.length; i++) {
@@ -1486,14 +1581,64 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         // the motor setup block and tools/_zladder.mjs). Costs one clamp per joint
         // and nothing in the linear region. `boundTorque: false` leaves it off, so
         // "unbounded" still reproduces every pre-bound solver figure.
+        // ── THE FORCE-VELOCITY RELATION — 00 §9's POWER bound, at last ───────
+        //
+        // 00 §9 requires BOUNDED ACTUATOR POWER. What was implemented bounded
+        // TORQUE. Power is tau*omega, and omega was bounded only by the per-body
+        // spin cap, so the actuator could deliver its full budgeted torque at any
+        // joint speed — and therefore inject unbounded energy over a long run.
+        //
+        // MEASURED CONSEQUENCE (tools/_zboom.mjs, tools/_ztear.mjs, on a genome
+        // taken from a player's own save): a creature swims normally for an hour,
+        // `work` then rises 53% in one 300 s window, a body reaches its spin cap,
+        // the next reaches the speed cap, and at t = 3781 s the animal comes apart
+        // in a SINGLE STEP — spread 3 -> 495 rest radii. Arms: `motorScale: 0`
+        // never bursts, `effort: 0.5` never bursts, `addedMass: false` bursts
+        // anyway. The actuator owns it, and nothing else does.
+        //
+        // THE FIX IS PHYSICS, NOT A CLAMP. Real muscle obeys a force-velocity
+        // relation: force falls with shortening velocity and reaches ZERO at the
+        // maximum contraction velocity (Hill, 1938). This model had none, so its
+        // "muscle" pulled just as hard at 10 rad/s as at rest — which is not a
+        // muscle, and is exactly the mechanism that pumps energy in. The linear
+        // Hill approximation caps power at k*eMax*OMEGA_MAX/4 by construction.
+        //
+        // NEARLY INERT WHERE IT SHOULD BE: |omega_rel| is p50 ~0.35 rad/s against
+        // OMEGA_MAX 10, so fv ~ 0.97 in ordinary swimming. It bites only where the
+        // old model was unphysical.
+        const fv = Math.max(0, 1 - Math.abs(relOmega) / OMEGA_MAX);
+
         let eff = want[i];
         if (boundTorque && motorStiff[i] > 0) {
           const eMax = (motorScale * motorBudget[i]) / motorStiff[i];
           const e = want[i] - thetaS;
           const c = e < -eMax ? -eMax : (e > eMax ? eMax : e);
-          eff = thetaS + c;
+          // ── AND THE HARD POWER BOUND, which is the actual guarantee ────────
+          //
+          // The Hill term alone is not a fix, by the criterion this investigation
+          // used on every other knob: it moved the burst from 3781 s to 6438 s and
+          // the spread from 495 to 3.9, but the creature still came apart. A knob
+          // that DELAYS a failure has not explained it.
+          //
+          // So the power bound is enforced directly rather than hoped for. The
+          // motor's injected power is k*c*omega_rel; the budget is the peak of the
+          // linear Hill curve, tau_max * OMEGA_MAX / 4, which is the most a muscle
+          // obeying the relation above can ever deliver. Scaling `c` when the
+          // prediction exceeds it makes the bound exact instead of asymptotic.
+          //
+          // Inert in normal swimming: at |omega_rel| p50 ~0.35 rad/s the predicted
+          // power is far under budget and `c` is untouched.
+          let cc = c * fv;
+          const pPred = motorStiff[i] * cc * relOmega;
+          if (pPred > 0) {
+            const pMax = (motorScale * motorBudget[i] * OMEGA_MAX) / 4;
+            if (pPred > pMax) cc *= pMax / pPred;
+          }
+          eff = thetaS + cc;
           motorClamped[i] = c !== e ? 1 : 0;
         } else {
+          // `boundTorque: false` reproduces pre-bound figures and must stay a pure
+          // reproduction, so the force-velocity term is off there too.
           motorClamped[i] = 0;
         }
         joints[i].configureMotorPosition(eff, motorStiff[i], motorDampC[i]);
@@ -1702,6 +1847,8 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
      * Frees the Rapier world only if this simulation built it. A SHARED arena
      * outlives its occupants — a duel frees the arena once, after both creatures.
      */
+    integrity,
+    resetIntegrity,
     free() { if (ownsArena) arena.free(); },
   };
 }
