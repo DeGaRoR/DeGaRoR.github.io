@@ -172,9 +172,11 @@ continuity budget maintained.
    the GATE WORLD goldens (snippet in WORLD-CONTRACT §4).
 2. ~~Stage 1 on the *current* terrain, gates first.~~ **DONE 2026-08-03**
    (same session pattern: gates first, then tuning — see stage 1 as-built
-   notes above). Rivers are LIVE in world data; the renderer still draws
-   only the flat sea plane, so carved valleys render dry until the
-   renderer session (honest cut).
+   notes above). Rivers are LIVE in world data, and since the W3 water
+   session (same day) rendered too: ribbons (Chaikin + width taper,
+   creeks < 12 m dry) + lake cell surfaces with shallow-rim expansion
+   (render-only), terrain mesh at 513². Contour-traced lake outlines and
+   the animated water shader stay with the renderer overhaul.
 3. Stage 0 rework (warp + domain growth) once hydrology gates hold.
 4. Stages 2 → 4 in order; stage 5 opportunistic.
 5. Renderer session only after the data exists to feed it.

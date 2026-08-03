@@ -118,6 +118,40 @@ function bakeHydrology(sample, cfg) {
   const lake = new Uint8Array(M);
   let lakeCells = 0;
   for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  // renderer lake surface: the data lakes (depth > lakeMin) PLUS their
+  // shallow connected rim (depth > 0.25 at approximately the same level) —
+  // in flat terrain the rim is wide and without it the rendered water
+  // edge floats 1.5 m above ground as a visible cell-stepped outline.
+  // Render-only: the lake mask, clamp carve and gates are untouched.
+  const wet = new Uint8Array(M);
+  {
+    const stack = [];
+    for (let k = 0; k < M; k++) if (lake[k]) { wet[k] = 1; stack.push(k); }
+    while (stack.length) {
+      const c = stack.pop();
+      const cix = c % N, ciz = (c / N) | 0;
+      for (let d = 0; d < 8; d++) {
+        const nix = cix + NBX[d], niz = ciz + NBZ[d];
+        if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
+        const n = niz * N + nix;
+        if (wet[n] || sea[n]) continue;
+        if (filled[n] - H[n] > 0.25 && Math.abs(filled[n] - filled[c]) < 0.3) { wet[n] = 1; stack.push(n); }
+      }
+    }
+  }
+  // per-cell entries for the renderer: [x, z, waterLevel, edgeMask]
+  // edgeMask bits: 1 = +x neighbour is wet, 2 = -x, 4 = +z, 8 = -z
+  const lakeSurf = [];
+  for (let k = 0; k < M; k++) {
+    if (!wet[k]) continue;
+    const ix = k % N, iz = (k / N) | 0;
+    let mask = 0;
+    if (ix + 1 < N && wet[k + 1]) mask |= 1;
+    if (ix > 0 && wet[k - 1]) mask |= 2;
+    if (iz + 1 < N && wet[k + N]) mask |= 4;
+    if (iz > 0 && wet[k - N]) mask |= 8;
+    lakeSurf.push([px(ix), pz(iz), filled[k], mask]);
+  }
   const lakeId = new Int32Array(M).fill(-1);
   let lakeCount = 0;
   {
@@ -286,8 +320,8 @@ function bakeHydrology(sample, cfg) {
   }
 
   return {
-    rivers, lakeCount, lakeCells, riverCells, segCount,
+    rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
     carve, water,
-    stats: { bakeMs: Date.now() - t0, N, maxAcc },
+    stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
 }

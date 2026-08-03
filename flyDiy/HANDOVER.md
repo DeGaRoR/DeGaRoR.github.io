@@ -230,8 +230,14 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   2200). Rivers route AROUND the runway pad and meadows (bake-only
   drainage domes; carve masked on the pad, meadow blend applied after the
   carve — pad exactly 0, meadow cores exactly flat, GE gate untouched).
-  RENDERED DRY until the renderer session (only the flat sea plane
-  exists); the carved valleys are visible, water is not. M2 meadow quirk:
+  WATER IS RENDERED since the W3 water session (same day): river ribbons
+  (renderer-side Chaikin smoothing + cross-reach width taper; creeks
+  < 12 m wide stay dry — under mesh resolution) and per-cell lake quads
+  incl. the shallow connected rim (render-only `lakeSurf` from the bake),
+  one merged mesh sharing the sea material; edges trimmed by terrain
+  intersection. Terrain mesh SEG 256→512 so carves register. KNOWN LIMIT:
+  flat-corridor pools show cell-granular outlines — contour-traced lake
+  edges belong to the full renderer overhaul. M2 meadow quirk:
   it has sat at −47.9 m in the sea basin since v0 — waterH now honestly
   floods it; relocate/regrade at stage 4. Terrain change re-anchored the
   battery: pre-hydro logs are no longer diffable baselines.
@@ -259,9 +265,12 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
 ## GRAPHICS (post-redesign, 2026-08)
 Golden-hour look: ACES tonemap, sRGB, PCF shadows, camera-parented sky-dome
 shader, baked 2048² terrain texture (~512k terrainH calls at startup — seconds
-of load, accepted), field patchwork, instanced woodland (2-4 render-only
-neighbours per collidable tree, corridor exclusion |z|<90 matches the world),
-billboard cumulus, dynamic shadow frustum following the CG. The aircraft
+of load, accepted), 513² terrain mesh (bumped from 257² for the river
+carves), stage-1 water (rivers + lakes + sea, one MeshStandard material;
+see WORLD), field patchwork, instanced woodland (2-4 render-only
+neighbours per collidable tree, corridor exclusion |z|<90 matches the world,
+water-rejected via waterH), billboard cumulus, dynamic shadow frustum
+following the CG. The aircraft
 itself stays the untinted wireframe: strain ramp neutral→amber (tension) /
 cyan (compression) — deliberate contrast, don't "fix" it.
 The shadow proxy (app.js) stitches an invisible skin across WF/WR tips +
@@ -361,10 +370,13 @@ W1. **World contract v1** — DONE 2026-08-03: pure restructuring of
 W2. **Stage 1 hydrology** — DONE 2026-08-03: 21_world_hydro.js bake
     (priority-flood/D8/accumulation/rivers/lakes) composed into terrainH/
     waterH/tile, GATE HYDRO added, WORLD goldens re-captured (terrain
-    change, documented procedure). Next on this branch: stage 0 rework
-    (domain warp + growth) or stage 2 biomes — both need the renderer
-    session eventually to make water visible; AP-reads-aerodromes still
-    pending.
+    change, documented procedure).
+W3. **Water rendering** — DONE 2026-08-03: river ribbons + lake surfaces
+    in render_world.js (see WORLD + GRAPHICS). Remaining renderer-overhaul
+    backlog: contour-traced lake outlines, animated water shader, chunked
+    LOD, triplanar splat, tree impostors. Next on this branch: stage 0
+    rework (domain warp + growth) or stage 2 biomes;
+    AP-reads-aerodromes still pending.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

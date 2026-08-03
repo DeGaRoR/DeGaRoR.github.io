@@ -46,8 +46,10 @@ function buildWorldScene(scene, world, renderer, camera) {
     sc.near = 20; sc.far = 1500; sc.updateProjectionMatrix(); }
   scene.add(sun); scene.add(sun.target);
 
-  { // terrain: geometry from world.terrainH, colour baked to a texture
-    const SEG = 256, SIZE = 9000, HALF = SIZE / 2;
+  { // terrain: geometry from world.terrainH, colour baked to a texture.
+    // SEG 512 (17.6 m polys) so the stage-1 river carves (8-45 m wide)
+    // actually register in the mesh — at 256 they aliased away.
+    const SEG = 512, SIZE = 9000, HALF = SIZE / 2;
     const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
     geo.rotateX(-Math.PI / 2);
     const posA = geo.attributes.position;
@@ -181,10 +183,100 @@ function buildWorldScene(scene, world, renderer, camera) {
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE),
-      new THREE.MeshStandardMaterial({ color: C(0x3a7e96), roughness: 0.16, metalness: 0.0 }));
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.y = -0.4;
     scene.add(water);
+
+    { // stage-1 water: river ribbons + per-cell lake quads at their baked
+      // surface heights, one merged mesh, same material as the sea.
+      // Edges are trimmed by terrain intersection — ribbons overshoot into
+      // the banks (0.62w vs 0.5w wet width) and lake cells grow skirts on
+      // their non-lake sides, so the visible waterline is the smooth
+      // terrain/water intersection, not the 23 m cell outline.
+      const pos = [], idx = [];
+      const quad = (x0, z0, x1, z1, y) => {
+        const b = pos.length / 3;
+        pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
+        idx.push(b, b + 2, b + 1, b, b + 3, b + 2);
+      };
+      // renderer-side corner smoothing (Chaikin, cut capped at 0.5w so the
+      // ribbon never wanders out of the carved channel — the carve SDF
+      // follows the RAW polyline, which stays the data truth)
+      const smooth = (r) => {
+        let pts = r.pts, ws = r.ws;
+        const cap = r.w * 0.5;
+        for (let round = 0; round < 2; round++) {
+          const np = [pts[0]], nw = [ws[0]];
+          for (let i = 0; i + 1 < pts.length; i++) {
+            const a = pts[i], b = pts[i + 1];
+            const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+            const t = Math.min(0.25, cap / L);
+            np.push([a[0] * (1 - t) + b[0] * t, a[1] * (1 - t) + b[1] * t],
+                    [a[0] * t + b[0] * (1 - t), a[1] * t + b[1] * (1 - t)]);
+            nw.push(ws[i] * (1 - t) + ws[i + 1] * t, ws[i] * t + ws[i + 1] * (1 - t));
+          }
+          np.push(pts[pts.length - 1]); nw.push(ws[ws.length - 1]);
+          pts = np; ws = nw;
+        }
+        return [pts, ws];
+      };
+      // reaches are constant-width and lake-chopped into short stubs — a
+      // raw render steps in width at every stub boundary. Match each
+      // reach's head to the nearest upstream tail (lakes sit between, so
+      // the match is loose) and taper the width along the reach.
+      const RV = world.hydro.rivers;
+      const wHead = new Map();
+      for (const b of RV) {
+        let bestW = b.w, bestD = 160;
+        for (const a of RV) {
+          if (a === b) continue;
+          const ta = a.pts[a.pts.length - 1], hb = b.pts[0];
+          const d = Math.hypot(ta[0] - hb[0], ta[1] - hb[1]);
+          if (d < bestD) { bestD = d; bestW = a.w; }
+        }
+        wHead.set(b, bestW);
+      }
+      for (const r of RV) {
+        // creeks under ~12 m stay carved-but-dry: below the terrain mesh
+        // resolution they render as broken puddle chains, worse than dry
+        if (r.w < 12 || r.pts.length < 2) continue;
+        const [spts, sws] = smooth(r);
+        const h0w = Math.min(wHead.get(r), r.w) * 0.62, h1w = r.w * 0.62;
+        const base = pos.length / 3;
+        for (let i = 0; i < spts.length; i++) {
+          const p = spts[i];
+          const pa = spts[Math.max(0, i - 1)], pb = spts[Math.min(spts.length - 1, i + 1)];
+          let dxv = pb[0] - pa[0], dzv = pb[1] - pa[1];
+          const L = Math.hypot(dxv, dzv) || 1; dxv /= L; dzv /= L;
+          const half = h0w + (h1w - h0w) * (i / Math.max(1, spts.length - 1));
+          const y = sws[i] - 0.3;
+          pos.push(p[0] - dzv * half, y, p[1] + dxv * half,
+                   p[0] + dzv * half, y, p[1] - dxv * half);
+        }
+        for (let i = 0; i + 1 < spts.length; i++) {
+          const a = base + i * 2;
+          idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        }
+      }
+      const hc = world.hydro.cellW / 2, skirt = world.hydro.cellW * 0.6;
+      for (const [lx, lz, ws, mask] of world.hydro.lakeSurf) {
+        const y = ws - 0.15;
+        quad(lx - hc, lz - hc, lx + hc, lz + hc, y);
+        if (!(mask & 1)) quad(lx + hc, lz - hc, lx + hc + skirt, lz + hc, y);
+        if (!(mask & 2)) quad(lx - hc - skirt, lz - hc, lx - hc, lz + hc, y);
+        if (!(mask & 4)) quad(lx - hc, lz + hc, lx + hc, lz + hc + skirt, y);
+        if (!(mask & 8)) quad(lx - hc, lz - hc - skirt, lx + hc, lz - hc, y);
+      }
+      const wg = new THREE.BufferGeometry();
+      wg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      wg.setIndex(idx);
+      wg.computeVertexNormals();
+      const wm = new THREE.Mesh(wg, waterMat);
+      wm.receiveShadow = true;
+      scene.add(wm);
+    }
   }
 
   { // woodland: every physics tree seeds a clump of non-colliding neighbours
@@ -200,6 +292,7 @@ function buildWorldScene(scene, world, renderer, camera) {
         if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor exclusion, matches world
         const h = world.terrainH(x, z);
         if (h < 1.5 || h > 200) continue;
+        if (world.waterH(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), r: hsh(i, k * 13 + 4) });
       }
     });
