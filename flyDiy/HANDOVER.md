@@ -239,17 +239,22 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   during liftoff flickers ROLL/LIFTOFF forever.
 
 ## WORLD
-- 24 × 24 km domain since W6 (2026-08-04): bounds ±12000. The home region
-  (runway, corridor, meadows, DC-3 turnback mountains) is h0-IDENTICAL —
-  far-field additions (mountain-belt falloff to northern plains beyond
-  z≈−6500, archipelago z>3800, ±65 m long-wave relief) are exactly zero
-  inside the home box + 1.5 km (x∈[−6300,600], z∈[−3300,2600]). Seed-0:
-  ~25k trees, 299 reaches / 125 km rivers, 349 lakes, 9 settlements,
-  56 km roads. makeWorld ~0.55 s. Hydrology thresholds are physical
-  (A0m2; widths/depths from drainage area) — resolution-independent.
-  Renderer: two-ring terrain mesh (17.6 m polys over ±4500, ~100 m
-  strips to ±12000 tucked 2 m under the inner rim), per-ring colour
-  bakes. Stage-0 warp + extra octave still open (own session).
+- Domain warp since W7 (2026-08-04): IQ-style warp (2-octave channels,
+  320 m field / 700 m masks) + 5th fBm octave. FIRST change to home h0:
+  meadow heights moved (M1 24.3→32.7), pad still exactly 0; DC-3
+  turnback re-verified EMPIRICALLY (turns seaward, the new 268 m peak at
+  (−6460,−2680) is never approached — measure, don't map-read).
+  terrainH 0.47 µs/call. Coast has bays/headlands; ridges wind.
+- 24 × 24 km domain since W6 (2026-08-04): bounds ±12000. Far-field
+  shape (mountain-belt falloff to northern plains beyond z≈−6500,
+  archipelago z>3800, ±65 m long-wave relief) is exactly zero inside
+  the home box + 1.5 km (x∈[−6300,600], z∈[−3300,2600]). Seed-0 (post
+  W7): ~25k trees, 274 reaches / 113 km rivers, 369 lakes, 9
+  settlements, 46 km roads. makeWorld ~0.6 s. Hydrology thresholds are
+  physical (A0m2; widths/depths from drainage area) — resolution-
+  independent. Renderer: two-ring terrain mesh (17.6 m polys over
+  ±4500, ~100 m strips to ±12000 tucked 2 m under the inner rim),
+  per-ring colour bakes.
 - Stage 1 hydrology since 2026-08-03 (WORLD-GEN-PROC): 63 river reaches /
   24 km + 62 lakes carved into terrainH (seed 0), waterH reports reach
   surfaces + lake spills + sea; trees re-laid with water rejection (still
@@ -290,8 +295,9 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   constants, decals, patchwork mask).
 - Runway 1100 m: x +20 → −1080 (extended for the DC-3; physics flat pad
   x∈[−1180,130], |z|<90 blend). Takeoff heading −x, landing +x.
-- Mountains −z side (~200 m peaks near (−5500..−6000, −2500) — DC-3 turnback
-  clears by ~50-100 m; watch turn direction for new heavies), sea +z,
+- Mountains −z side (peaks to ~268 m near (−6460, −2680) since W7 — the
+  DC-3 turnback turns SEAWARD (+z) and never approaches them, verified by
+  trace 2026-08-04; watch turn direction for new heavies), sea +z,
   corridor flattened x∈[−3400,400] |z|<750. 2200 collidable trees, exclusion
   covers the corridor. 3 landing meadows with beacons.
 - Physics ground uses terrainH; friction plane still horizontal (known cut).
@@ -431,10 +437,14 @@ W6. **Domain growth 9→24 km** — DONE 2026-08-04: bounds ±12000, belt
     re-ran unmodified on the new bounds — the proceduralness test.
     Hard-won: DP-simplified river polylines carry water the grid masks
     don't know (site scoring must check the QUERY); road grading must
-    never refill a carved bed (mask by carve depth). Next on this branch:
-    stage 0 WARP (landform character), stage 4 aerodromes-per-settlement,
-    stage 5 cliffs, or AP-reads-aerodromes (settlements + 24 km now make
-    it worth it).
+    never refill a carved bed (mask by carve depth).
+W7. **Domain warp** — DONE 2026-08-04: IQ warp + 5th octave + warped
+    continental masks (see WORLD). First home-h0 change; full re-golden
+    incl. meadow hash; DC-3 clearance re-verified by trace. Road-grading
+    targets re-subdivided ≤50 m for the rougher ground. Next on this
+    branch: stage 4 aerodromes-per-settlement, stage 5 cliffs/scree
+    sharpening, terrain COLOUR pass (uplands read dry/sandy), or
+    AP-reads-aerodromes.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

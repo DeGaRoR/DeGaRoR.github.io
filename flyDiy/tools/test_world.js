@@ -5,18 +5,19 @@
 // snippet in futureDesigns/WORLD-CONTRACT.md §4, in the same commit.
 const { makeWorld } = require('./flight_core.js');
 
-// goldens re-captured 2026-08-04 for W6 domain growth (24 km: grid now
-// sampled ±12000 step 240; belt falloff + archipelago + far relief are
-// EXACT zero inside the home box, and the meadow hash + all four anchors
-// survived unchanged through the growth — the home region is provably
-// intact). History: pre-hydro GRID 68852648 TREES fe7ae7d8; stage-1 GRID
-// cdccbc80; stage-2 TREES b097b0ed (2336); stage-3 GRID 4ade0091 TREES
-// baa89490 (2262, ±4500 sampling).
-const GOLDEN_GRID = '9dded77';
-const GOLDEN_TREES = 'f6287454';
-const GOLDEN_TREE_COUNT = 24869;
-const GOLDEN_MEADOWS = '27f288de';
-const GOLDEN_ANCHORS = ['0', '0.1927813924095721', '22.029038814851813', '24.310422903189508'];
+// goldens re-captured 2026-08-04 for W7 domain warp (IQ-style warp + 5th
+// octave + warped continental masks — the FIRST session to change home
+// h0: meadow hash and anchors 2-4 legitimately moved; the pad anchor
+// stays exactly 0 and the DC-3 turnback was re-verified empirically,
+// gate-green with unchanged margins). History: pre-hydro GRID 68852648
+// TREES fe7ae7d8; stage-1 GRID cdccbc80; stage-2 TREES b097b0ed; stage-3
+// GRID 4ade0091 (±4500 sampling); W6 GRID 9dded77 TREES f6287454 (24869),
+// MEADOWS 27f288de through W6.
+const GOLDEN_GRID = '197b3fb1';
+const GOLDEN_TREES = 'f9659f9c';
+const GOLDEN_TREE_COUNT = 24738;
+const GOLDEN_MEADOWS = '85de271f';
+const GOLDEN_ANCHORS = ['0', '0.21004043626020646', '29.022467498732595', '32.70294769782758'];
 
 const fnv = s => {
   let h = 0x811c9dc5;

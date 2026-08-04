@@ -1527,18 +1527,32 @@ function makeWorld(seed) {
           c = hash2(ix, iz + 1), d = hash2(ix + 1, iz + 1);
     return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
   }
+  // W7: 5th octave (65 m) sharpens detail; the warp channels below are
+  // deliberately 2-octave — h0 is the physics hot path (per node per
+  // substep), full-fbm warp would double it
   const fbm = (x, z) =>
-    vnoise(x, z, 1400) * 0.45 + vnoise(x + 91, z + 37, 650) * 0.30 +
-    vnoise(x + 7, z + 211, 300) * 0.17 + vnoise(x + 313, z + 97, 140) * 0.08;
+    vnoise(x, z, 1400) * 0.43 + vnoise(x + 91, z + 37, 650) * 0.29 +
+    vnoise(x + 7, z + 211, 300) * 0.16 + vnoise(x + 313, z + 97, 140) * 0.08 +
+    vnoise(x + 173, z + 419, 65) * 0.04;
   const ridge = (x, z, cell) => 1 - Math.abs(2 * vnoise(x + 555, z + 777, cell) - 1);
+  const wnoise = (x, z) =>
+    vnoise(x, z, 1400) * 0.65 + vnoise(x + 47, z + 61, 650) * 0.35;
 
   function h0(x, z) {
-    const n = fbm(x, z);
+    // IQ-style domain warp (W7): displace the sampling point by two noise
+    // channels before the main field — ridges curve, valleys wind, the
+    // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
+    // get their own gentler warp (bays/headlands on the coast, a winding
+    // mountain-belt edge) at ⚙ 700 m.
+    const wq1 = wnoise(x + 1309, z + 3557), wq2 = wnoise(x - 911, z + 2129);
+    const wx = x + 320 * (wq1 - 0.5), wz = z + 320 * (wq2 - 0.5);
+    const n = fbm(wx, wz);
     // 24 km domain (W6): the mountain belt FALLS OFF beyond z~-6500 into
     // northern highlands/plains instead of extending as an endless plateau
-    const mount = sstep(700, 3200, -z) * (1 - sstep(6500, 10500, -z));
-    const sea = sstep(500, 2400, z);
-    const rid = ridge(x, z, 1100) * 0.6 + ridge(x, z, 520) * 0.4;
+    const mzw = z + 700 * (wq2 - 0.5);
+    const mount = sstep(700, 3200, -mzw) * (1 - sstep(6500, 10500, -mzw));
+    const sea = sstep(500, 2400, z + 700 * (wq1 - 0.5));
+    const rid = ridge(wx, wz, 1100) * 0.6 + ridge(wx, wz, 520) * 0.4;
     let h = (n - 0.35) * 45 + (0.55 * (n - 0.3) + 0.65 * (rid - 0.35)) * 620 * mount - 95 * sea;
     // far-field additions, EXACTLY zero inside the home box + 1.5 km
     // (box covers every validated circuit incl. the DC-3 turnback at
@@ -1551,7 +1565,7 @@ function makeWorld(seed) {
     if (far > 0) {
       const big = vnoise(x + 4013, z + 1717, 5200);
       h += far * (big - 0.5) * 130 * (1 - sea);
-      const isl = ridge(x + 2222, z + 4444, 2600);
+      const isl = ridge(wx + 2222, wz + 4444, 2600);
       const islMask = sstep(3800, 5200, z);
       h += far * islMask * Math.max(0, isl - 0.62) * 520;
     }
@@ -2528,7 +2542,19 @@ function bakeSettlements(D) {
       if (run.length >= 2) {
         if (wet) roads.push({ pts: [run[0], run[run.length - 1]], cls: 'bridge' });
         else {
-          const pts = dpSimp(run, 30);
+          let pts = dpSimp(run, 30);
+          // re-subdivide to <=50 m so grading targets track the terrain —
+          // on warped (rough) ground a target lerped across a 100+ m
+          // segment drifts metres off the surface and the clamp gouges
+          const fine = [pts[0]];
+          for (let i = 0; i + 1 < pts.length; i++) {
+            const L = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+            const nSub = Math.max(1, Math.ceil(L / 50));
+            for (let q = 1; q <= nSub; q++)
+              fine.push([pts[i][0] + (pts[i + 1][0] - pts[i][0]) * q / nSub,
+                         pts[i][1] + (pts[i + 1][1] - pts[i][1]) * q / nSub]);
+          }
+          pts = fine;
           const tgt = pts.map(p => D.terrain(p[0], p[1]));
           for (let i = 1; i + 1 < tgt.length; i++) tgt[i] = (tgt[i - 1] + tgt[i] + tgt[i + 1]) / 3;
           roads.push({ pts, cls, tgt });

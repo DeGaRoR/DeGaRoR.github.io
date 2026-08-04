@@ -38,14 +38,25 @@ spread. STILL OPEN from the stage-0 sketch: domain WARPING + the extra
 octave (the landform character pass) — that is its own session and a
 conscious re-golden.
 
-## Stage 0 — Base field (analytic)
+## Stage 0 — Base field (analytic) — DONE (W6 domain + W7 warp, 2026-08-04)
 
 Layered value-noise fBm with **domain warping** (IQ-style: warp coordinates
 by a second fBm before sampling — this alone kills most of the "2000 look"
 in the landform), a continental mask (sea to +z), a mountain belt with
-ridged noise (−z), mid-ground hills. Current `h0` is the degenerate case;
-keep its structure, add the warp and one octave.
-Gate: range/percentile envelope of sampled heights; determinism.
+ridged noise (−z), mid-ground hills.
+As-built (W7): warp channels are 2-octave (⚙ hot-path budget — full-fBm
+warp would double terrainH; measured 0.47 µs/call with warp), amplitude
+⚙ 320 m on the field/ridge sampling and ⚙ 700 m on the continental masks
+(bays/headlands on the coast, winding belt edge); 5th fBm octave (65 m,
+w 0.04, weights renormalized). The warp is the FIRST change to home h0
+since the contract froze — meadow heights legitimately moved (M1
+24.3→32.7), the pad stays exactly 0, and the DC-3 turnback was
+re-verified empirically (it turns SEAWARD; the new 268 m peak at
+(−6460,−2680) is never approached — trace-first beat the map-reading
+worry). Hard-won: sharper terrain broke road grading until targets were
+re-subdivided to ≤50 m (a target lerped across a 100 m segment drifts
+metres off rough ground and the clamp gouges).
+Gate: covered by WORLD golden freeze + HYDRO/BIOME/SETTLE envelopes.
 
 ## Stage 1 — HYDROLOGY (keystone) — DONE 2026-08-03
 

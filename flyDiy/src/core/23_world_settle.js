@@ -244,7 +244,19 @@ function bakeSettlements(D) {
       if (run.length >= 2) {
         if (wet) roads.push({ pts: [run[0], run[run.length - 1]], cls: 'bridge' });
         else {
-          const pts = dpSimp(run, 30);
+          let pts = dpSimp(run, 30);
+          // re-subdivide to <=50 m so grading targets track the terrain —
+          // on warped (rough) ground a target lerped across a 100+ m
+          // segment drifts metres off the surface and the clamp gouges
+          const fine = [pts[0]];
+          for (let i = 0; i + 1 < pts.length; i++) {
+            const L = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+            const nSub = Math.max(1, Math.ceil(L / 50));
+            for (let q = 1; q <= nSub; q++)
+              fine.push([pts[i][0] + (pts[i + 1][0] - pts[i][0]) * q / nSub,
+                         pts[i][1] + (pts[i + 1][1] - pts[i][1]) * q / nSub]);
+          }
+          pts = fine;
           const tgt = pts.map(p => D.terrain(p[0], p[1]));
           for (let i = 1; i + 1 < tgt.length; i++) tgt[i] = (tgt[i - 1] + tgt[i] + tgt[i + 1]) / 3;
           roads.push({ pts, cls, tgt });
