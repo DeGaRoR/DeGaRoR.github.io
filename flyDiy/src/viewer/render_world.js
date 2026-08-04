@@ -452,13 +452,21 @@ function buildWorldScene(scene, world, renderer, camera) {
     // the shared sphere once to a chunk's half-diagonal. Culling is then
     // conservative but correct, per chunk, against the camera AND the sun's
     // shadow camera — which is where most of the saving comes from.
-    const CHW = 2048, CHR = CHW * Math.SQRT1_2 + 12;
-    const chunkBounds = geo => {
+    // The sphere must clear a chunk's half-diagonal AND its vertical spread:
+    // instances carry terrain height, so a tree on a 150 m ridge in a chunk
+    // corner sits further from the centre than the horizontal diagonal alone.
+    // Size it on the horizontal half-diagonal against VSPAN of relief; get this
+    // wrong and corner chunks on high ground pop out of view and out of shadow
+    // (GATE WORLDRENDER asserts every instance is inside its own sphere).
+    const CHW = 2048, VSPAN = 320;
+    const chunkBounds = (geo, half) => {
       geo.computeBoundingSphere();
       geo.boundingSphere.center.set(0, 4, 0);
-      geo.boundingSphere.radius = CHR;
+      geo.boundingSphere.radius = Math.hypot(half * Math.SQRT1_2, VSPAN) + 12;
+      geo.userData = geo.userData || {};
+      geo.userData.chunkTree = true;        // marks what GATE WORLDRENDER checks
     };
-    [trunkGeo, coneGeo, blobGeo].forEach(chunkBounds);
+    [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
 
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
           pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
@@ -567,11 +575,7 @@ function buildWorldScene(scene, world, renderer, camera) {
       // chunk centre and the shared bounding sphere is inflated to a chunk, so
       // three CAN cull these after all (it never could while the matrices held
       // world coordinates against a 2 m shared sphere).
-      for (const g of [coneF, blobF]) {
-        g.computeBoundingSphere();
-        g.boundingSphere.center.set(0, 3, 0);
-        g.boundingSphere.radius = CH * Math.SQRT1_2 + 12;
-      }
+      [coneF, blobF].forEach(g => chunkBounds(g, CH));
       const matF = new THREE.MeshLambertMaterial({ vertexColors: true });
       const chunks = new Map(), queue = [];
       function gen(cx, cz) {
@@ -822,6 +826,25 @@ function buildWorldScene(scene, world, renderer, camera) {
         roofs.setMatrixAt(i, m4);
         roofs.setColorAt(i, ROOFS[hsi % 3]);
       });
+      // Both meshes hold every building in WORLD coordinates while sitting at
+      // the origin, so three would cull them against the unit box/prism's own
+      // ~1 m sphere — i.e. the villages vanish whenever the world origin is
+      // off-screen, which in flight is most of the time. Size the sphere to
+      // the settlements' real extent: still culls when far away, but honestly.
+      // (Found by GATE WORLDRENDER; the tree field had the same class of bug.)
+      let bx0 = 1e9, bz0 = 1e9, bx1 = -1e9, bz1 = -1e9, bhi = 0;
+      for (const b of BL) {
+        bx0 = Math.min(bx0, b.x); bx1 = Math.max(bx1, b.x);
+        bz0 = Math.min(bz0, b.z); bz1 = Math.max(bz1, b.z);
+        bhi = Math.max(bhi, world.terrainH(b.x, b.z) + b.hgt);
+      }
+      const bcx = (bx0 + bx1) / 2, bcz = (bz0 + bz1) / 2;
+      const brad = Math.hypot(bx1 - bcx, bz1 - bcz, bhi) + 20;
+      for (const g of [bodyGeo, roofGeo]) {
+        g.computeBoundingSphere();
+        g.boundingSphere.center.set(bcx, bhi / 2, bcz);
+        g.boundingSphere.radius = brad;
+      }
       for (const m of [bodies, roofs]) {
         m.castShadow = true; m.receiveShadow = true;
         m.instanceMatrix.needsUpdate = true;

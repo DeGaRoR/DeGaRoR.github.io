@@ -28,6 +28,7 @@ const GATES = [
   { id: 'UISMOKE', file: 'test_ui_smoke.js' },
   { id: 'PA18', file: 'test_pa18.js' },
   { id: 'C172M', file: 'test_c172_model.js' },
+  { id: 'WORLDRENDER', file: 'test_world_render.js' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js' },
   { id: 'HYDRO', file: 'test_hydro.js' },

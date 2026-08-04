@@ -509,6 +509,43 @@ staging props, split fused L/R meshes, mirror the missing strut) →
   nose-left, which is what a nosewheel does (a tailwheel wants the positive
   sign the taildraggers carry). Comment corrected.
 
+## TREE FIELD — measured state + the LOD ladder (next up, 2026-08-05)
+Measured with GL draw hooks + EXT_disjoint_timer_query, C172 loaded, 1.3 Mpx:
+**203 draw calls, 4.36 M tris/frame, 3.45 ms GPU** (2.25 ms with all trees
+skipped). Share: far clutter 1.97 M (45%), near trees 1.25 M drawn twice
+(camera + shadow), ground 0.52 M, **whole C172 skin 0.06 M — 1.3%**. The
+aircraft is not the cost; the forest is. Resolution barely moved it (3.7x
+fewer pixels saved 6%), so this is geometry submission + the fixed-size
+shadow pass, NOT fill.
+
+DONE: both tree layers are chunked and genuinely culled. three culls an
+InstancedMesh on its GEOMETRY's bounding sphere, and the geometry is shared —
+which is why the streamed layer had `frustumCulled = false` and the woodland
+layer was one world-sized mesh. Fix: instance matrices are chunk-LOCAL, each
+chunk mesh sits at its chunk centre, and the shared sphere is inflated once.
+Trunks additionally switch off past 900 m (they were 45% of the frame and are
+sub-pixel from cruise). **Size the sphere against RELIEF, not just the
+horizontal half-diagonal** — GATE WORLDRENDER caught a tree on a 148 m ridge
+2 m outside a 736 m sphere. The same bug class had the village buildings
+culled against a 1 m sphere at the origin (fixed).
+
+NOT DONE — the LOD ladder, which is what buys real density:
+1. near (<400 m): current 3D canopy + trunk, unchanged.
+2. mid (400 m-2 km): **octahedral impostors** — pre-render each species from
+   9-16 directions into one atlas with a WebGLRenderTarget at boot (the
+   source is the tree meshes already in the scene, so NO external art and the
+   look is preserved), 2 tris/tree, shader picks the nearest view. Plain
+   camera-facing billboards are wrong here: from 160 m up they read as lying
+   down. Insertion point: `coneF`/`blobF` in the streamed fill block.
+3. far (>2 km): no geometry — blend a canopy texture into the terrain.
+Cheap first step if the atlas is too much in one sitting: the far-tier
+broadleaf canopy is `IcosahedronGeometry(1.9, 0)` = 20 tris and blobs are
+89 588 of 124 848 canopy instances — an 8-tri octahedron is a one-line swap
+for 2.5x on the dominant class.
+Then raise density: the user wants forests several times denser, and the
+whole point of the above is to buy that headroom. NOT by cutting trees —
+see [[import-models-as-is]]'s sibling rule: quality is not the budget knob.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|

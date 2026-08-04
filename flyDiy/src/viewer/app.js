@@ -80,6 +80,11 @@
     const data = MODELS3D[key];
     if (!data) return null;
     const dec = decodeModel(data);
+    // The payload's base64 strings are dead once decoded — the c172's alone are
+    // ~6 MB of JS heap held for the life of the page. modelCache never evicts,
+    // so decode happens exactly once and dropping them is safe. (Anything that
+    // later wants to rebuild must go through modelCache, not decodeModel.)
+    for (const g in data.groups) data.groups[g].b64 = null;
     // v3 payloads carry texs/mats tables + per-group mat; v2 shim implies them
     const texSrcs = data.texs || { skin: data.tex };
     const mats = data.mats || { skin: { tex: 'skin' }, glass: { opacity: 0.28, color: 0xaad4ea } };
