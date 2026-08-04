@@ -123,7 +123,11 @@ function bakeSettlements(D) {
     if (settlements.length >= 9 || score < 2.2) break;  // 24 km world holds more towns
     const x = px(k % NR), z = pz((k / NR) | 0);
     if (settlements.some(s => Math.hypot(s.x - x, s.z - z) < 2500)) continue;
-    const pop = Math.min(900, 60 + Math.round(score * 170));
+    // rank-declining pop + hash spread: the score formula saturated and
+    // made every town 900 — stage 4 wants a size mix (paved vs grass)
+    const h0v = hash2(k, 71);
+    const pop = Math.max(140, Math.min(900,
+      Math.round((900 - (settlements.length - 1) * 95) * (0.78 + h0v * 0.35))));
     const h1 = hash2(k, 11), h2 = hash2(k, 23), h3 = hash2(k, 37), h4 = hash2(k, 53);
     const SYL1 = ['Al', 'Ber', 'Dal', 'Fen', 'Gil', 'Hol', 'Kes', 'Lun', 'Mor', 'Nor', 'Pel', 'Ros', 'Tor', 'Vim', 'Wes'];
     const SYL2 = ['by', 'stad', 'ford', 'ton', 'ham', 'wick', 'dorf', 'vik', 'field'];

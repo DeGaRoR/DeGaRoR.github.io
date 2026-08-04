@@ -155,16 +155,20 @@ function makeWorld(seed) {
   // grading term to terrainH below.
   const SET = bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
 
-  // final terrain: tV1 + road grading, masked off the runway pad (padRamp)
-  // and faded inside meadows (same blend weight — meadow centres stay
-  // EXACTLY at m.h, the WORLD gate pins that).
-  function terrainH(x, z) {
+  // stage 0-3 terrain: tV1 + road grading, masked off the runway pad
+  // (padRamp) and faded inside meadows (same blend weight — meadow
+  // centres stay EXACTLY at m.h, the WORLD gate pins that). Stage-4
+  // aerodrome grading composes on top in terrainH below.
+  let _cd = 0;   // carve depth at the last tV2 call — read by terrainH below
+  function tV2(x, z) {
     let h = h0(x, z);
     const r = padRamp(x, z);
+    _cd = 0;
     if (r > 0) {
       const hRaw = h;
       h += (HYD.carve(x, z, h) - h) * r;
       const carveDepth = hRaw - h;             // >0 inside river beds / lakes
+      _cd = carveDepth;
       h = blendM(x, z, h);
       const g = SET.roadDelta(x, z, h) - h;
       if (g !== 0) {
@@ -182,9 +186,26 @@ function makeWorld(seed) {
     return blendM(x, z, h);
   }
 
+  // ---- stage 4 aerodromes (WORLD-GEN-PROC): a main field per sizeable
+  // town + fly-in backcountry strips, sited on the stage 0-3 terrain;
+  // their grading composes into the final terrainH, records join the
+  // W.aerodromes registry (still DESCRIPTIVE — AP integration pending).
+  const AERO = bakeAerodromes({
+    terrain: tV2, water: HYD.water, settlements: SET.settlements,
+    meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
+  for (const st of AERO.strips) aerodromes.push(st);
+
+  function terrainH(x, z) {
+    // strip grading must never fill a carved river bed (same rule as
+    // roads) — fade it out by carve depth, sampled in the tV2 call
+    const h = tV2(x, z);
+    const g = AERO.grade(x, z, h) - h;
+    return g !== 0 ? h + g * (1 - Math.min(1, _cd / 1.5)) : h;
+  }
+
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
   // (waterAt/terrainH are function declarations — hoisted, safe to bind)
-  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear });
+  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: AERO.surfaceAt });
 
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
   // order-independent per point (replaces the v0 sequential LCG loop);
@@ -211,6 +232,7 @@ function makeWorld(seed) {
       if (HYD.water(x, z) > h) continue;
       if (SET.roadNear(x, z) < 12) continue;   // clear of roads
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
+      if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       const tp = B.treeAt(x, z, h);
       if (!tp || j3 > tp.p) continue;
       const idx = trees.length;

@@ -47,6 +47,10 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `src/core/23_world_settle.js` — bakeSettlements(deps): stage-3 sites,
   organic road network (grown from the airfield), bridges, road-grading
   SDF, building footprints. As-built: WORLD-GEN-PROC stage 3.
+- `src/core/24_world_aero.js` — bakeAerodromes(deps): stage-4 town
+  fields + fly-in backcountry strips, oriented grading SDF, surface
+  patches, tree exclusion, AP-ready registry records. As-built:
+  WORLD-GEN-PROC stage 4.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
 - `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
@@ -97,6 +101,9 @@ from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
 (+~2 s WORLD).
+GATE AERO (appended after SETTLE, ~2.5 s) holds the stage-4 invariants:
+counts/size mix, centreline flat + slope, dry, tree-free boxes, surface
+patches, tdz on pad, reachable-or-fly-in, spacing, determinism.
 GATE SETTLE (appended after BIOME, ~1 s) holds the stage-3 invariants:
 settlement sanity/spacing/dry, road-graph connectivity, bridges on water,
 cross-slope bound, pad clearance, buildings sane + tiled, tree clearance,
@@ -239,6 +246,14 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   during liftoff flickers ROLL/LIFTOFF forever.
 
 ## WORLD
+- Stage 4 aerodromes since W9 (2026-08-04): W.aerodromes now carries 12
+  records — HOME + 3 meadows + 5 town fields (Morford 900 m PAVED, four
+  grass 480-650 m, all within ~80 m of a road) + 3 GRAVEL fly-in
+  backcountry strips (all on archipelago benches at seed 0 — post-warp
+  mountains are too rough, honest). Strip grading composes into terrainH
+  (carve-depth-masked like roads: never fills river beds), tree
+  exclusion +30 m, PAVED/GRAVEL surface patches live, tdz + hdg ready
+  for the AP session. Registry STILL DESCRIPTIVE for the AP.
 - Domain warp since W7 (2026-08-04): IQ-style warp (2-octave channels,
   320 m field / 700 m masks) + 5th fBm octave. FIRST change to home h0:
   meadow heights moved (M1 24.3→32.7), pad still exactly 0; DC-3
@@ -447,9 +462,14 @@ W7. **Domain warp** — DONE 2026-08-04: IQ warp + 5th octave + warped
     targets re-subdivided ≤50 m for the rougher ground.
 W8. **Terrain colour pass** — DONE 2026-08-04: renderer-only (no world
     data change, no re-golden) — upland palette + vegetation mottling
-    (see GRAPHICS). Next on this branch: stage 4
-    aerodromes-per-settlement, stage 5 cliffs/scree sharpening, or
-    AP-reads-aerodromes.
+    (see GRAPHICS).
+W9. **Stage 4 aerodromes** — DONE 2026-08-04: 24_world_aero.js (see
+    WORLD), GATE AERO, strip decals + windsocks, town pops rank-spread
+    (stage-3 saturation fix). GRID+TREES re-goldened; meadows/anchors
+    held. THE WORLD-GEN-PROC PIPELINE IS COMPLETE THROUGH STAGE 4.
+    Next on this branch: AP-reads-aerodromes (fly town to town — the
+    registry has hdg/elev/tdz waiting), stage 5 cliffs/scree, or the
+    renderer overhaul backlog.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

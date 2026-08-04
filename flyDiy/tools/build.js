@@ -30,6 +30,7 @@ const MANIFEST = {
     '21_world_hydro.js',
     '22_world_biomes.js',
     '23_world_settle.js',
+    '24_world_aero.js',
     '30_solver.js',
     '40_autopilot.js',
     '50_model_codec.js',

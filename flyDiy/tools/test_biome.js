@@ -21,7 +21,7 @@ const cnt = {};
     pct(S.GRASS) > 5 && pct(S.FOREST_FLOOR) > 5 && pct(S.FOREST_FLOOR) < 35 &&
     pct(S.WATER) > 30 && pct(S.WATER) < 60 && pct(S.ROCK) > 5 && pct(S.ROCK) < 25 &&
     pct(S.SAND) > 0.3 && pct(S.SAND) < 8 && pct(S.SCREE) > 0.1 && pct(S.SCREE) < 5 &&
-    !cnt[S.PAVED] && pct(S.GRAVEL) < 1.5;  // GRAVEL = stage-3 roads, thin bands
+    pct(S.PAVED) < 0.5 && pct(S.GRAVEL) < 1.5;  // roads + stage-4 strips, thin patches
 }
 
 // --- classifier semantics (same slope estimator as the classifier) ---

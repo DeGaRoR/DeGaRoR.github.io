@@ -594,6 +594,58 @@ function buildWorldScene(scene, world, renderer, camera) {
     }
   }
 
+  { // stage-4 aerodromes: strip decals + windsocks at every field/strip
+    const mkTex = kind => {
+      const cv2 = document.createElement('canvas'); cv2.width = 512; cv2.height = 64;
+      const q = cv2.getContext('2d');
+      if (kind === 'paved') {
+        q.fillStyle = '#63636a'; q.fillRect(0, 0, 512, 64);
+        q.fillStyle = '#e9e4d6';
+        for (const u of [10, 496]) for (let k = 0; k < 4; k++) q.fillRect(u, 8 + k * 14, 6, 8);
+        q.fillStyle = '#d9d3c0';
+        for (let u = 40; u < 470; u += 32) q.fillRect(u, 30, 14, 3);
+      } else if (kind === 'grass') {
+        q.fillStyle = '#6b7a36'; q.fillRect(0, 0, 512, 64);
+        for (let i = 0; i < 6; i++) { q.fillStyle = i % 2 ? '#77873b' : '#5f6f2c'; q.fillRect(0, i * 11, 512, 10); }
+        q.fillStyle = '#e9e4d6';
+        for (const u of [8, 498]) q.fillRect(u, 12, 5, 40);
+      } else {
+        q.fillStyle = '#96917e'; q.fillRect(0, 0, 512, 64);
+        q.fillStyle = '#c9c2ae';
+        for (let u = 16; u < 500; u += 60) { q.fillRect(u, 6, 8, 5); q.fillRect(u, 53, 8, 5); }
+      }
+      const t = new THREE.CanvasTexture(cv2);
+      t.encoding = THREE.sRGBEncoding;
+      return t;
+    };
+    const texes = {};
+    const poleMat = new THREE.MeshLambertMaterial({ color: C(0xd8d2c4) });
+    const sockMat = new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide });
+    for (const a of world.aerodromes) {
+      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      const kind = a.surface === world.SURFACE.PAVED ? 'paved'
+        : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
+      if (!texes[kind]) texes[kind] = mkTex(kind);
+      const geo = new THREE.PlaneGeometry(a.len, a.wid);
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo,
+        new THREE.MeshLambertMaterial({ map: texes[kind], depthWrite: false }));
+      m.rotation.y = -a.hdg;
+      m.position.set(a.x, a.elev + 0.06, a.z);
+      m.renderOrder = 2;
+      m.receiveShadow = true;
+      scene.add(m);
+      // windsock off the strip edge
+      const px2 = a.x - Math.sin(a.hdg) * (a.wid / 2 + 9);
+      const pz2 = a.z + Math.cos(a.hdg) * (a.wid / 2 + 9);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);
+      pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(pole);
+      const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true), sockMat);
+      sock.rotation.z = Math.PI / 2; sock.rotation.y = -a.hdg;
+      sock.position.set(px2, a.elev + 5.5, pz2); sock.castShadow = true; scene.add(sock);
+    }
+  }
+
   { // landing meadows: marker ring + beacon
     const beaconGeo = new THREE.CylinderGeometry(0.16, 0.22, 7);
     const flagGeo = new THREE.PlaneGeometry(2.4, 1.4);

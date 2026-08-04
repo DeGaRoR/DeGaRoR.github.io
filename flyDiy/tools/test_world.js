@@ -13,9 +13,11 @@ const { makeWorld } = require('./flight_core.js');
 // TREES fe7ae7d8; stage-1 GRID cdccbc80; stage-2 TREES b097b0ed; stage-3
 // GRID 4ade0091 (±4500 sampling); W6 GRID 9dded77 TREES f6287454 (24869),
 // MEADOWS 27f288de through W6.
-const GOLDEN_GRID = '197b3fb1';
-const GOLDEN_TREES = 'f9659f9c';
-const GOLDEN_TREE_COUNT = 24738;
+// (W9 stage-4 aerodromes: strip grading is a terrain change, trees
+// re-laid with strip exclusion; meadow hash + anchors held)
+const GOLDEN_GRID = '3b3337d3';
+const GOLDEN_TREES = '6ee2da8c';
+const GOLDEN_TREE_COUNT = 24789;
 const GOLDEN_MEADOWS = '85de271f';
 const GOLDEN_ANCHORS = ['0', '0.21004043626020646', '29.022467498732595', '32.70294769782758'];
 
@@ -47,7 +49,7 @@ checks['v1 members'] =
   typeof W.waterH === 'function' && typeof W.surface === 'function' &&
   W.SURFACE && W.SURFACE.GRASS === 0 && W.SURFACE.WATER === 4 &&
   W.TILE === 512 && typeof W.tile === 'function' &&
-  Array.isArray(W.aerodromes) && W.aerodromes.length === 4 && Array.isArray(W.settlements);
+  Array.isArray(W.aerodromes) && W.aerodromes.length >= 4 && Array.isArray(W.settlements);
 
 // --- golden freeze (seed 0 === pre-contract world, full precision) ---
 checks['golden grid hash'] = gridHash(W, 240) === GOLDEN_GRID;

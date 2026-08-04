@@ -214,7 +214,29 @@ Original sketch:
 - Gate: road graph connected; every bridge lies on a river crossing; road
   max cross-slope bounded; settlements don't overlap water.
 
-## Stage 4 — Aerodromes (the point of the exercise)
+## Stage 4 — Aerodromes (the point of the exercise) — DONE 2026-08-04
+
+Implemented in `src/core/24_world_aero.js` (`bakeAerodromes(deps)`).
+As-built: main field per town with pop ≥ 250 (candidate ring 3 radii × 12
+angles × 8 headings, scored on centreline flatness + slope + road
+proximity; road-reachability ≤ 1100 m is a HARD siting requirement —
+towns that can't meet it get no field, honest); pop ≥ 800 → 900 m paved
+(wid 30), ≥ 450 → 650 m grass, else 480 m grass. Backcountry: ≤ 3
+gravel 340 m fly-in strips on benches (flat ≤ 5 m, slope ≤ 5 % over the
+probe) — post-warp mountains are too rough, so seed-0's fly-ins all sit
+on archipelago benches (island strips; charming, accepted). Each strip:
+oriented grading SDF (flat roadbed + feather 90+len·0.1, clamped by
+carve depth — strip grading must never fill a river bed, HYDRO caught
+it), PAVED/GRAVEL/GRASS surface patch, tree exclusion +30 m, registry
+record {hdg, len, wid, surface, elev, tdz, flyIn} for the future AP.
+Stage-3 note: town pop is now rank-declining + hash spread — the score
+formula saturated every town at 900 and made all fields identical.
+Renderer: per-surface strip decal textures + windsocks.
+GATE AERO: counts + size mix, centreline flat/slope, dry, tree-free
+oriented boxes, surface patches, tdz on pad, reachable-or-fly-in,
+spacing, determinism. Seed-0: 5 town fields (1 paved) + 3 fly-ins.
+
+Original sketch:
 
 - **Main field** per settlement above ⚙ pop threshold: search near town for
   the best strip site — score = flatness along candidate heading (sample
