@@ -64,7 +64,7 @@ import { SLICE_LIMITS } from './factory.js';
  */
 export const CROSS_FIELDS = {
   material:   ['hue', 'hueVariance', 'patternScale', 'patternContrast', 'stripeAnisotropy', 'iridescence'],
-  controller: ['omega', 'preyGain', 'threatGain'],
+  controller: ['omega', 'preyGain', 'threatGain', 'phaseBase', 'phaseSlope', 'proprioGain'],
   social:     ['trophic', 'boldness', 'cohesion', 'separation', 'alignment', 'separationRadius'],
 };
 

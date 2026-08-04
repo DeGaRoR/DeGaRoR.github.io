@@ -55,6 +55,35 @@ visual-only linkage.
   255, so jpeg is safe.
 - Payload: 781 KB (was 546 KB exterior-only). Artifact total ~1.65 MB.
 
+## 2b. The c172 (GLB source, 2026-08-04)
+
+Second model, and the one that generalised the machinery. Source is a
+Sketchfab GLB (NLM, CC-BY 4.0) rather than a FlightGear OBJ — see
+MODEL-IMPORT-PROC.md Step 0b for the conversion, `tools/glb_extract.py` and
+`tools/models/c172_src.py` for the part table.
+
+- **27 groups, 120 k verts / 186 k tris, 12 textures, 6.2 MB.** The mesh is
+  imported AS-IS — no decimation — and the textures are embedded verbatim.
+  Exterior on the Body atlas (`skin`), glazing, tyres, hubs, metal fittings,
+  nose axle, four `prop*` groups, and the interior split per material.
+  Load cost is carried by the boot splash, not by degrading the model.
+- **Rig list.** `SKIN_CFG.c172.rig = ['skin','metal','tyre','hub','gear']`.
+  The nose gear steers and its parts carry four materials, so four groups
+  need the hinge pass; `metal` is rigged only for flex (strut fittings).
+  Default is `['skin']`, so the pa18 path is byte-for-byte what it was.
+- **Non-cardinal hinges.** Wing dihedral tilts the flap and aileron hinges,
+  aileron taper sweeps them 7 deg, and the rudder hinge rakes 24 deg. The
+  axes are least-squares fits from `model_inspect.py --edge` (which now
+  prints them); the Rodrigues pass took them unchanged.
+- **Flat colour goes opaque.** `matFor` used to force `transparent:true,
+  depthWrite:false` on every untextured material — right for the pa18's two
+  translucent groups, wrong for a cabin. Now it keys off `opacity < 1`.
+- **Glazing keeps its own tint map** (Window.png at opacity 0.37) — payload
+  materials may now carry tex + opacity + color together, where before a
+  material was either textured or flat-translucent.
+- **Mount** `off = [1.694, -1.420, 0]`, calibrated at both gear ends:
+  mains 0.2 cm and nose 0.8 cm off the sim's settled contact plane.
+
 ## 3. Rigid mount
 
 Model frame orientation = body frame with **z left** (`zL = xAft × yUp`),
@@ -177,8 +206,19 @@ speed / attenuation ≥5× / flap channel.
   mirrored fiches; a non-mirrored aircraft would need a union+assert);
   prop rotation accumulates unbounded; linkage + prop spin hardcode 1/60
   (matches both render loops — never change one without the other).
-- **One model (pa18).** The machinery is per-aircraft via `MODELS3D` /
+- **Two models (pa18, c172).** The machinery is per-aircraft via `MODELS3D` /
   `SKIN_CFG`; adding a model = bake + offset calibration + cfg entry.
+- **c172 residual mismatches, known and accepted**: the model's wing sits
+  ~25 cm below the sim's spar nodes in the body frame (invisible — the flex
+  overlay is delta-driven — but the FRAME view shows it), and the model's
+  front spar is ~0.46 m aft of the sim's. Moving the sim's wing to match
+  would rewrite the static margin and every AP tune with it; the calibration
+  anchors on the wheels instead, which is what a viewer can actually see.
+- **Gear compression is not drawn.** The skin is rigid below the wing, so
+  when the sim's gear deflects, the drawn wheels sink with the airframe.
+  Static deflection is 4.4 cm (c172) — invisible; a hard arrival is not.
+  Articulating the gear would be the same mechanism as the hinges (a
+  prismatic drive instead of a rotary one) — ⏳.
 
 ## 7. Gate summary
 
@@ -189,6 +229,7 @@ speed / attenuation ≥5× / flap channel.
 | CTRL | 7 surfaces, hinge magnitudes/signs, aileron antisymmetry, flap symmetry, fin ramp leak < 2 mm, zero band leak, hinge+flex composition, tailwheel k=0.5, linkage DC/step/attenuation/flap |
 | UISMOKE | executes the built artifact's core+models+app blocks headless: 180 frames of the loop incl. deform, every button, dropdown aircraft switch |
 | PA18 | full circuit: AP deploys flaps on approach (max > 0.95) and retracts for rollout, td sink < 1.5, three-point attitude, no noseover |
+| C172M | c172 payload decode, span/length, tricycle mount calibration at BOTH ends, non-cardinal hinge axes (unit, correct signs), nose-gear steering across four groups, flex band containment/symmetry, strut fittings bound but fuel caps not |
 | GE…TREE | physics battery unchanged |
 
 ## 8. Incident log
@@ -211,6 +252,10 @@ speed / attenuation ≥5× / flap channel.
   lower rollD, or a mass-weighted multi-node attitude frame.
   Prototype fix (visual only): **two-pole linkage low-pass**, ⚙ `LINK_TAU`
   0.15 s/pole — 6.5× attenuation (residual ±0.7°), 90% step in 0.53 s.
+  **CLOSED core-side in W16 (2026-08-04)**: fiche `rollD: 0.8` on cub/pa18
+  kills the cycle at the source (aileron 7.9° → 0.2° p2p measured); the
+  "lower rollD" candidate above was the right one — a faster rate filter
+  made it worse. The linkage low-pass stays for actuation realism.
   **Tailwheel steering**: one SURFACES row, k=0.5 rudder ratio.
 
 - **e5 · trunk port + flaps + interior (2026-08).** Re-homed onto the src/

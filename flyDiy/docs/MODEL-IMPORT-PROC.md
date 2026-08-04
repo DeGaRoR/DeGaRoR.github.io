@@ -13,10 +13,18 @@ inventory script that never existed — both replaced by real tooling.
 
 ---
 
+Two source formats are supported. **OBJ + MTL + textures** goes straight into
+Step 1. **GLB (glTF binary)** — what Sketchfab and Blender hand you — goes
+through Step 0b first, which converts it into exactly that OBJ so the rest of
+the procedure is unchanged. The C172 came in that way.
+
+---
+
 ## Step 0 — Source model requirements
 
 - **Format**: OBJ + MTL + textures (FlightGear models are ideal: GPL, true
-  scale, sensible part naming — helijah's hangar is a goldmine).
+  scale, sensible part naming — helijah's hangar is a goldmine), or GLB
+  (Step 0b).
 - **License**: record author + license in the config `credit` (the bake
   writes it into the payload header) AND add a visible credit + an entry in
   `flyDiy/CREDITS.md`. If the model exists under several license statements
@@ -29,6 +37,67 @@ inventory script that never existed — both replaced by real tooling.
   bake (not yet needed, so not yet implemented).
 - **Scale**: true meters. Check span/length against the real aircraft.
 - **Home**: source files live in `flyDiy/assets/<key>/`.
+
+## Step 0b — GLB source: convert to OBJ (reference: C172)
+
+A Sketchfab/Blender GLB differs from a FlightGear OBJ in four ways that all
+have to be handled before Step 1, and `tools/glb_extract.py` handles all four
+from one config, `tools/models/<key>_src.py`:
+
+1. **Axes and scale.** glTF is *+y up, +z nose, +x LEFT* (right-handed, so
+   x = up × nose). Target model frame is *x aft, y up, z left*, i.e.
+   `(x,y,z)_model = (−z, y, x)_gltf`. That map has det = +1 — check it, a
+   mirrored livery is what getting it wrong looks like. Scale is whatever the
+   exporter felt like (the C172 arrived at ~1/3); pin it by matching a real
+   dimension — span is the best one — and cross-check length and height.
+2. **Names are useless.** Sketchfab mangles object names to `Plane.002_1` /
+   `Object_17`, so parts must be identified **geometrically**:
+   ```
+   python tools/glb_inspect.py <model>.glb                 # world-space inventory
+   python tools/glb_inspect.py <model>.glb --tex           # images + materials
+   python tools/glb_inspect.py <model>.glb --anim          # animation channels
+   python tools/glb_render.py  <model>.glb --views         # 3 ortho silhouettes
+   python tools/glb_render.py  <model>.glb --only 4,6,8 --cols 3 --tile 250
+   ```
+   The last one is the workhorse: a **contact sheet** with one row per node,
+   each showing side | top | front silhouettes with that node highlighted red
+   against the whole model in grey. Sixty-nine parts are identifiable in a few
+   sheets. Record what you decide in the `_src.py` table — it is the only
+   place that knowledge exists.
+3. **Staging props.** Display models come dressed: the C172 carried four
+   "remove before flight" ribbons, their mounting hardware, and ground
+   tie-down anchors on concrete pads. `skip=True` per node. Look for a
+   material literally named `remove_before_flight`, and for anything sitting
+   at y≈0 outside the wheel track.
+4. **Wrong granularity.** Step 1 needs one object per control surface;
+   the C172's flaps were one mesh spanning both wings, likewise the ailerons.
+   `split=True` cuts a mesh by triangle-centroid z (model frame: +z is LEFT)
+   into `<name>G` / `<name>D`. And source models have holes: this one modelled
+   only the RIGHT wing strut, so `mirror='strutG'` mirrors and re-winds it.
+
+**The mesh itself is carried through untouched.** No decimation, no vertex
+welding, no clipping. A detailed model is meant to arrive detailed, and the
+silhouette, panel lines and interior are exactly what you imported it for.
+Payload size is a *load-time* problem — the artifact has a boot splash for it
+(body.html `#boot`, dropped on the first rendered frame) — not a licence to
+throw the model away. The extractor did briefly grow a decimator; it was the
+wrong call and the code is gone rather than sitting there to be re-enabled.
+
+```
+python tools/glb_extract.py <key>
+```
+Output is `assets/<key>/<key>.obj` + `.mtl` + textures. From here the OBJ
+path is identical, including `model_inspect.py`.
+
+Textures follow the same rule: bake them with `fmt='copy'`, which embeds the
+source file's own bytes at its own resolution. Nothing re-encoded, nothing
+guessed. (`fmt='jpeg'` with `max`/`q` still exists for a source that really is
+oversized for what it depicts — the PA-18 uses it — but it is a deliberate
+choice, not the default.)
+
+Note on animation: a GLB may ship animation channels (the C172 has a 61°
+door-swing). We bake the **rest pose** — `glb_extract` composes static node
+transforms only, so the doors come out closed, which is what we want.
 
 ## Step 1 — Inventory the parts
 
@@ -117,12 +186,28 @@ Per surface, measure from the mesh:
 python tools/model_inspect.py assets/<key>/<model>.obj --edge <object> --span z --bands 6
 ```
 
-The probe prints per-band forward-edge x, mid-thickness y, and a suggested
-hinge point; it warns if the edge rakes > 5 mm (non-axis-aligned hinge).
+The probe prints per-band forward-edge x, mid-thickness y, a suggested
+axis-aligned hinge point, a warning if the edge rakes > 5 mm, and a
+**least-squares fit** `p`/`ax` through the per-band edge points.
 
-- **hinge point** = forward edge, mid-thickness (the probe's suggestion);
+Use the fit when the warning fires. The payload's Rodrigues pass takes an
+arbitrary unit axis, so a hinge that is not axis-aligned costs nothing and
+needs no approximation — and most real airframes have at least one:
+
+| C172 surface | why the hinge is not cardinal | fitted `ax` |
+|---|---|---|
+| flapG/D | wing dihedral tilts it | (0, ±0.083, 0.997) |
+| aileronG/D | dihedral + 7° taper sweep | (∓0.122, ±0.048, 0.991) |
+| rudder | hinge rakes 24° aft | (0.411, 0.912, 0) |
+
+- **hinge point** = forward edge, mid-thickness (the probe's suggestion for a
+  cardinal hinge; the fit's `p` otherwise);
 - **axis** = span direction (z for ailerons/elevator/flaps, y for
-  rudder/tailwheel); ignore sub-degree rake;
+  rudder/tailwheel/nosewheel), or the fitted direction. **Sign matters**:
+  rotation about `a` and about `−a` are opposite. Keep the axis canonical
+  (dominant component positive, which is what the fit prints) and let `sgn`
+  carry the direction — then the sign rules below read the same as for a
+  cardinal axis;
 - **drive + sign** from flight_core conventions — derive, don't guess:
   read the strip math (`ctl.de/da/dr/flap` application) and confirm
   empirically with a probe run. PA-18 reference: +de → elevator TE up;
@@ -160,11 +245,40 @@ antisymmetry or symmetry as appropriate, leak = 0, composition with flex).
 6. Eyeball in browser: mount fit at rest, flex at ×4, each surface
    direction, texture under scene lighting, interior through the glass.
 
+## Step 6 — when one group is not enough (C172)
+
+The pa18 rig is one group, `skin`: it carries the sid tags, the hinges and the
+flex binding, and everything else in the payload is rigid. That holds only
+while every moving part shares one material.
+
+The C172's nose wheel steers, and its parts carry four different materials
+(Body fairing and fork, Tyre, Disk hub, Metal.002 axle) — so they land in four
+groups. `SKIN_CFG.<key>.rig` is the list of groups that get a hinge binding
+(if they carry sid) and a flex binding; it defaults to `['skin']`, so the
+pa18 is untouched. Two consequences worth knowing:
+
+- **A group is the unit of both material and rigging.** If a part must move it
+  must be in a rigged group; if it must flex with the wing, likewise. The C172
+  rigs `metal` (which carries no sid at all) purely so the strut fittings at
+  |z| 2.62 bend with the wing instead of hanging in space.
+- **Groups named `prop*` all spin** about `hub` (blades, spinner, cap, tip) —
+  again because one prop assembly spans several materials.
+
+Flat-colour groups (no texture) render **opaque** unless the payload gives
+`opacity < 1`; the whole C172 interior is flat colour and must write depth.
+
 ## Budget note
 
-The PA-18 payload is 781 KB (27 k tris exterior + 4.5 k verts interior +
-1024 px atlas + 10 interior/gauge textures); the single-file artifact is
-~1.65 MB (github.io serves gzip; base64 gzips to roughly ¾ of that).
-Six aircraft ≈ +4–5 MB artifact. Before importing all six, decide whether
-to split payloads into lazily-fetched files (breaks the single-file
-artifact) or accept the size. ⏳ open question.
+The PA-18 payload is 781 KB. The C172 is **6.2 MB** — 27 groups, 120 k verts /
+186 k tris, 12 textures embedded verbatim — because it is imported as-is. The
+single-file artifact is **7.9 MB**.
+
+That is the accepted cost, and the decision is recorded here so it is not
+quietly re-litigated: **detailed models load, and loading is handled with a
+loading screen**, not by decimating. The artifact streams, the boot splash is
+the first element in `<body>` so it paints from the first few KB, and payload
+decode is only ~30 ms once the bytes are there.
+
+If a future model makes the single file genuinely unworkable, the answer is to
+split payloads into lazily-fetched files (which costs the zero-network
+property) — not to degrade the mesh.

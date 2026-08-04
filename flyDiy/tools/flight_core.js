@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2e604ebb3e88b335
+// body-sha256: c3af6685afd1f557
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -118,6 +118,10 @@ function buildCub() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
+  // snap-blocking near-vertical member (structural rule 10, the drone cure):
+  // without it the tailwheel folds UP about TPB and LATCHES (bare post on
+  // the terrain) when parked in a tailwind — reset slam + breeze, W13.
+  BG(TW, TPT);
 
   const MW = 8, wf = { L: null, R: null };
   const mkWing = (s) => {
@@ -141,6 +145,10 @@ function buildCub() {
   const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
+  // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
+  // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
+  // sideways], measured) — wide anchors kill it
+  BG(TW, HTL); BG(TW, HTR);
   const FIN = N(5.05, 0.95, 0, 4, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
@@ -191,6 +199,12 @@ function buildCub() {
     twSteer: 0.5,
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
+      VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
+      TORun: 60,                    // measured run to 2.5 m agl (W14 multi-hop)
+      // W16 lateral quiet: same 4 Hz aileron limit cycle as the pa18
+      // (shared geometry) — default rollD 2.0 on the lagged rate estimate;
+      // 0.8 kills it (see pa18 fiche note).
+      rollD: 0.8,
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
       rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
       thMax: 0.20, flareAgl: 4.8, flareRate: 0.062, aglGuard: 3,
@@ -384,6 +398,7 @@ function buildDC3() {
     ap: {
       rotate: true,
       VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 43, VTurn: 55,
+      TORun: 960,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.030, thRotate: 0.100,
       lookRoll: 45, lookAppr: 650, lookCruise: 900,
       // gs 0.044 -> 0.060 (flapped approaches are steeper): with split-flap
@@ -606,6 +621,7 @@ function buildChinook() {
     flaps: { to: 0, ldg: 0.6, rate: 0.25, tau: 0.08, dCl0: 0.25, dCd0: 0.030, dAStall: 0.02, dCm0: -0.12 },
     ap: {
       VRot: 10, VClimbMin: 12, VClimb: 17, VCruise: 24, VAppr: 16, VTurn: 19,
+      TORun: 105,                   // measured run to 2.5 m agl (W14 multi-hop)
       lookRoll: 25, lookAppr: 140, lookCruise: 220,
       hCruise: 120, hSafe: 12, xTurn: -2600, xAim: -520, gs: 0.068,
       thrFloor: 0.06,
@@ -710,15 +726,26 @@ function buildC172() {
   };
   mkWing(+1); mkWing(-1);
 
-  // ---- TRICYCLE gear: sprung mains aft of CG, steerable nosewheel ahead
-  const [GAL, GAR] = NM(2.72, -0.60, 1.26, 14, 'AXLE', 0.28);
+  // ---- TRICYCLE gear: sprung mains aft of CG, steerable nosewheel ahead.
+  // Geometry calibrated against the 3D model (MODEL-IMPORT-PROC step 2):
+  //   track 2.62 m (was 2.52), wheelbase 1.74 m (was 1.97 — the model and the
+  //   real 172 are both ~1.7), tyre radii 0.173/0.174 measured off the meshes
+  //   (were 0.28/0.24), and a LEVEL static stance: the model sits level on its
+  //   gear, the old fiche sat 2.7 deg nose down.
+  // The smaller tyres also drop the airframe 10 cm: the wing now rides 2.25 m
+  // over the ground (was 2.35, real 172 ~2.2), which is what ground effect
+  // reads. Do NOT shorten the legs further to chase the model's 1.95 m — the
+  // axle attaches to the fuselage bottom rail at y 0.05 and |z| 0.60, so at
+  // this track the legs already splay ~47 deg; take the drop below ~0.55 and
+  // the gear goes over-centre and folds up under static load.
+  const [GAL, GAR] = NM(2.72, -0.60, 1.31, 14, 'AXLE', 0.173);
   BG(GAL, GAR);
   for (const [G, sgn] of [[GAL, -1], [GAR, 1]]) {
     const b2 = sgn > 0 ? F[2].BR : F[2].BL, b3 = sgn > 0 ? F[3].BR : F[3].BL;
     const b1 = sgn > 0 ? F[1].BR : F[1].BL, bo = sgn > 0 ? F[2].BL : F[2].BR;
     BG(G, b2); BG(G, b3); BG(G, b1); BG(G, bo);
   }
-  const NW = N(0.75, -0.54, 0, 10, 'TW', 0.24);        // nosewheel (steerable ref)
+  const NW = N(0.983, -0.566, 0, 10, 'TW', 0.174);     // nosewheel (steerable ref)
   BG(NW, S0.BL); BG(NW, S0.BR); BG(NW, F[1].BL); BG(NW, F[1].BR);
 
   // ---- tail
@@ -767,7 +794,10 @@ function buildC172() {
     elevTau: 0.48, rudTau: 0.50, ailTau: 0.35, downwash: 0.40,
     stabTrim: 0.0006, sparSpacing: 0.82,
     fusCdA: [0.46, 1.0, 1.0], fusCdAAft: [0, 0.70, 0.70],
-    twSteer: -0.35,          // nosewheel: sign to be verified empirically
+    // nosewheel. Sign verified: the solver turns the rolling direction by
+    // -twSteer*dr about +y, so negative points the NOSE wheel left for
+    // nose-left (a tailwheel wants the positive sign the taildraggers use).
+    twSteer: -0.35,
     // barn-door Fowler-ish flaps 30: calibrated in the free-air tunnel against
     // POH Vs0 ~40-42 kt vs Vs1 46 (see test_flaps.js)
     // dCm0 ~ -0.25*dCl0 (thin-airfoil TE device): weaker values let the flap
@@ -776,6 +806,7 @@ function buildC172() {
     ap: {
       rotate: true,
       VRot: 28, VClimbMin: 32, VClimb: 38, VCruise: 58, VAppr: 33.5, VTurn: 44,
+      TORun: 400,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.02, thRotate: 0.10,
       lookRoll: 35, lookAppr: 320, lookCruise: 450,
       hCruise: 180, hSafe: 20, xTurn: -3800, xAim: -640, gs: 0.052,
@@ -963,6 +994,7 @@ function buildJodel() {
     ap: {
       rotate: true,
       VRot: 27, VClimbMin: 30, VClimb: 41.7, VCruise: 62, VAppr: 33, VTurn: 45,
+      TORun: 410,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.030, thRotate: 0.11,
       lookRoll: 30, lookAppr: 300, lookCruise: 420,
       hCruise: 160, hSafe: 20, xTurn: -3600, xAim: -560, gs: 0.045,
@@ -978,7 +1010,16 @@ function buildJodel() {
       brakeMax: 0.30, brakeRampRate: 0.14, VBrakeOn: 20, VBrakeRelease: 1.5,
       rateFilt: 0.18, attFilt: 0.60, pitchP: 1.3, pitchD: 0.70, pitchI: 0.12,
       pitchCmdSlew: 1.0, vsP: 0.014, vsI: 0.030, vsFloor: -0.10, altVSGain: 0.10,
-      vsFilt: 0.40, hdgP: 0.5, hdgD: 0.8, bankSlew: 0.20, rollP: 1.1, rollD: 0.30,
+      // W16 lateral quiet: 1.1/0.30 limit-cycled 11 deg of REAL bank at
+      // 1.8 Hz (28 deg aileron p2p) — an aileron-loop instability, proven
+      // by the freeze test (rollP=rollD=0 -> dead calm; rudder freeze
+      // changed nothing, so NOT dutch roll; raising servo slew made it
+      // WORSE). rollP 0.5/rollD 0.15 kills it; hdgP 0.5 -> 0.65
+      // compensates the softer roll loop for capture + decrab (measured:
+      // calm tdZ 2.4, crosswind tdDrift -0.24 / tdZ 2.9 — better than
+      // the OLD gains' -1.64 / -6.9). Pure-roll candidates failed the
+      // crosswind drift bound: quiet needs the course loop to carry more.
+      vsFilt: 0.40, hdgP: 0.65, hdgD: 0.8, bankSlew: 0.20, rollP: 0.5, rollD: 0.15,
       betaK: 0.3, yawDampK: 0.35, ariK: 0.0, bankLim: 0.48,
     },
   };
@@ -1123,6 +1164,7 @@ function buildDrone() {
     twSteer: 0.75,
     ap: {
       VRot: 4.5, VClimbMin: 8.5, VClimb: 10, VCruise: 13, VAppr: 9,
+      TORun: 15,                    // measured run to 2.5 m agl (W14 multi-hop)
       hCruise: 60, hSafe: 8, xTurn: -900, xAim: -430, gs: 0.075,
       rollDe: 0.05, liftoffTh: 0.17, climbThBase: 0.13, climbThGain: 0.030,
       thMax: 0.22, flareAgl: 2.2, flareRate: 0.10, aglGuard: 1.5,
@@ -1199,6 +1241,10 @@ function buildPA18() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
+  // snap-blocking near-vertical member (structural rule 10, the drone cure):
+  // without it the tailwheel folds UP about TPB and LATCHES (bare post on
+  // the terrain) when parked in a tailwind — reset slam + breeze, W13.
+  BG(TW, TPT);
 
   const MW = 8, wf = { L: null, R: null };
   const mkWing = (s) => {
@@ -1222,6 +1268,10 @@ function buildPA18() {
   const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
+  // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
+  // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
+  // sideways], measured) — wide anchors kill it
+  BG(TW, HTL); BG(TW, HTR);
   const FIN = N(5.05, 0.95, 0, 4, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
@@ -1282,6 +1332,15 @@ function buildPA18() {
     // Measured: td sink 0.78, three-point 15.3 deg, no noseover.
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
+      VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
+      TORun: 60,                    // measured run to 2.5 m agl (W14 multi-hop)
+      // W16 lateral quiet: the default rollD 2.0 on the RF-lagged rate
+      // estimate limit-cycled the aileron 8-12 deg p2p at ~4 Hz (bank
+      // barely moved — surface flail + wing rock, user-visible on the
+      // skin). 0.8 kills it dead (0.2 deg residual); doctrine says lower
+      // D, and measured: a FASTER rate filter makes it worse.
+      rollD: 0.8,
+      VPinFull: 16,                 // moderate aft above this in rollout (hop guard)
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
       rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
       thMax: 0.20, flareAgl: 5.5, flareRate: 0.062, flareThr: 0.12, aglGuard: 3,
@@ -3162,19 +3221,57 @@ function makeAutopilot(sim, def, world) {
     ap.xc = from !== to;
     ap.frame = mkFrame(from);               // departure frame
     ap.altRef = from.elev;
+    ap.shortFld = false;                    // set per-arrival in enterArrival
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
               world ? world.aerodromes[0] : HOMEISH);
+  // W14 multi-hop: depart from wherever the aircraft is standing on
+  // `from` — no reset, no teleport. The plan runs on the first update
+  // (it needs the live pose): takeoff INTO the wind when there is any,
+  // else along the current nose; straight ahead when the runway left
+  // covers TORun + margin, else taxi back along the strip and turn
+  // around (TAXI/LINEUP), then the normal ROLL takes over. Use on a
+  // fresh makeAutopilot instance so restAlt/integrators latch clean.
+  ap.departFrom = (from, to) => {
+    ap.route = { from, to };
+    ap.xc = from !== to;
+    ap.altRef = from.elev;
+    ap.shortFld = false;
+    ap.trackHold = false;
+    ap.taxiTgt = null;
+    ap.phase = 'DEPART'; phaseT = 0;
+  };
   // arrival switch: destination landing frame + arrival altitude refs
   const enterArrival = () => {
     const { from, to } = ap.route;
     if (ap.xc) {
-      ap.frame = mkFrame(to, to.tdz[0] - from.tdz[0], to.tdz[1] - from.tdz[1]);
-      // short strips: the fiche aim point assumes 1100 m of runway ahead
-      // of the tdz — clamp it inside the destination threshold + 40 m
-      // (W9 strips have tdz 25% from the threshold; measured: the C172
-      // aimed 28 m SHORT of a 650 m strip and touched down on the grass)
-      ap.xAim = Math.max(A.xAim, -450 - 0.25 * to.len + 40);
+      // W13.2: land INTO the wind when there is any (a quartering
+      // tailwind at Stein bounced + veered + nosed-over every PA-18
+      // arrival), else keep facing travel as before. Sampled once at
+      // arrival setup — the viewer presets are constant fields.
+      let hx = to.tdz[0] - from.tdz[0], hz = to.tdz[1] - from.tdz[1];
+      if (world && world.wind) {
+        const wv = world.wind(to.x, to.elev + 30, to.z, ap.t);
+        if (Math.hypot(wv[0], wv[2]) > 0.7) { hx = -wv[0]; hz = -wv[2]; }
+      }
+      ap.frame = mkFrame(to, hx, hz);
+      // aim from the ACTUAL approach threshold of the chosen frame. The
+      // old "-450 - 0.25*len" assumed the tdz sits 25% from the approach
+      // end, which is only true in the record's canonical direction — a
+      // FLIPPED arrival aimed 0.5*len (195 m at Stein) too deep. In the
+      // canonical direction sThr is identical to the old formula, so
+      // calm bearing-picked gates are untouched.
+      const sCen = (to.x - ap.frame.ox) * ap.frame.ux + (to.z - ap.frame.oz) * ap.frame.uz;
+      const sThr = sCen - to.len / 2;
+      ap.xAim = Math.max(A.xAim, sThr + 40);
+      // short strips (fly-in benches, len < 450): aim just past the
+      // threshold and fly the fiche's short-field speed if it has one —
+      // the 1100 m-runway VAppr floats a third of a 340 m strip away.
+      ap.shortFld = to.len < 450;
+      if (ap.shortFld) {
+        ap.xAim = sThr + 75;       // measured touch scatter -50..+20 about aim
+        if (A.VApprShort) ap.VAppr = A.VApprShort;
+      } else ap.VAppr = A.VAppr;   // re-arm after a short-strip leg
     }
     ap.dirX = 1;
     ap.altRef = to.elev;
@@ -3186,7 +3283,16 @@ function makeAutopilot(sim, def, world) {
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   let eTrim = 0;                        // wind-only course trim (standing bank for slip)
+  let pendReEng = false;                // W14: full state re-latch on next update
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  // W14 manual-controls prep: call when the AP resumes after a stretch of
+  // external/manual flight — every integrator, filter and servo memory
+  // re-latches from the live state on the next update, so re-engage flies
+  // from the CURRENT attitude instead of stale pre-handoff state (the
+  // DC-3-at-Vr nose-over documented in HANDOVER). restAlt is left alone:
+  // it anchors the current route's altitude refs. Never called by the
+  // AP's own flow — zero effect on existing batteries.
+  ap.reEngage = () => { pendReEng = true; };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
@@ -3236,6 +3342,15 @@ function makeAutopilot(sim, def, world) {
     const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
+    if (pendReEng) {                    // W14: re-latch everything live
+      pendReEng = false;
+      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
+      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
+      vsF = vcg[1]; thCA = thRaw; phCA = 0;
+      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
+      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
+      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
+    }
     thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
     const th = thF, ph = phF;
     const RF = A.rateFilt ?? 0.12;
@@ -3254,7 +3369,12 @@ function makeAutopilot(sim, def, world) {
     }
 
     const holdPitch = (thC) => {
-      if (!holdWas && !holdActive) thCA = th; // re-engage from current attitude
+      // W14 fix of the documented holdWas bug: resync whenever the
+      // PREVIOUS update did not call holdPitch (bookkeeping at the end of
+      // ap.update). Continuous phase chains behave identically — the
+      // resync now also fires after ROLL retries and manual-flight gaps
+      // instead of only on the very first call of the AP's life.
+      if (!holdWas) thCA = th;                // (re-)engage from current attitude
       holdActive = true;
       const sl = (A.pitchCmdSlew ?? 99) * dt;
       thCA += clamp(thC - thCA, -sl, sl);
@@ -3293,7 +3413,61 @@ function makeAutopilot(sim, def, world) {
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
+    // W14 taxi governor: slow ground speed hold, slower through tight turns
+    const taxi = (Vt) => {
+      c.de = A.taxiDe ?? 0.30;             // stick aft: tailwheel planted, steering bites
+      c.thr = clamp(0.08 + 0.06 * (Vt - Vg), 0, 0.35);
+      c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
+      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+    };
+
     switch (ap.phase) {
+      case 'DEPART': {
+        // one-shot planning with the live pose (see ap.departFrom)
+        const from = ap.route.from;
+        const axx = snap(Math.cos(from.hdg)), axz = snap(Math.sin(from.hdg));
+        let dx = nose[0], dz = nose[1];
+        if (world && world.wind) {
+          const wv = world.wind(from.x, from.elev + 30, from.z, ap.t);
+          if (Math.hypot(wv[0], wv[2]) > 0.7) { dx = -wv[0]; dz = -wv[2]; }
+        }
+        const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
+        const ux = axx * sg, uz = axz * sg;          // takeoff direction
+        ap.frame = mkFrame(from, -ux, -uz);          // frame u = landing dir
+        ap.dirX = -1;
+        const need = (A.TORun ?? 500) + 60;
+        const sPos = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
+        if (from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
+        // backtrack: taxi to the run start for this direction (clamped to
+        // the strip); LINEUP then turns it onto the centreline
+        const sStart = Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
+        ap.taxiTgt = [from.x + ux * sStart, from.z + uz * sStart];
+        ap.phase = 'TAXI'; phaseT = 0;
+        break;
+      }
+
+      case 'TAXI': {
+        const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
+        const dist = Math.hypot(ddx, ddz) || 1e-9;
+        ap.targetDir = [ddx / dist, 0, ddz / dist];
+        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
+        if (dist < 22 || phaseT > 120) { ap.phase = 'LINEUP'; phaseT = 0; }
+        break;
+      }
+
+      case 'LINEUP': {
+        ap.trackHold = true;                 // centreline pursuit, dirX = -1
+        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        const alig = -(nose[0] * F.ux + nose[1] * F.uz);  // dot(nose, takeoff dir)
+        taxi(alig > 0.5 ? 4.5 : 2.4);
+        if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
+          ap.phase = 'ROLL'; phaseT = 0;
+          ap.t = Math.max(ap.t, 1);          // ROLL's 0.5 s throttle delay is long past
+        }
+        break;
+      }
+
       case 'ROLL':
         c.thr = ap.t > 0.5 ? 1 : 0; c.brake = 0;
         if (A.rotate) {
@@ -3350,8 +3524,16 @@ function makeAutopilot(sim, def, world) {
         // budget — the mountain belt needs more descent than a circuit).
         speedThrottle(ap.VCruise);
         // approach fix 1.2 km before xTurn on the extended centreline —
-        // buys INBOUND room to settle onto the slope after a high arrival
-        const fdx = (ap.xTurn - 1200) - sAl, fdz = -sCr;
+        // buys INBOUND room to settle onto the slope after a high arrival.
+        // W14: arrivals HIGHER than the fix cone push the fix OUTBOUND so
+        // the whole descent fits the final (excess height converts to
+        // track at a -0.10 slope; it walks back in as the aircraft
+        // descends). A Stein -> HOME PA-18 arrived 160 m over the old
+        // fixed fix — INBOUND couldn't shed it by the aim and flew a
+        // controlled descent into the dirt 200 m past the strip.
+        const hCone0 = ap.refAlt + (ap.xAim - (ap.xTurn - 1200)) * ap.gs + 15;
+        const fixOut = 1200 + Math.max(0, (cg[1] - hCone0) / 0.10);
+        const fdx = (ap.xTurn - fixOut) - sAl, fdz = -sCr;
         const fDist = Math.hypot(fdx, fdz) || 1;
         const fixDir = [(fdx * F.ux - fdz * F.uz) / fDist, 0,
                         (fdx * F.uz + fdz * F.ux) / fDist];
@@ -3389,7 +3571,10 @@ function makeAutopilot(sim, def, world) {
       case 'INBOUND': {
         speedThrottle(A.VTurn ?? 24);
         const d = ap.xAim - sAl;
-        const hGS = ap.refAlt + d * ap.gs;
+        // Math.max(0, d): past the aim the raw slope target dives below
+        // the field and INBOUND flew into the dirt (W14, Stein return
+        // leg). No-op before the aim, i.e. for every nominal arrival.
+        const hGS = ap.refAlt + Math.max(0, d) * ap.gs;
         // descend toward just-above-slope when arriving HIGH (cross-country
         // over the belt): min() is a no-op for standard circuits, which fly
         // level at hCruise below the slope until it comes down to them
@@ -3419,7 +3604,12 @@ function makeAutopilot(sim, def, world) {
         // catch-up clamp scales with the aircraft's own slope rate: a flat
         // -3.0 gave the DC-3 (nominal -2.6 m/s on its slope) only 0.4 m/s of
         // authority to descend back onto the slope from above
-        holdVS(clamp(-V * ap.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * ap.gs), 0.5));
+        // feedforward uses GROUNDSPEED (W13.2): the slope is fixed in the
+        // ground frame — -V*gs in a headwind commands W*gs too much sink
+        // and the +0.5 recovery clamp cannot close the standing low (the
+        // PA-18 crossed the Stein threshold 5.6 m under the slope and
+        // touched 83 m short of the aim). Identical in calm (Vg = V).
+        holdVS(clamp(-(o_.Vg ?? V) * ap.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * ap.gs), 0.5));
         airLateral(0.18);
         if (agl < A.flareAgl) { ap.phase = 'FLARE'; phaseT = 0; thFlare0 = th; }
         break;
@@ -3459,7 +3649,17 @@ function makeAutopilot(sim, def, world) {
         // VTailDown (default VTailUp): below it, stick hard back pins the tail.
         // Flapped taildraggers set it above touchdown speed — flap lift +
         // nose-down dCm0 make the tail-up wheel-landing hold noseover-prone.
-        } else c.de = V > (A.VTailDown ?? A.VTailUp) ? -0.05 : 0.35;
+        // thPinMax guard (W13.2): full-aft AT TOUCH SPEED with flaps out
+        // re-flies the aircraft — the PA-18 ballooned to 3 m agl / 18 deg
+        // nose-up for 4 s after every touchdown (traced at Stein; HOME's
+        // 1100 m simply absorbed it). Relax the pin while the nose is
+        // above ~3-point attitude; identical otherwise (rest deck ~0.21).
+        // VPinFull (default 0 = old behavior): above it, only moderate aft
+        // — the full pin AT touch speed is itself the re-launch impulse;
+        // brakes engage far below it, so the noseover guard window holds.
+        } else c.de = V > (A.VTailDown ?? A.VTailUp) ? -0.05
+                    : (th > (A.thPinMax ?? 0.26) ? 0.05
+                    : V > (A.VPinFull ?? 0) ? 0.14 : 0.35);
         // brakes act on WHEELS: thresholds are groundspeed, not airspeed
         if (Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
@@ -3487,6 +3687,7 @@ function makeAutopilot(sim, def, world) {
     aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
     aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
     aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
+    holdWas = holdActive; holdActive = false;   // W14: per-frame resync bookkeeping
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl };
   };
   return ap;

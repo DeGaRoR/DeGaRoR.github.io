@@ -8,6 +8,12 @@ function buildWorldScene(scene, world, renderer, camera) {
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
+  let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
+  let outerTexShared = null;          // W13.2: outer-ring texture, reused by strip patches
+  let detailApply = null;             // W13.2: close-range grain hook for patch materials
+  const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
+  let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
+  let trunkUpdate = () => {};         // trunk chunks on/off by distance (tree block)
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
@@ -106,14 +112,45 @@ function buildWorldScene(scene, world, renderer, camera) {
       const small = document.createElement('canvas'); small.width = small.height = N;
       const sctx = small.getContext('2d'), img = sctx.createImageData(N, N);
       const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
+      const mimg = opts.mini ? sctx.createImageData(N, N) : null;
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
         colorAt(x, z);
         hG[j * N + i] = _h; lowG[j * N + i] = _low;
         const o = (j * N + i) * 4;
         img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
+        if (mimg) {                        // W13 minimap: same bake, water made visible
+          const wet = world.waterH(x, z) > _h - 0.2;
+          mimg.data[o]   = wet ? 0x48 : img.data[o];
+          mimg.data[o+1] = wet ? 0x89 : img.data[o+1];
+          mimg.data[o+2] = wet ? 0x9e : img.data[o+2];
+          mimg.data[o+3] = 255;
+        }
       }
       sctx.putImageData(img, 0, 0);
+      if (mimg) {                          // rivers/roads are sub-texel at ~62 m/px:
+        const mc = document.createElement('canvas'); mc.width = mc.height = N;
+        const mg = mc.getContext('2d');
+        mg.putImageData(mimg, 0, 0);
+        const mx = x => (x - x0) / EXT * N, mzz = z => (z - z0) / EXT * N;
+        mg.lineCap = mg.lineJoin = 'round';
+        mg.strokeStyle = '#4889a1';
+        for (const r of world.hydro.rivers) {
+          if (r.w < 10 || r.pts.length < 2) continue;
+          mg.lineWidth = Math.max(0.7, r.w / EXT * N);
+          mg.beginPath();
+          r.pts.forEach((p, k) => k ? mg.lineTo(mx(p[0]), mzz(p[1])) : mg.moveTo(mx(p[0]), mzz(p[1])));
+          mg.stroke();
+        }
+        mg.strokeStyle = '#ab8d5f'; mg.lineWidth = 0.7;
+        for (const r of world.roadNet.roads) {
+          if (r.pts.length < 2) continue;
+          mg.beginPath();
+          r.pts.forEach((p, k) => k ? mg.lineTo(mx(p[0]), mzz(p[1])) : mg.moveTo(mx(p[0]), mzz(p[1])));
+          mg.stroke();
+        }
+        miniCanvas = mc;
+      }
       const TW = 2048, cv = document.createElement('canvas');
       cv.width = cv.height = TW;
       const g = cv.getContext('2d');
@@ -134,22 +171,32 @@ function buildWorldScene(scene, world, renderer, camera) {
         if (low < 0.25) continue;
         const strip = (Math.abs(cz) < 110 && cx < 130 && cx > -1180) ? 0 : 1;
         if (!strip) continue;
+        // W13: fields only on genuinely flat ground — the altitude/slope
+        // `low` gate still let ~20% grades through and hillsides grew odd
+        // terraced patchwork. Corner-sample the patch: > 3.2 m of relief
+        // across ~160 m kills it, anything close fades.
+        const hC = world.terrainH(cx, cz);
+        let rel = 0;
+        for (const [ox, oz] of [[-80, -80], [80, -80], [-80, 80], [80, 80]])
+          rel = Math.max(rel, Math.abs(world.terrainH(cx + ox, cz + oz) - hC));
+        if (rel > 3.2) continue;
+        const fA = low * (0.55 + 0.45 * (1 - rel / 3.2));
         const ix = Math.round(fx / CS), iz = Math.round(fz / CS);
         const r1 = hsh(ix, iz), r2 = hsh(ix + 91, iz - 13), r3 = hsh(ix - 7, iz + 51);
         const w = CS * (0.80 + r3 * 0.34), d = CS * (0.72 + r2 * 0.42);
         g.save();
         g.translate(px(cx + (r1 - 0.5) * 40), pz(cz + (r2 - 0.5) * 40));
         g.rotate((r3 - 0.5) * 0.5);
-        g.globalAlpha = low * (0.32 + r2 * 0.34);
+        g.globalAlpha = fA * (0.32 + r2 * 0.34);
         g.fillStyle = FIELDS[(r1 * FIELDS.length) | 0];
         const W2 = w / EXT * TW, D2 = d / EXT * TW;
         g.fillRect(-W2/2, -D2/2, W2, D2);
         if (r3 > 0.55) {                       // ploughed furrows
-          g.globalAlpha = low * 0.14;
+          g.globalAlpha = fA * 0.14;
           g.fillStyle = '#6f5a3e';
           for (let u = -W2/2; u < W2/2; u += 5) g.fillRect(u, -D2/2, 2, D2);
         }
-        g.globalAlpha = low * 0.30;            // hedgerow
+        g.globalAlpha = fA * 0.30;             // hedgerow
         g.strokeStyle = '#55672f'; g.lineWidth = 1.3;
         g.strokeRect(-W2/2, -D2/2, W2, D2);
         g.restore();
@@ -173,7 +220,8 @@ function buildWorldScene(scene, world, renderer, camera) {
       return t;
     }
     const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
-    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 384, {});
+    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 512, { mini: true });
+    outerTexShared = outerTex;
 
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
     geo.rotateX(-Math.PI / 2);
@@ -201,6 +249,25 @@ function buildWorldScene(scene, world, renderer, camera) {
     }
     const dtex = new THREE.CanvasTexture(dn);
     dtex.wrapS = dtex.wrapT = THREE.RepeatWrapping;
+    // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
+    // materials with different uv extents get the same on-ground density
+    detailApply = (mat, uvScale) => { mat.onBeforeCompile = sh => {
+      sh.uniforms.uDetail = { value: dtex };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vDUv;\nvarying float vDist;')
+        .replace('#include <project_vertex>',
+          '#include <project_vertex>\nvDUv = uv * ' + uvScale.toFixed(1) + ';\nvDist = -mvPosition.z;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>',
+          '#include <common>\nuniform sampler2D uDetail;\nvarying vec2 vDUv;\nvarying float vDist;')
+        .replace('#include <map_fragment>',
+          '#include <map_fragment>\nfloat dF = 1.0 - smoothstep(60.0, 500.0, vDist);\n' +
+          'vec3 dC = texture2D(uDetail, vDUv).rgb;\n' +
+          'diffuseColor.rgb *= mix(vec3(1.0), dC * 2.08, dF * 0.62);\n' +
+          'float dF2 = 1.0 - smoothstep(15.0, 150.0, vDist);\n' +
+          'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
+          'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
+    }; };
     const gMat = new THREE.MeshLambertMaterial({ map: tex });
     gMat.onBeforeCompile = sh => {
       sh.uniforms.uDetail = { value: dtex };
@@ -214,7 +281,12 @@ function buildWorldScene(scene, world, renderer, camera) {
         .replace('#include <map_fragment>',
           '#include <map_fragment>\nfloat dF = 1.0 - smoothstep(60.0, 500.0, vDist);\n' +
           'vec3 dC = texture2D(uDetail, vDUv).rgb;\n' +
-          'diffuseColor.rgb *= mix(vec3(1.0), dC * 2.08, dF * 0.62);');
+          'diffuseColor.rgb *= mix(vec3(1.0), dC * 2.08, dF * 0.62);\n' +
+          // W13 second octave: same grain re-sampled ~6x finer, fading in
+          // over the last ~150 m — flare-height ground stops looking flat
+          'float dF2 = 1.0 - smoothstep(15.0, 150.0, vDist);\n' +
+          'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
+          'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
     };
     const ground = new THREE.Mesh(geo, gMat);
     ground.receiveShadow = true;
@@ -363,7 +435,6 @@ function buildWorldScene(scene, world, renderer, camera) {
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
       }
     });
-    const conif = P.filter(t => t.sp < 2), broad = P.filter(t => t.sp >= 2);
 
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.26, 1.9, 5);
     trunkGeo.translate(0, 0.95, 0);
@@ -372,16 +443,36 @@ function buildWorldScene(scene, world, renderer, camera) {
     const blobGeo = new THREE.IcosahedronGeometry(2.05, 0);
     blobGeo.scale(1, 1.12, 1); blobGeo.translate(0, 3.5, 0);
 
-    const trunks = new THREE.InstancedMesh(trunkGeo,
-      new THREE.MeshLambertMaterial({ color: C(0x584431) }), P.length);
-    const mk = (geo, list) => {
-      const m = new THREE.InstancedMesh(geo,
-        new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
-      m.castShadow = true; m.receiveShadow = true; return m;
+    // ---- chunking, so the frustum can throw most of the forest away ------
+    // three culls an InstancedMesh on its GEOMETRY's bounding sphere, and the
+    // geometry is shared between chunks — which is why per-chunk bounds look
+    // impossible and the streamed layer below gave up and set
+    // frustumCulled = false. The way through: keep instance matrices RELATIVE
+    // to their chunk centre, park each chunk mesh AT that centre, and inflate
+    // the shared sphere once to a chunk's half-diagonal. Culling is then
+    // conservative but correct, per chunk, against the camera AND the sun's
+    // shadow camera — which is where most of the saving comes from.
+    const CHW = 2048, CHR = CHW * Math.SQRT1_2 + 12;
+    const chunkBounds = geo => {
+      geo.computeBoundingSphere();
+      geo.boundingSphere.center.set(0, 4, 0);
+      geo.boundingSphere.radius = CHR;
     };
-    const cMesh = mk(coneGeo, conif), bMesh = mk(blobGeo, broad);
+    [trunkGeo, coneGeo, blobGeo].forEach(chunkBounds);
+
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
           pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
+    const cells = new Map();
+    for (const T of P) {
+      const cx = Math.floor(T.x / CHW), cz = Math.floor(T.z / CHW);
+      const k = cx * 4096 + cz;
+      let a = cells.get(k);
+      if (!a) cells.set(k, a = { cx, cz, list: [] });
+      a.list.push(T);
+    }
+    const trunkMat = new THREE.MeshLambertMaterial({ color: C(0x584431) });
+    const canopyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const trunkChunks = [];                 // distance-culled: see worldUpdate
     // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
     const SPC = [
       [C(0x2e4620), C(0x486327)],
@@ -390,28 +481,183 @@ function buildWorldScene(scene, world, renderer, camera) {
       [C(0x7c8f3f), C(0xa39f55)],
       [C(0x6d874d), C(0x8fa05e)],
     ];
-    let ci = 0, bi = 0;
-    P.forEach((T, i) => {
-      const w = T.r, sp = T.sp;
-      q.setFromAxisAngle(up, w * 6.283);
-      pv.set(T.x, T.h - 0.05, T.z);
-      sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
-      if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
-      else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
-      else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
-      m4.compose(pv, q, sv);
-      trunks.setMatrixAt(i, m4);
-      c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
-      if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3); ci++; }
-      else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3); bi++; }
-    });
-    trunks.instanceMatrix.needsUpdate = true;
-    for (const m of [cMesh, bMesh]) {
-      m.instanceMatrix.needsUpdate = true;
-      if (m.instanceColor) m.instanceColor.needsUpdate = true;
-      scene.add(m);
+    for (const cell of cells.values()) {
+      const ox = (cell.cx + 0.5) * CHW, oz = (cell.cz + 0.5) * CHW;
+      const conif = cell.list.filter(t => t.sp < 2), broad = cell.list.filter(t => t.sp >= 2);
+      const mk = (geo, mat, n, shadow) => {
+        if (!n) return null;
+        const m = new THREE.InstancedMesh(geo, mat, n);
+        m.position.set(ox, 0, oz);
+        if (shadow) { m.castShadow = true; m.receiveShadow = true; }
+        return m;
+      };
+      const trunks = mk(trunkGeo, trunkMat, cell.list.length, false);
+      const cMesh = mk(coneGeo, canopyMat, conif.length, true);
+      const bMesh = mk(blobGeo, canopyMat, broad.length, true);
+      let ci = 0, bi = 0;
+      cell.list.forEach((T, i) => {
+        const w = T.r, sp = T.sp;
+        q.setFromAxisAngle(up, w * 6.283);
+        pv.set(T.x - ox, T.h - 0.05, T.z - oz);        // chunk-local
+        sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
+        if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
+        else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
+        else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
+        m4.compose(pv, q, sv);
+        trunks.setMatrixAt(i, m4);
+        c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
+        if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3); ci++; }
+        else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3); bi++; }
+      });
+      for (const m of [trunks, cMesh, bMesh]) {
+        if (!m) continue;
+        m.instanceMatrix.needsUpdate = true;
+        if (m.instanceColor) m.instanceColor.needsUpdate = true;
+        scene.add(m);
+      }
+      // Trunks are 1.9 m tall and 0.4 m wide: past a few hundred metres they
+      // are sub-pixel, and they were 45% of every frame's triangles. Chunks
+      // switch off by distance — the canopy sits on the ground, so nothing
+      // reads as missing.
+      trunkChunks.push({ m: trunks, x: ox, z: oz });
     }
-    scene.add(trunks);
+    trunkUpdate = cg => {
+      const R2 = 900 * 900;
+      for (const t of trunkChunks) {
+        const dx = t.x - cg[0], dz = t.z - cg[2];
+        t.m.visible = dx * dx + dz * dz < R2;
+      }
+    };
+
+    // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
+    // stands render sparse even with the clump layer. This plants
+    // render-only canopies on a ~13 m jittered grid wherever the biome
+    // classifier says FOREST_FLOOR, streamed in 1024 m chunks around the
+    // aircraft (the fog wall at 5.2 km hides the ring edge). Canopies
+    // only — no trunks, no shadows, no physics: cheapest possible trees,
+    // per the design call that collision only matters at the strips,
+    // which keep their exclusion margins here.
+    {
+      const CH = 1024, NG = 78, SP2 = CH / NG, R_ACT = 5600, R_DROP = 6400;
+      const bins = new Map();              // collidable trees in 128 m bins:
+      world.trees.forEach((T, i) => {      // prefilter + species inheritance
+        const k = Math.floor(T.x / 128) * 4096 + Math.floor(T.z / 128);
+        const a = bins.get(k); a ? a.push(i) : bins.set(k, [i]);
+      });
+      const nearTree = (x, z) => {         // stands always hold a grid tree < 90 m
+        const bx = Math.floor(x / 128), bz = Math.floor(z / 128);
+        let best = -1, bd = 8100;
+        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+          const a = bins.get((bx + dx) * 4096 + (bz + dz));
+          if (a) for (const ti of a) {
+            const T = world.trees[ti];
+            const d = (T.x - x) * (T.x - x) + (T.z - z) * (T.z - z);
+            if (d < bd) { bd = d; best = ti; }
+          }
+        }
+        return best;
+      };
+      const ex = world.aerodromes.map(a => ({ x: a.x, z: a.z,
+        r2: (a.len / 2 + 70) ** 2 }));
+      const coneF = new THREE.ConeGeometry(1.55, 5.0, 5, 1, true);
+      coneF.translate(0, 2.75, 0);
+      const blobF = new THREE.IcosahedronGeometry(1.9, 0);
+      blobF.scale(1, 1.05, 1); blobF.translate(0, 2.3, 0);
+      // same trick as the woodland layer: instances are stored relative to the
+      // chunk centre and the shared bounding sphere is inflated to a chunk, so
+      // three CAN cull these after all (it never could while the matrices held
+      // world coordinates against a 2 m shared sphere).
+      for (const g of [coneF, blobF]) {
+        g.computeBoundingSphere();
+        g.boundingSphere.center.set(0, 3, 0);
+        g.boundingSphere.radius = CH * Math.SQRT1_2 + 12;
+      }
+      const matF = new THREE.MeshLambertMaterial({ vertexColors: true });
+      const chunks = new Map(), queue = [];
+      function gen(cx, cz) {
+        const recs = [[], []];             // conifer / broadleaf
+        for (let gz = 0; gz < NG; gz++) for (let gx = 0; gx < NG; gx++) {
+          const ix = cx * NG + gx, iz = cz * NG + gz;
+          if (hsh(ix, iz + 31) < 0.1) continue;
+          const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
+          const z = cz * CH + (gz + 0.5) * SP2 + (hsh(ix, iz + 7) - 0.5) * SP2 * 1.6;
+          if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor
+          const ti = nearTree(x, z);
+          if (ti < 0) continue;            // no stand tree near: not forest
+          let inEx = false;
+          for (const e of ex)
+            if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) { inEx = true; break; }
+          if (inEx) continue;
+          const h = world.terrainH(x, z);
+          if (h < 1.5) continue;
+          if (world.waterH(x, z) > h) continue;
+          if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) continue;
+          const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
+                                                : (hsh(ix + 9, iz + 1) * 5) | 0;
+          recs[sp < 2 ? 0 : 1].push(x, h, z, sp, hsh(ix + 2, iz + 8));
+        }
+        const meshes = [];
+        recs.forEach((r, broadish) => {
+          const n = r.length / 5;
+          if (!n) return;
+          const m = new THREE.InstancedMesh(broadish ? blobF : coneF, matF, n);
+          const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
+          m.position.set(ox, 0, oz);
+          for (let i = 0; i < n; i++) {
+            const o = i * 5, sp = r[o + 3], w = r[o + 4];
+            q.setFromAxisAngle(up, w * 6.283);
+            const s = [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            pv.set(r[o] - ox, r[o + 1] - 0.05, r[o + 2] - oz);
+            sv.set(s, s * (0.9 + w * 0.25), s);
+            m4.compose(pv, q, sv);
+            m.setMatrixAt(i, m4);
+            m.setColorAt(i, c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85));
+          }
+          m.instanceMatrix.needsUpdate = true;
+          if (m.instanceColor) m.instanceColor.needsUpdate = true;
+          scene.add(m); meshes.push(m);
+        });
+        return meshes;
+      }
+      let tick = 0;
+      fillUpdate = cg => {
+        if (tick++ % 24) return;           // ~0.4 s cadence
+        const R = Math.ceil(R_ACT / CH);
+        const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
+        for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
+          const cx = ccx + dx, cz = ccz + dz;
+          const mx2 = (cx + 0.5) * CH - cg[0], mz2 = (cz + 0.5) * CH - cg[2];
+          if (mx2 * mx2 + mz2 * mz2 > R_ACT * R_ACT) continue;
+          if (Math.abs((cx + 0.5) * CH) > 12000 || Math.abs((cz + 0.5) * CH) > 12000) continue;
+          const k = cx * 4096 + cz;
+          if (!chunks.has(k)) { chunks.set(k, { cx, cz, meshes: null }); queue.push(k); }
+        }
+        if (queue.length) {                // nearest first; the fog hides the rest
+          for (let i = queue.length - 1; i >= 0; i--) {
+            const c2 = chunks.get(queue[i]);
+            if (!c2 || c2.meshes) queue.splice(i, 1);   // evicted or already built
+          }
+          const d2 = k => { const c2 = chunks.get(k);
+            const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
+            return ax * ax + az * az; };
+          queue.sort((a, b) => d2(a) - d2(b));
+          // close chunks (fresh spawn / teleport) get a burst; cruise trickles
+          let budget = queue.length && d2(queue[0]) < 2500 * 2500 ? 6 : 2;
+          while (budget-- > 0 && queue.length) {
+            const c2 = chunks.get(queue.shift());
+            if (c2) c2.meshes = gen(c2.cx, c2.cz);
+          }
+        }
+        for (const [k, c2] of chunks) {    // evict far chunks
+          const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
+          if (ax * ax + az * az < R_DROP * R_DROP) continue;
+          if (c2.meshes) for (const m of c2.meshes) {
+            scene.remove(m); if (m.dispose) m.dispose();
+          }
+          chunks.delete(k);
+        }
+      };
+    }
   }
 
   { // airfield: mown grass strip, threshold bars, markers, hangars, windsock
@@ -491,8 +737,8 @@ function buildWorldScene(scene, world, renderer, camera) {
     pole.position.set(-30, 3, 20); pole.castShadow = true; pole.receiveShadow = true; scene.add(pole);
     const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true),
       new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide }));
-    sock.rotation.z = Math.PI / 2; sock.rotation.y = 0.25;
-    sock.position.set(-31.6, 5.5, 20); sock.castShadow = true; scene.add(sock);
+    sock.castShadow = true; scene.add(sock);
+    socks.push({ pole: [-30, 5.5, 20], mesh: sock });   // W13: wind-driven, see setWindVis
 
     const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.1),
       new THREE.MeshLambertMaterial({ color: C(0x8a7457) }));
@@ -624,17 +870,57 @@ function buildWorldScene(scene, world, renderer, camera) {
     const texes = {};
     const poleMat = new THREE.MeshLambertMaterial({ color: C(0xd8d2c4) });
     const sockMat = new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide });
+    const patchMat = new THREE.MeshLambertMaterial({ map: outerTexShared });
+    // patch uvs span the full 24 km domain: 613 tiles ~= the inner ring's
+    // on-ground grain density (230 tiles over 9 km)
+    if (detailApply) detailApply(patchMat, 613);
     for (const a of world.aerodromes) {
       if (a.kind === 'meadow' || a.id === 'HOME') continue;
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
       if (!texes[kind]) texes[kind] = mkTex(kind);
-      const geo = new THREE.PlaneGeometry(a.len, a.wid);
+      // W13.2 ground patch: every strip outside the inner ring sits on the
+      // coarse outer mesh (~100 m polys, tucked 2 m LOW) — the graded
+      // bench and its banks exist in terrainH but were unrenderable, so
+      // strips read as floating planes and a rolling aircraft sank below
+      // the drawn surface. A local fine mesh renders the true grading,
+      // edge-blended 2.2 m down so its border tucks under the outer ring
+      // exactly like the ring seams do.
+      if (Math.abs(a.x) > 3900 || Math.abs(a.z) > 3900) {
+        const MARG = 90, RES = 9;
+        const LX = a.len + 2 * MARG, WZ = a.wid + 2 * MARG;
+        const g2 = new THREE.PlaneGeometry(LX, WZ,
+          Math.ceil(LX / RES), Math.ceil(WZ / RES));
+        g2.rotateX(-Math.PI / 2);
+        g2.rotateY(-a.hdg);
+        g2.translate(a.x, 0, a.z);
+        const p = g2.attributes.position, uv = g2.attributes.uv;
+        for (let i = 0; i < p.count; i++) {
+          const x = p.getX(i), z = p.getZ(i);
+          const u0 = uv.getX(i), v0 = uv.getY(i);
+          const edge = Math.min(Math.min(u0, 1 - u0) * LX, Math.min(v0, 1 - v0) * WZ);
+          const r = Math.min(1, edge / 60);            // 0 at border, 1 inside 60 m
+          p.setY(i, world.terrainH(x, z) - 2.2 * (1 - r) * (1 - r));
+          uv.setXY(i, (x + 12000) / 24000, 1 - (z + 12000) / 24000);
+        }
+        g2.computeVertexNormals();
+        const pm = new THREE.Mesh(g2, patchMat);
+        pm.receiveShadow = true;
+        scene.add(pm);
+      }
+      // the strip decal is DRAPED (per-vertex terrainH), not a flat plane
+      // at a.elev — wheels roll on terrainH, and the two now agree
+      const geo = new THREE.PlaneGeometry(a.len, a.wid,
+        Math.ceil(a.len / 12), Math.max(2, Math.ceil(a.wid / 8)));
       geo.rotateX(-Math.PI / 2);
+      geo.rotateY(-a.hdg);
+      geo.translate(a.x, 0, a.z);
+      const dp = geo.attributes.position;
+      for (let i = 0; i < dp.count; i++)
+        dp.setY(i, world.terrainH(dp.getX(i), dp.getZ(i)) + 0.07);
+      geo.computeVertexNormals();
       const m = new THREE.Mesh(geo,
         new THREE.MeshLambertMaterial({ map: texes[kind], depthWrite: false }));
-      m.rotation.y = -a.hdg;
-      m.position.set(a.x, a.elev + 0.06, a.z);
       m.renderOrder = 2;
       m.receiveShadow = true;
       scene.add(m);
@@ -644,8 +930,8 @@ function buildWorldScene(scene, world, renderer, camera) {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6), poleMat);
       pole.position.set(px2, a.elev + 3, pz2); pole.castShadow = true; scene.add(pole);
       const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true), sockMat);
-      sock.rotation.z = Math.PI / 2; sock.rotation.y = -a.hdg;
-      sock.position.set(px2, a.elev + 5.5, pz2); sock.castShadow = true; scene.add(sock);
+      sock.castShadow = true; scene.add(sock);
+      socks.push({ pole: [px2, a.elev + 5.5, pz2], mesh: sock });   // W13 wind-driven
     }
   }
 
@@ -706,10 +992,30 @@ function buildWorldScene(scene, world, renderer, camera) {
     scene.add(clouds);
   }
 
+  // W13: aim every windsock down the wind vector (mouth upwind), sagging
+  // as the wind drops; calm socks hang. Called by the viewer on wind change.
+  const _sd = new THREE.Vector3(), _su = new THREE.Vector3(0, 1, 0), _sm = new THREE.Vector3();
+  function setWindVis(base) {
+    const mag = base ? Math.hypot(base[0], base[2]) : 0;
+    for (const s of socks) {
+      if (mag < 0.3) _sd.set(0.30, -0.92, 0.18).normalize();
+      else {
+        const sag = 0.85 * Math.max(0, 1 - mag / 8);
+        _sd.set(base[0] / mag, 0, base[2] / mag).multiplyScalar(Math.sqrt(1 - sag * sag));
+        _sd.y = -sag;
+      }
+      s.mesh.quaternion.setFromUnitVectors(_su, _sm.set(-_sd.x, -_sd.y, -_sd.z));
+      s.mesh.position.set(s.pole[0] + _sd.x * 1.3, s.pole[1] + _sd.y * 1.3, s.pole[2] + _sd.z * 1.3);
+    }
+  }
+  setWindVis(null);
+
   // per-frame: keep the aircraft AND the spot its shadow falls on inside the
   // sun frustum (grown with hysteresis so the map isn't re-projected every frame)
   let shadowHalf = 0;
   function worldUpdate(cg) {
+    fillUpdate(cg);
+    trunkUpdate(cg);
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / SUN.y, 520);
@@ -726,5 +1032,5 @@ function buildWorldScene(scene, world, renderer, camera) {
     clouds.position.x += 0.05;
   }
 
-  return { worldUpdate, SUN, sun };
+  return { worldUpdate, SUN, sun, minimap: miniCanvas, setWindVis };
 }

@@ -114,6 +114,10 @@ const sandbox = {
   document: { getElementById: id => (els[id] = els[id] || el(id)),
               createElement: () => el('_ce' + (++ceN)) },
   requestAnimationFrame: cb => { rafCb = cb; rafCount++; },
+  // timers fire immediately: the point of this gate is to EXECUTE the deferred
+  // path (the boot-splash teardown), not to model the event loop
+  setTimeout: cb => { cb(); return 0; },
+  clearTimeout() {},
   atob: s => Buffer.from(s, 'base64').toString('binary'),
   THREE, Buffer,
 };
@@ -139,6 +143,13 @@ try {
   handlers['selAc']({ target: { value: 'drone' } });
   frames(30);
   handlers['selAc']({ target: { value: 'pa18' } });
+  frames(30);
+  // the c172 skin exercises the multi-group rig (its steering nose gear spans
+  // four payload groups) and the flat-colour opaque interior materials
+  handlers['selAc']({ target: { value: 'c172' } });
+  frames(60);
+  for (const id of ['bSkin', 'bSkin', 'bSkin'])
+    handlers[id]({ target: els[id] });
   frames(30);
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);
   console.log(`ran app block: raf x${rafCount}, handlers wired: ${Object.keys(handlers).sort().join(' ')}`);

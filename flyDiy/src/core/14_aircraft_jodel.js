@@ -165,6 +165,7 @@ function buildJodel() {
     ap: {
       rotate: true,
       VRot: 27, VClimbMin: 30, VClimb: 41.7, VCruise: 62, VAppr: 33, VTurn: 45,
+      TORun: 410,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.030, thRotate: 0.11,
       lookRoll: 30, lookAppr: 300, lookCruise: 420,
       hCruise: 160, hSafe: 20, xTurn: -3600, xAim: -560, gs: 0.045,
@@ -180,7 +181,16 @@ function buildJodel() {
       brakeMax: 0.30, brakeRampRate: 0.14, VBrakeOn: 20, VBrakeRelease: 1.5,
       rateFilt: 0.18, attFilt: 0.60, pitchP: 1.3, pitchD: 0.70, pitchI: 0.12,
       pitchCmdSlew: 1.0, vsP: 0.014, vsI: 0.030, vsFloor: -0.10, altVSGain: 0.10,
-      vsFilt: 0.40, hdgP: 0.5, hdgD: 0.8, bankSlew: 0.20, rollP: 1.1, rollD: 0.30,
+      // W16 lateral quiet: 1.1/0.30 limit-cycled 11 deg of REAL bank at
+      // 1.8 Hz (28 deg aileron p2p) — an aileron-loop instability, proven
+      // by the freeze test (rollP=rollD=0 -> dead calm; rudder freeze
+      // changed nothing, so NOT dutch roll; raising servo slew made it
+      // WORSE). rollP 0.5/rollD 0.15 kills it; hdgP 0.5 -> 0.65
+      // compensates the softer roll loop for capture + decrab (measured:
+      // calm tdZ 2.4, crosswind tdDrift -0.24 / tdZ 2.9 — better than
+      // the OLD gains' -1.64 / -6.9). Pure-roll candidates failed the
+      // crosswind drift bound: quiet needs the course loop to carry more.
+      vsFilt: 0.40, hdgP: 0.65, hdgD: 0.8, bankSlew: 0.20, rollP: 0.5, rollD: 0.15,
       betaK: 0.3, yawDampK: 0.35, ariK: 0.0, bankLim: 0.48,
     },
   };

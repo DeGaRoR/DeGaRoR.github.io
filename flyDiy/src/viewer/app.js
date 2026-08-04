@@ -56,11 +56,18 @@
   // ================= 3d skin (baked OBJ, pa18 only for now) =================
   // Rigid mount in the body frame: model frame is (x aft, y up, z left), RH.
   // Offset calibrated so model main wheels sit on the sim's axle contact points.
-  const MODELS3D = (typeof MODEL_PA18 !== 'undefined') ? { pa18: MODEL_PA18 } : {};
+  const MODELS3D = {};
+  if (typeof MODEL_PA18 !== 'undefined') MODELS3D.pa18 = MODEL_PA18;
+  if (typeof MODEL_C172 !== 'undefined') MODELS3D.c172 = MODEL_C172;
   // per-aircraft skin config: body-frame mount offset + binding thresholds (SKIN-PROC.md)
-  // pa18 geometry is a byte-copy of the cub's, so the calibration is shared
-  const SKIN_CFG = { pa18: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'],
-                             zRoot: 1.30, xMax: 1.5 } };
+  // pa18 geometry is a byte-copy of the cub's, so the calibration is shared.
+  // `rig` = groups that carry hinges and/or flex (default ['skin']); the c172's
+  // steering nose gear spans four materials, so four extra groups are rigged.
+  const SKIN_CFG = {
+    pa18: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 },
+    c172: { off: [1.694, -1.420, 0], tags: ['WF', 'WR'], zRoot: 2.00, xMax: 1.5,
+            rig: ['skin', 'metal', 'tyre', 'hub', 'gear'] },
+  };
   const modelCache = {};
   // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame only
   const SKIN_GAINS = [1, 4];
@@ -98,36 +105,49 @@
       const m = mats[mn], op = m.opacity !== undefined ? m.opacity : 1;
       return matCache[mn] = m.tex
         ? new THREE.MeshLambertMaterial({ map: texs[m.tex], side: THREE.DoubleSide,
+            color: m.color !== undefined ? m.color : 0xffffff,
             transparent: op < 1, opacity: op, depthWrite: op >= 1 })
+        // flat-colour groups: opaque unless the payload asks for opacity < 1
+        // (the c172 interior is all flat colour and must write depth)
         : new THREE.MeshLambertMaterial({ color: m.color !== undefined ? m.color : 0xaad4ea,
-            transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false });
+            transparent: op < 1, opacity: op, side: THREE.DoubleSide, depthWrite: op >= 1 });
     };
     const grp = new THREE.Group();
     grp.matrixAutoUpdate = false;
-    let skin = null, prop = null;
+    const meshes = {}, props = [];
     for (const name in dec) {
       const geo = mkGeo(dec[name]);
-      if (name === 'prop') geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
+      // every group named prop* turns with the propeller (blades, spinner, cap)
+      const isProp = name.lastIndexOf('prop', 0) === 0;
+      if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
       mesh.renderOrder = RENDER_ORDER[name] || 0;
-      if (name === 'prop') { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); prop = mesh; }
-      if (name === 'skin') skin = mesh;
-      if (name === 'skin' || name === 'prop')
+      if (isProp) { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); props.push(mesh); }
+      if (name === 'skin' || isProp)
         mesh.castShadow = true;             // the skin replaces the proxy's sun shadow
+      meshes[name] = mesh;
       grp.add(mesh);
     }
     grp.frustumCulled = false;
     grp.traverse(o => { o.frustumCulled = false; });
-    // deformation binding: wing-band vertices follow the sim spar stations
-    const posAttr = skin.geometry.attributes.position;
-    const bind = makeSkinBinding(posAttr.array, dec.skin.nv, AIRCRAFT[key](), SKIN_CFG[key]);
-    const deltas = { P: new Float32Array(bind.zs.length * 3),
-                     N: new Float32Array(bind.zs.length * 3) };
-    // control surface hinges (payload v2: per-vertex surface ids + hinge table)
-    const hb = (data.v >= 2 && dec.skin.sid) ? makeHingeBinding(dec.skin, data.surfaces) : null;
-    modelCache[key] = { grp, prop, bind, deltas, posAttr, hb, surfaces: data.surfaces,
-                        link: makeLinkage(LINK_TAU),   // visual linkage lag (see SKIN-PROC)
-                        base: posAttr.array.slice() };
+    // Rigged groups: wing-band vertices follow the sim spar stations, and
+    // sid-tagged vertices turn about their hinge lines. `skin` alone for the
+    // pa18; the c172 also rigs the groups its nose gear is split across.
+    const def = AIRCRAFT[key]();
+    const rigs = (SKIN_CFG[key].rig || ['skin']).filter(n => dec[n]).map(name => {
+      const posAttr = meshes[name].geometry.attributes.position;
+      return {
+        posAttr, base: posAttr.array.slice(),
+        bind: makeSkinBinding(posAttr.array, dec[name].nv, def, SKIN_CFG[key]),
+        // control surface hinges (payload v2: per-vertex surface ids + hinge table)
+        hb: (data.v >= 2 && dec[name].sid) ? makeHingeBinding(dec[name], data.surfaces) : null,
+      };
+    });
+    // station structure is a property of the fiche, so one delta buffer serves all
+    const nz = rigs[0].bind.zs.length;
+    const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
+    modelCache[key] = { grp, props, rigs, deltas, surfaces: data.surfaces,
+                        link: makeLinkage(LINK_TAU) };  // visual linkage lag (SKIN-PROC)
     return modelCache[key];
   }
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
@@ -143,16 +163,17 @@
       cg[1] + O[0]*xA[1] + O[1]*yU[1],
       cg[2] + O[0]*xA[2] + O[1]*yU[2]);
     model.grp.matrix.copy(mBasis);
-    if (model.prop)
-      model.prop.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);   // visual only
-    if (model.hb)
-      applyHinges(model.hb, model.surfaces, model.base, model.posAttr.array,
-                  model.link.step(sim.ctl, 1/60));
-    sparDeltas(model.bind, sim, model.deltas);
-    applySkinDeform(model.bind, model.base, model.posAttr.array,
-                    model.deltas.P, model.deltas.N, SKIN_GAINS[skinMode],
-                    model.hb && model.hb.hinged);
-    model.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+    for (const p of model.props)
+      p.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);            // visual only
+    const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
+    sparDeltas(model.rigs[0].bind, sim, model.deltas);
+    for (const r of model.rigs) {
+      if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
+      applySkinDeform(r.bind, r.base, r.posAttr.array,
+                      model.deltas.P, model.deltas.N, SKIN_GAINS[skinMode],
+                      r.hb && r.hb.hinged);
+      r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+    }
   }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;
@@ -277,7 +298,8 @@
   }, { passive: false });
 
   // ================= phase rail =================
-  const PHASES = [['ROLL','TAKEOFF ROLL'],['LIFTOFF','LIFT-OFF'],['CLIMB','CLIMB'],
+  const PHASES = [['DEPART','DEPART'],['TAXI','TAXI'],['LINEUP','LINE UP'],
+    ['ROLL','TAKEOFF ROLL'],['LIFTOFF','LIFT-OFF'],['CLIMB','CLIMB'],
     ['CRUISE','CRUISE'],['ENROUTE','ENROUTE'],['TURNBACK','TURNBACK'],['INBOUND','INBOUND'],
     ['APPROACH','APPROACH'],['FLARE','FLARE'],['ROLLOUT','ROLLOUT'],['STOPPED','STOPPED']];
   const tickEls = {};
@@ -304,15 +326,16 @@
   // ================= autopilot + telemetry =================
   let running = true, started = false;
   const tel = { t: [], alt: [], V: [], marks: [] };
-  let telAcc = 0, lastPhase = 'ROLL';
+  let telAcc = 0, lastPhase = 'ROLL', telBase = 0;   // telBase: multi-hop leg offset
+
   const telWrap = $('telp');
 
   function record(dt) {
     telAcc += dt;
     if (telAcc < 0.1) return;
     telAcc = 0;
-    tel.t.push(ap.t); tel.alt.push(ap.dbg.alt || 0); tel.V.push((ap.dbg.V || 0) * 3.6);
-    if (ap.phase !== lastPhase) { tel.marks.push([ap.t, ap.phase]); lastPhase = ap.phase; }
+    tel.t.push(telBase + ap.t); tel.alt.push(ap.dbg.alt || 0); tel.V.push((ap.dbg.V || 0) * 3.6);
+    if (ap.phase !== lastPhase) { tel.marks.push([telBase + ap.t, ap.phase]); lastPhase = ap.phase; }
   }
   function drawTel() {
     const cv = $('tel'), g = cv.getContext('2d'), S = 2, W = cv.width / S, H = cv.height / S;
@@ -361,7 +384,9 @@
   }
 
   function script(dt) {
-    if (!started) { setRail(null); return; }
+    // parking brake while HOLDING (W13 wind: a free-rolling taildragger
+    // drifts downwind while you pick a route). ROLL sets brake=0 on start.
+    if (!started) { sim.ctl.brake = 0.6; setRail(null); return; }
     ap.update(dt);
     record(dt);
     setRail(ap.phase);
@@ -378,7 +403,8 @@
     sim.reset(0); ap = makeAutopilot(sim, def, world); applyRoute(); started = false; running = true;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
-    lastPhase = 'ROLL'; telWrap.classList.remove('show'); $('bTel').classList.remove('on');
+    lastPhase = 'ROLL'; telBase = 0;
+    telWrap.classList.remove('show'); $('bTel').classList.remove('on');
     $('tsum').textContent = '';
     railPhase = ''; setRail(null);
   }
@@ -400,8 +426,40 @@
     fill($('selFrom'), null, null, null);
     fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
     $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
-    $('selDest').onchange = e => { destId = e.target.value; fullReset(); };
+    // W14 multi-hop: picking a new destination AFTER LANDING chains the
+    // next leg seamlessly — same sim, no reset, no teleport. The fresh AP
+    // taxis back / turns around if the runway left is too short, then
+    // departs (into the wind if any). Mid-flight changes still reset.
+    $('selDest').onchange = e => {
+      destId = e.target.value;
+      if (started && ap.phase === 'STOPPED') nextLeg();
+      else fullReset();
+    };
+    function nextLeg() {
+      const cur = (ap.route && ap.route.to) || aeroById(fromId);
+      if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
+      telBase += ap.t;                 // new AP restarts its clock at 0
+      ap = makeAutopilot(sim, def, world);
+      ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
+    }
   }
+  // ---- W13 wind: presets drive world.setWind live — no reset needed, the
+  // AP flies IAS and takes wind changes mid-flight. FRESH is beyond the
+  // 3 m/s the wind gate validates: sporty on purpose. Direction is fixed
+  // (quartering, headwind-ish on a +x landing at HOME).
+  const WINDS = {
+    calm: null,
+    light: { base: [-1.7, 0, 1.9], gust: 0 },
+    mod:   { base: [-2.6, 0, 3.0], gust: 0.5 },
+    fresh: { base: [-3.9, 0, 4.6], gust: 0.9 },
+  };
+  let windBase = null;
+  $('selWind').onchange = e => {
+    const w = WINDS[e.target.value] || null;
+    world.setWind(w);
+    windBase = w ? w.base : null;
+    if (WF.setWindVis) WF.setWindVis(windBase);
+  };
   $('bPause').onclick = e => {
     running = !running;
     e.target.textContent = running ? 'Pause' : 'Run';
@@ -431,6 +489,109 @@
     R.str.textContent = (sim.stats().smax * 100).toFixed(2) + '%';
   }
 
+  // ---- W13 minimap: baked terrain underlay (from render_world) + live
+  // route / aerodromes / aircraft / wind. Redrawn on the HUD cadence.
+  // Click the map to toggle small/large; click the top-right chip to
+  // switch north-up (whole domain) <-> nose-up (6 km, aircraft-centred).
+  let mapBig = false, mapNoseUp = false;
+  const NOSE_RANGE = 6000;
+  function drawMap() {
+    const base = WF.minimap, cv = $('mm');
+    if (!base || !cv.getContext) return;
+    const g = cv.getContext('2d'), W2 = cv.width, mk = W2 / 344;
+    const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
+    const hdg = Math.atan2(-xA[2], -xA[0]);
+    // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
+    const rot = mapNoseUp ? -Math.PI / 2 - hdg : 0;
+    const k = mapNoseUp ? W2 / NOSE_RANGE : W2 / 24000;
+    const cx = mapNoseUp ? cg2[0] : 0, cz = mapNoseUp ? cg2[2] : 0;
+    const co = Math.cos(rot), si = Math.sin(rot);
+    const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
+    const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#48899e';                           // beyond-domain reads as sea
+    g.fillRect(0, 0, W2, W2);
+    g.save();
+    g.translate(W2 / 2, W2 / 2); g.rotate(rot); g.scale(k, k); g.translate(-cx, -cz);
+    g.drawImage(base, -12000, -12000, 24000, 24000);
+    g.restore();
+    const from = aeroById(fromId), to = destId === 'CIRCUIT' ? from : aeroById(destId);
+    if (to !== from) {
+      g.strokeStyle = 'rgba(255,178,87,.85)'; g.lineWidth = 2 * mk; g.setLineDash([5 * mk, 4 * mk]);
+      g.beginPath(); g.moveTo(PX(from.x, from.z), PY(from.x, from.z));
+      g.lineTo(PX(to.x, to.z), PY(to.x, to.z)); g.stroke();
+      g.setLineDash([]);
+    }
+    g.font = `500 ${Math.round(11 * mk)}px "IBM Plex Sans", sans-serif`;
+    for (const a of world.aerodromes) {
+      const mead = a.kind === 'meadow';
+      const active = a.id === from.id || a.id === to.id;
+      const sx = PX(a.x, a.z), sy = PY(a.x, a.z);
+      if (sx < -30 || sx > W2 + 30 || sy < -30 || sy > W2 + 30) continue;
+      g.beginPath(); g.arc(sx, sy, (mead ? 2.2 : active ? 4.5 : 3.2) * mk, 0, 6.283);
+      g.fillStyle = active ? '#ffb257' : mead ? 'rgba(251,244,234,.45)' : 'rgba(251,244,234,.85)';
+      g.fill();
+      if (active) {
+        g.strokeStyle = 'rgba(255,178,87,.5)'; g.lineWidth = 1.5 * mk;
+        g.beginPath(); g.arc(sx, sy, 7 * mk, 0, 6.283); g.stroke();
+      }
+      if (mapBig && !mead) {                           // labels once there's room
+        g.fillStyle = 'rgba(20,14,8,.75)';
+        g.fillText(a.name, sx + 8 * mk + 1, sy + 4 * mk + 1);
+        g.fillStyle = active ? '#ffd9a3' : 'rgba(251,244,234,.9)';
+        g.fillText(a.name, sx + 8 * mk, sy + 4 * mk);
+      }
+    }
+    g.save();
+    g.translate(PX(cg2[0], cg2[2]), PY(cg2[0], cg2[2]));
+    g.rotate(hdg + rot);                               // nose-up: exactly -PI/2 (up)
+    g.scale(mk, mk);
+    g.fillStyle = '#63d3cc'; g.strokeStyle = 'rgba(20,14,8,.8)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(8, 0); g.lineTo(-4.8, 4.5); g.lineTo(-2.2, 0); g.lineTo(-4.8, -4.5);
+    g.closePath(); g.fill(); g.stroke();
+    g.restore();
+    // wind chip (top-left) — arrow co-rotates with the map frame
+    const chip = (x, w) => {
+      g.fillStyle = 'rgba(32,24,18,.55)';
+      if (g.roundRect) { g.beginPath(); g.roundRect(x, 6 * mk, w, 34 * mk, 8 * mk); g.fill(); }
+      else g.fillRect(x, 6 * mk, w, 34 * mk);
+    };
+    chip(6 * mk, 114 * mk);
+    g.font = `600 ${Math.round(17 * mk)}px "IBM Plex Mono", monospace`;
+    if (windBase) {
+      g.save(); g.translate(24 * mk, 23 * mk);
+      g.rotate(Math.atan2(windBase[2], windBase[0]) + rot); g.scale(mk, mk);
+      g.strokeStyle = '#ffb257'; g.lineWidth = 2.6; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(-8, 0); g.lineTo(7, 0); g.stroke();
+      g.beginPath(); g.moveTo(2.5, -4.2); g.lineTo(8, 0); g.lineTo(2.5, 4.2); g.stroke();
+      g.restore();
+      g.fillStyle = '#fbf4ea';
+      g.fillText(Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s', 42 * mk, 29 * mk);
+    } else {
+      g.strokeStyle = 'rgba(251,244,234,.5)'; g.lineWidth = 2 * mk;
+      g.beginPath(); g.arc(24 * mk, 23 * mk, 4 * mk, 0, 6.283); g.stroke();
+      g.fillStyle = 'rgba(251,244,234,.7)';
+      g.fillText('CALM', 42 * mk, 29 * mk);
+    }
+    // orientation chip (top-right) — its rect is the mode-toggle hit zone
+    chip(W2 - 84 * mk, 78 * mk);
+    g.fillStyle = 'rgba(251,244,234,.85)';
+    g.fillText(mapNoseUp ? 'NOSE↑' : 'N↑', W2 - 74 * mk, 29 * mk);
+  }
+  $('mm').onclick = e => {
+    const cv = $('mm');
+    const s = cv.clientWidth ? cv.width / cv.clientWidth : 1;
+    const bx = (e.offsetX ?? 0) * s, by = (e.offsetY ?? 0) * s;
+    const mk = cv.width / 344;
+    if (bx > cv.width - 84 * mk && by < 40 * mk) mapNoseUp = !mapNoseUp;
+    else {
+      mapBig = !mapBig;
+      cv.width = cv.height = mapBig ? 1024 : 344;
+      $('mmp').classList.toggle('big', mapBig);
+    }
+    drawMap();
+  };
+
   setAircraft('pa18');
   function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -457,8 +618,18 @@
     placeCamera();
     sync();
     poseModel();
-    if (++frame % 6 === 0) { hud(); if (telWrap.classList.contains('show')) drawTel(); }
+    if (++frame % 6 === 0) { hud(); drawMap(); if (telWrap.classList.contains('show')) drawTel(); }
     renderer.render(scene, camera);
+    if (frame === 1) dismissBoot();     // first real frame is on screen
+  }
+  // Boot splash (body.html #boot): drop it once something is actually drawn.
+  // Guarded so the headless UI-smoke harness, which has no such element, and
+  // a second call from the loop are both no-ops.
+  function dismissBoot() {
+    const b = document.getElementById('boot');
+    if (!b || b.classList.contains('gone')) return;
+    b.classList.add('gone');
+    setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 600);
   }
   hud();
   loop();

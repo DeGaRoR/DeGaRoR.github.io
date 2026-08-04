@@ -8,7 +8,7 @@
 // A1 gate assertion: version.json's genome/bridge/ecology equal these three.
 
 /** 01 §8 — bumps on genome schema change; requires a forward migration. */
-export const GENOME_V = 2;
+export const GENOME_V = 4;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
 // BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to

@@ -45,7 +45,23 @@ export const W1_SLICE = {
   // measured before it is correctly invalidated. Shipped with it: the Hill
   // force-velocity relation on the actuator, which is 00 §9's power bound finally
   // enforced rather than approximated by a torque bound.
-  faunaVersion: 6,
+  // BUMPED AT A1/A2/A3, 6 -> 7, AND THIS IS THE LARGEST INVALIDATION SO FAR.
+  // Three changes land together, each of which alone would require it:
+  //   A1 — engine/l1/physics.js never called Rapier's resetForces/resetTorques,
+  //        so the fluid force applied at step n was the SUM of every force
+  //        computed since spawn (tools/_zaccum.mjs). Every trajectory ever
+  //        measured in this repo was taken against that. Fixed; the corpus KE
+  //        runaway went 31% -> 0% and path speed fell ~2.3x, which is a
+  //        correction and not a regression.
+  //   A2 — SLICE_LIMITS.maxRecursion 2 -> 6 plus the spine sub-grammar, so the
+  //        draw produces segmented bodies (run >= 4: 0% -> 14.3%).
+  //   A3 — GENOME_V 2 -> 3, the positional phase gradient. Neutral at insertion,
+  //        but it moves every genome hash and therefore worldHash.
+  //   A4 — gravity 9.81 -> 981, the CGS correction. `gravity` is a hashed field.
+  //        Verified inert rather than argued inert (tools/_zgravity.mjs).
+  //   A5 — GENOME_V 3 -> 4, proprioception. Neutral at insertion; moves the
+  //        hashes again.
+  faunaVersion: 7,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).
@@ -55,7 +71,19 @@ export const W1_SLICE = {
   // buoyancy term (mediumDensity - density)*V*g is identically zero, bit-exact
   // at g = 0 / 9.81 / 981. It must be corrected before the density band unpins
   // at step F, and not before, so that one change moves one number.
-  gravity:         9.81,          // cm/s^2 — see above; wrong by 100x but inert
+  // CORRECTED AT A4, 9.81 -> 981. The note above says it "SHOULD read 981 cm/s^2
+  // under this system" and was left wrong because it is provably inert:
+  // SLICE_LIMITS.density is [1, 1] against mediumDensity 1.0, so the buoyancy
+  // term `(mediumDensity - density) * V * g` is IDENTICALLY ZERO and no
+  // trajectory can see g at all. Verified rather than assumed —
+  // tools/_zgravity.mjs compares the corpus at 9.81 and 981 and requires
+  // bit-identical centres of mass.
+  //
+  // Moved NOW, with MUSCLE_STRESS, because both change the same force balance
+  // and the note asks for them to move once; and because A1/A2/A3 have already
+  // bumped faunaVersion this session, so it rides an invalidation that is
+  // happening anyway rather than forcing another one later.
+  gravity:         981,           // cm/s^2 — CGS, and inert while density is pinned to [1,1]
   mediumDensity:   1.0,           // water, g/cm^3
   dragScale:       1.0,
   dragCoefficient: 0.9,
@@ -119,7 +147,23 @@ export const W1_SLICE = {
   //   for exactly the reason 12 §5 gives — "all numeric constants come from the
   //   world fixture; none is hard-coded" — and like HARVEST_RATE beside it, 03 §5
   //   already says of these: "none is derived from theory."
-  FOOD_ENERGY:   4.2e4,           // erg/g — see above; calibrated at the slice
+  //   RECALIBRATED AT THE PHASE A EXIT, 4.2e4 -> 2.7e3. The fourth move, and the
+  //   rule above names three of its four triggers as having fired at once: A0
+  //   moved the metabolic bill from unsigned `work` to `workOut` (an animal does
+  //   not eat to be pushed around by the water); A1 fixed a force that had been
+  //   accumulating since spawn, so a creature no longer fights the summed history
+  //   of its own drag and does an order of magnitude less work; A2 and A3 changed
+  //   what the corpus is. Left at 4.2e4 the median intake/spend ran at 17 and
+  //   100% of the corpus broke even — food was free again and the ledger had
+  //   stopped asking a question.
+  //
+  //   Derived, not searched (tools/_zfoodcal.mjs, 24 creatures x 300 s): the value
+  //   that puts a creature exactly at break-even is spend/eaten, and the median of
+  //   that over the corpus is 2.663e3. At the shipped 2.7e3 the corpus spreads
+  //   p10 0.12 / median 1.08 / p90 12.95 with HALF of it paying its way — which is
+  //   the spread selection needs. A calibration that put everyone at 1.0 would
+  //   have removed the signal.
+  FOOD_ENERGY:   2.7e3,           // erg/g — see above; recalibrated at the Phase A exit
   PREDATION_EFFICIENCY: 0.6,
   KLEIBER:         0.75,          // basalRate proportional to mass^KLEIBER
   METABOLIC_SCALE: 0.02,          // erg/s per g^0.75

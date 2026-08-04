@@ -1,2 +1,9 @@
 __pycache__/
 battlebotsPWA/tools/engine.cjs
+
+# flyDiy: regenerable model-import intermediates.
+# assets/c172/ is produced from assetsSketchfab/free_cessna_172sp.glb (which IS
+# committed) by `python tools/glb_extract.py c172`; the baked payload
+# src/models/c172_model.js is committed. Contact sheets are scratch.
+flyDiy/assets/c172/
+flyDiy/tools/_glbview/

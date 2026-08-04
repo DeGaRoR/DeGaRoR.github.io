@@ -14,7 +14,25 @@ import { GENOME_V } from '../../contracts/versions.js';
 /** 10 §3 Amendment A2. */
 export const SLICE_LIMITS = {
   maxNodes: 8,              // full: 24 bodies instantiated
-  maxRecursion: 2,          // full: 6
+
+  /**
+   * LIFTED 2 -> 6 AT A2, to the grammar's own full range. `RANGE.recursiveLimit`
+   * is [1, 6] and this clamped the draw to [1, 2], so no chain longer than about
+   * two segments could ever be generated: over 400 draws, `longestRun >= 4`
+   * occurred ZERO times, against 6-7 for every authored creature in the Atlas.
+   * The Eel — the animal the library is built around — is ONE node connected to
+   * itself at recursiveLimit 6, and the slice forbade drawing it.
+   *
+   * MEASURED FREE (tools/_zrecur.mjs, 400 draws per setting): viability is flat
+   * at 57-62% across maxRecursion 2/3/4/6 and median body count does not move.
+   * Whatever the clamp was protecting, the measurement does not find it.
+   *
+   * MEASURED INSUFFICIENT, which is why A2 is three changes and not one: at 6 the
+   * draw reaches run >= 4 only 5% of the time, because a chain needs a
+   * self-connection AND a high recursiveLimit AND an axial face AND a scale that
+   * does not run away, all at once. See `spineAxialRate` and `spineScale` below.
+   */
+  maxRecursion: 6,
   maxConnPerNode: 3,        // full: 4
   /**
    * GRAFTING IS ON. Was `false` from A2 through B4, on 30 R3's reading that
@@ -220,6 +238,86 @@ export const SLICE_LIMITS = {
   allowedFaces: [0, 1, 3, 4, 5],
 
   /**
+   * ── THE SPINE — A2 ────────────────────────────────────────────────────────
+   *
+   * A SELF-CONNECTION IS A SEGMENT THAT REPEATS. These three fields say that when
+   * a segment repeats, it repeats ALONG THE BODY AXIS. They are a statement about
+   * geometry, not about creatures: every other choice is a shape morphogenesis
+   * throws away, and drawing it is not variety, it is waste.
+   *
+   * WHY THE FACE DOMINATES. `morphogen.js placeChild` attaches every child by its
+   * own -Z face — "fixed convention, never revisited" — so a segment repeated on
+   * the parent's +Z face (index 5) extends the body, and a segment repeated on
+   * any other face turns ninety degrees EVERY TIME and spirals into itself.
+   * `worlds/seeds.js:119` keeps that counter-example on purpose: genes identical
+   * to the Eel except `parentFace: 0`, and "the chain self-intersects, and
+   * morphogenesis rejects it at four bodies however high recursiveLimit goes".
+   * Five of six allowed faces are doomed before anything else is drawn, which is
+   * most of the gap between 46% of genomes carrying a self-connection and 0%
+   * carrying a spine.
+   *
+   * NOT 1.0, DELIBERATELY. A coiled or radial repeat is a real animal — a snail,
+   * a fiddlehead — and some of them survive the overlap test. The residual keeps
+   * that reachable rather than legislating it away.
+   *
+   * `spineScale` is the second coincidence. Connection scale is CUMULATIVE down
+   * the chain (`morphogen.js placeChild`: parent.cumulativeScale * c.scale), so
+   * over six segments the full [0.5, 2.0] band spans 1/64x to 64x and either end
+   * leaves the [MIN_LIMB_DIMENSION, MAX_LIMB_DIMENSION] window — the subtree is
+   * dropped and the chain ends early. A band around 1 gives a chain that tapers
+   * rather than one that detonates. Non-self connections keep the full range, so
+   * limbs, fins and claws are untouched by any of this.
+   *
+   * `spineOrient` is the third: RANGE.orientation is +/- PI/4 per axis, which is
+   * already NARROW (10 §A5 correction 4), but 45 degrees compounded over six
+   * segments is 270 degrees of curl. This narrows it FOR REPEATS ONLY.
+   */
+  spineAxialRate: 0.8,
+  /**
+   * BIASED BELOW 1, so a chain TAPERS. Not a cosmetic choice — measured.
+   *
+   * Connection scale is cumulative and applies per axis, so a segment's VOLUME
+   * goes as scale^3 per step. At a band centred on 0.95 a six-segment chain
+   * weighs about 4.5x its first segment, and with `RANGE.dim` reaching 2.0 cm on
+   * every axis that puts it straight through `VIABILITY.maxMass`: measured median
+   * spine mass 26.4 g against a 40 g cap, with 42% over it, and `mass` was the
+   * largest single rejection reason for drawn spines (25 of 42).
+   *
+   * Centred on ~0.82 the same chain weighs about 2.2x its first segment. It is
+   * also what segmented swimmers do — an eel is not a stack of identical cubes —
+   * so the constraint the viability filter was expressing was a real one.
+   */
+  spineScale: [0.60, 1.05],
+  spineOrient: 0.35,        // fraction of RANGE.orientation retained on a repeat
+
+  /**
+   * How often the extra-edge pass is STEERED to make a self-connection. The pass
+   * already produces them by chance — `pick(nodes)` lands on the parent about
+   * 1/nodeCount of the time, measured at 46% of genomes carrying at least one —
+   * and this raises that without removing the chance path.
+   *
+   * The lever the measurement pointed at (HANDOVER-FORAGE 23a) was "bias the draw
+   * toward FEW nodes whose connections are self-referential", i.e. the node-count
+   * distribution. That is the more invasive reading: `nodeCount` was raised
+   * 2 -> 3 at B2 §2.2 because "at 2 the factory produces a two-box hinge 28% of
+   * the time, which is not a creature", and lowering it again re-opens a defect
+   * that was closed on measurement. Steering one edge gets the chain without
+   * reversing that decision.
+   */
+  spineEdgeRate: 0.45,
+
+  /**
+   * A3b — the probability that a node takes the BODY's frequency multiplier
+   * rather than drawing its own. See the measurement at the `jointGenes` draw in
+   * `createRandomGenome`: a frequency mismatch between adjacent joints drops
+   * their commanded coherence from 0.976 to 0.005, and no phase gradient can
+   * repair it, because sines at different multiples of omega are orthogonal.
+   *
+   * 0 restores the pre-A3b independent draw exactly.
+   */
+  freqCoherence: 0.85,
+
+  /**
    * REFLECTION CLAMP — B2 §2.2. A connection with `reflectX` must be offset from
    * the face centre by at least this much in `position[0]`; same for `reflectY`
    * and `position[1]`.
@@ -322,6 +420,70 @@ export function clampReflection(c, limits = SLICE_LIMITS) {
   if (c.reflectY) c.position[1] = push(c.position[1]);
   return c;
 }
+
+/**
+ * The face a repeated segment must sit on to extend the body rather than spiral
+ * into it. See `SLICE_LIMITS.spineAxialRate`. 5 is +Z in morphogen.js's face
+ * table, and every child attaches by its own -Z, so 5 is the only face on which
+ * "the same segment again" means "further along".
+ */
+export const AXIAL_FACE = 5;
+
+/**
+ * THE SPINE SUB-GRAMMAR — A2. Applied to a connection whose parent IS its child.
+ *
+ * Like `clampReflection` above, this exists because the morphogen is correct and
+ * the DRAW was producing shapes the morphogen then had to throw away. It belongs
+ * here and in mutate.js, and morphogen.js is not touched.
+ *
+ * Four coincidences had to land at once for a chain to form, and three of them
+ * are handled here (the fourth, `recursiveLimit`, is a node gene):
+ *
+ *   1. the axial face          — 1 in 5, and 4 of the other 5 self-intersect
+ *   2. `terminalOnly` false    — 1 in 2; a repeat that fires ONLY at the terminal
+ *                                depth is not a repeat, it is a cap
+ *   3. a scale near 1          — cumulative down the chain, so the tails of
+ *                                [0.5, 2.0] leave the limb-size window and the
+ *                                subtree is dropped part-way along
+ *
+ * SCALE AND ORIENTATION ARE REMAPPED, NOT CLAMPED. Clamping would pile the
+ * probability mass on the two band edges — a uniform [0.5, 2.0] clamped to
+ * [0.72, 1.18] puts over half the draws exactly on 1.18. The linear remap keeps
+ * the draw uniform inside the narrower band and consumes no extra randomness, so
+ * only the face test costs an rng call.
+ */
+export function applySpineGrammar(c, rng, limits = SLICE_LIMITS) {
+  if (c.parentNodeId !== c.childNodeId) return c;
+
+  // `terminalOnly` ON A SELF-EDGE IS A DEAD COMBINATION, always, so it is cleared
+  // for every repeat and not only for axial ones. morphogenesis applies a
+  // terminalOnly connection only once `depth === node.recursiveLimit` — at which
+  // point the recursion has already stopped — so the edge can never fire and the
+  // node makes one body. This is the same defect the spanning-edge pass above
+  // documents ("a terminalOnly spanning edge NEVER FIRES ... 500 genomes gave a
+  // minimum of 1 body"), reached through the other kind of edge.
+  c.terminalOnly = false;
+
+  const faces = limits.allowedFaces ?? ALL_FACES;
+  const rate = limits.spineAxialRate ?? 0;
+  // Drawn unconditionally so the rng stream does not depend on which branch the
+  // face test would have taken — determinism is exact or it is not determinism.
+  const roll = rng.range(0, 1);
+  if (rate > 0 && faces.includes(AXIAL_FACE) && roll < rate) {
+    c.parentFace = AXIAL_FACE;
+
+    const band = limits.spineScale;
+    if (band) {
+      const [lo, hi] = RANGE.scale;
+      const span = hi - lo;
+      c.scale = c.scale.map((v) =>
+        qClamp(band[0] + ((v - lo) / span) * (band[1] - band[0]), RANGE.scale));
+    }
+    const k = limits.spineOrient;
+    if (k != null) c.orientation = c.orientation.map((v) => qClamp(v * k, RANGE.orientation));
+  }
+  return c;
+}
 // qClamp, not q: q rounds to the NEAREST micron and can land a draw just
 // outside the range it came from. See genome.js. Never observed here — it needs
 // a draw within 5e-7 of a bound — but it is the same defect that made every
@@ -340,7 +502,13 @@ function randomNode(rng, limits) {
     joint: {
       type: pick(rng, limits.jointTypes),
       angleLimits: [uniform(rng, RANGE.angleLimit), uniform(rng, RANGE.angleLimit), uniform(rng, RANGE.angleLimit)],
-      phaseLag: uniform(rng, RANGE.phaseLag),
+      // A3 — A DEVIATION FROM THE GRADIENT, not the whole lag. Drawn from the
+      // narrow `phaseDeviation` band rather than the full circle, so a new
+      // genome asks for a coherent travelling wave by default and selection has
+      // to WORK to break it where a body needs asymmetry. Drawing this at full
+      // range was the defect: independent per-node lags accumulated along the
+      // tree into a random walk, and commanded coherence measured 0.615.
+      phaseLag: uniform(rng, RANGE.phaseDeviation),
     },
     colorGenes: {
       hueShift: uniform(rng, RANGE.hueShift),
@@ -361,7 +529,7 @@ function randomConnection(rng, limits, parentNodeId, childNodeId) {
   for (let i = 0; i < n; i++) flags[pool.splice(rng.int(pool.length), 1)[0]] = true;
 
   const faces = limits.allowedFaces ?? ALL_FACES;
-  return clampReflection(makeConnection(makeId(rng, 'c'), {
+  return applySpineGrammar(clampReflection(makeConnection(makeId(rng, 'c'), {
     parentNodeId, childNodeId,
     // Back-face exclusion, §2.4. Drawn from the allowed set rather than drawn
     // freely and rejected, so the distribution over the remaining faces stays
@@ -374,7 +542,7 @@ function randomConnection(rng, limits, parentNodeId, childNodeId) {
     scale: [uniform(rng, RANGE.scale), uniform(rng, RANGE.scale), uniform(rng, RANGE.scale)],
     ...flags,
     terminalOnly: rng.int(2) === 0,
-  }), limits);
+  }), limits), rng, limits);
 }
 
 /**
@@ -423,19 +591,80 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
   // equal to its parent is self-recursion; a child pointing at an ancestor is
   // loop recursion. Both are intended (10 §A5). These MAY be terminalOnly —
   // that is where tails, hands and claws come from.
-  const extras = uniformInt(rng, limits.extraEdges);
+  const drawnExtras = uniformInt(rng, limits.extraEdges);
+  // A2 — STEER ONE EXTRA EDGE INTO A SELF-CONNECTION, sometimes. The pass already
+  // produces them by chance (`pick(nodes)` landing on the parent, 46% of genomes
+  // carrying at least one); this raises the rate without closing the chance path,
+  // and without touching `nodeCount`, whose floor was raised 2 -> 3 on
+  // measurement at B2 §2.2 and should not be walked back.
+  //
+  // IT IS AN ADDITIONAL EDGE, NOT A CONVERTED ONE, and that detail is load-
+  // bearing. `extraEdges` has a floor of 1, so converting the single extra into
+  // the self-edge left the spine as the ONLY redundant edge in the graph — and
+  // then `removeConnection` had no other legal removal and cut it, which is the
+  // residue that survived deprioritising self-edges in that operator (spine
+  // survival at 20 generations moved only 23% -> 31%). Adding one keeps a
+  // non-spine edge available to give back, which is the same argument
+  // `extraEdges` itself is justified by above.
+  const spineRoll = rng.range(0, 1);
+  let wantSpine = spineRoll < (limits.spineEdgeRate ?? 0);
+  const extras = drawnExtras + (wantSpine ? 1 : 0);
   for (let k = 0; k < extras; k++) {
     const candidates = nodes.filter(n => outDegree.get(n.id) < limits.maxConnPerNode);
     if (!candidates.length) break;
-    addEdge(pick(rng, candidates).id, pick(rng, nodes).id, rng.int(2) === 0);
+    const parent = pick(rng, candidates);
+    // The self-edge goes on a node with a recursiveLimit worth repeating: a
+    // spine edge on a node capped at 1 produces two bodies and no chain.
+    const child = wantSpine && parent.recursiveLimit >= 3 ? parent : pick(rng, nodes);
+    if (child === parent) wantSpine = false;
+    addEdge(parent.id, child.id, rng.int(2) === 0);
   }
 
+  // A3b — ONE BODY, ONE FREQUENCY, BY DEFAULT.
+  //
+  // `freqMult` was an INDEPENDENT draw per node from [0.5, 1, 2], which is the
+  // same defect class as `phaseLag` before A3: a per-node independent draw where
+  // a body-wide default belongs. And it is the binding one.
+  //
+  // MEASURED (tools/_zgrad.mjs, 16 creatures, on the command alone):
+  //
+  //     adjacent joint pairs SHARING freqMult      coherence 0.976
+  //     adjacent joint pairs DIFFERING             coherence 0.005
+  //
+  // The phase gradient does its whole job — 0.976 — wherever phase can act at
+  // all. It cannot act across a frequency mismatch: sin(wt) and sin(2wt) are
+  // ORTHOGONAL over a period, so their correlation is zero whatever their
+  // phases are. With 20% of adjacent pairs mismatched, that alone held the
+  // corpus median at 0.745 against a 0.90 gate.
+  //
+  // Real spinal CPGs run the whole body at one frequency and differentiate
+  // segments by PHASE. A frequency doublet along a body axis is not a gait, it
+  // is two animals.
+  //
+  // THE GENE IS NOT REMOVED AND NOTHING IS BANNED. `resampleFreqMult` still
+  // moves a single joint to another multiple, which mutate.js describes as
+  // "what turns a travelling wave into a different gait" — that remains
+  // reachable, and selection can keep it. Only the DEFAULT changes: a new
+  // genome asks for one rhythm, and a counter-rhythm has to be discovered.
+  // `freqCoherence` is the one constant; set it to 0 for the old behaviour.
+  // THE BODY'S DEFAULT IS 1, NOT A DRAW, and that is a separation of concerns
+  // rather than a tuning choice. Once the body shares a multiplier, a body-wide
+  // `freqMult` is REDUNDANT WITH `omega`: the commanded frequency is
+  // `omega * freqMult`, and `omega` is already a free gene over [0.5, 6]. Drawing
+  // the shared value from [0.5, 1, 2] therefore adds nothing omega cannot
+  // express, while handing a third of all genomes a uniform half-speed penalty
+  // for no reason. `omega` carries TEMPO; `freqMult` carries per-joint
+  // DIFFERENTIATION — a joint beating against its neighbours — which is what
+  // mutate.js `resampleFreqMult` describes it as being for, and which is still
+  // reachable both from the freqCoherence miss below and from that operator.
+  const bodyFreq = 1;
   const jointGenes = {};
   for (const n of nodes) {
+    const roll = rng.range(0, 1);
     jointGenes[n.id] = {
       amplitude: uniform(rng, RANGE.amplitude),
       bias: uniform(rng, RANGE.bias),
-      freqMult: pick(rng, FREQ_MULTS),
+      freqMult: roll < (limits.freqCoherence ?? 0) ? bodyFreq : pick(rng, FREQ_MULTS),
     };
   }
 
@@ -483,6 +712,50 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // and nothing measures them yet.
       preyGain: uniform(rng, RANGE.preyGain),
       threatGain: uniform(rng, RANGE.threatGain),
+      // A3 — THE GRADIENT. `phaseBase` is the lag every joint contributes and is
+      // what turns an accumulated phase into a travelling wave; it is drawn over
+      // the full circle because any constant lag is a wave, and which one is a
+      // real choice about gait. `phaseSlope` chirps that lag with depth and is
+      // narrow by construction (RANGE.phaseSlope), because a large slope unwinds
+      // the wave within a few segments.
+      phaseBase: uniform(rng, RANGE.phaseBase),
+      phaseSlope: uniform(rng, RANGE.phaseSlope),
+      // ── A5. DRAWN AT ZERO, ON MEASUREMENT ──────────────────────────────────
+      //
+      // The receptor is always present and `mutateProprioGain` is live, so
+      // selection can raise this whenever a lineage benefits. What it does NOT do
+      // is impose a gain on every new genome, because the measured effect of a
+      // non-zero one is negative (tools/_zproprio.mjs, 16 creatures, a nominal
+      // body and the same animal carrying +30% mass):
+      //
+      //     K      achieved inter-joint coherence, loaded
+      //     0      0.648
+      //     0.25   0.541
+      //     0.5    0.588
+      //     1      0.535
+      //     2      0.374
+      //
+      // The chantier's own gate — achieved/commanded >= 0.90 — is MET at K = 1,
+      // and meeting it means nothing: the ratio rises only because commanded
+      // coherence collapses faster than achieved does (0.959 -> 0.59). A ratio
+      // whose denominator the treatment also moves is not a measurement. Swept
+      // the inter-oscillator coupling at 4, 12 and 30 as well: achieved coherence
+      // is FLAT at 0.535 across all three while the ratio climbs 0.905 -> 0.952,
+      // which is the same artefact seen a second way.
+      //
+      // WHY THE ORGAN UNDER-DELIVERS, and it is the A4 story again. A5 was
+      // specified against a world where "a joint fails to reach its commanded
+      // angle and the oscillator marches on". After the A1 force-accumulation
+      // fix joints largely DO reach their commands — amplitude tracking is ~0.95
+      // and command-to-body lock ~0.75 — so the failure entrainment exists to
+      // correct is now rare, and the extra phase dynamics mostly add noise to a
+      // wave A3 had already made coherent.
+      //
+      // NOT THE preyGain PRECEDENT. That gene was unreachable because no operator
+      // touched it. This one has its own operator, fires at a measured rate, and
+      // crosses — it is reachable in one mutation from every genome in the
+      // population. Only the STARTING value is zero.
+      proprioGain: 0,
       jointGenes,
     },
     social: {

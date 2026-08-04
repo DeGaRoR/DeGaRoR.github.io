@@ -3,7 +3,7 @@
 // scaled 1.5 m/s + 0.5 (nobody flies a foamie in half its stall speed).
 // Asserts circuits complete, decrab keeps touchdown drift and offset
 // bounded, gust rejection holds cruise altitude, strains stay in limits.
-const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeWorld } = require('./flight_core.js');
+const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeWorld, makeSim } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
 
 function windWorld(v, g) { const w = makeWorld(); w.setWind({ base: [0, 0, v], gust: g }); return w; }
@@ -90,6 +90,35 @@ R.push(runCircuit({
     '|tdZ|<6': c.td && Math.abs(c.td.z) < 6,
     'sink<2.0': c.td && c.td.sink < 2.0, 'chassis<8%': c.smaxCh < 0.08, 'gear<35%': c.smaxGr < 0.35 }),
 }));
+
+// Parked-latch check (W13): a taildragger DWELLING parked in a tailwind
+// after the reset slam folded its tailwheel tripod and LATCHED at 4%
+// strain (cub/pa18; cured with TW->TPT + the TW->HT pyramid, rule 10).
+// The circuits above roll immediately and never dwell — this probes
+// exactly the viewer's sit-with-wind-set regime.
+for (const [id, build] of [['W-PARK-PA18', buildPA18], ['W-PARK-CUB', buildCub]]) {
+  const W = makeWorld();
+  W.setWind({ base: [-1.7, 0, 1.9], gust: 0 });   // viewer 'breeze': tailwind at spawn
+  const def = build(), sim = makeSim(def, W);
+  sim.reset(0);
+  const nid = t => { let r = -1; def.nodes.forEach((n, i) => { if (n.tag === t) r = i; }); return r; };
+  const tw = nid('TW'), tpb = nid('TPB'), tpt = nid('TPT');
+  const L = (a, b) => Math.hypot(sim.p[a*3] - sim.p[b*3],
+    sim.p[a*3+1] - sim.p[b*3+1], sim.p[a*3+2] - sim.p[b*3+2]);
+  const r1 = L(tw, tpb), r2 = L(tw, tpt);
+  let worst = 0, minTpb = 1e9;
+  for (let f = 0; f < 720; f++) {                 // 12 s parked
+    sim.step(1 / 60);
+    if (f < 90) continue;                         // slam transient
+    worst = Math.max(worst, Math.abs(L(tw, tpb) / r1 - 1), Math.abs(L(tw, tpt) / r2 - 1));
+    minTpb = Math.min(minTpb, sim.p[tpb*3+1] - W.terrainH(sim.p[tpb*3], sim.p[tpb*3+2]));
+  }
+  const ok = worst < 0.10 && minTpb > 0.15;
+  console.log(`=== ${id} ===`);
+  console.log(`tail-rig dev ${(worst * 100).toFixed(1)}% | minTpbAgl ${minTpb.toFixed(2)} m ` +
+    `-> ${ok ? 'holds' : 'FOLDED'}`);
+  R.push({ id, pass: ok });
+}
 
 const pass = R.every(r => r.pass);
 console.log(pass ? 'GATE WIND: PASS' : 'GATE WIND: FAIL');

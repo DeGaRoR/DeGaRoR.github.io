@@ -20,6 +20,32 @@
     -webkit-user-select:none; user-select:none; }
   #c:active { cursor:grabbing; }
 
+  /* ---- boot splash ----------------------------------------------------
+     The artifact inlines its 3D payloads, so it is several MB and the browser
+     streams it. This paints from the first few KB (it is the first element in
+     <body>, ahead of the script blocks) and app.js drops it on frame 1.
+     Deliberately font-independent: IBM Plex has not loaded yet either. */
+  #boot { position:fixed; inset:0; z-index:50; display:flex;
+    align-items:center; justify-content:center; background:#cfe0ec;
+    transition:opacity .45s ease; }
+  #boot.gone { opacity:0; pointer-events:none; }
+  #bootInner { display:flex; flex-direction:column; align-items:center; gap:14px;
+    color:#4b3a2a; font:500 15px/1.4 ui-sans-serif, system-ui, sans-serif;
+    letter-spacing:.06em; }
+  #bootBrand { font-size:19px; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; }
+  #bootNote { font-size:12px; letter-spacing:.10em; color:#7d6a56; }
+  #bootBar { width:190px; height:3px; border-radius:2px; overflow:hidden;
+    background:rgba(75,58,42,.16); }
+  #bootBar i { display:block; width:40%; height:100%; border-radius:2px;
+    background:#c07a2c; animation:bootSlide 1.15s ease-in-out infinite; }
+  @keyframes bootSlide {
+    0% { transform:translateX(-110%); } 100% { transform:translateX(360%); }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    #bootBar i { animation:none; width:100%; }
+  }
+
   /* ---- overlay: two thin bars, telemetry floats above the bottom one ---- */
   #ui { position:fixed; inset:0; padding:14px; pointer-events:none;
     display:flex; flex-direction:column; justify-content:space-between; }
@@ -52,6 +78,15 @@
     font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
   .rd i { font-style:normal; font-size:9px; letter-spacing:.15em; text-transform:uppercase;
     color:var(--dim); }
+
+  /* ---- middle band: minimap floats right, under the PFD (W13) ----
+     click toggles small/large; the map's top-right chip toggles N-up/nose-up */
+  #mid { flex:1; display:flex; justify-content:flex-end; align-items:flex-start;
+    padding-top:10px; min-height:0; }
+  #mmp { padding:5px; }
+  #mm { display:block; width:172px; height:172px; border-radius:9px;
+    pointer-events:auto; cursor:pointer; }
+  #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
 
   /* ---- south: telemetry (on demand) stacked above the control bar ---- */
   #south { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
@@ -121,6 +156,9 @@
     #hint, #credit { display:none; }
     #grid { grid-template-columns:repeat(2, 1fr); }
     #telp { width:calc(100vw - 20px); }
+    #mm { width:118px; height:118px; }
+    #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
+      height:min(82vmin, calc(100vw - 40px)); }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition:none !important; }

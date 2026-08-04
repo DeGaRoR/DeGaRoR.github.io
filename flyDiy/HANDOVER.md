@@ -31,6 +31,15 @@ before every battery so stale hand-edits get overwritten, loudly.
   external. The ideal parallel-agent boundary: one agent per fiche, zero
   conflicts. The pa18 is a byte-copy of the cub geometry + flap physics and
   carries the 3D skin; the J-3 stays wireframe (may retire later).
+- `tools/glb_inspect.py` / `glb_render.py` / `glb_extract.py` — the GLB branch
+  of the model import (docs/MODEL-IMPORT-PROC.md Step 0b). inspect =
+  world-space inventory + textures + animation channels; render = orthographic
+  contact sheets, which is how parts get identified when the exporter has
+  named everything `Plane.002_1`; extract = axis/scale convert, skip staging
+  props, split fused L/R meshes, mirror missing sides → a plain OBJ the
+  existing bake consumes unchanged. The mesh is carried through AS-IS; the
+  extractor has no decimation and must not grow one.
+  Per-model config: `tools/models/<key>_src.py`.
 - `src/core/20_world.js` — makeWorld(seed): v1 world contract (terrainH/
   waterH/surface/tile/aerodromes/settlements/wind) + v0 shim (trees/meadows/
   CELL/wind/setWind) on one object. Seed 0 / no arg = the validated world,
@@ -101,6 +110,15 @@ from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
 (+~2 s WORLD).
+GATE XCTY4 (~32 s) is the W13.2 short-field leg: PA-18 HOME -> Stein
+(340 m gravel fly-in) in the viewer BREEZE preset — touch in the first
+40%, bounded skip, on-strip stop, UPRIGHT tail-down, tail rig intact.
+GATE C172M (appended after PA18, ~2 s) is the second skin's contract:
+payload decode, span/length, tricycle mount calibration at BOTH gear ends,
+hinge axes (unit + aero-consistent signs) for the non-cardinal C172 hinges,
+nose-gear steering across four payload groups, flex-band containment and
+L/R symmetry, and that the strut fittings ride the wing while the fuel caps
+stay rigid. The pa18's MODEL/SKIN/CTRL gates are untouched.
 GATE AERO (appended after SETTLE, ~2.5 s) holds the stage-4 invariants:
 counts/size mix, centreline flat + slope, dry, tree-free boxes, surface
 patches, tdz on pad, reachable-or-fly-in, spacing, determinism.
@@ -197,10 +215,18 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
    through the full deck angle every reset: that impact is what kicks
    latch-prone geometry over its catch point (chinook boom torsion; drone
    tailwheel tripod folding UP until the bare tail post rested on the
-   terrain). Cures are geometric and need MEASURED trials (probe with a
-   lateral force, release, check elastic return): wide triangulated anchors
+   terrain; cub/pa18 2026-08-04: PARKED IN A TAILWIND after the slam, the
+   tailwheel folded up-and-SIDEWAYS about TPB and latched at 4% strain —
+   the wind gate never dwells parked, the W13 viewer wind presets do; the
+   rigid skin then showed the tail diving below ground). Cures are
+   geometric and need MEASURED trials (probe with a lateral force, release,
+   check elastic return): wide triangulated anchors
    (fin<->stab wires + stab<->tailwheel pyramid + boom->wing-box wires), a
-   snap-blocking near-vertical member (drone TW->TPT), never more K. Wires
+   snap-blocking near-vertical member (drone TW->TPT), never more K. The
+   cub/pa18 needed BOTH: TW->TPT alone left a shallower lateral latch;
+   TW->HTL/HTR (the pyramid) killed it — dev <3.5% through fresh-wind
+   dwell, elastic. GATE WIND now ends with W-PARK-PA18/CUB (12 s parked
+   in the viewer breeze, tail-rig deviation <10%, post stays up). Wires
    that anchor to strip-force-carrying nodes re-rig the aeroelastics — anchor
    to box nodes (WB) and keep them soft.
 
@@ -209,6 +235,27 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   C172 0.22, Jodel 0.17, drone 0.03. Wrong-scale D-gains create slew-rate
   limit cycles (drone pitch ±9° @2.3Hz; Jodel roll; C172-class chatter).
   The cure is always LOWER D + command slew, not more filtering.
+  W16 lateral quiet (2026-08-04, user report "PA-18 rocks L/R 2-3x/s"):
+  cub/pa18 rode the DEFAULT rollD 2.0 on the RF-lagged rate estimate —
+  aileron limit-cycled 8-12 deg p2p at ~4 Hz (bank ~1 deg: surface flail
+  + wing rock, obvious on the skin). Fiche rollD 0.8 kills it to 0.2 deg;
+  a FASTER rate filter makes it WORSE (measured 13 deg) — the doctrine
+  holds. The Jodel was a different disease at the same symptom: 11 deg of
+  REAL bank at 1.8 Hz with rollP 1.1/rollD 0.30 — aileron-LOOP unstable
+  (freeze test: ailerons frozen -> dead calm; rudder frozen -> unchanged,
+  so NOT dutch roll; raising servo slew made it worse). HARD-WON second
+  half: quieting the roll loop ALONE trades away capture + decrab —
+  rollP 0.4 landed 11-13 m off centreline (calm gate bound 5.5) and the
+  pure-roll candidate P0.7/D0.20 drifted -6.3 m/s through the crosswind
+  touchdown (bound 1.8). The fix is a PAIR: rollP 0.5 + rollD 0.15 for
+  quiet, hdgP 0.5 -> 0.65 so the course loop carries what the roll loop
+  gave up — final numbers BEAT the old gains (calm tdZ 2.4 vs ~3;
+  crosswind drift -0.24 vs -1.64, tdZ 2.9 vs -6.9). Wind response after
+  all fixes: slow gust tracking, no cycles (bank p2p 0.7 pa18 / ~4.5
+  jodel in 3 m/s + gusts). MEASURE with the zero-cross instrument
+  (scratch osc probe) before and after any lateral gain change — the
+  circuit gates do NOT see cruise smoothness, and cruise-quiet probes do
+  NOT see capture/decrab: run BOTH.
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
 - **W10 runway frames (contract rule 6 DONE)**: all along/cross geometry
   runs in a runway frame {origin, unit axis} from a W.aerodromes record;
@@ -231,12 +278,36 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   (5) fiche aim points assume 1100 m of runway — clamp xAim inside the
   destination threshold + 40 m on xc arrivals (C172 touched grass 28 m
   short of a 650 m strip). All five no-ops for standard circuits.
+- **W13.2 short-field arrivals (fly-in benches, len < 450)**, hard-won in
+  order: (1) the landing DIRECTION is picked INTO THE WIND when |wind| >
+  0.7 at the destination (else by leg bearing as before) — a quartering
+  tailwind at Stein bounced/veered/nosed-over every arrival; (2) the aim
+  must come from the ACTUAL approach threshold of the chosen frame
+  (sThr = sCentre - len/2): the old "-450 - 0.25*len" assumed the
+  record's canonical direction and aimed 0.5*len (195 m at Stein) deep
+  on flipped arrivals — identical for canonical frames, so calm gates
+  held; (3) the APPROACH VS feedforward must use GROUNDSPEED (-Vg*gs):
+  -V*gs in a headwind commands W*gs too much sink and the +0.5 clamp
+  never closes the standing low (5.6 m under the slope at the Stein
+  threshold, touch 83 m short of aim). Identical in calm; (4) full-aft
+  rollout pin AT TOUCH SPEED re-flies a flapped taildragger (3 m balloon,
+  18 deg nose-up, 4 s — HOME's 1100 m always absorbed it): thPinMax
+  relaxes the pin above ~3-point attitude, VPinFull (fiche, pa18 16)
+  holds moderate aft until below flying speed; (5) short strips fly
+  A.VApprShort (pa18 18.5 = 1.37*Vs flapped; cub 18.8 = 1.25*Vs floor)
+  and aim sThr + 75 (measured touch scatter -50..+20 about the aim).
+  GATE XCTY4 = the original user repro (PA-18 HOME -> Stein, breeze) and
+  asserts touch point, bounded skip, on-strip stop AND upright attitude —
+  the first assertion set that would have caught the nose-over. The J-3
+  at 340 m remains marginal (flapless float: calm overruns ~90 m) —
+  honest envelope limit, fly the PA-18 into short benches.
 - holdPitch command filter thCA re-syncs to current attitude on re-engage
   (holdWas/holdActive) — its zero-init once nosed the DC-3 over at Vr.
-  **KNOWN BUG, blocks the manual-controls session:** holdWas is assigned once
-  at declaration and never updated; holdActive is never reset. The resync fires
-  only on the very first holdPitch call — an AP re-engaged after manual flight
-  will hit exactly the DC-3-at-Vr failure mode. Fix before session 4.
+  FIXED in W14 (2026-08-04): holdWas updates per-frame at the end of
+  ap.update, so the resync fires after ANY holdPitch gap. For manual
+  controls, ALSO call ap.reEngage() on AP re-engage: it re-latches every
+  filter/integrator/servo memory from the live state on the next update
+  (the manual-flight gap leaves them stale even with the resync fixed).
 - Guidance is pure pursuit; **lookahead must scale with turn radius**
   (lookRoll/lookAppr/lookCruise per aircraft). DC-3 flew 600 m weaves with
   Cub lookahead.
@@ -353,7 +424,12 @@ two-scale vegetation-patch mottling fading out by ~260 m,
 field patchwork, instanced woodland (2-4 render-only
 neighbours per collidable tree, corridor exclusion |z|<90 matches the world,
 water-rejected via waterH), billboard cumulus, dynamic shadow frustum
-following the CG. The aircraft
+following the CG. W13 viewer pass (2026-08-04): dense
+render-only woodland fill streamed in 1024 m chunks around the aircraft,
+minimap panel (baked underlay + live route/aircraft/wind), wind presets
+wired to world.setWind with live windsocks, flatness-gated field
+patchwork, second close-range detail octave — see roadmap W13.
+The aircraft
 itself stays the untinted wireframe: strain ramp neutral→amber (tension) /
 cyan (compression) — deliberate contrast, don't "fix" it.
 The shadow proxy (app.js) stitches an invisible skin across WF/WR tips +
@@ -374,8 +450,10 @@ procedure for the next aircraft: docs/MODEL-IMPORT-PROC.md.
 - bSkin cycles Skin → Flex ×4 → Frame. In skin modes the mesh casts the sun
   shadow and the proxy hides; Frame restores wireframe + proxy shadow.
 - Drawn surfaces run through a two-pole linkage low-pass (LINK_TAU 0.15) —
-  NOT 1:1 with sim.ctl (HUD shows raw ctl); it filters the AP's ~3.7 Hz
-  roll/yaw limit cycle, whose core-side fix is still open (SKIN-PROC §8 e4).
+  NOT 1:1 with sim.ctl (HUD shows raw ctl); it was added to filter the
+  AP's ~3.7 Hz roll/yaw limit cycle. That cycle's core-side fix landed in
+  W16 (fiche rollD 0.8, see AUTOPILOT RULES) — the linkage lag stays for
+  realism, but it no longer masks anything.
 - Known limits carried as-is: no twist, rigid tail/fuselage/glass, hinge
   about the undeformed line (visible only at ×4), P-side-only station keys
   in makeSkinBinding (exact for mirrored fiches — union+assert before
@@ -383,13 +461,61 @@ procedure for the next aircraft: docs/MODEL-IMPORT-PROC.md.
 - The branch's flight_core.js was a fork of the INITIAL commit — never merge
   anything from it; the port cherry-picked only codec/payload/viewer/gates.
 
+### C172 skin (2026-08-04) — second model, GLB source
+`src/models/c172_model.js` (6.2 MB, 27 groups, 186 k tris) from a Sketchfab GLB
+("FREE Cessna 172SP" by NLM, CC-BY 4.0, `assetsSketchfab/`). New GLB branch of
+the import procedure: `tools/glb_inspect.py` (inventory / textures /
+animations), `tools/glb_render.py` (**ortho contact sheets** — the only way to
+identify parts in a Sketchfab export, whose names are all `Plane.002_1`),
+`tools/glb_extract.py` + `tools/models/c172_src.py` (axis/scale convert, skip
+staging props, split fused L/R meshes, mirror the missing strut) →
+`assets/c172/c172.obj`, then the unchanged OBJ bake.
+- **IMPORT AS-IS. Do not decimate, weld or clip the mesh, and do not re-encode
+  the textures** (`fmt='copy'`). Detailed models are supposed to be detailed;
+  the artifact is ~7.9 MB and that is fine, because loading is handled by a
+  loading screen (body.html `#boot`, dropped on frame 1 by `dismissBoot`).
+  An earlier pass decimated to 35% and it was rejected — the capability was
+  removed from the extractor rather than left switchable.
+- Calibration `SKIN_CFG.c172 = { off:[1.694,-1.420,0], zRoot:2.00, xMax:1.5,
+  rig:['skin','metal','tyre','hub','gear'] }`. Mains 0.0 cm / nose 0.6 cm off
+  the settled contact plane.
+- **`rig` is new and matters**: hinges + flex used to run on `skin` only. The
+  C172's steering nose gear spans four materials, so it spans four groups.
+  Default `['skin']` — the pa18 path is unchanged.
+- **`prop*` groups all spin.** Getting this wrong is very visible: the
+  cowling's front panel (the ring around the spinner) was briefly in a prop
+  group and rotated with the blades. x cannot separate it from the spinner
+  backplate — same station — so the C172M gate asserts by RADIUS: nothing
+  wider than 0.25 m may spin aft of the blade disc.
+- **Flat-colour materials are opaque** unless `opacity < 1`. Previously every
+  untextured material was forced transparent + `depthWrite:false`, which was
+  right for the pa18's two translucent groups and wrong for a whole cabin.
+- **Hinge axes are least-squares fits, not cardinal** — dihedral tilts the
+  flap/aileron hinges, aileron taper sweeps them 7°, the rudder rakes 24°.
+  `model_inspect.py --edge` now prints the fit; keep axes canonical
+  (dominant component positive) and let `sgn` carry direction.
+- Fiche `13_aircraft_c172.js` gear was re-matched to the model: track
+  2.62 m, wheelbase 1.74 m (was 1.97), tyre radii 0.173/0.174 (were
+  0.28/0.24), LEVEL static stance (was 2.7° nose down), wing 2.25 m over
+  ground (was 2.35). Static deflection 4.4 cm mains / 1.1 cm nose.
+  **Do not shorten the main legs further**: the axle attaches to the belly
+  rail at y 0.05, |z| 0.60, so at this track the legs already splay ~47° —
+  taking the drop below ~0.55 sends the gear over-centre and it folds up
+  under static load (observed: axle rose 0.42 m, aircraft sat on nose wheel
+  and tailpost). Gate: `C172M` (tools/test_c172_model.js).
+- The fiche's `twSteer: -0.35` carried a comment saying its sign was
+  unverified. It is correct: the solver rotates the rolling direction by
+  `-twSteer*dr` about +y, so a negative twSteer points a NOSE wheel left for
+  nose-left, which is what a nosewheel does (a tailwheel wants the positive
+  sign the taildraggers carry). Comment corrected.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
 | Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 111 m w/ flaperons (book ~90 m: nearly closed; pre-bracing 86/91 was measured with the tail on the ground) |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
-| Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr 0.12, VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); carries the 3D skin |
+| Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr 0.12, VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); short-field VApprShort 18.5 + VPinFull 16: lands 340 m benches into wind (XCTY4); carries the 3D skin |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
 | Douglas DC-3 | 10.9 t | 72 | Vs 32.8 clean / 29.5 flapped (book 34.5 / ~29-30); NP margin 13%; unstick 46 m/s ~945 m w/ TO flaps 1/4; wheel landing 146 km/h @0.56 sink, flaps 0.7 on gs 0.060 |
@@ -512,6 +638,133 @@ W11. **Spawn-at-aerodrome** — DONE 2026-08-04: aerodrome records carry a
     heading near ±z. W9 strip tdz moved to the APPROACH side (threshold
     +25% — the old rollout-end tdz made XCTY2 roll ~len/2 past the
     drawn strip; frame math was self-consistent so nothing else moved).
+W13. **Wind / minimap / forest-density viewer pass** — DONE 2026-08-04
+    (user-batched small chantiers; viewer+renderer ONLY, no world data
+    change, no re-golden, physics untouched):
+    - Wind presets (selWind: calm / 2.5 / 4+gusts / 6+gusts) drive
+      world.setWind LIVE — no reset, the AP flies IAS. Direction fixed
+      quartering (headwind-ish for a +x HOME landing). FRESH 6 m/s is
+      beyond the 3 m/s the wind gate validates, on purpose.
+    - Windsocks (HOME + stage-4) are wind-driven: WF.setWindVis aims the
+      mouth upwind, sag grows as wind drops, calm socks hang. The old
+      static rotations are gone.
+    - Minimap (172 px panel, right edge, #mid band): 384² underlay baked
+      with the outer-ring colour pass + waterH override + river/road
+      polylines; 10 Hz overlay draws route line, aerodrome dots (amber =
+      active route, meadows faint), aircraft arrow, wind chip. Map frame
+      = world frame (mountains −z at top).
+    - Dense woodland fill: render-only canopies on a ~13 m jittered grid
+      wherever surface()==FOREST_FLOOR, streamed in 1024 m chunks within
+      5.6 km of the CG (the 5.2 km fog wall hides the ring edge), evicted
+      at 6.4 km, one InstancedMesh pair per chunk. Prefilter: collidable
+      tree within 90 m (128 m bins) — stands always hold one; species
+      inherited from the nearest stand tree. No trunks, no shadows, no
+      physics; strips keep len/2+70 m exclusion discs, corridor exclusion
+      matches the world. Measured in-browser: ~55k instances resident at
+      HOME, ~3 ms/chunk gen, ~0.5 ms/frame amortized streaming; stand
+      density ~2.4/ha (collidable grid) → ~52/ha rendered.
+    - Field patchwork is flatness-gated: corner-sample the ~160 m patch,
+      >3.2 m relief kills it, near-threshold fades — no more hillside
+      terraces. (Fields were never world data; bake-time only.)
+    - Second detail octave on the ground shader (same grain re-sampled
+      6.31× finer, fading in under 150 m) for flare-height texture.
+    W13.1 follow-ups (same day, user playtest): (1) the wind presets
+    EXPOSED the cub/pa18 parked-tailwind tripod latch — structural fix
+    (TW->TPT + TW->HT pyramid, both fiches byte-identical) + W-PARK
+    gates; see rule 10. Validation anchors untouched (no aero/mass
+    change); the user's exact repro (PA-18 HOME -> Stein, breeze) flown
+    headless end-to-end: stopped 43 m past tdz, sink 1.28. (2) Parking
+    brake (ctl.brake 0.6) while HOLDING — a free taildragger drifted
+    downwind while picking a route; ROLL clears it. (3) Minimap v2:
+    click toggles 172 px <-> 74vmin (backing 344/1024), top-right chip
+    toggles north-up (full domain) <-> nose-up (6 km, aircraft-centred,
+    wind arrow co-rotates), aerodrome names on the big map, outer/mini
+    bake 384 -> 512. NOTE: every aerodrome except HOME renders on the
+    OUTER ring (~100 m polys, tucked 2 m low) — strips visually float
+    ~2-3 m above the coarse ground there; fine-mesh patches around
+    aerodromes belong to the renderer-overhaul/W15 family.
+
+    W13.2 (2026-08-04, user playtest round 2): (1) short-field arrival
+    overhaul + GATE XCTY4 — see AUTOPILOT RULES W13.2 (into-wind
+    direction, threshold-exact aim, groundspeed slope FF, rollout pin
+    guards, VApprShort); the reported Stein failure (late touch, bounce,
+    nose-over, wheels under the drawn strip) is fixed and gated. (2)
+    Aerodrome ground patches: every strip outside the inner ring gets a
+    local ~9 m mesh following terrainH exactly (the graded bench + banks
+    were always in terrainH — unrenderable at the outer ring's ~100 m,
+    which also sits 2 m LOW; that mismatch was the "floating plane" and
+    the "wheels through the runway"), edge-blended 2.2 m down to tuck
+    under the outer ring; strip decals are now DRAPED (per-vertex
+    terrainH + 7 cm) instead of flat planes at elev; patches share the
+    outer texture + the close-range grain shader (detailApply hook).
+
+W14. **Multi-hop autopilot + manual-controls prep** — DONE 2026-08-04:
+    - holdWas/holdActive bug FIXED (the session-4 blocker): holdWas now
+      updates per-frame at the end of ap.update, so holdPitch resyncs
+      thCA from the live attitude after ANY gap (ROLL retries, manual
+      flight), not just on the AP's first-ever call. Continuous phase
+      chains behave identically — battery paths unchanged.
+    - ap.reEngage() (the manual-controls session API): flags a full
+      state re-latch on the next update — attitude/rate/VS filters from
+      live values, servo memories from the CURRENT surfaces, integrators
+      zeroed, trims cleared. restAlt intentionally kept (it anchors the
+      current route). Never called by the AP's own flow. Probed 8 s of
+      frozen-controls "manual" flight at cruise then resume, pa18 + DC-3:
+      both recover airborne with or without reEngage (the holdWas fix
+      alone supplies the attitude resync; reEngage matters for windup
+      states the probe doesn't reach). HONEST LIMIT for session 4: the
+      AP has NO upset recovery — resuming from a badly upset state
+      (near-stall nose-high) wallows through ±50-78 deg pitch before
+      settling. Manual-controls UI should re-engage from sane attitudes
+      or session 4 adds an upset-recovery mode.
+    - ap.departFrom(from, to): departs from WHEREVER the aircraft stands
+      on `from` (fresh makeAutopilot + departFrom — no reset, no
+      teleport). DEPART plans on its first update: takeoff INTO the wind
+      (>0.7 m/s at the field) else along the current nose, snapped to
+      the strip axis; straight to LINEUP when runway-ahead covers
+      A.TORun + 60, else TAXI backtracks to the run start (the target
+      sits behind the tail — nose-referenced steering saturates and
+      U-turns naturally) and LINEUP turns onto the centreline (pursuit,
+      dirX=-1), gating ROLL on alignment > 0.988 + |cross| < 8 m. Taxi
+      governor: 4.5 m/s straight / ~2.3 turning, brake above +1.2,
+      stick aft (A.taxiDe 0.30) so the tailwheel bites.
+    - A.TORun per fiche (measured run to 2.5 m agl at HOME): cub/pa18
+      60, drone 15, chinook 105, c172 400, jodel 410, dc3 960.
+    - Viewer: picking a destination while STOPPED chains the next leg
+      seamlessly (fromId follows the aircraft; telemetry time offset by
+      telBase); mid-flight changes still fullReset. Rail gains
+      DEPART/TAXI/LINE UP ticks.
+    - GATE XCTY5: PA-18 HOME -> Stein -> HOME in ONE sim, calm — calm
+      chosen because the Stein stop leaves < TORun+60 ahead, so the
+      departure MUST backtrack. Asserts both landings, taxi confined to
+      the strip box, the leg actually flown, final upright, rig intact.
+    - Re-anchor note: the dynamic fix moved XCTY2's enroute min terrain
+      clearance 86 -> 54 m (floor 35, still passing) — the C172's high
+      belt arrival now extends its final along a slightly different
+      track. If a future change eats more of that margin, look here.
+
+W16. **Lateral quiet** — DONE 2026-08-04: the fleet-wide aileron limit
+    cycles (pa18/cub 4 Hz surface flail; Jodel 1.8 Hz real 11-deg weave)
+    diagnosed by freeze-test + gain sweep and killed with fiche-level
+    gains (pa18/cub rollD 0.8; jodel rollP 0.5/rollD 0.15/hdgP 0.65 —
+    the first battery caught pure-roll quieting breaking capture and
+    crosswind decrab; full detail under AUTOPILOT RULES gains doctrine).
+    C172/DC-3/Chinook measured clean, untouched. Closes the SKIN-PROC §8
+    e4 core-side item. Battery re-anchored minus C172/C172M, which were
+    red/new from the PARALLEL c172-3D-model session's in-progress fiche
+    rework (their chantier validates those; not this session's scope).
+
+W15. **Close-range ground detail** (planned, renderer-overhaul family) —
+    options in ascending effort: (a) DONE in W13, second grain octave;
+    (b) per-surface detail: bake a surface-ID map beside the colour bake,
+    shader picks per-class detail (grass blades / gravel / rock
+    striations) from a small atlas, triplanar on steep slopes so cliffs
+    stop smearing; (c) near-field clutter: instanced grass tufts / stones
+    / scrub streamed in a ~300 m ring (reuse the W13 chunk streamer);
+    (d) ultra-inner 2-4 m/texel bake patches around each aerodrome for
+    crisp short final. Recommendation: b+c together sell low flight most
+    per effort; d is cheap once b exists.
+
 W10. **AP-reads-aerodromes (contract rule 6)** — DONE 2026-08-04: runway
     frames in 40_autopilot.js (see AUTOPILOT RULES), ENROUTE phase with
     approach-fix guidance + terrain-aware altitude, destination select

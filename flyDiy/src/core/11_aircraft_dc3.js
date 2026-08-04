@@ -179,6 +179,7 @@ function buildDC3() {
     ap: {
       rotate: true,
       VRot: 45, VClimbMin: 42, VClimb: 46, VCruise: 58, VAppr: 43, VTurn: 55,
+      TORun: 960,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.030, thRotate: 0.100,
       lookRoll: 45, lookAppr: 650, lookCruise: 900,
       // gs 0.044 -> 0.060 (flapped approaches are steeper): with split-flap

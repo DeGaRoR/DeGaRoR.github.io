@@ -183,6 +183,7 @@ function buildChinook() {
     flaps: { to: 0, ldg: 0.6, rate: 0.25, tau: 0.08, dCl0: 0.25, dCd0: 0.030, dAStall: 0.02, dCm0: -0.12 },
     ap: {
       VRot: 10, VClimbMin: 12, VClimb: 17, VCruise: 24, VAppr: 16, VTurn: 19,
+      TORun: 105,                   // measured run to 2.5 m agl (W14 multi-hop)
       lookRoll: 25, lookAppr: 140, lookCruise: 220,
       hCruise: 120, hSafe: 12, xTurn: -2600, xAim: -520, gs: 0.068,
       thrFloor: 0.06,

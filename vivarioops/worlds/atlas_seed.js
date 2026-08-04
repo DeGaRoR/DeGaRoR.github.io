@@ -29,12 +29,25 @@ import { W1_SLICE } from './w1_slice.js';
 import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
 import { genomeHash, deserialise } from '../engine/l1/genome.js';
 import { binomial } from '../engine/l1/naming.js';
+import { W1_SPINE_IDS, W1_SPINE_GENOMES, W1_SPINE_NAMES } from './w1_spines.js';
 import { renderThumbnail, RENDER_TAG } from '../render/thumbnail.js';
 
 // The five seed SWIMMERS, in display order. `staircase` is a deliberate
 // counter-example (it self-intersects and morphogenesis rejects it) and is
 // excluded here for the same reason engine/l1/breed.js OPENING_SEEDS excludes it.
 const SEED_IDS = ['eel', 'eel-fast', 'eel-slow', 'eel-unison', 'eel-finned'];
+
+// THE PHASE A EXIT CAST. The Atlas sorts newest first and authored records take
+// `AUTHORED_BASE - i`, so index order IS display order: putting the two
+// reference swimmers and the four drawn spines in the first six slots makes them
+// the default six the Forage screen releases.
+//
+// The point of the arrangement is comparison. `eel` and `eel-fast` are the
+// authored animals the library was always built around; the four spines were
+// DRAWN by the post-A2 generator, which before A2 could not produce a segmented
+// body at all. Six creatures in one ocean, half of them expressible only after
+// this phase.
+const CAST_ORDER = ['eel', 'eel-fast'];
 
 // Ordering: authored records get small, stable createdAt values so they form a
 // deterministic block in seeds-then-residents order (the Atlas sorts newest
@@ -49,7 +62,18 @@ const AUTHORED_BASE = 1_000_000;
  */
 export function authoredList() {
   const list = [];
+  // The two reference swimmers first, then the drawn spines, then the rest of
+  // the seed library, then the residents.
+  for (const id of CAST_ORDER) {
+    const s = SEEDS.find((x) => x.id === id);
+    if (s) list.push({ id, commonName: s.name, genome: s.genome });
+  }
+  for (const id of W1_SPINE_IDS) {
+    const raw = W1_SPINE_GENOMES[id];
+    if (raw) list.push({ id, commonName: W1_SPINE_NAMES[id] ?? null, genome: deserialise(JSON.stringify(raw)) });
+  }
   for (const id of SEED_IDS) {
+    if (CAST_ORDER.includes(id)) continue;
     const s = SEEDS.find((x) => x.id === id);
     if (s) list.push({ id, commonName: s.name, genome: s.genome });
   }

@@ -1,3 +1,14 @@
+<!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
+     MODELS blocks, so the browser paints it from the first few KB while the
+     rest of the (large — the 3D payloads are inlined) artifact still streams.
+     app.js removes it on the first rendered frame. -->
+<div id="boot">
+  <div id="bootInner">
+    <span id="bootBrand">Garage Flight Sim</span>
+    <div id="bootBar"><i></i></div>
+    <span id="bootNote">loading aircraft models…</span>
+  </div>
+</div>
 <canvas id="c"></canvas>
 <div id="ui">
   <header id="top">
@@ -13,6 +24,7 @@
       <div class="rd"><b id="r-vs">0.0</b><i>m/s vs</i></div>
     </div>
   </header>
+  <div id="mid"><div id="mmp" class="panel"><canvas id="mm" width="344" height="344"></canvas></div></div>
   <footer id="south">
     <section id="telp" class="panel">
       <header><h2>Telemetry</h2><span id="tsum"></span></header>
@@ -46,6 +58,12 @@
       </select>
       <select id="selFrom" aria-label="Departure"></select>
       <select id="selDest" aria-label="Destination"></select>
+      <select id="selWind" aria-label="Wind">
+        <option value="calm">Calm</option>
+        <option value="light">Breeze 2.5 m/s</option>
+        <option value="mod">Wind 4 + gusts</option>
+        <option value="fresh">Fresh 6 + gusts</option>
+      </select>
       <div id="grp">
         <button id="bGo" class="pri">Fly the circuit</button>
         <button id="bReset">Reset</button>
@@ -53,7 +71,7 @@
       </div>
       <button id="bTel">Telemetry</button>
       <button id="bSkin">Skin</button>
-      <span id="credit">PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison</span>
+      <span id="credit">PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison · C172 model: NLM (CC-BY 4.0)</span>
       <span id="hint">drag to orbit · scroll to zoom</span>
     </div>
   </footer>

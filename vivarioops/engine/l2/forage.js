@@ -473,7 +473,16 @@ export function forageStep(sim, plan, food, mouths, dt = FIXED_DT, rate = INGEST
   return eaten;
 }
 
-/** The ledger, from grams eaten and ergs of work. Shared by the tool and the screen. */
+/**
+ * The ledger, from grams eaten and ergs of work. Shared by the tool and the screen.
+ *
+ * `work` MUST BE `sim.workOut`, NOT `sim.work` — A0. The actuator both injects and
+ * absorbs energy, and the old unsigned accumulator summed the two, so a creature
+ * being shaken by the water billed exactly like one swimming. An animal does not
+ * eat to be pushed around. `sim.work` is still the unsigned total and is still
+ * what the probes and the determinism assertions read; only the metabolic bill
+ * moved.
+ */
 export function ledger(world, massBase, eaten, work, seconds) {
   const basalRate = (world.METABOLIC_SCALE ?? 0.02) * Math.pow(massBase, world.KLEIBER ?? 0.75);
   const basal = basalRate * seconds;
@@ -514,13 +523,16 @@ export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_
     eaten += forageStep(sim, plan, food, mouths, FIXED_DT, rate, buf);
   }
 
-  const work = sim.work;
+  // A0 — the metabolic bill is the energy INJECTED. `work` (the unsigned total)
+  // is still reported alongside it so the two can be compared in the field.
+  const work = sim.workOut;
+  const workTotal = sim.work;
   sim.free();
 
   const L = ledger(world, m.massBase, eaten, work, seconds);
   return {
     valid: true,
-    eaten, work, ...L,
+    eaten, work, workTotal, ...L,
     mouths: mouths.length,
     fieldStart: foodStart, fieldEnd: food.remaining(), itemsEaten: food.eatenCount(),
     massBase: m.massBase,

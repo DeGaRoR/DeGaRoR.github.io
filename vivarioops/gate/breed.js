@@ -105,6 +105,12 @@ function diffGenome(a, b) {
     // mutate.js copying them through: nothing ever moved, so nothing ever
     // noticed that nothing could.
     gainsChanged: ['preyGain', 'threatGain'].filter(k => a.controller[k] !== b.controller[k]),
+    // A3, and added here in the SAME edit that added the operator, for the
+    // reason the note above records: a diff blind to a gene reports total 0,
+    // trips the no-op check, and cannot see the change even in principle.
+    gradientChanged: ['phaseBase', 'phaseSlope'].filter(k => a.controller[k] !== b.controller[k]),
+    // A5, added in the same edit as the operator, for the reason above.
+    proprioChanged: a.controller.proprioGain !== b.controller.proprioGain ? 1 : 0,
     jointGenesAdded: Object.keys(b.controller.jointGenes).filter(k => !(k in a.controller.jointGenes)),
     jointGenesRemoved: Object.keys(a.controller.jointGenes).filter(k => !(k in b.controller.jointGenes)),
     jointGenesChanged: Object.keys(a.controller.jointGenes).filter(k =>
@@ -114,7 +120,7 @@ function diffGenome(a, b) {
   d.total = d.nodesAdded.length + d.nodesRemoved.length + d.nodesChanged.length
     + d.connsAdded.length + d.connsRemoved.length + d.connsChanged.length
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length
+    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
   // The same count at LEAF granularity — how many scalar genes moved, not how
@@ -124,7 +130,7 @@ function diffGenome(a, b) {
     + d.connsChanged.reduce((n, k) => n + leafCount(ac.get(k), bc.get(k)), 0)
     + d.jointGenesChanged.reduce((n, k) => n + leafCount(a.controller.jointGenes[k], b.controller.jointGenes[k]), 0)
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length;
+    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged;
   return d;
 }
 
@@ -201,6 +207,14 @@ const EXPECTED = {
     t.eq(d.jointGenesChanged.length, 1, 'jitterRandomJoint changes exactly one oscillator');
     t.eq(d.total, 1, 'jitterRandomJoint changes nothing else');
     t.eq(d.leaves, 1, 'jitterRandomJoint moves exactly one gene inside that oscillator');
+  },
+  mutateProprioGain: (d, t) => {
+    t.eq(d.proprioChanged, 1, 'mutateProprioGain changes the proprioceptive gain');
+    t.eq(d.total, 1, 'mutateProprioGain changes nothing else');
+  },
+  mutatePhaseGradient: (d, t) => {
+    t.eq(d.gradientChanged.length, 1, 'mutatePhaseGradient changes exactly one gradient coefficient');
+    t.eq(d.total, 1, 'mutatePhaseGradient changes nothing else');
   },
   mutateSensorGain: (d, t) => {
     t.eq(d.gainsChanged.length, 1, 'mutateSensorGain changes exactly one sensor gain');
@@ -362,7 +376,12 @@ export async function runBreedGate() {
       // it three times changed the controller and was counted as unchanged.
       // The assertion is unchanged in what it claims — a locked mutation must
       // change SOMETHING in the controller — only in what the controller is.
-      if (!d.omegaChanged && d.jointGenesChanged.length === 0 && d.gainsChanged.length === 0) controllerUnchanged++;
+      // AMENDED AGAIN AT A3, for the identical reason and by the identical edit:
+      // phaseBase/phaseSlope are controller genes with a live operator, so a
+      // locked mutant that drew mutatePhaseGradient three times changed the
+      // controller and was counted as unchanged.
+      if (!d.omegaChanged && d.jointGenesChanged.length === 0 && d.gainsChanged.length === 0
+        && d.gradientChanged.length === 0 && !d.proprioChanged) controllerUnchanged++;
       // The body plan itself must be identical, which is the property the player
       // is promised — "keep this shape, try different swimmers".
       if (i < 20) {
@@ -724,7 +743,10 @@ export async function runBreedGate() {
   // ── L1-40 · the child is genuinely bipartental ────────────────────────────
   g.assertion('L1-40', 'Every crossed gene draws from BOTH parents, and nothing is blended', (t) => {
     const fields = Object.entries(CROSS_FIELDS).flatMap(([blk, ks]) => ks.map(k => [blk, k]));
-    t.eq(fields.length, 15, 'fifteen scalar genes cross by coin flip');
+    // 15 -> 17 at A3: CROSS_FIELDS.controller gained phaseBase and phaseSlope.
+    // The count is restated as a literal here on purpose, so adding a crossed
+    // gene cannot happen without a line changing in this file.
+    t.eq(fields.length, 18, 'eighteen scalar genes cross by coin flip');
     const fromA = new Map(), fromB = new Map(), seen = new Map(), foreign = new Map();
     for (let i = 0; i < CORPUS; i++) {
       const [a, b] = crossPairs[i];

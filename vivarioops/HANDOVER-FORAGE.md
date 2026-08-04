@@ -1145,3 +1145,113 @@ easily. It also directly answers §12's standing caveat that the forage objectiv
 It ranks a rock above every swimmer in the library. The ranking FIDELITY work in §21
 and §21a is unaffected and still stands — those measured how reliably the number can be
 reproduced, and it reproduces very reliably. It is just measuring the wrong thing.
+
+---
+
+## 23. THE GRAMMAR CANNOT MAKE A SPINE, AND MUTATION DESTROYS ONE
+
+Two measurements, and together they explain a lot of carried obligations.
+
+### 1. The random draw never produces a chain (`n = 600`)
+
+`longestRun` is consecutive bodies of the SAME node type along a path — the thing
+that makes an eel an eel.
+
+    raw draw    median bodies 8   median longestRun 1
+      run >= 4: 0.0%    run >= 6: 0.0%    run >= 8: 0.0%
+    viable      median bodies 6   median longestRun 1
+      run >= 4: 0.0%
+
+    authored:  Eel / Darter / Drifter / Flapper  bodies 7, run 7, depth 6
+               Paddletail                        bodies 7, run 6, depth 6
+
+**Zero in six hundred.** The generator makes BUSHY animals — many bodies, all
+different node types, shallow — and every authored creature is a pure chain. The
+library is hand-made not because hand-tuning is nicer but because **the draw cannot
+reach that region of morphospace at all.**
+
+### 2. Mutation dissolves a chain within 20 generations
+
+`tools/_zwild2.mjs eel` — three lines founded on Eel, Darter and Paddletail, same
+criterion, same verdict:
+
+| finalist | founded on | bodies | **run** | score |
+|---|---|---|---|---|
+| WILD 2 | a chain | 3 | **1** | 8.07 |
+| WILD 3 | a chain | 2 | **1** | 7.56 |
+| WILD 1 | a chain | 4 | **2** | 3.66 |
+| Darter (unmutated) | — | 7 | **7** | 5.44 |
+| Eel (unmutated) | — | 7 | **7** | 3.61 |
+
+**Every descendant lost the spine.** 7 bodies / run 7 became 2-4 bodies / run 1-2 —
+indistinguishable from the random draw. A chain is a fragile structure: it needs one
+recursive connection repeated, and a single edit anywhere in that recursion collapses
+the whole run.
+
+**And the objective REWARDS the destruction**: the dissolved descendants out-score
+their own ancestors (8.07 against Darter's 5.44). So chains are both unreachable and
+actively selected against.
+
+### What this reframes
+
+- **C2's "creatures cannot aim"** (turn rate 0.0032 rad/s) is not only a controller
+  problem. A corpus seeded from the raw draw has no spines in it, and undulatory
+  turning needs a body wave to turn with.
+- **The slip finding** (0.00-0.05 against a real anguilliform's 0.5-0.8) sits in the
+  same place: no body to run a wave along.
+- **Every figure measured on a seeded corpus is a figure about bushy animals** — the
+  mass correlations, the settling times, the duel matrix.
+
+### Three levers, in order of cost
+
+1. **`breed({ lockMorphology: true })` ALREADY EXISTS.** Evolve the Eel's CONTROLLER
+   and keep its body. The chain cannot dissolve if morphology is not mutated, and it
+   is the cheapest test of whether a chain can be improved at all.
+2. **The objective is the reason chains lose.** Its directionality term is bounded to
+   [0.5, 1.0] — a deliberate choice so a straight swimmer that eats nothing could not
+   out-rank a forager, and it is now clearly the binding constraint. A chain's whole
+   advantage is directional travel and the score is allowed to reward that by at most
+   2x. Raising or unbounding that term is a one-line experiment.
+3. **Bias the grammar toward recursion.** The real fix, and the largest: the draw
+   should be able to produce a spine. Until it can, "evolve a swimmer" means "start
+   from one".
+
+### 23a. `maxRecursion` swept — the clamp is free to lift, and not sufficient
+
+`tools/_zrecur.mjs`, 400 draws per setting:
+
+| maxRecursion | bodies med/p90 | longestRun med/max | run>=4 | run>=6 | viable |
+|---|---|---|---|---|---|
+| **2 (shipped)** | 7 / 18 | 1 / 3 | **0%** | 0% | 57% |
+| 3 | 8 / 19 | 1 / 4 | 4% | 0% | 62% |
+| 4 | 8 / 21 | 1 / 5 | 3% | 0% | 57% |
+| 6 (grammar's full range) | 8 / 19 | **1 / 6** | **5%** | **1%** | 62% |
+
+**Lifting the clamp costs nothing** — viability is flat at 57-62% and body count barely
+moves. Whatever the clamp was protecting, the measurement does not find it. (The
+ms/creature-s column ran 13.1 / 16.4 / 10.9 / 6.5 — non-monotonic over six arbitrary
+creatures per setting, which is sampling noise and NOT evidence that recursion is
+cheaper. It is evidence that it is not obviously dearer.)
+
+**And it is not sufficient.** At the grammar's full range, `run >= 6` is 1% and the
+MEDIAN longest run is still 1. Chains become reachable rather than common.
+
+### Why, and what the real lever is
+
+A chain needs three things to coincide: a self-connection (44% of draws have one), a
+high `recursiveLimit` on that node (now 1-in-6), and that branch to dominate the path
+rather than compete with siblings. 0.44 x 0.17 x (the rest) lands at about 5%.
+
+**The Eel is ONE node with ONE self-connection at recursiveLimit 6.** A minimal
+genome. The draw makes 8-node, multi-connection genomes because `maxNodes: 8` and
+`maxConnPerNode: 3` push toward breadth, and it essentially never produces something
+that simple.
+
+So the deficit is not recursion DEPTH alone — it is that the generator's node and
+connection counts are drawn high. Getting segmented animals at a useful rate means
+biasing the draw toward FEW nodes whose connections are self-referential, which is a
+change to the node-count distribution rather than to a single clamp.
+
+**Recommended: lift `maxRecursion` to 6 anyway** (free, and it takes chains from
+impossible to merely rare), then measure a draw biased toward 1-3 nodes before doing
+anything larger.

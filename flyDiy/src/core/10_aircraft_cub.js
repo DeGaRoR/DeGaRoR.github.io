@@ -52,6 +52,10 @@ function buildCub() {
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
   const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
+  // snap-blocking near-vertical member (structural rule 10, the drone cure):
+  // without it the tailwheel folds UP about TPB and LATCHES (bare post on
+  // the terrain) when parked in a tailwind — reset slam + breeze, W13.
+  BG(TW, TPT);
 
   const MW = 8, wf = { L: null, R: null };
   const mkWing = (s) => {
@@ -75,6 +79,10 @@ function buildCub() {
   const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
+  // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
+  // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
+  // sideways], measured) — wide anchors kill it
+  BG(TW, HTL); BG(TW, HTR);
   const FIN = N(5.05, 0.95, 0, 4, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
@@ -125,6 +133,12 @@ function buildCub() {
     twSteer: 0.5,
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
+      VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
+      TORun: 60,                    // measured run to 2.5 m agl (W14 multi-hop)
+      // W16 lateral quiet: same 4 Hz aileron limit cycle as the pa18
+      // (shared geometry) — default rollD 2.0 on the lagged rate estimate;
+      // 0.8 kills it (see pa18 fiche note).
+      rollD: 0.8,
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
       rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
       thMax: 0.20, flareAgl: 4.8, flareRate: 0.062, aglGuard: 3,

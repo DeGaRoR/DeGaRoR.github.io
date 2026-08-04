@@ -91,7 +91,13 @@ export async function runDuelGate() {
     // to 32 cm). Pinned as a LITERAL on purpose: the residents may only be
     // re-frozen together with a version bump, and a check that read the constant
     // back from w1_slice.js would assert nothing.
-    t.eq(W1_SLICE.faunaVersion, 6, 'faunaVersion was bumped at the solver-convergence fix (4 -> 8 iterations)');
+    // 6 -> 7 AT A1/A2/A3. The pin stays, at the new value, because that is the
+    // point of it: the residents are frozen against a physics and a schema, and
+    // a resident change that did not move worldHash would leave stale records
+    // looking valid — which is what K5 exists to catch. See the bump note in
+    // worlds/w1_slice.js for the three changes it covers; the largest is A1,
+    // where the fluid force was found to accumulate across steps.
+    t.eq(W1_SLICE.faunaVersion, 7, 'faunaVersion was bumped at A1/A2/A3 — the force-accumulation fix, the spine, and GENOME_V 3');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.

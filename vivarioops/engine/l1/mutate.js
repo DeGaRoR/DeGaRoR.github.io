@@ -23,7 +23,7 @@
 import {
   RANGE, FREQ_MULTS, makeId, makeNode, makeConnection, q, qClamp, reachability,
 } from './genome.js';
-import { SLICE_LIMITS, ALL_FACES, clampReflection } from './factory.js';
+import { SLICE_LIMITS, ALL_FACES, clampReflection, applySpineGrammar } from './factory.js';
 // SAME LAYER, legal import (N3 forbids upward, not sideways). removeNode needs
 // to know what a removal COSTS in expressed bodies, and morphogenesis is the
 // only thing that knows. It is pure and deterministic, so this adds no state.
@@ -102,6 +102,12 @@ export function cloneGenome(g) {
       omega: g.controller.omega,
       preyGain: g.controller.preyGain,
       threatGain: g.controller.threatGain,
+      // A3. A gene missing from this clone is silently dropped at breeding time,
+      // which is the preyGain failure mode one layer down — the gene exists, the
+      // factory draws it, and no lineage can ever carry it.
+      phaseBase: g.controller.phaseBase,
+      phaseSlope: g.controller.phaseSlope,
+      proprioGain: g.controller.proprioGain,
       jointGenes,
     },
     social: { ...g.social },
@@ -320,7 +326,28 @@ function addConnection(g, rng, limits) {
 
 function removeConnection(g, rng) {
   if (!g.connections.length) return null;
+  // A2 — A SELF-EDGE IS TRIED LAST, and this was the single largest cause of
+  // spines dissolving.
+  //
+  // Removing a self-loop can never disconnect a graph, so a self-edge passes the
+  // `stillConnected` test unconditionally and was therefore the first candidate
+  // in the shuffle that succeeded, far more often than its share. Measured
+  // (tools/_zspine.mjs, 39 spined genomes x 20 generations x 2 mutations):
+  // removeConnection accounted for 34 of 56 spine-killing mutations — 61%, more
+  // than every other operator combined — and a drawn spine had a half-life of
+  // five generations.
+  //
+  // That is a bias in the OPERATOR, not a verdict from selection. A self-edge is
+  // a whole segment repeated N times, so cutting it is the largest single
+  // structural change available and it should not be the default merely because
+  // it is the most convenient. Ordering, not banning: if no other removal keeps
+  // the graph connected the self-edge is still cut, so the operator's reach is
+  // unchanged and `addConnection` still has an inverse.
+  const self = [], rest = [];
   for (const c of shuffled(rng, g.connections)) {
+    (c.parentNodeId === c.childNodeId ? self : rest).push(c);
+  }
+  for (const c of rest.concat(self)) {
     const conns = g.connections.filter(x => x.id !== c.id);
     if (stillConnected({ ...g, connections: conns })) { g.connections = conns; return 'removeConnection'; }
   }
@@ -367,7 +394,15 @@ function mutateRandomConnection(g, rng, limits) {
       else return null;
       break;
     }
-    default: c.terminalOnly = !c.terminalOnly;
+    default:
+      // A2 — NOT ON A SELF-EDGE. `terminalOnly` there is a dead combination (see
+      // factory.js applySpineGrammar): the connection fires only at
+      // `depth === recursiveLimit`, by which point the recursion has stopped, so
+      // setting it silently deletes the chain and produces a gene state the
+      // factory cannot draw. Returning null lets `mutate` fall through to the
+      // next operator, which is the designed behaviour for an inapplicable one.
+      if (c.parentNodeId === c.childNodeId) return null;
+      c.terminalOnly = !c.terminalOnly;
   }
   clampReflection(c, limits);
   return `mutateRandomConnection:${field}`;
@@ -414,6 +449,51 @@ function mutateSensorGain(g, rng) {
   const which = rng.int(2) ? 'preyGain' : 'threatGain';
   g.controller[which] = jitter(rng, g.controller[which], RANGE[which]);
   return `mutateSensorGain:${which}`;
+}
+
+/**
+ * THE PHASE GRADIENT — A3, and it exists for exactly the reason `mutateSensorGain`
+ * above exists. Without an operator the two coefficients are inert whatever the
+ * factory draws: an initial population could vary and a lineage could never move.
+ * That is the `preyGain` precedent, which sat in the schema unreachable by
+ * mutation until it was noticed, and it is the reason this project's rule is that
+ * every new gene needs an operator AND a test that the operator fires
+ * (gate/breed.js asserts both).
+ *
+ * `phaseBase` is the whole gait. A constant lag per joint IS a travelling wave,
+ * and which constant decides whether the animal undulates like an eel, ripples
+ * like a ray, or beats close to synchrony. `phaseSlope` chirps that lag with
+ * depth. One gene per call, so a change can be attributed.
+ */
+function mutatePhaseGradient(g, rng) {
+  const which = rng.int(2) ? 'phaseBase' : 'phaseSlope';
+  g.controller[which] = jitter(rng, g.controller[which], RANGE[which]);
+  return `mutatePhaseGradient:${which}`;
+}
+
+/**
+ * A5 - THE PROPRIOCEPTIVE GAIN. Same obligation as every other gene: without an
+ * operator it is inert whatever the factory draws, and a lineage could never
+ * move it. That is the preyGain precedent, and gate/breed.js asserts both that
+ * this operator exists and that it fires.
+ *
+ * K is the one dial on how much the body is allowed to talk back to the rhythm.
+ * At 0 the CPG is open loop and ignores a joint that cannot keep up; high, the
+ * oscillator follows the body rather than driving it. Where a lineage settles is
+ * a real thing to select on, so it gets its own operator rather than riding on
+ * another.
+ */
+function mutateProprioGain(g, rng) {
+  // REFUSES WHEN IT WOULD CHANGE NOTHING, as `resampleFreqMult` does. This gene
+  // starts at the FLOOR of its range, and `jitter` clamps: a downward draw from 0
+  // lands back on 0, so about half of all calls were reporting success while
+  // changing nothing — which trips the no-op assertion and, worse, would count
+  // as the operator "firing" while the gene never moved. Returning null lets
+  // `mutate` walk on to the next operator, which is the designed behaviour.
+  const next = jitter(rng, g.controller.proprioGain, RANGE.proprioGain);
+  if (next === g.controller.proprioGain) return null;
+  g.controller.proprioGain = next;
+  return 'mutateProprioGain';
 }
 
 function resampleFreqMult(g, rng) {
@@ -470,7 +550,7 @@ function mutateSocial(g, rng) {
 const BRANCHES = {
   nodes:       [addNode, removeNode, mutateRandomNode],
   connections: [addConnection, removeConnection, mutateRandomConnection],
-  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain],
+  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain],
   material:    [mutateMaterial],
   social:      [mutateSocial],
 };
@@ -638,7 +718,14 @@ function randomConnLike(rng, limits, parentNodeId, childNodeId) {
   for (let i = 0; i < n; i++) flags[pool.splice(rng.int(pool.length), 1)[0]] = true;
 
   const faces = limits.allowedFaces ?? ALL_FACES;
-  return clampReflection(makeConnection(makeId(rng, 'c'), {
+  // A2 — a connection DRAWN here is drawn under the same spine sub-grammar the
+  // factory uses (factory.js applySpineGrammar), so `addConnection` can create a
+  // chain rather than only ever a doomed spiral. Note this is the DRAW path
+  // only: `mutateRandomConnection` perturbs an EXISTING edge and deliberately
+  // does not re-apply the grammar, because a mutation that walks a spine off its
+  // axis is a real mutation and re-imposing the bias there would make the
+  // operator a no-op on exactly the edges that matter.
+  return applySpineGrammar(clampReflection(makeConnection(makeId(rng, 'c'), {
     parentNodeId, childNodeId,
     parentFace: faces[rng.int(faces.length)],   // back-face exclusion, §2.4
     position: [u(RANGE.position), u(RANGE.position)],
@@ -646,6 +733,6 @@ function randomConnLike(rng, limits, parentNodeId, childNodeId) {
     scale: [u(RANGE.scale), u(RANGE.scale), u(RANGE.scale)],
     ...flags,
     terminalOnly: rng.int(2) === 0,
-  }), limits);
+  }), limits), rng, limits);
 }
 

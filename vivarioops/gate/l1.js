@@ -114,7 +114,21 @@ export function runL1Gate() {
     // measurement recorded at factory.js SLICE_LIMITS.allowGrafting — mutation
     // viability 57%, recombinant viability ~75%, fallback 0 in 720 births.
     // 10 §A2 should be amended to record the flip.
-    const A2 = { maxNodes: 8, maxRecursion: 2, maxConnPerNode: 3,
+    // A2's maxRecursion was 2 from A2 through A1-of-this-plan and is now 6, the
+    // grammar's own full range (RANGE.recursiveLimit is [1, 6]). The pin stays,
+    // at the new value, for exactly the reason it existed — this constant decides
+    // whether a segmented animal is expressible at all, and it must never move
+    // without a line changing here and in factory.js.
+    //
+    // WHY IT MOVED. At 2 the draw could not produce a chain: over 400 genomes
+    // `longestRun >= 4` occurred ZERO times, against 6-7 for every authored
+    // creature in the Atlas, and the Eel — one node connected to itself at
+    // recursiveLimit 6 — was not a genome this slice could draw. Measured free
+    // (tools/_zrecur.mjs): viability flat at 57-62% across 2/3/4/6, body count
+    // unmoved. Measured insufficient on its own (tools/_zspine.mjs): 6 alone
+    // reaches run >= 4 only 5%, which is why factory.js also carries the spine
+    // sub-grammar. 10 §A2 should be amended to record the lift.
+    const A2 = { maxNodes: 8, maxRecursion: 6, maxConnPerNode: 3,
                  jointTypes: ['revolute', 'twist'], allowGrafting: true };
 
     t.eq(SLICE_LIMITS.maxNodes, A2.maxNodes, 'SLICE_LIMITS.maxNodes matches spec 10 §3');

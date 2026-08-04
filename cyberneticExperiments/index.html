@@ -56,12 +56,17 @@
   .eyebrow a:hover{ color:var(--ink-dim); }
   h1{
     margin:0;
-    font-size:clamp(38px, 7.5vw, 76px);
+    font-size:clamp(36px, 7.5vw, 76px);
     line-height:.94;
     font-weight:900;
     font-variation-settings:"wdth" 120;
     letter-spacing:-.015em;
     text-transform:uppercase;
+  }
+  /* "EXPERIMENTS" is one long unbreakable word — condense rather than shrink it
+     so it still fits a 320px phone without forcing the page to scroll sideways */
+  @media (max-width:400px){
+    h1{ font-variation-settings:"wdth" 92; }
   }
   h1 .tint{
     background:linear-gradient(90deg, #e0674f, #ffd36a 26%, #c8cb4f 48%, #a784ff 74%, #6ee7c0);

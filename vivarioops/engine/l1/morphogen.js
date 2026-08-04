@@ -154,6 +154,8 @@ export function morphogenesis(genome, opts = {}) {
     }
   }
 
+  resolvePhaseLags(joints, bodies.length, genome);
+
   return {
     genomeRoot: genome.rootNodeId,
     bodies, joints, truncated, rejected,
@@ -162,6 +164,56 @@ export function morphogenesis(genome, opts = {}) {
     dofCount: joints.reduce((n, j) => n + DOF[j.type], 0),
   };
 }
+
+/**
+ * A3 — THE POSITIONAL PHASE GRADIENT, resolved here rather than in the controller.
+ *
+ * `lag_j = phaseBase + phaseSlope * depth(j) + deviation_j`
+ *
+ * WHY HERE. controller.js `computePhases` accumulates `plan.joints[].phaseLag`
+ * along the tree and is called from several places with only the plan in hand.
+ * Resolving the gradient at morphogenesis leaves that function, its signature and
+ * every caller untouched — the plan simply arrives carrying lags that already
+ * describe a wave.
+ *
+ * WHAT WAS WRONG. Each node drew its lag independently, so the increments along
+ * a chain were a RANDOM WALK and the CPG was never asking for a coordinated wave
+ * in the first place. A SPINE escaped this by accident: one node repeated is one
+ * lag repeated, which is a constant increment, which is exactly a travelling
+ * wave — which is why after A2 put chains in the corpus the spined creatures
+ * measured 0.96-0.999 commanded coherence while branched bodies sat at 0.08-0.15.
+ * `phaseBase` gives the branched ones the same constant increment on purpose.
+ *
+ * `depth(j)` is TREE depth — joints between j and the root — and deliberately not
+ * `bodies[].depth`, which is per-node-type and resets whenever the chain moves to
+ * a different node. A gradient that restarts at every limb is not a gradient.
+ *
+ * BIT-IDENTICAL WHEN NEUTRAL. Both coefficients zero leaves `lag = deviation`,
+ * which is the pre-A3 value, so the early return is a statement of that and not
+ * merely an optimisation: a migrated v2 genome does not take this path at all.
+ */
+function resolvePhaseLags(joints, bodyCount, genome) {
+  const base = genome.controller?.phaseBase ?? 0;
+  const slope = genome.controller?.phaseSlope ?? 0;
+  if (base === 0 && slope === 0) return;
+
+  const jointOfBody = new Int32Array(bodyCount).fill(-1);
+  for (const j of joints) jointOfBody[j.childBody] = j.index;
+
+  // joints is in breadth-first order, so a parent is always resolved first.
+  const depth = new Int32Array(joints.length);
+  for (const j of joints) {
+    const pj = jointOfBody[j.parentBody];
+    depth[j.index] = pj < 0 ? 0 : depth[pj] + 1;
+    // WRAPPED, not clamped. The lag is an angle fed to sin(), so -1.1*PI and
+    // 0.9*PI are the same command; clamping would instead saturate the gradient
+    // and quietly flatten the wave on any body deep enough to reach the bound.
+    j.phaseLag = wrapPi(base + slope * depth[j.index] + j.phaseLag);
+  }
+}
+
+const TAU = Math.PI * 2;
+const wrapPi = (a) => a - TAU * Math.floor((a + Math.PI) / TAU);
 
 /** Degrees of freedom per joint type — 10 §A17.2. Used for Species.dofCount. */
 export const DOF = {

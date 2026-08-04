@@ -499,7 +499,7 @@ export default {
           + ` · ${pctLeft.toFixed(0)}% ${t('grazed')}`;
       }
       for (const c of cast) {
-        const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.work, elapsed);
+        const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed);
         c.text.textContent = c.burst
           ? `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${t('came apart')}`
           : `${c.entry.name}  ${c.eaten.toFixed(2)} g  ${fmtRatio(L.ratio)}`;
@@ -541,7 +541,7 @@ export default {
       head.textContent = c.entry.name;
       head.style.color = `#${c.colour.getHexString()}`;
 
-      const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.work, elapsed);
+      const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed);
       const v = c.sim.centreOfMass();
       const rowsOut = [
         [t('Bodies'), `${c.plan.bodyCount} · ${c.plan.jointCount} ${t('joints')}`],
@@ -550,7 +550,9 @@ export default {
         [t('Mouths'), `${c.mouths.length}`],
         [t('Eaten'), `${c.eaten.toFixed(3)} g`],
         [t('Energy in'), `${erg(L.intake)} erg`],
-        [t('Work done'), `${erg(c.sim.work)} erg`],
+        // A0 — the BILLED half, so this row and 'Balance' below it agree. The
+        // absorbed half is real but is energy the water put into the animal.
+        [t('Work done'), `${erg(c.sim.workOut)} erg`],
         [t('Basal cost'), `${erg(L.basal)} erg`],
         [t('Balance'), `${erg(L.balance)} erg · ${fmtRatio(L.ratio)}`],
         [t('Depth'), `${v[1].toFixed(1)} cm`],

@@ -421,8 +421,21 @@ export async function runProbeGate() {
   const results = g.results;
   // ── L2-19 · the locomotion objective and the auto-burst (B2 §9 step 6) ─────
   g.assertion('L2-19', 'B2 §6: the locomotion objective is deterministic, torus-measured, and its burst costs what it says', (t) => {
+    // 30 -> 120 AT A3, AND THE OLD n MADE THE ASSERTION BELOW MEANINGLESS.
+    //
+    // For a Pearson r near zero the standard error is ~1/sqrt(n-3), so 2 s.e. at
+    // n=30 is +-0.385 — WIDER THAN THE 0.35 BOUND ITSELF. The correlation could
+    // therefore cross the bound on sampling noise alone, and did: the same
+    // quantity read 0.449, then 0.387, then 0.380 across three consecutive
+    // controller changes at n=30, and -0.018 at n=120 (tools/_zproxy.mjs). Two of
+    // those readings would have been treated as regressions.
+    //
+    // At n=120, 2 s.e. is +-0.185 and a 0.35 bound is a real claim. This is the
+    // same lesson the B2 §2.1 drift obligation records — "THE GATE IS INSIDE THE
+    // ERROR BAR ... do not re-tune against a figure taken below n ~ 90 000" —
+    // arriving in the other direction. The cost is ~16 s of gate time.
     const corpus = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 120; i++) {
       const genome = createRandomGenome(rngFrom('obj', i));
       let plan; try { plan = morphogenesis(genome); } catch { continue; }
       if (plan.bodyCount >= 2) corpus.push({ genome, plan });
@@ -447,11 +460,37 @@ export async function runProbeGate() {
     t.ok(long.valid && long.score > 0, 'the fastest creature still scores over a 60 s window', long.score);
 
     // NOT A SIZE METRIC. Chantier 1 moved mean bodies 3.91 -> 9.78, so an
-    // objective correlated with body count would now be measuring chantier 1
-    // rather than locomotion. B2 §10: correlate against a confound before
-    // believing it.
-    const r = pearsonOf(score.map(x => x.score), corpus.map(c => c.plan.bodyCount));
-    t.ok(Math.abs(r) < 0.35, 'the score is not a proxy for body count', r);
+    // objective correlated with SIZE would be measuring chantier 1 rather than
+    // locomotion. B2 §10: correlate against a confound before believing it.
+    //
+    // AMENDED AT A2, AND THE CONFOUND WAS MISNAMED. This asserted on body count
+    // alone at |r| < 0.35 and read 0.03. With the spine sub-grammar in the draw
+    // it reads 0.38 and went red — so the assertion was checked rather than the
+    // bound moved (tools/_zproxy.mjs, same corpus construction as here):
+    //
+    //     pearson(score, bodies) 0.380   pearson(score, mass)   0.195
+    //     pearson(score, run)    0.419   pearson(score, radius) 0.188
+    //
+    //     spined (run >= 4)  score 0.0975   mass 17.0   bodies 19.8
+    //     everything else    score 0.0454   mass 29.5   bodies  9.9
+    //
+    // Segmented creatures score 2.1x better while being 42% LIGHTER. Body count
+    // rose with the score because a chain IS more bodies, and `longestRun` — not
+    // size — is the strongest correlate. That is the objective rewarding shape,
+    // which is what it is for.
+    //
+    // So the size confound is MASS and RADIUS, and those keep the original 0.35
+    // bound. Body count keeps a bound too, because a genuine degeneration into
+    // "more bodies is better" must still fail, but it is set where it catches
+    // that rather than where it catches segmentation.
+    const rBodies = pearsonOf(score.map(x => x.score), corpus.map(c => c.plan.bodyCount));
+    const rMass = pearsonOf(score.map(x => x.score), corpus.map(c => totalMass(c.plan)));
+    // RE-MEASURED AT A3 on 120 draws: bodies 0.234, mass -0.018, radius 0.189,
+    // longestRun 0.279. Spined creatures score 0.128 against 0.056 for the rest
+    // while being LIGHTER (36.0 g vs 41.6 g) — the objective rewards shape, and
+    // is flat in size.
+    t.ok(Math.abs(rMass) < 0.35, 'the score is not a proxy for mass — the actual size confound', rMass);
+    t.ok(Math.abs(rBodies) < 0.55, 'the score is not runaway-correlated with body count', rBodies);
 
     // THE BURST COSTS WHAT IT CLAIMS. `breed()` takes its population from
     // genomes.length and cannot grow one, so passing `population` to it is
@@ -646,9 +685,9 @@ export async function runProbeGate() {
     ],
 
     obligations: [
-      'B2 §5 NOT MET, AND THE DIAGNOSIS IS INCOMPLETE. The steering plane is built: S3 measures turnPlaneX/Y/Z per creature in the root-local frame, bearingTo and senseOpponent are expressed in it, BRIDGE_V is bumped to 4. The sensor and the actuator now name the same plane, which they never did. THE GATE STILL FAILS: live gains beat the gains-zeroed control on 1 of 9 headings, not a majority. The cause is not the plane — turnRate median is 0.0032 rad/s, so a creature turns under 3 degrees in the 15 s window and cannot reduce a 90 degree error in ANY plane. §5 treats the coordinate convention as the reason the loop is open; it was A reason and it is fixed, and STEERING AUTHORITY is the other. C1\'s "physics problem or units one" is now the blocker for everything in §7 and must be answered before chantier 6.',
+      "B2 §5 IS NOW MET — RESOLVED AT A1/A2/A3, AND NOT BY STEERING CODE. This obligation read 'NOT MET' and recorded turnRate median 0.0032 rad/s: a creature turned under three degrees in a fifteen-second window, so no sensor, plane or gain could close a loop around it. L2-20 now PASSES. Measured after the A1 force-accumulation fix, the A2 spine and the A3 phase gradient: probe turnRate median 0.0369 rad/s (11x), and 0.169 rad/s at turnBias 1.0 on the solver path — 9.7 deg/s against the 5 deg/s A4 gate, up from 0.18 deg/s. NOT ONE LINE OF STEERING CODE WAS WRITTEN. The design document predicted this — orientation is an actuator symptom — and it was half right: it was a PHYSICS symptom. engine/l1/physics.js never cleared the Rapier force accumulator, so every creature was fighting the summed history of its own drag. 11 §12.3 monotonicity moved with it: speed rises with effort in 7/12 (was 4/12), power in 11/12 (was 7/12), degenerate power fits 0/12 (was 2/12). C1 asked whether this was a physics problem or a units one. It was PHYSICS.",
       'B2 §5: `bearingTo(sim, target)` still defaults to the horizontal plane when no turnPlane is passed, so every caller that has not been updated behaves exactly as before. That is deliberate — a silent global change to what a bearing MEANS would invalidate duel results without anything failing — but it means the plane is only actually used where a compiled record is in hand. duel.js:428 passes null today and should pass the record\'s plane once the duel loop carries records.',
-      'B2 §6 MEASURED (tools/_zauto.mjs, 6 replicates): the auto-burst BEATS THE NULL ARM 6/6 — mean best 0.0766 before, 0.2164 score-selected, 0.0502 random-selected. Split-half reliability pearson 0.80 / spearman 0.69 against the design\'s r = 0.78. The objective is NOT a size proxy: correlation with body count 0.03, with total mass -0.05, which matters because chantier 1 moved mean bodies 3.91 -> 9.78.',
+      'B2 §6 MEASURED (tools/_zauto.mjs, 6 replicates): the auto-burst BEATS THE NULL ARM 6/6 — mean best 0.0766 before, 0.2164 score-selected, 0.0502 random-selected. Split-half reliability pearson 0.80 / spearman 0.69 against the design\'s r = 0.78. RE-MEASURED AT A2, and the size-proxy figures here are SUPERSEDED: with the spine sub-grammar in the draw, correlation with body count is 0.380 (was 0.03) but with mass 0.195 and with radius 0.188, while the strongest correlate is longestRun at 0.419. Segmented creatures score 2.1x better while being 42% LIGHTER (mass 17.0 vs 29.5, score 0.0975 vs 0.0454), so the rise in the body-count correlation is the objective rewarding SHAPE, not size. tools/_zproxy.mjs re-runs the discrimination; the assertion now bounds mass and radius at 0.35 and body count at 0.55.',
       "B2 §6 COST: 136 ms per 6 s trial, 96 trials per burst, so a burst is ~13 s wall — against §0's \"120 trials x 6 sim-seconds in 5.7 s\" and \"3 gens @ pop 24, ~3.4 s\". That is 3-4x the design's budget and it is the chantier 1 physics cost arriving exactly where the obligation said it would. A burst is no longer an interaction a player waits through; it needs a worker, a progress affordance, or a smaller population, and that is a UI decision rather than a measurement.",
       'B2 §6 CAUGHT, AND WORTH REMEMBERING: `breed()` takes its population from `genomes.length` and cannot GROW one, so §8\'s reading that it is "already generalised" holds for everything except expansion. The first autoBurst passed `population: 24` to breed, which ignored it, and ran three generations at population 6 while reporting 24. At population 6 the burst merely PRESERVED the authored eel and looked like a 2.3x win against the null arm; at a real 24 it improves 2.8x on the starting best. The trial count is what exposed it and L2-19 now asserts it.',
       'C1: 11 §12.3 MONOTONICITY FAILS AND L2-5 IS PENDING. Speed and power barely respond to `effort`. Measured cause: the joints turn at ~6 rad/s at every effort while the torque clamp fires on only 5% of joint-steps, so the actuator is BANDWIDTH-limited and `effort` — a command-frequency multiplier — lands outside the PD loop\'s passband. tools/c1sat.js and tools/c1effort.js hold the measurements. It is NOT the work accumulator, which is what 11 §12.3 would have concluded.',

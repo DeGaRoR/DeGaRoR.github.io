@@ -26,7 +26,50 @@ export const RANGE = {
   density:        [0.15, 1.8],      // relative to water; midpoint ~0.98 = neutral
   recursiveLimit: [1, 6],           // integer
   angleLimit:     [0, Math.PI / 2], // radians, symmetric about zero
+
+  /**
+   * A3 — THIS IS NOW A DEVIATION, not the lag itself.
+   *
+   * The lag a joint contributes is `phaseBase + phaseSlope * depth + phaseLag`
+   * (resolved in morphogen.js). The SCHEMA range stays the full circle because
+   * migrated v2 genomes carry their old whole-lag values in this field and must
+   * remain valid; the FACTORY draws from `phaseDeviation` below, which is narrow.
+   */
   phaseLag:       [-Math.PI, Math.PI],
+  phaseDeviation: [-0.32, 0.32],    // ~0.1 x the full circle — what the factory draws
+
+  // A3 — the gradient itself, one pair per genome rather than one lag per node.
+  // `phaseBase` is the lag every segment contributes; a CONSTANT lag along a
+  // chain is exactly what makes a travelling wave. `phaseSlope` lets the lag
+  // change with depth, which chirps the wave — kept narrow because a slope of
+  // any size unwinds the wave within a few segments.
+  phaseBase:      [-Math.PI, Math.PI],
+  /**
+   * NARROWED 0.35 -> 0.10 ON MEASUREMENT, and the first value contradicted the
+   * sentence next to it. A slope applies PER SEGMENT OF DEPTH and accumulates:
+   * at 0.35 a six-segment spine's lag drifts by 2.1 rad from head to tail, which
+   * is two thirds of a half-cycle and unwinds the constant-lag wave that makes a
+   * spine work at all. Measured: spined creatures' mean locomotion score fell
+   * 0.0975 -> 0.0328 when the gradient landed, while the corpus mean barely
+   * moved — the chirp was undoing A2's gains on exactly the bodies A2 added.
+   * At 0.10 the same body drifts 0.6 rad, which bends the wave without
+   * destroying it.
+   */
+  phaseSlope:     [-0.10, 0.10],    // rad per segment of depth
+
+  /**
+   * A5 — PROPRIOCEPTIVE GAIN. How hard a joint's oscillator is pulled toward the
+   * phase the joint is ACTUALLY at (controller.js advancePhases). Units are 1/s:
+   * K is a rate, so K = 1 corrects a phase error of one radian at one radian per
+   * second, which is the same order as `omega` itself.
+   *
+   * FLOOR IS ZERO AND MEANS OPEN LOOP, which is what the migration sets and what
+   * makes the organ neutral at insertion. The ceiling is deliberately below the
+   * point where the correction term can dominate the joint's own advance: above
+   * roughly `omega` the oscillator stops being a rhythm generator and becomes a
+   * follower of the body, which is not a CPG.
+   */
+  proprioGain:    [0, 3.0],         // 1/s
 
   // Connection
   parentFace:     [0, 5],           // integer, 6 faces of the parent box
@@ -212,6 +255,9 @@ export function canonical(g) {
       omega: g.controller.omega,
       preyGain: g.controller.preyGain,
       threatGain: g.controller.threatGain,
+      phaseBase: g.controller.phaseBase,
+      phaseSlope: g.controller.phaseSlope,
+      proprioGain: g.controller.proprioGain,
       jointGenes: Object.keys(g.controller.jointGenes).sort().map((nodeId) => ({
         nodeId,
         amplitude: g.controller.jointGenes[nodeId].amplitude,
@@ -310,6 +356,52 @@ const MIGRATIONS = {
         ? n.colorGenes
         : { hueShift: 0, valueShift: 0, patternPhase: 0 },
     })),
+  }),
+
+  /**
+   * 2 -> 3 · A3, THE POSITIONAL PHASE GRADIENT. Real, and bit-identical.
+   *
+   * Before this, every node drew `joint.phaseLag` independently and
+   * controller.js accumulated them along the tree, so phase along a chain was a
+   * RANDOM WALK rather than a gradient — the controller was never asking for a
+   * coordinated wave. Measured commanded inter-joint coherence 0.615, flat over
+   * 300 s; after A2 put chains in the corpus it rose to 0.786, but the branched
+   * bodies still read 0.08-0.15 while spines read 0.96-0.999. A spine was
+   * already coherent BY ACCIDENT: one node repeated means one lag repeated,
+   * which is a constant increment, which is a travelling wave. A body of
+   * distinct nodes had nothing holding its increments together.
+   *
+   * The lag is now `phaseBase + phaseSlope * depth + phaseLag`, with `phaseLag`
+   * demoted to a per-node DEVIATION.
+   *
+   * NEUTRAL AT INSERTION. Setting both coefficients to 0 leaves the lag equal to
+   * the old `phaseLag` exactly, so a migrated v2 genome reproduces its v2 traces
+   * to the bit. The coefficients do nothing until mutation moves them, which is
+   * the discipline every organ in this project is held to.
+   */
+  2: (g) => ({
+    ...g,
+    version: 3,
+    controller: { ...g.controller, phaseBase: 0, phaseSlope: 0 },
+  }),
+
+  /**
+   * 3 -> 4 - A5, PROPRIOCEPTION. Real, and bit-identical.
+   *
+   * Before this the CPG received nothing back from the body: it was a pure
+   * function of (genome, t), so a joint that could not reach its commanded angle
+   * was simply ignored by the oscillator driving it. `proprioGain` is the gain on
+   * the entrainment term.
+   *
+   * NEUTRAL AT INSERTION. K = 0 is open loop, and physics.js does not even run
+   * the integrator in that case - it keeps the closed-form phase argument - so a
+   * migrated genome reproduces its previous traces to the bit rather than to
+   * within floating-point accumulation.
+   */
+  3: (g) => ({
+    ...g,
+    version: 4,
+    controller: { ...g.controller, proprioGain: 0 },
   }),
 };
 
@@ -411,7 +503,7 @@ export function validateGenome(g) {
     if (d > CAPS.maxConnPerNode) e.push(`node ${nodeId}: ${d} outgoing connections, cap is ${CAPS.maxConnPerNode}`);
   }
 
-  for (const k of ['omega', 'preyGain', 'threatGain']) {
+  for (const k of ['omega', 'preyGain', 'threatGain', 'phaseBase', 'phaseSlope', 'proprioGain']) {
     if (!inRange(g.controller?.[k], RANGE[k])) e.push(`controller.${k} = ${g.controller?.[k]}`);
   }
   const jg = g.controller?.jointGenes || {};
@@ -465,7 +557,8 @@ export function geneValues(g) {
       n.colorGenes.hueShift, n.colorGenes.valueShift, n.colorGenes.patternPhase);
   }
   for (const c of g.connections) out.push(...c.position, ...c.orientation, ...c.scale);
-  out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain);
+  out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain,
+    g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain);
   for (const k of Object.keys(g.controller.jointGenes)) {
     out.push(g.controller.jointGenes[k].amplitude, g.controller.jointGenes[k].bias);
   }

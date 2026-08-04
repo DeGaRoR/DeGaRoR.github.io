@@ -84,15 +84,26 @@ function buildC172() {
   };
   mkWing(+1); mkWing(-1);
 
-  // ---- TRICYCLE gear: sprung mains aft of CG, steerable nosewheel ahead
-  const [GAL, GAR] = NM(2.72, -0.60, 1.26, 14, 'AXLE', 0.28);
+  // ---- TRICYCLE gear: sprung mains aft of CG, steerable nosewheel ahead.
+  // Geometry calibrated against the 3D model (MODEL-IMPORT-PROC step 2):
+  //   track 2.62 m (was 2.52), wheelbase 1.74 m (was 1.97 — the model and the
+  //   real 172 are both ~1.7), tyre radii 0.173/0.174 measured off the meshes
+  //   (were 0.28/0.24), and a LEVEL static stance: the model sits level on its
+  //   gear, the old fiche sat 2.7 deg nose down.
+  // The smaller tyres also drop the airframe 10 cm: the wing now rides 2.25 m
+  // over the ground (was 2.35, real 172 ~2.2), which is what ground effect
+  // reads. Do NOT shorten the legs further to chase the model's 1.95 m — the
+  // axle attaches to the fuselage bottom rail at y 0.05 and |z| 0.60, so at
+  // this track the legs already splay ~47 deg; take the drop below ~0.55 and
+  // the gear goes over-centre and folds up under static load.
+  const [GAL, GAR] = NM(2.72, -0.60, 1.31, 14, 'AXLE', 0.173);
   BG(GAL, GAR);
   for (const [G, sgn] of [[GAL, -1], [GAR, 1]]) {
     const b2 = sgn > 0 ? F[2].BR : F[2].BL, b3 = sgn > 0 ? F[3].BR : F[3].BL;
     const b1 = sgn > 0 ? F[1].BR : F[1].BL, bo = sgn > 0 ? F[2].BL : F[2].BR;
     BG(G, b2); BG(G, b3); BG(G, b1); BG(G, bo);
   }
-  const NW = N(0.75, -0.54, 0, 10, 'TW', 0.24);        // nosewheel (steerable ref)
+  const NW = N(0.983, -0.566, 0, 10, 'TW', 0.174);     // nosewheel (steerable ref)
   BG(NW, S0.BL); BG(NW, S0.BR); BG(NW, F[1].BL); BG(NW, F[1].BR);
 
   // ---- tail
@@ -141,7 +152,10 @@ function buildC172() {
     elevTau: 0.48, rudTau: 0.50, ailTau: 0.35, downwash: 0.40,
     stabTrim: 0.0006, sparSpacing: 0.82,
     fusCdA: [0.46, 1.0, 1.0], fusCdAAft: [0, 0.70, 0.70],
-    twSteer: -0.35,          // nosewheel: sign to be verified empirically
+    // nosewheel. Sign verified: the solver turns the rolling direction by
+    // -twSteer*dr about +y, so negative points the NOSE wheel left for
+    // nose-left (a tailwheel wants the positive sign the taildraggers use).
+    twSteer: -0.35,
     // barn-door Fowler-ish flaps 30: calibrated in the free-air tunnel against
     // POH Vs0 ~40-42 kt vs Vs1 46 (see test_flaps.js)
     // dCm0 ~ -0.25*dCl0 (thin-airfoil TE device): weaker values let the flap
@@ -150,6 +164,7 @@ function buildC172() {
     ap: {
       rotate: true,
       VRot: 28, VClimbMin: 32, VClimb: 38, VCruise: 58, VAppr: 33.5, VTurn: 44,
+      TORun: 400,                   // measured run to 2.5 m agl (W14 multi-hop)
       thTailUp: 0.02, thRotate: 0.10,
       lookRoll: 35, lookAppr: 320, lookCruise: 450,
       hCruise: 180, hSafe: 20, xTurn: -3800, xAim: -640, gs: 0.052,

@@ -197,7 +197,7 @@ export const NEUTRAL_CONTROL = { effort: 1, turnBias: 0, sides: null };
  * @param {Float64Array} phases from computePhases()
  * @param {Float64Array} [out] reused across ticks — no allocation in the loop (N4)
  */
-export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CONTROL) {
+export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CONTROL, phi = null) {
   const n = plan.jointCount;
   const dst = out && out.length === n ? out : new Float64Array(n);
   const omega = genome.controller.omega * control.effort;
@@ -207,7 +207,12 @@ export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CON
     const j = plan.joints[i];
     const g = genome.controller.jointGenes[j.nodeId];
     const range = j.angleLimits[0];
-    dst[i] = g.bias + g.amplitude * range * Math.sin(g.freqMult * omega * t + phases[i]);
+    // A5. `phi` is the ENTRAINED phase, integrated per joint by advancePhases()
+    // and owned by the caller. When it is absent the argument is the open-loop
+    // form verbatim — not an equivalent expression, the same expression — so a
+    // K = 0 creature has nothing for a determinism assertion to trip over.
+    const arg = phi ? phi[i] : g.freqMult * omega * t + phases[i];
+    dst[i] = g.bias + g.amplitude * range * Math.sin(arg);
     // Guarded rather than always-added so that the neutral case is not merely
     // equal to B3's arithmetic but IS B3's arithmetic — no `+ 0`, no rounding
     // difference, nothing for a determinism assertion to trip over.
@@ -215,6 +220,143 @@ export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CON
   }
   return dst;
 }
+
+/**
+ * A5 — PROPRIOCEPTION. Advance each joint's own phase, entrained by the joint
+ * the body is actually executing.
+ *
+ *   phi_j += omega_j * dt  +  K * sin(phiHat_j - phi_j) * dt
+ *
+ * THE DEFECT IT REPAIRS. Until now the CPG was a pure function of (genome, t):
+ * it received nothing back from the body, so when a joint failed to reach its
+ * commanded angle the oscillator marched on regardless and the phase relation
+ * between command and body drifted freely. Real spinal CPGs are entrained by
+ * stretch receptors — the rhythm recalibrates against the body executing it,
+ * which is why a lamprey's gait survives load, damage and a change of shape.
+ *
+ * This is the FIRST STATEFUL ELEMENT in Vivarioops. After it, the controller is
+ * no longer a pure function of the genome and the clock. Purity is preserved
+ * where it matters (N1-N3): this function holds no state of its own, it advances
+ * a buffer the CALLER owns, exactly as `targetAngles` writes into a caller-owned
+ * `out`.
+ *
+ * PHASE ESTIMATION. If theta = bias + A*range*sin(phi) then
+ *
+ *     (theta - bias) / (A*range)      = sin(phi)
+ *     relOmega / (omega * A*range)    = cos(phi)
+ *
+ * so `atan2` of the two recovers the phase the joint is actually at. The two
+ * denominators are the numerical care this needs and both are guarded:
+ * `A*range` is the commanded half-swing and goes to zero for a joint the genome
+ * has switched off, and `omega` goes to zero at `effort` 0. Below either floor
+ * the joint falls back to OPEN LOOP — `phiHat = phi`, so the correction term is
+ * exactly zero rather than a large angle derived from noise. Same class of guard
+ * as LATERAL_EPS above.
+ *
+ * WHAT IS NOT CHANGED. Inter-joint coupling still comes from the A3 gradient:
+ * `phi` is SEEDED from `computePhases()` and each joint keeps advancing at its
+ * own `omega_j`. Sensory feedback modulates a joint's own phase; it does not
+ * replace the wave.
+ *
+ * NOT EVOLVABLE-AS-ORGAN. Proprioception is plumbing. Its absence is a defect,
+ * not a design space, and a lineage "discovering" that its muscles have stretch
+ * receptors is not a watchable event. `K` is a tunable gene; the receptor is
+ * always present.
+ *
+ * @param {object} plan
+ * @param {object} genome
+ * @param {Float64Array} phi     caller-owned, seeded from computePhases(); MUTATED
+ * @param {Float64Array} theta   measured joint angle, per joint
+ * @param {Float64Array} relOmega measured joint angular rate, per joint
+ * @param {number} dt
+ * @param {object} control
+ */
+export function advancePhases(plan, genome, phi, theta, relOmega, dt, control = NEUTRAL_CONTROL, parents = null, couple = COUPLE) {
+  const n = plan.jointCount;
+  const omega = genome.controller.omega * control.effort;
+  const K = genome.controller.proprioGain ?? 0;
+  const par = parents || parentJoints(plan);
+  for (let i = 0; i < n; i++) {
+    const j = plan.joints[i];
+    const g = genome.controller.jointGenes[j.nodeId];
+    const wj = g.freqMult * omega;
+
+    // ── INTER-JOINT COUPLING — this is what keeps it a WAVE ──────────────────
+    //
+    // Without it A5 destroys A3. Measured, and it is worth recording because the
+    // headline metric hid it: with the sensory term alone, commanded inter-joint
+    // coherence collapsed 0.959 -> 0.557 while the achieved/commanded RATIO went
+    // UP, because the denominator fell faster than the numerator. The animal was
+    // less coordinated and the ratio said it was more.
+    //
+    // The cause is structural. `computePhases` sets the phase RELATION between
+    // joints; once each phase becomes a free variable pulled toward its own
+    // joint's local mechanics, that relation is only an initial condition and
+    // dissolves within a few seconds. So the relation has to be maintained, not
+    // merely seeded: each joint is pulled toward `parent + lag`, which is exactly
+    // the identity `computePhases` computes statically.
+    //
+    // This is the standard coupled-oscillator CPG (Cohen/Ijspeert lamprey): an
+    // inter-oscillator term carrying the desired lag, plus a sensory term. The
+    // design document asks for precisely this — "inter-joint coupling is
+    // unchanged: phi_j still inherits from its parent through the gradient.
+    // Sensory feedback modulates each joint's own phase; it does not replace the
+    // gradient."
+    //
+    // A ROOT-ATTACHED JOINT HAS NO PARENT and runs free at its own omega. It is
+    // the pacemaker the rest of its chain is pulled toward, which is the dynamic
+    // reading of 10 §A7's "root joint phase = 0".
+    let corr = 0;
+    const p = par[i];
+    if (p >= 0) corr += couple * Math.sin(phi[p] + plan.joints[p].phaseLag - phi[i]);
+
+    if (K > 0) {
+      const half = g.amplitude * j.angleLimits[0];
+      if (half > PHASE_EPS && Math.abs(wj) > PHASE_EPS) {
+        const s = (theta[i] - g.bias) / half;
+        const c = relOmega[i] / (wj * half);
+        // Both components tiny means the joint is not moving and its phase is
+        // unobservable; atan2(0, 0) is 0, which would yank the oscillator to a
+        // phase the body never expressed.
+        if (s * s + c * c > PHASE_OBS) corr += K * Math.sin(Math.atan2(s, c) - phi[i]);
+      }
+    }
+    phi[i] += (wj + corr) * dt;
+  }
+  return phi;
+}
+
+/**
+ * Parent joint of every joint, or -1 for a joint on the root body. Same walk
+ * `computePhases` does; computed once by the caller and reused, since the plan
+ * does not change during a life.
+ */
+export function parentJoints(plan) {
+  const jointOfBody = new Int32Array(plan.bodyCount).fill(-1);
+  for (const j of plan.joints) jointOfBody[j.childBody] = j.index;
+  const out = new Int32Array(plan.jointCount);
+  for (const j of plan.joints) out[j.index] = jointOfBody[j.parentBody];
+  return out;
+}
+
+/**
+ * Inter-oscillator coupling rate, 1/s. PLUMBING, not a gene — the same argument
+ * that makes proprioception itself not evolvable-as-organ: a chain whose
+ * segments do not talk to each other is a defect, not a design space, and the
+ * thing worth selecting on is the LAG the coupling carries, which is already
+ * genetic (phaseBase/phaseSlope/phaseLag).
+ *
+ * Sized above `RANGE.proprioGain`'s ceiling of 3.0 so that sensory feedback
+ * bends the wave rather than breaking it. Below `omega`'s ceiling of 6.0, so it
+ * cannot dominate a joint's own advance.
+ */
+export const PHASE_COUPLE = 4.0;
+const COUPLE = PHASE_COUPLE;
+
+/** Commanded half-swing, and |omega|, below which a joint's phase is unobservable. */
+const PHASE_EPS = 1e-6;
+/** Minimum |(sin, cos)| for the estimate to be signal rather than noise. */
+const PHASE_OBS = 0.01;
 
 /**
  * Target angular VELOCITY, for the velocity-motor drive mode.

@@ -27,6 +27,7 @@ const GATES = [
   { id: 'CTRL', file: 'test_ctrl.js' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js' },
   { id: 'PA18', file: 'test_pa18.js' },
+  { id: 'C172M', file: 'test_c172_model.js' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js' },
   { id: 'HYDRO', file: 'test_hydro.js' },
@@ -36,6 +37,8 @@ const GATES = [
   { id: 'XCTY', file: 'test_xcty.js' },
   { id: 'XCTY2', file: 'test_xcty2.js' },
   { id: 'XCTY3', file: 'test_xcty3.js' },
+  { id: 'XCTY4', file: 'test_xcty4.js' },
+  { id: 'XCTY5', file: 'test_xcty5.js' },
 ];
 
 const args = process.argv.slice(2);

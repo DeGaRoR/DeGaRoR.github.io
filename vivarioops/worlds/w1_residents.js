@@ -25,10 +25,24 @@ export const W1_RESIDENT_GENOMES = {
 export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 
 /** Genome hashes, precomputed so worldHash() needs no morphogenesis. */
+// REHASHED AT A3, NOT REGENERATED — tools/_zrehash.mjs.
+//
+// GENOME_V went 2 -> 3 and `canonical()` now emits controller.phaseBase and
+// controller.phaseSlope, so every genome hash moved. THE ANIMALS DID NOT: the
+// 2 -> 3 migration sets both coefficients to 0 (verified by the tool) and
+// morphogen.js `resolvePhaseLags` returns early on that, so the resolved phase
+// lags and every trajectory are bit-identical to v2. Only the serialised form
+// gained two fields.
+//
+// tools/c2residents.js was deliberately NOT re-run: it would breed new residents
+// and change the creatures, when what changed is the schema. The genome literals
+// above are left at "version":2 so that every load exercises the migration
+// rather than trusting it. `faunaVersion` in w1_slice.js is bumped 6 -> 7 in the
+// same commit, per the rule at the head of this file.
 export const W1_RESIDENT_HASHES = [
-  "749af08a3640a2e8",
-  "a0bbf555b3cd66fc",
-  "1558959b49f570f2"
+  "b2172728006511c6",
+  "25a888ed8669e523",
+  "83fd6035094fb076"
 ];
 
 export default W1_RESIDENT_GENOMES;

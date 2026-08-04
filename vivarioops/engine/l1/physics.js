@@ -36,7 +36,7 @@
 // Only MOTOR_SCALE has to be tuned to the density choice, because torque follows
 // area (N19) and does not rescale with mass.
 
-import { computePhases, targetAngles, targetVelocities, makeControl, DRIVE, TURN_AUTHORITY } from './controller.js';
+import { computePhases, advancePhases, parentJoints, PHASE_COUPLE, targetAngles, targetVelocities, makeControl, DRIVE, TURN_AUTHORITY } from './controller.js';
 import { qrot, qmul, normalise } from './vecmath.js';
 
 export const FIXED_DT = 1 / 120;      // 01 §7, substepped
@@ -67,6 +67,53 @@ export const MOTOR_SCALE = 1.0;
  * resident re-freeze), which is why it is sequenced rather than done in place.
  *
  * NOT A DIAL. Changing it is claiming something about muscle.
+ *
+ * ── A4: SWEPT, AND DELIBERATELY LEFT AT 200. A NEGATIVE RESULT. ─────────────
+ *
+ * The A4 chantier was scheduled to raise this to 2e6 to close the tracking gate
+ * — after A3 the CPG commands a coherent wave (commanded coherence 0.947) and
+ * the body executed 0.70 of it. It was swept instead of assumed
+ * (tools/_zbudget.mjs), reading achieved/commanded coherence over joint pairs
+ * ACTUALLY COMMANDED TO SWING, because Pearson is scale-invariant and a joint
+ * asked to move by 0.001 rad correlates perfectly in command and not at all in
+ * achievement:
+ *
+ *     200    tracking 0.699    workOut 2.5e3    r(speed,mass) -0.018 *
+ *     600    tracking 0.827    workOut 5.2e3
+ *     2000   tracking 0.834    workOut 2.2e4    r(speed,mass)  0.441 *
+ *     2e4    tracking 0.862    workOut 2.4e5
+ *     2e6    tracking ~0.96    workOut 5.2e7
+ *          (* measured on the objective's own metric, n=120, 2 s.e. = 0.185)
+ *
+ * IT BUYS TRACKING BY DELETING A SIZE CONSTRAINT THAT SHOULD EXIST, and two
+ * independent gates caught it. L1-18 (N19) found that doubling cross-sectional
+ * area stopped multiplying spin by 2^1.5 — it gave 1.03 — and that multiplying
+ * density by 8 no longer suppressed spin, i.e. creatures had begun to move alike
+ * regardless of size, which is the precise failure N19 exists to prevent. L2-19
+ * found the locomotion objective's correlation with mass going -0.018 -> 0.441
+ * at n = 120, where two standard errors is 0.185.
+ *
+ * AND THE POOR TRACKING IS CORRECT PHYSICS. A joint's natural frequency is
+ * sqrt(k/I); with k proportional to A^1.5 (N19) and I to rho*L^5, that is
+ * proportional to 1/(L*sqrt(rho)). A LARGE CREATURE MUST TRACK A FAST COMMAND
+ * BADLY. Measured directly: the per-creature tracking ratio correlates with mass
+ * at -0.275 at 200, and raising the stress to 2000 erases that to -0.193. The
+ * "gap" the chantier set out to close is substantially a real animal being
+ * unable to execute a gait its own genome asked for, which is a selection
+ * pressure and not a defect.
+ *
+ * The literature comparison in the note above is also the wrong target. 1e4-1e6
+ * Pa is the stress of muscle TISSUE; the torque here is
+ * `stress * A^1.5 * momentArm` with a flat momentArm of 0.2 and the entire
+ * cross-section treated as contractile. It is a torque parametrisation, not a
+ * muscle model, so matching the tissue figure would not make it physical.
+ *
+ * WHAT CLOSES THE TRACKING GAP IS A5, NOT STRENGTH. Proprioception entrains the
+ * oscillator to the body actually executing it, so the command adapts to what
+ * the joint can do rather than the joint being overpowered until it obeys.
+ *
+ * `opts.muscleStress` remains, so this sweep can be re-run against any future
+ * actuator change without editing the module.
  */
 export const MUSCLE_STRESS = 200;
 
@@ -126,8 +173,21 @@ export const TARGET_SLEW = OMEGA_MAX;
  * Low-pass coefficient on the commanded angle, per step: higher is more
  * responsive. The reference's value, kept, because this is one of the parts of
  * its model that is already debugged.
+ *
+ * A1 — THIS IS A PER-STEP COEFFICIENT AND WAS NOT SCALED BY dt. The slew limiter
+ * beside it in `smoothTargets` is dt-correct (`TARGET_SLEW * FIXED_DT`); this was
+ * not, so the filter's time constant moved with the timestep and refining dt
+ * changed the commanded trajectory. That alone makes a convergence gate
+ * dishonest, whatever else is wrong.
+ *
+ * TARGET_TAU is the time constant this value IMPLIES at the shipped timestep —
+ * FIXED_DT / -ln(1 - 0.8) = 5.18 ms — so `TARGET_ALPHA` below reproduces the
+ * shipped behaviour exactly at dt = 1/120 and now holds it fixed in SECONDS as
+ * dt changes. Behaviour at the shipped timestep is unmoved to ~1e-16.
  */
 export const TARGET_FILTER = 0.8;
+export const TARGET_TAU = (1 / 120) / -Math.log(1 - TARGET_FILTER);
+export const TARGET_ALPHA = 1 - Math.exp(-FIXED_DT / TARGET_TAU);
 // The budget-derived spring gain is `motorScale * budget * MOTOR_STIFFNESS`. Was
 // 1.0 (soft — tracking gain 0.27, the original locomotion problem). Raised to 12
 // after the myriapod fix: at 12 the AREA-derived gain tracks as well as the
@@ -493,6 +553,18 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // in impulse terms. COT rises ~2-4x for swimmers (only creatures that USE the
   // torque pay), not the 17x an across-the-board motorScale would cost.
   const budgetScale = opts.budgetScale ?? 6;
+
+  /**
+   * MUSCLE STRESS, exposed for measurement — A4, and the same affordance
+   * `stableSpeed` carries for the same reason: a constant that needs sweeping
+   * should be sweepable without rewriting the module.
+   *
+   * It is NOT the same lever as `budgetScale`. `budgetScale` multiplies the error
+   * clamp CEILING only; the spring and damping gains below use the RAW budget. So
+   * with the clamp not binding — corpus saturation is 0.000 after A1 —
+   * `budgetScale` is inert and this is the only thing that moves tracking.
+   */
+  const muscleStress = opts.muscleStress ?? MUSCLE_STRESS;
 
   /**
    * ADDED MASS (C6.2). ON. The derivation is at the body-construction site below.
@@ -951,7 +1023,7 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // use the raw `budget`, so budgetScale loosens the clamp without inflating
       // the gain. In the motorFreqHz branch the gains are inertia-derived and do
       // not see the budget at all, so the two are fully decoupled there.
-      const budget = MUSCLE_STRESS * A * Math.sqrt(A) * momentArm;
+      const budget = muscleStress * A * Math.sqrt(A) * momentArm;
       motorBudget[j.index] = budget * budgetScale;
       handle.configureMotorModel(RAPIER.MotorModel.ForceBased);
       if (motorFreqHz !== null) {
@@ -1032,6 +1104,34 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   const phases = computePhases(plan);
   const targets = new Float64Array(plan.jointCount);
 
+  // ── A5, PROPRIOCEPTION — the first stateful element in the simulation ───────
+  //
+  // `phi` is the entrained per-joint phase. It is SEEDED from the A3 gradient, so
+  // a creature starts with exactly the wave `computePhases` describes, and is
+  // then advanced every step by controller.js `advancePhases` — which pulls each
+  // joint's oscillator toward the phase the joint is ACTUALLY at.
+  //
+  // THE STATE LIVES HERE, NOT IN THE CONTROLLER. controller.js stays a set of
+  // pure functions writing into caller-owned buffers (N1-N3); the simulation
+  // already owns `t`, `workOut` and `prevTarget`, and this belongs beside them.
+  // `resetClock()` re-seeds it for the same reason it zeroes the clock: a probe
+  // settles and then measures, and the driven phase must start where the genome
+  // says rather than wherever the settle left it.
+  //
+  // OPEN LOOP IS NOT MERELY EQUIVALENT, IT IS THE SAME CODE PATH. At K = 0 the
+  // integrator is never run and `targetAngles` takes its original closed-form
+  // argument. Integrating `omega*dt` N times and computing `omega*(N*dt)` differ
+  // in the last bits of a double, so running the loop unconditionally would break
+  // the bit-identity the migration is required to preserve — for no benefit,
+  // since the two are the same rhythm.
+  const proprioGain = genome.controller?.proprioGain ?? 0;
+  const proprio = proprioGain > 0;
+  const phi = proprio ? Float64Array.from(phases) : null;
+  // The chain each joint is coupled to. Fixed for the life of the plan (N4).
+  const phiParents = proprio ? parentJoints(plan) : null;
+  // Exposed for the A5 sweep, as `muscleStress` is for A4.
+  const phaseCouple = opts.phaseCouple ?? PHASE_COUPLE;
+
   // C1 — the mutable control input. Probes and duels write `effort` and
   // `turnBias` between steps; `sides` is computed once (N4). At the defaults
   // (effort 1, turnBias 0) `targetAngles` executes B3's arithmetic unchanged.
@@ -1059,8 +1159,24 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // What must not happen again is a promise the code does not keep.
 
   let t = 0, steps = 0;
-  let work = 0;
-  let motorSteps = 0, motorSaturated = 0;   // joules, sum |tau . omega| dt (01 §7) — S2 reads this at C1
+  // ── SIGNED ACTUATOR WORK — A0, and the unsigned form was an instrument fault ─
+  //
+  // This was `work += Math.abs(tau * relOmega) * dt`, which collapses a signed
+  // quantity. Energy the actuator INJECTS and energy it ABSORBS then sum
+  // identically, so `work` could not tell a creature swimming efficiently from
+  // one being shaken by the water. Cost of transport and the forage ledger both
+  // rest on it.
+  //
+  // tau . omega is power: positive when the muscle drives the joint, negative
+  // when the joint drives the muscle (a limb being pushed back by the fluid,
+  // doing work ON the actuator). An animal does not eat to be pushed around, so
+  // METABOLIC COST BILLS `workOut` ONLY — see engine/l2/forage.js `ledger`.
+  //
+  // `work` is kept as the sum of the two so that every existing consumer — the
+  // probe traces, the duel energy rate, the L1-17 determinism assertion — reads
+  // exactly what it read before and nothing downstream breaks silently.
+  let workOut = 0, workAbsorbed = 0;
+  let motorSteps = 0, motorSaturated = 0;   // erg; see the signed split above — S2 reads this at C1
 
   // ── kinematic ceiling, DERIVED and not tuned ────────────────────────────────
   //
@@ -1104,7 +1220,7 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // imported so /engine/l1/physics.js keeps its current import surface.
   const restRadius = Math.max(1e-6, ...plan.bodies.map((b) =>
     Math.hypot(b.position[0], b.position[1], b.position[2]) + Math.max(...b.dims) * 0.5));
-  let clampBound = 0, clampSteps = 0;
+  let clampBound = 0, clampSteps = 0, spinBound = 0;
 
   function clampKinematics() {
     for (let i = 0; i < plan.bodies.length; i++) {
@@ -1120,6 +1236,15 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       const a = rb.angvel();
       const asp = Math.hypot(a.x, a.y, a.z);
       if (asp > maxSpin[i] && Number.isFinite(asp)) {
+        // A0 — THE ANGULAR CLAMP WAS UNMETERED, and it is the one more likely to
+        // bind. `saturation` counted only the linear branch above, so every
+        // saturation figure in the handovers is blind to this. maxSpin is
+        // MAX_SPEED / (0.5 * hypot(dims)), which for a limb of hypot ~2 cm is a
+        // 10 rad/s ceiling — inside the CPG's own commanded band (omega up to 6,
+        // freqMult up to 2), before a distal body inherits its parents' rotation
+        // on top. Counted separately rather than folded into clampBound so that
+        // the existing number keeps meaning what it meant.
+        spinBound++;
         const k = maxSpin[i] / asp;
         rb.setAngvel({ x: a.x * k, y: a.y * k, z: a.z * k }, true);
       }
@@ -1174,13 +1299,57 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     return {
       spread: far / Math.max(restRadius, 1e-6),
       saturation: clampSteps > 0 ? clampBound / clampSteps : 0,
+      // A0. The same fraction for the ANGULAR ceiling, which until now was
+      // applied and never counted. Read both: a creature can sit at 0.00
+      // `saturation` while every limb is pinned at its spin cap.
+      spinSaturation: clampSteps > 0 ? spinBound / clampSteps : 0,
       restRadius,
     };
   }
 
-  function resetIntegrity() { clampBound = 0; clampSteps = 0; }
+  function resetIntegrity() { clampBound = 0; clampSteps = 0; spinBound = 0; }
 
   function applyEnvironment() {
+    // ── CLEAR LAST STEP'S FORCES FIRST — A1, AND IT WAS THE DEFECT ───────────
+    //
+    // Rapier's addForce/addTorque are PERSISTENT: the force is re-applied at
+    // every subsequent timestep until resetForces/resetTorques is called. That is
+    // why those methods exist alongside the one-shot applyImpulse. Nothing in
+    // this repo ever called them, so the force Rapier applied at step n was the
+    // SUM of every per-step force computed since spawn.
+    //
+    // MEASURED, tools/_zaccum.mjs — a body in a constant buoyancy field, mass-
+    // weighted centre-of-mass velocity, which responds to external force and
+    // nothing else. v(n)/v(1) tracked n(n+1)/2 (1, 3.15, 6.38, 10.55, 15.55,
+    // 21.27, ...) where correct semantics give n (1, 2, 3, ...).
+    //
+    // THIS IS THE NON-CONVERGENCE. An accumulating force delivers impulse
+    // ~F*T^2/(2*dt) by time T, so the timescale of every trajectory went as
+    // dt^0.5 — which is exactly the law the A1 investigation measured (coast
+    // half-time 0.067 s -> 0.033 s for a 4x refinement) and attributed to
+    // "accumulating truncation". The predicted speed ratio at a 4x refinement is
+    // 1/sqrt(4) = 0.500; the measured active-swim ratio was 0.501.
+    //
+    // It also retires the elimination list in planLocomotion/HANDOFF-A1.md.
+    // Every entry on it was asking WHICH FORCE TERM was wrong; the terms were
+    // right and the bookkeeping was wrong. In particular `_zforce`'s "the fluid
+    // law never injects energy, F.v < 0 at every step" logged the force COMPUTED,
+    // not the force APPLIED, and the guards at the foot of this function cap the
+    // per-step INCREMENT, which is why they measured inert (sc = 1.000, bind
+    // 0.0%) while energy still entered.
+    //
+    // ORDERING. Both drive paths call applyEnvironment() before applyMotors() —
+    // step() inlines them at :1824-1826 and the shared arena calls them from
+    // applyForces() — so the PD motor torques added afterwards survive this reset
+    // and are consumed by the following w.step(). Reset here rather than after
+    // the step so that a caller who never reaches w.step() cannot leave a stale
+    // force armed. wakeUp is false: clearing a force is not a reason to wake a
+    // sleeping body.
+    for (let i = 0; i < plan.bodies.length; i++) {
+      bodies[i].resetForces(false);
+      bodies[i].resetTorques(false);
+    }
+
     for (let i = 0; i < plan.bodies.length; i++) {
       const b = plan.bodies[i];
       const rb = bodies[i];
@@ -1460,16 +1629,29 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     for (let i = 0; i < raw.length; i++) {
       const d = raw[i] - prevTarget[i];
       const limited = prevTarget[i] + Math.min(maxStep, Math.max(-maxStep, d));
-      prevTarget[i] += (limited - prevTarget[i]) * TARGET_FILTER;
+      prevTarget[i] += (limited - prevTarget[i]) * TARGET_ALPHA;
       smoothed[i] = prevTarget[i];
     }
     return smoothed;
   }
 
   function applyMotors() {
+    // A5. Advance the entrained phase BEFORE the targets are built, from the
+    // joint state the previous step measured (`motorTheta`/`motorRelOmega`, both
+    // written at the foot of this function). That is a one-step lag on the
+    // feedback path, which at 120 Hz is 8 ms against a gait period of order a
+    // second — the same lag the solver work reconstruction already carries and
+    // accepts. Reading the state fresh here instead would mean computing the
+    // swing-twist angle of every joint twice per step.
+    //
+    // On the very first step both arrays are zero, and the observability guard
+    // in `advancePhases` rejects that as unobservable rather than yanking every
+    // oscillator to phase 0.
+    if (proprio) advancePhases(plan, genome, phi, motorTheta, motorRelOmega, FIXED_DT, control, phiParents, phaseCouple);
+
     const raw = drive === DRIVE.VELOCITY
       ? targetVelocities(plan, genome, t, phases, targets, control)
-      : targetAngles(plan, genome, t, phases, targets, control);
+      : targetAngles(plan, genome, t, phases, targets, control, phi);
 
     // ── COMMAND SMOOTHING, from the reference ────────────────────────────────
     //
@@ -1575,7 +1757,7 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // caught it: two deeply overlapping jointed limbs, meant to sit still,
       // picked up 1.6 mm/s of drive that had nothing to do with contact.
       const maxTorque = motorScale * (torqueModel === 'stress'
-        ? MUSCLE_STRESS * A * Math.sqrt(A) * momentArm
+        ? muscleStress * A * Math.sqrt(A) * momentArm
         : A);
       const activeTorque = torqueModel === 'stress'
         ? maxTorque * Math.max(0, 1 - Math.hypot(dwx, dwy, dwz) / OMEGA_MAX)
@@ -1708,7 +1890,9 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         const springTau = motorStiff[i] * (eff - thetaS);
         const dampTau = -motorDampC[i] * relOmega;
         const tau = springTau + dampTau;
-        work += Math.abs(tau * relOmega) * FIXED_DT;
+        const pSolver = tau * relOmega;
+        if (pSolver > 0) workOut += pSolver * FIXED_DT;
+        else workAbsorbed -= pSolver * FIXED_DT;
         motorTheta[i] = thetaS; motorWant[i] = want[i]; motorRelOmega[i] = relOmega;
         motorSpringTau[i] = springTau; motorDampTau[i] = dampTau;
         motorSteps++;
@@ -1726,7 +1910,9 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       bodies[j.childBody].addTorque({ x: tx, y: ty, z: tz }, true);
       bodies[j.parentBody].addTorque({ x: -tx, y: -ty, z: -tz }, true);
 
-      work += Math.abs(tx * dwx + ty * dwy + tz * dwz) * FIXED_DT;
+      const pPD = tx * dwx + ty * dwy + tz * dwz;
+      if (pPD > 0) workOut += pPD * FIXED_DT;
+      else workAbsorbed -= pPD * FIXED_DT;
     }
   }
 
@@ -1754,7 +1940,12 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     },
     get t() { return t; },
     get steps() { return steps; },
-    get work() { return work; },
+    // The unchanged total, for every consumer that predates the A0 split.
+    get work() { return workOut + workAbsorbed; },
+    /** Energy the actuator INJECTED. This is what metabolism is billed on. */
+    get workOut() { return workOut; },
+    /** Energy the actuator ABSORBED — the joint driving the muscle, not the reverse. */
+    get workAbsorbed() { return workAbsorbed; },
 
     /**
      * The gains the solver motors were configured with, and which of them the
@@ -1814,7 +2005,11 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
      * which is precisely the instantiation transient the settle exists to remove.
      */
     resetClock() {
-      t = 0; steps = 0; work = 0;
+      t = 0; steps = 0; workOut = 0; workAbsorbed = 0;
+      // A5 - re-seed the entrained phase to the gradient the genome describes,
+      // for the same reason the clock is zeroed: the driven phase must start
+      // where the genome says, not wherever the settle left it.
+      if (phi) phi.set(phases);
     },
 
     step() {

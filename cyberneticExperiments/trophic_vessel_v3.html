@@ -40,13 +40,17 @@ button,input,select{font:inherit;color:inherit} button{cursor:pointer}
 .help{position:absolute;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 28px);overflow:auto;border:1px solid var(--line);border-radius:23px;background:rgba(8,17,16,.96);backdrop-filter:blur(24px);box-shadow:var(--shadow);padding:20px;display:none}.help.open{display:block;animation:pop .2s forwards}@keyframes pop{to{transform:translate(-50%,-50%) scale(1)}}.help h2{font-size:18px;margin:0 0 8px}.help h3{font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin:18px 0 7px}.help p,.help li{font-size:10.5px;line-height:1.55;color:#afc3bd}.help ul{padding-left:17px}.help .closehelp{position:absolute;right:14px;top:14px;width:36px;height:36px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.04)}
 @media(max-width:760px){.hud .chip:nth-child(1){display:none}.chart-card{top:65px;height:100px;width:235px}.tool b{display:none}.tool{padding:0;min-width:42px}.brand small{display:none}.brand{padding-right:9px}.brand strong{font-size:10px}.panel{top:60px}.scenario-grid{grid-template-columns:1fr}.bottom{gap:5px}.speed button{min-width:36px}}
 @media(max-width:440px){.chart-card{width:200px;height:92px}.hud{display:none}.brand{max-width:168px}.top-actions{gap:5px}.iconbtn{width:41px;height:41px}.dock{gap:2px;padding:5px}.speed{padding:5px;gap:1px}.tool{min-width:39px;height:42px}.speed button{min-width:32px;height:42px}.bottom{left:6px;right:6px}.chart-head .legend{display:none}}
+
+/* back to the experiments hub */
+.backchev{font-size:19px;line-height:1;opacity:.4;margin:0 -2px 0 1px;transition:opacity .15s}
+a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="world"></canvas>
   <div class="topbar">
-    <div class="brand"><div class="mark"></div><div><strong>Trophic Vessel</strong><small>closed biomass · ecological turnover</small></div></div>
+    <a class="brand" href="index.html" title="Back to the experiments" style="text-decoration:none;color:inherit"><span class="backchev">‹</span><div class="mark"></div><div><strong>Trophic Vessel</strong><small>closed biomass · ecological turnover</small></div></a>
     <div class="hud">
       <div class="chip"><i style="color:var(--nut);background:var(--nut)"></i><div><span>Model day</span><b id="dayHud">0.0</b></div></div>
       <div class="chip mass good" id="massChip"><i style="color:var(--food);background:var(--food)"></i><div><span>Mass error</span><b id="massHud">0.00%</b></div></div>

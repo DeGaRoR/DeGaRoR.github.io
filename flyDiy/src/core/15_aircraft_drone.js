@@ -136,6 +136,7 @@ function buildDrone() {
     twSteer: 0.75,
     ap: {
       VRot: 4.5, VClimbMin: 8.5, VClimb: 10, VCruise: 13, VAppr: 9,
+      TORun: 15,                    // measured run to 2.5 m agl (W14 multi-hop)
       hCruise: 60, hSafe: 8, xTurn: -900, xAim: -430, gs: 0.075,
       rollDe: 0.05, liftoffTh: 0.17, climbThBase: 0.13, climbThGain: 0.030,
       thMax: 0.22, flareAgl: 2.2, flareRate: 0.10, aglGuard: 1.5,

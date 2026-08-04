@@ -92,8 +92,17 @@ def build_group(V, VT, faces, gdef, SID, bb, with_sid=False):
     return len(pos), len(tris), base64.b64encode(buf.getvalue()).decode()
 
 
+MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
+
+
 def bake_texture(src, spec):
     path = os.path.join(src, spec['tex'])
+    if spec.get('fmt') == 'copy':
+        # verbatim: the source file's own bytes, at its own resolution and
+        # quality. No re-encode, so nothing is lost and nothing is guessed.
+        data = open(path, 'rb').read()
+        mime = MIME[os.path.splitext(path)[1].lower()]
+        return f'data:{mime};base64,' + base64.b64encode(data).decode(), len(data)
     if spec.get('fmt', 'jpeg') == 'png':
         img = Image.open(path)
         if max(img.size) > spec.get('max', 4096):
@@ -144,11 +153,19 @@ def main(key, out=None):
             n, s['drive'], s['sgn'], s.get('k', 1), *s['p'], *s['ax'],
             '[%g,%g]' % s['ramp'] if 'ramp' in s else 'null')
         for n, s in SURFACES)
-    mats_js = ','.join(
-        '%s:{%s}' % (m, ','.join(
-            [f'tex:"{m}"'] if 'tex' in s else
-            [f'opacity:{s["opacity"]}'] + ([f'color:0x{s["color"]:x}'] if 'color' in s else [])))
-        for m, s in CFG['mats'].items())
+    # tex / opacity / color are independent: a textured material may also be
+    # translucent (the c172 glazing is a tint map at opacity 0.37) and an
+    # untextured one may be opaque (a flat interior panel).
+    def mat_fields(m, s):
+        f = []
+        if 'tex' in s:
+            f.append(f'tex:"{m}"')
+        if 'opacity' in s:
+            f.append(f'opacity:{s["opacity"]}')
+        if 'color' in s:
+            f.append(f'color:0x{s["color"]:x}')
+        return ','.join(f)
+    mats_js = ','.join('%s:{%s}' % (m, mat_fields(m, s)) for m, s in CFG['mats'].items())
     texs_js = ',\n  '.join(f'{m}:"{uri}"' for m, uri in texs.items())
     bbjs = '[' + ','.join(f'{v:.4f}' for v in lo + hi) + ']'
     hub = CFG['hub']

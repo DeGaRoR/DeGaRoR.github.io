@@ -220,6 +220,11 @@
     .drawer[data-open="true"] { transform: translateX(0); }
     .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
     .drawer h1 { margin: 0; font-size: 20px; }
+    /* retour au sommaire des expériences */
+    .drawer h1 .backlink { color: inherit; text-decoration: none; display: inline-flex; align-items: baseline; gap: 7px; }
+    .drawer h1 .backchev { font-weight: 400; opacity: .45; transition: opacity 150ms ease, color 150ms ease; }
+    .drawer h1 .backlink:hover .backchev,
+    .drawer h1 .backlink:active .backchev { opacity: 1; color: var(--accent); }
     .drawer h2 { margin: 20px 0 9px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; }
     .drawer p { margin: 7px 0; color: var(--muted); font-size: 13px; }
     .close-button {
@@ -297,7 +302,7 @@
     <aside id="drawer" class="drawer" data-open="false" aria-label="Réglages et statistiques">
       <div class="drawer-head">
         <div>
-          <h1>Physarum Lab V3</h1>
+          <h1><a class="backlink" href="index.html" title="Retour aux expériences"><span class="backchev">‹</span>Physarum Lab V3</a></h1>
           <p>La plaque reste presque entièrement libre. Les quatre commandes principales occupent uniquement les coins.</p>
         </div>
         <button id="closeDrawerBtn" class="close-button" type="button" aria-label="Fermer">×</button>
