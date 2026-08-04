@@ -74,7 +74,33 @@ function chain({
         hue, hueVariance: 0.08, patternScale: 3.0, patternContrast: 0.4,
         stripeAnisotropy: 0.7, iridescence: 0.15,
       },
-      controller: { omega, preyGain: 0.6, threatGain: -0.4, jointGenes },
+      // EVERY CONTROLLER GENE MUST BE PRESENT HERE, and the reason is that
+      // `version: GENOME_V` above is a CLAIM about this literal.
+      //
+      // These seeds stamped themselves at the CURRENT version while carrying a
+      // v2 controller block. Nothing corrected them: `migrate` sees version 4,
+      // decides there is nothing to do, and the genome sails on missing three
+      // fields. `canonical()` then emits them as `undefined`, JSON drops them,
+      // and the hash of the seed differs from the hash of the SAME animal loaded
+      // from a store and migrated forward — which is exactly how the Atlas
+      // acquired a second Eel, Darter, Drifter, Flapper and Paddletail the
+      // moment GENOME_V moved. `validateGenome` would also have rejected all
+      // five.
+      //
+      // So: a gene added to the schema is added HERE in the same edit. The
+      // alternative — declaring `version: 2` and letting the migration fill them
+      // in — also works, but it makes the literal permanently a lie about what
+      // it contains, and the duplicate returns the first time someone "tidies"
+      // the version back up.
+      controller: {
+        omega,
+        preyGain: 0.6,
+        threatGain: -0.4,
+        phaseBase: 0,        // A3 — neutral: no positional phase gradient
+        phaseSlope: 0,       // A3
+        proprioGain: 0,      // A5 — neutral: open loop
+        jointGenes,
+      },
       social: {
         trophic: 0.4, boldness: 0.5, cohesion: 0.3, separation: 0.5,
         alignment: 0.4, separationRadius: 1.5,

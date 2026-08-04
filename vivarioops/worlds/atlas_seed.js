@@ -30,6 +30,7 @@ import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
 import { genomeHash, deserialise } from '../engine/l1/genome.js';
 import { binomial } from '../engine/l1/naming.js';
 import { W1_SPINE_IDS, W1_SPINE_GENOMES, W1_SPINE_NAMES } from './w1_spines.js';
+import { W1_PLAYER_IDS, W1_PLAYER_GENOMES, W1_PLAYER_NAMES } from './w1_player.js';
 import { renderThumbnail, RENDER_TAG } from '../render/thumbnail.js';
 
 // The five seed SWIMMERS, in display order. `staircase` is a deliberate
@@ -76,6 +77,13 @@ export function authoredList() {
     if (CAST_ORDER.includes(id)) continue;
     const s = SEEDS.find((x) => x.id === id);
     if (s) list.push({ id, commonName: s.name, genome: s.genome });
+  }
+  // PLAYER-BRED SPECIES, promoted out of one browser's IndexedDB into the
+  // shipped shelf. Serialised at promotion, so `deserialise` migrates them
+  // forward like the residents rather than claiming to be current.
+  for (const id of W1_PLAYER_IDS) {
+    const raw = W1_PLAYER_GENOMES[id];
+    if (raw) list.push({ id, commonName: W1_PLAYER_NAMES[id] ?? null, genome: deserialise(raw) });
   }
   for (const id of W1_RESIDENT_IDS) {
     const raw = W1_RESIDENT_GENOMES[id];
