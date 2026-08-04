@@ -239,6 +239,17 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   during liftoff flickers ROLL/LIFTOFF forever.
 
 ## WORLD
+- 24 × 24 km domain since W6 (2026-08-04): bounds ±12000. The home region
+  (runway, corridor, meadows, DC-3 turnback mountains) is h0-IDENTICAL —
+  far-field additions (mountain-belt falloff to northern plains beyond
+  z≈−6500, archipelago z>3800, ±65 m long-wave relief) are exactly zero
+  inside the home box + 1.5 km (x∈[−6300,600], z∈[−3300,2600]). Seed-0:
+  ~25k trees, 299 reaches / 125 km rivers, 349 lakes, 9 settlements,
+  56 km roads. makeWorld ~0.55 s. Hydrology thresholds are physical
+  (A0m2; widths/depths from drainage area) — resolution-independent.
+  Renderer: two-ring terrain mesh (17.6 m polys over ±4500, ~100 m
+  strips to ±12000 tucked 2 m under the inner rim), per-ring colour
+  bakes. Stage-0 warp + extra octave still open (own session).
 - Stage 1 hydrology since 2026-08-03 (WORLD-GEN-PROC): 63 river reaches /
   24 km + 62 lakes carved into terrainH (seed 0), waterH reports reach
   surfaces + lake spills + sea; trees re-laid with water rejection (still
@@ -413,10 +424,17 @@ W5. **Stage 3 settlements & roads** — DONE 2026-08-04: 23_world_settle.js
     (sites, organic road network from the airfield, bridges, grading,
     buildings), GRAVEL surface, renderer tint/buildings/decks, GATE
     SETTLE. GRID+TREES goldens re-captured (grading is a terrain change;
-    meadows/anchors held). Next on this branch: stage 0 rework (domain
-    warp + growth), stage 4 aerodromes-per-settlement, stage 5 cliffs, or
-    AP-reads-aerodromes (still pending — now with settlements worth
-    flying to).
+    meadows/anchors held).
+W6. **Domain growth 9→24 km** — DONE 2026-08-04: bounds ±12000, belt
+    falloff + archipelago + far relief (exact-zero in the home box),
+    physical hydrology thresholds, two-ring render mesh. Every stage
+    re-ran unmodified on the new bounds — the proceduralness test.
+    Hard-won: DP-simplified river polylines carry water the grid masks
+    don't know (site scoring must check the QUERY); road grading must
+    never refill a carved bed (mask by carve depth). Next on this branch:
+    stage 0 WARP (landform character), stage 4 aerodromes-per-settlement,
+    stage 5 cliffs, or AP-reads-aerodromes (settlements + 24 km now make
+    it worth it).
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

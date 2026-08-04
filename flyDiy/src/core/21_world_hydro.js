@@ -12,6 +12,12 @@ function bakeHydrology(sample, cfg) {
   const N = cfg.N, x0 = cfg.x0, z0 = cfg.z0;
   const dx = (cfg.x1 - x0) / N, dz = (cfg.z1 - z0) / N;
   const M = N * N;
+  // physical normalization: thresholds and width/depth laws are stated in
+  // drainage AREA (m²), converted to cells of THIS grid — the same rivers
+  // emerge at any resolution. cfg.A0m2 preferred; legacy cfg.A0 = cells.
+  const cellA = dx * dz;
+  const A0 = cfg.A0m2 ? cfg.A0m2 / cellA : cfg.A0;
+  const EQ = cellA / 549.3164;                // legacy 23.4 m cell equivalents
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const px = ix => x0 + (ix + 0.5) * dx, pz = iz => z0 + (iz + 0.5) * dz;
 
@@ -202,23 +208,24 @@ function bakeHydrology(sample, cfg) {
       ws.push(v);
     }
     for (let i = 1; i < ws.length; i++) if (ws[i] > ws[i - 1]) ws[i] = ws[i - 1];
-    const w = Math.min(cfg.maxW, cfg.kW * Math.sqrt(accEnd));
-    const d = cfg.kD * Math.log(1 + accEnd);
-    return { pts, ws, w, d, acc: accEnd, term };
+    const accEq = accEnd * EQ;                // resolution-invariant drainage
+    const w = Math.min(cfg.maxW, cfg.kW * Math.sqrt(accEq));
+    const d = cfg.kD * Math.log(1 + accEq);
+    return { pts, ws, w, d, acc: accEq, term };
   }
   const rivers = [];
   const claimed = new Uint8Array(M);
   let riverCells = 0;
-  for (let k = 0; k < M; k++) if (acc[k] > cfg.A0 && !sea[k]) riverCells++;
+  for (let k = 0; k < M; k++) if (acc[k] > A0 && !sea[k]) riverCells++;
   for (let k = 0; k < M; k++) {
-    if (!(acc[k] > cfg.A0) || sea[k] || lake[k] || claimed[k]) continue;
+    if (!(acc[k] > A0) || sea[k] || lake[k] || claimed[k]) continue;
     let head = true;
     const cix = k % N, ciz = (k / N) | 0;
     for (let d = 0; d < 8; d++) {
       const nix = cix + NBX[d], niz = ciz + NBZ[d];
       if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
       const n = niz * N + nix;
-      if (flow[n] === k && acc[n] > cfg.A0 && !sea[n]) { head = false; break; }
+      if (flow[n] === k && acc[n] > A0 && !sea[n]) { head = false; break; }
     }
     if (!head) continue;
     let cur = k, rp = [], rw = [], accEnd = acc[k];

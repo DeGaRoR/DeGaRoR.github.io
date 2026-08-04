@@ -59,7 +59,7 @@ const masked = (x, z) => {
 {
   let wet = 0, tot = 0;
   for (let j = 0; j <= 100; j++) for (let i = 0; i <= 100; i++) {
-    const x = -4500 + 90 * i, z = -4500 + 90 * j;
+    const x = -12000 + 240 * i, z = -12000 + 240 * j;
     tot++;
     if (W.waterH(x, z) > W.terrainH(x, z)) wet++;
   }
@@ -103,13 +103,13 @@ const masked = (x, z) => {
 
 // A0 sweep on the current terrain: river cell count monotone non-increasing
 {
-  const cfg = a0 => ({ x0: -4500, z0: -4500, x1: 4500, z1: 4500, N: 192,
-    lakeMin: 1.5, A0: a0, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+  const cfg = a0m2 => ({ x0: -12000, z0: -12000, x1: 12000, z1: 12000, N: 192,
+    lakeMin: 1.5, A0m2: a0m2, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
     dpEps: 25, bankFrac: 1.4, qCell: 96 });
   const s = (x, z) => W.terrainH(x, z);
-  const c1 = bakeHydrology(s, cfg(125)).riverCells;
-  const c2 = bakeHydrology(s, cfg(250)).riverCells;
-  const c3 = bakeHydrology(s, cfg(500)).riverCells;
+  const c1 = bakeHydrology(s, cfg(68662)).riverCells;
+  const c2 = bakeHydrology(s, cfg(137325)).riverCells;
+  const c3 = bakeHydrology(s, cfg(274650)).riverCells;
   console.log(`A0 sweep riverCells: ${c1} >= ${c2} >= ${c3}`);
   checks['A0 sweep monotone'] = c1 >= c2 && c2 >= c3 && c3 > 0;
 }

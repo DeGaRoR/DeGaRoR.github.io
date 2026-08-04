@@ -65,7 +65,7 @@ const W = makeWorld(seed);          // pure; same seed => identical world
 W.v                                  // contract version (int) — 1
 W.seed
 W.bounds                             // { x0, z0, x1, z1 }, sea level = 0
-                                     //   implemented: ±4500 (⚙ 24 km later)
+                                     //   ±12000 since W6 (24 km, ⚙ done)
 
 // --- continuous fields (analytic, O(1), no allocation, hot-path safe) ---
 W.terrainH(x, z)                     // ground height; single source of truth
@@ -155,14 +155,15 @@ with zero contract change.
 
 World gates assert on **data, never pixels**. GATE WORLD shipped 2026-08-03
 (tools/test_world.js, appended to the battery, ~2 s) with:
-- **golden freeze**: FNV-1a hashes of a 101² terrainH grid (±4500, step 90),
+- **golden freeze**: FNV-1a hashes of a 101² terrainH grid (±12000, step
+  240 since W6),
   all 2200 tree records, the meadow records, plus 4 exact anchor values —
   captured from the PRE-contract build, so seed 0 is pinned bit-identical.
   Any intentional terrain change must re-capture goldens in the same commit:
   ```
   node -e "const {makeWorld}=require('./tools/flight_core.js');const W=makeWorld();
   const fnv=s=>{let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);}return(h>>>0).toString(16);};
-  const g=[];for(let j=0;j<=100;j++)for(let i=0;i<=100;i++)g.push(W.terrainH(-4500+90*i,-4500+90*j));
+  const g=[];for(let j=0;j<=100;j++)for(let i=0;i<=100;i++)g.push(W.terrainH(-12000+240*i,-12000+240*j));
   console.log('GRID',fnv(g.join(',')));
   console.log('TREES',fnv(W.trees.map(t=>t.x+','+t.z+','+t.h+','+t.s).join(';')),W.trees.length);
   console.log('MEADOWS',fnv(W.meadows.map(m=>m.x+','+m.z+','+m.r+','+m.h).join(';')));

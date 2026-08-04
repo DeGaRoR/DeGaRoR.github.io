@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7d7e8b4584e259c9
+// body-sha256: 1ab777c1d2fd1e0a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1328,10 +1328,27 @@ function makeWorld(seed) {
 
   function h0(x, z) {
     const n = fbm(x, z);
-    const mount = sstep(700, 3200, -z);
+    // 24 km domain (W6): the mountain belt FALLS OFF beyond z~-6500 into
+    // northern highlands/plains instead of extending as an endless plateau
+    const mount = sstep(700, 3200, -z) * (1 - sstep(6500, 10500, -z));
     const sea = sstep(500, 2400, z);
     const rid = ridge(x, z, 1100) * 0.6 + ridge(x, z, 520) * 0.4;
     let h = (n - 0.35) * 45 + (0.55 * (n - 0.3) + 0.65 * (rid - 0.35)) * 620 * mount - 95 * sea;
+    // far-field additions, EXACTLY zero inside the home box + 1.5 km
+    // (box covers every validated circuit incl. the DC-3 turnback at
+    // x=-5800 and its clearance mountains): long-wave continental relief
+    // on land + an archipelago in the far sea. Validated trajectories fly
+    // bit-identical base terrain.
+    const bdx = Math.max(0, Math.max(-6300 - x, x - 600));
+    const bdz = Math.max(0, Math.max(-3300 - z, z - 2600));
+    const far = sstep(1500, 4000, Math.hypot(bdx, bdz));
+    if (far > 0) {
+      const big = vnoise(x + 4013, z + 1717, 5200);
+      h += far * (big - 0.5) * 130 * (1 - sea);
+      const isl = ridge(x + 2222, z + 4444, 2600);
+      const islMask = sstep(3800, 5200, z);
+      h += far * islMask * Math.max(0, isl - 0.62) * 520;
+    }
     const dxC = Math.max(0, Math.max(-3400 - x, x - 400));
     const dzC = Math.max(0, Math.abs(z) - 750);
     h *= 0.06 + 0.94 * sstep(0, 700, Math.hypot(dxC, dzC));
@@ -1399,8 +1416,11 @@ function makeWorld(seed) {
   }
   const HYD = bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
-    { x0: -4500, z0: -4500, x1: 4500, z1: 4500, N: 384,
-      lakeMin: 1.5, A0: 500, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+    // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
+    // (river widths/depths are normalized to drainage AREA inside the
+    // bake, so the same physical rivers emerge at any grid resolution)
+    { x0: -12000, z0: -12000, x1: 12000, z1: 12000, N: 512,
+      lakeMin: 1.5, A0m2: 274650, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -1424,7 +1444,9 @@ function makeWorld(seed) {
     let h = h0(x, z);
     const r = padRamp(x, z);
     if (r > 0) {
+      const hRaw = h;
       h += (HYD.carve(x, z, h) - h) * r;
+      const carveDepth = hRaw - h;             // >0 inside river beds / lakes
       h = blendM(x, z, h);
       const g = SET.roadDelta(x, z, h) - h;
       if (g !== 0) {
@@ -1433,7 +1455,9 @@ function makeWorld(seed) {
           const dd = Math.hypot(x - m.x, z - m.z);
           if (dd < m.r) { mw = sstep(m.r * 0.45, m.r, dd); break; }
         }
-        h += g * r * mw;
+        // roads must never grade a carved bed back up — beds stay wet,
+        // crossings are bridges (the deck spans, terrain keeps the carve)
+        h += g * r * mw * (1 - Math.min(1, carveDepth / 1.5));
       }
       return h;
     }
@@ -1453,7 +1477,7 @@ function makeWorld(seed) {
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
   {
-    const G0 = -4224, GN = 132, GS = 64;   // ±4224 m (v0 domain was ±4200)
+    const G0 = -12000, GN = 375, GS = 64;  // ±12000 m (24 km domain, W6)
     for (let gz = 0; gz < GN; gz++) for (let gx = 0; gx < GN; gx++) {
       const j1 = hash2(gx + 9173, gz - 2417), j2 = hash2(gx - 5807, gz + 7919),
             j3 = hash2(gx + 1229, gz + 4051);
@@ -1574,7 +1598,7 @@ function makeWorld(seed) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
-    bounds: { x0: -4500, z0: -4500, x1: 4500, z1: 4500 },
+    bounds: { x0: -12000, z0: -12000, x1: 12000, z1: 12000 },
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
@@ -1602,6 +1626,12 @@ function bakeHydrology(sample, cfg) {
   const N = cfg.N, x0 = cfg.x0, z0 = cfg.z0;
   const dx = (cfg.x1 - x0) / N, dz = (cfg.z1 - z0) / N;
   const M = N * N;
+  // physical normalization: thresholds and width/depth laws are stated in
+  // drainage AREA (m²), converted to cells of THIS grid — the same rivers
+  // emerge at any resolution. cfg.A0m2 preferred; legacy cfg.A0 = cells.
+  const cellA = dx * dz;
+  const A0 = cfg.A0m2 ? cfg.A0m2 / cellA : cfg.A0;
+  const EQ = cellA / 549.3164;                // legacy 23.4 m cell equivalents
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const px = ix => x0 + (ix + 0.5) * dx, pz = iz => z0 + (iz + 0.5) * dz;
 
@@ -1792,23 +1822,24 @@ function bakeHydrology(sample, cfg) {
       ws.push(v);
     }
     for (let i = 1; i < ws.length; i++) if (ws[i] > ws[i - 1]) ws[i] = ws[i - 1];
-    const w = Math.min(cfg.maxW, cfg.kW * Math.sqrt(accEnd));
-    const d = cfg.kD * Math.log(1 + accEnd);
-    return { pts, ws, w, d, acc: accEnd, term };
+    const accEq = accEnd * EQ;                // resolution-invariant drainage
+    const w = Math.min(cfg.maxW, cfg.kW * Math.sqrt(accEq));
+    const d = cfg.kD * Math.log(1 + accEq);
+    return { pts, ws, w, d, acc: accEq, term };
   }
   const rivers = [];
   const claimed = new Uint8Array(M);
   let riverCells = 0;
-  for (let k = 0; k < M; k++) if (acc[k] > cfg.A0 && !sea[k]) riverCells++;
+  for (let k = 0; k < M; k++) if (acc[k] > A0 && !sea[k]) riverCells++;
   for (let k = 0; k < M; k++) {
-    if (!(acc[k] > cfg.A0) || sea[k] || lake[k] || claimed[k]) continue;
+    if (!(acc[k] > A0) || sea[k] || lake[k] || claimed[k]) continue;
     let head = true;
     const cix = k % N, ciz = (k / N) | 0;
     for (let d = 0; d < 8; d++) {
       const nix = cix + NBX[d], niz = ciz + NBZ[d];
       if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
       const n = niz * N + nix;
-      if (flow[n] === k && acc[n] > cfg.A0 && !sea[n]) { head = false; break; }
+      if (flow[n] === k && acc[n] > A0 && !sea[n]) { head = false; break; }
     }
     if (!head) continue;
     let cur = k, rp = [], rw = [], accEnd = acc[k];
@@ -2145,6 +2176,15 @@ function bakeSettlements(D) {
       if (jx < 0 || jz < 0 || jx >= NR || jz >= NR || wat2[jz * NR + jx]) wet++;
     }
     if (wet > 10) continue;   // islets block ~half the 49-cell block; tarn shores just a few
+    // grid masks miss water under DP-simplified river polylines (corner
+    // cuts) — verify against the actual water query, centre + 60 m ring
+    let qWet = false;
+    for (let q = 0; q < 5; q++) {
+      const qx = x + (q ? 60 * Math.cos(q * Math.PI / 2) : 0);
+      const qz = z + (q ? 60 * Math.sin(q * Math.PI / 2) : 0);
+      if (D.water(qx, qz) > D.terrain(qx, qz)) { qWet = true; break; }
+    }
+    if (qWet) continue;
     const dW = D.distW(x, z);
     let score = 2.2 * (1 - sl / 0.11) + 1.2 * Math.max(0, 1 - h / 140);
     if (dW > 25 && dW < 320) score += 1.6 * (1 - (dW - 25) / 295);
@@ -2158,15 +2198,19 @@ function bakeSettlements(D) {
     { x: 60, z: 112, r: 95, pop: 45, name: 'Home Field', kind: 'home' },
   ];
   for (const [score, k] of sites) {
-    if (settlements.length >= 6 || score < 2.2) break;
+    if (settlements.length >= 9 || score < 2.2) break;  // 24 km world holds more towns
     const x = px(k % NR), z = pz((k / NR) | 0);
     if (settlements.some(s => Math.hypot(s.x - x, s.z - z) < 2500)) continue;
     const pop = Math.min(900, 60 + Math.round(score * 170));
     const h1 = hash2(k, 11), h2 = hash2(k, 23), h3 = hash2(k, 37), h4 = hash2(k, 53);
     const SYL1 = ['Al', 'Ber', 'Dal', 'Fen', 'Gil', 'Hol', 'Kes', 'Lun', 'Mor', 'Nor', 'Pel', 'Ros', 'Tor', 'Vim', 'Wes'];
     const SYL2 = ['by', 'stad', 'ford', 'ton', 'ham', 'wick', 'dorf', 'vik', 'field'];
-    let name = SYL1[(h1 * 15) | 0] + (h2 < 0.4 ? SYL1[(h3 * 15) | 0].toLowerCase() : '') + SYL2[(h4 * 9) | 0];
-    if (settlements.some(s => s.name === name)) name += ' ' + settlements.length;
+    let name = '';
+    for (let v = 0; v < 9; v++) {   // rotate the suffix on collision
+      name = SYL1[(h1 * 15) | 0] + (h2 < 0.4 ? SYL1[(h3 * 15) | 0].toLowerCase() : '') + SYL2[(((h4 * 9) | 0) + v) % 9];
+      if (!settlements.some(s => s.name === name)) break;
+    }
+    if (settlements.some(s => s.name === name)) name = 'New ' + name;
     settlements.push({ x, z, r: Math.min(320, 70 + pop * 0.28), pop, name, kind: 'town' });
   }
 
@@ -2338,7 +2382,7 @@ function bakeSettlements(D) {
     // "flatten across, not along"
     const prof = _d < 4.5 ? 1 : 1 - smf01((_d - 4.5) / (RINF - 4.5));
     let delta = (_t - h) * prof;
-    if (delta > 4) delta = 4; else if (delta < -4) delta = -4;
+    if (delta > 6) delta = 6; else if (delta < -6) delta = -6;
     return h + delta;
   }
 

@@ -21,7 +21,22 @@ This keeps physics/render identity, C¹ continuity, and the hot-path budget.
 
 ⚙ Init-time budget: ≤ 1.5 s on desktop for the full bake. If exceeded:
 lower grid resolutions first, seed-cache payload second ⏳.
-⚙ Domain: 24 × 24 km (current is ~9 × 9), sea along +z as today.
+⚙ Domain: **24 × 24 km since W6 (2026-08-04)** — bounds ±12000, hydrology
+512² (46.9 m cells, thresholds/widths normalized to physical drainage
+area so the same rivers emerge at any resolution), tree grid ±12000,
+settlement cap 9. Total bake ~0.55 s. The domain growth was the
+proceduralness test: every stage re-ran on the new bounds unmodified
+except grid parameters. Stage-0 shape additions, all EXACTLY zero inside
+the home box + 1.5 km (x∈[−6300,600], z∈[−3300,2600] — covers every
+validated circuit incl. the DC-3 turnback): mountain belt falls off
+beyond z≈−6500 into northern highlands/plains, archipelago (gated
+z>3800) in the far sea, ±65 m long-wave continental relief (5.2 km
+noise). Meadow hash and all four anchors survived the growth unchanged.
+Renderer: two-ring mesh (17.6 m polys over ±4500, ~100 m strips beyond,
+tucked 2 m under the inner rim), per-ring baked colour maps, clouds
+spread. STILL OPEN from the stage-0 sketch: domain WARPING + the extra
+octave (the landform character pass) — that is its own session and a
+conscious re-golden.
 
 ## Stage 0 — Base field (analytic)
 

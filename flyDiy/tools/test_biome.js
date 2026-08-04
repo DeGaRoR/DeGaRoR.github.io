@@ -12,7 +12,7 @@ const checks = {};
 const cnt = {};
 {
   for (let j = 0; j <= 200; j++) for (let i = 0; i <= 200; i++) {
-    const s = W.surface(-4500 + 45 * i, -4500 + 45 * j);
+    const s = W.surface(-12000 + 120 * i, -12000 + 120 * j);
     cnt[s] = (cnt[s] || 0) + 1;
   }
   const pct = k => (cnt[k] || 0) / 404.01;
@@ -33,7 +33,7 @@ const cnt = {};
   };
   let ok = true;
   for (let j = 0; j <= 100; j++) for (let i = 0; i <= 100; i++) {
-    const x = -4500 + 90 * i, z = -4500 + 90 * j;
+    const x = -12000 + 240 * i, z = -12000 + 240 * j;
     const s = W.surface(x, z), h = W.terrainH(x, z);
     if (s === S.SCREE && !(slope(x, z) > 0.4)) ok = false;
     if (s === S.ROCK && !(h > 220 || slope(x, z) > 0.35)) ok = false;
@@ -84,7 +84,7 @@ const cnt = {};
 {
   let near = 0, nearA = 0, gFar = 0, gFarA = 0;
   for (let j = 0; j <= 200; j++) for (let i = 0; i <= 200; i++) {
-    const x = -4200 + 42 * i, z = -4200 + 42 * j;
+    const x = -11800 + 118 * i, z = -11800 + 118 * j;
     const h = W.terrainH(x, z);
     if (h < 2 || h > 120) continue;
     if (W.waterH(x, z) > h) continue;
@@ -113,7 +113,7 @@ const cnt = {};
     if (a.x !== b.x || a.z !== b.z || a.h !== b.h || a.s !== b.s || a.sp !== b.sp) ok = false;
   }
   for (let j = 0; j <= 40 && ok; j++) for (let i = 0; i <= 40; i++) {
-    const x = -4500 + 225 * i, z = -4500 + 225 * j;
+    const x = -12000 + 600 * i, z = -12000 + 600 * j;
     if (A.surface(x, z) !== Bw.surface(x, z)) { ok = false; break; }
   }
   checks['determinism'] = ok;
@@ -124,8 +124,8 @@ const cnt = {};
   let s = 1, acc = 0;
   const t0 = Date.now();
   for (let i = 0; i < 1e5; i++) {
-    s = (s * 1664525 + 1013904223) >>> 0; const x = (s / 4294967296 - 0.5) * 9000;
-    s = (s * 1664525 + 1013904223) >>> 0; const z = (s / 4294967296 - 0.5) * 9000;
+    s = (s * 1664525 + 1013904223) >>> 0; const x = (s / 4294967296 - 0.5) * 24000;
+    s = (s * 1664525 + 1013904223) >>> 0; const z = (s / 4294967296 - 0.5) * 24000;
     acc += W.surface(x, z);
   }
   const us = (Date.now() - t0) * 10 / 1000;

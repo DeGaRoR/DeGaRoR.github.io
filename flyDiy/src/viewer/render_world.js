@@ -46,35 +46,26 @@ function buildWorldScene(scene, world, renderer, camera) {
     sc.near = 20; sc.far = 1500; sc.updateProjectionMatrix(); }
   scene.add(sun); scene.add(sun.target);
 
-  { // terrain: geometry from world.terrainH, colour baked to a texture.
-    // SEG 512 (17.6 m polys) so the stage-1 river carves (8-45 m wide)
-    // actually register in the mesh — at 256 they aliased away.
-    const SEG = 512, SIZE = 9000, HALF = SIZE / 2;
-    const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
-    geo.rotateX(-Math.PI / 2);
-    const posA = geo.attributes.position;
-    for (let i = 0; i < posA.count; i++)
-      posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
-    geo.computeVertexNormals();
-
-    // --- colour map: smooth height/slope base + crisp field patchwork ---
+  { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
+    // home ±4500 so river carves resolve, coarse ~100 m strips out to
+    // ±12000 (fog caps visibility ~5 km: the far ring only needs
+    // silhouette fidelity). Each ring bakes its own colour map from the
+    // shared colorAt(); strips tuck 300 m under the inner rim, 2 m low,
+    // so the seam never shows a crack.
+    const SIZE = 24000, HALF = 12000, INNER = 4500;
     const hsh = (ix, iz) => { let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     const MEAD = 0x8d9a54, GRASS = 0x74853c, DRY = 0xb5a068, ROCK = 0x8a7d6b,
           HIGH = 0x736d63, SNOW = 0xe9e2d3, SHORE = 0xc9b78c;
     const c = new THREE.Color(), c2 = new THREE.Color();
-    const N = 320;
-    const small = document.createElement('canvas'); small.width = small.height = N;
-    const sctx = small.getContext('2d'), img = sctx.createImageData(N, N);
-    const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
-    const wx = i => -HALF + (i + 0.5) / N * SIZE;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const x = wx(i), z = wx(j), h = world.terrainH(x, z), e = 16;
+    let _h = 0, _low = 0;
+    const colorAt = (x, z) => {
+      const h = world.terrainH(x, z), e = 16;
       const slope = Math.min(1, Math.hypot(
         world.terrainH(x + e, z) - world.terrainH(x - e, z),
         world.terrainH(x, z + e) - world.terrainH(x, z - e)) / (2 * e) * 1.15);
-      hG[j * N + i] = h;
-      lowG[j * N + i] = (1 - Math.min(1, Math.max(0, (h - 55) / 90))) * (1 - Math.min(1, slope * 3.2));
+      _h = h;
+      _low = (1 - Math.min(1, Math.max(0, (h - 55) / 90))) * (1 - Math.min(1, slope * 3.2));
       c.setHex(MEAD).lerp(c2.setHex(GRASS), Math.min(1, Math.max(0, (h - 10) / 90)));
       if (h > 90) c.lerp(c2.setHex(DRY), Math.min(1, (h - 90) / 150));
       if (h > 220) c.lerp(c2.setHex(ROCK), Math.min(1, (h - 220) / 170));
@@ -83,76 +74,94 @@ function buildWorldScene(scene, world, renderer, camera) {
       if (h > snowLine) c.lerp(c2.setHex(SNOW), Math.min(1, (h - snowLine) / 90));
       if (h < 6) c.lerp(c2.setHex(SHORE), Math.min(1, (6 - h) / 8) * 0.85);
       c.lerp(c2.setHex(ROCK), Math.max(0, slope - 0.40) * 1.25 * (h > 60 ? 1 : 0.3));
-      { // stage-2 biome tint: forest floor under stands, coastal sand, scree
-        const sc = world.surface(x, z);
-        if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
-        else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
-        else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
-        // stage-3 roads: dirt band (wider than the 3.5 m GRAVEL truth so
-        // the 28 m texels catch it)
-        if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
-      }
-      const o = (j * N + i) * 4;
-      img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
-    }
-    sctx.putImageData(img, 0, 0);
-
-    const TW = 2048, cv = document.createElement('canvas');
-    cv.width = cv.height = TW;
-    const g = cv.getContext('2d');
-    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-    g.drawImage(small, 0, 0, TW, TW);
-    const px = x => (x + HALF) / SIZE * TW, pz = z => (z + HALF) / SIZE * TW;
-    const lowAt = (x, z) => {
-      const i = Math.min(N-1, Math.max(0, Math.round((x + HALF) / SIZE * N - 0.5)));
-      const j = Math.min(N-1, Math.max(0, Math.round((z + HALF) / SIZE * N - 0.5)));
-      return lowG[j * N + i];
+      // stage-2 biome tint + stage-3 road band (wider than the 3.5 m
+      // GRAVEL truth so coarse texels catch it)
+      const sc = world.surface(x, z);
+      if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
+      else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
+      else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
+      if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
     };
-    const FIELDS = ['#8a9a4e', '#c0aa61', '#b0a05e', '#96764f', '#6d8036',
-                    '#9aa855', '#a8ab52', '#7e8f42'];
-    const CS = 190;
-    for (let fz = -HALF; fz < HALF; fz += CS) for (let fx = -HALF; fx < HALF; fx += CS) {
-      const cx = fx + CS / 2, cz = fz + CS / 2;
-      const low = lowAt(cx, cz);
-      if (low < 0.25) continue;
-      const strip = (Math.abs(cz) < 110 && cx < 130 && cx > -1180) ? 0 : 1;
-      if (!strip) continue;
-      const ix = Math.round(fx / CS), iz = Math.round(fz / CS);
-      const r1 = hsh(ix, iz), r2 = hsh(ix + 91, iz - 13), r3 = hsh(ix - 7, iz + 51);
-      const w = CS * (0.80 + r3 * 0.34), d = CS * (0.72 + r2 * 0.42);
-      g.save();
-      g.translate(px(cx + (r1 - 0.5) * 40), pz(cz + (r2 - 0.5) * 40));
-      g.rotate((r3 - 0.5) * 0.5);
-      g.globalAlpha = low * (0.32 + r2 * 0.34);
-      g.fillStyle = FIELDS[(r1 * FIELDS.length) | 0];
-      const W2 = w / SIZE * TW, D2 = d / SIZE * TW;
-      g.fillRect(-W2/2, -D2/2, W2, D2);
-      if (r3 > 0.55) {                       // ploughed furrows
-        g.globalAlpha = low * 0.14;
-        g.fillStyle = '#6f5a3e';
-        for (let u = -W2/2; u < W2/2; u += 5) g.fillRect(u, -D2/2, 2, D2);
+    function bakeGround(x0, z0, x1, z1, N, opts) {
+      const EXT = x1 - x0;
+      const small = document.createElement('canvas'); small.width = small.height = N;
+      const sctx = small.getContext('2d'), img = sctx.createImageData(N, N);
+      const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
+        colorAt(x, z);
+        hG[j * N + i] = _h; lowG[j * N + i] = _low;
+        const o = (j * N + i) * 4;
+        img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
       }
-      g.globalAlpha = low * 0.30;            // hedgerow
-      g.strokeStyle = '#55672f'; g.lineWidth = 1.3;
-      g.strokeRect(-W2/2, -D2/2, W2, D2);
-      g.restore();
-    }
-    g.globalAlpha = 1;
-    { // grain: fine speckle so the ground has texture at low altitude
-      let seed = 5;
-      const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-      for (let k = 0; k < 60000; k++) {
-        const u = rnd() * TW, v = rnd() * TW;
-        const i = Math.min(N-1, Math.round(u / TW * N)), j = Math.min(N-1, Math.round(v / TW * N));
-        if (hG[j * N + i] > 320) continue;
-        const t = rnd();
-        g.fillStyle = t > 0.5 ? 'rgba(255,246,214,0.10)' : 'rgba(56,66,32,0.11)';
-        g.fillRect(u, v, 1 + rnd() * 2.4, 1 + rnd() * 2.4);
+      sctx.putImageData(img, 0, 0);
+      const TW = 2048, cv = document.createElement('canvas');
+      cv.width = cv.height = TW;
+      const g = cv.getContext('2d');
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(small, 0, 0, TW, TW);
+      const px = x => (x - x0) / EXT * TW, pz = z => (z - z0) / EXT * TW;
+      const lowAt = (x, z) => {
+        const i = Math.min(N-1, Math.max(0, Math.round((x - x0) / EXT * N - 0.5)));
+        const j = Math.min(N-1, Math.max(0, Math.round((z - z0) / EXT * N - 0.5)));
+        return lowG[j * N + i];
+      };
+      const FIELDS = ['#8a9a4e', '#c0aa61', '#b0a05e', '#96764f', '#6d8036',
+                      '#9aa855', '#a8ab52', '#7e8f42'];
+      const CS = 190;
+      for (let fz = z0; fz < z1; fz += CS) for (let fx = x0; fx < x1; fx += CS) {
+        const cx = fx + CS / 2, cz = fz + CS / 2;
+        const low = lowAt(cx, cz);
+        if (low < 0.25) continue;
+        const strip = (Math.abs(cz) < 110 && cx < 130 && cx > -1180) ? 0 : 1;
+        if (!strip) continue;
+        const ix = Math.round(fx / CS), iz = Math.round(fz / CS);
+        const r1 = hsh(ix, iz), r2 = hsh(ix + 91, iz - 13), r3 = hsh(ix - 7, iz + 51);
+        const w = CS * (0.80 + r3 * 0.34), d = CS * (0.72 + r2 * 0.42);
+        g.save();
+        g.translate(px(cx + (r1 - 0.5) * 40), pz(cz + (r2 - 0.5) * 40));
+        g.rotate((r3 - 0.5) * 0.5);
+        g.globalAlpha = low * (0.32 + r2 * 0.34);
+        g.fillStyle = FIELDS[(r1 * FIELDS.length) | 0];
+        const W2 = w / EXT * TW, D2 = d / EXT * TW;
+        g.fillRect(-W2/2, -D2/2, W2, D2);
+        if (r3 > 0.55) {                       // ploughed furrows
+          g.globalAlpha = low * 0.14;
+          g.fillStyle = '#6f5a3e';
+          for (let u = -W2/2; u < W2/2; u += 5) g.fillRect(u, -D2/2, 2, D2);
+        }
+        g.globalAlpha = low * 0.30;            // hedgerow
+        g.strokeStyle = '#55672f'; g.lineWidth = 1.3;
+        g.strokeRect(-W2/2, -D2/2, W2, D2);
+        g.restore();
       }
+      g.globalAlpha = 1;
+      if (opts.grain) { // fine speckle so the ground has texture down low
+        let seed = 5;
+        const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+        for (let k = 0; k < 60000; k++) {
+          const u = rnd() * TW, v = rnd() * TW;
+          const i = Math.min(N-1, Math.round(u / TW * N)), j = Math.min(N-1, Math.round(v / TW * N));
+          if (hG[j * N + i] > 320) continue;
+          const t = rnd();
+          g.fillStyle = t > 0.5 ? 'rgba(255,246,214,0.10)' : 'rgba(56,66,32,0.11)';
+          g.fillRect(u, v, 1 + rnd() * 2.4, 1 + rnd() * 2.4);
+        }
+      }
+      const t = new THREE.CanvasTexture(cv);
+      t.encoding = THREE.sRGBEncoding;
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return t;
     }
-    const tex = new THREE.CanvasTexture(cv);
-    tex.encoding = THREE.sRGBEncoding;
-    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
+    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 384, {});
+
+    const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
+    geo.rotateX(-Math.PI / 2);
+    const posA = geo.attributes.position;
+    for (let i = 0; i < posA.count; i++)
+      posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
+    geo.computeVertexNormals();
     // close-range detail: fine tiling grain multiplied in, faded out with distance
     const dn = document.createElement('canvas'); dn.width = dn.height = 256;
     { const dg = dn.getContext('2d');
@@ -191,6 +200,30 @@ function buildWorldScene(scene, world, renderer, camera) {
     const ground = new THREE.Mesh(geo, gMat);
     ground.receiveShadow = true;
     scene.add(ground);
+
+    { // outer ring: four coarse strips sharing one full-domain texture
+      const oMat = new THREE.MeshLambertMaterial({ map: outerTex });
+      const strip = (x0, z0, x1, z1, sx, sz) => {
+        const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
+        g2.rotateX(-Math.PI / 2);
+        g2.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+        const p = g2.attributes.position, uv = g2.attributes.uv;
+        for (let i = 0; i < p.count; i++) {
+          const x = p.getX(i), z = p.getZ(i);
+          p.setY(i, world.terrainH(x, z) - 2);
+          uv.setXY(i, (x + HALF) / SIZE, 1 - (z + HALF) / SIZE);
+        }
+        g2.computeVertexNormals();
+        const m = new THREE.Mesh(g2, oMat);
+        m.receiveShadow = true;
+        scene.add(m);
+      };
+      const OV = 4200;                  // tuck under the inner rim
+      strip(-HALF, -HALF, HALF, -OV, 240, 78);
+      strip(-HALF, OV, HALF, HALF, 240, 78);
+      strip(-HALF, -OV, -OV, OV, 78, 84);
+      strip(OV, -OV, HALF, OV, 78, 84);
+    }
 
     const waterMat = new THREE.MeshStandardMaterial({
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
@@ -582,8 +615,8 @@ function buildWorldScene(scene, world, renderer, camera) {
     const TOP = C(0xfff1dd), BOT = C(0xa8a2b4);
     let seed = 91;
     const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-    for (let k = 0; k < 26; k++) {
-      const cx = (rnd() - 0.5) * 8000, cz = (rnd() - 0.5) * 8000;
+    for (let k = 0; k < 64; k++) {
+      const cx = (rnd() - 0.5) * 22000, cz = (rnd() - 0.5) * 22000;
       const cy = 480 + rnd() * 420, n = 7 + (rnd() * 7 | 0), sp = 90 + rnd() * 150;
       for (let i = 0; i < n; i++) {
         const dy = (rnd() - 0.45) * 70;

@@ -98,6 +98,15 @@ function bakeSettlements(D) {
       if (jx < 0 || jz < 0 || jx >= NR || jz >= NR || wat2[jz * NR + jx]) wet++;
     }
     if (wet > 10) continue;   // islets block ~half the 49-cell block; tarn shores just a few
+    // grid masks miss water under DP-simplified river polylines (corner
+    // cuts) — verify against the actual water query, centre + 60 m ring
+    let qWet = false;
+    for (let q = 0; q < 5; q++) {
+      const qx = x + (q ? 60 * Math.cos(q * Math.PI / 2) : 0);
+      const qz = z + (q ? 60 * Math.sin(q * Math.PI / 2) : 0);
+      if (D.water(qx, qz) > D.terrain(qx, qz)) { qWet = true; break; }
+    }
+    if (qWet) continue;
     const dW = D.distW(x, z);
     let score = 2.2 * (1 - sl / 0.11) + 1.2 * Math.max(0, 1 - h / 140);
     if (dW > 25 && dW < 320) score += 1.6 * (1 - (dW - 25) / 295);
@@ -111,15 +120,19 @@ function bakeSettlements(D) {
     { x: 60, z: 112, r: 95, pop: 45, name: 'Home Field', kind: 'home' },
   ];
   for (const [score, k] of sites) {
-    if (settlements.length >= 6 || score < 2.2) break;
+    if (settlements.length >= 9 || score < 2.2) break;  // 24 km world holds more towns
     const x = px(k % NR), z = pz((k / NR) | 0);
     if (settlements.some(s => Math.hypot(s.x - x, s.z - z) < 2500)) continue;
     const pop = Math.min(900, 60 + Math.round(score * 170));
     const h1 = hash2(k, 11), h2 = hash2(k, 23), h3 = hash2(k, 37), h4 = hash2(k, 53);
     const SYL1 = ['Al', 'Ber', 'Dal', 'Fen', 'Gil', 'Hol', 'Kes', 'Lun', 'Mor', 'Nor', 'Pel', 'Ros', 'Tor', 'Vim', 'Wes'];
     const SYL2 = ['by', 'stad', 'ford', 'ton', 'ham', 'wick', 'dorf', 'vik', 'field'];
-    let name = SYL1[(h1 * 15) | 0] + (h2 < 0.4 ? SYL1[(h3 * 15) | 0].toLowerCase() : '') + SYL2[(h4 * 9) | 0];
-    if (settlements.some(s => s.name === name)) name += ' ' + settlements.length;
+    let name = '';
+    for (let v = 0; v < 9; v++) {   // rotate the suffix on collision
+      name = SYL1[(h1 * 15) | 0] + (h2 < 0.4 ? SYL1[(h3 * 15) | 0].toLowerCase() : '') + SYL2[(((h4 * 9) | 0) + v) % 9];
+      if (!settlements.some(s => s.name === name)) break;
+    }
+    if (settlements.some(s => s.name === name)) name = 'New ' + name;
     settlements.push({ x, z, r: Math.min(320, 70 + pop * 0.28), pop, name, kind: 'town' });
   }
 
@@ -291,7 +304,7 @@ function bakeSettlements(D) {
     // "flatten across, not along"
     const prof = _d < 4.5 ? 1 : 1 - smf01((_d - 4.5) / (RINF - 4.5));
     let delta = (_t - h) * prof;
-    if (delta > 4) delta = 4; else if (delta < -4) delta = -4;
+    if (delta > 6) delta = 6; else if (delta < -6) delta = -6;
     return h + delta;
   }
 

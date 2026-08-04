@@ -32,10 +32,27 @@ function makeWorld(seed) {
 
   function h0(x, z) {
     const n = fbm(x, z);
-    const mount = sstep(700, 3200, -z);
+    // 24 km domain (W6): the mountain belt FALLS OFF beyond z~-6500 into
+    // northern highlands/plains instead of extending as an endless plateau
+    const mount = sstep(700, 3200, -z) * (1 - sstep(6500, 10500, -z));
     const sea = sstep(500, 2400, z);
     const rid = ridge(x, z, 1100) * 0.6 + ridge(x, z, 520) * 0.4;
     let h = (n - 0.35) * 45 + (0.55 * (n - 0.3) + 0.65 * (rid - 0.35)) * 620 * mount - 95 * sea;
+    // far-field additions, EXACTLY zero inside the home box + 1.5 km
+    // (box covers every validated circuit incl. the DC-3 turnback at
+    // x=-5800 and its clearance mountains): long-wave continental relief
+    // on land + an archipelago in the far sea. Validated trajectories fly
+    // bit-identical base terrain.
+    const bdx = Math.max(0, Math.max(-6300 - x, x - 600));
+    const bdz = Math.max(0, Math.max(-3300 - z, z - 2600));
+    const far = sstep(1500, 4000, Math.hypot(bdx, bdz));
+    if (far > 0) {
+      const big = vnoise(x + 4013, z + 1717, 5200);
+      h += far * (big - 0.5) * 130 * (1 - sea);
+      const isl = ridge(x + 2222, z + 4444, 2600);
+      const islMask = sstep(3800, 5200, z);
+      h += far * islMask * Math.max(0, isl - 0.62) * 520;
+    }
     const dxC = Math.max(0, Math.max(-3400 - x, x - 400));
     const dzC = Math.max(0, Math.abs(z) - 750);
     h *= 0.06 + 0.94 * sstep(0, 700, Math.hypot(dxC, dzC));
@@ -103,8 +120,11 @@ function makeWorld(seed) {
   }
   const HYD = bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
-    { x0: -4500, z0: -4500, x1: 4500, z1: 4500, N: 384,
-      lakeMin: 1.5, A0: 500, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
+    // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
+    // (river widths/depths are normalized to drainage AREA inside the
+    // bake, so the same physical rivers emerge at any grid resolution)
+    { x0: -12000, z0: -12000, x1: 12000, z1: 12000, N: 512,
+      lakeMin: 1.5, A0m2: 274650, kW: 0.35, kD: 0.4, maxW: 45, dLake: 2,
       dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
@@ -128,7 +148,9 @@ function makeWorld(seed) {
     let h = h0(x, z);
     const r = padRamp(x, z);
     if (r > 0) {
+      const hRaw = h;
       h += (HYD.carve(x, z, h) - h) * r;
+      const carveDepth = hRaw - h;             // >0 inside river beds / lakes
       h = blendM(x, z, h);
       const g = SET.roadDelta(x, z, h) - h;
       if (g !== 0) {
@@ -137,7 +159,9 @@ function makeWorld(seed) {
           const dd = Math.hypot(x - m.x, z - m.z);
           if (dd < m.r) { mw = sstep(m.r * 0.45, m.r, dd); break; }
         }
-        h += g * r * mw;
+        // roads must never grade a carved bed back up — beds stay wet,
+        // crossings are bridges (the deck spans, terrain keeps the carve)
+        h += g * r * mw * (1 - Math.min(1, carveDepth / 1.5));
       }
       return h;
     }
@@ -157,7 +181,7 @@ function makeWorld(seed) {
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
   {
-    const G0 = -4224, GN = 132, GS = 64;   // ±4224 m (v0 domain was ±4200)
+    const G0 = -12000, GN = 375, GS = 64;  // ±12000 m (24 km domain, W6)
     for (let gz = 0; gz < GN; gz++) for (let gx = 0; gx < GN; gx++) {
       const j1 = hash2(gx + 9173, gz - 2417), j2 = hash2(gx - 5807, gz + 7919),
             j3 = hash2(gx + 1229, gz + 4051);
@@ -278,7 +302,7 @@ function makeWorld(seed) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
-    bounds: { x0: -4500, z0: -4500, x1: 4500, z1: 4500 },
+    bounds: { x0: -12000, z0: -12000, x1: 12000, z1: 12000 },
     terrainH, waterH, surface, SURFACE,
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear,
