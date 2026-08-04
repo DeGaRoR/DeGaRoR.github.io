@@ -51,8 +51,10 @@ const masked = (x, z) => {
       prev = h;
     }
   }
-  console.log(`bank slope max ${maxSl.toFixed(3)} (bound 1.0)`);
-  checks['bank slope bounded'] = maxSl < 1.0;
+  // 2.0 since W12: mountain rivers legitimately cross terraced risers
+  // (~1.5 terrain slope) — the bound guards CARVE continuity, not cliffs
+  console.log(`bank slope max ${maxSl.toFixed(3)} (bound 2.0)`);
+  checks['bank slope bounded'] = maxSl < 2.0;
 }
 
 // wet fraction over the domain: sea + rivers + lakes, sanity envelope

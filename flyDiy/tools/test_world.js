@@ -15,9 +15,11 @@ const { makeWorld } = require('./flight_core.js');
 // MEADOWS 27f288de through W6.
 // (W9 stage-4 aerodromes: strip grading is a terrain change, trees
 // re-laid with strip exclusion; meadow hash + anchors held)
-const GOLDEN_GRID = '3b3337d3';
-const GOLDEN_TREES = '6ee2da8c';
-const GOLDEN_TREE_COUNT = 24789;
+// (W12 stage-5 cliffs: mountain terracing is a terrain change above
+// hm=120; meadow hash + anchors held — the home lowlands are untouched)
+const GOLDEN_GRID = '69dd5914';
+const GOLDEN_TREES = 'a6b54c58';
+const GOLDEN_TREE_COUNT = 24816;
 const GOLDEN_MEADOWS = '85de271f';
 const GOLDEN_ANCHORS = ['0', '0.21004043626020646', '29.022467498732595', '32.70294769782758'];
 

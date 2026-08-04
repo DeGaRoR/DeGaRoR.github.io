@@ -252,14 +252,32 @@ Original sketch:
   the box, reachable (≤ ⚙ 40 % grade on some line to the road graph or
   explicitly flagged fly-in only, which is the charm of backcountry strips).
 
-## Stage 5 — Relief detail & cliffs (analytic, no bake)
+## Stage 5 — Relief detail & cliffs (analytic, no bake) — DONE 2026-08-04
 
-Cliffs are a *classifier + sharpening*, not placed objects: where stage-0+1
-slope exceeds ⚙ tan 50°, sharpen (terrace/step the height locally with a
-strata-warped noise) and classify ROCK; scree fans (SCREE) below via a short
-downslope falloff. Renderer gets strata banding for free from the surface
-class + slope. Gate: classifier consistency (ROCK ⇒ slope above threshold),
-continuity budget maintained.
+Cliffs are a *classifier + sharpening*, not placed objects.
+As-built (W12): the MOUNTAIN COMPONENT of h0 is terraced into strata
+where its amplitude exceeds ⚙ 120 m (an amplitude gate, not a slope
+probe — slope cannot be computed inside the physics hot path): step ⚙
+22 m, smoothstepped risers (⚙ 34 % of each band, C¹ both ends), band
+planes tilted by a 700 m noise so strata dip like beds; blend strength
+0.55·sstep(120,220,hm). terrainH 0.52 µs/call (+0.02). Belt slopes now
+reach ~1.5 — the risers classify ROCK/SCREE through the UNCHANGED
+stage-2 slope rules, exactly as the sketch intended; tarns perch on the
+terrace treads (hydrology re-baked). Renderer: alternate 22 m beds
+darken above 190 m (strata banding). Knock-ons: road-grading clamp
+±6→±8 (cuttings through risers), HYDRO bank bound 1.0→2.0 (mountain
+rivers legitimately cross risers; the bound guards carve continuity).
+HONEST LIMIT: beyond ±4500 the ~100 m outer-ring render mesh smooths
+risers away visually — the data has them; chunked LOD (renderer
+overhaul) will show them.
+Gate: covered by BIOME classifier semantics + WORLD golden/perf.
+
+Original sketch: where stage-0+1 slope exceeds ⚙ tan 50°, sharpen
+(terrace/step the height locally with a strata-warped noise) and
+classify ROCK; scree fans (SCREE) below via a short downslope falloff.
+Renderer gets strata banding for free from the surface class + slope.
+Gate: classifier consistency (ROCK ⇒ slope above threshold), continuity
+budget maintained.
 
 ## Explicitly out of scope here
 

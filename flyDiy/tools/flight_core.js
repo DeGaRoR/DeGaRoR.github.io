@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: dd22f143c1599aff
+// body-sha256: 2e604ebb3e88b335
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1347,7 +1347,21 @@ function makeWorld(seed) {
     const mount = sstep(700, 3200, -mzw) * (1 - sstep(6500, 10500, -mzw));
     const sea = sstep(500, 2400, z + 700 * (wq1 - 0.5));
     const rid = ridge(wx, wz, 1100) * 0.6 + ridge(wx, wz, 520) * 0.4;
-    let h = (n - 0.35) * 45 + (0.55 * (n - 0.3) + 0.65 * (rid - 0.35)) * 620 * mount - 95 * sea;
+    let hm = (0.55 * (n - 0.3) + 0.65 * (rid - 0.35)) * 620 * mount;
+    // W12 stage-5 cliffs: terrace the mountain component into strata
+    // where it is high — flat treads + smoothstepped risers (C1 both
+    // ends), band planes tilted by a coarse noise so strata dip like
+    // real beds. Cheap amplitude gate instead of a slope probe: slope
+    // cannot be computed inside the physics hot path. Risers steepen
+    // locally and classify ROCK/SCREE through the existing slope rules.
+    if (hm > 120) {
+      const ST = 22, RW = 0.34;
+      const t = (hm + (vnoise(wx + 888, wz + 1444, 700) - 0.5) * 16) / ST;
+      const f = Math.floor(t), r = t - f;
+      const terr = (f + smf(Math.min(1, Math.max(0, (r - (1 - RW) * 0.5) / RW)))) * ST;
+      hm += (terr - hm) * 0.55 * sstep(120, 220, hm);
+    }
+    let h = (n - 0.35) * 45 + hm - 95 * sea;
     // far-field additions, EXACTLY zero inside the home box + 1.5 km
     // (box covers every validated circuit incl. the DC-3 turnback at
     // x=-5800 and its clearance mountains): long-wave continental relief
@@ -2436,7 +2450,8 @@ function bakeSettlements(D) {
     // "flatten across, not along"
     const prof = _d < 4.5 ? 1 : 1 - smf01((_d - 4.5) / (RINF - 4.5));
     let delta = (_t - h) * prof;
-    if (delta > 6) delta = 6; else if (delta < -6) delta = -6;
+    // ±8: W12 terraced risers (22 m strata) need deeper road cuttings
+    if (delta > 8) delta = 8; else if (delta < -8) delta = -8;
     return h + delta;
   }
 

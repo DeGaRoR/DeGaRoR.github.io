@@ -320,7 +320,8 @@ function bakeSettlements(D) {
     // "flatten across, not along"
     const prof = _d < 4.5 ? 1 : 1 - smf01((_d - 4.5) / (RINF - 4.5));
     let delta = (_t - h) * prof;
-    if (delta > 6) delta = 6; else if (delta < -6) delta = -6;
+    // ±8: W12 terraced risers (22 m strata) need deeper road cuttings
+    if (delta > 8) delta = 8; else if (delta < -8) delta = -8;
     return h + delta;
   }
 

@@ -488,6 +488,16 @@ W9. **Stage 4 aerodromes** — DONE 2026-08-04: 24_world_aero.js (see
     WORLD), GATE AERO, strip decals + windsocks, town pops rank-spread
     (stage-3 saturation fix). GRID+TREES re-goldened; meadows/anchors
     held. THE WORLD-GEN-PROC PIPELINE IS COMPLETE THROUGH STAGE 4.
+W12. **Stage 5 cliffs** — DONE 2026-08-04: mountain component terraced
+    into 22 m strata above 120 m amplitude (see WORLD-GEN-PROC stage 5
+    as-built). Belt slopes reach ~1.5; risers classify ROCK/SCREE via
+    the unchanged stage-2 rules; tarns perch on treads; strata banding
+    tint. Road clamp ±8, HYDRO bank bound 2.0 (re-scoped to carve
+    continuity). GRID+TREES re-goldened; meadows/anchors held. THE
+    WORLD-GEN-PROC PIPELINE (STAGES 0-5) IS COMPLETE. Remaining world
+    backlog: renderer overhaul (chunked LOD shows far cliffs, contour
+    lakes, water shader, tree impostors), M2 meadow relocation, manual
+    controls (holdWas bug first), STOL competition mode.
 W11. **Spawn-at-aerodrome** — DONE 2026-08-04: aerodrome records carry a
     `spawn` point (takeoff-run start); `placeAtAerodrome(sim, a)` in
     40_autopilot.js rotates the def geometry onto the strip heading

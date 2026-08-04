@@ -86,6 +86,9 @@ function buildWorldScene(scene, world, renderer, camera) {
       if (h > 150) c.lerp(c2.setHex(ALP), Math.min(1, (h - 150) / 110) * (0.45 + veg * 0.35));
       if (h > 235) c.lerp(c2.setHex(ROCK), Math.min(1, (h - 235) / 140));
       if (h > 400) c.lerp(c2.setHex(HIGH), Math.min(1, (h - 400) / 160));
+      // W12 strata banding: alternate 22 m beds darken in the rock zone —
+      // matches the stage-5 terrace step, so treads/risers read as strata
+      if (h > 190) c.lerp(c2.setHex(0x6b6257), (Math.floor(h / 22) % 2) ? 0.16 : 0.04);
       const snowLine = 470 + slope * 250;
       if (h > snowLine) c.lerp(c2.setHex(SNOW), Math.min(1, (h - snowLine) / 90));
       if (h < 6) c.lerp(c2.setHex(SHORE), Math.min(1, (6 - h) / 8) * 0.85);
