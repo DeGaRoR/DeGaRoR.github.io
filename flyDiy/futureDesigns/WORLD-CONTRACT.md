@@ -129,14 +129,15 @@ the GATE WORLD goldens.
    current consumer runs unmodified during migration. `meadows` is derived
    from aerodromes of kind `meadow` (same literals, same order — that
    derivation is what keeps the tree RNG and terrain blend bit-identical).
-6. **AP integration** ⏳ deferred-next (user decision 2026-08-03): runway
-   constants in `def.params.ap` become lookups into `W.aerodromes`
-   (circuit = takeoff aerodrome → target aerodrome). This is the one
-   physics-side change beyond the extraction; it is what makes "lots of
-   little airports" flyable rather than decorative. Until then
-   `W.aerodromes` is **descriptive, not authoritative** — the AP still
-   flies its fiche constants and heading is still hardcoded in
-   40_autopilot.js.
+6. **AP integration** — DONE 2026-08-04 (W10): the AP runs in runway
+   frames built from `W.aerodromes` records (`makeAutopilot(sim, def,
+   world)` + `ap.setRoute(from, to)`); the frame puts the tdz at s=−450
+   so fiche xTurn/xAim/gs transfer to any strip unchanged, and heading
+   is no longer hardcoded anywhere. Circuit = HOME→HOME (byte-identical
+   through the refactor); cross-country = HOME→any strip via the new
+   ENROUTE phase (approach-fix guidance, terrain-aware altitude).
+   `W.aerodromes` is now AUTHORITATIVE for arrivals. Departure spawn is
+   still HOME-only — spawn-at-aerodrome is the follow-up.
 7. **Surface → friction** ⏳: ground contact reads `W.surface` for per-type
    rolling/braking coefficients (paved vs grass vs gravel). Deferred until
    the world session; contract reserves the enum now.

@@ -168,11 +168,19 @@
     skinMode = (skinMode + 1) % 3; applySkinVis();
   };
 
+  // ---- W10 route: fly the circuit, or cross-country to any aerodrome ----
+  let destId = 'HOME';
+  function applyRoute() {
+    const home = world.aerodromes[0];
+    const to = world.aerodromes.find(a => a.id === destId) || home;
+    ap.setRoute(home, to);
+  }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
     sim.reset(0);
-    ap = makeAutopilot(sim, def);
+    ap = makeAutopilot(sim, def, world);
+    applyRoute();
     nb = sim.beams.length;
     if (lines) { scene.remove(lines); lines.geometry.dispose(); }
     if (pts) { scene.remove(pts); pts.geometry.dispose(); }
@@ -268,7 +276,7 @@
 
   // ================= phase rail =================
   const PHASES = [['ROLL','TAKEOFF ROLL'],['LIFTOFF','LIFT-OFF'],['CLIMB','CLIMB'],
-    ['CRUISE','CRUISE'],['TURNBACK','TURNBACK'],['INBOUND','INBOUND'],
+    ['CRUISE','CRUISE'],['ENROUTE','ENROUTE'],['TURNBACK','TURNBACK'],['INBOUND','INBOUND'],
     ['APPROACH','APPROACH'],['FLARE','FLARE'],['ROLLOUT','ROLLOUT'],['STOPPED','STOPPED']];
   const tickEls = {};
   { const track = $('track');
@@ -365,7 +373,7 @@
 
   $('bGo').onclick = () => { started = true; };
   function fullReset() {
-    sim.reset(0); ap = makeAutopilot(sim, def); started = false; running = true;
+    sim.reset(0); ap = makeAutopilot(sim, def, world); applyRoute(); started = false; running = true;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
     lastPhase = 'ROLL'; telWrap.classList.remove('show'); $('bTel').classList.remove('on');
@@ -374,6 +382,20 @@
   }
   $('bReset').onclick = fullReset;
   $('selAc').onchange = e => { setAircraft(e.target.value); fullReset(); hud(); };
+  { // destination select: circuit at home, or cross-country to any strip
+    const sel = $('selDest');
+    const opt = (v, label) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = label; sel.appendChild(o);
+    };
+    opt('HOME', 'Circuit — Home Strip');
+    for (const a of world.aerodromes) {
+      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      const km = (Math.hypot(a.x + 520, a.z) / 1000).toFixed(1);
+      opt(a.id, `→ ${a.name} (${km} km${a.flyIn ? ', fly-in' : ''})`);
+    }
+    sel.onchange = e => { destId = e.target.value; fullReset(); };
+  }
   $('bPause').onclick = e => {
     running = !running;
     e.target.textContent = running ? 'Pause' : 'Run';

@@ -39,7 +39,13 @@ function runCircuit(cfg) {
   let zDrift = 0;
   for (let i = 0; i < sim.n; i++)
     zDrift = Math.max(zDrift, Math.abs(sim.p[i*3+2] - def.nodes[i].p[2] - meanDz));
-  const ap = makeAutopilot(sim, def);
+  const ap = makeAutopilot(sim, def, world);
+  // cfg.dest: fly HOME -> that aerodrome (id or name) instead of a circuit
+  if (cfg.dest) {
+    const to = world.aerodromes.find(a => a.id === cfg.dest || a.name === cfg.dest);
+    if (!to) { console.log(`GATE ${id}: FAIL (unknown dest ${cfg.dest})`); process.exit(1); }
+    ap.setRoute(world.aerodromes[0], to);
+  }
 
   const iW0 = def.nodes.findIndex(n => n.tag === tip.tag && Math.abs(n.p[2] - tip.midZ) < tip.tol && n.p[2] > 0);
   const iW1 = def.nodes.findIndex(n => n.tag === tip.tag && Math.abs(n.p[2] - tip.tipZ) < tip.tol && n.p[2] > 0);

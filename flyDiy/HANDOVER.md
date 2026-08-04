@@ -210,6 +210,27 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   limit cycles (drone pitch ±9° @2.3Hz; Jodel roll; C172-class chatter).
   The cure is always LOWER D + command slew, not more filtering.
 - Trim-heavy stable aircraft need pitchI authority (DC-3: 0.05 → 0.25).
+- **W10 runway frames (contract rule 6 DONE)**: all along/cross geometry
+  runs in a runway frame {origin, unit axis} from a W.aerodromes record;
+  the frame puts the tdz at s=-450 so fiche xTurn/xAim/gs transfer to
+  ANY strip unchanged. Axis components are snapped: the HOME frame is
+  exactly s=x, cross=z and the whole battery was NUMBER-IDENTICAL
+  through the refactor. makeAutopilot(sim, def, world) + ap.setRoute
+  (from, to); cross-country replaces TURNBACK with ENROUTE.
+  HARD-WON, in order: (1) an "s > xTurn" arrival handoff is a trap from
+  abeam (along-track instantly inside while cross-track is km out) — fly
+  to the approach FIX at (xTurn-1200, 0) instead; (2) the terrain guard
+  must sample along the LEG TRACK, not velocity (at the turn, velocity
+  still points down the old leg while the belt rises on the new one:
+  1 m clearance measured), densely (1.5 km gaps let warped ridges slip
+  through: 16 m), with a 7.5 km horizon; (3) the fleet cannot outclimb
+  the belt head-on — ENROUTE climbs FIRST on the flat climb-out heading
+  until within 60 m of the leg altitude, then turns; (4) high fix
+  arrivals need INBOUND to descend onto the slope (min(hCruise, hGS+15),
+  clamp -3.5, APPROACH gated to cg-hGS<40) or they overfly forever;
+  (5) fiche aim points assume 1100 m of runway — clamp xAim inside the
+  destination threshold + 40 m on xc arrivals (C172 touched grass 28 m
+  short of a 650 m strip). All five no-ops for standard circuits.
 - holdPitch command filter thCA re-syncs to current attitude on re-engage
   (holdWas/holdActive) — its zero-init once nosed the DC-3 over at Vr.
   **KNOWN BUG, blocks the manual-controls session:** holdWas is assigned once
@@ -467,9 +488,16 @@ W9. **Stage 4 aerodromes** — DONE 2026-08-04: 24_world_aero.js (see
     WORLD), GATE AERO, strip decals + windsocks, town pops rank-spread
     (stage-3 saturation fix). GRID+TREES re-goldened; meadows/anchors
     held. THE WORLD-GEN-PROC PIPELINE IS COMPLETE THROUGH STAGE 4.
-    Next on this branch: AP-reads-aerodromes (fly town to town — the
-    registry has hdg/elev/tdz waiting), stage 5 cliffs/scree, or the
-    renderer overhaul backlog.
+W10. **AP-reads-aerodromes (contract rule 6)** — DONE 2026-08-04: runway
+    frames in 40_autopilot.js (see AUTOPILOT RULES), ENROUTE phase with
+    approach-fix guidance + terrain-aware altitude, destination select
+    in the viewer, GATES XCTY (Cub -> Morford paved) + XCTY2 (C172 ->
+    Holtorham: over the belt, from abeam, onto 650 m grass — the route
+    that broke four ways in development). W.aerodromes is now
+    AUTHORITATIVE for arrivals; departure spawn is still HOME only
+    (spawn-at-aerodrome = follow-up session). Next: spawn-at-aerodrome
+    (chain legs town to town), stage 5 cliffs/scree, manual controls
+    (holdWas bug first), or the renderer overhaul backlog.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto

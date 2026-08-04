@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d911c40edf219964
+// body-sha256: 9fc1bf25effebeea
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2610,7 +2610,11 @@ function bakeAerodromes(D) {
     for (const c of cand) {
       if (strips.filter(st => st.kind === 'strip').length >= 3) break;
       if (!farFromStrips(c.cx, c.cz, 3000)) continue;
-      const nm = SYL[(hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0] + ' Strip';
+      let nm = '';
+      for (let v = 0; v < SYL.length; v++) {   // rotate on collision
+        nm = SYL[(((hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0) + v) % SYL.length] + ' Strip';
+        if (!strips.some(st => st.name === nm)) break;
+      }
       push(c.cx, c.cz, c.hdg, 340, 18, SURFACE.GRAVEL, c.elev, nm, 'strip', true);
     }
   }
@@ -3079,17 +3083,61 @@ function makeSim(def, world) {
 // ============================================================
 // M3 — autopilot: full circuit. takeoff, climb, outbound cruise,
 // 180 turnback, inbound track, glideslope, flare, rollout, stop.
+// W10 cross-country: all along/cross geometry runs in a RUNWAY FRAME
+// {origin o, unit axis u} built from a W.aerodromes record (contract
+// rule 6). The frame puts the touchdown zone at s = -450 (the home
+// strip's tdz coordinate), so every fiche's tuned xTurn/xAim/gs
+// transfers to any strip unchanged. Axis components are SNAPPED so the
+// HOME frame is exactly s = x, cross = z: the whole calm + wind battery
+// is byte-identical through this refactor. A->B flights replace
+// TURNBACK with ENROUTE (destination landing frame, terrain-aware
+// cruise altitude), then reuse INBOUND..STOPPED untouched.
 // Conventions: de>0 nose-up, da>0 roll-right, dr>0 nose-left,
 // e>0 = nose left of target.
 // ============================================================
-function makeAutopilot(sim, def) {
+function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
+  const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
+  // u = frame axis (landing direction); origin places tdz at s = -450
+  const mkFrame = (a, sx, sz) => {
+    let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
+    if (sx !== undefined) {                 // pick the landing end facing travel
+      const d = ux * sx + uz * sz;
+      if (d < 0) { ux = -ux; uz = -uz; }
+    } else { ux = -ux; uz = -uz; }          // departure: land opposite takeoff
+    return { ux, uz, ox: a.tdz[0] + 450 * ux, oz: a.tdz[1] + 450 * uz };
+  };
+  const HOMEISH = { hdg: Math.PI, tdz: [-450, 0], elev: 0 };  // world-less fallback
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
     VCruise: A.VCruise, VAppr: A.VAppr,
     xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
-    restAlt: null, tdInfo: null, dbg: {},
+    restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
+    route: null, xc: false, frame: null,
+  };
+  ap.setRoute = (from, to) => {
+    ap.route = { from, to };
+    ap.xc = from !== to;
+    ap.frame = mkFrame(from);               // departure frame
+    ap.altRef = from.elev;
+  };
+  ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
+              world ? world.aerodromes[0] : HOMEISH);
+  // arrival switch: destination landing frame + arrival altitude refs
+  const enterArrival = () => {
+    const { from, to } = ap.route;
+    if (ap.xc) {
+      ap.frame = mkFrame(to, to.tdz[0] - from.tdz[0], to.tdz[1] - from.tdz[1]);
+      // short strips: the fiche aim point assumes 1100 m of runway ahead
+      // of the tdz — clamp it inside the destination threshold + 40 m
+      // (W9 strips have tdz 25% from the threshold; measured: the C172
+      // aimed 28 m SHORT of a 650 m strip and touched down on the grass)
+      ap.xAim = Math.max(A.xAim, -450 - 0.25 * to.len + 40);
+    }
+    ap.dirX = 1;
+    ap.altRef = to.elev;
+    ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
   let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
@@ -3103,8 +3151,14 @@ function makeAutopilot(sim, def) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) ap.restAlt = cg[1];
-    const agl = cg[1] - ap.restAlt;
+    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    const agl = cg[1] - ap.refAlt;
+    // runway-frame coordinates: sAl along the frame axis (was cg[0]),
+    // sCr cross-track (was cg[2]); HOME frame is exactly s=x, cross=z
+    const F = ap.frame;
+    const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
+    const sAl = rxF * F.ux + rzF * F.uz;
+    const sCr = -rxF * F.uz + rzF * F.ux;
     // V = AIRSPEED (aero speeds: rotation, approach, stall margins);
     // Vg = groundspeed (wheels: brakes, stop detection). The wind sample is
     // the solver's last CG wind — exact zeros when no wind is set, so the
@@ -3121,7 +3175,8 @@ function makeAutopilot(sim, def) {
       const L = ap.phase === 'ROLL' || ap.phase === 'ROLLOUT' ? (A.lookRoll ?? 25)
               : ap.phase === 'APPROACH' || ap.phase === 'FLARE' ? (A.lookAppr ?? 100)
               : (A.lookCruise ?? 150);
-      tx = ap.dirX * L; tz = -cg[2];
+      const fx = ap.dirX * L, fz = -sCr;      // pursuit target in frame coords
+      tx = fx * F.ux - fz * F.uz; tz = fx * F.uz + fz * F.ux;
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
@@ -3221,22 +3276,70 @@ function makeAutopilot(sim, def) {
         c.thr = 1;
         holdPitch(clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         airLateral();
-        if (cg[1] > ap.hCruise - 8) { ap.phase = 'CRUISE'; phaseT = 0; thrC = A.thrCruise; thcI = 0.04; }
+        if (cg[1] > ap.altRef + ap.hCruise - 8) {
+          if (ap.xc) {
+            // remember the (safe, flat) climb-out heading: ENROUTE climbs
+            // on it before turning toward terrain it cannot out-climb
+            ap.holdDir = [ap.frame.ux * ap.dirX, 0, ap.frame.uz * ap.dirX];
+            ap.phase = 'ENROUTE'; enterArrival(); ap.trackHold = false;
+          } else ap.phase = 'CRUISE';
+          phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
+        }
         break;
 
       case 'CRUISE':
         speedThrottle(ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
         airLateral();
-        if (cg[0] < ap.xTurn) {
+        if (sAl < ap.xTurn) {
           ap.phase = 'TURNBACK'; phaseT = 0;
-          ap.trackHold = false; ap.targetDir = [1, 0, 0]; ap.dirX = 1;
+          ap.trackHold = false; enterArrival();
+          ap.targetDir = [ap.frame.ux, 0, ap.frame.uz];
         }
         break;
 
+      case 'ENROUTE': {
+        // cross-country leg: steer at the APPROACH FIX — the frame point
+        // (xTurn, 0) on the destination's extended centreline — so arrival
+        // works from any bearing (an "s > xTurn" handoff alone is a trap:
+        // approaching from abeam, along-track is instantly inside xTurn
+        // while cross-track is kilometres out — measured, Holtorham probe).
+        // Altitude is terrain-aware: clear the highest terrain within
+        // ~4 km of track, then sink back to circuit height (asymmetric VS
+        // budget — the mountain belt needs more descent than a circuit).
+        speedThrottle(ap.VCruise);
+        // approach fix 1.2 km before xTurn on the extended centreline —
+        // buys INBOUND room to settle onto the slope after a high arrival
+        const fdx = (ap.xTurn - 1200) - sAl, fdz = -sCr;
+        const fDist = Math.hypot(fdx, fdz) || 1;
+        const fixDir = [(fdx * F.ux - fdz * F.uz) / fDist, 0,
+                        (fdx * F.uz + fdz * F.ux) / fDist];
+        // terrain guard samples along the LEG track (not velocity — at the
+        // turn the velocity still points down the old leg while the belt
+        // rises on the new one; measured 1 m clearance). 7.5 km horizon.
+        let hTgt = ap.altRef + ap.hCruise;
+        if (world) {
+          // dense near samples: 1.5 km gaps let narrow warped ridges slip
+          // between guard points (measured 16 m clearance over one)
+          for (const dA of [0, 400, 800, 1500, 2500, 4000, 5500, 7500]) {
+            const hT = world.terrainH(cg[0] + fixDir[0] * dA, cg[2] + fixDir[2] * dA)
+                     + (A.hClear ?? 130);
+            if (hT > hTgt) hTgt = hT;
+          }
+        }
+        // climb FIRST on the (flat, known) climb-out heading when the leg
+        // needs more altitude than we have — the belt south of the corridor
+        // rises faster than any of the fleet can climb head-on
+        ap.targetDir = (hTgt - cg[1] > 60 && ap.holdDir) ? ap.holdDir : fixDir;
+        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -4.5, 2.2));
+        airLateral();
+        if (fDist < 600) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
+        break;
+      }
+
       case 'TURNBACK':
         speedThrottle(A.VTurn ?? ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
         airLateral();
         headingCapT = Math.abs(e) < 0.12 ? headingCapT + dt : 0;
         if (headingCapT > 1.5) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
@@ -3244,10 +3347,14 @@ function makeAutopilot(sim, def) {
 
       case 'INBOUND': {
         speedThrottle(A.VTurn ?? 24);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.hCruise - cg[1]), -2.2, 2.2));
+        const d = ap.xAim - sAl;
+        const hGS = ap.refAlt + d * ap.gs;
+        // descend toward just-above-slope when arriving HIGH (cross-country
+        // over the belt): min() is a no-op for standard circuits, which fly
+        // level at hCruise below the slope until it comes down to them
+        const hTgt = Math.min(ap.altRef + ap.hCruise, hGS + 15);
+        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2));
         airLateral();
-        const d = ap.xAim - cg[0];
-        const hGS = ap.restAlt + d * ap.gs;
         // in wind: align laterally BEFORE descending (localizer before
         // glideslope) — the turnback exits ~1.2-1.6 km off centreline and a
         // capture flown inside the descent runs out of approach (Jodel landed
@@ -3257,14 +3364,17 @@ function makeAutopilot(sim, def) {
         // the slope by gs*(leg length), which the catch-up authority cannot
         // recover (Jodel/DC-3 landed 0.6-1.1 km long). In-descent capture
         // works once the course loop carries a slip trim (see airLateral).
-        if (d > 0 && hGS <= cg[1] + 2) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        // the <40 bound keeps a high cross-country arrival in INBOUND (still
+        // descending) instead of engaging APPROACH far above the slope;
+        // standard circuits switch from BELOW (cg-hGS ~ -2), unaffected
+        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
         break;
       }
 
       case 'APPROACH': {
         speedThrottle(ap.VAppr);
-        const d = ap.xAim - cg[0];
-        const hGS = ap.restAlt + Math.max(0, d) * ap.gs;
+        const d = ap.xAim - sAl;
+        const hGS = ap.refAlt + Math.max(0, d) * ap.gs;
         // catch-up clamp scales with the aircraft's own slope rate: a flat
         // -3.0 gave the DC-3 (nominal -2.6 m/s on its slope) only 0.4 m/s of
         // authority to descend back onto the slope from above
@@ -3288,12 +3398,15 @@ function makeAutopilot(sim, def) {
         // Inactive in calm air (windZ gate) — zero-wind identity preserved.
         if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
           airLateral(0.12);
-          const hdg = Math.atan2(nose[1], nose[0] * ap.dirX) * ap.dirX;
+          const nS = nose[0] * F.ux + nose[1] * F.uz;      // frame-relative nose
+          const nC = -nose[0] * F.uz + nose[1] * F.ux;
+          const hdg = Math.atan2(nC, nS * ap.dirX) * ap.dirX;
           c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
         } else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
-          ap.tdInfo = { sink: -vcg[1], z: cg[2], x: cg[0], V, drift: vcg[2] };
+          ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V,
+                        drift: -vcg[0] * F.uz + vcg[2] * F.ux };
         }
         break;
 
@@ -3333,7 +3446,7 @@ function makeAutopilot(sim, def) {
     aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
     aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
     aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: cg[2], agl };
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl };
   };
   return ap;
 }

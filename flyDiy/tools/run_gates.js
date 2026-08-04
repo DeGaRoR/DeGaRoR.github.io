@@ -33,6 +33,8 @@ const GATES = [
   { id: 'BIOME', file: 'test_biome.js' },
   { id: 'SETTLE', file: 'test_settle.js' },
   { id: 'AERO', file: 'test_aero.js' },
+  { id: 'XCTY', file: 'test_xcty.js' },
+  { id: 'XCTY2', file: 'test_xcty2.js' },
 ];
 
 const args = process.argv.slice(2);

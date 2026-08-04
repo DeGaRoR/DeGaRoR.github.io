@@ -120,7 +120,11 @@ function bakeAerodromes(D) {
     for (const c of cand) {
       if (strips.filter(st => st.kind === 'strip').length >= 3) break;
       if (!farFromStrips(c.cx, c.cz, 3000)) continue;
-      const nm = SYL[(hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0] + ' Strip';
+      let nm = '';
+      for (let v = 0; v < SYL.length; v++) {   // rotate on collision
+        nm = SYL[(((hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0) + v) % SYL.length] + ' Strip';
+        if (!strips.some(st => st.name === nm)) break;
+      }
       push(c.cx, c.cz, c.hdg, 340, 18, SURFACE.GRAVEL, c.elev, nm, 'strip', true);
     }
   }
