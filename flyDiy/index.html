@@ -3633,8 +3633,20 @@ function buildWorldScene(scene, world, renderer, camera) {
     const SIZE = 24000, HALF = 12000, INNER = 4500;
     const hsh = (ix, iz) => { let h = (ix * 374761393 + iz * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-    const MEAD = 0x8d9a54, GRASS = 0x74853c, DRY = 0xb5a068, ROCK = 0x8a7d6b,
-          HIGH = 0x736d63, SNOW = 0xe9e2d3, SHORE = 0xc9b78c;
+    // W8 colour pass: the old DRY band (sandy tan from 90 m up) made the
+    // warped uplands read as desert. Uplands now run grass -> olive heath
+    // -> dry alpine grass -> rock, with a two-scale vegetation-patch
+    // noise breaking the pure altitude banding.
+    const MEAD = 0x8d9a54, GRASS = 0x74853c, HEATH = 0x7d8443, ALP = 0x97934f,
+          ROCK = 0x857a68, HIGH = 0x6f6a60, SNOW = 0xe9e2d3, SHORE = 0xc9b78c,
+          VEGD = 0x5f7034, VEGW = 0xa09a58;
+    const vn = (x, z, cell) => {
+      const fx = x / cell, fz = z / cell;
+      const ix = Math.floor(fx), iz = Math.floor(fz);
+      const tx = fx - ix, tz = fz - iz;
+      const a = hsh(ix, iz), b = hsh(ix + 1, iz), d = hsh(ix, iz + 1), e2 = hsh(ix + 1, iz + 1);
+      return (a * (1 - tx) + b * tx) * (1 - tz) + (d * (1 - tx) + e2 * tx) * tz;
+    };
     const c = new THREE.Color(), c2 = new THREE.Color();
     let _h = 0, _low = 0;
     const colorAt = (x, z) => {
@@ -3644,9 +3656,13 @@ function buildWorldScene(scene, world, renderer, camera) {
         world.terrainH(x, z + e) - world.terrainH(x, z - e)) / (2 * e) * 1.15);
       _h = h;
       _low = (1 - Math.min(1, Math.max(0, (h - 55) / 90))) * (1 - Math.min(1, slope * 3.2));
+      const veg = vn(x + 31, z + 67, 720) * 0.62 + vn(x + 271, z + 113, 190) * 0.38;
       c.setHex(MEAD).lerp(c2.setHex(GRASS), Math.min(1, Math.max(0, (h - 10) / 90)));
-      if (h > 90) c.lerp(c2.setHex(DRY), Math.min(1, (h - 90) / 150));
-      if (h > 220) c.lerp(c2.setHex(ROCK), Math.min(1, (h - 220) / 170));
+      const vegF = 1 - Math.min(1, Math.max(0, (h - 140) / 120));   // patches fade out by ~260 m
+      if (vegF > 0) c.lerp(c2.setHex(veg > 0.5 ? VEGW : VEGD), Math.abs(veg - 0.5) * 0.55 * vegF);
+      if (h > 95) c.lerp(c2.setHex(HEATH), Math.min(1, (h - 95) / 140) * 0.85);
+      if (h > 150) c.lerp(c2.setHex(ALP), Math.min(1, (h - 150) / 110) * (0.45 + veg * 0.35));
+      if (h > 235) c.lerp(c2.setHex(ROCK), Math.min(1, (h - 235) / 140));
       if (h > 400) c.lerp(c2.setHex(HIGH), Math.min(1, (h - 400) / 160));
       const snowLine = 470 + slope * 250;
       if (h > snowLine) c.lerp(c2.setHex(SNOW), Math.min(1, (h - snowLine) / 90));

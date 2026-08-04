@@ -311,7 +311,10 @@ Golden-hour look: ACES tonemap, sRGB, PCF shadows, camera-parented sky-dome
 shader, baked 2048² terrain texture (~512k terrainH calls at startup — seconds
 of load, accepted), 513² terrain mesh (bumped from 257² for the river
 carves), stage-1 water (rivers + lakes + sea, one MeshStandard material;
-see WORLD), field patchwork, instanced woodland (2-4 render-only
+see WORLD), W8 upland palette (grass -> olive heath -> dry alpine grass ->
+rock — the old sandy DRY band read as desert on the warped uplands) with
+two-scale vegetation-patch mottling fading out by ~260 m,
+field patchwork, instanced woodland (2-4 render-only
 neighbours per collidable tree, corridor exclusion |z|<90 matches the world,
 water-rejected via waterH), billboard cumulus, dynamic shadow frustum
 following the CG. The aircraft
@@ -441,9 +444,11 @@ W6. **Domain growth 9→24 km** — DONE 2026-08-04: bounds ±12000, belt
 W7. **Domain warp** — DONE 2026-08-04: IQ warp + 5th octave + warped
     continental masks (see WORLD). First home-h0 change; full re-golden
     incl. meadow hash; DC-3 clearance re-verified by trace. Road-grading
-    targets re-subdivided ≤50 m for the rougher ground. Next on this
-    branch: stage 4 aerodromes-per-settlement, stage 5 cliffs/scree
-    sharpening, terrain COLOUR pass (uplands read dry/sandy), or
+    targets re-subdivided ≤50 m for the rougher ground.
+W8. **Terrain colour pass** — DONE 2026-08-04: renderer-only (no world
+    data change, no re-golden) — upland palette + vegetation mottling
+    (see GRAPHICS). Next on this branch: stage 4
+    aerodromes-per-settlement, stage 5 cliffs/scree sharpening, or
     AP-reads-aerodromes.
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
