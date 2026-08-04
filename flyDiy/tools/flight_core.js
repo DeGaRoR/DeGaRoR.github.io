@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 9fc1bf25effebeea
+// body-sha256: dd22f143c1599aff
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1384,7 +1384,8 @@ function makeWorld(seed) {
   // meadows is filled from h0 below.
   const aerodromes = [
     { id: 'HOME', name: 'Home Strip', kind: 'main', x: -520, z: 0, hdg: Math.PI,
-      len: 1100, wid: 30, surface: SURFACE.GRASS, elev: 0, tdz: [-450, 0] },
+      len: 1100, wid: 30, surface: SURFACE.GRASS, elev: 0, tdz: [-450, 0],
+      spawn: [0, 0] },   // the def-geometry rest position — W10 spawn identity
     { id: 'M1', name: 'Meadow 1', kind: 'meadow', x: -2200, z: -1500, r: 230,
       hdg: 0, len: 460, wid: 460, surface: SURFACE.GRASS, elev: 0, tdz: [-2200, -1500] },
     { id: 'M2', name: 'Meadow 2', kind: 'meadow', x: 1800, z: 1500, r: 260,
@@ -2548,9 +2549,16 @@ function bakeAerodromes(D) {
     const feather = 90 + len * 0.1;
     const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * wid / 2 + feather;
     const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * wid / 2 + feather;
+    // tdz on the APPROACH side: threshold + 25% (landing dir = -takeoffDir,
+    // so the threshold is the +takeoffDir end). The W9 formula had it on
+    // the rollout end — frame math was self-consistent so landings "worked",
+    // but rollouts ran ~len/2 past the DRAWN strip (XCTY2 measured it).
+    // spawn: the takeoff-run start, 35 m in from the rollout end.
+    const tdzx = cx + dx * len * 0.25, tdzz = cz + dz * len * 0.25;
     strips.push({
       id: 'A' + strips.length, name, kind, x: cx, z: cz, hdg, len, wid,
-      surface: surf, elev, tdz: [cx - dx * len * 0.25, cz - dz * len * 0.25],
+      surface: surf, elev, tdz: [tdzx, tdzz],
+      spawn: [cx - dx * (len / 2 - 35), cz - dz * (len / 2 - 35)],
       flyIn: !!flyIn,
       dx, dz, feather, bx0: cx - ex, bx1: cx + ex, bz0: cz - ez, bz1: cz + ez,
     });
@@ -3095,6 +3103,24 @@ function makeSim(def, world) {
 // Conventions: de>0 nose-up, da>0 roll-right, dr>0 nose-left,
 // e>0 = nose left of target.
 // ============================================================
+// W10 spawn-at-aerodrome: after sim.reset(0), rotate the def geometry
+// from its built-in -x nose heading onto the strip's takeoff heading
+// (theta = pi - hdg) and translate to the record's spawn point at strip
+// elevation. HOME (hdg pi, spawn [0,0], elev 0) is a BIT-EXACT no-op,
+// so calling this unconditionally changes nothing for the home battery.
+function placeAtAerodrome(sim, a) {
+  const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
+  const th = Math.PI - a.hdg;
+  const c = snap(Math.cos(th)), s = snap(Math.sin(th));
+  const sp = a.spawn || [0, 0];
+  for (let i = 0; i < sim.n; i++) {
+    const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
+    sim.p[i * 3] = x * c + z * s + sp[0];
+    sim.p[i * 3 + 2] = -x * s + z * c + sp[1];
+    sim.p[i * 3 + 1] += a.elev;
+  }
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
@@ -3652,4 +3678,4 @@ if (typeof module !== 'undefined')
   module.exports = { decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas,
                      applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };
 if (typeof module !== 'undefined')
-  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };
+  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };

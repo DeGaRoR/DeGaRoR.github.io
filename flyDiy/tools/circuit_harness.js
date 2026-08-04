@@ -2,7 +2,7 @@
 // Every formula here is transcribed verbatim from the pre-dedup gates;
 // the metric-identity rule applies: numbers printed by a gate before and
 // after adopting this harness must match at printed precision.
-const { makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const { makeSim, makeAutopilot, placeAtAerodrome, makeWorld } = require('./flight_core.js');
 
 // Standard per-step pipeline:
 //   ap.update -> sim.step -> strain split (gear/chassis) -> NaN abort ->
@@ -26,6 +26,18 @@ function runCircuit(cfg) {
   const def = build();
   const sim = makeSim(def, world);
   sim.reset(0);
+  // cfg.from: spawn at that aerodrome (id or name) instead of HOME
+  const fromRec = cfg.from
+    ? world.aerodromes.find(a => a.id === cfg.from || a.name === cfg.from)
+    : world.aerodromes[0];
+  if (cfg.from) {
+    if (!fromRec) { console.log(`GATE ${id}: FAIL (unknown from ${cfg.from})`); process.exit(1); }
+    placeAtAerodrome(sim, fromRec);
+  }
+  // drift reference = the PLACED rest geometry (== def when spawning at
+  // HOME, so the classic gates are untouched): a remote spawn is a rigid
+  // transform the uprightness instrument must not read as a fall
+  const p0 = sim.p.slice();
   // mandatory asymmetric start: symmetric ICs mask directional instabilities
   for (let i = 0; i < sim.n; i++) { sim.p[i*3+2] += perturb.z; sim.v[i*3+2] += perturb.v * Math.sin(i * 2.7); }
   for (let s0 = 0; s0 < settleS * 60; s0++) sim.step(1/60);
@@ -34,17 +46,19 @@ function runCircuit(cfg) {
   // (chinook 2026-08: fin drifted 1.5 m with all structural strains <0.8% —
   // a latch mechanism no strain gate could see).
   let meanDz = 0;
-  for (let i = 0; i < sim.n; i++) meanDz += sim.p[i*3+2] - def.nodes[i].p[2];
+  for (let i = 0; i < sim.n; i++) meanDz += sim.p[i*3+2] - p0[i*3+2];
   meanDz /= sim.n;
   let zDrift = 0;
   for (let i = 0; i < sim.n; i++)
-    zDrift = Math.max(zDrift, Math.abs(sim.p[i*3+2] - def.nodes[i].p[2] - meanDz));
+    zDrift = Math.max(zDrift, Math.abs(sim.p[i*3+2] - p0[i*3+2] - meanDz));
   const ap = makeAutopilot(sim, def, world);
-  // cfg.dest: fly HOME -> that aerodrome (id or name) instead of a circuit
-  if (cfg.dest) {
-    const to = world.aerodromes.find(a => a.id === cfg.dest || a.name === cfg.dest);
+  // cfg.dest: fly cfg.from (default HOME) -> that aerodrome (id or name)
+  if (cfg.dest || cfg.from) {
+    const to = cfg.dest
+      ? world.aerodromes.find(a => a.id === cfg.dest || a.name === cfg.dest)
+      : fromRec;
     if (!to) { console.log(`GATE ${id}: FAIL (unknown dest ${cfg.dest})`); process.exit(1); }
-    ap.setRoute(world.aerodromes[0], to);
+    ap.setRoute(fromRec, to);
   }
 
   const iW0 = def.nodes.findIndex(n => n.tag === tip.tag && Math.abs(n.p[2] - tip.midZ) < tip.tol && n.p[2] > 0);

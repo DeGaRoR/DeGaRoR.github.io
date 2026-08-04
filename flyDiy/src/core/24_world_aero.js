@@ -58,9 +58,16 @@ function bakeAerodromes(D) {
     const feather = 90 + len * 0.1;
     const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * wid / 2 + feather;
     const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * wid / 2 + feather;
+    // tdz on the APPROACH side: threshold + 25% (landing dir = -takeoffDir,
+    // so the threshold is the +takeoffDir end). The W9 formula had it on
+    // the rollout end — frame math was self-consistent so landings "worked",
+    // but rollouts ran ~len/2 past the DRAWN strip (XCTY2 measured it).
+    // spawn: the takeoff-run start, 35 m in from the rollout end.
+    const tdzx = cx + dx * len * 0.25, tdzz = cz + dz * len * 0.25;
     strips.push({
       id: 'A' + strips.length, name, kind, x: cx, z: cz, hdg, len, wid,
-      surface: surf, elev, tdz: [cx - dx * len * 0.25, cz - dz * len * 0.25],
+      surface: surf, elev, tdz: [tdzx, tdzz],
+      spawn: [cx - dx * (len / 2 - 35), cz - dz * (len / 2 - 35)],
       flyIn: !!flyIn,
       dx, dz, feather, bx0: cx - ex, bx1: cx + ex, bz0: cz - ez, bz1: cz + ez,
     });

@@ -13,6 +13,24 @@
 // Conventions: de>0 nose-up, da>0 roll-right, dr>0 nose-left,
 // e>0 = nose left of target.
 // ============================================================
+// W10 spawn-at-aerodrome: after sim.reset(0), rotate the def geometry
+// from its built-in -x nose heading onto the strip's takeoff heading
+// (theta = pi - hdg) and translate to the record's spawn point at strip
+// elevation. HOME (hdg pi, spawn [0,0], elev 0) is a BIT-EXACT no-op,
+// so calling this unconditionally changes nothing for the home battery.
+function placeAtAerodrome(sim, a) {
+  const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
+  const th = Math.PI - a.hdg;
+  const c = snap(Math.cos(th)), s = snap(Math.sin(th));
+  const sp = a.spawn || [0, 0];
+  for (let i = 0; i < sim.n; i++) {
+    const x = sim.p[i * 3], z = sim.p[i * 3 + 2];
+    sim.p[i * 3] = x * c + z * s + sp[0];
+    sim.p[i * 3 + 2] = -x * s + z * c + sp[1];
+    sim.p[i * 3 + 1] += a.elev;
+  }
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;

@@ -168,12 +168,14 @@
     skinMode = (skinMode + 1) % 3; applySkinVis();
   };
 
-  // ---- W10 route: fly the circuit, or cross-country to any aerodrome ----
-  let destId = 'HOME';
+  // ---- W10 route: spawn at any aerodrome (default the home base), fly
+  // a circuit there or cross-country to any other strip ----
+  let fromId = 'HOME', destId = 'CIRCUIT';
+  const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   function applyRoute() {
-    const home = world.aerodromes[0];
-    const to = world.aerodromes.find(a => a.id === destId) || home;
-    ap.setRoute(home, to);
+    placeAtAerodrome(sim, aeroById(fromId));   // HOME is a bit-exact no-op
+    const to = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
+    ap.setRoute(aeroById(fromId), to);
   }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
@@ -382,19 +384,23 @@
   }
   $('bReset').onclick = fullReset;
   $('selAc').onchange = e => { setAircraft(e.target.value); fullReset(); hud(); };
-  { // destination select: circuit at home, or cross-country to any strip
-    const sel = $('selDest');
-    const opt = (v, label) => {
-      const o = document.createElement('option');
-      o.value = v; o.textContent = label; sel.appendChild(o);
+  { // departure + destination selects: spawn anywhere, fly circuit or leg
+    const fill = (sel, first, firstLabel, skipId) => {
+      sel.innerHTML = '';
+      const opt = (v, label) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = label; sel.appendChild(o);
+      };
+      if (first) opt(first, firstLabel);
+      for (const a of world.aerodromes) {
+        if (a.kind === 'meadow' || a.id === skipId) continue;
+        opt(a.id, `${a.name}${a.flyIn ? ' (fly-in)' : ''}`);
+      }
     };
-    opt('HOME', 'Circuit — Home Strip');
-    for (const a of world.aerodromes) {
-      if (a.kind === 'meadow' || a.id === 'HOME') continue;
-      const km = (Math.hypot(a.x + 520, a.z) / 1000).toFixed(1);
-      opt(a.id, `→ ${a.name} (${km} km${a.flyIn ? ', fly-in' : ''})`);
-    }
-    sel.onchange = e => { destId = e.target.value; fullReset(); };
+    fill($('selFrom'), null, null, null);
+    fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
+    $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
+    $('selDest').onchange = e => { destId = e.target.value; fullReset(); };
   }
   $('bPause').onclick = e => {
     running = !running;

@@ -488,16 +488,27 @@ W9. **Stage 4 aerodromes** — DONE 2026-08-04: 24_world_aero.js (see
     WORLD), GATE AERO, strip decals + windsocks, town pops rank-spread
     (stage-3 saturation fix). GRID+TREES re-goldened; meadows/anchors
     held. THE WORLD-GEN-PROC PIPELINE IS COMPLETE THROUGH STAGE 4.
+W11. **Spawn-at-aerodrome** — DONE 2026-08-04: aerodrome records carry a
+    `spawn` point (takeoff-run start); `placeAtAerodrome(sim, a)` in
+    40_autopilot.js rotates the def geometry onto the strip heading
+    (theta = pi - hdg; HOME is a BIT-EXACT no-op) and translates to
+    spawn at strip elevation. Viewer: departure select (default Home) +
+    destination select (default circuit-at-departure) — legs chain by
+    picking your landing field as the next departure. Harness cfg.from;
+    GATE XCTY3 (Cub Morford -> HOME return leg, lands in the standard
+    HOME windows). Harness uprightness drift now references the PLACED
+    rest geometry (a 6.5 km rigid spawn shift is not a fall); note the
+    instrument measures WORLD-z drift, least sensitive for strips
+    heading near ±z. W9 strip tdz moved to the APPROACH side (threshold
+    +25% — the old rollout-end tdz made XCTY2 roll ~len/2 past the
+    drawn strip; frame math was self-consistent so nothing else moved).
 W10. **AP-reads-aerodromes (contract rule 6)** — DONE 2026-08-04: runway
     frames in 40_autopilot.js (see AUTOPILOT RULES), ENROUTE phase with
     approach-fix guidance + terrain-aware altitude, destination select
     in the viewer, GATES XCTY (Cub -> Morford paved) + XCTY2 (C172 ->
     Holtorham: over the belt, from abeam, onto 650 m grass — the route
     that broke four ways in development). W.aerodromes is now
-    AUTHORITATIVE for arrivals; departure spawn is still HOME only
-    (spawn-at-aerodrome = follow-up session). Next: spawn-at-aerodrome
-    (chain legs town to town), stage 5 cliffs/scree, manual controls
-    (holdWas bug first), or the renderer overhaul backlog.
+    AUTHORITATIVE for arrivals AND departures (see W11).
 
 0. **Flexbody port** — DONE 2026-08-03 (graphics-branch chantier). The web
    team's flexbody branch (a fork of the initial commit) cherry-picked onto
