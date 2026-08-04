@@ -366,6 +366,12 @@ export default {
           plan = morphogenesis(genome);
           sim = createSimulation(RAPIER, plan, genome, W1_SLICE, {
             arena, wrap: false, origin: spawnRing(use.length, i),
+            // GHOSTS. This screen measures foraging, and foraging does not need
+            // creatures to bump into each other — they compete for the FOOD, which
+            // is shared and finite, and that is the rivalry that matters here.
+            // Contact is also the trigger for the solver tear-apart, so removing
+            // it removes a failure mode rather than raising the bar against it.
+            creatureCollision: false, collisionGroup: i,
           });
         } catch {
           return;                       // a body that will not build is a verdict
@@ -459,6 +465,7 @@ export default {
       elapsed = 0;
       picked = -1;
       selected.clear();
+      panOffset.set(0, 0, 0);
       placeCamera();
       applyLayers();     // a respawn rebuilds `points` and every trail from scratch
       // In the ocean the atmosphere has no box to fill, so it is sized generously
@@ -783,12 +790,19 @@ export default {
       return { x: v.reduce((s, p) => s + p.x, 0) / v.length, y: v.reduce((s, p) => s + p.y, 0) / v.length };
     };
     const panBy = (dx, dy) => {
-      if (habitat === 'ocean') return;      // followCast owns the centre
+      // PANNING WORKS IN BOTH HABITATS. It was disabled in the ocean on the theory
+      // that a pan offset and a follow target would fight every frame. They do not
+      // — they only fight if the pan writes to the same vector the follow writes
+      // to. Keeping the manual displacement in its OWN vector and adding it to the
+      // follow target lets you look around while still being carried along, which
+      // is what a camera following a fish should do. Taking panning away was the
+      // wrong fix for a problem that did not need one.
       invalidate();
       const scale = orbit.dist * 0.0022;
       const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
       const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
-      pan.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
+      const target = habitat === 'ocean' ? panOffset : pan;
+      target.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
     };
 
     /**
@@ -811,6 +825,8 @@ export default {
      * not change behaviour with frame rate.
      */
     const followTarget = new THREE.Vector3();
+    /** Manual displacement from the follow target. Ocean only; reset on respawn. */
+    const panOffset = new THREE.Vector3();
     function followCast(dt) {
       if (habitat !== 'ocean' || !cast.length) return;
       const sel = [...selected].filter((k) => cast[k]);
@@ -818,6 +834,7 @@ export default {
       followTarget.set(0, 0, 0);
       for (const c of src) followTarget.add(c.world);
       followTarget.multiplyScalar(1 / src.length);
+      followTarget.add(panOffset);
       pan.lerp(followTarget, Math.min(1, 1 - Math.exp(-2.5 * dt)));
       // The motes are a fixed cloud in world space; without this the player swims
       // out of the weather and the open ocean goes visibly sterile.

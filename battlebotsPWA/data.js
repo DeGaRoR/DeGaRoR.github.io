@@ -78,6 +78,10 @@ const STRINGS = {
     championMsg:"RUSTY a tout gagné avec son vieux châssis. Le garage complet ouvre bientôt (slice 3) : nouveaux châssis, bots custom.",
     // slice 2
     garage:"Garage", buy:"Acheter", maxed:"MAX", noBolts:"Pas assez d’argent !",
+    // E11 — pièces individuelles : inventaire actionnable, revente, stepper sans achat
+    mount:"Monter", sellFor:"Revendre {c} €", soldToast:"{name} revendu·e · +{c} €",
+    noFreeCopy:"Aucun exemplaire libre de {name} — achète-en un à la boutique.",
+    boughtToInv:"{name} ajouté·e à l’inventaire",
     upMotor:"Moteurs", upBattery:"Batterie", upTires:"Pneus", upPlow:"Lame avant",
     fxMotor:"+15 % Poussée, +7 % Vitesse", fxBattery:"+20 % Énergie",
     fxTires:"+10 % Traction & ancrage", fxPlow:"+0,3 Prise",
@@ -168,6 +172,10 @@ const STRINGS = {
     championMsg:"RUSTY won it all with his old chassis. The full garage opens soon (slice 3): new chassis, custom bots.",
     // slice 2
     garage:"Garage", buy:"Buy", maxed:"MAX", noBolts:"Not enough money!",
+    // E11 — individual pieces: actionable inventory, sell-back, no-buy stepper
+    mount:"Mount", sellFor:"Sell {c} €", soldToast:"{name} sold · +{c} €",
+    noFreeCopy:"No free copy of {name} — buy one in the shop.",
+    boughtToInv:"{name} added to inventory",
     upMotor:"Motors", upBattery:"Battery", upTires:"Tires", upPlow:"Front plow",
     fxMotor:"+15% Push, +7% Speed", fxBattery:"+20% Energy",
     fxTires:"+10% Traction & anchor", fxPlow:"+0.3 Leverage",

@@ -505,6 +505,13 @@ img{max-width:100%;display:block;}
 .rc-buy:active{transform:translateY(1px);}
 .rc-buy:disabled{background:#1e1218;color:var(--rc-muted);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);cursor:default;}
 .rc-buy.is-max{background:#161c14;color:#8fdcae;box-shadow:inset 0 0 0 1px rgba(63,224,137,.4);}
+/* E11 — pièces individuelles : action secondaire (Équiper/Monter), badge d'état, revente */
+.rc-buy--equip{background:#1a2030;color:var(--rc-ink);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);}
+.rc-gcard__status{font-family:var(--rc-f-ui);font-size:10px;color:#8fdcae;margin:2px 0 4px;}
+.rc-gcard .rc-buy + .rc-buy, .rc-gcard .rc-buy + .rc-toolbtn{margin-top:4px;}
+.rc-gcard .rc-buy{width:100%;}
+.rc-sell{width:100%;}
+.stepfree{font-family:var(--rc-f-ui);font-size:10px;color:var(--rc-muted);margin:0 2px;}
 /* horizontal card carousel (stickers / chassis) */
 .rc-carousel{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
 .rc-carousel::-webkit-scrollbar{display:none;}

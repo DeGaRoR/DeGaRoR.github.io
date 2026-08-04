@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070a10">
 <title>Cybernetic Experiments — degaror</title>
-<meta name="description" content="Four self-contained simulations about feedback, autonomy and emergence. Hand-built, vanilla JS, one at a time.">
+<meta name="description" content="Sandboxes about feedback, autonomy and emergence. Hand-built, vanilla JS, one at a time.">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="icon" href="../favicon.ico">
 
@@ -40,6 +40,9 @@
     min-height:100vh;
   }
 
+  /* the glyph sprite must stay in flow (not display:none) for <use> to resolve */
+  .sprite{ position:absolute; width:0; height:0; overflow:hidden; }
+
   .wrap{ max-width:1120px; margin:0 auto; padding:0 22px 72px; }
 
   /* ---------- header ---------- */
@@ -61,7 +64,7 @@
     text-transform:uppercase;
   }
   h1 .tint{
-    background:linear-gradient(90deg, #e0674f, #ffd36a 34%, #a784ff 70%, #6ee7c0);
+    background:linear-gradient(90deg, #e0674f, #ffd36a 26%, #c8cb4f 48%, #a784ff 74%, #6ee7c0);
     -webkit-background-clip:text; background-clip:text; color:transparent;
   }
   .tagline{ margin:18px 0 0; color:var(--ink-dim); font-size:15px; max-width:54ch; line-height:1.58; }
@@ -126,6 +129,11 @@
     color:var(--tint);
   }
   .glyph svg{ width:38px; height:38px; display:block; }
+  /* fallback when an entry has no glyph: monogram, same as the arcade index */
+  .glyph .initials{
+    font-family:var(--mono); font-weight:500; font-size:20px;
+    color:var(--tint); text-transform:uppercase;
+  }
 
   .no{
     font-family:var(--mono); font-size:10px; letter-spacing:.18em;
@@ -186,6 +194,7 @@
     color:var(--ink-faint); font-weight:500;
   }
   .colophon p{ margin:0; font-size:12.5px; line-height:1.6; color:var(--ink-dim); }
+  .colophon code{ font-family:var(--mono); font-size:11.5px; }
 
   footer{
     margin-top:44px;
@@ -203,135 +212,242 @@
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     GLYPH SPRITE — optional. One <symbol> per experiment.
+     An entry with no `glyph` just falls back to a monogram,
+     so you never have to draw anything to add a sim.
+     ============================================================ -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="g-machina" viewBox="0 0 40 40">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 14 L4 20 L8 26" opacity=".55"/>
+      <path d="M11 12 L5 20 L11 28" opacity=".8"/>
+      <circle cx="23" cy="20" r="8"/>
+      <path d="M31 20 h5"/>
+    </g>
+    <circle cx="23" cy="20" r="2.4" fill="currentColor"/>
+    <circle cx="23" cy="10.5" r="1.6" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="g-lumen" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="4.2" fill="currentColor" opacity=".9"/>
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M20 10 v-3.5 M20 33.5 v-3.5 M10 20 h-3.5 M33.5 20 h-3.5" opacity=".7"/>
+      <path d="M13 13 l-2.4-2.4 M29.4 29.4 l-2.4-2.4 M27 13 l2.4-2.4 M10.6 29.4 l2.4-2.4" opacity=".4"/>
+    </g>
+    <path d="M7.5 8.5 l4.5 2.6 l-4.5 2.6 z" fill="currentColor"/>
+    <path d="M32.5 31.5 l-4.5-2.6 l4.5-2.6 z" fill="currentColor"/>
+    <path d="M31 9 l-1.4 5 l-4.6-2.2 z" fill="currentColor" opacity=".6"/>
+  </symbol>
+
+  <symbol id="g-pulse" viewBox="0 0 40 40">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M20 20 C20 15 25 14 25 19 C25 26 17 27 15 20 C12.5 11 22 7 28 12"/>
+      <path d="M20 20 m-13 0 a13 13 0 0 1 5-10.3" opacity=".35"/>
+      <path d="M20 20 m13 0 a13 13 0 0 1-5.4 10.5" opacity=".35"/>
+    </g>
+    <circle cx="20" cy="20" r="1.8" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="g-trophic" viewBox="0 0 40 40">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="20" cy="20" r="14" opacity=".3"/>
+      <path d="M20 11.5 a8.5 8.5 0 0 1 7.4 12.7" opacity=".85"/>
+      <path d="M27.4 24.2 l.4-3.6 M27.4 24.2 l-3.4-1.2" opacity=".85"/>
+      <path d="M20 28.5 a8.5 8.5 0 0 1-7.4-12.7" opacity=".85"/>
+      <path d="M12.6 15.8 l-.4 3.6 M12.6 15.8 l3.4 1.2" opacity=".85"/>
+    </g>
+    <circle cx="20" cy="11.5" r="2.1" fill="currentColor"/>
+    <circle cx="20" cy="28.5" r="2.1" fill="currentColor" opacity=".55"/>
+  </symbol>
+
+  <symbol id="g-physarum" viewBox="0 0 40 40">
+    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <!-- the reference tree the slime is scored against -->
+      <path d="M11 13 L30 11" stroke-width="1" opacity=".28" stroke-dasharray="2.4 2.4"/>
+      <!-- reinforced trunk, then thinner branches, then a dying filament -->
+      <path d="M11 13 L20 21 L30 11" stroke-width="3.2"/>
+      <path d="M20 21 L17.5 30" stroke-width="2.3"/>
+      <path d="M17.5 30 L29.5 28.5" stroke-width="1.2" opacity=".5"/>
+    </g>
+    <g fill="currentColor">
+      <circle cx="11" cy="13" r="2.7"/>
+      <circle cx="30" cy="11" r="2.7"/>
+      <circle cx="17.5" cy="30" r="2.7"/>
+      <circle cx="29.5" cy="28.5" r="2.1" opacity=".5"/>
+    </g>
+  </symbol>
+</svg>
+
 <div class="wrap">
 
   <header>
     <p class="eyebrow"><a href="../index.html">degaror.github.io</a> / laboratory</p>
     <h1>Cybernetic <span class="tint">experiments</span></h1>
-    <p class="tagline">Four sandboxes about the same old question: how far can you get with feedback alone? No neural nets, no planners — sensors wired to motors, cells wired to neighbours, energy wired to appetite. Then you watch.</p>
+    <p class="tagline"><span id="count">Several</span> sandboxes about the same old question: how far can you get with feedback alone? No neural nets, no planners — sensors wired to motors, cells wired to neighbours, tubes wired to whatever is flowing through them. Then you watch.</p>
 
     <div class="rule">
       <span class="k">House&nbsp;rule</span>
-      <p>Each experiment is a full-screen canvas app that <b>takes over the page</b>. Opening one unloads this menu, so only a single simulation is ever running — nothing stacks up in the background, and phones stay cool. Use <b>Back</b> to return here.</p>
+      <p>Each experiment is a full-screen canvas app that <b>takes over the page</b>. Opening one unloads this menu, so only a single simulation is ever running — nothing stacks up in the background, and phones stay cool. Use <b>Back</b>, or the title in the corner, to return here.</p>
     </div>
   </header>
 
-  <div class="grid">
-
-    <!-- ============================ 01 ============================ -->
-    <a class="sim" style="--tint:#e0674f" href="machina-speculatrix.html">
-      <div class="sim-top">
-        <div class="glyph">
-          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 14 L4 20 L8 26" opacity=".55"/>
-            <path d="M11 12 L5 20 L11 28" opacity=".8"/>
-            <circle cx="23" cy="20" r="8"/>
-            <circle cx="23" cy="20" r="2.4" fill="currentColor" stroke="none"/>
-            <path d="M31 20 h5"/>
-            <circle cx="23" cy="10.5" r="1.6" fill="currentColor" stroke="none"/>
-          </svg>
-        </div>
-        <div>
-          <span class="no">EXP · 01</span>
-          <h2>Machina Speculatrix</h2>
-          <p class="sub">W. Grey Walter · 1948 · colony model</p>
-        </div>
-      </div>
-      <p class="desc">Grey Walter's light-seeking tortoises, rebuilt as a colony. Two photocells, two motors, crossed excitation — plus a lamp on the shell and a hutch to crawl home to when the battery dips. Because every machine carries a light, they end up dazzling each other, and the pack starts behaving like something it was never wired to be.</p>
-      <div class="tags"><span class="tag">phototaxis</span><span class="tag">battery</span><span class="tag">colony</span></div>
-      <div class="foot"><span class="go">Open</span><span class="file">machina-speculatrix.html</span></div>
-    </a>
-
-    <!-- ============================ 02 ============================ -->
-    <a class="sim" style="--tint:#ffd36a" href="lumen_society_optimized_v2.html">
-      <div class="sim-top">
-        <div class="glyph">
-          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="20" cy="20" r="4.2" fill="currentColor" stroke="none" opacity=".9"/>
-            <path d="M20 10 v-3.5 M20 33.5 v-3.5 M10 20 h-3.5 M33.5 20 h-3.5" opacity=".7"/>
-            <path d="M13 13 l-2.4-2.4 M29.4 29.4 l-2.4-2.4 M27 13 l2.4-2.4 M10.6 29.4 l2.4-2.4" opacity=".4"/>
-            <path d="M7.5 8.5 l4.5 2.6 l-4.5 2.6 z" fill="currentColor" stroke="none"/>
-            <path d="M32.5 31.5 l-4.5-2.6 l4.5-2.6 z" fill="currentColor" stroke="none"/>
-            <path d="M31 9 l-1.4 5 l-4.6-2.2 z" fill="currentColor" stroke="none" opacity=".6"/>
-          </svg>
-        </div>
-        <div>
-          <span class="no">EXP · 02</span>
-          <h2>Lumen Society</h2>
-          <p class="sub">social cybernetics sandbox</p>
-        </div>
-      </div>
-      <p class="desc">Braitenberg vehicles — sensor soldered straight to motor, no thinking in between — dropped into a shared arena of lights. Tap to plant a light, tap a vehicle to read its wiring, then change one rule: crossing, decay, population, variation. The society reorganises around it every time.</p>
-      <div class="tags"><span class="tag">braitenberg</span><span class="tag">scenes</span><span class="tag">inspector</span></div>
-      <div class="foot"><span class="go">Open</span><span class="file">lumen_society_optimized_v2.html</span></div>
-    </a>
-
-    <!-- ============================ 03 ============================ -->
-    <a class="sim" style="--tint:#a784ff" href="pulse_garden_chromatic_v2.html">
-      <div class="sim-top">
-        <div class="glyph">
-          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
-            <path d="M20 20 C20 15 25 14 25 19 C25 26 17 27 15 20 C12.5 11 22 7 28 12"/>
-            <path d="M20 20 m-13 0 a13 13 0 0 1 5-10.3" opacity=".35"/>
-            <path d="M20 20 m13 0 a13 13 0 0 1-5.4 10.5" opacity=".35"/>
-            <circle cx="20" cy="20" r="1.8" fill="currentColor" stroke="none"/>
-          </svg>
-        </div>
-        <div>
-          <span class="no">EXP · 03</span>
-          <h2>Pulse Garden</h2>
-          <p class="sub">excitable worlds laboratory</p>
-        </div>
-      </div>
-      <p class="desc">A field of cells with almost no intelligence at all: rest, fire, refract, rest. Draw a single pulse with your finger and watch fronts collide and annihilate, pacemakers compete for the tissue, and one broken wave curl into a spiral that looks disturbingly deliberate. Retune the timing and the whole topology reorganises.</p>
-      <div class="tags"><span class="tag">excitable medium</span><span class="tag">spirals</span><span class="tag">brush</span></div>
-      <div class="foot"><span class="go">Open</span><span class="file">pulse_garden_chromatic_v2.html</span></div>
-    </a>
-
-    <!-- ============================ 04 ============================ -->
-    <a class="sim" style="--tint:#6ee7c0" href="trophic_vessel_v3.html">
-      <div class="sim-top">
-        <div class="glyph">
-          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="20" cy="20" r="14" opacity=".3"/>
-            <path d="M20 11.5 a8.5 8.5 0 0 1 7.4 12.7" opacity=".85"/>
-            <path d="M27.4 24.2 l.4-3.6 M27.4 24.2 l-3.4-1.2" opacity=".85"/>
-            <path d="M20 28.5 a8.5 8.5 0 0 1-7.4-12.7" opacity=".85"/>
-            <path d="M12.6 15.8 l-.4 3.6 M12.6 15.8 l3.4 1.2" opacity=".85"/>
-            <circle cx="20" cy="11.5" r="2.1" fill="currentColor" stroke="none"/>
-            <circle cx="20" cy="28.5" r="2.1" fill="currentColor" stroke="none" opacity=".55"/>
-          </svg>
-        </div>
-        <div>
-          <span class="no">EXP · 04</span>
-          <h2>Trophic Vessel</h2>
-          <p class="sub">closed ecosystem · heritable behavior</p>
-        </div>
-      </div>
-      <p class="desc">A sealed jar: plants, prey, predators, detritus. Biomass is conserved and every transfer stays in the ledger — energy is the only thing allowed in and out. Behaviour is heritable, so tighten the season or make speed expensive and selection quietly rewrites the population while you watch the charts.</p>
-      <div class="tags"><span class="tag">closed loop</span><span class="tag">selection</span><span class="tag">charts</span></div>
-      <div class="foot"><span class="go">Open</span><span class="file">trophic_vessel_v3.html</span></div>
-    </a>
-
-  </div>
+  <div class="grid" id="grid"></div>
 
   <div class="colophon">
     <div>
       <h3>How to read them</h3>
-      <p>All four are laboratories, not games. There is no score and nothing to win — every one has a settings panel where a single parameter is worth changing at a time. Then leave it running for a minute.</p>
+      <p>All of these are laboratories, not games. There is no score and nothing to win — every one has a settings panel where a single parameter is worth changing at a time. Then leave it running for a minute.</p>
     </div>
     <div>
       <h3>On your phone</h3>
-      <p>Built portrait-first: everything is one-thumb reachable, canvases scale to the screen, and each sim has a pause button in the top bar. Pause before you go digging in the panel — it saves the battery.</p>
+      <p>Built portrait-first: everything is one-thumb reachable and canvases scale to the screen. Pause (or stop the run) before you go digging in a settings panel — it saves the battery.</p>
     </div>
     <div>
       <h3>Under the hood</h3>
-      <p>Vanilla JS, one self-contained HTML file each, no dependencies and nothing to install. Every simulation loop is <span style="font-family:var(--mono);font-size:11.5px">requestAnimationFrame</span>-driven, so a backgrounded tab does no work at all.</p>
+      <p>Vanilla JS, one self-contained HTML file each, no dependencies and nothing to install. Every simulation loop is <code>requestAnimationFrame</code>-driven, so a backgrounded tab does no work at all.</p>
     </div>
   </div>
 
   <footer><a href="../index.html">← degaror arcade</a> · fait main · liège</footer>
 
 </div>
+
+<script>
+/* ================================================================
+   ADD AN EXPERIMENT = COPY ONE ENTRY BELOW, CHANGE THE FIELDS.
+
+   Required:
+     title  card heading
+     sub    small mono line under the title
+     url    the html file, relative to this folder
+     desc   the paragraph
+     tags   list of little pills (keep to 2-4, they wrap)
+
+   Optional:
+     tint   accent colour. Left out => picked from PALETTE by position.
+     glyph  id of a <symbol> in the sprite up in the markup.
+            Left out => a monogram of the title is drawn instead,
+            so you never need to draw an icon to ship a new sim.
+
+   The EXP number and the count in the intro are derived from the
+   order of this list — nothing to renumber when you insert one.
+
+   NOTE ON PERFORMANCE: this script runs once and stops. It draws
+   static cards, nothing more. Do not be tempted to embed a live
+   preview here (iframe, mini-canvas, autoplaying anything) — every
+   sim is a full-screen render loop, and the whole point of this
+   page is that opening one unloads the others. One at a time.
+   ================================================================ */
+const SIMS = [
+  {
+    title: "Machina Speculatrix",
+    sub:   "W. Grey Walter · 1948 · colony model",
+    url:   "machina-speculatrix.html",
+    tint:  "#e0674f",
+    glyph: "g-machina",
+    desc:  `Grey Walter's light-seeking tortoises, rebuilt as a colony. Two photocells, two motors,
+            crossed excitation — plus a lamp on the shell and a hutch to crawl home to when the battery
+            dips. Because every machine carries a light, they end up dazzling each other, and the pack
+            starts behaving like something it was never wired to be.`,
+    tags:  ["phototaxis", "battery", "colony"],
+  },
+  {
+    title: "Lumen Society",
+    sub:   "social cybernetics sandbox",
+    url:   "lumen_society_optimized_v2.html",
+    tint:  "#ffd36a",
+    glyph: "g-lumen",
+    desc:  `Braitenberg vehicles — sensor soldered straight to motor, no thinking in between — dropped
+            into a shared arena of lights. Tap to plant a light, tap a vehicle to read its wiring, then
+            change one rule: crossing, decay, population, variation. The society reorganises around it
+            every time.`,
+    tags:  ["braitenberg", "scenes", "inspector"],
+  },
+  {
+    title: "Physarum Lab",
+    sub:   "slime mould transport networks",
+    url:   "physarum_lab_v3.html",
+    tint:  "#c8cb4f",
+    glyph: "g-physarum",
+    desc:  `Scatter oats on a plate, wall off some of it, and let a slime mould solve the routing problem.
+            Each demand takes the path of least resistance and thickens the tubes it uses; everything
+            unused quietly withers. The panel scores the result against a reference tree — cost ratio,
+            link efficiency, and whether the network survives having one tube cut.`,
+    tags:  ["transport net", "steiner ratio", "en français"],
+  },
+  {
+    title: "Pulse Garden",
+    sub:   "excitable worlds laboratory",
+    url:   "pulse_garden_chromatic_v2.html",
+    tint:  "#a784ff",
+    glyph: "g-pulse",
+    desc:  `A field of cells with almost no intelligence at all: rest, fire, refract, rest. Draw a single
+            pulse with your finger and watch fronts collide and annihilate, pacemakers compete for the
+            tissue, and one broken wave curl into a spiral that looks disturbingly deliberate. Retune the
+            timing and the whole topology reorganises.`,
+    tags:  ["excitable medium", "spirals", "brush"],
+  },
+  {
+    title: "Trophic Vessel",
+    sub:   "closed biomass · ecological turnover",
+    url:   "trophic_vessel_v3.html",
+    tint:  "#6ee7c0",
+    glyph: "g-trophic",
+    desc:  `A sealed jar: plants, prey, predators, detritus. Biomass is conserved and every transfer stays
+            in the ledger — energy is the only thing allowed in and out. Behaviour is heritable, so tighten
+            the season or make speed expensive and selection quietly rewrites the population while you
+            watch the charts.`,
+    tags:  ["closed loop", "selection", "charts"],
+  },
+];
+
+/* fallback accents, used in order for any entry without a `tint` */
+const PALETTE = ["#e0674f", "#ffd36a", "#c8cb4f", "#a784ff", "#6ee7c0", "#6ee7f2", "#ff7ab8", "#7aa2ff"];
+
+/* ---------- rendering (runs once, then this script is done) ---------- */
+
+const grid = document.getElementById("grid");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const tidy = s => String(s).replace(/\s+/g, " ").trim();
+
+/* monogram for entries with no glyph — same trick as the arcade index */
+const initials = t => {
+  const w = t.replace(/[^\p{L}\p{N} ]/gu, "").trim().split(/\s+/);
+  return w.length > 1 ? w[0][0] + w[1][0] : (w[0] || "?").slice(0, 2);
+};
+
+SIMS.forEach((sim, i) => {
+  const tint = sim.tint || PALETTE[i % PALETTE.length];
+  const no = String(i + 1).padStart(2, "0");
+
+  const mark = sim.glyph
+    ? `<svg aria-hidden="true" focusable="false"><use href="#${esc(sim.glyph)}"/></svg>`
+    : `<span class="initials">${esc(initials(sim.title))}</span>`;
+
+  const card = document.createElement("a");
+  card.className = "sim";
+  card.href = sim.url;
+  card.style.setProperty("--tint", tint);
+  card.innerHTML = `
+    <div class="sim-top">
+      <div class="glyph">${mark}</div>
+      <div>
+        <span class="no">EXP · ${no}</span>
+        <h2>${esc(sim.title)}</h2>
+        <p class="sub">${esc(sim.sub)}</p>
+      </div>
+    </div>
+    <p class="desc">${esc(tidy(sim.desc))}</p>
+    <div class="tags">${(sim.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+    <div class="foot"><span class="go">Open</span><span class="file">${esc(sim.url)}</span></div>`;
+  grid.appendChild(card);
+});
+
+/* keep the intro sentence honest without anyone having to edit it */
+const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+document.getElementById("count").textContent = WORDS[SIMS.length] || SIMS.length;
+</script>
 </body>
 </html>

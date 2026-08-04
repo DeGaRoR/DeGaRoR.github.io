@@ -84,12 +84,20 @@ safe("stacking placement", () => {
   }
   check("×2 de chaque slot empilable, sur chaque châssis", bad.length === 0, bad.join(" ") || "—");
 
-  // the cap must be a real cap, not an infinite loop or a silent overflow
-  const capped = w.eval(`(()=>{ S.bolts = 1e9; for(let i=0;i<40;i++) setCount("motor", +1); return AB().counts.motor; })()`);
-  check("empilement plafonné par la place", capped > 1 && capped < 40, "n=" + capped);
+  // the cap must be a real cap, not an infinite loop or a silent overflow.
+  // E11 : le stepper n'achète plus — on frappe le stock nous-mêmes, bourse à
+  // zéro, pour prouver que le plafond vient de la PLACE et jamais du porte-
+  // monnaie (et qu'aucun centime n'est débité au montage).
+  const capped = w.eval(`(()=>{ S.bolts = 0;
+    for(let i=0;i<40;i++){ mintInstance("m0"); setCount("motor", +1); }
+    return { n: AB().counts.motor, bolts: S.bolts }; })()`);
+  check("empilement plafonné par la place", capped.n > 1 && capped.n < 40, "n=" + capped.n);
+  check("monter du stock possédé ne débite jamais", capped.bolts === 0, capped.bolts + " €");
   check("mise en page toujours valide après plafonnement",
         w.eval(`layoutValid({chassis:AB().chassis, parts:{...AB().equipped}, counts:{...AB().counts}}, AB().layout)`));
-  w.eval(`(()=>{ while((AB().counts.motor||1) > 1) setCount("motor", -1); })()`);
+  w.eval(`(()=>{ while((AB().counts.motor||1) > 1) setCount("motor", -1);
+    for (const u of freeUids("m0")) delete S.inv.items[u];    // E11 : purge le stock frappé (monde partagé)
+    recomputeOwned(); })()`);
 });
 
 // ---------------------------------------------------------- geometry integrity

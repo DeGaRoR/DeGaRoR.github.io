@@ -80,14 +80,59 @@ safe("E10 doublons payants", () => {
   check("E10: aucune pièce fonctionnelle à 0 € (masse>0 ⇒ prix>0)", zeros.length === 0, zeros.join(","));
   check("E10: slots optionnels intacts (les marqueurs d'absence restent gratuits)",
         w.eval("!!(OPTIONAL_SLOTS.armor && OPTIONAL_SLOTS.ballast && OPTIONAL_SLOTS.srimech)"));
-  // 2) empiler une pièce SANS copie libre = prix catalogue (fini le ×3 gratuit)
+  /* 2) E11 — le stepper MONTE, il n'achète JAMAIS (la boutique est le seul
+     lieu d'achat). Sans stock libre : refus sec, zéro débit, zéro frappe. */
   w.eval("S.bolts = 2000; saveState(); buyBot('boxy'); mintInstance('m0'); tryEquip('motor','m0')");
-  const b0 = w.eval("S.bolts");
-  w.eval("setCount('motor', +1)");
-  const paid = b0 - w.eval("S.bolts");
-  check("E10: +1 moteur de récup = prix catalogue, monté ×2",
-        paid === w.eval("ENGINE.partOf('motor','m0').cost") && paid > 0 && w.eval("AB().counts.motor") === 2,
-        paid + " € · ×" + w.eval("AB().counts.motor||1"));
+  const b0 = w.eval("S.bolts"), i0 = w.eval("invCount('m0')");
+  w.eval("setCount('motor', +1)");                                   // aucun m0 libre
+  check("E11: + sans stock libre = refus (zéro débit, zéro frappe, ×1)",
+        w.eval("S.bolts") === b0 && w.eval("invCount('m0')") === i0 && w.eval("AB().counts.motor") === undefined,
+        (b0 - w.eval("S.bolts")) + " € · ×" + w.eval("AB().counts.motor||1"));
+  w.eval("mintInstance('m0'); setCount('motor', +1)");               // une copie libre → montée
+  check("E11: + monte la copie LIBRE sans débiter",
+        w.eval("S.bolts") === b0 && w.eval("AB().counts.motor") === 2,
+        (b0 - w.eval("S.bolts")) + " € · ×" + w.eval("AB().counts.motor||1"));
+  // 2b) la boutique vend TOUJOURS : racheter un def déjà équipé débite plein
+  //     pot et range la copie à l'inventaire (le montage ne bouge pas).
+  w.eval("showTab('shop'); renderHome()");
+  const b2 = w.eval("S.bolts"), fit2 = w.eval("AB().fit.motor.length"), free2 = w.eval("freeUids('m0').length");
+  w.eval("$('garageRows').querySelector('[data-buy=\\'m0\\']').click()");
+  check("E11: doublon acheté en boutique = plein tarif, à l'inventaire",
+        b2 - w.eval("S.bolts") === w.eval("ENGINE.partOf('motor','m0').cost")
+        && w.eval("freeUids('m0').length") === free2 + 1
+        && w.eval("AB().fit.motor.length") === fit2,
+        (b2 - w.eval("S.bolts")) + " € · libres " + w.eval("freeUids('m0').length"));
+  const b3 = w.eval("S.bolts");
+  w.eval("$('garageRows').querySelector('[data-buy=\\'m1\\']').click()");
+  check("E11: premier exemplaire d'un autre def = auto-montage conservé",
+        w.eval("S.parts.equipped.motor") === "m1" && b3 - w.eval("S.bolts") === w.eval("ENGINE.partOf('motor','m1').cost"));
+  // 2c) revente : ~40 % du neuf, décotée usure ; l'instance disparaît.
+  const sell = w.eval(`(function(){
+    const uid = mintInstance('m2'); S.inv.items[uid].wear = 30; recomputeOwned();
+    const cost = ENGINE.partOf('motor','m2').cost;
+    const attendu = Math.max(1, Math.round(0.40*cost*(1-30*0.009)));
+    const b = S.bolts, ok = sellInstance(uid);
+    return { ok, credited: S.bolts-b, attendu, gone: !S.inv.items[uid],
+             prix: sellPriceOf('m2',30) };
+  })()`);
+  check("E11: revente = formule officielle, instance détruite, bourse créditée",
+        sell.ok === true && sell.credited === sell.attendu && sell.prix === sell.attendu && sell.gone === true,
+        JSON.stringify(sell));
+  check("E11: une pièce MONTÉE ne se revend pas",
+        w.eval("sellInstance(AB().fit.motor[0])") === false);
+  // 2d) zéro arbitrage : acheter d'occasion puis revendre perd toujours
+  //     (sauf égalité au plancher 1 € des pièces les moins chères).
+  const arb = w.eval(`(function(){ const out=[];
+    for (const sl in ENGINE.PARTS) for (const p of ENGINE.PARTS[sl]){
+      if (!(p.cost > 0)) continue;
+      for (const wr of [0,15,30,45,60,90]){
+        const used = Math.max(1, Math.round(p.cost*(1-wr*0.009)));
+        const sp = sellPriceOf(p.id, wr);
+        if (sp >= used && !(sp === 1 && used === 1)) out.push(p.id+"@"+wr);
+        if (wr === 0 && sp >= p.cost) out.push(p.id+"@neuf");
+      } }
+    return out; })()`);
+  check("E11: revente < occasion à toute usure (zéro arbitrage)", arb.length === 0, arb.join(","));
   // 3) la fiche est un PLAN : l'import se paie coque + pièces au neuf, refusé sans fonds
   const fiche = w.eval("JSON.stringify(exportBot())");
   const b1 = w.eval("S.bolts");

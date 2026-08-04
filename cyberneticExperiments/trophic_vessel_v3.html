@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
 <meta name="theme-color" content="#07100f" />
-<title>Trophic Vessel v2 — resilient closed ecosystem sandbox</title>
+<title>Trophic Vessel v4 — cycling closed ecosystem sandbox</title>
 <style>
 :root{
   --bg:#050a0a;--panel:rgba(10,19,19,.91);--panel2:rgba(16,29,28,.86);
@@ -40,17 +40,13 @@ button,input,select{font:inherit;color:inherit} button{cursor:pointer}
 .help{position:absolute;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 28px);overflow:auto;border:1px solid var(--line);border-radius:23px;background:rgba(8,17,16,.96);backdrop-filter:blur(24px);box-shadow:var(--shadow);padding:20px;display:none}.help.open{display:block;animation:pop .2s forwards}@keyframes pop{to{transform:translate(-50%,-50%) scale(1)}}.help h2{font-size:18px;margin:0 0 8px}.help h3{font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin:18px 0 7px}.help p,.help li{font-size:10.5px;line-height:1.55;color:#afc3bd}.help ul{padding-left:17px}.help .closehelp{position:absolute;right:14px;top:14px;width:36px;height:36px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.04)}
 @media(max-width:760px){.hud .chip:nth-child(1){display:none}.chart-card{top:65px;height:100px;width:235px}.tool b{display:none}.tool{padding:0;min-width:42px}.brand small{display:none}.brand{padding-right:9px}.brand strong{font-size:10px}.panel{top:60px}.scenario-grid{grid-template-columns:1fr}.bottom{gap:5px}.speed button{min-width:36px}}
 @media(max-width:440px){.chart-card{width:200px;height:92px}.hud{display:none}.brand{max-width:168px}.top-actions{gap:5px}.iconbtn{width:41px;height:41px}.dock{gap:2px;padding:5px}.speed{padding:5px;gap:1px}.tool{min-width:39px;height:42px}.speed button{min-width:32px;height:42px}.bottom{left:6px;right:6px}.chart-head .legend{display:none}}
-
-/* back to the experiments hub */
-.backchev{font-size:19px;line-height:1;opacity:.4;margin:0 -2px 0 1px;transition:opacity .15s}
-a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="world"></canvas>
   <div class="topbar">
-    <a class="brand" href="index.html" title="Back to the experiments" style="text-decoration:none;color:inherit"><span class="backchev">‹</span><div class="mark"></div><div><strong>Trophic Vessel</strong><small>closed ecosystem · heritable behavior</small></div></a>
+    <div class="brand"><div class="mark"></div><div><strong>Trophic Vessel</strong><small>closed biomass · ecological turnover</small></div></div>
     <div class="hud">
       <div class="chip"><i style="color:var(--nut);background:var(--nut)"></i><div><span>Model day</span><b id="dayHud">0.0</b></div></div>
       <div class="chip mass good" id="massChip"><i style="color:var(--food);background:var(--food)"></i><div><span>Mass error</span><b id="massHud">0.00%</b></div></div>
@@ -62,7 +58,7 @@ a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
   </div>
 
   <div class="chart-card" id="chartCard">
-    <div class="chart-head"><strong>Live trends · separate scales</strong><div class="legend"><span class="f">plant</span><span class="p">prey</span><span class="r">predators</span></div></div>
+    <div class="chart-head"><strong>Live trends · separate scales</strong><div class="legend"><span class="f">shoots</span><span class="p">prey</span><span class="r">predators</span></div></div>
     <canvas id="chart"></canvas>
   </div>
 
@@ -102,7 +98,7 @@ a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
 
       <section class="section"><h3 class="section-title">Biomass ledger</h3><div class="ledger" id="ledger"></div></section>
       <section class="section"><h3 class="section-title">Selection</h3><div class="inspect empty" id="inspectBox">Tap a prey, predator, food patch, or detritus particle to inspect it.</div></section>
-      <section class="section"><h3 class="section-title">Interpretation</h3><p class="note">The vessel conserves modeled biomass, not energy. The trend lines use separate vertical scales and therefore are not a mass-balance plot. The ledger includes dissolved nutrient, edible shoots, protected roots, dormant seeds, consumers, and detritus.</p></section>
+      <section class="section"><h3 class="section-title">Interpretation</h3><p class="note">The vessel conserves modeled biomass, not energy. The green trend now shows edible shoots—not total plant reserves—because roots and seeds are unavailable to grazers. The lines still use separate vertical scales and are not a mass-balance plot; use the ledger and the thin mass-partition strip for accounting.</p></section>
     </div>
   </aside>
 
@@ -111,9 +107,9 @@ a.brand:hover .backchev,a.brand:active .backchev{opacity:.95}
     <h2>What this model actually claims</h2>
     <p>This is a transparent individual-based trophic model, not a calibrated reconstruction of a particular ecosystem. Its rigor comes from explicit assumptions, a fixed integration step, local sensing, heritable traits, and exact transfer accounting.</p>
     <h3>Closed biomass, open energy</h3>
-    <ul><li>Plants transfer nutrient into shoots and protected root reserves, powered by external sunlight.</li><li>Mature plants transfer some shoot mass into an explicit dormant seed bank; sparse vegetation recruits faster from that bank.</li><li>Unassimilated food and corpses become detritus. Respiration and decomposition return mass to nutrient.</li><li>Birth splits parental body mass. No plant, prey, or predator is created for free.</li></ul>
+    <ul><li>Plants transfer mineral nutrient into edible shoots and bounded root reserves, powered by external sunlight.</li><li>Defoliated plants can remobilize roots into shoots. Roots turn over into litter, and dormant seeds slowly die back into nutrient, so protected plant compartments cannot become permanent mass sinks.</li><li>Mature plants transfer some shoot mass into an explicit seed bank only when recruitment space and seed-bank capacity exist.</li><li>Unassimilated food and corpses become detritus. Respiration and decomposition return mass to nutrient.</li><li>Birth splits parental body mass. No plant, prey, or predator is created for free.</li></ul>
     <h3>Evolution</h3>
-    <p>Prey inherit speed, sensing range, fear, and metabolic economy. Predators inherit speed, sensing range, pursuit drive, and metabolic economy. Mutations are bounded multiplicative perturbations. Faster motion improves encounters or escape but increases locomotion cost. Predation uses handling time and a low-density refuge response, so predators become inefficient when prey are rare instead of deterministically erasing the last survivors. Hunger raises pursuit effort and capture probability, while well-fed predators rest and accumulate reproductive readiness; assimilation itself remains constant.</p>
+    <p>Prey inherit speed, sensing range, fear, and metabolic economy. Predators inherit speed, sensing range, pursuit drive, and metabolic economy. Mutations are bounded multiplicative perturbations. Faster motion improves encounters or escape but increases locomotion cost. Predation uses handling time and a low-density refuge response. Sparse prey also experience less effective panic pressure because they are assumed to occupy cover; this prevents a few starving predators from keeping the final prey in permanent flight. Both trophic levels reproduce from sustained body condition rather than one lucky meal.</p>
     <h3>Controls</h3>
     <p>Choose a tool and tap the arena. New organisms are assembled from the existing nutrient pool; recycling returns all of their modeled biomass. The thin strip at the bottom of the trend chart shows the current mass partition. At 4×, one real second advances roughly four model days.</p>
   </div>
@@ -126,7 +122,7 @@ const canvas=document.getElementById('world'), ctx=canvas.getContext('2d',{alpha
 const chart=document.getElementById('chart'), cctx=chart.getContext('2d');
 let W=innerWidth,H=innerHeight,DPR=1, running=false, speed=1, tool='inspect', selected=null;
 let simDay=0, accumulator=0, lastTime=performance.now(), historyTimer=0, hudTimer=0, nextId=1;
-let foods=[],prey=[],preds=[],detritus=[],nutrient=0,seedBank=0,initialMass=0,history=[];
+let foods=[],prey=[],preds=[],detritus=[],nutrient=0,seedBank=0,plantLitterBuffer=0,initialMass=0,history=[];
 const caps={food:130,prey:180,pred:55,det:170};
 const P={sun:1,season:.18,decay:.18,mutation:.08,predAssim:.78,preyAssim:.68,foodGrowth:.21,seasonPeriod:48};
 const COLORS={food:'#8cf09a',root:'#4f9f68',seed:'#d9e58d',prey:'#72e3ef',pred:'#ff7d73',nut:'#e9cb71',det:'#b99765'};
@@ -157,25 +153,26 @@ function mutated(v,s,min,max){return clamp(v*Math.exp(randn()*s),min,max)}
 function preyTraits(base){base=base||{speed:30,turn:4.3,sense:125,fear:2.15,forage:1,metab:.020};const s=P.mutation;return {speed:mutated(base.speed,s,15,48),turn:mutated(base.turn,s,1.6,8),sense:mutated(base.sense,s,65,220),fear:mutated(base.fear,s,.5,4.2),forage:mutated(base.forage,s,.45,2.1),metab:mutated(base.metab,s*.65,.010,.042)}}
 function predTraits(base){base=base||{speed:40,turn:4.0,sense:195,hunt:1.35,metab:.0135};const s=P.mutation;return {speed:mutated(base.speed,s,18,56),turn:mutated(base.turn,s,1.3,7),sense:mutated(base.sense,s,80,270),hunt:mutated(base.hunt,s,.55,2.8),metab:mutated(base.metab,s*.65,.008,.03)}}
 function addFood(x,y,total=4.5,k=rand(10,15)){if(foods.length>=caps.food)return null;const root=total*.24,b=total-root;const o={type:'food',id:id(),x,y,b,root,k,growth:rand(.88,1.12),seed:rand(.006,.016),age:0,dead:false};foods.push(o);return o}
-function addPrey(x,y,b=4,traits=null,gen=0){if(prey.length>=caps.prey)return null;const t=traits?preyTraits(traits):preyTraits();const a={type:'prey',id:id(),x,y,ang:rand(TAU),b,age:0,gen,t,cool:rand(0,4),dead:false,wander:rand(TAU)};prey.push(a);return a}
+function addPrey(x,y,b=4,traits=null,gen=0){if(prey.length>=caps.prey)return null;const t=traits?preyTraits(traits):preyTraits();const a={type:'prey',id:id(),x,y,ang:rand(TAU),b,age:0,gen,t,cool:rand(0,4),reproCharge:0,dead:false,wander:rand(TAU)};prey.push(a);return a}
 function addPred(x,y,b=7.5,traits=null,gen=0){if(preds.length>=caps.pred)return null;const t=traits?predTraits(traits):predTraits();const a={type:'pred',id:id(),x,y,ang:rand(TAU),b,age:0,gen,t,cool:rand(0,6),feedCool:rand(0,.55),reproCharge:0,huntEffort:0,comfort:0,lastSuccess:0,dead:false,wander:rand(TAU)};preds.push(a);return a}
 function predComfort(a){return clamp((a.b-4.4)/4.2,0,1)}
 function addDet(x,y,b){if(b<=EPS)return;if(detritus.length<caps.det)detritus.push({type:'det',id:id(),x,y,b,ang:rand(TAU),dead:false});else nutrient+=b}
 function transferFromN(amount,fn){if(nutrient+EPS<amount){toast('Not enough free nutrient biomass');return null}nutrient-=amount;const o=fn();if(!o)nutrient+=amount;return o}
-function totalMass(){let s=nutrient+seedBank;for(const a of foods)s+=a.b+a.root;for(const a of prey)s+=a.b;for(const a of preds)s+=a.b;for(const a of detritus)s+=a.b;return s}
+function totalMass(){let s=nutrient+seedBank+plantLitterBuffer;for(const a of foods)s+=a.b+a.root;for(const a of prey)s+=a.b;for(const a of preds)s+=a.b;for(const a of detritus)s+=a.b;return s}
 function sum(arr,key='b'){let s=0;for(const x of arr)s+=x[key];return s}
 function avg(arr,fn){if(!arr.length)return 0;let s=0;for(const x of arr)s+=fn(x);return s/arr.length}
 function plantMass(){let s=seedBank;for(const f of foods)s+=f.b+f.root;return s}
 function rootMass(){let s=0;for(const f of foods)s+=f.root;return s}
+function detritusMass(){return sum(detritus)+plantLitterBuffer}
 
 const scenarios={
  balanced:{nut:520,food:48,prey:42,pred:4,sun:1,season:.18,decay:.18,mutation:.08,assim:.78},
- boom:{nut:540,food:58,prey:60,pred:2,sun:1.18,season:.08,decay:.2,mutation:.07,assim:.8},
+ boom:{nut:620,food:58,prey:60,pred:2,sun:1.18,season:.08,decay:.2,mutation:.07,assim:.8},
  scarcity:{nut:540,food:42,prey:34,pred:4,sun:.78,season:.68,decay:.13,mutation:.1,assim:.76},
  arms:{nut:540,food:52,prey:48,pred:5,sun:1.05,season:.15,decay:.2,mutation:.18,assim:.84}
 };
 function reset(name='balanced'){
- const s=scenarios[name]||scenarios.balanced;foods=[];prey=[];preds=[];detritus=[];history=[];simDay=0;historyTimer=0;selected=null;nextId=1;P.sun=s.sun;P.season=s.season;P.decay=s.decay;P.mutation=s.mutation;P.predAssim=s.assim;nutrient=s.nut;seedBank=Math.min(12,nutrient*.03);nutrient-=seedBank;
+ const s=scenarios[name]||scenarios.balanced;foods=[];prey=[];preds=[];detritus=[];history=[];plantLitterBuffer=0;simDay=0;historyTimer=0;selected=null;nextId=1;P.sun=s.sun;P.season=s.season;P.decay=s.decay;P.mutation=s.mutation;P.predAssim=s.assim;nutrient=s.nut;seedBank=Math.min(12,nutrient*.03);nutrient-=seedBank;
  const a=safeArea(),pad=28;for(let i=0;i<s.food;i++){const b=rand(3.2,6.4);nutrient-=b;addFood(rand(a.r-pad,a.l+pad),rand(a.b-pad,a.t+pad),b)}
  for(let i=0;i<s.prey;i++){const b=rand(3.5,4.6);nutrient-=b;const o=addPrey(rand(a.r-pad,a.l+pad),rand(a.b-pad,a.t+pad),b);if(o)o.age=rand(0,25)}
  for(let i=0;i<s.pred;i++){const b=rand(6.8,8.6);nutrient-=b;const o=addPred(rand(a.r-pad,a.l+pad),rand(a.b-pad,a.t+pad),b);if(o)o.age=rand(0,40)}
@@ -193,16 +190,55 @@ function moveAgent(a,desiredX,desiredY,dt,isPred,activity=1){
  const locomotion=(isPred?.0000105:.0000085)*moveSpeed*moveSpeed*a.b,basalFloor=isPred?.28:.22;const resp=Math.min(a.b*.24,(t.metab*a.b*(basalFloor+(1-basalFloor)*activity)+locomotion)*dt);a.b-=resp;nutrient+=resp;
 }
 function updateFood(dt){
- const sun=solarNow(),half=110;let seedInput=0;
+ const sun=solarNow(),half=110;let seedInput=0,rootLitter=0;
+ const openSites=clamp(1-foods.length/caps.food,0,1),seedCap=Math.max(8,initialMass*.035),bankSpace=clamp(1-seedBank/seedCap,0,1);
  for(const f of foods){
-   f.age+=dt;const limitation=nutrient/(nutrient+half),total=f.b+f.root,photosyntheticBase=f.b+.16*f.root+.07;
-   let grow=P.foodGrowth*1.12*sun*f.growth*photosyntheticBase*(1-total/f.k)*limitation*dt;grow=Math.max(0,Math.min(grow,nutrient));nutrient-=grow;
-   const rootNeed=Math.max(0,.24*f.k-f.root),toRoot=Math.min(grow,grow*(rootNeed>0?.34:.12));f.root+=toRoot;f.b+=grow-toRoot;
-   const resp=Math.min(total*.06,.0026*total*dt),rb=Math.min(f.root,resp*.28),sb=Math.min(f.b,resp-rb);f.root-=rb;f.b-=sb;nutrient+=rb+sb;
-   if(f.b>f.k*.55&&f.root>f.k*.12){const seed=Math.min(f.b*.015*dt*f.growth,.025*dt);f.b-=seed;seedInput+=seed}
+   f.age+=dt;
+   let total=f.b+f.root;
+
+   // Storage roots are reserves, not a one-way sink. Defoliated plants remobilize some
+   // protected biomass into edible shoots, while keeping a small survival reserve.
+   const reserveFloor=.075*f.k,shootTarget=.24*f.k;
+   if(f.b<shootTarget&&f.root>reserveFloor){
+     const mobilize=Math.min(f.root-reserveFloor,shootTarget-f.b,.10*f.root*dt);
+     f.root-=mobilize;f.b+=mobilize;
+   }
+
+   total=f.b+f.root;
+   const limitation=nutrient/(nutrient+half),photosyntheticBase=f.b+.16*f.root+.07;
+   let grow=P.foodGrowth*1.12*sun*f.growth*photosyntheticBase*(1-total/f.k)*limitation*dt;
+   grow=Math.max(0,Math.min(grow,nutrient));nutrient-=grow;
+
+   // Roots have a finite target. The old model kept allocating 12% of every regrowth
+   // pulse to roots even after that target, creating an irreversible grazing ratchet.
+   const rootTarget=.24*f.k,rootNeed=Math.max(0,rootTarget-f.root);
+   const toRoot=Math.min(rootNeed,grow*.34);f.root+=toRoot;f.b+=grow-toRoot;
+
+   // Separate maintenance and turnover keep protected tissue inside the cycle.
+   const shootResp=Math.min(f.b,.0027*f.b*dt),rootResp=Math.min(f.root,.0033*f.root*dt);
+   f.b-=shootResp;f.root-=rootResp;nutrient+=shootResp+rootResp;
+   const turnover=Math.min(f.root,.0014*f.root*dt);f.root-=turnover;rootLitter+=turnover;
+
+   // Seed production responds to recruitment opportunity and bank capacity. A full
+   // arena no longer pumps unlimited biomass into an inert seed vault.
+   if(f.b>f.k*.55&&f.root>f.k*.12&&bankSpace>0){
+     const opportunity=.12+.88*openSites;
+     const seed=Math.min(f.b*.012*dt*f.growth*opportunity*bankSpace,.018*dt);
+     f.b-=seed;seedInput+=seed;
+   }
    if(f.root<.035&&f.b<.02){nutrient+=f.root+f.b;f.root=0;f.b=0;f.dead=true}
  }
+ plantLitterBuffer+=rootLitter;
+ if(plantLitterBuffer>=.08){
+   const litter=Math.min(.24,plantLitterBuffer);plantLitterBuffer-=litter;
+   const src=foods.length?foods[(Math.random()*foods.length)|0]:null,a=safeArea();
+   addDet(src?src.x:rand(a.r,a.l),src?src.y:rand(a.b,a.t),litter);
+ }
  seedBank+=seedInput;foods=foods.filter(f=>!f.dead);
+
+ // Dormant seeds respire and die slowly; their mass returns to the mineral pool.
+ const seedLoss=Math.min(seedBank,.0045*seedBank*dt);seedBank-=seedLoss;nutrient+=seedLoss;
+ const seedCapNow=Math.max(8,initialMass*.035);if(seedBank>seedCapNow){const excess=seedBank-seedCapNow;seedBank=seedCapNow;nutrient+=excess}
  const scarcity=1-foods.length/caps.food;
  if(seedBank>.34&&scarcity>0&&Math.random()<Math.min(.9,(.035+.28*scarcity)*seedBank*dt)){
    const mass=Math.min(.55,seedBank);seedBank-=mass;const a=safeArea(),pad=20,child=addFood(rand(a.r-pad,a.l+pad),rand(a.b-pad,a.t+pad),mass,rand(9,16));if(!child)seedBank+=mass;
@@ -210,16 +246,26 @@ function updateFood(dt){
 }
 function updatePrey(dt){
  foodHash.build(foods);predHash.build(preds);preyHash.build(prey);
+ const edibleShootMass=sum(foods),coverExposure=.16+.84*clamp((prey.length-2)/14,0,1);
  for(const a of prey){if(a.dead)continue;a.age+=dt;a.cool-=dt;let fx=0,fy=0,px=0,py=0,sx=0,sy=0;
    for(const f of foodHash.query(a.x,a.y,a.t.sense,q)){const dx=f.x-a.x,dy=f.y-a.y,d=dx*dx+dy*dy+70,w=f.b/d;fx+=dx*w;fy+=dy*w}
-   for(const p of predHash.query(a.x,a.y,a.t.sense*1.12,q)){const dx=a.x-p.x,dy=a.y-p.y,d=dx*dx+dy*dy+50,w=p.b/d;px+=dx*w;py+=dy*w}
+   for(const p of predHash.query(a.x,a.y,a.t.sense*1.12,q)){const dx=a.x-p.x,dy=a.y-p.y,d=dx*dx+dy*dy+50,w=p.b/d;px+=dx*w*coverExposure;py+=dy*w*coverExposure}
    for(const n of preyHash.query(a.x,a.y,20,q)){if(n===a)continue;const dx=a.x-n.x,dy=a.y-n.y,d=dx*dx+dy*dy+8;sx+=dx/d;sy+=dy/d}
    const wall=steerWall(a),danger=Math.hypot(px,py),hunger=clamp((5-a.b)/2.5,0,1.4),dx=fx*a.t.forage*(.55+hunger)+px*a.t.fear*4.2+sx*5+wall.x*4,dy=fy*a.t.forage*(.55+hunger)+py*a.t.fear*4.2+sy*5+wall.y*4;
    moveAgent(a,dx,dy,dt,false,(Math.abs(fx)+Math.abs(fy)+danger>1e-5)?1:.42);
    let target=null,best=1e9;for(const f of foodHash.query(a.x,a.y,9+Math.sqrt(a.b)*1.6,q)){const d=dist2(a,f);if(d<best){best=d;target=f}}
-   if(target&&a.b<7.2){const bite=Math.min(target.b,(.65+.08*Math.sqrt(a.b))*dt);target.b-=bite;const gain=bite*P.preyAssim;a.b+=gain;addDet(a.x,a.y,bite-gain)}
-   if(a.age>8&&a.cool<=0&&a.b>6.25&&prey.length<caps.prey){const childMass=1.4;a.b-=childMass;const ang=rand(TAU),child=addPrey(a.x+Math.cos(ang)*8,a.y+Math.sin(ang)*8,childMass,a.t,a.gen+1);if(child){a.cool=rand(4.5,7);child.cool=rand(4,7)}else a.b+=childMass}
-   if(a.b<.58){a.dead=true;addDet(a.x,a.y,a.b);a.b=0;if(selected===a)selected=null}
+   if(target&&a.b<7.45){const bite=Math.min(target.b,(.67+.085*Math.sqrt(a.b))*dt);target.b-=bite;const gain=bite*P.preyAssim;a.b+=gain;addDet(a.x,a.y,bite-gain)}
+
+   // Reproduction responds to sustained body condition, not a single-frame threshold.
+   // Low-density populations recover faster because competition is weak and cover is abundant.
+   const condition=clamp((a.b-4.75)/1.35,0,1),rebound=1+.55*clamp((12-prey.length)/10,0,1);
+   a.reproCharge=clamp(a.reproCharge+condition*rebound*dt-Math.max(0,.22-condition)*.38*dt,0,3);
+   const support=edibleShootMass/Math.max(1,prey.length);
+   if(a.age>6&&a.cool<=0&&a.reproCharge>=1.15&&a.b>5.65&&support>.32&&prey.length<caps.prey){
+     const childMass=1.25;a.b-=childMass;const ang=rand(TAU),child=addPrey(a.x+Math.cos(ang)*8,a.y+Math.sin(ang)*8,childMass,a.t,a.gen+1);
+     if(child){a.cool=rand(4.2,6.5);child.cool=rand(3.5,6);a.reproCharge=.08;child.reproCharge=0}else a.b+=childMass;
+   }
+   if(a.b<.54){a.dead=true;addDet(a.x,a.y,a.b);a.b=0;if(selected===a)selected=null}
  }
  prey=prey.filter(a=>!a.dead);
 }
@@ -257,11 +303,11 @@ function updatePreds(dt){
 
    // Reproduction requires sustained surplus rather than one lucky meal. The readiness
    // variable is dimensionless physiological condition; birth still transfers real biomass.
-   const surplus=clamp((a.b-6.75)/1.65,0,1);
-   a.reproCharge=clamp(a.reproCharge+surplus*dt-Math.max(0,.35-surplus)*.55*dt,0,4);
-   if(a.age>10&&a.cool<=0&&a.reproCharge>=2.15&&a.b>8.05&&activePreyMass>preds.length*7.5&&preds.length<caps.pred){
-     const childMass=1.85;a.b-=childMass;const ang=rand(TAU),child=addPred(a.x+Math.cos(ang)*11,a.y+Math.sin(ang)*11,childMass,a.t,a.gen+1);
-     if(child){a.cool=rand(6,9);child.cool=rand(5,8);a.reproCharge=.15;child.reproCharge=0}else a.b+=childMass;
+   const surplus=clamp((a.b-6.55)/1.65,0,1),preyPerPred=activePreyMass/Math.max(1,preds.length),resource=clamp((preyPerPred-2.8)/7.2,0,1);
+   a.reproCharge=clamp(a.reproCharge+surplus*(.45+.85*resource)*dt-Math.max(0,.30-surplus)*.48*dt,0,4);
+   if(a.age>9&&a.cool<=0&&a.reproCharge>=1.75&&a.b>7.7&&resource>.10&&preds.length<caps.pred){
+     const childMass=1.7;a.b-=childMass;const ang=rand(TAU),child=addPred(a.x+Math.cos(ang)*11,a.y+Math.sin(ang)*11,childMass,a.t,a.gen+1);
+     if(child){a.cool=rand(5.5,8);child.cool=rand(4.5,7);a.reproCharge=.12;child.reproCharge=0}else a.b+=childMass;
    }
    if(a.b<1.3){a.dead=true;addDet(a.x,a.y,a.b);a.b=0;if(selected===a)selected=null}
  }
@@ -269,14 +315,14 @@ function updatePreds(dt){
 }
 function updateDet(dt){for(const d of detritus){const decay=Math.min(d.b,P.decay*d.b*dt);d.b-=decay;nutrient+=decay;d.x+=Math.cos(d.ang)*.4*dt;d.y+=Math.sin(d.ang)*.4*dt;if(d.b<.012){nutrient+=d.b;d.b=0;d.dead=true;if(selected===d)selected=null}}detritus=detritus.filter(d=>!d.dead)}
 function step(dt){simDay+=dt;updateFood(dt);updatePrey(dt);updatePreds(dt);updateDet(dt);historyTimer+=dt;hudTimer+=dt;if(historyTimer>=.75){historyTimer-=.75;recordHistory()}if(hudTimer>=.25){hudTimer=0;updateHUD()}}
-function recordHistory(){history.push({day:simDay,food:plantMass(),prey:prey.length,pred:preds.length,ps:avg(prey,a=>a.t.speed),pf:avg(prey,a=>a.t.fear),rs:avg(preds,a=>a.t.speed),rh:avg(preds,a=>a.t.hunt)});if(history.length>420)history.shift()}
+function recordHistory(){history.push({day:simDay,food:sum(foods),prey:prey.length,pred:preds.length,ps:avg(prey,a=>a.t.speed),pf:avg(prey,a=>a.t.fear),rs:avg(preds,a=>a.t.speed),rh:avg(preds,a=>a.t.hunt)});if(history.length>420)history.shift()}
 
 function drawBackground(){
  ctx.clearRect(0,0,W,H);const a=safeArea();ctx.save();ctx.strokeStyle='rgba(194,239,223,.045)';ctx.lineWidth=1;const gap=44;for(let x=(a.l%gap);x<a.r;x+=gap){ctx.beginPath();ctx.moveTo(x,a.t);ctx.lineTo(x,a.b);ctx.stroke()}for(let y=(a.t%gap);y<a.b;y+=gap){ctx.beginPath();ctx.moveTo(a.l,y);ctx.lineTo(a.r,y);ctx.stroke()}
  ctx.strokeStyle='rgba(217,255,241,.14)';ctx.lineWidth=1.3;ctx.strokeRect(a.l+.5,a.t+.5,a.r-a.l-1,a.b-a.t-1);
  const sun=solarNow(),alpha=.018+.018*sun;ctx.fillStyle=`rgba(140,240,154,${alpha})`;ctx.fillRect(a.l,a.t,a.r-a.l,a.b-a.t);ctx.restore();
 }
-function drawFood(f){const total=f.b+f.root,r=2.4+Math.sqrt(total)*2.05;ctx.save();ctx.translate(f.x,f.y);ctx.rotate((f.id*.83)%TAU);ctx.globalAlpha=.66+Math.min(.3,f.b/Math.max(total,.01)*.3);ctx.fillStyle=COLORS.root;ctx.beginPath();ctx.arc(0,0,r*.58,0,TAU);ctx.fill();ctx.fillStyle=COLORS.food;for(let i=0;i<4;i++){ctx.rotate(TAU/4);ctx.beginPath();ctx.ellipse(r*.43,0,r*.58,r*.24,0,0,TAU);ctx.fill()}ctx.fillStyle='rgba(239,255,225,.7)';ctx.beginPath();ctx.arc(0,0,1.1,0,TAU);ctx.fill();ctx.restore()}
+function drawFood(f){const leafR=2.1+Math.sqrt(Math.max(0,f.b))*2.05,rootR=1.8+Math.sqrt(Math.max(0,f.root))*1.25,total=f.b+f.root;ctx.save();ctx.translate(f.x,f.y);ctx.rotate((f.id*.83)%TAU);ctx.fillStyle=COLORS.root;ctx.globalAlpha=.48;ctx.beginPath();ctx.arc(0,0,rootR,0,TAU);ctx.fill();ctx.globalAlpha=.38+.58*clamp(f.b/Math.max(total,.01),0,1);ctx.fillStyle=COLORS.food;for(let i=0;i<4;i++){ctx.rotate(TAU/4);ctx.beginPath();ctx.ellipse(leafR*.43,0,leafR*.58,leafR*.24,0,0,TAU);ctx.fill()}ctx.globalAlpha=.72;ctx.fillStyle='rgba(239,255,225,.7)';ctx.beginPath();ctx.arc(0,0,1.1,0,TAU);ctx.fill();ctx.restore()}
 function drawPrey(a){const r=2.8+Math.sqrt(a.b)*1.25,hue=184+clamp((a.t.fear-2)*11,-16,18);ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.ang);ctx.fillStyle=`hsl(${hue} 78% 65%)`;ctx.shadowColor='rgba(114,227,239,.35)';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(r*1.45,0);ctx.quadraticCurveTo(-r*.2,r*.8,-r,0);ctx.quadraticCurveTo(-r*.2,-r*.8,r*1.45,0);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='rgba(3,17,18,.65)';ctx.beginPath();ctx.arc(r*.55,-r*.22,.65,0,TAU);ctx.fill();ctx.restore()}
 function drawPred(a){const r=3.8+Math.sqrt(a.b)*1.22,h=clamp((a.t.speed-35)/20,-1,1);ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.ang);ctx.fillStyle=`hsl(${5-h*7} 92% ${68-h*4}%)`;ctx.shadowColor='rgba(255,125,115,.35)';ctx.shadowBlur=7;ctx.beginPath();ctx.moveTo(r*1.25,0);ctx.lineTo(r*.12,r*.78);ctx.lineTo(-r*.82,r*.52);ctx.lineTo(-r*.45,0);ctx.lineTo(-r*.82,-r*.52);ctx.lineTo(r*.12,-r*.78);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='rgba(29,4,6,.72)';ctx.beginPath();ctx.arc(r*.48,-r*.24,.78,0,TAU);ctx.fill();ctx.restore()}
 function drawDet(d){const r=1+Math.sqrt(d.b)*1.15;ctx.fillStyle='rgba(185,151,101,.72)';ctx.beginPath();ctx.arc(d.x,d.y,r,0,TAU);ctx.fill()}
@@ -286,16 +332,16 @@ function drawChart(){const rect=chart.getBoundingClientRect(),w=rect.width,h=rec
  cctx.strokeStyle='rgba(255,255,255,.055)';cctx.lineWidth=1;for(let i=0;i<3;i++){const y=pad.t+ih*i/2;cctx.beginPath();cctx.moveTo(pad.l,y);cctx.lineTo(w-pad.r,y);cctx.stroke()}
  function line(key,max,color){cctx.strokeStyle=color;cctx.lineWidth=1.6;cctx.beginPath();history.forEach((d,i)=>{const x=pad.l+iw*i/(history.length-1),y=pad.t+ih*(1-d[key]/max);if(i)cctx.lineTo(x,y);else cctx.moveTo(x,y)});cctx.stroke()}
  line('food',maxFood,COLORS.food);line('prey',maxPrey,COLORS.prey);line('pred',maxPred,COLORS.pred);
- const pools=[[nutrient,COLORS.nut],[sum(foods),COLORS.food],[rootMass()+seedBank,COLORS.root],[sum(prey),COLORS.prey],[sum(preds),COLORS.pred],[sum(detritus),COLORS.det]],total=Math.max(totalMass(),EPS);let x=pad.l;for(const p of pools){const pw=iw*p[0]/total;cctx.fillStyle=p[1];cctx.fillRect(x,h-7,pw,4);x+=pw}
+ const pools=[[nutrient,COLORS.nut],[sum(foods),COLORS.food],[rootMass()+seedBank,COLORS.root],[sum(prey),COLORS.prey],[sum(preds),COLORS.pred],[detritusMass(),COLORS.det]],total=Math.max(totalMass(),EPS);let x=pad.l;for(const p of pools){const pw=iw*p[0]/total;cctx.fillStyle=p[1];cctx.fillRect(x,h-7,pw,4);x+=pw}
 }
 function animate(now){const real=Math.min(.12,(now-lastTime)/1000);lastTime=now;if(running){accumulator+=real*speed;let steps=0;while(accumulator>=1/30&&steps<7){step(1/30);accumulator-=1/30;steps++}if(steps===7)accumulator=0}render();requestAnimationFrame(animate)}
 
 function updateHUD(force=false){
  document.getElementById('dayHud').textContent=simDay.toFixed(1);const cur=totalMass(),err=(cur-initialMass)/(initialMass||1)*100,abs=Math.abs(err);const massHud=document.getElementById('massHud'),chip=document.getElementById('massChip');massHud.textContent=(err>=0?'+':'')+err.toExponential(abs<.0001?1:2)+'%';chip.classList.toggle('good',abs<1e-7);chip.classList.toggle('warn',abs>=1e-7);
- const pools=[['Nutrient',nutrient,COLORS.nut],['Plant shoots',sum(foods),COLORS.food],['Plant roots',rootMass(),COLORS.root],['Dormant seed bank',seedBank,COLORS.seed],['Prey biomass',sum(prey),COLORS.prey],['Predator biomass',sum(preds),COLORS.pred],['Detritus',sum(detritus),COLORS.det],['Total',cur,'#eefcf7']];document.getElementById('ledger').innerHTML=pools.map((p,i)=>`<div class="ledger-row ${i===pools.length-1?'total':''}"><span><i class="swatch" style="background:${p[2]}"></i>${p[0]}</span><b>${p[1].toFixed(2)}</b></div>`).join('');
+ const pools=[['Nutrient',nutrient,COLORS.nut],['Plant shoots',sum(foods),COLORS.food],['Plant roots',rootMass(),COLORS.root],['Dormant seed bank',seedBank,COLORS.seed],['Prey biomass',sum(prey),COLORS.prey],['Predator biomass',sum(preds),COLORS.pred],['Detritus + plant litter',detritusMass(),COLORS.det],['Total',cur,'#eefcf7']];document.getElementById('ledger').innerHTML=pools.map((p,i)=>`<div class="ledger-row ${i===pools.length-1?'total':''}"><span><i class="swatch" style="background:${p[2]}"></i>${p[0]}</span><b>${p[1].toFixed(2)}</b></div>`).join('');
  const traits=[['Prey speed',avg(prey,a=>a.t.speed),15,48,COLORS.prey],['Prey fear',avg(prey,a=>a.t.fear),.5,4.2,COLORS.prey],['Predator speed',avg(preds,a=>a.t.speed),18,56,COLORS.pred],['Predator hunt',avg(preds,a=>a.t.hunt),.55,2.8,COLORS.pred]];document.getElementById('evoGrid').innerHTML=traits.map(t=>`<div class="trait-card" style="color:${t[4]}"><strong>${t[0]}</strong><b>${t[1]?t[1].toFixed(2):'—'}</b><div class="bar"><i style="width:${t[1]?clamp((t[1]-t[2])/(t[3]-t[2])*100,0,100):0}%"></i></div></div>`).join('');updateInspect();
 }
-function updateInspect(){const box=document.getElementById('inspectBox');if(!selected||selected.dead){box.className='inspect empty';box.textContent='Tap a prey, predator, food patch, or detritus particle to inspect it.';return}box.className='inspect';if(selected.type==='food'){box.innerHTML=`<h3>Plant patch #${selected.id}</h3><p>Edible shoots regrow from a protected root reserve.</p><div class="inspect-grid"><div><span>Shoots</span><b>${selected.b.toFixed(2)}</b></div><div><span>Roots</span><b>${selected.root.toFixed(2)}</b></div><div><span>Total / capacity</span><b>${(selected.b+selected.root).toFixed(2)} / ${selected.k.toFixed(1)}</b></div><div><span>Growth factor</span><b>${selected.growth.toFixed(2)}×</b></div></div>`;return}if(selected.type==='det'){box.innerHTML=`<h3>Detritus #${selected.id}</h3><p>Unassimilated material or corpse biomass.</p><div class="inspect-grid"><div><span>Biomass</span><b>${selected.b.toFixed(3)}</b></div><div><span>Decay rate</span><b>${P.decay.toFixed(2)}/d</b></div></div>`;return}const t=selected.t,pre=selected.type==='prey';const extra=pre?'':`<div><span>Comfort</span><b>${Math.round((selected.comfort||predComfort(selected))*100)}%</b></div><div><span>Hunting effort</span><b>${Math.round((selected.huntEffort||0)*100)}%</b></div><div><span>Repro readiness</span><b>${Math.round(clamp((selected.reproCharge||0)/2.15,0,1)*100)}%</b></div>`;box.innerHTML=`<h3>${pre?'Prey':'Predator'} #${selected.id}</h3><p>Generation ${selected.gen} · age ${selected.age.toFixed(1)} days</p><div class="inspect-grid"><div><span>Biomass</span><b>${selected.b.toFixed(2)}</b></div><div><span>Speed</span><b>${t.speed.toFixed(1)}</b></div><div><span>Turn rate</span><b>${t.turn.toFixed(2)}</b></div><div><span>Sense range</span><b>${t.sense.toFixed(0)}</b></div><div><span>${pre?'Fear':'Hunt drive'}</span><b>${(pre?t.fear:t.hunt).toFixed(2)}</b></div><div><span>Metabolism</span><b>${(t.metab*100).toFixed(2)}%</b></div>${extra}</div>`}
+function updateInspect(){const box=document.getElementById('inspectBox');if(!selected||selected.dead){box.className='inspect empty';box.textContent='Tap a prey, predator, food patch, or detritus particle to inspect it.';return}box.className='inspect';if(selected.type==='food'){box.innerHTML=`<h3>Plant patch #${selected.id}</h3><p>Edible shoots regrow from a protected root reserve.</p><div class="inspect-grid"><div><span>Shoots</span><b>${selected.b.toFixed(2)}</b></div><div><span>Roots</span><b>${selected.root.toFixed(2)}</b></div><div><span>Total / capacity</span><b>${(selected.b+selected.root).toFixed(2)} / ${selected.k.toFixed(1)}</b></div><div><span>Growth factor</span><b>${selected.growth.toFixed(2)}×</b></div></div>`;return}if(selected.type==='det'){box.innerHTML=`<h3>Detritus #${selected.id}</h3><p>Unassimilated material or corpse biomass.</p><div class="inspect-grid"><div><span>Biomass</span><b>${selected.b.toFixed(3)}</b></div><div><span>Decay rate</span><b>${P.decay.toFixed(2)}/d</b></div></div>`;return}const t=selected.t,pre=selected.type==='prey';const extra=pre?`<div><span>Repro readiness</span><b>${Math.round(clamp((selected.reproCharge||0)/1.15,0,1)*100)}%</b></div>`:`<div><span>Comfort</span><b>${Math.round((selected.comfort||predComfort(selected))*100)}%</b></div><div><span>Hunting effort</span><b>${Math.round((selected.huntEffort||0)*100)}%</b></div><div><span>Repro readiness</span><b>${Math.round(clamp((selected.reproCharge||0)/1.75,0,1)*100)}%</b></div>`;box.innerHTML=`<h3>${pre?'Prey':'Predator'} #${selected.id}</h3><p>Generation ${selected.gen} · age ${selected.age.toFixed(1)} days</p><div class="inspect-grid"><div><span>Biomass</span><b>${selected.b.toFixed(2)}</b></div><div><span>Speed</span><b>${t.speed.toFixed(1)}</b></div><div><span>Turn rate</span><b>${t.turn.toFixed(2)}</b></div><div><span>Sense range</span><b>${t.sense.toFixed(0)}</b></div><div><span>${pre?'Fear':'Hunt drive'}</span><b>${(pre?t.fear:t.hunt).toFixed(2)}</b></div><div><span>Metabolism</span><b>${(t.metab*100).toFixed(2)}%</b></div>${extra}</div>`}
 function syncControls(){for(const [id,key] of [['sun','sun'],['season','season'],['decay','decay'],['mutation','mutation'],['assim','predAssim']])document.getElementById(id).value=P[key];setOutputs()}
 function setOutputs(){document.getElementById('sunOut').value=P.sun.toFixed(2)+'×';document.getElementById('seasonOut').value=Math.round(P.season*100)+'%';document.getElementById('decayOut').value=P.decay.toFixed(2)+'/d';document.getElementById('mutOut').value=Math.round(P.mutation*100)+'%';document.getElementById('assimOut').value=Math.round(P.predAssim*100)+'%'}
 let toastTimer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1700)}
@@ -314,10 +360,10 @@ for(const [id,key] of [['sun','sun'],['season','season'],['decay','decay'],['mut
 
 reset('balanced');
 if(new URLSearchParams(location.search).get('test')==='1'){
-  running=false;const qs=new URLSearchParams(location.search),days=+(qs.get('days')||240),scenario=qs.get('scenario')||'balanced';reset(scenario);
+  running=false;const qs=new URLSearchParams(location.search),days=+(qs.get('days')||240),scenario=qs.get('scenario')||'balanced';reset(scenario); if(qs.get('nopred')==='1'){for(const p of preds) nutrient+=p.b; preds=[];}
   let maxPred=preds.length,births=0,lastIds=new Set(preds.map(p=>p.id));hudTimer=-1e9;historyTimer=-1e9;
   for(let i=0,n=Math.floor(days*30);i<n;i++){step(1/30);maxPred=Math.max(maxPred,preds.length);for(const p of preds)if(!lastIds.has(p.id)){births++;lastIds.add(p.id)}}
-  const result={scenario,days,plantMass:plantMass(),prey:prey.length,predators:preds.length,maxPred,births,predatorBiomass:sum(preds),massErrorPct:(totalMass()-initialMass)/initialMass*100,nutrient,detritus:sum(detritus)};
+  const result={scenario,days,plantMass:plantMass(),shoots:sum(foods),roots:rootMass(),seeds:seedBank,preyBiomass:sum(prey),prey:prey.length,predators:preds.length,maxPred,births,predatorBiomass:sum(preds),massErrorPct:(totalMass()-initialMass)/initialMass*100,nutrient,detritus:detritusMass()};
   const el=document.createElement('pre');el.id='testResult';el.textContent=JSON.stringify(result);document.body.appendChild(el);
 }else requestAnimationFrame(animate);
 })();

@@ -514,6 +514,12 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
    * model carries. It is not a tuning dial and should not be left fractional.
    */
   const addedMass = opts.addedMass ?? true;
+  /** False makes this creature a GHOST to OTHER creatures. See the collider block. */
+  const creatureCollision = opts.creatureCollision ?? true;
+  /** Which ghost this is, 0..14. Each needs its own bit or they ghost each other's selves. */
+  const ghostIndex = Math.max(0, Math.min(14, opts.collisionGroup ?? 0));
+  const ghostBit = 1 << (ghostIndex + 1);
+  const ghostMask = ((ghostBit << 16) >>> 0) | 0x0001 | ghostBit;
   const addedMassScale = opts.addedMassScale ?? 1;
 
   const fits = fitsTank(plan, world);
@@ -549,7 +555,35 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         // contacts do. Contact events are collected per collider and the floor
         // and walls are tagged so the damage system at step F cannot confuse them.
         .setRestitution(world.floor.restitution)
-        .setFriction(world.floor.friction),
+        .setFriction(world.floor.friction)
+        // ── SOLID OR GHOST — `creatureCollision` ─────────────────────────────
+        //
+        // WHY IT IS AN OPTION. Contact between creatures is what a duel IS, so it
+        // cannot go away globally. But a FORAGE trial does not need it: the
+        // competition there is for FOOD, not for space, and `foodEaten` already
+        // argues that a creature's result should be about the creature.
+        //
+        // And contact is the trigger that pushes the constraint solver past
+        // convergence. Raising SOLVER_ITERATIONS to 8 fixed the case that was
+        // reported, but a player hit the same tear again on a different cast, and
+        // the honest reading is that more iterations RAISED the bar rather than
+        // removing the failure mode. Ghosting removes it: no contact impulse, no
+        // impulse for the solver to fail on.
+        //
+        // SELF-COLLISION MUST SURVIVE, and the first version of this got it wrong.
+        // Putting every ghost in ONE group disabled a creature's collisions with
+        // its OWN bodies too, and the comment here claimed a jointed tree "has no
+        // use for that". Measured, it does: with self-collision off the suspect
+        // burst at 4916 s where WITH contact it had been clean for three hours. A
+        // tree that can fold through itself reaches joint configurations that no
+        // solid body ever would.
+        //
+        // So each ghost gets its OWN membership bit and filters to the environment
+        // plus itself: it still hits the glass, still cannot pass through its own
+        // limbs, and passes through every OTHER creature. Bit 0 is the environment
+        // (Rapier's default membership includes it, so floor and walls need no
+        // change); bits 1..15 are the ghosts, which caps a ghosted cast at 15.
+        .setCollisionGroups(creatureCollision ? 0xFFFFFFFF : ghostMask),
       rb,
     );
     // ── ADDED MASS (C6.2) — opt-in until it is measured ──────────────────────

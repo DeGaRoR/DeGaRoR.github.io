@@ -888,3 +888,260 @@ and it was never going to.
 their measured capability, which is precisely what the `faunaVersion` bump invalidates.
 Re-running `tools/c2residents.js` would re-SELECT them on the new physics, which is a
 different decision and deserves its own sitting.
+
+---
+
+## 20. GHOSTING — creatures compete for food, not for space
+
+The player's call, and it is right for this stage: **the Forage screen does not need
+creatures to bump into each other.** The competition there is for the FOOD, which is
+shared and finite, and `foodEaten` already argues a creature's result should be about
+the creature. `createSimulation({ creatureCollision: false, collisionGroup: i })`.
+
+It is an OPTION, not a global: contact between creatures is what a duel IS.
+
+### THE MISTAKE, and it inverted the result
+
+The first cut put every ghost in ONE collision group, which disabled a creature's
+collisions with **its own bodies** too. The comment in the code claimed a jointed tree
+"has no use for that". Measured, it does:
+
+| | worst spread over 2 h |
+|---|---|
+| solid, 8 iterations | intact — 0.79 |
+| **one shared ghost group (self-collision off)** | **BURST at 4916 s, spread 284** |
+| **own bit per ghost (self-collision kept)** | **intact — 0.79** |
+
+**Removing self-collision made it worse than leaving contact on.** A tree that can fold
+through itself reaches joint configurations no solid body ever would. Each ghost now
+gets its own membership bit and filters to the environment plus itself: it still hits
+the glass, still cannot pass through its own limbs, and passes through every other
+creature. Bit 0 is the environment; bits 1..15 are ghosts, so a ghosted cast caps at 15.
+
+### And a correction to §19's framing
+
+§19 said contact "is the trigger". The ghosting experiment says that is too strong:
+with contact removed and self-collision intact the creature is fine, but with contact
+removed and self-collision ALSO removed it bursts sooner than with contact present. So
+contact is not a trigger so much as **one more impulse source the solver has to
+converge against**, and self-intersection is a worse one. The root cause remains solver
+convergence; `SOLVER_ITERATIONS = 8` and ghosting both attack it, from opposite sides.
+
+### Also fixed: panning in the open ocean
+
+Disabling pan in the ocean was the wrong fix for a problem that did not need one. A pan
+offset and a follow target only fight if the pan writes to the vector the follow writes
+to. The manual displacement now lives in its own `panOffset`, added to the follow
+target — so you can look around while still being carried along, which is what a camera
+following a fish should do. Reset on respawn.
+
+---
+
+## 21. HOW LONG A FORAGE TRIAL MUST RUN — measured, for auto-breeding in Forage
+
+Two tools: `tools/_zsettle.mjs` (when does the multiplier settle) and
+`tools/_zsplit.mjs` (for a fixed budget, longer trials or more of them).
+
+### 1. The ORDER settles almost immediately; the VALUES never fully do
+
+12 creatures (6 authored, 6 seeded) x 3 repeats x 2400 s:
+
+| T | rank vs final | repeat spread |
+|---|---|---|
+| 15 s | **0.909** | 42% |
+| 60 s | **0.958** | 33% |
+| 600 s | 0.965 | 32% |
+| 1800 s | 0.972 | 27% |
+
+**Spearman 0.909 at fifteen seconds.** Selection consumes ORDER, not values, so this
+is the number that matters — and it is essentially settled before the trial has begun.
+
+**Run-to-run spread barely moves: 42% -> 27% over forty minutes.** The residual is not
+within-run noise that a longer trial averages away; it is between-run variance from the
+field and the spawn point.
+
+Those two facts are reconciled by the spread BETWEEN creatures being much larger than
+the noise WITHIN one: the corpus spans ~50x in multiplier, so a 30% error rarely
+reorders anybody. It will reorder near-ties, and near-ties are exactly what a converged
+population consists of — so this ceases to be comfortable at the point selection starts
+to matter most.
+
+### 2. MY PREDICTION WAS WRONG: duration beats repeats at every budget
+
+From (1) I predicted that averaging R short trials would beat one long one, since
+sqrt(R) attacks between-run variance and duration apparently does not. Tested at
+EQUAL COST (14 creatures x 8 repeats x 900 s, every split scored against the mean of
+all 8 repeats at 900 s):
+
+| budget | best split | rho | runner-up |
+|---|---|---|---|
+| 600 creature-s | **600 s x 1** | **0.982** | 300 s x 2 → 0.965 · 150 s x 4 → 0.925 |
+| 900 creature-s | **900 s x 1** | **0.987** | 450 s x 2 → 0.960 · 300 s x 3 → 0.943 |
+| 1200 creature-s | **600 s x 2** | 0.974 | 300 s x 4 → 0.956 · 150 s x 8 → 0.908 |
+
+**One long trial wins at every budget, and more repeats is monotonically worse.** The
+sqrt(R) reasoning was right about between-run variance and wrong about which term
+dominates: a longer run also samples far more food encounters, and that noise falls
+faster than the repeat averaging gains.
+
+**A BIAS IN THIS TEST, stated because it flatters the winner.** The reference is built
+from 900 s runs, so long-duration arms share within-run structure with it and are
+credited for it. `600 s x 1` (0.982) beating `300 s x 2` (0.965) is not explained by
+that — 600 is not the reference duration — but the `900 s x 1` figure of 0.987 partly
+is. Read the frontier, not the top row.
+
+### 3. The frontier, and the recommendation
+
+    100 creature-s  ->  rho 0.930   (100 s x 1)     ~7 s wall for a 12-pool
+    200 creature-s  ->  rho 0.943   (100 s x 2)     ~15 s
+    450 creature-s  ->  rho 0.960   (225 s x 2)     ~33 s
+    600 creature-s  ->  rho 0.982   (600 s x 1)     ~44 s
+
+**For an interactive burst: 100 s, single trial.** rho 0.93 against a reference costing
+72x more, at ~7 s of wall for a twelve-creature pool. That is a burst a player waits
+through.
+
+**For a thorough one: 600 s, single trial.** rho 0.98 at ~44 s for the same pool.
+
+**Do not spend the budget on repeats.** Measured, it is the worst use of it.
+
+### What this does NOT settle
+
+- The reference is the best estimate the dataset contains, **not ground truth**. Every
+  rho here is agreement with a more expensive measurement of the same thing.
+- **Near-ties stay unresolved at any duration** (§1). A converged population is all
+  near-ties, so late-stage selection will need something other than a longer trial —
+  a paired design (same field for every candidate) would attack the between-run term
+  directly and was not tested here.
+- Trials ran in OPEN WATER (`bounded: false, wrap: true`), one creature per sim with
+  its own fresh field. A burst inside the bounded aquarium would measure cornering as
+  well as foraging, per `tools/_zwall.mjs`.
+
+### 21a. The paired design — TESTED. It buys 2-3x at the short end and nothing after.
+
+`tools/_zpair.mjs`. Every creature run against every CONDITION (field seed + spawn
+point); the same trials then grouped two ways at identical cost — PAIRED (all
+candidates in a round share the condition) versus UNPAIRED (creature `c` takes
+condition `(r + c) mod C`). Two groupings of one experiment, so nothing is confounded.
+
+12 creatures x 6 conditions x 600 s, 231 s wall.
+
+| T | trials/creature | PAIRED | UNPAIRED | delta |
+|---|---|---|---|---|
+| **30 s** | **1** | **0.937** | 0.846 | **+0.091** |
+| **60 s** | **1** | **0.951** | 0.867 | **+0.084** |
+| 100 s | 1 | 0.937 | 0.930 | +0.007 |
+| 300 s | 1 | 0.965 | 0.965 | 0.000 |
+| 450 s | 2 | 0.993 | 0.965 | +0.028 |
+| 600 s | 5 | 1.000 | 0.993 | +0.007 |
+
+**Overall: better in 16 of 40 cells, worse in 19, mean delta +0.0038 — a wash.
+At R = 1, mean delta +0.0236. At 30-60 s with one trial each, +0.08 to +0.09.**
+
+**READ THE RESOLUTION FLOOR BEFORE READING THE TABLE.** The corpus is 12 creatures, so
+a single rank swap moves Spearman by ~0.007. Almost every cell outside the top two rows
+is within +-2 swaps of zero, which means the 16-vs-19 split is NOT evidence that pairing
+ever hurts — it is the measurement's own noise. Only the 30 s and 60 s R = 1 rows
+(~12 swaps' worth) are above that floor.
+
+**The prediction was half right**, and the half that was wrong is the useful part:
+pairing helps exactly where between-run variance dominates — short trials, one shot
+each — and is indistinguishable from nothing once the trial is long enough to average
+the field itself. It does not raise the ceiling; it reaches the plateau sooner.
+
+### The recommendation, updated
+
+**Interactive burst: 30-60 s, PAIRED, one trial per creature.** rho 0.94-0.95, which
+previously took 100-150 s unpaired — roughly **2-3x less compute for the same
+ordering**, and free, since pairing is a choice about assignment rather than a cost.
+For a twelve-creature pool that is under 2 s of wall.
+
+**Thorough burst: 450-600 s, paired, 1-2 trials.** rho 0.99+.
+
+**Always pair.** It is decisive at the short end, harmless at the long end, and costs
+nothing either way.
+
+### What is still not solved
+
+Pairing removes the field and spawn as DIFFERENTIAL error. It does not make the
+objective more discriminating: near-ties within a converged population remain
+unresolved, because that residual is the creature's own run-to-run behaviour rather
+than the condition it met. That is the wall this line of measurement ends at, and
+crossing it needs a different objective, not a better trial protocol.
+
+---
+
+## 22. BREEDING FROM THE RANDOM DRAW — and the objective failed the test
+
+`tools/_zwild.mjs`: prospect the random draw, pit the survivors, evolve the best 3,
+then measure them against the authored creatures. **No authored genome enters phases
+1-3.** Run at 15% scale as a smoke test — and it never needed the full run.
+
+### The result looked like a triumph
+
+    rank  creature   multiplier   mass g
+      1   WILD 1          71.69    10.87     <- 5.08x the best authored
+      2   WILD 2          57.98    10.87
+      3   WILD 3          57.98    10.87
+      4   Eel             14.12     0.97
+      5   Darter          12.39     0.97
+      6   Flapper          8.25     0.97
+
+Three red flags before any celebration: phase 3 reported multipliers of **1042** where
+the final measured 71; all three winners were identical (evolution collapsed to one
+lineage); and the winner is **11x heavier** than the Eel while the multiplier is
+supposed to favour small (r = -0.97 with mass).
+
+### What it is actually doing
+
+| | eaten | work | travel in 900 s | ratio |
+|---|---|---|---|---|
+| **WILD 1** | **1.50 g** | **1.0e2 erg** | **0.6 cm** | **302.6** |
+| Eel | 7.44 g | 1.2e4 erg | 22.8 cm | 26.8 |
+| Flapper | 4.29 g | 1.9e4 erg | 8.5 cm | 9.4 |
+
+**It wins by not moving.** A three-body lump that sits still, eats a FIFTH of what the
+Eel eats, and spends 116x less doing it. Over fifteen minutes it travelled six
+millimetres.
+
+**Evolution found this in six generations.**
+
+### The objective is not a foraging objective
+
+`spend = work + basal`, and `work -> 0` for anything that does not actuate. Basal is
+the only floor, and it is far too low to matter: 10.87 g over 900 s costs 110 erg,
+while a single gram of food is worth 4.2e4 erg — **food is ~570x cheaper to acquire
+than existing is to pay for.** So the optimum is to exist and wait.
+
+This is PLAN-AFTER-B2 §3's degeneracy arriving by a new route. The first food model was
+killed for making intake scale with body size; this one makes intake nearly free
+relative to the cost of living, which rewards the same thing by a different mechanism.
+
+**The library creatures are not "cheaty". They are doing something this objective
+actively punishes.** The Eel eats five times more than the winner and is ranked last
+but one for the crime of swimming to get it.
+
+### What has to change before this experiment is worth running at full scale
+
+Ranked by how principled they are, not by how easy:
+
+1. **`FOOD_ENERGY` is too generous against basal.** It is CALIBRATED, not derived
+   (§6), and has been recalibrated three times already. Sitting still must not pay.
+   The target is a metabolic rate where a motionless creature's ratio is BELOW 1.
+2. **Or make basal realistic.** For WILD 1, basal is 1.1e2 against work 1.0e2 — the
+   rock pays half its bill just for existing, and it is still 300x ahead. Real
+   swimmers spend most of their budget on basal, not locomotion.
+3. **Or subtract a control** — score intake ABOVE what the same body earns with its
+   motor disabled. `motorScale: 0` already exists and gives exactly that baseline.
+   This is the same fix the seek objective needed and never got.
+
+**Option 3 is the one that cannot be gamed by tuning**, and it costs one extra trial
+per candidate — which the measured budget (5.35 ms per creature-second) can afford
+easily. It also directly answers §12's standing caveat that the forage objective is
+"not control-subtracted".
+
+### Do not use the multiplier as a breeding objective until this is fixed
+
+It ranks a rock above every swimmer in the library. The ranking FIDELITY work in §21
+and §21a is unaffected and still stands — those measured how reliably the number can be
+reproduced, and it reproduces very reliably. It is just measuring the wrong thing.

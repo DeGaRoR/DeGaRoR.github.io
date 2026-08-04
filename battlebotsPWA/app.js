@@ -758,7 +758,13 @@ function renderWorkshop(){
         const lbl=document.createElement("span"); lbl.className="stepn"; lbl.textContent="\u00D7"+n;
         const plus=document.createElement("button"); plus.className="stepbtn"; plus.textContent="+";
         minus.onclick=()=>setCount(slot,-1); plus.onclick=()=>setCount(slot,+1);
-        step.append(minus,lbl,plus); row.appendChild(step);
+        step.append(minus,lbl);
+        /* E11 \u2014 stock libre visible : le + monte une pi\u00E8ce POSS\u00C9D\u00C9E ; le hint
+           dit combien attendent \u00E0 l'inventaire (rien \u2192 le + explique). */
+        { const nFree = freeUids(eqId).length;
+          if (nFree > 0){ const fr = document.createElement("span");
+            fr.className = "stepfree"; fr.textContent = "+" + nFree; step.appendChild(fr); } }
+        step.appendChild(plus); row.appendChild(step);
       }
     }
     rows.appendChild(row);
@@ -838,21 +844,18 @@ function tryFit(bot, slot, uids){
   if (!layoutValid(build, L)){ bot.fit[slot] = prev; refit(bot); return false; }
   bot.layout = L; return true;
 }
-// stack ± : monte une instance libre du même def (sinon en achète une), démonte la dernière.
+/* stack ± : MONTE une instance libre du même def, démonte la dernière.
+   E11 — le stepper n'achète plus JAMAIS : la boutique est le seul lieu
+   d'achat. Sans exemplaire libre, on l'explique et on renvoie à l'étal
+   (l'ancien achat silencieux était illisible : ni prix, ni toast). */
 function setCount(slot, delta){
   const b = AB(), cur = b.fit[slot] || [];
   if (!cur.length) return;
   const def = (S.inv.items[cur[0]]||{}).def;
   if (delta > 0){
-    let uid = freeUids(def)[0], cost = 0;
-    if (!uid){
-      cost = (ENGINE.partOf(slot, def)||{}).cost || 0;
-      if (S.bolts < cost){ showToast(t("noBolts")); return; }
-      uid = mintInstance(def); }                       // mint spéculatif…
-    if (!tryFit(b, slot, cur.concat([uid]))){
-      if (cost) delete S.inv.items[uid];               // …annulé si ça ne rentre pas
-      showToast(t("noRoom")); return; }
-    if (cost) S.bolts -= cost;                         // payé seulement si monté
+    const uid = freeUids(def)[0];
+    if (!uid){ showToast(t("noFreeCopy", { name: t("pn_"+def) })); return; }
+    if (!tryFit(b, slot, cur.concat([uid]))){ showToast(t("noRoom")); return; }
   } else {
     if (cur.length <= 1) return;
     if (!tryFit(b, slot, cur.slice(0, -1))) return;
@@ -1018,6 +1021,19 @@ function tryEquip(type, id){
   if (ok){ syncActive(); recomputeOwned(); saveState(); renderHome(); }
   return ok;
 }
+/* E11 — monte CETTE pièce précise (uid) sur le bot actif : slot vide ou def
+   différent → remplace ; même def sur slot empilable → +1 à la pile ; même def
+   non empilable → échange d'exemplaire. La pièce vient de l'inventaire LIBRE. */
+function tryMountUid(uid){
+  const it = S.inv.items[uid]; if (!it) return false;
+  const slot = DEF_SLOT[it.def]; if (!slot) return false;
+  const b = AB(), cur = b.fit[slot] || [];
+  const sameDef = cur.length && (S.inv.items[cur[0]]||{}).def === it.def;
+  const uids = (sameDef && STACK_SLOTS[slot]) ? cur.concat([uid]) : [uid];
+  if (!tryFit(b, slot, uids)){ showToast(t("noRoom")); return false; }
+  invChanged(); renderHome();
+  return true;
+}
 function mkPartCard(type, part, reserved){
   const card = document.createElement("div"); card.className = "rc-gcard";
   const art = document.createElement("div"); art.className = "rc-gcard__art";
@@ -1047,18 +1063,35 @@ function mkPartCard(type, part, reserved){
     if (elsewhere>0 && elsewhere>=total) al.classList.add("spoken"); // all copies busy elsewhere
     card.appendChild(al);
   }
-  const owned = S.parts.owned[type].includes(part.id);
+  /* E11 — la carte VEND TOUJOURS : chaque copie est un OBJET qui s'achète au
+     prix catalogue, déjà possédé ou pas. « Équipé ✓ » devient un badge d'état,
+     « Équiper » une action secondaire (copie libre existante) SANS pictogramme —
+     la porte S8 reconnaît les boutons d'achat à leur SVG. */
   const equipped = S.parts.equipped[type] === part.id;
+  if (equipped){
+    const st = document.createElement("div"); st.className = "rc-gcard__status";
+    st.textContent = t("equipped"); card.appendChild(st);
+  } else if (freeUids(part.id).length){
+    const eq2 = document.createElement("button"); eq2.className = "rc-buy rc-buy--equip";
+    eq2.textContent = t("equip");
+    eq2.onclick = ()=>{ if(!tryEquip(type, part.id)) showToast(t("noRoom")); };   // S16-EDIT : tryEquip rend
+    card.appendChild(eq2);
+  }
   const btn = document.createElement("button"); btn.className = "rc-buy";
-  if (equipped){ btn.textContent = t("equipped"); btn.disabled = true; btn.classList.add("is-max"); }
-  else if (owned){ btn.textContent = t("equip");
-    btn.onclick = ()=>{ if(!tryEquip(type, part.id)) showToast(t("noRoom")); }; }   // S16-EDIT : tryEquip rend
-  else { btn.innerHTML = BOLT_SVG + " " + part.cost; btn.disabled = S.bolts < part.cost;
-    btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
-      mintInstance(part.id); recomputeOwned();
-      const fits = tryEquip(type, part.id); saveState();
-      showToast(fits ? t("bought", {name:t("pn_"+part.id)}) : t("noRoom"));
-      if (!fits) renderHome(); }; }                                  // S16-EDIT : tryEquip rend deja si ok
+  btn.dataset.buy = part.id;                                         // ancre stable (QC, debug)
+  btn.innerHTML = BOLT_SVG + " " + part.cost; btn.disabled = S.bolts < part.cost;
+  btn.onclick = ()=>{ if (S.bolts < part.cost) return; S.bolts -= part.cost;
+    mintInstance(part.id);
+    if (S.parts.equipped[type] === part.id){             // doublon du def équipé : à l'inventaire
+      recomputeOwned(); saveState();
+      showToast(t("boughtToInv", {name:t("pn_"+part.id)})); renderHome();
+    } else {
+      recomputeOwned();
+      const fits = tryEquip(type, part.id); saveState(); // premier exemplaire : auto-montage conservé
+      showToast(fits ? t("bought", {name:t("pn_"+part.id)})
+                     : t("boughtToInv", {name:t("pn_"+part.id)}));   // payé et rangé — l'inventaire agit désormais
+      if (!fits) renderHome();
+    } };
   card.appendChild(btn);
   return card;
 }
@@ -1290,6 +1323,28 @@ function repairInstance(uid){
   if (S.bolts < cost){ showToast(t("noBolts")); return false; }
   S.bolts -= cost; it.wear = 0; saveState(); renderHome(); return true;
 }
+/* ══ E11 — PIÈCES INDIVIDUELLES (décision Denis 04/08). Chaque copie est un
+   OBJET : achetée à la boutique (seul lieu d'achat), visible à l'inventaire
+   avec SA propre usure, montable pièce par pièce, revendable à perte.
+   Revente ~40 % du neuf, décotée par l'usure (même forme que l'occasion) :
+   acheter d'occasion puis revendre perd TOUJOURS de l'argent (garde QC). */
+function sellPriceOf(def, wear){
+  const p = ENGINE.partOf(DEF_SLOT[def], def);
+  if (!p || !(p.cost > 0)) return 0;                 // marqueurs d'absence : invendables
+  return Math.max(1, Math.round(0.40 * p.cost * (1 - (wear||0)*0.009)));
+}
+function sellInstance(uid){
+  const it = S.inv.items[uid]; if (!it) return false;
+  if (fittedMap()[uid]) return false;                // montée : la retirer d'abord (l'UI ne le propose pas)
+  const price = sellPriceOf(it.def, it.wear);
+  if (!(price > 0)) return false;
+  delete S.inv.items[uid];                           // seq ne recule jamais : validState indifférent
+  S.bolts += price;
+  invChanged();
+  showToast(t("soldToast", { name: t("pn_"+it.def), c: price }));
+  renderHome();
+  return true;
+}
 function repairChassis(bot){
   const w = bot.chassisWear||0; if (!(w>0)) return false;
   const cost = Math.ceil(Math.max(DAMAGE_TUNE.REPAIR_FLOOR, (w/100)*DAMAGE_TUNE.CHASSIS_REPAIR_BASE*DAMAGE_TUNE.REPAIR_RATE));
@@ -1331,26 +1386,43 @@ function renderGarageStrip(){ const el=$("garageStrip"); if(!el) return; el.inne
   plus.onclick=()=>showTab("shop");
   strip.appendChild(plus);
   el.appendChild(strip); }
-/* Inventaire global visible : instances LIBRES, groupées par pièce, usure min–max. */
+/* Inventaire global visible — E11 : une carte par PIÈCE (plus de ×N groupé),
+   chacune avec SA propre usure et ses actions : MONTER (cette pièce précise,
+   via tryMountUid) et REVENDRE (deux taps, ~40 % du neuf décoté usure). Seules
+   les pièces LIBRES apparaissent : une pièce montée se retire d'abord. */
 function renderInventory(){ const el=$("invStrip"); if(!el) return; el.innerHTML="";
   const head=document.createElement("div"); head.className="rc-section"; head.textContent=t("garageInv"); el.appendChild(head);
-  const fm=fittedMap(), byDef={};
-  for(const uid in S.inv.items){ if(fm[uid]) continue;
-    const it=S.inv.items[uid]; (byDef[it.def]=byDef[it.def]||[]).push(it.wear||0); }
-  const defs=Object.keys(byDef).sort((a,b)=>(DEF_SLOT[a]||"").localeCompare(DEF_SLOT[b]||"")||a.localeCompare(b));
-  if(!defs.length){ const e=document.createElement("div"); e.className="rc-label"; e.textContent=t("invEmpty"); el.appendChild(e); return; }
+  const fm=fittedMap();
+  const uids=Object.keys(S.inv.items).filter(u=>!fm[u]).sort((a,b)=>{
+    const A=S.inv.items[a], B=S.inv.items[b];
+    return (DEF_SLOT[A.def]||"").localeCompare(DEF_SLOT[B.def]||"")
+        || A.def.localeCompare(B.def)
+        || (A.wear||0)-(B.wear||0)
+        || a.localeCompare(b); });
+  if(!uids.length){ const e=document.createElement("div"); e.className="rc-label"; e.textContent=t("invEmpty"); el.appendChild(e); return; }
   const strip=document.createElement("div"); strip.className="rc-carousel";
-  for(const def of defs){
-    const ws=byDef[def], slot=DEF_SLOT[def];
+  for(const uid of uids){
+    const it=S.inv.items[uid], def=it.def, slot=DEF_SLOT[def];
     const card=document.createElement("div"); card.className="rc-gcard";
     const art=document.createElement("div"); art.className="rc-gcard__art";
     const cv = tileCanvas(54, (c)=>drawPartTile(c, slot, def, 27, 27, 50, 44, 0, 1));
     art.appendChild(cv); card.appendChild(art);
-    const nm=document.createElement("div"); nm.className="rc-gcard__name"; nm.textContent=t("pn_"+def)+(ws.length>1?" \u00D7"+ws.length:""); card.appendChild(nm);
-    const wmin=Math.min(...ws), wmax=Math.max(...ws);
+    const nm=document.createElement("div"); nm.className="rc-gcard__name"; nm.textContent=t("pn_"+def); card.appendChild(nm);
     const fx=document.createElement("div"); fx.className="rc-gcard__fx";
-    fx.textContent = wmax>0 ? t("usedWear", {w: wmin===wmax? wmin : wmin+"\u2013"+wmax}) : t("invNew");
+    fx.textContent = (it.wear||0)>0 ? t("usedWear", {w:Math.round(it.wear)}) : t("invNew");
     card.appendChild(fx);
+    const mt=document.createElement("button"); mt.className="rc-buy rc-buy--equip";
+    mt.textContent=t("mount");
+    mt.onclick=()=>tryMountUid(uid);
+    card.appendChild(mt);
+    const price=sellPriceOf(def, it.wear);
+    if (price>0){
+      const sl=document.createElement("button"); sl.className="rc-toolbtn rc-sell";
+      sl.textContent=da(t("sellFor",{c:price}));
+      sl.onclick=()=>{ if(!sl._arm){ sl._arm=true; sl.textContent=t("confirmAbandon"); return; }   // deux taps (motif scrap)
+        sellInstance(uid); };
+      card.appendChild(sl);
+    }
     strip.appendChild(card);
   }
   el.appendChild(strip); }

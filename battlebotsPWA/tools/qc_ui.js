@@ -280,8 +280,51 @@ safe("boutique S8", () => {
   w8.eval("[...$('garageRows').querySelectorAll('.rc-buy')].find(b=>!b.disabled && !b.classList.contains('is-max') && b.querySelector('svg')).click()");
   check("S8: acheter mint une instance et débite",
         w8.eval("Object.keys(S.inv.items).length") === before + 1 && w8.eval("S.bolts") < bolts);
+  /* E11 — la boutique vend TOUJOURS : même la carte du def ÉQUIPÉ porte un
+     bouton prix actif (le doublon part à l'inventaire, plein tarif). */
+  w8.eval("renderHome()");
+  check("S8-E11: la carte du def équipé garde un bouton prix actif",
+        w8.eval("(function(){ const b=$('garageRows').querySelector('[data-buy=\\'' + S.parts.equipped.motor + '\\']'); return !!b && !b.disabled && !!b.querySelector('svg'); })()"));
   check("aucune erreur sur le parcours S8", w8.errors.length === 0, w8.errors[0] || "");
   w8.close();
+});
+
+// ------------------------------------------------------ E11 : inventaire actionnable (pièce par pièce)
+safe("E11 inventaire actionnable", () => {
+  const wI = openWorld();
+  const r = wI.eval(`(function(){
+    const out = {};
+    S.bolts = 100;
+    const u1 = mintInstance('m1'), u2 = mintInstance('m1');
+    S.inv.items[u2].wear = 40;
+    recomputeOwned(); goTab('workshop'); renderHome();
+    const cards = [...$('invStrip').querySelectorAll('.rc-gcard')];
+    out.nCards = cards.length;                                   // une carte PAR pièce, plus de ×N
+    out.wears = cards.map(c => c.querySelector('.rc-gcard__fx').textContent);
+    // MONTER la pièce neuve (u1) : le m0 d'origine redevient libre
+    const neuf = cards.find(c => c.querySelector('.rc-gcard__fx').textContent === t('invNew'));
+    neuf.querySelector('button.rc-buy--equip').click();
+    out.mounted = S.parts.equipped.motor;
+    out.m0Freed = freeUids('m0').length;
+    // REVENDRE la pièce usée (deux taps) : bourse créditée pile, carte disparue
+    const attendu = sellPriceOf('m1', 40);
+    const b0 = S.bolts;
+    const worn = [...$('invStrip').querySelectorAll('.rc-gcard')]
+      .find(c => c.querySelector('.rc-gcard__fx').textContent.indexOf('40') >= 0);
+    const sb = worn.querySelector('.rc-sell'); sb.click(); sb.click();
+    out.credited = S.bolts - b0; out.attendu = attendu;
+    out.gone = !S.inv.items[u2];
+    out.cardsLeft = $('invStrip').querySelectorAll('.rc-gcard').length;
+    return out;
+  })()`);
+  check("E11: une carte par pièce (2 copies = 2 cartes, usures distinctes)",
+        r.nCards === 2 && r.wears.join("|").indexOf("40") >= 0, JSON.stringify(r.wears));
+  check("E11: MONTER équipe la pièce choisie et libère l'ancienne",
+        r.mounted === "m1" && r.m0Freed === 1, r.mounted + " · m0 libres " + r.m0Freed);
+  check("E11: REVENDRE (deux taps) crédite la formule officielle et détruit la pièce",
+        r.credited === r.attendu && r.gone === true, r.credited + " € (attendu " + r.attendu + ")");
+  check("E11: aucune erreur inventaire", wI.errors.length === 0, wI.errors[0] || "");
+  wI.close();
 });
 
 

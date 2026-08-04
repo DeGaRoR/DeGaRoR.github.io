@@ -411,8 +411,11 @@ safe("J9 sauvegardes hostiles", () => {
 safe("J14 invariants d'instances", () => {
   const w = openWorld({ save: mkSave(null, { bolts: 100000 }) });
   // séquence de mutations mixtes par l'API publique
+  // E11 : le stepper n'achète plus — on frappe le stock libre pour continuer
+  // d'exercer un VRAI empilement dans le balayage d'invariants.
   w.eval(`(function(){
     buyBot("fleche"); setActiveBot(0);
+    mintInstance("m0"); mintInstance("m0");
     setCount("motor", +1); setCount("motor", +1); setCount("motor", -1);
     tryEquip("battery", "b1");            // pas possédée : refus attendu, sans corruption
     tryEquip("armor", ENGINE.PARTS.armor[1] ? ENGINE.PARTS.armor[1].id : "a1");
@@ -440,17 +443,21 @@ safe("J14 invariants d'instances", () => {
     return errs;
   })()`);
   check("J14 zéro violation d'invariants après mutations", errs.length === 0, errs.slice(0, 3).join(" | ") || "—");
-  // [4] mort : empiler sans stock libre coûte exactement n × prix (jamais gratuit)
+  // [4] E11 : empiler sans stock libre = REFUS SEC (zéro débit, zéro frappe) ;
+  //     avec stock libre, la copie possédée se monte sans un centime.
   const w2 = openWorld({ save: mkSave(null, { bolts: 100000 }) });
   const paid = w2.eval(`(function(){
-    const cost = (ENGINE.partOf("motor", "m0")||{}).cost || 0;
     const b0 = S.bolts, n0 = invCount("m0");
     setCount("motor", +1); setCount("motor", +1);
-    return { spent: b0 - S.bolts, minted: invCount("m0") - n0, cost };
+    const refus = { spent: b0 - S.bolts, minted: invCount("m0") - n0, n: AB().counts.motor };
+    mintInstance("m0"); setCount("motor", +1);
+    return { refus, apres: { spent: b0 - S.bolts, n: AB().counts.motor } };
   })()`);
-  check("J14 empilement sans stock libre : débit = n × coût, instances mintées",
-        paid.minted >= 1 && paid.spent === paid.minted * paid.cost,
-        JSON.stringify(paid));
+  check("J14 empiler sans stock libre = refus sec, zéro débit, zéro frappe",
+        paid.refus.spent === 0 && paid.refus.minted === 0 && paid.refus.n === undefined,
+        JSON.stringify(paid.refus));
+  check("J14 empiler une copie possédée = montée gratuite (déjà payée en boutique)",
+        paid.apres.spent === 0 && paid.apres.n === 2, JSON.stringify(paid.apres));
   check("J14 aucune erreur", w.errors.length === 0 && w2.errors.length === 0,
         (w.errors[0] || w2.errors[0] || ""));
   w.close(); w2.close();

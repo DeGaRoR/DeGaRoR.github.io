@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#101512">
+  <title>Physarum Lab V3</title>
+  <style>
+
+    :root {
+      color-scheme: dark;
+      --bg: #0b100d;
+      --panel: #151c17;
+      --panel-2: #1b241e;
+      --text: #eef2ea;
+      --muted: #9ba69d;
+      --border: rgba(219, 231, 220, .16);
+      --accent: #a6b8ff;
+      --accent-ink: #0b1020;
+      --slime-dark: #5e591d;
+      --slime-body: #aaa22d;
+      --slime-hot: #eee878;
+      --oat: #d7bd80;
+      --danger: #dc8e83;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overscroll-behavior: none;
+    }
+    button, select, input { font: inherit; color: inherit; }
+    button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      contain: strict;
+    }
+
+    #simCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .edge-button,
+    .tool-button,
+    .primary-button {
+      border: 1px solid var(--border);
+      background: rgba(15, 21, 17, .88);
+      color: var(--text);
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      transition: transform 100ms ease, background 100ms ease, border-color 100ms ease;
+    }
+    .edge-button:active,
+    .tool-button:active,
+    .primary-button:active { transform: scale(.95); }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .edge-button {
+      position: absolute;
+      z-index: 20;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      font-size: 20px;
+    }
+    #menuBtn { top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); }
+    #fullscreenBtn { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
+    #editBtn { bottom: max(10px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); }
+    #runBtn {
+      bottom: max(10px, env(safe-area-inset-bottom));
+      right: max(10px, env(safe-area-inset-right));
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: transparent;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    #editBtn[data-open="true"] {
+      border-color: rgba(238,232,120,.55);
+      background: rgba(103, 98, 25, .78);
+      color: #fffbd0;
+    }
+
+    .progress-hud {
+      position: absolute;
+      z-index: 18;
+      top: max(10px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(270px, calc(100vw - 132px));
+      min-width: 152px;
+      padding: 7px 10px 8px;
+      border: 1px solid rgba(219,231,220,.13);
+      border-radius: 15px;
+      background: rgba(13, 19, 15, .82);
+      box-shadow: 0 4px 16px rgba(0,0,0,.18);
+      pointer-events: none;
+    }
+    .progress-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .progress-phase { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .progress-percent { color: var(--muted); font-size: 11px; }
+    .progress-track {
+      height: 5px;
+      margin-top: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(230,238,230,.10);
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--slime-hot);
+      transition: width 260ms ease;
+    }
+    .progress-detail {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tool-palette {
+      position: absolute;
+      z-index: 19;
+      left: max(10px, env(safe-area-inset-left));
+      bottom: calc(max(66px, env(safe-area-inset-bottom) + 56px));
+      display: grid;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+    .tool-palette[data-open="true"] { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .tool-button {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      font-size: 19px;
+    }
+    .tool-button[data-active="true"] {
+      border-color: rgba(238,232,120,.55);
+      background: rgba(103, 98, 25, .78);
+      color: #fffbd0;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 24;
+      left: 50%;
+      bottom: calc(max(68px, env(safe-area-inset-bottom) + 58px));
+      transform: translate(-50%, 8px);
+      max-width: calc(100vw - 128px);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: rgba(13,19,15,.92);
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      color: var(--text);
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+    .toast[data-show="true"] { opacity: 1; transform: translate(-50%, 0); }
+
+    .scrim {
+      position: absolute;
+      z-index: 29;
+      inset: 0;
+      border: 0;
+      background: rgba(0,0,0,.46);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+    }
+    .scrim[data-open="true"] { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: absolute;
+      z-index: 30;
+      top: 0;
+      left: 0;
+      width: min(360px, calc(100vw - 28px));
+      height: 100%;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+      overflow-y: auto;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      transform: translateX(-102%);
+      transition: transform 180ms ease;
+      box-shadow: 18px 0 45px rgba(0,0,0,.35);
+    }
+    .drawer[data-open="true"] { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+    .drawer h1 { margin: 0; font-size: 20px; }
+    .drawer h2 { margin: 20px 0 9px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; }
+    .drawer p { margin: 7px 0; color: var(--muted); font-size: 13px; }
+    .close-button {
+      width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 14px;
+      background: var(--panel-2); color: var(--text); font-size: 22px;
+    }
+    .field { display: block; margin-top: 13px; font-size: 13px; }
+    .field-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+    .field-value { color: var(--muted); }
+    select {
+      width: 100%; margin-top: 6px; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--panel-2); padding: 10px 11px;
+    }
+    input[type="range"] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+    .switch-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; }
+    .switch-row input { width: 20px; height: 20px; accent-color: var(--accent); }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .primary-button { border-radius: 12px; padding: 10px 11px; }
+    .danger-button { color: #ffd7d0; border-color: rgba(220,142,131,.35); }
+    .stats-block { display: grid; gap: 8px; margin-top: 8px; }
+    .stat-line {
+      display: grid; grid-template-columns: 1fr auto; gap: 10px;
+      border-bottom: 1px solid rgba(219,231,220,.08); padding-bottom: 7px; font-size: 13px;
+    }
+    .stat-line span:first-child { color: var(--muted); }
+    .performance-note {
+      margin-top: 16px; padding: 10px 11px; border-left: 3px solid var(--slime-body);
+      background: rgba(170,162,45,.07); color: var(--muted); font-size: 12px;
+    }
+
+    @media (max-width: 420px) {
+      .progress-hud { width: calc(100vw - 124px); padding-left: 8px; padding-right: 8px; }
+      .progress-detail { display: none; }
+      .progress-hud { padding-bottom: 7px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      .progress-hud { top: 8px; width: min(300px, calc(100vw - 140px)); }
+      #menuBtn, #fullscreenBtn { top: 8px; }
+      #editBtn, #runBtn { bottom: 8px; }
+      .tool-palette { bottom: 62px; }
+    }
+  </style>
+</head>
+<body>
+
+  <main id="app">
+    <canvas id="simCanvas" aria-label="Simulation plein écran d'un réseau de Physarum éditable"></canvas>
+
+    <button id="menuBtn" class="edge-button" type="button" aria-label="Ouvrir les réglages">☰</button>
+
+    <section class="progress-hud" aria-label="Progression de l'expérience" aria-live="polite">
+      <div class="progress-row">
+        <span id="phaseText" class="progress-phase">Préparation</span>
+        <span id="progressPercent" class="progress-percent">0 %</span>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="progressDetail" class="progress-detail">Le slime attend une demande de transport.</div>
+    </section>
+
+    <button id="fullscreenBtn" class="edge-button" type="button" aria-label="Basculer en plein écran">⛶</button>
+
+    <div id="toolPalette" class="tool-palette" data-open="false" aria-label="Outils d'édition">
+      <button class="tool-button" type="button" data-tool="food" data-active="true" aria-label="Ajouter ou retirer une avoine" title="Avoine">◉</button>
+      <button class="tool-button" type="button" data-tool="wall" data-active="false" aria-label="Dessiner des murs" title="Mur">▦</button>
+      <button class="tool-button" type="button" data-tool="slime" data-active="false" aria-label="Peindre du slime initial" title="Slime">〰</button>
+      <button class="tool-button" type="button" data-tool="erase" data-active="false" aria-label="Effacer" title="Effacer">⌫</button>
+    </div>
+    <button id="editBtn" class="edge-button" type="button" data-open="false" aria-label="Afficher les outils d'édition">✎</button>
+    <button id="runBtn" class="edge-button" type="button" aria-label="Démarrer la simulation">▶</button>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <button id="scrim" class="scrim" type="button" aria-label="Fermer les réglages" data-open="false"></button>
+    <aside id="drawer" class="drawer" data-open="false" aria-label="Réglages et statistiques">
+      <div class="drawer-head">
+        <div>
+          <h1>Physarum Lab V3</h1>
+          <p>La plaque reste presque entièrement libre. Les quatre commandes principales occupent uniquement les coins.</p>
+        </div>
+        <button id="closeDrawerBtn" class="close-button" type="button" aria-label="Fermer">×</button>
+      </div>
+
+      <h2>Expérience</h2>
+      <label class="field" for="preset">Terrain
+        <select id="preset">
+          <option value="network">Réseau multi-avoine</option>
+          <option value="maze">Labyrinthe ramifié</option>
+          <option value="organic">Relief organique</option>
+          <option value="empty">Plaque libre</option>
+        </select>
+      </label>
+      <div class="button-row">
+        <button id="resetBtn" class="primary-button" type="button">Régénérer le slime</button>
+        <button id="clearBtn" class="primary-button danger-button" type="button">Tout effacer</button>
+      </div>
+
+      <h2>Dynamique</h2>
+      <div class="field">
+        <label class="field-row" for="speed"><span>Vitesse temporelle</span><span id="speedLabel" class="field-value">0,65×</span></label>
+        <input id="speed" type="range" min="0.25" max="3" step="0.05" value="0.65">
+      </div>
+      <div class="field">
+        <label class="field-row" for="adapt"><span>Plasticité</span><span id="adaptLabel" class="field-value">1,0</span></label>
+        <input id="adapt" type="range" min="0.45" max="1.8" step="0.05" value="1">
+      </div>
+      <label class="switch-row">
+        <input id="showBenchmark" type="checkbox">
+        <span>Afficher l'arbre mathématique de référence</span>
+      </label>
+      <label class="switch-row">
+        <input id="showProbe" type="checkbox">
+        <span>Afficher les filaments exploratoires les plus faibles</span>
+      </label>
+
+      <h2>Réseau actuel</h2>
+      <div class="stats-block">
+        <div class="stat-line"><span>Nombre d'avoines</span><strong id="sFoods">—</strong></div>
+        <div class="stat-line"><span>Paires reliées</span><strong id="sCoverage">—</strong></div>
+        <div class="stat-line"><span>Efficacité des liaisons</span><strong id="sEfficiency">—</strong></div>
+        <div class="stat-line"><span>Longueur active</span><strong id="sActive">—</strong></div>
+        <div class="stat-line"><span>Coût / arbre de référence</span><strong id="sCost">—</strong></div>
+        <div class="stat-line"><span>Robustesse à une coupure</span><strong id="sRobustness">—</strong></div>
+        <div class="stat-line"><span>Convergence</span><strong id="sConvergence">—</strong></div>
+        <div class="stat-line"><span>Temps simulé</span><strong id="sTime">—</strong></div>
+      </div>
+
+      <div class="performance-note">Le flux animé a été retiré. Le fond et les obstacles sont mis en cache, le canvas n'est plus redimensionné dans la boucle d'animation et le rendu est plafonné. Cela vise précisément les écrans noirs et les clics retardés observés sur Android.</div>
+
+      <h2>Lecture honnête</h2>
+      <p>Chaque demande choisit un trajet de moindre résistance, renforce localement ses tubes et laisse les autres mourir lentement. Cette approximation multi-avoine reprend l'adaptation locale du Physarum, mais ne prétend pas être un solveur hydraulique complet ni une solution exacte au problème de Steiner.</p>
+    </aside>
+  </main>
+
+
+  <script>
+    (() => {
+      'use strict';
+
+      const app = document.getElementById('app');
+      const canvas = document.getElementById('simCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const staticCanvas = document.createElement('canvas');
+      const staticCtx = staticCanvas.getContext('2d', { alpha: false });
+      const portraitAtLoad = window.innerHeight > window.innerWidth;
+      const REF_COLS = 49;
+      const REF_ROWS = 27;
+      const COLS = portraitAtLoad ? REF_ROWS : REF_COLS;
+      const ROWS = portraitAtLoad ? REF_COLS : REF_ROWS;
+      const FREE = 0;
+      const WALL = 1;
+
+      const $ = id => document.getElementById(id);
+      const idx = (x, y) => y * COLS + x;
+      const inBounds = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const smoothstep = (a, b, x) => {
+        const t = clamp((x - a) / Math.max(1e-9, b - a), 0, 1);
+        return t * t * (3 - 2 * t);
+      };
+
+      let grid = new Uint8Array(COLS * ROWS);
+      let slimePaint = new Float32Array(COLS * ROWS);
+      let foods = [];
+      let edges = [];
+      let adjacency = [];
+      let nodeOfCell = new Int32Array(COLS * ROWS);
+      let cellOfNode = [];
+      let pressure = new Float64Array(0);
+      let injection = new Float64Array(0);
+      let running = false;
+      let drawing = false;
+      let tool = 'food';
+      let lastPaintPoint = null;
+      let frame = 0;
+      let simulatedSteps = 0;
+      let deltaEma = 1;
+      let topologyVersion = 0;
+      let baselineCache = null;
+      let lastMetrics = null;
+      let stepAccumulator = 0;
+      let lastAnimationTime = performance.now();
+      let toastTimer = 0;
+      let view = { w: 0, h: 0, cw: 1, ch: 1, scale: 1 };
+      let staticDirty = true;
+      let renderDirty = true;
+      let lastRenderTime = 0;
+      let lastMetricsTime = 0;
+      let resizeTimer = 0;
+      const MAX_RENDER_PIXELS = 1400000;
+
+      const runBtn = $('runBtn');
+      const speed = $('speed');
+      const adapt = $('adapt');
+
+      function seededNoise(x, y, seed = 13) {
+        const s = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+        return s - Math.floor(s);
+      }
+
+      function refToCell(rx, ry) {
+        if (!portraitAtLoad) return { x: rx, y: ry };
+        return { x: ry, y: REF_COLS - 1 - rx };
+      }
+
+      function setRef(rx, ry, value) {
+        const p = refToCell(rx, ry);
+        if (inBounds(p.x, p.y)) grid[idx(p.x, p.y)] = value;
+      }
+
+      function foodRef(rx, ry) {
+        const p = refToCell(rx, ry);
+        if (inBounds(p.x, p.y)) foods.push(p);
+      }
+
+      function slimeRef(rx, ry, radius = 2.5) {
+        const p = refToCell(rx, ry);
+        paintDisc(p.x, p.y, radius, 'slime', false);
+      }
+
+      function setPreset(name) {
+        grid = new Uint8Array(COLS * ROWS);
+        slimePaint = new Float32Array(COLS * ROWS);
+        foods = [];
+
+        if (name === 'network') {
+          foodRef(5, 6); foodRef(18, 4); foodRef(34, 5); foodRef(44, 9);
+          foodRef(8, 21); foodRef(25, 22); foodRef(41, 20);
+
+          for (let ry = 7; ry <= 19; ry++) {
+            for (let rx = 19; rx <= 30; rx++) {
+              const dx = (rx - 24.5) / 6.5;
+              const dy = (ry - 13) / 5.5;
+              const field = dx * dx + dy * dy + 0.22 * Math.sin(rx * .8) - 0.18 * Math.cos(ry * 1.2);
+              if (field < .88) setRef(rx, ry, WALL);
+            }
+          }
+          for (let ry = 3; ry <= 10; ry++) if (ry !== 7) setRef(12, ry, WALL);
+          for (let ry = 17; ry <= 24; ry++) if (ry !== 20) setRef(37, ry, WALL);
+          slimeRef(25, 13, 3.2);
+        } else if (name === 'maze') {
+          foodRef(3, 13); foodRef(24, 3); foodRef(45, 13); foodRef(24, 24);
+          [9, 17, 25, 33, 41].forEach((rx, k) => {
+            const gap = k % 2 === 0 ? 5 : 21;
+            for (let ry = 2; ry < REF_ROWS - 2; ry++) {
+              if (Math.abs(ry - gap) > 2) setRef(rx, ry, WALL);
+            }
+          });
+          slimeRef(3, 13, 2.8);
+        } else if (name === 'organic') {
+          foodRef(4, 6); foodRef(16, 22); foodRef(30, 4); foodRef(45, 9); foodRef(42, 23); foodRef(26, 15);
+          for (let ry = 2; ry < REF_ROWS - 2; ry++) {
+            for (let rx = 7; rx < REF_COLS - 7; rx++) {
+              const dx = (rx - 25) / 13;
+              const dy = (ry - 13) / 8;
+              const field = dx * dx + dy * dy + .32 * Math.sin(rx * .48) - .24 * Math.cos(ry * .9);
+              const pore = seededNoise(rx, ry, 8) > .88;
+              if (field < .92 && !pore) setRef(rx, ry, WALL);
+            }
+          }
+          for (let ry = 4; ry <= 8; ry++) setRef(25, ry, FREE);
+          for (let ry = 18; ry <= 22; ry++) setRef(25, ry, FREE);
+          slimeRef(26, 15, 3.5);
+        } else {
+          foodRef(7, 7); foodRef(41, 8); foodRef(11, 21); foodRef(38, 21);
+          slimeRef(24, 13, 3.2);
+        }
+
+        for (const f of foods) grid[idx(f.x, f.y)] = FREE;
+        rebuildNetwork();
+        running = false;
+        updateMetrics();
+        syncRunState();
+        requestRender(true);
+        showToast('Terrain chargé — ajoutez autant d’avoines que nécessaire');
+      }
+
+      function rebuildNetwork() {
+        topologyVersion++;
+        baselineCache = null;
+        nodeOfCell = new Int32Array(COLS * ROWS);
+        nodeOfCell.fill(-1);
+        cellOfNode = [];
+
+        for (let y = 0; y < ROWS; y++) {
+          for (let x = 0; x < COLS; x++) {
+            if (grid[idx(x, y)] === FREE) {
+              nodeOfCell[idx(x, y)] = cellOfNode.length;
+              cellOfNode.push({ x, y });
+            }
+          }
+        }
+
+        adjacency = Array.from({ length: cellOfNode.length }, () => []);
+        edges = [];
+        for (let n = 0; n < cellOfNode.length; n++) {
+          const { x, y } = cellOfNode[n];
+          for (const [dx, dy] of [[1, 0], [0, 1]]) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (!inBounds(nx, ny)) continue;
+            const m = nodeOfCell[idx(nx, ny)];
+            if (m < 0) continue;
+            const localSlime = Math.max(slimePaint[idx(x, y)], slimePaint[idx(nx, ny)]);
+            const probe = 0.016 + 0.006 * seededNoise(x + nx, y + ny, topologyVersion);
+            const edge = {
+              a: n,
+              b: m,
+              d: probe,
+              q: 0,
+              memory: 0,
+              seed: localSlime,
+              grain: seededNoise(n, m, 73),
+              bend: seededNoise(n, m, 27) - .5
+            };
+            const ei = edges.length;
+            edges.push(edge);
+            adjacency[n].push({ node: m, edge: ei });
+            adjacency[m].push({ node: n, edge: ei });
+          }
+        }
+        pressure = new Float64Array(cellOfNode.length);
+        injection = new Float64Array(cellOfNode.length);
+        deltaEma = 1;
+        frame = 0;
+        simulatedSteps = 0;
+        stepAccumulator = 0;
+        staticDirty = true;
+        renderDirty = true;
+      }
+
+      function foodNodes() {
+        return foods.map(f => inBounds(f.x, f.y) ? nodeOfCell[idx(f.x, f.y)] : -1).filter(n => n >= 0);
+      }
+
+      function shortestPathBetween(start, goal, threshold = null, ignoredEdge = -1) {
+        if (start < 0 || goal < 0) return null;
+        if (start === goal) return { nodes: [start], edges: [], length: 0 };
+        const prevNode = new Int32Array(cellOfNode.length);
+        const prevEdge = new Int32Array(cellOfNode.length);
+        prevNode.fill(-1);
+        prevEdge.fill(-1);
+        const queue = new Int32Array(cellOfNode.length);
+        let head = 0;
+        let tail = 0;
+        queue[tail++] = start;
+        prevNode[start] = start;
+
+        while (head < tail) {
+          const n = queue[head++];
+          if (n === goal) break;
+          for (const a of adjacency[n]) {
+            if (a.edge === ignoredEdge) continue;
+            if (threshold !== null && edges[a.edge].d < threshold) continue;
+            if (prevNode[a.node] !== -1) continue;
+            prevNode[a.node] = n;
+            prevEdge[a.node] = a.edge;
+            queue[tail++] = a.node;
+          }
+        }
+        if (prevNode[goal] === -1) return null;
+
+        const nodes = [];
+        const pathEdges = [];
+        let cur = goal;
+        while (cur !== start) {
+          nodes.push(cur);
+          pathEdges.push(prevEdge[cur]);
+          cur = prevNode[cur];
+        }
+        nodes.push(start);
+        nodes.reverse();
+        pathEdges.reverse();
+        return { nodes, edges: pathEdges, length: pathEdges.length };
+      }
+
+      function computeBaseline() {
+        if (baselineCache) return baselineCache;
+        const nodes = foodNodes();
+        if (nodes.length < 2) return null;
+        const pairPaths = Array.from({ length: nodes.length }, () => Array(nodes.length).fill(null));
+        const distances = Array.from({ length: nodes.length }, () => Array(nodes.length).fill(Infinity));
+
+        for (let i = 0; i < nodes.length; i++) {
+          distances[i][i] = 0;
+          for (let j = i + 1; j < nodes.length; j++) {
+            const path = shortestPathBetween(nodes[i], nodes[j]);
+            pairPaths[i][j] = pairPaths[j][i] = path;
+            if (path) distances[i][j] = distances[j][i] = path.length;
+          }
+        }
+
+        const inTree = new Uint8Array(nodes.length);
+        const best = new Float64Array(nodes.length);
+        const parent = new Int32Array(nodes.length);
+        best.fill(Infinity);
+        parent.fill(-1);
+        best[0] = 0;
+        const selectedPairs = [];
+
+        for (let k = 0; k < nodes.length; k++) {
+          let u = -1;
+          let bestValue = Infinity;
+          for (let i = 0; i < nodes.length; i++) {
+            if (!inTree[i] && best[i] < bestValue) {
+              bestValue = best[i];
+              u = i;
+            }
+          }
+          if (u < 0) break;
+          inTree[u] = 1;
+          if (parent[u] >= 0) selectedPairs.push([parent[u], u]);
+          for (let v = 0; v < nodes.length; v++) {
+            if (!inTree[v] && distances[u][v] < best[v]) {
+              best[v] = distances[u][v];
+              parent[v] = u;
+            }
+          }
+        }
+
+        const treeEdges = new Set();
+        let allConnected = selectedPairs.length === nodes.length - 1;
+        for (const [i, j] of selectedPairs) {
+          const path = pairPaths[i][j];
+          if (!path) { allConnected = false; continue; }
+          for (const ei of path.edges) treeEdges.add(ei);
+        }
+
+        baselineCache = { nodes, distances, pairPaths, treeEdges, length: treeEdges.size, allConnected };
+        return baselineCache;
+      }
+
+      function allFoodsConnected(threshold, ignoredEdge = -1) {
+        const nodes = foodNodes();
+        if (nodes.length < 2) return false;
+        const target = new Set(nodes);
+        const seen = new Uint8Array(cellOfNode.length);
+        const queue = new Int32Array(cellOfNode.length);
+        let head = 0;
+        let tail = 0;
+        queue[tail++] = nodes[0];
+        seen[nodes[0]] = 1;
+        let reached = 0;
+
+        while (head < tail) {
+          const n = queue[head++];
+          if (target.has(n)) reached++;
+          for (const a of adjacency[n]) {
+            if (a.edge === ignoredEdge) continue;
+            if (edges[a.edge].d < threshold || seen[a.node]) continue;
+            seen[a.node] = 1;
+            queue[tail++] = a.node;
+          }
+        }
+        return reached === nodes.length;
+      }
+
+      function leastResistancePath(start, goal) {
+        const nCount = cellOfNode.length;
+        const dist = new Float64Array(nCount);
+        const prevNode = new Int32Array(nCount);
+        const prevEdge = new Int32Array(nCount);
+        dist.fill(Infinity);
+        prevNode.fill(-1);
+        prevEdge.fill(-1);
+        dist[start] = 0;
+
+        const heapNode = [];
+        const heapValue = [];
+        function heapPush(node, value) {
+          let i = heapNode.length;
+          heapNode.push(node);
+          heapValue.push(value);
+          while (i > 0) {
+            const parent = (i - 1) >> 1;
+            if (heapValue[parent] <= value) break;
+            heapNode[i] = heapNode[parent];
+            heapValue[i] = heapValue[parent];
+            i = parent;
+          }
+          heapNode[i] = node;
+          heapValue[i] = value;
+        }
+        function heapPop() {
+          if (!heapNode.length) return null;
+          const node = heapNode[0];
+          const value = heapValue[0];
+          const lastNode = heapNode.pop();
+          const lastValue = heapValue.pop();
+          if (heapNode.length) {
+            let i = 0;
+            while (true) {
+              let child = i * 2 + 1;
+              if (child >= heapNode.length) break;
+              if (child + 1 < heapNode.length && heapValue[child + 1] < heapValue[child]) child++;
+              if (heapValue[child] >= lastValue) break;
+              heapNode[i] = heapNode[child];
+              heapValue[i] = heapValue[child];
+              i = child;
+            }
+            heapNode[i] = lastNode;
+            heapValue[i] = lastValue;
+          }
+          return { node, value };
+        }
+
+        heapPush(start, 0);
+        const pairCount = Math.max(1, foods.length * (foods.length - 1) / 2);
+        const round = Math.floor(simulatedSteps / pairCount);
+        const exploration = 0.05 + 0.32 * Math.exp(-simulatedSteps / 145);
+        const memoryWeight = 0.28 + 0.72 * (1 - Math.exp(-simulatedSteps / 95));
+
+        while (heapNode.length) {
+          const item = heapPop();
+          if (!item || item.value !== dist[item.node]) continue;
+          if (item.node === goal) break;
+          for (const a of adjacency[item.node]) {
+            const edge = edges[a.edge];
+            const learned = memoryWeight * edge.memory + 0.13 * edge.seed;
+            const preference = Math.pow(0.050 + learned, 0.72);
+            const dynamicNoise = seededNoise(a.edge, round, 113);
+            const noiseFactor = 1 + exploration * (dynamicNoise - 0.5) * 2;
+            const next = item.value + noiseFactor / preference;
+            if (next < dist[a.node]) {
+              dist[a.node] = next;
+              prevNode[a.node] = item.node;
+              prevEdge[a.node] = a.edge;
+              heapPush(a.node, next);
+            }
+          }
+        }
+
+        if (prevNode[goal] < 0) return null;
+        const pathEdges = [];
+        const pathNodes = [goal];
+        let cur = goal;
+        while (cur !== start) {
+          pathEdges.push(prevEdge[cur]);
+          cur = prevNode[cur];
+          pathNodes.push(cur);
+        }
+        pathEdges.reverse();
+        pathNodes.reverse();
+        return { edges: pathEdges, nodes: pathNodes };
+      }
+
+      function demandPair(nodes) {
+        const pairs = [];
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) pairs.push([i, j]);
+        }
+        const round = Math.floor(simulatedSteps / Math.max(1, pairs.length));
+        pairs.sort((a, b) => seededNoise(a[0] * 31 + a[1], round, 151) - seededNoise(b[0] * 31 + b[1], round, 151));
+        const pair = pairs[simulatedSteps % pairs.length];
+        return round % 2 ? [pair[1], pair[0]] : pair;
+      }
+
+      function stepSimulation() {
+        const nodes = foodNodes();
+        if (nodes.length < 2) {
+          running = false;
+          syncRunState('Placez au moins deux avoines');
+          return;
+        }
+        const baseline = computeBaseline();
+        if (!baseline || !baseline.allConnected) {
+          running = false;
+          syncRunState('Certaines avoines sont isolées par les murs');
+          return;
+        }
+
+        const [sourceIndex, sinkIndex] = demandPair(nodes);
+        const path = leastResistancePath(nodes[sourceIndex], nodes[sinkIndex]);
+        if (!path) return;
+
+        const plasticity = Number(adapt.value);
+        const decay = 0.0034 * plasticity;
+        const exploration = Math.exp(-simulatedSteps / 120);
+        let delta = 0;
+
+        for (const edge of edges) {
+          const old = edge.memory;
+          edge.memory *= (1 - decay);
+          edge.q = 0;
+          delta += Math.abs(edge.memory - old);
+        }
+
+        const pathSet = new Set(path.edges);
+        for (let k = 0; k < path.edges.length; k++) {
+          const ei = path.edges[k];
+          const edge = edges[ei];
+          const old = edge.memory;
+          edge.memory += 0.095 * plasticity * (1 - edge.memory);
+          edge.q = 1;
+          delta += Math.abs(edge.memory - old);
+        }
+
+        // Au début, une petite frange exploratoire reste autour du trajet principal.
+        // Elle rend visibles les branches qui seront ensuite abandonnées lentement.
+        if (exploration > 0.08) {
+          for (const node of path.nodes) {
+            for (const a of adjacency[node]) {
+              if (pathSet.has(a.edge)) continue;
+              const edge = edges[a.edge];
+              const old = edge.memory;
+              edge.memory += 0.012 * exploration * plasticity * (1 - edge.memory);
+              delta += Math.abs(edge.memory - old);
+            }
+          }
+        }
+
+        for (const edge of edges) edge.d = 0.016 + 0.68 * edge.memory;
+
+        const meanDelta = edges.length ? delta / edges.length : 0;
+        deltaEma = 0.95 * deltaEma + 0.05 * meanDelta;
+        frame++;
+        simulatedSteps++;
+      }
+
+      function computeMetrics() {
+        const baseline = computeBaseline();
+        if (!baseline || edges.length === 0) return null;
+        let maxD = 0;
+        for (const edge of edges) maxD = Math.max(maxD, edge.d);
+        const threshold = Math.max(0.052, maxD * 0.10);
+        const nodes = baseline.nodes;
+        let ratioSum = 0;
+        let connectedPairs = 0;
+        let totalPairs = 0;
+
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const baseDistance = baseline.distances[i][j];
+            if (!Number.isFinite(baseDistance)) continue;
+            totalPairs++;
+            const path = shortestPathBetween(nodes[i], nodes[j], threshold);
+            if (path) {
+              connectedPairs++;
+              ratioSum += baseDistance / Math.max(1, path.length);
+            }
+          }
+        }
+
+        const coverage = totalPairs ? connectedPairs / totalPairs : 0;
+        const efficiency = connectedPairs ? ratioSum / connectedPairs : 0;
+        const activeEdges = [];
+        for (let i = 0; i < edges.length; i++) if (edges[i].d >= threshold) activeEdges.push(i);
+        const costRatio = activeEdges.length / Math.max(1, baseline.length);
+
+        let robust = 0;
+        let tested = 0;
+        if (coverage === 1 && activeEdges.length) {
+          const stride = Math.max(1, Math.ceil(activeEdges.length / 28));
+          for (let i = 0; i < activeEdges.length; i += stride) {
+            tested++;
+            if (allFoodsConnected(threshold, activeEdges[i])) robust++;
+          }
+        }
+        const robustness = tested ? robust / tested : 0;
+        const convergence = clamp(Math.exp(-deltaEma * 180), 0, 1);
+        const compactness = clamp(1 / Math.max(1, costRatio), 0, 1);
+        const score = 100 * coverage * (0.55 * efficiency + 0.27 * compactness + 0.18 * robustness);
+
+        return {
+          baseline, threshold, maxD, efficiency, coverage, active: activeEdges.length,
+          costRatio, robustness, convergence, score
+        };
+      }
+
+      function updateMetrics() {
+        const metrics = computeMetrics();
+        lastMetrics = metrics;
+        const foodCount = foods.length;
+        $('sFoods').textContent = String(foodCount);
+        $('sTime').textContent = simulatedSteps + ' demandes';
+
+        if (!metrics) {
+          $('sCoverage').textContent = '—';
+          $('sEfficiency').textContent = '—';
+          $('sActive').textContent = '—';
+          $('sCost').textContent = '—';
+          $('sRobustness').textContent = '—';
+          $('sConvergence').textContent = '—';
+          updateProgress();
+          return;
+        }
+
+        $('sCoverage').textContent = Math.round(metrics.coverage * 100) + ' %';
+        $('sEfficiency').textContent = Math.round(metrics.efficiency * 100) + ' %';
+        $('sActive').textContent = metrics.active + ' segments';
+        $('sCost').textContent = metrics.coverage > 0 ? metrics.costRatio.toFixed(2).replace('.', ',') + '×' : '—';
+        $('sRobustness').textContent = Math.round(metrics.robustness * 100) + ' %';
+        $('sConvergence').textContent = Math.round(metrics.convergence * 100) + ' %';
+        updateProgress();
+      }
+
+      function updateProgress() {
+        const foodCount = foods.length;
+        const pairCount = Math.max(1, foodCount * (foodCount - 1) / 2);
+        const cycles = simulatedSteps / pairCount;
+        const coverage = lastMetrics?.coverage || 0;
+        const convergence = lastMetrics?.convergence || 0;
+        let phase = 'Préparation';
+        let detail = foodCount + ' avoines sur la plaque';
+        let progress = 0;
+
+        if (foodCount < 2) {
+          phase = 'Ajoutez des avoines';
+          detail = 'Deux sources de nourriture au minimum';
+        } else if (simulatedSteps === 0) {
+          phase = 'Prêt à explorer';
+          detail = pairCount + ' paires de nourriture à relier';
+          progress = 1;
+        } else if (cycles < 2) {
+          phase = 'Exploration';
+          progress = 5 + 22 * clamp(cycles / 2, 0, 1);
+          detail = Math.min(simulatedSteps, pairCount * 2) + ' / ' + pairCount * 2 + ' demandes initiales';
+        } else if (coverage < .995) {
+          phase = 'Connexion';
+          progress = 27 + 25 * coverage;
+          detail = Math.round(coverage * 100) + ' % des paires reliées';
+        } else {
+          const pruning = clamp((cycles - 2) / 24, 0, 1);
+          progress = 52 + 38 * pruning + 10 * convergence;
+          if (progress < 78) phase = 'Consolidation';
+          else if (convergence < .94) phase = 'Élagage des branches';
+          else phase = 'Réseau stabilisé';
+          detail = phase === 'Réseau stabilisé'
+            ? 'Les changements résiduels sont devenus faibles'
+            : 'Toutes les avoines sont reliées ; le réseau se simplifie';
+        }
+
+        progress = clamp(progress, 0, 100);
+        $('phaseText').textContent = phase;
+        $('progressPercent').textContent = Math.round(progress) + ' %';
+        $('progressFill').style.width = progress + '%';
+        $('progressDetail').textContent = detail;
+      }
+
+      function requestRender(staticLayer = false) {
+        if (staticLayer) staticDirty = true;
+        renderDirty = true;
+      }
+
+      function resizeCanvas(force = false) {
+        const rect = app.getBoundingClientRect();
+        const w = Math.max(320, Math.round(rect.width));
+        const h = Math.max(320, Math.round(rect.height));
+        if (!force && Math.abs(w - view.w) < 2 && Math.abs(h - view.h) < 2) return;
+
+        const deviceScale = Math.min(1.5, window.devicePixelRatio || 1);
+        const budgetScale = Math.sqrt(MAX_RENDER_PIXELS / Math.max(1, w * h));
+        const scale = clamp(Math.min(deviceScale, budgetScale), .75, 1.5);
+        const rw = Math.max(1, Math.round(w * scale));
+        const rh = Math.max(1, Math.round(h * scale));
+
+        canvas.width = rw;
+        canvas.height = rh;
+        staticCanvas.width = rw;
+        staticCanvas.height = rh;
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        staticCtx.setTransform(scale, 0, 0, scale, 0, 0);
+        view = { w, h, cw: w / COLS, ch: h / ROWS, scale };
+
+        ctx.fillStyle = '#0b100d';
+        ctx.fillRect(0, 0, w, h);
+        staticDirty = true;
+        buildStaticLayer();
+        renderDirty = true;
+      }
+
+      function buildStaticLayer() {
+        const { w, h, cw, ch } = view;
+        if (!w || !h) return;
+        staticCtx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
+        staticCtx.clearRect(0, 0, w, h);
+
+        const plate = staticCtx.createRadialGradient(w * .45, h * .42, 0, w * .45, h * .42, Math.max(w, h) * .78);
+        plate.addColorStop(0, '#202b23');
+        plate.addColorStop(.58, '#131b16');
+        plate.addColorStop(1, '#080c0a');
+        staticCtx.fillStyle = plate;
+        staticCtx.fillRect(0, 0, w, h);
+
+        staticCtx.fillStyle = 'rgba(215,224,214,.10)';
+        const speckCount = Math.min(180, Math.floor(w * h / 7000));
+        for (let i = 0; i < speckCount; i++) {
+          const x = seededNoise(i, 7, 3) * w;
+          const y = seededNoise(i, 17, 9) * h;
+          staticCtx.beginPath();
+          staticCtx.arc(x, y, .35 + seededNoise(i, 5, 12) * .65, 0, Math.PI * 2);
+          staticCtx.fill();
+        }
+
+        const minCell = Math.min(cw, ch);
+        for (let y = 0; y < ROWS; y++) {
+          for (let x = 0; x < COLS; x++) {
+            const cell = idx(x, y);
+            if (grid[cell] === WALL) {
+              const px = x * cw;
+              const py = y * ch;
+              const pad = Math.max(.65, minCell * .07);
+              const tone = seededNoise(x, y, 51);
+              staticCtx.fillStyle = tone < .33 ? '#3f4941' : tone < .66 ? '#465148' : '#374139';
+              staticCtx.strokeStyle = 'rgba(214,225,214,.10)';
+              staticCtx.lineWidth = .7;
+              staticCtx.beginPath();
+              staticCtx.roundRect(px + pad, py + pad, cw - 2 * pad, ch - 2 * pad, minCell * .25);
+              staticCtx.fill();
+              staticCtx.stroke();
+            }
+
+            const slime = slimePaint[cell];
+            if (slime > .08) {
+              const cx = (x + .5) * cw;
+              const cy = (y + .5) * ch;
+              const r = minCell * (.58 + .22 * slime);
+              staticCtx.fillStyle = `rgba(143,137,40,${(.05 + .10 * slime).toFixed(3)})`;
+              staticCtx.beginPath();
+              staticCtx.arc(cx, cy, r, 0, Math.PI * 2);
+              staticCtx.fill();
+            }
+          }
+        }
+        staticDirty = false;
+      }
+
+      function edgeCurve(edge, cw, ch) {
+        const a = cellOfNode[edge.a];
+        const b = cellOfNode[edge.b];
+        const ax = (a.x + .5) * cw;
+        const ay = (a.y + .5) * ch;
+        const bx = (b.x + .5) * cw;
+        const by = (b.y + .5) * ch;
+        const mx = (ax + bx) / 2;
+        const my = (ay + by) / 2;
+        const dx = bx - ax;
+        const dy = by - ay;
+        const length = Math.hypot(dx, dy) || 1;
+        const wobble = edge.bend * Math.min(cw, ch) * .62;
+        return { ax, ay, bx, by, cx: mx - dy / length * wobble, cy: my + dx / length * wobble };
+      }
+
+      function drawEdgePath(curve) {
+        ctx.beginPath();
+        ctx.moveTo(curve.ax, curve.ay);
+        ctx.quadraticCurveTo(curve.cx, curve.cy, curve.bx, curve.by);
+      }
+
+      function draw() {
+        const { w, h, cw, ch } = view;
+        if (!w || !h) return;
+        if (staticDirty) buildStaticLayer();
+
+        ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
+        ctx.drawImage(staticCanvas, 0, 0, staticCanvas.width, staticCanvas.height, 0, 0, w, h);
+        const minCell = Math.min(cw, ch);
+
+        if ($('showBenchmark').checked && lastMetrics?.baseline?.treeEdges) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(166,184,255,.54)';
+          ctx.lineWidth = Math.max(1, minCell * .10);
+          ctx.setLineDash([Math.max(3, minCell * .40), Math.max(3, minCell * .40)]);
+          ctx.beginPath();
+          for (const ei of lastMetrics.baseline.treeEdges) {
+            const curve = edgeCurve(edges[ei], cw, ch);
+            ctx.moveTo(curve.ax, curve.ay);
+            ctx.quadraticCurveTo(curve.cx, curve.cy, curve.bx, curve.by);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        const showProbe = $('showProbe').checked;
+        const buckets = Array.from({ length: 6 }, () => []);
+        for (let i = 0; i < edges.length; i++) {
+          const edge = edges[i];
+          const visible = smoothstep(.038, .33, edge.d);
+          if (!showProbe && visible < .018) continue;
+          const bucket = clamp(Math.floor(visible * 5.999), 0, 5);
+          buckets[bucket].push(i);
+        }
+
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let pass = 0; pass < 2; pass++) {
+          for (let bucket = 0; bucket < buckets.length; bucket++) {
+            const list = buckets[bucket];
+            if (!list.length) continue;
+            const strength = (bucket + 1) / buckets.length;
+            const width = minCell * (.075 + .68 * Math.pow(strength, .76));
+            ctx.strokeStyle = pass === 0 ? '#5f5a1e' : '#aaa22d';
+            ctx.globalAlpha = pass === 0
+              ? (bucket === 0 && showProbe ? .045 : .13 + .54 * strength)
+              : (bucket === 0 && showProbe ? .025 : .07 + .62 * strength);
+            ctx.lineWidth = pass === 0 ? Math.max(.55, width * 1.55) : Math.max(.35, width * .52);
+            ctx.beginPath();
+            for (const ei of list) {
+              const curve = edgeCurve(edges[ei], cw, ch);
+              ctx.moveTo(curve.ax, curve.ay);
+              ctx.quadraticCurveTo(curve.cx, curve.cy, curve.bx, curve.by);
+            }
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+
+        ctx.save();
+        for (let n = 0; n < cellOfNode.length; n++) {
+          let degree = 0;
+          let strength = 0;
+          for (const a of adjacency[n]) {
+            const v = smoothstep(.06, .29, edges[a.edge].d);
+            if (v > .22) degree++;
+            strength += v;
+          }
+          if (degree < 3 || strength < .9) continue;
+          const c = cellOfNode[n];
+          ctx.globalAlpha = .12 + .18 * Math.min(1, strength / 3);
+          ctx.fillStyle = '#aaa22d';
+          ctx.beginPath();
+          ctx.arc((c.x + .5) * cw, (c.y + .5) * ch, minCell * (.08 + .05 * Math.min(1, strength / 3)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        foods.forEach((food, i) => {
+          const cx = (food.x + .5) * cw;
+          const cy = (food.y + .5) * ch;
+          const r = minCell * .34;
+          ctx.fillStyle = 'rgba(238,232,120,.10)';
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 1.9, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate((seededNoise(i, i, 90) - .5) * 1.1);
+          ctx.fillStyle = '#d7bd80';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * .62, r, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(85,58,23,.62)';
+          ctx.lineWidth = Math.max(.7, r * .09);
+          ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,248,208,.48)';
+          ctx.beginPath();
+          ctx.moveTo(0, -r * .58);
+          ctx.quadraticCurveTo(-r * .08, 0, 0, r * .58);
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+
+      function pointerCell(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((event.clientX - rect.left) / Math.max(1, rect.width) * COLS);
+        const y = Math.floor((event.clientY - rect.top) / Math.max(1, rect.height) * ROWS);
+        return inBounds(x, y) ? { x, y } : null;
+      }
+
+      function paintDisc(cx, cy, radius, mode, respectFood = true) {
+        const r = Math.max(0, Math.ceil(radius));
+        let changedTopology = false;
+        for (let y = cy - r; y <= cy + r; y++) {
+          for (let x = cx - r; x <= cx + r; x++) {
+            if (!inBounds(x, y)) continue;
+            const dist = Math.hypot(x - cx, y - cy);
+            if (dist > radius + .35) continue;
+            const cell = idx(x, y);
+            const foodIndex = foods.findIndex(f => f.x === x && f.y === y);
+
+            if (mode === 'wall') {
+              if (respectFood && foodIndex >= 0) continue;
+              if (grid[cell] !== WALL) changedTopology = true;
+              grid[cell] = WALL;
+              slimePaint[cell] = 0;
+            } else if (mode === 'erase') {
+              if (grid[cell] !== FREE) changedTopology = true;
+              grid[cell] = FREE;
+              slimePaint[cell] = 0;
+              if (foodIndex >= 0) foods.splice(foodIndex, 1);
+            } else if (mode === 'slime') {
+              grid[cell] = FREE;
+              slimePaint[cell] = Math.max(slimePaint[cell], clamp(1 - dist / Math.max(1, radius + .4), .24, 1));
+            }
+          }
+        }
+        requestRender(true);
+        return changedTopology;
+      }
+
+      function paintSegment(from, to, mode) {
+        if (!from || !to) return false;
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) * 3));
+        let topologyChanged = false;
+        const radius = mode === 'slime' ? 2.05 : (mode === 'erase' ? 1.35 : .78);
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = Math.round(lerp(from.x, to.x, t));
+          const y = Math.round(lerp(from.y, to.y, t));
+          topologyChanged = paintDisc(x, y, radius, mode) || topologyChanged;
+        }
+        return topologyChanged;
+      }
+
+      function toggleFoodAt(point) {
+        if (!point) return;
+        const existing = foods.findIndex(f => f.x === point.x && f.y === point.y);
+        if (existing >= 0) {
+          foods.splice(existing, 1);
+          showToast('Avoine retirée');
+        } else {
+          if (foods.length >= 14) {
+            showToast('Limite douce : 14 avoines');
+            return;
+          }
+          grid[idx(point.x, point.y)] = FREE;
+          foods.push({ x: point.x, y: point.y });
+          showToast('Avoine ajoutée — ' + foods.length + ' au total');
+        }
+        rebuildNetwork();
+        updateMetrics();
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        canvas.setPointerCapture(event.pointerId);
+        running = false;
+        syncRunState('Édition');
+        const point = pointerCell(event);
+        if (tool === 'food') {
+          toggleFoodAt(point);
+          requestRender(true);
+          return;
+        }
+        drawing = true;
+        lastPaintPoint = point;
+        paintSegment(point, point, tool);
+        requestRender(true);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!drawing || tool === 'food') return;
+        event.preventDefault();
+        const events = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [event];
+        for (const sample of events) {
+          const point = pointerCell(sample);
+          if (!point) continue;
+          paintSegment(lastPaintPoint, point, tool);
+          lastPaintPoint = point;
+          requestRender(true);
+        }
+      });
+
+      function endDrawing() {
+        if (!drawing) return;
+        drawing = false;
+        lastPaintPoint = null;
+        rebuildNetwork();
+        updateMetrics();
+        syncRunState('Terrain modifié');
+        requestRender(true);
+      }
+      canvas.addEventListener('pointerup', endDrawing);
+      canvas.addEventListener('pointercancel', endDrawing);
+      canvas.addEventListener('lostpointercapture', endDrawing);
+
+      document.querySelectorAll('[data-tool]').forEach(button => {
+        button.addEventListener('click', () => {
+          tool = button.dataset.tool;
+          document.querySelectorAll('[data-tool]').forEach(b => b.dataset.active = String(b === button));
+          const labels = { wall: 'Mur', food: 'Avoine', slime: 'Slime', erase: 'Effacer' };
+          showToast('Outil : ' + labels[tool]);
+        });
+      });
+
+      $('editBtn').addEventListener('click', () => {
+        const open = $('toolPalette').dataset.open !== 'true';
+        $('toolPalette').dataset.open = String(open);
+        $('editBtn').dataset.open = String(open);
+      });
+
+      function syncRunState(message) {
+        runBtn.textContent = running ? 'Ⅱ' : '▶';
+        runBtn.setAttribute('aria-label', running ? 'Mettre en pause' : 'Démarrer la simulation');
+        if (message) showToast(message);
+        updateProgress();
+      }
+
+      function showToast(message) {
+        const toast = $('toast');
+        toast.textContent = message;
+        toast.dataset.show = 'true';
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => { toast.dataset.show = 'false'; }, 1500);
+      }
+
+      runBtn.addEventListener('click', () => {
+        if (foods.length < 2) {
+          showToast('Placez au moins deux avoines');
+          return;
+        }
+        running = !running;
+        if (running) {
+          $('toolPalette').dataset.open = 'false';
+          $('editBtn').dataset.open = 'false';
+        }
+        syncRunState();
+      });
+
+      function openDrawer(open) {
+        $('drawer').dataset.open = String(open);
+        $('scrim').dataset.open = String(open);
+      }
+      $('menuBtn').addEventListener('click', () => openDrawer(true));
+      $('closeDrawerBtn').addEventListener('click', () => openDrawer(false));
+      $('scrim').addEventListener('click', () => openDrawer(false));
+
+      $('fullscreenBtn').addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+          } else if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        } catch (_) {
+          showToast('Le navigateur refuse le plein écran ici');
+        }
+      });
+
+      $('preset').addEventListener('change', event => {
+        setPreset(event.target.value);
+        openDrawer(false);
+      });
+      $('resetBtn').addEventListener('click', () => {
+        rebuildNetwork();
+        running = false;
+        updateMetrics();
+        syncRunState('Slime diffus régénéré');
+        requestRender(true);
+        showToast('Le réseau exploratoire repart de zéro');
+      });
+      $('clearBtn').addEventListener('click', () => {
+        grid = new Uint8Array(COLS * ROWS);
+        slimePaint = new Float32Array(COLS * ROWS);
+        foods = [];
+        rebuildNetwork();
+        running = false;
+        updateMetrics();
+        syncRunState('Plaque vide');
+        requestRender(true);
+        openDrawer(false);
+      });
+
+      speed.addEventListener('input', () => {
+        $('speedLabel').textContent = Number(speed.value).toFixed(2).replace(/0$/, '').replace('.', ',') + '×';
+      });
+      adapt.addEventListener('input', () => {
+        $('adaptLabel').textContent = Number(adapt.value).toFixed(2).replace(/0$/, '').replace('.', ',');
+      });
+      $('showBenchmark').addEventListener('change', () => requestRender());
+      $('showProbe').addEventListener('change', () => requestRender());
+
+      function animate(now) {
+        const elapsed = Math.min(100, now - lastAnimationTime);
+        lastAnimationTime = now;
+
+        if (running) {
+          const stepsPerSecond = 1.55 * Number(speed.value);
+          stepAccumulator += elapsed * stepsPerSecond / 1000;
+          const steps = Math.min(3, Math.floor(stepAccumulator));
+          if (steps > 0) {
+            stepAccumulator -= steps;
+            for (let i = 0; i < steps; i++) stepSimulation();
+            requestRender();
+            updateProgress();
+          }
+          if (now - lastMetricsTime > 1700) {
+            lastMetricsTime = now;
+            updateMetrics();
+          }
+        }
+
+        if (renderDirty && now - lastRenderTime >= 32) {
+          draw();
+          renderDirty = false;
+          lastRenderTime = now;
+        }
+        requestAnimationFrame(animate);
+      }
+
+      const scheduleResize = () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => {
+          resizeCanvas();
+          requestRender(true);
+        }, 120);
+      };
+      if ('ResizeObserver' in window) new ResizeObserver(scheduleResize).observe(app);
+      window.addEventListener('resize', scheduleResize, { passive: true });
+      window.visualViewport?.addEventListener('resize', scheduleResize, { passive: true });
+
+      resizeCanvas(true);
+      setPreset('network');
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>
