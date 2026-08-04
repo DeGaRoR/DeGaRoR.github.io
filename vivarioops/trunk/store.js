@@ -6,6 +6,12 @@
 // possible, and a version constant does not compromise that.
 
 import { GENOME_V, BRIDGE_V, ECOLOGY_V } from '../contracts/versions.js';
+// LAYERING: /trunk/ may import /engine/, never the reverse (N3 forbids the
+// engine reaching up into the shell, which is why genome.js says so and this
+// file does not). The dependency is acyclic — engine/l1/genome.js imports only
+// /contracts/ — and it is the honest one: the store must run a stored genome
+// forward, and the engine is the only thing that knows how.
+import { migrate as migrateGenome } from '../engine/l1/genome.js';
 
 const DB_NAME = 'vivarium';
 const DB_VERSION = 1;
@@ -121,10 +127,53 @@ const MIGRATIONS = new Map();   // `${kind}:${from}` -> fn
  */
 export function registerMigration(kind, from, fn) { MIGRATIONS.set(`${kind}:${from}`, fn); }
 
-// A1: the genome 1 -> 2 step is written NOW so the mechanism is exercised before
-// it is needed. B1 REPLACES this with the real migration (adds preyGain/threatGain
-// at 0) — 30 §4 B1 requires a real one, not a no-op.
-registerMigration('genome', 1, (v) => v);   // PLACEHOLDER — B1 replaces
+// ── THE GENOME-BEARING KINDS, REGISTERED FOR EVERY VERSION ──────────────────
+//
+// This replaces the A1 placeholder (`registerMigration('genome', 1, v => v)`),
+// which 30 §4 B1 always required to become real.
+//
+// THE DEFECT IT REPAIRS, AND IT COST REAL DATA VISIBILITY. `SCHEMA_OF` maps
+// genome, specimen AND lineage to GENOME_V, but only `genome:1` was ever
+// registered. So the moment GENOME_V moved past 2 — A3 took it to 3, A5 to 4 —
+// `get()` threw "no migration registered for specimen schema 2 -> 3" on EVERY
+// specimen written before that session, and `loadAtlas` catches and skips, so a
+// player's whole Atlas went silently invisible. Measured on a real profile: 33
+// stored specimens, all at schemaVersion 2, all unreadable, none of them
+// deleted. Bred lineages, hand-named favourites, everything.
+//
+// REGISTERED IN A LOOP RATHER THAN ONE BY ONE, so the gap cannot come back. The
+// next GENOME_V bump is covered the moment the constant changes; nobody has to
+// remember this file. That is the actual fix — a hand-maintained list here would
+// simply be the same landmine with a later fuse.
+//
+// The store stays schema-agnostic in the sense that matters: it does not know
+// what a gene IS. It delegates to the engine's own forward migration and only
+// knows WHERE a genome sits inside each record shape.
+const bumpGenome = (g, to) => (g && typeof g.version === 'number' && g.version < to
+  ? migrateGenome(g, to)
+  : g);
+
+for (let from = 1; from < GENOME_V; from++) {
+  const to = from + 1;
+  registerMigration('genome', from, (v) => bumpGenome(v, to));
+  // A specimen is a genome plus provenance. `hash` is deliberately NOT
+  // recomputed: it is the record's KEY, and rewriting the value under a key that
+  // no longer matches it would be worse than a stale hash — the Atlas reads the
+  // record, not the hash.
+  registerMigration('specimen', from, (v) => (v && v.genome
+    ? { ...v, genome: bumpGenome(v.genome, to) }
+    : v));
+  // A lineage is a population, plus one previous generation for the undo.
+  registerMigration('lineage', from, (v) => {
+    if (!v) return v;
+    const out = { ...v };
+    if (Array.isArray(v.genomes)) out.genomes = v.genomes.map((g) => bumpGenome(g, to));
+    if (v.previous && Array.isArray(v.previous.genomes)) {
+      out.previous = { ...v.previous, genomes: v.previous.genomes.map((g) => bumpGenome(g, to)) };
+    }
+    return out;
+  });
+}
 
 /**
  * Run a stored value forward to the current schema version FOR ITS KIND.
