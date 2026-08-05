@@ -69,6 +69,7 @@ import {
 } from '../../render/creature.js';
 import {
   createWater, updateWater, disposeWater, fitAtmosphere, renderOverlay, dotTexture,
+  fitOrbit, FIT,
 } from '../../render/tank.js';
 import { renderThumbnail, RENDER_TAG } from '../../render/thumbnail.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
@@ -319,18 +320,37 @@ export default {
     }
 
     /**
-     * A ring in the VERTICAL plane (XY), not the horizontal one — a portrait
-     * phone frame is tall, and creatures spread across X and Z land in a thin
-     * band with empty water above and below.
+     * A 2-COLUMN, 3-ROW PLATE IN THE XY PLANE — the tank's opening arrangement,
+     * restored, and portrait-shaped for the same reason it always was: a phone
+     * frame is tall, so creatures spread across X and Z land in a thin band with
+     * empty water above and below.
      *
-     * THIS IS WHERE A NEW GENERATION ARRIVES. The tank used to place them on a
-     * 2x3 grid, one private arena each; they now spawn free-swimming into the
-     * shared ocean and start eating immediately.
+     * IT IS A SPAWN LAYOUT, NOT A LAYOUT. This is the one thing that differs
+     * from the tank and it matters. There, `layoutGrid` positioned six PRIVATE
+     * wrapped arenas in render space, so a creature stayed in its cell forever
+     * and the plate was permanent. Here they share one ocean with real
+     * positions: the grid is where a generation ARRIVES, and within a minute
+     * they have swum out of it. That is intended — the plate is for reading a
+     * new generation at a glance, not for holding them still.
+     *
+     * Spacing follows the largest body in the generation rather than a constant,
+     * so a plate of 17-body sprawlers is not overlapped and a plate of eels is
+     * not lost in empty water.
      */
-    function spawnRing(n, i) {
-      const [W, H] = HABITAT;
-      const a = (i / Math.max(1, n)) * Math.PI * 2;
-      return [Math.cos(a) * (W / 4), Math.sin(a) * (H / 3), 0];
+    const GRID_COLS = 2, GRID_ROWS = 3;
+    function spawnGrid(radii, i) {
+      const rMax = radii.length ? Math.max(...radii) : 1;
+      const gx = rMax * 2.4, gy = rMax * 2.4;
+      // A small per-column depth stagger, exactly as the tank had: with every
+      // creature at z = 0 the plate is degenerate the moment you orbit it, and
+      // orbiting is the first thing anyone does.
+      const gz = rMax * 0.6;
+      const c = i % GRID_COLS, r = Math.floor(i / GRID_COLS);
+      return [
+        (c - (GRID_COLS - 1) / 2) * gx,
+        ((GRID_ROWS - 1) / 2 - r) * gy,     // row 0 sits at the top
+        (c - (GRID_COLS - 1) / 2) * gz,
+      ];
     }
 
     function spawn() {
@@ -341,12 +361,23 @@ export default {
       glass.visible = habitat !== 'ocean';
       buildFood();
 
+      // MORPHOGENESIS FIRST, FOR EVERY SLOT, BEFORE ANY OF THEM IS PLACED. The
+      // grid spaces itself off the largest body in the generation, so it cannot
+      // be computed one creature at a time — the first would be placed against a
+      // radius the sixth had not contributed to yet. A plan that will not build
+      // contributes nothing and its slot is skipped, exactly as before.
+      const plans = genomes.map((genome) => {
+        try { return morphogenesis(genome); } catch { return null; }
+      });
+      const radii = plans.filter(Boolean).map((p) => boundingRadius(p));
+
       genomes.forEach((genome, i) => {
-        let plan, sim;
+        const plan = plans[i];
+        if (!plan) return;              // a body that will not build is a verdict
+        let sim;
         try {
-          plan = morphogenesis(genome);
           sim = createSimulation(RAPIER, plan, genome, W1_SLICE, {
-            arena, wrap: false, origin: spawnRing(genomes.length, i),
+            arena, wrap: false, origin: spawnGrid(radii, i),
             // GHOSTS. The rivalry that matters here is for the FOOD, which is
             // shared and finite. Contact is also the trigger for the solver
             // tear-apart, so removing it removes a failure mode.
@@ -454,6 +485,9 @@ export default {
       elapsed = 0;
       sheetFor = -1;
       panOffset.set(0, 0, 0);
+      // Frame the plate BEFORE the first draw, or the opening frame is the old
+      // constant distance and snaps a moment later.
+      fitCast();
       placeCamera();
       applyLayers();
       // In the ocean the atmosphere has no box to fill, so it is sized generously
@@ -1072,6 +1106,9 @@ export default {
 
     // ── camera ──────────────────────────────────────────────────────────────
     const orbit = { yaw: 0.6, pitch: 0.12, dist: Math.max(...HABITAT) * 1.4 };
+    /** Upward bias of the orbit pivot, so the plate sits in the clear water
+     *  between the top readouts and the bottom controls. Solved in fitCast(). */
+    let baseTargetY = 0;
     const pan = new THREE.Vector3();
     const followTarget = new THREE.Vector3();
     /** Manual displacement from the follow target. Reset on respawn. */
@@ -1152,13 +1189,61 @@ export default {
       invalidate();
     }
 
+    /**
+     * FIT THE OPENING PLATE, and fit it to the water the chrome leaves clear.
+     *
+     * The old value here was `max(HABITAT) * 1.4` — a constant, which framed the
+     * TANK rather than the animals in it, so six small creatures sat as specks
+     * in the middle of an empty frame. `fitOrbit` projects the real mesh
+     * vertices through the real camera and solves for the distance that lands
+     * the worst one on a target NDC; the tank did exactly this and the Vivarium
+     * inherited none of it.
+     *
+     * TWO THINGS THE TANK GOT RIGHT AND ARE KEPT. The fit target is scaled by
+     * the WORK AREA — the band of water not covered by the top readouts or the
+     * bottom controls — and the pivot is biased upward by half the chrome
+     * imbalance, so the plate sits centred in the water you can actually see
+     * rather than half-hidden behind the Breed button. Yaws are sampled AROUND
+     * the opening angle, because the first thing anyone does is orbit it.
+     *
+     * Called on spawn and on resize, never per frame: it walks every vertex.
+     */
+    function fitCast() {
+      if (!cast.length || !view.clientHeight) return;
+      scene.updateMatrixWorld(true);
+      const h = view.clientHeight;
+      // MEASURE THE READOUTS, DO NOT TRUST `--scrim-top`. That token is 96px and
+      // was right for the tank, whose top block was generation / world /
+      // selection. This screen's block also carries the food line and SIX LEDGER
+      // ROWS inherited from Forage — measured at 196px, more than double. Fitting
+      // against the token put the top row of the plate underneath the text, which
+      // is exactly the defect the work-area fit exists to prevent. The token
+      // stays as a floor for the case where the rows have not been built yet.
+      const topPx = Math.max(tokenNumber('--scrim-top'),
+        readouts.getBoundingClientRect().height + tokenNumber('--gutter'));
+      const botPx = tokenNumber('--scrim-bottom');
+      const workFrac = Math.max(0.4, (h - topPx - botPx) / h);
+      const target = Math.min(0.92, Math.max(0.5, workFrac * 0.95));
+      const fit = fitOrbit(camera, cast.map((c) => c.group), {
+        ...FIT.portrait, target, yaws: [orbit.yaw - 0.25, orbit.yaw, orbit.yaw + 0.25],
+      });
+      orbit.dist = Math.max(8, Math.min(400, fit.distance));
+      baseTargetY = -((botPx - topPx) / h) * orbit.dist * Math.tan((camera.fov * Math.PI / 180) / 2);
+      // The fit solves about the cast's own centre, which is not the origin once
+      // a generation has drifted. `pan` is the pivot, so it has to start there
+      // or the plate is framed correctly and then looked at from the side.
+      pan.set(fit.centre.x, fit.centre.y, fit.centre.z);
+      invalidate();
+    }
+
     function placeCamera() {
       const cp = Math.cos(orbit.pitch), sp = Math.sin(orbit.pitch);
+      const ty = pan.y + baseTargetY;
       camera.position.set(
         pan.x + Math.sin(orbit.yaw) * cp * orbit.dist,
-        pan.y + sp * orbit.dist,
+        ty + sp * orbit.dist,
         pan.z + Math.cos(orbit.yaw) * cp * orbit.dist);
-      camera.lookAt(pan);
+      camera.lookAt(pan.x, ty, pan.z);
       camera.updateMatrixWorld();
       // Fog at whatever distance the camera actually sits, so the near water
       // stays clear and the far water dissolves — at any zoom.
@@ -1499,6 +1584,9 @@ export default {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      // The work area is a fraction of the HEIGHT, so a resize changes the fit
+      // target and the vertical bias, not just the aspect.
+      fitCast();
     }
     const ro = new ResizeObserver(resize);
     ro.observe(view);
