@@ -40,10 +40,12 @@ treat it as abandoned until someone backfills it.
 | B2 · Morphogenesis | a genome becomes a body | ✅ done, re-tuned since |
 | B3 · Motion | "swims, looks alive not convulsive" | ⚠️ **gate green, human checkpoint never signed** |
 | B4 · Breeding | the toy loop, playable | ⚠️ same — green, unsigned |
-| **B5 · First light** | the art pass; "would you show someone a screenshot?" | ❌ **never started** |
+| **B5 · First light** | the art pass; "would you show someone a screenshot?" | ⚠️ **substantially done, never signed** — see Step 1 |
 | C1 · Sensors + probes | measurable creatures | ⚠️ green but **hollow** — S2 yields 1 trustworthy number of 8 |
 | **C2 · Duels** | "watch three fights, say what it's good at" | ❌ **engine done, UI never built, checkpoint unanswerable** |
 | **Forage** (not a milestone) | food, a mouth, an energy ledger, six rivals | ✅ **built** — no gene, no death |
+| **Vivarium** (not a milestone) | Tank + Forage merged; one screen that breeds AND feeds | ✅ **shipped** — see the merge Study, which this settles |
+| **Vernacular** (not a milestone) | design 14; the name a player actually says | ✅ **shipped** — EN pools, FR deferred |
 | D1 · Ecology core | a population lives and eats | ❌ not started |
 | D2 · Verdict | the world judges | ❌ not started |
 | E1 · The loop | verdict sends you back to breed | ❌ not started |
@@ -162,16 +164,32 @@ thrust for C2. The obligations in `gate/duel.js` have been rewritten to say this
 This *confirms* the ordering below rather than changing it: the food path needs no
 aiming, and it is the one that can move now.
 
-### Step 1 — B5, the art pass. PARTLY DONE, informally.
+### Step 1 — B5, the art pass. SUBSTANTIALLY DONE. Still unsigned.
 
-`B5 · First light` was never started as a session, but the tank has been critiqued and
-reworked: the top scrim removed, chrome given its own contrast over water
-(`--c-on-water`), the scale legend made legible, motes spread over 27× the volume and
-slowed off a one-way drift that implied a current, sun shafts given a third motion.
-The **Forage** screen was built to the same look.
+`B5 · First light` was never started as a session, but it has now been done in pieces
+across several. The tank was critiqued and reworked: top scrim removed, chrome given
+its own contrast over water (`--c-on-water`), the scale legend made legible, motes
+spread over 27× the volume and slowed off a one-way drift that implied a current, sun
+shafts given a third motion. **Forage** was built to the same look.
 
-Still owed: `B3` and `B4`'s human checkpoints — both say "watch the tank screen with a
-person" and both are unsigned.
+The Atlas/Evolution update finished the two things B5's question would still have
+failed on — *"would you show someone a screenshot?"*:
+
+- **Portraits.** They were framed against the bounding sphere about the wrong point
+  (`buildCreature` does NOT centre on the centre of mass, whatever the old comment
+  said), so elongated animals clipped — and A2 made elongated animals common.
+  Replaced with `fitOrbit` + `FIT.portrait`, **which were already in the tree and
+  referenced nowhere**. Studio plate, three-light rig, contact shadow, vignette, 1024
+  px, `object-fit: contain`. `RENDER_TAG` finally has the re-render path it never had:
+  nothing but `seedAtlas` had ever compared that tag, and only for authored records,
+  so a player's own creatures kept their first photo forever.
+- **Names.** `Scleromacrosomatus longiventissimus` was the actual complaint. Design 14
+  ships: the rows and the sheet heading now read `the banded whipfoot`, and the Latin
+  moved to the sheet where there is room for it.
+
+**Still owed, and only a person can discharge it:** `B3` and `B4`'s human checkpoints.
+Both say *"watch the tank screen with a person"*, both are unsigned, and the screen
+they refer to no longer exists under that name — the checkpoint is now the Vivarium.
 
 ### Step 2 — food. DONE as a harness; the gene is not.
 
@@ -220,7 +238,7 @@ turn rate), skin friction / wake / circulatory lift (need a different geometry).
 
 ## 5b. The order, as it now stands
 
-1. **Mouth + sensor placement genes** (`GENOME_V` bump). Unlocks eyes too.
+1. **Mouth + sensor placement genes** (`GENOME_V` 4 → 5). Unlocks eyes too.
 2. **Kinesis gene** — sense local food, modulate `effort`. Sign evolved, not declared.
    Same migration as (1) if done together.
 3. **Control-subtracted forage objective**, which (2) makes possible for the first
@@ -229,8 +247,53 @@ turn rate), skin friction / wake / circulatory lift (need a different geometry).
    card and light-following. Do not attempt light before it.
 5. D1 / D2 / E1, still blocked on C2 and on turn rate.
 
+**SPEND THE `GENOME_V` 5 BUMP ONCE, ON FOUR THINGS.** Steps (1) and (2) already share
+a migration. So do two more, and they have been waiting since 13 shipped:
+
+| what | needs | who is waiting |
+|---|---|---|
+| mouth placement + count | a gene | this file, step 1 |
+| kinesis | a gene | this file, step 2 |
+| **author citations** (13 §8) | a genome field | `naming.js:214`, and 14 §3.6's possessive — `gate/vernacular.js` VN-11, PENDING |
+| **recombination scars** (13 §10) | a genome field | `naming.js:214`, and 14 §3.5's `false` — VN-9, PENDING |
+
+Four fields, one migration, one `worlds/seeds.js` edit — instead of three separate
+bumps each invalidating every compiled record. The naming half is nearly free once
+the field exists: `false` is one word in `RANK_EN` and one branch in `rankWord()`; the
+possessive is one slot the grammar already reserves. It buys `Gauder's greater rowing
+whipfoot` and `the false azure sunburst`, which are the two most legible events in the
+Atlas and currently cannot be shown at all.
+
+**The trap that has already bitten twice on a `GENOME_V` bump** is written at the top
+of `HANDOVER-ATLAS-EVOLUTION.md` §0 and must be read before starting: `SCHEMA_OF` maps
+`genome`, `specimen` AND `lineage` to `GENOME_V` (a missed migration made a player's
+whole Atlas invisible), and `worlds/seeds.js` literals must gain any gene they claim
+to have in the same edit.
+
 **Not scheduled:** `MUSCLE_STRESS → 2e6` (blocked on `STABLE_SPEED`), skin friction,
 wake modelling, circulatory lift.
+
+### The harness that exists for step 3 already
+
+`tools/_zselect.mjs` runs the breed loop against the ledger, and `_zcompare.mjs` grades
+a winner on the columns the objective cannot see. When step (2) lands and a
+control-subtracted objective becomes possible, **this is where it plugs in** — the
+loop, the checkpointing and the reference comparison are done. Four things it learned
+that a future objective must not re-learn:
+
+1. **Never select on the ledger RATIO.** It is a margin, won by not spending, and the
+   cheapest way not to spend is not to move. Drifter has the best margin in the corpus
+   (70×) and nets the least energy of anything measured.
+2. **Never run a forage trial under ~200 s.** `forage.js:98-113` swept it: at 60 s
+   intake correlates 0.33 with mass and −0.06 with swimming. The cheap tell is two
+   unrelated creatures reporting the same intake — they never left their spawn patch.
+3. **Check `integrity()`.** `runForage` does not. A creature that comes apart reports
+   fictional intake (HANDOVER-FORAGE: 7864 g against 31–49 for its rivals), so a run
+   without the check breeds exploders and nothing else.
+4. **Resumption must be exact or it is a different experiment.** Every rng in the loop
+   is `rngFrom('zselect', 'breed', gen)` — pure in the generation number — which is the
+   only reason a checkpoint is honest. Verified by replay: a fresh run reproduced 22
+   generations of an earlier one to the digit, best and median.
 
 ---
 
@@ -240,11 +303,29 @@ wake modelling, circulatory lift.
   `DESIGN-PHASE-B2` and the C0–C6 plan, or accept that ~40 gate comments cite
   documents nobody can read.
 - **`CHANGELOG.md` is 8 patch versions stale.**
-- **Nothing has ever been persisted.** `store.js` has the whole envelope/migration
-  layer; grepping for `KEY.` outside it returns nothing. The Atlas is nine lines and
-  its comment is false.
+- ~~**Nothing has ever been persisted.**~~ **DISCHARGED.** `KEY.specimen` and
+  `KEY.lineage` are both live — `ui/screens/vivarium.js` persists the lineage after
+  every breed, undo and selection change and hydrates it on boot;
+  `worlds/atlas_seed.js` plants the authored library idempotently by `genomeHash`. The
+  Atlas is a real 46-record collection with portraits, binomials and vernaculars.
 - **B3 and B4's human checkpoints are still unsigned.** Both say "watch the tank
-  screen with a person". That is now overdue by many sessions.
+  screen with a person". That is now overdue by many sessions — and the screen has
+  since been rebuilt, so the checkpoint is against the **Vivarium** now.
+- **THE FORAGE ECONOMY HAS BEEN SELECTED ON, AGAINST THIS FILE'S OWN ADVICE.**
+  `tools/_zselect.mjs` ran 60 generations against the ledger while the debt below still
+  stands. The animals it produced are real and the numbers reproduce, but read the
+  claim narrowly: with no kinesis gene there is no foraging BEHAVIOUR to isolate, so
+  intake bundles swimming. Both champions won on movement pattern, not on sensing.
+  They are interesting animals; they are not evidence about foraging skill.
+- **The forage objective is not control-subtracted** and must not be selected on
+  **inside the app** — `OBJECTIVES` still ships only Speed / Size / Span, and
+  `foodEaten` must stay out of it until step (2) exists.
+- **NEITHER FORAGE ECONOMY IS SIZE-NEUTRAL, AND THEY BRACKET IT.** Measured over 24
+  survivors: absolute `balance` runs pearson **+0.50** with mass and crowns a 37 g
+  animal with the worst net energy per gram of anything compared; `balance / mass`
+  runs **−0.86** and crowns a 0.30 g filament. The metabolic bill already scales as
+  m^0.75 in `ledger`, so neither is a bug — they answer different questions. Any
+  future forage objective must say which one it is answering.
 - **`FOOD_ENERGY` is calibrated, not derived**, and has moved three times as the
   harvest model changed. Recalibrate whenever `forageStep` or the trial length moves.
 - **The forage objective is not control-subtracted** and must not be selected on yet.
@@ -255,7 +336,13 @@ wake modelling, circulatory lift.
 
 ---
 
-## Study — can Tank and Forage be merged? (asked, not decided)
+## Study — can Tank and Forage be merged? (ASKED, ANSWERED "NOT YET", MERGED ANYWAY)
+
+> **STATUS: SHIPPED, against the recommendation below, which is kept unedited.** The
+> analysis was right about what was in the way; the recommendation was overtaken by a
+> decision made in `HANDOVER-ATLAS-EVOLUTION.md`. Read the original first, then
+> `### What actually shipped` at the end of this Study for what held, what did not,
+> and the one cost that was genuinely paid.
 
 **Short answer: the engine does not prevent it, and a Breed button on Forage would
 work today. What is not ready is the automated half — Burst — and the reason is the
@@ -322,6 +409,45 @@ Revisit the merge **after Step 2b (the mouth gene)**, when placement and count a
 heritable, a control subtraction has something to disable, and a forage objective can
 be offered with `trusted: true`. At that point the two screens are answering the same
 question and keeping both is the redundancy.
+
+### What actually shipped
+
+`ui/screens/vivarium.js`. `tank.js` and `forage.js` are retired, `TABS` is four, and
+`R4` pins it.
+
+**The blocker this Study identified was respected in full.** It said the real
+obstacle was that there is no trustworthy forage objective, and that *"Breed (manual,
+by eye) is honest today. Burst on 'Food eaten' is not."* That split is exactly what
+shipped: **Breed is manual and by eye; Burst still offers only Speed / Size / Span,
+scored in fresh headless sims in the canonical world.** `foodEaten` was not added to
+`OBJECTIVES` and must not be until step (2). So the thing this Study was actually
+protecting was never at risk.
+
+**Two of the three "small, real and cheap" items are closed.** Forage had no
+persistence — it does now, the tank's `vivariumSeed` / `persistLineage` / one-step
+undo carried over verbatim. `R4`'s five-tab pin was a literal edit and was edited.
+
+**THE ARENA CHOICE WENT TO `shared`, AND THIS STUDY'S WARNING IS NOW LIVE.** It asked
+that it be *"said out loud rather than discovered"*, so:
+
+> The ledger you read on the Vivarium is a **shared-field** number. Six creatures
+> compete for one ocean, so a row's g/ratio is partly *who got the good spawn*. Burst
+> scores privately and headlessly and is unaffected. **The screen and the selection
+> are measuring different things, deliberately.**
+
+**And one cost was genuinely paid rather than avoided.** This Study said *"keep Tank as
+the controlled comparison, where a creature is measured on its own"*. Tank is gone, so
+there is no longer any screen on which a creature meets its own identical field. What
+replaced it is not a screen at all — it is `tools/_zselect.mjs` / `_zcompare.mjs`,
+which run one creature per field (`makeFood(..., { seed: 0xF00D })`, the rule
+`foodEaten` already argued for) and print the comparison. That is a strictly better
+measurement and a strictly worse *experience*: you cannot watch it.
+
+**If the private comparison is wanted back as a screen**, the aquarium habitat is
+disabled, not deleted — `HABITATS` keeps both entries and `spawn()` keeps its
+`bounded: true` branch, so re-enabling is a UI change rather than a physics one.
+Per-creature private fields would be the further step, and (T) TILED TORUS below
+already costs it.
 
 ---
 
