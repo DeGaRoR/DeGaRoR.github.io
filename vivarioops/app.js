@@ -5,23 +5,21 @@ import * as nav from './trunk/nav.js';
 import { t } from './trunk/i18n.js';
 import { VERSION } from './trunk/version.js';
 
-import tank from './ui/screens/tank.js';
+// Tank and Forage are gone: one Vivarium, which breeds AND feeds. See
+// ui/screens/vivarium.js for what the merge kept from each.
+import vivarium from './ui/screens/vivarium.js';
 import atlas from './ui/screens/atlas.js';
-import forage from './ui/screens/forage.js';
 import world from './ui/screens/world.js';
 import settings from './ui/screens/settings.js';
 import dev from './ui/screens/dev.js';
 
-nav.register('tank', tank);
+nav.register('vivarium', vivarium);
 nav.register('atlas', atlas);
-// Forage sits BEFORE World deliberately: it is a single-creature trial, and
-// World is reserved for L3 ecology. See ui/screens/forage.js.
-nav.register('forage', forage);
 nav.register('world', world);
 nav.register('settings', settings);
 nav.register('dev', dev);
 
-const TAB_LABEL = { tank: t('Tank'), forage: t('Forage'), atlas: t('Atlas'), world: t('World'), settings: t('Settings') };
+const TAB_LABEL = { vivarium: t('Vivarium'), atlas: t('Atlas'), world: t('World'), settings: t('Settings') };
 
 const bar = document.getElementById('tabbar');
 const buttons = {};

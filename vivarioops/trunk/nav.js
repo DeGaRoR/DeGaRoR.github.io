@@ -10,12 +10,16 @@
 // Corollary: pop() is `history.back()`, never a direct stack mutation. If it were,
 // our stack and the browser's would drift and every screen would need a fixup.
 
-// `forage` sits next to `tank` because it is the same subject — one creature
-// under physics — asked a different question. It is NOT `world`: World is L3
-// (many point agents, no physics), and the forage trial is a full-physics
-// single creature, which L3 cannot represent. See ui/screens/forage.js.
-const TABS = ['tank', 'forage', 'atlas', 'world', 'settings'];
-const PRIMARY = 'tank';
+// `tank` and `forage` WERE two tabs and are now one. They were the same subject
+// — creatures under physics — asked two halves of one question: the tank bred
+// but never fed, forage fed but could not breed, and judging a lineage meant
+// switching tabs and losing what you were looking at. See ui/screens/vivarium.js.
+//
+// VIVARIUM is the project's own word for it (`vivariumSeed`, `store.KEY.vivarium`),
+// and it is still NOT `world`: World is reserved for L3 (many point agents, no
+// physics), which cannot represent a full-physics creature at all.
+const TABS = ['vivarium', 'atlas', 'world', 'settings'];
+const PRIMARY = 'vivarium';
 
 const screens = new Map();
 const stacks = {};    // tab -> [{ screen, params }]

@@ -26,6 +26,10 @@
   /* A soft dark halo so the text survives crossing a bright sun shaft. Cheap,
      and it replaces the whole top gradient. */
   --shadow-on-water: 0 1px 3px rgba(4, 7, 10, 0.85), 0 0 10px rgba(4, 7, 10, 0.5);
+  /* A floating surface over the tank (ui/menu.js). The bottom sheet is anchored
+     to an edge and does not need one; a popover hangs in mid-air and does. */
+  --shadow-sheet: 0 6px 20px rgba(4, 7, 10, 0.55);
+  --menu-w: 180px;
   /* The same halo for elements that are drawn rather than typed (the scale bar's
      bracket), where `text-shadow` does nothing and `filter` is the equivalent. */
   --filter-on-water: drop-shadow(0 1px 2px rgba(4, 7, 10, 0.8));
@@ -198,6 +202,29 @@
    * water is shallow. Both counts drop to 0 first under frame pressure. */
   --tank-shaft-count:       3;
   --tank-shaft-opacity:     0.16;
+
+  /* ── STUDIO — the portrait backdrop and rig (14/21: the Atlas card).
+   *
+   * A FOURTH NAMESPACE, and it exists because a portrait is not a crop of the
+   * tank. Rendering a specimen against reef water put the world's own cyan
+   * behind and around an animal whose only claim on the player's eye is its own
+   * ramp: the backdrop competed with the subject, and every card in a grid
+   * shared the same blue. A specimen plate is neutral so the CREATURE is the
+   * only hue in frame.
+   *
+   * ACES and --tank-exposure are deliberately shared with the tank — the
+   * materials in creature.js are authored against that tone curve, so a portrait
+   * lit any other way would not match the animal swimming two tabs away. */
+  --studio-bg-top:    #262b31;   /* graded plate, top */
+  --studio-bg-bottom: #0c0e11;   /* and floor — the vignette rides on this */
+  --studio-key-intensity:    2.6;   /* front-high, three-quarters left */
+  --studio-fill-intensity:   0.55;  /* opposite and low, lifts the shadow side */
+  --studio-rim-intensity:    2.2;   /* back-high: separates body from plate */
+  --studio-ambient-intensity: 0.35;
+  --studio-env-intensity:    0.45;  /* enough for the glass bodies to have something to refract */
+  --studio-ground-opacity:   0.42;  /* contact shadow; without it a specimen floats */
+  --studio-ground-radius:    1.45;  /* x the subject's footprint */
+  --studio-vignette:         0.55;  /* corner darkening, 0..1 */
 
   /* Two particle layers at different depths and drift rates. One uniform layer
    * reads as dirt on the lens; parallax between two reads as water. */

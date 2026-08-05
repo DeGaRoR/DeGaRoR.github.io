@@ -6,49 +6,100 @@
 // the one creature in its own scene, at rest, in its own throwaway WebGL context.
 //
 // No physics — a portrait is a rest pose, and morphogenesis fully determines the
-// body without a sim. It reuses render/tank.js createWater() for the reef water
-// and the four-light rig, so a card and the live tank cannot disagree about how
-// an animal is lit or coloured. The atmosphere (sun shafts, mote layers) is turned
-// off: a single specimen at close range wants a clean plate, not weather.
+// body without a sim.
 //
-// N16: no hex, no raw px — colours/intensities are token reads via createWater,
-// the size is a caller argument in device pixels (an image dimension).
+// ── WHAT WAS WRONG WITH THE OLD PORTRAITS, AND WHY EACH FIX IS HERE ────────
+//
+// 1. IT AIMED AT THE WRONG POINT. The comment that used to sit at line 65 said
+//    "buildCreature centres the group on the creature's centre of mass, so the
+//    body sits at the origin". It does not. `place()` writes raw
+//    `plan.bodies[i].position` and morphogenesis puts the ROOT BODY at the
+//    origin (morphogen.js:74) with children growing outward — while
+//    `boundingRadius(plan)` is measured about the CENTRE OF MASS
+//    (morphogen.js:394). For an elongated animal the two are far apart and the
+//    far end sits outside the framed sphere. That was the clipping, and it got
+//    worse at A2 because the spine sub-grammar made elongated animals common.
+//
+// 2. THE FIT OVER-FRAMED ANYWAY. `radius / sin(halfFov) * 1.35` fits a SPHERE
+//    against the vertical FOV and then adds another 35%, so even a
+//    correctly-aimed portrait spent most of its pixels on empty water.
+//
+//    Both are fixed by the same thing, and it already existed: `fitOrbit`
+//    (tank.js) projects real mesh vertices through the real camera and solves
+//    for a target NDC — no analytic padding term to get wrong — and
+//    `FIT.portrait` was authored for exactly this call and was referenced
+//    nowhere. A still portrait visits ONE yaw, so it is fitted at one yaw;
+//    fitOrbit's own doc-comment says to sample the angles the view visits.
+//
+// 3. THE BACKDROP COMPETED WITH THE SUBJECT. See createStudio in tank.js.
+//
+// N16: no hex, no raw px — colours and intensities are token reads through
+// createStudio, the size is a caller argument in device pixels (an image
+// dimension, not a layout one).
 
 import * as THREE from 'three';
-import { morphogenesis, boundingRadius } from '../engine/l1/morphogen.js';
+import { morphogenesis } from '../engine/l1/morphogen.js';
 import { buildCreature, disposeCreature, tokenNumber } from './creature.js';
-import { createWater, disposeWater, setMotesVisible } from './tank.js';
+import {
+  createStudio, disposeStudio, placeStudioGround, renderVignette, fitOrbit, FIT,
+} from './tank.js';
 
 /**
- * Bumped whenever the render look changes (materials, water, light rig). Stamped
- * onto saved specimens so a stale thumbnail — one baked by an earlier look — can
- * be detected and re-rendered rather than shown next to the new tank.
+ * Bumped whenever the render look changes (materials, backdrop, light rig).
+ * Stamped onto saved specimens so a stale thumbnail — one baked by an earlier
+ * look — can be detected and re-rendered rather than shown next to the new tank.
+ *
+ * `reef-1` -> `studio-1`: new backdrop, new rig, new framing, 1024. NOTHING BUT
+ * `seedAtlas` EVER COMPARED THIS TAG, and only for authored records, so every
+ * player-saved specimen kept its old photo forever. `isStale()` below is the
+ * missing half; ui/screens/atlas.js re-renders on it.
  */
-export const RENDER_TAG = 'reef-1';
+export const RENDER_TAG = 'studio-2';
+
+/** Portraits are rendered at this edge length unless a caller says otherwise. */
+export const PORTRAIT_SIZE = 1024;
+
+/**
+ * A single fixed yaw, and the same one every portrait uses.
+ *
+ * An atlas is only comparable if every plate is shot from the same angle — that
+ * is the whole argument in `layoutAtlas`, and it applies at least as strongly to
+ * cards seen side by side. Three-quarters, because a pure profile hides limb
+ * count and a pure front hides length.
+ */
+const PORTRAIT_YAW = 0.62;
+
+/**
+ * True when a saved specimen's portrait was baked by an older look.
+ *
+ * @param {object} specimen  a stored record, or its `render` field
+ */
+export function isStale(specimen) {
+  const tag = typeof specimen === 'string' ? specimen : specimen?.render;
+  return tag !== RENDER_TAG;
+}
 
 /**
  * Render `genome` to a square PNG data URL.
  *
  * A fresh renderer per call, torn down before returning: a portrait is taken
- * rarely (only when the player saves, or when the authored library is seeded),
- * and a persistent second WebGL context would sit alongside the tank's for the
- * life of the app for no reason.
+ * rarely (when the player saves, when the authored library is seeded, or once
+ * per specimen when the look changes), and a persistent second WebGL context
+ * would sit alongside the tank's for the life of the app for no reason.
  *
  * @param {object} genome
  * @param {object} [opts]
- * @param {string} [opts.worldId='w1']  which world's --pal / --tank ramp to use
- * @param {number} [opts.size=512]      output edge length, device px
+ * @param {string} [opts.worldId='w1']  which world's --pal ramp to use
+ * @param {number} [opts.size]          output edge length, device px
  * @returns {string} a `data:image/png;base64,...` URL
  */
-export function renderThumbnail(genome, { worldId = 'w1', size = 512 } = {}) {
+export function renderThumbnail(genome, { worldId = 'w1', size = PORTRAIT_SIZE } = {}) {
   const plan = morphogenesis(genome);
-  const radius = boundingRadius(plan);
-
   const scene = new THREE.Scene();
 
   // preserveDrawingBuffer so toDataURL() sees the frame we just drew. alpha off:
-  // a translucent body needs the water behind it, exactly as in the tank — a
-  // transparent backdrop would leave the shell reading as glass over nothing.
+  // a translucent body needs something behind it — a transparent backdrop leaves
+  // the shell reading as glass over nothing — and the studio plate is that.
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setSize(size, size, false);
   renderer.setPixelRatio(1);   // `size` is already the pixel count we want
@@ -56,39 +107,40 @@ export function renderThumbnail(genome, { worldId = 'w1', size = 512 } = {}) {
   renderer.toneMappingExposure = tokenNumber('--tank-exposure');
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // The tank's reef water + four-light rig, verbatim — but no drifting weather on
-  // a specimen plate: hide the sun shafts and both mote layers.
-  const water = createWater(scene, worldId);
-  water.shafts.visible = false;
-  setMotesVisible(water, false);
+  const studio = createStudio(scene, worldId);
 
-  // buildCreature centres the group on the creature's centre of mass, so the body
-  // sits at the origin and the camera can simply look at it. Full detail — a still
-  // portrait is the one place the membrane always earns its cost.
+  // Full detail — a still portrait is the one place the membrane always earns
+  // its cost.
   const group = buildCreature(plan, genome, { worldId, detail: 'full' });
+  group.rotation.y = -PORTRAIT_YAW;
   scene.add(group);
+  // fitOrbit reads o.matrixWorld off every mesh, so the group's transform has to
+  // be resolved before it is measured.
+  group.updateMatrixWorld(true);
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
-  // Frame the bounding sphere: distance = r / sin(halfFov), plus margin so the
-  // creature never touches the edge. A gentle 3/4 view (above and to the side)
-  // matches the tank's default orbit and reads as a specimen, not an elevation.
-  const halfFov = (camera.fov * Math.PI) / 180 / 2;
-  const dist = (radius / Math.sin(halfFov)) * 1.35;
-  const az = 0.6, el = 0.42;   // radians — azimuth, elevation
-  camera.position.set(
-    dist * Math.cos(el) * Math.sin(az),
-    dist * Math.sin(el),
-    dist * Math.cos(el) * Math.cos(az),
-  );
-  camera.lookAt(0, 0, 0);
+  // `eyeRatio`, NOT `FIT.portrait`'s `eyeHalfY` alone. fitOrbit's own note warns
+  // about exactly this: an eye offset scaled from the subject's HEIGHT leaves the
+  // camera in the plane of anything flat. Half this Atlas is eels — 20:1 rods
+  // with almost no Y extent — so `eyeHalfY: 0.1` put the camera level with the
+  // ground shadow, which then rendered as a hard horizon line across the plate.
+  // A fraction of DEPTH gives every specimen the same gentle three-quarter
+  // elevation whatever its own proportions are.
+  const fit = fitOrbit(camera, [group], { ...FIT.portrait, eyeRatio: 0.30, yaws: [0] });
+  camera.position.set(fit.centre.x, fit.eye, fit.centre.z + fit.distance);
+  camera.lookAt(fit.centre);
   camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+
+  placeStudioGround(studio, new THREE.Box3().setFromObject(group));
 
   renderer.render(scene, camera);
+  renderVignette(renderer, studio);
   const url = renderer.domElement.toDataURL('image/png');
 
   // Give the GPU everything back — this context does not outlive the portrait.
   disposeCreature(group);
-  disposeWater(water);
+  disposeStudio(studio);
   renderer.dispose();
 
   return url;

@@ -21,6 +21,13 @@
 // THUMBNAILS ARE BROWSER-ONLY. renderThumbnail spins a throwaway WebGL context,
 // so this cannot run in Node — it plants specimens at runtime, in the app, not at
 // build time. That is why it lives here and is called from the Atlas screen.
+//
+// It reaches UPWARD into render/ and ui/, which nothing under /engine/ may do
+// (N3) and which is worth stating rather than leaving to be noticed: this module
+// is an APP-TIER writer that happens to live beside the world fixtures, not part
+// of the world contract. The two things it needs — a portrait and a vernacular —
+// both require design tokens, and a copy of a token here is exactly the drift
+// N16 exists to prevent.
 
 import * as store from '../trunk/store.js';
 import { SEEDS } from './seeds.js';
@@ -32,6 +39,7 @@ import { binomial } from '../engine/l1/naming.js';
 import { W1_SPINE_IDS, W1_SPINE_GENOMES, W1_SPINE_NAMES } from './w1_spines.js';
 import { W1_PLAYER_IDS, W1_PLAYER_GENOMES, W1_PLAYER_NAMES } from './w1_player.js';
 import { renderThumbnail, RENDER_TAG } from '../render/thumbnail.js';
+import { lineageOf, nameFor } from '../ui/vernacular.js';
 
 // The five seed SWIMMERS, in display order. `staircase` is a deliberate
 // counter-example (it self-intersects and morphogenesis rejects it) and is
@@ -105,6 +113,14 @@ export async function seedAtlas() {
   const library = authoredList();
   let planted = 0;
 
+  // THE LIBRARY IS ITS OWN LINEAGE for naming purposes (14 §4). Built from the
+  // library rather than from the Atlas, because these plant BEFORE the player
+  // has one and because it makes the shipped names stable: the same eight
+  // creatures always arrive with the same eight vernaculars, whatever else is
+  // in the store. Names accumulate into `taken` as they are minted, so §7's
+  // suppression applies across the shelf.
+  const ctx = lineageOf(library.map(({ genome }) => ({ genome, worldId: W1_SLICE.palette })));
+
   for (let i = 0; i < library.length; i++) {
     const { commonName, genome } = library[i];
     let hash;
@@ -121,11 +137,14 @@ export async function seedAtlas() {
     try {
       const plan = morphogenesis(genome);
       const derived = binomial(plan, genome).binomial;
+      const vn = nameFor(genome, ctx, W1_SLICE.palette);
+      ctx.taken.add(vn.name);
       const specimen = {
         genome,
         hash,
         worldId: W1_SLICE.palette,
         binomial: derived,
+        vernacular: vn.name,
         commonName: commonName || derived,
         thumb: renderThumbnail(genome, { worldId: W1_SLICE.palette }),
         stats: { bodies: plan.bodyCount, mass: totalMass(plan) },

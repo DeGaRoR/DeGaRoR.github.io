@@ -48,10 +48,8 @@ html, body {
    bleeds to the top edge, and the tab bar floats over the tank's own bottom
    scrim with no top border (the scrim separates it). Other screens keep the
    standard shell. #app[data-tab] is set by nav.onChange in app.js. */
-#app[data-tab="tank"] #topbar,
-#app[data-tab="forage"] #topbar { display: none; }
-#app[data-tab="tank"] #tabbar,
-#app[data-tab="forage"] #tabbar {
+#app[data-tab="vivarium"] #topbar { display: none; }
+#app[data-tab="vivarium"] #tabbar {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   background: transparent; border-top: none;
 }
@@ -216,10 +214,23 @@ html, body {
   text-shadow: var(--shadow-on-water);
 }
 
-/* Primary action — Breed, always labelled with its object. */
-.tank-breed {
+/* THE PRIMARY CLUSTER — Undo · Breed · Burst. All three CHANGE THE POPULATION,
+   which is a different kind of act from the transport pill above them, and
+   grouping them says so. Breed takes the room that is left. */
+.tank-primary {
   position: absolute; left: var(--gutter); right: var(--gutter); z-index: 2;
   bottom: calc(var(--tabbar-h) + var(--gap));
+  display: flex; align-items: stretch; gap: var(--gap-2);
+}
+.tank-primary .tank-chip {
+  flex: none; min-height: var(--tapsize-prim); padding: 0 var(--gutter);
+  border: thin solid var(--c-line);
+  background: color-mix(in srgb, var(--c-surface) 72%, transparent);
+}
+
+/* Primary action — Breed, always labelled with its object. */
+.tank-breed {
+  flex: 1; min-width: 0;
   min-height: var(--tapsize-prim);
   border-radius: var(--r-pill);
   border: thin solid var(--c-select);
@@ -260,7 +271,11 @@ html, body {
   font: inherit; font-size: var(--t-sm); text-align: left; cursor: pointer;
 }
 .spec-picker-item:active { background: var(--c-line); }
-.spec-picker-thumb { width: var(--tapsize); height: var(--tapsize); object-fit: cover; border-radius: var(--r-2); background: var(--c-bg); }
+/* `contain`, not `cover`. The portrait is already framed to fill its square
+   (render/thumbnail.js fits real mesh vertices to a target NDC), so `cover` was
+   cropping a tight fit — it took the fins off exactly the long-bodied animals
+   the A2 spine grammar made common. */
+.spec-picker-thumb { width: var(--tapsize); height: var(--tapsize); object-fit: contain; border-radius: var(--r-2); background: var(--c-bg); }
 .spec-picker-name { flex: 1; }
 .spec-empty { color: var(--c-text-dim); font-size: var(--t-sm); margin: var(--s-3) 0; }
 
@@ -279,7 +294,7 @@ html, body {
   border-radius: var(--r-card);
 }
 .spec-card-thumb {
-  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+  width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
   border-radius: var(--r-2); background: var(--c-bg);
 }
 .spec-card-bino { font-family: var(--f-name); font-style: italic; font-size: var(--t-value); color: var(--c-text-dim); }
@@ -290,6 +305,11 @@ html, body {
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-text-dim);
 }
 .spec-empty-page { padding: var(--s-6) var(--s-4); color: var(--c-text-dim); font-size: var(--t-sm); line-height: 1.5; }
+
+/* The same card grid INSIDE the bottom sheet (the Vivarium's Atlas import).
+   No page gutter — the sheet already has one — and a scroll ceiling, because a
+   full Atlas is taller than a phone. */
+.spec-grid-sheet { padding: 0; margin-top: var(--s-2); max-height: 48vh; overflow-y: auto; }
 
 /* Boot fault panel (H1b) — shown by the classic script in index.html when the
    module graph fails to load or boot stalls. It must be styleable without the
@@ -379,3 +399,33 @@ html, body {
 .spec-picker-item[data-on="yes"] { border-color: var(--c-select); }
 .forage-tick { flex: none; color: var(--c-select); width: var(--s-4); text-align: right; }
 .spec-picker-item[data-on="yes"] .forage-tick::after { content: "✓"; }
+
+/* A SELECTABLE spec-card — the Vivarium's Atlas import. Same card as the grid's,
+   same selected-state vocabulary the picker list already uses, so "chosen" looks
+   the same wherever the player meets it. */
+button.spec-card { font: inherit; text-align: left; cursor: pointer; }
+.spec-card[data-on="yes"] { border-color: var(--c-select); }
+.spec-card-tick { margin-top: auto; min-height: var(--s-4); color: var(--c-select); font-size: var(--t-sm); }
+.spec-card[data-on="yes"] .spec-card-tick::after { content: "✓"; }
+
+/* Anchored popover (ui/menu.js) — the Vivarium's overflow. A bottom sheet would
+   cover the aquarium whose layers it is toggling, which is the one thing you
+   need to see to know the toggle worked. */
+.menu {
+  position: fixed; z-index: 20; min-width: var(--menu-w);
+  display: flex; flex-direction: column; padding: var(--hairline);
+  background: var(--c-surface-2); border: thin solid var(--c-line);
+  border-radius: var(--r-2); box-shadow: var(--shadow-sheet);
+}
+.menu-item {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tapsize); padding: 0 var(--s-2);
+  background: none; border: none; border-radius: var(--r-2);
+  color: var(--c-text); font: inherit; font-size: var(--t-sm);
+  text-align: left; cursor: pointer;
+}
+.menu-item:active { background: var(--c-line); }
+.menu-item[data-on="no"] .menu-item-label { color: var(--c-text-dim); }
+.menu-item-label { flex: 1; }
+.menu-item-tick { flex: none; width: var(--s-4); text-align: right; color: var(--c-select); }
+.menu-item[data-on="yes"] .menu-item-tick::after { content: "✓"; }

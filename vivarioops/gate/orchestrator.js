@@ -22,6 +22,7 @@ const LOADERS = {
   l1:             async () => (await import('./l1.js')).runL1Gate(),
   motion:         async () => (await import('./motion.js')).runMotionGate(),
   breed:          async () => (await import('./breed.js')).runBreedGate(),
+  vernacular:     async () => (await import('./vernacular.js')).runVernacularGate(),
   probe:          async () => (await import('./probe.js')).runProbeGate(),
   duel:           async () => (await import('./duel.js')).runDuelGate(),
 };

@@ -70,6 +70,23 @@ export function rampFor(worldId) {
 export function invalidateRamps() { rampCache.clear(); }
 
 /**
+ * The same ramp as raw token strings, plus the luminosity threshold.
+ *
+ * FOR engine/l1/vernacular.js, which names a creature's COLOUR and therefore
+ * has to know what colour it actually is. `material.hue` is a position along
+ * this ramp, not a hue (colourFrom below), so a vernacular layer working from
+ * the gene alone would call a teal animal `ochre`. The engine cannot read a
+ * design token — N3 forbids the import and N16 forbids a copy — so the ramp is
+ * handed to it, and this is the one place that knows how.
+ */
+export function paletteFor(worldId = 'w1') {
+  return {
+    stops: Array.from({ length: RAMP_STOPS }, (_, i) => token(`--pal-${worldId}-${i}`)),
+    lumThreshold: tokenNumber('--creature-lum-threshold'),
+  };
+}
+
+/**
  * Generated hue -> authored colour, reading the ramp as a CONTINUOUS GRADIENT
  * rather than six buckets. The gene keeps its whole range; it just lands
  * somewhere that belongs to the world, and no two draws share a colour.

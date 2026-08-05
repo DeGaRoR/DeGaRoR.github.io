@@ -264,6 +264,135 @@ export function disposeWater(water) {
   water.motes.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
 }
 
+/* ───────────────────────── studio ───────────────────────────────────────── */
+//
+// THE PORTRAIT PLATE. Everything above this line is the reef; this is the
+// neutral room a specimen is photographed in, and it exists because a portrait
+// is NOT a crop of the tank (21 §7.2).
+//
+// The reef backdrop was actively working against the card: `createWater` puts
+// the world's cyan behind AND around the subject, so an Atlas grid was a wall of
+// the same blue with small differently-shaped silhouettes on it, and the only
+// thing a creature owns — its own ramp — had to fight the water for the eye.
+//
+// ACES and --tank-exposure stay shared with the tank on purpose. creature.js's
+// materials are authored against that tone curve, so a plate lit any other way
+// would show a different animal from the one swimming two tabs away.
+
+/** Radial falloff, alpha only. Used for both the contact shadow and the vignette. */
+function radialTexture(inner, outer, invert = false) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const rg = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  rg.addColorStop(0, invert ? 'rgba(0,0,0,0)' : `rgba(0,0,0,${inner})`);
+  rg.addColorStop(0.55, invert ? 'rgba(0,0,0,0)' : `rgba(0,0,0,${inner * 0.55})`);
+  rg.addColorStop(1, invert ? `rgba(0,0,0,${outer})` : 'rgba(0,0,0,0)');
+  g.fillStyle = rg;
+  g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Build the studio plate, the three-light rig and the vignette into `scene`.
+ *
+ * THREE LIGHTS, not the tank's four-plus-IBL. Key / fill / rim is the whole of
+ * portrait lighting and each one has a job the others cannot do: the key gives
+ * form, the fill keeps the shadow side from going to black on a dark plate, and
+ * the rim is what stops a dark animal disappearing into it. The environment is
+ * the same gradient at low intensity — the glass and iridescent bodies need
+ * SOMETHING to refract or they render as grey holes.
+ *
+ * The rim is the tank's rule again: never white. An out-of-ramp light paints
+ * colour a creature's genes cannot own.
+ *
+ * @param {THREE.Scene} scene
+ * @param {string} worldId
+ * @returns {object} handles — pass to renderVignette() after the main render,
+ *                   disposeStudio() at teardown
+ */
+export function createStudio(scene, worldId = 'w1') {
+  const ramp = rampFor(worldId);
+  const top = token('--studio-bg-top');
+  const bottom = token('--studio-bg-bottom');
+
+  const sky = gradientTexture(top, bottom);
+  scene.background = sky.tex;
+  scene.environment = sky.tex;
+  scene.backgroundIntensity = 1;
+  scene.environmentIntensity = tokenNumber('--studio-env-intensity');
+
+  const key = new THREE.DirectionalLight(0xffffff, tokenNumber('--studio-key-intensity'));
+  key.position.set(-2.4, 3.4, 3.2);
+  const fill = new THREE.DirectionalLight(0xffffff, tokenNumber('--studio-fill-intensity'));
+  fill.position.set(3.0, -0.6, 1.8);
+  const rim = new THREE.DirectionalLight(ramp[2].clone(), tokenNumber('--studio-rim-intensity'));
+  rim.position.set(1.2, 2.2, -3.4);
+  const ambient = new THREE.AmbientLight(0xffffff, tokenNumber('--studio-ambient-intensity'));
+  scene.add(key, fill, rim, ambient);
+
+  // Contact shadow. A specimen with nothing under it reads as floating in space
+  // rather than as an object on a sweep, and no amount of rim light fixes that.
+  // A painted ellipse, not a shadow map: one texture against a whole depth pass,
+  // and the subject is the only thing casting.
+  const shadowTex = radialTexture(tokenNumber('--studio-ground-opacity'), 0);
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, fog: false }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.renderOrder = -1;
+  scene.add(ground);
+
+  // Vignette as a SCREEN-SPACE pass, for the same reason the tank's shafts are:
+  // it must be locked to the frame, not to the world. NDC ortho, so one plane of
+  // side 2 covers the viewport at any aspect.
+  const overlayScene = new THREE.Scene();
+  const overlayCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const vignetteTex = radialTexture(0, tokenNumber('--studio-vignette'), true);
+  const vignette = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    new THREE.MeshBasicMaterial({ map: vignetteTex, transparent: true, depthTest: false, depthWrite: false, fog: false }),
+  );
+  overlayScene.add(vignette);
+
+  return { sky, key, fill, rim, ambient, ground, shadowTex, vignetteTex, overlayScene, overlayCam };
+}
+
+/**
+ * Sit the contact shadow under the subject. Called after the fit, because the
+ * fit is what establishes where the subject's floor actually is.
+ *
+ * @param {object} studio
+ * @param {THREE.Box3} box  world-space bounds of the subject
+ */
+export function placeStudioGround(studio, box) {
+  const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+  const foot = Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 1e-3);
+  const r = foot * tokenNumber('--studio-ground-radius');
+  studio.ground.position.set(cx, box.min.y - foot * 0.04, cz);
+  studio.ground.scale.set(r, r, 1);
+}
+
+/** Draw the vignette over the frame. Call after renderer.render(). */
+export function renderVignette(renderer, studio) {
+  const prev = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.render(studio.overlayScene, studio.overlayCam);
+  renderer.autoClear = prev;
+}
+
+export function disposeStudio(studio) {
+  studio.sky.tex.dispose();
+  studio.shadowTex.dispose();
+  studio.vignetteTex.dispose();
+  studio.ground.geometry.dispose();
+  studio.ground.material.dispose();
+  studio.overlayScene.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+}
+
 /* ───────────────────────── arrangements ─────────────────────────────────── */
 
 /**

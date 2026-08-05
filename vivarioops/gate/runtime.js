@@ -141,10 +141,15 @@ export async function runRuntimeGate() {
   // ── R4 · navigation stack ─────────────────────────────────────────────────
   await g.assertion('R4', 'Screen stack: tabs are independent roots, routes resolve', (t) => {
     const { parseRoute, TABS, PRIMARY } = _internals;
-    // 4 -> 5: `forage` was added beside `tank`. Pinned as a literal so that adding
-    // a tab is a deliberate edit here and not a silent widening of the shell.
-    t.eq(TABS.length, 5, 'five tabs: tank, forage, atlas, world, settings');
-    t.eq(PRIMARY, 'tank', 'primary tab is Tank');
+    // 4 -> 5 -> 4: `forage` was added beside `tank`, and then the two MERGED into
+    // `vivarium` — they were the same subject asked two halves of one question.
+    // Pinned as a literal so a change to the shell is a deliberate edit here and
+    // never a silent widening of it.
+    t.eq(TABS.length, 4, 'four tabs: vivarium, atlas, world, settings');
+    t.eq(PRIMARY, 'vivarium', 'primary tab is Vivarium');
+    t.ok(!TABS.includes('tank') && !TABS.includes('forage'),
+      'the two retired tabs are gone, not merely hidden');
+    t.eq(parseRoute('#/vivarium').screen, 'vivarium', 'the merged screen is reachable');
     t.eq(parseRoute('#/world').tab, 'world', 'route names a tab');
     t.eq(parseRoute('#/atlas').screen, 'atlas', 'a tab root screen shares its tab id');
     t.eq(parseRoute('').tab, PRIMARY, 'empty route falls back to the primary tab');

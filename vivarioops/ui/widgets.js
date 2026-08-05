@@ -24,3 +24,34 @@ export function button(label, onClick) {
   b.addEventListener('click', onClick);
   return b;
 }
+
+/**
+ * Element, class, parent — the three things every DOM line in a screen needs.
+ *
+ * HOISTED, NOT INVENTED. `mk` was declared verbatim inside `mount()` in both
+ * tank.js and forage.js, and `chip` twice with two different signatures (one
+ * took a class, the other a label), which is how the two screens ended up with
+ * chips that behaved differently. There is one of each now.
+ */
+export function mk(cls, parent, tag = 'div') {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (parent) parent.append(n);
+  return n;
+}
+
+/**
+ * A chip in the floating control cluster.
+ *
+ * @param {string} label   sentence case; '' when the caller sets it later
+ * @param {Function} onClick
+ * @param {string} [cls]   extra class — `speed`, `stranger`, `burst`
+ */
+export function chip(label, onClick, cls = '') {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls ? `tank-chip ${cls}` : 'tank-chip';
+  b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}

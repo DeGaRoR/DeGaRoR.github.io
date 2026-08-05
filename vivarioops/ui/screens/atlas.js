@@ -8,6 +8,10 @@
 import { t } from '../../trunk/i18n.js';
 import * as store from '../../trunk/store.js';
 import { seedAtlas } from '../../worlds/atlas_seed.js';
+import { renderThumbnail, isStale, RENDER_TAG } from '../../render/thumbnail.js';
+import { specCard } from '../cards.js';
+import { button } from '../widgets.js';
+import { lineageOf, nameFor } from '../vernacular.js';
 
 export default {
   title: t('Atlas'),
@@ -54,67 +58,101 @@ export default {
 
       const grid = document.createElement('div');
       grid.className = 'spec-grid';
-      for (const { key, spec } of loaded) grid.append(card(key, spec));
+      const imgs = new Map();
+      for (const { key, spec } of loaded) {
+        const c = card(key, spec);
+        grid.append(c);
+        imgs.set(key, c.querySelector('.spec-card-thumb'));
+      }
       wrap.append(grid);
+
+      upgradeRecords(loaded, imgs);
     }
 
+    /**
+     * THE MISSING HALF OF `RENDER_TAG`, and the backfill for the vernacular.
+     *
+     * The tag has been stamped onto every specimen since it existed and NOTHING
+     * EVER COMPARED IT except `seedAtlas`, and only for authored records. So a
+     * player's own creatures kept the portrait they were saved with forever, and
+     * the day the render look changed their Atlas became a mix of two looks with
+     * no way to reconcile it.
+     *
+     * The vernacular rides along because it is the same problem one step later:
+     * a record saved before 14 existed has no common name, and nothing else
+     * would ever give it one — it would show its binomial forever while its
+     * neighbours showed names. It is minted against the WHOLE Atlas as the
+     * lineage (14 §4), which is why the context is built once, outside the loop.
+     *
+     * ONE AT A TIME, YIELDING BETWEEN. `renderThumbnail` builds and tears down a
+     * whole WebGL context per call; thirty-seven of them in a row would block the
+     * main thread through the entire Atlas open. The page is already on screen
+     * before this starts, portraits swap in as they finish, and a failure leaves
+     * the old record rather than a broken card.
+     */
+    async function upgradeRecords(loaded, imgs) {
+      const stale = loaded.filter(({ spec }) =>
+        spec.genome && (isStale(spec) || !spec.vernacular));
+      if (!stale.length) return;
+      // Names already in the Atlas are `taken`, so §7's suppression applies and
+      // the backfill does not manufacture duplicates.
+      const ctx = lineageOf(loaded.map(({ spec }) => spec));
+      // rAF DOES NOT FIRE ON A HIDDEN PAGE, so a bare `await rAF` wedges this
+      // loop the moment the player switches browser tabs — and the Atlas would
+      // then sit on a half-upgraded grid with no way to notice. The setTimeout
+      // is the fallback that keeps it advancing; runBurst uses the same race for
+      // the same reason. rAF still wins when visible, so a portrait is never
+      // rendered in the middle of a paint.
+      const yieldFrame = () => new Promise((r) => {
+        let fired = false;
+        const go = () => { if (!fired) { fired = true; r(); } };
+        requestAnimationFrame(go);
+        setTimeout(go, 50);
+      });
+      let renamed = 0;
+      for (const { key, spec } of stale) {
+        if (stopped) return;
+        await yieldFrame();
+        if (stopped) return;
+        try {
+          const next = { ...spec };
+          if (isStale(spec)) {
+            next.thumb = renderThumbnail(spec.genome, { worldId: spec.worldId ?? 'w1' });
+            next.render = RENDER_TAG;
+          }
+          if (!next.vernacular) {
+            const v = nameFor(spec.genome, ctx, spec.worldId ?? 'w1');
+            next.vernacular = v.name;
+            ctx.taken.add(v.name);
+            renamed++;
+          }
+          await store.set(key, next);
+          if (stopped) return;
+          const img = imgs.get(key);
+          if (img && next.thumb) img.src = next.thumb;
+        } catch { /* keep the old record; the next open tries again */ }
+      }
+      // A backfilled name changes what the card says, and the card was built
+      // before the name existed. One redraw at the end rather than a rebuild per
+      // record — the portraits already swapped in place above.
+      if (renamed && !stopped) render();
+    }
+
+    // The card itself lives in ui/cards.js — the Vivarium's import sheet shows
+    // the same one, and a creature that looked different depending on which
+    // screen drew it would undermine the only job a collection has.
+    //
+    // Authored specimens are the shipped library: labelled, and not deletable —
+    // the next open would only plant them again, so a Delete button would be a
+    // button that does nothing. Player-kept creatures keep their Delete.
     function card(key, spec) {
-      const c = document.createElement('div');
-      c.className = 'spec-card';
-
-      const img = document.createElement('img');
-      img.className = 'spec-card-thumb'; img.alt = '';
-      if (spec.thumb) img.src = spec.thumb;
-      c.append(img);
-
-      const name = document.createElement('div');
-      name.className = 'spec-card-name';
-      name.textContent = spec.commonName || spec.binomial || t('Creature');
-      c.append(name);
-
-      // Show the binomial only when the player named it something else — otherwise
-      // it would just repeat the name above.
-      if (spec.binomial && spec.commonName && spec.commonName !== spec.binomial) {
-        const bino = document.createElement('div');
-        bino.className = 'spec-card-bino';
-        bino.textContent = spec.binomial;
-        c.append(bino);
-      }
-
-      const bodies = spec.stats?.bodies;
-      const mass = spec.stats?.mass;
-      const statLine = [
-        bodies != null ? `${bodies} ${t('bodies')}` : null,
-        // CGS (01 §7): engine mass units ARE grams. A relabel, not a conversion.
-        mass != null ? `${mass.toFixed(2)} g` : null,
-      ].filter(Boolean).join(' · ');
-      if (statLine) {
-        const stats = document.createElement('div');
-        stats.className = 'spec-card-stats';
-        stats.textContent = statLine;
-        c.append(stats);
-      }
-
-      // Authored specimens are the shipped library: labelled, and not deletable —
-      // the next open would only plant them again, so a Delete button would be a
-      // button that does nothing. Player-kept creatures keep their Delete.
-      if (spec.source === 'authored') {
-        const badge = document.createElement('div');
-        badge.className = 'spec-card-source';
-        badge.textContent = t('From the library');
-        c.append(badge);
-      } else {
-        const del = document.createElement('button');
-        del.className = 'btn'; del.type = 'button'; del.textContent = t('Delete');
-        del.addEventListener('click', async () => {
-          del.disabled = true;
+      return specCard(spec, {
+        action: spec.source === 'authored' ? null : button(t('Delete'), async (e) => {
+          e.currentTarget.disabled = true;
           try { await store.del(key); } catch { /* ignore — re-render reflects reality */ }
           render();
-        });
-        c.append(del);
-      }
-
-      return c;
+        }),
+      });
     }
 
     seedThenRender();
