@@ -202,17 +202,55 @@ const barName = refScores.find((r) => r.s.balance === bar)?.label ?? '—';
 console.log(`\n  bar to beat: ${fmt(bar, 0)} erg of net energy (${barName})\n`);
 
 // ── the run ─────────────────────────────────────────────────────────────────
-let pop = seedPopulation({
-  RAPIER, rng: rngFrom('zselect', 'seed'), world: W1_SLICE, population: POP, authoredSlots: 0,
-}).genomes;
+//
+// RESUMABLE, and resumption is EXACT rather than approximate. Every rng in the
+// loop is `rngFrom('zselect', 'breed', gen)` — a pure function of the generation
+// number and nothing else — so continuing a saved run at generation N produces
+// byte-identically what an uninterrupted run would have produced. That is the
+// only reason a checkpoint is honest here: if the streams were sequential,
+// resuming would silently be a DIFFERENT experiment wearing the same name.
+//
+// The scores are saved alongside the population because after a reload the
+// genome objects are new, so `breed()`'s same-object-reference trick (the thing
+// that stops elites being re-scored) cannot survive the round trip. Restoring
+// `measured` by index does the same job for the same reason.
+const STATE = new URL(`./_zselect_state${MODE === 'balance' ? '' : '_' + MODE}.json`, import.meta.url);
 
-let scores = new Array(POP).fill(-Infinity);
-let measured = new Array(POP).fill(false);
-let results = new Array(POP).fill(null);
-let best = null;
+let pop = null, scores = null, measured = null, best = null, gen0 = 0, restored = null;
+try {
+  const st = JSON.parse(readFileSync(STATE, 'utf8'));
+  // A checkpoint from a different EXPERIMENT is not a checkpoint. All three of
+  // these change what the numbers mean, so any mismatch starts fresh and says so.
+  if (st.mode !== MODE || st.seconds !== SECONDS || st.pop.length !== POP) {
+    console.log(`  (checkpoint is ${st.mode}/${st.seconds}s/${st.pop.length} — this run is`
+      + ` ${MODE}/${SECONDS}s/${POP}, so it does not apply. Starting fresh.)\n`);
+  } else {
+    pop = st.pop.map((s) => deserialise(s));
+    scores = st.scores.map((v) => (v === null ? -Infinity : v));
+    measured = st.measured.slice();
+    // THE PER-SLOT RESULTS COME BACK TOO. Without them the first resumed
+    // generation prints em-dashes for its champion's mass, margin and distance —
+    // because a restored elite is `measured` and therefore never re-trialled, so
+    // nothing would ever fill its row in.
+    restored = st.results ?? null;
+    best = st.best ? { ...st.best, genome: deserialise(st.best.serialised) } : null;
+    gen0 = st.gen + 1;
+    console.log(`  resuming at generation ${gen0} — best so far ${fmt(best?.score, 0)}`
+      + ` (found at gen ${best?.gen})\n`);
+  }
+} catch { /* no checkpoint: a fresh run */ }
+
+if (!pop) {
+  pop = seedPopulation({
+    RAPIER, rng: rngFrom('zselect', 'seed'), world: W1_SLICE, population: POP, authoredSlots: 0,
+  }).genomes;
+  scores = new Array(POP).fill(-Infinity);
+  measured = new Array(POP).fill(false);
+}
+let results = restored ?? new Array(POP).fill(null);
 const wall0 = Date.now();
 
-for (let gen = 0; gen <= GENS; gen++) {
+for (let gen = gen0; gen <= GENS; gen++) {
   let bursts = 0, dead = 0;
   for (let i = 0; i < pop.length; i++) {
     if (measured[i]) continue;
@@ -254,8 +292,24 @@ for (let gen = 0; gen <= GENS; gen++) {
   // ONLY THE NEW BODIES ARE RESCORED. An elite comes back as the SAME OBJECT
   // REFERENCE, so identity is an exact test for "this creature did not change".
   measured = pop.map((g, i) => g === before[i] && measured[i]);
-  scores = pop.map((g, i) => (measured[i] ? scores[i] : 0));
+  // -Infinity, not 0. Zero is a REAL score — a creature that eats exactly what
+  // it spends — and an unmeasured slot carrying it would outrank every animal
+  // running at a loss, which is most of generation 0.
+  scores = pop.map((g, i) => (measured[i] ? scores[i] : -Infinity));
   results = pop.map((g, i) => (measured[i] ? results[i] : null));
+
+  // CHECKPOINT, written after the breed so the file always describes a
+  // generation that has been fully scored. `plan` is stripped: it is rebuilt
+  // from the genome in one call and would otherwise dominate the file.
+  const slim = (r) => (r ? { ...r, plan: undefined } : null);
+  writeFileSync(STATE, JSON.stringify({
+    mode: MODE, seconds: SECONDS, gen, wall: Math.round((Date.now() - wall0) / 1000),
+    pop: pop.map((g) => serialise(g)),
+    scores: scores.map((v) => (Number.isFinite(v) ? v : null)),
+    measured,
+    results: results.map(slim),
+    best: best && { ...slim(best), genome: undefined, serialised: serialise(best.genome) },
+  }));
 }
 
 // ── the verdict ─────────────────────────────────────────────────────────────
