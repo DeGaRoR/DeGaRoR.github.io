@@ -1,0 +1,443 @@
+{
+ "hash": "f192748edfe56852",
+ "gen": 20,
+ "balance": 63313.79967839317,
+ "ratio": 5.491869447312523,
+ "eaten": 28.670000000001465,
+ "moved": 17.509808073621702,
+ "bodies": 5,
+ "mass": 37.393153881264645,
+ "vernacular": "lesser drifting whipfoot",
+ "binomial": "Dolichopodus dentinodatus",
+ "genome": {
+  "version": 4,
+  "seed": 2309791632,
+  "rootNodeId": "ns0bud",
+  "nodes": [
+   {
+    "id": "ns0bud",
+    "dims": [
+     1.58296,
+     0.524767,
+     0.334712
+    ],
+    "density": 1,
+    "recursiveLimit": 1,
+    "joint": {
+     "type": "revolute",
+     "angleLimits": [
+      0.913266,
+      0.174243,
+      1.255122
+     ],
+     "phaseLag": -0.060761
+    },
+    "colorGenes": {
+     "hueShift": -0.042808,
+     "valueShift": 0.112221,
+     "patternPhase": 0.260853
+    }
+   },
+   {
+    "id": "ni49dn",
+    "dims": [
+     0.2,
+     0.545198,
+     0.920658
+    ],
+    "density": 1,
+    "recursiveLimit": 2,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      0.858027,
+      1.540835,
+      0.513115
+     ],
+     "phaseLag": -0.301777
+    },
+    "colorGenes": {
+     "hueShift": 0.118795,
+     "valueShift": -0.176797,
+     "patternPhase": 0.155
+    }
+   },
+   {
+    "id": "nbrm39",
+    "dims": [
+     1.308445,
+     0.460585,
+     0.42301
+    ],
+    "density": 1,
+    "recursiveLimit": 2,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      0.948572,
+      0.282006,
+      0.135243
+     ],
+     "phaseLag": 0.157773
+    },
+    "colorGenes": {
+     "hueShift": 0.119091,
+     "valueShift": 0.076823,
+     "patternPhase": 0.471072
+    }
+   },
+   {
+    "id": "n0r3zv",
+    "dims": [
+     1.92596,
+     0.461294,
+     0.622025
+    ],
+    "density": 1,
+    "recursiveLimit": 3,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      1.273639,
+      0.941255,
+      0.799767
+     ],
+     "phaseLag": -0.173104
+    },
+    "colorGenes": {
+     "hueShift": -0.062582,
+     "valueShift": 0.156324,
+     "patternPhase": 0.313008
+    }
+   },
+   {
+    "id": "nvgutw",
+    "dims": [
+     0.927908,
+     1.522344,
+     1.645907
+    ],
+    "density": 1,
+    "recursiveLimit": 1,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      0.830498,
+      0.78962,
+      0.081422
+     ],
+     "phaseLag": -0.212405
+    },
+    "colorGenes": {
+     "hueShift": 0.124389,
+     "valueShift": 0.043385,
+     "patternPhase": 0.817506
+    }
+   },
+   {
+    "id": "n6f2mh",
+    "dims": [
+     1.92926,
+     0.543321,
+     1.984248
+    ],
+    "density": 1,
+    "recursiveLimit": 3,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      1.477615,
+      0.430036,
+      0.596215
+     ],
+     "phaseLag": -0.225509
+    },
+    "colorGenes": {
+     "hueShift": -0.109729,
+     "valueShift": -0.131607,
+     "patternPhase": 0.355916
+    }
+   },
+   {
+    "id": "nnbrpn",
+    "dims": [
+     0.931444,
+     1.048105,
+     0.367874
+    ],
+    "density": 1,
+    "recursiveLimit": 6,
+    "joint": {
+     "type": "twist",
+     "angleLimits": [
+      0.826832,
+      0.94885,
+      0.431288
+     ],
+     "phaseLag": 0.275637
+    },
+    "colorGenes": {
+     "hueShift": -0.019343,
+     "valueShift": -0.281222,
+     "patternPhase": 0.95644
+    }
+   }
+  ],
+  "connections": [
+   {
+    "id": "ctgj5a",
+    "parentNodeId": "ns0bud",
+    "childNodeId": "ni49dn",
+    "parentFace": 0,
+    "position": [
+     0.609875,
+     0.717839
+    ],
+    "orientation": [
+     -0.599092,
+     0.041485,
+     0.574256
+    ],
+    "scale": [
+     1.697385,
+     1.784542,
+     0.885936
+    ],
+    "reflectX": true,
+    "reflectY": true,
+    "reflectZ": false,
+    "terminalOnly": false
+   },
+   {
+    "id": "cujsbo",
+    "parentNodeId": "ns0bud",
+    "childNodeId": "nbrm39",
+    "parentFace": 1,
+    "position": [
+     -0.701103,
+     -0.86607
+    ],
+    "orientation": [
+     0.401024,
+     -0.108536,
+     -0.76713
+    ],
+    "scale": [
+     1.550567,
+     1.5447,
+     1.975525
+    ],
+    "reflectX": true,
+    "reflectY": false,
+    "reflectZ": false,
+    "terminalOnly": false
+   },
+   {
+    "id": "c0jtp8",
+    "parentNodeId": "nbrm39",
+    "childNodeId": "n0r3zv",
+    "parentFace": 0,
+    "position": [
+     -0.427196,
+     -0.823706
+    ],
+    "orientation": [
+     0.072117,
+     0.700252,
+     0.173929
+    ],
+    "scale": [
+     1.820095,
+     1.004411,
+     1.197356
+    ],
+    "reflectX": false,
+    "reflectY": true,
+    "reflectZ": true,
+    "terminalOnly": false
+   },
+   {
+    "id": "ckpspk",
+    "parentNodeId": "n0r3zv",
+    "childNodeId": "nvgutw",
+    "parentFace": 5,
+    "position": [
+     -0.262993,
+     0.980385
+    ],
+    "orientation": [
+     0.101207,
+     0.416837,
+     -0.537026
+    ],
+    "scale": [
+     1.637867,
+     1.06461,
+     0.712462
+    ],
+    "reflectX": false,
+    "reflectY": true,
+    "reflectZ": true,
+    "terminalOnly": false
+   },
+   {
+    "id": "crv1sa",
+    "parentNodeId": "nvgutw",
+    "childNodeId": "n6f2mh",
+    "parentFace": 3,
+    "position": [
+     0.809175,
+     0.638266
+    ],
+    "orientation": [
+     -0.371312,
+     0.677616,
+     0.03678
+    ],
+    "scale": [
+     1.757316,
+     1.316316,
+     0.727277
+    ],
+    "reflectX": true,
+    "reflectY": true,
+    "reflectZ": true,
+    "terminalOnly": false
+   },
+   {
+    "id": "c51z69",
+    "parentNodeId": "nvgutw",
+    "childNodeId": "ns0bud",
+    "parentFace": 0,
+    "position": [
+     0.522166,
+     -0.19782
+    ],
+    "orientation": [
+     0.555088,
+     -0.610816,
+     0.166878
+    ],
+    "scale": [
+     1.486332,
+     1.994116,
+     0.671422
+    ],
+    "reflectX": false,
+    "reflectY": false,
+    "reflectZ": false,
+    "terminalOnly": false
+   },
+   {
+    "id": "crv3bc",
+    "parentNodeId": "n6f2mh",
+    "childNodeId": "n6f2mh",
+    "parentFace": 0,
+    "position": [
+     0.689699,
+     0.900432
+    ],
+    "orientation": [
+     -0.250957,
+     -0.40131,
+     -0.463334
+    ],
+    "scale": [
+     1.119312,
+     0.502485,
+     1.112592
+    ],
+    "reflectX": false,
+    "reflectY": false,
+    "reflectZ": false,
+    "terminalOnly": true
+   },
+   {
+    "id": "cbyvh3",
+    "parentNodeId": "ns0bud",
+    "childNodeId": "nnbrpn",
+    "parentFace": 5,
+    "position": [
+     -0.056259,
+     0.897982
+    ],
+    "orientation": [
+     0.59295,
+     -0.434591,
+     -0.10494
+    ],
+    "scale": [
+     1.34171,
+     0.595667,
+     0.974571
+    ],
+    "reflectX": false,
+    "reflectY": false,
+    "reflectZ": false,
+    "terminalOnly": false
+   }
+  ],
+  "material": {
+   "hue": 0.634523,
+   "hueVariance": 0.12099,
+   "patternScale": 7.476239,
+   "patternContrast": 0.417757,
+   "stripeAnisotropy": 0.67361,
+   "iridescence": 0.082369
+  },
+  "controller": {
+   "omega": 1.809948,
+   "preyGain": -0.321328,
+   "threatGain": 0.484788,
+   "phaseBase": 0.413273,
+   "phaseSlope": -0.045647,
+   "proprioGain": 0,
+   "jointGenes": {
+    "ns0bud": {
+     "amplitude": 0.325897,
+     "bias": -0.044473,
+     "freqMult": 1
+    },
+    "ni49dn": {
+     "amplitude": 0.533131,
+     "bias": 0.141376,
+     "freqMult": 1
+    },
+    "nbrm39": {
+     "amplitude": 0.56923,
+     "bias": -0.337509,
+     "freqMult": 2
+    },
+    "n0r3zv": {
+     "amplitude": 0.052145,
+     "bias": 0.432046,
+     "freqMult": 1
+    },
+    "nvgutw": {
+     "amplitude": 0.900278,
+     "bias": 0.068657,
+     "freqMult": 1
+    },
+    "n6f2mh": {
+     "amplitude": 0.054439,
+     "bias": 0.349274,
+     "freqMult": 1
+    },
+    "nnbrpn": {
+     "amplitude": 0.508827,
+     "bias": -0.441597,
+     "freqMult": 1
+    }
+   }
+  },
+  "social": {
+   "trophic": 0.904845,
+   "boldness": 0.646461,
+   "cohesion": 0.166844,
+   "separation": 0.27556,
+   "alignment": 0.614873,
+   "separationRadius": 3.009611
+  }
+ },
+ "serialised": "{\"version\":4,\"seed\":2309791632,\"rootNodeId\":\"ns0bud\",\"nodes\":[{\"id\":\"ns0bud\",\"dims\":[1.58296,0.524767,0.334712],\"density\":1,\"recursiveLimit\":1,\"joint\":{\"type\":\"revolute\",\"angleLimits\":[0.913266,0.174243,1.255122],\"phaseLag\":-0.060761},\"colorGenes\":{\"hueShift\":-0.042808,\"valueShift\":0.112221,\"patternPhase\":0.260853}},{\"id\":\"ni49dn\",\"dims\":[0.2,0.545198,0.920658],\"density\":1,\"recursiveLimit\":2,\"joint\":{\"type\":\"twist\",\"angleLimits\":[0.858027,1.540835,0.513115],\"phaseLag\":-0.301777},\"colorGenes\":{\"hueShift\":0.118795,\"valueShift\":-0.176797,\"patternPhase\":0.155}},{\"id\":\"nbrm39\",\"dims\":[1.308445,0.460585,0.42301],\"density\":1,\"recursiveLimit\":2,\"joint\":{\"type\":\"twist\",\"angleLimits\":[0.948572,0.282006,0.135243],\"phaseLag\":0.157773},\"colorGenes\":{\"hueShift\":0.119091,\"valueShift\":0.076823,\"patternPhase\":0.471072}},{\"id\":\"n0r3zv\",\"dims\":[1.92596,0.461294,0.622025],\"density\":1,\"recursiveLimit\":3,\"joint\":{\"type\":\"twist\",\"angleLimits\":[1.273639,0.941255,0.799767],\"phaseLag\":-0.173104},\"colorGenes\":{\"hueShift\":-0.062582,\"valueShift\":0.156324,\"patternPhase\":0.313008}},{\"id\":\"nvgutw\",\"dims\":[0.927908,1.522344,1.645907],\"density\":1,\"recursiveLimit\":1,\"joint\":{\"type\":\"twist\",\"angleLimits\":[0.830498,0.78962,0.081422],\"phaseLag\":-0.212405},\"colorGenes\":{\"hueShift\":0.124389,\"valueShift\":0.043385,\"patternPhase\":0.817506}},{\"id\":\"n6f2mh\",\"dims\":[1.92926,0.543321,1.984248],\"density\":1,\"recursiveLimit\":3,\"joint\":{\"type\":\"twist\",\"angleLimits\":[1.477615,0.430036,0.596215],\"phaseLag\":-0.225509},\"colorGenes\":{\"hueShift\":-0.109729,\"valueShift\":-0.131607,\"patternPhase\":0.355916}},{\"id\":\"nnbrpn\",\"dims\":[0.931444,1.048105,0.367874],\"density\":1,\"recursiveLimit\":6,\"joint\":{\"type\":\"twist\",\"angleLimits\":[0.826832,0.94885,0.431288],\"phaseLag\":0.275637},\"colorGenes\":{\"hueShift\":-0.019343,\"valueShift\":-0.281222,\"patternPhase\":0.95644}}],\"connections\":[{\"id\":\"ctgj5a\",\"parentNodeId\":\"ns0bud\",\"childNodeId\":\"ni49dn\",\"parentFace\":0,\"position\":[0.609875,0.717839],\"orientation\":[-0.599092,0.041485,0.574256],\"scale\":[1.697385,1.784542,0.885936],\"reflectX\":true,\"reflectY\":true,\"reflectZ\":false,\"terminalOnly\":false},{\"id\":\"cujsbo\",\"parentNodeId\":\"ns0bud\",\"childNodeId\":\"nbrm39\",\"parentFace\":1,\"position\":[-0.701103,-0.86607],\"orientation\":[0.401024,-0.108536,-0.76713],\"scale\":[1.550567,1.5447,1.975525],\"reflectX\":true,\"reflectY\":false,\"reflectZ\":false,\"terminalOnly\":false},{\"id\":\"c0jtp8\",\"parentNodeId\":\"nbrm39\",\"childNodeId\":\"n0r3zv\",\"parentFace\":0,\"position\":[-0.427196,-0.823706],\"orientation\":[0.072117,0.700252,0.173929],\"scale\":[1.820095,1.004411,1.197356],\"reflectX\":false,\"reflectY\":true,\"reflectZ\":true,\"terminalOnly\":false},{\"id\":\"ckpspk\",\"parentNodeId\":\"n0r3zv\",\"childNodeId\":\"nvgutw\",\"parentFace\":5,\"position\":[-0.262993,0.980385],\"orientation\":[0.101207,0.416837,-0.537026],\"scale\":[1.637867,1.06461,0.712462],\"reflectX\":false,\"reflectY\":true,\"reflectZ\":true,\"terminalOnly\":false},{\"id\":\"crv1sa\",\"parentNodeId\":\"nvgutw\",\"childNodeId\":\"n6f2mh\",\"parentFace\":3,\"position\":[0.809175,0.638266],\"orientation\":[-0.371312,0.677616,0.03678],\"scale\":[1.757316,1.316316,0.727277],\"reflectX\":true,\"reflectY\":true,\"reflectZ\":true,\"terminalOnly\":false},{\"id\":\"c51z69\",\"parentNodeId\":\"nvgutw\",\"childNodeId\":\"ns0bud\",\"parentFace\":0,\"position\":[0.522166,-0.19782],\"orientation\":[0.555088,-0.610816,0.166878],\"scale\":[1.486332,1.994116,0.671422],\"reflectX\":false,\"reflectY\":false,\"reflectZ\":false,\"terminalOnly\":false},{\"id\":\"crv3bc\",\"parentNodeId\":\"n6f2mh\",\"childNodeId\":\"n6f2mh\",\"parentFace\":0,\"position\":[0.689699,0.900432],\"orientation\":[-0.250957,-0.40131,-0.463334],\"scale\":[1.119312,0.502485,1.112592],\"reflectX\":false,\"reflectY\":false,\"reflectZ\":false,\"terminalOnly\":true},{\"id\":\"cbyvh3\",\"parentNodeId\":\"ns0bud\",\"childNodeId\":\"nnbrpn\",\"parentFace\":5,\"position\":[-0.056259,0.897982],\"orientation\":[0.59295,-0.434591,-0.10494],\"scale\":[1.34171,0.595667,0.974571],\"reflectX\":false,\"reflectY\":false,\"reflectZ\":false,\"terminalOnly\":false}],\"material\":{\"hue\":0.634523,\"hueVariance\":0.12099,\"patternScale\":7.476239,\"patternContrast\":0.417757,\"stripeAnisotropy\":0.67361,\"iridescence\":0.082369},\"controller\":{\"omega\":1.809948,\"preyGain\":-0.321328,\"threatGain\":0.484788,\"phaseBase\":0.413273,\"phaseSlope\":-0.045647,\"proprioGain\":0,\"jointGenes\":[{\"nodeId\":\"n0r3zv\",\"amplitude\":0.052145,\"bias\":0.432046,\"freqMult\":1},{\"nodeId\":\"n6f2mh\",\"amplitude\":0.054439,\"bias\":0.349274,\"freqMult\":1},{\"nodeId\":\"nbrm39\",\"amplitude\":0.56923,\"bias\":-0.337509,\"freqMult\":2},{\"nodeId\":\"ni49dn\",\"amplitude\":0.533131,\"bias\":0.141376,\"freqMult\":1},{\"nodeId\":\"nnbrpn\",\"amplitude\":0.508827,\"bias\":-0.441597,\"freqMult\":1},{\"nodeId\":\"ns0bud\",\"amplitude\":0.325897,\"bias\":-0.044473,\"freqMult\":1},{\"nodeId\":\"nvgutw\",\"amplitude\":0.900278,\"bias\":0.068657,\"freqMult\":1}]},\"social\":{\"trophic\":0.904845,\"boldness\":0.646461,\"cohesion\":0.166844,\"separation\":0.27556,\"alignment\":0.614873,\"separationRadius\":3.009611}}"
+}
