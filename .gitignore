@@ -7,3 +7,8 @@ battlebotsPWA/tools/engine.cjs
 # src/models/c172_model.js is committed. Contact sheets are scratch.
 flyDiy/assets/c172/
 flyDiy/tools/_glbview/
+# flyDiy renderer probe pages + the previous-commit viewer sources they measure
+# against: all written by `node tools/make_probe.js --base`.
+flyDiy/tools/_probe.html
+flyDiy/tools/_probe_base.html
+flyDiy/tools/_base_*.js

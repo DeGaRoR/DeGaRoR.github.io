@@ -81,6 +81,23 @@ MODEL-IMPORT-PROC.md Step 0b for the conversion, `tools/glb_extract.py` and
 - **Glazing keeps its own tint map** (Window.png at opacity 0.37) — payload
   materials may now carry tex + opacity + color together, where before a
   material was either textured or flat-translucent.
+- **PBR (W18, 2026-08-05).** `matFor` builds `MeshStandardMaterial`. A **v4**
+  payload carries its own `rough`/`metal` (+ optional `mr`/`nrm`/`emis`),
+  imported from the source glTF, and those always win. Only when the payload
+  has none — v3 and earlier, i.e. an OBJ+MTL source like the PA-18 — does the
+  `PBR` table in app.js supply defaults, keyed by PAYLOAD MATERIAL NAME. Name a
+  material after what it is (`skin`, `glass`, `metal`, `tyre`, `hub`, `cabin`,
+  …) and it inherits a sane response; anything unrecognised falls back to
+  `PBR._` (matte dielectric), a safe default rather than a wrong one.
+  Metalness is for BARE metal only — painted surfaces are dielectrics and stay
+  at 0. Transparency still keys off `opacity < 1` exactly as above.
+- **Texture decode gates the skin.** Loads are async, and a PBR material whose
+  base map has not arrived is a white dielectric under a reflection probe —
+  a mirror. `buildModel` counts its loads and `applySkinVis` holds the
+  wireframe until `ready`; onError counts too, so a missing map degrades to
+  untextured rather than invisible. This did not matter under Lambert.
+  See HANDOVER "PBR & REFLECTIONS" for the reflection map, its RGBE trap, and
+  the import.
 - **Mount** `off = [1.694, -1.420, 0]`, calibrated at both gear ends:
   mains 0.2 cm and nose 0.8 cm off the sim's settled contact plane.
 

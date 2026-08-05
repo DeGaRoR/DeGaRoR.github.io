@@ -88,6 +88,11 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `tools/run_gates.js` — gate runner; `tools/circuit_harness.js` — shared
   circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree
   + the flexbody battery (test_model/skin/ctrl/ui_smoke/pa18).
+- `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
+  GL draw counters, before/after against the previous commit's viewer, and
+  handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
+  closure). Not part of the artifact; output is gitignored. See TREE FIELD for
+  why it has to exist.
 - `tools/model_prep.py` (generic bake, needs Pillow) + `tools/models/<key>.py`
   (per-model config: groups, SURFACES hinge table, texture settings) +
   `tools/model_inspect.py` (OBJ inventory + hinge-line probe). Procedure:
@@ -119,6 +124,24 @@ hinge axes (unit + aero-consistent signs) for the non-cardinal C172 hinges,
 nose-gear steering across four payload groups, flex-band containment and
 L/R symmetry, and that the strut fittings ride the wing while the fuel caps
 stay rigid. The pa18's MODEL/SKIN/CTRL gates are untouched.
+GATE WORLDRENDER (~3 s) is the only coverage render_world.js has — UISMOKE
+stubs buildWorldScene out entirely — and runs the real builder against a THREE
+stub that records what gets created. Its renderer stub carries the whole
+draw-state surface the two boot-time bakes touch, so both the impostor atlas
+loop and the W18 environment bake RUN (they render nothing, but their plain-JS
+half is covered): the gate asserts the PMREM is built exactly once, that
+scene.environment ends up holding it, that the env scene has its dome and its
+ground, that the generator is disposed, and that every atlas tile got its own
+viewport. It holds the chunked-instancing invariants
+(every instance inside the sphere its chunk is culled by, culling left ON,
+sphere bigger than a chunk, instances stored chunk-LOCAL) and, since W17, the
+LOD ladder: both tiers hold the same trees, impostors cast no shadow, every
+shadow-casting chunk carries the depth-material cull, the shape sphere the
+impostor bake reads is tree-sized rather than the chunk ball, and the tiers
+actually switch by distance. The bake itself is GL and cannot be gated headless
+(the stub renderer has no setRenderTarget, so the atlas comes back
+texture-less); what is gated is the bookkeeping around it, which is where the
+cull bugs live.
 GATE AERO (appended after SETTLE, ~2.5 s) holds the stage-4 invariants:
 counts/size mix, centreline flat + slope, dry, tree-free boxes, surface
 patches, tdz on pad, reachable-or-fly-in, spacing, determinism.
@@ -429,6 +452,15 @@ render-only woodland fill streamed in 1024 m chunks around the aircraft,
 minimap panel (baked underlay + live route/aircraft/wind), wind presets
 wired to world.setWind with live windsocks, flatness-gated field
 patchwork, second close-range detail octave — see roadmap W13.
+W18 (2026-08-05): the aircraft skin is PBR and the world has a boot-baked
+reflection map off its own sky — see PBR & REFLECTIONS, and read the RGBE
+trap there before touching the sky shader or anything that renders into an
+offscreen target.
+W17 (2026-08-05): the forest is a three-rung LOD ladder — 3D inside 450 m,
+boot-baked octahedral impostors out to 4 km, canopy texture on the terrain
+beyond — and 2.05x denser for it. The full as-built lives under TREE FIELD;
+read it before touching anything in the tree block or the ground shader's
+canopyHook.
 The aircraft
 itself stays the untinted wireframe: strain ramp neutral→amber (tension) /
 cyan (compression) — deliberate contrast, don't "fix" it.
@@ -509,8 +541,9 @@ staging props, split fused L/R meshes, mirror the missing strut) →
   nose-left, which is what a nosewheel does (a tailwheel wants the positive
   sign the taildraggers carry). Comment corrected.
 
-## TREE FIELD — measured state + the LOD ladder (next up, 2026-08-05)
-Measured with GL draw hooks + EXT_disjoint_timer_query, C172 loaded, 1.3 Mpx:
+## TREE FIELD — the LOD ladder (W17, DONE 2026-08-05)
+Baseline that started this arc, GL draw hooks + EXT_disjoint_timer_query,
+C172 loaded, 1.3 Mpx:
 **203 draw calls, 4.36 M tris/frame, 3.45 ms GPU** (2.25 ms with all trees
 skipped). Share: far clutter 1.97 M (45%), near trees 1.25 M drawn twice
 (camera + shadow), ground 0.52 M, **whole C172 skin 0.06 M — 1.3%**. The
@@ -523,28 +556,271 @@ InstancedMesh on its GEOMETRY's bounding sphere, and the geometry is shared —
 which is why the streamed layer had `frustumCulled = false` and the woodland
 layer was one world-sized mesh. Fix: instance matrices are chunk-LOCAL, each
 chunk mesh sits at its chunk centre, and the shared sphere is inflated once.
-Trunks additionally switch off past 900 m (they were 45% of the frame and are
-sub-pixel from cruise). **Size the sphere against RELIEF, not just the
+(Trunks also switched off past 900 m; W17 superseded that rule — they now stop
+at the near band.) **Size the sphere against RELIEF, not just the
 horizontal half-diagonal** — GATE WORLDRENDER caught a tree on a 148 m ridge
 2 m outside a 736 m sphere. The same bug class had the village buildings
 culled against a 1 m sphere at the origin (fixed).
 
-NOT DONE — the LOD ladder, which is what buys real density:
-1. near (<400 m): current 3D canopy + trunk, unchanged.
-2. mid (400 m-2 km): **octahedral impostors** — pre-render each species from
-   9-16 directions into one atlas with a WebGLRenderTarget at boot (the
-   source is the tree meshes already in the scene, so NO external art and the
-   look is preserved), 2 tris/tree, shader picks the nearest view. Plain
-   camera-facing billboards are wrong here: from 160 m up they read as lying
-   down. Insertion point: `coneF`/`blobF` in the streamed fill block.
-3. far (>2 km): no geometry — blend a canopy texture into the terrain.
-Cheap first step if the atlas is too much in one sitting: the far-tier
-broadleaf canopy is `IcosahedronGeometry(1.9, 0)` = 20 tris and blobs are
-89 588 of 124 848 canopy instances — an 8-tri octahedron is a one-line swap
-for 2.5x on the dominant class.
-Then raise density: the user wants forests several times denser, and the
-whole point of the above is to buy that headroom. NOT by cutting trees —
-see [[import-models-as-is]]'s sibling rule: quality is not the budget knob.
+DONE 2026-08-05 — **the LOD ladder** (W17), all three rungs, in
+render_world.js. Constants live together at the top of buildWorldScene
+(`NEAR_R 450 / FAR_FILL 4000 / FAR_WOOD 5400 / FAR_FADE 500`) because the
+ground shader owns one rung and the tree block owns the other two, and they
+have to agree at the seams.
+1. near (< 450 m): 3D canopy + trunk + shadows, unchanged.
+2. mid (450 m .. FAR): **octahedral impostors**, 2 tris/tree.
+3. far (> FAR): no geometry; the terrain wears a canopy texture.
+
+Measured before/after on the SAME machine, same viewpoint, same pumped frame
+count (tools/make_probe.js — see below), PA-18 over the Tyl forest at 197 m,
+800x450:
+| | draw calls | tris/frame | ms/frame |
+|---|---|---|---|
+| before (HEAD~) | 568 | 5.54 M | 15.2 |
+| after | 150 | 0.98 M | 3.9 |
+Calls and triangles are exact (counters wrapped around the GL draw entry
+points); the ms column is same-protocol wall clock in a pane that is not
+compositing, so treat it as indicative, not as a GPU time.
+**3.8x the calls, 5.7x the triangles, ~3.9x the frame — while the streamed
+forest got 2.05x DENSER.** (Parked at HOME, where there is far less forest in
+frame, the same pair reads 653/5.73 M vs 254/1.37 M.) The old 203/4.36 M figure
+at the top of this section was a
+different rig, aircraft and resolution; it is kept as the historical anchor,
+not as a comparand.
+
+How it works, and the parts that are not obvious:
+- **The atlas is baked at boot from the live tree geometry** (`bakeImpostorAtlas`)
+  into a 512² WebGLRenderTarget, 4x4 tiles, one atlas per source shape (four:
+  woodland cone/blob, fill cone/blob — the fill shapes are shorter because they
+  have no trunk under them, and the impostor's size and centre height come off
+  the source geometry's own bounding sphere). No external art; the silhouette
+  matches across the switch by construction.
+- Bake the mesh **WHITE with `toneMapped = false`**, and multiply by the same
+  per-instance species colour the near tier uses. Bake it tinted and every tree
+  in the forest is the same green. Render targets get LinearEncoding and the
+  toneMapping parameter follows `material.toneMapped`, so the tile holds pure
+  linear shading and tone mapping still happens once, at the final draw.
+- **The light stays fixed in world space while the bake camera walks the
+  hemisphere.** That is what lets impostors carry no yaw and need no lighting at
+  draw time: every tile is already lit for the sun this world has, and the whole
+  forest is lit from the same side. (Instances DO carry a random yaw for the 3D
+  tier; the impostor shader reads only position and scale out of the matrix.)
+- Clear the target to transparent **black** and **unpremultiply after sampling**
+  (`texelColor.rgb /= max(texelColor.a, 1e-4)`). The canvas is premultiplied, so
+  a white transparent clear comes back black anyway; premultiplied texels are
+  exactly the ones bilinear filtering and mipmaps are correct on, and this kills
+  the dark fringe at every distance. The 12% ortho gutter is what keeps mipmap
+  bleed between tiles off the tree.
+- Non-uniform instance scale (pines narrow, willows squat) is handled by doing
+  **everything in the unscaled shape's space**: divide the direction-to-camera
+  by the scale, pick the view, lay the quad out on that direction's canonical
+  frame, then scale the offsets back componentwise. The orthographic silhouette
+  of an affinely scaled object IS the affine image of the unscaled silhouette,
+  so this is exact. `sv.x === sv.z` in both layers, which is what makes it work.
+- The quad's frame comes from the VIEW DIRECTION, not the screen — same
+  `upRef` rule in the shader as in the bake (`|dir.y| > 0.999 -> (0,0,1)`).
+  Build it from the camera's right/up instead and a rolling aircraft smears the
+  atlas. The pole is a genuine (measure-zero) discontinuity: pass exactly over a
+  tree and its impostor spins 180 deg. Every octahedral impostor has this.
+- 3 taps, barycentric over the grid cell. A nearest-view pick flips the whole
+  forest at once when the aircraft turns; 16 views is UE's foliage default and
+  with the blend it reads continuous.
+- **Impostors carry no trunk.** A trunk is 1.9 m x 0.4 m — a fifth of a pixel at
+  450 m (the same argument that already switched trunks off at 900 m), and a
+  brown trunk cannot ride a per-species tint. The old 900 m trunk rule is gone,
+  superseded by the near band.
+- The 3D tier collapses per instance in the vertex shader: **view-space length
+  IS the camera distance**, so it costs one compare and no uniform. Chunk-level
+  `.visible` on top of that (lodUpdate), because an off chunk costs nothing at
+  all — not even the vertex shader.
+- **The shadow pass renders through its own depth material**, so the collapse
+  above never reaches it — that is the "drawn twice" in the measurement above.
+  A shared `customDepthMaterial` with the same radius, measured from the CG
+  (the sun's shadow camera follows the aircraft, not the eye), fixes it.
+  Consequence to know: tree shadows now stop at NEAR_R, where before they
+  stopped at the shadow frustum's own 540 m cap at altitude.
+- `uCam` is fed from the CHASE CAMERA, not the CG: the impostor picks its view
+  from the direction to the eye, and 30 m of chase offset is 4 deg of parallax.
+  One frame stale (the viewer places the camera after worldUpdate) is fine.
+- **TRAP, cost real time:** `chunkBounds` overwrites the geometry's
+  boundingSphere with the 1.5 km chunk ball. The bake needs the SHAPE's sphere,
+  so chunkBounds now stashes it in `geo.userData.shape` — call
+  `computeBoundingSphere()` again anywhere downstream and you silently undo the
+  inflation and put the tree field back to being culled per tree. GATE
+  WORLDRENDER asserts the stash is tree-sized.
+- **FAR_FILL was first set at 2700 and that was wrong.** Measured against the
+  pre-ladder build at the same viewpoint, the 2.7-5.2 km shore went from
+  forested to pasture: a canopy texture cannot stand in for trees on ground that
+  is still only half hazed. At 4000 the fog is ~74% by the time the last
+  impostor has shrunk away. Impostors are 2 triangles — buying that 1.3 km back
+  cost almost nothing, and this is the knob to reach for if the far field ever
+  reads thin again.
+- The far tier fades in over exactly the band the impostors shrink out in
+  (FAR_FILL-FAR_FADE .. FAR_FILL), keyed to a 512² FOREST_FLOOR mask baked
+  beside the outer colour pass, looked up from WORLD position (the inner mesh
+  and the outer ring have different uv layouts; the mask is one domain-wide
+  bake). The crown texture multiplies at **1.45**, not the 2.0 that would
+  preserve the mean: a canopy is DARKER than the grass it stands on, and a
+  mean-preserving multiply left the hills reading as pasture.
+- Impostors **shrink** to nothing over the last FAR_FADE metres rather than
+  clipping. An alpha fade would need blending and sorting; at 2 px tall,
+  shrinking is indistinguishable from dissolving.
+
+Density: the streamed fill grid went 13.1 -> 9.1 m (NG 78 -> 112, 2.05x) and its
+ring came in 5.6 -> 4.1 km. Chunk size stayed 1024 m ON PURPOSE — generation
+cost is per grid POINT, so halving the spacing at a constant chunk size would
+have quadrupled the per-chunk hitch (~3 -> 12 ms); at 2x it lands near 6 ms,
+and the streamer's cadence doubled (24 -> 12 frames) with the burst halved
+(6/2 -> 3/1) to keep a fresh spawn filling in ~2-3 s. Memory is the real price
+of the ladder: both tiers are built per chunk from the same records, so
+instance buffers roughly doubled (~50 MB of matrices/colours across both
+layers). If that ever bites, build the fill layer's 3D tier lazily — only ~9
+chunks are ever inside NEAR_R.
+Room left if more density is wanted: the near band is the only tier paying per
+triangle, so raising density costs ~16 tris/tree inside 450 m and 2 tris/tree
+out to 4 km. NOT by cutting trees — see [[import-models-as-is]]'s sibling rule:
+quality is not the budget knob.
+
+**Instrument: `node tools/make_probe.js --base`** (tools/_probe.html +
+_probe_base.html, both gitignored). The agent Browser pane stops compositing
+when it is not displayed, which throttles rAF to nothing — the sim boots, never
+draws, and every live measurement silently reads zero. The probe is dev.html's
+exact markup and script list plus a hand-pumped rAF (`__pump(n)`), an error
+trap, draw-call/triangle counters wrapped around the GL entry points, and a
+wrapper that catches `buildWorldScene`'s return value into `window.__WF`
+(otherwise it is sealed in app.js's closure). `--base` writes a second page
+running the PREVIOUS COMMIT's render_world.js, which is how the table above is
+same-machine rather than same-memory. `__WF.treeLod.near.value = 0` turns the
+whole forest into impostors — that is the fidelity test: at 30 m the impostor
+canopies matched the geometry blob for blob, differing only by the trunks they
+deliberately drop.
+
+## PBR & REFLECTIONS (W18, DONE 2026-08-05)
+The aircraft skin is `MeshStandardMaterial` and the world has a reflection map.
+Everything else — terrain, trees, buildings, decals — stays Lambert on purpose:
+it is cheap, it is tuned, and r128 routes `scene.environment` to Standard
+materials ONLY, so the switch could be made surgically.
+
+- **The cube is baked at boot from the world's own sky** (`render_world.js`,
+  right after the sky dome): a throwaway Scene holding the same sky-shader dome
+  plus a ground hemisphere, through `PMREMGenerator.fromScene(es, 0.035, 1, 100)`.
+  No HDRI file, no network, nothing added to the artifact, and the reflections
+  are of THIS sky at THIS hour by construction. The sky shader is now a factory
+  (`skyMat`) shared by the on-screen dome and the bake — one source of truth, so
+  a reflection can never drift from the sky it reflects.
+- **THE TRAP — cost most of the session.** r128's PMREM render target is
+  **RGBE**: alpha is an EXPONENT, not opacity. The sky is a hand-written
+  ShaderMaterial that includes none of three's chunks, so nothing converted its
+  output to the target encoding and it wrote `alpha = 1.0` — which the RGBE
+  decoder reads as 2^(255-128) ≈ 1.7e38. The IBL term goes infinite, inf-inf is
+  NaN, and **every MeshStandardMaterial in the scene renders PURE BLACK** while
+  the Lambert world looks perfectly fine. Aircraft and water both, with no
+  console error. Fix: `skyMat(encode)` appends `#include <encodings_fragment>`
+  for the bake variant ONLY — adding it to the on-screen dome would change the
+  sky, whose palette was tuned against the un-converted output.
+  What found it: swapping in a PMREM baked from a plain `MeshBasicMaterial`
+  dome (a built-in material, which DOES encode). It lit up instantly, and that
+  narrowed a whole-scene symptom to one shader in one line of the bake.
+  Same family as the impostor atlas's `toneMapped = false`: **anything rendered
+  into an offscreen target owes that target its encoding.**
+- **Material table lives in app.js (`PBR`), keyed by payload material name** —
+  the names are already semantic (model_prep.py takes them from the source MTL's
+  usemtl groups). So: no payload re-bake, no new bake-time dependency, and one
+  readable table instead of two generated 6 MB files. A new aircraft gets
+  sensible defaults from `PBR._` and only needs entries for what it names
+  differently.
+- **Metalness is not shininess.** Paint over aluminium is a dielectric: `skin`
+  stays at metalness 0 however glossy it looks. Only genuinely bare metal (hub,
+  prophub, gearmetal, the c172's `metal`) goes high — set the fuselage metallic
+  and the livery turns grey and takes its colour from the sky.
+- Transparency semantics are deliberately unchanged: `opacity < 1` in the
+  payload is still the only thing that makes a group transparent, so the gauge
+  textures carrying real cutout alpha behave exactly as before.
+- Measured (canonical viewpoint, C172, mean over a wing box): Lambert
+  [144, 152, 129] -> PBR [152, 164, 150]. Brighter and markedly bluer — that is
+  sky IBL landing on white paint. Full-frame means moved < 2%, i.e. the Lambert
+  world really is untouched. Draw calls and triangles are unchanged (152 /
+  0.96 M over the Tyl forest vs 150 / 0.98 M before): this is a shader-cost
+  change, not a submission change.
+- The clearest win is the SHADED side. Backlit at golden hour the Lambert C172
+  was a flat black silhouette with only its lit interior showing through the
+  glass; with the reflection map the wing, fin, fuselage and strut all read.
+  The water gained a real sky reflection for free — it was already Standard.
+- Knob if the sky ambient is ever too strong for the art direction:
+  `PBR.skin.e` (envMapIntensity), currently the neutral 1.0.
+
+### W18b — the C172's PBR is IMPORTED, not guessed (2026-08-05)
+The name-keyed table above is now only a FALLBACK, for payloads with no PBR of
+their own (the PA-18, whose OBJ+MTL source has none to import). The C172 is a
+glTF, and glTF materials *are* PBR: the factors, the packed metalRough map, the
+normal map and the emissive map all came across.
+
+Pipeline, end to end, with no new per-material config:
+- `glb_extract.py` writes `assets/c172/pbr.json` beside the OBJ, keyed by glTF
+  material name — **which is also the OBJ's `usemtl` name**, so `model_prep.py`
+  joins them by walking the faces each group claims and taking the dominant
+  source material. Nothing to declare, and a group spanning several source
+  materials reports the split instead of silently picking.
+- Payload v4 adds `rough`/`metal` per material, plus `mr`/`nrm` naming entries
+  in `texs` and `emis` (a factor; the emissive map IS the base map on this
+  model, so it is reused and costs zero bytes). `decodeModel` was untouched —
+  the group binary layout has not changed since v2, and the only version test
+  in the viewer is `data.v >= 2`.
+- The viewer prefers payload values over the table: a guess must never override
+  a measurement. metalRough goes into BOTH `roughnessMap` and `metalnessMap` —
+  that is one glTF texture whose G and B channels three reads separately, not
+  a copy-paste slip. Normal mapping needs no tangents; three derives them.
+
+**Measure before importing — most of those maps were worth nothing.** Of 8
+metalRough maps, four are perfectly constant, and of 6 normal maps one is the
+identity normal and three more perturb by under 1% (stdev 1.2-2.9 of 255). The
+extractor therefore FOLDS a constant metalRough into the two scalars it already
+implies, drops an identity normal, and keeps the rest: 3.8 MB of source maps
+became 186 KB of payload carrying everything that actually varies. Thresholds
+`FLAT_MR`/`FLAT_NRM` in glb_extract.py, deliberately tight.
+The one judgement call left to config: the pedals' normal map is the strongest
+in the model (stdev 23.7) and its worst value — 204 KB for 336 triangles down
+in the footwell — so `c172.py` declines it with `nrm=False`.
+Cost: payload 6308 -> 6557 KB (+4%), artifact 8.10 -> 8.36 MB.
+
+What the artist's numbers actually said, against the guesses they replaced:
+| material | guessed r/m | imported r/m |
+|---|---|---|
+| skin (painted alloy) | 0.42 / 0.00 | **0.221** / 0.00 |
+| metal (bare) | 0.34 / 0.85 | **0.139** / **1.00** |
+| glass | 0.06 / 0.00 | 0.00 / 0.00 |
+| hub | 0.28 / 0.90 | **0.00** / **0.456** |
+The airframe is markedly glossier than guessed and the bare metal glossier
+still — which is exactly the kind of thing a table of plausible numbers gets
+wrong, and the reason to import.
+
+**THE TRAP, and it cost two phantom bug-hunts.** Texture decode is ASYNC. A PBR
+material whose base map has not landed yet is a *white dielectric under a
+reflection probe* — i.e. a mirror. Switching to the C172 (13 maps) flashed a
+chrome aeroplane, and every screenshot taken in the first second showed it. I
+"fixed" that twice before measuring: once by linearising the env bake, once by
+halving envMapIntensity on dielectrics. Neither was the cause.
+  - What found it: shooting the same viewpoint twice in one call, before and
+    after poking a material. Identical settings, different pictures — so the
+    difference was TIME, not the setting. `__texReady()` in the probe now
+    reports decode state, and **no frame should be judged before it says ready**.
+  - The real fix is in the product, not the test: `buildModel` counts its
+    texture loads and `applySkinVis` holds the WIREFRAME until they land
+    (onError counts too, so a missing map degrades to untextured rather than
+    invisible). Under Lambert this gap merely showed white, which is why it
+    never mattered before PBR.
+  - KEPT from the false starts: the env bake linearises the sky
+    (`sRGBToLinear`) before packing. The palette is authored in display space —
+    the on-screen dome writes gl_FragColor raw into an sRGB target and nothing
+    converts it — while a reflection probe must hold scene-linear radiance.
+    That is right on its own terms, worth ~2.4x, and stays.
+  - REVERTED: scaling dielectric envMapIntensity to 0.3. Neutral 1.0 is
+    verified good once the textures are actually there. The double-ambient it
+    was reasoning about is real (HemisphereLight *and* an env map) but measures
+    small — a white rough probe lit by the env alone reads ~0.07 linear.
+GATE C172M now asserts the import: factors in range, every named map present in
+`texs`, emissive only where a base map exists to reuse, and the two the import
+exists to get right — painted skin is a dielectric, bare metal is not.
 
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
@@ -790,6 +1066,32 @@ W16. **Lateral quiet** — DONE 2026-08-04: the fleet-wide aileron limit
     e4 core-side item. Battery re-anchored minus C172/C172M, which were
     red/new from the PARALLEL c172-3D-model session's in-progress fiche
     rework (their chantier validates those; not this session's scope).
+
+W18b. **Imported PBR for the C172** — DONE 2026-08-05: the GLB's own
+    roughness/metalness factors, metalRough maps, normal maps and emissive
+    come across via a pbr.json sidecar joined by usemtl; constant maps fold
+    to scalars (3.8 MB of source maps -> 186 KB of payload). Payload v4,
+    +4% size. The viewer's name table is now only the fallback. Also fixes
+    the texture-decode race that PBR made visible. See PBR & REFLECTIONS
+    W18b — including the trap that cost two phantom bug-hunts.
+
+W18. **PBR skin + reflection map** — DONE 2026-08-05: a PMREM environment
+    cube baked at boot from this world's own sky dome + a ground hemisphere
+    (no HDRI, no network, nothing shipped), assigned to `scene.environment`;
+    the aircraft skin moved MeshLambert -> MeshStandard with roughness /
+    metalness / envMapIntensity keyed off the payload material names. Full
+    as-built and the RGBE trap under PBR & REFLECTIONS. Viewer-only — no
+    payload re-bake, no world data change, no re-golden, physics untouched.
+
+W17. **Tree LOD ladder + forest density** — DONE 2026-08-05: octahedral
+    impostors for the mid band, canopy texture for the far band, per-instance
+    3D collapse for the near band, a shadow-pass cull, and 2.05x the streamed
+    forest density on the headroom that bought. Full as-built, measurements and
+    traps under TREE FIELD; GATE WORLDRENDER extended. Renderer-only — no world
+    data change, no re-golden, physics untouched. Remaining renderer-overhaul
+    backlog after this: GPU disposal for non-current aircraft models, full PBR,
+    chunked terrain LOD (far cliffs), contour-traced lake outlines, animated
+    water shader, triplanar splat.
 
 W15. **Close-range ground detail** (planned, renderer-overhaul family) —
     options in ascending effort: (a) DONE in W13, second grain octave;

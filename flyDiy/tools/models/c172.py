@@ -71,13 +71,23 @@ CFG = dict(
     # at its own resolution. Same principle as the mesh — the model arrives as
     # the author made it. Payload size is a load-time problem, not a reason to
     # re-encode someone's atlas.
+    # PBR (W18b): roughness/metalness factors and any metalRough / normal map
+    # worth keeping come from the GLB itself via assets/c172/pbr.json, written
+    # by glb_extract.py and joined to these materials by the OBJ's own usemtl —
+    # so there is nothing to declare here unless a map is not worth its bytes.
+    # glb_extract already folded four constant metalRough maps and three
+    # identity normal maps into scalars; what is left is listed below.
     mats=dict(
         # textured
         skin=dict(tex='Body.png', fmt='copy'),
         tyre=dict(tex='Tyre.png', fmt='copy'),
         metal=dict(tex='Metal.png', fmt='copy'),
         front=dict(tex='Front.png', fmt='copy'),
-        pedal=dict(tex='Material_004.png', fmt='copy'),
+        # The pedals' normal map is the strongest in the model (stdev 23.7) and
+        # also the worst value in it: 204 KB of high-frequency relief for 336
+        # triangles of rudder pedal, down in the footwell. Declined — the
+        # metalRough it also carries was constant and already folded to scalars.
+        pedal=dict(tex='Material_004.png', fmt='copy', nrm=False),
         radio=dict(tex='Material_006.jpg', fmt='copy'),
         screen=dict(tex='Material_007.jpg', fmt='copy'),
         dials=dict(tex='Material_009.jpg', fmt='copy'),

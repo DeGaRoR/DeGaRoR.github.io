@@ -81,6 +81,7 @@ class Obj3 {
     o.children = []; if (o.isMesh || o.isInstancedMesh) CREATED.push(o); return o; }
 }
 const CREATED = [];
+const PMREM = { n: 0, args: null, disposed: false };
 class InstancedMesh extends Obj3 {
   constructor(geometry, material, count) {
     super(); this.isInstancedMesh = true; this.geometry = geometry; this.material = material;
@@ -139,6 +140,27 @@ const THREE = {
       this.attributes.normal = new Attr((ws + 1) * (hs + 1));
     }
   },
+  Scene: class extends Obj3 {},
+  OrthographicCamera: class extends Obj3 { constructor() { super(); this.up = new V3(0,1,0); } },
+  // W17 impostor bake: the stub renderer below has no setRenderTarget, so
+  // render_world falls back to a texture-less atlas. The BAKE itself is GL and
+  // cannot be gated headless; what this gate is for is the chunk/instance
+  // bookkeeping around it, which is where the cull bugs live.
+  WebGLRenderTarget: class { constructor(w, h) { this.texture = { w, h }; } },
+  // W18 reflection map. fromScene is GL, but everything AROUND it is ordinary
+  // JS that can silently stop happening — a guard that goes false, a bake that
+  // never assigns scene.environment — and then the world just quietly has no
+  // reflections again. Count the calls and check the assignment.
+  PMREMGenerator: class {
+    constructor(r) { PMREM.n++; this.r = r; }
+    fromScene(sc, sigma, near, far) {
+      PMREM.args = { objs: sc.children.length, sigma, near, far };
+      return { texture: { isPMREM: true } };
+    }
+    dispose() { PMREM.disposed = true; }
+  },
+  MeshBasicMaterial: class { constructor(o) { Object.assign(this, o); } dispose() {} },
+  MeshDepthMaterial: class { constructor(o) { Object.assign(this, o); } dispose() {} },
   BoxGeometry: class extends Geo {}, SphereGeometry: class extends Geo {},
   ConeGeometry: class extends Geo { constructor() { super('cone'); } },
   CylinderGeometry: class extends Geo { constructor() { super('trunk'); } },
@@ -156,6 +178,8 @@ const THREE = {
       updateProjectionMatrix() {} }, bias: 0, normalBias: 0 }; this.target = new Obj3(); } },
   HemisphereLight: class extends Obj3 {},
   RepeatWrapping: 1000, DoubleSide: 2, BackSide: 1, sRGBEncoding: 3000,
+  LinearFilter: 1006, LinearMipmapLinearFilter: 1008, RGBAFormat: 1023,
+  RGBADepthPacking: 3201,
 };
 global.THREE = THREE;
 
@@ -164,7 +188,20 @@ const fs = require('fs');
 const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
 const scene = new Obj3(); scene.fog = null;
 const camera = new Obj3(); camera.far = 6000;
-const renderer = { capabilities: { getMaxAnisotropy: () => 4 } };
+// A renderer stub with the whole draw-state surface the two boot-time bakes
+// touch. It renders nothing — but with it present, the impostor atlas loop and
+// the environment bake both RUN, so their plain-JS half (tile indexing, state
+// save/restore, the guards) is covered instead of being skipped wholesale.
+const GLCALLS = { render: 0, viewport: 0, clearDepth: 0 };
+const renderer = {
+  capabilities: { getMaxAnisotropy: () => 4 },
+  autoClear: true,
+  getRenderTarget: () => null, setRenderTarget() {},
+  getClearAlpha: () => 1, getClearColor: () => null, setClearColor() {},
+  clear() {}, clearDepth() { GLCALLS.clearDepth++; },
+  setScissorTest() {}, setScissor() {}, setViewport() { GLCALLS.viewport++; },
+  render() { GLCALLS.render++; },
+};
 let WF;
 try {
   const factory = new Function('THREE', 'document', src + '\nreturn buildWorldScene;');
@@ -219,6 +256,65 @@ chk(noSphere === 0, `${noSphere} tree chunks have no bounding sphere — they ca
 chk(escaped === 0, `${escaped} instances fall outside their chunk's cull sphere ` +
                    '(they would vanish, or drop out of shadow, while still on screen)');
 chk(worst > 100, `worst offset only ${worst.toFixed(0)} m — instances look world-relative, not chunk-local`);
+
+// ---- W18 reflection map ----------------------------------------------------
+console.log(`env: pmrem x${PMREM.n} ${JSON.stringify(PMREM.args)} disposed=${PMREM.disposed} ` +
+            `| bake render() x${GLCALLS.render}, viewports x${GLCALLS.viewport}`);
+chk(PMREM.n === 1, `PMREMGenerator built ${PMREM.n} times — the reflection map is baked ONCE, at boot`);
+chk(!!scene.environment && scene.environment.isPMREM,
+    'scene.environment is not the baked cube — every Standard material (water, ' +
+    'aircraft skin) silently loses its reflections');
+chk(PMREM.args && PMREM.args.objs === 2,
+    `env scene has ${PMREM.args && PMREM.args.objs} objects — want sky dome + ground hemisphere`);
+chk(PMREM.args && PMREM.args.near > 0 && PMREM.args.far > PMREM.args.near,
+    'env cube camera near/far do not bracket the dome');
+chk(PMREM.disposed, 'PMREMGenerator not disposed — it holds render targets for the life of the page');
+// the impostor atlas bake, whose GL half cannot be gated but whose loop can be
+chk(GLCALLS.viewport === GLCALLS.render && GLCALLS.render > 0,
+    `impostor bake did ${GLCALLS.render} renders for ${GLCALLS.viewport} viewports — ` +
+    'every tile must get its own viewport or views land on top of each other');
+chk(GLCALLS.render % 16 === 0,
+    `${GLCALLS.render} bake renders is not a whole number of 4x4 view grids`);
+
+// ---- W17 LOD ladder --------------------------------------------------------
+// Every canopy tree must exist in BOTH tiers: the 3D mesh the near band draws
+// and the impostor quad the mid band draws. Miss one and a whole species
+// vanishes at 450 m (or, worse, gets drawn twice everywhere).
+const imp = byTag('plane'), solid3D = inst(byTag('cone')) + inst(byTag('blob'));
+chk(inst(imp) === solid3D,
+    `impostor instances ${inst(imp)} != canopy instances ${solid3D} — a tier is missing trees`);
+chk(imp.length > 20, `only ${imp.length} impostor chunks`);
+chk(imp.every(m => !m.castShadow),
+    'impostors cast shadows — they are camera-facing quads, the shadow would be a flat slab');
+// the near tier's shadow-pass cull: the depth material is the ONLY way to reach
+// the shadow pass, and without it the whole near chunk is submitted twice
+const shad = trees.filter(m => m.castShadow);
+chk(shad.length > 0 && shad.every(m => m.customDepthMaterial),
+    `${shad.filter(m => !m.customDepthMaterial).length} shadow-casting tree chunks have no ` +
+    'depth-material cull — the forest is still drawn twice');
+// the trap this cost real time: chunkBounds inflates boundingSphere to a chunk,
+// so the impostor bake must read the SHAPE's sphere off the stash. If it ever
+// recomputes instead, the inflation is silently undone and culling breaks.
+for (const m of [byTag('cone')[0], byTag('blob')[0]]) {
+  const sh2 = m.geometry.userData.shape;
+  chk(sh2 && sh2.r < 20, `tree shape sphere ${sh2 && sh2.r} m — that is the CHUNK sphere, ` +
+      'the impostor bake and the cull sphere are fighting over one field');
+}
+// the ladder actually switches: after 60 updates at the origin the 3D tier is
+// mostly off and the impostor tier reaches much further out
+const at = m => Math.hypot(m.position.x, m.position.z);
+const solid = trees.filter(m => m.geometry.tag !== 'plane');
+const onSolid = solid.filter(m => m.visible), onImp = imp.filter(m => m.visible);
+console.log(`LOD @origin: 3D ${onSolid.length}/${solid.length} chunks on ` +
+            `(furthest ${Math.max(0, ...onSolid.map(at)).toFixed(0)} m) | ` +
+            `impostor ${onImp.length}/${imp.length} on ` +
+            `(furthest ${Math.max(0, ...onImp.map(at)).toFixed(0)} m)`);
+chk(onSolid.length > 0, 'no 3D tree chunk is visible at the origin');
+chk(onSolid.length < solid.length * 0.5,
+    'the 3D tier is still submitting most of the world — is lodUpdate wired into worldUpdate?');
+chk(Math.max(0, ...onSolid.map(at)) < 2600, 'a 3D tree chunk is on beyond the near band');
+chk(Math.max(0, ...onImp.map(at)) > Math.max(0, ...onSolid.map(at)),
+    'impostors do not reach further than the 3D tier — the ladder is upside down');
 
 // culling must actually be left on for the tree field
 const off = trees.filter(m => m.frustumCulled === false).length;

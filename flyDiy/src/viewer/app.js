@@ -68,6 +68,56 @@
     c172: { off: [1.694, -1.420, 0], tags: ['WF', 'WR'], zRoot: 2.00, xMax: 1.5,
             rig: ['skin', 'metal', 'tyre', 'hub', 'gear'] },
   };
+  // W18 PBR fallback: roughness / metalness / envMapIntensity per PAYLOAD
+  // MATERIAL NAME, used when the payload carries no PBR of its own (v3 and
+  // earlier — the PA-18, whose OBJ+MTL source has no PBR to import).
+  // A v4 payload's own `rough`/`metal` always win: those are the numbers the
+  // model's author set, and a guess should never override a measurement.
+  // Keyed off the names because they are already semantic (model_prep.py takes
+  // them from the source MTL's usemtl groups, and tools/models/<key>.py names
+  // them by what they are).
+  // METALNESS IS NOT SHININESS: paint over aluminium is a dielectric, so the
+  // fuselage stays at 0 no matter how glossy it looks. Only genuinely bare
+  // metal — hubs, gear legs, fittings — goes high, or the paint turns grey and
+  // takes its colour from the sky instead of the livery.
+  const PBR = {
+    _:         { r: 0.72, m: 0.0 },   // fallback: matte, no reflection to speak of
+    skin:      { r: 0.42, m: 0.0 },   // doped fabric (cub) / painted alloy (c172)
+    glass:     { r: 0.06, m: 0.0, e: 1.5 },   // glazing reflects harder than neutral
+    metal:     { r: 0.34, m: 0.85 },
+    gearmetal: { r: 0.38, m: 0.80 },
+    hub:       { r: 0.28, m: 0.90 },
+    prophub:   { r: 0.30, m: 0.85 },
+    blades:    { r: 0.40, m: 0.25 },  // painted, with polished tips: part way
+    tyre:      { r: 0.96, m: 0.0 },
+    covers:    { r: 0.90, m: 0.0 },
+    seat:      { r: 0.85, m: 0.0 },
+    cabin:     { r: 0.88, m: 0.0 },   // leather / fabric trim
+    cabin2:    { r: 0.90, m: 0.0 },
+    cockpit:   { r: 0.90, m: 0.0 },
+    black:     { r: 0.85, m: 0.0 },
+    panel:     { r: 0.62, m: 0.10 },  // instrument panel: satin, faintly metallic
+    front:     { r: 0.55, m: 0.15 },
+    pedal:     { r: 0.55, m: 0.35 },
+    radio:     { r: 0.50, m: 0.20 },
+    screen:    { r: 0.22, m: 0.0, e: 0.7 },
+    // gauge faces sit behind glass; keep them near-matte or they flare
+    dials:     { r: 0.60, m: 0.05 },
+    gaugeA:    { r: 0.60, m: 0.05 }, gaugeB: { r: 0.60, m: 0.05 },
+    gaugeC:    { r: 0.60, m: 0.05 },
+    ai:        { r: 0.60, m: 0.05 }, asi: { r: 0.60, m: 0.05 },
+    alt:       { r: 0.60, m: 0.05 }, turn: { r: 0.60, m: 0.05 },
+    hdg:       { r: 0.60, m: 0.05 }, vsi: { r: 0.60, m: 0.05 },
+  };
+  const EMIS_GAIN = 0.45;         // see matFor: authored emissive is 1.0
+  // envMapIntensity stays NEUTRAL at 1. Worth knowing: the scene also keeps a
+  // HemisphereLight (the Lambert world needs one and cannot see an environment
+  // map), so a PBR material does get sky ambient twice over. Measured, it does
+  // not matter — a white rough probe lit by the env alone reads ~0.07 linear,
+  // and the aircraft is verified good at full strength. If the shaded side ever
+  // reads too blue, scaling dielectrics here is the knob; it was tried at 0.3
+  // and reverted, because the problem it appeared to fix turned out to be a
+  // texture-decode race in the measurement, not the lighting.
   const modelCache = {};
   // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame only
   const SKIN_GAINS = [1, 4];
@@ -90,11 +140,26 @@
     const mats = data.mats || { skin: { tex: 'skin' }, glass: { opacity: 0.28, color: 0xaad4ea } };
     const grpMat = name => (data.texs && data.groups[name].mat) ||
                            (name === 'glass' ? 'glass' : 'skin');
+    // Texture decode is ASYNC, and a PBR material whose base map has not landed
+    // yet is a white dielectric under a reflection probe — i.e. a mirror. The
+    // c172 carries 13 maps and takes a beat, so switching to it flashed a
+    // chrome aeroplane. (Under Lambert the same gap just showed white, which is
+    // why it never mattered before.) Count the loads and let applySkinVis hold
+    // the wireframe until they are all in; onError counts too, so a missing
+    // texture degrades to "shown, untextured" rather than "invisible forever".
     const texs = {};
+    const entry = { pending: 0, ready: false };
+    const landed = () => {
+      if (--entry.pending > 0) return;
+      entry.ready = true;
+      applySkinVis();
+    };
     for (const t in texSrcs) {
-      texs[t] = new THREE.TextureLoader().load(texSrcs[t]);
+      entry.pending++;
+      texs[t] = new THREE.TextureLoader().load(texSrcs[t], landed, undefined, landed);
       texs[t].anisotropy = 4;
     }
+    if (!entry.pending) entry.ready = true;
     const mkGeo = g => {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(g.pos, 3));
@@ -108,14 +173,44 @@
       const mn = grpMat(name);
       if (matCache[mn]) return matCache[mn];
       const m = mats[mn], op = m.opacity !== undefined ? m.opacity : 1;
-      return matCache[mn] = m.tex
-        ? new THREE.MeshLambertMaterial({ map: texs[m.tex], side: THREE.DoubleSide,
-            color: m.color !== undefined ? m.color : 0xffffff,
-            transparent: op < 1, opacity: op, depthWrite: op >= 1 })
+      const s = PBR[mn] || PBR._;
+      // W18: MeshStandard, not Lambert — which is what makes the aircraft see
+      // scene.environment at all (r128 routes it to Standard materials only).
+      // Transparency semantics are deliberately UNCHANGED: op < 1 is still the
+      // only thing that turns a group transparent, so the gauge textures that
+      // carry real cutout alpha keep behaving exactly as they did.
+      const metal = m.metal !== undefined ? m.metal : s.m;
+      const common = { side: THREE.DoubleSide, transparent: op < 1, opacity: op,
+        depthWrite: op >= 1,
+        roughness: m.rough !== undefined ? m.rough : s.r,
+        metalness: metal,
+        envMapIntensity: s.e !== undefined ? s.e : 1 };
+      // v4 data maps, straight off the source glTF. metalRough is ONE texture
+      // in glTF (G = roughness, B = metalness) and three reads exactly those
+      // channels, so the same texture goes in both slots — that is correct,
+      // not a copy-paste slip. Normal mapping needs no tangent attribute:
+      // three derives the basis from screen-space derivatives.
+      if (m.mr) { common.roughnessMap = texs[m.mr]; common.metalnessMap = texs[m.mr]; }
+      if (m.nrm) {
+        common.normalMap = texs[m.nrm];
+        if (m.nrmScale) common.normalScale = new THREE.Vector2(m.nrmScale, m.nrmScale);
+      }
+      // Emissive instrument faces. The source sets emissiveTexture = the base
+      // map at factor 1, i.e. dials that read in shadow; at full strength under
+      // a sunset they read as lamps instead, so the authored factor is scaled
+      // by EMIS_GAIN. That is the one art call in the import — everything else
+      // is carried through as authored.
+      if (m.emis && m.tex) {
+        common.emissive = new THREE.Color(m.emis[0], m.emis[1], m.emis[2]);
+        common.emissiveMap = texs[m.tex];
+        common.emissiveIntensity = EMIS_GAIN;
+      }
+      return matCache[mn] = new THREE.MeshStandardMaterial(m.tex
+        ? Object.assign({ map: texs[m.tex],
+            color: m.color !== undefined ? m.color : 0xffffff }, common)
         // flat-colour groups: opaque unless the payload asks for opacity < 1
         // (the c172 interior is all flat colour and must write depth)
-        : new THREE.MeshLambertMaterial({ color: m.color !== undefined ? m.color : 0xaad4ea,
-            transparent: op < 1, opacity: op, side: THREE.DoubleSide, depthWrite: op >= 1 });
+        : Object.assign({ color: m.color !== undefined ? m.color : 0xaad4ea }, common));
     };
     const grp = new THREE.Group();
     grp.matrixAutoUpdate = false;
@@ -151,8 +246,9 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
-    modelCache[key] = { grp, props, rigs, deltas, surfaces: data.surfaces,
-                        link: makeLinkage(LINK_TAU) };  // visual linkage lag (SKIN-PROC)
+    modelCache[key] = Object.assign(entry, { grp, props, rigs, deltas,
+                        surfaces: data.surfaces,
+                        link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     return modelCache[key];
   }
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
@@ -182,7 +278,9 @@
   }
   function applySkinVis() {
     const b = $('bSkin'), has = !!model;
-    const showSkin = has && skinMode < 2;
+    // `ready` gates on texture decode: the wireframe holds the frame rather
+    // than showing an untextured mirror for the beat before the maps land
+    const showSkin = has && skinMode < 2 && model.ready;
     if (model) model.grp.visible = showSkin;
     lines.visible = pts.visible = !showSkin;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead

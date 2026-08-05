@@ -13,12 +13,45 @@ function buildWorldScene(scene, world, renderer, camera) {
   let detailApply = null;             // W13.2: close-range grain hook for patch materials
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
-  let trunkUpdate = () => {};         // trunk chunks on/off by distance (tree block)
+  let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
+  // W17 tree LOD uniforms, shared by every tree material and refreshed once a
+  // frame in worldUpdate. uCam drives the impostor view direction (so it wants
+  // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
+  // sun's shadow camera follows the aircraft, not the eye.
+  const uCam = { value: new THREE.Vector3() };
+  const uCG = { value: new THREE.Vector3() };
+  // The ladder's rungs, up here because the ground shader owns the far one and
+  // the tree block owns the other two, and they have to agree at the seams.
+  // FAR_FILL is where the streamed forest stops being geometry and becomes
+  // texture on the terrain; the woodland stands (sparser, and the only trees
+  // outside the FOREST_FLOOR mask the texture is keyed to) run to the fog wall.
+  // FAR_FILL was first set at 2700 and that was too greedy: measured against the
+  // pre-ladder build at the same viewpoint, the 2.7-5.2 km shore went from
+  // forested to pasture, because a canopy TEXTURE cannot stand in for trees on
+  // ground that is still only half hazed. At 4000 the fog is ~74% by the time
+  // the last impostor shrinks away, so the far tier only has to carry the band
+  // where nothing is legible anyway — and impostors are 2 triangles, so buying
+  // that 1.3 km back cost almost nothing.
+  const NEAR_R = 450, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
+  const uNear = { value: NEAR_R };     // live: every tree material reads it
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
-  { // sky dome — parented to the camera so it never runs out
-    const mat = new THREE.ShaderMaterial({
+  // Sky shader, factored out because the W18 environment bake below renders the
+  // very same dome into a cube map: ONE source of truth for the golden hour, so
+  // a reflection can never drift from the sky it is supposed to be reflecting.
+  //
+  // `encode` exists for one hard-won reason. This shader writes gl_FragColor by
+  // hand and includes none of three's chunks, so nothing ever converts its
+  // output to the target's encoding — which is fine and deliberate on screen
+  // (the palette was tuned against exactly that). But r128's PMREM target is
+  // **RGBE**: alpha is an EXPONENT. Writing alpha = 1.0 into it means 2^(255-128),
+  // the decoder returns ~1.7e38, the IBL term goes infinite, and infinity minus
+  // infinity is NaN — so every MeshStandardMaterial in the scene renders PURE
+  // BLACK, aircraft and water alike, while the Lambert world looks perfectly
+  // fine. Symptom and cause could hardly be further apart; the bisect that
+  // found it was swapping in a PMREM baked from a plain MeshBasicMaterial dome.
+  const skyMat = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
                   uHaze:{value:C(HAZE)}, uSun:{value:SUN}, uSunCol:{value:C(SUNC)} },
       vertexShader: `varying vec3 vD;
@@ -34,11 +67,55 @@ function buildWorldScene(scene, world, renderer, camera) {
           float sd = max(dot(d, normalize(uSun)), 0.0);
           col += uSunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 14.0) * 0.42 + pow(sd, 3.0) * 0.13);
           gl_FragColor = vec4(col, 1.0);
+          ` + (encode ? `
+          // This palette is authored in DISPLAY space: the on-screen dome
+          // writes gl_FragColor raw into an sRGB-encoded target and nothing
+          // converts it, which is what the colours were tuned against. A
+          // reflection probe, though, must hold scene-LINEAR radiance — hand
+          // the same numbers to the PBR pipeline as linear and every surface
+          // reflects a sky about 2.4x too bright, which reads as chrome: the
+          // C172's white-and-teal livery vanished under a mirror of sky and
+          // grass. Linearise here, in the bake variant only.
+          gl_FragColor = sRGBToLinear(gl_FragColor);
+          #include <encodings_fragment>` : '') + `
         }`,
-      side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false });
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 20), mat);
+      side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false }, extra));
+
+  { // sky dome — parented to the camera so it never runs out
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 20), skyMat(false));
     sky.renderOrder = -1000; sky.frustumCulled = false;
     camera.add(sky);
+  }
+
+  // ---- W18: the reflection map -------------------------------------------
+  // A PMREM cube baked ONCE at boot from a throwaway scene holding this world's
+  // own sky dome plus a ground hemisphere. No HDRI file, no network, nothing to
+  // ship — and the reflections are of THIS sky, at THIS hour, by construction.
+  // Assigned to scene.environment, which in r128 reaches MeshStandardMaterial
+  // and nothing else: the whole Lambert world (terrain, trees, buildings) is
+  // untouched, and the two surfaces that were already Standard — the water and,
+  // from W18, the aircraft skin — pick it up for free.
+  // `toneMapped = false` on both bake materials for the same reason the impostor
+  // atlas needs it: the cube is LINEAR data that gets tone mapped once, later,
+  // when the reflection is drawn. Bake it tone mapped and every reflection is
+  // ACES-flattened twice and reads chalky.
+  let envMap = null;
+  if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
+    const es = new THREE.Scene();
+    const domeG = new THREE.SphereGeometry(20, 32, 20);
+    es.add(new THREE.Mesh(domeG, skyMat(true, { toneMapped: false, depthTest: true })));
+    // lower hemisphere: the sky shader fades to haze below the horizon, which is
+    // right for a horizon and wrong for what an aircraft's underside actually
+    // sees. One averaged upland green is honest for a static bake — the belly
+    // should pick up ground bounce, not more sky.
+    const grndG = new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2);
+    es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({
+      color: C(0x6d7a45), side: THREE.BackSide, toneMapped: false, fog: false })));
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    envMap = pmrem.fromScene(es, 0.035, 1, 100).texture;   // slight blur: a sky, not a mirror
+    scene.environment = envMap;
+    pmrem.dispose();
+    domeG.dispose(); grndG.dispose();
   }
 
   scene.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));
@@ -76,7 +153,7 @@ function buildWorldScene(scene, world, renderer, camera) {
       return (a * (1 - tx) + b * tx) * (1 - tz) + (d * (1 - tx) + e2 * tx) * tz;
     };
     const c = new THREE.Color(), c2 = new THREE.Color();
-    let _h = 0, _low = 0;
+    let _h = 0, _low = 0, _for = 0;
     const colorAt = (x, z) => {
       const h = world.terrainH(x, z), e = 16;
       const slope = Math.min(1, Math.hypot(
@@ -102,23 +179,30 @@ function buildWorldScene(scene, world, renderer, camera) {
       // stage-2 biome tint + stage-3 road band (wider than the 3.5 m
       // GRAVEL truth so coarse texels catch it)
       const sc = world.surface(x, z);
+      _for = sc === world.SURFACE.FOREST_FLOOR ? 1 : 0;   // W17 far-canopy mask
       if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
       if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
     };
+    let forestMask = null;                 // W17 far tier: 512^2 over the domain
     function bakeGround(x0, z0, x1, z1, N, opts) {
       const EXT = x1 - x0;
       const small = document.createElement('canvas'); small.width = small.height = N;
       const sctx = small.getContext('2d'), img = sctx.createImageData(N, N);
       const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
       const mimg = opts.mini ? sctx.createImageData(N, N) : null;
+      const fimg = opts.mask ? sctx.createImageData(N, N) : null;
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
         colorAt(x, z);
         hG[j * N + i] = _h; lowG[j * N + i] = _low;
         const o = (j * N + i) * 4;
         img.data[o] = c.r * 255; img.data[o+1] = c.g * 255; img.data[o+2] = c.b * 255; img.data[o+3] = 255;
+        if (fimg) {                        // W17 far tier: where the canopy goes
+          const f = _for ? 255 : 0;
+          fimg.data[o] = f; fimg.data[o+1] = f; fimg.data[o+2] = f; fimg.data[o+3] = 255;
+        }
         if (mimg) {                        // W13 minimap: same bake, water made visible
           const wet = world.waterH(x, z) > _h - 0.2;
           mimg.data[o]   = wet ? 0x48 : img.data[o];
@@ -128,7 +212,13 @@ function buildWorldScene(scene, world, renderer, camera) {
         }
       }
       sctx.putImageData(img, 0, 0);
-      if (mimg) {                          // rivers/roads are sub-texel at ~62 m/px:
+      if (fimg) {                          // own canvas: the colour bake below
+        const fc = document.createElement('canvas');   // resamples to 2048 and
+        fc.width = fc.height = N;                      // paints fields over it
+        fc.getContext('2d').putImageData(fimg, 0, 0);
+        forestMask = new THREE.CanvasTexture(fc);
+      }
+      if (mimg) {                        // rivers/roads are sub-texel at ~62 m/px:
         const mc = document.createElement('canvas'); mc.width = mc.height = N;
         const mg = mc.getContext('2d');
         mg.putImageData(mimg, 0, 0);
@@ -220,7 +310,7 @@ function buildWorldScene(scene, world, renderer, camera) {
       return t;
     }
     const tex = bakeGround(-INNER, -INNER, INNER, INNER, 512, { grain: true });
-    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 512, { mini: true });
+    const outerTex = bakeGround(-HALF, -HALF, HALF, HALF, 512, { mini: true, mask: true });
     outerTexShared = outerTex;
 
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
@@ -249,6 +339,68 @@ function buildWorldScene(scene, world, renderer, camera) {
     }
     const dtex = new THREE.CanvasTexture(dn);
     dtex.wrapS = dtex.wrapT = THREE.RepeatWrapping;
+    // ---- W17 far tier: the forest as texture, not geometry -----------------
+    // Past the impostor band there is no tree geometry at all; the ground wears
+    // a tiling crown pattern instead, masked to the stage-2 FOREST_FLOOR bake
+    // and faded in exactly where the impostors fade out. It is a MULTIPLIER
+    // with mean 0.5 (hence the x2): the W8 palette and the biome tint still own
+    // the colour, this only supplies the broken-up crown texture that a flat
+    // green hillside at 3 km was missing.
+    const cnp = document.createElement('canvas'); cnp.width = cnp.height = 256;
+    { const cg2 = cnp.getContext('2d');
+      let sd = 91;
+      const rn = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
+      cg2.fillStyle = 'rgb(118,124,110)'; cg2.fillRect(0, 0, 256, 256);
+      // ~7 m crowns at the 80 m tile below; drawn twice, dark bed then lit tops,
+      // so the pattern reads as canopy relief rather than noise
+      for (const [pass, n] of [[0, 260], [1, 220]])
+        for (let k = 0; k < n; k++) {
+          const x = rn() * 256, y = rn() * 256, r = (pass ? 5 : 9) + rn() * (pass ? 6 : 9);
+          cg2.fillStyle = pass
+            ? 'rgba(196,198,150,' + (0.06 + rn() * 0.20) + ')'
+            : 'rgba(38,46,28,' + (0.06 + rn() * 0.22) + ')';
+          for (const [wx, wy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) {
+            if (wx && Math.min(x, 256 - x) > r) continue;      // wrap only at the seam
+            if (wy && Math.min(y, 256 - y) > r) continue;
+            cg2.beginPath();
+            cg2.ellipse(x + wx, y + wy - (pass ? r * 0.35 : 0), r, r * (0.72 + rn() * 0.4),
+                        rn() * 3.14, 0, 6.283);
+            cg2.fill();
+          }
+        }
+    }
+    const cnpTex = new THREE.CanvasTexture(cnp);
+    cnpTex.wrapS = cnpTex.wrapT = THREE.RepeatWrapping;
+    // Both ground materials get it, and both look the mask up from WORLD
+    // position rather than their own uv — the inner mesh and the outer ring
+    // have completely different uv layouts, and the mask is one domain-wide bake.
+    const canopyHook = sh => {
+      sh.uniforms.uFMask = { value: forestMask };
+      sh.uniforms.uCanopy = { value: cnpTex };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying float vCD;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+          'vWP = (modelMatrix * vec4(position, 1.0)).xyz;\nvCD = -mvPosition.z;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
+          'uniform sampler2D uCanopy;\nvarying vec3 vWP;\nvarying float vCD;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n' +
+          // same uv convention as the outer ring's own texture: v runs the other
+          // way down z, and the mask canvas is built in that same pass
+          'float fM = texture2D(uFMask, vec2((vWP.x + 12000.0) / 24000.0,\n' +
+          '                                  1.0 - (vWP.z + 12000.0) / 24000.0)).r;\n' +
+          // Full strength by the time the last impostor has shrunk away, and
+          // nothing before they start shrinking — otherwise the two tiers
+          // darken the same hillside twice through the whole overlap.
+          'float fFar = fM * smoothstep(' + (FAR_FILL - FAR_FADE).toFixed(1) + ', ' +
+            FAR_FILL.toFixed(1) + ', vCD);\n' +
+          'vec3 cC = texture2D(uCanopy, vWP.xz * 0.0125).rgb;\n' +
+          // 1.45, not the 2.0 that would preserve the mean: a canopy is not
+          // just texture on grass, it is DARKER than the grass it stands on,
+          // and a mean-preserving multiply left the 3 km hills reading as
+          // pasture next to the geometry they replaced.
+          'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * cC * 1.45, fFar);');
+    };
     // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
     // materials with different uv extents get the same on-ground density
     detailApply = (mat, uvScale) => { mat.onBeforeCompile = sh => {
@@ -287,6 +439,7 @@ function buildWorldScene(scene, world, renderer, camera) {
           'float dF2 = 1.0 - smoothstep(15.0, 150.0, vDist);\n' +
           'vec3 dC2 = texture2D(uDetail, vDUv * 6.31).rgb;\n' +
           'diffuseColor.rgb *= mix(vec3(1.0), dC2 * 2.08, dF2 * 0.5);');
+      canopyHook(sh);                      // far tier, over the same includes
     };
     const ground = new THREE.Mesh(geo, gMat);
     ground.receiveShadow = true;
@@ -294,6 +447,7 @@ function buildWorldScene(scene, world, renderer, camera) {
 
     { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = new THREE.MeshLambertMaterial({ map: outerTex });
+      oMat.onBeforeCompile = canopyHook;   // the far tier lives mostly out here
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
@@ -461,12 +615,211 @@ function buildWorldScene(scene, world, renderer, camera) {
     const CHW = 2048, VSPAN = 320;
     const chunkBounds = (geo, half) => {
       geo.computeBoundingSphere();
+      // stash the SHAPE's real sphere before the chunk sphere buries it: the
+      // impostor bake needs it, and by then this geometry's boundingSphere is a
+      // 1.5 km chunk ball. (Recomputing it later would silently undo the
+      // inflation and put the tree field back to being culled per-tree.)
+      geo.userData = geo.userData || {};
+      geo.userData.shape = { cy: geo.boundingSphere.center.y, r: geo.boundingSphere.radius };
       geo.boundingSphere.center.set(0, 4, 0);
       geo.boundingSphere.radius = Math.hypot(half * Math.SQRT1_2, VSPAN) + 12;
-      geo.userData = geo.userData || {};
       geo.userData.chunkTree = true;        // marks what GATE WORLDRENDER checks
     };
     [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
+
+    // ================= W17: the LOD ladder ==============================
+    // near (< NEAR_R): the 3D canopy + trunk below, unchanged, shadow-casting.
+    // mid  (NEAR_R..FAR): OCTAHEDRAL IMPOSTORS — 2 triangles per tree.
+    // far  (> FAR): no geometry at all; the terrain wears a canopy texture
+    //               (see the ground shader's canopyHook).
+    // The atlas is rendered AT BOOT from the very geometry the near tier draws,
+    // with the scene's own sun and hemisphere light: no external art, no second
+    // art pipeline, and the silhouette matches across the switch by construction.
+    // Plain camera-facing billboards are wrong here — from 160 m up they read as
+    // lying down — so each shape is baked from a G x G grid of view directions
+    // folded over the upper hemisphere, and the shader picks the three nearest
+    // views and blends them barycentrically (a hard nearest-view pick makes the
+    // whole forest flip at once when the aircraft turns).
+    const IMP_G = 4, IMP_TILE = 128;
+    // grid cell -> view direction: the exact inverse of the hemi-octahedral fold
+    // the fragment shader does. These two must agree or every tile reads rotated.
+    const impDir = (i, j) => {
+      const a = i / (IMP_G - 1) * 2 - 1, b = j / (IMP_G - 1) * 2 - 1;
+      const px = (a + b) / 2, py = (a - b) / 2;
+      return new THREE.Vector3(px, 1 - Math.abs(px) - Math.abs(py), py).normalize();
+    };
+    // Headless gates run against a THREE stub with no GL: fall back to a
+    // texture-less atlas so the whole tree field still builds and can be checked.
+    const canBake = !!(THREE.WebGLRenderTarget && renderer && renderer.setRenderTarget);
+    function bakeImpostorAtlas(srcGeo) {
+      const bs = srcGeo.userData.shape;     // stashed by chunkBounds, see above
+      // ortho half-extent carries a 12% gutter: mipmaps of a tile-packed atlas
+      // bleed across tile borders, and the gutter is what keeps that off the tree
+      const M = bs.r * 1.12, cy = bs.cy, atlas = { cy, diam: 2 * M, tex: null };
+      if (!canBake) return atlas;
+      const N = IMP_G * IMP_TILE;
+      const rt = new THREE.WebGLRenderTarget(N, N, {
+        minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat, generateMipmaps: true });
+      const sc = new THREE.Scene();
+      // WHITE mesh, tone mapping off. The tile holds pure linear shading and the
+      // per-instance species colour multiplies it at draw time, exactly as
+      // vertexColors does on the near tier — bake it tinted and every tree in the
+      // forest is the same green. Tone mapping and sRGB are applied once, at the
+      // final draw, like every other surface in the scene.
+      const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      bMat.toneMapped = false;
+      sc.add(new THREE.Mesh(srcGeo, bMat));
+      sc.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));
+      const dl = new THREE.DirectionalLight(C(SUNC), 2.75);
+      dl.position.copy(SUN).multiplyScalar(400);
+      dl.target.position.set(0, cy, 0);
+      sc.add(dl); sc.add(dl.target);
+      const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, bs.r * 8);
+      const ctr = new THREE.Vector3(0, cy, 0);
+      const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
+      const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+      { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+      renderer.setRenderTarget(rt);
+      renderer.autoClear = false;
+      // Clear to transparent BLACK, and unpremultiply in the shader: the canvas
+      // is premultiplied, so a white transparent clear would come back as black
+      // anyway. Premultiplied texels are the ones bilinear filtering and mipmaps
+      // are correct on — divide by alpha at sample time and the silhouette has
+      // no dark fringe at any distance.
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, false);
+      renderer.setScissorTest(true);
+      for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+        const d = impDir(i, j);
+        // the light stays put in world space while the camera walks the
+        // hemisphere: every tile is lit for the sun the world actually has, so
+        // impostors need no lighting at draw time and the lit side is the same
+        // side across the whole forest (which is why they carry no yaw).
+        cam.up.set(0, 1, 0);
+        if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);   // pole: same rule as the shader
+        cam.position.copy(ctr).addScaledVector(d, bs.r * 4);
+        cam.lookAt(ctr);
+        cam.updateProjectionMatrix();
+        renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+        renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+        renderer.clearDepth();
+        renderer.render(sc, cam);
+      }
+      renderer.setScissorTest(false);
+      renderer.setRenderTarget(pRT);
+      renderer.autoClear = pAC;
+      renderer.setClearColor(pCol, pA);
+      atlas.tex = rt.texture;
+      return atlas;
+    }
+    // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
+    // see chunkBounds), one material per source shape.
+    const impQuad = half => { const g = new THREE.PlaneGeometry(1, 1); chunkBounds(g, half); return g; };
+    function impostorMat(atlas, far) {
+      const m = new THREE.MeshBasicMaterial({ map: atlas.tex, vertexColors: true,
+        alphaTest: 0.45, side: THREE.DoubleSide });
+      if (!atlas.tex) return m;              // headless: no GL, no atlas, no shader
+      m.onBeforeCompile = sh => {
+        sh.uniforms.uCam = uCam;
+        sh.uniforms.uNearB = uNear;
+        sh.uniforms.uFarB = { value: far };
+        sh.uniforms.uFadeB = { value: FAR_FADE };
+        sh.uniforms.uCy = { value: atlas.cy };
+        sh.uniforms.uDiam = { value: atlas.diam };
+        sh.uniforms.uG = { value: IMP_G };
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\n' +
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uCy, uDiam;\n' +
+            'varying vec3 vImpDir;')
+          // The quad is built around the instance's own axes, NOT the screen's.
+          // Instances carry a random yaw for the 3D tier; impostors deliberately
+          // ignore it (the baked lighting is world-fixed, so a yawed impostor
+          // would be lit from the wrong side) and read only position and scale
+          // out of the instance matrix. Scale is non-uniform (pines narrow,
+          // willows squat): the exact trick is to do everything in the UNSCALED
+          // shape's space — pick the view with the direction divided by the
+          // scale, lay the quad out there, then scale the offsets back. The
+          // orthographic silhouette of an affinely scaled object is the affine
+          // image of the unscaled silhouette, so this is exact, not a fudge.
+          .replace('#include <project_vertex>', [
+            'vec3 iPos = instanceMatrix[3].xyz;',
+            'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
+            'vec3 ctr = iPos + vec3(0.0, uCy * sY, 0.0);',
+            'vec3 camL = uCam - modelMatrix[3].xyz;',    // camera in chunk-local space
+            'vec3 toCam = camL - ctr;',
+            'float dCam = length(toCam);',
+            'vImpDir = normalize(vec3(toCam.x / sX, toCam.y / sY, toCam.z / sX));',
+            'vec3 upRef = abs(vImpDir.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);',
+            'vec3 rgt = normalize(cross(upRef, vImpDir));',
+            'vec3 upv = cross(vImpDir, rgt);',
+            // Shrink to nothing over the last uFadeB metres instead of clipping
+            // hard. An alpha fade would need blending (and sorting); at the far
+            // edge a tree is about two pixels tall, so shrinking it away is
+            // indistinguishable from dissolving it — and it lets the terrain's
+            // canopy texture come up underneath without a visible tide line.
+            'float fade = 1.0 - clamp((dCam - (uFarB - uFadeB)) / uFadeB, 0.0, 1.0);',
+            'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
+            'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
+            'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
+            'gl_Position = projectionMatrix * mvPosition;',
+            // inside the near band the 3D tier draws these trees for real
+            'if (dCam < uNearB || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+          ].join('\n'));
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\n' +
+            'uniform float uG;\nvarying vec3 vImpDir;')
+          .replace('#include <map_fragment>', [
+            // hemi-octahedral fold: the upper hemisphere onto [-1,1]^2, so a
+            // regular grid of tiles is a near-uniform spread of view directions
+            // with the horizon ring on the square's edge (where a plane spends
+            // most of its life) and straight-down at the centre.
+            'vec3 dI = vImpDir;',
+            'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+            'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+            'vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+            'vec2 g0 = min(floor(gp), uG - 2.0);',
+            'vec2 gf = gp - g0;',
+            // barycentric over the cell's two triangles: 3 taps, no seams
+            'vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+            'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+            'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+            'vec2 qv = vUv / uG;',
+            'vec4 texelColor = texture2D(map, (g0 + cA) / uG + qv) * wB.x',
+            '                + texture2D(map, (g0 + cB) / uG + qv) * wB.y',
+            '                + texture2D(map, (g0 + cC) / uG + qv) * wB.z;',
+            'texelColor.rgb /= max(texelColor.a, 1e-4);',   // atlas is premultiplied
+            'diffuseColor *= texelColor;',
+          ].join('\n'));
+      };
+      return m;
+    }
+    // 3D tier: collapse every instance past NEAR_R. View-space length IS the
+    // camera distance, so this costs one compare and needs no extra uniform.
+    const nearOnly = mat => {
+      mat.onBeforeCompile = sh => {
+        sh.uniforms.uNearB = uNear;
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float uNearB;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+            'if (length(mvPosition.xyz) > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
+      };
+      return mat;
+    };
+    // The shadow pass renders through its OWN depth material, so the collapse
+    // above never reaches it — that is why the near forest was measured being
+    // submitted twice. Same radius, measured from the CG because the sun's
+    // shadow camera follows the aircraft rather than the eye.
+    const treeDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    treeDepth.onBeforeCompile = sh => {
+      sh.uniforms.uNearB = uNear;
+      sh.uniforms.uCG = uCG;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uNearB;\nuniform vec3 uCG;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+          'vec4 wPd = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n' +
+          'if (distance(wPd.xyz, uCG) > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
+    };
 
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
           pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
@@ -478,9 +831,15 @@ function buildWorldScene(scene, world, renderer, camera) {
       if (!a) cells.set(k, a = { cx, cz, list: [] });
       a.list.push(T);
     }
-    const trunkMat = new THREE.MeshLambertMaterial({ color: C(0x584431) });
-    const canopyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    const trunkChunks = [];                 // distance-culled: see worldUpdate
+    const trunkMat = nearOnly(new THREE.MeshLambertMaterial({ color: C(0x584431) }));
+    const canopyMat = nearOnly(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    // Impostors carry NO trunk: 1.9 m tall and 0.4 m wide is a fifth of a pixel
+    // at 450 m, which is the same argument that already switched trunks off at
+    // 900 m — and a brown trunk cannot ride a per-species tint anyway.
+    const impCone = bakeImpostorAtlas(coneGeo), impBlob = bakeImpostorAtlas(blobGeo);
+    const impQuadW = impQuad(CHW);
+    const impConeMatW = impostorMat(impCone, FAR_WOOD), impBlobMatW = impostorMat(impBlob, FAR_WOOD);
+    const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
     // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
     const SPC = [
       [C(0x2e4620), C(0x486327)],
@@ -502,6 +861,8 @@ function buildWorldScene(scene, world, renderer, camera) {
       const trunks = mk(trunkGeo, trunkMat, cell.list.length, false);
       const cMesh = mk(coneGeo, canopyMat, conif.length, true);
       const bMesh = mk(blobGeo, canopyMat, broad.length, true);
+      const cImp = mk(impQuadW, impConeMatW, conif.length, false);
+      const bImp = mk(impQuadW, impBlobMatW, broad.length, false);
       let ci = 0, bi = 0;
       cell.list.forEach((T, i) => {
         const w = T.r, sp = T.sp;
@@ -514,39 +875,54 @@ function buildWorldScene(scene, world, renderer, camera) {
         m4.compose(pv, q, sv);
         trunks.setMatrixAt(i, m4);
         c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
-        if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3); ci++; }
-        else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3); bi++; }
+        // the impostor shares the instance matrix and the species colour: the
+        // atlas is white, so this IS what keeps the mid band the same forest
+        if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3);
+                      cImp.setMatrixAt(ci, m4); cImp.setColorAt(ci, c3); ci++; }
+        else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3);
+               bImp.setMatrixAt(bi, m4); bImp.setColorAt(bi, c3); bi++; }
       });
-      for (const m of [trunks, cMesh, bMesh]) {
+      for (const m of [trunks, cMesh, bMesh, cImp, bImp]) {
         if (!m) continue;
         m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
         scene.add(m);
       }
-      // Trunks are 1.9 m tall and 0.4 m wide: past a few hundred metres they
-      // are sub-pixel, and they were 45% of every frame's triangles. Chunks
-      // switch off by distance — the canopy sits on the ground, so nothing
-      // reads as missing.
-      trunkChunks.push({ m: trunks, x: ox, z: oz });
+      for (const m of [cMesh, bMesh]) if (m) m.customDepthMaterial = treeDepth;
+      // Chunk-level visibility on top of the per-instance collapse: a 3D chunk
+      // whose NEAREST corner is past NEAR_R holds nothing but collapsed
+      // instances, and an off chunk costs nothing at all — not even the
+      // vertex shader, and not the shadow pass either.
+      const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
+      nearChunks.push({ m: [trunks, cMesh, bMesh], x: ox, z: oz, r: NEAR_R + hd });
+      impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd });
     }
-    trunkUpdate = cg => {
-      const R2 = 900 * 900;
-      for (const t of trunkChunks) {
+    lodUpdate = cg => {
+      for (const list of [nearChunks, impChunks]) for (const t of list) {
         const dx = t.x - cg[0], dz = t.z - cg[2];
-        t.m.visible = dx * dx + dz * dz < R2;
+        const on = dx * dx + dz * dz < t.r * t.r;
+        for (const m of t.m) if (m) m.visible = on;
       }
     };
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
-    // render-only canopies on a ~13 m jittered grid wherever the biome
+    // render-only canopies on a ~9 m jittered grid wherever the biome
     // classifier says FOREST_FLOOR, streamed in 1024 m chunks around the
-    // aircraft (the fog wall at 5.2 km hides the ring edge). Canopies
-    // only — no trunks, no shadows, no physics: cheapest possible trees,
-    // per the design call that collision only matters at the strips,
-    // which keep their exclusion margins here.
+    // aircraft. Canopies only — no trunks, no shadows, no physics: cheapest
+    // possible trees, per the design call that collision only matters at the
+    // strips, which keep their exclusion margins here.
+    // W17: the grid went 13.1 -> 9.1 m (2.05x the trees) and the streamed ring
+    // came in from 5.6 to 4.1 km — the ring edge is no longer hidden by the
+    // 5.2 km fog wall but by the terrain's canopy texture taking over under
+    // ~74% fog. That trade is the whole point of the ladder: a mid-band tree
+    // costs 2 triangles now, so the budget buys density. Chunk size stayed at
+    // 1024 m deliberately — the generator's cost is per grid POINT, so halving
+    // the spacing at a constant chunk size would have quadrupled the per-chunk
+    // hitch (~3 -> 12 ms); at 2x it lands near 6 ms, which the burst budget
+    // below still hides.
     {
-      const CH = 1024, NG = 78, SP2 = CH / NG, R_ACT = 5600, R_DROP = 6400;
+      const CH = 1024, NG = 112, SP2 = CH / NG, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
       const bins = new Map();              // collidable trees in 128 m bins:
       world.trees.forEach((T, i) => {      // prefilter + species inheritance
         const k = Math.floor(T.x / 128) * 4096 + Math.floor(T.z / 128);
@@ -576,7 +952,14 @@ function buildWorldScene(scene, world, renderer, camera) {
       // three CAN cull these after all (it never could while the matrices held
       // world coordinates against a 2 m shared sphere).
       [coneF, blobF].forEach(g => chunkBounds(g, CH));
-      const matF = new THREE.MeshLambertMaterial({ vertexColors: true });
+      const matF = nearOnly(new THREE.MeshLambertMaterial({ vertexColors: true }));
+      // the fill shapes are shorter than the woodland ones (no trunk under
+      // them), so they get their own atlases rather than borrowing — the
+      // impostor's size and centre height come straight off the source
+      // geometry's bounding sphere, and a borrowed atlas would sit 1.2 m high
+      const impQuadF = impQuad(CH), hdF = CH * Math.SQRT1_2;
+      const impConeMatF = impostorMat(bakeImpostorAtlas(coneF), FAR_FILL);
+      const impBlobMatF = impostorMat(bakeImpostorAtlas(blobF), FAR_FILL);
       const chunks = new Map(), queue = [];
       function gen(cx, cz) {
         const recs = [[], []];             // conifer / broadleaf
@@ -600,13 +983,15 @@ function buildWorldScene(scene, world, renderer, camera) {
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
           recs[sp < 2 ? 0 : 1].push(x, h, z, sp, hsh(ix + 2, iz + 8));
         }
-        const meshes = [];
+        const meshes = [], near = [], imp = [];
+        const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, broadish) => {
           const n = r.length / 5;
           if (!n) return;
           const m = new THREE.InstancedMesh(broadish ? blobF : coneF, matF, n);
-          const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
-          m.position.set(ox, 0, oz);
+          const mi = new THREE.InstancedMesh(impQuadF,
+            broadish ? impBlobMatF : impConeMatF, n);
+          m.position.set(ox, 0, oz); mi.position.set(ox, 0, oz);
           for (let i = 0; i < n; i++) {
             const o = i * 5, sp = r[o + 3], w = r[o + 4];
             q.setFromAxisAngle(up, w * 6.283);
@@ -614,18 +999,28 @@ function buildWorldScene(scene, world, renderer, camera) {
             pv.set(r[o] - ox, r[o + 1] - 0.05, r[o + 2] - oz);
             sv.set(s, s * (0.9 + w * 0.25), s);
             m4.compose(pv, q, sv);
-            m.setMatrixAt(i, m4);
-            m.setColorAt(i, c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85));
+            c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
+            m.setMatrixAt(i, m4); m.setColorAt(i, c3);
+            mi.setMatrixAt(i, m4); mi.setColorAt(i, c3);
           }
-          m.instanceMatrix.needsUpdate = true;
-          if (m.instanceColor) m.instanceColor.needsUpdate = true;
-          scene.add(m); meshes.push(m);
+          for (const mm of [m, mi]) {
+            mm.instanceMatrix.needsUpdate = true;
+            if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
+            scene.add(mm); meshes.push(mm);
+          }
+          near.push(m); imp.push(mi);
         });
-        return meshes;
+        // both tiers are built once, per chunk, from the same records; which one
+        // you see is the per-instance band in the shader, and which one is even
+        // SUBMITTED is these two registrations (dropped again on eviction)
+        const reg = [{ m: near, x: ox, z: oz, r: NEAR_R + hdF },
+                     { m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
+        nearChunks.push(reg[0]); impChunks.push(reg[1]);
+        return { meshes, reg };
       }
       let tick = 0;
       fillUpdate = cg => {
-        if (tick++ % 24) return;           // ~0.4 s cadence
+        if (tick++ % 12) return;           // ~0.2 s cadence
         const R = Math.ceil(R_ACT / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
@@ -645,8 +1040,11 @@ function buildWorldScene(scene, world, renderer, camera) {
             const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
             return ax * ax + az * az; };
           queue.sort((a, b) => d2(a) - d2(b));
-          // close chunks (fresh spawn / teleport) get a burst; cruise trickles
-          let budget = queue.length && d2(queue[0]) < 2500 * 2500 ? 6 : 2;
+          // close chunks (fresh spawn / teleport) get a burst; cruise trickles.
+          // Halved with the density bump: a chunk is ~6 ms of terrainH/surface
+          // now, and six of those in one frame is a visible hitch. The cadence
+          // doubled to compensate, so a fresh spawn still fills in ~2 s.
+          let budget = queue.length && d2(queue[0]) < 1500 * 1500 ? 3 : 1;
           while (budget-- > 0 && queue.length) {
             const c2 = chunks.get(queue.shift());
             if (c2) c2.meshes = gen(c2.cx, c2.cz);
@@ -655,8 +1053,12 @@ function buildWorldScene(scene, world, renderer, camera) {
         for (const [k, c2] of chunks) {    // evict far chunks
           const ax = (c2.cx + 0.5) * CH - cg[0], az = (c2.cz + 0.5) * CH - cg[2];
           if (ax * ax + az * az < R_DROP * R_DROP) continue;
-          if (c2.meshes) for (const m of c2.meshes) {
-            scene.remove(m); if (m.dispose) m.dispose();
+          if (c2.meshes) {
+            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
+            for (const r of c2.meshes.reg) {   // or lodUpdate keeps poking dead meshes
+              let i = nearChunks.indexOf(r); if (i >= 0) nearChunks.splice(i, 1);
+              i = impChunks.indexOf(r); if (i >= 0) impChunks.splice(i, 1);
+            }
           }
           chunks.delete(k);
         }
@@ -1037,8 +1439,15 @@ function buildWorldScene(scene, world, renderer, camera) {
   // sun frustum (grown with hysteresis so the map isn't re-projected every frame)
   let shadowHalf = 0;
   function worldUpdate(cg) {
+    // Tree LOD reads the CHASE CAMERA, not the CG: the impostor picks its baked
+    // view from the direction to the eye, and 30 m of chase offset is 4 deg of
+    // parallax at the near edge of the band. One frame stale (the viewer places
+    // the camera after this call) and that is fine — 30 m of aircraft travel
+    // shifts nothing at 450 m.
+    uCam.value.copy(camera.position);
+    uCG.value.set(cg[0], cg[1], cg[2]);
     fillUpdate(cg);
-    trunkUpdate(cg);
+    lodUpdate(cg);
     const gy = world.terrainH(cg[0], cg[2]);
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / SUN.y, 520);
@@ -1055,5 +1464,9 @@ function buildWorldScene(scene, world, renderer, camera) {
     clouds.position.x += 0.05;
   }
 
-  return { worldUpdate, SUN, sun, minimap: miniCanvas, setWindVis };
+  // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
+  // the whole forest impostors, which is how the mid tier's fidelity gets
+  // compared against the geometry it stands in for (tools/make_probe.js).
+  return { worldUpdate, SUN, sun, minimap: miniCanvas, setWindVis, envMap,
+           treeLod: { near: uNear, cam: uCam } };
 }

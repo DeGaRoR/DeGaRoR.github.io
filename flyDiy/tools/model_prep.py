@@ -16,7 +16,7 @@ Payload v3: const <ID> = { v:3, bb, hub, surfaces,
 Decode counterpart: decodeModel() in src/core/50_model_codec.js (pure JS,
 same code in the artifact and the node gates). v2 payloads still decode.
 """
-import base64, importlib, io, os, struct, sys
+import base64, importlib, io, json, os, struct, sys
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -95,6 +95,37 @@ def build_group(V, VT, faces, gdef, SID, bb, with_sid=False):
 MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
 
 
+def resolve_pbr(src, CFG, faces):
+    """Match each payload material to the glTF material its faces came from.
+
+    glb_extract writes pbr.json keyed by glTF material name, and the OBJ it
+    writes carries those same names as `usemtl` — so the join needs no config
+    at all: walk the faces a group claims, count the usemtl names, take the
+    dominant one. A payload material spanning several source materials (the
+    exterior spans one, but a hand-written group need not) reports the split
+    rather than silently picking.
+    """
+    path = os.path.join(src, 'pbr.json')
+    if not os.path.exists(path):
+        return {}, ['pbr.json absent — scalar PBR comes from the viewer defaults']
+    table = json.load(open(path))
+    tally, notes = {}, []
+    for gdef in CFG['groups'].values():
+        for name, mtl, idx in faces:
+            if face_in(gdef, name, mtl):
+                tally.setdefault(gdef['mat'], {})
+                tally[gdef['mat']][mtl] = tally[gdef['mat']].get(mtl, 0) + len(idx)
+    out = {}
+    for mat, counts in tally.items():
+        best = max(counts, key=counts.get)
+        if best in table:
+            out[mat] = table[best]
+        if len(counts) > 1:
+            notes.append(f'{mat}: spans {len(counts)} source materials, took {best} '
+                         f'({", ".join(f"{k}:{v}" for k, v in sorted(counts.items(), key=lambda kv: -kv[1]))})')
+    return out, notes
+
+
 def bake_texture(src, spec):
     path = os.path.join(src, spec['tex'])
     if spec.get('fmt') == 'copy':
@@ -116,8 +147,19 @@ def bake_texture(src, spec):
     img = Image.open(path).convert('RGB')
     img.thumbnail((spec.get('max', 1024), spec.get('max', 1024)))
     tb = io.BytesIO()
-    img.save(tb, 'JPEG', quality=spec.get('q', 80))
+    # subsampling 0 (4:4:4) matters for data maps: a normal map's signal lives in
+    # R and G, and chroma subsampling is exactly what throws those away
+    img.save(tb, 'JPEG', quality=spec.get('q', 80), subsampling=spec.get('sub', 2))
     return 'data:image/jpeg;base64,' + base64.b64encode(tb.getvalue()).decode(), len(tb.getvalue())
+
+
+# Defaults for the imported data maps. metalRough is low-frequency by nature and
+# survives hard compression; normal maps are 4:4:4 because their signal is in
+# R and G. Both default to 512: these are surface DETAIL, sampled a metre from
+# the camera at worst, not the livery. Per-material overrides go in the config's
+# mats entry (`mr=dict(...)`, `nrm=dict(...)`, or False to decline the map).
+PBRTEX = {'mr': dict(max=512, fmt='jpeg', q=88, sub=2),
+          'nrm': dict(max=512, fmt='jpeg', q=92, sub=0)}
 
 
 def main(key, out=None):
@@ -135,12 +177,34 @@ def main(key, out=None):
     hi = tuple(max(p[i] for p in used) for i in range(3))
     bb = (lo, hi)
 
+    PBR, pbrnotes = resolve_pbr(src, CFG, faces)
     texs, report = {}, []
     for mname, spec in CFG['mats'].items():
         if 'tex' not in spec:
             continue
         texs[mname], nbytes = bake_texture(src, spec)
         report.append(f'tex {mname}: {nbytes // 1024} KB {spec.get("fmt", "jpeg")}')
+    # imported data maps, keyed <material>_mr / <material>_nrm
+    pbrbytes = 0
+    for mname, spec in CFG['mats'].items():
+        rec = PBR.get(mname)
+        if not rec:
+            continue
+        for kind in ('mr', 'nrm'):
+            if kind not in rec:
+                continue
+            over = spec.get(kind)
+            if over is False:                    # config declines this map
+                rec.pop(kind)
+                pbrnotes.append(f'{mname}: {kind} declined by config')
+                continue
+            ts = dict(PBRTEX[kind], **(over if isinstance(over, dict) else {}))
+            ts['tex'] = rec[kind]
+            key = f'{mname}_{kind}'
+            assert key not in CFG['mats'], f'material name collides with map key {key}'
+            texs[key], nbytes = bake_texture(src, ts)
+            pbrbytes += nbytes
+            report.append(f'{kind} {mname}: {nbytes // 1024} KB')
 
     parts = []
     for gname, gdef in CFG['groups'].items():
@@ -156,6 +220,10 @@ def main(key, out=None):
     # tex / opacity / color are independent: a textured material may also be
     # translucent (the c172 glazing is a tint map at opacity 0.37) and an
     # untextured one may be opaque (a flat interior panel).
+    # PBR (v4) rides alongside: rough/metal are the glTF factors, already folded
+    # with any constant metalRough map; mr/nrm name the data maps in texs; emis
+    # is the emissive factor, with the base map reused as the emissive map when
+    # the source says they are the same image (which costs zero extra bytes).
     def mat_fields(m, s):
         f = []
         if 'tex' in s:
@@ -164,6 +232,18 @@ def main(key, out=None):
             f.append(f'opacity:{s["opacity"]}')
         if 'color' in s:
             f.append(f'color:0x{s["color"]:x}')
+        p = PBR.get(m)
+        if p:
+            f.append(f'rough:{p["rough"]:g}')
+            f.append(f'metal:{p["metal"]:g}')
+            if 'mr' in p:
+                f.append(f'mr:"{m}_mr"')
+            if 'nrm' in p:
+                f.append(f'nrm:"{m}_nrm"')
+                if 'nrmScale' in p:
+                    f.append(f'nrmScale:{p["nrmScale"]:g}')
+            if 'emis' in p and ('emisIsBase' in p) and 'tex' in s:
+                f.append('emis:[%g,%g,%g]' % tuple(p['emis']))
         return ','.join(f)
     mats_js = ','.join('%s:{%s}' % (m, mat_fields(m, s)) for m, s in CFG['mats'].items())
     texs_js = ',\n  '.join(f'{m}:"{uri}"' for m, uri in texs.items())
@@ -172,13 +252,18 @@ def main(key, out=None):
     with open(out, 'w', newline='\n') as f:
         f.write('// generated by tools/model_prep.py — do not edit\n')
         f.write(f'// source: {CFG["credit"]}\n')
-        f.write(f'const {CFG["id"]} = {{ v:3, bb:{bbjs}, hub:[{hub[0]:g},{hub[1]:g},{hub[2]:g}],\n')
+        f.write(f'const {CFG["id"]} = {{ v:{4 if PBR else 3}, bb:{bbjs}, hub:[{hub[0]:g},{hub[1]:g},{hub[2]:g}],\n')
         f.write(f'  surfaces:[{surf_js}],\n')
         f.write(f'  mats:{{{mats_js}}},\n')
         f.write(f'  texs:{{{texs_js}}},\n')
         f.write(f'  groups:{{{",".join(parts)}}} }};\n')
         f.write(f"if (typeof module !== 'undefined') module.exports = {{ {CFG['id']} }};\n")
     print(' | '.join(report))
+    for n in pbrnotes:
+        print('  pbr: ' + n)
+    if PBR:
+        print(f'  pbr: {len(PBR)} materials carry imported factors, '
+              f'data maps {pbrbytes // 1024} KB')
     print(f'{out}: {os.path.getsize(out) // 1024} KB')
 
 

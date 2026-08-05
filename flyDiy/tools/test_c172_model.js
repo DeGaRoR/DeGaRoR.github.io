@@ -243,6 +243,44 @@ chk(mBind.bound.length > 0, 'strut fittings should follow the wing');
 for (let j = 0; j < mBind.bound.length; j++)
   chk(Math.abs(dec.metal.pos[mBind.bound[j]*3+2]) > 2.0, 'fuel caps must stay rigid');
 
+// ---- W18b: the PBR import (payload v4) -------------------------------------
+// The whole point of importing is that these numbers are the AUTHOR'S, not the
+// viewer's guesses, so the gate checks they arrived and are in range rather
+// than checking specific values — a re-export of the source model may legally
+// move them. What it does pin is the physical sense the import depends on:
+// every map named must exist in texs, and a metalRough map must be shared
+// between the roughness and metalness slots (it is one glTF texture).
+const M = MODEL_C172.mats, T = MODEL_C172.texs;
+chk(MODEL_C172.v >= 4, `payload is v${MODEL_C172.v} — the PBR import did not run`);
+let withPbr = 0, maps = 0;
+for (const name in M) {
+  const m = M[name];
+  if (m.rough === undefined && m.metal === undefined) continue;
+  withPbr++;
+  chk(m.rough >= 0 && m.rough <= 1, `${name}: roughness ${m.rough} out of range`);
+  chk(m.metal >= 0 && m.metal <= 1, `${name}: metalness ${m.metal} out of range`);
+  for (const k of ['mr', 'nrm']) if (m[k]) {
+    maps++;
+    chk(!!T[m[k]], `${name}: ${k} map "${m[k]}" is not in texs`);
+    chk(/^data:image\//.test(T[m[k]] || ''), `${name}: ${k} map is not a data URI`);
+  }
+  if (m.emis) {
+    chk(!!m.tex && !!T[m.tex],
+        `${name}: emissive without a base map to reuse — that would cost a second texture`);
+    chk(m.emis.length === 3, `${name}: emissive factor is not a colour`);
+  }
+}
+console.log(`pbr: ${withPbr} materials carry factors, ${maps} data maps | ` +
+            `skin r=${M.skin.rough} m=${M.skin.metal} nrm=${!!M.skin.nrm} | ` +
+            `metal r=${M.metal.rough} m=${M.metal.metal}`);
+chk(withPbr >= 15, `only ${withPbr} materials carry PBR — the usemtl join lost most of them`);
+chk(maps >= 3, `only ${maps} data maps survived`);
+// the two the import exists to get right: painted skin is a DIELECTRIC however
+// glossy, bare metal is not. Get these backwards and the livery turns to sky.
+chk(M.skin.metal < 0.1, `skin metalness ${M.skin.metal} — paint is not a metal`);
+chk(M.metal.metal > 0.5, `metal metalness ${M.metal.metal} — bare metal should be metallic`);
+chk(M.skin.rough < 0.6, `skin roughness ${M.skin.rough} — a polished airframe is not chalk`);
+
 console.log(why.join('\n'));
 console.log(ok ? 'GATE C172M: PASS' : 'GATE C172M: FAIL');
 process.exit(ok ? 0 : 1);

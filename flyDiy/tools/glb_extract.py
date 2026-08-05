@@ -25,7 +25,7 @@ model_prep.py bakes it.
 Usage:
   python tools/glb_extract.py <key>            # config: tools/models/<key>_src.py
 """
-import importlib, os, struct, sys
+import importlib, io, json, os, struct, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -106,6 +106,95 @@ def dump_textures(j, bin_, outdir, mats_used):
             f.write(raw)
         files[name] = fn
     return files
+
+
+# glTF materials ARE PBR: metallic/roughness factors, a packed metalRough map
+# (G = roughness, B = metalness), a normal map and an emissive map. The OBJ/MTL
+# intermediate cannot express any of that, so it travels beside the OBJ in a
+# sidecar keyed by glTF material name — which is also the OBJ's usemtl name, so
+# the bake can resolve it without a line of per-material config.
+#
+# Maps that carry no signal are FOLDED, not written. A metalRough map whose
+# channels are constant says exactly what its two scalars already say, and a
+# normal map at a flat (128,128,255) says nothing at all; this model ships four
+# of the former and one of the latter. Folding costs nothing and keeps ~1.5 MB
+# of solid colour out of the artifact. The thresholds are deliberately tight —
+# anything with visible structure survives.
+FLAT_MR = 1.5      # per-channel stdev (0..255) below which a metalRough is constant
+FLAT_NRM = 2.0     # ... and below which a normal map is the identity normal
+
+
+def _image(j, bin_, ti):
+    """(PIL image, raw bytes, extension) for texture index ti."""
+    from glb_inspect import view_bytes
+    from PIL import Image
+    src = j['textures'][ti].get('source')
+    img = j['images'][src]
+    raw, _ = view_bytes(j, bin_, img['bufferView'])
+    ext = 'png' if img.get('mimeType', '').endswith('png') else 'jpg'
+    return Image.open(io.BytesIO(bytes(raw))), bytes(raw), ext
+
+
+def dump_pbr(j, bin_, outdir, mats_used, texfiles):
+    """Write pbr.json (+ any metalRough/normal images worth keeping)."""
+    from PIL import ImageStat
+    out, notes = {}, []
+    for m in j.get('materials', []):
+        name = m.get('name', '?')
+        if name not in mats_used:
+            continue
+        p = m.get('pbrMetallicRoughness', {})
+        rec = {'metal': round(float(p.get('metallicFactor', 1.0)), 4),
+               'rough': round(float(p.get('roughnessFactor', 1.0)), 4)}
+        def grab(tex, kind, flat_eps, chans):
+            if not tex:
+                return None
+            img, raw, ext = _image(j, bin_, tex['index'])
+            st = ImageStat.Stat(img.convert('RGB'))
+            if max(st.stddev[c] for c in chans) < flat_eps:
+                return ('flat', [st.mean[c] / 255.0 for c in range(3)])
+            fn = f'{name.replace(".", "_")}_{kind}.{ext}'
+            with open(os.path.join(outdir, fn), 'wb') as f:
+                f.write(raw)
+            return ('file', fn, round(max(st.stddev), 1))
+        mr = grab(p.get('metallicRoughnessTexture'), 'mr', FLAT_MR, (1, 2))
+        if mr and mr[0] == 'flat':
+            # constant map: multiply it into the factors and drop the file
+            rec['rough'] = round(rec['rough'] * mr[1][1], 4)
+            rec['metal'] = round(rec['metal'] * mr[1][2], 4)
+            notes.append(f'{name}: mr folded -> r{rec["rough"]:.3f} m{rec["metal"]:.3f}')
+        elif mr:
+            rec['mr'] = mr[1]
+            notes.append(f'{name}: mr {mr[1]} (sd {mr[2]})')
+        nrm = grab(m.get('normalTexture'), 'nrm', FLAT_NRM, (0, 1))
+        if nrm and nrm[0] == 'flat':
+            notes.append(f'{name}: normal is identity, dropped')
+        elif nrm:
+            rec['nrm'] = nrm[1]
+            sc = (m.get('normalTexture') or {}).get('scale')
+            if sc is not None:
+                rec['nrmScale'] = round(float(sc), 4)
+            notes.append(f'{name}: nrm {nrm[1]} (sd {nrm[2]})')
+        # Emissive: on this model every emissive map IS the base-colour map, so
+        # it costs nothing to carry — record the fact and let the bake reuse the
+        # texture it already has rather than embedding the same bytes twice.
+        et = m.get('emissiveTexture')
+        if et:
+            same = (et['index'] == p.get('baseColorTexture', {}).get('index'))
+            rec['emis'] = m.get('emissiveFactor', [1, 1, 1])
+            if same:
+                rec['emisIsBase'] = True
+            else:
+                _, raw, ext = _image(j, bin_, et['index'])
+                fn = f'{name.replace(".", "_")}_em.{ext}'
+                with open(os.path.join(outdir, fn), 'wb') as f:
+                    f.write(raw)
+                rec['emisTex'] = fn
+            notes.append(f'{name}: emissive{" (= base map)" if same else ""}')
+        out[name] = rec
+    with open(os.path.join(outdir, 'pbr.json'), 'w', newline='\n') as f:
+        json.dump(out, f, indent=1, sort_keys=True)
+    return out, notes
 
 
 def write_mtl(path, j, mats_used, texfiles):
@@ -190,6 +279,7 @@ def main(key):
             parts.append((pname, mat, cv, cu, ct))
 
     texfiles = dump_textures(j, bin_, outdir, mats_used)
+    pbr, pbrnotes = dump_pbr(j, bin_, outdir, mats_used, texfiles)
     mtl = SRC['obj'].rsplit('.', 1)[0] + '.mtl'
     write_mtl(os.path.join(outdir, mtl), j, mats_used, texfiles)
     write_obj(os.path.join(outdir, SRC['obj']), mtl, parts)
@@ -203,6 +293,9 @@ def main(key):
     print(f'      y {lo[1]:7.3f}..{hi[1]:7.3f}  (height {hi[1]-lo[1]:.3f})')
     print(f'      z {lo[2]:7.3f}..{hi[2]:7.3f}  (span   {hi[2]-lo[2]:.3f})')
     print(f'textures: ' + ', '.join(f'{m}->{f}' for m, f in texfiles.items()))
+    print(f'pbr: {len(pbr)} materials -> pbr.json')
+    for n in pbrnotes:
+        print('  ' + n)
     print(os.path.join(SRC['out'], SRC['obj']))
 
 

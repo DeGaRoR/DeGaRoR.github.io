@@ -56,6 +56,7 @@ const THREE = {
                          setPixelRatio() {} setSize() {} render() {} },
   Scene: class { constructor(){ this.children=[]; } add(){} remove(){} },
   Color: class { constructor(){} setHex(){return this;} lerp(){return this;} get r(){return 0;} get g(){return 0;} get b(){return 0;} },
+  Vector2: class { constructor(x = 0, y = 0) { this.x = x; this.y = y; } },
   Fog: class {},
   PerspectiveCamera: class { constructor(){ this.position = vec(); } lookAt(){} updateProjectionMatrix(){} },
   Vector3: function(...a) { return vec(...a); },
@@ -84,10 +85,16 @@ const THREE = {
     this.instanceMatrix = { needsUpdate: false }; this.instanceColor = null; }
     setMatrixAt() {} setColorAt() {} },
   MeshLambertMaterial: class {}, MeshBasicMaterial: class {},
+  // W18: the skin is PBR now. The stub takes the parameter object so the
+  // roughness/metalness table is at least executed on the real material names.
+  MeshStandardMaterial: class { constructor(o) { Object.assign(this, o); } },
   LineBasicMaterial: class {}, PointsMaterial: class {},
   HemisphereLight: class { constructor(){ Object.assign(this, mkObj()); } },
   DirectionalLight: class { constructor(){ Object.assign(this, mkObj()); } },
-  TextureLoader: class { load() { return { anisotropy: 0 }; } },
+  // onLoad fires synchronously so the skin's texture-decode gate is exercised:
+  // if it ever stops firing, the aircraft stays a wireframe forever
+  TextureLoader: class { load(url, onLoad) { const t = { anisotropy: 0 };
+    if (onLoad) onLoad(t); return t; } },
   DoubleSide: 2,
   sRGBEncoding: 0, ACESFilmicToneMapping: 0, PCFSoftShadowMap: 0,
 };

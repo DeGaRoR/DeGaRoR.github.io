@@ -86,8 +86,23 @@ wrong call and the code is gone rather than sitting there to be re-enabled.
 ```
 python tools/glb_extract.py <key>
 ```
-Output is `assets/<key>/<key>.obj` + `.mtl` + textures. From here the OBJ
-path is identical, including `model_inspect.py`.
+Output is `assets/<key>/<key>.obj` + `.mtl` + textures + **`pbr.json`**. From
+here the OBJ path is identical, including `model_inspect.py`.
+
+**PBR comes across for free (W18b).** glTF materials carry roughness/metalness
+factors, a packed metalRough map (G/B), a normal map and an emissive map, none
+of which an OBJ/MTL can express — so they travel in `pbr.json` beside the OBJ,
+keyed by glTF material name. That name is also the OBJ's `usemtl`, so
+`model_prep.py` joins the two automatically: no per-material config, and a
+group spanning several source materials says so instead of guessing.
+Read the extractor's report — it prints, per material, what it kept and what it
+FOLDED. A metalRough map with constant channels says exactly what its two
+scalars already say, and a flat (128,128,255) normal map says nothing at all;
+both are folded away rather than embedded. On the C172 that turned 3.8 MB of
+source maps into 186 KB of payload without losing a thing that varies.
+Decline a map that is not worth its bytes with `nrm=False` / `mr=False` in the
+material's `mats` entry, and say why in a comment (the C172 declines the
+pedals' normal map: 204 KB for 336 triangles in the footwell).
 
 Textures follow the same rule: bake them with `fmt='copy'`, which embeds the
 source file's own bytes at its own resolution. Nothing re-encoded, nothing
