@@ -61,7 +61,12 @@ export const W1_SLICE = {
   //        Verified inert rather than argued inert (tools/_zgravity.mjs).
   //   A5 — GENOME_V 3 -> 4, proprioception. Neutral at insertion; moves the
   //        hashes again.
-  faunaVersion: 7,
+  //   D0 — GENOME_V 4 -> 5, organ placement: `mouth`, per-node `sites`,
+  //        `controller.chemoGain`. Neutral at insertion — the migration writes
+  //        the placement that reproduces the old derived mouth to the bit, no
+  //        node gains a site, and the gain is 0 — but `canonical()` emits three
+  //        new fields, so every genome hash moves and worldHash with it.
+  faunaVersion: 8,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).

@@ -8,7 +8,7 @@
 // A1 gate assertion: version.json's genome/bridge/ecology equal these three.
 
 /** 01 §8 — bumps on genome schema change; requires a forward migration. */
-export const GENOME_V = 4;
+export const GENOME_V = 5;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
 // BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to
@@ -35,7 +35,32 @@ export const GENOME_V = 4;
 // reduction change does — they were measured by a different actuator. It ships in
 // the SAME session as (1) and (2) and nothing is persisted between them, so it
 // rides this one bump rather than taking a second.
-export const BRIDGE_V = 5;
+// BUMPED 5 -> 6 for the TWIST LIMIT BAND. `RANGE.twistLimit` narrows a twist
+// joint's half-range from pi/2 to 0.35 rad, and morphogen.js clamps to it at
+// expression, so every stored record for a creature carrying a twist joint was
+// measured with axial roll the joint no longer has.
+//
+// NOT A TAIL CASE: 42 of the 89 joints the authored corpus actually EXPRESSES
+// are twist (w1_residents + w1_spines + w1_player, measured by tools/_ztwist.mjs
+// — count the plan, not the genome text, because recursive nodes instantiate a
+// joint per repeat). Before: peak axial roll mean 43.3 deg, max 76.1, with 23 of
+// 42 twist joints rolling past 45 deg. After: mean 18.0, max 20.5, none past 45.
+// The peak sits AT the limit, so these joints were being driven into their stop —
+// the roll was commanded, not incidental.
+//
+// COST, MEASURED AND NOT SMALL: displacement over 20 s falls a mean 22% on that
+// corpus, concentrated entirely in the twist-heavy creatures (spine-1 -85%,
+// res_c -72%, spine-4 -56%; the three w1_player creatures carry no twist joint
+// and are bit-identical). A band sweep says this is NOT the 0.35 being too
+// tight — the cost is flat at -22%/-22%/-19% across 0.20/0.35/0.50 and only
+// recovers above 0.70, where max roll is back to 40 deg. It is the corpus having
+// been bred and authored against an actuator that let a limb barber-pole for
+// thrust. Re-select rather than widen the band.
+//
+// Not a schema change and not a migration — GENOME_V is untouched, every stored
+// genome stays valid — but it is a measured-behaviour change, and 11 §4 makes a
+// bridge bump the only invalidation mechanism there is.
+export const BRIDGE_V = 6;
 
 /** 01 §8 — bumps on L3 rule change; stored runs kept but marked stale. */
 export const ECOLOGY_V = 1;

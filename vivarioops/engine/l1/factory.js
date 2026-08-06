@@ -7,7 +7,8 @@
 // single constant in SLICE_LIMITS, so step F loosens by editing numbers.
 
 import {
-  RANGE, JOINT_TYPES, FREQ_MULTS, makeId, makeNode, makeConnection, qClamp,
+  RANGE, JOINT_TYPES, FREQ_MULTS, makeId, makeNode, makeConnection, defaultMouth,
+  qClamp, limitRangeFor,
 } from './genome.js';
 import { GENOME_V } from '../../contracts/versions.js';
 
@@ -492,16 +493,27 @@ const uniform = (rng, range) => qClamp(rng.range(range[0], range[1]), range);
 const uniformInt = (rng, [lo, hi]) => lo + rng.int(hi - lo + 1);
 
 function randomNode(rng, limits) {
-  return makeNode(makeId(rng, 'n'), {
-    dims: [uniform(rng, RANGE.dim), uniform(rng, RANGE.dim), uniform(rng, RANGE.dim)],
-    // SLICE-SCOPED, not RANGE-scoped. A1's "approximately neutrally buoyant by
-    // chance" was measured false; the band makes it true by construction. See
-    // SLICE_LIMITS.density for the measurement and for the step-F restoration.
-    density: uniform(rng, limits.density ?? RANGE.density),
-    recursiveLimit: uniformInt(rng, [RANGE.recursiveLimit[0], Math.min(limits.maxRecursion, RANGE.recursiveLimit[1])]),
+  const id = makeId(rng, 'n');
+  const dims = [uniform(rng, RANGE.dim), uniform(rng, RANGE.dim), uniform(rng, RANGE.dim)];
+  // SLICE-SCOPED, not RANGE-scoped. A1's "approximately neutrally buoyant by
+  // chance" was measured false; the band makes it true by construction. See
+  // SLICE_LIMITS.density for the measurement and for the step-F restoration.
+  const density = uniform(rng, limits.density ?? RANGE.density);
+  const recursiveLimit = uniformInt(rng, [RANGE.recursiveLimit[0], Math.min(limits.maxRecursion, RANGE.recursiveLimit[1])]);
+  // DRAWN BEFORE THE LIMITS BECAUSE THE LIMITS DEPEND ON IT, and the draw ORDER
+  // is unchanged from when the type and the limits sat in one object literal —
+  // literal properties evaluate top to bottom, so `type` already came first.
+  // Three limit draws either way, whichever type came out, so the rng stream
+  // keeps its shape and the only thing that changes is the width they land in.
+  const type = pick(rng, limits.jointTypes);
+  const band = limitRangeFor(type);
+  return makeNode(id, {
+    dims,
+    density,
+    recursiveLimit,
     joint: {
-      type: pick(rng, limits.jointTypes),
-      angleLimits: [uniform(rng, RANGE.angleLimit), uniform(rng, RANGE.angleLimit), uniform(rng, RANGE.angleLimit)],
+      type,
+      angleLimits: [uniform(rng, band), uniform(rng, band), uniform(rng, band)],
       // A3 — A DEVIATION FROM THE GRADIENT, not the whole lag. Drawn from the
       // narrow `phaseDeviation` band rather than the full circle, so a new
       // genome asks for a coherent travelling wave by default and selection has
@@ -672,6 +684,28 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
     version: GENOME_V,
     seed: rng.seed >>> 0,
     rootNodeId: nodes[0].id,
+    /**
+     * THE MOUTH IS PLACED WHERE IT WAS DERIVED, AND NO RNG IS DRAWN FOR IT.
+     *
+     * The obvious thing is to draw the face and (u,v) so placement varies from
+     * birth. Deliberately not done, for two reasons.
+     *
+     * A draw here would shift the rng stream (factory.js:708 warns about exactly
+     * this), so every seed would produce a different creature and the whole
+     * corpus of measured figures — the Atlas, a generation-68 lineage, the
+     * selection runs, the gate's own reference numbers — would silently stop
+     * being comparable to anything recorded before today. Consuming nothing
+     * means generation 0 is bit-identical to what it was.
+     *
+     * And it matches the standing organ discipline: neutral at insertion. A
+     * mouth drawn onto a random face would also, on five faces out of six, be a
+     * behavioural change dressed as a schema change.
+     *
+     * `mutateMouth` is what moves it, so it is reachable in ONE mutation from
+     * every genome in the population. Only the STARTING placement is the old
+     * derived one — the `proprioGain` pattern verbatim.
+     */
+    mouth: defaultMouth(nodes[0]),
     nodes,
     connections,
     material: {
@@ -756,6 +790,11 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // crosses — it is reachable in one mutation from every genome in the
       // population. Only the STARTING value is zero.
       proprioGain: 0,
+      // Blind at birth, and drawing no rng for the same reason the mouth does
+      // not. `mutateChemoGain` moves it; until it does, a creature has receptors
+      // that report nothing, which is what makes a site free to carry and makes
+      // the cave-fish regression gate possible.
+      chemoGain: 0,
       jointGenes,
     },
     social: {

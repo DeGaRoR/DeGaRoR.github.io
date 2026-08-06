@@ -12,7 +12,7 @@ import {
   add, scale, neg, dot, cross, normalise, qmul, qrot, qnormalise,
   fromAxisAngle, lookRotation, handedness,
 } from './vecmath.js';
-import { CAPS } from './genome.js';
+import { CAPS, qClamp, limitRangeFor, defaultMouth } from './genome.js';
 
 // Face axis lookup, in parent-local space. Index order is
 // 0:-X  1:-Y  2:-Z  3:+X  4:+Y  5:+Z  — as in the reference.
@@ -145,7 +145,21 @@ export function morphogenesis(genome, opts = {}) {
           nodeId: childNode.id,
           connectionId: c.id,
           type: childNode.joint.type,
-          angleLimits: childNode.joint.angleLimits.slice(),
+          // CLAMPED TO THE TYPE'S BAND, not copied. This is the single site both
+          // readers of the limit go through — physics.js spawns `setLimits(-a,+a)`
+          // from it and controller.js uses the SAME `a` as the commanded half-swing
+          // — so clamping here is the only way the two cannot disagree. Clamping in
+          // physics alone would leave the controller commanding past a hard stop,
+          // which is the exact pathology B2 §12 recorded: the command lands outside
+          // angleLimits, setLimits discards it, and the motor fights the stop.
+          //
+          // GENOMES ARE NOT REWRITTEN. Authored twist joints (w1_residents,
+          // w1_spines, w1_player) keep their stored wide values and stay valid
+          // under validateGenome; they simply express at the anatomical band. Same
+          // shape as SLICE_LIMITS.density and maxRecursion — a slice narrower than
+          // the schema, restored by widening a number.
+          angleLimits: childNode.joint.angleLimits.map(
+            (a) => qClamp(a, limitRangeFor(childNode.joint.type))),
           phaseLag: childNode.joint.phaseLag,
           ...built.joint,
         });
@@ -159,11 +173,85 @@ export function morphogenesis(genome, opts = {}) {
   return {
     genomeRoot: genome.rootNodeId,
     bodies, joints, truncated, rejected,
+    ...resolveOrgans(bodies, genome),
     bodyCount: bodies.length,
     jointCount: joints.length,
     dofCount: joints.reduce((n, j) => n + DOF[j.type], 0),
   };
 }
+
+/**
+ * A face + (u,v) on a box, as a body-local offset.
+ *
+ * THE SAME ARITHMETIC `placeChild` USES for a connection, deliberately: an organ
+ * is placed exactly as a limb is, so the two cannot disagree about what
+ * "face 4 at (0.3, -0.2)" means. Each component is scaled by that component's
+ * own half-extent, which is what makes (u,v) a fraction of the face rather than
+ * a length.
+ */
+function faceLocal(dims, face, u, v) {
+  const n = FACE_NORMAL[face], r = FACE_RIGHT[face], up = FACE_UP[face];
+  const h = [dims[0] / 2, dims[1] / 2, dims[2] / 2];
+  return [
+    (n[0] + r[0] * u + up[0] * v) * h[0],
+    (n[1] + r[1] * u + up[1] * v) * h[1],
+    (n[2] + r[2] * u + up[2] * v) * h[2],
+  ];
+}
+
+/**
+ * ORGANS, RESOLVED ONTO THE PLAN so no consumer needs the genome.
+ *
+ * `plan.mouth` is singular and always on body 0 — see CAPS in genome.js for why
+ * count is not a gene. `plan.receptors` is one entry per SITE PER BODY, which is
+ * where paired receptors come from: `reflectionVariants` instantiates one node as
+ * several bodies, so a site declared once on a node appears on every copy. A
+ * bilateral creature gets two, a radial one four or eight, an asymmetric one one.
+ * Count is a consequence of the symmetry the body already has.
+ *
+ * `side` is the LEFT/RIGHT sign, by the rule controller.js `turnSides` uses for
+ * joints — mirror provenance where the body has any, lateral offset otherwise —
+ * so a differential can be formed the same way the steering already forms one.
+ * Carried here rather than recomputed because the sign is a property of the
+ * body plan, and two definitions of "which side is this on" would drift.
+ *
+ * `normal` is the outward face direction in body-local space. Nothing reads it
+ * yet. It is what a photoreceptor's cone would point along, and it costs one
+ * lookup to carry now versus a migration to add later.
+ */
+function resolveOrgans(bodies, genome) {
+  const nodeById = new Map(genome.nodes.map((n) => [n.id, n]));
+  const root = bodies[0];
+  // TOLERANT OF AN UNSTATED MOUTH, using the very function the 4 -> 5 migration
+  // uses — so a hand-built pre-v5 literal (the gate's own motion fixtures, the
+  // tools) expresses the mouth it always had rather than crashing here. Not a
+  // silent repair: `validateGenome` still rejects a genome that omits it, so
+  // anything arriving through `deserialise` has stated its mouth explicitly.
+  const m = genome.mouth ?? defaultMouth(nodeById.get(root.nodeId) ?? { dims: root.dims });
+  const mouth = { bodyIndex: 0, local: faceLocal(root.dims, m.face, m.at[0], m.at[1]) };
+
+  const receptors = [];
+  // Mirror provenance is only a differential when SOME bodies carry it and some
+  // do not — all-mirrored is as useless as none-mirrored. Same test turnSides
+  // makes, for the same reason.
+  const mirroredCount = bodies.filter(isMirrored).length;
+  const useMirror = mirroredCount > 0 && mirroredCount < bodies.length;
+  for (const b of bodies) {
+    for (const s of nodeById.get(b.nodeId)?.sites ?? []) {
+      receptors.push({
+        bodyIndex: b.index,
+        local: faceLocal(b.dims, s.face, s.at[0], s.at[1]),
+        normal: FACE_NORMAL[s.face].slice(),
+        side: useMirror
+          ? (isMirrored(b) ? 1 : -1)
+          : (b.position[0] - root.position[0] < -1e-6 ? -1 : 1),
+      });
+    }
+  }
+  return { mouth, receptors };
+}
+
+const isMirrored = (b) => b.mirror.right || b.mirror.up || b.mirror.forward;
 
 /**
  * A3 — THE POSITIONAL PHASE GRADIENT, resolved here rather than in the controller.

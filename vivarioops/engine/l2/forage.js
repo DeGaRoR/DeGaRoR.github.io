@@ -384,25 +384,22 @@ export function makeChunkedFood(world, {
  * only when a mouth enters an item's proximity sphere, and that is what makes
  * the model size-fair: a point is a point whatever it is attached to.
  *
- * ⚠ DERIVED, NOT YET GENETIC — and this is the next real schema decision.
- * Placement and COUNT should be genes, the same shape the sensor gains already
- * have and the same shape eyes will need, because where a sensor sits on a body
- * is exactly the sort of thing selection should be allowed to discover. That is
- * a GENOME_V bump with a migration, factory support and a mutation operator, and
- * it is worth spending ONCE — after this model has been measured, not before.
+ * GENETIC AS OF GENOME_V 5, and this function is the only thing that changed —
+ * which is what the note that stood here promised. `genome.mouth` is a face plus
+ * (u,v) on it; morphogenesis resolves that to a body-local point and hands it
+ * over on the plan, so nothing downstream needs the genome.
  *
- * Until then: one mouth, on the ROOT body, at the leading face of its own
- * longest axis. A head, by the only definition available without a gene to say
- * otherwise. When the gene lands, only this function changes.
+ * STILL EXACTLY ONE, AND STILL ON THE ROOT. Count is deliberately not a gene: a
+ * mouth costs nothing on either side of the ledger, so N mouths would be N times
+ * the intake for free — measured at up to 24x — and `INGEST_RATE`'s "a big animal
+ * gets no bonus for being big" would be repealed in silence. genome.js CAPS
+ * carries the full argument and what count would need first (a gut).
+ *
+ * The v4 genomes that derived their mouth keep it exactly: the migration writes
+ * the face and offset that reproduce the old expression to the bit.
  */
 export function mouthsOf(plan) {
-  const b = plan.bodies[0];
-  if (!b) return [];
-  const d = b.dims;
-  const axis = d[2] >= d[0] && d[2] >= d[1] ? 2 : (d[1] >= d[0] ? 1 : 0);
-  const local = [0, 0, 0];
-  local[axis] = d[axis] * 0.5;
-  return [{ bodyIndex: 0, local }];
+  return plan.mouth ? [plan.mouth] : [];
 }
 
 /** World-space mouth positions for the current pose. Reuses `out` (N4). */

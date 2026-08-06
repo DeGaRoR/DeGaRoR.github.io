@@ -46,6 +46,7 @@ function chain({
     id: 'seg', dims, density: 1, recursiveLimit: segs,
     joint: { type: 'revolute', angleLimits: [angleLimit, angleLimit, angleLimit], phaseLag: lag },
     colorGenes: colour(0, 0, 0),
+    sites: [],           // GENOME_V 5 — no receptors; see the controller note below
   }];
   const connections = [{
     id: 'c_self', parentNodeId: 'seg', childNodeId: 'seg', parentFace: face,
@@ -58,6 +59,7 @@ function chain({
       id: 'fin', dims: fin.dims, density: 1, recursiveLimit: 1,
       joint: { type: 'revolute', angleLimits: [0.7, 0.7, 0.7], phaseLag: 0 },
       colorGenes: colour(0.08, -0.1, 0.5),
+      sites: [],
     });
     connections.push({
       id: 'c_fin', parentNodeId: 'seg', childNodeId: 'fin', parentFace: fin.face ?? 5,
@@ -70,6 +72,10 @@ function chain({
     id, name, note,
     genome: {
       version: GENOME_V, seed: 0, rootNodeId: 'seg', nodes, connections,
+      // GENOME_V 5 — the mouth, stated rather than derived. `dims` is longest on
+      // Z for every seed in this file, so face 5 (+Z) at the centre is exactly
+      // where `mouthsOf` used to put it: these animals are unchanged.
+      mouth: { face: 5, at: [0, 0] },
       material: {
         hue, hueVariance: 0.08, patternScale: 3.0, patternContrast: 0.4,
         stripeAnisotropy: 0.7, iridescence: 0.15,
@@ -99,6 +105,7 @@ function chain({
         phaseBase: 0,        // A3 — neutral: no positional phase gradient
         phaseSlope: 0,       // A3
         proprioGain: 0,      // A5 — neutral: open loop
+        chemoGain: 0,        // GENOME_V 5 — neutral: blind
         jointGenes,
       },
       social: {

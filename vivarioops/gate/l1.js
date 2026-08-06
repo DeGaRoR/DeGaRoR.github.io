@@ -8,6 +8,7 @@ import {
   geneValues, isQuantised, RANGE, CAPS, JOINT_TYPES, canonical,
 } from '../engine/l1/genome.js';
 import { genomeSourcedSpeciesFields } from '../engine/l1/genome.js';
+import { mouthsOf } from '../engine/l2/forage.js';
 import { createRandomGenome, SLICE_LIMITS, FULL_LIMITS } from '../engine/l1/factory.js';
 import { mutateTimes } from '../engine/l1/mutate.js';
 import { SPECIES_FIELDS } from '../contracts/species.js';
@@ -358,6 +359,82 @@ export function runL1Gate() {
     // Forward only, and never partially parsed (N10).
     t.throws(() => migrate({ version: GENOME_V + 1 }), 'a future genome version is rejected');
     t.eq(migrate(v2).version, GENOME_V, 'migrating a current genome is a no-op');
+  });
+
+  // ── L1-48 · the 4 -> 5 migration, and it must not move a single mouth ──────
+  //
+  // THE WHOLE POINT OF THIS ASSERTION is the last check, not the first ones.
+  // Organ placement became genetic, and a migration that put the mouth ANYWHERE
+  // other than where `mouthsOf` derived it would silently re-feed every creature
+  // in every stored Atlas — a behavioural change wearing a schema change's
+  // clothes. So the old expression is restated here as a LITERAL, and the
+  // migrated placement is resolved through morphogenesis and compared to it
+  // exactly. Restated rather than imported for the reason L1-4 gives about
+  // SLICE_LIMITS: an assertion that derives its own expected value from the code
+  // under test is decorative.
+  g.assertion('L1-48', 'Migration 4 -> 5 adds organs and moves no mouth', (t) => {
+    const v5 = pop[13];
+    const v4 = structuredClone(canonical(v5));
+    v4.version = 4;
+    delete v4.mouth;
+    delete v4.controller.chemoGain;
+    for (const n of v4.nodes) delete n.sites;
+
+    t.ok(!validateGenome(v4).ok, 'the v4 fixture is genuinely not a valid v5');
+
+    const up = deserialise(JSON.stringify(v4));
+    t.eq(up.version, GENOME_V, 'migrated to the current version');
+    t.eq(up.controller.chemoGain, 0, 'chemoGain initialised to 0 — blind');
+    t.ok(up.nodes.every((n) => Array.isArray(n.sites) && n.sites.length === 0), 'no node gains a site');
+    t.ok(validateGenome(up).ok, `migrated genome validates: ${validateGenome(up).errors.slice(0, 2).join('; ')}`);
+
+    // THE DERIVATION THAT SHIPPED UNTIL NOW, restated as a literal.
+    const plan = morphogenesis(up);
+    const d = plan.bodies[0].dims;
+    const axis = d[2] >= d[0] && d[2] >= d[1] ? 2 : (d[1] >= d[0] ? 1 : 0);
+    const want = [0, 0, 0];
+    want[axis] = d[axis] * 0.5;
+
+    t.eq(plan.mouth.bodyIndex, 0, 'the mouth is on the root body');
+    t.eq(JSON.stringify(plan.mouth.local), JSON.stringify(want),
+      'the migrated mouth is EXACTLY where mouthsOf derived it');
+    t.eq(mouthsOf(plan).length, 1, 'exactly one mouth — count is not a gene');
+    t.eq(plan.receptors.length, 0, 'a migrated creature has no receptors');
+
+    // Every gene that drives motion is untouched, as in L1-8.
+    t.eq(up.controller.omega, v5.controller.omega, 'omega unchanged by migration');
+    t.eq(JSON.stringify(up.nodes.map((n) => n.joint)), JSON.stringify(v5.nodes.map((n) => n.joint)), 'joints unchanged');
+  });
+
+  // ── L1-49 · sites replicate with the body, which is where pairs come from ──
+  //
+  // A site is declared once on a NODE and appears on every body instantiating
+  // it, so a mirrored connection yields a PAIR with opposite `side` signs. That
+  // is the whole mechanism behind "why two", and it is worth an assertion
+  // because it is emergent rather than written: nothing counts receptors, and if
+  // instancing ever stopped replicating them, tropotaxis would become
+  // unreachable with no other symptom.
+  g.assertion('L1-49', 'A node site is replicated onto every body of that node, with a side', (t) => {
+    const base = pop[17];
+    const mirrored = pop.find((x) => x.connections.some((c) => c.reflectX || c.reflectY || c.reflectZ));
+    t.ok(Boolean(mirrored), 'the corpus contains a mirrored connection at all');
+
+    // One site on the root node: it must appear once per body expressing it.
+    const withSite = structuredClone(canonical(base));
+    withSite.nodes.find((n) => n.id === withSite.rootNodeId).sites = [{ face: 4, at: [0, 0] }];
+    const up = deserialise(JSON.stringify(withSite));
+    t.ok(validateGenome(up).ok, 'a genome carrying a site validates');
+    const plan = morphogenesis(up);
+    const rootBodies = plan.bodies.filter((b) => b.nodeId === up.rootNodeId).length;
+    t.eq(plan.receptors.length, rootBodies, 'one receptor per body instantiating the node');
+    t.ok(plan.receptors.every((r) => r.side === 1 || r.side === -1), 'every receptor carries a side');
+    t.ok(plan.receptors.every((r) => Array.isArray(r.normal) && r.normal.length === 3),
+      'every receptor carries an outward normal — what a photoreceptor would aim along');
+
+    // The cap is real, not advisory.
+    const over = structuredClone(canonical(base));
+    over.nodes[0].sites = Array.from({ length: CAPS.maxSitesPerNode + 1 }, () => ({ face: 0, at: [0, 0] }));
+    t.ok(!validateGenome(over).ok, `more than ${CAPS.maxSitesPerNode} sites on a node is rejected`);
   });
 
   // ── L1-9 · the factory is configuration, not structure ────────────────────

@@ -25,14 +25,21 @@ export const W1_RESIDENT_GENOMES = {
 export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 
 /** Genome hashes, precomputed so worldHash() needs no morphogenesis. */
-// REHASHED AT A3, NOT REGENERATED — tools/_zrehash.mjs.
+// REHASHED AT A3 AND AGAIN AT GENOME_V 5, NOT REGENERATED — tools/_zrehash.mjs.
 //
-// GENOME_V went 2 -> 3 and `canonical()` now emits controller.phaseBase and
+// A3: GENOME_V went 2 -> 3 and `canonical()` now emits controller.phaseBase and
 // controller.phaseSlope, so every genome hash moved. THE ANIMALS DID NOT: the
 // 2 -> 3 migration sets both coefficients to 0 (verified by the tool) and
 // morphogen.js `resolvePhaseLags` returns early on that, so the resolved phase
 // lags and every trajectory are bit-identical to v2. Only the serialised form
 // gained two fields.
+//
+// GENOME_V 5 moved them again, for the same kind of reason: `canonical()` now
+// emits `mouth`, per-node `sites` and `controller.chemoGain`. THE ANIMALS DID
+// NOT CHANGE. The 4 -> 5 migration writes the mouth placement that reproduces
+// the old `mouthsOf` derivation to the bit (`defaultMouth`), no node gains a
+// site, and `chemoGain` is 0. Verified: the resolved mouth matches the old
+// expression exactly over 300 genomes.
 //
 // tools/c2residents.js was deliberately NOT re-run: it would breed new residents
 // and change the creatures, when what changed is the schema. The genome literals
@@ -40,9 +47,9 @@ export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 // rather than trusting it. `faunaVersion` in w1_slice.js is bumped 6 -> 7 in the
 // same commit, per the rule at the head of this file.
 export const W1_RESIDENT_HASHES = [
-  "b2172728006511c6",
-  "25a888ed8669e523",
-  "83fd6035094fb076"
+  "a85298ac10c71a4f",
+  "5865b4f4faea340f",
+  "ec071624d27f6c9b"
 ];
 
 export default W1_RESIDENT_GENOMES;

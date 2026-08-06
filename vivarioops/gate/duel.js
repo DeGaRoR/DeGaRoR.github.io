@@ -97,7 +97,7 @@ export async function runDuelGate() {
     // looking valid — which is what K5 exists to catch. See the bump note in
     // worlds/w1_slice.js for the three changes it covers; the largest is A1,
     // where the fluid force was found to accumulate across steps.
-    t.eq(W1_SLICE.faunaVersion, 7, 'faunaVersion was bumped at A1/A2/A3 — the force-accumulation fix, the spine, and GENOME_V 3');
+    t.eq(W1_SLICE.faunaVersion, 8, 'faunaVersion was bumped at A1/A2/A3 and again at GENOME_V 5 (organ placement) — each moves every genome hash');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.

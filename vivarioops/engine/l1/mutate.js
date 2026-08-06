@@ -21,7 +21,8 @@
 // offspring (see breed.js), rather than a table of twelve probabilities.
 
 import {
-  RANGE, FREQ_MULTS, makeId, makeNode, makeConnection, q, qClamp, reachability,
+  RANGE, FREQ_MULTS, CAPS, makeId, makeNode, makeConnection, makeSite, q, qClamp,
+  reachability, limitRangeFor,
 } from './genome.js';
 import { SLICE_LIMITS, ALL_FACES, clampReflection, applySpineGrammar } from './factory.js';
 // SAME LAYER, legal import (N3 forbids upward, not sideways). removeNode needs
@@ -74,6 +75,10 @@ export const cloneNode = (n) => ({
   recursiveLimit: n.recursiveLimit,
   joint: { type: n.joint.type, angleLimits: n.joint.angleLimits.slice(), phaseLag: n.joint.phaseLag },
   colorGenes: { ...n.colorGenes },
+  // DEEP. `sites.slice()` would copy the array and SHARE every object in it, so
+  // mutating a child's site would reach back into the parent — and N18 requires
+  // elites to survive breeding byte-identical.
+  sites: (n.sites ?? []).map((s) => ({ face: s.face, at: s.at.slice() })),
 });
 
 export const cloneConn = (c) => ({
@@ -95,6 +100,7 @@ export function cloneGenome(g) {
     version: g.version,
     seed: g.seed,
     rootNodeId: g.rootNodeId,
+    mouth: { face: g.mouth.face, at: g.mouth.at.slice() },
     nodes: g.nodes.map(cloneNode),
     connections: g.connections.map(cloneConn),
     material: { ...g.material },
@@ -108,6 +114,7 @@ export function cloneGenome(g) {
       phaseBase: g.controller.phaseBase,
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
+      chemoGain: g.controller.chemoGain,
       jointGenes,
     },
     social: { ...g.social },
@@ -299,10 +306,23 @@ function mutateRandomNode(g, rng, limits) {
       n.recursiveLimit += up ? 1 : -1;
       break;
     }
-    case 'jointType': n.joint.type = resample(rng, limits.jointTypes, n.joint.type); break;
+    // RE-CLAMPS THE LIMITS, because the band a joint may use is a function of its
+    // type. Resampling revolute -> twist without this leaves a joint carrying a
+    // 1.4 rad limit that the twist band forbids: morphogen.js would clamp it at
+    // expression anyway, so the creature would behave correctly while its genome
+    // said something else, and every later `angle0` jitter would walk from a
+    // value the band cannot reach. Clamping HERE keeps the genome and the
+    // expressed plan saying the same thing. It costs no rng draw, so the stream
+    // is untouched whichever way the resample lands.
+    case 'jointType': {
+      n.joint.type = resample(rng, limits.jointTypes, n.joint.type);
+      const band = limitRangeFor(n.joint.type);
+      n.joint.angleLimits = n.joint.angleLimits.map((a) => qClamp(a, band));
+      break;
+    }
     case 'angle0': case 'angle1': case 'angle2': {
       const i = +field.slice(5);
-      n.joint.angleLimits[i] = jitter(rng, n.joint.angleLimits[i], RANGE.angleLimit); break;
+      n.joint.angleLimits[i] = jitter(rng, n.joint.angleLimits[i], limitRangeFor(n.joint.type)); break;
     }
     case 'phaseLag': n.joint.phaseLag = jitter(rng, n.joint.phaseLag, RANGE.phaseLag); break;
     default: n.colorGenes[field] = jitter(rng, n.colorGenes[field], RANGE[field]);
@@ -545,12 +565,77 @@ function mutateSocial(g, rng) {
   return `mutateSocial:${k}`;
 }
 
+// ── organs ───────────────────────────────────────────────────────────────────
+//
+// THE ORGANS BRANCH EXISTS BECAUSE OF THE preyGain PRECEDENT, which is the most
+// expensive lesson in this file's history: a gene sat in the schema for four
+// versions with no operator reaching it, so every creature ever generated had
+// exactly zero, no breeding could recombine it, and "selection could never have
+// produced a seeker, because a seeker was never born."
+//
+// Placement and chemoreception start neutral BY DESIGN — the mouth where it was
+// always derived, sites empty, gain zero. Neutral starting values are only
+// defensible when an operator can move them; without one they are not "reserved
+// for later", they are dead. So this branch is not optional and it does not wait
+// for the sense to be wired.
+
+/** Slide the mouth over the body, or move it to another face. */
+function mutateMouth(g, rng) {
+  // A FACE HOP IS RARER THAN A SLIDE. Sliding explores where on a face the mouth
+  // sits, which is a smooth gradient selection can climb; hopping is a discrete
+  // jump to a different side of the animal, and doing it as often as sliding
+  // would make the mouth a random walk over the body rather than a trait.
+  if (rng.int(4) === 0) {
+    const faces = [0, 1, 2, 3, 4, 5].filter((f) => f !== g.mouth.face);
+    g.mouth.face = faces[rng.int(faces.length)];
+    return 'mutateMouth:face';
+  }
+  const i = rng.int(2);
+  g.mouth.at[i] = jitter(rng, g.mouth.at[i], RANGE.siteAt);
+  return `mutateMouth:at${i}`;
+}
+
+/**
+ * Add, move or drop a receptor site.
+ *
+ * Sites are on NODES, so one added here appears on EVERY body instantiating that
+ * node — which is where paired receptors come from. A bilateral creature with a
+ * mirrored connection gets two, a radial one four or eight, an asymmetric one
+ * one. Count is a consequence of the symmetry the body already has, not a gene,
+ * which is also how it went in biology.
+ */
+function mutateSite(g, rng) {
+  const n = g.nodes[rng.int(g.nodes.length)];
+  const roll = rng.int(4);
+  if (roll === 0 && n.sites.length) {
+    n.sites.splice(rng.int(n.sites.length), 1);
+    return 'mutateSite:remove';
+  }
+  if (n.sites.length < CAPS.maxSitesPerNode && (roll <= 1 || !n.sites.length)) {
+    const u = (r) => qClamp(rng.range(r[0], r[1]), r);
+    n.sites.push(makeSite({ face: rng.int(6), at: [u(RANGE.siteAt), u(RANGE.siteAt)] }));
+    return 'mutateSite:add';
+  }
+  if (!n.sites.length) return null;      // nothing to move, and the add was refused
+  const s = n.sites[rng.int(n.sites.length)];
+  const i = rng.int(2);
+  s.at[i] = jitter(rng, s.at[i], RANGE.siteAt);
+  return `mutateSite:at${i}`;
+}
+
+/** The chemoreception gain. Sign evolved, not declared — see RANGE.chemoGain. */
+function mutateChemoGain(g, rng) {
+  g.controller.chemoGain = jitter(rng, g.controller.chemoGain, RANGE.chemoGain);
+  return 'mutateChemoGain';
+}
+
 // ── the weighted tree ────────────────────────────────────────────────────────
 
 const BRANCHES = {
   nodes:       [addNode, removeNode, mutateRandomNode],
   connections: [addConnection, removeConnection, mutateRandomConnection],
   controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain],
+  organs:      [mutateMouth, mutateSite, mutateChemoGain],
   material:    [mutateMaterial],
   social:      [mutateSocial],
 };
@@ -581,10 +666,29 @@ const BRANCHES = {
  * change what the animal IS, and the two the §2.1 fixes just made unbiased.
  * Weight moved into structure is weight moved into the thing selection can see.
  */
+/**
+ * `organs` TAKES ITS 7.5 POINTS FROM `nodes` AND `connections`, the two that were
+ * given 10 points between them by the paragraph above. It is not free and should
+ * not pretend to be.
+ *
+ * The share is small on purpose. Mouth placement is ONE trait and receptor sites
+ * are inert until a sense reads them, so a large share would be the same waste
+ * this table was rebalanced to remove — "27.3% of all mutations landed on genes
+ * that nothing in the project measures". 7.5% is roughly one mutation in
+ * thirteen, which is enough to keep placement moving across a lineage and to let
+ * a site appear within a few generations, and little enough that it does not
+ * compete with the branches that change what the animal IS.
+ *
+ * RAISE IT WHEN THE SENSE IS WIRED. Until `chemoGain` reaches a controller that
+ * reads a site, two of these three operators move genes nothing measures — the
+ * `social` situation exactly, and it should be treated the same way: warm, not
+ * generous. Revisit at the kinesis step.
+ */
 const BRANCH_WEIGHTS = {
-  nodes:       0.30,   // was 0.25
-  connections: 0.30,   // was 0.25
+  nodes:       0.2625, // was 0.30
+  connections: 0.2625, // was 0.30
   controller:  0.25,   // unchanged
+  organs:      0.075,  // new
   material:    0.125,  // unchanged — 10 §A10
   social:      0.025,  // was 0.125
 };
@@ -693,14 +797,24 @@ export function mutateTimes(genome, rng, n, opts = {}) {
 
 function randomNodeLike(rng, limits) {
   const u = (r) => qClamp(rng.range(r[0], r[1]), r);
-  return makeNode(makeId(rng, 'n'), {
-    dims: [u(RANGE.dim), u(RANGE.dim), u(RANGE.dim)],
-    density: u(limits.density ?? RANGE.density),   // slice-scoped
-    recursiveLimit: RANGE.recursiveLimit[0]
-      + rng.int(Math.min(limits.maxRecursion, RANGE.recursiveLimit[1]) - RANGE.recursiveLimit[0] + 1),
+  const id = makeId(rng, 'n');
+  const dims = [u(RANGE.dim), u(RANGE.dim), u(RANGE.dim)];
+  const density = u(limits.density ?? RANGE.density);   // slice-scoped
+  const recursiveLimit = RANGE.recursiveLimit[0]
+    + rng.int(Math.min(limits.maxRecursion, RANGE.recursiveLimit[1]) - RANGE.recursiveLimit[0] + 1);
+  // Hoisted for the same reason as factory.js randomNode: the limit band is a
+  // function of the type, so the type has to be drawn first. It already WAS
+  // drawn first — object literals evaluate top to bottom — so the draw order
+  // and the draw count are both unchanged.
+  const type = limits.jointTypes[rng.int(limits.jointTypes.length)];
+  const band = limitRangeFor(type);
+  return makeNode(id, {
+    dims,
+    density,
+    recursiveLimit,
     joint: {
-      type: limits.jointTypes[rng.int(limits.jointTypes.length)],
-      angleLimits: [u(RANGE.angleLimit), u(RANGE.angleLimit), u(RANGE.angleLimit)],
+      type,
+      angleLimits: [u(band), u(band), u(band)],
       phaseLag: u(RANGE.phaseLag),
     },
     colorGenes: {

@@ -17,7 +17,7 @@ import { createRandomGenome, SLICE_LIMITS } from '../engine/l1/factory.js';
 import { FIXED_DT } from '../engine/l1/physics.js';
 import { morphogenesis } from '../engine/l1/morphogen.js';
 import {
-  serialise, validateGenome, reachability, CAPS, FREQ_MULTS, RANGE,
+  serialise, validateGenome, reachability, CAPS, FREQ_MULTS, RANGE, ANGLE_AXES,
 } from '../engine/l1/genome.js';
 import { mutate, mutateTimes, cloneGenome, jitter, removeDanglingConnections } from '../engine/l1/mutate.js';
 import { crossGenomes, graftSubgraph, CROSS_FIELDS } from '../engine/l1/crossover.js';
@@ -111,6 +111,13 @@ function diffGenome(a, b) {
     gradientChanged: ['phaseBase', 'phaseSlope'].filter(k => a.controller[k] !== b.controller[k]),
     // A5, added in the same edit as the operator, for the reason above.
     proprioChanged: a.controller.proprioGain !== b.controller.proprioGain ? 1 : 0,
+    // GENOME_V 5, added in the same edit as the operators, for the reason above.
+    // Node SITES need no entry: `nodeKey` is JSON.stringify, so a site added,
+    // moved or dropped already surfaces as `nodesChanged` and is leaf-counted.
+    // The mouth is top-level and the gain is on the controller, so neither would
+    // be seen at all without these two lines.
+    mouthChanged: JSON.stringify(a.mouth) !== JSON.stringify(b.mouth) ? 1 : 0,
+    chemoChanged: a.controller.chemoGain !== b.controller.chemoGain ? 1 : 0,
     jointGenesAdded: Object.keys(b.controller.jointGenes).filter(k => !(k in a.controller.jointGenes)),
     jointGenesRemoved: Object.keys(a.controller.jointGenes).filter(k => !(k in b.controller.jointGenes)),
     jointGenesChanged: Object.keys(a.controller.jointGenes).filter(k =>
@@ -121,6 +128,7 @@ function diffGenome(a, b) {
     + d.connsAdded.length + d.connsRemoved.length + d.connsChanged.length
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
     + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged
+    + d.mouthChanged + d.chemoChanged
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
   // The same count at LEAF granularity — how many scalar genes moved, not how
@@ -130,7 +138,8 @@ function diffGenome(a, b) {
     + d.connsChanged.reduce((n, k) => n + leafCount(ac.get(k), bc.get(k)), 0)
     + d.jointGenesChanged.reduce((n, k) => n + leafCount(a.controller.jointGenes[k], b.controller.jointGenes[k]), 0)
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged;
+    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged
+    + d.mouthChanged + d.chemoChanged;
   return d;
 }
 
@@ -159,10 +168,33 @@ const EXPECTED = {
     t.eq(d.connsRemoved.length, 1, 'removeConnection removes exactly one connection');
     t.eq(d.total, 1, 'removeConnection changes nothing else');
   },
-  mutateRandomNode: (d, t) => {
+  mutateRandomNode: (d, t, op) => {
     t.eq(d.nodesChanged.length, 1, 'mutateRandomNode changes exactly one node');
     t.eq(d.total, 1, 'mutateRandomNode changes nothing else');
-    t.eq(d.leaves, 1, 'mutateRandomNode moves exactly one gene inside that node');
+
+    // SECOND DECLARED AMENDMENT TO A9's ONE-MUTATION INVARIANT, and the same
+    // shape as `:reflect` above: one gene in the GENOME can be more than one
+    // scalar when the schema couples them.
+    //
+    // A joint's legal angle band is a function of its TYPE — `limitRangeFor` —
+    // and the twist band is [0, 0.35] against revolute's [0, PI/2]. So resampling
+    // revolute -> twist must re-clamp the three limits, or the genome would carry
+    // values the band forbids while morphogen clamped them at expression: the
+    // creature and its genome would disagree, and every later `angle0` jitter
+    // would walk from a value the band cannot reach (mutate.js documents this at
+    // the operator). Type plus its three limits is four leaves, worst case.
+    //
+    // THIS WAS LATENT, NOT INTRODUCED. The re-clamp has always behaved this way;
+    // the assertion demanded exactly one leaf and passed only because no sampled
+    // window happened to contain a narrowing resample with wide limits. Adding
+    // the `organs` branch shifted the mutation stream and surfaced it — 14 in
+    // 4000 draws. A bound that holds by luck is not a bound.
+    if (op.endsWith(':jointType')) {
+      t.ok(d.leaves >= 1 && d.leaves <= 1 + ANGLE_AXES,
+        'a joint-type resample moves the type and at most its own three limits', d.leaves);
+    } else {
+      t.eq(d.leaves, 1, 'mutateRandomNode moves exactly one gene inside that node');
+    }
   },
   mutateRandomConnection: (d, t, op) => {
     t.eq(d.connsChanged.length, 1, 'mutateRandomConnection changes exactly one connection');
@@ -211,6 +243,20 @@ const EXPECTED = {
   mutateProprioGain: (d, t) => {
     t.eq(d.proprioChanged, 1, 'mutateProprioGain changes the proprioceptive gain');
     t.eq(d.total, 1, 'mutateProprioGain changes nothing else');
+  },
+  mutateMouth: (d, t) => {
+    t.eq(d.mouthChanged, 1, 'mutateMouth moves the mouth');
+    t.eq(d.total, 1, 'mutateMouth changes nothing else');
+  },
+  mutateSite: (d, t) => {
+    // A site lives inside a node, so it surfaces as that node changing — the
+    // same shape a dims or angle jitter has.
+    t.eq(d.nodesChanged.length, 1, 'mutateSite changes exactly one node');
+    t.eq(d.total, 1, 'mutateSite changes nothing else');
+  },
+  mutateChemoGain: (d, t) => {
+    t.eq(d.chemoChanged, 1, 'mutateChemoGain changes the chemoreception gain');
+    t.eq(d.total, 1, 'mutateChemoGain changes nothing else');
   },
   mutatePhaseGradient: (d, t) => {
     t.eq(d.gradientChanged.length, 1, 'mutatePhaseGradient changes exactly one gradient coefficient');

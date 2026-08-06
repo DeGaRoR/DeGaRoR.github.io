@@ -28,6 +28,35 @@ export const RANGE = {
   angleLimit:     [0, Math.PI / 2], // radians, symmetric about zero
 
   /**
+   * AXIAL ROTATION IS NOT A BEND, and until now it was drawn from the same table.
+   *
+   * `jointAxisAtSpawn` gives a `twist` joint the axis `axes.z`, which is the face
+   * normal — and the face normal is the axis the child EXTENDS ALONG, because
+   * morphogen.js attaches every child by its own -Z face and offsets it +Z by a
+   * half-depth. So a twist joint is a hinge about the limb's own long axis, and
+   * drawing its limit from `angleLimit` gave it up to +-90 degrees: 180 degrees of
+   * total roll about its own length. Nothing in a body does that. A forearm is the
+   * outlier of the whole vertebrate skeleton at about +-75, and it is TWO bones
+   * crossing, not one segment spinning in a socket.
+   *
+   * 0.35 rad (+-20 degrees) is the feathering band. It is enough for a fin to
+   * change its angle of attack across a stroke — which is real, and is most of
+   * what a twist joint is worth hydrodynamically — and far short of the barber-pole
+   * spin that made jointed creatures read as non-physical.
+   *
+   * A SUBRANGE OF `angleLimit`, deliberately. Every value drawn here is still
+   * valid under `validateGenome`, so this is a config change and never a
+   * migration — the same standing rule SLICE_LIMITS.jointTypes is written to.
+   * Genomes authored before this keep their wide stored values and are clamped at
+   * EXPRESSION, in morphogen.js, so the plan the controller reads and the plan
+   * physics spawns cannot disagree about what the limit is. It bites: w1_residents
+   * and w1_spines express 42 twist joints between them, against 0 for the three
+   * w1_player creatures — which is why those three are bit-identical across the
+   * change and the other seven are not. tools/_ztwist.mjs measures it.
+   */
+  twistLimit:     [0, 0.35],        // radians, symmetric about zero
+
+  /**
    * A3 — THIS IS NOW A DEVIATION, not the lag itself.
    *
    * The lag a joint contributes is `phaseBase + phaseSlope * depth + phaseLag`
@@ -99,6 +128,27 @@ export const RANGE = {
   valueShift:     [-0.3, 0.3],
   patternPhase:   [0, 1],
 
+  /**
+   * ORGAN PLACEMENT — where a mouth or a receptor sits on a body.
+   *
+   * DELIBERATELY THE CONNECTION IDIOM. A connection is already placed by
+   * `parentFace` (0..5) plus `position[2]` in [-1,1] on that face, and
+   * morphogen's `placeChild` already turns that triple into a local offset. An
+   * organ is the same act — attach a thing to a face at (u,v) — so it reuses the
+   * same shape rather than inventing a second one, and `FACE_NORMAL[face]` then
+   * gives an outward direction for free. That normal is the entire affordance a
+   * photoreceptor will need later, bought here at no cost.
+   */
+  siteAt:         [-1, 1],          // u,v on the chosen face
+
+  /**
+   * CHEMORECEPTION GAIN. Zero is blind, and blind is what every migrated genome
+   * starts as. The SIGN IS EVOLVED, NOT DECLARED, exactly as `preyGain` is (P2,
+   * 00 §70): a creature that swims away from food is representable and will
+   * simply lose.
+   */
+  chemoGain:      [-1, 1],
+
   // Social — the six fields 03 §3 declares `from genome` and no document supplied.
   // Ranges are chosen here, not specified anywhere; each is justified inline.
   trophic:        [0, 1],   // 12 §: uptake scales (1-trophic), predation scales trophic.
@@ -111,10 +161,65 @@ export const RANGE = {
 };
 
 export const JOINT_TYPES = ['rigid', 'revolute', 'twist', 'bendTwist', 'twistBend', 'universal', 'spherical'];
+
+/**
+ * The half-range table a joint of this type draws its angle limits from.
+ *
+ * ONE FUNCTION, FOUR CALLERS — factory.js and mutate.js draw through it,
+ * mutate.js re-clamps through it when `jointType` resamples a joint into a new
+ * type, and morphogen.js clamps through it at expression. Doing this per-caller
+ * is how the density band and the recursion cap each ended up with a second,
+ * subtly different copy; the point of the one table in this file is that there
+ * is nowhere else for the number to live.
+ *
+ * The composite types are listed EXPLICITLY rather than defaulting. `bendTwist`,
+ * `twistBend` and `universal` are in the schema, are not in the slice set, and
+ * fall through to a plain revolute in physics.js `makeJointData` — so today they
+ * bend and do not twist, and the bend band is the honest answer for them. When
+ * step F implements them as real two-axis joints this is the site that has to
+ * learn to return a range PER AXIS, and the explicit list is what will make that
+ * a compile-time-obvious edit rather than a silent inheritance.
+ */
+export function limitRangeFor(type) {
+  switch (type) {
+    case 'twist':     return RANGE.twistLimit;
+    case 'revolute':  return RANGE.angleLimit;
+    case 'bendTwist': return RANGE.angleLimit;   // revolute in practice — see above
+    case 'twistBend': return RANGE.angleLimit;   // revolute in practice — see above
+    case 'universal': return RANGE.angleLimit;   // revolute in practice — see above
+    case 'spherical': return RANGE.angleLimit;   // inert: no setLimits in the binding
+    case 'rigid':     return RANGE.angleLimit;   // inert: no free axis to limit
+    default:          return RANGE.angleLimit;
+  }
+}
 export const FREQ_MULTS = [0.5, 1, 2];
 
 /** Instantiation caps — 10 §A5. Morphogenesis truncates; truncation is normal. */
-export const CAPS = { maxBodies: 24, maxConnPerNode: 4 };
+export const CAPS = { maxBodies: 24, maxConnPerNode: 4, maxSitesPerNode: 4 };
+
+/**
+ * THERE IS EXACTLY ONE MOUTH, AND IT IS ON THE ROOT BODY.
+ *
+ * Placement is genetic; COUNT IS NOT, and that is a decision rather than an
+ * omission. `forageStep` gives every mouth its own `INGEST_RATE`, and a mouth is
+ * a bare point — no mass, no drag, no collider, no work — so it appears on
+ * neither side of the ledger's cost. Measured against the shipped field: one
+ * mouth reaches ~1.9 items, and a 24-body creature carrying 24 of them would
+ * reach ~46, which is a 24x intake multiplier for exactly zero cost. Nothing
+ * else in the genome would matter again.
+ *
+ * `INGEST_RATE`'s own comment says "PER MOUTH, NOT PER AREA. That is the whole
+ * point of the rebuild: a big animal gets no bonus for being big" — an invariant
+ * that holds only while the count is one. Making count genetic would repeal it
+ * silently. If it is ever wanted, it needs a gut: intake capped per CREATURE by
+ * a throughput a mouth cannot raise.
+ *
+ * Root-only is also what makes "one" structural rather than policed. Organs
+ * attach to NODES, and morphogen's `reflectionVariants` instantiates one node as
+ * many bodies — which is precisely how receptors get their pairs. A node-placed
+ * mouth would multiply the same way and would need a cap to stop it; the root
+ * body is unique by construction, so it needs nothing.
+ */
 
 // ── quantisation ─────────────────────────────────────────────────────────────
 // Every gene value is quantised to 1e-6 at every write site.
@@ -181,7 +286,34 @@ export function makeNode(id, fields) {
       valueShift: q(fields.colorGenes.valueShift),
       patternPhase: q(fields.colorGenes.patternPhase),
     },
+    // DEFAULTS TO NONE, and absent is the neutral state rather than an error: a
+    // node with no sites is a node with no receptors, which is what every
+    // migrated genome and every hand-built tool literal is. `validateGenome`
+    // still holds the range and the cap once they exist.
+    sites: (fields.sites ?? []).map(makeSite),
   };
+}
+
+/** One organ attachment point: a face of the body, and (u,v) on that face. */
+export function makeSite(fields) {
+  return { face: fields.face | 0, at: fields.at.map(q) };
+}
+
+/**
+ * The mouth `mouthsOf()` used to DERIVE: the leading face of the root body's own
+ * longest axis, dead centre — "a head, by the only definition available without
+ * a gene to say otherwise".
+ *
+ * ONE DEFINITION, used by both the factory and the 4->5 migration, so a new
+ * genome and a migrated one cannot disagree about where a mouth starts. Faces
+ * are `0:-X 1:-Y 2:-Z 3:+X 4:+Y 5:+Z` (morphogen.js:18), so the +axis face is
+ * `axis + 3`, and morphogen's face arithmetic resolves `at: [0,0]` on it to
+ * `local[axis] = dims[axis] * 0.5` — the old expression exactly.
+ */
+export function defaultMouth(rootNode) {
+  const d = rootNode.dims;
+  const axis = d[2] >= d[0] && d[2] >= d[1] ? 2 : (d[1] >= d[0] ? 1 : 0);
+  return { face: axis + 3, at: [0, 0] };
 }
 
 export function makeConnection(id, fields) {
@@ -219,6 +351,10 @@ function canonNode(n) {
     recursiveLimit: n.recursiveLimit,
     joint: { type: n.joint.type, angleLimits: n.joint.angleLimits.slice(), phaseLag: n.joint.phaseLag },
     colorGenes: { hueShift: n.colorGenes.hueShift, valueShift: n.colorGenes.valueShift, patternPhase: n.colorGenes.patternPhase },
+    // Emitted in the node's declared order, like everything else here. Sites are
+    // NOT sorted: their order is genetic (crossover and mutation act on the
+    // list), so re-ordering them would change the genome rather than normalise it.
+    sites: (n.sites ?? []).map((s) => ({ face: s.face, at: s.at.slice() })),
   };
 }
 
@@ -241,6 +377,8 @@ export function canonical(g) {
     version: g.version,
     seed: g.seed,
     rootNodeId: g.rootNodeId,
+    // TOP LEVEL, NOT ON A NODE — see the CAPS note on why there is exactly one.
+    mouth: { face: g.mouth.face, at: g.mouth.at.slice() },
     nodes: g.nodes.map(canonNode),
     connections: g.connections.map(canonConnection),
     material: {
@@ -258,6 +396,7 @@ export function canonical(g) {
       phaseBase: g.controller.phaseBase,
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
+      chemoGain: g.controller.chemoGain,
       jointGenes: Object.keys(g.controller.jointGenes).sort().map((nodeId) => ({
         nodeId,
         amplitude: g.controller.jointGenes[nodeId].amplitude,
@@ -403,6 +542,41 @@ const MIGRATIONS = {
     version: 4,
     controller: { ...g.controller, proprioGain: 0 },
   }),
+
+  /**
+   * 4 -> 5 · ORGAN PLACEMENT. Real, and bit-identical.
+   *
+   * Before this, `mouthsOf()` DERIVED the single mouth: root body, leading face
+   * of its own longest axis, dead centre — "a head, by the only definition
+   * available without a gene to say otherwise". Placement is now genetic, and
+   * `node.sites` opens the same shape to receptors.
+   *
+   * NEUTRAL AT INSERTION, and the arithmetic is worth stating because it is what
+   * makes that true rather than approximately true. Faces are indexed
+   * `0:-X 1:-Y 2:-Z 3:+X 4:+Y 5:+Z` (morphogen.js:18), so the +axis face is
+   * `axis + 3`; `at: [0,0]` is its centre; and morphogen's own face arithmetic
+   * then resolves that to `local[axis] = dims[axis] * 0.5`, which is EXACTLY the
+   * expression `mouthsOf` used. Every migrated creature keeps the mouth it had,
+   * in the same place, to the bit — the whole 46-specimen Atlas and a
+   * generation-68 lineage included.
+   *
+   * The root BODY's dims are the root NODE's dims verbatim (morphogen.js:71,
+   * `cumulativeScale: [1,1,1]`), so this is computable from the genome alone and
+   * does not need a morphogenesis pass to migrate.
+   *
+   * Once genetic it stops tracking the longest axis, which is the point: a
+   * mutation may move the mouth somewhere the derivation would never have put it.
+   *
+   * `sites: []` and `chemoGain: 0` are the blind state. Nothing senses until a
+   * mutation puts a site on a node AND moves the gain off zero.
+   */
+  4: (g) => ({
+    ...g,
+    version: 5,
+    mouth: defaultMouth(g.nodes.find((n) => n.id === g.rootNodeId) ?? g.nodes[0]),
+    nodes: g.nodes.map((n) => ({ ...n, sites: [] })),
+    controller: { ...g.controller, chemoGain: 0 },
+  }),
 };
 
 export function migrate(g, target = GENOME_V) {
@@ -473,6 +647,29 @@ export function validateGenome(g) {
     for (const k of ['hueShift', 'valueShift', 'patternPhase']) {
       if (!inRange(n.colorGenes?.[k], RANGE[k])) e.push(`node ${n.id}: colorGenes.${k} = ${n.colorGenes?.[k]}`);
     }
+    // SITES. Same arity discipline as angleLimits and connection.position: an
+    // absent array is checked for, not optional-chained past, because a missing
+    // field that iterates zero times validates clean and crashes later.
+    if (!Array.isArray(n.sites)) e.push(`node ${n.id}: sites must be an array, got ${n.sites === undefined ? 'none' : typeof n.sites}`);
+    else {
+      if (n.sites.length > CAPS.maxSitesPerNode) e.push(`node ${n.id}: ${n.sites.length} sites, cap is ${CAPS.maxSitesPerNode}`);
+      n.sites.forEach((s, si) => {
+        if (!Number.isInteger(s?.face) || s.face < 0 || s.face > 5) e.push(`node ${n.id}: sites[${si}].face ${s?.face}`);
+        if (!Array.isArray(s?.at) || s.at.length !== 2) {
+          e.push(`node ${n.id}: sites[${si}].at must be 2 values, got ${s?.at?.length ?? 'none'}`);
+        } else {
+          s.at.forEach((v, i) => { if (!inRange(v, RANGE.siteAt)) e.push(`node ${n.id}: sites[${si}].at[${i}] = ${v}`); });
+        }
+      });
+    }
+  }
+
+  // THE MOUTH. One, on the root, placement genic — see the CAPS note.
+  if (!Number.isInteger(g.mouth?.face) || g.mouth.face < 0 || g.mouth.face > 5) e.push(`mouth.face ${g.mouth?.face}`);
+  if (!Array.isArray(g.mouth?.at) || g.mouth.at.length !== 2) {
+    e.push(`mouth.at must be 2 values, got ${g.mouth?.at?.length ?? 'none'}`);
+  } else {
+    g.mouth.at.forEach((v, i) => { if (!inRange(v, RANGE.siteAt)) e.push(`mouth.at[${i}] = ${v}`); });
   }
 
   if (!ids.has(g.rootNodeId)) e.push(`rootNodeId ${g.rootNodeId} is not a node`);
@@ -503,7 +700,7 @@ export function validateGenome(g) {
     if (d > CAPS.maxConnPerNode) e.push(`node ${nodeId}: ${d} outgoing connections, cap is ${CAPS.maxConnPerNode}`);
   }
 
-  for (const k of ['omega', 'preyGain', 'threatGain', 'phaseBase', 'phaseSlope', 'proprioGain']) {
+  for (const k of ['omega', 'preyGain', 'threatGain', 'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
     if (!inRange(g.controller?.[k], RANGE[k])) e.push(`controller.${k} = ${g.controller?.[k]}`);
   }
   const jg = g.controller?.jointGenes || {};
@@ -555,10 +752,13 @@ export function geneValues(g) {
   for (const n of g.nodes) {
     out.push(...n.dims, n.density, ...n.joint.angleLimits, n.joint.phaseLag,
       n.colorGenes.hueShift, n.colorGenes.valueShift, n.colorGenes.patternPhase);
+    for (const s of n.sites ?? []) out.push(...s.at);
   }
   for (const c of g.connections) out.push(...c.position, ...c.orientation, ...c.scale);
+  out.push(...g.mouth.at);
   out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain,
-    g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain);
+    g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain,
+    g.controller.chemoGain);
   for (const k of Object.keys(g.controller.jointGenes)) {
     out.push(g.controller.jointGenes[k].amplitude, g.controller.jointGenes[k].bias);
   }
