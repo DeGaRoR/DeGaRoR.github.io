@@ -22,16 +22,32 @@
 //                   open question. Measured justification: 10^4x muscle buys only
 //                   2.5x speed, so this is a LABELLING correction, NOT the
 //                   locomotion fix it might look like.
-//   world.gravity   must become 981 cm/s^2 before SLICE_LIMITS.density unpins at
-//                   step F. Inert until then — the buoyancy term below is
-//                   identically zero while density is [1,1] against mediumDensity
-//                   1.0, and that is bit-exact at g = 0 / 9.81 / 981.
+//   world.gravity   DISCHARGED at A4 — w1_slice.js reads 981 cm/s^2 and
+//                   tools/_zgravity.mjs verified the corpus bit-identical across
+//                   the change. Gravity is numerically correct and BIOLOGICALLY
+//                   ABSENT: the buoyancy term below is identically zero while
+//                   SLICE_LIMITS.density is [1,1] against mediumDensity 1.0, so
+//                   no trajectory can see g at all. The remaining debt is the
+//                   DENSITY UNPIN, not gravity, and it belongs to a new world.
 //   dragCoefficient the constant-Cd quadratic law in applyEnvironment holds for
-//                   Re >~ 1e3. At this reading and current speeds the corpus sits
-//                   at Re ~ 32, where a bluff body's Cd is ~4x higher and
-//                   Re-dependent. Revisit if the corpus is still under ~0.1
-//                   body-lengths/s. C6.7 does NOT discharge this: 2.5x speed
-//                   only moves Re to ~80. The Re debt and the L/s gap are one gap.
+//                   Re >~ 1e3. MEASURED 2026-08-08, n=10: the corpus sits at
+//                   Re p10 21 / p50 309 / p90 1.09e3.
+//
+//                   THIS LINE READ "Re ~ 32" UNTIL 2026-08-08 and the stale value
+//                   was carried into three separate analyses, each concluding the
+//                   corpus was viscous-dominated. It is not: p50 309 is squarely
+//                   INTERMEDIATE Re, where neither low-Re nor high-Re assumptions
+//                   suffice, and only p90 reaches the law's domain.
+//
+//                   The honest label for what applyEnvironment computes is a
+//                   PHENOMENOLOGICAL AQUATIC LOCOMOTION MODEL, not validated
+//                   hydrodynamics: no tangential viscous term, no wake, no flow
+//                   history, no inter-segment interaction, so every appendage
+//                   meets virgin fluid and forces simply add where real closely
+//                   spaced limbs shield one another. Adequate for ALife; NOT
+//                   adequate to claim evolution discovers realistic swimming.
+//                   Validate against canonical shapes over the real Re range
+//                   before believing any morphological conclusion.
 //
 // Only MOTOR_SCALE has to be tuned to the density choice, because torque follows
 // area (N19) and does not rescale with mass.
@@ -115,7 +131,72 @@ export const MOTOR_SCALE = 1.0;
  * `opts.muscleStress` remains, so this sweep can be re-run against any future
  * actuator change without editing the module.
  */
-export const MUSCLE_STRESS = 200;
+export const MUSCLE_STRESS = 2e6;
+
+/**
+ * ── THE GAIN SCALE, SPLIT OUT OF `MUSCLE_STRESS` (2026-08-08) ────────────────
+ *
+ * `MUSCLE_STRESS` was doing two jobs, and only one of them is physics:
+ *
+ *     motorBudget[j] = budgetScale * muscleStress * A^1.5 * arm   <- CEILING. physical.
+ *     motorStiff[j]  = motorScale  * budget       * kStiff        <- GAIN. a tuning scale.
+ *
+ * Because they shared one constant, the ceiling could not be made honest without
+ * multiplying the PD gains by the same factor — which is exactly what the A4 sweep
+ * above measured going wrong (workOut 2.5e3 -> 5.2e7, L1-18/N19 red, L2-19 red).
+ * Every session that rediscovered "MUSCLE_STRESS is obviously too low" also
+ * rediscovered that raising it breaks two gates, and retired it again.
+ *
+ * THE TWO NUMBERS THAT END THAT CYCLE, both measured over the corpus:
+ *
+ *     muscle / WATER DRAG   ~2.1e3   muscle is ~2000x STRONGER than swimming needs
+ *     muscle / WEIGHT @ g   ~0.098   muscle is ~10x WEAKER than standing needs
+ *
+ *     joints able to hold their own distal limb against gravity:
+ *         6.9% at MUSCLE_STRESS 200    ->    100% at 2e6
+ *     (design/_zunits.mjs, n=30 creatures / 277 joints)
+ *
+ * BOTH PRIOR CLAIMS WERE RIGHT, ABOUT DIFFERENT LOADS. "Muscle is not the binding
+ * constraint" is true of water. "The creature cannot lift itself" is true of
+ * gravity. Neither is a rebuttal of the other, and quoting one alone is the whole
+ * mechanism by which this argument regenerates.
+ *
+ * SO THE CEILING IS FREE TO BECOME PHYSICAL WHILE THE GAIN STAYS PUT. This
+ * constant is the gain scale, in stress units because that is the shape the
+ * budget expression wants — IT IS NOT A STRESS AND NOTHING PHYSICAL SHOULD BE
+ * DERIVED FROM IT. N19 is untouched: the ceiling is still proportional to A^1.5,
+ * geometric and mass-independent. L2-19 is untouched: the gains do not move, so
+ * r(speed, mass) cannot.
+ *
+ * NOT BIT-IDENTICAL, and that claim is withdrawn rather than repeated. The error
+ * clamp DOES bind — see the `saturation` note below — so raising the ceiling is a
+ * real behavioural change. It is landed as a measured change with a re-freeze
+ * (faunaVersion 8 -> 9), not smuggled in as a relabel.
+ *
+ * ── WHAT IT ACTUALLY COST, n=12 over 30 s, gains held at 200 ────────────────
+ *
+ *     clamp saturation      0.000-0.092  ->  0.0000 for EVERY creature
+ *     max |dPosition|                        1.21 cm
+ *     max relative dWorkOut                  31%
+ *     creatures unchanged                    6 of 12 — exactly those whose
+ *                                            saturation was already 0.0000
+ *
+ * Saturation going to zero everywhere is the RESULT, not a side effect: in water
+ * muscle is ~2000x stronger than the load, so a physically correct ceiling should
+ * never bind, and now it doesn't. Compare the route this replaces — raising the
+ * gains along with it — which gave workOut 2.5e3 -> 5.2e7 and red on both gates.
+ *
+ * ── ONE TRAP, AND IT COST A GATE TO FIND ───────────────────────────────────
+ *
+ * The PD path's `maxTorque` (search `torqueModel === 'stress'`) takes `gainStress`,
+ * NOT this constant. On the solver path the gain and the ceiling are two
+ * quantities; on the PD path `maxTorque` is the only one, so it plays the gain's
+ * role. Feeding the physical ceiling in there reds L1-18 with "doubling area
+ * multiplies spin by 2^1.5: got 0.667, expected 2.828" — not because N19 breaks
+ * but because at 2e6 the clamp stops binding and the exponent stops being
+ * observable at all.
+ */
+export const MOTOR_GAIN_STRESS = 200;
 
 /**
  * Maximum joint angular velocity under load, rad/s — the Hill force-velocity
@@ -160,6 +241,21 @@ export const STABLE_SPEED = 10;
  * multiplier on torque, so it is not a detail. 0.2 is the middle of that range.
  */
 export const MOMENT_ARM_FRACTION = 0.2;
+
+/**
+ * FLUID FORCE LOG — a measurement hook, OFF by default and inert when off.
+ *
+ * Set `FLOG.on = true` and `FLOG.body = <index>` to capture the per-step fluid
+ * force and torque applied to one body into `FLOG.rows`. Clear `rows` yourself.
+ *
+ * IT LIVES HERE SO THAT `_zphlog.js` CAN DIE. That file was a full copy of this
+ * module whose only difference was these three lines, and it drifted 100 lines
+ * behind — no `advancePhases`, no `PHASE_COUPLE`, so it simulates the pre-Phase-A
+ * open-loop controller. Every figure ever measured through it is a figure about a
+ * creature this project no longer builds, and one such set reached a design
+ * document labelled "this build". A fork is not a cheaper diagnostic than a flag.
+ */
+export const FLOG = { on: false, body: 0, rows: [] };
 
 /**
  * Slew-rate limit on the COMMANDED joint angle, rad/s. A joint may not be told
@@ -560,11 +656,48 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
    * should be sweepable without rewriting the module.
    *
    * It is NOT the same lever as `budgetScale`. `budgetScale` multiplies the error
-   * clamp CEILING only; the spring and damping gains below use the RAW budget. So
-   * with the clamp not binding — corpus saturation is 0.000 after A1 —
-   * `budgetScale` is inert and this is the only thing that moves tracking.
+   * clamp CEILING only; the spring and damping gains below use the RAW budget.
+   *
+   * ── RETRACTION, 2026-08-08. ────────────────────────────────────────────────
+   *
+   * This used to conclude: "with the clamp not binding — corpus saturation is
+   * 0.000 after A1 — `budgetScale` is inert and this is the only thing that moves
+   * tracking." THAT IS FALSE, in both halves.
+   *
+   * The 0.000 was a counter artefact: `motorSaturated` was incremented only on the
+   * PD branch, while the shipped solver branch skipped it, so `saturation` could
+   * not report anything else. Fixed in applyMotors; see the note there.
+   *
+   * MEASURED with the counter working (n=10, 30 s, bounded=false): raising ONLY
+   * the ceiling, `budgetScale` 6 -> 6e4, moves 7 of 10 creatures — max |dPos| 1.21
+   * cm, max relative dWorkOut 31% — against an A/A control of 0.000 cm on 10/10,
+   * so the simulation is bit-deterministic and the difference is the clamp.
+   *
+   * `budgetScale` IS a behavioural lever. It is a weaker one than `muscleStress`,
+   * which moves the ceiling AND the gains together, but it is not inert, and the
+   * `budgetScale = 6` decision was taken believing that it was.
+   *
+   * THE REPAIRED COUNTER PREDICTS THE EFFECT EXACTLY, which is the check that says
+   * it is now measuring the right thing. Corpus saturation p50 ~0.024, max 0.092 —
+   * and per creature:
+   *
+   *     saturation 0.0000  ->  |dPos| 0.00 cm     (3 of 10, all three)
+   *     saturation 0.0919  ->  |dPos| 1.21 cm     (the largest)
+   *     saturation 0.0691  ->  |dPos| 1.14 cm     (the second largest)
+   *
+   * Every creature the counter says is unaffected is bit-identical; the rank order
+   * of the rest follows saturation. The Hill POWER bound reads 0.0000 everywhere,
+   * so that half of the old claim ("inert in normal swimming") was true all along
+   * — it was only the error clamp that was mis-reported.
    */
   const muscleStress = opts.muscleStress ?? MUSCLE_STRESS;
+  /**
+   * The PD gain scale. Separate from `muscleStress` since 2026-08-08 so that the
+   * torque CEILING can be a physical quantity while the RESPONSE stays where it
+   * was measured. Exposed for the same reason `muscleStress` is: a constant that
+   * needs sweeping should be sweepable without editing the module.
+   */
+  const gainStress = opts.gainStress ?? MOTOR_GAIN_STRESS;
 
   /**
    * ADDED MASS (C6.2). ON. The derivation is at the body-construction site below.
@@ -1023,7 +1156,13 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // use the raw `budget`, so budgetScale loosens the clamp without inflating
       // the gain. In the motorFreqHz branch the gains are inertia-derived and do
       // not see the budget at all, so the two are fully decoupled there.
+      // TWO BUDGETS, DELIBERATELY. `budget` is the PHYSICAL torque ceiling and
+      // carries `muscleStress`; `gainBudget` is the scale the PD gains are built
+      // from and carries `MOTOR_GAIN_STRESS`. They were one number until
+      // 2026-08-08, which is why the ceiling could never be corrected without
+      // multiplying every gain by the same factor. See MOTOR_GAIN_STRESS.
       const budget = muscleStress * A * Math.sqrt(A) * momentArm;
+      const gainBudget = gainStress * A * Math.sqrt(A) * momentArm;
       motorBudget[j.index] = budget * budgetScale;
       handle.configureMotorModel(RAPIER.MotorModel.ForceBased);
       if (motorFreqHz !== null) {
@@ -1037,8 +1176,8 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         motorStiff[j.index] = motorScale * I * wn * wn;
         motorDampC[j.index] = motorScale * 2 * motorZeta * I * wn;
       } else {
-        motorStiff[j.index] = motorScale * budget * kStiff;
-        motorDampC[j.index] = motorScale * budget * kDamp;
+        motorStiff[j.index] = motorScale * gainBudget * kStiff;
+        motorDampC[j.index] = motorScale * gainBudget * kDamp;
       }
 
       // ── BOUNDED ACTUATOR POWER ON THE SOLVER PATH (00 §9) — C1.2 ───────────
@@ -1177,6 +1316,10 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // exactly what it read before and nothing downstream breaks silently.
   let workOut = 0, workAbsorbed = 0;
   let motorSteps = 0, motorSaturated = 0;   // erg; see the signed split above — S2 reads this at C1
+  // The Hill power bound, counted separately from the error clamp: they bind for
+  // different reasons and a run that saturates on power is a different animal from
+  // one that saturates on position error. Both feed `saturation`.
+  let motorPowerBound = 0;
 
   // ── kinematic ceiling, DERIVED and not tuned ────────────────────────────────
   //
@@ -1563,6 +1706,19 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
 
       if (!(sc > 0)) continue;
 
+      // FLUID FORCE LOG — off by default, inert when off, and it exists so that
+      // `_zphlog.js` can be deleted. That file was a whole FORK of this one kept
+      // alive purely to carry these three lines, and it drifted 100 lines behind:
+      // it has no `advancePhases`/`PHASE_COUPLE`, so every number ever measured
+      // through it describes the PRE-PHASE-A open-loop controller. design/_zunits
+      // imported it and its figures went into a plan as "this build".
+      //
+      // A diagnostic hook in the real file is cheaper than a copy of the file.
+      if (FLOG.on && FLOG.body === i) FLOG.rows.push({
+        vx: lv.x, vy: lv.y, vz: lv.z, wx: av.x, wy: av.y, wz: av.z,
+        fx: fx * sc, fy: fy * sc, fz: fz * sc,
+        tx: tx * sc, ty: ty * sc, tz: tz * sc, sc, m, I });
+
       rb.addForce({ x: fx * sc, y: fy * sc, z: fz * sc }, true);
       rb.addTorque({ x: tx * sc, y: ty * sc, z: tz * sc }, true);
     }
@@ -1756,8 +1912,27 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
       // branch, so `motorScale: 0` silently left the motors running and L1-19
       // caught it: two deeply overlapping jointed limbs, meant to sit still,
       // picked up 1.6 mm/s of drive that had nothing to do with contact.
+      // `gainStress`, NOT `muscleStress`, AND THE DISTINCTION IS THE WHOLE POINT
+      // OF THE SPLIT (2026-08-08).
+      //
+      // On the SOLVER path there are two quantities: a spring gain that sets the
+      // torque delivered in the linear region, and a ceiling that clamps it. On
+      // THIS path there is only one — `maxTorque` is both, because the PD output
+      // is clamped straight to it and nothing else sets the magnitude. So the role
+      // it plays here is the GAIN's, and it takes the gain constant.
+      //
+      // MEASURED CONSEQUENCE OF GETTING THIS WRONG, which is how it was found:
+      // feeding the physical ceiling (2e6) in here reds L1-18 with
+      //
+      //     doubling cross-sectional area multiplies spin by 2^1.5:
+      //         got 0.667, expected 2.828
+      //
+      // not because N19 is violated but because THE OBSERVABLE DISAPPEARS: at 2e6
+      // the clamp never binds, so spin is set by the raw PD gain and stops tracking
+      // A^1.5 at all. N19 is a claim about the EXPONENT, and the exponent is only
+      // visible on this path while the clamp is what delivers the torque.
       const maxTorque = motorScale * (torqueModel === 'stress'
-        ? muscleStress * A * Math.sqrt(A) * momentArm
+        ? gainStress * A * Math.sqrt(A) * momentArm
         : A);
       const activeTorque = torqueModel === 'stress'
         ? maxTorque * Math.max(0, 1 - Math.hypot(dwx, dwy, dwz) / OMEGA_MAX)
@@ -1846,12 +2021,34 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
           // power is far under budget and `c` is untouched.
           let cc = c * fv;
           const pPred = motorStiff[i] * cc * relOmega;
+          let powerBound = false;
           if (pPred > 0) {
             const pMax = (motorScale * motorBudget[i] * OMEGA_MAX) / 4;
-            if (pPred > pMax) cc *= pMax / pPred;
+            if (pPred > pMax) { cc *= pMax / pPred; powerBound = true; }
           }
           eff = thetaS + cc;
           motorClamped[i] = c !== e ? 1 : 0;
+          // ── COUNT IT. A0 (2026-08-08). ──────────────────────────────────────
+          //
+          // `saturation` USED TO BE STRUCTURALLY ZERO ON THIS PATH. The only
+          // `motorSaturated++` sat on the PD branch below, while the solver branch
+          // — the SHIPPED default since B2 §3.2 — incremented `motorSteps` and
+          // `continue`d straight past it. So the number every handover quotes as
+          // "corpus saturation 0.000" was not a measurement that the clamp never
+          // binds; it was a counter that could not count.
+          //
+          // MEASURED CONSEQUENCE, and this is why it matters rather than being
+          // tidy: raising ONLY the ceiling (budgetScale 6 -> 6e4, which touches no
+          // gain) moves 7 of 10 corpus creatures by up to 1.21 cm over 30 s and
+          // workOut by up to 31%, against an A/A control of 0.000 cm on 10/10. The
+          // clamp demonstrably binds. `physics.js`'s claim that "budgetScale is
+          // inert" — which the budgetScale = 6 decision rests on — was false, and
+          // it was false because of this line's absence.
+          //
+          // BOTH branches count, because both change delivered torque: the error
+          // clamp bounds the spring term, and the Hill power bound rescales it.
+          if (c !== e || powerBound) motorSaturated++;
+          if (powerBound) motorPowerBound++;
         } else {
           // `boundTorque: false` reproduces pre-bound figures and must stay a pure
           // reproduction, so the force-velocity term is off there too.
@@ -1966,7 +2163,16 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         budget: motorBudget, stiff: motorStiff, damp: motorDampC,
       };
     },
+    /**
+     * Fraction of motor-steps on which the delivered torque was bounded — by the
+     * error clamp or by the Hill power bound. COUNTS THE SOLVER PATH AS OF
+     * 2026-08-08; before that it counted only the PD branch and therefore read
+     * identically zero on the shipped actuator. Any "saturation 0.000" in a
+     * handover predating that date is a counter artefact, not a finding.
+     */
     get saturation() { return motorSteps ? motorSaturated / motorSteps : 0; },
+    /** The Hill power bound alone, as a fraction of motor-steps. */
+    get powerBoundFraction() { return motorSteps ? motorPowerBound / motorSteps : 0; },
 
     /**
      * Everything this creature contributes to one step, WITHOUT solving.

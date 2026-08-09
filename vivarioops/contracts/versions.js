@@ -60,7 +60,15 @@ export const GENOME_V = 5;
 // Not a schema change and not a migration — GENOME_V is untouched, every stored
 // genome stays valid — but it is a measured-behaviour change, and 11 §4 makes a
 // bridge bump the only invalidation mechanism there is.
-export const BRIDGE_V = 6;
+// 6 -> 7 (2026-08-08). A NEW FIELD, `turnCapability`, and N21 now clamps by it
+// instead of by `turnRate`. `turnRate` is the YAW component and reads near-zero for
+// any body that bends in pitch — which is every self-connected chain, i.e. every
+// good swimmer here. Measured: `eel-fast` reads yaw 0.00 in BOTH bias directions
+// while turning at 1.09 deg/s in 3-D with full authority, and `eel` reads the same
+// yaw 22.50 as `eel-unison` while being unable to reverse its turn at all. The
+// clamp was capping the wrong animals. SESSION-10 §152 deferred this deliberately;
+// tools/_zlight.mjs forced it by measuring taxis at r = 0.91 against turnRate3d.
+export const BRIDGE_V = 7;
 
 /** 01 §8 — bumps on L3 rule change; stored runs kept but marked stale. */
 export const ECOLOGY_V = 1;

@@ -20,6 +20,7 @@ const GATES = [
   { id: 'C172', file: 'test_c172.js' },
   { id: 'CHINOOK', file: 'test_chinook.js' },
   { id: 'STRESS', file: 'test_stress.js' },
+  { id: 'GEN', file: 'test_gen.js' },
   { id: 'TREE', file: 'test_tree.js' },
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'MODEL', file: 'test_model.js' },
@@ -54,7 +55,12 @@ const rows = [];
 for (const g of GATES) {
   if (only && !only.includes(g.id)) continue;
   const t0 = Date.now();
-  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: 300_000 });
+  // 900 s, not 300: WIND flies the WHOLE fleet through gusty circuits and is
+  // the long pole (~226 s on a quiet machine, ~297 s on a busy one). A 300 s
+  // cap turned an ordinary slow machine into a red battery with no failed
+  // check to point at — a timeout is not a verdict, and a false red is worse
+  // than a slow one. If a gate ever genuinely hangs, this still catches it.
+  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: 900_000 });
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   const stdout = r.stdout || '';
   const pass = r.status === 0 && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);

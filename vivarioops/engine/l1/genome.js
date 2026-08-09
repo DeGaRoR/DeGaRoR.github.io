@@ -22,7 +22,7 @@ export const ANGLE_AXES = 3;
 
 export const RANGE = {
   // Node — 10 §A5, density amended by A1 (was 0.6..1.4)
-  dim:            [0.2, 2.0],       // m, full extent per axis
+  dim:            [0.2, 2.0],       // CM, full extent per axis (01 §7 — this is CGS)
   density:        [0.15, 1.8],      // relative to water; midpoint ~0.98 = neutral
   recursiveLimit: [1, 6],           // integer
   angleLimit:     [0, Math.PI / 2], // radians, symmetric about zero
@@ -157,7 +157,9 @@ export const RANGE = {
   cohesion:       [0, 1],   // Reynolds weights
   separation:     [0, 1],
   alignment:      [0, 1],
-  separationRadius: [0.5, 4.0],     // m
+  separationRadius: [0.5, 4.0],     // cm — L3-facing and UNVALIDATED: engine/l3
+                                    // is empty, so nothing has ever read this at
+                                    // a scale that could confirm it.
 };
 
 export const JOINT_TYPES = ['rigid', 'revolute', 'twist', 'bendTwist', 'twistBend', 'universal', 'spherical'];
@@ -227,8 +229,11 @@ export const CAPS = { maxBodies: 24, maxConnPerNode: 4, maxSitesPerNode: 4 };
 // WHY: without it, serialisation carries full double precision, the serialised
 // form is long, and a mutation of 1e-17 changes genomeHash while changing nothing
 // observable — so the cache misses and a creature recompiles for no reason.
-// 1e-6 m is one micron against body dims of 0.2-2.0 m: far below any physical or
-// perceptual threshold. Quantising also makes byte-identical round-trip trivial.
+// 1e-6 CM is 10 nanometres against body dims of 0.2-2.0 CM: far below any physical
+// or perceptual threshold. (This read "1e-6 m is one micron against body dims of
+// 0.2-2.0 m" — wrong in the unit AND in the derived figure, in a CGS engine. The
+// conclusion was right by two orders of margin, which is exactly why it survived.)
+// Quantising also makes byte-identical round-trip trivial.
 
 export const QUANTUM = 1e6;
 export const q = (x) => Math.round(x * QUANTUM) / QUANTUM;

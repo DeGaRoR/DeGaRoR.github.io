@@ -102,11 +102,28 @@ export function adaptGait(RAPIER, {
 }
 
 /**
- * Adapt a whole population, Lamarckian: each body keeps the controller it learned.
+ * Adapt a whole population: return each body's best-found controller and its score.
  * Signature matches what autoBurst's `adaptFn` expects — it replaces the burst's
- * birth-gait scoring so selection AND breeding carry the adapted controller.
+ * birth-gait scoring, so a body is judged by its adapted gait rather than its
+ * birth gait.
  *
- * @returns {{ genomes, scores, evals }}
+ * THIS FUNCTION IS NOT LAMARCKIAN AND NEVER WAS — it only returns candidates.
+ * Whether the adapted controller is INHERITED is `autoBurst`'s `inheritance`
+ * parameter, and the default is 'weismann': score by the adapted gait, breed the
+ * birth genome. The docstring here used to read "Lamarckian: each body keeps the
+ * controller it learned", which described the caller's behaviour and was the only
+ * place that choice was written down.
+ *
+ * WHAT THIS IS, STATED PLAINLY: a (1+lambda) hill climb on net displacement,
+ * measured by the simulator. The creature has no access to that objective and does
+ * not perform the search. It is an external optimizer, not individual learning —
+ * so its output is evidence about a BODY's potential, and is not a thing that
+ * body's offspring can be born knowing. Within-lifetime learning that a creature
+ * actually performs is Phase 5, and it needs this oracle out of the germ line
+ * before it can be measured at all.
+ *
+ * @returns {{ genomes, scores, evals }} `genomes` are the adapted candidates; the
+ *   caller decides whether they reproduce.
  */
 export function adaptPopulation(RAPIER, genomes, world, {
   rng, candidates = GAIT_CANDIDATES, iterations = GAIT_ITERATIONS, seconds = TRIAL_SECONDS, simOpts = {},

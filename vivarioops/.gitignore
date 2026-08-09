@@ -4,6 +4,16 @@ node_modules/
 # Disposable: run the generator, never edit or commit them.
 engine/l1/_z*.js
 
+# Mutation-harness scratch. tools/_mut*.mjs copies `file -> file.bak` before
+# mutating a source file and restores from it in a finally, so a .bak on disk
+# means a run is in flight or was interrupted — never that it is source.
+#
+# SIX OF THESE WERE COMMITTED AT de21670 ("vivarioops 0.7") and sat in the tree
+# for many sessions at 40-60% of their live files' length, so every grep of
+# engine/l1/ returned two hits per symbol, one of them from a dead version.
+# Removed 2026-08-08.
+*.bak
+
 # Selection run checkpoints — large, machine-written, and reproducible from the
 # script plus its generation count (every rng is a pure function of `gen`). The
 # WINNERS are committed; the intermediate population is not.

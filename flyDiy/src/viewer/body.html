@@ -24,7 +24,14 @@
       <div class="rd"><b id="r-vs">0.0</b><i>m/s vs</i></div>
     </div>
   </header>
-  <div id="mid"><div id="mmp" class="panel"><canvas id="mm" width="344" height="344"></canvas></div></div>
+  <div id="mid">
+    <section id="garage" class="panel">
+      <header><h2>Garage</h2><button id="gClose" aria-label="Close">×</button></header>
+      <div id="gRows"></div>
+      <div id="gRead"></div>
+    </section>
+    <div id="mmp" class="panel"><canvas id="mm" width="344" height="344"></canvas></div>
+  </div>
   <footer id="south">
     <section id="telp" class="panel">
       <header><h2>Telemetry</h2><span id="tsum"></span></header>
@@ -55,6 +62,7 @@
         <option value="jojo">Jodel DR-1050</option>
         <option value="c172">Cessna 172S</option>
         <option value="chnk">Chinook 1S</option>
+        <option value="gen">⚒ Garage build</option>
       </select>
       <select id="selFrom" aria-label="Departure"></select>
       <select id="selDest" aria-label="Destination"></select>

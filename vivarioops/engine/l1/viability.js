@@ -38,14 +38,60 @@ import { createSimulation, FIXED_DT } from './physics.js';
 export const VIABILITY = {
   minBodies: 2,          // A9. A single body has no joints and cannot move.
   maxBodies: 24,         // A9, = CAPS.maxBodies.
-  minMass: 0.2,          // A9, kg (units: density x volume, water = 1.0).
+  // A9. GRAMS — density x volume, water = 1.0, so a 1 cm^3 body at density 1.0
+  // masses 1 g (01 §7, CGS). The label read "kg" until 2026-08-08.
+  //
+  // ── MASS IS THE LARGEST REJECTION CAUSE, AND IT IS ENTIRELY THE UPPER BOUND ──
+  //
+  // Measured over 400 draws (2026-08-08):
+  //
+  //     acceptance                     37.3%
+  //     rejected `mass`                107  (26.8%)  <-- the largest single cause
+  //          ... of which TOO LIGHT      0
+  //          ... of which TOO HEAVY    107,  median 98.1 g against maxMass 40
+  //     rejected `inert`               100  (25.0%)
+  //     rejected `interpenetration`     37
+  //     rejected `oversizeTank`          7
+  //     bodies / oversizeSpec / diverged 0
+  //
+  //     mass over ALL draws   p10 3.69   p50 16.43   p90 111.18 g
+  //
+  // So `minMass` never fires and `maxMass` fires on a quarter of the corpus: the
+  // grammar reaches sizes the viability window does not admit, and the p90 is
+  // nearly 3x the cap. NOT A BUG — a mismatch between what the factory can draw
+  // and what the slice accepts.
+  //
+  // WHERE IT COMES FROM, and this is a PREDICTION worth testing rather than a
+  // conclusion: scale anisotropy is p50 1.75 PER CONNECTION and compounds down
+  // chains that reach tree depth 8, so volume runs away multiplicatively. If the
+  // planned taper gradient (one scalar plus a taper coefficient, replacing three
+  // independent per-connection scales) lands, the upper mass tail should shrink
+  // and ACCEPTANCE SHOULD RISE AS A SIDE EFFECT. If it does not, the diagnosis
+  // above is wrong and the cap is the thing to revisit.
+  //
+  // DO NOT TREAT 57-62% AS A BASELINE. factory.js:27 quotes it, but it comes from
+  // tools/_zrecur.mjs — a self-described THROWAWAY that viability-checks only
+  // VIA=60 of its draws while sweeping maxRecursion. It is a different
+  // measurement, not a previous value of this one, and "acceptance has regressed"
+  // is NOT established.
+  minMass: 0.2,
   maxMass: 40,
   tankRadiusFactor: 4,   // A9's rule, kept and measured. See note 1 above.
   settleSeconds: 2.0,    // A9's "simulate headless for 2 seconds".
 
   /**
-   * Inertness threshold, metres of centre-of-mass travel in `settleSeconds` AT
-   * GRAVITY ZERO. See note 2. Set below the corpus's tenth percentile (0.013 m)
+   * Inertness threshold, CENTIMETRES of centre-of-mass travel in `settleSeconds`
+   * AT GRAVITY ZERO (01 §7, CGS — the label read "metres" until 2026-08-08).
+   *
+   * THIS CHECK PRE-SELECTS MOTILE LIFE, and it is 25.0% of all rejections over
+   * 400 draws. Movement is therefore required before ecological selection even
+   * begins, so the system cannot discover sessile organisms, passive filter
+   * feeders, floaters, or any lineage whose first useful mutation is not
+   * locomotion. That is a live constraint on the sea-fan case and on land, where
+   * standing still is the FIRST achievement and a creature that "moves" because
+   * it toppled would pass. It needs a per-world variant, not an edit.
+   *
+   * See note 2. Set below the corpus's tenth percentile (0.013 cm)
    * so it removes creatures that do nothing at all without becoming the dominant
    * rejection cause: measured 9% at 0.01, 13% at 0.02, 46% at A9's 0.05.
    *

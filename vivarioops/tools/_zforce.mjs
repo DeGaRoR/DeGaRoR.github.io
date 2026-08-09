@@ -5,7 +5,12 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
 import { createRandomGenome } from '../engine/l1/factory.js';
 import { assessViability } from '../engine/l1/viability.js';
-import * as M from '../engine/l1/_zphlog.js';
+// WAS `_zphlog.js`, a generated copy of physics.js carrying three logging lines.
+// The FLOG hook now lives in physics.js behind an off-by-default flag, so this
+// measures the SHIPPED module. The old fork predated Phase A — no advancePhases,
+// no PHASE_COUPLE — so anything this script reported before 2026-08-08 describes
+// the open-loop controller.
+import * as M from '../engine/l1/physics.js';
 import W1_SLICE from '../worlds/w1_slice.js';
 await RAPIER.init();
 const g = createRandomGenome(rngFrom('decay','corpus',0));

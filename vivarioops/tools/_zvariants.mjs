@@ -87,15 +87,26 @@ export function guardReset() { GUARD_N = 0; GUARD_SUM = 0; GUARD_BIND = 0; }`);
 for (const d of [120, 480])
   made.push(write(`_zguardphys_${d}`, d === 120 ? guard : withDt(guard, d)));
 
-// ── 5. applied-force logger ────────────────────────────────────────────────
-// Used by: _zforce. THIS ONE CARRIES A PROVEN RESULT — 0/40 steps of positive
-// fluid power. Re-run it after any change to the drag law.
-made.push(write('_zphlog', SRC
-  .replace(APPLY_ANCHOR, `      if (FLOG.on && FLOG.body === i) FLOG.rows.push({
-        vx: lv.x, vy: lv.y, vz: lv.z, wx: av.x, wy: av.y, wz: av.z,
-        fx: fx * sc, fy: fy * sc, fz: fz * sc, tx: tx * sc, ty: ty * sc, tz: tz * sc, sc, m, I });
-${APPLY_ANCHOR}`)
-  .replace(OM_ANCHOR, `${OM_ANCHOR}\nexport const FLOG = { on: false, body: 0, rows: [] };`)));
+// ── 5. applied-force logger — RETIRED 2026-08-08, and this is the lesson ───
+//
+// `_zphlog` was a whole generated copy of physics.js whose only difference was
+// three lines of logging. It is now a FLAG IN physics.js — `FLOG`, off by default
+// and inert when off — so the variant is gone and `_zforce` imports the real
+// module.
+//
+// WHY IT MATTERS BEYOND ONE FILE. Everything this generator writes is stale
+// between runs, and the generator had not been run since Phase A. `_zphlog` on
+// disk therefore had no `advancePhases`/`PHASE_COUPLE` — it simulated the
+// PRE-PHASE-A open-loop controller — and `design/_zunits.mjs` imported it and put
+// the resulting body length, mass, Reynolds and L/s figures into a design document
+// as "a fresh corpus, this build". Nobody had done anything wrong except forget to
+// re-run this file.
+//
+// So: A DIAGNOSTIC THAT CAN BE A FLAG SHOULD NOT BE A COPY. A copy is only worth
+// it when the change cannot be expressed as a runtime option — a different
+// FIXED_DT or SOLVER_ITERATIONS, which is what the variants above genuinely are.
+// And run this generator after every physics.js edit; the variants are not
+// versioned and nothing else will tell you they have drifted.
 
 console.log(`regenerated ${made.length} variants in engine/l1/:`);
 for (const m of made) console.log(`  ${m}.js`);

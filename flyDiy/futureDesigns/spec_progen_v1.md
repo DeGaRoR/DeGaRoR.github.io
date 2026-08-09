@@ -1,4 +1,29 @@
 # SPEC — PROGEN: Procedural Aircraft Structure Generator & Editor
+
+> **SUPERSEDED 2026-08-08 by THE GARAGE (chantier G1) — see HANDOVER.md.**
+> This document is kept because most of it was right and is still the reference
+> for the parts G1 did not build. What carried over: §1 naming, §2 schema shape,
+> §3 subsystem generators + assembler, §4 as the skeleton of GATE GEN, §6 R4's
+> "add a materials row, never a rule exception".
+>
+> What changed, and why:
+> - **Target.** This spec's acceptance bar is "regenerate the existing six
+>   aircraft within their current gate tolerances" (Phase 3). The shipped one is
+>   "a plausible aeroplane that flies", because the generator is now *player*
+>   facing. Reproducing the fleet is not a goal; being comparable to it is, and
+>   `genShakedown()` measures both with the same instrument.
+> - **The skin is generated too.** This spec has no covering at all, and its
+>   Phase 4/5 treat an imported mesh as a ghost backdrop to fit the skeleton
+>   inside. G1 generates the surface from the same truss, which removes the
+>   mount calibration entirely and gets fuselage flex for free.
+> - **§4 G4.** "Every quad face has a diagonal" is a proxy; GATE GEN does the
+>   rigidity-matrix rank test instead. See HANDOVER "hard-won" item 2.
+> - **Nulls mean derive.** The schema below is all-required; the shipped one
+>   lets any field be null and derives it from the fields before it, which is
+>   what makes "procedural by default, editable everywhere" real.
+> - Still unbuilt and still wanted: the **patch layer** (§5 Phase 3), **mesh
+>   import as a fitting ghost** (Phase 4) and **auto-fit** (Phase 5).
+
 **Version:** 1.0 (design spec, pre-implementation)
 **Status:** Agreed design, phases 1–5. Patch layer deferred to Phase 3. Editor standalone, same codebase family as sim, integration via fiche loader.
 **Fleet envelope:** Foam Trainer 1 kg · Birdman Chinook 1S · Piper J-3 Cub · Cessna 172S · Douglas DC-3 · SubSonex JSX-2 (jet, V-tail)

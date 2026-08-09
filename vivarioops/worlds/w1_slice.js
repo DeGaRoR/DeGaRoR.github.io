@@ -66,18 +66,31 @@ export const W1_SLICE = {
   //        the placement that reproduces the old derived mouth to the bit, no
   //        node gains a site, and the gain is 0 — but `canonical()` emits three
   //        new fields, so every genome hash moves and worldHash with it.
-  faunaVersion: 8,
+  // 8 -> 9 (2026-08-08). MUSCLE_STRESS 200 -> 2e6, CEILING ONLY: the PD gains moved
+  // to a new MOTOR_GAIN_STRESS that stayed at 200, so the torque ceiling became a
+  // physical quantity while the response did not move. L1-18 (N19) and L2-19 both
+  // stay green. Measured cost in water, n=12 over 30 s: max |dPos| 1.21 cm, max
+  // relative dWorkOut 31%, and only on the minority of creatures whose clamp was
+  // binding — clamp saturation goes to 0.0000 everywhere at the new ceiling, which
+  // is what a correct ceiling SHOULD do in a medium where muscle is ~2000x stronger
+  // than the load. Compare the route that was rejected: raising the gains with it
+  // gave workOut 2.5e3 -> 5.2e7, ~21000x, and red on both gates.
+  faunaVersion: 9,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).
-  // gravity: 02 §1a says constant in every world, never a dial. It SHOULD read
-  // 981 cm/s^2 under this system and is left at 9.81 because it is provably
-  // inert — SLICE_LIMITS.density is [1,1] against mediumDensity 1.0, so the
-  // buoyancy term (mediumDensity - density)*V*g is identically zero, bit-exact
-  // at g = 0 / 9.81 / 981. It must be corrected before the density band unpins
-  // at step F, and not before, so that one change moves one number.
-  // CORRECTED AT A4, 9.81 -> 981. The note above says it "SHOULD read 981 cm/s^2
-  // under this system" and was left wrong because it is provably inert:
+  // gravity: 02 §1a says constant in every world, never a dial.
+  //
+  // THE STALE NOTE THAT USED TO SIT HERE HAS BEEN DELETED, and that deletion is
+  // the point rather than tidying. It said gravity "SHOULD read 981 cm/s^2 and is
+  // left at 9.81" — eighteen lines above the line that already reads 981. Three
+  // separate analyses have since read it and reported gravity as broken, one of
+  // them also carrying away the stale "Re ~32" from the physics.js header in the
+  // same breath (measured Re p50 is 309). A comment that contradicts the constant
+  // below it is not documentation, it is a trap.
+  //
+  // CORRECTED AT A4, 9.81 -> 981. It had been left wrong because it is provably
+  // inert:
   // SLICE_LIMITS.density is [1, 1] against mediumDensity 1.0, so the buoyancy
   // term `(mediumDensity - density) * V * g` is IDENTICALLY ZERO and no
   // trajectory can see g at all. Verified rather than assumed —

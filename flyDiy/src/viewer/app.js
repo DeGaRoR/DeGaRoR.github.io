@@ -1,6 +1,10 @@
 (() => {
   const world = makeWorld();
-  const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook };
+  // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
+  // (src/core/6x_gen_*.js). window.GARAGE_SPEC is the editor's handle on it.
+  let genSpec = null;
+  const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook,
+                     gen: () => buildGen(genSpec) };
   let def, sim, ap, nb, curKey;
   const $ = id => document.getElementById(id);
 
@@ -67,6 +71,10 @@
     pa18: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 },
     c172: { off: [1.694, -1.420, 0], tags: ['WF', 'WR'], zRoot: 2.00, xMax: 1.5,
             rig: ['skin', 'metal', 'tyre', 'hub', 'gear'] },
+    // The generated skin is built FROM the sim's own node positions, in the
+    // sim's own body frame, so there is no mount to calibrate: the offset is
+    // zero by construction, not by measurement (see 63_gen_skin.js).
+    gen:  { off: [0, 0, 0] },
   };
   // W18 PBR fallback: roughness / metalness / envMapIntensity per PAYLOAD
   // MATERIAL NAME, used when the payload carries no PBR of its own (v3 and
@@ -84,6 +92,8 @@
     _:         { r: 0.72, m: 0.0 },   // fallback: matte, no reflection to speak of
     skin:      { r: 0.42, m: 0.0 },   // doped fabric (cub) / painted alloy (c172)
     glass:     { r: 0.06, m: 0.0, e: 1.5 },   // glazing reflects harder than neutral
+    frame:     { r: 0.45, m: 0.85 },  // GARAGE: bare welded tube, uncovered
+    prop:      { r: 0.42, m: 0.20 },
     metal:     { r: 0.34, m: 0.85 },
     gearmetal: { r: 0.38, m: 0.80 },
     hub:       { r: 0.28, m: 0.90 },
@@ -125,21 +135,35 @@
   let model = null, skinMode = 0;
   // transparent-pass determinism (r128): gauge covers paint before cabin glass
   const RENDER_ORDER = { covers: 1, glass: 2 };
-  function buildModel(key) {
-    if (modelCache[key]) return modelCache[key];
-    const data = MODELS3D[key];
+  // curDef is only read on the GARAGE path: the generated payload is a function
+  // of the very fiche the sim is running, so it must be that object and not a
+  // second call to the builder.
+  function buildModel(key, curDef) {
+    // the generated model is never cached — the whole point is that a slider
+    // rebuilds it. Everything else decodes once and is kept forever.
+    if (key !== 'gen' && modelCache[key]) return modelCache[key];
+    const data = key === 'gen' ? genSkin(curDef) : MODELS3D[key];
     if (!data) return null;
-    const dec = decodeModel(data);
+    const dec = data.generated ? data.groups : decodeModel(data);
     // The payload's base64 strings are dead once decoded — the c172's alone are
     // ~6 MB of JS heap held for the life of the page. modelCache never evicts,
     // so decode happens exactly once and dropping them is safe. (Anything that
     // later wants to rebuild must go through modelCache, not decodeModel.)
-    for (const g in data.groups) data.groups[g].b64 = null;
+    if (!data.generated) for (const g in data.groups) data.groups[g].b64 = null;
+    // the generated payload asks for a `paint` map; the viewer bakes it (canvas
+    // is not available to core). Without garage.js it degrades to flat colour.
+    if (data.generated) {
+      if (typeof genPaintDataURI === 'function') data.texs = { paint: genPaintDataURI(curDef.spec) };
+      else data.mats.skin = { color: curDef.spec.paint.base };
+    }
     // v3 payloads carry texs/mats tables + per-group mat; v2 shim implies them
-    const texSrcs = data.texs || { skin: data.tex };
+    const texSrcs = data.texs || (data.tex ? { skin: data.tex } : {});
     const mats = data.mats || { skin: { tex: 'skin' }, glass: { opacity: 0.28, color: 0xaad4ea } };
-    const grpMat = name => (data.texs && data.groups[name].mat) ||
-                           (name === 'glass' ? 'glass' : 'skin');
+    // generated groups are already named by material; imported ones carry a mat field
+    const grpMat = data.generated
+      ? (name => (mats[name] ? name : 'skin'))
+      : (name => (data.texs && data.groups[name].mat) ||
+                 (name === 'glass' ? 'glass' : 'skin'));
     // Texture decode is ASYNC, and a PBR material whose base map has not landed
     // yet is a white dielectric under a reflection probe — i.e. a mirror. The
     // c172 carries 13 maps and takes a beat, so switching to it flashed a
@@ -158,6 +182,12 @@
       entry.pending++;
       texs[t] = new THREE.TextureLoader().load(texSrcs[t], landed, undefined, landed);
       texs[t].anisotropy = 4;
+      // The generated paint is authored in sRGB (canvas colours are), so it has
+      // to be declared as such or the renderer treats it as linear and encodes
+      // it a second time on output — every colour comes out washed pale. The
+      // imported payloads are deliberately left alone: their look is calibrated
+      // as-is and changing the decode would move it.
+      if (data.generated) texs[t].encoding = THREE.sRGBEncoding;
     }
     if (!entry.pending) entry.ready = true;
     const mkGeo = g => {
@@ -230,6 +260,22 @@
     }
     grp.frustumCulled = false;
     grp.traverse(o => { o.frustumCulled = false; });
+    // GARAGE: every group is rigged, because every vertex already carries its
+    // node weights — there is no band to select and no threshold to tune.
+    if (data.generated) {
+      const rigs = Object.keys(dec).map(name => {
+        const posAttr = meshes[name].geometry.attributes.position;
+        const g = dec[name];
+        let anySid = false;
+        for (let i = 0; i < g.nv; i++) if (g.sid[i]) { anySid = true; break; }
+        return { g, posAttr, base: posAttr.array.slice(), meshName: name,
+                 hb: anySid ? makeHingeBinding(g, data.surfaces) : null };
+      });
+      const m = Object.assign(entry, { grp, props, rigs, gen: true,
+        meshes, rest: data.rest, nodeBody: new Float32Array(curDef.nodes.length * 3),
+        surfaces: data.surfaces, link: makeLinkage(LINK_TAU) });
+      return m;
+    }
     // Rigged groups: wing-band vertices follow the sim spar stations, and
     // sid-tagged vertices turn about their hinge lines. `skin` alone for the
     // pa18; the c172 also rigs the groups its nose gear is split across.
@@ -254,7 +300,9 @@
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3();
   function poseModel() {
-    if (!model || skinMode === 2) return;
+    // a generated model keeps posing in Frame mode: mode 2 hides the covering
+    // and shows the tube truss, which is still the same rigged mesh
+    if (!model || (skinMode === 2 && !model.gen)) return;
     const [xA, yU] = sim.axes(), cg = sim.cgPos(), O = SKIN_CFG[curKey].off;
     vX.set(xA[0], xA[1], xA[2]); vY.set(yU[0], yU[1], yU[2]);
     vZ.crossVectors(vX, vY);                     // z left: keeps the basis proper (no mirror)
@@ -267,6 +315,17 @@
     for (const p of model.props)
       p.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);            // visual only
     const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
+    if (model.gen) {
+      const gain = SKIN_GAINS[Math.min(skinMode, 1)];
+      genNodeBody(sim, model.nodeBody);
+      for (const r of model.rigs) {
+        if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
+        poseSkinGen(r.g, model.rest, model.nodeBody, r.base, r.posAttr.array,
+                    gain, r.hb && r.hb.hinged);
+        r.posAttr.needsUpdate = true;
+      }
+      return;
+    }
     sparDeltas(model.rigs[0].bind, sim, model.deltas);
     for (const r of model.rigs) {
       if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
@@ -280,12 +339,22 @@
     const b = $('bSkin'), has = !!model;
     // `ready` gates on texture decode: the wireframe holds the frame rather
     // than showing an untextured mirror for the beat before the maps land
-    const showSkin = has && skinMode < 2 && model.ready;
+    const gen = has && model.gen;
+    // GARAGE: Frame mode strips the COVERING off the generated aeroplane and
+    // leaves the welded truss standing. That is the build sequence, not a
+    // debug view, so it shows real tubes rather than the line wireframe.
+    const showSkin = has && model.ready && (skinMode < 2 || gen);
     if (model) model.grp.visible = showSkin;
+    // Covered: fabric on, internal truss hidden under it (struts, gear legs and
+    // wheels are OUTSIDE the covering and stay). Bare frame: the reverse.
+    if (gen) for (const n in model.meshes)
+      model.meshes[n].visible = (n === 'frame') ? skinMode === 2
+                              : (n === 'skin' || n === 'glass') ? skinMode < 2 : true;
     lines.visible = pts.visible = !showSkin;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     b.style.display = has ? '' : 'none';
-    b.textContent = ['Skin', 'Flex ×4', 'Frame'][skinMode];
+    b.textContent = gen ? ['Covered', 'Flex ×4', 'Bare frame'][skinMode]
+                        : ['Skin', 'Flex ×4', 'Frame'][skinMode];
     b.classList.toggle('on', showSkin);
   }
   $('bSkin').onclick = () => {
@@ -326,8 +395,13 @@
     scene.add(pts);
     buildShadowProxy();
     curKey = key;
-    if (model) scene.remove(model.grp);
-    model = buildModel(key);
+    if (model) {
+      scene.remove(model.grp);
+      // the generated model is rebuilt per spec change and never cached, so it
+      // owns its GPU buffers and must give them back
+      if (model.gen) model.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    }
+    model = buildModel(key, def);
     if (model) scene.add(model.grp);
     applySkinVis();
     dist = def.params.viewDist;
@@ -696,6 +770,19 @@
   };
 
   setAircraft('pa18');
+
+  // ---- GARAGE bridge. src/viewer/garage.js owns the panel and the paint; this
+  // is the only surface it touches. Guarded, so a core-only build still runs.
+  if (typeof garageInit === 'function') garageInit({
+    defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
+    // a changed spec is a DIFFERENT AEROPLANE, so it goes through setAircraft:
+    // new lattice, new sim, new autopilot, re-placed on the departure strip
+    apply(spec) { genSpec = spec; $('selAc').value = 'gen'; setAircraft('gen'); },
+    resolved: () => (curKey === 'gen' ? def.spec : null),
+    shake: () => (curKey === 'gen' ? genShakedown(def) : null),
+    isGen: () => curKey === 'gen',
+  });
+
   function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight, false);
     camera.aspect = window.innerWidth / window.innerHeight;

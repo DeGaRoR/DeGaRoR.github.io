@@ -241,25 +241,75 @@ export function autoBurst({
   objective = null,
   // C3 — THE GAIT INNER LOOP, INJECTED. When supplied (gait.js `adaptPopulation`,
   // signature `(RAPIER, genomes, world, {rng}) -> {genomes, scores}`), each body
-  // is adapted before it is scored and the ADAPTED controller REPLACES the birth
-  // one, Lamarckian, so selection and breeding both carry the learned gait. This
-  // is the "a body is judged by its adapted gait, never its birth gait" rule that
-  // turned 0/12 random creatures above 0.02 L/s into more. Injected rather than
-  // imported to keep objective.js free of a gait.js dependency (no import cycle).
+  // is adapted before it is scored. This is the "a body is judged by its adapted
+  // gait, never its birth gait" rule that turned 0/12 random creatures above
+  // 0.02 L/s into more. Injected rather than imported to keep objective.js free of
+  // a gait.js dependency (no import cycle).
   adaptFn = null,
+  /**
+   * ── WHAT THE ADAPTED CONTROLLER IS ALLOWED TO DO — the Weismann barrier. ────
+   *
+   * 'weismann'   (DEFAULT) the adapted gait SCORES the body and is then DISCARDED.
+   *              Selection sees the adapted score; breeding sees the BIRTH genome.
+   * 'lamarckian' the adapted controller replaces the birth one and is inherited.
+   *              The pre-2026-08-08 behaviour, kept so the two can be compared.
+   *
+   * WHY THE DEFAULT MOVED. This was unconditionally Lamarckian, and it was never a
+   * decision — the word appears in the code but no document chose it, while both
+   * the standing design (planLocomotion E2) and the plan that supersedes it reject
+   * Lamarckian inheritance explicitly and adopt Baldwinian + genetic assimilation.
+   *
+   * AND IT IS NOT MERELY INCONSISTENT. `adaptGait` is a (1+lambda) hill climb on
+   * NET DISPLACEMENT MEASURED BY THE SIMULATOR. The creature has no access to that
+   * objective and does not perform the search; it is an external optimizer whose
+   * result was being written into the germ line. Under it:
+   *
+   *   - selection cannot favour a good BIRTH controller, because every body is
+   *     rescued to its local optimum before it is judged;
+   *   - the Baldwin instrumentation is unreadable. The innate probe measures the
+   *     gap between the born and the learned, and an oracle that closes that gap
+   *     before reproduction makes the gap zero by construction. The whole of the
+   *     plan's Phase 5 is unmeasurable while this is on.
+   *
+   * Scoring a body at its best is a legitimate MEASUREMENT choice and is kept.
+   * Inheriting the result is a claim about heredity, and that one is withdrawn.
+   *
+   * ── AND IT COSTS ALMOST NOTHING. MEASURED, 3 generations at population 24, ──
+   * identical seeds in both arms, final-generation best on the netSpeed objective:
+   *
+   *     seed    weismann   lamarckian    delta
+   *        1      0.9149       1.1267   +0.2119
+   *        2      1.0501       0.9619   -0.0882      <-- the OTHER way
+   *        3      0.7552       0.9613   +0.2061
+   *     mean      0.9067       1.0166   +12.1%
+   *
+   * So the oracle was worth ~12% of final score, and NOT CONSISTENTLY — one seed
+   * of three reversed. At n=3 with a sign flip that is barely distinguishable from
+   * noise. It was buying very little, and it was buying it by making the central
+   * claim of the project's evolutionary story untrue.
+   */
+  inheritance = 'weismann',
 }) {
   let pop = genomes.slice();
   const history = [];
   let trials = 0;
 
-  // Score a population, and — with adaptFn — adapt each body's gait first and hand
-  // back the ADAPTED genomes so selection and breeding carry the learned gait.
+  // Score a population, and — with adaptFn — adapt each body's gait first.
   // Returns { genomes, scores }; accumulates the true evaluation count into trials.
+  //
+  // THE ONE LINE THAT IS THE WEISMANN BARRIER is the `genomes:` field below. Under
+  // 'weismann' the adapted genomes are used for nothing but their scores and the
+  // BIRTH population is handed back; under 'lamarckian' the adapted ones survive.
+  // Same simulation, same trial count, same scores — the only difference is what
+  // reproduces.
   const evaluate = (population, tag) => {
     if (adaptFn) {
       const a = adaptFn(RAPIER, population, world, { rng: rng.fork(`adapt:${tag}`) });
       trials += a.evals ?? population.length;
-      return { genomes: a.genomes, scores: a.scores };
+      return {
+        genomes: inheritance === 'lamarckian' ? a.genomes : population,
+        scores: a.scores,
+      };
     }
     trials += population.length;
     const scores = objective ? objective(RAPIER, population) : scorePopulation(RAPIER, population, world, seconds);
@@ -294,7 +344,9 @@ export function autoBurst({
 
   for (let gen = 0; gen < generations; gen++) {
     const stepped = evaluate(pop, `${gen}`);
-    pop = stepped.genomes;   // Lamarckian: adapted controllers survive into selection and breed
+    // Under 'weismann' this is the birth population unchanged; under 'lamarckian'
+    // the adapted controllers survive into selection and breed. See `inheritance`.
+    pop = stepped.genomes;
     const scores = stepped.scores;
 
     const order = scores

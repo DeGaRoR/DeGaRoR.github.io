@@ -38,11 +38,11 @@ treat it as abandoned until someone backfills it.
 | A1 · Skeleton | boots, navigates, persists, gates | ✅ done |
 | B1 · Genome | round-trips, randomises | ✅ done |
 | B2 · Morphogenesis | a genome becomes a body | ✅ done, re-tuned since |
-| B3 · Motion | "swims, looks alive not convulsive" | ⚠️ **gate green, human checkpoint never signed** |
-| B4 · Breeding | the toy loop, playable | ⚠️ same — green, unsigned |
-| **B5 · First light** | the art pass; "would you show someone a screenshot?" | ⚠️ **substantially done, never signed** — see Step 1 |
-| C1 · Sensors + probes | measurable creatures | ⚠️ green but **hollow** — S2 yields 1 trustworthy number of 8 |
-| **C2 · Duels** | "watch three fights, say what it's good at" | ❌ **engine done, UI never built, checkpoint unanswerable** |
+| B3 · Motion | "swims, looks alive not convulsive" | ✅ **SIGNED 2026-08-08** |
+| B4 · Breeding | the toy loop, playable | ✅ **SIGNED 2026-08-08** |
+| **B5 · First light** | the art pass; "would you show someone a screenshot?" | ✅ **SIGNED 2026-08-08** |
+| C1 · Sensors + probes | measurable creatures | ✅ **checkpoint STRUCK** — C1 has no player-visible screen by design, so there was never anything to sign. Keep investing in the probes: `steeringAuthority` is what separates `eel` (45 °/s one way, 0 the other) from `eel-unison` (genuinely steerable), and nothing else can. The "hollow" complaint is about **S2 specifically** and is a per-field fix |
+| **C2 · Duels** | "watch three fights, say what it's good at" | ⛔ **RETIRED as a milestone 2026-08-08.** Four measured reasons: closing is flat at 0.16–0.21 cm across a 4× separation range (drift, not pursuit); the spec asks for a 29 m separation inside a 16×24×16 m tank; three residents give one candidate cycle, so non-transitivity is weak evidence; the UI was correctly never built. Its recorded root cause ("turnRate ~0.2 °/s") is the **yaw** field, so even the diagnosis is partly an artifact — though the conclusion survives. **`duel.js` stays parked, not deleted**: `senseOpponent`/`bearingTo`/`turnPlane` is the only worked closed-loop sense→steer example in the codebase. **Duels return after Phase 4 as a coevolutionary pressure** rather than as a measurement of creatures that cannot aim |
 | **Forage** (not a milestone) | food, a mouth, an energy ledger, six rivals | ✅ **built** — no gene, no death |
 | **Vivarium** (not a milestone) | Tank + Forage merged; one screen that breeds AND feeds | ✅ **shipped** — see the merge Study, which this settles |
 | **Vernacular** (not a milestone) | design 14; the name a player actually says | ✅ **shipped** — EN pools, FR deferred |
@@ -73,13 +73,37 @@ side is either blocked (`MUSCLE_STRESS`, which pins 83% of the corpus at the spe
 ceiling) or out of reach without a different geometry (skin friction, wakes,
 circulatory lift). None of it is what stands between the project and being fun.
 
-**What the engine work did NOT fix, and cannot:** the corpus swims at ~0.006
-body-lengths/s against a real swimmer's 0.5–10, and slip (`U/V_wave`) is 0.00–0.05
-against 0.5–0.8. That gap is **coordination and the morphology grammar**, not fluid.
-Orientation is worse: 0.13–1.96 °/s, so a 135° turn takes about four minutes.
+**What the engine work did NOT fix, and cannot:** ~~the corpus swims at ~0.006
+body-lengths/s~~ — **SUPERSEDED BY PHASE A. Re-measured 2026-08-08: 0.091 L/s p50**,
+a 15× improvement, against a real swimmer's 1–10. That gap is **coordination and the
+morphology grammar**, not fluid.
 
-**The consequence for planning:** anything that needs a creature to *aim* is blocked.
-Anything that needs it only to *move* is not.
+**Orientation — the figure below reproduces, but read what it is.** *"0.13–1.96 °/s"*
+is S3's **yaw** `turnRate`, and re-measuring gives the same band (p10 0.20, p90 3.10).
+But `probes.js` S3 reads a compass bearing while chains bend in **pitch**, so it
+"reads near-zero for exactly the bodies that turn best" (`SESSION-10.md:601`). The
+honest numbers, measured over n=20 with the shipped 3-D probe:
+
+| | p10 | p50 | p90 |
+|---|---|---|---|
+| `turnRate3d` °/s | 0.80 | **1.57** | 4.31 |
+| `steeringAuthority` | 0.123 | **0.668** | 0.995 |
+
+So the corpus really is slow — 1.57 °/s is a 86-second 135° turn — **but the
+mechanism works**: for the median creature the control input reliably decides which
+way it curls. And the authored library already contains **eel-unison at 15.95 °/s,
+authority 1.000**.
+
+**`tools/_zlight.mjs` re-run post-Phase-A settles the consequence.** Taxis still
+fails (mean control-subtracted closing **+0.0109, 1/7 helped**), and the declared
+secondary says why: **corr(score, `turnRate3d`) = 0.91**, while corr(score, sensor
+gain) = **0.07**. Turn rate is the entire mechanism, the threshold sits near 14 °/s,
+and the corpus sits at 1.57.
+
+**The consequence for planning:** aiming is still blocked — but **turn rate is a
+selectable trait, not a broken mechanism**, and nothing in the project has ever
+selected for it. That is the highest-leverage item now open. See
+`design/PLAN-TO-INTELLIGENCE.md` Phase 3.
 
 ---
 
@@ -238,14 +262,30 @@ turn rate), skin friction / wake / circulatory lift (need a different geometry).
 
 ## 5b. The order, as it now stands
 
-1. **Mouth + sensor placement genes** (`GENOME_V` 4 → 5). Unlocks eyes too.
+> **SUPERSEDED 2026-08-08 by `design/PLAN-TO-INTELLIGENCE.md`**, which recasts this
+> into five phases. Kept here because the reasoning below is still the reasoning,
+> and because step (1) is now done. The one substantive reordering: **removing the
+> Lamarckian gait oracle and the viability re-rolls comes before all of it** — see
+> that document's Phase 1.1.
+
+1. ✅ **DONE** (`30a36f5`) — **Mouth + sensor placement genes**, `GENOME_V` 4 → 5.
+   Mouth placement is genetic, count deliberately is not; node `sites` open the same
+   shape to receptors. Unlocks eyes too.
 2. **Kinesis gene** — sense local food, modulate `effort`. Sign evolved, not declared.
-   Same migration as (1) if done together.
+   **Reframed:** the gene, its `RANGE`, its mutation operator, the `sites` schema and
+   the blind state all already exist. What is missing is that **nothing reads them** —
+   `morphogen.js:218` says of the receptor normal, *"Nothing reads it yet."* The work
+   is the wiring, not the gene.
 3. **Control-subtracted forage objective**, which (2) makes possible for the first
-   time. Only then may anything select on food.
-4. **Orientation** — the open research question, and the gate on both C2's capability
-   card and light-following. Do not attempt light before it.
-5. D1 / D2 / E1, still blocked on C2 and on turn rate.
+   time. Only then may anything select on food. Needs **its own gait adapter** (§4.4).
+4. **Turn rate, then orientation.** No longer a bare research question:
+   corr(taxis score, `turnRate3d`) = **0.91**, the threshold is ~14 °/s, the corpus is
+   at 1.57 °/s, and `eel-unison` proves 15.95 °/s is reachable in the existing grammar.
+   **Select for it** — gated on `steeringAuthority` > 0.5 so it cannot be won by
+   breeding circlers.
+5. D1 / D2 / E1 → now **L3: fitness as persistence**, not a better auto-breeder.
+   `engine/l3/` is empty while `w1_slice.js:127-187` already specifies the whole
+   ecology and `forage.js:40` says **NO BIRTH AND NO DEATH**.
 
 **SPEND THE `GENOME_V` 5 BUMP ONCE, ON FOUR THINGS.** Steps (1) and (2) already share
 a migration. So do two more, and they have been waiting since 13 shipped:
@@ -298,6 +338,74 @@ that a future objective must not re-learn:
 ---
 
 ## 6. Debts this file does not discharge
+
+**ADDED 2026-08-08, from a measurement pass and an independent biological review.**
+
+- **INHERITANCE IS LAMARCKIAN TODAY, AND IT WAS NEVER DECIDED.** `gait.js:105` —
+  *"Adapt a whole population, **Lamarckian**: each body keeps the controller it
+  learned"*; `objective.js` — *"the ADAPTED controller **REPLACES** the birth one…
+  so selection and breeding both carry the learned gait."* `adaptGait` is a `(1+λ)`
+  hill climb on net displacement **measured by the simulator**; the creature has no
+  access to that objective and does not do the learning. This contradicts the
+  standing Baldwinian decision, and it makes the Baldwin instrumentation
+  unmeasurable — an innate probe cannot read a gap an oracle has already closed.
+  **Highest-priority defect in the project.**
+- **VIABILITY RE-ROLLS ERASE MUTATIONAL LOAD.** `VIABILITY.maxAttempts` = 12 tries
+  per reproductive event, then copy the parent. A genotype with a fragile
+  developmental neighbourhood has the same reproductive output as a robust one, so
+  nothing selects for developmental robustness. Fine for the six-slot tank; **must
+  be off wherever selection is measured.**
+- **THE CREATURE IS HANDED EXACT WORLD-SPACE BEARINGS.** `duel.js:444` passes
+  `simB.centreOfMass()` straight in, and `senseOpponent` has **no range test at all**
+  despite `bearingTo`'s doc claiming "0 if none in range". Receptor `normal` is
+  carried and unread. Perception is not causally coupled to anatomy.
+- **THE TWO SENSOR GENES ARE NON-IDENTIFIABLE.** `duel.js:277` passes
+  `sensorTurnBias(genome, bearing, bearing)`, so the phenotype sees
+  `(preyGain + threatGain) × bearing` — a neutral ridge masquerading as two traits.
+  Measured: corr(taxis score, |gain|) = **0.07**.
+- **`sim.saturation` UNDER-REPORTS.** It reads **0.000000** while a ceiling-only
+  change (`budgetScale 6→6e4`, touching no gain) moves **7 of 10** creatures by up
+  to 1.21 cm / 30 s. A/A control is 0.000 on 10/10, so the sim is bit-deterministic
+  and the difference is real. `physics.js:1240` names the cause; **`physics.js:565`'s
+  "corpus saturation is 0.000, so `budgetScale` is inert" is false**, and it is what
+  the `budgetScale = 6` decision rests on.
+- ~~**13 SWEEP TOOLS REPORT PRE-PHASE-A NUMBERS.**~~ **DISCHARGED 2026-08-08, and
+  the cause was smaller and more instructive than it looked.** All 14 `_z*` copies
+  of `physics.js` in `engine/l1/` lacked `advancePhases`/`PHASE_COUPLE`, so every
+  tool importing one measured the open-loop controller. **But they are generated,
+  gitignored and disposable** — `tools/_zvariants.mjs` writes them from
+  `physics.js` — and they were stale for exactly one reason: *the generator had not
+  been re-run since Phase A.* One command fixed all thirteen. `_zphlog` is deleted
+  outright: its only difference from `physics.js` was three logging lines, which are
+  now the `FLOG` flag in `physics.js` itself.
+  **Standing rule that falls out: a diagnostic that can be a flag must not be a
+  copy, and `node tools/_zvariants.mjs` runs after every `physics.js` edit.**
+  *(I earlier reported "112 archaeological files in the executable repository". That
+  overstated it: the 14 engine forks were never committed — `.gitignore` has covered
+  them since they were introduced. What WAS committed is corrected below.)*
+- **SIX `.bak` FILES WERE COMMITTED INTO THE SOURCE TREE** at `de21670`
+  ("vivarioops 0.7") — `breed`, `genome`, `mutate`, `naming`, `viability` inside
+  `engine/l1/`, plus `ui/tank/sim.js.bak`. They are mutation-harness scratch
+  (`tools/_mut*.mjs` copies `file -> file.bak` before mutating and restores in a
+  `finally`), they were 40–60% the length of their live counterparts, and every grep
+  of `engine/l1/` returned two hits per symbol with one from version 0.7.
+  **Deleted, and `*.bak` added to `.gitignore`.** The harness recreates them at
+  runtime. 86 `tools/_z*` files remain tracked and are genuine experiment scripts,
+  not duplicates.
+- **`FOOD_ENERGY: 2.7e3` IS LABELLED `erg/g` AND IS NOT `erg/g`** — calibrated so
+  half the corpus sits near break-even. Real unit labels on a deliberately
+  non-physical conversion is the dangerous option, because downstream equations look
+  more grounded than they are. Go dimensionless.
+- **ACTIVE ECCENTRIC WORK IS BILLED FREE.** `forage.js:476-488` charges only
+  `workOut` — *"an animal does not eat to be pushed around"* — which conflates
+  passive external loading with active negative muscle work. Eccentric contraction is
+  cheaper than concentric, not free. An exploit surface.
+- **VIABILITY PRE-SELECTS MOTILE LIFE.** The inertness check is **25.0% of all
+  rejections**, so movement is required before ecological selection begins. No
+  sessile organisms, no filter feeders, and on land it inverts entirely.
+- **UNIT ANNOTATION DRIFT — swept 2026-08-08** in `genome.js` and `viability.js`,
+  but check any comment quoting m/kg before trusting it. The stale gravity block in
+  `w1_slice.js` misled three separate analyses before it was deleted.
 
 - **Two normative planning docs are missing from the repo.** Recover or re-write
   `DESIGN-PHASE-B2` and the C0–C6 plan, or accept that ~40 gate comments cite

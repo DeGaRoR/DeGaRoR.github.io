@@ -88,6 +88,50 @@
     pointer-events:auto; cursor:pointer; }
   #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
 
+  /* ---- garage: the builder's panel, left of the minimap (chantier G1) ----
+     margin-right:auto keeps the minimap pinned right whether or not this is
+     showing, so #mid needs no layout change when the panel hides. */
+  #garage { margin-right:auto; pointer-events:auto; width:270px; padding:10px 12px 12px;
+    max-height:calc(100vh - 190px); overflow-y:auto; }
+  #garage header { display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:8px; }
+  #garage h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--amber); }
+  #garage h3 { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--faint); margin:11px 0 6px; }
+  #gClose { padding:2px 7px; font-size:13px; line-height:1; border-radius:6px; }
+  .grow { display:grid; grid-template-columns:74px 1fr 46px; align-items:center;
+    gap:7px; margin-bottom:5px; }
+  .grow > span { font:500 9.5px/1.2 'IBM Plex Sans'; letter-spacing:.05em; color:var(--dim); }
+  .grow > b { font:500 9.5px/1 'IBM Plex Mono', monospace; color:var(--ink);
+    text-align:right; }
+  .grow select { grid-column:2 / span 2; padding:5px 7px; font-size:9.5px;
+    letter-spacing:.06em; border-radius:6px; }
+  .grow input[type=range] { pointer-events:auto; width:100%; height:16px;
+    -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer; }
+  .grow input[type=range]::-webkit-slider-runnable-track { height:3px; border-radius:2px;
+    background:rgba(255,234,206,.26); }
+  .grow input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+    width:12px; height:12px; margin-top:-4.5px; border-radius:50%; background:var(--amber);
+    border:none; }
+  .grow input[type=range]::-moz-range-track { height:3px; border-radius:2px;
+    background:rgba(255,234,206,.26); }
+  .grow input[type=range]::-moz-range-thumb { width:12px; height:12px; border:none;
+    border-radius:50%; background:var(--amber); }
+  .gsw { grid-column:2 / span 2; display:flex; gap:5px; }
+  .gsw button { pointer-events:auto; width:24px; height:18px; padding:0; border-radius:4px;
+    border-width:2px; }
+  .ggrid { display:grid; grid-template-columns:1fr 1fr; gap:3px 9px; }
+  .gc { display:flex; justify-content:space-between; align-items:baseline; gap:5px; }
+  .gc span { font:400 9px/1.4 'IBM Plex Sans'; letter-spacing:.04em; color:var(--faint); }
+  .gc b { font:500 9.5px/1.4 'IBM Plex Mono', monospace; color:var(--ink); }
+  .gc.ok b { color:var(--cyan); }
+  .gc.warn b { color:var(--amber); }
+  .gc.bad b { color:#ff8b73; }
+  .gc.auto b { color:var(--dim); font-style:italic; }
+  .gnote { margin-top:6px; font:400 8.5px/1.4 'IBM Plex Sans'; letter-spacing:.03em;
+    color:var(--faint); }
+
   /* ---- south: telemetry (on demand) stacked above the control bar ---- */
   #south { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
   #bottom { display:flex; align-items:center; gap:8px; flex-wrap:wrap; align-self:stretch; }

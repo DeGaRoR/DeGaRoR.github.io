@@ -93,6 +93,11 @@ export function compileSolo(RAPIER, args) {
   sp.turnPlaneZ = turn.turnPlaneZ;
   sp.turnRadius = turn.turnRadius;
   sp.turnSpeedRatio = turn.turnSpeedRatio;
+  // N21's clamp. See the long note on `turnCapability` in contracts/species.js:
+  // a creature can have a large turn rate and no authority (it circles), or zero
+  // yaw and full authority (it turns in pitch). The product is the only one of
+  // the three that means "how fast can this creature turn when asked".
+  sp.turnCapability = turn.turnRate3d * turn.steeringAuthority;
 
   // ── fixture defaults — UNMEASURED until S4/S5 (30 §5 C1) ──────────────────
   sp.pursuitGain = world.pursuitGain;

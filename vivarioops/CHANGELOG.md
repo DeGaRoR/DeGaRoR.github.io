@@ -490,7 +490,7 @@ see `HANDOFF.md` for the diagnosis and the next step.
 - **`trunk/rng.js` seeding was biased on the first draw.** `state = seed + INC` emitted output one addition from the seed. Across 20 000 derived seeds a first `int(4)` gave `[4517, 5088, 5492, 4903]` against 5000 expected, and the B1 corpus averaged 2.90 nodes where `randInt(2,5)` gives 3.50. Uniform by the tenth draw, which is why single-generator tests all passed. Now uses PCG's canonical seeding (advance, add seed, advance). New assertion R1 covers first-draw uniformity across fresh seeds.
 
 ### Open
-- `SLICE_LIMITS.maxReflectionAxes = 1`. A2 says "bilateral and none only"; A5 correction 3 makes reflections multiply (three axes = eight limbs). Implemented on the constraining reading, pinned in two places. Decide at B4.
+- ~~`SLICE_LIMITS.maxReflectionAxes = 1`~~ **RESOLVED — it is now 3** (`factory.js:159`, decided at B2 §2.2 on reading (a), the FULL_LIMITS value). A2 said "bilateral and none only"; A5 correction 3 makes reflections multiply (three axes = eight limbs), and the decision went the permissive way because it is the single largest lever on variety: effective body-plan variety 16 → 118, → 155+ with the clamp. This entry stayed stale for many sessions and was still being read as "1". Radial symmetry is REACHABLE; what is *not* reachable at any setting is an ODD order — reflection gives orders 1/2/4/8 only, so pentaradial is permanently out of the grammar. And `jelly`, cited at `factory.js:156` as "the first radial creature in the project", still does not exist: `worlds/seeds.js` is five eels and a staircase.
 
 ### Gate
 - 32 assertions, 0 failures, 2 pending (K3 → C2, R5 → browser). 307 underlying checks.

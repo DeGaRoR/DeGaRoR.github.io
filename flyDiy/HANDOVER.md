@@ -18,6 +18,9 @@ code can't: conventions, hard-won rules, validation anchors, and the roadmap.
    `test_stress.js` + `<option>` in the aircraft select in
    `src/viewer/body.html` + AIRCRAFT map entry in `src/viewer/app.js` +
    line in the fleet table below.
+5. The GARAGE aircraft (`gen`) is GENERATED, not a fiche: its numbers move when
+   the spec does. Never hand-edit its anchors — re-read them off GATE GEN's own
+   SHAKEDOWN line. See THE GARAGE.
 
 ## FILES
 Everything under `src/` is SOURCE. `tools/flight_core.js`, `index.html`,
@@ -66,6 +69,16 @@ before every battery so stale hand-edits get overwritten, loudly.
   binding, control-surface hinges, visual linkage). Pure JS, no THREE; ported
   byte-identical from the flexbody branch except the linkage's flap channel.
   See docs/SKIN-PROC.md.
+- `src/core/6x_gen_*.js` — THE GARAGE: procedural airframe generator. One
+  parameter spec drives both the structure and the covering, so there is no
+  second place a number about a generated aeroplane lives. `60_gen_spec.js`
+  schema/materials/defaults + resolveSpec (nulls mean "derive it") + clampSpec;
+  `61_gen_frame.js` the lattice, and where the STRUCTURAL RULES below are
+  enforced by construction; `62_gen_aero.js` strips + polar synthesis from the
+  NACA digits; `63_gen_skin.js` tubes/panels/formers/wing loft in the
+  decodeModel shape, with per-vertex node weights; `64_gen_build.js`
+  `buildGen(spec)` + the tunnel trim + `genShakedown()`. See the GARAGE
+  section below.
 - `src/core/90_node_exports.js` — guarded module.exports (inert in browser,
   inlined as-is; keep it single-statement, no nested braces).
 - `src/models/` — GENERATED baked model payloads (tools/model_prep.py output;
@@ -76,8 +89,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   see CREDITS.md). `docs/` — MODEL-IMPORT-PROC.md + SKIN-PROC.md.
 - `src/viewer/` — shell.html (slot markers), style.css (theme + vendored
   @font-face), body.html (UI markup), render_world.js (buildWorldScene — the
-  whole 3D world look lives here), app.js (renderer, camera, aircraft mesh,
-  shadow proxy, phase rail, HUD, loop).
+  whole 3D world look lives here), garage.js (the builder's panel + the
+  procedurally baked paint — anything needing a canvas, which core cannot use),
+  app.js (renderer, camera, aircraft mesh, shadow proxy, phase rail, HUD, loop).
+  MANIFEST.viewer.scripts: the LAST entry fills the APP slot, everything before
+  it fills RENDER.
 - `tools/build.js` — MANIFEST is the single ordering authority (registry →
   fiches → world → solver → autopilot → exports). Concats core →
   tools/flight_core.js (gates require it unchanged); assembles `index.html`
@@ -114,7 +130,22 @@ The harness auto-appends a settle-uprightness check (max lateral node drift
 from def geometry after settle, net of the perturbation shift, < 0.25 m) —
 added after the chinook flew a whole green circuit with its tail folded.
 Runtimes: WIND dominates (~150 s), then DC-3 (~55 s); full battery ~5.5 min
-(+~2 s WORLD).
+(+~2 s WORLD). Those are quiet-machine numbers and the whole battery scales
+with load — measured 2026-08-08, the SAME committed core ran M3 in 10.5 s and
+14.0 s hours apart. The per-gate spawn timeout is therefore 900 s, not the 300 s
+it was: WIND reached 297 s on a busy machine and the battery went red with no
+failed check to point at. A timeout is not a verdict. If timing itself is the
+question, A/B the two cores on the same machine minutes apart (`git show
+HEAD:flyDiy/tools/flight_core.js`, swap, `--only=<gate> --no-build`, swap back)
+— an absolute number from a previous session proves nothing.
+GATE GEN (after STRESS) audits a GENERATED airframe rather than a fixed one:
+symmetry (nodes, beams AND masses — an asymmetric mass flies a wing low),
+orphans/duplicates, a full RIGIDITY test (rank 3n-6, which is the real form of
+structural rule 4 — see THE GARAGE), mass/CG/static-margin bounds, the two
+geometric gear constraints, determinism by double-generate, fiche-schema
+completeness, skin/structure coherence (every skin vertex an affine blend of
+nodes that exist), a clampSpec envelope probe with deliberately wild inputs,
+the parked-tailwind dwell, and the standard full circuit.
 GATE XCTY4 (~32 s) is the W13.2 short-field leg: PA-18 HOME -> Stein
 (340 m gravel fly-in) in the viewer BREEZE preset — touch in the first
 40%, bounded skip, on-strip stop, UPRIGHT tail-down, tail rig intact.
@@ -822,6 +853,108 @@ GATE C172M now asserts the import: factors in range, every named map present in
 `texs`, emissive only where a base map exists to reuse, and the two the import
 exists to get right — painted skin is a dielectric, bare metal is not.
 
+## THE GARAGE — procedural airframes (G1, DONE 2026-08-08)
+
+The project's original intent: build small aircraft in a shed, not fly someone
+else's. `src/core/6x_gen_*.js` + `src/viewer/garage.js`, gate `GEN`, aircraft
+key `gen`. Design note: futureDesigns/spec_progen_v1.md is the ancestor — its
+§1 naming, §2 schema shape and §4 QC table survive; its "generate a skeleton,
+import a mesh as a ghost" framing does not.
+
+**ONE ROOT.** The spec is the source of truth and the mesh is never an input.
+Physics-from-geometry is a dead end (a mesh has no mass, no material, no spar
+location), so instead:
+
+    spec -> genFrame -> {nodes, beams, refs, parts}
+              parts  -> genStrips + genParams -> the fiche  (30_solver.js eats it)
+              parts  -> genSkin              -> mesh groups (app.js eats them)
+
+Three things in the existing code made this cheap rather than speculative, and
+they are worth knowing before changing any of them:
+1. `30_solver.js:16-25` derives mass, CG and wingspan FROM THE NODE GEOMETRY.
+   There is no `wingArea` or `mass` fiche parameter. Feed it a lattice and
+   every downstream quantity follows.
+2. `decodeModel()` returns plain `{nv,nt,pos,uv,idx,sid}` groups, so a
+   generator can emit that shape in memory — no base64, no python bake, and
+   hinges/PBR/shadows/gates all work unchanged.
+3. `POLARS` is already the right six numbers to synthesise.
+
+**The covering is the truss, extrapolated.** Every skin vertex is an affine
+blend (weights summing to 1) of the truss nodes it sits on. Consequences:
+- `SKIN_CFG.gen.off` is `[0,0,0]` BY CONSTRUCTION. Every imported model needs
+  its mount measured; this one cannot be wrong.
+- Fuselage flex comes free, which SKIN-PROC.md §6 lists as deferred for
+  imported skins. Binding a foreign mesh to a truss is the hard part;
+  generating the mesh from the truss is not.
+- Hinge axes are analytic, not least-squares fits off a mesh.
+- FORMERS: a bare truss has flat faces, so `crown` blends each station from the
+  truss rectangle (0) to a rounded former outline (1). Formers are visual only,
+  carry no mass, and are still affine on the same four corner nodes — a vertex
+  standing proud of the truss simply has |u| > 1 and extrapolates.
+
+**Calibrated against the fleet, not invented.** Every constant that could have
+been a free parameter was fitted to a hand-written fiche and the agreement is
+the reason to trust it:
+- thin-airfoil integration on the NACA mean line: NACA 2412 -> aL0 -2.08 deg,
+  Cm0 -0.0531 (book -2.1, -0.053).
+- `genTailPolar` reproduces `POLARS.flat_tail_cub`: a3d 3.34 vs 3.4,
+  aStall 0.239 vs 0.24.
+- `Cd0 = 0.0055 + 0.018 t/c + material` reproduces the Cub's 0.010 and the
+  C172's 0.008. `GEN_KVISC 0.845` is the viscous deficit reconstructed from the
+  registry's own (a3d, eAR) pairs — a0 lands 5.7-5.9 /rad, not 2*pi.
+- propwash fraction `max(0, 1 - (z/(1.12 R))^2)` reproduces the Cub's hand
+  values exactly (centre 1.0, first outboard strip 0.5, rest 0).
+- `fusCdA` coefficients (0.75 frontal / 0.57 fwd side / 0.31 aft side)
+  reproduce the Cub's hand-tuned [0.55,0.8,0.8] / [0,0.5,0.5] from its own
+  geometry. Fwd and aft differ because the aft body is tapered and cleaner.
+- gear: `axleY = engY - propR + wheelR - 0.40` lands within 2 cm of the Cub's.
+
+**The garage puts it in the tunnel.** Two numbers cannot be reasoned out of
+geometry, so `genTrim()` measures them with `sim.probe()` (deterministic, one
+strip pass per call): `stabTrim` by a secant solve for pitch balance at the
+aeroplane's own cruise speed and trimmed alpha, and `thrCruise` from the drag
+that solve measured. `genShakedown()` is the same instrument as the player-
+facing readout, and it runs on ANY fiche — comparability with the fleet is the
+whole point. Measured side by side with the Cub:
+
+| | mass | Sw | w/l | VCr | L/D | cgX | SM | thrCr | stabTrim |
+|---|---|---|---|---|---|---|---|---|---|
+| Cub (hand) | 377 | 16.0 | 23.6 | 26.0 | 8.24 | 0.80 | 0.22 | 0.70 | -0.098 |
+| GEN preset | 393 | 16.0 | 24.5 | 27.9 | 7.95 | 0.86 | 0.20 | 0.69 | -0.079 |
+
+**Hard-won, in order:**
+1. **Do not fix the deck angle and derive the tailwheel height.** A real
+   tailwheel leg has a LENGTH and the attitude is what falls out of it. Fixing
+   the angle instead pushes the tailwheel up into the tailpost as the tail arm
+   grows: measured, the parked tailpost clearance halved (0.30 -> 0.16 m) and
+   the tail-rig deviation went 3.3% -> 5.6%. `GEN_RULES.twLeg` hangs the wheel
+   off the tailpost foot and the deck angle is reported and gated (8-15 deg).
+2. **GATE GEN's G4 is a RIGIDITY TEST, not a face audit.** spec_progen_v1
+   proposed "every quad face has a diagonal", which is a proxy for the thing
+   that actually hurts — a mechanism. The DC-3 moved 0.5 m at under 1% strain;
+   the Chinook latched with everything under 0.8%. So the gate assembles the
+   framework's rigidity matrix and requires rank 3n-6. It catches mechanisms no
+   face audit would see, and it is the only instrument in the battery that can.
+3. **The generated paint texture needs `encoding = sRGBEncoding`.** Canvas
+   colours are sRGB; left as linear the renderer encodes them a second time on
+   output and every colour comes out washed pale. The imported payloads are
+   deliberately NOT changed — their look is calibrated as-is.
+4. **Structure and drawing are not the same list of members.** The strut fan
+   (six members) is the lumped stand-in for a spar box this planar wing does
+   not have — rule 1. Drawing all six is a birdcage. Only the two real lift
+   struts are marked `ext` (drawn outside the fabric); the rest live under it.
+5. **A window that runs frame to frame reads as a missing panel.** Glazing is
+   inset both along the body (`GEN_LSEG` slices per bay) and around the section.
+   That is why a skin vertex carries up to `GEN_INFL = 8` influences: a section
+   between two frames blends both frames' four corners.
+6. The cowl must close ON the spinner backplate (same radius) or the nose is an
+   open tube you can see down.
+
+**Open for G2** (deliberately out of G1): low wing, tricycle gear, cantilever
+wings, cranked wings, tip-shape library, V-tail, 3D drag handles, AP gain
+auto-tuning (G1 seeds from the Cub rescaled by the span/V timescale and ships
+ONE gate-verified preset), save/persistence, materials economy, missions.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
@@ -832,6 +965,7 @@ exists to get right — painted skin is a dielectric, bare metal is not.
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
 | Douglas DC-3 | 10.9 t | 72 | Vs 32.8 clean / 29.5 flapped (book 34.5 / ~29-30); NP margin 13%; unstick 46 m/s ~945 m w/ TO flaps 1/4; wheel landing 146 km/h @0.56 sink, flaps 0.7 on gs 0.060 |
+| ⚒ Garage build (`gen`) | 393 kg | 24 | GENERATED, not a fiche — numbers move with the spec. Preset anchors: Vs 59 km/h, VCruise 100 km/h, L/D 7.95, static margin 20%, deck 10.2 deg, TO run est. 119 m. Re-anchor from GATE GEN's own SHAKEDOWN line, never by hand |
 
 Notable fiche quirks: Chinook is a PUSHER (wing wash=0, tail wash 0.6, thrust
 line above CG = power pitches DOWN). C172 prop refit to cruise-pitch reality
@@ -865,6 +999,17 @@ Flaps (added session 2): polar-delta model per strip (no slat modeling, no
 Fowler area growth — dCl0 stands in for both), flap deltas scale linearly with
 setting, no asymmetric-flap failure mode, Chinook flaperon droop partial (0.6)
 by AP policy.
+The GARAGE (G1): one airframe family only (strut-braced high-wing taildragger,
+tractor prop, conventional tail); no flaps on generated wings; NACA 4-digit
+sections only, so a generated wing reaches Clmax ~1.4-1.5 rather than the 1.64
+of the Cub's USA-35B — a real difference, not a fudge, and the AP speeds are
+derived from the aeroplane's own stall speed accordingly. Skin offsets that
+stand proud of the truss are baked in the REST body frame, so a former or an
+airfoil's thickness does not follow local twist (flex is under 5 deg; the
+bending the wing actually does IS exact, because the spar stations carry it).
+TORun is an analytic estimate deliberately biased high (119 m for an airframe
+in the Cub's 60 m class) — the AP only uses it to decide whether to backtrack,
+and over-estimating errs toward backtracking.
 Wind (added session 3): no shear/boundary-layer profile (wind constant with
 height), gusts are 4 deterministic sine components per axis, not true Dryden
 spectra; no thermals/ridge lift YET (the wind(x,y,z,t) plumbing is exactly
@@ -880,6 +1025,31 @@ stall-margin reduction in GE. Free-air tunnel = makeSim without world.
 SCOPE DECISION (user, 2026-08-02): sessions 1-3 only (fidelity), then the
 project BRANCHES to graphics/world/editor work (specced separately by the
 user). Sessions 4-6 below stay documented as reference but are NOT next.
+
+SCOPE DECISION (user, 2026-08-08): back to the original intent — the game is a
+crossover of mission game and flight game, in which you BUILD the aeroplane.
+Start on a remote island with a garage and materials, reach the next strip,
+then a farther one. Aircraft are generated, not imported; the imported PA-18
+and C172 stay as "found aircraft" to measure a build against. The editor is
+player-facing and maximally procedural, with manual override everywhere — not
+the developer tool spec_progen_v1 describes.
+
+G1. **The Garage — procedural airframes** — DONE 2026-08-08: one spec drives
+    the structure, the aero and the covering; one preset (strut-braced
+    high-wing taildragger) boots as aircraft `gen`, flies the standard circuit,
+    and is edited live from a panel. Full as-built, the calibration table and
+    the traps under THE GARAGE above. GATE GEN (28 QC checks + a rigidity test
+    + the parked-tailwind dwell + a full circuit), plus a `gen` entry in GATE
+    STRESS. No terrain touched, no world re-golden, no physics change — the
+    solver, autopilot and codec are untouched.
+    Next in this arc, in order: (G2) widen the envelope — low wing, tricycle,
+    cantilever, cranked wings, tip shapes — with AP gain auto-tuning, since G1
+    seeds gains from the Cub and ships one gate-verified preset; (G3) 3D drag
+    handles that write back into the spec; (G4) save/persistence + the
+    materials economy; (G5) missions over the existing 24 km world (aerodromes
+    are already the authoritative registry, and the archipelago already has
+    fly-in strips). Manual controls (item 4 below) is the other half of the
+    game and stays its own chantier.
 One chantier per session. Every session ends with the battery green AND the
 fleet table re-anchored if physics moved.
 

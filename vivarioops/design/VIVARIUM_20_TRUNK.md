@@ -109,7 +109,29 @@ quietly lost, so they are pinned here where the gate can see them.
 > with cross-sectional area") predates the reference parametrisation and read the
 > gain and the budget as one quantity, which they no longer are.
 | N20 | Joint parity: an odd number of mirrorings flips orientation sign. | Mirrored limbs bend the wrong way; very hard to trace. | assertion |
-| N21 | L3 steering is clamped by measured `turnRate`. | This single clamp carries most of the creature's physical identity into the ecosystem. | assertion |
+| N21 | L3 steering is clamped by measured `turnCapability`. | This single clamp carries most of the creature's physical identity into the ecosystem. | assertion |
+
+> **N21 AMENDED 2026-08-08, `BRIDGE_V` 6 → 7: the clamp moves from `turnRate` to
+> `turnCapability = turnRate3d × steeringAuthority`.**
+>
+> `turnRate` is the YAW component. A chain bends about its limbs' local X and turns
+> in **pitch**, where a compass bearing is identically zero, so the original field
+> "reads near-zero for exactly the bodies that turn best" (`SESSION-10.md:601`).
+> Measured: `eel-fast` reads yaw 0.00 in both bias directions while turning in 3-D
+> at 1.09 °/s with full authority — N21 would have granted it nothing. And `eel`
+> reads the same yaw 22.50 °/s as `eel-unison` while being unable to steer at all
+> (45 °/s with +bias, 0 with −bias, always the same axis) — N21 would have granted
+> those two the same budget.
+>
+> `SESSION-10` §152 registered `turnRate3d` and `steeringAuthority` but deliberately
+> left N21 on yaw, "because changing what N21 clamps by is a separate decision with
+> its own consequences". It is now forced: `tools/_zlight.mjs` measures taxis
+> correlating with `turnRate3d` at **r = 0.91** and with the sensor gain at **0.07**,
+> so turn capability is the quantity the ecosystem will select on. A clamp on the
+> wrong axis would cap the wrong animals.
+>
+> `turnRate` is **kept** as a diagnostic and is still recorded. It is no longer what
+> N21 reads.
 | N22 | Ground and wall contacts never damage; only creature–creature contacts do. | Otherwise everything dies on landing. | assertion |
 
 ---

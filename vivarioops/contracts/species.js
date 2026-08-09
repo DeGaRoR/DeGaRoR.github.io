@@ -71,16 +71,45 @@ export const SPECIES_FIELDS = [
   { name: 'bodyLengthsPerSecond', producer: 'derived', note: 'netSpeed / (2*boundingRadius). A fish does 1-10; the corpus ~0.002' },
   { name: 'stride',               producer: 'derived', note: 'netSpeed / (gaitFrequency * 2*boundingRadius) — body lengths per beat; fish 0.5-1.0' },
 
-  // ── turning · measured, S3 — N21 depends on turnRate ───
-  { name: 'turnRate',      producer: 'S3', note: 'rad/s, YAW only. N21 clamps all L3 steering by this' },
+  // ── turning · measured, S3 ─────────────────────────────────────────────────
+  { name: 'turnRate',      producer: 'S3', note: 'rad/s, YAW component only. Diagnostic — N21 no longer clamps by this; see turnCapability' },
   // BRIDGE_V 2 -> 3. `turnRate` is a compass bearing and reads near-zero for a
   // body that bends about its limbs' local X — which is every self-connected
-  // chain, i.e. every good swimmer this project has produced. These two say what
-  // it cannot. They are not a replacement: `turnRate` remains the yaw component
-  // and N21 still reads it, because changing what N21 clamps by is a separate
-  // decision with its own consequences.
+  // chain, i.e. every good swimmer this project has produced.
   { name: 'turnRate3d',    producer: 'S3', note: 'rad/s in whatever plane the creature actually turns in' },
   { name: 'steeringAuthority', producer: 'S3', note: '0..1 axis reversal between +bias and -bias. A creature can have a large turnRate3d and ZERO authority' },
+  /**
+   * ── N21 NOW CLAMPS BY THIS. The decision SESSION-10 §152 deferred. ──────────
+   *
+   * `turnCapability = turnRate3d * steeringAuthority`, rad/s. It is what "how fast
+   * can this creature turn WHEN ASKED" actually means, and neither factor alone
+   * says it. Measured over the authored library, which is why both are needed:
+   *
+   *     creature      yaw turnRate   turnRate3d   authority   turnCapability
+   *     eel-fast          0.00 °/s      1.09 °/s      1.000        1.09 °/s
+   *     eel              22.50 °/s      1.85 °/s      0.000        0.00 °/s
+   *     eel-unison       22.50 °/s     15.95 °/s      1.000       15.95 °/s
+   *
+   * `eel-fast` has ZERO yaw response in both bias directions and a real,
+   * fully-reversing 3-D one: N21 reading yaw would grant it nothing. `eel` has the
+   * same 22.50 yaw as `eel-unison` and cannot steer at all — it turns 45 °/s with
+   * +bias and 0 °/s with -bias, always about the same axis, so the input changes
+   * its rate but never its direction. N21 reading yaw would grant those two the
+   * same steering budget while one of them can only circle.
+   *
+   * WHY IT WAS DEFERRED AND WHY IT IS NOT ANYMORE. §152 registered the two inputs
+   * but left N21 on yaw, "because changing what N21 clamps by is a separate
+   * decision with its own consequences". That decision is now forced: taxis
+   * correlates with `turnRate3d` at r = 0.91 (tools/_zlight.mjs) and with the
+   * sensor gain at 0.07, so turn capability is the quantity the ecosystem will
+   * select on, and a clamp on the wrong axis would cap the wrong animals.
+   *
+   * MULTIPLICATION, NOT A GATE, because authority is continuous and a partial
+   * reverser is a partially steerable animal. A hard `authority > 0.5` test would
+   * make `staircase` (0.823) and a hypothetical 0.49 sibling categorically
+   * different, which is a declared category and P2 forbids it.
+   */
+  { name: 'turnCapability', producer: 'derived', note: 'rad/s — turnRate3d * steeringAuthority. THE N21 CLAMP. Yaw-free and circler-free' },
   // B2 §5 — the steering plane normal, in the ROOT'S LOCAL FRAME, unit length.
   // Three scalars rather than a vector field because the record is a flat
   // Float32Array and always has been. Defaults to world up (0,1,0) when the

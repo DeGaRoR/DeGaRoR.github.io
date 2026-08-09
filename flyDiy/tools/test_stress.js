@@ -1,4 +1,4 @@
-const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
 const world = makeWorld();
 function stress(name, build, tipTag, tipZ, midZ, flapLim) {
   const def = build();
@@ -41,6 +41,11 @@ const d = stress('JODEL full-deflection abuse', buildJodel, 'WF', 4.36, 2.10, 34
 const e = stress('C172  full-deflection abuse', buildC172, 'WF', 5.50, 2.30, 12);
 const f = stress('CHNK  full-deflection abuse', buildChinook, 'WF', 5.34, 2.00, 30);
 const g = stress('PA18  full-deflection abuse', buildPA18, 'WF', 5.0, 3.4, 10);
-const pass = a && b && c && d && e && f && g;
+// GARAGE preset: tip/mid stations come from the spec, not a literal, because
+// the generated wing moves when a slider does
+const gd = buildGen();
+const h = stress('GEN   full-deflection abuse', buildGen, 'WF',
+                 gd.parts.zs[gd.parts.zs.length - 1], gd.parts.zs[0], 10);
+const pass = a && b && c && d && e && f && g && h;
 console.log(pass ? 'GATE STRESS: PASS' : 'GATE STRESS: FAIL');
 process.exitCode = pass ? 0 : 1;

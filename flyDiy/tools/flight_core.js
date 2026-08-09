@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c3af6685afd1f557
+// body-sha256: 70deb8b8ba6e995a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3893,5 +3893,1380 @@ function makeLinkage(tau) {
 if (typeof module !== 'undefined')
   module.exports = { decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas,
                      applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };
+// ============================================================
+// GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
+//
+// Everything downstream (structure, aero, skin) is a pure function of a
+// resolved spec, so the spec is the single root: there is no second place
+// where a number about this aeroplane lives.
+//
+// PROCEDURAL BY DEFAULT: any field may be `null`, which means "derive it".
+// resolveSpec() fills every null from the fields before it and records which
+// ones it touched in `.auto`, so the editor can show auto-vs-manual and a
+// player who changes nothing still gets a coherent aeroplane.
+//
+// Frame is the sim's: x AFT (nose at -x), y up, z lateral, datum x=0 at the
+// firewall. Units SI throughout.
+// ============================================================
+
+// Build materials. `lin` = kg per metre of member, `cover` = kg/m^2 of covered
+// surface (fabric + dope + stringers, or ply + finish). k/c are the beam
+// spring/damping constants by member class — the tubeFabric row IS the Cub's
+// (2.0e5/60 chassis, 5.0e5/450 wing, 2.8e4/900 gear), which is the only row
+// this chantier validates. cd0 is the wing profile-drag finish penalty.
+const GEN_MATERIALS = {
+  tubeFabric: {
+    name: '4130 tube + fabric',
+    lin:   { fus: 0.58, wing: 0.62, gear: 1.05 },
+    cover: 0.42,
+    k:     { fus: 2.0e5, wing: 5.0e5, gear: 2.8e4 },
+    c:     { fus: 60,    wing: 450,   gear: 900 },
+    cd0: 0.0022, clmaxK: 1.00, cost: 1.0,
+  },
+  wood: {
+    name: 'spruce + ply',
+    lin:   { fus: 0.50, wing: 0.58, gear: 1.20 },
+    cover: 0.62,
+    k:     { fus: 4.0e5, wing: 2.5e6, gear: 1.3e5 },
+    c:     { fus: 300,   wing: 950,   gear: 2400 },
+    cd0: 0.0009, clmaxK: 1.02, cost: 0.8,
+  },
+};
+
+// Cabin box per seating layout: half-width, height above the lower longeron,
+// fore-aft length, and the crew mass it carries.
+const GEN_SEATING = {
+  single:  { halfW: 0.32, h: 0.92, len: 0.62, crew: 1 },
+  tandem2: { halfW: 0.36, h: 1.00, len: 0.78, crew: 2 },
+  side2:   { halfW: 0.53, h: 1.05, len: 0.90, crew: 2 },
+};
+
+// Design constants that are rules rather than choices. Each one reproduces a
+// measured value on the Cub (noted), which is why they are constants and not
+// parameters — see the derivations in resolveSpec.
+const GEN_RULES = {
+  tailArmC:    2.60,   // wing c/4 -> stab c/4, in root chords (Cub 4.14/1.6)
+  hAR:         3.70,   // stab aspect ratio
+  vAR:         1.90,   // fin aspect ratio
+  Vh:          0.370,  // horizontal tail volume (Cub effective strip areas)
+  Vv:          0.0267, // vertical tail volume
+  sparFront:   0.15,   // front spar, fraction of chord
+  sparRearMax: 0.72,
+  propClear:   0.40,   // m, prop tip to ground in the LEVEL attitude (Cub 0.42)
+  // Tailwheel leg length below the tailpost foot. The three-point deck angle
+  // is DERIVED from this, not the other way round: a real tailwheel spring has
+  // a length, and the attitude is what falls out of it. (Fixing the deck angle
+  // instead pushes the tailwheel up into the tailpost as the tail arm grows,
+  // and the tailpost then drags — measured, parked clearance halved.)
+  twLeg:       0.23,   // m (Cub: TPB 0.25, TW axle 0.02)
+  deckMin:     8.0, deckMax: 15.0,   // deg, reported and gated
+  gearRake:    16.0,   // deg, CG to main axle from vertical (nose-over guard)
+  trackRatio:  1.23,   // main track / CG height above ground
+  washSpread:  1.12,   // propwash effective radius / prop radius (Cub-fitted)
+  stabWash:    0.60,   // fraction of propwash seen by the stab / fin
+  finWash:     1.00,
+};
+
+// The one preset this chantier ships: a strut-braced high-wing taildragger in
+// the Cub envelope. Nulls are the derived fields — that is most of the
+// aeroplane, which is the point.
+const GEN_DEFAULT = {
+  name: 'Garage Special',
+  reg: 'F-PGAR',
+  material: 'tubeFabric',
+  engine: 'a65_sensenich74',
+  seating: 'tandem2',
+  // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
+  // seats are filled for the flight the shakedown and the gates measure. A
+  // J-3-class aeroplane is flown solo; loading both seats is a different
+  // aeroplane and should read as one.
+  pilots: 1,
+  fuelL: 50,                 // usable litres (avgas 0.72 kg/l)
+  baggage: 10,               // kg
+
+  cab:  { halfW: null, h: null, len: null, noseGap: 0.62 },
+  fuse: { tailArm: null, postGap: 0.67, tailBays: 4,
+          tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          crownTop: 0.60, crownSide: 0.18 },   // skin-only: former bulge, 0 = bare truss
+  wing: { span: 10.0, chord: 1.60, taper: 1.0, dihedral: 3.0,
+          incidence: 1.5, washout: 1.5, naca: 2412, panels: 3,
+          strut: true, xLE: null },
+  tail: { hSpan: null, hChord: null, hX: null,
+          vHeight: null, vChord: null, vX: null },
+  gear: { track: null, x: null, y: null, wheelR: 0.20,
+          twX: null, twY: null, twR: 0.10 },
+  paint: { base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42 },
+};
+
+const GEN_PRESETS = { garage: GEN_DEFAULT };
+
+// ---- helpers ------------------------------------------------------------
+function genClone(o) {
+  if (Array.isArray(o)) return o.map(genClone);
+  if (o && typeof o === 'object') {
+    const r = {};
+    for (const k in o) r[k] = genClone(o[k]);
+    return r;
+  }
+  return o;
+}
+const genClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// NACA 4-digit digits -> {m, p, t} as fractions of chord.
+function nacaParts(code) {
+  const d = String(code | 0).padStart(4, '0');
+  return { m: +d[0] / 100, p: Math.max(0.05, +d[1] / 10), t: +d.slice(2) / 100 };
+}
+
+// Keep the parameter space inside an envelope this chantier has flown. The
+// editor calls this on every change, so a slider can never build something the
+// structure rules were not written for.
+function clampSpec(spec) {
+  const S = genClone(spec);
+  if (!GEN_MATERIALS[S.material]) S.material = 'tubeFabric';
+  if (!GEN_SEATING[S.seating]) S.seating = 'tandem2';
+  if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[S.engine])
+    S.engine = 'a65_sensenich74';
+  S.fuelL = genClamp(S.fuelL, 0, 140);
+  S.baggage = genClamp(S.baggage, 0, 60);
+  const w = S.wing;
+  w.chord = genClamp(w.chord, 1.15, 2.10);
+  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
+                            Math.min(14.0, 10.0 * w.chord));
+  w.taper = genClamp(w.taper, 0.45, 1.0);
+  w.dihedral = genClamp(w.dihedral, 0, 6);
+  w.incidence = genClamp(w.incidence, -1, 4);
+  w.washout = genClamp(w.washout, 0, 4);
+  w.panels = genClamp(w.panels | 0, 2, 5);
+  const n = nacaParts(w.naca);
+  w.naca = (genClamp(Math.round(n.m * 100), 0, 6) * 1000)
+         + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
+         + genClamp(Math.round(n.t * 100), 9, 18);
+  S.fuse.tailBays = genClamp(S.fuse.tailBays | 0, 3, 6);
+  S.fuse.postGap = genClamp(S.fuse.postGap, 0.35, 1.10);
+  S.fuse.crownTop = genClamp(S.fuse.crownTop, 0, 1);
+  S.fuse.crownSide = genClamp(S.fuse.crownSide, 0, 0.6);
+  S.cab.noseGap = genClamp(S.cab.noseGap, 0.40, 1.10);
+  return S;
+}
+
+// Fill every null from the fields before it. `auto` records what was derived
+// so the editor can mark a field "auto" and show the proposal it overrode.
+// Order matters: this IS the design flow (cabin -> fuselage -> engine ->
+// wing -> tail -> gear), each step reading only what precedes it.
+function resolveSpec(spec) {
+  const S = clampSpec(spec);
+  const auto = {};
+  const put = (o, k, v, path) => { if (o[k] === null || o[k] === undefined) { o[k] = v; auto[path] = true; } };
+
+  // 1. cabin — the payload box everything else is built around
+  const seat = GEN_SEATING[S.seating];
+  put(S.cab, 'halfW', seat.halfW, 'cab.halfW');
+  put(S.cab, 'h', seat.h, 'cab.h');
+  put(S.cab, 'len', seat.len, 'cab.len');
+  S.seats = seat.crew;
+  S.crew = genClamp(S.pilots | 0, 1, seat.crew);
+
+  // 2. wing longitudinal placement — the front spar lands on the cabin-front
+  //    frame, which is what puts a high-wing carry-through over the cabin
+  const w = S.wing;
+  put(w, 'xLE', S.cab.noseGap - GEN_RULES.sparFront * w.chord, 'wing.xLE');
+  const xAC = w.xLE + 0.25 * w.chord;                 // wing quarter chord
+  const cBar = w.chord * (2 / 3) * (1 + w.taper + w.taper * w.taper) / (1 + w.taper);
+  const semi = 0.5 * w.span;
+  const Sw = w.span * w.chord * 0.5 * (1 + w.taper);
+  S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
+
+  // 3. fuselage length from the tail arm rule
+  put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
+  const post = S.fuse.tailArm + S.fuse.postGap;
+  S.fuse.postX = post;
+
+  // 4. empennage from tail volume coefficients against the wing just sized
+  const t = S.tail;
+  put(t, 'hX', S.fuse.tailArm + 0.70 * S.fuse.postGap, 'tail.hX');
+  put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
+  const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
+  const Sh = GEN_RULES.Vh * S.geom.Sw * cBar / lh;
+  const Sv = GEN_RULES.Vv * S.geom.Sw * w.span / lv;
+  put(t, 'hSpan', Math.sqrt(Sh * GEN_RULES.hAR), 'tail.hSpan');
+  put(t, 'hChord', Sh / t.hSpan, 'tail.hChord');
+  put(t, 'vHeight', Math.sqrt(Sv * GEN_RULES.vAR), 'tail.vHeight');
+  put(t, 'vChord', Sv / t.vHeight, 'tail.vChord');
+  S.tail.Sh = Sh; S.tail.Sv = Sv; S.tail.lh = lh; S.tail.lv = lv;
+
+  // 5. gear — the two hard geometric constraints of a taildragger.
+  //    y: the prop must clear the ground in the LEVEL attitude (this is the
+  //    binding case; three-point has the nose up and is generous).
+  //    twY: set so the three-point deck angle is the design value.
+  //    x and track need the CG, so genFrame() places them on a second pass.
+  const PP = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
+  const propR = PP ? PP.prop.D / 2 : 0.9;
+  S.propR = propR;
+  S.engY = 0.36 * S.cab.h;                      // thrustline, above the lower longeron
+  S.engX = -(0.18 + 0.32 * propR);              // firewall forward: cowl + prop
+  put(S.gear, 'y', S.engY - propR + S.gear.wheelR - GEN_RULES.propClear, 'gear.y');
+  return { spec: S, auto };
+}
+
+if (typeof module !== 'undefined' && typeof exports !== 'undefined') { /* concat build: no-op */ }
+// ============================================================
+// GARAGE 2/5 — the FRAME. Resolved spec -> named node/beam lattice.
+//
+// This file is where the HANDOVER "STRUCTURAL RULES (each one paid for in
+// blood)" live. They are enforced by construction here so that no generated
+// airframe can omit one; the numbered comments below cite the rule they serve.
+// Nothing downstream may relax them.
+//
+// The lattice is also the surface: 63_gen_skin.js reads the same stations and
+// bays this file emits, so structure and skin cannot disagree. `parts` is that
+// shared contract.
+//
+// Node tags match the hand-written fiches exactly (WF/WR/ENG/AXLE/TW/HT/FIN/
+// TPB/TPT), because the solver, the skin binding, the shadow proxy and the
+// gate harness all key off them.
+// ============================================================
+
+function genQuadArea(P, a, b, c, d) {
+  const tri = (i, j, k) => {
+    const ux = P[j][0]-P[i][0], uy = P[j][1]-P[i][1], uz = P[j][2]-P[i][2];
+    const vx = P[k][0]-P[i][0], vy = P[k][1]-P[i][1], vz = P[k][2]-P[i][2];
+    return 0.5 * Math.hypot(uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx);
+  };
+  return tri(a, b, c) + tri(a, c, d);
+}
+
+// One pass of the lattice. gearX/track are supplied by genFrame on the second
+// pass once the CG is known (see the gear section).
+function genLattice(S, gearX, track) {
+  const M = GEN_MATERIALS[S.material];
+  const R = GEN_RULES;
+  const D = Math.PI / 180;
+  const nodes = [], beams = [];
+  const P = [];                                     // positions, for area math
+  const N = (x, y, z, tag, r = 0) => {
+    nodes.push({ p: [x, y, z], m: 0, r, tag }); P.push([x, y, z]);
+    return nodes.length - 1;
+  };
+  const NM = (x, y, z, tag, r = 0) =>
+    [N(x, y, -Math.abs(z), tag + 'L', r), N(x, y, Math.abs(z), tag + 'R', r)];
+  // ext = the member is OUTSIDE the covering (struts, gear legs). It stays
+  // visible when the aeroplane is covered; everything else disappears under
+  // the fabric, which is what the Frame/Covered view modes key off.
+  const B = (a, b, cls, ext) => {
+    const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
+    beams.push({ a, b, k: M.k[cls], c: M.c[cls], gear: cls === 'gear', cls,
+                 ext: !!ext || cls === 'gear', L });
+    // structural mass: linear density x length, half to each end (this is the
+    // whole structural mass model — there is no separate mass budget to keep
+    // in sync with the geometry)
+    const h = 0.5 * L * M.lin[cls];
+    nodes[a].m += h; nodes[b].m += h;
+  };
+  const cover = (area, ids) => {
+    const per = area * M.cover / ids.length;
+    for (const i of ids) nodes[i].m += per;
+  };
+  const pt = (i, m) => { nodes[i].m += m; };
+
+  // ---- 1. fuselage stations ------------------------------------------
+  // rings 0..2 are firewall / cabin front / cabin rear; the rest are evenly
+  // spaced to the tail. The cabin rings are pinned because the wing spars and
+  // the seats attach to them.
+  const cab = S.cab, fu = S.fuse;
+  const cabRear = cab.noseGap + cab.len;
+  const xs = [0, cab.noseGap, cabRear];
+  for (let i = 1; i <= fu.tailBays; i++)
+    xs.push(cabRear + (fu.tailArm - cabRear) * i / fu.tailBays);
+  const ST = xs.map(x => {
+    if (x <= cabRear) {
+      // firewall is slightly narrower and lower than the cabin (cowl line)
+      const u = x / Math.max(1e-6, cab.noseGap);
+      const f = x < cab.noseGap ? u : 1;
+      return { x, w: cab.halfW * (0.92 + 0.08 * f), yb: -0.02 * f,
+               yt: cab.h * (0.78 + 0.22 * f) };
+    }
+    const t = (x - cabRear) / Math.max(1e-6, fu.tailArm - cabRear);
+    return { x, w: cab.halfW + (fu.tailW - cab.halfW) * t,
+             yb: -0.02 + (fu.tailBot + 0.02) * t,
+             yt: cab.h + (fu.tailTop - cab.h) * t };
+  });
+
+  const F = ST.map((s, i) => {
+    const [BL, BR] = NM(s.x, s.yb, s.w, `S${i}B`);
+    const [TL, TR] = NM(s.x, s.yt, s.w, `S${i}T`);
+    // rule 4: every quad panel needs its diagonal — the ring frame gets a
+    // mirror-symmetric X so shear cannot fold it into a parallelogram
+    B(BL, BR, 'fus'); B(TL, TR, 'fus'); B(BL, TL, 'fus'); B(BR, TR, 'fus');
+    B(BL, TR, 'fus'); B(BR, TL, 'fus');
+    return { BL, BR, TL, TR };
+  });
+  for (let i = 0; i < F.length - 1; i++) {
+    const a = F[i], b = F[i + 1], alt = i % 2;
+    B(a.BL, b.BL, 'fus'); B(a.BR, b.BR, 'fus');
+    B(a.TL, b.TL, 'fus'); B(a.TR, b.TR, 'fus');
+    // side-panel diagonals alternate direction bay to bay (a real welded
+    // truss does this so the shear path zig-zags instead of running one way)
+    B(alt ? a.BL : a.TL, alt ? b.TL : b.BL, 'fus');
+    B(alt ? a.BR : a.TR, alt ? b.TR : b.BR, 'fus');
+    B(a.TL, b.TR, 'fus'); B(a.TR, b.TL, 'fus');     // rule 4, top panel
+    B(a.BL, b.BR, 'fus'); B(a.BR, b.BL, 'fus');     // rule 4, bottom panel
+    // covering, four panels per bay, onto the bay's own corners
+    const s0 = ST[i], s1 = ST[i + 1];
+    cover(genQuadArea(P, a.TL, a.TR, b.TR, b.TL), [a.TL, a.TR, b.TR, b.TL]);
+    cover(genQuadArea(P, a.BL, a.BR, b.BR, b.BL), [a.BL, a.BR, b.BR, b.BL]);
+    cover(genQuadArea(P, a.TL, a.BL, b.BL, b.TL), [a.TL, a.BL, b.BL, b.TL]);
+    cover(genQuadArea(P, a.TR, a.BR, b.BR, b.TR), [a.TR, a.BR, b.BR, b.TR]);
+    void s0; void s1;
+  }
+  const last = F[F.length - 1], lastST = ST[ST.length - 1];
+  // tail post: two centreline nodes. refs.tailMid points here, so rule 8
+  // (attitude reference on RIGID structure) is satisfied by construction.
+  const TPB = N(fu.postX, lastST.yb + 0.05, 0, 'TPB');
+  const TPT = N(fu.postX, lastST.yt - 0.02, 0, 'TPT');
+  B(TPB, TPT, 'fus');
+  B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
+  B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
+  B(last.TL, TPB, 'fus'); B(last.TR, TPB, 'fus');
+  cover(genQuadArea(P, last.TL, last.BL, TPB, TPT)
+      + genQuadArea(P, last.TR, last.BR, TPB, TPT), [last.TL, last.TR, TPB, TPT]);
+
+  // ---- 2. engine ------------------------------------------------------
+  const PP = POWERPLANTS[S.engine];
+  const [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
+  B(EL, ER, 'fus');
+  B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
+  B(ER, F[0].TR, 'fus'); B(ER, F[0].BR, 'fus'); B(ER, F[0].BL, 'fus');
+  const propM = 2.0 * PP.prop.D;
+  pt(EL, 0.5 * (PP.engine.mass + propM)); pt(ER, 0.5 * (PP.engine.mass + propM));
+
+  // ---- 3. wing --------------------------------------------------------
+  const w = S.wing, G = S.geom;
+  const zRoot = cab.halfW;
+  const zs = [];
+  for (let i = 1; i <= w.panels; i++)
+    zs.push(zRoot + (G.semi - zRoot) * i / w.panels);
+  const chordAt = z => w.chord * (1 - (1 - w.taper) * (z - zRoot) / Math.max(1e-6, G.semi - zRoot));
+  const sparFront = R.sparFront;
+  // rear spar sits on the cabin-rear frame; its chord fraction follows, which
+  // is what ties the wing box to the fuselage frames rather than to skin
+  const sparSpacing = cabRear - cab.noseGap;
+  const sparRear = Math.min(R.sparRearMax, sparFront + sparSpacing / w.chord);
+  const xF = w.xLE + sparFront * w.chord, xR = w.xLE + sparRear * w.chord;
+  const dih = Math.tan(w.dihedral * D);
+  const incAt = z => (w.incidence - w.washout * (z - zRoot) / Math.max(1e-6, G.semi - zRoot)) * D;
+  const yF = z => cab.h + (z - zRoot) * dih;
+  const wf = { L: null, R: null };
+  const mkWing = (s) => {
+    const rootF = s > 0 ? F[1].TR : F[1].TL;
+    const rootR = s > 0 ? F[2].TR : F[2].TL;
+    const strutRoot = s > 0 ? F[1].BR : F[1].BL;
+    const WF = zs.map(z => N(xF, yF(z), s * z, 'WF'));
+    const WR = zs.map(z => N(xR, yF(z) - sparSpacing * Math.tan(incAt(z)), s * z, 'WR'));
+    const cF = [rootF, ...WF], cR = [rootR, ...WR];
+    for (let i = 0; i < zs.length; i++) {
+      B(cF[i], cF[i + 1], 'wing'); B(cR[i], cR[i + 1], 'wing');
+      B(cF[i + 1], cR[i + 1], 'wing');                       // rib
+      // rule 4 again: the wing plan bay is a quad and gets its diagonals
+      B(cF[i], cR[i + 1], 'wing'); B(cR[i], cF[i + 1], 'wing');
+      const zi = i === 0 ? zRoot : zs[i - 1], zo = zs[i];
+      cover(1.9 * (zo - zi) * 0.5 * (chordAt(zi) + chordAt(zo)),
+            [cF[i], cF[i + 1], cR[i], cR[i + 1]]);
+      // ribs: one every 0.4 m of span, spruce/ply, hung on the two spars
+      const nRib = Math.max(1, Math.round((zo - zi) / 0.4));
+      const ribM = nRib * 0.5 * (chordAt(zi) + chordAt(zo)) * 0.30;
+      pt(cF[i + 1], 0.5 * ribM); pt(cR[i + 1], 0.5 * ribM);
+    }
+    if (w.strut) {
+      // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
+      // barrier against snap-through fold is the strut anchor a full cabin
+      // height below the wing — the Cub geometry, and the only reason a
+      // planar two-spar wing survives at all.
+      // The two members to the mid station are the REAL lift struts and are
+      // the only ones drawn; the rest of the fan is the lumped stand-in for a
+      // spar box this planar wing does not have, so it lives under the fabric.
+      const mid = WF.length > 1 ? 1 : 0;
+      B(strutRoot, WF[mid], 'wing', true);
+      B(strutRoot, WR[mid], 'wing', true);
+      for (const t of [WF[0], WR[0], WF[WF.length-1], WR[WR.length-1]])
+        B(strutRoot, t, 'wing');
+    }
+    wf[s > 0 ? 'R' : 'L'] = { F: cF, R: cR, strutRoot };
+  };
+  mkWing(+1); mkWing(-1);
+  // centre section covering, over the cabin
+  cover(1.9 * 2 * zRoot * w.chord, [F[1].TL, F[1].TR, F[2].TL, F[2].TR]);
+
+  // ---- 4. empennage ---------------------------------------------------
+  const t = S.tail;
+  const [HTL, HTR] = NM(t.hX, lastST.yb + 0.55 * (lastST.yt - lastST.yb), 0.5 * t.hSpan, 'HT');
+  for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
+    B(H, TPB, 'fus'); B(H, TPT, 'fus');
+    B(H, side === 'L' ? last.BL : last.BR, 'fus');
+    B(H, side === 'L' ? last.TL : last.TR, 'fus');
+  }
+  cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
+  const FIN = N(t.vX, lastST.yt + t.vHeight * 0.82, 0, 'FIN');
+  B(FIN, TPT, 'fus'); B(FIN, last.TL, 'fus'); B(FIN, last.TR, 'fus');
+  cover(1.9 * t.Sv, [FIN, TPT, last.TL, last.TR]);
+
+  // ---- 5. gear --------------------------------------------------------
+  const gy = S.gear.y, wr = S.gear.wheelR;
+  const gx = gearX !== null && gearX !== undefined ? gearX : cab.noseGap * 0.9;
+  const tr = track !== null && track !== undefined ? track : 5 * cab.halfW;
+  const [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', wr);
+  B(GAL, GAR, 'gear');
+  // rule 7: the gear needs a LONGITUDINAL (drag) load path anchored well
+  // fore and aft of the axle, into HEAVY nodes — the firewall ring and the
+  // cabin-front ring, never into light structure.
+  B(GAL, F[0].BL, 'gear'); B(GAL, F[1].BL, 'gear'); B(GAL, F[0].BR, 'gear');
+  B(GAR, F[0].BR, 'gear'); B(GAR, F[1].BR, 'gear'); B(GAR, F[0].BL, 'gear');
+  pt(GAL, 3.5); pt(GAR, 3.5);                          // wheels, tyres, brakes
+
+  const twX = S.gear.twX !== null && S.gear.twX !== undefined
+    ? S.gear.twX : fu.postX - 0.10;
+  // the tailwheel hangs off the tailpost foot by its leg length; the
+  // three-point attitude is whatever that geometry produces (GEN_RULES.twLeg)
+  const twY = S.gear.twY !== null && S.gear.twY !== undefined
+    ? S.gear.twY : nodes[TPB].p[1] - R.twLeg;
+  const TW = N(twX, twY, 0, 'TW', S.gear.twR);
+  B(TW, TPB, 'gear'); B(TW, last.BL, 'gear'); B(TW, last.BR, 'gear');
+  // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
+  // strain gate can see it. Both cures the Cub needed are mandatory here:
+  // a snap-blocking near-vertical member, AND a wide lateral pyramid.
+  B(TW, TPT, 'gear');
+  B(TW, HTL, 'gear'); B(TW, HTR, 'gear');
+  pt(TW, 2.0);
+
+  // ---- 6. payload, fuel, systems --------------------------------------
+  // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
+  // that is a CG choice the player can make by moving the seat, not a default)
+  const seatRings = S.seating === 'tandem2' ? [F[1], F[2]] : [F[1], F[1]];
+  for (let i = 0; i < S.crew; i++) {
+    const rg = seatRings[i] || F[1];
+    pt(rg.BL, 40); pt(rg.BR, 40);
+  }
+  const fuelM = S.fuelL * 0.72;
+  pt(F[0].TL, 0.5 * fuelM); pt(F[0].TR, 0.5 * fuelM);   // header/wing-root tank
+  pt(F[0].TL, 6); pt(F[0].TR, 6);                       // panel + systems
+  const bag = F[Math.min(3, F.length - 1)];
+  pt(bag.BL, 0.5 * S.baggage); pt(bag.BR, 0.5 * S.baggage);
+
+  const refs = {
+    noseFrame: [F[0].BL, F[0].BR, F[0].TL, F[0].TR],
+    tailMid: [TPB, TPT],
+    upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
+    fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
+    fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
+    engine: [EL, ER], mains: [GAL, GAR], tw: TW, fin: FIN,
+  };
+  const parts = {
+    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, GAL, GAR, TW,
+    wf, zs, zRoot, xF, xR, sparFront, sparRear, sparSpacing,
+    chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
+  };
+  return { nodes, beams, refs, parts };
+}
+
+function genLatticeCG(nodes) {
+  let x = 0, y = 0, z = 0, m = 0;
+  for (const n of nodes) { x += n.p[0]*n.m; y += n.p[1]*n.m; z += n.p[2]*n.m; m += n.m; }
+  return [x/m, y/m, z/m, m];
+}
+
+// Two fixed passes: the first sizes the aeroplane, the second places the main
+// gear against the CG it produced. Fixed count, so generation stays
+// deterministic (GATE GEN byte-compares a double-generate).
+function genFrame(S) {
+  const R = GEN_RULES, D = Math.PI / 180;
+  const a = genLattice(S, S.gear.x, S.gear.track);
+  const cg = genLatticeCG(a.nodes);
+  const gy = S.gear.y;
+  // main axle rake: forward of the CG by gearRake degrees off vertical. Too
+  // little and it noses over on the brakes; too much and it will not fly the
+  // tail up. Track from the CG height, against ground-loop divergence.
+  const gx = S.gear.x !== null && S.gear.x !== undefined
+    ? S.gear.x : cg[0] - Math.tan(R.gearRake * D) * (cg[1] - gy);
+  const tr = S.gear.track !== null && S.gear.track !== undefined
+    ? S.gear.track : R.trackRatio * (cg[1] - (gy - S.gear.wheelR));
+  const out = genLattice(S, gx, tr);
+  out.cg0 = genLatticeCG(out.nodes);
+  return out;
+}
+// ============================================================
+// GARAGE 3/5 — the AERO. Frame -> strips, polars and params.
+//
+// The polars are SYNTHESISED, not looked up: the same NACA digits that shape
+// the visible wing section produce the six numbers the solver's polar()
+// wants. That is the single root extended to aerodynamics — there is no
+// airfoil table to keep in step with the geometry.
+//
+// The synthesis is anchored on the hand-written fleet: the tail model
+// reproduces POLARS.flat_tail_cub to two decimals (a3d 3.34 vs 3.4,
+// aStall 0.239 vs 0.24) and the Cd0 model reproduces the Cub's 0.010 and the
+// C172's 0.008. Those agreements are the reason the constants are what they
+// are; they are not free parameters.
+// ============================================================
+
+// Thin-airfoil theory on the NACA 4-digit mean line, integrated numerically
+// (closed forms exist per branch, but the integral is 3 lines and exact for
+// any m/p). Returns the zero-lift angle in radians and Cm about c/4.
+function genThinAirfoil(m, p) {
+  if (m <= 0) return { aL0: 0, Cm0: 0 };
+  const NS = 400;
+  let i0 = 0, i1 = 0, i2 = 0;
+  for (let i = 0; i < NS; i++) {
+    const th = (i + 0.5) * Math.PI / NS, x = 0.5 * (1 - Math.cos(th));
+    const dz = x <= p ? (2 * m / (p * p)) * (p - x)
+                      : (2 * m / ((1 - p) * (1 - p))) * (p - x);
+    const dth = Math.PI / NS;
+    i0 += dz * (1 - Math.cos(th)) * dth;
+    i1 += dz * Math.cos(th) * dth;
+    i2 += dz * Math.cos(2 * th) * dth;
+  }
+  const aL0 = i0 / Math.PI;                       // negative for positive camber
+  const A1 = (2 / Math.PI) * i1, A2 = (2 / Math.PI) * i2;
+  return { aL0, Cm0: (Math.PI / 4) * (A2 - A1) };
+}
+
+// 2D lift slope. kVisc 0.845 is the fleet-fitted viscous deficit: reconstructing
+// a0 from the registry's (a3d, eAR) pairs gives 5.7-5.9 /rad across cub, jodel
+// and c172, not the 2*pi of inviscid theory.
+const GEN_KVISC = 0.845;
+
+// Oswald efficiency, Raymer's straight-wing estimate, times a bracing penalty
+// (a strut and its fairing spoil the span loading near the attach).
+function genOswald(AR, strut) {
+  const e = 1.78 * (1 - 0.045 * Math.pow(AR, 0.68)) - 0.64;
+  return Math.min(0.95, Math.max(0.55, e * (strut ? 0.90 : 1.0)));
+}
+
+// naca: 4-digit code; AR/taper/strut: planform; finish: material cd0 penalty.
+function genPolar(naca, AR, strut, matCd0, clmaxK) {
+  const { m, p, t } = nacaParts(naca);
+  const { aL0, Cm0 } = genThinAirfoil(m, p);
+  const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t);
+  const eAR = Math.PI * genOswald(AR, strut) * AR;
+  const a3d = 1 / (1 / a0 + 1 / eAR);
+  const Cl0 = a3d * (-aL0);
+  const ClMax = (1.38 + 5.0 * m + 1.2 * (t - 0.12)) * clmaxK;
+  return {
+    a3d, Cl0, aStall: Math.max(0.16, (ClMax - Cl0) / a3d),
+    Cd0: 0.0055 + 0.018 * t + matCd0, eAR, Cm0,
+    _ClMax: ClMax,
+  };
+}
+
+// Tail sections are symmetric and thin; e is 0.70 across the whole fleet.
+function genTailPolar(AR, matCd0) {
+  const t = 0.09;
+  const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t);
+  const eAR = Math.PI * 0.70 * AR;
+  const a3d = 1 / (1 / a0 + 1 / eAR);
+  return { a3d, Cl0: 0, aStall: 0.80 / a3d, Cd0: 0.0055 + 0.018 * t + matCd0,
+           eAR, Cm0: 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Strips. Two per wing bay per side, plus one over the cabin; two per stab
+// panel; one fin. Attach weights put the quarter chord where it belongs
+// between the two spars, exactly as the hand fiches do.
+// ---------------------------------------------------------------------------
+function genStrips(S, fr) {
+  const P = fr.parts, R = GEN_RULES, strips = [];
+  const PP = POWERPLANTS[S.engine];
+  const Reff = (PP.prop.D / 2) * R.washSpread;
+  // fraction of propwash a strip at |z| sees; fitted to the Cub's hand values
+  // (centre strip 1.0, first outboard strip 0.5, everything beyond 0)
+  const washAt = z => Math.max(0, 1 - (z / Reff) * (z / Reff));
+  // c/4 between the spars: weight the front spar by how far the quarter chord
+  // sits from the rear one
+  const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
+  const semi = S.geom.semi, aStart = 0.62 * semi;
+
+  const zAll = [P.zRoot, ...P.zs];
+  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
+    for (let b = 0; b < P.zs.length; b++) {
+      const zi = zAll[b], zo = zAll[b + 1];
+      for (const t of [0.28, 0.78]) {
+        const zc = zi + (zo - zi) * t;
+        const ch = P.chordAt(zc);
+        strips.push({
+          kind: 'wing', side, t, chord: ch,
+          area: 0.5 * (zo - zi) * ch,
+          fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
+          w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
+              [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
+          wash: washAt(zc), ail: zc > aStart ? 1 : 0, flap: 0,
+        });
+      }
+    }
+  }
+  // centre section over the cabin: one strip, fully in the slipstream
+  strips.push({
+    kind: 'wing', side: 1, t: 0.5, chord: S.wing.chord,
+    area: 2 * P.zRoot * S.wing.chord,
+    fIn: P.F[1].TL, fOut: P.F[1].TR, rIn: P.F[2].TL, rOut: P.F[2].TR,
+    w: [[P.F[1].TL, cf * 0.5], [P.F[1].TR, cf * 0.5],
+        [P.F[2].TL, cr * 0.5], [P.F[2].TR, cr * 0.5]],
+    wash: 1, ail: 0, flap: 0,
+  });
+
+  const hc = S.tail.hChord;
+  for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
+    strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
+      wash: R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
+    strips.push({ kind: 'stab', side, area: 0.435 * S.tail.Sh / 2, chord: hc,
+      wash: R.stabWash, w: [[H, .25], [P.TPB, .45], [P.TPT, .30]] });
+  }
+  strips.push({ kind: 'fin', area: S.tail.Sv, chord: S.tail.vChord,
+    wash: R.finWash, w: [[P.FIN, .40], [P.TPT, .35], [P.TPB, .25]] });
+  return strips;
+}
+
+// Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
+// Cub's own geometry reproduces its hand-tuned [0.55, 0.8, 0.8] / [0, 0.5, 0.5]:
+// 0.75 on max frontal area, 0.57 on forward side area, 0.31 aft (the aft body
+// is tapered and cleaner, which is why the two are not the same number).
+function genFusCdA(S, fr) {
+  const ST = fr.parts.ST;
+  let frontal = 0, sFwd = 0, sAft = 0;
+  for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  for (let i = 0; i < ST.length - 1; i++) {
+    const a = ST[i], b = ST[i + 1];
+    const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
+    if (i < 2) sFwd += A; else sAft += A;
+  }
+  return {
+    fusCdA: [0.75 * frontal, 0.57 * sFwd, 0.57 * sFwd],
+    fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
+  };
+}
+
+// Autopilot block. Speeds come from the aeroplane's OWN stall speed; the
+// remaining ratios and gains are the Cub's, which is the airframe timescale
+// (span/V ~ 0.4 s) this family sits at. HANDOVER "AUTOPILOT RULES": D-gains
+// scale with that timescale, so they are rescaled rather than copied.
+const GEN_VRATIO = {
+  VRot: 0.99, VClimbMin: 1.32, VClimb: 1.38, VCruise: 1.71,
+  VAppr: 1.42, VApprShort: 1.24, VTailUp: 0.79, VBrakeOn: 0.59,
+};
+const GEN_TAU_REF = 10.0 / 26.0;      // Cub span / VCruise
+
+function genAP(S, Vs, mass) {
+  const V = k => Math.round(GEN_VRATIO[k] * Vs * 10) / 10;
+  const tau = S.wing.span / (GEN_VRATIO.VCruise * Vs);
+  const kD = tau / GEN_TAU_REF;
+  return {
+    VRot: V('VRot'), VClimbMin: V('VClimbMin'), VClimb: V('VClimb'),
+    VCruise: V('VCruise'), VAppr: V('VAppr'), VApprShort: V('VApprShort'),
+    VTailUp: V('VTailUp'), VBrakeOn: V('VBrakeOn'),
+    TORun: 60,                    // replaced by the analytic estimate in 64
+    rollD: 0.8 * kD,
+    hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
+    rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
+    thMax: 0.20, flareAgl: 4.8, flareRate: 0.062, aglGuard: 3,
+    VStop: 0.4, slew: 1.5, thrCruise: 0.70, thrAppr: 0.35,
+    brakeMax: 0.30, brakeRampRate: 0.12, VBrakeRelease: 1.5,
+    _mass: mass,
+  };
+}
+
+// Everything the fiche's params block needs, except the two numbers that can
+// only come from a wind-tunnel run (stabTrim, thrCruise) — 64_gen_build.js
+// measures those with sim.probe().
+function genParams(S, fr, strips) {
+  const M = GEN_MATERIALS[S.material];
+  const G = S.geom;
+  const polarWing = genPolar(S.wing.naca, G.AR, S.wing.strut, M.cd0, M.clmaxK);
+  const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
+  const polarTail = genTailPolar(hAR, M.cd0);
+  const mass = fr.cg0[3];
+  const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
+  const Vs = Math.sqrt(2 * mass * 9.81 / (1.225 * G.Sw * ClMax3D));
+  const cda = genFusCdA(S, fr);
+  return {
+    name: S.name, viewDist: Math.max(9, 1.4 * S.wing.span),
+    powerplant: S.engine,
+    polarWing, polarTail,
+    elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
+    stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
+    fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    twSteer: 0.5,
+    ap: genAP(S, Vs, mass),
+    gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR },
+  };
+}
+// ============================================================
+// GARAGE 4/5 — the SKIN. The same lattice, covered.
+//
+// The frame IS the surface. Every skin vertex is an affine blend of the truss
+// nodes it sits on (weights summing to 1), so the covering follows the
+// structure exactly and there is nothing to calibrate: SKIN_CFG's measured
+// mount offset, which every imported model needs, is [0,0,0] here by
+// construction. It also gets fuselage flex for free — SKIN-PROC.md §6 lists
+// that as deferred for imported skins, because binding a foreign mesh to a
+// truss is the hard part. Generating the mesh from the truss makes it trivial.
+//
+// The one thing a bare truss cannot do is a round cowl or a turtledeck: its
+// faces are flat. The fix is the real construction technique — light
+// non-structural FORMERS over the load-carrying frame. `crown` blends each
+// station's section from the bare truss rectangle (0) to a rounded former
+// outline (1). Formers carry no load and no mass in the solver; their vertices
+// are still affine on the same four corner nodes, so they flex with the frame.
+//
+// Output is the shape decodeModel() returns, so src/viewer/app.js builds it
+// with the code path it already has.
+// ============================================================
+
+const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024 };
+const GEN_RADIAL = 20;          // fuselage section resolution
+const GEN_LSEG = 3;             // lengthwise slices per fuselage bay
+const GEN_AF = 22;              // airfoil points per surface
+
+// ---- mesh accumulator ------------------------------------------------------
+// infl: [[nodeIndex, weight], ...], at most GEN_INFL entries, weights sum to 1.
+// 8, because a section between two frames blends both frames' four corners.
+const GEN_INFL = 8;
+function genMesh() {
+  return {
+    pos: [], uv: [], sid: [], idx: [], wi: [], ww: [],
+    v(p, u, vv, infl, sidv) {
+      this.pos.push(p[0], p[1], p[2]);
+      this.uv.push(u, vv);
+      this.sid.push(sidv || 0);
+      for (let k = 0; k < GEN_INFL; k++) {
+        const e = infl[k];
+        this.wi.push(e ? e[0] : (infl[0] ? infl[0][0] : 0));
+        this.ww.push(e ? e[1] : 0);
+      }
+      return this.pos.length / 3 - 1;
+    },
+    tri(a, b, c) { this.idx.push(a, b, c); },
+    quad(a, b, c, d) { this.idx.push(a, b, c, a, c, d); },
+    done() {
+      const nv = this.pos.length / 3;
+      return {
+        nv, nt: this.idx.length / 3,
+        pos: Float32Array.from(this.pos), uv: Float32Array.from(this.uv),
+        idx: nv > 65535 ? Uint32Array.from(this.idx) : Uint16Array.from(this.idx),
+        sid: Uint8Array.from(this.sid),
+        wi: Int32Array.from(this.wi), ww: Float32Array.from(this.ww),
+      };
+    },
+  };
+}
+
+// One paint texture serves the whole aeroplane, so the UV space is split into
+// two zones: BODY takes v 0.03..0.47 (u = angle around the section, v = station
+// along the body) and PANEL takes v 0.53..0.97 (u = chord fraction, v = span).
+// A stripe drawn across u therefore runs fore-and-aft on the fuselage and
+// spanwise on the wing, which is what both want.
+const genUVBody = t => 0.03 + 0.44 * Math.max(0, Math.min(1, t));
+const genUVPanel = t => 0.53 + 0.44 * Math.max(0, Math.min(1, t));
+
+const genV3 = {
+  sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+  add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+  mul: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
+  cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  norm: a => { const L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/L, a[1]/L, a[2]/L]; },
+};
+
+// Rest body frame, computed with the same formula the solver's bodyAxes() uses
+// so the generated skin lands in exactly the frame poseModel() will pose it in.
+function genRestFrame(def) {
+  const N = def.nodes, R = def.refs;
+  const avg = ids => {
+    const o = [0, 0, 0];
+    for (const i of ids) { o[0] += N[i].p[0]; o[1] += N[i].p[1]; o[2] += N[i].p[2]; }
+    return genV3.mul(o, 1 / ids.length);
+  };
+  const xA = genV3.norm(genV3.sub(avg(R.tailMid), avg(R.noseFrame)));
+  let yU = genV3.norm(genV3.sub(avg(R.upHi), avg(R.upLo)));
+  const zL = genV3.norm(genV3.cross(xA, yU));
+  yU = genV3.norm(genV3.cross(zL, xA));
+  let x = 0, y = 0, z = 0, m = 0;
+  for (const n of N) { x += n.p[0]*n.m; y += n.p[1]*n.m; z += n.p[2]*n.m; m += n.m; }
+  const cg = [x/m, y/m, z/m];
+  return { cg, xA, yU, zL,
+    // world point -> body coordinates
+    to(p) {
+      const d = genV3.sub(p, cg);
+      return [d[0]*xA[0]+d[1]*xA[1]+d[2]*xA[2],
+              d[0]*yU[0]+d[1]*yU[1]+d[2]*yU[2],
+              d[0]*zL[0]+d[1]*zL[1]+d[2]*zL[2]];
+    } };
+}
+
+// NACA 4-digit section. Returns closed contour, TE -> upper -> LE -> lower -> TE,
+// in (chordFrac, thicknessFrac) with cosine spacing so the nose is resolved.
+function genAirfoil(naca) {
+  const { m, p, t } = nacaParts(naca);
+  const yc = x => x <= p ? (m/(p*p))*(2*p*x - x*x) : (m/((1-p)*(1-p)))*((1-2*p) + 2*p*x - x*x);
+  const dyc = x => x <= p ? (2*m/(p*p))*(p - x) : (2*m/((1-p)*(1-p)))*(p - x);
+  const yt = x => 5*t*(0.2969*Math.sqrt(x) - 0.1260*x - 0.3516*x*x + 0.2843*x*x*x - 0.1015*x*x*x*x);
+  const up = [], lo = [];
+  for (let i = 0; i <= GEN_AF; i++) {
+    const x = 0.5 * (1 - Math.cos(Math.PI * i / GEN_AF));
+    const th = Math.atan(dyc(x)), s = Math.sin(th), c = Math.cos(th), T = yt(x);
+    up.push([x - T*s, yc(x) + T*c]);
+    lo.push([x + T*s, yc(x) - T*c]);
+  }
+  // TE closes on the mean line; walk upper aft->fwd then lower fwd->aft
+  const pts = [];
+  for (let i = up.length - 1; i >= 1; i--) pts.push(up[i]);
+  pts.push([0, yc(0)]);
+  for (let i = 1; i < lo.length; i++) pts.push(lo[i]);
+  return pts;                                   // open contour, TE..LE..TE
+}
+
+// Station cross-section: blend from the bare truss rectangle to a rounded
+// former. theta 0 = top, +pi/2 = +z side, pi = bottom.
+function genRing(theta, halfW, halfD, crownT, crownS) {
+  const cy = Math.cos(theta), cz = Math.sin(theta);
+  const s = Math.min(halfD / Math.max(1e-6, Math.abs(cy)), halfW / Math.max(1e-6, Math.abs(cz)));
+  const ry = cy * s, rz = cz * s;                       // truss rectangle
+  const crown = cy > 0 ? crownT : crownS;
+  const k = 1 + 0.15 * crown;                           // formers stand a little proud
+  const ey = halfD * cy * k, ez = halfW * cz * k;       // rounded former
+  return [ry + (ey - ry) * crown, rz + (ez - rz) * crown];
+}
+
+// ---------------------------------------------------------------------------
+// genSkin(def) -> payload in the decodeModel shape, plus per-vertex bindings.
+// ---------------------------------------------------------------------------
+function genSkin(def) {
+  const S = def.spec, P = def.parts, N = def.nodes;
+  const FR = genRestFrame(def);
+  const B = FR.to;
+  const skin = genMesh(), glass = genMesh(), frame = genMesh(),
+        strut = genMesh(), tyre = genMesh(), prop = genMesh();
+  const w1 = i => [[i, 1]];
+
+  // ---- 1. tubes: one hexagonal prism per beam -------------------------
+  const HEX = 6;
+  for (const b of def.beams) {
+    const M = b.ext ? strut : frame;
+    const A = N[b.a].p, C = N[b.b].p;
+    const ax = genV3.norm(genV3.sub(C, A));
+    let up = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const e1 = genV3.norm(genV3.cross(ax, up)), e2 = genV3.cross(ax, e1);
+    const r = GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
+    const ring = [];
+    for (let s = 0; s < 2; s++) {
+      const nd = s ? b.b : b.a, base = s ? C : A, row = [];
+      for (let h = 0; h < HEX; h++) {
+        const a2 = 2 * Math.PI * h / HEX;
+        const off = genV3.add(genV3.mul(e1, r * Math.cos(a2)), genV3.mul(e2, r * Math.sin(a2)));
+        row.push(M.v(B(genV3.add(base, off)), h / HEX, s, w1(nd)));
+      }
+      ring.push(row);
+    }
+    for (let h = 0; h < HEX; h++)
+      M.quad(ring[0][h], ring[0][(h+1)%HEX], ring[1][(h+1)%HEX], ring[1][h]);
+  }
+
+  // ---- 2. fuselage covering -------------------------------------------
+  // Every section vertex is BILINEAR on that ring's four truss corners, in the
+  // ring's own normalised (uz, uy). A former that stands proud of the truss has
+  // |u| > 1 and simply extrapolates — same weights, no special case.
+  const ST = P.ST, F = P.F, fu = S.fuse;
+  // Glazing is INSET inside its bay, both along the body and around the
+  // section — a window that runs frame to frame reads as a missing panel, not
+  // as a window. Angles are measured from the top (0) toward either side.
+  const nCabinBays = 2;
+  const glazing = (bay, seg, th) => {
+    const a = Math.abs(((th + Math.PI) % (2*Math.PI)) - Math.PI);
+    if (bay === 0) return seg === GEN_LSEG - 1 && a < 1.02;     // windscreen
+    if (bay <= nCabinBays) return seg < GEN_LSEG - 1 && a > 0.92 && a < 1.86;  // side glass
+    return false;
+  };
+  // one section per lengthwise slice; a slice between two frames blends both
+  const section = (i, s) => {
+    const A = ST[i], C = ST[Math.min(i + 1, ST.length - 1)];
+    const L = (a, b) => a + (b - a) * s;
+    return { x: L(A.x, C.x), w: L(A.w, C.w), yb: L(A.yb, C.yb), yt: L(A.yt, C.yt) };
+  };
+  const sectionRow = (i, s) => {
+    const g = section(i, s), fA = F[i], fB = F[Math.min(i + 1, F.length - 1)];
+    const yc = 0.5 * (g.yb + g.yt), hD = 0.5 * (g.yt - g.yb);
+    const row = [];
+    for (let h = 0; h <= GEN_RADIAL; h++) {
+      const th = 2 * Math.PI * (h % GEN_RADIAL) / GEN_RADIAL;
+      const [dy, dz] = genRing(th, g.w, hD, fu.crownTop, fu.crownSide);
+      const uz = dz / Math.max(1e-6, g.w), uy = dy / Math.max(1e-6, hD);
+      const wL = 0.5*(1-uz), wR = 0.5*(1+uz), wT = 0.5*(1+uy), wBo = 0.5*(1-uy);
+      const kA = 1 - s, kB = s;
+      row.push({ p: [g.x, yc + dy, dz], u: h / GEN_RADIAL, vv: genUVBody(g.x / Math.max(1e-6, fu.postX)),
+        infl: [[fA.TL, kA*wT*wL], [fA.TR, kA*wT*wR], [fA.BL, kA*wBo*wL], [fA.BR, kA*wBo*wR],
+               [fB.TL, kB*wT*wL], [fB.TR, kB*wT*wR], [fB.BL, kB*wBo*wL], [fB.BR, kB*wBo*wR]] });
+    }
+    return row;
+  };
+  const emitRow = (row, M) => row.map(pt => M.v(B(pt.p), pt.u, pt.vv, pt.infl));
+  let lastFusRow = null;
+  for (let i = 0; i < F.length - 1; i++) {
+    for (let sg = 0; sg < GEN_LSEG; sg++) {
+      // reuse the previous slice's row rather than emitting a coincident one:
+      // duplicate vertices split the normal average and crease the fuselage
+      const rowA = lastFusRow || sectionRow(i, sg / GEN_LSEG);
+      const rowB = sectionRow(i, (sg + 1) / GEN_LSEG);
+      const aS = rowA.ids || emitRow(rowA, skin), bS = emitRow(rowB, skin);
+      rowA.ids = aS; rowB.ids = bS;
+      let aG = null, bG = null;
+      for (let h = 0; h < GEN_RADIAL; h++) {
+        const th = 2 * Math.PI * (h + 0.5) / GEN_RADIAL;
+        if (glazing(i, sg, th)) {
+          if (!aG) { aG = emitRow(rowA, glass); bG = emitRow(rowB, glass); }
+          glass.quad(aG[h], aG[h+1], bG[h+1], bG[h]);
+        } else {
+          skin.quad(aS[h], aS[h+1], bS[h+1], bS[h]);
+        }
+      }
+      lastFusRow = rowB;
+    }
+  }
+  const secRows = [{ s: lastFusRow.ids }];   // last fuselage row, for the tail cone
+  // tail cone closing onto the post: the section collapses to the TPB..TPT line
+  {
+    const lastRow = secRows[0].s, s = ST[ST.length - 1];
+    const yc = 0.5 * (s.yb + s.yt), hD = 0.5 * (s.yt - s.yb);
+    const tip = [];
+    for (let h = 0; h <= GEN_RADIAL; h++) {
+      const th = 2 * Math.PI * (h % GEN_RADIAL) / GEN_RADIAL;
+      const [dy] = genRing(th, s.w, hD, fu.crownTop, fu.crownSide);
+      const t = 0.5 * (1 + dy / Math.max(1e-6, hD));          // 0 = TPB, 1 = TPT
+      const p = [fu.postX, N[P.TPB].p[1] + t * (N[P.TPT].p[1] - N[P.TPB].p[1]), 0];
+      tip.push(skin.v(B(p), h / GEN_RADIAL, genUVBody(1), [[P.TPB, 1 - t], [P.TPT, t]]));
+    }
+    for (let h = 0; h < GEN_RADIAL; h++)
+      skin.quad(lastRow[h], lastRow[h+1], tip[h+1], tip[h]);
+  }
+  // cowl: ring 0 forward to the spinner backplate, blending to a circle and
+  // handing its weights over from the firewall frame to the engine mounts
+  const hub = [S.engX - 0.10, S.engY, 0];
+  {
+    const s0 = ST[0], f0 = F[0];
+    const yc0 = 0.5 * (s0.yb + s0.yt), hD0 = 0.5 * (s0.yt - s0.yb);
+    // the cowl must close ON the spinner backplate, or it ends as an open tube
+    const rHub = Math.max(0.075, 0.16 * S.propR);
+    const steps = [0, 0.35, 0.68, 0.90, 1];
+    const rows = steps.map(t2 => {
+      const x = s0.x + (hub[0] - s0.x) * t2;
+      const row = [];
+      for (let h = 0; h <= GEN_RADIAL; h++) {
+        const th = 2 * Math.PI * (h % GEN_RADIAL) / GEN_RADIAL;
+        const [dy, dz] = genRing(th, s0.w, hD0, fu.crownTop, fu.crownSide);
+        // blend the firewall section into a circle at the spinner backplate
+        const e = 1 - Math.pow(1 - t2, 2);
+        const cy2 = yc0 + dy * (1 - e) + (S.engY - yc0 + rHub * Math.cos(th)) * e;
+        const cz2 = dz * (1 - e) + rHub * Math.sin(th) * e;
+        const uz = dz / Math.max(1e-6, s0.w), uy = dy / Math.max(1e-6, hD0);
+        const wL = 0.5*(1-uz), wR = 0.5*(1+uz), wT = 0.5*(1+uy), wBo = 0.5*(1-uy);
+        const k = 1 - t2;
+        const infl = [[f0.TL, k*wT*wL], [f0.TR, k*wT*wR], [f0.BL, k*wBo*wL],
+                      [f0.BR, k*wBo*wR], [P.EL, 0.5*t2], [P.ER, 0.5*t2]];
+        row.push(skin.v(B([x, cy2, cz2]), h / GEN_RADIAL, genUVBody(0) * (1 - t2), infl));
+      }
+      return row;
+    });
+    for (let r = 0; r < rows.length - 1; r++)
+      for (let h = 0; h < GEN_RADIAL; h++)
+        skin.quad(rows[r+1][h], rows[r+1][h+1], rows[r][h+1], rows[r][h]);
+  }
+
+  // ---- 3. wing --------------------------------------------------------
+  // A section at every spar station, lofted along the span. Chordwise position
+  // is affine on the two spar nodes (the spars ARE the chord frame, so the
+  // weights are exact and extrapolate past LE and TE); the thickness offset is
+  // a rest-frame constant, which is what `base` carries.
+  const af = genAirfoil(S.wing.naca);
+  const sparF = P.sparFront, sparR = P.sparRear;
+  const kOf = xc => (xc - sparF) / (sparR - sparF);
+  const aStart = 0.62 * S.geom.semi;
+  const AIL_HINGE = 0.72;                       // aileron hinge, fraction of chord
+  const wingSection = (nF, nR, chord, sid) => {
+    const pF = N[nF].p, pR = N[nR].p;
+    const ch = genV3.norm(genV3.sub(pR, pF));                 // LE -> TE
+    const span = genV3.norm(genV3.sub(pR, pF));
+    void span;
+    // section normal: chord x spanwise. Spanwise from the node's own z sign so
+    // both wings get an outward-consistent normal.
+    const sgn = pF[2] >= 0 ? 1 : -1;
+    const nrm = genV3.norm(genV3.cross(ch, genV3.mul([0, 0, 1], sgn)));
+    return af.map(([xc, yc]) => {
+      const base = genV3.add(pF, genV3.mul(ch, (xc - sparF) * chord));
+      const p = genV3.add(base, genV3.mul(nrm, yc * chord));
+      const k = kOf(xc);
+      return { p, infl: [[nF, 1 - k], [nR, k]],
+               sid: sid && xc > AIL_HINGE ? sid : 0, u: xc };
+    });
+  };
+  const emitLoft = (rows, mesh, vOf) => {
+    const ids = rows.map((row, r) => row.map(pt =>
+      mesh.v(B(pt.p), pt.u, genUVPanel(vOf(r)), pt.infl, pt.sid)));
+    for (let r = 0; r < ids.length - 1; r++)
+      for (let h = 0; h < ids[r].length - 1; h++)
+        mesh.quad(ids[r][h], ids[r][h+1], ids[r+1][h+1], ids[r+1][h]);
+    return ids;
+  };
+  const capLoft = (ids, mesh) => {
+    // close a section with a fan to its mid-chord point
+    for (const row of ids) {
+      const n = row.length;
+      for (let h = 1; h < n - 1; h++) mesh.tri(row[0], row[h], row[h+1]);
+    }
+  };
+  for (const [side, fw, sid] of [[1, P.wf.R, 3], [-1, P.wf.L, 4]]) {
+    const zAll = [P.zRoot, ...P.zs];
+    const rows = [];
+    for (let i = 0; i < fw.F.length; i++) {
+      const z = zAll[i];
+      rows.push(wingSection(fw.F[i], fw.R[i], P.chordAt(z), z > aStart ? sid : 0));
+    }
+    // rounded tip: one extra section, shrunk about the tip chord's mid point
+    const tipF = fw.F[fw.F.length-1], tipR = fw.R[fw.R.length-1];
+    const tipSec = wingSection(tipF, tipR, P.chordAt(S.geom.semi), sid);
+    const mid = genV3.mul(genV3.add(N[tipF].p, N[tipR].p), 0.5);
+    const dz = 0.055 * S.wing.chord * side;
+    rows.push(tipSec.map(pt => ({
+      p: [mid[0] + (pt.p[0]-mid[0])*0.42, mid[1] + (pt.p[1]-mid[1])*0.42, pt.p[2] + dz],
+      infl: pt.infl, sid: pt.sid, u: pt.u })));
+    const ids = emitLoft(rows, skin, r => r / rows.length);
+    capLoft([ids[ids.length - 1]], skin);
+  }
+  // centre section: the wing carries through above the cabin
+  {
+    const rows = [
+      wingSection(P.wf.L.F[0], P.wf.L.R[0], S.wing.chord, 0),
+      wingSection(P.wf.R.F[0], P.wf.R.R[0], S.wing.chord, 0),
+    ];
+    emitLoft(rows, skin, r => r);
+  }
+
+  // ---- 4. empennage ---------------------------------------------------
+  // Mini-wings on a symmetric section, blending their weights from the tail
+  // post inboard to the tip node outboard.
+  const sym = genAirfoil(9);                               // NACA 0009
+  const panel = (rowsSpec, sid, hingeFrac) => {
+    const rows = rowsSpec.map(({ le, te, infl }) => {
+      const ch = genV3.norm(genV3.sub(te, le));
+      const len = Math.hypot(te[0]-le[0], te[1]-le[1], te[2]-le[2]);
+      const nrm = genV3.norm(genV3.cross(ch, genV3.norm(genV3.sub(rowsSpec[1].le, rowsSpec[0].le))));
+      return sym.map(([xc, yc]) => ({
+        p: genV3.add(genV3.add(le, genV3.mul(ch, xc * len)), genV3.mul(nrm, yc * len)),
+        infl, sid: xc > hingeFrac ? sid : 0, u: xc }));
+    });
+    const ids = emitLoft(rows, skin, r => r / Math.max(1, rowsSpec.length - 1));
+    capLoft([ids[0], ids[ids.length - 1]], skin);
+  };
+  {
+    const t = S.tail, hc = t.hChord, hx = t.hX;
+    const hy = N[P.HTL].p[1], hz = 0.5 * t.hSpan;
+    const post = [[P.TPB, 0.5], [P.TPT, 0.5]];
+    const stabRow = (z, infl) => ({ le: [hx - 0.35*hc, hy, z], te: [hx + 0.65*hc, hy, z], infl });
+    panel([stabRow(-hz, [[P.HTL, 1]]), stabRow(-0.18*hz, [[P.HTL, 0.30], ...post.map(([i,w]) => [i, w*0.70])]),
+           stabRow(0.18*hz, [[P.HTR, 0.30], ...post.map(([i,w]) => [i, w*0.70])]), stabRow(hz, [[P.HTR, 1]])],
+          1, 0.66);
+    const vc = t.vChord, vx = t.vX, vy0 = N[P.TPT].p[1], vy1 = N[P.FIN].p[1];
+    const finRow = (y, k, sw) => ({ le: [vx - 0.40*vc + sw, y, 0], te: [vx + 0.60*vc, y, 0],
+      infl: [[P.FIN, k], [P.TPT, (1-k)*0.6], [P.TPB, (1-k)*0.4]] });
+    panel([finRow(vy0, 0, 0), finRow(vy0 + 0.5*(vy1-vy0), 0.5, 0.14*vc),
+           finRow(vy1, 1, 0.30*vc)], 2, 0.60);
+  }
+
+  // ---- 5. wheels and propeller ----------------------------------------
+  const wheel = (nd, r, halfWid) => {
+    const SEG = 14, rows = [];
+    for (const off of [-halfWid, halfWid]) {
+      const row = [];
+      for (let h = 0; h <= SEG; h++) {
+        const a = 2 * Math.PI * (h % SEG) / SEG;
+        row.push(tyre.v(B([N[nd].p[0] + r*Math.cos(a), N[nd].p[1] + r*Math.sin(a),
+                           N[nd].p[2] + off]), h/SEG, off > 0 ? 1 : 0, w1(nd)));
+      }
+      rows.push(row);
+    }
+    for (let h = 0; h < SEG; h++) tyre.quad(rows[0][h], rows[0][h+1], rows[1][h+1], rows[1][h]);
+    for (const row of rows) for (let h = 1; h < SEG - 1; h++) tyre.tri(row[0], row[h], row[h+1]);
+  };
+  wheel(P.GAL, S.gear.wheelR, 0.055);
+  wheel(P.GAR, S.gear.wheelR, 0.055);
+  wheel(P.TW, S.gear.twR, 0.035);
+  {
+    const eng = [[P.EL, 0.5], [P.ER, 0.5]];
+    const rSp = Math.max(0.075, 0.16 * S.propR), SEG = 12;
+    const back = [], tip = prop.v(B([hub[0] - 1.5*rSp, S.engY, 0]), 0.5, 1, eng);
+    for (let h = 0; h <= SEG; h++) {
+      const a = 2*Math.PI*(h % SEG)/SEG;
+      back.push(prop.v(B([hub[0], S.engY + rSp*Math.cos(a), rSp*Math.sin(a)]), h/SEG, 0, eng));
+    }
+    for (let h = 0; h < SEG; h++) prop.tri(back[h], back[h+1], tip);
+    // two blades, tapered and twisted, on the disc plane
+    for (const bs of [1, -1]) {
+      const r0 = 0.9*rSp, r1 = S.propR;
+      const row = [];
+      for (let i = 0; i <= 5; i++) {
+        const t2 = i/5, r = r0 + (r1-r0)*t2;
+        // narrow, tapered, and rounded off at the tip — a blade, not a paddle
+        const cw = 0.055*S.propR*(1 - 0.30*t2) * (t2 > 0.88 ? (1 - t2) / 0.12 : 1);
+        const tw = (0.34 - 0.27*t2);
+        const cy = S.engY + bs*r*Math.cos(0), cz = bs*r*Math.sin(0);
+        void cz;
+        row.push([
+          prop.v(B([hub[0] - cw*Math.sin(tw) - 0.02, cy, -cw*Math.cos(tw)]), 0, t2, eng),
+          prop.v(B([hub[0] + cw*Math.sin(tw) - 0.02, cy, cw*Math.cos(tw)]), 1, t2, eng),
+        ]);
+      }
+      for (let i = 0; i < row.length - 1; i++)
+        prop.quad(row[i][0], row[i][1], row[i+1][1], row[i+1][0]);
+    }
+  }
+
+  // ---- 6. control surface hinges --------------------------------------
+  // Analytic, because the geometry is known. (An imported model has to have
+  // these least-squares fitted off the mesh — see MODEL-IMPORT-PROC.md.)
+  const bp = p => B(p);
+  const hingeAxis = (a, b) => {
+    const d = genV3.norm(genV3.sub(bp(b), bp(a)));
+    return d;
+  };
+  const t = S.tail;
+  const stabY = N[P.HTL].p[1];
+  const semi = S.geom.semi, zA = 0.5 * (aStart + semi);
+  const surfaces = [
+    { name: 'elevator', drive: 'de', sgn: -1, k: 1.0,
+      p: bp([t.hX + 0.31 * t.hChord, stabY, 0]),
+      ax: hingeAxis([t.hX + 0.31*t.hChord, stabY, -1], [t.hX + 0.31*t.hChord, stabY, 1]) },
+    { name: 'rudder', drive: 'dr', sgn: 1, k: 1.0,
+      p: bp([t.vX + 0.20 * t.vChord, N[P.TPT].p[1], 0]),
+      ax: hingeAxis([t.vX + 0.20*t.vChord, N[P.TPT].p[1], 0],
+                    [t.vX + 0.20*t.vChord + 0.30*t.vChord, N[P.FIN].p[1], 0]) },
+    { name: 'ailR', drive: 'da', sgn: -1, k: 1.0,
+      p: bp([P.xF + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), zA]),
+      ax: hingeAxis([0, P.yF(aStart), aStart], [0, P.yF(semi), semi]) },
+    { name: 'ailL', drive: 'da', sgn: 1, k: 1.0,
+      p: bp([P.xF + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), -zA]),
+      ax: hingeAxis([0, P.yF(aStart), -aStart], [0, P.yF(semi), -semi]) },
+  ];
+
+  const groups = {};
+  const put = (nm, M) => { const g = M.done(); if (g.nv) groups[nm] = g; };
+  put('skin', skin); put('glass', glass); put('frame', frame);
+  put('gearmetal', strut); put('tyre', tyre); put('prop', prop);
+  return {
+    v: 5, generated: true,
+    hub: B(hub),
+    groups, surfaces,
+    mats: {
+      // the viewer bakes `paint` procedurally (src/viewer/garage.js) and drops
+      // it in before the material is built; without it this falls back to flat
+      skin:      { tex: 'paint', rough: 1 - S.paint.gloss },
+      glass:     { opacity: 0.30, color: 0xaad4ea },
+      frame:     { color: 0x5a6470 },
+      gearmetal: { color: 0x6d7682 },
+      tyre:      { color: 0x22242a },
+      prop:      { color: 0x2a2620 },
+    },
+    // rest node positions in the body frame — poseSkinGen adds (live - rest)
+    rest: (() => {
+      const a = new Float32Array(N.length * 3);
+      N.forEach((n, i) => { const b = B(n.p); a[i*3] = b[0]; a[i*3+1] = b[1]; a[i*3+2] = b[2]; });
+      return a;
+    })(),
+  };
+}
+
+// Pose a generated skin: rigid mount is the group matrix (as for any model);
+// this adds the structural delta, exactly parallel to applySkinDeform.
+//   pos = base + SUM w_i * (node_i_body - node_i_rest_body)
+// `hinged` verts already have their hinge-rotated position in `pos`, so the
+// delta is ADDED rather than written, same contract as the imported path.
+function poseSkinGen(g, rest, live, base, pos, gain, hinged) {
+  const { wi, ww, nv } = g;
+  for (let v = 0; v < nv; v++) {
+    let dx = 0, dy = 0, dz = 0;
+    for (let k = 0; k < GEN_INFL; k++) {
+      const o = v * GEN_INFL + k, w = ww[o];
+      if (w === 0) continue;
+      const i3 = wi[o] * 3;
+      dx += w * (live[i3] - rest[i3]);
+      dy += w * (live[i3+1] - rest[i3+1]);
+      dz += w * (live[i3+2] - rest[i3+2]);
+    }
+    dx *= gain; dy *= gain; dz *= gain;
+    const o3 = v * 3;
+    if (hinged && hinged[v]) { pos[o3] += dx; pos[o3+1] += dy; pos[o3+2] += dz; }
+    else { pos[o3] = base[o3] + dx; pos[o3+1] = base[o3+1] + dy; pos[o3+2] = base[o3+2] + dz; }
+  }
+}
+
+// Live node positions in the body frame, for poseSkinGen. Mirrors the codec's
+// sparDeltas: same axes, same CG reference.
+function genNodeBody(sim, out) {
+  const cg = sim.cgPos(), [xA, yU] = sim.axes();
+  const zL = [xA[1]*yU[2]-xA[2]*yU[1], xA[2]*yU[0]-xA[0]*yU[2], xA[0]*yU[1]-xA[1]*yU[0]];
+  for (let i = 0; i < sim.n; i++) {
+    const dx = sim.p[i*3]-cg[0], dy = sim.p[i*3+1]-cg[1], dz = sim.p[i*3+2]-cg[2];
+    out[i*3]   = dx*xA[0]+dy*xA[1]+dz*xA[2];
+    out[i*3+1] = dx*yU[0]+dy*yU[1]+dz*yU[2];
+    out[i*3+2] = dx*zL[0]+dy*zL[1]+dz*zL[2];
+  }
+  return out;
+}
+// ============================================================
+// GARAGE 5/5 — the BUILD. Spec in, fiche out.
+//
+// buildGen(spec) is the entry point the sim, the gates and the viewer all
+// use. Two of the fiche's numbers cannot be reasoned out of the geometry —
+// the stabiliser trim setting and the cruise throttle — so the garage does
+// what a builder does: it puts the aeroplane in the tunnel. sim.probe()
+// already exists for exactly this (30_solver.js), is deterministic, and costs
+// one strip pass per call.
+//
+// shakedown() is the same instrument turned into the garage's readout: stall
+// speed, cruise L/D, static margin, three-point attitude, prop clearance.
+// ============================================================
+
+// Prescribed-flow probe at a given body angle of attack. The aeroplane is in
+// its rest pose (reset translates, never rotates), so the body frame is level
+// and Fy reads as lift.
+function genProbeAt(sim, V, a) {
+  const [xA, yU] = sim.axes();
+  const vel = [0, 0, 0];
+  for (let k = 0; k < 3; k++) vel[k] = -V * (Math.cos(a) * xA[k] + Math.sin(a) * yU[k]);
+  const r = sim.probe(vel);
+  // forward unit vector: drag is the aero force opposing it
+  r.drag = -(r.Fx * -Math.cos(a) * xA[0] + r.Fy * -Math.cos(a) * xA[1] + r.Fz * -Math.cos(a) * xA[2])
+           - (r.Fx * -Math.sin(a) * yU[0] + r.Fy * -Math.sin(a) * yU[1] + r.Fz * -Math.sin(a) * yU[2]);
+  return r;
+}
+
+// alpha at which lift balances weight, secant, clamped short of the stall.
+function genAlphaForLift(sim, V, W, aMax) {
+  let a0 = 0.01, a1 = 0.09;
+  let f0 = genProbeAt(sim, V, a0).Fy - W, f1 = genProbeAt(sim, V, a1).Fy - W;
+  for (let i = 0; i < 8; i++) {
+    if (Math.abs(f1 - f0) < 1e-9) break;
+    let a2 = a1 - f1 * (a1 - a0) / (f1 - f0);
+    a2 = Math.min(aMax, Math.max(-0.06, a2));
+    a0 = a1; f0 = f1; a1 = a2; f1 = genProbeAt(sim, V, a1).Fy - W;
+    if (Math.abs(f1) < 0.5) break;
+  }
+  return a1;
+}
+
+// Solve stabTrim so the aeroplane is in pitch balance at its own cruise speed
+// and its own trimmed alpha. Two-point secant on an almost perfectly linear
+// relation, then one refinement — the fleet's hand-tuned values were found the
+// same way, by tunnel trim at cruise.
+function genTrim(def) {
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const W = sim.totalM * 9.81;
+  const V = def.params.ap.VCruise;
+  const aMax = 0.85 * def.params.polarWing.aStall;
+  const at = s => {
+    def.params.stabTrim = s;
+    const a = genAlphaForLift(sim, V, W, aMax);
+    return { a, r: genProbeAt(sim, V, a) };
+  };
+  let s0 = 0, s1 = -0.08;
+  let m0 = at(s0).r.pitchUp, m1 = at(s1).r.pitchUp;
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(m1 - m0) < 1e-9) break;
+    const s2 = Math.min(0.15, Math.max(-0.25, s1 - m1 * (s1 - s0) / (m1 - m0)));
+    s0 = s1; m0 = m1; s1 = s2; m1 = at(s1).r.pitchUp;
+    if (Math.abs(m1) < 1.0) break;
+  }
+  def.params.stabTrim = s1;
+  const fin = at(s1);
+  // cruise throttle from the drag the tunnel just measured against the thrust
+  // the prop can make at that speed
+  const PP = POWERPLANTS[def.params.powerplant];
+  const Tavail = Math.max(1, PP.prop.Tstatic - PP.prop.kV2 * V * V);
+  def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
+  def.params.gen.alphaCruise = fin.a;
+  def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
+  // takeoff run to 2.5 m agl, conservative on purpose: the AP only uses it to
+  // decide whether to backtrack, and over-estimating means it backtracks when
+  // in doubt (measured Cub 60 m, this estimate 98 m).
+  const Vlof = 1.05 * def.params.ap.VRot;
+  const acc = Math.max(0.3, (0.92 * PP.prop.Tstatic - 0.05 * W) / sim.totalM);
+  def.params.ap.TORun = Math.round(1.35 * Vlof * Vlof / (2 * acc));
+  return def;
+}
+
+// The garage readout. Everything a builder would want to know before rolling
+// it out of the shed, measured rather than asserted.
+// Works on ANY fiche, generated or hand-written — the geometry-only fields are
+// skipped when there is no spec. That is deliberate: the garage's numbers have
+// to be comparable with the fleet's, or they mean nothing.
+function genShakedown(def) {
+  const S = def.spec, P = def.parts;
+  const g = def.params.gen || {};
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const W = sim.totalM * 9.81;
+  const V = def.params.ap.VCruise;
+  const aMax = 0.85 * def.params.polarWing.aStall;
+  const a = genAlphaForLift(sim, V, W, aMax);
+  const r0 = genProbeAt(sim, V, a), r1 = genProbeAt(sim, V, a + 0.02);
+  const dM = (r1.pitchUp - r0.pitchUp) / 0.02;
+  const dL = (r1.Fy - r0.Fy) / 0.02;
+  // neutral point: how far aft the CG could move before dM/dalpha reaches zero
+  const npShift = -dM / Math.max(1e-6, dL);
+  const cg = r0.cg;
+  // wing area from the strips, so a hand-written fiche reports the same way
+  let Sw = 0;
+  for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
+  const cBar = g.cBar || (def.strips.find(s => s.kind === 'wing') || {}).chord || 1;
+  const out = {
+    mass: sim.totalM, W,
+    Vs: g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
+    alphaCruise: a * 180 / Math.PI,
+    Sw, wingLoad: sim.totalM / Sw,
+    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
+    stabTrim: def.params.stabTrim,
+  };
+  if (S && P) {
+    const ground = S.gear.y - S.gear.wheelR;
+    const tw = def.nodes[P.TW];
+    out.AR = g.AR;
+    out.deckAngle = Math.atan2((tw.p[1] - S.gear.twR) - ground, P.twX - P.gx) * 180 / Math.PI;
+    out.propClear = (S.engY - S.propR) - ground;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// buildGen(spec) — the fiche. Same shape the hand-written builders return, so
+// makeSim / makeAutopilot / the gate harness take it unchanged. `spec` and
+// `parts` ride along for the skin generator and the editor; the solver spreads
+// only what it knows about and ignores them.
+// ---------------------------------------------------------------------------
+function buildGen(specIn) {
+  const R = resolveSpec(specIn || GEN_DEFAULT);
+  const S = R.spec;
+  // which fields the player left to the generator, so the editor can say so
+  S._auto = R.auto;
+  const fr = genFrame(S);
+  // gear placement needs the CG, so genFrame owns it — hand the numbers it
+  // chose back on the resolved spec, or the editor has nothing to report
+  for (const [k, v] of [['track', fr.parts.tr], ['x', fr.parts.gx],
+                        ['twX', fr.parts.twX], ['twY', fr.parts.twY]]) {
+    if (S.gear[k] === null || S.gear[k] === undefined) S._auto['gear.' + k] = true;
+    S.gear[k] = v;
+  }
+  const strips = genStrips(S, fr);
+  const params = genParams(S, fr, strips);
+  const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
+  def.spec = S; def.parts = fr.parts;
+  genTrim(def);
+  return def;
+}
 if (typeof module !== 'undefined')
-  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };
+  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SEATING, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil };

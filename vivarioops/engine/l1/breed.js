@@ -116,7 +116,42 @@ const eliteCap = (population) => population - strangerCount(population);
  * @returns {{genomes:object[], provenance:object[], tally:object, droppedElite:number|null}}
  */
 export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LIMITS,
-                        lockMorphology = false, injectStrangers = [] }) {
+                        lockMorphology = false, injectStrangers = [],
+                        /**
+                         * ── HOW MANY TIMES A ZYGOTE MAY BE RE-ROLLED ─────────
+                         *
+                         * Default `VIABILITY.maxAttempts` (12), which is A9's rule
+                         * and the six-slot tank's behaviour, unchanged to the rng
+                         * draw. Pass **1** for a Weismann-honest reproduction:
+                         * one reproductive event, one zygote, and if development
+                         * fails, THAT BIRTH FAILS.
+                         *
+                         * WHY THE OPTION EXISTS. With 12 tries and a parent-copy
+                         * fallback, a genotype whose developmental neighbourhood
+                         * is fragile has the SAME reproductive output as a robust
+                         * one — the harness quietly pays its mutational load for
+                         * it. Nothing then selects for developmental robustness,
+                         * which is a property real evolution cares about a great
+                         * deal, and `viableRate` below is the number that was
+                         * being thrown away.
+                         *
+                         * KEEP 12 FOR THE PLAYER'S TANK, where a dead slot is a
+                         * blank square and the loop is a toy. USE 1 WHEREVER
+                         * SELECTION IS BEING MEASURED. That buys selection for
+                         * robustness with no new fitness term and no new gene.
+                         *
+                         * MEASURED, 5 seeds x 6 slots, 30 reproductive events:
+                         *
+                         *     attempts 12  ->  0/30 fell back to a parent copy
+                         *     attempts  1  ->  3/30 fell back
+                         *
+                         * So the re-roll was concealing a ~10% developmental
+                         * failure rate, and concealing it UNIFORMLY — every
+                         * lineage got the same free retries regardless of how
+                         * fragile its neighbourhood was. That 10% is exactly the
+                         * signal a robustness gradient would be made of.
+                         */
+                        viabilityAttempts = VIABILITY.maxAttempts }) {
   if (!Array.isArray(selected) || selected.length === 0) {
     // 10 §A17.3: "0 selected -> button disabled". Reaching here is a UI bug, and
     // silently breeding from an arbitrary parent would hide it.
@@ -185,7 +220,7 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
       RAPIER, parentA: genomes[parentIndex],
       parentB: mateIndex === null ? null : genomes[mateIndex],
       rng: rng.fork(`offspring:${slot}`),
-      world, limits, lockMorphology, tally,
+      world, limits, lockMorphology, tally, viabilityAttempts,
     });
     next[slot] = child.genome;
     provenance[slot] = {
@@ -243,12 +278,13 @@ export function breed({ RAPIER, genomes, selected, rng, world, limits = SLICE_LI
  * operators are producing rubbish, and A9 is explicit that this number is THE
  * diagnostic for whether mutation is healthy.
  */
-function makeOffspring({ RAPIER, parentA, parentB, rng, world, limits, lockMorphology, tally }) {
+function makeOffspring({ RAPIER, parentA, parentB, rng, world, limits, lockMorphology, tally,
+                         viabilityAttempts = VIABILITY.maxAttempts }) {
   const crossed = wantsCrossover(parentB, rng, limits);
   const [lo, hi] = crossed ? MUTATIONS_PER_RECOMBINANT : MUTATIONS_PER_OFFSPRING;
   const graftPermille = Math.round((limits.graftRate ?? 0) * RATE_SCALE);
 
-  for (let attempt = 1; attempt <= VIABILITY.maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= viabilityAttempts; attempt++) {
     let base = parentA;
     let ops = [];
     let grafted = 0;
@@ -288,7 +324,7 @@ function makeOffspring({ RAPIER, parentA, parentB, rng, world, limits, lockMorph
   // the creature that would have been this child's sole parent on the asexual
   // path. A blend of two parents has no such guarantee, which is the whole reason
   // the last rung is not one.
-  return { genome: parentA, ops: [], attempts: VIABILITY.maxAttempts,
+  return { genome: parentA, ops: [], attempts: viabilityAttempts,
            fellBack: true, crossed, grafted: 0, tier: 0 };
 }
 
