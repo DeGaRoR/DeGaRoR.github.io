@@ -287,23 +287,80 @@ html, body {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap);
   padding: var(--gutter);
 }
+/* ── THE SPECIMEN CARD ────────────────────────────────────────────────────────
+   A COLLECTION CARD, not a list row. The old card was a square thumbnail with
+   four stacked text lines under it — an inventory entry. These are the things a
+   player breeds, names and keeps, and the Atlas is the reason the naming system
+   exists at all, so the card is now shaped like something worth collecting:
+   portrait, art to the edges, the name written across the bottom of the picture
+   rather than filed beneath it.
+
+   Portrait 0.72 because a creature is longer than it is tall in these portraits
+   and a tall frame gives the body room without shrinking it. The measurement
+   strip sits BELOW the art, in mono, because numbers and names want different
+   treatment — the name is the animal, the numbers are what it does. */
 .spec-card {
-  display: flex; flex-direction: column; gap: var(--s-2);
-  padding: var(--s-3);
+  display: flex; flex-direction: column;
+  padding: 0; overflow: hidden;
   background: var(--c-surface); border: thin solid var(--c-line);
   border-radius: var(--r-card);
 }
+.spec-card-art { position: relative; display: block; }
 .spec-card-thumb {
-  width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
-  border-radius: var(--r-2); background: var(--c-bg);
+  width: 100%; aspect-ratio: 0.72; object-fit: cover; display: block;
+  background: var(--c-bg);
 }
-.spec-card-bino { font-family: var(--f-name); font-style: italic; font-size: var(--t-value); color: var(--c-text-dim); }
-.spec-card-name { font-size: var(--t-value); color: var(--c-text); }
-.spec-card-stats { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-text-dim); }
+/* The legend. A scrim rather than a bar: the portraits fade to near-black at the
+   edges already, so a hard band would read as a seam across the art. */
+.spec-card-legend {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: var(--s-5) var(--s-2) var(--s-2);
+  background: linear-gradient(to top, rgba(4, 7, 10, 0.92) 32%, rgba(4, 7, 10, 0));
+  pointer-events: none;
+}
+.spec-card-name {
+  display: block; font-size: var(--t-label); line-height: 1.15;
+  color: var(--c-on-water); text-shadow: var(--shadow-on-water);
+}
+.spec-card-bino {
+  display: block; margin-top: var(--s-1);
+  font-family: var(--f-name); font-style: italic; font-size: var(--t-value);
+  line-height: 1.15; color: var(--c-on-water-dim); text-shadow: var(--shadow-on-water);
+}
+/* Top-left, the way a tier badge sits on a trading card — out of the way of the
+   legend, and readable against whatever the portrait happens to be doing. */
+.spec-card-badge {
+  position: absolute; top: var(--s-2); left: var(--s-2); z-index: 3;
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking); text-transform: uppercase;
+  color: var(--c-on-water-dim); text-shadow: var(--shadow-on-water);
+}
+.spec-card-badge[data-kind="library"] { color: var(--c-stranger); }
+
+/* ── the measurement strip ──────────────────────────────────────────────────
+   Two columns of label/value. Mono and tabular so the digits line up down the
+   grid — six cards side by side are only comparable if their numbers are. */
+.spec-card-metrics {
+  display: grid; grid-template-columns: auto 1fr; column-gap: var(--s-2);
+  padding: var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+}
+.spec-card-metrics dt { color: var(--c-text-dim); letter-spacing: var(--t-micro-tracking); }
+.spec-card-metrics dd { margin: 0; color: var(--c-text); text-align: right; }
+.spec-card-metrics dd[data-state="pending"] { color: var(--c-text-disabled); }
+.spec-card-metrics dd[data-state="good"] { color: var(--c-pass); }
+.spec-card-metrics dd[data-state="bad"] { color: var(--c-fail); }
+.spec-card-stats {
+  padding: 0 var(--s-2) var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim);
+}
 .spec-card-source {
-  margin-top: auto; font-family: var(--f-mono); font-size: var(--t-xs);
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-text-dim);
+  margin-top: auto; padding: 0 var(--s-2) var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking); text-transform: uppercase; color: var(--c-text-dim);
 }
+.spec-card > button { margin: 0 var(--s-2) var(--s-2); }
 .spec-empty-page { padding: var(--s-6) var(--s-4); color: var(--c-text-dim); font-size: var(--t-sm); line-height: 1.5; }
 
 /* The same card grid INSIDE the bottom sheet (the Vivarium's Atlas import).
@@ -332,6 +389,33 @@ html, body {
   border-radius: var(--s-1); padding: var(--s-3);
 }
 #boot-fault-hint { font-size: var(--t-sm); color: var(--c-text-dim); line-height: 1.5; }
+
+/* ── FIRST-LOAD PROGRESS ─────────────────────────────────────────────────────
+   Same geometry as #boot-fault because it answers the same question — "why is
+   the screen not the game yet" — and the two are never shown together. Every
+   colour and length is a token (N16); nothing here is a literal. */
+#boot-load {
+  position: absolute; inset: var(--s-0);
+  background: var(--c-bg);
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  gap: var(--s-3); padding: var(--s-5) var(--s-4);
+}
+#boot-load[hidden] { display: none; }
+#boot-load-head { font-size: var(--t-lg); font-weight: 600; color: var(--c-text); }
+#boot-load-track {
+  width: 100%; max-width: 18rem; height: var(--s-2);
+  background: var(--c-surface); border: thin solid var(--c-line);
+  border-radius: var(--s-1); overflow: hidden;
+}
+/* Width is set from JS as a percentage — the ONE thing about this element that
+   is not knowable in CSS, because it is a measurement of work done. */
+/* No transition: there is no motion token in the system to spend here, and the
+   bar advances once per portrait at ~200 ms intervals, which is already the
+   cadence a transition would have manufactured. */
+#boot-load-bar { width: 0%; height: 100%; background: var(--c-accent); }
+#boot-load-note {
+  font-size: var(--t-sm); color: var(--c-text-dim); line-height: 1.5; text-align: center;
+}
 
 /* Forage — the two ledger lines. Mono, because they are measurements, and they
    sit over water so they take the on-water colours like every other readout. */

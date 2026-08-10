@@ -57,7 +57,25 @@ const ONLY = process.argv[4] ?? 'both';
 await RAPIER.init();
 
 const START_DIST = 3.0;      // metres — reachable at corpus cruise speeds
-const WINDOW = 40.0;         // seconds — 135 deg at ~6 deg/s is 22 s, then swim
+/**
+ * The trial window, seconds. `node tools/_zlight.mjs [nRandom] [reps] [only] [window]`
+ *
+ * DEFAULT STAYS 40 so the pre-declared experiment above is still the experiment
+ * that runs by default — a parameter that silently changed what "the _zlight
+ * result" means would be worse than no parameter.
+ *
+ * BUT 40 IS ALMOST CERTAINLY WHY THIS TEST FAILS, and that is now measured rather
+ * than suspected. `tools/_zreach.mjs` computes the shortest legal path to the
+ * target for a swimmer of minimum turning radius `r = v/omega`, and at 40 s ONE
+ * CREATURE IN TWENTY-ONE can physically arrive — the one being `eel-unison`,
+ * which is exactly the one creature this script reports as helped. At 300 s it is
+ * nine in twenty-one. The window, not the sensor, is the binding constraint.
+ *
+ * The original comment here read "135 deg at ~6 deg/s is 22 s, then swim". The
+ * corpus does not turn at 6 deg/s; the median is 1.57, which is 63 degrees of
+ * TOTAL turning in the whole 40 s window.
+ */
+const WINDOW = Number(process.argv[5] ?? 40.0);
 const SETTLE = 2.0;
 const BEARINGS = [90, -90, 135, -135, 180];
 

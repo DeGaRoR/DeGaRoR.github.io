@@ -103,6 +103,16 @@
     <pre id="boot-fault-detail"></pre>
     <p id="boot-fault-hint"></p>
   </div>
+  <!-- FIRST LOAD ONLY, and it covers real work rather than a stall. Measured on
+       a cold store: 4321 ms to build the library's 21 portraits, 206 ms each —
+       morphogenesis, a creature build, a render and a toDataURL apiece. It is
+       shown by ui/screens/vivarium.js and only when there is something to wait
+       for; a warm boot skips every portrait and never reveals this. -->
+  <div id="boot-load" hidden>
+    <p id="boot-load-head">Building the library</p>
+    <div id="boot-load-track"><div id="boot-load-bar"></div></div>
+    <p id="boot-load-note">Drawing each specimen once. This happens on the first load only.</p>
+  </div>
 </main>
   <nav id="tabbar"></nav>
 </div>

@@ -315,6 +315,15 @@ function makeOffspring({ RAPIER, parentA, parentB, rng, world, limits, lockMorph
     const m = mutateTimes(base, rng, n, { limits, lockMorphology });
     const v = record(tally, assessViability(RAPIER, m.genome, world));
     if (v.ok) {
+      // THE GENERATION COUNTER FIRES HERE AND NOWHERE ELSE, because this is the
+      // only line in the codebase that constitutes a live birth. `cloneGenome`
+      // carries `origin` through every scratch copy, hill-climb candidate and
+      // serialisation round-trip; if it incremented there, `generations` would
+      // count evaluations rather than ancestors and the number would be fiction.
+      m.genome.origin = {
+        founder: m.genome.origin.founder,
+        generations: m.genome.origin.generations + 1,
+      };
       return { genome: m.genome, ops: [...ops, ...m.ops], attempts: attempt,
                fellBack: false, crossed, grafted, tier };
     }

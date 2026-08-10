@@ -147,15 +147,24 @@ function buildViewer(coreBody) {
   fs.writeFileSync(artFile, art);
 
   // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
+  // Each ref carries a hash of its file's CONTENT as ?v=. python -m http.server
+  // sends no Cache-Control, so Chrome falls back to HEURISTIC freshness — a
+  // tenth of the file's age — and will happily serve a stale copy of a file you
+  // edited today without ever revalidating, which reads exactly like a bug in
+  // the code you just wrote. Content, not mtime, so a rebuild that changed
+  // nothing leaves dev.html byte-identical.
+  const ver = p => { try { return '?v=' + sha(read(p)).slice(0, 8); }
+                     catch (e) { return ''; } };
+  const ref = (dir, sub, f) => `<script src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
   let dev = shell;
-  dev = fill(dev, 'STYLE', `<link rel="stylesheet" href="src/viewer/${V.style}">`);
+  dev = fill(dev, 'STYLE', `<link rel="stylesheet" href="src/viewer/${V.style}${ver(path.join(VIEW_DIR, V.style))}">`);
   dev = fill(dev, 'BODY', bodyHtml);
   dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
-  dev = fill(dev, 'CORE', MANIFEST.core.map(f => `<script src="src/core/${f}"></script>`).join('\n'));
-  dev = fill(dev, 'MODELS', MANIFEST.models.map(f => `<script src="src/models/${f}"></script>`).join('\n'));
+  dev = fill(dev, 'CORE', MANIFEST.core.map(f => ref(CORE_DIR, 'src/core', f)).join('\n'));
+  dev = fill(dev, 'MODELS', MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f)).join('\n'));
   dev = fill(dev, 'RENDER', V.scripts.slice(0, -1)
-    .map(f => `<script src="src/viewer/${f}"></script>`).join('\n'));
-  dev = fill(dev, 'APP', `<script src="src/viewer/${V.scripts[V.scripts.length - 1]}"></script>`);
+    .map(f => ref(VIEW_DIR, 'src/viewer', f)).join('\n'));
+  dev = fill(dev, 'APP', ref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]));
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   const devFile = path.join(ROOT, 'dev.html');
   fs.writeFileSync(devFile, dev);

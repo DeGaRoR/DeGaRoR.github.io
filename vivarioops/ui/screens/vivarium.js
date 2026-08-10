@@ -61,8 +61,17 @@ import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
 import { binomial } from '../../engine/l1/naming.js';
 import {
   makeFood, makeChunkedFood, mouthsOf, mouthPoints, forageStep, ledger,
-  INGEST_RATE, FOOD_DENSITY,
+  reserveAfter, INGEST_RATE, FOOD_DENSITY,
 } from '../../engine/l2/forage.js';
+// The beacon's two lines. The SAME pair `tools/_zlight.mjs` uses, imported rather
+// than reimplemented, so what a player watches on screen and what the experiment
+// measures cannot drift apart.
+import { sensorTurnBias, sensorTurnBias2 } from '../../engine/l1/controller.js';
+import { bearingTo, bearingPair } from '../../engine/l2/duel.js';
+// S3 for the steering plane. Without it `bearingTo` falls back to the horizontal
+// and the beacon is inert — see the note on `measureTurnPlanes`.
+import { S3, S3_BIAS, SOLO_GRAVITY, SOLO_BOUNDED } from '../../engine/l2/probes.js';
+import { creatureTissue } from '../../engine/l1/tissue.js';
 import {
   buildCreature, disposeCreature, token, tokenNumber, rampFor, colourFrom,
   updateCreatureGlow,
@@ -191,6 +200,36 @@ export default {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = tokenNumber('--tank-exposure');
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    // ── A LOST CONTEXT MUST NOT BE SILENT ───────────────────────────────────
+    //
+    // When this context goes, the tank turns black and NOTHING ELSE CHANGES:
+    // the physics is Rapier on the CPU, so the clock keeps ticking, the mass
+    // readouts keep updating and the creature list keeps naming animals nobody
+    // can see. That is the worst possible failure shape — it looks like a
+    // rendering bug in the shader, or like nothing at all.
+    //
+    // The cause found on 2026-08-10 was `render/thumbnail.js` leaking one
+    // context per portrait (see the long note there); with 21 library portraits
+    // rendered at first load it passed Chrome's cap of 16 and the browser evicted
+    // the OLDEST context, which is this one. That is fixed at the source. This
+    // handler is for everything else that can take a context away — a GPU reset,
+    // a driver update, a phone reclaiming memory from a backgrounded tab — none
+    // of which this app controls.
+    //
+    // `preventDefault()` is what makes restoration possible at all; without it
+    // the browser will not fire `webglcontextrestored`. Rebuilding the scene
+    // graph on restore is a larger piece of work and is NOT done here: what is
+    // done is make the failure legible instead of invisible.
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      console.error('[vivarium] WebGL context lost — the tank will be black until reload.'
+        + ' The simulation is still running. See render/thumbnail.js for the cause found at GENOME_V 7.');
+    }, false);
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      console.warn('[vivarium] WebGL context restored. The scene is not rebuilt automatically — reload to redraw.');
+    }, false);
+
     view.append(renderer.domElement);
     const water = createWater(scene, W1_SLICE.palette);
     // Fog in the world's MID stop, so distance reads as depth rather than haze.
@@ -502,12 +541,30 @@ export default {
 
     // ── readout ─────────────────────────────────────────────────────────────
     const fmtTime = (s) => (s < 60 ? `${s.toFixed(0)}s` : `${Math.floor(s / 60)}m ${(s % 60).toFixed(0)}s`);
-    /** Plain multiples, never scientific. Above 100x the exact figure is noise. */
+    /**
+     * Plain multiples, never scientific.
+     *
+     * THE `99+x` CEILING IS GONE. It was there on the reasoning that "above 100x
+     * the exact figure is noise", which is true of PRECISION and false of
+     * MAGNITUDE: Drifter measures 93.7x and the teal snarlback 87.8x, so the whole
+     * interesting top of the range was being flattened into one label, and two
+     * animals that differ by a factor of five looked identical.
+     *
+     * It also hid the thing the ledger most needs a reader to see. ROADMAP §5b's
+     * first `_zselect` lesson is "never select on the ratio — it is a margin, won
+     * by not spending, and the cheapest way not to spend is not to move." Drifter
+     * has the best margin in the corpus and eats a third of what the snarlback
+     * does. You cannot notice that if everything good reads `99+`.
+     *
+     * So: significant figures shrink as the number grows, and nothing is capped.
+     */
     const fmtRatio = (r) => {
-      if (!Number.isFinite(r)) return '—';
+      if (!Number.isFinite(r)) return '∞';
       if (r === 0) return t('starving');
-      if (r >= 100) return '99+×';
-      return `${r < 10 ? r.toFixed(1) : r.toFixed(0)}×`;
+      if (r < 10) return `${r.toFixed(1)}×`;
+      if (r < 1000) return `${r.toFixed(0)}×`;
+      if (r < 10000) return `${(r / 1000).toFixed(1)}k×`;
+      return `${Math.round(r / 1000)}k×`;
     };
     /** Energies are the one place scientific notation is honest — they span e6. */
     const erg = (v) => (v >= 1e5 || (v > 0 && v < 0.01) ? v.toExponential(2) : v.toFixed(2));
@@ -568,7 +625,12 @@ export default {
         : `<span class="num">${kids}</span> ${kidsLabel}`;
 
       for (const c of cast) {
-        const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed);
+        // THE SAME ARGUMENTS THE DETAIL SHEET USES. `braking` is optional and
+        // defaults to zero, so omitting it here would have understated spend on
+        // this row only — two different ratios for one creature, differing by up
+        // to 28%, depending on which part of the screen you read.
+        const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed,
+                         null, c.sim.workEccentric);
         const k = cast.indexOf(c);
         c.text.textContent = c.burst
           ? `${c.name}  ${c.eaten.toFixed(2)} g  ${t('came apart')}`
@@ -630,9 +692,16 @@ export default {
       head.style.color = `#${c.colour.getHexString()}`;
       mk('spec-binomial', sheet).textContent = c.binomial;
 
-      const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed);
+      // 1'.6 — THE LEDGER IS THE SELECTION INTERFACE NOW. Selection is manual
+      // until L3, so every quantity the ledger knows has to be on this sheet;
+      // anything it computes and does not show is a number nobody can act on.
+      const tissue = creatureTissue(c.plan);
+      const L = ledger(W1_SLICE, c.mass, c.eaten, c.sim.workOut, elapsed,
+                       tissue, c.sim.workEccentric);
+      const R = reserveAfter(W1_SLICE, c.mass, L.balance);
       const v = c.sim.centreOfMass();
       const p = provenance[idx] ?? { kind: KIND.STRANGER };
+      const origin = c.genome?.origin;
       const out = [
         [t('Bodies'), `${c.plan.bodyCount}${c.plan.truncated ? t(' (capped)') : ''} · ${c.plan.jointCount} ${t('joints')}`],
         // CGS (01 §7): engine units ARE cm / g / s. Relabels, not conversions.
@@ -645,7 +714,39 @@ export default {
         // A0 — the BILLED half, so this row and 'Balance' agree.
         [t('Work done'), `${erg(c.sim.workOut)} erg`],
         [t('Basal cost'), `${erg(L.basal)} erg`],
+        // 1'.4 — active braking. Was free until 2026-08-09 and runs 3-28% of
+        // spend, so it belongs beside the other two costs rather than inside them.
+        [t('Braking cost'), `${erg(L.braking)} erg`],
         [t('Balance'), `${erg(L.balance)} erg · ${fmtRatio(L.ratio)}`],
+        // ROADMAP §5b's FOURTH _zselect LESSON, on screen instead of in a comment:
+        // absolute balance runs +0.50 with mass and balance/mass runs -0.86, so
+        // the two crown different animals and neither is "the" answer. Showing
+        // both, labelled, is the only honest way to hand this to a human — the
+        // first crowns a 37 g animal with the worst net energy per gram measured,
+        // the second crowns a 0.30 g filament.
+        [t('Per gram'), `${erg(L.balance / Math.max(c.mass, 1e-9))} erg/g`],
+        // 1'.5 — satiety. Normalised between starvation and the reproduction
+        // threshold, which is the form Phase 4 will feed to the network.
+        [t('Reserve'), `${R.reserve.toFixed(2)} g · ${t('satiety')} ${R.satiety.toFixed(2)}`
+          + (R.starving ? t(' · STARVING') : R.canReproduce ? t(' · can breed') : '')],
+        // 1'.2 — the diffusion limit. Oxygen reaches ~1 mm into unperfused tissue,
+        // so anything deeper is mass that must be dragged and cannot contract.
+        // Reported, NOT charged: the circulation coefficient it would need has no
+        // measurable source. Median creature measures 0.47.
+        [t('Dead tissue'), `${(100 * tissue.deadFraction).toFixed(0)}%`
+          + ` · ${t('thinnest')} ${tissue.thinnestHalfThickness.toFixed(2)} cm`],
+        // ── SENSES — and the two halves are reported SEPARATELY on purpose ────
+        //
+        // A receptor and the gain behind it are different genes, mutated by
+        // different operators, and a lineage acquires them in either order. The
+        // interesting intermediate — an organ with no wiring — is a real state
+        // that `protea` is sitting in right now, and collapsing this to one
+        // "can it smell" line would hide the very transition Phase 2 exists to
+        // watch. So: how many eyes, and whether anything is listening.
+        [t('Senses'), c.plan.receptors?.length
+          ? `${c.plan.receptors.length} ${t('receptors')} · ${t('gain')} ${(c.genome.controller.chemoGain ?? 0).toFixed(2)}`
+            + (Math.abs(c.genome.controller.chemoGain ?? 0) < 0.01 ? ` · ${t('UNWIRED')}` : '')
+          : t('blind — no receptors')],
         [t('Depth'), `${v[1].toFixed(1)} cm`],
         // A RECOMBINANT NAMES ITS PARENTS BY SLOT, and the slots are live: N18
         // keeps every selected creature in its own slot, so "mix of 1 + 4"
@@ -657,6 +758,21 @@ export default {
           + (p.grafted > 0 ? t(' · grafted limb') : '')
           + (p.imported ? t(' · imported') : '')
           + (p.viable === false ? t(' · unviable, search exhausted') : '')],
+        // ── 1'.0 — AUTHORED ANCESTRY, AND THIS IS THE ROW IT WAS BUILT FOR ────
+        //
+        // `Origin` above is per-BREED-CALL: it says how this creature reached
+        // this slot, and it forgets everything one generation later. This row is
+        // per-LINEAGE. Two of the six opening slots are hand-written eels, so
+        // without it "evolution improved these" and "evolution DISCOVERED this"
+        // look identical on screen — and only the first is a claim any run here
+        // currently supports.
+        //
+        // A reference is not a lesser creature; it is a creature whose competence
+        // was designed rather than earned, and a player choosing breeding stock is
+        // entitled to know which they are looking at.
+        [t('Ancestry'), origin?.founder
+          ? `${t('reference')} · ${origin.founder} · ${origin.generations} ${t('gen')}`
+          : t('evolved — no authored ancestor')],
       ];
       for (const [k, val] of out) {
         const r = mk('row', sheet);
@@ -690,6 +806,19 @@ export default {
             stats: { bodies: c.plan.bodyCount, mass: totalMass(c.plan) },
             createdAt: Date.now(),
             render: RENDER_TAG,
+            // ── SAY SO, RATHER THAN BE INFERRED FROM AN ABSENCE ──────────────
+            //
+            // `seedAtlas` decides what it may delete by testing
+            // `source !== 'authored'`, so until now a player's creature was
+            // protected by a field it did NOT have. That is a dangerous way to
+            // own something: any future code that defaults `source` — a
+            // migration, a normaliser, a copy through a helper — would have
+            // silently made every bred creature deletable.
+            //
+            // Records written before this still carry no `source`, and the
+            // guards continue to treat missing as player for exactly that
+            // reason. New ones are explicit.
+            source: 'player',
           });
           saveBtn.textContent = t('Saved ✓');
           nameCtx = await atlasContext();     // the Atlas grew; renaming follows it
@@ -827,7 +956,134 @@ export default {
     // trails eventually hide the food they were drawn on. They stay ON by
     // default — the screen exists to show foraging — and neither is touched
     // often enough to earn a permanent chip beside Breed.
-    const show = { trails: true, food: true };
+    // FOOD OFF BY DEFAULT. 1400 particles over a six-creature tank read as noise
+    // rather than as a field: they hide the animals, which are the thing the screen
+    // is for, and the ledger now reports what was eaten far more precisely than
+    // counting specks ever could. Still one tap away in the layers menu, because
+    // watching a patch get stripped is worth seeing on purpose.
+    const show = { trails: true, food: false };
+
+    /**
+     * ── THE BEACON. Long-press open water to drop it. ────────────────────────
+     *
+     * `at` is a world point; `on` gates the steering drive in the tick loop.
+     * Long-press on a CREATURE still opens its sheet — the gesture is only free
+     * over water, which vivarium.js's own pointerdown handler already guarantees
+     * ("a finger resting on open water must not throw up a sheet").
+     */
+    const beacon = { on: false, at: [0, 0, 0] };
+    const beaconMark = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.95 }),
+    );
+    beaconMark.visible = false;
+    scene.add(beaconMark);
+    // A soft halo, so a 0.35 cm dot is findable in a 32 cm tank without making
+    // the marker itself big enough to hide the creature that reaches it.
+    const beaconHalo = new THREE.Mesh(
+      new THREE.SphereGeometry(1.4, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.13, depthWrite: false }),
+    );
+    beaconHalo.visible = false;
+    scene.add(beaconHalo);
+
+    /**
+     * ── EVERY CREATURE'S OWN STEERING PLANE, MEASURED ON DEMAND ──────────────
+     *
+     * THE BEACON DOES NOT WORK WITHOUT THIS, and it fails silently, which is why
+     * it is worth the two seconds. `bearingTo` takes a plane; hand it `null` and
+     * it falls back to the horizontal, and B2 §5 plus SESSION-10 §85 both record
+     * that these creatures DO NOT TURN IN THE HORIZONTAL — a chain bends about its
+     * limbs' local X and turns in pitch.
+     *
+     * Measured, `eel-unison` chasing a target 6 cm to the side for 120 s:
+     *
+     *     its own plane (-1, 0, 0)   6.32 cm -> closest 1.00   HOMES
+     *     horizontal fallback        6.32 cm -> closest 6.30   does nothing
+     *     no beacon at all           6.32 cm -> closest 6.31
+     *
+     * The horizontal arm is indistinguishable from having no beacon. A first
+     * version of this feature shipped exactly that: the marker rendered, the
+     * gesture fired, the loop ran, and not one creature could have responded.
+     *
+     * ~2 s of wall clock for six creatures (two 8 s probe runs each, headless and
+     * far faster than real time), paid once when the beacon is first placed
+     * rather than at every spawn.
+     */
+    function measureTurnPlanes() {
+      for (const c of cast) {
+        if (c.turnPlane || c.burst) continue;
+        try {
+          const r = S3(RAPIER, {
+            plan: c.plan, genome: c.genome, world: W1_SLICE,
+            gravity: SOLO_GRAVITY, bounded: SOLO_BOUNDED,
+            cruiseSpeed: Math.max(0.05, c.speed || 0.3),
+            // ── ONE BIAS POINT. THE SWEEP BELONGS TO THE COMPILE, NOT THE TAP ──
+            //
+            // `S3` gained a five-point bias sweep at BRIDGE_V 8, and this call
+            // site inherited it silently: placing a beacon went from 2 runs of
+            // 8 s per creature to TEN, synchronously, on the main thread. Six
+            // creatures is 480 s of simulation where it used to be 96, and the
+            // screen froze for seconds on a tap that had been instant.
+            //
+            // It bought nothing. All this needs is the steering PLANE, and the
+            // plane is derived from the full-bias point whatever else is swept
+            // (see the note in probes.js) — so the other four points were
+            // computed and discarded. The capability numbers the sweep exists
+            // for belong to `compileSolo`, which is budgeted for them.
+            biases: [S3_BIAS],
+          });
+          // A creature with no measurable plane keeps `null` and gets the
+          // horizontal — which for it is as good as anything, because a zero
+          // steering authority is exactly what "no measurable plane" means.
+          c.turnPlane = r.valid ? [r.turnPlaneX, r.turnPlaneY, r.turnPlaneZ] : null;
+        } catch { c.turnPlane = null; }
+      }
+    }
+
+    function setBeacon(p) {
+      if (!p) {
+        beacon.on = false;
+        beaconMark.visible = beaconHalo.visible = false;
+        // HAND STEERING BACK. Leaving the last bias latched would make every
+        // creature curl forever after the beacon was cleared, and it would look
+        // like the beacon had permanently broken them.
+        for (const c of cast) { c.sim.control.turnBias = 0; c.sim.control.turnBias2 = 0; }
+      } else {
+        // BEFORE the beacon goes live, not after: a creature steered on the wrong
+        // plane for even one frame is a creature steered the wrong way.
+        measureTurnPlanes();
+        beacon.on = true;
+        beacon.at = [p.x, p.y, p.z];
+        beaconMark.position.copy(p);
+        beaconHalo.position.copy(p);
+        beaconMark.visible = beaconHalo.visible = true;
+      }
+      invalidate();
+      paint();
+    }
+
+    /**
+     * Screen point to a world point, on the plane through the tank centre that
+     * faces the camera. A tap has no depth, so one has to be chosen; the camera
+     * -facing plane through the middle of the water is the one where "where I
+     * pointed" and "where it went" agree from the current view.
+     */
+    function waterPoint(cx, cy) {
+      const r = view.getBoundingClientRect();
+      ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const n = new THREE.Vector3();
+      camera.getWorldDirection(n);
+      // THE PLANE THROUGH THE CAMERA'S OWN LOOK-AT POINT — `placeCamera` aims at
+      // (pan.x, pan.y + baseTargetY, pan.z), which is the middle of the plate of
+      // creatures. Any other depth and the beacon would land visually where the
+      // player tapped but physically somewhere in front of or behind the animals.
+      const focus = new THREE.Vector3(pan.x, pan.y + baseTargetY, pan.z);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, focus);
+      const hit = new THREE.Vector3();
+      return raycaster.ray.intersectPlane(plane, hit) ? hit : null;
+    }
     function applyLayers() {
       invalidate();
       if (points) points.visible = show.food;
@@ -841,6 +1097,41 @@ export default {
       paint();
     }, 'speed');
     const btnReset = chip(t('Reset'), () => { pan.set(0, 0, 0); spawn(); });
+    /**
+     * ── A FRESH RANDOM DRAW OF ALL SIX ────────────────────────────────────────
+     *
+     * `Reset` re-spawns the SAME six creatures — it is a camera and physics
+     * reset, not a new population. Past the first few generations the only route
+     * to an unrelated animal was the one stranger slot per breed, which means a
+     * lineage that has converged can only be escaped one sixth at a time, over
+     * many generations. There was no way to simply start again.
+     *
+     * `authoredSlots: 0` — no eels. `Reset`'s cast keeps whatever it had; this is
+     * the button for "show me what the GENERATOR makes", and two hand-built
+     * swimmers in the middle of that answer a different question. It is also the
+     * honest draw for judging morphology: the opening tank is deliberately seeded
+     * 2-of-6 authored because six random creatures through an honest actuator
+     * barely move, and that is exactly the fact this button exposes.
+     *
+     * A NEW SEED EACH TIME, so pressing it twice gives two different draws rather
+     * than the same one — `freshVivariumSeed` is already the project's way of
+     * saying "a genuinely new world".
+     */
+    const btnDraw = chip(t('New draw'), () => {
+      const seeded = seedPopulation({
+        RAPIER, rng: rngFrom('tank', freshVivariumSeed(), 'redraw'),
+        world: W1_SLICE, authoredSlots: 0,
+      });
+      genomes = seeded.genomes;
+      provenance = seeded.provenance;
+      generation = 0;
+      selected = new Set();
+      previous = null;
+      setBeacon(null);
+      spawn();
+      persistLineage();
+      paint();
+    });
     const btnUndo = chip(t('Undo'), doUndo);
     const btnBurst = chip(t('Burst'), openBurstSheet, 'burst');
     const btnStranger = chip(t('Stranger'), openStrangerPicker, 'stranger');
@@ -860,7 +1151,7 @@ export default {
     btnMore.setAttribute('aria-haspopup', 'menu');
     btnMore.setAttribute('aria-label', t('More'));
 
-    cluster.append(btnPause, btnSpeed, btnReset);
+    cluster.append(btnPause, btnSpeed, btnReset, btnDraw);
     tools.append(btnStranger, btnImport, btnMore);
     // Undo and Burst flank Breed: all three CHANGE THE POPULATION, which is a
     // different kind of act from the transport pill above.
@@ -1324,9 +1615,26 @@ export default {
       clearTimeout(longPress);
       // Arm the long press only if the finger went down ON a creature — a finger
       // resting on open water must not throw up a sheet.
-      if (!panning && pick(e.clientX, e.clientY) >= 0) {
+      //
+      // OVER WATER IT DROPS THE BEACON INSTEAD. That gesture was free precisely
+      // because of the rule above, so this costs nothing and collides with
+      // nothing: on a creature you still get its sheet, on water you get a light.
+      if (!panning) {
+        const onCreature = pick(e.clientX, e.clientY) >= 0;
         longPress = setTimeout(() => {
-          if (drag && !moved) { const k = pick(drag.x, drag.y); drag = null; if (k >= 0) openSheet(k); }
+          if (!drag || moved) return;
+          const { x, y } = drag;
+          drag = null;
+          if (onCreature) {
+            const k = pick(x, y);
+            if (k >= 0) openSheet(k);
+            return;
+          }
+          // A second long-press clears it, so the gesture is its own undo and
+          // there is no extra control to find.
+          if (beacon.on) { setBeacon(null); return; }
+          const p = waterPoint(x, y);
+          if (p) setBeacon(p);
         }, TAP.longPressMs);
       }
     });
@@ -1527,6 +1835,55 @@ export default {
           if (food.ensureAround) {
             for (const c of cast) food.ensureAround(mouthPoints(c.sim, c.plan, c.mouths, c.mouthBuf));
           }
+          // ── THE BEACON — drive every creature's steering at it ─────────────
+          //
+          // Set BEFORE the solve, like every other control input, so a creature
+          // is never a step behind the target.
+          //
+          // This is `tools/_zlight.mjs` made watchable. That harness measures
+          // whether a creature closes on a light and reports a number; this puts
+          // the same loop on screen so the answer can be SEEN. The two share the
+          // same two lines — `bearingTo` then `sensorTurnBias` — deliberately, so
+          // the screen cannot drift from the experiment.
+          //
+          // IT IS ALSO AN HONEST DEMO, and what "honest" means here changed on
+          // 2026-08-10.
+          //
+          // This note used to say: "two of those have `steeringAuthority` 0.000
+          // and provably never will" move toward the light. THAT WAS WRONG, and
+          // wrong in the most expensive direction — it declared a body incapable
+          // on the strength of a number, and the number was the instrument's.
+          // `tools/_zgoal.mjs` scores `eel` and `eel-finned`, the two creatures
+          // that claim was about, as the best goal-reachers in the authored
+          // library: +0.65 and +0.67 control-subtracted closure, arriving in four
+          // of six directions. They steer by rolling the plane they bend in onto
+          // the target, which no field in the record was looking for.
+          // `steeringAuthority` 0.000 is a true measurement of a real fact — those
+          // bodies do not reverse their turn axis with the sign of the command —
+          // and it simply does not imply what it was read to imply.
+          //
+          // What IS true is that the authored eels all ship `preyGain 0.600 +
+          // threatGain -0.400`, a sum of 0.200, so they command a fifth of what
+          // the mechanism accepts. Same bodies at gain 1.0: mean closure 0.065 ->
+          // 0.153 and arrivals 2/54 -> 10/54. The two SELECTED creatures in
+          // `worlds/w1_curated.js` evolved sums of 1.275 and 0.484, and reach the
+          // beacon. So a player dropping a beacon now sees a split cast — some
+          // creatures arrive, most drift — and that split is the real state of
+          // the project rather than a uniform failure.
+          if (beacon.on) {
+            for (const c of cast) {
+              if (c.burst) continue;
+              // GENOME_V 7 — BOTH CHANNELS. `bearingPair` returns the in-plane
+              // bearing and the elevation out of that plane; the second drives
+              // the joints along the body's second bend axis. A creature with a
+              // single bend plane — every eel in the library — has all-zero
+              // actuator weights on channel B, so this is inert for it and the
+              // tank is unchanged for the creatures it was tuned on.
+              const { bearing, elevation } = bearingPair(c.sim, beacon.at, c.turnPlane ?? null);
+              c.sim.control.turnBias = sensorTurnBias(c.genome, bearing, bearing);
+              c.sim.control.turnBias2 = sensorTurnBias2(c.genome, elevation, elevation);
+            }
+          }
           // ALL occupants push, THEN one solve. Stepping each creature to
           // completion in turn would make the result depend on cast order.
           arena.stepAll(sims);
@@ -1671,7 +2028,25 @@ export default {
       // The Atlas is the naming lineage (14 §4). Seeding it first means a fresh
       // install names its first generation against the shipped library rather
       // than against nothing.
-      try { await seedAtlas(); } catch { /* the library just will not appear */ }
+      // ── FIRST LOAD ONLY ─────────────────────────────────────────────────────
+      //
+      // `seedAtlas` draws one portrait per library entry and each costs about
+      // 206 ms — 4321 ms for the 21 shipped specimens, measured on a cold store.
+      // It now yields to the event loop between them, so the page can paint;
+      // this is what it paints. The panel is revealed by the FIRST progress
+      // callback rather than before the call, so a warm boot — which skips every
+      // portrait and fires no callback — never flashes it.
+      const loadPanel = document.getElementById('boot-load');
+      const loadBar = document.getElementById('boot-load-bar');
+      try {
+        await seedAtlas({
+          onProgress: (done, total) => {
+            if (loadPanel) loadPanel.hidden = false;
+            if (loadBar) loadBar.style.width = `${Math.round((done / Math.max(1, total)) * 100)}%`;
+          },
+        });
+      } catch { /* the library just will not appear */ }
+      if (loadPanel) loadPanel.hidden = true;
       if (stopped) return;
       nameCtx = await atlasContext();
       if (stopped) return;

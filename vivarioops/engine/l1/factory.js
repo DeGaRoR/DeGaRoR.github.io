@@ -159,6 +159,72 @@ export const SLICE_LIMITS = {
   maxReflectionAxes: 3,
 
   /**
+   * ── THE PROPORTION GRADIENT'S DRAW BAND — and this IS the morphology change ──
+   *
+   * `RANGE.taperStrength` is [0, 1] because the whole span must stay expressible:
+   * 0 is the pre-V6 behaviour and a migrated genome sits there. But the FACTORY
+   * draws from [0.5, 1.0], and that narrower band is where the measured
+   * improvement comes from, so it is the thing to argue for rather than slip in.
+   *
+   * THE ARITHMETIC. Effective anisotropy is `drawn_anisotropy^(1-t)`, so against
+   * the measured p50 of 1.75:
+   *
+   *     t = 0.00  ->  1.75      (today)
+   *     t = 0.50  ->  1.32
+   *     t = 0.75  ->  1.17      <-- median of this band
+   *     t = 1.00  ->  1.00
+   *
+   * A uniform draw on [0.5, 1.0] has median 0.75 and therefore lands anisotropy
+   * p50 at ~1.17, against the plan's gate of <= 1.2. Chosen to MEET a declared
+   * gate, and the gate came first.
+   *
+   * IS THIS AN AUTHORED PRIOR? Yes — and so is the [0.5, 2.0] it replaces. The
+   * honest question is which prior has a justification behind it. Three
+   * independent per-axis draws assert "each axis of a limb is unrelated to the
+   * others", which is precisely what the 1.75 measurement says is false and what
+   * makes chains of depth 8 come out as assemblies of stones. Biasing t high
+   * asserts "proportion is mostly inherited along a chain", which is the same law
+   * `phaseBase` encodes for phase, measured to work, in this repo, this month.
+   * NEITHER end is forbidden: t can still mutate to 0 and evolve back to
+   * independent axes if that ever wins.
+   *
+   * ── `taperRatio`: THE SYMMETRIC BAND WAS TRIED FIRST AND IT FAILED ─────────
+   *
+   * It shipped as [0.7, 1.3], deliberately unbiased, so that the plan's recorded
+   * prediction — that this work would shrink the too-heavy mass tail — could fail
+   * honestly. IT DID FAIL, and worse than baseline:
+   *
+   *     taperRatio      accept    mass p50   mass p90   mass rejections
+   *     (pre-taper)      37.3%       16.4      111.2       107
+   *     [0.70, 1.30]     34.5%       12.8      183.8       114   <-- WORSE
+   *     [0.80, 1.15]     37.3%       13.2      129.1        99
+   *     [0.75, 1.05]     44.5%        9.3       52.3        49   <-- shipped
+   *     [0.70, 1.00]     45.8%        7.8       31.3        32
+   *
+   * WHY, AND IT IS THE INTERESTING PART. `r` compounds as `r^depth`, so a band
+   * that looks symmetric in `r` is violently asymmetric in outcome: the grammar
+   * reaches TREE DEPTH 8, and 1.3^8 is 8.2x per axis — 550x in volume — while
+   * 0.7^8 merely vanishes and gets culled. Exponentiating a symmetric band
+   * produces a heavy right tail, full stop.
+   *
+   * A second mechanism showed up in the tally: pre-taper, ANISOTROPY WAS ACTING
+   * AS AN ACCIDENTAL VOLUME BRAKE. A distorted limb usually had one thin axis, so
+   * `MIN_LIMB_DIMENSION` culled it and took its subtree with it. Removing the
+   * distortion removed the brake — visible as `oversizeTank` falling 7 -> 1 and
+   * `interpenetration` rising 37 -> 46, because the bodies are now chunkier.
+   *
+   * SO THE BAND IS DERIVED, NOT TUNED: it must satisfy `r^maxDepth` staying near
+   * unity, and `maxDepth` is 8. At 1.05 that is 1.48x per axis (3.2x volume),
+   * which a body plan can absorb; at 1.15 it is 3.1x (30x); at 1.3 it is absurd.
+   * [0.75, 1.05] is the widest band that respects the depth the grammar actually
+   * reaches, and it STILL PERMITS FLARING — a broad tail fluke remains
+   * expressible, which [0.70, 1.00] would have forbidden outright for a better
+   * acceptance number. That trade was declined.
+   */
+  taperStrength: [0.5, 1.0],
+  taperRatio: [0.75, 1.05],
+
+  /**
    * 10 §A17.1: nodeCount = randInt(2,5). WIDENED at B2 §2.2 to [3, 7] — the
    * conservative half of FULL_LIMITS' [2, 12]. maxNodes 8 still leaves headroom
    * for mutation.
@@ -685,6 +751,26 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
     seed: rng.seed >>> 0,
     rootNodeId: nodes[0].id,
     /**
+     * THE PROPORTION GRADIENT — drawn, because a gene the factory never reaches
+     * is the `preyGain` precedent and it measured zero across the whole corpus
+     * for six sessions.
+     *
+     * DRAWN FROM `SLICE_LIMITS.taperStrength`, NOT from the full `RANGE` [0, 1],
+     * and that band is the actual morphology change. See the note there.
+     */
+    morphology: {
+      taperStrength: uniform(rng, SLICE_LIMITS.taperStrength),
+      taperRatio: uniform(rng, SLICE_LIMITS.taperRatio),
+    },
+    /**
+     * A CREATURE THE FACTORY DREW HAS NO FOUNDER, and that is a positive claim
+     * rather than a missing value: it arose from a random draw and nothing was
+     * authored into it. `worlds/seeds.js` genomes carry their own id here, and
+     * `mutate`/`crossover` propagate whatever they inherit, so an animal fifty
+     * generations down from an eel still says so.
+     */
+    origin: { founder: null, generations: 0 },
+    /**
      * THE MOUTH IS PLACED WHERE IT WAS DERIVED, AND NO RNG IS DRAWN FOR IT.
      *
      * The obvious thing is to draw the face and (u,v) so placement varies from
@@ -795,6 +881,13 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // that report nothing, which is what makes a site free to carry and makes
       // the cave-fish regression gate possible.
       chemoGain: 0,
+      // GENOME_V 7 — the second steering channel, and silent at birth for the
+      // same reason `chemoGain` is: neutral at insertion (standing rule 4). A
+      // creature drawn today steers exactly as one drawn yesterday until
+      // `mutateSteerGains2` moves one of these off zero. Draws no rng, so the
+      // whole existing corpus reproduces from its seed unchanged.
+      preyGain2: 0,
+      threatGain2: 0,
       jointGenes,
     },
     social: {

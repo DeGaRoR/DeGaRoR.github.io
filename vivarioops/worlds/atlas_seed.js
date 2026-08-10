@@ -31,6 +31,7 @@
 
 import * as store from '../trunk/store.js';
 import { SEEDS } from './seeds.js';
+import { CURATED } from './w1_curated.js';
 import { W1_RESIDENT_GENOMES, W1_RESIDENT_IDS } from './w1_residents.js';
 import { W1_SLICE } from './w1_slice.js';
 import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
@@ -41,10 +42,17 @@ import { W1_PLAYER_IDS, W1_PLAYER_GENOMES, W1_PLAYER_NAMES } from './w1_player.j
 import { renderThumbnail, RENDER_TAG } from '../render/thumbnail.js';
 import { lineageOf, nameFor } from '../ui/vernacular.js';
 
-// The five seed SWIMMERS, in display order. `staircase` is a deliberate
+// The seed SWIMMERS, in display order. `staircase` is a deliberate
 // counter-example (it self-intersects and morphogenesis rejects it) and is
 // excluded here for the same reason engine/l1/breed.js OPENING_SEEDS excludes it.
-const SEED_IDS = ['eel', 'eel-fast', 'eel-slow', 'eel-unison', 'eel-finned'];
+//
+// `jelly` is included because the whole reason it was built is to be LOOKED AT:
+// it is the project's first radial body and the open question is whether
+// four-fold symmetry reads as a medusa or as a box with four box-arms. A creature
+// that answers a rendering question and never reaches the renderer answers
+// nothing. It is a weak swimmer and that is expected — it is a reference, not a
+// contender, and `origin.founder` says so on every descendant.
+const SEED_IDS = ['eel', 'eel-fast', 'eel-slow', 'eel-unison', 'eel-finned', 'jelly'];
 
 // THE PHASE A EXIT CAST. The Atlas sorts newest first and authored records take
 // `AUTHORED_BASE - i`, so index order IS display order: putting the two
@@ -56,7 +64,39 @@ const SEED_IDS = ['eel', 'eel-fast', 'eel-slow', 'eel-unison', 'eel-finned'];
 // DRAWN by the post-A2 generator, which before A2 could not produce a segmented
 // body at all. Six creatures in one ocean, half of them expressible only after
 // this phase.
-const CAST_ORDER = ['eel', 'eel-fast'];
+// ── RE-ORDERED 2026-08-10 FOR THE BEACON ─────────────────────────────────────
+//
+// This was `['eel', 'eel-fast']`, the two authored references, chosen when the
+// question on screen was "does anything swim". The question on screen now is
+// "does anything GO SOMEWHERE", and the first six slots should let a person
+// answer it by dropping a beacon and watching, rather than by reading a table.
+//
+// So the cast leads with the three SELECTED creatures and `eel-unison`, ordered
+// so the contrast is visible in one tank. Measured with `tools/_zbeacon.mjs`,
+// beacon 8 cm away, 120 s, 8 placements spanning the sphere:
+//
+//     creature            arrives   closure   v cm/s   reach in 120 s
+//     stumbler-striped      2/8      0.403     0.216      25.9 cm
+//     eel-unison            1/8      0.395     0.510      61.3 cm
+//     spokebeast-banded     0/8      0.346     0.033       4.0 cm
+//     oddfoot-glossy        0/8      0.165     0.019       2.3 cm
+//     eel-fast              —        —         0.763      91.6 cm
+//     eel                   0/8      0.095     0.282      33.9 cm
+//
+// The order is the ARGUMENT. The first two arrive. The next two are the round-one
+// winners, which aim well and cannot travel — `spokebeast-banded` swims almost
+// straight at the mark on every placement and runs out of body before it gets
+// there, which is the clearest thing in the tank to look at and the reason the
+// objective was rewritten. The last two are the references: the fastest creature
+// in the library, which has range and does not aim, and the eel it all came from.
+//
+// CAST_ORDER MAY NOW NAME A CURATED SPECIMEN, not only a seed. `authoredList`
+// resolves against SEEDS and CURATED together, and both later blocks skip
+// anything already placed here, so an id cannot be planted twice.
+const CAST_ORDER = [
+  'stumbler-striped', 'eel-unison', 'spokebeast-banded', 'oddfoot-glossy',
+  'eel-fast', 'eel',
+];
 
 // Ordering: authored records get small, stable createdAt values so they form a
 // deterministic block in seeds-then-residents order (the Atlas sorts newest
@@ -71,11 +111,16 @@ const AUTHORED_BASE = 1_000_000;
  */
 export function authoredList() {
   const list = [];
-  // The two reference swimmers first, then the drawn spines, then the rest of
-  // the seed library, then the residents.
+  // The cast first (see CAST_ORDER — selected creatures, then references), then
+  // the drawn spines, then the rest of the seed library, then the residents.
+  //
+  // Resolved against SEEDS *and* CURATED so the cast can lead with a selected
+  // specimen. Both later blocks skip ids placed here, so nothing is planted twice.
   for (const id of CAST_ORDER) {
     const s = SEEDS.find((x) => x.id === id);
-    if (s) list.push({ id, commonName: s.name, genome: s.genome });
+    if (s) { list.push({ id, commonName: s.name, genome: s.genome }); continue; }
+    const c = CURATED.find((x) => x.id === id);
+    if (c) list.push({ id, commonName: c.name, genome: c.genome });
   }
   for (const id of W1_SPINE_IDS) {
     const raw = W1_SPINE_GENOMES[id];
@@ -85,6 +130,15 @@ export function authoredList() {
     if (CAST_ORDER.includes(id)) continue;
     const s = SEEDS.find((x) => x.id === id);
     if (s) list.push({ id, commonName: s.name, genome: s.genome });
+  }
+  // CURATED SPECIMENS — evolved, then picked out of a live Atlas and promoted.
+  // Their genomes are already hydrated and already migrated by `w1_curated.js`,
+  // and each carries `origin.founder` set to its own id, so the Vivarium's
+  // Ancestry row reports "reference" for every descendant. See that file for why
+  // a found creature is still a reference.
+  for (const c of CURATED) {
+    if (CAST_ORDER.includes(c.id)) continue;   // already placed in the cast block
+    list.push({ id: c.id, commonName: c.name, genome: c.genome });
   }
   // PLAYER-BRED SPECIES, promoted out of one browser's IndexedDB into the
   // shipped shelf. Serialised at promotion, so `deserialise` migrates them
@@ -101,11 +155,58 @@ export function authoredList() {
 }
 
 /**
- * Plant any missing authored specimens. Idempotent, keyed by genomeHash.
+ * RECONCILE the authored shelf against `authoredList()`. Keyed by genomeHash.
  *
- * @returns {Promise<number>} how many records were newly written this call.
+ * ── THIS USED TO ONLY ADD, AND THAT WAS A BUG WITH A VISIBLE SYMPTOM ─────────
+ *
+ * It was "plant any missing authored specimens", and a store is not a set of
+ * things that were ever true — it is a picture of what IS true. Two consequences,
+ * both seen on screen on 2026-08-10:
+ *
+ *   1. A WITHDRAWN SPECIMEN NEVER LEFT. A second `stumbler` was promoted, then
+ *      withdrawn from `w1_curated.js` because it was indistinguishable from its
+ *      sibling in the list. Deleting it from source removed it from `library` and
+ *      changed nothing on screen: the record was already in IndexedDB and nothing
+ *      here ever removed anything. Every browser that had loaded the app once
+ *      kept the duplicate forever.
+ *   2. RE-ORDERING THE SHELF DID NOTHING. `createdAt` is `AUTHORED_BASE - i` and
+ *      the Atlas sorts newest first, so the index IS the display order — but an
+ *      already-planted record hit the `continue` above and kept the index it was
+ *      first written with. `CAST_ORDER` could be rewritten and the shelf would
+ *      not move.
+ *
+ * So this now also REFRESHES the presentation fields of a record that has drifted
+ * and DELETES authored records that are no longer in the library.
+ *
+ * ⚠ IT ONLY EVER DELETES `source: 'authored'`. A player's bred lineages and
+ * hand-named favourites are irreplaceable and are never touched — the authored
+ * shelf is reproducible from this file, which is exactly what makes it safe to
+ * treat as derived state and nothing else here is.
+ *
+ * @returns {Promise<number>} records newly written or refreshed this call.
  */
-export async function seedAtlas() {
+/**
+ * ── YIELDING, AND WHY IT IS NOT A COSMETIC CHANGE ────────────────────────────
+ *
+ * MEASURED on a cold store: 4321 ms to plant 21 portraits, 206 ms each, all of
+ * it synchronous on the main thread. The browser cannot paint during it, so
+ * first load is several seconds of a frozen page on desktop and plausibly two
+ * to four times that on a phone. The work is real — morphogenesis, buildCreature,
+ * a render and a `toDataURL` per specimen — so it cannot be optimised away here;
+ * what it can do is stop blocking.
+ *
+ * A MACROTASK, NOT `Promise.resolve()`. Awaiting a microtask does not let the
+ * browser paint — it drains the microtask queue and carries straight on, which
+ * would leave the freeze exactly as it is while looking like it had been fixed.
+ * `setTimeout(0)` yields to the event loop properly.
+ *
+ * `onProgress` is what makes a loading screen possible at all: it fires with
+ * (done, total) after each portrait, so the shell can show real progress rather
+ * than a spinner that means nothing.
+ */
+const yieldToPaint = () => new Promise((r) => setTimeout(r, 0));
+
+export async function seedAtlas({ onProgress = null } = {}) {
   let existing;
   try { existing = new Set(await store.list('specimen:')); }
   catch { return 0; }   // no store, no seeding — the Atlas just shows empty
@@ -121,17 +222,37 @@ export async function seedAtlas() {
   // suppression applies across the shelf.
   const ctx = lineageOf(library.map(({ genome }) => ({ genome, worldId: W1_SLICE.palette })));
 
+  /** Keys the library still claims. Everything authored outside this is stale. */
+  const live = new Set();
+
   for (let i = 0; i < library.length; i++) {
     const { commonName, genome } = library[i];
     let hash;
     try { hash = genomeHash(genome); } catch { continue; }
     const key = store.KEY.specimen(hash);
-    // Idempotent, but re-render if the stored thumbnail was baked by an older
-    // render look — otherwise the library card and the live tank disagree.
+    live.add(key);
+    // Idempotent, but rewrite when the stored record has DRIFTED from the
+    // library: an older render look (card and live tank would disagree), a
+    // changed shelf position, or a changed common name. Position matters as much
+    // as the picture — `createdAt` is the sort key, so a record that keeps a
+    // stale one pins the shelf to an order the source no longer describes.
     if (existing.has(key)) {
       let cur = null;
       try { cur = await store.get(key); } catch { /* unreadable → replant below */ }
-      if (cur && cur.render === RENDER_TAG) continue;
+      // A RECORD THE PLAYER HAS SAVED OVER IS THEIRS, AND IS LEFT ALONE.
+      //
+      // Saving from the Vivarium writes to `KEY.specimen(genomeHash)` with no
+      // `source` field, so a player who releases a library creature, names it
+      // and saves it OWNS that key from then on. Refreshing it back to the
+      // library's own `commonName` would silently undo the rename on the next
+      // load — which is the same class of defect as never deleting anything,
+      // pointed the other way: treating a store as derived state when part of it
+      // is not.
+      if (cur && cur.source !== 'authored') continue;
+      if (cur
+        && cur.render === RENDER_TAG
+        && cur.createdAt === AUTHORED_BASE - i
+        && cur.commonName === (commonName || cur.binomial)) continue;
     }
 
     try {
@@ -154,7 +275,32 @@ export async function seedAtlas() {
       };
       await store.set(key, specimen);
       planted++;
+      // Only after work that actually cost something. A skipped record (the
+      // common case on every load after the first) falls through the `continue`s
+      // above and never reaches here, so a warm boot does not pay 21 yields for
+      // nothing.
+      if (onProgress) onProgress(planted, library.length);
+      await yieldToPaint();
     } catch { /* one bad entry must not block the rest of the library */ }
+  }
+
+  // ── SWEEP: authored records the library no longer claims ────────────────────
+  //
+  // `source: 'authored'` and nothing else. A record without that field is a
+  // player's, and a seeding pass that could delete a player's bred lineage would
+  // be a far worse defect than the duplicate this exists to remove.
+  for (const key of existing) {
+    if (live.has(key)) continue;
+    let cur = null;
+    try { cur = await store.get(key); } catch { continue; }
+    // THREE CONDITIONS TO DELETE, AND ANY ONE FAILING SPARES THE RECORD.
+    // `source === 'authored'` is the rule; `!== 'player'` is belt to its braces,
+    // because a row that says outright that it belongs to the player must never
+    // be removed even if something else about it looks authored. Unreadable rows
+    // are spared by the `catch` above rather than cleaned up — a record this
+    // build cannot parse may still be one a later build can.
+    if (!cur || cur.source !== 'authored' || cur.source === 'player') continue;
+    try { await store.del(key); planted++; } catch { /* leave it rather than loop */ }
   }
 
   return planted;

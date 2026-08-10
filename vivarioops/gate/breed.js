@@ -105,6 +105,10 @@ function diffGenome(a, b) {
     // mutate.js copying them through: nothing ever moved, so nothing ever
     // noticed that nothing could.
     gainsChanged: ['preyGain', 'threatGain'].filter(k => a.controller[k] !== b.controller[k]),
+    // GENOME_V 7, added in the SAME edit as `mutateSteerGains2`, for exactly the
+    // reason the note above records — that note is about these two genes' own
+    // first channel, and repeating the mistake on the second would be inexcusable.
+    gains2Changed: ['preyGain2', 'threatGain2'].filter(k => a.controller[k] !== b.controller[k]),
     // A3, and added here in the SAME edit that added the operator, for the
     // reason the note above records: a diff blind to a gene reports total 0,
     // trips the no-op check, and cannot see the change even in principle.
@@ -118,6 +122,10 @@ function diffGenome(a, b) {
     // be seen at all without these two lines.
     mouthChanged: JSON.stringify(a.mouth) !== JSON.stringify(b.mouth) ? 1 : 0,
     chemoChanged: a.controller.chemoGain !== b.controller.chemoGain ? 1 : 0,
+    // GENOME_V 6, added in the same edit as `mutateTaper`, for the reason above.
+    // `morphology` is top level, so without this line the operator would fire,
+    // change a real gene, and be reported as changing nothing.
+    taperChanged: ['taperStrength', 'taperRatio'].filter(k => a.morphology[k] !== b.morphology[k]),
     jointGenesAdded: Object.keys(b.controller.jointGenes).filter(k => !(k in a.controller.jointGenes)),
     jointGenesRemoved: Object.keys(a.controller.jointGenes).filter(k => !(k in b.controller.jointGenes)),
     jointGenesChanged: Object.keys(a.controller.jointGenes).filter(k =>
@@ -127,8 +135,8 @@ function diffGenome(a, b) {
   d.total = d.nodesAdded.length + d.nodesRemoved.length + d.nodesChanged.length
     + d.connsAdded.length + d.connsRemoved.length + d.connsChanged.length
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged
-    + d.mouthChanged + d.chemoChanged
+    + d.gainsChanged.length + d.gains2Changed.length + d.gradientChanged.length + d.proprioChanged
+    + d.mouthChanged + d.chemoChanged + d.taperChanged.length
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
   // The same count at LEAF granularity — how many scalar genes moved, not how
@@ -138,8 +146,8 @@ function diffGenome(a, b) {
     + d.connsChanged.reduce((n, k) => n + leafCount(ac.get(k), bc.get(k)), 0)
     + d.jointGenesChanged.reduce((n, k) => n + leafCount(a.controller.jointGenes[k], b.controller.jointGenes[k]), 0)
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length + d.gradientChanged.length + d.proprioChanged
-    + d.mouthChanged + d.chemoChanged;
+    + d.gainsChanged.length + d.gains2Changed.length + d.gradientChanged.length + d.proprioChanged
+    + d.mouthChanged + d.chemoChanged + d.taperChanged.length;
   return d;
 }
 
@@ -244,6 +252,10 @@ const EXPECTED = {
     t.eq(d.proprioChanged, 1, 'mutateProprioGain changes the proprioceptive gain');
     t.eq(d.total, 1, 'mutateProprioGain changes nothing else');
   },
+  mutateTaper: (d, t) => {
+    t.eq(d.taperChanged.length, 1, 'mutateTaper changes exactly one gradient coefficient');
+    t.eq(d.total, 1, 'mutateTaper changes nothing else');
+  },
   mutateMouth: (d, t) => {
     t.eq(d.mouthChanged, 1, 'mutateMouth moves the mouth');
     t.eq(d.total, 1, 'mutateMouth changes nothing else');
@@ -261,6 +273,14 @@ const EXPECTED = {
   mutatePhaseGradient: (d, t) => {
     t.eq(d.gradientChanged.length, 1, 'mutatePhaseGradient changes exactly one gradient coefficient');
     t.eq(d.total, 1, 'mutatePhaseGradient changes nothing else');
+  },
+  // GENOME_V 7. THE OPERATOR THIS ASSERTS ON IS THE WHOLE POINT OF THE GENE:
+  // `preyGain`/`threatGain` sat in the schema for two milestones with no operator
+  // that could reach them, the factory hardcoded both to zero, and the entire
+  // corpus measured exactly zero steering. Standing rule 3 exists because of it.
+  mutateSteerGains2: (d, t) => {
+    t.eq(d.gains2Changed.length, 1, 'mutateSteerGains2 changes exactly one second-channel gain');
+    t.eq(d.total, 1, 'mutateSteerGains2 changes nothing else');
   },
   mutateSensorGain: (d, t) => {
     t.eq(d.gainsChanged.length, 1, 'mutateSensorGain changes exactly one sensor gain');
@@ -426,8 +446,12 @@ export async function runBreedGate() {
       // phaseBase/phaseSlope are controller genes with a live operator, so a
       // locked mutant that drew mutatePhaseGradient three times changed the
       // controller and was counted as unchanged.
+      // AMENDED AGAIN AT GENOME_V 7, same reason, same edit as the operator:
+      // `mutateSteerGains2` is in the controller branch, so a locked mutant that
+      // drew it three times changes the controller and would be miscounted.
       if (!d.omegaChanged && d.jointGenesChanged.length === 0 && d.gainsChanged.length === 0
-        && d.gradientChanged.length === 0 && !d.proprioChanged) controllerUnchanged++;
+        && d.gradientChanged.length === 0 && !d.proprioChanged
+        && d.gains2Changed.length === 0) controllerUnchanged++;
       // The body plan itself must be identical, which is the property the player
       // is promised — "keep this shape, try different swimmers".
       if (i < 20) {

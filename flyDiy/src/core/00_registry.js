@@ -12,28 +12,36 @@ const RHO = 1.225;
 // Thrust model per prop: T = thr * max(0, Tstatic - kV2 * V^2),
 // propwash from momentum theory over the actual disk.
 // ============================================================
+// `price` is what the powerplant COSTS, in credits, second-hand and installed —
+// added for the GARAGE's build ledger (G3). Inert for the hand-written fiches.
 const POWERPLANTS = {
   a65_sensenich74: {
+    price: 9000,
     engine: { name: 'Continental A-65', mass: 80, powerW: 48500 },
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
   },
   r1830_hs23e50: {
+    price: 65000,
     engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000 },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
+    price: 38000,
     engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000 },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
+    price: 3500,
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
   o200_eprops: {
+    price: 24000,
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600 },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
   outrunner2212_9x47: {
+    price: 25,
     engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180 },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },

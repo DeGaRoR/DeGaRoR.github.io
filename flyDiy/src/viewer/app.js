@@ -93,6 +93,8 @@
     skin:      { r: 0.42, m: 0.0 },   // doped fabric (cub) / painted alloy (c172)
     glass:     { r: 0.06, m: 0.0, e: 1.5 },   // glazing reflects harder than neutral
     frame:     { r: 0.45, m: 0.85 },  // GARAGE: bare welded tube, uncovered
+    cowl:      { r: 0.30, m: 0.10 },  // painted metal panel, glossier than fabric
+    engine:    { r: 0.55, m: 0.70 },  // cast alloy case, oily
     prop:      { r: 0.42, m: 0.20 },
     metal:     { r: 0.34, m: 0.85 },
     gearmetal: { r: 0.38, m: 0.80 },
@@ -129,7 +131,9 @@
   // and reverted, because the problem it appeared to fix turned out to be a
   // texture-decode race in the measurement, not the lighting.
   const modelCache = {};
-  // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame only
+  // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame,
+  // flex x1. The gain is x4 in mode 1 AND NOWHERE ELSE — the frame view is the
+  // structure as the solver actually has it, and the button says so.
   const SKIN_GAINS = [1, 4];
   const LINK_TAU = 0.15;   // s per pole, two poles; 0 -> raw ctl on the surfaces
   let model = null, skinMode = 0;
@@ -263,7 +267,12 @@
     // GARAGE: every group is rigged, because every vertex already carries its
     // node weights — there is no band to select and no threshold to tune.
     if (data.generated) {
-      const rigs = Object.keys(dec).map(name => {
+      // Neither the PROP nor a CONTROL SURFACE is a flex body. Both are rigid
+      // meshes with a pivot: deforming their vertices applies a correction in a
+      // frame that is itself turning, which is what made the blades wobble and
+      // what used to let an aileron drag the wing tip around with it.
+      const mv = new Set((data.moving || []).map(m => m.group));
+      const rigs = Object.keys(dec).filter(n => n.lastIndexOf('prop', 0) !== 0 && !mv.has(n)).map(name => {
         const posAttr = meshes[name].geometry.attributes.position;
         const g = dec[name];
         let anySid = false;
@@ -271,7 +280,15 @@
         return { g, posAttr, base: posAttr.array.slice(), meshName: name,
                  hb: anySid ? makeHingeBinding(g, data.surfaces) : null };
       });
-      const m = Object.assign(entry, { grp, props, rigs, gen: true,
+      // Each control surface turns about its own hinge. Geometry is translated
+      // so the pivot IS the mesh origin, exactly as the propeller is handled.
+      const moving = (data.moving || []).filter(c => meshes[c.group]).map(c => {
+        const mesh = meshes[c.group];
+        mesh.geometry.translate(-c.p[0], -c.p[1], -c.p[2]);
+        mesh.position.set(c.p[0], c.p[1], c.p[2]);
+        return { mesh, c, axis: new THREE.Vector3(c.ax[0], c.ax[1], c.ax[2]) };
+      });
+      const m = Object.assign(entry, { grp, props, rigs, gen: true, moving,
         meshes, rest: data.rest, nodeBody: new Float32Array(curDef.nodes.length * 3),
         surfaces: data.surfaces, link: makeLinkage(LINK_TAU) });
       return m;
@@ -316,8 +333,33 @@
       p.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);            // visual only
     const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
     if (model.gen) {
-      const gain = SKIN_GAINS[Math.min(skinMode, 1)];
+      // ONLY mode 1 exaggerates. This used to read SKIN_GAINS[min(skinMode,1)],
+      // which handed mode 2 a gain of 4 as well — so the GARAGE's Bare frame,
+      // the one view whose whole job is to show you the structure you welded,
+      // was drawing the truss at FOUR TIMES its real deflection, with no x1
+      // reference on screen to compare it against (showSkin is true for gen in
+      // every mode, so the line wireframe is hidden). The fleet's Frame mode
+      // returns early above and was always honest; the two disagreed silently.
+      // User report: "the x4 deformation is confusing, it's unclear what's
+      // applied in the view structure". It was applied. See GATE FLEX.
+      const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody);
+      // CONTROL SURFACES: one quaternion each. They also ride the deflection of
+      // the spar they hang on, so a bending wing does not leave its aileron
+      // behind — a rigid transform driven by node motion, not a vertex deform.
+      for (const mv of model.moving || []) {
+        const c = mv.c;
+        const ang = c.sgn * (c.k || 1) * (link[c.drive] || 0)
+          + (c.drive2 ? (c.sgn2 || 1) * (c.k2 || 1) * (link[c.drive2] || 0) : 0);
+        mv.mesh.quaternion.setFromAxisAngle(mv.axis, ang);
+        let dx = 0, dy = 0, dz = 0;
+        for (const [i, w] of c.infl || []) {
+          dx += w * (model.nodeBody[i*3]   - model.rest[i*3]);
+          dy += w * (model.nodeBody[i*3+1] - model.rest[i*3+1]);
+          dz += w * (model.nodeBody[i*3+2] - model.rest[i*3+2]);
+        }
+        mv.mesh.position.set(c.p[0] + dx * gain, c.p[1] + dy * gain, c.p[2] + dz * gain);
+      }
       for (const r of model.rigs) {
         if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
         poseSkinGen(r.g, model.rest, model.nodeBody, r.base, r.posAttr.array,
@@ -345,16 +387,23 @@
     // debug view, so it shows real tubes rather than the line wireframe.
     const showSkin = has && model.ready && (skinMode < 2 || gen);
     if (model) model.grp.visible = showSkin;
-    // Covered: fabric on, internal truss hidden under it (struts, gear legs and
-    // wheels are OUTSIDE the covering and stay). Bare frame: the reverse.
+    // Covered: fabric and cowl on, the truss and the engine block hidden under
+    // them. Bare frame: the reverse — the welded chassis with the engine hung
+    // on its mount, which is the state you actually build in. Struts, gear legs
+    // and wheels are OUTSIDE any covering and show in both.
     if (gen) for (const n in model.meshes)
-      model.meshes[n].visible = (n === 'frame') ? skinMode === 2
-                              : (n === 'skin' || n === 'glass') ? skinMode < 2 : true;
+      model.meshes[n].visible = (n === 'frame' || n === 'engine') ? skinMode === 2
+                              : (n === 'skin' || n === 'cowl') ? skinMode < 2 : true;
     lines.visible = pts.visible = !showSkin;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     b.style.display = has ? '' : 'none';
-    b.textContent = gen ? ['Covered', 'Flex ×4', 'Bare frame'][skinMode]
-                        : ['Skin', 'Flex ×4', 'Frame'][skinMode];
+    // The gain is IN THE LABEL. Two of these three modes show the aeroplane's
+    // real deflection and one deliberately quadruples it, and the button used to
+    // say only "Covered / Flex ×4 / Bare frame" — which reads as though the ×4
+    // belonged to the middle mode's name rather than being a property the other
+    // two also have (at ×1). Naming every mode's gain removes the question.
+    b.textContent = gen ? ['Covered ×1', 'Flex ×4', 'Frame ×1'][skinMode]
+                        : ['Skin ×1', 'Flex ×4', 'Frame ×1'][skinMode];
     b.classList.toggle('on', showSkin);
   }
   $('bSkin').onclick = () => {
@@ -492,7 +541,10 @@
     railPhase = active;
     $('phName').textContent = active === null ? 'HOLDING'
       : (PHASES.find(p => p[0] === active) || [0, active])[1];
-    let past = active !== null;
+    // GARAGE is a state of the rail, not a caption written over it. Poking the
+    // text directly left railPhase stale, so a later setRail(null) matched and
+    // returned early — the rail kept saying GARAGE while the solver ran.
+    let past = active !== null && active !== 'GARAGE';
     for (const [k] of PHASES) {
       const d = tickEls[k];
       if (k === active) { d.className = 'now'; past = false; }
@@ -502,6 +554,22 @@
 
   // ================= autopilot + telemetry =================
   let running = true, started = false;
+
+  // ================= THE GARAGE (G3.2) =================
+  // A place, not a mode of the runway. While you are building, the solver does
+  // NOT step: the aeroplane stands at its design geometry on the apron in front
+  // of the hangars, so nothing sags, nothing settles, nothing diverges, and a
+  // slider drag no longer throws away a flight. ROLL OUT commits it to the
+  // strip and turns the physics on.
+  //
+  // Not stepping is the whole of it. With the solver idle the sim stays exactly
+  // where reset() put it, which IS the rest lattice rigidly placed — so the
+  // skin poses to its rest shape for free and needs no special path.
+  const APRON = {                    // in front of the hangars at (42,62)/(16,54)
+    hdg: Math.PI - 0.62,             // quartered to the strip: a build stand pose
+    elev: 0, tdz: [0, 0], spawn: [26, 40],
+  };
+  let inGarage = false;
   const tel = { t: [], alt: [], V: [], marks: [] };
   let telAcc = 0, lastPhase = 'ROLL', telBase = 0;   // telBase: multi-hop leg offset
 
@@ -575,8 +643,156 @@
         `${Math.abs(ap.tdInfo.z).toFixed(1)} m off centreline`;
   }
 
-  $('bGo').onclick = () => { started = true; };
+  // ---- build indicators: what you cannot see by looking at the aeroplane ----
+  // CG and neutral point, and the three ground contacts. The GAP between the
+  // two upright markers IS the static margin — the number that decides whether
+  // it flies at all, and the one thing a picture of an aeroplane never shows.
+  // Rebuilt on entering the garage and on every spec change; static after that,
+  // because in the garage nothing moves.
+  // genShakedown runs a trim solve in the wind tunnel — the expensive half of a
+  // rebuild. The panel and the indicators both want it, so it is memoised on
+  // the fiche: one solve per aeroplane, not one per reader.
+  let shakeFor = null, shakeVal = null;
+  const shakeOf = () => {
+    if (curKey !== 'gen') return null;
+    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def); }
+    return shakeVal;
+  };
+
+  let gInd = null, gLabels = [];
+  // a word floated above each marker. Canvas -> sprite, because a line drawing
+  // cannot say which post is which and the two are only 0.3 m apart on a stable
+  // aeroplane. sizeAttenuation off keeps them legible at any zoom.
+  function makeLabel(text, rgb) {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 64;
+    const g = c.getContext('2d');
+    const hx = v => Math.round(255 * Math.pow(Math.min(1, Math.max(0, v)), 1 / 2.2));
+    g.fillStyle = `rgba(${hx(rgb[0])},${hx(rgb[1])},${hx(rgb[2])},1)`;
+    g.font = '600 40px "IBM Plex Mono", monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 64, 32);
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
+    sp.scale.set(0.055, 0.028, 1);
+    sp.renderOrder = 999;
+    return sp;
+  }
+  function buildIndicators() {
+    if (gInd) { scene.remove(gInd); gInd.geometry.dispose(); gInd = null; }
+    for (const l of gLabels) { scene.remove(l); l.material.map.dispose(); l.material.dispose(); }
+    gLabels = [];
+    if (!inGarage || curKey !== 'gen') return;
+    const s = shakeOf(), P = def.parts;
+    const [xA] = sim.axes(), cg = sim.cgPos();
+    const V = [], C = [];
+    const seg = (a, b, col) => {
+      V.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      for (let i = 0; i < 2; i++) C.push(col[0], col[1], col[2]);
+    };
+    // the panel's own --amber and --cyan, converted sRGB -> LINEAR. Vertex
+    // colours go straight into a linear pipeline with ACES tone mapping, so
+    // feeding the CSS values raw lifts them to a washed-out near-white and the
+    // two markers stop being tellable apart.
+    const lin = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]
+      .map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+    const AMBER = lin(0xffb257), CYAN = lin(0x63d3cc), PALE = lin(0xd3c3ae);
+    // an upright post from the ground to well above the aeroplane, so the two
+    // are comparable at a glance from any angle
+    const label = (px, py, pz, text, col) => {
+      const sp = makeLabel(text, col);
+      sp.position.set(px, py + 0.42, pz);
+      scene.add(sp); gLabels.push(sp);
+    };
+    const post = (px, pz, col, h) => {
+      seg([px, 0, pz], [px, h, pz], col);
+      for (const [dx, dz] of [[0.45, 0], [0, 0.45]])
+        seg([px - dx, h, pz - dz], [px + dx, h, pz + dz], col);
+    };
+    post(cg[0], cg[2], AMBER, 3.2);
+    const d = s.npX - s.cgX;                       // body-x offset, aft positive
+    const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
+    post(npx, npz, CYAN, 2.8);
+    // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
+    // changing with alpha — the aft limit the CG must stay ahead of — and the
+    // gap between the two posts IS the static margin. The centre of lift is a
+    // different thing and moves with alpha; labelling it that way would say
+    // something false about what the gap means.
+    label(npx, 2.8, npz, 'NP', CYAN);
+    label(cg[0], 3.2, cg[2], 'CG', AMBER);
+    // and the margin itself, as a bar on the ground between the two posts
+    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
+    // ground contacts: where it actually touches, wheel by wheel
+    for (const k of ['GAL', 'GAR', 'TW']) {
+      const i = P[k]; if (i == null) continue;
+      const n = def.nodes[i], y = sim.p[i * 3 + 1] - n.r;
+      const px = sim.p[i * 3], pz = sim.p[i * 3 + 2];
+      for (const [dx, dz] of [[0.28, 0], [0, 0.28]])
+        seg([px - dx, y, pz - dz], [px + dx, y, pz + dz], PALE);
+      seg([px, y, pz], [px, y + n.r, pz], PALE);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+    gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    gInd.frustumCulled = false;
+    scene.add(gInd);
+  }
+
+  // The design lattice is drawn LEVEL — the deck angle is something the
+  // aeroplane acquires by settling onto its third wheel under gravity. With the
+  // solver stopped that never happens, so a taildragger would stand in the
+  // garage with its tailwheel 0.9 m in the air. This rotates the whole lattice
+  // rigidly about the main axle until the third wheel touches, which is the
+  // attitude genShakedown already reports as `deckAngle`. Rigid, so the skin
+  // still poses to its rest shape and nothing is faked: it is the same
+  // aeroplane, put down on its wheels.
+  function standOnWheels() {
+    const P = def.parts, iM = P.GAL, iT = P.TW;
+    if (iM == null || iT == null) return;
+    const x0 = sim.p[iM * 3], y0 = sim.p[iM * 3 + 1];
+    const rM = def.nodes[iM].r, rT = def.nodes[iT].r;
+    const ux = sim.p[iT * 3] - x0, uy = sim.p[iT * 3 + 1] - y0;
+    // rotate by `a` about the axle so the third contact meets the mains':
+    //   ux sin a + uy cos a = rT - rM
+    // TWO roots satisfy that, and the far one puts the aeroplane on its back
+    // with all three contacts still perfectly coplanar — it flipped a tricycle
+    // 170 degrees and the arithmetic never complained. Take the near root.
+    const h = Math.hypot(ux, uy), R = rT - rM;
+    if (h < 1e-6 || Math.abs(R) > h) return;
+    const q = Math.asin(R / h), phi = Math.atan2(uy, ux);
+    const wrap = v => Math.atan2(Math.sin(v), Math.cos(v));
+    const r1 = wrap(q - phi), r2 = wrap(Math.PI - q - phi);
+    const a = Math.abs(r1) <= Math.abs(r2) ? r1 : r2;
+    const c = Math.cos(a), s = Math.sin(a);
+    for (let i = 0; i < sim.n; i++) {
+      const dx = sim.p[i * 3] - x0, dy = sim.p[i * 3 + 1] - y0;
+      sim.p[i * 3] = x0 + dx * c - dy * s;
+      sim.p[i * 3 + 1] = y0 + dx * s + dy * c;
+    }
+  }
+
+  function enterGarage() {
+    inGarage = true; started = false; running = true;
+    sim.reset(0);
+    standOnWheels();
+    placeAtAerodrome(sim, APRON);
+    buildIndicators();
+    railPhase = ''; setRail('GARAGE');
+    $('bGo').textContent = 'Roll out & fly';
+  }
+  function rollOut() {
+    inGarage = false;
+    buildIndicators();                 // clears them
+    $('bGo').textContent = 'Fly the circuit';
+    fullReset();
+  }
+
+  $('bGo').onclick = () => { if (inGarage) rollOut(); started = true; };
   function fullReset() {
+    if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = makeAutopilot(sim, def, world); applyRoute(); started = false; running = true;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
@@ -586,7 +802,13 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
-  $('selAc').onchange = e => { setAircraft(e.target.value); fullReset(); hud(); };
+  // selecting the Garage build puts you IN the garage; any other aeroplane is
+  // finished and goes straight to the strip
+  $('selAc').onchange = e => {
+    setAircraft(e.target.value);
+    if (curKey === 'gen') enterGarage(); else rollOut();
+    hud();
+  };
   { // departure + destination selects: spawn anywhere, fly circuit or leg
     const fill = (sel, first, firstLabel, skipId) => {
       sel.innerHTML = '';
@@ -775,12 +997,14 @@
   // is the only surface it touches. Guarded, so a core-only build still runs.
   if (typeof garageInit === 'function') garageInit({
     defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
-    // a changed spec is a DIFFERENT AEROPLANE, so it goes through setAircraft:
-    // new lattice, new sim, new autopilot, re-placed on the departure strip
-    apply(spec) { genSpec = spec; $('selAc').value = 'gen'; setAircraft('gen'); },
+    // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
+    // the stand: the solver stops, so a slider drag costs you nothing
+    apply(spec) { genSpec = spec; $('selAc').value = 'gen'; setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
-    shake: () => (curKey === 'gen' ? genShakedown(def) : null),
+    shake: () => shakeOf(),
     isGen: () => curKey === 'gen',
+    inGarage: () => inGarage,
+    rollOut: () => { rollOut(); started = true; },
   });
 
   function resize() {
@@ -794,7 +1018,20 @@
   let frame = 0, wdFrame = 0;
   function loop() {
     requestAnimationFrame(loop);
-    if (running) {
+    if (inGarage) {
+      // CONTROL CHECK. The solver is stopped in the garage, so every control
+      // sits at zero and the surfaces never move — which reads as "the surfaces
+      // do not work" even when they do. Sweep them instead, the way you would
+      // walk a control check before flight: four different periods so nothing
+      // syncs up and each surface can be watched on its own. Physics is off, so
+      // writing ctl here has no consequence, and roll-out zeroes it in reset().
+      const tS = frame / 60;
+      sim.ctl.de = 0.30 * Math.sin(tS * 0.90);
+      sim.ctl.da = 0.35 * Math.sin(tS * 0.62 + 1.0);
+      sim.ctl.dr = 0.35 * Math.sin(tS * 0.45 + 2.0);
+      sim.ctl.flap = 0.5 - 0.5 * Math.cos(tS * 0.33);
+    }
+    if (running && !inGarage) {      // the garage does not step: see enterGarage
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {

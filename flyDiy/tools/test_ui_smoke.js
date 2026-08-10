@@ -23,6 +23,8 @@ const appBlock = pick('function setAircraft', 'app');
 function mkObj() {
   const o = {
     position: vec(), rotation: vec(), scale: vec(), children: [],
+    // control surfaces turn as rigid meshes (G4.4), so a mesh needs one
+    quaternion: { setFromAxisAngle() { return this; } },
     matrix: { copy: () => {}, },
     visible: true, frustumCulled: true, matrixAutoUpdate: true,
     add(c) { this.children.push(c); return this; },
@@ -95,6 +97,13 @@ const THREE = {
   // if it ever stops firing, the aircraft stays a wireframe forever
   TextureLoader: class { load(url, onLoad) { const t = { anisotropy: 0 };
     if (onLoad) onLoad(t); return t; } },
+  // the garage's CG/NP labels are canvas sprites (G3.5b)
+  CanvasTexture: class { constructor(c) { this.image = c; this.encoding = 0; }
+    dispose() {} },
+  SpriteMaterial: class { constructor(o) { Object.assign(this, o || {}); }
+    dispose() {} },
+  Sprite: class { constructor(m) { this.material = m; this.scale = { set() {} };
+    this.position = { set() {} }; this.renderOrder = 0; } },
   DoubleSide: 2,
   sRGBEncoding: 0, ACESFilmicToneMapping: 0, PCFSoftShadowMap: 0,
 };
@@ -158,6 +167,25 @@ try {
   for (const id of ['bSkin', 'bSkin', 'bSkin'])
     handlers[id]({ target: els[id] });
   frames(30);
+  // ---- THE GARAGE (G3.2): selecting the generated build stops the solver ----
+  // The observable is the phase rail. script() is what writes HOLDING there,
+  // and in the garage script() must not run at all — so if the `!inGarage`
+  // guard in the loop is ever lost, this reads HOLDING instead of GARAGE.
+  // Physics off while building is the whole point of the phase; a silent
+  // regression would mean a slider drag throws away your aeroplane again.
+  handlers['selAc']({ target: { value: 'gen' } });
+  if (els['phName'].textContent !== 'GARAGE')
+    throw new Error(`selecting the garage build did not enter it (${els['phName'].textContent})`);
+  frames(240);
+  if (els['phName'].textContent !== 'GARAGE')
+    throw new Error('the solver stepped in the garage: the loop guard is gone');
+  // ...and ROLL OUT commits it: physics back on, autopilot flying the circuit
+  handlers['bGo']();
+  frames(240);
+  if (els['phName'].textContent === 'GARAGE')
+    throw new Error('roll out did not leave the garage');
+  console.log(`garage -> roll out -> ${els['phName'].textContent}`);
+
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);
   console.log(`ran app block: raf x${rafCount}, handlers wired: ${Object.keys(handlers).sort().join(' ')}`);
   console.log('GATE UISMOKE: PASS');

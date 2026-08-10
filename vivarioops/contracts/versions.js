@@ -8,7 +8,26 @@
 // A1 gate assertion: version.json's genome/bridge/ecology equal these three.
 
 /** 01 §8 — bumps on genome schema change; requires a forward migration. */
-export const GENOME_V = 5;
+// 5 -> 6 (2026-08-09). TWO FIELDS IN ONE BUMP, per ROADMAP §5b's "spend the
+// GENOME_V bump once": `morphology` (the proportion gradient — taperStrength /
+// taperRatio) and `origin` (founder provenance that survives breeding). Both are
+// bit-identical for migrated genomes: taperStrength 0 skips the resolver entirely,
+// and founder null is "unknown", which is what a stored v5 genome honestly is.
+// SCHEMA_OF maps genome, specimen AND lineage to this number — a missed migration
+// has already made a player's whole Atlas invisible once.
+// 6 -> 7 (2026-08-10). PHASE 4.3 — THE SECOND STEERING OUTPUT. `preyGain2` and
+// `threatGain2`, the same form as the pair above but reading the OUT-OF-PLANE
+// component of the bearing and driving the joints along the body's second
+// principal bend axis. Until now the entire nervous system was one scalar, so
+// the reachable postures were a one-dimensional family — bend one way or its
+// exact opposite — whatever the body could do. Measured joint-axis spread says
+// that was a real constraint for some bodies and not others: the eels are
+// genuinely planar (1.000 / 0.000 / 0.000) but `spokebeast-banded` (0.754 /
+// 0.174 / 0.072) and `protea` (0.737 / 0.203 / 0.060) have anatomy in three
+// dimensions that nothing could command.
+// Both genes migrate in at 0 and `targetAngles` guards on `turnBias2 !== 0`, so
+// every stored creature is bit-identical, not merely equivalent.
+export const GENOME_V = 7;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
 // BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to
@@ -68,7 +87,45 @@ export const GENOME_V = 5;
 // yaw 22.50 as `eel-unison` while being unable to reverse its turn at all. The
 // clamp was capping the wrong animals. SESSION-10 §152 deferred this deliberately;
 // tools/_zlight.mjs forced it by measuring taxis at r = 0.91 against turnRate3d.
-export const BRIDGE_V = 7;
+//
+// 7 -> 8 (2026-08-10). S3 NOW SWEEPS THE BIAS INSTEAD OF MEASURING AT ONE POINT,
+// and every turning field is reported at the creature's own `bestBias`. A new
+// field, `bestBias`, records which point that was.
+//
+// The single point was 1.0, and at TURN_AUTHORITY 1.0 that commands a full joint
+// range of differential offset on top of a gait whose amplitude is already p50
+// 0.69 of that range. `targetAngles` asks for an angle outside the joint's own
+// limits, the joint pins against `setLimits`, the stroke rectifies and thrust
+// collapses — so the probe was measuring the mechanism at the point where it
+// stops working. The response is not monotone in the command:
+//
+//     eel-fast    6.18 deg/s @ 0.2   8.88 @ 0.5   1.25 @ 1.0
+//
+// and its minimum turning radius is 2.11 cm at bias 0.5 against the 35.01 cm the
+// old formulation reported. `eel` and `eel-finned` reported turnCapability 0.000
+// and an INFINITE radius, and `tools/_zgoal.mjs` then measured them as the two
+// best goal-reachers in the library (+0.65 and +0.67 control-subtracted closure,
+// arriving in four of six directions). The field was describing a body being
+// asked the one question it cannot answer.
+//
+// `turnRadius` changes meaning with it: it was `cruiseSpeed / turnRate`, the
+// straight-line speed over the yaw rate under a saturated bias, and it is now
+// the mean speed and the 3-D heading rate from the same run at `bestBias`.
+// Creatures travel at 0.26-0.55x cruise while holding a turn, so the old number
+// overstated the radius by roughly that factor for anything that steers.
+//
+// Not a schema change — GENOME_V is untouched — but every stored S3 field now
+// means something different, and 11 §4 makes a bridge bump the only invalidation
+// mechanism there is. `turnRate3dAt1` / `turnRadiusAt1` are returned alongside so
+// every figure quoted before this date stays auditable.
+export const BRIDGE_V = 8;
+
+// ⚠ BRIDGE_V IS NOT BUMPED FOR GENOME_V 7, and that is not an oversight.
+// `genomeHash` mixes GENOME_V in, so every record key moves anyway; and the
+// second steering channel changes no probe, no reduction and no duel rule. At
+// `turnBias2 = 0` — which is every migrated creature — `targetAngles` does not
+// execute the added line at all. Bumping both would claim a measurement change
+// that did not happen.
 
 /** 01 §8 — bumps on L3 rule change; stored runs kept but marked stale. */
 export const ECOLOGY_V = 1;

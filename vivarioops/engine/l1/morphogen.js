@@ -68,6 +68,14 @@ export function morphogenesis(genome, opts = {}) {
     nodeId: rootNode.id,
     parent: -1,
     depth: 0,
+    // TREE depth — joints between this body and the root. NOT the same field as
+    // `depth` above, which is PER NODE TYPE and resets whenever the chain moves to
+    // a different node (see the newDepth note below). Both are legitimate and they
+    // are routinely confused: a plan-wide audit read `max(bodies[].depth)` as tree
+    // depth and got near-zeros, and a design document then proposed "fixing" the
+    // per-node-type field to match. Carrying the real one under its own name ends
+    // that. The proportion gradient reads THIS one.
+    treeDepth: 0,
     dims: rootNode.dims.slice(),
     density: rootNode.density,
     cumulativeScale: [1, 1, 1],
@@ -121,7 +129,7 @@ export function morphogenesis(genome, opts = {}) {
           up: task.mirror.up !== ry,
           forward: task.mirror.forward !== rz,
         };
-        const built = placeChild(parentBody, childNode, c, mirror);
+        const built = placeChild(parentBody, childNode, c, mirror, genome.morphology);
 
         // Reject BEFORE adding, and do not enqueue the subtree. A rejected limb
         // takes its descendants with it, which is what bounds runaway scale
@@ -137,7 +145,10 @@ export function morphogenesis(genome, opts = {}) {
         if (collides) { rejected.overlap++; continue; }
 
         const childIndex = bodies.length;
-        bodies.push({ index: childIndex, nodeId: childNode.id, parent: parentBody.index, depth: newDepth, ...built.body });
+        bodies.push({
+          index: childIndex, nodeId: childNode.id, parent: parentBody.index,
+          depth: newDepth, treeDepth: parentBody.treeDepth + 1, ...built.body,
+        });
         joints.push({
           index: joints.length,
           parentBody: parentBody.index,
@@ -361,7 +372,31 @@ export function obbOverlap(a, b, epsilon = 1e-4) {
  * Place one child limb on a parent face. This is the block the reference exists
  * to get right, and the three things that go wrong are all here.
  */
-function placeChild(parentBody, childNode, c, mirror) {
+/**
+ * The proportion gradient — GENOME_V 6. See RANGE.taperStrength in genome.js.
+ *
+ * EARLY RETURN AT t = 0 IS A STATEMENT, NOT AN OPTIMISATION: a migrated v5 genome
+ * must not take this path at all, so that its bodies come out bit-identical rather
+ * than within floating-point of what they were. Same discipline as
+ * `resolvePhaseLags`, which is the change this one is modelled on.
+ */
+export function taperScale(drawn, morphology, depth) {
+  const t = morphology?.taperStrength ?? 0;
+  const r = morphology?.taperRatio ?? 1;
+  if (t === 0) return drawn;
+  // Geometric mean, because scale COMPOSES BY MULTIPLICATION down the chain — the
+  // arithmetic mean of [0.5, 2, 1] is 1.17 and its geometric mean is 1.0, and only
+  // the second one leaves the limb's volume alone.
+  const geo = Math.cbrt(Math.abs(drawn[0] * drawn[1] * drawn[2])) || 1;
+  const target = geo * Math.pow(r, depth);
+  return [
+    Math.pow(drawn[0], 1 - t) * Math.pow(target, t),
+    Math.pow(drawn[1], 1 - t) * Math.pow(target, t),
+    Math.pow(drawn[2], 1 - t) * Math.pow(target, t),
+  ];
+}
+
+function placeChild(parentBody, childNode, c, mirror, genomeMorphology) {
   let faceRight = FACE_RIGHT[c.parentFace].slice();
   let faceUp = FACE_UP[c.parentFace].slice();
   let faceNormal = FACE_NORMAL[c.parentFace].slice();
@@ -377,12 +412,25 @@ function placeChild(parentBody, childNode, c, mirror) {
   if (mirror.up) faceUp = neg(faceUp);
   if (mirror.forward) faceNormal = neg(faceNormal);
 
+  // THE PROPORTION GRADIENT (GENOME_V 6). Resolved here, at the one site that
+  // turns a drawn scale into a dimension, so nothing downstream can disagree
+  // about what a connection's scale MEANS.
+  //
+  //     effective_k = drawn_k^(1-t) * (geomean(drawn) * r^depth)^t
+  //
+  // t = 0 returns `drawn_k` identically and the early return below skips the
+  // whole path, which is what makes the 5 -> 6 migration bit-identical rather
+  // than merely close. See RANGE.taperStrength for why the anchor is the
+  // connection's OWN geometric mean: at t = 1, r = 1 the limb loses its
+  // anisotropy and KEEPS ITS VOLUME, so the two genes stay separable.
+  const cScale = taperScale(c.scale, genomeMorphology, parentBody.treeDepth + 1);
+
   // Cumulative scale: repeated multiplication down a recursive chain is what
   // produces tapering (10 §A6 step 7).
   const cumulativeScale = [
-    parentBody.cumulativeScale[0] * c.scale[0],
-    parentBody.cumulativeScale[1] * c.scale[1],
-    parentBody.cumulativeScale[2] * c.scale[2],
+    parentBody.cumulativeScale[0] * cScale[0],
+    parentBody.cumulativeScale[1] * cScale[1],
+    parentBody.cumulativeScale[2] * cScale[2],
   ];
   const dims = [
     childNode.dims[0] * cumulativeScale[0],

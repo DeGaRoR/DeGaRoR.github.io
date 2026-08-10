@@ -9,9 +9,24 @@ import { t } from '../../trunk/i18n.js';
 import * as store from '../../trunk/store.js';
 import { seedAtlas } from '../../worlds/atlas_seed.js';
 import { renderThumbnail, isStale, RENDER_TAG } from '../../render/thumbnail.js';
-import { specCard } from '../cards.js';
+import { specCard, metricRows } from '../cards.js';
 import { button } from '../widgets.js';
 import { lineageOf, nameFor } from '../vernacular.js';
+import W1_SLICE from '../../worlds/w1_slice.js';
+
+/**
+ * Stamped on a cached card measurement, and compared before one is trusted.
+ *
+ * A profile is a claim about THIS physics, THIS food model and THIS window. Move
+ * any of them and a stored number is a measurement of a build that no longer
+ * exists — the identical problem `RENDER_TAG` solves for portraits, so it is
+ * solved the identical way. BUMP THIS whenever `forageProfile`, `FORAGE_WARMUP`,
+ * `FORAGE_WINDOW`, the harvest model or the actuator changes.
+ */
+const PROFILE_TAG = 'p1:w30:m150';
+
+/** `CSS.escape` where it exists; a store key is `specimen:<hex>` so this suffices. */
+const cssEscape = (s) => (window.CSS?.escape ? CSS.escape(s) : String(s).replace(/[^\w-]/g, '\\$&'));
 
 export default {
   title: t('Atlas'),
@@ -61,12 +76,103 @@ export default {
       const imgs = new Map();
       for (const { key, spec } of loaded) {
         const c = card(key, spec);
+        // Addressable, so `measureRecords` can swap one card's metric strip
+        // without rebuilding the card and dropping its portrait.
+        c.dataset.key = key;
         grid.append(c);
         imgs.set(key, c.querySelector('.spec-card-thumb'));
       }
       wrap.append(grid);
 
       upgradeRecords(loaded, imgs);
+      measureRecords(loaded, grid);
+    }
+
+    /**
+     * ── THE CARD MEASUREMENTS, RUN LAZILY AND CACHED ──────────────────────────
+     *
+     * A `forageProfile` is a 180 s simulation — 30 s of discarded warm-up and a
+     * 150 s measurement window — plus an S3 turn probe, which is two more 8 s
+     * runs. Call that for forty specimens on page open and the Atlas is a white
+     * screen for several minutes.
+     *
+     * SO IT IS DEFERRED, EXACTLY AS `upgradeRecords` DEFERS PORTRAITS: the page
+     * is already on screen, one creature is measured at a time, the loop yields a
+     * frame between each, and the numbers replace their "measuring…" labels in
+     * place as they arrive. A failure leaves the card unmeasured rather than
+     * breaking the grid.
+     *
+     * CACHED INTO THE RECORD, keyed by `PROFILE_TAG`. The measurement depends on
+     * the physics, the food model and the window, so a stored profile from before
+     * any of those moved is not a measurement of this build — the same staleness
+     * problem `RENDER_TAG` solves for portraits, and solved the same way rather
+     * than differently.
+     *
+     * `intact` IS CHECKED BEFORE THE NUMBERS ARE KEPT. ROADMAP §5b lesson 3: a
+     * creature that comes apart reports fictional intake — 7864 g against rivals'
+     * 31-49. A card showing that would be worse than a card showing nothing.
+     */
+    async function measureRecords(loaded, grid) {
+      const todo = loaded.filter(({ spec }) =>
+        spec.genome && spec.profile?.tag !== PROFILE_TAG);
+      if (!todo.length) return;
+
+      const { default: RAPIER } = await import('@dimforge/rapier3d-compat');
+      await RAPIER.init();
+      const [{ assessViability }, { forageProfile }, { S3 }] = await Promise.all([
+        import('../../engine/l1/viability.js'),
+        import('../../engine/l2/forage.js'),
+        import('../../engine/l2/probes.js'),
+      ]);
+      if (stopped) return;
+
+      const yieldFrame = () => new Promise((r) => {
+        let fired = false;
+        const go = () => { if (!fired) { fired = true; r(); } };
+        requestAnimationFrame(go);
+        setTimeout(go, 50);
+      });
+
+      for (const { key, spec } of todo) {
+        if (stopped) return;
+        await yieldFrame();
+        if (stopped) return;
+        let profile = { tag: PROFILE_TAG, valid: false };
+        try {
+          const v = assessViability(RAPIER, spec.genome, W1_SLICE);
+          if (v.ok) {
+            const p = forageProfile(RAPIER, {
+              plan: v.plan, genome: spec.genome, world: W1_SLICE, foodOpts: { seed: 11 },
+            });
+            if (p.valid && p.intact) {
+              let turn = null;
+              try {
+                const s3 = S3(RAPIER, {
+                  plan: v.plan, genome: spec.genome, world: W1_SLICE,
+                  cruiseSpeed: p.netDisplacement / p.window,
+                });
+                if (s3.valid) turn = s3.turnRate3d * s3.steeringAuthority * (180 / Math.PI);
+              } catch { /* a card without a turn figure, not a card that failed */ }
+              profile = {
+                tag: PROFILE_TAG, valid: true,
+                foodPerSecond: p.foodPerSecond,
+                multiplier: p.multiplier,
+                straightness: p.straightness,
+                size: p.size,
+                turnCapability: turn,
+              };
+            }
+          }
+        } catch { /* leave it invalid; the next open tries again */ }
+
+        try { await store.set(key, { ...spec, profile }); } catch { /* transient */ }
+        if (stopped) return;
+        // Swap the strip in place. Rebuilding the card would drop the portrait
+        // that `upgradeRecords` may have just finished painting into it.
+        const card = grid.querySelector(`[data-key="${cssEscape(key)}"]`);
+        const dl = card?.querySelector('.spec-card-metrics');
+        if (dl) dl.replaceChildren(...metricRows({ ...spec, profile }));
+      }
     }
 
     /**

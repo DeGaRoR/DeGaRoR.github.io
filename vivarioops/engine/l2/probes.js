@@ -41,6 +41,41 @@ export const S3_DURATION = 8.0;
  */
 export const S3_BIAS = 1.0;
 
+/**
+ * ── THE BIAS SWEEP, AND WHY ONE POINT WAS NOT ENOUGH (Phase 3, 2026-08-10) ────
+ *
+ * S3 measured the turn at `turnBias = +-1.0` only, and at `TURN_AUTHORITY = 1.0`
+ * that commands a differential offset of a FULL joint range on top of a gait
+ * whose amplitude is already p50 0.69 of that range. `targetAngles` therefore
+ * asks for an angle outside the joint's own limits; the joint pins against
+ * `setLimits`, the stroke rectifies, and thrust collapses. The response is not
+ * monotone in the command, and one point cannot see that:
+ *
+ *     creature        w @ 0.2   w @ 0.5   w @ 1.0    best radius       measured at 1.0
+ *     eel-fast        6.18      8.88      1.25       2.11 cm @ 0.5     35.01 cm
+ *     eel-unison      2.97     11.09     16.27       0.78 cm @ 1.0      1.80 cm
+ *     snarlback-teal 12.67     24.10     31.33       0.32 cm @ 1.0      5.73 cm
+ *     eel / eel-finned   —      2.11      ~0         ~1.1-1.3 cm       INFINITE
+ *
+ * `eel` and `eel-finned` reported `turnRate3d * steeringAuthority = 0.000` and an
+ * infinite radius — and they are the two BEST goal-reachers in the library when
+ * measured behaviourally (`tools/_zgoal.mjs`: +0.65 and +0.67 control-subtracted
+ * closure, arriving in 4 of 6 directions). The field was not describing a body
+ * that cannot turn. It was describing a body being asked the one question it
+ * cannot answer.
+ *
+ * So the probe sweeps, and reports at the creature's OWN best operating point.
+ * `bestBias` is a measured phenotype in exactly the sense `turnRadius` is — the
+ * differential bend at which this body turns tightest — not a tuned constant and
+ * not something the creature is told.
+ *
+ * COST: five points instead of one, so ten 8 s runs instead of two, against a
+ * compile already budgeted at ~700 s. A caller that only wants the steering
+ * PLANE, and does not need the capability numbers, passes `biases: [S3_BIAS]`
+ * and gets today's arithmetic back unchanged.
+ */
+export const S3_BIASES = [0.2, 0.35, 0.5, 0.75, 1.0];
+
 /** 64 rays, 11 §5 S1's own number. */
 export const TORSO_RAYS = 64;
 
@@ -510,25 +545,52 @@ function sustainedAbove(trace, from, to, threshold) {
  *
  * Cost is one extra 8 s run, against a compile already budgeted at ~700 s.
  */
-export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed }) {
-  const out = [];
-  for (const sign of [+1, -1]) {
-    const r = runSolo(RAPIER, {
-      plan, genome, world,
-      gravity: gravity ?? SOLO_GRAVITY,
-      bounded: bounded ?? SOLO_BOUNDED,
-      duration: S3_DURATION, turnBias: sign * S3_BIAS,
-    });
-    if (!r.valid) return { valid: false, reason: r.reason };
-    const scratch = new Float64Array(r.trace.n);
-    const t3 = turn3d(r.trace, 0, r.trace.n);
-    out.push({
-      rate: meanTurnRate(r.trace, 0, r.trace.n, scratch),
-      speed: meanSpeed(r.trace, 0, r.trace.n),
-      rate3d: t3.rate, headingVec: t3.headingVec, axis3d: t3.axis, localAxis: t3.localAxis,
-    });
-  }
+export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed, biases = S3_BIASES }) {
+  /** One bias amplitude, both directions, differenced. The old body of S3. */
+  const atBias = (bias) => {
+    const out = [];
+    for (const sign of [+1, -1]) {
+      const r = runSolo(RAPIER, {
+        plan, genome, world,
+        gravity: gravity ?? SOLO_GRAVITY,
+        bounded: bounded ?? SOLO_BOUNDED,
+        duration: S3_DURATION, turnBias: sign * bias,
+      });
+      if (!r.valid) return null;
+      const scratch = new Float64Array(r.trace.n);
+      const t3 = turn3d(r.trace, 0, r.trace.n);
+      out.push({
+        rate: meanTurnRate(r.trace, 0, r.trace.n, scratch),
+        speed: meanSpeed(r.trace, 0, r.trace.n),
+        rate3d: t3.rate, headingVec: t3.headingVec, axis3d: t3.axis, localAxis: t3.localAxis,
+      });
+    }
+    const dHead = [0, 1, 2].map((i) => out[0].headingVec[i] - out[1].headingVec[i]);
+    const rate3d = Math.hypot(...dHead) / 2;
+    const speed = (out[0].speed + out[1].speed) / 2;
+    return {
+      bias, out, rate3d, speed,
+      // THE QUANTITY THE SWEEP IS FOR. Radius from the speed and the turn rate
+      // MEASURED AT THE SAME BIAS. The shipped `turnRadius` divided the STRAIGHT
+      // cruise speed by the turn rate at full bias — two different operating
+      // points — and creatures travel at 0.26-0.55x cruise while turning.
+      radius: rate3d > 1e-9 ? speed / rate3d : Infinity,
+    };
+  };
 
+  const swept = [];
+  for (const b of biases) { const s = atBias(b); if (s) swept.push(s); }
+  if (!swept.length) return { valid: false, reason: INVALID.UNSTABLE };
+
+  // The creature's own best steering point: the bias at which its turning circle
+  // is tightest. Ties and all-infinite cases fall to the largest bias tried,
+  // which is the pre-sweep behaviour and the honest default for a body that does
+  // not turn at any command.
+  let best = swept[swept.length - 1];
+  for (const s of swept) if (s.radius < best.radius) best = s;
+  const at1 = swept.find((s) => s.bias === S3_BIAS) ?? swept[swept.length - 1];
+
+  const out = best.out;
   const turnRate = Math.abs(out[0].rate - out[1].rate) / 2;
   const intrinsicRate = (out[0].rate + out[1].rate) / 2;
 
@@ -568,25 +630,55 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
   // closes it, and it has to be MEASURED per creature: a chain of revolute
   // joints about local X turns in its local YZ plane, which is vertical, and no
   // convention chosen in advance gets that right for every body plan.
-  const dLocal = [0, 1, 2].map((i) => out[0].localAxis[i] - out[1].localAxis[i]);
+  //
+  // ── THE PLANE STAYS AT FULL BIAS WHILE THE RATES MOVE TO bestBias ──────────
+  //
+  // The sweep does NOT relocate this measurement, and that is deliberate rather
+  // than an oversight. The plane and the rate are different kinds of quantity
+  // and they are best determined at different commands: the AXIS is cleanest
+  // where the curl is largest, because the differenced local axis is what curl
+  // expresses, while the RATE is best where the gait still runs.
+  //
+  // It is also the conservative choice. Everything measured against a steering
+  // plane in this project — BRIDGE_V 7's records, the Vivarium beacon, the
+  // `_zgoal` library baseline, the selection runs — used the full-bias plane, and
+  // `_zgoal` PLACES ITS TARGETS in this plane as well as sensing through it. So
+  // moving it does not refine a number, it changes the experiment.
+  //
+  // Measured, once, and it is why this is written down rather than assumed: two
+  // selection winners re-scored with the bestBias plane instead of the full-bias
+  // one came out at 0.219 against 0.508 and 0.217 against 0.234. That is n = 2
+  // and it points the wrong way for moving it, which is not enough to move it on
+  // and is enough not to move it silently. An honest test needs the n >= 15 this
+  // session's own standing rule asks for, and it is a separate experiment.
+  const dLocal = [0, 1, 2].map((i) => at1.out[0].localAxis[i] - at1.out[1].localAxis[i]);
   const dl = Math.hypot(...dLocal);
   // Falls back to world up — the horizontal plane, i.e. exactly the old compass
   // behaviour — when the two directions do not disagree. That is the honest
   // default: a creature with no measurable steering plane has no plane to use,
   // and steeringAuthority is the field that says so.
   const turnPlane = dl > 1e-6 ? dLocal.map(v => v / dl) : [0, 1, 0];
-  const dAxis = [0, 1, 2].map((i) => out[0].axis3d[i] - out[1].axis3d[i]);
+  const dAxis = [0, 1, 2].map((i) => at1.out[0].axis3d[i] - at1.out[1].axis3d[i]);
   const steeringAuthority = Math.min(1, Math.hypot(...dAxis) / 2);
   const turnSpeed = (out[0].speed + out[1].speed) / 2;
 
-  // turnRadius = cruiseSpeed / turnRate. A creature that does not turn has an
-  // infinite radius, which is true and unstorable — Float32Array(Infinity) is
-  // Infinity and validateSpecies rejects it. Capped at the tank's own diagonal:
-  // beyond that the distinction between "wide turn" and "no turn" has no
-  // meaning inside any world this creature will ever be measured in.
+  // ── turnRadius, AND THE OPERATING POINT IT IS TAKEN AT ──────────────────────
+  //
+  // This was `cruiseSpeed / turnRate`, which mixes two different states: the
+  // STRAIGHT-LINE cruise speed over the yaw turn rate under a saturated bias.
+  // Measured, creatures travel at 0.26-0.55x cruise while holding a turn, so the
+  // radius was overstated by roughly that factor for anything that steers, and
+  // it used the yaw component, which reads near-zero for a body that turns in
+  // pitch.
+  //
+  // Both are taken at `bestBias` now and from the same run: the mean speed and
+  // the 3-D heading rate the creature actually had while turning. A creature
+  // that does not turn at any swept bias still has an infinite radius, which is
+  // true and unstorable — `Float32Array(Infinity)` is Infinity and
+  // `validateSpecies` rejects it — so it is still capped at the tank diagonal.
   const tankDiagonal = Math.hypot(...world.tankBounds);
-  const turnRadius = turnRate > 1e-6
-    ? Math.min(cruiseSpeed / turnRate, tankDiagonal)
+  const turnRadius = Number.isFinite(best.radius)
+    ? Math.min(best.radius, tankDiagonal)
     : tankDiagonal;
 
   return {
@@ -599,6 +691,15 @@ export function S3(RAPIER, { plan, genome, world, gravity, bounded, cruiseSpeed 
     turnRadius,
     turnSpeedRatio: cruiseSpeed > 1e-9 ? Math.min(4, turnSpeed / cruiseSpeed) : 0,
     intrinsicRate,
+    /** The bias this creature turns tightest at. A measured phenotype (see S3_BIASES). */
+    bestBias: best.bias,
+    /**
+     * The pre-sweep numbers, kept so every figure quoted before 2026-08-10 stays
+     * auditable against the one that replaced it rather than silently changing
+     * meaning. `turnRate3dAt1` is what `turnCapability` used to be built from.
+     */
+    turnRate3dAt1: at1.rate3d,
+    turnRadiusAt1: Number.isFinite(at1.radius) ? Math.min(at1.radius, tankDiagonal) : tankDiagonal,
   };
 }
 

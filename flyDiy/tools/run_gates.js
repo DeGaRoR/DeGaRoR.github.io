@@ -41,6 +41,10 @@ const GATES = [
   { id: 'XCTY3', file: 'test_xcty3.js' },
   { id: 'XCTY4', file: 'test_xcty4.js' },
   { id: 'XCTY5', file: 'test_xcty5.js' },
+  // structural realism instrument (appended: keeps the battery log prefix
+  // diffable). Measures only — it asserts finiteness and determinism, not
+  // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
+  { id: 'FLEX', file: 'test_flex.js' },
 ];
 
 const args = process.argv.slice(2);

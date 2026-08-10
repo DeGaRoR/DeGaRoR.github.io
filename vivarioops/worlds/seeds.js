@@ -76,6 +76,35 @@ function chain({
       // Z for every seed in this file, so face 5 (+Z) at the centre is exactly
       // where `mouthsOf` used to put it: these animals are unchanged.
       mouth: { face: 5, at: [0, 0] },
+      /**
+       * GENOME_V 6 — the proportion gradient, and these animals were ALREADY
+       * built to it by hand. Every seed's connection scale is `[taper, taper,
+       * taper]`, isotropic, drawn from one number: the authored good swimmers
+       * never had the per-axis independence the random factory had, which is a
+       * quiet piece of evidence for the gene existing at all.
+       *
+       * Left at the NEUTRAL 0 / 1 rather than the descriptive 1 / taper, so these
+       * literals stay bit-identical through the resolver's early return. Setting
+       * t = 1 would in fact produce the same dims — geomean of [s,s,s] is s — but
+       * "provably unchanged" beats "unchanged if the arithmetic is right".
+       */
+      morphology: { taperStrength: 0, taperRatio: 1 },
+      /**
+       * THESE ARE REFERENCES, AND NOW THEY SAY SO.
+       *
+       * An authored creature did not survive trial and error; it was designed to
+       * work. That makes the library invaluable as a benchmark and as breeding
+       * stock, and dangerous as evidence — two of the six opening tank slots are
+       * authored eels, so a run that improves on them has shown that evolution
+       * IMPROVES a competent founder, which is a much weaker claim than evolution
+       * DISCOVERING swimming. Before this field the distinction was unrecoverable
+       * one generation in.
+       *
+       * `founder` is inherited through mutation and crossover, so a descendant
+       * fifty generations down still reports the eel it came from. A seed may
+       * enter the population and must never bypass the objective.
+       */
+      origin: { founder: id, generations: 0 },
       material: {
         hue, hueVariance: 0.08, patternScale: 3.0, patternContrast: 0.4,
         stripeAnisotropy: 0.7, iridescence: 0.15,
@@ -106,11 +135,134 @@ function chain({
         phaseSlope: 0,       // A3
         proprioGain: 0,      // A5 — neutral: open loop
         chemoGain: 0,        // GENOME_V 5 — neutral: blind
+        // GENOME_V 7 — neutral: no second steering channel. These eels are a
+        // chain of PARALLEL hinges, so their joint-axis spread is 1.000 / 0.000
+        // / 0.000 and the channel is inert on them whatever the gain: there is
+        // no second bend axis to project onto. Declared anyway, because the
+        // standing rule is that a gene added to the schema is added to this file
+        // in the same edit — `version: GENOME_V` above is a CLAIM about this
+        // literal, and a missing field would make it a false one.
+        preyGain2: 0,
+        threatGain2: 0,
         jointGenes,
       },
       social: {
         trophic: 0.4, boldness: 0.5, cohesion: 0.3, separation: 0.5,
         alignment: 0.4, separationRadius: 1.5,
+      },
+    },
+  };
+}
+
+/**
+ * A BELL WITH A FOUR-FOLD TENTACLE CROWN — the first radial creature here.
+ *
+ * WHY IT EXISTS, AND IT IS A TEST BEFORE IT IS AN ANIMAL. `factory.js` has cited
+ * `jelly`, "a bell with a four-fold tentacle crown", as "the first radial creature
+ * in the project" since `maxReflectionAxes` was raised to 3 — while this library
+ * remained five eels and a staircase. A comment describing a creature that does
+ * not exist is the same class of defect as a comment describing a constant that
+ * does not hold, and this session has already been bitten by three of those.
+ *
+ * WHAT IT IS FOR. The open question is whether four-fold symmetry READS as a
+ * medusa or as a box with four box-arms. That is an hour of work to answer
+ * empirically and it gates a much larger decision: if it reads badly, the finding
+ * is that symmetry legibility is a `proto/skin/` problem and any genome-schema
+ * work on radial symmetry is premature. Look at it before believing either.
+ *
+ * WHY FOUR AND NOT FIVE. Reflection gives orders 1, 2, 4, 8 and nothing else — it
+ * is the dihedral group of a rectangle, not C(n) — so an ODD count is unreachable
+ * at any setting. Four-fold is the one case where the encoding and nature already
+ * agree: Aurelia is tetramerous and ctenophores are eight-fold. A starfish is not
+ * expressible and will not become so without a rotational repeat gene.
+ *
+ * THE CROWN IS ONE CONNECTION. `reflectX` and `reflectY` on a single connection
+ * multiply it into four instances at (+-u, +-v) of the SAME parent face, so the
+ * four tentacles are one gene and stay symmetric under mutation. Spreading them
+ * over four connections would make them four independent genes that drift apart —
+ * which is why radial symmetry only survives mutation along a reflection axis.
+ *
+ * TENTACLES BEAT IN UNISON (`lag: 0`), which is both the anatomy — a medusa
+ * contracts its bell as one — and the measured better answer: `eel-unison` is the
+ * only creature in this library with a usable turn rate (turnRate3d 15.95 deg/s at
+ * steeringAuthority 1.000, and the only one of seven that `tools/_zlight.mjs` finds
+ * the light with). The bell itself is a rigid box and cannot contract; the crown is
+ * the only thing here that can produce thrust.
+ */
+function medusa({
+  id, name, note,
+  bell = [1.5, 1.5, 0.6], tent = [0.24, 0.24, 0.8],
+  segs = 3, taper = 0.9, spread = 0.6,
+  lag = 0, amp = 0.75, omega = 3.2, angleLimit = 0.8, hue = 0.78,
+} = {}) {
+  const nodes = [
+    {
+      id: 'bell', dims: bell, density: 1, recursiveLimit: 1,
+      joint: { type: 'revolute', angleLimits: [angleLimit, angleLimit, angleLimit], phaseLag: 0 },
+      colorGenes: colour(0, 0.05, 0),
+      sites: [],
+    },
+    {
+      id: 'tent', dims: tent, density: 1, recursiveLimit: segs,
+      joint: { type: 'revolute', angleLimits: [angleLimit, angleLimit, angleLimit], phaseLag: lag },
+      colorGenes: colour(0.02, -0.1, 0.3),
+      sites: [],
+    },
+  ];
+  const connections = [
+    // THE CROWN. Face 2 is -Z, the trailing face: the bell leads and the tentacles
+    // stream behind it, which is how a medusa swims and also puts the crown behind
+    // the mouth. `position` off-centre in BOTH axes is what makes the four
+    // reflected copies land at four distinct corners rather than on top of
+    // each other.
+    {
+      id: 'c_crown', parentNodeId: 'bell', childNodeId: 'tent', parentFace: 2,
+      position: [spread, spread], orientation: [0, 0, 0], scale: [taper, taper, taper],
+      reflectX: true, reflectY: true, reflectZ: false, terminalOnly: false,
+    },
+    // Each tentacle extends itself. Face 5 (+Z) because a child attaches by its
+    // OWN -Z face, so +Z continues the line away from the bell; any other face
+    // turns a corner and `obbOverlap` rejects the third segment. That is the
+    // `staircase` lesson at the head of this file.
+    {
+      id: 'c_tent', parentNodeId: 'tent', childNodeId: 'tent', parentFace: 5,
+      position: [0, 0], orientation: [0, 0, 0], scale: [taper, taper, taper],
+      reflectX: false, reflectY: false, reflectZ: false, terminalOnly: false,
+    },
+  ];
+  return {
+    id, name, note,
+    genome: {
+      version: GENOME_V, seed: 0, rootNodeId: 'bell', nodes, connections,
+      // ON THE TRAILING FACE, among the tentacles — the subumbrellar mouth, which
+      // is where a medusa's actually is. The chains put theirs on +Z because they
+      // swim head-first into food; this one traps food in the crown and brings it
+      // inward, so +Z would be the wrong end of the animal.
+      mouth: { face: 2, at: [0, 0] },
+      morphology: { taperStrength: 0, taperRatio: 1 },
+      origin: { founder: id, generations: 0 },
+      material: {
+        hue, hueVariance: 0.12, patternScale: 1.6, patternContrast: 0.25,
+        stripeAnisotropy: 0.2, iridescence: 0.55,
+      },
+      controller: {
+        omega,
+        preyGain: 0.6,
+        threatGain: -0.4,
+        phaseBase: 0,
+        phaseSlope: 0,
+        proprioGain: 0,
+        chemoGain: 0,
+        preyGain2: 0,        // GENOME_V 7 — neutral
+        threatGain2: 0,
+        jointGenes: {
+          bell: { amplitude: 0, bias: 0, freqMult: 1 },
+          tent: { amplitude: amp, bias: 0, freqMult: 1 },
+        },
+      },
+      social: {
+        trophic: 0.2, boldness: 0.3, cohesion: 0.4, separation: 0.6,
+        alignment: 0.3, separationRadius: 2.0,
       },
     },
   };
@@ -151,6 +303,10 @@ export const SEEDS = [
     id: 'staircase', name: 'Staircase',
     note: 'COUNTER-EXAMPLE, kept deliberately. Identical genes except parentFace 0 instead of 5. Every self-connection is a ninety-degree turn, the chain self-intersects, and morphogenesis rejects it at four bodies however high recursiveLimit goes. This is the body every "6-segment serpent" in sessions 8 and 9 was actually measuring.',
     segs: 6, face: 0, lag: Math.PI / 2, omega: 4, hue: 0.0,
+  }),
+  medusa({
+    id: 'jelly', name: 'Medusa',
+    note: 'The first radial creature in the project, and it exists to be LOOKED AT rather than to win anything. A bell with a four-fold tentacle crown from one reflected connection — the encoding reaches orders 1/2/4/8 only, so four-fold is the one symmetry it shares with real animals (Aurelia is tetramerous). Cited in factory.js as an example for many sessions before it was built. Whether it reads as a medusa or as a box with four box-arms decides whether radial symmetry is a genome problem or a skinning one.',
   }),
 ];
 

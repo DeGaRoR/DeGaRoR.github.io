@@ -15,6 +15,31 @@
 
 import { W1_RESIDENT_HASHES } from './w1_residents.js';
 
+/**
+ * REAL FORAGE ENERGY DENSITY, erg/g — a REFERENCE, read by nothing.
+ *
+ *     ~4 kcal/g  =  1.7e4 J/g  =  1.7e7 J/kg  =  1.7e11 erg/g
+ *
+ * The chain is written out because I got it wrong once while adding this line —
+ * dropping the kg->g factor gives 1.7e8 and understates the gap by a thousand.
+ * In a CGS engine whose own unit comments were saying "m" and "kg" until
+ * yesterday, an energy density is exactly the kind of constant that acquires a
+ * silent factor of 1000, so the derivation stays visible next to the number.
+ *
+ * It sits OUTSIDE the fixture for two reasons: `validateWorld` rejects unknown
+ * keys — correctly, the world is hashed and an unread field has no business in it
+ * — and this number's only job is to make `FOOD_ENERGY` impossible to quote
+ * without its context.
+ *
+ *     REAL_FORAGE_ENERGY / W1_SLICE.FOOD_ENERGY  =  1.7e11 / 2.7e3  =  6.3e7
+ *
+ * This world's substrate is SEVEN ORDERS OF MAGNITUDE more dilute than grass.
+ * That is a world-design choice and not a unit error: the erg is a real erg
+ * everywhere in the ledger, the soup is just extraordinarily thin. Read every
+ * intake, balance and ratio with that factor in hand.
+ */
+export const REAL_FORAGE_ENERGY = 1.7e11;
+
 export const W1_SLICE = {
   id: 'w1',
   name: 'The Soup',
@@ -75,7 +100,27 @@ export const W1_SLICE = {
   // is what a correct ceiling SHOULD do in a medium where muscle is ~2000x stronger
   // than the load. Compare the route that was rejected: raising the gains with it
   // gave workOut 2.5e3 -> 5.2e7, ~21000x, and red on both gates.
-  faunaVersion: 9,
+  // NOT BUMPED FOR THE 2026-08-10 CURATED ADDITIONS, and the reason is worth
+  // recording because it was bumped first and L2-10 caught it.
+  //
+  // Four SELECTED specimens entered `worlds/w1_curated.js` that day. That felt
+  // like a fauna change and is not one: `faunaVersion` bumps on a change that
+  // MOVES GENOME HASHES — a schema migration, a morphogenesis change, a physics
+  // constant that every creature is measured against. `worldHash` is derived from
+  // `W1_RESIDENT_HASHES` and nothing else, and the residents did not move. The
+  // curated list is a library of references the Atlas plants; adding to it
+  // re-freezes nothing.
+  //
+  // Bumping anyway would have invalidated every compiled record in every player's
+  // Atlas to announce two new entries in a reference shelf.
+  //
+  // 9 -> 10 (2026-08-10, later the same day) — AND THIS ONE IS THE RULE FIRING
+  // PROPERLY, which is why both notes are kept side by side. `GENOME_V` 7 adds
+  // `preyGain2`/`threatGain2` to `canonical()` and to the hash vector, so every
+  // genome hash in the world moves, the three frozen residents are re-frozen, and
+  // `worldHash` moves with them. That is precisely "any change that moves genome
+  // hashes". The creatures are unchanged to the bit; the schema is not.
+  faunaVersion: 10,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).
@@ -181,7 +226,32 @@ export const W1_SLICE = {
   //   p10 0.12 / median 1.08 / p90 12.95 with HALF of it paying its way — which is
   //   the spread selection needs. A calibration that put everyone at 1.0 would
   //   have removed the signal.
-  FOOD_ENERGY:   2.7e3,           // erg/g — see above; recalibrated at the Phase A exit
+  //   ── 1'.3, THE HONEST FRAMING. The unit stays REAL; the world is what is
+  //   unusual. An independent review flagged this as "real unit labels on a
+  //   deliberately nonphysical conversion", which makes downstream equations look
+  //   more grounded than they are, and recommended going dimensionless.
+  //
+  //   Going dimensionless is the WRONG fix here, because it would throw away a
+  //   true statement. `work` really is ergs, `basal` really is ergs, and erg/g is
+  //   really the right unit for an energy density — the only fiction is HOW MUCH
+  //   ENERGY THIS WORLD'S FOOD CONTAINS, which is a world-design choice and
+  //   belongs exactly where 12 §5 puts it. Relabelling everything as "food units"
+  //   would make three real quantities fake in order to stop one from looking
+  //   real.
+  //
+  //   So the fix is to make the gap IMPOSSIBLE TO MISS AT THE POINT OF USE rather
+  //   than forty lines above it. `FOOD_ENERGY_REAL_FORAGE` below states what real
+  //   forage carries; the ratio is ~6.3e7. This world's substrate is that much
+  //   more dilute than grass, and every intake figure in the project should be
+  //   read with that number in hand. It is not a bug and it is not a unit error;
+  //   it is a very thin soup, chosen so the ledger asks a question with an answer.
+  //
+  //   FOR SCALE: real forage is ~4 kcal/g = 1.7e11 erg/g — `REAL_FORAGE_ENERGY`
+  //   at the top of this file, with its unit chain written out. The ratio is
+  //   6.3e7: Vivarioops food is SEVEN ORDERS OF MAGNITUDE more dilute than grass.
+  //   That is why a 7 cm near-neutral animal doing almost no mechanical work can
+  //   be energy-limited here and could not be on Earth.
+  FOOD_ENERGY:   2.7e3,           // erg/g — a very thin soup; see above
   PREDATION_EFFICIENCY: 0.6,
   KLEIBER:         0.75,          // basalRate proportional to mass^KLEIBER
   METABOLIC_SCALE: 0.02,          // erg/s per g^0.75

@@ -104,6 +104,10 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `tools/run_gates.js` — gate runner; `tools/circuit_harness.js` — shared
   circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree
   + the flexbody battery (test_model/skin/ctrl/ui_smoke/pa18).
+- `tools/test_flex.js` — GATE FLEX, the structural-realism instrument. Not a
+  bound: it measures deflection/g, torsion, softness and load margin against
+  real-aeroplane figures and prints both. Read STRUCTURAL REALISM before
+  changing any `k`, `c` or strain threshold on the strength of an impression.
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -146,6 +150,16 @@ geometric gear constraints, determinism by double-generate, fiche-schema
 completeness, skin/structure coherence (every skin vertex an affine blend of
 nodes that exist), a clampSpec envelope probe with deliberately wild inputs,
 the parked-tailwind dwell, and the standard full circuit.
+GATE FLEX (appended LAST, ~1 min) is the structural-realism instrument, and the
+only gate in the battery that measures rather than bounds: tip deflection per g
+as % of semispan, STATIC torsion under an antisymmetric tip couple at two
+torques (the doubling ratio catches near-mechanisms — it is what condemned the
+chinook wing, and no other gate can see it), the confounded in-flight torsion
+beside it, `k` against `EA/L`, and peak member load against `sigY*A`. It walks
+all seven fiches and all four generated materials and prints a reality column
+beside its own numbers. Its verdict asserts ONLY finiteness and determinism —
+bounds would be preferences, not facts, until the numbers have been argued
+about. See STRUCTURAL REALISM.
 GATE XCTY4 (~32 s) is the W13.2 short-field leg: PA-18 HOME -> Stein
 (340 m gravel fly-in) in the viewer BREEZE preset — touch in the first
 40%, bounded skip, on-strip stop, UPRIGHT tail-down, tail rig intact.
@@ -262,6 +276,15 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
    boom whip).
 9. Material strain limits (empirical fleet table): steel/alu chassis ~6%,
    wood 6%, fabric+tube 11.5%, foam 16%. Gear beams separately, ~40%.
+   **These are 15-30x the real elastic limits** (4130 yields at 0.22% strain,
+   spruce crushes at 0.36%, 2024-T3 at 0.47%, carbon UD breaks at 1.1%) and that
+   is not a bug in the table — it is the honest record of a lattice whose `k` is
+   softer than `EA/L` by x5-20 through the wing, x39-85 through the fuselage and
+   x300-900 in the gear (the last deliberately: it is the suspension). Do NOT
+   tighten them to look realistic; measure with GATE FLEX instead. And note the
+   measured consequence is milder than that arithmetic suggests — tip deflection
+   comes out 2-7x a real aeroplane's, not 40x, because a lattice spreads the
+   load. See STRUCTURAL REALISM.
 10. **Near-axial truss chains have second-order torsion/lateral stiffness and
    can LATCH.** The Chinook tail fell on its side and stayed there with every
    structural strain under 0.8% — no strain gate can see a mechanism. Reset
@@ -950,16 +973,1681 @@ whole point. Measured side by side with the Cub:
 6. The cowl must close ON the spinner backplate (same radius) or the nose is an
    open tube you can see down.
 
+### G1.7 — the fuselage rework (2026-08-09, user playtest)
+
+Verdict was "the fuselage is really too ugly". Three separate causes, all fixed:
+
+1. **The nose was a carrot.** The cowl was the front of the fuselage loft,
+   blending a firewall section smoothly into a spinner. A light aeroplane is
+   not that shape: it is a straight-sided box with an engine in it and a cowl
+   over the engine. The **ENGINE BAY is now its own component** — group `cowl`,
+   holding full section for `cowl.straight` of its length and only then necking
+   in — and the **engine block is DRAWN** (group `engine`: crankcase, four
+   cylinders, prop shaft, scaled off the registry mass). Frame mode shows the
+   chassis with the engine hung on its mount; Covered mode puts the cowl over
+   it, exactly as fabric goes over the truss.
+   - **The cowl does not neck to a spinner. It is an EXTRUSION** of the
+     firewall's own section (same crown, so the joint cannot ridge), drawing in
+     by `cowl.taper`, rolled over a quarter-round of radius `cowl.fillet` onto
+     a FLAT nose, with the propeller mounted directly on that face. Two necking
+     shapes were tried first and both were rejected on sight: the eye reads a
+     smoothly-narrowing nose as a carrot, and a hole in it as an air intake.
+   - The fillet is an ABSOLUTE inset (`fil * (1 - cos a)` off both half-width
+     and half-depth), not a scale — scaling rounds the corners by pulling the
+     face oval instead of filleting it.
+   - Cap the nose IN THE PLANE of the last ring. It was inset 12 mm once, which
+     left a lip you could see into: the user reported it as "a big opening…
+     either the prop attachment, really badly calibrated, or an air intake".
+     The spinner backplate then sits 6 mm PROUD so the two faces do not z-fight.
+2. **The top line ran smoothly from spinner to tail.** There is now a COWL DECK
+   (`fuse.cowlDeck`, a fraction of cabin height) and the windscreen is the step
+   up from it to the cabin roof over `fuse.windRun`. The skin holds the deck
+   level through bay 0 and then rises — a smoothstep on the top line only.
+3. **The crown stepped at the waterline.** `genRing` blended crownTop for the
+   upper half and crownSide for the lower, which kinks exactly along the line
+   the eye reads. Now crownTop fades to crownSide by `max(0, cos θ)`. Defaults
+   went to 0.72 top / 0.07 side: a tube-and-fabric fuselage has FLAT sides and
+   belly with a rounded turtledeck, and those are very different numbers.
+
+**Window cutouts are OUT** (user call). They cut real holes in the covering,
+and at this vertex budget a hole reads as a missing panel. When glazing returns
+it should be a painted pane on a solid surface or a separate inset frame.
+
+**The paint stripe was a grey slab.** A wide swept band wrapped round a
+flat-sided fuselage reads as a slab with a notch, not a livery. It is now a
+thin straight cheat line at the waterline (halfwidth 0.013 in u) plus a slightly
+darker belly. On this airframe thin and straight beats wide and swept.
+
+### G1.8 — the undercarriage (2026-08-09, user playtest)
+
+Report: "the largest engines just make it collapse". True, and it turned out to
+be THREE independent faults, each of which alone puts the aeroplane on its nose
+while every aerodynamic number stays perfectly healthy. All three now have a
+line of defence, and GATE GEN walks the whole POWERPLANTS registry.
+
+1. **Gear stiffness was a material constant.** The tubeFabric k/c are the Cub's,
+   and the Cub is ~390 kg. You do not build the same undercarriage for a 1074 kg
+   machine. Structure now scales `pow(mass / material.refMass, 0.85)`, clamped
+   0.45–4. Sub-linear because a bigger aeroplane is not stiffer in proportion.
+2. **Gear anchors were hard-coded to rings 0 and 1**, but the axle position is
+   DERIVED from the CG. A light engine pushes the CG aft, the rake rule pushes
+   the axle aft with it, and it landed behind BOTH anchors — so nothing resisted
+   the axle swinging back and the tripod folded (rule 7's drag path, inverted).
+   The anchors are now chosen by position to STRADDLE the axle. When the axle is
+   ahead of every frame (heavy engine, tall gear) the forward leg hangs off the
+   ENGINE MOUNT, which is what a real aeroplane does and keeps rule 7's "into
+   heavy nodes" satisfied.
+3. **Gear length came from prop clearance alone.** A tiny propeller therefore
+   bought a tiny undercarriage, whose legs were near-horizontal — and a
+   near-horizontal leg has almost no vertical stiffness whatever k it is given
+   (rule 5). `GEN_RULES.legDrop` sets a floor of 0.35 m from the fuselage
+   underside to the axle; it subsumes belly clearance, being stronger always.
+
+**The suspension knob, and the trap in it.** `gear.stiffness` (0.35–3, sliders
+in the panel) multiplies gear k. Damping must NOT follow it linearly: critical
+damping is 2·sqrt(k·m), so at constant mass c goes as sqrt(k). Scaling c
+linearly piled damping onto the axle node until Σc·dt/m passed 1 and the
+explicit integrator diverged — the gear pinned at 100% strain and HELD there,
+which reads exactly like a structural collapse and is nothing of the kind.
+`c` scales with the mass factor linearly and with the suspension knob as
+sqrt. Gated: stiffer must deflect less, and 3× must stay under 10% strain.
+
+**The shakedown now answers "does it stand up" first**, because it is the one
+question the aerodynamic block cannot fail on. Settled on a flat plane (world
+= null, so it does not depend on which patch of grass it is parked on): stands
+on wheels / what it is resting on instead, static gear strain, and a nose-over
+angle MEASURED off the settled geometry rather than derived — the derivation
+has to guess the attitude, and got it wrong twice. The preset measures 23.2°,
+inside the textbook 16–25°, which is independent confirmation that the derived
+gear placement is sound.
+
+**Left failing on purpose:** the model-aircraft outrunner (0.1 kg, 1267 kg/hp)
+on a 306 kg two-seater rests on its tailwheel. That is a category error, not a
+design, and the gate excludes it by power loading rather than the generator
+pretending it works. Engine power and mass are now in the picker's labels so
+the choice is informed.
+
+### G1.9 — substeps and the mirrored wing (2026-08-09, user playtest)
+
+**"Selecting spruce+ply makes the game crash (simulation diverged)."** The
+solver is EXPLICIT, so the timestep has to suit the stiffest oscillator — which
+is exactly why the hand fiches carry 24 / 48 / 72 rather than one number, and
+the generator was silently taking the 24 default for every material. Measured at
+24 substeps: tubeFabric runs at omega*dt 0.352 / c*dt 0.518, spruce+ply at
+0.615 / 0.947. The fleet's own worst values are 0.50 (Jodel) and 0.73 (Cub),
+both stable, so wood was well outside anything proven — and c*dt approaching 1
+is the explicit-damping stability limit. `genSubsteps()` in 62_gen_aero.js
+derives the count from `sqrt(k/m_reduced)` and `c/m_reduced` over every beam,
+bounded at omega*dt <= 0.45 and c*dt <= 0.65, floored at 24 (the fleet minimum,
+and what the gated preset runs at, so the preset is bit-unchanged). Wood lands
+on 35. GATE GEN now flies EVERY material to cruise.
+Worth carrying: **the damping limit binds before the stiffness limit**. Reaching
+for substeps because a structure "feels stiff" looks at the wrong number.
+
+**"The wings are wrongly mirrored, the profile is the wrong way round on one."**
+`wingSection` derived the section's thickness axis as `chord x (sign(z) * zHat)`,
+which points UP on one wing and DOWN on the other — the left wing's aerofoil was
+built upside down, and the centre section came out twisted between the two. The
+axis is now taken as `chord x zHat`, flipped to always point up. Separately, the
+left wing is the mirror of the right, so the same index pattern winds every
+triangle the other way and `computeVertexNormals` lit that whole wing from
+inside; `emitLoft`/`capLoft` take a `flip`.
+
+**The instrument that was missing.** GATE GEN tested the LATTICE for mirror
+symmetry from day one and it passed throughout — the structure was always
+symmetric, and the aerofoil is placed by the SKIN generator. Two checks added,
+and they are the general lesson: **the skin must mirror too**, and **the camber
+must point up on BOTH wings** (symmetry alone is satisfied by an aeroplane with
+two upside-down wings). The mirror test immediately found a second asymmetry in
+the propeller — which is correct and exempt, because both blades twist the same
+way and a prop that mirrored about the centreline would make no thrust.
+
+## G2.1 — COMPONENT PLACEMENT (2026-08-09)
+
+User: *"we need to be able to edit placement of the components. There's no room
+for mistake here, and that's bad."* That last sentence is the design brief, not
+a complaint about a bug: every position was derived from a rule, so every build
+came out the same shape and you could not make an interesting mistake.
+
+**Offsets, not positions — and they RIDE ALONG** (user decision). `spec.place`
+holds `wingDx/Dy`, `engineDx/Dy`, `tailDx`, `gearDx/Dtrack`, each an offset from
+whatever the rules derived. Change something upstream and the derived base
+moves; the nudge stays the same size on top of it. Gated three ways: derived
+xLE 0.380 stock / 0.320 at chord 2.0 m / 0.710 at noseGap 0.95 m, and a +0.4
+nudge holds at exactly +0.400 through all three. The alternative — pinning to an
+absolute x — leaves a moved part behind when the aeroplane changes around it.
+`wingDx` lands BEFORE the tail arm is derived, so pulling the wing back takes
+the empennage with it and the aeroplane stays a coherent shape; `tailDx` then
+moves the tail relative to that.
+
+**The wing had to be decoupled first, and that was the real work.** Its spar
+roots WERE two fuselage frame nodes (`F[1].TR`, `F[2].TR`). Nudging the wing
+moved the outboard stations and left the root welded to the cabin — the wing
+was structurally unmovable, and no amount of UI would have changed that. Now:
+- the wing owns its spar roots, and a **carry-through** runs across the top of
+  the cabin (both spars plus rule-4 diagonals) — which is what makes it a wing
+  rather than two half-wings bolted to a fuselage;
+- each root ties to the TOP nodes of the frames that **straddle** it, chosen by
+  position, so a moved wing re-attaches to different frames. Rule 3 (box depth
+  through the root) is satisfied because front and rear roots land on different
+  frames wherever the geometry allows;
+- the strut root picks the nearest ring by position, not a hard-coded one;
+- the centre-section strip hangs off the wing's roots, not the fuselage frames,
+  or its lift stays behind when the wing moves;
+- `sparRear` is now a constant 0.65 of chord. It used to be derived from the
+  CABIN FRAME SPACING, which is precisely the coupling that made the wing part
+  of the fuselage. 54 nodes now, up from 50.
+
+**Unclamped on purpose.** `clampSpec` bounds the offsets only enough to keep the
+geometry from going degenerate. Everything else is reported, not prevented — the
+shakedown's static margin, nose-over angle and stands-on line are the feedback.
+Measured across the gate's matrix: wing back 0.4 m takes the margin 19% -> 35%,
+wing forward 0.3 m -> 7%, gear back 0.4 m tips it onto its nose (nose-over -43°,
+resting on ENGL) and says so.
+
+**GATE GEN's placement matrix asserts STRUCTURE, not flight** — 12 displaced
+variants, each required to be rigid (full rank), mirror-symmetric and
+schema-complete. Whether a displaced aeroplane still flies is the player's
+problem; a gate that demanded it would quietly re-impose the very limits
+placement exists to remove. Two more checks carry the intent: *the whole wing
+moves, root included* (8 front-spar nodes, worst deviation from a clean 0.400 m
+shift < 1e-6 — this is the assertion that would have failed before G2), and
+*the shakedown reports a placement that breaks it*.
+
+**The wing root attachment, twice wrong before it was right** — worth reading
+before touching `mkWing`, because both failures were invisible to the checks
+that were already there:
+1. `straddle()` has a dead band, so a root sitting almost exactly over a frame
+   got the two frames either SIDE of it and NO direct tie to the one beneath.
+   The wing then hung on long diagonals, soft in torsion, and **folded through
+   under full-deflection abuse at ~1% strain** — 88 degrees of wing flap.
+   GATE GEN's rigidity test passed throughout: the framework was
+   infinitesimally rigid and had a LARGE-DISPLACEMENT snap-through, which is
+   rule 1, and which only GATE STRESS can see. Rank is necessary, not
+   sufficient. The nearest frame is now attached as well as the straddling
+   pair, plus a full-depth tie to the bottom longeron (rule 3).
+2. That direct tie then landed on a frame node at the IDENTICAL position, so
+   `L0 = 0` and strain read Infinity. The fix is not a degenerate-beam guard —
+   it is `GEN_RULES.wingStandoff`, because a carry-through spar genuinely sits
+   ON the longerons rather than inside them. Guarding the beam would have hidden
+   two coincident unconnected nodes in the middle of the wing attachment.
+
+## G2.2 — AUTOPILOT GAIN SYNTHESIS (2026-08-09)
+
+The generated fiche used to inherit the Cub's attitude gains wholesale (only
+`rollD` was scaled). Fine while the airframe was Cub-shaped; wrong the moment
+it was not. **`genPlant` + `genGains` in 62_gen_aero.js** now derive rollP/rollD
+and pitchP/pitchD/pitchI from the plant the airframe actually is.
+
+**The doctrine's own words needed correcting by measurement.** "Gains scale with
+airframe timescale ~ span/V" reads as omega ~ 1/tau. Reconstructing every hand
+fiche's gains through a rigid-body plant model says otherwise: omega*tau(span/V)
+scatters 0.6-3.6 across the fleet, so span/V is NOT the normaliser. Normalise by
+the plant's OWN damping time constant — Ixx/-Lp for roll, Iyy/-Mq for pitch —
+and gains tuned independently over many sessions collapse:
+
+| | cub | jodel | c172 | dc3 | chnk | drone |
+|---|---|---|---|---|---|---|
+| roll omega*tau | 0.66 | 0.49 | 0.82 | 0.56 | 0.58 | 1.30 |
+| roll zeta | 1.63 | 1.68 | 1.57 | 1.91 | 2.38 | 1.34 |
+| pitch omega*tau | 1.11 | 1.88 | 1.30 | 1.37 | 1.25 | 1.33 |
+| pitch zeta | 2.92 | 1.72 | 2.15 | 1.78 | 1.31 | 0.95 |
+
+A 10.9 t DC-3 and a 230 kg Chinook inside a factor of 1.7 is the physics showing
+through. `GEN_LOOP` targets those centres (roll 0.62 / zeta 1.70, pitch 1.30 /
+zeta 1.90) and places a second-order loop against the measured plant.
+
+The plant is analytic from the strips, i.e. the same model the solver
+integrates: `Lda` from the aileron strips' area*arm, `Lp` from every wing
+strip's area*z^2 (the roll subsidence), `Mde`/`Mq` from the stab area and arm,
+and Ixx/Iyy from the node masses about the CG. No search, no simulation, so it
+is free and deterministic.
+
+**Where it actually earns its keep — measured, and not where I expected.**
+Placement offsets barely move the loop (roll omega*tau holds 0.61-0.62 across
+every offset). **WING SPAN is what breaks it**: at 13 m the untuned loop fell to
+omega*tau 0.43 with zeta 2.50, outside everything the fleet has flown; it now
+lands at 0.62/1.70 with rollP 4.17 instead of the inherited 2.0. The stock
+preset also sat at the over-damped edge (zeta 2.06 roll, 2.78 pitch) — the same
+condition the Cub's W16 limit-cycle cure moved AWAY from.
+
+**Both instruments, as the doctrine demands.** "The circuit gates do NOT see
+cruise smoothness, and cruise-quiet probes do NOT see capture/decrab: run BOTH."
+GATE GEN now carries the cruise-quiet half as well as the circuit.
+- The probe reads ZERO for everything in calm air — these loops are perfectly
+  still with no disturbance, and the doctrine's published numbers are quoted in
+  wind. It supplies 3 m/s + gusts.
+- Validated against the HANDOVER's own figures: it reads **pa18 0.75 deg** bank
+  p2p against the quoted 0.7, and **jodel 4.95** against ~4.5.
+- The synthesised gains give **0.38 deg** — quieter than any hand-tuned fiche.
+- Capture held: calm touchdown tdZ -0.0; crosswind (3 m/s + gusts) tdZ -1.08 and
+  stop z -0.17, between the pa18 (0.10 / -0.19) and the C172 (-4.03 / -0.07).
+- Side effect worth noting: the pitch change (pitchP 1.2 -> 1.50, pitchD 1.8 ->
+  1.30) improved the flare — touchdown moved from 92 to 73 km/h, much closer to
+  a real three-point at Vs 16.5.
+
+## G2.3 — CONFIGURATIONS (2026-08-09)
+
+Four options the player asked for ahead of 3D handles. They are structurally
+different aeroplanes, not settings on one, and GATE GEN flies all eleven
+combinations.
+
+**Wing position** (`wing.position` high/mid/low) moves the spar roots and picks
+which longeron pair carries them; the strut braces from the OPPOSITE longeron,
+so it goes down from a high wing and up from a low one.
+
+**Bracing** (`wing.strut`). Cantilever gets a real four-chord torsion box —
+lower caps under both spars at every station, webs, ribs, shear diagonals on all
+four faces, and its own carry-through across the fuselage. That is rule 1 being
+paid for properly instead of leaning on a strut, and it is the Jodel's
+construction. 54 nodes becomes 70.
+
+**Gear type** (`gear.type`). A tricycle is not a cosmetic swap: the placement
+rule inverts (mains BEHIND the CG), the rest attitude goes nose-high to level,
+`twSteer` flips sign, and the AP needs `rolloutMode: 'trike'` to de-rotate onto
+the nosewheel instead of pinning a tail that is not there.
+
+**Springing** (`gear.suspension` bungee/spring/oleo), multipliers read off the
+fleet's own gear constants normalised by mass — cub 74 k/kg (bungee), c172 160
+and chinook 152 (spring steel), jodel 206. Damping is given per archetype rather
+than derived from k, because an oleo genuinely damps harder than a rubber cord;
+`genSubsteps` then picks a timestep that can integrate it (the oleo lands on 52
+substeps against the bungee's 24, on its own).
+
+**Cargo bay** (`fuse.cargoLen`, `cargoKg`): full-section fuselage aft of the
+cabin. The fuselage grows, so the tail arm and the frames the wing and gear
+attach to all move with it — which the G2.1 straddle logic already handles.
+
+**Three things measured, each of which looked like something else:**
+1. **The tricycle sat on its tailpost.** `noseLoad` is 0.25, not the textbook
+   8-15%: at 0.12 and 0.18 the aeroplane rocked back until the TAILPOST touched
+   and stayed there on mains-plus-tail with the nosewheel in the air. The
+   fleet's only tricycle, the C172 fiche, sits at 26%. A soft-body airframe on a
+   long nose leg needs the margin a rigid one does not.
+2. **The tricycle's rest attitude was inverted.** Rotating the body so BOTH
+   contacts reach the ground gives tan(deck) = (y_third - y_main) /
+   (x_third - x_main). The nosewheel is AHEAD, so the denominator is negative
+   and a nose-UP attitude needs its contact BELOW the mains — the opposite of a
+   tailwheel. Getting it backwards read as "deck 178.8 deg". The shakedown also
+   needs `atan`, not `atan2`, for the same reason.
+3. **THE ONE WORTH REMEMBERING — the mid-wing strut aeroplane.** It stood,
+   settled, and strained at 0.7% while saturating its ailerons and spiralling
+   into the ground. Rule 1 says "the Cub survives only because its strut root is
+   a full metre below the wing": a mid wing can only give a strut about HALF a
+   cabin height, and measured, that is not enough — the wing twists under
+   aileron load and the roll loop never wins. The identical wing with a
+   cantilever box flew and landed. `GEN_RULES.strutMinOffset` (0.60 m) now
+   turns an unbraceable strut into a box and the panel says `bracing:
+   cantilever box` so the substitution is visible.
+   **Every static instrument was green on an aeroplane that could not fly.**
+   That is why the configuration matrix flies a leg rather than settling one.
+
+**Still open in this arc:** 3D drag handles that write back into `place` (the
+data model is ready for them); AP gain auto-tuning, which matters more now that
+a displaced airframe may limit-cycle — without it "it won't fly" is ambiguous
+between the aeroplane and the autopilot; then save/persistence, the materials
+economy and missions.
+
 **Open for G2** (deliberately out of G1): low wing, tricycle gear, cantilever
 wings, cranked wings, tip-shape library, V-tail, 3D drag handles, AP gain
 auto-tuning (G1 seeds from the Cub rescaled by the span/V timescale and ships
 ONE gate-verified preset), save/persistence, materials economy, missions.
 
+## G3.1 — SECTIONS AND THE LEDGER (2026-08-10)
+
+The spec was one flat object and the editor one long list of controls. That
+blocked everything the Garage is asked for next — an editor organised by
+component, per-component weight and price, more than one wing, more than one
+engine. This phase is a reshape, not a feature: **the generated lattice is
+byte-identical through it**, which is the only reason a change touching every
+generator file is safe.
+
+**The spec is sectioned.** `GEN_DEFAULT` is now blocks —
+`cabin / cargo / fuel / fuselage / cowl / engines[] / wings[] / bracing / tail /
+gear / paint`. `engines` and `wings` are ARRAYS (one entry today; a twin or a
+biplane is a second entry), everything else stays a named block. A general
+component tree would be more elegant and much riskier.
+
+Three things keep the blast radius at one file:
+- `genNormaliseSpec(raw)` accepts the OLD flat shape or the new one. A spec
+  written before today still builds the same aeroplane.
+- `genAlias(S)` republishes flat aliases (`S.wing`, `S.fuse`, `S.cab`,
+  `S.material`, `S.engine`, `S.fuelL`, `S.place`, …) as references to the same
+  objects, so `61`–`64` were not touched by the reshape at all.
+- `genClampN` — nullable clamp. `genClamp(null, lo, hi)` coerces null to 0 and
+  returns `lo`, which would silently turn every AUTO field into a pinned one.
+  Every derived-but-now-editable field goes through `genClampN`.
+
+**The ledger.** `61_gen_frame.js` accumulates `{mass, cost}` per section as it
+builds. Rather than tag every call site, the file carries a moving marker —
+`sec('wings')` at each existing section boundary — and `B()` / `cover()` / `pt()`
+bill whatever is current. Structure is priced by its own mass (`GEN_MATERIALS[
+].price`, cr/kg); things that are BOUGHT rather than built call `spend()`
+(`POWERPLANTS[].price`, `GEN_SUSPENSION[].price`, `GEN_PRICES` for wheels,
+instruments, seats, paint). It surfaces as `parts.ledger` and `genShakedown`'s
+`out.ledger` / `out.cost`.
+
+GATE GEN checks the ledger **balances the lattice mass to 1e-6**. Attribution
+that quietly loses a kilogram would still look plausible in the panel; the
+lattice is the only thing that can contradict it. Stock aeroplane: 406 kg /
+21 984 cr across 11 sections.
+
+Note what the ledger does NOT do: it attributes mass that already existed and
+adds cost, which is not in the lattice. **Paint has a price but no mass** — a
+finish weight is a real thing and belongs in G3.3 with the materials, where it
+can be calibrated instead of guessed. Adding it here would have broken the
+byte-identity that made the whole reshape provable.
+
+**The panel is nine sections**, `<details>` each, closed by default, with what
+that part weighs and costs on the header. Nine lines of `58 kg · 2.4k cr` is
+the most useful single view of an aeroplane you are building, and open-all runs
+several screens deep. Fields the generator derives show the derived value in
+italic and stop being italic the moment you drag them.
+
+Two bugs found and fixed on the way:
+
+1. **`rebuild()` pinned every derived field.** It wrote the built value back
+   into the spec unconditionally, so the first rebuild froze `tailArm`, gear
+   `track` and the tail sizes at whatever they happened to be — the aeroplane
+   stopped re-deriving as soon as you touched anything. It now writes back only
+   where the player owns the field. Verified: fitting the 750 kg radial moves
+   the gear track 1.73 → 2.60 m and it stays AUTO.
+2. **Sliders whose range could not reach the derived value.** `cabin.len`
+   derives to 0.78 m against a 0.80 m minimum. resolveSpec fills nulls AFTER
+   clamping, so a derived value is never clamped — the ranges have to cover
+   what the generator actually produces, not what a player should ask for.
+
+**dev.html now content-hashes its script refs.** `python -m http.server` sends
+no `Cache-Control`, so Chrome falls back to heuristic freshness — a tenth of the
+file's age — and serves a stale copy of an older file without revalidating.
+`00_registry.js` had a `price` field that the page could not see, on a fresh tab,
+on a fresh port, with a cache-busted URL: the file was months old, so its
+heuristic freshness window was long. This is the "browser shows old code" flake
+this document has blamed on the server three times. It was never the server.
+`?v=<sha>` per ref, content not mtime, so a no-op rebuild leaves dev.html
+byte-identical.
+
+**Instrument worth keeping.** The byte-identity harness (18 specs written in the
+OLD flat shape, dumping everything the solver reads — nodes, beams, strips,
+refs, params) proved both halves at once: the reshape changed no geometry, AND
+a legacy spec still loads. Any future spec surgery should re-capture it first.
+
+**Open for G3:** garage as a place (physics off while building, roll out to
+commit); materials properly, with metal and composite calibrated, fuselage shape
+families and frame count; control surfaces and flaps; wing sweep, then biplanes;
+wing-mounted engines (propwash is single-disc today and would be quietly wrong);
+floats and skis; persistence LAST, now that the shape has stopped moving.
+
+## G3.2 — THE GARAGE IS A PLACE (2026-08-10)
+
+Building used to happen on the runway threshold with the solver running, so a
+slider drag threw away whatever flight was in progress and the aeroplane was
+always mid-settle. Now the Garage is somewhere you go.
+
+**Physics off while building.** The loop guard is the whole mechanism:
+
+```js
+if (running && !inGarage) { script(1/60); sim.step(1/60); }
+```
+
+With the solver idle the sim stays exactly where `reset()` put it, which IS the
+rest lattice rigidly placed — so `genNodeBody` returns the rest positions, the
+skin poses to its rest shape for free, and no special "draw it undeformed" path
+was needed. Nothing sags, nothing settles, nothing can diverge while you edit,
+and the shakedown stays as expensive as it likes.
+
+**The apron.** `APRON = {hdg: PI - 0.62, spawn: [26, 40]}` — in front of the
+hangars the airfield already has at (42,62) and (16,54), quartered to the strip.
+Terrain there is flat at 0 and it is 35 m from the strip edge. ROLL OUT is
+`fullReset()`, which is the same reset-then-`placeAtAerodrome` the game always
+did, so the flight path is byte-for-byte the one the gates already fly.
+
+**standOnWheels().** The design lattice is drawn LEVEL — the deck angle is
+something the aeroplane *acquires* by settling onto its third wheel under
+gravity. With the solver stopped that never happens, so a taildragger stood in
+the garage with its tailwheel 0.9 m in the air. This rotates the whole lattice
+rigidly about the main axle until the third contact meets the mains':
+
+    ux·sin a + uy·cos a = rTail - rMain
+
+Rigid, so the skin still poses to rest and nothing is faked — it is the same
+aeroplane, put down on its wheels. Measured against the shakedown's own
+`deckAngle`: taildragger -10.25 vs 10.23, tricycle -1.20 vs 1.20, radial -15.02
+vs 14.99. All three contacts land coplanar to 1e-3 on every configuration.
+
+**That equation has two roots, and the far one flips the aeroplane onto its
+back with all three contacts still perfectly coplanar.** It rotated a tricycle
+170 degrees and the arithmetic never complained — the contact condition is
+satisfied upside down. `asin` picks one root; take the one nearest zero.
+Same family as the rest-attitude sign inversion in G2.3 (`atan` vs `atan2`):
+ground-geometry solutions come in pairs and the wrong one always satisfies the
+equation you wrote down.
+
+**Build indicators.** CG and neutral point as upright posts, and the three
+ground contacts as crosses. The GAP between the two posts IS the static margin
+— the number that decides whether it flies, and the one thing a picture of an
+aeroplane never shows you. 32 vertices; rebuilt on entering the garage and on
+every spec change, static after that because in the garage nothing moves.
+
+**genShakedown is now memoised on the fiche.** The panel and the indicators both
+want it and it runs a trim solve in the wind tunnel — the expensive half of a
+rebuild. One solve per aeroplane, not one per reader.
+
+### The gate, and the gate that did not work
+
+GATE UISMOKE gained: select the garage build, assert the rail says GARAGE, run
+240 frames, assert it still does, then ROLL OUT and assert it flies.
+
+**The first version of that check passed with the guard deliberately removed.**
+`enterGarage` had been poking `phName.textContent = 'GARAGE'` over the rail
+while leaving `railPhase` null — so when `script()` ran and called
+`setRail(null)`, it matched the stale `railPhase` and returned early without
+rewriting the text. The rail read GARAGE while the solver was stepping.
+
+The fix was to make GARAGE a real state of the rail (`setRail('GARAGE')`) rather
+than a caption written over it, which repaired the display bug and gave the gate
+a genuine observable at the same time. Re-verified by negative control: guard
+removed -> **FAIL**, guard restored -> **PASS**.
+
+Worth keeping as a habit. A new gate should be run once against the broken code
+it is meant to catch, because a check on an observable that cannot change is
+indistinguishable from a check that works.
+
+**Seen in the browser.** The aeroplane stands three-point on the apron beside
+the hangars, the rail reads GARAGE, ROLL OUT commits it to the strip and the
+autopilot flies. One thing the screenshot caught that no gate would have: the
+indicator posts came out washed to near-white. Vertex colours go straight into
+a LINEAR pipeline with ACES tone mapping, so feeding `--amber` and `--cyan`
+raw as if they were sRGB lifts them almost to white and the two markers stop
+being tellable apart. They are converted now:
+
+| | sRGB | linear |
+|---|---|---|
+| amber | `#ffb257` | 1.000, 0.445, 0.095 |
+| cyan  | `#63d3cc` | 0.125, 0.651, 0.604 |
+| pale  | `#d3c3ae` | 0.651, 0.546, 0.423 |
+
+The conversion itself is unverified visually — the Browser pane stopped
+compositing again before it could be re-shot. Worth a glance next session; the
+code path is exercised by GATE UISMOKE, so only the appearance is open.
+
+A hidden Browser tab gets no `requestAnimationFrame`, so the sim does not step
+and nothing renders. That reads exactly like a frozen simulation and cost time
+before `document.visibilityState` settled it — check that first when the game
+looks stuck in a pane that is not on screen.
+
+## G3.3 — MATERIALS, AND FUSELAGE SHAPE (2026-08-10)
+
+Two rows became four, and the aft body gained a shape family. Both are purely
+ADDITIVE — the default aeroplane is still byte-identical to the pre-G3 lattice,
+because `tubeFabric` and `wood` were left exactly as they were. They are
+calibrated against the Cub and the Jodel, and widening a spread by editing a
+measurement would be trading a fact for a preference.
+
+### Aluminium is measured, not invented
+
+`alloy`'s k/c are read straight off the C172 fiche — 8.0e5/500 through the
+fuselage, 2.2e6/900 through the wing, 1.6e5/2600 in the gear — with
+`refMass: 998`, that aeroplane's mass. The fleet already flies one metal light
+aircraft, so it sets the numbers rather than a guess. refMass being high is
+also what makes a SMALL alloy aeroplane come out in thinner sheet.
+
+### Carbon's damping is the interesting number
+
+First pass gave carbon 64 substeps against wood's 41. Lowering `k` moved
+`omega*dt` and changed nothing: **the damping limit was binding, not the
+stiffness limit** — the same trap this document already records. The fix was
+not a fudge, it was a correction: composites are *lightly* damped. A carbon
+structure rings where a bolted metal or glued wooden one does not. Setting
+c to 250/500/1800 (the lowest of the four rows, by some way) is what the
+material actually does, and it costs 50 substeps instead of 64.
+
+Worth generalising: when the timestep is expensive, look at `c` before `k`.
+`c*dt` binds first and the binding member is the GEAR in every row measured.
+
+### The four rows, measured on the stock airframe
+
+| | structure | all-up | substeps | Vs | L/D | price | chassis strain @400 kg freight |
+|---|---|---|---|---|---|---|---|
+| 4130 tube + fabric | 182 kg | 406 | 24 | 60 | 7.97 | 22.0k | 0.50% |
+| spruce + ply | 180 kg | 404 | 41 | 59 | 8.20 | 24.0k | 0.65% |
+| 2024 alloy sheet | 197 kg | 421 | 31 | 60 | 8.21 | 29.1k | 0.39% |
+| carbon + epoxy | 144 kg | 368 | 50 | 55 | 8.23 | 35.8k | 0.08% |
+
+**Wood was repriced 30 -> 55.** At 30 it was strictly cheaper AND lighter AND
+stiffer AND slipperier than tube+fabric, which is not a choice. The `price`
+field is defined as the FINISHED cost with labour in it, and a wooden airframe
+is thousands of hours of gluing and clamping where a tube fuselage is a
+fortnight of welding. Cost only, so no physics moved.
+
+**Alloy's axis is stiffness under load, not weight.** It is the heaviest row and
+dearer than wood, and on mass/price/drag alone it would be dominated. What it
+buys is deflection: 0.39% chassis strain at 400 kg of freight against wood's
+0.65%. Further up, at 1393 kg all-up (radial + 300 kg), tube+fabric stops
+standing at all and rests on S0BL while the other three hold. That ranking is
+measured, not asserted, and it is the reason the row exists.
+
+Also worth stating plainly: `cd0` barely moves L/D (7.97 -> 8.23 across the
+whole range) because induced drag and the strut dominate at these speeds. The
+material's aerodynamic benefit is real but small; carbon is bought for mass and
+stiffness, and the honest headline is Vs 60 -> 55.
+
+### Fuselage shape families
+
+The aft body tapers from the cabin box to the tailpost, and the family is the
+PROFILE of that taper — an exponent on the station fraction, applied to width,
+floor and deck together. `straight` 1.00, `waisted` 1.80, `boom` 0.45.
+
+Deliberately NOT a preset over `crownTop`/`crownSide`. Roundness is already a
+continuous knob, and a family that reset it would fight the sliders; this
+changes geometry the sliders cannot reach. Half-widths, stock airframe:
+
+    straight  0.36  0.29  0.23  0.17  0.10
+    waisted   0.36  0.34  0.29  0.21  0.10     holds, then necks down
+    boom      0.36  0.22  0.17  0.13  0.10     drops fast, then runs out
+
+Mass follows: 406 / 409 / 402 kg. `straight` at exponent 1.0 takes the
+untouched code path, which is why byte-identity survives.
+
+Frame count was already a parameter (`fuselage.tailBays`, 3-6) and is exposed
+in the panel; the shape family is what was missing.
+
+### Gates
+
+GATE GEN is 50 checks. Its MATERIALS block already walked the registry, so the
+two new rows were gated the moment they existed — each must integrate inside
+`omega*dt <= 0.50` / `c*dt <= 0.73` and fly to CRUISE. A new SHAPES block
+checks each family tapers monotonically, differs from the default, and flies a
+leg. **A shape that merely looked different while folding in the air would pass
+a picture and fail an aeroplane** — which is the same lesson as the mid-wing
+strut, and the reason no configuration in this generator is ever checked
+statically.
+
+All three families and all four materials were also confirmed in the browser.
+
+## G3.4 — CONTROL SURFACES, TANKS, SYSTEMS (2026-08-10)
+
+The solver and the autopilot have supported flaps since the fleet was written.
+The generated aeroplane simply never had any: every strip carried `flap: 0` and
+`params.flaps` was undefined. This wires them up, and makes the other surfaces
+parameters rather than constants.
+
+Purely additive again — default flap type is `none`, default chords reproduce
+the fleet's taus exactly, default tank is `nose`, default systems fit is the old
+hard-coded 12 kg / 2400 cr. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+### The pitching moment is derived, not chosen
+
+Both flapped fiches agree on the ratio of flap pitching moment to flap lift:
+
+    PA-18   dCm0 -0.40 / dCl0 1.60 = -0.250
+    C172    dCm0 -0.29 / dCl0 1.15 = -0.252
+
+So `GEN_FLAP_CM = -0.25` and `dCm0 = GEN_FLAP_CM * dCl0`. Two numbers that
+looked independent turned out to be one, and the moment can no longer drift
+away from the lift it belongs to. The gate asserts the ratio to 1e-9.
+
+### Control effectiveness from chord
+
+Thin-airfoil flap theory gives the hinge-line effectiveness
+
+    tau = 1 - (theta - sin theta) / pi,   cos theta = 2c - 1
+
+Raw theory OVERSTATES a real surface — gaps, limited throw, adverse yaw, a
+fuselage in the way. At 22% chord it predicts 0.573 where the fleet flies 0.35.
+So `genTauAt(c, refC, refTau)` scales theory so the fleet's own calibrated value
+is reproduced at that surface's reference chord, and theory supplies only the
+TREND away from it. Stock chords give back 0.500 / 0.550 / 0.350 exactly.
+
+### `st.flap` is a fraction, not a flag
+
+First cut flagged whole strips, and flap spans 0.50 and 0.62 produced the
+IDENTICAL aeroplane — both caught the same strip centres. Each strip is half a
+bay and has a real sub-span, so `flap` is now the fraction of that strip covered
+by the device and the span slider is continuous (flapped area 2.05 -> 8.13 m2
+across the range). The aileron flag is deliberately left binary: it is validated
+and quantised the same way, but making it fractional would change roll authority
+on the default aeroplane to buy nothing but slider smoothness.
+
+### The bug the gate caught: Vref must come from the FLAPS-DOWN stall
+
+`genAP` derives the approach speed as `1.42 * Vs`, and `Vs` is the CLEAN stall.
+That is right for a flapless aeroplane and wrong the moment you fit a big
+high-lift device. Measured on a Fowler-flapped build:
+
+    t=192  APPROACH  V=83  alt=64  x=-961  aoa=-4.0  flap=1.00  thr=0.65
+    t=258  APPROACH  V=85  alt=16  x=+590  aoa=-4.2  flap=1.00  thr=0.62
+
+Stable, controlled, and flying a nearly flat glide at MINUS four degrees alpha
+on two-thirds power — too fast for the wing it now had, so it sailed over the
+touchdown zone and out the far side of the airfield, 1.6 km past the strip,
+never landing. Nothing diverged and no static check would have blinked.
+
+Fixed the way the real world does it: **Vref scales off Vso, the flaps-down
+stall.** `buildGen` measures the flapped CLmax in the tunnel after trim (the
+same second-pass pattern `genTrim` already uses for `stabTrim`) and rescales
+`VAppr` / `VApprShort` by `VsFlap / Vs`. Every type now approaches at 1.42x its
+OWN stall: none 84.6, plain 76.3, slotted 71.2, fowler 68.1 km/h.
+
+| flap | dCl0 | dCm0 | CLmax | Vs (km/h) | ratio |
+|---|---|---|---|---|---|
+| none | — | — | 1.51 | 59.7 | — |
+| plain | 0.95 | -0.237 | 1.82 | 53.8 | 0.911 |
+| slotted | 1.60 | -0.400 | 2.09 | 50.2 | 0.850 |
+| fowler | 2.05 | -0.512 | 2.28 | 48.0 | 0.813 |
+
+The slotted row IS the PA-18's, and the PA-18's own measured ratio is 0.900
+against this build's 0.850 at a wider flap span — the model is in the right
+place.
+
+### Tanks and systems
+
+`fuel.tank` puts the fuel on the firewall (`nose`, the Cub's and the default),
+the spar carry-through (`wing`), or out in the panel (`panel`, which relieves
+the wing in flight and slows the roll). Mass only — burn is not modelled, so
+this is the full-tanks case. `systems.fit` is minimal / basic / IFR at 6 / 12 /
+26 kg and 700 / 2400 / 9500 cr.
+
+### Gates
+
+GATE GEN is 54 checks. New: every flap type must lower the stall by at least 4%,
+keep `dCm0/dCl0` at exactly -0.25, and **fly a complete circuit to a full stop**
+— which is the check that caught the Vref bug. Plus: stock chords must reproduce
+the fleet taus, and chord must move effectiveness monotonically.
+
+`genShakedown` now reports `ClMaxClean`, `ClMaxFlap`, `VsFlap` and `VsRatio`,
+and the panel shows "stall, flap" next to the clean stall. Without that a flap
+was a line in the spec that changed no number anyone could see.
+
+## G3.5a — WING SWEEP (2026-08-10)
+
+Additive: default sweep is 0, and `Math.tan(0)` is exactly 0, so the straight
+wing takes the untouched path. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+### What sweep is FOR here
+
+At 100 km/h sweep buys nothing aerodynamically — it is a compressibility device
+and there is no compressibility in this game. It is in the Garage as a BALANCE
+tool: it walks the aerodynamic centre aft **without moving the spar root off its
+frame**. The root rib, the strut anchor and the carry-through all stay exactly
+where they were; only the outboard structure moves. That is what makes it a knob
+rather than a redesign.
+
+Three pieces, and the interesting thing is how little code the third needed:
+
+1. **Geometry.** `xFat(z) = xF + (z - zRoot) * tan(sweep)`, same for the rear
+   spar, applied at the outboard spar stations and at the cantilever box's lower
+   caps. The skin lofts its sections from the spar NODE positions, so it follows
+   for free; only the aileron hinge marker needed the swept x.
+2. **Aero.** Simple-sweep theory: only the velocity component normal to the
+   quarter-chord line lifts, so `a0` and `ClMax` both take `cos(sweep)`. It goes
+   with |sweep| — **forward sweep costs exactly as much as aft**, which is the
+   honest reason forward sweep is not a free way to move the CG.
+3. **Balance.** Nothing. The neutral point is MEASURED by probing the sim
+   (`dM/dalpha / dL/dalpha`), so moving the spars aft moves the NP by itself.
+   The one place a formula was needed is `xAC`, because the tail arm is derived
+   from it — the AC sits at the quarter chord of the MAC, and sweep carries that
+   aft by `yMac * tan(sweep)` with `yMac = (b/6)(1+2L)/(1+L)`. Without that a
+   swept aeroplane would get a tail sized for a straight one.
+
+### Measured
+
+| sweep | a3d | CLmax | Vs km/h | np | static margin | tail arm | mass |
+|---|---|---|---|---|---|---|---|
+| -15 | 4.095 | 1.430 | 60.4 | 0.59 | **-4.2%** | 4.27 | 401 |
+| -8 | 4.170 | 1.466 | 59.7 | 0.87 | 7.2% | 4.59 | 403 |
+| 0 | 4.200 | 1.480 | 59.7 | 1.19 | 20.0% | 4.94 | 406 |
+| 8 | 4.170 | 1.466 | 60.2 | 1.51 | 33.0% | 5.29 | 409 |
+| 16 | 4.081 | 1.423 | 61.3 | 1.84 | 46.4% | 5.66 | 412 |
+| 30 | 3.777 | 1.282 | 65.4 | 2.52 | **73.7%** | 6.38 | 422 |
+
+Note the tail arm growing with sweep: it is derived from `xAC`, so a swept
+aeroplane automatically gets a longer fuselage to keep its tail volume, which
+makes it heavier and MORE stable again. That compounding is real and is why the
+static margin leaves the 5-35% band by about 10 degrees either way.
+
+The clamp is -15..+30 and deliberately wider than the sensible range. Forward
+sweep to -15 gives a statically UNSTABLE aeroplane at -4.2% margin, and the
+panel paints that red. Same policy as the too-soft undercarriage: a mistake the
+player is allowed to make and be told about.
+
+### Everything flew, so I looked harder
+
+All seven angles flew a full circuit to a stop, including the unstable one —
+the AP's gains are synthesised from the plant (G2.2), so it augments a mildly
+unstable airframe the way a real SAS would. "It completed the circuit" is
+exactly the evidence this document keeps warning about, so cruise elevator
+activity was measured as well:
+
+    sweep   de mean    de sd    peak rate
+     -15    -0.98      0.074    0.1 deg/s
+       0    -2.83      0.124    0.1 deg/s
+     +30    -7.76      0.406    0.2 deg/s
+
+Quiet everywhere — the autopilot is not fighting anything. The trim deflection
+growing steadily with sweep is the honest signature of a more stable, more
+nose-heavy aeroplane needing more download on the tail, not of a control problem.
+
+### Gate
+
+GATE GEN is 57 checks. The SWEEP block proves the purpose and the price
+separately: the np must move aft **monotonically** across seven angles, `a3d`
+must fall at every non-zero sweep and fall **symmetrically** (+8 and -8 identical
+to 1e-12), and -15 / +12 / +30 must each fly a circuit. A sweep that moved the
+CG for free would pass a picture and fail the second check.
+
+**Not yet done in this phase:** biplanes (G3.5b). Sweep was the geometry-plus-a-
+correction half; a second wing needs an interference model on each wing's
+induced drag and a cabane/interplane structure, which is a larger piece.
+
+## G3.5b — PLANFORM: TIPS, CRANK, DRONE, LABELS (2026-08-10)
+
+Additive throughout. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+### Root and tip chord
+
+The spec stores a root chord and a taper RATIO; a builder thinks in root chord
+and tip chord. The panel's `@chordTip` / `@stabRoot` / `@stabTip` are DERIVED
+controls (same mechanism as the NACA digit pair) rather than new spec fields, so
+there is still exactly one number for the shape. Writing the tip holds the root;
+writing the root holds the TAPER, so the tip scales with it — measured 1.60/1.00
+-> 1.80/1.13. That is the simpler mental model, but it is a choice, not a law.
+
+`tail.hChord` is the stabiliser's MEAN chord and `Sh = hSpan * hChord` is what
+the strips' area comes from, so tapering holds the mean: root = 2c/(1+lambda).
+**Tail taper is planform only** — area and aspect ratio are unchanged, so it
+shapes the stabiliser without quietly re-tuning the pitch authority under it.
+Verified: Sh 2.046 and static margin 20.0% at hTaper 1.00, 0.60 and 0.35.
+
+### The cranked wing (two sections, and only two)
+
+`crankAt` is the break as a fraction of semispan (0 = a single straight panel);
+`dihedralOut` is the outer panel's angle. This is the Jodel wing — a flat centre
+section and sharply dihedralled outer panels — and it is a real structure, not
+styling: the crank is where the outer panel bolts on.
+
+The break gets **its own spar station**, because the dihedral changes across it
+and without a node at the kink the two panels would be joined by a straight
+member cutting the corner. A station landing within 0.12 m of the crank is
+dropped rather than left as a zero-length bay. Measured at crankAt 0.5:
+stations 0.36 / 1.91 / **2.68** / 3.45 / 5.00, spar heights 1.10 / 1.18 / 1.22 /
+1.41 / 1.80 — shallow to the break, steep beyond.
+
+### Tip treatment
+
+`GEN_TIPS` = square / rounded / Hoerner / winglet, carrying an Oswald multiplier
+and a shape. Measured eAR 14.77 / 15.22 / 15.53 / 16.29, L/D 7.90 -> 8.11. The
+multiplier is applied BEFORE the Raymer cap, so a winglet on an already
+efficient wing cannot conjure e past the ceiling. The same table drives the
+stabiliser and fin tips.
+
+### The drone body
+
+A fourth seating row. The step between the firewall top and the cabin top IS
+the windscreen (63_gen_skin.js), so a drone is expressed by making that step
+zero: `deck` moved from a hard-coded 0.70 into the seating rows, `cowlDeck`
+became nullable and derives from it, and the drone's is 1.00 — the nose runs
+continuously into the body with nothing to break. 0.20 half-width, 0.30 high,
+no crew, 352 kg all-up.
+
+### CG and NP, labelled
+
+Canvas-texture sprites, `sizeAttenuation` off so they stay legible at any zoom,
+in the same amber and teal as the posts.
+
+**They are CG and NEUTRAL POINT — not centre of lift.** The NP is where the
+pitching moment stops changing with alpha: the aft limit the CG must stay ahead
+of, and the gap between the posts IS the static margin. The centre of lift is a
+different thing and moves with alpha; labelling it that way would say something
+false about what the gap means.
+
+### Gates
+
+GATE GEN is 62 checks. The PLANFORM block requires span efficiency to be ORDERED
+across the four tips, the crank to put a node exactly at the kink AND break the
+dihedral slope there, the drone to have no step and no crew — and winglet, Jodel
+crank and drone each to fly a circuit.
+
+GATE UISMOKE caught the label code the moment it existed: `THREE.CanvasTexture
+is not a constructor`. The headless stub had no sprite classes. Fixed in the
+STUB, not by guarding the app — production code should not carry defences for a
+test double.
+
+### Still open from this request
+
+**The V-tail (Bonanza) is NOT in this pass.** It is not a planform change: the
+strip frames are per-kind in the shared solver (`stab` takes `yUp` as its
+normal, `fin` takes `zRt`), so a V needs a new `kind` with a normal tilted by
+the panel dihedral and BOTH control inputs mixed into it — symmetric deflection
+for pitch, antisymmetric for yaw. On top of that, one surface doing both jobs
+changes the tail sizing (Vh and Vv come from the same area now) and the AP's
+pitch and yaw gains are synthesised from that plant. That is its own phase, with
+its own gate.
+
+## G3.5c — THE V-TAIL (2026-08-10)
+
+Additive: default `tail.type` is `conventional`. **BYTE-IDENTICAL across all 18
+baseline cases.** This is the first change to touch `30_solver.js`, which the
+whole fleet shares, so it is a new strip KIND rather than an edit to an existing
+one — no hand-written fiche can see it.
+
+### The mixing falls out of the geometry
+
+A V panel's normal is canted INWARD, which is the same geometry that gives a
+dihedralled wing its roll stability:
+
+    n = cos G * up  -  side * sin G * right
+
+Both panels then lift upward together (their lateral parts cancel in symmetric
+flight) and oppositely in yaw. The ruddervator is one line:
+
+    al = (1-downwash)*al + stabTrim - elevTau*de - rudTau*dr*rudderSign*side
+
+Symmetric in `de`, antisymmetric in `dr`. Nothing asserts that the mixing works;
+the solver resolves it from the strip normals.
+
+### Two projections, not one
+
+Sizing and the plant model both need cos G, but not the same power of it, and
+conflating them is the easy mistake:
+
+- A pitch RATE reaches the panel only through its tilted normal, and then only
+  the vertical part of the resulting force makes a pitching moment: **cos^2 G**.
+- A ruddervator DEFLECTION makes alpha in the panel's own frame, so only the
+  force needs projecting: **cos G**.
+
+So `genPlant` accumulates two areas — `ShC` for control power (Mde) and `ShD`
+for damping (Mq) — which are the same number on a conventional tail and differ
+on a V. One number for both would have over-damped every V-tail by cos G and
+mis-tuned its pitch loop. Sizing follows the same rule:
+
+    S = max( Sh / cos^2 G , Sv / sin^2 G )
+
+whichever volume coefficient binds. At 33 degrees yaw binds (3.03 vs 2.92 m2);
+at 45 pitch does. That is why real V-tails are big.
+
+### The bug the circuit could not find
+
+**A V-tail with its ruddervator sign inverted flew a complete circuit and
+landed.** The autopilot coordinates turns mostly with roll, so reversed rudder
+read as slightly sloppy rather than broken. Only a direct probe showed it:
+
+    conventional   d(yawLeft)/d(dr) = +3814
+    V-tail 33      d(yawLeft)/d(dr) = -6991
+
+I had written `+ side` reasoning from the panel going "outboard and up". The
+normal leans INWARD, so the panel that goes nose-up pushes the tail toward the
+centreline, not away from it.
+
+**Control POLARITY needs a probe, not a lap of the circuit.** This document has
+said repeatedly that static checks pass on aeroplanes that cannot fly; this is
+the mirror image — a flight test passing on an aeroplane whose controls are
+wired backwards. The gate now measures d(yaw)/d(dr) and d(pitch)/d(de) against
+the conventional tail's signs, and requires rudder-to-pitch cross-talk under 2%
+of pitch authority (measured 0.3-1.2%).
+
+### The second bug: an index contract in a file this work never touched
+
+Dropping the rudder from the skin's `surfaces` array for a V-tail renumbered
+every entry after it. `sid` on a skin vertex is an index INTO that array
+(`surfaces[sid-1]`), so the ailerons started reading past the end —
+"Cannot read properties of undefined (reading 'ramp')" from `50_model_codec.js`
+on the first V-tail rebuild. The entry now always exists and is made inert with
+`k: 0`. Gated: every `sid` any group emits must resolve to a surface.
+
+**Known visual limit:** the V panels carry the elevator's surface id, so they
+deflect with pitch and not with yaw. The physics is right; the picture only
+shows half of what the ruddervators are doing.
+
+### Measured
+
+| V angle | S (m2) | eff Sh | eff Sv | dYaw/dr | dPitch/de | x-talk | SM |
+|---|---|---|---|---|---|---|---|
+| conventional | — | 2.05 | 0.90 | 3814 | 7807 | 0.2% | 20.0% |
+| 25 | 5.02 | 4.12 | 0.90 | 9068 | 17509 | 0.3% | 31.1% |
+| 33 | 3.02 | 2.13 | 0.90 | 6991 | 9742 | 0.3% | 20.4% |
+| 45 | 4.09 | 2.05 | 2.05 | 12234 | 11166 | 0.6% | 17.7% |
+| 55 | 6.22 | 2.05 | 4.17 | 21532 | 13870 | 1.2% | 14.1% |
+
+### The Bonanza test
+
+Built a V35B-alike: alloy waisted body, side-by-side, low cantilever wing at
+10.20 m span and 0.58 taper, tricycle on oleos, slotted flaps, IFR panel, wing
+tanks, V-tail at 33 degrees.
+
+| | real V35B | built | |
+|---|---|---|---|
+| span | 10.21 m | 10.2 | -0% |
+| wing area | 16.5 m2 | 16.9 | +2% |
+| all-up | 1542 kg | 662 | **-57%** |
+| wing loading | 93.5 | 39.2 | -58% |
+| Vs flaps | 107 km/h | 63 | -41% |
+
+It stands, it flies a circuit, it lands at 2.20 m/s.
+
+**The shape is right and the mass is not, and the reason is specific.** The
+aerodynamics scale correctly — ballasted to 1070 kg the loading went to 63.3 and
+Vs to 79 km/h, against `Vs ~ sqrt(W/S)` predicting 79.6 — and extrapolating to
+the real 93.5 kg/m2 gives 95 km/h against the actual 107, the remaining gap
+being the Bonanza's laminar 23000-series wing having a lower CLmax than the
+NACA 2412 the generator assumed.
+
+The mass shortfall is in identifiable places: engine 144 kg (an IO-360 and its
+prop) where an IO-520 is nearer 240; two seats where a Bonanza has four; 27 kg
+of fixed gear where a retractable on a 1500 kg aeroplane is nearer 70; and
+242 kg of airframe structure where a certified 1000 kg-empty machine carries
+closer to 450. **The generator builds homebuilt-class structure. A certified
+1500 kg retractable is outside what its `lin`/`cover` rows are calibrated for,**
+and no V-tail work would change that — it is a materials-and-scale question.
+
+GATE GEN is 64 checks.
+
+## STRUCTURAL REALISM — how bendy are we? (GATE FLEX, 2026-08-10)
+
+User report: *"the planes twist like they're gum sometimes"* — worst on the
+GARAGE build, least on the skinned fleet, *"but the underlying physical model
+also seems a little flimsy"*. There was no deflection instrument in the battery
+— the circuit harness's outer-panel flap ANGLE is a safety bound and says
+nothing about whether the angle is realistic — so the first job was to build one.
+`tools/test_flex.js`, GATE FLEX, appended last so the battery log prefix stays
+diffable. It asserts only finiteness and determinism, deliberately: asserting
+realism targets nobody has agreed to would trade a fact for a preference.
+
+**The headline is not what the arithmetic predicted, and that is the point of
+measuring.** Reasoning from `k` alone says the truss is 40-90x too soft (below),
+which would imply absurd deflections. Measured, the tip deflections are **2-7x**
+a real aeroplane's, not 40x — a lattice distributes load across many members and
+the geometry carries most of it. Two of the four materials are already realistic.
+
+### A — tip deflection, % of semispan, from a quasi-static elevator ramp
+
+Slope of tip rise against load factor, fitted over the whole sweep. Reality
+column is handbook / static-test class figures: a strut-braced light aircraft
+does ~0.3-1 %/g and a glass sailplane — the bendiest certified thing that flies
+— about 4-6 %. **The SLOPE is the measured quantity.** A hands-off ramp at
+de = 0.35 runs out of energy around n = 1.5-2.8, so the 3.8 g column is the
+fitted line carried past the data — legitimate for a linear structure, but it is
+an extrapolation and the gate prints it marked EXTRAP.
+
+| | %/g | at 1 g | at 3.8 g | verdict |
+|---|---|---|---|---|
+| GEN carbon + epoxy | **0.39** | 0.39 | 1.48 | realistic |
+| GEN spruce + ply | **0.72** | 0.67 | 2.69 | realistic |
+| GEN 2024 alloy | **0.86** | 0.77 | 3.20 | realistic |
+| drone | 0.32 | 0.08 | 0.96 | realistic |
+| cub / pa18 | 1.70 | 1.37 | 6.13 | ~2x soft |
+| **GEN 4130 tube + fabric** | **1.79** | 1.56 | 6.58 | ~2x soft — **and it is the DEFAULT** |
+| c172 | 2.56 | 1.61 | 8.77 | ~3x |
+| dc3 | 3.61 | 2.46 | 12.58 | ~4x |
+| jodel | 4.51 | 3.18 | 15.80 | sailplane territory, on a wooden two-seater |
+| chinook (before) | **6.73** | 6.82 | 25.66 | beyond anything real — **FIXED, see below** |
+| chinook (after) | 0.22 | 0.24 | 0.87 | now the stiffest in the fleet |
+
+**The player builds in the default and the default is the bendiest generated
+row.** That single fact explains most of the report: switch the stock airframe to
+wood, alloy or carbon and it is already inside the real band.
+
+### B — torsion, and the surprise
+
+Root-to-tip change in section incidence under full aileron. Real GA wings twist
+1-2 deg. Measured: **cub 0.71, c172 0.21, dc3 0.09, jodel 0.06, GEN rows
+0.19-0.68**. The wings are *stiffer in torsion than reality*, not softer.
+
+**But read the STATIC row, not this one.** The in-flight number is confounded by
+anything the aeroplane does while you are measuring it — the chinook's 29.92 deg
+turned out to be mostly a spiral dive to -89 deg of bank, not a soft wing. GATE
+FLEX therefore also applies a **static antisymmetric tip couple** (equal and
+opposite couples at the two tips: zero net force, zero net moment, so nothing
+accelerates and no aerodynamics are involved), at TWO torques. The second torque
+is the point: a linear structure doubles its twist, and anything well under 2x
+stiffened geometrically on the way, which means it started near a mechanism.
+That ratio is the only instrument in the battery that sees it, and it is what
+condemned the chinook.
+
+| deg @200 N.m | @400 | doubling | |
+|---|---|---|---|
+| jodel 0.45 | 1.00 | 2.21x | stiffest — the cantilever box |
+| carbon GEN 0.39 | 0.82 | 2.10x | |
+| alloy GEN 1.07 | 2.10 | 1.97x | |
+| c172 1.29 | 2.64 | 2.04x | |
+| chinook 2.22 | 4.68 | 2.11x | **after the fix — was 16.4 / 24.6 at 1.50x** |
+| tubeFabric GEN 2.37 | 4.63 | 1.96x | |
+| cub / pa18 2.72 | 5.51 | 2.03x | |
+
+**So "twist like gum" is NOT wing torsion.** It is bending, plus whole-airframe
+deformation, plus the ×4 bug below. Two outliers earned their own line: the
+**drone 2.59 deg**, and the **chinook 29.92 deg**, which together with its 6.73
+%/g made it the fleet's one genuinely gum airframe. **The chinook is FIXED** —
+see THE CHINOOK WING below; it now reads 0.68 deg and 0.22 %/g. The drone's
+2.59 deg is inside the real 1-2 band's neighbourhood and is left alone.
+
+### C — softness: `k` against the structure it claims to be
+
+`F = k*(L-L0)` with `k` an absolute N/m per member, carrying no length and no
+cross-section. Physics says `k = EA/L`. The area is **not a new number**: `lin`
+is kg/m, so `A = lin/rho` is already implied by the mass model — and it comes out
+right, tubeFabric's fuselage A is 0.58/7850 = 7.4e-5 m2, which IS 1" x 0.035"
+4130 tube. `GEN_MATERIALS[*].phys` (E, rho, sigY) exists only so GATE FLEX can
+divide; **nothing in the solver, the generator or the viewer reads it.**
+
+Mean over the class, with the per-member range beside it:
+
+| material | A fus | fus | wing | gear |
+|---|---|---|---|---|
+| tubeFabric | 0.74 cm2 | x85 (x53..x665) | x20 (x6..x384) | x873 (x547..x3772) |
+| wood | 11.11 cm2 | x51 (x32..x401) | x5 (x2..x100) | x316 (x188..x1298) |
+| alloy | 1.80 cm2 | x40 (x25..x311) | x9 (x3..x168) | x345 (x214..x1500) |
+| carbon | 2.45 cm2 | x39 (x24..x311) | x14 (x4..x262) | x541 (x321..x2198) |
+
+The WING path is the stiffest relative to physics and the FUSELAGE is 4-8x
+softer than it — which is why the GARAGE build, whose skin rigs every vertex to
+the truss, shows body deformation the fleet's wing-band-only skins cannot. The
+gear is soft on purpose: it is the suspension.
+
+**THE SPREAD IS THE BIGGER FINDING.** Within a single class it runs 12-60x —
+x6 to x384 across the tubeFabric wing. `k` is a constant per class and `EA/L` is
+not, so softness scales LINEARLY with member length: **the compliance is wrong in
+SHAPE by more than it is wrong in level**, and the short members are the softest
+relative to the structure they stand for. That is the argument for a length-aware
+`k` (`k_ref * L_ref/L`) ahead of any global multiplier. It is not free, though —
+making the short members honest RAISES their omega, and omega*dt is what
+`genSubsteps` bounds. Measure before committing.
+
+### D — load against allowable, and what it means for a failure model
+
+Peak `|k*(L-L0)|` during the sweep, against `sigY*A`: **tubeFabric 13 %, wood
+8.9 %, alloy 6.8 %, carbon 0.9 %**. This was the question that decides whether
+rupture is worth building, and the answer has a sting in it:
+
+**Failure is a FORCE threshold, not a strain threshold.** `F = k*eps*L0`, so a
+limit written as `Fy = sigY*A` is physically correct *even though the springs are
+40x too soft* — softness only exaggerates the displacement on the way there. That
+means yield, buckling and rupture can be added with **no change to `k`, no change
+to substeps, and no re-anchoring of a single existing gate**. But at 13 % of
+yield under a 1.8 g pull with full aileron, **a force-calibrated failure model
+would never trigger in flight** — it would be a crash-only phenomenon. Whether
+that is right (an aeroplane you cannot pull the wings off) or wrong (no over-g
+consequence at all) is a design call, not a physics one, and it needs an explicit
+knockdown either way.
+
+### THE CHINOOK WING — fixed 2026-08-10, and what it cost
+
+The one airframe GATE FLEX condemned outright. Fixed in `12_aircraft_chinook.js`;
+the trap is that the wing was the *easy* part.
+
+**The diagnosis needed three instruments, and the first two lied.** In flight
+under full aileron the twist ran to 29.92 deg — but a time trace showed it
+tracking BANK, not aileron: the aeroplane was in a spiral dive at -89 deg. At
+MATCHED bank it still twisted 10x the Cub, so something was real. A **static
+antisymmetric tip couple** (equal and opposite couples at the two tips: zero net
+force, zero net moment, so the aeroplane does not accelerate and no aerodynamics
+are involved) settled it: **132 deg/kN.m against cub 15.3, gen 12.1, c172 6.8,
+jodel 2.4** — and it was the only airframe in the fleet with a NON-LINEAR
+response (16.4 deg at 200 N.m, 24.6 at 400), the signature of a near-mechanism.
+Per-station, the twist was all OUTBOARD: +9.3 and +8.2 deg in the two outer bays
+against -1.1 in the strut-braced inner one.
+
+**Cause.** The struts braced station 1 (z=2.00) and nothing beyond, leaving
+3.34 m — 63% of the semispan — hanging on a triangular box whose bays are 1.70 m
+long and 0.16 m deep. Ratio 9.3%: **structural rule 5, which this aeroplane's own
+BOOM had already paid for** ("la section 8 cm etait un mecanisme, depth/bay 7%")
+without anyone applying it to the WING.
+
+**Four cures measured, not argued:**
+
+| | 200 N.m | 400 N.m | cost |
+|---|---|---|---|
+| baseline | 16.4 | 24.6 | — (non-linear) |
+| + X under the box | 15.0 | 24.2 | 6 beams — the faces were not the problem |
+| + four-chord box (rule 2) | 8.4 | 15.1 | 46 beams, 8 nodes, 72 substeps — and still non-linear |
+| + struts to station 2 only | 8.8 | 13.8 | 4 beams — STILL non-linear |
+| **+ strut fan to the tip** | **2.2** | **4.7** | **8 beams, 0 nodes, 0 mass, 0 substeps — LINEAR** |
+
+Linearity was the acceptance criterion, not the value. It is the Cub's own cure
+and for the Cub's own reason — the HANDOVER calls that six-member fan "the lumped
+stand-in for a spar box this planar wing does not have". At 0.16 m of depth no
+in-wing structure competes with an anchor 1.25 m BELOW the wing (rule 1).
+
+**Then it cost three more re-anchors, because the fiche was sitting on knife
+edges.** Worth reading as a set — a stiffer wing stops washing out under load, so
+it keeps lift the autopilot was tuned to lose:
+1. **`vsFloor` -0.11 -> -0.15.** `holdVS` clamps the PITCH command, and -0.11 rad
+   is -6.30 deg. Measured, the aeroplane sat at theta -6.30 EXACTLY — pinned —
+   climbing 0.48 m/s for ever (208 m against hCruise 120 on a long leg). Level
+   now needs -7.51 deg. Swept: -0.13 ends 23 m high, -0.14 holds exactly (and is
+   the drone's value, the fleet's widest), -0.15 gives 1.1 deg for gusts.
+2. **`maxS` 300 -> 330** in the gate. Touchdown moved 295.5 -> 300.2 s: the gate
+   reported "touchdown FAILED" because it had stopped watching 0.2 s early. The
+   aeroplane had landed properly. **A budget is not a verdict.**
+3. **`rolloutPitchMin` -4 -> -7.** The braked transient deepened -3.6 -> -5.1.
+   Measured before moving it, because that check exists to catch NOSE-OVER: the
+   closest structure stays **0.640 m** off the ground through the whole rollout,
+   nose-over is at 26.07 deg, and the Rotax 277 is a PUSHER so there is no
+   prop-strike path at any attitude.
+
+**Result:** tip deflection 6.73 -> **0.22 %/g**, torsion 29.92 -> **0.68 deg**,
+peak chassis strain 7.08% -> **1.06%**, cruise-hold peak-to-peak 1.32% -> 0.01%.
+Roll authority came back with it — the wing had been twisting away half the
+aileron, and roll rate went -30 -> -47 deg/s at full deflection.
+
+**Honest caveat: it is now the STIFFEST wing in the fleet** (0.22 %/g against a
+real light aircraft's 0.3-1), which is arguable for a 230 kg ultralight. The knob
+is `K_W`, documented at the fix site. Lower it if wanted — but never by returning
+to a non-linear response, and re-run all three anchors above if you do.
+
+### RUPTURE AND PERMANENT SET — the costed design (NOT implemented)
+
+Asked for in the same report; deferred by the user to measure first. Recorded
+here so it can be built without re-deriving it. It is one chantier, it does not
+touch the flight model, and it is additive in the G3.3/G3.4 sense: **a beam with
+no limits declared behaves exactly as today**, so the log diff stays empty.
+
+- `60_gen_spec.js` — `phys` already exists. Add `sigU`, `eBreak`, `brittle`.
+- `61_gen_frame.js` — in `B()` (the beam constructor, which already has `cls`
+  and `L`), stamp `Fy = sigY*A`, `Fu = sigU*A`, and
+  `Fc = min(Fy, pi^2*E*I/L^2)`. **The compressive/buckling limit is the highest
+  value line in the whole change**: a slender tube buckles far below yield, it
+  makes LONG members fail first, and buckling is the failure mode that actually
+  happens in a crash. It also uses the length that `k` currently ignores.
+- `30_solver.js:284` — about twenty lines:
+
+      if (b.broken) { b.strain = 0; continue; }        // no force at all
+      let Fe = b.k * (L - b.L0);
+      if (b.Fy) {                                      // undeclared = today
+        const lim = Fe >= 0 ? b.Fy : -b.Fc;
+        if (Math.abs(Fe) > Math.abs(lim)) {
+          const dLp = (Fe - lim) / b.k;                // plastic flow
+          b.L0 += dLp; b.plast += Math.abs(dLp) / b.L0;
+          Fe = lim;
+          if (b.plast > b.eBreak || Math.abs(Fe) > b.Fu) b.broken = true;
+        }
+      }
+      const Fb = Fe + b.c * vrel;
+
+- **Permanent set falls out of moving `L0`.** That IS the bent tube; there is no
+  second system to keep in sync. `reset()` already recomputes `L0` from `def`,
+  so RESET REPAIRS THE AEROPLANE FOR FREE — clear `broken`/`plast` there too.
+- `k` never increases, so omega never rises: **every existing substep count
+  stays valid** and `genSubsteps` needs no change.
+- The covering is an affine blend of the truss nodes, so a bent or broken
+  airframe deforms its own skin for nothing — and it lands hardest on the GARAGE
+  build, which is where the user is looking.
+- One numerical trap to design against: RATE-LIMIT the plastic flow per substep,
+  or an oscillating member ratchets its way to destruction.
+- **The calibration question, from section D:** peak in-flight load is 0.8-13 %
+  of yield, so straight `sigY*A` limits would make failure crash-only. Decide
+  deliberately whether that is the game you want; if over-g must have a
+  consequence, the knockdown has to be explicit and written down, not tuned
+  until it feels right.
+
+### The ×4 bug — the user's own confusion was a real defect
+
+*"The ×4 deformation is confusing, because it's unclear what's applied in the
+view structure."* It was applied. `poseModel` read `SKIN_GAINS[min(skinMode,1)]`,
+so mode 2 got gain 4 — and for a generated aeroplane `showSkin` is true in every
+mode, so Bare frame drew the welded truss at **four times its real deflection
+with no ×1 reference on screen**. The fleet's Frame mode returns early and was
+always honest; the two disagreed silently. Fixed: only mode 1 exaggerates, and
+every mode's gain is now in the button (`Covered ×1 / Flex ×4 / Frame ×1`).
+
+### Left open, deliberately
+
+Stiffness is NOT touched here. `genSubsteps` bounds `omega*dt <= 0.45` and
+substeps go as sqrt(k) with `aeroPass` inside every one, so x4 stiffer costs x2
+substeps and physical stiffness (x40) would need 150-300 — past the cap of 200.
+Full realism is out of reach for an explicit integrator at 60 Hz. Options, all
+fleet re-anchoring events and all cheaper than they look now that only two rows
+are actually out of band: (i) make `k` length-aware (`k_ref * L_ref/L`) — fixes
+the SHAPE of the compliance without raising its level, so substeps barely move;
+(ii) a bounded global multiplier; (iii) the chinook alone.
+
+**Two things NOT to do.** Do not reach for `DEFDAMP` — it is a rate, tau = 2 s,
+and raising it damps flight behaviour, not just the look. Do not raise the gate
+strain thresholds to match: they are 15-30x real elastic limits (4130 yields at
+0.22 %, spruce crushes at 0.36 %, 2024-T3 at 0.47 %, carbon UD breaks at 1.1 %)
+and that gap is the honest record of how soft the lattice is.
+
+## G3.6 — PLAYTEST FIXES (2026-08-10)
+
+A feedback pass. The full list became the G4 plan; these are the items that were
+unambiguous and cheap. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+**Boundary:** another thread owns STIFFNESS and RUPTURE (`tools/test_flex.js`,
+`GEN_MATERIALS.k/c`, the beam law in `30_solver.js`). Nothing here touches them.
+The "too bendy from the tail" report is answered as GEOMETRY — a deeper tailpost
+truss — which is a different lever on the same complaint.
+
+### The wheel track ran away to its clamp
+
+Reported as "the track gets reset to the max value every time I change
+something, like it's getting incremented". It was.
+
+`genFrame` computes `tr = (S.gear.track ?? derived) + place.dtrack`, and
+`buildGen` writes that offset-INCLUSIVE result back onto `S.gear.track`. The
+panel then displayed the built value and, for any field the player owned, copied
+it into its own spec — so `dtrack` was added again on every rebuild. `gear.x`
+has the identical flaw with `place.gearDx`.
+
+The rule is now one line and has no special cases:
+
+    an AUTO field shows what the generator DERIVED;
+    a field the player owns shows what the player SET.
+
+and nothing is written back. Verified: track holds at 1.90 through six unrelated
+slider edits.
+
+Worth keeping in mind generally — **a value that is derived from an offset must
+never round-trip through the control that feeds it.** The G3.1 writeback was
+introduced so a clamped value would display as clamped; it did that, and it also
+built an accumulator.
+
+### The propeller wobbled and drifted off the thrustline
+
+`buildModel` rigs EVERY skin group for flex, and that included `prop`. So the
+blades were vertex-deformed toward the engine nodes while the mesh was spinning
+about its hub — a correction applied in a rotating frame, which is a wobble, and
+which also walks the disc off the thrustline as the engine node moves.
+
+Props are rigid bodies. The rig list now excludes any group named `prop*`.
+
+The geometry itself was never wrong: measured about the hub, the blades are
+symmetric to 0.0003 m and the hub tracks `place.dy` correctly. Measuring that
+first is what pointed at the render path instead of the generator.
+
+### Smaller
+
+- **Shakedown is a section.** Its own collapsible, first in the panel, header
+  reading price / weight / power / span, so a fully collapsed panel still says
+  what you have built.
+- **Disclosure arrows** on every section header.
+- **Tail-end section is settable.** `tailW` / `tailBot` / `tailTop` were in the
+  spec from the beginning with no control, so every aeroplane got the same
+  0.10 m half-width tailpost whatever its size. Three sliders, and clamps.
+- **Rounded tips are actually round.** The tip was ONE shrunk station — a blunt
+  corner. Now `arc` stations swept round a quarter circle of radius
+  `reach x tip chord`. Default `rounded` is a true half-round; added `clipped`
+  and `elliptical`.
+
+### Fixed, measured, and reverted
+
+The drone's cowl collapsing below its engine. Flooring the firewall ring on
+engine size widened EVERY aeroplane's nose and broke the baseline — and the
+premise was wrong: **a Cub's cylinders stick out of its cowl on purpose.** A
+cowl is not obliged to enclose its engine. The right fix is cowl diameter as its
+own parameter, which is a G4 item.
+
+### Known inconsistency introduced
+
+A rounded tip now reaches about half a tip chord PAST the last spar station, so
+visible span exceeds aerodynamic span by ~1 m on a 10 m wing. Real wings do this
+(the spar stops short of the tip bow) but `span` here means the aero span. To be
+resolved in G4.
+
+### Measured, for the G4 plan: can the cabin be cut?
+
+The body skin is `GEN_RADIAL = 20` segments AROUND each section but only ONE
+quad ALONG each bay, and the bays ARE the structural rings — the whole cabin is
+two bays. So a canopy or window as a TRANSPARENT MATERIAL BAND works today, but
+a window or door as an actual HOLE does not: there is no longitudinal resolution
+inside a bay to cut against, and cutting on ring boundaries would put the
+opening exactly where the frames are. Real openings need a skin-subdivision pass
+(extra rows per bay that are not structural stations) before anything is built
+on top of them.
+
+## G4.1 — CONTROL SURFACES THAT MOVE (2026-08-10)
+
+Skin only. No physics touched, and nothing near the other thread's stiffness
+work. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+Before this: ailerons, elevator and rudder hinged; flaps did not exist visually
+at all; and a V-tail's panels carried the ELEVATOR's surface id, so ruddervators
+never showed yaw. Now every surface the aeroplane has deflects.
+
+### The sign trap, and the bug it had been hiding
+
+The left and right hinge AXES are mirrored — each runs outboard along its own
+semispan — so an equal `sgn` on the two sides produces **opposite** motion in
+the world, and a mirrored `sgn` produces the **same** motion. That inversion is
+the whole difficulty, and it reads backwards at a glance:
+
+    ailerons   ANTIsymmetric  ->  equal sgn
+    flaps      symmetric      ->  mirrored sgn
+
+Measuring every surface under every input found four sign errors, one of them
+**pre-existing since G1.4: the ailerons deflected TOGETHER** (both wings
++0.020 m on `da`). Four chantiers of screenshots never caught it, because a
+surface animating smoothly in the wrong direction looks exactly like one
+animating correctly unless you look at both wings at once and know which way
+they should go. The generated elevator was also inverted — `de` is a NOSE-UP
+command and nose-up is trailing edge UP, and it was going down.
+
+Measured after the fix, mean vertical displacement of each surface's own
+vertices:
+
+| input | conventional | V-tail |
+|---|---|---|
+| de = +0.3 | elevator +0.031 | vtailR +0.073, vtailL +0.073 |
+| da = +0.3 | ailR -0.018, ailL +0.020 | same |
+| dr = +0.3 | rudder moves 0.081 | vtailR +0.073, vtailL -0.073 |
+| flap = 1 | flapR -0.136, flapL -0.136 | same |
+
+### Two drives on one surface
+
+A vertex carries ONE surface id, but a ruddervator is the elevator and the
+rudder at once. `applyHinges` gained an optional second drive:
+
+    ang = sgn * k * ctl[drive]  +  sgn2 * k2 * ctl[drive2]
+
+An additive, backward-compatible change to `50_model_codec.js` — the imported
+PA-18/C172 surfaces have no `drive2` and are untouched. The V panel is then
+symmetric on `de` (mirrored sgn) and antisymmetric on `dr` (equal sgn), which
+matches the solver's own mixing.
+
+### The surface table is now fixed at eight
+
+    1 elevator  2 rudder  3 ailR  4 ailL
+    5 flapR     6 flapL   7 vtailR  8 vtailL
+
+**Every entry is always present.** A configuration that lacks a surface gets it
+with `k: 0` rather than having it removed, because the array index IS the
+per-vertex `sid` and dropping an entry renumbers everything after it — which is
+exactly how the V-tail work sent the ailerons reading past the end of the array
+(G3.5c). Making the table fixed-length removes that failure mode by
+construction rather than by care.
+
+### Hinge lines follow the specified chords
+
+`AIL_HINGE` was a hard-coded 0.72 and `aStart` a hard-coded 0.62 of semispan,
+both predating the control-surface parameters. They now come from
+`controls.aileron.chord` / `.span`, and the flap band from
+`controls.flap.chord` / `.span`, so a 30% aileron looks like a 30% aileron.
+
+### Known limit — FIXED in G4.2 below
+
+The span boundaries quantised to spar stations: a flap asked for 0.50 semispan
+rendered out to 1.91 m instead of 2.50, and the aileron started at 3.45 m
+instead of 3.10. The aero was always exact (G3.4's fractional strip coverage);
+only the picture stepped.
+
+### Gate
+
+GATE GEN is 65 checks. The new SURFACES MOVE block asserts, for a conventional
+and a V-tail build: pitch surfaces are trailing-edge UP on positive `de` (and
+symmetric on a V), ailerons are antisymmetric, flaps are symmetric AND down, and
+the yaw surface moves (antisymmetrically on a V). Every one of those would have
+passed silently as a "the surfaces animate" eyeball check.
+
+## G4.2 — WING SKIN SUBDIVISION (2026-08-10)
+
+Skin only. **BYTE-IDENTICAL across all 18 baseline cases.**
+
+### First, a correction
+
+I reported in G3.6 that the body skin has "only ONE quad ALONG each bay" and
+that cabin openings would therefore need a subdivision pass before anything
+could be built on them. **That was wrong.** `GEN_LSEG = 3` — the fuselage has
+had three lengthwise slices per bay since G1.4, with `sectionRow(i, s)`
+interpolating both the section and the node influences (`kA = 1-s`, `kB = s`).
+The cabin is two bays, so it already has six divisions lengthwise against
+twenty around.
+
+The error came from measuring badly: I histogrammed skin vertices by x and read
+the result as fuselage stations, but the count is dominated by the WING, which
+lofts along z and so scatters x across hundreds of distinct values. The number
+was real and the interpretation was invented. **A measurement of the wrong
+quantity is worse than no measurement, because it carries the authority of one.**
+
+So the body was never the problem, and cabin openings are less blocked than I
+said. The WING was the problem.
+
+### What was actually wrong
+
+Wing skin rows existed only at spar stations — four of them for the default
+three panels. Every control-surface boundary snapped to the nearest one.
+
+Now the spanwise station list is: every spar station, PLUS the surface edges as
+breakpoints, with each resulting interval subdivided `GEN_WSEG = 2` ways. A
+boundary therefore lands ON a row.
+
+`wingSectionAt(pF, pR, wF, wR, ...)` takes spar POINTS and influence LISTS
+rather than two node indices, so an intermediate row carries four influences —
+the chordwise blend times the spanwise one, which is what the loft was already
+doing implicitly between stations. Subdividing adds resolution on the same ruled
+surface and moves no geometry, which is why the lattice is untouched.
+
+Measured, across three span settings:
+
+    flap -> 2.50 (want 2.50)   aileron <- 3.10 (want 3.10)
+    flap -> 1.75 (want 1.75)   aileron <- 3.50 (want 3.50)
+    flap -> 2.90 (want 2.90)   aileron <- 4.00 (want 4.00)
+
+One subtlety worth the comment it now carries: **both boundaries have to be
+INCLUSIVE of the row sitting on them.** The aileron test was `z > aStart - eps`
+and the flap's `z < fEnd - eps`, so the flap band stopped one subdivision short
+while the aileron was exact. Asymmetric epsilons in a pair of tests that look
+symmetric.
+
+Wing skin cost: 1770 -> 2400 vertices with flaps fitted.
+
+### Gate
+
+GATE GEN is 66 checks. SURFACE BANDS asserts each band's edge lands within
+2 cm of `span x semi` at three different settings — the check that would catch
+the snapping coming back.
+
+### Still open
+
+The rounded tip arc reaches past the last spar station, so the aileron band
+extends to 5.89 m on a 5.00 m semispan and the visible span exceeds the
+aerodynamic span. That is the G3.5b tip/span inconsistency, still unresolved,
+and it is now visible in the surface bands as well as the outline.
+
+## G4.3 — THE TIP IS THE PLANFORM (2026-08-10)
+
+**This one intentionally changes physics.** The baseline was re-captured; the
+default aeroplane's reference area moves 16.00 -> 15.55 m2 and its stall 59.7 ->
+60.4 km/h. Asked for directly: "update the lifting behaviour so we get WYSIWYG".
+
+### What was wrong
+
+G3.5b put the rounded tip in the SKIN: extra rows pushed OUTWARD past the last
+spar station, with the section scaled by `1 - (1-round)*sin(theta)`. Two
+consequences, both visible in the playtest screenshot:
+
+- the scale bottomed out at `round` = 0.30, so the tip ended in a **30%-chord
+  slab** — a parallelepiped, not a curve
+- the rows reached half a tip chord PAST the tip, so the wing you saw was ~1 m
+  wider than the wing that flew
+
+### What it is now
+
+The tip lives in `chordAt()`. The planform runs straight to `semi - R`, then the
+chord closes to nothing on a half-ellipse whose tip is at exactly `semi`:
+
+    chord(z) = c_joint * sqrt(1 - ((z - zJoint)/R)^2)
+
+`R` is `bow` x the chord AT the joint, which is implicit, so it settles by three
+fixed-point iterations. `bow: 0.5` is a true half-round of the tip chord.
+
+Because it is in the planform, **one function feeds the rib masses, the covered
+area, the strip areas, the reference area and the outline.** A tip that existed
+only in the mesh was a wing that lifted where there was no wing. Reference area
+now subtracts the bow analytically — a half-ellipse of span R and chord c_joint
+loses `(1 - pi/4)` of the rectangle it replaces, both tips.
+
+Measured, default wing: chordAt tracks the ellipse to the digit at every
+station, and max |z| over the whole skin is 4.999 against a 5.00 semispan on
+every tip type. WYSIWYG.
+
+### Drawing it: step in ANGLE, not in span
+
+The bow rows are placed at `zJoint + R*sin(theta)` for theta up to 0.965 x 90
+degrees. Uniform z spacing would crowd every row into the first third of the
+curve and leave the last quarter — where all the curvature is — drawn by two
+quads, which is the other half of why the old tip read as a box. Measured: 8
+rows over the bow, max angular step 12.4 degrees, sagitta 4.7 mm on an 800 mm
+radius (0.6%).
+
+### The trap it set, and the rule that removed it
+
+`chordAt` now returns ZERO at the tip, and the cantilever spar box takes its
+depth from the chord. That put a **zero-length beam** between the upper and
+lower caps at the tip station — the strain = Infinity trap from G2.3d, back
+again by a different road.
+
+Fixed the way rule 1 says: geometrically, not with a degenerate-beam guard. The
+box follows the STRUCTURAL chord (`linC`, the linear taper); the bow is a light
+fairing outboard of the spar box, which is what it is on a real wing. Verified:
+minimum beam length 0.0815 m across all six tip types on a cantilever wing.
+
+| tip | R (m) | joint z | Sw | AR |
+|---|---|---|---|---|
+| square | 0 | 5.00 | 16.00 | 6.25 |
+| clipped | 0.24 | 4.76 | 15.84 | 6.32 |
+| rounded | 0.80 | 4.20 | 15.55 | 6.47 |
+| elliptical | 1.28 | 3.72 | 15.18 | 6.61 |
+| Hoerner | 0.48 | 4.52 | 15.67 | 6.38 |
+| winglet | 0.32 | 4.68 | 15.78 | 6.34 |
+
+### The garage control check
+
+Reported as "I still see no moving surfaces". The surfaces DO move — G4.1
+measured every one and the flaps are visible on approach — but **the garage
+stops the solver, so every control sits at zero and nothing ever deflects where
+you spend all your time.** The report was right about the experience.
+
+The garage now sweeps them: four sine periods (0.90 / 0.62 / 0.45 / 0.33 rad/s)
+so nothing syncs up and each surface can be watched on its own — a control check,
+which is what you do before flight anyway. Physics is off in the garage so
+writing `ctl` there has no consequence, and roll-out zeroes it in `reset()`.
+
+## G4.4 — CONTROL SURFACES ARE SEPARATE MESHES (2026-08-11)
+
+Skin and viewer only; no physics. The per-vertex hinge path is **retired for
+generated aeroplanes** — zero tagged vertices remain. It stays for the imported
+PA-18 and C172, which are baked that way.
+
+### Why the old approach had to go
+
+G4.1 tagged skin vertices with a surface id and rotated them in place. User
+verdict: "you deform a single mesh, that's rubbish and causes a lot of issues...
+Right now the ailerons are affecting the wing tip, that's ridiculous."
+
+Correct, and the tip case shows exactly why it was a design fault rather than a
+bug. Per-vertex rotation moves *whatever carries the tag*. When G4.3 ran the
+planform out to the tip, the bow rows inherited the aileron's tag and the whole
+rounded tip swung with the stick. Every fix would have been another exception in
+a scheme whose default was wrong.
+
+The propeller was the one thing in the file that always behaved — because it was
+already a rigid mesh with a pivot.
+
+### The cut
+
+A control surface is now its own group, its own closed mesh, its own pivot and
+axis. The enabling piece is sampling the aerofoil as EVALUATORS instead of a
+fixed point list:
+
+    genAfEval(naca)          -> { up(x), lo(x) }
+    genAfSeg(naca, a, b, n)  -> closed loop over chord fractions a..b
+
+The fixed skin lofts [0..hinge] and the surface [hinge..1], both with constant
+row counts, so each stitches on its own. Sampling BOTH at the same parameter
+`hinge` makes the cove and the surface's leading edge the same points by
+construction — there is no gap to close and no tolerance to tune. `emitLoft`
+gained a `close` flag to wrap the loop, which a cut section needs and an intact
+aerofoil does not (its ends meet at the trailing edge).
+
+Rows already landed on the band boundaries from G4.2, so the cut lines existed
+before the cut did.
+
+Six meshes on a conventional aeroplane — `ailR ailL flapR flapL elev rud` — and
+six on a V-tail, where `vtR`/`vtL` carry two drives each.
+
+### In the viewer
+
+Each surface is a mesh whose geometry is translated so the pivot IS its origin,
+positioned at the pivot, and turned with `quaternion.setFromAxisAngle`. Exactly
+how the propeller is handled. They are excluded from the flex rig for the same
+reason the prop is: a vertex deform applied inside a frame that is itself
+turning fights its own rotation.
+
+They do ride the deflection of the spar they hang on — a rigid translation from
+the attachment node's motion — so a bending wing does not leave its aileron
+behind.
+
+### Three things measurement caught that the design did not
+
+**1. The cut silently did nothing.** `wingSectionAt` had been changed in G4.2 to
+take a point list — except it never was. It still mapped the module-level `af`
+and my new argument landed in its `sid` parameter, so the "fixed" skin and the
+"surface" were both built FULL CHORD and the aeroplane grew a second wing that
+rotated. User: "it looks like a duplicated wing that rotates". Measured: both
+spanned x -0.492..1.108, identical. The tail was right the whole time because
+`panel()` builds its own points directly.
+
+Worth the scar: an argument added to a signature that the body never reads is
+invisible to every test that only asks whether the output is plausible. The
+measurement that found it took one line — the chordwise extent of each group.
+
+**2. The cuts came out triangular.** A cut row next to a full-chord row lofts as
+a RAMP from the hinge line out to the trailing edge, so each band end was a
+wedge. The flap's root end looked right only because the band starts at the
+first station and has no neighbour to ramp from. Fixed with an edge loop: the
+boundary station is emitted twice, once with each neighbour's chord range, and
+the zero-width step between them IS the end wall — the rib face at the end of a
+real aileron.
+
+The wall has to sit on the station INSIDE the band. Placing it on the far side
+left the cutout a subdivision longer than the surface filling it (a flap ending
+at 2.50 left the wing open to 2.80). Verified by counting triangles whose three
+vertices share one z: walls at exactly +/-2.50, +/-3.10, +/-4.20 against meshes
+spanning 0.36..2.50 and 3.10..4.20.
+
+**3. The corners shaded wrong.** Rows do not share vertices, but a single
+boundary row was shared between the wall strip and the skin strip beside it, so
+`computeVertexNormals` averaged a near-vertical face into a near-horizontal one
+— a dark smear on every cutout corner. Each wall row is now emitted twice: the
+wall gets its own vertices, and the zero-area strip between the pair
+contributes no normal at all.
+
+### Signs, again
+
+The mirroring rule reappears because it was never about the mechanism: with the
+hinge axes running outboard on each side, **a mirrored `sgn` produces the SAME
+world motion and an equal `sgn` produces OPPOSITE motion.** Ailerons want equal,
+flaps want mirrored. Got flaps backwards on the first pass — both went up
+together, symmetric and useless — and the gate caught it.
+
+And they had to be re-measured once the cut became real: while the "surface"
+was still a full-chord copy its centroid sat FORWARD of the hinge, so every wing
+sign came out inverted and had been calibrated against the wrong body. The tail
+never moved, because `panel()` was cutting correctly from the start.
+
+Measured on the finished geometry: elevator +0.037 (TE up on positive de),
+ailerons -0.052/+0.052, flaps -0.100/-0.100, V-tail +0.038/+0.038 on de and
+antisymmetric on dr.
+
+### Gate
+
+GATE GEN is 68 checks. SURFACE MESHES rotates each mesh about its own pivot and
+asserts the same senses as before, plus **zero vertices may still carry a hinge
+tag** — which is what proves the old path is actually gone rather than merely
+unused. AILERON EXTENT asserts the aileron stops at the bow joint (4.20 m
+against a 5.00 m semispan), the specific absurdity that started this.
+
+### Also
+
+UV `v` is now the true span fraction rather than the row index. With the
+surfaces lofted separately, row-index `v` gave every one of them its own copy of
+the paint's tip stripe at its inboard end; span fraction makes the paint
+continuous across the cut, which is the point of cutting there.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
-| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 92 m / ldg 111 m w/ flaperons (book ~90 m: nearly closed; pre-bracing 86/91 was measured with the tail on the ground) |
+| Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 89 m / ldg 114 m w/ flaperons (book ~90 m). **RE-ANCHORED 2026-08-10 with the wing bracing** (was TO 92 / ldg ~59): tip 0.22 %/g, torsion 0.68°, td x=-515 sink 0.77, rolloutPitchMin -5.1, ap.vsFloor -0.15, gate maxS 330. Glide/Vs/Vmax are rigid-tunnel numbers and did NOT move — genShakedown reads the undeformed geometry. See STRUCTURAL REALISM. |
 | Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
 | Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr 0.12, VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); short-field VApprShort 18.5 + VPinFull 16: lands 340 m benches into wind (XCTY4); carries the 3D skin |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
@@ -1020,6 +2708,20 @@ Ground effect (added session 1, 2026-08): wing strips only — TAIL EXCLUDED
 within a span where GE matters); McCormick sigma = (16h/b)^2/(1+(16h/b)^2)
 scaling the induced term and the lift slope via 1/a3d = 1/a0 + 1/eAR. No
 stall-margin reduction in GE. Free-air tunnel = makeSim without world.
+**THE VIEWER'S TIMESTEP IS NOT WALL CLOCK.** `app.js` calls `sim.step(1/60)`
+once per `requestAnimationFrame` and never measures the real frame delta, so
+the sim's timescale IS the display's refresh rate: on a 144 Hz monitor the
+aeroplane lives 2.4x faster than real time, and **on a machine that drops
+frames it runs in SLOW MOTION** — structural oscillation played back at half
+speed reads exactly as rubber, which is a live suspect for the "gum sometimes"
+in the report that produced GATE FLEX. Check it in the console with
+`let n=0,t0=performance.now(); const f=()=>{if(++n<120)requestAnimationFrame(f);
+else console.log('mean frame ms', (performance.now()-t0)/120)};
+requestAnimationFrame(f)` — 16.7 means the sim runs at true speed. Fixing it
+needs a fixed-step accumulator, which changes how many steps a given wall
+second contains and therefore re-anchors nothing in the gates (they call
+`sim.step` directly) but everything in the feel. Not attempted here.
+The linkage and prop spin hardcode 1/60 for the same reason and must move with it.
 
 ## ROADMAP (with implementation anchors)
 SCOPE DECISION (user, 2026-08-02): sessions 1-3 only (fidelity), then the

@@ -350,6 +350,26 @@ export function crossGenomes(a, b, rng, opts = {}) {
   const g = cloneGenome(a);
   const ops = [`cross:${crossScalars(g, b, rng)}`];
 
+  /**
+   * PROVENANCE MERGES PESSIMISTICALLY: any authored ancestry on either side is
+   * carried, and the generation count is the LONGER of the two lines.
+   *
+   * `cloneGenome(a)` already brought A's origin, so this only has to consider B.
+   * The rule is deliberately not "take parent A's" — that would let an authored
+   * eel launder its ancestry by being crossed in as parent B, and the whole point
+   * of the field is that the claim "evolution discovered this" stays checkable.
+   * A creature with an authored ancestor ANYWHERE is not a discovery, and it is
+   * cheaper to be conservative here than to argue about a run afterwards.
+   *
+   * When both parents carry different founders, A's is kept and B's is lost —
+   * a single slot cannot hold two, and the useful query is "is there authored
+   * ancestry at all", which stays correct either way.
+   */
+  g.origin = {
+    founder: g.origin.founder ?? b.origin?.founder ?? null,
+    generations: Math.max(g.origin.generations ?? 0, b.origin?.generations ?? 0),
+  };
+
   // ANDed with the slice flag, so `allowGrafting: false` stays a real, testable
   // configuration and the A2 pin in gate/l1.js keeps controlling something.
   if (opts.graft === false || !limits.allowGrafting) return { genome: g, ops, grafted: 0 };

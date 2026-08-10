@@ -91,7 +91,7 @@
   /* ---- garage: the builder's panel, left of the minimap (chantier G1) ----
      margin-right:auto keeps the minimap pinned right whether or not this is
      showing, so #mid needs no layout change when the panel hides. */
-  #garage { margin-right:auto; pointer-events:auto; width:270px; padding:10px 12px 12px;
+  #garage { margin-right:auto; pointer-events:auto; width:296px; padding:10px 12px 12px;
     max-height:calc(100vh - 190px); overflow-y:auto; }
   #garage header { display:flex; justify-content:space-between; align-items:center;
     margin-bottom:8px; }
@@ -100,11 +100,37 @@
   #garage h3 { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.16em;
     text-transform:uppercase; color:var(--faint); margin:11px 0 6px; }
   #gClose { padding:2px 7px; font-size:13px; line-height:1; border-radius:6px; }
-  .grow { display:grid; grid-template-columns:74px 1fr 46px; align-items:center;
+  /* ROLL OUT: the commit. Full width above the sections, because it is the one
+     action that applies to the whole aeroplane rather than to a part. */
+  #gRoll { width:100%; margin-bottom:9px; padding:9px 12px; font-size:10px; }
+  #gRoll:disabled { opacity:.45; cursor:default; }
+  /* one <details> per airframe section: the title on the left, what it weighs
+     and what it costs on the right, so the price of a decision sits on the
+     control that makes it. */
+  .gsec { border-top:1px solid var(--edge); }
+  .gsec[open] { padding-bottom:6px; }
+  .gsec > summary { display:flex; justify-content:space-between; align-items:baseline;
+    gap:8px; list-style:none; cursor:pointer; pointer-events:auto;
+    padding:8px 0 6px; user-select:none; }
+  .gsec > summary::-webkit-details-marker { display:none; }
+  /* the disclosure arrow: right when closed, down when open. Without it a
+     collapsed accordion reads as a list of dead labels. */
+  .gsec > summary > span::before { content:'▸'; display:inline-block;
+    width:9px; margin-right:5px; font-size:8px; line-height:1;
+    transform:translateY(-1px); transition:transform .15s ease; }
+  .gsec[open] > summary > span::before { transform:translateY(-1px) rotate(90deg); }
+  .gsec > summary > span { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--faint); }
+  .gsec[open] > summary > span { color:var(--amber); }
+  .gsec > summary > i { font:500 8.5px/1 'IBM Plex Mono', monospace; font-style:normal;
+    letter-spacing:.02em; color:var(--dim); white-space:nowrap; }
+  .grow { display:grid; grid-template-columns:70px 1fr 50px; align-items:center;
     gap:7px; margin-bottom:5px; }
   .grow > span { font:500 9.5px/1.2 'IBM Plex Sans'; letter-spacing:.05em; color:var(--dim); }
   .grow > b { font:500 9.5px/1 'IBM Plex Mono', monospace; color:var(--ink);
     text-align:right; }
+  /* the generator is still deriving this one — italic until you claim it */
+  .grow > b.auto { color:var(--faint); font-style:italic; }
   .grow select { grid-column:2 / span 2; padding:5px 7px; font-size:9.5px;
     letter-spacing:.06em; border-radius:6px; }
   .grow input[type=range] { pointer-events:auto; width:100%; height:16px;

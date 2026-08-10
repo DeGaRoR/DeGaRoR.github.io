@@ -98,6 +98,30 @@ function buildChinook() {
     // haubans vers le bas du pod — grand bras vertical
     const sb = sgn > 0 ? P[1].BR : P[1].BL, sb2 = sgn > 0 ? P[2].BR : P[2].BL;
     BW(sb, WF[1]); BW(sb2, WR[1]); BW(sb, WR[1]); BW(sb2, WF[1]); BW(sb, BF[1]);
+    // ...ET JUSQU'AUX STATIONS EXTERIEURES (2026-08-10, GATE FLEX).
+    // Le haubanage ne tenait que la station 1 (z=2.00) : les 3.34 m suivants,
+    // soit 63% de la demi-envergure, pendaient sur le seul caisson triangulaire,
+    // dont les baies font 1.70 m pour 0.16 m de hauteur — rapport hauteur/baie
+    // 9.3%, exactement la regle 5 que la POUTRE de cet avion a deja payee
+    // ("la section 8 cm etait un mecanisme, depth/bay 7%") sans qu'on l'applique
+    // jamais a l'AILE. Mesure (couple antisymetrique en bout, statique, sans
+    // aero) : 16.4 deg sous 200 N.m et 24.6 sous 400 — NON LINEAIRE, la
+    // signature d'un quasi-mecanisme, contre cub 3.07 / gen 2.43 / c172 1.36 /
+    // jodel 0.48. Trois remedes essayes et mesures :
+    //   +X sous le caisson          14.95 deg  (les faces n'etaient pas le mal)
+    //   +caisson a 4 semelles       8.37 deg, et 46 poutres + 8 noeuds + 72
+    //                               sous-pas au lieu de 48 (omega*dt 0.579)
+    //   +haubans station 2 seule    8.81 -> 13.83, TOUJOURS non lineaire
+    //   +haubans jusqu'au saumon    2.22 -> 4.68, LINEAIRE, 8 poutres, 0 masse
+    // C'est la cure du Cub, et pour la meme raison : le HANDOWER dit de son
+    // eventail six branches qu'il est "the lumped stand-in for a spar box this
+    // planar wing does not have". A 0.16 m d'epaisseur aucune structure interne
+    // ne rivalise avec un ancrage 1.25 m SOUS l'aile (regle 1). La linearite
+    // est le critere, pas la valeur : 2.22 rend l'aile plus raide que celle du
+    // Cub, ce qui est discutable pour un ULM de 230 kg, mais l'alternative a
+    // 8.8 deg reste un mecanisme. Si on veut l'assouplir un jour, c'est K_W
+    // qu'on baisse — jamais en revenant a une reponse non lineaire.
+    BW(sb, WF[2]); BW(sb2, WR[2]); BW(sb, WF[3]); BW(sb2, WR[3]);
     wf[sgn > 0 ? 'R' : 'L'] = { F: WF, R: WR, B: BF };
   };
   mkWing(+1); mkWing(-1);
@@ -194,7 +218,19 @@ function buildChinook() {
       VTailUp: 12, VStop: 0.3, slew: 2.2, thrCruise: 0.55, thrAppr: 0.35,
       brakeMax: 0.30, brakeRampRate: 0.20, VBrakeOn: 11, VBrakeRelease: 1.0,
       rateFilt: 0.14, attFilt: 0.65, pitchP: 1.2, pitchD: 0.55, pitchI: 0.10,
-      pitchCmdSlew: 0.7, vsP: 0.020, vsI: 0.040, vsFloor: -0.11, altVSGain: 0.10,
+      // vsFloor RE-ANCHORED -0.11 -> -0.15 with the wing stiffening above.
+      // holdVS clamps the PITCH command to [vsFloor, thMax], and -0.11 rad is
+      // -6.30 deg: measured, the aeroplane sat at theta -6.30 EXACTLY, pinned
+      // on the floor, climbing 0.48 m/s for ever (208 m against hCruise 120 on
+      // a long leg — it never levels). The floppy wing used to wash out under
+      // load and bleed the lift away; the braced one keeps it, so level flight
+      // now wants theta -7.51 (= -0.131 rad) and the old floor could not reach
+      // it. Swept: -0.13 still ends 23 m high, -0.14 holds 120.0 exactly (and
+      // is the drone's value, the fleet's widest) but leaves 0.5 deg of margin;
+      // -0.15 leaves 1.1 deg for gusts and turns and measures identically.
+      // NOT a tuning knob turned until the gate went green: the floor was
+      // marginal before and the stiffer wing made it inadequate.
+      pitchCmdSlew: 0.7, vsP: 0.020, vsI: 0.040, vsFloor: -0.15, altVSGain: 0.10,
       vsFilt: 0.40, hdgP: 0.65, hdgD: 0.85, bankSlew: 0.25, rollP: 1.6, rollD: 0.6,
       betaK: 0.3, yawDampK: 0.45, ariK: 0.15, bankLim: 0.42,
     },

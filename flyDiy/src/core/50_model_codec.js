@@ -159,7 +159,11 @@ function makeHingeBinding(skin, surfaces) {
 // Rodrigues rotation of (base - p) about unit axis by (angle * w), + p.
 function applyHinges(hb, surfaces, base, pos, ctl) {
   surfaces.forEach((s, si) => {
-    const ang = s.sgn * (s.k || 1) * (ctl[s.drive] || 0);
+    // A surface may answer to TWO inputs. A V-tail ruddervator is the reason:
+    // it is the elevator and the rudder at once, symmetric in one and
+    // antisymmetric in the other, and a vertex can only carry one surface id.
+    const ang = s.sgn * (s.k || 1) * (ctl[s.drive] || 0)
+      + (s.drive2 ? (s.sgn2 || 1) * (s.k2 || 1) * (ctl[s.drive2] || 0) : 0);
     const g = hb.per[si], [px, py, pz] = s.p, [ax, ay, az] = s.ax;
     for (let j = 0; j < g.idx.length; j++) {
       const i = g.idx[j], a = ang * g.w[j];

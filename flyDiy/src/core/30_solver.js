@@ -144,6 +144,17 @@ function makeSim(def, world) {
       } else if (st.kind === 'stab') {
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
         sn[0]=yUp[0]; sn[1]=yUp[1]; sn[2]=yUp[2];
+      } else if (st.kind === 'vtail') {
+        // V-TAIL panel: chord still aft, but the normal is canted out of the
+        // vertical by the panel's own dihedral, INWARD on each side:
+        //   n = cos G * up  -  side * sin G * right
+        // Both panels then lift upward together (their lateral parts cancel in
+        // symmetric flight) and oppositely in yaw, which is the whole trick —
+        // the mixing falls out of the geometry instead of being asserted.
+        const cV = st.cosV, sV = st.sinV * st.side;
+        sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
+        sn[0]=cV*yUp[0]-sV*zRt[0]; sn[1]=cV*yUp[1]-sV*zRt[1]; sn[2]=cV*yUp[2]-sV*zRt[2];
+        norm3(sn);
       } else { // fin
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
         sn[0]=zRt[0]; sn[1]=zRt[1]; sn[2]=zRt[2];
@@ -176,6 +187,18 @@ function makeSim(def, world) {
       } else if (st.kind === 'stab') {
         al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de;
         P = P_.polarTail;
+      } else if (st.kind === 'vtail') {
+        // ruddervator: elevator SYMMETRIC (both panels the same way, vertical
+        // forces add and lateral cancel), rudder ANTISYMMETRIC (the reverse)
+        // MINUS side, not plus. A V panel's normal leans INWARD (that is what
+        // dihedral does — it is the same geometry that gives a dihedralled wing
+        // its roll stability), so the panel that goes nose-up pushes the tail
+        // toward the centreline, not away from it. With +side the aeroplane
+        // yawed the wrong way on every rudder input: measured d(yawLeft)/d(dr)
+        // = -6991 against a conventional tail's +3814.
+        al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de
+             - P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
+        P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
         P = P_.polarTail;
@@ -201,7 +224,7 @@ function makeSim(def, world) {
       if (st.kind === 'wing') { out.wingFy += Fy; out.dbgAl += al; out.dbgN++;
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
-      else if (st.kind === 'stab') out.stabFy += Fy;
+      else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
       for (const [i, w] of st.w) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }

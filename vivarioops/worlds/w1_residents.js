@@ -41,15 +41,45 @@ export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 // site, and `chemoGain` is 0. Verified: the resolved mouth matches the old
 // expression exactly over 300 genomes.
 //
-// tools/c2residents.js was deliberately NOT re-run: it would breed new residents
-// and change the creatures, when what changed is the schema. The genome literals
-// above are left at "version":2 so that every load exercises the migration
-// rather than trusting it. `faunaVersion` in w1_slice.js is bumped 6 -> 7 in the
-// same commit, per the rule at the head of this file.
+// GENOME_V 6 moved them a THIRD time, and again the animals did not change.
+// `canonical()` now emits `morphology` and `origin`. The 5 -> 6 migration writes
+// `taperStrength: 0`, on which morphogen's `taperScale` returns the drawn scale
+// unchanged before touching anything — the same early-return discipline
+// `resolvePhaseLags` uses, and for the same reason: a migrated genome must be
+// provably unchanged, not unchanged if the arithmetic is right. `origin.founder`
+// is null, which is honest — nothing in a stored v2 literal records where it came
+// from, and marking these "wild" would manufacture provenance never measured.
+//
+// tools/c2residents.js was deliberately NOT re-run at any of the three: it would
+// breed new residents and change the creatures, when what changed is the schema.
+// The genome literals above are left at "version":2 so that every load exercises
+// the migration rather than trusting it.
+//
+// `faunaVersion` is 9 in w1_slice.js and covers BOTH of this session's
+// invalidations — the MUSCLE_STRESS ceiling split and this schema bump — because
+// they land in one commit, which is the same shape as the 6 -> 7 bump above.
+//
+// GENOME_V 7 MOVED THEM A FOURTH TIME, and again the animals did not change.
+// `canonical()` and the hash vector now carry `preyGain2`/`threatGain2`, the 6 ->
+// 7 migration writes both at 0, and `targetAngles` guards the second channel on
+// `turnBias2 !== 0` — so the added line does not execute for these three and
+// their trajectories are identical to the bit, not merely equivalent. What
+// changed is the SCHEMA, so what changed is the hash.
+//
+// The literals above stay at "version":2 for the fourth time running, for the
+// reason this file has given each time: every load exercises the whole migration
+// chain rather than trusting it. `tools/c2residents.js` was again NOT re-run —
+// it would breed new residents, and the residents are not what changed.
+//
+// `faunaVersion` goes 9 -> 10 with this. That IS the rule ("bumps on any change
+// that moves genome hashes") and it is worth contrasting with the same day's
+// curated additions, where it was bumped, L2-10 caught it, and it was reverted:
+// adding library entries moves no hash, and a bump there would have invalidated
+// every player's compiled records to announce a new shelf item.
 export const W1_RESIDENT_HASHES = [
-  "a85298ac10c71a4f",
-  "5865b4f4faea340f",
-  "ec071624d27f6c9b"
+  "366259228a894564",
+  "163a916241146115",
+  "cf431f32b7c9f3e4"
 ];
 
 export default W1_RESIDENT_GENOMES;

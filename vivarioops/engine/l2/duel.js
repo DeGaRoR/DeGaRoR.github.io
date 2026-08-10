@@ -241,6 +241,52 @@ export function bearingTo(sim, target, turnPlane = null) {
   return Math.max(-1, Math.min(1, rel / Math.PI));
 }
 
+/**
+ * PHASE 4.3 — THE BEARING THE SECOND OUTPUT NEEDS.
+ *
+ * `bearingTo` projects the target INTO the steering plane and returns one signed
+ * angle. Everything perpendicular to that plane is discarded, and until now that
+ * was the honest thing to do: there was one output, so a second input would have
+ * had nowhere to go.
+ *
+ * It is also why a target sitting on the plane normal commands nothing at all —
+ * it projects to zero, the creature is issued no turn, and `_zbeacon` measures
+ * exactly 8.00 cm of closure for the whole eel family on that placement. That is
+ * not a range limit or a weak gain; it is a coordinate collapsing.
+ *
+ * `elevation` is the discarded component, recovered: the signed angle of the
+ * target ABOVE the steering plane, normalised to [-1, 1] over +-90 degrees. A
+ * target in the plane reads 0 — so a creature that only ever sees in-plane
+ * targets gets the same zero it would have got from a channel that did not
+ * exist, which is what makes wiring this safe.
+ *
+ * Returned together with the in-plane bearing rather than as a second function
+ * because they share the whole projection, and because two call sites computing
+ * one plane each is how the sensor and the actuator drifted apart at B2 §5.
+ *
+ * @returns {{bearing:number, elevation:number}} both in [-1, 1]
+ */
+export function bearingPair(sim, target, turnPlane = null) {
+  const com = sim.centreOfMass();
+  const q = sim.bodies[0].rotation();
+  const qa = [q.x, q.y, q.z, q.w];
+
+  const n = turnPlane ? qrot(qa, turnPlane) : [0, 1, 0];
+  const nn = Math.hypot(n[0], n[1], n[2]);
+  const up = nn > 1e-9 ? [n[0] / nn, n[1] / nn, n[2] / nn] : [0, 1, 0];
+
+  const d3 = [target[0] - com[0], target[1] - com[1], target[2] - com[2]];
+  const dl = Math.hypot(d3[0], d3[1], d3[2]);
+  if (dl < 1e-9) return { bearing: 0, elevation: 0 };
+
+  // asin of the component along the plane normal — the angle out of the plane,
+  // over the +-90 degrees that angle can span.
+  const sinEl = (d3[0] * up[0] + d3[1] * up[1] + d3[2] * up[2]) / dl;
+  const elevation = Math.asin(Math.max(-1, Math.min(1, sinEl))) / (Math.PI / 2);
+
+  return { bearing: bearingTo(sim, target, turnPlane), elevation };
+}
+
 /** @deprecated pre-B2 horizontal bearing, kept only for what still reads it. */
 function _legacyBearing(sim, target) {
   const com = sim.centreOfMass();

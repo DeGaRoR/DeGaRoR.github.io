@@ -1,183 +1,147 @@
-// tools/_zturn.mjs — WHERE DOES THE STEERING COMMAND GO? (C1's open question)
+// tools/_zturn.mjs — SELECT ON TURN RATE. Offline. Not the game.
 //
-// turnRate median is 0.0032 rad/s — 0.18 degrees per second. A creature turns
-// under three degrees in a fifteen-second window, so no sensor, no plane and no
-// gain can close a steering loop. B2 §5 assumed the coordinate convention was
-// the reason; it was A reason, it is fixed, and this is the rest.
+//     node tools/_zturn.mjs [generations] [population] [seeds]
 //
-// C1 posed the question as "physics problem or units one". THE UNITS BRANCH IS
-// ALREADY NEARLY CLOSED and the codebase says so: controller.js sets
-// TURN_AUTHORITY = 1.0, meaning the commanded deflection is the joint's FULL
-// angular range, chosen from a sweep at 0.25/0.50/1.00 that measured x1.00 /
-// x2.05 / x3.38. You cannot ask a joint for more than its range — beyond 1.0 the
-// command lands outside angleLimits and setLimits clamps it, so the extra is
-// discarded by the constraint solver rather than delivered.
+// ── WHY THIS IS THE THING TO SELECT ON ───────────────────────────────────────
 //
-// But that sweep was run on the PD path, BEFORE the solver was defaulted, and
-// turnRate fell 10x when it was (0.03 -> 0.0032). So the question is no longer
-// "is the constant too small" but "which stage of the chain stopped passing the
-// command through". Three stages, measured separately:
+// `tools/_zlight.mjs` re-run post-Phase-A still fails: mean control-subtracted
+// closing +0.0109, ONE creature helped of seven. But its declared secondary said
+// exactly where the failure lives:
 //
-//   L1  COMMAND      TURN_AUTHORITY * range * side -> the target offset asked for.
-//                    Pure arithmetic. If this is not linear the bug is in
-//                    targetAngles and nothing else matters.
-//   L2  ACTUATION    target offset -> ACHIEVED mean joint angle offset. This is
-//                    where a weak or bounded motor loses the command, and where
-//                    angleLimits clamps it.
-//   L3  HYDRODYNAMICS achieved joint offset -> body turn rate. This is where an
-//                    asymmetric gait either does or does not produce a turning
-//                    moment against the fluid.
+//     corr(score, turnRate3d)        =  0.91
+//     corr(score, steeringAuthority) =  0.31
+//     corr(score, |sensor gain|)     =  0.07
 //
-// AND A SPECIFIC SUSPECT. The 00 §9 torque bound added at B2 §3.2 sizes itself
-// on the WORST-CASE command, which includes the full turn deflection:
-//     maxError = |bias| + amplitude*range + TURN_AUTHORITY*range + range
-// so a creature that COULD steer hard gets its stiffness divided by a larger
-// number, permanently, whether or not it ever issues that command. If that is
-// what happened, the bound is paying for steering authority it then prevents.
-// `boundTorque: false` isolates it.
+// Taxis is driven by turn rate and almost nothing else — the sensor gene explains
+// essentially none of it. The threshold sits near 14 deg/s (eel-unison, the only
+// creature that finds the light), the random corpus sits at 1.57 deg/s, and the
+// authored library proves 15.95 deg/s is reachable inside the existing grammar.
 //
-//   node tools/_zturn.mjs [nRandom]
+// A NINE-FOLD GAP, IN A SPACE THAT DEMONSTRABLY CONTAINS THE ANSWER, AND NOTHING
+// IN THIS PROJECT HAS EVER SELECTED FOR IT. That is what this tool is for.
+//
+// ── WHY IT SELECTS ON `turnCapability` AND NOT ON `turnRate3d` ───────────────
+//
+// Because `turnRate3d` alone is riggable, and the library already contains the
+// creature that rigs it. `eel` measures 45 deg/s with +bias and 0 deg/s with
+// -bias, always about the same axis: `steeringAuthority` 0.000. It does not steer,
+// it CIRCLES, and a naive turn-rate objective would crown it and breed a tank of
+// spinning animals that can never aim at anything.
+//
+//     turnCapability = turnRate3d * steeringAuthority        (contracts/species.js)
+//
+// which is what N21 now clamps L3 steering by, for the same reason.
+//
+//     creature      turnRate3d   authority   turnCapability
+//     eel              1.85        0.000         0.00
+//     eel-unison      15.95        1.000        15.95
+//
+// ── OFFLINE, DELIBERATELY ────────────────────────────────────────────────────
+//
+// This does not touch the app. The Vivarium keeps MANUAL selection on the ledger,
+// which is the standing decision: automatic selection comes last and will be L3's
+// birth-and-death, not a better burst button. This is a research tool that answers
+// "is turn rate selectable at all", and its output is a number and a genome, not
+// a change to what a player sees.
 import RAPIER from '@dimforge/rapier3d-compat';
 import { rngFrom } from '../trunk/rng.js';
-import { createRandomGenome } from '../engine/l1/factory.js';
-import { morphogenesis } from '../engine/l1/morphogen.js';
-import { createSimulation, FIXED_DT } from '../engine/l1/physics.js';
-import { TURN_AUTHORITY, turnSides } from '../engine/l1/controller.js';
-import { SEEDS } from '../worlds/seeds.js';
-import { W1_SLICE } from '../worlds/w1_slice.js';
+import { assessViability } from '../engine/l1/viability.js';
+import { seedPopulation } from '../engine/l1/breed.js';
+import { autoBurst } from '../engine/l2/objective.js';
+import { S3 } from '../engine/l2/probes.js';
+import W1_SLICE from '../worlds/w1_slice.js';
 
-const N_RANDOM = Number(process.argv[2] ?? 12);
 await RAPIER.init();
 
-const SETTLE = 2.0;
-const RUN = 8.0;
+const GENERATIONS = Number(process.argv[2] ?? 6);
+const POPULATION = Number(process.argv[3] ?? 16);
+const SEEDS = Number(process.argv[4] ?? 3);
+const R2D = 180 / Math.PI;
 
 /**
- * One run at a fixed turn bias. Returns the achieved mean joint deflection and
- * the body's turn rate, so L2 and L3 can be read separately.
+ * The objective. `turnCapability` in deg/s, zero for anything that will not build
+ * or will not probe — a body that cannot be measured has not earned a score.
+ *
+ * S3 costs two 8 s runs per creature (it applies the bias in BOTH directions so
+ * intrinsic curl cancels), so a generation of 16 is ~256 s of simulation. That is
+ * the price of an honest turn measurement and it is why this is offline.
  */
-function probe(plan, genome, bias, opts) {
-  const sim = createSimulation(RAPIER, plan, genome, { ...W1_SLICE, gravity: 0 },
-    { bounded: false, wrap: true, effort: 1, turnBias: 0, ...opts });
-  for (let k = 0; k < Math.round(SETTLE / FIXED_DT); k++) sim.step();
-  sim.control.turnBias = bias;
+function turnCapability(RAPIER_, genomes) {
+  return genomes.map((g) => {
+    let v;
+    try { v = assessViability(RAPIER_, g, W1_SLICE); } catch { return 0; }
+    if (!v.ok) return 0;
+    try {
+      const r = S3(RAPIER_, { plan: v.plan, genome: g, world: W1_SLICE, cruiseSpeed: 0.5 });
+      if (!r.valid) return 0;
+      const cap = r.turnRate3d * r.steeringAuthority * R2D;
+      return Number.isFinite(cap) ? cap : 0;
+    } catch { return 0; }
+  });
+}
 
-  const steps = Math.round(RUN / FIXED_DT);
-  const dirs = [];
-  let angleSum = 0, angleN = 0;
-  let last = sim.centreOfMass();
-  for (let k = 0; k < steps; k++) {
-    sim.step();
-    if (k % 12 === 0) {
-      // ACHIEVED joint deflection: the mean signed relative angle, taken against
-      // the side pattern so a bilateral creature's two sides do not cancel.
-      let s = 0;
-      for (let j = 0; j < plan.jointCount; j++) s += sim.relativeAngle(j) * (sim.control.sides ? sim.control.sides[j] : 1);
-      angleSum += s / Math.max(1, plan.jointCount); angleN++;
+/** Median, for reporting a population rather than its luckiest member. */
+const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
 
-      const c = sim.centreOfMass();
-      const d = [c[0] - last[0], c[1] - last[1], c[2] - last[2]];
-      const n = Math.hypot(...d);
-      if (n > 1e-6) dirs.push([d[0] / n, d[1] / n, d[2] / n]);
-      last = c;
-    }
+console.log(`_zturn — selection on turnCapability = turnRate3d * steeringAuthority`);
+console.log(`${GENERATIONS} generations x population ${POPULATION} x ${SEEDS} seeds, vs a RANDOM-SELECTION null arm`);
+console.log(`corpus baseline turnRate3d p50 1.57 deg/s · taxis threshold ~14 · eel-unison 15.95\n`);
+console.log(`seed   arm       gen0 best   gen0 med    final best   final med    gain`);
+
+const scoreArm = [], nullArm = [];
+
+for (let s = 1; s <= SEEDS; s++) {
+  for (const selection of ['score', 'random']) {
+    // SAME OPENING POPULATION IN BOTH ARMS. The null arm is only a null if the
+    // two differ in nothing but which survivors are kept — B2 §10 leads with
+    // "a 28x selection result was reproduced by random survivors", and the only
+    // defence against repeating that is to run them paired.
+    //
+    // `authoredSlots: 0` — no eels. This asks whether SELECTION can find a fast
+    // turner, and seeding the population with a hand-built one that already turns
+    // at 15.95 deg/s would answer a different and much easier question.
+    const start = seedPopulation({
+      RAPIER, rng: rngFrom('zturn', `seed:${s}`), world: W1_SLICE,
+      population: 6, authoredSlots: 0,
+    }).genomes;
+
+    const r = autoBurst({
+      RAPIER,
+      genomes: start,
+      rng: rngFrom('zturn', `burst:${s}:${selection}`),
+      world: W1_SLICE,
+      generations: GENERATIONS,
+      population: POPULATION,
+      keep: 6,
+      selection,
+      objective: turnCapability,
+      // NO adaptFn. `adaptGait` hill-climbs NET SPEED (gait.js:88), so handing it
+      // to a turning objective would tune every body for travel and then score it
+      // on rotation — ROADMAP §4.4's exact warning, one objective further on.
+      // And `inheritance` is left at its default 'weismann': the burst may score a
+      // body at its best, but only the birth genome breeds.
+    });
+
+    const h0 = r.history[0], hN = r.history[r.history.length - 1];
+    const gain = h0.best > 0 ? hN.best / h0.best : Infinity;
+    console.log(
+      String(s).padStart(4),
+      selection.padEnd(9),
+      h0.best.toFixed(2).padStart(10),
+      h0.median.toFixed(2).padStart(10),
+      hN.best.toFixed(2).padStart(13),
+      hN.median.toFixed(2).padStart(11),
+      (Number.isFinite(gain) ? `${gain.toFixed(2)}x` : '--').padStart(8),
+    );
+    (selection === 'score' ? scoreArm : nullArm).push(hN.best);
   }
-  // Turn rate: total swept angle of the velocity direction, per second.
-  let total = 0;
-  for (let i = 1; i < dirs.length; i++) {
-    const p = dirs[i - 1], q = dirs[i];
-    const c = [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
-    total += Math.asin(Math.min(1, Math.hypot(...c)));
-  }
-  const stiff = sim.motors ? sim.motors.stiff[0] : 0;
-  const bounded = sim.motors ? [...sim.motors.bounded].reduce((a, b) => a + b, 0) : 0;
-  sim.free();
-  return {
-    turnRate: total / RUN,
-    achieved: angleN ? angleSum / angleN : 0,
-    stiff, bounded,
-  };
 }
 
-/** Differenced across +/- bias, exactly as S3 does, so intrinsic drift cancels. */
-function differenced(plan, genome, bias, opts) {
-  const a = probe(plan, genome, +bias, opts);
-  const b = probe(plan, genome, -bias, opts);
-  return {
-    turnRate: Math.abs(a.turnRate - b.turnRate) / 2,
-    achieved: Math.abs(a.achieved - b.achieved) / 2,
-    stiff: a.stiff, bounded: a.bounded,
-  };
-}
-
-// ── the corpus ───────────────────────────────────────────────────────────────
-const subjects = [];
-for (const sd of SEEDS) {
-  if (sd.id === 'staircase') continue;
-  const genome = sd.genome ?? sd;
-  try { subjects.push({ id: sd.id, genome, plan: morphogenesis(genome) }); } catch { /* skip */ }
-}
-let added = 0;
-for (let i = 0; added < N_RANDOM; i++) {
-  const genome = createRandomGenome(rngFrom('turn', i));
-  let plan; try { plan = morphogenesis(genome); } catch { continue; }
-  if (plan.bodyCount < 3) continue;
-  subjects.push({ id: `r${i}`, genome, plan }); added++;
-}
-
-const median = (xs) => { const a = xs.slice().sort((p, q) => p - q); return a[Math.floor(a.length / 2)] ?? 0; };
-
-// ── L1 · the command is pure arithmetic. Verify it before measuring anything. ─
-console.log(`\n  _zturn · TURN_AUTHORITY = ${TURN_AUTHORITY} (full joint range)\n`);
-console.log('  L1 COMMAND — commanded deflection = TURN_AUTHORITY * range * turnBias');
-{
-  const s = subjects[0];
-  const sides = turnSides(s.plan);
-  const nz = [...sides].filter(x => x !== 0).length;
-  const allSame = [...sides].every(x => x === sides[0]);
-  const range = s.plan.joints[0].angleLimits[0];
-  console.log(`     ${s.id}: ${s.plan.jointCount} joints · range ${range.toFixed(3)} rad · `
-    + `sides ${allSame ? 'ALL THE SAME (uniform curl)' : 'MIXED (differential)'} · non-zero ${nz}`);
-  console.log(`     commanded offset at bias 1.0 = ${(TURN_AUTHORITY * range).toFixed(3)} rad `
-    + `= ${(100 * TURN_AUTHORITY).toFixed(0)}% of range — THE COMMAND IS ALREADY MAXIMAL\n`);
-}
-
-// ── L2 + L3 · sweep the ask, across actuator and torque bound ────────────────
-const CONDITIONS = [
-  ['pd',              { motor: 'pd' }],
-  ['solver bounded',  { motor: 'solver', boundTorque: true }],
-  ['solver unbounded', { motor: 'solver', boundTorque: false }],
-];
-const BIASES = [0.25, 0.5, 1.0, 2.0, 4.0];
-
-console.log('  L2 ACTUATION + L3 HYDRODYNAMICS — median over '
-  + `${subjects.length} creatures (${subjects.length - added} authored + ${added} random)\n`);
-console.log(`  ${'condition'.padEnd(18)} ${'bias'.padStart(5)}  ${'achieved rad'.padStart(13)} `
-  + `${'turnRate rad/s'.padStart(15)}  ${'deg/s'.padStart(7)}  ${'x vs bias .25'.padStart(13)}`);
-
-for (const [label, opts] of CONDITIONS) {
-  const base = { achieved: 0, turn: 0 };
-  for (const bias of BIASES) {
-    const rows = subjects.map(s => differenced(s.plan, s.genome, bias, opts));
-    const ach = median(rows.map(r => r.achieved));
-    const turn = median(rows.map(r => r.turnRate));
-    if (bias === BIASES[0]) { base.achieved = ach; base.turn = turn; }
-    console.log(`  ${label.padEnd(18)} ${String(bias).padStart(5)}  ${ach.toFixed(4).padStart(13)} `
-      + `${turn.toFixed(5).padStart(15)}  ${(turn * 180 / Math.PI).toFixed(2).padStart(7)}  `
-      + `${(base.turn > 0 ? turn / base.turn : 0).toFixed(2).padStart(13)}`);
-  }
-  console.log('');
-}
-
-// ── the torque bound, isolated ───────────────────────────────────────────────
-console.log('  THE TORQUE BOUND — what it costs the joints it is sizing\n');
-const b = subjects.map(s => differenced(s.plan, s.genome, 1.0, { motor: 'solver', boundTorque: true }));
-const u = subjects.map(s => differenced(s.plan, s.genome, 1.0, { motor: 'solver', boundTorque: false }));
-console.log(`  joints reduced by the bound: ${b.filter(r => r.bounded > 0).length}/${b.length} creatures`);
-console.log(`  median stiffness   bounded ${median(b.map(r => r.stiff)).toExponential(2)}`
-  + `   unbounded ${median(u.map(r => r.stiff)).toExponential(2)}`
-  + `   ratio ${(median(b.map(r => r.stiff)) / Math.max(1e-30, median(u.map(r => r.stiff)))).toFixed(3)}`);
-console.log(`  median achieved    bounded ${median(b.map(r => r.achieved)).toFixed(4)}`
-  + `   unbounded ${median(u.map(r => r.achieved)).toFixed(4)}`);
-console.log(`  median turnRate    bounded ${median(b.map(r => r.turnRate)).toFixed(5)}`
-  + `   unbounded ${median(u.map(r => r.turnRate)).toFixed(5)}\n`);
+console.log();
+console.log(`PRIMARY   score-selected final best, median over seeds : ${med(scoreArm).toFixed(2)} deg/s`);
+console.log(`NULL ARM  random-selected final best, median over seeds: ${med(nullArm).toFixed(2)} deg/s`);
+const lift = med(nullArm) > 0 ? med(scoreArm) / med(nullArm) : Infinity;
+console.log(`          selection over null: ${Number.isFinite(lift) ? `${lift.toFixed(2)}x` : 'n/a'}`);
+console.log();
+console.log(`A RESULT ONLY COUNTS IF IT BEATS THE NULL ARM. B2 §10: "a 28x selection`);
+console.log(`result was reproduced by random survivors." Report both numbers or neither.`);

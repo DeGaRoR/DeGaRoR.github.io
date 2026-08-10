@@ -99,10 +99,24 @@ export const SPECIES_FIELDS = [
    *
    * WHY IT WAS DEFERRED AND WHY IT IS NOT ANYMORE. §152 registered the two inputs
    * but left N21 on yaw, "because changing what N21 clamps by is a separate
-   * decision with its own consequences". That decision is now forced: taxis
+   * decision with its own consequences". That decision is now forced: a clamp on
+   * the wrong axis would cap the wrong animals, and yaw is demonstrably the wrong
+   * axis for a body that bends about its limbs' local X.
+   *
+   * ⚠ THE ARGUMENT THAT USED TO BE HERE IS WITHDRAWN. This note read "taxis
    * correlates with `turnRate3d` at r = 0.91 (tools/_zlight.mjs) and with the
    * sensor gain at 0.07, so turn capability is the quantity the ecosystem will
-   * select on, and a clamp on the wrong axis would cap the wrong animals.
+   * select on". That correlation was withdrawn upstream — re-run at n = 8 the
+   * pair swapped to 0.13 / 0.89 — and the replacement measurement is worse for
+   * it. `tools/_zgoal.mjs`, n = 17, Spearman against control-subtracted goal
+   * closure: turnCapability **-0.152**, turnRate3d -0.309, steeringAuthority
+   * 0.005, turnRadius 0.155. NOTHING KINEMATIC HERE PREDICTS ARRIVING.
+   *
+   * So this field is kept for what it honestly is — a capability ceiling, the
+   * fastest this body can turn when asked — and N21 may clamp by it. IT MUST NOT
+   * BE USED AS A SELECTION OBJECTIVE OR AS A PROXY FOR SEEKING. `tools/_zturn.mjs`
+   * already measured what selecting on it breeds: 5.38 -> 21.21 deg/s of
+   * capability, 0/5 -> 0/5 of reachability, and speed collapsed.
    *
    * MULTIPLICATION, NOT A GATE, because authority is continuous and a partial
    * reverser is a partially steerable animal. A hard `authority > 0.5` test would
@@ -118,8 +132,29 @@ export const SPECIES_FIELDS = [
   { name: 'turnPlaneX', producer: 'S3', note: 'steering plane normal, root-local frame' },
   { name: 'turnPlaneY', producer: 'S3', note: 'steering plane normal, root-local frame' },
   { name: 'turnPlaneZ', producer: 'S3', note: 'steering plane normal, root-local frame' },
-  { name: 'turnRadius',    producer: 'S3' },
+  // BRIDGE_V 7 -> 8. `turnRadius` used to be `cruiseSpeed / turnRate` — the
+  // STRAIGHT-line speed over the YAW rate at a saturated bias, two different
+  // operating points and the wrong axis. It is now the speed and the 3-D heading
+  // rate from the same run, at `bestBias`.
+  { name: 'turnRadius',    producer: 'S3', note: 'cm, at bestBias — turnSpeed / turnRate3d, both from the same run' },
   { name: 'turnSpeedRatio',producer: 'S3' },
+  /**
+   * The differential bend at which this body turns tightest, in units of
+   * TURN_AUTHORITY. A MEASURED PHENOTYPE, the same category as `turnRadius`:
+   * S3 sweeps `S3_BIASES` and reports the argmin of `turnSpeed / turnRate3d`.
+   *
+   * It exists because the response is NOT monotone in the command. At bias 1.0
+   * the commanded joint angle exceeds the joint's own limits, the stroke
+   * rectifies against them and thrust collapses — `eel-fast` turns 8.88 deg/s at
+   * bias 0.5 and 1.25 deg/s at 1.0. Reporting only the endpoint recorded
+   * `turnCapability` 0.000 and an infinite radius for two creatures that in fact
+   * reach a target in four of six directions.
+   *
+   * NOTHING IS TOLD ITS OWN bestBias. The control law is unchanged and still
+   * commands `clamp1(preyGain*bearing + threatGain*bearing)`; this field is a
+   * description of the body, for probes and for the record.
+   */
+  { name: 'bestBias',      producer: 'S3', note: '0..1 — the bias this body turns tightest at. Descriptive; the controller never reads it' },
 
   // ── disposition · S4/S5 deferred, fixture default in slice
   { name: 'pursuitGain',   producer: 'fixture', note: 'UNMEASURED — w1_slice default until S4' },

@@ -18,3 +18,9 @@ engine/l1/_z*.js
 # script plus its generation count (every rng is a pure function of `gen`). The
 # WINNERS are committed; the intermediate population is not.
 tools/_zselect_state*.json
+
+# `_zgoalevo` per-seed results. Same rule: reproducible from the script and the
+# seed, and a winner only enters the repo when it is promoted BY HAND into
+# `worlds/w1_curated.js` with its ancestry (standing rule 10).
+tools/_zgoalevo_seed*.json
+tools/_zgoalch2_seed*.json

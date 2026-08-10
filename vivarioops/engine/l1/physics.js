@@ -147,19 +147,41 @@ export const MUSCLE_STRESS = 2e6;
  * Every session that rediscovered "MUSCLE_STRESS is obviously too low" also
  * rediscovered that raising it breaks two gates, and retired it again.
  *
- * THE TWO NUMBERS THAT END THAT CYCLE, both measured over the corpus:
+ * WHAT ACTUALLY ENDS THE CYCLE — and the swimming half of it is subtler than the
+ * first version of this note claimed. Two DIFFERENT questions were being conflated:
  *
- *     muscle / WATER DRAG   ~2.1e3   muscle is ~2000x STRONGER than swimming needs
- *     muscle / WEIGHT @ g   ~0.098   muscle is ~10x WEAKER than standing needs
+ *   1. DOES THE STRENGTH LIMIT EVER BIND IN WATER?  No, and this is solid.
+ *      Delivered torque is 0.0065% of the ceiling (p50 6.5e-5) and clamp
+ *      saturation is 0.0000 across the corpus. Muscle STRENGTH is simply not the
+ *      thing limiting a swimmer here.
  *
- *     joints able to hold their own distal limb against gravity:
- *         6.9% at MUSCLE_STRESS 200    ->    100% at 2e6
- *     (design/_zunits.mjs, n=30 creatures / 277 joints)
+ *   2. CAN A JOINT HOLD ITS OWN LIMB UP AGAINST GRAVITY?  At 200, almost never:
+ *          6.9% of joints at MUSCLE_STRESS 200   ->   100% at 2e6
+ *      (design/_zunits.mjs, n=30 creatures / 277 joints.) This is a clean statics
+ *      comparison — known weight, known lever arm, no controller in the loop — so
+ *      it transfers directly to a world with a floor.
  *
- * BOTH PRIOR CLAIMS WERE RIGHT, ABOUT DIFFERENT LOADS. "Muscle is not the binding
- * constraint" is true of water. "The creature cannot lift itself" is true of
- * gravity. Neither is a rebuttal of the other, and quoting one alone is the whole
- * mechanism by which this argument regenerates.
+ * SO THE TWO OLD POSITIONS WERE ABOUT DIFFERENT LOADS, and neither rebuts the
+ * other: "muscle is not the binding constraint" is true of water, "the creature
+ * cannot lift itself" is true of gravity. Quoting one alone is the whole mechanism
+ * by which this argument regenerates.
+ *
+ * ── A RETRACTED NUMBER, RECORDED SO IT IS NOT REPEATED ──────────────────────
+ *
+ * This note first read "muscle is ~2000x STRONGER than swimming needs", from a
+ * ratio of per-joint muscle torque to the fluid torque on BODY 0. That comparison
+ * is wrong twice over: the root is the least-actuated body in the plan, and a
+ * joint's torque is not mainly spent against steady drag. Measured like for like —
+ * each joint against ITS OWN child limb, n=101 joints:
+ *
+ *     delivered / fluid on its own limb   p50   33.4     (not 2000)
+ *     delivered / inertial (I * alpha)    p50    8.18
+ *     spring : damping torque             p50   24.3 : 0.82
+ *
+ * The delivered torque is almost entirely the POSITION-TRACKING SPRING, and it is
+ * ~8x the pure cost of swinging the limb. That is a statement about controller
+ * stiffness (MOTOR_STIFFNESS, MOTOR_GAIN_STRESS), NOT about a strength surplus.
+ * Use (1) above for the swimming claim; it is the one the measurement supports.
  *
  * SO THE CEILING IS FREE TO BECOME PHYSICAL WHILE THE GAIN STAYS PUT. This
  * constant is the gain scale, in stress units because that is the shape the
@@ -1274,7 +1296,10 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // C1 — the mutable control input. Probes and duels write `effort` and
   // `turnBias` between steps; `sides` is computed once (N4). At the defaults
   // (effort 1, turnBias 0) `targetAngles` executes B3's arithmetic unchanged.
-  const control = makeControl(plan, opts);
+  // `jointAxes` is handed over so the Phase 4.3 second channel projects onto the
+  // SAME spawn-frame axes the solver constrains against, rather than a second
+  // derivation that could drift from it.
+  const control = makeControl(plan, opts, jointAxes);
 
   // ── N4, STATED HONESTLY (H8) ───────────────────────────────────────────────
   //
@@ -1315,6 +1340,31 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
   // probe traces, the duel energy rate, the L1-17 determinism assertion — reads
   // exactly what it read before and nothing downstream breaks silently.
   let workOut = 0, workAbsorbed = 0;
+  /**
+   * ── ACTIVE NEGATIVE WORK, SPLIT OUT OF `workAbsorbed` (1'.4) ───────────────
+   *
+   * `workAbsorbed` conflates two physically different things, and billing neither
+   * of them was the bug: a limb shoved backwards by the fluid against a slack
+   * joint (PASSIVE — genuinely free, the animal is being pushed around) and a
+   * muscle actively resisting while it lengthens (ECCENTRIC CONTRACTION — cheaper
+   * than shortening, but NOT free; it is what a quadriceps does walking downhill).
+   *
+   * The split is available without any new machinery because the actuator already
+   * computes its two torques separately:
+   *
+   *     springTau = k * (target - theta)   the ACTIVE element. The muscle.
+   *     dampTau   = -c * omega_rel         the PASSIVE element. Dissipation.
+   *
+   * so `springTau * omega_rel < 0` is precisely "the muscle is generating force
+   * while being lengthened", and the damper's power — always dissipative, always
+   * negative — stays free, which it should be.
+   *
+   * WHY IT MATTERS BEYOND BOOKKEEPING: while active braking is free, a controller
+   * can extract unlimited resistance from something that is billed as muscle
+   * everywhere else in this file. That is an exploit surface, and the kind
+   * selection finds.
+   */
+  let workEccentric = 0;
   let motorSteps = 0, motorSaturated = 0;   // erg; see the signed split above — S2 reads this at C1
   // The Hill power bound, counted separately from the error clamp: they bind for
   // different reasons and a run that saturates on power is a different animal from
@@ -2090,6 +2140,13 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
         const pSolver = tau * relOmega;
         if (pSolver > 0) workOut += pSolver * FIXED_DT;
         else workAbsorbed -= pSolver * FIXED_DT;
+        // The ACTIVE half of that absorption, from the spring alone. The damper's
+        // contribution is dissipative by construction and stays free; this is the
+        // muscle holding on while the joint lengthens it. Accumulated unsigned, in
+        // erg, and NOT added to any existing total — `work`, `workOut` and
+        // `workAbsorbed` all read exactly what they read before.
+        const pSpring = springTau * relOmega;
+        if (pSpring < 0) workEccentric -= pSpring * FIXED_DT;
         motorTheta[i] = thetaS; motorWant[i] = want[i]; motorRelOmega[i] = relOmega;
         motorSpringTau[i] = springTau; motorDampTau[i] = dampTau;
         motorSteps++;
@@ -2109,7 +2166,17 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
 
       const pPD = tx * dwx + ty * dwy + tz * dwz;
       if (pPD > 0) workOut += pPD * FIXED_DT;
-      else workAbsorbed -= pPD * FIXED_DT;
+      else {
+        workAbsorbed -= pPD * FIXED_DT;
+        // ON THIS PATH THE WHOLE TORQUE IS ACTIVE. The explicit PD applies one
+        // combined torque vector and never separates its spring and damper terms,
+        // so there is no passive component to exclude — all of the absorption is
+        // the actuator resisting. That makes the PD path's `workEccentric` an
+        // OVERESTIMATE relative to the solver path's, which is stated rather than
+        // hidden: the two paths' eccentric figures are not comparable, exactly as
+        // §3.2 already says of their costs of transport.
+        workEccentric -= pPD * FIXED_DT;
+      }
     }
   }
 
@@ -2143,6 +2210,15 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
     get workOut() { return workOut; },
     /** Energy the actuator ABSORBED — the joint driving the muscle, not the reverse. */
     get workAbsorbed() { return workAbsorbed; },
+    /**
+     * The ACTIVE part of that absorption — the muscle generating force while being
+     * lengthened. Eccentric contraction. A subset of `workAbsorbed`, in erg.
+     *
+     * Billed at `ECCENTRIC_COST` in engine/l2/forage.js `ledger`; free before
+     * 2026-08-09, which let a controller take unlimited braking from something
+     * charged as muscle everywhere else.
+     */
+    get workEccentric() { return workEccentric; },
 
     /**
      * The gains the solver motors were configured with, and which of them the
@@ -2211,7 +2287,7 @@ export function createSimulation(RAPIER, plan, genome, world, opts = {}) {
      * which is precisely the instantiation transient the settle exists to remove.
      */
     resetClock() {
-      t = 0; steps = 0; workOut = 0; workAbsorbed = 0;
+      t = 0; steps = 0; workOut = 0; workAbsorbed = 0; workEccentric = 0;
       // A5 - re-seed the entrained phase to the gradient the genome describes,
       // for the same reason the clock is zeroed: the driven phase must start
       // where the genome says, not wherever the settle left it.

@@ -101,6 +101,17 @@ export function cloneGenome(g) {
     seed: g.seed,
     rootNodeId: g.rootNodeId,
     mouth: { face: g.mouth.face, at: g.mouth.at.slice() },
+    // GENOME_V 6. A gene missing from this clone is silently dropped at breeding
+    // time — see the A3 note below, which is the same failure one layer down.
+    morphology: { ...g.morphology },
+    // PROVENANCE IS INHERITED, NOT RESET. This is the whole point of the field:
+    // `KIND.AUTHORED` in breed.js already labelled the creature that was PLACED
+    // from the seed library, and lost it at the first reproduction. Carrying
+    // `founder` through the clone is what makes "descended from an authored eel"
+    // answerable fifty generations later. `generations` is bumped by the callers
+    // that actually constitute a reproductive event, not here — cloneGenome is
+    // also used for scratch copies that are not births.
+    origin: { ...g.origin },
     nodes: g.nodes.map(cloneNode),
     connections: g.connections.map(cloneConn),
     material: { ...g.material },
@@ -115,6 +126,8 @@ export function cloneGenome(g) {
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
       chemoGain: g.controller.chemoGain,
+      preyGain2: g.controller.preyGain2,
+      threatGain2: g.controller.threatGain2,
       jointGenes,
     },
     social: { ...g.social },
@@ -516,6 +529,34 @@ function mutateProprioGain(g, rng) {
   return 'mutateProprioGain';
 }
 
+/**
+ * THE PROPORTION GRADIENT — GENOME_V 6, and it belongs to the `nodes` branch
+ * because it changes what the animal IS, not how it behaves.
+ *
+ * Same obligation as every gene here: without an operator it is inert whatever the
+ * factory draws, a lineage could never move it, and the whole corpus would measure
+ * one frozen value. That is the `preyGain` precedent and gate/breed.js asserts
+ * both that this operator exists and that it fires.
+ *
+ * WHY IT MUST BE ABLE TO REACH ZERO. `taperStrength` 0 is independent per-axis
+ * scaling — the pre-V6 morphology. The factory now draws from [0.5, 1.0] because
+ * the gradient is measured to be the better prior, but "better prior" is not
+ * "forbidden alternative": if independent axes ever win somewhere, a lineage must
+ * be able to evolve back to them. `RANGE.taperStrength` is the full [0, 1] and
+ * this operator jitters across all of it.
+ */
+function mutateTaper(g, rng) {
+  const which = rng.int(2) ? 'taperStrength' : 'taperRatio';
+  // REFUSES WHEN IT WOULD CHANGE NOTHING, as mutateProprioGain does and for the
+  // same reason: `jitter` clamps, so a draw off the end of the band lands back
+  // where it started and would count as the operator "firing" while the gene never
+  // moved. Returning null lets `mutate` walk on to the next operator.
+  const next = jitter(rng, g.morphology[which], RANGE[which]);
+  if (next === g.morphology[which]) return null;
+  g.morphology[which] = next;
+  return `mutateTaper:${which}`;
+}
+
 function resampleFreqMult(g, rng) {
   const ids = Object.keys(g.controller.jointGenes);
   if (!ids.length) return null;
@@ -629,12 +670,34 @@ function mutateChemoGain(g, rng) {
   return 'mutateChemoGain';
 }
 
+/**
+ * GENOME_V 7 — the SECOND steering channel's gains.
+ *
+ * THIS OPERATOR IS THE POINT OF THE WHOLE PHASE, not a formality. `preyGain` and
+ * `threatGain` sat in the schema for two milestones with no operator that could
+ * reach them, so every lineage carried the factory draw forever and the corpus
+ * measured exactly zero steering — a gene that cannot mutate is decoration.
+ * Standing rule 3 exists because of that, and L1-27 asserts this one fires.
+ *
+ * One of the two per call, chosen by the rng, so a lineage can move the prey and
+ * threat channels independently — the two are non-identifiable when a single
+ * bearing feeds both, and moving them together would guarantee they never separate.
+ */
+function mutateSteerGains2(g, rng) {
+  if (rng.int(2) === 0) {
+    g.controller.preyGain2 = jitter(rng, g.controller.preyGain2 ?? 0, RANGE.preyGain2);
+    return 'mutateSteerGains2:prey';
+  }
+  g.controller.threatGain2 = jitter(rng, g.controller.threatGain2 ?? 0, RANGE.threatGain2);
+  return 'mutateSteerGains2:threat';
+}
+
 // ── the weighted tree ────────────────────────────────────────────────────────
 
 const BRANCHES = {
-  nodes:       [addNode, removeNode, mutateRandomNode],
+  nodes:       [addNode, removeNode, mutateRandomNode, mutateTaper],
   connections: [addConnection, removeConnection, mutateRandomConnection],
-  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain],
+  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain, mutateSteerGains2],
   organs:      [mutateMouth, mutateSite, mutateChemoGain],
   material:    [mutateMaterial],
   social:      [mutateSocial],

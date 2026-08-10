@@ -75,13 +75,33 @@ console.log('\nATTACHMENT (0 = face centre, 1.41 = corner)');
 line('  |position| on parent face', posMag);
 
 // --- scale: does the chain taper, or wander? ---
-const scaleAniso = [], scaleMean = [];
+//
+// MEASURED FROM THE BUILT PLAN, NOT FROM `c.scale`. Since GENOME_V 6 the drawn
+// per-axis scales are not the ones applied: `taperScale` pulls them toward their
+// geometric mean and adds a per-depth gradient at morphogenesis. Reading
+// `g.connections[].scale` here reported the DRAWN value and showed the taper
+// having no effect at all — a measurement of the input, presented as a
+// measurement of the output.
+//
+// `cumulativeScale` is the running product down the chain, so the effective scale
+// applied at one connection is the child's divided by the parent's, per axis.
+const scaleAnisoDrawn = [], scaleAniso = [], scaleMean = [];
 for (const {g} of viable) for (const c of g.connections) {
-  const s = c.scale, mx = Math.max(...s), mn = Math.min(...s);
-  scaleAniso.push(mx/mn); scaleMean.push((s[0]+s[1]+s[2])/3);
+  const s = c.scale;
+  scaleAnisoDrawn.push(Math.max(...s) / Math.min(...s));
+}
+for (const {plan} of viable) for (const b of plan.bodies) {
+  if (b.parent < 0) continue;
+  const p = plan.bodies[b.parent];
+  const s = [0, 1, 2].map(k => b.cumulativeScale[k] / p.cumulativeScale[k]);
+  const mx = Math.max(...s), mn = Math.min(...s);
+  if (!(mn > 0)) continue;
+  scaleAniso.push(mx / mn);
+  scaleMean.push(Math.cbrt(s[0] * s[1] * s[2]));
 }
 console.log('\nSCALE PER CONNECTION');
-line('  anisotropy max/min', scaleAniso);
+line('  anisotropy DRAWN (gene)', scaleAnisoDrawn);
+line('  anisotropy APPLIED (body)', scaleAniso);
 line('  mean scale (1 = no change)', scaleMean);
 
 // --- parent-child geometric relation: overlap, abut, or float? ---

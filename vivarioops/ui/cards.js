@@ -45,6 +45,91 @@ export function displayName(spec) {
 }
 
 /**
+ * ── THE FIVE NUMBERS ON A CARD ───────────────────────────────────────────────
+ *
+ * Chosen so that no two say the same thing, and so that the pair a player is
+ * most likely to confuse sits side by side where the difference is visible.
+ *
+ *   FOOD   g/s in the STABILISED REGIME (engine/l2/forage.js `forageProfile`),
+ *          not total eaten. The first 30 s of any trial runs at 3x the rest
+ *          because the creature wakes inside an untouched patch, so a total is
+ *          mostly a fact about where it was dropped.
+ *   ×      the ledger multiplier, intake over spend, over the same window.
+ *   STRAIT net displacement over path length, 0..1. An arrow is 1, a thrasher
+ *          near 0.
+ *   SIZE   mass in grams.
+ *   TURN   `turnCapability` = turnRate3d x steeringAuthority, deg/s.
+ *
+ * WHY FOOD AND `×` ARE BOTH HERE, AND ADJACENT. ROADMAP §5b's first `_zselect`
+ * lesson: "never select on the ratio — it is a margin, won by not spending, and
+ * the cheapest way not to spend is not to move." Measured, Drifter posts the best
+ * multiplier in the library (94x) on a THIRD of the teal snarlback's intake. Show
+ * only the multiplier and a player breeds Drifters; show only intake and they
+ * breed gluttons. The two together are the honest question.
+ *
+ * WHY TURN IS CAPABILITY AND NOT RATE. `eel` turns 45 deg/s one way and 0 the
+ * other about a fixed axis — a circler, authority 0.000. Rate alone would rank it
+ * top of the Atlas.
+ *
+ * PENDING IS A STATE, NOT A BLANK. A profile costs a 180 s simulation, so it
+ * cannot run for forty specimens on page open; the card shows the label greyed
+ * until the measurement arrives. A dash with no explanation reads as "this
+ * creature scored nothing".
+ */
+const fmtMult = (r) => {
+  if (r == null || !Number.isFinite(r)) return r === Infinity ? '∞' : '—';
+  if (r < 10) return `${r.toFixed(1)}×`;
+  if (r < 1000) return `${r.toFixed(0)}×`;
+  return `${(r / 1000).toFixed(1)}k×`;
+};
+
+export function metricRows(spec) {
+  const p = spec.profile ?? null;
+  const out = [];
+  const row = (label, value, state) => {
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    if (state) dd.dataset.state = state;
+    out.push(dt, dd);
+  };
+  const pend = (label) => row(label, t('measuring…'), 'pending');
+
+  if (!p) {
+    pend(t('food'));
+    pend(t('ledger'));
+    pend(t('straight'));
+  } else if (!p.valid) {
+    row(t('food'), t('came apart'), 'bad');
+  } else {
+    // mg/s: grams are the engine unit but a creature eats milligrams a second,
+    // and `0.034 g/s` on a card is three leading characters of nothing.
+    row(t('food'), `${(1000 * p.foodPerSecond).toFixed(0)} mg/s`,
+      p.foodPerSecond > 0 ? 'good' : 'bad');
+    row(t('ledger'), fmtMult(p.multiplier), p.multiplier >= 1 ? 'good' : 'bad');
+    row(t('straight'), p.straightness.toFixed(2));
+  }
+
+  // Size comes from the record's own stats and is known without a profile, so it
+  // never shows as pending.
+  const mass = spec.stats?.mass ?? p?.size?.mass;
+  const bodies = spec.stats?.bodies ?? p?.size?.bodies;
+  if (mass != null) {
+    // CGS (01 §7): engine mass units ARE grams. A relabel, not a conversion.
+    row(t('size'), `${mass.toFixed(2)} g${bodies != null ? ` · ${bodies}` : ''}`);
+  }
+
+  const turn = spec.stats?.turnCapability ?? p?.turnCapability;
+  if (turn != null && Number.isFinite(turn)) {
+    row(t('turn'), `${turn.toFixed(1)}°/s`, turn >= 14 ? 'good' : null);
+  } else {
+    pend(t('turn'));
+  }
+  return out;
+}
+
+/**
  * Build a `.spec-card`.
  *
  * @param {object} spec  a stored `specimen:` record
@@ -73,24 +158,24 @@ export function specCard(spec, o = {}) {
     });
   }
 
-  const img = mk('spec-card-thumb', c, 'img');
+  // ── the art, with the name written across it ─────────────────────────────
+  const art = mk('spec-card-art', c);
+  const img = mk('spec-card-thumb', art, 'img');
   img.alt = '';
   if (spec.thumb) img.src = spec.thumb;
 
-  const { primary, secondary } = displayName(spec);
-  mk('spec-card-name', c).textContent = primary;
-  if (secondary) mk('spec-card-bino', c).textContent = secondary;
-
-  if (o.stats !== false) {
-    const bodies = spec.stats?.bodies;
-    const mass = spec.stats?.mass;
-    const line = [
-      bodies != null ? `${bodies} ${t('bodies')}` : null,
-      // CGS (01 §7): engine mass units ARE grams. A relabel, not a conversion.
-      mass != null ? `${mass.toFixed(2)} g` : null,
-    ].filter(Boolean).join(' · ');
-    if (line) mk('spec-card-stats', c).textContent = line;
+  if (spec.source === 'authored') {
+    const badge = mk('spec-card-badge', art, 'span');
+    badge.dataset.kind = 'library';
+    badge.textContent = t('ref');
   }
+
+  const legend = mk('spec-card-legend', art);
+  const { primary, secondary } = displayName(spec);
+  mk('spec-card-name', legend, 'b').textContent = primary;
+  if (secondary) mk('spec-card-bino', legend, 'i').textContent = secondary;
+
+  if (o.stats !== false) mk('spec-card-metrics', c, 'dl').replaceChildren(...metricRows(spec));
 
   if (o.selectable) mk('spec-card-tick', c);
   else if (o.action) c.append(o.action);

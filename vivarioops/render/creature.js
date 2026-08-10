@@ -478,8 +478,61 @@ export function buildCreature(plan, genome, opts = {}) {
     if (g.luminous) group.userData.glow.push({ index: b.index, flesh, organ: organMat });
   }
 
+  // ── RECEPTORS — the eyes, which until now were invisible ──────────────────
+  //
+  // `plan.receptors` has carried a position, an outward normal and a left/right
+  // side since GENOME_V 5, and NOTHING HAS EVER DRAWN IT. A player could not tell
+  // a sighted creature from a blind one by looking, which makes the whole of
+  // Phase 2 unwatchable: the interesting event in this project is a lineage
+  // GAINING a sense, and it was happening off screen.
+  //
+  // Small, bright, and emissive so they read against any body colour — a sighted
+  // animal should be identifiable across the tank at a glance, not by opening a
+  // sheet. Deliberately NOT scaled with the body: a receptor on a 2 cm limb and
+  // one on a 0.2 cm limb are the same organ, and scaling would hide the second.
+  //
+  // A creature with `chemoGain` 0 still shows them. The organ and the wiring are
+  // separate genes and separate evolutionary events, and `protea` is currently a
+  // live example of the first without the second — an eye with no nerve. Drawing
+  // only "working" eyes would hide exactly the intermediate state the plan is
+  // trying to watch for.
+  if (detail !== 'flat' && plan.receptors?.length) {
+    const eyeGeo = new THREE.SphereGeometry(RECEPTOR_R, 8, 6);
+    const eyeMat = new THREE.MeshStandardMaterial({
+      color: ramp[BONE_STOP].clone(),
+      emissive: glowColour.clone(),
+      emissiveIntensity: 1.4,
+      roughness: 0.25,
+      metalness: 0,
+    });
+    for (const rc of plan.receptors) {
+      const b = plan.bodies[rc.bodyIndex];
+      if (!b) continue;
+      const eye = new THREE.Mesh(eyeGeo, eyeMat);
+      // The receptor's `local` is already the face offset in body-local space,
+      // computed by the SAME `faceLocal` the mouth and every limb attachment
+      // use — so this is the organ where morphogenesis actually put it, not an
+      // approximation of it.
+      eye.position.set(...rc.local);
+      // Nudged a hair along the outward normal so it sits ON the surface rather
+      // than half-sunk in it. `normal` has been carried and unread since V5;
+      // this is its first reader.
+      eye.position.addScaledVector(new THREE.Vector3(...rc.normal), RECEPTOR_R * 0.6);
+      const holder = new THREE.Object3D();
+      place(holder, b);
+      holder.add(eye);
+      group.add(holder);
+    }
+  }
+
   return group;
 }
+
+/**
+ * Receptor mark radius, cm. A FIXED size, not a fraction of the body — see the
+ * note at the call site. Small enough to read as an organ rather than a growth.
+ */
+const RECEPTOR_R = 0.06;
 
 function place(mesh, body) {
   mesh.position.set(body.position[0], body.position[1], body.position[2]);

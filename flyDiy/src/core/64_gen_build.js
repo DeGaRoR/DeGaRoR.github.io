@@ -26,6 +26,26 @@ function genProbeAt(sim, V, a) {
   return r;
 }
 
+// Free-air CLmax by alpha sweep — the same scan GATE FLAPS runs on the fleet.
+// `flap` is the deflection to hold during the sweep, so one function measures
+// both the clean and the flapped maximum.
+function genClMax(def, flap) {
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  sim.ctl.flap = flap;
+  let Sw = 0;
+  for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
+  const V = 30;
+  let CLmax = 0;
+  for (let a = 2; a <= 22; a += 0.25) {
+    const al = a * Math.PI / 180;
+    const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
+    const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
+    CLmax = Math.max(CLmax, L / (0.5 * 1.225 * V * V * Sw));
+  }
+  return { CLmax, Sw, W: sim.totalM * 9.81 };
+}
+
 // alpha at which lift balances weight, secant, clamped short of the stall.
 function genAlphaForLift(sim, V, W, aMax) {
   let a0 = 0.01, a1 = 0.09;
@@ -105,8 +125,40 @@ function genShakedown(def) {
   let Sw = 0;
   for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
   const cBar = g.cBar || (def.strips.find(s => s.kind === 'wing') || {}).chord || 1;
+  // ---- does it stand up? -------------------------------------------------
+  // Settled on a flat plane (world = null), so the answer does not depend on
+  // which patch of grass it is parked on. This is the instrument that catches
+  // the failure a big engine used to cause: the gear folds, the aeroplane goes
+  // down on its firewall, and every aerodynamic number above stays perfectly
+  // healthy while it does. The nose-over angle is MEASURED off the settled
+  // geometry rather than derived — the derivation has to guess the attitude.
+  const st = makeSim(def, null);
+  st.reset(0);
+  for (let i = 0; i < 150; i++) st.step(1/60);
+  const idOf = t => def.nodes.findIndex(n => n.tag === t);
+  const iAx = idOf('AXLER'), iTw = def.refs.tw;
+  const aglOf = i => st.p[i*3+1] - st.r[i];
+  let gearStrain = 0, chassisStrain = 0, lowY = 1e9, lowTag = '';
+  for (const b of st.beams) {
+    if (b.gear) gearStrain = Math.max(gearStrain, Math.abs(b.strain));
+    else chassisStrain = Math.max(chassisStrain, Math.abs(b.strain));
+  }
+  for (let i = 0; i < st.n; i++) {
+    const y = st.p[i*3+1] - st.r[i];
+    if (y < lowY) { lowY = y; lowTag = def.nodes[i].tag; }
+  }
+  const cgS = st.cgPos(), axX = st.p[iAx*3], axY = aglOf(iAx);
+  const noseOver = Math.atan2(cgS[0] - axX, Math.max(0.05, cgS[1] - axY)) * 180 / Math.PI;
+  const onWheels = iAx >= 0 && Math.abs(aglOf(iAx)) < 0.06 && Math.abs(aglOf(iTw)) < 0.06;
+
+  const PPr = POWERPLANTS[def.params.powerplant];
+  const hp = PPr.engine.powerW / 745.7;
   const out = {
     mass: sim.totalM, W,
+    engineName: PPr.engine.name, hp, engineMass: PPr.engine.mass,
+    powerLoad: sim.totalM / Math.max(1e-6, hp),
+    onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
+    noseOver,
     Vs: g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
@@ -118,8 +170,31 @@ function genShakedown(def) {
     const ground = S.gear.y - S.gear.wheelR;
     const tw = def.nodes[P.TW];
     out.AR = g.AR;
-    out.deckAngle = Math.atan2((tw.p[1] - S.gear.twR) - ground, P.twX - P.gx) * 180 / Math.PI;
+    // atan, not atan2: this is the slope of the line through the two contacts,
+    // and a nosewheel sits AHEAD of the mains so atan2 wraps it to ~180 deg
+    out.deckAngle = Math.atan(((tw.p[1] - S.gear.twR) - ground) /
+                              (P.twX - P.gx)) * 180 / Math.PI;
+    out.gearType = S.gear.type;
+    out.bracing = P.bracing;
     out.propClear = (S.engY - S.propR) - ground;
+  }
+  // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the
+  // whole aero synthesis is built on; this runs the same free-air CLmax scan
+  // GATE FLAPS uses on the fleet, with the flaps down, so the panel can show
+  // what the high-lift device actually buys. Without it a flap is a line in the
+  // spec that changes no number anyone can see.
+  if (def.params.flaps) {
+    const cl = genClMax(def, 0), fl = genClMax(def, 1);
+    out.ClMaxClean = cl.CLmax;
+    out.ClMaxFlap = fl.CLmax;
+    out.VsFlap = Math.sqrt(2 * fl.W / (1.225 * fl.Sw * Math.max(1e-6, fl.CLmax)));
+    out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (1.225 * cl.Sw * Math.max(1e-6, cl.CLmax)));
+    out.VAppr = def.params.ap.VAppr;
+  }
+  if (P && P.ledger) {
+    out.ledger = P.ledger;
+    out.cost = 0;
+    for (const k in P.ledger) out.cost += P.ledger[k].cost;
   }
   return out;
 }
@@ -148,5 +223,21 @@ function buildGen(specIn) {
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;
   genTrim(def);
+  // The approach is flown WITH the flaps out, so the speeds that matter scale
+  // off the FLAPS-DOWN stall — Vref = 1.3 Vso is the real-world rule and the
+  // fleet's hand-set VAppr values already have their own flaps in them. Derived
+  // from the clean stall instead, a big high-lift device produced an aeroplane
+  // that approached far too fast: measured on a Fowler-flapped build, it flew
+  // the glideslope at MINUS 4.2 degrees alpha on 65% power and sailed over the
+  // touchdown zone still 16 m up, never landing at all. The lift was right; the
+  // speed it was told to fly was not.
+  if (params.flaps) {
+    const g = genClMax(def, 1);
+    const VsFlap = Math.sqrt(2 * g.W / (1.225 * g.Sw * Math.max(1e-6, g.CLmax)));
+    const r = VsFlap / params.gen.Vs;
+    params.ap.VAppr *= r;
+    params.ap.VApprShort *= r;
+    params.gen.VsFlap = VsFlap;
+  }
   return def;
 }

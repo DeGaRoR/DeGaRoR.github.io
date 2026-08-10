@@ -106,12 +106,70 @@ export const RANGE = {
   orientation:    [-Math.PI / 4, Math.PI / 4],  // NARROW — 10 §A5 correction 4
   scale:          [0.5, 2.0],       // cumulative down the chain
 
+  /**
+   * ── PROPORTION BECOMES A GRADIENT — GENOME_V 6, and it is a LAW, not a knob ──
+   *
+   * MEASURED (design/_zmorph.mjs, n=120): scale anisotropy is p50 **1.75 PER
+   * CONNECTION**, so every joint redistorts proportion between axes, and it
+   * COMPOUNDS down chains that reach tree depth 8. Composed with per-body aspect
+   * ratio p90 **11.96**, that is the whole "assemblies of stones" problem — and
+   * the runaway product is also why `mass` is the largest viability rejection at
+   * 26.8%, ALL of it too-heavy, median 98 g against a 40 g cap.
+   *
+   * THE SAME DEFECT AS `phaseLag`, ONE LAYER OVER. Independent per-node draws
+   * accumulated along a chain are a RANDOM WALK; biology gives a gradient. That
+   * exact change is what produced coordinated swimming here when `phaseBase` and
+   * `phaseSlope` replaced independently drawn lags — commanded coherence went from
+   * 0.08-0.15 on branched bodies to 0.947. This applies it to shape.
+   *
+   * `taperStrength` t — how far the drawn per-axis scales are pulled toward their
+   *   own geometric mean. 0 = the pre-V6 independent draws, EXACTLY. 1 = perfectly
+   *   isotropic, so a limb changes SIZE down the chain but never PROPORTION.
+   * `taperRatio` r — the size multiplier per unit of TREE depth. 1 = no gradient.
+   *   Below 1 a chain tapers to a tail; above 1 it flares.
+   *
+   *     effective_k = drawn_k^(1-t) * (geomean(drawn) * r^depth)^t
+   *
+   * At t = 0 this is `drawn_k` identically, which is what makes the 5 -> 6
+   * migration bit-identical. At t = 1, r = 1 it removes anisotropy while
+   * PRESERVING VOLUME, because the anchor is the connection's own geometric mean —
+   * so the two genes do one thing each and can be read separately.
+   *
+   * WHY THE FACTORY DRAWS t HIGH (see SLICE_LIMITS.taperStrength). Both bands are
+   * priors; the question is which prior has a justification. `[0.5, 2.0]` on three
+   * independent axes asserts "each axis of a limb is unrelated to the others",
+   * which is what the 1.75 measurement says is wrong. Biasing t toward 1 asserts
+   * "proportion is mostly inherited along a chain", which is the law. Stored
+   * genomes are untouched; only new draws see the new prior.
+   */
+  taperStrength:  [0, 1],           // 0 = pre-V6 independent axes; 1 = isotropic
+  taperRatio:     [0.7, 1.3],       // size multiplier per unit TREE depth; 1 = flat
+
   // Controller — 10 §A7, gains added by A3
   omega:          [0.5, 6.0],       // rad/s, global body frequency
   amplitude:      [0, 1],
   bias:           [-0.5, 0.5],
   preyGain:       [-1, 1],          // sign is EVOLVED, not declared (P2)
   threatGain:     [-1, 1],
+  /**
+   * GENOME_V 7 — THE SECOND STEERING CHANNEL (Phase 4.3).
+   *
+   * Same form and same range as the pair above, reading the OUT-OF-PLANE
+   * component of the bearing instead of the in-plane one, and driving the joints
+   * that lie along the body's second principal bend axis.
+   *
+   * BOTH DEFAULT TO 0 AND MIGRATE IN AT 0 — the `chemoGain` precedent, and for
+   * the same reason: an organ must be neutral at insertion (standing rule 4), so
+   * a creature is DEAF on this channel until a mutation moves the gain off zero.
+   * Without that, every stored genome would silently change behaviour on load.
+   *
+   * A single-plane body cannot use them however large they grow, because the
+   * actuator weights are a projection onto an axis it does not have. That is not
+   * a wasted gene: it is a gene whose expression depends on morphology, which is
+   * the kind of coupling this project exists to produce.
+   */
+  preyGain2:      [-1, 1],
+  threatGain2:    [-1, 1],
 
   // Material — 10 §A10
   hue:            [0, 1],
@@ -384,6 +442,19 @@ export function canonical(g) {
     rootNodeId: g.rootNodeId,
     // TOP LEVEL, NOT ON A NODE — see the CAPS note on why there is exactly one.
     mouth: { face: g.mouth.face, at: g.mouth.at.slice() },
+    // The proportion gradient. Genome-wide, not per-connection, for the same
+    // reason phaseBase is: a gradient that restarts at every limb is not a
+    // gradient. See RANGE.taperStrength.
+    morphology: {
+      taperStrength: g.morphology.taperStrength,
+      taperRatio: g.morphology.taperRatio,
+    },
+    // PROVENANCE IS PART OF IDENTITY and therefore part of the hash: an animal
+    // bred down from an authored eel is not the same specimen as a
+    // bit-identical one that arose from a random draw, and the Atlas must be
+    // able to say so. This is the field that makes "evolution discovered it"
+    // a checkable claim rather than a hopeful one.
+    origin: { founder: g.origin.founder, generations: g.origin.generations },
     nodes: g.nodes.map(canonNode),
     connections: g.connections.map(canonConnection),
     material: {
@@ -398,6 +469,8 @@ export function canonical(g) {
       omega: g.controller.omega,
       preyGain: g.controller.preyGain,
       threatGain: g.controller.threatGain,
+      preyGain2: g.controller.preyGain2,
+      threatGain2: g.controller.threatGain2,
       phaseBase: g.controller.phaseBase,
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
@@ -489,7 +562,7 @@ const MIGRATIONS = {
   1: (g) => ({
     ...g,
     version: 2,
-    controller: { ...g.controller, preyGain: 0, threatGain: 0 },
+    controller: { ...g.controller, preyGain: 0, threatGain: 0, preyGain2: 0, threatGain2: 0 },
     social: g.social ?? {
       trophic: 0, boldness: 0.5, cohesion: 0.5,
       separation: 0.5, alignment: 0.5, separationRadius: 1.5,
@@ -582,6 +655,70 @@ const MIGRATIONS = {
     nodes: g.nodes.map((n) => ({ ...n, sites: [] })),
     controller: { ...g.controller, chemoGain: 0 },
   }),
+
+  /**
+   * 5 -> 6 · THE PROPORTION GRADIENT, AND FOUNDER PROVENANCE. Bit-identical.
+   *
+   * TWO THINGS IN ONE BUMP, deliberately. `ROADMAP` §5b's standing lesson is
+   * "SPEND THE GENOME_V BUMP ONCE": every bump invalidates every compiled record,
+   * and `SCHEMA_OF` maps genome, specimen AND lineage to `GENOME_V`, so a missed
+   * migration has already made a player's whole Atlas invisible once.
+   *
+   * `morphology` — see RANGE.taperStrength. `taperStrength: 0` is the pre-V6
+   * behaviour EXACTLY: the resolver's early return means a migrated genome does
+   * not take the new code path at all, so it reproduces its previous bodies to the
+   * bit rather than to within floating-point. Same shape as the phaseBase/
+   * phaseSlope neutral, and for the same reason.
+   *
+   * `origin` — WHO A CREATURE IS DESCENDED FROM, and it survives breeding, which
+   * is the part that did not exist. `KIND.AUTHORED` in breed.js labels a creature
+   * in the breed call that PLACED it and is lost the moment it reproduces. Two of
+   * the six opening tank slots are authored eels (breed.js:363, and load-bearing —
+   * six random creatures through an honest actuator barely move), so without this
+   * field "evolution improved these" and "evolution DISCOVERED this" are
+   * indistinguishable downstream. They are very different claims and only the
+   * first is currently supported by any run.
+   *
+   * Migrated genomes get `founder: null` — unknown rather than "wild". That is
+   * honest: nothing in a stored v5 genome records where it came from, and marking
+   * them wild would manufacture provenance that was never measured.
+   */
+  5: (g) => ({
+    ...g,
+    version: 6,
+    morphology: { taperStrength: 0, taperRatio: 1 },
+    origin: { founder: null, generations: 0 },
+  }),
+
+  /**
+   * 6 -> 7 · THE SECOND STEERING CHANNEL (Phase 4.3). Bit-identical.
+   *
+   * `preyGain2` and `threatGain2` arrive at ZERO, which is the whole of the
+   * migration and the whole of the safety argument. `targetAngles` guards the
+   * second term on `turnBias2 !== 0`, so a migrated creature does not merely
+   * behave equivalently — the added line never executes and the arithmetic is
+   * the one it was measured with, to the bit.
+   *
+   * Same shape as `chemoGain` at 4 -> 5 and `taperStrength` at 5 -> 6, and for
+   * the same reason each time: an organ is neutral at insertion and metered on
+   * expression (standing rule 4). A creature is DEAF on this channel until a
+   * mutation moves a gain off zero, and `mutateSteerGains2` is the operator that
+   * can, with L1-27 asserting that it actually fires — the `preyGain` precedent,
+   * where a gene existed for two milestones, no operator ever reached it, and
+   * the whole corpus measured exactly zero.
+   *
+   * ⚠ AND THE OTHER HALF OF THE BUMP, because `SCHEMA_OF` maps genome, specimen
+   * AND lineage to `GENOME_V`: every stored record's key changes with it. That
+   * has made a player's whole Atlas invisible once already. `seedAtlas` re-plants
+   * the authored shelf, but a PLAYER-SAVED specimen is only reachable through
+   * this function, so this step existing and being correct is what stands between
+   * a schema bump and someone's bred lineages.
+   */
+  6: (g) => ({
+    ...g,
+    version: 7,
+    controller: { ...g.controller, preyGain2: 0, threatGain2: 0 },
+  }),
 };
 
 export function migrate(g, target = GENOME_V) {
@@ -615,6 +752,19 @@ export function validateGenome(g) {
   if (!Number.isInteger(g.seed) || g.seed < 0 || g.seed > 0xFFFFFFFF) e.push(`seed is not a uint32: ${g.seed}`);
   if (!Array.isArray(g.nodes) || g.nodes.length === 0) e.push('nodes is empty');
   if (!Array.isArray(g.connections)) e.push('connections is not an array');
+  // GENOME_V 6. Checked here rather than trusted, for the reason H6 gives about
+  // arity: a field that is read without being validated is a field that will one
+  // day arrive undefined and propagate a NaN into every body dimension.
+  if (!g.morphology || typeof g.morphology !== 'object') e.push('morphology is missing');
+  else {
+    if (!inRange(g.morphology.taperStrength, RANGE.taperStrength)) e.push(`morphology.taperStrength ${g.morphology.taperStrength} out of range`);
+    if (!inRange(g.morphology.taperRatio, RANGE.taperRatio)) e.push(`morphology.taperRatio ${g.morphology.taperRatio} out of range`);
+  }
+  if (!g.origin || typeof g.origin !== 'object') e.push('origin is missing');
+  else {
+    if (g.origin.founder !== null && typeof g.origin.founder !== 'string') e.push(`origin.founder must be a string or null, got ${typeof g.origin.founder}`);
+    if (!Number.isInteger(g.origin.generations) || g.origin.generations < 0) e.push(`origin.generations must be a non-negative integer, got ${g.origin.generations}`);
+  }
   if (e.length) return { ok: false, errors: e };
 
   const ids = new Set();
@@ -705,7 +855,8 @@ export function validateGenome(g) {
     if (d > CAPS.maxConnPerNode) e.push(`node ${nodeId}: ${d} outgoing connections, cap is ${CAPS.maxConnPerNode}`);
   }
 
-  for (const k of ['omega', 'preyGain', 'threatGain', 'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
+  for (const k of ['omega', 'preyGain', 'threatGain', 'preyGain2', 'threatGain2',
+                   'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
     if (!inRange(g.controller?.[k], RANGE[k])) e.push(`controller.${k} = ${g.controller?.[k]}`);
   }
   const jg = g.controller?.jointGenes || {};
@@ -761,7 +912,12 @@ export function geneValues(g) {
   }
   for (const c of g.connections) out.push(...c.position, ...c.orientation, ...c.scale);
   out.push(...g.mouth.at);
+  // NOT `origin` — that is provenance, not a gene. It is in `canonical` because it
+  // is part of identity, and out of here because no mutation operator may touch it
+  // and the gate's gene sweep must not try.
+  out.push(g.morphology.taperStrength, g.morphology.taperRatio);
   out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain,
+    g.controller.preyGain2, g.controller.threatGain2,
     g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain,
     g.controller.chemoGain);
   for (const k of Object.keys(g.controller.jointGenes)) {

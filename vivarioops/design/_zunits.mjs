@@ -133,10 +133,14 @@ const canHold = ratioG.filter((r) => r >= 1).length / ratioG.length;
 const atGain = 100 * ratioG.filter((r) => r * (M.MOTOR_GAIN_STRESS / M.MUSCLE_STRESS) >= 1).length / ratioG.length;
 console.log(`  joints that can hold their own limb          : ${(100 * canHold).toFixed(1)}%`);
 console.log(`  the same at the OLD shared value (${String(M.MOTOR_GAIN_STRESS).padStart(6)})  : ${atGain.toFixed(1)}%`);
-console.log('  ^ BOTH BLOCKS ARE TRUE OF DIFFERENT LOADS. Muscle is ~2000x stronger than');
-console.log('    the water asks for and, at the old value, ~10x weaker than gravity asks');
-console.log('    for. Quoting one alone is how this argument kept being retired and');
-console.log('    re-opened. The ceiling is now physical; the PD gains stayed put.');
+console.log('  ^ THE LAND NUMBER IS THE SOLID ONE: a clean statics comparison, known weight');
+console.log('    at a known lever arm, no controller in the loop. The WATER block above is');
+console.log('    a regime indicator only — it divides per-joint torque by the drag on BODY');
+console.log('    0, which is the least-actuated body, so it OVERSTATES the surplus badly.');
+console.log('    Like for like (each joint vs its own limb) the ratio is ~33x, not ~2000x,');
+console.log('    and most of it is the position-tracking spring rather than any strength');
+console.log('    surplus. The claim that survives is narrower: the CEILING never binds in');
+console.log('    water — delivered torque is ~0.0065% of it and saturation is 0.0000.');
 
 console.log('\nREGIME');
 row('speed', spd, 'cm/s');

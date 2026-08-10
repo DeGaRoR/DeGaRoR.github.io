@@ -82,9 +82,13 @@ export function isStale(specimen) {
 /**
  * Render `genome` to a square PNG data URL.
  *
- * A fresh renderer per call, torn down before returning: a portrait is taken
- * rarely (when the player saves, when the authored library is seeded, or once
- * per specimen when the look changes), and a persistent second WebGL context
+ * ⚠ THE NOTE THAT USED TO BE HERE IS WRONG AND IS KEPT ONLY AS A WARNING. It
+ * read "a fresh renderer per call, torn down before returning", and that is what
+ * the code did — but `dispose()` does not release a WebGL context, so every call
+ * leaked one until the browser hit its cap and killed the TANK's context. See
+ * `portraitRenderer` below for the measurement and the repair. A portrait is
+ * taken rarely (when the player saves, when the authored library is seeded, or
+ * once per specimen when the look changes), and a persistent second WebGL context
  * would sit alongside the tank's for the life of the app for no reason.
  *
  * @param {object} genome
@@ -100,12 +104,7 @@ export function renderThumbnail(genome, { worldId = 'w1', size = PORTRAIT_SIZE }
   // preserveDrawingBuffer so toDataURL() sees the frame we just drew. alpha off:
   // a translucent body needs something behind it — a transparent backdrop leaves
   // the shell reading as glass over nothing — and the studio plate is that.
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(size, size, false);
-  renderer.setPixelRatio(1);   // `size` is already the pixel count we want
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = tokenNumber('--tank-exposure');
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const renderer = portraitRenderer(size);
 
   const studio = createStudio(scene, worldId);
 
@@ -138,10 +137,73 @@ export function renderThumbnail(genome, { worldId = 'w1', size = PORTRAIT_SIZE }
   renderVignette(renderer, studio);
   const url = renderer.domElement.toDataURL('image/png');
 
-  // Give the GPU everything back — this context does not outlive the portrait.
+  // Give the GPU back everything the PORTRAIT owned. The renderer itself is
+  // shared and deliberately outlives the call — see `portraitRenderer`.
   disposeCreature(group);
   disposeStudio(studio);
-  renderer.dispose();
 
   return url;
+}
+
+/**
+ * ── ONE PORTRAIT RENDERER, REUSED. THIS WAS A BLACK-SCREEN BUG. ──────────────
+ *
+ * This function used to build `new THREE.WebGLRenderer(...)` per call and drop
+ * it with `renderer.dispose()`. `dispose()` releases three.js's own GPU objects
+ * and DOES NOT RELEASE THE WEBGL CONTEXT — the context lives until the canvas is
+ * garbage collected, which is not prompt and is not under our control.
+ *
+ * Browsers cap live WebGL contexts and evict the OLDEST when the cap is passed.
+ * The oldest context in this app is the tank's. So rendering enough portraits
+ * silently killed the thing the player is looking at, and the tank went black
+ * while the simulation kept running — which is exactly what it looked like,
+ * because the physics is Rapier on the CPU and never noticed.
+ *
+ * MEASURED, in the shipped build: with the tank's context alive, portraits were
+ * rendered one at a time and the tank's context was checked after each. It
+ * survived 8 and was LOST ON THE 16TH — Chrome's cap. `seedAtlas()` renders one
+ * portrait per library entry, 21 of them, in a burst at first load. That is the
+ * "black on first load" report, and phones hit it harder because their cap is
+ * lower and their GPU memory is smaller.
+ *
+ * A shared renderer fixes the cause rather than the symptom, and it is also the
+ * faster answer: creating a WebGL context is expensive, and the old code paid
+ * for 21 of them before the first screen appeared.
+ *
+ * `preserveDrawingBuffer` is required so `toDataURL()` sees the frame that was
+ * just drawn; it is set once here rather than per portrait.
+ */
+let _portrait = null;
+function portraitRenderer(size) {
+  // A context can still be lost for reasons outside this file — GPU reset, a
+  // backgrounded tab on a phone reclaiming memory. Rebuild rather than hand back
+  // a dead renderer and return a blank portrait.
+  if (_portrait && _portrait.getContext().isContextLost?.()) {
+    try { _portrait.dispose(); } catch { /* already gone */ }
+    _portrait = null;
+  }
+  if (!_portrait) {
+    _portrait = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    _portrait.setPixelRatio(1);            // `size` is already the pixel count
+    _portrait.toneMapping = THREE.ACESFilmicToneMapping;
+    _portrait.outputColorSpace = THREE.SRGBColorSpace;
+  }
+  // Per call: the exposure token can change with the theme, and callers may ask
+  // for different sizes.
+  _portrait.setSize(size, size, false);
+  _portrait.toneMappingExposure = tokenNumber('--tank-exposure');
+  return _portrait;
+}
+
+/**
+ * Release the shared portrait context. Nothing calls this in the app — the
+ * renderer is meant to live for the session — but a harness that tears the
+ * module down should have a way to hand the context back rather than rely on GC,
+ * which is the whole mistake this file just came out of.
+ */
+export function disposePortraitRenderer() {
+  if (!_portrait) return;
+  try { _portrait.forceContextLoss?.(); } catch { /* best effort */ }
+  try { _portrait.dispose(); } catch { /* best effort */ }
+  _portrait = null;
 }

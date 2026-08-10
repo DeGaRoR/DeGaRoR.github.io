@@ -122,6 +122,121 @@ export function sensorTurnBias(genome, preyBearing, threatBearing) {
               + genome.controller.threatGain * threatBearing);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4.3 · THE SECOND STEERING OUTPUT — and the reason there has to be one.
+//
+// Until now the whole nervous system was ONE NUMBER. `turnBias` is a scalar, so
+// whatever the body is capable of, the only postures a controller can command
+// are a one-dimensional family: bend this way, or bend exactly the opposite way.
+// That is why `turnPlane` is a single measured vector and why `steeringAuthority`
+// asks only whether the two signs reverse. THE PLANE WAS THE CONTROLLER'S, NOT
+// ALWAYS THE BODY'S.
+//
+// Measured over the library — spread of joint axes, normalised eigenvalues of
+// their covariance:
+//
+//     eel, eel-fast, eel-slow, eel-unison, eel-finned   1.000 / 0.000 / 0.000
+//     stumbler-striped                                  1.000 / 0.000 / 0.000
+//     snarlback-teal                                    0.992 / 0.008 / 0.000
+//     protea                                            0.737 / 0.203 / 0.060
+//     spokebeast-banded                                 0.754 / 0.174 / 0.072
+//
+// The eels are genuinely planar: `seeds.js` chains parallel revolute hinges, and
+// no command could ever bend one sideways. But `spokebeast-banded` and `protea`
+// have joint axes spanning all three dimensions — bodies that CAN bend in more
+// than one plane, which nothing could tell them to do. That is the gap this
+// closes, and it is a controller gap.
+//
+// IT IS EXACTLY ZERO ON A SINGLE-PLANE BODY, by construction rather than by a
+// threshold: the weights are the projection of each joint's axis onto the SECOND
+// principal axis of the body's own axis spread, and for a body whose hinges are
+// all parallel that residual is the zero vector and there is no second axis to
+// find. An eel is therefore bit-identical, not approximately unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 11 §10's form, on the OUT-OF-PLANE component of the same bearing. */
+export function sensorTurnBias2(genome, preyElev, threatElev) {
+  return clamp1((genome.controller.preyGain2 ?? 0) * preyElev
+              + (genome.controller.threatGain2 ?? 0) * threatElev);
+}
+
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/**
+ * The direction that best fits a set of axes, sign-free — the dominant
+ * eigenvector of `sum(v vᵀ)`.
+ *
+ * POWER ITERATION, NOT A CLOSED FORM, for two reasons. The closed-form symmetric
+ * eigenvector needs a branch per degenerate case and each branch is a place to
+ * be subtly wrong; and this must be DETERMINISTIC to the bit (N6), which a fixed
+ * start vector and a fixed iteration count give for free.
+ *
+ * The start vector is tried against all three axes because a start exactly
+ * orthogonal to the answer produces the zero vector and converges to nothing.
+ * That is not a hypothetical here: every body axis in this project is built from
+ * world-aligned frames, so exact orthogonality is the COMMON case, not a corner.
+ */
+function dominantAxis(vs) {
+  for (const start of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+    let x = start;
+    let ok = true;
+    for (let it = 0; it < 24; it++) {
+      const y = [0, 0, 0];
+      for (const v of vs) {
+        const d = dot3(v, x);
+        y[0] += d * v[0]; y[1] += d * v[1]; y[2] += d * v[2];
+      }
+      const n = Math.hypot(y[0], y[1], y[2]);
+      if (n < 1e-12) { ok = false; break; }
+      x = [y[0] / n, y[1] / n, y[2] / n];
+    }
+    if (ok) return x;
+  }
+  return null;
+}
+
+/**
+ * Per-joint weight for the second steering channel: how much of this joint's
+ * hinge axis lies along the body's SECOND principal bend axis.
+ *
+ * The sign is the projection's own, and that is deliberate — it replaces
+ * `turnSides`' mirror heuristic with the geometry itself. Two mirrored limbs
+ * carry reflected axes, so their projections have opposite signs and a single
+ * command bends them antisymmetrically without anything having to know which is
+ * the mirror instance.
+ *
+ * Returns all zeros — channel B silent — when the body has no second axis, which
+ * is every parallel-hinge chain in the library.
+ *
+ * @param {object} plan
+ * @param {number[][]} jointAxes spawn-frame axis per joint, from physics.js
+ *   `jointAxisAtSpawn`. Passed in rather than recomputed so the channel is
+ *   driven by the SAME axes the solver constrains against, and so this file
+ *   does not have to import the plan geometry it has never needed.
+ */
+export function turnAxis2(plan, jointAxes) {
+  const w = new Float64Array(plan.jointCount);
+  if (!jointAxes || jointAxes.length !== plan.jointCount || plan.jointCount === 0) return w;
+
+  const e1 = dominantAxis(jointAxes);
+  if (!e1) return w;
+
+  // What is left of each axis once the primary bend direction is removed. For a
+  // chain of parallel hinges this is the zero vector for every joint.
+  const resid = [];
+  for (const a of jointAxes) {
+    const d = dot3(a, e1);
+    const r = [a[0] - d * e1[0], a[1] - d * e1[1], a[2] - d * e1[2]];
+    if (Math.hypot(r[0], r[1], r[2]) > 1e-6) resid.push(r);
+  }
+  if (!resid.length) return w;          // single-plane body — nothing to command
+
+  const e2 = dominantAxis(resid);
+  if (!e2) return w;
+  for (let i = 0; i < plan.jointCount; i++) w[i] = dot3(jointAxes[i], e2);
+  return w;
+}
+
 /** An odd number of reflections makes a limb a mirror instance of its twin. */
 const isMirrored = (b) =>
   (((b.mirror.right ? 1 : 0) + (b.mirror.up ? 1 : 0) + (b.mirror.forward ? 1 : 0)) & 1) === 1;
@@ -175,15 +290,18 @@ export function turnSides(plan) {
  * `effort` is 11 §5's "global multiplier on omega" — S2 runs at 0.6, 1.0, 1.5.
  * `turnBias` is in [-1, 1]: S3 writes a constant, a duel writes sensorTurnBias().
  */
-export function makeControl(plan, opts = {}) {
+export function makeControl(plan, opts = {}, jointAxes = null) {
   return {
     effort: opts.effort ?? 1,
     turnBias: opts.turnBias ?? 0,
+    /** Phase 4.3. Inert at 0, and inert regardless on a single-plane body. */
+    turnBias2: opts.turnBias2 ?? 0,
     sides: turnSides(plan),
+    axis2: turnAxis2(plan, jointAxes),
   };
 }
 
-export const NEUTRAL_CONTROL = { effort: 1, turnBias: 0, sides: null };
+export const NEUTRAL_CONTROL = { effort: 1, turnBias: 0, turnBias2: 0, sides: null, axis2: null };
 
 /**
  * Target angle for every joint at simulation time `t`.
@@ -203,6 +321,8 @@ export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CON
   const omega = genome.controller.omega * control.effort;
   const turn = control.turnBias;
   const sides = control.sides;
+  const turn2 = control.turnBias2 ?? 0;
+  const axis2 = control.axis2;
   for (let i = 0; i < n; i++) {
     const j = plan.joints[i];
     const g = genome.controller.jointGenes[j.nodeId];
@@ -216,7 +336,35 @@ export function targetAngles(plan, genome, t, phases, out, control = NEUTRAL_CON
     // Guarded rather than always-added so that the neutral case is not merely
     // equal to B3's arithmetic but IS B3's arithmetic — no `+ 0`, no rounding
     // difference, nothing for a determinism assertion to trip over.
-    if (turn !== 0) dst[i] += sides[i] * turn * TURN_AUTHORITY * range;
+    // ── THE TWO STEERING CHANNELS SHARE ONE JOINT, SO THEY SHARE ITS BUDGET ──
+    //
+    // Both terms add to the SAME scalar joint angle, so unbudgeted they simply
+    // sum and a joint can be asked to bend twice as far as either channel alone
+    // could ask. Measured consequence, three-seed A/B: giving a lineage the
+    // second channel made overall goal closure WORSE on average (-0.032), and
+    // the seed with the largest loss ended 3.7x slower than its locked control
+    // (speed p50 0.0070 against 0.0257). That is the joint running out of range,
+    // the stroke rectifying against its limit and thrust collapsing — the same
+    // failure that made S3 read `eel-fast` at 1.25 deg/s when its real capability
+    // is 8.88, rebuilt one layer up.
+    //
+    // L1, NOT EUCLIDEAN, and that is forced rather than chosen: the two
+    // contributions are added to one number, so what the joint experiences is
+    // |a| + |b|. A Euclidean norm would permit sqrt(2) times the deflection at
+    // 45 degrees between the channels and clip exactly as before.
+    //
+    // BIT-IDENTICAL WHEN CHANNEL B IS SILENT, which is every stored creature and
+    // every measurement taken so far. `sides[i]` is +-1 and `clamp1` bounds
+    // `turn`, so with `turn2 = 0` the magnitude is |turn| <= 1, the scale is
+    // exactly 1, and the expression reduces to the term that was here before.
+    // The whole block is still skipped when both are zero, so B3's arithmetic is
+    // untouched rather than merely reproduced.
+    if (turn !== 0 || turn2 !== 0) {
+      const a = sides[i] * turn;
+      const b = axis2 ? axis2[i] * turn2 : 0;
+      const m = Math.abs(a) + Math.abs(b);
+      dst[i] += (a + b) * (m > 1 ? 1 / m : 1) * TURN_AUTHORITY * range;
+    }
   }
   return dst;
 }

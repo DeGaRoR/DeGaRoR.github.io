@@ -100,7 +100,10 @@ export async function runDuelGate() {
     // 9: A1/A2/A3, then GENOME_V 5 (organ placement), then the MUSCLE_STRESS
     // ceiling/gain split (200 -> 2e6 on the ceiling only). Each moves every genome
     // hash, so each is a re-freeze.
-    t.eq(W1_SLICE.faunaVersion, 9, 'faunaVersion bumps on any change that moves genome hashes; the latest is the MUSCLE_STRESS ceiling split');
+    // 10: GENOME_V 7, the second steering channel. `preyGain2`/`threatGain2` enter
+    // `canonical()` and the hash vector, so every genome hash moves and the three
+    // residents are re-frozen — the animals are bit-identical, the schema is not.
+    t.eq(W1_SLICE.faunaVersion, 10, 'faunaVersion bumps on any change that moves genome hashes; the latest is GENOME_V 7');
 
     // They were chosen for SPREAD; a fauna of three identical animals would
     // make the matchup matrix decorative. Asserted, not assumed.

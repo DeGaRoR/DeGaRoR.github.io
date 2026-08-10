@@ -23,6 +23,7 @@
 const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024 };
 const GEN_RADIAL = 20;          // fuselage section resolution
 const GEN_LSEG = 3;             // lengthwise slices per fuselage bay
+const GEN_WSEG = 2;             // spanwise slices per wing bay
 const GEN_AF = 22;              // airfoil points per surface
 
 // ---- mesh accumulator ------------------------------------------------------
@@ -122,16 +123,83 @@ function genAirfoil(naca) {
   return pts;                                   // open contour, TE..LE..TE
 }
 
+// Aerofoil as EVALUATORS rather than a fixed point list, so a section can be
+// resampled between any two chord fractions with a chosen point count. That is
+// the whole trick behind separated control surfaces: the fixed wing is lofted
+// over [0..hinge] and the surface over [hinge..1], both with constant row
+// lengths, so each is its own closed mesh and neither has to know about the
+// other. Sampling BOTH at the same parameter `hinge` makes the cove and the
+// surface's leading edge the same points by construction — no gap to close.
+function genAfEval(naca) {
+  const { m, p, t } = nacaParts(naca);
+  const yc = x => x <= p ? (m/(p*p))*(2*p*x - x*x) : (m/((1-p)*(1-p)))*((1-2*p) + 2*p*x - x*x);
+  const dyc = x => x <= p ? (2*m/(p*p))*(p - x) : (2*m/((1-p)*(1-p)))*(p - x);
+  const yt = x => 5*t*(0.2969*Math.sqrt(Math.max(0,x)) - 0.1260*x - 0.3516*x*x
+                       + 0.2843*x*x*x - 0.1015*x*x*x*x);
+  const at = (x, sgn) => {
+    const th = Math.atan(dyc(x)), T = yt(x);
+    return [x - sgn * T * Math.sin(th), yc(x) + sgn * T * Math.cos(th)];
+  };
+  return { up: x => at(x, 1), lo: x => at(x, -1) };
+}
+
+// Closed section between chord fractions a..b: upper walked b->a, then lower
+// a->b. Treated as a LOOP, so the cove (upper-a to lower-a) and the trailing
+// edge (lower-b back to upper-b) both close for free.
+function genAfSeg(naca, a, b, n) {
+  const E = genAfEval(naca);
+  const xs = i => a + (b - a) * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const pts = [];
+  for (let i = n; i >= 0; i--) pts.push(E.up(xs(i)));
+  for (let i = 0; i <= n; i++) pts.push(E.lo(xs(i)));
+  return pts;
+}
+
 // Station cross-section: blend from the bare truss rectangle to a rounded
 // former. theta 0 = top, +pi/2 = +z side, pi = bottom.
+// crownT applies at the top and fades to crownS by the sides — a step between
+// upper and lower halves leaves a visible kink right along the waterline, which
+// is exactly where the eye reads a fuselage's shape.
 function genRing(theta, halfW, halfD, crownT, crownS) {
   const cy = Math.cos(theta), cz = Math.sin(theta);
   const s = Math.min(halfD / Math.max(1e-6, Math.abs(cy)), halfW / Math.max(1e-6, Math.abs(cz)));
   const ry = cy * s, rz = cz * s;                       // truss rectangle
-  const crown = cy > 0 ? crownT : crownS;
+  const crown = crownS + (crownT - crownS) * Math.max(0, cy);
   const k = 1 + 0.15 * crown;                           // formers stand a little proud
   const ey = halfD * cy * k, ez = halfW * cz * k;       // rounded former
   return [ry + (ey - ry) * crown, rz + (ez - rz) * crown];
+}
+
+// generic swept tube, used for the engine block's cylinders and shaft
+function genTubeInto(M, A, C, r, seg, infl, B) {
+  const ax = genV3.norm(genV3.sub(C, A));
+  const up = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+  const e1 = genV3.norm(genV3.cross(ax, up)), e2 = genV3.cross(ax, e1);
+  const rings = [A, C].map((base, s) => {
+    const row = [];
+    for (let h = 0; h <= seg; h++) {
+      const a = 2 * Math.PI * (h % seg) / seg;
+      const off = genV3.add(genV3.mul(e1, r * Math.cos(a)), genV3.mul(e2, r * Math.sin(a)));
+      row.push(M.v(B(genV3.add(base, off)), h / seg, s, infl));
+    }
+    return row;
+  });
+  for (let h = 0; h < seg; h++)
+    M.quad(rings[0][h], rings[0][h+1], rings[1][h+1], rings[1][h]);
+  for (const [row, base] of [[rings[0], A], [rings[1], C]]) {
+    const c = M.v(B(base), 0.5, 0.5, infl);
+    for (let h = 0; h < seg; h++) M.tri(c, row[h], row[h+1]);
+  }
+}
+
+// axis-aligned box, for the crankcase
+function genBoxInto(M, lo, hi, infl, B) {
+  const V = [];
+  for (const x of [lo[0], hi[0]]) for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]])
+    V.push(M.v(B([x, y, z]), (x === lo[0] ? 0 : 1), (y === lo[1] ? 0 : 1), infl));
+  // index bits: x*4 + y*2 + z
+  const q = (a, b, c, d) => M.quad(V[a], V[b], V[c], V[d]);
+  q(0,1,3,2); q(4,6,7,5); q(0,4,5,1); q(2,3,7,6); q(0,2,6,4); q(1,5,7,3);
 }
 
 // ---------------------------------------------------------------------------
@@ -141,8 +209,11 @@ function genSkin(def) {
   const S = def.spec, P = def.parts, N = def.nodes;
   const FR = genRestFrame(def);
   const B = FR.to;
-  const skin = genMesh(), glass = genMesh(), frame = genMesh(),
-        strut = genMesh(), tyre = genMesh(), prop = genMesh();
+  // every control surface mesh, wing and tail alike: {group, pivot, axis, drive}
+  const CTRL_MESH = [];
+  const skin = genMesh(), frame = genMesh(), strut = genMesh(),
+        tyre = genMesh(), prop = genMesh(),
+        cowl = genMesh(), engine = genMesh();
   const w1 = i => [[i, 1]];
 
   // ---- 1. tubes: one hexagonal prism per beam -------------------------
@@ -173,21 +244,27 @@ function genSkin(def) {
   // ring's own normalised (uz, uy). A former that stands proud of the truss has
   // |u| > 1 and simply extrapolates — same weights, no special case.
   const ST = P.ST, F = P.F, fu = S.fuse;
-  // Glazing is INSET inside its bay, both along the body and around the
-  // section — a window that runs frame to frame reads as a missing panel, not
-  // as a window. Angles are measured from the top (0) toward either side.
-  const nCabinBays = 2;
-  const glazing = (bay, seg, th) => {
-    const a = Math.abs(((th + Math.PI) % (2*Math.PI)) - Math.PI);
-    if (bay === 0) return seg === GEN_LSEG - 1 && a < 1.02;     // windscreen
-    if (bay <= nCabinBays) return seg < GEN_LSEG - 1 && a > 0.92 && a < 1.86;  // side glass
-    return false;
+  // WINDOW CUTOUTS ARE OUT for now (user, G1.7). The glazing that was here cut
+  // real holes in the covering, and at this vertex budget a hole reads as a
+  // missing panel rather than a window. When it comes back it should be a
+  // painted pane on a solid surface, or a separate inset frame — not a hole.
+  //
+  // One section per lengthwise slice; a slice between two frames blends both.
+  // The TOP line of bay 0 is special: it holds the cowl deck level and then
+  // steps up to the cabin roof over `windRun`, which is the windscreen.
+  const bay0 = Math.max(1e-6, ST[1].x - ST[0].x);
+  const windFrac = Math.min(0.95, fu.windRun / bay0);
+  const smooth = (e0, e1, x) => {
+    const t = Math.max(0, Math.min(1, (x - e0) / Math.max(1e-6, e1 - e0)));
+    return t * t * (3 - 2 * t);
   };
-  // one section per lengthwise slice; a slice between two frames blends both
   const section = (i, s) => {
     const A = ST[i], C = ST[Math.min(i + 1, ST.length - 1)];
     const L = (a, b) => a + (b - a) * s;
-    return { x: L(A.x, C.x), w: L(A.w, C.w), yb: L(A.yb, C.yb), yt: L(A.yt, C.yt) };
+    // ahead of the cabin the deck is FLAT, then the windscreen rises
+    const st = i === 0 ? smooth(1 - windFrac, 1, s) : s;
+    return { x: L(A.x, C.x), w: L(A.w, C.w), yb: L(A.yb, C.yb),
+             yt: A.yt + (C.yt - A.yt) * st };
   };
   const sectionRow = (i, s) => {
     const g = section(i, s), fA = F[i], fB = F[Math.min(i + 1, F.length - 1)];
@@ -215,16 +292,7 @@ function genSkin(def) {
       const rowB = sectionRow(i, (sg + 1) / GEN_LSEG);
       const aS = rowA.ids || emitRow(rowA, skin), bS = emitRow(rowB, skin);
       rowA.ids = aS; rowB.ids = bS;
-      let aG = null, bG = null;
-      for (let h = 0; h < GEN_RADIAL; h++) {
-        const th = 2 * Math.PI * (h + 0.5) / GEN_RADIAL;
-        if (glazing(i, sg, th)) {
-          if (!aG) { aG = emitRow(rowA, glass); bG = emitRow(rowB, glass); }
-          glass.quad(aG[h], aG[h+1], bG[h+1], bG[h]);
-        } else {
-          skin.quad(aS[h], aS[h+1], bS[h+1], bS[h]);
-        }
-      }
+      for (let h = 0; h < GEN_RADIAL; h++) skin.quad(aS[h], aS[h+1], bS[h+1], bS[h]);
       lastFusRow = rowB;
     }
   }
@@ -244,37 +312,78 @@ function genSkin(def) {
     for (let h = 0; h < GEN_RADIAL; h++)
       skin.quad(lastRow[h], lastRow[h+1], tip[h+1], tip[h]);
   }
-  // cowl: ring 0 forward to the spinner backplate, blending to a circle and
-  // handing its weights over from the firewall frame to the engine mounts
+  // ---- 2b. the ENGINE BAY: its own component, its own cover ------------
+  // Deliberately NOT the front of the fuselage. Blending a firewall section
+  // smoothly into a spinner gives a carrot; a real light aeroplane is a
+  // straight-sided box with an engine in it and a cowl over the engine. So the
+  // cowl holds full section for `cowl.straight` of its length and only then
+  // necks to the spinner, and the block inside it is drawn separately —
+  // uncovered in Frame mode, hidden under the cowl in Covered mode.
   const hub = [S.engX - 0.10, S.engY, 0];
+  const eng2 = [[P.EL, 0.5], [P.ER, 0.5]];
   {
     const s0 = ST[0], f0 = F[0];
     const yc0 = 0.5 * (s0.yb + s0.yt), hD0 = 0.5 * (s0.yt - s0.yb);
-    // the cowl must close ON the spinner backplate, or it ends as an open tube
-    const rHub = Math.max(0.075, 0.16 * S.propR);
-    const steps = [0, 0.35, 0.68, 0.90, 1];
-    const rows = steps.map(t2 => {
-      const x = s0.x + (hub[0] - s0.x) * t2;
+    const xNose = hub[0];                       // flat front face (x is AFT)
+    const len = Math.max(0.12, s0.x - xNose);
+    const fil = Math.min(S.cowl.fillet, 0.40 * Math.min(s0.w, hD0), 0.45 * len);
+    // Sections along the cowl: a straight extrusion of the FIREWALL's own
+    // section (same crown, so the joint cannot show a ridge), drawing in
+    // slightly, then rolled over a quarter-round onto a flat nose. `shrink` is
+    // an absolute inset — that is what makes it a true fillet rather than a
+    // scale, so the corners round without the face going oval.
+    const NF = 4;
+    const steps = [{ x: s0.x, k: 1, shrink: 0 },
+                   { x: xNose + fil, k: S.cowl.taper, shrink: 0 }];
+    for (let i = 1; i <= NF; i++) {
+      const a = (i / NF) * Math.PI / 2;
+      steps.push({ x: xNose + fil - fil * Math.sin(a), k: S.cowl.taper,
+                   shrink: fil * (1 - Math.cos(a)) });
+    }
+    const rows = steps.map(st => {
+      const t2 = (s0.x - st.x) / len;
+      const hw = Math.max(0.02, s0.w * st.k - st.shrink);
+      const hd = Math.max(0.02, hD0 * st.k - st.shrink);
       const row = [];
       for (let h = 0; h <= GEN_RADIAL; h++) {
         const th = 2 * Math.PI * (h % GEN_RADIAL) / GEN_RADIAL;
-        const [dy, dz] = genRing(th, s0.w, hD0, fu.crownTop, fu.crownSide);
-        // blend the firewall section into a circle at the spinner backplate
-        const e = 1 - Math.pow(1 - t2, 2);
-        const cy2 = yc0 + dy * (1 - e) + (S.engY - yc0 + rHub * Math.cos(th)) * e;
-        const cz2 = dz * (1 - e) + rHub * Math.sin(th) * e;
-        const uz = dz / Math.max(1e-6, s0.w), uy = dy / Math.max(1e-6, hD0);
+        const [dy, dz] = genRing(th, hw, hd, fu.crownTop, fu.crownSide);
+        // weights follow the section's own normalised coordinates, so the
+        // covering still flexes with the firewall frame and the engine mounts
+        const uz = dz / Math.max(1e-6, hw), uy = dy / Math.max(1e-6, hd);
         const wL = 0.5*(1-uz), wR = 0.5*(1+uz), wT = 0.5*(1+uy), wBo = 0.5*(1-uy);
         const k = 1 - t2;
         const infl = [[f0.TL, k*wT*wL], [f0.TR, k*wT*wR], [f0.BL, k*wBo*wL],
                       [f0.BR, k*wBo*wR], [P.EL, 0.5*t2], [P.ER, 0.5*t2]];
-        row.push(skin.v(B([x, cy2, cz2]), h / GEN_RADIAL, genUVBody(0) * (1 - t2), infl));
+        row.push(cowl.v(B([st.x, yc0 + dy, dz]), h / GEN_RADIAL,
+                        genUVBody(0.02 * (1 - t2)), infl));
       }
       return row;
     });
     for (let r = 0; r < rows.length - 1; r++)
       for (let h = 0; h < GEN_RADIAL; h++)
-        skin.quad(rows[r+1][h], rows[r+1][h+1], rows[r][h+1], rows[r][h]);
+        cowl.quad(rows[r+1][h], rows[r+1][h+1], rows[r][h+1], rows[r][h]);
+    // flat nose, capped IN the plane of the last ring. (It was inset 12 mm
+    // once, which left a lip you could see into — the "big opening".)
+    const last = rows[rows.length - 1];
+    const capC = cowl.v(B([xNose, yc0, 0]), 0.5, genUVBody(0), eng2);
+    for (let h = 0; h < GEN_RADIAL; h++) cowl.tri(capC, last[h+1], last[h]);
+  }
+  // the block: crankcase, four cylinders, prop shaft. Scaled off the registry
+  // mass so a bigger engine looks like one.
+  {
+    const PP = POWERPLANTS[S.engine];
+    const k = Math.cbrt(Math.max(8, PP.engine.mass) / 80);
+    const xF = S.engX - 0.09 * k, xA = S.engX + 0.19 * k;      // case, fore/aft
+    const hw = 0.105 * k, hh = 0.105 * k;
+    genBoxInto(engine, [xF, S.engY - hh, -hw], [xA, S.engY + hh, hw], eng2, B);
+    for (const sgn of [1, -1]) {
+      for (const xc of [S.engX + 0.01 * k, S.engX + 0.14 * k]) {
+        genTubeInto(engine, [xc, S.engY - 0.02 * k, sgn * hw],
+                    [xc, S.engY + 0.02 * k, sgn * 0.30 * k], 0.072 * k, 8, eng2, B);
+      }
+    }
+    genTubeInto(engine, [xF, S.engY, 0], [hub[0] + 0.02, S.engY, 0], 0.035 * k, 8, eng2, B);
   }
 
   // ---- 3. wing --------------------------------------------------------
@@ -285,57 +394,213 @@ function genSkin(def) {
   const af = genAirfoil(S.wing.naca);
   const sparF = P.sparFront, sparR = P.sparRear;
   const kOf = xc => (xc - sparF) / (sparR - sparF);
-  const aStart = 0.62 * S.geom.semi;
-  const AIL_HINGE = 0.72;                       // aileron hinge, fraction of chord
-  const wingSection = (nF, nR, chord, sid) => {
-    const pF = N[nF].p, pR = N[nR].p;
+  // Hinge lines follow the chords the player actually set, so a 30% aileron
+  // LOOKS like a 30% aileron. The flap band is inboard, the aileron outboard,
+  // and clampSpec has already guaranteed the gap between them.
+  const CTL = S.controls;
+  const aStart = (1 - CTL.aileron.span) * S.geom.semi;
+  const AIL_HINGE = 1 - CTL.aileron.chord;
+  const FLAP_ON = GEN_FLAPS[CTL.flap.type].dCl > 0;
+  const fEnd = FLAP_ON ? CTL.flap.span * S.geom.semi : -1;
+  const FLAP_HINGE = 1 - CTL.flap.chord;
+  // sidAt: which control surface this station belongs to, or 0. Outboard of
+  // aStart is aileron, inboard of fEnd is flap; the hinge fraction differs
+  // between them, so the caller passes both and the section picks per vertex.
+  // A section from arbitrary spar POINTS with arbitrary influence lists, so a
+  // row can sit between spar stations. The node weights are the chordwise blend
+  // times the spanwise one, which is exactly what the loft was already doing at
+  // the stations themselves — subdividing adds resolution on the same ruled
+  // surface and moves no geometry.
+  // `pts` is the chord-fraction contour to map — genAfSeg over whatever range
+  // this piece needs. It USED to ignore its last argument and always map the
+  // full aerofoil `af`, which is how the cut silently did nothing: the fixed
+  // skin and the control surface were both built full-chord, so the aeroplane
+  // grew a second wing that rotated. Measured: both spanned x -0.492..1.108.
+  const wingSectionAt = (pF, pR, wF, wR, chord, pts) => {
     const ch = genV3.norm(genV3.sub(pR, pF));                 // LE -> TE
-    const span = genV3.norm(genV3.sub(pR, pF));
-    void span;
-    // section normal: chord x spanwise. Spanwise from the node's own z sign so
-    // both wings get an outward-consistent normal.
-    const sgn = pF[2] >= 0 ? 1 : -1;
-    const nrm = genV3.norm(genV3.cross(ch, genV3.mul([0, 0, 1], sgn)));
-    return af.map(([xc, yc]) => {
+    // The section's thickness axis must point UP on BOTH wings. Deriving it
+    // from the wing's own z sign flipped it on the left, so the aerofoil was
+    // built upside down on one side — visible as a mirrored camber, and the
+    // centre section came out twisted between the two.
+    let nrm = genV3.norm(genV3.cross(ch, [0, 0, 1]));
+    if (nrm[1] < 0) nrm = genV3.mul(nrm, -1);
+    return (pts || af).map(([xc, yc]) => {
       const base = genV3.add(pF, genV3.mul(ch, (xc - sparF) * chord));
       const p = genV3.add(base, genV3.mul(nrm, yc * chord));
       const k = kOf(xc);
-      return { p, infl: [[nF, 1 - k], [nR, k]],
-               sid: sid && xc > AIL_HINGE ? sid : 0, u: xc };
+      const infl = [];
+      for (const [i2, w2] of wF) if (w2 > 1e-6) infl.push([i2, (1 - k) * w2]);
+      for (const [i2, w2] of wR) if (w2 > 1e-6) infl.push([i2, k * w2]);
+      return { p, infl, u: xc };
     });
   };
-  const emitLoft = (rows, mesh, vOf) => {
+  // `flip` reverses the winding. The left wing is the mirror of the right, so
+  // the same index pattern traverses it the other way round and every triangle
+  // ends up facing inward — the surface renders (materials are DoubleSide) but
+  // computeVertexNormals then lights that whole wing from the wrong side.
+  const wingSection = (nF, nR, chord) =>
+    wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord, af);
+  // `close` wraps the last column back onto the first, which is what turns an
+  // open aerofoil contour into a closed tube — needed once a section is cut at
+  // a hinge, because then its ends no longer meet at a sharp trailing edge.
+  const emitLoft = (rows, mesh, vOf, flip, close) => {
     const ids = rows.map((row, r) => row.map(pt =>
       mesh.v(B(pt.p), pt.u, genUVPanel(vOf(r)), pt.infl, pt.sid)));
-    for (let r = 0; r < ids.length - 1; r++)
-      for (let h = 0; h < ids[r].length - 1; h++)
-        mesh.quad(ids[r][h], ids[r][h+1], ids[r+1][h+1], ids[r+1][h]);
+    for (let r = 0; r < ids.length - 1; r++) {
+      const n = ids[r].length, last = close ? n : n - 1;
+      for (let h = 0; h < last; h++) {
+        const h2 = (h + 1) % n;
+        if (flip) mesh.quad(ids[r][h], ids[r+1][h], ids[r+1][h2], ids[r][h2]);
+        else      mesh.quad(ids[r][h], ids[r][h2], ids[r+1][h2], ids[r+1][h]);
+      }
+    }
     return ids;
   };
-  const capLoft = (ids, mesh) => {
+  const capLoft = (ids, mesh, flip) => {
     // close a section with a fan to its mid-chord point
     for (const row of ids) {
       const n = row.length;
-      for (let h = 1; h < n - 1; h++) mesh.tri(row[0], row[h], row[h+1]);
+      for (let h = 1; h < n - 1; h++)
+        if (flip) mesh.tri(row[0], row[h+1], row[h]);
+        else      mesh.tri(row[0], row[h], row[h+1]);
     }
   };
-  for (const [side, fw, sid] of [[1, P.wf.R, 3], [-1, P.wf.L, 4]]) {
+  const W = S.wing, TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
+  // ---- 3b. the wing, and its control surfaces as SEPARATE MESHES ----------
+  // The fixed skin is lofted over [0..hinge] and each surface over [hinge..1].
+  // They are different groups, so a surface is a rigid body with a pivot and an
+  // axis — the viewer turns the MESH. Nothing is deformed, so nothing outside
+  // the surface can be dragged along by it (the rounded tip used to swing with
+  // the aileron because it happened to carry the aileron's vertex tag).
+  const NAF = 9, NSURF = 4;          // chordwise points: fixed part / surface
+  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
+    const sd = side > 0 ? 'R' : 'L';
     const zAll = [P.zRoot, ...P.zs];
-    const rows = [];
-    for (let i = 0; i < fw.F.length; i++) {
-      const z = zAll[i];
-      rows.push(wingSection(fw.F[i], fw.R[i], P.chordAt(z), z > aStart ? sid : 0));
+    const zAilEnd = W.tipR > 1e-6 ? W.tipZ : zAll[zAll.length - 1];
+    // which surface owns a station, and where its hinge is
+    const bandAt = z => {
+      if (z > aStart - 1e-6 && z < zAilEnd + 1e-6) return { n: 'ail', h: AIL_HINGE };
+      if (FLAP_ON && z < fEnd + 1e-6 && z > P.zRoot - 1e-6) return { n: 'flap', h: FLAP_HINGE };
+      return null;
+    };
+    // spar frame at an arbitrary z, and a section over any chord range
+    const frameAt = z => {
+      let b2 = 0;
+      while (b2 < zAll.length - 2 && z > zAll[b2 + 1]) b2++;
+      const z0 = zAll[b2], z1 = zAll[b2 + 1];
+      const t = Math.max(0, Math.min(1, (z - z0) / Math.max(1e-9, z1 - z0)));
+      const F0 = fw.F[b2], F1 = fw.F[b2 + 1], R0 = fw.R[b2], R1 = fw.R[b2 + 1];
+      const lerp = (a3, b3) => [a3[0] + (b3[0]-a3[0])*t, a3[1] + (b3[1]-a3[1])*t,
+                                a3[2] + (b3[2]-a3[2])*t];
+      return { pF: lerp(N[F0].p, N[F1].p), pR: lerp(N[R0].p, N[R1].p),
+               wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
+               chord: P.chordAt(z) };
+    };
+    const secAt = (z, a, b, n) => {
+      const f = frameAt(z);
+      const row = wingSectionAt(f.pF, f.pR, f.wF, f.wR, f.chord, genAfSeg(W.naca, a, b, n));
+      row.z0 = z;          // rows get duplicated at band ends, so carry the station
+      return row;
+    };
+    // ---- station list: spar stations + surface edges, then subdivided ----
+    const brk = zAll.slice();
+    for (const zb of [fEnd, aStart, zAilEnd])
+      if (zb > zAll[0] + 1e-3 && zb < zAll[zAll.length-1] - 1e-3) brk.push(zb);
+    brk.sort((a2, b2) => a2 - b2);
+    const zBrk = brk.filter((v, i) => i === 0 || v - brk[i-1] > 1e-3);
+    const zStraight = W.tipR > 1e-6 ? W.tipZ : zAll[zAll.length - 1];
+    const zEnd = zBrk.filter(v => v < zStraight - 1e-3).concat([zStraight]);
+    const zs2 = [];
+    for (let i = 0; i < zEnd.length - 1; i++)
+      for (let sg = (i === 0 ? 0 : 1); sg <= GEN_WSEG; sg++)
+        zs2.push(zEnd[i] + (zEnd[i+1] - zEnd[i]) * sg / GEN_WSEG);
+    // THE BOW, stepped in angle (see G4.3): all curvature, no control surface
+    if (W.tipR > 1e-6) {
+      const nA = Math.max(2, TIP.arc | 0), thMax = (Math.PI/2) * 0.965;
+      for (let i = 1; i <= nA; i++) zs2.push(W.tipZ + W.tipR * Math.sin(thMax * i / nA));
     }
-    // rounded tip: one extra section, shrunk about the tip chord's mid point
-    const tipF = fw.F[fw.F.length-1], tipR = fw.R[fw.R.length-1];
-    const tipSec = wingSection(tipF, tipR, P.chordAt(S.geom.semi), sid);
-    const mid = genV3.mul(genV3.add(N[tipF].p, N[tipR].p), 0.5);
-    const dz = 0.055 * S.wing.chord * side;
-    rows.push(tipSec.map(pt => ({
-      p: [mid[0] + (pt.p[0]-mid[0])*0.42, mid[1] + (pt.p[1]-mid[1])*0.42, pt.p[2] + dz],
-      infl: pt.infl, sid: pt.sid, u: pt.u })));
-    const ids = emitLoft(rows, skin, r => r / rows.length);
-    capLoft([ids[ids.length - 1]], skin);
+    // ---- fixed skin: cut at the hinge wherever a surface lives ----
+    const flip = side < 0;
+    // EDGE LOOPS AT THE BAND ENDS. A cut row next to a full-chord row lofts as
+    // a RAMP from the hinge line out to the trailing edge, so every band end
+    // came out as a triangular wedge instead of a straight cut. (The root end
+    // looked right only because the flap band starts at the first station and
+    // has no neighbour to ramp from.) Emitting the boundary station TWICE —
+    // once with each neighbour's chord range — turns that ramp into a
+    // zero-width step, which is the vertical end wall of the cutout: the rib
+    // face at the end of a real aileron.
+    // The wall belongs to the station INSIDE the band (h !== 1), or the cutout
+    // runs a subdivision past the surface that fills it — measured, a flap
+    // ending at 2.50 left the wing open to 2.80.
+    const hOf = z => { const b = bandAt(z); return b ? b.h : 1; };
+    const fixRows = [];
+    for (let i = 0; i < zs2.length; i++) {
+      const z = zs2[i], h = hOf(z), inBand = Math.abs(h - 1) > 1e-9;
+      const starts = inBand && i > 0 && Math.abs(hOf(zs2[i-1]) - h) > 1e-9;
+      const ends = inBand && i < zs2.length - 1 && Math.abs(hOf(zs2[i+1]) - h) > 1e-9;
+      // Each wall row is emitted TWICE. Rows do not share vertices, but a
+      // single boundary row would be shared between the wall strip and the
+      // skin strip beside it, and computeVertexNormals then averages a
+      // near-vertical face into a near-horizontal one — the dark smear that
+      // showed up on every cutout corner. Doubling the row gives the wall its
+      // own vertices; the strip between the pair has zero area and so
+      // contributes no normal at all.
+      if (starts) {
+        fixRows.push(secAt(z, 0, hOf(zs2[i-1]), NAF));
+        fixRows.push(secAt(z, 0, hOf(zs2[i-1]), NAF));
+      }
+      fixRows.push(secAt(z, 0, h, NAF));
+      if (starts || ends) fixRows.push(secAt(z, 0, h, NAF));
+      if (ends) {
+        fixRows.push(secAt(z, 0, hOf(zs2[i+1]), NAF));
+        fixRows.push(secAt(z, 0, hOf(zs2[i+1]), NAF));
+      }
+    }
+    if (TIP.fin > 0) {
+      const h = TIP.fin * W.chord, last = fixRows[fixRows.length-1];
+      fixRows.push(last.map(pt => ({ p: [pt.p[0], pt.p[1]+h, pt.p[2] - 0.22*h*side],
+        infl: pt.infl, u: pt.u })));
+    }
+    // UV v is the TRUE span fraction, not the row index. Row-index v put the
+    // paint's tip stripe wherever a loft happened to start, and once the
+    // control surfaces became their own lofts each of them grew a stripe of its
+    // own at its inboard end. Span fraction makes the paint continuous across
+    // the cut, which is the point of cutting it there.
+    const spanV = z => (z - P.zRoot) / Math.max(1e-6, S.geom.semi - P.zRoot);
+    const ids = emitLoft(fixRows, skin, r => spanV(fixRows[r].z0), flip, true);
+    capLoft([ids[0], ids[ids.length-1]], skin, flip);
+    // ---- each surface: its own group, its own loft ----
+    for (const [nm, gname, drive, sgnA, kA, drive2, sgn2] of [
+      // da > 0 rolls right, which is right aileron DOWN (the solver raises that
+      // wing's alpha). Signs re-measured after the cut became real: while the
+      // "surface" was still a full-chord copy its centroid sat FORWARD of the
+      // hinge, so every sign came out inverted and calibrated to the wrong body.
+      ['ail',  'ail' + sd,  'da', -1, 1.0, null, 0],
+      ['flap', 'flap' + sd, 'flap', -side, 0.70, null, 0],
+    ]) {
+      const zz = zs2.filter(z => { const b = bandAt(z); return b && b.n === nm; });
+      if (zz.length < 2) continue;
+      const hf = nm === 'ail' ? AIL_HINGE : FLAP_HINGE;
+      const M = genMesh();
+      const rows = zz.map(z => secAt(z, hf, 1, NSURF));
+      const sIds = emitLoft(rows, M, r => spanV(zz[r]), flip, true);
+      capLoft([sIds[0], sIds[sIds.length-1]], M, flip);
+      // pivot on the hinge line at mid band, axis along it
+      const zm = 0.5 * (zz[0] + zz[zz.length-1]);
+      const hp = z => {
+        const f = frameAt(z), E = genAfEval(W.naca);
+        const u = E.up(hf), l = E.lo(hf), xc = 0.5*(u[0]+l[0]), yq = 0.5*(u[1]+l[1]);
+        const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+        let nr = genV3.norm(genV3.cross(ch, [0,0,1])); if (nr[1] < 0) nr = genV3.mul(nr, -1);
+        return genV3.add(genV3.add(f.pF, genV3.mul(ch, (xc - sparF) * f.chord)),
+                         genV3.mul(nr, yq * f.chord));
+      };
+      const pA = hp(zz[0]), pB = hp(zz[zz.length-1]);
+      CTRL_MESH.push({ group: gname, mesh: M, pivot: B(hp(zm)),
+        axis: genV3.norm(genV3.sub(B(pB), B(pA))),
+        drive, sgn: sgnA, k: kA, drive2, sgn2,
+        infl: frameAt(zm).wF });
+    }
   }
   // centre section: the wing carries through above the cabin
   {
@@ -350,31 +615,118 @@ function genSkin(def) {
   // Mini-wings on a symmetric section, blending their weights from the tail
   // post inboard to the tip node outboard.
   const sym = genAirfoil(9);                               // NACA 0009
-  const panel = (rowsSpec, sid, hingeFrac) => {
-    const rows = rowsSpec.map(({ le, te, infl }) => {
+  // A tail panel, cut at its hinge exactly like the wing: the fixed part goes
+  // into `skin`, the moving part into its OWN group with a pivot and an axis.
+  // `mv` names the surface and what drives it; omit it for a panel with no
+  // control surface on it.
+  const NTAIL = 7, NTSURF = 3;
+  const panel = (rowsSpec, hingeFrac, mv) => {
+    const spanDir = genV3.norm(genV3.sub(rowsSpec[1].le, rowsSpec[0].le));
+    const seg = (a2, b2, n) => genAfSeg(9, a2, b2, n);
+    const build = (a2, b2, n) => rowsSpec.map(({ le, te, infl }) => {
       const ch = genV3.norm(genV3.sub(te, le));
       const len = Math.hypot(te[0]-le[0], te[1]-le[1], te[2]-le[2]);
-      const nrm = genV3.norm(genV3.cross(ch, genV3.norm(genV3.sub(rowsSpec[1].le, rowsSpec[0].le))));
-      return sym.map(([xc, yc]) => ({
+      const nrm = genV3.norm(genV3.cross(ch, spanDir));
+      return seg(a2, b2, n).map(([xc, yc]) => ({
         p: genV3.add(genV3.add(le, genV3.mul(ch, xc * len)), genV3.mul(nrm, yc * len)),
-        infl, sid: xc > hingeFrac ? sid : 0, u: xc }));
+        infl, u: xc }));
     });
-    const ids = emitLoft(rows, skin, r => r / Math.max(1, rowsSpec.length - 1));
+    const h = mv ? hingeFrac : 1;
+    const fixed = build(0, h, NTAIL);
+    const ids = emitLoft(fixed, skin, r => r / Math.max(1, rowsSpec.length - 1), false, !!mv);
     capLoft([ids[0], ids[ids.length - 1]], skin);
+    if (!mv) return;
+    const M = genMesh();
+    const rows = build(h, 1, NTSURF);
+    const sIds = emitLoft(rows, M, r => r / Math.max(1, rowsSpec.length - 1), false, true);
+    capLoft([sIds[0], sIds[sIds.length - 1]], M);
+    // pivot on the hinge line at mid panel; axis along the hinge
+    const onHinge = k => {
+      const R = rowsSpec[k], ch = genV3.norm(genV3.sub(R.te, R.le));
+      const len = Math.hypot(R.te[0]-R.le[0], R.te[1]-R.le[1], R.te[2]-R.le[2]);
+      return genV3.add(R.le, genV3.mul(ch, h * len));
+    };
+    const a0 = onHinge(0), a1 = onHinge(rowsSpec.length - 1);
+    const mid = genV3.mul(genV3.add(a0, a1), 0.5);
+    CTRL_MESH.push({ group: mv.g, mesh: M, pivot: B(mid),
+      axis: genV3.norm(genV3.sub(B(a1), B(a0))),
+      drive: mv.drive, sgn: mv.sgn, k: mv.k || 1,
+      drive2: mv.drive2 || null, sgn2: mv.sgn2 || 0, k2: mv.k2 || 1,
+      infl: rowsSpec[Math.floor(rowsSpec.length / 2)].infl });
   };
   {
-    const t = S.tail, hc = t.hChord, hx = t.hX;
+    const t = S.tail, hx = t.hX;
     const hy = N[P.HTL].p[1], hz = 0.5 * t.hSpan;
+    if (t.type === 'v') {
+      // Two canted panels from the tail post out to the tips, and NO fin. The
+      // tip nodes already carry the cant (they sit up as well as out), so each
+      // panel is just a loft from the post to its own tip.
+      const VT = GEN_TIPS[t.tip] || GEN_TIPS.rounded;
+      const vpost = [[P.TPB, 0.5], [P.TPT, 0.5]];
+      const py = N[P.TPT].p[1] * 0.55 + N[P.TPB].p[1] * 0.45;
+      const vRow = (fz, fy, infl, shrink) => {
+        const c = t.hChord * (shrink == null ? 1 : shrink);
+        const xm = hx + 0.15 * t.hChord;
+        return { le: [xm - 0.50*c, fy, fz], te: [xm + 0.50*c, fy, fz], infl };
+      };
+      for (const [tipN, sgn, vsid] of [[P.HTL, -1, 8], [P.HTR, 1, 7]]) {
+        const tz = N[tipN].p[2], ty = N[tipN].p[1];
+        const rows = [
+          vRow(sgn * 0.10 * Math.abs(tz), py + 0.10 * (ty - py), vpost),
+          vRow(tz * 0.55, py + 0.55 * (ty - py), [[tipN, 0.55],
+               ...vpost.map(([i, w]) => [i, w * 0.45])]),
+          vRow(tz, ty, [[tipN, 1]]),
+        ];
+        if (VT.round > 0)
+          rows.push(vRow(tz + sgn * 0.055 * t.hChord, ty + 0.055 * t.hChord,
+                         [[tipN, 1]], VT.round));
+        // a V panel is BOTH surfaces: symmetric on the elevator, antisymmetric
+        // on the rudder. Two drives, one mesh.
+        panel(rows, 0.66, { g: sgn > 0 ? 'vtR' : 'vtL', drive: 'de', sgn: sgn,
+                            drive2: 'dr', sgn2: 1 });
+      }
+    } else {
     const post = [[P.TPB, 0.5], [P.TPT, 0.5]];
-    const stabRow = (z, infl) => ({ le: [hx - 0.35*hc, hy, z], te: [hx + 0.65*hc, hy, z], infl });
-    panel([stabRow(-hz, [[P.HTL, 1]]), stabRow(-0.18*hz, [[P.HTL, 0.30], ...post.map(([i,w]) => [i, w*0.70])]),
-           stabRow(0.18*hz, [[P.HTR, 0.30], ...post.map(([i,w]) => [i, w*0.70])]), stabRow(hz, [[P.HTR, 1]])],
-          1, 0.66);
+    const TTIP = GEN_TIPS[t.tip] || GEN_TIPS.rounded;
+    // hChord is the MEAN chord (Sh = hSpan * hChord, and the strips' area comes
+    // from Sh), so tapering must hold that mean: root = 2 c / (1 + lambda).
+    // Planform only — area and aspect ratio are unchanged, so this shapes the
+    // stabiliser without quietly re-tuning the pitch authority under it.
+    const hRoot = 2 * t.hChord / (1 + t.hTaper);
+    const chAt = z => hRoot * (1 - (1 - t.hTaper) * Math.abs(z) / Math.max(1e-6, hz));
+    const stabRow = (z, infl, shrink) => {
+      const c = chAt(z) * (shrink == null ? 1 : shrink);
+      // taper eats forward and aft of the mid-chord so the panel keeps its
+      // spanwise axis where the strips put it
+      const xm = hx + 0.15 * t.hChord;
+      return { le: [xm - 0.50*c, hy, z], te: [xm + 0.50*c, hy, z], infl };
+    };
+    const stabRows = [
+      stabRow(-hz, [[P.HTL, 1]]),
+      stabRow(-0.18*hz, [[P.HTL, 0.30], ...post.map(([i,w]) => [i, w*0.70])]),
+      stabRow(0.18*hz, [[P.HTR, 0.30], ...post.map(([i,w]) => [i, w*0.70])]),
+      stabRow(hz, [[P.HTR, 1]]),
+    ];
+    // rounded tips on the stabiliser: an extra shrunk row just outboard, the
+    // same treatment the wing gets
+    if (TTIP.round > 0) {
+      const d = 0.055 * t.hChord;
+      stabRows.unshift(stabRow(-hz - d, [[P.HTL, 1]], TTIP.round));
+      stabRows.push(stabRow(hz + d, [[P.HTR, 1]], TTIP.round));
+    }
+    panel(stabRows, 0.66, { g: 'elev', drive: 'de', sgn: 1 });
     const vc = t.vChord, vx = t.vX, vy0 = N[P.TPT].p[1], vy1 = N[P.FIN].p[1];
-    const finRow = (y, k, sw) => ({ le: [vx - 0.40*vc + sw, y, 0], te: [vx + 0.60*vc, y, 0],
-      infl: [[P.FIN, k], [P.TPT, (1-k)*0.6], [P.TPB, (1-k)*0.4]] });
-    panel([finRow(vy0, 0, 0), finRow(vy0 + 0.5*(vy1-vy0), 0.5, 0.14*vc),
-           finRow(vy1, 1, 0.30*vc)], 2, 0.60);
+    const finRow = (y, k, sw, shrink) => {
+      const c = vc * (shrink == null ? 1 : shrink);
+      return { le: [vx - 0.40*vc + sw, y, 0], te: [vx - 0.40*vc + sw + c, y, 0],
+        infl: [[P.FIN, k], [P.TPT, (1-k)*0.6], [P.TPB, (1-k)*0.4]] };
+    };
+    const finRows = [finRow(vy0, 0, 0), finRow(vy0 + 0.5*(vy1-vy0), 0.5, 0.14*vc),
+                     finRow(vy1, 1, 0.30*vc)];
+    if (TTIP.round > 0)
+      finRows.push(finRow(vy1 + 0.055 * vc, 1, 0.30*vc + 0.5*vc*(1-TTIP.round), TTIP.round));
+    panel(finRows, 0.60, { g: 'rud', drive: 'dr', sgn: 1 });
+    }
   }
 
   // ---- 5. wheels and propeller ----------------------------------------
@@ -397,11 +749,14 @@ function genSkin(def) {
   wheel(P.TW, S.gear.twR, 0.035);
   {
     const eng = [[P.EL, 0.5], [P.ER, 0.5]];
+    // the prop mounts DIRECTLY on the cowl's flat nose; the backplate sits a
+    // few mm proud of it so the two faces do not z-fight
     const rSp = Math.max(0.075, 0.16 * S.propR), SEG = 12;
-    const back = [], tip = prop.v(B([hub[0] - 1.5*rSp, S.engY, 0]), 0.5, 1, eng);
+    const xBack = hub[0] - 0.006;
+    const back = [], tip = prop.v(B([xBack - 1.5*rSp, S.engY, 0]), 0.5, 1, eng);
     for (let h = 0; h <= SEG; h++) {
       const a = 2*Math.PI*(h % SEG)/SEG;
-      back.push(prop.v(B([hub[0], S.engY + rSp*Math.cos(a), rSp*Math.sin(a)]), h/SEG, 0, eng));
+      back.push(prop.v(B([xBack, S.engY + rSp*Math.cos(a), rSp*Math.sin(a)]), h/SEG, 0, eng));
     }
     for (let h = 0; h < SEG; h++) prop.tri(back[h], back[h+1], tip);
     // two blades, tapered and twisted, on the disc plane
@@ -436,35 +791,102 @@ function genSkin(def) {
   const t = S.tail;
   const stabY = N[P.HTL].p[1];
   const semi = S.geom.semi, zA = 0.5 * (aStart + semi);
+  // THE SURFACE TABLE. Its length and ORDER are a contract: a skin vertex
+  // carries `sid` and the hinge pass resolves surfaces[sid-1], so an entry can
+  // never be dropped for a configuration that lacks it — that renumbers
+  // everything after it. Every entry is always present; the ones this aeroplane
+  // does not have are made inert with k:0. (Learned the hard way on the V-tail:
+  // removing the rudder sent the ailerons reading past the end of the array.)
+  //
+  //   1 elevator   2 rudder   3 ailR   4 ailL
+  //   5 flapR      6 flapL    7 vtailR 8 vtailL
+  const isV = t.type === 'v';
+  const FLAP_K = 0.70;             // ~40 deg at ctl.flap = 1, which is full flap
+  const zF = 0.5 * (P.zRoot + Math.max(P.zRoot + 0.1, fEnd));
+  // SIGNS. The left and right hinge AXES are mirrored (they run out along their
+  // own semispan), so an equal `sgn` on the two sides produces OPPOSITE motion
+  // in the world and a mirrored `sgn` produces the SAME motion. That inversion
+  // is why the ailerons had been deflecting together — measured, both wings
+  // +0.020 m on da — and why every pair below looks back-to-front at a glance.
+  //   ailerons  antisymmetric -> equal sgn
+  //   flaps     symmetric     -> mirrored sgn
+  const flapSurf = (sgn2side) => ({
+    name: sgn2side > 0 ? 'flapR' : 'flapL', drive: 'flap', sgn: -sgn2side,
+    k: FLAP_ON ? FLAP_K : 0,
+    p: bp([P.xFat(zF) + (FLAP_HINGE - sparF) * P.chordAt(zF),
+           P.yF(zF), sgn2side * zF]),
+    ax: hingeAxis([0, P.yF(P.zRoot), sgn2side * P.zRoot],
+                  [0, P.yF(Math.max(P.zRoot + 0.1, fEnd)),
+                   sgn2side * Math.max(P.zRoot + 0.1, fEnd)]),
+  });
+  // A V-tail panel is BOTH surfaces at once: symmetric on the elevator,
+  // antisymmetric on the rudder. Hence drive2.
+  const vSurf = (tipN, sd) => {
+    const tip = N[tipN].p, post = [t.hX, N[P.TPT].p[1] * 0.55 + N[P.TPB].p[1] * 0.45, 0];
+    const mid = [0.5*(tip[0]+post[0]), 0.5*(tip[1]+post[1]), 0.5*(tip[2]+post[2])];
+    return { name: sd > 0 ? 'vtailR' : 'vtailL',
+      // elevator half: SYMMETRIC, so mirrored sgn. rudder half: ANTIsymmetric,
+      // so equal sgn. The two halves of a ruddervator want opposite conventions.
+      drive: 'de', sgn: sd, k: isV ? 1.0 : 0,
+      drive2: 'dr', sgn2: 1, k2: isV ? 1.0 : 0,
+      p: bp([t.hX + 0.15 * t.hChord, mid[1], mid[2]]),
+      ax: hingeAxis([0, post[1], post[2]], [0, tip[1], tip[2]]) };
+  };
   const surfaces = [
-    { name: 'elevator', drive: 'de', sgn: -1, k: 1.0,
+    { name: 'elevator', drive: 'de', sgn: 1, k: isV ? 0 : 1.0,
       p: bp([t.hX + 0.31 * t.hChord, stabY, 0]),
       ax: hingeAxis([t.hX + 0.31*t.hChord, stabY, -1], [t.hX + 0.31*t.hChord, stabY, 1]) },
-    { name: 'rudder', drive: 'dr', sgn: 1, k: 1.0,
+    { name: 'rudder', drive: 'dr', sgn: 1, k: (isV || P.FIN == null) ? 0 : 1.0,
       p: bp([t.vX + 0.20 * t.vChord, N[P.TPT].p[1], 0]),
       ax: hingeAxis([t.vX + 0.20*t.vChord, N[P.TPT].p[1], 0],
-                    [t.vX + 0.20*t.vChord + 0.30*t.vChord, N[P.FIN].p[1], 0]) },
-    { name: 'ailR', drive: 'da', sgn: -1, k: 1.0,
-      p: bp([P.xF + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), zA]),
+                    [t.vX + 0.20*t.vChord + 0.30*t.vChord,
+                     P.FIN == null ? N[P.TPT].p[1] + 1 : N[P.FIN].p[1], 0]) },
+    { name: 'ailR', drive: 'da', sgn: 1, k: 1.0,
+      p: bp([P.xFat(zA) + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), zA]),
       ax: hingeAxis([0, P.yF(aStart), aStart], [0, P.yF(semi), semi]) },
-    { name: 'ailL', drive: 'da', sgn: 1, k: 1.0,
-      p: bp([P.xF + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), -zA]),
+    { name: 'ailL', drive: 'da', sgn: 1, k: 1.0,   // equal, not mirrored: see above
+      p: bp([P.xFat(zA) + (AIL_HINGE - sparF) * P.chordAt(zA), P.yF(zA), -zA]),
       ax: hingeAxis([0, P.yF(aStart), -aStart], [0, P.yF(semi), -semi]) },
+    flapSurf(1), flapSurf(-1),
+    vSurf(P.HTR, 1), vSurf(P.HTL, -1),
   ];
 
   const groups = {};
   const put = (nm, M) => { const g = M.done(); if (g.nv) groups[nm] = g; };
-  put('skin', skin); put('glass', glass); put('frame', frame);
-  put('gearmetal', strut); put('tyre', tyre); put('prop', prop);
+  put('skin', skin); put('cowl', cowl); put('frame', frame);
+  put('engine', engine); put('gearmetal', strut); put('tyre', tyre); put('prop', prop);
+  // Control surfaces are their OWN groups. `moving` is the contract with the
+  // viewer: a group name, the point it turns about, the axis it turns on, and
+  // what drives it. The viewer rotates the mesh — there is no per-vertex hinge
+  // pass for a generated aeroplane any more.
+  const moving = [];
+  for (const c of CTRL_MESH) {
+    put(c.group, c.mesh);
+    if (!groups[c.group]) continue;
+    moving.push({ group: c.group, p: c.pivot, ax: c.axis, infl: c.infl,
+                  drive: c.drive, sgn: c.sgn, k: c.k,
+                  drive2: c.drive2 || null, sgn2: c.sgn2 || 0 });
+  }
   return {
     v: 5, generated: true,
     hub: B(hub),
-    groups, surfaces,
+    groups, surfaces, moving,
     mats: {
       // the viewer bakes `paint` procedurally (src/viewer/garage.js) and drops
       // it in before the material is built; without it this falls back to flat
       skin:      { tex: 'paint', rough: 1 - S.paint.gloss },
-      glass:     { opacity: 0.30, color: 0xaad4ea },
+      // control surfaces are painted with the aeroplane, not against it
+      ailR:      { tex: 'paint', rough: 1 - S.paint.gloss },
+      ailL:      { tex: 'paint', rough: 1 - S.paint.gloss },
+      flapR:     { tex: 'paint', rough: 1 - S.paint.gloss },
+      flapL:     { tex: 'paint', rough: 1 - S.paint.gloss },
+      elev:      { tex: 'paint', rough: 1 - S.paint.gloss },
+      rud:       { tex: 'paint', rough: 1 - S.paint.gloss },
+      vtR:       { tex: 'paint', rough: 1 - S.paint.gloss },
+      vtL:       { tex: 'paint', rough: 1 - S.paint.gloss },
+      // the cowl is a separate panel and reads as one: same paint, more gloss
+      cowl:      { tex: 'paint', rough: Math.max(0.10, 0.85 - S.paint.gloss) },
+      engine:    { color: 0x3c3f45 },
       frame:     { color: 0x5a6470 },
       gearmetal: { color: 0x6d7682 },
       tyre:      { color: 0x22242a },

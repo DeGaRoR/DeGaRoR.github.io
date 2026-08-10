@@ -93,10 +93,21 @@ export function compileSolo(RAPIER, args) {
   sp.turnPlaneZ = turn.turnPlaneZ;
   sp.turnRadius = turn.turnRadius;
   sp.turnSpeedRatio = turn.turnSpeedRatio;
+  sp.bestBias = turn.bestBias;
   // N21's clamp. See the long note on `turnCapability` in contracts/species.js:
   // a creature can have a large turn rate and no authority (it circles), or zero
   // yaw and full authority (it turns in pitch). The product is the only one of
   // the three that means "how fast can this creature turn when asked".
+  //
+  // MEASURED AT `bestBias` SINCE BRIDGE_V 8, and it is a correction rather than a
+  // refinement: at the old single point of 1.0 this read 0.000 for `eel` and
+  // `eel-finned`, the two creatures `tools/_zgoal.mjs` then measured as the best
+  // goal-reachers in the library. See the S3_BIASES note in probes.js.
+  //
+  // IT IS STILL NOT A PREDICTOR OF ARRIVING, and nothing should use it as one.
+  // Spearman against control-subtracted goal closure over 17 creatures: -0.152.
+  // It answers "how fast can this body turn when asked"; it does not answer
+  // "does this creature get there", and only `_zgoal` answers the second.
   sp.turnCapability = turn.turnRate3d * turn.steeringAuthority;
 
   // ── fixture defaults — UNMEASURED until S4/S5 (30 §5 C1) ──────────────────
