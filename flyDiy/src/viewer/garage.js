@@ -805,7 +805,71 @@ function garageInit(api) {
   const readVal = (s, p) => (DERIVED[p] ? DERIVED[p].get(s) : get(s, p));
   const writeVal = (s, p, v) => (DERIVED[p] ? DERIVED[p].set(s, v) : set(s, p, v));
 
+  // =====================================================================
+  // BUILDS — saving, loading, and the file on disk.
+  //
+  // WHAT IS SAVED IS THE SPEC, NULLS AND ALL. A field left null is one the
+  // generator DERIVES, and it has to stay null: freeze the derived number into
+  // the save and it stops following whatever it was derived from, so a build
+  // reloaded after a cabin change quietly stops fitting its own cabin. It is
+  // also what lets an old save benefit from later generator work — the fields
+  // nobody set are recomputed by the rules as they are today. `genNormaliseSpec`
+  // fills anything a save predates, so a partial or older file loads rather
+  // than being rejected.
+  //
+  // Storage is best-effort throughout: a browser with storage disabled must
+  // still be able to build an aeroplane, so every call is guarded and a failure
+  // costs the save, not the session.
+  const LS = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const SLOT = 'flydiy.build.';          // one key per named build
+  const WIP  = 'flydiy.wip';             // the working build, written every rebuild
+  const lsGet = k => { try { return LS && LS.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { if (LS) LS.setItem(k, v); return true; }
+                            catch (e) { return false; } };
+  const lsDel = k => { try { if (LS) LS.removeItem(k); } catch (e) {} };
+  const slotNames = () => {
+    const out = [];
+    try {
+      for (let i = 0; i < (LS ? LS.length : 0); i++) {
+        const k = LS.key(i);
+        if (k && k.lastIndexOf(SLOT, 0) === 0) out.push(k.slice(SLOT.length));
+      }
+    } catch (e) {}
+    return out.sort();
+  };
+  // The envelope carries the spec version so a future migration has something
+  // to branch on. Nothing reads it today — genNormaliseSpec does the work — and
+  // that is deliberate; see the note on GEN_SPEC_V in 60_gen_spec.js.
+  const envelope = (name, s) => JSON.stringify({
+    what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
+    name: name || 'build', spec: s,
+  });
+  // Accepts an envelope OR a bare spec, because a spec pasted out of a console
+  // is a perfectly good thing to want to load.
+  const unwrap = txt => {
+    const o = JSON.parse(txt);
+    if (o && o.spec && typeof o.spec === 'object') return { name: o.name, spec: o.spec };
+    if (o && (o.wings || o.fuselage || o.cabin)) return { name: null, spec: o };
+    throw new Error('not a flyDiy build');
+  };
+
   let spec = api.defaults();
+  let slotName = '';
+  // RESTORE THE WORKING BUILD. A reload used to be destructive — the spec lived
+  // only in this closure and nothing wrote it anywhere — which is exactly how a
+  // build gets lost. Anything unreadable is ignored rather than thrown: a
+  // corrupt autosave must not stop the garage opening.
+  {
+    const wip = lsGet(WIP);
+    if (wip) try {
+      const got = unwrap(wip);
+      spec = got.spec;
+      // and WHICH BUILD it was, so Save still knows its target after a reload.
+      // Only if that slot still exists — a name pointing at a build that was
+      // deleted would make Save silently resurrect it.
+      if (got.name && lsGet(SLOT + got.name) != null) slotName = got.name;
+    } catch (e) {}
+  }
   const els = {};
   const row = (host, label, node, valNode) => {
     const d = document.createElement('div');
@@ -1023,6 +1087,10 @@ function garageInit(api) {
   function rebuild() {
     clearTimeout(timer);
     api.apply(spec);
+    // AUTOSAVE on the rebuild, not on every slider event: rebuild is already
+    // debounced, and it is the point at which the spec is a build rather than a
+    // half-dragged slider. Cheap — a spec is a few kB of JSON.
+    lsSet(WIP, envelope(slotName || 'working', spec));
     refresh();
   }
   // show what was actually BUILT: clampSpec may have pulled a value back inside
@@ -1185,6 +1253,110 @@ function garageInit(api) {
       )(cell, f => (b._auto && b._auto[f]) ? 'auto' : '') +
       `</div><p class="gnote">italic = derived for you; set it yourself and it stops.</p>`;
   }
+
+  // ---- the builds bar ---------------------------------------------------
+  // Load replaces the spec wholesale and rebuilds from it. It does NOT merge:
+  // a build is a whole aeroplane, and merging one into another gives you a
+  // third thing that nobody designed.
+  function loadSpec(s, name) {
+    spec = s;
+    slotName = name || '';
+    // clampSpec runs inside the build, so an out-of-envelope or partial file is
+    // pulled straight rather than refused — then refresh() shows what was
+    // actually built, which is the honest readout of what the file asked for.
+    rebuild();
+    fillSlots();
+  }
+  const slotSel = $('gSlot');
+  function fillSlots() {
+    if (!slotSel) return;
+    const names = slotNames();
+    slotSel.innerHTML = '';
+    const opt = (v, t) => { const o = document.createElement('option');
+                            o.value = v; o.textContent = t; slotSel.appendChild(o); };
+    opt('', names.length ? '— saved builds —' : '— no saved builds —');
+    for (const n of names) opt(n, n);
+    slotSel.value = names.indexOf(slotName) >= 0 ? slotName : '';
+    // storage unavailable is not an error worth a dialog, but the controls
+    // should not pretend to work
+    const dis = !LS;
+    for (const id of ['gSlot', 'gSave', 'gSaveAs', 'gDel'])
+      if ($(id)) $(id).disabled = dis;
+  }
+  const saveAs = name => {
+    if (!name) return;
+    if (!lsSet(SLOT + name, envelope(name, spec)))
+      return void alert('Could not save — browser storage is full or disabled.');
+    slotName = name;
+    fillSlots();
+  };
+  if (slotSel) slotSel.addEventListener('change', () => {
+    const n = slotSel.value; if (!n) return;
+    const txt = lsGet(SLOT + n);
+    if (!txt) return void fillSlots();
+    try { loadSpec(unwrap(txt).spec, n); }
+    catch (e) { alert('That saved build could not be read: ' + e.message); }
+  });
+  if ($('gSave')) $('gSave').addEventListener('click', () =>
+    saveAs(slotName || (prompt('Name this build:', 'My aeroplane') || '').trim()));
+  if ($('gSaveAs')) $('gSaveAs').addEventListener('click', () =>
+    saveAs((prompt('Save as:', slotName || 'My aeroplane') || '').trim()));
+  if ($('gDel')) $('gDel').addEventListener('click', () => {
+    const n = slotSel && slotSel.value; if (!n) return;
+    if (!confirm('Delete the saved build "' + n + '"?')) return;
+    lsDel(SLOT + n);
+    if (slotName === n) slotName = '';
+    fillSlots();
+  });
+  // EXPORT is a file, because a build you cannot hand to somebody else is not
+  // really saved. The name is the build's, so a folder of them reads as a fleet.
+  if ($('gExport')) $('gExport').addEventListener('click', () => {
+    const name = slotName || 'flydiy-build';
+    const blob = new Blob([envelope(name, spec)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  });
+  const fileIn = $('gFile');
+  const readFile = f => {
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const got = unwrap(String(r.result));
+        loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''));
+      } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
+    };
+    r.readAsText(f);
+  };
+  if ($('gImport') && fileIn) {
+    $('gImport').addEventListener('click', () => { fileIn.value = ''; fileIn.click(); });
+    fileIn.addEventListener('change', () => readFile(fileIn.files && fileIn.files[0]));
+  }
+  // drop a build anywhere on the panel
+  host.addEventListener('dragover', e => { e.preventDefault(); });
+  host.addEventListener('drop', e => {
+    e.preventDefault();
+    readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+  });
+  fillSlots();
+
+  // THE HANDLE THE COMMENT IN app.js ALWAYS CLAIMED EXISTED. It never did, and
+  // that is precisely how a build ends up trapped in this closure with no way
+  // to get it out. Now it is real: read it, set it, save it, or dump it.
+  try {
+    window.GARAGE_SPEC = {
+      get: () => JSON.parse(JSON.stringify(spec)),
+      set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName),
+      resolved: () => api.resolved(),
+      json: () => envelope(slotName || 'build', spec),
+      list: slotNames,
+      save: saveAs,
+      load: n => { const t = lsGet(SLOT + n); if (t) loadSpec(unwrap(t).spec, n); },
+    };
+  } catch (e) {}
 
   // the panel only makes sense while the garage build is selected
   const acSel = $('selAc');

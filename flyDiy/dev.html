@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<link rel="stylesheet" href="src/viewer/style.css?v=62fff6b1">
+<link rel="stylesheet" href="src/viewer/style.css?v=19877417">
 </head>
 <body>
 <!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
@@ -37,6 +37,17 @@
   <div id="mid">
     <section id="garage" class="panel">
       <header><h2>Garage</h2><button id="gClose" aria-label="Close">×</button></header>
+      <!-- BUILDS. Not part of the aeroplane, so it sits above the sections
+           rather than inside them: saving is something you do TO a build. -->
+      <div id="gBuilds">
+        <select id="gSlot" title="Saved builds"></select>
+        <button id="gSave"  title="Save over the selected build">Save</button>
+        <button id="gSaveAs" title="Save as a new build">+</button>
+        <button id="gDel"   title="Delete the selected build">−</button>
+        <button id="gExport" title="Download this build as a .json file">Export</button>
+        <button id="gImport" title="Load a build from a .json file">Import</button>
+        <input id="gFile" type="file" accept="application/json,.json" hidden>
+      </div>
       <div id="gRows"></div>
       <div id="gRead"></div>
     </section>
@@ -131,7 +142,7 @@
 <script src="src/models/c172_model.js?v=85fcd278"></script>
 <script src="src/viewer/render_world.js?v=e09cda7d"></script>
 <script src="src/viewer/hangar.js?v=3bbdadfc"></script>
-<script src="src/viewer/garage.js?v=82b277ca"></script>
+<script src="src/viewer/garage.js?v=5dfbcbef"></script>
 <script src="src/viewer/app.js?v=35894251"></script>
 </body>
 </html>

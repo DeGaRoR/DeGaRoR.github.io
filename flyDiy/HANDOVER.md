@@ -4204,6 +4204,86 @@ assumed — the headless smoke gate stubs THREE with what the viewer needed befo
 this file existed, so a missing constructor degrades to the studio instead of
 throwing on boot. That is the path GATE UISMOKE actually exercises.
 
+## G7 — SAVING A BUILD (2026-08-13)
+
+Raised by losing one. A build lived ONLY in `garageInit`'s closure: nothing was
+written anywhere, and `window.GARAGE_SPEC` — which the comment at the top of
+`app.js` had described since G3 as "the editor's handle on it" — was never
+actually assigned. So a reload was destructive and there was no way to get a
+build out of the page, not even from a console. A user lost an aeroplane they
+liked, which is the only kind of bug report this feature needed.
+
+### WHAT IS SAVED IS THE SPEC, NULLS AND ALL
+
+The one rule worth keeping. A field left `null` is one the generator DERIVES,
+and it has to stay null in the file:
+
+- freeze the derived number into the save and it stops following what it was
+  derived from — a build reloaded after a cabin change quietly stops fitting its
+  own cabin;
+- and an old save keeps benefiting from later generator work, because the fields
+  nobody set are recomputed by today's rules rather than yesterday's.
+
+Measured on the stock aeroplane: 28 of its fields are null. A round trip
+preserves all 28, verified by comparing the null PATHS before and after, not
+just the count.
+
+`genNormaliseSpec` fills anything a file predates, so a partial or older spec
+loads rather than being refused. That is also why the envelope's `v` is written
+but not read — same reasoning as `GEN_SPEC_V` itself: it is there for a future
+migration to branch on, not because one is needed. Do not add a migration that
+only re-does what normalisation already does.
+
+### THE PIECES
+
+- **Named slots** in localStorage under `flydiy.build.<name>`. Save, Save-as,
+  Delete, and a select to load from.
+- **The working build** is written to `flydiy.wip` on every rebuild — which is
+  already debounced, and is the point at which the spec is a build rather than a
+  half-dragged slider. Restored on `garageInit` instead of `GEN_DEFAULT`. This
+  is the part that makes a reload non-destructive.
+- **The slot association survives too**, so Save still knows its target after a
+  reload — but only if that slot still exists, or a name pointing at a deleted
+  build would make Save silently resurrect it. Semantics are a document
+  editor's: unsaved changes come back, and they come back as unsaved changes to
+  the build they belong to.
+- **Export** writes a `.json` the user can keep or hand to somebody else.
+  **Import** takes it back by file picker or by dropping it anywhere on the
+  panel. Both accept a BARE spec as well as an envelope, because a spec pasted
+  out of a console is a perfectly reasonable thing to want to load.
+- **`window.GARAGE_SPEC` is real now**: `get`, `set`, `resolved`, `json`,
+  `list`, `save`, `load`. The comment stops lying, and a build can never again
+  be trapped in a closure with no way out.
+
+### DELIBERATE
+
+**Load replaces, it never merges.** A build is a whole aeroplane; merging one
+into another gives a third thing nobody designed.
+
+**Storage is best-effort everywhere.** Every localStorage call is guarded, and a
+browser with storage disabled must still build aeroplanes — it loses saving, not
+the session. The slot controls disable themselves rather than pretending. That
+guarding is also what keeps GATE UISMOKE green: its DOM stub has no storage and
+no `Blob`, and every one of these paths is either guarded or inside a click
+handler the gate never fires.
+
+**Saving is not part of the aeroplane**, so the bar sits above the sections
+rather than in `SECTIONS`, and nothing about it reaches the spec.
+
+**A bad file is refused with a message**, and the build on the bench is left
+alone — verified by dropping `{"hello":"world"}` on the panel.
+
+### VERIFIED
+
+- build -> save -> wreck (span 12.4 -> 9.0) -> load: restored EXACTLY, byte for
+  byte, all 28 null paths identical
+- reload with an UNSAVED edit: span 13.7 came back from `flydiy.wip`
+- reload with a slot association: slot `alpha` held 10.9, the unsaved edit was
+  11.3, and the reload gave 11.3 still pointing at `alpha`
+- export -> drop-import round trip through the real drop handler
+- bare-spec import
+- garbage file refused, build intact
+
 ## PLAYTEST BACKLOG (the numbered list, kept HERE from G4.6 on)
 The user's playtest items were tracked in a session table and nowhere in the
 repo, which meant re-deriving them every session. Numbering is theirs and does
@@ -4223,6 +4303,123 @@ G4.7; 22 the tail join, G4.8.)
 Done: 1, 3, 5, 7, 8, 9, 10, 16, 17 (G1.7-G3.6, G4.1-G4.5), 4, 11, 12, 18
 (G4.6), 6, 13, 15, 20 (G4.7), 22 (G4.8) and 14 (G5). Plus the two extras the user asked for since — wireframe view and UV
 projection view (G4.5) — both now visually verified along with the decal.
+
+## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
+
+The user's list after playing the merged build, grouped into sessions. Numbering
+is new (T/C/P/G) and does not collide with the old playtest numbers. Each item
+records what was VERIFIED before it was written down, because two of them turned
+out to be different problems from what they looked like.
+
+### T — THE TAIL. Skin-only first, then frame.
+
+**T1 — the tip options are DEAD on the tail.** Not "hard to see": measured, all
+six of `GEN_TIPS` give byte-identical geometry on `elev` and `rud` — same vertex
+count, same position hash — while the wing changes both (1780/11889 square vs
+2260/13973 elliptic). The control exists in the panel (`tail.tip`) and
+`63_gen_skin.js` does look it up at both tail sites, so the lookup result is
+being read and then not applied. Skin-only, and the prerequisite for T2/T3.
+
+**T2 — one tip field for the whole tail; the fin and the stabs need their own.**
+`tail.tip` is shared. Splitting it is a spec change (`tail.tipV` / `tail.tipH`,
+or per-surface blocks) plus panel rows. Do it with T1, since T1 is the machinery
+that makes either of them mean anything.
+
+**T3 — a rounded fin+rudder and stab+elevator as ONE outline.** The Cub is the
+reference: the fin and the rudder are a single rounded shape with a hinge line
+through it, not a rounded fin next to a rounded rudder. So the outline has to be
+generated for the WHOLE surface and then cut at the hinge, which is the opposite
+of the current order (build the fixed part, build the moving part, each with its
+own tip). Same for the tailplane and the elevator. This is the interesting one
+and it subsumes T1/T2 — worth designing before starting.
+
+**T4 — fin angle.** Rake/sweep of the fin as a control.
+
+**T5 — the fin's leading edge: a dorsal fin / fillet**, with height, length,
+width and angle. New geometry, and the first tail item that is not just an
+outline.
+
+**T6 — stab height.** Where the tailplane sits up the fin. Pairs with the old
+backlog #21 (T-tail), which is the same control at its limit — a T-tail is a
+stab height of 1.0, so #21 may fall out of T6 rather than needing its own
+chantier.
+
+T4/T5/T6 all move the TRUSS (`61_gen_frame.js`) and therefore mass, CG and tail
+volume (`62_gen_aero.js`). They are a different kind of change from T1-T3 and
+should be a separate session: the gates that matter for them are FLEX, LOAD and
+the per-aircraft circuit gates, not the skin's coherence check.
+
+### C — CONTROL SURFACES AND THE TORSION MODEL
+
+**C1 — the control surfaces do not flex with the airframe.** Verified, and the
+mechanism is exactly what the user described. The fixed skin is deformed
+PER-VERTEX from the node lattice (`poseSkinGen`, weights against
+`model.rest`/`model.nodeBody`), so it follows the truss when the tail twists
+under rudder. The control surfaces are not: they are `moving` groups, and the
+viewer poses them with `mv.mesh.quaternion.setFromAxisAngle(mv.axis, ang)` — a
+RIGID rotation of the whole group about a pivot that never moves. So the tail
+twists and the rudder hanging off it does not.
+
+The fix is to compose the two rather than choose between them: deform the group
+by its node weights like any other skin, THEN apply the hinge rotation about a
+pivot that has itself been carried by the deformation. Both halves already
+exist; nothing new has to be invented. It affects ailerons and flaps as much as
+the tail, so it is one change for the whole aeroplane.
+
+Note this is a VIEWER change, not a solver change — the surfaces already have
+correct node weights (GATE GEN checks they sum to 1). Nothing about the physics
+moves.
+
+### P — THE PROPELLER
+
+**P1 — import the design session's propeller.** IMPORTANT, because it is easy to
+get wrong twice: there is no propeller work in the SECOND bundle. Its only
+prop-related content is `leaningProp` (an ornament against the hangar wall) and
+a PBR table row. The propeller work is in the FIRST bundle and is the work that
+was dismissed at the time — an ogive `GEN_SPIN_SECT` spinner, aerofoil-section
+blades on a proper pitch law (`genAfEval(4412)`, nine stations), and a painted
+`proptip` group.
+
+It cannot be imported as it was written. The session drives it from a per-engine
+`engines[0].prop` with a NUMERIC pitch, and it is decoration. The trunk has
+since promoted `prop` to a top-level, PHYSICS-BEARING group where `pitch` is a
+string enum and the disc area drives static thrust and propwash while blade mass
+drives CG. So: take the GEOMETRY, drive it from the trunk's spec, and do not
+restore the session's spec shape. See G5's defect list, item 4.
+
+**P2 — the taildragger prop clearance margin is too generous.** The rule is
+`GEN_RULES.propClear` in `resolveSpec`, and it wins over `legDrop` by design
+(`gear.yBoundBy` names which bound applied). Measured on the default aeroplane
+the prop wants 0.76 m of leg. The user wants the blades closer to the ground.
+This is a one-constant change plus a decision about how much margin is honest —
+and the reason it is deliberately conservative is in the comment there: a leg
+shortened into a prop strike is a broken aeroplane on the first landing, not a
+bad one. Worth re-reading that before moving it.
+
+### U — THE PANEL
+
+**U1 — split the powerplant section.** "Engine, cowl & blades" becomes
+**Engine & cowl** (they stay together, user call) and **Propeller** as its own
+subsection under the Power group. Trivial, and it should ride along with P1
+since that is what fills the new section.
+
+### G — THE UNDERCARRIAGE
+
+**G1 — wheel fairings (spats).** New geometry hanging off the gear nodes, with
+the same rule the pitot now follows: put it ON the emitted surface rather than
+near it. Almost certainly wants an on/off plus a shape or size control, and it
+has a real drag consequence, so it is not purely cosmetic — `62_gen_aero.js`
+should know about it.
+
+### Suggested session order
+
+1. **C1** — standalone, affects the whole aeroplane, and every tail session
+   after it is easier to judge with the surfaces flexing correctly.
+2. **T1+T2+T3** — design the single-outline approach first; T1 and T2 fall out
+   of it rather than being done twice.
+3. **P1+P2+U1** — one powerplant session, geometry and panel together.
+4. **T4+T5+T6** — the frame-moving tail controls, with #21 (T-tail) folded in.
+5. **G1** — fairings, geometry and drag.
 
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |

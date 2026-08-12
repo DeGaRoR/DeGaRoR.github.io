@@ -1,7 +1,10 @@
 (() => {
   const world = makeWorld();
   // `gen` is the GARAGE: not a fiche but a generator, rebuilt from a live spec
-  // (src/core/6x_gen_*.js). window.GARAGE_SPEC is the editor's handle on it.
+  // (src/core/6x_gen_*.js). `window.GARAGE_SPEC` is the editor's handle on it —
+  // and it is now actually ASSIGNED, in garage.js. This comment claimed it from
+  // G3 while nothing ever set it, which is how a build ended up reachable only
+  // from inside a closure and a user lost an aeroplane to a reload. See G7.
   let genSpec = null;
   const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook,
                      gen: () => buildGen(genSpec) };

@@ -109,6 +109,15 @@
   #garage h3 { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.16em;
     text-transform:uppercase; color:var(--faint); margin:11px 0 6px; }
   #gClose { padding:2px 7px; font-size:13px; line-height:1; border-radius:6px; }
+  /* BUILDS. One row, because saving is housekeeping and should not compete with
+     the aeroplane for attention: the slot select takes the space and the verbs
+     are as small as they can be and still be hit. */
+  #gBuilds { display:flex; gap:4px; align-items:center; margin-bottom:9px; }
+  #gBuilds select { flex:1 1 auto; min-width:0; }
+  #gBuilds button { padding:4px 7px; font-size:9px; line-height:1.1; flex:0 0 auto; }
+  #gBuilds button:disabled, #gBuilds select:disabled { opacity:.4; cursor:default; }
+  /* the two single-glyph verbs are square so they read as a pair */
+  #gSaveAs, #gDel { padding:4px 6px; font-size:11px; }
   /* ROLL OUT: the commit. Full width above the sections, because it is the one
      action that applies to the whole aeroplane rather than to a part. */
   #gRoll { width:100%; margin-bottom:9px; padding:9px 12px; font-size:10px; }

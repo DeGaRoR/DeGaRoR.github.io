@@ -27,6 +27,17 @@
   <div id="mid">
     <section id="garage" class="panel">
       <header><h2>Garage</h2><button id="gClose" aria-label="Close">×</button></header>
+      <!-- BUILDS. Not part of the aeroplane, so it sits above the sections
+           rather than inside them: saving is something you do TO a build. -->
+      <div id="gBuilds">
+        <select id="gSlot" title="Saved builds"></select>
+        <button id="gSave"  title="Save over the selected build">Save</button>
+        <button id="gSaveAs" title="Save as a new build">+</button>
+        <button id="gDel"   title="Delete the selected build">−</button>
+        <button id="gExport" title="Download this build as a .json file">Export</button>
+        <button id="gImport" title="Load a build from a .json file">Import</button>
+        <input id="gFile" type="file" accept="application/json,.json" hidden>
+      </div>
       <div id="gRows"></div>
       <div id="gRead"></div>
     </section>
