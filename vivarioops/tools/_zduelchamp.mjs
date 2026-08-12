@@ -37,6 +37,7 @@ import { morphogenesis } from '../engine/l1/morphogen.js';
 import { genomeHash } from '../engine/l1/genome.js';
 import { assessViability } from '../engine/l1/viability.js';
 import { S1 } from '../engine/l2/probes.js';
+import { netSpeed } from '../engine/l2/objective.js';
 import { duelPair, OUTCOME } from '../engine/l2/duel.js';
 import { worldHash } from '../contracts/world.js';
 import { W1_SLICE, W1_RESIDENT_HASHES_PLACEHOLDER } from '../worlds/w1_slice.js';
@@ -51,11 +52,18 @@ const contender = (genome, label) => {
   try { plan = morphogenesis(genome); } catch { return null; }
   if (!assessViability(RAPIER, genome, W1_SLICE, { plan }).ok) return null;
   const m = S1(plan);
-  return { genome, plan, hash: genomeHash(genome), reach: m.reach, mass: m.massBase, label };
+  // CRUISE IS NOW PART OF BEING A CONTENDER. `duelSetup` bounds the separation by
+  // what the pair can cross in the window, and without this it falls back to the
+  // old size-only arithmetic — which is the arithmetic that made every duel
+  // impossible. Measured on the same `netSpeed` the rest of the project uses.
+  const ns = netSpeed(RAPIER, { plan, genome, world: W1_SLICE });
+  if (!ns.valid || !(ns.score > 1e-9)) return null;
+  return { genome, plan, hash: genomeHash(genome), reach: m.reach, mass: m.massBase,
+           cruise: ns.score, label };
 };
 
 function roundRobin(pool, name) {
-  let duels = 0, caps = 0, stale = 0, invalid = 0, clamped = 0;
+  let duels = 0, caps = 0, stale = 0, invalid = 0, clamped = 0, unreachable = 0;
   const times = [], closings = [];
   const t0 = Date.now();
   for (let i = 0; i < pool.length; i++) {
@@ -67,6 +75,7 @@ function roundRobin(pool, name) {
         else if (d.outcome === OUTCOME.NONE) stale++;
         else { caps++; times.push(d.timeToOutcome); }
         if (d.clamped) clamped++;
+        if (d.unreachable) unreachable++;
         // The number HANDOFF quoted as flat zero. Whatever the harness calls it,
         // report it if it is there rather than inventing a substitute.
         const c = d.closing ?? d.medianClosing ?? d.closedDistance;
@@ -78,7 +87,8 @@ function roundRobin(pool, name) {
   closings.sort((a, b) => a - b);
   console.log(`\n  ${name}  — ${pool.length} contenders, ${duels} duels in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   console.log(`    CAPTURES ${caps}/${duels} (${(100 * caps / Math.max(1, duels)).toFixed(0)}%)`
-    + `   stalemate ${stale}   invalid ${invalid}   separation clamped ${clamped}`);
+    + `   stalemate ${stale}   invalid ${invalid}   clamped ${clamped}`
+    + `   CANNOT MEET ${unreachable}`);
   if (times.length) {
     console.log(`    time to capture  median ${times[times.length >> 1].toFixed(2)}s`
       + `   fastest ${times[0].toFixed(2)}s`);

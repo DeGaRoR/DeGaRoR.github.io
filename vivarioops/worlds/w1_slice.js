@@ -273,7 +273,42 @@ export const W1_SLICE = {
 
   // ── bridge ─────────────────────────────────────────────
   duelRepeats:   3,               // slice value; full is 5
-  duelDuration: 15.0,             // s
+  /**
+   * ── DERIVED, 2026-08-12. WAS 15.0, AND AT 15.0 A DUEL WAS IMPOSSIBLE ────────
+   *
+   * `tools/_zduelchamp.mjs`: 0 captures in 84 duels for the campaign champions
+   * AND 0 in 84 for a random control, separation clamped in every single one.
+   * `HANDOFF.md` diagnosed C2 as an AIMING problem — "locomotion is no longer
+   * the blocker; aiming is" — and that diagnosis was wrong the same way its
+   * predecessor was: at 0.2 deg/s aiming was impossible, and the second failure
+   * hid behind the first.
+   *
+   * The quantity that decides it is not aim. It is whether the pair can close
+   * its own touching range in the time allowed — `reachSum / (cruiseA + cruiseB)`
+   * — because below touching range the duel measures the spawn rather than the
+   * creatures. `tools/_zduelfit.mjs` measures it:
+   *
+   *     window     random corpus        campaign champions
+   *      15 s        0% of pairs can meet     14%
+   *      30 s        5%                       54%
+   *      60 s       15%                       89%
+   *      90 s       26%                       96%
+   *     120 s       41%                      100%
+   *
+   * Median seconds needed: 136 for the random corpus, 29 for the champions.
+   *
+   * 90 s, and for two reasons rather than one. It admits 96% of champion pairs —
+   * the animals a duel exists to discriminate between — and it is `GOAL_SECONDS`
+   * exactly, so the duel and the beacon trial these creatures were bred on pose
+   * tasks of comparable length instead of differing by forty-fold. 120 would buy
+   * the last 4%, cost a third more, and the pairs it would add are the slowest
+   * ones, which a duel should be allowed to fail.
+   *
+   * THE RANDOM CORPUS STILL MOSTLY FAILS AT 90 s, AND THAT IS CORRECT. An
+   * unselected creature should not catch anything. A window that gave the draw a
+   * high capture rate would be measuring the tank, not the animals.
+   */
+  duelDuration: 90.0,             // s — derived; see above
   // HALVED at the same re-measure, 4.0 -> 2.0. engagementRadius = k*(reachA+reachB)
   // and the reach sum runs to ~11 cm on a big pair, so k=4 asked for 44 cm of
   // engagement inside a tank that is now 32. k=2 gives 13 cm on a median pair and

@@ -129,7 +129,27 @@ export const GENOME_V = 8;
 // means something different, and 11 §4 makes a bridge bump the only invalidation
 // mechanism there is. `turnRate3dAt1` / `turnRadiusAt1` are returned alongside so
 // every figure quoted before this date stays auditable.
-export const BRIDGE_V = 8;
+// 8 -> 9 (2026-08-12). THE DUEL TASK, and it is a duel-RULE change on both of
+// the axes 11 §4 says a bridge bump exists for.
+//
+//   `duelDuration` 15 -> 90 s, DERIVED (`tools/_zduelfit.mjs`). At 15 s **0% of
+//   random pairs and 14% of champion pairs could close their own touching range**
+//   — so `tools/_zduelchamp.mjs` measured 0 captures in 84 duels for the bred
+//   champions AND 0 in 84 for a random control, with the separation clamped in
+//   every single one. HANDOFF.md blamed aiming; the animals now aim, and it made
+//   no difference, because the task was arithmetically impossible.
+//
+//   Separation gains a CEILING at what the pair can actually cross,
+//   `(cruiseA + cruiseB) * duelDuration`, and reports `unreachable` when even
+//   touching range is beyond them. `wanted` was `k * reachSum` — a size — while
+//   whether a duel can happen at all is a question about speed. The two were
+//   never reconciled and the harness silently played out the difference as a
+//   stalemate.
+//
+// Every stored matchup was measured under a 15 s window against a separation
+// nobody could cross, so they are not merely stale — they are all the same
+// non-result. Invalidating them is the point of the bump.
+export const BRIDGE_V = 9;
 
 // ⚠ BRIDGE_V IS NOT BUMPED FOR GENOME_V 7, and that is not an oversight.
 // `genomeHash` mixes GENOME_V in, so every record key moves anyway; and the

@@ -119,7 +119,12 @@ export const OUTCOME = { A: 'A', B: 'B', NONE: 'none' };
  * different bearing off each creature's own forward axis — over the same five
  * distinct relationships, and it leaves the spawn frame untouched.
  */
-export function duelSetup({ aHash, bHash, reachA, reachB, repeat, world, worldHashStr }) {
+export function duelSetup({ aHash, bHash, reachA, reachB, repeat, world, worldHashStr,
+                            cruiseA = 0, cruiseB = 0 }) {
+  // The window the separation has to be crossable inside. Read from the world so
+  // the two cannot drift apart — a separation derived against one duration and
+  // run for another is the defect this whole block exists to close.
+  const duration = world.duelDuration;
   const s = pairSeed(BRIDGE_V, worldHashStr, aHash, bHash, repeat);
 
   const kIndex = Math.floor(rand01(s, 0) * SEPARATION_K.length);
@@ -153,15 +158,50 @@ export function duelSetup({ aHash, bHash, reachA, reachB, repeat, world, worldHa
   // Touching range is the floor: below it they start already in contact and the
   // duel measures the spawn, not the creatures.
   const near = Math.min(reachSum, room);
-  const far = Math.max(near, room);
+
+  // ── THE CEILING IS WHAT THE PAIR CAN ACTUALLY CROSS ─────────────────────────
+  //
+  // `wanted` is `k x reachSum` — a SIZE. Whether a duel can happen is a question
+  // about SPEED, and the two were never reconciled: at `duelDuration` 15 s the
+  // harness asked for 27-68 cm crossings from animals whose best covered 7.2 cm,
+  // clamped the request against the tank, and reported a stalemate. 84 duels out
+  // of 84, champions and random corpus alike (`tools/_zduelchamp.mjs`).
+  //
+  // `crossable` is what the two of them together can cover in the window. It is
+  // a CONSERVATIVE bound and measurably so: `netSpeed` is a 6 s torus window, and
+  // the champions sustain roughly 1.8x it over a 90 s trial — the seeker's
+  // `netSpeed` is 0.0399 cm/s yet it closes 6.5 cm of an 8 cm task in 90 s. So no
+  // fudge factor is applied on top; there is no coefficient here to justify.
+  //
+  // OPTIONAL, AND ABSENT MEANS UNCHANGED. A caller that does not measure cruise
+  // gets exactly the previous arithmetic, so `gate/duel.js` and every stored
+  // record are untouched by the presence of this branch.
+  const closing = (cruiseA ?? 0) + (cruiseB ?? 0);
+  const crossable = closing > 0 ? closing * duration : Infinity;
+
+  // A pair that cannot close even the touching range CANNOT MEET, however well
+  // either one aims. Reported rather than silently played out as a stalemate:
+  // that conflation is what let an impossible task read as a failure of the
+  // creatures for three sessions.
+  const unreachable = crossable < near;
+
+  const far = Math.max(near, Math.min(room, crossable));
   const span01 = SEPARATION_K.length > 1 ? kIndex / (SEPARATION_K.length - 1) : 0;
-  const separation = Math.min(near + span01 * (far - near), wanted);
+  const separation = Math.min(near + span01 * (far - near), wanted, Math.max(near, crossable));
 
   const half = separation / 2;
 
   return {
     seed: s,
     k, kIndex, theta, wanted, separation, room,
+    /** What the pair can cover together in the window. Infinity if unmeasured. */
+    crossable,
+    /**
+     * The pair cannot close even touching range in `duelDuration`. A stalemate
+     * from such a pair is a statement about the TASK, not about the animals, and
+     * anything reducing these records has to be able to tell them apart.
+     */
+    unreachable,
     /** How much of 11 §6's request the tank could honour. Reported, not hidden. */
     fitRatio: wanted > 0 ? separation / wanted : 1,
     clamped: separation < wanted - 1e-9,
@@ -404,12 +444,16 @@ export function runDuel(RAPIER, args) {
   const setup = duelSetup({
     aHash: a.hash, bHash: b.hash,
     reachA: a.reach, reachB: b.reach,
+    // Optional and absent-means-unchanged. A caller that has measured cruise
+    // hands it over and gets a separation the pair can actually cross.
+    cruiseA: a.cruise, cruiseB: b.cruise,
     repeat, world, worldHashStr,
   });
 
   const base = {
     repeat, seed: setup.seed, k: setup.k, theta: setup.theta,
     clamped: setup.clamped, requestedSeparation: setup.wanted,
+    crossable: setup.crossable, unreachable: setup.unreachable,
     outcome: OUTCOME.NONE, timeToOutcome: world.duelDuration,
     workA: 0, workB: 0, minDistance: Infinity,
     separation: setup.separation,

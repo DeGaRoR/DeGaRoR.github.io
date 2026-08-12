@@ -1254,14 +1254,65 @@ the separation should likewise come from cruise × window, not from reach × k.
 
 ### The order that follows
 
-1. **Re-derive the duel task from measured cruise.** Cheap, and it is the single
-   thing standing between here and C2 → D1 → ecology.
-2. **Ship the joint-limit floor** (§10e). Config-only, no schema move, 3.3×.
+1. ✅ **DONE — the duel task is re-derived from measured cruise.** §10i.
+2. ✅ **DONE — the joint-limit floor ships.** §10e; `SLICE_LIMITS.revoluteLimitBand`.
 3. **Decide perception BEFORE co-evolution, not after.** This is the strategic
-   one. Co-evolution on an omniscient compass will breed animals that exploit
-   perfect information, and receptors added afterwards invalidate every one of
-   them. Re-running Phase 2's gate on creatures that can now travel is the
-   cheapest way to find out whether the receptor path is alive.
+   one and it is the one left. Co-evolution on an omniscient compass will breed
+   animals that exploit perfect information, and receptors added afterwards
+   invalidate every one of them. Re-running Phase 2's gate on creatures that can
+   now travel is the cheapest way to find out whether the receptor path is alive.
+
+## 10i. THE DUEL TASK, FIXED — and C2's matrix is no longer all zeros
+
+**Two changes, `BRIDGE_V` 8 → 9.**
+
+`duelDuration` **15 → 90 s**, derived by `tools/_zduelfit.mjs` from the only
+quantity that decides whether a duel can happen: `reachSum / (cruiseA + cruiseB)`,
+the time a pair needs to close its own touching range. Below touching range the
+duel measures the spawn, so a shorter window cannot produce a capture by any
+amount of aiming.
+
+| window | random pairs that can meet | champion pairs |
+|---|---|---|
+| **15 s (was)** | **0%** | **14%** |
+| 30 s | 5% | 54% |
+| 60 s | 15% | 89% |
+| **90 s (now)** | 26% | **96%** |
+| 120 s | 41% | 100% |
+
+90 s admits 96% of champion pairs and is `GOAL_SECONDS` exactly, so the duel and
+the beacon trial these animals were bred on pose tasks of comparable length
+instead of differing forty-fold. The random corpus still mostly fails, and that
+is correct — an unselected creature should not catch anything.
+
+**Separation gains a ceiling at what the pair can cross**, `(cruiseA + cruiseB) ×
+duelDuration`, and `duelSetup` now returns **`unreachable`** when even touching
+range is beyond them. `wanted` was `k × reachSum` — a *size* — while whether a
+duel is possible is a question about *speed*; the two were never reconciled and
+the harness played out the difference as a stalemate. The bound is conservative
+by measurement rather than by a fudge factor: `netSpeed` is a 6 s torus window
+and the champions sustain ~1.8× it over 90 s.
+
+**Result** (`tools/_zduelchamp.mjs`, same harness, random pool as control):
+
+| | captures | cannot meet |
+|---|---|---|
+| random corpus | **0 / 84** | 63 / 84 |
+| campaign champions | **4 / 84** | 3 / 84 |
+
+Median time to capture 7.3 s, fastest 6.1 s. **C2's matchup matrix was all zeros
+for three sessions; it is not any more**, and the new flag separates "the task
+was impossible" from "the animal failed to catch" — a conflation that let an
+impossible task read as a failure of the creatures.
+
+**And the deadlock is closed.** `V1` asserts the three version files agree,
+`build.js` is their only writer, and it refuses to write while the gate is red —
+so any schema bump made the gate red and the only tool that could fix it would
+not run. HANDOVER-STEERING hit this at `BRIDGE_V` 8 and escaped by hand-editing
+the file V1 exists to protect. It recorded the fix; this session hit it again at
+9, so the fix is now built: `node tools/build.js --bootstrap-version` mirrors the
+schema versions and nothing else, leaving `app`/`build`/`commit` untouched so it
+cannot be mistaken for a release.
 
 ## 11. What ran, and what it produced
 

@@ -444,6 +444,63 @@ export const SLICE_LIMITS = {
    * world question, not a genome question. Widening is ONE NUMBER here.
    */
   density: [1, 1],
+
+  /**
+   * ── A FLOOR UNDER THE BEND, AND IT IS THE PRODUCT THAT NEEDED FIXING ────────
+   *
+   * A bending joint's limit is drawn from this instead of from
+   * `RANGE.angleLimit`. Twist joints keep their own band (see `randomNode`).
+   *
+   * THE DEFECT, MEASURED (`tools/_zjoint.mjs`, 300 draws, 414 joints). What a
+   * joint actually swings is `amplitude x angleLimits[0]`, a product of two
+   * independent uniforms — `amplitude ~ U[0,1]`, `angleLimits ~ U[0, PI/2]`. The
+   * product's expectation is a QUARTER of the cap even though either gene alone
+   * averages a half:
+   *
+   *     drawn stroke half-amplitude   p10 0.005   median 0.105 (6 deg)   max 1.212
+   *     the authored eel              0.8 x 0.9 = 0.720 rad (41 deg)
+   *
+   * **88% of drawn joints swing less than half the eel's stroke, and the p10
+   * joint swings a third of a degree** — a revolute joint behaving like a rigid
+   * one. The 90-degree cap was never the problem; the bottom of the band was.
+   *
+   * THE A/B (`design/15-BREEDING.md` section 10e). Four arms, 20 generations x
+   * 3 lines, same seed and the same draw sequence, so generation 0 was the same
+   * genomes differing only in this band. Best BRED animal, canonical trial:
+   *
+   *     [0, 1.571]     control     1.610 cm      response 1.88x
+   *     [0.35, 1.571]  THIS        5.297 cm      response 2.81x     <- 3.3x
+   *     [0, 2.0]       ceiling     1.526 cm      response 2.55x
+   *     [0.35, 2.0]    both        5.340 cm      response 5.34x
+   *
+   * The ceiling alone is no better than the control and its ark contained zero
+   * bred animals; the floor is the whole effect, and the pair adds 1% to the
+   * champion. So the floor ships and the ceiling does not.
+   *
+   * WHY 0.35 AND NOT A TUNED VALUE. It is `RANGE.twistLimit`'s ceiling: a
+   * bending joint should bend at least as far as a feathering twist joint is
+   * allowed to rotate. It is the one number already in the schema that means
+   * "the smallest articulation this project considers worth having", and reusing
+   * it is what keeps this from being the ungrounded coefficient standing rule 5
+   * forbids.
+   *
+   * WHY THIS IS A CONFIG BAND AND NOT A SCHEMA EDIT, learned by breaking it:
+   * `validateGenome` checks EVERY joint's `angleLimits` against
+   * `RANGE.angleLimit`, twist joints included, and a twist joint's own band is
+   * the subrange [0, 0.35]. Raising `RANGE.angleLimit[0]` therefore invalidates
+   * every twist joint in the corpus at once — which is exactly how the first run
+   * of the A/B died. Every value drawn here stays inside the schema range, so
+   * nothing stored is invalidated and there is no migration.
+   *
+   * ⚠ THIS MOVES THE RANDOM CORPUS BUT NO STORED GENOME. `createRandomGenome`
+   * at a given seed now yields a different animal, so every figure taken on a
+   * drawn corpus before this date is measured on a different population and must
+   * not be compared across it. NO `faunaVersion` BUMP, and that is deliberate:
+   * that counter exists for changes that MOVE GENOME HASHES and invalidate
+   * cached records, and nothing stored moves here — the seeds, the residents and
+   * every Atlas specimen are untouched to the bit.
+   */
+  revoluteLimitBand: [0.35, RANGE.angleLimit[1]],
 };
 
 const pick = (rng, arr) => arr[rng.int(arr.length)];
