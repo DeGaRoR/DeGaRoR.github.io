@@ -87,17 +87,70 @@ function genTrim(def) {
   const fin = at(s1);
   // cruise throttle from the drag the tunnel just measured against the thrust
   // the prop can make at that speed
+  // the aeroplane's OWN prop where it has one (a GARAGE build always does)
   const PP = POWERPLANTS[def.params.powerplant];
-  const Tavail = Math.max(1, PP.prop.Tstatic - PP.prop.kV2 * V * V);
+  const PR = def.params.prop || PP.prop;
+  // BOTH estimates below are about what the AEROPLANE pulls, so both carry the
+  // engine count. They used to read the per-disc figure while the solver flew
+  // on twice it (`T = Tper * refs.engine.length`, fixed G4.9).
+  const nE = def.params.nEngines || 1;
+  const Tavail = Math.max(1, PR.Tstatic - PR.kV2 * V * V) * nE;
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
-  // takeoff run to 2.5 m agl, conservative on purpose: the AP only uses it to
-  // decide whether to backtrack, and over-estimating means it backtracks when
-  // in doubt (measured Cub 60 m, this estimate 98 m).
-  const Vlof = 1.05 * def.params.ap.VRot;
-  const acc = Math.max(0.3, (0.92 * PP.prop.Tstatic - 0.05 * W) / sim.totalM);
-  def.params.ap.TORun = Math.round(1.35 * Vlof * Vlof / (2 * acc));
+  // TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
+  // backtrack, so it has to err LONG.
+  //
+  // Rebuilt in G4.9, because the engine-count fix took away the error that was
+  // cancelling this one. The old form was `1.35 * Vlof^2 / (2*acc)` with ONE
+  // constant acceleration off 0.92*Tstatic and `Vlof = 1.05*VRot`. Two things
+  // were wrong with it and the doubled thrust hid both — it read 119 m against
+  // the 103 m the over-powered aeroplane actually flew, which looked like the
+  // deliberate safety bias the comment claimed. On honest thrust the same
+  // formula reads 119 m against 292 m flown: optimistic by 2.4x, and on a
+  // backtrack decision optimistic is the dangerous direction.
+  //
+  // 1. IT DOES NOT UNSTICK AT 1.05*VRot. VRot is where the autopilot starts
+  //    asking; the wheels leave when the wing can carry the aeroplane AT THE
+  //    LIFTOFF ATTITUDE, which is a tunnel question. Measured against flown
+  //    takeoffs this is right to a few per cent and high rather than low
+  //    (gen 21.4 predicted / 20.8 flown, cub 19.0 / 17.6).
+  // 2. THE ACCELERATION IS NOT CONSTANT. Thrust falls as kV2*V^2 the whole way
+  //    down the roll while drag climbs, so the mean is nothing like the
+  //    standing value. Integrate s = INT V dV / a(V) instead.
+  //
+  // The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
+  // level — which under-reads lift and so over-reads both the weight on the
+  // wheels and the rolling drag: conservative, deliberately.
+  const A_ = def.params.ap;
+  let Vun = 1.05 * A_.VRot;
+  {
+    let lo = 1, hi = 4 * Vun + 40;
+    for (let k = 0; k < 40; k++) {
+      const mV = 0.5 * (lo + hi);
+      if (genProbeAt(sim, mV, A_.liftoffTh).Fy < W) lo = mV; else hi = mV;
+    }
+    Vun = Math.max(Vun, 0.5 * (lo + hi));
+  }
+  const NS = 32;
+  let sRoll = 0;
+  for (let i = 0; i < NS; i++) {
+    const Vi = Vun * (i + 0.5) / NS;
+    const Ti = Math.max(0, PR.Tstatic - PR.kV2 * Vi * Vi) * nE;
+    const ri = genProbeAt(sim, Vi, 0);
+    const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
+    const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
+    sRoll += Vi * (Vun / NS) / ai;
+  }
+  // AIR SEGMENT, unstick to 2.5 m. NOT a climb at a settled speed — the
+  // aeroplane is accelerating and climbing at once, and how much of the
+  // surplus goes into height rather than into speed is an aeroplane-by-
+  // aeroplane thing: measured 23 m on the cub against 101 m on the garage
+  // preset, for the same 2.5 m. So it is carried as a fraction of the roll
+  // rather than modelled, at 0.8 — above the worse of the two measured ratios
+  // (0.53 gen, 0.18 cub), because this number's whole job is to be long.
+  // Reads 320 m against the preset's 292 m flown.
+  def.params.ap.TORun = Math.round(1.8 * sRoll);
   return def;
 }
 
@@ -147,6 +200,40 @@ function genShakedown(def) {
     const y = st.p[i*3+1] - st.r[i];
     if (y < lowY) { lowY = y; lowTag = def.nodes[i].tag; }
   }
+  // THE SUSPENSION, measured as suspension rather than as a strain maximum.
+  // `gearStrain` above is the worst-loaded gear MEMBER, which is a structural
+  // number and since G4.7 is usually the drag brace — it goes UP with stiffness,
+  // because a stiffer spring hands more load to the brace. What the knob claims
+  // is travel, so travel is what gets measured — plus `susShift`, which is the
+  // only thing that can see a FOLD (see below).
+  let springStrain = 0, legL = 0, iLegTop = -1, iLegAx = -1;
+  def.beams.forEach((b, i) => {
+    if (!b.gear || b.vis !== 'leg') return;
+    springStrain = Math.max(springStrain, Math.abs(st.beams[i].strain));
+    const ta = def.nodes[b.a].tag || '', tb = def.nodes[b.b].tag || '';
+    if (iLegTop < 0 && (ta.indexOf('AXLE') === 0 || tb.indexOf('AXLE') === 0)) {
+      legL = b.L;
+      iLegAx = ta.indexOf('AXLE') === 0 ? b.a : b.b;
+      iLegTop = ta.indexOf('AXLE') === 0 ? b.b : b.a;
+    }
+  });
+  // travel IS the spring's own compression. A vertical node-difference cannot
+  // measure it: the main leg is long and steeply raked into the FIREWALL, so the
+  // axle moves along the leg rather than under it — measured, 5 mm of vertical
+  // change for 52 mm of actual compression, and the rest of any node-difference
+  // is the body pitching.
+  const susTravel = springStrain * legL;
+  // THE FOLD, and it has to be geometric. A snap-through rotates the gear rather
+  // than stretching it — the folded case sat at 1.3% leg strain, which is rule 10
+  // exactly ("no strain gate can see a mechanism"). So: how far has the axle moved
+  // RELATIVE to the airframe node it hangs on, as a fraction of the leg? A working
+  // suspension is under 0.1 of its leg; the fold measured 1.4.
+  let susShift = 0;
+  if (iLegTop >= 0) {
+    const d0 = [0, 1, 2].map(k => def.nodes[iLegAx].p[k] - def.nodes[iLegTop].p[k]);
+    const d1 = [0, 1, 2].map(k => st.p[iLegAx*3+k] - st.p[iLegTop*3+k]);
+    susShift = Math.hypot(d1[0]-d0[0], d1[1]-d0[1], d1[2]-d0[2]) / Math.max(1e-6, legL);
+  }
   const cgS = st.cgPos(), axX = st.p[iAx*3], axY = aglOf(iAx);
   const noseOver = Math.atan2(cgS[0] - axX, Math.max(0.05, cgS[1] - axY)) * 180 / Math.PI;
   const onWheels = iAx >= 0 && Math.abs(aglOf(iAx)) < 0.06 && Math.abs(aglOf(iTw)) < 0.06;
@@ -158,6 +245,7 @@ function genShakedown(def) {
     engineName: PPr.engine.name, hp, engineMass: PPr.engine.mass,
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
+    springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
     noseOver,
     Vs: g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
     alphaCruise: a * 180 / Math.PI,
@@ -167,7 +255,8 @@ function genShakedown(def) {
     stabTrim: def.params.stabTrim,
   };
   if (S && P) {
-    const ground = S.gear.y - S.gear.wheelR;
+    // contactR, not wheelR: a cambered wheel touches down above its own radius
+    const ground = S.gear.y - S.gear.contactR;
     const tw = def.nodes[P.TW];
     out.AR = g.AR;
     // atan, not atan2: this is the slope of the line through the two contacts,
@@ -177,6 +266,37 @@ function genShakedown(def) {
     out.gearType = S.gear.type;
     out.bracing = P.bracing;
     out.propClear = (S.engY - S.propR) - ground;
+    // The two halves of the split suspension height, as BUILT rather than as
+    // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
+    // instead, and the third leg's length is derived for a nosewheel. Reporting
+    // both is what makes "nose vs mains, set separately" legible.
+    out.mainDrop = -0.02 - S.gear.y;
+    out.mainBoundBy = S.gear.yBoundBy;
+    // THE COWL, reported rather than enforced. A cowl is not obliged to enclose
+    // its engine — a Cub's cylinders stick out on purpose — but "the cowl
+    // collapses below its engine" was a real bug hiding behind that, so the
+    // panel says which one you have built.
+    out.cowlHalfW = S.cowl.halfW;
+    out.cowlTop = S.cowl.top; out.cowlBot = S.cowl.bot;
+    out.cowlEnclosed = S.cowl.enclosed;
+    out.cowlOut = ['above', 'below', 'sides'].filter(k => !S.cowl.covers[k]);
+    // THE PROPELLER as a component of its own: the disc it sweeps, what it pulls
+    // standing still, where its thrust runs out, and what the blades weigh.
+    out.propName = S.prop.name;
+    out.propD = S.prop.D; out.propBlades = S.prop.blades;
+    out.propDisc = S.prop.area;
+    out.propTstatic = S.prop.Tstatic; out.propV0 = S.prop.V0;
+    out.propMass = S.prop.mass;
+    // WHAT THE AEROPLANE ACTUALLY PULLS: the disc's static thrust once per
+    // ENGINE. It used to be once per MOUNT NODE, which is two on this airframe
+    // family, and the whole fleet was anchored on the resulting doubling
+    // (fixed G4.9). Same expression the solver uses, so the panel and the
+    // aeroplane cannot disagree again.
+    out.propThrust = S.prop.Tstatic * (def.params.nEngines || 1);
+    out.propTW = out.propThrust / W;
+    out.thirdLeg = S.gear.type === 'tricycle' ? -0.02 - tw.p[1]
+                                             : def.nodes[P.TPB].p[1] - tw.p[1];
+    out.camber = S.gear.camber;
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the
   // whole aero synthesis is built on; this runs the same free-air CLmax scan

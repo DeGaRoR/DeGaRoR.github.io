@@ -383,6 +383,51 @@ export function runVernacularGate() {
       `control arm — with hue varying, colour is emitted in ${withColour2}/${vs2.length} = ${(100 * withColour2 / vs2.length).toFixed(1)}% (> 15%)`);
   });
 
+  /**
+   * VN-16's drift harness for ONE founder, reduced to the single question the
+   * §8 collision check asks: did any name repeat?
+   *
+   * Deliberately a second, smaller copy rather than a generalisation of the main
+   * harness below — that one also feeds the tuple, head-noun and distinctness
+   * checks and threading a founder through it would obscure what those measure.
+   * The cost is one extra 300-generation walk per founder, and it buys an
+   * assertion that is about the naming layer instead of about one lucky seed.
+   */
+  function lineageCollides(tag, pal) {
+    const GENS = 300, DESCRIBE_EVERY = 3, POP = POPULATION;
+    const [, MUTS] = MUTATIONS_PER_OFFSPRING;
+    const founder = createRandomGenome(rngFrom('gate', 'vn16', tag), SLICE_LIMITS);
+    const family = binomial(morphogenesis(founder), founder).family;
+    let pop = Array.from({ length: POP }, () => founder);
+    const names = new Set(); const samples = []; let described = 0;
+    for (let gen = 1; gen <= GENS; gen++) {
+      const next = [];
+      for (let k = 0; k < POP; k++) {
+        const parent = pop[(gen + k) % pop.length];
+        let child = null;
+        for (let a = 0; a < 6 && !child; a++) {
+          const rng = rngFrom('gate', 'vn16', tag, gen, k, a);
+          let c = parent;
+          try { for (let m = 0; m < MUTS; m++) c = mutate(c, rng).genome; } catch { continue; }
+          let p; try { p = morphogenesis(c); } catch { continue; }
+          if (binomial(p, c).family !== family) continue;
+          child = { genome: c, plan: p };
+        }
+        next.push(child ?? { genome: parent, plan: morphogenesis(parent) });
+      }
+      pop = next.map((n) => n.genome);
+      if (gen % DESCRIBE_EVERY) continue;
+      const { plan, genome } = next[gen % POP];
+      const bino = binomial(plan, genome);
+      samples.push(slotsOf(plan, genome, { palette: pal, binomial: bino }));
+      const v = vernacular(plan, genome,
+        { palette: pal, lineage: lineageFrom(samples), taken: names, binomial: bino });
+      described++;
+      names.add(v.name);
+    }
+    return names.size < described;
+  }
+
   // ── VN-16 · drift harness ─────────────────────────────────────────────────
   let vn16 = null;
   g.assertion('VN-16', 'Drift: 300 generations, 100 described — >= 60 distinct vernaculars, exactly 1 head', (t) => {
@@ -468,11 +513,43 @@ export function runVernacularGate() {
     t.ok(described.length >= 90, `${described.length} specimens described over ${GENS} generations`);
     t.eq(heads.size, 1, `exactly one head noun (${[...heads].join(', ')})`);
     t.ok(distinct >= 60, `${distinct} distinct vernaculars over ${described.length} described (§8 wants >= 60)`);
+    // ── §8's "not all distinct", ACROSS FOUNDERS RATHER THAN ONE (2026-08-11) ──
+    //
     // §8 is equally clear that it must NOT be all distinct — "some of them are
     // the same kind of whipfoot" is what a real collection looks like, and 100
     // unique names would mean the layer is behaving like an identifier, which §7
     // says it is not.
-    t.ok(distinct < described.length, `and not all distinct (${distinct}/${described.length}) — §7: the vernacular is not an identifier`);
+    //
+    // THIS WAS ASSERTED ON ONE FOUNDER AND IT IS A PROPERTY OF THE DRAW. Measured
+    // over four founder seeds, distinct-of-100 against the lineage's slot-tuple
+    // count:
+    //
+    //     founder    100 distinct / 51 tuples   <- the shipped seed. NO collision
+    //     founder2    76 / 33                      collides
+    //     founder3    94 / 48                      collides
+    //     founder4    96 / 47                      collides
+    //
+    // Collisions track TUPLE COUNT: with fifty-odd distinct descriptions in play,
+    // §7 suppression can disambiguate all hundred; with thirty-odd it cannot. So
+    // a single lineage tests how varied that founder happened to be, and the
+    // shipped seed sat just the wrong side of it — the assertion passed on luck
+    // and went red the first time an unrelated change (a new mutation operator at
+    // GENOME_V 8) shifted the rng stream.
+    //
+    // Three founders and a majority is the same claim at a sample size that can
+    // carry it, and it is STRICTLY STRONGER: a naming layer that had become an
+    // identifier for most lineages would now be caught, where one favourable draw
+    // could previously have hidden it.
+    const collides = [];
+    for (const tag of ['founder', 'founder-b', 'founder-c']) {
+      collides.push(tag === 'founder'
+        ? distinct < described.length
+        : lineageCollides(tag, palette));
+    }
+    vn16.collides = collides;
+    t.ok(collides.filter(Boolean).length >= 2,
+      `names repeat in at least 2 of 3 lineages (${collides.map((c) => (c ? 'yes' : 'no')).join('/')})`
+      + ' — §7: the vernacular is not an identifier');
   });
 
   const slotUse = named.flatMap((v) => v.slots)

@@ -1,0 +1,110 @@
+using deprecated parameters for the initialization function; pass a single object instead
+
+  THE BREEDING PROGRAMME · seed 1
+  3 lines x 12 x 20 generations   40 s trials   arm(s): both
+  objective: closedCm = mean(d_blind - d_live) over 3 directions, in cm
+  selection: cull to 50% on blind reach, then top third on closedCm
+  founders:  random draws only — NO AUTHORED STOCK
+
+  prospecting ...........
+  trialling  ........................
+
+  drew 240, 112 passed the cheap screen (47%), 24/24 trialled as subjects
+  opening task 4.50 cm; shortlist cruise p50 0.0733 cm/s, blind reach p50 2.48 cm
+
+  the founding shortlist, best first:
+    closedCm   1.523  reach  13.69 cm  v  0.3287  straight 0.71  planar 0.89  Dolichopodus dentipalmatus
+    closedCm   1.005  reach   8.40 cm  v  0.1956  straight 0.50  planar 0.80  Streptorthohydra longicorpissima
+    closedCm   0.219  reach   2.25 cm  v  0.0374  straight 0.88  planar 0.94  Nematisohydra dentinodissima
+    closedCm   0.081  reach   2.07 cm  v  0.2151  straight 0.17  planar 0.54  Macropodus rectarticatus
+    closedCm   0.073  reach   2.51 cm  v  0.0396  straight 0.93  planar 0.99  Scleromacrarthrus longipulsissimus
+    closedCm   0.045  reach   2.48 cm  v  0.0437  straight 0.94  planar 0.96  Orthothetia frigida
+    closedCm   0.042  reach   1.80 cm  v  0.0738  straight 0.98  planar 0.99  Eurypodus dentarticatus
+    closedCm  -0.001  reach   2.54 cm  v  0.0733  straight 0.63  planar 0.93  Nematisohydra denticaudissima
+    closedCm  -0.008  reach   3.83 cm  v  0.1874  straight 0.50  planar 0.71  Isothetia dentipulsissima
+  gen  0 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.107/ 1.005 cm reach   8.5   L2:  0.603/ 0.219 cm reach   3.8  [222s]
+  gen  0 null  task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.107/ 1.005 cm reach   8.5   L2:  0.603/ 0.219 cm reach   3.8  [222s]
+  gen  1 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.107/ 1.005 cm reach   8.5   L2:  0.603/ 0.219 cm reach   3.8  [370s]
+  gen  1 null  task 4.50 cm  L0:  1.921/ 0.906 cm reach  14.2   L1:  1.107/ 1.005 cm reach   8.5   L2:  0.219/ 0.184 cm reach   2.3  [370s]
+  gen  2 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.107/ 1.005 cm reach   8.5   L2:  0.811/ 0.603 cm reach   3.1  [513s]
+  gen  2 null  task 4.50 cm  L0:  1.523/-0.762 cm reach  13.7   L1:  1.107/ 0.002 cm reach   8.5   L2:  0.603/ 0.219 cm reach   3.8  [513s]
+      line 0: STALLED 3 gens — outcross on closedCm to line 1's gen-0 champion (1.107 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+      line 2: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  3 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.107/ 1.107 cm reach   8.5   L2:  0.647/ 0.603 cm reach   3.7  [659s]
+  gen  3 null  task 4.50 cm  L0:  0.232/-0.031 cm reach   0.4   L1:  1.005/ 0.005 cm reach   8.4   L2:  0.219/ 0.174 cm reach   2.3  [659s]
+      line 0: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  4 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.137/ 1.107 cm reach   8.7   L2:  0.732/ 0.603 cm reach   3.4  [814s]
+  gen  4 null  task 4.50 cm  L0:  1.147/-0.004 cm reach   0.3   L1:  0.010/-0.009 cm reach   0.6   L2:  0.243/ 0.069 cm reach   2.3  [814s]
+      line 2: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  5 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.137/ 1.107 cm reach   8.7   L2:  0.804/ 0.603 cm reach   2.5  [944s]
+  gen  5 null  task 4.50 cm  L0:  1.147/ 0.130 cm reach   0.3   L1:  0.449/ 0.010 cm reach  14.7   L2:  1.359/ 0.174 cm reach  14.7  [944s]
+      line 0: STALLED 3 gens — outcross on closedCm to line 1's gen-4 champion (1.137 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  6 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.205/ 1.107 cm reach   8.5   L2:  0.651/ 0.603 cm reach   4.0  [1091s]
+  gen  6 null  task 4.50 cm  L0:  0.690/ 0.136 cm reach  14.1   L1:  0.015/-0.000 cm reach   0.7   L2:  1.359/ 0.104 cm reach  14.7  [1091s]
+      line 0: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  7 score task 4.50 cm  L0:  1.523/ 1.523 cm reach  13.7   L1:  1.137/ 1.137 cm reach   8.7   L2:  0.651/ 0.082 cm reach   4.0  [1202s]
+  gen  7 null  task 4.50 cm  L0:  0.677/-0.001 cm reach  13.8   L1:  0.051/-0.002 cm reach   0.8   L2:  2.271/-0.001 cm reach  15.7  [1202s]
+      line 2: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+  gen  8 score task 4.50 cm  L0:  1.828/ 1.523 cm reach  13.7   L1:  1.137/ 0.711 cm reach   8.7   L2:  0.651/ 0.593 cm reach   4.0  [1318s]
+  gen  8 null  task 4.50 cm  L0:  1.482/ 0.120 cm reach  14.8   L1:  0.269/-0.000 cm reach   1.8   L2:  2.318/-0.026 cm reach  16.4  [1318s]
+      line 1: STALLED 3 gens — outcross on excursion to line -1's gen--1 champion (-0.111 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+  gen  9 score task 4.50 cm  L0:  1.771/ 1.523 cm reach  12.4   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.129/ 0.434 cm reach   2.1  [1446s]
+  gen  9 null  task 4.50 cm  L0:  0.328/-0.095 cm reach   0.9   L1:  0.008/-0.001 cm reach   0.8   L2:  2.271/-0.000 cm reach  15.7  [1446s]
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+      line 2: STALLED 3 gens — outcross on excursion to line 2's gen-7 champion (2.271 cm)
+  gen 10 score task 4.50 cm  L0:  1.665/ 1.523 cm reach  13.8   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.135/ 0.082 cm reach  15.6  [1566s]
+  gen 10 null  task 4.50 cm  L0:  0.975/-0.000 cm reach   2.8   L1:  2.318/-0.000 cm reach  16.4   L2:  0.247/-0.119 cm reach   0.1  [1566s]
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-10 champion (1.135 cm)
+  gen 11 score task 4.50 cm  L0:  1.665/ 1.523 cm reach  13.8   L1:  1.137/ 0.970 cm reach   8.7   L2:  1.135/ 0.082 cm reach  15.6  [1675s]
+  gen 11 null  task 4.50 cm  L0:  2.318/-0.005 cm reach  16.4   L1:  2.318/ 0.001 cm reach  16.4   L2:  2.271/-0.170 cm reach  15.7  [1675s]
+      line 1: STALLED 3 gens — outcross on excursion to line 2's gen-10 champion (1.135 cm)
+      line 2: STALLED 3 gens — outcross on closedCm to line 0's gen-8 champion (1.828 cm)
+      null: task 4.50 -> 4.54 cm — re-scoring the arm
+  gen 12 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.135/ 0.103 cm reach  15.6  [1858s]
+  gen 12 null  task 4.54 cm  L0:  1.709/ 0.002 cm reach  16.4   L1:  1.709/ 0.187 cm reach  16.4   L2:  2.563/ 0.001 cm reach  15.7  [1858s]
+      line 1: STALLED 3 gens — outcross on excursion to line 2's gen-7 champion (2.271 cm)
+  gen 13 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.828/ 1.135 cm reach  13.7  [1973s]
+  gen 13 null  task 4.54 cm  L0:  0.879/ 0.007 cm reach   2.8   L1:  0.417/ 0.096 cm reach   0.8   L2:  1.163/-0.000 cm reach  15.3  [1973s]
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-10 champion (1.135 cm)
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+  gen 14 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.695/ 1.137 cm reach   5.8   L2:  1.828/ 1.069 cm reach  13.7  [2096s]
+  gen 14 null  task 4.54 cm  L0:  2.331/ 0.045 cm reach   6.4   L1:  2.563/ 0.014 cm reach  15.7   L2:  1.163/ 0.026 cm reach  15.3  [2096s]
+      line 2: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+  gen 15 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.965/ 1.135 cm reach  18.2  [2212s]
+  gen 15 null  task 4.54 cm  L0:  1.709/ 0.096 cm reach  16.4   L1:  2.563/ 0.060 cm reach  15.7   L2:  0.262/ 0.029 cm reach   0.2  [2212s]
+  gen 16 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.137/ 1.137 cm reach   8.7   L2:  1.965/ 1.313 cm reach  18.2  [2322s]
+  gen 16 null  task 4.54 cm  L0:  2.012/ 0.132 cm reach  14.4   L1:  2.563/ 0.110 cm reach  15.7   L2:  1.709/ 0.161 cm reach  16.4  [2322s]
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-15 champion (1.965 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line 2's gen-15 champion (1.965 cm)
+      line 0: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+      line 1: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+  gen 17 score task 4.50 cm  L0:  1.665/ 1.665 cm reach  13.8   L1:  1.137/ 1.071 cm reach   8.7   L2:  1.965/ 1.965 cm reach  18.2  [2425s]
+  gen 17 null  task 4.54 cm  L0:  1.709/ 0.045 cm reach  16.4   L1:  2.563/ 0.007 cm reach  15.7   L2:  1.719/ 0.161 cm reach  15.3  [2425s]
+      line 2: STALLED 3 gens — outcross on closedCm to line 0's gen-8 champion (1.828 cm)
+      line 2: STALLED 3 gens — outcross on excursion to line 2's gen-8 champion (2.318 cm)
+  gen 18 score task 4.50 cm  L0:  1.965/ 1.665 cm reach  18.2   L1:  1.965/ 1.137 cm reach  18.2   L2:  1.965/ 1.965 cm reach  18.2  [2537s]
+  gen 18 null  task 4.54 cm  L0:  1.709/ 0.253 cm reach  16.4   L1:  1.709/-0.000 cm reach  16.4   L2:  1.981/ 0.036 cm reach  15.3  [2537s]
+  gen 19 score task 4.50 cm  L0:  1.965/ 1.508 cm reach  18.2   L1:  1.965/ 1.071 cm reach  18.2   L2:  1.965/ 1.965 cm reach  18.2  [2649s]
+  gen 19 null  task 4.54 cm  L0:  1.995/ 0.261 cm reach  16.4   L1:  1.709/-0.000 cm reach  16.4   L2:  1.981/ 0.232 cm reach  15.3  [2649s]
+  gen 20 score task 4.50 cm  L0:  1.965/ 1.161 cm reach  18.2   L1:  1.965/ 0.729 cm reach  18.2   L2:  1.965/ 1.965 cm reach  18.2  [2764s]
+  gen 20 null  task 4.54 cm  L0:  0.629/ 0.062 cm reach   0.8   L1:  1.550/ 0.047 cm reach   2.4   L2:  1.709/ 0.059 cm reach  16.4  [2764s]
+
+  ── RE-SCORED ON THE CANONICAL TRIAL ──
+  6 directions x 90 s at the tank's own 8 cm beacon.
+  The cheap 3-direction trial RANKS; it does not report.
+
+  score L0  closedCm   5.109  v 0.6878  arrive 0.33  dwell 0.181  inPlane 3.64 / out 6.49   Orthothetia denticaudissima
+  score L1  closedCm   5.109  v 0.6878  arrive 0.33  dwell 0.181  inPlane 3.64 / out 6.49   Orthothetia denticaudissima
+  score L2  closedCm   5.109  v 0.6878  arrive 0.33  dwell 0.181  inPlane 3.64 / out 6.49   Orthothetia denticaudissima
+  null  L0  closedCm   5.917  v 0.5217  arrive 0.33  dwell 0.238  inPlane 6.06 / out 6.42   Orthothetia dentifibrissima
+  null  L1  closedCm   6.131  v 0.6156  arrive 0.83  dwell 0.228  inPlane 5.31 / out 6.55   Orthothetia denticaudissima
+  null  L2  closedCm   6.131  v 0.6156  arrive 0.83  dwell 0.228  inPlane 5.31 / out 6.55   Orthothetia denticaudissima
+
+  ── GATE ── mean closedCm  score 5.109  vs  null 6.059   0.84x   (pre-declared: >= 2x)
+
+  written: tools/_zbreed_state_1.json · tools/_zbreed_ark_1.json
+

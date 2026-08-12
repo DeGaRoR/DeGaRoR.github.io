@@ -109,6 +109,9 @@ function diffGenome(a, b) {
     // reason the note above records — that note is about these two genes' own
     // first channel, and repeating the mistake on the second would be inexcusable.
     gains2Changed: ['preyGain2', 'threatGain2'].filter(k => a.controller[k] !== b.controller[k]),
+    // GENOME_V 8, added in the SAME edit as `mutateBrakeGain`. Third time this
+    // note has been written; the rule has not changed and neither has the reason.
+    brakeChanged: a.controller.brakeGain !== b.controller.brakeGain ? 1 : 0,
     // A3, and added here in the SAME edit that added the operator, for the
     // reason the note above records: a diff blind to a gene reports total 0,
     // trips the no-op check, and cannot see the change even in principle.
@@ -135,7 +138,8 @@ function diffGenome(a, b) {
   d.total = d.nodesAdded.length + d.nodesRemoved.length + d.nodesChanged.length
     + d.connsAdded.length + d.connsRemoved.length + d.connsChanged.length
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length + d.gains2Changed.length + d.gradientChanged.length + d.proprioChanged
+    + d.gainsChanged.length + d.gains2Changed.length + d.brakeChanged
+    + d.gradientChanged.length + d.proprioChanged
     + d.mouthChanged + d.chemoChanged + d.taperChanged.length
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
@@ -146,7 +150,8 @@ function diffGenome(a, b) {
     + d.connsChanged.reduce((n, k) => n + leafCount(ac.get(k), bc.get(k)), 0)
     + d.jointGenesChanged.reduce((n, k) => n + leafCount(a.controller.jointGenes[k], b.controller.jointGenes[k]), 0)
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
-    + d.gainsChanged.length + d.gains2Changed.length + d.gradientChanged.length + d.proprioChanged
+    + d.gainsChanged.length + d.gains2Changed.length + d.brakeChanged
+    + d.gradientChanged.length + d.proprioChanged
     + d.mouthChanged + d.chemoChanged + d.taperChanged.length;
   return d;
 }
@@ -281,6 +286,11 @@ const EXPECTED = {
   mutateSteerGains2: (d, t) => {
     t.eq(d.gains2Changed.length, 1, 'mutateSteerGains2 changes exactly one second-channel gain');
     t.eq(d.total, 1, 'mutateSteerGains2 changes nothing else');
+  },
+  // GENOME_V 8. Same standing rule 3, same edit as the operator.
+  mutateBrakeGain: (d, t) => {
+    t.eq(d.brakeChanged, 1, 'mutateBrakeGain changes the brake gain');
+    t.eq(d.total, 1, 'mutateBrakeGain changes nothing else');
   },
   mutateSensorGain: (d, t) => {
     t.eq(d.gainsChanged.length, 1, 'mutateSensorGain changes exactly one sensor gain');
@@ -429,8 +439,35 @@ export async function runBreedGate() {
   g.assertion('L1-26', "A9's lock: mutation restricted to the controller leaves the body identical", (t) => {
     let bodyChanged = 0, controllerUnchanged = 0;
     for (let i = 0; i < 60; i++) {
-      const { genome: m } = mutateTimes(pop[i], rngFrom('gate', 'b4', 'lock', i), 3, { lockMorphology: true });
+      // ── EACH MUTATION, NOT THE COMPOSITION OF THREE (2026-08-11) ────────────
+      //
+      // This applied three locked mutations and diffed the ENDS, then asserted
+      // "every locked mutation does change the controller". Those are different
+      // claims, and the gap is reachable: `proprioGain` and `brakeGain` are
+      // non-negative genes whose `jitter` CLAMPS at the floor, so a walk can go
+      // 0 -> 0.122 -> 0.056 -> 0 and land exactly where it started. Every step
+      // changed the controller; the composition did not. Caught at GENOME_V 8
+      // when a new operator shifted the rng stream onto that path — the flaw was
+      // always there and had never been drawn.
+      //
+      // Diffing each step asserts what the sentence actually says, and it is the
+      // STRONGER claim: three chances to catch a no-op instead of one, and no
+      // longer satisfiable by two changes that happen to cancel.
+      const steps = [];
+      let cur = pop[i];
+      const lockRng = rngFrom('gate', 'b4', 'lock', i);
+      for (let k = 0; k < 3; k++) {
+        const nxt = mutate(cur, lockRng, { lockMorphology: true }).genome;
+        steps.push(diffGenome(cur, nxt));
+        cur = nxt;
+      }
+      const m = cur;
       const d = diffGenome(pop[i], m);
+      for (const sd of steps) {
+        if (!sd.omegaChanged && sd.jointGenesChanged.length === 0 && sd.gainsChanged.length === 0
+          && sd.gradientChanged.length === 0 && !sd.proprioChanged
+          && sd.gains2Changed.length === 0 && !sd.brakeChanged) controllerUnchanged++;
+      }
       if (d.nodesAdded.length || d.nodesRemoved.length || d.nodesChanged.length
         || d.connsAdded.length || d.connsRemoved.length || d.connsChanged.length) bodyChanged++;
       // AMENDED. This read `if (!d.omegaChanged && d.jointGenesChanged.length === 0)`,
@@ -449,9 +486,6 @@ export async function runBreedGate() {
       // AMENDED AGAIN AT GENOME_V 7, same reason, same edit as the operator:
       // `mutateSteerGains2` is in the controller branch, so a locked mutant that
       // drew it three times changes the controller and would be miscounted.
-      if (!d.omegaChanged && d.jointGenesChanged.length === 0 && d.gainsChanged.length === 0
-        && d.gradientChanged.length === 0 && !d.proprioChanged
-        && d.gains2Changed.length === 0) controllerUnchanged++;
       // The body plan itself must be identical, which is the property the player
       // is promised — "keep this shape, try different swimmers".
       if (i < 20) {

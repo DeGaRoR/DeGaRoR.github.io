@@ -129,6 +129,7 @@ function buildDrone() {
   const params = {
     name: 'Foam Trainer 1.4m', viewDist: 3.2, substeps: 48,
     powerplant: 'outrunner2212_9x47',
+    nEngines: 1,
     polarWing: POLARS.foam_wing_AR56, polarTail: POLARS.foam_tail,
     elevTau: 0.55, rudTau: 0.60, ailTau: 0.45, downwash: 0.35,
     stabTrim: -0.0781, sparSpacing: 0.11,

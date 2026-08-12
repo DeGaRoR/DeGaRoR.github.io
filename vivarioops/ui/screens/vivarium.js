@@ -66,7 +66,7 @@ import {
 // The beacon's two lines. The SAME pair `tools/_zlight.mjs` uses, imported rather
 // than reimplemented, so what a player watches on screen and what the experiment
 // measures cannot drift apart.
-import { sensorTurnBias, sensorTurnBias2 } from '../../engine/l1/controller.js';
+import { sensorTurnBias, sensorTurnBias2, sensorEffort } from '../../engine/l1/controller.js';
 import { bearingTo, bearingPair } from '../../engine/l2/duel.js';
 // S3 for the steering plane. Without it `bearingTo` falls back to the horizontal
 // and the beacon is inert — see the note on `measureTurnPlanes`.
@@ -1801,6 +1801,13 @@ export default {
 
     function frame(nowMs) {
       raf = requestAnimationFrame(frame);
+      // NOTHING IS DRAWN UNTIL THERE ARE CREATURES TO DRAW. Before `ready` the
+      // scene holds water, the food cloud and a camera that has never been
+      // fitted to anything — which is precisely the "far view of an empty
+      // aquarium with the food on" that used to open every warm load. The boot
+      // panel covers it, and this makes sure there is nothing underneath the
+      // panel to be uncovered by a mistimed reveal.
+      if (!ready) return;
       const dt = last ? Math.min(0.25, (nowMs - last) / 1000) : 0;
       last = nowMs;
 
@@ -1882,6 +1889,10 @@ export default {
               const { bearing, elevation } = bearingPair(c.sim, beacon.at, c.turnPlane ?? null);
               c.sim.control.turnBias = sensorTurnBias(c.genome, bearing, bearing);
               c.sim.control.turnBias2 = sensorTurnBias2(c.genome, elevation, elevation);
+              // GENOME_V 8 — throttle the gait when badly aimed. `brakeGain` 0
+              // returns exactly 1, so this is inert for every creature in the
+              // library today and only a bred one will show it.
+              c.sim.control.effort = sensorEffort(c.genome, bearing);
             }
           }
           // ALL occupants push, THEN one solve. Stepping each creature to
@@ -1923,6 +1934,17 @@ export default {
         }
       }
 
+      drawFrame(nowMs, dt);
+
+      if (nowMs - painted > 150) { paint(); painted = nowMs; }
+    }
+
+    /**
+     * The draw half of a frame, split out so BOOT CAN CALL IT ONCE before it
+     * lowers the loading panel. Everything here is idempotent and reads the
+     * current state; it steps nothing.
+     */
+    function drawFrame(nowMs, dt) {
       updateWater(water, nowMs / 1000);
       followCast(dt);
       placeCamera();
@@ -1930,8 +1952,6 @@ export default {
       syncMarkers();
       renderer.render(scene, camera);
       renderOverlay(renderer, water);
-
-      if (nowMs - painted > 150) { paint(); painted = nowMs; }
     }
 
     function resize() {
@@ -2000,8 +2020,41 @@ export default {
     }
 
     // ── boot ────────────────────────────────────────────────────────────────
-    // RAPIER.init() is async and 01 §4 forbids async inside /engine/, so the
-    // screen awaits it once and hands the namespace down.
+    //
+    // THE PANEL GOES UP BEFORE ANY OF THIS, AND THE SCENE IS NOT DRAWN BEHIND
+    // IT. Previously the rAF loop started here and `#boot-load` was revealed
+    // only by `seedAtlas`'s first progress callback — which fires on a COLD
+    // store and never again. So every subsequent load opened on the empty
+    // aquarium: the far framing (there is no cast yet, so `fitCast` has nothing
+    // to fit and the camera sits at its construction distance), the food point
+    // cloud already painted, and no animals, for the whole of Rapier's wasm
+    // instantiation plus the store read.
+    //
+    // Two changes, and both are needed: the panel is raised at the top of boot
+    // and lowered at the very end, AND `frame()` refuses to render until
+    // `ready`. The panel alone would still leave the first frame after it drops
+    // to be the unframed one; the render guard alone would show the previous
+    // screen's pixels. Together the first thing drawn is the fitted plate.
+    const boot = (() => {
+      const panel = document.getElementById('boot-load');
+      const head = document.getElementById('boot-load-head');
+      const track = document.getElementById('boot-load-track');
+      const bar = document.getElementById('boot-load-bar');
+      return {
+        /** `pct` null means "no measurable progress" — the track hides itself. */
+        show(text, note, pct = null) {
+          if (!panel) return;
+          panel.hidden = false;
+          if (head) head.textContent = t(text);
+          const noteEl = document.getElementById('boot-load-note');
+          if (noteEl) noteEl.textContent = note ? t(note) : ' ';
+          if (track) track.hidden = pct === null;
+          if (bar && pct !== null) bar.style.width = `${Math.round(pct * 100)}%`;
+        },
+        done() { if (panel) panel.hidden = true; },
+      };
+    })();
+    boot.show('Starting', 'Setting up the simulation.');
     genEl.textContent = t('Loading…');
     paint();
     raf = requestAnimationFrame(frame);
@@ -2009,6 +2062,7 @@ export default {
     (async () => {
       await RAPIER.init();
       if (stopped) return;
+      boot.show('Reading your vivarium', 'Loading the lineage you left.');
       vivariumSeed = await loadOrCreateVivariumSeed();
       const saved = await loadLineage();
       if (stopped) return;
@@ -2028,26 +2082,24 @@ export default {
       // The Atlas is the naming lineage (14 §4). Seeding it first means a fresh
       // install names its first generation against the shipped library rather
       // than against nothing.
-      // ── FIRST LOAD ONLY ─────────────────────────────────────────────────────
+      // ── FIRST LOAD ONLY, and now one phase of the panel rather than all of it ──
       //
       // `seedAtlas` draws one portrait per library entry and each costs about
       // 206 ms — 4321 ms for the 21 shipped specimens, measured on a cold store.
-      // It now yields to the event loop between them, so the page can paint;
-      // this is what it paints. The panel is revealed by the FIRST progress
-      // callback rather than before the call, so a warm boot — which skips every
-      // portrait and fires no callback — never flashes it.
-      const loadPanel = document.getElementById('boot-load');
-      const loadBar = document.getElementById('boot-load-bar');
+      // It yields to the event loop between them, so this is the one phase with
+      // real progress to report and it is the only one that shows the bar. A
+      // warm boot skips every portrait, fires no callback, and simply passes
+      // through with the previous phase's text still up.
       try {
         await seedAtlas({
           onProgress: (done, total) => {
-            if (loadPanel) loadPanel.hidden = false;
-            if (loadBar) loadBar.style.width = `${Math.round((done / Math.max(1, total)) * 100)}%`;
+            boot.show('Building the library', 'Drawing each specimen once. First load only.',
+              done / Math.max(1, total));
           },
         });
       } catch { /* the library just will not appear */ }
-      if (loadPanel) loadPanel.hidden = true;
       if (stopped) return;
+      boot.show('Growing your creatures', 'Building bodies and framing the tank.');
       nameCtx = await atlasContext();
       if (stopped) return;
       spawn();
@@ -2055,6 +2107,12 @@ export default {
       state = STATE.SIMULATING;
       if (!saved) persistLineage();
       paint();
+      // ONE FRAME, SYNCHRONOUSLY, BEFORE THE PANEL DROPS. `spawn()` fits the
+      // camera but does not draw; handing back to rAF here would lower the panel
+      // on a canvas still holding whatever was in it. Drawing first means the
+      // reveal is of the finished plate.
+      drawFrame(performance.now(), 0);
+      boot.done();
     })();
 
     return {

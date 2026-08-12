@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Garage plane — glazing options</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<style>
+  html,body{margin:0;height:100%;background:#e9e6de}
+  three-d-stage:not(:defined){visibility:hidden}
+  three-d-stage{display:block;width:100vw;height:100vh}
+  #bar{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;gap:6px;flex-wrap:wrap;
+       padding:10px 12px;background:rgba(22,18,13,.90);
+       font:600 11px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.10em}
+  #bar button{appearance:none;border:1px solid rgba(244,237,226,.28);background:transparent;
+       color:#f4ede2;padding:7px 11px;border-radius:2px;cursor:pointer;
+       font:inherit;text-transform:uppercase}
+  #bar button:hover{border-color:#e0a340;color:#e0a340}
+  #bar button.on{background:#e0a340;border-color:#e0a340;color:#1b1610}
+  #bar span{color:#9d9384;align-self:center;margin-right:6px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<three-d-stage name="garage-plane-glazing" background="#e9e6de"></three-d-stage>
+<script src="gen/00_registry.js"></script>
+<script src="gen/60_gen_spec.js"></script>
+<script src="gen/61_gen_frame.js"></script>
+<script src="gen/63_gen_skin.js"></script>
+<script src="gen/garage.js"></script>
+<script src="three-d-stage.js"></script>
+<script type="module">
+const stage = document.querySelector('three-d-stage');
+const { THREE } = await stage.ready;
+
+// [label, spec mutation]. The second row moves things the canopy does NOT own —
+// cabin, wing position, body shape, cargo — because the seam has to survive
+// those, not just its own sliders.
+const ROUTES = [
+  ['none',         s => { s.cabin.glazing = 'none'; }],
+  ['windshield',   s => { s.cabin.glazing = 'windshield'; }],
+  ['canopy',       s => { s.cabin.glazing = 'bubble'; }],
+  ['faceted',      s => { s.cabin.glazing = 'bubble'; s.cabin.canopy.facet = true; }],
+  ['ws + sides',   s => { s.cabin.glazing = 'windshield'; s.cabin.canopy.sides = true; }],
+];
+const RETIRED = [
+  ['tall bubble',  s => { s.cabin.canopy.height = 0.78; s.cabin.canopy.skew = 0.60; }],
+  ['deep sill',    s => { s.cabin.canopy.sill = 0.62; }],
+  ['shallow sill', s => { s.cabin.canopy.sill = 0.14; }],
+  ['long window',  s => { s.cabin.canopy.x1 = 3.2; s.cabin.canopy.skew = 0.70; }],
+  ['ws + sides',   s => { s.cabin.glazing = 'windshield'; s.cabin.canopy.sides = true; }],
+  ['canopy+sides', s => { s.cabin.canopy.sides = true; s.cabin.canopy.x1 = 1.9; }],
+];
+const STRESS = [
+  ['side by side', s => { s.cabin.seating = 'side2'; }],
+  ['low wing',     s => { s.wings[0].position = 'low'; s.bracing.type = 'cantilever'; }],
+  ['waisted body', s => { s.fuselage.shape = 'waisted'; s.fuselage.crownTop = 1; }],
+  ['flat sides',   s => { s.fuselage.crownTop = 0.15; s.fuselage.crownSide = 0; }],
+  ['cargo bay',    s => { s.cargo.len = 1.6; s.cargo.kg = 120; }],
+  ['big cabin',    s => { s.cabin.len = 2.2; s.cabin.h = 1.35; s.cabin.halfW = 0.66; }],
+];
+const PBR = {
+  _: { r: 0.72, m: 0.0 }, skin: { r: 0.42, m: 0.0 }, glass: { r: 0.06, m: 0.0, e: 1.5 },
+  frame: { r: 0.45, m: 0.85 }, cowl: { r: 0.30, m: 0.10 }, engine: { r: 0.55, m: 0.70 },
+  prop: { r: 0.42, m: 0.20 }, gearmetal: { r: 0.38, m: 0.80 }, liftstrut: { r: 0.30, m: 0.10 },
+  tyre: { r: 0.96, m: 0.0 }, wheelhub: { r: 0.28, m: 0.90 },
+  glazed: { r: 0.07, m: 0.0, e: 1.4 }, canopy: { r: 0.05, m: 0.0, e: 1.5 },
+};
+const COVERED_HIDE = new Set(['frame', 'engine']);
+const loader = new THREE.TextureLoader();
+
+function build(muts) {
+  const spec = genClone(GEN_DEFAULT);
+  spec.cabin.canopy.joint = joint;
+  for (const m of muts) m(spec);
+  const R = resolveSpec(spec);
+  const S = R.spec; S._auto = R.auto;
+  const fr = genFrame(S);
+  for (const [k, v] of [['track', fr.parts.tr], ['x', fr.parts.gx],
+                        ['twX', fr.parts.twX], ['twY', fr.parts.twY]]) S.gear[k] = v;
+  const def = { nodes: fr.nodes, beams: fr.beams, refs: fr.refs, parts: fr.parts, spec: S };
+  const data = genSkin(def);
+  window.__data = data;
+  const srcs = {
+    paint: genPaintDataURI(S), reg: genRegDataURI(S), tyre: genTyreDataURI(),
+    bump: genBumpDataURI(S), mr: genMrDataURI(S), glaze: genGlazeDataURI(S),
+    cabin: genCabinDataURI(S),
+  };
+  const lin = new Set(data.linTex || []);
+  const T = {};
+  for (const k in srcs) {
+    T[k] = loader.load(srcs[k]);
+    if (!lin.has(k)) T[k].colorSpace = THREE.SRGBColorSpace;
+    T[k].anisotropy = 8;
+  }
+  const mats = data.mats, matCache = {};
+  const matFor = name => {
+    const mn = mats[name] ? name : 'skin';
+    if (matCache[mn]) return matCache[mn];
+    const m = mats[mn], s = PBR[mn] || PBR._;
+    const op = m.opacity !== undefined ? m.opacity : 1;
+    const p = {
+      name: mn, side: THREE.DoubleSide,
+      transparent: op < 1, opacity: op, depthWrite: op >= 1,
+      roughness: m.rough !== undefined ? m.rough : s.r,
+      metalness: m.metal !== undefined ? m.metal : s.m,
+      envMapIntensity: s.e !== undefined ? s.e : 1,
+    };
+    if (m.alphaTest) p.alphaTest = m.alphaTest;
+    if (m.tex) p.map = T[m.tex];
+    else p.color = new THREE.Color(m.color != null ? m.color : 0xffffff);
+    if (m.mr) { p.roughnessMap = T[m.mr]; p.metalnessMap = T[m.mr]; }
+    if (m.nrm) {
+      p.normalMap = T[m.nrm];
+      if (m.nrmScale) p.normalScale = new THREE.Vector2(m.nrmScale, m.nrmScale);
+    }
+    return matCache[mn] = new THREE.MeshStandardMaterial(p);
+  };
+  const model = new THREE.Group();
+  model.name = 'plane';
+  for (const name in data.groups) {
+    const gg = data.groups[name];
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(gg.pos, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(gg.uv, 2));
+    geo.setIndex(new THREE.BufferAttribute(gg.idx, 1));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, matFor(name));
+    mesh.name = name;
+    if (COVERED_HIDE.has(name)) mesh.visible = false;
+    model.add(mesh);
+  }
+  return model;
+}
+
+// a sky environment: gloss and glass need something to see
+{
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0.00, '#9dbfe8');
+  grd.addColorStop(0.44, '#d6e0ea');
+  grd.addColorStop(0.52, '#efe8dc');
+  grd.addColorStop(0.75, '#ddd4c4');
+  grd.addColorStop(1.00, '#c3bcae');
+  g.fillStyle = grd; g.fillRect(0, 0, 8, 256);
+  const eq = new THREE.CanvasTexture(c);
+  eq.mapping = THREE.EquirectangularReflectionMapping;
+  eq.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.PMREMGenerator(stage._renderer);
+  stage._scene.environment = pm.fromEquirectangular(eq).texture;
+  pm.dispose();
+}
+
+const bar = document.getElementById('bar');
+let route = 2, stress = -1, cam = null, centre = 0, spin = 'ogive', joint = 'square';
+// the two shape knobs, live: `bubble` is the section's fullness, `lid` is where
+// the virtual clipping plane sits as a fraction of the natural rise
+const knob = { bubble: 0.70, lid: 1.0, height: 0, width: 1.0, joint: 0,
+               sill: 0.38, reach: 0.55, sideTop: 0.17, sideDepth: 0.64, sideReach: 0.24,
+               pDepth: 0.27, pWrap: 0.5, wsCurve: 1, seatX: 0,
+               pBlades: 2, pPitch: 0.55, pChord: 0.10, pDia: 1.88, spLen: 2.2, spDia: 0.17,
+               pilots: 1, dH: 1.75, dLean: 17, dThigh: -9, dShank: 10,
+               dArm: 40, dFore: 6, dHead: -11, dArmIn: 26, dAnkle: 40, dToe: 7,
+               dHipOut: 0, dKneeOut: 3, seatY: 0.10, seatPitch: 0.86, tailY: 0,
+               jointRun: 3 };
+const rebuild = () => {
+  const muts = [ROUTES[route][1], s => {
+    s.cabin.canopy.bubble = knob.bubble;
+    s.cabin.canopy.lid = knob.lid;
+    s.cabin.canopy.height = knob.height;
+    s.cabin.canopy.width = knob.width;
+    s.cabin.canopy.sill = knob.sill;
+    s.cabin.canopy.sideDepth = knob.sideDepth;
+    s.cabin.canopy.sideTop = knob.sideTop;
+    s.cabin.canopy.sun = knob.sun;
+    s.cabin.canopy.sunStart = knob.sunStart;
+    s.cabin.canopy.sideGap = knob.sideGap;
+    s.cabin.canopy.wsAngle = knob.wsAngle;
+    s.cabin.canopy.wsCurve = knob.wsCurve;
+    s.cabin.canopy.jointRun = knob.jointRun;
+    s.fuselage.tailY = knob.tailY;
+    s.cabin.seatX = knob.seatX;
+    s.cabin.seatY = knob.seatY;
+    s.cabin.seatPitch = knob.seatPitch;
+    s.cabin.pilots = Math.max(1, knob.pilots);
+    s.cabin.pilot = { show: knob.pilots > 0, stature: knob.dH, lean: knob.dLean,
+      thigh: knob.dThigh, shank: knob.dShank, armDown: knob.dArm,
+      fore: knob.dFore, head: knob.dHead, armIn: knob.dArmIn,
+      ankle: knob.dAnkle, toeOut: knob.dToe, hipOut: knob.dHipOut,
+      kneeOut: knob.dKneeOut };
+    s.engines[0].prop = { D: knob.pDia, blades: Math.round(knob.pBlades),
+      pitch: knob.pPitch, chord: knob.pChord, root: 0.16,
+      spinner: { shape: spin, len: knob.spLen, dia: knob.spDia } };
+    s.wings[0].centre = ['solid','glass','open'][centre];
+    s.paint.regX = knob.regX;
+    s.cabin.panel = { on: true, depth: knob.pDepth, inset: 0.06, wrap: knob.pWrap };
+    s.cabin.canopy.sideReach = knob.sideReach;
+    // REACH as a fraction: 0 ends the window at the cabin-front frame (a bare
+    // windscreen), 1 runs it to the aft end of the cabin plus a bay. Absolute x
+    // could not survive a cabin-length change; this does.
+    const x0 = s.cabin.noseGap, xEnd = s.cabin.noseGap + (s.cabin.len || 0.78) + 0.5;
+    if (knob.reach != null && s.cabin.glazing !== 'windshield') s.cabin.canopy.x1 = x0 + (xEnd - x0) * knob.reach;
+  }];
+  if (stress >= 0) muts.push(STRESS[stress][1]);
+  muts.push(muts.splice(1, 1)[0]);          // the knobs win over a route preset
+  const m = build(muts);
+  m.rotation.y = Math.PI / 2;
+  stage.setObject(m);
+  if (cam) {
+    stage._camera.position.copy(cam.p);
+    stage._controls.target.copy(cam.t);
+    stage._controls.update();
+  }
+  bar.querySelectorAll('button[data-r]').forEach(b => b.classList.toggle('on', +b.dataset.r === route));
+  bar.querySelectorAll('button[data-s]').forEach(b => b.classList.toggle('on', +b.dataset.s === stress));
+  bar.querySelectorAll('button[data-c]').forEach(b => b.classList.toggle('on', +b.dataset.c === centre));
+  bar.querySelectorAll('button[data-o]').forEach(b => b.classList.toggle('on', +b.dataset.o === knob.pilots));
+  bar.querySelectorAll('button[data-p]').forEach(b => b.classList.toggle('on', ['ogive','cone','dome','none'][+b.dataset.p] === spin));
+};
+// ---- CONTROLS -------------------------------------------------------------
+// Grouped by the part they belong to, and collapsed by default, because a flat
+// wall of thirty sliders is unusable. Every label says what the number IS.
+const mkGroup = (title, open) => {
+  const d = document.createElement('details');
+  d.open = !!open;
+  d.style.cssText = 'width:100%;border-top:1px solid #2a2a2a;padding:2px 0';
+  const s = document.createElement('summary');
+  s.textContent = title;
+  s.style.cssText = 'cursor:pointer;letter-spacing:.14em;text-transform:uppercase;'
+                  + 'font-size:10px;color:#e0a340;padding:5px 0;user-select:none';
+  d.appendChild(s);
+  bar.appendChild(d);
+  return d;
+};
+const mkRow = (host, label, list, attr, pick) => {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;width:100%;align-items:center;margin:2px 0';
+  const l = document.createElement('span');
+  l.textContent = label; l.style.cssText = 'min-width:132px';
+  wrap.appendChild(l);
+  list.forEach(([name], i) => {
+    const b = document.createElement('button');
+    b.textContent = name; b.dataset[attr] = i;
+    b.addEventListener('click', () => {
+      cam = { p: stage._camera.position.clone(), t: stage._controls.target.clone() };
+      pick(i); rebuild();
+    });
+    wrap.appendChild(b);
+  });
+  host.appendChild(wrap);
+};
+const mkSlider = (host, label, key, min, max, step) => {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:10px;width:100%;align-items:center;margin:1px 0';
+  const l = document.createElement('span');
+  l.textContent = label; l.style.cssText = 'min-width:132px';
+  const r = document.createElement('input');
+  r.type = 'range'; r.min = min; r.max = max; r.step = step || 0.02; r.value = knob[key];
+  r.style.cssText = 'flex:0 0 200px;accent-color:#e0a340';
+  const b = document.createElement('b');
+  b.style.cssText = 'font-weight:400;color:#e0a340;min-width:44px';
+  const fmt = v => (step && step >= 1 ? String(Math.round(v)) : (+v).toFixed(2));
+  b.textContent = fmt(r.value);
+  let t = 0;
+  r.addEventListener('input', () => {
+    knob[key] = +r.value; b.textContent = fmt(knob[key]);
+    cam = { p: stage._camera.position.clone(), t: stage._controls.target.clone() };
+    clearTimeout(t); t = setTimeout(rebuild, 90);
+  });
+  wrap.appendChild(l); wrap.appendChild(r); wrap.appendChild(b);
+  host.appendChild(wrap);
+};
+
+{
+  const g = mkGroup('Glazing layout', true);
+  mkRow(g, 'glazing', ROUTES, 'r', i => { route = i; });
+  mkRow(g, 'wing centre section', [['solid'], ['skylight'], ['open (roof)']], 'c',
+        i => { centre = i; });
+}
+{
+  const g = mkGroup('Canopy shell');
+  mkSlider(g, 'rise above deck', 'height', 0, 0.90);
+  mkSlider(g, 'width past sill', 'width', 0.85, 1.60);
+  mkSlider(g, 'section fullness', 'bubble', 0, 1);
+  mkSlider(g, 'flat-top clip', 'lid', 0.25, 1);
+  mkSlider(g, 'opening depth', 'sill', 0.06, 0.68);
+  mkSlider(g, 'opening reach aft', 'reach', 0.05, 1.6);
+  mkRow(g, 'end corner', [['square'], ['chamfer']], 'j',
+        i => { joint = i ? 'chamfer' : 'square'; });
+  mkSlider(g, 'chamfer run (rings)', 'jointRun', 1, 8, 1);
+}
+{
+  const g = mkGroup('Fuselage');
+  mkSlider(g, 'tail height (m)', 'tailY', -0.60, 0.80, 0.01);
+}
+{
+  const g = mkGroup('Windscreen');
+  mkSlider(g, 'rake angle', 'wsAngle', 25, 78, 1);
+  mkSlider(g, 'curve in plan', 'wsCurve', -1, 1);
+}
+{
+  const g = mkGroup('Sunscreen roof');
+  mkSlider(g, 'roof coverage', 'sun', 0, 0.9);
+  mkSlider(g, 'roof starts at', 'sunStart', 0, 0.85);
+}
+{
+  const g = mkGroup('Side windows');
+  mkSlider(g, 'top below deck', 'sideTop', 0.05, 0.7);
+  mkSlider(g, 'band depth', 'sideDepth', 0, 1);
+  mkSlider(g, 'reach aft', 'sideReach', 0.2, 1);
+  mkSlider(g, 'door post width', 'sideGap', 0, 0.5);
+}
+{
+  const g = mkGroup('Cockpit interior');
+  mkSlider(g, 'panel depth', 'pDepth', 0.05, 1.2);
+  mkSlider(g, 'panel wrap down', 'pWrap', 0, 1);
+  mkSlider(g, 'seat station', 'seatX', -0.45, 0.45);
+  mkSlider(g, 'squab height (m)', 'seatY', 0.06, 0.50, 0.01);
+  mkSlider(g, 'tandem seat pitch (m)', 'seatPitch', 0.55, 1.35, 0.01);
+}
+{
+  const g = mkGroup('Pilot dummy');
+  mkRow(g, 'occupants', [['none'], ['1'], ['2']], 'o', i => { knob.pilots = i; });
+  mkSlider(g, 'stature (m)', 'dH', 1.45, 2.05, 0.01);
+  mkSlider(g, 'torso recline °', 'dLean', -5, 45, 1);
+  mkSlider(g, 'thigh below horiz °', 'dThigh', -20, 40, 1);
+  mkSlider(g, 'shank below horiz °', 'dShank', 10, 95, 1);
+  mkSlider(g, 'upper arm down °', 'dArm', -10, 90, 1);
+  mkSlider(g, 'forearm down °', 'dFore', -45, 60, 1);
+  mkSlider(g, 'head tilt °', 'dHead', -25, 25, 1);
+  mkSlider(g, 'arms in °', 'dArmIn', -10, 40, 1);
+  mkSlider(g, 'hip splay °', 'dHipOut', -5, 35, 1);
+  mkSlider(g, 'knee splay °', 'dKneeOut', -15, 25, 1);
+  mkSlider(g, 'foot pitch (toes up) °', 'dAnkle', -25, 40, 1);
+  mkSlider(g, 'toe out °', 'dToe', 0, 30, 1);
+}
+{
+  const g = mkGroup('Propeller');
+  mkRow(g, 'spinner shape', [['ogive'], ['cone'], ['dome'], ['none']], 'p',
+        i => { spin = ['ogive', 'cone', 'dome', 'none'][i]; });
+  mkSlider(g, 'blade count', 'pBlades', 2, 5, 1);
+  mkSlider(g, 'diameter (m)', 'pDia', 1.2, 3.0, 0.02);
+  mkSlider(g, 'pitch P/D', 'pPitch', 0.30, 1.05);
+  mkSlider(g, 'blade chord / R', 'pChord', 0.05, 0.20, 0.01);
+  mkSlider(g, 'spinner length', 'spLen', 0.6, 4.0);
+  mkSlider(g, 'spinner diameter', 'spDia', 0.08, 0.32, 0.01);
+}
+{
+  const g = mkGroup('Livery');
+  mkSlider(g, 'registration station', 'regX', 0, 1);
+}
+{
+  const g = mkGroup('Spec stress tests', true);
+  mkRow(g, 'override', STRESS, 's', i => { stress = stress === i ? -1 : i; });
+}
+rebuild();
+window.__pick = (r, sT) => { route = r; stress = (sT == null ? -1 : sT); rebuild(); };
+
+</script>
+</body>
+</html>

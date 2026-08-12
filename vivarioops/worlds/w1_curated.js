@@ -197,6 +197,43 @@ const STUMBLER_A = {"version":6,"seed":0,"rootNodeId":"seg","mouth":{"face":5,"a
  */
 // eslint-disable-next-line no-unused-vars
 const STUMBLER_B_UNUSED ={"version":6,"seed":0,"rootNodeId":"seg","mouth":{"face":5,"at":[-0.046402,0]},"morphology":{"taperStrength":0,"taperRatio":1},"origin":{"founder":"eel","generations":0},"nodes":[{"id":"seg","dims":[0.5,0.35,1.2],"density":1,"recursiveLimit":6,"joint":{"type":"revolute","angleLimits":[0.9,0.9,0.9],"phaseLag":1.5707963267948966},"colorGenes":{"hueShift":0,"valueShift":0,"patternPhase":0},"sites":[]}],"connections":[{"id":"c_self","parentNodeId":"seg","childNodeId":"seg","parentFace":5,"position":[0,0],"orientation":[0,0,0],"scale":[0.95,1.075547,0.95],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false}],"material":{"hue":0.55,"hueVariance":0.08,"patternScale":3,"patternContrast":0.4,"stripeAnisotropy":0.7,"iridescence":0.15},"controller":{"omega":4,"preyGain":0.77045,"threatGain":-0.216345,"phaseBase":0,"phaseSlope":0,"proprioGain":0,"chemoGain":0,"jointGenes":{"seg":{"amplitude":0.8,"bias":0.032906,"freqMult":1}}},"social":{"trophic":0.4,"boldness":0.5,"cohesion":0.3,"separation":0.5,"alignment":0.4,"separationRadius":1.5}};
+/**
+ * Beacon-seeking euryprotea · *Euryprotea dentinodata*
+ *
+ * SELECTED, AND THE FIRST ENTRY IN THIS FILE WITH NO AUTHORED ANCESTOR AT ALL.
+ * `origin.founder` is `null` and `generations` is 6: a random draw's
+ * great-great-great-great-grandchild, won by `tools/_zbreed.mjs` on `closedCm`
+ * against a paired random-selection null arm, from a founding population that
+ * contained no eel, no medusa and nothing anybody drew. Every other SELECTED
+ * specimen here was bred from authored founders or on a target scaled to the
+ * creature; standing rule 10 required that be said out loud each time, and this
+ * is the first one it does not apply to.
+ *
+ * On the canonical trial — six directions x 90 s at the 8 cm the tank actually
+ * places its beacon — it closes 6.21 cm of the 8, arrives in two of six, and
+ * holds station for 28% of the run. In-plane 5.85 against out-of-plane 5.95: it
+ * is no worse at targets ninety degrees out of the plane it bends in than at
+ * ones inside it, which is the same corkscrewing the authored eels do and which
+ * nothing selected for directly.
+ *
+ * Its sensor gain sums to 0.824 against the 0.200 every authored eel ships —
+ * the third independent run to land on that finding from a different direction.
+ * Both channels are NEGATIVE (`preyGain` -0.546, `threatGain` -0.278) and it
+ * seeks anyway: the sign is evolved, and what matters is the loop's closed sign,
+ * not which end of it carries the minus.
+ *
+ * ── WHAT IT IS NOT ───────────────────────────────────────────────────────────
+ *
+ * It is not the highest-scoring animal that run produced. That was a 6.87 cm
+ * seeker arriving in SIX of six — and `origin.generations` on it is 0, so it was
+ * never bred: it walked in through N17's stranger slot as a fresh random draw at
+ * generation 17 and won on arrival. It is kept in the ark and out of this file,
+ * because a library entry is a claim about where creatures come from and that
+ * one is a claim about the random draw rather than about breeding. See
+ * design/15-BREEDING.md section 5.5.
+ */
+const BEACON_EURYPROTEA = {"version":8,"seed":3551230541,"rootNodeId":"n9nbqb","mouth":{"face":4,"at":[0,0]},"morphology":{"taperStrength":0.68046,"taperRatio":0.911075},"origin":{"founder":null,"generations":6},"nodes":[{"id":"n9nbqb","dims":[1.877973,1.887,0.668199],"density":1,"recursiveLimit":5,"joint":{"type":"twist","angleLimits":[0.065284,0.09053,0.280914],"phaseLag":-0.005462},"colorGenes":{"hueShift":-0.136749,"valueShift":-0.205367,"patternPhase":0.306669},"sites":[]},{"id":"n1xx72","dims":[1.769118,1.988542,0.88681],"density":1,"recursiveLimit":2,"joint":{"type":"twist","angleLimits":[0.110936,0.151222,0.113752],"phaseLag":-0.249822},"colorGenes":{"hueShift":-0.08672,"valueShift":-0.151817,"patternPhase":0.683628},"sites":[]},{"id":"ng1fdo","dims":[1.376822,0.589723,1.273854],"density":1,"recursiveLimit":6,"joint":{"type":"revolute","angleLimits":[0.979376,0.411418,0.295227],"phaseLag":-0.182145},"colorGenes":{"hueShift":-0.058008,"valueShift":0.285814,"patternPhase":0.457483},"sites":[]},{"id":"nv2cfn","dims":[1.107842,0.359186,0.965267],"density":1,"recursiveLimit":4,"joint":{"type":"twist","angleLimits":[0.253992,0.300488,0.18104],"phaseLag":-0.106967},"colorGenes":{"hueShift":0.077254,"valueShift":0.007009,"patternPhase":0.3748},"sites":[]},{"id":"n0yrpq","dims":[1.20734,1.547332,1.466452],"density":1,"recursiveLimit":3,"joint":{"type":"twist","angleLimits":[0.303004,0.17377,0.178967],"phaseLag":-0.272468},"colorGenes":{"hueShift":-0.040252,"valueShift":0.131459,"patternPhase":0.140906},"sites":[]},{"id":"ngrg55","dims":[1.376822,0.589723,1.273854],"density":1,"recursiveLimit":6,"joint":{"type":"revolute","angleLimits":[0.979376,0.411418,0.295227],"phaseLag":-0.182145},"colorGenes":{"hueShift":-0.058008,"valueShift":0.285814,"patternPhase":0.457483},"sites":[]},{"id":"nppkyx","dims":[1.107842,0.359186,0.965267],"density":1,"recursiveLimit":4,"joint":{"type":"twist","angleLimits":[0.253992,0.300488,0.18104],"phaseLag":-0.106967},"colorGenes":{"hueShift":0.077254,"valueShift":0.007009,"patternPhase":0.3748},"sites":[]},{"id":"nluzi5","dims":[1.996343,0.284513,1.980047],"density":1,"recursiveLimit":6,"joint":{"type":"revolute","angleLimits":[1.134995,0.138037,0.488423],"phaseLag":0.464789},"colorGenes":{"hueShift":-0.029589,"valueShift":0.222469,"patternPhase":0.141559},"sites":[]}],"connections":[{"id":"cv8oiu","parentNodeId":"n9nbqb","childNodeId":"n1xx72","parentFace":1,"position":[-0.695456,0.437003],"orientation":[-0.404155,-0.444572,0.369243],"scale":[1.46643,0.9798,1.029966],"reflectX":true,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"cgsk8k","parentNodeId":"n1xx72","childNodeId":"ng1fdo","parentFace":0,"position":[0.04725,0.133684],"orientation":[0.434835,0.264547,0.706453],"scale":[1.724194,0.977162,0.656656],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"czlx5q","parentNodeId":"ng1fdo","childNodeId":"nv2cfn","parentFace":0,"position":[0.366248,-0.364813],"orientation":[-0.723609,0.203232,0.149062],"scale":[1.972139,1.472633,1.225822],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"cynhtp","parentNodeId":"nv2cfn","childNodeId":"n0yrpq","parentFace":3,"position":[0.696647,-0.559213],"orientation":[-0.19493,0.745744,-0.255669],"scale":[0.959227,0.51746,0.552414],"reflectX":true,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"cvr2lg","parentNodeId":"nv2cfn","childNodeId":"n0yrpq","parentFace":1,"position":[-0.166911,-0.644885],"orientation":[-0.51882,-0.222348,-0.030764],"scale":[0.887263,1.143797,0.994787],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"caglol","parentNodeId":"n0yrpq","childNodeId":"n0yrpq","parentFace":1,"position":[0.788733,0.849138],"orientation":[-0.130406,0.205935,-0.057311],"scale":[0.577736,1.380941,0.735645],"reflectX":true,"reflectY":true,"reflectZ":true,"terminalOnly":true},{"id":"cbhx0v","parentNodeId":"n9nbqb","childNodeId":"ngrg55","parentFace":5,"position":[-0.892284,-0.192822],"orientation":[-0.071856,0.301759,-0.577156],"scale":[1.585431,0.642811,1.567823],"reflectX":true,"reflectY":false,"reflectZ":true,"terminalOnly":false},{"id":"chfcly","parentNodeId":"ngrg55","childNodeId":"nppkyx","parentFace":0,"position":[0.366248,-0.364813],"orientation":[-0.723609,0.203232,0.149062],"scale":[1.972139,1.472633,1.225822],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false},{"id":"csky0w","parentNodeId":"ngrg55","childNodeId":"nluzi5","parentFace":3,"position":[0.890144,-0.203024],"orientation":[-0.283162,0.708279,0.597164],"scale":[1.356546,1.21688,1.045644],"reflectX":false,"reflectY":false,"reflectZ":false,"terminalOnly":false}],"material":{"hue":0.879816,"hueVariance":0.049221,"patternScale":5.126505,"patternContrast":0.930778,"stripeAnisotropy":0.435815,"iridescence":0.676756},"controller":{"omega":4.961705,"preyGain":-0.545889,"threatGain":-0.277923,"preyGain2":0,"threatGain2":0,"brakeGain":0,"phaseBase":0.28104,"phaseSlope":0.090225,"proprioGain":0,"chemoGain":0,"jointGenes":{"n0yrpq":{"amplitude":0.835096,"bias":-0.191583,"freqMult":1},"n1xx72":{"amplitude":0.556196,"bias":0.214,"freqMult":1},"n9nbqb":{"amplitude":0.83399,"bias":-0.313616,"freqMult":1},"ng1fdo":{"amplitude":0.390599,"bias":-0.147025,"freqMult":1},"ngrg55":{"amplitude":0.390599,"bias":-0.147025,"freqMult":1},"nluzi5":{"amplitude":0.607724,"bias":0.062006,"freqMult":2},"nppkyx":{"amplitude":0.136451,"bias":-0.428382,"freqMult":0.5},"nv2cfn":{"amplitude":0.136451,"bias":-0.428382,"freqMult":0.5}}},"social":{"trophic":0.46485,"boldness":0.186628,"cohesion":0.985618,"separation":0.810748,"alignment":0.533706,"separationRadius":3.853094}};
+
 function curate(raw, id) {
   const g = migrate(JSON.parse(JSON.stringify(raw)));
   return { ...g, origin: { founder: id, generations: 0 } };
@@ -237,6 +274,13 @@ export const CURATED = [
     binomial: 'Streptoligosphalmatops longifrontissimis',
     note: 'SELECTED on an ABSOLUTE 8 cm target — the distance the tank poses — from authored founders that can cover it. An eel descendant that raised its sensor gain from the library\u2019s 0.200 to 0.608. Its provenance is weaker than the oddfoot\u2019s and it is recorded as such: this is selection improving a competent founder, not evolution discovering seeking.',
     genome: curate(STUMBLER_A, 'stumbler-striped'),
+  },
+  {
+    id: 'beacon-euryprotea',
+    name: 'Glossy lurching euryprotea',
+    binomial: 'Euryprotea dentinodata',
+    note: 'SELECTED FROM RANDOM FOUNDERS — the first library entry with no authored ancestor: `origin.founder` null, six births deep, won by tools/_zbreed.mjs on closedCm against a paired null arm. Closes 6.21 cm of the tank’s own 8 cm beacon and holds station for 28% of the trial, and it is no worse out of its steering plane than in it. Sensor gain 0.824 against the library’s 0.200, both channels negative and seeking anyway. The run’s highest scorer was better still and is deliberately NOT here: it was never bred, it arrived as a random stranger at generation 17.',
+    genome: curate(BEACON_EURYPROTEA, 'beacon-euryprotea'),
   },
 ];
 

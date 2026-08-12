@@ -169,6 +169,7 @@ function buildDC3() {
   const params = {
     name: 'Douglas DC-3', viewDist: 45, substeps: 72,
     powerplant: 'r1830_hs23e50',
+    nEngines: 2,                    // genuinely a twin: one engine per mount node
     polarWing: POLARS.naca2215_AR9, polarTail: POLARS.metal_tail_dc3,
     elevTau: 0.45, rudTau: 0.50, ailTau: 0.30, downwash: 0.42,
     stabTrim: -0.0120, sparSpacing: 2.16,

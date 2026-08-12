@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<link rel="stylesheet" href="src/viewer/style.css?v=f39c0ea7">
+<link rel="stylesheet" href="src/viewer/style.css?v=62fff6b1">
 </head>
 <body>
 <!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
@@ -40,6 +40,8 @@
       <div id="gRows"></div>
       <div id="gRead"></div>
     </section>
+    <div id="uvp" class="panel"><canvas id="uvc" width="384" height="384"></canvas>
+      <span id="uvleg"></span></div>
     <div id="mmp" class="panel"><canvas id="mm" width="344" height="344"></canvas></div>
   </div>
   <footer id="south">
@@ -89,6 +91,11 @@
       </div>
       <button id="bTel">Telemetry</button>
       <button id="bSkin">Skin</button>
+      <button id="bWire">Wire</button>
+      <button id="bUV">UV</button>
+      <!-- garage only: which room you build in, and its light -->
+      <button id="bEnv" title="Hangar or studio">Hangar</button>
+      <button id="bMood" title="Light in the hangar">Afternoon</button>
       <span id="credit">PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison · C172 model: NLM (CC-BY 4.0)</span>
       <span id="hint">drag to orbit · scroll to zoom</span>
     </div>
@@ -98,31 +105,33 @@
 
 <script src="vendor/three.min.js"></script>
 <script src="src/core/00_registry.js?v=fbf0e6e0"></script>
-<script src="src/core/10_aircraft_cub.js?v=259d7f2c"></script>
-<script src="src/core/11_aircraft_dc3.js?v=e55e664a"></script>
-<script src="src/core/12_aircraft_chinook.js?v=a7d54e78"></script>
-<script src="src/core/13_aircraft_c172.js?v=a3e414c0"></script>
-<script src="src/core/14_aircraft_jodel.js?v=11bb9f7c"></script>
-<script src="src/core/15_aircraft_drone.js?v=89404ced"></script>
-<script src="src/core/16_aircraft_pa18.js?v=b40dcf3b"></script>
+<script src="src/core/10_aircraft_cub.js?v=d2b38e32"></script>
+<script src="src/core/11_aircraft_dc3.js?v=2ba5d07b"></script>
+<script src="src/core/12_aircraft_chinook.js?v=0f7fed9d"></script>
+<script src="src/core/13_aircraft_c172.js?v=c5b9afa6"></script>
+<script src="src/core/14_aircraft_jodel.js?v=1d3a48e8"></script>
+<script src="src/core/15_aircraft_drone.js?v=90b26690"></script>
+<script src="src/core/16_aircraft_pa18.js?v=f78cd682"></script>
 <script src="src/core/20_world.js?v=64508bac"></script>
 <script src="src/core/21_world_hydro.js?v=9f17d247"></script>
 <script src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
 <script src="src/core/23_world_settle.js?v=24706f45"></script>
 <script src="src/core/24_world_aero.js?v=5c2dd151"></script>
-<script src="src/core/30_solver.js?v=8b578b17"></script>
-<script src="src/core/40_autopilot.js?v=a0d2384a"></script>
+<script src="src/core/30_solver.js?v=0d8c8712"></script>
+<script src="src/core/40_autopilot.js?v=3ade0037"></script>
 <script src="src/core/50_model_codec.js?v=41661974"></script>
-<script src="src/core/60_gen_spec.js?v=91469151"></script>
-<script src="src/core/61_gen_frame.js?v=c8f6e5c1"></script>
-<script src="src/core/62_gen_aero.js?v=f16b9ab3"></script>
-<script src="src/core/63_gen_skin.js?v=52d9c457"></script>
-<script src="src/core/64_gen_build.js?v=9518a3d0"></script>
-<script src="src/core/90_node_exports.js?v=4dab1afe"></script>
+<script src="src/core/60_gen_spec.js?v=e9c7cc16"></script>
+<script src="src/core/61_gen_frame.js?v=521ada33"></script>
+<script src="src/core/62_gen_aero.js?v=71193e86"></script>
+<script src="src/core/63_gen_skin.js?v=bf120eae"></script>
+<script src="src/core/64_gen_build.js?v=3c12a721"></script>
+<script src="src/core/65_gen_loadtest.js?v=293ba65a"></script>
+<script src="src/core/90_node_exports.js?v=61888a01"></script>
 <script src="src/models/pa18_model.js?v=7fc4ea12"></script>
 <script src="src/models/c172_model.js?v=85fcd278"></script>
 <script src="src/viewer/render_world.js?v=e09cda7d"></script>
-<script src="src/viewer/garage.js?v=825a2f16"></script>
-<script src="src/viewer/app.js?v=5856ec27"></script>
+<script src="src/viewer/hangar.js?v=3bbdadfc"></script>
+<script src="src/viewer/garage.js?v=82b277ca"></script>
+<script src="src/viewer/app.js?v=35894251"></script>
 </body>
 </html>

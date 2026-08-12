@@ -103,15 +103,20 @@
     <pre id="boot-fault-detail"></pre>
     <p id="boot-fault-hint"></p>
   </div>
-  <!-- FIRST LOAD ONLY, and it covers real work rather than a stall. Measured on
-       a cold store: 4321 ms to build the library's 21 portraits, 206 ms each —
-       morphogenesis, a creature build, a render and a toDataURL apiece. It is
-       shown by ui/screens/vivarium.js and only when there is something to wait
-       for; a warm boot skips every portrait and never reveals this. -->
+  <!-- COVERS THE WHOLE BOOT, not one phase of it.
+       It used to be revealed by `seedAtlas`'s first progress callback and by
+       nothing else, so it appeared ONLY on a cold store. Every warm boot —
+       which is every boot after the first — showed the empty aquarium instead:
+       far camera, food field on, no creatures, for as long as Rapier's wasm and
+       the stored lineage took to arrive. The first thing anyone should see of
+       this screen is their own animals, so the panel now goes up before any of
+       that work starts and comes down only after the creatures are built, the
+       camera is framed on them and one frame has actually been drawn.
+       The track hides itself for phases that have no measurable progress. -->
   <div id="boot-load" hidden>
-    <p id="boot-load-head">Building the library</p>
-    <div id="boot-load-track"><div id="boot-load-bar"></div></div>
-    <p id="boot-load-note">Drawing each specimen once. This happens on the first load only.</p>
+    <p id="boot-load-head">Starting</p>
+    <div id="boot-load-track" hidden><div id="boot-load-bar"></div></div>
+    <p id="boot-load-note">&nbsp;</p>
   </div>
 </main>
   <nav id="tabbar"></nav>

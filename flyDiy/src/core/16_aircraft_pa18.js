@@ -133,6 +133,7 @@ function buildPA18() {
   const params = {
     name: 'Piper PA-18 Super Cub', viewDist: 14,
     powerplant: 'a65_sensenich74',
+    nEngines: 1,                    // one engine, two mount nodes (see cub)
     polarWing: POLARS.usa35b_AR7, polarTail: POLARS.flat_tail_cub,
     elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
     stabTrim: -0.0983, sparSpacing: 0.78,
@@ -149,7 +150,10 @@ function buildPA18() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
       VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
-      TORun: 60,                    // measured run to 2.5 m agl (W14 multi-hop)
+      // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
+      // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
+      // tools/make_perf.js, not adjusted by hand.
+      TORun: 151,                   // measured run to 2.5 m agl
       // W16 lateral quiet: the default rollD 2.0 on the RF-lagged rate
       // estimate limit-cycled the aileron 8-12 deg p2p at ~4 Hz (bank
       // barely moved — surface flail + wing rock, user-visible on the
@@ -159,7 +163,13 @@ function buildPA18() {
       VPinFull: 16,                 // moderate aft above this in rollout (hop guard)
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
       rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
-      thMax: 0.20, flareAgl: 5.5, flareRate: 0.062, flareThr: 0.12, aglGuard: 3,
+      // flareThr 0.12 -> 0.24 (G4.9): `flareThr` is a THROTTLE fraction, and the
+      // engine-count fix halved what a fraction buys. The flare keeps the
+      // THRUST it was tuned with — 0.12*1800 N == 0.24*900 N — rather than the
+      // lever position, which is the only reading of "unchanged" that means
+      // anything here. Sink 1.71 (over the 1.5 bound) -> 0.95, against 0.78
+      // before the fix.
+      thMax: 0.20, flareAgl: 5.5, flareRate: 0.062, flareThr: 0.24, aglGuard: 3,
       VTailUp: 12, VTailDown: 99, VStop: 0.4, slew: 1.5, thrCruise: 0.70, thrAppr: 0.35,
       brakeMax: 0.18, brakeRampRate: 0.12, VBrakeOn: 7, VBrakeRelease: 1.5,
     },

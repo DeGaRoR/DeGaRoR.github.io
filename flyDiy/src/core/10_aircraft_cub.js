@@ -126,6 +126,10 @@ function buildCub() {
   const params = {
     name: 'Piper J-3 Cub', viewDist: 14,
     powerplant: 'a65_sensenich74',
+    // ONE engine on TWO mount nodes (`refs.engine` above is the mounts). Stated
+    // because the solver used to read the mount count as the engine count, and
+    // this aeroplane flew on 1800 N. See HONEST CUTS / G4.9.
+    nEngines: 1,
     polarWing: POLARS.usa35b_AR7, polarTail: POLARS.flat_tail_cub,
     elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
     stabTrim: -0.0983, sparSpacing: 0.78,
@@ -134,7 +138,10 @@ function buildCub() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
       VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
-      TORun: 60,                    // measured run to 2.5 m agl (W14 multi-hop)
+      // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
+      // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
+      // tools/make_perf.js, not adjusted by hand.
+      TORun: 151,                   // measured run to 2.5 m agl
       // W16 lateral quiet: same 4 Hz aileron limit cycle as the pa18
       // (shared geometry) — default rollD 2.0 on the lagged rate estimate;
       // 0.8 kills it (see pa18 fiche note).

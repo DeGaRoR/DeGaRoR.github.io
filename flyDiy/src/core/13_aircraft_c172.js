@@ -148,6 +148,7 @@ function buildC172() {
   const params = {
     name: 'Cessna 172S Skyhawk', viewDist: 13, substeps: 48,
     powerplant: 'io360_mccauley',
+    nEngines: 1,
     polarWing: POLARS.naca2412_AR75, polarTail: POLARS.metal_tail_c172,
     elevTau: 0.48, rudTau: 0.50, ailTau: 0.35, downwash: 0.40,
     stabTrim: 0.0006, sparSpacing: 0.82,

@@ -1,0 +1,72 @@
+using deprecated parameters for the initialization function; pass a single object instead
+  drawing parents........................................
+
+_zherit — MIDPARENT-offspring regression, through breed() with two selected parents
+  40 parents, 4 children per family   40 s trials   target 4.50 cm ABSOLUTE
+  draws 132: 92 inviable, 0 viable-but-not-a-subject, 40 kept
+  one zygote per child; a dead child stays dead
+
+  breeding....................
+
+  families with at least one surviving child: 20/20
+  child survival, one zygote per child: 80%   (families with none: 0)
+  crossover actually fired on 80/80 zygotes   (SLICE_LIMITS.crossoverRate = 1)
+
+  trait            midpar p50    child p50   midpar sd     b      se      r      b/se   verdict
+  speed              0.0215       0.0237      0.0213   0.851   0.173  0.756     4.9   STRONG   cruise cm/s
+  closure            0.0047       0.0061      0.0788   0.545   0.146  0.662     3.7   STRONG   live - blind
+  live               0.0448       0.0521      0.0886   0.586   0.105  0.795     5.6   STRONG   raw closure
+  arrived            0.0000       0.0000      0.0500  -0.074   0.228 -0.076    -0.3   NOT MEASURABLE   fraction of dirs
+  straightness       0.8528       0.7940      0.1415   0.676   0.209  0.607     3.2   STRONG   blind net/path
+  loopClosure        1.0000       1.0000      0.0501  -0.167   0.401 -0.098    -0.4   NOT MEASURABLE   blind, 0 = circle
+  planarity          0.9777       0.9773      0.0451   0.724   0.077  0.911     9.3   STRONG   1 = flat path
+  gain               0.7112       0.6776      0.3920   0.552   0.115  0.749     4.8   STRONG   |preyG + threatG|
+  mass              12.3836      11.2562      5.4701   0.887   0.112  0.882     7.9   STRONG   g
+  bodies            14.0000      10.3333      4.8510   0.964   0.143  0.847     6.8   STRONG   count
+
+  TRUNCATION AT THE TOP THIRD — does R = b.S hold?
+  trait            S (differential)   R predicted   R realised   ratio
+  speed                    0.0201        0.0171       0.0192    1.12
+  closure                  0.0643        0.0351       0.0445    1.27
+  live                     0.0900        0.0527       0.0557    1.06
+  arrived                  0.0310       -0.0023      -0.0104    4.54
+  straightness             0.1326        0.0896       0.1245    1.39
+  loopClosure              0.0129       -0.0022       0.0063   -2.89
+  planarity                0.0346        0.0250       0.0302    1.21
+  gain                     0.4510        0.2489       0.2869    1.15
+  mass                     5.8952        5.2267       5.3915    1.03
+  bodies                   5.2536        5.0665       5.2323    1.03
+
+  RECOMBINATIONAL SUPPLY — what one reproductive event does, against the founding draw
+  trait            sigma_f    sigma_m   f/m      p+     E[d|+]    E[d|-]   neutral
+  speed             0.0213     0.0256    0.8    0.44    0.0181   -0.0138     0.00
+  closure           0.0788     0.0821    1.0    0.47    0.0473   -0.0423     0.00
+  live              0.0886     0.0892    1.0    0.42    0.0642   -0.0518     0.00
+  arrived           0.0500     0.0996    0.5    0.02    0.6667   -0.1667     0.88
+  straightness      0.1415     0.2323    0.6    0.52    0.1244   -0.1913     0.00
+  loopClosure       0.0501     0.1841    0.3    0.16    0.0944   -0.2867     0.69
+  planarity         0.0451     0.0413    1.1    0.64    0.0287   -0.0284     0.00
+  gain              0.3920     0.3892    1.0    0.53    0.2535   -0.3147     0.00
+  mass              5.4701     6.4271    0.9    0.50    5.0487   -5.1009     0.00
+  bodies            4.8510     5.2252    0.9    0.41    4.6154   -4.4868     0.00
+
+  PHENOTYPIC CORRELATION AMONG PARENTS — what does selecting on one cost the others?
+                   speed closur   live arrive straig loopCl planar   gain   mass bodies
+  speed              —    0.17   0.46   0.73  -0.21  -0.13  -0.56   0.19   0.21  -0.02
+  closure          0.17     —    0.85   0.60  -0.20   0.03   0.05   0.23  -0.12   0.18
+  live             0.46   0.85     —    0.74  -0.27   0.02  -0.23   0.35   0.07   0.26
+  arrived          0.73   0.60   0.74     —   -0.20   0.04  -0.42   0.28   0.17  -0.01
+  straightness    -0.21  -0.20  -0.27  -0.20     —    0.54   0.70  -0.13   0.10  -0.08
+  loopClosure     -0.13   0.03   0.02   0.04   0.54     —    0.49   0.07   0.11   0.16
+  planarity       -0.56   0.05  -0.23  -0.42   0.70   0.49     —   -0.14  -0.12  -0.01
+  gain             0.19   0.23   0.35   0.28  -0.13   0.07  -0.14     —    0.01  -0.02
+  mass             0.21  -0.12   0.07   0.17   0.10   0.11  -0.12   0.01     —    0.29
+  bodies          -0.02   0.18   0.26  -0.01  -0.08   0.16  -0.01  -0.02   0.29     — 
+
+  HOW FAR THE UNSTEERED CORPUS ACTUALLY GETS in 40 s (blind excursion, cm)
+    p10 0.21   p50 0.60   p75 1.59   p90 3.11   max 4.94
+    task set here: 4.50 cm.  The tank's beacon task is 8 cm.
+    fraction of parents whose blind excursion reaches the task at all: 3%
+
+  written: tools/_zherit_out_recombinant.json
+

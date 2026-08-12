@@ -128,6 +128,7 @@ export function cloneGenome(g) {
       chemoGain: g.controller.chemoGain,
       preyGain2: g.controller.preyGain2,
       threatGain2: g.controller.threatGain2,
+      brakeGain: g.controller.brakeGain,
       jointGenes,
     },
     social: { ...g.social },
@@ -683,6 +684,33 @@ function mutateChemoGain(g, rng) {
  * threat channels independently — the two are non-identifiable when a single
  * bearing feeds both, and moving them together would guarantee they never separate.
  */
+/**
+ * GENOME_V 8 — how hard the creature throttles when badly aimed.
+ *
+ * `jitter` from 0 has sigma `MIN_SIGMA * (hi - lo)` = 0.05 on this range, half
+ * what a [-1,1] gene gets, so the walk up from neutral is slower here than for
+ * the steering gains. That is a property worth knowing before reading a short
+ * selection run as a null result — the second steering channel's first A/B was
+ * ruined by exactly that arithmetic.
+ */
+function mutateBrakeGain(g, rng) {
+  // REFUSES WHEN IT WOULD CHANGE NOTHING — the same guard `mutateProprioGain`
+  // carries, for the same reason, and this operator shipped without it and was
+  // caught by L1-23 within the hour. `brakeGain` starts at the FLOOR of a
+  // non-negative range and `jitter` CLAMPS, so a downward draw from 0 lands back
+  // on 0: about half of all calls reported success while moving nothing. That
+  // trips the no-op assertion, and worse, it would count as the operator having
+  // fired while the gene never left neutral — the precise way `preyGain` stayed
+  // dead for two milestones.
+  //
+  // Returning null lets `mutate` walk on to the next operator, which is the
+  // designed behaviour rather than a workaround.
+  const next = jitter(rng, g.controller.brakeGain ?? 0, RANGE.brakeGain);
+  if (next === (g.controller.brakeGain ?? 0)) return null;
+  g.controller.brakeGain = next;
+  return 'mutateBrakeGain';
+}
+
 function mutateSteerGains2(g, rng) {
   if (rng.int(2) === 0) {
     g.controller.preyGain2 = jitter(rng, g.controller.preyGain2 ?? 0, RANGE.preyGain2);
@@ -697,7 +725,7 @@ function mutateSteerGains2(g, rng) {
 const BRANCHES = {
   nodes:       [addNode, removeNode, mutateRandomNode, mutateTaper],
   connections: [addConnection, removeConnection, mutateRandomConnection],
-  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain, mutateSteerGains2],
+  controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain, mutateSteerGains2, mutateBrakeGain],
   organs:      [mutateMouth, mutateSite, mutateChemoGain],
   material:    [mutateMaterial],
   social:      [mutateSocial],

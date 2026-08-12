@@ -33,6 +33,23 @@ function placeAtAerodrome(sim, a) {
 
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
+  // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed
+  // hold, and a fraction of throttle is not a fixed amount of push: what it
+  // has to beat is CRR*W, which is a property of the AEROPLANE. The old
+  // constant 0.08 bias happened to clear that on every fiche only because the
+  // solver was handing the single-engine ones twice their thrust — on honest
+  // thrust the Cub's governor asked for 0.20, got 180 N against 185 N of
+  // rolling resistance, and the backtrack in GATE XCTY5 crept 16 m in 120 s
+  // and timed out onto the wrong end of the strip.
+  // So the bias is the throttle that exactly cancels rolling resistance,
+  // derived per aeroplane. Nothing is tuned here: CRR and the prop curve are
+  // both already in the registry.
+  const taxiFF = (() => {
+    const PP = POWERPLANTS[def.params.powerplant];
+    const PR = def.params.prop || PP.prop;
+    const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
+    return Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+  })();
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // u = frame axis (landing direction); origin places tdz at s = -450
   const mkFrame = (a, sx, sz) => {
@@ -252,7 +269,10 @@ function makeAutopilot(sim, def, world) {
     // W14 taxi governor: slow ground speed hold, slower through tight turns
     const taxi = (Vt) => {
       c.de = A.taxiDe ?? 0.30;             // stick aft: tailwheel planted, steering bites
-      c.thr = clamp(0.08 + 0.06 * (Vt - Vg), 0, 0.35);
+      // taxiFF cancels rolling resistance, the speed error does the rest, and
+      // the cap rises with the feedforward so a heavy-footed aeroplane still
+      // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
+      c.thr = clamp(taxiFF + 0.06 * (Vt - Vg), 0, taxiFF + 0.27);
       c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };

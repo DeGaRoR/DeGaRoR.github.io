@@ -153,6 +153,7 @@ function buildJodel() {
   const params = {
     name: 'Jodel DR-1050 "Speedjojo"', viewDist: 11, substeps: 48,
     powerplant: 'o200_eprops',
+    nEngines: 1,
     polarWing: POLARS.jodel_wing_AR55, polarTail: POLARS.wood_tail,
     elevTau: 0.48, rudTau: 0.50, ailTau: 0.35, downwash: 0.38,
     stabTrim: -0.0411, sparSpacing: 0.75,

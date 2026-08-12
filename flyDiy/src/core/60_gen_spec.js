@@ -171,6 +171,60 @@ const GEN_SUSPENSION = {
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
 };
 
+// THE PROPELLER, which is not part of the engine. The registry welds one to each
+// powerplant (`POWERPLANTS[k].prop`) because the fleet's fiches are real
+// aeroplanes with the props they were built with; a GARAGE aeroplane chooses.
+//
+// Per BLADE at D = 1.88 m, scaling as (D/1.88)^2.5 — props are not
+// geometrically similar, so this is a fitted exponent, not a derivation.
+// Anchors: a 1.88 m two-blade wooden prop is about 4.8 kg, and a 1.73 m
+// three-blade carbon one about 3.9 kg (E-Props Durandal, ~4 kg real).
+const GEN_PROP_MATS = {
+  wood:   { name: 'Wood',      kg: 2.40, price: 900 },
+  alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },
+  carbon: { name: 'Carbon',    kg: 1.60, price: 5200 },
+};
+
+// PITCH is a real trade and ONE number carries it: the figure of merit in
+// momentum theory (ideal = 1). A fine prop bites hard standing still and runs
+// out of pitch early; a coarse one gives away static thrust and keeps pulling.
+// `fm` runs low to high the other way round from what the names suggest for
+// exactly that reason.
+//
+// MEASURED, which is how the second half of this stopped being a fudge. The six
+// registry props imply fm from 0.36 (the Sensenich cruise prop on the A-65) to
+// 0.67 (the Rotax's slow-fly wooden one) — real spread, real props.
+// The zero-thrust speed is the part momentum theory does NOT give you, and the
+// registry's own kV2 values are per-AEROPLANE fits carrying its drag as well as
+// its prop, so they cannot all be reproduced. What CAN be: `P / Tstatic` is the
+// only velocity scale available without a shaft rpm, and ONE constant on it
+// (GEN_RULES.propV0K) reproduces the A-65 entry to under a per cent — AND the
+// pitch trade then falls out for free, because a fine prop's higher Tstatic
+// lowers P/Tstatic and therefore its own zero-thrust speed. A first cut tabled
+// `v0k` per pitch as well and got the trade BACKWARDS: it put a fine prop's
+// thrust running out at 86 km/h on an aeroplane that cruises at 103.
+const GEN_PROP_PITCH = {
+  climb:    { name: 'Fine (climb)',    fm: 0.58 },
+  standard: { name: 'Standard',        fm: 0.46 },
+  cruise:   { name: 'Coarse (cruise)', fm: 0.36 },
+};
+
+// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// every distance the aeroplane is ever seen from, and a modelled duct would cost
+// a hole in the one panel whose whole job since G1.7 has been to have no holes
+// in it ("a big opening… either the prop attachment or an air intake").
+// `u` and `w` are the centre and half-width in the cowl's own angle coordinate
+// (0 = top, 0.25 = +z side, 0.5 = belly); `n` is how many louvres.
+const GEN_INTAKES = {
+  none:  { name: 'None',            slots: [] },
+  chin:  { name: 'Chin scoop',      slots: [{ u: 0.50, w: 0.085, n: 5 }] },
+  twin:  { name: 'Twin cheek',      slots: [{ u: 0.34, w: 0.055, n: 4 },
+                                            { u: 0.66, w: 0.055, n: 4 }] },
+  ring:  { name: 'Ring (radial)',   slots: [{ u: 0.25, w: 0.075, n: 6 },
+                                            { u: 0.75, w: 0.075, n: 6 },
+                                            { u: 0.50, w: 0.075, n: 6 }] },
+};
+
 // Bought, not built: things with a price that does not follow from their mass.
 // Credits. Nothing is unaffordable yet — the ledger records, it does not gate.
 const GEN_PRICES = {
@@ -248,22 +302,60 @@ const GEN_RULES = {
   // work, and says so in the shakedown.
   strutMinOffset: 0.60,
   sparBoxDepth: 0.13,  // cantilever box depth, fraction of chord (Jodel's)
+  // WING STIFFNESS CORRECTION (2026-08-11, GATE FLEX). The wing class is x19
+  // softer than the structure the MASS MODEL already pays for: lin.wing
+  // 0.62 kg/m over rho 7850 is 0.79 cm2 of cap, and E*A/L at a 1.7 m bay is
+  // 9.5e6 N/m against the 5.0e5 in the material row. This takes 4 of those 19
+  // back. It is a CORRECTION, not a buff — no extra mass, because the aeroplane
+  // was already carrying a cap it was not getting the stiffness of.
+  //
+  // The strut fan hid this everywhere except on a cantilever, which has no
+  // lever arm to hide behind: measured, the cantilever preset flew at 14.90 %/g
+  // with its tip 12.64% of semispan up in LEVEL FLIGHT — twice a glass
+  // sailplane, one click in the panel.
+  //
+  // WHY 4, and why not more. Measured (static bend % under 2 kN distributed,
+  // and the substeps genSubsteps then demands, strut/cantilever):
+  //     x1  1.00 / 6.48   24/28      x4  0.30 / 1.61   45/55
+  //     x2  0.52 / 3.25   32/39      x8  0.19 / 0.76   63/78
+  //   full E*A/L per member: 0.12 / 0.18 but 200/200 — AT THE CAP, dead.
+  // Substeps are gate time (GATE GEN flies eleven circuits), so this is a
+  // straight trade of realism against the battery, and x4 is where it lands:
+  // the STRUT wing — the default, and what most builds are — comes out at
+  // ~0.54 %/g, inside the real 0.3-1 band, for 1.9x the solver cost. The
+  // cantilever lands ~2.9 %/g, still ~3x real but a 5x improvement on 14.90.
+  // x8 would put the cantilever near-real at 2.7x the solver cost; take it if
+  // the battery budget ever allows.
+  // ALSO MEASURED AND REJECTED: stiffening only the spanwise cap chords, on the
+  // theory that the short ribs were driving omega. They are not — chord-only x8
+  // buys bend 1.50 for 56/69 substeps where uniform x4 buys 1.61 for 45/55, and
+  // it leaves torsion untouched (2.21 vs 0.59). Uniform is strictly better.
+  wingK: 4.0,
   sparRear:    0.65,   // rear spar. A two-spar wing is 15/65 because that is
                        // where the spars go — NOT, as it was, wherever the
                        // cabin frames happen to be. That coupling is exactly
                        // what made the wing unmovable.
   propClear:   0.40,   // m, prop tip to ground in the LEVEL attitude (Cub 0.42)
+  // Zero-thrust speed as a multiple of power/static-thrust. CALIBRATED on the
+  // A-65 + Sensenich 74CK registry entry, which it then reproduces to under 1%
+  // in both Tstatic and kV2. See GEN_PROP_PITCH for why this is one constant and
+  // not a table.
+  propV0K:     1.10,
   // Minimum drop from the fuselage underside to the axle. This is rule 5, not
   // tidiness: a near-horizontal gear leg has almost no vertical stiffness no
   // matter what k it is given, so a short undercarriage squats onto its belly
   // and no amount of suspension tuning saves it. It also subsumes belly
   // clearance, being the stronger of the two constraints in every case.
+  // DEFAULT only since G4.6 — spec.gear.legDrop overrides it, which is the
+  // "mains" half of the split suspension height.
   legDrop:     0.35,
   // Tailwheel leg length below the tailpost foot. The three-point deck angle
   // is DERIVED from this, not the other way round: a real tailwheel spring has
   // a length, and the attitude is what falls out of it. (Fixing the deck angle
   // instead pushes the tailwheel up into the tailpost as the tail arm grows,
   // and the tailpost then drags — measured, parked clearance halved.)
+  // Also a DEFAULT since G4.6: spec.gear.twLeg overrides it, and does the same
+  // job for a nosewheel, where it replaces the trikeDeck derivation below.
   twLeg:       0.23,   // m (Cub: TPB 0.25, TW axle 0.02)
   // TRICYCLE: the fraction of the weight the nosewheel carries on the ground.
   // The textbook figure for a rigid aeroplane is 8-15%; this is 0.25, because
@@ -292,7 +384,17 @@ const GEN_RULES = {
 // `genNormaliseSpec` accepts the old flat shape as well, and `resolveSpec`
 // republishes the flat aliases the generator reads, so 61-64 are untouched by
 // the reshape. Those aliases retire as each consumer moves to sections.
-const GEN_SPEC_V = 3;
+// 4: the cabin gained its glazing surface — `cabin.glazing`, `cabin.canopy`,
+// `cabin.panel`, `cabin.pilot`, the seat offsets — plus `fuselage.tailY`,
+// `paint.regX` and `wings[].centre`.
+//
+// Nothing READS this number: `genNormaliseSpec` defaults every missing field
+// from GEN_DEFAULT, and a field left `null` stays null and keeps being derived,
+// so an older spec loads correctly without being told what it is. The version is
+// here to be honest about the shape having changed, and to give a future
+// migration something to branch on — not because one is needed today. Do not
+// add a migration that only re-does what normalisation already does.
+const GEN_SPEC_V = 4;
 
 // The one preset this chantier ships: a strut-braced high-wing taildragger in
 // the Cub envelope. Nulls are the derived fields — that is most of the
@@ -309,6 +411,81 @@ const GEN_DEFAULT = {
     pilots: 1,
     baggage: 10,             // kg
     halfW: null, h: null, len: null, noseGap: 0.62,
+    // WHERE THE SEATS SIT, as an OFFSET from what the cabin derives. The base is
+    // per-layout (SEAT_BASE in 63_gen_skin.js) because a side-by-side and a
+    // tandem measure their "right" seat station from different places; a single
+    // common base means one layout always carries a constant the other undoes.
+    seatX: 0, seatY: 0.10, seatPitch: 0.86,
+    // GLAZING. `glazing` is the ROUTE the cabin transparency is built by, and it
+    // is a route rather than a style because each has different failure modes
+    // (topology, sorting, distortion):
+    //   none        no cabin transparency at all (drones)
+    //   windshield  the fuselage's OWN windscreen step, in glass: zero stand-off,
+    //               so the covered surface is reproduced exactly and the seam is
+    //               invisible. The control case for the edge-loop machinery.
+    //   bubble      a rounded shell standing off that same cut
+    //   greenhouse  kept only so old specs still load — it is now `facet: true`
+    //               on a `bubble`, and clampSpec rewrites it as one.
+    glazing: 'bubble',
+    // THE COAMING + INSTRUMENT PANEL, off the windscreen fit line (which never
+    // moves — see 63_gen_skin.js). `depth` is how far aft the coaming shelf runs;
+    // `wrap` is how far down the sill arc it wraps, and 0.5 is exactly the sill.
+    panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.50 },
+    // THE OCCUPANT. A crash-test dummy on the first `pilots` seats. `stature` is
+    // standing height in metres and everything else is a pose angle in degrees.
+    // The rig is anthropometric (Drillis & Contini fractions), so the one length
+    // scales the figure and every chain hangs off the one before it.
+    pilot: { show: true, stature: 1.75, lean: 17, thigh: -9, shank: 10,
+             armDown: 40, fore: 6, head: -11, armIn: 26,
+             ankle: 40, toeOut: 7, hipOut: 0, kneeOut: 3 },
+    // THE CANOPY'S OWN CONTROLS. `sill` and the window are what the CUT is made
+    // from, so they move the fixed edge loop; `height` and `skew` move only the
+    // middle of the shell.
+    canopy: {
+      // `height` is the rise above the body's own deck line: 0 means the
+      // fuselage face turns to glass and nothing protrudes.
+      height: 0, sill: 0.30, skew: 0.42,
+      // `bubble` is the SECTION's fullness (1 = half-round blown canopy, 0 =
+      // flat-sided with a crown). `lid` is a virtual clipping plane as a
+      // fraction of the rise — 1 leaves the dome whole, lower slices the top off
+      // flat. A wing inside the envelope lowers it further, which is the only
+      // thing a high wing does differently.
+      bubble: 0.70, lid: 1.0,
+      // MAX WIDTH: how far the section swells sideways past the sill line. 1 is
+      // flush with the body, 1.4 is a blown bubble standing proud of it.
+      // Independent of height on purpose — the rise used to be capped at the
+      // half-width, which silently tied the two knobs together.
+      width: 1.0,
+      // WHERE THE WINDOW BEGINS AND ENDS. `reach` is a FRACTION of the cabin and
+      // is what the panel drives; `x1` is the absolute station it resolves to.
+      // An absolute station cannot survive a cabin-length change — the window
+      // stays put while the cabin moves out from under it — so the knob is the
+      // fraction and the station is derived. x1 remains settable for a build
+      // that wants the window pinned whatever the cabin does; setting it wins.
+      x0: null, x1: null, reach: null,
+      // THE JOINT. Chamfers the corner where the front bow meets the sill rail,
+      // instead of letting it come to a downward point. `jointRun` is its length
+      // in ring indices. Frame detail only — the glass and its seam are untouched.
+      joint: 'square', jointRun: 3,
+      // FACETED STRUCTURE (the old 'greenhouse' style, now a flag on any
+      // canopy): frame bars down every section edge instead of two rails.
+      facet: false,
+      // SUNSCREEN: the fraction of the arc, from the crown down, that goes
+      // opaque and is painted with the fuselage. `sunStart` is where along the
+      // window the roof begins, so that it stops short of the screen.
+      sun: 0, sunStart: 0.38,
+      // SIDE LIGHTS: a band of the same cut at the waistline. Meant for a
+      // WINDSCREEN build — with a full canopy the two openings meet, which is a
+      // mistake the player is allowed to make. `sideGap` is the door post
+      // between screen and light.
+      sides: false, sideTop: 0.34, sideDepth: 0.5, sideReach: 1.0, sideGap: 0.10,
+      // the windscreen's RAKE in degrees; null keeps the fuselage's own windRun
+      // angle. The body's step and the canopy's front bow use it alike, so they
+      // move together by construction rather than by agreement.
+      wsAngle: null,
+      // how much the screen bows in plan
+      wsCurve: 1,
+    },
   },
   // CARGO BAY: metres of full-section fuselage aft of the cabin, and what is in
   // it. It is the fuselage that grows, so the tail arm and the frames the wing
@@ -330,6 +507,11 @@ const GEN_DEFAULT = {
           material: 'tubeFabric', shape: 'straight',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // TAIL-END SECTION HEIGHT. Not a new dimension: clampSpec moves
+          // tailBot and tailTop together by it, on the clone, so 61_gen_frame.js
+          // still reads only those two and the offset cannot accumulate across
+          // repeated clamps the way gear.track once did.
+          tailY: 0,
           // The top line ahead of the cabin is the COWL DECK, and the windscreen
           // is the step up from it — a fuselage whose top runs smoothly from
           // spinner to tail is a carrot, not an aeroplane. cowlDeck is a
@@ -341,20 +523,51 @@ const GEN_DEFAULT = {
           // very different numbers on purpose.
           crownTop: 0.72, crownSide: 0.07 },
   // The engine bay is its own component with its own cover, not the front of
-  // the fuselage. It is an EXTRUSION of the firewall section, finished flat
-  // with a rounded-over front edge, and the propeller mounts on that flat face.
-  // `fillet` is the radius of the rounded edge; `taper` is how much the section
-  // draws in over the straight run.
-  cowl: { fillet: 0.10, taper: 0.94 },
-  // An ARRAY because a twin is a real aeroplane, not a variant. The solver
-  // already takes refs.engine as an array and divides thrust across it.
+  // the fuselage. It is a loft from the firewall section to a NOSE SECTION OF
+  // ITS OWN, finished flat with a rounded-over front edge, and the propeller
+  // mounts on that flat face. `fillet` is the radius of the rounded edge;
+  // `taper` scales the derived nose section.
+  //
+  // `halfW`, `top` and `bot` are the nose section, and they are measured ABOUT
+  // THE THRUSTLINE, which is the datum a cowl actually has — it is a cover over
+  // an engine, and the engine sits on the thrustline. Referencing the firewall's
+  // centre instead is what made the cowl "collapse below its engine": on a body
+  // whose deck line is not near its mid-height (a drone, cowlDeck 1.0) the two
+  // datums are 4 cm apart on a 30 cm cowl and the engine hangs out of the
+  // bottom. `top` and `bot` are separate so the top line and the bottom line can
+  // be set independently — a flat-top/bulged-chin Cub cowl and a round-top
+  // Cessna cowl with a chin scoop are the same three numbers.
+  // Left null they are derived from the firewall section (tapered, about the
+  // thrustline), which is the shape that was there before.
+  // `intake` is texture only, for now — see genCowlDataURI in garage.js.
+  cowl: { fillet: 0.10, taper: 0.94,
+          halfW: null, top: null, bot: null, intake: 'chin' },
+  // An ARRAY because a twin is a real aeroplane, not a variant. Its LENGTH is
+  // what the solver multiplies thrust by (via `params.nEngines`); `refs.engine`
+  // is a separate thing entirely — the mount NODES the force is spread over.
   engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 } }],
+  // THE PROPELLER IS ITS OWN COMPONENT. `D` null keeps the one the chosen
+  // powerplant shipped with, so a build nobody has touched flies exactly as it
+  // did. Everything about it is honest physics rather than decoration: the disc
+  // area sets static thrust AND the propwash the tail flies in, the pitch trades
+  // static thrust against high-speed thrust, and the blades weigh something at
+  // the very front of the aeroplane, where mass costs the most CG.
+  // pitch 'cruise' is not a neutral default, it is the TRUTH about this preset:
+  // the A-65 it ships with swings a Sensenich 74CK, which is a cruise prop. That
+  // is also why the default build's thrust is unchanged by all of this.
+  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise' },
   // An ARRAY because a biplane is a real aeroplane. `position` is where the
   // spar meets the fuselage.
   wings: [{ span: 10.0, chord: 1.60, taper: 1.0, dihedral: 3.0,
             incidence: 1.5, washout: 1.5, naca: 2412, panels: 3,
             position: 'high', sweep: 0, tip: 'rounded',
             crankAt: 0, dihedralOut: null,
+            // THE CENTRE SECTION: what happens where a high wing's carry-through
+            // crosses the cabin roof. 'solid' covers it, 'glass' makes the wing
+            // itself the roof and you look up into it (a Cub's centre section),
+            // 'open' leaves the bay out altogether. Ignored on a low wing, which
+            // has no bay over the cabin to treat.
+            centre: 'solid',
             xLE: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
@@ -383,11 +596,25 @@ const GEN_DEFAULT = {
   // shakedown says so (static margin, nose-over, stands-on) rather than the
   // generator refusing. The clamps below only keep the geometry from becoming
   // degenerate enough to break generation itself.
+  // `legDrop` and `twLeg` are the SPLIT SUSPENSION HEIGHT: how far the main
+  // axle hangs below the fuselage underside, and how long the third wheel's leg
+  // is, set independently. The rest attitude is then whatever those two
+  // produce — the same doctrine the tailwheel has always followed (a real
+  // spring has a length; the deck angle falls out of it), now applied to the
+  // nosewheel as well, which used to work backwards from a fixed 1.2 deg.
+  // `camber` leans the MAIN wheels: positive tips their tops outboard. It is
+  // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
+  // so it is one of the two things that set prop clearance, the other being
+  // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
   gear: { type: 'taildragger', suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
+          legDrop: null, twLeg: null, camber: 0,
           place: { dx: 0, dtrack: 0 } },
-  paint: { base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42 },
+  // `regX` places the registration along the body: 0 just aft of the cabin, 1 at
+  // the fin. It was pinned at 45-78% of the run, which on a long fuselage put it
+  // in the taper where the section halves in width.
+  paint: { base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
 };
 
 const GEN_PRESETS = { garage: GEN_DEFAULT };
@@ -521,6 +748,93 @@ function clampSpec(spec) {
   ct.elevator.chord = genClamp(ct.elevator.chord, 0.20, 0.55);
   ct.rudder.chord = genClamp(ct.rudder.chord, 0.20, 0.60);
   if (!GEN_SEATING[cb.seating]) cb.seating = 'tandem2';
+
+  // ---- cabin glazing --------------------------------------------------------
+  // Every fallback here matches GEN_DEFAULT exactly. genNormaliseSpec has
+  // already filled anything missing, so these `== null` arms are only reached by
+  // a spec built by hand — and a fallback that disagrees with the default is a
+  // trap that only fires on that path.
+  if (!['none', 'windshield', 'bubble', 'greenhouse'].includes(cb.glazing))
+    cb.glazing = 'bubble';
+  // 'greenhouse' survives only so old specs still load: it IS a faceted bubble,
+  // and carrying it as a third shape would mean two code paths for one shell.
+  if (cb.glazing === 'greenhouse') { cb.glazing = 'bubble'; cb.canopy.facet = true; }
+  const cn = cb.canopy || (cb.canopy = {});
+  cn.height   = genClamp(cn.height   == null ? 0    : cn.height,   0,    0.90);
+  cn.width    = genClamp(cn.width    == null ? 1.0  : cn.width,    0.85, 1.60);
+  cn.bubble   = genClamp(cn.bubble   == null ? 0.70 : cn.bubble,   0,    1);
+  cn.lid      = genClamp(cn.lid      == null ? 1.0  : cn.lid,      0.25, 1);
+  cn.sill     = genClamp(cn.sill     == null ? 0.30 : cn.sill,     0.10, 0.85);
+  cn.skew     = genClamp(cn.skew     == null ? 0.42 : cn.skew,     0.20, 1.60);
+  cn.sun      = genClamp(cn.sun      == null ? 0    : cn.sun,      0,    0.92);
+  cn.sunStart = genClamp(cn.sunStart == null ? 0.38 : cn.sunStart, 0,    0.85);
+  cn.sideTop  = genClamp(cn.sideTop  == null ? 0.34 : cn.sideTop,  0.05, 0.75);
+  cn.sideDepth= genClamp(cn.sideDepth== null ? 0.5  : cn.sideDepth,0,    1);
+  cn.sideReach= genClamp(cn.sideReach== null ? 1.0  : cn.sideReach,0.2,  1);
+  cn.sideGap  = genClamp(cn.sideGap  == null ? 0.10 : cn.sideGap,  0,    0.6);
+  // -1 concave, 0 the plain smoothstep, +1 convex. The panel only offers 0..1;
+  // the clamp is wider so a hand-written spec can ask for a concave screen.
+  cn.wsCurve  = genClamp(cn.wsCurve  == null ? 1    : cn.wsCurve,  -1,   1);
+  cn.jointRun = genClamp(cn.jointRun == null ? 3    : cn.jointRun | 0, 1, 8);
+  if (!['square', 'chamfer'].includes(cn.joint)) cn.joint = 'square';
+  cn.facet = !!cn.facet;
+  cn.sides = !!cn.sides;
+  // nullable = "derive it", and they ride the panel's AUTO path
+  cn.wsAngle = genClampN(cn.wsAngle, 22, 80);
+  cn.x0      = genClampN(cn.x0, 0, 8);
+  cn.x1      = genClampN(cn.x1, 0, 9);
+  cn.reach   = genClampN(cn.reach, 0, 1);
+  // a windscreen-only cut is covered flush — zero stand-off is the definition of
+  // the case, and it is what makes it the control for the edge-loop machinery
+  if (cb.glazing === 'windshield') cn.height = 0;
+
+  const pn = cb.panel || (cb.panel = {});
+  pn.on    = pn.on !== false;
+  pn.depth = genClamp(pn.depth == null ? 0.27 : pn.depth, 0.05, 1.20);
+  pn.inset = genClamp(pn.inset == null ? 0.06 : pn.inset, 0,    0.25);
+  // how far down the sill arc the coaming wraps; 0.5 is exactly the sill
+  pn.wrap  = genClamp(pn.wrap  == null ? 0.50 : pn.wrap,  0,    1);
+
+  // seat station is an OFFSET about a per-layout base (SEAT_BASE, 63_gen_skin.js),
+  // so 0 means "right" in either layout
+  cb.seatX     = genClamp(cb.seatX     == null ? 0    : cb.seatX,     -0.45, 0.45);
+  cb.seatY     = genClamp(cb.seatY     == null ? 0.10 : cb.seatY,      0.06, 0.50);
+  // a real distance between tandem seats, not a fraction of the cabin
+  cb.seatPitch = genClamp(cb.seatPitch == null ? 0.86 : cb.seatPitch,  0.55, 1.35);
+
+  const pl = cb.pilot || (cb.pilot = {});
+  pl.show    = pl.show !== false;
+  // standing height in metres; the rig is anthropometric, so this one length
+  // scales the whole figure
+  pl.stature = genClamp(pl.stature == null ? 1.75 : pl.stature, 1.45, 2.05);
+  pl.lean    = genClamp(pl.lean    == null ? 17   : pl.lean,    -5,  45);
+  pl.thigh   = genClamp(pl.thigh   == null ? -9   : pl.thigh,  -20,  40);
+  pl.shank   = genClamp(pl.shank   == null ? 10   : pl.shank,   10,  95);
+  pl.armDown = genClamp(pl.armDown == null ? 40   : pl.armDown, -10, 90);
+  pl.fore    = genClamp(pl.fore    == null ? 6    : pl.fore,   -45,  60);
+  pl.head    = genClamp(pl.head    == null ? -11  : pl.head,   -25,  25);
+  // arms IN toward the body centre — a tight canopy is narrower than a pair of
+  // elbows, so this is a control and not a constant
+  pl.armIn   = genClamp(pl.armIn   == null ? 26   : pl.armIn,  -10,  40);
+  // the legs' OTHER axis: thigh and shank are flexion, these are abduction.
+  // Both splays share a range because they are the same kind of control, and
+  // because a clamp narrower than its slider leaves dead travel at the ends.
+  pl.hipOut  = genClamp(pl.hipOut  == null ? 0    : pl.hipOut,  -5,  35);
+  pl.kneeOut = genClamp(pl.kneeOut == null ? 3    : pl.kneeOut, -5,  35);
+  // the feet: pitch about the ankle (toes up positive), and splay
+  pl.ankle   = genClamp(pl.ankle   == null ? 40   : pl.ankle,  -25,  40);
+  pl.toeOut  = genClamp(pl.toeOut  == null ? 7    : pl.toeOut,   0,  30);
+
+  S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
+
+  // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
+  // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
+  // normalised clone every time, so this cannot accumulate across calls the way
+  // gear.track once did.
+  fu.tailY = genClamp(fu.tailY == null ? 0 : fu.tailY, -0.60, 0.80);
+  fu.tailBot += fu.tailY;
+  fu.tailTop += fu.tailY;
+
   for (const e of S.engines) {
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
@@ -566,6 +880,10 @@ function clampSpec(spec) {
          + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
          + genClamp(Math.round(n.t * 100), 9, 18);
   if (!['high', 'mid', 'low'].includes(w.position)) w.position = 'high';
+  // the centre section over the cabin. NOTE the path: this is `wings[].centre`,
+  // not `cabin.wingBay` — the transfer spec named it the latter, and the latter
+  // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
+  if (!['solid', 'glass', 'open'].includes(w.centre)) w.centre = 'solid';
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
@@ -589,6 +907,20 @@ function clampSpec(spec) {
   fu.windRun = genClamp(fu.windRun, 0.10, 0.60);
   S.cowl.fillet = genClamp(S.cowl.fillet, 0.02, 0.22);
   S.cowl.taper = genClamp(S.cowl.taper, 0.70, 1.0);
+  // The cowl's own nose section. Generous, because a slim cowl on a fat engine
+  // and a fat cowl on a slim one are both aeroplanes somebody builds — the
+  // shakedown says which you have, it does not refuse to build it.
+  S.cowl.halfW = genClampN(S.cowl.halfW, 0.05, 1.10);
+  S.cowl.top = genClampN(S.cowl.top, 0.03, 1.10);
+  S.cowl.bot = genClampN(S.cowl.bot, 0.03, 1.10);
+  if (!GEN_INTAKES[S.cowl.intake]) S.cowl.intake = 'chin';
+  // THE PROPELLER. Diameter is bounded by what a nose can carry rather than by
+  // what flies: prop clearance is a GEN_RULES constraint and it will lengthen the
+  // undercarriage to hold it, so a 4 m disc on a Cub is a legal, stilted mistake.
+  S.prop.D = genClampN(S.prop.D, 0.20, 4.00);
+  S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
+  if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
+  if (!GEN_PROP_PITCH[S.prop.pitch]) S.prop.pitch = 'standard';
   cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
@@ -608,6 +940,15 @@ function clampSpec(spec) {
   S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
   S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
+  // Leg lengths: generous, because a stilt-legged bush aeroplane and a squatting
+  // racer are both aeroplanes somebody builds. The floor is rule 5 (a leg this
+  // short has no vertical stiffness whatever its k) and the shakedown says so.
+  S.gear.legDrop = genClampN(S.gear.legDrop, 0.15, 1.20);
+  S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
+  // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
+  // either way; the range is wide enough to be a look and not wide enough for
+  // the wheel to lie on its side.
+  S.gear.camber = genClamp(S.gear.camber || 0, -12, 20);
   return genAlias(S);
 }
 
@@ -625,9 +966,43 @@ function resolveSpec(spec) {
   put(S.cab, 'halfW', seat.halfW, 'cab.halfW');
   put(S.cab, 'h', seat.h, 'cab.h');
   put(S.cab, 'len', seat.len, 'cab.len');
+  // THE WINDOW'S AFT END, and why it is a fraction. `reach` is what the panel
+  // drives; `x1` is the absolute station it resolves to, and it resolves HERE
+  // because it needs the cabin length that was derived on the line above.
+  //
+  // An absolute station cannot survive a cabin-length change: stretch the cabin
+  // and the window stays where it was while the cabin moves out from under it,
+  // which is the failure the prototype harness hit and fixed. A fraction of the
+  // cabin follows it by construction. The extra 0.5 m is the bay behind the
+  // cabin, so reach = 1 runs the window to the end of it.
+  //
+  // Setting `x1` explicitly still wins — `put` only fills nulls — so a build
+  // that wants the window pinned whatever the cabin does can still say so. The
+  // aft-of-tailpost safety clamp stays in 63_gen_skin.js, where postX lives.
+  put(S.cab.canopy, 'reach', (S.cab.len + 0.35) / (S.cab.len + 0.5),
+      'cabin.canopy.reach');
+  put(S.cab.canopy, 'x1', S.cab.noseGap + (S.cab.len + 0.5) * S.cab.canopy.reach,
+      'cabin.canopy.x1');
   // no windscreen on a drone: the firewall top IS the cabin top, so the nose
   // runs straight into the body with no step to break
   put(S.fuse, 'cowlDeck', seat.deck, 'fuse.cowlDeck');
+  // THE WINDSCREEN RAKE, as ONE number driving both things that must agree.
+  // The fuselage owns its windscreen — the step up from the cowl deck over
+  // `windRun` — and the canopy's front bow sits on that same step. Expressed as
+  // two independent fields they drift, the shell stands off the body, and you
+  // get the slab the transfer spec's crown-line note describes. So the angle is
+  // the control and the run is derived from it: same rise, same angle, one
+  // source. Left null, the angle is read back OUT of the fuselage's own run, so
+  // an untouched build is bit-for-bit what it was.
+  {
+    const rise = Math.max(0.02, S.cab.h * (1 - S.fuse.cowlDeck));
+    const cn = S.cab.canopy;
+    if (cn.wsAngle == null)
+      put(cn, 'wsAngle', Math.atan2(rise, S.fuse.windRun) * 180 / Math.PI,
+          'cabin.canopy.wsAngle');
+    else
+      S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
+  }
   S.seats = seat.crew;
   S.crew = genClamp(S.pilots | 0, 1, seat.crew);
 
@@ -721,19 +1096,184 @@ function resolveSpec(spec) {
   // 5. gear — the two hard geometric constraints of a taildragger.
   //    y: the prop must clear the ground in the LEVEL attitude (this is the
   //    binding case; three-point has the nose up and is generous).
-  //    twY: set so the three-point deck angle is the design value.
+  //    twY: falls out of the third leg's length (both gear types since G4.6).
   //    x and track need the CG, so genFrame() places them on a second pass.
+  //
+  //    CAMBER first, because the contact radius it produces is what every
+  //    clearance below is measured from. A wheel leaning by gamma touches
+  //    R*cos(gamma) under its axle, so a cambered aeroplane sits LOWER on the
+  //    same legs. `contactR` is published on the spec because five places need
+  //    to agree about it — the node radius the solver contacts on, the prop
+  //    clearance rule, the frame's track derivation, the shakedown's ground
+  //    line, and the wheel mesh.
+  //    NOT modelled: the contact patch also moves inboard by R*sin(gamma). The
+  //    solver contacts directly under the node, so the effective track is the
+  //    axle track. At the clamp (20 deg, 0.40 m wheels) that is 14 cm on a
+  //    track of about 1.5 m — an honest cut, and the only one camber makes.
+  S.gear.camberRad = S.gear.camber * Math.PI / 180;
+  S.gear.contactR = S.gear.wheelR * Math.cos(S.gear.camberRad);
   const PP = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
-  const propR = PP ? PP.prop.D / 2 : 0.9;
+  // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
+  // prop is the DEFAULT diameter and nothing more; every number below is derived,
+  // so a bigger disc really does pull harder and blow harder over the tail.
+  {
+    const pr = S.prop;
+    put(pr, 'D', PP ? PP.prop.D : 1.80, 'prop.D');
+    const PI = GEN_PROP_PITCH[pr.pitch] || GEN_PROP_PITCH.standard;
+    const MT = GEN_PROP_MATS[pr.material] || GEN_PROP_MATS.wood;
+    const P = PP ? PP.engine.powerW : 48500;
+    pr.area = Math.PI * (pr.D / 2) * (pr.D / 2);
+    // More blades is more disc solidity: better static thrust for the same
+    // diameter, at a little peak efficiency. 5.5% a blade past two.
+    pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
+    // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
+    // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
+    pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * Math.pow(P, 2 / 3);
+    // and the quadratic decay, through the speed at which thrust runs out. One
+    // constant on the only velocity scale there is; the pitch trade rides in
+    // Tstatic, so a fine prop's thrust runs out earlier without being told to.
+    pr.V0 = GEN_RULES.propV0K * P / Math.max(1, pr.Tstatic);
+    pr.kV2 = pr.Tstatic / (pr.V0 * pr.V0);
+    // blade mass, at the very front of the aeroplane
+    pr.mass = pr.blades * MT.kg * Math.pow(pr.D / 1.88, 2.5);
+    pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
+    pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
+  }
+  const propR = S.prop.D / 2;
   S.propR = propR;
   S.engY = 0.36 * S.cab.h + pl.engineDy;        // thrustline, above the lower longeron
   S.engX = -(0.18 + 0.32 * propR) + pl.engineDx; // firewall forward: cowl + prop
+
+  // 4b. THE ENGINE BLOCK's own size, derived here rather than in the skin that
+  // draws it, because the cowl has to be able to ask whether it covers the
+  // thing. Scaled off the registry mass so a bigger engine looks like one; the
+  // floor stops a model-aircraft outrunner from vanishing. Cylinders reach out
+  // to `cylZ` either side, which is what pokes out of a Cub's cowl on purpose.
+  {
+    const k = Math.cbrt(Math.max(8, PP ? PP.engine.mass : 80) / 80);
+    const halfW = 0.105 * k, cylZ = 0.30 * k, cylR = 0.072 * k;
+    // A cylinder is a TILTED tube, so its outer cap ring reaches further out
+    // than its axis does — 15 mm on an O-200, which is exactly the margin the
+    // enclosure verdict was getting wrong. `cylZ` is what the skin draws to;
+    // `cylReach` is what actually sticks out, and is what the test uses.
+    const tilt = (0.04 * k) / Math.hypot(0.04 * k, cylZ - halfW);
+    S.engBox = { k, halfW, halfH: 0.105 * k, cylZ, cylR,
+                 cylReach: cylZ + cylR * tilt,
+                 xF: S.engX - 0.09 * k, xA: S.engX + 0.19 * k };
+  }
+
+  // 4c. THE COWL's nose section, about the THRUSTLINE. Derived from the firewall
+  // section tapered about that datum, which is the same shape as before wherever
+  // the two datums nearly coincide (every seating but the drone) and is centred
+  // on the engine where they do not.
+  {
+    const cw = S.cowl, ck = genClamp(cw.taper, 0.70, 1.0);
+    const fwW = S.cab.halfW * 0.92;               // firewall ring, as station 0
+    const fwT = S.cab.h * S.fuse.cowlDeck, fwB = 0;
+    // THE DERIVED TOP AND BOTTOM CLEAR THE CRANKCASE. That line is the fix for
+    // "the drone cowl collapses below its engine", and it is drawn at the CASE
+    // rather than at the cylinders on purpose: a cowl covers the case and lets
+    // the cylinder heads out — that is what a J-3 does, and enclosing everything
+    // by default would make every aeroplane a cowled Cessna. Measured, the floor
+    // bites ONLY on the drone (its deck line is its cabin roof, so the firewall
+    // section sits 4 cm above the thrustline on a 30 cm body): +2.4 cm of cowl
+    // bottom there, and not a millimetre on any other seating.
+    // The earlier attempt at this floored the FIREWALL RING on engine size and
+    // had to be reverted because it widened every aeroplane's nose. The cowl
+    // having a section of its own is what makes the same idea safe.
+    const E = S.engBox;
+    const clr = Math.max(0.02, 0.20 * E.halfH);
+    const xNose = S.engX - 0.10, len = Math.max(0.12, 0 - xNose);
+    // The cover is a loft with a FILLET rolled onto its nose, and the fillet is
+    // an inset from every side. The case's forward face sits within a couple of
+    // centimetres of the nose plane, i.e. INSIDE the fillet, so flooring the
+    // nose section alone leaves the case poking out of the belly anyway
+    // (measured: 1.7 cm on the drone, down from 4.3, but still there).
+    // So solve for the nose section that covers the case AT THE CASE'S OWN
+    // STATIONS. Four fixed passes rather than a while-loop: generation has to
+    // stay deterministic (GATE GEN byte-compares a double-generate), and the
+    // update is monotone, so four is past convergence everywhere measured.
+    const shrinkAt = (t, nHW, hDN) => {
+      const fil = Math.min(cw.fillet, 0.40 * Math.min(nHW, hDN), 0.45 * len);
+      const d = (1 - t) * len;                     // distance back from the nose
+      if (d >= fil) return 0;
+      // the quarter-round: shrink = fil (1 - cos a), sin a = 1 - d/fil
+      const s = Math.max(0, Math.min(1, 1 - d / Math.max(1e-6, fil)));
+      return fil * (1 - Math.sqrt(Math.max(0, 1 - s * s)));
+    };
+    // ONE section function, shared by the floor solver and the verdict below, so
+    // what the panel claims and what the loft builds cannot drift apart. `t` is
+    // the fraction along the cowl (0 = firewall), and the fillet's inset is in it.
+    const secAt = (t, nHW, nTop, nBot) => {
+      const hDN = 0.5 * (nTop + nBot), yN = S.engY + 0.5 * (nTop - nBot);
+      const sh = shrinkAt(t, nHW, hDN);
+      const yc = 0.5 * (fwT + fwB) + (yN - 0.5 * (fwT + fwB)) * t;
+      const hd = 0.5 * (fwT - fwB) + (hDN - 0.5 * (fwT - fwB)) * t;
+      return { halfW: Math.max(0.02, fwW + (nHW - fwW) * t - sh),
+               yLo: yc - hd + sh, yHi: yc + hd - sh, t };
+    };
+    let nT = Math.max(0.03, E.halfH + clr, (fwT - S.engY) * ck);
+    let nB = Math.max(0.03, E.halfH + clr, (S.engY - fwB) * ck);
+    const nHW0 = fwW * ck;
+    for (let pass = 0; pass < 4; pass++) {
+      let needT = 0, needB = 0;
+      // the case occupies xF..xA; its most exposed station is the forward one,
+      // but walk it so a long case cannot slip between samples
+      for (let i = 0; i <= 4; i++) {
+        const s2 = secAt(Math.max(0, Math.min(1,
+          (0 - (E.xF + (E.xA - E.xF) * i / 4)) / len)), nHW0, nT, nB);
+        needT = Math.max(needT, (S.engY + E.halfH + clr) - s2.yHi);
+        needB = Math.max(needB, s2.yLo - (S.engY - E.halfH - clr));
+      }
+      if (needT <= 1e-6 && needB <= 1e-6) break;
+      nT += Math.max(0, needT); nB += Math.max(0, needB);
+    }
+    put(cw, 'halfW', nHW0, 'cowl.halfW');
+    put(cw, 'top', nT, 'cowl.top');
+    put(cw, 'bot', nB, 'cowl.bot');
+    S.cowl.secAt = t => secAt(t, cw.halfW, cw.top, cw.bot);
+    S.cowl.tAt = x => Math.max(0, Math.min(1, (0 - x) / len));
+    // What the cowl covers, reported rather than enforced: a cowl is not obliged
+    // to enclose its engine (a Cub's cylinders stick out), but the player should
+    // be told which it is instead of finding out by looking at a collapsed nose.
+    //
+    // Measured at EACH PART'S NARROWEST STATION, not at the nose and not at the
+    // block's midpoint. The cover is a loft: widest at the firewall, narrowest at
+    // the nose. Comparing against the nose section says "engine out" for cowls
+    // that visibly swallow the engine; comparing at the block's midpoint says
+    // "enclosed" for a cylinder that pokes through 6 mm further forward, which is
+    // exactly the disagreement with the mesh this started as.
+    // So: the crankcase is checked where its FORWARD face is, and the cylinders
+    // where the FORWARD one of them is — through the same shrink-aware section
+    // function the floor above solved with.
+    const sCase = cw.secAt(cw.tAt(E.xF)), sCyl = cw.secAt(cw.tAt(S.engX + 0.01 * E.k));
+    cw.atEngine = sCase;
+    cw.covers = {
+      above: sCase.yHi >= S.engY + E.halfH - 1e-6,
+      below: sCase.yLo <= S.engY - E.halfH + 1e-6,
+      sides: sCyl.halfW >= E.cylReach - 1e-6,
+    };
+    cw.enclosed = cw.covers.above && cw.covers.below && cw.covers.sides;
+  }
   // Two constraints, and the gear has to satisfy BOTH: the propeller must clear
   // the ground, and the legs must be long enough to be stiff. Prop clearance
   // alone gave a tiny prop a tiny undercarriage, and the aeroplane squatted
   // onto its own floor (measured with the model-aircraft outrunner).
-  const byProp = S.engY - propR + S.gear.wheelR - GEN_RULES.propClear;
-  const byLeg = -0.02 - GEN_RULES.legDrop;
+  put(S.gear, 'legDrop', GEN_RULES.legDrop, 'gear.legDrop');
+  // twLeg is NOT resolved here. A tailwheel's default is a constant, but a
+  // nosewheel's is only knowable once the wheelbase is — same reason gear.x and
+  // gear.track are placed by genFrame on its second pass. Left null it keeps
+  // each type's own derivation; set, it is the leg length for both.
+  const byProp = S.engY - propR + S.gear.contactR - GEN_RULES.propClear;
+  const byLeg = -0.02 - S.gear.legDrop;
+  // WHICH ONE BOUND IT, published because otherwise the legDrop slider looks
+  // broken. min() picks the LOWER axle, i.e. the LONGER leg, so a legDrop
+  // shorter than prop clearance demands changes nothing at all — measured, on
+  // the default aeroplane the prop wants 0.76 m and anything under that is
+  // silently ignored. The prop keeps winning on purpose: a leg the player
+  // shortened into a prop strike is not a bad aeroplane, it is a broken one on
+  // the first landing.
+  S.gear.yBoundBy = byProp <= byLeg ? 'prop clearance' : 'legDrop';
   put(S.gear, 'y', Math.min(byProp, byLeg), 'gear.y');
   return { spec: S, auto };
 }

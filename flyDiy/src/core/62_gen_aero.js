@@ -388,6 +388,17 @@ function genParams(S, fr, strips) {
   return {
     name: S.name, viewDist: Math.max(9, 1.4 * S.wing.span),
     powerplant: S.engine,
+    // HOW MANY ENGINES, which is NOT how many mount nodes. `refs.engine` is the
+    // two mount points of one engine here, and the solver used to multiply
+    // thrust by its length — so a generated single fell on 2x its own prop.
+    // Stated explicitly rather than left to the solver's `|| 1` fallback: a twin
+    // is a real aeroplane in this spec and the day `engines` has two entries
+    // this must already be right.
+    nEngines: S.engines.length,
+    // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
+    // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
+    // sets it — so the fleet reads the registry exactly as before.
+    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
     substeps: genSubsteps(fr.nodes, fr.beams),
     polarWing, polarTail,
     elevTau, rudTau, ailTau, downwash: 0.40,

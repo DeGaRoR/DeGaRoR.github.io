@@ -120,7 +120,9 @@ export const W1_SLICE = {
   // genome hash in the world moves, the three frozen residents are re-frozen, and
   // `worldHash` moves with them. That is precisely "any change that moves genome
   // hashes". The creatures are unchanged to the bit; the schema is not.
-  faunaVersion: 10,
+  // 10 -> 11 (2026-08-11): GENOME_V 8, `brakeGain`. Every genome hash moves,
+  // the three residents are re-frozen, the creatures are unchanged to the bit.
+  faunaVersion: 11,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).

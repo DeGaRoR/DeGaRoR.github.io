@@ -196,6 +196,7 @@ function buildChinook() {
   const params = {
     name: 'Birdman Chinook 1S', viewDist: 12, substeps: 48,
     powerplant: 'rotax277_pusher',
+    nEngines: 1,
     polarWing: POLARS.chinook_wing_AR87, polarTail: POLARS.fabric_tail,
     elevTau: 0.62, rudTau: 0.62, ailTau: 0.50, downwash: 0.32,
     stabTrim: -0.0359, sparSpacing: 0.61,

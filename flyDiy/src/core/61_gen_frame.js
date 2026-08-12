@@ -40,9 +40,23 @@ function genLattice(S, gearX, track, kScale) {
   // The archetype's damping is DESIGNED, not derived — an oleo really does damp
   // far harder than a bungee — so it multiplies directly. Only the player's
   // stiffness knob follows sqrt(k), since that is a change to one spring.
-  const KG = KS * SUS;
+  // THE KNOB SOFTENS THE SPRING, NOT THE BRACING. It used to scale every gear
+  // member, so turning the suspension down softened the drag braces and the
+  // belly cross-bracing with it and the undercarriage FOLDED: measured, at 0.6x
+  // the aeroplane settled on its belly with the axle 0.75 m in the air, fully at
+  // rest, 1.4% strain — rule 1's snap-through, and no strain gate can see it.
+  // The barrier was already that close: 1 kg more at the nose (G4.7's honest
+  // prop mass) moved it from 0.6x standing at 8% strain to 0.6x folded.
+  // Real gear behaves the way the split does: a soft spring gives long travel
+  // and the drag brace is a tube either way. `vis === 'leg'` (see B, below) is
+  // exactly the suspension member, which is why G4.6's visual work is what made
+  // this expressible. IDENTICAL AT stiffness 1.0 for every archetype, which is
+  // the whole default fleet — the split only opens up as the knob moves.
+  const KG = KS * SUS;                       // the spring
+  const KGB = KS * ARCH.k;                   // its bracing: archetype, no knob
   const CS = KS;
   const CG = KS * ARCH.c * Math.sqrt(S.gear.stiffness == null ? 1 : S.gear.stiffness);
+  const CGB = KS * ARCH.c;
   const R = GEN_RULES;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
@@ -56,11 +70,32 @@ function genLattice(S, gearX, track, kScale) {
   // ext = the member is OUTSIDE the covering (struts, gear legs). It stays
   // visible when the aeroplane is covered; everything else disappears under
   // the fabric, which is what the Frame/Covered view modes key off.
-  const B = (a, b, cls, ext) => {
+  //
+  // vis = HOW it is drawn, and it never touches the physics. The undercarriage
+  // needs this: the truss the solver wants is not the hardware a real
+  // aeroplane wears, and the report was "the tailwheel has too many struts"
+  // with "keep the physical model" attached to it. So a member can be a wire
+  // instead of a 48 mm tube, or be declared INTERNAL and drop out of the
+  // covered view while still standing in Frame mode — which is honest, because
+  // Frame mode's whole job is to show the structure that was welded.
+  //   null    hexagonal tube, as before
+  //   'wire'  thin bracing wire or tie rod
+  //   'leg'   the suspension leg — drawn as bungee / spring / oleo (63)
+  //   'inner' structural, but inside the covering: goes in the frame mesh
+  const B = (a, b, cls, ext, vis) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
-    beams.push({ a, b, k: M.k[cls] * (isG ? KG : KS), c: M.c[cls] * (isG ? CG : CS),
-                 gear: isG, cls, ext: !!ext || isG, L });
+    // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
+    // already buys. See the constant for the measurements and the substep
+    // trade. Damping is NOT scaled with it — a stiffer structure at the same c
+    // is a more lightly damped one, which is what a real one does, and c is not
+    // what binds the timestep here.
+    const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
+    // a gear member is either the SPRING (vis 'leg') or its bracing
+    const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    beams.push({ a, b, k: M.k[cls] * (isG ? kG : KS) * kGain, c: M.c[cls] * (isG ? cG : CS),
+                 gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
+                 vis: vis || null, L });
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
@@ -168,9 +203,15 @@ function genLattice(S, gearX, track, kScale) {
   B(EL, ER, 'fus');
   B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
   B(ER, F[0].TR, 'fus'); B(ER, F[0].BR, 'fus'); B(ER, F[0].BL, 'fus');
-  const propM = 2.0 * PP.prop.D;
-  pt(EL, 0.5 * (PP.engine.mass + propM)); pt(ER, 0.5 * (PP.engine.mass + propM));
+  // The BLADES weigh what the spec says they weigh (S.prop.mass, derived from
+  // diameter, blade count and material) rather than the old 2 kg per metre of
+  // registry diameter. It lands on the mount nodes rather than at the hub, which
+  // is 0.10 m further forward — worth 3 cm of CG on a 500 kg aeroplane with the
+  // heaviest prop the clamps allow, and there is no node out there to hang it on.
+  pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
+  pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
   spend((PP.price || 0) * S.engines.length);
+  spend(S.prop.price || 0);
 
   // ---- 3. wing --------------------------------------------------------
   sec('wings');
@@ -224,7 +265,21 @@ function genLattice(S, gearX, track, kScale) {
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
   const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
-  const useStrut = w.strut && strutOffset >= R.strutMinOffset;
+  // A CRANKED WING CANNOT BE STRUT-BRACED either, for the same reason and with
+  // the same cure (2026-08-11, GATE FLEX matrix). A crank INSERTS a spar
+  // station, so the fan leaves the outer panel unbraced exactly as panels 4-5
+  // did — measured, the jodel-crank preset read 22.95 deg @200 N.m at a
+  // doubling ratio of 1.34x, the WORST corner in the whole configuration space
+  // and worse than panels 5 ever was. And it cannot be cured by extending the
+  // fan: a stiff member from the pod bottom to a station 14 deg up the outer
+  // panel re-rigs the aeroelastics of nodes that carry strip force (rule 10),
+  // and the aeroplane stopped completing a circuit.
+  // The outer panel of a cranked wing wants a box, which is what the real
+  // aeroplane this planform comes from actually has — the Jodel fiche is a
+  // cantilever. Substituted, it measures 2.76 / 5.39 at 1.95x and flies.
+  // Same shape of rule as strutMinOffset, and visible the same way: the panel
+  // reports `bracing: cantilever box` so the substitution is never silent.
+  const useStrut = w.strut && strutOffset >= R.strutMinOffset && !(w.crankAt > 0);
   // dihedral is piecewise across the crank: flat (or shallow) inboard, steeper
   // outboard. Without a crank both halves use the same angle and this is the
   // straight line it always was.
@@ -310,6 +365,41 @@ function genLattice(S, gearX, track, kScale) {
       B(strutRoot, WR[mid], 'wing', true);
       for (const t of [WF[0], WR[0], WF[WF.length-1], WR[WR.length-1]])
         B(strutRoot, t, 'wing');
+      // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
+      // The four lines above reach exactly three stations: 0, mid=1 and the
+      // last. `wing.panels` is a PLAYER SLIDER clamped 2..5, so at 4 panels the
+      // fan skips station 2 and at 5 panels it skips 2 AND 3 — those stations
+      // hang between fan members on a planar two-spar wing with no box, which
+      // is rule 1 with the barrier removed. Measured (static antisymmetric tip
+      // couple, deg @200 N.m / doubling ratio, span 13 chord 1.6):
+      //     panels 2   2.38   1.98x      panels 4   21.41   *** 1.56x
+      //     panels 3   3.84   1.97x      panels 5   28.73   *** 1.46x
+      // A doubling ratio under 2 means it stiffened geometrically on the way,
+      // i.e. it started near a MECHANISM — and the rank test cannot see it,
+      // because the framework is infinitesimally rigid the whole time. This is
+      // the chinook wing's defect exactly (16.4 deg at 1.50x, cured the same
+      // way), and it was reachable from the panel by moving one slider.
+      // Appended rather than folded into the loop above so the emission ORDER
+      // of the existing members is untouched: at panels <= 3 this adds nothing
+      // and the whole battery stays bit-identical.
+      // Known, left alone: at panels 2, `mid` and `WF.length-1` are the SAME
+      // station, so those four lines emit that pair twice — a duplicated beam
+      // is double stiffness. It measures linear and stiff, and unpicking it
+      // would move panels-2 geometry in a commit about panels 4 and 5.
+      // INBOARD OF THE CRANK ONLY. A lift strut reaches the straight inner
+      // panel; it does not climb the outer panel of a cranked wing, and
+      // pretending otherwise is not a modelling shortcut but a different
+      // aeroplane. Measured: the jodel-crank preset (crankAt 0.45, dihedralOut
+      // 14) flew a circuit before this block and did NOT after, because a stiff
+      // member from the pod bottom to a station 14 deg up the outer panel
+      // re-rigs the aeroelastics of nodes that carry strip force — rule 10's
+      // "wires that anchor to strip-force-carrying nodes re-rig the
+      // aeroelastics". zCrank is 0 when there is no crank, so a straight wing
+      // gets every interior station, which is the case this block exists for.
+      for (let i = 2; i < WF.length - 1; i++) {
+        if (zCrank && zs[i] > zCrank + 1e-9) continue;
+        B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
+      }
     } else {
       // CANTILEVER: no strut, so rule 1 has to be paid for properly — a real
       // full-depth two-spar torsion box. Lower caps under both spars at every
@@ -393,10 +483,13 @@ function genLattice(S, gearX, track, kScale) {
   // ---- 5. gear --------------------------------------------------------
   sec('gear');
   spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
-  const gy = S.gear.y, wr = S.gear.wheelR;
+  const gy = S.gear.y;
   const gx = gearX !== null && gearX !== undefined ? gearX : cab.noseGap * 0.9;
   const tr = track !== null && track !== undefined ? track : 5 * cab.halfW;
-  const [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', wr);
+  // CAMBER: the node's radius is what the solver contacts the ground on, and a
+  // leaning wheel touches R*cos(camber) below its axle. Resolved once, on the
+  // spec, so the mesh and the clearance rules cannot disagree with the physics.
+  const [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
   // Rule 7: the gear needs a LONGITUDINAL (drag) load path anchored well fore
   // AND aft of the axle, into HEAVY nodes. The anchors used to be hard-coded to
@@ -417,8 +510,18 @@ function genLattice(S, gearX, track, kScale) {
   const aheadOfAll = ST[0].x > gx + 0.10;
   const fwdL = aheadOfAll ? EL : F[iFwd].BL, fwdR = aheadOfAll ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, aheadOfAll ? 0 : Math.min(iFwd + 1, F.length - 1))];
-  B(GAL, fwdL, 'gear'); B(GAL, AA.BL, 'gear'); B(GAL, fwdR, 'gear');
-  B(GAR, fwdR, 'gear'); B(GAR, AA.BR, 'gear'); B(GAR, fwdL, 'gear');
+  // What each of those six members IS, now that `vis` can say so. The forward
+  // pair is the SUSPENSION LEG — bungee cord, spring steel or oleo, drawn as
+  // whichever the spec bought. The same-side aft pair is the drag brace, a
+  // tube, which is what it is on any aeroplane. The two CROSS members run from
+  // one axle end to the other side's frame, under the belly: as 48 mm tubes
+  // they made the undercarriage read as a cage, and an X of bracing wires under
+  // the belly is both what a tube-and-fabric aeroplane actually has and the
+  // same load path. Nothing here changes k, c or mass.
+  B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, AA.BL, 'gear');
+  B(GAL, fwdR, 'gear', false, 'wire');
+  B(GAR, fwdR, 'gear', false, 'leg'); B(GAR, AA.BR, 'gear');
+  B(GAR, fwdL, 'gear', false, 'wire');
   pt(GAL, 3.5); pt(GAR, 3.5);                          // wheels, tyres, brakes
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
@@ -435,31 +538,51 @@ function genLattice(S, gearX, track, kScale) {
     // AHEAD, so the denominator is negative and a nose-UP rest attitude needs
     // its contact BELOW the mains — the opposite of a tailwheel. Getting this
     // backwards stood the aeroplane on its nose at "deck 178.8 deg".
+    // SPLIT HEIGHT: given a nose LEG LENGTH the attitude falls out of it, the
+    // way the tailwheel's always has. Left null, trikeDeck still works
+    // backwards from the attitude and every existing number is unchanged.
     twY = S.gear.twY !== null && S.gear.twY !== undefined
       ? S.gear.twY
-      : (gy - wr) + S.gear.twR - Math.tan(R.trikeDeck * D) * (gx - twX);
+      : (S.gear.twLeg !== null && S.gear.twLeg !== undefined
+         ? -0.02 - S.gear.twLeg
+         : (gy - S.gear.contactR) + S.gear.twR
+           - Math.tan(R.trikeDeck * D) * (gx - twX));
     TW = N(twX, twY, 0, 'TW', S.gear.twR);
     // it hangs off the firewall frame and the engine mount — the heavy nodes
-    // at that end of the aeroplane (rule 7), with a fore-and-aft path
-    B(TW, F[0].BL, 'gear'); B(TW, F[0].BR, 'gear');
-    B(TW, EL, 'gear'); B(TW, ER, 'gear');
-    B(TW, F[Math.min(1, F.length-1)].BL, 'gear');
-    B(TW, F[Math.min(1, F.length-1)].BR, 'gear');
+    // at that end of the aeroplane (rule 7), with a fore-and-aft path.
+    // A real nose gear is one strut and a drag link, so the firewall pair is
+    // the leg and the other four are links.
+    B(TW, F[0].BL, 'gear', false, 'leg'); B(TW, F[0].BR, 'gear', false, 'leg');
+    B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
+    B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
+    B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, 3.0);
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
     // the tailwheel hangs off the tailpost foot by its leg length; the
-    // three-point attitude is whatever that geometry produces (GEN_RULES.twLeg)
+    // three-point attitude is whatever that geometry produces (spec twLeg,
+    // defaulting to GEN_RULES.twLeg)
     twY = S.gear.twY !== null && S.gear.twY !== undefined
-      ? S.gear.twY : nodes[TPB].p[1] - R.twLeg;
+      ? S.gear.twY : nodes[TPB].p[1]
+        - (S.gear.twLeg !== null && S.gear.twLeg !== undefined ? S.gear.twLeg : R.twLeg);
     TW = N(twX, twY, 0, 'TW', S.gear.twR);
-    B(TW, TPB, 'gear'); B(TW, last.BL, 'gear'); B(TW, last.BR, 'gear');
+    // Six members, and on a real tailwheel exactly one of them is hardware you
+    // can see: the spring the wheel hangs on. Report: "too many struts, no
+    // spring". So the tailpost member IS the spring/oleo, the pair to the last
+    // frame and the pair up to the stabiliser are bracing WIRES (which is what
+    // the rule-10 pyramid has always been called in this file), and the
+    // near-vertical snap-blocker is declared INTERNAL — it runs from below the
+    // tailwheel to the TOP of the tailpost, i.e. straight up through the
+    // fuselage, so under the covering it should not be there at all. It still
+    // stands in Frame mode and still carries exactly the same load.
+    B(TW, TPB, 'gear', false, 'leg');
+    B(TW, last.BL, 'gear', false, 'wire'); B(TW, last.BR, 'gear', false, 'wire');
     // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
     // strain gate can see it. Both cures the Cub needed are mandatory here:
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
-    B(TW, TPT, 'gear');
-    B(TW, HTL, 'gear'); B(TW, HTR, 'gear');
+    B(TW, TPT, 'gear', false, 'inner');
+    B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, 2.0);
   }
 
@@ -563,7 +686,7 @@ function genFrame(S) {
   const gx = (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx)
              + S.place.gearDx;
   const tr = Math.max(0.5, (S.gear.track !== null && S.gear.track !== undefined
-    ? S.gear.track : R.trackRatio * (cg[1] - (gy - S.gear.wheelR))) + S.place.gearDtrack);
+    ? S.gear.track : R.trackRatio * (cg[1] - (gy - S.gear.contactR))) + S.place.gearDtrack);
   const out = genLattice(S, gx, tr, kScale);
   out.cg0 = genLatticeCG(out.nodes);
   return out;

@@ -76,10 +76,13 @@ export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 // curated additions, where it was bumped, L2-10 caught it, and it was reverted:
 // adding library entries moves no hash, and a bump there would have invalidated
 // every player's compiled records to announce a new shelf item.
+// GENOME_V 8 MOVED THEM A FIFTH TIME — `brakeGain`, migrating in at 0, with
+// `sensorEffort` returning exactly 1 there. Same story as the fourth: the animals
+// are bit-identical, the schema is not, so the hashes are. `faunaVersion` 10 -> 11.
 export const W1_RESIDENT_HASHES = [
-  "366259228a894564",
-  "163a916241146115",
-  "cf431f32b7c9f3e4"
+  "e8c906b31eb8ecc8",
+  "8721968b1c10c233",
+  "14bbd52387e417bd"
 ];
 
 export default W1_RESIDENT_GENOMES;

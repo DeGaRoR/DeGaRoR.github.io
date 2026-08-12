@@ -2,7 +2,12 @@
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
-  const PROPA = Math.PI * (PP.prop.D / 2) ** 2;
+  // The PROP may be the aeroplane's own rather than the powerplant's: a GARAGE
+  // build chooses its disc, and every prop number below is then synthesised from
+  // it (60_gen_spec.js). A fiche sets no `prop`, so it reads the registry exactly
+  // as before and no fleet number moves.
+  const PR = P_.prop || PP.prop;
+  const PROPA = Math.PI * (PR.D / 2) ** 2;
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -106,11 +111,19 @@ function makeSim(def, world) {
     // prop thrust + far-wake propwash
     let T = 0, wash = 0;
     if (!probe) {
-      const nE = def.refs.engine.length;
-      const Tper = ctl.thr * Math.max(0, PP.prop.Tstatic - PP.prop.kV2 * Vfwd * Vfwd);
+      // TWO DIFFERENT COUNTS, and conflating them was a real defect (fixed
+      // 2026-08-11). `refs.engine` is the list of NODES the thrust is applied
+      // AT — the two mount points of ONE engine on the Cub, one node per
+      // nacelle on the DC-3 — so it can say where the force goes but not how
+      // many engines make it. `params.nEngines` says that, and every def
+      // states it. The registry's Tstatic/kV2 are PER PROPELLER.
+      const nE = def.params.nEngines || 1;
+      const Tper = ctl.thr * Math.max(0, PR.Tstatic - PR.kV2 * Vfwd * Vfwd);
       T = Tper * nE;                                   // registry values are per engine
+      // propwash is ONE disc's — the tail flies in the wake of the prop ahead
+      // of it, not in the sum of the aeroplane's engines
       wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (RHO * PROPA)) - Vfwd;
-      const per = T / def.refs.engine.length;
+      const per = T / def.refs.engine.length;          // spread over the MOUNTS
       for (const e of def.refs.engine) {
         f[e*3]   -= per * xAft[0];
         f[e*3+1] -= per * xAft[1];

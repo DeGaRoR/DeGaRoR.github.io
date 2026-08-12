@@ -6,6 +6,7 @@
   const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook,
                      gen: () => buildGen(genSpec) };
   let def, sim, ap, nb, curKey;
+  let studioFloor = null, groundY = 0;
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -31,13 +32,213 @@
 
   const WF = buildWorldScene(scene, world, renderer, camera);
 
+  // ================= THE GARAGE'S OWN SCENE =================
+  // The editor and the simulation are two different places, and this is what
+  // makes them two. Everything that IS the aeroplane lives in one group, so
+  // moving it between the world and the garage is a single reparent rather than
+  // a dozen add/remove calls that have to be kept in step.
+  //
+  // Same renderer, same canvas, same camera: switching costs nothing and
+  // reloads nothing. Only the scene changes.
+  //
+  // TWO ROOMS to build in, because they answer different questions. The HANGAR
+  // is where the aeroplane lives and is the default — it gives it a floor, a
+  // scale to be judged against and light with a direction. The STUDIO is a
+  // neutral field with nothing in it, which is what you want when the question
+  // is about the SHAPE and the room is in the way. Both are garage-only; the
+  // world is a third thing and belongs to flying.
+  const craft = new THREE.Group();
+  scene.add(craft);
+  // Renderer settings the world owns, kept so a room can borrow and return them.
+  //
+  // PHYSICALLY CORRECT LIGHTS is the one that matters, and it is the single
+  // biggest trap in porting the hangar. In three 0.184 — what the design
+  // session drew it in — lights are ALWAYS physical: a PointLight's intensity
+  // is in candela and falls off with distance squared. In r128 that behaviour
+  // is opt-in and OFF by default, so the room's authored `PointLight(…, 90, 26,
+  // 2)` is not a shop lamp, it is a small sun, and the first render of the
+  // hangar came out pure white in every pixel.
+  //
+  // So the room turns it on for itself and hands it back on the way out. The
+  // world and the two mesh aircraft are calibrated under the legacy model and
+  // must not inherit this.
+  const WORLD_EXPOSURE = renderer.toneMappingExposure;
+  const WORLD_PHYSLIGHTS = !!renderer.physicallyCorrectLights;
+
+  const studio = new THREE.Scene();
+  studio.background = new THREE.Color(0xe9e6de);
+  {
+    // A three-light room, the same shape as any product stand: a broad sky
+    // term so nothing is ever black, one key that actually casts, and a warm
+    // fill opposite it to keep the shaded side readable.
+    studio.add(new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 1.0));
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(-6, 12, 8);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    // the shadow box is sized to an aeroplane, not to a world — a world-sized
+    // frustum spends all its depth precision on empty air and the contact
+    // shadow under the wheels goes soft and detached
+    const c = key.shadow.camera;
+    c.left = -14; c.right = 14; c.top = 14; c.bottom = -14;
+    c.near = 1; c.far = 48;
+    studio.add(key);
+    const fill = new THREE.DirectionalLight(0xfff4e6, 0.5);
+    fill.position.set(9, 5, -7);
+    studio.add(fill);
+    // THE FLOOR, and it earns its place: without a surface to catch the key
+    // light the aeroplane floats in a void and you cannot read its stance —
+    // which is half of what you are looking at when you set gear and dihedral.
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(400, 400),
+      new THREE.ShadowMaterial({ opacity: 0.18 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    studio.add(floor);
+    studioFloor = floor;
+    // An environment, because every material on this aeroplane is a
+    // MeshStandardMaterial and r128 only reaches those through scene.environment.
+    // Without one the metal reads black in here — the same trap the gear legs
+    // and the spinner fell into against a dim sky.
+    if (THREE.PMREMGenerator && renderer.setRenderTarget) {
+      const dome = new THREE.Scene();
+      const cv = document.createElement('canvas');
+      cv.width = 8; cv.height = 64;
+      const g2 = cv.getContext('2d');
+      const gr = g2.createLinearGradient(0, 0, 0, 64);
+      gr.addColorStop(0, '#f4f2ec'); gr.addColorStop(0.55, '#e9e6de');
+      gr.addColorStop(1, '#b9b3a5');
+      g2.fillStyle = gr; g2.fillRect(0, 0, 8, 64);
+      const tx = new THREE.CanvasTexture(cv);
+      tx.encoding = THREE.sRGBEncoding;
+      dome.add(new THREE.Mesh(new THREE.SphereGeometry(100, 16, 12),
+        new THREE.MeshBasicMaterial({ map: tx, side: THREE.BackSide })));
+      const pm = new THREE.PMREMGenerator(renderer);
+      pm.compileEquirectangularShader();
+      studio.environment = pm.fromScene(dome).texture;
+      pm.dispose();
+    }
+  }
+
+  // ---- THE HANGAR, built on demand ----------------------------------------
+  // Deferred because it is a thousand lines of geometry and a dozen baked
+  // sheets: a session that never opens the garage should not pay for a shed.
+  // Built once, then kept — it does not depend on the aeroplane.
+  //
+  // `genHangarSupported` is asked rather than assumed. The headless smoke gate
+  // stubs THREE with what the viewer needed before this room existed, and a
+  // missing constructor should degrade to the studio, not throw on boot.
+  const hangarScene = new THREE.Scene();
+  let hangar = null, hangarTried = false;
+  function getHangar() {
+    if (hangarTried) return hangar;
+    hangarTried = true;
+    if (typeof genHangarBuild !== 'function' ||
+        !genHangarSupported(THREE)) return null;
+    try {
+      hangar = genHangarBuild(THREE);
+      hangarScene.add(hangar.group);
+      hangarScene.background = hangar.background;
+      hangarScene.fog = hangar.fog;
+      // The room lights itself: a cube camera on the floor sees the glazing,
+      // the roof lights and the open door, and a PMREM of that is what every
+      // glossy thing in here reflects. It is the difference between "lit" and
+      // "in a room" — and the aeroplane is the glossiest thing in it.
+      // the bake has to happen under the room's OWN lighting model, or the
+      // environment it produces belongs to a different sun than the one that
+      // will light the aeroplane standing in it
+      const physWas = renderer.physicallyCorrectLights;
+      renderer.physicallyCorrectLights = true;
+      if (THREE.PMREMGenerator && THREE.WebGLCubeRenderTarget && renderer.setRenderTarget) {
+        const rt = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+        const cam = new THREE.CubeCamera(0.5, 100, rt);
+        cam.position.set(0, 3.2, 0);
+        hangar.shafts.visible = false;      // dust is not geometry to reflect
+        cam.update(renderer, hangarScene);
+        hangar.shafts.visible = true;
+        const pm = new THREE.PMREMGenerator(renderer);
+        hangarScene.environment = pm.fromCubemap(rt.texture).texture;
+        pm.dispose(); rt.dispose();
+      }
+      renderer.physicallyCorrectLights = physWas;
+      hangar.setMood(hangarMood);
+    } catch (e) {
+      // a room that will not build is a fallback, not a dead garage
+      hangar = null;
+      if (window.console) console.warn('hangar unavailable, using the studio:', e.message);
+    }
+    return hangar;
+  }
+
+  // ---- which room, and its mood -------------------------------------------
+  // A viewer preference, not part of the aeroplane: it does NOT go in the spec,
+  // so it never lands in a saved build or a shared design.
+  const PREF = (() => {
+    try { return window.localStorage; } catch (e) { return null; }
+  })();
+  const prefGet = (k, d) => { try { const v = PREF && PREF.getItem(k); return v == null ? d : v; }
+                              catch (e) { return d; } };
+  const prefSet = (k, v) => { try { if (PREF) PREF.setItem(k, v); } catch (e) {} };
+  let envKind = prefGet('flydiy.garageEnv', 'hangar') === 'studio' ? 'studio' : 'hangar';
+  let hangarMood = Math.max(0, Math.min(3, +prefGet('flydiy.garageMood', 0) | 0));
+  // the room actually in use: the hangar if it is wanted AND it built
+  function garageScene() {
+    if (envKind === 'hangar') { const h = getHangar(); if (h) return hangarScene; }
+    return studio;
+  }
+  function garageIsHangar() { return garageScene() === hangarScene; }
+  // Put the aeroplane in the chosen room and give the renderer the settings
+  // that room was lit for. Exposure is a RENDERER setting, not a scene one, so
+  // it has to be handed back when we leave or the world inherits the hangar's.
+  function applyEnv() {
+    const s = garageScene();
+    if (craft.parent !== s) s.add(craft);
+    if (hangar) hangar.group.position.y = groundY;
+    if (studioFloor) studioFloor.position.y = groundY;
+    const inRoom = inGarage && garageIsHangar() && hangar;
+    renderer.toneMappingExposure = inRoom ? hangar.setMood(hangarMood).ex
+                                          : WORLD_EXPOSURE;
+    renderer.physicallyCorrectLights = inRoom ? true : WORLD_PHYSLIGHTS;
+    syncEnvBtn();
+  }
+  function setEnvKind(k) {
+    envKind = k === 'studio' ? 'studio' : 'hangar';
+    prefSet('flydiy.garageEnv', envKind);
+    if (inGarage) applyEnv();
+  }
+  function setMood(i) {
+    hangarMood = Math.max(0, Math.min(3, i | 0));
+    prefSet('flydiy.garageMood', hangarMood);
+    if (inGarage) applyEnv();
+  }
+  // The two buttons are GARAGE-ONLY and hide themselves outside it: a room you
+  // are not in is not a setting worth showing, and the rail is already full.
+  // The mood button additionally hides in the studio, which has one light and
+  // no weather — offering "Golden hour" for a white void would be a lie.
+  function syncEnvBtn() {
+    const eb = $('bEnv'), mb = $('bMood');
+    if (!eb || !mb) return;                       // core-only build
+    const show = inGarage && curKey === 'gen';
+    eb.style.display = show ? '' : 'none';
+    const h = show && garageIsHangar() && hangar;
+    mb.style.display = h ? '' : 'none';
+    // the label says WHERE YOU ARE, not what the click will do. A button that
+    // names its own effect reads as a state and gets misread as one.
+    eb.textContent = h ? 'Hangar' : 'Studio';
+    eb.classList.toggle('on', !!h);
+    if (h) {
+      const nm = hangar.moods[hangarMood] || '';
+      mb.textContent = nm.charAt(0) + nm.slice(1).toLowerCase();
+    }
+  }
+
   // ================= aircraft (rebuilt on selection) =================
   let bGeo, bPos, bCol, lines, pGeo, pPos, pts, proxy;
   function buildShadowProxy() {
     // invisible skin stitched across wingtips/engines/tailplane so the
     // wireframe casts a real sun shadow. ENGL/ENGR exist only on the Cub and
     // DC-3; single-engine fiches fall back to their lone ENG node.
-    if (proxy) { scene.remove(proxy.mesh); proxy.mesh.geometry.dispose(); proxy = null; }
+    if (proxy) { craft.remove(proxy.mesh); proxy.mesh.geometry.dispose(); proxy = null; }
     const idx = t => { const o = []; def.nodes.forEach((n, i) => { if (n.tag === t) o.push(i); }); return o; };
     const wf = idx('WF'), wr = idx('WR'), eng = idx('ENG');
     const engL = idx('ENGL')[0] ?? eng[0], engR = idx('ENGR')[0] ?? eng[0];
@@ -53,7 +254,7 @@
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
-    scene.add(mesh);
+    craft.add(mesh);
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
   }
 
@@ -139,6 +340,7 @@
   let model = null, skinMode = 0;
   // transparent-pass determinism (r128): gauge covers paint before cabin glass
   const RENDER_ORDER = { covers: 1, glass: 2 };
+  let TYRE_TEX = null;            // the tyre sheet does not depend on the spec
   // curDef is only read on the GARAGE path: the generated payload is a function
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
@@ -157,8 +359,36 @@
     // the generated payload asks for a `paint` map; the viewer bakes it (canvas
     // is not available to core). Without garage.js it degrades to flat colour.
     if (data.generated) {
-      if (typeof genPaintDataURI === 'function') data.texs = { paint: genPaintDataURI(curDef.spec) };
-      else data.mats.skin = { color: curDef.spec.paint.base };
+      if (typeof genPaintDataURI === 'function') {
+        data.texs = { paint: genPaintDataURI(curDef.spec) };
+        if (typeof genRegDataURI === 'function') data.texs.reg = genRegDataURI(curDef.spec);
+        // the tyre sheet is spec-independent, so it is baked once and kept
+        if (typeof genTyreDataURI === 'function')
+          data.texs.tyre = TYRE_TEX || (TYRE_TEX = genTyreDataURI());
+        // the cowl's is NOT: it carries the livery and the chosen intake
+        if (typeof genCowlDataURI === 'function')
+          data.texs.cowl = genCowlDataURI(curDef.spec);
+        // THE TWO DATA SHEETS. Rib tapes, stitching and panel lines as a normal
+        // map, and the same features as roughness/metalness — which is what
+        // makes doped fabric read as fabric rather than as coloured plastic.
+        // `linTex` in the payload names them so they are decoded LINEAR; putting
+        // a data map through the sRGB curve bends every value in it.
+        if (typeof genBumpDataURI === 'function')
+          data.texs.bump = genBumpDataURI(curDef.spec);
+        if (typeof genMrDataURI === 'function')
+          data.texs.mr = genMrDataURI(curDef.spec);
+        // the projected glazing cut-out, and the cabin interior sheet
+        if (typeof genGlazeDataURI === 'function')
+          data.texs.glaze = genGlazeDataURI(curDef.spec);
+        if (typeof genCabinDataURI === 'function')
+          data.texs.cabin = genCabinDataURI(curDef.spec);
+      }
+      // no garage.js: every baked sheet falls back to a flat colour
+      else {
+        data.mats.skin = { color: curDef.spec.paint.base };
+        data.mats.tyre = { color: 0x24262b, rough: 0.95, metal: 0 };
+        data.mats.cowl = { color: curDef.spec.paint.base, rough: 0.35 };
+      }
     }
     // v3 payloads carry texs/mats tables + per-group mat; v2 shim implies them
     const texSrcs = data.texs || (data.tex ? { skin: data.tex } : {});
@@ -191,7 +421,13 @@
       // it a second time on output — every colour comes out washed pale. The
       // imported payloads are deliberately left alone: their look is calibrated
       // as-is and changing the decode would move it.
-      if (data.generated) texs[t].encoding = THREE.sRGBEncoding;
+      //
+      // EXCEPT the DATA maps. A normal map and a metal/rough map are not
+      // pictures — their channels are numbers, and putting them through the sRGB
+      // curve bends every one of them. The payload says which of its own sheets
+      // are data (`linTex`), because the generator is what knows.
+      if (data.generated && !(data.linTex || []).includes(t))
+        texs[t].encoding = THREE.sRGBEncoding;
     }
     if (!entry.pending) entry.ready = true;
     const mkGeo = g => {
@@ -214,8 +450,14 @@
       // only thing that turns a group transparent, so the gauge textures that
       // carry real cutout alpha keep behaving exactly as they did.
       const metal = m.metal !== undefined ? m.metal : s.m;
+      // alphaTest, not blending: a decal is a cut-out, and cut-outs belong in
+      // the OPAQUE pass where they write depth and never have to be sorted.
+      // Transparency used to be inferred from `opacity` alone, so a material
+      // whose texture carried the alpha (the registration sheet) rendered fully
+      // opaque and its clear pixels came out BLACK.
       const common = { side: THREE.DoubleSide, transparent: op < 1, opacity: op,
         depthWrite: op >= 1,
+        ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
         roughness: m.rough !== undefined ? m.rough : s.r,
         metalness: metal,
         envMapIntensity: s.e !== undefined ? s.e : 1 };
@@ -239,8 +481,16 @@
         common.emissiveMap = texs[m.tex];
         common.emissiveIntensity = EMIS_GAIN;
       }
-      return matCache[mn] = new THREE.MeshStandardMaterial(m.tex
-        ? Object.assign({ map: texs[m.tex],
+      // A NAMED SHEET THAT IS NOT THERE IS NOT A WHITE ONE. `map: undefined` with
+      // the default tint renders the group flat WHITE, which is the worst of the
+      // available wrong answers — it reads as a modelling error rather than as a
+      // missing texture. That happens whenever the bakes are unavailable (no
+      // garage.js: the smoke gate stubs the whole viewer block) or a payload
+      // names a sheet the viewer did not bake. Fall back to the material's own
+      // colour, and only tint white when there really is a map to tint.
+      const tex = m.tex ? texs[m.tex] : null;
+      return matCache[mn] = new THREE.MeshStandardMaterial(tex
+        ? Object.assign({ map: tex,
             color: m.color !== undefined ? m.color : 0xffffff }, common)
         // flat-colour groups: opaque unless the payload asks for opacity < 1
         // (the c172 interior is all flat colour and must write depth)
@@ -289,8 +539,13 @@
         return { mesh, c, axis: new THREE.Vector3(c.ax[0], c.ax[1], c.ax[2]) };
       });
       const m = Object.assign(entry, { grp, props, rigs, gen: true, moving,
-        meshes, rest: data.rest, nodeBody: new Float32Array(curDef.nodes.length * 3),
+        meshes, dec, mats, rest: data.rest,
+        // which groups are covering, straight from the generator — see
+        // applySkinVis
+        cover: data.cover || null,
+        nodeBody: new Float32Array(curDef.nodes.length * 3),
         surfaces: data.surfaces, link: makeLinkage(LINK_TAU) });
+      if (texs.paint) m.texImg = texs.paint.image;
       return m;
     }
     // Rigged groups: wing-band vertices follow the sim spar stations, and
@@ -391,9 +646,20 @@
     // them. Bare frame: the reverse — the welded chassis with the engine hung
     // on its mount, which is the state you actually build in. Struts, gear legs
     // and wheels are OUTSIDE any covering and show in both.
-    if (gen) for (const n in model.meshes)
-      model.meshes[n].visible = (n === 'frame' || n === 'engine') ? skinMode === 2
-                              : (n === 'skin' || n === 'cowl') ? skinMode < 2 : true;
+    //
+    // WHAT COUNTS AS COVERING IS THE PAYLOAD'S TO SAY (`cover`, 63_gen_skin.js).
+    // It used to be a literal list here, and it fell behind the generator twice —
+    // each time a covering group was added over there, it kept showing in Frame
+    // mode and the glazing floated in mid-air over the bare truss. A list of
+    // names maintained at a distance from the thing it describes will always
+    // drift; asking the generator cannot. The fallback keeps an older payload
+    // (or an imported one) behaving exactly as before.
+    if (gen) {
+      const cover = model.cover || ['skin', 'cowl'];
+      for (const n in model.meshes)
+        model.meshes[n].visible = (n === 'frame' || n === 'engine') ? skinMode === 2
+                                : cover.includes(n) ? skinMode < 2 : true;
+    }
     lines.visible = pts.visible = !showSkin;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     b.style.display = has ? '' : 'none';
@@ -406,6 +672,73 @@
                         : ['Skin ×1', 'Flex ×4', 'Frame ×1'][skinMode];
     b.classList.toggle('on', showSkin);
   }
+  // ---- WIRE: the mesh as built. Materials are cached per material NAME, so
+  // one pass over the cache flips the whole aeroplane rather than chasing the
+  // group list, and it survives a rebuild because the cache is rebuilt with it.
+  let wireOn = false;
+  function applyWire() {
+    if (!model) return;
+    model.grp.traverse(o => { if (o.material) o.material.wireframe = wireOn; });
+    $('bWire').classList.toggle('on', wireOn);
+  }
+  $('bWire').onclick = () => { wireOn = !wireOn; applyWire(); };
+  if ($('bEnv')) $('bEnv').onclick = () =>
+    setEnvKind(garageIsHangar() ? 'studio' : 'hangar');
+  if ($('bMood')) $('bMood').onclick = () =>
+    setMood(hangar ? (hangarMood + 1) % hangar.moods.length : 0);
+
+  // ---- UV: the parameterisation, drawn flat. Every group's triangles in
+  // texture space over its own texture, so a decal that is about to come out
+  // stretched or mirrored can be seen BEFORE it is on the aeroplane. That is
+  // the whole reason it exists: the registration squeeze was invisible from
+  // outside the mesh and obvious the moment its UVs were laid out.
+  const UV_COLS = ['#ffb257', '#63d3cc', '#ff8b73', '#a6e05f', '#c9a0ff', '#f2e05f'];
+  let uvOn = false;
+  function drawUV() {
+    const cv = $('uvc'); if (!cv || !cv.getContext) return;
+    const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+    g.clearRect(0, 0, W, H);
+    if (!model || !model.dec) { $('uvleg').textContent = 'no generated mesh'; return; }
+    // the paint sheet underneath, so UV islands are read against what they sample
+    const t = model.texImg;
+    if (t) { g.globalAlpha = 0.55; try { g.drawImage(t, 0, 0, W, H); } catch (e) {} g.globalAlpha = 1; }
+    // ONLY the groups that sample this sheet. Drawing all of them was right when
+    // every textured group shared the paint; since G4.6 the tyre carries its own
+    // sheet and the hub, the cord and the truss carry no texture at all, and
+    // laying their islands over the paint made the one diagnostic that is
+    // supposed to show where a group SAMPLES into a tangle of unrelated grids.
+    const mats = model.mats || {};
+    const names = Object.keys(model.dec)
+      .filter(n => mats[n] && mats[n].tex === 'paint');
+    names.forEach((nm, gi) => {
+      const d = model.dec[nm];
+      if (!d.uv || !d.idx) return;
+      g.strokeStyle = UV_COLS[gi % UV_COLS.length];
+      g.lineWidth = 0.5;
+      g.beginPath();
+      for (let i = 0; i < d.idx.length; i += 3) {
+        for (let k = 0; k < 3; k++) {
+          const a2 = d.idx[i + k], b2 = d.idx[i + (k + 1) % 3];
+          // v is flipped: texture space is bottom-up, canvas is top-down
+          g.moveTo(d.uv[a2*2] * W, (1 - d.uv[a2*2+1]) * H);
+          g.lineTo(d.uv[b2*2] * W, (1 - d.uv[b2*2+1]) * H);
+        }
+      }
+      g.stroke();
+    });
+    $('uvleg').textContent = 'paint sheet: ' + (names.length
+      ? names.map(n => String.fromCharCode(9632) + ' ' + n).join('  ')
+      : 'no group samples it');
+    const leg = $('uvleg');
+    if (leg && leg.style) leg.style.color = '';
+  }
+  $('bUV').onclick = () => {
+    uvOn = !uvOn;
+    $('uvp').classList.toggle('show', uvOn);
+    $('bUV').classList.toggle('on', uvOn);
+    if (uvOn) drawUV();
+  };
+
   $('bSkin').onclick = () => {
     skinMode = (skinMode + 1) % 3; applySkinVis();
   };
@@ -426,33 +759,35 @@
     ap = makeAutopilot(sim, def, world);
     applyRoute();
     nb = sim.beams.length;
-    if (lines) { scene.remove(lines); lines.geometry.dispose(); }
-    if (pts) { scene.remove(pts); pts.geometry.dispose(); }
+    if (lines) { craft.remove(lines); lines.geometry.dispose(); }
+    if (pts) { craft.remove(pts); pts.geometry.dispose(); }
     bGeo = new THREE.BufferGeometry();
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
     lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
     lines.frustumCulled = false;
-    scene.add(lines);
+    craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
       size: key === 'drone' ? 0.018 : 0.06 }));
     pts.frustumCulled = false;
-    scene.add(pts);
+    craft.add(pts);
     buildShadowProxy();
     curKey = key;
     if (model) {
-      scene.remove(model.grp);
+      craft.remove(model.grp);
       // the generated model is rebuilt per spec change and never cached, so it
       // owns its GPU buffers and must give them back
       if (model.gen) model.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     }
     model = buildModel(key, def);
-    if (model) scene.add(model.grp);
+    if (model) craft.add(model.grp);
     applySkinVis();
+    applyWire();
+    if (uvOn) drawUV();
     dist = def.params.viewDist;
     const PP = POWERPLANTS[def.params.powerplant];
     let half = 0;                          // wingspan from the wing strips, like the solver
@@ -681,8 +1016,8 @@
     return sp;
   }
   function buildIndicators() {
-    if (gInd) { scene.remove(gInd); gInd.geometry.dispose(); gInd = null; }
-    for (const l of gLabels) { scene.remove(l); l.material.map.dispose(); l.material.dispose(); }
+    if (gInd) { craft.remove(gInd); gInd.geometry.dispose(); gInd = null; }
+    for (const l of gLabels) { craft.remove(l); l.material.map.dispose(); l.material.dispose(); }
     gLabels = [];
     if (!inGarage || curKey !== 'gen') return;
     const s = shakeOf(), P = def.parts;
@@ -704,7 +1039,7 @@
     const label = (px, py, pz, text, col) => {
       const sp = makeLabel(text, col);
       sp.position.set(px, py + 0.42, pz);
-      scene.add(sp); gLabels.push(sp);
+      craft.add(sp); gLabels.push(sp);
     };
     const post = (px, pz, col, h) => {
       seg([px, 0, pz], [px, h, pz], col);
@@ -738,7 +1073,7 @@
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
     gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
-    scene.add(gInd);
+    craft.add(gInd);
   }
 
   // The design lattice is drawn LEVEL — the deck angle is something the
@@ -774,17 +1109,68 @@
     }
   }
 
+  // ---- THE LOAD TEST, in the garage. BUILD -> LOAD TEST -> FLY, which is the
+  // order a real homebuilt goes in: you do not fly it until the wing has held
+  // the bags. The rig itself is src/core/65_gen_loadtest.js, the same object
+  // GATE LOAD ticks headlessly, so the verdict on screen and the verdict in the
+  // battery are the same computation.
+  //
+  // It runs IN PLACE on the live sim: the rig lifts the aeroplane clear of the
+  // ground, bolts every non-wing node down and hangs the bags on the wing, so
+  // the covering bends because the truss under it does — the generated skin is
+  // an affine blend of the same nodes and needs no help. Leaving the garage or
+  // resetting rebuilds the aeroplane, which is what puts it back on its wheels.
+  let rig = null, rigTested = false;
+  function startLoadTest() {
+    if (!inGarage) return;
+    rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
+                                              genSpec.fuselage.material) || undefined });
+    if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
+    railPhase = ''; setRail('LOAD TEST');
+  }
+  function loadTestState() { return rig ? rig.state : null; }
+  function endLoadTest() {
+    rig = null;
+    if (inGarage) enterGarage();                      // back on its wheels
+  }
   function enterGarage() {
     inGarage = true; started = false; running = true;
+    // every spec change comes back through here (GARAGE_SPEC.apply -> enterGarage),
+    // so this is where a changed aeroplane loses its certificate: you tested the
+    // one you had, not the one you now have.
+    rig = null; rigTested = false;
     sim.reset(0);
     standOnWheels();
-    placeAtAerodrome(sim, APRON);
+    // NO AERODROME. The garage is not a place on the map, and the apron
+    // placement it used to inherit was the last thread tying the editor to the
+    // world. Left at the origin the aeroplane sits in its OWN model frame — x
+    // aft, z spanwise — which is the frame the hangar was drawn in, so the
+    // room needs no alignment maths to line up with the aeroplane in it.
+    // Rolling out re-places from scratch (fullReset -> applyRoute), so nothing
+    // downstream depends on this.
     buildIndicators();
+    // INTO THE ROOM. The aeroplane leaves the world entirely while it is being
+    // built — not "the world with the physics paused", which is what this was,
+    // and which meant every slider drag was still a change to a running
+    // aircraft parked on an apron.
+    garageScene().add(craft);
+    // Stand the floor under the wheels. Placed once, here, because nothing in
+    // the garage moves: the solver is stopped and the aeroplane is exactly
+    // where standOnWheels put it. The contact plane is the main wheel's centre
+    // less its radius, which is the same definition standOnWheels levelled on.
+    const iM = def.parts.GAL;
+    groundY = iM == null ? 0 : sim.p[iM * 3 + 1] - def.nodes[iM].r;
+    applyEnv();
     railPhase = ''; setRail('GARAGE');
     $('bGo').textContent = 'Roll out & fly';
   }
   function rollOut() {
+    rig = null;
     inGarage = false;
+    scene.add(craft);                  // out of the room, onto the strip
+    renderer.toneMappingExposure = WORLD_EXPOSURE;
+    renderer.physicallyCorrectLights = WORLD_PHYSLIGHTS;
+    syncEnvBtn();
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
@@ -992,6 +1378,7 @@
   };
 
   setAircraft('pa18');
+  syncEnvBtn();               // garage-only buttons start hidden
 
   // ---- GARAGE bridge. src/viewer/garage.js owns the panel and the paint; this
   // is the only surface it touches. Guarded, so a core-only build still runs.
@@ -1005,6 +1392,12 @@
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
     rollOut: () => { rollOut(); started = true; },
+    // BUILD -> LOAD TEST -> FLY. The panel drives the rig and polls it; the
+    // rig is the same object GATE LOAD ticks, so the two cannot disagree.
+    loadTest: () => startLoadTest(),
+    loadTestState: () => loadTestState(),
+    endLoadTest: () => endLoadTest(),
+    tested: () => rigTested,
   });
 
   function resize() {
@@ -1031,7 +1424,16 @@
       sim.ctl.dr = 0.35 * Math.sin(tS * 0.45 + 2.0);
       sim.ctl.flap = 0.5 - 0.5 * Math.cos(tS * 0.33);
     }
-    if (running && !inGarage) {      // the garage does not step: see enterGarage
+    // the garage does not step — EXCEPT on the load-test rig, which is the one
+    // thing that moves while the aeroplane is still on the stand
+    if (inGarage && rig && !rig.state.done) {
+      rig.step(1 / 60);
+      // the RIG decides the build has been tested, not the panel. The panel is a
+      // view; if it were the thing that noticed, a headless run (or a collapsed
+      // panel) would leave a tested aeroplane marked untested.
+      if (rig.state.done) rigTested = true;
+    }
+    else if (running && !inGarage) {
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
@@ -1040,13 +1442,18 @@
       }
     }
     const cg = sim.cgPos();
-    WF.worldUpdate(cg);
+    // The world does not exist while you are in the studio, so it is not
+    // updated: no terrain paging, no sky, no weather, no LOD churn. That is
+    // most of what the garage used to spend its frame on for scenery nobody
+    // could see anyway.
+    if (!inGarage) WF.worldUpdate(cg);
+    else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     target.set(cg[0], cg[1], cg[2]);
     placeCamera();
     sync();
     poseModel();
     if (++frame % 6 === 0) { hud(); drawMap(); if (telWrap.classList.contains('show')) drawTel(); }
-    renderer.render(scene, camera);
+    renderer.render(inGarage ? garageScene() : scene, camera);
     if (frame === 1) dismissBoot();     // first real frame is on screen
   }
   // Boot splash (body.html #boot): drop it once something is actually drawn.

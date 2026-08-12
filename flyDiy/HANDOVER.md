@@ -10,9 +10,19 @@ code can't: conventions, hard-won rules, validation anchors, and the roadmap.
 2. One chantier per session. Trace-first debugging: measure before hypothesizing —
    this beat guessing in every single forensic episode of this project.
 3. `node tools/run_gates.js` — rebuilds every generated file, syntax-checks every
-   script blob, runs the full battery, exits non-zero on any FAIL. Never deliver
-   on a non-zero exit. (`node tools/build.js` for a standalone build;
-   `--only=ID[,ID]`, `--verbose`, `--no-build` on the runner.)
+   script blob, runs the **CORE** battery (~10 min), exits non-zero on any FAIL.
+   **`node tools/run_gates.js --all` (~19 min) is the DELIVERY verdict** — core
+   skips the reference fiches and says so in its summary. Never deliver on a
+   non-zero exit, and never deliver on a core-only pass.
+   (`node tools/build.js` for a standalone build; `--only=ID[,ID]`, `--verbose`,
+   `--no-build` on the runner; `--only=` implies full, it is an explicit ask.)
+   TIERS (2026-08-11, user call): the garage and the two mesh aircraft are the
+   product and the hand fiches are reference that will eventually be replaced by
+   procedural builds, so core = PA18 + C172 + GEN + FLEX + STRESS + UISMOKE +
+   XCTY4 + the cheap world/skin/codec gates, and fleet = WIND, M3, DRONE, DC3,
+   JODEL, CHINOOK, XCTY/2/3/5. The runner exports `GATES_CORE=1` so gates can
+   scope themselves; FLEX uses it to measure the two mesh aircraft instead of
+   all seven fiches (82 s -> 42 s).
 4. New aircraft checklist: new `src/core/1x_aircraft_*.js` fiche + MANIFEST entry
    in `tools/build.js` + thin gate config (see any `test_*.js`) + entry in
    `test_stress.js` + `<option>` in the aircraft select in
@@ -89,8 +99,10 @@ before every battery so stale hand-edits get overwritten, loudly.
   see CREDITS.md). `docs/` — MODEL-IMPORT-PROC.md + SKIN-PROC.md.
 - `src/viewer/` — shell.html (slot markers), style.css (theme + vendored
   @font-face), body.html (UI markup), render_world.js (buildWorldScene — the
-  whole 3D world look lives here), garage.js (the builder's panel + the
-  procedurally baked paint — anything needing a canvas, which core cannot use),
+  whole 3D world look lives here), hangar.js (the GARAGE's room: a procedural
+  shed with its own lights and four moods, built on demand and only if THREE can
+  carry it — see G6), garage.js (the builder's panel + the procedurally baked
+  paint — anything needing a canvas, which core cannot use),
   app.js (renderer, camera, aircraft mesh, shadow proxy, phase rail, HUD, loop).
   MANIFEST.viewer.scripts: the LAST entry fills the APP slot, everything before
   it fills RENDER.
@@ -108,6 +120,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   bound: it measures deflection/g, torsion, softness and load margin against
   real-aeroplane figures and prints both. Read STRUCTURAL REALISM before
   changing any `k`, `c` or strain threshold on the strength of an impression.
+- `tools/make_perf.js` — FLEET PERFORMANCE instrument: static thrust, Vs, Vmax,
+  best climb, best glide and the FLOWN takeoff run to 2.5 m agl, for all eight
+  aircraft. This is where the FLEET & VALIDATION ANCHORS rows are re-read from;
+  before it existed those numbers had no instrument and could only be hand-edited,
+  which is the one thing the session ritual forbids. NOT a gate: no verdict line,
+  no bounds. `--json` for A/B diffing across a physics change. See G4.9.
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -150,16 +168,33 @@ geometric gear constraints, determinism by double-generate, fiche-schema
 completeness, skin/structure coherence (every skin vertex an affine blend of
 nodes that exist), a clampSpec envelope probe with deliberately wild inputs,
 the parked-tailwind dwell, and the standard full circuit.
-GATE FLEX (appended LAST, ~1 min) is the structural-realism instrument, and the
-only gate in the battery that measures rather than bounds: tip deflection per g
-as % of semispan, STATIC torsion under an antisymmetric tip couple at two
-torques (the doubling ratio catches near-mechanisms — it is what condemned the
-chinook wing, and no other gate can see it), the confounded in-flight torsion
-beside it, `k` against `EA/L`, and peak member load against `sigY*A`. It walks
-all seven fiches and all four generated materials and prints a reality column
-beside its own numbers. Its verdict asserts ONLY finiteness and determinism —
-bounds would be preferences, not facts, until the numbers have been argued
-about. See STRUCTURAL REALISM.
+GATE FLEX (appended LAST, ~2.5 min) is the structural-realism instrument, and
+the only gate in the battery that measures rather than bounds. Two halves.
+FLEET: tip deflection per g as % of semispan, STATIC torsion under an
+antisymmetric tip couple at two torques, the confounded in-flight torsion beside
+it, `k` against `EA/L`, and peak member load against `sigY*A`, over all seven
+fiches and all four generated materials, printed against a reality column.
+GARAGE MATRIX: the same static instruments across 26 points of the generator's
+configuration space (span 7-14, panels 2-5, three wing positions, both bracings,
+four materials, cargo).
+**The DOUBLING RATIO is the load-bearing measurement in both halves** — a linear
+structure twists twice as far under twice the couple, and anything materially
+under 2 started near a mechanism. It condemned the chinook wing AND found the
+strut fan skipping stations at 4-5 panels; the rank test sees neither, because
+the framework stays infinitesimally rigid throughout.
+Verdict: finiteness, determinism, and `doubling >= 1.80 everywhere`. Deflection
+bounds are still NOT asserted — they would be preferences until argued about.
+See STRUCTURAL REALISM.
+GATE LOAD (appended after FLEX, ~16 s) is the SANDBAG TEST: FAR 23 normal
+category limit (+3.8 g) and ultimate (+5.7 g), bags over the wing strips,
+fuselage bolted to the rig, deflection from the unloaded jig shape, for all four
+materials x both bracings plus the two mesh aircraft. It asserts survival,
+monotonicity and LINEARITY (3.8 g of bags must give 3.8x the deflection — the
+check that caught three broken versions of the rig); the yield margin is
+reported, not gated, because the allowable is a class average and the
+worst-loaded member is usually the lift strut. `LOAD_JSON=1` dumps the
+measurements on stderr so a report page is built from the gate's own numbers.
+See GATE LOAD under STRUCTURAL REALISM.
 GATE XCTY4 (~32 s) is the W13.2 short-field leg: PA-18 HOME -> Stein
 (340 m gravel fly-in) in the viewer BREEZE preset — touch in the first
 40%, bounded skip, on-strip stop, UPRIGHT tail-down, tail rig intact.
@@ -306,6 +341,29 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
    in the viewer breeze, tail-rig deviation <10%, post stays up). Wires
    that anchor to strip-force-carrying nodes re-rig the aeroelastics — anchor
    to box nodes (WB) and keep them soft.
+11. **A near-mechanism shows as a NON-LINEAR load/deflection response, and
+   nothing else in the battery can see it.** Rank is necessary, not sufficient
+   (rule 4's own lesson); strain gates cannot see it (rule 10's); and a single
+   load case cannot either, because the structure is stiff by the time you
+   measure it. Apply the load at TWO magnitudes: a linear structure doubles its
+   deflection when you double the load, and a doubling ratio materially under 2
+   means it stiffened geometrically on the way, i.e. it started near a
+   mechanism. Measured, this found three defects nothing else had: the chinook
+   wing (16.4 deg @200 N.m at 1.50x), the generated strut fan at 4-5 panels
+   (21.4 at 1.56x / 28.7 at 1.46x) and the cranked generated wing (22.9 at
+   1.34x). GATE FLEX runs it as an antisymmetric tip couple — self-equilibrated,
+   so no aerodynamics and nothing accelerates — and asserts >= 1.80 across the
+   whole garage configuration space.
+12. **A strut fan must reach EVERY spar station.** It is the lumped stand-in for
+   a box the planar wing does not have (rule 1), so a station it skips is a
+   station with no barrier. The generated fan covered `0`, `mid` and `last`:
+   exact at three stations, leaking at four or more — and station count is
+   driven by TWO independent inputs, `panels` AND `crankAt`. Any new planform
+   feature that inserts a station leaks the same way; put it in the GARAGE
+   MATRIX. Corollary, paid for: the cure does NOT extend to a cranked outer
+   panel, because a stiff member from the fuselage to a station well up the
+   crank re-rigs the aeroelastics of strip-force nodes (rule 10) and the
+   aeroplane stops flying. A cranked wing gets the box instead.
 
 ## AUTOPILOT RULES
 - **Gains scale with airframe timescale ~ span/V.** Cub 0.41, DC-3 0.41,
@@ -2135,6 +2193,296 @@ real light aircraft's 0.3-1), which is arguable for a 230 kg ultralight. The kno
 is `K_W`, documented at the fix site. Lower it if wanted — but never by returning
 to a non-linear response, and re-run all three anchors above if you do.
 
+### THE GARAGE MATRIX — the configuration space, measured (2026-08-11)
+
+Until this block existed the Garage's structure was verified at **exactly one
+point** of a space spanning 6.5-14 m of wing, 2-5 panels, three wing positions,
+strut or cantilever, four materials and a cargo bay. GATE GEN flies eleven
+configurations but measures no deflection; GATE FLEX's fleet half measures
+deflection but only at the stock spec. Nothing crossed the two.
+
+GATE FLEX now walks 28 configurations statically (no world, no autopilot, no
+aero — cheap and deterministic) and **asserts the doubling ratio >= 1.80**. That
+assertion is a structural invariant rather than a preference: a linear structure
+twists twice as far under twice the couple, and anything materially under 2
+stiffened geometrically on the way, i.e. started near a mechanism.
+
+**Two traps in the instrument itself, both found by stiffening the wing and both
+worth knowing before trusting a ratio.** (1) SETTLE UNDER GRAVITY BEFORE TAKING
+THE BASELINE. The aeroplane sits on its gear in the tunnel and droops onto the
+springs over the ten-second run — an offset that does not scale with the couple.
+While the wings were soft that droop was a few percent of the twist; once
+`wingK` landed it was the whole reading, and `strut span 7` reported 0.10 deg at
+BOTH torques (ratio 0.99x). The instrument was measuring the undercarriage.
+(2) A RATIO NEEDS A DEFLECTION TO BE A RATIO OF. Below `TORS_FLOOR` (0.05 deg at
+200 N.m) the honest answer is "too stiff to rate", not a verdict — two
+configurations now sit there. Both traps read as "your stiffest airframe is a
+mechanism", which is the diagnostic to recognise.
+
+**It found two near-mechanisms immediately, both reachable from the panel, both
+older than this chantier, and both invisible to the whole existing battery.**
+
+#### The strut fan skipped stations — FIXED
+
+`61_gen_frame.js`'s fan reached exactly three stations: `0`, `mid = 1`, and
+`WF.length - 1`. `wing.panels` is a player slider clamped 2..5, so at 4 panels
+the fan skips station 2 and at 5 panels it skips 2 AND 3. Those stations then
+hang between fan members on a planar two-spar wing with no box — rule 1 with the
+barrier taken out. Measured, span 13 / chord 1.6, deg @200 N.m and doubling:
+
+| panels | before | after |
+|---|---|---|
+| 2 | 2.38 / 1.98x | unchanged |
+| 3 | 3.84 / 1.97x | unchanged (byte-identical) |
+| **4** | **21.41 / 1.56x** | **4.18 / 2.01x** |
+| **5** | **28.73 / 1.46x** | **4.53 / 2.06x** |
+
+Worse than the chinook's pre-fix 16.4 / 1.50x, and **invisible to every other
+instrument in the battery** — the rank test passes throughout because the
+framework stays infinitesimally rigid. Cure is the chinook's and the Cub's: fan
+to every station. Appended after the existing members so the emission order is
+untouched and panels <= 3 stays bit-identical (LATTICE 208 beams before and
+after, and the matrix numbers for `stock` are unchanged to the last digit). One
+known wart left alone: at panels 2, `mid` and `length-1` are the same station, so
+that pair is emitted twice — a duplicated beam is double stiffness; it measures
+linear and stiff, and unpicking it belongs in its own commit.
+
+#### The cranked wing was the same defect from another direction — FIXED
+
+**A crank INSERTS a spar station**, so at the DEFAULT 3 panels the jodel-crank
+preset already has four, and the fan already leaves the outer panel unbraced.
+Measured, it was the worst corner in the whole space: **22.95 deg @200 N.m at a
+doubling ratio of 1.34x** — worse than panels 5, worse than the chinook. It had
+been there since G3.5b, passing GATE GEN's circuit every time.
+
+**And it could not be cured by extending the fan.** Doing so made the aeroplane
+stop completing a circuit: a stiff member from the pod bottom up to a station
+14 deg along the outer panel re-rigs the aeroelastics of nodes that carry strip
+force, which is rule 10's "wires that anchor to strip-force-carrying nodes
+re-rig the aeroelastics" arriving from a new direction. Two measurements, both
+needed — the static one to see the mechanism, the circuit to see the cure break
+the aeroplane.
+
+So `useStrut` now also requires `!(w.crankAt > 0)`: **a cranked wing gets the
+box**, which is what the real aeroplane this planform comes from actually has —
+the Jodel fiche is a cantilever. It measures 2.76 / 5.39 at 1.95x and flies.
+Same shape of rule as `strutMinOffset`, and visible the same way: the panel
+reports `bracing: cantilever box`, so the substitution is never silent.
+
+**The general lesson, which is the one to carry:** the fan covers `0`, `mid` and
+`last`, so it is exact at three stations and leaks at four or more — and
+station count is driven by TWO independent inputs, `panels` and `crankAt`.
+Anything else that inserts a station will leak the same way. The doubling ratio
+is the guard; keep new planform features in the GARAGE MATRIX.
+
+#### The cantilever box is the Garage's real gum — NOT fixed, decision needed
+
+No mechanism anywhere in the matrix now (every doubling 1.89-2.13x). But
+bending, under 2 kN DISTRIBUTED over the stations, splits hard by bracing:
+
+    strut        0.6 - 1.2 %   flat across span 7-14 AND panels 2-5
+    cantilever   2.0 - 7.3 %   (tubeFabric 6.7, alloy 3.1, carbon 2.3, wood 2.0)
+
+Confirmed in flight, which is the number that matters:
+
+| config | %/g | at 1 g | vs reality (0.3-1 %/g) |
+|---|---|---|---|
+| stock (strut) | 1.80 | 1.46 % | ~2x soft |
+| **high cantilever** | **14.90** | **12.64 %** | **~15x** |
+| low cantilever | 9.57 | 12.92 % | ~10x |
+| cantilever span 13 | 5.07 | 15.37 % | |
+| carbon cantilever | 3.64 | 3.19 % | ~4x |
+
+**12.6% of semispan at 1 g is twice a glass sailplane** — the bendiest certified
+thing that flies sits at 4-6% — and it is one click in the panel. It is worse
+than the chinook wing ever was (6.82%).
+
+**Why, and why there is no free fix.** The box depth is `sparBoxDepth 0.13 *
+chord` = 0.159 m at the default chord, over 1.67 m bays: depth/bay 9.5%, rule 5
+again, the same slenderness that condemned the chinook wing and the chinook
+boom. Geometry is already exhausted — 0.13*chord is slightly MORE than the
+NACA 2412's max thickness, and the spars sit at 15% and 65% chord where the
+section is thinner still, so the box cannot be made deeper. Densifying does not
+help either: cantilever panels 2->5 moves bending only 7.3 -> 6.6.
+
+**The insight worth keeping: the strut fan was HIDING the global `k` softness.**
+A strut works through a geometric lever arm 1+ m below the wing, so it does not
+care that `k` is 5-20x softer than `EA/L` through the wing. A cantilever has no
+lever arm and shows the true stiffness of the material model. The Garage's
+cantilever is therefore not a separate bug — it is STRUCTURAL REALISM's own
+finding, arriving through the one configuration that cannot paper over it.
+
+**FIXED 2026-08-11 — `GEN_RULES.wingK = 4.0`. Read the constant for the full
+measurement set; the summary is below and the rest of this subsection is kept as
+the diagnosis that led to it.**
+
+| | before | after (wingK 4) | reality |
+|---|---|---|---|
+| stock (strut), the default build | 1.80 %/g, 1.46% at 1 g | **0.80 %/g, 0.69%** | 0.3-1 %/g |
+| high cantilever | 14.90 %/g, 12.64% at 1 g | **3.37 %/g, 2.88%** | |
+| low cantilever | 9.57 | 3.30 | |
+| cantilever span 13 | 5.07 | 4.50 | |
+| carbon cantilever | 3.64 | **0.89** | |
+| substeps, strut / cantilever | 24 / 28 | 45 / 55 | |
+
+**The default build is now inside the real band.** The cantilever is out of the
+absurd (it was twice a glass sailplane in level flight) and into sailplane
+territory; x8 would take it near-real at 2.7x the solver cost instead of 1.9x,
+and the only reason not to is that substeps are gate time. Mass, CG, Sw and L/D
+are untouched — this changes no geometry.
+
+Across the whole GARAGE MATRIX, static bend under 2 kN distributed:
+
+    before   strut 0.6-1.2 %   cantilever 2.0-7.3 %
+    after    strut 0.3-0.9 %   cantilever 1.0-4.5 %
+
+**The price is gate time, and it is not small.** GATE GEN flies eleven circuits
+with the generated aeroplane, so its cost tracks substeps almost exactly: it
+went **372 s -> 635 s**. The core battery lands at ~14.6 min against the old
+full battery's ~19, i.e. tiering bought about 9 minutes and the stiffening gave
+about 4.4 of them back. If the battery ever needs to be faster, `wingK` is the
+first dial to look at and the honest trade is written above.
+
+**The lever is `k.wing`, and it is a CORRECTION rather than a buff — the mass
+model has already paid for it.** `lin.wing` 0.62 kg/m over rho 7850 is 0.79 cm2
+of cap, and `E*A/L` at a 1.7 m bay is **9.5e6 N/m against the 5.0e5 in use: x19
+soft**. The aeroplane is already carrying the mass of a cap nineteen times
+stiffer than the spring it gets. So this is not "heavier caps for cantilevers",
+which was the first (wrong) reading — it is the wing half of STRUCTURAL
+REALISM's own softness column, and the strut fan's lever arm is what let it hide
+everywhere except here.
+
+Measured cost, `k.wing` multiplied, bend % and the substeps `genSubsteps` then
+demands:
+
+| k.wing x | strut bend | cantilever bend | substeps |
+|---|---|---|---|
+| x1 (today) | 1.00 | 6.48 | 24 / 28 |
+| x2 | 0.52 | 3.25 | 32 / 39 |
+| x4 | 0.30 | 1.61 | 45 / 55 |
+| x8 | 0.19 | 0.76 | 63 / 78 |
+| x16 (~physical) | 0.13 | 0.33 | 89 / 110 |
+
+**This also corrects the pessimistic estimate earlier in this section.** "Full
+physical stiffness needs 240-500 substeps, past the cap of 200" assumed a GLOBAL
+multiplier against the fuselage's x39-85. The WING alone is only x19 soft, and
+taking just the wing all the way costs **110 substeps, comfortably inside the
+cap** — roughly 4x the generated aircraft's solver cost. At x4 the strut lands
+at 0.30 (~0.5 %/g in flight, inside the real 0.3-1 band) and the cantilever at
+1.61 (~3 %/g), for 45-55 substeps. That is the cheapest honest fix in this whole
+chantier and it fixes BOTH bracings at once.
+
+**The chinook lesson did NOT repeat, and that is worth recording.** The fear was
+that a wing which stops washing out keeps lift the autopilot was tuned to lose,
+producing `vsFloor`-class saturation. It did not happen: both bracings fly a
+full circuit unchanged, because the generated fiche's autopilot gains are
+SYNTHESISED from the plant (`genGains`, G2.2) rather than inherited, so they
+move with the aeroplane. The hand fiches are the ones that carry hand-tuned
+constants — which is exactly why the chinook needed three re-anchors and the
+generator needed none.
+
+### BUILD -> LOAD TEST -> FLY, in the garage (2026-08-11)
+
+The order a homebuilt actually goes in, and now the order the game does: you
+build it, you put the bags on the wing, and only then do you roll out. The rig
+lives in **`src/core/65_gen_loadtest.js`** — NOT in the gate — because the
+garage ticks the same object per frame that GATE LOAD ticks headlessly. One
+computation, so an in-game verdict and a battery verdict cannot disagree.
+
+- `makeLoadTest(sim, def, cfg)` returns `{ step(dt), state }`. It runs IN PLACE
+  on the live sim: lifts the aeroplane clear of the ground, bolts every non-wing
+  node down, and hangs the bags on the wing. **The covering bends for free** —
+  the generated skin is an affine blend of the same nodes carrying the load.
+- Panel: `Load test the wing` sits ABOVE `Roll out`, with a live readout that
+  climbs with the load (+g, tip in % and cm, worst member vs yield) and ends on
+  a verdict. Roll out is not locked — it is your aeroplane — but it reads
+  **"Roll out untested"** in amber until the wing has held.
+- **A changed spec loses its certificate.** Every edit comes back through
+  `enterGarage()`, which clears `rigTested`: you tested the aeroplane you had,
+  not the one you now have.
+- **The rig marks the build tested, not the panel.** The panel is a view; when
+  it owned that flag a headless run left a tested aeroplane marked untested, and
+  GATE UISMOKE caught exactly that. `markTested` was removed from the bridge and
+  the gate now asserts the panel *cannot* write model state.
+- GATE UISMOKE drives the whole flow — it stubs `garageInit` to capture the
+  bridge (the render block is not executed there, so the bridge would otherwise
+  be skipped entirely), runs the rig to completion and asserts deflection grows
+  with load. It logs `load test: HELD — limit 2.94% ultimate 4.34% of semispan`
+  then `garage -> roll out -> TAKEOFF ROLL`.
+
+Known cut: the aeroplane does not visibly go onto trestles and no sandbags are
+drawn — the fuselage simply holds still while the wing bends. Both are art, not
+physics, and the physics is the part that had to be right.
+
+### GATE LOAD — the sandbag test (2026-08-11)
+
+The real proof-of-structure for an amateur-built aeroplane, and the load case
+every deflection number above was approximating. FAR 23 normal category: **+3.8 g
+LIMIT** with no permanent set, **+5.7 g ULTIMATE** (1.5x limit) without failure.
+`tools/test_load.js`, core tier, **16 s** — it is static, so it is cheap.
+
+Bags are laid over the wing strips in proportion to `st.area` and applied through
+each strip's own `st.w` weights, i.e. down the same path the solver applies lift,
+so the load sits where the lift does by construction rather than by a second
+approximation that could drift from it.
+
+**THE RIG TOOK THREE GOES, and each wrong one was confidently wrong.** Worth
+reading before building any other load case in this project:
+1. **Load the wing, let the aeroplane's own INERTIA react it.** A legitimate
+   pull-up on paper. But only the wing is loaded and nothing balances the
+   pitching moment, so it rotated under the measurement: the C172 read 1.25 % at
+   1 g and **-0.95 % at 3.8 g**.
+2. **React at the wing root stations**, making it self-equilibrated in FORCE.
+   Net MOMENT still is not zero — the wing load's x-centroid is not the root
+   nodes' — so it rotated slowly instead of quickly, and at 5.7 g the body frame
+   flipped mid-run and the trace jumped from 5.10 to 0.22.
+3. **Bolt the fuselage down.** Every non-wing node is pinned each step, which is
+   what trestles ARE. No moment to balance, nothing to tumble.
+Plus: **ramp the load and relax the deformation velocity.** DEFDAMP is a rate
+with tau = 2 s, and a step load left the wing ringing past fifteen seconds
+(measured, second by second at 1 g: 2.03 -> 0.51 -> 0.97 %). Averaging that
+samples the ring. Dynamic relaxation — bleeding only the velocity relative to
+the mass-weighted mean, so rigid motion is untouched — converges to the same
+static answer quickly, and is legitimate because only the settled state is wanted.
+
+**The assertion that keeps it honest is LINEARITY**: 3.8 g of bags must give
+3.8x the deflection, within 15%. All three broken rigs above failed it, and the
+working one passes at 3.73x / 5.58x. Cross-check worth having: the stock build
+reads **0.74 % at 1 g here against 0.69 % from GATE FLEX's in-flight sweep** —
+two unrelated instruments, one static and one flown, agreeing to 0.05 points.
+
+Measured, tip deflection as % of semispan (1 g / limit / ultimate):
+
+| | 1.0 g | 3.8 g | 5.7 g | worst member at ultimate |
+|---|---|---|---|---|
+| tubeFabric strut (stock) | 0.74 | 2.76 | 4.13 | 64% of yield |
+| wood strut | 0.85 | 3.31 | 4.94 | **282%** |
+| alloy strut | 0.51 | 1.94 | 2.95 | 88% |
+| carbon strut | 0.16 | 0.62 | 0.92 | 8% |
+| tubeFabric cantilever | 4.56 | 17.06 | 25.31 | **144%** |
+| wood cantilever | 1.36 | 5.14 | 7.69 | 93% |
+| alloy cantilever | 2.29 | 8.62 | 12.85 | 77% |
+| carbon cantilever | 1.15 | 4.36 | 6.53 | 10% |
+| PA-18 | 2.29 | 8.90 | 13.61 | n/a |
+| C172 | 3.17 | 11.64 | 17.11 | n/a |
+
+**PERMANENT SET IS PROXIED, NOT SIMULATED** — the solver has no yield model (see
+the costed design below), so it is read as peak member force against `sigY*A`,
+which IS the load at which the member takes a set and is correct even on soft
+springs because failure is a force threshold.
+
+**The two over-yield rows are REPORTED, NOT GATED, and the reason matters.** The
+load is right and the force is right (the root bending moment checks out by
+hand), but the ALLOWABLE is coarse: `A = lin/rho` gives ONE area for the whole
+wing class, and the worst-loaded member in those rows is not a spar cap — it is
+the **3.4 m LIFT STRUT**, which a real aeroplane sizes separately. Wood is the
+loud case because it pairs a big section (12.9 cm2) with a small allowable
+(39 MPa crushing): a WOODEN lift strut, which nobody builds — wooden aeroplanes
+use steel struts, and the Jodel is a cantilever precisely to avoid the joint.
+Gating that would gate the proxy, not the aeroplane. **What it is really saying
+is that strut sizing wants its own area**, which is a materials-model change and
+the obvious next piece of work here.
+
 ### RUPTURE AND PERMANENT SET — the costed design (NOT implemented)
 
 Asked for in the same report; deferred by the user to measure first. Recorded
@@ -2643,17 +2991,1250 @@ surfaces lofted separately, row-index `v` gave every one of them its own copy of
 the paint's tip stripe at its inboard end; span fraction makes the paint
 continuous across the cut, which is the point of cutting there.
 
+## G4.5 — THE REGISTRATION IS A DECAL (2026-08-11)
+
+Skin and viewer only. Reported as "the UV mapping is screwed up, the writing is
+all squeezed at the back. It either needs to be a decal, or we need to live UV
+map better."
+
+### Why it squeezed
+
+The body's `u` is NORMALISED ANGLE — every station spans 0..1 around its own
+section — while the fuselage circumference shrinks toward the tail. So a glyph
+of fixed u-width covers less and less physical distance the further aft it sits.
+The text was painted into the body texture, so it inherited that compression.
+
+Nothing was wrong with the paint. The parameterisation is right for what it was
+designed for: the cheat line and the belly shading are ANGLE features and should
+follow the section as it narrows. It is only wrong for anything that has to keep
+its own proportions, which is exactly what a decal is.
+
+### What it is now
+
+A `decal` group: two patches built from the body's OWN rows, so they conform to
+whatever shape the fuselage happens to be, lifted 6 mm along the local outward
+normal, carrying a plain 0..1 grid of their own. The registration cannot
+distort because none of the body's parameterisation reaches it — the sheet is
+drawn in `genRegDataURI` and appears on the aeroplane as drawn.
+
+`u` runs ALONG the body and `v` around it, so the sheet's long axis is the
+aeroplane's long axis. The far side is flipped so the registration reads the
+same way round from either beam, which is what it does on a real aeroplane.
+
+70 vertices, 96 triangles, spanning 45%..78% of the run to the tailpost on the
+two side arcs (u 0.15..0.35 and its mirror).
+
+### Two things wrong with the first cut
+
+**It came out black.** `transparent` in the mats table was never read —
+transparency was inferred from `opacity` alone, so a material carrying its alpha
+in the TEXTURE rendered fully opaque and its clear pixels showed as black. Fixed
+with `alphaTest`, not blending: a decal is a cut-out, and cut-outs belong in the
+opaque pass where they write depth and never need sorting.
+
+**The far side read backwards and upside down.** Walking both side arcs in the
+same index direction gives them opposite handedness when each is seen from
+outside, so flipping `u` on the far side was a SECOND flip and the two composed
+into a 180-degree rotation. The fix is to walk the far arc BACKWARDS and flip
+nothing: then both sides share one (u, v) frame relative to their own outward
+normal. Verified: u = 0 at x = 1.12 and u = 1 at x = 2.89 on both sides, so the
+registration reads nose-to-tail from either beam.
+
+### WIRE and UV
+
+Two diagnostics, because the squeeze was invisible from outside the mesh and
+obvious the moment its parameterisation was laid out flat.
+
+**Wire** flips `wireframe` across the material cache — one pass, keyed by
+material name, so it catches the whole aeroplane and survives a rebuild.
+
+**UV** draws every group's triangles in texture space over the paint sheet at
+55% opacity, one colour per group, with a legend. `v` is flipped because texture
+space is bottom-up and canvas is top-down. This is the tool that makes a
+stretched or mirrored island visible BEFORE it is on the aeroplane.
+
+### What this does NOT fix
+
+The general `u`-compression is still there for anything else painted on the aft
+body. That is deliberate — the user's own note was "maybe we can keep the
+reskinning for later" — and the decal mechanism is now the answer for any future
+marking that must hold its shape: squadron codes, roundels, trim that has to
+stay straight. A proper arc-length remap of the body would change every existing
+painted feature and belongs with the material-appearance work, not here.
+
+### The decal was 180 degrees out, and the numeric check could not see it
+FIXED in G4.6 below, along with the rule and the gate. Left here as the record:
+this section shipped "verified numerically but unseen", and it was wrong.
+
+## G4.6 — THE UNDERCARRIAGE (2026-08-11)
+
+Playtest items **11, 12, 4, 18** — one chantier, because they are all the same
+hardware, and the user's own ordering ("undercarriage first, it is the ugliest
+thing on the aeroplane and it is all cheap geometry with no physics risk").
+No solver constant moved. Verified in the viewer, with pictures, which is how
+three of the five defects below were found at all.
+
+### 11 — the wheels
+
+A wheel was a 14-segment cylinder with two flat lids, `v = 0` on one lid and
+`v = 1` on the other. It is now a REVOLVED PROFILE in two meshes:
+- `tyre` — bead, sidewall bulge (widest at 80% of the radius), shoulder, crown.
+- `wheelhub` — hub cap, dished disc, rim barrel. Its flange point IS the tyre's
+  bead point, so the two meet exactly with no gap to close.
+Both from `genRevolveInto`, whose UV is **u = angle around, v = ARC LENGTH along
+the section**. That is the whole of "sane UV": a band at v = 0.5 is the crown, a
+band near 0 or 1 is a sidewall, and nothing stretches. The lids it replaced were
+a single texel row smeared over a triangle fan — nothing could be painted on
+them, which is what "badly UV mapped" meant.
+
+Sizes are tied to the radius: half-width 0.40 R (an 8.00-6 is 0.20 m across a
+0.44 m diameter; the old wheels were 0.055 m on a 0.20 m radius and read as
+hockey pucks) and the bead at 0.42 R (a 6 inch rim in a 16 inch tyre; drawn
+first at 0.55 and the wheel came out as a pale disc with a band of rubber round
+it). 24 segments, not 18 — a wheel's silhouette is a circle and the eye knows.
+
+`genTyreDataURI` (garage.js) is the sheet: rubber, sidewall moulding rings, and
+four **circumferential ribs**, which is the tread an aviation tyre actually
+wears. That choice does real work: ribs are u-invariant, so **a wheel that never
+spins still reads correctly**, and no wheel-rotation machinery was needed. A
+block tread would have been periodic in u and its stillness obvious at every
+taxi speed. Same reason the hub is deliberately axisymmetric with no bolt circle.
+
+### 12 + 4 — one mechanism: `vis`
+
+A beam now carries `vis`, which says what the member IS. It never touches k, c,
+mass or the rigidity matrix — `ext`/`vis` are read ONLY by 63_gen_skin.js, so the
+physics is untouched by construction, and gear beam count/k/c/L are identical
+across every variant (measured).
+
+    null     hexagonal tube, as before
+    'wire'   9 mm bracing wire or tie rod
+    'leg'    the suspension leg, drawn as bungee / spring steel / oleo
+    'inner'  structural, but inside the covering: goes in the `frame` mesh, so
+             it stands in Frame mode and is absent from the covered aeroplane
+
+`'inner'` is the honest form of "hide it": Frame mode's whole job is to show the
+structure that was welded, so a member is never dropped, only moved under the
+skin. The tailwheel's near-vertical snap-blocker (rule 10) runs from below the
+wheel to the TOP of the tailpost — straight up through the fuselage — and is the
+one member that qualifies.
+
+Thirteen gear members, and what they are now:
+| | taildragger | tricycle |
+|---|---|---|
+| leg | tailpost member + 2 main fore legs | 2 firewall legs + 2 main fore legs |
+| tube | axle + 2 main drag braces | same |
+| wire | 2 tailwheel side braces, 2 stab-tip pyramid, 2 belly cross | 4 nose links, 2 belly cross |
+| inner | 1 snap-blocker | — |
+
+That is item 12: six fat tubes at the tailwheel became one leg, four wires and
+one internal. The belly cross members went to wire for the same reason — as
+48 mm tubes they made the undercarriage read as a cage, and an X of bracing wires
+under the belly is both what a tube-and-fabric aeroplane has and the same load
+path. 12 mm wires were tried first and left the tailwheel looking braced by
+scaffolding poles.
+
+Item 4, the springing, is three genuinely different pieces of hardware:
+- **bungee** — a thin steel leg with the cord wrapped round its lower third.
+  The wrap is a revolve about the LEG axis whose radius ripples, so one ripple
+  is one turn of cord, in its own `rubber` group.
+- **spring** — a flat tapered BLADE, 76 x 20 mm at the top. `genBladeInto` puts
+  the broad face perpendicular to the leg and horizontal, which comes out
+  fore-and-aft on a main leg (a Cessna leg, bending vertically) and across the
+  aeroplane on a tailwheel leg. One rule, correct on both.
+- **oleo** — two stages with a visible step: piston below, cylinder above.
+
+GATE GEN now hashes the gear meshes for all three and requires all three to
+differ. If they ever collapse back to one mesh the feature is silently gone and
+nothing else in the battery would notice.
+
+### 18 — camber and the split suspension height
+
+Three new spec fields, all nullable, all defaulting to today's numbers:
+- `gear.legDrop` — main axle drop below the fuselage underside.
+- `gear.twLeg` — the third leg's length. For a tailwheel it replaces the
+  GEN_RULES constant; for a NOSEwheel it replaces the trikeDeck derivation, so
+  the rest attitude falls out of the leg instead of the leg being solved from a
+  fixed attitude. Left null, the trike still lands on trikeDeck exactly.
+  It is resolved in genFrame, not resolveSpec, for the same reason gear.x and
+  gear.track are: a nosewheel's default is only knowable once the wheelbase is.
+- `gear.camber` — degrees, tops-outboard positive, MAINS ONLY (a cambered
+  castor is a shimmy). `S.gear.contactR = wheelR * cos(camber)` is published on
+  the spec because five places have to agree about it: the solver's node radius,
+  the prop-clearance rule, the track derivation, the shakedown's ground line and
+  the wheel mesh.
+
+Measured (`genShakedown`, default airframe):
+
+| case | deck | propClear | main legs | third leg | stands |
+|---|---|---|---|---|---|
+| default | 10.23 | 0.400 | 0.760 | 0.230 | wheels |
+| camber 20 | 10.22 | **0.400** | **0.772** | 0.230 | wheels |
+| legDrop 0.9 | 11.69 | 0.540 | 0.900 | 0.230 | wheels |
+| twLeg 0.10 | **11.66** | 0.400 | 0.760 | 0.100 | wheels |
+| twLeg 0.45 | **7.78** | 0.400 | 0.760 | 0.450 | wheels |
+| trike, auto | **1.20** | 0.400 | 0.760 | 0.887 | wheels |
+| trike, leg 0.55 | -13.29 | 0.400 | 0.760 | 0.550 | **TW** |
+| trike, leg 0.95 | 3.94 | 0.400 | 0.760 | 0.950 | wheels |
+
+Two things to read off it. **Camber's clearance effect is second order and the
+rule absorbs it**: cos(20 deg) costs 12 mm of contact radius on 0.20 m wheels,
+and `gear.y` simply lengthens the legs by 12 mm to hold the clearance at exactly
+0.400. Camber is mostly a look; `legDrop` is the clearance knob. **And the
+third leg is the rest-AoA knob** — 0.10 to 0.45 m walks the three-point angle
+from 11.7 to 7.8 degrees.
+
+**legDrop is inert through most of its range and the panel now says so.**
+`gear.y = min(byProp, byLeg)` picks the LOWER axle, i.e. the longer leg, so any
+legDrop shorter than prop clearance demands changes nothing — on the default
+aeroplane the prop wants 0.76 m and everything under that is ignored. The prop
+keeps winning on purpose (a leg shortened into a prop strike is not a bad
+aeroplane, it is a broken one on the first landing), so `S.gear.yBoundBy` is
+published and the readout marks `main legs` AUTO when the prop bound it.
+Without that the slider looks broken.
+
+NOT modelled: camber also moves the contact patch inboard by R sin(camber). The
+solver contacts directly under the node, so the effective track stays the axle
+track. At the clamp (20 deg, 0.40 m wheels) that is 14 cm on a track of about
+1.5 m — the only cut camber makes.
+
+### Five defects the pictures found, and one the pictures fixed
+
+Numbers said all four items were done. Then they were looked at.
+
+1. **`genTubeInto` wound its two end caps the same way**, so every A-end cap in
+   the aeroplane was lit from inside. Invisible on the engine cylinders it was
+   written for (they are buried in the block), very visible on a gear leg.
+2. **The bungee wrap's valleys dipped inside the leg** it wraps (0.72 +- 0.28 of
+   a 1.15 r0 wrap against a 0.55 r0 tube), so steel showed between the turns and
+   the whole thing read as a chain of pale beads. 0.80 +- 0.20 of 1.30 r0.
+3. **FLAT MATERIAL COLOURS IN THIS PROJECT ARE LINEAR, NOT sRGB.** r128 hands
+   `material.color` to the shader unconverted while a texture declared
+   `sRGBEncoding` IS converted — and this scene's sun is a 2.75-intensity
+   directional. A hex chosen like a paint chip renders about three times as
+   light as it looks. Measured on the hub cap, dead-on, in full sun:
+   `0x1a1c20 -> 181 164 139`, `0x33373d -> 214 202 181`. **And there is a
+   specular FLOOR**: pure black at metal 0.85 still read 107 83 53, so no base
+   colour could have saved a "chrome" hub. The bungee at a charcoal 0x2d2f34
+   was a pale grey sausage; it is 0x08090b now, and the hub 0x101216 at metal
+   0.12. Every other flat colour in the file carries the same bias and is left
+   alone — they were all chosen by eye against it.
+4. **The registration decal was 180 degrees out on both beams** — G4.5's, not
+   this chantier's, and listed as "verified numerically but unseen". Near side
+   glyphs upside down, far side rotated a full 180. The rule that was missing:
+   **a sheet reads correctly when u runs to the VIEWER'S RIGHT and v UPWARD as
+   seen from outside the side it is on, and those are different BODY directions
+   on the two beams** — the nose is on your left from one beam and your right
+   from the other, so u runs aft on one side and forward on the other. Each side
+   needs exactly one flip and they are DIFFERENT flips: reverse the arc on the
+   near side (v), reverse u on the far side. G4.5 reversed the arc on the far
+   side only, on the theory that arc direction and u were the same flip. They
+   are independent axes.
+   Why the numbers missed it: the check was "u = 0 at x = 1.12 and u = 1 at
+   x = 2.89 on both sides". A v flip is invisible to that, and a 180-degree
+   rotation preserves it exactly.
+5. **`tools/make_probe.js` had been silently broken** by the `?v=<hash>` cache
+   busters build.js now writes: its injection anchor was the literal
+   `<script src="../src/viewer/app.js">`, so the probe page loaded, drew frames,
+   reported no error, and `__renderer`/`__WF` were simply never there. Both
+   anchors are patterns now and a miss throws. **This is the tool that makes
+   visual verification possible at all** (the agent Browser pane stops
+   compositing when it is not displayed), so a silent failure in it is what
+   "verified numerically but unseen" was actually made of.
+
+### Verifying by eye when the pane will not composite
+
+The loop that found all of the above, worth reusing: `node tools/make_probe.js`,
+then in the page — render by hand through the caught `__renderer`/`__camera`,
+downscale into an offscreen canvas, `toDataURL('image/jpeg')`, and **POST it to a
+throwaway node sink that writes it to a file**. Screenshots then never travel
+through the conversation. Pixel MEASUREMENT beats looking at the picture: the
+whole linear-colour finding came from sampling the hub across five (colour,
+roughness, metalness) triples in one pass, and "it looks pale" would never have
+got there.
+
+### Gate
+
+Four new checks in GATE GEN (70 checks, was 66):
+- `groups with their own sheet map all of it` — a group with its OWN texture
+  must span it in both axes and carry no UV-degenerate triangle. Groups that
+  SHARE the paint sheet are exempt on span: an aileron is a small island in an
+  atlas and is supposed to be.
+- `the registration reads the right way round on both beams` — per triangle,
+  from the uv gradient: `dv` points up, and `sign(z) * cross(du, dv).z > 0`.
+  Both winding-independent, and together they pin the frame completely, which
+  span and handedness alone do not.
+- `G4.6 camber and split leg heights` — camber 0 is bit-identical to no camber;
+  contactR is exactly R cos(camber) AND is the solver's node radius; camber
+  holds prop clearance and pays for it in leg length; twLeg sets the deck angle
+  on both gear types; trike-auto still lands on trikeDeck; every variant stands.
+- `G4.6 the three suspensions look different` + `the undercarriage is mostly not
+  fat tubes` (at most 3 tube members, at least 3 legs).
+
+Cost: the skin went 5643 -> 6228 verts and 8180 -> 9200 triangles on the default
+aeroplane (the whole undercarriage is about 3900 of them, of which the bungee
+wraps are 960 — spring steel is 192 and oleo 348, if that ever matters).
+
+### Left open
+
+- The wheels do not spin. Deliberate — see the rib-tread argument above — but if
+  wheel rotation is ever wanted, the `moving` list already does everything
+  needed (a rigid mesh on a pivot that rides its node's deflection); it needs a
+  synthetic `spin` channel carrying distance travelled and `k = 1/R` per wheel.
+- The `cowl` group maps to a 0.009-tall sliver of the paint sheet (measured
+  while writing the UV check). It works today because the paint's features are
+  u-based, but any cowl marking will have nothing to sit on. Belongs with
+  item 13.
+- Camber's lateral contact offset, above.
+
+## G4.7 — THE NOSE (2026-08-11)
+
+Playtest items **20, 15, 13, 6** — one chantier, because they are all the same
+end of the aeroplane and 20 blocked 15. No fleet number moves: the solver change
+is a fallback that no fiche takes, and the default GARAGE build's thrust is
+reproduced to 1%.
+
+### 20 — the cowl has a section of its own
+
+`cowl.halfW`, `cowl.top` and `cowl.bot`, and they are measured **about the
+THRUSTLINE**, which is the datum a cowl actually has: it is a cover over an
+engine, and the engine sits on the thrustline. Left null they are derived from
+the firewall section, tapered about that datum — the same shape that was there
+before wherever the two datums nearly coincide.
+
+Top and bottom are separate because that is item 13's "top and bottom profile
+control": a flat-top Cub cowl and a round-top Cessna with a chin scoop are the
+same three numbers.
+
+The cowl is now a LOFT between two sections (firewall aft, its own forward)
+rather than a scaled extrusion of one. The engine block's size moved onto the
+spec as `S.engBox`, so the cover, the block and the shakedown all read one
+number — the same discipline as `contactR` in G4.6.
+
+### 15 — the drone cowl collapsed below its engine, and so did seven others
+
+**Measured first, and it was much wider than the report.** The section AT THE
+ENGINE'S OWN STATION, over all 24 seating x powerplant combinations: the
+crankcase hung outside the cover in 8 of them, and the drone's cowl axis sat
+**4.6 cm above its thrustline on a 30 cm cowl** (its deck line IS its cabin
+roof, so the firewall's centre is nowhere near the engine).
+
+Two instrument mistakes on the way, both worth remembering:
+- The whole-cowl BOUNDING BOX cannot see this. It is dominated by the firewall
+  ring, which is the fuselage's section and is not in question. Both before and
+  after the first fix it read identical.
+- The mesh is in the ROTATED body frame, so a ring at one station is not at one
+  body-x. Grouping vertices by x to find rings found nothing at all; a
+  tolerance sweep instead landed PARTIAL rings and reported a 4 cm tall cowl.
+  Un-rotate to spec coordinates first (`genRestFrame` is exported for this).
+
+The fix is a floor on the derived section: **the cowl clears the CRANKCASE.**
+Drawn at the case and not at the cylinders on purpose — a J-3's cylinder heads
+stick out, and enclosing everything by default would make every aeroplane a
+cowled Cessna. And it is not enough to floor the NOSE section: the fillet is an
+inset from every side and the case's forward face sits inside it, so flooring the
+nose alone still left 1.7 cm of case below the belly (down from 4.3, but there).
+So the nose section is solved for coverage AT THE CASE'S OWN STATIONS, four
+fixed passes (a while-loop would break the determinism GATE GEN byte-compares).
+
+Result, measured: the case is covered on all 24 combinations, cylinder heads
+still stick out on 9 of them, and every seating but the drone moved by **under
+2 mm**. That is what the reverted G3.6 attempt was reaching for — it floored the
+FUSELAGE ring on engine size and had to be backed out because it widened every
+nose. The cowl having a section of its own is what makes the same idea safe.
+
+The verdict is REPORTED, not enforced (`cowl: encloses engine` /
+`engine out: sides`), and it is measured at each part's narrowest station —
+the case where its forward face is, the cylinders where the forward one is.
+Getting that wrong by using the block's midpoint instead made the panel claim
+"enclosed" for a cylinder poking through 6 mm further forward; and a cylinder is
+a TILTED tube, so its outer cap ring reaches 15 mm further out than its axis
+(`engBox.cylReach`, which is what the test uses). Spec and mesh now agree on all
+24 cases, which is the point of publishing a claim at all.
+
+### 13 — cowl shape and intakes
+
+The three sliders above, plus the cowl finally having **its own texture sheet**.
+It used to sample the body's paint at `v = 0.02 * (1 - t)` — the entire cover
+squeezed into a 2%-tall sliver of the shared sheet, measured at 0.009 of it,
+which is ONE texel row at 512 and nothing an intake could be drawn on. (That
+measurement fell out of writing G4.6's UV check; it is why this item was flagged
+as inheriting a problem.)
+
+`genCowlDataURI` (garage.js): u = angle around, v = firewall to nose, and the top
+12% of the sheet is the **flat nose face as a rim strip** (`GEN_COWL_V`). That
+band is not decoration — a fan whose whole ring sits at one v has no texture area
+at all, which G4.6's own gate check would have failed.
+
+The sheet has to read as the same aeroplane as the body, which shares no pixels
+with it, so the two livery features that cross the joint — the belly shade and
+the cheat line — are drawn at the body's own u. Verified from the beam: the
+stripe runs onto the cowl with no seam.
+
+`GEN_INTAKES`: none / chin scoop / twin cheek / ring (radial). Texture only, and
+deliberately so — a modelled duct costs a hole in the one panel whose whole job
+since G1.7 has been to have none ("a big opening… either the prop attachment or
+an air intake"). Each slot is a near-black opening with a lighter lip and n
+louvres; the cover also gets three cooling gills along the joint.
+
+### 6 — the propeller is not part of the engine
+
+`prop: { D, blades, material, pitch }`. `D` null keeps the diameter the chosen
+powerplant shipped with, so an untouched build is unchanged. Everything else is
+derived, and the solver reads the aeroplane's prop (`params.prop`) in preference
+to the registry's — a fiche sets none, so the fleet is untouched by construction.
+
+- **Static thrust** is momentum theory: `fm * (2 rho A)^(1/3) * P^(2/3)`.
+- **Pitch** is the figure of merit, and it is the whole trade. A fine prop bites
+  hard standing still and runs out of pitch early.
+- **Blades** add disc solidity, 5.5% of fm each past two.
+- **Material** is mass: per blade at 1.88 m, scaling `(D/1.88)^2.5`. Anchors —
+  a 1.88 m two-blade wooden prop is 4.8 kg, a 1.73 m three-blade carbon one 3.9
+  (an E-Props Durandal is about 4).
+- **Disc area** feeds the propwash the tail flies in, which the solver already
+  computed from `D` — so that came free the moment D became a spec field.
+
+**The zero-thrust speed is the part momentum theory does not give you**, and the
+first cut got the trade BACKWARDS. Tabling a `v0k` per pitch alongside `fm` put a
+fine prop's thrust running out at 86 km/h on an aeroplane that cruises at 103.
+`P / Tstatic` is the only velocity scale available without a shaft rpm, and ONE
+constant on it (`GEN_RULES.propV0K = 1.10`) does the whole job: a fine prop's
+higher Tstatic lowers `P/Tstatic` and therefore lowers its own zero-thrust speed,
+so the trade falls out instead of being asserted.
+
+MEASURED against the six registry props, same diameter and power:
+
+| powerplant | Tstatic reg/model | err | kV2 reg/model | err |
+|---|---|---|---|---|
+| a65_sensenich74 | 900 / **907** | **+1%** | 0.260 / **0.262** | **+1%** |
+| r1830_hs23e50 | 11000 / 9403 | -15% | 0.543 / 0.858 | +58% |
+| io360_mccauley | 2290 / 1818 | -21% | 0.136 / 0.276 | +103% |
+| rotax277_pusher | 800 / 431 | -46% | 0.545 / 0.150 | -73% |
+| o200_eprops | 1700 / 1144 | -33% | 0.177 / 0.222 | +25% |
+| outrunner2212 | 8 / 5 | -33% | 0.015 / 0.004 | -75% |
+
+The A-65 row is the calibration and it is exact; **the rest are not supposed to
+match.** Those numbers were fitted per AEROPLANE and carry its drag as well as
+its prop — the implied `fm` across them runs 0.36 to 0.67, which is real spread
+between a Sensenich cruise prop and a slow-fly wooden one. The default preset is
+`pitch: 'cruise'` because that is what an A-65 swings, not to make the table look
+good; that is also why the default build's performance did not move.
+
+The knobs, on the default airframe:
+
+| case | T0 N | thrust out at | prop kg | all-up | TO run | cruise thr |
+|---|---|---|---|---|---|---|
+| default (cruise, 2 x 1.88 wood) | 907 | 212 km/h | 4.8 | 402 | 129 m | 73% |
+| fine pitch | 1461 | 131 km/h | 4.8 | 402 | 72 m | 90% |
+| 6 blades | 1107 | 174 km/h | 14.4 | 412 | 106 m | 73% |
+| D 3.00 m | 1239 | 155 km/h | 15.4 | 418 | 95 m | 79% |
+| 2.6 m / 3 blade / fine / carbon | 1914 | 100 km/h | 10.8 | 411 | 55 m | 95% |
+
+Read the last row: a big fine climb prop halves the take-off run and needs 95%
+throttle to hold cruise. That is the trade being real rather than a slider.
+
+Note the prop mass replaced a crude `2.0 * D` (3.76 kg for the A-65, now 4.8),
+which moved the default build's CG forward slightly and with it the derived gear
+position — the only baseline number this chantier moves, and it moves because the
+mass model got better.
+
+**NOT modelled, and worth stating:** the prop has no ROTATIONAL inertia. No
+gyroscopic precession, no P-factor, no torque roll. Item 6 said "blade mass ->
+inertia" and what it buys here is the aeroplane's inertia — real mass at the
+front, moving the CG and the all-up weight. The blades' mass lands on the mount
+nodes rather than at the hub 0.10 m further forward; worth 3 cm of CG with the
+heaviest prop the clamps allow, and there is no node out there to hang it on.
+
+### Gate
+
+Two new checks in GATE GEN, and one suspension check replaced (73, from 71
+after G4.6):
+- `G4.7 the cowl has its own section and covers its case` — the case is covered
+  on all 24 seating x engine combinations; at least one still leaves the
+  cylinders out (a gate demanding full enclosure would quietly cowl every
+  aeroplane); the default cowl width is still the firewall taper; and a 0.7 m
+  cowl encloses an A-65 while moving **zero** fuselage coordinates, which is
+  item 20's actual claim.
+- `G4.7 the propeller is its own component` — the model reproduces its
+  calibration entry within 2%; the solver reads `params.prop`; diameter, pitch
+  and blade count each raise static thrust AND lower the zero-thrust speed;
+  blade material shows up in the all-up mass; a 3 m disc lengthens the gear while
+  prop clearance stays pinned at the rule; and the drawn prop has as many blades
+  as the spec bought.
+
+### The suspension knob was folding the undercarriage, and 1 kg found it
+
+Not a nose item. GATE GEN went red on two SUSPENSION checks after item 6, and the
+cause is worth the space because it is rule 1 and rule 10 in one place.
+
+`gear.stiffness` scaled EVERY gear member, so turning the suspension down
+softened the drag braces and the belly cross-bracing along with the spring — and
+the undercarriage snapped through. Traced, at 0.6x: the aeroplane settles on its
+BELLY with the axle 0.75 m in the air, **fully at rest** (vmax 0.000 m/s after
+1800 frames, so not a bounce), at 1.4% strain. HEAD stood at 0.6x and folded at
+0.35x; item 6's honest prop mass added 1 kg at the nose and moved the barrier.
+**The barrier was one kilogram away and nothing in the battery said so.**
+
+The fix uses G4.6's own `vis`: the knob scales the SPRING (`vis === 'leg'`) and
+the bracing keeps the archetype's stiffness without the knob. Real gear behaves
+that way — a soft spring gives long travel and the drag brace is a tube either
+way. **Identical at stiffness 1.0 for every archetype**, which is the whole
+default fleet, so no anchor moved.
+
+Measured, which member matters:
+
+| what the knob scales | 0.35x | 1x | 3x |
+|---|---|---|---|
+| spring only (now) | stands, 52 mm travel | stands, 23 mm | stands, 10 mm |
+| spring + same-side drag brace | **FOLDED** | stands | stands |
+| every gear member (pre-G4.7) | **FOLDED** | stands | stands |
+
+So **the aft drag brace is the anti-fold member** and must not follow the knob.
+The price is honest and worth stating: the knob's TRAVEL authority is now small
+(52 -> 10 mm across the range) because the vertical load runs through a fan of
+three members and only one of them is the spring. The spring's own deflection
+still moves 5x (4.84% -> 0.93% strain), which is what distinguishes a bungee from
+an oleo. Making the knob strong AND fold-proof is geometry, not more k-scaling —
+rule 1's anchor offset, i.e. a gear fan with real depth. That is its own chantier.
+
+**Two instruments had to be fixed to see any of this**, and both mistakes are the
+kind that make a gate lie:
+- `gearStrain` is the worst-loaded gear MEMBER, and with the split that is
+  normally the drag brace — whose load goes UP with stiffness, because a stiffer
+  spring hands it more. Asserting "stiffer deflects less" on it read BACKWARDS
+  while the suspension was behaving perfectly. The gate now measures the SPRING.
+- Travel cannot be measured as a vertical node difference. The main leg is long
+  and raked into the FIREWALL, so the axle moves ALONG it: 5 mm of vertical
+  change for 52 mm of real compression, and the remainder of any node-difference
+  is the body pitching. Travel is the spring's own compression, `strain * L`.
+- And the FOLD cannot be measured by strain at all — the folded case sat at 1.4%
+  while the working one sat at 4.8%, **less strain in the mechanism than in the
+  sound structure**, which is rule 10 stated as a number. It is measured
+  geometrically instead: how far the axle has moved RELATIVE to the airframe node
+  its leg hangs on, as a fraction of the leg. Validated against a real fold —
+  working 5.5-13.7%, folded **142%** — so the 50% threshold sits an order of
+  magnitude clear of both.
+
+`genShakedown` now reports `springStrain`, `susTravel`, `susShift` and
+`gearFolded`, and GATE GEN's fourth suspension check is
+`the undercarriage never folds across the suspension range`. That replaces
+`too-soft suspension is reported, not hidden`, which was accidentally detecting
+the fold and could not name it — with the fold cured, 0.35x simply works.
+
+### Delivered against a red UISMOKE that is not this chantier's
+
+`node tools/run_gates.js --all`: **30 of 31 gates PASS**, including GEN (73/73
+checks) and every fleet and cross-country gate — which is the evidence the solver
+change is inert for the fiches. UISMOKE fails on
+`GARAGE_SPEC.loadTest is not wired`, which belongs to the LOAD TEST work landing
+in parallel: HEAD's test_ui_smoke.js contains no such check, and the
+`window.GARAGE_SPEC` surface it asserts does not exist in app.js — the garage
+bridge is an object passed straight to `garageInit(...)`. Proven not to be this
+chantier's: HEAD's own test_ui_smoke.js run against THIS build passes.
+Left alone deliberately rather than wired from here, because it is another
+thread's live feature in a file they are editing.
+
+### Left open
+
+- The knob's travel authority, above — a geometric cure for the gear fan.
+- The cowl's loft is linear between two sections. A bulged chin or a drooped top
+  line — a curve rather than a taper — would need a third section.
+- Intakes are texture. A modelled scoop is a separate chantier and needs the
+  skin-subdivision pass that window cutouts also wait on.
+- Prop rotational inertia, above.
+
+## G4.8 — THE TAIL JOIN (2026-08-11)
+
+Playtest item **22**. Item 21 (T-tail) is NOT in this — see the end.
+
+### The V-tail was not attached to the aeroplane
+
+Reported as "most visible on the V-tail, which currently just intersects".
+Measured, in spec coordinates off the built mesh: each panel's root row started at
+**10% of the semispan out from the centreline and 10% of the way up**, which put
+it 46 mm clear of the fuselage envelope with nothing between the two halves. From
+directly above you could see the ground between the panel root and the body. It
+was not intersecting the fuselage — it was floating beside it.
+
+The fix is a **fixed centre section**: a full-chord loft from the centreline out
+to each panel's root, flared 28% in chord at the middle. The flare IS the fillet,
+and it is where a real V-tail carries its root fairing. It has to be FIXED and
+separate from the ruddervators, which is the whole reason not to simply extend
+them inboard: the two panels deflect DIFFERENTIALLY on rudder, so panels meeting
+at the centreline would saw through each other at every rudder input.
+
+**Two lofts, one per side, not one loft through the middle.** `panel()` takes its
+span direction from its first two rows and then uses that single normal for every
+section, so one V-shaped loft gets the far half's thickness axis wrong — measured
+immediately by GATE GEN's mirror check as 42 skin vertices with no twin. Building
+each side from the centreline outward gives each its own span direction and the
+symmetry is exact.
+
+### And the fin got its dorsal fillet
+
+The conventional tail had no gap — the fin's root is already buried 22 mm in the
+tail cone — but the joint was a hard corner where a real aeroplane has a fairing
+running aft along the turtledeck. One extra fixed row 70 mm below the root with
+30% more chord: `finRow` holds the leading edge and grows the chord AFT, which is
+the direction a dorsal fillet actually goes.
+
+Cost: the skin goes 1502 -> 1534 vertices on a conventional tail (the fillet) and
+1502 -> 1550 on a V-tail (the centre section).
+
+### The instrument trap that cost the most time here
+
+**`tools/make_probe.js` must be re-run after every build.** dev.html carries
+`?v=<hash>` cache busters per script, build.js regenerates them when a file's
+content changes, and the probe page is a COPY of dev.html — so a probe generated
+before a build keeps the old hashes and the browser serves the previous build from
+cache. The screenshot then shows the code you had, not the code you wrote, with no
+error anywhere. It cost one wrong conclusion here ("the fairing did nothing" —
+the fairing was fine, the page was stale), and it is the second time this session
+that make_probe has silently shown the wrong thing (see G4.6 for the first).
+The check that catches it: compare a vertex count read from the page against the
+same count from node. They match or the page is stale.
+
+### Item 21, the T-tail, is not started — and why
+
+It is the other half of this chantier and it is FRAME work: the stabiliser moves
+to the top of the fin, the fin has to carry it (new members, and a real risk of
+emitting a mechanism that only GATE GEN's rigidity-rank check would catch), the
+strips must hang off the FIN node, and `stabWash` should drop because a T-tail's
+stabiliser is out of the propwash — which is most of the reason to build one.
+That means 60_gen_spec, 61_gen_frame, 62_gen_aero and 63_gen_skin.
+
+Not started because the parallel thread was editing 30_solver.js and
+62_gen_aero.js within the last ten minutes (the nEngines rework above), and
+62_gen_aero's `genStrips` tail section is exactly where a T-tail's strips go. A
+structural change verified against a tree that another agent is rewriting gives a
+red gate nobody can attribute — which already cost one 25-minute battery this
+session. It wants a serialised run: land the nEngines work, then build the T-tail
+against a still tree with the fleet table in hand.
+
+**What scoping it turned up, so the next session does not rediscover it.** The
+item says "the fin carries it, so it is frame work" and that is right, but the
+consequences reach further than the empennage:
+
+- **Two members are not enough at each stab tip.** HTL braced to FIN and TPT
+  only is a MECHANISM — it can rotate about the FIN-TPT axis, and nothing but
+  GATE GEN's rigidity-rank check would report it (rule 10: no strain gate can).
+  The set that works is FIN-TPT + FIN-last.TL + FIN-last.TR for the fin, then
+  HTL-FIN, HTR-FIN, HTL-HTR (the spar straight through the fin head) and
+  HTL-TPT, HTR-TPT. Three independent directions per tip; verify the rank.
+- **THE TAILWHEEL LOSES ITS BRACING.** Rule 10's cure for the near-axial latch
+  is a wide lateral pyramid from the tailwheel up to the STAB TIPS
+  (`B(TW, HTL, 'gear', false, 'wire')`, G4.6). On a T-tail those tips are at the
+  top of the fin, so those wires become absurd and the pyramid has to be re-based
+  on `last.TL/TR`. That is a GEAR change riding on a tail option, and it is the
+  reason this is not a skin-level switch.
+- The stabiliser's covering mass (`cover(1.9 * t.Sh, [...])`) and the skin's root
+  influences (`post = [[TPB, .5], [TPT, .5]]`) both hang off the tailpost and must
+  move to FIN, or the stab's mass and its flex stay behind where the stab no
+  longer is.
+- **`stabWash` is the point of the exercise.** GEN_RULES has it at 0.60 for a
+  conventional tail; a T-tail's stabiliser is out of the propwash entirely and
+  should be near 0.15. Expect the elevator to lose most of its static authority
+  with it — which is the real trade a T-tail makes, and the reason to measure the
+  three-point elevator moment before and after rather than assume.
+
+## G4.9 — ONE ENGINE, TWO MOUNTS (2026-08-11)
+
+The HONEST CUTS entry that said "if it is ever fixed, do it as its own chantier
+with the fleet table in hand, and expect every TORun and climb anchor to move".
+This is that chantier. They moved.
+
+### The defect
+
+`30_solver.js` computed `T = Tper * def.refs.engine.length`. `refs.engine` is the
+list of NODES the thrust is applied at, and how many of those there are has
+nothing to do with how many engines there are: the DC-3 has one node per nacelle
+(2 engines, 2 nodes, right by coincidence), while the Cub, the PA-18 and every
+generated aeroplane hang ONE engine on TWO mount nodes. Measured at full throttle
+from rest, read off `sim.out.thrust`:
+
+| | refs.engine | registry Tstatic | solver static thrust |
+|---|---|---|---|
+| cub / pa18 | 2 | 900 | **1800** |
+| gen | 2 | 907 | **1814** |
+| dc3 | 2 | 11000 | 22000 (right — it is a twin) |
+| c172 / jodel / chinook / drone | 1 | — | right |
+
+### Which way to fix it, settled by measurement rather than taste
+
+The other option was to "re-fit": double `a65_sensenich74.Tstatic` to 1800 so the
+Cub keeps flying exactly as its validated numbers describe, and move the lie from
+the solver into the registry. The propeller says no. Momentum theory gives the
+ideal static thrust of a disc absorbing P as `(2 rho A)^(1/3) * P^(2/3)`, and a
+real propeller reaches a fraction `fm` of it — the same relation `60_gen_spec.js`
+already uses to synthesise a garage prop:
+
+| powerplant | fm implied by the registry | fm if doubled |
+|---|---|---|
+| A-65 / Sensenich 74CK | 0.357 | 0.714 |
+| R-1830 / HS 23E50 | 0.421 | 0.842 |
+| IO-360 / McCauley | 0.454 | 0.907 |
+| O-200 / E-Props | 0.535 | **1.070** |
+| 2212 outrunner | 0.539 | **1.078** |
+| Rotax 277 | 0.669 | **1.338** |
+
+A figure of merit above 1.0 beats an ideal actuator disc, which no propeller
+does. The registry's numbers are honest per-PROP figures and the solver was
+simply wrong. Doubling the A-65 entry would also have put a COARSE CRUISE prop at
+fm 0.714, above every other prop in the fleet including the Rotax's slow-fly
+wooden one — and it would have contradicted `GEN_PROP_PITCH`, whose fm table was
+derived from these same entries on the assumption that they are per-prop. So: fix
+the structure, re-anchor the numbers.
+
+### The separation
+
+`refs.engine` keeps ONE meaning — the mount nodes, which is what
+`per = T / refs.engine.length` spreads the force over. `params.nEngines` carries
+the count. All seven fiches state it; the garage takes `spec.engines.length`, so
+a twin is right the day `engines` grows a second entry. `genShakedown` reports
+`propTstatic * nEngines` using the same expression the solver uses, so the panel
+and the aeroplane cannot silently disagree again. Propwash is unchanged and
+deliberately per-DISC: the tail flies in the wake of the prop ahead of it, not in
+the sum of the aeroplane's engines.
+
+### It moved the fleet TOWARD reality
+
+Free-air tunnel, `tools/make_perf.js`, before -> after:
+
+| | static thrust | Vs km/h | Vmax km/h | best climb | L/D | TO run to 2.5 m |
+|---|---|---|---|---|---|---|
+| cub | 1800 -> 900 | 53.9 -> 53.9 | 149.8 -> **119.3** | 1381 -> **433 fpm** | 9.30 -> 9.30 | 67 -> **151 m** |
+| pa18 | 1800 -> 900 | 53.9 -> 53.9 | 149.8 -> 119.3 | 1381 -> 433 fpm | 9.30 -> 9.30 | 67 -> 151 m |
+| gen | 1814 -> 907 | 59.6 -> 59.6 | 151.7 -> 120.8 | 1295 -> 384 fpm | 9.16 -> 9.16 | 103 -> 292 m |
+| drone / chinook / jodel / c172 / dc3 | unchanged | unchanged | unchanged | unchanged | unchanged | unchanged |
+
+Three things to read off that table:
+- **Vs and L/D do not move anywhere.** They are thrust-free, so they are the
+  control: any change in them would have meant the fix touched something it
+  should not have. Five of the eight aircraft are identical in every column.
+- **The Cub now matches the anchor this document already carried.** The table
+  said "top ~121 km/h" while the aeroplane was actually doing 149.8; on honest
+  thrust it does 119.3. The recorded number had been the undoubled one all along,
+  which is its own small piece of evidence about which figure was the real one.
+- **A real J-3 climbs about 450 fpm.** The model was doing 1381. It now does 433.
+  That is a divergence closed, not opened, and the same goes for the takeoff run
+  (151 m to 2.5 m agl, against a real ground roll of ~110 m and ~220 m to 50 ft -
+  the measure belongs between those two, and now sits there).
+
+The one place the model got FURTHER from a reference is the Cub's top speed,
+119.3 against a commonly cited ~140 km/h. That line was already open in the
+DIVERGENCE LEDGER marked "RE-SOURCE before touching" and it stays open. It is not
+evidence against the fix: the alternative was a J-3 that climbs three times too
+fast to buy it.
+
+### What had to be re-fitted, and why none of it is a fudge
+
+1. **`pa18.ap.flareThr` 0.12 -> 0.24.** It is a THROTTLE FRACTION, and the fix
+   halved what a fraction buys. The flare keeps the THRUST it was tuned with:
+   `0.12 * 1800 N == 0.24 * 900 N`. Touchdown sink 1.71 (over the 1.5 bound) ->
+   0.95, against 0.78 before the fix.
+2. **`cub` / `pa18` `ap.TORun` 60 -> 151.** Re-read off the flown measurement,
+   not adjusted by hand.
+3. **The garage's TORun estimate, rebuilt.** Below.
+4. **The taxi governor.** Below.
+5. **Two GATE GEN instruments.** Below. Neither of them was the aeroplane.
+
+### The takeoff estimate was two compensating errors
+
+`genTrim` estimated the run as `1.35 * Vlof^2 / (2*acc)` with ONE constant
+acceleration off `0.92*Tstatic`, and `Vlof = 1.05*VRot`. Both parts are wrong and
+the doubled thrust hid both: it read 119 m against the 103 m the over-powered
+aeroplane actually flew, which looked exactly like the deliberate conservative
+bias the comment claimed. On honest thrust the same formula read 119 m against
+**292 m flown** - optimistic by 2.4x. This number decides whether the AP
+backtracks, so optimistic is the dangerous direction.
+
+- It does not unstick at `1.05*VRot`. VRot is where the autopilot starts asking;
+  the wheels leave when the wing can carry the aeroplane AT THE LIFTOFF ATTITUDE,
+  which is a tunnel question. Solved that way it predicts gen 21.4 m/s against
+  20.8 flown, and cub 19.0 against 17.6 — a few per cent, high rather than low.
+- The acceleration is not constant. Thrust falls as `kV2*V^2` all the way down
+  the roll while drag climbs, so the mean is nothing like the standing value.
+
+It now integrates `s = INT V dV / a(V)` to the measured unstick speed, at zero
+body alpha (which over-reads the weight on the wheels, deliberately), and carries
+the air segment as 0.8 of the roll — above the worse of the two measured ratios
+(0.53 gen, 0.18 cub), because this number's whole job is to be long. Reads 320 m
+against 292 m flown.
+
+### The taxi governor had no authority left
+
+GATE XCTY5's backtrack crept 16 m in 120 s and timed out onto the wrong end of
+the strip. Traced: the governor is `thr = clamp(0.08 + 0.06*(Vt — Vg), 0, 0.35)`,
+and at rest it asked for 0.20 — which on 900 N is 180 N, against `CRR*W` = 185 N
+of rolling resistance. **Dead break-even.** On 1800 N the same command had been
+360 N and the aeroplane simply went.
+
+A fraction of throttle is not a fixed amount of push, and what it has to beat is
+`CRR*W`, a property of the AEROPLANE. The bias is now the throttle that exactly
+cancels rolling resistance, derived per aeroplane from the registry
+(`CRR * m * g / (Tstatic * nEngines)`), with the same 0.27 of authority above
+break-even that 0.35 used to mean. Nothing is tuned here: both terms were already
+in the registry. TAXI is only reached on a short-strip departure, so XCTY5 is the
+only gate that exercises it.
+
+### Two instruments lied, and re-tuning against either would have done damage
+
+Both GATE GEN failures were the gate, not the aeroplane — the project's oldest
+lesson, arriving twice in one session.
+
+- **`cruise is quiet in wind`** read bank p2p 13.07 deg against a 3.0 limit while
+  the ailerons barely moved (0.55 deg/s against a 2.0 limit): "blown about while
+  the autopilot does nothing", which reads exactly like an authority problem at
+  the new trim state. It is not. The probe measures a flat 24 s, and that window
+  sat inside the cruise leg only because the over-powered aeroplane reached the
+  top of the climb early — CRUISE at x=-683 with 1618 m to the turn (~50 s). On
+  honest thrust it enters CRUISE at x=-1616 with 685 m to run (~24 s), so the
+  tail of the window catches the 180 deg TURNBACK. The trace is unambiguous: bank
+  within **±0.33 deg** for the 21 s that are actually cruise, then the roll-in,
+  with heading error going to 170 deg. The window now stops at the phase boundary,
+  and a sample shorter than 10 s fails rather than passing on nothing.
+- **`every configuration stands, is rigid and flies a leg`** dropped
+  `low+trike+cargo` (538 kg on 907 N). It flies the leg and lands at sink 1.34
+  against its 2.0 bound — it just needs 382 s, against a 300 s budget sized when
+  it had twice the thrust. Budget 300 -> 480 s. Every other configuration still
+  stops well under 300 s, so nothing else pays for it.
+
+Worth stating plainly for anyone reading the notes written while this was in
+flight: the A/B showing "forcing `nEngines = 2` takes bank p2p from 17.27 to
+0.00" is fully explained by the window artefact — the doubled thrust moves the
+turn back out of the window — and is NOT evidence about `genGains`, VCruise or
+the AP schedule. Re-tuning those against this instrument would have broken loops
+that were behaving correctly.
+
+### The instrument that had to exist first
+
+`tools/make_perf.js`. The fleet table's Vs / Vmax / climb / takeoff-run figures
+were each measured by an ad-hoc probe in the session that produced them and then
+lived only in this document, which meant "re-read every anchor off the
+instrument's own output, never hand-edit it" was a rule the fleet rows could not
+actually obey. This chantier could not re-anchor them without one, so it built
+one — and validated it against the numbers already in the table before trusting
+it: cub Vs 53.9 against a recorded 54 and L/D 9.30 against 9.3; c172 46.3 kt
+against 46, 123.8 KTAS against 123, 907 fpm against 899; chinook 46.0 / 99.0 /
+9.78 against 46 / 99 / 9.8. It reproduces the hand-measured table, so its
+readings on the three aircraft that moved can be believed.
+
+It reads its thrust multiplier off the SOLVER (static thrust divided by the
+prop's own Tstatic) rather than from `params`, on purpose: an instrument built to
+compare a build that multiplies by the engine count against one that multiplied
+by the mount count would otherwise have measured its own opinion of that number
+instead of the aeroplane.
+
+### Gate
+
+`node tools/run_gates.js --all`: **BATTERY: PASS**, 31 gates, 1677 s, exit 0.
+The baseline battery on the unmodified tree was taken first and was also
+green (34 gate lines, 1521 s), so the two are comparable rather than one
+being an alibi. The fleet is the evidence that the change is
+inert where it should be: WIND (7 aircraft), M3, DRONE, DC3, JODEL, C172,
+CHINOOK, PA18, STRESS and all five XCTYs, plus the world, skin, codec, FLEX and
+LOAD batteries. GEN is **73/73** with its two instruments corrected, and its
+SHAKEDOWN moved in exactly ONE field — `TORun 129 -> 320`.
+Mass, area, wing loading, Vs, VCruise, L/D, alphaCruise, cg, np, static margin,
+deck angle, prop clearance, thrCruise and every prop figure are byte-identical
+across the fix.
+
+### Left open
+
+- The Cub's top speed against the ~140 km/h commonly cited (ledger line, already
+  open, marked RE-SOURCE).
+- The garage's air segment in the takeoff estimate is a measured ratio, not a
+  model. Integrating the climb-out properly needs the energy split between height
+  and speed, which varies 0.18-0.53 across the two aeroplanes measured.
+- `low+trike+cargo` at 538 kg on 65 hp is a legitimately marginal aeroplane
+  (thrCruise clamps at 0.95). It flies, and the garage now says so honestly
+  rather than flattering it. Whether the builder should be warned about it is a
+  design question, not a physics one.
+
+## G5 — THE CABIN, GLAZING AND THE STUDIO (2026-08-12)
+
+Merged the Claude Design session's two passes (a look pass, then a cabin/glazing
+pass) into the trunk, decoupled the editor from the simulation, and re-grouped
+the panel. The bundle — both handoff documents, the session's edited files, and
+the pristine pre-session copies — is committed at
+`futureDesigns/transfer-glazing/` **because `gen/orig/` is the only copy of the
+merge base that exists.** The session forked from an UNCOMMITTED working tree:
+63_gen_skin.js was 47.9 kB at `55866fb`, 55.9 kB in `gen/orig/`, 68.8 kB in the
+tree when the bundle arrived, and no git object matches the middle one. A
+three-way merge cannot be reproduced without those files.
+
+### WHAT THE HANDOFF DOCUMENTS GET WRONG
+
+They are careful documents and most of the work is very good — the topology-
+aligned cut in particular. But five statements in them disagree with their own
+shipped code, and following the prose would have broken working behaviour.
+Recorded here because the bundle is not the source of truth; this file is.
+
+1. **`cabin.wingBay` does not exist.** TRANSFER-GLAZING §2.1 documents it and §3
+   gives it a panel row. Zero occurrences in all four session files. The real
+   path is **`wings[].centre`**, enum **`solid|glass|open`** — not `skylight`.
+   The documented row would have bound to a dead path and silently done nothing.
+
+2. **Reach must be a FRACTION, not metres.** §2.2 exposes `cabin.canopy.x1` in
+   absolute metres. The prototype harness wraps it in a fraction and says why:
+   *absolute x could not survive a cabin-length change.* It cannot — stretch the
+   cabin and the window stays put while the cabin moves out from under it.
+   `cabin.canopy.reach` (0..1) is now the control, resolved to `x1` in
+   `resolveSpec` where the derived cabin length is known. Setting `x1` still
+   wins, so a build can pin the window. Measured: cabin 0.60 -> 2.40 m moves x1
+   1.57 -> 3.37 m, always 0.35 m aft of the cabin.
+
+3. **The sill is a RING INDEX, and §5 says the opposite.** §5 states as an
+   invariant that it is a height plane. The code deliberately went back to an
+   index at the user's request ("the plane-based cut makes it look ugly"). A
+   maintainer following §5 would revert approved work. An index also always
+   lands on ring vertices, which is what keeps the seam exact — and it is why
+   GEN_RADIAL sets how finely the sill can be placed.
+
+4. **Do NOT restore the propeller from `gen/orig/`.** §1 says to, and it was
+   right when written. `orig` predates the trunk's own propeller rebuild: `prop`
+   is now a top-level, PHYSICS-BEARING spec group (disc area drives static
+   thrust and propwash, blades weigh something at the front) whose `pitch` is a
+   string enum. The session's is per-engine `engines[0].prop` with a numeric
+   pitch — decoration. The propeller here is the TRUNK's.
+
+5. **The two docs give different `COVER` sets and both are wrong.** Neither
+   accounts for the trunk's `rubber`; the doc names `sunscr`, `seatpipe`,
+   `seatframe`, `pilot`, `pilotjoint` and the real groups are `ctop`, `spipe`,
+   `sframe`, `dumm`, `dumj`. So the list no longer lives in the viewer at all —
+   `63_gen_skin.js` returns `cover` in the payload and `applySkinVis` reads it.
+   A list maintained at a distance from the thing it describes drifted twice,
+   once per handoff; asking the generator cannot.
+
+   Moving it there immediately found a THIRD bug, older than either handoff:
+   `applySkinVis` hid only `skin` and `cowl`, so **Frame mode showed the painted
+   fabric ailerons, elevator and rudder floating at the trailing edges of a bare
+   truss** — the wing carries 68 real beams, so there was structure underneath
+   them the whole time. Control surfaces have been their own groups since G4.4
+   and nobody added them to the literal. They are appended to `cover` from
+   `moving` rather than listed, so the next surface added is covered by
+   construction. Measured in the probe: Frame mode went 2205 -> 1974 lit pixels,
+   which is the surfaces going away.
+
+### WHAT HOLDS (the question was "do these resist other parameters changing?")
+
+Mostly yes, and the important one holds by construction: **every glazing vertex
+is an affine blend of existing lattice nodes with weights summing to 1.**
+Measured across all 28 groups, worst |sum(w) - 1| = 7.45e-8, i.e. float32
+rounding. That is what keeps GATE GEN's skin/structure coherence green without
+the cut having to be checked. Anything that samples the shell independently of
+the body's rings reintroduces the gaps this pass removed.
+
+Also guarded: the canopy is skipped for `seating === 'drone'` and for a
+degenerate body (`F.length > 2`); `x0`/`wsAngle` are nullable-derived so they
+track the cabin; `kCut1 <= kCut0` is repaired; the window snaps to slice
+boundaries. Geometry is deterministic — two builds of the same spec are
+identical over all 94 401 position floats.
+
+**ONE CONTROL READS AS DEAD ON THE STOCK AEROPLANE, and it is not broken.**
+Measured, canopy peak height against `cabin.canopy.height`:
+
+| height | high wing | low wing |
+|---|---|---|
+| 0.00 | 0.6246 | 0.7999 |
+| 0.15 | 0.6356 | 0.8785 |
+| 0.45 | 0.6356 | 1.0660 |
+| 0.90 | 0.6356 | 1.2493 |
+
+The low wing tracks the slider all the way. The high wing saturates at 0.15,
+because the carry-through is in the envelope and lowers the lid — which is the
+documented behaviour and the ONE thing a high wing does differently. But
+GEN_DEFAULT is high-wing, so out of the box "Rise above deck" appears to do
+nothing past its first notch. Worth surfacing in the panel eventually (grey it,
+or show the wing as the binding constraint the way `gear.yBoundBy` already names
+what bound the leg) rather than leaving the player to conclude it is broken.
+
+`wsAngle` and `fuselage.windRun` are now ONE control: the angle drives the run
+in `resolveSpec`, so the body's step and the canopy's front bow cannot drift
+apart. Left null the angle is read back OUT of the run, so an untouched build is
+bit-identical — measured 49.09 deg against the 0.30/0.26 the fuselage shipped.
+
+### GEN_RADIAL 20 -> 40, AND WHAT IT COSTS
+
+Taken, because the sill is a ring index scaled by GEN_RADIAL/2: at 20 the slider
+reaches half as many sill positions and the opening's lower edge steps visibly.
+It also fixed a latent bug — the trunk's registration decal used HARD-CODED arc
+indices (3,7 / 13,17) that were the two sides at 20 segments and would have
+become the upper side and the BELLY at 40. The session's decal derives them as
+fractions of GEN_RADIAL, which is why its version was taken wholesale.
+
+Cost, stock covered build: **47.8k triangles** (54.1k including the hidden
+truss). The transfer document predicted ~28k; it is higher because GEN_RADIAL
+also drives the canopy's own resolution. Against a 186k-triangle C172 and a ~1M
+forest this is still nothing, but the distribution is worth knowing:
+
+| group | tris | what |
+|---|---|---|
+| cframe | 11 200 | the canopy FRAME — see below |
+| canopy | 9 408 | the shell |
+| spipe | 5 760 | seat welt piping |
+| skin | 3 922 | the whole fuselage covering |
+
+`cframe` and `spipe` are built as hundreds of individually CAPPED 10-sided
+tubes (`genTubeInto(..., 0.011, 10, ...)`) rather than as swept rails: ~311
+segments, ~36 triangles each, for what reads as two bars. That is the obvious
+efficiency target if the count ever matters, and it is a construction change,
+not a decimation pass. Left alone for now — it is the design session's geometry
+and it looks right.
+
+**THE SILL SLIDER IS ALSO THE COST SLIDER**, and nothing in the panel says so.
+Measured across the range (all-groups totals, stock otherwise):
+
+| build | tris | note |
+|---|---|---|
+| `sill` 0.10 | 43.6k | |
+| `sill` 0.30 (stock) | 54.1k | |
+| `sill` 0.85 | **83.1k** | canopy 26.7k + cframe 23.5k |
+| `facet: true` | 38.8k | CHEAPER — bars per section edge beat the rails |
+| `glazing: none` | 33.9k | seats, panel and occupant remain |
+| `pilot.show: false` | 48.9k | the dummy is ~5.2k |
+| `seating: drone` | 20.6k | no cabin at all |
+
+A deeper sill wraps the opening further down the section, so both the shell and
+its frame grow with it. Worth knowing before blaming GEN_RADIAL for a heavy
+build — and worth knowing that the faceted canopy is the cheap one, which is the
+opposite of what "more frame bars" suggests.
+
+**ROBUSTNESS, measured rather than asserted.** 74 builds: every seating layout
+(single / side2 / tandem2 / drone) x every glazing route (none / windshield /
+bubble / greenhouse) x high and low wing, plus BOTH STOPS of all 21 new canopy,
+panel and seat knobs with side lights forced on. All 74 built cleanly, no NaN
+vertex anywhere, and worst |sum(w) - 1| = 8.2e-8 across the lot. Triangle counts
+ranged 20.6k to 85.1k. That is the answer to "do these resist other parameters
+changing?" — they do.
+
+### THE STUDIO — the editor is not the simulation
+
+The garage already stopped the solver (G3.2). It still lived in the WORLD:
+terrain, sky, fog and weather paged every frame around an aeroplane parked on an
+apron. Now everything that IS the aeroplane lives in one `craft` group, and
+entering the garage reparents it into a `studio` scene — neutral background,
+three-light room, a shadow-catching floor placed under the wheels, and a PMREM
+environment baked from a small gradient dome (without one, every
+MeshStandardMaterial's metal reads black in there — the same trap the gear legs
+and spinner fell into against a dim sky). Same renderer, same canvas, same
+camera: switching reloads nothing. `WF.worldUpdate` is not called in the garage.
+
+Worth recording because it was the assumption going in: **the sim OBJECT was
+never the cost.** Measured, `makeSim` is 0.0 ms; `buildGen` is 9 ms and
+`genSkin` 37 ms. What the garage was paying for was the world and the stepping,
+not the physics object, so there is nothing to be gained by tearing `sim` out of
+the editor — the skin poses off its rest lattice and that is free.
+
+### THE PANEL — two levels
+
+Fifteen sections is past what one scroll holds, so `SECTIONS` is now grouped by
+subsystem: **Airframe / Power / Cabin / Gear / Finish**, with the existing
+sections as the inner level. `led` stays on the SECTION, where the ledger keys
+live; a group's badge is the sum of its sections'. `SECTIONS` is still derived
+flat, so `ITEMS`, the AUTO refresh and `report()` are untouched.
+
+A section may carry `when(spec)` and is hidden when it does not apply — Side
+windows only appear for a windscreen build, because with a full canopy the two
+openings meet. It hides the knob; it does not clamp the value, which is the
+house style. Any section named in no group is collected into "Other" rather than
+silently vanishing.
+
+New control type `t: 'chk'` (five booleans arrived with the glazing). Checkboxes
+re-read on refresh, and they must: `clampSpec` rewrites `glazing: 'greenhouse'`
+as a bubble with `facet` set.
+
+### GATE GEN's MIRROR CHECK, AND WHAT IT CAUGHT
+
+The merge failed GATE GEN at 73/74: `asymmetric skin groups: gearmetal(40)
+belt(64) buckle(32) dumm(1280) dumj(1040)`. Both causes are real and neither is
+a defect, but the diagnosis mattered and the fix is not "exempt the failures".
+
+`gearmetal(40)` was the PITOT, at z = -1.9: an aeroplane has one pitot mast, on
+one wing. Exempting `gearmetal` would have bought that at the price of no longer
+checking the struts, gear legs and boarding steps that share the group — so the
+mast is now its OWN group (`pitot`), and only that is exempt. The symmetric
+hardware stays checked.
+
+The occupant is genuinely not a mirror-symmetric object: the harness runs
+diagonally over one shoulder and the calibration roundel is on one side of the
+chest. Its limbs ARE posed symmetrically — `sd` signs every splay angle — but
+the capsules swept between the joints do not land on bit-identical mirrored
+vertices, so the check cannot say anything useful about the figure. Verified
+that this is a primitive-generation detail and not a posing bug by measuring the
+seat furniture built alongside it: `seat`, `spipe` and `sframe` mirror EXACTLY
+(0 asymmetric vertices each) and are deliberately left in the check.
+
+Exempt set is now `prop`, `pitot`, and the five occupant groups. Each entry
+carries its reason in `test_gen.js`; an exemption is a hole in the one check
+that catches a wing built upside down, so it should stay hard to add to.
+
+The UISMOKE stub gained `DirectionalLight.shadow`, `ShadowMaterial`,
+`SphereGeometry` and `BackSide` — the studio uses them. `PMREMGenerator` is
+deliberately left OUT of the stub so the guarded no-environment path is the one
+exercised headlessly.
+
+### THE PITOT
+
+Its root was a hardcoded 0.10 m below a front-spar NODE, and a spar node is
+inside the wing — how far depends on the aerofoil's thickness at that station.
+Measured, the root sat 0.9 to 5.5 cm INSIDE the skin depending on naca, chord
+and taper, which is the "not well connected" the user reported. It is now placed
+by `wingSectionAt` with a single lower-surface point from the same `genAfEval`
+the loft uses, so it lands ON the surface with correct node weights and flexes
+with the wing. Same rule as the glazing: put the part on the emitted surface
+rather than near it.
+
+### GEN_SPEC_V 3 -> 4
+
+The cabin gained its whole glazing surface, plus `fuselage.tailY`,
+`paint.regX`, `wings[].centre`. NOTHING READS the number — `genNormaliseSpec`
+defaults every missing field and an explicit null stays null and keeps being
+derived, so an older spec loads correctly without being told what it is. Bumped
+to be honest about the shape, not because a migration is needed. **Do not add a
+migration that only re-does what normalisation already does.**
+
+### ALSO
+
+`matFor` no longer renders a group WHITE when its named sheet is missing: it
+falls back to the material's own colour, and every textured material in the
+payload now carries one. A missing bake used to read as a modelling error.
+
+### STILL OPEN
+
+Carried from TRANSFER-GLAZING §7: strut and tube attachment fittings (never
+started), instruments on the panel face, interior trim, and rib tape count as a
+constant (13 per semispan) rather than the rib count 61_gen_frame.js already
+derives from 0.4 m spacing — one line, left alone because it moves the UV pitch
+of every existing build. The dummy has no hands or face on purpose.
+
+## G6 — THE HANGAR (2026-08-12)
+
+The design session sent a second bundle: a procedural hangar, and it is now the
+garage's default room. The studio stays as the other option — they answer
+different questions. The hangar gives the aeroplane a floor, a scale to be
+judged against and light with a direction; the studio is a neutral field with
+nothing in it, which is what you want when the question is about the SHAPE and
+the room is in the way. Source preserved at
+`futureDesigns/transfer-glazing/hangar.html`; the port is `src/viewer/hangar.js`.
+
+The room: 26 m deep by 36 m wide, 8.4 m to the eaves, 11.6 m to the ridge, with
+a 31 m door — a DC-3's 28.96 m span with a metre either side. Everything is
+built from primitives and canvas-baked sheets (no external art, no network) off
+a seeded PRNG, so it is the same shed every time. 1107 meshes, 26 440
+triangles, 223 ms to build.
+
+### IT IS BUILT IN THE AEROPLANE'S OWN FRAME
+
+Worth knowing before touching either: the hangar's axes ARE the model's. x is
+depth with the door at -x, z is span, the floor is y = 0 — and the model frame
+is x aft, z spanwise. So the room needs no alignment maths at all, PROVIDED the
+aeroplane is at the origin.
+
+Which is why `enterGarage` no longer calls `placeAtAerodrome`. That apron
+placement was the last thread tying the editor to the world — G5 stopped
+rendering the world, and this stops standing in it. Rolling out re-places from
+scratch (`fullReset` -> `applyRoute`), so nothing downstream depended on it.
+Only the room's y is set, to the contact plane `standOnWheels` levelled on.
+
+### THE PORT, AND THE ONE THAT COST AN HOUR
+
+Four r128 differences, all marked at their sites. Three are small: colour space
+is an `encoding`, `MeshPhysicalMaterial.thickness` is r132+, and there is no
+`scene.environmentIntensity` (the moods scale each material's own
+`envMapIntensity`, captured once — scaling a scaled value compounds).
+
+The fourth is the whole ball game. **Lights are physically correct by default in
+0.184 and legacy by default in r128.** The room's shop lamps are
+`PointLight(colour, 90, 26, 2)` — 90 candela with inverse-square falloff, which
+under the legacy model is not a lamp but a small sun. The first render came out
+**255,255,255 in every pixel**, and it read as a missing scene rather than as an
+exposure fault; what proved it was drawing was the draw-call counter sitting at
+1509. r128 has `renderer.physicallyCorrectLights`, so the room turns it on for
+itself and hands it back on the way out — the world and the two mesh aircraft
+are calibrated under the legacy model and must not inherit it. The environment
+bake is wrapped in the same switch, or the room reflects a different sun than
+the one lighting the aeroplane in it.
+
+After the fix, luma histogram across the frame: 0.7 / 12.8 / 63.8 / 20.4 / 2.3 %
+from black to white. A room, not a whiteout.
+
+NOT copied: the session's `PCFShadowMap`, which is an r184 deprecation
+workaround. Soft PCF is fine in r128 and the viewer's own shadow settings are
+better, so they are left alone.
+
+### THE ROOM LIGHTS ITSELF
+
+A cube camera on the floor sees the glazing, the roof lights and the open door,
+and a PMREM of that is what every glossy thing reflects — the aeroplane above
+all, since it is the glossiest thing in there. The dust shafts are hidden for
+the bake (they are cards, not geometry to reflect) and the cards are turned to
+face the camera each frame.
+
+Four moods — AFTERNOON, OVERCAST, GOLDEN, NIGHT — each carrying key intensity
+and colour, hemi, lamp power, exposure, fog colour and environment level.
+
+### COST, AND THE ONE NUMBER THAT IS WRONG
+
+| room | draw calls | tris/frame | ms/frame |
+|---|---|---|---|
+| hangar | 1509 | 85 210 | 3.5 |
+| studio | 33 | 51 758 | 1.1 |
+
+3.5 ms is not a problem here, but **1509 draw calls for 26 440 triangles is**:
+that is 1107 separate meshes averaging 24 triangles each, plus the shadow pass.
+Every workshop prop is its own mesh with its own material. The geometry is
+explicitly static (`G` is "everything static"), so merging by material would
+take it to roughly the number of materials — about fifteen draws instead of
+fifteen hundred. It is a construction change, not a decimation, and it is the
+obvious next move if the garage ever feels heavy on a weaker machine. Left
+alone for now: it is the design session's geometry and it is fast enough here.
+
+### THE SWITCH
+
+`bEnv` (Hangar/Studio) and `bMood` cycle, both garage-only and both hidden
+outside it; the mood button additionally hides in the studio, which has one
+light and no weather — offering "Golden hour" for a white void would be a lie.
+The choice is a VIEWER preference in localStorage, deliberately NOT in the spec,
+so it never lands in a saved build or a shared design.
+
+The room is built ON DEMAND and once: a session that never opens the garage does
+not pay 223 ms for a shed. `genHangarSupported(THREE)` is ASKED rather than
+assumed — the headless smoke gate stubs THREE with what the viewer needed before
+this file existed, so a missing constructor degrades to the studio instead of
+throwing on boot. That is the path GATE UISMOKE actually exercises.
+
+## PLAYTEST BACKLOG (the numbered list, kept HERE from G4.6 on)
+The user's playtest items were tracked in a session table and nowhere in the
+repo, which meant re-deriving them every session. Numbering is theirs and does
+not renumber. 22 raised, 18 done.
+
+| # | Item | What it needs | Where |
+|---|---|---|---|
+| 2 | Structure has no visual feedback | Per-material appearance: fabric weave, ply grain, alloy panel lines + rivets, carbon weave. Four materials look identical. G5 brought the bump/metal-rough sheets, so the machinery is there — what is missing is a set PER MATERIAL | waits on UV work |
+| 19 | Role-play details | Pitot DONE (G5, and its attachment fixed). Radio antenna/mast and garage-only ribbons/covers remain | free-standing |
+| 21 | T-tail | Stabiliser on top of the fin — the fin carries it, so it is FRAME work, not a skin option | tail chantier |
+
+Groupings that hold: **2** still waits on material appearance (14 is done: G5 built the glazing routes as real geometry, not the material/transparency band this line assumed). **21 is now
+alone** — its partner 22 is done, so a T-tail chantier is free-standing frame
+work. (11+12+4+18 were the undercarriage chantier, G4.6; 20+15+13+6 the nose,
+G4.7; 22 the tail join, G4.8.)
+
+Done: 1, 3, 5, 7, 8, 9, 10, 16, 17 (G1.7-G3.6, G4.1-G4.5), 4, 11, 12, 18
+(G4.6), 6, 13, 15, 20 (G4.7), 22 (G4.8) and 14 (G5). Plus the two extras the user asked for since — wireframe view and UV
+projection view (G4.5) — both now visually verified along with the decal.
+
 ## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
 | Birdman Chinook 1S | 230 kg | 48 | glide 9.8:1 @15.6 (book 10:1 @35 mph); Vs 46 km/h; Vmax 99 km/h; TO 89 m / ldg 114 m w/ flaperons (book ~90 m). **RE-ANCHORED 2026-08-10 with the wing bracing** (was TO 92 / ldg ~59): tip 0.22 %/g, torsion 0.68°, td x=-515 sink 0.77, rolloutPitchMin -5.1, ap.vsFloor -0.15, gate maxS 330. Glide/Vs/Vmax are rigid-tunnel numbers and did NOT move — genShakedown reads the undeformed geometry. See STRUCTURAL REALISM. |
-| Piper J-3 Cub | 377 kg | 24 | Vs 54 km/h; L/D 9.3; top ~121 km/h |
-| Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr 0.12, VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); short-field VApprShort 18.5 + VPinFull 16: lands 340 m benches into wind (XCTY4); carries the 3D skin |
+| Piper J-3 Cub | 377 kg | 24 | Vs 53.9 km/h; L/D 9.30; top 119.3 km/h; **best climb 433 fpm; TO run 151 m** — RE-ANCHORED G4.9 (engine-count fix, thrust 1800 -> 900 N). Vs/L/D did not move (thrust-free); the top speed the table already carried was the UNDOUBLED figure, so the aeroplane now matches its own anchor (it was flying 149.8). Climb was 1381 fpm, ~3x a real J-3's 450. TORun 60 -> 151 |
+| Piper PA-18 Super Cub | 377 kg | 24 | = J-3 geometry + slotted flaps: Vs ratio flapped/clean 0.900 (POH 43/48 mph), dCLmax 0.40, flap drag ×2.1; AP flies flapped approaches (flareThr **0.24** — G4.9: it is a THROTTLE fraction and the engine-count fix halved what one buys, so the flare keeps the THRUST it was tuned with, 0.12*1800 == 0.24*900; sink 0.95 against 0.78 before, bound 1.5. VAppr 20.5, brakes 0.18, VTailDown 99 — throttle-cut flares sank 2.0 m/s, and the tail-up rollout hold nosed it over under flap lift + dCm0 in crosswind: pin the tail from touchdown); short-field VApprShort 18.5 + VPinFull 16: lands 340 m benches into wind (XCTY4); carries the 3D skin; **TO run 151 m** (was 67), same re-anchor as the Cub |
 | Jodel DR-1050 Speedjojo | 611 kg | 48 | Vmax 136.1 kt (record 137.5, Dec 2024); Vs 82 km/h; 1247 fpm @150 km/h |
 | Cessna 172S | 998 kg | 48 | Vs 46 kt; Vmax 123 KTAS (POH 126); 899 fpm @Vy (POH-scaled ~880); margin 20% (authentic) |
 | Douglas DC-3 | 10.9 t | 72 | Vs 32.8 clean / 29.5 flapped (book 34.5 / ~29-30); NP margin 13%; unstick 46 m/s ~945 m w/ TO flaps 1/4; wheel landing 146 km/h @0.56 sink, flaps 0.7 on gs 0.060 |
-| ⚒ Garage build (`gen`) | 393 kg | 24 | GENERATED, not a fiche — numbers move with the spec. Preset anchors: Vs 59 km/h, VCruise 100 km/h, L/D 7.95, static margin 20%, deck 10.2 deg, TO run est. 119 m. Re-anchor from GATE GEN's own SHAKEDOWN line, never by hand |
+| ⚒ Garage build (`gen`) | 402 kg | 45 | GENERATED, not a fiche — numbers move with the spec. Preset anchors, read off GATE GEN's SHAKEDOWN line 2026-08-11: S 15.6 m2, w/l 25.9 kg/m2, Vs 16.8 m/s (60.5 km/h), VCruise 28.7 m/s, L/D 7.86, aCruise 4.48 deg, static margin 20.4%, deck 10.2 deg, propClear 0.40 m, thrCruise 0.73, **TO run est. 320 m** (flown 292). G4.9 moved ONLY the takeoff estimate — every other field above is byte-identical across the engine-count fix. Re-anchor from GATE GEN's own SHAKEDOWN line, never by hand |
 
 Notable fiche quirks: Chinook is a PUSHER (wing wash=0, tail wash 0.6, thrust
 line above CG = power pitches DOWN). C172 prop refit to cruise-pitch reality
@@ -2679,6 +4260,41 @@ new references where marked TBD. "Session" = roadmap entry that addresses it.
 | Drone | Vs | 6.4 m/s | design 6.5-7 (ok) | — |
 
 ## HONEST CUTS
+**`refs.engine` was overloaded — FOUND G4.7, FIXED and RE-ANCHORED G4.9
+(2026-08-11).** Kept here because the shape of the bug is worth keeping: the
+solver did `T = Tper * refs.engine.length`, and that length is TWO ENGINES on the
+DC-3 but the two MOUNT NODES of one engine on the Cub, the PA-18 and every
+generated aeroplane — so those single-engine aircraft pulled twice their registry
+static thrust (the Cub flew on 1800 N against a registry 900). One field was
+being asked two different questions, and the wrong answer stayed invisible for as
+long as every reader agreed on it. `params.nEngines` now says how many engines
+there are, `refs.engine` still says where the force is applied, every fiche
+states its count, and the garage reads `spec.engines.length`.
+
+The re-anchoring is DONE and is written up in full in G4.9 — what moved, what
+did not, and why re-fitting the registry instead was rejected on the propeller
+figure of merit. The fleet's numbers moved TOWARD reality, not away from it.
+
+Two corrections to what was written here while the work was in flight:
+- The garage's TORun estimate is NOT unchanged. It was computing off the
+  per-disc figure while the solver flew on twice it, so the two errors cancelled;
+  with the thrust honest the old formula read 119 m against 292 m flown. It is
+  now integrated rather than averaged (G4.9) and reads 320 m. `thrCruise` really
+  is unchanged, at 0.73 — and is now correct rather than double.
+- The two red GATE GEN checks were NOT a call to re-tune `genGains`, VCruise or
+  the AP schedule, and doing that would have broken loops that were behaving.
+  `cruise is quiet in wind` was an INSTRUMENT fault: its 24 s window sat inside
+  the cruise leg only because the over-powered aeroplane reached the top of the
+  climb early, and on honest thrust the last seconds of the window caught the
+  180 deg TURNBACK. Traced: bank stays within +-0.33 deg for the 21 s that are
+  actually cruise, then the roll-in. The `nEngines = 2` A/B that read
+  "17.27 deg to 0.00" is explained by exactly this — the doubled thrust moves the
+  turn back out of the window — and is not evidence about the gains. The window
+  now stops at the phase boundary. `flies a leg` was a BUDGET fault of the same
+  kind: the heaviest configuration climbs at a realistic rate now and needs 382 s
+  to fly the circuit, against a 300 s budget sized when it had twice the thrust;
+  it lands inside every touchdown bound it always had.
+
 Analytic polars (no Re), global-AR induced drag per strip, no wind,
 no P-factor/swirl/slipstream-over-wing for tractors, no windmilling-prop drag
 (Chinook glide slightly optimistic for exactly this reason), fuel/battery mass

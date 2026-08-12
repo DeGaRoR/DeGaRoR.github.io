@@ -27,7 +27,18 @@
 // dimensions that nothing could command.
 // Both genes migrate in at 0 and `targetAngles` guards on `turnBias2 !== 0`, so
 // every stored creature is bit-identical, not merely equivalent.
-export const GENOME_V = 7;
+// 7 -> 8 (2026-08-11). `brakeGain` — Phase 4.3's SECOND OUTPUT, `effort`, which
+// the plan asked for and which nothing outside the forage kinesis had ever
+// modulated. `effort = max(BRAKE_FLOOR, 1 - brakeGain * |bearing|)`: throttle the
+// gait when badly aimed. Reads BEARING and not distance, because no creature in
+// this project has a range sense and braking on distance would hand it one — and
+// because the distance term was measured to add nothing and cost most of the harm.
+// Migrates in at 0, `sensorEffort` returns exactly 1 there, so every stored
+// creature is bit-identical.
+// A GENE RATHER THAN A CONSTANT because the corpus wants opposite values: a
+// creature that passes its target and leaves improves 3.56 -> 1.49 cm with it,
+// one still converging at 75% of the trial degrades 1.41 -> 2.02.
+export const GENOME_V = 8;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
 // BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to

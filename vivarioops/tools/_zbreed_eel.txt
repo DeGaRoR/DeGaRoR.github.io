@@ -1,0 +1,123 @@
+using deprecated parameters for the initialization function; pass a single object instead
+
+  THE BREEDING PROGRAMME · seed 7
+  3 lines x 12 x 20 generations   40 s trials   arm(s): both
+  objective: closedCm = mean(d_blind - d_live) over 3 directions, in cm
+  selection: cull to 50% on blind reach, then top third on closedCm
+  founders:  random draws only — NO AUTHORED STOCK
+
+  prospecting ......
+  founder mode SPINE: 1067/1200 draws had no run >= 4 on the axial face; 66 chains passed the cheap screen
+  trialling  ..................
+
+  drew 1200, 66 passed the cheap screen (6%), 18/18 trialled as subjects
+  opening task 4.50 cm; shortlist cruise p50 0.0859 cm/s, blind reach p50 3.29 cm
+
+  the founding shortlist, best first:
+    closedCm   0.765  reach   3.94 cm  v  0.0740  straight 0.79  planar 0.92  Macropodus longifibrissimus
+    closedCm   0.540  reach   1.30 cm  v  0.0573  straight 0.98  planar 1.00  Sclereurythetia longicorpissima
+    closedCm   0.284  reach   0.50 cm  v  0.0547  straight 0.27  planar 0.95  Phyllisarthrus denticaudissimus
+    closedCm   0.197  reach   5.79 cm  v  0.3728  straight 0.42  planar 0.79  Streptomacrarthrus longifrontissimus
+    closedCm   0.158  reach   4.50 cm  v  0.2548  straight 0.36  planar 0.33  Sclerisohydra longarticissima
+    closedCm   0.040  reach   1.93 cm  v  0.0856  straight 0.99  planar 0.98  Schizisohydra dentarticissima
+    closedCm   0.010  reach  10.24 cm  v  0.1672  straight 0.93  planar 0.93  Streptorthohydra longicorpissima
+    closedCm   0.001  reach   3.48 cm  v  0.0615  straight 0.71  planar 0.87  Oligosphalmatops longiventissimis
+    closedCm   0.000  reach   9.44 cm  v  0.1126  straight 0.95  planar 0.98  Sclerisohydra longicorpissima
+  gen  0 score task 4.50 cm  L0:  0.765/ 0.659 cm reach   3.9 fam 12 run  4 spn 12 lag 0.09  L1:  0.601/ 0.540 cm reach   1.3 fam 12 run  7 spn 12 lag 0.20  L2:  0.404/ 0.284 cm reach   0.9 fam 11 run  4 spn 11 lag 0.20  [195s]
+  gen  0 null  task 4.50 cm  L0:  0.765/ 0.659 cm reach   3.9 fam 12 run  4 spn 12 lag 0.09  L1:  0.601/ 0.540 cm reach   1.3 fam 12 run  7 spn 12 lag 0.20  L2:  0.404/ 0.284 cm reach   0.9 fam 11 run  4 spn 11 lag 0.20  [195s]
+  gen  1 score task 4.50 cm  L0:  0.765/ 0.254 cm reach   3.9 fam  6 run  7 spn 11 lag 0.26  L1:  0.559/ 0.540 cm reach   1.3 fam  6 run  7 spn 10 lag 0.28  L2:  0.404/ 0.284 cm reach   0.9 fam  6 run  4 spn  9 lag 0.20  [326s]
+  gen  1 null  task 4.50 cm  L0:  0.765/ 0.254 cm reach   3.9 fam  6 run  4 spn 10 lag 0.21  L1:  0.559/ 0.215 cm reach   1.3 fam  6 run  7 spn  9 lag 0.28  L2:  0.441/ 0.284 cm reach   1.3 fam  6 run  4 spn 10 lag 0.20  [326s]
+  gen  2 score task 4.50 cm  L0:  0.589/ 0.254 cm reach   5.9 fam  5 run  4 spn 10 lag 0.15  L1:  0.559/ 0.559 cm reach   1.3 fam  4 run  7 spn  9 lag 0.20  L2:  0.404/ 0.328 cm reach   0.9 fam  5 run  4 spn  6 lag 0.20  [434s]
+  gen  2 null  task 4.50 cm  L0:  0.765/ 0.386 cm reach   3.9 fam  5 run  4 spn 10 lag 0.17  L1:  0.559/-0.002 cm reach   1.3 fam  6 run  7 spn  6 lag 0.20  L2:  0.512/ 0.284 cm reach   2.5 fam  6 run  4 spn  8 lag 0.20  [434s]
+  gen  3 score task 4.50 cm  L0:  0.589/ 0.254 cm reach   5.9 fam  4 run  4 spn 10 lag 0.30  L1:  0.559/ 0.559 cm reach   1.3 fam  4 run  6 spn 10 lag 0.20  L2:  0.404/ 0.052 cm reach   0.9 fam  5 run  6 spn  6 lag 0.22  [553s]
+  gen  3 null  task 4.50 cm  L0:  0.724/ 0.386 cm reach   1.7 fam  5 run  4 spn  9 lag 0.17  L1:  0.559/ 0.005 cm reach   1.3 fam  5 run  7 spn  6 lag 0.22  L2:  0.705/-0.015 cm reach   1.6 fam  5 run  4 spn  7 lag 0.20  [553s]
+  gen  4 score task 4.50 cm  L0:  0.254/ 0.187 cm reach   7.6 fam  4 run  4 spn 10 lag 0.09  L1:  0.680/ 0.559 cm reach   1.2 fam  4 run  6 spn 10 lag 0.20  L2:  0.506/ 0.000 cm reach   2.5 fam  5 run  6 spn  3 lag 0.22  [648s]
+  gen  4 null  task 4.50 cm  L0:  0.803/ 0.239 cm reach   8.1 fam  4 run  4 spn 10 lag 0.17  L1:  0.559/ 0.009 cm reach   1.3 fam  5 run  7 spn  9 lag 0.22  L2:  0.378/ 0.000 cm reach   0.0 fam  5 run  4 spn  6 lag 0.20  [648s]
+      score L0: STALLED — outcross on excursion to founding stock (0.010 cm, reach 10.2)
+      null L0: STALLED — outcross on closedCm to founding stock (0.765 cm, reach 3.9)
+      null L1: STALLED — outcross on excursion to line 0 gen 4 (0.803 cm, reach 8.1)
+      null L2: STALLED — outcross on excursion to founding stock (0.010 cm, reach 10.2)
+  gen  5 score task 4.50 cm  L0:  0.589/ 0.154 cm reach   5.9 fam  4 run  4 spn 10 lag 0.23  L1:  0.559/ 0.559 cm reach   1.3 fam  4 run  6 spn 10 lag 0.20  L2:  0.506/ 0.000 cm reach   2.5 fam  5 run  6 spn  5 lag 0.22  [761s]
+  gen  5 null  task 4.50 cm  L0:  0.595/ 0.137 cm reach   4.8 fam  4 run  4 spn  8 lag 0.09  L1:  0.559/ 0.096 cm reach   1.3 fam  5 run  7 spn 10 lag 0.22  L2:  0.191/ 0.012 cm reach   0.6 fam  4 run  4 spn  7 lag 0.29  [761s]
+  gen  6 score task 4.50 cm  L0:  0.223/ 0.223 cm reach  10.6 fam  3 run  5 spn 11 lag 0.23  L1:  0.559/ 0.559 cm reach   1.3 fam  4 run  6 spn 10 lag 0.29  L2:  0.506/-0.004 cm reach   2.5 fam  5 run  5 spn  3 lag 0.26  [893s]
+  gen  6 null  task 4.50 cm  L0:  0.765/ 0.072 cm reach   3.9 fam  4 run  4 spn  9 lag 0.09  L1:  0.803/ 0.009 cm reach   8.1 fam  5 run  7 spn  9 lag 0.20  L2:  0.157/ 0.040 cm reach   2.7 fam  4 run  5 spn  9 lag 0.29  [893s]
+      score L1: STALLED — outcross on excursion to founding stock (0.010 cm, reach 10.2)
+      score L2: STALLED — outcross on excursion to founding stock (0.010 cm, reach 10.2)
+  gen  7 score task 4.50 cm  L0:  0.223/ 0.154 cm reach  10.6 fam  4 run  5 spn 11 lag 0.23  L1:  0.559/ 0.101 cm reach   1.3 fam  4 run  6 spn 11 lag 0.20  L2:  0.506/ 0.322 cm reach   2.5 fam  5 run  4 spn  2 lag 0.00  [1011s]
+  gen  7 null  task 4.50 cm  L0:  0.765/ 0.004 cm reach   3.9 fam  5 run  4 spn  6 lag 0.23  L1:  0.803/ 0.003 cm reach   8.1 fam  6 run  7 spn  8 lag 0.23  L2:  1.163/ 0.012 cm reach   2.6 fam  5 run  5 spn  7 lag 0.23  [1011s]
+  gen  8 score task 4.50 cm  L0:  0.280/ 0.223 cm reach   8.1 fam  3 run  4 spn 10 lag 0.18  L1:  0.559/-0.032 cm reach   1.3 fam  5 run  7 spn  8 lag 0.23  L2:  0.552/ 0.306 cm reach   1.1 fam  5 run  5 spn  4 lag 0.23  [1133s]
+  gen  8 null  task 4.50 cm  L0:  0.765/ 0.002 cm reach   3.9 fam  5 run  4 spn  5 lag 0.23  L1:  0.611/ 0.000 cm reach   0.7 fam  5 run  7 spn  6 lag 0.22  L2:  0.510/ 0.020 cm reach   0.7 fam  6 run  7 spn  3 lag 0.27  [1133s]
+  gen  9 score task 4.50 cm  L0:  0.343/ 0.223 cm reach  13.4 fam  3 run  4 spn 10 lag 0.21  L1:  0.719/ 0.022 cm reach   1.8 fam  5 run  7 spn 10 lag 0.28  L2:  0.826/ 0.344 cm reach   3.1 fam  5 run  5 spn  3 lag 0.23  [1246s]
+  gen  9 null  task 4.50 cm  L0:  0.706/ 0.008 cm reach   3.9 fam  5 run  4 spn  4 lag 0.23  L1:  0.502/ 0.162 cm reach   1.3 fam  5 run  7 spn  5 lag 0.20  L2:  0.826/ 0.040 cm reach   3.1 fam  5 run  4 spn  2 lag 0.27  [1246s]
+      score L0: STALLED — outcross on excursion to founding stock (0.197 cm, reach 5.8)
+      null L0: STALLED — outcross on closedCm to line 2 gen 7 (1.163 cm, reach 2.6)
+      null L1: STALLED — outcross on closedCm to line 2 gen 7 (1.163 cm, reach 2.6)
+      null L2: STALLED — outcross on excursion to line 0 gen 4 (0.803 cm, reach 8.1)
+  gen 10 score task 4.50 cm  L0:  0.343/ 0.223 cm reach  13.4 fam  3 run  4 spn 10 lag 0.17  L1:  0.118/ 0.022 cm reach   0.8 fam  5 run  7 spn  7 lag 0.31  L2:  0.344/ 0.027 cm reach   3.5 fam  5 run  5 spn  2 lag 0.23  [1369s]
+  gen 10 null  task 4.50 cm  L0:  0.174/ 0.007 cm reach   3.3 fam  5 run  4 spn  5 lag 0.30  L1:  0.441/ 0.118 cm reach   1.3 fam  5 run  7 spn  5 lag 0.28  L2:  0.826/ 0.057 cm reach   3.1 fam  5 run  4 spn  1 lag 0.20  [1369s]
+  gen 11 score task 4.50 cm  L0:  0.343/ 0.241 cm reach  13.4 fam  3 run  6 spn 12 lag 0.30  L1:  0.103/ 0.022 cm reach   2.5 fam  4 run  5 spn  4 lag 0.23  L2:  0.517/ 0.126 cm reach   2.3 fam  5 run  5 spn  2 lag 0.23  [1516s]
+  gen 11 null  task 4.50 cm  L0:  1.163/-0.056 cm reach   2.6 fam  5 run  4 spn  7 lag 0.23  L1:  1.163/ 0.010 cm reach   2.6 fam  5 run  7 spn  5 lag 0.20  L2:  0.803/ 0.067 cm reach   8.1 fam  4 run  4 spn  1 lag 0.15  [1516s]
+      score L1: STALLED — outcross on excursion to founding stock (0.197 cm, reach 5.8)
+  gen 12 score task 4.50 cm  L0:  0.479/ 0.343 cm reach  13.4 fam  4 run  6 spn 10 lag 0.22  L1:  0.401/ 0.011 cm reach   1.6 fam  4 run  6 spn  4 lag 0.29  L2:  0.463/ 0.130 cm reach   4.1 fam  4 run  1 spn  0 lag 0.27  [1659s]
+  gen 12 null  task 4.50 cm  L0:  1.163/-0.072 cm reach   2.6 fam  5 run  4 spn  8 lag 0.23  L1:  1.163/ 0.126 cm reach   2.6 fam  6 run  7 spn  5 lag 0.23  L2:  0.803/ 0.067 cm reach   8.1 fam  5 run  4 spn  3 lag 0.24  [1659s]
+  gen 13 score task 4.50 cm  L0:  0.343/ 0.343 cm reach  13.4 fam  3 run  4 spn 10 lag 0.09  L1:  0.229/ 0.022 cm reach   6.6 fam  5 run  6 spn  5 lag 0.29  L2:  0.463/ 0.222 cm reach   4.1 fam  4 run  3 spn  0 lag 0.23  [1780s]
+  gen 13 null  task 4.50 cm  L0:  0.312/-0.129 cm reach   1.4 fam  5 run  4 spn  7 lag 0.23  L1:  0.798/ 0.014 cm reach   1.3 fam  5 run  7 spn  5 lag 0.23  L2:  0.318/ 0.000 cm reach   4.2 fam  6 run  4 spn  4 lag 0.24  [1780s]
+      score L2: STALLED — outcross on excursion to founding stock (0.197 cm, reach 5.8)
+  gen 14 score task 4.50 cm  L0:  0.859/ 0.343 cm reach   0.3 fam  3 run  4 spn 10 lag 0.24  L1:  0.603/ 0.184 cm reach  12.1 fam  5 run  6 spn  8 lag 0.23  L2:  0.310/ 0.222 cm reach   5.4 fam  4 run  3 spn  0 lag 0.29  [1905s]
+  gen 14 null  task 4.50 cm  L0:  0.292/-0.129 cm reach   1.9 fam  5 run  4 spn  5 lag 0.25  L1:  0.380/ 0.069 cm reach   1.3 fam  5 run  7 spn  6 lag 0.20  L2:  1.889/-0.029 cm reach   4.2 fam  6 run  4 spn  3 lag 0.29  [1905s]
+      score L0: STALLED — outcross on excursion to founding stock (0.158 cm, reach 4.5)
+      null L0: STALLED — outcross on excursion to line 1 gen 6 (0.803 cm, reach 8.1)
+      null L1: STALLED — outcross on excursion to founding stock (0.197 cm, reach 5.8)
+      null L2: STALLED — outcross on excursion to founding stock (0.197 cm, reach 5.8)
+  gen 15 score task 4.50 cm  L0:  0.375/ 0.343 cm reach  13.4 fam  3 run  4 spn 10 lag 0.23  L1:  0.603/ 0.184 cm reach  12.1 fam  4 run  5 spn  8 lag 0.23  L2:  0.307/ 0.222 cm reach   5.7 fam  4 run  6 spn  2 lag 0.24  [2022s]
+  gen 15 null  task 4.50 cm  L0:  0.906/ 0.055 cm reach   1.6 fam  5 run  4 spn  2 lag 0.23  L1:  0.280/ 0.234 cm reach   2.3 fam  5 run  7 spn  5 lag 0.20  L2:  0.633/-0.001 cm reach   0.2 fam  5 run  4 spn  5 lag 0.24  [2022s]
+  gen 16 score task 4.50 cm  L0:  0.438/ 0.360 cm reach  14.4 fam  3 run  6 spn 11 lag 0.26  L1:  0.603/ 0.229 cm reach  12.1 fam  4 run  5 spn  6 lag 0.23  L2:  0.636/ 0.222 cm reach   0.3 fam  5 run  6 spn  2 lag 0.23  [2149s]
+  gen 16 null  task 4.50 cm  L0:  0.906/ 0.042 cm reach   1.6 fam  5 run  4 spn  4 lag 0.23  L1:  0.234/ 0.040 cm reach   1.3 fam  5 run  7 spn  3 lag 0.20  L2:  1.210/ 0.003 cm reach   4.8 fam  4 run  6 spn  6 lag 0.18  [2149s]
+      score L1: STALLED — outcross on excursion to founding stock (0.158 cm, reach 4.5)
+  gen 17 score task 4.50 cm  L0:  0.998/ 0.158 cm reach   0.9 fam  4 run  7 spn 10 lag 0.26  L1:  0.603/ 0.379 cm reach  12.1 fam  3 run  5 spn 10 lag 0.23  L2:  0.540/ 0.222 cm reach   8.9 fam  3 run  3 spn  0 lag 0.23  [2295s]
+  gen 17 null  task 4.50 cm  L0:  0.992/ 0.013 cm reach   9.0 fam  5 run  6 spn  2 lag 0.21  L1:  0.849/ 0.016 cm reach   3.3 fam  6 run  7 spn  6 lag 0.20  L2:  0.372/ 0.197 cm reach   4.9 fam  5 run  6 spn  8 lag 0.29  [2295s]
+  gen 18 score task 4.50 cm  L0:  0.438/ 0.375 cm reach  14.4 fam  3 run  4 spn  9 lag 0.17  L1:  0.809/ 0.603 cm reach  12.3 fam  3 run  6 spn 11 lag 0.26  L2:  0.459/ 0.222 cm reach   0.8 fam  3 run  3 spn  0 lag 0.25  [2431s]
+  gen 18 null  task 4.50 cm  L0:  0.633/-0.000 cm reach   1.6 fam  4 run  1 spn  0 lag 0.06  L1:  0.849/ 0.197 cm reach   3.3 fam  5 run  6 spn  6 lag 0.21  L2:  0.875/ 0.197 cm reach   1.3 fam  5 run  6 spn  8 lag 0.29  [2431s]
+      score L2: STALLED — outcross on excursion to line 1 gen 18 (0.809 cm, reach 12.3)
+  gen 19 score task 4.50 cm  L0:  0.635/ 0.375 cm reach   0.2 fam  3 run  4 spn 10 lag 0.12  L1:  0.809/ 0.603 cm reach  12.3 fam  4 run  6 spn 11 lag 0.29  L2:  0.222/ 0.222 cm reach  19.3 fam  3 run  3 spn  0 lag 0.27  [2568s]
+  gen 19 null  task 4.50 cm  L0:  0.383/ 0.155 cm reach   2.5 fam  4 run  5 spn  1 lag 0.15  L1:  1.781/-0.016 cm reach  11.7 fam  5 run  6 spn  4 lag 0.21  L2:  0.785/ 0.002 cm reach   4.3 fam  5 run  4 spn  8 lag 0.29  [2568s]
+  gen 20 score task 4.50 cm  L0:  1.935/ 0.438 cm reach   1.1 fam  3 run  4 spn 10 lag 0.29  L1:  0.809/ 0.603 cm reach  12.3 fam  3 run  5 spn 10 lag 0.30  L2:  0.809/ 0.222 cm reach  12.3 fam  3 run  5 spn  1 lag 0.23  [2689s]
+  gen 20 null  task 4.50 cm  L0:  1.935/ 0.234 cm reach   1.1 fam  3 run  1 spn  0 lag 0.29  L1:  0.086/-0.009 cm reach   1.1 fam  4 run  5 spn  1 lag 0.22  L2:  0.965/ 0.066 cm reach   5.6 fam  4 run  4 spn  9 lag 0.28  [2689s]
+
+  ── RE-SCORED ON THE CANONICAL TRIAL ──
+  6 directions x 90 s at the tank's own 8 cm beacon.
+  The cheap 3-direction trial RANKS; it does not report.
+
+  score L0  closedCm   5.406  v 0.0587  arrive 0.67  dwell 0.244  inPlane 4.13 / out 7.82  ⚠ NEVER BRED  chain 1/lag 0.29   Orthothetia dentarticissima
+  score L1  closedCm   5.834  v 0.3291  arrive 0.17  dwell 0.120  inPlane 6.48 / out 5.41  9 births  chain 5/lag 0.23   Streptorthohydra longicorpissima
+  score L2  closedCm   2.859  v 0.1353  arrive 0.50  dwell 0.214  inPlane 5.31 / out -0.91  ⚠ NEVER BRED  chain 1/lag 0.00   Eurypodus dentarticatus
+  null  L0  closedCm   5.406  v 0.0587  arrive 0.67  dwell 0.244  inPlane 4.13 / out 7.82  ⚠ NEVER BRED  chain 1/lag 0.29   Orthothetia dentarticissima
+  null  L1  closedCm   4.426  v 0.4017  arrive 0.50  dwell 0.207  inPlane 7.10 / out 1.39  1 births  chain 6/lag 0.15   Streptomacrarthrus longifrontissimus
+  null  L2  closedCm   4.699  v 0.0872  arrive 0.00  dwell 0.079  inPlane 3.28 / out 5.67  ⚠ NEVER BRED  chain 3/lag 0.10   Schizisohydra dentarticissima
+
+  score ark: 5/30 animals were bred (deepest 9 births). The rest are founding draws and N17 strangers.
+
+  null ark: 9/32 animals were bred (deepest 5 births). The rest are founding draws and N17 strangers.
+
+  ── GATE 1 · best-ever ── mean closedCm  score 4.700  vs  null 4.844   0.97x   (pre-declared: >= 2x)
+  ⚠ CONSERVATIVE, AND IT CAN TIE BY CONSTRUCTION. Both arms share generation 0,
+    so both arks contain the founders. If neither arm beats a strong founder,
+    best-ever-vs-best-ever compares the same animal with itself.
+
+  ── GATE 2 · response over the founder ──
+  arm    line   gen0 best   final best    gain    x founder
+  score    0       0.765        1.935    1.170       2.53
+  score    1       0.601        0.809    0.207       1.34
+  score    2       0.404        0.826    0.422       2.05
+  null     0       0.765        1.935    1.170       2.53
+  null     1       0.601        1.781    1.180       2.96
+  null     2       0.404        1.889    1.485       4.68
+
+  §1.2's pre-declared prediction: ~0.20 cm per generation early, declining as a
+  line approaches its peak; the founding step alone was worth ~0.95 cm.
+
+  ── GATE 3 · median of the final generation ──
+  mean line median closedCm   score 0.421  vs  null 0.097   4.34x   (pre-declared: >= 2x)
+
+  written: tools/_zbreed_state_7.json · tools/_zbreed_ark_7.json
+

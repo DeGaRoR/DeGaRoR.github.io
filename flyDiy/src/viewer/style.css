@@ -83,6 +83,15 @@
      click toggles small/large; the map's top-right chip toggles N-up/nose-up */
   #mid { flex:1; display:flex; justify-content:flex-end; align-items:flex-start;
     padding-top:10px; min-height:0; }
+  /* UV projection: the mesh's texture space, drawn flat. Off by default —
+     this is a diagnostic, and it is the only way to SEE what a parameterisation
+     is doing to a decal or a livery before it is on the aeroplane. */
+  #uvp { display:none; padding:5px; margin-right:8px; flex-direction:column; gap:4px; }
+  #uvp.show { display:flex; }
+  #uvc { display:block; width:236px; height:236px; border-radius:9px;
+    background:rgba(20,14,10,.55); }
+  #uvleg { font:500 8px/1.4 'IBM Plex Mono', monospace; letter-spacing:.04em;
+    color:var(--dim); max-width:236px; }
   #mmp { padding:5px; }
   #mm { display:block; width:172px; height:172px; border-radius:9px;
     pointer-events:auto; cursor:pointer; }
@@ -104,9 +113,50 @@
      action that applies to the whole aeroplane rather than to a part. */
   #gRoll { width:100%; margin-bottom:9px; padding:9px 12px; font-size:10px; }
   #gRoll:disabled { opacity:.45; cursor:default; }
+  /* BUILD -> LOAD TEST -> FLY. The test button sits above ROLL OUT because it
+     comes first, and ROLL OUT goes amber-warning until the wing has held. */
+  #gTest { width:100%; margin-bottom:9px; padding:9px 12px; font-size:10px; }
+  #gTest:disabled { opacity:.45; cursor:default; }
+  #gRoll.warn { background:transparent; border-color:var(--amber); color:var(--amber); }
+  .gtest { display:none; }
+  .gtest.on {
+    display:flex; flex-direction:column; gap:2px;
+    margin:-3px 0 10px; padding:8px 10px; font-size:10px; line-height:1.5;
+    border:1px solid var(--line); border-left:2px solid var(--amber);
+    background:rgba(0,0,0,.18); font-variant-numeric:tabular-nums;
+  }
+  .gtest.on.done { border-left-color:var(--cyan, #4fd9e8); }
+  .gtest b { font-size:12px; letter-spacing:.04em; }
+  .gtest span { opacity:.78; }
+  .gtest .good { color:#7fd6a4; opacity:1; }
+  .gtest .bad { color:#ff8a72; opacity:1; }
   /* one <details> per airframe section: the title on the left, what it weighs
      and what it costs on the right, so the price of a decision sits on the
      control that makes it. */
+  /* THE GROUP: the outer level of the panel. It reads louder than a section —
+     bigger, brighter, its own rule above — because the two levels have to be
+     told apart at a glance or the accordion just looks like it lost its
+     indentation. Sections inside are inset so the nesting is structural and
+     not merely typographic. */
+  .ggrp { border-top:1px solid var(--edge2, var(--edge)); }
+  .ggrp + .ggrp { margin-top:2px; }
+  .ggrp > summary { display:flex; justify-content:space-between; align-items:baseline;
+    gap:8px; list-style:none; cursor:pointer; pointer-events:auto;
+    padding:10px 0 8px; user-select:none; }
+  .ggrp > summary::-webkit-details-marker { display:none; }
+  .ggrp > summary > span::before { content:'▸'; display:inline-block;
+    width:9px; margin-right:5px; font-size:9px; line-height:1;
+    transform:translateY(-1px); transition:transform .15s ease; }
+  .ggrp[open] > summary > span::before { transform:translateY(-1px) rotate(90deg); }
+  .ggrp > summary > span { font:600 10.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--dim); }
+  .ggrp[open] > summary > span { color:var(--amber); }
+  .ggrp > summary > i { font:500 8.5px/1 'IBM Plex Mono', monospace; font-style:normal;
+    letter-spacing:.02em; color:var(--dim); white-space:nowrap; }
+  .ggrp > .gsec { margin-left:10px; }
+  /* the group already draws the rule above itself */
+  .ggrp > .gsec:first-of-type { border-top:none; }
+
   .gsec { border-top:1px solid var(--edge); }
   .gsec[open] { padding-bottom:6px; }
   .gsec > summary { display:flex; justify-content:space-between; align-items:baseline;

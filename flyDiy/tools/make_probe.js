@@ -83,8 +83,21 @@ function build(name, swap) {
   h = h.replace(/(src|href)="(?!https?:|\/)/g, '$1="../');
   // CATCH goes in BEFORE the base swap, or the anchor it keys on has already
   // been renamed and the base page silently loses every handle.
-  h = h.replace('<script src="../src/viewer/app.js">', CATCH + '<script src="../src/viewer/app.js">');
-  if (swap) for (const f of BASE_OF) h = h.replace('../' + f, swap(f));
+  //
+  // The anchors have to tolerate dev.html's `?v=<hash>` cache busters, and they
+  // did not. The failure was SILENT in exactly the way the line above warns
+  // about: the page loaded, drew frames, reported no error, and __renderer /
+  // __WF were simply never there. Both anchors are patterns now, and a miss
+  // throws instead of writing a probe with no handles in it.
+  const pathRe = f => '(?:\\.\\./)?' + f.replace(/[.\/]/g, c => '\\' + c) + '(?:\\?[^"]*)?';
+  const appTag = new RegExp('<script src="' + pathRe('src/viewer/app.js') + '"><\\/script>');
+  if (!appTag.test(h)) throw new Error('make_probe: no app.js script tag in dev.html');
+  h = h.replace(appTag, m => CATCH + m);
+  if (swap) for (const f of BASE_OF) {
+    const re = new RegExp(pathRe(f));
+    if (!re.test(h)) throw new Error('make_probe: cannot pin ' + f);
+    h = h.replace(re, swap(f));
+  }
   h = h.replace('</head>', HEAD + '</head>');
   fs.writeFileSync(path.join(__dirname, name), h);
   console.log('wrote tools/' + name + (swap ? '  (viewer <- HEAD)' : ''));

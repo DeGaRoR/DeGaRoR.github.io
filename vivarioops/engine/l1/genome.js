@@ -170,6 +170,22 @@ export const RANGE = {
    */
   preyGain2:      [-1, 1],
   threatGain2:    [-1, 1],
+  /**
+   * GENOME_V 8 — THE BRAKE (Phase 4.3's `effort` output).
+   *
+   * How hard a creature throttles its gait when it is badly aimed:
+   * `effort = max(BRAKE_FLOOR, 1 - brakeGain * |bearing|)`. 0 is no brake and is
+   * where every migrated and factory-drawn creature starts.
+   *
+   * NON-NEGATIVE, unlike the steering gains, and that is a real asymmetry rather
+   * than an oversight. A steering gain's SIGN is evolved because "turn toward"
+   * and "turn away" are both strategies (P2: no declared categories). A negative
+   * brake would mean "speed up the worse your aim is", which is not the mirror of
+   * a strategy — it is a creature accelerating away from everything it senses,
+   * and the same behaviour is already reachable by flipping the steering gain.
+   * The range is the strength of one behaviour, not a choice between two.
+   */
+  brakeGain:      [0, 1],
 
   // Material — 10 §A10
   hue:            [0, 1],
@@ -471,6 +487,7 @@ export function canonical(g) {
       threatGain: g.controller.threatGain,
       preyGain2: g.controller.preyGain2,
       threatGain2: g.controller.threatGain2,
+      brakeGain: g.controller.brakeGain,
       phaseBase: g.controller.phaseBase,
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
@@ -562,7 +579,7 @@ const MIGRATIONS = {
   1: (g) => ({
     ...g,
     version: 2,
-    controller: { ...g.controller, preyGain: 0, threatGain: 0, preyGain2: 0, threatGain2: 0 },
+    controller: { ...g.controller, preyGain: 0, threatGain: 0, preyGain2: 0, threatGain2: 0, brakeGain: 0 },
     social: g.social ?? {
       trophic: 0, boldness: 0.5, cohesion: 0.5,
       separation: 0.5, alignment: 0.5, separationRadius: 1.5,
@@ -719,6 +736,29 @@ const MIGRATIONS = {
     version: 7,
     controller: { ...g.controller, preyGain2: 0, threatGain2: 0 },
   }),
+
+  /**
+   * 7 -> 8 · THE BRAKE (Phase 4.3's `effort` output). Bit-identical.
+   *
+   * `brakeGain: 0` is no brake, and `sensorEffort` returns exactly 1 there, so a
+   * migrated creature commands the same effort it always did. Third bump in a row
+   * to arrive neutral, and the reason has not changed: an organ is neutral at
+   * insertion and metered on expression (standing rule 4).
+   *
+   * WHY THIS ONE IS WORTH THE BUMP WHERE `preyGain2` WAS ARGUABLE. The second
+   * steering channel went in on a mechanism and came out of its A/B roughly
+   * neutral. This gene went in the other order: the effect was measured FIRST, on
+   * the owner's own creatures, against their own observations of what those
+   * creatures do wrong. Braking on bearing takes `spotted teal snarlback` from
+   * 3.56 cm to 1.49 cm and `Very fast swimmer` from 1.41 to 2.02 — a large win
+   * and a real loss, in the same corpus, which is precisely why it is a gene and
+   * not a constant.
+   */
+  7: (g) => ({
+    ...g,
+    version: 8,
+    controller: { ...g.controller, brakeGain: 0 },
+  }),
 };
 
 export function migrate(g, target = GENOME_V) {
@@ -856,7 +896,7 @@ export function validateGenome(g) {
   }
 
   for (const k of ['omega', 'preyGain', 'threatGain', 'preyGain2', 'threatGain2',
-                   'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
+                   'brakeGain', 'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
     if (!inRange(g.controller?.[k], RANGE[k])) e.push(`controller.${k} = ${g.controller?.[k]}`);
   }
   const jg = g.controller?.jointGenes || {};
@@ -917,7 +957,7 @@ export function geneValues(g) {
   // and the gate's gene sweep must not try.
   out.push(g.morphology.taperStrength, g.morphology.taperRatio);
   out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain,
-    g.controller.preyGain2, g.controller.threatGain2,
+    g.controller.preyGain2, g.controller.threatGain2, g.controller.brakeGain,
     g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain,
     g.controller.chemoGain);
   for (const k of Object.keys(g.controller.jointGenes)) {

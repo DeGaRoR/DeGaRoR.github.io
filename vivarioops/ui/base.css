@@ -401,6 +401,11 @@ html, body {
   gap: var(--s-3); padding: var(--s-5) var(--s-4);
 }
 #boot-load[hidden] { display: none; }
+/* The panel now covers the whole boot, and the tab bar is the one piece of
+   chrome outside `#stage`. Sitting above the screen is not enough — a tab
+   switched during boot would leave a half-built vivarium behind it. */
+#boot-load { z-index: 5; }
+#boot-load-track[hidden] { display: none; }
 #boot-load-head { font-size: var(--t-lg); font-weight: 600; color: var(--c-text); }
 #boot-load-track {
   width: 100%; max-width: 18rem; height: var(--s-2);

@@ -160,6 +160,67 @@ export function sensorTurnBias2(genome, preyElev, threatElev) {
               + (genome.controller.threatGain2 ?? 0) * threatElev);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4.3 · THE SECOND OUTPUT THE PLAN ASKED FOR — `effort`, not just steering.
+//
+// 11 §5 gives `effort` as "a global multiplier on omega" and the plan's Phase 4.3
+// is "widen outputs — add `effort`". Until now the only thing that modulated it
+// was the forage kinesis; a creature pursuing a target ran at full effort no
+// matter how badly it was aimed.
+//
+// ── WHY IT READS |bearing| AND NOT DISTANCE ──────────────────────────────────
+//
+// The obvious brake is "slow down when you get close", and it is not available:
+// `bearingTo` returns a BEARING and nothing in this project gives a creature a
+// RANGE. Braking on distance would hand it a quantity it cannot perceive, which
+// is the "omniscient compass" already on the debts list, made worse.
+//
+// It is also the half that does not work. Measured over four placements, closest
+// approach in cm, brake on distance+bearing against brake on bearing alone:
+//
+//     creature                 none    dist+bearing    bearing only
+//     spotted teal snarlback   3.56        1.36            1.49
+//     Polypoda bitailus        7.24        5.47            5.45
+//     glossy teal flapper      4.45        4.03            4.02
+//     Very fast swimmer        1.41        4.47            2.02
+//
+// The distance term adds nothing to the three it helps and does most of the
+// damage to the one it hurts. So the honest half and the effective half are the
+// same half.
+//
+// ── AND IT IS A GENE, NOT A CONSTANT, BECAUSE THE RIGHT VALUE IS PER-LINEAGE ──
+//
+// Braking is a STRATEGY and the corpus wants opposite ones. Creatures whose
+// closest approach comes in the first quarter of a trial — they pass by and leave
+// — get much better with it (3.56 -> 1.49). Creatures still converging at 75% of
+// the trial get much worse (1.41 -> 2.02, and 1.79 -> 6.73 with both terms),
+// because braking slows a grind that was working. A global constant would fix
+// half the library and break its two best pursuers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Lower bound on commanded effort. NOT a new constant: `engine/l2/forage.js` has
+ * bounded its own effort output at 0.5 since Phase 2, and a second, different
+ * floor for the same physical quantity — how far below its own gait a creature
+ * may throttle — would be exactly the ungrounded coefficient standing rule 5
+ * forbids. The brake measurements above were taken at 0.4; the effects are far
+ * larger than 0.1 of floor, but they are worth re-running at the shipped value.
+ */
+export const BRAKE_FLOOR = 0.5;
+
+/**
+ * The effort a creature commands given how badly it is aimed. 1 is full gait.
+ *
+ * Returns exactly 1 at `brakeGain` 0 — every stored creature, and the factory
+ * draw — so this is inert until a mutation switches it on.
+ */
+export function sensorEffort(genome, bearing) {
+  const g = genome.controller.brakeGain ?? 0;
+  if (g === 0) return 1;
+  const e = 1 - g * Math.abs(bearing);
+  return e < BRAKE_FLOOR ? BRAKE_FLOOR : e;
+}
+
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 /**

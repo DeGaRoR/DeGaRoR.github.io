@@ -92,7 +92,17 @@ const THREE = {
   MeshStandardMaterial: class { constructor(o) { Object.assign(this, o); } },
   LineBasicMaterial: class {}, PointsMaterial: class {},
   HemisphereLight: class { constructor(){ Object.assign(this, mkObj()); } },
-  DirectionalLight: class { constructor(){ Object.assign(this, mkObj()); } },
+  // the studio's key light casts, so it carries a shadow camera the viewer
+  // sizes to an aeroplane rather than to a world
+  DirectionalLight: class { constructor(){ Object.assign(this, mkObj());
+    this.castShadow = false;
+    this.shadow = { mapSize: { set() {} }, camera: {} }; } },
+  // the studio floor is a shadow catcher, and its dome is what the environment
+  // is baked from. PMREMGenerator is deliberately ABSENT: app.js guards on it,
+  // so leaving it out exercises the no-environment path headlessly.
+  ShadowMaterial: class { constructor(o) { Object.assign(this, o || {}); } },
+  SphereGeometry: class extends BufferGeometry {},
+  BackSide: 1,
   // onLoad fires synchronously so the skin's texture-decode gate is exercised:
   // if it ever stops firing, the aircraft stays a wireframe forever
   TextureLoader: class { load(url, onLoad) { const t = { anisotropy: 0 };
@@ -136,6 +146,12 @@ const sandbox = {
   clearTimeout() {},
   atob: s => Buffer.from(s, 'base64').toString('binary'),
   THREE, Buffer,
+  // The RENDER block (garage.js) is deliberately not executed here, so
+  // `garageInit` would be undefined and app.js would skip the whole GARAGE
+  // BRIDGE. Stubbing it captures the api object instead, which both keeps the
+  // bridge on the executed path and lets this gate drive the load test the way
+  // the panel does. If the bridge's shape ever changes, this notices.
+  garageInit: api => { sandbox.garageApi = api; },
 };
 sandbox.window.document = sandbox.document;
 vm.createContext(sandbox);
@@ -179,6 +195,35 @@ try {
   frames(240);
   if (els['phName'].textContent !== 'GARAGE')
     throw new Error('the solver stepped in the garage: the loop guard is gone');
+  // ---- THE LOAD TEST (BUILD -> LOAD TEST -> FLY) ----
+  // The rig is the one thing that moves while the aeroplane is on the stand, so
+  // it needs the opposite assertion to the one above: frames must now CHANGE
+  // the aeroplane. Driven through the same GARAGE_SPEC surface the panel uses.
+  {
+    const G = sandbox.garageApi;
+    if (!G) throw new Error('the garage bridge was never called');
+    if (!G.loadTest) throw new Error('garage bridge has no loadTest');
+    if (G.tested()) throw new Error('a freshly built aeroplane must start untested');
+    G.loadTest();
+    if (els['phName'].textContent !== 'LOAD TEST')
+      throw new Error(`load test did not take the rail (${els['phName'].textContent})`);
+    let st = G.loadTestState();
+    if (!st) throw new Error('load test produced no state');
+    for (let i = 0; i < 60 && !G.loadTestState().done; i++) frames(60);
+    st = G.loadTestState();
+    if (!st.done) throw new Error('load test never finished');
+    if (!(st.ultPct > 0)) throw new Error(`no deflection at ultimate (${st.ultPct})`);
+    if (!(st.limitPct > 0) || !(st.ultPct > st.limitPct))
+      throw new Error(`deflection did not grow with load (${st.limitPct} -> ${st.ultPct})`);
+    if (!G.tested()) throw new Error('a finished load test must mark the build tested');
+    if (G.markTested) throw new Error('the panel must not write model state');
+    console.log(`load test: ${st.verdict} — limit ${st.limitPct.toFixed(2)}% ` +
+                `ultimate ${st.ultPct.toFixed(2)}% of semispan`);
+    G.endLoadTest();
+    if (els['phName'].textContent !== 'GARAGE')
+      throw new Error('leaving the load test did not return to the garage');
+  }
+
   // ...and ROLL OUT commits it: physics back on, autopilot flying the circuit
   handlers['bGo']();
   frames(240);

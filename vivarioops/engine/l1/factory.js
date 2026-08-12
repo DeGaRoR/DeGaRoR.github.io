@@ -572,7 +572,27 @@ function randomNode(rng, limits) {
   // Three limit draws either way, whichever type came out, so the rng stream
   // keeps its shape and the only thing that changes is the width they land in.
   const type = pick(rng, limits.jointTypes);
-  const band = limitRangeFor(type);
+  // ── A SLICE BAND FOR THE BEND, THE WAY `density` HAS ONE ────────────────────
+  //
+  // `limits.revoluteLimitBand` narrows what a BENDING joint's limit is DRAWN
+  // from, leaving `RANGE.angleLimit` — the schema — alone. Absent, this is
+  // `limitRangeFor(type)` exactly as before, so the default draw is unchanged to
+  // the rng draw.
+  //
+  // WHY IT CANNOT BE A SCHEMA CHANGE, learned by breaking it: `validateGenome`
+  // checks every joint's `angleLimits` against `RANGE.angleLimit`, TWIST JOINTS
+  // INCLUDED, and a twist joint's own band is the subrange [0, 0.35]. Raising
+  // `RANGE.angleLimit[0]` to put a floor under bending joints therefore
+  // invalidates every twist joint in the corpus at once — which is what it did,
+  // on the first run of the A/B this was written for.
+  //
+  // TWIST IS EXCLUDED HERE FOR THE SAME REASON IT HAS ITS OWN RANGE: it is a
+  // hinge about a limb's own long axis, not a bend, and 0.35 rad is the
+  // feathering band chosen for that. A floor meant for undulation has no
+  // business raising it.
+  const band = type === 'twist'
+    ? limitRangeFor(type)
+    : (limits.revoluteLimitBand ?? limitRangeFor(type));
   return makeNode(id, {
     dims,
     density,
@@ -888,6 +908,10 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // whole existing corpus reproduces from its seed unchanged.
       preyGain2: 0,
       threatGain2: 0,
+      // GENOME_V 8 — no brake at birth. `mutateBrakeGain` switches it on, and
+      // whether a lineage keeps it depends on whether it passes its target or
+      // grinds toward it; both are in the corpus and they want opposite values.
+      brakeGain: 0,
       jointGenes,
     },
     social: {

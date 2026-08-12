@@ -144,6 +144,7 @@ function chain({
         // literal, and a missing field would make it a false one.
         preyGain2: 0,
         threatGain2: 0,
+        brakeGain: 0,        // GENOME_V 8 — neutral: full effort whatever the aim
         jointGenes,
       },
       social: {
@@ -255,6 +256,7 @@ function medusa({
         chemoGain: 0,
         preyGain2: 0,        // GENOME_V 7 — neutral
         threatGain2: 0,
+        brakeGain: 0,        // GENOME_V 8 — neutral
         jointGenes: {
           bell: { amplitude: 0, bias: 0, freqMult: 1 },
           tent: { amplitude: amp, bias: 0, freqMult: 1 },

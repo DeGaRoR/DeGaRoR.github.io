@@ -166,14 +166,69 @@ function statTorsion(def, torque) {
   if (!(arm > 1e-6)) return null;
   // angle of the chord line in the x-y plane; the frame cannot rotate here
   const ang = (f, r) => Math.atan2(-(sim.p[r*3+1] - sim.p[f*3+1]), sim.p[r*3] - sim.p[f*3]) * D2R;
+  const dt = 1 / 60;
+  // SETTLE UNDER GRAVITY FIRST, then take the baseline. The aeroplane sits on
+  // its gear in the tunnel, and over ten seconds it droops onto the springs —
+  // an offset that does NOT scale with the applied couple. Baselining at t=0
+  // folded that droop into the answer, which was invisible while the wings were
+  // soft (the droop was a few percent of the twist) and became the whole
+  // reading once wingK stiffened them: `strut span 7` reported 0.10 deg at BOTH
+  // torques, a doubling ratio of 0.99x, and the gate called a stiff wing a
+  // mechanism. The instrument was measuring the undercarriage.
+  for (let s = 0; s < 180; s++) sim.step(dt);
   const base = ang(tip.f, tip.r) - ang(root.f, root.r);
-  const F = torque / arm, dt = 1 / 60;
+  const F = torque / arm;
   for (let s = 0; s < 600; s++) {            // 10 s: settled, checked
     sim.impulse(tip.f, 0,  F * dt, 0); sim.impulse(tip.r, 0, -F * dt, 0);
     sim.impulse(fL,    0, -F * dt, 0); sim.impulse(rL,    0,  F * dt, 0);
     sim.step(dt);
   }
   return Math.abs(ang(tip.f, tip.r) - ang(root.f, root.r) - base);
+}
+
+// B3 — STATIC BENDING, distributed. Up at every station outboard of the root,
+// down at the root, so net force and net moment are again zero and nothing
+// accelerates. The load is SPREAD over the stations rather than dumped on the
+// tip: a tip point load is not comparable across panel counts, because the tip
+// station stands for a different fraction of the wing at 2 panels than at 5,
+// and reading it that way makes station density look like a stiffness change.
+function statBend(def, load) {
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const st = stations(def);
+  if (st.length < 2) return null;
+  const root = st[0], tip = st[st.length - 1];
+  const mir = (i) => {
+    const n = def.nodes[i]; let best = -1, bd = Infinity;
+    def.nodes.forEach((o, j) => {
+      if (o.tag !== n.tag || o.p[2] >= 0) return;
+      const d = Math.abs(o.p[2] + n.p[2]) + Math.abs(o.p[0] - n.p[0]);
+      if (d < bd) { bd = d; best = j; }
+    });
+    return best;
+  };
+  const outer = st.slice(1);
+  const per = load / (2 * outer.length);          // per station, split front/rear
+  const pts = [];
+  for (const s of outer) for (const i of [s.f, s.r]) {
+    const m = mir(i); if (m < 0) return null;
+    pts.push([i, per / 2], [m, per / 2]);
+  }
+  for (const i of [root.f, root.r]) {
+    const m = mir(i); if (m < 0) return null;
+    pts.push([i, -load / 2], [m, -load / 2]);
+  }
+  const semi = def.nodes[tip.f].p[2];
+  const rise = () => sim.p[tip.f*3+1] - sim.p[root.f*3+1];
+  const dt = 1 / 60;
+  for (let s = 0; s < 180; s++) sim.step(dt);   // settle first — see statTorsion
+  const b0 = rise();
+  for (let s = 0; s < 600; s++) {
+    for (const [i, f] of pts) sim.impulse(i, 0, f * dt, 0);
+    sim.step(dt);
+  }
+  const v = 100 * (rise() - b0) / semi;
+  return Number.isFinite(v) ? v : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -336,10 +391,20 @@ REALITY.forEach(say);
 say('');
 
 const runs = [];
-say('FLEET (hand-written fiches — no material behind k, so no softness column):');
-for (const [nm, build] of [['CUB', buildCub], ['DRONE', buildDrone], ['DC-3', buildDC3],
-                           ['JODEL', buildJodel], ['C172', buildC172],
-                           ['CHINOOK', buildChinook], ['PA-18', buildPA18]]) {
+// CORE mode (see run_gates.js tiers): the two mesh aircraft only. The other
+// five fiches are reference — they are not being changed, their numbers are
+// recorded in HANDOVER's STRUCTURAL REALISM tables, and re-flying them to
+// cruise costs about 40 s every time the generator is touched. `--all` and
+// `--only=FLEX` both measure the whole fleet.
+const CORE = process.env.GATES_CORE === '1';
+const FLEET = CORE
+  ? [['C172', buildC172], ['PA-18', buildPA18]]
+  : [['CUB', buildCub], ['DRONE', buildDrone], ['DC-3', buildDC3],
+     ['JODEL', buildJodel], ['C172', buildC172],
+     ['CHINOOK', buildChinook], ['PA-18', buildPA18]];
+say(`FLEET (hand-written fiches — no material behind k, so no softness column)` +
+    `${CORE ? ' — CORE: mesh aircraft only, --all for all seven' : ''}:`);
+for (const [nm, build] of FLEET) {
   const o = flex(nm, build());
   if (o) runs.push(o);
   report(o);
@@ -354,13 +419,112 @@ for (const m of Object.keys(GEN_MATERIALS)) {
   report(o);
 }
 
+// ---------------------------------------------------------------------------
+// THE GARAGE MATRIX. The Garage is not one aeroplane, and until this block
+// existed its structure was verified at exactly one point of a space that spans
+// 6.5-14 m of wing, 2-5 panels, three wing positions, strut or cantilever, four
+// materials and a cargo bay. GATE GEN flies eleven configurations but measures
+// no deflection; the FLEET half above measures deflection but only at the stock
+// spec. The corner that was actually broken — strut bracing at 4 or 5 panels —
+// was reachable by moving one slider in the panel and was invisible to every
+// instrument in the battery, because the framework stays infinitesimally rigid
+// the whole time and the rank test passes.
+//
+// This block is STATIC ONLY (no world, no autopilot, no aero) so it is cheap
+// and deterministic. The assertion is the DOUBLING RATIO, which is a structural
+// invariant rather than a preference: a linear structure twists twice as far
+// under twice the couple. Anything materially under 2 stiffened geometrically
+// on the way, i.e. it started near a mechanism. That is the only number in the
+// battery that catches this class of defect.
+// ---------------------------------------------------------------------------
+const LIN_MIN = 1.80;
+// A ratio is only evidence if there is a deflection to take it of. Once wingK
+// landed, the short-span strut wing twisted less than 0.005 deg under 200 N.m
+// and read 0.00 / 0.00 — ratio 1.22x, and the gate called the STIFFEST airframe
+// in the matrix a mechanism. Below this floor the honest answer is "too stiff
+// to measure", not a verdict. Raising the couple instead was rejected: it would
+// re-scale every published number in HANDOVER for no gain, and a wing that
+// cannot be twisted 0.05 deg by 200 N.m is not the failure mode this looks for.
+const TORS_FLOOR = 0.05;   // deg at 200 N.m
+{
+  const rows = [], soft = [];
+  const CFG = [];
+  const wing = (f) => (s) => { s.wings[0].chord = 1.6; f(s); };
+  CFG.push(['stock', null]);
+  for (const [l, f] of [
+    ['cargo bay + 60 kg', s => { s.cargo.len = 1.2; s.cargo.kg = 60; }],
+    ['tricycle',          s => { s.gear.type = 'tricycle'; }],
+    ['high cantilever',   s => { s.bracing.type = 'cantilever'; }],
+    ['mid wing',          s => { s.wings[0].position = 'mid'; }],
+    ['low wing',          s => { s.wings[0].position = 'low'; }],
+    ['low cantilever',    s => { s.wings[0].position = 'low'; s.bracing.type = 'cantilever'; }],
+    // planform variants: a crank INSERTS a spar station, so these reach 4
+    // stations at the default 3 panels and exercise the same fan gap that
+    // panels 4-5 do — from a different direction and without the slider.
+    ['winglet',           s => { s.wings[0].tip = 'winglet'; }],
+    ['jodel crank',       s => { s.wings[0].crankAt = 0.45; s.wings[0].dihedral = 0;
+                                 s.wings[0].dihedralOut = 14; }],
+    ['crank + cantilever', s => { s.wings[0].crankAt = 0.45; s.wings[0].dihedral = 0;
+                                  s.wings[0].dihedralOut = 14; s.bracing.type = 'cantilever'; }],
+  ]) CFG.push([l, f]);
+  // the risk surface: span and station density, against both bracings
+  for (const br of ['strut', 'cantilever']) {
+    for (const sp of [7, 11, 14])
+      CFG.push([`${br} span ${sp}`, wing(s => { s.bracing.type = br; s.wings[0].span = sp; })]);
+    for (const p of [2, 3, 4, 5])
+      CFG.push([`${br} panels ${p}`, wing(s => { s.bracing.type = br; s.wings[0].span = 13;
+                                                 s.wings[0].panels = p; })]);
+  }
+  for (const m of Object.keys(GEN_MATERIALS))
+    CFG.push([`${m} cantilever`, wing(s => { s.fuselage.material = m;
+                                             s.bracing.type = 'cantilever'; s.wings[0].span = 13; })]);
+
+  say('GARAGE MATRIX — static structure across the configuration space.');
+  say('  torsion deg @200 / @400 N.m antisymmetric tip couple; doubling < ' +
+      LIN_MIN.toFixed(2) + 'x = near a mechanism.');
+  say('  bend = tip rise, % of semispan, under 2 kN DISTRIBUTED over the stations.');
+  for (const [lbl, fn] of CFG) {
+    let d;
+    try {
+      const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
+      if (fn) fn(sp);
+      d = buildGen(sp);
+    } catch (e) { rows.push({ lbl, err: e.message }); continue; }
+    const t2 = statTorsion(d, 200), t4 = statTorsion(d, 400), bd = statBend(d, 2000);
+    const st = stations(d);
+    const r = { lbl, t2, t4, bd, panels: d.spec.wings[0].panels,
+                semi: st.length ? d.nodes[st[st.length-1].f].p[2] : NaN,
+                lin: (t2 && t4) ? t4 / t2 : NaN };
+    r.tested = Number.isFinite(r.t2) && r.t2 >= TORS_FLOOR;
+    rows.push(r);
+    if (r.tested && (!Number.isFinite(r.lin) || r.lin < LIN_MIN)) soft.push(r);
+  }
+  for (const r of rows) {
+    if (r.err) { say(`  ${r.lbl.padEnd(24)} BUILD FAILED: ${r.err}`); continue; }
+    const bad = r.tested && (!Number.isFinite(r.lin) || r.lin < LIN_MIN);
+    say(`  ${r.lbl.padEnd(24)} semi ${r.semi.toFixed(2).padStart(5)} m  p${r.panels}` +
+        `  tors ${(r.t2 ?? NaN).toFixed(2).padStart(6)} /${(r.t4 ?? NaN).toFixed(2).padStart(7)}` +
+        `  bend ${(r.bd ?? NaN).toFixed(1).padStart(6)} %` +
+        `  ${r.tested ? 'doubling ' + (Number.isFinite(r.lin) ? r.lin.toFixed(2) + 'x' : '  ?')
+                      : `below the ${TORS_FLOOR} deg floor — too stiff to rate`}` +
+        `${bad ? '   *** NEAR A MECHANISM' : ''}`);
+  }
+  const rated = rows.filter(r => r.tested).length;
+  say(`  ${rated} of ${rows.length} configurations were stiff enough to need rating` +
+      ` (the rest twist under ${TORS_FLOOR} deg at 200 N.m).`);
+  results['no garage configuration is near a mechanism'] = soft.length === 0;
+  results['every garage configuration built and measured'] = rows.every(r => !r.err && Number.isFinite(r.lin));
+  if (soft.length) say(`  soft corners: ${soft.map(r => r.lbl).join(', ')}`);
+}
+
 // --- verdict: finite, no divergence, and the instrument repeats itself.
 const nums = [];
 for (const o of runs) {
   nums.push(o.defl1g, o.defl38, o.slope, o.deflHold, o.twistHold, o.twistAil, o.t200, o.t400);
   for (const c of Object.keys(o.peak)) nums.push(o.peak[c].F, o.peak[c].strain);
 }
-results['every airframe reached cruise and was measured'] = runs.length === 11;
+results['every airframe reached cruise and was measured'] =
+  runs.length === FLEET.length + Object.keys(GEN_MATERIALS).length;
 results['every measurement is finite'] = nums.every(Number.isFinite);
 results['no airframe diverged during the sweep'] = runs.every(o => !o.bad);
 
