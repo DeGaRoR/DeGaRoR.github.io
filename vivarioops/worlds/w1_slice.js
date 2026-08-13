@@ -122,7 +122,11 @@ export const W1_SLICE = {
   // hashes". The creatures are unchanged to the bit; the schema is not.
   // 10 -> 11 (2026-08-11): GENOME_V 8, `brakeGain`. Every genome hash moves,
   // the three residents are re-frozen, the creatures are unchanged to the bit.
-  faunaVersion: 11,
+  // 11 -> 12 (2026-08-12): GENOME_V 9, `tropoGain`, plus the receptor anatomy now
+  // drawn by `SLICE_LIMITS.siteRate`. `genomeHash` mixes GENOME_V, so every hash
+  // moves and the three residents are re-frozen; the creatures are unchanged to
+  // the bit.
+  faunaVersion: 12,
 
   // ── physics — L1 and L2 ────────────────────────────────
   // UNITS ARE CGS: cm, g, s (01 §7, and the header of engine/l1/physics.js).

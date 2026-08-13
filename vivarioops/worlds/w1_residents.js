@@ -80,9 +80,9 @@ export const W1_RESIDENT_IDS = ["res_a","res_b","res_c"];
 // `sensorEffort` returning exactly 1 there. Same story as the fourth: the animals
 // are bit-identical, the schema is not, so the hashes are. `faunaVersion` 10 -> 11.
 export const W1_RESIDENT_HASHES = [
-  "e8c906b31eb8ecc8",
-  "8721968b1c10c233",
-  "14bbd52387e417bd"
+  "e2f02645a29f97eb",
+  "095e02a33c39d7a0",
+  "884a591b7b164903",
 ];
 
 export default W1_RESIDENT_GENOMES;

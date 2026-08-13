@@ -38,7 +38,27 @@
 // A GENE RATHER THAN A CONSTANT because the corpus wants opposite values: a
 // creature that passes its target and leaves improves 3.56 -> 1.49 cm with it,
 // one still converging at 75% of the trial degrades 1.41 -> 2.02.
-export const GENOME_V = 8;
+// 8 -> 9 (2026-08-12). TROPOTAXIS, AND THE REACHABILITY FIX THAT SHIPS WITH IT.
+// Bit-identical: `tropoGain` migrates in at 0 and `forage.js` does not execute
+// the differential branch there.
+//
+// THE GENE was earned by measurement (`tools/_zsense.mjs`, 300 s, control-
+// subtracted, sign-selected): taxis pays the bred champions +2.211 g with 6 of 8
+// helped, where the shipped kinesis wire COSTS them -0.344 g, and it pays mobile
+// animals 5.8x what it pays immobile ones. It is a separate gene from
+// `chemoGain` because the two are different strategies with different best signs
+// on the same animal — one modulates effort from the average, the other steers
+// from the left/right contrast.
+//
+// THE REACHABILITY FIX is the half that matters more. Measured before this:
+// 0 receptors in 200 random draws, and `chemoGain` 0 on all eight campaign
+// champions after 22 generations. The organ was TWO INDEPENDENT LOTTERY TICKETS
+// — a site AND a gain — and one without the other senses nothing, so neither was
+// worth anything alone and selection could never see either. `SLICE_LIMITS.
+// siteRate` now draws the ANATOMY (inert: no mass, no drag, no reading without a
+// gain) and `BRANCH_WEIGHTS.organs` doubles to 0.15, which `mutate.js` itself
+// instructed — "RAISE IT WHEN THE SENSE IS WIRED". One ticket instead of two.
+export const GENOME_V = 9;
 
 /** 01 §8 — bumps on any probe, reduction or duel-rule change; invalidates all records. */
 // BUMPED 1 -> 2 when the CoM path length moved from 20 Hz trace samples to

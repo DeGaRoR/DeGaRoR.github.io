@@ -800,7 +800,8 @@ export function reserveAfter(world, massBase, balance, from = null) {
  *   a zeroed gene because zeroing the gene would also change the genome hash and
  *   every record keyed on it.
  */
-export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_SECONDS, simOpts = {}, sensing = true }) {
+export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_SECONDS,
+                                    simOpts = {}, sensing = true, tropoGain = null }) {
   const steps = Math.round(seconds / FIXED_DT);
   const m = S1(plan);
   const mouths = mouthsOf(plan);
@@ -840,6 +841,11 @@ export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_
   const senseBuf = receptors.map(() => [0, 0, 0]);
   const conc = new Float64Array(receptors.length);
   const gain = sensing === false ? 0 : (genome.controller.chemoGain ?? 0);
+  // GENOME_V 9 — READ FROM THE GENOME, overridable by the caller. The argument
+  // is how `tools/_zsense.mjs` measured this before it was a gene; it stays as an
+  // override so a sweep is still possible, but the DEFAULT is now the creature's
+  // own evolved value rather than zero.
+  const tropo = sensing === false ? 0 : (tropoGain ?? genome.controller.tropoGain ?? 0);
   // Re-sensing every physics step is pointless and expensive: the field only
   // changes where a mouth has eaten, and a creature cannot swim a receptor's
   // 6 cm reach in 1/120 s. 12 steps is 0.1 s, which is also the L3 tick.
@@ -860,6 +866,44 @@ export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_
       // should win on a patchy field, and the point is that nothing here says so.
       const e = 1 + gain * (mean - 1);
       sim.control.effort = e < EFFORT_FLOOR ? EFFORT_FLOOR : e > EFFORT_CEIL ? EFFORT_CEIL : e;
+
+      // ── TROPOTAXIS — THE DEFERRED HALF, AND IT IS A WIRE NOT AN ORGAN ───────
+      //
+      // The block above averages every receptor into one number, and the comment
+      // beside it says why: "a differential between sides is what tropotaxis
+      // would take, and that is Phase 3, gated on orientation". Orientation was
+      // measured broken at the time (1 of 7 helped). IT IS NOT ANY MORE — four of
+      // eight bred champions arrive in 6 of 6 directions — so the gate that
+      // deferred this has been lifted and the differential can be taken.
+      //
+      // WHY THE CONTRAST AND NOT THE DIFFERENCE. `(R - L) / (R + L)` is
+      // dimensionless and bounded in [-1, 1], so the command does not scale with
+      // how rich the water is and cannot saturate `turnBias` merely by the
+      // creature swimming into a dense patch. A raw difference would make the
+      // gene's usable range a function of `FOOD_ENERGY`, which is the kind of
+      // coupling that makes a constant need re-tuning every time the world moves.
+      //
+      // `tropoGain` IS AN ARGUMENT, NOT A GENE, AND DELIBERATELY SO. `preyGain2`
+      // was given a schema bump on a mechanism and came out of its A/B roughly
+      // neutral; the standing lesson is to measure first and spend `GENOME_V`
+      // after. At 0 — every caller that does not pass it — this branch does not
+      // execute and the trial is bit-identical to the kinesis-only one.
+      if (tropo !== 0) {
+        let l = 0, nl = 0, r = 0, nr = 0;
+        for (let i = 0; i < conc.length; i++) {
+          if (receptors[i].side < 0) { l += conc[i]; nl++; } else { r += conc[i]; nr++; }
+        }
+        // A creature with receptors on only ONE side has no differential to read.
+        // Left at turnBias 0 rather than fed a one-sided number, which would be a
+        // fabricated direction — the omniscient compass all over again.
+        if (nl && nr) {
+          const lm = l / nl, rm = r / nr;
+          const denom = lm + rm;
+          const contrast = denom > 1e-9 ? (rm - lm) / denom : 0;
+          const b = tropo * contrast;
+          sim.control.turnBias = b < -1 ? -1 : b > 1 ? 1 : b;
+        }
+      }
     }
     try { sim.step(); } catch { break; }
     eaten += forageStep(sim, plan, food, mouths, FIXED_DT, rate, buf);

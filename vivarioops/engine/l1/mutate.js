@@ -126,6 +126,7 @@ export function cloneGenome(g) {
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
       chemoGain: g.controller.chemoGain,
+      tropoGain: g.controller.tropoGain,
       preyGain2: g.controller.preyGain2,
       threatGain2: g.controller.threatGain2,
       brakeGain: g.controller.brakeGain,
@@ -501,7 +502,23 @@ function mutateSensorGain(g, rng) {
  */
 function mutatePhaseGradient(g, rng) {
   const which = rng.int(2) ? 'phaseBase' : 'phaseSlope';
-  g.controller[which] = jitter(rng, g.controller[which], RANGE[which]);
+  // REFUSES WHEN IT WOULD CHANGE NOTHING — the guard `mutateProprioGain`,
+  // `mutateBrakeGain` and `mutateTropoGain` all carry, and the reason is the
+  // same: `jitter` CLAMPS to the range and `q()` quantises to the micron, so a
+  // draw from a value at or near a bound can land exactly where it started. The
+  // operator then reports success having moved no scalar, which trips L1-23's
+  // no-op check and — worse — counts as the operator having fired while the gene
+  // stayed put.
+  //
+  // THIS WAS A LATENT DEFECT, NOT A NEW ONE. L1-26's own comment predicted it at
+  // GENOME_V 8: "the flaw was always there and had never been drawn." GENOME_V 9
+  // shifted the branch weights and it drew. The guard is kept here as
+  // documentation of the specific case, but THE CLASS IS FIXED IN `mutate()` —
+  // guarding operators one at a time is a race against the seed, and this one
+  // was the second of three found in a single sitting.
+  const next = jitter(rng, g.controller[which], RANGE[which]);
+  if (next === g.controller[which]) return null;
+  g.controller[which] = next;
   return `mutatePhaseGradient:${which}`;
 }
 
@@ -665,6 +682,23 @@ function mutateSite(g, rng) {
   return `mutateSite:at${i}`;
 }
 
+/**
+ * GENOME_V 9 — THE TAXIS GAIN. Sign evolved, not declared, and the sign matters
+ * more here than for any other sensor gene: measured, one champion reads -13.8 g
+ * at gain -0.9 and +6.1 g at +0.9. A wrong-signed taxis is worse than none.
+ *
+ * REFUSES WHEN IT WOULD CHANGE NOTHING, the `mutateBrakeGain` guard, for the same
+ * reason: an operator that reports success without moving a scalar trips L1-23
+ * and, worse, counts as having fired while the gene stayed dead — which is
+ * exactly how `preyGain` stayed inert for two milestones.
+ */
+function mutateTropoGain(g, rng) {
+  const next = jitter(rng, g.controller.tropoGain ?? 0, RANGE.tropoGain);
+  if (next === (g.controller.tropoGain ?? 0)) return null;
+  g.controller.tropoGain = next;
+  return 'mutateTropoGain';
+}
+
 /** The chemoreception gain. Sign evolved, not declared — see RANGE.chemoGain. */
 function mutateChemoGain(g, rng) {
   g.controller.chemoGain = jitter(rng, g.controller.chemoGain, RANGE.chemoGain);
@@ -726,7 +760,7 @@ const BRANCHES = {
   nodes:       [addNode, removeNode, mutateRandomNode, mutateTaper],
   connections: [addConnection, removeConnection, mutateRandomConnection],
   controller:  [mutateOmega, resampleFreqMult, jitterRandomJoint, mutateSensorGain, mutatePhaseGradient, mutateProprioGain, mutateSteerGains2, mutateBrakeGain],
-  organs:      [mutateMouth, mutateSite, mutateChemoGain],
+  organs:      [mutateMouth, mutateSite, mutateChemoGain, mutateTropoGain],
   material:    [mutateMaterial],
   social:      [mutateSocial],
 };
@@ -770,16 +804,26 @@ const BRANCHES = {
  * a site appear within a few generations, and little enough that it does not
  * compete with the branches that change what the animal IS.
  *
- * RAISE IT WHEN THE SENSE IS WIRED. Until `chemoGain` reaches a controller that
- * reads a site, two of these three operators move genes nothing measures — the
- * `social` situation exactly, and it should be treated the same way: warm, not
- * generous. Revisit at the kinesis step.
+ * RAISED AT GENOME_V 9, 0.075 -> 0.15, BECAUSE THE SENSE IS NOW WIRED. This
+ * paragraph used to end "RAISE IT WHEN THE SENSE IS WIRED … revisit at the
+ * kinesis step", and that condition is met: `forage.js` reads the receptor
+ * differential into `turnBias`, and `tools/_zsense.mjs` measures it at +2.211 g
+ * on the bred champions, 6 of 8 helped, against -0.344 g for the kinesis wire it
+ * replaces. The branch no longer moves genes nothing measures.
+ *
+ * DOUBLED, NOT MORE. The branch now holds four operators rather than three, and
+ * `mutateChemoGain`/`mutateTropoGain` are the two that switch an organ ON — the
+ * half of reachability mutation owns, now that `SLICE_LIMITS.siteRate` supplies
+ * the other half. 0.15 is one mutation in seven. It is taken from `nodes` and
+ * `connections` in equal share, which are the two branches that were widened
+ * when `organs` was created and are the two that dissolve spines
+ * (`tools/_zspine.mjs`: `removeConnection` is 49% of chain-killing mutations).
  */
 const BRANCH_WEIGHTS = {
-  nodes:       0.2625, // was 0.30
-  connections: 0.2625, // was 0.30
+  nodes:       0.225,  // was 0.2625, was 0.30
+  connections: 0.225,  // was 0.2625, was 0.30
   controller:  0.25,   // unchanged
-  organs:      0.075,  // new
+  organs:      0.15,   // was 0.075 — the sense is wired; see above
   material:    0.125,  // unchanged — 10 §A10
   social:      0.025,  // was 0.125
 };
@@ -857,10 +901,37 @@ export function mutate(genome, rng, opts = {}) {
 
   const dangling = removeDanglingConnections(g);
 
+  // ── AN OPERATOR THAT MOVED NOTHING DID NOT APPLY ───────────────────────────
+  //
+  // Several operators are `jitter` then `return name`, and `jitter` CLAMPS to the
+  // range while `q()` quantises to the micron — so a draw from a value at or near
+  // a bound lands exactly where it started and the operator reports success
+  // having changed no scalar. That trips L1-23's no-op check and, worse, counts
+  // as the operator having fired while the gene stayed dead, which is precisely
+  // how `preyGain` stayed inert for two milestones.
+  //
+  // THREE OPERATORS WERE GUARDED INDIVIDUALLY — `mutateProprioGain`,
+  // `mutateBrakeGain`, `mutateTropoGain` — AND THAT WAS LOSING. GENOME_V 9
+  // shifted the branch weights and the stream landed on two more in one sitting:
+  // `mutatePhaseGradient:phaseBase`, then `mutateSensorGain:preyGain`. The flaw
+  // was always there in all of them and had simply never been drawn; patching
+  // them one at a time as the rng exposes them is a race against the seed.
+  //
+  // So the check moves HERE, where it holds for every operator that exists and
+  // every operator anyone adds later. An operator that returns a name without
+  // moving a gene is treated exactly as one that refused: walk on to the next.
+  // Two `JSON.stringify` per call, against a mutation path that is nowhere near
+  // the hot loop — physics is.
+  const before = JSON.stringify(g);
+
   for (const branch of order) {
     for (const op of shuffled(rng, BRANCHES[branch])) {
       const applied = op(g, rng, limits);
-      if (applied) return { genome: g, op: applied, dangling };
+      if (!applied) continue;
+      // Unchanged means the operator is a no-op on THIS genome; `g` is untouched
+      // by construction, so walking on is safe.
+      if (JSON.stringify(g) === before) continue;
+      return { genome: g, op: applied, dangling };
     }
   }
   // Unreachable for any genome with at least one node: mutateOmega always applies.

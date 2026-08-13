@@ -5,7 +5,7 @@ export const VERSION = {
   "app": "0.8.12",
   "build": "2026-08-12T16:06:12Z",
   "commit": "003335c",
-  "genome": 8,
+  "genome": 9,
   "bridge": 9,
   "ecology": 1
 };

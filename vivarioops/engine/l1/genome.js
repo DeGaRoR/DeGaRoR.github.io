@@ -223,6 +223,28 @@ export const RANGE = {
    */
   chemoGain:      [-1, 1],
 
+  /**
+   * GENOME_V 9 — THE TAXIS GAIN, and it is a different organ from `chemoGain`.
+   *
+   * `chemoGain` is KINESIS: it modulates `effort` from the AVERAGE receptor
+   * reading — swim harder, or dwell, in richer water. This is TROPOTAXIS: it
+   * modulates `turnBias` from the left/right CONTRAST, which is the only read
+   * that carries a direction.
+   *
+   * WHY IT IS A SEPARATE GENE AND NOT A REINTERPRETATION OF THE OTHER. They are
+   * measurably different strategies with different best signs on the same animal
+   * (`tools/_zsense.mjs`): kinesis at the better sign costs the champions
+   * -0.344 g and taxis pays them +2.211 g, 6 of 8 helped. One gene cannot express
+   * "throttle on concentration" and "steer on gradient" independently, and a
+   * creature needs to be able to do either, both, or neither.
+   *
+   * SIGN EVOLVED, NOT DECLARED, as every sensor gain here is. It matters more for
+   * this one than for most: measured, `spined` reads -13.8 g at -0.9 and +6.1 g
+   * at +0.9. A wrong-signed taxis is worse than none, which is exactly what makes
+   * the sign worth evolving rather than choosing.
+   */
+  tropoGain:      [-1, 1],
+
   // Social — the six fields 03 §3 declares `from genome` and no document supplied.
   // Ranges are chosen here, not specified anywhere; each is justified inline.
   trophic:        [0, 1],   // 12 §: uptake scales (1-trophic), predation scales trophic.
@@ -492,6 +514,7 @@ export function canonical(g) {
       phaseSlope: g.controller.phaseSlope,
       proprioGain: g.controller.proprioGain,
       chemoGain: g.controller.chemoGain,
+      tropoGain: g.controller.tropoGain,
       jointGenes: Object.keys(g.controller.jointGenes).sort().map((nodeId) => ({
         nodeId,
         amplitude: g.controller.jointGenes[nodeId].amplitude,
@@ -579,7 +602,8 @@ const MIGRATIONS = {
   1: (g) => ({
     ...g,
     version: 2,
-    controller: { ...g.controller, preyGain: 0, threatGain: 0, preyGain2: 0, threatGain2: 0, brakeGain: 0 },
+    controller: { ...g.controller, preyGain: 0, threatGain: 0, preyGain2: 0, threatGain2: 0,
+                  brakeGain: 0, tropoGain: 0 },
     social: g.social ?? {
       trophic: 0, boldness: 0.5, cohesion: 0.5,
       separation: 0.5, alignment: 0.5, separationRadius: 1.5,
@@ -759,6 +783,37 @@ const MIGRATIONS = {
     version: 8,
     controller: { ...g.controller, brakeGain: 0 },
   }),
+
+  /**
+   * 8 -> 9 · TROPOTAXIS, AND THE REACHABILITY FIX THAT SHIPS WITH IT.
+   * Bit-identical: `tropoGain: 0` is blind, and `forage.js` does not execute the
+   * differential branch at zero.
+   *
+   * ── THIS BUMP IS TWO THINGS AND THE SECOND IS THE IMPORTANT ONE ─────────────
+   *
+   * The GENE was earned by measurement (`tools/_zsense.mjs`, 300 s trials,
+   * control-subtracted, sign-selected): taxis pays the bred champions +2.211 g
+   * with 6 of 8 helped where the shipped kinesis wire costs them -0.344 g, and it
+   * pays mobile animals 5.8x what it pays immobile ones.
+   *
+   * But a gene that pays and cannot be REACHED is `preyGain2` again. Measured
+   * before this bump: **0 receptors in 200 random draws**, and `chemoGain` 0 on
+   * all eight campaign champions after 22 generations of selection. The organ was
+   * TWO INDEPENDENT LOTTERY TICKETS — a site AND a non-zero gain — and a creature
+   * with one and not the other senses nothing, so neither ticket is worth
+   * anything alone and selection could never see either.
+   *
+   * So `factory.js` now DRAWS THE ANATOMY (`SLICE_LIMITS.siteRate`) while the
+   * gains stay at zero. A site with no gain is inert — it has no mass, no drag
+   * and no reading — so this is still neutral at insertion (standing rule 4). The
+   * anatomy is free; what has to be earned is the nerve. That turns two tickets
+   * into one, which is the whole of the fix.
+   */
+  8: (g) => ({
+    ...g,
+    version: 9,
+    controller: { ...g.controller, tropoGain: 0 },
+  }),
 };
 
 export function migrate(g, target = GENOME_V) {
@@ -896,7 +951,8 @@ export function validateGenome(g) {
   }
 
   for (const k of ['omega', 'preyGain', 'threatGain', 'preyGain2', 'threatGain2',
-                   'brakeGain', 'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain']) {
+                   'brakeGain', 'phaseBase', 'phaseSlope', 'proprioGain', 'chemoGain',
+                   'tropoGain']) {
     if (!inRange(g.controller?.[k], RANGE[k])) e.push(`controller.${k} = ${g.controller?.[k]}`);
   }
   const jg = g.controller?.jointGenes || {};
@@ -959,7 +1015,7 @@ export function geneValues(g) {
   out.push(g.controller.omega, g.controller.preyGain, g.controller.threatGain,
     g.controller.preyGain2, g.controller.threatGain2, g.controller.brakeGain,
     g.controller.phaseBase, g.controller.phaseSlope, g.controller.proprioGain,
-    g.controller.chemoGain);
+    g.controller.chemoGain, g.controller.tropoGain);
   for (const k of Object.keys(g.controller.jointGenes)) {
     out.push(g.controller.jointGenes[k].amplitude, g.controller.jointGenes[k].bias);
   }

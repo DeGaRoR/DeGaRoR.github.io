@@ -177,6 +177,26 @@ export function specCard(spec, o = {}) {
 
   if (o.stats !== false) mk('spec-card-metrics', c, 'dl').replaceChildren(...metricRows(spec));
 
+  // ── WHAT A CHAMPION IS A CHAMPION AT ────────────────────────────────────────
+  //
+  // The five metrics above are a FORAGE-and-shape summary — food, multiplier,
+  // straightness, size, turn — and not one of them says whether a creature can
+  // find anything. Worse, `TURN` is `turnCapability`, and design/15-BREEDING.md
+  // section 1.4 records it measured at Spearman -0.152 against actually arriving:
+  // a card for an animal bred to reach a beacon was showing, as its only
+  // behavioural number, the field this project retired as a seeking proxy.
+  //
+  // A promoted champion carries its own one-line verdict from the canonical
+  // trial. It is the record's, not recomputed here — the same discipline the
+  // vernacular follows — so a card cannot drift from the measurement that
+  // justified the animal. Full provenance stays in the `note`, reachable as the
+  // element's title without spending card real estate on it.
+  if (spec.headline) {
+    const h = mk('spec-card-headline', c);
+    h.textContent = spec.headline;
+    if (spec.note) h.title = spec.note;
+  }
+
   if (o.selectable) mk('spec-card-tick', c);
   else if (o.action) c.append(o.action);
   else if (spec.source === 'authored') {

@@ -355,6 +355,14 @@ html, body {
   padding: 0 var(--s-2) var(--s-2);
   font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim);
 }
+/* A promoted champion's one-line verdict from the canonical trial. Accent, not
+   dim, because it is the reason the specimen is on the shelf — unlike the
+   library provenance line under it, which is a footnote. */
+.spec-card-headline {
+  padding: 0 var(--s-2) var(--s-1);
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking); color: var(--c-accent);
+}
 .spec-card-source {
   margin-top: auto; padding: 0 var(--s-2) var(--s-2);
   font-family: var(--f-mono); font-size: var(--t-micro);

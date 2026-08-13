@@ -162,7 +162,17 @@ export function authoredList() {
   // consumer that wants only the programme's output has the field to do it.
   for (const c of BRED) {
     if (CAST_ORDER.includes(c.id)) continue;
-    list.push({ id: c.id, commonName: c.name, genome: c.genome });
+    // `headline` and `note` TRAVEL WITH THE ANIMAL. Without them a champion
+    // reaches the Atlas as a name and five forage metrics, none of which says
+    // what it is a champion AT — and one of which, `turnCapability`, is the
+    // field design/15-BREEDING.md section 1.4 retired as a seeking proxy.
+    list.push({
+      id: c.id, commonName: c.name, genome: c.genome,
+      headline: c.canonCm != null
+        ? `beacon ${c.canonCm.toFixed(2)}/8 cm · arrives ${Math.round((c.arrived ?? 0) * 6)}/6`
+        : null,
+      note: c.note ?? null,
+    });
   }
   // PLAYER-BRED SPECIES, promoted out of one browser's IndexedDB into the
   // shipped shelf. Serialised at promotion, so `deserialise` migrates them
@@ -250,7 +260,7 @@ export async function seedAtlas({ onProgress = null } = {}) {
   const live = new Set();
 
   for (let i = 0; i < library.length; i++) {
-    const { commonName, genome } = library[i];
+    const { commonName, genome, headline = null, note = null } = library[i];
     let hash;
     try { hash = genomeHash(genome); } catch { continue; }
     const key = store.KEY.specimen(hash);
@@ -273,9 +283,17 @@ export async function seedAtlas({ onProgress = null } = {}) {
       // pointed the other way: treating a store as derived state when part of it
       // is not.
       if (cur && cur.source !== 'authored') continue;
+      // `headline` IS IN THE DRIFT TEST, and it has to be. The three fields
+      // above are the record's picture, its shelf position and its name; a
+      // champion's verdict line is a fourth thing the source can change, and a
+      // freshness test that does not cover a field lets that field go stale
+      // forever — the record looks current, the shelf disagrees, and nothing
+      // ever replants it. Added the same day `headline` was, rather than after
+      // discovering it silently missing.
       if (cur
         && cur.render === RENDER_TAG
         && cur.createdAt === AUTHORED_BASE - i
+        && (cur.headline ?? null) === headline
         && cur.commonName === (commonName || cur.binomial)) continue;
     }
 
@@ -295,6 +313,10 @@ export async function seedAtlas({ onProgress = null } = {}) {
         stats: { bodies: plan.bodyCount, mass: totalMass(plan) },
         createdAt: AUTHORED_BASE - i,
         source: 'authored',
+        // Null for every shelf that does not carry them, which is all of them
+        // except the promoted champions. `ui/cards.js` renders `headline` and
+        // hangs `note` off it as the element's title.
+        headline, note,
         render: RENDER_TAG,
       };
       await store.set(key, specimen);

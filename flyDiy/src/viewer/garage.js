@@ -614,7 +614,7 @@ function garageInit(api) {
       { t: 'sel', L: 'Fixation', p: 'bracing.type',
         o: [['strut', 'Lift struts'], ['cantilever', 'Cantilever']] },
     ] },
-    { L: 'Engine, cowl & blades', led: ['engines'], items: [
+    { L: 'Engine & cowl', led: ['engines'], items: [
       { t: 'sel', L: 'Engine', p: 'engines.0.type',
         o: () => Object.keys(POWERPLANTS).map(k => [k, engLabel(k)]) },
       // THE COWL'S OWN SECTION, about the thrustline. Width, and the top and
@@ -628,10 +628,15 @@ function garageInit(api) {
       { L: 'Cowl fillet', p: 'cowl.fillet',        min: 0.02, max: 0.22, st: 0.01, u: ' m' },
       { L: 'Cowl taper',  p: 'cowl.taper',         min: 0.70, max: 1.0,  st: 0.02, u: '' },
       { L: 'Cowl deck',   p: 'fuselage.cowlDeck',  min: 0.50, max: 0.95, st: 0.02, u: '' },
-      // THE PROPELLER, which is not part of the engine. Every one of these moves
-      // a number: the disc sets static thrust and the wash the tail flies in,
-      // pitch trades static thrust against high-speed thrust, and the blades
-      // weigh something right at the front.
+      { L: 'Fore/aft',    p: 'engines.0.place.dx', min: -0.6, max: 0.45, st: 0.02, u: ' m', sign: 1 },
+      { L: 'Thrustline',  p: 'engines.0.place.dy', min: -0.3, max: 0.4,  st: 0.02, u: ' m', sign: 1 },
+    ] },
+    // THE PROPELLER IS NOT PART OF THE ENGINE, and now it does not look like it
+    // is either. The first four move NUMBERS — the disc sets static thrust and
+    // the wash the tail flies in, pitch trades static thrust against high-speed
+    // thrust, and the blades weigh something right at the front where mass
+    // costs the most CG. The rest are shape, and cost nothing but the look.
+    { L: 'Propeller', led: [], items: [
       { L: 'Prop dia.',   p: 'prop.D',      min: 0.20, max: 4.00, st: 0.02, u: ' m' },
       { L: 'Blades',      p: 'prop.blades', min: 2,    max: 6,    st: 1,    u: '' },
       { t: 'sel', L: 'Blade material', p: 'prop.material',
@@ -639,8 +644,12 @@ function garageInit(api) {
               [k, `${GEN_PROP_MATS[k].name} · ${GEN_PROP_MATS[k].price} cr`]) },
       { t: 'sel', L: 'Pitch', p: 'prop.pitch',
         o: () => Object.keys(GEN_PROP_PITCH).map(k => [k, GEN_PROP_PITCH[k].name]) },
-      { L: 'Fore/aft',    p: 'engines.0.place.dx', min: -0.6, max: 0.45, st: 0.02, u: ' m', sign: 1 },
-      { L: 'Thrustline',  p: 'engines.0.place.dy', min: -0.3, max: 0.4,  st: 0.02, u: ' m', sign: 1 },
+      { L: 'Blade chord', p: 'prop.chord',  min: 0.05, max: 0.20, st: 0.005, u: '' },
+      { L: 'Blade root',  p: 'prop.root',   min: 0.08, max: 0.35, st: 0.01, u: '' },
+      { t: 'sel', L: 'Spinner', p: 'prop.spinner.shape',
+        o: [['ogive', 'Ogive'], ['cone', 'Cone'], ['dome', 'Dome'], ['none', 'None']] },
+      { L: 'Spinner dia.', p: 'prop.spinner.dia', min: 0.08, max: 0.32, st: 0.01, u: '' },
+      { L: 'Spinner len.', p: 'prop.spinner.len', min: 0.6,  max: 4.0,  st: 0.05, u: '×' },
     ] },
     { L: 'Tail', led: ['tail'], items: [
       { t: 'sel', L: 'Type', p: 'tail.type',
@@ -649,8 +658,18 @@ function garageInit(api) {
       { L: 'Stab span',  p: 'tail.hSpan',   min: 1.5,  max: 4.5,  st: 0.05, u: ' m' },
       { L: 'Stab root',  p: '@stabRoot',    min: 0.40, max: 2.20, st: 0.02, u: ' m' },
       { L: 'Stab tip',   p: '@stabTip',     min: 0.20, max: 2.20, st: 0.02, u: ' m' },
-      { t: 'sel', L: 'Tips', p: 'tail.tip',
+      { L: 'Dorsal len',   p: 'tail.dorsal.len',    min: 0, max: 2.0,  st: 0.02, u: ' m' },
+      { L: 'Dorsal height', p: 'tail.dorsal.height', min: 0, max: 0.90, st: 0.02, u: ' m' },
+      { L: 'Dorsal angle', p: 'tail.dorsal.angle',  min: 8, max: 80,   st: 1,    u: '°' },
+      { L: 'Dorsal width', p: 'tail.dorsal.width',  min: 0.15, max: 1.60, st: 0.05, u: '×' },
+      { L: 'Fin rake',   p: 'tail.vSweep', min: -20, max: 60, st: 1, u: '°', sign: 1 },
+      { L: 'Stab height', p: 'tail.stabH',  min: 0, max: 1, st: 0.05, u: '' },
+      { t: 'sel', L: 'Tail outline', p: 'tail.tip',
         o: () => Object.keys(GEN_TIPS).map(k => [k, GEN_TIPS[k].name]) },
+      { t: 'sel', L: 'Fin outline', p: 'tail.tipV',
+        o: () => [['', 'As tail']].concat(Object.keys(GEN_TIPS).map(k => [k, GEN_TIPS[k].name])) },
+      { t: 'sel', L: 'Stab outline', p: 'tail.tipH',
+        o: () => [['', 'As tail']].concat(Object.keys(GEN_TIPS).map(k => [k, GEN_TIPS[k].name])) },
       { L: 'Fin height', p: 'tail.vHeight', min: 0.60, max: 2.20, st: 0.05, u: ' m' },
       { L: 'Fin chord',  p: 'tail.vChord',  min: 0.40, max: 1.80, st: 0.02, u: ' m' },
       { L: 'Fore/aft',   p: 'tail.place.dx', min: -1.5, max: 1.5, st: 0.05, u: ' m', sign: 1 },
@@ -669,6 +688,8 @@ function garageInit(api) {
       { L: 'Wheel lean', p: 'gear.camber',        min: -12,  max: 20,  st: 1,    u: '°', sign: 1 },
       // the split suspension height: mains and third wheel, set separately, with
       // the rest attitude falling out of the pair rather than being asked for
+      { t: 'sel', L: 'Wheel fairings', p: 'gear.fairing',
+        o: [['none', 'None'], ['spat', 'Spats'], ['full', 'Full trousers']] },
       { L: 'Main legs', p: 'gear.legDrop',        min: 0.15, max: 1.20, st: 0.05, u: ' m' },
       { L: 'Third leg', p: 'gear.twLeg',          min: 0.06, max: 1.40, st: 0.02, u: ' m' },
       { L: 'Track',     p: 'gear.track',          min: 0.90, max: 3.50, st: 0.05, u: ' m' },
@@ -765,7 +786,7 @@ function garageInit(api) {
   const GROUPS = [
     { L: 'Airframe', secs: ['Fuselage', 'Wings', 'Struts & fixation', 'Tail',
                             'Control surfaces'] },
-    { L: 'Power',    secs: ['Engine, cowl & blades', 'Fuel & systems'] },
+    { L: 'Power',    secs: ['Engine & cowl', 'Propeller', 'Fuel & systems'] },
     { L: 'Cabin',    secs: ['Cabin & cargo', 'Glazing', 'Windscreen & roof',
                             'Side windows', 'Cockpit interior', 'Occupant'] },
     { L: 'Gear',     secs: ['Wheels & suspension'] },

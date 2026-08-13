@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a791bef77e1eb314
+// body-sha256: 5529bc486d9eb23f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4224,10 +4224,18 @@ const GEN_PROP_MATS = {
 // lowers P/Tstatic and therefore its own zero-thrust speed. A first cut tabled
 // `v0k` per pitch as well and got the trade BACKWARDS: it put a fine prop's
 // thrust running out at 86 km/h on an aeroplane that cruises at 103.
+//
+// `pd` IS THE GEOMETRY AND `fm` IS THE PHYSICS, and they are two fields on
+// purpose. The blade twist is built from a real pitch law — atan(P / 2 pi r) —
+// which needs pitch as a fraction of the DIAMETER, the number written on the
+// side of a real prop (a 74x45 is a P/D of 0.61). `fm` cannot stand in for it:
+// it is a momentum-theory efficiency, it runs the other way round, and its
+// spread is nothing like a pitch ratio's. Using one for the other would give a
+// fine prop a coarser twist than a cruise prop, which is backwards and visible.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.58 },
-  standard: { name: 'Standard',        fm: 0.46 },
-  cruise:   { name: 'Coarse (cruise)', fm: 0.36 },
+  climb:    { name: 'Fine (climb)',    fm: 0.58, pd: 0.55 },
+  standard: { name: 'Standard',        fm: 0.46, pd: 0.70 },
+  cruise:   { name: 'Coarse (cruise)', fm: 0.36, pd: 0.85 },
 };
 
 // COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
@@ -4356,7 +4364,24 @@ const GEN_RULES = {
                        // where the spars go — NOT, as it was, wherever the
                        // cabin frames happen to be. That coupling is exactly
                        // what made the wing unmovable.
-  propClear:   0.40,   // m, prop tip to ground in the LEVEL attitude (Cub 0.42)
+  // PROP TIP TO GROUND, in the LEVEL attitude — which is the right attitude to
+  // measure a taildragger in, because the critical moment is the take-off roll
+  // with the tail already up, not the three-point stand where the nose is high
+  // and the disc is well clear.
+  //
+  // It was 0.40 m, which is a Cub's actual 0.42 rounded down: what a real
+  // aeroplane HAS, not what it is allowed. FAR 23.925 asks for nine inches on a
+  // taildragger and seven on a nosewheel, with the tyres flat and the strut
+  // deflated, and 0.40 is nearly double that — so it was buying a long leg
+  // nobody asked for and standing the aeroplane on stilts. These are the
+  // certificated minima instead, and the builder gets the rest of the range.
+  //
+  // The reason it errs high at all is still true and still worth reading: a leg
+  // the player shortened into a prop strike is not a bad aeroplane, it is a
+  // broken one on the first landing. So it is a MINIMUM, it still beats legDrop,
+  // and gear.yBoundBy still says which bound applied.
+  propClear:      0.229,  // taildragger, FAR 23.925 (nine inches)
+  propClearNose:  0.178,  // nosewheel, FAR 23.925 (seven inches)
   // Zero-thrust speed as a multiple of power/static-thrust. CALIBRATED on the
   // A-65 + Sensenich 74CK registry entry, which it then reproduces to under 1%
   // in both Tstatic and kV2. See GEN_PROP_PITCH for why this is one constant and
@@ -4369,7 +4394,22 @@ const GEN_RULES = {
   // clearance, being the stronger of the two constraints in every case.
   // DEFAULT only since G4.6 — spec.gear.legDrop overrides it, which is the
   // "mains" half of the split suspension height.
-  legDrop:     0.35,
+  // 0.35 UNTIL G8, AND IT HAD NEVER ONCE BOUND. propClear was 0.40 m and always
+  // won, so this number — the one that is actually SUPPOSED to own leg length —
+  // was never the constraint and was never validated. Dropping propClear to the
+  // certificated minimum exposed it, and 0.35 turned out to be nowhere near
+  // enough: GATE GEN failed on four undercarriage checks at once and GATE FLEX
+  // called the gear a mechanism.
+  //
+  // MEASURED, sweeping legDrop with propClear at 0.229: the softest suspension
+  // the panel offers stops standing below 0.64 m and rests on its tailwheel,
+  // and some powerplants stop standing below 0.58. 0.66 is 0.64 with enough
+  // headroom not to sit on the cliff. The aeroplane still ends up 0.12 m lower
+  // than it was, because the leg now sets ride height and prop clearance is
+  // only the floor beneath it — which is the right way round, and lets a
+  // builder who WANTS the blades closer lower this and be allowed to, until
+  // the prop stops them.
+  legDrop:     0.66,
   // Tailwheel leg length below the tailpost foot. The three-point deck angle
   // is DERIVED from this, not the other way round: a real tailwheel spring has
   // a length, and the attitude is what falls out of it. (Fixing the deck angle
@@ -4576,7 +4616,18 @@ const GEN_DEFAULT = {
   // pitch 'cruise' is not a neutral default, it is the TRUTH about this preset:
   // the A-65 it ships with swings a Sensenich 74CK, which is a cruise prop. That
   // is also why the default build's thrust is unchanged by all of this.
-  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise' },
+  // The four fields above the line are the PROPELLER AS PHYSICS — disc area,
+  // blade count, the mass of the material at the very front, and the pitch
+  // trade. The three below it are the propeller as a SHAPE, and they buy
+  // nothing but the look: blade planform, where the blade leaves the spinner,
+  // and the spinner itself. Kept in the same block because a builder does not
+  // think of them as two things, and marked here because a change to the top
+  // four moves the aeroplane and a change to the bottom three does not.
+  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise',
+          // chord and root as fractions of the RADIUS, so they survive a
+          // diameter change instead of being metres that no longer fit
+          chord: 0.10, root: 0.16,
+          spinner: { shape: 'ogive', len: 2.2, dia: 0.17 } },
   // An ARRAY because a biplane is a real aeroplane. `position` is where the
   // spar meets the fuselage.
   wings: [{ span: 10.0, chord: 1.60, taper: 1.0, dihedral: 3.0,
@@ -4596,7 +4647,31 @@ const GEN_DEFAULT = {
   // strut away without adding the box builds an aeroplane that folds.
   bracing: { type: 'strut' },
   tail: { type: 'conventional', vAngle: 33,
-          hSpan: null, hChord: null, hX: null, hTaper: 1.0, tip: 'rounded',
+          hSpan: null, hChord: null, hX: null, hTaper: 1.0,
+          // `tip` is the tail's shared tip shape and stays the one the V-tail
+          // uses, since a V-tail is ONE surface. `tipV` and `tipH` override it
+          // per surface on a conventional tail — a Cub has a big round fin and a
+          // near-elliptical tailplane, and they are not obliged to match. Null
+          // means "whatever `tip` says", so an older save keeps its shape.
+          tip: 'rounded', tipV: null, tipH: null,
+          // FIN RAKE, degrees of leading-edge sweep. Null derives the angle the
+          // fin already had (its LE carried a hardcoded 0.30 chord of sweep over
+          // its height), so an untouched build is unchanged and the control
+          // starts where the aeroplane already was.
+          vSweep: null,
+          // WHERE THE TAILPLANE SITS UP THE FIN. 0 is on the tail cone, as it
+          // has always been; 1 puts it at the fin tip, which IS a T-tail — so
+          // the old backlog's "T-tail" is this control at its limit rather than
+          // a separate kind of aeroplane. It moves the stab in Y only: `hX` is
+          // the tail ARM and stays the builder's to set, because moving it here
+          // would re-tune the pitch authority behind their back.
+          stabH: 0,
+          // THE DORSAL FIN, ahead of the fin's leading edge. `angle` is the
+          // slope of its own leading edge and is nullable: set it and `len` is
+          // driven from `height`, leave it and it is derived from the two
+          // lengths and reads AUTO. Four controls for a three-cornered shape is
+          // one too many, and this is which one gives way.
+          dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null },
           vHeight: null, vChord: null, vX: null,
           place: { dx: 0 } },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
@@ -4627,7 +4702,7 @@ const GEN_DEFAULT = {
   // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
   // so it is one of the two things that set prop clearance, the other being
   // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
-  gear: { type: 'taildragger', suspension: 'bungee',
+  gear: { type: 'taildragger', fairing: 'none', suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
           legDrop: null, twLeg: null, camber: 0,
@@ -4880,6 +4955,16 @@ function clampSpec(spec) {
   w.sweep = genClamp(w.sweep || 0, -15, 30);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
+  // null is legal on the two overrides and means 'use tail.tip'
+  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
+  S.tail.vSweep = genClampN(S.tail.vSweep, -20, 60);
+  const dr = S.tail.dorsal || (S.tail.dorsal = {});
+  dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
+  dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);
+  dr.angle  = genClampN(dr.angle, 8, 80);
+  dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
+  if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
+  if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
   S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, 0.35, 1.0);
   if (!['conventional', 'v'].includes(S.tail.type)) S.tail.type = 'conventional';
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
@@ -4911,6 +4996,13 @@ function clampSpec(spec) {
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
+  // WHEEL FAIRINGS, off by default. `spat` is the trouser over the wheel alone;
+  // `full` carries it up the leg as well. Geometry ONLY — a real spat is worth
+  // real drag, but the generated aeroplane has no parasite-drag build-up to hang
+  // that on, and a fairing that quietly did nothing to the numbers while looking
+  // as though it should is worse than one that is honestly cosmetic. If a drag
+  // model arrives, this is the field it keys off.
+  if (!['none', 'spat', 'full'].includes(S.gear.fairing)) S.gear.fairing = 'none';
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
@@ -4942,6 +5034,16 @@ function clampSpec(spec) {
   S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
   if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
   if (!GEN_PROP_PITCH[S.prop.pitch]) S.prop.pitch = 'standard';
+  // the shape half — visual only, so the bounds are what reads as a propeller
+  // rather than what flies
+  S.prop.chord = genClamp(S.prop.chord == null ? 0.10 : S.prop.chord, 0.05, 0.20);
+  S.prop.root  = genClamp(S.prop.root  == null ? 0.16 : S.prop.root,  0.08, 0.35);
+  const sn = S.prop.spinner || (S.prop.spinner = {});
+  if (!['ogive', 'cone', 'dome', 'none'].includes(sn.shape)) sn.shape = 'ogive';
+  // len and dia are multiples of the spinner RADIUS and of the prop radius
+  // respectively — again fractions, so a bigger propeller gets a bigger nose
+  sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
+  sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
   cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
@@ -5088,6 +5190,24 @@ function resolveSpec(spec) {
   put(t, 'vHeight', Math.sqrt(Sv * GEN_RULES.vAR), 'tail.vHeight');
   put(t, 'vChord', Sv / t.vHeight, 'tail.vChord');
   S.tail.Sh = Sh; S.tail.Sv = Sv; S.tail.lh = lh; S.tail.lv = lv;
+  // THE FIN'S RAKE, derived from what it already was. The skin swept the fin's
+  // leading edge by a hardcoded 0.30 of the chord over the fin's height; left
+  // null that is exactly what comes back, so making it a control moves no
+  // existing aeroplane. It is an ANGLE and not a chord fraction because that is
+  // what a builder reads off a drawing and what stays meaningful when the fin's
+  // height and chord both change.
+  put(t, 'vSweep', Math.atan2(0.30 * t.vChord, t.vHeight) * 180 / Math.PI,
+      'tail.vSweep');
+  // the dorsal's over-determined corner: an angle SET drives the length, an
+  // angle left null is read back out of it
+  {
+    const d = t.dorsal;
+    if (d.angle != null && d.height > 0)
+      d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
+    else
+      put(d, 'angle', Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI,
+          'tail.dorsal.angle');
+  }
   // ---- V-TAIL: one pair of panels doing both jobs ----
   // A panel canted at G contributes cos^2 G of its area to pitch and sin^2 G to
   // yaw (one cosine because a pitch rate only reaches the panel through its
@@ -5285,7 +5405,11 @@ function resolveSpec(spec) {
   // nosewheel's is only knowable once the wheelbase is — same reason gear.x and
   // gear.track are placed by genFrame on its second pass. Left null it keeps
   // each type's own derivation; set, it is the leg length for both.
-  const byProp = S.engY - propR + S.gear.contactR - GEN_RULES.propClear;
+  // the two gear types are certificated to different clearances, so they get
+  // different ones here rather than sharing the stricter
+  const clearReq = S.gear.type === 'tricycle' ? GEN_RULES.propClearNose
+                                              : GEN_RULES.propClear;
+  const byProp = S.engY - propR + S.gear.contactR - clearReq;
   const byLeg = -0.02 - S.gear.legDrop;
   // WHICH ONE BOUND IT, published because otherwise the legDrop slider looks
   // broken. min() picks the LOWER axle, i.e. the LONGER leg, so a legDrop
@@ -5766,7 +5890,13 @@ function genLattice(S, gearX, track, kScale) {
   // and there is simply no FIN node to build.
   const isV = t.type === 'v';
   const tailY = lastST.yb + 0.55 * (lastST.yt - lastST.yb);
-  const [HTL, HTR] = NM(t.hX, isV ? tailY + t.vHeight : tailY, 0.5 * t.hSpan, 'HT');
+  // STAB HEIGHT. 0 leaves it on the tail cone where it has always been; 1 puts
+  // it level with the fin tip, which is a T-tail. Y only — `hX` is the tail arm
+  // and is the builder's, so riding up the fin does not silently re-tune pitch.
+  const finTopY = lastST.yt + t.vHeight * 0.82;
+  const stabY = isV ? tailY + t.vHeight
+                    : tailY + (t.stabH || 0) * (finTopY - tailY);
+  const [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
@@ -5777,7 +5907,10 @@ function genLattice(S, gearX, track, kScale) {
     cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
     cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
-    FIN = N(t.vX, lastST.yt + t.vHeight * 0.82, 0, 'FIN');
+    // the fin's apex node follows the RAKE, so the truss leans with the fin the
+    // skin draws instead of standing upright inside a swept one
+    FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
+            finTopY, 0, 'FIN');
     B(FIN, TPT, 'fus'); B(FIN, last.TL, 'fus'); B(FIN, last.TR, 'fus');
     cover(1.9 * t.Sv, [FIN, TPT, last.TL, last.TR]);
   }
@@ -6815,6 +6948,10 @@ function genSkin(def) {
         // glazing: pane, cabin interior behind it, and the frame bars
         glass = genMesh(), gcabin = genMesh(), gframe = genMesh(),
         exhaust = genMesh(),
+        // the propeller's own two: a revolved ogive nose, and the outboard
+        // tenth of each blade as a separate group so the painted tip is paint
+        // and not a UV band that moves when the blade's shape does
+        spinner = genMesh(), proptip = genMesh(),
         // the coaming and the instrument panel, off the windscreen fit line
         dash = genMesh(),
         // the INSIDE of the covering — the same rows, stepped inward
@@ -8279,42 +8416,84 @@ function genSkin(def) {
   // `mv` names the surface and what drives it; omit it for a panel with no
   // control surface on it.
   const NTAIL = 7, NTSURF = 3;
-  const panel = (rowsSpec, hingeFrac, mv) => {
+  // THE HINGE IS A STRAIGHT LINE AT A STATION, not a constant chord fraction.
+  //
+  // `hinge` may be a number (a fraction of every row's chord, which is what the
+  // V-tail wants — its two panels are untapered) or `{ x }`, a station in the
+  // body frame. The station form is what a real tail has: look at any three-view
+  // and the rudder and elevator hinges are STRAIGHT. A constant fraction bends
+  // with the taper, and once the outline curves into a rounded tip it bends into
+  // the tip and takes the control surface with it.
+  //
+  // A station also gives the Cub's shape for free. Its fin is the small forward
+  // slice and the rudder the large aft one, and near the top the leading edge
+  // curves aft PAST the hinge — so up there the section is all rudder and there
+  // is no fin at all. That falls out here as a row whose fixed part has no
+  // chord: such rows are DROPPED rather than emitted, so the fin simply ends
+  // where the outline crosses the hinge and gets capped there.
+  const panel = (rowsSpec, hinge, mv, tk) => {
     const spanDir = genV3.norm(genV3.sub(rowsSpec[1].le, rowsSpec[0].le));
     const seg = (a2, b2, n) => genAfSeg(9, a2, b2, n);
-    const build = (a2, b2, n) => rowsSpec.map(({ le, te, infl }) => {
-      const ch = genV3.norm(genV3.sub(te, le));
-      const len = Math.hypot(te[0]-le[0], te[1]-le[1], te[2]-le[2]);
-      const nrm = genV3.norm(genV3.cross(ch, spanDir));
-      return seg(a2, b2, n).map(([xc, yc]) => ({
-        p: genV3.add(genV3.add(le, genV3.mul(ch, xc * len)), genV3.mul(nrm, yc * len)),
-        infl, u: xc }));
-    });
-    const h = mv ? hingeFrac : 1;
-    const fixed = build(0, h, NTAIL);
+    // the chord of every tail row runs along x, so a station converts to a
+    // fraction directly
+    const fracAt = k => {
+      const R = rowsSpec[k];
+      if (typeof hinge === 'number') return hinge;
+      const len = R.te[0] - R.le[0];
+      return Math.abs(len) < 1e-9 ? 1 : (hinge.x - R.le[0]) / len;
+    };
+    const EPS = 0.02;                    // below this a part is a sliver, not a part
+    // build over [aOf(k), bOf(k)], keeping each row's ORIGINAL index so the v
+    // coordinate does not shift when rows are dropped
+    const build = (aOf, bOf, n) => {
+      const out = [];
+      rowsSpec.forEach(({ le, te, infl }, k) => {
+        const a2 = Math.max(0, Math.min(1, aOf(k))), b2 = Math.max(0, Math.min(1, bOf(k)));
+        if (b2 - a2 < EPS) return;
+        const ch = genV3.norm(genV3.sub(te, le));
+        const len = Math.hypot(te[0]-le[0], te[1]-le[1], te[2]-le[2]);
+        const nrm = genV3.norm(genV3.cross(ch, spanDir));
+        out.push({ k, pts: seg(a2, b2, n).map(([xc, yc]) => ({
+          // `tk` scales the section's thickness. The 9-series is 9% of chord,
+          // which is right for a flying surface and far too fat for a fairing
+          // whose chord is most of the tail cone.
+          p: genV3.add(genV3.add(le, genV3.mul(ch, xc * len)),
+                       genV3.mul(nrm, yc * len * (tk == null ? 1 : tk))),
+          infl, u: xc })) });
+      });
+      return out;
+    };
     // v 0.10..1: the root end clears the wing walk (which lives in the first
     // 8% of the panel zone) while the tip still picks up the tip band.
-    const tv = r => 0.10 + 0.90 * r / Math.max(1, rowsSpec.length - 1);
-    const ids = emitLoft(fixed, skin, tv, false, !!mv);
-    capLoft([ids[0], ids[ids.length - 1]], skin);
+    const tv0 = k => 0.10 + 0.90 * k / Math.max(1, rowsSpec.length - 1);
+    const emit = (built, mesh, close) => {
+      const rows = built.map(b => b.pts);
+      const ids = emitLoft(rows, mesh, r => tv0(built[r].k), false, close);
+      if (ids.length) capLoft([ids[0], ids[ids.length - 1]], mesh);
+      return ids;
+    };
+    const hOf = mv ? fracAt : (() => 1);
+    emit(build(() => 0, hOf, NTAIL), skin, !!mv);
     if (!mv) return;
     const M = genMesh();
-    const rows = build(h, 1, NTSURF);
-    const sIds = emitLoft(rows, M, tv, false, true);
-    capLoft([sIds[0], sIds[sIds.length - 1]], M);
-    // pivot on the hinge line at mid panel; axis along the hinge
+    const built = build(hOf, () => 1, NTSURF);
+    if (!built.length) return;           // no moving surface at all: nothing to hinge
+    emit(built, M, true);
+    // pivot on the hinge line at mid panel; axis along the hinge. Taken from the
+    // rows the MOVING surface actually got, so a hinge that runs out before the
+    // tip still gets an axis along the part that exists.
     const onHinge = k => {
       const R = rowsSpec[k], ch = genV3.norm(genV3.sub(R.te, R.le));
       const len = Math.hypot(R.te[0]-R.le[0], R.te[1]-R.le[1], R.te[2]-R.le[2]);
-      return genV3.add(R.le, genV3.mul(ch, h * len));
+      return genV3.add(R.le, genV3.mul(ch, Math.max(0, Math.min(1, fracAt(k))) * len));
     };
-    const a0 = onHinge(0), a1 = onHinge(rowsSpec.length - 1);
+    const a0 = onHinge(built[0].k), a1 = onHinge(built[built.length - 1].k);
     const mid = genV3.mul(genV3.add(a0, a1), 0.5);
     CTRL_MESH.push({ group: mv.g, mesh: M, pivot: B(mid),
       axis: genV3.norm(genV3.sub(B(a1), B(a0))),
       drive: mv.drive, sgn: mv.sgn, k: mv.k || 1,
       drive2: mv.drive2 || null, sgn2: mv.sgn2 || 0, k2: mv.k2 || 1,
-      infl: rowsSpec[Math.floor(rowsSpec.length / 2)].infl });
+      infl: rowsSpec[built[Math.floor(built.length / 2)].k].infl });
   };
   {
     const t = S.tail, hx = t.hX;
@@ -8373,7 +8552,9 @@ function genSkin(def) {
       }
     } else {
     const post = [[P.TPB, 0.5], [P.TPT, 0.5]];
-    const TTIP = GEN_TIPS[t.tip] || GEN_TIPS.rounded;
+    // per-surface tips, falling back to the tail's shared one
+    const TTIP = GEN_TIPS[t.tipH || t.tip] || GEN_TIPS.rounded;   // tailplane
+    const VTIP = GEN_TIPS[t.tipV || t.tip] || GEN_TIPS.rounded;   // fin
     // hChord is the MEAN chord (Sh = hSpan * hChord, and the strips' area comes
     // from Sh), so tapering must hold that mean: root = 2 c / (1 + lambda).
     // Planform only — area and aspect ratio are unchanged, so this shapes the
@@ -8393,31 +8574,104 @@ function genSkin(def) {
       stabRow(0.18*hz, [[P.HTR, 0.30], ...post.map(([i,w]) => [i, w*0.70])]),
       stabRow(hz, [[P.HTR, 1]]),
     ];
-    // rounded tips on the stabiliser: an extra shrunk row just outboard, the
-    // same treatment the wing gets
-    if (TTIP.round > 0) {
-      const d = 0.055 * t.hChord;
-      stabRows.unshift(stabRow(-hz - d, [[P.HTL, 1]], TTIP.round));
-      stabRows.push(stabRow(hz + d, [[P.HTR, 1]], TTIP.round));
+    // THE BOW, which is what makes a tailplane elliptical instead of a plank.
+    // `bow` is how far out the tip carries as a fraction of the chord and `arc`
+    // is how many stations resolve it — the SAME two fields the wing's tip uses,
+    // because a builder choosing "Elliptical" means one thing and should get it
+    // on every surface.
+    //
+    // The chord follows a quarter ellipse in the extra span, so the outline
+    // leaves the last full-chord station tangentially and closes to a point.
+    // This replaces three dead branches: the tail read `TTIP.round`, and NO
+    // GEN_TIPS entry has ever had a `round` — `undefined > 0` is false, so every
+    // tip option produced byte-identical geometry. Measured before the fix: all
+    // six gave the same vertex count AND the same position hash.
+    const bowRows = (make, at, sgn) => {
+      const nA = Math.max(0, TTIP.arc | 0);
+      const out = [];
+      for (let i = 1; i <= nA; i++) {
+        const th = (Math.PI / 2) * (i / nA) * 0.965;
+        out.push(make(at + sgn * TTIP.bow * t.hChord * Math.sin(th), Math.cos(th)));
+      }
+      return out;
+    };
+    if (TTIP.bow > 0 && TTIP.arc > 0) {
+      for (const r of bowRows((z, c) => stabRow(z, [[P.HTL, 1]], c), -hz, -1).reverse())
+        stabRows.unshift(r);
+      for (const r of bowRows((z, c) => stabRow(z, [[P.HTR, 1]], c), hz, 1))
+        stabRows.push(r);
     }
-    panel(stabRows, 0.66, { g: 'elev', drive: 'de', sgn: 1 });
+    // the elevator hinge is a STRAIGHT line across the span, so it is a station
+    // and not a fraction: on a tapered stab a fraction bends, and into the bow
+    // it would curve away into the tip
+    panel(stabRows, { x: hx + 0.15 * t.hChord + 0.16 * hRoot },
+          { g: 'elev', drive: 'de', sgn: 1 });
     const vc = t.vChord, vx = t.vX, vy0 = N[P.TPT].p[1], vy1 = N[P.FIN].p[1];
     const finRow = (y, k, sw, shrink) => {
       const c = vc * (shrink == null ? 1 : shrink);
       return { le: [vx - 0.40*vc + sw, y, 0], te: [vx - 0.40*vc + sw + c, y, 0],
         infl: [[P.FIN, k], [P.TPT, (1-k)*0.6], [P.TPB, (1-k)*0.4]] };
     };
-    const finRows = [finRow(vy0, 0, 0), finRow(vy0 + 0.5*(vy1-vy0), 0.5, 0.14*vc),
-                     finRow(vy1, 1, 0.30*vc)];
-    if (TTIP.round > 0)
-      finRows.push(finRow(vy1 + 0.055 * vc, 1, 0.30*vc + 0.5*vc*(1-TTIP.round), TTIP.round));
-    panel(finRows, 0.60, { g: 'rud', drive: 'dr', sgn: 1 });
-    // THE DORSAL FILLET. The fin's root is already buried 22 mm in the tail cone,
-    // so there was no gap here — but the joint was a hard corner where a real
-    // aeroplane has a fairing running aft along the turtledeck. One extra fixed
-    // row below the root with 30% more chord: `finRow` holds the LE and grows the
-    // chord AFT, which is the direction a dorsal fillet actually goes.
-    panel([finRow(vy0 - 0.07, 0, 0, 1.30), finRows[0]], 1, null);
+    // THE RAKE, from the spec rather than from three constants. The leading edge
+    // used to sweep 0, 0.14 and 0.30 of the chord at root, mid and tip — very
+    // nearly a straight line, and now exactly one: sweep is an angle and the
+    // stations follow it. Left null the spec derives the angle those constants
+    // implied, so an untouched fin is the fin it was.
+    const finSw = Math.tan((t.vSweep || 0) * Math.PI / 180);
+    const swAt = y => finSw * (y - vy0);
+    const finRows = [finRow(vy0, 0, swAt(vy0)),
+                     finRow(vy0 + 0.5*(vy1-vy0), 0.5, swAt(vy0 + 0.5*(vy1-vy0))),
+                     finRow(vy1, 1, swAt(vy1))];
+    // the same bow over the top, and the sweep carries on into it so the leading
+    // edge and the rounded top are ONE curve — which is the whole point on a
+    // Cub, where the fin and the rudder read as a single shape with a hinge
+    // drawn through it rather than as two parts that happen to touch
+    if (VTIP.bow > 0 && VTIP.arc > 0) {
+      const nA = Math.max(1, VTIP.arc | 0);
+      for (let i = 1; i <= nA; i++) {
+        const th = (Math.PI / 2) * (i / nA) * 0.965, c = Math.cos(th);
+        const yB = vy1 + VTIP.bow * vc * Math.sin(th);
+        finRows.push(finRow(yB, 1, swAt(yB) + 0.5 * vc * (1 - c), c));
+      }
+    }
+    // THE RUDDER HINGE, a straight vertical line. Above the point where the
+    // swept leading edge crosses it there is no fin left at all and the section
+    // is entirely rudder — which is exactly what the blueprint shows, and it
+    // falls out of `panel` dropping the rows whose fixed part has no chord.
+    panel(finRows, { x: vx - 0.40 * vc + 0.60 * vc },
+          { g: 'rud', drive: 'dr', sgn: 1 });
+    // THE DORSAL FIN, which runs FORWARD.
+    //
+    // What was here grew the root chord 30% AFT — a wider root, not a dorsal.
+    // A real one goes the other way: look at the Cub three-view and a fairing
+    // leaves the turtledeck well ahead of the fin and sweeps up into its leading
+    // edge. So the leading edge is extended forward at the bottom and that
+    // extension fades to nothing where it blends into the fin.
+    //
+    // `len` is how far forward it reaches, `height` how far up the fin's leading
+    // edge it blends, `width` its thickness, and `angle` the slope of its own
+    // leading edge. Those four are ONE too many — a triangle is fixed by two of
+    // them — so `angle` is nullable and, when set, drives `len` from `height`.
+    // Left null it is derived from the two lengths and shown as AUTO, which is
+    // the same bargain every other over-determined control in this spec makes.
+    const D = t.dorsal || {};
+    if (D.len > 0 && D.height > 0) {
+      const yTop = vy0 + D.height, yBot = vy0 - 0.07;
+      const NR = 5, dRows = [];
+      for (let i = 0; i <= NR; i++) {
+        const y = yBot + (yTop - yBot) * i / NR;
+        // the forward reach fades out toward the top; the exponent is what makes
+        // the join a fillet rather than a corner
+        const u = Math.max(0, Math.min(1, (y - yBot) / Math.max(1e-6, yTop - yBot)));
+        const ext = D.len * Math.pow(1 - u, 1.6);
+        const leX = vx - 0.40 * vc + swAt(Math.max(vy0, y)) - ext;
+        const teX = vx - 0.40 * vc + swAt(Math.max(vy0, y)) + vc;
+        dRows.push({ le: [leX, y, 0], te: [teX, y, 0],
+                     infl: [[P.FIN, u * 0.35], [P.TPT, (1 - u * 0.35) * 0.6],
+                            [P.TPB, (1 - u * 0.35) * 0.4]] });
+      }
+      panel(dRows, 1, null, D.width);
+    }
     }
   }
 
@@ -8444,45 +8698,187 @@ function genSkin(def) {
   wheel(P.GAL, S.gear.wheelR, S.gear.camberRad);
   wheel(P.GAR, S.gear.wheelR, S.gear.camberRad);
   wheel(P.TW, S.gear.twR, 0);
+  // ---- WHEEL FAIRINGS, when the build bought them --------------------------
+  // A streamlined shell around the main wheels. It is a LOFT over slices across
+  // the axle rather than a revolve: a spat is a teardrop seen from the side and
+  // a flat-sided slab seen from the front, which no surface of revolution is.
+  //
+  // The outline is a symmetric section on the wheel's own chord, so the fairing
+  // grows with the wheel it covers instead of being a size somebody typed in.
+  // It CLEARS the tyre by construction — the section is scaled to the wheel's
+  // diameter plus a margin, which is the same rule the spinner follows for the
+  // cowl: parts either clear each other or overlap, never nearly touch.
+  if (S.gear.fairing !== 'none') {
+    const R = S.gear.wheelR, full = S.gear.fairing === 'full';
+    const CH = 2.7 * R, TH = 1.28 * R;      // chord and half-height of the shell
+    const HW = 0.62 * R;                    // half-width across the axle
+    const E = genAfEval(12);                // a fat symmetric section: a trouser
+    const NS = 7, NZ = 4;
+    for (const nd of [P.GAL, P.GAR]) {
+      const c = N[nd].p, infl = w1(nd), sgn = c[2] < 0 ? -1 : 1;
+      // slices across the axle, the outer two pulled in to close the shell
+      const rows = [];
+      for (let j = 0; j <= NZ; j++) {
+        const t2 = j / NZ, zz = c[2] + sgn * (-HW + 2 * HW * t2);
+        // a flat-sided middle with rounded shoulders, not an ellipse
+        const w = Math.pow(Math.sin(Math.PI * Math.min(0.999, Math.max(0.001, t2))), 0.38);
+        const row = [];
+        for (let i = 0; i <= NS; i++) {
+          const xc = i / NS;
+          const up = E.up(xc), lo = E.lo(xc);
+          row.push([c[0] + (xc - 0.42) * CH, c[1] + up[1] / 0.12 * TH * w, zz]);
+          row.unshift([c[0] + (xc - 0.42) * CH, c[1] + lo[1] / 0.12 * TH * w, zz]);
+        }
+        rows.push(row);
+      }
+      // the leg comes out through the top on a `full` trouser, so that face is
+      // left open; a `spat` is closed all round
+      const ids = rows.map((row, r) => row.map((pp, i) =>
+        strut.v(B(pp), i / row.length, r / NZ, infl)));
+      for (let r = 0; r < ids.length - 1; r++)
+        for (let i = 0; i < ids[r].length; i++) {
+          const i2 = (i + 1) % ids[r].length;
+          if (full && r === ids.length - 2 && i > ids[r].length * 0.35
+                   && i < ids[r].length * 0.65) continue;
+          strut.quad(ids[r][i], ids[r][i2], ids[r+1][i2], ids[r+1][i]);
+        }
+    }
+  }
   {
     const eng = [[P.EL, 0.5], [P.ER, 0.5]];
-    // the prop mounts DIRECTLY on the cowl's flat nose; the backplate sits a
-    // few mm proud of it so the two faces do not z-fight
-    const rSp = Math.max(0.075, 0.16 * S.propR), SEG = 12;
-    const xBack = hub[0] - 0.006;
-    const back = [], tip = prop.v(B([xBack - 1.5*rSp, S.engY, 0]), 0.5, 1, eng);
-    for (let h = 0; h <= SEG; h++) {
-      const a = 2*Math.PI*(h % SEG)/SEG;
-      back.push(prop.v(B([xBack, S.engY + rSp*Math.cos(a), rSp*Math.sin(a)]), h/SEG, 0, eng));
-    }
-    for (let h = 0; h < SEG; h++) prop.tri(back[h], back[h+1], tip);
-    // AS MANY BLADES AS THE SPEC BOUGHT, tapered and twisted, on the disc plane.
-    // They used to be two, hardcoded, while the number was a spec field nobody
-    // could see. Evenly spaced about the shaft — which is also what keeps the
-    // group out of the mirror-symmetry check: a propeller must NOT mirror (both
-    // blades twist the same way or it makes no thrust), and the gate exempts it.
-    const NB = Math.max(2, Math.round(S.prop.blades));
-    for (let b2 = 0; b2 < NB; b2++) {
-      const ph = 2 * Math.PI * b2 / NB, cph = Math.cos(ph), sph = Math.sin(ph);
-      const r0 = 0.9*rSp, r1 = S.propR;
-      const row = [];
-      for (let i = 0; i <= 5; i++) {
-        const t2 = i/5, r = r0 + (r1-r0)*t2;
-        // narrow, tapered, and rounded off at the tip — a blade, not a paddle
-        const cw = 0.055*S.propR*(1 - 0.30*t2) * (t2 > 0.88 ? (1 - t2) / 0.12 : 1);
-        const tw = (0.34 - 0.27*t2);
-        // radial out along the blade, tangential across its chord, both in the
-        // disc plane. At phase 0 and pi this is exactly the old two-blade
-        // geometry, y-radial with the chord laid across z.
-        const cy = S.engY + r*cph, cz = r*sph;
-        const ky = -cw*Math.cos(tw)*sph, kz = cw*Math.cos(tw)*cph;
-        row.push([
-          prop.v(B([hub[0] - cw*Math.sin(tw) - 0.02, cy - ky, cz - kz]), 0, t2, eng),
-          prop.v(B([hub[0] + cw*Math.sin(tw) - 0.02, cy + ky, cz + kz]), 1, t2, eng),
-        ]);
+    // The spinner used to be a twelve-sided cone with a point on it, drawn
+    // here. It is now a revolved ogive built with the blades below, because the
+    // two share the one rule that matters — nothing the propeller owns may
+    // touch the cowl — and a rule enforced in two places is a rule that drifts.
+    // DRIVEN BY THE TRUNK'S PROP GROUP, which is the one the solver pulls on:
+    // same disc, same blade count, same pitch choice. The session drove this
+    // from a per-engine `engines[0].prop` with a numeric pitch and no physics
+    // behind it — that spec is gone, and taking it back would have unhooked the
+    // propeller you can see from the propeller that makes the thrust.
+    //
+    // `pd` is the pitch as a fraction of the DIAMETER, which is what the twist
+    // law below needs and what is written on a real prop. It is a field on
+    // GEN_PROP_PITCH beside `fm`, NOT derived from it: `fm` is a momentum-theory
+    // efficiency and runs the other way round.
+    const PR = S.prop, R = S.propR;
+    const nBl = Math.max(2, Math.min(6, PR.blades | 0 || 2));
+    const pitch = (GEN_PROP_PITCH[PR.pitch] || GEN_PROP_PITCH.standard).pd;
+    const cFrac = PR.chord, rootF = PR.root;
+    // ---- SPINNER, and the one hard rule: NOTHING TOUCHES THE COWL ----------
+    // `hub[0]` is the cowl's flat nose face. x is AFT, so everything the propeller
+    // owns must live at x < xFace - GAP. The old blades were pinned 6 mm AFT of
+    // that face and their chord swung another 60 mm back, i.e. the propeller was
+    // drawn inside the engine bay.
+    const GAP = 0.008, xFace = hub[0];
+    const SP = PR.spinner || {};
+    const spShape = ['ogive', 'cone', 'dome', 'none'].includes(SP.shape) ? SP.shape : 'ogive';
+    const rSp = Math.max(0.055, (SP.dia == null ? 0.17 : genClamp(SP.dia, 0.08, 0.32)) * R);
+    const spLen = (SP.len == null ? 2.2 : genClamp(SP.len, 0.6, 4.0)) * rSp;
+    // the profile is one family with an exponent: a cone is straight, an ogive is
+    // full, a dome is a hemisphere. Sampled coarsely — it is a small object.
+    const spExp = spShape === 'cone' ? 1.0 : spShape === 'dome' ? 2.4 : 1.7;
+    const SPS = [];
+    {
+      const NSp = 9;
+      for (let i = 0; i <= NSp; i++) {
+        const t2 = i / NSp;
+        SPS.push([Math.pow(Math.max(0, 1 - Math.pow(t2, spExp)), 1 / spExp), 1 - 2 * t2]);
       }
-      for (let i = 0; i < row.length - 1; i++)
-        prop.quad(row[i][0], row[i][1], row[i+1][1], row[i+1][0]);
+      // no duplicate apex row: two consecutive r = 0 rows have no ring between
+      // them, and genRevolveInto would read a row that does not exist
+    }
+    const xSpB = xFace - GAP;                       // spinner base, on the face
+    if (spShape !== 'none')
+      genRevolveInto(spinner, [xSpB - 0.5 * spLen, S.engY, 0], [1, 0, 0],
+                     rSp, 0.5 * spLen, SPS, 20, eng, B);
+    // ---- BLADES ----------------------------------------------------------
+    // Aerofoil sections on a twist law, thick and round at the root, thin and
+    // flat at the tip. Nine stations, thirteen points: about 210 triangles a
+    // blade, which is the least a twisted surface reads correctly at.
+    const E = genAfEval(4412);
+    const NB = 6, NR = 8;
+    // the disc sits a third of the way up the spinner, which is where a blade
+    // actually leaves it
+    const xDisc0 = xSpB - (spShape === 'none' ? 0.02 : 0.34 * spLen);
+    // THE ROOT STARTS INSIDE THE SPINNER. `root` is a fraction of the RADIUS, so
+    // on a slender nose — a cone above all, which is the thinnest of the family
+    // at any station — the first blade station could sit outside the spinner's
+    // own surface and the blade floated clear of it. The rule is the same one the
+    // cowl clearance uses, in the other direction: measure the spinner where the
+    // disc actually is and bury the root well inside it. Nothing is co-planar and
+    // nothing is nearly-touching; parts either clear each other or overlap.
+    const tDisc = spShape === 'none' ? 1 : 0.34;
+    const rDisc = spShape === 'none' ? 0
+      : rSp * Math.pow(Math.max(0, 1 - Math.pow(tDisc, spExp)), 1 / spExp);
+    const rRoot = spShape === 'none' ? rootF * R
+      : Math.min(rootF * R, 0.72 * rDisc);
+    const bladeRows = [];
+    let xMax = -1e9;
+    for (let i = 0; i <= NR; i++) {
+      const t2 = i / NR, r = rRoot + (R - rRoot) * t2;
+      // planform: widest around a third out, closing to a round tip
+      const shape = 0.62 + 0.60 * Math.sin(Math.PI * Math.min(1, 0.24 + 0.86 * t2));
+      const tipR = t2 > 0.90 ? Math.sqrt(Math.max(0, 1 - ((t2 - 0.90) / 0.104) ** 2)) : 1;
+      const cw = cFrac * R * shape * tipR;
+      // THE PITCH LAW. atan(P / 2 pi r) — coarse inboard, fine outboard, and
+      // exactly as coarse as the pitch says.
+      const tw = Math.atan((pitch * 2 * R) / (2 * Math.PI * Math.max(0.04, r)));
+      // thickness ratio falls from a fat root to a thin tip; the section is a
+      // 4412 scaled about its own chord line, so one evaluator serves all of it
+      const tk = (0.20 - 0.13 * t2) / 0.12;
+      const ch = [Math.sin(tw), 0, Math.cos(tw)];
+      const pts = [];
+      for (let q = NB; q >= 0; q--) pts.push(E.up(q / NB));
+      for (let q = 1; q <= NB; q++) pts.push(E.lo(q / NB));
+      const row = pts.map(([xc, yc]) => {
+        const yS = yc * tk;
+        const p = [xDisc0 + ch[0] * (xc - 0.42) * cw - ch[2] * yS * cw,
+                   r,
+                   ch[2] * (xc - 0.42) * cw + ch[0] * yS * cw];
+        xMax = Math.max(xMax, p[0]);
+        return { p, u: xc, v: t2 };
+      });
+      bladeRows.push(row);
+    }
+    // NOTHING TOUCHES THE COWL, enforced rather than hoped for: whatever the
+    // pitch and chord came out as, the whole blade is walked forward until its
+    // aft-most vertex clears the face. This is the check that makes the
+    // parametrisation safe — a coarse, wide blade swings a long way back.
+    const shift = Math.max(0, xMax - (xFace - GAP));
+    // blade b is the first blade turned about the thrust axis
+    const bladeAt = (row, ang) => {
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      return row.map(pt => ({
+        p: [pt.p[0] - shift, S.engY + pt.p[1] * ca - pt.p[2] * sa,
+            pt.p[1] * sa + pt.p[2] * ca],
+        u: pt.u, v: pt.v }));
+    };
+    for (let b = 0; b < nBl; b++) {
+      const ang = 2 * Math.PI * b / nBl;
+      const rows = bladeRows.map(row => bladeAt(row, ang));
+      // the outboard tenth is the tip stripe, and so it is its own group: a
+      // painted blade tip is how a propeller reads as a propeller when stopped.
+      const emit = (M, i0, i1) => {
+        const ids = [];
+        for (let i = i0; i <= i1; i++)
+          ids.push(rows[i].map(pt => M.v(B(pt.p), pt.u, pt.v, eng)));
+        for (let i = 0; i < ids.length - 1; i++) {
+          const n = ids[i].length;
+          for (let h = 0; h < n; h++) {
+            const h2 = (h + 1) % n;
+            M.quad(ids[i][h], ids[i][h2], ids[i+1][h2], ids[i+1][h]);
+          }
+        }
+        return ids;
+      };
+      const iS = NR - 1;
+      const rootIds = emit(prop, 0, iS), tipIds = emit(proptip, iS, NR);
+      for (const [ids, M, first] of [[rootIds, prop, true], [tipIds, proptip, false]]) {
+        const row = ids[first ? 0 : ids.length - 1], n = row.length;
+        for (let h = 1; h < n - 1; h++)
+          if (first) M.tri(row[0], row[h+1], row[h]);
+          else       M.tri(row[0], row[h], row[h+1]);
+      }
     }
   }
 
@@ -8984,7 +9380,7 @@ function genSkin(def) {
   put('decal', decal);
   // glazing in three layers, and the exhaust stacks
   put('glass', glass); put('gcabin', gcabin); put('gframe', gframe);
-  put('exhaust', exhaust);
+  put('exhaust', exhaust); put('spinner', spinner); put('proptip', proptip);
   put('liftstrut', liftstrut); put('pitot', pitot);
   put('dash', dash); put('intr', intr);
   put('seat', seat); put('spipe', spipe); put('sframe', sframe);
@@ -9097,10 +9493,19 @@ function genSkin(def) {
       wheelhub:  { color: 0x101216, rough: 0.85, metal: 0.12 },
       // the bungee cord, and only present when that is what was bought
       rubber:    { color: 0x08090b, rough: 0.88, metal: 0.0 },
-      prop:      { color: 0x2a2620 },
-      // The design session also carried a `spinner` and a `proptip` here. That
-      // propeller work was dismissed and its geometry is the trunk's again, so
-      // both entries are gone with it — nothing else referenced them.
+      // THE BLADE IS THE MATERIAL IT IS MADE OF. `prop.material` is already a
+      // physics choice — GEN_PROP_MATS carries its mass, at the front of the
+      // aeroplane where mass costs the most CG — so the colour follows it
+      // rather than being a second, separate decision that can disagree.
+      prop:      S.prop.material === 'alu'
+                   ? { color: 0xa8adb3, rough: 0.34, metal: 0.85 }
+                   : S.prop.material === 'carbon'
+                   ? { color: 0x1d1f22, rough: 0.28, metal: 0.10 }
+                   : { color: 0x6b4a2a, rough: 0.46, metal: 0.02 },
+      // painted tips, and a polished spinner. At 0.92 metalness the spinner
+      // went black anywhere the sky was dim, so it is a bright semi-metal.
+      proptip:   { color: 0xe8e1d1, rough: 0.30, metal: 0.05 },
+      spinner:   { color: 0xd9dce2, rough: 0.22, metal: 0.55 },
       exhaust:   { color: 0x483f37, rough: 0.55, metal: 0.55 },
       // GLAZING, in three layers: what you see through the glass is the dark
       // interior sheet, which is why the pane can be this clear.

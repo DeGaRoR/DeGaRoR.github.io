@@ -464,7 +464,13 @@ function genLattice(S, gearX, track, kScale) {
   // and there is simply no FIN node to build.
   const isV = t.type === 'v';
   const tailY = lastST.yb + 0.55 * (lastST.yt - lastST.yb);
-  const [HTL, HTR] = NM(t.hX, isV ? tailY + t.vHeight : tailY, 0.5 * t.hSpan, 'HT');
+  // STAB HEIGHT. 0 leaves it on the tail cone where it has always been; 1 puts
+  // it level with the fin tip, which is a T-tail. Y only — `hX` is the tail arm
+  // and is the builder's, so riding up the fin does not silently re-tune pitch.
+  const finTopY = lastST.yt + t.vHeight * 0.82;
+  const stabY = isV ? tailY + t.vHeight
+                    : tailY + (t.stabH || 0) * (finTopY - tailY);
+  const [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
@@ -475,7 +481,10 @@ function genLattice(S, gearX, track, kScale) {
     cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
     cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
-    FIN = N(t.vX, lastST.yt + t.vHeight * 0.82, 0, 'FIN');
+    // the fin's apex node follows the RAKE, so the truss leans with the fin the
+    // skin draws instead of standing upright inside a swept one
+    FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
+            finTopY, 0, 'FIN');
     B(FIN, TPT, 'fus'); B(FIN, last.TL, 'fus'); B(FIN, last.TR, 'fus');
     cover(1.9 * t.Sv, [FIN, TPT, last.TL, last.TR]);
   }

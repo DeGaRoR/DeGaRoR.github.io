@@ -8,7 +8,7 @@
 
 import {
   RANGE, JOINT_TYPES, FREQ_MULTS, makeId, makeNode, makeConnection, defaultMouth,
-  qClamp, limitRangeFor,
+  qClamp, limitRangeFor, makeSite,
 } from './genome.js';
 import { GENOME_V } from '../../contracts/versions.js';
 
@@ -501,6 +501,31 @@ export const SLICE_LIMITS = {
    * every Atlas specimen are untouched to the bit.
    */
   revoluteLimitBand: [0.35, RANGE.angleLimit[1]],
+
+  /**
+   * ── GENOME_V 9 — PER-NODE PROBABILITY OF A RECEPTOR SITE ────────────────────
+   *
+   * The reachability half of the tropotaxis bump. See the draw site in
+   * `randomNode` for why the anatomy is drawn while the gains stay at zero.
+   *
+   * 0.35, and it is a compromise between two failure modes rather than a tuned
+   * number:
+   *
+   *   TOO LOW and the organ stays two lottery tickets, which is the state this
+   *   fixes — 0 receptors in 200 draws, and `chemoGain` 0 on every champion after
+   *   22 generations of selection.
+   *
+   *   TOO HIGH — one on every node — and WHICH bodies carry receptors stops
+   *   varying. That matters more than it sounds: `morphogen.js` takes a
+   *   receptor's `side` from the BODY it sits on, so the left/right differential
+   *   tropotaxis reads is a fact about receptor PLACEMENT. Saturate it and the
+   *   anatomy tropotaxis selects over disappears.
+   *
+   * At 0.35 a median 5-node creature carries at least one site 88% of the time
+   * and the placement still varies. Measured after the change rather than
+   * predicted — see the census in design/15-BREEDING.md.
+   */
+  siteRate: 0.35,
 };
 
 const pick = (rng, arr) => arr[rng.int(arr.length)];
@@ -670,6 +695,27 @@ function randomNode(rng, limits) {
       valueShift: uniform(rng, RANGE.valueShift),
       patternPhase: uniform(rng, RANGE.patternPhase),
     },
+    // ── GENOME_V 9 — THE ANATOMY IS DRAWN; THE NERVE IS EARNED ────────────────
+    //
+    // A receptor site with no gain behind it reads nothing, weighs nothing and
+    // drags nothing, so drawing one is still NEUTRAL AT INSERTION (standing rule
+    // 4): a creature drawn today behaves exactly as one drawn yesterday until
+    // `mutateChemoGain` or `mutateTropoGain` moves a gain off zero.
+    //
+    // WHY IT HAS TO BE DRAWN AT ALL. Measured before this: 0 receptors in 200
+    // random draws, and `chemoGain` 0 on all eight campaign champions after 22
+    // generations. The organ was TWO INDEPENDENT LOTTERY TICKETS and a creature
+    // holding one of them senses nothing, so neither ticket was worth anything
+    // on its own and selection could never see either. Supplying the anatomy
+    // leaves exactly one thing for mutation to find.
+    //
+    // A RATE, NOT A CERTAINTY, and that is the other half of the argument. If
+    // every node carried a site, WHICH bodies carry receptors would stop varying
+    // — and that is precisely what the left/right differential is computed from
+    // (`morphogen.js` takes `side` from the BODY, not from the site's position on
+    // it). Receptor placement has to stay an evolvable trait or tropotaxis has no
+    // anatomy to select over.
+    sites: rng.range(0, 1) < (limits.siteRate ?? 0) ? [makeSite({ face: rng.int(6), at: [0, 0] })] : [],
   });
 }
 
@@ -958,6 +1004,11 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // that report nothing, which is what makes a site free to carry and makes
       // the cave-fish regression gate possible.
       chemoGain: 0,
+      // GENOME_V 9 — the taxis gain, blind at birth for the same reason. The
+      // difference from every gene above it is that the ANATOMY is now drawn
+      // (`SLICE_LIMITS.siteRate`), so a single `mutateTropoGain` switches a
+      // working organ on rather than half of one.
+      tropoGain: 0,
       // GENOME_V 7 — the second steering channel, and silent at birth for the
       // same reason `chemoGain` is: neutral at insertion (standing rule 4). A
       // creature drawn today steers exactly as one drawn yesterday until

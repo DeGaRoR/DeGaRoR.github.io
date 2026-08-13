@@ -504,8 +504,13 @@
     const meshes = {}, props = [];
     for (const name in dec) {
       const geo = mkGeo(dec[name]);
-      // every group named prop* turns with the propeller (blades, spinner, cap)
-      const isProp = name.lastIndexOf('prop', 0) === 0;
+      // WHAT TURNS WITH THE PROPELLER, named rather than prefix-matched. This
+      // used to be `name.startsWith('prop')`, which read as "every group named
+      // prop*" and was wrong twice over: it caught `proptip` by luck, it missed
+      // `spinner` entirely — a nose cone standing still in front of spinning
+      // blades — and it would have quietly swept up any future group whose name
+      // happened to begin with those four letters.
+      const isProp = name === 'prop' || name === 'proptip' || name === 'spinner';
       if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
       mesh.renderOrder = RENDER_ORDER[name] || 0;
@@ -533,13 +538,36 @@
         return { g, posAttr, base: posAttr.array.slice(), meshName: name,
                  hb: anySid ? makeHingeBinding(g, data.surfaces) : null };
       });
-      // Each control surface turns about its own hinge. Geometry is translated
-      // so the pivot IS the mesh origin, exactly as the propeller is handled.
+      // EACH CONTROL SURFACE TURNS ABOUT ITS OWN HINGE, IN ITS VERTICES.
+      //
+      // It used to be a rigid child: geometry translated so the pivot was the
+      // mesh origin, a quaternion for the deflection, and the pivot moved by the
+      // weighted average of the surface's influence nodes. That rode the
+      // structure but could not TWIST with it — one averaged translation carries
+      // no rotation — so under rudder the tail wound up and the rudder hanging
+      // off it stayed straight.
+      //
+      // The warning that put it there is real and still respected: deforming the
+      // vertices of a mesh that ALSO carries a quaternion applies a body-frame
+      // correction inside a frame that is itself turning, which is what made the
+      // blades wobble and let an aileron drag the wing tip around. The way out
+      // is not to add a deform on top of the rotation, it is to stop having a
+      // rotating frame at all — geometry stays in the body frame, the mesh keeps
+      // identity transform, and the hinge is applied per vertex about the pivot.
+      // The structural displacement is then added in the same frame it was
+      // measured in, which is exactly what the fixed skin already does.
+      //
+      // Cheap, because these are small: 24 vertices on the rudder, 32 on the
+      // elevator, 50 on an aileron.
       const moving = (data.moving || []).filter(c => meshes[c.group]).map(c => {
-        const mesh = meshes[c.group];
-        mesh.geometry.translate(-c.p[0], -c.p[1], -c.p[2]);
-        mesh.position.set(c.p[0], c.p[1], c.p[2]);
-        return { mesh, c, axis: new THREE.Vector3(c.ax[0], c.ax[1], c.ax[2]) };
+        const posAttr = meshes[c.group].geometry.attributes.position;
+        return { mesh: meshes[c.group], c, g: dec[c.group], posAttr,
+                 base: posAttr.array.slice(),
+                 // every vertex of the group belongs to the one surface, so the
+                 // whole group is hinged — that is what tells poseSkinGen to ADD
+                 // its displacement to the deflected position rather than
+                 // overwrite it from rest
+                 hinged: new Uint8Array(dec[c.group].nv).fill(1) };
       });
       const m = Object.assign(entry, { grp, props, rigs, gen: true, moving,
         meshes, dec, mats, rest: data.rest,
@@ -605,18 +633,29 @@
       // CONTROL SURFACES: one quaternion each. They also ride the deflection of
       // the spar they hang on, so a bending wing does not leave its aileron
       // behind — a rigid transform driven by node motion, not a vertex deform.
+      // CONTROL SURFACES: hinge first, in the body frame, then let the same
+      // node-weight deform the fixed skin gets carry the result. Two passes over
+      // a few dozen vertices, and the surface now twists with whatever it is
+      // bolted to instead of only sliding with it.
       for (const mv of model.moving || []) {
         const c = mv.c;
         const ang = c.sgn * (c.k || 1) * (link[c.drive] || 0)
           + (c.drive2 ? (c.sgn2 || 1) * (c.k2 || 1) * (link[c.drive2] || 0) : 0);
-        mv.mesh.quaternion.setFromAxisAngle(mv.axis, ang);
-        let dx = 0, dy = 0, dz = 0;
-        for (const [i, w] of c.infl || []) {
-          dx += w * (model.nodeBody[i*3]   - model.rest[i*3]);
-          dy += w * (model.nodeBody[i*3+1] - model.rest[i*3+1]);
-          dz += w * (model.nodeBody[i*3+2] - model.rest[i*3+2]);
+        const base = mv.base, pos = mv.posAttr.array, nv = mv.g.nv;
+        const px = c.p[0], py = c.p[1], pz = c.p[2];
+        const ax = c.ax[0], ay = c.ax[1], az = c.ax[2];
+        // Rodrigues about the hinge, which is a unit axis through the pivot
+        const ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
+        for (let v = 0; v < nv; v++) {
+          const o = v * 3;
+          const x = base[o] - px, y = base[o+1] - py, z = base[o+2] - pz;
+          const d = ax * x + ay * y + az * z;
+          pos[o]   = px + x * ca + (ay * z - az * y) * sa + ax * d * C1;
+          pos[o+1] = py + y * ca + (az * x - ax * z) * sa + ay * d * C1;
+          pos[o+2] = pz + z * ca + (ax * y - ay * x) * sa + az * d * C1;
         }
-        mv.mesh.position.set(c.p[0] + dx * gain, c.p[1] + dy * gain, c.p[2] + dz * gain);
+        poseSkinGen(mv.g, model.rest, model.nodeBody, base, pos, gain, mv.hinged);
+        mv.posAttr.needsUpdate = true;
       }
       for (const r of model.rigs) {
         if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);

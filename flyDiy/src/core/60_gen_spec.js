@@ -203,10 +203,18 @@ const GEN_PROP_MATS = {
 // lowers P/Tstatic and therefore its own zero-thrust speed. A first cut tabled
 // `v0k` per pitch as well and got the trade BACKWARDS: it put a fine prop's
 // thrust running out at 86 km/h on an aeroplane that cruises at 103.
+//
+// `pd` IS THE GEOMETRY AND `fm` IS THE PHYSICS, and they are two fields on
+// purpose. The blade twist is built from a real pitch law — atan(P / 2 pi r) —
+// which needs pitch as a fraction of the DIAMETER, the number written on the
+// side of a real prop (a 74x45 is a P/D of 0.61). `fm` cannot stand in for it:
+// it is a momentum-theory efficiency, it runs the other way round, and its
+// spread is nothing like a pitch ratio's. Using one for the other would give a
+// fine prop a coarser twist than a cruise prop, which is backwards and visible.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.58 },
-  standard: { name: 'Standard',        fm: 0.46 },
-  cruise:   { name: 'Coarse (cruise)', fm: 0.36 },
+  climb:    { name: 'Fine (climb)',    fm: 0.58, pd: 0.55 },
+  standard: { name: 'Standard',        fm: 0.46, pd: 0.70 },
+  cruise:   { name: 'Coarse (cruise)', fm: 0.36, pd: 0.85 },
 };
 
 // COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
@@ -335,7 +343,24 @@ const GEN_RULES = {
                        // where the spars go — NOT, as it was, wherever the
                        // cabin frames happen to be. That coupling is exactly
                        // what made the wing unmovable.
-  propClear:   0.40,   // m, prop tip to ground in the LEVEL attitude (Cub 0.42)
+  // PROP TIP TO GROUND, in the LEVEL attitude — which is the right attitude to
+  // measure a taildragger in, because the critical moment is the take-off roll
+  // with the tail already up, not the three-point stand where the nose is high
+  // and the disc is well clear.
+  //
+  // It was 0.40 m, which is a Cub's actual 0.42 rounded down: what a real
+  // aeroplane HAS, not what it is allowed. FAR 23.925 asks for nine inches on a
+  // taildragger and seven on a nosewheel, with the tyres flat and the strut
+  // deflated, and 0.40 is nearly double that — so it was buying a long leg
+  // nobody asked for and standing the aeroplane on stilts. These are the
+  // certificated minima instead, and the builder gets the rest of the range.
+  //
+  // The reason it errs high at all is still true and still worth reading: a leg
+  // the player shortened into a prop strike is not a bad aeroplane, it is a
+  // broken one on the first landing. So it is a MINIMUM, it still beats legDrop,
+  // and gear.yBoundBy still says which bound applied.
+  propClear:      0.229,  // taildragger, FAR 23.925 (nine inches)
+  propClearNose:  0.178,  // nosewheel, FAR 23.925 (seven inches)
   // Zero-thrust speed as a multiple of power/static-thrust. CALIBRATED on the
   // A-65 + Sensenich 74CK registry entry, which it then reproduces to under 1%
   // in both Tstatic and kV2. See GEN_PROP_PITCH for why this is one constant and
@@ -348,7 +373,22 @@ const GEN_RULES = {
   // clearance, being the stronger of the two constraints in every case.
   // DEFAULT only since G4.6 — spec.gear.legDrop overrides it, which is the
   // "mains" half of the split suspension height.
-  legDrop:     0.35,
+  // 0.35 UNTIL G8, AND IT HAD NEVER ONCE BOUND. propClear was 0.40 m and always
+  // won, so this number — the one that is actually SUPPOSED to own leg length —
+  // was never the constraint and was never validated. Dropping propClear to the
+  // certificated minimum exposed it, and 0.35 turned out to be nowhere near
+  // enough: GATE GEN failed on four undercarriage checks at once and GATE FLEX
+  // called the gear a mechanism.
+  //
+  // MEASURED, sweeping legDrop with propClear at 0.229: the softest suspension
+  // the panel offers stops standing below 0.64 m and rests on its tailwheel,
+  // and some powerplants stop standing below 0.58. 0.66 is 0.64 with enough
+  // headroom not to sit on the cliff. The aeroplane still ends up 0.12 m lower
+  // than it was, because the leg now sets ride height and prop clearance is
+  // only the floor beneath it — which is the right way round, and lets a
+  // builder who WANTS the blades closer lower this and be allowed to, until
+  // the prop stops them.
+  legDrop:     0.66,
   // Tailwheel leg length below the tailpost foot. The three-point deck angle
   // is DERIVED from this, not the other way round: a real tailwheel spring has
   // a length, and the attitude is what falls out of it. (Fixing the deck angle
@@ -555,7 +595,18 @@ const GEN_DEFAULT = {
   // pitch 'cruise' is not a neutral default, it is the TRUTH about this preset:
   // the A-65 it ships with swings a Sensenich 74CK, which is a cruise prop. That
   // is also why the default build's thrust is unchanged by all of this.
-  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise' },
+  // The four fields above the line are the PROPELLER AS PHYSICS — disc area,
+  // blade count, the mass of the material at the very front, and the pitch
+  // trade. The three below it are the propeller as a SHAPE, and they buy
+  // nothing but the look: blade planform, where the blade leaves the spinner,
+  // and the spinner itself. Kept in the same block because a builder does not
+  // think of them as two things, and marked here because a change to the top
+  // four moves the aeroplane and a change to the bottom three does not.
+  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise',
+          // chord and root as fractions of the RADIUS, so they survive a
+          // diameter change instead of being metres that no longer fit
+          chord: 0.10, root: 0.16,
+          spinner: { shape: 'ogive', len: 2.2, dia: 0.17 } },
   // An ARRAY because a biplane is a real aeroplane. `position` is where the
   // spar meets the fuselage.
   wings: [{ span: 10.0, chord: 1.60, taper: 1.0, dihedral: 3.0,
@@ -575,7 +626,31 @@ const GEN_DEFAULT = {
   // strut away without adding the box builds an aeroplane that folds.
   bracing: { type: 'strut' },
   tail: { type: 'conventional', vAngle: 33,
-          hSpan: null, hChord: null, hX: null, hTaper: 1.0, tip: 'rounded',
+          hSpan: null, hChord: null, hX: null, hTaper: 1.0,
+          // `tip` is the tail's shared tip shape and stays the one the V-tail
+          // uses, since a V-tail is ONE surface. `tipV` and `tipH` override it
+          // per surface on a conventional tail — a Cub has a big round fin and a
+          // near-elliptical tailplane, and they are not obliged to match. Null
+          // means "whatever `tip` says", so an older save keeps its shape.
+          tip: 'rounded', tipV: null, tipH: null,
+          // FIN RAKE, degrees of leading-edge sweep. Null derives the angle the
+          // fin already had (its LE carried a hardcoded 0.30 chord of sweep over
+          // its height), so an untouched build is unchanged and the control
+          // starts where the aeroplane already was.
+          vSweep: null,
+          // WHERE THE TAILPLANE SITS UP THE FIN. 0 is on the tail cone, as it
+          // has always been; 1 puts it at the fin tip, which IS a T-tail — so
+          // the old backlog's "T-tail" is this control at its limit rather than
+          // a separate kind of aeroplane. It moves the stab in Y only: `hX` is
+          // the tail ARM and stays the builder's to set, because moving it here
+          // would re-tune the pitch authority behind their back.
+          stabH: 0,
+          // THE DORSAL FIN, ahead of the fin's leading edge. `angle` is the
+          // slope of its own leading edge and is nullable: set it and `len` is
+          // driven from `height`, leave it and it is derived from the two
+          // lengths and reads AUTO. Four controls for a three-cornered shape is
+          // one too many, and this is which one gives way.
+          dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null },
           vHeight: null, vChord: null, vX: null,
           place: { dx: 0 } },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
@@ -606,7 +681,7 @@ const GEN_DEFAULT = {
   // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
   // so it is one of the two things that set prop clearance, the other being
   // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
-  gear: { type: 'taildragger', suspension: 'bungee',
+  gear: { type: 'taildragger', fairing: 'none', suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
           legDrop: null, twLeg: null, camber: 0,
@@ -859,6 +934,16 @@ function clampSpec(spec) {
   w.sweep = genClamp(w.sweep || 0, -15, 30);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
+  // null is legal on the two overrides and means 'use tail.tip'
+  S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
+  S.tail.vSweep = genClampN(S.tail.vSweep, -20, 60);
+  const dr = S.tail.dorsal || (S.tail.dorsal = {});
+  dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
+  dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);
+  dr.angle  = genClampN(dr.angle, 8, 80);
+  dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
+  if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
+  if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
   S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, 0.35, 1.0);
   if (!['conventional', 'v'].includes(S.tail.type)) S.tail.type = 'conventional';
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
@@ -890,6 +975,13 @@ function clampSpec(spec) {
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
+  // WHEEL FAIRINGS, off by default. `spat` is the trouser over the wheel alone;
+  // `full` carries it up the leg as well. Geometry ONLY — a real spat is worth
+  // real drag, but the generated aeroplane has no parasite-drag build-up to hang
+  // that on, and a fairing that quietly did nothing to the numbers while looking
+  // as though it should is worse than one that is honestly cosmetic. If a drag
+  // model arrives, this is the field it keys off.
+  if (!['none', 'spat', 'full'].includes(S.gear.fairing)) S.gear.fairing = 'none';
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
@@ -921,6 +1013,16 @@ function clampSpec(spec) {
   S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
   if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
   if (!GEN_PROP_PITCH[S.prop.pitch]) S.prop.pitch = 'standard';
+  // the shape half — visual only, so the bounds are what reads as a propeller
+  // rather than what flies
+  S.prop.chord = genClamp(S.prop.chord == null ? 0.10 : S.prop.chord, 0.05, 0.20);
+  S.prop.root  = genClamp(S.prop.root  == null ? 0.16 : S.prop.root,  0.08, 0.35);
+  const sn = S.prop.spinner || (S.prop.spinner = {});
+  if (!['ogive', 'cone', 'dome', 'none'].includes(sn.shape)) sn.shape = 'ogive';
+  // len and dia are multiples of the spinner RADIUS and of the prop radius
+  // respectively — again fractions, so a bigger propeller gets a bigger nose
+  sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
+  sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
   cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
@@ -1067,6 +1169,24 @@ function resolveSpec(spec) {
   put(t, 'vHeight', Math.sqrt(Sv * GEN_RULES.vAR), 'tail.vHeight');
   put(t, 'vChord', Sv / t.vHeight, 'tail.vChord');
   S.tail.Sh = Sh; S.tail.Sv = Sv; S.tail.lh = lh; S.tail.lv = lv;
+  // THE FIN'S RAKE, derived from what it already was. The skin swept the fin's
+  // leading edge by a hardcoded 0.30 of the chord over the fin's height; left
+  // null that is exactly what comes back, so making it a control moves no
+  // existing aeroplane. It is an ANGLE and not a chord fraction because that is
+  // what a builder reads off a drawing and what stays meaningful when the fin's
+  // height and chord both change.
+  put(t, 'vSweep', Math.atan2(0.30 * t.vChord, t.vHeight) * 180 / Math.PI,
+      'tail.vSweep');
+  // the dorsal's over-determined corner: an angle SET drives the length, an
+  // angle left null is read back out of it
+  {
+    const d = t.dorsal;
+    if (d.angle != null && d.height > 0)
+      d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
+    else
+      put(d, 'angle', Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI,
+          'tail.dorsal.angle');
+  }
   // ---- V-TAIL: one pair of panels doing both jobs ----
   // A panel canted at G contributes cos^2 G of its area to pitch and sin^2 G to
   // yaw (one cosine because a pitch rate only reaches the panel through its
@@ -1264,7 +1384,11 @@ function resolveSpec(spec) {
   // nosewheel's is only knowable once the wheelbase is — same reason gear.x and
   // gear.track are placed by genFrame on its second pass. Left null it keeps
   // each type's own derivation; set, it is the leg length for both.
-  const byProp = S.engY - propR + S.gear.contactR - GEN_RULES.propClear;
+  // the two gear types are certificated to different clearances, so they get
+  // different ones here rather than sharing the stricter
+  const clearReq = S.gear.type === 'tricycle' ? GEN_RULES.propClearNose
+                                              : GEN_RULES.propClear;
+  const byProp = S.engY - propR + S.gear.contactR - clearReq;
   const byLeg = -0.02 - S.gear.legDrop;
   // WHICH ONE BOUND IT, published because otherwise the legDrop slider looks
   // broken. min() picks the LOWER axle, i.e. the LONGER leg, so a legDrop

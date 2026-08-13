@@ -4026,6 +4026,31 @@ never the cost.** Measured, `makeSim` is 0.0 ms; `buildGen` is 9 ms and
 not the physics object, so there is nothing to be gained by tearing `sim` out of
 the editor — the skin poses off its rest lattice and that is free.
 
+### TWO REGRESSION PINS HAD TO BE RESCOPED, AND WHY THAT IS NOT A WEAKENING
+
+Lowering prop clearance failed `G4.6 camber and split leg heights` and
+`G4.7 the propeller is its own component` on the same sentence in two places:
+
+    if (Math.abs(big.propClear - base.propClear) > 1e-6) fail(...)
+
+Both asserted that prop clearance is EQUAL across builds — which held only
+because it was the binding constraint on every one of them. It set ride height,
+so every aeroplane sat exactly at the rule and never above it. Now `legDrop`
+owns ride height, a stock build sits at 0.300 on a 0.229 floor, and a big-disc
+build comes back down onto it. Equality would now be asserting that the floor is
+always active — the inverse of what the pin was written to catch.
+
+They now assert the property that actually keeps the blades off the ground and
+that the old equality only IMPLIED: **no build sits below the floor**, on stock
+and on a 3 m disc, plus the floor still binds when it should. The G4.6 intent —
+camber is paid for in leg length, clearance held — is kept and tested where the
+rule is genuinely the active constraint, on a prop-bound build: measured, camber
+lengthens its leg 1.149 -> 1.161 m and holds clearance at 0.2290 either side.
+
+The rule of thumb this leaves: a pin that says "X equals Y" is often really
+saying "this constraint is always the active one". When the constraints change
+hands, that pin fails for the right reason and needs re-aiming, not deleting.
+
 ### THE PANEL — two levels
 
 Fifteen sections is past what one scroll holds, so `SECTIONS` is now grouped by
@@ -4284,6 +4309,347 @@ alone — verified by dropping `{"hello":"world"}` on the panel.
 - bare-spec import
 - garbage file refused, build intact
 
+## G8 — THE PROPELLER (2026-08-13)
+
+The design session's propeller, imported at last, plus the ground-clearance rule
+it made worth re-reading.
+
+### WHERE IT CAME FROM, since this took three tries to establish
+
+There is no propeller work in the second or third bundle. Both are byte-identical
+to each other in every code and doc file (verified by hashing each entry; the zip
+hashes differ only in timestamps), and their only prop-related content is
+`leaningProp`, an ornament against the hangar wall. The propeller work has been
+sitting in `gen/63_gen_skin.js` since the FIRST bundle — it is the work that was
+marked dismissed at the time, and it is unchanged in all three.
+
+### THE IMPORT, AND THE ONE THING THAT HAD TO CHANGE
+
+Taken: a revolved ogive spinner (cone / dome / none as one exponent family),
+aerofoil-section blades on a real twist law, a planform widest a third out and
+closing to a round tip, and the outboard tenth as its own `proptip` group so a
+painted tip is paint rather than a UV band that moves when the blade's shape
+does. Nine stations, thirteen points, about 193 triangles a blade.
+
+NOT taken: its spec. The session drove all of it from a per-engine
+`engines[0].prop` with a NUMERIC pitch and no physics behind it. The trunk has
+since promoted `prop` to a top-level group the solver pulls on — disc area sets
+static thrust and the wash the tail flies in, blade mass sits at the very front
+where it costs the most CG, and pitch is an enum carrying a momentum-theory
+figure of merit. Restoring the session's spec would have unhooked the propeller
+you can see from the propeller that makes the thrust. So the geometry is driven
+from the trunk's group, and the group gained three VISUAL-only fields —
+`chord`, `root`, `spinner{shape,len,dia}` — marked in the spec as the half that
+does not move the aeroplane.
+
+**`pd` beside `fm`, and not derived from it.** The twist law is
+`beta(r) = atan(P / 2 pi r)` and needs pitch as a fraction of the DIAMETER — the
+number written on a real prop, a 74x45 being a P/D of 0.61. `fm` is a
+momentum-theory efficiency, it runs the OTHER WAY ROUND (climb 0.58, cruise
+0.36), and its spread is nothing like a pitch ratio's. Using it would have given
+a fine prop a coarser twist than a cruise prop: backwards, and visible. So
+GEN_PROP_PITCH carries both, climb/standard/cruise = 0.55/0.70/0.85.
+
+**The blade is the material it is made of.** `prop.material` already carries
+mass and price (GEN_PROP_MATS), so the colour follows it — wood, aluminium,
+carbon — rather than being a second decision that can disagree with the first.
+
+**NOTHING THE PROPELLER OWNS TOUCHES THE COWL**, enforced rather than hoped for:
+the whole blade is walked forward until its aft-most vertex clears the nose
+face. Measured across stock, a fat blade at fine pitch, six fat blades, no
+spinner, a tiny spinner and a 3.2 m disc — clearance held between 5.8 and 7.4 mm
+in every case. That check is what makes the parametrisation safe, because a
+coarse wide blade swings a long way back.
+
+`proptip` joins `prop` in GATE GEN's mirror exemption, for the same reason and no
+other. `spinner` is NOT exempt: it is a revolve about the thrust axis and mirrors
+exactly, so it stays checked.
+
+### PROP CLEARANCE, AND THE RULE THAT HAD NEVER ONCE BOUND
+
+`GEN_RULES.propClear` was 0.40 m, which is a Cub's actual 0.42 rounded down:
+what a real aeroplane HAS, not what it is allowed. FAR 23.925 — the same
+regulation GATE LOAD already works to — asks nine inches on a taildragger and
+seven on a nosewheel, tyres flat and strut deflated. So it is now 0.229 /
+0.178 m, and the two gear types get their own figure instead of sharing the
+stricter.
+
+**And that alone broke four undercarriage checks and GATE FLEX**, which is the
+part worth recording. Prop clearance had been setting RIDE HEIGHT: it always
+won against `legDrop`, so `legDrop` — the rule that is actually supposed to own
+leg length — had never once been the binding constraint, and its 0.35 m had
+therefore never been validated. Lowering prop clearance exposed it, and 0.35
+turned out to be nowhere near enough. GATE GEN failed "every plausible engine
+stands on its wheels", "stiffer suspension deflects less", "usable suspension
+range stands up" and "the undercarriage never folds", and GATE FLEX called the
+gear a mechanism. Exactly what `legDrop`'s own comment had predicted all along:
+a near-horizontal leg has almost no vertical stiffness and the aeroplane squats
+onto its belly.
+
+Measured, sweeping each in turn:
+
+| prop clearance | leg | softest suspension |
+|---|---|---|
+| 0.40 → 0.28 | 0.76 → 0.64 | stands |
+| 0.26 and below | 0.62 and below | rests on the tailwheel |
+
+| legDrop (at propClear 0.229) | axle | soft / std / hard |
+|---|---|---|
+| 0.35 – 0.58 | -0.609 (prop-bound) | NO / yes / yes |
+| 0.62 | -0.640 | NO / yes / yes |
+| **0.64** | -0.660 | yes / yes / yes |
+| 0.66 (taken) | -0.680 | yes / yes / yes |
+
+0.64 is the edge and 0.66 is that with enough headroom not to sit on the cliff.
+
+The result is the right way round for the first time: **the leg sets ride height
+and prop clearance is the floor beneath it.** The stock aeroplane still ends up
+0.10 m lower than it was (axle -0.78 -> -0.68), `gear.yBoundBy` now reports
+`legDrop` rather than `prop clearance`, and a builder who wants the blades
+closer can lower `legDrop` and will be allowed to — until the prop stops them at
+the certificated minimum, which is what a minimum is for.
+
+The level attitude is still the right one to measure a taildragger in: the
+critical moment is the take-off roll with the tail already up, not the
+three-point stand where the nose is high and the disc is well clear.
+
+### THE PANEL
+
+"Engine, cowl & blades" is now **Engine & cowl** — they stay together, user call
+— plus **Propeller** as its own subsection under Power, carrying the four
+physics fields and the five shape ones. The Power group's section list names it,
+or it would have landed in the "Other" bucket the grouping keeps for exactly
+that mistake.
+
+### A METHOD NOTE, because it cost a battery
+
+Do not run `tools/build.js` while a battery is running. The runner builds once at
+the start and every gate then reads `tools/flight_core.js`; rebuilding under it
+means the gates before and after the rebuild tested different code, and the
+summary is one verdict over two artifacts. Two runs were thrown away learning
+this. Either let a battery finish, or use `--only=...` with `--no-build` after a
+clean build of your own.
+
+## G9 — THE CONTROL SURFACES FLEX (2026-08-13)
+
+User: "the elevators do not seem connected to the torsion model. When using the
+rudder, there is big torsion on the tail, everything moves but the control
+surfaces." Correct, and the mechanism was not quite what it looked like.
+
+### WHAT IT ACTUALLY WAS
+
+The surfaces DID ride the structure. A `moving` group got a hinge quaternion for
+its deflection plus a translation of its pivot by the weighted average of its
+influence nodes — so a bending wing did not leave its aileron behind, which is
+what that translation was added for. What it could not do is TWIST: one averaged
+translation carries no rotation, by construction. So the tail wound up under
+rudder and the rudder hanging off it slid sideways and stayed straight.
+
+### WHY THE OBVIOUS FIX WAS ALREADY FORBIDDEN
+
+There is a comment in `app.js`, from whoever made them rigid in the first place:
+
+    Neither the PROP nor a CONTROL SURFACE is a flex body. Both are rigid
+    meshes with a pivot: deforming their vertices applies a correction in a
+    frame that is itself turning, which is what made the blades wobble and
+    what used to let an aileron drag the wing tip around with it.
+
+That is a real bug and the warning is right: a body-frame correction added to a
+mesh that ALSO carries a quaternion is applied inside a frame that is turning,
+and comes out wrong by exactly that rotation.
+
+The way past it is not to add a deform on top of the rotation. It is to stop
+having a rotating frame at all. The geometry now stays in the BODY frame, the
+mesh keeps an identity transform, and the hinge is applied per vertex about the
+pivot (Rodrigues); the structural displacement is then added in the same frame it
+was measured in — which is precisely what the fixed skin has always done, and
+what `poseSkinGen`'s `hinged` path exists for. The imported aircraft have worked
+this way since the codec was written; the generated ones now do too.
+
+### MEASURED
+
+Synthetic tail torsion of 11 degrees at the tailpost, rudder NOT deflected,
+comparing the top and bottom rudder vertices:
+
+| | top vertex moved | bottom vertex moved | differential |
+|---|---|---|---|
+| old | [0, -0.0094, 0.0955] | [0, -0.0094, 0.0955] | **0.00000 m** |
+| new | [0, -0.0202, 0.2047] | [0, 0.0014, -0.0136] | **0.21934 m** |
+
+Identical vectors is the bug, in one number: the surface could only translate.
+
+And the hinge is still an exact rigid rotation — checked on rudder, elevator and
+aileron at 0.30 rad with no structural motion: distance to the pivot preserved to
+2e-7 (float32), vertices ON the hinge axis move by exactly zero.
+
+Cost is nothing: 24 vertices on the rudder, 32 on the elevator, 50 on an
+aileron, two passes each.
+
+It applies to ailerons and flaps as much as the tail — one change for the whole
+aeroplane — and it is a VIEWER change only. The surfaces already carried correct
+node weights (GATE GEN checks every group's sum to 1); nothing about the physics
+moved.
+
+### ALSO, A BUG THIS SESSION INTRODUCED AND CAUGHT
+
+`isProp` was `name.lastIndexOf('prop', 0) === 0` — "every group named prop*". It
+caught `proptip` by luck and missed `spinner` entirely, which G8 had just added:
+a nose cone standing still in front of spinning blades. It is an explicit list of
+three names now. A prefix match over a namespace anyone can add to is a trap.
+
+## G10 — THE TAIL OUTLINE (2026-08-13)
+
+User, with a Cub three-view: "the tips options do not work. We need them for the
+fin and the stabs... we need the elevators to be able to be rounded too. Think of
+the piper cub, both the fins and the rudder are rounded in a single movement."
+
+### WHY THE TIP OPTIONS DID NOTHING — a renamed field, and nobody noticed
+
+The tail read `TTIP.round` and `VT.round`. **No GEN_TIPS entry has ever had a
+`round`.** They carry `{ name, e, bow, arc, fin }`, and the wing reads
+`arc`/`bow`/`fin`. So `undefined > 0` was false, all three rounding branches were
+dead, and every one of the six tip options produced BYTE-IDENTICAL tail geometry
+— same vertex count and same position hash, measured across all six, while the
+wing changed both. The control existed, the lookup existed, and the result was
+thrown away one line later.
+
+Worth the general lesson: a dead read of a renamed field is invisible to every
+test that only checks the thing still builds. What caught it was asking the much
+dumber question — does changing this control change ANY number at all?
+
+### THE OUTLINE, AND THE HINGE
+
+`panel(rows, hinge, mv)` already built the whole surface and cut it at the hinge,
+so the "design the full mesh, then cut it" the user asked for was half present.
+What it cut at was a constant chord FRACTION. That bends with taper and, once the
+outline curves into a rounded tip, curves into the tip and drags the control
+surface with it.
+
+It now takes a STATION — `{ x }` — and converts per row. Every three-view shows
+why: rudder and elevator hinges are straight lines. The Cub's shape then falls
+out for free rather than being drawn in. Its fin is the small forward slice and
+the rudder the large aft one, and near the top the swept leading edge crosses the
+hinge, so up there the section is ALL rudder and there is no fin at all. In
+`panel` that is simply a row whose fixed part has no chord left; such rows are
+dropped and the fin is capped where it ends. Measured: fin top 1.346 m, rudder
+top 1.386 m — the rudder owns the rounded top, as drawn.
+
+The bow itself is the wing's own two fields, `bow` and `arc`, on a quarter
+ellipse: a builder who picks "Elliptical" means one thing and should get it on
+every surface. Result — every option now moves the geometry:
+
+| tip | elevator nv | rudder nv |
+|---|---|---|
+| square | 32 | 24 |
+| clipped | 48 | 40 |
+| rounded | 112 | 80 |
+| elliptic | 144 | 96 |
+
+`square` (bow 0) reproduces the old counts exactly, so nothing moved silently.
+
+**Planform only.** Mass, stall speed, static margin and deck angle are identical
+across square / rounded / elliptic — the outline changes what you see without
+re-tuning the aeroplane under it, which is the same rule the stab taper follows.
+
+### PER-SURFACE TIPS
+
+`tail.tipV` and `tail.tipH` override the shared `tail.tip`, null meaning "as
+tail" so an older save keeps its shape. A Cub has a big round fin and a
+near-elliptical tailplane and should not be forced to match. `tail.tip` remains
+the V-tail's, which is one surface.
+
+Panel labels: the section already had a "Stab tip" — a chord LENGTH in metres —
+so the shape controls are "Tail outline / Fin outline / Stab outline". Two rows
+called "Stab tip" meaning a length and a shape is the kind of collision that
+reads as a bug in the control.
+
+### TWO MISTAKES MADE HERE, BOTH CAUGHT BY MEASURING
+
+**The left tip bow grew inward.** `sgn` was 1 for both sides, so the port bow ran
+toward the centreline: 80 of 112 elevator vertices with no mirror twin. Both
+surfaces mirror exactly now (0 asym). GATE GEN's mirror check would have caught
+it; measuring caught it first.
+
+**A hinge that looked bent and was not.** The rudder's leading edge spread 0.21 m
+in x over its height, which reads as a curved hinge. It is the REST FRAME: group
+positions go through `B()`, and the aeroplane sits pitched up 9.16 deg on its
+tailwheel, so a vertical line becomes a sloping one — 1.05 m of rudder times
+tan(9.16) is 0.17 m of it. The hinge is straight by construction: the moving part
+starts at `le.x + frac * len` where `frac = (hinge.x - le.x) / len`. Anything
+measured on emitted geometry is in the rest frame; the spec is not.
+
+## G11 — THE TAIL, IN THE FRAME (2026-08-13)
+
+Fin rake, stab height and a real dorsal fin. The first two move the TRUSS, so
+unlike G10 they move mass, CG and the aeroplane's balance.
+
+### FIN RAKE
+
+`tail.vSweep`, degrees of leading-edge sweep, nullable and derived from what the
+fin already had — the skin swept its LE by a hardcoded 0.30 of chord over the
+fin's height, which works out at **8.97 deg** on the stock build. Three constants
+(0, 0.14, 0.30 at root, mid and tip) described very nearly a straight line and
+are now exactly one.
+
+| rake | mass | margin | FIN node x |
+|---|---|---|---|
+| 0 | 402.1 | 20.2% | 5.543 |
+| 8.97 (auto) | 402.2 | 20.0% | 5.709 |
+| 25 | 402.5 | 19.8% | 6.034 |
+| 45 | 403.2 | 19.1% | 6.595 |
+
+Fin AREA is constant at 0.866 m^2 throughout — rake is planform, not size —
+while mass rises as the members lengthen and the margin drops as that mass goes
+aft. Both fall out of the geometry rather than being tuned.
+
+**THIS CHANGES EVERY EXISTING BUILD, slightly, and that is deliberate.** The FIN
+node had always sat at `t.vX`, upright, inside a fin the skin drew swept: the
+truss and the surface disagreed. The node now follows the rake, which moves it
+5.543 -> 5.709 on the stock aeroplane and takes mass from 402.11 to 402.2 kg and
+the static margin from 20.2% to 20.0%. That is a correction, not a regression —
+but it is a change, and the first draft of this section claimed the default was
+untouched, which was wrong.
+
+### STAB HEIGHT, AND WHERE THE T-TAIL WENT
+
+`tail.stabH`: 0 leaves the tailplane on the tail cone where it has always been,
+1 puts it level with the fin tip. The stab node rises 0.299 -> 1.432 m, mass goes
+402.2 -> 405.4 kg and the static margin 20.0% -> 17.7%.
+
+**Y ONLY.** `hX` is the tail ARM and stays the builder's, because moving it here
+would re-tune pitch authority behind their back — measured, tail volume `Sh` is
+1.976 at every stab height. The old backlog's #21 "T-tail" is therefore this
+control at its limit rather than its own chantier.
+
+### THE DORSAL FIN RAN THE WRONG WAY
+
+What was called a dorsal fillet grew the root chord 30% **AFT** — a wider root,
+not a dorsal. A real one goes forward: the Cub three-view the user supplied shows
+a fairing leaving the turtledeck well ahead of the fin and sweeping up into its
+leading edge. It now does that: the LE is extended forward at the bottom and the
+extension fades out (as (1-u)^1.6) where it blends into the fin, which is what
+makes the join a fillet instead of a corner.
+
+Measured, the geometry the dorsal adds:
+
+| len | forward edge | x span | half-thickness |
+|---|---|---|---|
+| 0.34 | 4.069 | 1.039 | 0.0245 |
+| 0.80 | 3.609 | 1.499 | 0.0356 |
+
+`width` scales thickness linearly (0.15 -> 1.6 gives 0.0067 -> 0.0712 m); `panel`
+gained a thickness multiplier for it, because the 9-series section is 9% of
+chord, which is right for a flying surface and far too fat for a fairing whose
+chord is most of the tail cone.
+
+**FOUR CONTROLS FOR A THREE-CORNERED SHAPE.** The user asked for height, length,
+width and angle, and a triangle is fixed by two of the three lengths — so
+`angle` is nullable: set it and it drives `len` from `height`; leave it and it is
+derived from the two lengths and reads AUTO (25.20 deg on the stock build).
+Verified both ways: angle 20 gives len 0.44, angle 45 gives len 0.16. That is the
+same bargain every other over-determined control in this spec makes, rather than
+letting two knobs quietly fight.
+
 ## PLAYTEST BACKLOG (the numbered list, kept HERE from G4.6 on)
 The user's playtest items were tracked in a session table and nowhere in the
 repo, which meant re-deriving them every session. Numbering is theirs and does
@@ -4311,7 +4677,7 @@ is new (T/C/P/G) and does not collide with the old playtest numbers. Each item
 records what was VERIFIED before it was written down, because two of them turned
 out to be different problems from what they looked like.
 
-### T — THE TAIL. Skin-only first, then frame.
+### T — THE TAIL. Skin-only first, then frame.  (T1, T2, T3 DONE in G10)
 
 **T1 — the tip options are DEAD on the tail.** Not "hard to see": measured, all
 six of `GEN_TIPS` give byte-identical geometry on `elev` and `rud` — same vertex
@@ -4344,12 +4710,12 @@ backlog #21 (T-tail), which is the same control at its limit — a T-tail is a
 stab height of 1.0, so #21 may fall out of T6 rather than needing its own
 chantier.
 
-T4/T5/T6 all move the TRUSS (`61_gen_frame.js`) and therefore mass, CG and tail
+T4/T5/T6 (DONE in G11) all move the TRUSS (`61_gen_frame.js`) and therefore mass, CG and tail
 volume (`62_gen_aero.js`). They are a different kind of change from T1-T3 and
 should be a separate session: the gates that matter for them are FLEX, LOAD and
 the per-aircraft circuit gates, not the skin's coherence check.
 
-### C — CONTROL SURFACES AND THE TORSION MODEL
+### C — CONTROL SURFACES AND THE TORSION MODEL  (C1 DONE in G9)
 
 **C1 — the control surfaces do not flex with the airframe.** Verified, and the
 mechanism is exactly what the user described. The fixed skin is deformed
@@ -4370,7 +4736,7 @@ Note this is a VIEWER change, not a solver change — the surfaces already have
 correct node weights (GATE GEN checks they sum to 1). Nothing about the physics
 moves.
 
-### P — THE PROPELLER
+### P — THE PROPELLER  (P1, P2 DONE in G8)
 
 **P1 — import the design session's propeller.** IMPORTANT, because it is easy to
 get wrong twice: there is no propeller work in the SECOND bundle. Its only
@@ -4396,7 +4762,7 @@ and the reason it is deliberately conservative is in the comment there: a leg
 shortened into a prop strike is a broken aeroplane on the first landing, not a
 bad one. Worth re-reading that before moving it.
 
-### U — THE PANEL
+### U — THE PANEL  (U1 DONE in G8)
 
 **U1 — split the powerplant section.** "Engine, cowl & blades" becomes
 **Engine & cowl** (they stay together, user call) and **Propeller** as its own

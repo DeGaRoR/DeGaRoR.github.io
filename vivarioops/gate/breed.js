@@ -125,6 +125,12 @@ function diffGenome(a, b) {
     // be seen at all without these two lines.
     mouthChanged: JSON.stringify(a.mouth) !== JSON.stringify(b.mouth) ? 1 : 0,
     chemoChanged: a.controller.chemoGain !== b.controller.chemoGain ? 1 : 0,
+    // GENOME_V 9, added in the SAME edit as `mutateTropoGain`. FOURTH time this
+    // note has been written — `preyGain`/`threatGain`, then `preyGain2`, then
+    // `brakeGain`, now this. The rule has not changed: a diff blind to a gene
+    // reports `total: 0`, trips the no-op check, and cannot see the change even
+    // in principle. The gate caught this one within the hour.
+    tropoChanged: a.controller.tropoGain !== b.controller.tropoGain ? 1 : 0,
     // GENOME_V 6, added in the same edit as `mutateTaper`, for the reason above.
     // `morphology` is top level, so without this line the operator would fire,
     // change a real gene, and be reported as changing nothing.
@@ -140,7 +146,7 @@ function diffGenome(a, b) {
     + d.materialChanged.length + d.socialChanged.length + (d.omegaChanged ? 1 : 0)
     + d.gainsChanged.length + d.gains2Changed.length + d.brakeChanged
     + d.gradientChanged.length + d.proprioChanged
-    + d.mouthChanged + d.chemoChanged + d.taperChanged.length
+    + d.mouthChanged + d.chemoChanged + d.tropoChanged + d.taperChanged.length
     + d.jointGenesAdded.length + d.jointGenesRemoved.length + d.jointGenesChanged.length;
 
   // The same count at LEAF granularity — how many scalar genes moved, not how
@@ -274,6 +280,11 @@ const EXPECTED = {
   mutateChemoGain: (d, t) => {
     t.eq(d.chemoChanged, 1, 'mutateChemoGain changes the chemoreception gain');
     t.eq(d.total, 1, 'mutateChemoGain changes nothing else');
+  },
+  // GENOME_V 9. Same standing rule 3, same edit as the operator.
+  mutateTropoGain: (d, t) => {
+    t.eq(d.tropoChanged, 1, 'mutateTropoGain changes the taxis gain');
+    t.eq(d.total, 1, 'mutateTropoGain changes nothing else');
   },
   mutatePhaseGradient: (d, t) => {
     t.eq(d.gradientChanged.length, 1, 'mutatePhaseGradient changes exactly one gradient coefficient');

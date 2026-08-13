@@ -1256,11 +1256,136 @@ the separation should likewise come from cruise × window, not from reach × k.
 
 1. ✅ **DONE — the duel task is re-derived from measured cruise.** §10i.
 2. ✅ **DONE — the joint-limit floor ships.** §10e; `SLICE_LIMITS.revoluteLimitBand`.
-3. **Decide perception BEFORE co-evolution, not after.** This is the strategic
-   one and it is the one left. Co-evolution on an omniscient compass will breed
-   animals that exploit perfect information, and receptors added afterwards
-   invalidate every one of them. Re-running Phase 2's gate on creatures that can
-   now travel is the cheapest way to find out whether the receptor path is alive.
+3. ✅ **DONE — the perception retry ran, and it falsified the hypothesis it was
+   built on.** §10j. The receptor is fine; what it is WIRED TO is wrong.
+
+## 10j. THE PERCEPTION RETRY — my hypothesis was wrong, and the real defect is better
+
+`tools/_zsense.mjs`, 300 s trials, `chemoGain` swept over ±0.5 and ±0.9 against a
+`chemoGain = 0` control that `runForage` documents as bit-identical to open loop.
+
+**First, two facts measured before any trial, and the second was not known:**
+
+- **0 receptors in 200 random draws**, and `chemoGain` is 0 on all eight
+  champions. Twenty-two generations of selection grew four receptor sites on
+  exactly one of them — and that one still has gain 0, so they are inert.
+- **The organ is a TWO-PART gene and both parts start neutral.** A creature needs
+  a site AND a non-zero gain together before the wire does anything at all. So
+  this tool sets both directly, the way `_zgoalch2` seeded `preyGain2`, to
+  separate "can a walk find it" from "given it, does it pay".
+
+**The hypothesis was that Phase 2's gate failed because its corpus could not
+move. It is false.**
+
+| pool | mean control-subtracted | helped |
+|---|---|---|
+| **mobile** (champions, cruise 0.03–0.48) | **−1.737 g** | 4/8 |
+| **immobile** (random draw, cruise ~0.009) | **+0.286 g** | 5/10 |
+| Phase 2, 2026-08-09 | −0.087 g | 3/16 |
+
+Mobility did not rescue it. The mobile pool did **worse**.
+
+**But the row ordering says exactly what is wrong, and it is not the receptor.**
+Benefit against blind intake, over the eight champions:
+
+    blind 1.48 g -> +10.7      blind 18.89 g -> -12.2
+    blind 7.55 g ->  +3.5      blind 21.32 g ->  -7.1
+    blind 6.43 g ->  +3.6      blind 31.63 g -> -10.3
+
+**Pearson −0.83.** The wire helps a creature that was not finding food anyway and
+**actively harms one that was** — and for the good foragers *both signs of the
+gain hurt*, so it is not a wrong strategy, it is any modulation at all.
+
+That is mechanically obvious once seen: the receptor drives **`effort`** — how
+hard to swim — and a creature already sweeping a lot of water loses intake by
+throttling. Kinesis is a slow-down-in-good-water strategy, and the animals we
+just spent a campaign making good at covering ground are precisely the ones it
+costs the most.
+
+### The receptor is not the defect. The output it is wired to is.
+
+`engine/l2/forage.js` says so itself, and gives the reason:
+
+> *"KINESIS, NOT TAXIS: the receptors modulate `effort` … Taxis needs to know
+> WHICH WAY, which needs orientation, which `tools/_zlight.mjs` measures as still
+> broken (1 of 7 helped)."*
+
+**Orientation is no longer broken.** That is the whole result of this session:
+four of eight champions arrive in 6 of 6 directions. So the limitation the wire
+was built under has been lifted, and the deferred half is now the obvious
+experiment — and it is a **wire, not a new organ**. Everything it needs exists:
+
+| what tropotaxis needs | where it already is |
+|---|---|
+| per-receptor concentration | `senseAt` (finite 6 cm reach) |
+| left/right provenance | `plan.receptors[].side`, ±1, computed in `morphogen.js` |
+| a steering channel that works | `sensorTurnBias` → `turnBias`, bred for 22 generations |
+
+`forage.js` even names the missing line: *"a differential between sides is what
+tropotaxis would take."* Averaging the receptors — which is what the shipped wire
+does — throws that differential away, and the average is the one read that cannot
+steer.
+
+⚠ **n = 8 and n = 10, one field seed.** The means are thin; the −0.83 ordering is
+what carries the finding, and it is a mechanism rather than an effect size.
+
+## 10k. TROPOTAXIS — the deferred wire, built and measured
+
+`ZS_MODE=taxis`. `engine/l2/forage.js` now takes the receptor **differential**:
+
+    contrast = (right − left) / (right + left)        turnBias = tropoGain × contrast
+
+The contrast rather than the difference, so the command is dimensionless and
+bounded in [−1, 1] and cannot saturate `turnBias` merely by the creature swimming
+into dense water — a raw difference would tie the gene's usable range to
+`FOOD_ENERGY`. `tropoGain` is an **argument, not a gene**: `preyGain2` got a
+schema bump on a mechanism and came out neutral, so the standing lesson is to
+measure first and spend `GENOME_V` after. At 0 the branch does not execute and
+every existing trial is bit-identical.
+
+**Two structural facts the wire forced into the open.** Receptor `side` is
+assigned from the BODY a site sits on, not from where on the body it sits — so a
+creature with one site has every receptor on one side and **no differential
+exists at all**. Subjects need receptors on bodies at different x, which is the
+`_zgoalch2` anatomy screen restated.
+
+### The statistic, and why the obvious one is wrong
+
+The mean over both signs is ≈0 *by construction* whenever the sign is the
+strategy — and it plainly is here: `spined` reads **−13.8 at gain −0.9 and +6.1
+at +0.9**. But "best of four" is a maximum over four tries, and this session
+already retired a gate for exactly that bias (§5.4). So the reported figure is
+the **mean of the better-signed pair** — a max over two directions, which is the
+one choice evolution actually makes, since `chemoGain`'s sign is evolved and not
+declared. Still optimistic, far less so, and stated.
+
+| | mobile (champions) | immobile (random draw) |
+|---|---|---|
+| **kinesis**, better sign | **−0.344 g**, 4/8 | +0.345 g, 5/10 |
+| **taxis**, better sign | **+2.211 g, 6/8** | +0.380 g, 5/10 |
+| taxis, both signs averaged | −0.105 g | +0.181 g |
+| Phase 2, 2026-08-09 | — | −0.087 g, 3/16 |
+
+**Tropotaxis passes Phase 2's gate where kinesis fails it**: mean > 0, sign test
+6 of 8, 300 s trials. And it pays **5.8× more to animals that can travel than to
+ones that cannot** (2.211 against 0.380) — which is the mobility hypothesis
+holding for the *steering* wire after failing for the effort wire.
+
+So §10j's conclusion stands and is now demonstrated rather than argued: **the
+receptor was never the defect. The output it was wired to was.** Averaging the
+sides is the one read that cannot steer, and it was chosen because orientation
+was broken at the time. It is not broken now.
+
+### What this does NOT establish
+
+- **`tropoGain` is not a gene.** Nothing can select on it until it is one, and
+  that is a `GENOME_V` bump with a migration, a mutation operator and a
+  `worlds/seeds.js` edit. It has earned the bump; it has not been given it.
+- **Reachability is untouched and it is the harder half.** The organ needs a
+  SITE and a GAIN together, and the draw supplies neither — 0 receptors in 200
+  draws, `chemoGain` 0 on all eight champions after 22 generations. A gene that
+  pays but cannot be reached is `preyGain2` again.
+- **n = 8 and 10, one field seed, one world.**
 
 ## 10i. THE DUEL TASK, FIXED — and C2's matrix is no longer all zeros
 

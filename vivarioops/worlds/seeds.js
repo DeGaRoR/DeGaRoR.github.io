@@ -135,6 +135,7 @@ function chain({
         phaseSlope: 0,       // A3
         proprioGain: 0,      // A5 — neutral: open loop
         chemoGain: 0,        // GENOME_V 5 — neutral: blind
+        tropoGain: 0,        // GENOME_V 9 — neutral: no taxis
         // GENOME_V 7 — neutral: no second steering channel. These eels are a
         // chain of PARALLEL hinges, so their joint-axis spread is 1.000 / 0.000
         // / 0.000 and the channel is inert on them whatever the gain: there is
@@ -254,6 +255,7 @@ function medusa({
         phaseSlope: 0,
         proprioGain: 0,
         chemoGain: 0,
+        tropoGain: 0,
         preyGain2: 0,        // GENOME_V 7 — neutral
         threatGain2: 0,
         brakeGain: 0,        // GENOME_V 8 — neutral
