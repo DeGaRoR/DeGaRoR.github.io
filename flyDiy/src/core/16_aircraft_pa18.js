@@ -150,6 +150,8 @@ function buildPA18() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
       VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
+      // no VTurn: see the cub fiche — TURNBACK and INBOUND read it with
+      // different fallbacks, so stating it changes the turnback speed
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.

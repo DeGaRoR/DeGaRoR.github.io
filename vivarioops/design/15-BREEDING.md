@@ -1376,16 +1376,180 @@ receptor was never the defect. The output it was wired to was.** Averaging the
 sides is the one read that cannot steer, and it was chosen because orientation
 was broken at the time. It is not broken now.
 
-### What this does NOT establish
+### What this did NOT establish — both now closed, see §10l
 
-- **`tropoGain` is not a gene.** Nothing can select on it until it is one, and
-  that is a `GENOME_V` bump with a migration, a mutation operator and a
-  `worlds/seeds.js` edit. It has earned the bump; it has not been given it.
-- **Reachability is untouched and it is the harder half.** The organ needs a
-  SITE and a GAIN together, and the draw supplies neither — 0 receptors in 200
-  draws, `chemoGain` 0 on all eight champions after 22 generations. A gene that
-  pays but cannot be reached is `preyGain2` again.
-- **n = 8 and 10, one field seed, one world.**
+- **`tropoGain` was not a gene.** ✅ `GENOME_V` 9.
+- **Reachability was untouched.** ✅ `SLICE_LIMITS.siteRate`.
+- **n = 8 and 10, one field seed, one world.** Still true.
+
+## 10l. GENOME_V 9 — the gene, the reachability fix, and four latent defects
+
+**The gene.** `tropoGain`, `[-1, 1]`, neutral at 0, with `mutateTropoGain`, a
+migration, `canonical`/`cloneGenome`/`validate`/`geneValues` entries and a
+`worlds/seeds.js` edit. Separate from `chemoGain` because they are different
+strategies with different best signs on the same animal. `forage.js` reads the
+gene; the tool argument survives as an override so a sweep is still possible.
+
+**The reachability fix, and it is the half that mattered.** The organ was two
+independent lottery tickets — a site AND a gain, either useless without the
+other. `SLICE_LIMITS.siteRate = 0.35` draws the **anatomy** (inert: no mass, no
+drag, no reading without a gain, so still neutral at insertion) and
+`BRANCH_WEIGHTS.organs` doubles 0.075 → 0.15, which `mutate.js` had itself
+instructed: *"RAISE IT WHEN THE SENSE IS WIRED."*
+
+| | before | after |
+|---|---|---|
+| draws with ≥1 receptor | **0 / 200 (0%)** | **161 / 200 (81%)** |
+| receptors on **both sides** (what taxis needs) | 0% | **56%** |
+| receptors per creature | — | p50 3, p90 11 |
+| mutations to move `chemoGain` off 0 *(given anatomy)* | never observed | **19**, ~10 generations |
+| mutations to move `tropoGain` off 0 | — | **15**, ~8 generations |
+
+53 of 53 walks reached a live gain within 200 mutations. One ticket instead of
+two, and the organ is now reachable inside a run of the length we actually
+afford — against `preyGain2`'s ~36 generations, which is the failure this was
+built to avoid repeating.
+
+### Four latent defects the bump drew, none of them new
+
+The gate went red in six places. Two were the bump doing its job (re-freeze the
+residents, move the `faunaVersion` pin). The other four were **pre-existing bugs
+that had simply never been drawn**, and the corpus change drew them:
+
+1. **Three operators reported success while moving nothing.**
+   `mutatePhaseGradient:phaseBase`, then `mutateSensorGain:preyGain` — `jitter`
+   clamps and `q()` quantises, so a draw from a value at a bound lands where it
+   started. Three operators already carried an individual guard; L1-26's own
+   comment had predicted exactly this at GENOME_V 8 — *"the flaw was always there
+   and had never been drawn."* **Patching them one at a time is a race against
+   the seed**, so the check moved into `mutate()`: an operator that returns a name
+   without changing the genome is treated as having refused. It now holds for
+   every operator and for every operator anyone adds later.
+2. **L1-49 asserted nothing.** It set one site on the root and counted *every*
+   receptor — the same number only because the factory drew no sites anywhere.
+   B4's lesson pointing the other way: *an assertion whose corpus cannot violate
+   it asserts nothing.* The fixture now clears sites first and tests what its
+   sentence claims.
+3. **The naming elision ate a stem.** E4 converted a terminal `y` to `i` **and**
+   dropped the next word's first letter — two rules at one seam. `phyll` + `eury`
+   + `arthr` composed to `Phylleurirthrus`, so the genus did not carry its own
+   family's stem `arthr` and NM-3 went red. Now `Phylleuriarthrus`.
+
+`GATE GREEN` — 114 assertions, 106 passed, 0 failed, 5738 checks. App 0.8.13,
+`GENOME_V` 9, `BRIDGE_V` 9, `faunaVersion` 12.
+
+## 10m. SELECTING ON TROPOTAXIS — a clean negative, and my reachability number was measuring the wrong thing
+
+`tools/_ztaxevo.mjs`, 3 seeds × 20 generations × population 12, 300 s forage
+trials, objective **grams eaten** (the beacon objective steers by `bearingTo` and
+could never move this gene). Arms: **free** vs **locked** (`tropoGain` forced to
+0 after every birth), same founders, common random numbers, all founders screened
+for receptors on both sides.
+
+| seed | eaten p50 free / locked | max \|tropoGain\| reached | carrying a live gene |
+|---|---|---|---|
+| 1 | 29.834 / **29.834** | 0.056 | 1/12 |
+| 2 | 12.937 / **12.937** | 0.000 | 0/12 |
+| 3 | 17.571 / **17.571** | 0.139 | 1/12 |
+
+**The two arms are identical to three decimals in every seed.** That is the
+diagnostic, not the disappointment: if a gene-carrying individual had ever
+entered the selected set the arms would have diverged, and they did not diverge
+at all. The gene was touched twice in sixty creature-generations and never
+mattered.
+
+### The cause, and it is my measurement rather than the fix
+
+§10l reported reachability as **15 mutations**. That number asked *"does
+`tropoGain` move off zero"* — and `tools/_zsense.mjs` measures taxis paying at
+gains of **0.5 to 0.9**. A gain of 0.056 commands `0.056 × contrast` of turn
+bias, which is nothing. **I measured the wrong threshold.** Re-measured against
+magnitudes that matter:
+
+| target \|tropoGain\| | median mutations |
+|---|---|
+| > 0 (what §10l reported) | **9** |
+| ≥ 0.1 | 53 |
+| ≥ 0.3 | 152 |
+| ≥ 0.5 *(where it starts paying)* | **492** |
+
+`jitter` from zero has sigma `MIN_SIGMA × (hi − lo)` = 0.1 on this range, so
+reaching a useful gain is a random walk of ~25 successful steps, and the operator
+fires on 0.15 × ¼ ≈ 3.75% of mutations.
+
+**And the breeding loop supplies far fewer mutations than a walk does.** At
+population 12, `breed()` keeps 6 elites **unmutated** (N18), draws 2 strangers,
+and makes 4 offspring at `MUTATIONS_PER_RECOMBINANT` [0, 2] — about **4 mutations
+per generation across the whole population, none of them on the champions**. A
+per-lineage walk of 492 mutations is not 492 generations here; it is far worse.
+
+So this is `preyGain2`'s failure mode exactly, and the reachability fix addressed
+only the half I had measured: **the anatomy is now free and the gene is now
+touchable, but its useful MAGNITUDE is not reachable in any run of an affordable
+length.**
+
+### The fix is one line, and the precedent is already in the file
+
+`preyGain` and `threatGain` are **drawn** `uniform(rng, RANGE.preyGain)` over the
+full range — not started at zero — and `factory.js` says why: starting them at
+zero is what left them dead for two milestones. `tropoGain` followed the
+`preyGain2` precedent instead, and got the `preyGain2` result.
+
+Drawing `tropoGain` from its full range would put the population's variation
+where selection can see it on generation 0, exactly as it does for the steering
+gains. It is not a schema change — the range already exists — and it costs one
+rng draw.
+
+✅ **APPLIED 2026-08-13, at the owner's decision.** §10n.
+
+## 10n. THE TROPOGAIN FIX — the mechanism works, the payoff is unresolved
+
+`tropoGain` is now **drawn** `uniform(rng, RANGE.tropoGain)` like `preyGain`, not
+started at zero like `preyGain2`. Not a schema change — the range already
+existed, migrated genomes still arrive at 0, no stored hash moves.
+
+**A coupling bug the fix exposed, and without it the fix would have been a
+no-op.** `runForage`'s sensing block was gated on `chemoGain !== 0` alone, so a
+creature with a live `tropoGain` and `chemoGain` 0 — which is *every* drawn
+creature — never sensed at all. The two are independent readings of one receptor
+array, one driving `effort` and the other `turnBias`; either now opens the block,
+and the effort line is guarded so opening it cannot hand anyone a kinesis they
+did not evolve.
+
+**What a creature is born with now**, 400 draws:
+
+| | before | after |
+|---|---|---|
+| live `tropoGain` | 0% | **100%** (p50 0.502) |
+| at a magnitude that pays (≥ 0.5) | 0% | **50%** |
+| **and** receptors on both sides to read a contrast | 0% | **46%** |
+
+**The validation — 3 seeds × 20 generations, free vs locked, same founders:**
+
+| seed | free | locked | delta | \|tropoGain\| p50, start → end |
+|---|---|---|---|---|
+| 1 | 25.361 g | 29.834 g | **−4.473** | 0.372 → 0.150 |
+| 2 | 25.286 g | 12.937 g | **+12.349** | 0.420 → 0.445 |
+| 3 | 17.357 g | 17.571 g | −0.214 | 0.673 → 0.743 |
+
+**The mechanism is fixed and that is not in doubt.** Before, the two arms were
+identical to three decimals in every seed because the gene never reached a
+magnitude that could change anything. They now diverge, 12/12 creatures carry a
+live gene, and **selection moves it in the direction the payoff indicates** —
+seed 1's gain is halved where taxis hurts, seed 3's rises where it helps. That is
+a gene selection can finally see.
+
+**Whether taxis pays is NOT resolved: 1 of 3 seeds.** Mean +2.55 g, driven
+entirely by seed 2. `_zsense` measured +2.211 g at the *better sign*; here the
+sign is evolved per creature and comes out mixed. Three seeds is three seeds, and
+this is reported as unresolved rather than as a win.
+
+⚠ **This breaks "neutral at insertion" (standing rule 4) deliberately.** The two
+sensor-gain precedents point opposite ways — `preyGain` is drawn, `chemoGain` is
+not — and the evidence for taking `preyGain`'s side is §10m: the neutral version
+failed its own experiment because selection could not see the gene at all. Half
+the corpus is now born with a wrong-signed taxis, which is the same trade
+`RANGE.preyGain` already defends.
 
 ## 10i. THE DUEL TASK, FIXED — and C2's matrix is no longer all zeros
 

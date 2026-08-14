@@ -591,10 +591,16 @@ export function runVernacularGate() {
       + 'median-and-spread: `signature.traits.size` is clamped to [0,1] and saturates for '
       + '24% of the corpus, so no z-threshold on it can separate large from enormous. '
       + 'Measured on bodyRadius instead; tools/_vnprior.mjs re-measures.',
-      'VN-9 and VN-11 are the same blocked pair naming.js:214 already records: author '
-      + 'citations (13 §8) and recombination scars (13 §10) need GENOME_V 5 and a '
-      + 'migration. Until then `false` and the possessive are not emitted at all — an '
-      + 'invented one would be a false claim about provenance.',
+      'VN-9 AND VN-11 ARE STILL BLOCKED, AND THE SCHEMA HAS BEEN BUMPED FOUR TIMES '
+      + 'WITHOUT CARRYING THEM. Author citations (13 §8) and recombination scars '
+      + '(13 §10) need a genome field and a migration; this obligation used to say '
+      + '"need GENOME_V 5", and GENOME_V is now 9. Each bump was spent on something '
+      + 'else — mouth and sensor placement at 5, the taper gradient at 6, tropoGain '
+      + 'at 9 — so the naming half keeps being the cheapest passenger nobody boards. '
+      + 'Until a field exists, `false` and the possessive are not emitted at all: an '
+      + 'invented one would be a false claim about provenance. They buy '
+      + "`Gauder's greater rowing whipfoot` and `the false azure sunburst`, which are "
+      + 'the two most legible events in the Atlas and currently cannot be shown.',
     ],
   };
 }

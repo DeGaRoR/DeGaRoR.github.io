@@ -109,8 +109,12 @@ function genPaintDataURI(spec) {
     }
     g.closePath(); g.fill();
   };
-  const sweep = 0.045 * P.sweep;
-  for (const [uc, sg] of [[0.30, -1], [0.70, 1]]) {
+  // FINISH. A bare airframe carries no scheme, so the trim sweep and its
+  // highlight are SKIPPED rather than drawn zero-wide: a degenerate band still
+  // closes a path and fills a hairline where its two edges meet.
+  const FIN = (typeof GEN_FINISH !== 'undefined' && GEN_FINISH[P.job]) || null;
+  const sweep = 0.045 * P.sweep * (FIN ? FIN.sweep : 1);
+  if (sweep > 0) for (const [uc, sg] of [[0.30, -1], [0.70, 1]]) {
     band(uc, uc + sg * sweep, 0.014, 0.03, 1.0, genHex(trim));
     band(uc + sg * 0.021, uc + sg * (0.021 + sweep), 0.0035, 0.05, 1.0, genHex(light));
   }
@@ -769,6 +773,11 @@ function garageInit(api) {
       { L: 'Toe out',            p: 'cabin.pilot.toeOut',  min: 0,    max: 30,   st: 1, u: '°' },
     ] },
     { L: 'Paint & finish', led: ['paint'], items: [
+      // FIRST, because it is the only control in this section that costs money.
+      // Bare drops the trim sweep with the price; the base colour stays the
+      // player's, since a primer is a colour too and the swatch already picks it.
+      { t: 'sel', L: 'Finish', p: 'paint.job',
+        o: () => Object.keys(GEN_FINISH).map(k => [k, GEN_FINISH[k].name]) },
       { t: 'paint' },
       { L: 'Registration', p: 'paint.regX', min: 0, max: 1, st: 0.02, u: '' },
     ] },
@@ -978,7 +987,9 @@ function garageInit(api) {
         `<span>tip ${pct(s.tipPct)}${cm(s.tipPct)}</span>` +
         (s.limitPct == null ? '' : `<span>limit +3.8 g — ${pct(s.limitPct)}</span>`) +
         (s.ultPct == null ? '' : `<span>ultimate +5.7 g — ${pct(s.ultPct)}</span>`) +
-        (y ? `<span>worst member ${y}</span>` : '');
+        // WHICH member. The percentage alone does not tell you where to put
+        // more tube, and the marker in the room is the same member.
+        (y ? `<span>worst member${s.worstCls ? ' (' + s.worstCls + ')' : ''} ${y}</span>` : '');
       testOut.className = 'gtest on' + (s.done ? ' done' : '');
     } else { testOut.innerHTML = ''; testOut.className = 'gtest'; }
 
@@ -1166,7 +1177,8 @@ function garageInit(api) {
                     : c >= 1000 ? (c / 1000).toFixed(1) + 'k' : c.toFixed(0);
     shakeBadge.textContent = [
       s.cost != null ? money(s.cost) + ' cr' : '',
-      n(s.mass, 0) + ' kg',
+      s.empty != null ? n(s.empty, 0) + '/' + n(s.mass, 0) + ' kg'
+                      : n(s.mass, 0) + ' kg',
       s.hp != null ? n(s.hp, 0) + ' hp' : '',
       b.wing ? n(b.wing.span, 1) + ' m' : '',
     ].filter(Boolean).join(' · ');
@@ -1200,6 +1212,11 @@ function garageInit(api) {
 
     read.innerHTML =
       `<div class="ggrid">` +
+      // EMPTY FIRST. All-up is the number the wing lifts, but empty is the
+      // number the builder's decisions actually move — the material, the
+      // structure, the engine — and showing only all-up buried a 14% change in
+      // the airframe under 126 kg of crew and fuel that no slider touches.
+      (s.empty != null ? cell('empty', n(s.empty, 0) + ' kg') : '') +
       cell('all-up', n(s.mass, 0) + ' kg') +
       cell('price', (s.cost == null ? '—' : money(s.cost) + ' cr')) +
       cell('wing', n(s.Sw) + ' m²') +

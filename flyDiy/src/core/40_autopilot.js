@@ -67,7 +67,7 @@ function makeAutopilot(sim, def, world) {
     xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
-    route: null, xc: false, frame: null,
+    route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
   };
   ap.setRoute = (from, to) => {
     ap.route = { from, to };
@@ -131,6 +131,10 @@ function makeAutopilot(sim, def, world) {
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
   let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
+  // W19: a 2 s climb-rate filter kept OUTSIDE holdVS's vsF, which only updates
+  // on frames that call holdVS and would change the fleet's VS loop if shared.
+  // Read by the CLIMB acceptance below; written every frame, used nowhere else.
+  let vsSlow = 0, gaT = 0;
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
@@ -213,6 +217,7 @@ function makeAutopilot(sim, def, world) {
     eRslow += dt / 2.0 * (eR - eRslow);
     eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
+    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(V, 5);
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
@@ -276,6 +281,28 @@ function makeAutopilot(sim, def, world) {
       c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
+
+    // W19 MISSED APPROACH. Everything from APPROACH onwards used to be one-way:
+    // once committed the autopilot arrived whatever happened, because the only
+    // re-entry in the whole machine was the balked-takeoff guard. Each trigger
+    // below is set well outside every fiche's measured margin, and gaN caps the
+    // attempts — a go-around loop is worse than a firm arrival, and a gate run
+    // has to terminate.
+    const goAround = why => {
+      ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
+      ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
+      thrC = A.thrCruise;
+    };
+    // W19 GROUND FLOOR on the cruise legs. Measured: a build flew the last
+    // 1.5 km of INBOUND at 1 m agl and nothing in the autopilot objected.
+    // hSafe is the AP's own "safely airborne" height; the fleet's minimum on
+    // these legs is 87-90 m against an hSafe of 8-30, so this never fires
+    // for them.
+    // hSafe ALONE, not max(hSafe, something): the drone's whole circuit is
+    // 60 m and its hSafe is 8, so a flat 25 m floor forced a climb in the
+    // middle of its INBOUND descent and moved its gate numbers. hSafe is
+    // already scaled per aeroplane, which is the whole point of it.
+    const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
 
     switch (ap.phase) {
       case 'DEPART': {
@@ -343,11 +370,25 @@ function makeAutopilot(sim, def, world) {
         if (agl > A.hSafe && V > A.VClimbMin) { ap.phase = 'CLIMB'; phaseT = 0; }
         break;
 
-      case 'CLIMB':
+      case 'CLIMB': {
         c.thr = 1;
         holdPitch(clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         airLateral();
-        if (cg[1] > ap.altRef + ap.hCruise - 8) {
+        // ACCEPT WHAT IT CAN ACTUALLY CLIMB (W19). CLIMB used to have exactly
+        // one exit — reaching hCruise — so an aeroplane that could not reach
+        // the circuit height stayed in it until the clock ran out. That IS the
+        // reported "it keeps climbing forever": measured, a 28 hp build sat
+        // here for 350 s at 0.09 m/s, and a short-span one for 286 s.
+        // The cure is to stop pretending: take the height it has, fly the
+        // circuit at that, and let the glideslope intercept sooner. gs and
+        // refAlt carry the arrival, so a lower circuit is self-consistent.
+        //
+        // NO-OP FOR THE FLEET, by two independent margins: it needs 60 s in
+        // CLIMB *and* a 2 s-filtered climb rate under 0.15 m/s, where the
+        // fiches climb at 3-5 m/s and top out in 14-47 s.
+        const stalled = phaseT > 60 && vsSlow < 0.15;
+        if (stalled) ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
+        if (cg[1] > ap.altRef + ap.hCruise - 8 || stalled) {
           if (ap.xc) {
             // remember the (safe, flat) climb-out heading: ENROUTE climbs
             // on it before turning toward terrain it cannot out-climb
@@ -357,10 +398,11 @@ function makeAutopilot(sim, def, world) {
           phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
         }
         break;
+      }
 
       case 'CRUISE':
         speedThrottle(ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2)));
         airLateral();
         if (sAl < ap.xTurn) {
           ap.phase = 'TURNBACK'; phaseT = 0;
@@ -410,7 +452,7 @@ function makeAutopilot(sim, def, world) {
         // needs more altitude than we have — the belt south of the corridor
         // rises faster than any of the fleet can climb head-on
         ap.targetDir = (hTgt - cg[1] > 60 && ap.holdDir) ? ap.holdDir : fixDir;
-        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -4.5, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -4.5, 2.2)));
         airLateral();
         if (fDist < 600) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
         break;
@@ -418,13 +460,29 @@ function makeAutopilot(sim, def, world) {
 
       case 'TURNBACK':
         speedThrottle(A.VTurn ?? ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2)));
         airLateral();
         headingCapT = Math.abs(e) < 0.12 ? headingCapT + dt : 0;
         if (headingCapT > 1.5) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
         break;
 
       case 'INBOUND': {
+        // THE LITERAL 24 IS THE CUB FAMILY'S, and it stays. It is that
+        // aeroplane's own (VCruise+VAppr)/2 = 23.75 frozen into the
+        // autopilot, and cub/pa18/drone genuinely fly it — note TURNBACK
+        // above falls back to VCruise instead, so those three fly 26/26/13
+        // on the turnback and 24 on the inbound, and no single VTurn key can
+        // say that. Stating one in the fiches to "make the default explicit"
+        // was tried and MOVED THE FLEET (drone elevator chatter 0.3 ->
+        // 5.5 deg/s, M3 stop 1 m, PA18 stop 5 m).
+        //
+        // What was actually wrong is that GENERATED fiches never set VTurn
+        // either, so every garage build was commanded the Cub's 24 whatever
+        // it was: 0.6x trim on a 39 m/s build (throttle to the floor, 100 m
+        // lost over the leg, the last 1.5 km at 1 m agl) and 1.04x on a
+        // 23 m/s one (full throttle, float, touch 240 m past the aim). Both
+        // reported symptoms, one constant. genTuneAP now emits VTurn, so
+        // this fallback is reached only by the family it was tuned on.
         speedThrottle(A.VTurn ?? 24);
         const d = ap.xAim - sAl;
         // Math.max(0, d): past the aim the raw slope target dives below
@@ -435,7 +493,7 @@ function makeAutopilot(sim, def, world) {
         // over the belt): min() is a no-op for standard circuits, which fly
         // level at hCruise below the slope until it comes down to them
         const hTgt = Math.min(ap.altRef + ap.hCruise, hGS + 15);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2)));
         airLateral();
         // in wind: align laterally BEFORE descending (localizer before
         // glideslope) — the turnback exits ~1.2-1.6 km off centreline and a
@@ -450,6 +508,17 @@ function makeAutopilot(sim, def, world) {
         // descending) instead of engaging APPROACH far above the slope;
         // standard circuits switch from BELOW (cg-hGS ~ -2), unaffected
         if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        // PAST THE AIM AND STILL AIRBORNE (W19). hGS collapses to refAlt here
+        // (the Math.max above), hTgt becomes refAlt+15, and the handoff is
+        // gated on d > 0 — so this state could never leave INBOUND. The
+        // aeroplane levelled at 15 m agl and flew straight ahead for ever.
+        // FLEET-UNREACHABLE: every fiche hands off at d = hCruise/gs, i.e.
+        // 800-4200 m before the aim.
+        else if (d <= 0) {
+          if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
+            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;   // low: just land it
+          } else goAround('past-aim');
+        }
         break;
       }
 
@@ -467,12 +536,44 @@ function makeAutopilot(sim, def, world) {
         // touched 83 m short of the aim). Identical in calm (Vg = V).
         holdVS(clamp(-(o_.Vg ?? V) * ap.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * ap.gs), 0.5));
         airLateral(0.18);
+        // W19 missed approach: HIGH ON THE SLOPE, sustained. Measured fleet
+        // margin — cub 3.2 m, pa18 5.5 m, drone 26.2 m above the slope at
+        // worst, against 60. INBOUND only hands over inside 40 m of the
+        // slope, so reaching 60 means it climbed away from it.
+        //
+        // AN OVERSPEED TRIGGER WAS TRIED AND REMOVED. `V > 1.35*VAppr` looks
+        // obviously safe and is not: the drone's INBOUND rides the literal 24
+        // against a VAppr of 9, so it enters APPROACH at 1.48 and fired TWO
+        // go-arounds on a gate that had passed for years. A genuine float is
+        // caught by the FLARE timeout below, which needs no speed threshold.
+        gaT = cg[1] - hGS > 60 ? gaT + dt : 0;
+        if (gaT > 5 && (ap.gaN || 0) < 2) { goAround('high'); break; }
         if (agl < A.flareAgl) { ap.phase = 'FLARE'; phaseT = 0; thFlare0 = th; }
         break;
       }
 
+      case 'GOAROUND':
+        // Deliberately dull: it reuses the CLIMB laws, then rejoins the circuit
+        // OUTBOUND (dirX -1, trackHold on) so CRUISE -> TURNBACK -> INBOUND
+        // re-flies the whole arrival, including a fresh enterArrival(). Flaps
+        // come up by themselves — the schedule at the foot of update() targets
+        // 0 outside APPROACH/FLARE.
+        c.thr = 1; c.brake = 0;
+        holdPitch(clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        airLateral(0.20);
+        if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
+          ap.phase = 'CRUISE'; phaseT = 0;
+          ap.dirX = -1; ap.trackHold = true;
+          thrC = A.thrCruise; thcI = 0.04;
+        }
+        break;
+
       case 'FLARE':
         c.thr = A.flareThr ?? 0;
+        // W19: a flare that will not end is a float. The fleet flares for ~3 s
+        // (flareAgl is 3.2 s of sink by construction), so 20 s cannot happen
+        // to them.
+        if (phaseT > 20 && (ap.gaN || 0) < 2) { goAround('float'); break; }
         if (A.flareMode === 'vs') {
           // sink-rate-targeted flare (needs a fast VS loop)
           holdVS(-(0.15 + 0.28 * Math.max(0, agl)), A.flareThMax ?? A.thMax);

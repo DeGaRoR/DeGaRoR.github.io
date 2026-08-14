@@ -1,3 +1,18 @@
+> # ⛔ SUPERSEDED 2026-08-14 — ARCHIVE ONLY
+>
+> **`design/PLAN.md` is the only live planning document.** Its Phase 1 and Phase 1′
+> landed in full; §1.1 still calls the Lamarckian oracle and the viability re-rolls
+> *"the highest-priority item in the plan"* and both were fixed on 2026-08-08
+> (`objective.js` defaults to `inheritance: 'weismann'`; the selection tools pass
+> `viabilityAttempts: 1`). Phase 3 was re-baselined twice and then overtaken by the
+> breeding campaign in `15-BREEDING.md`. The ordering — L3 last, because of the two
+> gods — is discharged along with the gods.
+>
+> **Kept, and still worth reading:** the measured baselines with their scripts, the
+> phase post-mortems (Phase 2's is the reason the tropotaxis wire exists), and the
+> "Withdrawn — do not resurface" table, which `design/PLAN.md` §8 carries in
+> compressed form.
+
 # Vivarioops — plan from here to intelligent behaviour
 
 Supersedes `../planLocomotion/DESIGN-LOCOMOTION-TO-INTENT.md`, whose Phase A is

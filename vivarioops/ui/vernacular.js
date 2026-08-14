@@ -23,9 +23,12 @@
 // So the name is written onto the specimen when it is saved, exactly as the
 // binomial is, and every reader takes it from the record. 14 §7 already says the
 // vernacular is not an identifier; this is what stops it being unstable either.
+//
+// AND FOR A CREATURE WITH NO RECORD — one swimming in the tank right now —
+// ui/names.js mints from the global prior instead, which is pure and therefore
+// equally stable. Between the two, every creature on every screen has exactly
+// one name. That file is where to read why.
 
-import { t } from '../trunk/i18n.js';
-import * as store from '../trunk/store.js';
 import { morphogenesis } from '../engine/l1/morphogen.js';
 import { binomial } from '../engine/l1/naming.js';
 import { vernacular, slotsOf, lineageFrom } from '../engine/l1/vernacular.js';
@@ -59,30 +62,27 @@ export function lineageOf(specs) {
   return { lineage: lineageFrom(samples), taken };
 }
 
-/**
- * The lineage context for the player's whole Atlas.
- *
- * A FAILURE HERE IS NOT FATAL. With no store, no lineage: the engine falls back
- * to its measured global prior and still names the globally unusual thing about
- * the animal. A name is always better than no name.
- */
-export async function atlasContext() {
-  try {
-    const keys = await store.list('specimen:');
-    const specs = [];
-    for (const key of keys) {
-      try { const s = await store.get(key); if (s?.genome) specs.push(s); }
-      catch { /* skip a record from a future build */ }
-    }
-    return lineageOf(specs);
-  } catch { return { lineage: undefined, taken: new Set() }; }
-}
+// `atlasContext()` USED TO LIVE HERE and it was a trap. It read EVERY specimen
+// record — each carrying a 1024 px portrait inline — and ran `morphogenesis` on
+// each one, to build a lineage the Vivarium then used to re-mint names that had
+// already been minted. It ran on every Vivarium boot, which is every tab switch.
+//
+// Nothing needs it any more. The tank mints against the GLOBAL PRIOR (see
+// ui/names.js for why), and the two callers that legitimately want a lineage —
+// worlds/atlas_seed.js when it plants the library, and the Atlas's backfill —
+// already hold the specimens they want to score against and call `lineageOf`
+// directly.
 
 /**
  * Mint a name for one creature.
  *
+ * PASS NO `ctx` AND THE RESULT IS PURE — slots score against the measured global
+ * prior and the candidate ladder never moves off its first choice. That is how
+ * ui/names.js gets a name that is the same on every screen. Pass a lineage only
+ * where the name is about to be written into a record and frozen (14 §4).
+ *
  * @param {object} genome
- * @param {object} [ctx]  from atlasContext(); omit for the global prior
+ * @param {object} [ctx]  from lineageOf(); omit for the global prior
  * @param {string} [worldId]
  * @returns {{name, display, binomial}}  `name` is the label form (14 §5: no
  *          article), `display` takes `the`
@@ -96,7 +96,7 @@ export function nameFor(genome, ctx = {}, worldId = 'w1') {
   return { name: v.name, display: v.display, binomial: bino.binomial, fallback: v.fallback };
 }
 
-/** Best label for a creature we may or may not have a stored name for. */
-export function labelFor(spec) {
-  return spec?.commonName || spec?.vernacular || spec?.binomial || t('Creature');
-}
+// `labelFor` is gone. It was `commonName || vernacular || binomial` with no
+// `!== binomial` test, which made the stranger picker show Latin for every
+// library creature while the Atlas card beside it showed the vernacular. One
+// precedence order now, in ui/names.js `label()`.

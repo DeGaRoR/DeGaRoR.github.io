@@ -35,6 +35,46 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
+  // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
+  // two-stroke straight to a 9 000 cr A-65 and then to 24 000, which left the
+  // garage with no way to build the aeroplane most people actually build: the
+  // cheapest engine that will fly two seats cost 9 000, and the next one up
+  // cost 24 000. That gap — not the airframe — is why a build could not come
+  // in under 30-40k. These four fill it, in both price AND power (21 -> 44 ->
+  // 48 -> 48.5 -> 59.6 -> 63 -> 74.6 kW).
+  //
+  // Tstatic is on the A-65's OWN curve: static thrust of a fixed-pitch prop
+  // goes as P^(2/3) D^(2/3), and the A-65 entry is the one the Cub's flight
+  // numbers were validated against (433 fpm, 151 m take-off run), so scaling
+  // from it keeps the whole fleet on one anchor rather than adding four new
+  // hand-tuned opinions. kV2 then comes from GEN_RULES.propV0K exactly as the
+  // generator's own prop synthesis derives it (60_gen_spec.js) — which
+  // reproduces the A-65's 0.26 as 0.2561, so registry and generator agree.
+  //
+  // `mass` is DRY ENGINE, the convention the entries above already use (A-65
+  // 80 kg against a real 77). The 582 is the exception and says so: a two-
+  // stroke without its reduction gearbox is not a powerplant, so its 43 kg is
+  // engine + gearbox + radiator + coolant.
+  vw2180_wood: {
+    price: 6000,
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000 },
+    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
+  },
+  rotax582_ivo: {
+    price: 5500,
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000 },
+    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
+  },
+  jabiru2200_std: {
+    price: 15000,
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000 },
+    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
+  },
+  rotax912_warp: {
+    price: 18000,
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
+  },
   o200_eprops: {
     price: 24000,
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600 },

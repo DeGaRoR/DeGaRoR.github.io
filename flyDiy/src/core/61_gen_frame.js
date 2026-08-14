@@ -110,8 +110,21 @@ function genLattice(S, gearX, track, kScale) {
   // rather than built (engine, wheels, instruments, paint) call spend().
   const ledger = {};
   let SEC = 'fuselage';
+  // WHAT IS THE AEROPLANE AND WHAT IS THE LOAD. `pt()` bills crew, fuel and
+  // freight into the same node masses the structure uses — it has to, the
+  // solver flies the sum — so the ONLY place the two can be told apart is here,
+  // by which section was open when the mass was billed. Naming the PAYLOAD
+  // sections rather than the empty ones is deliberate: a component added later
+  // and never classified then lands in the empty weight, where it is visible,
+  // instead of vanishing into a payload figure nobody reads.
+  // The flag rides on the ENTRY rather than in a list the rollup keeps, for the
+  // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
+  // that billed the mass knows what it was, and a list maintained anywhere else
+  // goes stale the first time a section is added.
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1 };
   const bill = (mass, cost) => {
-    const e = ledger[SEC] || (ledger[SEC] = { mass: 0, cost: 0 });
+    const e = ledger[SEC] ||
+      (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
     e.mass += mass || 0; e.cost += cost || 0;
   };
   const sec = s => { SEC = s; };
@@ -623,7 +636,7 @@ function genLattice(S, gearX, track, kScale) {
   spend(SYS.price);
   pt(F[0].TL, 0.5 * SYS.mass); pt(F[0].TR, 0.5 * SYS.mass);   // panel + systems
   sec('paint');
-  spend(GEN_PRICES.paintJob);
+  spend((GEN_FINISH[S.paint.job] || GEN_FINISH.full).price);
   sec('cargo');
   // Freight goes in the cargo bay if there is one, otherwise on the baggage
   // frame with everything else — which is the point of building the bay: it

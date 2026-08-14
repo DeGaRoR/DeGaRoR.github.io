@@ -1,3 +1,15 @@
+> # ⛔ SUPERSEDED 2026-08-14 — ARCHIVE ONLY, AND THE MOST OUT-OF-DATE FILE HERE
+>
+> **`design/PLAN.md` is the only live planning document.** This file was written
+> at 0.8.0 against an app now at 0.8.14. Its status table says B5 is not started
+> and C2 is blocked by buoyancy; both were settled months of sittings ago, and the
+> C2 diagnosis it records was superseded twice — first by the drag work, then by
+> the measurement that the duel was asking for a 20–30 cm crossing in 15 s from
+> animals that cover 7.2 cm.
+>
+> Kept for two things nothing else records: B4a's four measured findings, and the
+> spec-defect table at the end, which the spec set still owes amendments against.
+
 # Vivarioops — handoff
 
 Working title as of 0.8.0. Only user-visible strings carry it; module paths, the

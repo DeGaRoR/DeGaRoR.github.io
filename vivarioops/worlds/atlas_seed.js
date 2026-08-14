@@ -39,7 +39,7 @@ import { W1_SLICE } from './w1_slice.js';
 import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
 import { genomeHash, deserialise } from '../engine/l1/genome.js';
 import { binomial } from '../engine/l1/naming.js';
-import { W1_SPINE_IDS, W1_SPINE_GENOMES, W1_SPINE_NAMES } from './w1_spines.js';
+import { W1_SPINE_IDS, W1_SPINE_GENOMES } from './w1_spines.js';
 import { W1_PLAYER_IDS, W1_PLAYER_GENOMES, W1_PLAYER_NAMES } from './w1_player.js';
 import { renderThumbnail, RENDER_TAG } from '../render/thumbnail.js';
 import { lineageOf, nameFor } from '../ui/vernacular.js';
@@ -107,12 +107,31 @@ const CAST_ORDER = [
 const AUTHORED_BASE = 1_000_000;
 
 /**
- * The authored library as `{ id, commonName, genome }`, genomes in canonical
- * (map-jointGenes) form. Residents carry no authored common name — they are known
- * by their derived binomial — so `commonName` is left null and filled at plant time.
+ * The authored library as `{ id, commonName, genome, meta }`, genomes in
+ * canonical (map-jointGenes) form. Residents carry no authored common name —
+ * they are known by their derived binomial — so `commonName` is left null and
+ * filled at plant time.
+ *
+ * ── `meta`, AND WHY IT IS ONE NESTED OBJECT ─────────────────────────────────
+ *
+ * Six shelves feed this list and each knows things about its creatures that the
+ * specimen record used to drop on the floor: which shelf it came off, its id
+ * there, and for the bred champions the niche it was selected for, how many
+ * births it took, and what it actually scored. Every one of those is a column
+ * the Atlas wants to filter and sort on, and they were being computed, carried
+ * this far, and then discarded at the write.
+ *
+ * NESTED, because of the drift test at the bottom of this file. That test lists
+ * the fields a stored record is compared on, and a field NOT in the list goes
+ * stale forever — the record looks current, the source disagrees, and nothing
+ * ever replants it. A growing list of scalar comparisons decays the moment
+ * someone adds a seventh field and forgets the seventh clause. One object is
+ * one clause, and it cannot rot.
  */
 export function authoredList() {
   const list = [];
+  /** Every entry declares its shelf, so provenance survives the write. */
+  const meta = (shelf, id, extra = null) => ({ shelf, sourceId: id, ...(extra ?? {}) });
   // The cast first (see CAST_ORDER — selected creatures, then references), then
   // the drawn spines, then the rest of the seed library, then the residents.
   //
@@ -120,18 +139,36 @@ export function authoredList() {
   // specimen. Both later blocks skip ids placed here, so nothing is planted twice.
   for (const id of CAST_ORDER) {
     const s = SEEDS.find((x) => x.id === id);
-    if (s) { list.push({ id, commonName: s.name, genome: s.genome }); continue; }
+    if (s) { list.push({ id, commonName: s.name, genome: s.genome, meta: meta('seeds', id) }); continue; }
     const c = CURATED.find((x) => x.id === id);
-    if (c) list.push({ id, commonName: c.name, genome: c.genome });
+    if (c) list.push({ id, commonName: c.name, genome: c.genome, meta: meta('curated', id) });
   }
+  // ── THE SPINES CARRY NO COMMON NAME, AND `W1_SPINE_NAMES` IS WHY ────────────
+  //
+  // That table says of itself: "Display names, from the derived binomial at
+  // SELECTION TIME." They are not names anybody chose — they are a snapshot of
+  // what `binomial()` returned in 2026, on GENOME_V 4, before the derivation
+  // moved. Feeding them in as `commonName` made a card write
+  // `Schizortharthrus denticaudissimus` across the portrait in large type with
+  // `Nematortharthrus dentifrontissimus` — the CURRENT binomial for the same
+  // animal — in italics directly underneath. Two Latin names, disagreeing,
+  // stacked, on one card. That is the reported confusion in its purest form.
+  //
+  // A stale derivation is not a label, so it is not offered as one. `null` gets
+  // the residents' treatment two blocks down (see this function's docstring):
+  // `commonName` is filled at plant time from the LIVE binomial, which makes it
+  // equal to the record's own `binomial`, which is exactly the condition
+  // `names.label()` reads as "no authored name" — so the vernacular leads, as it
+  // does on every other card. The table stays where it is: it is a true record
+  // of what these four were called when they were drawn.
   for (const id of W1_SPINE_IDS) {
     const raw = W1_SPINE_GENOMES[id];
-    if (raw) list.push({ id, commonName: W1_SPINE_NAMES[id] ?? null, genome: deserialise(JSON.stringify(raw)) });
+    if (raw) list.push({ id, commonName: null, genome: deserialise(JSON.stringify(raw)), meta: meta('spines', id) });
   }
   for (const id of SEED_IDS) {
     if (CAST_ORDER.includes(id)) continue;
     const s = SEEDS.find((x) => x.id === id);
-    if (s) list.push({ id, commonName: s.name, genome: s.genome });
+    if (s) list.push({ id, commonName: s.name, genome: s.genome, meta: meta('seeds', id) });
   }
   // CURATED SPECIMENS — evolved, then picked out of a live Atlas and promoted.
   // Their genomes are already hydrated and already migrated by `w1_curated.js`,
@@ -140,7 +177,7 @@ export function authoredList() {
   // a found creature is still a reference.
   for (const c of CURATED) {
     if (CAST_ORDER.includes(c.id)) continue;   // already placed in the cast block
-    list.push({ id: c.id, commonName: c.name, genome: c.genome });
+    list.push({ id: c.id, commonName: c.name, genome: c.genome, meta: meta('curated', c.id) });
   }
   // THE OWNER'S OWN BREEDING STOCK — see worlds/w1_reef.js for why these are a
   // third kind of provenance and not folded into CURATED. They carry the fastest
@@ -148,7 +185,7 @@ export function authoredList() {
   // read off, so they belong on the shelf a player picks from.
   for (const c of REEF) {
     if (CAST_ORDER.includes(c.id)) continue;
-    list.push({ id: c.id, commonName: c.name, genome: c.genome });
+    list.push({ id: c.id, commonName: c.name, genome: c.genome, meta: meta('reef', c.id) });
   }
   // THE OFFLINE BREEDING PROGRAMME'S OWN OUTPUT — worlds/w1_bred.js, MACHINE
   // GENERATED by tools/_zpromote.mjs from tools/_zbreed_ark_*.json. A fourth
@@ -168,10 +205,25 @@ export function authoredList() {
     // field design/15-BREEDING.md section 1.4 retired as a seeking proxy.
     list.push({
       id: c.id, commonName: c.name, genome: c.genome,
-      headline: c.canonCm != null
+      // An EXPLICIT headline wins. A forage champion was selected on grams and
+      // never took a beacon trial, so quoting a beacon number on it would be
+      // quoting a measurement nobody made.
+      headline: c.headline ?? (c.canonCm != null
         ? `beacon ${c.canonCm.toFixed(2)}/8 cm · arrives ${Math.round((c.arrived ?? 0) * 6)}/6`
-        : null,
+        : null),
       note: c.note ?? null,
+      // THE FIVE FIELDS THAT USED TO BE DROPPED HERE. `niche` is what the
+      // champion is a champion AT — the single most useful facet on the whole
+      // shelf — and `canonCm`/`arrived`/`births` are what it actually scored on
+      // the canonical beacon trial. They reached this line and went no further.
+      meta: meta('bred', c.id, {
+        niche: c.niche ?? null,
+        bred: c.bred ?? null,
+        births: c.births ?? null,
+        canonCm: c.canonCm ?? null,
+        arrived: c.arrived ?? null,
+        dwell: c.dwell ?? null,
+      }),
     });
   }
   // PLAYER-BRED SPECIES, promoted out of one browser's IndexedDB into the
@@ -179,11 +231,11 @@ export function authoredList() {
   // forward like the residents rather than claiming to be current.
   for (const id of W1_PLAYER_IDS) {
     const raw = W1_PLAYER_GENOMES[id];
-    if (raw) list.push({ id, commonName: W1_PLAYER_NAMES[id] ?? null, genome: deserialise(raw) });
+    if (raw) list.push({ id, commonName: W1_PLAYER_NAMES[id] ?? null, genome: deserialise(raw), meta: meta('player', id) });
   }
   for (const id of W1_RESIDENT_IDS) {
     const raw = W1_RESIDENT_GENOMES[id];
-    if (raw) list.push({ id, commonName: null, genome: deserialise(raw) });
+    if (raw) list.push({ id, commonName: null, genome: deserialise(raw), meta: meta('residents', id) });
   }
   return list;
 }
@@ -260,7 +312,7 @@ export async function seedAtlas({ onProgress = null } = {}) {
   const live = new Set();
 
   for (let i = 0; i < library.length; i++) {
-    const { commonName, genome, headline = null, note = null } = library[i];
+    const { commonName, genome, headline = null, note = null, meta = null } = library[i];
     let hash;
     try { hash = genomeHash(genome); } catch { continue; }
     const key = store.KEY.specimen(hash);
@@ -290,10 +342,18 @@ export async function seedAtlas({ onProgress = null } = {}) {
       // forever — the record looks current, the shelf disagrees, and nothing
       // ever replants it. Added the same day `headline` was, rather than after
       // discovering it silently missing.
+      //
+      // `meta` IS ONE CLAUSE ON PURPOSE. It carries six or seven fields — shelf,
+      // source id, niche, births, canonCm, arrived, dwell — and comparing them
+      // one by one is a list that decays: the day someone adds an eighth field
+      // and forgets the eighth clause, that field goes stale on every install
+      // that has already planted the library, permanently and silently. One
+      // nested object, one structural comparison, and it cannot happen.
       if (cur
         && cur.render === RENDER_TAG
         && cur.createdAt === AUTHORED_BASE - i
         && (cur.headline ?? null) === headline
+        && JSON.stringify(cur.meta ?? null) === JSON.stringify(meta)
         && cur.commonName === (commonName || cur.binomial)) continue;
     }
 
@@ -317,6 +377,11 @@ export async function seedAtlas({ onProgress = null } = {}) {
         // except the promoted champions. `ui/cards.js` renders `headline` and
         // hangs `note` off it as the element's title.
         headline, note,
+        // WHERE IT CAME FROM AND WHAT IT WAS SELECTED FOR. Six shelves feed this
+        // library and every one of them knew things — the shelf, the id, the
+        // niche a champion won, the beacon distance it closed — that stopped
+        // here and went no further. They are Atlas facets now (ui/atlas/derive.js).
+        meta,
         render: RENDER_TAG,
       };
       await store.set(key, specimen);

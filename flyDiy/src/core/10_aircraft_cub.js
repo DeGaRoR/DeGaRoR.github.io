@@ -138,6 +138,14 @@ function buildCub() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
       VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
+      // NO VTurn ON PURPOSE. TURNBACK and INBOUND both read A.VTurn but with
+      // DIFFERENT fallbacks — VCruise and a literal 24 — so this aeroplane
+      // flies its turnback at 26 and its inbound at 24, and a single VTurn
+      // key cannot express that. Writing `VTurn: 24` here to "make the
+      // default explicit" silently moved TURNBACK 26 -> 24 and was measured
+      // to shift the M3 stop 1 m and the drone's elevator chatter from
+      // 0.3 to 5.5 deg/s. Generated fiches always set VTurn, so the literal
+      // below is reached only by this family, which is what it was tuned on.
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.

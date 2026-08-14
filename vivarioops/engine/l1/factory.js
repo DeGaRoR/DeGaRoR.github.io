@@ -1004,11 +1004,46 @@ export function createRandomGenome(rng, limits = SLICE_LIMITS) {
       // that report nothing, which is what makes a site free to carry and makes
       // the cave-fish regression gate possible.
       chemoGain: 0,
-      // GENOME_V 9 — the taxis gain, blind at birth for the same reason. The
-      // difference from every gene above it is that the ANATOMY is now drawn
-      // (`SLICE_LIMITS.siteRate`), so a single `mutateTropoGain` switches a
-      // working organ on rather than half of one.
-      tropoGain: 0,
+      // ── DRAWN, NOT ZERO — AND THIS IS A DELIBERATE BREAK WITH RULE 4 ─────────
+      //
+      // Every gene above starts neutral because an organ should be neutral at
+      // insertion and metered on expression. `tropoGain` was too, and it FAILED
+      // ITS OWN EXPERIMENT for exactly that reason (design/15-BREEDING.md 10m):
+      // three seeds, twenty generations, and the free and locked arms came out
+      // IDENTICAL TO THREE DECIMALS because the gene never reached a magnitude
+      // that could change a trajectory.
+      //
+      // The arithmetic, measured. `jitter` from zero has sigma 0.1 on this range,
+      // so a useful gain is a ~25-step walk, and the operator fires on ~3.75% of
+      // mutations. Median mutations to reach a gain that PAYS:
+      //
+      //     |tropoGain| > 0     9        <- what the reachability fix delivered
+      //     |tropoGain| >= 0.1  53
+      //     |tropoGain| >= 0.5  492       <- where tools/_zsense.mjs measures it paying
+      //
+      // And `breed()` supplies ~4 mutations per GENERATION across a whole
+      // population of twelve, none of them on the elites. 492 per-lineage
+      // mutations is not 492 generations here; it is unreachable.
+      //
+      // THE PRECEDENT IS `preyGain`, NOT `preyGain2`. `preyGain`/`threatGain` are
+      // drawn over their full range four lines above, and the comment there says
+      // why: hardcoding them to zero is what left them dead for two milestones
+      // while everything downstream measured exactly zero steering. `tropoGain`
+      // followed `preyGain2` — neutral at insertion — and got `preyGain2`'s
+      // result. So it follows `preyGain` now.
+      //
+      // WHAT THIS COSTS, STATED. Half the corpus is born with a WRONG-SIGNED
+      // taxis, and a wrong sign is measured to be actively harmful (-13.8 g on
+      // one champion against +6.1 g at the opposite sign). That is the same trade
+      // `RANGE.preyGain` already takes and defends: "a creature that swims away
+      // from food is representable and will simply lose". Selection needs the
+      // variation in front of it, and a population that is uniformly zero has
+      // none for it to see.
+      //
+      // NOT A SCHEMA CHANGE. `RANGE.tropoGain` already exists, migrated genomes
+      // still arrive at 0, and no stored hash moves. It costs one rng draw, which
+      // does move every seeded draw downstream of it.
+      tropoGain: uniform(rng, RANGE.tropoGain),
       // GENOME_V 7 — the second steering channel, and silent at birth for the
       // same reason `chemoGain` is: neutral at insertion (standing rule 4). A
       // creature drawn today steers exactly as one drawn yesterday until

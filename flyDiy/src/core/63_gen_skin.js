@@ -213,19 +213,36 @@ function genAfSeg(naca, a, b, n) {
   return pts;
 }
 
-// Station cross-section: blend from the bare truss rectangle to a rounded
-// former. theta 0 = top, +pi/2 = +z side, pi = bottom.
-// crownT applies at the top and fades to crownS by the sides — a step between
-// upper and lower halves leaves a visible kink right along the waterline, which
-// is exactly where the eye reads a fuselage's shape.
+// Station cross-section: an asymmetric SUPERELLIPSE, thin wrapper over
+// genSuper (60b_gen_loft.js). theta 0 = top, +pi/2 = +z side, pi = bottom.
+// crownT applies at the top and fades to crownS by the sides.
+//
+// This used to be a per-angle LINEAR BLEND between an axis-aligned rectangle and
+// an ellipse, and it carried a defect nobody had named. The rectangle's radius
+// min(halfD/|cy|, halfW/|cz|) has a derivative discontinuity at each of its four
+// corners, so for ANY crown < 1 the blend inherited four C1 breaks around EVERY
+// ring — at the stock crownSide 0.07 the belly and sides were a creased
+// rectangle running the whole length of the aeroplane. Measured at the real
+// GEN_RADIAL = 40 tessellation, where a uniform ring turns 9.00 deg per vertex:
+//
+//   crownT/crownS   old       new
+//   0.72 / 0.07     63.92 ->  37.12 deg     (the stock aeroplane)
+//   0.50 / 0.50     43.28 ->  18.36
+//   0.00 / 0.00     66.46 ->  42.15
+//   1.00 / 1.00     11.11 ->  11.11         (already an ellipse: unchanged)
+//
+// crownTop and crownSide keep their spec paths and their meaning; they are
+// reinterpreted as exponents by genCrownToN, which is a least-squares fit of
+// genSuper against the genRing this replaces. See 60b_gen_loft.js for the fit
+// table and for why the residual at crown = 0 is large on purpose.
 function genRing(theta, halfW, halfD, crownT, crownS) {
-  const cy = Math.cos(theta), cz = Math.sin(theta);
-  const s = Math.min(halfD / Math.max(1e-6, Math.abs(cy)), halfW / Math.max(1e-6, Math.abs(cz)));
-  const ry = cy * s, rz = cz * s;                       // truss rectangle
-  const crown = crownS + (crownT - crownS) * Math.max(0, cy);
-  const k = 1 + 0.15 * crown;                           // formers stand a little proud
-  const ey = halfD * cy * k, ez = halfW * cz * k;       // rounded former
-  return [ry + (ey - ry) * crown, rz + (ez - rz) * crown];
+  // the proud-former scale is blended by the SAME smoothstep genSuper uses on
+  // the exponent — with max(0, cy) the two disagreed at the waterline, which is
+  // precisely where a step in the section reads worst
+  const s = Math.max(0, Math.cos(theta));
+  const k = genCrownScale(crownS + (crownT - crownS) * s * s * (3 - 2 * s));
+  return genSuper(theta, halfW * k, halfD * k,
+                  genCrownToN(crownT), genCrownToN(crownS));
 }
 
 // A member drawn between two nodes has to STRETCH with them. Otherwise the

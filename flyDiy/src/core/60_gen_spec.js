@@ -243,6 +243,20 @@ const GEN_PRICES = {
   seat: 380,
 };
 
+// FINISH. `paintJob` above used to be spent unconditionally, which made 1800
+// credits the one line on the bill nobody could argue with — and a homebuilt
+// leaves the shop in primer more often than it leaves it painted. So it is a
+// choice. `sweep` scales the trim stripe the paint sheet bakes (garage.js), so
+// bare loses the scheme as well as the price; the base colour stays the
+// player's, because a primer is still a colour and they already have a swatch
+// for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
+// currently reads, and wiring a dead field would be a second change wearing
+// this one's clothes.
+const GEN_FINISH = {
+  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1 },
+  bare: { name: 'Bare / primer', price: 0,                   sweep: 0 },
+};
+
 // Cabin box per seating layout: half-width, height above the lower longeron,
 // fore-aft length, and the crew mass it carries.
 // `deck` is the firewall top as a fraction of cabin height: the STEP between
@@ -689,7 +703,7 @@ const GEN_DEFAULT = {
   // `regX` places the registration along the body: 0 just aft of the cabin, 1 at
   // the fin. It was pinned at 45-78% of the run, which on a long fuselage put it
   // in the taper where the section halves in width.
-  paint: { base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
+  paint: { job: 'full', base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
 };
 
 const GEN_PRESETS = { garage: GEN_DEFAULT };
@@ -901,6 +915,7 @@ function clampSpec(spec) {
   pl.toeOut  = genClamp(pl.toeOut  == null ? 7    : pl.toeOut,   0,  30);
 
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
+  if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
 
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
@@ -1141,10 +1156,24 @@ function resolveSpec(spec) {
   w.tipR = Rb;
   w.tipZ = semi - Rb;
   w.tipC = Rb > 1e-6 ? lin(w.tipZ) : 0;
-  // the bow removes a quarter of the rectangle it replaces on each tip
-  // (half-ellipse of span Rb and chord tipC), so the REFERENCE AREA is the
-  // shape's area, not the trapezoid's
-  const Sw = w.span * w.chord * 0.5 * (1 + w.taper)
+  // THE REFERENCE AREA IS THE SHAPE THAT WAS BUILT. This used to be the area of
+  // a trapezoid tapering from the CENTRELINE — but the wing does not taper from
+  // there. `linC` (61_gen_frame.js) runs the root chord out to zR0 and only
+  // tapers outboard of it, because the centre section spans the cabin, so the
+  // real planform is a rectangle plus two trapezoids and the old sum under-read
+  // it by zR0 * chord * (1 - taper): nothing at taper 1, 0.24 m2 on a 11.6 m2
+  // wing at the taper clamp.
+  //
+  // Two things went wrong with that, and the second is the worse one. The panel
+  // reported `Sw` and `loading` off the STRIPS (64_gen_build.js) while `Vs` came
+  // from here, so the sheet disagreed with itself about the same wing. And AR
+  // below feeds genOswald, the 3D lift-curve slope, ClMax and the tail volume
+  // coefficients — so every one of those inherited the error.
+  //
+  // The bow still comes off: it removes a quarter of the rectangle it replaces
+  // on each tip (half-ellipse of span Rb and chord tipC).
+  const Sw = 2 * zR0 * w.chord
+             + (semi - zR0) * w.chord * (1 + w.taper)
              - 2 * w.tipC * Rb * (1 - Math.PI / 4);
   S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
 

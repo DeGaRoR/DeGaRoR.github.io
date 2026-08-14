@@ -29,9 +29,9 @@
 // orientation together; then arriving, then holding station, then the body plan,
 // then speed. Each axis takes the best animal not already represented.
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { deserialise, serialise } from '../engine/l1/genome.js';
+import { deserialise, serialise, genomeHash } from '../engine/l1/genome.js';
 import { morphogenesis, totalMass } from '../engine/l1/morphogen.js';
-import { signature } from '../engine/l1/naming.js';
+import { signature, binomial } from '../engine/l1/naming.js';
 
 const ARGV = process.argv.slice(2);
 const N = Number(ARGV.find((a) => /^\d+$/.test(a)) ?? 8);
@@ -70,6 +70,48 @@ for (const v of byHash.values()) {
 console.log(`\n  _zchampions — ${byHash.size} canonically-scored champions across ${FILES.length} arks`);
 console.log(`  ${cand.length} of them were BRED; ${new Set(cand.map((c) => c.binomial)).size} distinct binomials\n`);
 
+// ── THE FORAGE CHAMPIONS — a different objective, so a different headline ────
+//
+// `tools/_ztaxevo.mjs` selected on GRAMS EATEN over 300 s, not on beacon
+// closure, and its winners are bred (4-11 births) with `origin.founder: null`.
+// They belong on the shelf for the same reason the beacon champions do — they
+// are the programme's output — but quoting a beacon number on them would be
+// quoting a measurement nobody took. Their headline is grams.
+function forageChampions() {
+  const out = [];
+  for (const f of readdirSync('tools').filter((x) => /^_ztaxevo_seed\d+\.json$/.test(x))) {
+    let j;
+    try { j = JSON.parse(readFileSync(`tools/${f}`, 'utf8')); } catch { continue; }
+    // The two arms produced identical winners in every seed — the taxis gene
+    // never entered a selected set — so taking `free` takes the animal, not a
+    // side of an experiment that had no sides.
+    const w = j.winners?.free;
+    if (!w?.serialised) continue;
+    let g, plan;
+    try { g = deserialise(w.serialised); plan = morphogenesis(g); } catch { continue; }
+    const births = g.origin?.generations ?? 0;
+    if (!(births > 0)) continue;
+    out.push({
+      genome: g, plan, births, seed: j.seed, gen: w.gen, arm: 'free', line: 0,
+      hash: genomeHash(g), eaten: w.eaten,
+      run: signature(plan, g).longestRun, bodies: plan.bodyCount, mass: totalMass(plan),
+      receptors: (plan.receptors ?? []).length,
+      binomial: binomial(plan, g).binomial,
+    });
+  }
+  out.sort((a, b) => b.eaten - a.eaten);
+  const picked = [];
+  // One on grams, one on the BODY PLAN — a long segment chain is the thing this
+  // project has spent a session failing to breed, and the forage run produced one.
+  const best = out[0];
+  if (best) picked.push({ ...best, niche: 'forager', blurb: 'the most food taken in 300 s' });
+  const chain = out.filter((x) => x !== best).sort((a, b) => b.run - a.run)[0];
+  if (chain && chain.run >= 4) {
+    picked.push({ ...chain, niche: 'segmented forager', blurb: 'the longest bred segment chain that also feeds' });
+  }
+  return picked;
+}
+
 const AXES = [
   ['seeker', 'closes the most ground under its own steering', (r) => r.closedCm],
   ['arriver', 'reaches the mark in the most of six directions', (r) => r.arrived * 100 + r.closedCm],
@@ -107,8 +149,34 @@ for (const p of picked) {
 }
 
 // ── emit ────────────────────────────────────────────────────────────────────
+for (const fc of forageChampions()) {
+  if (takenHash.has(fc.hash) || takenKind.has(fc.binomial)) continue;
+  takenHash.add(fc.hash); takenKind.add(fc.binomial);
+  picked.push(fc);
+  console.log(`  ${fc.niche.padEnd(16)} ${'—'.padStart(7)} ${'—'.padStart(7)} ${'—'.padStart(6)}`
+    + ` ${'—'.padStart(8)} ${'—'.padStart(5)}/${'—'.padStart(4)} ${String(fc.run).padStart(4)}`
+    + ` ${String(fc.births).padStart(6)}   ${fc.binomial}   (${fc.eaten.toFixed(2)} g eaten)`);
+}
+
 const idOf = (p) => `champ-${p.niche.replace(/[^a-z]/g, '')}-${p.hash.slice(0, 6)}`;
 const body = picked.map((p) => {
+  if (p.eaten != null) {
+    const n = `CHAMPION (${p.niche}) — ${p.blurb}. BRED, ${p.births} births deep, no authored `
+      + `ancestor. Selected on GRAMS EATEN over a 300 s forage trial (tools/_ztaxevo.mjs), `
+      + `seed ${p.seed}, generation ${p.gen}: ${fmt(p.eaten)} g. ${p.bodies} bodies, `
+      + `${fmt(p.mass)} g, longest segment run ${p.run}, ${p.receptors} receptors.`;
+    return `  {
+    id: ${JSON.stringify(idOf(p))},
+    name: ${JSON.stringify(`Champion — ${p.niche}`)},
+    niche: ${JSON.stringify(p.niche)},
+    binomial: ${JSON.stringify(p.binomial)},
+    bred: true,
+    births: ${p.births},
+    headline: ${JSON.stringify(`forage ${p.eaten.toFixed(1)} g / 300 s · chain ${p.run}`)},
+    note: ${JSON.stringify(n)},
+    genome: curate(${JSON.stringify(deserialise(serialise(p.genome)))}, ${JSON.stringify(idOf(p))}),
+  },`;
+  }
   const note = `CHAMPION (${p.niche}) — ${p.blurb}. BRED, ${p.births} births deep, no authored `
     + `ancestor. Campaign seed ${p.seed}, ${p.arm} arm, line ${p.line}, generation ${p.gen}. `
     + `Canonical trial (6 directions x 90 s at the tank's own 8 cm beacon): closes `

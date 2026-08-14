@@ -421,6 +421,19 @@ export function runL1Gate() {
 
     // One site on the root node: it must appear once per body expressing it.
     const withSite = structuredClone(canonical(base));
+    // ── THE FIXTURE OWNS ITS OWN PRECONDITIONS ─────────────────────────────────
+    //
+    // This set a site on the root and counted EVERY receptor in the plan, which
+    // was the same number only because no other node could have one: the factory
+    // drew `sites: []` for everything. GENOME_V 9 draws them at
+    // `SLICE_LIMITS.siteRate`, so the count became 11 against an expected 1 and
+    // the assertion went red on a corpus change rather than on a defect.
+    //
+    // It is B4's lesson pointing the other way: "an assertion whose corpus cannot
+    // violate it asserts nothing" — this one could not be violated because the
+    // corpus had no sites, so it never tested replication at all. Clearing first
+    // makes it test exactly what its sentence claims, whatever the factory draws.
+    for (const n of withSite.nodes) n.sites = [];
     withSite.nodes.find((n) => n.id === withSite.rootNodeId).sites = [{ face: 4, at: [0, 0] }];
     const up = deserialise(JSON.stringify(withSite));
     t.ok(validateGenome(up).ok, 'a genome carrying a site validates');
@@ -760,11 +773,11 @@ export function runL1Gate() {
       `B2 §2.2: the A2/A5 reflection ambiguity is RESOLVED — maxReflectionAxes = ${SLICE_LIMITS.maxReflectionAxes}, reading (a). 10 §A2's "allowRadialSymmetry: false" should be amended: it names a gene A5 deleted, and radial symmetry is now reachable and intended.`,
       `B2 §2.1: neutral drift is ${'measured at +0.012 bodies/mutation over 30 000 mutations, against a gate of |drift| < 0.01'}. THE GATE IS INSIDE THE ERROR BAR — per-mutation delta has sd ~1.6, so 2 s.e. at that n is +-0.026. The claim that holds is the 30-generation walk: 9.17 -> 8.95 bodies, flat, against 3.87 -> 3.06 before. Do not re-tune removalTournament against a figure taken below n ~ 90 000.`,
       `B2 §2.1: Fix B is implemented as a tournament of ${SLICE_LIMITS.removalTournament}, NOT as §2.1's literal "prefer the one costing fewest bodies". The full argmin measured +0.110 drift — it finds free removals rather than cheap ones at a 75% discard rate. See factory.js removalTournament.`,
-      `B2 §2.2: mean bodies moved 3.91 -> 9.78 (2.5x). Every physics budget in the tree was sized on the old figure — §0's "2.8x realtime for 64 creatures, 235 bodies" and chantier 6's "3 gens @ pop 24, ~3.4 s" both need re-measuring before the auto-burst is costed.`,
+      `B2 §2.2: mean bodies moved 3.91 -> 9.78 (2.5x), and every physics budget in the tree was sized on the old figure. THE RE-MEASURE HAPPENED AND THE NEWS WAS BAD: a burst costs ~13 s of wall clock against a design budget of 5.7 s (see gate/probe.js). That is now a UI problem rather than a measurement one — a worker, a progress affordance, or a smaller population — and design/PLAN.md Phase 4 owns it, because it constrains what "playable breeding" can be.`,
       `B2: effective variety is measured by tools/_zdiv.mjs and is CORPUS-SENSITIVE (+-1.5 across seed namespaces at n=2000, and rising with n). Compare runs of that tool against each other, never against a figure quoted from elsewhere. The design's 17.1 for the shipped tree reads 16.3 here.`,
       `B2 §12 DECISION 1 — SPHERICAL JOINTS: DROPPED from SLICE_LIMITS.jointTypes, restored at F. Grounds beyond the design's corr(spherical, solver speed) = 0.60: rapier3d-compat 0.19.3's SphericalImpulseJoint has NO motor surface at all (so "upgrade the binding" is not a version bump), it has no setLimits either (so three angleLimits genes per spherical joint have always been inert), and it is the known 1e21 divergence at physics.js:944. Cost: mean DOF 5.0 -> 3.0. 10 §A2's joint set should be amended.`,
-      `B2 §12 DECISION 2 — THE TORQUE BOUND ON THE SOLVER PATH: RE-IMPOSE, 00 §9 stands unamended. Written up in full at engine/l1/physics.js, at the solver motor block. Not implemented here: the solver is not the default motor, so no shipped measurement exercises the path, and §3.2 binds the change to the session that defaults it. The derivation is recorded there — stiff <= budget / (2*angleLimits[0]) bounds the torque analytically, and the angleLimits floor it needs is a measurement.`,
-      `B2 §12 CARRIED: RANGE.dim's 0.2 m floor is still deferred. No fin, wing, membrane or vane is expressible against bodies of 0.2-2.0 m, and it blocked two of the five creatures §6.1 tried to author.`,
+      `B2 §12 DECISION 2 — THE TORQUE BOUND ON THE SOLVER PATH: DONE, AND THIS OBLIGATION USED TO SAY OTHERWISE. It read "not implemented here: the solver is not the default motor". The solver IS the default motor and the bound was re-imposed with it; the ceiling has since been split out of the gain scale (MUSCLE_STRESS ceiling-only at 2e6 barye, MOTOR_GAIN_STRESS 200 for gains). Two obligations in this same gate contradicted each other for several sittings, which is the argument for reviewing this block whenever a decision lands rather than only appending to it.`,
+      `B2 §12 CARRIED, AND IT IS NOW THE NEXT MORPHOLOGY LEVER: RANGE.dim's floor is still deferred. Bodies are drawn 0.2-2.0 cm INDEPENDENTLY PER AXIS, so a single node can be 0.2 x 2.0 x 0.2 before any connection touches it — raw node aspect p90 5.72. The taper gradient closed almost the whole gap between the old body-aspect p90 of 11.96 and that floor (landing at 6.02), so THE REMAINING ASPECT IS IN RANGE.dim AND NOT IN THE GRADIENT. More taper is the wrong lever. It also still blocks fins, wings, membranes and vanes, which is what blocked two of the five creatures §6.1 tried to author.`,
     ],
   };
 }

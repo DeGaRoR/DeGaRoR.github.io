@@ -468,9 +468,104 @@ NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
   ablation). Jodel ariK=0.
 - TURNBACK and INBOUND both use speedThrottle(A.VTurn ?? fallback) — the
   hardcoded-24 and VCruise-in-TURNBACK bugs are fixed; keep phase speeds in
-  the fiche.
+  the fiche. **CORRECTED W19**: only TURNBACK was fixed. INBOUND still
+  carries the literal `?? 24`, and the GENERATOR never emitted VTurn at all,
+  so every garage build flew the Cub's turn speed whatever it was — 0.6x trim
+  on a 39 m/s build (throttle to the floor, 100 m lost over the leg, the last
+  1.5 km at 1 m agl) and 1.04x on a 23 m/s one (full throttle, float, touch
+  240 m past the aim). genTuneAP now emits VTurn, so the literal is reached
+  only by cub/pa18/drone, which is the family it was tuned on.
+  **DO NOT "make the default explicit" in those three fiches.** TURNBACK and
+  INBOUND read the SAME key with DIFFERENT fallbacks — VCruise and 24 — so
+  those aeroplanes fly 26/26/13 on the turnback and 24 on the inbound, and no
+  single VTurn value can express that. Writing `VTurn: 24` into them was
+  tried: it silently moved TURNBACK and took the drone's elevator chatter
+  from 0.3 to 5.5 deg/s, the M3 stop 1 m and the PA18 stop 5 m.
 - Balked-takeoff guard requires LOW SPEED (V < 0.9·VRot), else wheel-brush
   during liftoff flickers ROLL/LIFTOFF forever.
+- **W19 GARAGE OUTER LOOPS (2026-08-13)** — user report: "the autopilot
+  struggles with the garage builds; it keeps climbing forever, lands several
+  hundred metres away from the fields". Root cause was NOT a tuning slip:
+  `genAP` emitted 34 keys, the autopilot dereferences 69, and the other 35
+  fell through to `??` defaults that are the CUB's — as did the dozen circuit
+  constants genAP hardcoded. `genTuneAP` (62_gen_aero.js) now derives them
+  all from the tunnel, method exactly as GEN_LOOP: propose a dimensionless
+  ratio, tabulate the seven fiches, adopt only if it CLUSTERS, and say so
+  where it does not. Instrument: `tools/gen_ap_probe.js` (asserts nothing).
+  Ratios that cluster, measured: VTurn = (VCruise+VAppr)/2 (0.987 ± 0.067,
+  the tightest in the set, and it retrodicts the literal 24);
+  climbThBase = 0.60·thMax (± 4.7%); lookAppr = lookCruise/1.45 (± 4.4%);
+  thMax = 0.67·aStall (± 6%); liftoffTh = 0.79·thMax (± 6%);
+  flareAgl = 3.2·VAppr·gs (± 12% — every fiche flares ~3.2 s out);
+  hSafe = 0.125·hCruise; hCruise = 7·Vs; xTurn from 1.2·hCruise/gs.
+  Derived rather than fitted: thrFloor from idle-thrust-over-weight (0.0125
+  ± 0.0035), gs = 0.55·gsIdle (0.574 ± 0.13 — the decel-margin rule made
+  numeric), thrAppr exact from the approach drag, vsFloor as a REACHABILITY
+  condition on holdVS's pitch clamp. NO CLUSTER, fallback taken and labelled:
+  lookCruise (time 2.7x, turn-radius 5.7x — the DC-3 and C172 have the same
+  V and the same R and lookaheads of 900 vs 450), xAim, climbThGain, rollDe,
+  altVSGain, vsP/vsI absolute, VBrakeOn, yawDampK, pitchI (deferred).
+- **W19 traps, in the order they cost time:**
+  1. **An airframe failure is not an autopilot failure.** Three of the first
+     eight probe specs could not stand up or could not fly: `onWheels` is an
+     ATTITUDE check (both axles within 6 cm) and reads false for a healthy
+     nose-high trike — the collapse instrument is `gearFolded` (susShift,
+     geometric). And changing a wing alone walks the static margin out of
+     GATE GEN's own 5-35% band (a 6.5 m wing reads 43%, the radial 68%), so
+     every probe spec now carries the `wings[].place.dx` that rebalances it.
+  2. **"Climbs forever" was not the vsFloor pin** (that is the chinook's, and
+     real). CLIMB had exactly ONE exit — reaching hCruise — so an aeroplane
+     that could not reach the Cub's 100 m stayed in it until the clock ran
+     out: 286 s measured on a short-span build, 350 s on a 28 hp one. Fixed
+     two ways: hCruise is capped by 90 s of the build's own measured climb
+     gradient, AND CLIMB now accepts the height it has after 60 s below
+     0.15 m/s. Fleet-unreachable (they climb 3-5 m/s, topping out in 14-47 s).
+  3. **Partial fixes are worse than none.** Fixing VTurn alone took a fast
+     build from "stumbles into a landing 2.8 m off" to "142 m off at 10.7 m/s
+     sink", because holding altitude EXPOSES the cross-track the ground
+     skimming was hiding. Land the energy fix, the lateral fix and the
+     INBOUND guard together.
+  3b. **The three "no-op" guards were NOT no-ops, and only the battery said
+     so.** All three faults were in the same direction — a threshold that
+     looked obviously safe against the Cub and was not safe against the
+     drone, whose whole circuit is 60 m and whose INBOUND speed is 2.7x its
+     VAppr. (i) `VTurn: 24` in the fiches, above. (ii) A ground floor at
+     `max(hSafe, 25)` forced a climb in the middle of the drone's INBOUND
+     descent — it is `hSafe` alone, which is already per-aeroplane. (iii) An
+     overspeed go-around at `V > 1.35*VAppr` fired TWICE on the drone, which
+     reaches 1.48 (cub 1.11, pa18 1.16); the trigger was removed rather than
+     retuned, because a genuine float is caught by the FLARE timeout without
+     any speed threshold. MEASURE THE MARGIN ON THE DRONE, not the Cub,
+     before calling a new autopilot condition fleet-unreachable.
+  4. **MEASURED AND REJECTED**: flareMode 'vs' for generated fiches, which is
+     what drone/Jodel/C172/Chinook all carry. Every sink got WORSE (stock
+     1.13 -> 1.63, heavyLoad 2.53 -> 3.39) even with the VS loop moved onto
+     the fast family to fly it. What actually helped was sizing the ramp to
+     REACH flareThMax in 1.5 s instead of just arriving at it by the end of
+     the flare: worth 1.3-1.9 m/s of sink.
+  5. VCruise is solved from the power curve (drag = 0.65·Tavail), which
+     guarantees thrCruise ~0.65 and so authority in both directions — the old
+     flat 1.71·Vs left builds pinned at the 0.95 clamp with nothing to climb
+     on. The clamp is [1.55, 2.2]·Vs and NOT the fleet's own 2.68: at 2.8 the
+     radial build solved to 69.7 m/s and flew a 1037 m wide circuit.
+- **W19 autopilot-side gaps** that no parameter value can cover, all
+  fleet-unreachable by measured margin: (1) INBOUND past the aim was a
+  PERMANENT TRAP — hGS collapses to refAlt, hTgt to refAlt+15, and the
+  APPROACH handoff is gated on d > 0, so the aeroplane levelled at 15 m agl
+  and flew straight on for ever (fiches hand off at d = 800-4200 m);
+  (2) no go-around existed anywhere — `GOAROUND` now triggers on high-on-slope,
+  overspeed, an endless flare or past-the-aim, capped at 2 attempts, and
+  rejoins outbound so the whole arrival is re-flown; (3) no ground floor on
+  the cruise legs (a build flew 1.5 km of INBOUND at 1 m agl and nothing
+  objected; fleet minimum on those legs is 87-90 m).
+- **W19 the garage now reports what it cannot fix**: `flyableCircuit` in
+  genShakedown (climb rate >= 0.3 m/s against the fleet's 3-5, TORun <= the
+  1100 m runway) and `apprTrimFail` / `landsFlapless` from a measured
+  elevator-to-trim-on-final budget of 0.18 (fleet worst is the Jodel at
+  0.118; half the servo stop). Reported, never enforced — same doctrine as
+  noseOver and gearFolded. A 28 hp two-seater reads 0.09 m/s and TORun
+  1508 m: it runs off the end of the strip and mushes at 1 m agl on full
+  power, and no autopilot can fly that.
 
 ## WORLD
 - Stage 4 aerodromes since W9 (2026-08-04): W.aerodromes now carries 12

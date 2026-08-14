@@ -32,6 +32,11 @@
 // ============================================================
 const GEN_LOAD_LIMIT = 3.8;         // FAR 23 normal category
 const GEN_LOAD_ULT = 5.7;           // 1.5 x limit
+// How far the rig lifts the aeroplane before it bolts it down. NAMED and
+// exported because the viewer has to know it: the camera tracks the CG, so it
+// went up with the aeroplane, but the hangar stayed on the floor 200 m below
+// and the test ran in an empty sky. The room now carries the same offset.
+const GEN_LOAD_LIFT = 200;
 const GEN_LOAD_WINGTAGS = ['WF', 'WR', 'WB', 'WB2'];
 
 // spar stations on the +z wing, front node paired with its nearest rear node
@@ -99,7 +104,7 @@ function makeLoadTest(sim, def, cfg) {
 
   const state = { phase: 'settle', n: 0, nTarget: ULT, tipPct: 0, tipM: 0,
                   defl: st.map(function () { return 0; }), z: st.map(s => s.z),
-                  semi: semi, worstPct: null, worstCls: null,
+                  semi: semi, worstPct: null, worstCls: null, worstBeam: -1,
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
                   verdict: null, done: false, W: W, ok: ok };
 
@@ -134,14 +139,14 @@ function makeLoadTest(sim, def, cfg) {
       if (!MAT.lin[cls]) continue;
       const A = MAT.lin[cls] / MAT.phys.rho;
       const pct = 100 * peak[cls].F / (MAT.phys.sigY * A);
-      if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct };
+      if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
     return worst;
   }
 
   function begin() {
     // clear of the ground so contact never joins in, then bolt the rig down
-    for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += 200;
+    for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
     def.nodes.forEach(function (nd, i) {
       if (!wingTag[nd.tag]) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
@@ -170,18 +175,23 @@ function makeLoadTest(sim, def, cfg) {
       sim.impulse(bags[k][0], 0, n * bags[k][1] * dt, 0);
     sim.step(dt); clamp(); relax();
 
-    for (const bm of sim.beams) {
+    // WHICH member, not just which class. The allowable is per class, so the
+    // percentage could always be worked out — but "78% of yield" does not tell
+    // you where to put more tube. Recording the index costs one field and lets
+    // the viewer put a marker on the member that is actually complaining.
+    for (let bi = 0; bi < sim.beams.length; bi++) {
+      const bm = sim.beams[bi];
       const cls = bm.cls || (bm.gear ? 'gear' : 'chassis');
       const F = Math.abs(bm.k * bm.strain * bm.L0);
-      const g = peak[cls] || (peak[cls] = { F: 0 });
-      if (F > g.F) g.F = F;
+      const g = peak[cls] || (peak[cls] = { F: 0, bi: -1 });
+      if (F > g.F) { g.F = F; g.bi = bi; }
     }
     const ax = sim.axes();
     state.defl = st.map((s, i) => 100 * (rise(s, ax[1]) - base[i]) / semi);
     state.tipPct = state.defl[state.defl.length - 1];
     state.tipM = state.tipPct / 100 * semi;
     const w = yieldPct();
-    if (w) { state.worstPct = w.pct; state.worstCls = w.cls; }
+    if (w) { state.worstPct = w.pct; state.worstCls = w.cls; state.worstBeam = w.bi; }
 
     if (state.limitPct === null && n >= LIM) {
       state.limitPct = state.tipPct;
@@ -206,6 +216,11 @@ function makeLoadTest(sim, def, cfg) {
     return state;
   }
 
+  // `bags` and `lift` are out here for the VIEWER. The bags were never geometry
+  // — they are impulses on nodes — so there was nothing on screen to see going
+  // on, which is why a load test read as an aeroplane sitting still and then
+  // occasionally exploding. Handing out the same list the physics uses means
+  // the sandbags drawn are the sandbags applied, and cannot drift from them.
   return { step: step, state: state, stations: st, semi: semi, W: W,
-           limit: LIM, ult: ULT };
+           limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
 }

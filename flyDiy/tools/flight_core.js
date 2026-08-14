@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5529bc486d9eb23f
+// body-sha256: a02c3e9a9430de11
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36,6 +36,46 @@ const POWERPLANTS = {
     price: 3500,
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
+  },
+  // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
+  // two-stroke straight to a 9 000 cr A-65 and then to 24 000, which left the
+  // garage with no way to build the aeroplane most people actually build: the
+  // cheapest engine that will fly two seats cost 9 000, and the next one up
+  // cost 24 000. That gap — not the airframe — is why a build could not come
+  // in under 30-40k. These four fill it, in both price AND power (21 -> 44 ->
+  // 48 -> 48.5 -> 59.6 -> 63 -> 74.6 kW).
+  //
+  // Tstatic is on the A-65's OWN curve: static thrust of a fixed-pitch prop
+  // goes as P^(2/3) D^(2/3), and the A-65 entry is the one the Cub's flight
+  // numbers were validated against (433 fpm, 151 m take-off run), so scaling
+  // from it keeps the whole fleet on one anchor rather than adding four new
+  // hand-tuned opinions. kV2 then comes from GEN_RULES.propV0K exactly as the
+  // generator's own prop synthesis derives it (60_gen_spec.js) — which
+  // reproduces the A-65's 0.26 as 0.2561, so registry and generator agree.
+  //
+  // `mass` is DRY ENGINE, the convention the entries above already use (A-65
+  // 80 kg against a real 77). The 582 is the exception and says so: a two-
+  // stroke without its reduction gearbox is not a powerplant, so its 43 kg is
+  // engine + gearbox + radiator + coolant.
+  vw2180_wood: {
+    price: 6000,
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000 },
+    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
+  },
+  rotax582_ivo: {
+    price: 5500,
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000 },
+    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
+  },
+  jabiru2200_std: {
+    price: 15000,
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000 },
+    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
+  },
+  rotax912_warp: {
+    price: 18000,
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
   },
   o200_eprops: {
     price: 24000,
@@ -212,6 +252,14 @@ function buildCub() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
       VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
+      // NO VTurn ON PURPOSE. TURNBACK and INBOUND both read A.VTurn but with
+      // DIFFERENT fallbacks — VCruise and a literal 24 — so this aeroplane
+      // flies its turnback at 26 and its inbound at 24, and a single VTurn
+      // key cannot express that. Writing `VTurn: 24` here to "make the
+      // default explicit" silently moved TURNBACK 26 -> 24 and was measured
+      // to shift the M3 stop 1 m and the drone's elevator chatter from
+      // 0.3 to 5.5 deg/s. Generated fiches always set VTurn, so the literal
+      // below is reached only by this family, which is what it was tuned on.
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.
@@ -1220,6 +1268,11 @@ function buildDrone() {
     twSteer: 0.75,
     ap: {
       VRot: 4.5, VClimbMin: 8.5, VClimb: 10, VCruise: 13, VAppr: 9,
+      // no VTurn: see the cub fiche. This aeroplane is the reason the point
+      // matters most — its TURNBACK falls back to VCruise 13 while its
+      // INBOUND rides the literal 24, and stating a single VTurn: 24 doubled
+      // the turnback speed and took its elevator chatter from 0.3 to
+      // 5.5 deg/s. Measured, not reasoned.
       TORun: 15,                    // measured run to 2.5 m agl (W14 multi-hop)
       hCruise: 60, hSafe: 8, xTurn: -900, xAim: -430, gs: 0.075,
       rollDe: 0.05, liftoffTh: 0.17, climbThBase: 0.13, climbThGain: 0.030,
@@ -1390,6 +1443,8 @@ function buildPA18() {
     ap: {
       VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
       VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
+      // no VTurn: see the cub fiche — TURNBACK and INBOUND read it with
+      // different fallbacks, so stating it changes the turnback speed
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.
@@ -3333,7 +3388,7 @@ function makeAutopilot(sim, def, world) {
     xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
-    route: null, xc: false, frame: null,
+    route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
   };
   ap.setRoute = (from, to) => {
     ap.route = { from, to };
@@ -3397,6 +3452,10 @@ function makeAutopilot(sim, def, world) {
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
   let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
+  // W19: a 2 s climb-rate filter kept OUTSIDE holdVS's vsF, which only updates
+  // on frames that call holdVS and would change the fleet's VS loop if shared.
+  // Read by the CLIMB acceptance below; written every frame, used nowhere else.
+  let vsSlow = 0, gaT = 0;
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
@@ -3479,6 +3538,7 @@ function makeAutopilot(sim, def, world) {
     eRslow += dt / 2.0 * (eR - eRslow);
     eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
+    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(V, 5);
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
@@ -3542,6 +3602,28 @@ function makeAutopilot(sim, def, world) {
       c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
+
+    // W19 MISSED APPROACH. Everything from APPROACH onwards used to be one-way:
+    // once committed the autopilot arrived whatever happened, because the only
+    // re-entry in the whole machine was the balked-takeoff guard. Each trigger
+    // below is set well outside every fiche's measured margin, and gaN caps the
+    // attempts — a go-around loop is worse than a firm arrival, and a gate run
+    // has to terminate.
+    const goAround = why => {
+      ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
+      ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
+      thrC = A.thrCruise;
+    };
+    // W19 GROUND FLOOR on the cruise legs. Measured: a build flew the last
+    // 1.5 km of INBOUND at 1 m agl and nothing in the autopilot objected.
+    // hSafe is the AP's own "safely airborne" height; the fleet's minimum on
+    // these legs is 87-90 m against an hSafe of 8-30, so this never fires
+    // for them.
+    // hSafe ALONE, not max(hSafe, something): the drone's whole circuit is
+    // 60 m and its hSafe is 8, so a flat 25 m floor forced a climb in the
+    // middle of its INBOUND descent and moved its gate numbers. hSafe is
+    // already scaled per aeroplane, which is the whole point of it.
+    const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
 
     switch (ap.phase) {
       case 'DEPART': {
@@ -3609,11 +3691,25 @@ function makeAutopilot(sim, def, world) {
         if (agl > A.hSafe && V > A.VClimbMin) { ap.phase = 'CLIMB'; phaseT = 0; }
         break;
 
-      case 'CLIMB':
+      case 'CLIMB': {
         c.thr = 1;
         holdPitch(clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         airLateral();
-        if (cg[1] > ap.altRef + ap.hCruise - 8) {
+        // ACCEPT WHAT IT CAN ACTUALLY CLIMB (W19). CLIMB used to have exactly
+        // one exit — reaching hCruise — so an aeroplane that could not reach
+        // the circuit height stayed in it until the clock ran out. That IS the
+        // reported "it keeps climbing forever": measured, a 28 hp build sat
+        // here for 350 s at 0.09 m/s, and a short-span one for 286 s.
+        // The cure is to stop pretending: take the height it has, fly the
+        // circuit at that, and let the glideslope intercept sooner. gs and
+        // refAlt carry the arrival, so a lower circuit is self-consistent.
+        //
+        // NO-OP FOR THE FLEET, by two independent margins: it needs 60 s in
+        // CLIMB *and* a 2 s-filtered climb rate under 0.15 m/s, where the
+        // fiches climb at 3-5 m/s and top out in 14-47 s.
+        const stalled = phaseT > 60 && vsSlow < 0.15;
+        if (stalled) ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
+        if (cg[1] > ap.altRef + ap.hCruise - 8 || stalled) {
           if (ap.xc) {
             // remember the (safe, flat) climb-out heading: ENROUTE climbs
             // on it before turning toward terrain it cannot out-climb
@@ -3623,10 +3719,11 @@ function makeAutopilot(sim, def, world) {
           phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
         }
         break;
+      }
 
       case 'CRUISE':
         speedThrottle(ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2)));
         airLateral();
         if (sAl < ap.xTurn) {
           ap.phase = 'TURNBACK'; phaseT = 0;
@@ -3676,7 +3773,7 @@ function makeAutopilot(sim, def, world) {
         // needs more altitude than we have — the belt south of the corridor
         // rises faster than any of the fleet can climb head-on
         ap.targetDir = (hTgt - cg[1] > 60 && ap.holdDir) ? ap.holdDir : fixDir;
-        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -4.5, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -4.5, 2.2)));
         airLateral();
         if (fDist < 600) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
         break;
@@ -3684,13 +3781,29 @@ function makeAutopilot(sim, def, world) {
 
       case 'TURNBACK':
         speedThrottle(A.VTurn ?? ap.VCruise);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (ap.altRef + ap.hCruise - cg[1]), -2.2, 2.2)));
         airLateral();
         headingCapT = Math.abs(e) < 0.12 ? headingCapT + dt : 0;
         if (headingCapT > 1.5) { ap.phase = 'INBOUND'; phaseT = 0; ap.trackHold = true; }
         break;
 
       case 'INBOUND': {
+        // THE LITERAL 24 IS THE CUB FAMILY'S, and it stays. It is that
+        // aeroplane's own (VCruise+VAppr)/2 = 23.75 frozen into the
+        // autopilot, and cub/pa18/drone genuinely fly it — note TURNBACK
+        // above falls back to VCruise instead, so those three fly 26/26/13
+        // on the turnback and 24 on the inbound, and no single VTurn key can
+        // say that. Stating one in the fiches to "make the default explicit"
+        // was tried and MOVED THE FLEET (drone elevator chatter 0.3 ->
+        // 5.5 deg/s, M3 stop 1 m, PA18 stop 5 m).
+        //
+        // What was actually wrong is that GENERATED fiches never set VTurn
+        // either, so every garage build was commanded the Cub's 24 whatever
+        // it was: 0.6x trim on a 39 m/s build (throttle to the floor, 100 m
+        // lost over the leg, the last 1.5 km at 1 m agl) and 1.04x on a
+        // 23 m/s one (full throttle, float, touch 240 m past the aim). Both
+        // reported symptoms, one constant. genTuneAP now emits VTurn, so
+        // this fallback is reached only by the family it was tuned on.
         speedThrottle(A.VTurn ?? 24);
         const d = ap.xAim - sAl;
         // Math.max(0, d): past the aim the raw slope target dives below
@@ -3701,7 +3814,7 @@ function makeAutopilot(sim, def, world) {
         // over the belt): min() is a no-op for standard circuits, which fly
         // level at hCruise below the slope until it comes down to them
         const hTgt = Math.min(ap.altRef + ap.hCruise, hGS + 15);
-        holdVS(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2));
+        holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2)));
         airLateral();
         // in wind: align laterally BEFORE descending (localizer before
         // glideslope) — the turnback exits ~1.2-1.6 km off centreline and a
@@ -3716,6 +3829,17 @@ function makeAutopilot(sim, def, world) {
         // descending) instead of engaging APPROACH far above the slope;
         // standard circuits switch from BELOW (cg-hGS ~ -2), unaffected
         if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        // PAST THE AIM AND STILL AIRBORNE (W19). hGS collapses to refAlt here
+        // (the Math.max above), hTgt becomes refAlt+15, and the handoff is
+        // gated on d > 0 — so this state could never leave INBOUND. The
+        // aeroplane levelled at 15 m agl and flew straight ahead for ever.
+        // FLEET-UNREACHABLE: every fiche hands off at d = hCruise/gs, i.e.
+        // 800-4200 m before the aim.
+        else if (d <= 0) {
+          if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
+            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;   // low: just land it
+          } else goAround('past-aim');
+        }
         break;
       }
 
@@ -3733,12 +3857,44 @@ function makeAutopilot(sim, def, world) {
         // touched 83 m short of the aim). Identical in calm (Vg = V).
         holdVS(clamp(-(o_.Vg ?? V) * ap.gs + 0.12 * (hGS - cg[1]), Math.min(-3.0, -1.6 * V * ap.gs), 0.5));
         airLateral(0.18);
+        // W19 missed approach: HIGH ON THE SLOPE, sustained. Measured fleet
+        // margin — cub 3.2 m, pa18 5.5 m, drone 26.2 m above the slope at
+        // worst, against 60. INBOUND only hands over inside 40 m of the
+        // slope, so reaching 60 means it climbed away from it.
+        //
+        // AN OVERSPEED TRIGGER WAS TRIED AND REMOVED. `V > 1.35*VAppr` looks
+        // obviously safe and is not: the drone's INBOUND rides the literal 24
+        // against a VAppr of 9, so it enters APPROACH at 1.48 and fired TWO
+        // go-arounds on a gate that had passed for years. A genuine float is
+        // caught by the FLARE timeout below, which needs no speed threshold.
+        gaT = cg[1] - hGS > 60 ? gaT + dt : 0;
+        if (gaT > 5 && (ap.gaN || 0) < 2) { goAround('high'); break; }
         if (agl < A.flareAgl) { ap.phase = 'FLARE'; phaseT = 0; thFlare0 = th; }
         break;
       }
 
+      case 'GOAROUND':
+        // Deliberately dull: it reuses the CLIMB laws, then rejoins the circuit
+        // OUTBOUND (dirX -1, trackHold on) so CRUISE -> TURNBACK -> INBOUND
+        // re-flies the whole arrival, including a fresh enterArrival(). Flaps
+        // come up by themselves — the schedule at the foot of update() targets
+        // 0 outside APPROACH/FLARE.
+        c.thr = 1; c.brake = 0;
+        holdPitch(clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        airLateral(0.20);
+        if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
+          ap.phase = 'CRUISE'; phaseT = 0;
+          ap.dirX = -1; ap.trackHold = true;
+          thrC = A.thrCruise; thcI = 0.04;
+        }
+        break;
+
       case 'FLARE':
         c.thr = A.flareThr ?? 0;
+        // W19: a flare that will not end is a float. The fleet flares for ~3 s
+        // (flareAgl is 3.2 s of sink by construction), so 20 s cannot happen
+        // to them.
+        if (phaseT > 20 && (ap.gaN || 0) < 2) { goAround('float'); break; }
         if (A.flareMode === 'vs') {
           // sink-rate-targeted flare (needs a fast VS loop)
           holdVS(-(0.15 + 0.28 * Math.max(0, agl)), A.flareThMax ?? A.thMax);
@@ -4264,6 +4420,20 @@ const GEN_PRICES = {
   seat: 380,
 };
 
+// FINISH. `paintJob` above used to be spent unconditionally, which made 1800
+// credits the one line on the bill nobody could argue with — and a homebuilt
+// leaves the shop in primer more often than it leaves it painted. So it is a
+// choice. `sweep` scales the trim stripe the paint sheet bakes (garage.js), so
+// bare loses the scheme as well as the price; the base colour stays the
+// player's, because a primer is still a colour and they already have a swatch
+// for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
+// currently reads, and wiring a dead field would be a second change wearing
+// this one's clothes.
+const GEN_FINISH = {
+  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1 },
+  bare: { name: 'Bare / primer', price: 0,                   sweep: 0 },
+};
+
 // Cabin box per seating layout: half-width, height above the lower longeron,
 // fore-aft length, and the crew mass it carries.
 // `deck` is the firewall top as a fraction of cabin height: the STEP between
@@ -4710,7 +4880,7 @@ const GEN_DEFAULT = {
   // `regX` places the registration along the body: 0 just aft of the cabin, 1 at
   // the fin. It was pinned at 45-78% of the run, which on a long fuselage put it
   // in the taper where the section halves in width.
-  paint: { base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
+  paint: { job: 'full', base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
 };
 
 const GEN_PRESETS = { garage: GEN_DEFAULT };
@@ -4922,6 +5092,7 @@ function clampSpec(spec) {
   pl.toeOut  = genClamp(pl.toeOut  == null ? 7    : pl.toeOut,   0,  30);
 
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
+  if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
 
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
@@ -5162,10 +5333,24 @@ function resolveSpec(spec) {
   w.tipR = Rb;
   w.tipZ = semi - Rb;
   w.tipC = Rb > 1e-6 ? lin(w.tipZ) : 0;
-  // the bow removes a quarter of the rectangle it replaces on each tip
-  // (half-ellipse of span Rb and chord tipC), so the REFERENCE AREA is the
-  // shape's area, not the trapezoid's
-  const Sw = w.span * w.chord * 0.5 * (1 + w.taper)
+  // THE REFERENCE AREA IS THE SHAPE THAT WAS BUILT. This used to be the area of
+  // a trapezoid tapering from the CENTRELINE — but the wing does not taper from
+  // there. `linC` (61_gen_frame.js) runs the root chord out to zR0 and only
+  // tapers outboard of it, because the centre section spans the cabin, so the
+  // real planform is a rectangle plus two trapezoids and the old sum under-read
+  // it by zR0 * chord * (1 - taper): nothing at taper 1, 0.24 m2 on a 11.6 m2
+  // wing at the taper clamp.
+  //
+  // Two things went wrong with that, and the second is the worse one. The panel
+  // reported `Sw` and `loading` off the STRIPS (64_gen_build.js) while `Vs` came
+  // from here, so the sheet disagreed with itself about the same wing. And AR
+  // below feeds genOswald, the 3D lift-curve slope, ClMax and the tail volume
+  // coefficients — so every one of those inherited the error.
+  //
+  // The bow still comes off: it removes a quarter of the rectangle it replaces
+  // on each tip (half-ellipse of span Rb and chord tipC).
+  const Sw = 2 * zR0 * w.chord
+             + (semi - zR0) * w.chord * (1 + w.taper)
              - 2 * w.tipC * Rb * (1 - Math.PI / 4);
   S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
 
@@ -5424,6 +5609,274 @@ function resolveSpec(spec) {
 }
 
 if (typeof module !== 'undefined' && typeof exports !== 'undefined') { /* concat build: no-op */ }
+// THE BODY LOFT — one curve, sampled.
+//
+// This module owns the fuselage's SHAPE. It exists because the shape used to be
+// owned by two different interpolants that met at station 1 with no continuity
+// condition between them, and the meeting point is the crank the whole rework is
+// about (63_gen_skin.js:544-565, now deleted):
+//
+//   - bay 0 held the cowl deck flat, then climbed the entire windscreen rise
+//     over `windRun`, arriving at station 1 on a ~49 degree slope;
+//   - bays >= 1 used a Catmull-Rom whose every sample was CLAMPED into its own
+//     bay's endpoint interval, so wherever two consecutive stations shared a
+//     value — always true for `yt` and `w` across the cabin — the "smoothed"
+//     curve collapsed to a dead flat.
+//
+// Measured with tools/loft_fit.js on the stock preset, the deck-line slope went
+// 0.009 -> 1.633 -> 0.418 across two adjacent vertex rows. The reference meshes
+// do nothing of the kind. The C172's envelope through the windshield is
+// 1.598 -> 1.660 -> 1.857 -> 1.949 -> 1.998 -> 2.002, monotone and smooth: its
+// skin has a HOLE there and the glass fills it. The PA-18 does have a visible
+// hard edge at its windscreen bow, but its envelope is monotone too — that edge
+// is a CREASE IN THE SURFACE NORMAL at a real frame tube, not a discontinuity in
+// the station curve.
+//
+// So the two things were conflated, and they are separated here: the curve is
+// always smooth, and a station may additionally be TAGGED to crease, which
+// splits normals without moving a single vertex.
+//
+// THE RULE THAT MAKES THE CRANK UNREPRESENTABLE: there is exactly one curve, and
+// both the truss and the covering are samples of it. No code path can produce a
+// slope jump at a station that is not tagged.
+
+// ---------------------------------------------------------------------------
+// 1. the section
+// ---------------------------------------------------------------------------
+// Asymmetric superellipse |z/w|^n + |y/h|^n = 1, with n independent above and
+// below the waterline.
+//
+// It replaces genRing's per-angle LINEAR BLEND between an axis-aligned rectangle
+// and an ellipse. That blend had a defect nobody had named: the rectangle's
+// radius min(halfD/|cy|, halfW/|cz|) has a derivative discontinuity at each of
+// its four corners, so for ANY crown < 1 the blend inherited four C1 breaks
+// around EVERY ring — at the default crownSide 0.07 the belly and sides were
+// essentially a creased rectangle running the whole length of the aeroplane.
+// The superellipse has no corners at any finite n, so those go for free.
+//
+// It also subsumes both ends of the old blend exactly:
+//   n = 2        -> the ellipse
+//   n -> large   -> the rectangle (t -> 1/max(|cy|,|cz|), which IS genRing's s)
+//
+// theta 0 = top, +pi/2 = +z side, pi = bottom — genRing's convention, unchanged.
+const GEN_N_ELL = 2;      // n of a true ellipse
+const GEN_N_BOX = 14;     // beyond this a 40-gon ring cannot tell it from a box
+
+// THE SECTION, waist-relative. This is the one to use.
+//
+// A station is NOT a symmetric shape about the mid-height between belly and
+// deck. It is a WAISTLINE — the widest line of the body, which on a real tube
+// fuselage is the top longeron and on a moulded one is the sill — with an upper
+// surface rising off it and a lower surface hanging below it. The two are
+// independent.
+//
+// The version this replaces centred the section on yc = (yb+yt)/2 and gave it
+// one half-depth both ways, so the widest line of the aeroplane was a BY-PRODUCT
+// of the deck and belly rather than a designed curve. Through the windscreen,
+// where yt climbs 0.30 m, yc climbed 0.15 m with it — so the body's waist rode
+// up over the cabin and back down again. That is a large part of what read as
+// the model being bastardized around the windshield, and no amount of smoothing
+// yt could fix it, because the waist was never a degree of freedom.
+//
+// WHY THE SPLIT IS FREE. A superellipse has a VERTICAL TANGENT at its equator
+// for any n > 1: differentiating |y/h|^n + |z/W|^n = 1 gives dz/dy = 0 at y = 0.
+// So the upper and lower quadrants meet the waist vertically whatever their
+// exponents are, and the section is C1 across the waist BY CONSTRUCTION. No
+// blend, no smoothstep, no shared half-depth. A chine, if one is ever wanted, is
+// then something you must add deliberately rather than something you must avoid.
+//
+// yUp / yDn are measured FROM THE WAIST (both positive). Returns [dy, dz]
+// relative to the waist plane. theta 0 = top, +pi/2 = +z side, pi = bottom.
+function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
+  const cy = Math.cos(theta), cz = Math.sin(theta);
+  const up = cy >= 0;
+  const h = Math.max(1e-5, up ? yUp : yDn);
+  const n = Math.max(1.2, Math.min(GEN_N_BOX, up ? nTop : nBot));
+  const a = Math.abs(cy), b = Math.abs(cz);
+  const t = Math.pow(Math.pow(a, n) + Math.pow(b, n), -1 / n);
+  return [h * t * cy, halfW * t * cz];
+}
+
+// Symmetric superellipse about the section centre. Retained because the cowl,
+// the tail cone cap and the legacy genRing wrapper all want a shape that is the
+// same above and below; new work should prefer genSect.
+function genSuper(theta, halfW, halfD, nTop, nBot) {
+  const cy = Math.cos(theta), cz = Math.sin(theta);
+  // THE EXPONENT IS BLENDED, NOT THE RADIUS, and it is blended with a smoothstep
+  // rather than genRing's max(0, cy).
+  //
+  // At the waterline cy = 0, so |cy|^n = 0 for any n and the RADIUS is already
+  // continuous under a hard switch — but its derivative is not, which is exactly
+  // the "crown steps at the waterline" trap HANDOVER records. max(0, cy) is C0
+  // there and leaves a shallow version of the same step. A smoothstep has zero
+  // derivative at cy = 0, so the upper and lower halves meet C1 by construction.
+  const s = Math.max(0, cy);
+  const f = s * s * (3 - 2 * s);
+  const n = Math.max(1.2, nBot + (nTop - nBot) * f);
+  const a = Math.abs(cy), b = Math.abs(cz);
+  // t scales the unit direction onto the superellipse. Guarded because a is 0 at
+  // the waterline and b is 0 at the crown, and 0^n underflows for large n.
+  const t = Math.pow(Math.pow(a, n) + Math.pow(b, n), -1 / n);
+  return [halfD * t * cy, halfW * t * cz];
+}
+
+// ---------------------------------------------------------------------------
+// 2. legacy compatibility
+// ---------------------------------------------------------------------------
+// `crownTop` / `crownSide` stay in the spec and keep their paths, so every saved
+// build still loads; they are reinterpreted as exponents.
+//
+// Both constants are LEAST-SQUARES FITS of genSuper against the genRing it
+// replaces, over theta at Cub-like proportions (halfW 0.42, halfD 0.34). Fitted
+// pairs, and what this rational form gives:
+//
+//   crown  0.00  0.07  0.25  0.35  0.50  0.72  0.85  1.00
+//   fit    6.70  5.72  4.38  3.84  3.14  2.48  2.22  2.00
+//   here   6.70  5.81  4.30  3.75  3.14  2.52  2.25  2.00
+//
+// The residual at crown = 0 is large (11% of halfD) and that is the POINT: a
+// true rectangle has sharp corners and no finite n reproduces them. Not
+// reproducing them is the fix.
+//
+// Note what the defaults mean once read this way, because it is the argument for
+// the whole asymmetric-exponent design: the Cub is crownTop 0.72 / crownSide
+// 0.07, i.e. a ROUND TURTLEDECK (n 2.5) on a FLAT-SIDED BOX (n 5.8). The C172,
+// measured off assets/c172/c172.obj, is the inverse — a flat roof (n ~5) on a
+// rounded belly (n ~2.5). One symmetric roundness knob cannot express both.
+const genCrownToN = crown => {
+  const c = Math.min(1, Math.max(0, crown));
+  return GEN_N_ELL + (GEN_N_BOX - GEN_N_ELL) * 0.392 * (1 - c) / (1 + 2.12 * c);
+};
+
+// genRing scaled the rounded former up by 1 + 0.15*crown so formers stand a
+// little proud of the truss. Fitted against the same sweep, the equivalent under
+// a superellipse is quadratic rather than linear (fit: 1.000 1.000 1.000 1.005
+// 1.025 1.070 1.105 1.150 for the crowns above).
+const genCrownScale = crown => {
+  const c = Math.min(1, Math.max(0, crown));
+  return 1 + 0.15 * c * c;
+};
+
+// ---------------------------------------------------------------------------
+// 3. one monotone C1 curve
+// ---------------------------------------------------------------------------
+// Fritsch-Carlson monotone cubic Hermite, per key, with NO clamp.
+//
+// WHY NOT THE CLAMP IT REPLACES. The old code limited the VALUE — every sample
+// forced into [min(p1,p2), max(p1,p2)] — which annihilates the tangent whenever
+// two consecutive stations are equal. Fritsch-Carlson limits the TANGENT into
+// the monotonicity region instead. It still cannot overshoot (that is the
+// theorem, and overshoot — "a bulge behind the cabin" — is what the clamp was
+// written to prevent), but it only zeroes a tangent at a genuine local extremum
+// in the data. Everywhere else it carries the three-point slope.
+//
+// One honest consequence to know about: at a genuine extremum, such as the deck
+// peak over the cabin, the tangent IS zero. That is correct and C1, but it reads
+// flat — which is why the station set carries a `seatBack` control point, to
+// give the roof somewhere to start falling from.
+function genMonoSpline(xs, ys, tanK) {
+  const n = xs.length;
+  if (n < 2) return () => (ys[0] || 0);
+  const d = new Array(n - 1), m = new Array(n);
+  for (let i = 0; i < n - 1; i++)
+    d[i] = (ys[i + 1] - ys[i]) / Math.max(1e-9, xs[i + 1] - xs[i]);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = 0.5 * (d[i - 1] + d[i]);
+  // Fritsch-Carlson: flatten across a plateau, then bound the rest into the
+  // circle of radius 3 that guarantees monotonicity
+  for (let i = 0; i < n - 1; i++) {
+    if (Math.abs(d[i]) < 1e-12) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i];
+    // a sign flip means this station is a local extremum: pin it
+    if (a < 0) m[i] = 0;
+    if (b < 0) m[i + 1] = 0;
+    const s = a * a + b * b;
+    if (s > 9) {
+      const tau = 3 / Math.sqrt(s);
+      m[i] = tau * a * d[i];
+      m[i + 1] = tau * b * d[i];
+    }
+  }
+  // a station may ask for a softer or harder tangent (this is what wsCurve
+  // becomes: a multiplier at the windscreen's two ends, not an ad-hoc power)
+  if (tanK) for (let i = 0; i < n; i++) if (tanK[i] != null) m[i] *= tanK[i];
+  return x => {
+    if (x <= xs[0]) return ys[0] + m[0] * (x - xs[0]);
+    if (x >= xs[n - 1]) return ys[n - 1] + m[n - 1] * (x - xs[n - 1]);
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const md = (lo + hi) >> 1; if (xs[md] <= x) lo = md; else hi = md; }
+    const h = xs[hi] - xs[lo], t = (x - xs[lo]) / Math.max(1e-9, h);
+    const t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[lo] + (t3 - 2 * t2 + t) * h * m[lo]
+         + (-2 * t3 + 3 * t2) * ys[hi] + (t3 - t2) * h * m[hi];
+  };
+}
+
+// stations: [{x, w, yb, yt, nTop, nBot, role, crease, truss, tan}]
+// -> a curve that can be sampled at ANY x, by both the truss and the covering.
+function genBodyCurve(stations) {
+  const st = stations.slice().sort((a, b) => a.x - b.x)
+    // yw is the WAISTLINE — the widest line of the body, and the master curve of
+    // the section. A station that does not declare one falls back to the old
+    // mid-height, which is a by-product rather than a design; declare it.
+    .map(s => (s.yw == null ? { ...s, yw: 0.5 * (s.yb + s.yt) } : s))
+    // yd is the COWL DECK line — the upper surface forward of the windscreen,
+    // carried the whole length as if the cowl ran all of it. A body with no
+    // windscreen (a drone, a boom) simply has yd = yt and no transition.
+    .map(s => (s.yd == null ? { ...s, yd: s.yt } : s));
+  const xs = st.map(s => s.x);
+  const tanK = st.map(s => (s.tan == null ? null : s.tan));
+  const K = ['w', 'yb', 'yw', 'yd', 'yt', 'nTop', 'nBot'];
+  const f = {};
+  for (const k of K) f[k] = genMonoSpline(xs, st.map(s => s[k]), tanK);
+  const at = x => {
+    const o = { x };
+    for (const k of K) o[k] = f[k](x);
+    // exponents are shape, not geometry: keep them in the range the section
+    // function can actually evaluate however the spline wanders
+    o.nTop = Math.min(GEN_N_BOX, Math.max(1.2, o.nTop));
+    o.nBot = Math.min(GEN_N_BOX, Math.max(1.2, o.nBot));
+    o.w = Math.max(1e-4, o.w);
+    // the waist may not cross the surfaces it separates
+    o.yw = Math.min(Math.min(o.yt, o.yd) - 1e-4, Math.max(o.yb + 1e-4, o.yw));
+    return o;
+  };
+  return {
+    at, stations: st,
+    x0: xs[0], x1: xs[xs.length - 1],
+    roleAt: r => st.find(s => s.role === r) || null,
+    roleX: r => { const s = st.find(s2 => s2.role === r); return s ? s.x : null; },
+    creaseX: st.filter(s => s.crease).map(s => s.x),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 4. rows
+// ---------------------------------------------------------------------------
+// Every control station gets a row, so a crease and a truss ring always land
+// exactly on one; between them, subdivide to about GEN_LSTEP metres.
+//
+// This is what replaces GEN_LSEG's fixed slices-per-bay. A fixed count spends
+// the same number of rows on a 0.15 m windscreen and a 0.9 m tail bay, which is
+// backwards: the rows are wanted where the curvature is.
+const GEN_LSTEP = 0.16;
+const GEN_LSEG_MIN = 1;
+const GEN_LSEG_MAX = 6;
+
+function genBodyRows(curve) {
+  const st = curve.stations, rows = [];
+  for (let i = 0; i < st.length - 1; i++) {
+    const a = st[i], b = st[i + 1];
+    const n = Math.max(GEN_LSEG_MIN,
+              Math.min(GEN_LSEG_MAX, Math.round((b.x - a.x) / GEN_LSTEP)));
+    for (let k = 0; k < n; k++)
+      rows.push({ x: a.x + (b.x - a.x) * k / n, crease: k === 0 ? !!a.crease : false });
+  }
+  const last = st[st.length - 1];
+  rows.push({ x: last.x, crease: !!last.crease });
+  return rows;
+}
 // ============================================================
 // GARAGE 2/5 — the FRAME. Resolved spec -> named node/beam lattice.
 //
@@ -5536,8 +5989,21 @@ function genLattice(S, gearX, track, kScale) {
   // rather than built (engine, wheels, instruments, paint) call spend().
   const ledger = {};
   let SEC = 'fuselage';
+  // WHAT IS THE AEROPLANE AND WHAT IS THE LOAD. `pt()` bills crew, fuel and
+  // freight into the same node masses the structure uses — it has to, the
+  // solver flies the sum — so the ONLY place the two can be told apart is here,
+  // by which section was open when the mass was billed. Naming the PAYLOAD
+  // sections rather than the empty ones is deliberate: a component added later
+  // and never classified then lands in the empty weight, where it is visible,
+  // instead of vanishing into a payload figure nobody reads.
+  // The flag rides on the ENTRY rather than in a list the rollup keeps, for the
+  // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
+  // that billed the mass knows what it was, and a list maintained anywhere else
+  // goes stale the first time a section is added.
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1 };
   const bill = (mass, cost) => {
-    const e = ledger[SEC] || (ledger[SEC] = { mass: 0, cost: 0 });
+    const e = ledger[SEC] ||
+      (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
     e.mass += mass || 0; e.cost += cost || 0;
   };
   const sec = s => { SEC = s; };
@@ -6049,7 +6515,7 @@ function genLattice(S, gearX, track, kScale) {
   spend(SYS.price);
   pt(F[0].TL, 0.5 * SYS.mass); pt(F[0].TR, 0.5 * SYS.mass);   // panel + systems
   sec('paint');
-  spend(GEN_PRICES.paintJob);
+  spend((GEN_FINISH[S.paint.job] || GEN_FINISH.full).price);
   sec('cargo');
   // Freight goes in the cargo bay if there is one, otherwise on the baggage
   // frame with everything else — which is the point of building the bay: it
@@ -6344,6 +6810,9 @@ function genAP(S, Vs, mass) {
     VRot: V('VRot'), VClimbMin: V('VClimbMin'), VClimb: V('VClimb'),
     VCruise: V('VCruise'), VAppr: V('VAppr'), VApprShort: V('VApprShort'),
     VTailUp: V('VTailUp'), VBrakeOn: V('VBrakeOn'),
+    // PROVISIONAL. Everything below the speeds is overwritten by genTuneAP once
+    // the tunnel has run (64_gen_build.js) — these values only have to be sane
+    // enough for the probe pass itself, which reads VCruise, VClimb and VRot.
     TORun: 60,                    // replaced by the analytic estimate in 64
     rollD: 0.8 * kD,
     hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
@@ -6353,6 +6822,214 @@ function genAP(S, Vs, mass) {
     brakeMax: 0.30, brakeRampRate: 0.12, VBrakeRelease: 1.5,
     _mass: mass,
   }, trikeAP);
+}
+
+// ---------------------------------------------------------------------------
+// OUTER-LOOP SYNTHESIS — pass B, after the tunnel.
+//
+// genAP above only knows the geometry. Everything here needs the aeroplane's
+// own drag polar, its approach trim, its stall attitude and what it can climb,
+// so it runs from genTrim once those are measured (64_gen_build.js).
+//
+// WHY IT EXISTS. genAP emitted 34 keys; the autopilot dereferences 69. The
+// other 35 fell through to `??` defaults in 40_autopilot.js, and those defaults
+// are the CUB's — as were the dozen circuit constants genAP hardcoded. So a
+// 1200 kg, 43 m/s, L/D 6.3 aeroplane flew the Cub's 100 m circuit, the Cub's
+// 4.5 degree slope, the Cub's 150 m pursuit lookahead and the Cub's 0.30 bank
+// limit. Measured consequences, before this: a short-span build spent 286 s
+// stuck in CLIMB never reaching 100 m; a big slow one touched 240 m past the
+// aim with the throttle on its floor for 62% of the descent; a flapped one
+// crossed the fence at 0.92 Vs.
+//
+// METHOD is the one GEN_LOOP used a few lines up: propose a DIMENSIONLESS
+// ratio, tabulate the seven hand fiches, and adopt it only if it CLUSTERS.
+// Where it does not cluster that is said out loud and a stated fallback is
+// taken, rather than a fleet mean dressed up as physics. Scatter quoted per
+// line is measured across the fiches' own blocks.
+// The four fiches that set bankLim cluster 0.42-0.48; 0.40 is deliberately
+// inside them, because a generated wing may have poor roll authority. It is a
+// module constant because the circuit geometry has to size the turnback against
+// it before the lateral block runs.
+const GEN_BANKLIM = 0.40;
+
+function genTuneAP(def) {
+  const A = def.params.ap, g = def.params.gen, S = def.spec;
+  const cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const trike = S.gear.type === 'tricycle';
+
+  // The gain placement has to be REDONE here. genPlant scales every derivative
+  // with q = rho V^2 / 2, so the gains genParams placed at the provisional
+  // cruise speed are simply wrong once the power curve moves it.
+  const pl = genPlant(def.nodes, def.strips, def.params, A.VCruise);
+  Object.assign(A, genGains(pl, def.params));
+  g.plant = pl;
+  // the two loops' natural frequencies, which set every servo rate below
+  const wRoll = Math.sqrt(Math.max(1e-9, pl.Lda * A.rollP / pl.Ixx));
+  const wPitch = Math.sqrt(Math.max(1e-9, pl.Mde * A.pitchP / pl.Iyy));
+
+  // ---- speeds ------------------------------------------------------------
+  // VTurn: fiche/midpoint 1.089 .950 .962 .947 -> 0.987 +/- 0.067, the TIGHTEST
+  // ratio in the whole set, and it retrodicts the literal 24 that used to sit
+  // in INBOUND (the Cub's own midpoint is 23.75). VTurn/VCruise scatters
+  // 0.73-0.95 and VTurn/VAppr 1.19-1.36; the midpoint beats both.
+  A.VTurn = Math.round(0.5 * (A.VCruise + A.VAppr) * 10) / 10;
+  // VBrakeOn/Vs scatters 0.47-1.01 — WEAK (2.1x). 0.59 was at the late-braking
+  // edge of it; 0.75 is the fleet median. Flagged as low-confidence.
+  A.VBrakeOn = Math.round(0.75 * g.Vs * 10) / 10;
+
+  // ---- energy: the decel-margin chain ------------------------------------
+  // Steady descent on slope gs needs thrust D - W*gs. If that is below the
+  // throttle floor the aeroplane accelerates for ever, which is the documented
+  // DC-3/Jodel/C172 float. So the floor comes first, then the slope under it.
+  //
+  // thrFloor: idle thrust as a fraction of weight reads 0.0125 +/- 0.0035
+  // across the four fiches that bother to set thrFloor. Back-substituted this
+  // gives cub .057 dc3 .064 c172 .055 jodel .049 — i.e. it lands on their tuned
+  // ~0.05 — and it fixes the drone, whose inherited 0.12 is 8% of its weight
+  // and by itself makes any commanded slope steeper than its idle equilibrium.
+  A.thrFloor = r3(cl(0.012 * g.W / Math.max(1, g.TavailAppr), 0.03, 0.12));
+  const gsIdle = g.dragAppr / g.W - A.thrFloor * g.TavailAppr / g.W;
+  // gs/gsIdle across the fleet: 0.574 +/- 0.13, or 0.532 +/- 0.10 excluding the
+  // flapless Cub — whose 0.822 is exactly why it floats 90 m off a 340 m strip.
+  A.gs = r3(cl(0.55 * gsIdle, 0.035, 0.10));
+  // thrAppr is EXACT, not a fit: it is the throttle that trims the approach.
+  // Every fiche's hand value sits within speedThrottle's +-0.30 integrator band
+  // of its true one — "close enough by hand". A generated build whose true
+  // approach throttle is 0.75 cannot get there from a 0.35 bias.
+  A.thrAppr = r3(cl((g.dragAppr - g.W * A.gs) / Math.max(1, g.TavailAppr),
+                    A.thrFloor, 0.85));
+
+  // ---- attitude family, all anchored on the measured stall attitude -------
+  // thMax/aStall = 0.672 +/- 0.043 (6%) over six fiches; the drone's 0.917 is
+  // the outlier and is excluded.
+  A.thMax = r3(cl(0.67 * g.aStall, 0.13, 0.26));
+  // climbThBase/thMax = 0.594 +/- 0.028 (4.7%) — the tightest ratio here.
+  // The physically obvious alpha(VClimb) + gammaClimb form fits WORSE (0.25 to
+  // 0.75) because the probe has no propwash; the stall attitude is the right
+  // normaliser, not the climb performance.
+  A.climbThBase = r3(0.60 * A.thMax);
+  // climbThGain*VClimb scatters 0.30-0.92 (3x): NO CLUSTER. The 1/V form at
+  // least gets the trend right, and the old flat 0.030 sits inside the clamp.
+  A.climbThGain = r3(cl(0.7 / A.VClimb, 0.012, 0.032));
+  // liftoffTh/thMax = 0.790 +/- 0.048 (6%), additionally capped below the
+  // three-point deck: doctrine, "a taildragger cannot rotate past 3-point".
+  let liftoff = 0.79 * A.thMax;
+  if (!trike) {
+    const P = def.parts, G = S.gear;
+    const twN = def.nodes[P.TW];
+    const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
+                           / Math.max(0.1, P.twX - P.gx));
+    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, 0.85 * deck);
+  }
+  A.liftoffTh = r3(liftoff);
+  // flareThMax - alpha(1.10 VsFlap) = -0.056 +/- 0.031 on six of seven. The
+  // SIGN is the doctrine ("flareThMax BELOW the L=W attitude kills float");
+  // the chinook is the outlier because its body datum puts that alpha near 0.
+  A.flareThMax = r3(Math.min(A.thMax, g.alphaTD - 0.055));
+  // vsFloor is a REACHABILITY condition, not a fit. holdVS clamps the pitch
+  // COMMAND to [vsFloor, thMax], so a floor above the attitude level flight
+  // needs means the aeroplane climbs for ever — written out verbatim in the
+  // chinook fiche, whose -0.017 margin is exactly why it was marginal.
+  // Erring low is free; erring high is the reported bug.
+  A.vsFloor = r3(cl(Math.min(g.alphaAppr - A.gs, g.alphaCruise - 2.2 / A.VCruise)
+                    - 0.05, -0.30, -0.03));
+  // flareAgl/(VAppr*gs) = 3.21 +/- 0.38 (12%): every fiche begins its flare
+  // about 3.2 SECONDS before impact. Raw flareAgl scatters 4.5x.
+  A.flareAgl = r3(cl(3.2 * A.VAppr * A.gs, 1.5, 12));
+  // THE RAMP HAS TO GET THERE. flareAgl buys about 3.2 s, but a ramp that only
+  // just reaches flareThMax at the end of it spends the whole flare short of
+  // the attitude it is aiming for, and the aeroplane arrives still descending —
+  // measured 2.5-3.5 m/s across the faster half of the envelope. Sizing the
+  // rate to reach the flare attitude in 1.5 s and hold it there is worth
+  // 1.3-1.9 m/s of sink on the same builds.
+  //
+  // MEASURED AND REJECTED: switching generated fiches to flareMode 'vs', which
+  // is what drone/Jodel/C172/Chinook all carry. It made every sink WORSE
+  // (stock 1.13 -> 1.63, heavyLoad 2.53 -> 3.39, flapped 2.58 -> 3.10) even
+  // with the VS loop moved onto the fast family to fly it. The attitude ramp
+  // stays.
+  A.flareRate = r3(cl((A.flareThMax - (g.alphaAppr - A.gs)) / 1.5, 0.02, 0.30));
+
+  // ---- circuit geometry --------------------------------------------------
+  // hCruise/Vs = 7.70 +/- 1.1 (14%); hCruise/VCruise is worse (26%). 7.0 is
+  // the light-aeroplane end of that band (cub 6.67, jodel 6.93, c172 7.56).
+  // CAPPED BY WHAT IT CAN CLIMB: CLIMB only ever exits on reaching hCruise-8,
+  // so a circuit height the aeroplane cannot reach is an infinite climb. 90 s
+  // of climb at its own measured gradient is the budget.
+  A.hCruise = Math.round(cl(Math.min(7.0 * g.Vs, 90 * A.VClimb * g.gammaClimb),
+                            40, 220) / 5) * 5;
+  A.hSafe = Math.round(cl(0.125 * A.hCruise, 6, 40));      // 0.124 +/- 0.014
+  A.aglGuard = r3(cl(0.185 * A.hSafe, 1.5, 8));            // 0.183 +/- 0.027
+  // xAim does NOT cluster against speed, mass or Vs — the only fiche that moved
+  // it (DC-3) moved it to buy stopping room. So keep the constant and let the
+  // cross-country clamp in the autopilot handle short strips.
+  // xTurn: (|xTurn|-|xAim|)/(hCruise/gs) = 1.16 +/- 0.22 ex-drone. What that
+  // ratio really encodes is the height above the slope at INBOUND entry, which
+  // is -50..+25 m across the whole fleet: everyone turns in essentially ON the
+  // slope. 1.2 keeps a generated build on the slightly-LOW side, which
+  // INBOUND's level-until-intercept handles and the high side does not.
+  // SECOND TERM: the descent is not the only thing that has to fit. TURNBACK is
+  // a 180 at VTurn against bankLim, so the leg also has to be long enough to
+  // fly that turn AND then capture the centreline from ~2R off it. Without it a
+  // fast build simply runs out of circuit — measured 1037 m of cross-track at
+  // touchdown on the radial build. bankLim is set below but is a constant, so
+  // it is named here rather than read.
+  const Rturn = A.VTurn * A.VTurn / (9.81 * Math.tan(GEN_BANKLIM));
+  A.xTurn = Math.round(Math.min(A.xAim - 1.2 * A.hCruise / A.gs,
+                                A.xAim - 4.0 * Rturn, -900));
+
+  // ---- guidance and lateral ----------------------------------------------
+  // NO CLEAN INVARIANT EXISTS for the cruise lookahead. Time scatters 5.8-15.5 s
+  // (2.7x) and the doctrine's own turn-radius form is WORSE (5.7x) — the DC-3
+  // and the C172 have the same speed (58) and the same turn radius (710) and
+  // lookaheads of 900 against 450. The discriminator is roll-loop speed, but
+  // L*wRoll/V scatters 23-176. So: fleet median, stated as such, and gated.
+  A.lookCruise = Math.round(cl(8 * A.VCruise, 120, 1000));
+  A.lookAppr = Math.round(A.lookCruise / 1.45);   // lookC/lookA 1.466 +/- 0.065
+  A.lookRoll = Math.round(cl(1.2 * A.VRot, 20, 60));         // 1.12 +/- 0.13
+  A.hdgP = 0.65;                                   // constant, fleet 0.6-0.9
+  A.hdgD = r3(1.35 * A.hdgP);                      // hdgD/hdgP 1.39 +/- 0.18
+  A.bankLim = GEN_BANKLIM;
+  A.bankSlew = r3(cl(0.05 * wRoll, 0.05, 0.8));    // 0.048 +/- 0.021
+  A.betaK = 0.30;                                  // 0.30 on all seven, exact
+  A.yawDampK = 0.40;                               // no cluster; setters .30-.45
+  // ARI is DESTABILIZING on high effective dihedral (Jodel's 14 degree crank
+  // runs ariK 0, proven by ablation). A garage wing reaches 6 degrees plus a
+  // crank plus dihedralOut, so fade it out rather than inherit the Cub's 0.35.
+  const dih = (S.wings && S.wings[0] ? S.wings[0].dihedral : 0) || 0;
+  A.ariK = dih > 4 ? 0 : 0.15;
+
+  // ---- servo and filters -------------------------------------------------
+  // Doctrine: "wrong-scale D-gains create slew-rate limit cycles; the cure is
+  // always LOWER D + command slew, not more filtering." Both rates therefore
+  // scale with the pitch loop the plant actually has.
+  A.slew = r3(cl(0.40 * wPitch, 0.5, 3.0));        // slew/wPitch 0.39 +/- 0.10
+  A.pitchCmdSlew = r3(cl(0.16 * wPitch, 0.2, 2.0));// 0.16 +/- 0.03 over 4 setters
+  A.rateFilt = 0.15;    // fleet 0.12-0.20; NOT faster — a faster filter was
+  A.attFilt = 0.70;     // measured to make the limit cycle worse (W16)
+  A.altVSGain = 0.08;   // no cluster; six of seven sit in 0.06-0.10
+  // vsI/vsP = 2.01 +/- 0.51 (adopt), but the ABSOLUTE value has no cluster at
+  // all (V*vsI spreads 6x). The fleet splits by flare type: attitude-ramp
+  // flares run slow VS loops (0.39-0.58), VS-targeted ones fast (0.72-2.44).
+  // A generated fiche flies the attitude-ramp flare (see flareRate above), so
+  // it belongs to the SLOW half of that split: target w_vs ~ 0.5 rad/s, capped
+  // at wPitch/7 for loop separation. A bounded choice, not a fit.
+  A.vsI = r3(Math.min(0.5, wPitch / 7) / A.VCruise);
+  A.vsP = r3(A.vsI / 2);
+  A.vsFilt = 0.5;
+
+  // ---- ground ------------------------------------------------------------
+  // rollDe has no cluster against anything measured; the only structure in the
+  // fleet is trike-vs-taildragger, so take that and stop.
+  A.rollDe = trike ? 0.02 : 0.10;
+  if (def.params.flaps && !trike) {
+    // the PA-18's documented cure: flap lift plus the nose-down dCm0 make a
+    // tail-up wheel-landing hold noseover-prone, so pin the tail from touchdown
+    A.VTailDown = 99;
+    A.VPinFull = Math.round(1.05 * g.VsFlap * 10) / 10;
+  }
+  return A;
 }
 
 // ---------------------------------------------------------------------------
@@ -6756,19 +7433,36 @@ function genAfSeg(naca, a, b, n) {
   return pts;
 }
 
-// Station cross-section: blend from the bare truss rectangle to a rounded
-// former. theta 0 = top, +pi/2 = +z side, pi = bottom.
-// crownT applies at the top and fades to crownS by the sides — a step between
-// upper and lower halves leaves a visible kink right along the waterline, which
-// is exactly where the eye reads a fuselage's shape.
+// Station cross-section: an asymmetric SUPERELLIPSE, thin wrapper over
+// genSuper (60b_gen_loft.js). theta 0 = top, +pi/2 = +z side, pi = bottom.
+// crownT applies at the top and fades to crownS by the sides.
+//
+// This used to be a per-angle LINEAR BLEND between an axis-aligned rectangle and
+// an ellipse, and it carried a defect nobody had named. The rectangle's radius
+// min(halfD/|cy|, halfW/|cz|) has a derivative discontinuity at each of its four
+// corners, so for ANY crown < 1 the blend inherited four C1 breaks around EVERY
+// ring — at the stock crownSide 0.07 the belly and sides were a creased
+// rectangle running the whole length of the aeroplane. Measured at the real
+// GEN_RADIAL = 40 tessellation, where a uniform ring turns 9.00 deg per vertex:
+//
+//   crownT/crownS   old       new
+//   0.72 / 0.07     63.92 ->  37.12 deg     (the stock aeroplane)
+//   0.50 / 0.50     43.28 ->  18.36
+//   0.00 / 0.00     66.46 ->  42.15
+//   1.00 / 1.00     11.11 ->  11.11         (already an ellipse: unchanged)
+//
+// crownTop and crownSide keep their spec paths and their meaning; they are
+// reinterpreted as exponents by genCrownToN, which is a least-squares fit of
+// genSuper against the genRing this replaces. See 60b_gen_loft.js for the fit
+// table and for why the residual at crown = 0 is large on purpose.
 function genRing(theta, halfW, halfD, crownT, crownS) {
-  const cy = Math.cos(theta), cz = Math.sin(theta);
-  const s = Math.min(halfD / Math.max(1e-6, Math.abs(cy)), halfW / Math.max(1e-6, Math.abs(cz)));
-  const ry = cy * s, rz = cz * s;                       // truss rectangle
-  const crown = crownS + (crownT - crownS) * Math.max(0, cy);
-  const k = 1 + 0.15 * crown;                           // formers stand a little proud
-  const ey = halfD * cy * k, ez = halfW * cz * k;       // rounded former
-  return [ry + (ey - ry) * crown, rz + (ez - rz) * crown];
+  // the proud-former scale is blended by the SAME smoothstep genSuper uses on
+  // the exponent — with max(0, cy) the two disagreed at the waterline, which is
+  // precisely where a step in the section reads worst
+  const s = Math.max(0, Math.cos(theta));
+  const k = genCrownScale(crownS + (crownT - crownS) * s * s * (3 - 2 * s));
+  return genSuper(theta, halfW * k, halfD * k,
+                  genCrownToN(crownT), genCrownToN(crownS));
 }
 
 // A member drawn between two nodes has to STRETCH with them. Otherwise the
@@ -9623,14 +10317,22 @@ function genClMax(def, flap) {
   let Sw = 0;
   for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
   const V = 30;
-  let CLmax = 0;
-  for (let a = 2; a <= 22; a += 0.25) {
+  let CLmax = 0, aStall = 0;
+  // Sweep starts at -2, not 2: a low-incidence generated wing can trim
+  // negative, and the ATTITUDE the peak occurs at is now a return value.
+  // Numerically inert for CLmax — -2 + 16*0.25 lands exactly on the old 2, so
+  // the grid is identical and nothing below the stall can out-lift the peak.
+  for (let a = -2; a <= 22; a += 0.25) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
     const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
-    CLmax = Math.max(CLmax, L / (0.5 * 1.225 * V * V * Sw));
+    const CL = L / (0.5 * 1.225 * V * V * Sw);
+    if (CL > CLmax) { CLmax = CL; aStall = al; }
   }
-  return { CLmax, Sw, W: sim.totalM * 9.81 };
+  // aStall is a BODY angle (the probe pitches the flow about the rest pose),
+  // which is what the autopilot's pitch commands are also in. The whole
+  // attitude family — thMax, climbThBase, liftoffTh, flareThMax — hangs off it.
+  return { CLmax, Sw, W: sim.totalM * 9.81, aStall };
 }
 
 // alpha at which lift balances weight, secant, clamped short of the stall.
@@ -9655,8 +10357,48 @@ function genTrim(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const V = def.params.ap.VCruise;
   const aMax = 0.85 * def.params.polarWing.aStall;
+  const PPc = POWERPLANTS[def.params.powerplant];
+  const PRc = def.params.prop || PPc.prop;
+  const nEc = def.params.nEngines || 1;
+  const Tav = v => Math.max(1, PRc.Tstatic - PRc.kV2 * v * v) * nEc;
+  const dragAt = v => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag;
+
+  // ---- CRUISE SPEED FROM THE POWER CURVE ---------------------------------
+  // It used to be 1.71 * Vs flat (GEN_VRATIO), which is the Cub's ratio, and
+  // that ratio is not a property of aeroplanes: across the fleet VCruise/Vs
+  // scatters 1.69-2.68 (55%). Worse, it says nothing about whether the
+  // aeroplane can actually GO that fast — measured, a short-span build came out
+  // with thrCruise pinned at its 0.95 clamp, i.e. asked to cruise on 95% power
+  // with nothing left to climb on, and it never reached circuit height at all
+  // (286 s stuck in CLIMB, which IS the reported "it climbs forever").
+  //
+  // So solve for the speed where drag is 65% of the thrust available there.
+  // Against the fleet the solution reproduces the hand-set values to
+  // 0.96 +/- 0.12, and it GUARANTEES thrCruise ~ 0.65: authority in both
+  // directions, which is the property the autopilot actually needs.
+  {
+    // The upper clamp is 2.2, not the fleet's own 2.68 (jodel) or 2.44 (c172):
+    // this is the speed a CIRCUIT is flown at, and those two fiches carry
+    // hand-matched circuit geometry to go with it. Left at 2.8 the 1200 hp
+    // radial build solved to 69.7 m/s — a genuine 250 km/h racer, and measured,
+    // it flew a 1037 m wide circuit because its turn radius no longer fitted
+    // inside anything the strip could offer.
+    const Vs = def.params.gen.Vs;
+    let lo = 1.55 * Vs, hi = 2.2 * Vs;
+    if (dragAt(lo) >= 0.65 * Tav(lo)) {
+      // cannot even make the floor: it is a brick, and saying so honestly is
+      // better than commanding a speed it will never see
+      def.params.ap.VCruise = Math.round(lo * 10) / 10;
+    } else {
+      for (let k = 0; k < 18; k++) {
+        const mV = 0.5 * (lo + hi);
+        if (dragAt(mV) < 0.65 * Tav(mV)) lo = mV; else hi = mV;
+      }
+      def.params.ap.VCruise = Math.round(0.5 * (lo + hi) * 10) / 10;
+    }
+  }
+  const V = def.params.ap.VCruise;
   const at = s => {
     def.params.stabTrim = s;
     const a = genAlphaForLift(sim, V, W, aMax);
@@ -9685,6 +10427,75 @@ function genTrim(def) {
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
+
+  // ---- THE APPROACH, MEASURED --------------------------------------------
+  // The glideslope, the approach throttle and the pitch floor used to be the
+  // Cub's three constants (gs 0.0786, thrAppr 0.35, vsFloor -0.08) on every
+  // aeroplane the garage could build. HANDOVER "APPROACH" says the slope has to
+  // sit below the IDLE-EQUILIBRIUM slope or the overspeed never washes off —
+  // that is a measurable inequality, so measure it instead of asserting it.
+  //
+  // NOTE the probe runs with the prop and propwash OFF (30_solver.js), so every
+  // alpha and drag here is FREE-AIR. That is exactly right for an idle
+  // approach, and it is why the attitude family below hangs off the stall
+  // attitude rather than off a probed climb alpha.
+  {
+    const A = def.params.ap, g = def.params.gen;
+    const ldg = def.params.flaps ? (def.params.flaps.ldg ?? 1) : 0;
+    const Va = A.VAppr;
+    sim.ctl.flap = ldg;
+    const aA = genAlphaForLift(sim, Va, W, aMax);
+    const rA = genProbeAt(sim, Va, aA);
+    // ELEVATOR REQUIRED FOR PITCH BALANCE ON FINAL. holdPitch clamps de to
+    // [-0.30, +0.35] and needs headroom inside that for the loop itself, so an
+    // aeroplane whose trim alone eats the stop cannot be flown down an
+    // approach by any set of gains. Differenced, not solved: the relation is
+    // linear in de over this range.
+    sim.ctl.de = 0.20;
+    const m1 = genProbeAt(sim, Va, aA).pitchUp;
+    sim.ctl.de = 0;
+    const dM = (m1 - rA.pitchUp) / 0.20;
+    g.deAppr = Math.abs(dM) < 1e-9 ? 0 : -rA.pitchUp / dM;
+    // THE TRIM BUDGET. Fleet worst is the Jodel at +0.118; the bound is 0.18 —
+    // half the servo stop — so the loop keeps headroom for its own P/D/I terms.
+    // Past that, NO set of gains can fly the approach: measured, a small-wing
+    // build spent 64% of final with the elevator hard against its stop and
+    // touched 894 m short. The cure has to be airframe-side, so make the one
+    // change a builder would make — LAND IT FLAPLESS, at the clean-stall
+    // approach speed — and if that does not fit either, say so in the shakedown
+    // rather than ship an aeroplane that cannot be landed.
+    if (Math.abs(g.deAppr) > 0.18 && ldg > 0) {
+      sim.ctl.flap = 0;
+      const rat = g.Vs / Math.max(1e-6, g.VsFlap);        // back onto the clean stall
+      const Va0 = A.VAppr * rat;
+      const a0 = genAlphaForLift(sim, Va0, W, aMax);
+      const r0 = genProbeAt(sim, Va0, a0);
+      sim.ctl.de = 0.20;
+      const n1 = genProbeAt(sim, Va0, a0).pitchUp;
+      sim.ctl.de = 0;
+      const dM0 = (n1 - r0.pitchUp) / 0.20;
+      const de0 = Math.abs(dM0) < 1e-9 ? 0 : -r0.pitchUp / dM0;
+      if (Math.abs(de0) < Math.abs(g.deAppr)) {
+        def.params.flaps.ldg = 0;        // the AP's flap schedule reads this
+        A.VAppr *= rat; A.VApprShort *= rat;
+        g.VsFlap = g.Vs; g.landsFlapless = true;
+        return genTrim(def);             // re-measure the lot at the new config
+      }
+    }
+    if (Math.abs(g.deAppr) > 0.18) g.apprTrimFail = g.deAppr;
+    g.W = W;
+    g.alphaAppr = aA;
+    g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
+    g.dragAppr = rA.drag;
+    g.TavailAppr = Tav(Va);
+    // arrival attitude, for the flare ceiling
+    g.alphaTD = genAlphaForLift(sim, 1.10 * g.VsFlap, W, aMax);
+    sim.ctl.flap = 0;
+    // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
+    const rc = genProbeAt(sim, A.VClimb, genAlphaForLift(sim, A.VClimb, W, aMax));
+    g.gammaClimb = Math.max(0.004, (Tav(A.VClimb) - rc.drag) / W);
+    genTuneAP(def);
+  }
   // TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
   // backtrack, so it has to err LONG.
   //
@@ -9761,9 +10572,18 @@ function genShakedown(def) {
   // neutral point: how far aft the CG could move before dM/dalpha reaches zero
   const npShift = -dM / Math.max(1e-6, dL);
   const cg = r0.cg;
-  // wing area from the strips, so a hand-written fiche reports the same way
-  let Sw = 0;
-  for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
+  // ONE REFERENCE AREA ON THE SHEET. This summed the strips, which is all a
+  // hand-written fiche has — but a generated aeroplane also carries `gen.Sw`,
+  // the planform area the whole aero synthesis stands on (Vs, AR, the tail
+  // volume coefficients), and the two are not the same number. The strip sum is
+  // a QUADRATURE: it samples each half-bay at 0.28/0.78 instead of at its
+  // centre, so it under-integrates a tapered wing by a few tenths of a per
+  // cent. Tiny — but it put the panel's `wing` and `loading` cells on one area
+  // while the `stall` cell next to them was on another, which is the kind of
+  // disagreement a builder is right not to trust. Prefer the planform where
+  // there is one; fall back to the strips for the fiches, unchanged.
+  let Sw = g.Sw || 0;
+  if (!Sw) for (const st of def.strips) if (st.kind === 'wing') Sw += st.area;
   const cBar = g.cBar || (def.strips.find(s => s.kind === 'wing') || {}).chord || 1;
   // ---- does it stand up? -------------------------------------------------
   // Settled on a flat plane (world = null), so the answer does not depend on
@@ -9840,6 +10660,24 @@ function genShakedown(def) {
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
     TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
     stabTrim: def.params.stabTrim,
+    // CAN IT FLY A CIRCUIT AT ALL — reported, never enforced, exactly like
+    // noseOver and gearFolded above. The garage does not refuse to build the
+    // aeroplane; it measures it and says so, and "whether a given engine is a
+    // sensible choice is the player's call" (GATE GEN's own words).
+    // Both numbers are already measured: the climb gradient at VClimb on full
+    // thrust, and the takeoff run. The bar is a climb RATE, because that is
+    // what compares across aeroplanes — the fleet climbs at 3-5 m/s, so 0.3 m/s
+    // is a tenth of the slowest thing that ships, and TORun is checked against
+    // the actual runway rather than a round number.
+    // Measured, either side of it: a 28 hp two-seater reads 0.09 m/s and
+    // TORun 1508 m, runs off the end of the strip and then mushes along at
+    // 1 m agl on full throttle — no autopilot can fly that. A short-span
+    // 65 hp build reads 0.61 m/s and TORun 781 m, and flies a complete if
+    // leisurely circuit, so it must NOT be excluded.
+    climbGrad: g.gammaClimb,
+    climbRate: (g.gammaClimb || 0) * (def.params.ap.VClimb || 0),
+    flyableCircuit: (g.gammaClimb || 0) * (def.params.ap.VClimb || 0) >= 0.3
+                    && def.params.ap.TORun <= 1100,
   };
   if (S && P) {
     // contactR, not wheelR: a cambered wheel touches down above its own radius
@@ -9901,7 +10739,23 @@ function genShakedown(def) {
   if (P && P.ledger) {
     out.ledger = P.ledger;
     out.cost = 0;
-    for (const k in P.ledger) out.cost += P.ledger[k].cost;
+    // EMPTY AND ALL-UP, because `mass` alone was misleading about the one
+    // decision it was most often used to judge. The lattice mass is everything
+    // the aeroplane weighs with its crew, fuel and freight aboard — the right
+    // number to fly and to load-test, and the wrong one to compare materials
+    // with: 126 kg of the preset's 402 is payload, so swapping tube-and-fabric
+    // for carbon moved the only figure the panel showed by 9% (402 -> 364) when
+    // what it had actually bought was 14% of the empty weight (276 -> 238), and
+    // more than that of the structure alone, since the 85 kg of engine and prop
+    // inside `empty` do not move with the material either. The materials were
+    // working; the readout was hiding it. `empty + payload === mass` — the split is
+    // the ledger's own flag (61_gen_frame.js), not a second sum over the nodes.
+    out.empty = 0; out.payload = 0;
+    for (const k in P.ledger) {
+      const e = P.ledger[k];
+      out.cost += e.cost;
+      if (e.payload) out.payload += e.mass; else out.empty += e.mass;
+    }
   }
   return out;
 }
@@ -9929,7 +10783,6 @@ function buildGen(specIn) {
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;
-  genTrim(def);
   // The approach is flown WITH the flaps out, so the speeds that matter scale
   // off the FLAPS-DOWN stall — Vref = 1.3 Vso is the real-world rule and the
   // fleet's hand-set VAppr values already have their own flaps in them. Derived
@@ -9938,14 +10791,36 @@ function buildGen(specIn) {
   // the glideslope at MINUS 4.2 degrees alpha on 65% power and sailed over the
   // touchdown zone still 16 m up, never landing at all. The lift was right; the
   // speed it was told to fly was not.
+  //
+  // MOVED AHEAD OF genTrim: the tunnel now probes the APPROACH as well as the
+  // cruise, and it cannot do that until it knows what speed the approach is
+  // flown at. Inert for the two numbers genTrim already measured — stabTrim and
+  // thrCruise read VCruise, TORun reads VRot and liftoffTh, and none of those
+  // move with VAppr.
+  const gClean = genClMax(def, 0);
+  params.gen.aStall = gClean.aStall;
   if (params.flaps) {
-    const g = genClMax(def, 1);
+    const g = genClMax(def, params.flaps.ldg ?? 1);
     const VsFlap = Math.sqrt(2 * g.W / (1.225 * g.Sw * Math.max(1e-6, g.CLmax)));
-    const r = VsFlap / params.gen.Vs;
+    // BOTH SPEEDS OFF THE SAME INSTRUMENT. `r` is a ratio, so everything common
+    // to the two ends cancels — but only if the two are measured the same way.
+    // This divided the flapped PROBE by `gen.Vs`, which is analytic and on the
+    // geometric reference area, so what reached VAppr was the flap increment
+    // PLUS the clean model's own disagreement with the probe. genShakedown's
+    // `VsRatio` was already doing it this way; this is the same sum, and
+    // `gClean` is the scan that was run three lines up.
+    const VsClean = Math.sqrt(2 * gClean.W /
+                    (1.225 * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+    const r = VsFlap / VsClean;
     params.ap.VAppr *= r;
     params.ap.VApprShort *= r;
     params.gen.VsFlap = VsFlap;
+    params.gen.aStallLdg = g.aStall;
+  } else {
+    params.gen.VsFlap = params.gen.Vs;
+    params.gen.aStallLdg = gClean.aStall;
   }
+  genTrim(def);
   return def;
 }
 // ============================================================
@@ -9982,6 +10857,11 @@ function buildGen(specIn) {
 // ============================================================
 const GEN_LOAD_LIMIT = 3.8;         // FAR 23 normal category
 const GEN_LOAD_ULT = 5.7;           // 1.5 x limit
+// How far the rig lifts the aeroplane before it bolts it down. NAMED and
+// exported because the viewer has to know it: the camera tracks the CG, so it
+// went up with the aeroplane, but the hangar stayed on the floor 200 m below
+// and the test ran in an empty sky. The room now carries the same offset.
+const GEN_LOAD_LIFT = 200;
 const GEN_LOAD_WINGTAGS = ['WF', 'WR', 'WB', 'WB2'];
 
 // spar stations on the +z wing, front node paired with its nearest rear node
@@ -10049,7 +10929,7 @@ function makeLoadTest(sim, def, cfg) {
 
   const state = { phase: 'settle', n: 0, nTarget: ULT, tipPct: 0, tipM: 0,
                   defl: st.map(function () { return 0; }), z: st.map(s => s.z),
-                  semi: semi, worstPct: null, worstCls: null,
+                  semi: semi, worstPct: null, worstCls: null, worstBeam: -1,
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
                   verdict: null, done: false, W: W, ok: ok };
 
@@ -10084,14 +10964,14 @@ function makeLoadTest(sim, def, cfg) {
       if (!MAT.lin[cls]) continue;
       const A = MAT.lin[cls] / MAT.phys.rho;
       const pct = 100 * peak[cls].F / (MAT.phys.sigY * A);
-      if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct };
+      if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
     return worst;
   }
 
   function begin() {
     // clear of the ground so contact never joins in, then bolt the rig down
-    for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += 200;
+    for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
     def.nodes.forEach(function (nd, i) {
       if (!wingTag[nd.tag]) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
@@ -10120,18 +11000,23 @@ function makeLoadTest(sim, def, cfg) {
       sim.impulse(bags[k][0], 0, n * bags[k][1] * dt, 0);
     sim.step(dt); clamp(); relax();
 
-    for (const bm of sim.beams) {
+    // WHICH member, not just which class. The allowable is per class, so the
+    // percentage could always be worked out — but "78% of yield" does not tell
+    // you where to put more tube. Recording the index costs one field and lets
+    // the viewer put a marker on the member that is actually complaining.
+    for (let bi = 0; bi < sim.beams.length; bi++) {
+      const bm = sim.beams[bi];
       const cls = bm.cls || (bm.gear ? 'gear' : 'chassis');
       const F = Math.abs(bm.k * bm.strain * bm.L0);
-      const g = peak[cls] || (peak[cls] = { F: 0 });
-      if (F > g.F) g.F = F;
+      const g = peak[cls] || (peak[cls] = { F: 0, bi: -1 });
+      if (F > g.F) { g.F = F; g.bi = bi; }
     }
     const ax = sim.axes();
     state.defl = st.map((s, i) => 100 * (rise(s, ax[1]) - base[i]) / semi);
     state.tipPct = state.defl[state.defl.length - 1];
     state.tipM = state.tipPct / 100 * semi;
     const w = yieldPct();
-    if (w) { state.worstPct = w.pct; state.worstCls = w.cls; }
+    if (w) { state.worstPct = w.pct; state.worstCls = w.cls; state.worstBeam = w.bi; }
 
     if (state.limitPct === null && n >= LIM) {
       state.limitPct = state.tipPct;
@@ -10156,8 +11041,13 @@ function makeLoadTest(sim, def, cfg) {
     return state;
   }
 
+  // `bags` and `lift` are out here for the VIEWER. The bags were never geometry
+  // — they are impulses on nodes — so there was nothing on screen to see going
+  // on, which is why a load test read as an aeroplane sitting still and then
+  // occasionally exploding. Handing out the same list the physics uses means
+  // the sandbags drawn are the sandbags applied, and cannot drift from them.
   return { step: step, state: state, stations: st, semi: semi, W: W,
-           limit: LIM, ult: ULT };
+           limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
 }
 if (typeof module !== 'undefined')
-  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT };
+  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };

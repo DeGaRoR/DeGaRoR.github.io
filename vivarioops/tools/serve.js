@@ -17,7 +17,7 @@
 // checkpoints have been waiting on.
 
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, writeFile, rename, stat } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,9 +47,67 @@ const TYPES = {
   '.woff2': 'font/woff2',
 };
 
+// ── /_autosave — THE STORE MIRRORS ITSELF INTO THE REPO ─────────────────────
+//
+// `trunk/autosave.js` POSTs the whole IndexedDB store here after every write.
+// The endpoint exists ONLY on this dev server, which is what keeps the feature
+// out of a deployed build: on GitHub Pages the POST fails, the page disables
+// autosave for the session and nobody's creatures go anywhere.
+//
+// TWO GUARDS, AND THEY LIVE HERE RATHER THAN IN THE PAGE, because the failure
+// this protects against is the page faithfully mirroring a disaster:
+//
+//   1. AN EMPTY OR RECORD-LESS PAYLOAD IS REFUSED. Wipe the store and the very
+//      next autosave would otherwise overwrite the backup with nothing, which
+//      turns a recoverable accident into a permanent one.
+//   2. EVERY WRITE ROTATES. The previous file becomes `.prev.json` first, so the
+//      last good state is always one file away even after a bad save.
+//
+// Neither guard can be bypassed by a page, which is the point of putting them on
+// this side of the wire.
+// ROOT is `vivarioops/` — `new URL('..')` from `tools/serve.js` — and it is what
+// every static request resolves against, so the served path `/tools/…` and this
+// disk path are the same file by construction.
+const AUTOSAVE = join(ROOT, 'tools', '_zautosave.json');
+const AUTOSAVE_PREV = join(ROOT, 'tools', '_zautosave.prev.json');
+
+async function handleAutosave(req, res) {
+  const chunks = [];
+  let bytes = 0;
+  for await (const c of req) {
+    bytes += c.length;
+    // A backup is a few hundred KB of genomes and thumbnails; 64 MB is far above
+    // anything real and far below anything that would exhaust this process.
+    if (bytes > 64 * 1024 * 1024) { res.writeHead(413).end('too large'); return; }
+    chunks.push(c);
+  }
+  let payload;
+  try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  catch { res.writeHead(400).end('not json'); return; }
+
+  const n = Array.isArray(payload?.records) ? payload.records.length : 0;
+  if (n === 0) {
+    // Reported rather than silently accepted: a page that is trying to back up
+    // nothing is a page whose store has just gone, and that is worth seeing.
+    console.log('  autosave REFUSED — payload holds no records (store empty or unreadable)');
+    res.writeHead(409).end('refusing to overwrite a backup with an empty store');
+    return;
+  }
+  try {
+    try { await rename(AUTOSAVE, AUTOSAVE_PREV); } catch { /* first save: nothing to rotate */ }
+    await writeFile(AUTOSAVE, JSON.stringify(payload));
+    console.log(`  autosave ${n} records -> tools/_zautosave.json`);
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, records: n }));
+  } catch (e) {
+    console.log(`  autosave FAILED: ${e.message}`);
+    res.writeHead(500).end('write failed');
+  }
+}
+
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (url.pathname === '/_autosave' && req.method === 'POST') { await handleAutosave(req, res); return; }
     let rel = decodeURIComponent(url.pathname);
     if (rel.endsWith('/')) rel += 'index.html';
 

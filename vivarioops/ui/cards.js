@@ -1,48 +1,38 @@
 // ui/cards.js — the specimen card, in one place.
 //
-// EXTRACTED FROM atlas.js, where `card()` was a closure inside `mount()`. It is
-// wanted in two places now — the Atlas grid and the Vivarium's import sheet —
-// and a card that looks different depending on which screen drew it would
-// undermine the one thing a collection has to do, which is let you recognise a
-// creature you have seen before.
+// EXTRACTED FROM atlas.js, where `card()` was a closure inside `mount()`. One
+// card, drawn the same wherever it appears — a creature that looked different
+// depending on which screen drew it would undermine the one thing a collection
+// has to do, which is let you recognise something you have seen before.
 //
-// The two uses differ in exactly two ways and both are arguments, not forks:
-// a card can be SELECTABLE (the import sheet ticks it), and it can carry a
-// trailing action (the Atlas's Delete). Everything else is the same card.
+// The uses differ in arguments, never in forks: a card can be SELECTABLE (the
+// release bar ticks it), OPENABLE (tap for the specimen page), or carry a
+// trailing action. Everything else is the same card.
 //
 // ── WHAT IT SAYS, AND IN WHICH ORDER ──────────────────────────────────────
 //
-// 14 §9 ratifies the split: the tank speaks vernacular, the Atlas speaks Latin.
-// An Atlas card is the point where they meet, so the vernacular is the heading
-// and the binomial is the italic line under it. A player-authored common name
-// overrides the generated vernacular entirely (14 §7) — it is a free-text
-// release valve and has no rules.
+// The name across the portrait is the creature's ONE name — the same string the
+// tank prints, decided once in ui/names.js. The binomial is the italic line
+// under it, and is suppressed when the two are the same rather than printed
+// twice in two faces.
+//
+// 14 §9 reads "the tank speaks vernacular, the Atlas speaks Latin", and that
+// split is NOT what this card implements. It is a rule for the ceremony screens
+// (Describe, the species page) which do not exist yet; applying it here would
+// mean deliberately making the big text differ between the tank and the Atlas,
+// which is the exact confusion this component was rebuilt to remove. One primary
+// string per creature, everywhere, outranks it.
 //
 // Tokens only, no hex/px (N16).
 
 import { t } from '../trunk/i18n.js';
 import { mk } from './widgets.js';
 
-/**
- * The display name for a stored specimen, and the line under it.
- *
- * PRECEDENCE, and each step is a decision:
- *   1. the player's own name, if they typed one that is not just the binomial
- *   2. the stored vernacular, if the record carries one
- *   3. the binomial — always available, never wrong, merely unmemorable
- *
- * The vernacular is READ FROM THE RECORD, never recomputed here. 14 §4 scores
- * slots against the lineage, so recomputing on every render would rename a
- * creature as its neighbours changed — you would tap "the banded whipfoot" and
- * come back to find it called something else. It is minted once, when the
- * specimen is described, exactly as the binomial is.
- */
-export function displayName(spec) {
-  const bino = spec.binomial || t('Creature');
-  const authored = spec.commonName && spec.commonName !== spec.binomial ? spec.commonName : null;
-  const primary = authored || spec.vernacular || bino;
-  return { primary, secondary: primary === bino ? null : bino, authored: Boolean(authored) };
-}
+// `displayName` USED TO LIVE HERE, and `labelFor` in ui/vernacular.js said
+// almost the same thing with one clause missing. Two precedence orders for "what
+// is this creature called" is how a card and a picker ended up disagreeing about
+// the same animal. There is one now, in ui/names.js, and it runs once per row at
+// derive time — a card never decides what to call anything.
 
 /**
  * ── THE FIVE NUMBERS ON A CARD ───────────────────────────────────────────────
@@ -83,8 +73,8 @@ const fmtMult = (r) => {
   return `${(r / 1000).toFixed(1)}k×`;
 };
 
-export function metricRows(spec) {
-  const p = spec.profile ?? null;
+export function metricRows(r) {
+  const p = r.profile ?? null;
   const out = [];
   const row = (label, value, state) => {
     const dt = document.createElement('dt');
@@ -96,86 +86,115 @@ export function metricRows(spec) {
   };
   const pend = (label) => row(label, t('measuring…'), 'pending');
 
-  if (!p) {
+  if (r.profileState === 'bad') {
+    row(t('food'), t('came apart'), 'bad');
+  } else if (!p) {
     pend(t('food'));
     pend(t('ledger'));
     pend(t('straight'));
-  } else if (!p.valid) {
-    row(t('food'), t('came apart'), 'bad');
   } else {
     // mg/s: grams are the engine unit but a creature eats milligrams a second,
     // and `0.034 g/s` on a card is three leading characters of nothing.
-    row(t('food'), `${(1000 * p.foodPerSecond).toFixed(0)} mg/s`,
-      p.foodPerSecond > 0 ? 'good' : 'bad');
-    row(t('ledger'), fmtMult(p.multiplier), p.multiplier >= 1 ? 'good' : 'bad');
-    row(t('straight'), p.straightness.toFixed(2));
+    row(t('food'), `${(1000 * p.fps).toFixed(0)} mg/s`, p.fps > 0 ? 'good' : 'bad');
+    row(t('ledger'), fmtMult(p.mult), p.mult >= 1 ? 'good' : 'bad');
+    row(t('straight'), p.straight.toFixed(2));
   }
 
-  // Size comes from the record's own stats and is known without a profile, so it
-  // never shows as pending.
-  const mass = spec.stats?.mass ?? p?.size?.mass;
-  const bodies = spec.stats?.bodies ?? p?.size?.bodies;
-  if (mass != null) {
+  // Size is structural — it comes from the plan, not from a simulation — so it
+  // is known the moment the row exists and never shows as pending.
+  if (r.mass != null) {
     // CGS (01 §7): engine mass units ARE grams. A relabel, not a conversion.
-    row(t('size'), `${mass.toFixed(2)} g${bodies != null ? ` · ${bodies}` : ''}`);
+    row(t('size'), `${r.mass.toFixed(2)} g${r.bodies != null ? ` · ${r.bodies}` : ''}`);
   }
 
-  const turn = spec.stats?.turnCapability ?? p?.turnCapability;
-  if (turn != null && Number.isFinite(turn)) {
-    row(t('turn'), `${turn.toFixed(1)}°/s`, turn >= 14 ? 'good' : null);
-  } else {
+  if (p?.turn != null && Number.isFinite(p.turn)) {
+    row(t('turn'), `${p.turn.toFixed(1)}°/s`, p.turn >= 14 ? 'good' : null);
+  } else if (r.profileState !== 'bad') {
     pend(t('turn'));
   }
   return out;
 }
 
 /**
- * Build a `.spec-card`.
+ * Build a `.spec-card` from an INDEX ROW.
  *
- * @param {object} spec  a stored `specimen:` record
+ * ── IT TAKES A ROW NOW, NOT A RECORD, AND THAT IS THE POINT ──────────────────
+ *
+ * A record carries its 1024 px portrait inline. A card that took a record could
+ * therefore only be built by a caller that had already paid to deserialise every
+ * portrait it might draw — which is exactly what made the Atlas unopenable past
+ * a few dozen creatures. A row is ~400 bytes of primitives; the portrait arrives
+ * separately, and only if the card is actually looked at.
+ *
+ * @param {object} r  a Row from ui/atlas/derive.js
  * @param {object} [o]
+ * @param {(key:string)=>Promise<string|null>} [o.thumb]  portrait loader. Called
+ *        LAZILY — hand it `index.thumbFor` and drive it from an
+ *        IntersectionObserver on `.spec-card-art` (see ui/atlas/reveal.js).
+ *        Omit it and the card renders with an empty frame.
  * @param {boolean} [o.selectable]  render as a button that ticks when chosen
  * @param {boolean} [o.selected]    initial tick state
- * @param {Function} [o.onToggle]   (nextState) => void; selectable cards only
+ * @param {Function} [o.onToggle]   (nextState) => boolean|void; false refuses
+ * @param {Function} [o.onOpen]     tap on a non-selectable card
  * @param {HTMLElement} [o.action]  trailing control — the Atlas's Delete
- * @param {boolean} [o.stats=true]  show the body/mass line
- * @returns {HTMLElement} with `.querySelector('.spec-card-thumb')` addressable,
- *          so a caller can swap in a re-rendered portrait without a full redraw
+ * @param {boolean} [o.stats=true]  show the measurement strip
+ * @returns {HTMLElement} with `.spec-card-thumb` and `.spec-card-metrics`
+ *          addressable, so a caller can swap either in place without a redraw
  */
-export function specCard(spec, o = {}) {
-  const c = document.createElement(o.selectable ? 'button' : 'div');
+export function specCard(r, o = {}) {
+  const interactive = o.selectable || o.onOpen;
+  const c = document.createElement(interactive ? 'button' : 'div');
   c.className = 'spec-card';
+  c.dataset.key = r.key;
+  if (interactive) c.type = 'button';
   if (o.selectable) {
-    c.type = 'button';
     c.dataset.on = o.selected ? 'yes' : 'no';
     c.addEventListener('click', () => {
       const next = c.dataset.on !== 'yes';
-      // The CALLER decides whether the toggle takes — an import sheet caps the
-      // cast at six, and a card that ticked itself and was then refused would be
-      // lying about what happened.
+      // The CALLER decides whether the toggle takes — a release caps the cast at
+      // six, and a card that ticked itself and was then refused would be lying
+      // about what happened.
       if (o.onToggle?.(next) === false) return;
       c.dataset.on = next ? 'yes' : 'no';
     });
+  } else if (o.onOpen) {
+    c.addEventListener('click', () => o.onOpen(r));
   }
 
   // ── the art, with the name written across it ─────────────────────────────
   const art = mk('spec-card-art', c);
   const img = mk('spec-card-thumb', art, 'img');
   img.alt = '';
-  if (spec.thumb) img.src = spec.thumb;
+  // `loading`/`decoding` are free hints and they matter here: a data URL still
+  // costs a decode, and a grid of them decoded synchronously is a dropped frame
+  // per screenful.
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  if (o.thumb) {
+    art.dataset.pending = 'yes';
+    c.loadThumb = async () => {
+      if (art.dataset.pending !== 'yes') return;
+      art.dataset.pending = 'no';
+      try { const src = await o.thumb(r.key); if (src) img.src = src; }
+      catch { /* an empty frame, not a broken card */ }
+    };
+  }
 
-  if (spec.source === 'authored') {
+  if (r.source === 'authored') {
     const badge = mk('spec-card-badge', art, 'span');
     badge.dataset.kind = 'library';
     badge.textContent = t('ref');
   }
 
   const legend = mk('spec-card-legend', art);
-  const { primary, secondary } = displayName(spec);
-  mk('spec-card-name', legend, 'b').textContent = primary;
-  if (secondary) mk('spec-card-bino', legend, 'i').textContent = secondary;
+  mk('spec-card-name', legend, 'b').textContent = r.name;
+  // The binomial is suppressed when it IS the name — printing it twice, once
+  // upright and once italic, is how two of the shipped cards used to look.
+  if (r.binomial && r.binomial !== r.name) {
+    mk('spec-card-bino', legend, 'i').textContent = r.binomial;
+  }
 
-  if (o.stats !== false) mk('spec-card-metrics', c, 'dl').replaceChildren(...metricRows(spec));
+  if (o.stats !== false) mk('spec-card-metrics', c, 'dl').replaceChildren(...metricRows(r));
 
   // ── WHAT A CHAMPION IS A CHAMPION AT ────────────────────────────────────────
   //
@@ -191,15 +210,20 @@ export function specCard(spec, o = {}) {
   // vernacular follows — so a card cannot drift from the measurement that
   // justified the animal. Full provenance stays in the `note`, reachable as the
   // element's title without spending card real estate on it.
-  if (spec.headline) {
+  if (r.headline) {
     const h = mk('spec-card-headline', c);
-    h.textContent = spec.headline;
-    if (spec.note) h.title = spec.note;
+    h.textContent = r.headline;
+    // Full provenance stays in the `note`, reachable as the element's title
+    // without spending card real estate on it.
+    if (r.note) h.title = r.note;
   }
 
   if (o.selectable) mk('spec-card-tick', c);
-  else if (o.action) c.append(o.action);
-  else if (spec.source === 'authored') {
+  // A button inside a button is invalid HTML, so an openable card cannot carry
+  // a trailing Delete. That is the right shape anyway: Delete belongs on the
+  // specimen page or in the multi-select bar, not under every thumbnail.
+  else if (o.action && !interactive) c.append(o.action);
+  else if (r.source === 'authored') {
     mk('spec-card-source', c).textContent = t('From the library');
   }
 

@@ -9,7 +9,9 @@
   const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook,
                      gen: () => buildGen(genSpec) };
   let def, sim, ap, nb, curKey;
-  let studioFloor = null, groundY = 0;
+  // `rigLift` lives up here with groundY because applyEnv() reads it, and that
+  // runs long before the load-test block further down is reached.
+  let studioFloor = null, groundY = 0, rigLift = 0;
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -196,8 +198,13 @@
   function applyEnv() {
     const s = garageScene();
     if (craft.parent !== s) s.add(craft);
-    if (hangar) hangar.group.position.y = groundY;
-    if (studioFloor) studioFloor.position.y = groundY;
+    // `rigLift` is the load test's own 200 m hop clear of the ground. The room
+    // takes the same offset so the aeroplane stays standing in it: the camera
+    // tracks the CG and went up with the aeroplane, but the hangar did not, and
+    // the test ran against an empty sky. Nothing MOVES relative to anything —
+    // that is the point — so the rig still reads exactly as before.
+    if (hangar) hangar.group.position.y = groundY + rigLift;
+    if (studioFloor) studioFloor.position.y = groundY + rigLift;
     const inRoom = inGarage && garageIsHangar() && hangar;
     renderer.toneMappingExposure = inRoom ? hangar.setMood(hangarMood).ex
                                           : WORLD_EXPOSURE;
@@ -1163,11 +1170,157 @@
   // an affine blend of the same nodes and needs no help. Leaving the garage or
   // resetting rebuilds the aeroplane, which is what puts it back on its wheels.
   let rig = null, rigTested = false;
+
+  // ---- THE RIG, ON SCREEN -------------------------------------------------
+  // Every number this test produces was already correct and none of it could be
+  // seen. Three things were missing, and only the second is really a drawing
+  // problem:
+  //   THE ROOM  — handled by `rigLift` in applyEnv() above.
+  //   THE BAGS  — they were never geometry. `sim.impulse` on a node is not
+  //               something you can look at, so the load went on invisibly.
+  //   THE BEND  — it was there all along. Tip deflection is a few per cent of
+  //               semispan, and a few per cent of anything is invisible in
+  //               mid-air with nothing to judge it against. So the DATUM — the
+  //               settled 0 g shape, frozen the instant the ramp starts — is
+  //               drawn as a straight reference and the live spar bends away
+  //               from it. That gap is the measurement the panel prints.
+  // Both lines follow the +z wing only, which is the wing the rig instruments
+  // (genLoadStations takes p[2] > 0) — so what is drawn is what is reported.
+  let loadViz = null;
+  function clearLoadViz() {
+    if (!loadViz) return;
+    craft.remove(loadViz.grp);
+    loadViz.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    loadViz = null;
+  }
+  // a unit box stretched between two points, long axis on its local +z
+  function spanBox(m, a, b, w) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    const L = Math.hypot(dx, dy, dz);
+    if (!(L > 1e-5)) { m.visible = false; return; }
+    m.position.set(0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2]));
+    m.scale.set(w, w, L);
+    m.lookAt(b[0], b[1], b[2]);
+    m.visible = true;
+  }
+  function buildLoadViz(rg) {
+    clearLoadViz();
+    const grp = new THREE.Group();
+    grp.frustumCulled = false;
+    // BAGS HAVE TO CLEAR THE WING. The spar nodes they hang off sit at MID
+    // thickness, so the first version buried every one of them: a 2 cm offset
+    // inside a 19 cm wing. Half the local thickness comes from the wing's own
+    // planform function and its NACA digits — the same numbers the skin was
+    // lofted from — so a thick root and a thin tip both come out right.
+    const S = def.spec, P = def.parts;
+    const tFrac = S && S.wing ? (S.wing.naca % 100) / 100 : 0.12;
+    const chord = z => (P && P.chordAt) ? P.chordAt(Math.abs(z))
+                                        : (S && S.wing ? S.wing.chord : 1.5);
+    let maxF = 1e-9;
+    for (const b of rg.bags) maxF = Math.max(maxF, b[1]);
+    // Each bag is sized by the share of the load its node actually carries, so
+    // the spanwise distribution is something you can look at, not just infer.
+    // STANDARD, not Lambert. The room runs physicallyCorrectLights and bakes a
+    // PMREM of itself for everything glossy in it, and a Lambert surface in it
+    // saturates: measured on the bags, 0x7d6142 rendered 255,255,255 and even a
+    // near-black 0x2a2016 came back 255,252,246, so the colour was doing
+    // nothing at all. Standard is the family the hangar was lit for and reads
+    // ~191,175,144 here, with real per-bag shading.
+    const bagMat = new THREE.MeshStandardMaterial({ color: 0x8a6f4a, roughness: 0.95,
+                                                    metalness: 0 });
+    const bags = rg.bags.map(b => {
+      const s = 0.11 + 0.20 * Math.sqrt(b[1] / maxF);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(s * 1.7, s * 0.55, s), bagMat);
+      m.frustumCulled = false; m.name = 'loadbag';
+      grp.add(m);
+      return { node: b[0], mesh: m,
+               clear: 0.5 * tFrac * chord(def.nodes[b[0]].p[2]) + s * 0.28 };
+    });
+    // THE STRAIGHTEDGE AND THE GAP. A polyline of the bent spar is the honest
+    // picture and it is useless: one pixel wide, yellow on a yellow wing. What
+    // reads at a glance is a straight DATUM laid along the wing at its settled
+    // 0 g shape, and a bar measuring how far the tip has risen off it — which
+    // is exactly the number the panel prints. Both are instruments rather than
+    // parts of the aeroplane, so they draw OVER it (depthTest off) instead of
+    // disappearing inside the covering.
+    const bar = (col, order) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));
+      m.frustumCulled = false; m.renderOrder = order; m.visible = false;
+      grp.add(m); return m;
+    };
+    // THE RED FLAG is a marker, not a recoloured member: the covering is
+    // normally on during a test, and a red line under fabric is no flag at all.
+    const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));
+    flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
+    grp.add(flag);
+    craft.add(grp);
+    // Dark navy, not white: the room is a pale shed and the wing is yellow, and
+    // a near-white straightedge measured invisible against both.
+    loadViz = { grp, bags, datumBar: bar(0x15294a, 998), deflBar: bar(0xff3b1f, 999),
+                flag, stations: rg.stations, datumVec: null };
+  }
+  function updateLoadViz(rg) {
+    if (!loadViz) return;
+    const st = rg.state;
+    // The bags GO ON. They grow with the load actually applied rather than
+    // being there from the first frame, because watching them go on is what
+    // makes a ramp legible as a ramp.
+    const f = Math.max(0, Math.min(1, st.n / Math.max(1e-6, st.nTarget)));
+    for (const b of loadViz.bags) {
+      const i3 = b.node * 3;
+      b.mesh.visible = f > 0.02;
+      b.mesh.scale.set(1, Math.max(0.001, f), 1);
+      b.mesh.position.set(sim.p[i3], sim.p[i3 + 1] + b.clear, sim.p[i3 + 2]);
+    }
+    const S = loadViz.stations, last = S.length - 1;
+    const at = k => { const i3 = S[k].f * 3; return [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]]; };
+    // DATUM: frozen the frame the settle ends, which is the instant the rig
+    // itself takes its jig datum (65_gen_loadtest.js). Same moment, same shape
+    // — so the picture cannot disagree with the percentage beside it.
+    // THE STRAIGHTEDGE IS CLAMPED TO THE ROOT, not left hanging in space. The
+    // root spar nodes carry WF/WR tags, so the rig does NOT pin them — the root
+    // rises with the load too — and `rise()` measures every station RELATIVE to
+    // it. A datum frozen in world coordinates therefore reads the root's own
+    // motion into the tip: measured at +2.97 g, an 11.4 cm deflection drew a
+    // 23.4 cm bar. Keeping the datum as a VECTOR from the root makes the bar
+    // exactly the quantity the panel prints beside it.
+    const root = at(0), tip = at(last);
+    if (!loadViz.datumVec && st.phase !== 'settle')
+      loadViz.datumVec = [tip[0] - root[0], tip[1] - root[1], tip[2] - root[2]];
+    const dv = loadViz.datumVec;
+    if (dv) {
+      const dTip = [root[0] + dv[0], root[1] + dv[1], root[2] + dv[2]];
+      // and the BAR IS THE PROJECTION, for the same reason. `rise()` resolves
+      // each station onto the body up-axis, so a raw 3D gap between straightedge
+      // and tip also counts the tip drawing inboard as the wing bows: 18.0 cm
+      // drawn against 15.3 cm printed. Taking the same component makes the bar's
+      // length equal to `tipM` by construction rather than by coincidence.
+      const up = sim.axes()[1];
+      const h = (tip[0] - dTip[0]) * up[0] + (tip[1] - dTip[1]) * up[1]
+              + (tip[2] - dTip[2]) * up[2];
+      spanBox(loadViz.datumBar, root, dTip, 0.060);
+      spanBox(loadViz.deflBar, dTip,
+              [dTip[0] + up[0] * h, dTip[1] + up[1] * h, dTip[2] + up[2] * h], 0.110);
+    }
+    const bi = st.worstBeam;
+    if (st.worstPct != null && st.worstPct >= 100 && bi >= 0 && bi < sim.beams.length) {
+      const b = sim.beams[bi], a3 = b.a * 3, c3 = b.b * 3;
+      loadViz.flag.position.set(0.5 * (sim.p[a3] + sim.p[c3]),
+                                0.5 * (sim.p[a3 + 1] + sim.p[c3 + 1]),
+                                0.5 * (sim.p[a3 + 2] + sim.p[c3 + 2]));
+      loadViz.flag.visible = true;
+    } else loadViz.flag.visible = false;
+  }
+
   function startLoadTest() {
     if (!inGarage) return;
     rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
                                               genSpec.fuselage.material) || undefined });
     if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
+    rigLift = rig.lift; applyEnv();                   // take the room up with it
+    buildLoadViz(rig);
     railPhase = ''; setRail('LOAD TEST');
   }
   function loadTestState() { return rig ? rig.state : null; }
@@ -1177,6 +1330,10 @@
   }
   function enterGarage() {
     inGarage = true; started = false; running = true;
+    // The room comes back DOWN here rather than in endLoadTest, because this is
+    // the one door every way out of a test goes through — finishing it, editing
+    // the aeroplane mid-test, or resetting. applyEnv() below picks it up.
+    rigLift = 0; clearLoadViz();
     // every spec change comes back through here (GARAGE_SPEC.apply -> enterGarage),
     // so this is where a changed aeroplane loses its certificate: you tested the
     // one you had, not the one you now have.
@@ -1208,6 +1365,10 @@
   }
   function rollOut() {
     rig = null;
+    // Rolling out is the one way to leave a FINISHED test without passing
+    // through enterGarage, so the sandbags have to be taken off here too — or
+    // they fly to the strip bolted to the wing.
+    rigLift = 0; clearLoadViz();
     inGarage = false;
     scene.add(craft);                  // out of the room, onto the strip
     renderer.toneMappingExposure = WORLD_EXPOSURE;
@@ -1474,7 +1635,11 @@
       // view; if it were the thing that noticed, a headless run (or a collapsed
       // panel) would leave a tested aeroplane marked untested.
       if (rig.state.done) rigTested = true;
+      updateLoadViz(rig);
     }
+    // held at ultimate: the bags stay on and the wing stays bent, so the result
+    // is still there to look at rather than snapping back the frame it finishes
+    else if (inGarage && rig) updateLoadViz(rig);
     else if (running && !inGarage) {
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property

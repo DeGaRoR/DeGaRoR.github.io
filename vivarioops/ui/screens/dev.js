@@ -119,10 +119,63 @@ export default {
       probeRow.lastChild.textContent = v ? `${v} ${t('(survived reload)')}` : t('none written yet');
     }).catch(e => { probeRow.lastChild.textContent = `${t('error')}: ${e.message}`; });
 
+    // ── WHAT THE ATLAS ACTUALLY COSTS TO OPEN ───────────────────────────────
+    //
+    // Every `specimen:` record carries its 1024 px portrait INLINE as a PNG data
+    // URL (render/thumbnail.js), and the Atlas reads every record on every
+    // mount. So the interesting number is not the record COUNT, it is the
+    // fraction of the bytes that is portrait — that is what says whether the fix
+    // is lazy loading or a smaller portrait, and guessing between those two
+    // costs a RENDER_TAG bump and a re-render of the whole library.
+    //
+    // `getRaw` deliberately: this measures what is stored, envelope included,
+    // not what a migrated read hands back.
+    const sizeSec = section(t('Storage'));
+    const sizeRow = row(t('Quota'), t('reading...'));
+    const specRow = row(t('specimen: records'), '—');
+    const thumbRow = row(t('of which portraits'), '—');
+    const biggestRow = row(t('Largest record'), '—');
+
+    const mb = (n) => `${(n / 1048576).toFixed(1)} MB`;
+
+    sizeSec.append(sizeRow, specRow, thumbRow, biggestRow, button(t('Measure store'), async (e) => {
+      e.currentTarget.disabled = true;
+      try {
+        const u = await store.usage();
+        sizeRow.lastChild.textContent = u
+          ? `${mb(u.used)} ${t('of')} ${mb(u.quota)}`
+          : t('browser will not say');
+
+        const keys = await store.list('specimen:');
+        let total = 0, thumbs = 0, biggest = { key: '—', bytes: 0 };
+        for (const key of keys) {
+          let raw;
+          try { raw = await store.getRaw(key); } catch { continue; }
+          // A char is the honest unit here: the value is JSON in memory long
+          // before it is bytes on disk, and it is the in-memory copy that makes
+          // the Atlas stall.
+          const bytes = JSON.stringify(raw ?? null).length;
+          total += bytes;
+          thumbs += (raw?.value?.thumb ?? '').length;
+          if (bytes > biggest.bytes) biggest = { key, bytes };
+        }
+        specRow.lastChild.textContent = `${keys.length} · ${mb(total)}`;
+        thumbRow.lastChild.textContent = total
+          ? `${mb(thumbs)} · ${(100 * thumbs / total).toFixed(0)}%`
+          : '—';
+        biggestRow.lastChild.textContent = biggest.bytes
+          ? `${mb(biggest.bytes)} · ${biggest.key.slice(0, 20)}`
+          : '—';
+      } catch (err) {
+        sizeRow.lastChild.textContent = `${t('error')}: ${err.message}`;
+      }
+      e.currentTarget.disabled = false;
+    }));
+
     const verSec = section(t('Build'));
     verSec.append(row('APP_V', VERSION.app), row(t('Commit'), VERSION.commit));
 
-    wrap.append(gateSec, seedSec, probeSec, verSec);
+    wrap.append(gateSec, seedSec, probeSec, sizeSec, verSec);
     el.append(wrap);
   },
 };

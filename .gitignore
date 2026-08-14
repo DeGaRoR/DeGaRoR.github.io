@@ -12,3 +12,8 @@ flyDiy/tools/_glbview/
 flyDiy/tools/_probe.html
 flyDiy/tools/_probe_base.html
 flyDiy/tools/_base_*.js
+# body loft prototype: judges the fuselage topology before src/core is rewritten
+# around it. Loads src/core/60b_gen_loft.js directly; never in MANIFEST.
+flyDiy/tools/_loft*.html
+flyDiy/tools/_wins*.html
+flyDiy/tools/_cage*.html

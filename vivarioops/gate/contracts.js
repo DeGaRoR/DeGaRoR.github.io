@@ -331,9 +331,8 @@ export function runContractGate() {
       SPECIES_PENDING_GENES.length
         ? `B1: add ${SPECIES_PENDING_GENES.length} genes to the genome schema — ${SPECIES_PENDING_GENES.join(', ')}. Until then K1's "producer: genome" is a promise, not a fact.`
         : null,
-      `C2: replace W1_SLICE.residents placeholders with real genome hashes and bump faunaVersion.`,
-      `C2: K3 and the record-level half of K4 (byte-identical PairMatchup) activate when duel.js lands.`,
-      `F: pursuitGain/evasionGain are unmeasured fixture defaults — ${WORLD_UNMEASURED.join(', ')}.`,
+      `K3 IS STILL PENDING, AND "when duel.js lands" is no longer the reason — duel.js landed at C2 and the residents have been real genome hashes since. K3 asserts that a PairMatchup's aToB.pCapture + bToA.pCapture + pStalemate sum to 1; the machinery exists, and what it needs is a producer emitting a full matchup. The matrix stopped being all zeros on 2026-08-13 (4 captures in 84 champion duels), so this is now reachable — design/PLAN.md Phase 6.`,
+      `pursuitGain/evasionGain are unmeasured fixture defaults — ${WORLD_UNMEASURED.join(', ')}. They are also duel vocabulary on what is now the generic sensory layer, and design/PLAN.md Phase 3 renames them by channel id in the same bump that measures them.`,
     ].filter(Boolean),
   };
 }

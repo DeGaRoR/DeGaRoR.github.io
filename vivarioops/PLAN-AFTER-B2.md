@@ -1,3 +1,13 @@
+> # ⛔ SUPERSEDED 2026-08-14 — ARCHIVE ONLY
+>
+> **`design/PLAN.md` is the only live planning document.** This file was already
+> superseded from §5 onward by `ROADMAP.md`, which is itself now archive. It also
+> replaces the ordering in `DESIGN-PHASE-B2`, **a document that does not exist in
+> this repository** — see `design/PLAN.md` §6.
+>
+> Kept for §107–114's depletion argument, which is still the reason a food field
+> is non-degenerate.
+
 # PLAN — after B2
 
 This replaces the ordering in DESIGN-PHASE-B2 §9 from step 8 onward. Steps 2–7

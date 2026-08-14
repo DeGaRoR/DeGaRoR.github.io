@@ -34,8 +34,11 @@ const MANIFEST = {
     '30_solver.js',
     '40_autopilot.js',
     '50_model_codec.js',
-    // GARAGE: procedural airframe generator (spec -> frame -> aero -> skin)
+    // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)
     '60_gen_spec.js',
+    // the body's SHAPE, owned in one place: one C1 curve that both the truss
+    // and the covering sample. Needs genClamp from 60_; consumed by 61_ and 63_.
+    '60b_gen_loft.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
     '63_gen_skin.js',

@@ -216,6 +216,9 @@ function genAP(S, Vs, mass) {
     VRot: V('VRot'), VClimbMin: V('VClimbMin'), VClimb: V('VClimb'),
     VCruise: V('VCruise'), VAppr: V('VAppr'), VApprShort: V('VApprShort'),
     VTailUp: V('VTailUp'), VBrakeOn: V('VBrakeOn'),
+    // PROVISIONAL. Everything below the speeds is overwritten by genTuneAP once
+    // the tunnel has run (64_gen_build.js) — these values only have to be sane
+    // enough for the probe pass itself, which reads VCruise, VClimb and VRot.
     TORun: 60,                    // replaced by the analytic estimate in 64
     rollD: 0.8 * kD,
     hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
@@ -225,6 +228,214 @@ function genAP(S, Vs, mass) {
     brakeMax: 0.30, brakeRampRate: 0.12, VBrakeRelease: 1.5,
     _mass: mass,
   }, trikeAP);
+}
+
+// ---------------------------------------------------------------------------
+// OUTER-LOOP SYNTHESIS — pass B, after the tunnel.
+//
+// genAP above only knows the geometry. Everything here needs the aeroplane's
+// own drag polar, its approach trim, its stall attitude and what it can climb,
+// so it runs from genTrim once those are measured (64_gen_build.js).
+//
+// WHY IT EXISTS. genAP emitted 34 keys; the autopilot dereferences 69. The
+// other 35 fell through to `??` defaults in 40_autopilot.js, and those defaults
+// are the CUB's — as were the dozen circuit constants genAP hardcoded. So a
+// 1200 kg, 43 m/s, L/D 6.3 aeroplane flew the Cub's 100 m circuit, the Cub's
+// 4.5 degree slope, the Cub's 150 m pursuit lookahead and the Cub's 0.30 bank
+// limit. Measured consequences, before this: a short-span build spent 286 s
+// stuck in CLIMB never reaching 100 m; a big slow one touched 240 m past the
+// aim with the throttle on its floor for 62% of the descent; a flapped one
+// crossed the fence at 0.92 Vs.
+//
+// METHOD is the one GEN_LOOP used a few lines up: propose a DIMENSIONLESS
+// ratio, tabulate the seven hand fiches, and adopt it only if it CLUSTERS.
+// Where it does not cluster that is said out loud and a stated fallback is
+// taken, rather than a fleet mean dressed up as physics. Scatter quoted per
+// line is measured across the fiches' own blocks.
+// The four fiches that set bankLim cluster 0.42-0.48; 0.40 is deliberately
+// inside them, because a generated wing may have poor roll authority. It is a
+// module constant because the circuit geometry has to size the turnback against
+// it before the lateral block runs.
+const GEN_BANKLIM = 0.40;
+
+function genTuneAP(def) {
+  const A = def.params.ap, g = def.params.gen, S = def.spec;
+  const cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const trike = S.gear.type === 'tricycle';
+
+  // The gain placement has to be REDONE here. genPlant scales every derivative
+  // with q = rho V^2 / 2, so the gains genParams placed at the provisional
+  // cruise speed are simply wrong once the power curve moves it.
+  const pl = genPlant(def.nodes, def.strips, def.params, A.VCruise);
+  Object.assign(A, genGains(pl, def.params));
+  g.plant = pl;
+  // the two loops' natural frequencies, which set every servo rate below
+  const wRoll = Math.sqrt(Math.max(1e-9, pl.Lda * A.rollP / pl.Ixx));
+  const wPitch = Math.sqrt(Math.max(1e-9, pl.Mde * A.pitchP / pl.Iyy));
+
+  // ---- speeds ------------------------------------------------------------
+  // VTurn: fiche/midpoint 1.089 .950 .962 .947 -> 0.987 +/- 0.067, the TIGHTEST
+  // ratio in the whole set, and it retrodicts the literal 24 that used to sit
+  // in INBOUND (the Cub's own midpoint is 23.75). VTurn/VCruise scatters
+  // 0.73-0.95 and VTurn/VAppr 1.19-1.36; the midpoint beats both.
+  A.VTurn = Math.round(0.5 * (A.VCruise + A.VAppr) * 10) / 10;
+  // VBrakeOn/Vs scatters 0.47-1.01 — WEAK (2.1x). 0.59 was at the late-braking
+  // edge of it; 0.75 is the fleet median. Flagged as low-confidence.
+  A.VBrakeOn = Math.round(0.75 * g.Vs * 10) / 10;
+
+  // ---- energy: the decel-margin chain ------------------------------------
+  // Steady descent on slope gs needs thrust D - W*gs. If that is below the
+  // throttle floor the aeroplane accelerates for ever, which is the documented
+  // DC-3/Jodel/C172 float. So the floor comes first, then the slope under it.
+  //
+  // thrFloor: idle thrust as a fraction of weight reads 0.0125 +/- 0.0035
+  // across the four fiches that bother to set thrFloor. Back-substituted this
+  // gives cub .057 dc3 .064 c172 .055 jodel .049 — i.e. it lands on their tuned
+  // ~0.05 — and it fixes the drone, whose inherited 0.12 is 8% of its weight
+  // and by itself makes any commanded slope steeper than its idle equilibrium.
+  A.thrFloor = r3(cl(0.012 * g.W / Math.max(1, g.TavailAppr), 0.03, 0.12));
+  const gsIdle = g.dragAppr / g.W - A.thrFloor * g.TavailAppr / g.W;
+  // gs/gsIdle across the fleet: 0.574 +/- 0.13, or 0.532 +/- 0.10 excluding the
+  // flapless Cub — whose 0.822 is exactly why it floats 90 m off a 340 m strip.
+  A.gs = r3(cl(0.55 * gsIdle, 0.035, 0.10));
+  // thrAppr is EXACT, not a fit: it is the throttle that trims the approach.
+  // Every fiche's hand value sits within speedThrottle's +-0.30 integrator band
+  // of its true one — "close enough by hand". A generated build whose true
+  // approach throttle is 0.75 cannot get there from a 0.35 bias.
+  A.thrAppr = r3(cl((g.dragAppr - g.W * A.gs) / Math.max(1, g.TavailAppr),
+                    A.thrFloor, 0.85));
+
+  // ---- attitude family, all anchored on the measured stall attitude -------
+  // thMax/aStall = 0.672 +/- 0.043 (6%) over six fiches; the drone's 0.917 is
+  // the outlier and is excluded.
+  A.thMax = r3(cl(0.67 * g.aStall, 0.13, 0.26));
+  // climbThBase/thMax = 0.594 +/- 0.028 (4.7%) — the tightest ratio here.
+  // The physically obvious alpha(VClimb) + gammaClimb form fits WORSE (0.25 to
+  // 0.75) because the probe has no propwash; the stall attitude is the right
+  // normaliser, not the climb performance.
+  A.climbThBase = r3(0.60 * A.thMax);
+  // climbThGain*VClimb scatters 0.30-0.92 (3x): NO CLUSTER. The 1/V form at
+  // least gets the trend right, and the old flat 0.030 sits inside the clamp.
+  A.climbThGain = r3(cl(0.7 / A.VClimb, 0.012, 0.032));
+  // liftoffTh/thMax = 0.790 +/- 0.048 (6%), additionally capped below the
+  // three-point deck: doctrine, "a taildragger cannot rotate past 3-point".
+  let liftoff = 0.79 * A.thMax;
+  if (!trike) {
+    const P = def.parts, G = S.gear;
+    const twN = def.nodes[P.TW];
+    const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
+                           / Math.max(0.1, P.twX - P.gx));
+    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, 0.85 * deck);
+  }
+  A.liftoffTh = r3(liftoff);
+  // flareThMax - alpha(1.10 VsFlap) = -0.056 +/- 0.031 on six of seven. The
+  // SIGN is the doctrine ("flareThMax BELOW the L=W attitude kills float");
+  // the chinook is the outlier because its body datum puts that alpha near 0.
+  A.flareThMax = r3(Math.min(A.thMax, g.alphaTD - 0.055));
+  // vsFloor is a REACHABILITY condition, not a fit. holdVS clamps the pitch
+  // COMMAND to [vsFloor, thMax], so a floor above the attitude level flight
+  // needs means the aeroplane climbs for ever — written out verbatim in the
+  // chinook fiche, whose -0.017 margin is exactly why it was marginal.
+  // Erring low is free; erring high is the reported bug.
+  A.vsFloor = r3(cl(Math.min(g.alphaAppr - A.gs, g.alphaCruise - 2.2 / A.VCruise)
+                    - 0.05, -0.30, -0.03));
+  // flareAgl/(VAppr*gs) = 3.21 +/- 0.38 (12%): every fiche begins its flare
+  // about 3.2 SECONDS before impact. Raw flareAgl scatters 4.5x.
+  A.flareAgl = r3(cl(3.2 * A.VAppr * A.gs, 1.5, 12));
+  // THE RAMP HAS TO GET THERE. flareAgl buys about 3.2 s, but a ramp that only
+  // just reaches flareThMax at the end of it spends the whole flare short of
+  // the attitude it is aiming for, and the aeroplane arrives still descending —
+  // measured 2.5-3.5 m/s across the faster half of the envelope. Sizing the
+  // rate to reach the flare attitude in 1.5 s and hold it there is worth
+  // 1.3-1.9 m/s of sink on the same builds.
+  //
+  // MEASURED AND REJECTED: switching generated fiches to flareMode 'vs', which
+  // is what drone/Jodel/C172/Chinook all carry. It made every sink WORSE
+  // (stock 1.13 -> 1.63, heavyLoad 2.53 -> 3.39, flapped 2.58 -> 3.10) even
+  // with the VS loop moved onto the fast family to fly it. The attitude ramp
+  // stays.
+  A.flareRate = r3(cl((A.flareThMax - (g.alphaAppr - A.gs)) / 1.5, 0.02, 0.30));
+
+  // ---- circuit geometry --------------------------------------------------
+  // hCruise/Vs = 7.70 +/- 1.1 (14%); hCruise/VCruise is worse (26%). 7.0 is
+  // the light-aeroplane end of that band (cub 6.67, jodel 6.93, c172 7.56).
+  // CAPPED BY WHAT IT CAN CLIMB: CLIMB only ever exits on reaching hCruise-8,
+  // so a circuit height the aeroplane cannot reach is an infinite climb. 90 s
+  // of climb at its own measured gradient is the budget.
+  A.hCruise = Math.round(cl(Math.min(7.0 * g.Vs, 90 * A.VClimb * g.gammaClimb),
+                            40, 220) / 5) * 5;
+  A.hSafe = Math.round(cl(0.125 * A.hCruise, 6, 40));      // 0.124 +/- 0.014
+  A.aglGuard = r3(cl(0.185 * A.hSafe, 1.5, 8));            // 0.183 +/- 0.027
+  // xAim does NOT cluster against speed, mass or Vs — the only fiche that moved
+  // it (DC-3) moved it to buy stopping room. So keep the constant and let the
+  // cross-country clamp in the autopilot handle short strips.
+  // xTurn: (|xTurn|-|xAim|)/(hCruise/gs) = 1.16 +/- 0.22 ex-drone. What that
+  // ratio really encodes is the height above the slope at INBOUND entry, which
+  // is -50..+25 m across the whole fleet: everyone turns in essentially ON the
+  // slope. 1.2 keeps a generated build on the slightly-LOW side, which
+  // INBOUND's level-until-intercept handles and the high side does not.
+  // SECOND TERM: the descent is not the only thing that has to fit. TURNBACK is
+  // a 180 at VTurn against bankLim, so the leg also has to be long enough to
+  // fly that turn AND then capture the centreline from ~2R off it. Without it a
+  // fast build simply runs out of circuit — measured 1037 m of cross-track at
+  // touchdown on the radial build. bankLim is set below but is a constant, so
+  // it is named here rather than read.
+  const Rturn = A.VTurn * A.VTurn / (9.81 * Math.tan(GEN_BANKLIM));
+  A.xTurn = Math.round(Math.min(A.xAim - 1.2 * A.hCruise / A.gs,
+                                A.xAim - 4.0 * Rturn, -900));
+
+  // ---- guidance and lateral ----------------------------------------------
+  // NO CLEAN INVARIANT EXISTS for the cruise lookahead. Time scatters 5.8-15.5 s
+  // (2.7x) and the doctrine's own turn-radius form is WORSE (5.7x) — the DC-3
+  // and the C172 have the same speed (58) and the same turn radius (710) and
+  // lookaheads of 900 against 450. The discriminator is roll-loop speed, but
+  // L*wRoll/V scatters 23-176. So: fleet median, stated as such, and gated.
+  A.lookCruise = Math.round(cl(8 * A.VCruise, 120, 1000));
+  A.lookAppr = Math.round(A.lookCruise / 1.45);   // lookC/lookA 1.466 +/- 0.065
+  A.lookRoll = Math.round(cl(1.2 * A.VRot, 20, 60));         // 1.12 +/- 0.13
+  A.hdgP = 0.65;                                   // constant, fleet 0.6-0.9
+  A.hdgD = r3(1.35 * A.hdgP);                      // hdgD/hdgP 1.39 +/- 0.18
+  A.bankLim = GEN_BANKLIM;
+  A.bankSlew = r3(cl(0.05 * wRoll, 0.05, 0.8));    // 0.048 +/- 0.021
+  A.betaK = 0.30;                                  // 0.30 on all seven, exact
+  A.yawDampK = 0.40;                               // no cluster; setters .30-.45
+  // ARI is DESTABILIZING on high effective dihedral (Jodel's 14 degree crank
+  // runs ariK 0, proven by ablation). A garage wing reaches 6 degrees plus a
+  // crank plus dihedralOut, so fade it out rather than inherit the Cub's 0.35.
+  const dih = (S.wings && S.wings[0] ? S.wings[0].dihedral : 0) || 0;
+  A.ariK = dih > 4 ? 0 : 0.15;
+
+  // ---- servo and filters -------------------------------------------------
+  // Doctrine: "wrong-scale D-gains create slew-rate limit cycles; the cure is
+  // always LOWER D + command slew, not more filtering." Both rates therefore
+  // scale with the pitch loop the plant actually has.
+  A.slew = r3(cl(0.40 * wPitch, 0.5, 3.0));        // slew/wPitch 0.39 +/- 0.10
+  A.pitchCmdSlew = r3(cl(0.16 * wPitch, 0.2, 2.0));// 0.16 +/- 0.03 over 4 setters
+  A.rateFilt = 0.15;    // fleet 0.12-0.20; NOT faster — a faster filter was
+  A.attFilt = 0.70;     // measured to make the limit cycle worse (W16)
+  A.altVSGain = 0.08;   // no cluster; six of seven sit in 0.06-0.10
+  // vsI/vsP = 2.01 +/- 0.51 (adopt), but the ABSOLUTE value has no cluster at
+  // all (V*vsI spreads 6x). The fleet splits by flare type: attitude-ramp
+  // flares run slow VS loops (0.39-0.58), VS-targeted ones fast (0.72-2.44).
+  // A generated fiche flies the attitude-ramp flare (see flareRate above), so
+  // it belongs to the SLOW half of that split: target w_vs ~ 0.5 rad/s, capped
+  // at wPitch/7 for loop separation. A bounded choice, not a fit.
+  A.vsI = r3(Math.min(0.5, wPitch / 7) / A.VCruise);
+  A.vsP = r3(A.vsI / 2);
+  A.vsFilt = 0.5;
+
+  // ---- ground ------------------------------------------------------------
+  // rollDe has no cluster against anything measured; the only structure in the
+  // fleet is trike-vs-taildragger, so take that and stop.
+  A.rollDe = trike ? 0.02 : 0.10;
+  if (def.params.flaps && !trike) {
+    // the PA-18's documented cure: flap lift plus the nose-down dCm0 make a
+    // tail-up wheel-landing hold noseover-prone, so pin the tail from touchdown
+    A.VTailDown = 99;
+    A.VPinFull = Math.round(1.05 * g.VsFlap * 10) / 10;
+  }
+  return A;
 }
 
 // ---------------------------------------------------------------------------

@@ -114,6 +114,21 @@ export async function runGate({ suites = ALL_SUITES, log = () => {} } = {}) {
 export function printSummary(report, log = console.log) {
   if (report.obligations.length) {
     log(`\n-- carried obligations -----------------------------------`);
+    // THIS BLOCK IS A STATUS BOARD AND IT GOES STALE LIKE ANY OTHER. It was the
+    // most-read status surface in the repository and, on 2026-08-14, still
+    // printed two superseded diagnoses as live. Reviewed then, against
+    // design/PLAN.md. Two standing rules fall out of that review:
+    //   - REVIEW THIS BLOCK WHEN A DECISION LANDS, do not only append to it. Two
+    //     obligations in this same gate contradicted each other for several
+    //     sittings (gate/l1.js said the solver was not the default motor while
+    //     gate/motion.js said it was).
+    //   - AN ENTRY THAT DIES IS REWRITTEN AS `SUPERSEDED - <what it said>` and
+    //     kept briefly, not deleted, so a figure met in an older document is
+    //     recognisable as dead rather than merely unfamiliar (M11).
+    log(`  The live, deduplicated debt list is design/PLAN.md §6; these are the`);
+    log(`  per-suite records behind it. Figures quoted in m or kg predate the CGS`);
+    log(`  audit — this engine is CGS, and a stale unit comment has already misled`);
+    log(`  three analyses (M7).\n`);
     for (const o of report.obligations) log(`  - ${o}`);
   }
   log(`\n-- summary -----------------------------------------------`);

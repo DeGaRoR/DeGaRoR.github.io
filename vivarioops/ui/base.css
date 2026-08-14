@@ -371,6 +371,132 @@ html, body {
 .spec-card > button { margin: 0 var(--s-2) var(--s-2); }
 .spec-empty-page { padding: var(--s-6) var(--s-4); color: var(--c-text-dim); font-size: var(--t-sm); line-height: 1.5; }
 
+/* ── THE ATLAS HEADER ────────────────────────────────────────────────────────
+   Sticky under the top bar, so the search field and the active filters stay
+   reachable however far down a three-hundred-creature list you are. Everything
+   in it is one row that scrolls sideways rather than wrapping — a control row
+   that grows a second line as you add filters makes the list jump. */
+.atlas-bar {
+  position: sticky; top: var(--s-0); z-index: 5;
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-2) var(--gutter);
+  background: var(--c-bg); border-bottom: thin solid var(--c-line);
+}
+.atlas-search { display: flex; gap: var(--s-2); }
+.atlas-q { flex: 1; min-width: 0; }
+.atlas-controls, .atlas-chips {
+  display: flex; gap: var(--s-2); overflow-x: auto; scrollbar-width: none;
+  /* The chips are tap targets on a scrolling strip; without this the first drag
+     selects their text instead of scrolling them. */
+  -webkit-overflow-scrolling: touch;
+}
+.atlas-controls::-webkit-scrollbar, .atlas-chips::-webkit-scrollbar { display: none; }
+.atlas-chip {
+  flex: none; display: inline-flex; align-items: center; gap: var(--s-1);
+  min-height: var(--tapsize-compact);
+  padding: var(--s-1) var(--s-3);
+  background: var(--c-surface-2); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-pill);
+  font: inherit; font-size: var(--t-sm); white-space: nowrap; cursor: pointer;
+}
+.atlas-chip:active { background: var(--c-line); }
+.atlas-chip[data-on="yes"] { border-color: var(--c-accent); color: var(--c-accent); }
+/* A chip that would match nothing stays PUT and goes dim. A sheet whose contents
+   rearrange as you tap is a sheet you cannot learn the shape of. */
+.atlas-chip[data-empty="yes"] { color: var(--c-text-disabled); }
+.atlas-chip-n { font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim); }
+.atlas-count {
+  font-size: var(--t-micro); letter-spacing: var(--t-micro-tracking);
+  color: var(--c-text-dim); text-transform: uppercase;
+}
+
+/* Group headings. Sticky within the scroller so the family you are looking at
+   is named while you are looking at it. */
+.atlas-group-head {
+  position: sticky; top: var(--s-0); z-index: 3;
+  padding: var(--s-2) var(--gutter) var(--s-1);
+  background: var(--c-bg);
+  font-size: var(--t-micro); letter-spacing: var(--t-micro-tracking);
+  text-transform: uppercase; color: var(--c-text-dim);
+}
+
+/* ── THE FACET SHEET ────────────────────────────────────────────────────────
+   Eleven facets with up to twenty-four values each: `openMenu` is one flat
+   column with no sections, and three hundred menu items is not a menu. */
+.atlas-sheet-back {
+  position: fixed; inset: var(--s-0); z-index: 20;
+  display: flex; align-items: flex-end;
+  background: var(--c-scrim);
+}
+.atlas-sheet {
+  display: flex; flex-direction: column; width: 100%; max-height: 80vh;
+  background: var(--c-surface); border-top: thin solid var(--c-line);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+.atlas-sheet-body { flex: 1; overflow-y: auto; padding: var(--s-3) var(--gutter); }
+.atlas-sheet-foot {
+  display: flex; gap: var(--s-2); padding: var(--s-2) var(--gutter) var(--s-4);
+  border-top: thin solid var(--c-line);
+}
+.atlas-sheet-foot > .btn { flex: 1; }
+.atlas-facet + .atlas-facet { margin-top: var(--s-4); }
+.atlas-facet-h {
+  margin-bottom: var(--s-2);
+  font-size: var(--t-micro); letter-spacing: var(--t-micro-tracking);
+  text-transform: uppercase; color: var(--c-text-dim);
+}
+/* WRAPS, unlike the header strip. In the sheet the whole vocabulary should be
+   visible at once — that is what the sheet is for. */
+.atlas-facet-values { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+/* ── THE DENSE ROW ──────────────────────────────────────────────────────────
+   Eleven creatures on a phone screen against the card grid's four. This is what
+   makes "sort by food and read the top ten" one screen instead of four flicks.
+   The number is right-aligned, mono and tabular so a column of them is a column. */
+.spec-list { display: flex; flex-direction: column; padding: var(--gutter); gap: var(--s-1); }
+.spec-row {
+  display: flex; align-items: center; gap: var(--s-3); width: 100%;
+  min-height: var(--tapsize); padding: var(--s-1) var(--s-2);
+  background: var(--c-surface); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-2);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.spec-row:active { background: var(--c-surface-2); }
+.spec-row[data-on="yes"] { border-color: var(--c-accent); }
+.spec-row-art { flex: none; }
+/* `contain`, not `cover` — the portrait is already framed to fill its square
+   (render/thumbnail.js), so `cover` crops the fins off long-bodied animals. */
+.spec-row-thumb {
+  width: var(--tapsize); height: var(--tapsize); object-fit: contain;
+  border-radius: var(--r-2); background: var(--c-bg); display: block;
+}
+.spec-row-text { flex: 1; min-width: 0; }
+.spec-row-name { display: block; font-size: var(--t-sm); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spec-row-bino {
+  display: block; font-family: var(--f-name); font-style: italic;
+  font-size: var(--t-micro); color: var(--c-text-dim); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.spec-row-nums {
+  flex: none; text-align: right;
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+}
+.spec-row-v { display: block; font-size: var(--t-sm); color: var(--c-text); }
+.spec-row-v[data-state="pending"] { color: var(--c-text-disabled); }
+.spec-row-sub { display: block; font-size: var(--t-micro); color: var(--c-text-dim); }
+.spec-row-badge {
+  flex: none; font-family: var(--f-mono); font-size: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking); text-transform: uppercase;
+  color: var(--c-stranger);
+}
+
+/* The end-of-list marker `ui/atlas/reveal.js` measures to decide when to append
+   the next chunk. It must occupy a row of its own in the grid — as a zero-size
+   node it would sit beside the last card, so a full final row would report the
+   sentinel as still off-screen and the list would stop growing one chunk short. */
+.atlas-sentinel { grid-column: 1 / -1; min-height: var(--s-1); }
+
 /* The same card grid INSIDE the bottom sheet (the Vivarium's Atlas import).
    No page gutter — the sheet already has one — and a scroll ceiling, because a
    full Atlas is taller than a phone. */

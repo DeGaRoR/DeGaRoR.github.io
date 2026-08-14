@@ -852,7 +852,18 @@ export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_
   const SENSE_EVERY = 12;
 
   for (let st = 0; st < steps; st++) {
-    if (gain !== 0 && receptors.length && st % SENSE_EVERY === 0) {
+    // ── EITHER GAIN OPENS THE BLOCK, AND THAT IS A FIX NOT A WIDENING ─────────
+    //
+    // This read `gain !== 0` — the KINESIS gain alone — so a creature with a live
+    // `tropoGain` and `chemoGain` at zero never sensed at all and its taxis gene
+    // was silently inert. `chemoGain` gating `tropoGain` is a coupling neither
+    // gene's definition claims: they are two independent readings of one receptor
+    // array, one driving `effort` and the other `turnBias`.
+    //
+    // It mattered the moment the factory started DRAWING `tropoGain`: every drawn
+    // creature has `chemoGain` 0, so without this the whole draw would have been
+    // a no-op and the fix would have measured nothing.
+    if ((gain !== 0 || tropo !== 0) && receptors.length && st % SENSE_EVERY === 0) {
       senseAt(sim, plan, receptors, food, conc, senseBuf);
       // The creature has ONE nose, not one per receptor. Averaging is the
       // non-directional read — a differential between sides is what tropotaxis
@@ -864,8 +875,13 @@ export function runForage(RAPIER, { plan, genome, world, food, seconds = FORAGE_
       // the STRATEGY and neither is declared: positive swims harder in richer
       // water, negative slows down in it and dwells. Dwelling is the one that
       // should win on a patchy field, and the point is that nothing here says so.
-      const e = 1 + gain * (mean - 1);
-      sim.control.effort = e < EFFORT_FLOOR ? EFFORT_FLOOR : e > EFFORT_CEIL ? EFFORT_CEIL : e;
+      // Guarded: at `chemoGain` 0 the effort must stay exactly 1, or opening the
+      // block for taxis would quietly hand every creature a kinesis it did not
+      // evolve — and `1 + 0 * (mean - 1)` is 1 only if the arithmetic is exact.
+      if (gain !== 0) {
+        const e = 1 + gain * (mean - 1);
+        sim.control.effort = e < EFFORT_FLOOR ? EFFORT_FLOOR : e > EFFORT_CEIL ? EFFORT_CEIL : e;
+      }
 
       // ── TROPOTAXIS — THE DEFERRED HALF, AND IT IS A WIRE NOT AN ORGAN ───────
       //

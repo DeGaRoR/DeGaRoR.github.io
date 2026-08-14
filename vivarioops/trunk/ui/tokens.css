@@ -29,6 +29,13 @@
   /* A floating surface over the tank (ui/menu.js). The bottom sheet is anchored
      to an edge and does not need one; a popover hangs in mid-air and does. */
   --shadow-sheet: 0 6px 20px rgba(4, 7, 10, 0.55);
+  /* Behind a sheet that covers the whole screen (ui/atlas/bar.js's facet sheet).
+     DARK ENOUGH TO SAY "THE PAGE BEHIND IS NOT LIVE", light enough that the list
+     is still legible through it — a filter sheet is one of the few modals where
+     seeing the thing you are filtering, while you filter it, is the point. The
+     Vivarium's bottom sheet is anchored to an edge over a tank the player is
+     meant to keep watching, and deliberately has none. */
+  --c-scrim: rgba(4, 7, 10, 0.62);
   --menu-w: 180px;
   /* The same halo for elements that are drawn rather than typed (the scale bar's
      bracket), where `text-shadow` does nothing and `filter` is the equivalent. */

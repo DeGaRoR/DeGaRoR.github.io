@@ -58,7 +58,6 @@ import { SLICE_LIMITS } from '../../engine/l1/factory.js';
 import { adaptGait } from '../../engine/l2/gait.js';
 import { OBJECTIVES, scoreBy } from '../../engine/l2/objective.js';
 import { genomeHash, validateGenome } from '../../engine/l1/genome.js';
-import { binomial } from '../../engine/l1/naming.js';
 import {
   makeFood, makeChunkedFood, mouthsOf, mouthPoints, forageStep, ledger,
   reserveAfter, INGEST_RATE, FOOD_DENSITY,
@@ -86,7 +85,9 @@ import { stepBudget, hitRadius, classifyPointer, TAP, BREEDING_MS, STATE, BURST,
 import { button, mk, chip } from '../widgets.js';
 import { specCard } from '../cards.js';
 import { openMenu, closeMenu } from '../menu.js';
-import { atlasContext, nameFor, labelFor } from '../vernacular.js';
+import * as names from '../names.js';
+import * as atlas from '../atlas/index.js';
+import { lazyThumbs } from '../atlas/reveal.js';
 
 /** Trail buffer, in samples. NOTHING IS FORGOTTEN below the ceiling: the buffer
  *  doubles instead of sliding, because seeing the WHOLE history is the point —
@@ -269,11 +270,10 @@ export default {
     let elapsed = 0, running = true, stopped = false, ready = false;
     let speed = 1, capped = false, breedingUntil = 0;
     let sheetFor = -1;                   // cast index whose sheet is open, or -1
+    /** Portrait loader for the import sheet's grid; replaced each time it opens. */
+    let importThumbs = null;
     const habitat = HABITAT_ID;
     const HABITAT = W1_SLICE.habitatBounds ?? W1_SLICE.tankBounds;
-
-    /** 14 §4's lineage context for naming, refreshed when the Atlas changes. */
-    let nameCtx = { lineage: undefined, taken: new Set() };
 
     const IDLE_FPS = 8;
     let dirty = true, lastDraw = 0;
@@ -532,9 +532,10 @@ export default {
       // In the ocean the atmosphere has no box to fill, so it is sized generously
       // and re-centred on the camera each frame (see followCast).
       fitAtmosphere(water, habitat === 'ocean' ? HABITAT.map((b) => b * 2) : HABITAT);
-      // BEFORE paint(), which prints the names. Naming is pure and synchronous —
-      // the only async part of it is `nameCtx`, which is loaded once at boot and
-      // refreshed when the Atlas changes.
+      // BEFORE paint(), which prints the names. Naming is pure and synchronous:
+      // the record index behind it is loaded once at boot and kept current by
+      // `names.remember` / `names.forget`, and a genome with no record falls
+      // through to a pure mint that needs nothing loaded at all.
       nameCast();
       paint();
     }
@@ -674,6 +675,10 @@ export default {
     function closeSheet() {
       sheet.hidden = true;
       sheet.replaceChildren();
+      // The import grid's portrait loader listens on that grid, which has just
+      // been thrown away. Left running it would hold the detached nodes alive.
+      importThumbs?.stop();
+      importThumbs = null;
       sheetFor = -1;
       if (state === STATE.SHEET_OPEN) state = STATE.SIMULATING;
       paint();
@@ -792,19 +797,38 @@ export default {
         saveBtn.textContent = t('Saving…');
         try {
           const hash = genomeHash(c.genome);
-          await store.set(store.KEY.specimen(hash), {
+          const key = store.KEY.specimen(hash);
+
+          // ── SAVING OVER A LIBRARY RECORD USED TO DESTROY IT ─────────────────
+          //
+          // The key is the GENOME hash, so releasing a shipped creature into the
+          // tank and pressing Save wrote a fresh record over the library's own —
+          // `source: 'player'`, a new `createdAt`, and `headline`/`note` gone.
+          // `seedAtlas` then skipped it forever (`cur.source !== 'authored'`),
+          // so the shelf entry was lost permanently and silently. Releasing from
+          // the Atlas is about to become the normal way to stock the tank, which
+          // makes that one tap away rather than three.
+          //
+          // MERGE, and let the existing record keep the fields that say where it
+          // came from. Renaming a library creature is still allowed — that is
+          // what `commonName` is for — it just no longer disowns it.
+          let existing = null;
+          try { existing = await store.get(key); } catch { /* absent or unreadable */ }
+
+          const record = {
+            ...(existing ?? {}),
             genome: c.genome,
             hash,
             worldId: W1_SLICE.palette,
             binomial: c.binomial,
             // MINTED ONCE, stored with the record. 14 §4 scores slots against the
             // lineage, so recomputing later would rename a creature as its
-            // neighbours changed. See ui/vernacular.js.
-            vernacular: c.vernacular,
+            // neighbours changed. See ui/names.js.
+            vernacular: c.vernacular ?? existing?.vernacular ?? null,
             commonName: nameInput.value.trim() || c.name,
             thumb: renderThumbnail(c.genome, { worldId: W1_SLICE.palette }),
             stats: { bodies: c.plan.bodyCount, mass: totalMass(c.plan) },
-            createdAt: Date.now(),
+            createdAt: existing?.createdAt ?? Date.now(),
             render: RENDER_TAG,
             // ── SAY SO, RATHER THAN BE INFERRED FROM AN ABSENCE ──────────────
             //
@@ -818,10 +842,16 @@ export default {
             // Records written before this still carry no `source`, and the
             // guards continue to treat missing as player for exactly that
             // reason. New ones are explicit.
-            source: 'player',
-          });
+            source: existing?.source ?? 'player',
+          };
+          await store.set(key, record);
           saveBtn.textContent = t('Saved ✓');
-          nameCtx = await atlasContext();     // the Atlas grew; renaming follows it
+          // The name the player just typed is now the creature's name. Index it
+          // synchronously so the row behind the sheet says so on the next paint,
+          // rather than at the next spawn as it used to.
+          names.remember(key, record);
+          nameCast();
+          paint();
         } catch {
           saveBtn.disabled = false;
           saveBtn.textContent = t('Save failed — retry');
@@ -850,43 +880,55 @@ export default {
       sheet.replaceChildren();
       mk('spec-picker-title', sheet).textContent = `${t('Import up to')} ${POPULATION} ${t('from the Atlas')}`;
 
-      let specs = [];
-      try {
-        const keys = await store.list('specimen:');
-        for (const key of keys) {
-          try { const s = await store.get(key); if (s?.genome) specs.push({ key, ...s }); }
-          catch { /* skip a record from a future build */ }
-        }
-      } catch { /* no store — the empty branch below says so */ }
+      // THE INDEX, NOT A SECOND FULL SCAN. This sheet used to read every
+      // `specimen:` record — portraits and all — a second time, duplicating what
+      // the Atlas screen was already doing and paying for it again on every
+      // open. Rows are primitives and the portraits load per visible card.
+      await atlas.ensureIndex();
       if (sheet.hidden) return;             // closed while the list was loading
-      specs.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+      const rows = atlas.rows().slice().sort((a, b) => b.createdAt - a.createdAt);
 
       const chosen = new Set();
-      const go = button('', () => {
-        const picks = specs.filter((s) => chosen.has(s.key));
+      const go = button('', async () => {
+        const keys = [...chosen];
         closeSheet();
+        if (!keys.length) return;
+        // The GENOME is the only thing this needs, and it is the one thing a row
+        // does not carry. Fetch just the chosen few.
+        const picks = [];
+        for (const key of keys) {
+          const spec = await atlas.specFor(key);
+          if (spec?.genome) picks.push(spec);
+        }
         if (picks.length) importSpecimens(picks);
       });
       const label = () => { go.textContent = `${t('Release')} ${chosen.size}`; go.disabled = chosen.size === 0; };
 
-      if (!specs.length) {
+      if (!rows.length) {
         mk('spec-empty', sheet, 'p').textContent =
           t('No saved creatures yet. Long-press a creature and tap Save to keep one.');
       } else {
         const grid = mk('spec-grid spec-grid-sheet', sheet);
-        for (const s of specs) {
-          grid.append(specCard(s, {
-            selectable: true, stats: false,
+        for (const r of rows) {
+          grid.append(specCard(r, {
+            selectable: true, stats: false, thumb: atlas.thumbFor,
             onToggle: (next) => {
               // The CALLER decides whether the toggle takes: the cap is real, and
               // a card that ticked itself and was then refused would be lying.
               if (next && chosen.size >= POPULATION) return false;
-              if (next) chosen.add(s.key); else chosen.delete(s.key);
+              if (next) chosen.add(r.key); else chosen.delete(r.key);
               label();
               return true;
             },
           }));
         }
+        // The sheet scrolls in its own box, so "near the viewport" has to be
+        // measured against THAT box and not the page — otherwise every card in
+        // it qualifies and all of them load at once, which is the behaviour this
+        // replaced. No chunking here: the sheet is capped at 48vh and is about
+        // to be replaced by the Atlas's own release mode.
+        importThumbs?.stop();
+        importThumbs = lazyThumbs(grid, { scroller: grid });
       }
       label();
       sheet.append(go, button(t('Cancel'), closeSheet));
@@ -933,7 +975,11 @@ export default {
           let spec;
           try { spec = await store.get(key); } catch { continue; }
           if (!spec?.genome) continue;
-          const label = labelFor(spec);
+          // The SAME string the Atlas card writes across its portrait. This list
+          // used to show Latin for every library creature — `labelFor` lacked
+          // the `!== binomial` clause `displayName` had — so the picker and the
+          // grid disagreed about twenty shipped animals.
+          const label = names.label(spec).primary;
           const item = mk('spec-picker-item', list, 'button');
           item.type = 'button';
           const img = mk('spec-picker-thumb', item, 'img');
@@ -1377,21 +1423,29 @@ export default {
     // that one number is always visible and that it is speed; a three-word name
     // floating over each of six creatures in a shared ocean is clutter, and the
     // name is one tap away on the row beneath.
+    // ── THIS FUNCTION USED TO RE-MINT, AND THAT WAS THE BUG ────────────────────
+    //
+    // It built a `minted` set from the Atlas's names, walked the cast, and asked
+    // for a fresh lineage-relative name for every creature — including one the
+    // player had imported from the Atlas thirty seconds earlier and could still
+    // see the card for. A card reading "Champion — seeker" became "banded teal
+    // nereid" the moment it hit the water. Worse, `minted` grew as the loop ran,
+    // so the name a creature got depended on its SLOT.
+    //
+    // It asks now. ui/names.js answers from the record if there is one — which is
+    // what makes the tank agree with the Atlas card — and otherwise from a pure
+    // mint, which is stable across spawn, Reset, Undo, reload and slot order.
     function nameCast() {
-      const minted = new Set(nameCtx.taken);
       for (const c of cast) {
-        try {
-          const v = nameFor(c.genome, { lineage: nameCtx.lineage, taken: minted }, W1_SLICE.palette);
-          c.vernacular = v.name;
-          c.binomial = v.binomial;
-          c.name = v.name;
-          minted.add(v.name);
-        } catch {
-          // Naming must never be able to stop a creature appearing.
-          c.vernacular = null;
-          try { c.binomial = binomial(c.plan, c.genome).binomial; } catch { c.binomial = t('Creature'); }
-          c.name = c.binomial;
-        }
+        const n = names.nameOf(c.genome, { worldId: W1_SLICE.palette });
+        c.name = n.primary;
+        c.vernacular = n.vernacular;
+        c.commonName = n.commonName;
+        // `label()` returns no binomial when the primary IS the binomial, so read
+        // it from the name itself and keep the sheet's italic line populated.
+        c.binomial = n.binomial ?? n.primary;
+        c.specKey = n.key;
+        c.source = n.source;
       }
     }
 
@@ -2079,9 +2133,8 @@ export default {
         genomes = seeded.genomes;
         provenance = seeded.provenance;
       }
-      // The Atlas is the naming lineage (14 §4). Seeding it first means a fresh
-      // install names its first generation against the shipped library rather
-      // than against nothing.
+      // Seed the library BEFORE reading names out of it, so a fresh install's
+      // first tank can already recognise a shipped creature it was handed.
       // ── FIRST LOAD ONLY, and now one phase of the panel rather than all of it ──
       //
       // `seedAtlas` draws one portrait per library entry and each costs about
@@ -2100,7 +2153,11 @@ export default {
       } catch { /* the library just will not appear */ }
       if (stopped) return;
       boot.show('Growing your creatures', 'Building bodies and framing the tank.');
-      nameCtx = await atlasContext();
+      // Four strings per record, where `atlasContext()` used to run
+      // `morphogenesis` over every stored specimen to build a lineage the tank
+      // then used to rename creatures that already had names. Faster, and it is
+      // the reason the tank and the Atlas now agree.
+      await names.load();
       if (stopped) return;
       spawn();
       ready = true;

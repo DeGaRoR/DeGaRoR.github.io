@@ -308,7 +308,18 @@ function elide(a, b) {
   if (!b) return a;
   const l = a[a.length - 1], r = b[0];
   // E4 first: a terminal `y` before a vowel becomes `i`; before a consonant it stays.
-  if (l.toLowerCase() === 'y' && VOWEL.test(r)) return a.slice(0, -1) + 'i' + b.slice(1);
+  //
+  // `b.slice(1)` USED TO BE HERE AND IT WAS TWO RULES AT ONE SEAM. E4 converts
+  // the terminal `y`; dropping `b`'s first letter as well is E1's job, and doing
+  // both at once EATS THE FIRST LETTER OF WHATEVER FOLLOWS. Measured:
+  // `phyll` + `eury` + `arthr` composed to `Phylleurirthrus` — the family stem
+  // `arthr` arrived as `rthr`, so the genus no longer carried its own family's
+  // stem and NM-3 went red. It now composes `Phylleuriarthrus`, which contains it.
+  //
+  // GENOME_V 9's corpus change is what drew this; the combination simply had not
+  // come up before. Same class as the three no-op operators found the same
+  // sitting — a latent defect waiting on a seed.
+  if (l.toLowerCase() === 'y' && VOWEL.test(r)) return a.slice(0, -1) + 'i' + b;
   if (VOWEL.test(l) && VOWEL.test(r)) return a.slice(0, -1) + b;           // E1
   if (l.toLowerCase() === r.toLowerCase()) return a + b.slice(1);           // E2
   if (STOP.test(l) && STOP.test(r)) return a + 'o' + b;                     // E3

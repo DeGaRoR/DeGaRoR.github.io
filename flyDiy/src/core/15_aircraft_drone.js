@@ -137,6 +137,11 @@ function buildDrone() {
     twSteer: 0.75,
     ap: {
       VRot: 4.5, VClimbMin: 8.5, VClimb: 10, VCruise: 13, VAppr: 9,
+      // no VTurn: see the cub fiche. This aeroplane is the reason the point
+      // matters most — its TURNBACK falls back to VCruise 13 while its
+      // INBOUND rides the literal 24, and stating a single VTurn: 24 doubled
+      // the turnback speed and took its elevator chatter from 0.3 to
+      // 5.5 deg/s. Measured, not reasoned.
       TORun: 15,                    // measured run to 2.5 m agl (W14 multi-hop)
       hCruise: 60, hSafe: 8, xTurn: -900, xAim: -430, gs: 0.075,
       rollDe: 0.05, liftoffTh: 0.17, climbThBase: 0.13, climbThGain: 0.030,

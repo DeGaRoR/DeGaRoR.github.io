@@ -4,6 +4,10 @@
 import * as nav from './trunk/nav.js';
 import { t } from './trunk/i18n.js';
 import { VERSION } from './trunk/version.js';
+// THE STORE BACKS ITSELF UP. Dev only — the endpoint exists on tools/serve.js and
+// nowhere else, so a deployed build probes once and disables it. See
+// trunk/autosave.js for why a manual export in Settings was not enough.
+import { installAutosave } from './trunk/autosave.js';
 
 // Tank and Forage are gone: one Vivarium, which breeds AND feeds. See
 // ui/screens/vivarium.js for what the merge kept from each.
@@ -48,6 +52,8 @@ nav.onChange(({ tab, screen, modal }) => {
 });
 
 document.getElementById('build').textContent = VERSION.app;
+
+installAutosave();
 
 nav.start(document.getElementById('app'));
 

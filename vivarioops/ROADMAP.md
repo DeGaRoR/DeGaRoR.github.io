@@ -1,3 +1,14 @@
+> # ⛔ SUPERSEDED 2026-08-14 — ARCHIVE ONLY
+>
+> **`design/PLAN.md` is the only live planning document.** Do not plan from this
+> file, and do not read its status table as current: it predates the perception
+> work, `GENOME_V` 9, the breeding campaign and the duel repair, and it still
+> lists as open two defects that were fixed on 2026-08-08 (Lamarckian inheritance
+> and the viability re-rolls).
+>
+> Kept because §4's layer argument, the three Studies at the end, and §6's debt
+> list are the evidence `design/PLAN.md` §6 was deduplicated from.
+
 # Vivarioops — where we are and what happens next
 
 Written because "what is C1?" has three answers in this repo and none of them is

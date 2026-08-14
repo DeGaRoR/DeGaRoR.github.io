@@ -95,6 +95,14 @@ export const SCHEMA_OF = {
   world:    ECOLOGY_V,
   vivarium: 1,           // no versioned schema of its own yet
   profile:  1,
+  // DERIVED STATE, AND DECLARED AS SUCH. The Atlas's row index (ui/atlas/index.js)
+  // is a cache of things `engine/` can recompute from the specimens at any time,
+  // so it is never migrated: it carries its own `INDEX_TAG` and is thrown away
+  // whole the moment that tag stops matching. It is listed here so that a reader
+  // of this table finds out the prefix exists, not because anything depends on
+  // the number — without the entry `kindOf` would call it `opaque`, which
+  // behaves identically.
+  index:    1,
   opaque:   1,           // anything under an unrecognised prefix
 };
 
@@ -194,10 +202,31 @@ export function migrate(value, fromVersion, kind = 'genome', toVersion = SCHEMA_
 
 // ── adapter: get / set / delete / list ───────────────────────────────────────
 
+// ── WRITE NOTIFICATION ───────────────────────────────────────────────────────
+//
+// `set` and `del` are the ONLY writers, so a listener here sees every mutation
+// and no caller has to remember to announce one. Added for `trunk/autosave.js`,
+// which mirrors the store to a file in the repo — a manual export existed for a
+// long time and did not prevent twenty-seven specimens being lost, because
+// taking one is a thing a person has to remember.
+//
+// A SUBSCRIPTION AND NOT A WRAPPER. An ES module namespace is read-only, so
+// monkey-patching `store.set` from outside silently does nothing; this is the
+// honest way to hook a module's own writes.
+const writeListeners = new Set();
+
+/** @returns {() => void} unsubscribe */
+export function onWrite(fn) { writeListeners.add(fn); return () => writeListeners.delete(fn); }
+
+// A listener must never be able to break a write that already succeeded.
+function notifyWrite(key) { for (const fn of writeListeners) { try { fn(key); } catch { /* not the writer's problem */ } } }
+
 export async function set(key, value, schemaVersion) {
   const kind = kindOf(key);
   const store = await tx('readwrite');
-  return wrap(store.put(envelope(value, kind, schemaVersion ?? SCHEMA_OF[kind] ?? 1), key), key);
+  const r = await wrap(store.put(envelope(value, kind, schemaVersion ?? SCHEMA_OF[kind] ?? 1), key), key);
+  notifyWrite(key);
+  return r;
 }
 
 /** Reads, migrates forward WITHIN ITS KIND, unwraps. undefined for a missing key. */
@@ -235,7 +264,9 @@ export async function getRaw(key) {
 
 export async function del(key) {
   const store = await tx('readwrite');
-  return wrap(store.delete(key), key);
+  const r = await wrap(store.delete(key), key);
+  notifyWrite(key);
+  return r;
 }
 
 /** @param {string} [prefix] e.g. 'specimen:' */
