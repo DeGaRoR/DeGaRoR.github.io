@@ -76,6 +76,12 @@ const driver = `
   BUILD.gx=8;BUILD.gy=20;render(); // invalid spot → reason badge path
   BUILD.mode="connect";BUILD.from=G.nodes[0];BUILD.fromSide=null;render();
   BUILD.mode=null;BUILD.sel=null;BUILD.from=null;
+  // MOVE ghost at several rotations — it now draws the full placement ghost (sprite + rotated port nubs)
+  // instead of a flat rect, so this path can null-deref on sprite/port geometry the place path never hits.
+  {const mn=G.nodes.find(n=>n.site==="process");
+   if(mn){startMoveUnit(mn);BUILD.gx=8;BUILD.gy=14;
+     for(const r of [0,90,180,270]){BUILD.rot=r;render();}
+     BUILD.mode=null;BUILD.moveNode=null;}}
   // ── UI playability audit (2026-07-11) ──
   // 1. hit-targets: every site node is tappable at its centre; every conveyor at its midpoint
   let badNode=0,badEdge=0;
@@ -181,8 +187,39 @@ const driver = `
      siteMoveUnit(d.node,12,17,0);
      if(siteCrossings()===XS)throw new Error("crossing cache went stale after a reroute");
      render();}}
+  // ── seed a career, then hand the serialized save to the boot-resume pass below. Progression lives INSIDE
+  //    the save (career:G.career), and CAREER is a live pointer into it — so a save with owned tech is the
+  //    only fixture that can prove the boot path keeps them attached.
+  const careerAttached=(CAREER===G.career);
+  CAREER.tech.push("r_airU","a_split");CAREER.claimed.push("a_first");recomputeTechMod();
+  const bootSave=JSON.stringify(serializeGame());
   __report({nodes:nodes0,veh:G.vehicles.length,edges:edges0,xings,
-    delivered:deliveredInRun,trucks:(G.trucks||[]).length,zoom:cam.zoom,camx:cam.x});
+    delivered:deliveredInRun,trucks:(G.trucks||[]).length,zoom:cam.zoom,camx:cam.x,
+    careerAttached,bootSave,
+    // OBJ/MANDATE names reach tr() as VARIABLES, so tools/i18ncheck.js (which only scans tr("literal") call
+    // sites) is blind to them — reword an objective and French silently falls back to English. Checked here,
+    // where both the engine data and LANG.fr are in scope.
+    frGaps:(function(){const m=[];
+      for(const k in OBJ)if(OBJ[k].name&&!LANG.fr[OBJ[k].name])m.push("OBJ."+k+": "+OBJ[k].name);
+      for(const k in MANDATE)if(MANDATE[k].name&&!LANG.fr[MANDATE[k].name])m.push("MANDATE."+k+": "+MANDATE[k].name);
+      return m;})(),
+    frChecked:Object.keys(OBJ).length+Object.keys(MANDATE).length,
+    // per-supplier liveries: bagCol/bagKey/truckSpriteKey must resolve from the STREAM, not from a plant-wide global
+    bagCols:COMPANIES.suppliers.filter(s=>s.stream).map(s=>bagCol(s.id)),
+    truckKeys:["wasteminster","binfinity"].map(id=>truckSpriteKey({cls:"supplier",sup:id,id:1}))});
+})();`;
+
+/* Pass 2 — BOOT RESUME. app.js's top-level boot block auto-resumes a saved site game before any driver
+ * runs; with an empty store (pass 1) that branch is dead, which is exactly why the career-detachment
+ * regression shipped. Seeding the store with a real save makes the boot path execute for real. */
+const bootDriver = `
+;(function(){
+  __report({hasGame:!!G,
+    nodes:G?G.nodes.length:0,
+    attached:!!G&&CAREER===G.career,
+    tech:(CAREER&&CAREER.tech)?CAREER.tech.length:-1,
+    claimed:(CAREER&&CAREER.claimed)?CAREER.claimed.length:-1,
+    airUnlocked:!!unitUnlocked("air")});
 })();`;
 
 let report = null;
@@ -193,6 +230,24 @@ try {
 } catch (err) {
   console.error("SMOKE FAIL:", err.stack.split("\n").slice(0, 4).join("\n"));
   process.exit(1);
+}
+
+/* run the same shipping source again, but booting against a store that already holds a saved career */
+let boot = null;
+if (report && report.bootSave) {
+  const store2 = { "recycle.save.v3": report.bootSave };
+  const ls2 = { getItem: k => (k in store2 ? store2[k] : null), setItem: (k, v) => { store2[k] = String(v); }, removeItem: k => { delete store2[k]; } };
+  const win2 = new Proxy({ devicePixelRatio: 2, innerWidth: 390, innerHeight: 700, localStorage: ls2 }, {
+    get(t, p) { if (p in t) return t[p]; return (...a) => undefined; },
+  });
+  const fn2 = new Function("document", "window", "localStorage", "requestAnimationFrame", "navigator", "performance", "Image", "location", "history", "ResizeObserver", "Audio", "AudioContext", "matchMedia", "visualViewport", "screen", "__report",
+    src + bootDriver);
+  try {
+    fn2(document_, win2, ls2, raf, { userAgent: "smoke", language: "en" }, { now: () => Date.now() }, ImageStub, { hash: "", search: "", href: "" }, { replaceState(){}, pushState(){} }, class{observe(){}disconnect(){}}, class{play(){}}, class{}, ()=>({matches:false,addEventListener(){}}), {width:390,height:700,scale:1,addEventListener(){}}, {width:390,height:700,orientation:{type:"portrait-primary",addEventListener(){}}}, r => { boot = r; });
+  } catch (err) {
+    console.error("SMOKE FAIL (boot pass):", err.stack.split("\n").slice(0, 4).join("\n"));
+    process.exit(1);
+  }
 }
 
 let fail = 0;
@@ -208,5 +263,18 @@ ok((calls.fillText || 0) > 30, "labels drawn (fillText ×" + (calls.fillText || 
 ok(report && report.zoom >= 0.35 && report.zoom <= 1.6, "site view fit produced a sane zoom (" + (report && report.zoom.toFixed(2)) + ")");
 ok(report && report.xings > 0, "belt crossing detected on the built cross (" + (report && report.xings) + ")");
 ok((calls.clip || 0) > 0, "overpass pass clipped the belt below (clip ×" + (calls.clip || 0) + ")"); // ctx.clip( appears nowhere else in js/, so this is an unambiguous marker that the pass ran
+ok(report && report.careerAttached, "CAREER is attached to G.career after begin()");
+ok(report && report.frChecked > 5 && report.frGaps && report.frGaps.length === 0,
+  "every OBJ/MANDATE name has a French entry (" + (report && report.frChecked) + " checked)" + (report && report.frGaps && report.frGaps.length ? " — MISSING: " + report.frGaps.join(" | ") : ""));
+ok(report && report.bagCols && new Set(report.bagCols).size === report.bagCols.length,
+  "every streaming supplier resolves to its own bag colour (" + (report && report.bagCols || []).join(" ") + ")");
+ok(report && report.truckKeys && report.truckKeys[0] !== report.truckKeys[1],
+  "supplier trucks differ per contract (" + (report && report.truckKeys || []).join(" vs ") + ")");
+// ── boot-resume: the regression that shipped as "my tech tree and rewards reset after the update"
+ok(!!boot && boot.hasGame && boot.nodes > 0, "boot auto-resumed the seeded save (" + (boot && boot.nodes) + " units)");
+ok(!!boot && boot.attached, "CAREER still points into G.career after the BOOT resume path");
+ok(!!boot && boot.tech === 2, "owned tech survived the boot resume (" + (boot && boot.tech) + "/2)");
+ok(!!boot && boot.claimed === 1, "claimed objectives survived the boot resume (" + (boot && boot.claimed) + "/1)");
+ok(!!boot && boot.airUnlocked, "tech EFFECTS recomputed from the restored career (air unlocked)");
 console.log(fail ? "SMOKE: " + fail + " FAILURES" : "SMOKE: all green");
 process.exit(fail ? 1 : 0);

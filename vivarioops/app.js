@@ -13,12 +13,16 @@ import { installAutosave } from './trunk/autosave.js';
 // ui/screens/vivarium.js for what the merge kept from each.
 import vivarium from './ui/screens/vivarium.js';
 import atlas from './ui/screens/atlas.js';
+import specimen from './ui/screens/specimen.js';
 import world from './ui/screens/world.js';
 import settings from './ui/screens/settings.js';
 import dev from './ui/screens/dev.js';
 
 nav.register('vivarium', vivarium);
 nav.register('atlas', atlas);
+// A DESTINATION, NOT A TAB. It is pushed onto the Atlas's own stack, so browser
+// back returns to the grid you came from, with its filters intact.
+nav.register('specimen', specimen);
 nav.register('world', world);
 nav.register('settings', settings);
 nav.register('dev', dev);
@@ -27,7 +31,10 @@ const TAB_LABEL = { vivarium: t('Vivarium'), atlas: t('Atlas'), world: t('World'
 
 const bar = document.getElementById('tabbar');
 const buttons = {};
-for (const id of nav.tabs()) {
+// `visibleTabs`, not `tabs` — World and Settings are still routes and still
+// mount, they just no longer spend a quarter of the bar each on a placeholder.
+// See trunk/nav.js `VISIBLE_TABS`.
+for (const id of nav.visibleTabs()) {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = TAB_LABEL[id];
@@ -38,9 +45,30 @@ for (const id of nav.tabs()) {
   buttons[id] = b;
 }
 
+// ── BACK, FOR ANY PUSHED SCREEN ─────────────────────────────────────────────
+//
+// The tab bar gets you between roots; nothing got you back OUT of a destination
+// pushed onto one. Browser back and Android back both worked — `nav.pop()` is
+// `history.back()` — but on a desktop browser, in a PWA, or on any phone without
+// a system back gesture there was no way off the specimen page at all.
+//
+// IN THE TOP BAR AND NOT ON THE PAGE, so it is one control in one place for every
+// destination that will ever be pushed, rather than each screen inventing its own
+// corner to put an arrow in. It is driven by stack DEPTH, so it is correct
+// without any screen having to declare anything.
+const backBtn = document.createElement('button');
+backBtn.type = 'button';
+backBtn.className = 'topbar-back';
+backBtn.textContent = '‹';
+backBtn.setAttribute('aria-label', t('Back'));
+backBtn.addEventListener('click', () => nav.pop());
+backBtn.hidden = true;
+document.getElementById('topbar').prepend(backBtn);
+
 const titleEl = document.querySelector('#topbar .title');
 const appEl = document.getElementById('app');
 nav.onChange(({ tab, screen, modal }) => {
+  backBtn.hidden = nav.stackDepth() === 0;
   for (const [id, b] of Object.entries(buttons)) {
     if (id === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }

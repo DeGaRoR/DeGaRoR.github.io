@@ -83,11 +83,12 @@ import { renderThumbnail, RENDER_TAG } from '../../render/thumbnail.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
 import { stepBudget, hitRadius, classifyPointer, TAP, BREEDING_MS, STATE, BURST, burstSelection, burstKeep } from '../tank/sim.js';
 import { button, mk, chip } from '../widgets.js';
-import { specCard } from '../cards.js';
 import { openMenu, closeMenu } from '../menu.js';
 import * as names from '../names.js';
 import * as atlas from '../atlas/index.js';
 import { lazyThumbs } from '../atlas/reveal.js';
+import * as release from '../release.js';
+import * as nav from '../../trunk/nav.js';
 
 /** Trail buffer, in samples. NOTHING IS FORGOTTEN below the ceiling: the buffer
  *  doubles instead of sliding, because seeing the WHOLE history is the point —
@@ -270,8 +271,30 @@ export default {
     let elapsed = 0, running = true, stopped = false, ready = false;
     let speed = 1, capped = false, breedingUntil = 0;
     let sheetFor = -1;                   // cast index whose sheet is open, or -1
-    /** Portrait loader for the import sheet's grid; replaced each time it opens. */
+    /** Portrait loader for the stranger picker's list; replaced each time it opens. */
     let importThumbs = null;
+    /** Burst progress, shown on the primary control. '' when not bursting. */
+    let burstLabel = '';
+
+    /**
+     * ── GENOME HASH, MEMOISED ────────────────────────────────────────────────
+     *
+     * `genomeHash` serialises the whole genome, and recording parentage asks for
+     * one per slot per breed. A WeakMap keyed on the genome OBJECT is exact here
+     * and cannot go stale: `cloneGenome` produces a new object for every child,
+     * and N18 returns an unchanged elite as the SAME object reference — which is
+     * the identity `runBurst` already relies on to decide what to rescore. So a
+     * hit means "byte-identical genome", never "a genome that used to be this".
+     */
+    const hashes = new WeakMap();
+    function hashOf(genome) {
+      if (!genome) return null;
+      let h = hashes.get(genome);
+      if (h === undefined) { try { h = genomeHash(genome); } catch { h = null; } hashes.set(genome, h); }
+      return h;
+    }
+    /** True while a burst owns the screen — the menu is built against this. */
+    const busyNow = () => state === STATE.BURSTING;
     const habitat = HABITAT_ID;
     const HABITAT = W1_SLICE.habitatBounds ?? W1_SLICE.tankBounds;
 
@@ -650,18 +673,23 @@ export default {
         : `${speed}×`;
       btnSpeed.dataset.on = capped ? 'no' : 'yes';
       btnSpeed.disabled = !running || busy;
-      btnUndo.disabled = !previous || busy;
-      if (!busy) btnBurst.textContent = t('Burst');
-      btnBurst.disabled = !ready || busy;
-      btnImport.disabled = !ready || busy;
-      btnStranger.textContent = pendingStranger ? pendingStranger.commonName : t('Stranger');
-      btnStranger.classList.toggle('picked', Boolean(pendingStranger));
-      btnStranger.disabled = !ready || busy;
+      btnMore.disabled = busy;
+      btnAtlas.disabled = !ready || busy;
 
+      // ── THE BURST PROGRESS LINE, AND WHY IT NEEDS A GUARD ──────────────────
+      //
+      // `runBurst` used to write its progress into the Burst chip. That chip is
+      // in the overflow menu now, so the progress goes to the biggest thing on
+      // screen — which `paint()` also writes to, UNCONDITIONALLY, and `frame()`
+      // calls `paint()` every 150 ms. A naive write would be clobbered within a
+      // frame, twenty seconds into a burst, where nobody would notice it in
+      // review. `busy` gates it exactly as `if (!busy)` used to gate the chip.
       primary.disabled = !ready || selected.size === 0 || busy || state === STATE.BREEDING;
-      primary.textContent = selected.size
-        ? `${t('Breed')} ${selected.size} ${t('selected')}`
-        : t('Breed');
+      primary.textContent = busy && burstLabel
+        ? burstLabel
+        : selected.size
+          ? `${t('Breed')} ${selected.size} ${t('selected')}`
+          : t('Breed');
       if (droppedElite) coach.hidden = true;
     }
 
@@ -786,6 +814,18 @@ export default {
       }
 
       // ── keep this creature ────────────────────────────────────────────────
+      //
+      // What this slot's occupant descends from, or null when nobody recorded it.
+      // An ELITE is byte-identical to its pre-breed self and therefore hashes to
+      // the same record, so it needs no new edge; a STRANGER is unrelated by
+      // construction and gets `[]`.
+      const parentsFor = (i) => {
+        const p = provenance[i];
+        if (!p) return null;
+        if (p.parentHashes?.length) return p.parentHashes;
+        if (p.kind === KIND.STRANGER || p.kind === KIND.AUTHORED) return [];
+        return null;
+      };
       const save = mk('spec-save', sheet);
       const nameInput = mk('field spec-name', save, 'input');
       nameInput.type = 'text';
@@ -843,6 +883,19 @@ export default {
             // guards continue to treat missing as player for exactly that
             // reason. New ones are explicit.
             source: existing?.source ?? 'player',
+            // ── THE LINEAGE EDGE, PERSISTED ────────────────────────────────
+            //
+            // `provenance[idx].parentHashes` was resolved at breed time, while
+            // the pre-breed array still existed (see `doBreed`). This is the one
+            // moment it can be written somewhere permanent.
+            //
+            // ABSENT MEANS UNKNOWN AND `[]` MEANS NONE, and the difference is
+            // load-bearing: every record saved before this existed has no
+            // `parents` at all, and the Atlas must be able to say "not recorded"
+            // rather than drawing an empty tree and implying the creature was a
+            // founding draw. So the field is only written when there is
+            // something to write, or when the slot is genuinely parentless.
+            ...(parentsFor(idx) ? { parents: parentsFor(idx) } : {}),
           };
           await store.set(key, record);
           saveBtn.textContent = t('Saved ✓');
@@ -862,77 +915,18 @@ export default {
       paint();
     }
 
-    // ── Atlas import ────────────────────────────────────────────────────────
+    // ── STOCKING THE TANK IS THE ATLAS'S JOB NOW ────────────────────────────
     //
-    // Forage's `Cast` picker, promoted out of the chip row and given the Atlas's
-    // own CARDS instead of a list of thumbnails-and-names. It is the same card
-    // component the Atlas grid uses (ui/cards.js), so a creature you recognise
-    // in one place is the creature you recognise in the other.
+    // `openImport` LIVED HERE and it was a second Atlas: the same card grid, in
+    // a 48vh bottom sheet, with no search, no filter, no sort, and its own full
+    // read of every specimen record — portraits included — on every open. It was
+    // the exact duplication ui/cards.js was extracted to prevent, pointed at the
+    // screen that exists to do this properly.
     //
-    // IMPORTING DOES NOT RESET THE LINEAGE. `generation` counts breeds, and
-    // dropping creatures into the vivarium is not a breed. Each import is marked
-    // `{ kind: STRANGER, imported: true }`, which the sheet already knows how to
-    // say and which the stranger glyph already knows how to draw.
-    async function openImport() {
-      if (!ready) return;
-      state = STATE.SHEET_OPEN;
-      sheet.hidden = false;
-      sheet.replaceChildren();
-      mk('spec-picker-title', sheet).textContent = `${t('Import up to')} ${POPULATION} ${t('from the Atlas')}`;
-
-      // THE INDEX, NOT A SECOND FULL SCAN. This sheet used to read every
-      // `specimen:` record — portraits and all — a second time, duplicating what
-      // the Atlas screen was already doing and paying for it again on every
-      // open. Rows are primitives and the portraits load per visible card.
-      await atlas.ensureIndex();
-      if (sheet.hidden) return;             // closed while the list was loading
-      const rows = atlas.rows().slice().sort((a, b) => b.createdAt - a.createdAt);
-
-      const chosen = new Set();
-      const go = button('', async () => {
-        const keys = [...chosen];
-        closeSheet();
-        if (!keys.length) return;
-        // The GENOME is the only thing this needs, and it is the one thing a row
-        // does not carry. Fetch just the chosen few.
-        const picks = [];
-        for (const key of keys) {
-          const spec = await atlas.specFor(key);
-          if (spec?.genome) picks.push(spec);
-        }
-        if (picks.length) importSpecimens(picks);
-      });
-      const label = () => { go.textContent = `${t('Release')} ${chosen.size}`; go.disabled = chosen.size === 0; };
-
-      if (!rows.length) {
-        mk('spec-empty', sheet, 'p').textContent =
-          t('No saved creatures yet. Long-press a creature and tap Save to keep one.');
-      } else {
-        const grid = mk('spec-grid spec-grid-sheet', sheet);
-        for (const r of rows) {
-          grid.append(specCard(r, {
-            selectable: true, stats: false, thumb: atlas.thumbFor,
-            onToggle: (next) => {
-              // The CALLER decides whether the toggle takes: the cap is real, and
-              // a card that ticked itself and was then refused would be lying.
-              if (next && chosen.size >= POPULATION) return false;
-              if (next) chosen.add(r.key); else chosen.delete(r.key);
-              label();
-              return true;
-            },
-          }));
-        }
-        // The sheet scrolls in its own box, so "near the viewport" has to be
-        // measured against THAT box and not the page — otherwise every card in
-        // it qualifies and all of them load at once, which is the behaviour this
-        // replaced. No chunking here: the sheet is capped at 48vh and is about
-        // to be replaced by the Atlas's own release mode.
-        importThumbs?.stop();
-        importThumbs = lazyThumbs(grid, { scroller: grid });
-      }
-      label();
-      sheet.append(go, button(t('Cancel'), closeSheet));
-    }
+    // The `Atlas` control asks for creatures (ui/release.js `requestStock`) and
+    // switches tabs; the Atlas offers its own grid, with everything that grid can
+    // now do, and hands the picks back. `importSpecimens` below is unchanged and
+    // is still the only thing that writes them into the tank.
 
     function importSpecimens(picks) {
       previous = snapshot();
@@ -1142,7 +1136,7 @@ export default {
       capped = false;
       paint();
     }, 'speed');
-    const btnReset = chip(t('Reset'), () => { pan.set(0, 0, 0); spawn(); });
+    const doReset = () => { pan.set(0, 0, 0); spawn(); };
     /**
      * ── A FRESH RANDOM DRAW OF ALL SIX ────────────────────────────────────────
      *
@@ -1163,7 +1157,7 @@ export default {
      * than the same one — `freshVivariumSeed` is already the project's way of
      * saying "a genuinely new world".
      */
-    const btnDraw = chip(t('New draw'), () => {
+    const doDraw = () => {
       const seeded = seedPopulation({
         RAPIER, rng: rngFrom('tank', freshVivariumSeed(), 'redraw'),
         world: W1_SLICE, authoredSlots: 0,
@@ -1177,12 +1171,52 @@ export default {
       spawn();
       persistLineage();
       paint();
+    };
+    // UNDO LIVES ONLY IN THE MENU. It was briefly a chip that appeared beside
+    // Breed after a breed and timed out — a reasonable safety net, and one more
+    // thing appearing and disappearing under the player's thumb on a screen whose
+    // whole point was to become quiet. `Undo last breed` is the first item in the
+    // burger and is omitted entirely when there is no snapshot, so it is never a
+    // control that does nothing.
+
+    // ── the door to the Atlas ────────────────────────────────────────────────
+    //
+    // Replaces `Import`, which opened a second specimen browser inside this
+    // screen — no search, no filter, a 48vh scroll, and its own full read of
+    // every record. The Atlas is the place creatures are managed; this points at
+    // it rather than reimplementing a worse one.
+    const btnAtlas = chip(t('Atlas'), () => {
+      release.requestStock(POPULATION);
+      nav.goTab('atlas');
     });
-    const btnUndo = chip(t('Undo'), doUndo);
-    const btnBurst = chip(t('Burst'), openBurstSheet, 'burst');
-    const btnStranger = chip(t('Stranger'), openStrangerPicker, 'stranger');
-    const btnImport = chip(t('Import'), openImport);
+
     const btnMore = chip('☰', () => openMenu(btnMore, [
+      // BUILT PER OPEN, because `openMenu` has no disabled state. An item that
+      // cannot do anything is simply not offered rather than being offered and
+      // then doing nothing — which is the only honest option available here.
+      ...(previous && !busyNow() ? [{ label: t('Undo last breed'), onSelect: doUndo }] : []),
+      ...(ready && !busyNow() ? [{ label: t('Burst…'), onSelect: openBurstSheet }] : []),
+      ...(ready && !busyNow() ? [{
+        // The chip used to carry the picked stranger's name and a tint. In a menu
+        // the label is the only place that state can live, so it goes there.
+        label: pendingStranger
+          ? `${t('Stranger')}: ${pendingStranger.commonName}`
+          : t('Choose next stranger…'),
+        onSelect: openStrangerPicker,
+      }] : []),
+      ...(ready && !busyNow() ? [{ label: t('New draw'), onSelect: doDraw }] : []),
+      { label: t('Reset'), onSelect: doReset },
+      // ── THE VISIBILITY LAYERS, KEPT ──────────────────────────────────────
+      //
+      // Both are evidence and both get in the way of the other: 1400 food dots
+      // hide the trails, and six never-forgetting trails eventually hide the
+      // food they were drawn on.
+      //
+      // FOOD OFF BY DEFAULT. 1400 particles over a six-creature tank read as
+      // noise rather than as a field — they hide the animals, which are the
+      // thing the screen is for, and the ledger now reports what was eaten far
+      // more precisely than counting specks ever could. Still one tap away,
+      // because watching a patch get stripped is worth seeing on purpose.
       {
         label: t('Food'), on: show.food, keepOpen: true,
         state: () => show.food,
@@ -1197,12 +1231,15 @@ export default {
     btnMore.setAttribute('aria-haspopup', 'menu');
     btnMore.setAttribute('aria-label', t('More'));
 
-    cluster.append(btnPause, btnSpeed, btnReset, btnDraw);
-    tools.append(btnStranger, btnImport, btnMore);
-    // Undo and Burst flank Breed: all three CHANGE THE POPULATION, which is a
-    // different kind of act from the transport pill above.
-    primaryRow.prepend(btnUndo);
-    primaryRow.append(btnBurst);
+    // ── THE RESTING STATE: PLAY/PAUSE · SPEED · BREED · ATLAS ────────────────
+    //
+    // Everything that acts on the POPULATION or on the VIEW is behind the burger
+    // in the transport pill; the top-right pill is now exactly one thing, the
+    // door to the Atlas. Breed gets the whole primary row instead of competing
+    // with two `flex: none` chips for it, which is a real legibility gain for the
+    // one control this screen is about.
+    cluster.append(btnPause, btnSpeed, btnMore);
+    tools.append(btnAtlas);
     primary.addEventListener('click', doBreed);
 
     // ── breeding ────────────────────────────────────────────────────────────
@@ -1223,6 +1260,16 @@ export default {
       coach.hidden = true;
       previous = snapshot();               // one-step undo, kept BEFORE the breed
 
+      // ── THE EDGE THAT WAS NEVER WRITTEN DOWN ────────────────────────────
+      //
+      // `breed()` reports each child's parents as INDICES into the pre-breed
+      // array, which is precise and entirely local: the moment the array is
+      // replaced below, `[0, 3]` stops meaning anything. So the indices are
+      // resolved to hashes HERE, while the old array still exists, and a hash is
+      // a name that survives the generation, a reload, and being saved into the
+      // Atlas months later.
+      const prevHashes = genomes.map(hashOf);
+
       const r = breed({
         RAPIER, genomes,
         selected: [...selected],
@@ -1239,7 +1286,11 @@ export default {
         injectStrangers: pendingStranger ? [pendingStranger.genome] : [],
       });
       genomes = r.genomes;
-      provenance = r.provenance;
+      provenance = r.provenance.map((p) => (p.parents
+        // `filter(Boolean)` because a genome that would not hash contributes no
+        // edge — better a short parent list than a null in the middle of one.
+        ? { ...p, parentHashes: p.parents.map((k) => prevHashes[k]).filter(Boolean) }
+        : p));
       generation++;
       pendingStranger = null;              // the import is spent
       // Elites keep their slot and stay selected, so repeat-breeding one lineage
@@ -1318,18 +1369,33 @@ export default {
       const perRound = BURST.pool - Math.max(pinned.length, BURST.pool >> 1);
       const totalBodies = (BURST.pool - pinned.length) + rounds * Math.max(1, perRound);
       let done = 0;
+      // Into the primary control, via `burstLabel` so `paint()` — which runs
+      // every 150 ms during a burst — reads it instead of overwriting it.
       const showProgress = () => {
-        btnBurst.textContent = `${Math.min(99, Math.round((100 * done) / totalBodies))}%`;
+        burstLabel = `${t('Burst')} ${Math.min(99, Math.round((100 * done) / totalBodies))}%`;
+        paint();
       };
 
       (async () => {
         let pop = genomes.slice();
+        const fromTank = pop.length;
         if (pop.length < BURST.pool) {
           pop = pop.concat(seedPopulation({
             RAPIER, rng: rng.fork('expand'), world: W1_SLICE,
             population: BURST.pool - pop.length, authoredSlots: 0,
           }).genomes);
         }
+        /**
+         * Parent hashes per pool slot, carried across rounds.
+         *
+         * AFTER the expansion, and the two halves start differently on purpose.
+         * A creature that came out of the tank may have any amount of history
+         * behind it that this burst knows nothing about, so `null` — unknown. A
+         * slot the expansion just drew at random genuinely has no parents, so
+         * `[]` — recorded, and none. Collapsing the two would either invent an
+         * ancestry or erase one.
+         */
+        let poolParents = pop.map((_, i) => (i < fromTank ? null : []));
 
         const isPinned = new Set(pinned);
         const scores = new Array(pop.length).fill(0);
@@ -1365,14 +1431,31 @@ export default {
           const selectN = Math.max(2, pop.length >> 1);
           const parents = burstSelection(pinned, scores, selectN);
           const before = pop;
-          pop = breed({
+          const beforeHashes = pop.map(hashOf);
+          const bred = breed({
             RAPIER, genomes: pop, selected: parents,
             rng: rng.fork(`breed${round}`), world: W1_SLICE,
             // Asexual, matching engine/l2/objective.js autoBurst — the burst
             // breeds from half the pool, so it would go sexual for free and stop
             // being comparable to every figure taken with tools/_zburst.mjs.
             limits: { ...SLICE_LIMITS, crossoverRate: 0 },
-          }).genomes;
+          });
+          pop = bred.genomes;
+
+          // ── ANCESTRY THROUGH A BURST ────────────────────────────────────────
+          //
+          // A burst is N generations inside a pool, and it used to throw away
+          // `provenance` on every one of them — so a creature the player kept
+          // afterwards arrived in the Atlas with no parents at all, from an
+          // operation that had just bred it twenty times over.
+          //
+          // Only the ROUND THAT LAST CHANGED A SLOT matters: that is the breed
+          // this animal came out of, and its parents are pool members of the
+          // round before it. A slot that did not change keeps the ancestry it
+          // already had (identity test, the same one `measured` uses below).
+          poolParents = pop.map((g, i) => (g === before[i]
+            ? poolParents[i]
+            : (bred.provenance[i]?.parents ?? []).map((k) => beforeHashes[k]).filter(Boolean)));
 
           // ONLY THE NEW BODIES ARE RESCORED. N18 returns an elite as the SAME
           // OBJECT REFERENCE, so identity is an exact test for "did not change".
@@ -1389,14 +1472,18 @@ export default {
         provenance = keep.map((poolIndex, slot) =>
           (isPinned.has(poolIndex) && poolIndex === slot
             ? { kind: KIND.ELITE, parent: slot, ops: [], attempts: 0, fellBack: false }
-            : { kind: KIND.OFFSPRING }));
+            // `parentHashes` is OMITTED, not empty, for a creature the burst
+            // never touched: `[]` claims "bred from nothing", which is a fact,
+            // and absence says "we do not know", which is the truth.
+            : { kind: KIND.OFFSPRING, ...(poolParents[poolIndex]?.length
+              ? { parentHashes: poolParents[poolIndex] } : {}) }));
         generation++;
         // The selection SURVIVES the burst. Clearing it threw away the player's
         // curation on every run.
         selected = new Set(pinned);
         pendingStranger = null;
 
-        btnBurst.textContent = '';
+        burstLabel = '';
         state = STATE.BREEDING;
         breedingUntil = performance.now() + BREEDING_MS;
         spawn();
@@ -1404,7 +1491,7 @@ export default {
         persistLineage();
       })().catch(() => {
         // A failed burst must not strand the vivarium frozen — restore and resume.
-        btnBurst.textContent = '';
+        burstLabel = '';
         state = STATE.SIMULATING;
         view.dataset.breeding = 'no';
         paint();
@@ -2164,6 +2251,24 @@ export default {
       state = STATE.SIMULATING;
       if (!saved) persistLineage();
       paint();
+
+      // ── WHATEVER THE ATLAS RELEASED WHILE WE WERE AWAY ──────────────────────
+      //
+      // AFTER `spawn()` AND AFTER `ready`, deliberately. `importSpecimens` writes
+      // into `genomes` by slot and then respawns, so running it before the cast
+      // exists would write into an empty array. Folding the picks in before the
+      // first spawn would save one rebuild and lose the undo snapshot, which is
+      // the wrong trade for a few milliseconds.
+      //
+      // Every genome is validated on the way in: the queue survives a reload, so
+      // it can in principle outlive the build that wrote it.
+      try {
+        const picks = (await release.drain()).filter((s) => {
+          try { return validateGenome(s.genome).ok !== false; } catch { return false; }
+        });
+        if (picks.length && !stopped) importSpecimens(picks);
+      } catch { /* nothing was waiting, or it was unreadable */ }
+
       // ONE FRAME, SYNCHRONOUSLY, BEFORE THE PANEL DROPS. `spawn()` fits the
       // camera but does not draw; handing back to rAF here would lower the panel
       // on a canvas still holding whatever was in it. Drawing first means the

@@ -41,6 +41,74 @@ export function mk(cls, parent, tag = 'div') {
 }
 
 /**
+ * Press and hold, the way a photo library does it.
+ *
+ * ── WHY NOT `contextmenu` ────────────────────────────────────────────────────
+ *
+ * `contextmenu` is the one-line version and it is wrong on both ends: on a
+ * phone the browser's own text-selection callout races it, and on a desktop it
+ * fires on right-click, which is not the gesture. Pointer events are the same
+ * ones the tank already reads for its own long-press, and using them here means
+ * one taxonomy of gesture across the app rather than two.
+ *
+ * ── THE CLICK THAT MUST NOT HAPPEN ───────────────────────────────────────────
+ *
+ * A long press ends in a `pointerup`, and the browser then fires `click` — so
+ * without the capture-phase suppressor below, holding a card to SELECT it would
+ * also open it. The flag is cleared on a timer rather than in the same handler
+ * because the click arrives a tick later than the up.
+ *
+ * @param {HTMLElement} el
+ * @param {Function} fn      called once, when the hold is recognised
+ * @param {object} [o]
+ * @param {number} [o.ms=400]     hold duration; TAP.longPressMs in ui/tank/sim.js
+ * @param {number} [o.slop=8]     movement that turns a hold into a scroll
+ * @returns {() => void} detach
+ */
+export function longPress(el, fn, o = {}) {
+  const ms = o.ms ?? 400;
+  const slop = o.slop ?? 8;
+  let timer = 0, x = 0, y = 0, fired = false;
+
+  const clear = () => { clearTimeout(timer); timer = 0; };
+
+  const down = (e) => {
+    // Primary button / single touch only. A two-finger gesture is a scroll.
+    if (e.button > 0 || !e.isPrimary) return;
+    x = e.clientX; y = e.clientY; fired = false;
+    clear();
+    timer = setTimeout(() => { timer = 0; fired = true; fn(e); }, ms);
+  };
+  const move = (e) => {
+    if (!timer) return;
+    if (Math.abs(e.clientX - x) > slop || Math.abs(e.clientY - y) > slop) clear();
+  };
+  const up = () => clear();
+  // CAPTURE, so the suppression happens before the element's own click handler.
+  const click = (e) => {
+    if (!fired) return;
+    fired = false;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointermove', move, { passive: true });
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('click', click, true);
+
+  return () => {
+    clear();
+    el.removeEventListener('pointerdown', down);
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+    el.removeEventListener('click', click, true);
+  };
+}
+
+/**
  * A chip in the floating control cluster.
  *
  * @param {string} label   sentence case; '' when the caller sets it later

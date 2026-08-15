@@ -16,10 +16,13 @@
 import { t } from '../../trunk/i18n.js';
 import { seedAtlas } from '../../worlds/atlas_seed.js';
 import { renderThumbnail, RENDER_TAG } from '../../render/thumbnail.js';
-import { specCard, metricRows } from '../cards.js';
+import { specCard, cardStat } from '../cards.js';
 import { button, mk } from '../widgets.js';
 import { nameFor } from '../vernacular.js';
 import { lineageFrom } from '../../engine/l1/vernacular.js';
+// How many creatures a tank holds, and therefore how many may be ticked. Read
+// from the engine rather than restated, so the cap cannot drift from the tank.
+import { POPULATION } from '../../engine/l1/breed.js';
 import * as names from '../names.js';
 import * as atlas from '../atlas/index.js';
 import { sampleFromRow } from '../atlas/derive.js';
@@ -28,8 +31,9 @@ import { specRow } from '../atlas/list.js';
 import { filterBar } from '../atlas/bar.js';
 import * as query from '../atlas/query.js';
 import { applyQuery } from '../atlas/query.js';
-import { PROFILE_TAG } from '../atlas/profile.js';
-import W1_SLICE from '../../worlds/w1_slice.js';
+import { measureGenome } from '../atlas/measure.js';
+import * as release from '../release.js';
+import * as nav from '../../trunk/nav.js';
 
 export default {
   title: t('Atlas'),
@@ -39,15 +43,120 @@ export default {
     let live = [];
     let result = { groups: [], total: 0, matched: 0, counts: {}, unmeasured: 0 };
 
+    // ══ SELECTION ════════════════════════════════════════════════════════════
+    //
+    // ONE MECHANISM, TWO WAYS IN. The Vivarium's `Atlas` control calls
+    // `release.requestStock(POPULATION)` and switches tabs, so the screen can
+    // OPEN as a picker; and a press-and-hold on any card starts a selection from
+    // inside, the way a photo library does. Both land in the same state, so the
+    // verb, the cap, the counter and the bar are written once.
+    //
+    // It is the same grid either way — same search, same filters, same sort —
+    // which is the entire reason the tank stopped carrying a picker of its own.
+    //
+    // THE CAP IS THE TANK'S, NOT THE SELECTION'S: `POPULATION` creatures fit,
+    // so that is what may be ticked. A card refuses the toggle rather than
+    // accepting it and being quietly dropped at release.
+    const requested = release.stocking();
+    /** null when browsing; `{ capacity, fromTank }` while selecting. */
+    let selecting = requested ? { capacity: requested.capacity, fromTank: true } : null;
+    const chosen = new Set();
+
     const wrap = mk('atlas', el);
     const bar = filterBar({
       onChange: () => render(),
       result: () => result,
       rows: () => atlas.rows(),
       onMeasureAll: () => measureRecords(measurable(), Infinity),
+      onSelectMode: () => beginSelect(),
     });
     wrap.append(bar.el);
     const body = mk('atlas-body', wrap);
+
+    // Fixed above the tab bar, so the count and the verb stay put however far
+    // down the list you have scrolled — choosing six creatures out of three
+    // hundred is a lot of scrolling.
+    const selbar = mk('atlas-selbar', wrap);
+    selbar.hidden = true;
+    const selCount = mk('atlas-selbar-n', selbar, 'span');
+    const selGo = button('', doRelease);
+    // THE VERB IS BIGGER THAN THE ESCAPE HATCH. Releasing is what the bar is
+    // for; cancelling is what you do when you opened it by accident. Sizing them
+    // equally made the bar read as a question with two answers.
+    selGo.className = 'btn atlas-selbar-go';
+    // ── DELETE, FOR THE SELECTION ────────────────────────────────────────────
+    //
+    // AUTHORED SPECIMENS ARE NOT DELETABLE and the button says so by leaving:
+    // `seedAtlas` replants the shipped library on the next open, so deleting one
+    // is a button that appears to work and then undoes itself. It is offered only
+    // when every ticked creature is the player's own.
+    const selDel = button('', async () => {
+      selDel.disabled = true;
+      for (const key of chosen) { await atlas.remove(key); names.forget(key); }
+      chosen.clear();
+      selecting = null;
+      render();
+    });
+    selDel.className = 'btn atlas-selbar-del';
+    const selCancel = button(t('Cancel'), endSelect);
+    selCancel.className = 'btn atlas-selbar-cancel';
+    selbar.append(selGo, selDel, selCancel);
+
+    /** Enter selection mode, optionally with the card that was held. */
+    function beginSelect(row) {
+      if (!selecting) selecting = { capacity: POPULATION, fromTank: false };
+      if (row && chosen.size < selecting.capacity) chosen.add(row.key);
+      render();
+    }
+
+    /**
+     * Leave it. A selection started from the TANK returns there — the player
+     * was sent here mid-task and cancelling means "never mind, take me back" —
+     * whereas one started by holding a card just goes back to browsing, which is
+     * where they already were.
+     */
+    function endSelect() {
+      const fromTank = selecting?.fromTank;
+      selecting = null;
+      chosen.clear();
+      release.cancel();
+      if (fromTank) { nav.goTab('vivarium'); return; }
+      render();
+    }
+
+    async function doRelease() {
+      if (!chosen.size) return;
+      selGo.disabled = true;
+      const picks = [];
+      // Rows carry no genome — that is what makes them small — so the records
+      // are read here, for the chosen few only.
+      for (const key of chosen) {
+        const spec = await atlas.specFor(key);
+        if (spec?.genome) picks.push(spec);
+      }
+      // `release()` caps at the outstanding request's capacity when there is one
+      // and at what it is given otherwise, so a selection begun from a long-press
+      // needs no separate ceiling.
+      await release.release(picks);
+      nav.goTab('vivarium');
+    }
+
+    function syncSel() {
+      wrap.dataset.selecting = selecting ? 'yes' : 'no';
+      selbar.hidden = !selecting;
+      if (!selecting) return;
+      selCount.textContent = `${chosen.size}/${selecting.capacity}`;
+      selGo.textContent = chosen.size === 1
+        ? t('Put 1 in the vivarium')
+        : `${t('Put')} ${chosen.size} ${t('in the vivarium')}`;
+      selGo.disabled = chosen.size === 0;
+
+      const deletable = chosen.size > 0
+        && [...chosen].every((k) => atlas.rowFor(k)?.source !== 'authored');
+      selDel.hidden = !deletable;
+      selDel.textContent = `${t('Delete')} ${chosen.size}`;
+      selDel.disabled = false;
+    }
 
     async function boot() {
       // Plant the authored library on first open (idempotent, keyed by hash), so
@@ -84,6 +193,7 @@ export default {
       live = [];
       body.replaceChildren();
       bar.sync();
+      syncSel();
 
       if (!result.total) {
         mk('spec-empty-page', body, 'p').textContent =
@@ -111,24 +221,57 @@ export default {
     }
 
     function buildOne(r, q) {
-      const common = { thumb: atlas.thumbFor, onOpen: null };
+      // PRESS AND HOLD IS AVAILABLE IN BOTH MODES. Out of selection it starts
+      // one on the card you held; inside it, the tap already toggles, so the
+      // hold costs nothing and the gesture never has to be un-learned.
+      const common = {
+        thumb: atlas.thumbFor,
+        onLongPress: (row) => beginSelect(row),
+        // TAP OPENS, HOLD SELECTS. The two gestures the grid understands, and
+        // the same pair a photo library uses — which is the point of picking
+        // that idiom rather than inventing one.
+        onOpen: (row) => nav.push('specimen', { id: row.hash }),
+      };
+
+      if (selecting) {
+        // The CALLER decides whether a toggle takes — the capacity is real, and a
+        // card that ticked itself and was then refused would be lying about what
+        // happened.
+        const sel = {
+          ...common, selectable: true, selected: chosen.has(r.key),
+          onToggle: (next) => {
+            if (next && chosen.size >= selecting.capacity) return false;
+            if (next) chosen.add(r.key); else chosen.delete(r.key);
+            syncSel();
+            return true;
+          },
+        };
+        // ── THE SAME CARD, TICKED ──────────────────────────────────────────
+        //
+        // `stats: false` used to be passed here, inherited from the old import
+        // sheet where the grid was squeezed into 48vh and the numbers were cut
+        // for room. On a full page it just meant every card silently lost a line
+        // and got shorter the instant you started selecting — the grid reflowed
+        // under your thumb, which is the one thing a selection must not do. A
+        // tick is a state, not a different card.
+        return q.view === 'list'
+          ? specRow(r, { ...sel, sortCol: q.sort.col })
+          : specCard(r, sel);
+      }
+
+      // ── DELETE IS NOT ON THE CARD ANY MORE ────────────────────────────────
+      //
+      // It used to be a full-width button under every thumbnail. At two columns
+      // that was tolerable; at 109 px a card it is a tap target as tall as a
+      // third of the animal, on every card, for an action taken rarely — and it
+      // was the single biggest contributor to a card being 246 px tall with
+      // 116 px of picture in it.
+      //
+      // It lives in the selection bar now: hold a card, tick what you want gone,
+      // delete them together. That is both less chrome and a better fit for what
+      // deleting actually is — you prune several at once, not one at a time.
       if (q.view === 'list') return specRow(r, { ...common, sortCol: q.sort.col });
-      return specCard(r, {
-        ...common,
-        // Authored specimens are the shipped library and are not deletable — the
-        // next open would only plant them again, so a Delete button would be a
-        // button that does nothing.
-        action: r.source === 'authored' ? null : button(t('Delete'), async (e) => {
-          e.currentTarget.disabled = true;
-          await atlas.remove(r.key);
-          names.forget(r.key);
-          render();
-        }),
-        // `el` IS `#screen`, and `#screen` is the scroller — base.css:28 gives it
-        // `overflow-y: auto`. Passing `null` to reveal would listen for scroll on
-        // `window`, which never fires, so the list would render its first chunk
-        // and then silently stop growing and stop loading portraits.
-      });
+      return specCard(r, common);
     }
 
     /**
@@ -239,58 +382,26 @@ export default {
     }
 
     async function runMeasure(todo) {
-      const { default: RAPIER } = await import('@dimforge/rapier3d-compat');
-      await RAPIER.init();
-      const [{ assessViability }, { forageProfile }, { S3 }] = await Promise.all([
-        import('../../engine/l1/viability.js'),
-        import('../../engine/l2/forage.js'),
-        import('../../engine/l2/probes.js'),
-      ]);
-      if (stopped) return;
-
       for (const r of todo) {
         if (stopped) return;
         await yieldFrame();
         if (stopped) return;
 
         const spec = await atlas.specFor(r.key);
-        if (stopped) return;
-        if (!spec?.genome) continue;
+        if (stopped || !spec?.genome) continue;
 
-        let profile = { tag: PROFILE_TAG, valid: false };
-        try {
-          const v = assessViability(RAPIER, spec.genome, W1_SLICE);
-          if (v.ok) {
-            const p = forageProfile(RAPIER, {
-              plan: v.plan, genome: spec.genome, world: W1_SLICE, foodOpts: { seed: 11 },
-            });
-            if (p.valid && p.intact) {
-              let turn = null;
-              try {
-                const s3 = S3(RAPIER, {
-                  plan: v.plan, genome: spec.genome, world: W1_SLICE,
-                  cruiseSpeed: p.netDisplacement / p.window,
-                });
-                if (s3.valid) turn = s3.turnRate3d * s3.steeringAuthority * (180 / Math.PI);
-              } catch { /* a card without a turn figure, not a card that failed */ }
-              profile = {
-                tag: PROFILE_TAG, valid: true,
-                foodPerSecond: p.foodPerSecond,
-                multiplier: p.multiplier,
-                straightness: p.straightness,
-                size: p.size,
-                turnCapability: turn,
-              };
-            }
-          }
-        } catch { /* leave it invalid; the next open tries again */ }
+        // ONE IMPLEMENTATION, in ui/atlas/measure.js. The specimen page's
+        // `Measure now` calls the same function, so the two cannot write
+        // different numbers under the same PROFILE_TAG.
+        const profile = await measureGenome(spec.genome);
+        if (stopped) return;
 
         const next = await atlas.patch(r.key, { profile });
-        if (stopped || !next) continue;
+        if (!next) continue;
         // Swap the strip in place. Rebuilding the card would drop the portrait
         // that may have just finished loading into it.
         const dl = body.querySelector(`[data-key="${cssEscape(r.key)}"] .spec-card-metrics`);
-        if (dl) dl.replaceChildren(...metricRows(next));
+        if (dl) dl.replaceChildren(...cardStat(next));
         // The count line owns the "N unmeasured" claim, and it has just changed.
         result.unmeasured = Math.max(0, result.unmeasured - 1);
         bar.sync();
@@ -299,7 +410,16 @@ export default {
 
     boot();
 
-    return { stop() { stopped = true; for (const l of live) l.stop(); } };
+    return {
+      stop() {
+        stopped = true;
+        for (const l of live) l.stop();
+        // Leaving without releasing ends the request. Without this the Atlas
+        // would still be a picker the next time it was opened, from a tank that
+        // had long since stopped waiting.
+        release.cancel();
+      },
+    };
   },
 
   // ── THE HALF OF `stop()` THAT WAS NEVER WIRED ────────────────────────────

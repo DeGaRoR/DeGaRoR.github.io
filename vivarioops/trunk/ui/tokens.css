@@ -89,6 +89,29 @@
   --r-card: 8px;
   --gutter: 16px;
   --gap:    8px;
+  /* ── THE ATLAS CARD ────────────────────────────────────────────────────────
+     `--card-min` is the narrowest a card may get before the grid drops a column.
+     It has been wrong in both directions: two FIXED columns made one portrait
+     taller than the viewport, and the first fix (108px) overshot into seven
+     columns of thumbnails too small to read a stat line on without it wrapping.
+     168px is the value that holds BOTH ends — two across on a 375px phone, four
+     on a 858px pane, roughly doubling the picture from that first attempt while
+     never collapsing to a single column the way 216px would on a phone.
+     `--card-art` is the portrait's aspect ratio, WIDER THAN TALL (was 0.72, a
+     full-height frame per animal). These creatures are longer than they are
+     deep, so a squarer frame wastes less on empty water and fits the shape of
+     the thing being photographed. */
+  --card-min: 168px;
+  --card-art: 0.92;
+  /* ── READING WIDTHS ────────────────────────────────────────────────────────
+     A phone-first layout that says `width: 100%` and nothing else is correct on
+     a phone and absurd on a desktop: the specimen portrait went full-bleed and
+     became a metre of creature on a wide monitor. These are the ceilings.
+     `--page-max` is a readable measure for a column of rows and prose;
+     `--portrait-max` is the point past which a bigger portrait stops telling you
+     anything new about the animal. */
+  --page-max: 640px;
+  --portrait-max: 360px;
   --gap-2:  11px;
   --hairline:    1px;        /* the control pill's 1px seam (padding + gap) */
   --chip-pad:    18px;       /* cluster chip horizontal padding (speed uses --gutter) */

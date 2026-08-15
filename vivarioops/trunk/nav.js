@@ -21,6 +21,23 @@
 const TABS = ['vivarium', 'atlas', 'world', 'settings'];
 const PRIMARY = 'vivarium';
 
+/**
+ * The tabs that get a BUTTON. A subset of `TABS`, and deliberately not the same
+ * list.
+ *
+ * `world` is a six-line placeholder and `settings` has been a stub for long
+ * enough that a permanent quarter of the tab bar spent on two screens that do
+ * nothing is worse than not having them: a tab bar is a claim about what the app
+ * is for, and two of its four claims were false.
+ *
+ * THEY ARE STILL ROUTES. `TABS` is what `parseRoute` accepts and what each
+ * stack is keyed by, so `#/settings` still resolves, `goTab('settings')` still
+ * works, and nothing has to be rebuilt on the day either screen becomes real —
+ * it is one entry in this list. Hiding a destination and deleting it are
+ * different acts and this is the first one.
+ */
+const VISIBLE_TABS = ['vivarium', 'atlas'];
+
 const screens = new Map();
 const stacks = {};    // tab -> [{ screen, params }]
 const depths = {};    // tab -> cursor into that stack
@@ -38,21 +55,39 @@ export function register(id, def) {
   screens.set(id, { kind: 'destination', ...def, id });
 }
 
+/** Every routable tab. The stacks, `parseRoute` and the gate use this one. */
 export function tabs() { return TABS.slice(); }
+/** The tabs that get a button in the bar. See `VISIBLE_TABS`. */
+export function visibleTabs() { return VISIBLE_TABS.slice(); }
 export function current() { return stacks[activeTab][depths[activeTab]]; }
 export function currentTab() { return activeTab; }
 export function stackDepth(tab = activeTab) { return depths[tab]; }
 export function onChange(fn) { listeners.push(fn); return () => { listeners = listeners.filter(f => f !== fn); }; }
 
+/**
+ * ── THE ID TAIL ──────────────────────────────────────────────────────────────
+ *
+ * A route was `#/<tab>[/<screen>]` and nothing more, which was enough while
+ * every screen was a singleton. The specimen page is not: it is one screen over
+ * three hundred subjects, and a route that cannot say WHICH is a route that
+ * cannot be reloaded, shared or returned to by the browser's own back button —
+ * you would land on "a specimen" with no way to know which one.
+ *
+ * One optional trailing segment, and only a screen that asked for it gets one.
+ * `#/atlas/specimen/ab12cd34`.
+ */
 function routeOf(tab, entry) {
-  return `#/${tab}${entry.screen === tab ? '' : '/' + entry.screen}`;
+  const screen = entry.screen === tab ? '' : `/${entry.screen}`;
+  const id = entry.params?.id ? `/${encodeURIComponent(entry.params.id)}` : '';
+  return `#/${tab}${screen}${id}`;
 }
 
 function parseRoute(hash) {
   const parts = (hash || '').replace(/^#\/?/, '').split('/').filter(Boolean);
   const tab = TABS.includes(parts[0]) ? parts[0] : PRIMARY;
   const screen = parts[1] && screens.has(parts[1]) ? parts[1] : tab;
-  return { tab, screen };
+  const id = screen !== tab && parts[2] ? decodeURIComponent(parts[2]) : null;
+  return { tab, screen, id };
 }
 
 // ── navigation ───────────────────────────────────────────────────────────────
@@ -110,8 +145,29 @@ function mountInto(el, entry) {
   const def = screens.get(entry.screen);
   el.innerHTML = '';
   el.dataset.screen = entry.screen;
-  const instance = def.mount(el, entry.params || {}) || null;
-  return { screen: entry.screen, def, instance, el };
+  const params = entry.params || {};
+  const instance = def.mount(el, params) || null;
+  return { screen: entry.screen, def, instance, el, params };
+}
+
+/**
+ * ── A SCREEN IS ITS ID *AND* ITS PARAMS ──────────────────────────────────────
+ *
+ * `render` used to remount only when the screen ID changed, which was true while
+ * every screen was a singleton. The specimen page is one screen over hundreds of
+ * subjects: tapping a parent from a child pushed `specimen` onto `specimen`, the
+ * ids matched, and nothing remounted — the URL advanced to the parent while the
+ * page went on showing the child. A navigation that changes the address bar and
+ * not the content is worse than one that does nothing, because the player has no
+ * way to tell it failed.
+ *
+ * Shallow, because params are a flat bag of route scalars — `{ id }` today. A
+ * deep compare would invite callers to put objects in there, which is exactly
+ * what a route parameter must not be.
+ */
+function sameParams(a = {}, b = {}) {
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every((k) => a[k] === b[k]);
 }
 
 function unmount(m) {
@@ -122,14 +178,14 @@ export function render() {
   if (!host) return;
   const { base, modal } = visible();
 
-  if (!mounted || mounted.screen !== base.screen) {
+  if (!mounted || mounted.screen !== base.screen || !sameParams(mounted.params, base.params)) {
     unmount(mounted);
     mounted = mountInto(host.querySelector('#screen'), base);
   }
 
   const layer = host.querySelector('#overlay');
   if (modal) {
-    if (!overlay || overlay.screen !== modal.screen) {
+    if (!overlay || overlay.screen !== modal.screen || !sameParams(overlay.params, modal.params)) {
       unmount(overlay);
       layer.hidden = false;
       overlay = mountInto(layer, modal);
@@ -152,14 +208,16 @@ export function start(hostEl) {
   host = hostEl;
   for (const t of TABS) { stacks[t] = [{ screen: t, params: {} }]; depths[t] = 0; }
 
-  const { tab, screen } = parseRoute(location.hash);
+  const { tab, screen, id } = parseRoute(location.hash);
   activeTab = PRIMARY;
   history.replaceState({ tab: PRIMARY, depth: 0 }, '', `#/${PRIMARY}`);
 
   addEventListener('popstate', onPopState);
 
   if (tab !== PRIMARY) goTab(tab);
-  if (screen !== tab) push(screen);
+  // The id rides along, so a deep link to one specimen reconstructs the stack
+  // AND lands on the right subject rather than on an empty detail page.
+  if (screen !== tab) push(screen, id ? { id } : {});
   render();
 }
 

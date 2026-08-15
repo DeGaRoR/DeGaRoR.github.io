@@ -282,9 +282,17 @@ html, body {
 /* The stranger chip tints to the stranger colour once a creature is picked. */
 .tank-chip.stranger.picked { color: var(--c-stranger); }
 
-/* Atlas — the saved-creature collection, a two-column card grid. */
+/* ── Atlas — the saved-creature collection ───────────────────────────────────
+   IT WAS TWO FIXED COLUMNS AND THAT WAS THE PROBLEM. At two across, one card is
+   half the screen wide, and at the old 0.72 portrait ratio that made it TALLER
+   THAN THE VIEWPORT — a grid where you cannot see two creatures at once is not a
+   grid, it is a slideshow. `auto-fill` lets the column count follow the screen:
+   three on a phone, five or six on a tablet, and it keeps working on whatever
+   comes next without another breakpoint. */
 .spec-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: var(--gap);
   padding: var(--gutter);
 }
 /* ── THE SPECIMEN CARD ────────────────────────────────────────────────────────
@@ -306,24 +314,35 @@ html, body {
   border-radius: var(--r-card);
 }
 .spec-card-art { position: relative; display: block; }
+/* `contain`, not `cover`. render/thumbnail.js already fits real mesh vertices to
+   a target NDC, so the portrait fills its own square — cropping it a second time
+   took the fins off exactly the long-bodied animals the spine grammar made
+   common. The card is small enough now that losing a tail matters. */
 .spec-card-thumb {
-  width: 100%; aspect-ratio: 0.72; object-fit: cover; display: block;
+  width: 100%; aspect-ratio: var(--card-art); object-fit: contain; display: block;
   background: var(--c-bg);
 }
 /* The legend. A scrim rather than a bar: the portraits fade to near-black at the
    edges already, so a hard band would read as a seam across the art. */
 .spec-card-legend {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-  padding: var(--s-5) var(--s-2) var(--s-2);
+  padding: var(--s-4) var(--s-1) var(--s-1);
   background: linear-gradient(to top, rgba(4, 7, 10, 0.92) 32%, rgba(4, 7, 10, 0));
   pointer-events: none;
 }
+/* CLAMPED, because the card is a third of the width it used to be and some of
+   these names are six words long. Two lines for the name, one for the Latin —
+   a legend that grows to five lines pushes the art out of its own card. */
 .spec-card-name {
-  display: block; font-size: var(--t-label); line-height: 1.15;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  line-clamp: 2; overflow: hidden;
+  font-size: var(--t-label); line-height: 1.2;
   color: var(--c-on-water); text-shadow: var(--shadow-on-water);
 }
 .spec-card-bino {
-  display: block; margin-top: var(--s-1);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1;
+  line-clamp: 1; overflow: hidden;
+  margin-top: var(--s-1);
   font-family: var(--f-name); font-style: italic; font-size: var(--t-value);
   line-height: 1.15; color: var(--c-on-water-dim); text-shadow: var(--shadow-on-water);
 }
@@ -340,17 +359,24 @@ html, body {
 /* ── the measurement strip ──────────────────────────────────────────────────
    Two columns of label/value. Mono and tabular so the digits line up down the
    grid — six cards side by side are only comparable if their numbers are. */
+/* ONE LINE, NOT FIVE. See `cardStat` in ui/cards.js: at 109 px wide a five-row
+   stat block was more of the card than the animal was, and columns of numbers
+   that do not align across a 7-wide grid cannot be compared anyway. The list
+   view is where numbers get read. */
 .spec-card-metrics {
-  display: grid; grid-template-columns: auto 1fr; column-gap: var(--s-2);
-  padding: var(--s-2);
-  font-family: var(--f-mono); font-size: var(--t-micro);
-  font-variant-numeric: tabular-nums;
+  display: flex; justify-content: space-between; gap: var(--s-2);
+  padding: var(--s-1) var(--s-2) var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-value);
+  font-variant-numeric: tabular-nums; color: var(--c-text-dim);
+  /* ONE LINE, ALWAYS. Wrapped stat text was the complaint that started this —
+     two numbers folding onto four lines under a thumbnail. `nowrap` states the
+     intent and the ellipsis makes an overflow legible instead of clipped. */
+  white-space: nowrap; overflow: hidden;
 }
-.spec-card-metrics dt { color: var(--c-text-dim); letter-spacing: var(--t-micro-tracking); }
-.spec-card-metrics dd { margin: 0; color: var(--c-text); text-align: right; }
-.spec-card-metrics dd[data-state="pending"] { color: var(--c-text-disabled); }
-.spec-card-metrics dd[data-state="good"] { color: var(--c-pass); }
-.spec-card-metrics dd[data-state="bad"] { color: var(--c-fail); }
+.spec-card-metrics > span { overflow: hidden; text-overflow: ellipsis; }
+.spec-card-metrics [data-state="pending"] { color: var(--c-text-disabled); }
+.spec-card-metrics [data-state="good"] { color: var(--c-pass); }
+.spec-card-metrics [data-state="bad"] { color: var(--c-fail); }
 .spec-card-stats {
   padding: 0 var(--s-2) var(--s-2);
   font-family: var(--f-mono); font-size: var(--t-micro); color: var(--c-text-dim);
@@ -491,6 +517,154 @@ html, body {
   color: var(--c-stranger);
 }
 
+/* ── THE SELECTION BAR ───────────────────────────────────────────────────────
+   Only in stocking mode, and FIXED above the tab bar: picking six creatures out
+   of three hundred is a lot of scrolling, and a count that scrolls away with the
+   list is a count you have to go back for. */
+.atlas-selbar {
+  position: fixed; left: 0; right: 0; bottom: var(--tabbar-h);
+  z-index: 6;
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-2) var(--gutter);
+  background: var(--c-surface); border-top: thin solid var(--c-line);
+}
+/* `display: flex` BEATS THE UA's `[hidden] { display: none }`, so setting the
+   property in JS did nothing and the bar sat on every Atlas load showing a big
+   teal button that could not be pressed. Every other component in this file
+   carries the same one-line rule for the same reason — see `.tank-sheet[hidden]`
+   and `.tank-coach[hidden]` above. */
+.atlas-selbar[hidden] { display: none; }
+.atlas-selbar-n {
+  flex: none; font-family: var(--f-mono); font-size: var(--t-value);
+  font-variant-numeric: tabular-nums; color: var(--c-text-dim);
+}
+/* THE VERB TAKES THE ROW; THE ESCAPE HATCH TAKES WHAT IT NEEDS. Sized equally,
+   the bar read as a question with two answers — but putting creatures in the
+   vivarium is the only reason the bar is there, and Cancel is what you press
+   when you opened it by accident. */
+/* `.btn` IS `width: 100%` — it was written for stacked sheet buttons. In a ROW
+   that default fights flex in exactly the wrong direction: `flex: 1` means
+   `flex-basis: 0`, so the verb collapsed to its share of the FREE space (52 px
+   measured) while `flex: none` let Cancel keep its full 100% (826 px) — the
+   opposite of the intended emphasis. Reset the width here and let flex do the
+   sizing, which is what it is for. */
+.atlas-selbar .btn { width: auto; margin-top: 0; }
+.atlas-selbar-go {
+  flex: 1 1 auto; min-height: var(--tapsize-prim);
+  background: var(--c-select); color: var(--c-bg); border-color: var(--c-select);
+}
+.atlas-selbar-go:disabled { background: var(--c-surface-2); color: var(--c-text-disabled); border-color: var(--c-line); }
+.atlas-selbar-del { flex: 0 0 auto; color: var(--c-fail); border-color: var(--c-fail); }
+.atlas-selbar-cancel { flex: 0 0 auto; }
+/* Room at the end of the list, so the last card is reachable rather than parked
+   under the bar. */
+.atlas[data-selecting="yes"] .atlas-body { padding-bottom: var(--s-6); }
+
+/* ══ THE SPECIMEN PAGE ═══════════════════════════════════════════════════════
+   One creature at length. The card is a compromise across three hundred; this
+   is the page with room to say everything the project knows about one. */
+/* CENTRED AND CAPPED. `width: 100%` is right on the phone this was designed for
+   and wrong everywhere else — a 2560 px monitor gave a 2560 px page. */
+.spec-page {
+  max-width: var(--page-max); margin-inline: auto;
+  padding: var(--s-0) var(--s-0) var(--s-6);
+}
+/* The one place the 1024 px portrait earns the half megabyte it costs —
+   everywhere else it is scaled into a card. That is not an argument for showing
+   it at any size the window happens to be: past `--portrait-max` a larger
+   picture of the same creature tells you nothing further. */
+.spec-page-art { background: var(--c-bg); }
+.spec-page-thumb {
+  display: block; width: 100%; max-width: var(--portrait-max);
+  margin-inline: auto; aspect-ratio: 1;
+  object-fit: contain; background: var(--c-bg);
+}
+.spec-page-head { padding: var(--s-3) var(--gutter) var(--s-2); }
+.spec-page-name { font-size: var(--t-lg); font-weight: 500; line-height: 1.2; }
+.spec-page-bino {
+  display: block; margin-top: var(--s-1);
+  font-family: var(--f-name); font-style: italic; font-size: var(--t-sm);
+  color: var(--c-text-dim);
+}
+.spec-page-taxon {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1);
+  margin-top: var(--s-2);
+  font-family: var(--f-name); font-size: var(--t-value); color: var(--c-text-dim);
+}
+.spec-page-badges {
+  display: flex; flex-wrap: wrap; gap: var(--s-2);
+  padding: var(--s-0) var(--gutter) var(--s-3);
+}
+.spec-page-headline {
+  padding: var(--s-0) var(--gutter) var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-value);
+  letter-spacing: var(--t-micro-tracking); color: var(--c-accent);
+}
+.spec-page-note {
+  padding: var(--s-0) var(--gutter) var(--s-3);
+  font-size: var(--t-sm); line-height: 1.5; color: var(--c-text-dim);
+}
+.spec-page-acts {
+  display: flex; flex-wrap: wrap; gap: var(--s-2);
+  padding: var(--s-0) var(--gutter) var(--s-4);
+}
+.spec-page-acts .btn { width: auto; flex: 1 1 auto; margin-top: 0; }
+.spec-page-go { background: var(--c-select); color: var(--c-bg); border-color: var(--c-select); }
+.spec-page-del {
+  width: auto; margin: var(--s-4) var(--gutter) var(--s-0);
+  color: var(--c-fail); border-color: var(--c-fail);
+}
+.spec-page-sec { padding: var(--s-0) var(--gutter) var(--s-4); }
+.spec-page-sec-h {
+  margin-bottom: var(--s-2);
+  font-size: var(--t-micro); letter-spacing: var(--t-micro-tracking);
+  text-transform: uppercase; color: var(--c-text-dim);
+}
+.spec-page-field { margin-bottom: var(--s-2); }
+.spec-page-hint {
+  font-size: var(--t-value); line-height: 1.5; color: var(--c-text-dim);
+  margin-bottom: var(--s-2);
+}
+.spec-page-tag {
+  margin-top: var(--s-2);
+  font-family: var(--f-mono); font-size: var(--t-micro);
+  letter-spacing: var(--t-micro-tracking); color: var(--c-text-disabled);
+}
+
+/* ── THE TRAIT BARS ──────────────────────────────────────────────────────────
+   Eighteen axes, each 0..1, each meaningless alone — the percentile beside the
+   bar is what turns "slenderness 0.62" into a fact about the animal rather than
+   about the normalisation. */
+.spec-page-trait {
+  display: grid; grid-template-columns: 7em 1fr 3em; align-items: center;
+  gap: var(--s-2); padding: var(--s-1) var(--s-0);
+  font-size: var(--t-micro);
+}
+.spec-page-trait-l { color: var(--c-text-dim); }
+.spec-page-trait-track {
+  height: var(--s-1); border-radius: var(--r-pill);
+  background: var(--c-surface-2); overflow: hidden;
+}
+.spec-page-trait-fill { height: 100%; background: var(--c-accent); }
+.spec-page-trait-n {
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  text-align: right; color: var(--c-text-dim);
+}
+
+/* Parents and children, tappable straight through to their own page. */
+.spec-page-kin { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }
+.spec-page-kin-item {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tapsize); padding: var(--s-1) var(--s-2);
+  background: var(--c-surface-2); color: var(--c-text);
+  border: thin solid var(--c-line); border-radius: var(--r-2);
+  font: inherit; font-size: var(--t-value); text-align: left; cursor: pointer;
+}
+.spec-page-kin-thumb {
+  width: var(--tapsize); height: var(--tapsize);
+  object-fit: contain; border-radius: var(--r-2); background: var(--c-bg);
+}
+
 /* The end-of-list marker `ui/atlas/reveal.js` measures to decide when to append
    the next chunk. It must occupy a row of its own in the grid — as a zero-size
    node it would sit beside the last card, so a full final row would report the
@@ -623,13 +797,46 @@ html, body {
 .forage-tick { flex: none; color: var(--c-select); width: var(--s-4); text-align: right; }
 .spec-picker-item[data-on="yes"] .forage-tick::after { content: "✓"; }
 
-/* A SELECTABLE spec-card — the Vivarium's Atlas import. Same card as the grid's,
-   same selected-state vocabulary the picker list already uses, so "chosen" looks
-   the same wherever the player meets it. */
+/* ── A SELECTED CARD OR ROW ──────────────────────────────────────────────────
+   Selection is now reachable by press-and-hold anywhere in the Atlas, not only
+   from the tank's request, so this state has to read at a glance across a grid
+   of three-across thumbnails.
+   A BORDER ALONE WAS NOT ENOUGH at this density — it is one hairline on a busy
+   portrait. The whole card dims behind an accent ring and the tick moves ONTO
+   the art, so what you can see is the SET you have chosen rather than a row of
+   marks you have to count. */
 button.spec-card { font: inherit; text-align: left; cursor: pointer; }
-.spec-card[data-on="yes"] { border-color: var(--c-select); }
-.spec-card-tick { margin-top: auto; min-height: var(--s-4); color: var(--c-select); font-size: var(--t-sm); }
+.spec-card[data-on="yes"], .spec-row[data-on="yes"] {
+  border-color: var(--c-select);
+  /* `em`, so the ring scales with the card rather than being a fixed hairline
+     that vanishes on a dense grid — and because N16 forbids raw px in screen
+     CSS, which is exactly the rule that would have let one through here. */
+  box-shadow: inset 0 0 0 0.14em var(--c-select);
+}
+.spec-card[data-on="yes"] .spec-card-thumb { opacity: 0.5; }
+/* The tick is positioned against the card, so the card is the frame. */
+.spec-card { position: relative; }
+.spec-card-tick {
+  position: absolute; top: var(--s-1); right: var(--s-1); z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  width: var(--s-5); height: var(--s-5); border-radius: var(--r-pill);
+  border: thin solid var(--c-on-water-dim); background: var(--c-scrim);
+  color: var(--c-bg); font-size: var(--t-value); line-height: 1;
+}
+.spec-card[data-on="yes"] .spec-card-tick {
+  border-color: var(--c-select); background: var(--c-select);
+}
 .spec-card[data-on="yes"] .spec-card-tick::after { content: "✓"; }
+/* In the dense row the tick is a normal item at the end — there is no art to
+   float it over, and the row is a fixed height it must not grow. */
+.spec-row-tick {
+  flex: none; width: var(--s-4); height: var(--s-4);
+  border-radius: var(--r-pill); border: thin solid var(--c-text-dim);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c-bg); font-size: var(--t-micro); line-height: 1;
+}
+.spec-row[data-on="yes"] .spec-row-tick { border-color: var(--c-select); background: var(--c-select); }
+.spec-row[data-on="yes"] .spec-row-tick::after { content: "✓"; }
 
 /* Anchored popover (ui/menu.js) — the Vivarium's overflow. A bottom sheet would
    cover the aquarium whose layers it is toggling, which is the one thing you
@@ -652,3 +859,23 @@ button.spec-card { font: inherit; text-align: left; cursor: pointer; }
 .menu-item-label { flex: 1; }
 .menu-item-tick { flex: none; width: var(--s-4); text-align: right; color: var(--c-select); }
 .menu-item[data-on="yes"] .menu-item-tick::after { content: "✓"; }
+
+/* A heading inside a section — "Bred from" / "Bred into" under Ancestry. Smaller
+   than the section head, because it divides one subject rather than starting a
+   new one. */
+.spec-page-sub {
+  margin-top: var(--s-3); margin-bottom: var(--s-1);
+  font-size: var(--t-value); color: var(--c-text-dim);
+}
+
+/* Back, in the top bar, for any screen pushed onto a tab root. Hidden at depth 0
+   — `display: flex` on #topbar beats the UA's `[hidden]`, the same trap the
+   selection bar fell into. */
+.topbar-back {
+  min-width: var(--tapsize); min-height: var(--tapsize);
+  margin-left: calc(var(--s-4) * -1);
+  background: none; border: none; color: var(--c-text);
+  font-family: var(--f-ui); font-size: var(--t-xl); line-height: 1; cursor: pointer;
+}
+.topbar-back[hidden] { display: none; }
+.topbar-back:active { color: var(--c-text-dim); }

@@ -22,7 +22,7 @@
 //
 // Tokens only, no hex/px (N16).
 
-import { mk } from '../widgets.js';
+import { mk, longPress } from '../widgets.js';
 import { COLUMN_BY_ID } from './derive.js';
 
 /**
@@ -42,7 +42,7 @@ import { COLUMN_BY_ID } from './derive.js';
  * @param {Function} [o.onToggle]
  */
 export function specRow(r, o = {}) {
-  const interactive = o.selectable || o.onOpen;
+  const interactive = o.selectable || o.onOpen || o.onLongPress;
   const el = document.createElement(interactive ? 'button' : 'div');
   el.className = 'spec-row';
   el.dataset.key = r.key;
@@ -57,6 +57,9 @@ export function specRow(r, o = {}) {
   } else if (o.onOpen) {
     el.addEventListener('click', () => o.onOpen(r));
   }
+  // Press and hold starts a selection here too — the density you are browsing in
+  // should not change which gestures the Atlas understands.
+  if (o.onLongPress) longPress(el, () => o.onLongPress(r));
 
   const art = mk('spec-row-art', el);
   const img = mk('spec-row-thumb', art, 'img');

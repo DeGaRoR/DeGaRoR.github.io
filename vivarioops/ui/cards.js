@@ -26,7 +26,7 @@
 // Tokens only, no hex/px (N16).
 
 import { t } from '../trunk/i18n.js';
-import { mk } from './widgets.js';
+import { mk, longPress } from './widgets.js';
 
 // `displayName` USED TO LIVE HERE, and `labelFor` in ui/vernacular.js said
 // almost the same thing with one clause missing. Two precedence orders for "what
@@ -116,6 +116,44 @@ export function metricRows(r) {
 }
 
 /**
+ * ── THE CARD'S ONE LINE OF NUMBERS ───────────────────────────────────────────
+ *
+ * `metricRows` above is five label/value pairs, and it is right for a list row
+ * and for the specimen page. On a CARD it was wrong, and measurably so: once the
+ * grid went from two columns to auto-fill, a card measured 109 px wide and
+ * 246 px tall with only 116 px of that being the animal. More than half of a
+ * picture card was a stat block nobody can compare across a 7-wide grid anyway,
+ * because the numbers do not line up between columns.
+ *
+ * So the card gets ONE line — intake and mass — and the other three live where
+ * they can actually be read: the list view, which aligns the sorted column down
+ * a single edge, and the specimen page. The grid is for recognising a creature;
+ * the list is for comparing them. Making each good at its own job is the whole
+ * reason there are two.
+ *
+ * INTAKE AND NOT THE MULTIPLIER, if only one can be shown. ROADMAP §5b's first
+ * `_zselect` lesson: the ratio is a margin, won by not spending, and the cheapest
+ * way not to spend is not to move. A card showing only `94×` breeds Drifters.
+ */
+export function cardStat(r) {
+  const out = [];
+  const v = (text, state) => {
+    const s = document.createElement('span');
+    s.textContent = text;
+    if (state) s.dataset.state = state;
+    out.push(s);
+  };
+  const p = r.profile ?? null;
+
+  if (r.profileState === 'bad') v(t('came apart'), 'bad');
+  else if (!p) v(t('measuring…'), 'pending');
+  else v(`${(1000 * p.fps).toFixed(0)} mg/s`, p.fps > 0 ? 'good' : 'bad');
+
+  if (r.mass != null) v(`${r.mass.toFixed(2)} g`);
+  return out;
+}
+
+/**
  * Build a `.spec-card` from an INDEX ROW.
  *
  * ── IT TAKES A ROW NOW, NOT A RECORD, AND THAT IS THE POINT ──────────────────
@@ -142,7 +180,7 @@ export function metricRows(r) {
  *          addressable, so a caller can swap either in place without a redraw
  */
 export function specCard(r, o = {}) {
-  const interactive = o.selectable || o.onOpen;
+  const interactive = o.selectable || o.onOpen || o.onLongPress;
   const c = document.createElement(interactive ? 'button' : 'div');
   c.className = 'spec-card';
   c.dataset.key = r.key;
@@ -160,6 +198,10 @@ export function specCard(r, o = {}) {
   } else if (o.onOpen) {
     c.addEventListener('click', () => o.onOpen(r));
   }
+  // PRESS AND HOLD TO START SELECTING, the way a photo library does. Available
+  // in BOTH modes: out of selection mode it begins one, and inside it the tap
+  // handler above already toggles, so the hold is harmless.
+  if (o.onLongPress) longPress(c, () => o.onLongPress(r));
 
   // ── the art, with the name written across it ─────────────────────────────
   const art = mk('spec-card-art', c);
@@ -194,7 +236,7 @@ export function specCard(r, o = {}) {
     mk('spec-card-bino', legend, 'i').textContent = r.binomial;
   }
 
-  if (o.stats !== false) mk('spec-card-metrics', c, 'dl').replaceChildren(...metricRows(r));
+  if (o.stats !== false) mk('spec-card-metrics', c).replaceChildren(...cardStat(r));
 
   // ── WHAT A CHAMPION IS A CHAMPION AT ────────────────────────────────────────
   //
@@ -218,14 +260,23 @@ export function specCard(r, o = {}) {
     if (r.note) h.title = r.note;
   }
 
-  if (o.selectable) mk('spec-card-tick', c);
   // A button inside a button is invalid HTML, so an openable card cannot carry
   // a trailing Delete. That is the right shape anyway: Delete belongs on the
   // specimen page or in the multi-select bar, not under every thumbnail.
-  else if (o.action && !interactive) c.append(o.action);
+  if (o.action && !interactive) c.append(o.action);
   else if (r.source === 'authored') {
     mk('spec-card-source', c).textContent = t('From the library');
   }
+
+  // ── THE TICK IS AN OVERLAY, AND IT IS ADDED LAST AND UNCONDITIONALLY ───────
+  //
+  // It used to REPLACE the provenance line, which meant every library card lost
+  // a row the moment selection began and the grid reflowed under the player's
+  // thumb — a card measured 261 px browsing and 240 px selecting. A tick is a
+  // state, not a different card. It is absolutely positioned over the art
+  // (base.css `.spec-card-tick`), so it costs no height and nothing below it
+  // moves.
+  if (o.selectable) mk('spec-card-tick', c);
 
   return c;
 }

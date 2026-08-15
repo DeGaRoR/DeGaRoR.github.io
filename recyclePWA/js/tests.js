@@ -1357,8 +1357,15 @@ QC_SUITES["mandate-intake-and-overflow"]=function(t){
   // pointing a bunker at the SAME mandated supplier must not double-deliver (the per-supplier split rule)
   const bunkers=G.nodes.filter(isBunker);
   if(bunkers.length){bunkers[0].supplier="skip_bizet";
+    // Assert the RULE, not a hand-tuned delta off the previous sample: the re-aimed bunker drops out of the
+    // voluntary split (pass 1 skips mandated streams) and the imposed stream is shared across every bunker,
+    // so the rated total is voluntary + imposed counted ONCE — never the imposed stream twice.
+    const rated=bunkers.reduce((s,b)=>s+bunkerRatedTph(b).total,0);
+    t.ok(Math.abs(rated-(supplierStream("wasteminster").feedTph+add))<1e-9,
+      "rated intake is voluntary + imposed counted once ("+rated.toFixed(2)+" vs "+(supplierStream("wasteminster").feedTph+add)+")");
+    qcTicks(12000); // discharge the banked truckDue first — a backlog burst is not a delivery rate
     const dbl=rate();
-    t.ok(dbl<withM+add*0.5,"aiming a bunker at a mandated supplier does NOT double-deliver ("+dbl.toFixed(2)+" vs "+withM.toFixed(2)+")");}
+    t.ok(dbl<rated+add*0.5,"aiming a bunker at a mandated supplier does NOT double-deliver ("+dbl.toFixed(2)+" vs rated "+rated.toFixed(2)+")");}
   // a bunker set to __none still receives imposed trucks
   for(const b of G.nodes)if(isBunker(b))b.supplier="__none";
   t.ok(rate()>add*0.4,"an IDLE (__none) bunker still receives imposed trucks — it cannot be refused");
@@ -1535,6 +1542,83 @@ QC_SUITES["mandate-truck-carries-its-stream"]=function(t){ // the latent bug fix
   const vol=(G.trucks||[]).filter(x=>x.cls==="supplier"&&!x.forced);
   t.ok(vol.every(x=>x.sup&&x.sup!=="skip_bizet"),"voluntary trucks carry their own stream, never the imposed one");
   t.ok(qcBalanced().ok,"mass balance holds with both stream types in flight");
+};
+
+QC_SUITES["loader-throughput"]=function(t){
+  // Measures LOADER supply in isolation: the feeder is emptied each tick so the LINE never caps the reading,
+  // and the bunkers are topped up so SUPPLY never does. (Both fixtures create/destroy mass on purpose, so this
+  // suite deliberately makes no conservation claim — see site-motion for that.)
+  const run=function(N){qcSiteGame(null,{loader:N,forklift:9,ctruck:2});
+    G.vehicles=G.vehicles.filter(v=>v.cls!=="loader").concat(G.vehicles.filter(v=>v.cls==="loader").slice(0,N));
+    ensureFleet();
+    const fd=G.nodes.find(isFeeder);
+    const top=function(){for(const b of G.nodes)if(isBunker(b))while(cnt(b.inBuf)<capOf(b)*0.7)for(const m of MAT)b.inBuf[m][0]+=50;};
+    const drain=function(){for(const m of MAT){fd.inBuf[m][0]=0;fd.inBuf[m][1]=0;}};
+    for(let i=0;i<1500;i++){tick(0.004);top();drain();}
+    const m0=fd._inMass,t0=G.t;
+    for(let i=0;i<8000;i++){tick(0.004);top();drain();}
+    return (fd._inMass-m0)/(G.t-t0);};
+  const one=run(1),three=run(3),eight=run(8);
+  t.report("loader supply: 1→"+one.toFixed(2)+" 3→"+three.toFixed(2)+" 8→"+eight.toFixed(2)+" t/h");
+  t.ok(one>2.8&&one<4.3,"one loader carries ~3.5 t/h (got "+one.toFixed(2)+")");
+  t.ok(three>=9,"three loaders cover a 9 t/h line (got "+three.toFixed(2)+") — it used to take eight, and eight could not do it");
+  // THE CEILING: floor(feederCap/loaderCap) committed loaders per feeder. At 500/100 that was 5, so a site
+  // could never exceed ~6.8 t/h however many loaders were bought — 6, 7 and 8 did literally nothing.
+  t.ok(eight>three*1.8,"an 8th loader still adds throughput — no hidden per-feeder ceiling ("+eight.toFixed(2)+" vs 3→"+three.toFixed(2)+")");
+  t.ok(Math.floor(G.logi.feederCap/G.logi.loaderCap)>=8,"a feeder can commit at least 8 loaders (got "+Math.floor(G.logi.feederCap/G.logi.loaderCap)+")");
+};
+
+QC_SUITES["supplier-liveries"]=function(t){ // four of five streaming suppliers used to be "grey" — indistinguishable on site
+  const streams=COMPANIES.suppliers.filter(s=>s.stream);
+  t.ok(streams.length>=5,"at least 5 streaming suppliers ("+streams.length+")");
+  const bags={};for(const s of streams)bags[s.stream.bag]=(bags[s.stream.bag]||0)+1;
+  t.ok(Object.keys(bags).length===streams.length,"every streaming supplier carries its OWN bag livery ("+JSON.stringify(bags)+")");
+  t.ok(coById("binfinity").stream.bag!==coById("wasteminster").stream.bag,"Binfinity no longer shares Wasteminster's bag colour");
+  for(const s of streams)t.ok(!!s.stream.bag,coName(s)+" declares a bag livery");
+};
+
+QC_SUITES["bunker-rated-tph"]=function(t){ // the inspector's "Contract capacity" must be the rate tick() applies
+  qcSiteGame(null,{loader:10,forklift:9,ctruck:2}); // fleet sized so the bunkers never back up: this suite is about the RATE, not about drainage
+  const bs=G.nodes.filter(isBunker);
+  t.ok(bs.length===2,"reference plant has 2 bunkers (got "+bs.length+")");
+  const str=supplierStream(bs[0].supplier);
+  t.ok(!!str,"the bunkers' supplier has a stream");
+  t.ok(Math.abs(bunkerRatedTph(bs[0]).total-str.feedTph/2)<1e-9,"a bunker is rated its SHARE, not the whole contract ("+bunkerRatedTph(bs[0]).total+" vs "+(str.feedTph/2)+")");
+  let sum=0;for(const b of bs)sum+=bunkerRatedTph(b).total;
+  t.ok(Math.abs(sum-str.feedTph)<1e-9,"the shares add back up to the contract rate ("+sum+" vs "+str.feedTph+")");
+  const keep=bs[1].supplier;bs[1].supplier="__none";
+  t.ok(bunkerRatedTph(bs[1]).total===0,"an idle bunker is rated 0 t/h");
+  t.ok(Math.abs(bunkerRatedTph(bs[0]).total-str.feedTph)<1e-9,"with one bunker idle the other takes the whole rate");
+  bs[1].supplier=keep;
+  // MEASURED: what actually gets tipped over a long window must match the number the inspector shows
+  const t0=G.t,d0=G.deliveredTot;
+  qcTicks(30000);
+  const rate=(G.deliveredTot-d0)/(G.t-t0);
+  t.ok(Math.abs(rate-str.feedTph)<0.4,"tipped rate matches the rated capacity ("+rate.toFixed(2)+" vs "+str.feedTph+" t/h)");
+};
+
+QC_SUITES["site-landfill-footprint"]=function(t){qcSiteGame(); // landfill shrank 7x3 -> 2x3 to free the outbound row for PVC
+  const lf=G.nodes.find(isLandfill);
+  t.ok(!!lf,"reference plant has a landfill");
+  const fp=siteFootprint("landfill",0),out=siteFootprint("output",0);
+  t.ok(fp.w===out.w&&fp.h===out.h,"landfill footprint matches an export bay ("+fp.w+"x"+fp.h+" vs "+out.w+"x"+out.h+")");
+  // geometry is DERIVED from SITE_OBJ on load, so the snapshot's legacy 210px-wide literal must not survive
+  t.ok(lf.w===fp.w*CELL&&lf.h===fp.h*CELL,"restored landfill geometry re-derived from SITE_OBJ (got "+lf.w+"x"+lf.h+")");
+  // capacity is landfillHold x containerCap — independent of footprint, so the resize is not an economy change
+  t.ok(capOf(lf)===G.logi.landfillHold*G.logi.containerCap,"landfill capacity unaffected by the resize");
+  // the apron stop cell used to be a hardcoded gx+3 (the old 7-wide centre) and would now sit outside the bay
+  const sc=truckStopCell(lf);
+  t.ok(sc&&sc[0]>=lf.gx&&sc[0]<lf.gx+fp.w,"truck stop cell sits within the footprint (x="+(sc&&sc[0])+", bay "+lf.gx+".."+(lf.gx+fp.w-1)+")");
+  t.ok(sc&&sc[1]===38,"truck stop cell stays on the outbound apron row");
+  // the freed cells must actually be buildable now — that is the point of the resize
+  const free=siteCanPlace("output",lf.gx+fp.w,35,0);
+  t.ok(free.ok,"an export bay fits in the cells the landfill gave back ("+(free.ok?"ok":free.reason)+")");
+  // end-to-end: a landfill truck still reaches the (moved) stop cell and hauls containers away.
+  // The reference plant buries slowly — the first full container is not hauled until ~72 sim-hours, so the
+  // window has to be long enough to reach it rather than merely long enough to look thorough.
+  qcTicks(20000);
+  t.ok(lf.massEvac>0,"landfill truck completed a round trip after the resize (evacuated "+lf.massEvac.toFixed(1)+" t)");
+  t.ok(qcBalanced().ok,"mass balance holds across the resized landfill");
 };
 
 /*@TESTS-END@*/

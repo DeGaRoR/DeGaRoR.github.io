@@ -73,8 +73,16 @@ const STATECOL={ok:null,starved:"#6b6258",bagged:"#D98E48",overloaded:"#D98E48",
 const STATETXT={starved:"STARVED",bagged:"BAGGED",overloaded:"OVERLOAD",jammed:"JAMMED",bunkerfull:"BUNKER FULL",noloader:"NO LOADER",containerfull:"CONTAINER FULL",balerfull:"BALER FULL",exportfull:"EXPORT FULL"};
 const SR=[4.6,3.2]; // sprite radius: bag (0) bigger, item (1) smaller
 const BAG_COL="#3F6FB5"; // default/fallback bag colour
-const BAG_COL_BY={blue:"#3F6FB5",grey:"#8A857E"}; // bag colour = the supplier's waste type (blue PMC / grey fully-mixed)
-function bagCol(){const src=G&&G.nodes&&G.nodes.find(isBunker);const sid=src&&((src.supplier&&src.supplier!=="__none")?src.supplier:(G.contract&&G.contract.supplier));const st=sid&&supplierStream(sid);return (st&&BAG_COL_BY[st.bag])||BAG_COL;}
+// Bag colour = the supplier's waste type. Four of the five streaming suppliers used to be "grey", i.e. visually
+// identical, and only blue/grey existed here at all.
+const BAG_COL_BY={blue:"#3F6FB5",green:"#4E9E5B",grey:"#8A857E",amber:"#C9A227",rust:"#A2503F"};
+function _bagColOf(sid){const st=sid&&supplierStream(sid);return (st&&BAG_COL_BY[st.bag])||BAG_COL;}
+// Pass a supplier id for THAT stream's colour. With no argument it falls back to the first bunker's supplier —
+// which used to be the only behaviour, so one global colour was painted over every bunker, bag and truck on the
+// site, and it flipped whenever that one bunker changed supplier.
+function bagCol(sid){if(sid)return _bagColOf(sid);
+  const src=G&&G.nodes&&G.nodes.find(isBunker);
+  return _bagColOf(src&&((src.supplier&&src.supplier!=="__none")?src.supplier:(G.contract&&G.contract.supplier)));}
 
 /* ── SITE renderer (Phase 1 step 3) ─────────────────────────────────────────
  * The physical plant view: meadow board, property gate, warehouse shell, painted
@@ -114,8 +122,8 @@ if(typeof document!=="undefined"&&document.addEventListener)
 const BALE_IMG={PET:"bale_0",steel:"bale_1",film:"bale_2",paper:"bale_3",alu:"bale_4",PVC:"bale_pvc"};
 const ZONE_IMG={PET:"zone_0",ferrous:"zone_1",alu:"zone_2",carton:"zone_4",paper:"zone_4",film:"zone_3",pvc:"zone_pvc",dispose:"zone_5"}; // dedicated PVC bay art
 const UNIT_IMG={opener:"unit_0",magnet:"unit_1",eddy:"unit_2",pick:"unit_3",nir:"unit_4",air:"unit_5",splitter:"unit_6",vfilm:"unit_7"};
-function bagKey(){ // nearest of the three bunker liveries to the contract's bag colour
-  const h=(bagCol()||"#3F6FB5").replace("#","");
+function bagKey(sid){ // nearest of the three bunker/bag liveries (blue/green/yellow) to that stream's bag colour
+  const h=(bagCol(sid)||BAG_COL).replace("#","");
   const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
   if(b>=g&&b>=r)return"blue"; if(g>=r)return"green"; return"yellow";}
 function siteMode(){return !!(G&&G.scenario&&G.scenario.siteRef);}
@@ -218,14 +226,21 @@ function drawSiteEdge(e,flat){let P=e.route;if(!P||P.length<2)return; // flat: s
     ctx.strokeStyle=jam?"#6a352f":"#3B3833";ctx.lineWidth=9;siteRoundedPath(P,R);ctx.stroke(); // belt trough
     ctx.strokeStyle=jam?"#7a3b34":"#565149";ctx.lineWidth=7;siteRoundedPath(P,R);ctx.stroke(); // rubber bed
     // slats: short ticks laid ACROSS the belt, following the path so they wrap the corner (no butt gap)
+    // THE BELT SURFACE NOW MOVES. Slats and chevrons were drawn at static offsets — nothing here referenced
+    // time — so the only motion cue on a belt was its items, and item DENSITY varies with the feeding unit's
+    // rated t/h. A sparse belt therefore read as "slow" and a crowded one as "fast", which is what the uneven-
+    // conveyor-speed complaint actually was: every belt already runs at exactly SITE_BELT_SPEED (QC locks
+    // e.speed*pathLen === SITE_BELT_SPEED). Phased in WORLD px at that same speed, so every belt visibly runs
+    // at one pace and items ride their slats instead of sliding over a frozen bed. Static while paused.
+    const _ph=(G&&G.t)?G.t*SITE_BELT_SPEED:0;
     const _bl=pathLen(P),step=7,BW=7;
     ctx.strokeStyle="rgba(24,21,18,.5)";ctx.lineWidth=1.2;
-    for(let d=step/2;d<_bl;d+=step){const q=sitePathAngleAt(P,d);
+    for(let d=(step/2+(_ph%step))%step;d<_bl;d+=step){const q=sitePathAngleAt(P,d);
       const nx=-Math.sin(q.a),ny=Math.cos(q.a);
       ctx.beginPath();ctx.moveTo(q.x-nx*BW/2,q.y-ny*BW/2);ctx.lineTo(q.x+nx*BW/2,q.y+ny*BW/2);ctx.stroke();}
-    const L=pathLen(P),n=Math.max(1,Math.round(L/26));
+    const L=pathLen(P),n=Math.max(1,Math.round(L/26)),_cs=L/n;
     ctx.fillStyle=jam?"rgba(226,140,120,.85)":"rgba(242,232,216,.55)";
-    for(let i=0;i<n;i++){const p=sitePathAngleAt(P,(i+0.5)/n*L);
+    for(let i=0;i<n;i++){const p=sitePathAngleAt(P,(_cs*0.5+(_ph%_cs)+i*_cs)%L);
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);
       ctx.beginPath();ctx.moveTo(-2.6,-3.4);ctx.lineTo(3.4,0);ctx.lineTo(-2.6,3.4);ctx.lineTo(-0.6,0);ctx.closePath();ctx.fill();ctx.restore();}}}
 // OVERPASS: repaint the raised belt over the one it bridges, and sell it as a deck rather than a Z-fight.
@@ -272,7 +287,9 @@ function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehi
 const TRUCK_STYLE={supplier:{col:"#3F6FB5",len:76,wid:20},client:{col:"#4E5D75",len:96,wid:20},lftruck:{col:"#7C766D",len:96,wid:20}};
 function truckDrawPos(t){return truckPos(t);} // berths already give each truck its own spot — no ad-hoc lane shifting
 function truckSpriteKey(t){
-  if(t.cls==="supplier"){const k=bagKey();return k==="green"?"veh_0":(k==="blue"?"veh_2":"veh_1");}
+  // t.sup is the stream this truck was dispatched for (set at spawn) — so two contracts running at once no
+  // longer send identical trucks. This read the plant-wide bagKey() before.
+  if(t.cls==="supplier"){const k=bagKey(t.sup);return k==="green"?"veh_0":(k==="blue"?"veh_2":"veh_1");}
   if(t.cls==="client")return"veh_"+(3+t.id%2); // wooden / mesh flatbeds
   return"veh_5";} // landfill: the dark flatbed
 function drawSiteTrucks(){ if(!G.trucks)return;
@@ -283,6 +300,12 @@ function drawSiteTrucks(){ if(!G.trucks)return;
       siteShadow();
       ctx.drawImage(spr,-dw/2,-dh/2,dw,dh);
       noShadow();
+      // CONTRACT IDENTITY BAND. Only three supplier liveries exist (veh_0/1/2) but five streams can run at
+      // once, so the sprite alone still collides. A band in the stream's exact bag colour, across the cab,
+      // separates every supplier — and matches the bags its bunker is filling with.
+      if(t.cls==="supplier"&&t.sup){ctx.fillStyle=bagCol(t.sup);ctx.globalAlpha=0.92;
+        rr(ctx,-dw*0.34,-dh*0.30,dw*0.68,dh*0.085,1.5);ctx.fill();
+        ctx.globalAlpha=1;ctx.strokeStyle="rgba(20,18,15,.55)";ctx.lineWidth=0.6;ctx.stroke();}
       if(t.cls==="client"&&t.loaded>0&&t.baleDoms){ // the ACTUAL loaded bales on the flatbed (rear = +y, nose-up frame)
         for(let i=0;i<Math.min(t.loaded,10);i++){
           const bx=(i%2?5:-5),by=dh/2-7-Math.floor(i/2)*8;
@@ -292,7 +315,7 @@ function drawSiteTrucks(){ if(!G.trucks)return;
         if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,-CONT_H/2+CELL*0.2,CONT_W,CONT_H);noShadow();}}
       ctx.restore();}
     else{
-    let col=st.col; if(t.cls==="supplier"){col=bagCol();}
+    let col=st.col; if(t.cls==="supplier"){col=bagCol(t.sup);}
     ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);
     siteShadow();
     ctx.fillStyle=col;ctx.strokeStyle="#17140f";ctx.lineWidth=1.4;
@@ -345,9 +368,15 @@ function drawContainers(n){const cs=n.containers||[];if(!cs.length)return;
     if(i===n.active){ctx.strokeStyle="#F2A93B";ctx.lineWidth=1.8;rr(ctx,cx-CW/2-1.5,cy-CH/2-1.5,CW+3,CH+3,5);ctx.stroke();}}}
 function drawLandfillHold(n){const full=Math.floor(cnt(n.inBuf)/G.logi.containerCap),part=(cnt(n.inBuf)%G.logi.containerCap)/G.logi.containerCap;
   const k=Math.min(G.logi.landfillHold,full+(part>0?1:0));
-  const CW=CONT_H,CH=CONT_W; // parked sideways in the waiting yard
-  for(let i=0;i<k;i++){const col=i%3,row=Math.floor(i/3);
-    const cx=n.x-n.w/2+(col+0.5)*(n.w/3),cy=n.y-n.h/2+(row+0.55)*CELL*1.2;
+  // Grid AND sprite scale follow the footprint. This was a fixed 3-wide layout at full sprite size, sized for
+  // the old 7-cell bay; at 2 cells the skips would sit on top of each other. Capacity is unchanged — the yard
+  // is just drawn to the space it actually occupies.
+  const cols=Math.max(1,Math.round(n.w/CELL)),rows=Math.max(1,Math.ceil(G.logi.landfillHold/cols));
+  const cellW=n.w/cols,cellH=n.h/rows;
+  const sc=Math.min(1,(cellW*0.92)/CONT_H,(cellH*0.92)/CONT_W);
+  const CW=CONT_H*sc,CH=CONT_W*sc; // parked sideways in the waiting yard
+  for(let i=0;i<k;i++){const col=i%cols,row=Math.floor(i/cols);
+    const cx=n.x-n.w/2+(col+0.5)*cellW,cy=n.y-n.h/2+(row+0.5)*cellH;
     const f=(i<full)?1:part,ci=contImg(f);
     if(ci){ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.PI/2);siteShadow();ctx.drawImage(ci,-CH/2,-CW/2,CH,CW);ctx.restore();}
     else{ctx.fillStyle="rgba(40,32,20,.25)";rr(ctx,cx-CW/2,cy-CH/2,CW,CH,4);ctx.fill();
@@ -390,7 +419,7 @@ function siteNodeLabel(n){
   return tr(TYPES[n.type].name);}
 function siteSpriteFor(n){ // {im, rot(rad), flip} or null → vector card
   if(n.site==="input"){const fill=Math.max(0,Math.min(0.999,cnt(n.inBuf)/capOf(n)));
-    return{im:img("bunk_"+bagKey()+"_"+Math.floor(fill*5)),rot:(n.rot||0)*Math.PI/180,flip:false};}
+    return{im:img("bunk_"+bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null)+"_"+Math.floor(fill*5)),rot:(n.rot||0)*Math.PI/180,flip:false};} // livery follows THIS bunker's supplier, not the first bunker on the site
   if(n.site==="output")return{im:img(ZONE_IMG[n.spec]||"zone_0"),rot:(n.rot||0)*Math.PI/180,flip:false};
   if(n.site==="feeder")return{im:img("fb_0"),rot:(90+(n.rot||0))*Math.PI/180,flip:false}; // art is 2×1 → +90° for the vertical footprint
   if(n.site==="baler"){const inE=G.edges.find(e=>e.to===n.id&&e.kind==="conveyor");const r=n.rot||0;
@@ -584,7 +613,6 @@ function drawBuildOverlay(){
       ctx.fillStyle="rgba(107,190,110,"+pulse+")";
       for(const k of zoneSet){const[zx,zy]=k.split(",").map(Number);ctx.fillRect(zx*CELL,zy*CELL,CELL,CELL);}}
     const fp=siteFootprint(st,BUILD.rot),chk=siteCanPlace(st,BUILD.gx,BUILD.gy,BUILD.rot,n.id);
-    const gx=BUILD.gx*CELL,gy=BUILD.gy*CELL,gw=fp.w*CELL,gh=fp.h*CELL;
     // live preview of where each connected edge would re-route to
     const nx=(BUILD.gx+fp.w/2)*CELL,ny=(BUILD.gy+fp.h/2)*CELL;
     ctx.strokeStyle="rgba(242,169,59,.5)";ctx.lineWidth=2;ctx.setLineDash([5,5]);
@@ -592,13 +620,10 @@ function drawBuildOverlay(){
       const other=nodeById(e.from===n.id?e.to:e.from);if(!other)continue;
       ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(other.x,other.y);ctx.stroke();}
     ctx.setLineDash([]);
-    ctx.globalAlpha=0.6;ctx.fillStyle=chk.ok?(SITE_UCOL[st]||"#8a8"):"#C25B4E";
-    rr(ctx,gx+2,gy+2,gw-4,gh-4,7);ctx.fill();ctx.globalAlpha=1;
-    ctx.setLineDash([6,5]);ctx.strokeStyle=chk.ok?"#2f5c2f":"#7a2620";ctx.lineWidth=2;rr(ctx,gx+2,gy+2,gw-4,gh-4,7);ctx.stroke();ctx.setLineDash([]);
-    if(!chk.ok){ctx.font="700 10px -apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="bottom";
-      const txt=tr(SITE_REASON[chk.reason]||chk.reason),tw=ctx.measureText(txt).width+12;
-      ctx.fillStyle="rgba(30,26,20,.85)";rr(ctx,gx+gw/2-tw/2,gy-19,tw,14,6);ctx.fill();
-      ctx.fillStyle="#E8A9A0";ctx.fillText(txt,gx+gw/2,gy-7);}}
+    // The SAME ghost as placement — rotated sprite + rotated PORT NUBS, plus the illegality label.
+    // This used to be a flat rectangle, and since most units are 1x1 their footprint is identical at every
+    // angle: rotating changed nothing on screen and Rotate read as dead, even though n.rot was committed.
+    drawPlacementGhost(st,n.type,BUILD.gx,BUILD.gy,BUILD.rot,chk);}
   if(BUILD.mode==="place"&&BUILD.sel){
     const[st,kind]=BUILD.sel;
     const PZ=sitePlaceZones(),zoneSet=PZ[st]; // shade the legal placement area for this family
@@ -794,7 +819,8 @@ function drawVehicles(){ if(!G.vehicles)return; const _parkIdx={};
       else if(cnt(v.payload)>0){
         if(v.cls==="ctruck"){const ci=img("cont_2"); // hauled container, seated on the REAR of the bed (behind the cab)
           if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,-CELL,CONT_W,CONT_H);noShadow();}} // its own drop shadow
-        else{const gi=img("bag_"+bagKey()); // bags heaped in the loader's bucket (front)
+        else{const _fb=nodeById(v.fromId); // bags heaped in the loader's bucket (front) — coloured by the bunker it scooped from
+          const gi=img("bag_"+bagKey(_fb&&_fb.supplier&&_fb.supplier!=="__none"?_fb.supplier:null));
           if(gi){ctx.drawImage(gi,-7,-dh/2-1,9,9);ctx.drawImage(gi,-1,-dh/2-3,9,9);ctx.drawImage(gi,3,-dh/2,8,8);}
           else{ctx.fillStyle="rgba(242,232,216,.85)";ctx.beginPath();ctx.arc(0,-dh/4,3.4,0,7);ctx.fill();}}}
       ctx.restore();ctx.globalAlpha=1;}
@@ -946,6 +972,7 @@ const LANG={fr:{
   "Tap a port to link again — or the link button to finish":"Touche un port pour relier à nouveau — ou le bouton lien pour terminer",
   "Tap a unit's port to start a link":"Touche le port d'une unité pour démarrer une liaison",
   "Tipping":"Redevance",
+  "Contract capacity":"Capacité contractuelle","imposed":"imposé",
   "Trucks tip the contract’s waste here — you’re paid to take it — and loaders carry it to the feeder. A full bunker turns trucks away: no charge, no landfill, lost throughput.":"Les camions déversent les déchets du contrat ici — tu es payé pour les prendre — et les chargeurs les portent au feeder. Un bunker plein refuse les camions : pas de redevance, pas de décharge, débit perdu.",
   "bulk + landfill":"bulk + décharge",
   "export zone":"zone d'export",
@@ -1071,7 +1098,7 @@ const LANG={fr:{
   "Recover 100 t on-spec":"Récupère 100 t conformes",
   "Hit 80% landfill diversion":"Atteins 80 % de détournement",
   "Earn a corporate sponsor (250 t on-spec)":"Décroche un sponsor (250 t conformes)",
-  "Run a full line — all 6 products on-spec":"Ligne complète — les 6 produits conformes",
+  "Sell 5 t on-spec of each of the 6 products":"Vends 5 t conformes de chacun des 6 produits",
   "Imposed contract":"Contrat imposé","Imposed contract arrives":"Contrat imposé — arrivée",
   "Kerbside contract imposed":"Collecte municipale imposée","Commercial waste imposed":"Déchets commerciaux imposés","Regional residual imposed":"Résiduel régional imposé",
   "capital grant":"subvention d’investissement","cannot be refused":"non refusable","days":"jours",
@@ -1264,7 +1291,10 @@ function openTechNode(id,el,apply,stage){const m=TECH_META[id],T=TECH[id];
   if(act&&act.dataset.act==="refund")act.addEventListener("click",()=>{if(refundTech(id)){refreshBanks(true);toast(tr("Refunded ")+tr(m.name));closeSheet();renderTechView();}});}
 document.querySelectorAll("#tabbar button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.v)));
 function _pad2(n){return (n<10?"0":"")+n;}
-function fmtCal(t){const c=calendar(t);return (c.y>1?"Y"+c.y+" \u00b7 ":"")+c.d+" "+tr(c.month)+" \u00b7 "+_pad2(c.hh)+":"+_pad2(c.mm);}
+// compact drops only the middot separators (and their spaces) \u2014 the HUD clock is the longest single token in
+// the bar and grows again from year 2, but no information is lost, so the narrow form stays honest.
+function fmtCal(t,compact){const c=calendar(t);const sep=compact?" ":" \u00b7 ";
+  return (c.y>1?"Y"+c.y+sep:"")+c.d+" "+tr(c.month)+sep+_pad2(c.hh)+":"+_pad2(c.mm);}
 function recurringNet(){const l=G.ledger||{};return (l.tipping||0)+(l.sales||0)+(l.subsidies||0)-(l.labour||0)-(l.logistics||0)-(l.power||0)-(l.landfill||0);}
 const SIM_DAY=24; // sim-time units per in-game day = 24 (1 unit = 1 HOUR; calendar reads t as hours)
 function perDayRate(){ // what the plant EARNED YESTERDAY: recurring net over the last completed day (excludes capex)
@@ -1273,7 +1303,8 @@ function perDayRate(){ // what the plant EARNED YESTERDAY: recurring net over th
   if(G._pnlDay==null){G._pnlDay=day;G._pnlDayStart=net;G._pnlYesterday=null;}
   if(day>G._pnlDay){const elapsed=day-G._pnlDay;G._pnlYesterday=(net-G._pnlDayStart)/elapsed;G._pnlDay=day;G._pnlDayStart=net;}
   return {v:(G._pnlYesterday==null?0:G._pnlYesterday),pending:G._pnlYesterday==null};}
-function updateHUD(){const cs=document.getElementById("cashStat");const cw=document.getElementById("clockVal");if(cw)cw.textContent=fmtCal(G.t);
+function updateHUD(){const cs=document.getElementById("cashStat");const cw=document.getElementById("clockVal");
+  if(cw)cw.textContent=fmtCal(G.t,((typeof window!=="undefined"&&window.innerWidth)||9999)<=400);
   if(G.mode==="sandbox"){cs.querySelector(".val").textContent=tr("Sandbox");cs.querySelector(".lbl").textContent=tr("Mode");
     document.getElementById("divStat").style.display="none";}
   else{document.getElementById("divStat").style.display="";
@@ -1420,7 +1451,7 @@ const scrim=document.getElementById("scrim"),sheet=document.getElementById("shee
 sheet.addEventListener("pointerdown",()=>{_sheetHold=true;},true);
 window.addEventListener("pointerup",()=>{_sheetHold=false;},true);window.addEventListener("pointercancel",()=>{_sheetHold=false;},true);
 let _sheetAt=0;
-function closeSheet(){sheet.classList.remove("show");scrim.classList.remove("show");sheet.classList.remove("overMenu");scrim.classList.remove("overMenu");_inspectNode=null;}
+function closeSheet(){sheet.classList.remove("show");scrim.classList.remove("show");sheet.classList.remove("overMenu");scrim.classList.remove("overMenu");_inspectNode=null;syncToastInset();}
 let _sdrag=null;
 sheet.addEventListener("pointerdown",function(e){if(e.target.closest("button,input,.o,.palcard,.seg"))return;if(sheet.scrollTop>0)return;_sdrag={y:e.clientY,id:e.pointerId};});
 sheet.addEventListener("pointermove",function(e){if(!_sdrag||e.pointerId!==_sdrag.id)return;const dy=e.clientY-_sdrag.y;if(dy>0){sheet.style.transition="none";sheet.style.transform="translateY("+dy+"px)";}});
@@ -1432,7 +1463,8 @@ scrim.addEventListener("pointerdown",()=>{if(performance.now()-_sheetAt<350)retu
 function showSheet(html){_sheetAt=performance.now();sheet.innerHTML='<div class="grab"></div><button class="sx" aria-label="Close">\u2715</button>'+html;
   const _menuOpen=!document.getElementById("menu").classList.contains("hide"); // sheets from the main menu must stack ABOVE it
   sheet.classList.toggle("overMenu",_menuOpen);scrim.classList.toggle("overMenu",_menuOpen);
-  sheet.classList.add("show");scrim.classList.add("show");const _x=sheet.querySelector(".sx");if(_x)_x.addEventListener("pointerdown",function(e){e.stopPropagation();closeSheet();});}
+  sheet.classList.add("show");scrim.classList.add("show");const _x=sheet.querySelector(".sx");if(_x)_x.addEventListener("pointerdown",function(e){e.stopPropagation();closeSheet();});
+  syncToastInset();} // a toast already on screen must lift clear of the sheet that just opened
 function baleReason(bale,specKey){ // why is this bale off-spec? returns a short human string or "" if on-spec
   const spec=SPECS[specKey];if(!spec)return"";
   const c=comp(bale);let t=0;for(const m of MAT)t+=c[m];if(t<=0)return tr("empty");
@@ -1612,8 +1644,16 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       {const ri=nodeRate(n,"_inMass");b+=row(tr("Inbound"),ri.toFixed(1)+' t/h')+row(tr("Line rate"),(n.rate||0).toFixed(1)+' t/h');}
       dsc+='<p>'+tr("Loaders keep this feeder topped up from the bunker; the feed rate sets how fast material enters the line.")+'</p>';}
     if(n.role==="bunker"){ // tipping floor — truck-fed, loader-drained
-      b+=row(tr("Bunker"),(cnt(n.inBuf)*PMASS).toFixed(1)+' / '+(capOf(n)*PMASS).toFixed(0)+' t')+
-        row(tr("Tipping"),'<span style="color:var(--good)">+\u20AC'+ECON.tipping+' / t</span>');
+      // Gate is the SUPPLIER's rate (tipLoad books str.gate: 55/75/95), not the generic ECON.tipping \u2014 which
+      // this row used to show, contradicting the per-supplier chips a few lines below.
+      {const _sk=(n.supplier&&n.supplier!=="__none")?n.supplier:(G.contract&&G.contract.supplier),_st=_sk&&supplierStream(_sk);
+       b+=row(tr("Bunker"),(cnt(n.inBuf)*PMASS).toFixed(1)+' / '+(capOf(n)*PMASS).toFixed(0)+' t')+
+         row(tr("Tipping"),'<span style="color:var(--good)">+\u20AC'+((_st&&_st.gate)||ECON.tipping)+' / t</span>');}
+      // RATED vs MEASURED, adjacent on purpose: the contract capacity is what this bunker is owed (its share of
+      // the supplier's t/h, split across the bunkers on that stream), Inbound is what is actually arriving.
+      {const rt=bunkerRatedTph(n);
+       if(rt.total>0)b+=row(tr("Contract capacity"),rt.total.toFixed(1)+' t/h'+
+         (rt.imposed>0?' <span style="color:var(--accent2)">('+rt.voluntary.toFixed(1)+' + '+rt.imposed.toFixed(1)+' '+tr("imposed")+')</span>':''));}
       {const ri=nodeRate(n,"_inMass"),ro=nodeRate(n,"_outMass");
        b+=row(tr("Inbound"),'<span style="color:var(--accent2)">'+ri.toFixed(1)+' t/h</span>')+
           row(tr("To feeder"),ro.toFixed(1)+' t/h'+(ri>ro+0.3&&cnt(n.inBuf)>capOf(n)*0.6?' <span style="color:var(--bad)">\u25B2 '+tr("filling")+'</span>':''));}
@@ -1728,8 +1768,36 @@ function inspectEdge(e){const from=nodeById(e.from),to=nodeById(e.to),buf=blankB
     '<div class="row"><span class="k">Carrying</span><span class="v">'+e.sprites.length+(bales?' bales':' particles')+(e.sprites.length>=(e.max||EDGE_MAX)?' \u00B7 BACKED UP':'')+'</span></div>'+
     '<div class="iacts" style="margin-top:12px;justify-content:flex-end"><button class="bigbtn ghost" id="delE" aria-label="disconnect" style="flex:1"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><path d="M9 15l-3 3a3 3 0 01-4-4l3-3"/><path d="M15 9l3-3a3 3 0 014 4l-3 3"/><path d="M8.5 8.5l7 7"/></svg>'+tr("Clear connection")+'</button></div>');
   document.getElementById("delE").addEventListener("click",()=>{siteDisconnect(e);closeSheet();toast(tr("Disconnected"));saveGame();});}
-function toast(msg,kind){const t=document.createElement("div");t.className="toast "+(kind||"");t.textContent=tr(msg);
-  document.getElementById("toasts").appendChild(t);setTimeout(()=>{t.style.transition="opacity .3s";t.style.opacity="0";setTimeout(()=>t.remove(),300);},2400);}
+/* ── TOASTS. Zone rule (v0.5.19: HUD top / coach / build area / sheet bottom): a toast must never cover a
+ * control. They were pinned at a hardcoded bottom:74px, which lands on #dock (play, speed, Add) and on an
+ * open sheet's action row — including the very buttons that emit them. The offset is now MEASURED off the
+ * bottom chrome, the same way syncCoachInset() measures the coach. */
+const TOAST_MAX=3,TOAST_MS=2400;
+function syncToastInset(){const z=document.getElementById("toasts");if(!z||!z.style)return;
+  const H=(typeof window!=="undefined"&&window.innerHeight)||0;if(!H)return;
+  let top=H; // the highest edge of whatever bottom chrome the toasts must clear
+  const clear=id=>{const el=document.getElementById(id);if(!el||!el.getBoundingClientRect)return;
+    const r=el.getBoundingClientRect();if(r&&r.height>0&&r.top>0&&r.top<top)top=r.top;};
+  clear("dock");clear("legend");clear("tabbar");     // always clear the persistent bottom chrome
+  const sh=document.getElementById("sheet");         // …and the sheet on top of that when it is up
+  // Measured from offsetHeight, NOT getBoundingClientRect: the sheet slides in on a transform, so during its
+  // 0.25 s transition its rect is still off-screen and would read as "nothing to clear" — which is exactly
+  // when a toast fired by a sheet button lands underneath it. Layout height is immune to the animation.
+  if(sh&&sh.classList&&sh.classList.contains("show")&&sh.offsetHeight>0)top=Math.min(top,H-sh.offsetHeight);
+  z.style.bottom=Math.max(12,H-top+10)+"px";}
+function _toastFade(t){t._gone=true;t.style.transition="opacity .3s";t.style.opacity="0";setTimeout(()=>t.remove(),300);}
+function toast(msg,kind){const z=document.getElementById("toasts");if(!z)return;
+  const txt=tr(msg);
+  const last=z.lastElementChild,lastRaw=(last&&typeof last==="object"&&last.dataset)?last.dataset.raw:null;
+  if(lastRaw===txt&&!last._gone){ // same message again: count it in place rather than stacking a duplicate column
+    last._n=(last._n||1)+1;last.textContent=txt+" ×"+last._n;
+    clearTimeout(last._t);last._t=setTimeout(()=>_toastFade(last),TOAST_MS);syncToastInset();return;}
+  const t=document.createElement("div");t.className="toast "+(kind||"");t.textContent=txt;
+  if(t.dataset)t.dataset.raw=txt;
+  z.appendChild(t);
+  while(z.children&&z.children.length>TOAST_MAX&&z.firstElementChild)z.removeChild(z.firstElementChild);
+  t._t=setTimeout(()=>_toastFade(t),TOAST_MS);
+  syncToastInset();}
 document.getElementById("play").addEventListener("click",()=>{if(G.finished)return;G.running=!G.running;saveGame();});
 document.querySelectorAll(".sp").forEach(s=>s.addEventListener("click",()=>{document.querySelectorAll(".sp").forEach(x=>x.classList.remove("on"));s.classList.add("on");G.speed=+s.dataset.s;}));
 document.getElementById("addBtn").addEventListener("click",()=>{if(siteMode())openSitePalette();else openPalette();});
@@ -1943,6 +2011,7 @@ document.getElementById("btnAtelier").addEventListener("click",()=>startNew("car
 document.getElementById("btnSandbox").addEventListener("click",()=>startNew("career","site_free"));  // Sandbox: empty site, no tutorial
 document.getElementById("btnDemo").addEventListener("click",()=>startNew("career","site_ref"));      // Reference plant, already running
 resize();
+loadCareer();purgeLegacyCareer(); // BEFORE the auto-resume below: restoreGame() attaches CAREER to G.career, and this used to run after and blank it
 {let _sv=null;try{_sv=loadSave();}catch(e){_sv=null;}
  let _ok=false;
  if(_sv&&_sv.nodes&&_sv.nodes.length&&!_sv.finished&&(_sv.contractKey||"").indexOf("site_")===0){
@@ -1953,7 +2022,6 @@ resize();
  showMenu();/* no hidden default game: the menu reflects the real (none) resumable state */}
 if(cashStatEl)cashStatEl.addEventListener("click",()=>showBalanceSheet());
 document.querySelectorAll("#langRow button").forEach(b=>b.addEventListener("click",()=>setLang(b.dataset.lang)));
-loadCareer();purgeLegacyCareer();
 try{const _ps=localStorage.getItem("recycle.phasesnap");if(_ps)_phaseSnap=JSON.parse(_ps);}catch(e){}
 try{const _l=localStorage.getItem("recycle.lang");if(_l==="fr")LANG_CUR="fr";}catch(e){}
 document.documentElement.lang=LANG_CUR;applyLang();

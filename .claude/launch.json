@@ -16,6 +16,13 @@
       "autoPort": true
     },
     {
+      "name": "recycle",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8140"],
+      "port": 8140,
+      "autoPort": true
+    },
+    {
       "name": "flydiy",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123"],
