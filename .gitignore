@@ -12,8 +12,11 @@ flyDiy/tools/_glbview/
 flyDiy/tools/_probe.html
 flyDiy/tools/_probe_base.html
 flyDiy/tools/_base_*.js
-# body loft prototype: judges the fuselage topology before src/core is rewritten
-# around it. Loads src/core/60b_gen_loft.js directly; never in MANIFEST.
+# body loft prototypes: judge the fuselage topology before src/core is
+# rewritten around them. The CAGE family (tools/_cage_gen.js, _cage_ui.js,
+# _cage_fit.js, _cage2/_cage3.html, _cage_ref_*.obj) is TRACKED — it is the
+# fuselage rework's foundation (HANDOVER G12). Only the superseded first
+# demonstrator stays ignored.
 flyDiy/tools/_loft*.html
 flyDiy/tools/_wins*.html
-flyDiy/tools/_cage*.html
+flyDiy/tools/_cage.html

@@ -4765,6 +4765,328 @@ Done: 1, 3, 5, 7, 8, 9, 10, 16, 17 (G1.7-G3.6, G4.1-G4.5), 4, 11, 12, 18
 (G4.6), 6, 13, 15, 20 (G4.7), 22 (G4.8) and 14 (G5). Plus the two extras the user asked for since — wireframe view and UV
 projection view (G4.5) — both now visually verified along with the decal.
 
+## G12 — THE TEMPLATE CAGE (2026-08-14)
+
+The fuselage-topology rework has its primitive. The user hand-built ONE
+Blender control cage in three layered meshes (Downloads/
+templatePlaneProcedural_{0,1,2}_nocc.obj + .mtl) and the session reverse-
+engineered them into a generator that reproduces all three exactly:
+
+- **mesh 0 — zones** (56 v / 54 q): the conceptual anatomy only. Stations are
+  the zone boundaries (tail cap, tailpost, aft-cabin pillar, cabin pillar,
+  window ring, windshield frame, nose ring); levels are keel / waist / roof.
+  Materials name the zones: body, windshield, skyWindows, pilotWindow,
+  pasengerWindow.
+- **mesh 1 — pillars + rings** (164 v): every anatomy station gains a TWIN
+  loop (the pillar band: pillarTail/-Passenger/-Cabin/-Window/-Front), and
+  three longitudinal RAILS appear: floor line, ceiling line, waistband top
+  (y = 0.1537 CONSTANT — a painted stripe is straight; the waist y = 0.0911
+  is the other global constant).
+- **mesh 2 — CC control** (320 v): pure loop cuts that pin Catmull-Clark so
+  zones keep their edges and materials do not bleed. ALL DERIVED: guard rings
+  are constant-t lerps of the two rings bounding their bay (t table per bay);
+  guard levels are in-ring 3D lerps (waistG = lerp(waist, floor, 0.269721),
+  bandG = lerp(band, ceil, 0.019837)) applied everywhere including caps,
+  windshield slope and centreline chain.
+
+Two more derivation rules fell out (each verified ~1e-5 against the file):
+band x = Ww − 0.081740·(Ww − Wr), ceiling x = Ww − 0.939852·(Ww − Wr) —
+the upper-wall rails sit at fixed FRACTIONS of the waist→roof width span,
+not at their y-interpolated positions. Floor = designed y, x/z lerped along
+the keel→waist wall.
+
+**THE WINDSHIELD IS NOT A SPECIAL SURFACE.** The global lines continue onto a
+slanted plane: glass sits between the waistband line and the ceiling line —
+the SAME rails the side windows use — the A-pillar is a full 18-vertex ring
+whose upper half lies on the slope, and the waistband flows around the
+windshield base. Forward of it the upper levels fold onto the centreline
+chain (roofC/ceilC/bandC/waistC columns, base bow 0.559, ceiling bow 0.129);
+the cowl is a flat deck at waist level closed by a 3-col grid cap (no pole,
+no subsurf pinch). That is why windows and doors can be cut anywhere the
+rails run, and why the old loft's windscreen crank cannot exist here.
+
+Tools (all gitignored under flyDiy/tools/_cage*, never in MANIFEST):
+- `_cage_gen.js` — the generator. CAGE_DEFAULT is the fiche (every measured
+  number, commented); buildCage2(spec, step) emits step 0/1/2; cageSpec(P)
+  is the slider layer (CAGE_PARAMS defaults are the identity); orientCage
+  makes windings coherent+outward.
+- `_cage_fit.js` — THE VERDICT: parses the three reference OBJs, matches
+  vertices (nearest-neighbour) and faces (cycles up to rotation/reflection)
+  and materials. Current state: step 0 exact (dev 1e-6), step 1 exact
+  geometry + 3 material diffs that are the REFERENCE's own transitional
+  bleed (boom band tagged pasengerWindow in mesh 1, corrected by mesh 2 —
+  report-only), step 2 EXACT: 320/320 v, 318/318 f, materials 100%, max dev
+  3.6e-5 (the floor-rail wall-lerp, below the OBJ's 6-decimal rounding).
+  Also asserts the cageSpec identity and would catch fiche drift.
+- `_cage2.html` — demonstrator: sliders (layout / section / aft+tail /
+  windshield / nose), step + subsurf selectors, ghost overlay of the
+  reference OBJs (byte-copies at _cage_ref_N.obj), OBJ export of the
+  control cage. Verified in-browser: closed quad manifold at every slider
+  combination tried (paxCount 0-3, squash/stretch), skylight/windshield/
+  waistband all crisp under L2 subsurf.
+
+Modularity: pax bays repeat ([pax bay + pillarPassenger] units), pax 0-4
+all emit closed all-quad manifolds (Euler 2, coherent windings, verified
+programmatically across the slider space).
+
+### G12.1 — THE BUBBLE CANOPY (same day, user ask)
+
+"Could we get a proper canopy by relaxing or deleting some rings?" — yes,
+and no topology change was needed. The box template's roof is flat for ONE
+reason: the ceiling loop hugs the roof and pins Catmull-Clark. `top` mode in
+_cage_gen.js (round 0..1, angCeil/angRoof, comp, bubble) re-places the upper
+levels of EVERY ring on a waist-to-crown elliptical arc — ceil and roofF
+become arc samples (~52/81 deg), roofC becomes the crown, comp (~1.03) fades
+in with sin(theta) so the waist stays exact and only the dome inflates
+against CC shrinkage. The waistband pair is deliberately NOT relaxed: the
+sill keeps its crease, which is what a bubble canopy on a round fuselage
+looks like. bubble=1 turns the ceiling band + windshield top frame to glass
+so the canopy reads sill-to-crown. round=0 is the bit-identical box path —
+the fit guards it (FIT: OK after the change).
+
+`_cage3.html` is the demonstrator (Jodel-ish defaults: roofY 0.72 ≈ near-
+semicircular top on the 0.554 half-width, wsRun 0.95 / baseBow 0.45 /
+ceilBow 0.30 raked front, roundness slider fades box->bubble live).
+Verified: round mode is closed-quad-manifold at pax 0-3 and a true
+semicircle preset; side/front/top screenshots read as a proper glasshouse
+with round turtledeck. _cage2.html untouched (the faithful box template).
+
+### G12.2 — CREASES + CONFIGURATIONS (2026-08-15)
+
+User review of G12/G12.1 raised two defects and a capability ask; the full
+9-point roadmap is in the session plan and mirrored below as chantiers.
+
+**THE FROWN WAS GEOMETRY DENSITY, AND CREASES ARE THE FIX (user-confirmed
+cause).** `cageSubdivide` in _cage_gen.js is now a crease-aware semi-sharp
+Catmull-Clark (Pixar rules: creased edge-points use the midpoint rule,
+child edges inherit weight−1, fractional weights lerp; 2 sharp edges at a
+vertex -> (E1+6P+E2)/8 crease rule, >=3 -> corner). `buildCage2(spec,
+'crease')` is the CANONICAL output (user decision): step-1 geometry (164 v
+vs step 2's 320; L2 render mesh 2594 v vs 5090) + edge tags derived from
+the same bay/level tables that place the guard loops — the two modes
+cannot drift. Weight families in spec.crease: pillar/sill/band/frame/cap/
+frontCap, all sliders. Steps 0/1/2 remain fit-verified against the Blender
+templates (`node tools/_cage_fit.js`, still FIT: OK, bit-guarded). The
+A-pillar frown cannot form in crease mode (no guard cluster); the round-
+mode A-pillar widths are additionally pulled to their mean (box path
+untouched). Before/after evidence: loop mode shows the heavy wavy browline,
+crease mode a clean hairline frame.
+
+**CONFIGURATIONS — same topology, routing choices** (user ask: pushers,
+aero noses, full-round, bizjet/sailplane):
+- `top.botRound` mirrors the round-top machinery below the waist (floor
+  and keel-corner rows on the lower arc, keel centre = bottom crown):
+  round top + round bottom = the oval tube.
+- `config.noseMode 'aero'`: NO fold at the windshield — full rings
+  continue through the screen zone (windshield = a MATERIAL ZONE on the
+  upper bands with crease-weighted frame hoop, the C172/loft_fit lesson)
+  and a shrinking drooping cone (aeroWs pillar pair + noseMid + noseTip)
+  to a front grid cap. Cap style = crease weight: ~0.3 domes (radome),
+  high = flat cut.
+- `config.rearAperture`: the tail cap becomes the flat pillarFront face —
+  the pusher prop disc. Tractor/pusher are symmetric cap styles.
+- `config.boomMid {t, pinch}`: one optional control ring for the
+  sailplane pod-to-boom waist (the boom is a single CC span otherwise).
+- Least-geometry principle held: configs add only their optional stations
+  (aero +4 rings, boomMid +1); crease mode meanwhile halves the template.
+
+Presets in _cage3.html prove it (screenshots taken): bizjet, sailplane
+(pod + pinched boom + bubble, softer crPillar 0.5), pusher (round nose,
+flat aperture disc at the tail). Health sweep: 32 config x step cases all
+closed-quad-manifold including crease-mode L2.
+
+**G12.2b — user correction on the nose (same day).** The first aero-nose
+implementation rebuilt topology and read ugly (smoothstep taper + droop =
+concave tip). USER RULING, now implemented: the goal is the BASE geometry
+— the existing cowl/deck/nose-ring assembly must itself go round; the
+aero-nose continuous-rings path stays only as an EXPERIMENT under its
+slider. Base-topology round nose:
+- `noseCrown`: the deck CENTRE line rises (convex cowl top); the lift
+  fades toward the ceiling line so the windshield centre profile stays
+  monotone — the glass base arches over the crown (the gracious link).
+- `noseH` / `noseDroop`: the nose ring shrinks vertically about the deck
+  and droops — with `noseW` the "shrink the current nose" is now 3-axis.
+- `config.cowlMid {t, bulge}`: ONE optional intermediate cowl loop
+  (lerp of windshield base and nose twin, bulged) = the convex side
+  profile. `crNoseCap` low domes the nose cap (radome), high keeps the
+  flat engine aperture.
+- The bizjet preset is BASE topology now (user: bizjet windscreens are
+  framed/discontinuous — the fold IS the frame): round body + crowned
+  drooped shrunken nose + raked screen. Verified by screenshot; reads
+  like a Citation/Falcon front. Jodel defaults gained noseCrown 0.16 +
+  cowlMid (the cowl top is convex, no more flat deck sliver).
+- The aero experiment's tip: ellipse-quadrant taper (slope 0 at cabin,
+  steep at tip — CONVEX outline merging into a point; the smoothstep it
+  replaces plateaued while the droop pulled down = the concave look).
+  Sailplane/pusher presets stay on the experiment with small tips.
+
+**G12.2c — vertical base lift + the cowl profile (same day, user ask).**
+- `ws.baseLift` rounds the BASE OF THE WINDSHIELD VERTICALLY: the base
+  edge and the waistband rise above the waist line (wsFront full,
+  wsAft x0.85 so it ramps through the quarter bay; the centre chain adds
+  it to the crown), giving the section below the glass more arc — the
+  glass sits high on a round nose shoulder like real aircraft.
+- The single cowlMid became THE COWL PROFILE: `config.cowl {loops 0-2,
+  ease, bulge}` samples loops between the windshield-base section and the
+  nose end with DIMS eased by an ellipse blend while z stays linear — the
+  lag is the convexity, never concave. `config.noseFinish`:
+  - 'engine' (default): loops -> twin ring -> aperture ring + pillarFront
+    band + flat-ish cap. THIS IS ALL FUSELAGE BEFORE ENGINE ATTACHMENT —
+    the game's cowl assembly bolts onto the aperture (user reminder).
+  - 'aero': loops -> tiny drooped nose ring + domed cap (crNoseCap low),
+    NO aperture band — the FINAL nose, nicely convex.
+- Bizjet preset now: baseLift 0.14, noseFinish aero, 2 loops ease 0.8,
+  noseW/H 0.16/0.15, droop 0.26 — screenshot reads like a real bizjet
+  (high framed screen on a round shoulder, drooped radome to a point).
+  Jodel defaults: engine finish, crown 0.16, lift 0.05, 1 loop ease 0.35.
+- Old cowlMidOn/T/Bulge params replaced by cowlLoops/cowlEase/cowlBulge.
+
+**Pages refactored**: _cage_ui.js is the shared runtime (thin _cage2/
+_cage3 shells): step select incl. 'crease' (default), curvature debug
+shading (max dihedral heat — the frown detector), MACRO sliders (length/
+width/height/belly/waist/rake/tail/aft/nose multipliers resolved before
+cageSpec) with the detailed sliders in collapsed groups, preset menu,
+ghost overlay, OBJ export.
+
+### G12.3 — WINDOWS (2026-08-15, C3; v2 after user review)
+
+`cageWindows` in _cage_gen.js — a post-pass on the CREASE-mode cage only
+(the loop steps stay the fit-verified template). Faces are MARKED during
+emission (glass-band quads of window zones -> `win`, the pilot-cabin door
+band -> `door`); marked faces are grouped into ZONES (union-find over
+shared edges, same material) — so the pilot side glass and the quarter
+glass merge into ONE window across the window ring, as on the real
+aircraft. Each zone gets a proper inset: the inner ring mirrors the
+zone's boundary 1:1 (all-quad, no T-junctions), recessed `winDepth` along
+the per-vertex normal (`winBlow` backs it out), frame quads in body
+material, pane keeps the zone material.
+
+**HARD-WON #1 (v1->v2):** a creased LOOP is still a smooth B-spline CURVE
+under Catmull-Clark — a creased rectangle renders as an ellipse. Sharp
+surface != sharp outline. Corners hold only under the Pixar CORNER rule
+(vertex with >= 3 sharp edges) — hence ring + spoke creasing.
+
+**HARD-WON #2 (v2->v3, user report "mesh gets messy"):** CREASE LINES MUST
+NOT CROSS. Every crossing gives a vertex >= 3 sharp edges -> corner-pinned
+-> a kink; fractional weights wobble. Consequences now in force: pillar
+loops default weight 0 (the tight ring PAIR holds them — the template's
+own mechanism), rails carry INTEGER weights (sill 2, band 1, ceil 1 — the
+ceil rail also anchors window top edges), and the window construction is
+SELF-CONTAINED: triple ring (untouched smooth boundary -> reveal ring ->
+frame/glass ring), so window creases never touch the rails.
+
+**HARD-WON #3 (v3 tearing):** corner-PINNED vertices stay on the control
+cage while the smooth surface converges INSIDE it — a frame placed at
+cage positions stands proud on a collapsing rim and the reveal band folds
+(measured 148 inverted quads). Fix: place the frame rings at the LIMIT
+positions (Halstead-Kass-DeRose stencil; crease vertices on rails use the
+B-spline curve limit (E1+4P+E2)/6 blended by weight). Inset directions
+are also projected into the local tangent plane (zones that bend across
+the flank->slope junction would otherwise spike outward).
+
+**G12.3 v4 — USER RULING: INSETS DISMISSED, RIM JOINTS INSTEAD.** Windows
+are MATERIAL ZONES on the untouched surface (no cuts, no subsurf fights);
+the joint is `cageRims`: a separate closed tube bead (diamond section,
+material 'joint') swept along each zone outline — the same idiom as the
+game's cframe/gframe canopy rails. The inset pass (`cageWindows`) stays
+dormant behind winFrameW=0. Sweep construction, each item bought with a
+failure: path points at the crease-aware LIMIT positions; the path is
+DENSIFIED with corner-hugging points (sparse control ring -> oval — the
+B-spline ellipse lesson, third appearance); each edge BENT through its CC
+edge-point as a quadratic bezier (a straight chord dips under the domed
+surface and the bead sinks into dashes); section frames PARALLEL-
+TRANSPORTED along the path (recomputing the binormal per station twists
+the tube into culled dashes — and do NOT flip per-station afterwards,
+seed once). Viewer fix (user report): painter sort now keys on the
+FARTHEST corner instead of the centroid — crease-stretched slivers with a
+near centroid used to pop through covering faces.
+
+**G12.3 v7 — WINDSHIELD JOINT, THE REAL DOOR, OUTLINES AS OBJECTS (session
+end state).**
+- The windshield glass is rim-marked too; left and right share the
+  centre-chain edges, so the union-find yields ONE zone and ONE seal loop
+  around the whole screen (works in cowl and aero modes — any face with
+  material 'windshield' in the glass bands).
+- THE DOOR (user spec): encompasses the whole window and runs from the
+  window top (ceil line — only the thin ceiling band remains above it)
+  down to the belly edge, pillar to pillar. Marked bands: glass +
+  waistband + door band + floor band (`doorDeep` drops the floor band to
+  stop at the floor line instead). Doors per side on the pilot bay
+  (`doorOn`) and on every pax bay (`doorPax`). A face can belong to BOTH
+  its window zone and its door zone — the two kinds are grouped in
+  independent union-find passes; the window seal nests inside the door
+  seal, like the real aircraft.
+- OUTLINES ARE FIRST-CLASS OBJECTS: `cageRims(mesh, spec)` records
+  `mesh.outlines = [{kind: 'win'|'door', mat, ids, pts}]` — the ordered
+  boundary vertex ids AND limit-surface points of every zone, at the
+  displayed subsurf level, recorded EVEN when a tube is disabled. This is
+  the manipulation handle for later sessions (reshape, offset, hinge
+  lines, cut-outs).
+- Options (sliders + spec): `rimW` size, `rimWin`/`rimWs`/`rimDoor`
+  per-family tube toggles, `doorOn`/`doorPax`/`doorDeep`. Door tube at
+  0.85 x rim. Verified: fit green, manifold at L2 with pax doors on 2
+  bays, outline inventory correct (1 windshield, 2 per-side windows/doors
+  per bay), screenshots show the nested door + window seals and the
+  windscreen loop.
+
+**G12.3 v6 — RIMS SWEEP THE DISPLAYED LEVEL (user spec, final form).**
+`cageRims(mesh, spec)` now runs AFTER subdivision (the page calls it on
+the L-level mesh): zone marks (`win`/`door`) propagate through
+`cageSubdivide` children, the zone boundary is traced on the subdivided
+mesh (interior vertices allowed — only the boundary cycle matters), and
+the octagon-section tube is swept along that REAL surface polyline with
+its centre ON the surface: half the tube buried, half showing (user
+spec). No estimation left anywhere: no corner densification, no CC
+compensation, no bezier — the path IS the displayed geometry, so the
+joint sticks at any subsurf level by construction. The tube is final
+geometry (never subdivided). Verified L0-L3: manifold, chi 2, joint face
+counts scale with the level; screenshots show clean half-round seals
+hugging pane and door outlines including corners. NOTE: rims are runtime
+attachments — the OBJ export ships the control cage only.
+
+**G12.3 v5 — THE RENDERER WAS THE LAST PROBLEM (user verdict: "I'm fed up
+diagnosing renderer issues" — correctly).** The demonstrators' hand-rolled
+canvas painter (inherited from _cage.html and extended far past its
+competence) caused the residual "dashing", far-side bleed-through and
+sort popping — all renderer, not geometry. _cage_ui.js now renders with
+THE PROJECT'S OWN three.js (vendor/three.min.js, r128): indexed
+BufferGeometry with per-material groups (welded verts -> the same smooth
+vertex normals the game viewer computes), z-buffer, Lambert + hemisphere
+lighting, preserveDrawingBuffer for the screenshot sink. Wireframe and
+curvature-heat modes reimplemented; cage overlay and OBJ-ghost as
+LineSegments. Verified: rims render as continuous straight seals from
+every angle, no occlusion errors. RIM PATHS are straight chords with
+corner densification + parallel-transported frames (user ruling: straight
+pieces STRAIGHT — the CC-edge-point bezier that bowed them is reverted);
+the bead rides higher (embed -0.25r). The post-subdivision sweep remains
+the exact endgame for beads on extreme dome curvature, but under the real
+renderer the current beads already read clean.
+
+Also (user asks): view drag now starts ONLY on the canvas (slider drags no
+longer rotate), wheel = manual zoom (dblclick refits), and the preset row
+gained SAVE (named configs in localStorage, listed as "* name") and LOG
+(non-default params -> console + clipboard — use this to lift numbers into
+built-in presets).
+
+OPEN from C3: true blown-bubble centre vertex (needs an all-quad 3x3
+inset — the 4->8 annulus does not quad-mesh without T-junctions; either
+accept the proud-pane approximation or inset twice), windshield glass
+inset on the slope (frames exist as zones already), door on pax bays.
+
+OPEN (chantier order per user): C4 parameter-space UVs
+(u anchored at the waistband so the livery stripe is straight by
+construction), C5 game swap (contract mapped: replace 63_gen_skin
+:516-1305 behind fuselage.family='cage'; bind cage verts bilinearly to
+frame corners like sectionRow, weights survive CC because it is affine,
+prune to GEN_INFL=8; glazing route 'bubble' == round mode), C6 cowl (own
+cage off the nose-ring contract + aperture grammar: eyes/smile/gills/
+annular), C7 pillar editor (edit ONLY non-subsurf control points — the
+named rings; guards/creases derive). Also still open from G12: real
+Cub/C172 dim presets; canopy glass one-tint in the real skin.
+NOTE mesh 1's boom glass-band bleed above — if the user re-exports the
+templates from Blender, re-run `node tools/_cage_fit.js` before trusting a
+new fiche; source of truth stays in Downloads.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

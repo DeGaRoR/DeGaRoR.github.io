@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<!--
+  CAGE2 — the faithful template-plane demonstrator (box top, template
+  defaults). Throwaway, gitignored, not in MANIFEST. Serve from repo root
+  (launch: flydiy) and open /flyDiy/tools/_cage2.html.
+
+  Thin shell over _cage_ui.js + _cage_gen.js. The node verdict remains
+  tools/_cage_fit.js (steps 0/1/2 reproduce templatePlaneProcedural_
+  {0,1,2}_nocc.obj exactly); step 'crease' is the canonical economic
+  output: the same step-1 geometry with edge crease weights instead of the
+  guard-loop layer.
+-->
+<meta charset="utf-8">
+<title>flyDiy — cage2, the template plane</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 40px)}
+  #view{position:relative} canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow:auto;padding:10px}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0}
+  .r span.k{color:var(--dim);width:92px;flex:none}
+  input[type=range]{flex:1;accent-color:var(--acc)}
+  .v{width:44px;text-align:right;color:var(--acc)}
+  .leg{display:flex;gap:5px;align-items:center;margin:3px 0}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+</style>
+
+<header>
+  <h1>cage2 — template plane</h1>
+  <label>step <select id="step">
+    <option value="0">0 — zones</option>
+    <option value="1">1 — pillars + rings</option>
+    <option value="2">2 — guard loops (reference)</option>
+    <option value="crease" selected>crease (canonical)</option>
+  </select></label>
+  <label>subsurf <select id="lvl">
+    <option>0</option><option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label><input type="checkbox" id="cage" checked> cage</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="color" checked> sections</label>
+  <label><input type="checkbox" id="curv"> curvature</label>
+  <label><input type="checkbox" id="refOn"> ghost ref</label>
+  <label>ref α <input type="range" id="refA" min="0" max="1" step="0.05"
+    value="0.5" style="width:60px"></label>
+  <button id="resetBtn">reset</button>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script>
+window.CAGE_PAGE = { defaultStep: 'crease' };
+</script>
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_cage_ui.js"></script>
