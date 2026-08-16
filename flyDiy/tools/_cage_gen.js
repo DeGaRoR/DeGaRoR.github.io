@@ -1399,11 +1399,15 @@ function cageInterior(m, S) {
     }
     if (line.length < 5) return;
     const base = line.map(vi => V[vi].slice());
-    // tuck the whole dashboard a few mm inboard — the corner poked
-    // through the skin at the windshield fold (user report)
+    // PERFECT FIT at the glass (user ruling): the dash top edge stays
+    // VERBATIM on the traced windshield base line — the old global tuck
+    // opened a gap there. The tuck is PROGRESSIVE instead: zero at the
+    // base row, full on the flattened outline and everything behind and
+    // below it, so the body still clears the skin at the fold and under
+    // the waist while the glareshield seals against the glass exactly.
     const TUCK = 0.008;
-    for (const p of base)
-      p[0] -= Math.sign(p[0]) * Math.min(Math.abs(p[0]), TUCK);
+    const baseT = base.map(p => [
+      p[0] - Math.sign(p[0]) * Math.min(Math.abs(p[0]), TUCK), p[1], p[2]]);
     const back = Math.max(0.005, I.dashBack || 0.05);
     const lip = Math.max(0.005,
       (I.dashLip != null ? I.dashLip : I.dashInset) || 0.035);
@@ -1422,12 +1426,13 @@ function cageInterior(m, S) {
     const NL = base.length;
     const NS = 3;
     const bL = base[0], bR = base[NL - 1];
+    const bLT = baseT[0], bRT = baseT[NL - 1];
     const O = [];
     for (let j = 0; j < NS; j++)
-      O.push([bL[0], yB + (bL[1] - yB) * j / NS, zP]);
-    for (let i = 0; i < NL; i++) O.push([base[i][0], base[i][1], zP]);
+      O.push([bLT[0], yB + (bL[1] - yB) * j / NS, zP]);
+    for (let i = 0; i < NL; i++) O.push([baseT[i][0], baseT[i][1], zP]);
     for (let j = NS - 1; j >= 0; j--)
-      O.push([bR[0], yB + (bR[1] - yB) * j / NS, zP]);
+      O.push([bRT[0], yB + (bR[1] - yB) * j / NS, zP]);
     const NX = O.length;
     // in-plane inset of the full outline (normals toward the interior)
     let yTop = -1e9;
@@ -1459,15 +1464,19 @@ function cageInterior(m, S) {
       if (!vid.has(k)) vid.set(k, V.push([p[0], p[1], p[2]]) - 1);
       return vid.get(k);
     };
+    // the side anchor chain lerps x exactly like the return grid rows do
+    // (identical formula = float-identical seam points)
     const anchor = [];
     for (let j = 0; j < NS; j++)
-      anchor.push([bL[0], yB + (bL[1] - yB) * j / NS, bL[2]]);
+      anchor.push([bLT[0] + (bL[0] - bLT[0]) * j / NS,
+                   yB + (bL[1] - yB) * j / NS, bL[2]]);
     for (let i = 0; i < NL; i++) anchor.push(base[i]);
     for (let j = NS - 1; j >= 0; j--)
-      anchor.push([bR[0], yB + (bR[1] - yB) * j / NS, bR[2]]);
+      anchor.push([bRT[0] + (bR[0] - bRT[0]) * j / NS,
+                   yB + (bR[1] - yB) * j / NS, bR[2]]);
     const aid = anchor.map(pid);
     const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
-    const R5 = base.map(p => pid([p[0], yB, p[2]]));
+    const R5 = base.map((p, i) => pid([baseT[i][0], yB, p[2]]));
     const dashStart = add.length;
     const quad = (a, b, c, d) => {
       const u = new Set([a, b, c, d]);
@@ -1510,11 +1519,13 @@ function cageInterior(m, S) {
     // front return: a GRID with rows at the side-chain heights — its side
     // columns fuse with the side panels' forward edges (no T-junctions)
     for (let k = 0; k < NS; k++) {
-      const ra = base.map(p => pid([p[0], yB + (p[1] - yB) * k / NS, p[2]]));
+      const row = kk => base.map((p, i) => pid([
+        baseT[i][0] + (p[0] - baseT[i][0]) * kk / NS,
+        yB + (p[1] - yB) * kk / NS, p[2]]));
+      const ra = row(k);
       // top row must reuse the base points VERBATIM: yB + (y-yB)*1 is not
       // bit-equal to y in floats and the seam would not fuse
-      const rb = k + 1 === NS ? base.map(p => pid(p))
-        : base.map(p => pid([p[0], yB + (p[1] - yB) * (k + 1) / NS, p[2]]));
+      const rb = k + 1 === NS ? base.map(p => pid(p)) : row(k + 1);
       strip(ra, rb);
     }
     // coherent windings + outward, on this component only
