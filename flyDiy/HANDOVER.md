@@ -5024,6 +5024,15 @@ but uncreased, so subdivision's smooth vertex rule pulled it inward
 MAX CREASE (weight 3 keeps a chain exactly on its polyline). Now: base
 line, under-base return and outer outline at 3; the lip pair keeps
 dashCrease. Gap closed, fit green.
+**DASH BOTTOM = A BOX (e933ae5, user spec):** the back-bottom edge is
+ONE STRAIGHT transverse line (constant z at the window-pillar station,
+zPill = mean of the base-line end z); the return grid lerps BOTH y and
+z per column, morphing the curved glass base into the straight edge —
+the strange morph face is the hidden part, and CAN BE DELETED entirely
+(open back, as IRL) if it ever causes issues. Vertical front corners +
+bottom-side edges max-creased (box corners: >= 3 sharp on straight
+lines = exact). Anchor side chains use the IDENTICAL lerp formulas as
+the return grid columns (seam fusion).
 **NEXT SESSION — DASH REDESIGN AS FLAT PANELS (user ruling):** the
 continuous half-circle piece is unrealistic and causes the trouble.
 Rebuild as REAL PANELS like IRL aircraft: a flat instrument panel
