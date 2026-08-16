@@ -5017,6 +5017,20 @@ best-effort — refine via the new JSON export). UI: exp/imp buttons
 paste — the trusted alternative to localStorage), side pane RESIZABLE
 (flex + rtl resize handle, _cage3 only — mirror to _cage2 if wanted).
 
+**I3' DONE (dccf38a): PILLAR BODIES = THICKENED REMAINING SKIN.** In
+cageInterior, `intPillars` + `shellT` (default 0.035): the never-cut
+pillar bands (pillarWindow / pillarCabin / pillarPassenger) get an
+inward-offset LINER copy (smooth per-vertex normals from the
+selection's own faces, source materials kept so the A-pillar stays
+ochre inside) + RIM WALLS on every selection-boundary edge — against a
+cut hole the wall IS the door jamb / window reveal. Liner idiom: NO
+outer duplicate (no z-fight; walls duplicate their seam verts, faces
+tagged `att:1`, open outer edges by convention). The A-pillar reads as
+a real structural post from the pilot's eye (user priority). SAME PASS
+extends to the full fuselage inner shell by widening the material
+selection — that is the designed next step, then door/pane thickness
+(I4'), then material idioms (I5).
+
 ### G14 — POST-SUBSURF CUTTING (v1 DONE 2026-08-16, user chantier)
 
 `cageCut(mesh, spec)` — runs after cageSubdivide, BEFORE cageRims:
