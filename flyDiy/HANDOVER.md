@@ -5033,6 +5033,17 @@ the strange morph face is the hidden part, and CAN BE DELETED entirely
 bottom-side edges max-creased (box corners: >= 3 sharp on straight
 lines = exact). Anchor side chains use the IDENTICAL lerp formulas as
 the return grid columns (seam fusion).
+**Final session tweaks:** dash back line pulled +0.15 z past the
+window pillar (user: it must CROSS the pillar — no gap beside it);
+default view = cage overlay OFF + explodeD 1 (slider max now 1).
+**KNOWN ISSUES for next session (user report, unresolved):** (1) at
+subsurf 2 the windshield seal's TOP curve misses a mid interpolation
+point (reads flattened; fine at L3) — likely needs the seal path
+densified from the limit curve at low levels. (2) at subsurf 3 the cut
+DOOR and its joint MISMATCH in two places (door top corner region and
+front edge vs pillar) — suspect the row-BFS sill NDROP rounding
+changing rows between levels and/or outline-vs-part divergence at L3;
+diagnose fresh.
 **NEXT SESSION — DASH REDESIGN AS FLAT PANELS (user ruling):** the
 continuous half-circle piece is unrealistic and causes the trouble.
 Rebuild as REAL PANELS like IRL aircraft: a flat instrument panel

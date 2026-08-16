@@ -1781,7 +1781,7 @@ function cageInterior(m, S) {
     };
     // the side anchor chain lerps x exactly like the return grid rows do
     // (identical formula = float-identical seam points)
-    const zPillA = (bL[2] + bR[2]) / 2;
+    const zPillA = (bL[2] + bR[2]) / 2 + 0.15;
     const anchor = [];
     for (let j = 0; j < NS; j++)
       anchor.push([bLT[0] + (bL[0] - bLT[0]) * j / NS,
@@ -1798,7 +1798,9 @@ function cageInterior(m, S) {
     // transverse line at the window-pillar station — the hidden return
     // face morphs from the curved glass base down to it (worst case,
     // that back face can be deleted entirely, as IRL)
-    const zPill = (bL[2] + bR[2]) / 2;
+    // pulled toward the nose past the window pillar (user spec: the
+    // back face must cross the pillar so no gap shows beside it)
+    const zPill = (bL[2] + bR[2]) / 2 + 0.15;
     const R5 = base.map((p, i) => pid([baseT[i][0], yB, zPill]));
     const dashStart = add.length;
     const quad = (a, b, c, d) => {

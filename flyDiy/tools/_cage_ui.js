@@ -137,7 +137,7 @@ const GROUPS = [
   ]],
   ['cutting', [
     ['cutParts',  'cut parts',     0, 1, 1],
-    ['explodeD',  'explode',       0, 0.5, 0.005],
+    ['explodeD',  'explode',       0, 1, 0.005],
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
