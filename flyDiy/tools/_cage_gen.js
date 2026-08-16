@@ -565,8 +565,13 @@ function buildCage2(S, step) {
           F[F.length - 1].win = F[F.length - 2].win = 1;
         const D = (S.config && S.config.doors) || {};
         const bayName = seq[i].name;
+        // the pilot door spans pillar to pillar in the REAL sense: from the
+        // cabin pillar forward THROUGH the quarter bay to the A-pillar, so
+        // its front edge follows the windshield slant (user's yellow
+        // outline). The quarter bay starts at the window ring.
         const doorBay = !isPillarMat(mat) &&
-          ((D.pilot && mat.glass === 'pilotWindow' && /^pilCab/.test(bayName))
+          ((D.pilot && mat.glass === 'pilotWindow'
+            && (/^pilCab/.test(bayName) || bayName === 'ring'))
            || (D.pax && mat.glass === 'pasengerWindow'
                && /^pilPax[BM]/.test(bayName)));
         if (doorBay && (hi === 'ceil' || hi === 'band' || hi === 'waist'
@@ -838,6 +843,39 @@ function cageRims(m, S) {
     }
     return sm;
   };
+
+  // door bottom trim: peel N rows off the LOWER boundary of the door marks
+  // at the displayed level ("a tad too low, move it up by 1 unit" — the
+  // unit is one subdivided row). A row face is one adjacent, across an
+  // unmarked neighbour, to strictly lower ground.
+  if (W.doorDrop > 0) {
+    const cy = f => (V[f.v[0]][1] + V[f.v[1]][1] + V[f.v[2]][1]
+                     + V[f.v[3]][1]) / 4;
+    for (let it = 0; it < W.doorDrop; it++) {
+      const eF = new Map();
+      F.forEach((f, i) => {
+        if (f.v.length !== 4) return;
+        for (let e = 0; e < 4; e++) {
+          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          if (!eF.has(k)) eF.set(k, []);
+          eF.get(k).push(i);
+        }
+      });
+      const drop = [];
+      F.forEach((f, i) => {
+        if (!f.door) return;
+        const y0 = cy(f);
+        for (let e = 0; e < 4 && !drop.includes(i); e++) {
+          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          for (const j of eF.get(k) || [])
+            if (j !== i && !F[j].door && cy(F[j]) < y0 - 1e-6) {
+              drop.push(i); break;
+            }
+        }
+      });
+      for (const i of drop) delete F[i].door;
+    }
+  }
 
   // zones: a face can belong to BOTH a window zone and a door zone (the
   // door encompasses the window), so the two kinds are grouped in
@@ -1388,7 +1426,7 @@ const CAGE_PARAMS = {
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1,
-  doorOn: 1, doorPax: 0, doorDeep: 1, doorDepth: 0.008,
+  doorOn: 1, doorPax: 0, doorDeep: 1, doorDrop: 1, doorDepth: 0.008,
 };
 
 function cageSpec(P) {
@@ -1523,7 +1561,8 @@ function cageSpec(P) {
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
-            rimDoor: P.rimDoor ? 1 : 0 };
+            rimDoor: P.rimDoor ? 1 : 0,
+            doorDrop: Math.max(0, Math.round(P.doorDrop)) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   return S;

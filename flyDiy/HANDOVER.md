@@ -5001,6 +5001,23 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
+**G12.3 v8 — DOOR SPAN CORRECTED (user annotation).** The pilot door now
+spans pillar to pillar in the REAL sense: from the cabin pillar forward
+THROUGH THE QUARTER BAY to the A-pillar, its front edge following the
+windshield slant (the quarter bay starts at the window ring — the earlier
+version stopped there and missed half the width). `doorDrop` (default 1)
+peels N subdivided rows off the door's LOWER boundary at the displayed
+level ("a tad too low, up by 1 unit" — the unit is one row, so its
+absolute size follows the subsurf level). Verified: door outline z 2.01
+-> 3.32 on the jodel (cabin pillar to A-pillar), bottom one row above the
+belly edge; fit green.
+USER OPTION FOR LATER (not built): the whole door can become a WINDOW —
+glass propagating down past the waistline — via a `sillDepth` parameter
+that extends the glass material zone down the mesh; same dispositive for
+the pax bays. Natural implementation: post-subdivision material
+reassignment of door-zone faces above a y-threshold, so the window
+outline/joint follows automatically via the material marks.
+
 **G12.3 v7 — WINDSHIELD JOINT, THE REAL DOOR, OUTLINES AS OBJECTS (session
 end state).**
 - The windshield glass is rim-marked too; left and right share the
