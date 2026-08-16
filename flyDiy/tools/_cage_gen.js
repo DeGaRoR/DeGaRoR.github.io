@@ -232,6 +232,18 @@ function cageResolve(S) {
     ? { pax:   { ...CAGE_MAT.pax, ceilB: 'pasengerWindow' },
         pilot: { ...CAGE_MAT.pilot, ceilB: 'pilotWindow' } }
     : CAGE_MAT;
+  // skylight: the roof strip (skyWindows) is optional and has an EXTENT,
+  // counted in window bays from the front (pilot bay = rank 0, then pax
+  // bays going aft). Uncovered bays get plain body — and the win marks
+  // below follow the materials, so the outlines always trace the REAL
+  // glass: bubble+sky = one door-to-door arch per bay, sky only = side
+  // windows + per-bay skylights, bubble only = taller side windows,
+  // neither = the box sides. (Defaults sky on, ext all = the template.)
+  const GL = S.glaze || { sky: 1, ext: 9 };
+  const roofFor = rank =>
+    (GL.sky && rank < GL.ext) ? MATS.pilot.roof : 'body';
+  const matPilot = { ...MATS.pilot, roof: roofFor(0) };
+  const matPax = i => ({ ...MATS.pax, roof: roofFor(S.pax.count - i) });
 
   const zPaxB = S.ring.z - S.pilot.len - S.cabinPillarW
               - S.pax.count * S.pax.len - (S.pax.count - 1) * S.paxPillarW;
@@ -252,7 +264,12 @@ function cageResolve(S) {
 
   const CFG = S.config || {};
   add(fullRing('tailCap', zCap, tailD), { mat: CAGE_MAT.plain });
-  add(fullRing('tailMid', zCap + S.tail.midT * S.tail.len, tailD),
+  // the tail pillar band is tailMid -> tailPost: with the unified pillar
+  // width set, tailMid sits pillarW forward of the post (template midT
+  // placement otherwise — fit identity path)
+  add(fullRing('tailMid', S.pillarW > 0
+      ? Math.max(zCap + 0.05 * S.tail.len, zPost - S.pillarW)
+      : zCap + S.tail.midT * S.tail.len, tailD),
       { mat: CAGE_PILLAR('pillarTail') });
   add(fullRing('tailPost', zPost, tailD),
       { mat: CAGE_MAT.plain,
@@ -275,7 +292,7 @@ function cageResolve(S) {
   let z = zPaxB;
   for (let i = 0; i < S.pax.count; i++) {
     add(fullRing('pilPaxB' + (i || ''), z, i ? cabD : aftDB),
-        { mat: MATS.pax, guards: [S.pax.guardTA, S.pax.guardTB] });
+        { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
     z += S.pax.len;
     if (i < S.pax.count - 1) {
       add(fullRing('pilPaxM' + i, z, cabD),
@@ -285,7 +302,7 @@ function cageResolve(S) {
   }
   add(fullRing('pilCabA', z, cabD), { mat: CAGE_PILLAR('pillarCabin') });
   add(fullRing('pilCabB', z + S.cabinPillarW, cabD),
-      { mat: MATS.pilot, guards: [S.pilot.guardT] });
+      { mat: matPilot, guards: [S.pilot.guardT] });
 
   // ---- AERO NOSE (bizjet / sailplane / pusher front) ----------------------
   // No fold at the windshield: the full rings continue through the screen
@@ -329,7 +346,7 @@ function cageResolve(S) {
   }
 
   add(fullRing('ring', S.ring.z, ringD),
-      { mat: MATS.pilot, guards: [S.ws.guardT] });
+      { mat: matPilot, guards: [S.ws.guardT] });
 
   // windshield rings (upper levels on the slope, keel band slightly slanted).
   // `lift` rounds the BASE OF THE WINDSHIELD VERTICALLY: the base edge (and
@@ -548,6 +565,11 @@ function buildCage2(S, step) {
     const a = ids[i], b = ids[i + 1], mat = bayOf[i];
     face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, mat.roof);
     face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, mat.roof);
+    // the roof strip is glass when the skylight covers this bay; marking
+    // it joins the two sides across the centreline, so bubble + skylight
+    // union-finds into ONE door-to-door arch per bay
+    if (creaseMode && mat.roof === 'skyWindows')
+      F[F.length - 1].win = F[F.length - 2].win = 1;
     const sh = ordOf(seq[i]).filter(k => seq[i + 1].lv[k] != null);
     for (let k = 0; k < sh.length - 1; k++) {
       const hi = sh[k], lo = sh[k + 1], m = bandMat(mat, hi, lo);
@@ -560,8 +582,11 @@ function buildCage2(S, step) {
       // 'deep'), pillar to pillar; only the thin ceiling band remains above
       // it. Doors on the pilot bay and, optionally, every pax bay.
       if (creaseMode) {
-        if (hi === 'ceil' && (m === 'pilotWindow' || m === 'pasengerWindow'
-            || m === 'windshield'))
+        // any band in a glass material is window: the ceil band always,
+        // and the ceiling band (hi 'roof' -> ceilB) when bubble routes it
+        // to the bay glass — marks follow materials, never a level list
+        if (m === 'pilotWindow' || m === 'pasengerWindow'
+            || m === 'windshield')
           F[F.length - 1].win = F[F.length - 2].win = 1;
         const D = (S.config && S.config.doors) || {};
         const bayName = seq[i].name;
@@ -575,8 +600,14 @@ function buildCage2(S, step) {
            || (D.pax && mat.glass === 'pasengerWindow'
                && /^pilPax[BM]/.test(bayName)));
         if (doorBay && (hi === 'ceil' || hi === 'band' || hi === 'waist'
-            || (D.deep && hi === 'floor')))
+            || (D.deep && hi === 'floor'))) {
           F[F.length - 1].door = F[F.length - 2].door = 1;
+          // door identity: which door this face belongs to, so each door
+          // can carry its own sill ('pilot', 'pax0', 'pax1', ...)
+          const dk = mat.glass === 'pilotWindow' ? 'pilot'
+            : 'pax' + (parseInt(bayName.slice(7), 10) || 0);
+          F[F.length - 1].doorKey = F[F.length - 2].doorKey = dk;
+        }
       }
     }
     face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, mat.belly);
@@ -913,48 +944,77 @@ function cageRims(m, S) {
     let ns = ring.map(v => nrm(vN.get(v)));
     let ids = ring.slice();
 
+    // per-door sill: the pilot door reads doorSill, pax doors doorSillPax;
+    // spec.win.sills = {pilot: v, pax0: v, ...} overrides any single door
+    const doorKey = F[faceIdxs[0]].doorKey || null;
+    const sill = kind !== 'door' ? 0
+      : W.sills && doorKey && W.sills[doorKey] != null ? W.sills[doorKey]
+      : doorKey && doorKey.lastIndexOf('pax', 0) === 0
+        ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
+      : W.doorSill;
+
     // DOOR SILL — continuous bottom lift that FOLLOWS THE MESH (user: a
     // horizontal iso-cut slopes across the lattice rows because the rows
     // follow the drooping keel line — the bottom edge must stay parallel
     // to the mesh). The clip field is the height ABOVE THE ZONE'S OWN
-    // BOTTOM LINE: bottomY(z) is sampled per z-column from the zone's
-    // vertices, and the cut is bottomY(z) + doorSill. Same clipping
-    // machinery, different scalar field; the new bottom edge is the
-    // bottom line offset upward — smooth, continuous, row-parallel.
-    if (kind === 'door' && W.doorSill > 0) {
+    // BOTTOM LINE, and the bottom line is EXACT: the lowest crossing of
+    // the zone's boundary ring at each z — piecewise linear, continuous,
+    // and adjacent doors share the same belly row, so equal sills line up
+    // across a pillar BY CONSTRUCTION. (The old per-zone z-bin estimate
+    // stepped at bin edges and disagreed between neighbouring doors —
+    // the visible sill jumps at the cabin pillar.)
+    if (kind === 'door' && sill > 0) {
       const clip = (() => {
-        // per-column bottom of the zone — sampled from the zone's LOWER
-        // region only: in the quarter bay the upper rows ride the
-        // windshield slope at shifted z, and letting them into the bins
-        // poisons the bottom estimate with mid-height minima
-        let z0 = 1e9, z1 = -1e9, gy0 = 1e9, gy1 = -1e9;
-        const zVerts = new Set();
-        for (const f of zoneFaces) for (const vi of f.v) zVerts.add(vi);
-        for (const vi of zVerts) {
-          z0 = Math.min(z0, V[vi][2]); z1 = Math.max(z1, V[vi][2]);
-          gy0 = Math.min(gy0, V[vi][1]); gy1 = Math.max(gy1, V[vi][1]);
+        const NR = pts.length;
+        // the bottom line is built from the BOTTOM RUN of the boundary
+        // only: segments more horizontal than vertical (|dz| >= |dy|) in
+        // the lower half of the zone. The side edges are only NEAR-
+        // vertical (limit positions of the pillar columns bow ~1e-3 in z),
+        // and a lowest-crossing query inside that z-sliver — beyond the
+        // bottom row's extent — would return a side-edge y far above the
+        // belly, poisoning the field (the v9 bin-poison lesson, boundary
+        // edition). Queries beyond the run's extent clamp to its ends.
+        let gy0 = 1e9, gy1 = -1e9;
+        for (const p of pts) {
+          gy0 = Math.min(gy0, p[1]); gy1 = Math.max(gy1, p[1]);
         }
-        const yLow = gy0 + 0.4 * (gy1 - gy0);
-        const NB = Math.max(4, Math.round(Math.sqrt(zVerts.size)));
-        const binW = (z1 - z0) / NB || 1;
-        const bins = new Array(NB).fill(1e9);
-        for (const vi of zVerts) {
-          if (V[vi][1] >= yLow) continue;
-          const b = Math.min(NB - 1, Math.max(0,
-            Math.floor((V[vi][2] - z0) / binW)));
-          bins[b] = Math.min(bins[b], V[vi][1]);
+        const yMid = gy0 + 0.5 * (gy1 - gy0);
+        const bot = [];
+        let z0 = 1e9, z1 = -1e9;
+        for (let i = 0; i < NR; i++) {
+          const A = pts[i], B = pts[(i + 1) % NR];
+          if (Math.abs(B[2] - A[2]) < Math.abs(B[1] - A[1])) continue;
+          if ((A[1] + B[1]) / 2 > yMid) continue;
+          bot.push([A, B]);
+          z0 = Math.min(z0, A[2], B[2]); z1 = Math.max(z1, A[2], B[2]);
         }
-        for (let b = 0; b < NB; b++)                    // fill empty bins
-          if (bins[b] === 1e9)
-            bins[b] = bins[b > 0 ? b - 1 : b + 1] !== 1e9
-              ? bins[b > 0 ? b - 1 : b + 1] : 0;
+        if (!bot.length) return null;
         const bottomAt = z => {
-          const x = (z - z0) / binW - 0.5;
-          const b = Math.max(0, Math.min(NB - 2, Math.floor(x)));
-          const t = Math.max(0, Math.min(1, x - b));
-          return bins[b] + (bins[b + 1] - bins[b]) * t;
+          const zc = Math.max(z0, Math.min(z1, z));
+          let y = 1e9;
+          for (const [A, B] of bot) {
+            if ((A[2] - zc) * (B[2] - zc) > 0) continue;
+            const dz = B[2] - A[2];
+            if (Math.abs(dz) < 1e-12) { y = Math.min(y, A[1], B[1]); continue; }
+            const t = Math.max(0, Math.min(1, (zc - A[2]) / dz));
+            y = Math.min(y, A[1] + (B[1] - A[1]) * t);
+          }
+          return y;
         };
-        const gOf = p => p[1] - (bottomAt(p[2]) + W.doorSill);
+        const gOf = p => p[1] - (bottomAt(p[2]) + sill);
+        // every g evaluation lives in LIMIT space: the boundary points ARE
+        // the ring's limit positions, and interior face corners go through
+        // the same limit stencil — shared edges then give bit-equal
+        // crossings and the chain below needs no loose snaps (the old
+        // limit-vs-raw mix needed a 0.05-radius snap at the joints, which
+        // was itself a visible jog in the bead)
+        const lim = new Map();
+        ring.forEach((vid, i) => lim.set(vid, pts[i]));
+        const limOf = vi => {
+          let p = lim.get(vi);
+          if (!p) { p = limitPos(vi); lim.set(vi, p); }
+          return p;
+        };
         const N = pts.length;
         const ab = pts.map(p => gOf(p) >= 0);
         if (ab.every(x => x) || !ab.some(x => x)) return null;
@@ -979,7 +1039,7 @@ function cageRims(m, S) {
         // cut-line segments of the zone faces at g = 0 (the offset line)
         const segs = [];
         for (const f of zoneFaces) {
-          const p4 = f.v.map(i => V[i]);
+          const p4 = f.v.map(limOf);
           const g4 = p4.map(gOf);
           let lo = 1e9, hi = -1e9;
           for (const g of g4) { lo = Math.min(lo, g); hi = Math.max(hi, g); }
@@ -993,16 +1053,17 @@ function cageRims(m, S) {
           const u = sub(p4[1], p4[0]), w2 = sub(p4[3], p4[0]);
           segs.push({ a: hits[0], b: hits[1], n: nrm(cross(u, w2)) });
         }
-        // chain x1 -> x2 by nearest endpoints. The joints x1/x2 live in
-        // limit space while the iso segments are in raw mesh space, so the
-        // FIRST and LAST hops get a loose snap radius; interior hops are
-        // exact (adjacent segments share raw edge crossings).
+        // chain x1 -> x2 by nearest endpoints. Everything is in limit
+        // space now, so every hop is exact (adjacent faces share edge
+        // crossings, and x1/x2 ARE boundary-edge crossings) — the snap
+        // radius is a pure float-noise guard, far below the bead size.
+        const SNAP = 1e-9;
         const d2 = (p, q) => (p[0]-q[0])**2 + (p[2]-q[2])**2;
         const runP = [], runN = [], used = new Set();
         let cur = x1;
         for (let g = 0; g <= segs.length; g++) {
-          if (d2(cur, x2) < 2.5e-3) break;
-          let bi = -1, bd = g === 0 ? 2.5e-3 : 1e-4, flip = false;
+          if (d2(cur, x2) < SNAP) break;
+          let bi = -1, bd = SNAP, flip = false;
           segs.forEach((sg, i) => {
             if (used.has(i)) return;
             const da = d2(cur, sg.a), db = d2(cur, sg.b);
@@ -1015,7 +1076,7 @@ function cageRims(m, S) {
           runP.push(nx); runN.push(segs[bi].n);
           cur = nx;
         }
-        while (runP.length && d2(runP[runP.length - 1], x2) < 2.5e-3) {
+        while (runP.length && d2(runP[runP.length - 1], x2) < SNAP) {
           runP.pop(); runN.pop();
         }
         // assemble: the above-run, then x1, the iso run, x2
@@ -1055,10 +1116,34 @@ function cageRims(m, S) {
     const pN = ns;
     const NP = path.length;
     const SS = 8;                          // octagon section
+    // MITER JOINTS: at each path vertex the section sits on the corner
+    // BISECTOR plane and is stretched 1/cos(half-turn) along the miter
+    // axis — the exact ellipse where the two straight tube runs intersect
+    // (SVG stroke-miter / a plumber's elbow). A circular section on the
+    // averaged tangent pinches to r*cos(half-turn) at every corner, which
+    // was the notched elbows on the door outline. Arms are normalized
+    // per-segment first (raw central difference biases the bisector toward
+    // the longer arm — the sill run's crossings are much shorter than the
+    // rail edges they meet).
+    const MITER_MAX = 2.5;                 // clamp for very sharp turns
     const sec = [];
     let bPrev = null;
     for (let i = 0; i < NP; i++) {
-      const t = nrm(sub(path[(i + 1) % NP], path[(i - 1 + NP) % NP]));
+      let d0 = sub(path[i], path[(i - 1 + NP) % NP]);
+      let d1 = sub(path[(i + 1) % NP], path[i]);
+      const l0 = Math.hypot(d0[0], d0[1], d0[2]);
+      const l1 = Math.hypot(d1[0], d1[1], d1[2]);
+      d0 = l0 < 1e-9 ? null : [d0[0]/l0, d0[1]/l0, d0[2]/l0];
+      d1 = l1 < 1e-9 ? null : [d1[0]/l1, d1[1]/l1, d1[2]/l1];
+      if (!d0) d0 = d1 || [0, 0, 1];
+      if (!d1) d1 = d0;
+      const ts = [d0[0]+d1[0], d0[1]+d1[1], d0[2]+d1[2]];
+      const tl = Math.hypot(ts[0], ts[1], ts[2]);
+      const t = tl < 1e-6 ? d1 : [ts[0]/tl, ts[1]/tl, ts[2]/tl];
+      const stretch = Math.min(MITER_MAX, 1 / Math.max(tl / 2, 1e-3)) - 1;
+      let mit = [d1[0]-d0[0], d1[1]-d0[1], d1[2]-d0[2]];  // in-plane, ⊥ t
+      const ml = Math.hypot(mit[0], mit[1], mit[2]);
+      mit = ml < 1e-6 ? null : [mit[0]/ml, mit[1]/ml, mit[2]/ml];
       let b = bPrev
         ? nrm([bPrev[0] - t[0]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
                bPrev[1] - t[1]*(bPrev[0]*t[0]+bPrev[1]*t[1]+bPrev[2]*t[2]),
@@ -1077,10 +1162,14 @@ function cageRims(m, S) {
       for (let k = 0; k < SS; k++) {
         const a = k * 2 * Math.PI / SS;
         const cb = Math.cos(a) * r, cn = Math.sin(a) * r;
+        let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
+            qz = b[2]*cb + n2[2]*cn;
+        if (mit) {
+          const dm = (qx*mit[0] + qy*mit[1] + qz*mit[2]) * stretch;
+          qx += mit[0]*dm; qy += mit[1]*dm; qz += mit[2]*dm;
+        }
         sN.push(V.push([
-          path[i][0] + b[0]*cb + n2[0]*cn,
-          path[i][1] + b[1]*cb + n2[1]*cn,
-          path[i][2] + b[2]*cb + n2[2]*cn,
+          path[i][0] + qx, path[i][1] + qy, path[i][2] + qz,
         ]) - 1);
       }
       sec.push(sN);
@@ -1438,7 +1527,7 @@ function cageSubdivide(m) {
       // zone marks survive subdivision so the rim pass can run on the
       // ACTUAL displayed level and trace the real boundary polyline
       if (f.win) nf.win = 1;
-      if (f.door) nf.door = 1;
+      if (f.door) { nf.door = 1; if (f.doorKey) nf.doorKey = f.doorKey; }
       NF.push(nf);
     }
   });
@@ -1497,16 +1586,25 @@ function orientCage(m) {
 const CAGE_PARAMS = {
   paxCount: 1, paxLen: 1.756670, pilotLen: 0.662567, boomLen: 3.983966,
   tailLen: 0.169815, cabPillarW: 0.100000, paxPillarW: 0.075041,
+  // unified pillar width: > 0 overrides BOTH cab and pax pillar widths
+  // (user: pillars start equal; the template's 0.100 vs 0.075 was a hand
+  // edit). 0 = off, per-pillar values above apply (the fit identity path).
+  pillarW: 0,
   halfW: 0.554104, roofHalfW: 0.431009, roofY: 1.0, keelY: -0.921275,
   floorY: -0.497590, ceilInset: 1.0, waistY: 0.091103, bandH: 0.062549,
   aftRoofY: 0.677945, aftKeelY: -0.656475,
   tailHalfW: 0.053446, tailRoofY: 0.5, tailKeelY: -0.077750,
   ringPullIn: 0.023043,
   wsRun: 0.793755, wsTopOff: 0.081824, wsBaseBow: 0.558880,
-  wsCeilBow: 0.129299, apilW: 1.0,
+  wsCeilBow: 0.129299, apilW: 1.0, apilPerp: 0,
   noseLen: 0.646272, noseW: 1.0, pfW: 1.0,
   topRound: 0, topAngCeil: 52, topAngRoof: 76, topComp: 1.045, bubble: 0,
-  crPillar: 0, crSill: 2, crBand: 1, crCeil: 1, crFrame: 2, crCap: 2,
+  // skylight defaults = the template: roof glass on, covering all bays
+  skylight: 1, skyExt: 5,
+  // pillar crease defaults to MAX (user ruling): the pillar bands render
+  // at their drawn width — width itself is adjusted via pillarW below,
+  // never via the crease
+  crPillar: 3, crSill: 2, crBand: 1, crCeil: 1, crFrame: 2, crCap: 2,
   crFrontCap: 0.3, crNoseCap: 2,
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
@@ -1517,7 +1615,8 @@ const CAGE_PARAMS = {
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1,
-  doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorDepth: 0.008,
+  doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
+  doorDepth: 0.008,
 };
 
 function cageSpec(P) {
@@ -1535,6 +1634,8 @@ function cageSpec(P) {
   S.top = { round: P.topRound, angCeil: P.topAngCeil, angRoof: P.topAngRoof,
             comp: P.topComp, bubble: P.bubble ? 1 : 0,
             botRound: P.botRound };
+  S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
+              ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)) };
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
                frontCap: P.crFrontCap, noseCap: P.crNoseCap };
@@ -1562,10 +1663,11 @@ function cageSpec(P) {
   S.ring.ceilY = P.roofY - P.ceilInset * (P.roofY - up(upT(T.ring.ceilY)));
 
   S.pilot.len = P.pilotLen;
-  S.cabinPillarW = P.cabPillarW;
+  S.pillarW = Math.max(0, P.pillarW || 0);
+  S.cabinPillarW = P.pillarW > 0 ? P.pillarW : P.cabPillarW;
   S.pax.count = Math.max(0, Math.round(P.paxCount));
   S.pax.len = P.paxLen;
-  S.paxPillarW = P.paxPillarW;
+  S.paxPillarW = P.pillarW > 0 ? P.pillarW : P.paxPillarW;
   S.boom.len = P.boomLen;
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
@@ -1623,6 +1725,43 @@ function cageSpec(P) {
   A.floorY = F.floorY - s * (wf.floorY - wa.floorY);
   A.keel = { y: F.keelY - s * (wf.keelY - wa.keel.y),
              z: F.waist.z - dz.keel };
+  // EVEN PERPENDICULAR WIDTH for the window pillar (user ruling): the
+  // width is the perpendicular distance between the two frame edges, NOT
+  // the z distance — a pure z offset reads sin(slope) thinner along the
+  // angled part. The frame polyline is walked level by level: levels with
+  // a pinned y (the rails, the roof, the vertical lower edge) take
+  // dz = w / sin(local slope); the free ceil level offsets along the true
+  // perpendicular. w = the template's mean width read AS the perpendicular
+  // width (x apilW), so the drawn proportion is preserved. apilPerp
+  // blends 0 -> 1; 0 is the exact template path (fit identity).
+  const PERP = Math.max(0, Math.min(1, P.apilPerp || 0));
+  if (PERP > 0) {
+    const w = dzM * s;
+    const BLift = P.wsBaseLift || 0;
+    const pl = [
+      [F.keelY,             F.waist.z],
+      [P.waistY + BLift,    F.waist.z],
+      [S.bandY + BLift,     F.bandZ],
+      [F.ceil.y,            F.ceil.z],
+      [P.roofY,             F.roofZ],
+    ];
+    const dirAt = i => {
+      const a = pl[Math.max(0, i - 1)], b = pl[Math.min(pl.length - 1, i + 1)];
+      const dy = b[0] - a[0], dzt = b[1] - a[1];
+      const l = Math.hypot(dy, dzt) || 1;
+      return [dy / l, dzt / l];
+    };
+    const zOff = i => w / Math.max(Math.abs(dirAt(i)[0]), 0.35);
+    const bl = (a, b) => a + (b - a) * PERP;
+    A.roofZ = bl(A.roofZ, F.roofZ - zOff(4));
+    A.bandZ = bl(A.bandZ, F.bandZ - zOff(2));
+    A.waist.z = bl(A.waist.z, F.waist.z - zOff(1));
+    A.keel.z = bl(A.keel.z, F.waist.z - zOff(0));
+    const [ty, tz] = dirAt(3);              // ceil: true perpendicular —
+    const sgn = ty >= 0 ? 1 : -1;           // n = (tz,-ty), aft (n.z < 0)
+    A.ceil = { y: bl(A.ceil.y, F.ceil.y + sgn * w * tz),
+               z: bl(A.ceil.z, F.ceil.z - sgn * w * ty) };
+  }
 
   // nose: template offsets off the windshield base, scaled. noseW/noseH
   // shrink the nose ring in width and depth (about the deck line), and
@@ -1646,14 +1785,21 @@ function cageSpec(P) {
              yC: nY(tpl.keel.yC), zC: z0 + (tpl.keel.zC - tpl.deck.z) },
   });
   S.nose.ring = mkN(nr, nz);
-  S.nose.twin = mkN(nt, nz - P.pfW * (nr.deck.z - nt.deck.z));
+  // front pillar band = noseTwin -> noseRing gap: unified pillar width
+  // when set (x pfW as the fine-tune), template offset otherwise
+  S.nose.twin = mkN(nt, nz - (P.pillarW > 0
+    ? P.pillarW * P.pfW : P.pfW * (nr.deck.z - nt.deck.z)));
   S.nose.droop = P.noseDroop;
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
-            doorSill: Math.max(0, P.doorSill || 0) };
+            doorSill: Math.max(0, P.doorSill || 0),
+            // pax doors carry their own sill; spec-level W.sills =
+            // {pilot: v, pax0: v, ...} overrides any door individually
+            doorSillPax: Math.max(0,
+              (P.doorSillPax != null ? P.doorSillPax : P.doorSill) || 0) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   return S;

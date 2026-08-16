@@ -85,6 +85,7 @@ const GROUPS = [
     ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],
     ['tailLen',   'tail len',      0.05, 0.6, 0.005],
+    ['pillarW',   'pillar width',  0.00, 0.30, 0.005],
     ['cabPillarW','cabin pillar',  0.02, 0.30, 0.005],
     ['paxPillarW','pax pillar',    0.02, 0.30, 0.005],
   ]],
@@ -112,6 +113,7 @@ const GROUPS = [
     ['wsBaseBow', 'base bow',      0.00, 1.20, 0.01],
     ['wsCeilBow', 'ceil bow',      0.00, 0.60, 0.005],
     ['apilW',     'A-pillar w x',  0.20, 3.00, 0.01],
+    ['apilPerp',  'A-pillar perp', 0, 1, 0.05],
   ]],
   ['nose', [
     ['noseLen',   'nose len',      0.20, 2.50, 0.01],
@@ -126,6 +128,10 @@ const GROUPS = [
     ['crFrame',   'w/s frame',     0, 3, 0.05],
     ['crCap',     'caps',          0, 3, 0.05],
   ]],
+  ['glazing', [
+    ['skylight',  'skylight',      0, 1, 1],
+    ['skyExt',    'sky extent',    0, 5, 1],
+  ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -135,6 +141,7 @@ const GROUPS = [
     ['doorPax',   'pax doors',    0, 1, 1],
     ['doorDeep',  'door to belly',0, 1, 1],
     ['doorSill',  'door sill',    0, 0.25, 0.002],
+    ['doorSillPax','pax door sill',0, 0.25, 0.002],
   ]],
 ].concat(PAGE.groups || []);
 
@@ -155,7 +162,7 @@ const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.25);
 sun2.position.set(4, -1, 3);
 scene.add(sun2);
 let meshObj = null, cageObj = null, refObj = null;
-let centre = new THREE.Vector3(), fitR = 3;
+let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
 const matOf = name => {
@@ -309,11 +316,12 @@ function draw() {
   camera.aspect = r.width / r.height;
   camera.updateProjectionMatrix();
   const R = fitR / ZOOM;
+  const C = centreOv || centre;
   camera.position.set(
-    centre.x + R * Math.sin(yaw) * Math.cos(pitch),
-    centre.y + R * Math.sin(pitch),
-    centre.z + R * Math.cos(yaw) * Math.cos(pitch));
-  camera.lookAt(centre);
+    C.x + R * Math.sin(yaw) * Math.cos(pitch),
+    C.y + R * Math.sin(pitch),
+    C.z + R * Math.cos(yaw) * Math.cos(pitch));
+  camera.lookAt(C);
   renderer.render(scene, camera);
 }
 
@@ -501,7 +509,8 @@ addEventListener('resize', () => MS && draw());
 
 if (PAGE.defaultStep) $('step').value = PAGE.defaultStep;
 window.CAGE_UI = { P, M, build, draw, applyPreset,
-  setView: (y, p) => { yaw = y; pitch = p; },
+  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
+    centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; } };
 build();
 })();

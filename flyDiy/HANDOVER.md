@@ -5001,6 +5001,94 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
+### G13 (PLANNED) — INTERIOR STRUCTURE. Full study + chantier plan in
+~/.claude/plans/cage-interior-structure.md (session 2026-08-16). One
+post-pass `cageInterior(mesh, spec)` (cageRims idiom: displayed level,
+disjoint components, flag per element, OBJ ships the cage only). GLOBAL
+construction switch wood|tube|composite + per-element flags (user
+decision). Elements: station frames at pillars (plywood webs w/
+lightening holes + cap strips / welded truss rings off the CONTROL cage
+nodes at limit positions / molded filleted rings), wood BATHTUB below the
+waist rail, tube longerons+diagonals, composite full cabin inner shell +
+rollover, DASH by the user's extrusion recipe (trace windshield base ->
+extrude aft -> flatten to transverse plane -> inset roll -> forward lip
+same value -> flat face aft), plain pilPaxA bulkhead (hide the tail) +
+firewall face at the nose aperture, A-pillar interior depth prism (most
+visible element — eye-point QC), door inner panels (offset + rim, window
+cutout follows nested outline), seats ported from 63_gen_skin later.
+`wingPos high|mid|low` MUST all stay supported (user): high = overhead
+carry-through arch (canopy blends with the wing's TRANSPARENT centre
+section — ties to skyWindows), mid = carry-through at mid wall, low =
+underseat spar + rollover; low-wing wing-root fairings and the fin are
+SEPARATE swept-transition passes off contract rails (fin stays out of
+this generator — tail cap ring is the contract). Chantier order I1-I7 in
+the plan file. Also decided: crPillar defaults 3 (max — pillars render at
+drawn width; width is a parameter, never the crease), new `pillarW`
+unifies cab+pax pillar widths (default 0 = template identity; _cage3
+defaults 0.10 = the cabin's value), interior view = cutaway clip plane +
+inside camera preset.
+
+**G12.3 v12 — GLAZING COMBINATIONS: THE OUTLINES TRACE THE REAL GLASS
+(2026-08-16, user spec).** New `skylight` (0/1) + `skyExt` (bays covered,
+counted from the front: pilot = rank 0, then pax bays aft; defaults 1/5 =
+the template, fit-guarded). The roof strip becomes plain body when
+uncovered. Win MARKS now follow the MATERIALS (any band in a glass
+material + the roof strip when skyWindows) instead of a level list, so
+union-find yields the real glass per combination — verified counts at
+paxCount 1: bubble+sky = 3 zones (ONE door-to-door ARCH per bay wrapping
+the roof + windshield), sky only = 7 (side windows + per-bay skylight
+seals — the template skylights never had seals before), bubble only = 5
+(TALLER side windows, solid roof), neither = 5 (box sides). Connectivity
+does the work: pillar bands separate bays (arch per bay), the roof
+centreline chain joins the sides. 18-case manifold sweep green, fit
+green. NOTE for later: with bubble on, the pilot/pax DOOR top still sits
+at the ceil line, so its seal crosses the taller glass mid-pane — a true
+bubble may want doorTop='canopy' (door reaches the arch) or the door AS
+the sliding canopy; not built, waiting on user direction.
+
+Also this session: crPillar defaults 3 (MAX — user ruling: pillars render
+at their drawn width; width is adjusted by `pillarW`, the new unified
+cab+pax width override, default 0 = template identity; _cage3 defaults
+pillarW 0.10 = the cabin's value). Pillar bands start equal everywhere.
+
+**G12.3 v11 — PER-DOOR SILLS, EXACT BOTTOM FIELD, MITER JOINTS
+(2026-08-16).** Three fixes after user playtest (sill jump at the cabin
+pillar when pax doors are on, no pax sill control, notched bead elbows):
+- Door faces carry `doorKey` ('pilot', 'pax0', ...) through emission AND
+  cageSubdivide; each door zone resolves its own sill: pilot = doorSill,
+  pax = `doorSillPax` (new slider); `spec.win.sills = {key: v}` overrides
+  any single door for scripted use.
+- The bottom line is EXACT now: bottomAt(z) = lowest crossing of the
+  zone's boundary ring restricted to the BOTTOM RUN (segments with
+  |dz| >= |dy| in the lower half of the zone; queries clamp to the run's
+  z-extent). The side edges are only NEAR-vertical (limit positions bow
+  ~1e-3 in z), and an unrestricted lowest-crossing query inside that
+  sliver returns side-edge ys far above the belly — the v9 bin-poison
+  lesson, boundary edition. The old per-zone bins also disagreed between
+  neighbouring doors (measured: the pax cut sat 0.007 above its belly
+  instead of 0.06 — the user-visible jump at the pillar).
+- The whole cut lives in LIMIT space (interior face corners go through
+  the same limit stencil as the boundary): shared edges give bit-equal
+  crossings, so the chain snap dropped from 0.05 world (itself a visible
+  mid-run jog) to 1e-9 float-noise guard.
+- Verified: cut end = bottom corner + sill EXACT on every door; the
+  remaining step across the pillar equals the keel's own drop through the
+  band (0.038 on the jodel) — both cuts are offsets of ONE field,
+  mesh-parallel per the v9 ruling, and read as one line along the keel.
+- MITER JOINTS in the rim sweep: each section sits on the corner
+  BISECTOR plane and is stretched 1/cos(half-turn) along the miter axis
+  (normalize(d1-d0)) — the exact cylinder-intersection ellipse (a
+  plumber's elbow); miter limit 2.5; arms are normalized per segment
+  first (raw central difference biased the bisector toward the longer
+  arm). A circular section pinches to r*cos(half-turn) at corners, which
+  was the notched elbows in the user's screenshots.
+- NOTE: the "PLANNED sillDepth" remark under v8 was stale (user
+  correction) — glass below the waistline is live via the zone material
+  tables; doorSill/doorSillPax is the cut. _cage_ui `setView` gained
+  zoom + centre-target args for headless screenshot driving.
+- Sweep: 48 cases (pax 0-3 x deep x sill {0, .06, .2} x round) all
+  2-manifold with closed outlines; `node tools/_cage_fit.js` green.
+
 **G12.3 v9/v10 — CONTINUOUS DOOR SILL, MESH-PARALLEL (final).** Two user
 corrections in sequence: (a) row-peeling (doorDrop) was a jagged
 staircase — deleted; (b) a constant-WORLD-HEIGHT iso cut slopes across
