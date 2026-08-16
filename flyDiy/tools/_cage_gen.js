@@ -1781,17 +1781,25 @@ function cageInterior(m, S) {
     };
     // the side anchor chain lerps x exactly like the return grid rows do
     // (identical formula = float-identical seam points)
+    const zPillA = (bL[2] + bR[2]) / 2;
     const anchor = [];
     for (let j = 0; j < NS; j++)
       anchor.push([bLT[0] + (bL[0] - bLT[0]) * j / NS,
-                   yB + (bL[1] - yB) * j / NS, bL[2]]);
+                   yB + (bL[1] - yB) * j / NS,
+                   zPillA + (bL[2] - zPillA) * j / NS]);
     for (let i = 0; i < NL; i++) anchor.push(base[i]);
     for (let j = NS - 1; j >= 0; j--)
       anchor.push([bRT[0] + (bR[0] - bRT[0]) * j / NS,
-                   yB + (bR[1] - yB) * j / NS, bR[2]]);
+                   yB + (bR[1] - yB) * j / NS,
+                   zPillA + (bR[2] - zPillA) * j / NS]);
     const aid = anchor.map(pid);
     const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
-    const R5 = base.map((p, i) => pid([baseT[i][0], yB, p[2]]));
+    // the back-bottom edge is FLAT (user ruling): one straight
+    // transverse line at the window-pillar station — the hidden return
+    // face morphs from the curved glass base down to it (worst case,
+    // that back face can be deleted entirely, as IRL)
+    const zPill = (bL[2] + bR[2]) / 2;
+    const R5 = base.map((p, i) => pid([baseT[i][0], yB, zPill]));
     const dashStart = add.length;
     const quad = (a, b, c, d) => {
       const u = new Set([a, b, c, d]);
@@ -1836,7 +1844,8 @@ function cageInterior(m, S) {
     for (let k = 0; k < NS; k++) {
       const row = kk => base.map((p, i) => pid([
         baseT[i][0] + (p[0] - baseT[i][0]) * kk / NS,
-        yB + (p[1] - yB) * kk / NS, p[2]]));
+        yB + (p[1] - yB) * kk / NS,
+        zPill + (p[2] - zPill) * kk / NS]));
       const ra = row(k);
       // top row must reuse the base points VERBATIM: yB + (y-yB)*1 is not
       // bit-equal to y in floats and the seam would not fuse
@@ -1884,6 +1893,17 @@ function cageInterior(m, S) {
     tagPath(aid.slice(NS, NS + NL), 3);   // the base line (arc anchors)
     tagPath(R5, 3); tagPath(oid, 3);
     tagPath(o1id, dc); tagPath(o2id, dc);
+    // THE BOTTOM IS A BOX (user ruling: no rounding — the dash
+    // protrudes STRAIGHT toward the nose): vertical front corners
+    // (the side anchor chains) and the bottom-side edges at max crease.
+    // Their meeting vertices hold >= 3 sharp edges = true box corners
+    // (pins on straight lines are exact, per the crease law).
+    tagPath(aid.slice(0, NS + 1), 3);              // left front corner
+    const rc = [];
+    for (let j = NX - 1; j >= NS + NL - 1; j--) rc.push(aid[j]);
+    tagPath(rc, 3);                                // right front corner
+    tagPath([oid[0], R5[0]], 3);                   // bottom-side edges
+    tagPath([oid[NX - 1], R5[NL - 1]], 3);
     let sm = { V: sv, F: faces, E: E2 };
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
