@@ -5081,6 +5081,17 @@ Chaikin-cut into two points (d = min(2.2r, 0.4 arm)) — physical seals
 round their corners, parallel transport stays smooth, the miter stretch
 goes small, and the corner shading artifacts are gone; recorded
 outlines keep the TRUE boundary (only the swept path rounds).
+**DASH CREASES = THREE EXPLICIT LOOPS (user find, FINAL — bbd95ba):**
+the dihedral auto-crease FLIPPED EDGES as dashLip crossed ~0.025 and
+the crease graph changed (found by bisecting the lip slider). Dynamic
+crease affectation is OUT for solids: exactly the outer lip (outline),
+inset lip (roll inner edge) and inner lip (face edge) paths carry
+dashCrease — every crease vertex holds exactly 2 sharp edges, no
+crossing can exist, deterministic at every parameter value. Everything
+else rounds under CC (molded look). L3 verified: continuous inside
+line, smooth flat face, stable corner at every lip size. RULE: interior
+solids tag their design loops EXPLICITLY, never by dihedral detection.
+
 **DASH GRID REBUILD (user diagnosis of the crawling corner, final):**
 the side topology anchored every side column to ONE repeated base
 vertex (a triangle fan) and filled the side panel by laddering a
