@@ -5001,17 +5001,24 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
-**G12.3 v9 — CONTINUOUS DOOR SILL (user: doorDrop was a jagged
-staircase).** Row-peeling could only follow the lattice rows — deleted.
-`doorSill` (continuous, 0..0.6 of the door's height) CLIPS the full-depth
-door outline at an iso-height: below-cut points are replaced by the exact
-y=cut ISO-CURVE of the zone faces (per-face plane intersections chained
-between the two side crossings — loose snap radius on the first/last hops
-because the joints live in limit space while iso segments are raw mesh).
-The bottom edge is a smooth horizontal on-surface line — which is also
-what real door bottoms look like — and the increment problem is gone
-(continuous parameter). Verified: all synthesized sill points at ONE y,
-fit green. doorDeep stays as the coarse band switch beneath it.
+**G12.3 v9/v10 — CONTINUOUS DOOR SILL, MESH-PARALLEL (final).** Two user
+corrections in sequence: (a) row-peeling (doorDrop) was a jagged
+staircase — deleted; (b) a constant-WORLD-HEIGHT iso cut slopes across
+the lattice rows, because the rows follow the drooping keel line — the
+bottom edge must stay PARALLEL TO THE MESH. Final form: `doorSill` is an
+absolute offset (0..0.25) and the clip field is height ABOVE THE ZONE'S
+OWN BOTTOM LINE: bottomY(z) is binned per z-column from the zone's
+vertices — LOWER-REGION VERTICES ONLY (y < 40% of the zone height; in the
+quarter bay the upper rows ride the windshield slope at shifted z and
+poison the bins with mid-height minima — measured, fixed) — and the
+outline is clipped at g = y - (bottomY(z) + sill) = 0 with the generic
+field-clip machinery (ring crossings + per-face zero-line segments
+chained between side crossings, loose snap on the first/last hops since
+joints are limit-space vs raw-mesh segments). Verified: the sill line is
+smooth and monotone, tracking the belly droop at constant offset
+(y -0.717 fwd -> -0.804 aft at sill 0.05 on the jodel); doorSill 0 =
+untouched full-depth outline; fit green. doorDeep stays as the coarse
+band switch beneath it.
 
 **G12.3 v8 — DOOR SPAN CORRECTED (user annotation).** The pilot door now
 spans pillar to pillar in the REAL sense: from the cabin pillar forward

@@ -913,20 +913,50 @@ function cageRims(m, S) {
     let ns = ring.map(v => nrm(vN.get(v)));
     let ids = ring.slice();
 
-    // DOOR SILL — continuous bottom height (the row-peeling it replaces
-    // could only follow the jagged lattice rows). The full-depth outline
-    // is CLIPPED at an iso-height: points below the cut are replaced by
-    // the exact y=cut iso-curve of the zone faces, chained between the two
-    // side crossings. Real door bottoms are straight and horizontal — this
-    // is both smoother and truer, and the parameter is continuous.
+    // DOOR SILL — continuous bottom lift that FOLLOWS THE MESH (user: a
+    // horizontal iso-cut slopes across the lattice rows because the rows
+    // follow the drooping keel line — the bottom edge must stay parallel
+    // to the mesh). The clip field is the height ABOVE THE ZONE'S OWN
+    // BOTTOM LINE: bottomY(z) is sampled per z-column from the zone's
+    // vertices, and the cut is bottomY(z) + doorSill. Same clipping
+    // machinery, different scalar field; the new bottom edge is the
+    // bottom line offset upward — smooth, continuous, row-parallel.
     if (kind === 'door' && W.doorSill > 0) {
       const clip = (() => {
-        let yMin = 1e9, yMax = -1e9;
-        for (const p of pts) { yMin = Math.min(yMin, p[1]);
-                               yMax = Math.max(yMax, p[1]); }
-        const cut = yMin + W.doorSill * (yMax - yMin);
+        // per-column bottom of the zone — sampled from the zone's LOWER
+        // region only: in the quarter bay the upper rows ride the
+        // windshield slope at shifted z, and letting them into the bins
+        // poisons the bottom estimate with mid-height minima
+        let z0 = 1e9, z1 = -1e9, gy0 = 1e9, gy1 = -1e9;
+        const zVerts = new Set();
+        for (const f of zoneFaces) for (const vi of f.v) zVerts.add(vi);
+        for (const vi of zVerts) {
+          z0 = Math.min(z0, V[vi][2]); z1 = Math.max(z1, V[vi][2]);
+          gy0 = Math.min(gy0, V[vi][1]); gy1 = Math.max(gy1, V[vi][1]);
+        }
+        const yLow = gy0 + 0.4 * (gy1 - gy0);
+        const NB = Math.max(4, Math.round(Math.sqrt(zVerts.size)));
+        const binW = (z1 - z0) / NB || 1;
+        const bins = new Array(NB).fill(1e9);
+        for (const vi of zVerts) {
+          if (V[vi][1] >= yLow) continue;
+          const b = Math.min(NB - 1, Math.max(0,
+            Math.floor((V[vi][2] - z0) / binW)));
+          bins[b] = Math.min(bins[b], V[vi][1]);
+        }
+        for (let b = 0; b < NB; b++)                    // fill empty bins
+          if (bins[b] === 1e9)
+            bins[b] = bins[b > 0 ? b - 1 : b + 1] !== 1e9
+              ? bins[b > 0 ? b - 1 : b + 1] : 0;
+        const bottomAt = z => {
+          const x = (z - z0) / binW - 0.5;
+          const b = Math.max(0, Math.min(NB - 2, Math.floor(x)));
+          const t = Math.max(0, Math.min(1, x - b));
+          return bins[b] + (bins[b + 1] - bins[b]) * t;
+        };
+        const gOf = p => p[1] - (bottomAt(p[2]) + W.doorSill);
         const N = pts.length;
-        const ab = pts.map(p => p[1] >= cut);
+        const ab = pts.map(p => gOf(p) >= 0);
         if (ab.every(x => x) || !ab.some(x => x)) return null;
         let s = -1;
         for (let i = 0; i < N; i++)
@@ -939,23 +969,25 @@ function cageRims(m, S) {
         for (let k = runEnd; k < N; k++)
           if (!ab[order[k]]) return null;          // >1 below-run: bail
         const lerpAt = (P, Q) => {
-          const t = (cut - P[1]) / (Q[1] - P[1]);
-          return [P[0] + (Q[0]-P[0])*t, cut, P[2] + (Q[2]-P[2])*t];
+          const gP = gOf(P), gQ = gOf(Q);
+          const t = -gP / (gQ - gP);
+          return [P[0] + (Q[0]-P[0])*t, P[1] + (Q[1]-P[1])*t,
+                  P[2] + (Q[2]-P[2])*t];
         };
         const x1 = lerpAt(pts[order[0]], pts[order[1]]);
         const x2 = lerpAt(pts[order[runEnd]], pts[order[runEnd - 1]]);
-        // iso segments of the zone faces at y = cut
+        // cut-line segments of the zone faces at g = 0 (the offset line)
         const segs = [];
         for (const f of zoneFaces) {
           const p4 = f.v.map(i => V[i]);
+          const g4 = p4.map(gOf);
           let lo = 1e9, hi = -1e9;
-          for (const p of p4) { lo = Math.min(lo, p[1]);
-                                hi = Math.max(hi, p[1]); }
-          if (!(lo < cut && hi > cut)) continue;
+          for (const g of g4) { lo = Math.min(lo, g); hi = Math.max(hi, g); }
+          if (!(lo < 0 && hi > 0)) continue;
           const hits = [];
           for (let e = 0; e < 4; e++) {
-            const P = p4[e], Q = p4[(e + 1) % 4];
-            if ((P[1] - cut) * (Q[1] - cut) < 0) hits.push(lerpAt(P, Q));
+            if (g4[e] * g4[(e + 1) % 4] < 0)
+              hits.push(lerpAt(p4[e], p4[(e + 1) % 4]));
           }
           if (hits.length !== 2) continue;
           const u = sub(p4[1], p4[0]), w2 = sub(p4[3], p4[0]);
