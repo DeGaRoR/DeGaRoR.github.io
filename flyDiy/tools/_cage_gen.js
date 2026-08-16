@@ -1547,6 +1547,34 @@ function cageInterior(m, S) {
       if (nsl.length === 2 && nsl[0][0]*nsl[1][0] + nsl[0][1]*nsl[1][1]
           + nsl[0][2]*nsl[1][2] < 0.87)
         E2.set(k, dc);
+    // NO CREASE CROSSINGS on the dash either (HARD-WON #2 — user
+    // diagnosis): a vertex with >= 3 creased edges corner-pins and
+    // prints a 45-degree artifact across the face at high subsurf.
+    // Greedy relax: drop the SHORTEST creased edge at any over-creased
+    // vertex until every vertex carries <= 2 — the long design lines
+    // keep their crease and turn corners as smooth crease curves.
+    const elen = k => {
+      const [a, b] = k.split('_').map(Number);
+      const A = sv[a], B = sv[b];
+      return Math.hypot(A[0]-B[0], A[1]-B[1], A[2]-B[2]);
+    };
+    for (;;) {
+      const cnt = new Map();
+      for (const k of E2.keys())
+        for (const v of k.split('_').map(Number))
+          cnt.set(v, (cnt.get(v) || 0) + 1);
+      let worst = -1;
+      for (const [v, c] of cnt) if (c >= 3) { worst = v; break; }
+      if (worst < 0) break;
+      let drop = null, dl = 1e9;
+      for (const k of E2.keys()) {
+        const [a, b] = k.split('_').map(Number);
+        if (a !== worst && b !== worst) continue;
+        const l = elen(k);
+        if (l < dl) { dl = l; drop = k; }
+      }
+      E2.delete(drop);
+    }
     let sm = { V: sv, F: faces, E: E2 };
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
@@ -1998,7 +2026,10 @@ const CAGE_PARAMS = {
   // rails, corner-pins the fold vertices, and higher subsurf levels
   // resolve that as a pinch (HARD-WON #2: crease lines must not cross;
   // pins are invisible on straight lines, ruinous on bent ones).
-  crPillar: 3, crSill: 2, crBand: 1, crCeil: 1, crFrame: 0, crCap: 2,
+  // crFrame 3 + crCeil 0 (user rulings after L3 review): fully-sharp
+  // frame edges stay ON the cage polylines at every displayed level (no
+  // sharp-then-smooth funnel), and the ceil rail crease is retired.
+  crPillar: 3, crSill: 2, crBand: 1, crCeil: 0, crFrame: 3, crCap: 2,
   crFrontCap: 0.3, crNoseCap: 2,
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,

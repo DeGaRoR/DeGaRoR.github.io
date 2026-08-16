@@ -5081,7 +5081,20 @@ Chaikin-cut into two points (d = min(2.2r, 0.4 arm)) — physical seals
 round their corners, parallel transport stays smooth, the miter stretch
 goes small, and the corner shading artifacts are gone; recorded
 outlines keep the TRUE boundary (only the swept path rounds).
-`rimArc` (1-6, default 3): SECTIONS PER SEAL CORNER — the fillet is a
+**DASH CREASE RELAX (user diagnosis confirmed):** the dihedral
+auto-crease also tagged the short INNER-CORNER edges of the border —
+their endpoints held >= 3 creased edges -> corner pins -> a 45-degree
+chamfer printed across the face at L3. Fix = the no-crossings doctrine
+applied automatically: greedily DROP THE SHORTEST creased edge at any
+vertex carrying >= 3 until all carry <= 2 — long design lines keep
+their crease and turn corners as smooth crease curves. L3 now shows a
+continuous inside line and a smooth face. ALSO (user rulings): crFrame
+defaults 3 — fully-sharp edges stay ON the cage polylines at every
+displayed level, so the sharp-then-smooth funnel cannot form (the
+weight-2 setting was the funnel case; 0 and 3 are both stable) — and
+crCeil defaults 0 (ceil rail crease retired).
+`rimArc` (1-6, default 3): SECTIONS PER SEAL CORNER — applies to ALL
+swept joints (windows, windshield, doors — one code path in cageRims) — the fillet is a
 quadratic bezier through the corner point, tangent to both arms, so
 extra points concentrate AT the bends only (straight runs stay
 two-point; rimArc 1 = the plain chamfer). rimArc 3 costs ~+23% joint
