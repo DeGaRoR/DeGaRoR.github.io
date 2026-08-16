@@ -1120,6 +1120,30 @@ function cageRims(m, S) {
     // real radius, and the section centre sits ON the surface so half the
     // tube is buried — only the outer half shows (user spec).
     const r = kind === 'door' ? W.rim * 0.85 : W.rim;
+    // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
+    // elbows): corners sharper than ~35 deg are Chaikin-cut into two
+    // points a small way down each arm — a physical seal rounds its
+    // corners, parallel transport stays smooth, and the miter stretch
+    // goes small. The recorded outline keeps the TRUE boundary; only the
+    // swept path is rounded.
+    {
+      const P0 = pts, N0 = ns, NPP = P0.length;
+      const outP = [], outN = [];
+      for (let i = 0; i < NPP; i++) {
+        const pm = P0[(i - 1 + NPP) % NPP], pc = P0[i], pp = P0[(i + 1) % NPP];
+        const d0 = nrm(sub(pc, pm)), d1 = nrm(sub(pp, pc));
+        if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.82) {
+          outP.push(pc); outN.push(N0[i]); continue;
+        }
+        const l0 = Math.hypot(...sub(pc, pm)), l1 = Math.hypot(...sub(pp, pc));
+        const d = Math.min(r * 2.2, 0.4 * Math.min(l0, l1));
+        outP.push([pc[0]-d0[0]*d, pc[1]-d0[1]*d, pc[2]-d0[2]*d]);
+        outN.push(N0[i]);
+        outP.push([pc[0]+d1[0]*d, pc[1]+d1[1]*d, pc[2]+d1[2]*d]);
+        outN.push(N0[i]);
+      }
+      pts = outP; ns = outN;
+    }
     const path = pts;
     const pN = ns;
     const NP = path.length;
@@ -1417,8 +1441,13 @@ function cageInterior(m, S) {
     const R5 = base.map(p => pid([p[0], yB, p[2]]));
     const dashStart = add.length;
     const quad = (a, b, c, d) => {
-      if (new Set([a, b, c, d]).size < 3) return;
-      add.push({ v: [a, b, c, d], m: 'dash' });
+      const u = new Set([a, b, c, d]);
+      if (u.size < 3) return;
+      if (u.size === 3) {                 // true triangle, cyclic order kept
+        const vv = [];
+        for (const x of [a, b, c, d]) if (!vv.includes(x)) vv.push(x);
+        add.push({ v: vv, m: 'dash' });
+      } else add.push({ v: [a, b, c, d], m: 'dash' });
     };
     const strip = (A, B) => {
       for (let i = 0; i + 1 < A.length; i++)
@@ -1461,6 +1490,50 @@ function cageInterior(m, S) {
     strip(R5, baseId);                              // front return
     // coherent windings + outward, on this component only
     orientCage({ V, F: add.slice(dashStart) });
+    // ROUNDED EDGES (user ruling): the dash goes through the SAME
+    // crease-CC machinery as the cage — sharp edges are auto-tagged by
+    // DIHEDRAL (> ~30 deg) with dashCrease weight and the closed solid is
+    // subdivided twice, so lips, insets and the 90-degree extrusions
+    // become properly rounded corners with clean shading. The control
+    // solid is compacted into its own submesh, subdivided, merged back.
+    const dc = I.dashCrease != null ? I.dashCrease : 1.5;
+    const faces = add.splice(dashStart);
+    const used = new Map();
+    const sv = [];
+    for (const f of faces) f.v = f.v.map(vi => {
+      if (!used.has(vi)) { used.set(vi, sv.length); sv.push(V[vi].slice()); }
+      return used.get(vi);
+    });
+    const fnOf = f => {
+      const p = f.v.map(i => sv[i]);
+      return f.v.length === 4
+        ? nrm(cross(sub(p[2], p[0]), sub(p[3], p[1])))
+        : nrm(cross(sub(p[1], p[0]), sub(p[2], p[0])));
+    };
+    const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
+                       return [v[0]/l, v[1]/l, v[2]/l]; };
+    const sub = (A, B) => [A[0]-B[0], A[1]-B[1], A[2]-B[2]];
+    const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],
+                             a[0]*b[1]-a[1]*b[0]];
+    const EN = new Map();
+    for (const f of faces) {
+      const n = fnOf(f);
+      for (let i = 0; i < f.v.length; i++) {
+        const k = cageEdgeKey(f.v[i], f.v[(i + 1) % f.v.length]);
+        if (!EN.has(k)) EN.set(k, []);
+        EN.get(k).push(n);
+      }
+    }
+    const E2 = new Map();
+    for (const [k, nsl] of EN)
+      if (nsl.length === 2 && nsl[0][0]*nsl[1][0] + nsl[0][1]*nsl[1][1]
+          + nsl[0][2]*nsl[1][2] < 0.87)
+        E2.set(k, dc);
+    let sm = { V: sv, F: faces, E: E2 };
+    sm = cageSubdivide(cageSubdivide(sm));
+    const off = V.length;
+    for (const p of sm.V) V.push(p);
+    for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: 'dash' });
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -1865,10 +1938,12 @@ function orientCage(m) {
   let vol = 0;
   for (const f of m.F) {
     const p = f.v.map(i => m.V[i]);
-    for (const [a, b, c] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
+    for (let t = 1; t + 1 < p.length; t++) {
+      const [a, b, c] = [p[0], p[t], p[t + 1]];
       vol += a[0] * (b[1] * c[2] - b[2] * c[1])
            - a[1] * (b[0] * c[2] - b[2] * c[0])
            + a[2] * (b[0] * c[1] - b[1] * c[0]);
+    }
   }
   if (vol < 0) for (const f of m.F) f.v.reverse();
 }
@@ -1916,6 +1991,7 @@ const CAGE_PARAMS = {
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
+  dashCrease: 1.5,
 };
 
 function cageSpec(P) {
@@ -2106,7 +2182,7 @@ function cageSpec(P) {
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
-                 dashDepth: P.dashDepth };
+                 dashDepth: P.dashDepth, dashCrease: P.dashCrease };
   return S;
 }
 

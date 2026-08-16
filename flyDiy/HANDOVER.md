@@ -5053,6 +5053,19 @@ ladder / front return), windings fixed by orientCage ON THE COMPONENT
 the pattern for all future interior solids). The whole dash TUCKS 8 mm
 inboard (TUCK const) — it poked through the skin at the windshield
 fold. Still strictly closed-manifold everywhere.
+**I2f — THE DASH IS A CREASE-CC SOLID (user ruling: "treat it like the
+rest").** The control solid's sharp edges are AUTO-TAGGED by dihedral
+(face-normal dot < 0.87) with `dashCrease` weight (slider, default 1.5)
+and the closed solid runs through cageSubdivide TWICE (compact submesh,
+merged back) — lips, insets and the 90-degree extrusions become
+properly rounded, properly shaded corners; the control mesh emits TRUE
+TRIANGLES where ladder chains stall (never repeated-vert quads), CC
+makes it all-quad at L1. orientCage's volume loop generalized to
+n-gons. SEAL ELBOWS: sweep paths get sharp corners (> ~35 deg)
+Chaikin-cut into two points (d = min(2.2r, 0.4 arm)) — physical seals
+round their corners, parallel transport stays smooth, the miter stretch
+goes small, and the corner shading artifacts are gone; recorded
+outlines keep the TRUE boundary (only the swept path rounds).
 Also `rimSides` (4-10, default 8): the seal
 tubes are ~half the L2 face count — VERIFIED no caps exist (joint faces
 = sides x path points exactly, each seal is one closed tube; what shows
