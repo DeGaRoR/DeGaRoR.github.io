@@ -143,6 +143,8 @@ const GROUPS = [
     ['intOn',     'interior on',   0, 1, 1],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
+    ['intPillars','pillar bodies', 0, 1, 1],
+    ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
     ['intDash',   'dashboard',     0, 1, 1],
     ['dashBack',  'dash setback',  0.01, 0.30, 0.005],
     ['dashLip',   'dash lip height', 0.01, 0.10, 0.002],

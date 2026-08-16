@@ -1570,6 +1570,75 @@ function cageInterior(m, S) {
     }
   })();
 
+  // ---- I3': pillar bodies = THICKENED REMAINING SKIN -----------------------
+  // The pillar bands (window / cabin / passenger — the remaining, never-
+  // cut skin) get BODY: an inward-offset LINER copy of their faces plus
+  // rim walls along every selection boundary. Where the boundary borders
+  // a cut hole, the wall IS the door jamb / window reveal — real depth
+  // seen through the openings, and the A-pillar reads structural from
+  // inside. Liner idiom (no outer duplicate, no z-fight): the same pass
+  // extends to the whole fuselage inner shell later by widening the
+  // selection. Attachment faces carry att:1 and their own duplicated
+  // seam vertices (disjoint component, coincident seam).
+  if (I.pillars) (() => {
+    const PM = new Set(['pillarWindow', 'pillarCabin', 'pillarPassenger']);
+    const t = I.shellT || 0.035;
+    const sel = [];
+    F.forEach((f, i) => {
+      if (PM.has(f.m) && f.v.length === 4 && !f.cutPart) sel.push(i);
+    });
+    if (!sel.length) return;
+    const vN = new Map();
+    const fN = fi => {
+      const p = F[fi].v.map(i => V[i]);
+      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+      const n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2],
+                 u[0]*w[1]-u[1]*w[0]];
+      const l = Math.hypot(n[0], n[1], n[2]) || 1;
+      return [n[0]/l, n[1]/l, n[2]/l];
+    };
+    for (const fi of sel) {
+      const n = fN(fi);
+      for (const vi of F[fi].v) {
+        const s = vN.get(vi) || [0, 0, 0];
+        vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
+      }
+    }
+    const inner = new Map(), outer = new Map();
+    const innerOf = vi => {
+      if (!inner.has(vi)) {
+        const n = vN.get(vi);
+        const l = Math.hypot(n[0], n[1], n[2]) || 1;
+        inner.set(vi, V.push([V[vi][0] - n[0]/l*t, V[vi][1] - n[1]/l*t,
+                              V[vi][2] - n[2]/l*t]) - 1);
+      }
+      return inner.get(vi);
+    };
+    const outerOf = vi => {
+      if (!outer.has(vi)) outer.set(vi, V.push(V[vi].slice()) - 1);
+      return outer.get(vi);
+    };
+    const eCount = new Map();
+    for (const fi of sel) {
+      const f = F[fi];
+      for (let e = 0; e < 4; e++) {
+        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        eCount.set(k, (eCount.get(k) || 0) + 1);
+      }
+    }
+    for (const fi of sel) {
+      const f = F[fi];
+      add.push({ v: f.v.slice().reverse().map(innerOf), m: f.m, att: 1 });
+      for (let e = 0; e < 4; e++) {
+        const a = f.v[e], b = f.v[(e + 1) % 4];
+        if (eCount.get(cageEdgeKey(a, b)) !== 1) continue;
+        add.push({ v: [outerOf(b), outerOf(a), innerOf(a), innerOf(b)],
+                   m: f.m, att: 1 });
+      }
+    }
+  })();
+
   // ---- dashboard (I2, user recipe verbatim) --------------------------------
   // 1. the windshield bottom line where it meets the fuselage = the mesh
   //    edges shared by 'windshield' and 'waistband' faces (traced, so it
@@ -2243,7 +2312,7 @@ const CAGE_PARAMS = {
   doorDepth: 0.008,
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
-  intOn: 0, intBulk: 1, intFire: 1,
+  intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
   dashCrease: 1.5,
   // G14: post-subsurf cutting of doors/windows into separate parts
@@ -2438,6 +2507,8 @@ function cageSpec(P) {
             explode: Math.max(0, P.explodeD || 0) };
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
+                 pillars: P.intPillars ? 1 : 0,
+                 shellT: Math.max(0.005, P.shellT || 0.035),
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease };
