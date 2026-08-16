@@ -373,8 +373,15 @@ function cageResolve(S) {
     };
     return { name, kind: 'full', lv: roundTop(lv, waist.x, c.roofY, W, kl.y) };
   };
+  // the base lift ramps LINEARLY in z from the window ring (lift 0) to
+  // the windshield base (full BL) — the old hand constant 0.85 made the
+  // rise rate jump ~3x across the narrow A-pillar band, and higher
+  // subsurf levels resolved that as a pinch in the sill fold (user
+  // report at L3). Geometric ramp = one straight sill line, no kink.
+  const liftT = Math.max(0, Math.min(1,
+    (wa.waist.z - S.ring.z) / Math.max(1e-9, wf.waist.z - S.ring.z)));
   add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
-                wa.keel, false, BL * 0.85),
+                wa.keel, false, BL * liftT),
       { mat: CAGE_PILLAR('pillarWindow') });
   add(slopeRing('wsFront', wf.roofZ, wf.ceil, wf.bandZ, wf.waist, wf.floorY,
                 { y: wf.keelY }, true, BL), null);
@@ -1973,8 +1980,14 @@ const CAGE_PARAMS = {
   skylight: 1, skyExt: 5,
   // pillar crease defaults to MAX (user ruling): the pillar bands render
   // at their drawn width — width itself is adjusted via pillarW below,
-  // never via the crease
-  crPillar: 3, crSill: 2, crBand: 1, crCeil: 1, crFrame: 2, crCap: 2,
+  // never via the crease.
+  // crFrame defaults 0 (G12.3 L3 fix): the wsAft/wsFront RING PAIR holds
+  // the A-pillar fold (the template's own pillar mechanism) and the seal
+  // tubes delineate the frame — a ring crease here CROSSES the sill/band
+  // rails, corner-pins the fold vertices, and higher subsurf levels
+  // resolve that as a pinch (HARD-WON #2: crease lines must not cross;
+  // pins are invisible on straight lines, ruinous on bent ones).
+  crPillar: 3, crSill: 2, crBand: 1, crCeil: 1, crFrame: 0, crCap: 2,
   crFrontCap: 0.3, crNoseCap: 2,
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,

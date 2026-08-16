@@ -5053,6 +5053,21 @@ ladder / front return), windings fixed by orientCage ON THE COMPONENT
 the pattern for all future interior solids). The whole dash TUCKS 8 mm
 inboard (TUCK const) — it poked through the skin at the windshield
 fold. Still strictly closed-manifold everywhere.
+**G12.3 L3 QUIRK FIX (user report, "no hack"):** at subsurf L3 the
+A-pillar band pinched into an S at the sill fold. TWO root causes, both
+fixed with geometry: (1) the wsBaseLift ramp used a hand constant
+(wsAft = 0.85 x BL) — the rise RATE jumped ~3x across the narrow
+A-pillar band; now the lift ramps LINEARLY in z from the window ring
+(0) to the windshield base (full BL) via liftT — one straight sill
+line. (2) crFrame defaults 0: the wsAft/wsFront RING PAIR holds the
+A-pillar fold (the template's own pillar mechanism, same reason
+crPillar was historically 0) and the seal tubes carry the hairline —
+the frame ring crease CROSSED the sill/band rails and corner-pinned the
+fold vertices (HARD-WON #2). RULE REFINED: crease-crossing corner pins
+are INVISIBLE where both lines run straight (cabin pillars x rails —
+why crPillar 3 is safe) and RUINOUS where the lines bend (the fold) —
+never crease a bent crossing. Verified clean at L2 AND L3, fit green.
+
 **I2f — THE DASH IS A CREASE-CC SOLID (user ruling: "treat it like the
 rest").** The control solid's sharp edges are AUTO-TAGGED by dihedral
 (face-normal dot < 0.87) with `dashCrease` weight (slider, default 1.5)
