@@ -1152,6 +1152,27 @@ function cageRims(m, S) {
           P0.pop(); N0.pop();
         }
       }
+      // collapse SPLIT CORNERS: a 90-deg turn spread over two vertices a
+      // couple of radii apart gives each a half-turn and a half-size
+      // fillet (user's red corners). A vertex that turns > ~20 deg AND
+      // deviates < 1.5 r from its neighbours' chord folds away — smooth
+      // runs are untouched (their per-vertex turn is small).
+      for (let changed = true; changed;) {
+        changed = false;
+        for (let i = 0; i < P0.length && P0.length > 4; i++) {
+          const Np = P0.length;
+          const a = P0[(i - 1 + Np) % Np], p = P0[i], b = P0[(i + 1) % Np];
+          const d0 = nrm(sub(p, a)), d1 = nrm(sub(b, p));
+          if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.94) continue;
+          const ab = sub(b, a), ap = sub(p, a);
+          const l2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2] || 1;
+          const t2 = (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / l2;
+          const q = [a[0]+ab[0]*t2, a[1]+ab[1]*t2, a[2]+ab[2]*t2];
+          if (Math.hypot(p[0]-q[0], p[1]-q[1], p[2]-q[2]) < r * 1.5) {
+            P0.splice(i, 1); N0.splice(i, 1); changed = true; i--;
+          }
+        }
+      }
       const NPP = P0.length;
       const outP = [], outN = [];
       for (let i = 0; i < NPP; i++) {
@@ -1228,6 +1249,36 @@ function cageRims(m, S) {
         n2 = nrm(cross(b, t));
       }
       bPrev = b;
+      sec.push({ t, b, n2, mit, stretch });
+    }
+    // CLOSED-LOOP HOLONOMY: parallel transport around a loop returns the
+    // frame TWISTED by some angle, and the whole mismatch used to land on
+    // the seam quads (user report: skylight joint vertices rotate).
+    // Measure the twist and distribute the correction around the loop.
+    {
+      const f0 = sec[0], fL = sec[NP - 1];
+      const t0 = f0.t;
+      const d = fL.b[0]*t0[0] + fL.b[1]*t0[1] + fL.b[2]*t0[2];
+      const bT = nrm([fL.b[0]-t0[0]*d, fL.b[1]-t0[1]*d, fL.b[2]-t0[2]*d]);
+      const cx = [f0.b[1]*bT[2]-f0.b[2]*bT[1], f0.b[2]*bT[0]-f0.b[0]*bT[2],
+                  f0.b[0]*bT[1]-f0.b[1]*bT[0]];
+      const hol = Math.atan2(cx[0]*t0[0]+cx[1]*t0[1]+cx[2]*t0[2],
+        Math.max(-1, Math.min(1,
+          f0.b[0]*bT[0]+f0.b[1]*bT[1]+f0.b[2]*bT[2])));
+      for (let i = 0; i < NP; i++) {
+        const ph = -hol * i / NP, c = Math.cos(ph), s2 = Math.sin(ph);
+        const f = sec[i], t = f.t;
+        const rot = v => {
+          const tv = [t[1]*v[2]-t[2]*v[1], t[2]*v[0]-t[0]*v[2],
+                      t[0]*v[1]-t[1]*v[0]];
+          return [v[0]*c + tv[0]*s2, v[1]*c + tv[1]*s2, v[2]*c + tv[2]*s2];
+        };
+        f.b = rot(f.b); f.n2 = rot(f.n2);
+      }
+    }
+    const secIds = [];
+    for (let i = 0; i < NP; i++) {
+      const { b, n2, mit, stretch } = sec[i];
       const sN = [];
       for (let k = 0; k < SS; k++) {
         const a = k * 2 * Math.PI / SS;
@@ -1242,11 +1293,11 @@ function cageRims(m, S) {
           path[i][0] + qx, path[i][1] + qy, path[i][2] + qz,
         ]) - 1);
       }
-      sec.push(sN);
+      secIds.push(sN);
     }
     const first = add.length;
     for (let i = 0; i < NP; i++) {
-      const a = sec[i], bq = sec[(i + 1) % NP];
+      const a = secIds[i], bq = secIds[(i + 1) % NP];
       for (let j = 0; j < SS; j++) {
         const j2 = (j + 1) % SS;
         add.push({ v: [a[j], bq[j], bq[j2], a[j2]], m: 'joint' });
