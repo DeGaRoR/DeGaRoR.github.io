@@ -5017,6 +5017,17 @@ best-effort — refine via the new JSON export). UI: exp/imp buttons
 paste — the trusted alternative to localStorage), side pane RESIZABLE
 (flex + rtl resize handle, _cage3 only — mirror to _cage2 if wanted).
 
+**Post-I3' fixes (d7f5602):** (1) the dash survives cutting — cageCut
+records the windshield BASE LINE (`m.wsBase`, waistband-side vert ids)
+BEFORE separating the glass, and the dash tracer prefers it over the
+material adjacency the cut breaks (user report: cut parts stripped the
+dashboard). (2) rimArc smoothing now applies to bends > ~8 deg (was
+> ~35): the windshield's curved top/bottom seal runs follow the
+`corner sections` slider, not only 90-deg corners. (3) UI = ONE
+PRIMITIVE (user ruling): bizjet/sailplane/pusher presets + the
+aero-nose experiment group removed from _cage3 (code paths kept);
+preset menu shows only 'default' = the tuned aircraft.
+
 **I3' DONE (dccf38a): PILLAR BODIES = THICKENED REMAINING SKIN.** In
 cageInterior, `intPillars` + `shellT` (default 0.035): the never-cut
 pillar bands (pillarWindow / pillarCabin / pillarPassenger) get an
