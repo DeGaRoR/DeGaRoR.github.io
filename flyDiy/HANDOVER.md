@@ -5042,7 +5042,18 @@ per side). CONVENTION established: coincident points fuse via a
 coordinate-keyed vertex map, quads with < 3 distinct verts are skipped,
 repeated-vertex quads act as triangles, and SELF-EDGES (a==a) don't
 count in manifold checks. Dash still passes the strict closed-manifold
-check in every config. Also `rimSides` (4-10, default 8): the seal
+check in every config.
+**I2e (user corrections):** the SIDES are FLAT PANELS at the lip's
+OUTER edge — the body never extrudes from the inset inner edge (the
+fan/jog geometry is gone). The dash is now built as explicit stitched
+pieces (glareshield / border roll / lip / face-plate ladder split at
+the crown / flat side-panel ladders to a 2-point forward edge / bottom
+ladder / front return), windings fixed by orientCage ON THE COMPONENT
+(emit in any convenient order, BFS-coherence + volume does the rest —
+the pattern for all future interior solids). The whole dash TUCKS 8 mm
+inboard (TUCK const) — it poked through the skin at the windshield
+fold. Still strictly closed-manifold everywhere.
+Also `rimSides` (4-10, default 8): the seal
 tubes are ~half the L2 face count — VERIFIED no caps exist (joint faces
 = sides x path points exactly, each seal is one closed tube; what shows
 through glass is octagon faceting + the buried half); rimSides 6 cuts

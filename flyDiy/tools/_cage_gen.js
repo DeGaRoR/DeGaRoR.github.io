@@ -1357,6 +1357,11 @@ function cageInterior(m, S) {
     }
     if (line.length < 5) return;
     const base = line.map(vi => V[vi].slice());
+    // tuck the whole dashboard a few mm inboard — the corner poked
+    // through the skin at the windshield fold (user report)
+    const TUCK = 0.008;
+    for (const p of base)
+      p[0] -= Math.sign(p[0]) * Math.min(Math.abs(p[0]), TUCK);
     const back = Math.max(0.005, I.dashBack || 0.05);
     const lip = Math.max(0.005,
       (I.dashLip != null ? I.dashLip : I.dashInset) || 0.035);
@@ -1369,27 +1374,18 @@ function cageInterior(m, S) {
     for (const p of base) yB = Math.min(yB, p[1]);
     yB -= dep;
     // the panel OUTLINE in the transverse plane: the flattened base arc
-    // EXTENDED by vertical side drops to the flat bottom line — the roll
-    // and lip border wraps the SIDES too (user: the sides get lips).
-    // Columns: NS side pts (bottom->top), NL arc pts, NS side pts
-    // (top->bottom). Each column also carries its base-line ANCHOR (the
-    // side columns anchor to the base end points — those strip quads
-    // degenerate to triangles and fan the side walls).
+    // extended by vertical side drops to the flat bottom line — the roll
+    // and lip border wraps the sides. The side chains exclude the arc end
+    // (shared corner point).
     const NL = base.length;
     const NS = 3;
     const bL = base[0], bR = base[NL - 1];
-    const O = [], anchor = [];
-    for (let j = 0; j < NS; j++) {
-      const t = j / NS;
-      O.push([bL[0], yB + (bL[1] - yB) * t, zP]); anchor.push(bL);
-    }
-    for (let i = 0; i < NL; i++) {
-      O.push([base[i][0], base[i][1], zP]); anchor.push(base[i]);
-    }
-    for (let j = NS - 1; j >= 0; j--) {
-      const t = j / NS;
-      O.push([bR[0], yB + (bR[1] - yB) * t, zP]); anchor.push(bR);
-    }
+    const O = [];
+    for (let j = 0; j < NS; j++)
+      O.push([bL[0], yB + (bL[1] - yB) * j / NS, zP]);
+    for (let i = 0; i < NL; i++) O.push([base[i][0], base[i][1], zP]);
+    for (let j = NS - 1; j >= 0; j--)
+      O.push([bR[0], yB + (bR[1] - yB) * j / NS, zP]);
     const NX = O.length;
     // in-plane inset of the full outline (normals toward the interior)
     let yTop = -1e9;
@@ -1404,47 +1400,67 @@ function cageInterior(m, S) {
       return [p[0] + nx * lip, p[1] + ny * lip, zP];
     });
     const O2 = O1.map(p => [p[0], p[1], zF]);       // forward lip
-    const R4 = O2.map(p => [p[0], yB, zF]);         // face drop, flat bottom
-    const R5 = anchor.map(p => [p[0], yB, p[2]]);   // under the base line
-    // CLOSED SOLID: anchors -> outline -> inset -> lip -> face bottom ->
-    // under-base -> back to the anchors. Coincident points (side-column
-    // repeats, face bottom at the side corners) FUSE via a coordinate-
-    // keyed vertex map; quads with < 3 distinct verts are skipped and
-    // repeated-vertex quads act as triangles (self-edges don't count).
+    // CLOSED SOLID, explicit pieces (user rulings: the SIDES are FLAT
+    // PANELS at the lip's OUTER edge — the body never extrudes from the
+    // inset inner edge). Coincident points fuse via a coordinate-keyed
+    // vertex map; < 3-distinct quads are skipped (repeated-vert quads act
+    // as triangles); orientation is fixed afterwards by orientCage on the
+    // component, so pieces are emitted in whatever winding is convenient.
     const vid = new Map();
     const pid = p => {
       const k = p[0].toFixed(9) + ',' + p[1].toFixed(9) + ',' + p[2].toFixed(9);
       if (!vid.has(k)) vid.set(k, V.push([p[0], p[1], p[2]]) - 1);
       return vid.get(k);
     };
-    const rows = [anchor, O, O1, O2, R4, R5, anchor];
-    const ids = rows.map(row => row.map(pid));
+    const baseId = base.map(pid);
+    const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
+    const R5 = base.map(p => pid([p[0], yB, p[2]]));
     const dashStart = add.length;
     const quad = (a, b, c, d) => {
       if (new Set([a, b, c, d]).size < 3) return;
       add.push({ v: [a, b, c, d], m: 'dash' });
     };
-    for (let r = 0; r + 1 < rows.length; r++)
-      for (let i = 0; i + 1 < NX; i++)
-        quad(ids[r][i], ids[r][i + 1], ids[r + 1][i + 1], ids[r + 1][i]);
-    // side lids: the small col-0 / col-NX-1 profile rings (anchor, outline
-    // corner, inset, lip; the face-bottom corner fuses with the lip end).
-    // Left runs rows downward, right reversed — every edge once each way.
-    const Lc = ids.map(r => r[0]), Rc = ids.map(r => r[NX - 1]);
-    quad(Lc[0], Lc[1], Lc[2], Lc[3]);
-    quad(Lc[0], Lc[3], Lc[5], Lc[5]);
-    quad(Rc[3], Rc[2], Rc[1], Rc[0]);
-    quad(Rc[5], Rc[5], Rc[3], Rc[0]);
-    // outward orientation by the component's own signed volume
-    let vol = 0;
-    for (let k = dashStart; k < add.length; k++) {
-      const p = add[k].v.map(i => V[i]);
-      for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
-        vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
-             + x[2]*(y[0]*z[1]-y[1]*z[0]);
-    }
-    if (vol < 0)
-      for (let k = dashStart; k < add.length; k++) add[k].v.reverse();
+    const strip = (A, B) => {
+      for (let i = 0; i + 1 < A.length; i++)
+        quad(A[i], A[i + 1], B[i + 1], B[i]);
+    };
+    const ladder = (A, B) => {             // proportional resample fill
+      const K = Math.max(A.length, B.length) - 1;
+      for (let k = 0; k < K; k++) {
+        const a0 = Math.round(k * (A.length - 1) / K),
+              a1 = Math.round((k + 1) * (A.length - 1) / K),
+              b0 = Math.round(k * (B.length - 1) / K),
+              b1 = Math.round((k + 1) * (B.length - 1) / K);
+        quad(A[a0], A[a1], B[b1], B[b0]);
+      }
+    };
+    strip(baseId, oid.slice(NS, NS + NL));          // glareshield
+    strip(oid, o1id);                               // border roll
+    strip(o1id, o2id);                              // lip
+    // face plate: ladder between the two halves of the lip path split at
+    // the crown — the final rung is the flat bottom chord
+    let iC = 0;
+    O2.forEach((p, i) => { if (p[1] > O2[iC][1]) iC = i; });
+    const cA = [], cB = [];
+    for (let i = iC; i >= 0; i--) cA.push(o2id[i]);
+    for (let i = iC; i < NX; i++) cB.push(o2id[i]);
+    ladder(cA, cB);
+    // side panels: FLAT at the outer x — ladder from the outline side
+    // chain (zP, top->bottom incl the shared arc corner) to the 2-point
+    // forward edge under the base end
+    const sideL = [oid[NS]];
+    for (let j = NS - 1; j >= 0; j--) sideL.push(oid[j]);
+    ladder(sideL, [baseId[0], pid([bL[0], yB, bL[2]])]);
+    const sideR = [oid[NS + NL - 1]];
+    for (let j = NS + NL; j < NX; j++) sideR.push(oid[j]);
+    ladder(sideR, [baseId[NL - 1], pid([bR[0], yB, bR[2]])]);
+    // bottom: ladder between the aft chain (outer corner -> roll corner ->
+    // lip corner -> chord -> mirrored) and the under-base line
+    ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
+            oid[NX - 1]], R5);
+    strip(R5, baseId);                              // front return
+    // coherent windings + outward, on this component only
+    orientCage({ V, F: add.slice(dashStart) });
   })();
 
   // ---- firewall ------------------------------------------------------------
