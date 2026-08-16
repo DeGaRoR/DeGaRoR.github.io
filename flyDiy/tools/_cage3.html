@@ -110,15 +110,6 @@ window.CAGE_PAGE = {
       ['cowlBulge', 'cowl bulge',    0.85, 1.30, 0.005],
       ['crNoseCap', 'nose cap crease', 0, 3, 0.05],
     ]],
-    ['aero nose (experiment)', [
-      ['aeroNose',  'aero nose',     0, 1, 1],
-      ['aeroWsLen', 'screen len',    0.2, 1.6, 0.01],
-      ['aeroLen',   'cone len',      0.4, 3.0, 0.01],
-      ['aeroDroop', 'nose droop',   -0.2, 0.8, 0.01],
-      ['aeroTipW',  'tip width x',   0.04, 0.6, 0.01],
-      ['aeroTipH',  'tip height x',  0.04, 0.7, 0.01],
-      ['crFrontCap','tip cap crease', 0, 3, 0.05],
-    ]],
     ['config', [
       ['rearAperture','pusher tail', 0, 1, 1],
       ['boomMidOn', 'boom ring',     0, 1, 1],
@@ -126,28 +117,10 @@ window.CAGE_PAGE = {
       ['boomMidPinch','boom pinch',  0.2, 1.4, 0.01],
     ]],
   ],
-  presets: {
-    'jodel (defaults)': {},
-    // BASE topology bizjet: round body, crowned rounded nose, framed
-    // (discontinuous) windscreen — the fold IS the bizjet screen frame
-    bizjet: { topRound: 1, botRound: 1, bubble: 0,
-      roofY: 0.78, keelY: -0.80, floorY: -0.55, aftRoofY: 0.62,
-      aftKeelY: -0.68, tailHalfW: 0.14, tailRoofY: 0.42, tailKeelY: -0.10,
-      boomLen: 3.2, noseCrown: 0.16, wsBaseLift: 0.14, noseFinish: 1,
-      cowlLoops: 2, cowlEase: 0.8, cowlBulge: 1.03, noseLen: 1.9,
-      noseW: 0.16, noseH: 0.15, noseDroop: 0.26, wsRun: 1.05,
-      wsBaseBow: 0.55, wsCeilBow: 0.32, crNoseCap: 0.2, apilW: 1.2 },
-    sailplane: { aeroNose: 1, botRound: 1, topRound: 1, bubble: 1,
-      halfW: 0.36, roofHalfW: 0.28, roofY: 0.52, keelY: -0.50, floorY: -0.30,
-      paxCount: 0, pilotLen: 1.3, boomLen: 4.8, boomMidOn: 1, boomMidT: 0.30,
-      boomMidPinch: 0.5, tailHalfW: 0.045, tailRoofY: 0.16, tailKeelY: -0.03,
-      aeroWsLen: 0.8, aeroLen: 1.3, aeroDroop: 0.26, aeroTipW: 0.10,
-      aeroTipH: 0.13, ringPullIn: 0.008, crFrontCap: 0.15 },
-    pusher: { aeroNose: 1, topRound: 1, botRound: 1, rearAperture: 1,
-      boomLen: 2.0, tailLen: 0.25, tailHalfW: 0.30, tailRoofY: 0.34,
-      tailKeelY: -0.34, aeroLen: 1.2, aeroDroop: 0.30, crCap: 3,
-      aeroTipW: 0.10, aeroTipH: 0.12 },
-  },
+  // ONE PRIMITIVE (user ruling): only the default aircraft — everything
+  // derives from here. The old bizjet/sailplane/pusher presets and the
+  // aero-nose experiment group are retired from the UI (code kept).
+  presets: { 'default': {} },
 };
 </script>
 <script src="../vendor/three.min.js"></script>

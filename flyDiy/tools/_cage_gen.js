@@ -1178,7 +1178,11 @@ function cageRims(m, S) {
       for (let i = 0; i < NPP; i++) {
         const pm = P0[(i - 1 + NPP) % NPP], pc = P0[i], pp = P0[(i + 1) % NPP];
         const d0 = nrm(sub(pc, pm)), d1 = nrm(sub(pp, pc));
-        if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.82) {
+        // bends gentler than ~8 deg pass through; everything else gets
+        // the rimArc bezier — so the windshield's curved top and bottom
+        // runs smooth with the same slider as the 90-deg corners
+        // (user ask), not only sharp turns
+        if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.99) {
           outP.push(pc); outN.push(N0[i]); continue;
         }
         const l0 = Math.hypot(...sub(pc, pm)), l1 = Math.hypot(...sub(pp, pc));
@@ -1335,6 +1339,26 @@ function cageCut(m, S) {
   if (!C || !C.on) return m;
   const { V, F } = m;
   const W = S.win || {};
+  // record the windshield BASE LINE before the glass separates — the
+  // dashboard traces the windshield/waistband adjacency, and cutting
+  // duplicates the glass verts, breaking it (user report: cut parts
+  // stripped the dashboard). The waistband side keeps these vert ids.
+  if (!m.wsBase) {
+    const own = new Map();
+    for (const f of F) {
+      if (f.v.length !== 4) continue;
+      if (f.m !== 'windshield' && f.m !== 'waistband') continue;
+      for (let e = 0; e < 4; e++) {
+        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        if (!own.has(k)) own.set(k, new Set());
+        own.get(k).add(f.m);
+      }
+    }
+    m.wsBase = [];
+    for (const [k, mats] of own)
+      if (mats.has('windshield') && mats.has('waistband'))
+        m.wsBase.push(k.split('_').map(Number));
+  }
   const groups = (kind, filt) => {
     const idx = [];
     F.forEach((f, i) => {
@@ -1651,23 +1675,32 @@ function cageInterior(m, S) {
   // 6. merge: the panel presents a FLAT FACE (arc-topped plate, ladder
   //    fill between the two half-chains, flat bottom chord).
   if (I.dash) (() => {
-    const owners = new Map();                    // edgeKey -> Set(materials)
-    for (const f of F) {
-      if (f.v.length !== 4) continue;
-      if (f.m !== 'windshield' && f.m !== 'waistband') continue;
-      for (let e = 0; e < 4; e++) {
-        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
-        if (!owners.has(k)) owners.set(k, new Set());
-        owners.get(k).add(f.m);
-      }
-    }
     const link = new Map();                      // vert -> neighbours
-    for (const [k, mats] of owners) {
-      if (!(mats.has('windshield') && mats.has('waistband'))) continue;
-      const [a, b] = k.split('_').map(Number);
-      if (!link.has(a)) link.set(a, []);
-      if (!link.has(b)) link.set(b, []);
-      link.get(a).push(b); link.get(b).push(a);
+    if (m.wsBase && m.wsBase.length) {
+      // the cut recorded the base line before separating the glass
+      for (const [a, b] of m.wsBase) {
+        if (!link.has(a)) link.set(a, []);
+        if (!link.has(b)) link.set(b, []);
+        link.get(a).push(b); link.get(b).push(a);
+      }
+    } else {
+      const owners = new Map();                  // edgeKey -> Set(materials)
+      for (const f of F) {
+        if (f.v.length !== 4) continue;
+        if (f.m !== 'windshield' && f.m !== 'waistband') continue;
+        for (let e = 0; e < 4; e++) {
+          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          if (!owners.has(k)) owners.set(k, new Set());
+          owners.get(k).add(f.m);
+        }
+      }
+      for (const [k, mats] of owners) {
+        if (!(mats.has('windshield') && mats.has('waistband'))) continue;
+        const [a, b] = k.split('_').map(Number);
+        if (!link.has(a)) link.set(a, []);
+        if (!link.has(b)) link.set(b, []);
+        link.get(a).push(b); link.get(b).push(a);
+      }
     }
     let start = -1;
     for (const [v, ns] of link) if (ns.length === 1) { start = v; break; }
