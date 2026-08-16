@@ -420,7 +420,9 @@ const savedCfgs = () => {
   d.innerHTML = `<span class="k">preset</span><select id="presetSel"
     style="flex:1"></select>
     <button id="saveCfg" title="save current sliders as a named config">save</button>
-    <button id="logCfg" title="log non-default params to console + clipboard">log</button>`;
+    <button id="logCfg" title="log non-default params to console + clipboard">log</button>
+    <button id="expCfg" title="download config as JSON (also copied)">exp</button>
+    <button id="impCfg" title="paste a config JSON">imp</button>`;
   ui.appendChild(d);
   d.querySelector('select').onchange = e => applyPreset(e.target.value);
   d.querySelector('#saveCfg').onclick = () => {
@@ -430,6 +432,33 @@ const savedCfgs = () => {
     all[name] = { P: { ...P }, M: { ...M } };
     localStorage.setItem(LSKEY, JSON.stringify(all));
     fillPresetSel();
+  };
+  // JSON export/import: diffed against CAGE_PARAMS (not page defaults),
+  // so a config file is self-contained and portable between pages —
+  // the user's trusted alternative to localStorage
+  d.querySelector('#expCfg').onclick = () => {
+    const diff = { P: {}, M: {} };
+    for (const k in P) if (P[k] !== G.CAGE_PARAMS[k]) diff.P[k] = P[k];
+    for (const [k, , , , , d0] of MACROS) if (M[k] !== d0) diff.M[k] = M[k];
+    const txt = JSON.stringify(diff, null, 1);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([txt],
+      { type: 'application/json' }));
+    a.download = 'cage_config.json';
+    a.click();
+    if (navigator.clipboard) navigator.clipboard.writeText(txt);
+    $('stat').textContent = 'config downloaded + copied to clipboard';
+  };
+  d.querySelector('#impCfg').onclick = () => {
+    const txt = prompt('paste config JSON ({P:{...}, M:{...}})');
+    if (!txt) return;
+    try {
+      const cfg = JSON.parse(txt);
+      if (cfg.P) Object.assign(P, cfg.P);
+      if (cfg.M) Object.assign(M, cfg.M);
+      syncSliders(); build();
+      $('stat').textContent = 'config imported';
+    } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
   };
   d.querySelector('#logCfg').onclick = () => {
     const diff = {};

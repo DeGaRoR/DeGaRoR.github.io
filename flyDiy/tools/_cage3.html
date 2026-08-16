@@ -22,9 +22,13 @@
   label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
   select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
     padding:3px 8px;border-radius:4px;font:inherit}
-  main{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 40px)}
-  #view{position:relative} canvas{display:block;width:100%;height:100%}
-  aside{border-left:1px solid var(--grid);overflow:auto;padding:10px}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow:auto;padding:10px;
+    width:300px;flex:none;resize:horizontal;direction:rtl;
+    min-width:200px;max-width:60vw}
+  aside>*{direction:ltr}
   .r{display:flex;gap:6px;align-items:center;margin:5px 0}
   .r span.k{color:var(--dim);width:92px;flex:none}
   input[type=range]{flex:1;accent-color:var(--acc)}
@@ -74,12 +78,17 @@ window.CAGE_PAGE = {
     pillarW: 0.10,           // all pillar bands equal at the cabin's width
     apilPerp: 1,             // window pillar: even PERPENDICULAR thickness
     intOn: 1,                // interior elements on (G13)
-                             // (user rulings 2026-08-16)
-    topRound: 1, bubble: 1, topAngCeil: 52, topAngRoof: 81, topComp: 1.03,
-    roofY: 0.72, aftRoofY: 0.50, tailRoofY: 0.30,
-    wsRun: 0.95, wsBaseBow: 0.45, wsCeilBow: 0.30, noseLen: 0.75,
-    noseCrown: 0.16, wsBaseLift: 0.05, cowlLoops: 1, cowlEase: 0.35,
-    cowlBulge: 1.04,
+    // user's tuned jodel (2026-08-16 screenshots): box glazing (no
+    // bubble, no skylight), short cockpit, deep aft belly, snub nose,
+    // cut parts ON by default (G14)
+    topRound: 1, bubble: 0, topAngCeil: 52, topAngRoof: 81, topComp: 1.03,
+    roofY: 0.72, aftRoofY: 0.68, aftKeelY: -0.7, tailRoofY: 0.30,
+    wsRun: 0.95, wsBaseBow: 0.45, wsCeilBow: 0.30,
+    noseLen: 0.44, noseW: 0.90, pfW: 0.92, noseH: 1.07,
+    noseCrown: 0.16, wsBaseLift: 0.05, cowlLoops: 0, cowlEase: 0.35,
+    cowlBulge: 0.99,
+    paxLen: 0.91, pilotLen: 0.42, waistY: 0.06,
+    skylight: 0, cutParts: 1,
   },
   groups: [
     ['canopy', [

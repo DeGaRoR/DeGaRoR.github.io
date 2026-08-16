@@ -5001,6 +5001,22 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
+### G13-REVISED (2026-08-16, after G14): PARTS-FIRST INTERIOR — the
+plan file (~/.claude/plans/cage-interior-structure.md, "REVISED"
+section) supersedes the original I3+: PILLARS = EXTRUSIONS OF THE
+REMAINING SKIN (after cutting, thicken the non-exploded cabin faces
+inward + rim walls along every cut edge = door jambs / window reveals
+with real depth — the structure IS the thickened skin, material idioms
+style it); DOORS get thickness separately per part (inner offset +
+edge band, explicit crease loops, hinges later); original station
+frames demoted to aft fuselage + styling. Also: user's tuned jodel is
+now the _cage3 DEFAULTS (box glazing, no skylight, short cockpit, deep
+aft belly, snub nose, cutParts ON; some cropped screenshot values
+best-effort — refine via the new JSON export). UI: exp/imp buttons
+(JSON config diffed vs CAGE_PARAMS, downloaded + clipboard; import via
+paste — the trusted alternative to localStorage), side pane RESIZABLE
+(flex + rtl resize handle, _cage3 only — mirror to _cage2 if wanted).
+
 ### G14 — POST-SUBSURF CUTTING (v1 DONE 2026-08-16, user chantier)
 
 `cageCut(mesh, spec)` — runs after cageSubdivide, BEFORE cageRims:
