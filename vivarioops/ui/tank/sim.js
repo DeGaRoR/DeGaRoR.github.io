@@ -208,6 +208,29 @@ export const BREEDING_MS = 600;
 // like nothing at all from outside.
 
 /** Pool size and round counts. Physics rounds cost ~4 s each; geometry is free. */
+/**
+ * What one burst may spend, per objective COST TIER.
+ *
+ * Measured, on one creature, this machine: a 6 s `netSpeed` trial is 178 ms and
+ * a 30+60 s forage trial is 886 ms — 5x. The old shape (pool 12, 6 rounds ≈ 48
+ * evaluations) is ~8.5 s on speed and would be ~42 s on forage, which is not a
+ * button, it is a coffee break.
+ *
+ * So a forage burst searches a smaller pool for fewer rounds and lands in the
+ * same wall-clock. That is a real reduction in search, stated rather than hidden:
+ * ~16 evaluations against ~48. `design/PLAN.md` Phase 4 asks for this to be
+ * confronted rather than discovered — a background worker is the other honest
+ * architecture and is the one to build when this stops being enough.
+ */
+export function burstBudget(objective) {
+  switch (objective?.cost) {
+    // Geometry costs no simulation at all, so the same wall-clock buys far more.
+    case 'free':   return { pool: BURST.pool, rounds: 20 };
+    case 'forage': return { pool: 8, rounds: 2 };
+    default:       return { pool: BURST.pool, rounds: BURST.physicsRounds };
+  }
+}
+
 export const BURST = {
   pool: 12,
   // Rounds when the objective must simulate. Six is what fits the budget the

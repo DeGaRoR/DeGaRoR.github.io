@@ -21,6 +21,7 @@
 // opposite of the obvious intuition and is why the numbers below are small.
 
 import { runSolo } from './probe.js';
+import { forageProfile, FORAGE_WARMUP } from './forage.js';
 import { morphogenesis, totalMass, boundingRadius } from '../l1/morphogen.js';
 import { breed, seedPopulation, POPULATION } from '../l1/breed.js';
 import { SLICE_LIMITS } from '../l1/factory.js';
@@ -161,7 +162,7 @@ export function scorePopulation(RAPIER, genomes, world, seconds = TRIAL_SECONDS,
  */
 export const OBJECTIVES = [
   {
-    id: 'speed', label: 'Speed', adapt: true, trusted: true,
+    id: 'speed', cost: 'motion', label: 'Speed', adapt: true, trusted: true,
     note: 'net distance per second, gait adapted first',
     measure: (RAPIER, genome, plan, world, seconds) => {
       const r = netSpeed(RAPIER, { plan, genome, world, seconds });
@@ -169,7 +170,7 @@ export const OBJECTIVES = [
     },
   },
   {
-    id: 'size', label: 'Size', adapt: false, trusted: true,
+    id: 'size', cost: 'free', label: 'Size', adapt: false, trusted: true,
     note: 'total mass — shape, not swimming',
     measure: (_RAPIER, _genome, plan) => totalMass(plan),
   },
@@ -184,11 +185,145 @@ export const OBJECTIVES = [
     // Same number, honest name. The two geometric objectives now differ only in
     // WHICH bigness they reward — mass versus span — and both say "no simulation"
     // so it is clear neither watches the creature move. Speed is the one that does.
-    id: 'reach', label: 'Span', adapt: false, trusted: true,
+    id: 'reach', cost: 'free', label: 'Span', adapt: false, trusted: true,
     note: 'how far the body sprawls from its centre — shape, not swimming',
     measure: (_RAPIER, _genome, plan) => boundingRadius(plan),
   },
+
+  // ══ THE FORAGE OBJECTIVES ══════════════════════════════════════════════════
+  //
+  // Three readings of ONE trial. `forageProfile` returns intake, spend and the
+  // ratio from a single run, so which of these the player picks costs exactly
+  // the same — the choice is about WHAT IS BEING SELECTED FOR, not about budget.
+  //
+  // ── THE CHEAP TRIAL, AND WHY IT IS NOT THE CANONICAL ONE ───────────────────
+  //
+  // `BURST_WINDOW` is 60 s against `FORAGE_WINDOW`'s 150. This is R9's
+  // cheap-trial-ranks / canonical-trial-reports split, which `design/PLAN.md`
+  // Phase 4 names as the way to make a programme fit a button. Measured on four
+  // creatures: 150 s costs 1751 ms and 60 s costs 886 ms, and the two produce
+  // the SAME ORDERING. 40 s is cheaper again and reverses two of the four, so
+  // the saving stops being free somewhere between them.
+  //
+  // ⚠ n = 4. That is enough to reject 40 s and not enough to certify 60 s over a
+  // whole corpus. The burst RANKS with this; the Atlas card and the specimen
+  // page still report the canonical `PROFILE_TAG` measurement, and the two are
+  // deliberately different numbers with different names.
+  //
+  // THE WARMUP IS NOT NEGOTIABLE and is kept at the full 30 s. A creature wakes
+  // inside an untouched patch and eats at ~3x the stabilised rate; a trial
+  // without warmup measures where it was dropped.
+  //
+  // ── `adapt: false`, AND THIS IS THE HONEST SETTING ─────────────────────────
+  //
+  // Read the note on `adapt` above: `adaptGait` hill-climbs NET SPEED. Handing
+  // it a forage objective would tune every body for travel and then score it on
+  // eating — optimising one quantity and selecting on another, which is the
+  // exact failure that note exists to prevent. `forage.js`'s own docstring says
+  // it outright: "Any burst that selects on this function must pass an adapter
+  // that hill-climbs THIS score, or pass none at all."
+  //
+  // There is no forage adapter. `design/PLAN.md` lists "No forage-specific gait
+  // adapter" as a live debt against Phase 2. So these score the BIRTH GAIT.
+  //
+  // AND THAT COSTS NOTHING MEASURABLE HERE, which was not the expected answer.
+  // Running the same 12 random draws through `adaptGait` first and then scoring:
+  // food still gives 8 distinct values and yield still gives 10 — identical
+  // discrimination — for 1158 ms per body against 720. The speed adapter buys
+  // 60% more wall-clock and no more ordering, so declining it is not a
+  // compromise forced by the missing adapter; on this measurement it is simply
+  // the better setting.
+  {
+    id: 'food', cost: 'forage', label: 'Food', adapt: false, trusted: true,
+    note: 'grams eaten per second, after the field settles',
+    measure: (RAPIER, genome, plan, world) => {
+      const p = burstForage(RAPIER, plan, genome, world);
+      return p ? p.foodPerSecond : 0;
+    },
+  },
+  {
+    // ── NOT TRUSTED, AND THE REASON IS MEASURED ───────────────────────────────
+    //
+    // ROADMAP §5b's first `_zselect` lesson: "never select on the ratio — it is a
+    // margin, won by not spending, and the cheapest way not to spend is not to
+    // move." Drifter posts the best multiplier in the whole library — 94x — on a
+    // THIRD of the teal snarlback's intake. A player who picks this and runs it
+    // hard breeds something that has perfected sitting still.
+    //
+    // IT SHIPS ANYWAY. It is a real quantity, it is the one a breeder asks for by
+    // name, and `trusted: false` is the mechanism this file already has for
+    // saying "this number is choosable and you should know what it does". Hiding
+    // it would not stop anyone wanting it; labelling it is what the field is for.
+    id: 'ledger', cost: 'forage', label: 'Ledger', adapt: false, trusted: false,
+    note: 'intake over spend — a RATIO, and it is won by not moving',
+    measure: (RAPIER, genome, plan, world) => {
+      const p = burstForage(RAPIER, plan, genome, world);
+      return p && Number.isFinite(p.multiplier) ? p.multiplier : 0;
+    },
+  },
+  {
+    // ── THE ONE TO ACTUALLY BREED ON ──────────────────────────────────────────
+    //
+    // Intake times ratio. The product is what closes the hole in each half: a
+    // glutton that spends everything scores a poor ratio, and a drifter that
+    // spends nothing has almost no intake to multiply. Neither degenerate
+    // strategy wins, which is exactly what neither number alone can say.
+    //
+    // Dimensionally it is g/s x (dimensionless), so it reads as a rate — "food
+    // per second, discounted by what the swimming cost". Ranking is all that is
+    // asked of it, so the units not being meaningful in isolation is acceptable;
+    // it is not reported anywhere as a measurement.
+    id: 'yield', cost: 'forage', label: 'Yield', adapt: false, trusted: true,
+    note: 'food per second x ledger — rewards eating well AND cheaply',
+    measure: (RAPIER, genome, plan, world) => {
+      const p = burstForage(RAPIER, plan, genome, world);
+      if (!p || !Number.isFinite(p.multiplier)) return 0;
+      return p.foodPerSecond * p.multiplier;
+    },
+  },
 ];
+
+/** The cheap ranking trial. See the block above for why 60 s and why 30 s warmup. */
+export const BURST_WINDOW = 60;
+
+/**
+ * One forage trial, or null if the creature will not run or came apart.
+ *
+ * `intact` IS CHECKED. ROADMAP §5b lesson 3: a body that disintegrates reports
+ * fictional intake — 7864 g against rivals' 31-49 — so an objective that skipped
+ * this would rank every exploded creature first and select for explosion.
+ */
+function burstForage(RAPIER, plan, genome, world) {
+  try {
+    const p = forageProfile(RAPIER, {
+      plan, genome, world, foodOpts: { seed: 11 },
+      warmup: FORAGE_WARMUP, window: BURST_WINDOW,
+    });
+    if (!p.valid || !p.intact) return null;
+
+    // ── THERE IS NO MOVEMENT CULL HERE, AND ONE WAS TRIED AND REMOVED ────────
+    //
+    // design/15-BREEDING.md §1.3 rates "select on controlled movement first" as
+    // NOT OPTIONAL, so a cull was added: reject anything that did not translate
+    // one body radius. Measured over 12 random draws it rejected 9 — including a
+    // creature eating 21 mg/s — and flattened every forage score to zero, which
+    // the gate caught as "tells creatures apart: got 1".
+    //
+    // THE ADVICE IS RIGHT AND WAS APPLIED TO THE WRONG OBJECTIVE. Read it in
+    // full: "nothing in a random corpus ARRIVES, so an ARRIVAL-FLAVOURED
+    // objective has no gradient until this is done." It is about goal-seeking,
+    // where a stationary creature scores an identical zero to every other
+    // stationary creature and selection has nothing to climb. Foraging is not
+    // like that: intake IS the gradient, it discriminates on the birth gait over
+    // a random corpus (8 distinct food values and 10 distinct yields out of 12),
+    // and a creature that sweeps a local patch without translating is foraging
+    // successfully by a strategy the cull would have called failure.
+    //
+    // Kept as a comment rather than deleted, because "cull on movement first" is
+    // going to look obviously correct again the next time someone reads §1.3.
+    return p;
+  } catch { return null; }
+}
 
 export const objectiveById = (id) => OBJECTIVES.find(o => o.id === id) ?? OBJECTIVES[0];
 

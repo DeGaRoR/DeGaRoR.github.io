@@ -879,3 +879,16 @@ button.spec-card { font: inherit; text-align: left; cursor: pointer; }
 }
 .topbar-back[hidden] { display: none; }
 .topbar-back:active { color: var(--c-text-dim); }
+
+/* The session note — a textarea reusing `.field`, which was written for single
+   line inputs and therefore centres its text vertically and forbids growth. */
+.spec-session-note {
+  min-height: auto; padding: var(--s-2) var(--s-3);
+  font-family: var(--f-ui); line-height: 1.5; resize: vertical;
+}
+
+/* An objective the project has measured and does NOT trust as a selector — see
+   `trusted` in engine/l2/objective.js. Warn, not fail: it is a real quantity and
+   a legitimate choice, it just does not do what its name suggests. */
+.btn[data-warn="yes"] { border-color: var(--c-warn); color: var(--c-warn); }
+.spec-empty[data-warn="yes"] { color: var(--c-warn); }

@@ -97,6 +97,9 @@ export default {
       badges.append(facetLink('source', row.source));
       if (row.shelf) badges.append(facetLink('shelf', row.shelf));
       if (row.niche) badges.append(facetLink('niche', row.niche));
+      // WHICH RUN PRODUCED THIS. Tapping it pulls up its siblings — everything
+      // else kept out of the same breeding session.
+      if (row.sessionLabel) badges.append(facetLink('session', row.sessionLabel));
       for (const l of row.labels) badges.append(facetLink('labels', l));
 
       if (row.headline) mk('spec-page-headline', wrap).textContent = row.headline;
@@ -162,9 +165,7 @@ export default {
         [t('Segments'), `${f.get('seg').labelOf(row.seg)} · ${t('longest run')} ${row.longestRun}`],
         [t('Limbs'), `${f.get('limb').labelOf(row.limb)} · ${row.mirrored} ${t('mirrored')}`],
         [t('Depth'), `${row.maxDepth}`],
-        [t('Senses'), row.receptors
-          ? `${row.receptors} ${t('receptors')}`
-          : t('blind — no receptors')],
+        [t('Senses'), row.senses?.summary ?? t('blind — no receptors')],
         [t('Unusualness'), row.extremity.toFixed(2)],
       ]);
 
@@ -191,6 +192,12 @@ export default {
           ? row.founder
           : t('evolved — no authored ancestor')],
         [t('Generations'), `${row.generations}`],
+        // The run's OWN generation counter, which is a different number from
+        // `origin.generations`: that one counts births down this genome's whole
+        // history, this one says how far into that particular afternoon the
+        // animal turned up.
+        ...(row.sessionGen != null
+          ? [[t('Appeared at'), `${t('generation')} ${row.sessionGen}`]] : []),
       ]);
       const forest = buildForest(atlas.rows());
 

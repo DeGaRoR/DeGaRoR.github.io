@@ -54,7 +54,12 @@
  * ────────────────────────────────────────────────────────────────────────────*/
 const VERSION="0.6.0-dev35";
 const MAT=["PET","PVC","steel","film","paper","alu"];
-const COL={PET:"#2F6FD1",PVC:"#E8C020",steel:"#5B6670",film:"#C445B8",paper:"#B06A2E",alu:"#63D9A8"}; // maximally-separable hues for fast visual ID (2026-07-11): PET=blue, PVC=yellow, steel=grey, film=magenta, paper=brown, alu=cyan
+// Maximally-separable hues for fast visual ID (2026-07-11): PET=blue, PVC=yellow, steel=silver, film=magenta,
+// paper=brown, alu=mint. Every item draws a 50%-alpha halo of its material colour, so a colour that sits near
+// the CONVEYOR's own greys is invisible in the place it matters most — steel was #5B6670 against a belt bed of
+// #565149 and a frame of #6F665C, i.e. grey on grey. Now a pale cool silver: still reads as ferrous, but far
+// lighter than any belt tone, and nowhere near PET's deep blue or alu's mint. (2026-08-16)
+const COL={PET:"#2F6FD1",PVC:"#E8C020",steel:"#BFD4E8",film:"#C445B8",paper:"#B06A2E",alu:"#63D9A8"};
 const STATES=["bag","item"], ST=2; // liberation state: 0=bag (tied), 1=item (loose). Bag opener does bag->item.
 const PMASS=0.01,BUF_CAP=60,EDGE_MAX=14,BALE_N=50;
 // dev31 finite storage — storage units hold realistic volumes (process units keep BUF_CAP for backpressure granularity).
@@ -171,6 +176,14 @@ const LOGI={
   containersPerZone:3,
   landfillHold:6,     // full containers a landfill zone parks awaiting evac
   exportCap:20,       // bales an export zone holds
+  // ── SITE INTAKE CEILING ──────────────────────────────────────────────────────────────────────────
+  // Total accepted feed, imposed + voluntary COMBINED. A single line carries ~10 t/h (BELT_TPH), and a
+  // plant wants headroom for a recirculation loop, so 8 t/h in + ~2 t/h recirculated fills one beefed-up
+  // line exactly. Imposed mandates are served FIRST (they cannot be refused) and voluntary contracts share
+  // whatever is left — so a mandate squeezes the streams you chose instead of stacking tonnes on top.
+  // That keeps escalation a MATERIALS problem (dirtier feed, more PVC/film) rather than a "build a second
+  // plant" problem, which is what the mandate system always claimed to be.
+  inboundCap:8,
   balerBales:4,       // bales a baler stores internally before a forklift must pull
   // ── vehicle capacities ──
   loaderCap:220,      // scoop bunker→feeder    (~2.2 t). NOTE: every SITE scenario overrides this trio
@@ -194,7 +207,9 @@ const LOGI={
   tipDwell:1.0,       // min at the bunker apron to tip a load
   cliDwell:1.0,       // min at the export dock to load bales
   lfDwell:0.8,        // min at the landfill to load containers
-  truckMaxInflight:2, // supplier trucks simultaneously serving ONE bunker
+  truckMaxInflight:3, // supplier trucks simultaneously serving ONE bunker. 2 exactly met a 5 t/h contract
+                      // once the through-road added a full tile of driving at each end — no headroom at all.
+                      // A longer road genuinely means more trucks spaced along it, so this is the honest knob.
   // ── starting fleet (pool sizes; capex/R&D raise these later) ──
   fleet0:{loader:1, forklift:1, ctruck:1},
 };
@@ -232,19 +247,19 @@ const SPECS={
 // name map (coName resolves, default EN). Streams/buyer-pricing get wired as the agreement loop lands.
 const COMPANIES={
   suppliers:[
-    {id:"wasteminster",name:{en:"Wasteminster Council"},tutorial:true,stream:{comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},feedTph:4,gate:55,bag:"blue"}},
-    {id:"binfinity",name:{en:"Binfinity"},stream:{comp:{PET:0.15,steel:0.06,alu:0.02,film:0.30,paper:0.32,PVC:0.15},feedTph:4,gate:75,bag:"green"}},
+    {id:"wasteminster",name:{en:"Wasteminster Council"},tutorial:true,stream:{comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},feedTph:5,gate:55,bag:"blue",truck:"green"}},
+    {id:"binfinity",name:{en:"Binfinity"},stream:{comp:{PET:0.15,steel:0.06,alu:0.02,film:0.30,paper:0.32,PVC:0.15},feedTph:5,gate:75,bag:"green",truck:"teal"}},
     {id:"hauler_oates",name:{en:"Hauler Oates"}},
     {id:"down_dumps",name:{en:"Down in the Dumps Ltd."}},
     // ── imposed-mandate carriers. Deliberately DIRTIER than the voluntary suppliers (and paying a
     //    higher gate to match): an imposed stream must be a materials problem, not just more tonnes.
-    {id:"skip_bizet",name:{en:"Skip Bizet"},stream:{comp:{PET:0.18,steel:0.10,alu:0.03,film:0.22,paper:0.28,PVC:0.19},feedTph:3,gate:70,bag:"grey"}},        // 19% PVC vs PET's 0.5% cap → poisons PET bales until a picking station or 2nd NIR exists
-    {id:"poubelle_air",name:{en:"Poubelle Air"},stream:{comp:{PET:0.22,steel:0.18,alu:0.08,film:0.26,paper:0.20,PVC:0.06},feedTph:4,gate:80,bag:"amber"}},    // alu + film rich → rewards eddy / vacuum-film
+    {id:"skip_bizet",name:{en:"Skip Bizet"},stream:{comp:{PET:0.18,steel:0.10,alu:0.03,film:0.22,paper:0.28,PVC:0.19},feedTph:2.5,gate:70,bag:"yellow",truck:"orange"}},        // 19% PVC vs PET's 0.5% cap → poisons PET bales until a picking station or 2nd NIR exists
+    {id:"poubelle_air",name:{en:"Poubelle Air"},stream:{comp:{PET:0.22,steel:0.18,alu:0.08,film:0.26,paper:0.20,PVC:0.06},feedTph:5,gate:80,bag:"green",truck:"purple"}},    // alu + film rich → rewards eddy / vacuum-film
     {id:"ducasse_dechets",name:{en:"Ducasse Déchets"}},
     {id:"trouville_dechets",name:{en:"Trouville Déchets"}},
     {id:"verviers_nord",name:{en:"Verviers Nord Containers"}},
     {id:"supradel",name:{en:"Supradel"}},
-    {id:"watco_syndicate",name:{en:"Watco Syndicate"},stream:{comp:{PET:0.12,steel:0.08,alu:0.02,film:0.30,paper:0.24,PVC:0.24},feedTph:6,gate:95,bag:"rust"}}, // the endgame: 24% PVC, 30% film, only 12% PET
+    {id:"watco_syndicate",name:{en:"Watco Syndicate"},stream:{comp:{PET:0.12,steel:0.08,alu:0.02,film:0.30,paper:0.24,PVC:0.24},feedTph:5,gate:95,bag:"yellow",truck:"yellow"}}, // the endgame: 24% PVC, 30% film, only 12% PET
     {id:"van_jesuswinkel",name:{en:"Van Jesuswinkel"}},
   ],
   buyers:[
@@ -420,9 +435,10 @@ const SITE_BELT_SPEED=1800; // world-px per sim-time unit (belt animation; doubl
 const BELT_TPH=10;          // nominal conveyor throughput — every belt carries this REGARDLESS of length
 function beltMaxFor(wlen){return Math.max(8,Math.ceil((BELT_TPH/PMASS)*wlen/SITE_BELT_SPEED));} // max×speed ≈ BELT_TPH/PMASS sprites/h
 // Footprints in CELLS. Landfill was 7x3 — 3.5x an export bay — for no capacity reason: a landfill's capacity is
-// landfillHold x containerCap (see capOf), entirely independent of its footprint. It now matches `output` so the
-// outbound row has room for the sixth product (PVC).
-const SITE_OBJ={input:{w:2,h:3},feeder:{w:1,h:2},process:{w:1,h:1},mixer:{w:1,h:1},baler:{w:2,h:1},bulk:{w:3,h:3},output:{w:2,h:3},landfill:{w:2,h:3}};
+// landfillHold x containerCap (see capOf), entirely independent of its footprint. It is now 3x3: a tad larger
+// than a 2x3 export bay, which reads as the yard it is, while still leaving the outbound row room for the sixth
+// product (PVC) that the old 7-wide bay was swallowing.
+const SITE_OBJ={input:{w:2,h:3},feeder:{w:1,h:2},process:{w:1,h:1},mixer:{w:1,h:1},baler:{w:2,h:1},bulk:{w:3,h:3},output:{w:2,h:3},landfill:{w:3,h:3}};
 const SITE_KIND={input:{type:"storage",role:"bunker"},feeder:{type:"storage",role:"feeder"},mixer:{type:"mixer"},baler:{type:"baler"},bulk:{type:"storage",role:"bulk"},output:{type:"storage",role:"export"},landfill:{type:"storage",role:"landfill"}};
 const SITE_LAYOUT={"meta":{"name":"RECYCLE site layout","version":4,"note":"Canonical design reference. v4: input\u2192feeder is a VEHICLE (loader) seam per S-BATCH-1 \u2014 the tipping floor is loader-served; conveyors never cross the bunker boundary. Unit positions are an illustrative example plant; the player places units. Grid, cell size, zone geometry, unit dimensions, port model, routing rules and palette are canonical."},"grid":{"w":22,"h":42},"cell":30,"property":[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11],[0,12],[0,13],[0,14],[0,15],[0,16],[0,17],[0,18],[0,19],[0,20],[0,21],[0,22],[0,23],[0,24],[0,25],[0,26],[0,27],[0,28],[0,29],[0,30],[0,31],[0,32],[0,33],[0,34],[0,35],[0,36],[0,37],[0,38],[0,39],[0,40],[0,41],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],[1,10],[1,11],[1,12],[1,13],[1,14],[1,15],[1,16],[1,17],[1,18],[1,19],[1,20],[1,21],[1,22],[1,23],[1,24],[1,25],[1,26],[1,27],[1,28],[1,29],[1,30],[1,31],[1,32],[1,33],[1,34],[1,35],[1,36],[1,37],[1,38],[1,39],[1,40],[1,41],[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[2,10],[2,11],[2,12],[2,13],[2,14],[2,15],[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[3,10],[3,11],[3,12],[3,13],[3,14],[3,15],[3,16],[3,17],[3,18],[3,19],[3,20],[3,21],[3,22],[3,23],[3,24],[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[3,31],[3,32],[3,33],[3,34],[3,35],[3,36],[3,37],[3,38],[3,39],[3,40],[3,41],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,16],[4,17],[4,18],[4,19],[4,20],[4,21],[4,22],[4,23],[4,24],[4,25],[4,26],[4,27],[4,28],[4,29],[4,30],[4,31],[4,32],[4,33],[4,34],[4,35],[4,36],[4,37],[4,38],[4,39],[4,40],[4,41],[5,0],[5,1],[5,2],[5,3],[5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[5,10],[5,11],[5,12],[5,13],[5,14],[5,15],[5,16],[5,17],[5,18],[5,19],[5,20],[5,21],[5,22],[5,23],[5,24],[5,25],[5,26],[5,27],[5,28],[5,29],[5,30],[5,31],[5,32],[5,33],[5,34],[5,35],[5,36],[5,37],[5,38],[5,39],[5,40],[5,41],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[6,6],[6,7],[6,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[6,15],[6,16],[6,17],[6,18],[6,19],[6,20],[6,21],[6,22],[6,23],[6,24],[6,25],[6,26],[6,27],[6,28],[6,29],[6,30],[6,31],[6,32],[6,33],[6,34],[6,35],[6,36],[6,37],[6,38],[6,39],[6,40],[6,41],[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7],[7,8],[7,9],[7,10],[7,11],[7,12],[7,13],[7,14],[7,15],[7,16],[7,17],[7,18],[7,19],[7,20],[7,21],[7,22],[7,23],[7,24],[7,25],[7,26],[7,27],[7,28],[7,29],[7,30],[7,31],[7,32],[7,33],[7,34],[7,35],[7,36],[7,37],[7,38],[7,39],[7,40],[7,41],[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,6],[8,7],[8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22],[8,23],[8,24],[8,25],[8,26],[8,27],[8,28],[8,29],[8,30],[8,31],[8,32],[8,33],[8,34],[8,35],[8,36],[8,37],[8,38],[8,39],[8,40],[8,41],[9,0],[9,1],[9,2],[9,3],[9,4],[9,5],[9,6],[9,7],[9,8],[9,9],[9,10],[9,11],[9,12],[9,13],[9,14],[9,15],[9,16],[9,17],[9,18],[9,19],[9,20],[9,21],[9,22],[9,23],[9,24],[9,25],[9,26],[9,27],[9,28],[9,29],[9,30],[9,31],[9,32],[9,33],[9,34],[9,35],[9,36],[9,37],[9,38],[9,39],[9,40],[9,41],[10,0],[10,1],[10,2],[10,3],[10,4],[10,5],[10,6],[10,7],[10,8],[10,9],[10,10],[10,11],[10,12],[10,13],[10,14],[10,15],[10,16],[10,17],[10,18],[10,19],[10,20],[10,21],[10,22],[10,23],[10,24],[10,25],[10,26],[10,27],[10,28],[10,29],[10,30],[10,31],[10,32],[10,33],[10,34],[10,35],[10,36],[10,37],[10,38],[10,39],[10,40],[10,41],[11,0],[11,1],[11,2],[11,3],[11,4],[11,5],[11,6],[11,7],[11,8],[11,9],[11,10],[11,11],[11,12],[11,13],[11,14],[11,15],[11,16],[11,17],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[11,32],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[12,0],[12,1],[12,2],[12,3],[12,4],[12,5],[12,6],[12,7],[12,8],[12,9],[12,10],[12,11],[12,12],[12,13],[12,14],[12,15],[12,16],[12,17],[12,18],[12,19],[12,20],[12,21],[12,22],[12,23],[12,24],[12,25],[12,26],[12,27],[12,28],[12,29],[12,30],[12,31],[12,32],[12,33],[12,34],[12,35],[12,36],[12,37],[12,38],[12,39],[12,40],[12,41],[13,0],[13,1],[13,2],[13,3],[13,4],[13,5],[13,6],[13,7],[13,8],[13,9],[13,10],[13,11],[13,12],[13,13],[13,14],[13,15],[13,16],[13,17],[13,18],[13,19],[13,20],[13,21],[13,22],[13,23],[13,24],[13,25],[13,26],[13,27],[13,28],[13,29],[13,30],[13,31],[13,32],[13,33],[13,34],[13,35],[13,36],[13,37],[13,38],[13,39],[13,40],[13,41],[14,0],[14,1],[14,2],[14,3],[14,4],[14,5],[14,6],[14,7],[14,8],[14,9],[14,10],[14,11],[14,12],[14,13],[14,14],[14,15],[14,16],[14,17],[14,18],[14,19],[14,20],[14,21],[14,22],[14,23],[14,24],[14,25],[14,26],[14,27],[14,28],[14,29],[14,30],[14,31],[14,32],[14,33],[14,34],[14,35],[14,36],[14,37],[14,38],[14,39],[14,40],[14,41],[15,0],[15,1],[15,2],[15,3],[15,4],[15,5],[15,6],[15,7],[15,8],[15,9],[15,10],[15,11],[15,12],[15,13],[15,14],[15,15],[15,16],[15,17],[15,18],[15,19],[15,20],[15,21],[15,22],[15,23],[15,24],[15,25],[15,26],[15,27],[15,28],[15,29],[15,30],[15,31],[15,32],[15,33],[15,34],[15,35],[15,36],[15,37],[15,38],[15,39],[15,40],[15,41],[16,0],[16,1],[16,2],[16,3],[16,4],[16,5],[16,6],[16,7],[16,8],[16,9],[16,10],[16,11],[16,12],[16,13],[16,14],[16,15],[16,16],[16,17],[16,18],[16,19],[16,20],[16,21],[16,22],[16,23],[16,24],[16,25],[16,26],[16,27],[16,28],[16,29],[16,30],[16,31],[16,32],[16,33],[16,34],[16,35],[16,36],[16,37],[16,38],[16,39],[16,40],[16,41],[17,0],[17,1],[17,2],[17,3],[17,4],[17,5],[17,6],[17,7],[17,8],[17,9],[17,10],[17,11],[17,12],[17,13],[17,14],[17,15],[17,16],[17,17],[17,18],[17,19],[17,20],[17,21],[17,22],[17,23],[17,24],[17,25],[17,26],[17,27],[17,28],[17,29],[17,30],[17,31],[17,32],[17,33],[17,34],[17,35],[17,36],[17,37],[17,38],[17,39],[17,40],[17,41],[18,0],[18,1],[18,2],[18,3],[18,4],[18,5],[18,6],[18,7],[18,8],[18,9],[18,10],[18,11],[18,12],[18,13],[18,14],[18,15],[18,16],[18,17],[18,18],[18,19],[18,20],[18,21],[18,22],[18,23],[18,24],[18,25],[18,26],[18,27],[18,28],[18,29],[18,30],[18,31],[18,32],[18,33],[18,34],[18,35],[18,36],[18,37],[18,38],[18,39],[18,40],[18,41]],"shell":[[2,10],[2,11],[2,12],[2,13],[2,14],[2,15],[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[3,10],[3,11],[3,12],[3,13],[3,14],[3,15],[3,16],[3,17],[3,18],[3,19],[3,20],[3,21],[3,22],[3,23],[3,24],[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[3,31],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,16],[4,17],[4,18],[4,19],[4,20],[4,21],[4,22],[4,23],[4,24],[4,25],[4,26],[4,27],[4,28],[4,29],[4,30],[4,31],[5,10],[5,11],[5,12],[5,13],[5,14],[5,15],[5,16],[5,17],[5,18],[5,19],[5,20],[5,21],[5,22],[5,23],[5,24],[5,25],[5,26],[5,27],[5,28],[5,29],[5,30],[5,31],[6,10],[6,11],[6,12],[6,13],[6,14],[6,15],[6,16],[6,17],[6,18],[6,19],[6,20],[6,21],[6,22],[6,23],[6,24],[6,25],[6,26],[6,27],[6,28],[6,29],[6,30],[6,31],[7,10],[7,11],[7,12],[7,13],[7,14],[7,15],[7,16],[7,17],[7,18],[7,19],[7,20],[7,21],[7,22],[7,23],[7,24],[7,25],[7,26],[7,27],[7,28],[7,29],[7,30],[7,31],[8,10],[8,11],[8,12],[8,13],[8,14],[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22],[8,23],[8,24],[8,25],[8,26],[8,27],[8,28],[8,29],[8,30],[8,31],[9,10],[9,11],[9,12],[9,13],[9,14],[9,15],[9,16],[9,17],[9,18],[9,19],[9,20],[9,21],[9,22],[9,23],[9,24],[9,25],[9,26],[9,27],[9,28],[9,29],[9,30],[9,31],[10,10],[10,11],[10,12],[10,13],[10,14],[10,15],[10,16],[10,17],[10,18],[10,19],[10,20],[10,21],[10,22],[10,23],[10,24],[10,25],[10,26],[10,27],[10,28],[10,29],[10,30],[10,31],[11,10],[11,11],[11,12],[11,13],[11,14],[11,15],[11,16],[11,17],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[12,10],[12,11],[12,12],[12,13],[12,14],[12,15],[12,16],[12,17],[12,18],[12,19],[12,20],[12,21],[12,22],[12,23],[12,24],[12,25],[12,26],[12,27],[12,28],[12,29],[12,30],[12,31],[13,10],[13,11],[13,12],[13,13],[13,14],[13,15],[13,16],[13,17],[13,18],[13,19],[13,20],[13,21],[13,22],[13,23],[13,24],[13,25],[13,26],[13,27],[13,28],[13,29],[13,30],[13,31],[14,10],[14,11],[14,12],[14,13],[14,14],[14,15],[14,16],[14,17],[14,18],[14,19],[14,20],[14,21],[14,22],[14,23],[14,24],[14,25],[14,26],[14,27],[14,28],[14,29],[14,30],[14,31],[15,10],[15,11],[15,12],[15,13],[15,14],[15,15],[15,16],[15,17],[15,18],[15,19],[15,20],[15,21],[15,22],[15,23],[15,24],[15,25],[15,26],[15,27],[15,28],[15,29],[15,30],[15,31],[16,10],[16,11],[16,12],[16,13],[16,14],[16,15],[16,16],[16,17],[16,18],[16,19],[16,20],[16,21],[16,22],[16,23],[16,24],[16,25],[16,26],[16,27],[16,28],[16,29],[16,30],[16,31]],"objects":[{"type":"input","x":2,"y":4,"rot":0},{"type":"input","x":4,"y":4,"rot":0},{"type":"input","x":6,"y":4,"rot":0},{"type":"input","x":15,"y":4,"rot":0},{"type":"input","x":13,"y":4,"rot":0},{"type":"input","x":11,"y":4,"rot":0},{"type":"feeder","x":5,"y":10,"rot":0},{"type":"feeder","x":9,"y":10,"rot":0},{"type":"feeder","x":13,"y":10,"rot":0},{"type":"process","x":5,"y":13,"rot":0},{"type":"process","x":5,"y":15,"rot":0},{"type":"process","x":5,"y":17,"rot":0},{"type":"process","x":5,"y":19,"rot":0},{"type":"baler","x":2,"y":15,"rot":0},{"type":"baler","x":2,"y":17,"rot":0},{"type":"baler","x":2,"y":19,"rot":0},{"type":"process","x":5,"y":21,"rot":0},{"type":"process","x":7,"y":23,"rot":0},{"type":"process","x":5,"y":25,"rot":0},{"type":"bulk","x":4,"y":29,"rot":0},{"type":"bulk","x":8,"y":29,"rot":0},{"type":"bulk","x":12,"y":29,"rot":0},{"type":"output","x":2,"y":35,"rot":0},{"type":"output","x":4,"y":35,"rot":0},{"type":"output","x":6,"y":35,"rot":0},{"type":"landfill","x":12,"y":35,"rot":0},{"type":"output","x":0,"y":35,"rot":0},{"type":"output","x":8,"y":35,"rot":0},{"type":"output","x":10,"y":35,"rot":0},{"type":"baler","x":2,"y":23,"rot":0}],"zones":[{"type":"road","cells":[[19,0],[19,1],[19,2],[19,3],[19,4],[19,5],[19,6],[19,7],[19,8],[19,9],[19,10],[19,11],[19,12],[19,13],[19,14],[19,15],[19,16],[19,17],[19,18],[19,19],[19,20],[19,21],[19,22],[19,23],[19,24],[19,25],[19,26],[19,27],[19,28],[19,29],[19,30],[19,31],[19,32],[19,33],[19,34],[19,35],[19,36],[19,37],[19,38],[19,39],[19,40],[19,41],[20,0],[20,1],[20,2],[20,3],[20,4],[20,5],[20,6],[20,7],[20,8],[20,9],[20,10],[20,11],[20,12],[20,13],[20,14],[20,15],[20,16],[20,17],[20,18],[20,19],[20,20],[20,21],[20,22],[20,23],[20,24],[20,25],[20,26],[20,27],[20,28],[20,29],[20,30],[20,31],[20,32],[20,33],[20,34],[20,35],[20,36],[20,37],[20,38],[20,39],[20,40],[20,41]]},{"type":"truckin","cells":[[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3],[2,0],[2,1],[2,2],[2,3],[3,0],[3,1],[3,2],[3,3],[4,0],[4,1],[4,2],[4,3],[5,0],[5,1],[5,2],[5,3],[6,0],[6,1],[6,2],[6,3],[7,0],[7,1],[7,2],[7,3],[8,0],[8,1],[8,2],[8,3],[9,0],[9,1],[9,2],[9,3],[10,0],[10,1],[10,2],[10,3],[11,0],[11,1],[11,2],[11,3],[12,0],[12,1],[12,2],[12,3],[13,0],[13,1],[13,2],[13,3],[14,0],[14,1],[14,2],[14,3],[15,0],[15,1],[15,2],[15,3],[16,0],[16,1],[16,2],[16,3],[17,0],[17,1],[17,2],[17,3],[18,0],[18,1],[18,2],[18,3]]},{"type":"truckout","cells":[[0,38],[0,39],[0,40],[0,41],[1,38],[1,39],[1,40],[1,41],[2,38],[2,39],[2,40],[2,41],[3,38],[3,39],[3,40],[3,41],[4,38],[4,39],[4,40],[4,41],[5,38],[5,39],[5,40],[5,41],[6,38],[6,39],[6,40],[6,41],[7,38],[7,39],[7,40],[7,41],[8,38],[8,39],[8,40],[8,41],[9,38],[9,39],[9,40],[9,41],[10,38],[10,39],[10,40],[10,41],[11,38],[11,39],[11,40],[11,41],[12,38],[12,39],[12,40],[12,41],[13,38],[13,39],[13,40],[13,41],[14,38],[14,39],[14,40],[14,41],[15,38],[15,39],[15,40],[15,41],[16,38],[16,39],[16,40],[16,41],[17,38],[17,39],[17,40],[17,41],[18,38],[18,39],[18,40],[18,41]]},{"type":"input","cells":[[2,4],[2,5],[2,6],[3,4],[3,5],[3,6],[4,4],[4,5],[4,6],[5,4],[5,5],[5,6],[6,4],[6,5],[6,6],[7,4],[7,5],[7,6],[8,4],[8,5],[8,6],[9,4],[9,5],[9,6],[10,4],[10,5],[10,6],[11,4],[11,5],[11,6],[12,4],[12,5],[12,6],[13,4],[13,5],[13,6],[14,4],[14,5],[14,6],[15,4],[15,5],[15,6],[16,4],[16,5],[16,6]]},{"type":"feeder","cells":[[2,10],[2,11],[3,10],[3,11],[4,10],[4,11],[5,10],[5,11],[6,10],[6,11],[7,10],[7,11],[8,10],[8,11],[9,10],[9,11],[10,10],[10,11],[11,10],[11,11],[12,10],[12,11],[13,10],[13,11],[14,10],[14,11],[15,10],[15,11],[16,10],[16,11]]},{"type":"baling","cells":[[2,12],[2,13],[2,14],[2,15],[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[3,12],[3,13],[3,14],[3,15],[3,16],[3,17],[3,18],[3,19],[3,20],[3,21],[3,22],[3,23],[3,24],[3,25],[3,26],[3,27],[3,28],[15,12],[15,13],[15,14],[15,15],[15,16],[15,17],[15,18],[15,19],[15,20],[15,21],[15,22],[15,23],[15,24],[15,25],[15,26],[15,27],[15,28],[16,12],[16,13],[16,14],[16,15],[16,16],[16,17],[16,18],[16,19],[16,20],[16,21],[16,22],[16,23],[16,24],[16,25],[16,26],[16,27],[16,28]]},{"type":"bulk","cells":[[2,29],[2,30],[2,31],[3,29],[3,30],[3,31],[4,29],[4,30],[4,31],[5,29],[5,30],[5,31],[6,29],[6,30],[6,31],[7,29],[7,30],[7,31],[8,29],[8,30],[8,31],[9,29],[9,30],[9,31],[10,29],[10,30],[10,31],[11,29],[11,30],[11,31],[12,29],[12,30],[12,31],[13,29],[13,30],[13,31],[14,29],[14,30],[14,31],[15,29],[15,30],[15,31],[16,29],[16,30],[16,31]]},{"type":"output","cells":[[0,35],[0,36],[0,37],[1,35],[1,36],[1,37],[2,35],[2,36],[2,37],[3,35],[3,36],[3,37],[4,35],[4,36],[4,37],[5,35],[5,36],[5,37],[6,35],[6,36],[6,37],[7,35],[7,36],[7,37],[8,35],[8,36],[8,37],[9,35],[9,36],[9,37],[10,35],[10,36],[10,37],[11,35],[11,36],[11,37],[12,35],[12,36],[12,37],[13,35],[13,36],[13,37],[14,35],[14,36],[14,37],[15,35],[15,36],[15,37],[16,35],[16,36],[16,37],[17,35],[17,36],[17,37],[18,35],[18,36],[18,37]]},{"type":"dirt","cells":[[0,4],[0,5],[0,6],[1,4],[1,5],[1,6],[17,4],[17,5],[17,6],[18,4],[18,5],[18,6],[0,7],[0,8],[0,9],[1,7],[1,8],[1,9],[2,7],[2,8],[2,9],[3,7],[3,8],[3,9],[4,7],[4,8],[4,9],[5,7],[5,8],[5,9],[6,7],[6,8],[6,9],[7,7],[7,8],[7,9],[8,7],[8,8],[8,9],[9,7],[9,8],[9,9],[10,7],[10,8],[10,9],[11,7],[11,8],[11,9],[12,7],[12,8],[12,9],[13,7],[13,8],[13,9],[14,7],[14,8],[14,9],[15,7],[15,8],[15,9],[16,7],[16,8],[16,9],[17,7],[17,8],[17,9],[18,7],[18,8],[18,9],[0,10],[0,11],[0,12],[0,13],[0,14],[0,15],[0,16],[0,17],[0,18],[0,19],[0,20],[0,21],[0,22],[0,23],[0,24],[0,25],[0,26],[0,27],[0,28],[0,29],[0,30],[0,31],[0,32],[0,33],[0,34],[1,10],[1,11],[1,12],[1,13],[1,14],[1,15],[1,16],[1,17],[1,18],[1,19],[1,20],[1,21],[1,22],[1,23],[1,24],[1,25],[1,26],[1,27],[1,28],[1,29],[1,30],[1,31],[1,32],[1,33],[1,34],[17,10],[17,11],[17,12],[17,13],[17,14],[17,15],[17,16],[17,17],[17,18],[17,19],[17,20],[17,21],[17,22],[17,23],[17,24],[17,25],[17,26],[17,27],[17,28],[17,29],[17,30],[17,31],[17,32],[17,33],[17,34],[18,10],[18,11],[18,12],[18,13],[18,14],[18,15],[18,16],[18,17],[18,18],[18,19],[18,20],[18,21],[18,22],[18,23],[18,24],[18,25],[18,26],[18,27],[18,28],[18,29],[18,30],[18,31],[18,32],[18,33],[18,34],[2,32],[2,33],[2,34],[3,32],[3,33],[3,34],[4,32],[4,33],[4,34],[5,32],[5,33],[5,34],[6,32],[6,33],[6,34],[7,32],[7,33],[7,34],[8,32],[8,33],[8,34],[9,32],[9,33],[9,34],[10,32],[10,33],[10,34],[11,32],[11,33],[11,34],[12,32],[12,33],[12,34],[13,32],[13,33],[13,34],[14,32],[14,33],[14,34],[15,32],[15,33],[15,34],[16,32],[16,33],[16,34]]}],"connections":[{"type":"vehicle","from":{"unit":0,"side":"b"},"to":{"unit":6,"side":"t"},"via":[],"route":[[3,7],[2.5,7.5],[5.5,7.5],[5.5,10]]},{"type":"vehicle","from":{"unit":1,"side":"b"},"to":{"unit":6,"side":"t"},"via":[],"route":[[5,7],[4.5,7.5],[5.5,7.5],[5.5,10]]},{"type":"vehicle","from":{"unit":2,"side":"b"},"to":{"unit":7,"side":"t"},"via":[],"route":[[7,7],[6.5,7.5],[9.5,7.5],[9.5,10]]},{"type":"vehicle","from":{"unit":5,"side":"b"},"to":{"unit":7,"side":"t"},"via":[],"route":[[12,7],[11.5,7.5],[9.5,7.5],[9.5,10]]},{"type":"vehicle","from":{"unit":4,"side":"b"},"to":{"unit":7,"side":"t"},"via":[],"route":[[14,7],[13.5,7.5],[9.5,7.5],[9.5,10]]},{"type":"vehicle","from":{"unit":3,"side":"b"},"to":{"unit":8,"side":"t"},"via":[],"route":[[16,7],[15.5,7.5],[13.5,7.5],[13.5,10]]},{"type":"conveyor","from":{"unit":7,"side":"b"},"to":{"unit":20,"side":"t"},"via":[],"route":[[9.5,12],[9.5,29]]},{"type":"conveyor","from":{"unit":8,"side":"b"},"to":{"unit":21,"side":"t"},"via":[],"route":[[13.5,12],[13.5,29]]},{"type":"conveyor","from":{"unit":6,"side":"b"},"to":{"unit":9,"side":"t"},"via":[],"route":[[5.5,12],[5.5,13]]},{"type":"conveyor","from":{"unit":9,"side":"b"},"to":{"unit":10,"side":"t"},"via":[],"route":[[5.5,14],[5.5,15]]},{"type":"conveyor","from":{"unit":10,"side":"l"},"to":{"unit":13,"side":"r"},"via":[],"route":[[5,15.5],[4,15.5]]},{"type":"conveyor","from":{"unit":10,"side":"b"},"to":{"unit":11,"side":"t"},"via":[],"route":[[5.5,16],[5.5,17]]},{"type":"conveyor","from":{"unit":11,"side":"l"},"to":{"unit":14,"side":"r"},"via":[],"route":[[5,17.5],[4,17.5]]},{"type":"conveyor","from":{"unit":11,"side":"b"},"to":{"unit":12,"side":"t"},"via":[],"route":[[5.5,18],[5.5,19]]},{"type":"conveyor","from":{"unit":12,"side":"l"},"to":{"unit":15,"side":"r"},"via":[],"route":[[5,19.5],[4,19.5]]},{"type":"conveyor","from":{"unit":12,"side":"b"},"to":{"unit":16,"side":"t"},"via":[],"route":[[5.5,20],[5.5,21]]},{"type":"conveyor","from":{"unit":16,"side":"b"},"to":{"unit":18,"side":"t"},"via":[],"route":[[5.5,22],[5.5,25]]},{"type":"conveyor","from":{"unit":16,"side":"r"},"to":{"unit":17,"side":"t"},"via":[],"route":[[6,21.5],[7.5,21.5],[7.5,23]]},{"type":"conveyor","from":{"unit":17,"side":"l"},"to":{"unit":29,"side":"r"},"via":[],"route":[[7,23.5],[4,23.5]]},{"type":"conveyor","from":{"unit":18,"side":"l"},"to":{"unit":29,"side":"r"},"via":[],"route":[[5,25.5],[4.5,25.5],[4.5,23.5],[4,23.5]]},{"type":"conveyor","from":{"unit":18,"side":"b"},"to":{"unit":19,"side":"t"},"via":[],"route":[[5.5,26],[5.5,29]]},{"type":"conveyor","from":{"unit":17,"side":"b"},"to":{"unit":19,"side":"t"},"via":[],"route":[[7.5,24],[7.5,26.5],[5.5,26.5],[5.5,29]]},{"type":"vehicle","from":{"unit":14,"side":"l"},"to":{"unit":22,"side":"t"},"via":[],"route":[[2,17.5],[1.5,17.5],[1.5,32.5],[2.5,32.5],[2.5,34.5],[3,35]]},{"type":"vehicle","from":{"unit":13,"side":"l"},"to":{"unit":26,"side":"t"},"via":[],"route":[[2,15.5],[0.5,15.5],[0.5,34.5],[1,35]]},{"type":"vehicle","from":{"unit":15,"side":"l"},"to":{"unit":23,"side":"t"},"via":[],"route":[[2,19.5],[1.5,19.5],[1.5,32.5],[4.5,32.5],[4.5,34.5],[5,35]]},{"type":"vehicle","from":{"unit":29,"side":"l"},"to":{"unit":24,"side":"t"},"via":[],"route":[[2,23.5],[1.5,23.5],[1.5,32.5],[6.5,32.5],[6.5,34.5],[7,35]]},{"type":"vehicle","from":{"unit":19,"side":"b"},"to":{"unit":25,"side":"t"},"via":[],"route":[[5.5,32],[5.5,32.5],[15.5,32.5],[15.5,35]]},{"type":"vehicle","from":{"unit":20,"side":"b"},"to":{"unit":25,"side":"t"},"via":[],"route":[[9.5,32],[9.5,32.5],[15.5,32.5],[15.5,35]]},{"type":"vehicle","from":{"unit":21,"side":"b"},"to":{"unit":25,"side":"t"},"via":[],"route":[[13.5,32],[13.5,32.5],[15.5,32.5],[15.5,35]]}]};
 function _cellSet(v){const s=new Set();for(const r of v){if(r.length===2)s.add(r[0]+","+r[1]);else for(let x=r[0];x<=r[2];x++)for(let y=r[1];y<=r[3];y++)s.add(x+","+y);}return s;}
@@ -528,11 +544,18 @@ const SITE_CONFIG_REF={units:{
   9:{kind:"opener"},10:{kind:"magnet"},11:{kind:"eddy"},12:{kind:"air"},
   16:{kind:"splitter",ratio:0.5},17:{kind:"nir"},18:{kind:"nir"},
   22:{spec:"alu"},23:{spec:"PET"},24:{spec:"PET"},26:{spec:"ferrous"},27:{spec:"PET"},28:{spec:"PET"}}};
-// ─── Reference plant = Denis’ hand-built, profit-positive site (recycle-sandbox-2026-07-12.json,
-//     27 units / 29 connections, fleet loader3/forklift7/ctruck1). Replaces the old illustrative
-//     SITE_LAYOUT/SITE_CONFIG_REF plant, which ran at a loss and blocked the tech tree. Structure only:
-//     buffers start empty, runtime (cash/t/vehicles/sold) is fresh; economics reproduce ~+9.9k €/day. ───
-const SITE_REF_SNAPSHOT={"nodes":[{"id":1,"type":"storage","x":270,"y":165,"w":60,"h":90,"gx":8,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":2,"type":"storage","x":285,"y":330,"w":30,"h":60,"gx":9,"gy":10,"rot":0,"site":"feeder","role":"feeder","spec":"PET","rate":3,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":3,"type":"opener","x":285,"y":405,"w":30,"h":30,"gx":9,"gy":13,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":4,"type":"pick","x":285,"y":465,"w":30,"h":30,"gx":9,"gy":15,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":5,"target":"film","sortSide":"l","active":0},{"id":5,"type":"air","x":285,"y":525,"w":30,"h":30,"gx":9,"gy":17,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":6,"type":"magnet","x":285,"y":585,"w":30,"h":30,"gx":9,"gy":19,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":7,"type":"nir","x":345,"y":675,"w":30,"h":30,"gx":11,"gy":22,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":8,"type":"nir","x":225,"y":675,"w":30,"h":30,"gx":7,"gy":22,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":9,"type":"splitter","x":285,"y":645,"w":30,"h":30,"gx":9,"gy":21,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"r","splitLayout":"sides","active":0},{"id":10,"type":"mixer","x":285,"y":705,"w":30,"h":30,"gx":9,"gy":23,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":11,"type":"eddy","x":285,"y":825,"w":30,"h":30,"gx":9,"gy":27,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":12,"type":"pick","x":285,"y":765,"w":30,"h":30,"gx":9,"gy":25,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":4,"target":"PVC","sortSide":"l","active":0},{"id":13,"type":"storage","x":285,"y":915,"w":90,"h":90,"gx":8,"gy":29,"rot":0,"site":"bulk","role":"bulk","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":14,"type":"storage","x":60,"y":1095,"w":60,"h":90,"gx":1,"gy":35,"rot":0,"site":"output","role":"export","spec":"film","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"cling_on","active":0},{"id":15,"type":"storage","x":120,"y":1095,"w":60,"h":90,"gx":3,"gy":35,"rot":0,"site":"output","role":"export","spec":"carton","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"corr_blimey","active":0},{"id":16,"type":"storage","x":180,"y":1095,"w":60,"h":90,"gx":5,"gy":35,"rot":0,"site":"output","role":"export","spec":"ferrous","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"ferrous_bueller","active":0},{"id":17,"type":"storage","x":240,"y":1095,"w":60,"h":90,"gx":7,"gy":35,"rot":0,"site":"output","role":"export","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"repetitive","active":0},{"id":18,"type":"storage","x":300,"y":1095,"w":60,"h":90,"gx":9,"gy":35,"rot":0,"site":"output","role":"export","spec":"alu","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"aluminati","active":0},{"id":19,"type":"storage","x":435,"y":1095,"w":210,"h":90,"gx":11,"gy":35,"rot":0,"site":"landfill","role":"landfill","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":20,"type":"baler","x":90,"y":465,"w":60,"h":30,"gx":2,"gy":15,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":21,"type":"baler","x":90,"y":525,"w":60,"h":30,"gx":2,"gy":17,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":22,"type":"baler","x":90,"y":585,"w":60,"h":30,"gx":2,"gy":19,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":23,"type":"baler","x":90,"y":675,"w":60,"h":30,"gx":2,"gy":22,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":24,"type":"baler","x":90,"y":765,"w":60,"h":30,"gx":2,"gy":25,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":25,"type":"baler","x":90,"y":825,"w":60,"h":30,"gx":2,"gy":27,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":26,"type":"baler","x":480,"y":675,"w":60,"h":30,"gx":15,"gy":22,"rot":180,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":27,"type":"storage","x":330,"y":165,"w":60,"h":90,"gx":10,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0}],"edges":[{"from":1,"fromPort":"O","to":2,"fromSide":"b","toSide":"t","route":[[270,210],[270,255],[285,255],[285,300]],"kind":"vehicle","max":14,"speed":66},{"from":2,"fromPort":"O","to":3,"fromSide":"b","toSide":"t","route":[[285,360],[285,390]],"kind":"conveyor","max":14,"speed":30},{"from":3,"fromPort":"O","to":4,"fromSide":"b","toSide":"t","route":[[285,420],[285,450]],"kind":"conveyor","max":14,"speed":30},{"from":4,"fromPort":"O","to":5,"fromSide":"b","toSide":"t","route":[[285,480],[285,510]],"kind":"conveyor","max":14,"speed":30},{"from":5,"fromPort":"M","to":6,"fromSide":"b","toSide":"t","route":[[285,540],[285,570]],"kind":"conveyor","max":14,"speed":30},{"from":6,"fromPort":"M","to":9,"fromSide":"b","toSide":"t","route":[[285,600],[285,630]],"kind":"conveyor","max":14,"speed":30},{"from":9,"fromPort":"B","to":7,"fromSide":"r","toSide":"t","route":[[300,645],[345,645],[345,660]],"kind":"conveyor","max":14,"speed":15},{"from":7,"fromPort":"S","to":10,"fromSide":"b","toSide":"r","route":[[345,690],[345,705],[300,705]],"kind":"conveyor","max":14,"speed":15},{"from":9,"fromPort":"A","to":8,"fromSide":"l","toSide":"t","route":[[270,645],[225,645],[225,660]],"kind":"conveyor","max":14,"speed":15},{"from":8,"fromPort":"S","to":10,"fromSide":"b","toSide":"l","route":[[225,690],[225,705],[270,705]],"kind":"conveyor","max":14,"speed":15},{"from":10,"fromPort":"O","to":12,"fromSide":"b","toSide":"t","route":[[285,720],[285,750]],"kind":"conveyor","max":14,"speed":30},{"from":12,"fromPort":"O","to":11,"fromSide":"b","toSide":"t","route":[[285,780],[285,810]],"kind":"conveyor","max":14,"speed":30},{"from":11,"fromPort":"M","to":13,"fromSide":"b","toSide":"t","route":[[285,840],[285,870]],"kind":"conveyor","max":14,"speed":30},{"from":13,"fromPort":"O","to":19,"fromSide":"b","toSide":"t","route":[[285,960],[285,975],[435,975],[435,1050]],"kind":"vehicle","max":14,"speed":66},{"from":4,"fromPort":"R","to":20,"fromSide":"l","toSide":"r","route":[[270,465],[120,465]],"kind":"conveyor","max":14,"speed":6},{"from":5,"fromPort":"S","to":21,"fromSide":"l","toSide":"r","route":[[270,525],[120,525]],"kind":"conveyor","max":14,"speed":6},{"from":6,"fromPort":"S","to":22,"fromSide":"l","toSide":"r","route":[[270,585],[120,585]],"kind":"conveyor","max":14,"speed":6},{"from":8,"fromPort":"M","to":23,"fromSide":"l","toSide":"r","route":[[210,675],[120,675]],"kind":"conveyor","max":14,"speed":10},{"from":12,"fromPort":"R","to":24,"fromSide":"l","toSide":"r","route":[[270,765],[120,765]],"kind":"conveyor","max":14,"speed":6},{"from":11,"fromPort":"S","to":25,"fromSide":"l","toSide":"r","route":[[270,825],[120,825]],"kind":"conveyor","max":14,"speed":6},{"from":7,"fromPort":"M","to":26,"fromSide":"r","toSide":"l","route":[[360,675],[450,675]],"kind":"conveyor","max":14,"speed":10},{"from":20,"fromPort":"O","to":14,"fromSide":"l","toSide":"t","route":[[60,465],[45,465],[45,1035],[60,1050]],"kind":"vehicle","max":14,"speed":66},{"from":21,"fromPort":"O","to":15,"fromSide":"l","toSide":"t","route":[[60,525],[45,525],[45,975],[105,975],[105,1035],[120,1050]],"kind":"vehicle","max":14,"speed":66},{"from":22,"fromPort":"O","to":16,"fromSide":"l","toSide":"t","route":[[60,585],[45,585],[45,975],[165,975],[165,1035],[180,1050]],"kind":"vehicle","max":14,"speed":66},{"from":23,"fromPort":"O","to":17,"fromSide":"l","toSide":"t","route":[[60,675],[45,675],[45,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":24,"fromPort":"O","to":14,"fromSide":"l","toSide":"t","route":[[60,765],[45,765],[45,1035],[60,1050]],"kind":"vehicle","max":14,"speed":66},{"from":25,"fromPort":"O","to":18,"fromSide":"l","toSide":"t","route":[[60,825],[45,825],[45,975],[285,975],[285,1035],[300,1050]],"kind":"vehicle","max":14,"speed":66},{"from":26,"fromPort":"O","to":17,"fromSide":"r","toSide":"t","route":[[510,675],[525,675],[525,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":27,"fromPort":"O","to":2,"fromSide":"b","toSide":"t","route":[[330,210],[330,255],[285,255],[285,300]],"kind":"vehicle","max":14,"speed":66}],"fleet":{"loader":3,"forklift":7,"ctruck":1},"nextId":28};
+// ─── Reference plant — Denis' 100% RECYCLING PLANT (recycle-career-2026-08-16.json): 50 units / 59
+//     connections around a closed RECYCLE RING (mixer56 → magnet9 → splitter39 → air40 → mixer42 → eddy18 →
+//     eddy24 → magnet54 → mixer17 → mixer11 → pick57 → back), six export bays and no landfill zone, so
+//     nothing is ever buried. Structure only: buffers start empty, runtime (cash/t/vehicles/sold) is fresh.
+//     MEASURED: feeders at 3 t/h give 5.6 t/h on-spec with ZERO blocked units. The ring is the whole design
+//     and it has a cliff — at 4 t/h feeders the ring's buffers saturate, every stage blocks on the next, and
+//     throughput collapses to ~0.1 t/h with 21 units stuck. 3 t/h is inside the margin, not on the edge. ───
+// The QC FIXTURE plant — the old reference: 27 units, 2 bunkers, a landfill bay, no recycle ring. Kept as
+// the harness's canonical rig precisely BECAUSE it is plain; ~30 suites use it as "a working plant" and want
+// a simple, predictable shape, not the showcase build below (which has 7 bunkers, no landfill and a loop).
+const SITE_QC_SNAPSHOT={"nodes":[{"id":1,"type":"storage","x":270,"y":165,"w":60,"h":90,"gx":8,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":2,"type":"storage","x":285,"y":330,"w":30,"h":60,"gx":9,"gy":10,"rot":0,"site":"feeder","role":"feeder","spec":"PET","rate":3,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":3,"type":"opener","x":285,"y":405,"w":30,"h":30,"gx":9,"gy":13,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":4,"type":"pick","x":285,"y":465,"w":30,"h":30,"gx":9,"gy":15,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":5,"target":"film","sortSide":"l","active":0},{"id":5,"type":"air","x":285,"y":525,"w":30,"h":30,"gx":9,"gy":17,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":6,"type":"magnet","x":285,"y":585,"w":30,"h":30,"gx":9,"gy":19,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":7,"type":"nir","x":345,"y":675,"w":30,"h":30,"gx":11,"gy":22,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":8,"type":"nir","x":225,"y":675,"w":30,"h":30,"gx":7,"gy":22,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":9,"type":"splitter","x":285,"y":645,"w":30,"h":30,"gx":9,"gy":21,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"r","splitLayout":"sides","active":0},{"id":10,"type":"mixer","x":285,"y":705,"w":30,"h":30,"gx":9,"gy":23,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":11,"type":"eddy","x":285,"y":825,"w":30,"h":30,"gx":9,"gy":27,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":12,"type":"pick","x":285,"y":765,"w":30,"h":30,"gx":9,"gy":25,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":4,"target":"PVC","sortSide":"l","active":0},{"id":13,"type":"storage","x":285,"y":915,"w":90,"h":90,"gx":8,"gy":29,"rot":0,"site":"bulk","role":"bulk","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":14,"type":"storage","x":60,"y":1095,"w":60,"h":90,"gx":1,"gy":35,"rot":0,"site":"output","role":"export","spec":"film","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"cling_on","active":0},{"id":15,"type":"storage","x":120,"y":1095,"w":60,"h":90,"gx":3,"gy":35,"rot":0,"site":"output","role":"export","spec":"carton","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"corr_blimey","active":0},{"id":16,"type":"storage","x":180,"y":1095,"w":60,"h":90,"gx":5,"gy":35,"rot":0,"site":"output","role":"export","spec":"ferrous","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"ferrous_bueller","active":0},{"id":17,"type":"storage","x":240,"y":1095,"w":60,"h":90,"gx":7,"gy":35,"rot":0,"site":"output","role":"export","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"repetitive","active":0},{"id":18,"type":"storage","x":300,"y":1095,"w":60,"h":90,"gx":9,"gy":35,"rot":0,"site":"output","role":"export","spec":"alu","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"aluminati","active":0},{"id":19,"type":"storage","x":435,"y":1095,"w":210,"h":90,"gx":11,"gy":35,"rot":0,"site":"landfill","role":"landfill","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":20,"type":"baler","x":90,"y":465,"w":60,"h":30,"gx":2,"gy":15,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":21,"type":"baler","x":90,"y":525,"w":60,"h":30,"gx":2,"gy":17,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":22,"type":"baler","x":90,"y":585,"w":60,"h":30,"gx":2,"gy":19,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":23,"type":"baler","x":90,"y":675,"w":60,"h":30,"gx":2,"gy":22,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":24,"type":"baler","x":90,"y":765,"w":60,"h":30,"gx":2,"gy":25,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":25,"type":"baler","x":90,"y":825,"w":60,"h":30,"gx":2,"gy":27,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":26,"type":"baler","x":480,"y":675,"w":60,"h":30,"gx":15,"gy":22,"rot":180,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":27,"type":"storage","x":330,"y":165,"w":60,"h":90,"gx":10,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0}],"edges":[{"from":1,"fromPort":"O","to":2,"fromSide":"b","toSide":"t","route":[[270,210],[270,255],[285,255],[285,300]],"kind":"vehicle","max":14,"speed":66},{"from":2,"fromPort":"O","to":3,"fromSide":"b","toSide":"t","route":[[285,360],[285,390]],"kind":"conveyor","max":14,"speed":30},{"from":3,"fromPort":"O","to":4,"fromSide":"b","toSide":"t","route":[[285,420],[285,450]],"kind":"conveyor","max":14,"speed":30},{"from":4,"fromPort":"O","to":5,"fromSide":"b","toSide":"t","route":[[285,480],[285,510]],"kind":"conveyor","max":14,"speed":30},{"from":5,"fromPort":"M","to":6,"fromSide":"b","toSide":"t","route":[[285,540],[285,570]],"kind":"conveyor","max":14,"speed":30},{"from":6,"fromPort":"M","to":9,"fromSide":"b","toSide":"t","route":[[285,600],[285,630]],"kind":"conveyor","max":14,"speed":30},{"from":9,"fromPort":"B","to":7,"fromSide":"r","toSide":"t","route":[[300,645],[345,645],[345,660]],"kind":"conveyor","max":14,"speed":15},{"from":7,"fromPort":"S","to":10,"fromSide":"b","toSide":"r","route":[[345,690],[345,705],[300,705]],"kind":"conveyor","max":14,"speed":15},{"from":9,"fromPort":"A","to":8,"fromSide":"l","toSide":"t","route":[[270,645],[225,645],[225,660]],"kind":"conveyor","max":14,"speed":15},{"from":8,"fromPort":"S","to":10,"fromSide":"b","toSide":"l","route":[[225,690],[225,705],[270,705]],"kind":"conveyor","max":14,"speed":15},{"from":10,"fromPort":"O","to":12,"fromSide":"b","toSide":"t","route":[[285,720],[285,750]],"kind":"conveyor","max":14,"speed":30},{"from":12,"fromPort":"O","to":11,"fromSide":"b","toSide":"t","route":[[285,780],[285,810]],"kind":"conveyor","max":14,"speed":30},{"from":11,"fromPort":"M","to":13,"fromSide":"b","toSide":"t","route":[[285,840],[285,870]],"kind":"conveyor","max":14,"speed":30},{"from":13,"fromPort":"O","to":19,"fromSide":"b","toSide":"t","route":[[285,960],[285,975],[435,975],[435,1050]],"kind":"vehicle","max":14,"speed":66},{"from":4,"fromPort":"R","to":20,"fromSide":"l","toSide":"r","route":[[270,465],[120,465]],"kind":"conveyor","max":14,"speed":6},{"from":5,"fromPort":"S","to":21,"fromSide":"l","toSide":"r","route":[[270,525],[120,525]],"kind":"conveyor","max":14,"speed":6},{"from":6,"fromPort":"S","to":22,"fromSide":"l","toSide":"r","route":[[270,585],[120,585]],"kind":"conveyor","max":14,"speed":6},{"from":8,"fromPort":"M","to":23,"fromSide":"l","toSide":"r","route":[[210,675],[120,675]],"kind":"conveyor","max":14,"speed":10},{"from":12,"fromPort":"R","to":24,"fromSide":"l","toSide":"r","route":[[270,765],[120,765]],"kind":"conveyor","max":14,"speed":6},{"from":11,"fromPort":"S","to":25,"fromSide":"l","toSide":"r","route":[[270,825],[120,825]],"kind":"conveyor","max":14,"speed":6},{"from":7,"fromPort":"M","to":26,"fromSide":"r","toSide":"l","route":[[360,675],[450,675]],"kind":"conveyor","max":14,"speed":10},{"from":20,"fromPort":"O","to":14,"fromSide":"l","toSide":"t","route":[[60,465],[45,465],[45,1035],[60,1050]],"kind":"vehicle","max":14,"speed":66},{"from":21,"fromPort":"O","to":15,"fromSide":"l","toSide":"t","route":[[60,525],[45,525],[45,975],[105,975],[105,1035],[120,1050]],"kind":"vehicle","max":14,"speed":66},{"from":22,"fromPort":"O","to":16,"fromSide":"l","toSide":"t","route":[[60,585],[45,585],[45,975],[165,975],[165,1035],[180,1050]],"kind":"vehicle","max":14,"speed":66},{"from":23,"fromPort":"O","to":17,"fromSide":"l","toSide":"t","route":[[60,675],[45,675],[45,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":24,"fromPort":"O","to":14,"fromSide":"l","toSide":"t","route":[[60,765],[45,765],[45,1035],[60,1050]],"kind":"vehicle","max":14,"speed":66},{"from":25,"fromPort":"O","to":18,"fromSide":"l","toSide":"t","route":[[60,825],[45,825],[45,975],[285,975],[285,1035],[300,1050]],"kind":"vehicle","max":14,"speed":66},{"from":26,"fromPort":"O","to":17,"fromSide":"r","toSide":"t","route":[[510,675],[525,675],[525,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":27,"fromPort":"O","to":2,"fromSide":"b","toSide":"t","route":[[330,210],[330,255],[285,255],[285,300]],"kind":"vehicle","max":14,"speed":66}],"fleet":{"loader":3,"forklift":7,"ctruck":1},"nextId":28};
+const SITE_REF_SNAPSHOT={"nodes":[{"id":1,"type":"storage","x":270,"y":165,"w":60,"h":90,"gx":8,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":2,"type":"storage","x":330,"y":165,"w":60,"h":90,"gx":10,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":3,"type":"storage","x":285,"y":915,"w":90,"h":90,"gx":8,"gy":29,"rot":0,"site":"bulk","role":"bulk","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":5,"type":"storage","x":120,"y":1095,"w":60,"h":90,"gx":3,"gy":35,"rot":0,"site":"output","role":"export","spec":"ferrous","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"ferrous_bueller","active":0},{"id":7,"type":"storage","x":225,"y":330,"w":30,"h":60,"gx":7,"gy":10,"rot":0,"site":"feeder","role":"feeder","spec":"PET","rate":3,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":8,"type":"opener","x":285,"y":405,"w":30,"h":30,"gx":9,"gy":13,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":9,"type":"magnet","x":225,"y":435,"w":30,"h":30,"gx":7,"gy":14,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":10,"type":"baler","x":90,"y":555,"w":60,"h":30,"gx":2,"gy":18,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":11,"type":"mixer","x":285,"y":855,"w":30,"h":30,"gx":9,"gy":28,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":13,"type":"mixer","x":225,"y":795,"w":30,"h":30,"gx":7,"gy":26,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":15,"type":"mixer","x":165,"y":795,"w":30,"h":30,"gx":5,"gy":26,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":17,"type":"mixer","x":315,"y":795,"w":30,"h":30,"gx":10,"gy":26,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":18,"type":"eddy","x":285,"y":585,"w":30,"h":30,"gx":9,"gy":19,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":20,"type":"storage","x":180,"y":1095,"w":60,"h":90,"gx":5,"gy":35,"rot":0,"site":"output","role":"export","spec":"alu","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"aluminati","active":0},{"id":21,"type":"vfilm","x":225,"y":525,"w":30,"h":30,"gx":7,"gy":17,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":22,"type":"baler","x":90,"y":585,"w":60,"h":30,"gx":2,"gy":19,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":23,"type":"storage","x":240,"y":1095,"w":60,"h":90,"gx":7,"gy":35,"rot":0,"site":"output","role":"export","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"repetitive","active":0},{"id":24,"type":"eddy","x":345,"y":645,"w":30,"h":30,"gx":11,"gy":21,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":26,"type":"nir","x":255,"y":705,"w":30,"h":30,"gx":8,"gy":23,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":27,"type":"baler","x":90,"y":705,"w":60,"h":30,"gx":2,"gy":23,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":28,"type":"storage","x":60,"y":1095,"w":60,"h":90,"gx":1,"gy":35,"rot":0,"site":"output","role":"export","spec":"film","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"cling_on","active":0},{"id":29,"type":"air","x":225,"y":735,"w":30,"h":30,"gx":7,"gy":24,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":30,"type":"vfilm","x":165,"y":735,"w":30,"h":30,"gx":5,"gy":24,"rot":90,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":31,"type":"baler","x":90,"y":735,"w":60,"h":30,"gx":2,"gy":24,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":32,"type":"storage","x":300,"y":1095,"w":60,"h":90,"gx":9,"gy":35,"rot":0,"site":"output","role":"export","spec":"carton","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"corr_blimey","active":0},{"id":34,"type":"baler","x":90,"y":675,"w":60,"h":30,"gx":2,"gy":22,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":35,"type":"vfilm","x":135,"y":585,"w":30,"h":30,"gx":4,"gy":19,"rot":90,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":37,"type":"storage","x":390,"y":165,"w":60,"h":90,"gx":12,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":38,"type":"storage","x":210,"y":165,"w":60,"h":90,"gx":6,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":39,"type":"splitter","x":255,"y":465,"w":30,"h":30,"gx":8,"gy":15,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","splitLayout":"down","active":0},{"id":40,"type":"air","x":315,"y":495,"w":30,"h":30,"gx":10,"gy":16,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":41,"type":"air","x":285,"y":525,"w":30,"h":30,"gx":9,"gy":17,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":42,"type":"mixer","x":285,"y":555,"w":30,"h":30,"gx":9,"gy":18,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":43,"type":"mixer","x":225,"y":585,"w":30,"h":30,"gx":7,"gy":19,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":44,"type":"storage","x":375,"y":330,"w":30,"h":60,"gx":12,"gy":10,"rot":0,"site":"feeder","role":"feeder","spec":"PET","rate":3,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":45,"type":"mixer","x":285,"y":375,"w":30,"h":30,"gx":9,"gy":12,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":46,"type":"storage","x":150,"y":165,"w":60,"h":90,"gx":4,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":47,"type":"storage","x":450,"y":165,"w":60,"h":90,"gx":14,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0},{"id":48,"type":"nir","x":285,"y":675,"w":30,"h":30,"gx":9,"gy":22,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":49,"type":"mixer","x":285,"y":735,"w":30,"h":30,"gx":9,"gy":24,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":50,"type":"splitter","x":285,"y":615,"w":30,"h":30,"gx":9,"gy":20,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":51,"type":"vfilm","x":255,"y":555,"w":30,"h":30,"gx":8,"gy":18,"rot":0,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","sortSide":"l","active":0},{"id":52,"type":"mixer","x":195,"y":555,"w":30,"h":30,"gx":6,"gy":18,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":53,"type":"baler","x":90,"y":645,"w":60,"h":30,"gx":2,"gy":21,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":54,"type":"magnet","x":315,"y":645,"w":30,"h":30,"gx":10,"gy":21,"rot":90,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":56,"type":"mixer","x":285,"y":435,"w":30,"h":30,"gx":9,"gy":14,"rot":0,"site":"mixer","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":57,"type":"pick","x":375,"y":825,"w":30,"h":30,"gx":12,"gy":27,"rot":180,"site":"process","spec":"PET","rate":5,"ratio":0.5,"workers":3,"target":"PVC","active":0},{"id":58,"type":"baler","x":90,"y":825,"w":60,"h":30,"gx":2,"gy":27,"rot":0,"site":"baler","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","active":0},{"id":59,"type":"storage","x":360,"y":1095,"w":60,"h":90,"gx":11,"gy":35,"rot":0,"site":"output","role":"export","spec":"pvc","rate":5,"ratio":0.5,"workers":2,"target":"film","buyer":"vinyl_countdown","active":0},{"id":60,"type":"storage","x":90,"y":165,"w":60,"h":90,"gx":2,"gy":4,"rot":0,"site":"input","role":"bunker","spec":"PET","rate":5,"ratio":0.5,"workers":2,"target":"film","supplier":"wasteminster","active":0}],"edges":[{"from":9,"fromPort":"S","to":10,"fromSide":"l","toSide":"r","route":[[210,435],[165,435],[165,555],[120,555]],"kind":"conveyor","max":150,"speed":6.666666666666667},{"from":13,"fromPort":"O","to":11,"fromSide":"b","toSide":"l","route":[[225,810],[225,855],[270,855]],"kind":"conveyor","max":17,"speed":60},{"from":15,"fromPort":"O","to":13,"fromSide":"b","toSide":"l","route":[[165,810],[165,795],[210,795]],"kind":"conveyor","max":17,"speed":60},{"from":17,"fromPort":"O","to":11,"fromSide":"b","toSide":"r","route":[[315,810],[315,855],[300,855]],"kind":"conveyor","max":17,"speed":60},{"from":18,"fromPort":"S","to":24,"fromSide":"r","toSide":"t","route":[[300,585],[345,585],[345,630]],"kind":"conveyor","max":84,"speed":12},{"from":27,"fromPort":"O","to":23,"fromSide":"l","toSide":"t","route":[[60,705],[45,705],[45,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":10,"fromPort":"O","to":5,"fromSide":"l","toSide":"t","route":[[60,555],[45,555],[45,975],[105,975],[105,1035],[120,1050]],"kind":"vehicle","max":14,"speed":66},{"from":22,"fromPort":"O","to":28,"fromSide":"l","toSide":"t","route":[[60,585],[45,585],[45,1035],[60,1050]],"kind":"vehicle","max":14,"speed":66},{"from":29,"fromPort":"M","to":13,"fromSide":"b","toSide":"t","route":[[225,750],[225,780]],"kind":"conveyor","max":50,"speed":20},{"from":29,"fromPort":"S","to":30,"fromSide":"l","toSide":"r","route":[[210,735],[180,735]],"kind":"conveyor","max":17,"speed":60},{"from":30,"fromPort":"S","to":15,"fromSide":"b","toSide":"t","route":[[165,750],[165,780]],"kind":"conveyor","max":34,"speed":30},{"from":30,"fromPort":"M","to":31,"fromSide":"l","toSide":"r","route":[[150,735],[120,735]],"kind":"conveyor","max":17,"speed":60},{"from":31,"fromPort":"O","to":32,"fromSide":"l","toSide":"t","route":[[60,735],[45,735],[45,975],[285,975],[285,1035],[300,1050]],"kind":"vehicle","max":14,"speed":66},{"from":34,"fromPort":"O","to":23,"fromSide":"l","toSide":"t","route":[[60,675],[45,675],[45,975],[225,975],[225,1035],[240,1050]],"kind":"vehicle","max":14,"speed":66},{"from":35,"fromPort":"S","to":22,"fromSide":"t","toSide":"r","route":[[135,570],[135,585],[120,585]],"kind":"conveyor","max":34,"speed":30},{"from":35,"fromPort":"M","to":15,"fromSide":"l","toSide":"l","route":[[120,585],[135,585],[135,795],[150,795]],"kind":"conveyor","max":67,"speed":15},{"from":9,"fromPort":"M","to":39,"fromSide":"b","toSide":"t","route":[[225,450],[255,450]],"kind":"conveyor","max":50,"speed":20},{"from":39,"fromPort":"B","to":40,"fromSide":"r","toSide":"t","route":[[270,465],[315,465],[315,480]],"kind":"conveyor","max":17,"speed":60},{"from":39,"fromPort":"A","to":41,"fromSide":"b","toSide":"t","route":[[255,480],[255,495],[285,495],[285,510]],"kind":"conveyor","max":17,"speed":60},{"from":40,"fromPort":"M","to":42,"fromSide":"b","toSide":"r","route":[[315,510],[315,555],[300,555]],"kind":"conveyor","max":34,"speed":30},{"from":42,"fromPort":"O","to":18,"fromSide":"b","toSide":"t","route":[[285,570],[285,570]],"kind":"conveyor","max":17,"speed":60},{"from":41,"fromPort":"M","to":42,"fromSide":"b","toSide":"t","route":[[285,540],[285,540]],"kind":"conveyor","max":17,"speed":60},{"from":38,"fromPort":"O","to":7,"fromSide":"b","toSide":"t","route":[[210,210],[210,255],[225,255],[225,300]],"kind":"vehicle","max":14,"speed":66},{"from":1,"fromPort":"O","to":7,"fromSide":"b","toSide":"t","route":[[270,210],[270,255],[225,255],[225,300]],"kind":"vehicle","max":14,"speed":66},{"from":2,"fromPort":"O","to":44,"fromSide":"b","toSide":"t","route":[[330,210],[330,255],[375,255],[375,300]],"kind":"vehicle","max":14,"speed":66},{"from":37,"fromPort":"O","to":44,"fromSide":"b","toSide":"t","route":[[390,210],[390,255],[375,255],[375,300]],"kind":"vehicle","max":14,"speed":66},{"from":7,"fromPort":"O","to":45,"fromSide":"b","toSide":"l","route":[[225,360],[225,375],[270,375]],"kind":"conveyor","max":50,"speed":20},{"from":45,"fromPort":"O","to":8,"fromSide":"b","toSide":"t","route":[[285,390],[285,390]],"kind":"conveyor","max":17,"speed":60},{"from":46,"fromPort":"O","to":7,"fromSide":"b","toSide":"t","route":[[150,210],[150,255],[225,255],[225,300]],"kind":"vehicle","max":14,"speed":66},{"from":47,"fromPort":"O","to":44,"fromSide":"b","toSide":"t","route":[[450,210],[450,255],[375,255],[375,300]],"kind":"vehicle","max":14,"speed":66},{"from":26,"fromPort":"M","to":27,"fromSide":"l","toSide":"r","route":[[240,705],[120,705]],"kind":"conveyor","max":67,"speed":15},{"from":48,"fromPort":"M","to":34,"fromSide":"l","toSide":"r","route":[[270,675],[120,675]],"kind":"conveyor","max":84,"speed":12},{"from":48,"fromPort":"S","to":49,"fromSide":"b","toSide":"t","route":[[285,690],[285,720]],"kind":"conveyor","max":17,"speed":60},{"from":26,"fromPort":"S","to":49,"fromSide":"b","toSide":"l","route":[[255,720],[255,735],[270,735]],"kind":"conveyor","max":17,"speed":60},{"from":49,"fromPort":"O","to":11,"fromSide":"b","toSide":"t","route":[[285,750],[285,840]],"kind":"conveyor","max":17,"speed":60},{"from":18,"fromPort":"M","to":50,"fromSide":"b","toSide":"t","route":[[285,600],[285,600]],"kind":"conveyor","max":17,"speed":60},{"from":50,"fromPort":"A","to":48,"fromSide":"b","toSide":"t","route":[[285,630],[285,660]],"kind":"conveyor","max":17,"speed":60},{"from":50,"fromPort":"B","to":26,"fromSide":"l","toSide":"t","route":[[270,615],[255,615],[255,690]],"kind":"conveyor","max":50,"speed":20},{"from":40,"fromPort":"S","to":21,"fromSide":"l","toSide":"t","route":[[300,495],[225,495],[225,510]],"kind":"conveyor","max":50,"speed":20},{"from":41,"fromPort":"S","to":51,"fromSide":"l","toSide":"t","route":[[270,525],[255,525],[255,540]],"kind":"conveyor","max":17,"speed":60},{"from":21,"fromPort":"S","to":52,"fromSide":"l","toSide":"t","route":[[210,525],[195,525],[195,540]],"kind":"conveyor","max":17,"speed":60},{"from":51,"fromPort":"S","to":52,"fromSide":"l","toSide":"r","route":[[240,555],[210,555]],"kind":"conveyor","max":17,"speed":60},{"from":21,"fromPort":"M","to":43,"fromSide":"b","toSide":"t","route":[[225,540],[225,570]],"kind":"conveyor","max":17,"speed":60},{"from":51,"fromPort":"M","to":43,"fromSide":"b","toSide":"r","route":[[255,570],[255,585],[240,585]],"kind":"conveyor","max":17,"speed":60},{"from":52,"fromPort":"O","to":35,"fromSide":"b","toSide":"r","route":[[195,570],[195,585],[150,585]],"kind":"conveyor","max":50,"speed":20},{"from":43,"fromPort":"O","to":29,"fromSide":"b","toSide":"t","route":[[225,600],[225,720]],"kind":"conveyor","max":67,"speed":15},{"from":44,"fromPort":"O","to":45,"fromSide":"b","toSide":"r","route":[[375,360],[375,375],[300,375]],"kind":"conveyor","max":67,"speed":15},{"from":24,"fromPort":"S","to":54,"fromSide":"l","toSide":"r","route":[[330,645],[330,645]],"kind":"conveyor","max":17,"speed":60},{"from":54,"fromPort":"M","to":53,"fromSide":"l","toSide":"r","route":[[300,645],[120,645]],"kind":"conveyor","max":100,"speed":10},{"from":53,"fromPort":"O","to":20,"fromSide":"l","toSide":"t","route":[[60,645],[45,645],[45,975],[165,975],[165,1035],[180,1050]],"kind":"vehicle","max":14,"speed":66},{"from":24,"fromPort":"M","to":17,"fromSide":"b","toSide":"r","route":[[345,660],[345,795],[330,795]],"kind":"conveyor","max":67,"speed":15},{"from":54,"fromPort":"S","to":17,"fromSide":"b","toSide":"t","route":[[315,660],[315,780]],"kind":"conveyor","max":67,"speed":15},{"from":8,"fromPort":"O","to":56,"fromSide":"b","toSide":"t","route":[[285,420],[285,420]],"kind":"conveyor","max":34,"speed":30},{"from":56,"fromPort":"O","to":9,"fromSide":"b","toSide":"t","route":[[285,450],[285,435],[225,435],[225,420]],"kind":"conveyor","max":84,"speed":12},{"from":57,"fromPort":"O","to":56,"fromSide":"t","toSide":"r","route":[[375,810],[375,435],[300,435]],"kind":"conveyor","max":250,"speed":4},{"from":57,"fromPort":"R","to":58,"fromSide":"l","toSide":"r","route":[[360,825],[120,825]],"kind":"conveyor","max":134,"speed":7.5},{"from":58,"fromPort":"O","to":59,"fromSide":"l","toSide":"t","route":[[60,825],[45,825],[45,975],[345,975],[345,1035],[360,1050]],"kind":"vehicle","max":14,"speed":66},{"from":11,"fromPort":"O","to":57,"fromSide":"b","toSide":"b","route":[[285,870],[285,855],[375,855],[375,840]],"kind":"conveyor","max":50,"speed":20},{"from":60,"fromPort":"O","to":7,"fromSide":"b","toSide":"t","route":[[90,210],[90,255],[225,255],[225,300]],"kind":"vehicle","max":14,"speed":66}],"fleet":{"loader":9,"forklift":12,"ctruck":1},"nextId":61};
 function loadSiteRef(snap){ // build the reference plant from the embedded snapshot into the fresh G (clean buffers)
   for(const ns of snap.nodes){const type=ns.type,role=ns.role||null,spec=ns.spec||"PET";
     if(!TYPES[type])throw new Error("loadSiteRef: unknown type "+type);
@@ -561,7 +584,10 @@ SCENARIOS.site_free={name:"New site",startCash:1500000,unlimitedBudget:true,supp
   phases:[{name:"New site",tonnage:Infinity,comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},product:"PET",feedTph:0.5,tiers:{gold:2.4,silver:3.0}}]};
 SCENARIOS.site_career=Object.assign({},SCENARIOS.site_free,{name:"Career",tuto:true,unlimitedBudget:false,startCash:2500000});
 SCENARIOS.site_atelier=Object.assign({},SCENARIOS.site_free,{name:"Atelier",startCash:2500000,unlimitedBudget:false,siteEmpty:false,siteStarter:true,fleet:{loader:1,forklift:1,ctruck:1}}); // financial-constraint mode, no tutorial, starter bays pre-placed
-SCENARIOS.site_ref={name:"Reference plant",startCash:2000000,supplier:null,siteRef:true,fleet:{loader:3,forklift:7,ctruck:1},
+SCENARIOS.site_qc={name:"QC fixture",startCash:2000000,supplier:null,siteRef:true,siteQC:true,fleet:{loader:3,forklift:7,ctruck:1},
+  logi:{loaderCap:150,loadDwell:0.11,unloadDwell:0.11,minTrip:0.05,tipDwell:2,cliDwell:3,lfDwell:2,exportCap:24,feederCap:1200},
+  phases:[{name:"QC fixture",tonnage:Infinity,comp:{PET:0.32,steel:0.15,alu:0.06,film:0.14,paper:0.26,PVC:0.07},product:"PET",feedTph:3,tiers:{gold:2.4,silver:3.0}}]};
+SCENARIOS.site_ref={name:"100% recycling plant · 8 t/h",startCash:2000000,supplier:null,siteRef:true,authoredRates:true,fleet:{loader:9,forklift:12,ctruck:1},
   // D6 rebalance (2026-07-11): line feed 0.5 t/h (game-balance value; G.t is in HOURS);
   // loader dwell 0.25 h scoop/dump; dwells/cadence are in hours; landfill truck every 15 h;
   // export = 24 bales (6 cells × 4/cell). NB: these are tuned for play, not scaled to a real MRF.
@@ -647,12 +673,15 @@ function newGame(mode,contractKey,seed){
   recomputeTechMod();
   if(scn&&scn.siteRef){
     if(scn.siteStarter){loadSiteRef(SITE_STARTER_SNAPSHOT);}   // Atelier: pre-placed starter bays
+    else if(scn.siteQC){loadSiteRef(SITE_QC_SNAPSHOT);}     // harness rig: plain, landfill, no loop
     else if(!scn.siteEmpty){loadSiteRef(SITE_REF_SNAPSHOT);}
     else if(scn.tuto)preplaceTutorial(); // guided site: infrastructure is pre-placed, player adds the sorting units
   } // grid-native site scenario; siteEmpty ⇒ the player builds the plant (Phase 3)
   else if(scn&&scn.scene){for(const sd of scn.scene)addNode(sd.type,sd.x,sd.y,sd.spec,sd.role);} // pre-placed tutorial scene
   else{addNode("storage",-150,0,null,"input");addNode("storage",150,0,"PET","output");}
-  {const _src=G.nodes.find(isInput);if(_src)_src.rate=G.contract.feedTph||4;} // feeder rate defaults to the contract delivery rate
+  // Feeder rate defaults to the contract rate ONLY when the scene did not author one: a snapshot plant is
+  // tuned as a whole, and silently pushing its feeder up to the contract rate can shove it past its own cliff.
+  if(!(scn&&scn.authoredRates)){const _src=G.nodes.find(isInput);if(_src)_src.rate=G.contract.feedTph||4;}
   ensureFleet(); // spawn pool vehicles (loaders home at the feeder) now that the scene exists
   UI.viewReset();
   saveGame();
@@ -687,21 +716,52 @@ function spawnBale(e,tok){let s=P.pop();if(!s)s={};s.mat=null;s.st=0;s.bale=tok;
 function killSprite(e,i){const s=e.sprites[i];e.sprites.splice(i,1);if(P.length<600)P.push(s);}
 // Win = the CONTRACT'S product made grade (≥80% of that product on-spec) and we're in the black.
 // Product-aware (was PET-specific); standard/film keep product "PET" so the bar is unchanged.
-function recyclingPct(){ // on-spec product recovered / total intake \u2014 stockpiling can\u2019t inflate it (held material isn\u2019t recovered)
-  if(!G||G.mode==="sandbox")return 0; const di=G.deliveredTot||0; if(di<=0)return 0;
-  let recov=0; for(const k in G.sold)recov+=(G.sold[k].on||0);
-  return Math.max(0,Math.min(100,recov/di*100));}
+/* On-spec product recovered as a share of everything that has LEFT the site (sold + buried). It used to divide
+ * by total INTAKE, which counts material still sitting in your bunkers and balers against you: a plant choked
+ * with 1300 t in its bunkers read 60% even though it had never buried a tonne. Stockpiling still cannot
+ * inflate it \u2014 held material is in neither term \u2014 it simply does not count until it moves, which is the same
+ * rule diversionNow uses. Lifetime, so a bad early period stays on the record. */
+function recyclingPct(){
+  if(!G||G.mode==="sandbox")return 0;
+  let on=0,off=0; for(const k in G.sold){on+=(G.sold[k].on||0);off+=(G.sold[k].off||0);}
+  const left=on+off+(G.landfill||0); if(left<=0)return 0;
+  return Math.max(0,Math.min(100,on/left*100));}
+/* YESTERDAY's rate — what the plant is doing NOW, on the last completed day. The lifetime figure can never
+ * climb back to 100% once an early learning period is in it: a player who fixes everything still reads their
+ * old mistakes forever, which makes the number useless as feedback. Same settled basis (sold + buried), just
+ * over one day. Returns null until a full day has been banked, so the HUD can fall back rather than lie. */
+function recyclingYesterday(){
+  if(!G||G.mode==="sandbox")return null;
+  const H=G.opexHistory; if(!H||!H.length)return null;
+  const d=H[H.length-1]; if(!d||d.onT==null)return null;              // pre-tonnage rows (older saves)
+  const left=(d.onT||0)+(d.offT||0)+(d.buriedT||0);
+  if(left<=0.05)return null;                                          // an idle day says nothing
+  return Math.max(0,Math.min(100,(d.onT||0)/left*100));}
 /* Landfill diversion = the share of everything ACCEPTED that stayed out of the ground.
  * Both terms must be lifetime: G.landfill only ever accumulates, while G.delivered is reset by
  * applyPhase — mixing them made the reading collapse at every phase boundary. And a plant that has
  * simply not landfilled anything YET is not a 100%-diversion plant, so a record is only banked once
  * there is a real operating history behind it (this was handing out the 80% grant on day one). */
-const DIVERSION_MIN_T=50; // lifetime tonnes accepted before a diversion record counts
-function diversionNow(){const di=(G&&G.deliveredTot)||0;if(di<=0)return 0;
-  return Math.max(0,Math.min(1,1-((G.landfill||0)/di)));}
+const EXPORT_HIST=15;      // days of per-bay bale history kept (the inspector charts the last 10)
+const DIVERSION_MIN_T=200; // lifetime tonnes SETTLED (sold + buried) before a diversion record counts — 50 t of intake was a few hours' work
+/* Of everything that has LEFT the site, what share left as product rather than as landfill. This was
+ * 1 - buried/ACCEPTED, which counted material still sitting in your bunkers, balers and bays as "diverted":
+ * a plant that had sold nothing at all read 100% and could bank the 80%-diversion grant, and disconnecting
+ * a baler's output made that permanent (bestDiversion is a high-water mark that never falls). recyclingPct
+ * already refused to let stockpiling inflate it; this now matches. Held material simply doesn't count YET —
+ * it neither helps nor hurts until it leaves, which is also the industry definition. */
+function diversionNow(){if(!G)return 0;
+  let out=0;for(const k in G.sold)out+=(G.sold[k].on||0)+(G.sold[k].off||0); // off-spec bales are SOLD (at the off-spec price), not buried — they left as product
+  const buried=G.landfill||0,left=out+buried;
+  if(left<=0)return 0;
+  return Math.max(0,Math.min(1,out/left));}
 function bankDiversion(){ // one shared banking rule (was duplicated, divergently, in two places)
   if(!G||!CAREER||!CAREER.counters)return;
-  if((G.deliveredTot||0)<DIVERSION_MIN_T)return;
+  // Gated on SETTLED tonnage (sold + buried), not on tonnes accepted. bestDiversion is a permanent
+  // high-water mark, so a transient early 100% — sell a few bales, bury nothing yet — would be banked
+  // for good. Requiring real throughput out the far side makes the record mean a plant that has run.
+  let out=0;for(const k in G.sold)out+=(G.sold[k].on||0)+(G.sold[k].off||0);
+  if(out+(G.landfill||0)<DIVERSION_MIN_T)return;
   const dv=diversionNow(); if(dv>(CAREER.counters.bestDiversion||0))CAREER.counters.bestDiversion=dv;}
 function phaseProgress(){ // continuous model: cumulative on-spec EXPORT toward the first tonnage milestone (100 t) — never a contract quota
   if(!G||G.mode==="sandbox")return null;
@@ -784,7 +844,12 @@ function calendar(t){const tm=Math.floor(t*60+1e-6),mm=((tm%60)+60)%60,hh=Math.f
   return {y:y,mo:mo,d:d,hh:hh,mm:mm,month:MONTHS[mo],season:["winter","spring","summer","autumn"][Math.floor(((mo+1)%12)/3)]};}
 // P&L by cost center (reads the ledger). Reconciles: net === cash.
 const SIM_DAY_E=24; // engine copy of the day length (UI has its own SIM_DAY)
-function _opexSnap(){const l=G.ledger||{};return {tipping:l.tipping||0,sales:l.sales||0,subsidies:l.subsidies||0,labour:l.labour||0,logistics:l.logistics||0,power:l.power||0,landfill:l.landfill||0};}
+function _opexSnap(){const l=G.ledger||{};
+  // TONNAGE rides along with the money: the per-day recycling rate needs sold-on / sold-off / buried as
+  // DELTAS, and a lifetime ratio can never reach 100% once a learning period is baked into it.
+  let on=0,off=0;for(const k in G.sold){on+=(G.sold[k].on||0);off+=(G.sold[k].off||0);}
+  return {tipping:l.tipping||0,sales:l.sales||0,subsidies:l.subsidies||0,labour:l.labour||0,logistics:l.logistics||0,power:l.power||0,landfill:l.landfill||0,
+          onT:on,offT:off,buriedT:G.landfill||0,inT:G.deliveredTot||0};}
 function recordOpexDay(){ // §OPEX-HISTORY: at each in-game day rollover, push a per-category OPEX row (capex EXCLUDED)
   if(!G)return;const day=Math.floor(G.t/SIM_DAY_E);
   if(G._opexDay==null){G._opexDay=day;G._opexStart=_opexSnap();G.opexHistory=G.opexHistory||[];return;}
@@ -794,7 +859,18 @@ function recordOpexDay(){ // §OPEX-HISTORY: at each in-game day rollover, push 
     tipping:(now.tipping-s.tipping)/elapsed,sales:(now.sales-s.sales)/elapsed,subsidies:(now.subsidies-s.subsidies)/elapsed,
     labour:(now.labour-s.labour)/elapsed,logistics:(now.logistics-s.logistics)/elapsed,power:(now.power-s.power)/elapsed,landfill:(now.landfill-s.landfill)/elapsed};
   e.income=e.tipping+e.sales+e.subsidies;e.opex=e.labour+e.logistics+e.power+e.landfill;e.net=e.income-e.opex;
+  // tonnage per day (same elapsed-day averaging as the money)
+  e.onT=(now.onT-s.onT)/elapsed;e.offT=(now.offT-s.offT)/elapsed;e.buriedT=(now.buriedT-s.buriedT)/elapsed;e.inT=(now.inT-s.inT)/elapsed;
   G.opexHistory=G.opexHistory||[];G.opexHistory.push(e);if(G.opexHistory.length>120)G.opexHistory.shift();
+  // ── PER-BAY bale history. The plant-wide row above is tonnage; an export bay wants its OWN daily count of
+  //    bales shipped on-spec vs off-spec, because that is the thing a player tunes per product. Same
+  //    elapsed-day averaging, capped at EXPORT_HIST days, and it rides the existing save (nodes serialize).
+  for(const n of G.nodes){ if(!isExport(n))continue;
+    const b=n._hs||(n._hs={on:n.balesSold||0,off:n.offSold||0});
+    const on=Math.max(0,((n.balesSold||0)-b.on)/elapsed),off=Math.max(0,((n.offSold||0)-b.off)/elapsed);
+    n.hist=n.hist||[];n.hist.push({d:G._opexDay,on:on,off:off});
+    if(n.hist.length>EXPORT_HIST)n.hist.shift();
+    n._hs={on:n.balesSold||0,off:n.offSold||0}; }
   G._opexDay=day;G._opexStart=now;}
 function pnlReport(){const L=G.ledger;
   const income=L.tipping+L.sales+L.subsidies;   // RECURRING income only (subsidies = per-tonne bonuses)
@@ -820,7 +896,7 @@ function serializeGame(){if(!G)return null;
     opexHistory:(G.opexHistory||[]).slice(),_opexDay:G._opexDay,_opexStart:G._opexStart||null,_pnlDay:G._pnlDay,_pnlDayStart:G._pnlDayStart,_pnlYesterday:G._pnlYesterday,
     cash:G.cash,delivered:G.delivered,deliveredTot:G.deliveredTot,landfill:G.landfill,petOn:G.petOn,petOff:G.petOff,ferOn:G.ferOn,sold:G.sold,
     minCash:G.minCash,wageTot:G.wageTot,t:G.t,tier:G.tier,finished:G.finished,ledger:Object.assign({},G.ledger),
-    nodes:G.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,w:n.w,h:n.h,gx:(n.gx!=null?n.gx:null),gy:(n.gy!=null?n.gy:null),rot:n.rot||0,site:n.site||null,paidCapex:n.paidCapex||0,spec:n.spec,role:n.role,rate:n.rate,ratio:n.ratio,workers:n.workers,target:n.target,inBuf:n.inBuf,bale:n.bale,bales:n.bales,containers:n.containers,active:n.active,disposeHeap:n.disposeHeap,evacT:n.evacT,truckDue:n.truckDue||0,mandDue:n.mandDue||null,offAllow:n.offAllow||0,balesSold:n.balesSold||0,offSold:n.offSold||0,supplier:(n.supplier!==undefined?n.supplier:null),buyer:n.buyer||null,label:n.label||null,sortSide:n.sortSide||null,splitLayout:n.splitLayout||null,contEvac:n.contEvac||0,massEvac:n.massEvac||0,_inMass:n._inMass||0,_outMass:n._outMass||0,_sortMass:n._sortMass||0,_restMass:n._restMass||0})),
+    nodes:G.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,w:n.w,h:n.h,gx:(n.gx!=null?n.gx:null),gy:(n.gy!=null?n.gy:null),rot:n.rot||0,site:n.site||null,paidCapex:n.paidCapex||0,spec:n.spec,role:n.role,rate:n.rate,ratio:n.ratio,workers:n.workers,target:n.target,inBuf:n.inBuf,bale:n.bale,bales:n.bales,containers:n.containers,active:n.active,disposeHeap:n.disposeHeap,evacT:n.evacT,truckDue:n.truckDue||0,mandDue:n.mandDue||null,bagMix:n.bagMix||null,_bagCnt:(n._bagCnt!=null?n._bagCnt:null),offAllow:n.offAllow||0,balesSold:n.balesSold||0,offSold:n.offSold||0,hist:(n.hist&&n.hist.length)?n.hist:null,_hs:n._hs||null,supplier:(n.supplier!==undefined?n.supplier:null),buyer:n.buyer||null,label:n.label||null,sortSide:n.sortSide||null,splitLayout:n.splitLayout||null,contEvac:n.contEvac||0,massEvac:n.massEvac||0,_inMass:n._inMass||0,_outMass:n._outMass||0,_sortMass:n._sortMass||0,_restMass:n._restMass||0})),
     edges:G.edges.map(e=>({from:e.from,fromPort:e.fromPort,to:e.to,speed:e.speed,kind:e.kind||null,route:e.route||null,max:e.max||null,fromSide:e.fromSide||null,toSide:e.toSide||null,
       sprites:e.sprites.map(sp=>({mat:sp.mat,st:sp.st,t:sp.t,v:sp.v||0,bale:sp.bale?JSON.parse(JSON.stringify(sp.bale)):null}))}))};}
 function saveGame(){if(G&&G.mode==="career"&&CAREER)CAREER.bank=G.cash;try{const s=serializeGame();if(s)localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(e){}}
@@ -981,10 +1057,17 @@ function specsCovered(){const os=(CAREER.counters&&CAREER.counters.onSpec)||{};l
  * is the entire enforcement mechanism. Rate/composition/gate live on the COMPANY stream
  * (single source of truth) so a mandated supplier behaves like any other everywhere else.
  * Nothing here fires until the pressure system is armed — see armPressure(). */
+/* TWO imposed contracts, in sequence, against the 8 t/h site ceiling:
+ *   free play      — you choose your suppliers; a normal contract is 5 t/h, so one fills most of the site
+ *   GATE           — arms only once all 6 products have run on-spec (see armPressure). Nothing is imposed by
+ *                    merely being profitable, so a player still learning is never punished.
+ *   SMALL  2.5 t/h — 5 (yours) + 2.5 = 7.5 of 8: it PUSHES your capacity but still fits beside one contract.
+ *   LARGE  5   t/h — 5 + 2.5 + 5 = 12.5 against a ceiling of 8, so it forces a SUBSTITUTION: your own contract
+ *                    is squeezed out and the plant runs on imposed feed. That is the intended endgame bite.
+ * Poubelle Air is deliberately NOT a mandate — it stays a voluntary 5 t/h alternative to pick during the squeeze. */
 const MANDATE={
-  m_kerbside:{name:"Kerbside contract imposed",  cond:{metric:"exportedOnSpec",gte:150}, supplier:"skip_bizet",      warnDays:2, grant:250000},
-  m_commercial:{name:"Commercial waste imposed", cond:{metric:"dailyNet",gte:12000}, req:["m_kerbside"],  supplier:"poubelle_air",    warnDays:2, grant:400000},
-  m_regional:{name:"Regional residual imposed",  cond:{metric:"exportedOnSpec",gte:600}, req:["m_commercial"], supplier:"watco_syndicate", warnDays:3, grant:700000},
+  m_kerbside:{name:"Kerbside contract imposed",  cond:{metric:"onSpecSinceArm",gte:150},  supplier:"skip_bizet",      warnDays:2, grant:250000},
+  m_regional:{name:"Regional residual imposed",  cond:{metric:"onSpecSinceArm",gte:1000}, req:["m_kerbside"], supplier:"watco_syndicate", warnDays:3, grant:700000},
 };
 function mandateDef(id){return (id&&MANDATE[id])||null;}
 function mandateSups(){const a=[];if(!G||G.mode!=="career"||!CAREER||!CAREER.mandates)return a; // supplier ids currently imposed
@@ -994,6 +1077,60 @@ function mandateSups(){const a=[];if(!G||G.mode!=="career"||!CAREER||!CAREER.man
 //    duplicated per bunker), and an imposed stream is split across EVERY bunker. That rule lived only inside
 //    tick(); the bunker inspector needs the same number, and a second copy of a formula is how two copies drift
 //    (see bankDiversion, v1.8.1). One rule, one place — tick() and the UI both call these.
+/* ── ORPHANED IMPOSED STREAMS. A mandate lives in CAREER (inside the save), but the material it owes lives on
+ * the NODES (`b.mandDue`) and in the trucks already dispatched. Those are different objects, so anything that
+ * clears the career's mandate list without clearing the dues leaves the plant being flooded by streams the
+ * game no longer believes in — trucks with no contract behind them, tipping into bunkers until they overflow
+ * and the surplus is buried and billed. Exactly that happened in the wild: the v1.10.0 boot bug blanked the
+ * live CAREER, and saves carried on delivering three imposed streams with `mandates.active` empty.
+ * The boot bug is fixed; this reconciles the state it left behind, and makes the two halves consistent by
+ * construction on every load. Mass-safe: a due is material not yet delivered, and a truck books its load only
+ * when it TIPS, so dropping either destroys nothing that was ever counted. */
+/* ── CIRCULAR WAIT. A recirculation loop — routing a separator's residue back upstream instead of to a reject
+ * bay — is a smart-looking build that can lock solid: transfers are doubly gated (a move commits only when the
+ * destination has room, NNG-1), so once every unit on the ring is holding material with nowhere to put it,
+ * nobody can hand off and nobody can free room. Nothing is broken and nothing is buried; the plant simply
+ * stops, at ~0 t/h, while its bunkers fill behind it.
+ * The states it already had — JAMMED, OVERLOAD — both read as "add capacity", and no amount of capacity ever
+ * clears a circular wait. NNG-6: name the real problem. Cached on a topology signature (the ring only changes
+ * when edges do), so this costs nothing per tick. */
+let _cyc=null,_cycSig="";
+function siteCycleSets(){
+  let sig=G.edges.length+":";for(const e of G.edges)sig+=e.from+">"+e.to+",";
+  if(_cyc&&sig===_cycSig)return _cyc;
+  _cycSig=sig;
+  const adj={};for(const n of G.nodes)adj[n.id]=[];
+  for(const e of G.edges)if(adj[e.from]&&nodeById(e.to))adj[e.from].push(e.to);
+  const color={},stack=[],sets=[];
+  const dfs=u=>{color[u]=1;stack.push(u);
+    for(const v of adj[u]||[]){
+      if(color[v]===1){const i=stack.indexOf(v);if(i>=0)sets.push(new Set(stack.slice(i)));}
+      else if(!color[v])dfs(v);}
+    color[u]=2;stack.pop();};
+  for(const n of G.nodes)if(!color[n.id])dfs(n.id);
+  _cyc=sets;return _cyc;}
+const DEADLOCK_T=3; // sim-seconds with the WHOLE ring moving nothing (> JAM_T, so it supersedes a transient jam)
+function markDeadlocks(){
+  // Measured on MOVEMENT, not on the per-unit badge. A locked ring is a mix of units that are full and units
+  // that are empty because the full ones cannot feed them — demanding that every unit read "jammed" misses it.
+  // Two conditions together: nothing on the ring has moved for DEADLOCK_T, and the ring is holding material.
+  // The second is what separates a ring that is stuck from a ring that is merely idle for want of feed.
+  const sets=siteCycleSets(); if(!sets.length)return;
+  for(const s of sets){ let allStill=true,held=0;
+    for(const id of s){const n=nodeById(id); if(!n){allStill=false;break;}
+      if((n.still||0)<=DEADLOCK_T){allStill=false;break;}
+      held+=cnt(n.inBuf);}
+    if(allStill&&held>0)for(const id of s){const n=nodeById(id); if(n)n.state="deadlock";}}}
+function reconcileMandateState(){ if(!G)return{dues:0,trucks:0};
+  const live=mandateSups(); let dues=0,trucks=0;
+  for(const n of G.nodes){ if(!isBunker(n)||!n.mandDue)continue;
+    for(const k in n.mandDue){ if(live.indexOf(k)<0){delete n.mandDue[k];dues++;} }
+    if(!Object.keys(n.mandDue).length)n.mandDue=null; }
+  for(const t of (G.trucks||[])){ if(t.cls!=="supplier"||!t.forced||live.indexOf(t.sup)>=0)continue;
+    if(t.state==="exit"||!t.exitPath)continue;                 // already leaving, or nothing to send it down
+    t.state="exit";t.path=t.exitPath;t.t0=G.t;                 // turn it around unTIPPED — its load was never booked
+    t.eta=G.t+Math.max(G.logi.minTrip,pathLen(t.path)/G.logi.truckSpeed);trucks++; }
+  return{dues:dues,trucks:trucks};}
 function bunkerSupN(){const mand=mandateSups();
   let bunkers=0;for(const b of G.nodes)if(isBunker(b))bunkers++;
   const supN={};
@@ -1001,8 +1138,18 @@ function bunkerSupN(){const mand=mandateSups();
     const sk=(b.supplier&&b.supplier!=="__none")?b.supplier:((G.contract&&G.contract.supplier)||"__default");
     if(mand.indexOf(sk)>=0)continue;                                      // an imposed stream is owned by pass 2 — never counted twice
     supN[sk]=(supN[sk]||0)+1;}
+  // ── allocate the site intake ceiling: imposed first (unrefusable), voluntary shares the remainder ──
+  const cap=(G.logi&&G.logi.inboundCap)||LOGI.inboundCap;
+  let impRaw=0;for(const s of mand){const st=supplierStream(s);if(st)impRaw+=st.feedTph||0;}
+  const impScale=(impRaw>cap&&impRaw>0)?cap/impRaw:1;      // mandates alone can never exceed the ceiling either
+  const imposed=impRaw*impScale, budget=Math.max(0,cap-imposed);
+  // Only NAMED contracts are allocated against the ceiling. A scenario or harness that hand-sets
+  // G.contract.feedTph is stating an authored rate, not signing a contract, and must not be silently
+  // clamped — that would be lying about the feed the player asked for (NNG-6).
+  let volRaw=0;for(const sk in supN){const st=G.continuous?supplierStream(sk):null;if(st)volRaw+=st.feedTph||0;}
+  const volScale=(volRaw>budget&&volRaw>0)?budget/volRaw:1; // your own contracts are what gets squeezed
   for(const s of mand)supN[s]=Math.max(1,bunkers);
-  return{supN:supN,mand:mand,bunkers:bunkers};}
+  return{supN:supN,mand:mand,bunkers:bunkers,cap:cap,imposed:imposed,budget:budget,volRaw:volRaw,volScale:volScale,impScale:impScale};}
 function bunkerRatedTph(n){ // t/h this bunker is rated to receive: {voluntary, imposed, total}
   const z={voluntary:0,imposed:0,total:0};
   if(!G||!n||!isBunker(n))return z;
@@ -1010,12 +1157,18 @@ function bunkerRatedTph(n){ // t/h this bunker is rated to receive: {voluntary, 
   if(n.supplier!=="__none"){
     const sk=(n.supplier&&n.supplier!=="__none")?n.supplier:((G.contract&&G.contract.supplier)||"__default");
     if(mand.indexOf(sk)<0){const str=G.continuous?supplierStream(sk):null;
-      z.voluntary=((str&&str.feedTph)||(G.contract&&G.contract.feedTph)||4)/Math.max(1,supN[sk]||1);}}
+      z.voluntary=((str&&str.feedTph)||(G.contract&&G.contract.feedTph)||4)/Math.max(1,supN[sk]||1)*(str?sh.volScale:1);}}
   for(const ms of mand){const str=supplierStream(ms);if(!str)continue;    // imposed streams arrive at every bunker, refusable by nobody
-    z.imposed+=(str.feedTph||0)/Math.max(1,supN[ms]||1);}
-  z.total=z.voluntary+z.imposed;return z;}
+    z.imposed+=(str.feedTph||0)/Math.max(1,supN[ms]||1)*sh.impScale;}
+  z.total=z.voluntary+z.imposed;
+  z.squeezed=sh.volScale<1; // your contracts are being crowded out by mandates — the UI says so out loud
+  return z;}
+function onSpecSinceArm(){ // on-spec tonnes produced SINCE the pressure gate armed (mandate triggers are relative)
+  if(!CAREER||!CAREER.counters)return 0;
+  const P=CAREER.pressure; if(!P||!P.armed)return 0;
+  return Math.max(0,(CAREER.counters.exportedOnSpec||0)-(P.baseOnSpec||0));}
 function objMetric(m){const c=CAREER.counters;
-  return m==="exportedOnSpec"?c.exportedOnSpec : m==="profitBanked"?c.profitBanked : m==="unitsOnLine"?c.maxUnits : m==="diversion"?c.bestDiversion : m==="dailyNet"?(c.bestDailyNet||0) : m==="contractsWon"?c.contractsWon : m==="specsCovered"?specsCovered() : 0;}
+  return m==="exportedOnSpec"?c.exportedOnSpec : m==="onSpecSinceArm"?onSpecSinceArm() : m==="profitBanked"?c.profitBanked : m==="unitsOnLine"?c.maxUnits : m==="diversion"?c.bestDiversion : m==="dailyNet"?(c.bestDailyNet||0) : m==="contractsWon"?c.contractsWon : m==="specsCovered"?specsCovered() : 0;}
 function objMet(o){const cd=o.cond,f=CAREER.counters.flags||{};
   if(cd.metric)return objMetric(cd.metric)>=cd.gte;
   if(cd.event==="tutorialComplete")return !!f.tutorialComplete;
@@ -1069,7 +1222,7 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
     const _g=siteGeomFor(ns.site,ns.gx,ns.gy,ns.rot)||{x:ns.x,y:ns.y,w:ns.w||78,h:ns.h||66}; // footprint follows SITE_OBJ, so a resized family reshapes on load
     G.nodes.push({id:ns.id,type,x:_g.x,y:_g.y,w:_g.w,h:_g.h,gx:(ns.gx!=null?ns.gx:null),gy:(ns.gy!=null?ns.gy:null),rot:ns.rot||0,site:ns.site||null,paidCapex:(ns.paidCapex!=null?ns.paidCapex:(ns.capex!=null?ns.capex:0)),
       inBuf:migrateBuf(ns.inBuf),ratio:ns.ratio==null?0.5:ns.ratio,spec:spec||"PET",
-      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,mandDue:(ns.mandDue&&typeof ns.mandDue==="object")?Object.assign({},ns.mandDue):null,offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,role:role||(type==="storage"?"buffer":null),rate:ns.rate||4,
+      bale:migrateBuf(ns.bale),bales:(ns.bales||[]).map(migrateBuf),containers:(role==="bulk")?((ns.containers&&ns.containers.length)?ns.containers.map(migrateBuf):[blankBuf(),blankBuf(),blankBuf()]):null,active:ns.active||0,disposeHeap:ns.disposeHeap||0,evacT:ns.evacT||0,truckDue:ns.truckDue||0,mandDue:(ns.mandDue&&typeof ns.mandDue==="object")?Object.assign({},ns.mandDue):null,bagMix:(ns.bagMix&&typeof ns.bagMix==="object")?Object.assign({},ns.bagMix):null,_bagCnt:(ns._bagCnt!=null?ns._bagCnt:null),offAllow:ns.offAllow||0,truckFlash:0,balesSold:ns.balesSold||0,offSold:ns.offSold||0,hist:Array.isArray(ns.hist)?ns.hist.slice(-EXPORT_HIST):[],_hs:(ns._hs&&typeof ns._hs==="object")?{on:ns._hs.on||0,off:ns._hs.off||0}:null,role:role||(type==="storage"?"buffer":null),rate:ns.rate||4,
       jam:0,load:0,state:"ok",wrongSize:0,workers:ns.workers||2,target:ns.target||"film",supplier:ns.supplier||null,buyer:ns.buyer||null,label:ns.label||null,sortSide:ns.sortSide||null,splitLayout:ns.splitLayout||null,contEvac:ns.contEvac||0,massEvac:ns.massEvac||0,_inMass:ns._inMass||0,_outMass:ns._outMass||0,_sortMass:ns._sortMass||0,_restMass:ns._restMass||0});}
   const live=new Set(G.nodes.map(n=>n.id));
   for(const es of s.edges)if(live.has(es.from)&&live.has(es.to)){const _wl=(es.kind==="conveyor"&&es.route)?pathLen(es.route):0;
@@ -1092,6 +1245,7 @@ function restoreGame(s){validateSave(s);_id=s.nextId||1;P=[];selNode=null;
    if(!L||typeof L!=="object")G.career.landfillYr={y:1,t:0,in:0};}
   if(G.career.bank==null)G.career.bank=G.cash;
   CAREER=G.career;recomputeTechMod();
+  reconcileMandateState(); // AFTER CAREER is attached — it is the authority on which streams are actually imposed
   UI.viewReset();}
 /* ── Palette discovery ──────────────────────────────────────────────────────
  * Career restricts the palette to the contract's necessary units (progressive
@@ -1384,6 +1538,39 @@ function ensureFleet(){ if(!G||!G.fleet||!G.vehicles)return;
     for(let k=have;k<G.fleet[cls];k++)
       G.vehicles.push({id:G.vehId++,cls,state:"idle",home:h.id,fromId:null,toId:null,payload:blankBuf(),baleLoad:[],t0:0,eta:0}); } }
 // Pending job queue. SCANS NODES IN ASCENDING ID ORDER for determinism (NNG-5).
+/* ── WHEN IS THE NEXT LOAD? A new site opens with empty bunkers and no stock, and the first truck has to
+ * accrue a full load and then drive in — realistic, but it presents as several hours of a plant doing
+ * nothing with no explanation, which is the dead-end NNG-6 forbids. Returns sim-hours until the next
+ * inbound supplier load reaches a bunker, or null when nothing is coming (no supplier assigned). */
+function truckDriveEst(){ // one representative drive-in, cached: the layout does not move
+  if(G._tde!=null)return G._tde;
+  const n=G.nodes.find(x=>isBunker(x)&&x.gx!=null);
+  if(!n)return 0;                                   // don't cache a miss — bunkers get placed later
+  const dk=truckDockLegs(n,"supplier",0);
+  G._tde=dk?pathLen(dk.enter.path)/G.logi.truckSpeed:0;
+  return G._tde;}
+/* Returns {h, arrived} — hours remaining and which phase, or null when nothing is coming.
+ * Two phases on purpose. Counting only trucks still DRIVING made the number jump back up the moment one
+ * parked (it silently started estimating the *second* truck), and a countdown that goes up is worse than
+ * no countdown at all. A parked truck counts down its unloading dwell instead, so the figure only ever falls. */
+function nextTruckETA(){
+  if(!G||!G.continuous)return null;
+  let drive=null,dwell=null;
+  for(const t of (G.trucks||[])){ if(t.cls!=="supplier"||t.state==="exit")continue;
+    // include the dwell it has yet to serve, so this counts to the LOAD LANDING throughout: without it the
+    // number fell to zero on arrival and then jumped back up to a fresh 2 h of unloading.
+    if(t.state==="toStop"){const d=Math.max(0,t.eta-G.t)+(G.logi.tipDwell||0);if(drive==null||d<drive)drive=d;}
+    else{const d=Math.max(0,(t.dwT0||G.t)+(t.dw||0)-G.t);if(dwell==null||d<dwell)dwell=d;}}
+  if(dwell!=null&&(drive==null||dwell<=drive))return{h:dwell,arrived:true}; // already at the apron, tipping
+  if(drive!=null)return{h:drive,arrived:false};
+  let wait=null;                 // nothing dispatched: fill the owed load, then drive it in
+  for(const n of G.nodes){ if(!isBunker(n)||n.supplier==="__none")continue;
+    const r=bunkerRatedTph(n); if(!(r.total>0))continue;
+    let owed=Math.max(0,G.logi.supTruck-(n.truckDue||0));
+    for(const k in (n.mandDue||{}))owed=Math.min(owed,Math.max(0,G.logi.supTruck-(n.mandDue[k]||0)));
+    const w=owed*PMASS/r.total;
+    if(wait==null||w<wait)wait=w;}
+  return wait==null?null:{h:wait+truckDriveEst()+(G.logi.tipDwell||0),arrived:false};}
 function primeFirstTruck(n){ // clean fast start: first truck minutes away, WITHOUT pre-filling the bunker
   if(!n||!isBunker(n)||n.supplier==="__none")return;
   if((n.truckDue||0) < G.logi.supTruck*0.9)n.truckDue=Math.floor(G.logi.supTruck*0.9);}
@@ -1843,6 +2030,12 @@ function truckWalkSet(){if(_truckWalk)return _truckWalk;const s=new Set();
     for(const[x,y]of z.cells)s.add(x+","+y);
   return _truckWalk=s;}
 const TRUCK_IN=[19,0],TRUCK_OUT=[19,41]; // ring-road entry (north) and exit (south): one-way flow
+// The road runs the FULL height of the neighbouring tile at each end, so it reads as one continuous road
+// crossing the whole 3x3 world rather than a stub. An 8-cell stub was invisible in practice: siteViewFit
+// frames exactly the main tile, so the approach sat off-screen and trucks still seemed to pop in at the
+// property line. This is real driving distance — see truckMaxInflight, raised to keep a single-bunker
+// contract from being throttled by the longer haul.
+const ROAD_APPROACH=SITE_LAYOUT.grid.h*CELL;
 function truckBfs(a,b){const W=truckWalkSet(),gk=b[0]+","+b[1],q=[a],came={};came[a[0]+","+a[1]]=null;let hit=false;
   while(q.length){const c=q.shift();if(c[0]+","+c[1]===gk){hit=true;break;}
     for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=c[0]+dx,ny=c[1]+dy;
@@ -1870,11 +2063,19 @@ function truckDockLegs(n,cls,slot){ // S-MOTION legs for a boundary truck servin
   const last=coreW[coreW.length-1],prev=coreW.length>1?coreW[coreW.length-2]:[last[0]-1,last[1]];
   let dx=last[0]-prev[0],dy=last[1]-prev[1];const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
   const pp=[last[0]+dx*PULL_PAST,last[1]+dy*PULL_PAST];
+  // THROUGH-ROAD: the road continues onto the neighbouring tiles, so a truck drives IN from off-site instead
+  // of appearing at the property line, and drives OUT the far side instead of vanishing there. Pathing still
+  // happens entirely on the grid — this is a straight lead-in bolted onto the ends of the BFS result, so no
+  // walk-set, memo or save migration is involved. It does add ~8 cells each way to the haul, which is real
+  // driving time and shows up as a slightly longer truck cycle.
+  const _inW=[(TRUCK_IN[0]+0.5)*CELL,(TRUCK_IN[1]+0.5)*CELL];
+  coreW=[[_inW[0],_inW[1]-ROAD_APPROACH]].concat(coreW);
   const enterPath=_cleanPath(coreW.concat([pp,lane.slice(),[b.x,b.y]]));
   const revB=Math.hypot(lane[0]-pp[0],lane[1]-pp[1])+Math.hypot(b.x-lane[0],b.y-lane[1]); // reverse begins AT the cusp: pp→lane→berth
   const back=truckBfs(laneCell,TRUCK_OUT);if(!back)return null;
   let backW=_simplifyPts(back.map(w));backW.reverse();backW=_trimNear(backW,lane,CELL*0.8);backW.reverse();
-  const exitPath=_cleanPath([[b.x,b.y],lane.slice(),...backW]);
+  const _outW=[(TRUCK_OUT[0]+0.5)*CELL,(TRUCK_OUT[1]+0.5)*CELL];
+  const exitPath=_cleanPath([[b.x,b.y],lane.slice(),...backW,[_outW[0],_outW[1]+ROAD_APPROACH]]);
   return{enter:{path:enterPath,revA:0,revB},exit:{path:exitPath,revA:0,revB:0}};}
 function spawnSiteTruck(cls,n,opts){ if(!G.trucks)G.trucks=[];
   const t={id:G.truckId++,cls,nodeId:n.id,state:"toStop",t0:G.t,
@@ -1902,12 +2103,28 @@ function bookTip(b,mass,gate){
   G.delivered+=mass;G.deliveredTot+=mass;
   const L=landfillYear();if(L)L.in+=mass;      // allowance base = what we ACCEPTED this pressure-year
   b.truckFlash=1;b._inMass=(b._inMass||0)+mass;}
+/* ── What a bunker LOOKS full of. A bunker can be fed by several streams at once (an imposed mandate tips
+ * into every bunker, whatever you assigned it to), so its livery should follow the bags actually in there,
+ * not the supplier on its label. Tracked as tonnes per bag type, decayed lazily: loaders scoop
+ * non-selectively, so removal takes every type in proportion and the RATIO is unchanged — only the total
+ * needs rescaling, which is a single multiply at read time. No hooks in the hot loop. */
+function bagMixOf(n){const mx=n.bagMix||(n.bagMix={});
+  const now=cnt(n.inBuf),was=(n._bagCnt==null?now:n._bagCnt);
+  if(now<=0){for(const k in mx)mx[k]=0;}
+  else if(was>now&&was>0){const f=now/was;for(const k in mx)mx[k]*=f;}
+  n._bagCnt=now;return mx;}
+function bunkerBagType(n){ // dominant bag type held, or null when empty/unknown
+  if(!n)return null;const mx=bagMixOf(n);let best=null,bv=0;
+  for(const k in mx)if(mx[k]>bv){bv=mx[k];best=k;}
+  return bv>0?best:null;}
 function tipLoad(b,supId,load,forced){ // tip ONE truckload into bunker b → particles actually held
   const str=supplierStream(supId);
   const cmp=(str&&str.comp)||G.contract.comp,gate=(str&&str.gate)||ECON.tipping;
   const room=Math.max(0,capOf(b)-cnt(b.inBuf));
   const fits=Math.max(0,Math.min(load,room)),over=Math.max(0,load-fits);
   for(let k=0;k<fits;k++){let r=rng(),a=0,p="paper";for(const m of MAT){a+=cmp[m]||0;if(r<a){p=m;break;}}b.inBuf[p][0]++;}
+  if(fits>0){const _mx=bagMixOf(b),_bt=(str&&str.bag)||"grey"; // decay first, then credit this stream's bags
+    _mx[_bt]=(_mx[_bt]||0)+fits*PMASS; b._bagCnt=cnt(b.inBuf);}
   if(forced){
     if(load>0)bookTip(b,load*PMASS,gate);        // the whole load is accepted and paid for…
     if(over>0){dumpToLandfill(over*PMASS);       // …and the surplus is buried and billed. NO pause: the
@@ -1975,6 +2192,10 @@ function armPressure(day){
   if(G.scenario&&G.scenario.tuto&&!f.tutorialComplete)return;   // never ambush the guided build
   if(specsCovered()<6)return;
   P.armed=true;P.day=day;
+  // Mandate triggers are counted FROM HERE, not from the start of the campaign. Absolute thresholds meant a
+  // player who armed the gate late — already 800 t of on-spec into a careful build — got both mandates at
+  // once, the moment the gate opened. The clock and the tonnage both start at arming.
+  P.baseOnSpec=(CAREER.counters&&CAREER.counters.exportedOnSpec)||0;
   CAREER.landfillYr={y:1,t:0,in:0};                             // the allowance year starts NOW, not at campaign start
   saveCareer();saveGame();
   if(UI.onMandate)UI.onMandate({phase:"armed"});}
@@ -2020,7 +2241,7 @@ function tick(dt){
     if(!_idle&&_mand.indexOf(_sk)<0&&(G.continuous||G.delivered<G.contract.tonnage)){
       const _str=G.continuous?supplierStream(_sk):null;
       const _frTot=(_str&&_str.feedTph)||G.contract.feedTph||4;
-      const _fr=_frTot/Math.max(1,_supN[_sk]||1);                          // SPLIT the contract's rate across its bunkers
+      const _fr=_frTot/Math.max(1,_supN[_sk]||1)*(_str?_sh.volScale:1);    // SPLIT across its bunkers, then SQUEEZED by whatever the mandates already claim of the intake cap
       b.truckDue=(b.truckDue||0)+_fr*dt/PMASS;                             // particles this bunker's share owes
       if(b.gx!=null){ // SITE bunker (S-TRUCK): each due truckload becomes a visible truck; the gate fee books at the TIP
         while(b.truckDue>=G.logi.supTruck&&truckInflight("supplier",b.id,_sk)<G.logi.truckMaxInflight){
@@ -2039,7 +2260,7 @@ function tick(dt){
     // ── pass 2: IMPOSED streams — no __none guard, no tonnage gate, no turn-away ──
     for(const ms of _mand){
       const str=supplierStream(ms);if(!str)continue;
-      const fr=(str.feedTph||0)/Math.max(1,_supN[ms]||1);
+      const fr=(str.feedTph||0)/Math.max(1,_supN[ms]||1)*_sh.impScale;
       const D=b.mandDue||(b.mandDue={});
       D[ms]=(D[ms]||0)+fr*dt/PMASS;
       if(b.gx!=null){
@@ -2054,7 +2275,7 @@ function tick(dt){
   //     The trucks do not care whether you are ready. (Mass balance: in === held(0) + landfilled.)
   if(_bunkers===0&&_mand.length){
     for(const ms of _mand){const str=supplierStream(ms);if(!str)continue;
-      const m=(str.feedTph||0)*dt;if(!(m>0))continue;
+      const m=(str.feedTph||0)*_sh.impScale*dt;if(!(m>0))continue; // the intake cap binds even with nowhere to put it
       const gate=str.gate||ECON.tipping,v=m*gate;
       G.cash+=v;G.ledger.tipping+=v;G.delivered+=m;G.deliveredTot+=m;
       const L=landfillYear();if(L)L.in+=m;
@@ -2118,9 +2339,11 @@ function tick(dt){
     n.idle = (did===0&&cnt(n.inBuf)===0) ? (n.idle||0)+dt : 0;
     n.chok = (did===0&&cnt(n.inBuf)>0) ? (n.chok||0)+dt : 0; // choked = has material but moved nothing (true jam); resets as soon as anything flows
     n.over = (n.load>1.02) ? (n.over||0)+dt : 0; // sustained buffer-saturation timer (hysteresis, mirrors chok/idle)
+    n.still = (did===0) ? (n.still||0)+dt : 0;   // time since this unit last moved ANYTHING — feeds the ring-deadlock test
     if(n.chok>JAM_T)n.state="jammed"; else if(wrong)n.state="bagged"; else if(n.over>OVER_T)n.state="overloaded";
     else if(n.idle>STARVE_T)n.state="starved"; else n.state="ok";
   }
+  markDeadlocks(); // after every unit has its state: a circular wait is a property of the RING, not of one unit
   // 3b. balers: accumulate → pack a bale into n.bales (≤ BALER_BALES). Bales are pulled by a FORKLIFT
   //     (stage 3d), not emitted onto a belt. When the internal stack is full the baler jams (BALER-FULL).
   for(const n of G.nodes){if(!TYPES[n.type].isBaler)continue;

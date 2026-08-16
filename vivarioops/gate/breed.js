@@ -1087,9 +1087,28 @@ export async function runBreedGate() {
       // TRUSTED IS NOT DECORATION. C1's finding is that S2 yields one trustworthy
       // number out of eight and turnRate is measurement noise; an objective the
       // player can point six creatures at must not be one of the untrustworthy
-      // ones. If a future objective needs `trusted: false` it needs a UI that
-      // says so first, and this is where that argument gets forced.
-      t.eq(o.trusted, true, `${o.id} is a number the project stands behind`);
+      // ones. This assertion said `trusted === true` for every objective, with
+      // the note: "if a future objective needs `trusted: false` it needs a UI
+      // that says so first, and this is where that argument gets forced."
+      //
+      // THE ARGUMENT WAS FORCED, AND HERE IS THE OUTCOME. `ledger` ships untrusted
+      // because ROADMAP §5b measured what selecting on it does — "never select on
+      // the ratio; it is a margin, won by not spending, and the cheapest way not
+      // to spend is not to move", with Drifter posting the library's best
+      // multiplier (94x) on a third of the intake. It ships anyway because it is
+      // the quantity a breeder asks for by name, and the burst sheet now marks it
+      // (`data-warn` on the button and the note, ui/screens/vivarium.js).
+      //
+      // THE ASSERTION IS NOT WEAKENED, IT IS ENUMERATED. A new untrusted
+      // objective still fails this gate until someone adds its id here and makes
+      // the same argument in writing — which is exactly the forcing function the
+      // original note was asking for.
+      const MAY_BE_UNTRUSTED = new Set(['ledger']);
+      if (MAY_BE_UNTRUSTED.has(o.id)) {
+        t.eq(o.trusted, false, `${o.id} is declared untrusted, and the sheet warns`);
+      } else {
+        t.eq(o.trusted, true, `${o.id} is a number the project stands behind`);
+      }
     }
 
     // Every objective produces a finite ordering over a real corpus. An objective

@@ -34,6 +34,7 @@ import { binomial, familySpace } from '../../engine/l1/naming.js';
 import { slotsOf, bodyRadius } from '../../engine/l1/vernacular.js';
 import { palette } from '../vernacular.js';
 import { label } from '../names.js';
+import { sensesOf } from '../senses.js';
 import { PROFILE_TAG } from './profile.js';
 
 /**
@@ -44,7 +45,7 @@ import { PROFILE_TAG } from './profile.js';
  * what those functions returned; if they have changed, the claim is false and
  * quietly sorting on it would be worse than rebuilding.
  */
-export const INDEX_TAG = 'ix2';   // ix2: shelf/niche/canonCm from the authored `meta`
+export const INDEX_TAG = 'ix4';   // ix4: the perception state
 
 /** The 18 normalised trait axes, in the order `signature()` produces them. */
 export const TRAIT_KEYS = [
@@ -144,12 +145,29 @@ export function deriveRow(key, spec) {
     joints: plan.jointCount,
     dof: plan.dofCount,
     receptors: plan.receptors?.length ?? 0,
+    // The whole perception state, not just the organ count — a creature with
+    // receptors may be unwired, may be wired but one-sided and therefore unable
+    // to take a differential, or may genuinely steer. See ui/senses.js.
+    senses: sensesOf(plan, spec.genome),
     mass: spec.stats?.mass ?? totalMass(plan),
     radius: slots.radius ?? bodyRadius(plan),
 
     // ── ancestry ──────────────────────────────────────────────────────────
     founder: origin.founder ?? null,
     generations: origin.generations ?? 0,
+    // ── THE BREEDING RUN THIS CAME OUT OF ─────────────────────────────────
+    //
+    // Stamped at save time (ui/screens/vivarium.js), so it is a fact about when
+    // the creature appeared rather than a live lookup into a lineage that may
+    // since have been renamed or thrown away. `sessionLabel` is what the facet
+    // groups on: the title when the run was named, and the seed otherwise —
+    // because an unnamed run is still a run, and creatures from one afternoon
+    // belong together whether or not anybody typed a heading.
+    sessionId: spec.session?.id ?? null,
+    sessionTitle: spec.session?.title ?? null,
+    sessionGen: spec.session?.generation ?? null,
+    sessionLabel: spec.session?.id == null ? null
+      : (spec.session.title || `${t('run')} ${String(spec.session.id).slice(0, 6)}`),
     // `[]` means RECORDED AND NONE; `null` means never recorded. The Atlas has
     // to be able to tell those apart or it will draw an empty tree for every
     // creature saved before edges existed and call it a fact.
@@ -175,7 +193,7 @@ export function deriveRow(key, spec) {
   row.hay = [
     row.name, row.binomial, row.family, row.genus, row.species,
     row.colour, row.pattern, row.gait, row.rank, row.founder, row.niche,
-    row.headline, row.shelf, ...row.labels,
+    row.headline, row.shelf, row.sessionLabel, ...row.labels,
   ].filter(Boolean).join(' ').toLowerCase();
 
   return row;
@@ -287,6 +305,12 @@ export const FACETS = [
     // into worlds/w1_bred.js, and thrown away at plant time.
     id: 'niche', label: t('Selected for'), field: 'niche',
     values: present('niche'), labelOf: (v) => v,
+  },
+  {
+    // "Show me everything that came out of that run." The collection could not
+    // be asked this before, because nothing recorded that a run had happened.
+    id: 'session', label: t('Breeding run'), field: 'sessionLabel',
+    values: present('sessionLabel'), labelOf: (v) => v,
   },
   {
     // NOT `t('Descended from')`. V2's import scan matches the word `from`

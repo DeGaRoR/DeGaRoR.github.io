@@ -1,6 +1,6 @@
 // RECYCLE service worker — precache-everything, cache-first. Bump VERSION on every release:
 // the old cache is dropped on activate, so clients pick up the new build on next load.
-const VERSION="recycle-pwa-v1.10.0";
+const VERSION="recycle-pwa-v1.16.0";
 const PRECACHE=[
  "./",
  "index.html",
@@ -74,11 +74,14 @@ const PRECACHE=[
  "assets/unit_5.webp",
  "assets/unit_6.webp",
  "assets/unit_7.webp",
- "assets/veh_0.webp",
- "assets/veh_1.webp",
  "assets/veh_10.webp",
  "assets/veh_11.webp",
- "assets/veh_2.webp",
+ "assets/sup_green.webp",
+ "assets/sup_teal.webp",
+ "assets/sup_blue.webp",
+ "assets/sup_purple.webp",
+ "assets/sup_orange.webp",
+ "assets/sup_yellow.webp",
  "assets/veh_3.webp",
  "assets/veh_4.webp",
  "assets/veh_5.webp",

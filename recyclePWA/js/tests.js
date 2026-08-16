@@ -16,7 +16,9 @@ function qcBalanced(){ // dumped == held + landfilled + sold, in particles (exac
   const IN=Math.round(G.deliveredTot/PMASS),LF=Math.round(G.landfill/PMASS),SO=Math.round(qcSold()/PMASS);
   return {ok:IN===(qcHeld()+LF+SO),IN,H:qcHeld(),LF,SO};}
 function qcTicks(n,dt){dt=dt||0.004;for(let i=0;i<n;i++)tick(dt);}
-function qcSiteGame(seed,fleet){newGame("career","site_ref",seed==null?0xC0FFEE7:seed);
+// The harness rig is site_qc (the plain 27-unit plant), NOT site_ref — site_ref is now the showcase
+// 100%-recycling build, whose 7 bunkers, missing landfill and closed ring make it a poor generic fixture.
+function qcSiteGame(seed,fleet){newGame("career","site_qc",seed==null?0xC0FFEE7:seed);
   G.fleet=Object.assign({},G.fleet,fleet||{loader:3,forklift:7,ctruck:1});return G;}
 const QC_SUITES={
 
@@ -129,18 +131,23 @@ const QC_SUITES={
 
 "site-trucks":function(t){ // S-TRUCK: boundary trucks drive the road network; economy books at the physical event
   qcSiteGame();
-  const W=truckWalkSet();let seen={supplier:0,client:0,lftruck:0},offRoad=0,overCap=0,maxSim=0;
+  const W=truckWalkSet();let seen={supplier:0,client:0,lftruck:0},offRoad=0,offSite=0,overCap=0,maxSim=0;
   for(let i=0;i<24000;i++){tick(0.004);
     if(i%100===0&&G.trucks){maxSim=Math.max(maxSim,G.trucks.length);
       for(const tk of G.trucks){seen[tk.cls]=(seen[tk.cls]||0)+0.01;
-        for(const p of tk.path)if(!W.has(Math.floor(p[0]/CELL)+","+Math.floor(p[1]/CELL)))offRoad++;}
+        for(const p of tk.path){ // waypoints OFF the grid are the through-road lead-in/out (deliberate); on-site ones must be on road/apron
+          const gx=Math.floor(p[0]/CELL),gy=Math.floor(p[1]/CELL);
+          if(gx<0||gy<0||gx>=SITE_LAYOUT.grid.w||gy>=SITE_LAYOUT.grid.h){offSite++;continue;}
+          if(!W.has(gx+","+gy))offRoad++;}}
       for(const n of G.nodes)if(isBunker(n)&&truckInflight("supplier",n.id)>G.logi.truckMaxInflight)overCap++;}}
   // presence: each class actually drove
   let drove={supplier:0,client:0,lftruck:0};for(const k in seen)drove[k]=seen[k]>0;
   t.ok(drove.supplier,"supplier trucks drove the ring road");
   t.ok(drove.client,"a client truck came for bales");
   t.ok(drove.lftruck,"a landfill truck hauled containers");
-  t.ok(offRoad===0,"every truck waypoint on road/apron cells ("+offRoad+" off)");
+  t.ok(offRoad===0,"every ON-SITE truck waypoint is on road/apron cells ("+offRoad+" off)");
+  t.ok(offSite>0,"trucks run the through-road onto the neighbouring tiles ("+offSite+" off-site waypoints seen)");
+  {const lead=ROAD_APPROACH/CELL; t.ok(lead===SITE_LAYOUT.grid.h,"the road runs the full neighbouring tile ("+lead+" cells each way)");}
   t.ok(overCap===0,"per-bunker in-flight cap respected");
   const b=qcBalanced();
   t.ok(b.ok,"conservation exact with trucks in flight (economy books at tip/load only)");
@@ -226,15 +233,26 @@ const QC_SUITES={
 },
 
 "site-bonus-economy":function(t){ // recurring bonuses + reputation sponsorship + growth/impact goals
-  newGame("career","site_ref",0xC0FFEE7);G.running=true;
+  newGame("career","site_qc",0xC0FFEE7);G.running=true;
   const sub0=G.ledger.subsidies;
   for(let i=0;i<2*24/0.004;i++)tick(0.004); // 2 days
   t.ok(G.ledger.subsidies>sub0,"recurring diversion + EPR subsidies accrue in career (+"+Math.round(G.ledger.subsidies-sub0)+")");
   t.ok(CAREER.counters.bestDailyNet>0,"best daily net is banked engine-side ("+Math.round(CAREER.counters.bestDailyNet)+")");
-  t.ok(CAREER.counters.bestDiversion>0&&CAREER.counters.bestDiversion<=1,"best diversion is banked");
+  // A diversion RECORD is permanent, so it must not be bankable off a couple of days' stockpiling — it needs
+  // DIVERSION_MIN_T tonnes to have actually settled (sold + buried). Two days in, the plant has not got there.
+  t.ok(CAREER.counters.bestDiversion===0,"no diversion record after 2 days — not enough has left the site yet");
+  for(let i=0;i<6*24/0.004;i++)tick(0.004); // …run a working week and it banks
+  const settled=(function(){let o=0;for(const k in G.sold)o+=(G.sold[k].on||0)+(G.sold[k].off||0);return o+G.landfill;})();
+  t.ok(settled>=DIVERSION_MIN_T,"a week of running settles past the threshold ("+settled.toFixed(0)+" t)");
+  t.ok(CAREER.counters.bestDiversion>0&&CAREER.counters.bestDiversion<=1,"best diversion is banked ("+(CAREER.counters.bestDiversion*100).toFixed(0)+"%)");
   t.ok(CAREER.counters.maxUnits>=15,"a loaded plant counts toward the 15-unit goal ("+CAREER.counters.maxUnits+")");
   t.ok(objClaimable("a_first"),"the first-bale grant is claimable once material sells");
-  const full=siteUnitCost("baler");CAREER.counters.flags.sponsored=true;const disc=siteUnitCost("baler");CAREER.counters.flags.sponsored=false;
+  // measure the UNDISCOUNTED price explicitly: a week of selling auto-earns the sponsor (sellBale sets the
+  // flag at SPONSOR_REP), so reading "full" without clearing it first compares a discount against itself
+  const _sp=CAREER.counters.flags.sponsored;
+  CAREER.counters.flags.sponsored=false;const full=siteUnitCost("baler");
+  CAREER.counters.flags.sponsored=true;const disc=siteUnitCost("baler");
+  CAREER.counters.flags.sponsored=_sp;
   t.ok(Math.abs(disc-Math.round(full*0.8))<1,"a corporate sponsor cuts new-equipment capex 20% ("+full+"\u2192"+disc+")");
   const cash0=G.cash;claimObjective("a_first");
   t.ok(G.cash>cash0&&objClaimed("a_first"),"claiming a grant credits the bank and is recorded");
@@ -242,7 +260,7 @@ const QC_SUITES={
 },
 
 "site-zones-reference":function(t){ // the REFERENCE plant must already honour the placement zones (design invariant)
-  newGame("career","site_ref",0x2E01);
+  newGame("career","site_qc",0x2E01);
   const PZ=sitePlaceZones();
   const zoneOf={input:"input",feeder:"feeder",process:"process",baler:"baler",bulk:"bulk",output:"output",landfill:"landfill"};
   let checked=0,bad=[];
@@ -335,7 +353,7 @@ const QC_SUITES={
   // sandbox & demo untouched by the tutorial
   newGame("career","site_free",0x7071);
   t.ok(!tutoActive(),"sandbox has no tutorial");
-  newGame("career","site_ref",0x7072);
+  newGame("career","site_qc",0x7072);
   t.ok(!tutoActive(),"the reference plant has no tutorial");
 },
 
@@ -396,13 +414,13 @@ const QC_SUITES={
 
 
 "site-per-game-bank":function(t){ // each game owns its bank + tech + objectives; nothing is shared
-  newGame("career","site_ref",0x51);
+  newGame("career","site_qc",0x51);
   G.cash=1800000;G.career.bank=1800000;researchTech("r_eddyU");
   const bankA=G.career.bank; // r_eddyU now charges a licence fee, so the bank is 1.8M − its cost
   const A=JSON.parse(JSON.stringify(serializeGame()));
   t.ok(G.career.tech.indexOf("r_eddyU")>=0,"career A owns its researched tech");
   // a second career starts fresh — no leak from A
-  newGame("career","site_ref",0x52);
+  newGame("career","site_qc",0x52);
   t.ok(G.career.tech.indexOf("r_eddyU")<0,"career B does NOT inherit A\u2019s tech");
   t.ok(G.career.bank!==1800000,"career B has its own bank, not A\u2019s");
   // loading A restores A\u2019s progression, independent of B
@@ -410,7 +428,7 @@ const QC_SUITES={
   t.ok(CAREER===G.career,"CAREER points into the loaded game\u2019s progression");
   t.ok(G.career.bank===bankA&&G.career.tech.indexOf("r_eddyU")>=0,"loading A restores A\u2019s bank + tech intact");
   // the tutorial never inherits a depleted bank (nothing is shared)
-  newGame("career","site_ref",0x53);G.career.bank=-500000;G.cash=-500000;
+  newGame("career","site_qc",0x53);G.career.bank=-500000;G.cash=-500000;
   newGame("career","site_career",0x54);
   t.ok(G.cash===2500000,"tutorial always starts fresh at 2.5M, never inheriting a drained bank");
   // sandbox has its own progression object too
@@ -491,7 +509,7 @@ const QC_SUITES={
   t.ok(G.nodes.find(n=>n.type==="splitter").splitLayout==="sides","splitLayout survives save/load");
 },
 "site-unit-throughput":function(t){ // per-unit real throughput: sorted output is a fraction of input; downstream in < upstream in
-  newGame("career","site_ref",0x71);G.running=true;
+  newGame("career","site_qc",0x71);G.running=true;
   for(let i=0;i<10000;i++)tick(0.04);
   const snap={};G.nodes.forEach(n=>{if(n._inMass)snap[n.id]={i:n._inMass,s:n._sortMass||0,r:n._restMass||0};});
   for(let i=0;i<30000;i++)tick(0.04);
@@ -513,15 +531,17 @@ const QC_SUITES={
     G.running=true;const d0=G.deliveredTot,t0=G.t;
     for(let i=0;i<30000;i++){tick(0.04);bs.forEach(b=>b.inBuf=empty());}
     return (G.deliveredTot-d0)/(G.t-t0);};
-  t.ok(Math.abs(feed(["wasteminster"])-4)<0.5,"one bunker on a contract feeds ~4 t/h");
-  t.ok(Math.abs(feed(["wasteminster","wasteminster"])-4)<0.5,"two bunkers SHARING a contract still total ~4 t/h (split, not duplicated)");
-  t.ok(Math.abs(feed(["wasteminster","binfinity"])-8)<0.7,"two bunkers on DIFFERENT contracts stack (4+4=8 total)");
-  t.ok(Math.abs(feed(["wasteminster","wasteminster","wasteminster"])-4)<0.6,"three bunkers sharing a contract still total ~4 t/h");
-  // default feed downscaled to 4 t/h (playtest 2026-08-01) — inbound still scales by signing more suppliers
-  t.ok(supplierStream("wasteminster").feedTph===4&&supplierStream("binfinity").feedTph===4,"suppliers are calibrated to 4 t/h each (sign more to scale inbound)");
+  t.ok(Math.abs(feed(["wasteminster"])-5)<0.5,"one bunker on a contract feeds ~5 t/h");
+  t.ok(Math.abs(feed(["wasteminster","wasteminster"])-5)<0.5,"two bunkers SHARING a contract still total ~5 t/h (split, not duplicated)");
+  // 5+5 would be 10, but the SITE CEILING is 8 — signing a second contract now runs you into it, which is
+  // the whole point of the cap: inbound stops being a number you can grow without limit.
+  t.ok(Math.abs(feed(["wasteminster","binfinity"])-G.logi.inboundCap)<0.8,"two DIFFERENT contracts fill the site ceiling, not 10 t/h");
+  t.ok(Math.abs(feed(["wasteminster","wasteminster","wasteminster"])-5)<0.6,"three bunkers sharing a contract still total ~5 t/h");
+  // a voluntary contract is 5 t/h (2026-08-16): one fills most of the 8 t/h site, so a mandate genuinely bites
+  t.ok(supplierStream("wasteminster").feedTph===5&&supplierStream("binfinity").feedTph===5,"voluntary suppliers are calibrated to 5 t/h each");
 },
 "site-flow-and-util":function(t){ // per-zone flow counters + vehicle utilization accumulate correctly
-  newGame("career","site_ref",0x61);G.running=true;
+  newGame("career","site_qc",0x61);G.running=true;
   const t0=G.t;for(let i=0;i<20000;i++)tick(0.04);const dt=G.t-t0;
   const bunker=G.nodes.filter(isBunker).find(n=>n.supplier!=="__none"&&(n._inMass||0)>0);
   t.ok(!!bunker,"an active bunker accrued inbound mass");
@@ -536,7 +556,7 @@ const QC_SUITES={
 },
 
 "site-opex-history":function(t){ // per-day OPEX breakdown recorded engine-side, capex EXCLUDED, persists
-  newGame("career","site_ref",0xC1);G.running=true;
+  newGame("career","site_qc",0xC1);G.running=true;
   // seed active suppliers so material flows
   for(const n of G.nodes)if(n.role==="bunker"&&n.supplier==="__none")n.supplier="wasteminster";
   G.opexHistory=[];G._opexDay=null;
@@ -553,7 +573,7 @@ const QC_SUITES={
   t.ok(qcBalanced().ok,"books balanced with history recording");
 },
 "site-accounting-reconcile":function(t){ // the P&L must reconcile: net cash == ledger; operating excludes capex
-  newGame("career","site_ref",0x7A01);
+  newGame("career","site_qc",0x7A01);
   for(let i=0;i<30000;i++)tick(0.04);
   const r=pnlReport(),g=G,l=G.ledger;
   t.ok(Math.abs(r.net-g.cash)<1,"net cash equals actual cash (accounting reconciles)");
@@ -575,7 +595,7 @@ const QC_SUITES={
     t.ok(Math.abs(r2.net-G.cash)<1,"net still reconciles to cash after a grant");}
 },
 "site-accounting-postTx":function(t){ // A5 (2026-07-12): every cash move routes through postTx; preplaced units refund what they PAID (0)
-  newGame("career","site_ref",0xACC7);
+  newGame("career","site_qc",0xACC7);
   // (a) reference-plant units are GIVEN (loadSite → paidCapex 0): demolishing one must refund 0, not the catalog price
   t.ok(G.nodes.every(n=>n.paidCapex===0),"every preplaced reference unit carries paidCapex 0");
   const victim=G.nodes.find(n=>n.type==="baler")||G.nodes[0]; // a baler catalogs at €220k — the old exploit refunded €110k of it
@@ -606,7 +626,7 @@ const QC_SUITES={
 },
 "site-persistence-safety":function(t){ // B3 (2026-07-12): snapshot must be detached; unknown/future saves must be rejected, not half-loaded
   // (1) the phase snapshot is deep-cloned — it must NOT share buffer references with the live game
-  newGame("career","site_ref",0xB1);
+  newGame("career","site_qc",0xB1);
   snapshotPhase();
   const liveNode=G.nodes.find(x=>x.inBuf),snapNode=_phaseSnap.nodes.find(z=>z.id===liveNode.id);
   t.ok(snapNode&&snapNode.inBuf!==liveNode.inBuf,"snapshot buffers are distinct objects (not shared by reference)");
@@ -614,7 +634,7 @@ const QC_SUITES={
   liveNode.inBuf.PET[0]+=500;qcTicks(1500); // hammer the live game
   t.ok(JSON.stringify(snapNode.inBuf)===frozen,"mutating the live game never bleeds into the snapshot");
   // (2) an unknown node type is REJECTED at load, and the rejection leaves the running game intact
-  newGame("career","site_ref",0xB2);
+  newGame("career","site_qc",0xB2);
   const good=JSON.parse(JSON.stringify(serializeGame()));
   const nBefore=G.nodes.length,cashBefore=G.cash;
   const bad=JSON.parse(JSON.stringify(good));
@@ -1181,7 +1201,10 @@ const QC_SUITES={
   //    sprite heading never jumps (the 180-cusp cancellation at work)
   let worstStep=0,worstTurn=0,legs=0;
   const checkLeg=(leg)=>{if(!leg||!leg.path||leg.path.length<2)return;legs++;
-    const N=240;let pv=null;
+    // Sample at a fixed ARC LENGTH (~2 px), not a fixed count: with the through-road a leg can be several
+    // thousand px long, and 240 fixed samples would stride right over a corner and report it as a snap.
+    // The threshold below is about the motion, so the measurement must not change with path length.
+    const N=Math.max(240,Math.ceil(pathLen(leg.path)/2));let pv=null;
     for(let k=0;k<=N;k++){const p=legPose(leg,k/N);
       if(pv){const d=Math.hypot(p.x-pv.x,p.y-pv.y);worstStep=Math.max(worstStep,d-pathLen(leg.path)/N*1.6);
         let da=Math.abs(p.a-pv.a);da=Math.min(da,2*Math.PI-da);worstTurn=Math.max(worstTurn,da);}
@@ -1461,19 +1484,29 @@ QC_SUITES["diversion-metric"]=function(t){ // the 80%-diversion goal used to be 
   G.delivered=2;G.deliveredTot=2;G.landfill=0;day();
   t.ok(CAREER.counters.bestDiversion===0,"no diversion record is banked before a real operating history");
   t.ok(!objMet(OBJ.a_div),"the 80% diversion grant is NOT claimable after 2 t with nothing buried");
-  // (b) past the threshold it banks the true lifetime ratio
-  G.deliveredTot=1000;G.delivered=1000;G.landfill=100;day();
-  t.ok(Math.abs(CAREER.counters.bestDiversion-0.9)<1e-6,"banks the real lifetime ratio (1000 t in, 100 t buried → 90%)");
+  // (b) THE STOCKPILE EXPLOIT: accepting 1000 t and selling NOTHING is not diversion, however little is
+  //     buried. The old metric read 1 - buried/accepted, so this was 100% and banked the grant permanently —
+  //     reachable just by leaving a baler's output unconnected, or by simply being a new plant.
+  G.deliveredTot=1000;G.delivered=1000;G.landfill=0;G.sold={};day();
+  t.ok(diversionNow()===0,"1000 t accepted, nothing sold, nothing buried → 0% (held material is not diverted)");
+  t.ok(!objMet(OBJ.a_div),"the 80% grant is NOT claimable by a plant that has sold nothing");
+  t.ok(CAREER.counters.bestDiversion===0,"…and no record is banked from stockpiling");
+  // (c) it banks the ratio of what actually LEFT the site: 900 t sold vs 100 t buried
+  G.sold={PET:{on:900,off:0}};G.landfill=100;day();
+  t.ok(Math.abs(CAREER.counters.bestDiversion-0.9)<1e-6,"banks the real ratio (900 t sold, 100 t buried → 90%)");
   t.ok(objMet(OBJ.a_div),"…and 90% clears the 80% goal");
-  // (c) the phase-reset collapse: G.delivered resets, G.landfill does not — the metric must not care
+  // (d) off-spec bales are sold at the off-spec price, not buried — they left as product
+  G.sold={PET:{on:450,off:450}};
+  t.ok(Math.abs(diversionNow()-0.9)<1e-6,"off-spec tonnage counts as diverted (it is sold, not buried)");
+  // (e) immune to the phase reset of G.delivered (the original bug this suite was written for)
   const before=diversionNow();
   G.delivered=0;                        // exactly what applyPhase does
   t.ok(Math.abs(diversionNow()-before)<1e-9,"diversion is immune to the phase reset of G.delivered");
   t.ok(diversionNow()>0,"…and does not collapse to 0 afterwards");
-  // (d) burying more must lower the CURRENT reading (even though the banked best is a high-water mark)
-  const cur=diversionNow();G.landfill=500;
+  // (f) burying more must lower the CURRENT reading (even though the banked best is a high-water mark)
+  const cur=diversionNow();G.landfill=900;
   t.ok(diversionNow()<cur,"burying more lowers the current diversion");
-  t.ok(Math.abs(diversionNow()-0.5)<1e-6,"1000 t in, 500 t buried → 50%");
+  t.ok(Math.abs(diversionNow()-0.5)<1e-6,"900 t sold, 900 t buried → 50%");
 };
 
 QC_SUITES["buffer-migration"]=function(t){ // every buffer that crosses save→restore must be MIGRATED, not trusted
@@ -1535,13 +1568,225 @@ QC_SUITES["site-crossings"]=function(t){ // belt overpasses: pure geometry, orde
 QC_SUITES["mandate-truck-carries-its-stream"]=function(t){ // the latent bug fixed by t.sup
   qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
   CAREER.counters.exportedOnSpec=MANDATE.m_kerbside.cond.gte+1;
-  qcDays(1+MANDATE.m_kerbside.warnDays);qcTicks(2000);
-  const forced=(G.trucks||[]).filter(x=>x.cls==="supplier"&&x.forced);
-  t.ok(forced.length>0,"imposed trucks are dispatched ("+forced.length+")");
+  qcDays(1+MANDATE.m_kerbside.warnDays);
+  // POLL the window instead of sampling one instant: trucks spawn, tip and depart, so whether any is in
+  // flight at a given tick is a matter of cadence, not correctness. (A single sample at the old rate
+  // happened to land on a truck; halving the imposed rate widened the gap and it started landing in a
+  // trough — the dispatch was never broken.)
+  const forced=[],vol=[];
+  for(let k=0;k<12;k++){qcTicks(400);
+    for(const x of (G.trucks||[])){if(x.cls!=="supplier")continue;
+      const bag=x.forced?forced:vol; if(!bag.some(y=>y.id===x.id))bag.push(x);}}
+  t.ok(forced.length>0,"imposed trucks are dispatched ("+forced.length+" over the window)");
   t.ok(forced.every(x=>x.sup==="skip_bizet"),"each imposed truck is stamped with the stream it carries");
-  const vol=(G.trucks||[]).filter(x=>x.cls==="supplier"&&!x.forced);
   t.ok(vol.every(x=>x.sup&&x.sup!=="skip_bizet"),"voluntary trucks carry their own stream, never the imposed one");
   t.ok(qcBalanced().ok,"mass balance holds with both stream types in flight");
+};
+
+QC_SUITES["ref-plant-100pct"]=function(t){ // the SHIPPED reference: Denis' closed-ring 100%-recycling build
+  newGame("career","site_ref",0xC0FFEE7);G.continuous=true;G.running=true;
+  t.ok(G.nodes.length===50&&G.edges.length===59,"loads 50 units / 59 connections (got "+G.nodes.length+"/"+G.edges.length+")");
+  t.ok(!G.nodes.some(isLandfill),"it has NO landfill bay — nothing can be buried by design");
+  t.ok(G.nodes.filter(isExport).length===6,"all six products have an export bay");
+  t.ok(siteCycleSets().length===1,"the recycle ring is present as a closed loop");
+  // THE CLIFF: the feeders must load at their authored rate, not be shoved up to the contract rate. At 4 t/h
+  // the ring saturates and the plant collapses to ~0.1 t/h with ~21 units blocked; 3 t/h sits inside the margin.
+  const fr=G.nodes.filter(isFeeder).map(n=>n.rate);
+  t.ok(fr.every(r=>r===3),"feeders load at their authored 3 t/h (got "+fr.join("/")+")");
+  qcTicks(30000);
+  const t0=G.t,d0=G.deliveredTot,l0=G.landfill;const s0={};for(const k in G.sold)s0[k]={on:G.sold[k].on,off:G.sold[k].off};
+  qcTicks(40000);
+  const hrs=G.t-t0;let on=0,off=0;for(const k in G.sold){on+=G.sold[k].on-((s0[k]&&s0[k].on)||0);off+=G.sold[k].off-((s0[k]&&s0[k].off)||0);}
+  const blocked=G.nodes.filter(n=>n.state==="jammed"||n.state==="overloaded"||n.state==="deadlock").length;
+  t.report("ref plant: in "+((G.deliveredTot-d0)/hrs).toFixed(2)+" on-spec "+(on/hrs).toFixed(2)+" off "+(off/hrs).toFixed(2)+" t/h, blocked "+blocked);
+  t.ok(on/hrs>3,"it runs a real on-spec rate ("+(on/hrs).toFixed(2)+" t/h)");
+  t.ok(G.landfill-l0===0,"…and buries nothing at all — the 100% in its name");
+  t.ok(blocked<=2,"…with the ring flowing, not gridlocked ("+blocked+" blocked units)");
+  t.ok(qcBalanced().ok,"mass balance holds on the shipped reference plant");
+};
+
+QC_SUITES["first-truck-eta"]=function(t){ // a new site waits in silence otherwise — the HUD needs a real number
+  newGame("career","site_atelier",0x7);G.continuous=true;G.running=true;
+  const e0=nextTruckETA(),eta0=e0&&e0.h;
+  t.ok(e0!=null,"a fresh site can say when its first load lands");
+  t.ok(!e0.arrived,"…and it knows the truck has not arrived yet");
+  t.ok(eta0>0&&eta0<12,"…and it is a sane wait, not a whole day ("+(eta0==null?"null":eta0.toFixed(2))+" h)");
+  // It predicts ARRIVAL at the apron — which is the event the player watches for and the label promises.
+  // Tipping follows after tipDwell, so delivery lands later; asserting against deliveredTot would be
+  // measuring a different event and would quietly drift with the dwell constant.
+  // It counts to the LOAD LANDING — drive plus the apron dwell — so one number falls all the way to the
+  // moment material appears, instead of hitting zero on arrival and jumping back up for the unloading.
+  const t0=G.t;let prev=eta0,fell=0,rose=0,sawArrived=false;
+  for(let i=0;i<90000&&G.deliveredTot<=0;i++){tick(0.004);
+    if(i%40===0){const e=nextTruckETA();
+      if(e!=null){ if(e.arrived)sawArrived=true;
+        if(e.h<prev-1e-9)fell++; else if(e.h>prev+1e-9)rose++;
+        prev=e.h;}}}
+  const landed=G.t-t0;
+  t.ok(G.deliveredTot>0,"the first load landed (after "+landed.toFixed(2)+" h)");
+  t.ok(fell>5,"the countdown decreases as the load approaches ("+fell+" samples fell)");
+  t.ok(rose===0,"the countdown NEVER goes back up ("+rose+" increases) — it used to reset to a fresh dwell on arrival");
+  t.ok(sawArrived,"it reports the unloading phase once the truck is on the apron");
+  t.ok(Math.abs(landed-eta0)<0.8,"the ETA predicted the landing ("+eta0.toFixed(2)+" h predicted, "+landed.toFixed(2)+" h actual)");
+  // a site with no supplier assigned has nothing to promise
+  for(const n of G.nodes)if(isBunker(n))n.supplier="__none";
+  for(const n of G.nodes)if(isBunker(n))n.truckDue=0;
+  G.trucks=[];
+  t.ok(nextTruckETA()===null,"with every bunker idle there is no arrival to announce");
+};
+
+QC_SUITES["export-bale-history"]=function(t){ // per-bay daily shipping history behind the 10-day chart
+  qcSiteGame();G.continuous=true;G.running=true;
+  const ex=G.nodes.filter(isExport);
+  t.ok(ex.length>0,"the reference plant has export bays");
+  t.ok(!(ex[0].hist||[]).length,"a fresh bay has no history yet");
+  qcTicks(40000); // ~160 sim-hours: several day rollovers with real selling
+  const withHist=ex.filter(n=>(n.hist||[]).length>0);
+  t.ok(withHist.length>0,"bays accumulate per-day rows ("+withHist.length+"/"+ex.length+" bays)");
+  const h=withHist[0].hist;
+  t.ok(h.every(r=>r.on>=0&&r.off>=0&&r.d!=null),"every row carries a day and non-negative on/off counts");
+  t.ok(h.length<=EXPORT_HIST,"the ring is capped at EXPORT_HIST days ("+h.length+" <= "+EXPORT_HIST+")");
+  // the daily counts must reconcile with the bay's lifetime totals (they are deltas of the same counters)
+  const n0=withHist[0];
+  const summed=n0.hist.reduce((s,r)=>s+r.on+r.off,0);
+  t.ok(summed<=n0.balesSold+n0.offSold+1e-6,"daily rows never exceed the bay's lifetime bale count ("+summed.toFixed(0)+" <= "+(n0.balesSold+n0.offSold)+")");
+  t.ok(summed>0,"…and they are not all zero ("+summed.toFixed(0)+" bales across the window)");
+  // survives the save, since nodes serialize
+  const before=JSON.stringify(n0.hist);
+  const s=serializeGame();restoreGame(JSON.parse(JSON.stringify(s)));
+  const after=G.nodes.find(x=>x.id===n0.id);
+  t.ok(JSON.stringify(after.hist)===before,"the history round-trips through save/restore");
+};
+
+QC_SUITES["mandate-triggers-relative"]=function(t){ // triggers count FROM the gate, not from campaign start
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;
+  // a careful builder arms the gate LATE, already deep into on-spec tonnage
+  CAREER.counters.exportedOnSpec=5000;
+  qcArm();
+  t.ok(CAREER.pressure.armed,"the gate armed");
+  t.ok(CAREER.pressure.baseOnSpec===5000,"arming records the tonnage baseline ("+CAREER.pressure.baseOnSpec+")");
+  t.ok(onSpecSinceArm()===0,"nothing counts toward a mandate at the moment of arming");
+  // THE BUG THIS PREVENTS: absolute thresholds would fire both mandates instantly at 5000 t
+  qcDays(4);
+  t.ok(CAREER.mandates.seen.length===0,"no mandate fires just because the plant was already productive");
+  // small at +150 since arming
+  CAREER.counters.exportedOnSpec=5000+MANDATE.m_kerbside.cond.gte-1; qcDays(2);
+  t.ok(CAREER.mandates.seen.indexOf("m_kerbside")<0,"…still nothing one tonne short of +150");
+  CAREER.counters.exportedOnSpec=5000+MANDATE.m_kerbside.cond.gte+1; qcDays(2);
+  t.ok(CAREER.mandates.seen.indexOf("m_kerbside")>=0,"the SMALL mandate fires at +150 t since arming");
+  t.ok(CAREER.mandates.seen.indexOf("m_regional")<0,"…and the large one does not follow it immediately");
+  // large at +1000 since arming
+  CAREER.counters.exportedOnSpec=5000+MANDATE.m_regional.cond.gte-1; qcDays(3);
+  t.ok(CAREER.mandates.seen.indexOf("m_regional")<0,"the LARGE mandate holds one tonne short of +1000");
+  CAREER.counters.exportedOnSpec=5000+MANDATE.m_regional.cond.gte+1; qcDays(4);
+  t.ok(CAREER.mandates.seen.indexOf("m_regional")>=0,"the LARGE mandate fires at +1000 t since arming");
+  t.ok(CAREER.pressure.baseOnSpec===5000,"the baseline never drifts");
+};
+
+QC_SUITES["recycling-yesterday"]=function(t){ // the HUD rate must reflect TODAY's plant, not a lifetime average
+  qcSiteGame();G.continuous=true;G.running=true;
+  t.ok(recyclingYesterday()===null,"no 24h rate before a full day has been banked (the HUD falls back to lifetime)");
+  qcTicks(20000); // ~80 sim-hours: several day rollovers
+  const H=G.opexHistory||[];
+  t.ok(H.length>=3,"per-day rows are being recorded ("+H.length+")");
+  t.ok(H[H.length-1].onT!=null,"…and each row carries tonnage, not just money");
+  const y=recyclingYesterday();
+  t.ok(y!==null&&y>=0&&y<=100,"a 24h recycling rate is available ("+(y===null?"null":y.toFixed(1)+"%")+")");
+  // THE POINT: a bad early history must not cap the current reading. Poison the lifetime totals and confirm
+  // the 24h figure is unmoved — that is what makes 100% reachable again after a rough start.
+  const before=recyclingYesterday();
+  G.landfill+=5000;
+  t.ok(recyclingPct()<5,"lifetime collapses when 5000 t of burial is added ("+recyclingPct().toFixed(1)+"%)");
+  t.ok(Math.abs(recyclingYesterday()-before)<1e-9,"…but the 24h rate is untouched by the past");
+  // and it round-trips, since opexHistory is serialized wholesale
+  const s=serializeGame();restoreGame(JSON.parse(JSON.stringify(s)));
+  t.ok(Math.abs(recyclingYesterday()-before)<1e-9,"the 24h rate survives save/restore");
+};
+
+QC_SUITES["loop-deadlock"]=function(t){ // a recirculation loop with no drain locks solid — say so, don't call it OVERLOAD
+  qcSiteGame();
+  t.ok(siteCycleSets().length===0,"the reference plant has no closed loop");
+  // close a ring: opener -> magnet -> mixer -> back to the opener. Every stage full, nowhere to hand off.
+  G.cash=1e7;
+  const a=sitePlaceUnit("process","opener",6,14,0),b=sitePlaceUnit("process","magnet",6,16,0),c=sitePlaceUnit("mixer","mixer",6,18,0);
+  t.ok(a.ok&&b.ok&&c.ok,"placed the three units of the ring");
+  siteConnect(a.node,"b",b.node,"t");siteConnect(b.node,"b",c.node,"t");siteConnect(c.node,"b",a.node,"t");
+  const sets=siteCycleSets();
+  t.ok(sets.length===1,"the ring is detected as a cycle ("+sets.length+")");
+  t.ok(sets[0].size===3,"…of the three units that form it (got "+(sets[0]&&sets[0].size)+")");
+  // stuff it and run: with no drain the ring must fill and lock
+  // book the injected mass as delivered — stuffing buffers directly would otherwise create matter from
+  // nothing and break the very invariant asserted below
+  {let inject=0;for(const n of [a.node,b.node,c.node])for(const m of MAT)for(let i=0;i<40;i++){n.inBuf[m][1]++;inject++;}
+   G.deliveredTot+=inject*PMASS;G.delivered+=inject*PMASS;}
+  qcTicks(4000);
+  const states=[a.node.state,b.node.state,c.node.state];
+  t.ok(states.every(s=>s==="deadlock"),"every unit on the locked ring reads LOOP DEADLOCK (got "+states.join("/")+")");
+  t.ok(qcBalanced().ok,"mass balance holds through the deadlock — nothing is destroyed, it just stops");
+  // breaking the ring must clear it: the state is a property of the topology, not a sticky flag
+  const back=G.edges.find(e=>e.from===c.node.id&&e.to===a.node.id);
+  siteDisconnect(back);
+  t.ok(siteCycleSets().length===0,"disconnecting the return leg removes the cycle");
+  qcTicks(2000);
+  t.ok(![a.node.state,b.node.state,c.node.state].some(s=>s==="deadlock"),"…and no unit still reads LOOP DEADLOCK");
+};
+
+QC_SUITES["bunker-bag-mix"]=function(t){ // the bunker's livery follows what is IN it, not the label on it
+  qcSiteGame();G.continuous=true;
+  const b=G.nodes.find(isBunker);
+  t.ok(bunkerBagType(b)===null,"an empty bunker has no dominant bag type");
+  tipLoad(b,"wasteminster",600,false);                       // blue = clean kerbside PMC
+  t.ok(bunkerBagType(b)==="blue","one stream in → that stream's bag type");
+  tipLoad(b,"watco_syndicate",300,true);                     // yellow = imposed residual, tipped regardless of the label
+  t.ok(bunkerBagType(b)==="blue","a minority imposed stream does not flip the livery");
+  tipLoad(b,"watco_syndicate",900,true);
+  t.ok(bunkerBagType(b)==="yellow","once the imposed stream dominates, the bunker shows it");
+  // removal is non-selective, so the RATIO must survive a partial drain
+  const before=bunkerBagType(b),held=cnt(b.inBuf);
+  for(let k=0;k<Math.floor(held*0.6);k++)popParticle(b.inBuf);
+  t.ok(bunkerBagType(b)===before,"draining 60% does not change the dominant type (loaders scoop in proportion)");
+  // emptying forgets, so a new stream is not haunted by the old one
+  while(cnt(b.inBuf)>0)popParticle(b.inBuf);
+  t.ok(bunkerBagType(b)===null,"an emptied bunker forgets its mix");
+  tipLoad(b,"binfinity",400,false);
+  t.ok(bunkerBagType(b)==="green","…and takes the new stream's type cleanly");
+  // and it survives a save round-trip
+  const s=serializeGame();restoreGame(JSON.parse(JSON.stringify(s)));
+  const b2=G.nodes.find(isBunker);
+  t.ok(bunkerBagType(b2)==="green","the mix round-trips through save/restore");
+};
+
+QC_SUITES["inbound-cap"]=function(t){ // imposed mandates used to STACK on top of your contracts: 13 t/h forced onto a ~10 t/h line
+  qcSiteGame();G.continuous=true;CAREER.counters.flags.tutorialComplete=true;qcArm();
+  const cap=G.logi.inboundCap, tot=()=>G.nodes.filter(isBunker).reduce((s,b)=>s+bunkerRatedTph(b).total,0);
+  // both bunkers on the two voluntary streams
+  const bs=G.nodes.filter(isBunker); bs[0].supplier="wasteminster"; bs[1].supplier="binfinity";
+  t.ok(Math.abs(tot()-8)<1e-9,"two voluntary contracts fill the ceiling exactly ("+tot().toFixed(2)+"/"+cap+" t/h)");
+  // THE INTENDED SEQUENCE (2026-08-16): one voluntary contract is 5 t/h; the SMALL mandate (2.5) pushes you to
+  // 7.5 of 8 and still fits beside it; the LARGE one (5) cannot, and forces a substitution.
+  const M=Object.keys(MANDATE);
+  t.ok(M.length===2,"exactly two imposed contracts — a small one then a large one (got "+M.length+")");
+  const rate=id=>(supplierStream(MANDATE[id].supplier)||{}).feedTph||0;
+  const small=Math.min(...M.map(rate)),large=Math.max(...M.map(rate));
+  t.ok(small===2.5&&large===5,"the small is 2.5 t/h and the large is 5 t/h (got "+small+" / "+large+")");
+  t.ok(5+small<=cap,"one voluntary contract still fits beside the SMALL mandate ("+(5+small)+" <= "+cap+")");
+  t.ok(5+small+large>cap,"…but not beside both — the large one forces a substitution ("+(5+small+large)+" > "+cap+")");
+  t.ok(small+large<=cap,"the mandates alone never exceed the ceiling ("+(small+large)+" <= "+cap+")");
+  // impose every mandate and confirm the TOTAL never moves past the cap — your own contracts get squeezed
+  for(const id in MANDATE){CAREER.mandates.seen.push(id);CAREER.mandates.active.push({id:id,day:1});}
+  const after=tot();
+  t.ok(after<=cap+1e-9,"with every mandate active the site still takes at most the ceiling ("+after.toFixed(2)+"/"+cap+")");
+  const r=bunkerRatedTph(bs[0]);
+  t.ok(r.imposed>0&&r.voluntary>0,"imposed and voluntary both still flow (imposed "+r.imposed.toFixed(2)+", yours "+r.voluntary.toFixed(2)+")");
+  t.ok(r.squeezed,"the bunker reports that its voluntary share is being crowded out");
+  // and the SIMULATION must agree with the number the inspector shows
+  const t0=G.t,d0=G.deliveredTot; qcTicks(30000);
+  const measured=(G.deliveredTot-d0)/(G.t-t0);
+  t.ok(measured<=cap+0.4,"measured intake respects the ceiling ("+measured.toFixed(2)+" <= "+cap+" t/h)");
+  // Measured lands a little UNDER the rating and that is honest: waste arrives in 10 t truckloads with a
+  // dwell at the apron and a per-stream in-flight limit, so five small streams cannot average their exact
+  // contractual rate. The inspector deliberately shows rated and measured side by side rather than pretending.
+  t.ok(measured>after*0.8,"deliveries broadly track the rating ("+measured.toFixed(2)+" vs rated "+after.toFixed(2)+" t/h)");
 };
 
 QC_SUITES["loader-throughput"]=function(t){
@@ -1568,13 +1813,17 @@ QC_SUITES["loader-throughput"]=function(t){
   t.ok(Math.floor(G.logi.feederCap/G.logi.loaderCap)>=8,"a feeder can commit at least 8 loaders (got "+Math.floor(G.logi.feederCap/G.logi.loaderCap)+")");
 };
 
-QC_SUITES["supplier-liveries"]=function(t){ // four of five streaming suppliers used to be "grey" — indistinguishable on site
+QC_SUITES["supplier-liveries"]=function(t){ // bag colour is a WASTE TYPE — the art ships exactly three liveries
   const streams=COMPANIES.suppliers.filter(s=>s.stream);
   t.ok(streams.length>=5,"at least 5 streaming suppliers ("+streams.length+")");
+  const LIVERIES=["blue","green","yellow"]; // bag_<k>.webp + bunk_<k>_0..4 exist for exactly these
   const bags={};for(const s of streams)bags[s.stream.bag]=(bags[s.stream.bag]||0)+1;
-  t.ok(Object.keys(bags).length===streams.length,"every streaming supplier carries its OWN bag livery ("+JSON.stringify(bags)+")");
-  t.ok(coById("binfinity").stream.bag!==coById("wasteminster").stream.bag,"Binfinity no longer shares Wasteminster's bag colour");
-  for(const s of streams)t.ok(!!s.stream.bag,coName(s)+" declares a bag livery");
+  for(const s of streams)t.ok(LIVERIES.indexOf(s.stream.bag)>=0,coName(s)+" declares a livery the art actually has (got \""+s.stream.bag+"\")");
+  t.ok(Object.keys(bags).length===LIVERIES.length,"all three waste types are in play ("+JSON.stringify(bags)+")");
+  t.ok(coById("binfinity").stream.bag!==coById("wasteminster").stream.bag,"Binfinity does not share Wasteminster's bag colour");
+  // dirtiness should track the type: residual (yellow) is the PVC-heavy end
+  const pvc=id=>coById(id).stream.comp.PVC;
+  t.ok(pvc("watco_syndicate")>pvc("wasteminster"),"the residual streams are the contaminated ones");
 };
 
 QC_SUITES["bunker-rated-tph"]=function(t){ // the inspector's "Contract capacity" must be the rate tick() applies
@@ -1601,7 +1850,10 @@ QC_SUITES["site-landfill-footprint"]=function(t){qcSiteGame(); // landfill shran
   const lf=G.nodes.find(isLandfill);
   t.ok(!!lf,"reference plant has a landfill");
   const fp=siteFootprint("landfill",0),out=siteFootprint("output",0);
-  t.ok(fp.w===out.w&&fp.h===out.h,"landfill footprint matches an export bay ("+fp.w+"x"+fp.h+" vs "+out.w+"x"+out.h+")");
+  // a tad larger than an export bay — it is a container yard, not a product bay — but nowhere near the old
+  // 7-wide slab that was swallowing the whole outbound row
+  t.ok(fp.w===3&&fp.h===3,"landfill is 3x3 ("+fp.w+"x"+fp.h+")");
+  t.ok(fp.w>out.w&&fp.w*fp.h<=out.w*out.h*2,"…larger than an export bay ("+out.w+"x"+out.h+") but not by much");
   // geometry is DERIVED from SITE_OBJ on load, so the snapshot's legacy 210px-wide literal must not survive
   t.ok(lf.w===fp.w*CELL&&lf.h===fp.h*CELL,"restored landfill geometry re-derived from SITE_OBJ (got "+lf.w+"x"+lf.h+")");
   // capacity is landfillHold x containerCap — independent of footprint, so the resize is not an economy change

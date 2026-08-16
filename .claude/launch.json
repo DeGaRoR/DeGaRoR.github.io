@@ -4,40 +4,87 @@
     {
       "name": "vivarioops",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "vivarioops", "run", "serve"],
+      "runtimeArgs": [
+        "--prefix",
+        "vivarioops",
+        "run",
+        "serve"
+      ],
       "port": 8092,
       "autoPort": true
     },
     {
       "name": "site",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8099"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8099"
+      ],
       "port": 8099,
+      "autoPort": true
+    },
+    {
+      "name": "recycle-v3",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8153"
+      ],
+      "port": 8153,
       "autoPort": true
     },
     {
       "name": "recycle",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8140"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8140"
+      ],
       "port": 8140,
+      "autoPort": true
+    },
+    {
+      "name": "recycle-fresh",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8147"
+      ],
+      "port": 8147,
       "autoPort": true
     },
     {
       "name": "flydiy",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8123"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8123"
+      ],
       "port": 8123
     },
     {
       "name": "flydiy-alt",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8124"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8124"
+      ],
       "port": 8124
     },
     {
       "name": "flydiy-loft",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8131"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8131"
+      ],
       "port": 8131
     }
   ]

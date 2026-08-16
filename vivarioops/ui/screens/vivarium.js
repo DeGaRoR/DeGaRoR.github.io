@@ -81,10 +81,11 @@ import {
 } from '../../render/tank.js';
 import { renderThumbnail, RENDER_TAG } from '../../render/thumbnail.js';
 import { W1_SLICE } from '../../worlds/w1_slice.js';
-import { stepBudget, hitRadius, classifyPointer, TAP, BREEDING_MS, STATE, BURST, burstSelection, burstKeep } from '../tank/sim.js';
+import { stepBudget, hitRadius, classifyPointer, TAP, BREEDING_MS, STATE, BURST, burstBudget, burstSelection, burstKeep } from '../tank/sim.js';
 import { button, mk, chip } from '../widgets.js';
 import { openMenu, closeMenu } from '../menu.js';
 import * as names from '../names.js';
+import { sensesOf } from '../senses.js';
 import * as atlas from '../atlas/index.js';
 import { lazyThumbs } from '../atlas/reveal.js';
 import * as release from '../release.js';
@@ -275,6 +276,22 @@ export default {
     let importThumbs = null;
     /** Burst progress, shown on the primary control. '' when not bursting. */
     let burstLabel = '';
+
+    /**
+     * ── WHAT THIS BREEDING RUN IS, IN THE PLAYER'S OWN WORDS ─────────────────
+     *
+     * `{ title, note }`, or nulls. Deliberately NOT a session-management
+     * feature: there is still exactly one lineage, it cannot be switched, and
+     * nothing here creates a second. It is metadata, so that a creature saved
+     * out of this tank can say which run it came from and the Atlas can pull up
+     * everything one run produced.
+     *
+     * That is the durable half. What a breeding SESSION needs — objectives,
+     * stall detection, outcross suggestions (design/15-BREEDING.md §10) — is not
+     * knowable until auto-breeding exists to define it, and guessing at the
+     * machinery now would mean guessing at the schema too.
+     */
+    let session = { title: null, note: null };
 
     /**
      * ── GENOME HASH, MEMOISED ────────────────────────────────────────────────
@@ -776,10 +793,11 @@ export default {
         // that `protea` is sitting in right now, and collapsing this to one
         // "can it smell" line would hide the very transition Phase 2 exists to
         // watch. So: how many eyes, and whether anything is listening.
-        [t('Senses'), c.plan.receptors?.length
-          ? `${c.plan.receptors.length} ${t('receptors')} · ${t('gain')} ${(c.genome.controller.chemoGain ?? 0).toFixed(2)}`
-            + (Math.abs(c.genome.controller.chemoGain ?? 0) < 0.01 ? ` · ${t('UNWIRED')}` : '')
-          : t('blind — no receptors')],
+        // READ BOTH GAINS, not just `chemoGain`. This row used to print UNWIRED
+        // whenever the kinesis gain was zero — which it is at birth, by design —
+        // and so labelled the one creature in the library with a WORKING
+        // directional sense as having none. See ui/senses.js.
+        [t('Senses'), sensesOf(c.plan, c.genome).summary],
         [t('Depth'), `${v[1].toFixed(1)} cm`],
         // A RECOMBINANT NAMES ITS PARENTS BY SLOT, and the slots are live: N18
         // keeps every selected creature in its own slot, so "mix of 1 + 4"
@@ -896,6 +914,19 @@ export default {
             // founding draw. So the field is only written when there is
             // something to write, or when the slot is genuinely parentless.
             ...(parentsFor(idx) ? { parents: parentsFor(idx) } : {}),
+            // ── WHICH RUN THIS CAME OUT OF ─────────────────────────────────
+            //
+            // The id is the lineage seed, which is stable and already the key of
+            // the record this tank persists to. The title is COPIED rather than
+            // looked up: a specimen is a thing that happened, and renaming the
+            // run afterwards must not retroactively rewrite what the creatures
+            // it produced were labelled with. Generation is the same argument —
+            // it is when this animal appeared, not where the run got to.
+            session: {
+              id: vivariumSeed,
+              title: session.title ?? null,
+              generation,
+            },
           };
           await store.set(key, record);
           saveBtn.textContent = t('Saved ✓');
@@ -945,6 +976,47 @@ export default {
       spawn();
       paint();
       persistLineage();
+    }
+
+    /**
+     * ── NAMING THE RUN ────────────────────────────────────────────────────────
+     *
+     * Two fields and a Save. It is not a session manager and is not trying to
+     * become one: there is one lineage, and this says what it is FOR.
+     *
+     * The point is downstream. `Save creature` stamps whatever is here onto the
+     * specimen record, so six months later the Atlas can answer "show me
+     * everything that came out of the run where I was chasing straight-line
+     * swimmers" — which is a question the collection could not previously be
+     * asked, because nothing recorded that the run had happened.
+     */
+    function openSessionSheet() {
+      if (!ready) return;
+      state = STATE.SHEET_OPEN;
+      sheet.hidden = false;
+      sheet.replaceChildren();
+      mk('spec-picker-title', sheet).textContent = t('This breeding run');
+      mk('spec-empty', sheet, 'p').textContent =
+        t('Creatures you keep from here on are stamped with this, so the Atlas can group them.');
+
+      const title = mk('field', sheet, 'input');
+      title.type = 'text';
+      title.placeholder = t('What are you breeding for?');
+      title.value = session.title ?? '';
+      title.setAttribute('aria-label', t('Session name'));
+
+      const note = mk('field spec-session-note', sheet, 'textarea');
+      note.rows = 3;
+      note.placeholder = t('Notes — what you have tried, what is working.');
+      note.value = session.note ?? '';
+      note.setAttribute('aria-label', t('Session notes'));
+
+      sheet.append(button(t('Save'), () => {
+        session = { title: title.value.trim() || null, note: note.value.trim() || null };
+        persistLineage();
+        closeSheet();
+      }), button(t('Close'), closeSheet));
+      paint();
     }
 
     // ── the stranger picker ─────────────────────────────────────────────────
@@ -1204,6 +1276,12 @@ export default {
           : t('Choose next stranger…'),
         onSelect: openStrangerPicker,
       }] : []),
+      ...(ready && !busyNow() ? [{
+        // The label carries the state, because a menu item cannot show one
+        // otherwise and "is this run named yet" is the only question it answers.
+        label: session.title ? `${t('Session')}: ${session.title}` : t('Name this breeding run…'),
+        onSelect: openSessionSheet,
+      }] : []),
       ...(ready && !busyNow() ? [{ label: t('New draw'), onSelect: doDraw }] : []),
       { label: t('Reset'), onSelect: doReset },
       // ── THE VISIBILITY LAYERS, KEPT ──────────────────────────────────────
@@ -1333,12 +1411,24 @@ export default {
       mk('spec-picker-title', sheet).textContent = t('Keep the offspring that score best on:');
 
       for (const o of OBJECTIVES) {
-        const rounds = o.adapt ? BURST.physicsRounds : BURST.freeRounds;
-        sheet.append(button(`${t(o.label)} — ${rounds} ${t('rounds')}`, () => { closeSheet(); runBurst(o); }));
+        const b = burstBudget(o);
+        const btn = button(`${t(o.label)} — ${b.rounds} ${t('rounds')}`, () => { closeSheet(); runBurst(o); });
+        // ── AN UNTRUSTED OBJECTIVE SAYS SO ON ITS OWN BUTTON ─────────────────
+        //
+        // `trusted: false` means the project has measured this number and found
+        // that selecting on it produces something other than what its name
+        // suggests — for `Ledger`, an animal that has perfected sitting still.
+        // The finding is useless in a source comment; it belongs where the choice
+        // is made.
+        if (o.trusted === false) btn.dataset.warn = 'yes';
+        sheet.append(btn);
         // A VISIBLE line, not a title attribute: this is a phone-first screen and
         // a tooltip needs a hover that will never happen.
-        mk('spec-empty', sheet, 'p').textContent =
-          o.adapt ? `${t(o.note)} · ${t('simulated, about 20 s')}` : t(o.note);
+        const line = mk('spec-empty', sheet, 'p');
+        line.textContent = o.cost === 'free'
+          ? t(o.note)
+          : `${t(o.note)} · ${t('simulated, about 20 s')}`;
+        if (o.trusted === false) line.dataset.warn = 'yes';
       }
       sheet.append(button(t('Close'), closeSheet));
     }
@@ -1360,14 +1450,18 @@ export default {
       // depending on how it was made. Sorted, so a burst is a function of WHAT is
       // selected, not of how.
       const pinned = [...selected].sort((a, b) => a - b);
-      const rounds = obj.adapt ? BURST.physicsRounds : BURST.freeRounds;
+      // ONE budget, read once and used by the progress maths and the loop alike —
+      // they disagreed when each computed its own, and the progress bar is the
+      // only thing a player has to tell whether a burst is advancing.
+      const budget = burstBudget(obj);
+      const rounds = budget.rounds;
       const rng = rngFrom('tank', vivariumSeed, 'burst', generation);
       const repaint = () => new Promise((r) => {
         let fired = false; const go = () => { if (!fired) { fired = true; r(); } };
         requestAnimationFrame(go); setTimeout(go, 50);
       });
-      const perRound = BURST.pool - Math.max(pinned.length, BURST.pool >> 1);
-      const totalBodies = (BURST.pool - pinned.length) + rounds * Math.max(1, perRound);
+      const perRound = budget.pool - Math.max(pinned.length, budget.pool >> 1);
+      const totalBodies = (budget.pool - pinned.length) + rounds * Math.max(1, perRound);
       let done = 0;
       // Into the primary control, via `burstLabel` so `paint()` — which runs
       // every 150 ms during a burst — reads it instead of overwriting it.
@@ -1379,10 +1473,10 @@ export default {
       (async () => {
         let pop = genomes.slice();
         const fromTank = pop.length;
-        if (pop.length < BURST.pool) {
+        if (pop.length < budget.pool) {
           pop = pop.concat(seedPopulation({
             RAPIER, rng: rng.fork('expand'), world: W1_SLICE,
-            population: BURST.pool - pop.length, authoredSlots: 0,
+            population: budget.pool - pop.length, authoredSlots: 0,
           }).genomes);
         }
         /**
@@ -1435,10 +1529,23 @@ export default {
           const bred = breed({
             RAPIER, genomes: pop, selected: parents,
             rng: rng.fork(`breed${round}`), world: W1_SLICE,
-            // Asexual, matching engine/l2/objective.js autoBurst — the burst
-            // breeds from half the pool, so it would go sexual for free and stop
-            // being comparable to every figure taken with tools/_zburst.mjs.
-            limits: { ...SLICE_LIMITS, crossoverRate: 0 },
+            // ── CROSSOVER IS ON, AND TURNING IT OFF WAS THE BUG ──────────
+            //
+            // This read `crossoverRate: 0`, for comparability with figures taken
+            // by tools/_zburst.mjs. design/15-BREEDING.md §5.3 is blunt about
+            // what that costs: `_evolve`, `_evolve_run` and `_evolve_seek` all
+            // switched crossover off — reasonably, to avoid confounding two
+            // operators — and ALL THREE ARE AMONG THE RUNS THAT PLATEAUED.
+            //
+            // The doc's central claim is that recombination is the engine here,
+            // because heritability is ~1 and mutation alone is a slow walk:
+            // "crossover's power is proportional to how different the parents
+            // are". An asexual burst is a mutation-limited burst, and a
+            // mutation-limited burst is the thing every plateaued run was.
+            //
+            // The comparability it bought was with measurements of a loop nobody
+            // is running any more. Kept as the default from the slice.
+            limits: SLICE_LIMITS,
           });
           pop = bred.genomes;
 
@@ -2120,6 +2227,19 @@ export default {
         vivariumId: vivariumSeed,
         generation, genomes, provenance,
         selected: [...selected],
+        // ── RE-EMITTED FROM CLOSURE STATE, AND THAT IS THE WHOLE TRICK ────────
+        //
+        // This function rebuilds the record as a FRESH OBJECT LITERAL, so any
+        // field it does not name is dropped. `persistLineage` runs on every
+        // selection tap, so a title written anywhere else would survive for
+        // exactly as long as it took the player to tap a creature — a data-loss
+        // bug that would look like a save button that sometimes works.
+        //
+        // So the session's own metadata is loaded into closure state at boot
+        // (see the boot path) and written back out here, every time, by name.
+        // The alternative — making this a read-modify-write over the stored
+        // record — would put a store read on every tap for one string.
+        session,
         previous: previous && {
           genomes: previous.genomes, provenance: previous.provenance,
           generation: previous.generation, selected: previous.selected,
@@ -2213,6 +2333,8 @@ export default {
         provenance = saved.provenance ?? genomes.map(() => ({ kind: KIND.STRANGER }));
         selected = new Set(Array.isArray(saved.selected) ? saved.selected : []);
         previous = saved.previous ? { ...saved.previous, selected: saved.previous.selected ?? [] } : null;
+        // Into closure state, so `lineageRecord` can write it back out. See there.
+        if (saved.session) session = { title: saved.session.title ?? null, note: saved.session.note ?? null };
       } else {
         const seeded = seedPopulation({
           RAPIER, rng: rngFrom('tank', vivariumSeed, 'seed'), world: W1_SLICE,

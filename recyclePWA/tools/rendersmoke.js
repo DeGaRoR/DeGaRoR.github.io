@@ -65,8 +65,8 @@ const raf = f => { rafQ.push(f); return rafQ.length; };
 
 const driver = `
 ;(function(){
-  begin("career","site_ref");
-  if(!siteMode())throw new Error("siteMode() false after begin(site_ref)");
+  begin("career","site_qc");   // the plain harness rig; the SHIPPED reference plant gets its own pass below
+  if(!siteMode())throw new Error("siteMode() false after begin(site_qc)");
   for(let i=0;i<2600;i++)tick(0.004); // ~10.4 sim-h: covers the reference plant’s cold-start first tip (later since the default feed dropped 5→4 t/h, 2026-08-01)
   const deliveredInRun=G.deliveredTot; // capture NOW: later test blocks call newGame() and reset a fresh site_ref
   UI.viewReset();
@@ -125,8 +125,8 @@ const driver = `
    setView("tech");if(curView!=="process")throw new Error("sandbox should not switch to R&D view");
    setView("obj");if(curView!=="process")throw new Error("sandbox should not switch to Goals view");
    setView("process");if(curView!=="process")throw new Error("process view should work in sandbox");
-   newGame("career","site_ref",0x1);
-   if(isSandboxSite())throw new Error("site_ref must not be a sandbox site");
+   newGame("career","site_qc",0x1);   // back to the plain rig: everything after this (burden fixture, crossings) assumes it
+   if(isSandboxSite())throw new Error("site_qc must not be a sandbox site");
    setView("tech");if(curView!=="tech")throw new Error("career should reach the R&D view");
    setView("process");}
   // siteNodeLabel custom name: a renamed unit must show its label on the map (bug: siteNodeLabel ignored it)
@@ -187,26 +187,67 @@ const driver = `
      siteMoveUnit(d.node,12,17,0);
      if(siteCrossings()===XS)throw new Error("crossing cache went stale after a reroute");
      render();}}
+  // ── COACH LEAK: play the tutorial, then load a plant that has none. The banner must go away.
+  //    (updateCoach is what hides it, and it used to stop being called the moment the tutorial ended.)
+  let coachLeak=null;
+  {newGame("career","site_career",0x9);render();
+   const shownDuringTuto=document.getElementById("coach").style.display;
+   newGame("career","site_ref",0x9);render();render();
+   coachLeak={duringTutorial:shownDuringTuto,afterLoadingRefPlant:document.getElementById("coach").style.display,
+     tutoActiveOnRef:tutoActive()};}
+  // ── the SHIPPED reference plant (Denis' 100%-recycling ring) must render, not just simulate
+  let refPlant=null;
+  {newGame("career","site_ref",0xC0FFEE7);G.running=true;
+   for(let i=0;i<3000;i++)tick(0.004);
+   UI.viewReset();render();render();
+   const one={};for(const n of G.nodes)if(!one[n.site])one[n.site]=n;
+   for(const k in one)inspectNode(one[k]);
+   closeSheet();
+   refPlant={nodes:G.nodes.length,edges:G.edges.length,cycles:siteCycleSets().length,
+     landfills:G.nodes.filter(isLandfill).length,exports:G.nodes.filter(isExport).length,
+     feeders:G.nodes.filter(isFeeder).map(n=>n.rate).join("/")};}
+  begin("career","site_qc");for(let i=0;i<600;i++)tick(0.004);   // back to the rig for the rest of the run
   // ── seed a career, then hand the serialized save to the boot-resume pass below. Progression lives INSIDE
   //    the save (career:G.career), and CAREER is a live pointer into it — so a save with owned tech is the
   //    only fixture that can prove the boot path keeps them attached.
+  // ── CONTRACTS view: render it in both states that matter — clean, and with every mandate imposed (which is
+  //    when your own contracts get scaled down and the squeeze warning has to appear).
+  let conHtml="",conSqueezed="";
+  {setView("con");conHtml=document.getElementById("viewCon").innerHTML;
+   CAREER.counters.flags.tutorialComplete=true;CAREER.pressure.armed=true;
+   for(const id in MANDATE){if(CAREER.mandates.seen.indexOf(id)<0)CAREER.mandates.seen.push(id);CAREER.mandates.active.push({id:id,day:1});}
+   renderConView();conSqueezed=document.getElementById("viewCon").innerHTML;
+   CAREER.mandates.active.length=0;CAREER.mandates.seen.length=0;setView("process");}
   const careerAttached=(CAREER===G.career);
   CAREER.tech.push("r_airU","a_split");CAREER.claimed.push("a_first");recomputeTechMod();
   const bootSave=JSON.stringify(serializeGame());
   __report({nodes:nodes0,veh:G.vehicles.length,edges:edges0,xings,
     delivered:deliveredInRun,trucks:(G.trucks||[]).length,zoom:cam.zoom,camx:cam.x,
-    careerAttached,bootSave,
+    careerAttached,bootSave,refPlant,coachLeak,
+    conLen:conHtml.length,conHasIntake:/Site intake|Admission/.test(conHtml),conHasBuyers:/Buyers|Acheteurs/.test(conHtml),
+    conSqueezeWarns:/crowding out|évincent/.test(conSqueezed),conHasImposed:/Cannot be refused|Non refusable/.test(conSqueezed),
+    conTruckIcons:conHtml.split("assets/sup_").length-1,
+    conLockedListed:/Locked|Verrouill/.test(conHtml),
+    conAvailCount:(conHtml.match(/Not signed|Non sign|Locked|Verrouill/g)||[]).length,
+    conHasComp:/compbar/.test(conHtml),
     // OBJ/MANDATE names reach tr() as VARIABLES, so tools/i18ncheck.js (which only scans tr("literal") call
     // sites) is blind to them — reword an objective and French silently falls back to English. Checked here,
     // where both the engine data and LANG.fr are in scope.
-    frGaps:(function(){const m=[];
+    frGaps:(function(){const m=[],SELF=["PET","PVC","Film","Alu","Aluminium"]; // identical in both languages
       for(const k in OBJ)if(OBJ[k].name&&!LANG.fr[OBJ[k].name])m.push("OBJ."+k+": "+OBJ[k].name);
       for(const k in MANDATE)if(MANDATE[k].name&&!LANG.fr[MANDATE[k].name])m.push("MANDATE."+k+": "+MANDATE[k].name);
+      for(const k in SPECS){const l=SPECS[k].label;if(l&&SELF.indexOf(l)<0&&!LANG.fr[l])m.push("SPECS."+k+": "+l);}
       return m;})(),
-    frChecked:Object.keys(OBJ).length+Object.keys(MANDATE).length,
+    frChecked:Object.keys(OBJ).length+Object.keys(MANDATE).length+Object.keys(SPECS).length,
     // per-supplier liveries: bagCol/bagKey/truckSpriteKey must resolve from the STREAM, not from a plant-wide global
     bagCols:COMPANIES.suppliers.filter(s=>s.stream).map(s=>bagCol(s.id)),
-    truckKeys:["wasteminster","binfinity"].map(id=>truckSpriteKey({cls:"supplier",sup:id,id:1}))});
+    truckKeys:["wasteminster","binfinity"].map(id=>truckSpriteKey({cls:"supplier",sup:id,id:1})),
+    // every streaming supplier must resolve to its OWN bin-truck livery, and that art must actually decode
+    supTrucks:COMPANIES.suppliers.filter(s=>s.stream).map(s=>truckSpriteKey({cls:"supplier",sup:s.id,id:1})),
+    supTrucksLoaded:COMPANIES.suppliers.filter(s=>s.stream).every(s=>!!img(truckSpriteKey({cls:"supplier",sup:s.id,id:1}))),
+    // steel's halo colour must stand clear of the belt it rides on (luma gap, not just "a different hex")
+    steelLuma:(function(h){h=COL.steel.replace("#","");return Math.round(0.299*parseInt(h.slice(0,2),16)+0.587*parseInt(h.slice(2,4),16)+0.114*parseInt(h.slice(4,6),16));})(),
+    beltLuma:["#6F665C","#3B3833","#565149"].map(function(c){c=c.replace("#","");return Math.round(0.299*parseInt(c.slice(0,2),16)+0.587*parseInt(c.slice(2,4),16)+0.114*parseInt(c.slice(4,6),16));})});
 })();`;
 
 /* Pass 2 — BOOT RESUME. app.js's top-level boot block auto-resumes a saved site game before any driver
@@ -264,12 +305,29 @@ ok(report && report.zoom >= 0.35 && report.zoom <= 1.6, "site view fit produced 
 ok(report && report.xings > 0, "belt crossing detected on the built cross (" + (report && report.xings) + ")");
 ok((calls.clip || 0) > 0, "overpass pass clipped the belt below (clip ×" + (calls.clip || 0) + ")"); // ctx.clip( appears nowhere else in js/, so this is an unambiguous marker that the pass ran
 ok(report && report.careerAttached, "CAREER is attached to G.career after begin()");
+ok(report && report.coachLeak && report.coachLeak.duringTutorial === "block" && report.coachLeak.afterLoadingRefPlant === "none" && !report.coachLeak.tutoActiveOnRef,
+  "the tutorial banner does NOT survive into a plant with no tutorial (tuto=" + (report && report.coachLeak && report.coachLeak.duringTutorial) + " → ref=" + (report && report.coachLeak && report.coachLeak.afterLoadingRefPlant) + ")");
+ok(report && report.refPlant && report.refPlant.nodes === 50 && report.refPlant.edges === 59,
+  "shipped reference plant renders (" + (report && report.refPlant && report.refPlant.nodes) + " units / " + (report && report.refPlant && report.refPlant.edges) + " connections)");
+ok(report && report.refPlant && report.refPlant.cycles === 1 && report.refPlant.landfills === 0 && report.refPlant.exports === 6,
+  "…with its recycle ring, six export bays and no landfill (feeders " + (report && report.refPlant && report.refPlant.feeders) + " t/h)");
+ok(report && report.conLen > 400 && report.conHasIntake && report.conHasBuyers, "contracts view renders (" + (report && report.conLen) + " chars, intake + buyers)");
+ok(report && report.conHasComp, "contracts view shows stream composition bars");
+ok(report && report.conTruckIcons >= 3, "each contract shows its bin-truck livery (" + (report && report.conTruckIcons) + " truck sprites)");
+ok(report && report.conLockedListed && report.conAvailCount >= 3,
+  "streams still locked behind R&D are listed as available-to-come (" + (report && report.conAvailCount) + " unsigned streams shown)");
+ok(report && report.conHasImposed && report.conSqueezeWarns, "with every mandate imposed it lists them and warns your contracts are crowded out");
 ok(report && report.frChecked > 5 && report.frGaps && report.frGaps.length === 0,
-  "every OBJ/MANDATE name has a French entry (" + (report && report.frChecked) + " checked)" + (report && report.frGaps && report.frGaps.length ? " — MISSING: " + report.frGaps.join(" | ") : ""));
-ok(report && report.bagCols && new Set(report.bagCols).size === report.bagCols.length,
-  "every streaming supplier resolves to its own bag colour (" + (report && report.bagCols || []).join(" ") + ")");
+  "every OBJ/MANDATE/SPECS name has a French entry (" + (report && report.frChecked) + " checked)" + (report && report.frGaps && report.frGaps.length ? " — MISSING: " + report.frGaps.join(" | ") : ""));
+ok(report && report.bagCols && new Set(report.bagCols).size === 3,
+  "streams resolve to the three waste-type colours (" + [...new Set(report && report.bagCols || [])].join(" ") + ")");
 ok(report && report.truckKeys && report.truckKeys[0] !== report.truckKeys[1],
   "supplier trucks differ per contract (" + (report && report.truckKeys || []).join(" vs ") + ")");
+ok(report && report.supTrucks && new Set(report.supTrucks).size === report.supTrucks.length,
+  "every streaming supplier has its OWN truck livery (" + (report && report.supTrucks || []).join(" ") + ")");
+ok(report && report.supTrucksLoaded, "…and every one of those sprites decodes");
+ok(report && report.beltLuma && Math.min(...report.beltLuma.map(b => Math.abs(report.steelLuma - b))) > 60,
+  "steel reads clear of the conveyor greys (luma " + (report && report.steelLuma) + " vs belt " + (report && report.beltLuma || []).join("/") + ")");
 // ── boot-resume: the regression that shipped as "my tech tree and rewards reset after the update"
 ok(!!boot && boot.hasGame && boot.nodes > 0, "boot auto-resumed the seeded save (" + (boot && boot.nodes) + " units)");
 ok(!!boot && boot.attached, "CAREER still points into G.career after the BOOT resume path");
