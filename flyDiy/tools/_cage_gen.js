@@ -1123,7 +1123,9 @@ function cageRims(m, S) {
     const path = pts;
     const pN = ns;
     const NP = path.length;
-    const SS = 8;                          // octagon section
+    // section sides are budgetable: the seals are ~half the face count at
+    // L2, so rimSides 6 buys a visible chunk back (default 8 = octagon)
+    const SS = Math.max(4, Math.round(W.rimSides || 8));
     // MITER JOINTS: at each path vertex the section sits on the corner
     // BISECTOR plane and is stretched 1/cos(half-turn) along the miter
     // axis — the exact ellipse where the two straight tube runs intersect
@@ -1358,55 +1360,81 @@ function cageInterior(m, S) {
     const back = Math.max(0.005, I.dashBack || 0.05);
     const lip = Math.max(0.005,
       (I.dashLip != null ? I.dashLip : I.dashInset) || 0.035);
+    const dep = Math.max(0.02, I.dashDepth || 0.35);
     let zP = 1e9;
     for (const p of base) zP = Math.min(zP, p[2]);
     zP -= back;
-    // row 1: flattened onto the transverse plane; row 2: in-plane inset
-    // toward the chord middle (the glareshield roll, height = dashLip);
-    // row 3: forward by the same value (the lip)
-    const r1 = base.map(p => [p[0], p[1], zP]);
-    const M0 = [(r1[0][0] + r1[r1.length - 1][0]) / 2,
-                (r1[0][1] + r1[r1.length - 1][1]) / 2];
-    const NL = r1.length;
-    const r2 = r1.map((p, i) => {
-      const a = r1[Math.max(0, i - 1)], b = r1[Math.min(NL - 1, i + 1)];
+    const zF = zP + lip;
+    let yB = 1e9;
+    for (const p of base) yB = Math.min(yB, p[1]);
+    yB -= dep;
+    // the panel OUTLINE in the transverse plane: the flattened base arc
+    // EXTENDED by vertical side drops to the flat bottom line — the roll
+    // and lip border wraps the SIDES too (user: the sides get lips).
+    // Columns: NS side pts (bottom->top), NL arc pts, NS side pts
+    // (top->bottom). Each column also carries its base-line ANCHOR (the
+    // side columns anchor to the base end points — those strip quads
+    // degenerate to triangles and fan the side walls).
+    const NL = base.length;
+    const NS = 3;
+    const bL = base[0], bR = base[NL - 1];
+    const O = [], anchor = [];
+    for (let j = 0; j < NS; j++) {
+      const t = j / NS;
+      O.push([bL[0], yB + (bL[1] - yB) * t, zP]); anchor.push(bL);
+    }
+    for (let i = 0; i < NL; i++) {
+      O.push([base[i][0], base[i][1], zP]); anchor.push(base[i]);
+    }
+    for (let j = NS - 1; j >= 0; j--) {
+      const t = j / NS;
+      O.push([bR[0], yB + (bR[1] - yB) * t, zP]); anchor.push(bR);
+    }
+    const NX = O.length;
+    // in-plane inset of the full outline (normals toward the interior)
+    let yTop = -1e9;
+    for (const p of base) yTop = Math.max(yTop, p[1]);
+    const cen = [0, (yB + yTop) / 2];
+    const O1 = O.map((p, i) => {
+      const a = O[Math.max(0, i - 1)], b = O[Math.min(NX - 1, i + 1)];
       let nx = -(b[1] - a[1]), ny = b[0] - a[0];
       const l = Math.hypot(nx, ny) || 1;
       nx /= l; ny /= l;
-      if (nx * (M0[0] - p[0]) + ny * (M0[1] - p[1]) < 0) { nx = -nx; ny = -ny; }
+      if (nx * (cen[0] - p[0]) + ny * (cen[1] - p[1]) < 0) { nx = -nx; ny = -ny; }
       return [p[0] + nx * lip, p[1] + ny * lip, zP];
     });
-    const zF = zP + lip;
-    const r3 = r2.map(p => [p[0], p[1], zF]);
-    // the FACE: down to a VERTICALLY FLAT bottom line (user ruling — the
-    // bottom does NOT retain the top curvature); depth measured from the
-    // lip arc's lowest point
-    const dep = Math.max(0.02, I.dashDepth || 0.35);
-    let yB = 1e9;
-    for (const p of r3) yB = Math.min(yB, p[1]);
-    yB -= dep;
-    const r4 = r3.map(p => [p[0], yB, zF]);
-    // CLOSE THE SOLID (user spec): the flat bottom line extrudes toward
-    // the nose to sit directly under the base line, then joins back up to
-    // the base line it originated from (a continuous surface), and the
-    // sides get matching lids — a closed manifold object that shows no
-    // flaws when a door opens
-    const r5 = base.map(p => [p[0], yB, p[2]]);
-    const rows = [base, r1, r2, r3, r4, r5];
-    const ids = rows.map(row => row.map(p => V.push(p.slice()) - 1));
+    const O2 = O1.map(p => [p[0], p[1], zF]);       // forward lip
+    const R4 = O2.map(p => [p[0], yB, zF]);         // face drop, flat bottom
+    const R5 = anchor.map(p => [p[0], yB, p[2]]);   // under the base line
+    // CLOSED SOLID: anchors -> outline -> inset -> lip -> face bottom ->
+    // under-base -> back to the anchors. Coincident points (side-column
+    // repeats, face bottom at the side corners) FUSE via a coordinate-
+    // keyed vertex map; quads with < 3 distinct verts are skipped and
+    // repeated-vertex quads act as triangles (self-edges don't count).
+    const vid = new Map();
+    const pid = p => {
+      const k = p[0].toFixed(9) + ',' + p[1].toFixed(9) + ',' + p[2].toFixed(9);
+      if (!vid.has(k)) vid.set(k, V.push([p[0], p[1], p[2]]) - 1);
+      return vid.get(k);
+    };
+    const rows = [anchor, O, O1, O2, R4, R5, anchor];
+    const ids = rows.map(row => row.map(pid));
     const dashStart = add.length;
-    const cyc = ids.concat([ids[0]]);             // loop back to the base
-    for (let r = 0; r + 1 < cyc.length; r++)
-      for (let i = 0; i + 1 < NL; i++)
-        add.push({ v: [cyc[r][i], cyc[r][i + 1], cyc[r + 1][i + 1],
-                       cyc[r + 1][i]], m: 'dash' });
-    // side lids: two quads over the hexagon profile per side; the right
-    // side is reversed so every edge runs once in each direction
-    const Lc = ids.map(r => r[0]), Rc = ids.map(r => r[NL - 1]);
-    add.push({ v: [Lc[0], Lc[1], Lc[2], Lc[3]], m: 'dash' });
-    add.push({ v: [Lc[0], Lc[3], Lc[4], Lc[5]], m: 'dash' });
-    add.push({ v: [Rc[3], Rc[2], Rc[1], Rc[0]], m: 'dash' });
-    add.push({ v: [Rc[5], Rc[4], Rc[3], Rc[0]], m: 'dash' });
+    const quad = (a, b, c, d) => {
+      if (new Set([a, b, c, d]).size < 3) return;
+      add.push({ v: [a, b, c, d], m: 'dash' });
+    };
+    for (let r = 0; r + 1 < rows.length; r++)
+      for (let i = 0; i + 1 < NX; i++)
+        quad(ids[r][i], ids[r][i + 1], ids[r + 1][i + 1], ids[r + 1][i]);
+    // side lids: the small col-0 / col-NX-1 profile rings (anchor, outline
+    // corner, inset, lip; the face-bottom corner fuses with the lip end).
+    // Left runs rows downward, right reversed — every edge once each way.
+    const Lc = ids.map(r => r[0]), Rc = ids.map(r => r[NX - 1]);
+    quad(Lc[0], Lc[1], Lc[2], Lc[3]);
+    quad(Lc[0], Lc[3], Lc[5], Lc[5]);
+    quad(Rc[3], Rc[2], Rc[1], Rc[0]);
+    quad(Rc[5], Rc[5], Rc[3], Rc[0]);
     // outward orientation by the component's own signed volume
     let vol = 0;
     for (let k = dashStart; k < add.length; k++) {
@@ -1865,7 +1893,7 @@ const CAGE_PARAMS = {
   rearAperture: 0,
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
-  rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1,
+  rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   doorDepth: 0.008,
   // interior (G13): master + per-element flags — every element disjoint
@@ -2048,6 +2076,7 @@ function cageSpec(P) {
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW,
+            rimSides: P.rimSides || 8,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),

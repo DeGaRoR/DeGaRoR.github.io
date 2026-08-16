@@ -5032,6 +5032,23 @@ dashLip -> flat bottom (yB = min lip y − dashDepth) -> under-base line
 -> close to base. VIEWER: glass is partially transparent by default
 (`glass α` 0.35) and `body α` fades the whole skin while interior
 elements stay opaque; translucent materials never depth-write.
+**I2d — SIDE LIPS (user ask, final):** the panel outline in the
+transverse plane is the flattened base arc EXTENDED by vertical side
+drops to the flat bottom, and the roll + lip inset wraps that full
+outline — the border frames top AND sides; side columns anchor to the
+base end points (their strip quads degenerate to triangles and fan the
+side walls, so no separate hexagon lids — just two small pentagon lids
+per side). CONVENTION established: coincident points fuse via a
+coordinate-keyed vertex map, quads with < 3 distinct verts are skipped,
+repeated-vertex quads act as triangles, and SELF-EDGES (a==a) don't
+count in manifold checks. Dash still passes the strict closed-manifold
+check in every config. Also `rimSides` (4-10, default 8): the seal
+tubes are ~half the L2 face count — VERIFIED no caps exist (joint faces
+= sides x path points exactly, each seal is one closed tube; what shows
+through glass is octagon faceting + the buried half); rimSides 6 cuts
+seal faces 25%. Seals stay runtime attachments by design (the game's
+cframe/gframe idiom) — solids that must fuse are built closed like the
+dash.
 
 **I1 as built:** `cageInterior(mesh, spec)` — post-subdivision pass after
 cageRims, disjoint components, `spec.interior` flags (`intOn` master +
