@@ -176,14 +176,27 @@ let meshObj = null, cageObj = null, refObj = null;
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
+// view transparency: glass is partially transparent by default so the
+// interior shows without camera gymnastics; bodyA fades the whole SKIN
+// (interior elements stay opaque — they are what is being inspected)
+const VIEW = { glassA: 0.35, bodyA: 1 };
+const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+                        'skyWindows']);
+const INTM = new Set(['bulkhead', 'firewall', 'dash']);
 const matOf = name => {
+  const a = GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
+    : INTM.has(name) ? 1 : VIEW.bodyA;
   const neutral = !$('color').checked;
-  const key = (neutral ? 'n:' : 'c:') + name + ($('wire').checked ? ':w' : '');
+  const key = (neutral ? 'n:' : 'c:') + name + ($('wire').checked ? ':w' : '')
+    + ':' + a;
   if (!matCache[key]) {
     matCache[key] = new THREE.MeshLambertMaterial({
       color: new THREE.Color(neutral ? '#b9c6d4' : (SEC[name] || '#5a6470')),
       wireframe: $('wire').checked,
       side: THREE.DoubleSide,      // interiors + cutaway need backfaces
+      transparent: a < 1,
+      opacity: a,
+      depthWrite: a >= 1,          // translucent surfaces never occlude
     });
   }
   return matCache[key];
@@ -441,6 +454,22 @@ for (const [gname, items] of GROUPS) {
   for (const [k, label, lo, hi, st] of items)
     mkRow(det, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); });
   if (gname === 'interior') {
+    // view transparency sliders (viewer-only, not spec params)
+    const mkA = (label, key0) => {
+      const dd = document.createElement('div'); dd.className = 'r';
+      dd.innerHTML = `<span class="k">${label}</span>
+        <input type="range" min="0.05" max="1" step="0.05"
+          value="${VIEW[key0]}">
+        <span class="v">${VIEW[key0].toFixed(2)}</span>`;
+      det.appendChild(dd);
+      dd.querySelector('input').oninput = e => {
+        VIEW[key0] = +e.target.value;
+        dd.querySelector('.v').textContent = (+e.target.value).toFixed(2);
+        build();
+      };
+    };
+    mkA('glass α', 'glassA');
+    mkA('body α', 'bodyA');
     // view aids: cutaway clip plane + a camera preset inside the cabin
     const d = document.createElement('div'); d.className = 'r';
     d.innerHTML = `<span class="k">view</span>

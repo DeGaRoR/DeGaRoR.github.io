@@ -1375,28 +1375,18 @@ function cageInterior(m, S) {
       return [p[0] + nx * ins, p[1] + ny * ins, zP];
     });
     const r3 = r2.map(p => [p[0], p[1], zP + ins]);
-    const rows = [base, r1, r2, r3];
+    // the FACE (user correction): the lip arc extended DOWN by the
+    // parametric dashDepth in its own plane — the bottom edge repeats
+    // the arc (the FROWN), so the panel is an arc-shaped ribbon of
+    // constant height presenting one flat transverse face
+    const dep = Math.max(0.02, I.dashDepth || 0.35);
+    const r4 = r3.map(p => [p[0], p[1] - dep, zP + ins]);
+    const rows = [base, r1, r2, r3, r4];
     const ids = rows.map(row => row.map(p => V.push(p.slice()) - 1));
     for (let r = 0; r + 1 < rows.length; r++)
       for (let i = 0; i + 1 < NL; i++)
         add.push({ v: [ids[r][i], ids[r][i + 1], ids[r + 1][i + 1],
                        ids[r + 1][i]], m: 'dash' });
-    // the flat face: ladder between the two half-chains of the final row,
-    // split at the crown (max y) — bottom rung = the flat lower edge
-    let iT = 0;
-    r3.forEach((p, i) => { if (p[1] > r3[iT][1]) iT = i; });
-    const c1 = [], c2 = [];
-    for (let i = iT; i >= 0; i--) c1.push(ids[3][i]);
-    for (let i = iT; i < NL; i++) c2.push(ids[3][i]);
-    const K = Math.max(c1.length, c2.length) - 1;
-    for (let k = 0; k < K; k++) {
-      const i1a = Math.round(k * (c1.length - 1) / K),
-            i1b = Math.round((k + 1) * (c1.length - 1) / K),
-            i2a = Math.round(k * (c2.length - 1) / K),
-            i2b = Math.round((k + 1) * (c2.length - 1) / K);
-      if (i1a === i1b && i2a === i2b) continue;
-      add.push({ v: [c1[i1a], c1[i1b], c2[i2b], c2[i2a]], m: 'dash' });
-    }
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -1851,7 +1841,7 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1,
-  intDash: 1, dashBack: 0.05, dashInset: 0.035,
+  intDash: 1, dashBack: 0.05, dashInset: 0.035, dashDepth: 0.35,
 };
 
 function cageSpec(P) {
@@ -2039,7 +2029,8 @@ function cageSpec(P) {
                      deep: P.doorDeep ? 1 : 0 };
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
-                 dashBack: P.dashBack, dashInset: P.dashInset };
+                 dashBack: P.dashBack, dashInset: P.dashInset,
+                 dashDepth: P.dashDepth };
   return S;
 }
 

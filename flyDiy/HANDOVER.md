@@ -5017,6 +5017,14 @@ recessed-panel-under-glareshield profile. All quads, disjoint sheet,
 material 'dash'. Verified: fit green, skin manifold, generated in every
 windshield config; inside view reads as a cockpit (glareshield roll
 A-pillar to A-pillar under the glass, firewall beyond).
+**I2b (user correction):** the face DROPS by parametric `dashDepth`
+(default 0.35): the final row is the lip arc translated down in its own
+plane, so the bottom edge repeats the arc — THE FROWN — and the panel is
+an arc-ribbon of constant height presenting one flat transverse face
+(the crescent ladder fill is gone). VIEWER: glass is partially
+transparent by default (`glass α` 0.35) and `body α` fades the whole
+skin while interior elements stay opaque — inspect the interior without
+camera gymnastics; translucent materials never depth-write.
 
 **I1 as built:** `cageInterior(mesh, spec)` — post-subdivision pass after
 cageRims, disjoint components, `spec.interior` flags (`intOn` master +
