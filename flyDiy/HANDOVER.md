@@ -5001,6 +5001,18 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
+**G12.3 v9 — CONTINUOUS DOOR SILL (user: doorDrop was a jagged
+staircase).** Row-peeling could only follow the lattice rows — deleted.
+`doorSill` (continuous, 0..0.6 of the door's height) CLIPS the full-depth
+door outline at an iso-height: below-cut points are replaced by the exact
+y=cut ISO-CURVE of the zone faces (per-face plane intersections chained
+between the two side crossings — loose snap radius on the first/last hops
+because the joints live in limit space while iso segments are raw mesh).
+The bottom edge is a smooth horizontal on-surface line — which is also
+what real door bottoms look like — and the increment problem is gone
+(continuous parameter). Verified: all synthesized sill points at ONE y,
+fit green. doorDeep stays as the coarse band switch beneath it.
+
 **G12.3 v8 — DOOR SPAN CORRECTED (user annotation).** The pilot door now
 spans pillar to pillar in the REAL sense: from the cabin pillar forward
 THROUGH THE QUARTER BAY to the A-pillar, its front edge following the

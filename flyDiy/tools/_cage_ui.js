@@ -134,7 +134,7 @@ const GROUPS = [
     ['doorOn',    'pilot door',   0, 1, 1],
     ['doorPax',   'pax doors',    0, 1, 1],
     ['doorDeep',  'door to belly',0, 1, 1],
-    ['doorDrop',  'door lift rows',0, 4, 1],
+    ['doorSill',  'door sill',    0, 0.6, 0.005],
   ]],
 ].concat(PAGE.groups || []);
 

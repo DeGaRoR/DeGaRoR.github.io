@@ -844,39 +844,6 @@ function cageRims(m, S) {
     return sm;
   };
 
-  // door bottom trim: peel N rows off the LOWER boundary of the door marks
-  // at the displayed level ("a tad too low, move it up by 1 unit" — the
-  // unit is one subdivided row). A row face is one adjacent, across an
-  // unmarked neighbour, to strictly lower ground.
-  if (W.doorDrop > 0) {
-    const cy = f => (V[f.v[0]][1] + V[f.v[1]][1] + V[f.v[2]][1]
-                     + V[f.v[3]][1]) / 4;
-    for (let it = 0; it < W.doorDrop; it++) {
-      const eF = new Map();
-      F.forEach((f, i) => {
-        if (f.v.length !== 4) return;
-        for (let e = 0; e < 4; e++) {
-          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
-          if (!eF.has(k)) eF.set(k, []);
-          eF.get(k).push(i);
-        }
-      });
-      const drop = [];
-      F.forEach((f, i) => {
-        if (!f.door) return;
-        const y0 = cy(f);
-        for (let e = 0; e < 4 && !drop.includes(i); e++) {
-          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
-          for (const j of eF.get(k) || [])
-            if (j !== i && !F[j].door && cy(F[j]) < y0 - 1e-6) {
-              drop.push(i); break;
-            }
-        }
-      });
-      for (const i of drop) delete F[i].door;
-    }
-  }
-
   // zones: a face can belong to BOTH a window zone and a door zone (the
   // door encompasses the window), so the two kinds are grouped in
   // independent passes. A door zone spans all its marked bands but only
@@ -941,13 +908,106 @@ function cageRims(m, S) {
       }
     }
 
-    // the OUTLINE is a first-class object: recorded for later manipulation
-    // (kind, zone material, vertex ids and limit-surface points) even when
-    // the tube itself is disabled by its option
     const zMat = F[faceIdxs[0]].m;
-    const path0 = ring.map(v => limitPos(v));
-    m.outlines.push({ kind, mat: zMat, ids: ring.slice(),
-                      pts: path0.map(p => p.slice()) });
+    let pts = ring.map(v => limitPos(v));
+    let ns = ring.map(v => nrm(vN.get(v)));
+    let ids = ring.slice();
+
+    // DOOR SILL — continuous bottom height (the row-peeling it replaces
+    // could only follow the jagged lattice rows). The full-depth outline
+    // is CLIPPED at an iso-height: points below the cut are replaced by
+    // the exact y=cut iso-curve of the zone faces, chained between the two
+    // side crossings. Real door bottoms are straight and horizontal — this
+    // is both smoother and truer, and the parameter is continuous.
+    if (kind === 'door' && W.doorSill > 0) {
+      const clip = (() => {
+        let yMin = 1e9, yMax = -1e9;
+        for (const p of pts) { yMin = Math.min(yMin, p[1]);
+                               yMax = Math.max(yMax, p[1]); }
+        const cut = yMin + W.doorSill * (yMax - yMin);
+        const N = pts.length;
+        const ab = pts.map(p => p[1] >= cut);
+        if (ab.every(x => x) || !ab.some(x => x)) return null;
+        let s = -1;
+        for (let i = 0; i < N; i++)
+          if (ab[i] && !ab[(i + 1) % N]) { s = i; break; }
+        if (s < 0) return null;
+        const order = [...Array(N)].map((_, k) => (s + k) % N);
+        let runEnd = -1;
+        for (let k = 1; k < N; k++) if (ab[order[k]]) { runEnd = k; break; }
+        if (runEnd < 0) return null;
+        for (let k = runEnd; k < N; k++)
+          if (!ab[order[k]]) return null;          // >1 below-run: bail
+        const lerpAt = (P, Q) => {
+          const t = (cut - P[1]) / (Q[1] - P[1]);
+          return [P[0] + (Q[0]-P[0])*t, cut, P[2] + (Q[2]-P[2])*t];
+        };
+        const x1 = lerpAt(pts[order[0]], pts[order[1]]);
+        const x2 = lerpAt(pts[order[runEnd]], pts[order[runEnd - 1]]);
+        // iso segments of the zone faces at y = cut
+        const segs = [];
+        for (const f of zoneFaces) {
+          const p4 = f.v.map(i => V[i]);
+          let lo = 1e9, hi = -1e9;
+          for (const p of p4) { lo = Math.min(lo, p[1]);
+                                hi = Math.max(hi, p[1]); }
+          if (!(lo < cut && hi > cut)) continue;
+          const hits = [];
+          for (let e = 0; e < 4; e++) {
+            const P = p4[e], Q = p4[(e + 1) % 4];
+            if ((P[1] - cut) * (Q[1] - cut) < 0) hits.push(lerpAt(P, Q));
+          }
+          if (hits.length !== 2) continue;
+          const u = sub(p4[1], p4[0]), w2 = sub(p4[3], p4[0]);
+          segs.push({ a: hits[0], b: hits[1], n: nrm(cross(u, w2)) });
+        }
+        // chain x1 -> x2 by nearest endpoints. The joints x1/x2 live in
+        // limit space while the iso segments are in raw mesh space, so the
+        // FIRST and LAST hops get a loose snap radius; interior hops are
+        // exact (adjacent segments share raw edge crossings).
+        const d2 = (p, q) => (p[0]-q[0])**2 + (p[2]-q[2])**2;
+        const runP = [], runN = [], used = new Set();
+        let cur = x1;
+        for (let g = 0; g <= segs.length; g++) {
+          if (d2(cur, x2) < 2.5e-3) break;
+          let bi = -1, bd = g === 0 ? 2.5e-3 : 1e-4, flip = false;
+          segs.forEach((sg, i) => {
+            if (used.has(i)) return;
+            const da = d2(cur, sg.a), db = d2(cur, sg.b);
+            if (da < bd) { bd = da; bi = i; flip = false; }
+            if (db < bd) { bd = db; bi = i; flip = true; }
+          });
+          if (bi < 0) break;
+          used.add(bi);
+          const nx = flip ? segs[bi].a : segs[bi].b;
+          runP.push(nx); runN.push(segs[bi].n);
+          cur = nx;
+        }
+        while (runP.length && d2(runP[runP.length - 1], x2) < 2.5e-3) {
+          runP.pop(); runN.pop();
+        }
+        // assemble: the above-run, then x1, the iso run, x2
+        const nP = [], nN = [], nI = [];
+        for (let k = runEnd; k < N; k++) {
+          nP.push(pts[order[k]]); nN.push(ns[order[k]]);
+          nI.push(ids[order[k]]);
+        }
+        nP.push(pts[order[0]]); nN.push(ns[order[0]]); nI.push(ids[order[0]]);
+        nP.push(x1); nN.push(ns[order[0]]); nI.push(-1);
+        for (let k = 0; k < runP.length; k++) {
+          nP.push(runP[k]); nN.push(runN[k]); nI.push(-1);
+        }
+        nP.push(x2); nN.push(ns[order[runEnd]]); nI.push(-1);
+        return { nP, nN, nI };
+      })();
+      if (clip) { pts = clip.nP; ns = clip.nN; ids = clip.nI; }
+    }
+
+    // the OUTLINE is a first-class object: recorded for later manipulation
+    // (kind, zone material, vertex ids — -1 for synthesized sill points —
+    // and on-surface positions) even when the tube itself is disabled
+    m.outlines.push({ kind, mat: zMat, ids: ids.slice(),
+                      pts: pts.map(p => p.slice()) });
     const enabled = kind === 'door' ? W.rimDoor
       : zMat === 'windshield' ? W.rimWs : W.rimWin;
     if (!enabled || !(W.rim > 0)) continue;
@@ -959,9 +1019,8 @@ function cageRims(m, S) {
     // real radius, and the section centre sits ON the surface so half the
     // tube is buried — only the outer half shows (user spec).
     const r = kind === 'door' ? W.rim * 0.85 : W.rim;
-    const N2 = ring.length;
-    const path = path0;
-    const pN = ring.map(v => nrm(vN.get(v)));
+    const path = pts;
+    const pN = ns;
     const NP = path.length;
     const SS = 8;                          // octagon section
     const sec = [];
@@ -1426,7 +1485,7 @@ const CAGE_PARAMS = {
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1,
-  doorOn: 1, doorPax: 0, doorDeep: 1, doorDrop: 1, doorDepth: 0.008,
+  doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorDepth: 0.008,
 };
 
 function cageSpec(P) {
@@ -1562,7 +1621,7 @@ function cageSpec(P) {
             doorDepth: P.doorDepth, rim: P.rimW,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
-            doorDrop: Math.max(0, Math.round(P.doorDrop)) };
+            doorSill: Math.max(0, P.doorSill || 0) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   return S;
