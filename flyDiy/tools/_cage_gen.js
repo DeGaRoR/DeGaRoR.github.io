@@ -1134,7 +1134,25 @@ function cageRims(m, S) {
     // goes small. The recorded outline keeps the TRUE boundary; only the
     // swept path is rounded.
     {
-      const P0 = pts, N0 = ns, NPP = P0.length;
+      // merge micro-segments FIRST: the sill-clip junction points sit a
+      // hair from their neighbours, splitting a 90-deg corner across two
+      // vertices with tiny arms — the fillet size (0.4 x arm) collapsed
+      // and door corners stayed chamfered (user report). Points closer
+      // than 0.6 r to the kept predecessor drop.
+      const P0 = [], N0 = [];
+      for (let i = 0; i < pts.length; i++) {
+        const prev = P0.length ? P0[P0.length - 1] : null;
+        if (prev && Math.hypot(pts[i][0]-prev[0], pts[i][1]-prev[1],
+                               pts[i][2]-prev[2]) < r * 0.6) continue;
+        P0.push(pts[i]); N0.push(ns[i]);
+      }
+      if (P0.length > 2) {
+        const a = P0[0], b = P0[P0.length - 1];
+        if (Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) < r * 0.6) {
+          P0.pop(); N0.pop();
+        }
+      }
+      const NPP = P0.length;
       const outP = [], outN = [];
       for (let i = 0; i < NPP; i++) {
         const pm = P0[(i - 1 + NPP) % NPP], pc = P0[i], pp = P0[(i + 1) % NPP];
