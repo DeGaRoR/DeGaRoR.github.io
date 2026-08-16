@@ -542,15 +542,20 @@ function buildCage2(S, step) {
     : hi === 'floor' ? 'floorLoop'
     : hi === 'band' && lo === 'waist' ? 'waistband'
     : 'body';
-  const emitCap = (o, r, mf) => {
+  const emitCap = (o, r, mf, mark) => {
     const pres = ordOf(r);
     for (let i = 0; i < pres.length - 1; i++) {
       const hi = pres[i], lo = pres[i + 1], m = mf(hi, lo);
       face(o.P[hi], o.P[lo], o.C[lo], o.C[hi], m);
       face(o.C[hi], o.C[lo], o.M[lo], o.M[hi], m);
+      // aperture caps are marked so the interior pass can back them with
+      // a firewall panel (crease mode only, like the win/door marks)
+      if (mark && creaseMode)
+        F[F.length - 1].capFace = F[F.length - 2].capFace = 1;
     }
   };
-  emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture));
+  emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture),
+          !!(S.config && S.config.rearAperture));
 
   // ---- bridge the ring sequence ------------------------------------------
   const bandMat = (mat, hi, lo) =>
@@ -779,11 +784,14 @@ function buildCage2(S, step) {
     {
       const o = nIds[nIds.length - 1];
       const pres = lowOrd.filter(k => o.P[k] != null);
+      const engineCap = !aeroFin;      // engine aperture face -> firewall
       for (let k = 0; k < pres.length - 1; k++) {
         const hi = pres[k], lo = pres[k + 1];
         const m = hi === 'floor' ? 'floorLoop' : 'body';
         face(o.P[hi], o.P[lo], o.C[lo], o.C[hi], m);
         face(o.C[hi], o.C[lo], o.M[lo], o.M[hi], m);
+        if (engineCap && creaseMode)
+          F[F.length - 1].capFace = F[F.length - 2].capFace = 1;
       }
     }
     // nose ring creases: the twin band is a pillar, the end ring a cap edge
@@ -1198,6 +1206,142 @@ function cageRims(m, S) {
 }
 
 // ---------------------------------------------------------------------------
+// INTERIOR — G13. A post-subdivision pass like cageRims: every element is
+// a DISJOINT component behind its own flag (revert = flag off), traced
+// from the displayed mesh's MATERIALS so it survives every slider. OBJ
+// export still ships the control cage only. Panels are double-sided with
+// their OWN vertices, so each component is edge-manifold on its own.
+// I1: aft bulkhead (plain face at the aft-most pillarPassenger band —
+// hides the tail interior) + firewall (inboard copy of the aperture cap).
+// ---------------------------------------------------------------------------
+function cageInterior(m, S) {
+  const I = S.interior;
+  if (!I || !I.on) return m;
+  const { V, F } = m;
+  const add = [];
+  // panels are SINGLE sheets with their own vertices: materials render
+  // double-sided, and a doubled sheet would put 4 faces on every interior
+  // edge. Interior components may therefore carry open boundary edges —
+  // the strict 2-manifold rule applies to the skin and the joint tubes.
+
+  // ---- aft bulkhead --------------------------------------------------------
+  if (I.bulk) (() => {
+    // group pillarPassenger faces into bands; the aft-most band is the
+    // pilPaxA station (pax mid pillars share the material)
+    const idx = [];
+    F.forEach((f, i) => {
+      if (f.m === 'pillarPassenger' && f.v.length === 4) idx.push(i);
+    });
+    if (!idx.length) return;
+    const byIdx = new Map(idx.map((fi, k) => [fi, k]));
+    const parent = idx.map((_, k) => k);
+    const find = k => parent[k] === k ? k : (parent[k] = find(parent[k]));
+    const eOwn = new Map();
+    for (const fi of idx) {
+      const f = F[fi];
+      for (let e = 0; e < 4; e++) {
+        const key = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        if (eOwn.has(key)) parent[find(byIdx.get(fi))] =
+          find(byIdx.get(eOwn.get(key)));
+        else eOwn.set(key, fi);
+      }
+    }
+    const zones = new Map();
+    for (const fi of idx) {
+      const r = find(byIdx.get(fi));
+      if (!zones.has(r)) zones.set(r, []);
+      zones.get(r).push(fi);
+    }
+    let band = null, bandZ = 1e9;
+    for (const fs of zones.values()) {
+      let z = 0, n = 0;
+      for (const fi of fs) for (const vi of F[fi].v) { z += V[vi][2]; n++; }
+      z /= n;
+      if (z < bandZ) { bandZ = z; band = fs; }
+    }
+    // boundary edges of the band -> two cycles; the CABIN side is the one
+    // with the larger mean z
+    const dir = new Map();
+    for (const fi of band)
+      for (let e = 0; e < 4; e++) {
+        const a = F[fi].v[e], b = F[fi].v[(e + 1) % 4];
+        const k = cageEdgeKey(a, b);
+        if (dir.has(k)) dir.delete(k); else dir.set(k, [a, b]);
+      }
+    const nxt = new Map();
+    for (const [, [a, b]] of dir) nxt.set(a, b);
+    const cycles = [];
+    const seen = new Set();
+    for (const s0 of nxt.keys()) {
+      if (seen.has(s0)) continue;
+      const cyc = [s0]; seen.add(s0);
+      for (let v = nxt.get(s0); v !== s0 && cyc.length <= nxt.size;
+           v = nxt.get(v)) { cyc.push(v); seen.add(v); }
+      cycles.push(cyc);
+    }
+    if (!cycles.length) return;
+    cycles.sort((a, b) =>
+      b.reduce((s, v) => s + V[v][2], 0) / b.length -
+      a.reduce((s, v) => s + V[v][2], 0) / a.length);
+    const ring = cycles[0];
+    // ladder fill between the two side chains split at top/bottom — the
+    // wall gets its OWN vertices at the ring positions (exact seam,
+    // disjoint component)
+    const N = ring.length;
+    let iT = 0, iB = 0;
+    ring.forEach((v, i) => {
+      if (V[v][1] > V[ring[iT]][1]) iT = i;
+      if (V[v][1] < V[ring[iB]][1]) iB = i;
+    });
+    const c1 = [], c2 = [];
+    for (let i = iT; ; i = (i + 1) % N) { c1.push(ring[i]); if (i === iB) break; }
+    for (let i = iT; ; i = (i - 1 + N) % N) { c2.push(ring[i]); if (i === iB) break; }
+    const nid = new Map();
+    const my = vi => {
+      if (!nid.has(vi)) nid.set(vi, V.push(V[vi].slice()) - 1);
+      return nid.get(vi);
+    };
+    const K = Math.max(c1.length, c2.length) - 1;
+    for (let k = 0; k < K; k++) {
+      const i1a = Math.round(k * (c1.length - 1) / K),
+            i1b = Math.round((k + 1) * (c1.length - 1) / K),
+            i2a = Math.round(k * (c2.length - 1) / K),
+            i2b = Math.round((k + 1) * (c2.length - 1) / K);
+      if (i1a === i1b && i2a === i2b) continue;
+      add.push({ v: [my(c1[i1a]), my(c1[i1b]), my(c2[i2b]), my(c2[i2a])],
+                 m: 'bulkhead' });
+    }
+  })();
+
+  // ---- firewall ------------------------------------------------------------
+  // an inboard copy of every marked aperture-cap face (engine nose grid,
+  // pusher tail disc) — the cabin's forward view ends on a wall instead
+  // of the cap's backface. capFace marks are set at emission and survive
+  // subdivision.
+  if (I.fire) (() => {
+    const nid = new Map();
+    for (const f of F) {
+      if (!f.capFace || f.v.length !== 4) continue;
+      const p = f.v.map(i => V[i]);
+      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+      const n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+      const l = Math.hypot(n[0], n[1], n[2]) || 1;
+      const off = [-n[0]/l*0.012, -n[1]/l*0.012, -n[2]/l*0.012];
+      const my = vi => {
+        if (!nid.has(vi)) nid.set(vi, V.push([
+          V[vi][0]+off[0], V[vi][1]+off[1], V[vi][2]+off[2]]) - 1);
+        return nid.get(vi);
+      };
+      add.push({ v: f.v.map(my), m: 'firewall' });
+    }
+  })();
+
+  m.F = F.concat(add);
+  return m;
+}
+
+// ---------------------------------------------------------------------------
 // WINDOWS — the inset pass (crease mode only; the loop steps stay the
 // fit-verified template). Every marked glass quad becomes a picture frame:
 // an inner rectangle at margin frameW, recessed by depth along the outward
@@ -1528,6 +1672,7 @@ function cageSubdivide(m) {
       // ACTUAL displayed level and trace the real boundary polyline
       if (f.win) nf.win = 1;
       if (f.door) { nf.door = 1; if (f.doorKey) nf.doorKey = f.doorKey; }
+      if (f.capFace) nf.capFace = 1;
       NF.push(nf);
     }
   });
@@ -1617,6 +1762,9 @@ const CAGE_PARAMS = {
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   doorDepth: 0.008,
+  // interior (G13): master + per-element flags — every element disjoint
+  // and individually revertible
+  intOn: 0, intBulk: 1, intFire: 1,
 };
 
 function cageSpec(P) {
@@ -1802,13 +1950,17 @@ function cageSpec(P) {
               (P.doorSillPax != null ? P.doorSillPax : P.doorSill) || 0) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
+  S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
+                 fire: P.intFire ? 1 : 0 };
   return S;
 }
 
 // ---------------------------------------------------------------------------
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
-                     cageResolve, cageSpec, cageSubdivide, cageRims };
+                     cageResolve, cageSpec, cageSubdivide, cageRims,
+                     cageInterior };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
-                   cageResolve, cageSpec, cageSubdivide, cageRims };
+                   cageResolve, cageSpec, cageSubdivide, cageRims,
+                   cageInterior };

@@ -5001,7 +5001,28 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
-### G13 (PLANNED) — INTERIOR STRUCTURE. Full study + chantier plan in
+### G13 — INTERIOR STRUCTURE (I1 DONE 2026-08-16)
+
+**I1 as built:** `cageInterior(mesh, spec)` — post-subdivision pass after
+cageRims, disjoint components, `spec.interior` flags (`intOn` master +
+`intBulk`/`intFire`; CAGE_PARAMS default off, _cage3 default on).
+Elements are SINGLE sheets with their OWN vertices (materials render
+DoubleSide; a doubled sheet would put 4 faces on interior edges) — the
+strict 2-manifold rule applies to skin + joint tubes only, interior
+sheets may carry open boundaries. AFT BULKHEAD: pillarPassenger faces
+union-found into bands, aft-most band (pilPaxA) picked by mean z, its
+cabin-side boundary cycle extracted, ladder-filled top-to-bottom between
+the two side chains (proportional resampling, degenerate-quad guard) —
+material 'bulkhead'. FIREWALL: aperture-cap faces are MARKED at emission
+(`capFace`, crease mode, survives subdivision — the engine nose grid has
+no distinctive material, so marks not materials): inboard copy at 0.012
+along -normal, material 'firewall'; pusher rear discs get one too; aero
+noses correctly none. Viewer: all materials DoubleSide; interior slider
+group + CUTAWAY checkbox (renderer clip plane x>0 kept) + inside/refit
+camera buttons. Verified: fit green, skin 2-manifold across
+pax/config/flag matrix, cutaway + inside screenshots.
+
+### G13 (PLANNED, remaining) — INTERIOR STRUCTURE. Full study + plan in
 ~/.claude/plans/cage-interior-structure.md (session 2026-08-16). One
 post-pass `cageInterior(mesh, spec)` (cageRims idiom: displayed level,
 disjoint components, flag per element, OBJ ships the cage only). GLOBAL

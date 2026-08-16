@@ -35,6 +35,8 @@ const SEC = {
   floorLoop:       '#1c1c1c',
   waistband:       '#cc12a8',
   joint:           '#d8dde4',
+  bulkhead:        '#8a7a5f',
+  firewall:        '#8a4a2f',
 };
 
 // ---- parameters -----------------------------------------------------------
@@ -132,6 +134,11 @@ const GROUPS = [
     ['skylight',  'skylight',      0, 1, 1],
     ['skyExt',    'sky extent',    0, 5, 1],
   ]],
+  ['interior', [
+    ['intOn',     'interior on',   0, 1, 1],
+    ['intBulk',   'aft bulkhead',  0, 1, 1],
+    ['intFire',   'firewall',      0, 1, 1],
+  ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -172,6 +179,7 @@ const matOf = name => {
     matCache[key] = new THREE.MeshLambertMaterial({
       color: new THREE.Color(neutral ? '#b9c6d4' : (SEC[name] || '#5a6470')),
       wireframe: $('wire').checked,
+      side: THREE.DoubleSide,      // interiors + cutaway need backfaces
     });
   }
   return matCache[key];
@@ -283,6 +291,8 @@ function build() {
   // rim joints sweep the boundary of the mesh AT THIS level — they stick
   // to the displayed surface exactly, at any subsurf setting
   if (step === 'crease') s = G.cageRims(s, spec);
+  // interior elements are disjoint post-passes too (G13)
+  if (step === 'crease' && G.cageInterior) s = G.cageInterior(s, spec);
   MS = s;
 
   disposeObj(meshObj);
@@ -426,6 +436,30 @@ for (const [gname, items] of GROUPS) {
   ui.appendChild(det);
   for (const [k, label, lo, hi, st] of items)
     mkRow(det, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); });
+  if (gname === 'interior') {
+    // view aids: cutaway clip plane + a camera preset inside the cabin
+    const d = document.createElement('div'); d.className = 'r';
+    d.innerHTML = `<span class="k">view</span>
+      <label style="flex:none"><input type="checkbox" id="cutaway"> cutaway</label>
+      <button id="insideBtn">inside</button>
+      <button id="outsideBtn">refit</button>`;
+    det.appendChild(d);
+    d.querySelector('#cutaway').onchange = e => {
+      renderer.clippingPlanes = e.target.checked
+        ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
+      draw();
+    };
+    d.querySelector('#insideBtn').onclick = () => {
+      // eye roughly at the pilot seat, looking forward at the panel area
+      yaw = Math.PI; pitch = 0.02;
+      centreOv = new THREE.Vector3(0, 0.15, 3.0);
+      ZOOM = fitR / 1.1;
+      draw();
+    };
+    d.querySelector('#outsideBtn').onclick = () => {
+      centreOv = null; ZOOM = 1; draw();
+    };
+  }
 }
 const lg = document.createElement('div');
 lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
