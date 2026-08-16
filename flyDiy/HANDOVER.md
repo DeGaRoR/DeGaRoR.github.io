@@ -5081,6 +5081,22 @@ Chaikin-cut into two points (d = min(2.2r, 0.4 arm)) — physical seals
 round their corners, parallel transport stays smooth, the miter stretch
 goes small, and the corner shading artifacts are gone; recorded
 outlines keep the TRUE boundary (only the swept path rounds).
+**DASH GRID REBUILD (user diagnosis of the crawling corner, final):**
+the side topology anchored every side column to ONE repeated base
+vertex (a triangle fan) and filled the side panel by laddering a
+4-point chain against a 2-point edge — the middle quad twisted across
+the panel, and CC redistributed those uneven control points differently
+at every level until faces crossed (L1 fine, L3 broken). REBUILT as
+consistent grids: side columns anchor to the FORWARD EDGE sampled at
+the outline side-chain heights (every strip quad a rectangle, no fans,
+no lids), the front return is a grid matched to that sampling, and seam
+rows reuse source points VERBATIM (yB+(y−yB)*1 is not bit-equal to y —
+recomputed seams do not fuse through the toFixed(9) vertex key; 80
+non-manifold edges appeared config-dependently until fixed). RULES for
+all interior solids: never fan a column family into one vertex, never
+ladder mismatched densities, reuse shared-seam points verbatim.
+L1->L3 now converges to one corner shape; strict manifold green.
+
 **DASH CREASE RELAX (user diagnosis confirmed):** the dihedral
 auto-crease also tagged the short INNER-CORNER edges of the border —
 their endpoints held >= 3 creased edges -> corner pins -> a 45-degree
