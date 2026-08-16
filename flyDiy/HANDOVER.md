@@ -5001,6 +5001,30 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
+### G14 — POST-SUBSURF CUTTING (v1 DONE 2026-08-16, user chantier)
+
+`cageCut(mesh, spec)` — runs after cageSubdivide, BEFORE cageRims:
+doors + windows become SEPARATE MESH parts cut FACE-GRANULAR on the
+subdivided topology (user ruling: step through the available geometry,
+no fighting the subsurf — the door sill is a STEPPED edge selected by
+per-column zone bottom + face-centroid >= bottom+sill; the continuous
+iso-clip stays for cutParts=0 and is skipped when cutting). Parts
+separate by VERTEX DUPLICATION (the skin keeps the hole); `explodeD`
+offsets each part along its mean outward normal (sides go lateral,
+skylights up, windshield forward); cageRims then traces zones on the
+moved parts so EVERY joint travels with its panel. Window faces inside
+a door carry both marks and separate again from the door part — panes
+explode out of their doors, assembly-style. Params `cutParts` (0 =
+fully reversible, strict manifold applies only when off — a cut skin
+has real boundary holes) + `explodeD`, UI group "cutting".
+KNOWN v1 ROUGHNESS for the next session: the door FRAME (door minus
+glass minus stepped sill drop) can fragment into several traced zones
+(door:waistband x ~10 outlines at pax 1) — consolidate by keying the
+union-find on doorKey instead of pure edge-adjacency, and give each cut
+part ONE bead; consider sealing the skin hole rim and the part's cut
+edge with a thin border band; explode direction could take per-part
+hinge axes later (doors swing, not translate).
+
 ### G13 — INTERIOR STRUCTURE (I1 + I2 DONE 2026-08-16)
 
 **I2 as built — THE DASHBOARD (user recipe, implemented verbatim).**
