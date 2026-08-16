@@ -5001,7 +5001,22 @@ seed once). Viewer fix (user report): painter sort now keys on the
 FARTHEST corner instead of the centroid — crease-stretched slivers with a
 near centroid used to pop through covering faces.
 
-### G13 — INTERIOR STRUCTURE (I1 DONE 2026-08-16)
+### G13 — INTERIOR STRUCTURE (I1 + I2 DONE 2026-08-16)
+
+**I2 as built — THE DASHBOARD (user recipe, implemented verbatim).**
+`intDash` + `dashBack` (plane setback) + `dashInset` (roll = lip depth).
+The windshield bottom line is TRACED as the mesh edges shared by
+'windshield' and 'waistband' faces (material adjacency — follows
+wsBaseBow / wsBaseLift / noseCrown by construction; works in box,
+bubble, lifted and aero modes). Rows: base line -> same points on ONE
+transverse plane at (aft-most base z − dashBack) -> in-plane inset
+toward the chord middle (per-point 2D normals) -> forward by the SAME
+inset -> flat-face plate (ladder fill split at the crown, flat bottom
+chord). The panel face sits one inset forward of the roll edge — the
+recessed-panel-under-glareshield profile. All quads, disjoint sheet,
+material 'dash'. Verified: fit green, skin manifold, generated in every
+windshield config; inside view reads as a cockpit (glareshield roll
+A-pillar to A-pillar under the glass, firewall beyond).
 
 **I1 as built:** `cageInterior(mesh, spec)` — post-subdivision pass after
 cageRims, disjoint components, `spec.interior` flags (`intOn` master +

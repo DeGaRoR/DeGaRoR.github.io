@@ -1313,6 +1313,92 @@ function cageInterior(m, S) {
     }
   })();
 
+  // ---- dashboard (I2, user recipe verbatim) --------------------------------
+  // 1. the windshield bottom line where it meets the fuselage = the mesh
+  //    edges shared by 'windshield' and 'waistband' faces (traced, so it
+  //    follows base bow / base lift / nose crown by construction);
+  // 2. extrude toward the cabin;
+  // 3. the extruded row is aligned onto ONE transverse plane (perpendicular
+  //    to the long axis) at dashBack aft of the line's aft-most point;
+  // 4. extrude + slightly INSET within that plane (the glareshield roll);
+  // 5. extrude toward the NOSE by the SAME value (the return lip);
+  // 6. merge: the panel presents a FLAT FACE (arc-topped plate, ladder
+  //    fill between the two half-chains, flat bottom chord).
+  if (I.dash) (() => {
+    const owners = new Map();                    // edgeKey -> Set(materials)
+    for (const f of F) {
+      if (f.v.length !== 4) continue;
+      if (f.m !== 'windshield' && f.m !== 'waistband') continue;
+      for (let e = 0; e < 4; e++) {
+        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        if (!owners.has(k)) owners.set(k, new Set());
+        owners.get(k).add(f.m);
+      }
+    }
+    const link = new Map();                      // vert -> neighbours
+    for (const [k, mats] of owners) {
+      if (!(mats.has('windshield') && mats.has('waistband'))) continue;
+      const [a, b] = k.split('_').map(Number);
+      if (!link.has(a)) link.set(a, []);
+      if (!link.has(b)) link.set(b, []);
+      link.get(a).push(b); link.get(b).push(a);
+    }
+    let start = -1;
+    for (const [v, ns] of link) if (ns.length === 1) { start = v; break; }
+    if (start < 0) return;
+    const line = [start];
+    const seen = new Set([start]);
+    for (let v = start; ;) {
+      const nx = (link.get(v) || []).find(n => !seen.has(n));
+      if (nx == null) break;
+      line.push(nx); seen.add(nx); v = nx;
+    }
+    if (line.length < 5) return;
+    const base = line.map(vi => V[vi].slice());
+    const back = Math.max(0.005, I.dashBack || 0.05);
+    const ins = Math.max(0.005, I.dashInset || 0.035);
+    let zP = 1e9;
+    for (const p of base) zP = Math.min(zP, p[2]);
+    zP -= back;
+    // row 1: flattened onto the transverse plane; row 2: in-plane inset
+    // toward the chord middle; row 3: forward by the same value
+    const r1 = base.map(p => [p[0], p[1], zP]);
+    const M0 = [(r1[0][0] + r1[r1.length - 1][0]) / 2,
+                (r1[0][1] + r1[r1.length - 1][1]) / 2];
+    const NL = r1.length;
+    const r2 = r1.map((p, i) => {
+      const a = r1[Math.max(0, i - 1)], b = r1[Math.min(NL - 1, i + 1)];
+      let nx = -(b[1] - a[1]), ny = b[0] - a[0];
+      const l = Math.hypot(nx, ny) || 1;
+      nx /= l; ny /= l;
+      if (nx * (M0[0] - p[0]) + ny * (M0[1] - p[1]) < 0) { nx = -nx; ny = -ny; }
+      return [p[0] + nx * ins, p[1] + ny * ins, zP];
+    });
+    const r3 = r2.map(p => [p[0], p[1], zP + ins]);
+    const rows = [base, r1, r2, r3];
+    const ids = rows.map(row => row.map(p => V.push(p.slice()) - 1));
+    for (let r = 0; r + 1 < rows.length; r++)
+      for (let i = 0; i + 1 < NL; i++)
+        add.push({ v: [ids[r][i], ids[r][i + 1], ids[r + 1][i + 1],
+                       ids[r + 1][i]], m: 'dash' });
+    // the flat face: ladder between the two half-chains of the final row,
+    // split at the crown (max y) — bottom rung = the flat lower edge
+    let iT = 0;
+    r3.forEach((p, i) => { if (p[1] > r3[iT][1]) iT = i; });
+    const c1 = [], c2 = [];
+    for (let i = iT; i >= 0; i--) c1.push(ids[3][i]);
+    for (let i = iT; i < NL; i++) c2.push(ids[3][i]);
+    const K = Math.max(c1.length, c2.length) - 1;
+    for (let k = 0; k < K; k++) {
+      const i1a = Math.round(k * (c1.length - 1) / K),
+            i1b = Math.round((k + 1) * (c1.length - 1) / K),
+            i2a = Math.round(k * (c2.length - 1) / K),
+            i2b = Math.round((k + 1) * (c2.length - 1) / K);
+      if (i1a === i1b && i2a === i2b) continue;
+      add.push({ v: [c1[i1a], c1[i1b], c2[i2b], c2[i2a]], m: 'dash' });
+    }
+  })();
+
   // ---- firewall ------------------------------------------------------------
   // an inboard copy of every marked aperture-cap face (engine nose grid,
   // pusher tail disc) — the cabin's forward view ends on a wall instead
@@ -1765,6 +1851,7 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1,
+  intDash: 1, dashBack: 0.05, dashInset: 0.035,
 };
 
 function cageSpec(P) {
@@ -1951,7 +2038,8 @@ function cageSpec(P) {
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
-                 fire: P.intFire ? 1 : 0 };
+                 fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
+                 dashBack: P.dashBack, dashInset: P.dashInset };
   return S;
 }
 

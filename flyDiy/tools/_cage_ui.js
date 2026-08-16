@@ -37,6 +37,7 @@ const SEC = {
   joint:           '#d8dde4',
   bulkhead:        '#8a7a5f',
   firewall:        '#8a4a2f',
+  dash:            '#333a45',
 };
 
 // ---- parameters -----------------------------------------------------------
@@ -138,6 +139,9 @@ const GROUPS = [
     ['intOn',     'interior on',   0, 1, 1],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
+    ['intDash',   'dashboard',     0, 1, 1],
+    ['dashBack',  'dash setback',  0.01, 0.30, 0.005],
+    ['dashInset', 'dash roll',     0.01, 0.10, 0.002],
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
