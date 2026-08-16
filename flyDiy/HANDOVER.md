@@ -5017,14 +5017,21 @@ recessed-panel-under-glareshield profile. All quads, disjoint sheet,
 material 'dash'. Verified: fit green, skin manifold, generated in every
 windshield config; inside view reads as a cockpit (glareshield roll
 A-pillar to A-pillar under the glass, firewall beyond).
-**I2b (user correction):** the face DROPS by parametric `dashDepth`
-(default 0.35): the final row is the lip arc translated down in its own
-plane, so the bottom edge repeats the arc — THE FROWN — and the panel is
-an arc-ribbon of constant height presenting one flat transverse face
-(the crescent ladder fill is gone). VIEWER: glass is partially
-transparent by default (`glass α` 0.35) and `body α` fades the whole
-skin while interior elements stay opaque — inspect the interior without
-camera gymnastics; translucent materials never depth-write.
+**I2b/I2c (user corrections, final form):** the panel face drops by
+parametric `dashDepth` to a VERTICALLY FLAT bottom line (no curvature
+retained from the top; depth measured from the lip arc's lowest point).
+`dashLip` (label "dash lip height") replaced dashInset. THE DASH IS A
+CLOSED SOLID: bottom line extrudes toward the nose to sit directly
+under the base line, joins back up to the base line it originated from
+(continuous surface), and the sides get 2-quad hexagon lids (right side
+reversed for edge coherence); outward orientation by the component's own
+signed volume. Zero non-manifold edges WITH the dash included in the
+strict check — it can face an opened door. Rows: base -> flatten (zP =
+aft-most base z − dashBack) -> in-plane inset by dashLip -> forward by
+dashLip -> flat bottom (yB = min lip y − dashDepth) -> under-base line
+-> close to base. VIEWER: glass is partially transparent by default
+(`glass α` 0.35) and `body α` fades the whole skin while interior
+elements stay opaque; translucent materials never depth-write.
 
 **I1 as built:** `cageInterior(mesh, spec)` — post-subdivision pass after
 cageRims, disjoint components, `spec.interior` flags (`intOn` master +

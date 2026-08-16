@@ -141,7 +141,8 @@ const GROUPS = [
     ['intFire',   'firewall',      0, 1, 1],
     ['intDash',   'dashboard',     0, 1, 1],
     ['dashBack',  'dash setback',  0.01, 0.30, 0.005],
-    ['dashInset', 'dash roll',     0.01, 0.10, 0.002],
+    ['dashLip',   'dash lip height', 0.01, 0.10, 0.002],
+    ['dashDepth', 'dash depth',    0.05, 0.80, 0.01],
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],

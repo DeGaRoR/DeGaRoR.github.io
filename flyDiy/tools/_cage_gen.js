@@ -1356,12 +1356,14 @@ function cageInterior(m, S) {
     if (line.length < 5) return;
     const base = line.map(vi => V[vi].slice());
     const back = Math.max(0.005, I.dashBack || 0.05);
-    const ins = Math.max(0.005, I.dashInset || 0.035);
+    const lip = Math.max(0.005,
+      (I.dashLip != null ? I.dashLip : I.dashInset) || 0.035);
     let zP = 1e9;
     for (const p of base) zP = Math.min(zP, p[2]);
     zP -= back;
     // row 1: flattened onto the transverse plane; row 2: in-plane inset
-    // toward the chord middle; row 3: forward by the same value
+    // toward the chord middle (the glareshield roll, height = dashLip);
+    // row 3: forward by the same value (the lip)
     const r1 = base.map(p => [p[0], p[1], zP]);
     const M0 = [(r1[0][0] + r1[r1.length - 1][0]) / 2,
                 (r1[0][1] + r1[r1.length - 1][1]) / 2];
@@ -1372,21 +1374,49 @@ function cageInterior(m, S) {
       const l = Math.hypot(nx, ny) || 1;
       nx /= l; ny /= l;
       if (nx * (M0[0] - p[0]) + ny * (M0[1] - p[1]) < 0) { nx = -nx; ny = -ny; }
-      return [p[0] + nx * ins, p[1] + ny * ins, zP];
+      return [p[0] + nx * lip, p[1] + ny * lip, zP];
     });
-    const r3 = r2.map(p => [p[0], p[1], zP + ins]);
-    // the FACE (user correction): the lip arc extended DOWN by the
-    // parametric dashDepth in its own plane — the bottom edge repeats
-    // the arc (the FROWN), so the panel is an arc-shaped ribbon of
-    // constant height presenting one flat transverse face
+    const zF = zP + lip;
+    const r3 = r2.map(p => [p[0], p[1], zF]);
+    // the FACE: down to a VERTICALLY FLAT bottom line (user ruling — the
+    // bottom does NOT retain the top curvature); depth measured from the
+    // lip arc's lowest point
     const dep = Math.max(0.02, I.dashDepth || 0.35);
-    const r4 = r3.map(p => [p[0], p[1] - dep, zP + ins]);
-    const rows = [base, r1, r2, r3, r4];
+    let yB = 1e9;
+    for (const p of r3) yB = Math.min(yB, p[1]);
+    yB -= dep;
+    const r4 = r3.map(p => [p[0], yB, zF]);
+    // CLOSE THE SOLID (user spec): the flat bottom line extrudes toward
+    // the nose to sit directly under the base line, then joins back up to
+    // the base line it originated from (a continuous surface), and the
+    // sides get matching lids — a closed manifold object that shows no
+    // flaws when a door opens
+    const r5 = base.map(p => [p[0], yB, p[2]]);
+    const rows = [base, r1, r2, r3, r4, r5];
     const ids = rows.map(row => row.map(p => V.push(p.slice()) - 1));
-    for (let r = 0; r + 1 < rows.length; r++)
+    const dashStart = add.length;
+    const cyc = ids.concat([ids[0]]);             // loop back to the base
+    for (let r = 0; r + 1 < cyc.length; r++)
       for (let i = 0; i + 1 < NL; i++)
-        add.push({ v: [ids[r][i], ids[r][i + 1], ids[r + 1][i + 1],
-                       ids[r + 1][i]], m: 'dash' });
+        add.push({ v: [cyc[r][i], cyc[r][i + 1], cyc[r + 1][i + 1],
+                       cyc[r + 1][i]], m: 'dash' });
+    // side lids: two quads over the hexagon profile per side; the right
+    // side is reversed so every edge runs once in each direction
+    const Lc = ids.map(r => r[0]), Rc = ids.map(r => r[NL - 1]);
+    add.push({ v: [Lc[0], Lc[1], Lc[2], Lc[3]], m: 'dash' });
+    add.push({ v: [Lc[0], Lc[3], Lc[4], Lc[5]], m: 'dash' });
+    add.push({ v: [Rc[3], Rc[2], Rc[1], Rc[0]], m: 'dash' });
+    add.push({ v: [Rc[5], Rc[4], Rc[3], Rc[0]], m: 'dash' });
+    // outward orientation by the component's own signed volume
+    let vol = 0;
+    for (let k = dashStart; k < add.length; k++) {
+      const p = add[k].v.map(i => V[i]);
+      for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
+        vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
+             + x[2]*(y[0]*z[1]-y[1]*z[0]);
+    }
+    if (vol < 0)
+      for (let k = dashStart; k < add.length; k++) add[k].v.reverse();
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -1841,7 +1871,7 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1,
-  intDash: 1, dashBack: 0.05, dashInset: 0.035, dashDepth: 0.35,
+  intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
 };
 
 function cageSpec(P) {
@@ -2029,7 +2059,8 @@ function cageSpec(P) {
                      deep: P.doorDeep ? 1 : 0 };
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
-                 dashBack: P.dashBack, dashInset: P.dashInset,
+                 dashBack: P.dashBack,
+                 dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth };
   return S;
 }
