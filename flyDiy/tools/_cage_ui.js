@@ -135,6 +135,10 @@ const GROUPS = [
     ['skylight',  'skylight',      0, 1, 1],
     ['skyExt',    'sky extent',    0, 5, 1],
   ]],
+  ['cutting', [
+    ['cutParts',  'cut parts',     0, 1, 1],
+    ['explodeD',  'explode',       0, 0.5, 0.005],
+  ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
@@ -311,6 +315,9 @@ function build() {
   for (let i = 0; i < L; i++) s = G.cageSubdivide(s);
   // rim joints sweep the boundary of the mesh AT THIS level — they stick
   // to the displayed surface exactly, at any subsurf setting
+  // G14: cut doors/windows into separate parts BEFORE the rims, so the
+  // joints are traced on (and travel with) the moved panels
+  if (step === 'crease' && G.cageCut) s = G.cageCut(s, spec);
   if (step === 'crease') s = G.cageRims(s, spec);
   // interior elements are disjoint post-passes too (G13)
   if (step === 'crease' && G.cageInterior) s = G.cageInterior(s, spec);

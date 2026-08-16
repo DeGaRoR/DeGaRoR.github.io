@@ -978,7 +978,7 @@ function cageRims(m, S) {
     // across a pillar BY CONSTRUCTION. (The old per-zone z-bin estimate
     // stepped at bin edges and disagreed between neighbouring doors —
     // the visible sill jumps at the cabin pillar.)
-    if (kind === 'door' && sill > 0) {
+    if (kind === 'door' && sill > 0 && !(S.cut && S.cut.on)) {
       const clip = (() => {
         const NR = pts.length;
         // the bottom line is built from the BOTTOM RUN of the boundary
@@ -1315,6 +1315,114 @@ function cageRims(m, S) {
       for (let k = first; k < add.length; k++) add[k].v.reverse();
   }
   m.F = F.concat(add);
+  return m;
+}
+
+// ---------------------------------------------------------------------------
+// CUT — G14 (user chantier): doors and windows become SEPARATE MESH
+// parts AFTER subdivision, cut face-granular on the subdivided topology
+// — no fighting the subsurf: the sill STEPS through the available
+// geometry. Runs after cageSubdivide and BEFORE cageRims, so zone
+// tracing happens on the moved parts and every joint bead travels with
+// its panel. cut.explode offsets each part along its mean outward
+// normal (side panels go sideways, skylights up, windshield forward).
+// Window faces inside a door carry both marks and separate again from
+// the door part — the pane explodes out of its door, assembly-style.
+// Flag off = the untouched continuous-sill pipeline (fully reversible).
+// ---------------------------------------------------------------------------
+function cageCut(m, S) {
+  const C = S.cut;
+  if (!C || !C.on) return m;
+  const { V, F } = m;
+  const W = S.win || {};
+  const groups = kind => {
+    const idx = [];
+    F.forEach((f, i) => { if (f[kind] && f.v.length === 4) idx.push(i); });
+    const byI = new Map(idx.map((fi, k) => [fi, k]));
+    const par = idx.map((_, k) => k);
+    const find = k => par[k] === k ? k : (par[k] = find(par[k]));
+    const own = new Map();
+    for (const fi of idx) {
+      const f = F[fi];
+      for (let e = 0; e < 4; e++) {
+        const key = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        if (own.has(key)) par[find(byI.get(fi))] = find(byI.get(own.get(key)));
+        else own.set(key, fi);
+      }
+    }
+    const z = new Map();
+    for (const fi of idx) {
+      const r = find(byI.get(fi));
+      if (!z.has(r)) z.set(r, []);
+      z.get(r).push(fi);
+    }
+    return [...z.values()];
+  };
+  const cutZone = (fis, sill) => {
+    let keep = fis;
+    if (sill > 0) {
+      // STEPPED SILL on the subdivided topology (user spec): per-column
+      // bottom of the zone; faces whose centroid sits below bottom+sill
+      // stay with the fuselage and lose their marks
+      const vs = new Set();
+      for (const fi of fis) for (const vi of F[fi].v) vs.add(vi);
+      let z0 = 1e9, z1 = -1e9;
+      for (const vi of vs) {
+        z0 = Math.min(z0, V[vi][2]); z1 = Math.max(z1, V[vi][2]);
+      }
+      const NB = Math.max(4, Math.round(Math.sqrt(vs.size)));
+      const bw = (z1 - z0) / NB || 1;
+      const bins = new Array(NB).fill(1e9);
+      for (const vi of vs) {
+        const b = Math.min(NB - 1, Math.max(0,
+          Math.floor((V[vi][2] - z0) / bw)));
+        bins[b] = Math.min(bins[b], V[vi][1]);
+      }
+      for (let b = 0; b < NB; b++) if (bins[b] === 1e9)
+        bins[b] = b ? bins[b - 1] : 0;
+      keep = fis.filter(fi => {
+        let cy = 0, cz = 0;
+        for (const vi of F[fi].v) { cy += V[vi][1] / 4; cz += V[vi][2] / 4; }
+        const b = Math.min(NB - 1, Math.max(0,
+          Math.floor((cz - z0) / bw)));
+        return cy >= bins[b] + sill;
+      });
+      const ks = new Set(keep);
+      for (const fi of fis) if (!ks.has(fi)) {
+        delete F[fi].door; delete F[fi].win; delete F[fi].doorKey;
+      }
+    }
+    if (!keep.length) return;
+    // separate: duplicate the part's vertices (the skin keeps the hole),
+    // offset along the part's mean outward normal
+    let nx = 0, ny = 0, nz = 0;
+    for (const fi of keep) {
+      const p = F[fi].v.map(i => V[i]);
+      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+      const w2 = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+      nx += u[1]*w2[2]-u[2]*w2[1];
+      ny += u[2]*w2[0]-u[0]*w2[2];
+      nz += u[0]*w2[1]-u[1]*w2[0];
+    }
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    const off = [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
+    const map = new Map();
+    for (const fi of keep)
+      F[fi].v = F[fi].v.map(vi => {
+        if (!map.has(vi)) map.set(vi,
+          V.push([V[vi][0]+off[0], V[vi][1]+off[1], V[vi][2]+off[2]]) - 1);
+        return map.get(vi);
+      });
+  };
+  if (C.doors) for (const z of groups('door')) {
+    const dk = F[z[0]].doorKey;
+    const sill = W.sills && dk && W.sills[dk] != null ? W.sills[dk]
+      : dk && dk.lastIndexOf('pax', 0) === 0
+        ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
+      : W.doorSill;
+    cutZone(z, Math.max(0, sill || 0));
+  }
+  if (C.wins) for (const z of groups('win')) cutZone(z, 0);
   return m;
 }
 
@@ -2102,6 +2210,8 @@ const CAGE_PARAMS = {
   intOn: 0, intBulk: 1, intFire: 1,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
   dashCrease: 1.5,
+  // G14: post-subsurf cutting of doors/windows into separate parts
+  cutParts: 0, explodeD: 0,
 };
 
 function cageSpec(P) {
@@ -2288,6 +2398,8 @@ function cageSpec(P) {
               (P.doorSillPax != null ? P.doorSillPax : P.doorSill) || 0) };
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
+  S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
+            explode: Math.max(0, P.explodeD || 0) };
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
                  dashBack: P.dashBack,
@@ -2300,8 +2412,8 @@ function cageSpec(P) {
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                      cageResolve, cageSpec, cageSubdivide, cageRims,
-                     cageInterior };
+                     cageInterior, cageCut };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                    cageResolve, cageSpec, cageSubdivide, cageRims,
-                   cageInterior };
+                     cageInterior, cageCut };
