@@ -5017,13 +5017,26 @@ a door carry both marks and separate again from the door part — panes
 explode out of their doors, assembly-style. Params `cutParts` (0 =
 fully reversible, strict manifold applies only when off — a cut skin
 has real boundary holes) + `explodeD`, UI group "cutting".
-KNOWN v1 ROUGHNESS for the next session: the door FRAME (door minus
-glass minus stepped sill drop) can fragment into several traced zones
-(door:waistband x ~10 outlines at pax 1) — consolidate by keying the
-union-find on doorKey instead of pure edge-adjacency, and give each cut
-part ONE bead; consider sealing the skin hole rim and the part's cut
-edge with a thin border band; explode direction could take per-part
-hinge axes later (doors swing, not translate).
+**v2 (d5fc8f7, user review): DOORS OWN THEIR WINDOWS** — glass
+separated with a door STAYS with it (kept faces tag `cutPart`; the win
+pass filters them out), so each door is ONE part with its glass, door
+seal around it, window seal nested on the part; only window faces
+outside every cut door form their own parts (a window straddling a door
+edge splits door-share / fuselage-share — the user's chosen semantics).
+Door fragmentation gone (4 door outlines at pax 1, was ~20). **SILL IS
+ROW-STEPPED**: BFS face rows up from the zone's bottom boundary run
+(single-owner horizontal-ish lower-half edges = row 0; horizontal-edge
+adjacency increments), drop round(sill/rowHeight) WHOLE rows — the cut
+runs dead straight along the subdivided rows (the v1 centroid-vs-bin
+test staircased, user report). Verified: pilot + pax doors explode as
+coherent single panels, straight sills, fit green.
+NEXT SESSION: no param yet for window height / door top height (user
+wanted to match them — both are topology-fixed at ceil today; a
+doorTop/window-band-height param would let doors swallow windows or
+match them); skin hole rims + part cut edges could take a thin border
+band; explode could become per-door HINGE axes (doors swing); the
+interior chantiers I3-I7 (station frames next) now get REAL parts to
+manipulate individually.
 
 ### G13 — INTERIOR STRUCTURE (I1 + I2 DONE 2026-08-16)
 
