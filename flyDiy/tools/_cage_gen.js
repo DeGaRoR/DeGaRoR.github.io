@@ -1533,59 +1533,23 @@ function cageInterior(m, S) {
       if (!used.has(vi)) { used.set(vi, sv.length); sv.push(V[vi].slice()); }
       return used.get(vi);
     });
-    const fnOf = f => {
-      const p = f.v.map(i => sv[i]);
-      return f.v.length === 4
-        ? nrm(cross(sub(p[2], p[0]), sub(p[3], p[1])))
-        : nrm(cross(sub(p[1], p[0]), sub(p[2], p[0])));
-    };
-    const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
-                       return [v[0]/l, v[1]/l, v[2]/l]; };
-    const sub = (A, B) => [A[0]-B[0], A[1]-B[1], A[2]-B[2]];
-    const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],
-                             a[0]*b[1]-a[1]*b[0]];
-    const EN = new Map();
-    for (const f of faces) {
-      const n = fnOf(f);
-      for (let i = 0; i < f.v.length; i++) {
-        const k = cageEdgeKey(f.v[i], f.v[(i + 1) % f.v.length]);
-        if (!EN.has(k)) EN.set(k, []);
-        EN.get(k).push(n);
-      }
-    }
+    // EXPLICIT CREASE LOOPS ONLY (user ruling after the lip-height
+    // threshold find: the dihedral auto-crease flipped edges as the lip
+    // size crossed ~0.025 and the crease graph changed — dynamic
+    // affectation is out). Exactly THREE continuous paths carry crease:
+    // the outer lip (outline), the inset lip (roll inner edge) and the
+    // inner lip (face edge). Nothing else — every crease vertex holds
+    // exactly 2 sharp edges, no crossings can exist, and corners turn as
+    // smooth crease curves. Deterministic at every lip size.
     const E2 = new Map();
-    for (const [k, nsl] of EN)
-      if (nsl.length === 2 && nsl[0][0]*nsl[1][0] + nsl[0][1]*nsl[1][1]
-          + nsl[0][2]*nsl[1][2] < 0.87)
-        E2.set(k, dc);
-    // NO CREASE CROSSINGS on the dash either (HARD-WON #2 — user
-    // diagnosis): a vertex with >= 3 creased edges corner-pins and
-    // prints a 45-degree artifact across the face at high subsurf.
-    // Greedy relax: drop the SHORTEST creased edge at any over-creased
-    // vertex until every vertex carries <= 2 — the long design lines
-    // keep their crease and turn corners as smooth crease curves.
-    const elen = k => {
-      const [a, b] = k.split('_').map(Number);
-      const A = sv[a], B = sv[b];
-      return Math.hypot(A[0]-B[0], A[1]-B[1], A[2]-B[2]);
-    };
-    for (;;) {
-      const cnt = new Map();
-      for (const k of E2.keys())
-        for (const v of k.split('_').map(Number))
-          cnt.set(v, (cnt.get(v) || 0) + 1);
-      let worst = -1;
-      for (const [v, c] of cnt) if (c >= 3) { worst = v; break; }
-      if (worst < 0) break;
-      let drop = null, dl = 1e9;
-      for (const k of E2.keys()) {
-        const [a, b] = k.split('_').map(Number);
-        if (a !== worst && b !== worst) continue;
-        const l = elen(k);
-        if (l < dl) { dl = l; drop = k; }
+    const tagPath = ids2 => {
+      for (let i = 0; i + 1 < ids2.length; i++) {
+        const a = used.get(ids2[i]), b = used.get(ids2[i + 1]);
+        if (a != null && b != null && a !== b)
+          E2.set(cageEdgeKey(a, b), dc);
       }
-      E2.delete(drop);
-    }
+    };
+    tagPath(oid); tagPath(o1id); tagPath(o2id);
     let sm = { V: sv, F: faces, E: E2 };
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
