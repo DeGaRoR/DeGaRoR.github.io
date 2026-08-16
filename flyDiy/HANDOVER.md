@@ -5081,6 +5081,11 @@ Chaikin-cut into two points (d = min(2.2r, 0.4 arm)) — physical seals
 round their corners, parallel transport stays smooth, the miter stretch
 goes small, and the corner shading artifacts are gone; recorded
 outlines keep the TRUE boundary (only the swept path rounds).
+`rimArc` (1-6, default 3): SECTIONS PER SEAL CORNER — the fillet is a
+quadratic bezier through the corner point, tangent to both arms, so
+extra points concentrate AT the bends only (straight runs stay
+two-point; rimArc 1 = the plain chamfer). rimArc 3 costs ~+23% joint
+faces, not a multiplication.
 Also `rimSides` (4-10, default 8): the seal
 tubes are ~half the L2 face count — VERIFIED no caps exist (joint faces
 = sides x path points exactly, each seal is one closed tube; what shows

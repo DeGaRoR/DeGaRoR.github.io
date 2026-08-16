@@ -148,6 +148,7 @@ const GROUPS = [
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     ['rimSides',  'rim sides',    4, 10, 1],
+    ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
     ['rimWs',     'w/s rim',      0, 1, 1],
     ['rimDoor',   'door rim',     0, 1, 1],

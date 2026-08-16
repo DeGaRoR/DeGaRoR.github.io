@@ -1144,10 +1144,21 @@ function cageRims(m, S) {
         }
         const l0 = Math.hypot(...sub(pc, pm)), l1 = Math.hypot(...sub(pp, pc));
         const d = Math.min(r * 2.2, 0.4 * Math.min(l0, l1));
-        outP.push([pc[0]-d0[0]*d, pc[1]-d0[1]*d, pc[2]-d0[2]*d]);
-        outN.push(N0[i]);
-        outP.push([pc[0]+d1[0]*d, pc[1]+d1[1]*d, pc[2]+d1[2]*d]);
-        outN.push(N0[i]);
+        // rimArc = SECTIONS PER CORNER (user param): the fillet is a
+        // quadratic bezier through the corner point, tangent to both
+        // arms — extra points concentrate AT the bend only, straight
+        // runs stay two-point. rimArc 1 = the plain chamfer.
+        const AR = Math.max(1, Math.round(W.rimArc || 1));
+        const A2 = [pc[0]-d0[0]*d, pc[1]-d0[1]*d, pc[2]-d0[2]*d];
+        const B2 = [pc[0]+d1[0]*d, pc[1]+d1[1]*d, pc[2]+d1[2]*d];
+        for (let j = 0; j <= AR; j++) {
+          const t = j / AR, u = 1 - t;
+          outP.push([
+            u*u*A2[0] + 2*u*t*pc[0] + t*t*B2[0],
+            u*u*A2[1] + 2*u*t*pc[1] + t*t*B2[1],
+            u*u*A2[2] + 2*u*t*pc[2] + t*t*B2[2]]);
+          outN.push(N0[i]);
+        }
       }
       pts = outP; ns = outN;
     }
@@ -1997,7 +2008,7 @@ const CAGE_PARAMS = {
   rearAperture: 0,
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
-  rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8,
+  rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   doorDepth: 0.008,
   // interior (G13): master + per-element flags — every element disjoint
@@ -2181,7 +2192,7 @@ function cageSpec(P) {
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW,
-            rimSides: P.rimSides || 8,
+            rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),
