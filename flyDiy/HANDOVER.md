@@ -5017,6 +5017,23 @@ best-effort — refine via the new JSON export). UI: exp/imp buttons
 paste — the trusted alternative to localStorage), side pane RESIZABLE
 (flex + rtl resize handle, _cage3 only — mirror to _cage2 if wanted).
 
+**DASH GAP ROOT CAUSE + THE LAW (2762a2f, user diagnosis):** position-
+pinning CANNOT survive CC — the base row was verbatim on the glass line
+but uncreased, so subdivision's smooth vertex rule pulled it inward
+(the gap). LAW: any line that must STAY PUT through subdivision carries
+MAX CREASE (weight 3 keeps a chain exactly on its polyline). Now: base
+line, under-base return and outer outline at 3; the lip pair keeps
+dashCrease. Gap closed, fit green.
+**NEXT SESSION — DASH REDESIGN AS FLAT PANELS (user ruling):** the
+continuous half-circle piece is unrealistic and causes the trouble.
+Rebuild as REAL PANELS like IRL aircraft: a flat instrument panel
+(with eventual thickness), a glareshield piece from the glass base,
+SIDE CACHES covering the ends (so an opened door shows a panel end,
+not a see-through section — like cars), everything reaching laterally
+BEYOND the window pillar, all structural edges max-creased. The lip
+recipe survives on the panel edges; the current solid stays behind
+intDash until the panels land.
+
 **Post-I3' fixes (d7f5602):** (1) the dash survives cutting — cageCut
 records the windshield BASE LINE (`m.wsBase`, waistband-side vert ids)
 BEFORE separating the glass, and the dash tracer prefers it over the
