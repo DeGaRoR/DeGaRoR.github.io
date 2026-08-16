@@ -1335,9 +1335,11 @@ function cageCut(m, S) {
   if (!C || !C.on) return m;
   const { V, F } = m;
   const W = S.win || {};
-  const groups = kind => {
+  const groups = (kind, filt) => {
     const idx = [];
-    F.forEach((f, i) => { if (f[kind] && f.v.length === 4) idx.push(i); });
+    F.forEach((f, i) => {
+      if (f[kind] && f.v.length === 4 && (!filt || filt(i))) idx.push(i);
+    });
     const byI = new Map(idx.map((fi, k) => [fi, k]));
     const par = idx.map((_, k) => k);
     const find = k => par[k] === k ? k : (par[k] = find(par[k]));
@@ -1361,31 +1363,58 @@ function cageCut(m, S) {
   const cutZone = (fis, sill) => {
     let keep = fis;
     if (sill > 0) {
-      // STEPPED SILL on the subdivided topology (user spec): per-column
-      // bottom of the zone; faces whose centroid sits below bottom+sill
-      // stay with the fuselage and lose their marks
-      const vs = new Set();
-      for (const fi of fis) for (const vi of F[fi].v) vs.add(vi);
-      let z0 = 1e9, z1 = -1e9;
-      for (const vi of vs) {
-        z0 = Math.min(z0, V[vi][2]); z1 = Math.max(z1, V[vi][2]);
+      // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
+      // the mesh already has — the centroid-vs-bin test staircased).
+      // BFS face rows upward from the zone's bottom boundary run and
+      // drop round(sill / rowHeight) whole rows.
+      const eOwn2 = new Map();
+      for (const fi of fis) {
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          if (!eOwn2.has(k)) eOwn2.set(k, []);
+          eOwn2.get(k).push(fi);
+        }
       }
-      const NB = Math.max(4, Math.round(Math.sqrt(vs.size)));
-      const bw = (z1 - z0) / NB || 1;
-      const bins = new Array(NB).fill(1e9);
-      for (const vi of vs) {
-        const b = Math.min(NB - 1, Math.max(0,
-          Math.floor((V[vi][2] - z0) / bw)));
-        bins[b] = Math.min(bins[b], V[vi][1]);
+      let y0 = 1e9, y1 = -1e9;
+      for (const fi of fis) for (const vi of F[fi].v) {
+        y0 = Math.min(y0, V[vi][1]); y1 = Math.max(y1, V[vi][1]);
       }
-      for (let b = 0; b < NB; b++) if (bins[b] === 1e9)
-        bins[b] = b ? bins[b - 1] : 0;
+      const yMid = y0 + 0.5 * (y1 - y0);
+      const row = new Map();
+      const q = [];
+      for (const [k, fl] of eOwn2) {
+        if (fl.length !== 1) continue;               // boundary edge
+        const [a, b] = k.split('_').map(Number);
+        const A = V[a], B = V[b];
+        if (Math.abs(B[2] - A[2]) < Math.abs(B[1] - A[1])) continue;
+        if ((A[1] + B[1]) / 2 > yMid) continue;      // bottom run only
+        if (!row.has(fl[0])) { row.set(fl[0], 0); q.push(fl[0]); }
+      }
+      let rowH = 0, nH = 0;
+      for (const fi of q) {
+        let lo = 1e9, hi = -1e9;
+        for (const vi of F[fi].v) {
+          lo = Math.min(lo, V[vi][1]); hi = Math.max(hi, V[vi][1]);
+        }
+        rowH += hi - lo; nH++;
+      }
+      rowH = nH ? rowH / nH : 0.05;
+      const NDROP = Math.round(sill / Math.max(1e-6, rowH));
+      while (q.length) {
+        const fi = q.shift(), r = row.get(fi), f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const A = V[f.v[e]], B = V[f.v[(e + 1) % 4]];
+          if (Math.abs(B[2] - A[2]) < Math.abs(B[1] - A[1])) continue;
+          for (const gi of eOwn2.get(cageEdgeKey(f.v[e], f.v[(e + 1) % 4]))) {
+            if (gi === fi || row.has(gi)) continue;
+            row.set(gi, r + 1); q.push(gi);
+          }
+        }
+      }
       keep = fis.filter(fi => {
-        let cy = 0, cz = 0;
-        for (const vi of F[fi].v) { cy += V[vi][1] / 4; cz += V[vi][2] / 4; }
-        const b = Math.min(NB - 1, Math.max(0,
-          Math.floor((cz - z0) / bw)));
-        return cy >= bins[b] + sill;
+        const r = row.get(fi);
+        return r == null || r >= NDROP;
       });
       const ks = new Set(keep);
       for (const fi of fis) if (!ks.has(fi)) {
@@ -1407,12 +1436,14 @@ function cageCut(m, S) {
     const nl = Math.hypot(nx, ny, nz) || 1;
     const off = [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
     const map = new Map();
-    for (const fi of keep)
+    for (const fi of keep) {
       F[fi].v = F[fi].v.map(vi => {
         if (!map.has(vi)) map.set(vi,
           V.push([V[vi][0]+off[0], V[vi][1]+off[1], V[vi][2]+off[2]]) - 1);
         return map.get(vi);
       });
+      F[fi].cutPart = 1;
+    }
   };
   if (C.doors) for (const z of groups('door')) {
     const dk = F[z[0]].doorKey;
@@ -1422,7 +1453,12 @@ function cageCut(m, S) {
       : W.doorSill;
     cutZone(z, Math.max(0, sill || 0));
   }
-  if (C.wins) for (const z of groups('win')) cutZone(z, 0);
+  // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
+  // a door stays with it — only window faces OUTSIDE every cut door form
+  // their own parts (a window straddling a door edge splits: the door
+  // keeps its share, the rest becomes a fuselage-side window part).
+  if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
+    cutZone(z, 0);
   return m;
 }
 
