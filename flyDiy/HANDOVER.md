@@ -5048,8 +5048,19 @@ the sliding canopy; not built, waiting on user direction.
 
 Also this session: crPillar defaults 3 (MAX — user ruling: pillars render
 at their drawn width; width is adjusted by `pillarW`, the new unified
-cab+pax width override, default 0 = template identity; _cage3 defaults
-pillarW 0.10 = the cabin's value). Pillar bands start equal everywhere.
+width override, default 0 = template identity; _cage3 defaults pillarW
+0.10 = the cabin's value). `pillarW` covers cab + pax + FRONT (the
+noseTwin->noseRing gap, x pfW) + TAIL (tailMid placed pillarW forward of
+the post) — all pillar bands start equal. The WINDOW pillar instead got
+`apilPerp` (0..1, _cage3 default 1): the A-pillar width is the
+PERPENDICULAR distance between its two frame edges, not the z distance
+(user ruling — a pure z offset reads sin(slope) thinner on the angled
+part). Pinned-y levels take dz = w/sin(local slope) off the wsFront
+frame polyline, the free ceil level offsets along the true
+perpendicular; w = the template's mean width read as perpendicular
+(x apilW). apilPerp 0 = exact template path, fit-guarded. Cage tools are
+git-versioned (they were already tracked — commit 88a5fcb backs up
+v11-v12 + this; only the retired _cage.html stays untracked).
 
 **G12.3 v11 — PER-DOOR SILLS, EXACT BOTTOM FIELD, MITER JOINTS
 (2026-08-16).** Three fixes after user playtest (sill jump at the cabin
