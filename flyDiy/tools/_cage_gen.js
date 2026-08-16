@@ -1442,19 +1442,30 @@ function cageInterior(m, S) {
       return [p[0] + nx * lip, p[1] + ny * lip, zP];
     });
     const O2 = O1.map(p => [p[0], p[1], zF]);       // forward lip
-    // CLOSED SOLID, explicit pieces (user rulings: the SIDES are FLAT
-    // PANELS at the lip's OUTER edge — the body never extrudes from the
-    // inset inner edge). Coincident points fuse via a coordinate-keyed
-    // vertex map; < 3-distinct quads are skipped (repeated-vert quads act
-    // as triangles); orientation is fixed afterwards by orientCage on the
-    // component, so pieces are emitted in whatever winding is convenient.
+    // CLOSED SOLID as CONSISTENT GRIDS (user diagnosis: the old side
+    // topology anchored every side column to ONE repeated base vertex —
+    // a triangle fan — and filled the side panel by laddering a 4-point
+    // chain against a 2-point edge, whose middle quad twisted across the
+    // panel. CC redistributed those uneven control points differently at
+    // every level, so the corner crawled until faces crossed. Now every
+    // column gets a REAL anchor: arc columns anchor to the base line,
+    // side columns anchor to the FORWARD EDGE sampled at the SAME
+    // heights as the outline side chain — every strip quad is a clean
+    // rectangle, the front return is a grid matched to that sampling,
+    // and no fans or lids exist at all.)
     const vid = new Map();
     const pid = p => {
       const k = p[0].toFixed(9) + ',' + p[1].toFixed(9) + ',' + p[2].toFixed(9);
       if (!vid.has(k)) vid.set(k, V.push([p[0], p[1], p[2]]) - 1);
       return vid.get(k);
     };
-    const baseId = base.map(pid);
+    const anchor = [];
+    for (let j = 0; j < NS; j++)
+      anchor.push([bL[0], yB + (bL[1] - yB) * j / NS, bL[2]]);
+    for (let i = 0; i < NL; i++) anchor.push(base[i]);
+    for (let j = NS - 1; j >= 0; j--)
+      anchor.push([bR[0], yB + (bR[1] - yB) * j / NS, bR[2]]);
+    const aid = anchor.map(pid);
     const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
     const R5 = base.map(p => pid([p[0], yB, p[2]]));
     const dashStart = add.length;
@@ -1481,7 +1492,7 @@ function cageInterior(m, S) {
         quad(A[a0], A[a1], B[b1], B[b0]);
       }
     };
-    strip(baseId, oid.slice(NS, NS + NL));          // glareshield
+    strip(aid, oid);           // flat side panels + glareshield, one strip
     strip(oid, o1id);                               // border roll
     strip(o1id, o2id);                              // lip
     // face plate: ladder between the two halves of the lip path split at
@@ -1492,20 +1503,20 @@ function cageInterior(m, S) {
     for (let i = iC; i >= 0; i--) cA.push(o2id[i]);
     for (let i = iC; i < NX; i++) cB.push(o2id[i]);
     ladder(cA, cB);
-    // side panels: FLAT at the outer x — ladder from the outline side
-    // chain (zP, top->bottom incl the shared arc corner) to the 2-point
-    // forward edge under the base end
-    const sideL = [oid[NS]];
-    for (let j = NS - 1; j >= 0; j--) sideL.push(oid[j]);
-    ladder(sideL, [baseId[0], pid([bL[0], yB, bL[2]])]);
-    const sideR = [oid[NS + NL - 1]];
-    for (let j = NS + NL; j < NX; j++) sideR.push(oid[j]);
-    ladder(sideR, [baseId[NL - 1], pid([bR[0], yB, bR[2]])]);
     // bottom: ladder between the aft chain (outer corner -> roll corner ->
     // lip corner -> chord -> mirrored) and the under-base line
     ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
             oid[NX - 1]], R5);
-    strip(R5, baseId);                              // front return
+    // front return: a GRID with rows at the side-chain heights — its side
+    // columns fuse with the side panels' forward edges (no T-junctions)
+    for (let k = 0; k < NS; k++) {
+      const ra = base.map(p => pid([p[0], yB + (p[1] - yB) * k / NS, p[2]]));
+      // top row must reuse the base points VERBATIM: yB + (y-yB)*1 is not
+      // bit-equal to y in floats and the seam would not fuse
+      const rb = k + 1 === NS ? base.map(p => pid(p))
+        : base.map(p => pid([p[0], yB + (p[1] - yB) * (k + 1) / NS, p[2]]));
+      strip(ra, rb);
+    }
     // coherent windings + outward, on this component only
     orientCage({ V, F: add.slice(dashStart) });
     // ROUNDED EDGES (user ruling): the dash goes through the SAME
