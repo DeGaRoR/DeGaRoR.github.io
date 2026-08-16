@@ -1868,14 +1868,22 @@ function cageInterior(m, S) {
     // exactly 2 sharp edges, no crossings can exist, and corners turn as
     // smooth crease curves. Deterministic at every lip size.
     const E2 = new Map();
-    const tagPath = ids2 => {
+    const tagPath = (ids2, w) => {
       for (let i = 0; i + 1 < ids2.length; i++) {
         const a = used.get(ids2[i]), b = used.get(ids2[i + 1]);
         if (a != null && b != null && a !== b)
-          E2.set(cageEdgeKey(a, b), dc);
+          E2.set(cageEdgeKey(a, b), w);
       }
     };
-    tagPath(oid); tagPath(o1id); tagPath(o2id);
+    // BACK / STRUCTURAL loops at MAX crease (user diagnosis: position-
+    // pinning cannot survive CC — the uncreased base row was pulled off
+    // the glass line, the gap. Weight 3 keeps a chain exactly on its
+    // polyline at every displayed level): the base line, the under-base
+    // return, the outer outline. The lip pair keeps the adjustable
+    // dashCrease rounding.
+    tagPath(aid.slice(NS, NS + NL), 3);   // the base line (arc anchors)
+    tagPath(R5, 3); tagPath(oid, 3);
+    tagPath(o1id, dc); tagPath(o2id, dc);
     let sm = { V: sv, F: faces, E: E2 };
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
