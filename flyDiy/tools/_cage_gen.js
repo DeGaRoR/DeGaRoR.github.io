@@ -1116,7 +1116,20 @@ function cageRims(m, S) {
     // and on-surface positions) even when the tube itself is disabled
     m.outlines.push({ kind, mat: zMat, ids: ids.slice(),
                       pts: pts.map(p => p.slice()) });
-    const enabled = kind === 'door' ? W.rimDoor
+    // wood doors are FRAMED, not sealed (user: the door is integral
+    // structure): the door tube is suppressed when the interior builds
+    // that door's section in wood — cageInterior raises the wooden
+    // frame from this same recorded outline. Windows and the
+    // windshield keep their seals in every construction.
+    const IC = S.interior || {};
+    const CMr = IC.consMap || {};
+    const consD = (doorKey && doorKey.lastIndexOf('pax', 0) === 0
+      ? CMr.paxBelow : CMr.pilotBelow) || IC.cons || 'carbon';
+    // structural doors carry no rubber seal: wood/metal raise a frame,
+    // tube its own tube outline (all from this same recorded outline)
+    const structDoor = IC.on &&
+      (consD === 'wood' || consD === 'tube' || consD === 'metal');
+    const enabled = kind === 'door' ? (W.rimDoor && !structDoor)
       : zMat === 'windshield' ? W.rimWs : W.rimWin;
     if (!enabled || !(W.rim > 0)) continue;
 
@@ -1146,33 +1159,73 @@ function cageRims(m, S) {
                                pts[i][2]-prev[2]) < r * 0.6) continue;
         P0.push(pts[i]); N0.push(ns[i]);
       }
+      if (m.rimDebug)
+        m.outlines[m.outlines.length - 1].stageMerge = P0.map(p => p.slice());
       if (P0.length > 2) {
         const a = P0[0], b = P0[P0.length - 1];
         if (Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]) < r * 0.6) {
           P0.pop(); N0.pop();
         }
       }
-      // collapse SPLIT CORNERS: a 90-deg turn spread over two vertices a
-      // couple of radii apart gives each a half-turn and a half-size
-      // fillet (user's red corners). A vertex that turns > ~20 deg AND
-      // deviates < 1.5 r from its neighbours' chord folds away — smooth
-      // runs are untouched (their per-vertex turn is small).
-      for (let changed = true; changed;) {
-        changed = false;
-        for (let i = 0; i < P0.length && P0.length > 4; i++) {
-          const Np = P0.length;
-          const a = P0[(i - 1 + Np) % Np], p = P0[i], b = P0[(i + 1) % Np];
-          const d0 = nrm(sub(p, a)), d1 = nrm(sub(b, p));
-          if (d0[0]*d1[0] + d0[1]*d1[1] + d0[2]*d1[2] > 0.94) continue;
-          const ab = sub(b, a), ap = sub(p, a);
-          const l2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2] || 1;
-          const t2 = (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / l2;
-          const q = [a[0]+ab[0]*t2, a[1]+ab[1]*t2, a[2]+ab[2]*t2];
-          if (Math.hypot(p[0]-q[0], p[1]-q[1], p[2]-q[2]) < r * 1.5) {
-            P0.splice(i, 1); N0.splice(i, 1); changed = true; i--;
+      // SPLIT-CORNER RECONSTRUCTION (replaces the fold-to-chord collapse,
+      // measured harmful): a corner split across two NEARBY vertices
+      // (segment < ~2.5 r, combined turn > ~30 deg) becomes ONE point
+      // where the outer arms meet (closest approach of the two arm
+      // lines; the pair midpoint when the arms are parallel or the meet
+      // runs away) — the exact inverse of the split, so the path passes
+      // through the TRUE corner and the fillet sees one full turn.
+      // The old pass folded any low-deviation vertex onto its
+      // neighbours' chord, which was scale-dependent (fired at one
+      // subsurf level and not the next: the windshield top apex folded
+      // at L2 only — the user's "missing mid interpolation point"),
+      // order-dependent (L/R doors diverged, 108 vs 114 path points)
+      // and CASCADING — each fold re-based the next test, flattening
+      // whole curved runs (pane top corner at L3: 0.056 off the drawn
+      // boundary, 4.6 r, measured). Reconstruction cannot cascade: it
+      // only fires on sub-seal-scale segments and the new point is
+      // clamped within 3 r of the pair it replaces.
+      for (let pass = 0; pass < 4; pass++) {
+        let did = false;
+        for (let i = 0; P0.length > 4 && i < P0.length; i++) {
+          const Np = P0.length, i1 = (i + 1) % Np;
+          const p = P0[i], q = P0[i1];
+          const seg = Math.hypot(...sub(q, p));
+          if (seg >= r * 2.5) continue;
+          const a = P0[(i - 1 + Np) % Np], b = P0[(i1 + 1) % Np];
+          const dIn = nrm(sub(p, a)), dMid = nrm(sub(q, p)),
+                dOut = nrm(sub(b, q));
+          const t0 = dIn[0]*dMid[0] + dIn[1]*dMid[1] + dIn[2]*dMid[2];
+          const t1 = dMid[0]*dOut[0] + dMid[1]*dOut[1] + dMid[2]*dOut[2];
+          const turn = Math.acos(Math.max(-1, Math.min(1, t0)))
+                     + Math.acos(Math.max(-1, Math.min(1, t1)));
+          if (turn < 0.52) continue;
+          const mid = [(p[0]+q[0])/2, (p[1]+q[1])/2, (p[2]+q[2])/2];
+          // closest approach of line(p, dIn) and line(q, dOut)
+          const c = dIn[0]*dOut[0] + dIn[1]*dOut[1] + dIn[2]*dOut[2];
+          const w0 = sub(p, q);
+          const den = 1 - c * c;
+          let X = mid;
+          if (Math.abs(den) > 1e-6) {
+            const wA = w0[0]*dIn[0] + w0[1]*dIn[1] + w0[2]*dIn[2];
+            const wB = w0[0]*dOut[0] + w0[1]*dOut[1] + w0[2]*dOut[2];
+            const tt = (c * wB - wA) / den;
+            const ss = (wB - c * wA) / den;
+            X = [(p[0]+dIn[0]*tt + q[0]+dOut[0]*ss) / 2,
+                 (p[1]+dIn[1]*tt + q[1]+dOut[1]*ss) / 2,
+                 (p[2]+dIn[2]*tt + q[2]+dOut[2]*ss) / 2];
+            if (Math.hypot(X[0]-mid[0], X[1]-mid[1], X[2]-mid[2]) > r * 3)
+              X = mid;
           }
+          const n = nrm([N0[i][0]+N0[i1][0], N0[i][1]+N0[i1][1],
+                         N0[i][2]+N0[i1][2]]);
+          P0[i] = X; N0[i] = n;
+          P0.splice(i1, 1); N0.splice(i1, 1);
+          did = true;
         }
+        if (!did) break;
       }
+      if (m.rimDebug)
+        m.outlines[m.outlines.length - 1].stageFold = P0.map(p => p.slice());
       const NPP = P0.length;
       const outP = [], outN = [];
       for (let i = 0; i < NPP; i++) {
@@ -1206,6 +1259,10 @@ function cageRims(m, S) {
       pts = outP; ns = outN;
     }
     const path = pts;
+    // the PROCESSED sweep path is recorded next to the true boundary —
+    // outline.pts is the contract, outline.path is what the bead actually
+    // follows; their divergence is the seal-mismatch instrument
+    m.outlines[m.outlines.length - 1].path = pts.map(p => p.slice());
     const pN = ns;
     const NP = path.length;
     // section sides are budgetable: the seals are ~half the face count at
@@ -1319,6 +1376,99 @@ function cageRims(m, S) {
       for (let k = first; k < add.length; k++) add[k].v.reverse();
   }
   m.F = F.concat(add);
+  return m;
+}
+
+// ---------------------------------------------------------------------------
+// GLASS SILL — G12.3 v8's "the whole door can become a window", now
+// BUILT (user ask): winSillPilot / winSillPax extend the pilot and
+// passenger glass DOWN past the waistband, STEPPED THROUGH THE
+// SUBDIVIDED LATTICE (the G14 sill idiom — whole rows, no iso cuts, so
+// joints and cuttings stay clean by construction). Runs on the
+// displayed mesh AFTER subdivision and BEFORE cageCut/cageRims: rows
+// of skin faces under the glass are REASSIGNED to the glass material
+// and win-marked, so zones, seals, cuts, door ownership and the wood
+// door's glass exclusion all follow automatically. At full depth the
+// door is ALL window.
+// ---------------------------------------------------------------------------
+function cageGlassSill(m, S) {
+  const G2 = S.glaze || {};
+  const jobs = [['pilotWindow', G2.sillPilot || 0],
+                ['pasengerWindow', G2.sillPax || 0]];
+  const { V, F } = m;
+  const BELOW = new Set(['waistband', 'body', 'floorLoop']);
+  const horiz = (a, b) => {
+    const A = V[a], B = V[b];
+    return Math.abs(B[2] - A[2]) >= Math.abs(B[1] - A[1]);
+  };
+  for (const [gm, sv] of jobs) {
+    if (!(sv > 0)) continue;
+    const eF = new Map();
+    F.forEach((f, i) => {
+      if (f.v.length !== 4 || f.capFace) return;
+      if (f.m !== gm && !BELOW.has(f.m)) return;
+      for (let e = 0; e < 4; e++) {
+        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+        if (!eF.has(k)) eF.set(k, []);
+        eF.get(k).push(i);
+      }
+    });
+    // row 0 = skin faces sharing a horizontal edge with this glass —
+    // exactly the window's own column, no z bookkeeping needed
+    const row = new Map();
+    let q = [];
+    for (const [k, fl] of eF) {
+      if (fl.length !== 2) continue;
+      const [a, b] = k.split('_').map(Number);
+      if (!horiz(a, b)) continue;
+      const m0 = F[fl[0]].m, m1 = F[fl[1]].m;
+      let cand = null;
+      if (m0 === gm && BELOW.has(m1)) cand = fl[1];
+      if (m1 === gm && BELOW.has(m0)) cand = fl[0];
+      if (cand != null && !row.has(cand)) { row.set(cand, 0); q.push(cand); }
+    }
+    if (!q.length) continue;
+    let rh = 0, nh = 0;
+    for (const fi of q) {
+      let lo = 1e9, hi = -1e9;
+      for (const vi of F[fi].v) {
+        lo = Math.min(lo, V[vi][1]); hi = Math.max(hi, V[vi][1]);
+      }
+      rh += hi - lo; nh++;
+    }
+    rh = nh ? rh / nh : 0.05;
+    const NR = Math.round(sv / Math.max(1e-6, rh));
+    // BFS strictly DOWNWARD row by row (the drop test blocks sideways
+    // spread along the continuous band — measured necessity at the
+    // quarter bay, where fore-aft edges also read as "horizontal")
+    const cenY = fi => {
+      let cy = 0;
+      for (const vi of F[fi].v) cy += V[vi][1] / 4;
+      return cy;
+    };
+    while (q.length) {
+      const nq = [];
+      for (const fi of q) {
+        const r = row.get(fi);
+        if (r + 1 >= NR) continue;
+        const cy = cenY(fi);
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          if (!horiz(a, b)) continue;
+          for (const gi of eF.get(cageEdgeKey(a, b)) || []) {
+            if (gi === fi || row.has(gi) || !BELOW.has(F[gi].m)) continue;
+            if (cenY(gi) > cy - rh * 0.3) continue;
+            row.set(gi, r + 1); nq.push(gi);
+          }
+        }
+      }
+      q = nq;
+    }
+    for (const [fi, r] of row) {
+      if (r < NR) { F[fi].m = gm; F[fi].win = 1; }
+    }
+  }
   return m;
 }
 
@@ -1467,6 +1617,9 @@ function cageCut(m, S) {
         return map.get(vi);
       });
       F[fi].cutPart = 1;
+      // the part's translation, recorded so interior passes can anchor
+      // fuselage-line features (the waist) in the part's OWN frame
+      F[fi].cutOff = off;
     }
   };
   if (C.doors) for (const z of groups('door')) {
@@ -1500,6 +1653,37 @@ function cageInterior(m, S) {
   if (!I || !I.on) return m;
   const { V, F } = m;
   const add = [];
+  // CONSTRUCTION (G13 idioms, user brief): the material idiom IS the
+  // internal structure. 'carbon' = the thickened-skin liner over the
+  // pillar bands; 'tube' = a welded truss off the CONTROL cage; 'wood'
+  // = plywood sheets + spruce posts/longerons + ajoure frames.
+  const cons = I.cons || 'carbon';
+  // THE SECTION MODEL (user: ready for MIXED techniques — e.g. tube
+  // canopy over wooden boom, like the jodel). The airframe divides into
+  // {boom | pax | pilot | nose} x {Below | Above}, the vertical border
+  // being the TOP OF THE WAISTBAND (user ruling). Every builder below
+  // asks consAt(y, z) instead of the global switch; spec.interior
+  // .consMap carries one technique per section (today all eight equal
+  // the global — the UI still shows 3 options — but flipping any one
+  // key just works).
+  const R0 = cageResolve(S);
+  const rgn0 = n => R0.rings.find(r => r.name === n);
+  const zBoom0 = rgn0('tailPost') ? rgn0('tailPost').lv.waist.z : -1e9;
+  const zPax0 = rgn0('pilPaxA') ? rgn0('pilPaxA').lv.waist.z : -1e9;
+  const zCab0 = rgn0('pilCabA') ? rgn0('pilCabA').lv.waist.z : 0;
+  const wsF0 = rgn0('wsFront');
+  const zNose0 = wsF0 ? wsF0.lv.waist.z : 1e9;
+  const secOf = (y, z) =>
+    (z < zPax0 ? 'boom' : z < zCab0 ? 'pax' : z < zNose0 ? 'pilot' : 'nose')
+    + (y < S.bandY ? 'Below' : 'Above');
+  const CM = I.consMap || {};
+  const consAt = (y, z) => CM[secOf(y, z)] || cons;
+  const cenOf = f => {
+    let cy = 0, cz = 0;
+    for (const vi of f.v) { cy += V[vi][1] / f.v.length;
+                            cz += V[vi][2] / f.v.length; }
+    return [cy, cz];
+  };
   // panels are SINGLE sheets with their own vertices: materials render
   // double-sided, and a doubled sheet would put 4 faces on every interior
   // edge. Interior components may therefore carry open boundary edges —
@@ -1565,9 +1749,38 @@ function cageInterior(m, S) {
       b.reduce((s, v) => s + V[v][2], 0) / b.length -
       a.reduce((s, v) => s + V[v][2], 0) / a.length);
     const ring = cycles[0];
+    // MID-PILLAR PLACEMENT + OWN OUTLINE (user report: the panel sat ON
+    // the band's cabin-side ring — its near-tangent fill slivers at the
+    // roof/floor were coplanar with the skin and liner, the visible
+    // face overlap). The panel now falls in the MIDDLE of the pillar
+    // band (each outline point = midpoint to its nearest partner on the
+    // band's other boundary cycle) and is INSET past the liner in the
+    // section plane, so it has a strictly smaller outline of its own.
+    const other = cycles.length > 1 ? cycles[1] : null;
+    const INS = (I.pillars && cons !== 'tube' ? (I.shellT || 0.035) : 0)
+              + 0.008;
+    let bcx = 0, bcy = 0;
+    for (const v of ring) { bcx += V[v][0]; bcy += V[v][1]; }
+    bcx /= ring.length; bcy /= ring.length;
+    const bPos = new Map();
+    for (const v of ring) {
+      let p = V[v];
+      if (other) {
+        let bd = 1e9, bp = p;
+        for (const o of other) {
+          const q = V[o];
+          const d = (q[0]-p[0])**2 + (q[1]-p[1])**2 + (q[2]-p[2])**2;
+          if (d < bd) { bd = d; bp = q; }
+        }
+        p = [(p[0]+bp[0])/2, (p[1]+bp[1])/2, (p[2]+bp[2])/2];
+      }
+      const dx = bcx - p[0], dy = bcy - p[1];
+      const l = Math.hypot(dx, dy) || 1;
+      bPos.set(v, [p[0] + dx/l*INS, p[1] + dy/l*INS, p[2]]);
+    }
     // ladder fill between the two side chains split at top/bottom — the
-    // wall gets its OWN vertices at the ring positions (exact seam,
-    // disjoint component)
+    // wall gets its OWN vertices at the panel outline positions (exact
+    // seam within the component, disjoint from the skin)
     const N = ring.length;
     let iT = 0, iB = 0;
     ring.forEach((v, i) => {
@@ -1577,11 +1790,19 @@ function cageInterior(m, S) {
     const c1 = [], c2 = [];
     for (let i = iT; ; i = (i + 1) % N) { c1.push(ring[i]); if (i === iB) break; }
     for (let i = iT; ; i = (i - 1 + N) % N) { c2.push(ring[i]); if (i === iB) break; }
-    const nid = new Map();
-    const my = vi => {
-      if (!nid.has(vi)) nid.set(vi, V.push(V[vi].slice()) - 1);
-      return nid.get(vi);
+    // CLOSED SOLID (user): the panel is extruded to the same 5 mm as
+    // the boom webs — front sheet, back sheet, rim wall on the outline
+    const BTH = 0.005;
+    const nidF = new Map(), nidB = new Map();
+    const myAt = (vi, dz, mp) => {
+      if (!mp.has(vi)) {
+        const p = bPos.get(vi);
+        mp.set(vi, V.push([p[0], p[1], p[2] + dz]) - 1);
+      }
+      return mp.get(vi);
     };
+    const myF = vi => myAt(vi, BTH / 2, nidF);
+    const myB = vi => myAt(vi, -BTH / 2, nidB);
     const K = Math.max(c1.length, c2.length) - 1;
     for (let k = 0; k < K; k++) {
       const i1a = Math.round(k * (c1.length - 1) / K),
@@ -1589,8 +1810,14 @@ function cageInterior(m, S) {
             i2a = Math.round(k * (c2.length - 1) / K),
             i2b = Math.round((k + 1) * (c2.length - 1) / K);
       if (i1a === i1b && i2a === i2b) continue;
-      add.push({ v: [my(c1[i1a]), my(c1[i1b]), my(c2[i2b]), my(c2[i2a])],
+      add.push({ v: [myF(c1[i1a]), myF(c1[i1b]), myF(c2[i2b]), myF(c2[i2a])],
                  m: 'bulkhead' });
+      add.push({ v: [myB(c2[i2a]), myB(c2[i2b]), myB(c1[i1b]), myB(c1[i1a])],
+                 m: 'bulkhead' });
+    }
+    for (let i = 0; i < N; i++) {
+      const a = ring[i], b = ring[(i + 1) % N];
+      add.push({ v: [myF(a), myF(b), myB(b), myB(a)], m: 'bulkhead' });
     }
   })();
 
@@ -1604,13 +1831,14 @@ function cageInterior(m, S) {
   // extends to the whole fuselage inner shell later by widening the
   // selection. Attachment faces carry att:1 and their own duplicated
   // seam vertices (disjoint component, coincident seam).
-  if (I.pillars) (() => {
-    const PM = new Set(['pillarWindow', 'pillarCabin', 'pillarPassenger']);
-    const t = I.shellT || 0.035;
-    const sel = [];
-    F.forEach((f, i) => {
-      if (PM.has(f.m) && f.v.length === 4 && !f.cutPart) sel.push(i);
-    });
+  // the liner idiom, selection-agnostic: inward-offset copy of the
+  // selected faces (smooth per-vertex normals from the selection's own
+  // faces) + rim walls on every selection-boundary edge. Against a cut
+  // hole the wall IS the door jamb / window reveal.
+  // baseT (optional): the extrusion STARTS at baseT below the skin
+  // instead of at the skin — the composite's second-stage extrusions
+  // ("from this surface, extrude further") begin on the shell's face
+  const liner = (sel, t, matF, baseT) => {
     if (!sel.length) return;
     const vN = new Map();
     const fN = fi => {
@@ -1640,7 +1868,15 @@ function cageInterior(m, S) {
       return inner.get(vi);
     };
     const outerOf = vi => {
-      if (!outer.has(vi)) outer.set(vi, V.push(V[vi].slice()) - 1);
+      if (!outer.has(vi)) {
+        if (baseT) {
+          const n = vN.get(vi);
+          const l = Math.hypot(n[0], n[1], n[2]) || 1;
+          outer.set(vi, V.push([V[vi][0] - n[0]/l*baseT,
+                                V[vi][1] - n[1]/l*baseT,
+                                V[vi][2] - n[2]/l*baseT]) - 1);
+        } else outer.set(vi, V.push(V[vi].slice()) - 1);
+      }
       return outer.get(vi);
     };
     const eCount = new Map();
@@ -1653,15 +1889,1390 @@ function cageInterior(m, S) {
     }
     for (const fi of sel) {
       const f = F[fi];
-      add.push({ v: f.v.slice().reverse().map(innerOf), m: f.m, att: 1 });
+      add.push({ v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]),
+                 att: 1 });
       for (let e = 0; e < 4; e++) {
         const a = f.v[e], b = f.v[(e + 1) % 4];
         if (eCount.get(cageEdgeKey(a, b)) !== 1) continue;
         add.push({ v: [outerOf(b), outerOf(a), innerOf(a), innerOf(b)],
-                   m: f.m, att: 1 });
+                   m: matF(F[fi]), att: 1 });
       }
     }
+  };
+  // the FRONT pillar is a pillar in ALL constructions (user ruling);
+  // capFace excluded — the pusher rear disc shares its material
+  const PM = new Set(['pillarWindow', 'pillarCabin', 'pillarPassenger',
+                      'pillarFront']);
+  // ---- carbon: the COMPOSITE MONOCOQUE (user redesign) ---------------------
+  // 1) the WHOLE skin extrudes into ONE continuous inner shell — the
+  //    body IS the structure; 2) FROM THAT SURFACE the pillar bands
+  //    extrude further inward (baseT starts them on the shell face);
+  //    3) waist and bottom reinforcement bands — the waistband and
+  //    lower-corner material strips, running along the plywood's
+  //    support beam lines — extrude the same way. One piece, one
+  //    material; doors included (they ride their parts and keep their
+  //    seals: a composite door seals in rubber), glass excluded.
+  if (I.pillars) (() => {
+    const t0c = I.shellT || 0.035;
+    const t1 = t0c * 0.35;
+    const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+                          'skyWindows']);
+    const shell = [], pil = [], bands = [];
+    F.forEach((f, i) => {
+      if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+      if (GLM2.has(f.m)) return;
+      const [cy, cz] = cenOf(f);
+      if (consAt(cy, cz) !== 'carbon') return;
+      shell.push(i);
+      if (PM.has(f.m)) pil.push(i);
+      else if (f.m === 'waistband' || f.m === 'floorLoop') bands.push(i);
+    });
+    if (!shell.length) return;
+    liner(shell, t1, () => 'composite');
+    liner(pil, t1 + t0c * 0.9, () => 'composite', t1);
+    liner(bands, t1 + t0c * 0.55, () => 'composite', t1);
+    // DOOR OUTLINE (user): the door's perimeter ring extrudes further
+    // from the shell — the molded edge doubler of a composite door.
+    // Per door PER SIDE (left/right share a doorKey): the outer
+    // boundary = edges owned once across ALL the door's faces (glass
+    // included, so the pane border stays internal); the ring = the
+    // non-glass faces touching that boundary. Rides the cut part.
+    const byDoor = new Map();
+    F.forEach((f, i) => {
+      if (f.v.length !== 4 || !f.doorKey || f.m === 'joint') return;
+      const [cy, cz] = cenOf(f);
+      if (consAt(cy, cz) !== 'carbon') return;
+      const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
+      if (!byDoor.has(k)) byDoor.set(k, []);
+      byDoor.get(k).push(i);
+    });
+    for (const fis of byDoor.values()) {
+      const eCnt2 = new Map();
+      for (const fi of fis)
+        for (let e = 0; e < 4; e++) {
+          const key = cageEdgeKey(F[fi].v[e], F[fi].v[(e + 1) % 4]);
+          eCnt2.set(key, (eCnt2.get(key) || 0) + 1);
+        }
+      const perim = [];
+      for (const fi of fis) {
+        if (GLM2.has(F[fi].m)) continue;
+        for (let e = 0; e < 4; e++)
+          if (eCnt2.get(cageEdgeKey(F[fi].v[e],
+                                    F[fi].v[(e + 1) % 4])) === 1) {
+            perim.push(fi);
+            break;
+          }
+      }
+      liner(perim, t1 + t0c * 0.55, () => 'composite', t1);
+    }
   })();
+
+  // ---- wood: the plywood BATHTUB, v2 (user rework) -------------------------
+  // TWO SEPARATE EXTRUSIONS at different thicknesses, never joined
+  // (user ruling: IRL the posts are thick sections, the body panels
+  // thin sheets — separate extrusions will do):
+  // - THIN SHEETS (0.4 x shellT): everything below the waist PLUS the
+  //   whole waistband band (by MATERIAL — it follows the windshield
+  //   base lift), aft bulkhead .. windshield base, minus doors/cut
+  //   parts. The sheet runs CONTINUOUS THROUGH the pillar bands (their
+  //   sub-band faces are included) so no holes hide behind the posts
+  //   and no interior rim walls fight them.
+  // - THICK POSTS (1.6 x shellT): the pillar bands, full ring, their
+  //   own liner — they PROTRUDE past the sheets, reading as the spruce
+  //   sections the sheets are glued to. Material 'woodFrame'.
+  if (I.pillars) (() => {
+    const yW = S.waistY + 1e-3;
+    const yB = S.bandY + 1e-3;
+    const t0 = I.shellT || 0.035;
+    const GLM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
+                         'skyWindows']);
+    // METAL sections build like wood (user: based on the wooden
+    // version) — same layout — with sheet-metal realizations for skin,
+    // frames and stringers
+    const woodLike = c => c === 'wood' || c === 'metal';
+    const wMat = c => c === 'metal' ? 'aluminium' : 'woodFrame';
+    // L-ANGLE (user asked what real metal members are — bent/extruded
+    // thin profiles: angles, Z and hat sections; never tubes or solid
+    // squares, and NEVER lightening-holed like the first stringer
+    // blades were): two thin legs meeting at the anchor line, opening
+    // TOWARD the given axis point, flat-shaded like the beams. This is
+    // THE metal linear member, propagated everywhere.
+    const prismSec = (A, B, sec, mat) => {
+      const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
+      let sd = [dn[2], 0, -dn[0]];
+      const sl = Math.hypot(sd[0], sd[1], sd[2]);
+      sd = sl < 1e-6 ? [1, 0, 0] : [sd[0]/sl, sd[1]/sl, sd[2]/sl];
+      const uv = nrm3([dn[1]*sd[2]-dn[2]*sd[1], dn[2]*sd[0]-dn[0]*sd[2],
+                       dn[0]*sd[1]-dn[1]*sd[0]]);
+      const cor = sec.map(([s, u]) =>
+        [sd[0]*s + uv[0]*u, sd[1]*s + uv[1]*u, sd[2]*s + uv[2]*u]);
+      const ca = cor.map(c2 => [A[0]+c2[0], A[1]+c2[1], A[2]+c2[2]]);
+      const cb = cor.map(c2 => [B[0]+c2[0], B[1]+c2[1], B[2]+c2[2]]);
+      const q2 = (p0, p1, p2, p3) => add.push({
+        v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
+            V.push(p2.slice()) - 1, V.push(p3.slice()) - 1], m: mat });
+      for (let k = 0; k < 4; k++) {
+        const k2 = (k + 1) % 4;
+        q2(ca[k], cb[k], cb[k2], ca[k2]);
+      }
+      q2(ca[3], ca[2], ca[1], ca[0]);
+      q2(cb[0], cb[1], cb[2], cb[3]);
+    };
+    const metalAngle = (A, B, w, axisPt) => {
+      const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
+      let sd = [dn[2], 0, -dn[0]];
+      const sl = Math.hypot(sd[0], sd[1], sd[2]);
+      sd = sl < 1e-6 ? [1, 0, 0] : [sd[0]/sl, sd[1]/sl, sd[2]/sl];
+      const uv = nrm3([dn[1]*sd[2]-dn[2]*sd[1], dn[2]*sd[0]-dn[0]*sd[2],
+                       dn[0]*sd[1]-dn[1]*sd[0]]);
+      const mid = [(A[0]+B[0])/2, (A[1]+B[1])/2];
+      const ax = [axisPt[0] - mid[0], axisPt[1] - mid[1]];
+      const sS = Math.sign(ax[0]*sd[0] + ax[1]*sd[1]) || 1;
+      const sU = Math.sign(ax[0]*uv[0] + ax[1]*uv[1]) || 1;
+      const T = 0.005;
+      prismSec(A, B, [[0, 0], [sS*w, 0], [sS*w, sU*T], [0, sU*T]],
+               'aluminium');
+      prismSec(A, B, [[0, 0], [sS*T, 0], [sS*T, sU*w], [0, sU*w]],
+               'aluminium');
+    };
+    // THE WHOLE SKIN IS PLYWOOD (user simplification: the bathtub was
+    // getting complex — a wooden fuselage's skin is simply thin
+    // plywood sheet bent to shape, everywhere, like the tube's cloth
+    // but structural). One continuous sheet lining, running through
+    // the posts; the structure (posts, beams, webs) stays as built.
+    const selPan = [], selPil = [], selPanM = [];
+    F.forEach((f, i) => {
+      if (f.v.length !== 4 || f.cutPart || f.m === 'joint' || f.capFace)
+        return;
+      const [cy, cz] = cenOf(f);
+      const c = consAt(cy, cz);
+      if (!woodLike(c)) return;
+      if (PM.has(f.m)) {
+        // wood gets thick posts; metal pillar frames are slim punched
+        // webs built in the bands loop — the toele runs behind them
+        if (c === 'wood') { selPil.push(i); selPan.push(i); }
+        else selPanM.push(i);
+        return;
+      }
+      if (f.door || GLM.has(f.m)) return;
+      (c === 'wood' ? selPan : selPanM).push(i);
+    });
+    liner(selPan, t0 * 0.4, () => 'plywood');
+    liner(selPil, t0 * 1.6, () => 'woodFrame');
+    // the TOELE (user): the metal skin's interior is metal too — thin
+    // sheet, same continuous-lining idiom
+    liner(selPanM, 0.008, () => 'aluminium');
+    // the DOOR PANEL is plywood like the tub (user): inner liner +
+    // edge walls over the door's own faces, glass excluded (the pane
+    // keeps its seal and its view). Rides the exploded part.
+    const selDoor = [], selDoorM = [];
+    F.forEach((f, i) => {
+      if (!f.doorKey || f.v.length !== 4 || GLM.has(f.m)) return;
+      const [cy, cz] = cenOf(f);
+      const c = consAt(cy, cz);
+      if (c === 'wood') selDoor.push(i);
+      else if (c === 'metal') selDoorM.push(i);
+    });
+    liner(selDoor, t0 * 0.4, () => 'plywood');
+    liner(selDoorM, 0.008, () => 'aluminium');
+    // WOODEN BEAMS — TRUE SQUARE prisms (user ruling, second ask: the
+    // chamfered octagon still read "rounded" at every level). Every
+    // face carries its OWN four vertices, so the smooth-normal pass
+    // has nothing to blend across and each face shades FLAT — a crisp
+    // square profile at any subsurf level, no chamfer, no weld.
+    const tS = t0 * 0.4;
+    const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0]/l, v[1]/l, v[2]/l]; };
+    const beam = (A, B, w, h, mat) => {
+      const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
+      let sd = [dn[2], 0, -dn[0]];
+      const sl = Math.hypot(sd[0], sd[1], sd[2]);
+      sd = sl < 1e-6 ? [1, 0, 0] : [sd[0]/sl, sd[1]/sl, sd[2]/sl];
+      const uv = nrm3([dn[1]*sd[2]-dn[2]*sd[1], dn[2]*sd[0]-dn[0]*sd[2],
+                       dn[0]*sd[1]-dn[1]*sd[0]]);
+      const cor = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([pw, ph]) =>
+        [sd[0]*pw*w/2 + uv[0]*ph*h/2, sd[1]*pw*w/2 + uv[1]*ph*h/2,
+         sd[2]*pw*w/2 + uv[2]*ph*h/2]);
+      const ca = cor.map(c => [A[0]+c[0], A[1]+c[1], A[2]+c[2]]);
+      const cb = cor.map(c => [B[0]+c[0], B[1]+c[1], B[2]+c[2]]);
+      const quad = (p0, p1, p2, p3) => add.push({
+        v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
+            V.push(p2.slice()) - 1, V.push(p3.slice()) - 1],
+        m: mat || 'woodFrame' });
+      for (let k = 0; k < 4; k++) {
+        const k2 = (k + 1) % 4;
+        quad(ca[k], cb[k], cb[k2], ca[k2]);
+      }
+      quad(ca[3], ca[2], ca[1], ca[0]);
+      quad(cb[0], cb[1], cb[2], cb[3]);
+    };
+    // PUNCHED WEB (user: real planes punch their structures full of
+    // holes): a thin single sheet between an outer and an inner rail,
+    // split into three radial bands — the middle band skips every
+    // other segment, so the web reads stamped with lightening holes
+    // wz (optional): WIDTH along z — the web becomes a thin box (two
+    // sheets + rail and hole walls) instead of a paper-thin single
+    // sheet (user correction on the pillar frames)
+    // fz (optional): I-BEAM MODE (user) — the un-punched edge bands
+    // ("the lips around the adjourning") extrude to a couple of
+    // centimetres as FLANGES while the punched middle stays a thin
+    // web: a stamped I-profile instead of the raw extrusion
+    const punched = (O, H, closed, mat, wz, fz) => {
+      const n = Math.min(O.length, H.length);
+      if (n < 2) return;
+      const NQ = closed ? n : n - 1;
+      const lp3 = (a, b, t) => [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t,
+                                a[2]+(b[2]-a[2])*t];
+      const q = (p0, p1, p2, p3) => add.push({
+        v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
+            V.push(p2.slice()) - 1, V.push(p3.slice()) - 1], m: mat });
+      const hz = (wz || 0) / 2;
+      const hf = (fz || 0) / 2;
+      const zo = w => p => [p[0], p[1], p[2] + w];
+      const Fz = p => [p[0], p[1], p[2] + hz];
+      const Bz = p => [p[0], p[1], p[2] - hz];
+      // a quad band as a box of half-width h2, with walls on its two
+      // long edges
+      const band = (P0, P1, P2, P3, h2) => {
+        const F1 = zo(h2), B1 = zo(-h2);
+        q(F1(P0), F1(P1), F1(P2), F1(P3));
+        q(B1(P3), B1(P2), B1(P1), B1(P0));
+        q(B1(P0), B1(P1), F1(P1), F1(P0));
+        q(F1(P3), F1(P2), B1(P2), B1(P3));
+      };
+      for (let i = 0; i < NQ; i++) {
+        const j = (i + 1) % n;
+        const a25 = lp3(O[i], H[i], 0.28), b25 = lp3(O[j], H[j], 0.28);
+        const a75 = lp3(O[i], H[i], 0.72), b75 = lp3(O[j], H[j], 0.72);
+        const hole = i % 2 === 1;
+        if (!hz && !hf) {
+          q(O[i], O[j], b25, a25);
+          q(a75, b75, H[j], H[i]);
+          if (!hole) q(a25, b25, b75, a75);
+          continue;
+        }
+        if (hf) {
+          // I-BEAM: flanges on the edge bands, thin punched web — with
+          // FLAT MARGINS beside the holes (user: the lip does not
+          // start straight from the ajoure; a plain strip comes first).
+          // Final proportions (user): the LIP band cut to a third
+          // (0.10 of the depth), the flat zones kept at their exact
+          // absolute width (0.14), and the HOLES enlarged to absorb
+          // the freed depth (0.24..0.76).
+          const aL = lp3(O[i], H[i], 0.10), bL = lp3(O[j], H[j], 0.10);
+          const aU = lp3(O[i], H[i], 0.90), bU = lp3(O[j], H[j], 0.90);
+          const a40 = lp3(O[i], H[i], 0.24), b40 = lp3(O[j], H[j], 0.24);
+          const a60 = lp3(O[i], H[i], 0.76), b60 = lp3(O[j], H[j], 0.76);
+          band(O[i], O[j], bL, aL, hf);
+          band(aU, bU, H[j], H[i], hf);
+          q(Fz(aL), Fz(bL), Fz(b40), Fz(a40));
+          q(Bz(a40), Bz(b40), Bz(bL), Bz(aL));
+          q(Fz(a60), Fz(b60), Fz(bU), Fz(aU));
+          q(Bz(aU), Bz(bU), Bz(b60), Bz(a60));
+          if (!hole) {
+            q(Fz(a40), Fz(b40), Fz(b60), Fz(a60));
+            q(Bz(a60), Bz(b60), Bz(b40), Bz(a40));
+          } else {
+            q(Fz(b40), Fz(b60), Bz(b60), Bz(b40));
+            q(Bz(a40), Bz(a60), Fz(a60), Fz(a40));
+          }
+          continue;
+        }
+        q(Fz(O[i]), Fz(O[j]), Fz(b25), Fz(a25));
+        q(Bz(a25), Bz(b25), Bz(O[j]), Bz(O[i]));
+        q(Fz(a75), Fz(b75), Fz(H[j]), Fz(H[i]));
+        q(Bz(H[i]), Bz(H[j]), Bz(b75), Bz(a75));
+        if (!hole) {
+          q(Fz(a25), Fz(b25), Fz(b75), Fz(a75));
+          q(Bz(a75), Bz(b75), Bz(b25), Bz(a25));
+        } else {
+          q(Fz(a25), Fz(b25), Bz(b25), Bz(a25));
+          q(Bz(a75), Bz(b75), Fz(b75), Fz(a75));
+          q(Fz(b25), Fz(b75), Bz(b75), Bz(b25));
+          q(Bz(a25), Bz(a75), Fz(a75), Fz(a25));
+        }
+        q(Bz(O[i]), Bz(O[j]), Fz(O[j]), Fz(O[i]));
+        q(Fz(H[i]), Fz(H[j]), Bz(H[j]), Bz(H[i]));
+      }
+    };
+    // ONE SKELETON, TWO REALIZATIONS (user): the plywood layout is the
+    // procedural base for the tube construction. Every structural
+    // member below goes through member(), which emits a square spruce
+    // beam OR a round steel tube depending on the section's technique
+    // — same key nodes, different material. Tube radius maps from the
+    // wood width (w/3) so the visual weight stays comparable.
+    // sized down a tad (user: the tubing poked the skin here and there)
+    const TUBE_R = 0.010, TUBE_RP = 0.018;
+    const tubeSeg = (A, B, r) => {
+      const dv = [B[0]-A[0], B[1]-A[1], B[2]-A[2]];
+      const dl = Math.hypot(dv[0], dv[1], dv[2]) || 1;
+      const d = [dv[0]/dl, dv[1]/dl, dv[2]/dl];
+      let u = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const du = u[0]*d[0] + u[1]*d[1] + u[2]*d[2];
+      const ul = Math.hypot(u[0]-du*d[0], u[1]-du*d[1], u[2]-du*d[2]) || 1;
+      u = [(u[0]-du*d[0])/ul, (u[1]-du*d[1])/ul, (u[2]-du*d[2])/ul];
+      const w2 = [d[1]*u[2]-d[2]*u[1], d[2]*u[0]-d[0]*u[2],
+                  d[0]*u[1]-d[1]*u[0]];
+      const ra = [], rb = [];
+      for (let k = 0; k < 6; k++) {
+        const a = k * Math.PI / 3;
+        const ox = (Math.cos(a)*u[0] + Math.sin(a)*w2[0]) * r;
+        const oy = (Math.cos(a)*u[1] + Math.sin(a)*w2[1]) * r;
+        const oz = (Math.cos(a)*u[2] + Math.sin(a)*w2[2]) * r;
+        ra.push(V.push([A[0]+ox, A[1]+oy, A[2]+oz]) - 1);
+        rb.push(V.push([B[0]+ox, B[1]+oy, B[2]+oz]) - 1);
+      }
+      for (let k = 0; k < 6; k++) {
+        const k2 = (k + 1) % 6;
+        add.push({ v: [ra[k], rb[k], rb[k2], ra[k2]], m: 'tube' });
+      }
+    };
+    const member = (A, B, w) => {
+      const c = consAt((A[1]+B[1])/2, (A[2]+B[2])/2);
+      if (c === 'wood') beam(A, B, w, w);
+      else if (c === 'metal')
+        metalAngle(A, B, w * 0.75, [0, (A[1] + B[1]) / 2 - 0.2]);
+      else if (c === 'tube') tubeSeg(A, B, Math.max(0.008, w / 3));
+    };
+    // BENT TUBES ARE ONE CONTINUOUS SWEEP (user: the per-segment hexes
+    // read as capped sections — the shading broke at every joint).
+    // tubePath sweeps a welded 8-sided tube along a polyline with a
+    // parallel-transported frame: rings are SHARED between segments,
+    // so the smooth normals run the whole bend; open ends get quad-fan
+    // caps. tubeRuns splits a path into maximal 'tube'-section runs
+    // (mixed construction maps drop exactly the arcs that changed).
+    const tubePath = (pts, r, closed) => {
+      const N = pts.length;
+      if (N < 2) return;
+      const SS = 8;
+      const tanAt = i => {
+        const p = pts[i > 0 ? i - 1 : (closed ? N - 1 : 0)];
+        const q = pts[i < N - 1 ? i + 1 : (closed ? 0 : N - 1)];
+        return nrm3([q[0]-p[0], q[1]-p[1], q[2]-p[2]]);
+      };
+      const t0 = tanAt(0);
+      let b = Math.abs(t0[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const rings = [];
+      for (let i = 0; i < N; i++) {
+        const t = tanAt(i);
+        const d = b[0]*t[0] + b[1]*t[1] + b[2]*t[2];
+        b = nrm3([b[0]-d*t[0], b[1]-d*t[1], b[2]-d*t[2]]);
+        const n2 = [t[1]*b[2]-t[2]*b[1], t[2]*b[0]-t[0]*b[2],
+                    t[0]*b[1]-t[1]*b[0]];
+        const ring = [];
+        for (let k = 0; k < SS; k++) {
+          const a = k * 2 * Math.PI / SS;
+          ring.push(V.push([
+            pts[i][0] + (Math.cos(a)*b[0] + Math.sin(a)*n2[0]) * r,
+            pts[i][1] + (Math.cos(a)*b[1] + Math.sin(a)*n2[1]) * r,
+            pts[i][2] + (Math.cos(a)*b[2] + Math.sin(a)*n2[2]) * r]) - 1);
+        }
+        rings.push(ring);
+      }
+      const NQ = closed ? N : N - 1;
+      for (let i = 0; i < NQ; i++) {
+        const ra = rings[i], rb = rings[(i + 1) % N];
+        for (let k = 0; k < SS; k++) {
+          const k2 = (k + 1) % SS;
+          add.push({ v: [ra[k], rb[k], rb[k2], ra[k2]], m: 'tube' });
+        }
+      }
+      if (!closed) {
+        for (const [ring, rev] of [[rings[0], 0], [rings[N - 1], 1]]) {
+          const q = rev ? ring.slice().reverse() : ring;
+          add.push({ v: [q[0], q[1], q[2], q[3]], m: 'tube' });
+          add.push({ v: [q[0], q[3], q[4], q[5]], m: 'tube' });
+          add.push({ v: [q[0], q[5], q[6], q[7]], m: 'tube' });
+        }
+      }
+    };
+    const tubeRuns = (pts, r, closed) => {
+      const N = pts.length;
+      if (N < 2) return;
+      const nSeg = closed ? N : N - 1;
+      const ok = [];
+      for (let i = 0; i < nSeg; i++) {
+        const A = pts[i], B = pts[(i + 1) % N];
+        ok.push(consAt((A[1]+B[1])/2, (A[2]+B[2])/2) === 'tube');
+      }
+      if (closed && ok.every(x => x)) { tubePath(pts, r, true); return; }
+      let run = [];
+      const flush = () => {
+        if (run.length >= 2) tubePath(run, r, false);
+        run = [];
+      };
+      for (let i = 0; i < nSeg; i++) {
+        if (ok[i]) {
+          if (!run.length) run.push(pts[i]);
+          run.push(pts[(i + 1) % N]);
+        } else flush();
+      }
+      flush();
+    };
+    // WAIST REINFORCEMENTS (user): a spruce rail along the waistline of
+    // every bay WITHOUT a defined door — a defined door owns its rail
+    // (the door chantier, not pre-empted here).
+    // ALL beams share one SQUARE section (user ruling)
+    const D = (S.config && S.config.doors) || {};
+    const wW = 0.04, wH = 0.04;
+    // rails record their endpoints — key nodes for the bay diagonals
+    const waistRails = [];
+    const waistBeam = (a, b) => {
+      if (!a || !b) return;
+      const A = a.lv.waist, B = b.lv.waist;
+      // wood/metal only: the tube waist longerons are continuous and
+      // mid-pillar anchored, emitted in the band-pairs loop
+      const cwb = consAt(A.y, (A.z + B.z) / 2);
+      if (!woodLike(cwb)) return;
+      for (const sx of [1, -1]) {
+        // +0.01: the rail grazed the skin above/below the waist bulge
+        // (user report) — one extra centimetre inboard clears it
+        // 0.02: one more centimetre toward the centreline (user: the
+        // rails still grazed the hull between stations)
+        const PA = [sx*(A.x - tS - wW/2 - 0.02), A.y, A.z];
+        const PB = [sx*(B.x - tS - wW/2 - 0.02), B.y, B.z];
+        if (cwb === 'metal') {
+          // metal rails reach the pillar MIDDLES (user): half a band
+          // width past each bay-bounding ring — and they are L-angles
+          const bw = (S.pillarW > 0 ? S.pillarW : S.cabinPillarW) / 2;
+          if (A.z <= B.z) { PA[2] -= bw; PB[2] += bw; }
+          else { PA[2] += bw; PB[2] -= bw; }
+          metalAngle(PA, PB, 0.03, [0, A.y]);
+        } else beam(PA, PB, wW, wW, wMat(cwb));
+        waistRails.push({ sx, zA: Math.min(A.z, B.z),
+                          zB: Math.max(A.z, B.z),
+                          fwdEnd: B.z >= A.z ? PB : PA });
+      }
+    };
+    if (!D.pax) {
+      const n = S.pax.count;
+      for (let i = 0; i < n; i++)
+        waistBeam(rgn0('pilPaxB' + (i || '')),
+                  i < n - 1 ? rgn0('pilPaxM' + i) : rgn0('pilCabA'));
+    }
+    if (!D.pilot) {
+      waistBeam(rgn0('pilCabB'), rgn0('ring'));
+      waistBeam(rgn0('ring'), rgn0('wsAft'));
+    }
+    // CHINE LONGERONS v2 (user corrections): pieces run BETWEEN the
+    // posts only — endpoints are the bottom corners of the pillar
+    // bands read off the DISPLAYED (subsurf) mesh, so the beams move
+    // with the level and never poke the limit skin the way the cage
+    // coordinates did (the v1 "not well placed"); the posts hide the
+    // ends, so the ugly segment junctions are gone; the run sits much
+    // further inboard.
+    const bands = (() => {
+      const idx = [];
+      F.forEach((f, i) => {
+        if (PM.has(f.m) && f.v.length === 4 && !f.cutPart && !f.capFace)
+          idx.push(i);
+      });
+      const byI = new Map(idx.map((fi, k) => [fi, k]));
+      const par = idx.map((_, k) => k);
+      const find = k => par[k] === k ? k : (par[k] = find(par[k]));
+      const own = new Map();
+      for (const fi of idx) {
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const key = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          if (own.has(key))
+            par[find(byI.get(fi))] = find(byI.get(own.get(key)));
+          else own.set(key, fi);
+        }
+      }
+      const g = new Map();
+      for (const fi of idx) {
+        const r = find(byI.get(fi));
+        if (!g.has(r)) g.set(r, []);
+        g.get(r).push(fi);
+      }
+      return [...g.values()];
+    })();
+    const bandEnds = [];
+    for (const fis of bands) {
+      const dir = new Map();
+      for (const fi of fis)
+        for (let e = 0; e < 4; e++) {
+          const a = F[fi].v[e], b = F[fi].v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          if (dir.has(k)) dir.delete(k); else dir.set(k, [a, b]);
+        }
+      const nxt = new Map();
+      for (const [, [a, b]] of dir) nxt.set(a, b);
+      const cycles = [];
+      const seen2 = new Set();
+      for (const s0 of nxt.keys()) {
+        if (seen2.has(s0)) continue;
+        const cyc = [s0]; seen2.add(s0);
+        for (let v = nxt.get(s0); v !== s0 && cyc.length <= nxt.size;
+             v = nxt.get(v)) { cyc.push(v); seen2.add(v); }
+        cycles.push(cyc);
+      }
+      if (cycles.length < 2) continue;
+      cycles.sort((a, b) =>
+        a.reduce((s, v) => s + V[v][2], 0) / a.length -
+        b.reduce((s, v) => s + V[v][2], 0) / b.length);
+      const corner = (cyc, sx) => {
+        let best = null, bv = -1e9;
+        for (const v of cyc) {
+          const s = sx * V[v][0] - V[v][1];
+          if (s > bv) { bv = s; best = v; }
+        }
+        return V[best];
+      };
+      const aftC = cycles[0], fwdC = cycles[cycles.length - 1];
+      // smooth per-vertex normals from the band's own faces — the same
+      // normals the post liner extrudes along, so "centred in the
+      // extrusion" is exact by construction
+      const vN2 = new Map();
+      for (const fi of fis) {
+        const p = F[fi].v.map(i2 => V[i2]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w2 = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const n = [u[1]*w2[2]-u[2]*w2[1], u[2]*w2[0]-u[0]*w2[2],
+                   u[0]*w2[1]-u[1]*w2[0]];
+        for (const vi of F[fi].v) {
+          const s = vN2.get(vi) || [0, 0, 0];
+          vN2.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
+        }
+      }
+      const cornerN = (cyc, sx) => {
+        let best = null, bv = -1e9;
+        for (const v of cyc) {
+          const s = sx * V[v][0] - V[v][1];
+          if (s > bv) { bv = s; best = v; }
+        }
+        return { id: best, n: vN2.get(best) || [0, 0, 0] };
+      };
+      // more anchors off the same sampled cycles (user): TWO ceiling
+      // rails at the MIDDLE OF THE CEILING LOOP per side (user
+      // correction: a single crown beam only suits bubbles/canopies —
+      // the loop midpoint also lands right on square box roofs), and
+      // two FLOOR points at +/- a third of the chine span — the
+      // seat/load rails divide the belly in three. Targets come from
+      // the resolved ring levels (they carry the round-top state), the
+      // PICKED points are subsurf vertices.
+      let zs = 0, ys = 0, zn = 0, nfr = 0, nwn = 0;
+      for (const fi of fis) {
+        if (F[fi].m === 'pillarFront') nfr++;
+        if (F[fi].m === 'pillarWindow') nwn++;
+        for (const vi of F[fi].v) { zs += V[vi][2]; ys += V[vi][1]; zn++; }
+      }
+      const zmv = zs / zn;
+      const cyv = ys / zn;
+      let rB = null, rD = 1e9;
+      for (const r of R0.rings) {
+        if (!r.lv.ceil || !r.lv.roof) continue;
+        const d = Math.abs(r.lv.waist.z - zmv);
+        if (d < rD) { rD = d; rB = r; }
+      }
+      const ctx = rB ? (rB.lv.ceil.x + rB.lv.roof.x) / 2 : 0;
+      const cty = rB ? (rB.lv.ceil.y + rB.lv.roof.y) / 2 : 1e9;
+      const nearN = (cyc, tx, ty) => {
+        let best = null, bv = 1e9;
+        for (const v of cyc) {
+          const s = (V[v][0]-tx)*(V[v][0]-tx) + (V[v][1]-ty)*(V[v][1]-ty);
+          if (s < bv) { bv = s; best = v; }
+        }
+        return { id: best, n: vN2.get(best) || [0, 0, 0] };
+      };
+      const floorN = (cyc, xt) => {
+        let y0 = 1e9, y1 = -1e9;
+        for (const v of cyc) {
+          y0 = Math.min(y0, V[v][1]); y1 = Math.max(y1, V[v][1]);
+        }
+        const yMid = y0 + 0.5 * (y1 - y0);
+        let best = null, bv = 1e9;
+        for (const v of cyc) {
+          if (V[v][1] > yMid) continue;
+          const s = Math.abs(V[v][0] - xt);
+          if (s < bv) { bv = s; best = v; }
+        }
+        return { id: best, n: vN2.get(best) || [0, 0, 0] };
+      };
+      // the MAIN LONGERON node: the point nearest the TOP OF THE
+      // WAISTLINE per side (user, annotated drawing). bandY is one of
+      // the template's global constants, so the chained nodes form a
+      // dead-straight line in side view — the widest-point pick it
+      // replaces wandered vertically as the sections changed shape.
+      // target = the MIDDLE of the waistband (user: it sat mid-line in
+      // the cabin but on the top edge in the boom — always middle now)
+      const yWmid = (S.waistY + S.bandY) / 2;
+      const bandN = (cyc, sx) => {
+        let best = null, bv = 1e9;
+        for (const v of cyc) {
+          if (sx * V[v][0] <= 0) continue;
+          const s = Math.abs(V[v][1] - yWmid);
+          if (s < bv) { bv = s; best = v; }
+        }
+        return best == null ? null
+          : { id: best, n: vN2.get(best) || [0, 0, 0] };
+      };
+      const mkEnds = cyc => {
+        const Pc = cornerN(cyc, 1), Mc = cornerN(cyc, -1);
+        const xc = Math.abs(V[Pc.id][0]);
+        return { P: Pc, M: Mc,
+                 tL: nearN(cyc, -ctx, cty), tR: nearN(cyc, ctx, cty),
+                 fL: floorN(cyc, -xc / 3), fR: floorN(cyc, xc / 3),
+                 wP: bandN(cyc, 1), wM: bandN(cyc, -1) };
+      };
+      // MID-PILLAR ANCHORS (user, tube feedback): tubes start and end
+      // at the MIDDLE of the pillars — the aft/fwd cycle anchors
+      // midpointed and pulled inside along the averaged band normal to
+      // the hoop line — so members intersect the pillar hoops. Wood
+      // keeps the band-edge anchors (beams end at the post faces).
+      const eA = mkEnds(aftC), eF2 = mkEnds(fwdC);
+      const HIN2 = TUBE_RP + 0.005;
+      const midOf = k2 => {
+        const A2 = eA[k2], B2 = eF2[k2];
+        if (!A2 || A2.id == null || !B2 || B2.id == null) return null;
+        const n = nrm3([A2.n[0]+B2.n[0], A2.n[1]+B2.n[1],
+                        A2.n[2]+B2.n[2]]);
+        return [(V[A2.id][0]+V[B2.id][0])/2 - n[0]*HIN2,
+                (V[A2.id][1]+V[B2.id][1])/2 - n[1]*HIN2,
+                (V[A2.id][2]+V[B2.id][2])/2 - n[2]*HIN2];
+      };
+      const mid = {};
+      for (const k2 of ['P', 'M', 'tL', 'tR', 'fL', 'fR', 'wP', 'wM'])
+        mid[k2] = midOf(k2);
+      bandEnds.push({
+        zm: zmv,
+        cy: cyv,
+        isFront: nfr > fis.length / 2,
+        isWin: nwn > fis.length / 2,
+        aft: eA,
+        fwd: eF2,
+        mid,
+      });
+      // TUBE PILLAR HOOPS (user: the main pillars become tubes, with a
+      // larger section): a bent tube swept along the band's MID-RING —
+      // each aft-cycle vertex midpointed with its nearest fwd partner
+      // (the bulkhead's placement idiom) and pulled inside the skin
+      // along the band's own smooth normals. Per-segment section gate,
+      // so a mixed map drops exactly the hoop arcs that changed.
+      (() => {
+        const HIN = TUBE_RP + 0.005;
+        const ringP = [];
+        for (const v of aftC) {
+          let bp = v, bd = 1e9;
+          for (const o2 of fwdC) {
+            const d = (V[o2][0]-V[v][0])**2 + (V[o2][1]-V[v][1])**2
+                    + (V[o2][2]-V[v][2])**2;
+            if (d < bd) { bd = d; bp = o2; }
+          }
+          const n = nrm3(vN2.get(v) || [0, 0, 1]);
+          ringP.push([(V[v][0]+V[bp][0])/2 - n[0]*HIN,
+                      (V[v][1]+V[bp][1])/2 - n[1]*HIN,
+                      (V[v][2]+V[bp][2])/2 - n[2]*HIN]);
+        }
+        tubeRuns(ringP, TUBE_RP, true);
+      })();
+      // METAL PILLAR FRAME (user): SLIM along the long axis — one
+      // stamped web at mid-band instead of a thick post — but AS DEEP
+      // as the wooden posts, and PUNCHED with lightening holes. Outer
+      // rail just under the toele, inner rail at the wood-post depth,
+      // along the band's own normals.
+      (() => {
+        const ringO = [], ringI = [];
+        const DEEP = (I.shellT || 0.035) * 1.6;
+        for (const v of aftC) {
+          let bp = v, bd = 1e9;
+          for (const o2 of fwdC) {
+            const d = (V[o2][0]-V[v][0])**2 + (V[o2][1]-V[v][1])**2
+                    + (V[o2][2]-V[v][2])**2;
+            if (d < bd) { bd = d; bp = o2; }
+          }
+          const n = nrm3(vN2.get(v) || [0, 0, 1]);
+          const mx = [(V[v][0]+V[bp][0])/2, (V[v][1]+V[bp][1])/2,
+                      (V[v][2]+V[bp][2])/2];
+          ringO.push([mx[0] - n[0]*0.009, mx[1] - n[1]*0.009,
+                      mx[2] - n[2]*0.009]);
+          ringI.push([mx[0] - n[0]*DEEP, mx[1] - n[1]*DEEP,
+                      mx[2] - n[2]*DEEP]);
+        }
+        // a FULLY metal ring closes (user: the frames gapped at the
+        // crown — the ring was emitted as an open run, so the closing
+        // segment never existed); mixed maps still split into runs
+        const allOk = ringO.every(p => consAt(p[1], p[2]) === 'metal');
+        if (allOk) {
+          punched(ringO, ringI, true, 'aluminium', 0.006, 0.014);
+        } else {
+          const runO = [], runI = [];
+          for (let k = 0; k <= ringO.length; k++) {
+            const kk = k % ringO.length;
+            const A = ringO[kk];
+            const ok = k < ringO.length &&
+              consAt(A[1], A[2]) === 'metal';
+            if (ok) { runO.push(ringO[kk]); runI.push(ringI[kk]); }
+            else {
+              if (runO.length > 1)
+                punched(runO, runI, false, 'aluminium', 0.006, 0.014);
+              runO.length = 0; runI.length = 0;
+            }
+          }
+        }
+      })();
+    }
+    bandEnds.sort((a, b) => a.zm - b.zm);
+    // ONE CENTIMETRE FURTHER IN, TOWARD THE AXIS (user: rails and
+    // chines grazed or pierced the hull between stations — a straight
+    // member chords a curved surface): every longitudinal member
+    // anchor pulls 0.01 toward the local section axis (x -> 0, y ->
+    // the station's centroid height), in EVERY construction; the ends
+    // still land inside the pillar thickness.
+    const inCtr = (p, cyv) => {
+      const dx = -p[0], dy = cyv - p[1];
+      const l = Math.hypot(dx, dy) || 1;
+      return [p[0] + dx/l*0.01, p[1] + dy/l*0.01, p[2]];
+    };
+    // SQUARE section (user), CENTRED IN THE POST EXTRUSION (user): the
+    // endpoint sits midway between the subsurf skin corner and its
+    // extruded liner counterpart — corner - n * tPil/2 — so the beam
+    // emerges from the post's own thickness at both ends.
+    const cB = 0.04;
+    const tPil = t0 * 1.6;
+    const cenP = c => {
+      const n = nrm3(c.n);
+      return [V[c.id][0] - n[0]*tPil/2, V[c.id][1] - n[1]*tPil/2,
+              V[c.id][2] - n[2]*tPil/2];
+    };
+    for (let i = 0; i + 1 < bandEnds.length; i++) {
+      const a = bandEnds[i].fwd, b = bandEnds[i + 1].aft;
+      const midA = bandEnds[i].mid, midB = bandEnds[i + 1].mid;
+      const ba = bandEnds[i], bb = bandEnds[i + 1];
+      // chine pairs run every bay including the cowl; the CEILING and
+      // FLOOR rails (user) are cabin furniture and stop before the
+      // cowl bay. The REALIZATION picks the anchors: wood beams end at
+      // the post faces (band-edge cycles), tubes at the pillar MIDDLES
+      // so they intersect the hoops (user correction).
+      const kinds = ['P', 'M'];
+      if (!bandEnds[i + 1].isFront) kinds.push('tL', 'tR', 'fL', 'fR');
+      for (const k2 of kinds) {
+        const At = midA[k2], Bt = midB[k2];
+        if (!At || !Bt) continue;
+        const c = consAt((At[1] + Bt[1]) / 2, (At[2] + Bt[2]) / 2);
+        if (woodLike(c)) {
+          if (c === 'metal') {
+            // metal members are L-ANGLES, run to the pillar MIDDLES
+            metalAngle(inCtr(At, ba.cy), inCtr(Bt, bb.cy), 0.03,
+                       [0, (ba.cy + bb.cy) / 2]);
+          } else {
+            const A0 = a[k2], B0 = b[k2];
+            if (A0 && A0.id != null && B0 && B0.id != null)
+              beam(inCtr(cenP(A0), ba.cy), inCtr(cenP(B0), bb.cy),
+                   cB, cB);
+          }
+        } else if (c === 'tube') {
+          // the chine line is swept CONTINUOUSLY with the boom chains
+          // below — per-pair segments only for the cabin rails
+          if (k2 !== 'P' && k2 !== 'M')
+            tubeSeg(inCtr(At, ba.cy), inCtr(Bt, bb.cy),
+                    Math.max(0.008, cB / 3));
+        }
+      }
+      // PAX-BAY DIAGONAL (user): ties the waist rail's NOSE-side end
+      // to the chine's TAIL-side end, per side — same key-node
+      // principles: both ends are the existing beams' own end centres,
+      // and the brace is slightly thinner (0.032 < 0.04) so its ends
+      // live inside them. Pax bays only (the pilot bay's brace belongs
+      // to its door), and only where the waist rail exists.
+      if (!bandEnds[i + 1].isFront) {
+        // a bay WITH a defined door owns its bracing (user): the bay
+        // diagonal exists only in doorless bays, in both realizations
+        const D2 = (S.config && S.config.doors) || {};
+        const bayDoor = bandEnds[i + 1].isWin ? D2.pilot : D2.pax;
+        for (const sx of [1, -1]) {
+          const cKey = sx > 0 ? 'P' : 'M', wKey = sx > 0 ? 'wP' : 'wM';
+          const cMid = midA[cKey], wMid = midB[wKey];
+          if (!bayDoor && cMid && wMid && consAt((cMid[1] + wMid[1]) / 2,
+              (cMid[2] + wMid[2]) / 2) === 'tube') {
+            tubeSeg(wMid, cMid, TUBE_R * 0.9);
+            continue;
+          }
+          if (bandEnds[i + 1].isWin || bayDoor) continue;
+          const chineEnd = cenP(sx > 0 ? a.P : a.M);
+          const rail = waistRails.filter(r => r.sx === sx &&
+              r.zB > bandEnds[i].zm && r.zA < bandEnds[i + 1].zm)
+            .sort((r1, r2) =>
+              Math.abs(r1.zB - bandEnds[i + 1].zm) -
+              Math.abs(r2.zB - bandEnds[i + 1].zm))[0];
+          if (!rail || !chineEnd) continue;
+          const cpd = consAt((rail.fwdEnd[1] + chineEnd[1]) / 2,
+                             (rail.fwdEnd[2] + chineEnd[2]) / 2);
+          if (woodLike(cpd)) {
+            // metal: the chine anchor is the mid-pillar node too
+            const cEnd = inCtr(cpd === 'metal' && midA[cKey]
+              ? midA[cKey] : chineEnd, ba.cy);
+            if (cpd === 'metal')
+              metalAngle(rail.fwdEnd, cEnd, 0.026,
+                         [0, (rail.fwdEnd[1] + cEnd[1]) / 2]);
+            else beam(rail.fwdEnd, cEnd, 0.032, 0.032);
+          }
+        }
+      }
+    }
+    // DOOR STRUCTURE (user: in wood the door is INTEGRAL structure —
+    // no rubber seal; cageRims suppresses its tube). Along each
+    // recorded door outline: a wooden FRAME extruded INWARD so the
+    // exterior stays aerodynamic (rail verts shared along the loop —
+    // smooth lengthwise, flat across the section), a WAIST BAR like
+    // the bay rails, and one DIAGONAL brace. The outline travels with
+    // the cut part, so the frame rides the exploded door too.
+    if (m.outlines) {
+      const dvN = new Map(), vOff = new Map();
+      for (const f of F) {
+        if (!f.doorKey || f.v.length !== 4) continue;
+        const p = f.v.map(i2 => V[i2]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w2 = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const n = [u[1]*w2[2]-u[2]*w2[1], u[2]*w2[0]-u[0]*w2[2],
+                   u[0]*w2[1]-u[1]*w2[0]];
+        for (const vi of f.v) {
+          const s = dvN.get(vi) || [0, 0, 0];
+          dvN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
+          if (f.cutOff) vOff.set(vi, f.cutOff);
+        }
+      }
+      const FW = 0.05, FD = 0.028, FE = 0.003, BAR = 0.022;
+      for (const o of m.outlines) {
+        if (o.kind !== 'door') continue;
+        const pts2 = o.pts, NN = pts2.length;
+        if (NN < 8) continue;
+        let cx3 = 0, cy3 = 0, cz3 = 0;
+        for (const p of pts2) {
+          cx3 += p[0]/NN; cy3 += p[1]/NN; cz3 += p[2]/NN;
+        }
+        const cD = consAt(cy3, cz3);
+        if (!woodLike(cD) && cD !== 'tube') continue;
+        // per-point outward normal; synthesized sill points (id -1)
+        // borrow the nearest tagged neighbour's
+        const nrms = pts2.map((p, i) => {
+          const id = o.ids[i];
+          const n = id >= 0 ? dvN.get(id) : null;
+          return n ? nrm3(n) : null;
+        });
+        for (let i = 0; i < NN; i++) {
+          if (nrms[i]) continue;
+          for (let d2 = 1; d2 < NN; d2++) {
+            const a2 = nrms[(i + d2) % NN], b2 = nrms[(i - d2 + NN) % NN];
+            if (a2 || b2) { nrms[i] = a2 || b2; break; }
+          }
+          if (!nrms[i]) nrms[i] = [cx3 >= 0 ? 1 : -1, 0, 0];
+        }
+        if (cD === 'tube') {
+          // THE TUBE DOOR (user): its own continuous tube outline that
+          // FITS INSIDE the door — inset toward the door centre AND
+          // pulled toward the centreline, so it cannot intersect the
+          // fuselage — plus the waist bar and the X, all anchored ON
+          // that outline. The seal is dropped (cageRims). Slim gauge:
+          // the thick lines are the airframe's, not the door's.
+          const TIN = 0.024, TDEP = 0.022;
+          const ring3 = [];
+          for (let i = 0; i < NN; i++) {
+            const p = pts2[i], n = nrms[i];
+            let iw = [cx3 - p[0], cy3 - p[1], cz3 - p[2]];
+            const dnn = iw[0]*n[0] + iw[1]*n[1] + iw[2]*n[2];
+            iw = nrm3([iw[0]-dnn*n[0], iw[1]-dnn*n[1], iw[2]-dnn*n[2]]);
+            ring3.push([p[0] + iw[0]*TIN - n[0]*TDEP,
+                        p[1] + iw[1]*TIN - n[1]*TDEP,
+                        p[2] + iw[2]*TIN - n[2]*TDEP]);
+          }
+          tubePath(ring3, TUBE_R, true);
+          let off2 = [0, 0, 0];
+          for (const id of o.ids)
+            if (id >= 0 && vOff.has(id)) { off2 = vOff.get(id); break; }
+          const yWd2 = S.waistY + off2[1];
+          let bF2 = -1, bA2 = -1, dF3 = 1e9, dA3 = 1e9;
+          pts2.forEach((p, i) => {
+            const dy = Math.abs(p[1] - yWd2);
+            if (p[2] >= cz3) { if (dy < dF3) { dF3 = dy; bF2 = i; } }
+            else if (dy < dA3) { dA3 = dy; bA2 = i; }
+          });
+          // straight bars chord the concave panel — 15 mm deeper than
+          // the outline tube (same measured sagitta as the wood/metal
+          // bars)
+          const barP = i2 => {
+            const r2 = ring3[i2], n = nrms[i2];
+            return [r2[0] - n[0]*0.015, r2[1] - n[1]*0.015,
+                    r2[2] - n[2]*0.015];
+          };
+          if (bF2 >= 0 && bA2 >= 0) {
+            tubeSeg(barP(bF2), barP(bA2), TUBE_R);
+            let z0b = 1e9, y0b = 1e9, z1b = -1e9, y1b = -1e9;
+            for (const p of pts2) {
+              z0b = Math.min(z0b, p[2]); y0b = Math.min(y0b, p[1]);
+              z1b = Math.max(z1b, p[2]); y1b = Math.max(y1b, p[1]);
+            }
+            let iBB2 = 0, bd4 = 1e9;
+            pts2.forEach((p, i) => {
+              const s = (p[2]-z0b)*(p[2]-z0b) + (p[1]-y0b)*(p[1]-y0b);
+              if (s < bd4) { bd4 = s; iBB2 = i; }
+            });
+            tubeSeg(barP(bF2), barP(iBB2), TUBE_R * 0.9);
+            const yLim2 = y0b + 0.25 * (y1b - y0b);
+            let iBF2 = -1, bz2 = -1e9;
+            pts2.forEach((p, i) => {
+              if (p[1] > yLim2) return;
+              if (p[2] > bz2) { bz2 = p[2]; iBF2 = i; }
+            });
+            if (iBF2 >= 0) tubeSeg(barP(bA2), barP(iBF2), TUBE_R * 0.9);
+          }
+          continue;
+        }
+        // four rails: outline / toward-centre pair, at FE and FE + FD
+        // below the surface
+        const rails = [[], [], [], []];
+        for (let i = 0; i < NN; i++) {
+          const p = pts2[i], n = nrms[i];
+          let iw = [cx3 - p[0], cy3 - p[1], cz3 - p[2]];
+          const dnn = iw[0]*n[0] + iw[1]*n[1] + iw[2]*n[2];
+          iw = nrm3([iw[0]-dnn*n[0], iw[1]-dnn*n[1], iw[2]-dnn*n[2]]);
+          const at = (wq, dq) => V.push([
+            p[0] + iw[0]*wq - n[0]*dq,
+            p[1] + iw[1]*wq - n[1]*dq,
+            p[2] + iw[2]*wq - n[2]*dq]) - 1;
+          rails[0].push(at(0, FE));
+          rails[1].push(at(FW, FE));
+          rails[2].push(at(FW, FE + FD));
+          rails[3].push(at(0, FE + FD));
+        }
+        for (let i = 0; i < NN; i++) {
+          const j = (i + 1) % NN;
+          for (const [ra, rb] of [[0, 1], [1, 2], [2, 3], [3, 0]])
+            add.push({ v: [rails[ra][i], rails[ra][j],
+                           rails[rb][j], rails[rb][i]], m: wMat(cD) });
+        }
+        // vertex -> part translation (recorded by cageCut): anchors
+        // defined against fuselage lines must follow the EXPLODED part
+        let off = [0, 0, 0];
+        for (const id of o.ids)
+          if (id >= 0 && vOff.has(id)) { off = vOff.get(id); break; }
+        const yWd = S.waistY + off[1];
+        // KEY-NODE ANCHORING (user, annotated screenshot): every bar
+        // end sits at the FRAME'S OWN SECTION CENTRE — the outline
+        // point pushed HALF THE FRAME WIDTH toward the door centre
+        // (the middle of the outer and inner rim) and HALF THE FRAME
+        // DEPTH under the skin (the middle of its thickness) — the
+        // same formula the frame rails use, so the anchor is exact by
+        // construction. Bars are slightly THINNER than the frame
+        // (0.022 < FD < FW): their ends live strictly inside the
+        // frame solid — no face overlap, nothing near the exterior.
+        const frameMidD = (i2, dq) => {
+          const p = pts2[i2], n = nrms[i2];
+          let iw = [cx3 - p[0], cy3 - p[1], cz3 - p[2]];
+          const dnn = iw[0]*n[0] + iw[1]*n[1] + iw[2]*n[2];
+          iw = nrm3([iw[0]-dnn*n[0], iw[1]-dnn*n[1], iw[2]-dnn*n[2]]);
+          return [p[0] + iw[0]*FW/2 - n[0]*dq,
+                  p[1] + iw[1]*FW/2 - n[1]*dq,
+                  p[2] + iw[2]*FW/2 - n[2]*dq];
+        };
+        const frameMid = i2 => frameMidD(i2, FE + FD/2);
+        // BAR anchors sit 15 mm deeper (user report + measured: the
+        // door panel is genuinely CONCAVE in plan — the flank's ring
+        // pull-in dips the skin 0.011 inside the fwd/aft chord at
+        // mid-door, so a straight bar on the frame plane stood proud)
+        const barMid = i2 => frameMidD(i2, FE + FD/2 + 0.015);
+        // WAIST BAR: between the outline's fwd/aft crossings of the
+        // door's OWN waist height
+        let bF = -1, bA = -1, dF2 = 1e9, dA2 = 1e9;
+        pts2.forEach((p, i) => {
+          const dy = Math.abs(p[1] - yWd);
+          if (p[2] >= cz3) { if (dy < dF2) { dF2 = dy; bF = i; } }
+          else if (dy < dA2) { dA2 = dy; bA = i; }
+        });
+        const dBar = (P1, P2) => {
+          if (cD === 'metal')
+            metalAngle(P1, P2, 0.022, [cx3, cy3]);
+          else beam(P1, P2, BAR, BAR, wMat(cD));
+        };
+        if (bF >= 0 && bA >= 0) {
+          dBar(barMid(bF), barMid(bA));
+          // DIAGONAL: from the waist-line angle on the front edge to
+          // EXACTLY the bottom-back corner — the end centred in the
+          // corner the outline forms (nearest outline point to the
+          // true bbox corner, at frame mid)
+          let z0b = 1e9, y0b = 1e9, z1b = -1e9, y1b = -1e9;
+          for (const p of pts2) {
+            z0b = Math.min(z0b, p[2]); y0b = Math.min(y0b, p[1]);
+            z1b = Math.max(z1b, p[2]); y1b = Math.max(y1b, p[1]);
+          }
+          let iBB = 0, bd2 = 1e9;
+          pts2.forEach((p, i) => {
+            const s = (p[2]-z0b)*(p[2]-z0b) + (p[1]-y0b)*(p[1]-y0b);
+            if (s < bd2) { bd2 = s; iBB = i; }
+          });
+          dBar(barMid(bF), barMid(iBB));
+          // the X (user): the second diagonal — waist-aft crossing to
+          // the BOTTOM-FRONT corner (the most-forward point of the
+          // outline's bottom region; the outline's global max z is the
+          // waist angle, so the corner is found within the bottom band)
+          const yLim = y0b + 0.25 * (y1b - y0b);
+          let iBF = -1, bz = -1e9;
+          pts2.forEach((p, i) => {
+            if (p[1] > yLim) return;
+            if (p[2] > bz) { bz = p[2]; iBF = i; }
+          });
+          // metal doors take a SINGLE diagonal (user ruling — the X
+          // stays with wood and tube)
+          if (iBF >= 0 && cD !== 'metal') dBar(barMid(bA), barMid(iBF));
+        }
+      }
+    }
+    // HIDDEN DASH CROSS-BEAM (user): one straight spruce member linking
+    // the two symmetrical points where the windshield angle starts —
+    // the base-line ends at the A-pillars, read off the displayed mesh
+    // (the pre-cut wsBase record when parts are cut, the material
+    // adjacency otherwise). It lives inside the dash solid; no joining
+    // geometry, ends pulled inboard so they stay under the skin.
+    (() => {
+      let xP = null, xM = null;
+      const take = vi => {
+        const p = V[vi];
+        if (!xP || p[0] > xP[0]) xP = p;
+        if (!xM || p[0] < xM[0]) xM = p;
+      };
+      if (m.wsBase && m.wsBase.length) {
+        for (const [a2, b2] of m.wsBase) { take(a2); take(b2); }
+      } else {
+        const own = new Map();
+        for (const f of F) {
+          if (f.v.length !== 4) continue;
+          if (f.m !== 'windshield' && f.m !== 'waistband') continue;
+          for (let e = 0; e < 4; e++) {
+            const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+            if (!own.has(k)) own.set(k, new Set());
+            own.get(k).add(f.m);
+          }
+        }
+        for (const [k, ms] of own)
+          if (ms.has('windshield') && ms.has('waistband'))
+            k.split('_').map(Number).forEach(take);
+      }
+      if (!xP || !xM) return;
+      const cD = consAt((xP[1] + xM[1]) / 2, (xP[2] + xM[2]) / 2);
+      if (!woodLike(cD) && cD !== 'tube') return;
+      // anchored at the BOTTOM of the waistband (user correction): the
+      // base-line ends drop by the band height onto the waist line —
+      // both lines carry the same windshield-base lift, so the drop is
+      // a pure vertical
+      const dropB = S.bandY - S.waistY;
+      const pull = tS + wW / 2;
+      member([xP[0] - pull, xP[1] - dropB, xP[2]],
+             [xM[0] + pull, xM[1] - dropB, xM[2]], wW);
+    })();
+    // BOOM STRUCTURE — one station machinery, two realizations (user):
+    // wood gets the AJOURE plywood webs, tube gets SECTION RINGS at
+    // the same metre stations plus bent LONGERONS (top-side pair by
+    // ring angle, bottom corner pair) and zigzag bay diagonals — the
+    // bathtub structure's mesh IS the tube boom's procedural base.
+    // Sections are SLICED FROM THE DISPLAYED MESH (angle sort is
+    // sound: the boom section is convex); the wood web is an annulus —
+    // the big lightening hole IS the ajoure.
+    const consBoom = CM.boomBelow || cons;
+    if (consBoom === 'wood' || consBoom === 'tube'
+        || consBoom === 'metal') {
+      const NFr = Math.max(0, Math.round(S.boom.len) - 1);
+      const sp = S.boom.len / (NFr + 1);
+      // no station forward of k=1 (user: the floating mini-ring by the
+      // cabin is gone — the boom connects to the pax pillar HOOP)
+      const kLo = 1;
+      const kHi = consBoom === 'wood' ? NFr : NFr + 1;
+      const mtW = [[], []], mtB = [[], []];   // metal stringer nodes
+      // the boom nodes carry the THICK longerons now — the inset must
+      // track the big radius (it was TUBE_R-sized, which is exactly why
+      // the waist longeron poked through the boom skin, user screenshot)
+      const BOOM_IN = TUBE_RP + 0.005;
+      const topCh = [[], []], botCh = [[], []];
+      for (let k = kLo; k <= kHi; k++) {
+        const zk = k === 0 ? zPax0 - 0.03
+                 : k === NFr + 1 ? zBoom0 + 0.05
+                 : zPax0 - k * sp;
+        // the frame stations can land EXACTLY on the subdivision's own
+        // vertex rings (boomLen/4 spacing = the L2 lattice — measured:
+        // every slice found 0 crossings), so on-plane VERTICES are
+        // section points too (dedup by id); strict crossings cover the
+        // in-between case at other levels/lengths.
+        const pmap = new Map();
+        for (const f of F) {
+          if (f.v.length !== 4 || f.cutPart || f.m === 'joint'
+              || f.capFace) continue;
+          for (let e = 0; e < 4; e++) {
+            const a = f.v[e], b = f.v[(e + 1) % 4];
+            const za = V[a][2] - zk, zb = V[b][2] - zk;
+            if (Math.abs(za) < 1e-9) pmap.set('v' + a,
+              [V[a][0], V[a][1], zk]);
+            if (za * zb >= 0) continue;
+            const key = 'e' + cageEdgeKey(a, b);
+            if (pmap.has(key)) continue;
+            const t = za / (za - zb);
+            pmap.set(key, [V[a][0] + (V[b][0]-V[a][0])*t,
+                           V[a][1] + (V[b][1]-V[a][1])*t, zk]);
+          }
+        }
+        const pts = [...pmap.values()];
+        if (pts.length < 8) continue;
+        let cx = 0, cy2 = 0;
+        for (const p of pts) { cx += p[0]/pts.length;
+                               cy2 += p[1]/pts.length; }
+        pts.sort((p, q) => Math.atan2(p[1]-cy2, p[0]-cx)
+                         - Math.atan2(q[1]-cy2, q[0]-cx));
+        if (consBoom === 'metal') {
+          // METAL STATION FRAME (user): a thin PUNCHED web ring — the
+          // sliced section inset just under the toele for the outer
+          // rail, the constant-margin offset (the ajoure rule) for the
+          // inner, with the raised half-moon floor kept; stringer
+          // nodes recorded at the waist-mid and chine corners
+          const ring0 = pts.map(p => {
+            const dx = cx - p[0], dy = cy2 - p[1];
+            const l = Math.hypot(dx, dy) || 1;
+            return [p[0] + dx/l*0.009, p[1] + dy/l*0.009, zk];
+          });
+          if (k >= 1 && k <= NFr) {
+            // SAME LOOK AS THE CABIN PILLAR FRAMES (user): the boom's
+            // internal pillars are narrow punched RINGS at the cabin
+            // frames' depth and box thickness — one consistent metal
+            // structure, not the wide ajoure web (that idiom stays
+            // with the wood panels)
+            const DEEP2 = (I.shellT || 0.035) * 1.6;
+            const ringH = ring0.map(p => {
+              const dx = cx - p[0], dy = cy2 - p[1];
+              const l = Math.hypot(dx, dy) || 1;
+              const d = Math.min(DEEP2 - 0.009, l * 0.6);
+              return [p[0] + dx/l*d, p[1] + dy/l*d, zk];
+            });
+            punched(ring0, ringH, true, 'aluminium', 0.006, 0.014);
+          }
+          const pickW = sx => {
+            const yWm3 = (S.waistY + S.bandY) / 2;
+            let best = ring0[0], bv = 1e9;
+            for (const p of ring0) {
+              if (sx * p[0] <= 0) continue;
+              const s = Math.abs(p[1] - yWm3);
+              if (s < bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          const pickC = sx => {
+            let best = ring0[0], bv = -1e9;
+            for (const p of ring0) {
+              const s = sx * p[0] - p[1];
+              if (s > bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          const dirOf = p => {
+            const dx = cx - p[0], dy = cy2 - p[1];
+            const l = Math.hypot(dx, dy) || 1;
+            return [dx / l, dy / l];
+          };
+          for (const [arr, pk] of [[mtW, pickW], [mtB, pickC]]) {
+            const pP = pk(1), pM = pk(-1);
+            arr[0].push({ p: pP, d: dirOf(pP) });
+            arr[1].push({ p: pM, d: dirOf(pM) });
+          }
+          continue;
+        }
+        if (consBoom === 'tube') {
+          // SECTION RING: a bent tube along the sliced outline, pulled
+          // inside the skin radially; longeron nodes recorded — the
+          // top pair by ring angle (~60/120 deg), the bottom pair at
+          // the chine corners
+          const ring2 = pts.map(p => {
+            const dx = cx - p[0], dy = cy2 - p[1];
+            const l = Math.hypot(dx, dy) || 1;
+            return [p[0] + dx/l*BOOM_IN, p[1] + dy/l*BOOM_IN, zk];
+          });
+          tubeRuns(ring2, TUBE_R, true);
+          // main longeron nodes at the TOP OF THE WAISTLINE (user,
+          // annotated drawing): bandY is a global constant, so the
+          // chained nodes are a straight line; bottom pair at the
+          // chines
+          const yWm2 = (S.waistY + S.bandY) / 2;   // middle of the band
+          const wPick = sx => {
+            let best = ring2[0], bv = 1e9;
+            for (const p of ring2) {
+              if (sx * p[0] <= 0) continue;
+              const s = Math.abs(p[1] - yWm2);
+              if (s < bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          const cornPick = sx => {
+            let best = ring2[0], bv = -1e9;
+            for (const p of ring2) {
+              const s = sx * p[0] - p[1];
+              if (s > bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          topCh[0].push(inCtr(wPick(1), cy2));
+          topCh[1].push(inCtr(wPick(-1), cy2));
+          botCh[0].push(inCtr(cornPick(1), cy2));
+          botCh[1].push(inCtr(cornPick(-1), cy2));
+          continue;
+        }
+        // the web is a SOLID (user: half a centimetre of thickness) and
+        // the lightening hole's FLOOR is raised to the section centroid
+        // — the hole reads as a half circle and the web below the chord
+        // stays full (user correction: the hole was too big, a raised
+        // floor shrinks it into the half-moon of the real plywood webs)
+        // CONSTANT WOOD WIDTH around the opening (user): the hole is
+        // the outline offset INWARD by a fixed margin along the local
+        // boundary normal — the radial lerp scaled the wood with the
+        // local radius (the middle read thicker than the sides). The
+        // margin is ~12 cm, clamped to 3/4 of the local distance to
+        // the centroid so small aft webs keep a small opening instead
+        // of inverting; the raised half-moon floor stays.
+        const MW = 0.12;
+        const n2p = pts.length;
+        let y0w = 1e9;
+        for (const p of pts) y0w = Math.min(y0w, p[1]);
+        // the hole floor sits LOW (user): constant margin above the
+        // section bottom, like the top — the centroid clamp is out
+        const yFloor = Math.min(y0w + MW, cy2);
+        const o2 = [], h2 = [];
+        for (let i2 = 0; i2 < n2p; i2++) {
+          const p = pts[i2];
+          const dx = cx - p[0], dy = cy2 - p[1];
+          const l = Math.hypot(dx, dy) || 1;
+          o2.push([p[0] + dx/l*0.012, p[1] + dy/l*0.012]);
+          const pm = pts[(i2 - 1 + n2p) % n2p], pp = pts[(i2 + 1) % n2p];
+          const tx = pp[0] - pm[0], ty = pp[1] - pm[1];
+          const tl = Math.hypot(tx, ty) || 1;
+          let nx = -ty / tl, ny = tx / tl;
+          if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; }
+          const mm = Math.min(MW, l * 0.75);
+          h2.push([p[0] + nx * mm, Math.max(p[1] + ny * mm, yFloor)]);
+        }
+        const TH = 0.0025;
+        const oF = o2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
+        const oB = o2.map(p => V.push([p[0], p[1], zk - TH]) - 1);
+        const hF = h2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
+        const hB = h2.map(p => V.push([p[0], p[1], zk - TH]) - 1);
+        const n2 = pts.length;
+        for (let i2 = 0; i2 < n2; i2++) {
+          const j = (i2 + 1) % n2;
+          add.push({ v: [oF[i2], oF[j], hF[j], hF[i2]], m: 'woodFrame' });
+          add.push({ v: [hB[i2], hB[j], oB[j], oB[i2]], m: 'woodFrame' });
+          add.push({ v: [oB[i2], oB[j], oF[j], oF[i2]], m: 'woodFrame' });
+          add.push({ v: [hF[i2], hF[j], hB[j], hB[i2]], m: 'woodFrame' });
+        }
+      }
+      if (consBoom === 'metal') {
+        // METAL STRINGERS v2 (user reality check): L-ANGLES, solid —
+        // real stringers are bent profiles, never lightening-holed
+        // (the punched blades are gone). The chains CONNECT TO THE
+        // CABIN (user: the cabin-side section was missing): the aft
+        // pillar band's mid nodes are prepended, same junction rule
+        // as the tube chains.
+        const b0m = bandEnds[0];
+        if (b0m && b0m.mid) {
+          const jd = p => {
+            const l = Math.hypot(p[0], b0m.cy - p[1]) || 1;
+            return [-p[0] / l, (b0m.cy - p[1]) / l];
+          };
+          const pre = (arr, node) => {
+            if (node && arr.length)
+              arr.unshift({ p: inCtr(node, b0m.cy), d: jd(node) });
+          };
+          pre(mtW[0], b0m.mid.wP); pre(mtW[1], b0m.mid.wM);
+          pre(mtB[0], b0m.mid.P); pre(mtB[1], b0m.mid.M);
+        }
+        for (const chain of [mtW[0], mtW[1], mtB[0], mtB[1]])
+          for (let i = 0; i + 1 < chain.length; i++) {
+            const a2 = chain[i], b2 = chain[i + 1];
+            const mid2 = [(a2.p[0]+b2.p[0])/2, (a2.p[1]+b2.p[1])/2];
+            const dd = [(a2.d[0]+b2.d[0])/2, (a2.d[1]+b2.d[1])/2];
+            metalAngle(a2.p, b2.p, 0.03,
+                       [mid2[0] + dd[0], mid2[1] + dd[1]]);
+          }
+      }
+      if (consBoom === 'tube') {
+        // LONGERONS: simple bent tubes station to station (top-side
+        // pair + bottom chine pair), and one ZIGZAG DIAGONAL per bay
+        // per side between the top and bottom chains — the Warren
+        // truss the fabric hides
+        const seg = (A, B, r) => {
+          if (!A || !B) return;
+          if (consAt((A[1]+B[1])/2, (A[2]+B[2])/2) === 'tube')
+            tubeSeg(A, B, r);
+        };
+        // THE MAIN LONGERON (user, annotated drawing): ONE continuous
+        // tube per side runs all along the top of the waistline, nose
+        // to tail — every cabin band's mid node (front pillar first)
+        // chained with the boom stations into a single sweep. The
+        // bottom chine line gets the identical treatment.
+        // the waist longeron BREAKS at any bay with a defined door
+        // (user: no bar across a doorway) — the chain is assembled as
+        // runs that split at doored bays; the chine line stays
+        // continuous (the door sill sits above it)
+        const D3 = (S.config && S.config.doors) || {};
+        const runsP = [[]], runsM = [[]];
+        const chnP = [], chnM = [];
+        for (let i = bandEnds.length - 1; i >= 0; i--) {
+          if (i < bandEnds.length - 1 && !bandEnds[i + 1].isFront) {
+            const doored = bandEnds[i + 1].isWin ? D3.pilot : D3.pax;
+            if (doored) { runsP.push([]); runsM.push([]); }
+          }
+          const md = bandEnds[i].mid, cyv = bandEnds[i].cy;
+          if (md.wP) runsP[runsP.length - 1].push(inCtr(md.wP, cyv));
+          if (md.wM) runsM[runsM.length - 1].push(inCtr(md.wM, cyv));
+          if (md.P) chnP.push(inCtr(md.P, cyv));
+          if (md.M) chnM.push(inCtr(md.M, cyv));
+        }
+        for (const p of topCh[0]) runsP[runsP.length - 1].push(p);
+        for (const p of topCh[1]) runsM[runsM.length - 1].push(p);
+        // the boom's bottom-corner stations continue the chine chains
+        // (user catch: the doored-bay rework dropped these appends —
+        // the cabin chines survived but the boom run vanished)
+        for (const p of botCh[0]) chnP.push(p);
+        for (const p of botCh[1]) chnM.push(p);
+        // the MAIN lines are as thick as the pillars (user): waistband
+        // longeron + bottom-corner longeron at TUBE_RP; the rest slim
+        for (const ch of [...runsP, ...runsM, chnP, chnM])
+          tubeRuns(ch, TUBE_RP, false);
+        for (const s2 of [0, 1])
+          for (let i = 0; i + 1 < topCh[s2].length; i++)
+            seg(i % 2 ? botCh[s2][i] : topCh[s2][i],
+                i % 2 ? topCh[s2][i + 1] : botCh[s2][i + 1], TUBE_R * 0.85);
+        // the FIRST boom bay was unbraced (user): its diagonal runs
+        // from the pax pillar hoop's waist node down to station 1's
+        // chine — completing THE RULE: every non-door body panel gets
+        // ONE diagonal, doors get the X
+        const b0 = bandEnds[0];
+        if (b0 && b0.mid) {
+          if (b0.mid.wP && botCh[0].length)
+            seg(inCtr(b0.mid.wP, b0.cy), botCh[0][0], TUBE_R * 0.85);
+          if (b0.mid.wM && botCh[1].length)
+            seg(inCtr(b0.mid.wM, b0.cy), botCh[1][0], TUBE_R * 0.85);
+        }
+      }
+    // CLOTH INTERIOR (user v2): a PROPER EXTRUSION — the liner idiom
+    // (inner copy + rim walls at every opening) instead of the floating
+    // inset duplicate whose edge gap showed. Tube sections: the whole
+    // skin, doors included, glass excluded. Wood sections get the same
+    // cloth, but only where the plywood does not already line the wall
+    // (above the sheets: upper cabin walls, roof, boom top).
+    (() => {
+      const covered = new Set([...selPan, ...selPil, ...selDoor]);
+      const selC = [];
+      F.forEach((f, i) => {
+        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+        if (GLM.has(f.m)) return;
+        const [cy, cz] = cenOf(f);
+        const c = consAt(cy, cz);
+        if (c === 'tube' || (c === 'wood' && !covered.has(i)))
+          selC.push(i);
+      });
+      liner(selC, 0.006, () => 'cloth');
+    })();
+    }
+  })();
+
+  // (the original cageResolve-based welded truss is RETIRED — the tube
+  // construction is now realized from the plywood skeleton above: same
+  // key nodes, member() dispatch, pillar hoops, boom rings + bent
+  // longerons. One structure, techniques per section.)
 
   // ---- dashboard (I2, user recipe verbatim) --------------------------------
   // 1. the windshield bottom line where it meets the fuselage = the mesh
@@ -1841,19 +3452,14 @@ function cageInterior(m, S) {
     // lip corner -> chord -> mirrored) and the under-base line
     ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
             oid[NX - 1]], R5);
-    // front return: a GRID with rows at the side-chain heights — its side
-    // columns fuse with the side panels' forward edges (no T-junctions)
-    for (let k = 0; k < NS; k++) {
-      const row = kk => base.map((p, i) => pid([
-        baseT[i][0] + (p[0] - baseT[i][0]) * kk / NS,
-        yB + (p[1] - yB) * kk / NS,
-        zPill + (p[2] - zPill) * kk / NS]));
-      const ra = row(k);
-      // top row must reuse the base points VERBATIM: yB + (y-yB)*1 is not
-      // bit-equal to y in floats and the seam would not fuse
-      const rb = k + 1 === NS ? base.map(p => pid(p)) : row(k + 1);
-      strip(ra, rb);
-    }
+    // THE FRONT RETURN IS GONE (user ruling, option reserved at
+    // e933ae5): the morph face joining the straight back-bottom line
+    // to the curved base arc does not exist on a real dashboard and no
+    // longer exists here — the dash is OPEN at the nose side, as IRL.
+    // The new boundary chains (the base line and the back-bottom line)
+    // both carry MAX crease, so the open edges hold their polylines
+    // through CC; materials render DoubleSide, so the open back reads
+    // fine from every reasonable viewpoint (and the firewall hides it).
     // coherent windings + outward, on this component only
     orientCage({ V, F: add.slice(dashStart) });
     // ROUNDED EDGES (user ruling): the dash goes through the SAME
@@ -1918,26 +3524,86 @@ function cageInterior(m, S) {
   // pusher tail disc) — the cabin's forward view ends on a wall instead
   // of the cap's backface. capFace marks are set at emission and survive
   // subdivision.
+  // the fire plate is a CLOSED SOLID now (user): front sheet at the
+  // group's offset, back sheet 5 mm inboard (the boom-web thickness),
+  // rim wall on the cap-grid boundary. The NOSE plate sits slightly
+  // PROUD of the aperture plane (the old inboard setback overlapped
+  // the liner rim walls once the cap skin was dropped); the pusher
+  // tail disc keeps its skin, so its plate stays tucked behind it.
   if (I.fire) (() => {
-    const nid = new Map();
-    for (const f of F) {
-      if (!f.capFace || f.v.length !== 4) continue;
-      const p = f.v.map(i => V[i]);
-      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
-      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
-      const n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
-      const l = Math.hypot(n[0], n[1], n[2]) || 1;
-      const off = [-n[0]/l*0.012, -n[1]/l*0.012, -n[2]/l*0.012];
-      const my = vi => {
-        if (!nid.has(vi)) nid.set(vi, V.push([
-          V[vi][0]+off[0], V[vi][1]+off[1], V[vi][2]+off[2]]) - 1);
-        return nid.get(vi);
+    const nose = [], rear = [];
+    F.forEach((f, i) => {
+      if (!f.capFace || f.v.length !== 4) return;
+      let cz = 0;
+      for (const vi of f.v) cz += V[vi][2] / f.v.length;
+      (cz >= zPax0 ? nose : rear).push(i);
+    });
+    const FTH = 0.005;
+    const plate = (fis, d0) => {
+      if (!fis.length) return;
+      const vN = new Map();
+      for (const fi of fis) {
+        const p = F[fi].v.map(i2 => V[i2]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2],
+                   u[0]*w[1]-u[1]*w[0]];
+        for (const vi of F[fi].v) {
+          const s = vN.get(vi) || [0, 0, 0];
+          vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
+        }
+      }
+      const pF = new Map(), pB = new Map();
+      const of2 = (vi, d, mp) => {
+        if (!mp.has(vi)) {
+          const n = vN.get(vi);
+          const l = Math.hypot(n[0], n[1], n[2]) || 1;
+          mp.set(vi, V.push([V[vi][0]+n[0]/l*d, V[vi][1]+n[1]/l*d,
+                             V[vi][2]+n[2]/l*d]) - 1);
+        }
+        return mp.get(vi);
       };
-      add.push({ v: f.v.map(my), m: 'firewall' });
-    }
+      const eCnt = new Map(), eDir = new Map();
+      for (const fi of fis) {
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          eCnt.set(k, (eCnt.get(k) || 0) + 1);
+          if (!eDir.has(k)) eDir.set(k, [a, b]);
+        }
+      }
+      for (const fi of fis) {
+        add.push({ v: F[fi].v.map(vi => of2(vi, d0, pF)),
+                   m: 'firewall' });
+        add.push({ v: F[fi].v.slice().reverse()
+                     .map(vi => of2(vi, d0 - FTH, pB)), m: 'firewall' });
+      }
+      for (const [k, c] of eCnt) {
+        if (c !== 1) continue;
+        const [a, b] = eDir.get(k);
+        add.push({ v: [of2(b, d0, pF), of2(a, d0, pF),
+                       of2(a, d0 - FTH, pB), of2(b, d0 - FTH, pB)],
+                   m: 'firewall' });
+      }
+    };
+    plate(nose, 0.008);
+    plate(rear, -0.012);
   })();
 
-  m.F = F.concat(add);
+  // THE ENGINE NOSE OPENS (user): the firewall closes the bay now, so
+  // the aperture-cap skin faces at the NOSE are dropped — the opening
+  // shows the firewall, as the real assembly would. Aero noses carry no
+  // capFace marks (nothing to drop); the pusher tail disc (also
+  // capFace-marked) is kept — only the front opens.
+  let FK = F;
+  if (I.fire) FK = F.filter(f => {
+    if (!f.capFace) return true;
+    let cz = 0;
+    for (const vi of f.v) cz += V[vi][2] / f.v.length;
+    return cz < zPax0;
+  });
+  m.F = FK.concat(add);
   return m;
 }
 
@@ -2348,6 +4014,9 @@ const CAGE_PARAMS = {
   topRound: 0, topAngCeil: 52, topAngRoof: 76, topComp: 1.045, bubble: 0,
   // skylight defaults = the template: roof glass on, covering all bays
   skylight: 1, skyExt: 5,
+  // glass sill: extend the pilot/pax glass DOWN the door, row-stepped;
+  // 0 = template extent, ~0.9 = the whole door is window
+  winSillPilot: 0, winSillPax: 0,
   // pillar crease defaults to MAX (user ruling): the pillar bands render
   // at their drawn width — width itself is adjusted via pillarW below,
   // never via the crease.
@@ -2376,6 +4045,9 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
+  // construction idiom: 0 carbon (pillars+shell liner), 1 tube (welded
+  // truss), 2 wood (plywood bathtub + pillar posts + floorboards)
+  intCons: 0,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
   dashCrease: 1.5,
   // G14: post-subsurf cutting of doors/windows into separate parts
@@ -2398,7 +4070,9 @@ function cageSpec(P) {
             comp: P.topComp, bubble: P.bubble ? 1 : 0,
             botRound: P.botRound };
   S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
-              ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)) };
+              ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
+              sillPilot: Math.max(0, P.winSillPilot || 0),
+              sillPax: Math.max(0, P.winSillPax || 0) };
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
                frontCap: P.crFrontCap, noseCap: P.crNoseCap };
@@ -2568,9 +4242,22 @@ function cageSpec(P) {
                      deep: P.doorDeep ? 1 : 0 };
   S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
             explode: Math.max(0, P.explodeD || 0) };
+  const consG = ['carbon', 'tube', 'wood', 'metal'][
+    Math.max(0, Math.min(3, Math.round(P.intCons || 0)))];
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
                  pillars: P.intPillars ? 1 : 0,
+                 cons: consG,
+                 // the SECTION MODEL: one technique per {boom|pax|
+                 // pilot|nose} x {Below|Above band-top} — all equal to
+                 // the global today (3 UI options), but the builders
+                 // already consult this map, so a mixed airframe (tube
+                 // canopy over a wooden boom, like the jodel) is one
+                 // spec edit away
+                 consMap: { boomBelow: consG, boomAbove: consG,
+                            paxBelow: consG, paxAbove: consG,
+                            pilotBelow: consG, pilotAbove: consG,
+                            noseBelow: consG, noseAbove: consG },
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
@@ -2582,8 +4269,8 @@ function cageSpec(P) {
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                      cageResolve, cageSpec, cageSubdivide, cageRims,
-                     cageInterior, cageCut };
+                     cageInterior, cageCut, cageGlassSill };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                    cageResolve, cageSpec, cageSubdivide, cageRims,
-                     cageInterior, cageCut };
+                   cageInterior, cageCut, cageGlassSill };

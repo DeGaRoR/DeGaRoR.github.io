@@ -38,6 +38,12 @@ const SEC = {
   bulkhead:        '#8a7a5f',
   firewall:        '#8a4a2f',
   dash:            '#333a45',
+  tube:            '#93a0ad',
+  plywood:         '#b5854e',
+  woodFrame:       '#8a6134',
+  cloth:           '#cfc6b2',
+  composite:       '#3a3f46',
+  aluminium:       '#c3c9d0',
 };
 
 // ---- parameters -----------------------------------------------------------
@@ -134,6 +140,8 @@ const GROUPS = [
   ['glazing', [
     ['skylight',  'skylight',      0, 1, 1],
     ['skyExt',    'sky extent',    0, 5, 1],
+    ['winSillPilot', 'pilot win sill', 0, 0.9, 0.01],
+    ['winSillPax',   'pax win sill',   0, 0.9, 0.01],
   ]],
   ['cutting', [
     ['cutParts',  'cut parts',     0, 1, 1],
@@ -141,6 +149,8 @@ const GROUPS = [
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
+    ['intCons',   'construction',  0, 3, 1, ['composite', 'steel tube',
+                                             'plywood', 'aluminium']],
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
     ['intPillars','pillar bodies', 0, 1, 1],
@@ -192,7 +202,8 @@ const matCache = {};
 const VIEW = { glassA: 0.35, bodyA: 1 };
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
-const INTM = new Set(['bulkhead', 'firewall', 'dash']);
+const INTM = new Set(['bulkhead', 'firewall', 'dash', 'tube', 'plywood',
+                      'woodFrame', 'cloth', 'composite', 'aluminium']);
 const matOf = name => {
   const a = GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
     : INTM.has(name) ? 1 : VIEW.bodyA;
@@ -317,6 +328,9 @@ function build() {
   for (let i = 0; i < L; i++) s = G.cageSubdivide(s);
   // rim joints sweep the boundary of the mesh AT THIS level — they stick
   // to the displayed surface exactly, at any subsurf setting
+  // glass sill first: rows under the pilot/pax glass reassign to glass
+  // so the cut and the joints see the extended windows
+  if (step === 'crease' && G.cageGlassSill) s = G.cageGlassSill(s, spec);
   // G14: cut doors/windows into separate parts BEFORE the rims, so the
   // joints are traced on (and travel with) the moved panels
   if (step === 'crease' && G.cageCut) s = G.cageCut(s, spec);
@@ -400,8 +414,20 @@ function loadRef() {
 
 // ---- ui -------------------------------------------------------------------
 const ui = $('ui');
-const mkRow = (parent, k, label, lo, hi, st, val, oninput) => {
+// a row is a slider, or — when `names` is given — a named select whose
+// option values are the indices (the param stays numeric underneath)
+const mkRow = (parent, k, label, lo, hi, st, val, oninput, names) => {
   const d = document.createElement('div'); d.className = 'r';
+  if (names) {
+    d.innerHTML = `<span class="k">${label}</span>
+      <select id="p_${k}" style="flex:1">` +
+      names.map((n, i) =>
+        `<option value="${i}"${+val === i ? ' selected' : ''}>${n}</option>`)
+        .join('') + `</select>`;
+    parent.appendChild(d);
+    d.querySelector('select').onchange = e => oninput(+e.target.value);
+    return;
+  }
   d.innerHTML = `<span class="k">${label}</span>
     <input type="range" id="p_${k}" min="${lo}" max="${hi}" step="${st}"
       value="${val}">
@@ -492,9 +518,13 @@ for (const [gname, items] of GROUPS) {
   const sum = document.createElement('summary');
   sum.textContent = gname;
   det.appendChild(sum);
+  // the interior is the active work area — its group starts open so the
+  // construction choice is visible without digging (user report)
+  if (gname === 'interior') det.open = true;
   ui.appendChild(det);
-  for (const [k, label, lo, hi, st] of items)
-    mkRow(det, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); });
+  for (const [k, label, lo, hi, st, names] of items)
+    mkRow(det, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
+          names);
   if (gname === 'interior') {
     // view transparency sliders (viewer-only, not spec params)
     const mkA = (label, key0) => {
@@ -549,7 +579,11 @@ function syncSliders() {
   }
   for (const [, items] of GROUPS) for (const [k] of items) {
     const el = $('p_' + k);
-    if (el) { el.value = P[k]; $('v_' + k).textContent = (+P[k]).toFixed(3); }
+    if (el) {
+      el.value = P[k];
+      const vs = $('v_' + k);
+      if (vs) vs.textContent = (+P[k]).toFixed(3);
+    }
   }
 }
 function applyPreset(name) {
@@ -600,11 +634,32 @@ $('step').onchange = () => { loadRef(); build(); };
 $('refOn').onchange = loadRef;
 $('refA').oninput = loadRef;
 const viewEl = $('view');
+// left drag = orbit; MIDDLE or RIGHT drag = PAN (user ask) — the pan
+// moves the look-at centre in the camera's screen plane, scaled to the
+// world size per pixel at the target distance; dblclick refits both
+let panD = null;
 viewEl.addEventListener('mousedown', e => {
-  drag = [e.clientX, e.clientY, yaw, pitch];
+  if (e.button === 1 || e.button === 2) {
+    panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
+    e.preventDefault();
+  } else drag = [e.clientX, e.clientY, yaw, pitch];
 });
-addEventListener('mouseup', () => drag = null);
-addEventListener('mousemove', e => { if (!drag) return;
+viewEl.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mousemove', e => {
+  if (panD) {
+    const r = cv.getBoundingClientRect();
+    const wpp = 2 * (fitR / ZOOM) *
+      Math.tan(camera.fov * Math.PI / 360) / Math.max(1, r.height);
+    const e0 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const e1 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    centreOv = panD[2].clone()
+      .addScaledVector(e0, -(e.clientX - panD[0]) * wpp)
+      .addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+    draw();
+    return;
+  }
+  if (!drag) return;
   yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
   pitch = Math.max(-1.35, Math.min(1.35, drag[3] + (e.clientY - drag[1]) * 0.006));
   draw(); });
@@ -613,8 +668,14 @@ viewEl.addEventListener('wheel', e => {
   ZOOM = Math.max(0.2, Math.min(15, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
   draw();
 }, { passive: false });
-viewEl.addEventListener('dblclick', () => { ZOOM = 1; draw(); });
+viewEl.addEventListener('dblclick', () => {
+  ZOOM = 1; centreOv = null; draw();
+});
 addEventListener('resize', () => MS && draw());
+// the side pane is resizable (CSS resize on the aside) — the canvas must
+// follow the #view box live, not only on window resize
+if (typeof ResizeObserver !== 'undefined')
+  new ResizeObserver(() => MS && draw()).observe(viewEl);
 
 if (PAGE.defaultStep) $('step').value = PAGE.defaultStep;
 window.CAGE_UI = { P, M, build, draw, applyPreset,

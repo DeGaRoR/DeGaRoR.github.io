@@ -5036,15 +5036,544 @@ the return grid columns (seam fusion).
 **Final session tweaks:** dash back line pulled +0.15 z past the
 window pillar (user: it must CROSS the pillar — no gap beside it);
 default view = cage overlay OFF + explodeD 1 (slider max now 1).
-**KNOWN ISSUES for next session (user report, unresolved):** (1) at
-subsurf 2 the windshield seal's TOP curve misses a mid interpolation
-point (reads flattened; fine at L3) — likely needs the seal path
-densified from the limit curve at low levels. (2) at subsurf 3 the cut
-DOOR and its joint MISMATCH in two places (door top corner region and
-front edge vs pillar) — suspect the row-BFS sill NDROP rounding
-changing rows between levels and/or outline-vs-part divergence at L3;
-diagnose fresh.
-**NEXT SESSION — DASH REDESIGN AS FLAT PANELS (user ruling):** the
+**KNOWN ISSUES — BOTH FIXED (2026-08-16 evening session), one root
+cause.** The suspects (seal densification, sill NDROP rounding) were
+both wrong — trace-first won again. The instrument: cageRims now
+records the PROCESSED sweep path next to the true boundary
+(`outline.path` beside `outline.pts`); their divergence is the seal-
+mismatch meter. It convicted the split-corner FOLD pass in one run
+(merge and fillet measured innocent — fillet deviations are the design
+corner cut, <= 0.014 everywhere):
+- L2 windshield: the fold deleted exactly ONE vertex — the top-centre
+  apex (turn 24 deg, arms 6.9r: a smooth-curve sample, nothing like a
+  split corner) — 0.017 flat spot. At L3 the same vertex turns < 20 deg
+  and survived. That level-flip IS the "fine at L3" in the report.
+- L3 doors/pane: the fold CASCADED — each fold re-based the next
+  vertex's chord test, so it flattened whole curved runs (pane top
+  corner 0.056 = 4.6r off the drawn boundary), and its scan order made
+  L/R doors diverge (108 vs 114 path points).
+FIX: the fold-to-chord collapse is REPLACED by SPLIT-CORNER
+RECONSTRUCTION — a corner split across two nearby vertices (segment
+< 2.5r, combined turn > ~30 deg) becomes ONE point where the outer
+arm lines meet (closest approach; pair midpoint when parallel or the
+meet runs away, clamped within 3r) — the exact inverse of the split,
+local and non-cascading by construction. Measured after: windshield L2
+apex kept (dev 0.011, fillet-only), pane L3 0.056 -> 0.014, doors L3
+0.042/0.027 -> 0.0077 with L/R bit-symmetric (111/111). Verified:
+fit green, 96-case sweep (pax 0-3 x cut x sill x round x L2/L3) zero
+fails, worst seal dev 0.014 = the fillet's design rounding.
+Also this session: the resizable side pane is MIRRORED to _cage2
+(same flex + rtl resize CSS) and _cage_ui.js gained a ResizeObserver
+on #view — the canvas now redraws live while the pane is dragged
+(before, only a window resize triggered draw).
+
+**G13 — CONSTRUCTION IDIOMS ARE THE STRUCTURE (2026-08-16, late; user
+brief).** The user's re-frame: the "material idioms" ARE the real
+internal structure, not styling. `intCons` (spec.interior.cons,
+carbon|tube|wood; slider "cons c/t/w") now switches what cageInterior
+builds:
+- carbon (0, default) = the as-built I3' liner: thickened pillar bands
+  + jamb walls, self-sufficient pillars + shell.
+- tube (1) = FULL WELDED TRUSS off the CONTROL cage (cageResolve
+  stations, NOT the subdivided surface): transverse frames at the
+  pillar stations (wall posts floor->waist->ceil, floor + ceil
+  carry-through cross tubes, one diagonal per frame), single side
+  diagonals per bay (X on the front bay), four longerons (waist +
+  floor rails, P/M) window-ring to tailpost. Nodes pull toward the
+  section centre (clamped at half the distance, so the tiny tail
+  section cannot overshoot); hexagonal tubes r 0.013, open ends,
+  material 'tube'. NO liner — fabric interior is the skin's own face.
+- wood (2) = the PLYWOOD BATHTUB, v2 (user rework same session): TWO
+  SEPARATE EXTRUSIONS at different thicknesses, never joined (user
+  ruling — IRL the posts are thick sections, the body panels thin
+  sheets): THIN SHEETS (0.4 x shellT, 'bathtub') = below-waist cabin
+  faces PLUS the whole waistband band selected BY MATERIAL (so it
+  follows the windshield base lift; v1 stopped below the waist — user
+  correction), running CONTINUOUS THROUGH the pillar bands' sub-band
+  faces (no holes behind the posts, no interior rim walls); THICK
+  POSTS (1.6 x shellT, 'woodFrame') = the pillar bands full ring, own
+  liner, PROTRUDING past the sheets. The liner idiom is selection-
+  agnostic (liner(sel, t, matF)) — future selections reuse it.
+  v3 (same session, user): FLOORBOARDS RETIRED ("adds nothing" — they
+  had already been moved to the door-bottom line, now gone entirely).
+  WAIST REINFORCEMENTS: a spruce box rail (0.034 x 0.05) along the
+  waistline of every bay WITHOUT a defined door — pax bays gate on
+  doors.pax, the pilot bay + its quarter-bay continuation on
+  doors.pilot; with a door defined the rail is SKIPPED because it will
+  belong to the door itself (the door chantier owns it — user: do not
+  pre-empt). Verified exact: doors0 vs doors1 differs by exactly the
+  gated beams' faces (24 pilot / +12 per pax bay). CHINE LONGERONS
+  (user asked "does it make sense?" — yes): the keel-corner bend is
+  exactly where wooden fuselages run the chine longeron the sheets
+  glue onto.
+  v4 (same session, user): THE SECTION MODEL — the airframe divides
+  into {boom|pax|pilot|nose} x {Below|Above}, border = THE TOP OF THE
+  WAISTBAND (user ruling); spec.interior.consMap carries one technique
+  per section and EVERY builder consults consAt(y, z) (liner faces,
+  truss members by midpoint, beams, boom frames). All eight keys equal
+  the global switch today (UI stays 3 options), but a mixed airframe —
+  tube canopy over a wooden boom, like the jodel — is one spec edit
+  away. Plus: PLYWOOD TO THE NOSE (sheets cover the cowl below the
+  band line) and TO THE BOOM (bottom part only); the FRONT PILLAR is a
+  pillar in ALL constructions (PM += pillarFront, capFace excluded —
+  the pusher disc shares the material); BOOM FRAMES = the boom's
+  implicit pillars: ajoure plywood webs (annulus, hole 45% of local
+  radius), one per metre (count dynamic with boom length), sections
+  SLICED FROM THE DISPLAYED MESH by angle-sort (convex) — TRAP: the
+  metre stations can land bit-exactly on the subdivision's own vertex
+  rings (boomLen/4 = the L2 lattice) and a strict-crossing slice finds
+  NOTHING (measured 0); on-plane vertices are section points too,
+  dedup by id. CHINE v2 (user corrections): pieces run BETWEEN posts
+  only, endpoints = the pillar bands' bottom corners READ OFF THE
+  SUBSURF MESH (argmax sx*x - y per boundary cycle; the beams move
+  with the level — the cage-based v1 sat half-buried in the limit
+  skin), CHAMFERED section (welded-vert box corners shaded badly),
+  quad-fan caps. v3 (user corrections): SQUARE 0.04 section, and the
+  endpoint is CENTRED IN THE POST'S OWN EXTRUSION — corner minus its
+  smooth band normal x tPil/2 (the same normals the post liner offsets
+  along, so "centred" is exact by construction; the beams emerge from
+  the posts' thickness and track the subsurf level: measured y -0.791
+  at L2 -> -0.763 at L3). Plus the HIDDEN DASH CROSS-BEAM: one
+  straight member linking the two symmetrical windshield-base ends
+  (where the windshield angle starts), read from the pre-cut wsBase
+  record (or material adjacency uncut), ends pulled inboard, waist-
+  rail section — it lives inside the dash solid. Beam inventory on
+  the jodel: 2 waist rails + 6 chine pieces + 1 dash beam.
+  v4 beams (user, third ask on the profile — now FINAL): ALL beams are
+  TRUE SQUARE 0.04 prisms with PER-FACE vertices — the chamfered
+  octagon still read "rounded", and the real fix is flat shading:
+  duplicated corners give computeVertexNormals nothing to blend, so
+  every face shades flat at every subsurf level. No chamfer, no weld.
+  The dash cross-beam anchors dropped BY THE BAND HEIGHT onto the
+  WAIST line (user: bottom of the waistband, not the top — both lines
+  carry the same base lift, so the drop is pure vertical). BOOM WEBS:
+  now SOLIDS 0.005 thick (front/back annuli + hole + outer rim walls,
+  closed), and the lightening hole's FLOOR IS RAISED to the section
+  centroid — the hole is smaller and reads as the HALF-MOON of real
+  plywood webs (flat chord, arched top). VIEWER PAN (user): middle or
+  right mouse drag pans (look-at centre moves in the camera plane,
+  world-per-pixel scaled; context menu suppressed); dblclick refits
+  zoom AND pan.
+  v7 (2026-08-17, user): the NOSE IS FULLY PLYWOOD — the sheet
+  selection covers every nose-section face including the top deck
+  (nothing to exclude there: no glazing, no doors). WOOD DOORS ARE
+  STRUCTURAL (user ruling): a wood-section door gets NO seal tube —
+  cageRims suppresses the door bead via S.interior.consMap (windows
+  and the windshield keep their seals in every construction) — and
+  cageInterior raises, from the SAME recorded outline: a wooden FRAME
+  extruded INWARD (four rails at FE 0.003 / FD 0.028 below the
+  surface, width 0.05 toward the door centre — the exterior stays
+  aerodynamic; rail verts shared along the loop so it shades smooth
+  lengthwise, flat across the section), a WAIST BAR between the
+  outline's fwd/aft waist-line crossings, and one DIAGONAL brace
+  (bottom-aft to top-front, targets 10% in from the bbox corners),
+  bars 0.032 square at the frame's mid-depth. Outline normals come
+  from the door part's own faces (sill points with id -1 borrow the
+  nearest neighbour's), so the frame RIDES THE EXPLODED PART. Jodel:
+  21 beams now (+ waist bar and diagonal per pilot door).
+  v8b (user feedback on tube): MID-PILLAR ANCHORS — bandEnds now
+  carries `mid` positions per anchor kind (aft/fwd cycle picks
+  midpointed, pulled to the hoop line by TUBE_RP + 0.005 along the
+  averaged band normal): TUBES start and finish at the MIDDLE of the
+  pillars and intersect the hoops (the band-edge anchors were right
+  for extruded posts, wrong for tubes); wood keeps the band-edge
+  anchors. Hoops bigger still (TUBE_RP 0.021). New anchor kind wP/wM
+  (the cycle's widest point = the waist line): tube-only CONTINUOUS
+  WAIST LONGERONS through every bay. BOOM: main longerons at the
+  WAISTLINE, not the top (user: the arches are self-supporting) —
+  station nodes switched from angle-picked top pair to widest-point
+  pair; the k=0 mini-ring by the cabin is GONE and the boom chains
+  CONNECT TO THE PAX PILLAR HOOP at mid-band (same centre-of-pillar
+  rule). Pax-bay diagonals in tube anchor on the mid nodes. DOORS get
+  the X (user): second diagonal waist-aft -> bottom-front corner
+  (found within the bottom band — the outline's global max z is the
+  waist angle, a trap). Wood inventory 25 beams; fit + sweep green.
+  v8c (user, annotated screenshots): BENT TUBES ARE ONE CONTINUOUS
+  SWEEP — the per-segment hexes with unshared verts broke the smooth
+  normals at every joint and read as capped sections. `tubePath(pts,
+  r, closed)`: welded 8-sided sweep with a parallel-transported frame
+  (rings SHARED between segments, quad-fan caps on open ends; closed
+  near-planar loops have negligible holonomy so no seam twist).
+  `tubeRuns` splits any path into maximal 'tube'-section runs for
+  mixed maps. Used by: pillar hoops, boom section rings, boom longeron
+  chains — with the pax-pillar hoop node PREPENDED to each chain so
+  the cabin junction is part of the same continuous bend. Straight
+  one-off members stay tubeSeg. ALSO: _cage3 defaults intCons 2 —
+  PLYWOOD IS THE DEFAULT construction (user).
+  v8d (user, GREEN-ANNOTATED DRAWING — the main longeron): ONE
+  continuous tube per side runs ALL ALONG THE TOP OF THE WAISTLINE,
+  nose to tail. Node picker = nearest y to S.bandY per side (bandY is
+  a template GLOBAL CONSTANT, so the chained nodes are dead straight
+  in side view — the widest-point pick wandered vertically as the
+  sections changed shape, which is what broke the look). The chain =
+  every cabin band's mid node (front pillar first) + the boom
+  stations, swept as ONE tubePath per side; the bottom CHINE line
+  gets the identical continuous treatment (per-pair tube chine
+  segments removed; wood beams unchanged). The pilot bay now carries
+  the tube diagonal too (the drawing braces it; wood still leaves the
+  pilot brace to its door). Fit green, sweep green.
+  v8e (user): TUBE DOORS + THICK MAIN LINES + MID-BAND LONGERON.
+  The waist bar and diagonals belong to the DOOR in tube too: each
+  door outline raises its OWN continuous tube outline (tubePath
+  closed) inset toward the door centre (0.024) AND pulled inboard
+  (0.022) so it cannot intersect the fuselage, plus the waist bar and
+  the X anchored ON that outline; the door SEAL is dropped for tube
+  sections (cageRims structDoor = wood OR tube). Bay diagonals exist
+  only in DOORLESS bays in both realizations (a defined door owns its
+  bracing). The WAISTBAND and BOTTOM-CORNER longerons are as thick as
+  the pillars (TUBE_RP); rings/rails/diagonals/door tubes stay slim.
+  The waist longeron targets the MIDDLE of the waistband everywhere
+  (it sat mid-line in the cabin but top-edge in the boom — one yWmid
+  target for cabin cycles and boom rings). Verified: win:SEAL x5 /
+  door:noseal x2 in tube; the exploded door shows outline + bar + X.
+  v8f (user): CLOTH INTERIOR + THE BRACING RULE. Tube sections get a
+  'cloth' lining (resin-hardened unpainted fabric): a duplicate of the
+  skin inset 0.006 inward TRANSVERSALLY (the offset's longitudinal
+  component is zeroed — user: not on the longitudinal axis — with a
+  guard for near-axial normals like the tail cap), own material, DOORS
+  INCLUDED, glass excluded; no walls or thickness — it is only cloth.
+  The tube frame reads proud against the taut fabric from inside. THE
+  BRACING RULE (user, codified): every non-door body panel gets ONE
+  diagonal; doors get TWO in an X. The missing first-boom-bay
+  diagonal added (pax pillar hoop waist node -> station 1 chine, per
+  side). Fit green, sweep green; jodel tube: 2400 cloth faces.
+  v8g (user, annotated screenshots): CLOTH IS AN EXTRUSION — the
+  floating inset duplicate showed its edge gap; the cloth now goes
+  through liner() (inner copy + rim walls at every opening), and WOOD
+  sections get the same cloth wherever the plywood does not already
+  line the wall (skin minus selPan/selPil/selDoor: upper cabin walls,
+  roof, boom top). TUBES SIZED DOWN a tad (TUBE_R 0.010, TUBE_RP
+  0.018) and the BOOM NODE INSET now tracks the THICK radius (it was
+  still TUBE_R-sized — exactly why the thick waist longeron poked
+  through the boom skin in the screenshot). The WAIST LONGERON BREAKS
+  AT DOORED BAYS (user: no bar across a doorway): the main chain
+  assembles as runs split at bays whose door is defined; the chine
+  line stays continuous (the sill sits above it). Verified: boom skin
+  clean at full opacity, pilot doorway open with no crossing bar, pax
+  bay (doorless) continuous. Fit green, sweep green.
+  ============ SESSION CAPSTONE (2026-08-17, interior DONE) ==========
+  STATE: the cage has FOUR complete construction systems — plywood
+  (default), steel tube, sheet metal (aluminium IRL), composite
+  monocoque — all generated from ONE skeleton (the sampled pillar-band
+  cycles + boom slices + key-node anchors) and gated per-section by
+  spec.interior.consMap ({boom|pax|pilot|nose} x {Below|Above}, all
+  uniform today; a mixed airframe is one spec edit). Each has: full
+  interior lining in its own material, structural doors (wood frame+
+  bar+X / tube outline+bar+X / metal frame+bar+SINGLE diagonal /
+  composite doubler ring with rubber seal), consistent member
+  profiles (wood squares / bent tubes / L-angles / molded ribs), and
+  the shared furniture (dash open-backed, solid bulkhead + fire plate,
+  glass-sill params, cut+explode, seals on windows).
+  VERIFY: node tools/_cage_fit.js (must stay FIT: OK) + the 48-case
+  sweep pattern (cons 0-3 x pax x cut x doors; the scratch script
+  checks edge discipline, material inventories, bulkhead clearance).
+  KNOWN GOOD NUMBERS: jodel L2 ~2.6k plywood / ~2.4k cloth / ~4.7k
+  composite / ~4.2k metal faces; 25 wood beams.
+  OPEN THREADS for future sessions: (1) COMMIT — this whole session
+  is uncommitted; (2) naming polish DONE (session close): the
+  construction dropdown reads composite / steel tube / plywood /
+  aluminium, and the 'metal' MATERIAL is renamed 'aluminium'
+  everywhere (legend included) — the internal cons TOKEN stays 'metal'
+  (consMap values, consAt checks: 'carbon'|'tube'|'wood'|'metal'), do
+  not rename it casually; (3) wood station
+  frames "ajoure" at pillar stations (large lightening-holed panes,
+  the original G13 idea) — partially superseded by posts but still
+  listed; (4) ceiling headliner (cloth + padding from the ceiling-loop
+  top, user direction); (5) seats (port from 63_gen_skin), doorTop/
+  window-height params, per-door hinge axes, C4 UVs / C5 game swap /
+  C6 cowl / C7 pillar editor (the pre-interior backlog); (6) the
+  flydiy python server DROPS _cage_gen.js transfers randomly —
+  bootstrap via in-page fetch+eval with retries, or swap the server.
+  ====================================================================
+  v17 (user, closing): I-BEAM FINAL PROPORTIONS — the lip band cut to
+  a THIRD (0.10 of the web depth, was 0.28), the flat transit zones
+  kept at their exact absolute width (0.14), the holes enlarged to
+  absorb the freed depth (0.24..0.76 of the span). METAL DOORS take a
+  SINGLE diagonal (user ruling — the X stays with wood and tube).
+  Fit green, 48-case sweep green.
+  v16 (user report + measurement): THE DOOR IS GENUINELY CONCAVE in
+  plan — the flank's ring pull-in dips the door skin 0.0106 INSIDE the
+  fwd/aft waist chord at mid-door (measured, trace_doorcurve) — so any
+  straight bar on the frame plane stood proud of the panel. ALL door
+  bars (wood/metal via barMid = frameMid + 0.015 depth; tube via barP
+  = ring3 - 0.015 along normals) now sit 15 mm deeper (sagitta +
+  margin). The door FRAME keeps following the curved outline
+  (unaffected — it has no chord problem). Door exterior verified
+  clean. Fit green, 48-case sweep green.
+  v15c (user): I-BEAM REFINED + THE L-ANGLE RULING. Flanges HALVED
+  (0.014) and the web gained FLAT MARGINS beside the holes (holes now
+  span 0.42-0.58 of the depth; plain strips 0.28-0.42 / 0.58-0.72 —
+  user: the lip does not start straight from the ajoure). REALITY
+  ANSWER recorded: real metal longerons/stringers are BENT/EXTRUDED
+  THIN PROFILES (L-angles, Z, hat sections) — never tubes, never
+  solid squares, and NEVER lightening-holed (holes belong in webs and
+  frames); the punched stringer blades were wrong and are GONE. THE
+  L-ANGLE (metalAngle(A, B, w, axisPt): two 5 mm-thick legs meeting
+  at the anchor line, opening toward the given axis point, flat-
+  shaded) is THE metal linear member, propagated to: the band-pair
+  rails/chines, the cage waist rails, pax diagonals, the dash cross,
+  the door bar + X, and the BOOM STRINGERS — whose chains now PREPEND
+  the aft pillar band's mid nodes (user: the cabin-side section was
+  missing), same junction rule as the tube chains. 48-case sweep
+  green, fit green.
+  v15b (user, annotated screenshot): (1) FRAME RINGS CLOSE — the
+  pillar frames gapped at the crown because a fully-metal ring was
+  emitted through the run-splitter as an OPEN run (the closing segment
+  never existed); a full-metal ring now emits closed, mixed maps still
+  split. (2) I-BEAM PROFILE (user design): punched() gained fz — the
+  un-punched edge bands ("the lips around the adjourning") extrude to
+  0.028 as FLANGES while the punched web stays 0.006 thin: a stamped
+  I-profile replaces the raw box on ALL metal frames (pillar + boom,
+  same params — one look). Verified: continuous arches, clean flanges,
+  holes reading through the web. 48-case sweep green, fit green.
+  v15 (user): UNIFORM METAL FRAMES — the boom station frames are now
+  narrow punched RINGS at the CABIN pillar frames' depth (1.6 x
+  shellT, clamped at 0.6 of the local radius for tiny tail sections)
+  and box thickness (0.016), replacing the wide constant-margin ajoure
+  web there — all metal pillars, cabin and boom, share one look and
+  one wall thickness. The wide ajoure web idiom stays with the WOOD
+  panels (where it belongs). 48-case sweep green, fit green.
+  v14 (user, annotated screenshot): LONGITUDINAL MEMBERS TUCK 1 CM
+  TOWARD THE AXIS in EVERY construction — straight members chord the
+  curved hull between stations, so chines, waist rails, ceiling and
+  floor rails grazed or pierced the skin. inCtr(p, cy) pulls every
+  such anchor 0.01 toward the local section axis (x -> 0, y -> the
+  station centroid height, stored as bandEnds.cy / the boom slice
+  centroid): the wood/metal beam anchors, the tube per-pair rails,
+  the continuous tube chains (cabin mid nodes AND boom station picks),
+  the pax-diagonal chine anchor, the first-boom-bay diagonal; the
+  cage-based waist rails take a second centimetre of x-inset. Ends
+  still land inside the pillar thickness (posts 0.056 deep, hoop tubes
+  0.018 radius). Verified at the reported angle: plywood and tube
+  bellies clean at full opacity. 48-case sweep green, fit green.
+  v13b (user corrections on metal): (1) punched() gained wz — the web
+  is a thin BOX now (two sheets + rail walls + hole walls), 0.016 on
+  pillar frames / 0.014 on boom frames; paper-sheet no more. (2) metal
+  BEAMS anchor at the MIDDLE of the pillar sections (the frames live
+  there): kinds loop uses the mid nodes for metal, the cage-based
+  waist rails extend half a band width past each bay ring, the pax
+  diagonal's chine anchor switches to the mid node. (3) the boom
+  frames' HOLE FLOOR sits LOW: constant margin above the section
+  BOTTOM (min ring y + MW, clamped at the centroid) instead of the
+  centroid clamp — constant band width all around, like the top; the
+  wood webs adopt the same rule (supersedes the v12-era half-moon
+  centroid floor). 48-case sweep green, fit green.
+  v13 (user): SHEET METAL — the FOURTH construction (intCons 3,
+  'metal', UI "sheet metal"), based on the wooden version per the
+  user's brief and checked against reality (semi-monocoque: stamped
+  frames + stringers + load-bearing skin):
+  - woodLike(c) = wood|metal: metal inherits wood's beams (metal
+    material via beam()'s new mat param), door treatment (frame + bar
+    + X, no seal — structDoor includes metal), dash cross member.
+  - TOELE: thin (0.008) metal liner over the whole skin, doors
+    included — the plywood idiom in aluminium.
+  - PILLAR FRAMES: SLIM along the long axis (one stamped web at the
+    band mid-ring) but AS DEEP as the wood posts (1.6 x shellT),
+    PUNCHED — the new punched(O, H, closed, mat) helper emits a thin
+    single sheet in three radial bands with the middle band skipping
+    every other segment: stamped lightening holes.
+  - BOOM: punched STATION FRAMES (sliced ring inset 0.009 -> constant
+    -margin ajoure inner ring, half-moon floor kept) + four punched
+    STRINGER BLADES (thin inward extrusions along the waist-mid and
+    chine lines, segments subdivided x3 so the punching reads).
+  - TRAP hit: woodLike/wMat were declared after the selection blocks
+    that used them — TDZ throw across the whole battery; hoisted.
+  Sweep extended to 48 cases (cons 0-3), zero fails; jodel metal: 4183
+  'metal' faces. Fit green.
+  v12 (user): THE BATHTUB IS RETIRED — THE WHOLE SKIN IS PLYWOOD. The
+  wood sheets now line the ENTIRE fuselage (the tube-cloth idiom, but
+  structural): one selection = every eligible skin face in wood
+  sections, running continuous behind the posts; the partial bathtub
+  selection (boom bottom / below-waist + band / nose) and its z/y
+  bookkeeping are gone. Material RENAMED 'bathtub' -> 'plywood'
+  (doors' panels included). Wood-mode cloth vanishes naturally (the
+  covered-set check finds nothing uncovered). Structure unchanged:
+  posts, beams, webs, door frames as built. Thin sheets bent to shape,
+  as the user put it — which is what a wooden fuselage IS. Jodel:
+  2656 plywood faces, 0 cloth in wood. Fit green, sweep green (sweep
+  counts 'plywood' now).
+  v11 (user): THE DASH IS OPEN-BACKED — the front-return morph grid
+  (the face joining the straight back-bottom line to the curved base
+  arc, flagged as deletable at e933ae5) is REMOVED: it does not exist
+  on a real dashboard. The dash is now panels, open toward the nose;
+  the new boundary chains (base line, back-bottom line) both carry MAX
+  crease so the open edges hold their polylines through CC, and
+  DoubleSide materials render it clean from every reasonable view —
+  the pilot-eye shot shows the firewall through the open footwell,
+  exactly like the real assembly. NOTE: the dash is no longer a
+  CLOSED solid — the old "strict closed-manifold incl. dash" claim is
+  retired with the face.
+  v8h (user catch, green annotation): the BOOM CHINE LONGERON had
+  VANISHED — a regression from the doored-bay chain rework (v8g): the
+  rewrite of the chain assembly dropped the two lines appending the
+  boom's bottom-corner stations (botCh) to the chine chains, so the
+  cabin chines survived but the boom run silently disappeared.
+  Restored; the bottom-corner main tube runs cabin-to-tail again.
+  LESSON: when rewriting an assembly block wholesale, diff the emitted
+  chain inventory before/after — a dropped append is invisible in the
+  sweeps (they count materials, not lines).
+  v10b (user): COMPOSITE DOOR OUTLINE — the door's perimeter ring
+  extrudes further from the shell (the molded edge doubler): per door
+  PER SIDE (left/right share a doorKey — split by x sign), the outer
+  boundary = edges owned once across ALL that door's faces INCLUDING
+  glass (so the pane border stays internal and only the true outline
+  rings), the ring = non-glass faces touching it, second-staged at the
+  rib depth. Rides the cut part; works uncut too (zone boundary).
+  v10 (user): THE COMPOSITE MONOCOQUE — carbon redesigned as the user
+  specified: (1) the WHOLE skin extrudes into ONE continuous inner
+  shell (liner, t = 0.35 x shellT, material 'composite') — the body IS
+  the structure; (2) FROM THAT SURFACE the pillar bands extrude
+  further (liner gained an optional baseT: the outer copy starts baseT
+  below the skin, so second-stage extrusions begin ON the shell face —
+  "from this surface, extrude further" literally); (3) waist + bottom
+  reinforcement RIBS: the waistband and floorLoop material strips —
+  which run exactly along the plywood's waist rails and chine beams —
+  extrude the same way at an intermediate depth. Depths: shell t1,
+  pillars t1 + 0.9 x shellT, ribs t1 + 0.55 x shellT, all
+  slider-responsive. Doors included (composite doors keep their rubber
+  seals — structDoor stays wood|tube only), glass excluded. The old
+  material-preserving pillar liner (I3') is replaced. Jodel: 4696
+  composite faces; the cutaway reads as a molded shell with integral
+  doublers and ribs. Fit green, sweep green.
+  v9 (user): GLASS SILL — G12.3 v8's "the whole door can become a
+  window" is BUILT: `winSillPilot`/`winSillPax` (glazing group, 0-0.9)
+  extend the pilot/pax glass DOWN the door, ROW-STEPPED through the
+  subdivided lattice (the G14 idiom — whole rows, no iso cuts).
+  `cageGlassSill(mesh, spec)` runs after subdivision, BEFORE
+  cageCut/cageRims (wired in _cage_ui build): row 0 = skin faces
+  sharing a horizontal edge with that glass (exactly the window's own
+  column — no z bookkeeping), then a strictly-DOWNWARD row BFS (the
+  drop test cy - 0.3*rowH blocks sideways spread along the continuous
+  band — necessary at the quarter bay where fore-aft edges read as
+  horizontal); selected faces reassign material + win mark, so zones,
+  seals, cuts, door ownership and the wood door's glass exclusion all
+  follow automatically. Measured: sill 0.15 reaches the waist, 0.4
+  y -0.6, 0.9 the belly line (full-window door); pax z-extent
+  bit-stable across all values (no bleed); the pilot column correctly
+  follows the A-pillar slant forward as it descends. Fit green, sweep
+  green. ALSO: bay waist rails pulled 1 cm further inboard (user: they
+  grazed the skin above/below the waist bulge — the rail is straight,
+  the wall curves).
+  v8 (user): THE TUBE CONSTRUCTION IS REBUILT ON THE PLYWOOD SKELETON
+  — the wood layout is the procedural base, one skeleton with two
+  realizations. member(A, B, w) dispatches every structural member:
+  square spruce beam in wood sections, hex steel tube (r = w/3) in
+  tube sections, nothing in carbon. All the key-node members go
+  through it: waist rails, ceiling + floor rails, chines, pax-bay
+  diagonals, the dash cross member. PILLAR HOOPS (user: pillars become
+  tubes, larger section — TUBE_RP 0.017 vs member 0.011): a bent tube
+  swept along each pillar band's MID-RING (aft/fwd cycles midpointed,
+  the bulkhead idiom) pulled inside the skin along the band's own
+  normals, per-segment section gate. BOOM: the same station slicing
+  serves both — wood keeps the ajoure webs; tube gets SECTION RINGS
+  (bent tube along the sliced outline, radially inset) at all stations
+  PLUS end stations at the pax pillar and tailpost, four bent
+  LONGERONS station to station (top pair picked by ring angle ~60/120
+  deg, bottom pair at the chine corners), and one ZIGZAG diagonal per
+  bay per side (Warren truss). The original cageResolve-based truss is
+  RETIRED. Doors keep seals in tube (only wood swaps them for frames).
+  Tube face count ~3.1k (was 234) — the fabric now hides a real
+  airframe. Fit green, 36-case sweep green.
+  v7d (user): PAX-BAY DIAGONALS — one per side per pax bay, tying the
+  waist rail's NOSE-side end to the chine's TAIL-side end, key-node
+  anchored on the existing beams' own recorded end centres (waistBeam
+  now records its endpoints; the chine end is the same cenP the chine
+  uses), 0.032 square (thinner than the 0.04 rails so the ends live
+  inside them). Pax bays only — the pilot bay's brace belongs to its
+  door — and only where the pax waist rail exists (no pax door);
+  bandEnds gained isWin to tell the pilot bay pair apart. Jodel: 23
+  beams. Verified geometrically: both diagonals span waist z 2.08 ->
+  chine z 1.15 at x +/-0.5, inboard of the skin.
+  v7c (user, annotated screenshot — KEY-NODE ANCHORING, final): every
+  door bar END sits at the FRAME'S OWN SECTION CENTRE — the outline
+  point pushed FW/2 toward the door centre (the middle of the outer
+  and inner rim) and FE + FD/2 under the skin (the middle of its
+  thickness) — the exact formula the frame rails use, so anchors are
+  exact by construction. Bars are 0.022, slightly thinner than the
+  frame section (FD 0.028 x FW 0.05): their ends live strictly INSIDE
+  the frame solid, zero face overlap. The diagonal's lower end goes to
+  EXACTLY the bottom-back corner (nearest outline point to the true
+  bbox corner, centred in the corner the outline forms). Protrusion
+  probe still zero. ALSO: the flydiy python server kept resetting the
+  _cage_gen.js transfer (200 logged, browser gets CONNECTION_RESET) —
+  workaround that always works: bootstrap in-page via fetch+eval with
+  retries (see session log); consider swapping the launch config to a
+  more robust static server if it keeps biting.
+  v7b (user corrections): cageCut now RECORDS THE PART TRANSLATION
+  (f.cutOff) — the first waist bar anchored against the WORLD waist
+  height on moved points (far too low, poking the exterior); anchors
+  now use the door's OWN waist (waistY + cutOff.y). Bars are buried
+  (FE + BAR/2 + 0.004) and pulled INTO the door past the frame width;
+  measured: zero protrusion beyond the local skin across all door
+  beam verts. The DIAGONAL runs from the waist-line ANGLE on the
+  front edge (where the windshield slant meets the vertical drop) to
+  the BOTTOM BACK corner. The DOOR PANEL is plywood like the tub:
+  liner + edge walls over the door faces, glass excluded — the pane
+  keeps its seal, and its plywood REVEAL shows through the
+  transparent glass edge from outside (correct, not a poke). Verified:
+  outlines report win:SEAL x5 / door:noseal x2 in wood; fit green;
+  36-case sweep green. NOTE: the flydiy python http.server dropped
+  _cage_gen.js twice mid-session (ERR_CONNECTION_RESET, page up with
+  CAGE2 undefined) — a server restart fixed it; reload before
+  diagnosing "bugs" that are just a half-loaded page.
+  v6 (user): CEILING + FLOOR RAILS over the cabin bays (pilot + pax,
+  never the cowl bay): TWO ceiling rails at the MIDDLE OF THE CEILING
+  LOOP per side (user correction mid-build: a single crown beam only
+  suits bubbles — the loop midline also lands right on square box
+  roofs; target = mean of the resolved ceil/roof levels, which carry
+  the round-top state, picked point = nearest subsurf cycle vertex)
+  and TWO floor rails at +/- a third of the chine span (seat/load
+  support, the belly divided in three). Same technique as the chine:
+  endpoints off the sampled pillar-band cycles, centred in the
+  (dynamic, shellT-scaled) post extrusion. Jodel inventory: 17 beams
+  (2 waist + 6 chine + 1 dash + 8 rails).
+  v5 (user): the AJOURE MARGIN IS CONSTANT — the hole is the web
+  outline offset INWARD by a fixed ~12 cm along the local boundary
+  normal (the radial lerp scaled the wood with local radius: the
+  middle read thicker than the sides), clamped to 3/4 of the local
+  centroid distance so small aft webs keep a small opening instead of
+  inverting; openings therefore shrink web by web going aft, the first
+  one large. The FIRE PLATE and the AFT BULKHEAD are CLOSED SOLIDS at
+  the web thickness (0.005): front + back sheets and a rim wall — the
+  plate's front face keeps the group offset (+0.008 proud at the nose,
+  -0.012 tucked behind the pusher disc), thickness grows inboard;
+  the bulkhead extrudes +/- 2.5 mm in z about its mid-band outline. THE ENGINE
+  NOSE OPENS: with I.fire on, capFace skin faces forward of the cabin
+  are dropped — the firewall shows through the aperture (aero noses
+  have no marks; the pusher tail disc keeps its skin). The NOSE fire
+  plate sits 0.008 PROUD of the aperture plane (user: the old 0.012
+  inboard setback overlapped the liner rim walls once the cap skin was
+  gone); the pusher plate stays tucked -0.012 behind its disc. NOTE
+  the skin now has a REAL boundary at the nose ring whenever the
+  interior is on — strict-closed checks must run with intOn 0 or
+  cutParts semantics.
+**AFT BULKHEAD MOVED MID-PILLAR (user report: face overlapping).** The
+panel sat ON the pilPaxA band's cabin-side ring — its near-tangent
+fill slivers at roof/floor were coplanar with skin + liner. Each
+outline point is now the midpoint to its nearest partner on the band's
+other boundary cycle (mid-band placement) and the outline is INSET in
+the section plane past the liner (shellT + 0.008; 0.008 bare in tube
+mode) — its own, smaller outline. Measured: min bulkhead-to-band
+vertex distance 0.029-0.043 across the matrix (was 0 — shared verts).
+**PRESETS (user ask after a navigation mixup — the browser tab had
+been left on _cage2, nothing was wiped):** _cage3 presets are now
+'jodel' (= the page defaults, THE default) and 'piper cub' (= the
+faithful template exactly as _cage2 shows it: every page-default key
+overridden back to its CAGE_PARAMS value — box top, template dims,
+skylights, no cutting, no interior). Roundtrip verified in-browser.
+Verified: fit green; 18-case sweep (cons x pax 0-2 x cut, L2) zero
+fails — no over-shared edges, truss/tub/floorboards present exactly
+per mode; screenshots: truss reads as the Cub idiom (longerons
+converge at the tailpost), wood reads as tub + posts + plancher.
+STILL OPEN (user direction, this brief): wood STATION FRAMES — large
+plywood panes at the pillar stations, "ajouré" (lightening holes),
+defining the full profile (these are FRAMES/couples, not longerons —
+longerons are the fore-aft members); ceiling headliner (cloth +
+padding) starting at the top of the ceiling loop; plancher
+generalization to all constructions; per-construction dash/bulkhead
+material looks.
+**DASH REDESIGN AS FLAT PANELS (user ruling; DEFERRED 2026-08-16
+evening — user: "the panel is OK for now", consider it done as-is):** the
 continuous half-circle piece is unrealistic and causes the trouble.
 Rebuild as REAL PANELS like IRL aircraft: a flat instrument panel
 (with eventual thickness), a glareshield piece from the glass base,

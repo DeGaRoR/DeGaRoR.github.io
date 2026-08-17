@@ -78,6 +78,7 @@ window.CAGE_PAGE = {
     pillarW: 0.10,           // all pillar bands equal at the cabin's width
     apilPerp: 1,             // window pillar: even PERPENDICULAR thickness
     intOn: 1,                // interior elements on (G13)
+    intCons: 2,              // plywood is the default construction (user)
     // user's tuned jodel (2026-08-16 screenshots): box glazing (no
     // bubble, no skylight), short cockpit, deep aft belly, snub nose,
     // cut parts ON by default (G14)
@@ -117,10 +118,28 @@ window.CAGE_PAGE = {
       ['boomMidPinch','boom pinch',  0.2, 1.4, 0.01],
     ]],
   ],
-  // ONE PRIMITIVE (user ruling): only the default aircraft — everything
-  // derives from here. The old bizjet/sailplane/pusher presets and the
-  // aero-nose experiment group are retired from the UI (code kept).
-  presets: { 'default': {} },
+  // ONE PRIMITIVE (user ruling): the tuned jodel is THE default —
+  // everything derives from here. The old bizjet/sailplane/pusher
+  // presets and the aero-nose experiment group stay retired (code kept).
+  // 'piper cub' = the faithful template plane exactly as _cage2 shows
+  // it (box top, template dims, skylights, no cutting, no interior) —
+  // every override below is the CAGE_PARAMS value for a key this page's
+  // defaults change, so selecting it lands on the template identity.
+  presets: {
+    'jodel': {},
+    'piper cub': {
+      pillarW: 0, apilPerp: 0, intOn: 0,
+      topRound: 0, bubble: 0, topAngCeil: 52, topAngRoof: 76,
+      topComp: 1.045,
+      roofY: 1.0, aftRoofY: 0.677945, aftKeelY: -0.656475, tailRoofY: 0.5,
+      wsRun: 0.793755, wsBaseBow: 0.558880, wsCeilBow: 0.129299,
+      noseLen: 0.646272, noseW: 1.0, pfW: 1.0, noseH: 1,
+      noseCrown: 0, wsBaseLift: 0, cowlLoops: 0, cowlEase: 0,
+      cowlBulge: 1.05,
+      paxLen: 1.756670, pilotLen: 0.662567, waistY: 0.091103,
+      skylight: 1, cutParts: 0, explodeD: 0,
+    },
+  },
 };
 </script>
 <script src="../vendor/three.min.js"></script>
