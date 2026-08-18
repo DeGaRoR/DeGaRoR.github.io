@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<!--
+  CAGE4 — clone of CAGE3, the BUBBLE-CANOPY / round-top variant of the template cage.
+  Throwaway, gitignored, not in MANIFEST. Serve from repo root (launch:
+  flydiy-node) and open /flyDiy/tools/_cage4.html. _cage2.html is the
+  faithful box template; this page drives the SAME generator with the
+  top-shape mode on and Jodel-ish defaults.
+
+  2026-08-17: this page previews the GAME PANEL — the curated slider tree
+  agreed for the C5 swap (sections numbered per the target layout; 6 wings
+  / 8 tail / 9 wheels are game-side and absent here). Macros retired, step
+  fixed to crease (canonical), viewer state split into the always-open
+  "view" group, frozen params corralled in "don't touch" (constants-to-be).
+  Engine CONFIGURATION and seating STARTER selects derive the raw params.
+-->
+<meta charset="utf-8">
+<title>flyDiy — cage4, bubble canopy</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  /* pane layout (user bug: rows rendered PAST the pane edge and the
+     handle was unreachable): flex children get min-width:0 so nothing
+     can overflow, labels ellipsize, the button row wraps; wider
+     default, still resizable from its bottom-left corner */
+  aside{border-left:1px solid var(--grid);overflow-y:auto;
+    overflow-x:hidden;padding:10px;width:340px;flex:none;
+    resize:horizontal;direction:rtl;min-width:240px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r.wrap{flex-wrap:wrap}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  .r button{flex:none}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  .leg{display:flex;gap:5px;align-items:center;margin:3px 0}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  details details{margin:6px 0;border-color:#1b2029}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+</style>
+
+<header>
+  <h1>cage4 — bubble canopy</h1>
+  <label>subsurf <select id="lvl">
+    <option>0</option><option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label><input type="checkbox" id="cage"> cage</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="color" checked> sections</label>
+  <button id="resetBtn">reset</button>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script>
+// Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
+window.CAGE_PAGE = {
+  defaultStep: 'crease',
+  defaults: {
+    pillarW: 0.10,           // all pillar bands equal at the cabin's width
+    apilPerp: 1,             // window pillar: even PERPENDICULAR thickness
+    intOn: 1,                // interior elements on (G13)
+    intCons: 2,              // plywood is the default construction (user)
+    // don't-touch defaults from the user's sailplane export
+    // (2026-08-18 ruling: "take these as new defaults")
+    cabPillarW: 0.115, paxPillarW: 0.11, apilW: 0.92, topComp: 1.15,
+    crSill: 0, crBand: 3, crCap: 3, crNoseCap: 3, dashCrease: 3,
+    // user's tuned jodel (2026-08-16 screenshots): box glazing (no
+    // bubble, no skylight), short cockpit, deep aft belly, snub nose,
+    // cut parts ON by default (G14)
+    topRound: 1, bubble: 0, topAngCeil: 52, topAngRoof: 81, topComp: 1.03,
+    roofY: 0.72, aftRoofY: 0.68, aftKeelY: -0.7, tailRoofY: 0.30,
+    wsRun: 0.95, wsBaseBow: 0.45, wsCeilBow: 0.30,
+    noseLen: 0.44, noseW: 0.90, pfW: 0.3, noseH: 1.07,
+    noseCrown: 0.16, wsBaseLift: 0.05, cowlLoops: 0, cowlEase: 0.35,
+    cowlBulge: 0.99,
+    paxLen: 0.91, pilotLen: 0.42, waistY: 0.06,
+    skylight: 0, cutParts: 1, explodeD: 1,
+    // slider-hygiene rulings (2026-08-17): doors carry no rims (joints
+    // are window-only), the door always runs to the belly (the sill
+    // slider is the depth control)
+    rimDoor: 0, doorDeep: 1,
+  },
+
+  // THE CURATED TREE — preview of the game panel for the C5 swap.
+  // Numbering matches the target layout; 6 wings / 8 tail / 9 wheels
+  // live game-side. "don't touch" = frozen values, constants-to-be.
+  groupsOverride: [
+    ['1 · global', [
+      ['longerons', [
+        ['waistY',    'waist y',        -0.40, 0.50, 0.005],
+        ['bandH',     'band height',     0.01, 0.30, 0.002],
+        ['crSill',    'sill crease',     0, 3, 0.05],
+        ['crCeil',    'roof crease',     0, 3, 0.05],
+        ['ceilInset', 'ceil inset x',    0.20, 3.00, 0.01],
+        ['ringPullIn','sill pull-in',    0.00, 0.15, 0.002],
+      ], 'open'],
+      // THE RING EDITOR (user design): the plane's shape = rings +
+      // longerons. Global roundness shapes every section; the per-ring
+      // rows move one main ring's top/bottom points bodily. Aft + tail
+      // ring heights live in "7 · boom" (aft roof/keel y, cone roof/
+      // keel y).
+      ['rings', [
+        ['topRound',  'roundness top',   0.00, 1.00, 0.01],
+        ['botRound',  'roundness bottom',0.00, 1.00, 0.01],
+        ['topAngCeil','ceil angle',      25, 70, 1],
+        ['topAngRoof','roof angle',      55, 88, 1],
+        ['ringNoseTop','nose deck lift', -0.35, 0.60, 0.005],
+        ['ringNoseBot','nose bottom',    -0.35, 0.35, 0.005],
+        ['ringScrBot', 'screen bottom',  -0.35, 0.35, 0.005],
+        ['ringWinTop', 'window top',     -0.35, 0.35, 0.005],
+        ['ringWinBot', 'window bottom',  -0.35, 0.35, 0.005],
+        ['ringCabTop', 'cabin top',      -0.35, 0.35, 0.005],
+        ['ringCabBot', 'cabin bottom',   -0.35, 0.35, 0.005],
+        ['ringCabW',   'cabin width',    -0.25, 0.25, 0.005],
+        ['ringWinW',   'window width',   -0.25, 0.25, 0.005],
+        ['ringScrW',   'screen width',   -0.25, 0.25, 0.005],
+        ['ringCowl1W', 'cowl 1 width',   -0.25, 0.25, 0.005],
+        ['ringCowl2W', 'cowl 2 width',   -0.25, 0.25, 0.005],
+      ], 'open'],
+      ['conception', [
+        ['intCons',   'construction',    0, 3, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium']],
+        ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
+        ['skinT',     'skin thickness',  0, 0.06, 0.001],
+      ]],
+    ], 'open'],
+    ['2 · engine', [
+      // configuration select injected below (nose / pusher / wing)
+      ['cowl', [
+        ['cowlLoops', 'cowl loops',      0, 2, 1],
+        ['cowlEase',  'cowl ease',       0.00, 1.00, 0.01],
+        ['cowlBulge', 'cowl bulge',      0.85, 1.30, 0.005],
+      ]],
+    ]],
+    ['3 · nose', [
+      ['noseLen',   'length',          0.20, 2.50, 0.01],
+      ['noseW',     'width x',         0.50, 1.50, 0.01],
+      ['noseH',     'depth x',         0.05, 1.20, 0.01],
+      ['noseDroop', 'droop',          -0.20, 0.60, 0.005],
+      ['noseCrown', 'deck crown',      0.00, 1.00, 0.005],
+      ['wsBaseLift','w/s base lift',   0.00, 0.80, 0.005],
+      ['noseTip',   'tip point',       0.00, 0.98, 0.01],
+      ['crSillNose','deck crease',     -1, 3, 0.05],
+    ]],
+    ['4 · cabin', [
+      ['dimensions', [
+        // seating starter select injected below
+        ['pilotLen',  'length',         0.30, 2.00, 0.01],
+        ['halfW',     'half width',     0.20, 1.00, 0.005],
+        ['roofHalfW', 'roof half-W',    0.15, 0.90, 0.005],
+        ['roofY',     'roof y',         0.40, 1.60, 0.005],
+        ['keelY',     'keel y',        -1.60, -0.30, 0.005],
+        ['floorY',    'floor y',       -1.20, 0.00, 0.005],
+      ], 'open'],
+      ['windows', [
+        ['wsRun',     'w/s run',        0.20, 2.00, 0.01],
+        ['wsTopOff',  'w/s top off',    0.00, 0.50, 0.005],
+        ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
+        ['wsCeilBow', 'ceil bow',       0.00, 0.60, 0.005],
+        ['bubble',    'bubble glass',   0, 1, 1],
+        ['skylight',  'skylight',       0, 1, 1],
+        ['skyExt',    'sky extent',     0, 5, 1],
+        ['winSillPilot', 'win sill',    0, 0.9, 0.01],
+        ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
+                                                  'open', 'bubble']],
+        ['mirror',    'mirrored pod',   0, 1, 1],
+        ['arcFit',    'arceau fit',     0, 1, 1],
+        ['bubH',      'bubble height',  0.2, 1.4, 0.01],
+        ['bubAt',     'bubble apex',    0.15, 0.85, 0.01],
+        ['bubW',      'bubble width',   0.8, 1.5, 0.01],
+        ['canLoops',  'canopy loops',   1, 3, 1],
+        ['bubH2',     'loop2 height',   0, 1.4, 0.01],
+        ['bubAt2',    'loop2 apex',     0.15, 0.85, 0.01],
+        ['bubW2',     'loop2 width',    0.8, 1.5, 0.01],
+        ['bubH3',     'loop3 height',   0, 1.4, 0.01],
+        ['bubAt3',    'loop3 apex',     0.15, 0.85, 0.01],
+        ['bubW3',     'loop3 width',    0.8, 1.5, 0.01],
+        ['rimW',      'joint size',     0.00, 0.04, 0.001],
+      ], 'open'],
+      ['doors', [
+        ['doorOn',    'pilot door',     0, 1, 1],
+        ['doorSill',  'door sill',      0, 0.25, 0.002],
+      ]],
+      ['cockpit', [
+        ['dashBack',  'dash setback',   0.01, 0.30, 0.005],
+        ['dashLip',   'dash lip',       0.01, 0.10, 0.002],
+        ['dashDepth', 'dash depth',     0.05, 0.80, 0.01],
+      ]],
+    ], 'open'],
+    // aft half of the mirrored pod — the FULL front control set,
+    // duplicated (user ruling); every slider at -1 follows the front
+    // value (mirroring is the initial geometry only)
+    ['3b · aft deck', [
+      ['aftNoseLen',  'length',        -1, 2.5, 0.01],
+      ['aftNoseW',    'width x',       -1, 1.5, 0.01],
+      ['aftNoseH',    'depth x',       -1, 1.2, 0.01],
+      ['aftDroop',    'droop',         -1, 0.6, 0.005],
+      ['aftNoseCrown','deck crown',    -1, 1.0, 0.005],
+      ['aftWsBaseLift','w/s base lift',-1, 0.8, 0.005],
+      ['aftRingNoseTop','deck end lift',-1, 0.6, 0.005],
+      ['aftRingNoseBot','deck end bottom',-1, 0.35, 0.005],
+      ['aftNoseTip', 'tip point',      -1, 0.98, 0.01],
+      ['aftCrSillNose','deck crease',  -1, 3, 0.05],
+      ['aftRingCowl1W','cowl 1 width', -1, 0.25, 0.005],
+      ['aftRingCowl2W','cowl 2 width', -1, 0.25, 0.005],
+      ['aftCowlLoops','cowl loops',    -1, 2, 1],
+      ['aftCowlEase', 'cowl ease',     -1, 1.0, 0.01],
+      ['aftCowlBulge','cowl bulge',    -1, 1.3, 0.005],
+    ]],
+    ['4b · aft cabin', [
+      ['aftPilotLen', 'cockpit len',   -1, 2.0, 0.01],
+      ['aftWsRun',    'screen run',    -1, 2.0, 0.01],
+      ['aftWsTopOff', 'screen top off',-1, 0.5, 0.005],
+      ['aftWsBaseBow','base bow',      -1, 1.2, 0.01],
+      ['aftWsCeilBow','ceil bow',      -1, 0.6, 0.005],
+      ['aftRingWinW','window width',   -1, 0.25, 0.005],
+      ['aftRingScrW','screen width',   -1, 0.25, 0.005],
+    ]],
+    ['5 · passengers', [
+      ['paxCount',  'pax bays',        0, 4, 1],
+      ['paxLen',    'bay length',      0.4, 3.0, 0.01],
+      ['winSillPax','win sill',        0, 0.9, 0.01],
+      ['doorPax',   'pax doors',       0, 1, 1],
+      ['doorSillPax','door sill',      0, 0.25, 0.002],
+    ]],
+    ['7 · boom', [
+      ['boomLen',   'length',          1.0, 6.0, 0.01],
+      ['aftRoofY',  'aft roof y',      0.20, 1.20, 0.005],
+      ['aftKeelY',  'aft keel y',     -1.20, -0.10, 0.005],
+      ['tailLen',   'cone length',     0.05, 0.6, 0.005],
+      ['tailHalfW', 'cone half-W',     0.02, 0.40, 0.002],
+      ['tailRoofY', 'cone roof y',     0.10, 1.00, 0.005],
+      ['tailKeelY', 'cone keel y',    -0.50, 0.30, 0.005],
+      ['boomMidOn', 'pod ring',        0, 1, 1],
+      ['boomMidT',  'pod ring t',      0.1, 0.9, 0.01],
+      ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01],
+    ]],
+    ["don't touch", [
+      ['pillarW',   'pillar width',    0.00, 0.30, 0.005],
+      ['cabPillarW','cabin pillar',    0.02, 0.30, 0.005],
+      ['paxPillarW','pax pillar',      0.02, 0.30, 0.005],
+      ['apilW',     'A-pillar w x',    0.20, 3.00, 0.01],
+      ['apilPerp',  'A-pillar perp',   0, 1, 0.05],
+      ['pfW',       'front pillar x',  0.30, 3.00, 0.01],
+      ['topComp',   'CC comp',         1.00, 1.15, 0.005],
+      ['crPillar',  'pillar crease',   0, 3, 0.05],
+      ['crBand',    'band crease',     0, 3, 0.05],
+      ['crCap',     'cap crease',      0, 3, 0.05],
+      ['crFrame',   'frame crease',    0, 3, 0.05],
+      ['crNoseCap', 'nose cap crease', 0, 3, 0.05],
+      ['dashCrease','dash crease',     0, 3, 0.05],
+      ['rimSides',  'rim sides',       4, 10, 1],
+      ['rimArc',    'corner sections', 1, 6, 1],
+    ]],
+  ],
+
+  // ONE PRIMITIVE (user ruling): the tuned jodel is THE default.
+  // 'piper cub' = the faithful template plane exactly as _cage2 shows it
+  // (box top, template dims, skylights, no cutting, no interior) — every
+  // override is the CAGE_PARAMS value for a key this page's defaults
+  // change, so selecting it lands on the template identity.
+  presets: {
+    'jodel': {},
+    // the faithful template identity: every override is the
+    // CAGE_PARAMS value for a key this page's defaults change
+    'piper cub': {
+      pillarW: 0, apilPerp: 0, intOn: 0,
+      topRound: 0, bubble: 0, topAngCeil: 52, topAngRoof: 76,
+      topComp: 1.045,
+      cabPillarW: 0.1, paxPillarW: 0.075041, apilW: 1,
+      crSill: 2, crBand: 1, crCap: 2, crNoseCap: 2, dashCrease: 1.5,
+      roofY: 1.0, aftRoofY: 0.677945, aftKeelY: -0.656475, tailRoofY: 0.5,
+      wsRun: 0.793755, wsBaseBow: 0.558880, wsCeilBow: 0.129299,
+      noseLen: 0.646272, noseW: 1.0, pfW: 1.0, noseH: 1,
+      noseCrown: 0, wsBaseLift: 0, cowlLoops: 0, cowlEase: 0,
+      cowlBulge: 1.05,
+      paxLen: 1.756670, pilotLen: 0.662567, waistY: 0.091103,
+      skylight: 1, cutParts: 0, explodeD: 0,
+      rimDoor: 1, doorDeep: 1, crestH: 0,
+    },
+    // THE SAILPLANE (user build 2026-08-18 v2, baked from their
+    // export): mirrored pod, bubble, aero nose both ends, razorback
+    // aft deck, widened cabin/window rings
+    'sailplane': {
+      paxLen: 0.91, pilotLen: 0.65, cabPillarW: 0.085,
+      paxPillarW: 0.115, pillarW: 0.085, halfW: 0.52, roofHalfW: 0.435,
+      roofY: 0.79, ceilInset: 0.2, waistY: -0.05, bandH: 0.084,
+      aftRoofY: 0.665, aftKeelY: -0.765, tailRoofY: 0.3, ringPullIn: 0,
+      wsRun: 0.95, wsBaseBow: 0.45, wsCeilBow: 0.3, apilW: 1.12,
+      apilPerp: 1, noseLen: 0.97, noseW: 0.9, pfW: 1.21, topRound: 1,
+      topAngRoof: 81, topComp: 1.15, skylight: 0, crSill: 0, crBand: 3,
+      crCap: 3, crNoseCap: 3, botRound: 0.36, noseCrown: 0.16,
+      noseH: 1.07, wsBaseLift: 0.05, cowlLoops: 2, cowlEase: 0.53,
+      cowlBulge: 0.975, noseFinish: 1, canopy: 3, bubH: 0.9,
+      bubAt: 0.55, canLoops: 3, bubH2: 0.56, bubAt2: 0.18, bubH3: 0.5,
+      bubAt3: 0.78, noseTip: 0.97, aftNoseTip: 0.21, ringCabW: 0.115,
+      ringWinW: 0.115, aftRingWinW: 0.08, aftRingScrW: -0.03,
+      aftRingCowl1W: 0, aftRingCowl2W: 0, mirror: 1, aftPilotLen: 0.42,
+      aftWsRun: 0.95, aftNoseLen: 0.75, aftNoseW: 0.98, aftNoseH: 1.2,
+      aftDroop: -0.005, aftNoseCrown: 0.585, aftCowlEase: 0.03,
+      aftCowlBulge: 0.985, aftWsBaseLift: 0.255, aftWsTopOff: 0.081824,
+      aftWsBaseBow: 0.45, aftWsCeilBow: 0.3, aftCowlLoops: 2,
+      ringNoseTop: -0.35, aftRingNoseTop: 0.285, aftRingNoseBot: -0.14,
+      rimW: 0.01, rimDoor: 0, doorSill: 0.094, intOn: 1, intCons: 3,
+      dashBack: 0.1, dashCrease: 3, cutParts: 1, explodeD: 0,
+    },
+  },
+};
+</script>
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_cage_ui.js"></script>
+<script>
+// Page-level DERIVED SELECTORS — one intent writes several raw params
+// (the ride-along philosophy: high-level choice, derived details, manual
+// override still possible afterwards in the sliders).
+(() => {
+  const CU = window.CAGE_UI, P = CU.P;
+  const $g = sel => document.querySelector(`details[data-g="${sel}"]`);
+  const mkSel = (host, label, opts, apply) => {
+    if (!host) return;
+    const d = document.createElement('div'); d.className = 'r';
+    d.innerHTML = `<span class="k">${label}</span><select style="flex:1">` +
+      opts.map(o => `<option>${o}</option>`).join('') + '</select>';
+    host.querySelector('summary').after(d);
+    d.querySelector('select').onchange = e => {
+      apply(e.target.value); CU.syncSliders(); CU.build();
+    };
+  };
+  // NOSE CONFIGURATION (user ruling 2026-08-18: two REAL options —
+  // pusher / wing engines were hypothetical and are dropped). The
+  // choice derives noseFinish + rear aperture + cap crease.
+  mkSel($g('2 · engine'), 'configuration',
+    ['engine nose-mounted', 'aero nose'], v => {
+      if (v === 'engine nose-mounted') {
+        P.noseFinish = 0; P.rearAperture = 0; P.crCap = 2;
+      }
+      if (v === 'aero nose') {
+        P.noseFinish = 1; P.rearAperture = 0; P.crCap = 2;
+      }
+    });
+  // SEATING STARTERS: template application — writes section values ONCE,
+  // everything stays editable after (plays with the save system). Values
+  // are placeholders; tune via the log/exp buttons and paste back here.
+  const START = {
+    'single':         { halfW: 0.45, roofHalfW: 0.36, pilotLen: 0.42,
+                        paxCount: 0 },
+    'tandem 2':       { halfW: 0.45, roofHalfW: 0.36, pilotLen: 0.42,
+                        paxCount: 1, paxLen: 0.85 },
+    'side-by-side 2': { halfW: 0.554104, roofHalfW: 0.431009,
+                        pilotLen: 0.42, paxCount: 1, paxLen: 0.91 },
+    'passenger':      { halfW: 0.60, roofHalfW: 0.47, pilotLen: 0.45,
+                        paxCount: 3, paxLen: 0.95, boomLen: 4.6 },
+  };
+  mkSel($g('4 · cabin/dimensions'), 'starter',
+    ['—'].concat(Object.keys(START)), v => {
+      if (START[v]) Object.assign(P, START[v]);
+    });
+})();
+</script>

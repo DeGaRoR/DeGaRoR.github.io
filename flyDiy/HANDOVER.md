@@ -6243,18 +6243,397 @@ seamS chain in PLAN — x follows the rounded rail, y stays on the
 waistline; non-bubble modes keep the straight beam. Same displayed-seam
 sourcing as the canopy/dash: every consumer follows the seam because it
 samples it.
-**OPEN — aluminium in bubble mode: two stray L-angle bars** (user
-screenshot: one below the belly near the cabin pillar pointing
-down-aft, one at the nose bottom). Two suspects ELIMINATED this
-session: (1) the cabin-to-nose bandEnds pair now SKIPS in bubble mode
-(the window-pillar band is deleted, so that pair chorded the whole
-cockpit — skip landed, some members went); (2) the metal waist rails
-are NOT the source — with the pilot door ON (default) the pilot-bay
-waistBeam calls never run at all (a bubble-mode guard was added anyway
-for the doorless case). NEXT SESSION: instrument metalAngle to log
-endpoints per call site and match the two bars — remaining candidates
-are the mtW/mtB stringer chains (incl. the preLine extrapolation) and
-the pax-bay diagonal machinery.
+**G17 (2026-08-18) — CAGE4, STRAYS RESOLVED, CONSTANT WAIST BAND.**
+`_cage4.html` is the live editor (clone of cage3, same generator; new
+launch entry `flydiy-node4`, port 8126 — 8125 was held by another
+session). The instrumented run the OPEN item below asked for was done
+(member emitters now carry a PERMANENT gated hook: set
+`globalThis.CAGE_DBG = []` before a build and every metalAngle /
+tubeSeg / tubePath call records endpoints + call-site line). Findings,
+both MEASURED:
+**(1) The stray bars were the BOOM BOTTOM-STRINGER HEADS** — the
+preLine/boomRun straight extrapolation onto `bandEnds[1].zm`, wrong
+twice over. (a) The extrapolation continues the boom's plan TAPER, so
+the head's x drifts off the hull at ANY landing plane — measured 8 cm
+proud on the jodel closed build and on the cub preset too; it was
+never "landing ON the cabin hoop" as designed, just hidden aft of the
+wing area. (b) In bubble mode `bandEnds[1]` is POSITIONAL: the window
+band is deleted, and with no pax bay it becomes the NOSE band — the
+head extrapolated metres ahead to (±0.73, −0.83) on the nose plane =
+the user's "bar at the nose bottom"; with a pax bay it stops at the
+cabin plane but pokes sideways = "the bar below the belly near the
+cabin pillar". FIX (all constructions): `landSec` slices the DISPLAYED
+mesh at the landing plane and snaps a head that falls OUTSIDE the
+section onto its nearest section point (radially inset); heads already
+inside are untouched. In bubble mode a front `bandEnds[1]` retargets
+to `bandEnds[0]`'s own plane. Cut parts count at their as-built place
+in slices (minus `cutOff`), so an exploded door still closes its
+section.
+**(2) The belly chine REATTACHES TO THE NOSE'S BOTTOM CORNERS (user
+ruling), swept along the displayed hull.** The G16 bubble skip of the
+cabin→nose pair threw out the belly chine with the waist rails; now
+that pair emits the chine (P/M only) as a SWEPT run — `chineSamples`
+slices the displayed mesh every ~0.45 m, picks the chine corner
+(max sx·x − y), pulls inboard — from the cabin anchor to the nose
+band's bottom corner, wood beams / metal L-angles per construction;
+the tube chine gets the same sampled nodes spliced into its chn run
+(and with no pax bay the swept run lands on the boom run's head — two
+runs meeting on one frame, the IRL longeron rule). Verified: envelope
+scan clean on all four constructions, pax 0 and 1; closed-mode member
+inventories unchanged; fit gate green.
+**(3) THE WAIST REINFORCEMENT KEEPS A CONSTANT SECTION (user: the
+door's band strip "really distorted" in bubble).** Measured: the strip
+TOP is the seam (weight-3 cut rim, pinned to the cage line, then
+released to flow by v3c) while the BOTTOM stayed on the template waist
+line — width wandered 0.047–0.083 m across the pilot door, flaring to
+0.144 at the door's front corner. FIX in cageCanopy (bubble only):
+every waistband column hanging from an open top edge ON the seamS
+sill is re-offset from its own displayed top vert — bottom = top +
+bandH along the column, interior rows at original fractions. Columns
+are classified per-face RELATIVE (the shorter opposite-edge pair =
+the cross pair; |dy| alone failed on the leaning A-pillar foot). Cut
+windows also leave open band tops (their glass part duplicates verts)
+— the seam test keeps those pax-bay bands at template width; door
+parts match the seam by as-built position, so the door strip and the
+fuselage rim stay coincident, exploded or not. Measured after: 0.059–
+0.0625 the whole door span, front-corner flare gone.
+**OPEN (was: aluminium in bubble mode, two stray L-angle bars) —
+RESOLVED by G17 above.** The G16 eliminations stand: (1) the
+cabin-to-nose pair skip is now the swept-chine emission; (2) the metal
+waist rails were never the source.
+**G18 S2 (2026-08-18) — THE MIRRORED POD (user design).** True bubbles
+and cutaways are different topologies: a stick-out bubble needs the
+deck to FALL AWAY behind the cockpit, which no cutaway of a full-height
+cabin can produce. The user's move: the aft body = the FRONT HALF
+[cabin | slope | cowl | nose] REFLECTED about the cabin-pillar
+mid-plane, the boom stuck in place of the mirrored engine aperture.
+Logical chain [nose-[cabinF|cabinA]-noseA]-[boom-tail]; the two halves
+are ONE logical section; the mirror is INITIAL GEOMETRY only (per-half
+controls come later — for now pure reflection).
+AS BUILT (`mirror` param, fit-guarded 0):
+- cageResolve stops the table at pilCabB (no tail stack, no pax
+  machinery, no aft shoulder; pax forced 0 in cageSpec) and returns
+  `mirrorZ` = the pillar mid-plane.
+- buildCage2 emits the front half ONCE, FORWARD, then reflects the
+  emitted cage: verts through the shared P() dedup, faces with
+  reversed winding + carried materials and win marks, crease tags
+  through the vertex map. The slope/cowl/nose machinery is never run
+  in reverse — no z-sign audit, everything reflects by construction.
+  KEY: mirror at the emitted-cage level, but only because the WHOLE
+  front is re-emitted — the per-half-controls upgrade is "emit the
+  front block twice with different params", not vertex surgery.
+- The ARCEAU: the pilCabB ring pair bridges into the cabin-pillar band
+  (generic bay idiom, pillarCabin materials, crPillar crease via the
+  E-map copy). v1 keeps it as real structure; the single-edge-loop
+  collapse for the continuous cockpit is the S4 chantier (the G16c
+  law says the transition is TOPOLOGICAL: ring pair = fold mechanism,
+  single ring = continuous seam).
+- The BOOM extrudes from the mirrored aperture (its cap-face range is
+  skipped in the reflection): 4 stations lerping the aperture levels
+  to a tip drawn from the tail params (tailHalfW/tailRoofY/tailKeelY)
+  over boomLen+tailLen, tip cap + CW.cap crease; smooth stations, CC
+  fairs the cone. boomMid pinch and a deck chine are later refinements.
+- v1 CONSTRAINTS (each lifts with its chantier): pax 0, canopy CLOSED
+  (S3 = bubble on the pod: seam across both slopes, canopy dash-arc to
+  dash-arc, arceau ring as a control row), doors off (the canopy IS
+  the door on a pod), interior off (S5: bandEnds isFront breaks with
+  two pillarFront bands, stringers must treat the pod as one span),
+  cowl nose only (aero+mirror would need the aero path taught to
+  stop).
+VERIFIED: fit gate green (mirror 0 bit-identical); mirror cage 188v/
+182q CLOSED 2-MANIFOLD (0 boundary, 0 over-owned edges) first try;
+48-combo sweep (steps 1/2/crease x cut x canopy x cowlLoops) clean,
+no NaN through the full display pipeline; both screens picked up
+their window seals FOR FREE (win marks reflect); browser-verified
+silhouette: nose - windshield - cockpit - arceau - aft screen - falling
+deck - boom cone. ROADMAP: S1 multi-loop canopy (2+ crown rows,
+dynamic; wanted for the cutaway too), S3 pod bubble, S4 single-loop
+arceau, S5 interior, S2.5 per-half aft params (aft nose len/height/
+droop as named overrides defaulting to the front's).
+**S2.5 (same day) — PER-HALF CONTROLS + THE RING LOOP.**
+- AFT OVERRIDES as designed: `aft*` params (aftPilotLen/aftWsRun/
+  aftNoseLen/aftNoseW/aftNoseH/aftDroop/aftNoseCrown/aftCowlEase/
+  aftCowlBulge; panel group "4b · aft pod"), -1 (below each param's
+  floor) = follow the front. When any is set, cageSpec derives a FULL
+  SECOND SPEC with the substitutions (config.mirrorAftSpec) and
+  buildCage2 recursively emits the aft half from it in a
+  `mirrorHalfOnly` mode (front-half table, no mirror pass, returns
+  _mirAp/_ids0/_zB), then reflects THAT mesh — the second-emission
+  plan, never vertex surgery. The reflection constant re-anchors the
+  source's own pilCabB plane onto the arceau's aft edge, so
+  aftPilotLen moves freely. Cabin section params stay SHARED (one
+  cockpit): the arceau bridges two identical rings whatever the
+  halves do. VERIFIED: all-sentinel build is BIT-IDENTICAL to the S2
+  self-reflection (maxDev 0, faces equal); an asymmetric pod (long
+  drooped turtledeck, flatter aft screen, longer aft cockpit half)
+  stays a closed manifold; fit green.
+- THE RING EDITOR (user design, REPLACING the ringAlign/ringDy
+  attempt — REJECTED same day: "what you added seems to introduce a
+  new loop, I don't want it"; the blend-to-cabin abstraction was
+  wrong — the user wants DIRECT manipulation of the original cage's
+  rings). Doctrine: THE PLANE'S SHAPE = RINGS (cross-sections) +
+  LONGERONS (waist/band lines, which never move with a ring). New
+  panel group "1 · global / rings" = the ring editor: global
+  roundness top/bottom + ceil/roof angles (moved from longerons),
+  then per-ring TOP/BOTTOM point offsets in metres, rigid shifts
+  (top = roof+ceil, bottom = keel+floor, centre columns included):
+  `ringNoseBot` (nose ring+twin pair), `ringScrBot` (wsFront+wsAft
+  pair), `ringWinTop`/`ringWinBot` (window ring — it now carries its
+  OWN roofY; it shared the cabin's), `ringCabTop`/`ringCabBot` (the
+  pilCab pair via S.ringOff -> a dedicated cabPilD dim set in
+  cageResolve, identity alias when 0). Aft + tail rings already had
+  absolute height params (aftRoofY/aftKeelY/tailRoofY/tailKeelY, the
+  "7 · boom" group) — the editor completes the set for the front
+  rings. All defaults 0 = fit identity. roundTop anchors to each
+  ring's own dims, so roundness follows edited points correctly.
+  Context that motivated it: the ring/cabin template fractions never
+  matched (~5 mm per rail), which doubled into a visible kink at the
+  mirrored pod's arceau — now fixable by hand (e.g. ringWinTop), and
+  the same controls sculpt gondola bellies, dropped noses, etc.
+  VERIFIED: fit green; all six sliders at once manifold in plain +
+  mirrored builds; ringCabBot -0.12 moves the pilCab keel by exactly
+  -0.12 with the window ring untouched.
+**S1 (same day) — CANOPY CONTROL LOOPS.** `canLoops` 1-3 (+ bubH2/
+bubAt2/bubW2, bubH3/bubAt3/bubW3 in the windows group). One loop =
+the v4 path EXACTLY (quadratic Bezier, apex reparam — verified maxDev
+0 on the displayed mesh). 2-3 loops = one crown control arc each at
+its own station/height/width (mkArc, the extracted v4 arc builder),
+column profile = a Bezier through [front, arcs..., rear] on the raw
+arc-length parameter — fullness placement comes from where the loops
+sit. Loops are CONTROLS, not interpolated sections (the control-cage
+idiom; a Bezier never passes through interior controls — if the user
+ever wants exact interpolation that is a new ask). Loops sort by
+station in cageSpec (at counts from the aft side, so descending at).
+**S3 (same day) — THE POD BUBBLE: the reason the pod exists.**
+cageSpec keeps canopy 'bubble' in mirror mode (conv/open still forced
+closed). The mirror pass reflects the SEAM RECORDS through the vertex
+map: `dashRimA` = the aft screen's base arc (takes the arch's role —
+seamA never exists on a pod), `seamSA` = the aft sill rails; BOTH
+propagate through cageSubdivide (the record list there gained the two
+names — forgetting that list is a silent killer: records vanish at L1+
+and cageCanopy quietly no-ops). cageCanopy pod branch: rear row =
+dashRimA chain, rails = front seamS chains + aft seamSA chains
+concatenated across the arceau gap (each half chained separately —
+the gap breaks vertex adjacency — both oriented front->aft; the row
+sampler bridges the gap straight, which the band-top line IS). The
+ARCEAU stays a full hoop UNDER the glass (the bubble crown clears it
+at default heights; lowering bubH pierces it — sculptor's choice).
+TRAP FIXED: the arceau's mirrored upper-ring verts are face-ORPHANED
+in bubble mode (the skin above the seam is cut), so the hoop bridge
+builds its ring via mOf (create-on-demand) BEFORE the crease copy —
+map.get gating crashed orientCage with undefined verts, and the tag
+copy must see those verts or the hoop's boundary loops lose their
+pillar crease (boundary edges without weight average missing faces).
+VERIFIED: fit green; pod bubble K=1/2/3 with and without aft
+overrides, no NaN, canopy 2176 faces spanning dash-arc to dash-arc;
+seal traces the full bubble perimeter automatically; browser: the
+TRUE STICK-OUT BUBBLE — deck falls away fore and aft, dome rises off
+the sill, arceau hoop under the glass; 3-loop teardrop (steep front,
+peak forward, long aft run-out) confirmed on the pod and the 2-loop
+raked profile on the regular cutaway. NEXT: S4 single-loop arceau
+collapse (topological: ring pair -> one ring; the central loop then
+becomes a canopy control row), S5 interior on the pod.
+**S3b (user review of S3, same day) — four refinements:**
+1. AFT SET COMPLETED (user: "all controls just needed to be
+   duplicated"): + aftWsBaseLift, aftWsTopOff, aftWsBaseBow,
+   aftWsCeilBow, aftCowlLoops; panel regrouped as "3b · aft deck"
+   (nose equivalents + cowl + base lift) and "4b · aft cabin"
+   (cockpit len, screen run/top off/bows). With aftWsBaseLift +
+   aftNoseCrown the aft deck rises OVER the bubble's skirt — the
+   RAZORBACK overlap the user sketched, working.
+2. THE PILLAR FOLLOWS THE ACTIVE CURVE (user red/green sketch): the
+   twin and nose rings shared one constant crown, so the pillarFront
+   band was a FLAT segment interrupting the eased deck profile. The
+   twin's deck-centre yC now takes the cowl profile's own value at
+   its z (same ease law as the loops); gated on chain-vs-ring crown
+   difference, so the template path is untouched (fit green). Applies
+   to both halves for free (the aft is a re-emission).
+3. CONTROL LOOPS VISIBLE (user: "quite unclear"): cageCanopy attaches
+   `canArcs` (the raw control arcs, world coords); _cage_ui draws
+   them as always-on-top coloured lines (yellow/cyan/pink), toggled
+   by the new "canopy loops" checkbox in the VIEW panel (on by
+   default). Viewer state, never spec.
+4. THE REAR LANDING STICKS (user: "the arch does not survive the
+   loop height options"): the multi-loop Bezier gets one IMPLICIT
+   control arc straight above the rear row (lift = max(0.12, half
+   the rear outline's height), sin-weighted so corners stay) — the
+   glass arrives steeply and stays with the arch (regular) or dives
+   to the aft seam under the deck lip (pod), whatever the user loops
+   do. K=1 keeps the v4 path untouched.
+**G18 S5 + refinements (user review, same day).**
+- FOREVER-SPLIT (user ruling: "a proper split now and forever"): the
+  sentinel-follow behaviour made FRONT nose sliders drag the aft deck.
+  Now _cage_ui's build() materializes any aft param still below its
+  threshold from the front's CURRENT value the moment the pod is on —
+  a one-shot copy, independent ever after; sliding an aft param back
+  below its floor re-copies once ("match the front now" gesture). The
+  table is CAGE_AFT_SUB (module-level, exported — one list feeds
+  cageSpec's substitution AND the page materialization).
+- S4 CANCELLED (user: the arceau stays). Replaced by ARCEAU FIT
+  (`arcFit`, default on): in cageCanopy (pod bubble), the hoop's
+  displayed verts above the seam project RADIALLY (centre = (0,
+  bandY) in the transverse plane) onto the canopy component's own
+  sliced section at their z, tucked 15 mm inside; blend over the
+  first 8 cm above the seam so the band leaves the fuselage without
+  a step. The hoop hugs the bubble whatever the loops do, and the
+  interior's thickened arceau body follows (cageInterior runs after).
+- S5 v1 — POD INTERIOR LIVE (the cageSpec force-off is gone). What
+  made it safe: bulkhead skips (no pillarPassenger, guarded); boom
+  machinery idles (its stations key on rgn0 names that do not exist —
+  slices find nothing, chains stay single-node); wsBase adjacency
+  filters to faces FORWARD OF THE ARCEAU in pod mode (both screens
+  match windshield/waistband adjacency — the dash and its cross-beam
+  belong to the front one); the swept-belly-chine branch now covers
+  EVERY pod bay in bubble mode (every bay flanks the open cockpit,
+  so upper rails stay out and the belly chine sweeps); chineSamples
+  gained an inboard-pull param — a 4 cm spruce beam needs its centre
+  0.01+cB/2 deep or it pokes the pod belly (metal keeps 1 cm, the
+  L-angle opens inward). VERIFIED: fit green; regular plane 8 combos
+  bit-clean; pod interior 8 combos (closed+bubble x 4 constructions)
+  no NaN; browser: plywood tub + fitted arceau arch under the glass +
+  clean belly. KNOWN v1 GAPS: no boom-cone structure (the extruded
+  boom has no stations), no aft-belly tube chine (chn excludes
+  bandEnds[0] per the aft-corner rule), dash cross-beam absent in
+  bubble (no windshield material on the cut skin — pre-existing).
+- SAILPLANE PRESET: pending — the user's save lives in THEIR browser's
+  localStorage (key cageCfg:/flyDiy/tools/_cage4.html), unreachable
+  this session (Chrome extension offline). Bake it into
+  _cage4.html PAGE.presets as 'sailplane' when they paste the exp/log
+  JSON.
+**G18 S6 (user review, same day) — THE AERO NOSE POINTS, panel fixed.**
+- AERO NOSE TO A POINT (user: "it keeps having this flat face"): two
+  causes, two fixes. (1) The aero finish inherited the ENGINE-SIZED
+  template ring with no way to close it — new `noseTip` (0-0.98,
+  + `aftNoseTip` for the pod's tail cone): collapses the ring onto the
+  deck point (x scales out, keel/floor converge on the deck line, the
+  ring's crown fades via nose.ring.crownF — a crest spike otherwise);
+  0.98 keeps the cap grid non-degenerate, CC rounds the tip. (2) The
+  TWIN BAND: it was SKIPPED in aero finish (which is also why the
+  user's "passenger pillar" vanished under pusher/aero configs — a
+  structural station treated as an engine accessory). It now stays in
+  BOTH finishes; in aero its whole section is REPLACED by the cowl
+  profile's value at its own z (the loops' exact math — the template
+  band is engine-sized and shouldered out of the cone). Sharpest tip =
+  noseTip high + crNoseCap low.
+- POD: the aft twin band recolours pillarFront -> pillarPassenger in
+  the mirror pass (user: "my passenger pillar in blue") — the legend,
+  zones and interior all see it as the pax pillar; the aft bulkhead
+  machinery now finds it (intBulk builds a panel there — real
+  sailplanes have one behind the boom entry).
+- NOSE CONFIGURATION renamed (user ruling): TWO options — 'engine
+  nose-mounted' | 'aero nose'; pusher and wing-engines dropped
+  (hypothetical). rearAperture stays a raw param.
+- PANEL LAYOUT FIXED (user: "content renders out of its pane"): flex
+  children had min-width:auto, so rows overflowed the aside and the
+  exp/imp buttons were CLIPPED INVISIBLE — which read as "no JSON
+  export" (it existed all along). Fix in _cage4 CSS: min-width:0 on
+  rows/ranges/selects, ellipsised labels, .r.wrap on the preset row
+  (buttons fold to a second line), default width 340px, resize kept
+  (bottom-left corner, the rtl trick). The exp button is labelled
+  'json' now.
+FIT green throughout (engine finish untouched; aero is off the fit
+path). cage3's aero configs change behaviour (twin present now) —
+cage3 is the fit-reference page, its DEFAULTS are engine finish.
+**G18 S7 (user, same day) — SAILPLANE PRESET + THE DECK CREASE SPLIT.**
+- The unsmoothable ridge on the aft deck / pre-cowl was the SILL
+  CREASE: the cowl deck edge carries CW.sill ("the sill continues as
+  the cowl deck edge"), so the global crSill creased the whole deck
+  silhouette. USER-DIAGNOSED, then split per their ruling: `crSill`
+  is BACK IN GLOBALS (longerons group — it is a longeron crease);
+  new `crSillNose` (nose group) + `aftCrSillNose` (aft deck group)
+  crease each DECK EDGE independently (-1 = follow crSill, the fit
+  identity; the aft twin flows through CAGE_AFT_SUB into the aft
+  spec's crease table and reflects with the E-map — the
+  second-emission architecture again).
+- NEW PAGE DEFAULTS from the user's export (ruling: "take the
+  don't-touch parameters as new defaults"): cabPillarW 0.115,
+  paxPillarW 0.11, apilW 0.92, pfW 0.3, topComp 1.15, crSill 0,
+  crBand 3, crCap 3, crNoseCap 3, dashCrease 3. The piper-cub preset
+  gained the matching CAGE_PARAMS values so the template identity
+  promise holds (every override = the template value for a key the
+  page defaults change).
+- `sailplane` IS AN OFFICIAL PRESET (baked verbatim from the user's
+  export + explodeD 0): mirrored pod, bubble with 3 loops, aero nose
+  both ends (noseTip 0.97 fwd point, aft 0.21 into the boom),
+  razorback aft deck (crown 0.4, lift 0.255, ring lift 0.285),
+  aluminium interior. Headless build 17864v/11704f, no NaN; fit
+  green.
+**S10 (user, 2026-08-19) — SKIN THICKNESS, the anti-clipping split.**
+Interior sheet linings clipped through the skin here and there: the
+toele sat 8 mm in, cloth 6 mm, plywood 0.4 x shellT — on tight
+curvature an inward offset along averaged normals can locally cross
+the surface. The user's conservative fix, as built: `skinT` ("skin
+thickness", conception group) = the SHEET LININGS' inward depth —
+plywood panels, toele, cloth, the composite monocoque shell (its
+doublers still start on the shell face wherever it sits), and the
+door liners — SEPARATED from `shellT`, which keeps the pillars,
+posts, punched frames and beam sizing. 0 = the per-construction
+defaults (bit-identical, verified equal counts); raise it and every
+lining pulls deeper — the exterior never changes, so it is
+conservative by construction. All four constructions build clean at
+skinT 0.025. Fit green. NOTE the split doctrine: shellT = structure,
+skinT = lining depth; new liners must pick a side.
+**S9 (user, same day) — THE POD'S TAIL IS THE BOOM'S TAIL + preset v2.**
+- TAIL PILLAR ON THE POD (user: "this one is the boom without the top
+  part — it needs the same pillar"): the extruded boom now emits the
+  regular tail's layout deck-high — smooth run over boomLen, the TAIL
+  PILLAR BAND over pillarW (pillarTail material, CW.pillar crease on
+  both rings), then the cone over tailLen to the capped tip. The
+  interior's band machinery finds the pillarTail band automatically,
+  so the pod grows a tail frame exactly like the regular plane's.
+- THE AFT BAND IS THE PASSENGER PILLAR (user: it responded to the
+  nose's pfW — wrong station): in the aft spec, P2.pfW =
+  paxPillarW / pillarW, so the mirrored band's width follows
+  paxPillarW ("where the tightening for rod booms happens") while the
+  front band keeps pfW. This alone triggers the second emission, even
+  all-sentinel. Verified: paxPillarW 0.115 -> displayed band span
+  0.097; 0.2 -> 0.164 (cage-level gap exact; CC pulls edges a touch).
+- sailplane PRESET v2 (user export): waistY -0.05, bandH 0.084,
+  pillar widths 0.085/0.115, apilW 1.12, pfW 1.21, ring widths
+  (cabW/winW 0.115, aftWinW 0.08, aftScrW -0.03), loop heights
+  retuned (bubH2 0.56, bubH3 0.5), aft crown 0.585. Fit green;
+  18096 v, no NaN, 128 pillarTail faces.
+**S8b (user review) — ARCEAU FIT TUNED.** The hoop sat a band below
+the glass and its base did an S. Causes: (1) the 15 mm projection
+tuck COMPOUNDED with the interior frame's own 9 mm secIn inset — now
+a 4 mm gap (the hoop rides just under the glass, the punched frame
+inside it); (2) the projection RAY CENTRE sat at seam height, so
+foot-level rays ran nearly horizontal and grazed the vertical glass
+wall — the centre now sits 0.2 BELOW the seam (every ray meets the
+section cleanly, the base swings out monotonically); (3) the linear
+8 cm blend is a smoothstep over 12 cm. LESSON for projection passes:
+pick the ray centre so no target surface is ever near-tangent to a
+ray, and count EVERY downstream inset when choosing a gap.
+**G18 S8 (user, same day) — RING WIDTHS.** halfW scales every section
+proportionally (all rings derive from it), so the belly could not
+fatten LOCALLY. The ring editor gains a width column: per-ring flank
+width offsets in metres (waist + keel x; roof width stays with
+roofHalfW) — `ringCabW` (the cabin pillar pair / the pod's arceau —
+THE ask, shared so no aft twin), `ringWinW` (window ring: Ww AND its
+hard-coded Wk), `ringScrW` (screen pair: ws waist x in cageSpec + the
+slopeRing keel width, which was a hard global W), `ringCowl1W`/
+`ringCowl2W` (the intermediate loops, individually per user ruling —
+applied after the bulge ease). Aft twins for win/scr/cowl through
+CAGE_AFT_SUB (panel: aft cabin + aft deck groups). All consumed via
+S.ringOff with (||0) fallbacks — absent = bit-identical, fit green.
+Measured: ringCabW +0.12 moves the arceau half-width 0.563 -> 0.682
+exactly; sailplane belly fattens at the cockpit without touching the
+nose or boom lines.
+**S3c (user, same day) — NOSE-RING DECK LIFT closes the tail curve.**
+The user couldn't lift "the passenger pillar" on the pod (they
+reached for aft roof/keel y, which drive the aft-shoulder ring that
+does not exist in mirror mode): with deck crown + w/s lift maxed the
+profile still had to fall to the FIXED aperture deck before the tail.
+New ring-editor control `ringNoseTop` (+ aft twin `aftRingNoseTop`,
+and `aftRingNoseBot` for symmetry): lifts the nose ring pair's DECK
+only (waist + crown y at the twin+ring) — orthogonal to droop (whole
+end) and ringNoseBot (keel/floor). Carried as S.nose.lift because the
+deck y is built inside cageResolve's noseLv from waistY/crown/droop.
+The boom inherits the lifted aperture and tapers to the cone params —
+ONE CONTINUOUS CURVE cockpit-crest to tail, verified in browser with
+crown 0.8 / lift 0.5 / ring lift 0.32. Crown + lift slider RANGES
+extended (crown to 1.0, lift to 0.8, front and aft). Isolation
+verified: aftRingNoseTop moves only the aft spec's lift. Fit green.
 **v2b FIT FIX (superseded by v3, lesson stands).** Root cause
 was a subdivision-rule subtlety worth keeping: straight boundary runs
 never move through CC, but CORNERS round by the crease VERTEX rule

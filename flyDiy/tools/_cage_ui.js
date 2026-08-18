@@ -167,14 +167,14 @@ scene.add(sun);
 const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.25);
 sun2.position.set(4, -1, 3);
 scene.add(sun2);
-let meshObj = null, cageObj = null, refObj = null;
+let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
 // view transparency: glass is partially transparent by default so the
 // interior shows without camera gymnastics; bodyA fades the whole SKIN
 // (interior elements stay opaque — they are what is being inspected)
-const VIEW = { glassA: 0.35, bodyA: 1 };
+const VIEW = { glassA: 0.35, bodyA: 1, loops: 1 };
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
 const INTM = new Set(['bulkhead', 'firewall', 'dash', 'tube', 'plywood',
@@ -297,6 +297,20 @@ function disposeObj(o) {
 
 // ---- build ----------------------------------------------------------------
 function build() {
+  // FOREVER-SPLIT (user ruling): with the pod on, any aft param still
+  // at its sentinel takes a ONE-SHOT copy of the front's current value
+  // — from then on the halves are independent, and moving a nose
+  // slider never drags the aft deck again. Sliding an aft param back
+  // below its threshold re-copies once: the "match the front now"
+  // gesture.
+  if (P.mirror && G.CAGE_AFT_SUB) {
+    let ch = false;
+    for (const [ak, fk, thr] of G.CAGE_AFT_SUB)
+      if (P[ak] != null && P[ak] < thr && P[fk] != null) {
+        P[ak] = P[fk]; ch = true;
+      }
+    if (ch) syncSliders();
+  }
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
   const spec = G.cageSpec({ ...P });
@@ -331,6 +345,27 @@ function build() {
     cageObj = new THREE.Group();
     cageObj.add(edgeLines(m, 0xffbe5a, 0.85));
     scene.add(cageObj);
+  }
+
+  // canopy CONTROL LOOPS overlay (user ask: the loops must be visible,
+  // hideable in the view panel) — drawn always-on-top in loop colours
+  disposeObj(loopsObj); loopsObj = null;
+  if (VIEW.loops && s.canArcs && s.canArcs.length) {
+    loopsObj = new THREE.Group();
+    const cols = [0xffd24a, 0x4af0ff, 0xff7ad9];
+    s.canArcs.forEach((arc, i) => {
+      const pos = [];
+      for (const p of arc) pos.push(p[0], p[1], p[2]);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position',
+        new THREE.BufferAttribute(new Float32Array(pos), 3));
+      const l = new THREE.Line(g, new THREE.LineBasicMaterial({
+        color: cols[i % cols.length], depthTest: false,
+        transparent: true, opacity: 0.9 }));
+      l.renderOrder = 5;
+      loopsObj.add(l);
+    });
+    scene.add(loopsObj);
   }
 
   // fit
@@ -427,12 +462,14 @@ const savedCfgs = () => {
   catch (e) { return {}; }
 };
 {
-  const d = document.createElement('div'); d.className = 'r';
+  // 'wrap' so the buttons fold to a second line instead of overflowing
+  // the pane (user bug: json/imp were clipped invisible)
+  const d = document.createElement('div'); d.className = 'r wrap';
   d.innerHTML = `<span class="k">preset</span><select id="presetSel"
     style="flex:1"></select>
     <button id="saveCfg" title="save current sliders as a named config">save</button>
     <button id="logCfg" title="log non-default params to console + clipboard">log</button>
-    <button id="expCfg" title="download config as JSON (also copied)">exp</button>
+    <button id="expCfg" title="download config as JSON (also copied)">json</button>
     <button id="impCfg" title="paste a config JSON">imp</button>`;
   ui.appendChild(d);
   d.querySelector('select').onchange = e => applyPreset(e.target.value);
@@ -523,6 +560,14 @@ fillPresetSel();
     renderer.clippingPlanes = e.target.checked
       ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
     draw();
+  };
+  const dl = document.createElement('div'); dl.className = 'r';
+  dl.innerHTML = `<span class="k">canopy loops</span>
+    <label style="flex:none"><input type="checkbox" id="canLoopsV"
+      checked></label>`;
+  det.appendChild(dl);
+  dl.querySelector('#canLoopsV').onchange = e => {
+    VIEW.loops = e.target.checked ? 1 : 0; build();
   };
   const vb = document.createElement('div'); vb.className = 'r';
   vb.innerHTML = `<span class="k">camera</span>

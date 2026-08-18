@@ -259,10 +259,31 @@ function cageResolve(S) {
                   floorY: S.aft.floorYB, keelY: S.aft.keelYB };
   const cabD  = { Ww: W, Wr, roofY: c.roofY, ceilY: c.ceilY,
                   floorY: c.floorY, keelY: c.keelY };
-  const ringD = { Ww: S.ring.waistHalfW, Wk: W, Wr, roofY: c.roofY,
+  // ring editor: the window ring may carry its own roof height and
+  // flank width; the cabin PILLAR pair gets its own dim set when
+  // offsets are present (identity alias otherwise — the fit path)
+  const RO = S.ringOff || {};
+  const ringD = { Ww: S.ring.waistHalfW + (RO.winW || 0),
+                  Wk: W + (RO.winW || 0), Wr,
+                  roofY: S.ring.roofY != null ? S.ring.roofY : c.roofY,
                   ceilY: S.ring.ceilY, floorY: S.ring.floorY, keelY: S.ring.keelY };
+  const cabPilD = (RO.cabT || RO.cabB || RO.cabW) ? {
+    ...cabD,
+    Ww: cabD.Ww + (RO.cabW || 0),
+    roofY: cabD.roofY + (RO.cabT || 0),
+    ceilY: cabD.ceilY + (RO.cabT || 0),
+    floorY: cabD.floorY + (RO.cabB || 0),
+    keelY: cabD.keelY + (RO.cabB || 0),
+  } : cabD;
 
   const CFG = S.config || {};
+  // MIRRORED POD (G18 S2): the table stops at pilCabB — buildCage2
+  // reflects the emitted front half about the pillar mid-plane
+  // (mirrorZ below), so the tail stack, pax machinery and aft shoulder
+  // never exist in this mode; the boom re-bases on the mirrored
+  // aperture. pax is forced 0 in cageSpec.
+  const MIR = !!CFG.mirror;
+  if (!MIR) {
   add(fullRing('tailCap', zCap, tailD), { mat: CAGE_MAT.plain });
   // the tail pillar band is tailMid -> tailPost: with the unified pillar
   // width set, tailMid sits pillarW forward of the post (template midT
@@ -289,8 +310,9 @@ function cageResolve(S) {
     }), { mat: CAGE_MAT.plain });
   }
   add(fullRing('pilPaxA', zPaxA, aftDA), { mat: CAGE_PILLAR('pillarPassenger') });
+  }
   let z = zPaxB;
-  for (let i = 0; i < S.pax.count; i++) {
+  if (!MIR) for (let i = 0; i < S.pax.count; i++) {
     add(fullRing('pilPaxB' + (i || ''), z, i ? cabD : aftDB),
         { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
     z += S.pax.len;
@@ -300,9 +322,11 @@ function cageResolve(S) {
       z += S.paxPillarW;
     }
   }
-  add(fullRing('pilCabA', z, cabD), { mat: CAGE_PILLAR('pillarCabin') });
-  add(fullRing('pilCabB', z + S.cabinPillarW, cabD),
+  if (!MIR) add(fullRing('pilCabA', z, cabPilD),
+                { mat: CAGE_PILLAR('pillarCabin') });
+  add(fullRing('pilCabB', z + S.cabinPillarW, cabPilD),
       { mat: matPilot, guards: [S.pilot.guardT] });
+  const mirrorZ = z + S.cabinPillarW / 2;
 
   // ---- AERO NOSE (bizjet / sailplane / pusher front) ----------------------
   // No fold at the windshield: the full rings continue through the screen
@@ -357,9 +381,12 @@ function cageResolve(S) {
   const BL = S.ws.baseLift || 0;
   const slopeRing = (name, roofZ, ceil, bandZ, waist, floorY, keel,
                      keelPlanar, lift) => {
+    // ring editor: the screen pair's keel width rides ringOff.scrW
+    // (the waist x offset is applied to the ws data in cageSpec)
+    const kW = W + ((S.ringOff && S.ringOff.scrW) || 0);
     const kl = keelPlanar
-      ? { x: W, y: keel.y, z: waist.z, yC: keel.y, zC: waist.z }
-      : { x: W, y: keel.y, z: keel.z, yC: keel.y, zC: keel.z };
+      ? { x: kW, y: keel.y, z: waist.z, yC: keel.y, zC: waist.z }
+      : { x: kW, y: keel.y, z: keel.z, yC: keel.y, zC: keel.z };
     const wl = { x: waist.x, y: S.waistY + (lift || 0), z: waist.z };
     const t = (floorY - kl.y) / (wl.y - kl.y);
     const lv = {
@@ -419,9 +446,11 @@ function cageResolve(S) {
   }
 
   const ND = S.nose.droop || 0;
+  const NL = S.nose.lift || 0;     // ring editor: nose-ring deck lift
   const noseLv = n => ({
-    waist: { x: n.deck.x, y: S.waistY - ND, z: n.deck.z,
-             yC: S.waistY + CROWN - ND, zC: n.deck.zC },
+    waist: { x: n.deck.x, y: S.waistY - ND + NL, z: n.deck.z,
+             yC: S.waistY + CROWN * (n.crownF != null ? n.crownF : 1)
+                 - ND + NL, zC: n.deck.zC },
     floor: { x: n.floor.x, y: n.floor.y, z: n.floor.z,
              yC: n.floor.yC != null ? n.floor.yC : n.floor.y,
              zC: n.floor.zC != null ? n.floor.zC : n.floor.z },
@@ -492,7 +521,7 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  return { rings, bays, chain, noseTwin, noseRing };
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ };
 }
 
 // ---------------------------------------------------------------------------
@@ -524,6 +553,7 @@ function buildCage2(S, step) {
   const cutHi = k => k === 'roof' || k === 'ceil'
     || (cutLv === 'waist' && k === 'band') || k === 'bandG';
   const R = cageResolve(S);
+  const MIR = !!(S.config && S.config.mirror);
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
     : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
     : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', 'keel'];
@@ -571,6 +601,7 @@ function buildCage2(S, step) {
 
   // ---- vertices -----------------------------------------------------------
   const V = [], F = [], dashRim = [], seamS = [], seamA = [];
+  const dashRimA = [], seamSA = [];      // pod bubble: aft-half records
   const vid = new Map();
   const P = (x, y, z) => {
     if (Math.abs(x) < 1e-9) x = 0;
@@ -666,8 +697,11 @@ function buildCage2(S, step) {
         F[F.length - 1].capFace = F[F.length - 2].capFace = 1;
     }
   };
-  emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture),
-          !!(S.config && S.config.rearAperture));
+  // mirrored pod: seq[0] is pilCabB — its aft side is covered by the
+  // reflected half, never a cap
+  if (!MIR)
+    emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture),
+            !!(S.config && S.config.rearAperture));
 
   // ---- bridge the ring sequence ------------------------------------------
   const bandMat = (mat, hi, lo) =>
@@ -832,6 +866,7 @@ function buildCage2(S, step) {
   }
 
   // ---- windshield slope + deck + cowl + nose (cowl mode) ------------------
+  let mirAp = null;      // mirrored pod: aperture ring + its cap face range
   {
     const iF = seq.length - 1;                 // wsFront is last in seq
     const a = ids[iF];
@@ -941,10 +976,66 @@ function buildCage2(S, step) {
           if (lv[k].yC != null) lv[k].yC = wYC + (lv[k].yC - wYC) * bg;
         }
         lv.waist.x *= bg;
+        // ring editor: per-loop flank width offset (the intermediate
+        // loops between the cabin and the nose are individually
+        // settable, user ruling)
+        const cwO = S.ringOff && S.ringOff.cowl
+          ? (S.ringOff.cowl[i - 1] || 0) : 0;
+        if (cwO) for (const k of ['waist', 'floor', 'keel'])
+          if (lv[k]) lv[k].x += cwO;
         noseSeq.push(prepNose({ name: 'cowlLoop' + i, lv }));
       }
     }
-    if (sv >= 1 && !aeroFin) noseSeq.push(prepNose(R.noseTwin));
+    // the TWIN BAND STAYS in aero finish too (user: the pillar is a
+    // structural station, not an engine accessory — it vanished with
+    // pusher/aero configs); the cone runs cowl -> band -> tip
+    if (sv >= 1) {
+      let tw;
+      if (aeroFin) {
+        // aero cone: the band's TEMPLATE section is engine-sized and
+        // shouldered out of the taper (user: the nose kept a fat
+        // face). The twin's whole section now sits ON the cowl
+        // profile at its own z — the same math as the loops — so the
+        // cone runs smooth through the band to the (collapsible) tip.
+        const zw2 = wsLow.waist.z, zr2 = R.noseRing.lv.waist.z;
+        const t2 = Math.max(0, Math.min(1,
+          (R.noseTwin.lv.waist.z - zw2) / ((zr2 - zw2) || 1e-9)));
+        const e2 = t2 * (1 - cowl.ease)
+                 + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * cowl.ease;
+        const lv3 = {};
+        for (const k of ['waist', 'floor', 'keel']) {
+          lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], e2);
+          lv3[k].z = wsLow[k].z
+                   + (R.noseRing.lv[k].z - wsLow[k].z) * t2;
+          if (lv3[k].zC != null) {
+            const az = wsLow[k].zC != null ? wsLow[k].zC : wsLow[k].z;
+            const bz = R.noseRing.lv[k].zC != null
+              ? R.noseRing.lv[k].zC : R.noseRing.lv[k].z;
+            lv3[k].zC = az + (bz - az) * t2;
+          }
+        }
+        tw = prepNose({ name: 'noseTwin', lv: lv3 });
+      } else {
+        tw = prepNose(R.noseTwin);
+        // THE PILLAR FOLLOWS THE ACTIVE CURVE (user, red/green
+        // sketch): the twin and the nose ring shared one constant
+        // crown, so the pillar band was a FLAT segment interrupting
+        // the eased deck profile. The twin's deck centre now takes
+        // the cowl profile's own value at its z (same ease law as
+        // the loops); identity when the chain and ring crowns
+        // already agree (template path).
+        const yCw = wsLow.waist.yC, yCr = R.noseRing.lv.waist.yC;
+        if (Math.abs(yCw - yCr) > 1e-9) {
+          const zw = wsLow.waist.z, zr = R.noseRing.lv.waist.z;
+          const t = Math.max(0, Math.min(1, (tw.lv.waist.z - zw) /
+            ((zr - zw) || 1e-9)));
+          const e = t * (1 - cowl.ease)
+                  + (1 - Math.sqrt(Math.max(0, 1 - t * t))) * cowl.ease;
+          tw.lv.waist = { ...tw.lv.waist, yC: yCw + (yCr - yCw) * e };
+        }
+      }
+      noseSeq.push(tw);
+    }
     noseSeq.push(prepNose(R.noseRing));
     const nIds = noseSeq.map((r, i) => mkIds(r, i === noseSeq.length - 1));
 
@@ -953,7 +1044,8 @@ function buildCage2(S, step) {
     lowSets.push({ a: { P: a.P, M: a.M, C: { waist: chain.waist, keel: a.C.keel } },
                    b: nIds[0], mat: CAGE_MAT.plain, deck: 'body' });
     for (let i = 0; i + 1 < nIds.length; i++) {
-      const pf = !aeroFin && noseSeq[i + 1].name === 'noseRing';
+      const pf = noseSeq[i].name === 'noseTwin'
+              && noseSeq[i + 1].name === 'noseRing';
       lowSets.push({ a: nIds[i], b: nIds[i + 1],
                      mat: pf ? CAGE_PILLAR('pillarFront') : CAGE_MAT.plain,
                      deck: pf ? 'pillarFront' : 'body' });
@@ -972,9 +1064,15 @@ function buildCage2(S, step) {
       }
       face(s.a.P.keel, s.b.P.keel, s.b.C.keel, s.a.C.keel, s.mat.belly);
       face(s.a.C.keel, s.b.C.keel, s.b.M.keel, s.a.M.keel, s.mat.belly);
-      // the sill continues as the cowl deck edge
-      if (E) { tagE(s.a.P.waist, s.b.P.waist, CW.sill);
-               tagE(s.a.M.waist, s.b.M.waist, CW.sill); }
+      // the sill continues as the cowl deck edge — with its OWN weight
+      // when set (user: the deck must be able to smooth out while the
+      // cabin sill stays creased; -1 follows crSill = fit identity)
+      if (E) {
+        const wS = CW.sillNose != null && CW.sillNose >= 0
+          ? CW.sillNose : CW.sill;
+        tagE(s.a.P.waist, s.b.P.waist, wS);
+        tagE(s.a.M.waist, s.b.M.waist, wS);
+      }
     }
 
     // nose cap grid
@@ -982,6 +1080,7 @@ function buildCage2(S, step) {
       const o = nIds[nIds.length - 1];
       const pres = lowOrd.filter(k => o.P[k] != null);
       const engineCap = !aeroFin;      // engine aperture face -> firewall
+      const capF0 = F.length;
       for (let k = 0; k < pres.length - 1; k++) {
         const hi = pres[k], lo = pres[k + 1];
         const m = hi === 'floor' ? 'floorLoop' : 'body';
@@ -990,6 +1089,10 @@ function buildCage2(S, step) {
         if (engineCap && creaseMode)
           F[F.length - 1].capFace = F[F.length - 2].capFace = 1;
       }
+      // the mirrored copy of this cap is SKIPPED — the boom extrudes
+      // from the open aft aperture instead
+      if (MIR) mirAp = { o, r: noseSeq[noseSeq.length - 1],
+                         capF0, capF1: F.length };
     }
     // nose ring creases: the twin band is a pillar, the end ring a cap edge
     // (own family so a round nose can dome while the tail cap stays crisp);
@@ -1000,13 +1103,208 @@ function buildCage2(S, step) {
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });
   }
-  if (E) tagLoop(ids[0], seq[0], CW.cap);        // tail cap edge
+  if (E && !MIR) tagLoop(ids[0], seq[0], CW.cap);      // tail cap edge
+
+  // ---- MIRRORED POD (user design, G18 S2) ---------------------------------
+  // The aft half is the front half REFLECTED about the cabin-pillar
+  // mid-plane: the aft deck falls away exactly like the nose rises,
+  // which no cutaway can produce. The mirror is INITIAL GEOMETRY only
+  // (per-half controls are a later chantier) and happens at the
+  // emitted-cage level, so the slope/cowl/nose machinery runs once,
+  // forward, and every material, zone mark and crease tag reflects by
+  // construction. The pilCabB ring pair bridges into the ARCEAU (the
+  // central pillar band — v1 keeps it as real structure; the
+  // single-loop collapse is the S4 chantier). The mirrored aperture
+  // keeps no cap: the BOOM extrudes from it ("stick the boom in place
+  // of the engine", user), tapering to a tip drawn from the tail
+  // params.
+  if (MIR && !(S.config && S.config.mirrorHalfOnly)) {
+    // S2.5 — PER-HALF CONTROLS: with aft overrides the reflected half
+    // is a SECOND EMISSION of the front block from the substituted
+    // spec (config.mirrorAftSpec) — mirroring stays the initial
+    // geometry only, each half owns its params. Without overrides the
+    // half reflects itself (the bit-identical S2 path). The reflection
+    // constant aligns the SOURCE's pilCabB ring onto the arceau's aft
+    // edge whatever the source's own z layout (aftPilotLen moves it).
+    const SA = S.config.mirrorAftSpec;
+    let sV = V, sF = F, sE = E, sAp = mirAp, sIds0 = ids[0],
+        sDR = dashRim, sSS = seamS,
+        zBs = R.mirrorZ + S.cabinPillarW / 2;
+    if (SA) {
+      const half = buildCage2(SA, step);
+      sV = half.V; sF = half.F; sE = half.E || null;
+      sAp = half._mirAp; sIds0 = half._ids0; zBs = half._zB;
+      sDR = half.dashRim || []; sSS = half.seamS || [];
+    }
+    const zBm = R.mirrorZ + S.cabinPillarW / 2;
+    const CZ = zBm - S.cabinPillarW + zBs;
+    const rz = z => CZ - z;
+    const nF0 = sF.length;
+    const map = new Map();
+    const mOf = i => {
+      if (!map.has(i)) {
+        const p = sV[i];
+        map.set(i, P(p[0], p[1], rz(p[2])));
+      }
+      return map.get(i);
+    };
+    for (let i = 0; i < nF0; i++) {
+      if (sAp && i >= sAp.capF0 && i < sAp.capF1) continue;
+      const f = sF[i];
+      // the aft twin band IS the pod's passenger pillar (user) — it
+      // reads as one in the sections legend and to the interior
+      const nf = { v: f.v.slice().reverse().map(mOf),
+                   m: f.m === 'pillarFront' ? 'pillarPassenger' : f.m };
+      if (f.win) nf.win = 1;
+      F.push(nf);
+    }
+    // S3 — the pod bubble's seam lives on BOTH halves: the records
+    // reflect through the vertex map. dashRimA = the aft screen's base
+    // arc (the canopy's rear boundary, taking the arch's role), seamSA
+    // = the aft sill rails (cageCanopy merges them with the front's
+    // across the arceau).
+    for (const [a, b] of sDR)
+      if (map.has(a) && map.has(b))
+        dashRimA.push([map.get(a), map.get(b)]);
+    for (const [a, b] of sSS)
+      if (map.has(a) && map.has(b))
+        seamSA.push([map.get(a), map.get(b)]);
+    // the ARCEAU: bridge seq[0] (pilCabB) to the source half's pilCabB
+    // reflection with the pillar band materials — the generic bay
+    // idiom on the ring pair. The cabin section params are shared, so
+    // the two rings are identical and the band is a clean prism. The
+    // mirrored ring builds through mOf (create-on-demand): in bubble
+    // mode the source's upper ring verts are face-orphaned (the skin
+    // above the seam is cut), yet the hoop still spans them — and this
+    // runs BEFORE the crease copy so the hoop's loop tags reflect too.
+    const o = ids[0], r0 = seq[0];
+    const mo = { P: {}, M: {}, C: {} };
+    for (const g of ['P', 'M', 'C'])
+      for (const k in sIds0[g]) mo[g][k] = mOf(sIds0[g][k]);
+    if (E && sE) for (const [k, w] of [...sE]) {
+      const [a, b] = k.split('_').map(Number);
+      if (map.has(a) && map.has(b)) tagE(map.get(a), map.get(b), w);
+    }
+    const pm = CAGE_PILLAR('pillarCabin');
+    face(mo.C.roof, o.C.roof, o.P.roof, mo.P.roof, pm.roof);
+    face(mo.M.roof, o.M.roof, o.C.roof, mo.C.roof, pm.roof);
+    const shA = ordOf(r0);
+    for (let k = 0; k + 1 < shA.length; k++) {
+      const hi = shA[k], lo = shA[k + 1], m2 = bandMat(pm, hi, lo);
+      face(mo.P[hi], o.P[hi], o.P[lo], mo.P[lo], m2);
+      face(mo.M[lo], o.M[lo], o.M[hi], mo.M[hi], m2);
+    }
+    face(mo.P.keel, o.P.keel, o.C.keel, mo.C.keel, pm.belly);
+    face(mo.C.keel, o.C.keel, o.M.keel, mo.M.keel, pm.belly);
+    // BOOM from the mirrored aperture: sections lerp the aperture
+    // levels to a tip section drawn from the tail params, z marching
+    // aft over boomLen + tailLen; smooth stations (CC fairs the cone),
+    // capped and cap-creased at the tip only.
+    if (sAp) {
+      const ap = sAp.r.lv;
+      const apIds = { P: {}, M: {}, C: {} };
+      for (const g of ['P', 'M', 'C'])
+        for (const k in sAp.o[g])
+          if (map.has(sAp.o[g][k]))
+            apIds[g][k] = map.get(sAp.o[g][k]);
+      const tipY = { waist: S.tail.roofY, floor: S.tail.floorY,
+                     keel: S.tail.keelY };
+      const dzB = S.boom.len + S.tail.len;
+      const mk2 = (lv2, cap2) => {
+        const o2 = { P: {}, M: {}, C: {} };
+        for (const k in lv2) {
+          const l = lv2[k];
+          o2.P[k] = P(l.x, l.y, l.z);
+          o2.M[k] = P(-l.x, l.y, l.z);
+          if (k === 'waist' || k === 'keel' || cap2)
+            o2.C[k] = P(0, l.yC != null ? l.yC : l.y,
+                        l.zC != null ? l.zC : l.z);
+        }
+        return o2;
+      };
+      // stations mirror the regular tail (user: "the pod's boom is
+      // the boom without the top part — it needs the same pillar"):
+      // smooth boom run, then the TAIL PILLAR BAND over pillarW, then
+      // the cone over tailLen to the capped tip. The band takes
+      // pillarTail + the pillar crease on both rings, so the
+      // interior's band machinery gives the pod a tail frame exactly
+      // like the regular plane's.
+      const pwT = S.pillarW > 0 ? S.pillarW : 0.05 * S.tail.len;
+      const tPost = Math.min(0.92, S.boom.len / dzB);
+      const tMid = Math.max(0.05, tPost - pwT / dzB);
+      const stations = [
+        { t: tMid * 0.45 }, { t: tMid * 0.78 }, { t: tMid },
+        { t: tPost, band: 1 }, { t: 1, cap: 1 },
+      ];
+      let pa = apIds, paLv = null;
+      for (const st of stations) {
+        const t = st.t;
+        const lv2 = {};
+        for (const k of ['waist', 'floor', 'keel']) {
+          const l = ap[k];
+          if (!l) continue;
+          lv2[k] = { x: l.x + (S.tail.halfW - l.x) * t,
+                     y: l.y + (tipY[k] - l.y) * t,
+                     z: rz(l.z) - dzB * t };
+          if (l.yC != null) lv2[k].yC = l.yC + (tipY[k] - l.yC) * t;
+          if (l.zC != null) lv2[k].zC = rz(l.zC) - dzB * t;
+        }
+        if (sv >= 2 && lv2.waist && lv2.floor)
+          lv2.waistG = lerpLv(lv2.waist, lv2.floor, S.gWaistT);
+        const pb = mk2(lv2, !!st.cap);
+        const mDk = st.band ? 'pillarTail' : 'body';
+        face(pa.P.waist, pb.P.waist, pb.C.waist, pa.C.waist, mDk);
+        face(pa.C.waist, pb.C.waist, pb.M.waist, pa.M.waist, mDk);
+        const shB = LV.filter(k => pa.P[k] != null && pb.P[k] != null
+          && (k === 'waist' || k === 'waistG' || k === 'floor'
+              || k === 'keel'));
+        for (let k2 = 0; k2 + 1 < shB.length; k2++) {
+          const hi = shB[k2], lo = shB[k2 + 1];
+          const m2 = st.band ? 'pillarTail'
+            : hi === 'floor' ? CAGE_MAT.plain.floorB
+            : CAGE_MAT.plain.door;
+          face(pa.P[hi], pb.P[hi], pb.P[lo], pa.P[lo], m2);
+          face(pa.M[lo], pb.M[lo], pb.M[hi], pa.M[hi], m2);
+        }
+        const mBl = st.band ? 'pillarTail' : CAGE_MAT.plain.belly;
+        face(pa.P.keel, pb.P.keel, pb.C.keel, pa.C.keel, mBl);
+        face(pa.C.keel, pb.C.keel, pb.M.keel, pa.M.keel, mBl);
+        if (E && st.band) {
+          if (paLv) tagLoop(pa, { lv: paLv }, CW.pillar);
+          tagLoop(pb, { lv: lv2 }, CW.pillar);
+        }
+        if (st.cap) {
+          const pres2 = ['waist', 'waistG', 'floor', 'keel']
+            .filter(k => pb.P[k] != null);
+          for (let k2 = 0; k2 + 1 < pres2.length; k2++) {
+            const hi = pres2[k2], lo = pres2[k2 + 1];
+            const m2 = hi === 'floor' ? 'floorLoop' : 'body';
+            face(pb.P[hi], pb.P[lo], pb.C[lo], pb.C[hi], m2);
+            face(pb.C[hi], pb.C[lo], pb.M[lo], pb.M[hi], m2);
+          }
+          if (E) tagLoop(pb, { lv: lv2 }, CW.cap);
+        }
+        pa = pb; paLv = lv2;
+      }
+    }
+  }
 
   orientCage({ V, F });
   const out = E ? { V, F, E } : { V, F };
   if (dashRim.length) out.dashRim = dashRim;
   if (seamS.length) out.seamS = seamS;
   if (seamA.length) out.seamA = seamA;
+  if (dashRimA.length) out.dashRimA = dashRimA;
+  if (seamSA.length) out.seamSA = seamSA;
+  // half-only emission (the S2.5 aft-spec recursion): hand the caller
+  // what the reflection needs — the aperture cap range, the pilCabB
+  // ring ids, and this build's own pillar-plane z
+  if (MIR && S.config && S.config.mirrorHalfOnly) {
+    out._mirAp = mirAp;
+    out._ids0 = ids[0];
+    out._zB = R.mirrorZ + S.cabinPillarW / 2;
+    return out;
+  }
   if (creaseMode) cageWindows(out, S);
   // NOTE: cageRims is NOT called here — the rim joints are swept from the
   // mesh AT ITS DISPLAYED SUBSURF LEVEL (call cageRims(mesh, spec) after
@@ -1687,10 +1985,25 @@ function cageCut(m, S) {
   // duplicates the glass verts, breaking it (user report: cut parts
   // stripped the dashboard). The waistband side keeps these vert ids.
   if (!m.wsBase) {
+    // mirrored pod: BOTH screens match this adjacency — the dash and
+    // its cross-beam belong to the FRONT one (the aft copy is the
+    // turtledeck), so the trace filters to faces forward of the arceau
+    let zSp = -1e9;
+    if (S.config && S.config.mirror) {
+      for (const f of F)
+        if (f.m === 'pillarCabin' && f.v.length === 4)
+          for (const vi of f.v) zSp = Math.max(zSp, V[vi][2]);
+      zSp -= 0.01;
+    }
     const own = new Map();
     for (const f of F) {
       if (f.v.length !== 4) continue;
       if (f.m !== 'windshield' && f.m !== 'waistband') continue;
+      if (zSp > -1e9) {
+        let cz = 0;
+        for (const vi of f.v) cz += V[vi][2] / 4;
+        if (cz < zSp) continue;
+      }
       for (let e = 0; e < 4; e++) {
         const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
         if (!own.has(k)) own.set(k, new Set());
@@ -2100,7 +2413,9 @@ function cageInterior(m, S) {
   //    seals: a composite door seals in rubber), glass excluded.
   if (I.pillars) (() => {
     const t0c = I.shellT || 0.035;
-    const t1 = t0c * 0.35;
+    // the monocoque shell depth takes skinT too (its doublers keep
+    // shellT and start on the shell face wherever it sits)
+    const t1 = I.skinT > 0 ? I.skinT : t0c * 0.35;
     const GLM2 = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
@@ -2205,6 +2520,9 @@ function cageInterior(m, S) {
       q2(cb[0], cb[1], cb[2], cb[3]);
     };
     const metalAngle = (A, B, w, axisPt) => {
+      if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
+        globalThis.CAGE_DBG.push({ k: 'metalAngle', A: A.slice(),
+          B: B.slice(), w, at: (new Error().stack.split('\n')[2] || '').trim() });
       const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
       let sd = [dn[2], 0, -dn[0]];
       const sl = Math.hypot(sd[0], sd[1], sd[2]);
@@ -2243,11 +2561,15 @@ function cageInterior(m, S) {
       if (f.door || GLM.has(f.m)) return;
       (c === 'wood' ? selPan : selPanM).push(i);
     });
-    liner(selPan, t0 * 0.4, () => 'plywood');
+    // SKIN THICKNESS (user, anti-clipping): I.skinT overrides every
+    // sheet lining's depth — a deeper lining cannot graze the skin on
+    // tight curvature. Pillars/posts/frames stay on shellT.
+    const tSk = I.skinT > 0 ? I.skinT : 0;
+    liner(selPan, tSk || t0 * 0.4, () => 'plywood');
     liner(selPil, t0 * 1.6, () => 'woodFrame');
     // the TOELE (user): the metal skin's interior is metal too — thin
     // sheet, same continuous-lining idiom
-    liner(selPanM, 0.008, () => 'aluminium');
+    liner(selPanM, tSk || 0.008, () => 'aluminium');
     // the DOOR PANEL is plywood like the tub (user): inner liner +
     // edge walls over the door's own faces, glass excluded (the pane
     // keeps its seal and its view). Rides the exploded part.
@@ -2259,8 +2581,8 @@ function cageInterior(m, S) {
       if (c === 'wood') selDoor.push(i);
       else if (c === 'metal') selDoorM.push(i);
     });
-    liner(selDoor, t0 * 0.4, () => 'plywood');
-    liner(selDoorM, 0.008, () => 'aluminium');
+    liner(selDoor, tSk || t0 * 0.4, () => 'plywood');
+    liner(selDoorM, tSk || 0.008, () => 'aluminium');
     // WOODEN BEAMS — TRUE SQUARE prisms (user ruling, second ask: the
     // chamfered octagon still read "rounded" at every level). Every
     // face carries its OWN four vertices, so the smooth-normal pass
@@ -2390,6 +2712,9 @@ function cageInterior(m, S) {
     // sized down a tad (user: the tubing poked the skin here and there)
     const TUBE_R = 0.010, TUBE_RP = 0.018;
     const tubeSeg = (A, B, r) => {
+      if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
+        globalThis.CAGE_DBG.push({ k: 'tubeSeg', A: A.slice(),
+          B: B.slice(), r, at: (new Error().stack.split('\n')[2] || '').trim() });
       const dv = [B[0]-A[0], B[1]-A[1], B[2]-A[2]];
       const dl = Math.hypot(dv[0], dv[1], dv[2]) || 1;
       const d = [dv[0]/dl, dv[1]/dl, dv[2]/dl];
@@ -2430,6 +2755,10 @@ function cageInterior(m, S) {
     const tubePath = (pts, r, closed) => {
       const N = pts.length;
       if (N < 2) return;
+      if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
+        globalThis.CAGE_DBG.push({ k: 'tubePath', A: pts[0].slice(),
+          B: pts[N - 1].slice(), n: N, closed: !!closed,
+          at: (new Error().stack.split('\n')[2] || '').trim() });
       const SS = 8;
       const tanAt = i => {
         const p = pts[i > 0 ? i - 1 : (closed ? N - 1 : 0)];
@@ -2864,16 +3193,128 @@ function cageInterior(m, S) {
       return [V[c.id][0] - n[0]*tPil/2, V[c.id][1] - n[1]*tPil/2,
               V[c.id][2] - n[2]*tPil/2];
     };
+    // slice the DISPLAYED skin at z (the boom-station idiom, shared):
+    // quads only, seals/caps out; CUT PARTS count at their AS-BUILT
+    // place (minus the recorded explode offset) so an exploded door
+    // still closes its section.
+    const sliceAt = zk => {
+      const pmap = new Map();
+      for (const f of F) {
+        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) continue;
+        const o = f.cutPart && f.cutOff ? f.cutOff : null;
+        const P4 = f.v.map(vi => o
+          ? [V[vi][0] - o[0], V[vi][1] - o[1], V[vi][2] - o[2]] : V[vi]);
+        for (let e = 0; e < 4; e++) {
+          const a = P4[e], b = P4[(e + 1) % 4];
+          const za = a[2] - zk, zb = b[2] - zk;
+          if (Math.abs(za) < 1e-9) pmap.set('v' + f.v[e], [a[0], a[1], zk]);
+          if (za * zb >= 0) continue;
+          const key = 'e' + cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+          if (pmap.has(key)) continue;
+          const t = za / (za - zb);
+          pmap.set(key, [a[0] + (b[0] - a[0]) * t,
+                         a[1] + (b[1] - a[1]) * t, zk]);
+        }
+      }
+      const pts = [...pmap.values()];
+      if (pts.length < 8) return null;
+      let cx = 0, cy = 0;
+      for (const p of pts) { cx += p[0] / pts.length;
+                             cy += p[1] / pts.length; }
+      return { pts, cx, cy };
+    };
+    // belly-corner nodes sliced from the displayed mesh between two
+    // stations (bubble: the window band is deleted, so the chine needs
+    // on-skin support across the cockpit span instead of one chord).
+    // `d` = inboard pull; a 4 cm spruce beam needs its CENTRE deeper
+    // than the standard 1 cm or its flank pokes the skin (pod belly).
+    const chineSamples = (zA, zB, sx, d) => {
+      const dd = d || 0.01;
+      const out = [];
+      const z0 = Math.min(zA, zB), z1 = Math.max(zA, zB);
+      const n = Math.max(0, Math.round((z1 - z0) / 0.45) - 1);
+      for (let k = 1; k <= n; k++) {
+        const sec = sliceAt(z0 + (z1 - z0) * k / (n + 1));
+        if (!sec) continue;
+        let best = null, bv = -1e9;
+        for (const p of sec.pts) {
+          const s = sx * p[0] - p[1];
+          if (sx * p[0] > 0 && s > bv) { bv = s; best = p; }
+        }
+        if (best) {
+          const dx = -best[0], dy = sec.cy - best[1];
+          const l = Math.hypot(dx, dy) || 1;
+          out.push([best[0] + dx / l * dd, best[1] + dy / l * dd,
+                    best[2]]);
+        }
+      }
+      return out;
+    };
+    // land an extrapolated stringer head ON the displayed hull. The
+    // straight continuation keeps its height (the aft-shoulder rule),
+    // but its raw x follows the boom's widening trend and can miss the
+    // hull sideways (measured 8 cm proud on the jodel defaults) — a
+    // head OUTSIDE the sliced section snaps to the nearest section
+    // point, inset radially; heads already inside (the no-shoulder
+    // identity) return null and stay untouched.
+    const landSec = (p, inset) => {
+      const sec = sliceAt(p[2]);
+      if (!sec) return null;
+      let best = null, bv = 1e9;
+      for (const q of sec.pts) {
+        if (p[0] !== 0 && q[0] * p[0] < 0) continue;
+        const d2 = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2;
+        if (d2 < bv) { bv = d2; best = q; }
+      }
+      if (!best) return null;
+      const rH = Math.hypot(p[0] - sec.cx, p[1] - sec.cy);
+      const rB = Math.hypot(best[0] - sec.cx, best[1] - sec.cy);
+      if (rH <= rB - inset) return null;
+      const dx = sec.cx - best[0], dy = sec.cy - best[1];
+      const l = Math.hypot(dx, dy) || 1;
+      return [best[0] + dx / l * inset, best[1] + dy / l * inset, p[2]];
+    };
     for (let i = 0; i + 1 < bandEnds.length; i++) {
       // bubble (user: "the aluminium option screws up with the front
       // tubes"): the window-pillar band is DELETED, so the pair from
       // the cabin band to the NOSE band would span the whole cockpit
       // in one straight chord — the L-angles shot out of the curved
-      // belly. An open cockpit carries no flank stringers through the
-      // opening IRL either: skip the pair that crosses it.
+      // belly. The WAIST-level rails stay out (an open cockpit carries
+      // no flank stringers through the opening IRL) but the BELLY
+      // chine is real structure: it reattaches to the nose's bottom
+      // corners SWEPT along the displayed hull, its nodes sliced
+      // post-subsurf (user ruling). Tube chines live in the chn
+      // machinery below and get the same samples there. On the POD
+      // every bay flanks the open cockpit, so every pair takes this
+      // branch (S5).
       if (S.config && S.config.canopy
           && S.config.canopy.mode === 'bubble'
-          && bandEnds[i + 1].isFront) continue;
+          && (bandEnds[i + 1].isFront
+              || (S.config && S.config.mirror))) {
+        const ba2 = bandEnds[i], bb2 = bandEnds[i + 1];
+        for (const k2 of ['P', 'M']) {
+          const At = ba2.mid[k2], Bt = bb2.mid[k2];
+          if (!At || !Bt) continue;
+          const c = consAt((At[1] + Bt[1]) / 2, (At[2] + Bt[2]) / 2);
+          if (!woodLike(c)) continue;
+          const A0 = ba2.fwd[k2], B0 = bb2.aft[k2];
+          const wA = c === 'metal' ? inCtr(At, ba2.cy)
+            : A0 && A0.id != null ? inCtr(cenP(A0), ba2.cy) : null;
+          const wB = c === 'metal' ? inCtr(Bt, bb2.cy)
+            : B0 && B0.id != null ? inCtr(cenP(B0), bb2.cy) : null;
+          if (!wA || !wB) continue;
+          const sx = k2 === 'P' ? 1 : -1;
+          const run = [wA, ...chineSamples(ba2.zm, bb2.zm, sx,
+            c === 'metal' ? 0.01 : 0.01 + cB / 2), wB];
+          for (let s2 = 0; s2 + 1 < run.length; s2++) {
+            if (c === 'metal')
+              metalAngle(run[s2], run[s2 + 1], 0.03,
+                         [0, (ba2.cy + bb2.cy) / 2]);
+            else beam(run[s2], run[s2 + 1], cB, cB);
+          }
+        }
+        continue;
+      }
       const a = bandEnds[i].fwd, b = bandEnds[i + 1].aft;
       const midA = bandEnds[i].mid, midB = bandEnds[i + 1].mid;
       const ba = bandEnds[i], bb = bandEnds[i + 1];
@@ -3421,13 +3862,23 @@ function cageInterior(m, S) {
           // straight sections are unchanged.
           const preLine = (arr, node) => {
             if (arr.length >= 2 && bandEnds.length > 1) {
+              // bubble: bandEnds[1] can be the NOSE band (the window
+              // band is deleted and there may be no pax bay) — the
+              // line would extrapolate metres ahead of the boom. The
+              // head lands on the nearest forward frame instead; the
+              // swept belly run (band-pairs loop) carries the chine
+              // on to the nose corners.
+              const bT = S.config && S.config.canopy
+                  && S.config.canopy.mode === 'bubble'
+                  && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1];
               const A = arr[0].p, B = arr[1].p;
               const dz = A[2] - B[2];
               if (Math.abs(dz) > 1e-6) {
-                const t = (bandEnds[1].zm - A[2]) / dz;
-                arr.unshift({ p: [A[0] + (A[0] - B[0]) * t,
-                                  A[1] + (A[1] - B[1]) * t,
-                                  bandEnds[1].zm], d: arr[0].d });
+                const t = (bT.zm - A[2]) / dz;
+                const ep = [A[0] + (A[0] - B[0]) * t,
+                            A[1] + (A[1] - B[1]) * t, bT.zm];
+                arr.unshift({ p: landSec(ep, 0.009) || ep,
+                              d: arr[0].d });
                 return;
               }
             }
@@ -3493,12 +3944,21 @@ function cageInterior(m, S) {
         // longerons landing on a frame from both sides, as built IRL.
         const boomRun = ch => {
           if (ch.length >= 2 && bandEnds.length > 1) {
+            // same target + landing rules as the metal preLine: in
+            // bubble mode a front bandEnds[1] means no intermediate
+            // frame — land on bandEnds[0]'s own plane; and a head
+            // that misses the hull sideways snaps onto the sliced
+            // section (no-shoulder heads stay put).
+            const bT = S.config && S.config.canopy
+                && S.config.canopy.mode === 'bubble'
+                && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1];
             const A = ch[0], B = ch[1];
             const dz = A[2] - B[2];
             if (Math.abs(dz) > 1e-6) {
-              const t = (bandEnds[1].zm - A[2]) / dz;
-              return [[A[0] + (A[0] - B[0]) * t, A[1] + (A[1] - B[1]) * t,
-                       bandEnds[1].zm], ...ch];
+              const t = (bT.zm - A[2]) / dz;
+              const ep = [A[0] + (A[0] - B[0]) * t,
+                          A[1] + (A[1] - B[1]) * t, bT.zm];
+              return [landSec(ep, BOOM_IN) || ep, ...ch];
             }
           }
           const b0c = bandEnds[0];
@@ -3507,6 +3967,25 @@ function cageInterior(m, S) {
           return node ? [inCtr(node, b0c.cy), ...ch] : ch;
         };
         const chnPb = boomRun(botCh[0]), chnMb = boomRun(botCh[1]);
+        // bubble: the deleted window band leaves the nose->cabin chine
+        // span unsupported — the chord dived off the curved belly
+        // (user strays). Sampled belly nodes fill the span; with no
+        // intermediate frame at all (no pax bay) the swept run carries
+        // the chine from the nose corner onto the boom run's landing.
+        if (S.config && S.config.canopy
+            && S.config.canopy.mode === 'bubble'
+            && bandEnds.length > 1
+            && bandEnds[bandEnds.length - 1].isFront) {
+          const zF = bandEnds[bandEnds.length - 1].zm;
+          for (const [ch, chb, sx] of [[chnP, chnPb, 1],
+                                       [chnM, chnMb, -1]]) {
+            if (ch.length >= 2)
+              ch.splice(1, 0, ...chineSamples(ch[1][2], zF, sx).reverse());
+            else if (ch.length === 1 && chb.length)
+              ch.push(...chineSamples(chb[0][2], zF, sx).reverse(),
+                      chb[0]);
+          }
+        }
         // the MAIN lines are as thick as the pillars (user): waistband
         // longeron + bottom-corner longeron at TUBE_RP; the rest slim
         for (const ch of [...runsP, ...runsM, chnP, chnM, chnPb, chnMb])
@@ -3544,7 +4023,7 @@ function cageInterior(m, S) {
         if (c === 'tube' || (c === 'wood' && !covered.has(i)))
           selC.push(i);
       });
-      liner(selC, 0.006, () => 'cloth');
+      liner(selC, (I.skinT > 0 ? I.skinT : 0.006), () => 'cloth');
     })();
     }
   })();
@@ -4238,7 +4717,8 @@ function cageSubdivide(m) {
   const out = { V: NV, F: NF, E: NE };
   // recorded seam lines (open/bubble modes) survive subdivision: each
   // parent edge becomes its two children through the edge point
-  for (const key of ['dashRim', 'seamS', 'seamA']) if (m[key]) {
+  for (const key of ['dashRim', 'seamS', 'seamA', 'dashRimA', 'seamSA'])
+    if (m[key]) {
     out[key] = [];
     for (const [a, b] of m[key]) {
       const ep = epIdx.get(cageEdgeKey(a, b));
@@ -4356,6 +4836,68 @@ const CAGE_PARAMS = {
   // bubble width: 1 = flush arcs; >1 bulges the crown shoulders past
   // the flanks (blown canopy) — the feet stay on the sills
   bubW: 1.0,
+  // CANOPY CONTROL LOOPS (G18 S1, user ask): 1 = the single crown arc
+  // (bubH/bubAt/bubW, the v4 path exactly); 2-3 add control arcs with
+  // their own station/height/width — the column profile becomes a
+  // Bezier through all of them (loops are CONTROLS, not interpolated —
+  // the control-cage idiom).
+  canLoops: 1, bubH2: 0.7, bubAt2: 0.25, bubW2: 1.0,
+  bubH3: 0.6, bubAt3: 0.7, bubW3: 1.0,
+  // ARCEAU FIT (user, replacing the S4 collapse): the hoop's upper
+  // profile projects onto the canopy's own section and tucks one
+  // glass-gap inside — it hugs the bubble whatever the loops do
+  arcFit: 1,
+  // AERO NOSE TO A POINT (user: the aero finish kept a flat
+  // engine-sized face): collapses the aero ring onto the deck point.
+  // 0 = template ring, 0.98 max keeps the cap grid non-degenerate —
+  // visually a point, CC rounds it. Aft twin for the pod's tail cone.
+  noseTip: 0, aftNoseTip: -1,
+  // DECK-EDGE CREASE split from the cabin sill (user: the deck would
+  // not smooth out — the cowl deck edge carried the global crSill):
+  // -1 = follow crSill (fit identity); explicit 0..3 creases the nose
+  // deck edge alone, aft twin for the pod's aft deck.
+  crSillNose: -1, aftCrSillNose: -1,
+  // RING WIDTHS (user: halfW scales everything proportionally — the
+  // belly could not fatten locally): per-ring flank width offsets in
+  // metres (waist + keel; the roof width stays with roofHalfW). Cabin
+  // pillar = the arceau on the pod (shared, no aft twin); window /
+  // screen / cowl loops get aft twins for the pod's mirrored stations.
+  ringCabW: 0, ringWinW: 0, ringScrW: 0, ringCowl1W: 0, ringCowl2W: 0,
+  aftRingWinW: -1, aftRingScrW: -1, aftRingCowl1W: -1,
+  aftRingCowl2W: -1,
+  // MIRRORED POD (G18 S2, user design): the aft body = the front half
+  // [cabin|slope|cowl|nose] REFLECTED about the cabin-pillar mid-plane
+  // (the arceau), boom extruded from the mirrored engine aperture. The
+  // aft deck falls away exactly like the nose rises — the base a true
+  // stick-out bubble needs, which no cutaway can give. 0 = fit path.
+  mirror: 0,
+  // AFT POD OVERRIDES (S2.5): the mirrored half re-emits the front
+  // block with these substituted for their front params — mirroring is
+  // the INITIAL geometry only (user ruling). -1 (below each param's
+  // floor) = follow the front value. Only read with mirror 1.
+  aftPilotLen: -1, aftWsRun: -1, aftNoseLen: -1, aftNoseW: -1,
+  aftNoseH: -1, aftDroop: -1, aftNoseCrown: -1, aftCowlEase: -1,
+  aftCowlBulge: -1,
+  // ...completed to the FULL front set (user: "all controls just
+  // needed to be duplicated"): the aft deck + aft cabin mirror the
+  // nose + cabin sections control for control
+  aftWsBaseLift: -1, aftWsTopOff: -1, aftWsBaseBow: -1,
+  aftWsCeilBow: -1, aftCowlLoops: -1,
+  // RING EDITOR (G18, user design): the aeroplane's shape = RINGS
+  // (cross-sections) + LONGERONS (the rails through them). These move
+  // a main ring's TOP (roof+ceil) or BOTTOM (keel+floor) points
+  // bodily, in metres — direct cage manipulation, 0 = fit identity.
+  // The aft/tail rings already carry absolute height params (aftRoofY/
+  // aftKeelY/tailRoofY/tailKeelY); the waist and band lines are
+  // longerons and never move with a ring.
+  ringNoseBot: 0, ringScrBot: 0, ringWinTop: 0, ringWinBot: 0,
+  ringCabTop: 0, ringCabBot: 0,
+  // nose-ring TOP = the deck at the nose/aperture pair (twin+ring):
+  // lifts waist + crown there only — orthogonal to droop (whole end)
+  // and to ringNoseBot (keel/floor). On the pod the AFT twin raises
+  // the "passenger pillar" so the deck curve runs continuously to the
+  // tail (user ask); the boom inherits the lifted aperture.
+  ringNoseTop: 0, aftRingNoseTop: -1, aftRingNoseBot: -1,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
@@ -4363,6 +4905,12 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
+  // SKIN THICKNESS (user, anti-clipping): the sheet linings' inward
+  // depth — plywood/toele/cloth/composite shell — separated from
+  // shellT (which keeps the pillars, posts and frames). 0 = the
+  // per-construction defaults; raise it to pull every lining
+  // conservatively deeper wherever panels graze the skin.
+  skinT: 0,
   // construction idiom: 0 carbon (pillars+shell liner), 1 tube (welded
   // truss), 2 wood (plywood bathtub + pillar posts + floorboards)
   intCons: 0,
@@ -4371,6 +4919,33 @@ const CAGE_PARAMS = {
   // G14: post-subsurf cutting of doors/windows into separate parts
   cutParts: 0, explodeD: 0,
 };
+
+// aft-param table: [aftKey, frontKey, sentinel-threshold] — used by
+// cageSpec (substitution into the aft half's spec) and by the pages'
+// FOREVER-SPLIT (user ruling): the moment the pod is on, aft sliders
+// still below their threshold take a ONE-SHOT copy of the front's
+// current value and are independent from then on.
+const CAGE_AFT_SUB = [
+  ['aftPilotLen', 'pilotLen', 0.1], ['aftWsRun', 'wsRun', 0.1],
+  ['aftNoseLen', 'noseLen', 0.1], ['aftNoseW', 'noseW', 0.2],
+  ['aftNoseH', 'noseH', 0.02], ['aftDroop', 'noseDroop', -0.5],
+  ['aftNoseCrown', 'noseCrown', -0.01],
+  ['aftCowlEase', 'cowlEase', -0.01],
+  ['aftCowlBulge', 'cowlBulge', 0.2],
+  ['aftWsBaseLift', 'wsBaseLift', -0.01],
+  ['aftWsTopOff', 'wsTopOff', -0.01],
+  ['aftWsBaseBow', 'wsBaseBow', -0.01],
+  ['aftWsCeilBow', 'wsCeilBow', -0.01],
+  ['aftCowlLoops', 'cowlLoops', -0.5],
+  ['aftRingNoseTop', 'ringNoseTop', -0.5],
+  ['aftRingNoseBot', 'ringNoseBot', -0.5],
+  ['aftNoseTip', 'noseTip', -0.01],
+  ['aftCrSillNose', 'crSillNose', -0.5],
+  ['aftRingWinW', 'ringWinW', -0.5],
+  ['aftRingScrW', 'ringScrW', -0.5],
+  ['aftRingCowl1W', 'ringCowl1W', -0.5],
+  ['aftRingCowl2W', 'ringCowl2W', -0.5],
+];
 
 function cageSpec(P) {
   const T = CAGE_DEFAULT, S = JSON.parse(JSON.stringify(T));
@@ -4393,7 +4968,8 @@ function cageSpec(P) {
               sillPax: Math.max(0, P.winSillPax || 0) };
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
-               frontCap: P.crFrontCap, noseCap: P.crNoseCap };
+               frontCap: P.crFrontCap, noseCap: P.crNoseCap,
+               sillNose: P.crSillNose };
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
     rearAperture: P.rearAperture ? 1 : 0,
@@ -4412,6 +4988,15 @@ function cageSpec(P) {
             'closed',
       ref: 'band',
       h: P.bubH, at: P.bubAt, w: P.bubW,
+      fit: P.arcFit == null || P.arcFit ? 1 : 0,
+      // S1: 2-3 control loops, sorted front->aft (at counts from the
+      // aft side, so descending at = ascending station)
+      loops: Math.round(P.canLoops || 1) >= 2 ? [
+        { at: P.bubAt, h: P.bubH, w: P.bubW },
+        { at: P.bubAt2, h: P.bubH2, w: P.bubW2 },
+      ].concat(Math.round(P.canLoops) >= 3
+        ? [{ at: P.bubAt3, h: P.bubH3, w: P.bubW3 }] : [])
+        .sort((a, b) => b.at - a.at) : 0,
     } : 0,
   };
   S.ws.baseLift = P.wsBaseLift;
@@ -4554,6 +5139,60 @@ function cageSpec(P) {
   S.nose.twin = mkN(nt, nz - (P.pillarW > 0
     ? P.pillarW * P.pfW : P.pfW * (nr.deck.z - nt.deck.z)));
   S.nose.droop = P.noseDroop;
+  // RING EDITOR (user design): direct manipulation of the main rings'
+  // top/bottom points — the plane's shape is rings + longerons, so
+  // the cross-sections get hand controls. RIGID shifts: top moves
+  // roof+ceil, bottom moves keel+floor (+ their centre columns); the
+  // waist/band lines are longerons and stay put. All 0 = fit
+  // identity. The aft/tail rings are already absolute params
+  // (aftRoofY/aftKeelY/tailRoofY/tailKeelY) — this covers the front
+  // rings: nose (ring+twin pair), screen base (wsFront+wsAft pair),
+  // window ring, cabin pillar (pair, via ringOff -> cageResolve).
+  {
+    const dWT = P.ringWinTop || 0, dWB = P.ringWinBot || 0;
+    if (dWT) { S.ring.roofY = P.roofY + dWT; S.ring.ceilY += dWT; }
+    if (dWB) { S.ring.keelY += dWB; S.ring.floorY += dWB; }
+    const dCT = P.ringCabTop || 0, dCB = P.ringCabBot || 0;
+    const dCW = P.ringCabW || 0, dWW = P.ringWinW || 0;
+    const dSW = P.ringScrW || 0;
+    const cw1 = P.ringCowl1W || 0, cw2 = P.ringCowl2W || 0;
+    if (dCT || dCB || dCW || dWW || dSW || cw1 || cw2)
+      S.ringOff = { cabT: dCT, cabB: dCB, cabW: dCW, winW: dWW,
+                    scrW: dSW, cowl: [cw1, cw2] };
+    const dS2 = P.ringScrBot || 0;
+    if (dS2) {
+      F.keelY += dS2; F.floorY += dS2;
+      A.keel.y += dS2; A.floorY += dS2;
+    }
+    if (dSW) { F.waist.x += dSW; A.waist.x += dSW; }
+    const dN = P.ringNoseBot || 0;
+    if (dN) for (const n of [S.nose.ring, S.nose.twin])
+      for (const k of ['keel', 'floor']) {
+        n[k].y += dN;
+        if (n[k].yC != null) n[k].yC += dN;
+      }
+    // nose-ring TOP: the deck y lives in cageResolve's noseLv (built
+    // from waistY/crown/droop), so the lift rides the spec as
+    // S.nose.lift and noseLv adds it to the deck levels only
+    S.nose.lift = P.ringNoseTop || 0;
+  }
+  // AERO NOSE TO A TRUE POINT (user: it kept a flat engine-sized
+  // face). noseTip collapses the aero-finish ring toward the deck
+  // point: x scales out, keel/floor converge on the deck line, the
+  // ring's crown fades (a crest spike otherwise). The twin band now
+  // STAYS in aero finish (the user's pillar): cowl -> band -> point.
+  if (P.noseFinish && P.noseTip > 0) {
+    const t = Math.min(0.98, Math.max(0, P.noseTip));
+    const n = S.nose.ring;
+    const yD = P.waistY - (S.nose.droop || 0) + (S.nose.lift || 0);
+    n.crownF = 1 - t;
+    n.deck.x *= 1 - t;
+    for (const k of ['floor', 'keel']) {
+      n[k].x *= 1 - t;
+      n[k].y += (yD - n[k].y) * t;
+      if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * t;
+    }
+  }
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW,
@@ -4569,11 +5208,61 @@ function cageSpec(P) {
                      deep: P.doorDeep ? 1 : 0 };
   S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
             explode: Math.max(0, P.explodeD || 0) };
+  // MIRRORED POD (G18 S2): v1 constraints — no pax bays, canopy closed
+  // (S3 brings the bubble to the pod), doors off (the canopy IS the
+  // door on a pod), interior off (S5 adapts it), cowl nose only. Each
+  // constraint lifts with its own chantier.
+  S.config.mirror = P.mirror ? 1 : 0;
+  if (S.config.mirror) {
+    S.pax.count = 0;
+    // S3: the pod exists FOR the bubble — it stays; conv/open remain
+    // closed on the pod until they earn their own chantier
+    if (!(S.config.canopy && S.config.canopy.mode === 'bubble'))
+      S.config.canopy = 0;
+    S.config.noseMode = 'cowl';
+    S.config.doors = { pilot: 0, pax: 0, deep: 0 };
+    // S2.5 — PER-HALF CONTROLS: any aft override below its floor means
+    // "follow the front"; if any is set, derive a FULL second spec with
+    // the substitutions and buildCage2 emits the aft half from it (the
+    // second-emission plan — never vertex surgery on the reflection).
+    // The cabin section params stay SHARED: one cockpit, so the arceau
+    // bridges two identical rings whatever the halves do. (The pages
+    // materialize sentinels on mirror-on — the FOREVER-SPLIT — so this
+    // path normally sees explicit values; sentinels remain for
+    // headless callers.)
+    const P2 = { ...P };
+    let nSub = 0;
+    for (const [ak, fk, thr] of CAGE_AFT_SUB)
+      if (P[ak] != null && P[ak] >= thr) { P2[fk] = P[ak]; nSub++; }
+    // the aft band IS the PASSENGER PILLAR (user: it responded to the
+    // nose pillar's pfW — wrong station): its width follows
+    // paxPillarW, "where the tightening for rod booms happens"; the
+    // front band keeps pfW. Warrants the second emission on its own.
+    if (P.pillarW > 0 && P.paxPillarW > 0) {
+      P2.pfW = P.paxPillarW / P.pillarW;
+      if (Math.abs(P2.pfW - P.pfW) > 1e-9) nSub++;
+    }
+    if (nSub) {
+      P2.mirror = 0;                       // no recursion below this
+      const SA = cageSpec(P2);
+      SA.pax.count = 0;
+      if (!(SA.config.canopy && SA.config.canopy.mode === 'bubble'))
+        SA.config.canopy = 0;
+      SA.config.noseMode = 'cowl';
+      SA.config.doors = { pilot: 0, pax: 0, deep: 0 };
+      SA.interior.on = 0;
+      SA.config.mirror = 1;                // the front-half table
+      SA.config.mirrorHalfOnly = 1;        // emit the half, no mirror pass
+      S.config.mirrorAftSpec = SA;
+    }
+  }
   const consG = ['carbon', 'tube', 'wood', 'metal'][
     Math.max(0, Math.min(3, Math.round(P.intCons || 0)))];
+  const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
                  pillars: P.intPillars ? 1 : 0,
+                 skinT: skinTv,
                  cons: consG,
                  // the SECTION MODEL: one technique per {boom|pax|
                  // pilot|nose} x {Below|Above band-top} — all equal to
@@ -4589,6 +5278,10 @@ function cageSpec(P) {
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease };
+  // (S5: the pod interior is LIVE — the pairs loop sweeps belly chines
+  // per bay in pod bubble, wsBase filters to the front screen, and the
+  // boom machinery idles without its stations. Known v1 gaps in
+  // HANDOVER: no boom-cone structure, no aft-belly tube chine.)
   return S;
 }
 
@@ -4608,8 +5301,124 @@ function cageSpec(P) {
 function cageCanopy(m, S) {
   const CN = S.config && S.config.canopy;
   if (!CN || CN.mode !== 'bubble') return m;
-  if (!m.dashRim || !m.seamS || !m.seamA) return m;
+  // pod (mirror) bubble: the rear boundary is the MIRRORED dash arc
+  // (dashRimA) — the arch never exists on a pod
+  const POD = !!(S.config && S.config.mirror);
+  if (!m.dashRim || !m.seamS
+      || (POD ? !(m.dashRimA && m.seamSA) : !m.seamA)) return m;
   const { V, F } = m;
+  // WAIST REINFORCEMENT AT CONSTANT SECTION (user: the band strip on
+  // the doors pinched and flared in bubble mode). The strip's TOP is
+  // the displayed seam — the canopy contract — but its BOTTOM stayed
+  // on the template waist line, so wherever the released seam departs
+  // from the template band line the width wandered (measured 0.047 to
+  // 0.083 m across the pilot door vs 0.063 nominal). Every waistband
+  // column hanging from an OPEN top edge (the cut rim — pax bays keep
+  // faces above and are untouched) is re-offset from its own top
+  // vert: bottom = top + bandH along the column, interior rows at
+  // their original fractions. Cut door parts carry their own columns,
+  // so the door strip and the fuselage rim stay coincident, exploded
+  // or not.
+  (() => {
+    const W = S.bandY - S.waistY;
+    if (!(W > 1e-6)) return;
+    const ek = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+    const own = new Map();
+    for (const f of F) {
+      const n = f.v.length;
+      for (let e = 0; e < n; e++) {
+        const k = ek(f.v[e], f.v[(e + 1) % n]);
+        own.set(k, (own.get(k) || 0) + 1);
+      }
+    }
+    // eligible tops lie ON the recorded SILL seam (seamS) — cut
+    // windows also leave once-owned band-top edges (their glass part
+    // duplicates the verts), and those bands keep their template
+    // width; the nose-deck band under the dash arc lies flat and has
+    // no meaningful "down". Door-part duplicates match the seam by
+    // their AS-BUILT position (minus the part's explode offset).
+    const seamP = [];
+    for (const rec of (m.seamSA ? [m.seamS, m.seamSA] : [m.seamS]))
+      for (const [a, b] of rec) { seamP.push(V[a]); seamP.push(V[b]); }
+    const onSeam = p => {
+      for (const q of seamP) {
+        const d = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2
+                + (q[2] - p[2]) ** 2;
+        if (d < 1e-10) return true;
+      }
+      return false;
+    };
+    const down = new Map();
+    const tops = new Set();
+    const below = new Set();
+    const voff = new Map();
+    for (const f of F)
+      if (f.m !== 'waistband') for (const vi of f.v) below.add(vi);
+    for (const f of F) {
+      if (f.m !== 'waistband' || f.v.length !== 4) continue;
+      if (f.cutPart && f.cutOff)
+        for (const vi of f.v) voff.set(vi, f.cutOff);
+      let cy = 0;
+      for (const vi of f.v) cy += V[vi][1] / 4;
+      // the strip is much longer than tall: per face, the SHORTER
+      // opposite-edge pair is the column pair — robust where the band
+      // leans up the A-pillar foot and |dy| alone misclassifies
+      const eLen = e => {
+        const a = V[f.v[e]], b = V[f.v[(e + 1) % 4]];
+        return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      };
+      const m02 = (eLen(0) + eLen(2)) / 2, m13 = (eLen(1) + eLen(3)) / 2;
+      const colPair = m02 < m13 / 1.3 ? 0 : m13 < m02 / 1.3 ? 1 : -1;
+      for (let e = 0; e < 4; e++) {
+        const a = f.v[e], b = f.v[(e + 1) % 4];
+        if (colPair === e % 2) {
+          if (V[a][1] > V[b][1]) down.set(a, b); else down.set(b, a);
+        } else if (colPair >= 0 && own.get(ek(a, b)) === 1
+                   && (V[a][1] + V[b][1]) / 2 >= cy) {
+          tops.add(a); tops.add(b);
+        }
+      }
+    }
+    for (const t of [...tops]) {
+      const o = voff.get(t);
+      const p = o ? [V[t][0] - o[0], V[t][1] - o[1], V[t][2] - o[2]]
+                  : V[t];
+      if (!onSeam(p)) tops.delete(t);
+    }
+    const done = new Set();
+    for (const t of tops) {
+      if (done.has(t)) continue;
+      const col = [t];
+      for (let v = t; down.has(v) && col.length < 12; v = down.get(v))
+        col.push(down.get(v));
+      // a valid column reaches the strip's bottom row (shared with the
+      // body flank); a chain broken by slanted classification would
+      // otherwise be stretched to the full width — skip it instead
+      if (col.length < 2 || !below.has(col[col.length - 1])) continue;
+      col.forEach(v => done.add(v));
+      const cum = [0];
+      for (let i = 1; i < col.length; i++)
+        cum.push(cum[i - 1] + Math.hypot(
+          V[col[i]][0] - V[col[i - 1]][0],
+          V[col[i]][1] - V[col[i - 1]][1],
+          V[col[i]][2] - V[col[i - 1]][2]));
+      const L = cum[col.length - 1];
+      // a column much longer than the band is a walk that escaped the
+      // strip — leave it (the seam test already rejects hoop
+      // pass-throughs; the door's front-corner FLARE at ~2.3 W is a
+      // real strip column and must equalize)
+      if (L < 1e-6 || L > 2.6 * W) continue;
+      const p0 = V[col[0]];
+      const u = [(V[col[col.length - 1]][0] - p0[0]) / L,
+                 (V[col[col.length - 1]][1] - p0[1]) / L,
+                 (V[col[col.length - 1]][2] - p0[2]) / L];
+      for (let i = 1; i < col.length; i++) {
+        const s = cum[i] / L * W;
+        V[col[i]] = [p0[0] + u[0] * s, p0[1] + u[1] * s,
+                     p0[2] + u[2] * s];
+      }
+    }
+  })();
   const chainOf = pairs => {
     const link = new Map();
     for (const [a, b] of pairs) {
@@ -4629,17 +5438,34 @@ function cageCanopy(m, S) {
     }
     return out;
   };
-  const sSb = [], sPt = [];                      // starboard x>0 / port x<0
-  for (const [a, b] of m.seamS)
-    ((V[a][0] + V[b][0]) / 2 >= 0 ? sSb : sPt).push([a, b]);
-  const front = chainOf(m.dashRim), arch = chainOf(m.seamA);
-  const railS = chainOf(sSb), railP = chainOf(sPt);
-  if (front.length < 3 || arch.length < 3
-      || railS.length < 2 || railP.length < 2) return m;
+  const split = rec => {
+    const sb = [], pt = [];
+    for (const [a, b] of rec)
+      ((V[a][0] + V[b][0]) / 2 >= 0 ? sb : pt).push([a, b]);
+    return [sb, pt];
+  };
+  const [sSb, sPt] = split(m.seamS);
+  const front = chainOf(m.dashRim);
+  const arch = POD ? chainOf(m.dashRimA) : chainOf(m.seamA);
+  let railS = chainOf(sSb), railP = chainOf(sPt);
   const last = c => c[c.length - 1];
   // rails run front -> aft; transverse rows run port(-x) -> starboard
-  if (V[railS[0]][2] < V[last(railS)][2]) railS.reverse();
-  if (V[railP[0]][2] < V[last(railP)][2]) railP.reverse();
+  const fwdOrder = c => {
+    if (c.length > 1 && V[c[0]][2] < V[last(c)][2]) c.reverse();
+    return c;
+  };
+  fwdOrder(railS); fwdOrder(railP);
+  if (POD) {
+    // the aft sills continue the front ones across the arceau — chain
+    // each half separately (the arceau gap breaks vertex adjacency),
+    // orient both front->aft and concatenate; the row sampler bridges
+    // the gap straight, which the band-top line there IS
+    const [aSb, aPt] = split(m.seamSA);
+    railS = railS.concat(fwdOrder(chainOf(aSb)));
+    railP = railP.concat(fwdOrder(chainOf(aPt)));
+  }
+  if (front.length < 3 || arch.length < 3
+      || railS.length < 2 || railP.length < 2) return m;
   const pts = c => c.map(i => V[i].slice());
   const path = c => {
     const L = [0];
@@ -4679,35 +5505,88 @@ function cageCanopy(m, S) {
   if (NR < 3) return m;
   const NVp = fr.length - 1;                     // row width from the seam
   ar = resample(ar, NVp);
-  const pP = path(rpP);
+  const pP = path(rpP), pS = path(rpS);
   const tOf = k => pP.L[Math.min(k, pP.L.length - 1)] / pP.T;
-  const t3 = Math.min(0.9, Math.max(0.1, 1 - (CN.at || 0.45)));
-  const kAt = Math.log(0.5) / Math.log(t3);      // Bezier apex reparam
-  const A2 = at2(pP, t3);                        // port foot at the apex
-  const B2 = at2(path(rpS), t3);
-  const C2 = [(A2[0] + B2[0]) / 2, (A2[1] + B2[1]) / 2,
-              (A2[2] + B2[2]) / 2];
-  const W2 = CN.w || 1;
-  const crown = [];
-  for (let i = 0; i <= NVp; i++) {
-    const th = Math.PI * i / NVp;
-    const f = 1 + (W2 - 1) * Math.sin(th);       // feet stay, shoulders go
-    crown.push([C2[0] + (A2[0] - C2[0]) * Math.cos(th) * f,
+  // a crown CONTROL ARC at rail fraction t: feet ON the rails, height
+  // h above the chord, shoulders bulged by w (the feet stay put)
+  const mkArc = (tj, hj, wj) => {
+    const A2 = at2(pP, tj), B2 = at2(pS, tj);
+    const C2 = [(A2[0] + B2[0]) / 2, (A2[1] + B2[1]) / 2,
+                (A2[2] + B2[2]) / 2];
+    const arc = [];
+    for (let i = 0; i <= NVp; i++) {
+      const th = Math.PI * i / NVp;
+      const f = 1 + (wj - 1) * Math.sin(th);
+      arc.push([C2[0] + (A2[0] - C2[0]) * Math.cos(th) * f,
                 C2[1] + (A2[1] - C2[1]) * Math.cos(th)
-                      + (CN.h || 0.85) * Math.sin(th),
+                      + hj * Math.sin(th),
                 C2[2] + (A2[2] - C2[2]) * Math.cos(th)]);
-  }
+    }
+    return arc;
+  };
+  // S1 — CONTROL LOOPS (user ask): one loop = the v4 path exactly
+  // (quadratic Bezier, apex reparam so the bump lands at bubAt); 2-3
+  // loops = one control arc each at its own station/height/width and
+  // the column profile is a Bezier through [front, arcs..., rear] on
+  // the raw arc-length parameter — the fullness placement comes from
+  // where the loops sit. Loops are CONTROLS, not interpolated points:
+  // the control-cage idiom, same as the skin.
+  const LOOPS = CN.loops && CN.loops.length >= 2 ? CN.loops : null;
+  const tClamp = at => Math.min(0.9, Math.max(0.1,
+    1 - (at != null ? at : 0.45)));
   const rows = [fr];
-  for (let k = 1; k < NR - 1; k++) {
-    const t = Math.pow(tOf(k), kAt);
-    const b0 = (1 - t) * (1 - t), b1 = 2 * t * (1 - t), b2 = t * t;
-    const row = [rpP[k].slice()];                // verbatim port foot
-    for (let i = 1; i < NVp; i++)
-      row.push([b0 * fr[i][0] + b1 * crown[i][0] + b2 * ar[i][0],
-                b0 * fr[i][1] + b1 * crown[i][1] + b2 * ar[i][1],
-                b0 * fr[i][2] + b1 * crown[i][2] + b2 * ar[i][2]]);
-    row.push(rpS[k].slice());                    // verbatim starboard foot
-    rows.push(row);
+  if (!LOOPS) {
+    const t3 = tClamp(CN.at);
+    const kAt = Math.log(0.5) / Math.log(t3);    // Bezier apex reparam
+    const crown = mkArc(t3, CN.h != null ? CN.h : 0.85, CN.w || 1);
+    m.canArcs = [crown];                         // loop overlay (viewer)
+    for (let k = 1; k < NR - 1; k++) {
+      const t = Math.pow(tOf(k), kAt);
+      const b0 = (1 - t) * (1 - t), b1 = 2 * t * (1 - t), b2 = t * t;
+      const row = [rpP[k].slice()];              // verbatim port foot
+      for (let i = 1; i < NVp; i++)
+        row.push([b0 * fr[i][0] + b1 * crown[i][0] + b2 * ar[i][0],
+                  b0 * fr[i][1] + b1 * crown[i][1] + b2 * ar[i][1],
+                  b0 * fr[i][2] + b1 * crown[i][2] + b2 * ar[i][2]]);
+      row.push(rpS[k].slice());                  // verbatim starboard foot
+      rows.push(row);
+    }
+  } else {
+    const arcs = LOOPS.map(l => mkArc(tClamp(l.at),
+      l.h != null ? l.h : 0.85, l.w || 1));
+    m.canArcs = arcs.slice();                    // loop overlay (viewer)
+    // implicit REAR TANGENT control (user: "the arch does not survive
+    // the loop height options — it doesn't stick to the canopy"): one
+    // automatic arc straight above the rear row steepens the arrival,
+    // so the glass lands ON the arch (or dives to the pod's aft seam
+    // under the deck lip) whatever the user loops do. Feet weighted
+    // by sin, so the boundary corners stay put.
+    {
+      let y0 = 1e9, y1 = -1e9;
+      for (const p of ar) { y0 = Math.min(y0, p[1]);
+                            y1 = Math.max(y1, p[1]); }
+      const tang = Math.max(0.12, 0.5 * (y1 - y0));
+      arcs.push(ar.map((p, i) => {
+        const th = Math.PI * i / NVp;
+        return [p[0], p[1] + tang * Math.sin(th), p[2]];
+      }));
+    }
+    const bez = (ps, t) => {
+      const q = ps.map(p => p.slice());
+      for (let r = q.length - 1; r > 0; r--)
+        for (let j = 0; j < r; j++)
+          for (let d = 0; d < 3; d++)
+            q[j][d] += (q[j + 1][d] - q[j][d]) * t;
+      return q[0];
+    };
+    for (let k = 1; k < NR - 1; k++) {
+      const t = tOf(k);
+      const row = [rpP[k].slice()];
+      for (let i = 1; i < NVp; i++)
+        row.push(bez([fr[i], ...arcs.map(a3 => a3[i]), ar[i]], t));
+      row.push(rpS[k].slice());
+      rows.push(row);
+    }
   }
   rows.push(ar);
   const LVc = [], LFc = [], LEc = new Map();
@@ -4738,14 +5617,88 @@ function cageCanopy(m, S) {
     if (f.win) nf.win = 1;
     F.push(nf);
   }
+  // ARCEAU CONSTRAINED TO THE CANOPY (user, replacing the S4 collapse):
+  // the hoop's displayed verts above the seam project RADIALLY onto
+  // the canopy's own section at their z (sliced from the component
+  // just built) and tuck one glass-gap inside — the hoop hugs the
+  // bubble whatever the loops do. Blend over the first 8 cm above the
+  // seam, so the band leaves the fuselage without a step; verts at or
+  // below the seam never move. cageInterior runs after this, so the
+  // arceau's thickened body follows the fitted hoop.
+  if (POD && CN.fit) {
+    const ySeam = S.bandY;
+    // ray centre BELOW the seam (user: the base did an S) — with the
+    // centre AT seam height the foot-level rays ran nearly horizontal
+    // and grazed the vertical glass wall; from below, every ray meets
+    // the section cleanly and the base swings out monotonically
+    const yC0 = ySeam - 0.2;
+    const secAt2 = zk => {
+      const pmap = new Map();
+      for (const f of comp.F)
+        for (let e = 0; e < f.v.length; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % f.v.length];
+          const A = comp.V[a], B = comp.V[b];
+          const za = A[2] - zk, zb = B[2] - zk;
+          if (za * zb >= 0) continue;
+          const k = a < b ? a + '_' + b : b + '_' + a;
+          if (pmap.has(k)) continue;
+          const t = za / (za - zb);
+          pmap.set(k, [A[0] + (B[0] - A[0]) * t,
+                       A[1] + (B[1] - A[1]) * t]);
+        }
+      const pts2 = [...pmap.values()];
+      if (pts2.length < 4) return null;
+      pts2.sort((q, r) => Math.atan2(q[1] - yC0, q[0])
+                        - Math.atan2(r[1] - yC0, r[0]));
+      return pts2;
+    };
+    const av = new Set();
+    for (const f of F)
+      if (f.m === 'pillarCabin')
+        for (const vi of f.v) if (V[vi][1] > ySeam - 0.02) av.add(vi);
+    const cache = new Map();
+    for (const vi of av) {
+      const p = V[vi];
+      const zk = Math.round(p[2] * 200) / 200;
+      let sec = cache.get(zk);
+      if (sec === undefined) { sec = secAt2(zk); cache.set(zk, sec); }
+      if (!sec) continue;
+      const dx = p[0], dy = p[1] - yC0;
+      const dl = Math.hypot(dx, dy) || 1;
+      const ux = dx / dl, uy = dy / dl;
+      let sBest = -1;
+      for (let i = 0; i + 1 < sec.length; i++) {
+        const ax = sec[i][0], ay = sec[i][1] - yC0;
+        const ex = sec[i + 1][0] - sec[i][0];
+        const ey = sec[i + 1][1] - sec[i][1];
+        const det = -ux * ey + ex * uy;
+        if (Math.abs(det) < 1e-12) continue;
+        const s = (-ax * ey + ex * ay) / det;
+        const u = (ux * ay - uy * ax) / det;
+        if (u >= -1e-6 && u <= 1 + 1e-6 && s > 1e-6
+            && (sBest < 0 || s < sBest)) sBest = s;
+      }
+      if (sBest <= 0) continue;
+      // 4 mm gap: the hoop rides just under the glass (user: 15 mm
+      // read as "set below the canopy" once the interior frame added
+      // its own 9 mm inset on top)
+      const tgt = sBest - 0.004;
+      const u2 = Math.max(0, Math.min(1, (p[1] - ySeam) / 0.12));
+      const bl = u2 * u2 * (3 - 2 * u2);           // smoothstep
+      const nl = dl + (tgt - dl) * bl;
+      V[vi] = [ux * nl, yC0 + uy * nl, p[2]];
+    }
+  }
   return m;
 }
 
 if (typeof module !== 'undefined')
-  module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
-                     cageResolve, cageSpec, cageSubdivide, cageRims,
-                     cageInterior, cageCut, cageGlassSill, cageCanopy };
+  module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                     buildCage2, cageResolve, cageSpec, cageSubdivide,
+                     cageRims, cageInterior, cageCut, cageGlassSill,
+                     cageCanopy };
 if (typeof window !== 'undefined')
-  window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
-                   cageResolve, cageSpec, cageSubdivide, cageRims,
-                   cageInterior, cageCut, cageGlassSill, cageCanopy };
+  window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                   buildCage2, cageResolve, cageSpec, cageSubdivide,
+                   cageRims, cageInterior, cageCut, cageGlassSill,
+                   cageCanopy };
