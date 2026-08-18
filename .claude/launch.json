@@ -68,6 +68,15 @@
       "port": 8123
     },
     {
+      "name": "flydiy-node",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8125"
+      ],
+      "port": 8125
+    },
+    {
       "name": "flydiy-alt",
       "runtimeExecutable": "python",
       "runtimeArgs": [

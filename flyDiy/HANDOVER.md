@@ -6018,6 +6018,292 @@ NOTE mesh 1's boom glass-band bleed above — if the user re-exports the
 templates from Blender, re-run `node tools/_cage_fit.js` before trusting a
 new fiche; source of truth stays in Downloads.
 
+### G15 — THE BUBBLE CREST + THE CURATED PANEL (2026-08-17)
+
+**THE CREST (`crestH`/`crestAt`/`crestLoops`, config.crest).** The cage
+could round the SECTION but not the LENGTH: control points exist only at
+pillar stations, so the roof rail was straight per bay and a bubble apex
+had nowhere to live. The mechanism is the cowl/boomMid idiom a third
+time: every station's roof+ceil inside [aft shoulder (pilPaxA) ..
+windshield top (wsAft roofZ)] lifts onto an eased sin^2 bump (zero slope
+at both ends AND at the apex — meets the windscreen and the aft deck
+tangent-flat), and `crestLoops` (0-2 per glazed bay) inserts 'crest'
+FORMER rings mid-bay via lerpRing, roof/ceil corrected onto the true arc
+at their own z. Formers are non-structural BY CONSTRUCTION: no crease
+family (`fam` falls through to 0), bay materials inherited (glass zones
+union-find across them), and cageInterior looks stations up BY NAME so
+it never sees them — the covering doctrine's "light formers over the
+load-carrying frame", literally. crestH 0 = bit-identical path (FIT
+guards it). Crest bays DROP their step-2 guard fractions (full-bay ts
+can't survive a split; crest is never the fit path).
+**THE CROSSING-LAW GUARD:** with the crest on, span pillars (pilPax*/
+pilCab*) tag their perimeter crease only from the waistband DOWN
+(`tagLoopLow` skips edges touching roof/ceil/bandG) — a crPillar-3 loop
+crossing the now-BENT roof rail would corner-pin it (refined law: pins
+invisible on straight crossings, ruinous on bent ones). Upper bands go
+soft = canopy hoops following a dome. Verified: FIT OK, 27-case manifold
+sweep (pax 0-2 x h x loops) zero fails, full pipeline (sill+cut+rims+
+interior) green on all four constructions, side-view silhouette smooth
+through every pillar crossing.
+
+**THE CURATED PANEL (slider hygiene, user rulings 2026-08-17).**
+_cage3.html now previews the GAME PANEL for the C5 swap: numbered
+sections per the target tree (1 global{longerons, conception} / 2 engine
+{cowl} / 3 nose / 4 cabin{dimensions, windows, doors, cockpit} / 5
+passengers / 7 boom; 6 wings / 8 tail / 9 wheels are game-side).
+- MACROS RETIRED everywhere (_cage_ui.js): multipliers over params were
+  two ways to state one fact. Old saved configs' M is ignored on import.
+- VIEW panel (always open, top): explode, glass/body alpha, cutaway,
+  camera presets (3/4, side, front, top, inside, refit). Viewer state,
+  never spec — explodeD technically stays in P until the swap.
+- "DON'T TOUCH" group: pillarW family, apilW/apilPerp/pfW, topComp,
+  every crease except crCeil (the roof crease is a STYLE choice the user
+  drives), rimSides/rimArc. Constants-to-be, still inspectable.
+- Retired from the page: step select (crease is canonical), curvature,
+  ghost ref (returns properly as the import-ghost benchmark tool),
+  doorDeep (forced 1 — doorSill is the depth control), rimDoor (forced
+  0 — JOINTS ARE WINDOW-ONLY, user ruling; note this supersedes the
+  interior-session composite-door rubber seal).
+- ENGINE CONFIGURATION select (nose engine / pusher / wing engines)
+  DERIVES noseFinish + rearAperture + crCap. Finding: the raw
+  rearAperture toggle never changed SHAPE — it only recolours the cap
+  and marks it for the firewall; the flat prop-disc always came from
+  crCap, which only the retired pusher preset set. One intent, derived
+  details — config selects are the pattern for the game panel.
+- SEATING STARTERS (single / tandem 2 / side-by-side 2 / passenger):
+  template application — writes section values once, all editable after.
+  Values are placeholders; tune via log/exp and paste back.
+- `_cage_ui.js` groups now nest one level (['sub', items, 'open']),
+  pages can replace the whole tree via PAGE.groupsOverride, groups carry
+  data-g for page scripts to inject derived selects.
+**TOOLING:** `tools/_serve.js` + launch entry `flydiy-node` (port 8125)
+replaces the python server for the _cage pages — node streaming +
+Cache-Control no-store kills both the random connection resets on big
+files AND the stale-_cage*.js cache trap. _cage2 is UNTOUCHED as the
+fit-reference dev page (full base groups, steps 0/1/2, ghost ref).
+
+### G16 — THE CANOPY MODES (2026-08-18; supersedes G15's crest for bubbles)
+
+The G15 crest was judged UNSUCCESSFUL by the user for bubbles (a cabin-
+wide dome fights the window-pillar architecture). The re-frame (user
+design): bubbles apply to PILOT BAYS ONLY, staged through CUTOUTS that
+expose a clean seam — windshield base, side sill, arch behind the pilot
+— and the seam is the contract for the canopy geometry.
+
+**`canopy` param (spec.config.canopy):** closed | **convertible** (pilot
+bay + quarter bay skin removed above the cut; windshield stays — the
+baby-jodel design) | **open** (windshield + A-pillar above the cut
+removed too) | **bubble**. `cutRef` = waistband TOP or BOTTOM; the DASH
+follows the reference (user rule): in 'open' the dash traces the CUT
+RAIL (skin boundary edges, z-clipped to the front region) instead of
+the windshield/waistband adjacency.
+- The cutouts are EMISSION-TIME face skips (bridge loop + slope) — the
+  exposed rail is tagged weight 3 (THE CREASE LAW), which also makes the
+  open mesh safe through cageSubdivide: sharp edge points never average
+  the missing faces, boundary verts take the crease vertex rule. L2
+  checks: clean boundary loops, zero non-manifold, no NaN.
+- **bubble = ALTERNATE GEOMETRY ON THE SAME TOPOLOGY** (closed manifold,
+  fit-guarded off): pilot-area stations (wsFront, wsAft, ring + inserted
+  'crestB' formers) get ceil/roof/crown REPOSITIONED onto elliptical
+  arcs (theta 42/68/90 deg) springing from the seam; crown height =
+  eased profile from the windshield base over `bubAt` apex (`bubH`)
+  landing on the arch top — the HALF bubble lands flat on the arch
+  (pilCabB untouched; its crPillar-3 pin at the bent crossing IS the
+  frame line, wanted). ws-ring frame creases drop in bubble mode (bent
+  crossing); the slope's centre chain follows the canopy centreline to
+  the deck = one-piece curved windscreen. Pilot mats route to glass
+  (pax bays untouched — user ruling). Win marks give the canopy ONE
+  seal outline automatically.
+- Bridge-loop `bayName` now WALKS BACK over inserted rings to the owning
+  station (also fixes a latent G15 door-mark hole across formers).
+- `canBeams` (user): the A-pillar hoop + its seal arcs over the bubble
+  are OPTIONAL — off routes the band above the seam to glass, the
+  canopy union-finds into ONE zone (single perimeter seal; verified:
+  2 glass zones on, 1 off), and the interior's material-keyed A-pillar
+  body vanishes with it. Below the seam the band stays.
+
+**AFT-SHOULDER DEFECT REPORT (user, same session; single cabin + sharp
+aft drop):** three findings, one fixed:
+1. **Aft bulkhead FIXED**: the mid-pillar midpoint blend paired each
+   cabin-side outline vertex with the band's OTHER cycle — the ANGLED
+   pilPaxA section under a sharp drop — so the panel leaned and shrank
+   with the angle. Now: outline from the cabin-side cycle ONLY + fixed
+   10 mm aft setback (which also keeps the original coplanar-sliver fix
+   honest). Verified flat (z spread = sheet thickness) on tube/wood/
+   metal at the user's repro.
+2. **Chassis frame normals — FIXED (same session)**: the tube hoop and
+   the metal punched frame inset their mid-rings ALONG THE BAND'S
+   SURFACE NORMALS — slanted at the transition band, so the ring
+   leaned and its keel poked through the bulkhead. Now: `secIn` —
+   inset RADIALLY IN THE TRANSVERSE PLANE toward the section centroid,
+   z untouched (the boom-station idiom). Straight bands are unchanged
+   (the two directions coincide). No z-nudge was needed: with the flat
+   bulkhead at −10 mm and the frame at mid-band, they clear by
+   ~paxPillarW/2.
+3. **Boom beams — FIXED (same session), the straight-continuation
+   rule**: the bottom chine/stringer chains no longer chase the
+   aft-most band's dropped corner node. Tube: the boom's bottom
+   stations run as their OWN chine run, opened by extrapolating the
+   first two stations' line onto the pillarCabin section plane
+   (bandEnds[1].zm) — it lands ON the cabin hoop at whatever height
+   the boom line dictates; the cabin-side chine run ends at its own
+   corner line (longerons landing on a frame from both sides, as
+   IRL). Metal: same `preLine` extrapolation replaces the prepended
+   corner node on mtB. Waist chains keep the old junction (the
+   waistline is a global straight). With no shoulder the extrapolation
+   passes through the old corner, so straight builds are unchanged —
+   VERIFIED: member inventories bit-equal across sharp vs straight
+   configs, all constructions, closed + open.
+**G16c v2 — THE CANOPY IS A CAGE (user sketches + review, same day).**
+v1's arc-loft was REJECTED (user: "inelegant... you still have an S
+shape parameter... you keep thinking in section... why not have a new
+cage and subsurf?" — and a drawn target topology, which is exactly what
+CC produces from a coarse cage and no section-loft can). As-built v2:
+the canopy is a COARSE CONTROL CAGE emitted INSIDE buildCage2 (crease
+mode, bubble only) and subdivided with everything else — 3 rows x
+archRun-width (7): front row resampled ON the front rail path, ONE
+crown row (feet on the sill rails at bubAt-from-the-arch, crown arc at
+bubH — no easing curves, CC does the fairing), rear row ON the arch
+outline verts. Boundary chains weight 3 — midpoint-only refinement
+keeps canopy and skin on the SAME seam path (unfused, own verts: the
+canopy is a part, one day a sliding door). Faces carry win marks, so
+cageRims gives the canopy its FRAME SEAL for free. Also per user: the
+wsFront ring crease RELAXES in bubble mode ("round the angles of the
+pillar") — the front corner surface rounds; wsAft stays un-emitted.
+The cage overlay now shows the canopy control cage like everything
+else.
+**v3 (user review of v2b: fusing froze the ANGULAR cage shape — the
+target was the smooth curve the displayed seam takes).** The canopy is
+now a POST-SUBDIVISION COMPONENT — the dash idiom: `cageCanopy(m, S)`
+runs after cageCut (before cageRims, so the frame seal still traces),
+samples the DISPLAYED seam chains (dashRim/seamS/seamA — dense,
+already-rounded), builds the coarse 3-row cage on them (front row =
+the smooth seam curve resampled, crown row with `bubW` shoulder bulge —
+feet pinned, factor 1+(w-1)sin(theta) — rear row = displayed arch
+outline), creases the boundary chains at 3 and COMPONENT-SUBDIVIDES
+x2: dense boundary points refine by midpoints and stay on the seam
+path; corner rounding at that density is mm-scale. The in-cage v2b
+emission is deleted; the seam recordings remain its input. `bubW`
+(bubble width, 0.8-1.5) lets the mid-section extend beyond the flanks
+(blown canopy), user ask.
+**v3b REVERTED (user: it introduced ugliness and discontinuity without
+fixing the back-angle drift — rework later).** The iterative corner
+pre-compensation (subdivide/measure/offset the control corners) pinned
+the corner POINTS (0.07 mm) but bent the boundary CURVES around them —
+a pinned point on a drifting curve is a kink. The rear-corner drift at
+the arch feet (corners hang on the coarse foot columns; the crease
+vertex rule pulls them toward the far crown-foot neighbour) stays a
+KNOWN OPEN ISSUE for the next canopy session. Candidate for the redo:
+densify the foot columns (more rows) so the pull shrinks everywhere,
+instead of point-pinning. KEPT from this round: the `cutRef`
+waist-bottom option is DROPPED (user: causes only issues) — the cut
+line is the waistband top, always.
+**v3c — THE FRONT FLOWS (user).** In bubble mode the whole window-
+pillar section releases its creases: the slope rails (sill/band/ceil
+continuations) and the slope cut-rim go FREE, the quarter-bay rim
+relaxes to 1 (sides stay pinned at 3). The old A-pillar fold melts and
+the open boundary rounds the way CC rounds boundaries; the canopy and
+the dash follow AUTOMATICALLY because both sample the DISPLAYED seam —
+the post-pass strategy's payoff.
+**v4 IMPLEMENTED (same session): the windshield-fit strategy GLOBAL.**
+cageCanopy now builds ONE ROW PER RAIL POINT: row0 = the front seam
+chain VERBATIM, feet = the rail points VERBATIM, rear row = the arch
+outline resampled ON-PATH (corners verbatim), interior columns = a
+quadratic Bezier through the crown control arc (apex via a power
+reparam of bubAt — no easing curves), creases ONLY on the boundary
+loop, interior never, component-subdivided x2. Verified visually
+tight; note a crude point-set fit meter flagged one ~10 cm reading
+near the ring station that did not reproduce visually — re-measure
+with segment distance next session before trusting either way.
+ORIGINAL RATIONALE (user question, answered yes): Every canopy boundary row = the displayed seam
+polylines VERBATIM (no resampling), max-creased so component
+subdivision midpoint-refines them in place; interior edges NEVER
+creased (v3b's creased coarse foot columns were the corner-drift
+source: the crease vertex rule pulls a corner toward its far sharp
+neighbour — verbatim-dense boundaries make every sharp neighbour
+close). Row-count mismatches (front 17 / arch 25 at L2) bridged by the
+dash's ladder-fill index mapping. This removes ALL remaining
+approximate-fit areas in one move.
+**VIEWER: the phantom circle on the bubble (user report, fixed).** A
+faint circle appeared on the canopy at certain angles: with DoubleSide
+transparent glass and no depth write, the FAR pane of a doubly-curved
+canopy renders through the near one, and its silhouette limb reads as
+a circle. Fix in _cage_ui matOf: GLASS materials are FrontSide (back
+faces culled); everything else keeps DoubleSide for interiors/cutaway.
+Diagnosed by the opacity A/B (artifact vanishes at glass alpha 1 =
+transparency, not geometry). The canopy component's winding was
+verified outward (512/512 faces) — measure, don't guess: an earlier
+"invisible from outside" read led to a wrong flip that the normal
+count immediately exposed.
+**v4b — WAIST BEAMS FOLLOW THE ROUNDED SEAM (user: "tortured" beams).**
+In bubble mode the wood waist rails in the pilot section are no longer
+single straight chords (they poked the skin once the seam rounded):
+waistBeam sweeps them as short beam() segments along the DISPLAYED
+seamS chain in PLAN — x follows the rounded rail, y stays on the
+waistline; non-bubble modes keep the straight beam. Same displayed-seam
+sourcing as the canopy/dash: every consumer follows the seam because it
+samples it.
+**OPEN — aluminium in bubble mode: two stray L-angle bars** (user
+screenshot: one below the belly near the cabin pillar pointing
+down-aft, one at the nose bottom). Two suspects ELIMINATED this
+session: (1) the cabin-to-nose bandEnds pair now SKIPS in bubble mode
+(the window-pillar band is deleted, so that pair chorded the whole
+cockpit — skip landed, some members went); (2) the metal waist rails
+are NOT the source — with the pilot door ON (default) the pilot-bay
+waistBeam calls never run at all (a bubble-mode guard was added anyway
+for the doorless case). NEXT SESSION: instrument metalAngle to log
+endpoints per call site and match the two bars — remaining candidates
+are the mtW/mtB stringer chains (incl. the preLine extrapolation) and
+the pax-bay diagonal machinery.
+**v2b FIT FIX (superseded by v3, lesson stands).** Root cause
+was a subdivision-rule subtlety worth keeping: straight boundary runs
+never move through CC, but CORNERS round by the crease VERTEX rule
+(E1+6P+E2)/8 — and they round differently for different neighbour
+spacing. The arch fit perfectly because its row copies the skin's own
+vert spacing; the front V and opening corners drifted because the
+resampled copies had closer neighbours. Fix: FUSE the canopy to the
+skin's own vertex ids at the front corners + centre V and along the
+whole arch row — fused verts carry 3+ sharp edges, the CORNER rule
+holds them exactly, on both surfaces at once; intermediate front-row
+verts sit on straight equal-spaced chords and never move. LAW: a
+polyline pinned by crease 3 is only reproducible by a DUPLICATE with
+the SAME vertex spacing — different spacing = different corner
+rounding; when exact coincidence matters, share the vertices.
+
+**G16c — THE BUBBLE, TAKE ONE (superseded same day, kept for the
+record).** The bubble
+returns as the user re-designed it: (1) the BASE is the open cutout
+with the wsAft pillar ring NOT EMITTED — the ring pair + crease is the
+template's FOLD mechanism, the opposite of a bubble; deleting it makes
+the seam one continuous evenly-spaced loop (essential, user ruling);
+(2) the canopy is DEDICATED GEOMETRY — `cageCanopy(m, S)`, a runtime
+attachment lofted at the DISPLAYED level on the RECORDED seam (dashRim
+= front arc, seamS = sill rails, seamA = the arch's front-face outline;
+all propagated through cageSubdivide like dashRim). The outline is
+naturally FOUR-SIDED (front arc | sills | arch), so the surface is a
+regular Coons-style grid: transverse arcs sill-to-sill, crest eased
+front->apex->arch (`bubH`/`bubAt`, apex measured from the arch side per
+the sketch), every row resampled at equal arc-length fractions — well-
+ordered unstretched quads, no poles, and the boundary rows/feet LIE ON
+the seam polylines (resampled points on the same path = coincident
+curves; the canopy never fuses, like the seals). NURBS was considered
+and declined: the arc-loft IS a tensor surface in spirit, and CC/mesh
+is the only surface paradigm the pipeline speaks. Grid density follows
+the display level automatically (the rails are the u-samples).
+NEXT here: arc shape control (superellipse exponent for slab-vs-round),
+crest curve refinement, a seal bead on the seam, canopy-as-door.
+
+ALSO this session: the OPEN-mode dash rebuilt on a RECORDED seam
+(`dashRim`, wsBase's sibling): the emitter records the A-pillar stubs
++ slope front arc when cutting, cageSubdivide propagates pairs through
+edge points. Generic boundary tracing was POISONED in open mode — the
+door hole merges with the cockpit rim once the roof is gone (measured:
+12 boundary components, the rim+door one spanning keel to roof), and
+interior sheets add their own. The dash follows cutRef: band top vs
+waist bottom moves it down (dash y top 0.12 -> 0.06 measured). The
+BUBBLE mode is DELETED (user: bad; will be re-explained) — the cutout
+modes and the seam stay as the foundation.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

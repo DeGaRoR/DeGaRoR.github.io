@@ -380,9 +380,15 @@ function cageResolve(S) {
   // report at L3). Geometric ramp = one straight sill line, no kink.
   const liftT = Math.max(0, Math.min(1,
     (wa.waist.z - S.ring.z) / Math.max(1e-9, wf.waist.z - S.ring.z)));
-  add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
-                wa.keel, false, BL * liftT),
-      { mat: CAGE_PILLAR('pillarWindow') });
+  // BUBBLE BASE (user, sketch 2026-08-18): the window-pillar RING PAIR +
+  // crease is the template's FOLD mechanism — the opposite of what a
+  // bubble needs. In bubble mode wsAft is NOT EMITTED: no pair, no
+  // crease, no double points on the seam — the cutout rim becomes one
+  // continuous, evenly spaced loop for the canopy to interpolate.
+  if (!(CFG.canopy && CFG.canopy.mode === 'bubble'))
+    add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
+                  wa.keel, false, BL * liftT),
+        { mat: CAGE_PILLAR('pillarWindow') });
   add(slopeRing('wsFront', wf.roofZ, wf.ceil, wf.bandZ, wf.waist, wf.floorY,
                 { y: wf.keelY }, true, BL), null);
 
@@ -426,6 +432,66 @@ function cageResolve(S) {
   const noseTwin = { name: 'noseTwin', kind: 'nose', lv: noseLv(S.nose.twin) };
   const noseRing = { name: 'noseRing', kind: 'nose', lv: noseLv(S.nose.ring) };
 
+  // ---- BUBBLE CREST (config.crest) ---------------------------------------
+  // A smooth longitudinal crest over the pilot+pax cabin: roof/ceil of
+  // every station inside [aft shoulder .. windshield top] lifts onto an
+  // eased bump (sin^2 — zero slope at both ends AND at the apex), and
+  // optional 'crest' FORMER loops add mid-bay samples so the apex can
+  // live between stations. Formers carry no crease family and no pillar
+  // material, so the interior pass never sees them as structure — real
+  // aeroplanes round a turtledeck exactly this way: light formers over
+  // the load-carrying frame. h 0 / absent = untouched (fit identity).
+  if (CFG.crest && CFG.crest.h > 0) {
+    const CR = CFG.crest;
+    const z0 = zPaxA, z1 = wa.roofZ;
+    const s2 = t => { const s = Math.sin(Math.PI * 0.5 * t); return s * s; };
+    const dy = z => {
+      const u = (z - z0) / (z1 - z0);
+      if (u <= 0 || u >= 1) return 0;
+      const a = Math.min(0.9, Math.max(0.1, CR.at));
+      return CR.h * (u <= a ? s2(u / a) : s2((1 - u) / (1 - a)));
+    };
+    for (const r of rings) {
+      const lr = r.lv.roof, lc = r.lv.ceil;
+      if (lr) { const d = dy(lr.z); lr.y += d; if (lr.yC != null) lr.yC += d; }
+      if (lc) lc.y += dy(lc.z);
+    }
+    const n = Math.min(2, CR.loops || 0);
+    if (n) for (let i = rings.length - 2; i >= 0; i--) {
+      const A = rings[i], B = rings[i + 1], bay = bays[i];
+      if (!bay || bay.mat === CAGE_MAT.plain || isPillarMat(bay.mat)) continue;
+      const zA = A.lv.roof.z, zB = B.lv.roof.z;
+      if (Math.min(zA, zB) < z0 - 1e-9 || Math.max(zA, zB) > z1 + 1e-9)
+        continue;
+      // sub-bays cannot carry the bay's guard fractions (full-bay ts) —
+      // crest bays drop guards; crest is never on the fit path
+      bays[i] = { mat: bay.mat };
+      const ins = [];
+      for (let s = 1; s <= n; s++) {
+        const t = s / (n + 1);
+        const r = lerpRing(A, B, t, 'crest' + i + '_' + s);
+        // the lerp inherits the stations' lift linearly; correct roof and
+        // ceil onto the true arc at the loop's own z
+        const fix = (l, la, lb) => {
+          if (!l || !la || !lb) return;
+          const d = dy(l.z) - (dy(la.z) * (1 - t) + dy(lb.z) * t);
+          l.y += d; if (l.yC != null) l.yC += d;
+        };
+        fix(r.lv.roof, A.lv.roof, B.lv.roof);
+        fix(r.lv.ceil, A.lv.ceil, B.lv.ceil);
+        ins.push(r);
+      }
+      rings.splice(i + 1, 0, ...ins);
+      bays.splice(i + 1, 0, ...ins.map(() => ({ mat: bay.mat })));
+    }
+  }
+
+  // (the G16 bubble-canopy repositioning experiment lived here — DELETED
+  // at user request 2026-08-18, pending a re-explained design once the
+  // convertible/open modes and their dash are right. The cutout modes in
+  // buildCage2 are the keepers; the seam they expose stays the contract
+  // for whatever the bubble becomes.)
+
   return { rings, bays, chain, noseTwin, noseRing };
 }
 
@@ -440,6 +506,23 @@ function buildCage2(S, step) {
   const creaseMode = step === 'crease';
   const sv = creaseMode ? 1 : step;               // structural step
   const CW = S.crease || {};
+  // canopy (G16): 'conv' opens the pilot-area top (windshield stays),
+  // 'open' also removes the windshield + A-pillar above the cut. The cut
+  // line is the waistband TOP ('band') or BOTTOM ('waist') — the exposed
+  // rail is max-creased (THE CREASE LAW: a boundary must stay put), which
+  // also makes the open mesh safe through cageSubdivide: sharp edge
+  // points never average missing faces.
+  const CNY = S.config && S.config.canopy && S.config.canopy.mode
+    && S.config.canopy.mode !== 'closed' ? S.config.canopy : null;
+  // bubble = the open cutout (windshield removed, wsAft ring not even
+  // emitted) + the dedicated CANOPY CAGE emitted below, subdivided with
+  // everything else
+  const CNCUT = CNY && (CNY.mode === 'conv' || CNY.mode === 'open'
+    || CNY.mode === 'bubble') ? CNY : null;
+  const CNBUB = !!(CNY && CNY.mode === 'bubble');
+  const cutLv = CNY ? (CNY.ref === 'waist' ? 'waist' : 'band') : null;
+  const cutHi = k => k === 'roof' || k === 'ceil'
+    || (cutLv === 'waist' && k === 'band') || k === 'bandG';
   const R = cageResolve(S);
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
     : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
@@ -449,7 +532,8 @@ function buildCage2(S, step) {
   const STEP0_XTRA = new Set(['aeroWsB', 'noseMid', 'boomMid']);
   const kept = [], keptBay = [];
   R.rings.forEach((r, i) => {
-    if (sv === 0 && (STEP0_DROP.has(r.name) || STEP0_XTRA.has(r.name))) return;
+    if (sv === 0 && (STEP0_DROP.has(r.name) || STEP0_XTRA.has(r.name)
+        || /^crest/.test(r.name))) return;
     kept.push(r); keptBay.push(i);
   });
   // bay for each kept pair: when pillar rings drop (step 0) the pillar bay
@@ -486,7 +570,7 @@ function buildCage2(S, step) {
   }
 
   // ---- vertices -----------------------------------------------------------
-  const V = [], F = [];
+  const V = [], F = [], dashRim = [], seamS = [], seamA = [];
   const vid = new Map();
   const P = (x, y, z) => {
     if (Math.abs(x) < 1e-9) x = 0;
@@ -517,6 +601,27 @@ function buildCage2(S, step) {
   const tagLoop = (o, r, w) => {
     const l = loopIds(o, r);
     for (let i = 0; i < l.length; i++) tagE(l[i], l[(i + 1) % l.length], w);
+  };
+  // crest mode: the roof/ceil rails BEND, and a pillar crease crossing a
+  // bent rail corner-pins it (the refined crossing law: pins are invisible
+  // on straight lines, ruinous on bent ones). Span pillars therefore keep
+  // their crease only from the waistband down — the upper band goes soft,
+  // which is what canopy hoops following a dome look like.
+  const tagLoopLow = (o, r, w) => {
+    const lv = LV.filter(k => r.lv[k] != null);
+    const pts = [];
+    if (o.C[lv[0]] != null) pts.push([lv[0], o.C[lv[0]]]);
+    for (const k of lv) if (o.P[k] != null) pts.push([k, o.P[k]]);
+    if (o.C[lv[lv.length - 1]] != null)
+      pts.push([lv[lv.length - 1], o.C[lv[lv.length - 1]]]);
+    for (let i = lv.length - 1; i >= 0; i--)
+      if (o.M[lv[i]] != null) pts.push([lv[i], o.M[lv[i]]]);
+    const hiL = k => k === 'roof' || k === 'ceil' || k === 'bandG';
+    for (let i = 0; i < pts.length; i++) {
+      const A = pts[i], B = pts[(i + 1) % pts.length];
+      if (hiL(A[0]) || hiL(B[0])) continue;
+      tagE(A[1], B[1], w);
+    }
   };
 
   const mkIds = (r, capRing) => {
@@ -575,16 +680,53 @@ function buildCage2(S, step) {
     : mat.floorB;                                              // floor->keel
   for (let i = 0; i < seq.length - 1; i++) {
     const a = ids[i], b = ids[i + 1], mat = bayOf[i];
-    face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, mat.roof);
-    face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, mat.roof);
-    // the roof strip is glass when the skylight covers this bay; marking
-    // it joins the two sides across the centreline, so bubble + skylight
-    // union-finds into ONE door-to-door arch per bay
-    if (creaseMode && mat.roof === 'skyWindows')
-      F[F.length - 1].win = F[F.length - 2].win = 1;
+    // bay identity: inserted rings (crest/crestB formers) belong to the
+    // station bay behind them — walk back for the OWNING station's name
+    // (door marks and the canopy tests key on it)
+    let bi = i;
+    while (bi > 0 && /^crest/.test(seq[bi].name)) bi--;
+    const bayName = seq[bi].name;
+    // canopy: pilot-area gaps = the pilot + quarter bays (pilot glass,
+    // not a pillar); the A-pillar band gap joins the cut in 'open' only
+    const cnPilot = CNY && !isPillarMat(mat) && mat.glass === 'pilotWindow';
+    const cut = CNCUT && (cnPilot
+      || (CNCUT.mode === 'open' && bayName === 'wsAft'));
+    if (!cut) {
+      face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, mat.roof);
+      face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, mat.roof);
+      // the roof strip is glass when the skylight covers this bay; marking
+      // it joins the two sides across the centreline, so bubble + skylight
+      // union-finds into ONE door-to-door arch per bay
+      if (creaseMode && mat.roof === 'skyWindows')
+        F[F.length - 1].win = F[F.length - 2].win = 1;
+    }
+    // the exposed rail is a boundary — it must stay put through CC:
+    // weight 3. The FRONT segments (A-pillar gap) are also RECORDED as
+    // the dash base line for 'open' mode: generic boundary tracing is
+    // poisoned there (the door hole merges with the cockpit rim once
+    // the roof is gone, and interior sheets add their own boundaries) —
+    // the emitter KNOWS the seam, so it says so, exactly like wsBase.
+    if (E && cut) {
+      // bubble (user): the WHOLE window-pillar section flows smooth —
+      // the quarter-bay rim relaxes to 1 and the slope rim below goes
+      // free, so the old A-pillar fold melts; the canopy follows the
+      // rounded seam automatically because it SAMPLES the displayed
+      // boundary (the post-pass strategy pays off here)
+      const wRim = CNBUB && bayName === 'ring' ? 1 : 3;
+      tagE(a.P[cutLv], b.P[cutLv], wRim);
+      tagE(a.M[cutLv], b.M[cutLv], wRim);
+      if (bayName === 'wsAft') {
+        dashRim.push([a.P[cutLv], b.P[cutLv]], [a.M[cutLv], b.M[cutLv]]);
+      }
+      // bubble: the sill rails are the canopy's side boundary (seamS)
+      if (CNBUB && cnPilot) {
+        seamS.push([a.P[cutLv], b.P[cutLv]], [a.M[cutLv], b.M[cutLv]]);
+      }
+    }
     const sh = ordOf(seq[i]).filter(k => seq[i + 1].lv[k] != null);
     for (let k = 0; k < sh.length - 1; k++) {
       const hi = sh[k], lo = sh[k + 1], m = bandMat(mat, hi, lo);
+      if (cut && cutHi(hi)) continue;
       face(a.P[hi], b.P[hi], b.P[lo], a.P[lo], m);
       face(a.M[lo], b.M[lo], b.M[hi], a.M[hi], m);
       // zone marks (crease mode only). win = any glass band (side windows,
@@ -601,7 +743,6 @@ function buildCage2(S, step) {
             || m === 'windshield')
           F[F.length - 1].win = F[F.length - 2].win = 1;
         const D = (S.config && S.config.doors) || {};
-        const bayName = seq[i].name;
         // the pilot door spans pillar to pillar in the REAL sense: from the
         // cabin pillar forward THROUGH the quarter bay to the A-pillar, so
         // its front edge follows the windshield slant (user's yellow
@@ -645,11 +786,41 @@ function buildCage2(S, step) {
         nm === 'tailCap' ? CW.cap
       : nm === 'tailMid' || nm === 'tailPost' ? CW.pillar
       : /^pilPax/.test(nm) || /^pilCab/.test(nm) ? CW.pillar
-      : nm === 'wsAft' || nm === 'wsFront' ? CW.frame
+      // a frame ring crease would PIN the repositioned canopy (bent
+      // crossing) — the bubble's front frame is the seam crease instead
+      // bubble: the remaining window-pillar ring must read SMOOTH (user:
+      // "round the angles of the pillar — relaxing its crease should
+      // work") — the front corner surface rounds with it
+      : nm === 'wsAft' || nm === 'wsFront' ? (CNBUB ? 0 : CW.frame)
       : /^aeroWs/.test(nm) ? CW.frame
       : nm === 'noseTip' ? (CW.frontCap != null ? CW.frontCap : 0.3)
       : 0;
-    seq.forEach((r, i) => { const w = fam(r.name); if (w) tagLoop(ids[i], r, w); });
+    const crestOn = !!(S.config && S.config.crest && S.config.crest.h > 0);
+    seq.forEach((r, i) => {
+      const w = fam(r.name);
+      if (!w) return;
+      if (crestOn && (/^pilPax/.test(r.name) || /^pilCab/.test(r.name)))
+        tagLoopLow(ids[i], r, w);
+      else tagLoop(ids[i], r, w);
+    });
+    // bubble: the arch's front-face outline above the cut is the canopy's
+    // rear boundary (seamA) — the ordered upper run of the pilCabB loop,
+    // foot to foot through the crown
+    if (CNBUB) {
+      const i2 = seq.findIndex(r => r.name === 'pilCabB');
+      if (i2 >= 0) {
+        const o = ids[i2];
+        const upper = LV.slice(0, LV.indexOf(cutLv) + 1);  // roof..cutLv
+        const run = [];
+        for (let k = upper.length - 1; k >= 0; k--)
+          if (o.P[upper[k]] != null) run.push(o.P[upper[k]]);
+        if (o.C.roof != null) run.push(o.C.roof);
+        for (let k = 0; k < upper.length; k++)
+          if (o.M[upper[k]] != null) run.push(o.M[upper[k]]);
+        for (let k = 0; k + 1 < run.length; k++)
+          seamA.push([run[k], run[k + 1]]);
+      }
+    }
   }
 
   // ---- forward end --------------------------------------------------------
@@ -678,8 +849,11 @@ function buildCage2(S, step) {
         hi === 'roof' ? (lo === 'ceil' && !bub ? 'ceilingLoop' : 'windshield')
       : hi === 'ceil' || hi === 'bandG' ? 'windshield'
       : 'waistband';
+    const cutSlope = CNCUT
+      && (CNCUT.mode === 'open' || CNCUT.mode === 'bubble');
     for (let k = 0; k < sOrd.length - 1; k++) {
       const hi = sOrd[k], lo = sOrd[k + 1], m = slopeMat(hi, lo);
+      if (cutSlope && cutHi(hi)) continue;      // 'open': no windshield
       face(a.P[hi], a.P[lo], chain[lo], chain[hi], m);
       face(chain[hi], chain[lo], a.M[lo], a.M[hi], m);
       // the windshield glass gets a joint too; left and right share the
@@ -689,13 +863,29 @@ function buildCage2(S, step) {
         F[F.length - 1].win = F[F.length - 2].win = 1;
     }
     // the rails continue across the slope: sill = the windshield base edge
-    if (E) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
+    // (bubble: released — the front must flow, user ruling)
+    if (E && !CNBUB) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
                                  ['ceil', CW.ceil]]) {
       if (a.P[k] != null && chain[k] != null) {
         tagE(a.P[k], chain[k], w);
         tagE(chain[k], a.M[k], w);
       }
     }
+    // the exposed slope rail is a boundary: weight 3, and it is the
+    // front arc of the dash base line
+    if (E && cutSlope && a.P[cutLv] != null
+        && chain[cutLv] != null) {
+      if (!CNBUB) {
+        tagE(a.P[cutLv], chain[cutLv], 3);
+        tagE(chain[cutLv], a.M[cutLv], 3);
+      }
+      dashRim.push([a.P[cutLv], chain[cutLv]], [chain[cutLv], a.M[cutLv]]);
+    }
+    // (the G16c v2 in-cage canopy emission lived here — moved to the
+    // cageCanopy POST-PASS same day: fusing to cage verts froze the
+    // seam's ANGULAR cage shape, when the target is the smooth curve
+    // the displayed seam takes after subdivision. The seam recordings
+    // above are its input.)
 
     // nose rings (waist = the deck edge; centre cols via yC/zC)
     const noseSeq = [];
@@ -814,6 +1004,9 @@ function buildCage2(S, step) {
 
   orientCage({ V, F });
   const out = E ? { V, F, E } : { V, F };
+  if (dashRim.length) out.dashRim = dashRim;
+  if (seamS.length) out.seamS = seamS;
+  if (seamA.length) out.seamA = seamA;
   if (creaseMode) cageWindows(out, S);
   // NOTE: cageRims is NOT called here — the rim joints are swept from the
   // mesh AT ITS DISPLAYED SUBSURF LEVEL (call cageRims(mesh, spec) after
@@ -1749,14 +1942,16 @@ function cageInterior(m, S) {
       b.reduce((s, v) => s + V[v][2], 0) / b.length -
       a.reduce((s, v) => s + V[v][2], 0) / a.length);
     const ring = cycles[0];
-    // MID-PILLAR PLACEMENT + OWN OUTLINE (user report: the panel sat ON
-    // the band's cabin-side ring — its near-tangent fill slivers at the
-    // roof/floor were coplanar with the skin and liner, the visible
-    // face overlap). The panel now falls in the MIDDLE of the pillar
-    // band (each outline point = midpoint to its nearest partner on the
-    // band's other boundary cycle) and is INSET past the liner in the
-    // section plane, so it has a strictly smaller outline of its own.
-    const other = cycles.length > 1 ? cycles[1] : null;
+    // FLAT AT THE CABIN-SIDE PLANE (user, 2026-08-18): the outline comes
+    // from the cabin-side cycle ONLY — the old mid-pillar midpoint blend
+    // paired each vertex with the band's OTHER cycle, which under a
+    // sharp aft drop is the ANGLED pilPaxA section, so the panel leaned
+    // and shrank with the angle. The coplanar-sliver report that
+    // motivated the blend is answered by the fixed AFT SETBACK plus the
+    // inset instead: the panel sits just behind the back end of the
+    // pillarCabin, toward the tail, flat and vertical regardless of the
+    // aft shoulder.
+    const SETB = 0.010;
     const INS = (I.pillars && cons !== 'tube' ? (I.shellT || 0.035) : 0)
               + 0.008;
     let bcx = 0, bcy = 0;
@@ -1764,19 +1959,10 @@ function cageInterior(m, S) {
     bcx /= ring.length; bcy /= ring.length;
     const bPos = new Map();
     for (const v of ring) {
-      let p = V[v];
-      if (other) {
-        let bd = 1e9, bp = p;
-        for (const o of other) {
-          const q = V[o];
-          const d = (q[0]-p[0])**2 + (q[1]-p[1])**2 + (q[2]-p[2])**2;
-          if (d < bd) { bd = d; bp = q; }
-        }
-        p = [(p[0]+bp[0])/2, (p[1]+bp[1])/2, (p[2]+bp[2])/2];
-      }
+      const p = V[v];
       const dx = bcx - p[0], dy = bcy - p[1];
       const l = Math.hypot(dx, dy) || 1;
-      bPos.set(v, [p[0] + dx/l*INS, p[1] + dy/l*INS, p[2]]);
+      bPos.set(v, [p[0] + dx/l*INS, p[1] + dy/l*INS, p[2] - SETB]);
     }
     // ladder fill between the two side chains split at top/bottom — the
     // wall gets its OWN vertices at the panel outline positions (exact
@@ -2332,13 +2518,47 @@ function cageInterior(m, S) {
         const PA = [sx*(A.x - tS - wW/2 - 0.02), A.y, A.z];
         const PB = [sx*(B.x - tS - wW/2 - 0.02), B.y, B.z];
         if (cwb === 'metal') {
+          // bubble: no straight L-angle through the rounded canopy
+          // region — the rails shot clear of the hull (user); the open
+          // cockpit sill carries the canopy rail instead, skip
+          if (S.config && S.config.canopy
+              && S.config.canopy.mode === 'bubble'
+              && (a.name === 'pilCabB' || a.name === 'ring')) continue;
           // metal rails reach the pillar MIDDLES (user): half a band
           // width past each bay-bounding ring — and they are L-angles
           const bw = (S.pillarW > 0 ? S.pillarW : S.cabinPillarW) / 2;
           if (A.z <= B.z) { PA[2] -= bw; PB[2] += bw; }
           else { PA[2] += bw; PB[2] -= bw; }
           metalAngle(PA, PB, 0.03, [0, A.y]);
-        } else beam(PA, PB, wW, wW, wMat(cwb));
+        } else {
+          // bubble (user: the beams got tortured): the seam ROUNDS in
+          // the canopy region, so a straight chord pokes the skin —
+          // sweep the rail along the DISPLAYED seam chain in plan
+          // (x follows the rounded rail, y stays on the waistline)
+          const CNb = S.config && S.config.canopy
+            && S.config.canopy.mode === 'bubble';
+          let run = null;
+          if (CNb && m.seamS) {
+            const zLo = Math.min(A.z, B.z) - 1e-6,
+                  zHi = Math.max(A.z, B.z) + 1e-6;
+            const pts3 = [];
+            for (const [va, vb] of m.seamS)
+              for (const vi of [va, vb]) {
+                const p = V[vi];
+                if (sx * p[0] > 0 && p[2] > zLo && p[2] < zHi) pts3.push(p);
+              }
+            if (pts3.length > 2) {
+              const uniq = [...new Map(pts3.map(p =>
+                [p[2].toFixed(5), p])).values()].sort((p, q) => p[2] - q[2]);
+              run = uniq.map(p =>
+                [sx * (Math.abs(p[0]) - tS - wW / 2 - 0.02), A.y, p[2]]);
+            }
+          }
+          if (run && run.length > 2)
+            for (let i2 = 0; i2 + 1 < run.length; i2++)
+              beam(run[i2], run[i2 + 1], wW, wW, wMat(cwb));
+          else beam(PA, PB, wW, wW, wMat(cwb));
+        }
         waistRails.push({ sx, zA: Math.min(A.z, B.z),
                           zB: Math.max(A.z, B.z),
                           fwdEnd: B.z >= A.z ? PB : PA });
@@ -2352,7 +2572,7 @@ function cageInterior(m, S) {
     }
     if (!D.pilot) {
       waistBeam(rgn0('pilCabB'), rgn0('ring'));
-      waistBeam(rgn0('ring'), rgn0('wsAft'));
+      waistBeam(rgn0('ring'), rgn0('wsAft') || rgn0('wsFront'));
     }
     // CHINE LONGERONS v2 (user corrections): pieces run BETWEEN the
     // posts only — endpoints are the bottom corners of the pillar
@@ -2544,11 +2764,24 @@ function cageInterior(m, S) {
         fwd: eF2,
         mid,
       });
+      // SECTION-PLANE INSET (user, 2026-08-18): frame rings inset
+      // RADIALLY IN THE TRANSVERSE PLANE (toward the section centroid,
+      // z untouched) — the boom-station idiom — NEVER along the band's
+      // surface normals: at a sharp aft shoulder the transition band's
+      // faces are slanted, their normals carry a z component, and the
+      // hoop/frame leaned with them (the frame poked through the
+      // bulkhead at the keel, user screenshot). For straight bands the
+      // two directions coincide, so nothing else moves.
+      const secIn = (p, d) => {
+        const dx = p[0], dy = p[1] - cyv;
+        const l = Math.hypot(dx, dy) || 1;
+        return [p[0] - dx / l * d, p[1] - dy / l * d, p[2]];
+      };
       // TUBE PILLAR HOOPS (user: the main pillars become tubes, with a
       // larger section): a bent tube swept along the band's MID-RING —
       // each aft-cycle vertex midpointed with its nearest fwd partner
       // (the bulkhead's placement idiom) and pulled inside the skin
-      // along the band's own smooth normals. Per-segment section gate,
+      // in the section plane. Per-segment section gate,
       // so a mixed map drops exactly the hoop arcs that changed.
       (() => {
         const HIN = TUBE_RP + 0.005;
@@ -2560,10 +2793,8 @@ function cageInterior(m, S) {
                     + (V[o2][2]-V[v][2])**2;
             if (d < bd) { bd = d; bp = o2; }
           }
-          const n = nrm3(vN2.get(v) || [0, 0, 1]);
-          ringP.push([(V[v][0]+V[bp][0])/2 - n[0]*HIN,
-                      (V[v][1]+V[bp][1])/2 - n[1]*HIN,
-                      (V[v][2]+V[bp][2])/2 - n[2]*HIN]);
+          ringP.push(secIn([(V[v][0]+V[bp][0])/2, (V[v][1]+V[bp][1])/2,
+                            (V[v][2]+V[bp][2])/2], HIN));
         }
         tubeRuns(ringP, TUBE_RP, true);
       })();
@@ -2571,7 +2802,7 @@ function cageInterior(m, S) {
       // stamped web at mid-band instead of a thick post — but AS DEEP
       // as the wooden posts, and PUNCHED with lightening holes. Outer
       // rail just under the toele, inner rail at the wood-post depth,
-      // along the band's own normals.
+      // inset in the section plane.
       (() => {
         const ringO = [], ringI = [];
         const DEEP = (I.shellT || 0.035) * 1.6;
@@ -2582,13 +2813,10 @@ function cageInterior(m, S) {
                     + (V[o2][2]-V[v][2])**2;
             if (d < bd) { bd = d; bp = o2; }
           }
-          const n = nrm3(vN2.get(v) || [0, 0, 1]);
           const mx = [(V[v][0]+V[bp][0])/2, (V[v][1]+V[bp][1])/2,
                       (V[v][2]+V[bp][2])/2];
-          ringO.push([mx[0] - n[0]*0.009, mx[1] - n[1]*0.009,
-                      mx[2] - n[2]*0.009]);
-          ringI.push([mx[0] - n[0]*DEEP, mx[1] - n[1]*DEEP,
-                      mx[2] - n[2]*DEEP]);
+          ringO.push(secIn(mx, 0.009));
+          ringI.push(secIn(mx, DEEP));
         }
         // a FULLY metal ring closes (user: the frames gapped at the
         // crown — the ring was emitted as an open run, so the closing
@@ -2637,6 +2865,15 @@ function cageInterior(m, S) {
               V[c.id][2] - n[2]*tPil/2];
     };
     for (let i = 0; i + 1 < bandEnds.length; i++) {
+      // bubble (user: "the aluminium option screws up with the front
+      // tubes"): the window-pillar band is DELETED, so the pair from
+      // the cabin band to the NOSE band would span the whole cockpit
+      // in one straight chord — the L-angles shot out of the curved
+      // belly. An open cockpit carries no flank stringers through the
+      // opening IRL either: skip the pair that crosses it.
+      if (S.config && S.config.canopy
+          && S.config.canopy.mode === 'bubble'
+          && bandEnds[i + 1].isFront) continue;
       const a = bandEnds[i].fwd, b = bandEnds[i + 1].aft;
       const midA = bandEnds[i].mid, midB = bandEnds[i + 1].mid;
       const ba = bandEnds[i], bb = bandEnds[i + 1];
@@ -3175,8 +3412,29 @@ function cageInterior(m, S) {
             if (node && arr.length)
               arr.unshift({ p: inCtr(node, b0m.cy), d: jd(node) });
           };
+          // BOTTOM chains under a sharp aft shoulder (user rule): the
+          // stringer follows the boom profile to the (angled) pax
+          // pillar, then continues STRAIGHT to the pillarCabin section
+          // plane at whatever height the line naturally intersects —
+          // never bent down to reach the dropped corner node. With no
+          // shoulder the extrapolation lands on the corner anyway, so
+          // straight sections are unchanged.
+          const preLine = (arr, node) => {
+            if (arr.length >= 2 && bandEnds.length > 1) {
+              const A = arr[0].p, B = arr[1].p;
+              const dz = A[2] - B[2];
+              if (Math.abs(dz) > 1e-6) {
+                const t = (bandEnds[1].zm - A[2]) / dz;
+                arr.unshift({ p: [A[0] + (A[0] - B[0]) * t,
+                                  A[1] + (A[1] - B[1]) * t,
+                                  bandEnds[1].zm], d: arr[0].d });
+                return;
+              }
+            }
+            pre(arr, node);
+          };
           pre(mtW[0], b0m.mid.wP); pre(mtW[1], b0m.mid.wM);
-          pre(mtB[0], b0m.mid.P); pre(mtB[1], b0m.mid.M);
+          preLine(mtB[0], b0m.mid.P); preLine(mtB[1], b0m.mid.M);
         }
         for (const chain of [mtW[0], mtW[1], mtB[0], mtB[1]])
           for (let i = 0; i + 1 < chain.length; i++) {
@@ -3217,19 +3475,41 @@ function cageInterior(m, S) {
           const md = bandEnds[i].mid, cyv = bandEnds[i].cy;
           if (md.wP) runsP[runsP.length - 1].push(inCtr(md.wP, cyv));
           if (md.wM) runsM[runsM.length - 1].push(inCtr(md.wM, cyv));
-          if (md.P) chnP.push(inCtr(md.P, cyv));
-          if (md.M) chnM.push(inCtr(md.M, cyv));
+          // the aft-most band's corner node is NOT a chine anchor (user
+          // rule, sharp aft shoulder): the boom chine run below gets a
+          // straight extrapolated terminus instead of bending down to
+          // the dropped corner
+          if (i > 0 && md.P) chnP.push(inCtr(md.P, cyv));
+          if (i > 0 && md.M) chnM.push(inCtr(md.M, cyv));
         }
         for (const p of topCh[0]) runsP[runsP.length - 1].push(p);
         for (const p of topCh[1]) runsM[runsM.length - 1].push(p);
-        // the boom's bottom-corner stations continue the chine chains
-        // (user catch: the doored-bay rework dropped these appends —
-        // the cabin chines survived but the boom run vanished)
-        for (const p of botCh[0]) chnP.push(p);
-        for (const p of botCh[1]) chnM.push(p);
+        // the boom's bottom-corner stations run as their OWN chine run,
+        // opened by a straight extrapolation of the first two stations
+        // onto the pillarCabin section plane — the run lands ON the
+        // cabin hoop at whatever height the boom line dictates (user
+        // rule; with no shoulder the line passes the old corner anyway).
+        // The cabin-side chine run above ends at its own corner line —
+        // longerons landing on a frame from both sides, as built IRL.
+        const boomRun = ch => {
+          if (ch.length >= 2 && bandEnds.length > 1) {
+            const A = ch[0], B = ch[1];
+            const dz = A[2] - B[2];
+            if (Math.abs(dz) > 1e-6) {
+              const t = (bandEnds[1].zm - A[2]) / dz;
+              return [[A[0] + (A[0] - B[0]) * t, A[1] + (A[1] - B[1]) * t,
+                       bandEnds[1].zm], ...ch];
+            }
+          }
+          const b0c = bandEnds[0];
+          const md0 = b0c && b0c.mid;
+          const node = ch === botCh[0] ? md0 && md0.P : md0 && md0.M;
+          return node ? [inCtr(node, b0c.cy), ...ch] : ch;
+        };
+        const chnPb = boomRun(botCh[0]), chnMb = boomRun(botCh[1]);
         // the MAIN lines are as thick as the pillars (user): waistband
         // longeron + bottom-corner longeron at TUBE_RP; the rest slim
-        for (const ch of [...runsP, ...runsM, chnP, chnM])
+        for (const ch of [...runsP, ...runsM, chnP, chnM, chnPb, chnMb])
           tubeRuns(ch, TUBE_RP, false);
         for (const s2 of [0, 1])
           for (let i = 0; i + 1 < topCh[s2].length; i++)
@@ -3290,6 +3570,19 @@ function cageInterior(m, S) {
     if (m.wsBase && m.wsBase.length) {
       // the cut recorded the base line before separating the glass
       for (const [a, b] of m.wsBase) {
+        if (!link.has(a)) link.set(a, []);
+        if (!link.has(b)) link.set(b, []);
+        link.get(a).push(b); link.get(b).push(a);
+      }
+    } else if (m.dashRim && m.dashRim.length) {
+      // open cockpit (G16): no windshield to trace — the dash references
+      // the RECORDED seam (user rule: the bottom-of-waist reference
+      // moves the dash down with it). The emitter records the A-pillar
+      // stubs + the slope's front arc as dashRim and cageSubdivide
+      // propagates it — generic boundary tracing is poisoned here (the
+      // door hole merges with the cockpit rim once the roof is gone,
+      // and interior sheets carry boundaries of their own).
+      for (const [a, b] of m.dashRim) {
         if (!link.has(a)) link.set(a, []);
         if (!link.has(b)) link.set(b, []);
         link.get(a).push(b); link.get(b).push(a);
@@ -3942,7 +4235,18 @@ function cageSubdivide(m) {
       NF.push(nf);
     }
   });
-  return { V: NV, F: NF, E: NE };
+  const out = { V: NV, F: NF, E: NE };
+  // recorded seam lines (open/bubble modes) survive subdivision: each
+  // parent edge becomes its two children through the edge point
+  for (const key of ['dashRim', 'seamS', 'seamA']) if (m[key]) {
+    out[key] = [];
+    for (const [a, b] of m[key]) {
+      const ep = epIdx.get(cageEdgeKey(a, b));
+      if (ep == null) continue;
+      out[key].push([a, ep], [ep, b]);
+    }
+  }
+  return out;
 }
 
 // make face windings globally consistent and outward (positive volume) —
@@ -4038,6 +4342,20 @@ const CAGE_PARAMS = {
   aeroTipW: 0.10, aeroTipH: 0.12,
   rearAperture: 0,
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
+  // bubble crest (G15, superseded by canopy below — kept as a dev param):
+  // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
+  // h 0 = off (the fit identity path).
+  crestH: 0, crestAt: 0.55, crestLoops: 1,
+  // canopy (G16): 0 closed | 1 convertible (open pilot-bay top, windshield
+  // stays — the baby-jodel design) | 2 open (windshield removed too) |
+  // 3 bubble (the open base with the wsAft pillar ring DELETED + the
+  // cageCanopy component on the recorded seam — G16c). The cut line is
+  // the waistband TOP (the bottom option was DROPPED, user 2026-08-18:
+  // "it causes only issues").
+  canopy: 0, bubH: 0.85, bubAt: 0.45,
+  // bubble width: 1 = flush arcs; >1 bulges the crown shoulders past
+  // the flanks (blown canopy) — the feet stay on the sills
+  bubW: 1.0,
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
@@ -4086,6 +4404,15 @@ function cageSpec(P) {
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
             tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05 },
     boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch } : 0,
+    crest: P.crestH > 0 ? { h: P.crestH, at: P.crestAt,
+                            loops: Math.max(0, Math.round(P.crestLoops || 0)) }
+                        : 0,
+    canopy: P.canopy ? {
+      mode: ['closed', 'conv', 'open', 'bubble'][Math.round(P.canopy)] ||
+            'closed',
+      ref: 'band',
+      h: P.bubH, at: P.bubAt, w: P.bubW,
+    } : 0,
   };
   S.ws.baseLift = P.wsBaseLift;
 
@@ -4266,11 +4593,159 @@ function cageSpec(P) {
 }
 
 // ---------------------------------------------------------------------------
+// THE CANOPY (G16c v3, user reviews): a POST-SUBDIVISION COMPONENT — the
+// dash idiom. The base rows sample the DISPLAYED seam (dashRim / seamS /
+// seamA, recorded at emission and propagated through cageSubdivide), so
+// the canopy follows the smooth, rounded curve the seam actually takes
+// after subdivision — fusing at cage level froze the seam's ANGULAR cage
+// shape instead (v2b mistake, user catch). The component is a coarse
+// 3-row cage (front seam row, crown row, arch row) subdivided TWICE on
+// its own with creased boundary chains: dense boundary points refine by
+// midpoints and stay on the seam path; the interior smooths into the
+// corner-wrapping grid of the user's topology sketch. `bubW` bulges the
+// crown row's shoulders past the flanks (blown canopy) — the feet stay
+// on the sills.
+function cageCanopy(m, S) {
+  const CN = S.config && S.config.canopy;
+  if (!CN || CN.mode !== 'bubble') return m;
+  if (!m.dashRim || !m.seamS || !m.seamA) return m;
+  const { V, F } = m;
+  const chainOf = pairs => {
+    const link = new Map();
+    for (const [a, b] of pairs) {
+      if (!link.has(a)) link.set(a, []);
+      if (!link.has(b)) link.set(b, []);
+      link.get(a).push(b); link.get(b).push(a);
+    }
+    let start = -1;
+    for (const [v, ns] of link) if (ns.length === 1) { start = v; break; }
+    if (start < 0) return [];
+    const out = [start];
+    const seen = new Set([start]);
+    for (let v = start; ;) {
+      const nx = (link.get(v) || []).find(n => !seen.has(n));
+      if (nx == null) break;
+      out.push(nx); seen.add(nx); v = nx;
+    }
+    return out;
+  };
+  const sSb = [], sPt = [];                      // starboard x>0 / port x<0
+  for (const [a, b] of m.seamS)
+    ((V[a][0] + V[b][0]) / 2 >= 0 ? sSb : sPt).push([a, b]);
+  const front = chainOf(m.dashRim), arch = chainOf(m.seamA);
+  const railS = chainOf(sSb), railP = chainOf(sPt);
+  if (front.length < 3 || arch.length < 3
+      || railS.length < 2 || railP.length < 2) return m;
+  const last = c => c[c.length - 1];
+  // rails run front -> aft; transverse rows run port(-x) -> starboard
+  if (V[railS[0]][2] < V[last(railS)][2]) railS.reverse();
+  if (V[railP[0]][2] < V[last(railP)][2]) railP.reverse();
+  const pts = c => c.map(i => V[i].slice());
+  const path = c => {
+    const L = [0];
+    for (let i = 1; i < c.length; i++)
+      L.push(L[i - 1] + Math.hypot(c[i][0] - c[i - 1][0],
+        c[i][1] - c[i - 1][1], c[i][2] - c[i - 1][2]));
+    return { c, L, T: L[L.length - 1] || 1 };
+  };
+  const at2 = (p, t) => {
+    const d = p.T * t;
+    let i = 1;
+    while (i < p.L.length - 1 && p.L[i] < d) i++;
+    const u = (d - p.L[i - 1]) / Math.max(1e-12, p.L[i] - p.L[i - 1]);
+    return [0, 1, 2].map(j =>
+      p.c[i - 1][j] + (p.c[i][j] - p.c[i - 1][j]) * u);
+  };
+  const resample = (P2, n) => {
+    const p = path(P2), out = [];
+    for (let k = 0; k <= n; k++) out.push(at2(p, k / n));
+    return out;
+  };
+  // v4 — THE WINDSHIELD-FIT STRATEGY, GLOBAL (user): one row per rail
+  // point, boundaries VERBATIM (front row = the seam chain itself, feet
+  // = the rail points themselves) or ON-PATH (the arch row resampled
+  // along its own polyline — same curve, corners verbatim), and creases
+  // ONLY on the boundary loop — interior edges never (creased coarse
+  // columns were the corner-drift source: the crease vertex rule pulls
+  // a corner toward its far sharp neighbour; dense verbatim boundaries
+  // make every sharp neighbour close). The dome is a quadratic Bezier
+  // per column through the crown CONTROL arc — the same one-bump
+  // character CC gave the approved coarse cage, no easing curves.
+  let fr = pts(front), ar = pts(arch);
+  if (fr[0][0] > last(fr)[0]) fr.reverse();
+  if (ar[0][0] > last(ar)[0]) ar.reverse();
+  let rpP = pts(railP), rpS = pts(railS);
+  const NR = Math.min(rpP.length, rpS.length);   // rows: front..arch
+  if (NR < 3) return m;
+  const NVp = fr.length - 1;                     // row width from the seam
+  ar = resample(ar, NVp);
+  const pP = path(rpP);
+  const tOf = k => pP.L[Math.min(k, pP.L.length - 1)] / pP.T;
+  const t3 = Math.min(0.9, Math.max(0.1, 1 - (CN.at || 0.45)));
+  const kAt = Math.log(0.5) / Math.log(t3);      // Bezier apex reparam
+  const A2 = at2(pP, t3);                        // port foot at the apex
+  const B2 = at2(path(rpS), t3);
+  const C2 = [(A2[0] + B2[0]) / 2, (A2[1] + B2[1]) / 2,
+              (A2[2] + B2[2]) / 2];
+  const W2 = CN.w || 1;
+  const crown = [];
+  for (let i = 0; i <= NVp; i++) {
+    const th = Math.PI * i / NVp;
+    const f = 1 + (W2 - 1) * Math.sin(th);       // feet stay, shoulders go
+    crown.push([C2[0] + (A2[0] - C2[0]) * Math.cos(th) * f,
+                C2[1] + (A2[1] - C2[1]) * Math.cos(th)
+                      + (CN.h || 0.85) * Math.sin(th),
+                C2[2] + (A2[2] - C2[2]) * Math.cos(th)]);
+  }
+  const rows = [fr];
+  for (let k = 1; k < NR - 1; k++) {
+    const t = Math.pow(tOf(k), kAt);
+    const b0 = (1 - t) * (1 - t), b1 = 2 * t * (1 - t), b2 = t * t;
+    const row = [rpP[k].slice()];                // verbatim port foot
+    for (let i = 1; i < NVp; i++)
+      row.push([b0 * fr[i][0] + b1 * crown[i][0] + b2 * ar[i][0],
+                b0 * fr[i][1] + b1 * crown[i][1] + b2 * ar[i][1],
+                b0 * fr[i][2] + b1 * crown[i][2] + b2 * ar[i][2]]);
+    row.push(rpS[k].slice());                    // verbatim starboard foot
+    rows.push(row);
+  }
+  rows.push(ar);
+  const LVc = [], LFc = [], LEc = new Map();
+  const push = p => LVc.push([p[0], p[1], p[2]]) - 1;
+  const vids = rows.map(r2 => r2.map(push));
+  const tag = (a, b) => LEc.set(cageEdgeKey(a, b), 3);
+  // wound OUTWARD (glass renders front-side only — the far pane through
+  // the near one read as a phantom circle, so backfaces are culled)
+  for (let k = 0; k + 1 < rows.length; k++)
+    for (let i = 0; i < NVp; i++)
+      LFc.push({ v: [vids[k][i], vids[k][i + 1], vids[k + 1][i + 1],
+                     vids[k + 1][i]], m: 'windshield', win: 1 });
+  const NRr = rows.length;
+  for (let i = 0; i < NVp; i++) {
+    tag(vids[0][i], vids[0][i + 1]);
+    tag(vids[NRr - 1][i], vids[NRr - 1][i + 1]);
+  }
+  for (let k = 0; k + 1 < NRr; k++) {
+    tag(vids[k][0], vids[k + 1][0]);
+    tag(vids[k][NVp], vids[k + 1][NVp]);
+  }
+  let comp = { V: LVc, F: LFc, E: LEc };
+  comp = cageSubdivide(cageSubdivide(comp));
+  const off = V.length;
+  for (const p of comp.V) V.push(p);
+  for (const f of comp.F) {
+    const nf = { v: f.v.map(i2 => i2 + off), m: f.m, att: 1 };
+    if (f.win) nf.win = 1;
+    F.push(nf);
+  }
+  return m;
+}
+
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                      cageResolve, cageSpec, cageSubdivide, cageRims,
-                     cageInterior, cageCut, cageGlassSill };
+                     cageInterior, cageCut, cageGlassSill, cageCanopy };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, buildCage2,
                    cageResolve, cageSpec, cageSubdivide, cageRims,
-                   cageInterior, cageCut, cageGlassSill };
+                   cageInterior, cageCut, cageGlassSill, cageCanopy };

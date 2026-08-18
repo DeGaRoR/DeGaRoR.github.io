@@ -51,43 +51,11 @@ const DEFAULTS = Object.assign(
   JSON.parse(JSON.stringify(G.CAGE_PARAMS)), PAGE.defaults || {});
 const P = JSON.parse(JSON.stringify(DEFAULTS));
 
-const MACROS = [
-  ['mLen',   'length x',   0.4, 2.0, 0.01, 1],
-  ['mWidth', 'width x',    0.4, 2.0, 0.01, 1],
-  ['mHeight','cabin ht x', 0.4, 2.0, 0.01, 1],
-  ['mBelly', 'belly x',    0.4, 2.0, 0.01, 1],
-  ['mWaist', 'waist +y',  -0.4, 0.4, 0.005, 0],
-  ['mRake',  'rake x',     0.4, 2.0, 0.01, 1],
-  ['mTail',  'tail x',     0.3, 2.5, 0.01, 1],
-  ['mAft',   'aft x',      0.4, 2.0, 0.01, 1],
-  ['mNose',  'nose x',     0.4, 2.5, 0.01, 1],
-];
-const M = {};
-for (const [k, , , , , d] of MACROS) M[k] = d;
+// MACROS RETIRED (user ruling 2026-08-17): multipliers over base params
+// were two ways to state one fact — save-format ambiguity. Everything
+// goes through sections now.
 
-function deriveP() {
-  const q = JSON.parse(JSON.stringify(P));
-  const w0 = q.waistY;
-  const up = (v, s) => w0 + (v - w0) * s;
-  for (const k of ['paxLen', 'pilotLen', 'boomLen', 'tailLen', 'wsRun',
-                   'wsTopOff', 'wsBaseBow', 'noseLen']) q[k] *= M.mLen;
-  q.halfW *= M.mWidth; q.roofHalfW *= M.mWidth; q.ringPullIn *= M.mWidth;
-  q.roofY = up(q.roofY, M.mHeight);
-  q.keelY = up(q.keelY, M.mBelly); q.floorY = up(q.floorY, M.mBelly);
-  q.aftRoofY = up(q.aftRoofY, M.mAft); q.aftKeelY = up(q.aftKeelY, M.mAft);
-  q.tailHalfW *= M.mTail;
-  q.tailRoofY = up(q.tailRoofY, M.mTail);
-  q.tailKeelY = up(q.tailKeelY, M.mTail);
-  for (const k of ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow'])
-    q[k] *= M.mRake;
-  q.noseLen *= M.mNose;
-  q.waistY += M.mWaist;
-  for (const k of ['roofY', 'keelY', 'floorY', 'aftRoofY', 'aftKeelY',
-                   'tailRoofY', 'tailKeelY']) q[k] += M.mWaist;
-  return q;
-}
-
-const GROUPS = [
+const BASE_GROUPS = [
   ['layout', [
     ['paxCount',  'pax bays',      0, 4, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
@@ -145,7 +113,6 @@ const GROUPS = [
   ]],
   ['cutting', [
     ['cutParts',  'cut parts',     0, 1, 1],
-    ['explodeD',  'explode',       0, 1, 0.005],
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
@@ -174,7 +141,15 @@ const GROUPS = [
     ['doorSill',  'door sill',    0, 0.25, 0.002],
     ['doorSillPax','pax door sill',0, 0.25, 0.002],
   ]],
-].concat(PAGE.groups || []);
+];
+// a page may REPLACE the whole panel (the curated tree preview) or just
+// append extra groups to the base set
+const GROUPS = PAGE.groupsOverride
+  ? PAGE.groupsOverride
+  : BASE_GROUPS.concat(PAGE.groups || []);
+// items may nest one level: ['sub name', [items...], 'open'?]
+const flatItems = items => items.flatMap(it =>
+  Array.isArray(it[1]) ? flatItems(it[1]) : [it]);
 
 // ---- three.js scene -------------------------------------------------------
 let yaw = -0.85, pitch = 0.30, drag = null, ZOOM = 1;
@@ -214,7 +189,11 @@ const matOf = name => {
     matCache[key] = new THREE.MeshLambertMaterial({
       color: new THREE.Color(neutral ? '#b9c6d4' : (SEC[name] || '#5a6470')),
       wireframe: $('wire').checked,
-      side: THREE.DoubleSide,      // interiors + cutaway need backfaces
+      // glass is FRONT-SIDE only: with DoubleSide transparency the FAR
+      // side of a curved pane rendered through the near one — its limb
+      // read as a phantom circle on the bubble (user report). Interiors
+      // + cutaway keep backfaces on everything else.
+      side: GLASSM.has(name) ? THREE.FrontSide : THREE.DoubleSide,
       transparent: a < 1,
       opacity: a,
       depthWrite: a >= 1,          // translucent surfaces never occlude
@@ -318,9 +297,9 @@ function disposeObj(o) {
 
 // ---- build ----------------------------------------------------------------
 function build() {
-  const stepSel = $('step').value;
+  const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
-  const spec = G.cageSpec(deriveP());
+  const spec = G.cageSpec({ ...P });
   const m = G.buildCage2(spec, step);
   M0 = m;
   let s = m;
@@ -334,6 +313,9 @@ function build() {
   // G14: cut doors/windows into separate parts BEFORE the rims, so the
   // joints are traced on (and travel with) the moved panels
   if (step === 'crease' && G.cageCut) s = G.cageCut(s, spec);
+  // the bubble canopy: a post-subdivision component on the displayed
+  // seam — before the rims so it gets its frame seal
+  if (step === 'crease' && G.cageCanopy) s = G.cageCanopy(s, spec);
   if (step === 'crease') s = G.cageRims(s, spec);
   // interior elements are disjoint post-passes too (G13)
   if (step === 'crease' && G.cageInterior) s = G.cageInterior(s, spec);
@@ -382,7 +364,8 @@ function draw() {
 // ---- ghost reference ------------------------------------------------------
 let REF = null, REF_STEP = -1;
 function loadRef() {
-  const sel = $('step').value;
+  if (!$('refOn')) return;               // page has no ghost-ref controls
+  const sel = $('step') ? $('step').value : 'crease';
   const step = sel === 'crease' ? 1 : +sel;
   disposeObj(refObj); refObj = null;
   if (!$('refOn').checked) { draw(); return; }
@@ -457,7 +440,7 @@ const savedCfgs = () => {
     const name = prompt('config name');
     if (!name) return;
     const all = savedCfgs();
-    all[name] = { P: { ...P }, M: { ...M } };
+    all[name] = { P: { ...P } };
     localStorage.setItem(LSKEY, JSON.stringify(all));
     fillPresetSel();
   };
@@ -465,9 +448,8 @@ const savedCfgs = () => {
   // so a config file is self-contained and portable between pages —
   // the user's trusted alternative to localStorage
   d.querySelector('#expCfg').onclick = () => {
-    const diff = { P: {}, M: {} };
+    const diff = { P: {} };
     for (const k in P) if (P[k] !== G.CAGE_PARAMS[k]) diff.P[k] = P[k];
-    for (const [k, , , , , d0] of MACROS) if (M[k] !== d0) diff.M[k] = M[k];
     const txt = JSON.stringify(diff, null, 1);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([txt],
@@ -482,8 +464,7 @@ const savedCfgs = () => {
     if (!txt) return;
     try {
       const cfg = JSON.parse(txt);
-      if (cfg.P) Object.assign(P, cfg.P);
-      if (cfg.M) Object.assign(M, cfg.M);
+      if (cfg.P) Object.assign(P, cfg.P);   // cfg.M (old macros) is ignored
       syncSliders(); build();
       $('stat').textContent = 'config imported';
     } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
@@ -491,7 +472,6 @@ const savedCfgs = () => {
   d.querySelector('#logCfg').onclick = () => {
     const diff = {};
     for (const k in P) if (P[k] !== G.CAGE_PARAMS[k]) diff[k] = P[k];
-    for (const [k, , , , , d0] of MACROS) if (M[k] !== d0) diff[k] = M[k];
     const txt = JSON.stringify(diff, null, 1);
     console.log('cage params (non-default):', txt);
     if (navigator.clipboard) navigator.clipboard.writeText(txt);
@@ -507,64 +487,96 @@ function fillPresetSel() {
     saved.map(k => `<option>* ${k}</option>`).join('');
 }
 fillPresetSel();
+// ---- view panel (viewer state, never spec — user ruling) ------------------
+// explode, transparency, cutaway and camera presets are MAIN options: how
+// you look at the build, not what the build is. explodeD technically still
+// lives in P until the game swap moves it out of the spec.
 {
-  const h = document.createElement('h2'); h.textContent = 'macro';
-  ui.appendChild(h);
-  for (const [k, label, lo, hi, st] of MACROS)
-    mkRow(ui, k, label, lo, hi, st, M[k], v => { M[k] = v; build(); });
-}
-for (const [gname, items] of GROUPS) {
   const det = document.createElement('details');
+  det.open = true; det.dataset.g = 'view';
   const sum = document.createElement('summary');
-  sum.textContent = gname;
+  sum.textContent = 'view';
   det.appendChild(sum);
-  // the interior is the active work area — its group starts open so the
-  // construction choice is visible without digging (user report)
-  if (gname === 'interior') det.open = true;
   ui.appendChild(det);
-  for (const [k, label, lo, hi, st, names] of items)
-    mkRow(det, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
-          names);
-  if (gname === 'interior') {
-    // view transparency sliders (viewer-only, not spec params)
-    const mkA = (label, key0) => {
-      const dd = document.createElement('div'); dd.className = 'r';
-      dd.innerHTML = `<span class="k">${label}</span>
-        <input type="range" min="0.05" max="1" step="0.05"
-          value="${VIEW[key0]}">
-        <span class="v">${VIEW[key0].toFixed(2)}</span>`;
-      det.appendChild(dd);
-      dd.querySelector('input').oninput = e => {
-        VIEW[key0] = +e.target.value;
-        dd.querySelector('.v').textContent = (+e.target.value).toFixed(2);
-        build();
-      };
+  mkRow(det, 'explodeD', 'explode', 0, 1, 0.005, P.explodeD,
+        v => { P.explodeD = v; build(); });
+  const mkA = (label, key0) => {
+    const dd = document.createElement('div'); dd.className = 'r';
+    dd.innerHTML = `<span class="k">${label}</span>
+      <input type="range" min="0.05" max="1" step="0.05"
+        value="${VIEW[key0]}">
+      <span class="v">${VIEW[key0].toFixed(2)}</span>`;
+    det.appendChild(dd);
+    dd.querySelector('input').oninput = e => {
+      VIEW[key0] = +e.target.value;
+      dd.querySelector('.v').textContent = (+e.target.value).toFixed(2);
+      build();
     };
-    mkA('glass α', 'glassA');
-    mkA('body α', 'bodyA');
-    // view aids: cutaway clip plane + a camera preset inside the cabin
-    const d = document.createElement('div'); d.className = 'r';
-    d.innerHTML = `<span class="k">view</span>
-      <label style="flex:none"><input type="checkbox" id="cutaway"> cutaway</label>
-      <button id="insideBtn">inside</button>
-      <button id="outsideBtn">refit</button>`;
-    det.appendChild(d);
-    d.querySelector('#cutaway').onchange = e => {
-      renderer.clippingPlanes = e.target.checked
-        ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
-      draw();
-    };
-    d.querySelector('#insideBtn').onclick = () => {
+  };
+  mkA('glass α', 'glassA');
+  mkA('body α', 'bodyA');
+  const d = document.createElement('div'); d.className = 'r';
+  d.innerHTML = `<span class="k">cutaway</span>
+    <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;
+  det.appendChild(d);
+  d.querySelector('#cutaway').onchange = e => {
+    renderer.clippingPlanes = e.target.checked
+      ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
+    draw();
+  };
+  const vb = document.createElement('div'); vb.className = 'r';
+  vb.innerHTML = `<span class="k">camera</span>
+    <button data-v="q">3/4</button><button data-v="s">side</button>
+    <button data-v="f">front</button><button data-v="t">top</button>
+    <button data-v="i">inside</button><button data-v="r">refit</button>`;
+  det.appendChild(vb);
+  vb.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const v = b.dataset.v;
+    if (v === 'i') {
       // eye roughly at the pilot seat, looking forward at the panel area
       yaw = Math.PI; pitch = 0.02;
       centreOv = new THREE.Vector3(0, 0.15, 3.0);
       ZOOM = fitR / 1.1;
-      draw();
-    };
-    d.querySelector('#outsideBtn').onclick = () => {
-      centreOv = null; ZOOM = 1; draw();
-    };
+    } else if (v === 'r') { centreOv = null; ZOOM = 1; }
+    else {
+      centreOv = null;
+      if (v === 'q') { yaw = -0.85; pitch = 0.30; }
+      if (v === 's') { yaw = Math.PI / 2; pitch = 0; }
+      if (v === 'f') { yaw = 0; pitch = 0.02; }
+      if (v === 't') { yaw = -0.85; pitch = 1.30; }
+    }
+    draw();
+  });
+}
+
+// ---- parameter groups (one nesting level supported) -----------------------
+const renderItems = (parent, items, path) => {
+  for (const it of items) {
+    if (Array.isArray(it[1])) {
+      const sub = document.createElement('details');
+      sub.dataset.g = path + '/' + it[0];
+      const ss = document.createElement('summary');
+      ss.textContent = it[0];
+      sub.appendChild(ss);
+      if (it[2] === 'open') sub.open = true;
+      parent.appendChild(sub);
+      renderItems(sub, it[1], path + '/' + it[0]);
+      continue;
+    }
+    const [k, label, lo, hi, st, names] = it;
+    mkRow(parent, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
+          names);
   }
+};
+for (const [gname, items, open] of GROUPS) {
+  const det = document.createElement('details');
+  det.dataset.g = gname;
+  const sum = document.createElement('summary');
+  sum.textContent = gname;
+  det.appendChild(sum);
+  if (open === 'open' || gname === 'interior') det.open = true;
+  ui.appendChild(det);
+  renderItems(det, items, gname);
 }
 const lg = document.createElement('div');
 lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
@@ -573,11 +585,7 @@ lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
 ui.appendChild(lg);
 
 function syncSliders() {
-  for (const [k] of MACROS) {
-    const el = $('p_' + k);
-    if (el) { el.value = M[k]; $('v_' + k).textContent = (+M[k]).toFixed(3); }
-  }
-  for (const [, items] of GROUPS) for (const [k] of items) {
+  for (const [, items] of GROUPS) for (const [k] of flatItems(items)) {
     const el = $('p_' + k);
     if (el) {
       el.value = P[k];
@@ -585,28 +593,28 @@ function syncSliders() {
       if (vs) vs.textContent = (+P[k]).toFixed(3);
     }
   }
+  const ex = $('p_explodeD');
+  if (ex) { ex.value = P.explodeD;
+    const vs = $('v_explodeD');
+    if (vs) vs.textContent = (+P.explodeD).toFixed(3); }
 }
 function applyPreset(name) {
   if (name.startsWith('* ')) {
     const cfg = savedCfgs()[name.slice(2)];
-    if (cfg) { Object.assign(P, cfg.P); Object.assign(M, cfg.M); }
+    if (cfg) Object.assign(P, cfg.P);      // cfg.M (old macros) is ignored
   } else {
     const pre = (PAGE.presets || {})[name] || {};
     for (const k in DEFAULTS) P[k] = DEFAULTS[k];
-    for (const [k, , , , , d0] of MACROS) M[k] = d0;
-    for (const k in pre) {
-      if (k in M) M[k] = pre[k]; else P[k] = pre[k];
-    }
+    for (const k in pre) P[k] = pre[k];
   }
   syncSliders(); build();
 }
 $('resetBtn').onclick = () => {
   for (const k in DEFAULTS) P[k] = DEFAULTS[k];
-  for (const [k, , , , , d0] of MACROS) M[k] = d0;
   syncSliders(); build();
 };
 $('objBtn').onclick = () => {
-  const step = $('step').value;
+  const step = $('step') ? $('step').value : 'crease';
   const lines = ['# cage export, step ' + step, 'o cage_' + step];
   for (const v of M0.V)
     lines.push('v ' + v.map(c => c.toFixed(6)).join(' '));
@@ -630,9 +638,9 @@ for (const id of ['wire', 'color'])
     if (meshObj && meshObj.material && meshObj.material.map) {}
     build();
   };
-$('step').onchange = () => { loadRef(); build(); };
-$('refOn').onchange = loadRef;
-$('refA').oninput = loadRef;
+if ($('step')) $('step').onchange = () => { loadRef(); build(); };
+if ($('refOn')) $('refOn').onchange = loadRef;
+if ($('refA')) $('refA').oninput = loadRef;
 const viewEl = $('view');
 // left drag = orbit; MIDDLE or RIGHT drag = PAN (user ask) — the pan
 // moves the look-at centre in the camera's screen plane, scaled to the
@@ -677,8 +685,8 @@ addEventListener('resize', () => MS && draw());
 if (typeof ResizeObserver !== 'undefined')
   new ResizeObserver(() => MS && draw()).observe(viewEl);
 
-if (PAGE.defaultStep) $('step').value = PAGE.defaultStep;
-window.CAGE_UI = { P, M, build, draw, applyPreset,
+if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
+window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; } };
