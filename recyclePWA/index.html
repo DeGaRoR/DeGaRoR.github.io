@@ -30,21 +30,28 @@
   <button class="mbtn flag" id="btnCareer"><span id="mCareer">Career</span><div class="sub" id="mCareerSub">Learn the line, then run your plant.</div></button>
   <button class="mbtn" id="btnAtelier"><span id="mAtelier">Atelier</span><div class="sub" id="mAtelierSub">Financial challenge. No tutorial.</div></button>
   <button class="mbtn" id="btnSandbox"><span id="mSandbox">Sandbox</span><div class="sub" id="mSandboxSub">Infinite feed. No fail. Figure it out.</div></button>
-  <button class="mbtn" id="btnDemo"><span id="mDemo">Reference plant</span><div class="sub" id="mDemoSub">A full plant already running.</div></button>
+  <button class="mbtn" id="btnDemo"><span id="mDemo">Ultimate plant</span><div class="sub" id="mDemoSub">A finished plant already running.</div></button>
   <button class="mbtn" id="btnLoad" style="display:none"><span id="mLoad">Load game</span><div class="sub" id="mLoadSub">Resume a saved career or sandbox, or import a file.</div></button>
   <input type="file" id="importFile" accept="application/json,.json" style="display:none">
   <div id="langRow"><button data-lang="en" class="on">EN</button><button data-lang="fr">FR</button></div>
 </div>
 <div id="wrap">
   <canvas id="cv"></canvas>
+  <!-- Two bands, not one. Four stats plus three buttons on one row meant that on a phone the numbers were
+       the part that got squeezed: the labels ellipsed and the cash value clipped. Band 1 is chrome (home,
+       the date, save, undo); band 2 is the three numbers you actually read while the plant runs. -->
   <div id="hud">
-    <button id="menuBtn" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
-    <div class="stat" id="cashStat"><span class="lbl">Cash</span><span class="val">&#8364;2000</span></div>
-    <div class="stat" id="pnlStat"><span class="lbl">Yesterday</span><span class="val">&#8212;</span></div>
-    <div class="stat" id="divStat"><span class="lbl">Recycling</span><span class="val">0%</span></div>
-    <div class="stat" id="clockStat"><span class="val" id="clockVal">00:00</span></div>
-    <button id="saveBtn" aria-label="Save"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
-    <button id="undoBtn" aria-label="Undo" disabled>&#8630;</button>
+    <div class="hrow hrow1">
+      <button id="menuBtn" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+      <div class="stat" id="clockStat"><span class="val" id="clockVal">00:00</span></div>
+      <button id="saveBtn" aria-label="Save"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
+      <button id="undoBtn" aria-label="Undo" disabled>&#8630;</button>
+    </div>
+    <div class="hrow hrow2">
+      <div class="stat" id="cashStat"><span class="lbl">Cash</span><span class="val">&#8364;2000</span></div>
+      <div class="stat" id="pnlStat"><span class="lbl">Yesterday</span><span class="val">&#8212;</span></div>
+      <div class="stat" id="divStat"><span class="lbl">Recycling</span><span class="val">0%</span></div>
+    </div>
   </div>
   <div id="chint"></div>
   <div id="coach"><div class="chead2"><span class="cstep" id="coachStep"></span><span class="cprog2" id="coachProg2"></span></div><div class="cobj" id="coachObj"></div><div class="ctxt" id="coachTxt"></div></div>
@@ -55,7 +62,8 @@
 <div id="phaseBar"><div class="pbInfo"><span id="pbName"></span><span id="pbNum"></span></div><div class="pbTrack"><div id="pbFill"></div></div></div>
 <div id="dock">
   <button class="pbtn" id="play" aria-label="Play/Pause"></button>
-  <div id="speed"><div class="sp on" data-s="1">1&#215;</div><div class="sp" data-s="2">2&#215;</div><div class="sp" data-s="4">4&#215;</div><div class="sp" data-s="8">8&#215;</div></div>
+  <!-- 0.5x is for watching one belt sort; 8x is for waiting out a contract. 4x sat between 2 and 8 doing neither. -->
+  <div id="speed"><div class="sp" data-s="0.5">&#189;&#215;</div><div class="sp on" data-s="1">1&#215;</div><div class="sp" data-s="2">2&#215;</div><div class="sp" data-s="8">8&#215;</div></div>
   <div id="spacer"></div>
   <button class="pbtn" id="connBtn" aria-label="Connect" style="display:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 12h8"/><circle cx="5" cy="12" r="2.6"/><circle cx="19" cy="12" r="2.6"/></svg></button>
   <button class="pbtn" id="fleetBtn" aria-label="Fleet"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17.5" cy="18" r="1.7"/></svg></button>

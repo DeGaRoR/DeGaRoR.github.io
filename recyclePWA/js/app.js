@@ -57,7 +57,21 @@ function loop(ts){if(!last)last=ts;let dr=(ts-last)/1000;last=ts;if(dr>0.1)dr=0.
 const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
 let DPR=1,VW=0,VH=0,_rL=0,_rT=0;
 const DBG_HIT=(location.hash||"").indexOf("hit")>=0;let _dbgTap=null; // add #hit to the URL to overlay hit regions + last-tap crosshair
-function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=cv.clientWidth;VH=cv.clientHeight;cv.width=VW*DPR;cv.height=VH*DPR;syncRect();syncCoachInset();}
+/* The two measurements the CSS cannot make for itself.
+ *  --barsH : how tall the persistent bottom chrome is (dock + legend + tabbar, whichever are up). Bottom
+ *            sheets and the centred modals sit ON that value instead of on 0, so a popup never lands on the
+ *            play / speed / Add controls — including the very buttons that opened it.
+ *  --hudH  : how tall the top HUD is, now that it is two bands. The coach banner hangs off it.
+ * Recomputed on resize and whenever the chrome is shown or hidden; cheap, and layout-driven rather than a
+ * hardcoded pixel guess that goes stale the moment a band is added. */
+function syncBarsInset(){
+  const d=document.documentElement;if(!d||!d.style)return;
+  let h=0;for(const id of["dock","legend","tabbar"]){const el=document.getElementById(id);
+    if(el&&el.offsetParent!==null&&el.offsetHeight>0)h+=el.offsetHeight;}
+  d.style.setProperty("--barsH",h+"px");
+  const hud=document.getElementById("hud");
+  if(hud&&hud.offsetHeight>0)d.style.setProperty("--hudH",hud.offsetHeight+"px");}
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=cv.clientWidth;VH=cv.clientHeight;cv.width=VW*DPR;cv.height=VH*DPR;syncRect();syncBarsInset();syncCoachInset();}
 window.addEventListener("resize",resize);
 if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(cv); // URL bars resize the canvas without a window resize event
 if(window.visualViewport){visualViewport.addEventListener("resize",resize);visualViewport.addEventListener("scroll",()=>syncRect());}
@@ -106,7 +120,7 @@ function bagCol(sid){if(sid)return _bagColOf(sid);
 /*@ASSETS-START@*/
 // Asset registry — extracted to real files for the PWA split (was 673 KB of base64 in the single-file build).
 // loadAsset() below is unchanged: it just gets a relative URL instead of a data URL.
-const ASSET_FILES=["bag_blue","bag_green","bag_yellow","bale_0","bale_1","bale_2","bale_3","bale_4","bg","bunk_blue_0","bunk_blue_1","bunk_blue_2","bunk_blue_3","bunk_blue_4","bunk_green_0","bunk_green_1","bunk_green_2","bunk_green_3","bunk_green_4","bunk_yellow_0","bunk_yellow_1","bunk_yellow_2","bunk_yellow_3","bunk_yellow_4","cont_0","cont_1","cont_2","conv_belt","fb_0","fb_1","p_PET_0","p_PET_1","p_PET_2","p_PVC_0","p_PVC_1","p_PVC_2","p_alu_0","p_alu_1","p_alu_2","p_film_0","p_film_1","p_film_2","p_paper_0","p_paper_1","p_paper_2","p_steel_0","p_steel_1","p_steel_2","unit_0","unit_1","unit_2","unit_3","unit_4","unit_5","unit_6","unit_7","sup_green","sup_teal","sup_blue","sup_purple","sup_orange","sup_yellow","veh_10","veh_11","veh_3","veh_4","veh_5","veh_6","veh_7","veh_8","veh_9","veh_int","zone_0","zone_1","zone_2","zone_3","zone_4","bale_pvc","zone_pvc","zone_5","zone_bulk","zone_landfill","tile_forest1","tile_forest2","tile_forest3","tile_forest4","tile_landfill","tile_incin"];
+const ASSET_FILES=["bag_blue","bag_green","bag_yellow","bale_0","bale_1","bale_2","bale_3","bale_4","bg","bunk_blue_0","bunk_blue_1","bunk_blue_2","bunk_blue_3","bunk_blue_4","bunk_green_0","bunk_green_1","bunk_green_2","bunk_green_3","bunk_green_4","bunk_yellow_0","bunk_yellow_1","bunk_yellow_2","bunk_yellow_3","bunk_yellow_4","cont_0","cont_1","cont_2","conv_belt","fb_0","fb_1","p_PET_0","p_PET_1","p_PET_2","p_PVC_0","p_PVC_1","p_PVC_2","p_alu_0","p_alu_1","p_alu_2","p_film_0","p_film_1","p_film_2","p_paper_0","p_paper_1","p_paper_2","p_steel_0","p_steel_1","p_steel_2","unit_0","unit_1","unit_2","unit_3","unit_4","unit_5","unit_6","unit_7","sup_green","sup_teal","sup_blue","sup_purple","sup_orange","sup_yellow","cli_orange","cli_yellow","cli_red","cli_green","cli_teal","cli_blue","cli_purple","cli_tan","cli_white","cli_black","fl_orange","fl_yellow","fl_red","fl_green","fl_teal","fl_blue","veh_5","veh_6","veh_7","veh_8","veh_int","zone_0","zone_1","zone_2","zone_3","zone_4","bale_pvc","zone_pvc","zone_5","zone_bulk","zone_landfill","tile_forest1","tile_forest2","tile_forest3","tile_forest4","tile_landfill","tile_incin"];
 const ASSETS={};for(const k of ASSET_FILES)ASSETS[k]="assets/"+k+".webp";
 /*@ASSETS-END@*/
 
@@ -132,6 +146,30 @@ function _bagKeyFromCol(col){ // nearest of the three liveries the art actually 
   const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
   if(b>=g&&b>=r)return"blue"; if(g>=r)return"green"; return"yellow";}
 function bagKey(sid){return _bagKeyFromCol(bagCol(sid));}
+/* THE BAG LIVERY OF A STREAM. Bags on a belt, and bags in a loader's bucket, used to be drawn in the
+ * DEFAULT colour — blue — for every contract on the site, so a yellow-bag mandate turned blue the instant
+ * it left the pit and the screen contradicted itself (NNG-2: the screen is the real state). A particle
+ * genuinely has no identity of its own (the buffers are counts per material+state, deliberately), so the
+ * livery is resolved the same way the BUNKER art resolves it — from the mix actually held — and then
+ * carried downstream by walking back up the graph to the nearest bunker. Memoised per frame: the walk is a
+ * handful of hops and the answer cannot change inside one frame. */
+const _bagKeyCache={}; let _bagKeyFrame=-1;
+function bunkerKeyOf(n){ // livery of the bags a BUNKER is holding (falls back to its assignment when empty)
+  const bt=(typeof bunkerBagType==="function")?bunkerBagType(n):null;
+  if(bt)return (BAG_COL_BY[bt]&&_bagKeyFromCol(BAG_COL_BY[bt]))||"blue";
+  return bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null);}
+function streamBagKey(nodeId,depth){ // livery of whatever is flowing OUT of this node
+  if(_bagKeyFrame!==G_frame){_bagKeyFrame=G_frame;for(const k in _bagKeyCache)delete _bagKeyCache[k];}
+  if(_bagKeyCache[nodeId]!==undefined)return _bagKeyCache[nodeId];
+  const n=nodeById(nodeId);
+  let key;
+  if(!n)key=bagKey(null);
+  else if(isBunker(n))key=bunkerKeyOf(n);
+  else if((depth||0)>=6)key=bagKey(null);                      // pathological graph: stop rather than spin
+  else{ // walk upstream: bags only exist above the opener, so this is at most bunker → feeder → opener
+    let up=null;for(const e of G.edges)if(e.to===n.id){up=e.from;break;}
+    key=up!=null?streamBagKey(up,(depth||0)+1):bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null);}
+  _bagKeyCache[nodeId]=key;return key;}
 function siteMode(){return !!(G&&G.scenario&&G.scenario.siteRef);}
 const SITE_C={board:"#A7C28C",boardRow:"#9FBC82",whFloor:"#E9E3D5",wall:"#BCAF99",wallDk:"#9C8F78",surround:"#8FAA72"};
 const SITE_ZCOL={road:"#6E665C",truckin:"#5E6B82",truckout:"#8A8FA0",dirt:"#A98C5E",baling:"#F2A23B",bulk:"#BCE03A",feeder:"#5BCB5C",input:"#46BFB8",output:"#E0A45C"};
@@ -270,7 +308,7 @@ function drawSiteXings(XS){ if(!XS||!XS.list.length)return;
                  ctx.moveTo(c.x+6,c.y-10);ctx.lineTo(c.x+6,c.y+10);}
       ctx.stroke();}
     ctx.restore();}}
-function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bc=bagCol(),_bk=bagKey(),L=pathLen(P);
+function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bk=streamBagKey(e.from),_bc=BAG_COL_BY[_bk]||BAG_COL,L=pathLen(P);
   const holes=XS&&XS.byBot.get(e); // where THIS belt dives under an overpass
   if(holes){ctx.save();ctx.beginPath();          // even-odd: the whole world MINUS one rect per deck, so an
     ctx.rect(-CELL,-CELL,(SITE_LAYOUT.grid.w+2)*CELL,(SITE_LAYOUT.grid.h+2)*CELL); // item is progressively eaten
@@ -293,7 +331,7 @@ function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehi
     if(s.bale){const bi=img(BALE_IMG[baleDom(s.bale)]||"bale_0");
       if(bi)ctx.drawImage(bi,p.x-BALE_W/2,p.y-BALE_H/2,BALE_W,BALE_H);
       else{ctx.fillStyle=COL[baleDom(s.bale)];rr(ctx,p.x-5,p.y-4,10,8,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=1;ctx.stroke();}}
-    else if(s.st===0){const gi=img("bag_"+_bk); // an unopened bag, in the contract's livery
+    else if(s.st===0){const gi=img("bag_"+_bk); // an unopened bag, in the livery of the bunker it came out of
       if(gi)ctx.drawImage(gi,p.x-5,p.y-5,10,10);
       else{ctx.fillStyle=_bc;const r=SR[0];rr(ctx,p.x-r,p.y-r,r*2,r*2,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=0.8;ctx.stroke();}}
     else{const pi=img("p_"+s.mat+"_"+(s.v||0)); // a liberated ITEM of its actual material (3 deterministic variants)
@@ -306,12 +344,14 @@ function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehi
 const TRUCK_STYLE={supplier:{col:"#3F6FB5",len:76,wid:20},client:{col:"#4E5D75",len:96,wid:20},lftruck:{col:"#7C766D",len:96,wid:20}};
 function truckDrawPos(t){return truckPos(t);} // berths already give each truck its own spot — no ad-hoc lane shifting
 function truckSpriteKey(t){
-  // A bin truck now carries the SUPPLIER's own livery (six exist), which is company identity — distinct from
+  // A bin truck carries the SUPPLIER's own livery (six exist), which is company identity — distinct from
   // the bag colour, which is the waste TYPE and is legitimately shared by suppliers collecting the same stream.
   // t.sup is what the truck was dispatched for, set at spawn.
   if(t.cls==="supplier"){const st=t.sup&&supplierStream(t.sup);return "sup_"+((st&&st.truck)||"green");}
-  if(t.cls==="client")return"veh_"+(3+t.id%2); // wooden / mesh flatbeds
-  return"veh_5";} // landfill: the dark flatbed
+  // A BUYER's flatbed now carries that buyer's livery too, so "who is on my dock" is answerable from the map
+  // instead of from the bay's inspector. It used to alternate two sprites by truck id — pure noise.
+  if(t.cls==="client"){const n=nodeById(t.nodeId),tm=n&&nodeTerms(n);return "cli_"+((tm&&tm.truck)||"black");}
+  return"veh_5";} // landfill: the dark flatbed (not a buyer — never seen at an export dock)
 function drawSiteTrucks(){ if(!G.trucks)return;
   for(const t of G.trucks){const p=truckDrawPos(t),st=TRUCK_STYLE[t.cls]||TRUCK_STYLE.supplier;
     const spr=img(truckSpriteKey(t));
@@ -340,7 +380,7 @@ function drawSiteTrucks(){ if(!G.trucks)return;
     if(cam.zoom>0.42){ // status badge (screen-aligned): what is this truck doing?
       let txt;
       if(t.state==="dwell"){
-        if(t.cls==="client")txt=tr("LOADING BALES")+" "+t.loaded+"/"+t.plan;
+        if(t.cls==="client")txt=t.loaded+"/"+t.plan; // the truck sprite already says it is loading; the words were three times the width of the number
         else{const pr=t.dw>0?Math.round(Math.max(0,Math.min(1,(G.t-t.dwT0)/t.dw))*100):0;
           txt=tr(t.cls==="supplier"?"TIPPING":"LOADING")+" "+pr+"%";}}
       else txt=(t.state==="toStop")?tr("ARRIVING"):tr("LEAVING");
@@ -380,38 +420,40 @@ function drawContainers(n){const cs=n.containers||[];if(!cs.length)return;
     else{siteShadow();ctx.fillStyle="rgba(40,32,20,.25)";rr(ctx,cx-CW/2,cy-CH/2,CW,CH,4);ctx.fill();noShadow();
       if(f>0){ctx.fillStyle="#7E7A6A";rr(ctx,cx-CW/2+2,cy-CH/2+2+(CH-4)*(1-f),CW-4,(CH-4)*f,3);ctx.fill();}}
     if(i===n.active){ctx.strokeStyle="#F2A93B";ctx.lineWidth=1.8;rr(ctx,cx-CW/2-1.5,cy-CH/2-1.5,CW+3,CH+3,5);ctx.stroke();}}}
+const LF_COLS=3; // skips parked across the waiting yard before a new row starts
 function drawLandfillHold(n){const full=Math.floor(cnt(n.inBuf)/G.logi.containerCap),part=(cnt(n.inBuf)%G.logi.containerCap)/G.logi.containerCap;
   const k=Math.min(G.logi.landfillHold,full+(part>0?1:0));
-  // Grid AND sprite scale follow the footprint. This was a fixed 3-wide layout at full sprite size, sized for
-  // the old 7-cell bay; at 2 cells the skips would sit on top of each other. Capacity is unchanged — the yard
-  // is just drawn to the space it actually occupies.
-  const cols=Math.max(1,Math.round(n.w/CELL)),rows=Math.max(1,Math.ceil(G.logi.landfillHold/cols));
-  const cellW=n.w/cols,cellH=n.h/rows;
-  const sc=Math.min(1,(cellW*0.92)/CONT_H,(cellH*0.92)/CONT_W);
-  const CW=CONT_H*sc,CH=CONT_W*sc; // parked sideways in the waiting yard
+  /* A roll-off container is a roll-off container: it is the SAME object here as on the bulk pad, so it is
+   * drawn at the same size and the same way up (CONT_W × CONT_H, nose up). It used to be rotated flat and
+   * rescaled to fit however many columns the bay happened to be wide, so the identical skip read as a
+   * different, smaller object at each end of its own journey. Three across, then wrap — rows are laid from
+   * the top of the bay, and the bay is wide enough that a full hold never overflows it. */
+  const cols=Math.max(1,Math.min(LF_COLS,Math.floor(n.w/CONT_W)||1));
+  const rows=Math.max(1,Math.ceil(G.logi.landfillHold/cols));
+  const cellW=n.w/cols,cellH=Math.min(n.h/rows,CONT_H*1.06);
   for(let i=0;i<k;i++){const col=i%cols,row=Math.floor(i/cols);
     const cx=n.x-n.w/2+(col+0.5)*cellW,cy=n.y-n.h/2+(row+0.5)*cellH;
     const f=(i<full)?1:part,ci=contImg(f);
-    if(ci){ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.PI/2);siteShadow();ctx.drawImage(ci,-CH/2,-CW/2,CH,CW);ctx.restore();}
-    else{ctx.fillStyle="rgba(40,32,20,.25)";rr(ctx,cx-CW/2,cy-CH/2,CW,CH,4);ctx.fill();
-      ctx.fillStyle="#7E7A6A";rr(ctx,cx-CW/2+2,cy-CH/2+2,(CW-4)*f,CH-4,3);ctx.fill();}}}
-function drawOneBale(cx,cy,b,specKey){const bw=BALE_W,bh=BALE_H; // top-down 1.6 × 1.1 m at 7.5 px/m
+    if(ci){siteShadow();ctx.drawImage(ci,cx-CONT_W/2,cy-CONT_H/2,CONT_W,CONT_H);noShadow();}
+    else{siteShadow();ctx.fillStyle="rgba(40,32,20,.25)";rr(ctx,cx-CONT_W/2,cy-CONT_H/2,CONT_W,CONT_H,4);ctx.fill();noShadow();
+      if(f>0){ctx.fillStyle="#7E7A6A";rr(ctx,cx-CONT_W/2+2,cy-CONT_H/2+2+(CONT_H-4)*(1-f),CONT_W-4,(CONT_H-4)*f,3);ctx.fill();}}}}
+function drawOneBale(cx,cy,b,specKey,buyerId){const bw=BALE_W,bh=BALE_H; // top-down 1.6 × 1.1 m at 7.5 px/m
   const bi=img(BALE_IMG[baleDom(b)]||"bale_0");
   if(bi){baleShadow();ctx.drawImage(bi,cx-bw/2,cy-bh/2,bw,bh);noShadow();}
   else{baleShadow();ctx.fillStyle=COL[baleDom(b)];rr(ctx,cx-bw/2,cy-bh/2,bw,bh,1.6);ctx.fill();noShadow();
     ctx.strokeStyle="rgba(23,20,15,.35)";ctx.lineWidth=0.8;ctx.beginPath();
     ctx.moveTo(cx-bw/6,cy-bh/2);ctx.lineTo(cx-bw/6,cy+bh/2);ctx.moveTo(cx+bw/6,cy-bh/2);ctx.lineTo(cx+bw/6,cy+bh/2);ctx.stroke();}
-  if(specKey){const g=grade(b,specKey);ctx.strokeStyle=g.ok?"#3E8E4E":"#C25B4E";ctx.lineWidth=1.3; // on-spec ✓ / ✗
+  if(specKey){const g=grade(b,specKey,buyerId);ctx.strokeStyle=g.ok?"#3E8E4E":"#C25B4E";ctx.lineWidth=1.3; // on-spec ✓ / ✗ — against THIS buyer's bar, not the generic one
     rr(ctx,cx-bw/2,cy-bh/2,bw,bh,1.6);ctx.stroke();}}
 const _BQ=[[-7,-5.5],[7,-5.5],[-7,5.5],[7,5.5]]; // 2×2 within one 4 m cell
 function drawBaleStack(n,list,max){ // EXPORT bay: fill cell by cell (4 per cell), dock side first
   const k=Math.min(list.length,max!=null?max:list.length);
-  const gw=Math.round(n.w/CELL),gh=Math.round(n.h/CELL),spec=isSell(n)?n.spec:null;
+  const gw=Math.round(n.w/CELL),gh=Math.round(n.h/CELL),spec=isSell(n)?n.spec:null,byr=spec?effBuyer(n):null;
   for(let i=0;i<k;i++){const cell=Math.floor(i/4),q=i%4;
     const cxg=cell%gw,cyg=gh-1-Math.floor(cell/gw); // bottom row first (trucks dock below)
     const cx=n.x-n.w/2+(cxg+0.5)*CELL+_BQ[q][0],cy=n.y-n.h/2+(cyg+0.5)*CELL+_BQ[q][1];
-    drawOneBale(cx,cy,list[i],spec);}
-  if(spec&&list.length){let on=0;for(const b of list)if(grade(b,spec).ok)on++; // on-spec tally
+    drawOneBale(cx,cy,list[i],spec,byr);}
+  if(spec&&list.length){let on=0;for(const b of list)if(grade(b,spec,byr).ok)on++; // on-spec tally
     ctx.font="700 8px -apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
     const txt="✓"+on+(list.length>on?"  ✗"+(list.length-on):""),w=ctx.measureText(txt).width+10;
     ctx.fillStyle="rgba(30,26,20,.72)";rr(ctx,n.x-w/2,n.y-n.h/2-14,w,12,6);ctx.fill();
@@ -423,8 +465,33 @@ function drawBalerStack(n,list,max){ // BALER: the four stored bales sit 2×2 in
   const cxg=(inSide==="l")?Math.round(n.w/CELL)-1:0; // inlet left → stack right, else stack left
   for(let i=0;i<k;i++){const q=i%4;
     drawOneBale(n.x-n.w/2+(cxg+0.5)*CELL+_BQ[q][0],n.y-n.h/2+0.5*n.h+_BQ[q][1],list[i],null);}}
+/* SHORT AUTO NAMES. "Vacuum film extractor" under a 30 px unit is a smear, and with four of them on the
+ * line the caption said nothing anyway. Every unit gets a 1-4 letter tag plus its own number — M1, MAG2,
+ * NIR1 — which is short enough to read at any zoom and unique enough to point at. A player-set label still
+ * wins; the full name lives one tap away in the inspector. Numbering is by id, so a unit keeps its name for
+ * as long as it exists (demolishing #2 does not renumber #3 into it — ids are never reused). */
+const SHORT_TAG={mixer:"M",pick:"TRI",air:"AIR",eddy:"ALU",magnet:"MAG",nir:"NIR",vfilm:"FILM",splitter:"SPL",opener:"OPEN",baler:"BALE"};
+const SHORT_SPEC={PET:"PET",ferrous:"FER",alu:"ALU",carton:"OCC",film:"FILM",pvc:"PVC",dispose:"DUMP"};
+function siteTagOf(n){
+  if(isBunker(n))return"BNK";
+  if(isFeeder(n))return"FEED";
+  if(isBulk(n))return"BULK";
+  if(isLandfill(n))return"LF";
+  if(isSell(n))return SHORT_SPEC[n.spec]||"EXP";
+  return SHORT_TAG[n.type]||String((TYPES[n.type]&&TYPES[n.type].name)||"?").slice(0,3).toUpperCase();}
+let _tagMapCache=null;
+function _tagMap(){
+  if(_tagMapCache&&_tagMapCache.g===G&&_tagMapCache.n===G.nodes.length)return _tagMapCache.m;
+  const m={},c={},ns=G.nodes.slice().sort((a,b)=>a.id-b.id);
+  for(const x of ns){const t=siteTagOf(x);c[t]=(c[t]||0)+1;m[x.id]=t+c[t];}
+  _tagMapCache={g:G,n:G.nodes.length,m:m};return m;}
+function siteAutoName(n){
+  const t=siteTagOf(n);let v=_tagMap()[n.id];
+  if(!v||v.indexOf(t)!==0){_tagMapCache=null;v=_tagMap()[n.id];} // a bay whose product changed keeps the node count — rebuild on the tag, not on the count
+  return v||t;}
 function siteNodeLabel(n){
   if(n.label)return n.label;                 // player-set name wins on the map
+  if(n.gx!=null)return siteAutoName(n);      // site mode: the short tag
   if(isBunker(n))return tr("Bunker");
   if(isFeeder(n))return tr("Feeder");
   if(isBulk(n))return tr("Bulk");
@@ -463,14 +530,21 @@ function siteSpriteFor(n){ // {im, rot(rad), flip} or null → vector card
   if(n.site==="process")return{im:img(UNIT_IMG[n.type]),rot:(n.rot||0)*Math.PI/180,flip:false};
   if(n.site==="mixer")return{im:img("unit_6"),rot:(n.rot||0)*Math.PI/180,flip:false}; // junction art
   return null;} // bulk & landfill: no art yet → vector card
-function _ghostNode(st,kind,gx,gy,rot){ // a throwaway node just for sprite/port geometry (not added to G)
+/* `src` = the unit being MOVED, when there is one. Without it the ghost was a blank template: default
+ * sortSide, no splitLayout, no product — so a separator ejecting LEFT drew its ports on the right the
+ * moment you picked it up, and the splitter's two layouts were indistinguishable. Move mode and connect
+ * mode then disagreed about where the same unit's ports are, which is the confusing half of the bug: both
+ * read sitePortsOf(), so feeding it the real unit's state makes them agree by construction. */
+function _ghostNode(st,kind,gx,gy,rot,src){ // a throwaway node just for sprite/port geometry (not added to G)
   const fp=siteFootprint(st,rot||0);
   const sk=SITE_KIND[st]||{type:"process"};const type=(st==="process"||st==="mixer")?(kind||(st==="mixer"?"mixer":"opener")):sk.type;
-  return {site:st,type:type,role:sk.role||null,gx:gx,gy:gy,rot:rot||0,
+  return {id:(src?src.id:-1),site:st,type:type,role:(src?src.role:null)||sk.role||null,gx:gx,gy:gy,rot:rot||0,
     x:(gx+fp.w/2)*CELL,y:(gy+fp.h/2)*CELL,w:fp.w*CELL,h:fp.h*CELL,
-    inBuf:blankBuf(),bale:blankBuf(),bales:[],spec:null};}
-function drawPlacementGhost(st,kind,gx,gy,rot,chk){
-  const g=_ghostNode(st,kind,gx,gy,rot),x=gx*CELL,y=gy*CELL,w=g.w,h=g.h;
+    sortSide:src?src.sortSide:null,splitLayout:src?src.splitLayout:null,      // the settings that MOVE the ports
+    supplier:src?src.supplier:null,buyer:src?src.buyer:null,bagMix:src?src.bagMix:null,_bagCnt:src?src._bagCnt:null,
+    inBuf:(src&&src.inBuf)||blankBuf(),bale:blankBuf(),bales:[],spec:src?src.spec:null};}
+function drawPlacementGhost(st,kind,gx,gy,rot,chk,src){
+  const g=_ghostNode(st,kind,gx,gy,rot,src),x=gx*CELL,y=gy*CELL,w=g.w,h=g.h;
   // 1) sprite ghost (semi-transparent), or a coloured card if no art
   const sp=(TYPES[g.type]?siteSpriteFor(g):null);
   ctx.save();ctx.globalAlpha=chk.ok?0.72:0.5;
@@ -654,7 +728,7 @@ function drawBuildOverlay(){
     // The SAME ghost as placement — rotated sprite + rotated PORT NUBS, plus the illegality label.
     // This used to be a flat rectangle, and since most units are 1x1 their footprint is identical at every
     // angle: rotating changed nothing on screen and Rotate read as dead, even though n.rot was committed.
-    drawPlacementGhost(st,n.type,BUILD.gx,BUILD.gy,BUILD.rot,chk);}
+    drawPlacementGhost(st,n.type,BUILD.gx,BUILD.gy,BUILD.rot,chk,n);}
   if(BUILD.mode==="place"&&BUILD.sel){
     const[st,kind]=BUILD.sel;
     const PZ=sitePlaceZones(),zoneSet=PZ[st]; // shade the legal placement area for this family
@@ -829,9 +903,10 @@ const VEH_COLS={loader:"#E0B341",forklift:"#E08A41",ctruck:"#6E9BC4"};
 // Draw each pool vehicle at its interpolated world position (vehPos, from the engine). Moving vehicles
 // ride the haul road at full opacity; stationary ones park just below the node they're working, dimmed.
 const VEHA=new WeakMap(); // last heading per vehicle (renderer-local, never serialized)
+const FORK_COLS=["orange","yellow","red","green","teal","blue"]; // one livery per forklift, so you can follow ONE of them across the yard
 function vehSpriteKey(v){
   if(v.cls==="loader")return"veh_"+(6+v.id%3);
-  if(v.cls==="forklift")return"veh_"+(9+v.id%3);
+  if(v.cls==="forklift")return"fl_"+FORK_COLS[v.id%FORK_COLS.length];
   return"veh_int";} // internal container hauler: the roll-off ampliroll
 function drawVehicles(){ if(!G.vehicles)return; const _parkIdx={};
   for(const v of G.vehicles){
@@ -858,8 +933,8 @@ function drawVehicles(){ if(!G.vehicles)return; const _parkIdx={};
       else if(cnt(v.payload)>0){
         if(v.cls==="ctruck"){const ci=img("cont_2"); // hauled container, seated on the REAR of the bed (behind the cab)
           if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,-CELL,CONT_W,CONT_H);noShadow();}} // its own drop shadow
-        else{const _fb=nodeById(v.fromId); // bags heaped in the loader's bucket (front) — coloured by the bunker it scooped from
-          const gi=img("bag_"+bagKey(_fb&&_fb.supplier&&_fb.supplier!=="__none"?_fb.supplier:null));
+        else{const _fb=nodeById(v.fromId); // bags heaped in the loader's bucket (front) — the livery of what it actually scooped
+          const gi=img("bag_"+(_fb?(isBunker(_fb)?bunkerKeyOf(_fb):streamBagKey(_fb.id)):bagKey(null)));
           if(gi){ctx.drawImage(gi,-7,-dh/2-1,9,9);ctx.drawImage(gi,-1,-dh/2-3,9,9);ctx.drawImage(gi,3,-dh/2,8,8);}
           else{ctx.fillStyle="rgba(242,232,216,.85)";ctx.beginPath();ctx.arc(0,-dh/4,3.4,0,7);ctx.fill();}}}
       ctx.restore();ctx.globalAlpha=1;}
@@ -1041,7 +1116,7 @@ const LANG={fr:{
   // ── site (Phase 1-2) ──
   "Run the plant":"Diriger l\u2019usine","The physical site \u2014 trucks, loaders, your line, top-down.":"Le site physique \u2014 camions, chargeurs, ta ligne, vue du dessus.",
   "Flowsheet (legacy)":"Flowsheet (ancien)","The old abstract view \u2014 kept until the site editor lands.":"L\u2019ancienne vue abstraite \u2014 conservée jusqu\u2019à l\u2019éditeur de site.",
-  "Reference plant":"Usine de référence","The physical yard: trucks, loaders, forklifts on a real site plan \u2014 tap anything to inspect it":"La cour physique : camions, chargeurs, chariots sur un vrai plan de site \u2014 touche pour inspecter",
+  "Ultimate plant":"Usine ultime","A finished plant already running.":"Une usine finie, déjà en marche.","Every machine, every product, a recycle loop you can dial — study it, tweak it, break it.":"Toutes les machines, tous les produits, une boucle de recyclage réglable — étudie-la, bidouille-la, casse-la.","69 units, all six products, three contracts and a recycle loop — tap anything to inspect it":"69 unités, les six produits, trois contrats et une boucle de recyclage — touche pour inspecter","The physical yard: trucks, loaders, forklifts on a real site plan \u2014 tap anything to inspect it":"La cour physique : camions, chargeurs, chariots sur un vrai plan de site \u2014 touche pour inspecter",
   "Your plant is live \u2014 pinch to zoom, tap any unit or vehicle to inspect it.":"Ton usine tourne \u2014 pince pour zoomer, touche une unité ou un véhicule pour l\u2019inspecter.",
   "Wheel loader":"Chargeur","Container truck":"Camion conteneur","Supplier truck":"Camion fournisseur","Client truck":"Camion client","Landfill truck":"Camion décharge",
   "driving to pickup":"va charger","driving to drop-off":"va livrer","loading":"chargement","unloading":"déchargement","idle":"à l\u2019arrêt",
@@ -1097,7 +1172,14 @@ const LANG={fr:{
   "Scrapped bales go straight to landfill — you pay the disposal charge.":"Les ballots jetés partent directement à la décharge — tu paies les frais d’enfouissement.",
   "bales scrapped to landfill":"ballots envoyés à la décharge",
   "Career":"Carrière","Sandbox":"Bac à sable","Add":"Ajouter","Menu":"Menu","Retry":"Réessayer",
-  "Cash":"Argent","Recycling":"Recyclage","Recycled (24h)":"Recyclé (24h)","Machine slots":"Emplacements machines","Phase":"Phase","Mode":"Mode","Step":"Étape",
+  "Cash":"Argent","Recycling":"Recyclage","Recycled (24h)":"Recyclé (24h)","Phase":"Phase","Mode":"Mode","Step":"Étape",
+  // ── v1.17.0: buyer terms, per-bay takings, dedicated bunkers, finite surges ──
+  "Earned (total)":"Encaissé (total)","Earned (yesterday)":"Encaissé (hier)","no full day yet":"pas encore un jour complet",
+  "Strict":"Exigeant","Lenient":"Tolérant","Standard":"Standard",
+  "Ends in":"Fin dans","In":"Dans","for":"pendant","d":"j","Incoming":"À venir",
+  "surge over, the trucks have stopped":"pic terminé, les camions se sont arrêtés",
+  "Dedicate a bunker to an imposed stream to keep it out of the others. If the dedicated pits fill up the load falls back to whatever bunker has room — an imposed truck can never be refused.":"Dédie un bunker à un flux imposé pour l’isoler des autres. Si les fosses dédiées sont pleines, le chargement retombe sur n’importe quel bunker disponible — un camion imposé ne peut jamais être refusé.",
+  "A regional surge lands on you for a few days. The trucks roll whether or not you have room — they cannot be turned away, and whatever your bunkers cannot hold is buried at your expense. Ride it out on a lower recycling rate, quarantine it in its own bunker, or idle one of your own contracts until it passes. It will be back.":"Un pic régional te tombe dessus pour quelques jours. Les camions roulent que tu aies de la place ou non — impossible de les refuser, et tout ce que tes bunkers ne peuvent pas contenir est enfoui à tes frais. Encaisse avec un taux de recyclage plus bas, isole-le dans un bunker dédié, ou mets un de tes contrats en veille le temps que ça passe. Il reviendra.",
   "Start building":"Construire","Continue":"Continuer","Got it":"Compris","Start":"Démarrer","complete":"terminée","banked":"versé","recovered":"récupéré","Sell":"Vendre","Sells":"Vend","Ferrous":"Ferreux","Base equipment":"Équipement de base","Included from the start \u2014 every contract begins with these. Research branches the line out from here.":"Inclus dès le départ \u2014 chaque contrat commence avec ça. La recherche prolonge la ligne à partir d\u2019ici.",
   "One contract. Stay solvent, hit spec.":"Un contrat. Reste solvable, atteins la qualité.",
   "Infinite feed. No fail. Figure it out.":"Flux infini. Aucun échec. Débrouille-toi.",
@@ -1145,6 +1227,7 @@ const LANG={fr:{
   "Tutorial done \u2014 the line runs continuously now. Keep the cash positive; as you unlock partners in R&D you\u2019ll pick suppliers on each Intake and buyers on each Output.":"Tutoriel terminé \u2014 la ligne tourne en continu maintenant. Garde la trésorerie positive ; en débloquant des partenaires en R&D, tu choisiras les fournisseurs sur chaque Entrée et les acheteurs sur chaque Sortie.",
   "GOALS":"OBJECTIFS","Balance":"Solde","Progression":"Progression","Milestones":"Jalons","All claimed.":"Tout réclamé.","Claim":"Réclamer","ready":"prêt","Ready to claim":"Prêt à réclamer","Requires":"Requiert","equipment":"équipement",
   "Growth":"Croissance","Impact":"Impact","PVC":"PVC","−20% equipment":"−20% équipement",
+  "Regional residual surge":"Pic de résiduel régional",
   "Sell your first on-spec bale":"Vends ton premier ballot conforme",
   "Reach €5k/day operating profit":"Atteins 5 k€/jour de bénéfice",
   "Reach €10k/day operating profit":"Atteins 10 k€/jour de bénéfice",
@@ -1177,7 +1260,7 @@ function applyLang(){buildLegend();const set=(id,s)=>{const el=document.getEleme
   set("mCareer",tr("Career"));set("mCareerSub",tr("Guided: build your first line, sell your first bale."));
   set("mAtelier",tr("Atelier"));set("mAtelierSub",tr("Financial challenge. No tutorial."));
   set("mSandbox",tr("Sandbox"));set("mSandboxSub",tr("Empty site, your budget, no guidance."));
-  set("mDemo",tr("Reference plant"));set("mDemoSub",tr("A full plant already running \u2014 study it, tweak it, break it."));
+  set("mDemo",tr("Ultimate plant"));set("mDemoSub",tr("Every machine, every product, a recycle loop you can dial \u2014 study it, tweak it, break it."));
   set("mLoad",tr("Load game"));set("mLoadSub",tr("Resume a saved career or sandbox."));
   const ab=document.getElementById("addBtn");if(ab){const _l=ab.querySelector(".lbl");if(_l)_l.textContent=tr("Add");else ab.textContent="\uFF0B "+tr("Add");}
   document.querySelectorAll("#langRow button").forEach(b=>b.classList.toggle("on",b.dataset.lang===LANG_CUR));
@@ -1200,13 +1283,14 @@ const TECH_META={
   t_belt :{name:"Wide belts",cl:"logistics",g:"belt",fx:"+15% throughput"},
   a_split:{name:"Flow splitting",cl:"equipment",g:"splitter",fx:"Unlock the splitter"},
   a_pickU:{name:"Manual sort cabin",cl:"equipment",g:"pick",fx:"Unlock the picking station"},
-  a_yard1:{name:"Yard extension I",cl:"realestate",g:"slots",fx:"+15 slots \u00b7 bigger bunkers"},
-  a_yard2:{name:"Yard extension II",cl:"realestate",g:"slots",fx:"+20 slots \u00b7 bigger bunkers"},
-  a_yard3:{name:"Yard extension III",cl:"realestate",g:"slots",fx:"+25 slots \u00b7 bigger bunkers"},
+  a_yard1:{name:"Storage extension I",cl:"realestate",g:"slots",fx:"+50% bunker, buffer & bay capacity"},
+  a_yard2:{name:"Storage extension II",cl:"realestate",g:"slots",fx:"+50% again \u2014 x2.25 total"},
+  a_yard3:{name:"Storage extension III",cl:"realestate",g:"slots",fx:"+50% again \u2014 x3.4 total"},
   h_sorters:{name:"Trained sorters",cl:"hr",g:"pick",fx:"+5% picking efficiency"},
   s_subsidy:{name:"Recycling subsidy",cl:"subsidies",g:"coin",fx:"+8% on all sales"},
   sl_binf  :{name:"Binfinity contract",cl:"sales",g:"flag",fx:"Unlock Binfinity (supplier)"},
   sl_iron  :{name:"Iron Maiden offtake",cl:"sales",g:"flag",fx:"Unlock Iron Maiden Metals (buyer)"},
+  sl_poub  :{name:"Poubelle Air contract",cl:"sales",g:"flag",fx:"Unlock Poubelle Air (supplier)"},
 };
 const CL_META={equipment:["New equipment","#D98E48"],sorting:["Sorting efficiency","#E3B04B"],cost:["Cost reduction","#C7794A"],logistics:["Logistics","#B5894E"],realestate:["Real estate","#7FA86B"],hr:["HR","#A77BA6"],subsidies:["Subsidies","#6E93B0"],sales:["Sales & marketing","#CC6B66"]};
 let curView="process",_objSig="",_conSig="",_tutFocusNode=null;
@@ -1221,7 +1305,8 @@ function buildLegend(){const el=document.getElementById("legend");if(!el)return;
   for(const m of MAT)s+='<span class="lg"><i style="background:'+COL[m]+'"></i>'+LBL[m]+'</span>';
   el.innerHTML=s;}
 function showTabbar(on){if(isSandboxSite())on=false; // sandbox has no R&D/Goals tabs → no bottom nav at all
-  const t=document.getElementById("tabbar");if(t)t.classList.toggle("hide",!on);const l=document.getElementById("legend");if(l)l.classList.toggle("hide",!on);if(on)buildLegend();}
+  const t=document.getElementById("tabbar");if(t)t.classList.toggle("hide",!on);const l=document.getElementById("legend");if(l)l.classList.toggle("hide",!on);if(on)buildLegend();
+  syncBarsInset();} // the bottom chrome just changed height — sheets and modals sit on that measurement
 function updateBadge(){const b=document.querySelector('#tabbar button[data-v="obj"]');if(b)b.classList.toggle("hasnew",!!(G&&G.mode==="career"&&hasClaimable()));}
 function refreshBanks(up){document.querySelectorAll(".vhead .bank .v").forEach(el=>{el.textContent=euroB(G?G.cash:CAREER.bank);if(up)flashBank(el);});}
 function updateTutFocus(){const rd=document.querySelector('#tabbar button[data-v="tech"]');if(rd)rd.classList.toggle("hasfocus",!!(_tutFocusNode&&curView!=="tech"));}
@@ -1279,6 +1364,26 @@ function _supIcon(st){
   const bag=BAG_COL_BY[st.bag]||BAG_COL;
   return '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;margin-right:11px">'+truck+
     '<span title="'+tr("bags")+'" style="width:13px;height:13px;border-radius:3px;background:'+bag+';border:1px solid rgba(0,0,0,.4)"></span></div>';}
+/* A BUYER'S DEAL, in one line. Two mills buying the same product are not the same contract — one wants
+ * 95% and pays for it, the other takes 85% and pays like it — and until now the contracts page printed
+ * both as the identical row. capsTxt spells out the contaminant ceilings the same way the bay inspector
+ * does, so the page and the unit agree word for word. */
+function capsTxt(tm){const c=(tm&&tm.caps)||{};
+  return Object.keys(c).map(m=>tr(m)+" \u2264"+(c[m]*100).toFixed(c[m]<0.01?1:0)+"%").join(", ");}
+function specRuleTxt(tm){if(!tm)return"";
+  const cp=capsTxt(tm);
+  return "\u2265"+Math.round(tm.minPurity*100)+"% "+tr(tm.label)+(cp?" \u00b7 "+cp:"");}
+function buyerDelta(id){ // how this buyer differs from the product's plain spec, as a chip suffix
+  const b=coById(id);if(!b)return"";
+  const bits=[];
+  if(b.minPurity!=null)bits.push("\u2265"+Math.round(b.minPurity*100)+"%");
+  if(b.priceMult&&b.priceMult!==1)bits.push((b.priceMult>1?"+":"\u2212")+Math.round(Math.abs(b.priceMult-1)*100)+"%");
+  return bits.length?' <span style="opacity:.7">'+bits.join(" ")+'</span>':"";}
+function _cliIcon(tm){ // the buyer's own flatbed, so the card matches the truck that shows up on the dock
+  if(!tm)return"";
+  return '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;margin-right:11px">'+
+    '<img src="assets/cli_'+tm.truck+'.webp" alt="" style="width:22px;height:auto;display:block">'+
+    '<span style="width:13px;height:13px;border-radius:50%;background:'+(COL[tm.target]||"#999")+';border:1px solid rgba(0,0,0,.4)"></span></div>';}
 function _dotIcon(col){
   return '<div style="flex:0 0 auto;margin-right:11px;width:22px;display:flex;justify-content:center">'+
     '<span style="width:13px;height:13px;border-radius:50%;background:'+col+';border:1px solid rgba(0,0,0,.4)"></span></div>';}
@@ -1314,8 +1419,22 @@ function renderConView(){
   if(mand.length){html+='<div class="ohd">'+tr("Imposed")+'</div>';
     for(const id of mand){const c=coById(id),st=supplierStream(id);if(!c||!st)continue;
       const rate=(st.feedTph||0)*((sh&&sh.impScale)||1);
-      html+=_conCard(coName(c),'<span class="tag">'+tr("Cannot be refused")+'</span>'+ONGOING,
+      // A surge you cannot see the end of is indistinguishable from a permanent squeeze, and you would
+      // plan for it completely differently. So say which one this is, and how many days are left.
+      let mid=null;for(const k in MANDATE)if(MANDATE[k].supplier===id){mid=k;break;}
+      const left=mid?mandateEndsIn(mid):null;
+      const tag=(left!=null)
+        ?'<span class="tag">'+tr("Ends in")+' '+left+' '+tr("d")+'</span>'
+        :ONGOING;
+      html+=_conCard(coName(c),'<span class="tag">'+tr("Cannot be refused")+'</span>'+tag,
         [rate.toFixed(1)+' t/h','+€'+st.gate+'/t '+tr("gate")],st.comp,null,_supIcon(st));}}
+  // a surge that is booked but not here yet: the whole point is that you can plan for it
+  {const soon=[];for(const k in MANDATE){const nx=mandateNextIn(k);if(nx!=null)soon.push([k,nx]);}
+   if(soon.length){html+='<div class="ohd">'+tr("Incoming")+'</div>';
+     for(const[k,nx]of soon){const d=MANDATE[k],c=coById(d.supplier),st=supplierStream(d.supplier);if(!c||!st)continue;
+       html+=_conCard(coName(c),'<span class="tag">'+tr("In")+' '+nx+' '+tr("d")+'</span>',
+         [(st.feedTph||0).toFixed(1)+' t/h '+tr("for")+' '+(d.runDays?d.runDays.join("–"):"?")+' '+tr("d"),
+          '+€'+st.gate+'/t '+tr("gate"),tr("Cannot be refused")],st.comp,null,_supIcon(st));}}}
   // ── signed: a stream is signed when a bunker is pointed at it ──
   const signed=[];for(const n of (G?G.nodes:[]))if(isBunker(n)&&n.supplier&&n.supplier!=="__none"&&mand.indexOf(n.supplier)<0&&signed.indexOf(n.supplier)<0)signed.push(n.supplier);
   html+='<div class="ohd">'+tr("Your contracts")+'</div>';
@@ -1342,12 +1461,14 @@ function renderConView(){
   // ── buyers ──
   const buyers=COMPANIES.buyers.filter(b=>buyerUnlocked(b.id));
   if(buyers.length){html+='<div class="ohd">'+tr("Buyers")+'</div>';
-    for(const b of buyers){const sp=SPECS[b.spec];if(!sp)continue;
+    for(const b of buyers){const tm=buyerTerms(b.spec,b.id);if(!tm)continue;
       const off=(typeof buyerOfftake==="function")?buyerOfftake(b.id):null;
-      const eur=v=>(v<0?"−€"+Math.abs(v):"€"+v)+"/t"; // an off-spec "price" is usually a disposal COST; show the minus on the money, not inside it
-      html+=_conCard(coName(b),'<span class="tag">'+tr(sp.label)+'</span>',
-        [eur(sp.basePrice)+' '+tr("on-spec"),eur(sp.offSpec)+' '+tr("off-spec"),
-         ((off&&isFinite(off))?off+' t/'+tr("day"):tr("unlimited"))],null,null,_dotIcon(COL[sp.target]||"var(--muted)"));}} // buyerOfftake returns Infinity when uncapped
+      const eur=v=>(v<0?"−€"+Math.abs(Math.round(v)):"€"+Math.round(v))+"/t"; // an off-spec "price" is usually a disposal COST; show the minus on the money, not inside it
+      const bar=b.minPurity==null?tr("Standard"):(b.minPurity>=SPECS[b.spec].minPurity?tr("Strict"):tr("Lenient")); // (never shadow grade() — it is a global)
+      html+=_conCard(coName(b),'<span class="tag">'+tr(tm.label)+'</span><span class="tag">'+bar+'</span>',
+        [specRuleTxt(tm),                                    // ← the on-spec CONDITION, per buyer
+         eur(tm.basePrice)+' '+tr("on-spec"),eur(tm.offSpec)+' '+tr("off-spec"),
+         ((off&&isFinite(off))?off+' t/'+tr("day"):tr("unlimited"))],null,null,_cliIcon(tm));}} // buyerOfftake returns Infinity when uncapped
   html+='</div>';
   const view=document.getElementById("viewCon");view.innerHTML=html;
   // ENDING a contract = releasing every bunker pointed at it. Doing that here rather than making the player
@@ -1683,9 +1804,9 @@ function showSheet(html){_sheetAt=performance.now();sheet.innerHTML='<div class=
   const _menuOpen=!document.getElementById("menu").classList.contains("hide"); // sheets from the main menu must stack ABOVE it
   sheet.classList.toggle("overMenu",_menuOpen);scrim.classList.toggle("overMenu",_menuOpen);
   sheet.classList.add("show");scrim.classList.add("show");const _x=sheet.querySelector(".sx");if(_x)_x.addEventListener("pointerdown",function(e){e.stopPropagation();closeSheet();});
-  syncToastInset();} // a toast already on screen must lift clear of the sheet that just opened
-function baleReason(bale,specKey){ // why is this bale off-spec? returns a short human string or "" if on-spec
-  const spec=SPECS[specKey];if(!spec)return"";
+  syncBarsInset();syncToastInset();} // a toast already on screen must lift clear of the sheet that just opened
+function baleReason(bale,specKey,buyerId){ // why is this bale off-spec, AGAINST THE CHOSEN BUYER'S BAR? "" if on-spec
+  const spec=buyerTerms(specKey,buyerId)||SPECS[specKey];if(!spec)return"";
   const c=comp(bale);let t=0;for(const m of MAT)t+=c[m];if(t<=0)return tr("empty");
   const frac={};for(const m of MAT)frac[m]=c[m]/t;
   const tf=((bale[spec.target]&&bale[spec.target][1])||0)/t; // liberated target only
@@ -1702,8 +1823,8 @@ function baleList(n){ // per-bale cards: colour border on/off-spec, composition 
   const rows=n.bales.map((bale,i)=>{
     const c=comp(bale),t=cnt(bale);if(t<=0)return"";
     const ungraded=(n.spec==="dispose"||n.buyer==="__hold");
-    const g=ungraded?{ok:true}:grade(bale,n.spec);
-    const reason=ungraded?"":baleReason(bale,n.spec);
+    const g=ungraded?{ok:true}:grade(bale,n.spec,effBuyer(n));
+    const reason=ungraded?"":baleReason(bale,n.spec,effBuyer(n));
     const bars=MAT.filter(m=>c[m]>0).map(m=>'<i style="width:'+(c[m]/t*100)+'%;background:'+COL[m]+'"></i>').join("");
     const top=MAT.filter(m=>c[m]>0).sort((a,b)=>c[b]-c[a]).slice(0,3)
       .map(m=>'<span style="white-space:nowrap"><span class="d" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+COL[m]+';margin-right:3px"></span>'+tr(m)+' '+Math.round(c[m]/t*100)+'%</span>').join(' ');
@@ -1768,8 +1889,8 @@ function openPalette(){const order=paletteUnits();
   // (export zone vs bulk+landfill), so the dispose target gets its own synthetic card.
   const _lfAfford=G.mode==="sandbox"||G.cash>=(CAPEX.output||0);
   const landfillCard=order.includes("output")?'<div class="palcard '+(_lfAfford?'':'cant')+'" data-type="__dispose"><canvas width="68" height="68" data-ic="output"></canvas><div><div class="pt">'+tr("Landfill")+'</div><div class="pc">'+(CAPEX.output?euroB(CAPEX.output):tr("free"))+'</div><div class="pd">'+tr("bulk + landfill")+'</div></div></div>':'';
-  const _used=G.nodes.filter(n=>n.type!=="storage").length,_tot=techSlots(BASE_SLOTS),_sl=(G.mode!=="sandbox")?'<div class="slotbar"><span>'+tr("Machine slots")+'</span><b'+(_used>=_tot?' class="full"':'')+'>'+_used+' / '+_tot+'</b></div>':'';
-  showSheet('<h3>'+tr("Add equipment")+'</h3><div class="real">'+tr("drops on the canvas \u2014 drag to place, tap a port then a unit to wire")+'</div>'+_sl+'<div class="palgrid">'+cards+landfillCard+'</div>');
+  // (a "Machine slots x/y" bar lived here until 2026-08-19; the cap it counted against is gone)
+  showSheet('<h3>'+tr("Add equipment")+'</h3><div class="real">'+tr("drops on the canvas \u2014 drag to place, tap a port then a unit to wire")+'</div><div class="palgrid">'+cards+landfillCard+'</div>');
   sheet.querySelectorAll("canvas[data-ic]").forEach(c=>{const g=c.getContext("2d");g.translate(34,34);icon(g,{type:c.dataset.ic},0,0,30,"#D98E48");});
   if(_tutoUnit&&tutoActive()){const tc=sheet.querySelector('.palcard[data-type="'+_tutoUnit+'"]');if(tc){tc.classList.add("tutohi");tc.scrollIntoView&&tc.scrollIntoView({block:"nearest"});}}
   sheet.querySelectorAll(".palcard").forEach(c=>c.addEventListener("click",()=>{const type=c.dataset.type;
@@ -1778,8 +1899,7 @@ function openPalette(){const order=paletteUnits();
       if(G.mode==="career"&&G.cash<(CAPEX.output||0)){toast("Not enough cash");return;}
       if(G.mode==="career"&&CAPEX.output){G.cash-=CAPEX.output;G.ledger.capex+=CAPEX.output;}
       addNode("output",_px,_py,"dispose");closeSheet();toast(tr("Landfill")+" "+tr("added")+(G.mode==="career"&&CAPEX.output?" \u00B7 \u2212"+euroB(CAPEX.output):""));saveGame();return;}
-    const _mach=G.nodes.filter(n=>n.type!=="storage").length;
-    if(G.mode!=="sandbox"&&!STORE_UNITS[type]&&_mach>=techSlots(BASE_SLOTS)){toast("No free slots \u2014 extend the yard (R&D)");return;}
+    // No slot cap (2026-08-19): a build is refused by the yard geometry -- which is drawn -- or by cash, never by an invisible counter.
     if(G.mode==="career"&&G.cash<CAPEX[type]){toast("Not enough cash");return;}
     if(G.mode==="career"){G.cash-=CAPEX[type];G.ledger.capex+=CAPEX[type];}
     addNode(type,_px,_py);
@@ -1880,7 +2000,16 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       {const ri=nodeRate(n,"_inMass"),ro=nodeRate(n,"_outMass");
        b+=row(tr("Inbound"),'<span style="color:var(--accent2)">'+ri.toFixed(1)+' t/h</span>')+
           row(tr("To feeder"),ro.toFixed(1)+' t/h'+(ri>ro+0.3&&cnt(n.inBuf)>capOf(n)*0.6?' <span style="color:var(--bad)">\u25B2 '+tr("filling")+'</span>':''));}
-      if(G.continuous){const _us=COMPANIES.suppliers.filter(sz=>supplierUnlocked(sz.id)),_cur=(n.supplier==="__none")?"__none":(n.supplier||(G.contract&&G.contract.supplier));b+='<div class="slbl">'+tr("Supplier")+'</div><div class="seg wrap">'+_us.map(sz=>'<div class="o '+(_cur===sz.id?"on":"")+'" data-supplier="'+sz.id+'">'+coName(sz)+(sz.stream?' \u00b7 \u20AC'+sz.stream.gate+'/t':'')+'</div>').join("")+'<div class="o '+(_cur==="__none"?"on":"")+'" data-supplier="__none">'+tr("None (idle)")+'</div></div>';}
+      /* An IMPOSED stream can now be given its OWN pit. Its supplier is not "unlocked" in the R&D sense \u2014
+       * nobody chose it \u2014 so it never appeared in this list, and there was no way to keep a 24%-PVC mandate
+       * out of the bunker feeding your PET line. Point a bunker at it and the mandate is quarantined there
+       * (see mandDedicated in the engine); assign none and it still lands in every bunker, as before. */
+      if(G.continuous){const _mnd=(typeof mandateSups==="function")?mandateSups():[];
+        const _us=COMPANIES.suppliers.filter(sz=>supplierUnlocked(sz.id)||_mnd.indexOf(sz.id)>=0),_cur=(n.supplier==="__none")?"__none":(n.supplier||(G.contract&&G.contract.supplier));
+        b+='<div class="slbl">'+tr("Supplier")+'</div><div class="seg wrap">'+_us.map(sz=>{const _im=_mnd.indexOf(sz.id)>=0;
+          return '<div class="o '+(_cur===sz.id?"on":"")+'" data-supplier="'+sz.id+'">'+coName(sz)+(sz.stream?' \u00b7 \u20AC'+sz.stream.gate+'/t':'')+(_im?' <span style="color:var(--accent2)">\u00b7 '+tr("imposed")+'</span>':'')+'</div>';}).join("")+
+          '<div class="o '+(_cur==="__none"?"on":"")+'" data-supplier="__none">'+tr("None (idle)")+'</div></div>';
+        if(_mnd.length)b+='<div class="desc" style="margin-top:5px">'+tr("Dedicate a bunker to an imposed stream to keep it out of the others. If the dedicated pits fill up the load falls back to whatever bunker has room \u2014 an imposed truck can never be refused.")+'</div>';}
       dsc+='<p>'+tr("Trucks tip the contract\u2019s waste here \u2014 you\u2019re paid to take it \u2014 and loaders carry it to the feeder. A full bunker turns trucks away: no charge, no landfill, lost throughput.")+'</p>';}
     if(n.role==="buffer")dsc+='<p>'+tr("Holds and relays material \u2014 a surge tank between stages.")+'</p>';
     if(n.role==="bulk"){ // 3 containers, container-truck evac
@@ -1899,7 +2028,7 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       if(_lf)b+=row(tr("Buried this year"),'<span style="color:'+(_over?'var(--bad)':'inherit')+'">'+_lf.t.toFixed(0)+' / '+landfillAllowT().toFixed(0)+' t</span>');
       if(cnt(n.inBuf)>0){b+='<div class="slbl" style="margin-top:6px">'+tr("Landfilled composition")+'</div>'+compBar(n.inBuf);}
       dsc+='<p>'+tr("Container trucks drop here; a landfill truck hauls it off-map on a cadence, charged by weight. Send as little as you can.")+'</p>';}
-    if(isExport(n)&&n.bales&&n.bales.length&&n.gx!=null){const ungraded=isHeld(n)||n.spec==="dispose";let on=0;for(const bl of n.bales)if(ungraded||grade(bl,n.spec).ok)on++;
+    if(isExport(n)&&n.bales&&n.bales.length&&n.gx!=null){const ungraded=isHeld(n)||n.spec==="dispose";let on=0;for(const bl of n.bales)if(ungraded||grade(bl,n.spec,effBuyer(n)).ok)on++;
       const offN=n.bales.length-on;
       b+='<div class="row"><span class="k">'+tr("Bales")+'</span><span class="v">'+n.bales.length+(ungraded?"":' \u00b7 \u2713 '+on+(offN?'  \u2717 '+offN:''))+'</span></div>';
       {const ro=nodeRate(n,"_outMass");b+=row(tr("Sold"),'<span style="color:var(--good)">'+ro.toFixed(1)+' t/h</span>');}
@@ -1914,10 +2043,12 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
       if(isExport(n))b+=row(tr("Bales"),n.bales.length+' / '+G.logi.exportCap+(n.state==="exportfull"?' \u00b7 <span style="color:var(--bad)">'+tr("full")+'</span>':''));
       b+='<div class="slbl">'+tr("Sells to")+'</div><div class="seg wrap">'+
       (isExport(n)?'<div class="o '+(isHeld(n)?"on":"")+'" data-buyer="__hold"><span class="dot" style="background:#8a8078"></span>'+tr("No contract (stock)")+'</div>':'')+
-      _ub.map(bz=>{const sp=SPECS[bz.spec];return '<div class="o '+(!isHeld(n)&&_eff===bz.id?"on":"")+'" data-buyer="'+bz.id+'"><span class="dot" style="background:'+(COL[sp.target]||"#999")+'"></span>'+coName(bz)+'</div>';}).join("")+
+      // each chip carries what makes that buyer different (purity bar, price swing) — two mills for one
+      // product used to be two identical chips and the choice between them was a coin flip
+      _ub.map(bz=>{const sp=SPECS[bz.spec];return '<div class="o '+(!isHeld(n)&&_eff===bz.id?"on":"")+'" data-buyer="'+bz.id+'"><span class="dot" style="background:'+(COL[sp.target]||"#999")+'"></span>'+coName(bz)+buyerDelta(bz.id)+'</div>';}).join("")+
       (isExport(n)?'':'<div class="o '+(n.spec==="dispose"?"on":"")+'" data-buyer="__landfill"><span class="dot" style="background:#6b645c"></span>'+tr("Landfill")+'</div>')+'</div>';
       if(isHeld(n)){b+='<div class="desc" style="margin-top:6px">'+tr("No buyer — bales pile up here as temporary stock. Pick a contract to start selling.")+'</div>';}
-      else if(n.spec!=="dispose"){const off=buyerOfftake(n),sp=SPECS[n.spec],bm=BALE_N*PMASS,pr=sp.basePrice*techPrice(),pmin=Math.round(pr*0.8*bm),pmax=Math.round(pr*1.2*bm),poff=Math.round(sp.offSpec*bm),caps=Object.keys(sp.caps).map(m=>tr(m)+" \u2264"+Math.round(sp.caps[m]*100)+"%").join(", ");
+      else if(n.spec!=="dispose"){const off=buyerOfftake(n),sp=nodeTerms(n)||SPECS[n.spec],bm=BALE_N*PMASS,pr=sp.basePrice*techPrice(),pmin=Math.round(pr*0.8*bm),pmax=Math.round(pr*1.2*bm),poff=Math.round(sp.offSpec*bm),caps=capsTxt(sp);
         b+=row(tr("Product"),'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(COL[sp.target]||"#999")+';margin-right:6px"></span>'+tr(sp.label)+' \u00b7 \u2265'+Math.round(sp.minPurity*100)+'%')+
           row(tr("Price"),euroF(pr)+" / t")+
           row(tr("Offtake"),off===Infinity?tr("uncapped"):('<b>'+off+'</b>'))+
@@ -1926,6 +2057,13 @@ function inspectNode(n){selNode=n;_inspectNode=n;const t=TYPES[n.type];
           row(tr("On-spec rule"),'\u2265'+Math.round(sp.minPurity*100)+'% '+tr(sp.label)+(caps?' \u00b7 '+caps:''))+
           row(tr("Sold on-spec"),'<span style="color:var(--good)">'+n.balesSold+'</span>')+
           row(tr("Off-spec dumped"),'<span style="color:var(--bad)">'+n.offSold+'</span>')+
+          // WHAT THIS BAY EARNS. The P&L is plant-wide, so a bay that has quietly gone off-spec for a week
+          // is invisible in it — the sales line just sags. Lifetime says whether the bay ever paid for
+          // itself; yesterday says whether it is paying today. Both are gross takings (on- + off-spec).
+          row(tr("Earned (total)"),'<b>'+euroB(n.revTot||0)+'</b>')+
+          row(tr("Earned (yesterday)"),(function(){const h=(n.hist||[]);const d=h.length?h[h.length-1]:null;
+            if(!d||d.rev==null)return '<span style="color:var(--muted)">'+tr("no full day yet")+'</span>';
+            return '<span style="color:'+(d.rev>0?"var(--good)":"var(--muted)")+'">'+euroB(d.rev)+'</span>';})())+
           baleHistChart(n);
         dsc+='<p>'+tr(isExport(n)?"Forklifts move bales here; a client truck sells them (graded per bale) at the buyer\u2019s pace. Oversupply a slow buyer and the zone fills, stalling the baler.":"Each bale is graded on its liberated target purity.")+'</p>';}
       else{b+=row(tr("Gate"),'<span style="color:var(--bad)">\u2212\u20AC'+ECON.landfillGate+' / t</span>');dsc+='<p>'+tr("Charged by weight. Tanks your diversion \u2014 send as little here as you can.")+'</p>';}}
@@ -2065,11 +2203,19 @@ UI.onMandate=function(ev){ if(!ev)return;
   const d=ev.def;if(!d)return;
   const nm=coName(d.supplier),s=supplierStream(d.supplier)||{};
   if(ev.phase==="warn"){toast(tr("Waste contract imposed \u2014 trucks arrive in {n} days").replace("{n}",ev.days),"warn");return;}
+  // A finite surge ENDING is news too: the tonnage you have been juggling for three days just went away,
+  // and if you shed a contract to survive it, now is when you sign one back on.
+  if(ev.phase==="end"){toast(nm+" \u2014 "+tr("surge over, the trucks have stopped"),"");return;}
   G.running=false;
-  const done='<div class="bdTitle">+'+euroB(d.grant)+' '+tr("capital grant")+'</div>'+
-             '<div class="bdSub">'+nm+' \u00b7 '+(s.feedTph||0)+' t/h \u00b7 '+tr("cannot be refused")+'</div>';
+  const finite=(ev.days||0)>0;
+  const cash=ev.repeat?(d.recurGrant||0):(d.grant||0);
+  const done=(cash?'<div class="bdTitle">+'+euroB(cash)+' '+tr("capital grant")+'</div>':'')+
+             '<div class="bdSub">'+nm+' \u00b7 '+(s.feedTph||0)+' t/h \u00b7 '+
+             (finite?ev.days+' '+tr("days"):tr("cannot be refused"))+'</div>';
   showBriefing(tr("Imposed contract"),tr(d.name),
-    tr("You have been named operator for this stream. The trucks roll whether or not you have the plant for them \u2014 they cannot be turned away. Whatever your bunkers cannot hold goes to landfill, and you pay the gate fee on it. A capital grant lands with the contract."),
+    finite
+      ? tr("A regional surge lands on you for a few days. The trucks roll whether or not you have room \u2014 they cannot be turned away, and whatever your bunkers cannot hold is buried at your expense. Ride it out on a lower recycling rate, quarantine it in its own bunker, or idle one of your own contracts until it passes. It will be back.")
+      : tr("You have been named operator for this stream. The trucks roll whether or not you have the plant for them \u2014 they cannot be turned away. Whatever your bunkers cannot hold goes to landfill, and you pay the gate fee on it. A capital grant lands with the contract."),
     true,done);};
 UI.onPhase=function(phase){if(!G||!G.scenario)return;G.running=false;
   const lp=G.lastPhase; let done="";
@@ -2220,8 +2366,8 @@ function chooseContract(){document.getElementById("menu").classList.add("hide");
       '<div class="pd" style="margin:4px 0">'+c.tonnage+'t \u00B7 '+(hot?'film fouls the line \u2014 you will need a picking station':'a gentle first run')+'</div>'+
       '<div class="complegend">'+leg+'</div></div>';};
   const scn=SCENARIOS.pmc;
-  const siteCard='<div class="palcard" data-scn="site_ref" style="display:block;border-color:#7FA86B"><div class="pt">\uD83C\uDFED '+tr("Reference plant")+' \u2014 SITE</div>'+
-    '<div class="pd" style="margin:4px 0">'+tr("The physical yard: trucks, loaders, forklifts on a real site plan \u2014 tap anything to inspect it")+'</div></div>';
+  const siteCard='<div class="palcard" data-scn="site_ref" style="display:block;border-color:#7FA86B"><div class="pt">\uD83C\uDFED '+tr("Ultimate plant")+' \u2014 SITE</div>'+
+    '<div class="pd" style="margin:4px 0">'+tr("69 units, all six products, three contracts and a recycle loop \u2014 tap anything to inspect it")+'</div></div>';
   const scnCard='<div class="palcard" data-scn="pmc" style="display:block;border-color:var(--accent)"><div class="pt">\uD83C\uDF93 Tutorial \u2014 '+scn.name+'</div>'+
     '<div class="pd" style="margin:4px 0">'+scn.phases.length+' phases on one line \u00B7 ferrous \u2192 aluminium \u2192 PET \u00B7 learn the machines as you unlock them</div></div>';
   showSheet('<h3>'+tr("Pick a contract")+'</h3><div class="real">'+tr("new here? start with the tutorial")+'</div><div class="palgrid" style="grid-template-columns:1fr">'+siteCard+scnCard+card("standard")+card("film")+'</div>');

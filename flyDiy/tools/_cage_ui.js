@@ -44,6 +44,7 @@ const SEC = {
   cloth:           '#cfc6b2',
   composite:       '#3a3f46',
   aluminium:       '#c3c9d0',
+  toele:           '#aab3bd',
 };
 
 // ---- parameters -----------------------------------------------------------
@@ -171,24 +172,31 @@ let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
-// view transparency: glass is partially transparent by default so the
-// interior shows without camera gymnastics; bodyA fades the whole SKIN
-// (interior elements stay opaque — they are what is being inspected)
-const VIEW = { glassA: 0.35, bodyA: 1, loops: 1 };
+// view transparency: THREE CONCEPTUAL FAMILIES (user 2026-08-19), each
+// with its own alpha — fuselage (the exterior cage skin), interior SKIN
+// (the sheet linings: plywood/toele/cloth/composite shell) and interior
+// STRUCTURE (frames, posts, tubes, dash, bulkhead, firewall). Glass
+// keeps its own alpha on top.
+const VIEW = { glassA: 0.35, bodyA: 1, skinA: 1, structA: 1, loops: 1 };
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
-const INTM = new Set(['bulkhead', 'firewall', 'dash', 'tube', 'plywood',
-                      'woodFrame', 'cloth', 'composite', 'aluminium']);
+const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
+const INTSTRUCT = new Set(['bulkhead', 'firewall', 'dash', 'tube',
+                           'woodFrame', 'aluminium']);
+const alphaOf = name =>
+  GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
+    : INTSKIN.has(name) ? VIEW.skinA
+    : INTSTRUCT.has(name) ? VIEW.structA
+    : VIEW.bodyA;
+const colOf = name => new THREE.Color(
+  !$('color').checked ? '#b9c6d4' : (SEC[name] || '#5a6470'));
 const matOf = name => {
-  const a = GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
-    : INTM.has(name) ? 1 : VIEW.bodyA;
+  const a = alphaOf(name);
   const neutral = !$('color').checked;
-  const key = (neutral ? 'n:' : 'c:') + name + ($('wire').checked ? ':w' : '')
-    + ':' + a;
+  const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
   if (!matCache[key]) {
     matCache[key] = new THREE.MeshLambertMaterial({
-      color: new THREE.Color(neutral ? '#b9c6d4' : (SEC[name] || '#5a6470')),
-      wireframe: $('wire').checked,
+      color: colOf(name),
       // glass is FRONT-SIDE only: with DoubleSide transparency the FAR
       // side of a curved pane rendered through the near one — its limb
       // read as a phantom circle on the bubble (user report). Interiors
@@ -225,6 +233,42 @@ function meshFrom(m) {
   for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
   g.computeVertexNormals();
   return new THREE.Mesh(g, mats.map(matOf));
+}
+
+// QUAD WIREFRAME (user 2026-08-19: "not triangulated, only quad topo").
+// material.wireframe draws the TRIANGULATION the renderer needs — this
+// walks the real face cycles instead, one LineSegments per material so
+// the section colours and the family alphas still apply.
+function quadWire(m) {
+  const g = new THREE.Group();
+  const byMat = new Map();
+  for (const f of m.F) {
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    byMat.get(f.m).push(f);
+  }
+  for (const [name, faces] of byMat) {
+    const seen = new Set(), pos = [];
+    for (const f of faces) {
+      const vs = f.v;
+      for (let k = 0; k < vs.length; k++) {
+        const a = vs[k], b = vs[(k + 1) % vs.length];
+        if (a === b) continue;                  // self-edge convention
+        const key = a < b ? a + '_' + b : b + '_' + a;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const A = m.V[a], B = m.V[b];
+        pos.push(A[0], A[1], A[2], B[0], B[1], B[2]);
+      }
+    }
+    if (!pos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position',
+      new THREE.BufferAttribute(new Float32Array(pos), 3));
+    const a = alphaOf(name);
+    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+      color: colOf(name), transparent: a < 1, opacity: a })));
+  }
+  return g;
 }
 
 function curvatureMesh(m) {
@@ -295,6 +339,74 @@ function disposeObj(o) {
   scene.remove(o);
 }
 
+// ---- the measurement pane + box -------------------------------------------
+// The plane's own size, read off the DISPLAYED geometry's bounding box
+// (so canopies, cut parts and the nose cap all count) in the world units
+// CAGE_UNIT defines. Metres and feet-inches, because an aeroplane is
+// quoted in both. The box is a display option; the pane is always on.
+let dimsEl = null, dimsBox = null;
+// AS-BUILT measure: a cut part flying out on `explode` must not change
+// the aeroplane's dimensions, so every vertex is measured back at its
+// own part's place (the faces carry their translation as cutOff).
+// EXTERIOR ONLY — seals and interior linings ride an exploded door
+// without recording the move, and they are inside the skin anyway, so
+// they can never be what sets a dimension.
+function measureBox(m, FS) {
+  const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  const seen = new Set();
+  for (const f of m.F) {
+    if (f.m === 'joint' || INTSKIN.has(f.m) || INTSTRUCT.has(f.m)) continue;
+    const o = f.cutOff || [0, 0, 0];
+    for (const vi of f.v) {
+      const key = vi + ':' + (f.cutOff ? 1 : 0);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const v = m.V[vi];
+      for (let c = 0; c < 3; c++) {
+        const p = (v[c] - o[c]) * FS;
+        if (p < lo[c]) lo[c] = p;
+        if (p > hi[c]) hi[c] = p;
+      }
+    }
+  }
+  if (lo[0] > hi[0]) return null;
+  return new THREE.Box3(new THREE.Vector3(lo[0], lo[1], lo[2]),
+                        new THREE.Vector3(hi[0], hi[1], hi[2]));
+}
+function fmtLen(m) {
+  const ti = Math.round(m / 0.0254);           // total inches
+  const ft = Math.floor(ti / 12), inch = ti % 12;
+  return { m: m.toFixed(2) + ' m', imp: ft + '′ ' + inch + '″',
+           inch: ti + '″' };
+}
+function updateDims(box, FS) {
+  if (!dimsEl || !box) return;
+  const sz = box.getSize(new THREE.Vector3());
+  const row = (label, v) => {
+    const f = fmtLen(v);
+    return '<div style="display:flex;gap:9px;align-items:baseline">' +
+      '<span style="width:46px;color:#7d8996">' + label + '</span>' +
+      '<b style="width:58px;font-weight:500">' + f.m + '</b>' +
+      '<span style="width:56px;color:#5db3ff">' + f.imp + '</span>' +
+      '<span style="color:#4a525c">' + f.inch + '</span></div>';
+  };
+  const sc = (P.planeScale != null ? P.planeScale : 1);
+  dimsEl.innerHTML =
+    '<div style="color:#7d8996;letter-spacing:.14em;font-size:9px;' +
+    'margin-bottom:4px">DIMENSIONS</div>' +
+    row('length', sz.z) + row('width', sz.x) + row('height', sz.y) +
+    '<div style="color:#4a525c;margin-top:4px;font-size:10px">1 cage unit = ' +
+    (G.CAGE_UNIT || 1).toFixed(3) + ' m  ·  scale ×' + sc.toFixed(3) +
+    '</div>';
+  disposeObj(dimsBox); dimsBox = null;
+  if ($('dimsBox') && $('dimsBox').checked) {
+    dimsBox = new THREE.Box3Helper(box.clone(), 0x5db3ff);
+    dimsBox.material.transparent = true;
+    dimsBox.material.opacity = 0.55;
+    scene.add(dimsBox);
+  }
+}
+
 // ---- build ----------------------------------------------------------------
 function build() {
   // FOREVER-SPLIT (user ruling): with the pod on, any aft param still
@@ -337,13 +449,20 @@ function build() {
 
   disposeObj(meshObj);
   for (const k in matCache) delete matCache[k];
-  meshObj = ($('curv') && $('curv').checked) ? curvatureMesh(s) : meshFrom(s);
+  meshObj = ($('curv') && $('curv').checked) ? curvatureMesh(s)
+    : ($('wire') && $('wire').checked) ? quadWire(s) : meshFrom(s);
+  // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
+  // x planeScale. The cage scales; crew scenery is already metric and
+  // never does. Pages without the param build at the unit exactly.
+  const FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+  meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
   disposeObj(cageObj); cageObj = null;
   if ($('cage').checked && L > 0) {
     cageObj = new THREE.Group();
     cageObj.add(edgeLines(m, 0xffbe5a, 0.85));
+    cageObj.scale.setScalar(FS);
     scene.add(cageObj);
   }
 
@@ -365,6 +484,7 @@ function build() {
       l.renderOrder = 5;
       loopsObj.add(l);
     });
+    loopsObj.scale.setScalar(FS);
     scene.add(loopsObj);
   }
 
@@ -372,10 +492,15 @@ function build() {
   const box = new THREE.Box3().setFromObject(meshObj);
   box.getCenter(centre);
   fitR = box.getSize(new THREE.Vector3()).length() * 0.62;
+  updateDims(measureBox(s, FS), FS);
 
   $('stat').textContent =
     `cage ${m.V.length} v / ${m.F.length} q  →  L${L}: ` +
     `${s.V.length} v / ${s.F.length} q`;
+  // page post hook (cage5 crew layer): extra scene content rebuilt after
+  // every cage build — additive, pages without it are unaffected
+  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: s, P, stat: $('stat') }); }
+  catch (e) { console.error('page post hook:', e); }
   draw();
 }
 
@@ -446,16 +571,31 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names) => {
     d.querySelector('select').onchange = e => oninput(+e.target.value);
     return;
   }
+  const rel = k === 'planeScale';
   d.innerHTML = `<span class="k">${label}</span>
     <input type="range" id="p_${k}" min="${lo}" max="${hi}" step="${st}"
-      value="${val}">
-    <span class="v" id="v_${k}">${(+val).toFixed(3)}</span>`;
+      value="${rel ? relSize() : val}">
+    <span class="v" id="v_${k}">${(rel ? relSize() : +val).toFixed(3)}</span>`;
   parent.appendChild(d);
   d.querySelector('input').oninput = e => {
     $('v_' + k).textContent = (+e.target.value).toFixed(3);
-    oninput(+e.target.value);
+    oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value);
   };
 };
+// THE SIZE SLIDER READS ×1 FOR THE DESIGN YOU LOADED (user 2026-08-19:
+// "the new plane scale should say 1"). `planeScale` stays the ONE stored
+// size number — a config export carries it and nothing else — but the
+// slider is shown RELATIVE to the size the current design was loaded at,
+// so every preset opens at 1.000 and the slider means "bigger/smaller
+// than this design". `sizeRef` re-anchors on every whole-set load
+// (preset, saved config, JSON import, reset); dragging never moves it.
+// Baking the factor into the length PARAMS instead was measured and
+// rejected — see HANDOVER G19g.
+let sizeRef = null;
+const relSize = () => sizeRef ? (P.planeScale || 1) / sizeRef
+                              : (P.planeScale || 1);
+const anchorSize = () => { sizeRef = P.planeScale || 1; };
+
 const LSKEY = 'cageCfg:' + location.pathname;
 const savedCfgs = () => {
   try { return JSON.parse(localStorage.getItem(LSKEY) || '{}'); }
@@ -502,6 +642,7 @@ const savedCfgs = () => {
     try {
       const cfg = JSON.parse(txt);
       if (cfg.P) Object.assign(P, cfg.P);   // cfg.M (old macros) is ignored
+      anchorSize();
       syncSliders(); build();
       $('stat').textContent = 'config imported';
     } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
@@ -551,7 +692,9 @@ fillPresetSel();
     };
   };
   mkA('glass α', 'glassA');
-  mkA('body α', 'bodyA');
+  mkA('fuselage α', 'bodyA');
+  mkA('int skin α', 'skinA');
+  mkA('structure α', 'structA');
   const d = document.createElement('div'); d.className = 'r';
   d.innerHTML = `<span class="k">cutaway</span>
     <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;
@@ -569,6 +712,20 @@ fillPresetSel();
   dl.querySelector('#canLoopsV').onchange = e => {
     VIEW.loops = e.target.checked ? 1 : 0; build();
   };
+  // the measuring box round the aeroplane (the pane below the view is
+  // always on — the box is the display option)
+  const db = document.createElement('div'); db.className = 'r';
+  db.innerHTML = `<span class="k">dims box</span>
+    <label style="flex:none"><input type="checkbox" id="dimsBox"></label>`;
+  det.appendChild(db);
+  db.querySelector('#dimsBox').onchange = build;
+  dimsEl = document.createElement('div');
+  dimsEl.id = 'dims';
+  dimsEl.style.cssText = 'position:absolute;left:10px;bottom:10px;z-index:2;' +
+    'background:rgba(18,21,26,.84);border:1px solid #242a33;border-radius:5px;' +
+    'padding:7px 10px;color:#dfe6ee;pointer-events:none;' +
+    'font:11px/1.55 ui-monospace,Menlo,Consolas,monospace';
+  $('view').appendChild(dimsEl);
   const vb = document.createElement('div'); vb.className = 'r';
   vb.innerHTML = `<span class="k">camera</span>
     <button data-v="q">3/4</button><button data-v="s">side</button>
@@ -633,9 +790,10 @@ function syncSliders() {
   for (const [, items] of GROUPS) for (const [k] of flatItems(items)) {
     const el = $('p_' + k);
     if (el) {
-      el.value = P[k];
+      const v = k === 'planeScale' ? relSize() : P[k];
+      el.value = v;
       const vs = $('v_' + k);
-      if (vs) vs.textContent = (+P[k]).toFixed(3);
+      if (vs) vs.textContent = (+v).toFixed(3);
     }
   }
   const ex = $('p_explodeD');
@@ -652,10 +810,12 @@ function applyPreset(name) {
     for (const k in DEFAULTS) P[k] = DEFAULTS[k];
     for (const k in pre) P[k] = pre[k];
   }
+  anchorSize();                            // this design is now ×1
   syncSliders(); build();
 }
 $('resetBtn').onclick = () => {
   for (const k in DEFAULTS) P[k] = DEFAULTS[k];
+  anchorSize();
   syncSliders(); build();
 };
 $('objBtn').onclick = () => {
@@ -731,6 +891,8 @@ if (typeof ResizeObserver !== 'undefined')
   new ResizeObserver(() => MS && draw()).observe(viewEl);
 
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
+anchorSize();                              // the page opens at its ×1
+syncSliders();
 window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },

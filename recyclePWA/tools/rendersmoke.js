@@ -27,7 +27,10 @@ const theCtx = mkCtx();
 
 /* ---- element / document stubs ---- */
 function mkEl(id) {
-  const store = { id, style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+  // style needs the CSS-custom-property API: app.js measures the bottom chrome and the HUD height into
+  // --barsH / --hudH so sheets and the coach sit clear of them (syncBarsInset). A bare {} threw here.
+  const style = { setProperty(k, v) { style[k] = v; }, getPropertyValue: k => style[k] || "", removeProperty(k) { delete style[k]; } };
+  const store = { id, style, dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     clientWidth: 390, clientHeight: 700, width: 390, height: 700, innerHTML: "", textContent: "", value: "", scrollTop: 0, lang: "" };
   return new Proxy(store, {
     get(t, p) {
@@ -67,7 +70,7 @@ const driver = `
 ;(function(){
   begin("career","site_qc");   // the plain harness rig; the SHIPPED reference plant gets its own pass below
   if(!siteMode())throw new Error("siteMode() false after begin(site_qc)");
-  for(let i=0;i<2600;i++)tick(0.004); // ~10.4 sim-h: covers the reference plant’s cold-start first tip (later since the default feed dropped 5→4 t/h, 2026-08-01)
+  for(let i=0;i<3600;i++)tick(0.004); // ~14.4 sim-h: covers the cold-start first tip (a contract is 2.5 t/h since 2026-08-19, split across the rig’s two bunkers ⇒ the first truckload accrues in ~11 h)
   const deliveredInRun=G.deliveredTot; // capture NOW: later test blocks call newGame() and reset a fresh site_ref
   UI.viewReset();
   render();render();render();
@@ -205,7 +208,15 @@ const driver = `
    closeSheet();
    refPlant={nodes:G.nodes.length,edges:G.edges.length,cycles:siteCycleSets().length,
      landfills:G.nodes.filter(isLandfill).length,exports:G.nodes.filter(isExport).length,
-     feeders:G.nodes.filter(isFeeder).map(n=>n.rate).join("/")};}
+     bunkers:G.nodes.filter(isBunker).length,
+     feeders:G.nodes.filter(isFeeder).map(n=>n.rate).join("/"),
+     recy:(function(){const r=G.nodes.find(n=>n.label==="RECY");return r?r.ratio:null;})(),
+     streams:[...new Set(G.nodes.filter(isBunker).map(n=>n.supplier))].length,
+     // every unit must draw a sprite, not a fallback card: a 69-unit showcase with holes in it is worse
+     // than no showcase, and the sprite table is keyed by type/role so a new type would silently miss.
+     spriteless:G.nodes.filter(n=>TYPES[n.type]&&!isBulk(n)&&!isLandfill(n)&&!siteSpriteFor(n)).map(n=>n.type),
+     unwired:G.nodes.reduce((a,n)=>a+sitePortsOf(n).filter(p=>portNeedsWire(n,p)).length,0),
+     labels:[...new Set(G.nodes.map(n=>siteNodeLabel(n)))].length};}
   begin("career","site_qc");for(let i=0;i<600;i++)tick(0.004);   // back to the rig for the rest of the run
   // ── seed a career, then hand the serialized save to the boot-resume pass below. Progression lives INSIDE
   //    the save (career:G.career), and CAREER is a live pointer into it — so a save with owned tech is the
@@ -215,8 +226,13 @@ const driver = `
   let conHtml="",conSqueezed="";
   {setView("con");conHtml=document.getElementById("viewCon").innerHTML;
    CAREER.counters.flags.tutorialComplete=true;CAREER.pressure.armed=true;
-   for(const id in MANDATE){if(CAREER.mandates.seen.indexOf(id)<0)CAREER.mandates.seen.push(id);CAREER.mandates.active.push({id:id,day:1});}
-   renderConView();conSqueezed=document.getElementById("viewCon").innerHTML;
+   for(const id in MANDATE){if(CAREER.mandates.seen.indexOf(id)<0)CAREER.mandates.seen.push(id);CAREER.mandates.active.push({id:id,day:1,endDay:MANDATE[id].runDays?9:null});}
+   // Under the 2026-08-19 ladder, two contracts + both mandates come to 8.5 of 9 \u2014 deliberately NOT a squeeze.
+   // Over-subscribe on purpose (a third stream) so the crowding-out warning still has a case to fire on.
+   {const _bk=G.nodes.filter(isBunker);if(_bk[1])_bk[1].supplier="binfinity";
+    const _b3=sitePlaceUnit("input",null,14,4,0);if(_b3.ok)_b3.node.supplier="poubelle_air";
+    renderConView();conSqueezed=document.getElementById("viewCon").innerHTML;
+    if(_b3.ok)siteDemolish(_b3.node);if(_bk[1])_bk[1].supplier="wasteminster";}
    CAREER.mandates.active.length=0;CAREER.mandates.seen.length=0;setView("process");}
   const careerAttached=(CAREER===G.career);
   CAREER.tech.push("r_airU","a_split");CAREER.claimed.push("a_first");recomputeTechMod();
@@ -230,6 +246,17 @@ const driver = `
     conLockedListed:/Locked|Verrouill/.test(conHtml),
     conAvailCount:(conHtml.match(/Not signed|Non sign|Locked|Verrouill/g)||[]).length,
     conHasComp:/compbar/.test(conHtml),
+    // buyers stopped being duplicate rows: each states its own on-spec rule and shows its own flatbed
+    conBuyerTrucks:conHtml.split("assets/cli_").length-1,
+    conBuyerRules:(conHtml.match(/\u2265\\s*\\d+%/g)||[]).length, // NB: template literal — regex escapes doubled
+    conSurgeEnds:/Ends in|Fin dans/.test(conSqueezed),
+    // every buyer livery must resolve to art that actually decodes, same gate the supplier liveries get
+    cliTrucks:COMPANIES.buyers.map(b=>"cli_"+buyerTerms(b.spec,b.id).truck),
+    cliTrucksLoaded:COMPANIES.buyers.every(b=>!!img("cli_"+buyerTerms(b.spec,b.id).truck)),
+    forkLiveries:FORK_COLS.map(c=>"fl_"+c),
+    forkLoaded:FORK_COLS.every(c=>!!img("fl_"+c)),
+    // short auto names: the map caption is a tag + a number, not a sentence
+    shortNames:(function(){const out=[];for(const n of G.nodes)out.push(siteNodeLabel(n));return out;})(),
     // OBJ/MANDATE names reach tr() as VARIABLES, so tools/i18ncheck.js (which only scans tr("literal") call
     // sites) is blind to them — reword an objective and French silently falls back to English. Checked here,
     // where both the engine data and LANG.fr are in scope.
@@ -307,10 +334,15 @@ ok((calls.clip || 0) > 0, "overpass pass clipped the belt below (clip ×" + (cal
 ok(report && report.careerAttached, "CAREER is attached to G.career after begin()");
 ok(report && report.coachLeak && report.coachLeak.duringTutorial === "block" && report.coachLeak.afterLoadingRefPlant === "none" && !report.coachLeak.tutoActiveOnRef,
   "the tutorial banner does NOT survive into a plant with no tutorial (tuto=" + (report && report.coachLeak && report.coachLeak.duringTutorial) + " → ref=" + (report && report.coachLeak && report.coachLeak.afterLoadingRefPlant) + ")");
-ok(report && report.refPlant && report.refPlant.nodes === 50 && report.refPlant.edges === 59,
-  "shipped reference plant renders (" + (report && report.refPlant && report.refPlant.nodes) + " units / " + (report && report.refPlant && report.refPlant.edges) + " connections)");
-ok(report && report.refPlant && report.refPlant.cycles === 1 && report.refPlant.landfills === 0 && report.refPlant.exports === 6,
-  "…with its recycle ring, six export bays and no landfill (feeders " + (report && report.refPlant && report.refPlant.feeders) + " t/h)");
+const RP = (report && report.refPlant) || {};
+ok(RP.nodes === 69 && RP.edges === 88,
+  "the ULTIMATE plant renders (" + RP.nodes + " units / " + RP.edges + " connections)");
+ok(RP.cycles >= 1 && RP.exports === 7 && RP.bunkers === 7 && RP.streams === 3,
+  "…with its recycle rings (" + RP.cycles + "), seven bays, seven bunkers on three streams (feeders " + RP.feeders + " t/h)");
+ok(RP.recy === 0.9, "…and the RECY dial ships at 90% — the most it holds once the mandates land (" + RP.recy + ")");
+ok(RP.spriteless && RP.spriteless.length === 0, "every unit on it draws real art, not a fallback card" + (RP.spriteless && RP.spriteless.length ? " (" + [...new Set(RP.spriteless)].join(",") + ")" : ""));
+ok(RP.unwired === 0, "…and nothing on it opens unwired (" + RP.unwired + " loose ports)");
+ok(RP.labels === RP.nodes, "…and all " + RP.nodes + " captions are unique, so you can point at any of them (" + RP.labels + " distinct)");
 ok(report && report.conLen > 400 && report.conHasIntake && report.conHasBuyers, "contracts view renders (" + (report && report.conLen) + " chars, intake + buyers)");
 ok(report && report.conHasComp, "contracts view shows stream composition bars");
 ok(report && report.conTruckIcons >= 3, "each contract shows its bin-truck livery (" + (report && report.conTruckIcons) + " truck sprites)");
@@ -326,6 +358,13 @@ ok(report && report.truckKeys && report.truckKeys[0] !== report.truckKeys[1],
 ok(report && report.supTrucks && new Set(report.supTrucks).size === report.supTrucks.length,
   "every streaming supplier has its OWN truck livery (" + (report && report.supTrucks || []).join(" ") + ")");
 ok(report && report.supTrucksLoaded, "…and every one of those sprites decodes");
+ok(report && report.conBuyerTrucks >= 6, "every buyer card carries its own flatbed livery (" + (report && report.conBuyerTrucks) + " sprites)");
+ok(report && report.conBuyerRules >= 6, "…and states its own on-spec rule (" + (report && report.conBuyerRules) + " purity bars)");
+ok(report && report.conSurgeEnds, "a finite surge says how many days are left on it");
+ok(report && report.cliTrucksLoaded, "every buyer livery decodes (" + [...new Set(report && report.cliTrucks || [])].length + " distinct)");
+ok(report && report.forkLoaded && report.forkLiveries.length >= 6, "the forklift fleet has " + (report && report.forkLiveries || []).length + " liveries and all of them decode");
+ok(report && report.shortNames && report.shortNames.every(s => s.length <= 6 && /^[A-Z]+\d+$/.test(s)),
+  "map captions are short tags with a number (" + (report && report.shortNames || []).slice(0, 6).join(" ") + ")");
 ok(report && report.beltLuma && Math.min(...report.beltLuma.map(b => Math.abs(report.steelLuma - b))) > 60,
   "steel reads clear of the conveyor greys (luma " + (report && report.steelLuma) + " vs belt " + (report && report.beltLuma || []).join("/") + ")");
 // ── boot-resume: the regression that shipped as "my tech tree and rewards reset after the update"

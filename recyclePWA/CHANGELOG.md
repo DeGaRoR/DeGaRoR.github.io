@@ -1,5 +1,127 @@
 # RECYCLE — Changelog
 
+## v1.17.0 — The big playtest batch: a plant sized to its contracts (2026-08-19)
+
+**The rebalance.** Throughput now has two ceilings instead of one, and the gap between them is the game. A
+finished plant can physically take **9 t/h** (`LOGI.inboundCap`, was 8) — but only about **6 t/h** while it
+holds a 100% recycling target, because the recycle loop re-feeds the line and eats the difference. So the
+ladder was rebuilt around that: a normal contract is **2.5 t/h** (was 5), two of them run clean at 5, the
+permanent imposed stream adds **1** (6 — exactly the clean ceiling), and the new recurring surge adds **2.5**
+(8.5 — inside the hard cap, well past the clean one). Nothing is refused and nothing is silently scaled: the
+squeeze is purity, and it is a decision you take, not a haircut applied to you.
+
+- **The second mandate is an EVENT now, not a life sentence.** Watco arrives, runs **2–3 days**, leaves — dues
+  and in-flight trucks reconciled away — and re-books itself 8–14 days later. A permanent second squeeze is
+  just a smaller plant; a recurring one is a decision you keep having to make and can plan around. The
+  contracts page shows `ENDS IN 3 D` on a live surge and lists the next one under **Incoming** with its run
+  length, so you can shed a contract before it lands instead of after.
+- **A bunker can be dedicated to an imposed stream.** An imposed supplier was not "unlocked", so it never
+  appeared in the bunker picker and a 24%-PVC mandate poisoned the same pit that fed your PET line, with no
+  answer available. Point one or more bunkers at it and the mandate is quarantined there; assign none and it
+  still lands everywhere, exactly as before. A full quarantine pit does **not** create a refusal — the load
+  spills to whatever bunker has room, because an imposed truck can never be turned away (NNG-6).
+- **The splitter divides exactly.** `SPLIT_NOISE` was 3%, so a branch you had deliberately CLOSED (ratio 0 or
+  100) still trickled material down it. A flow divider is a plate, not a sorter: it has no selectivity to
+  lose, and the leak read as a bug rather than as realism. The rng draw is kept, so the deterministic
+  sequence is unchanged.
+- **Two buyers of the same product are two different contracts.** Ferrous Bueller and Iron Maiden Metals were
+  literally interchangeable rows. Each buyer now states its own deal as a modifier on the product spec —
+  purity bar, contaminant caps, price, off-spec settlement — and grading and pricing both run through it, so
+  the *same bale* can be on-spec for one mill and scrap for the other. The rule of thumb across every
+  product: +5 purity points buys roughly +15–20% on the tonne. Every buyer card now prints its on-spec
+  condition and carries its own flatbed livery.
+- **Machine slots are gone.** The R&D tree promised "+15 slots" against a hidden cap of 20 units. The yard
+  grid is the honest limit — you can see it, you place against it, and it never refuses a build for a reason
+  that lives in a counter. `a_yard1/2/3` are now **Storage extension I/II/III** and buy what real estate
+  physically means: deeper bunkers, bigger bays, more surge.
+- **Poubelle Air is reachable.** It had a stream, a livery and a bag colour, and no way to sign it. `sl_poub`
+  (60 k€, behind the eddy licence — it is alu- and film-rich, so it is only worth signing once you can cash
+  that) unlocks it.
+- **Every export bay tallies its own takings.** The P&L is plant-wide, so a bay that has quietly gone
+  off-spec for a week is invisible in it — the sales line just sags. Lifetime and yesterday, per bay, both
+  gross, reconciling to the plant-wide sales line to the cent.
+
+**Seen from the yard.**
+
+- **Bags are the contract's colour everywhere**, not just in the bunker. A particle genuinely has no identity
+  of its own (buffers are counts per material+state, deliberately), so the livery of a belt — and of a
+  loader's bucket — is resolved from the bunker the stream came out of, memoised per frame. A yellow-bag
+  mandate used to turn blue the instant it left the pit, which is the screen contradicting itself (NNG-2).
+- **Ten buyer liveries and six forklift liveries**, cut from Denis' new colour sheets. Ten colours cover
+  thirteen buyers and that is sufficient, not a shortfall: a truck is only ever seen parked at one bay, and
+  the bay already says what it is collecting, so the colour only has to separate the buyers who could turn up
+  at the SAME dock. Two gated rules make that hold — no two buyers of one product share a livery, and all six
+  DEFAULT buyers (what you meet before any R&D) are distinct outright. The three reuses left over fall across
+  products, where the dock disambiguates: teal (alu/film), orange (alu/carton), purple (PET/pvc). All ten are
+  in use; a gate fails if one goes unused or a fourteenth buyer breaks either rule. Forklifts cycle six
+  colours so you can follow one across the yard.
+- **The loading badge is just the count.** `LOADING BALES 3/8` was three times the width of the number.
+- **Landfill skips are drawn like the containers they are** — upright, bulk-pad size, three across. They were
+  rotated flat and rescaled to fit however many columns the bay happened to be wide, so the identical skip
+  read as a different, smaller object at each end of its own journey.
+- **Short auto names.** "Vacuum film extractor" under a 30 px unit is a smear. Every unit gets a 1–4 letter
+  tag plus a number — `M1`, `MAG2`, `NIR1`, `TRI1`, `BNK4`, `PET1` — numbered by id, so a unit keeps its name
+  for as long as it exists. A player-set label still wins; the full name is one tap away.
+- **Move mode shows the unit's REAL ports.** The ghost was a blank template: default `sortSide`, no
+  `splitLayout`. A separator ejecting LEFT drew its ports on the right the moment you picked it up, so move
+  mode and connect mode disagreed about the same unit. Both read `sitePortsOf()`; feeding it the real unit's
+  state makes them agree by construction.
+- **The PVC bay art spans its frame.** It shipped with a transparent margin all round while every other slab
+  filled its footprint.
+
+**Chrome.**
+
+- **The top band is two bands.** Four stats plus three buttons could not fit a phone: the stats have
+  `min-width:0`, so they were what gave, and the cash figure — the number you check most — was the first
+  thing to ellipse. Band 1 is chrome and the date; band 2 is cash / yesterday / recycling, an equal third
+  each. Verified at 330 px: nothing clips, and the recycling label no longer has to be hidden to buy width.
+- **No popup lands on the bottom control bar.** Sheets sat at `bottom:0`, i.e. on top of play, speed and Add
+  — including the buttons that opened them — and the scrim greyed them out with it. `--barsH` is measured in
+  JS from the live chrome, and sheets, the scrim and the two centred modals all rest on it.
+- **Speeds are ½× / 1× / 2× / 8×.** ½× is for watching one belt sort; 4× sat between 2 and 8 doing neither.
+
+### The ULTIMATE PLANT replaces the reference plant
+
+The showcase build is now Denis' own 69-unit / 88-connection plant, imported from his career save. It is a
+projection, not a restore: geometry and settings only, so it opens cold and identical every time.
+
+What makes it worth shipping is the **RECY splitter** — a flow divider whose A branch feeds the head of the
+line and whose B branch purges to the bulk pad, so its ratio is a live dial between diversion and headroom.
+On its three signed contracts (Wasteminster ×3 bunkers, Binfinity ×2, Poubelle Air ×2 = 7.5 t/h in):
+
+| RECY | on-spec | buried | recycling |
+|-----:|--------:|-------:|----------:|
+| 100% | 6.5 t/h | **nothing** | ~100% |
+|  90% | 6.7 t/h | 0.2 t/h | ~97% *(as shipped)* |
+|   0% | 5.2 t/h | 1.3 t/h | ~80% |
+
+At this feed the loop is nearly free — recirculated material just gets a second pass at the sorters — which
+is why full recycle wins on both axes. **It ships at 90, not 100, for one measured reason.** This plant sells
+all six products, so it arms the pressure gate within days, and the first mandate takes intake to 8.5 t/h. At
+100% the ring saturates on the day that lands and never recovers: 26 units blocked, still dead twenty days
+later. At 90% it rides the whole campaign — 6.4–7.0 t/h on-spec, 97% recycling, one hot unit, no gridlock,
+through both mandates. A showcase that destroys itself unattended is worse than no showcase, so
+`ultimate-plant-unattended` now runs a 20-day campaign with nothing suppressed and gates exactly that. It is
+the test that caught it; every static check passed on the version that died.
+
+The scenario grants itself what it is made of — the five separator licences, the splitter, the picking cabin,
+the yard extension, the plant upgrades and the three supplier contracts — so the R&D page, the bunker picker
+and the contracts page all tell the truth about it. Hand labels ("M", "M", "M"…, a workaround for the old
+long auto-names) are dropped in favour of the auto-namer; only `RECY` is kept, because the tag cannot say it.
+
+**The first truck now arrives on time on a pre-placed plant.** A bunker accrues its contract's tonnage until
+it owes a whole truckload, so a plant that opens with an empty pit stood still for hours — and halving the
+contract rate above doubled that wait (two bunkers sharing one 2.5 t/h stream: ~11 sim-hours). `loadSiteRef`
+now primes every assigned bunker exactly the way picking a supplier in the inspector already did: first tip
+at ~3 h instead of ~11. It only advances the dispatch counter — the gate fee is still booked on the weight
+actually tipped (NNG-3).
+
+**Verified**: 705 QC checks / 74 suites (eight new: `splitter-exact`, `imposed-dedication`, `mandate-surge`,
+`buyer-terms`, `export-bay-revenue`, `ultimate-plant`, `ultimate-plant-recy-dial`, `ultimate-plant-unattended`), render smoke all green (now gating buyer liveries, per-buyer on-spec
+rules, the surge countdown, the forklift fleet and the short-name format), i18n 312 literals, and the
+loader/forklift balance harness 8/8. Screenshotted on a 375×812 phone: bag colours per stream, upright
+landfill skips, the two-band HUD, a sheet resting exactly on the dock, and the PVC bay filling its slab.
+
 ## v1.16.0 — Tutorial leak, and contracts you can actually see (2026-08-16)
 
 - **The tutorial banner no longer follows you into plants that have no tutorial.** `updateCoach()` is the function that *hides* the coach, and it was only called while the tutorial was active — so the moment you left Career the banner simply stayed, carrying its last step into whatever you loaded next. Loading the reference plant after playing Career showed a tutorial for a plant that has none. The render guard now also fires while the banner is still on screen, so it gets hidden exactly once. Smoke asserts the transition (`block → none`) and fails on the old code.

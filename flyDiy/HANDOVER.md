@@ -6683,6 +6683,360 @@ waist bottom moves it down (dash y top 0.12 -> 0.06 measured). The
 BUBBLE mode is DELETED (user: bad; will be re-explained) — the cutout
 modes and the seam stay as the foundation.
 
+### G19 — CAGE5: SEATS, CONTROLS AND THE DUMMY (2026-08-19)
+
+`_cage5.html` is the CAGE4 clone plus a CREW LAYER (`_cage_crew.js`):
+seats, cockpit controls and an IK crash-test dummy, auto-laced so the
+mannequin's hands and feet FIND the grips from the control positions.
+The layer is pure THREE scenery over the cage — never in the mesh, the
+fit gate, the manifold checks or the OBJ export. Load order: _cage_gen
+→ _cage_crew (attaches `CAGE_PAGE.post`) → _cage_ui; _cage_ui.build()
+gained an additive `PAGE.post({scene, spec, P, stat})` hook (pages
+without it are untouched; fit green after the change).
+
+- **UNITS RULING: the cage template is read as METRES** (halfW 0.554 →
+  1.11 m side-by-side cabin — plausible). The dummy is the calibration
+  instrument: if the 50th-percentile pilot doesn't fit, resize the
+  AEROPLANE. The status line prints eye height above floor, head
+  clearance vs cabin roofY, and any reach shortfall in cm.
+- **Seats** are the 63_gen_skin "2h. SEATS" recipe ported to cage axes
+  (frame tube loops + cross tubes, puffed-slab cushions with flutes and
+  piping, hanging lap-belt ribbons + buckle/tongue) minus the flex
+  binding. Layouts: single / side-by-side (pilot LEFT = +x) / tandem;
+  squab height, back rake, tandem pitch, sbs half-track, fore-aft all
+  sliders. Seat back auto-anchors 0.05 fwd of `pilCabB` (works in
+  mirror mode — the arceau is the back plane).
+- **Controls**, each an option select, all positions sliders: pitch/
+  roll = centre stick | yoke (column from the dash, two horn grips) |
+  right side stick | none; throttle = left wall lever | dash push-pull
+  | console quadrant | none; pedals on/off (plates + linkage ahead of
+  the seat); centre console on/off (auto-on for console throttle; sits
+  between sbs seats, otherwise on the throttle-hand side — yoke flies
+  left-handed so throttle right, sticks fly right-handed so throttle
+  left).
+- **The dummy** is the mannequin_poser.html port: same skeleton, same
+  analytic two-bone IK, solved ONCE per build (no RAF loop — the cage
+  pages draw on demand). Stature select = 5th 1.52 / 50th 1.75 / 95th
+  1.88. Seated-neutral FK base (recline follows seat rake + offset
+  slider), then IK: hand→stick/yoke/throttle by the hand rules above,
+  feet→pedals, end bones aligned to each grip's anchor orientation.
+  Poles from the poser's perp-of-current-bend init, plus elbows/knees
+  in-out sliders (elbow default only 0.03 out — 0.10 put the wall-side
+  elbow through the sbs skin). Second dummy = rest pose (hands on
+  thighs) in the second seat. Eye point + sight line drawn (poser's
+  EYE_LOCAL).
+- **Out-of-reach rule:** gap > 12 cm abandons the IK (rest pose) and
+  prints `OUT OF REACH n cm` — a fully stretched arm holding nothing
+  read as a defect, and the readout carries the finding instead. The
+  jodel's dash push-pull IS out of reach (58 cm) — true information:
+  its panel sits ~1.1 m from the seat back at wsRun 0.95.
+- Verified in-browser across sbs/tandem/single × stick/yoke/side ×
+  wall/dash/console × 5th/50th/95th: all limbs reach where reach is
+  physical, Cub tandem 0.40 head clearance, jodel 0.12 (0.05 at 95th),
+  sailplane dummy under the bubble. NOTE: the renderer cutaway plane
+  slices centreline (tandem) dummies too — that is the cutaway working,
+  not a bug. Seating starters in cage5 now also set `seatLayout`.
+
+**G19b — corrections (same day, user review):**
+- **THE FLOOR IS DETECTED, NOT READ OFF A LEVEL (user ruling): the
+  cage's `floorY` is the top of the floor LOOP — a wall rail, not a
+  floor.** The crew's actual floor = the centreline KEEL line at that
+  station + 0.035 m floorboards (`floorAt(z)` off the resolved rings,
+  reflected across the arceau on mirrored pods). Seats, pedals, stick
+  base, console and wall throttle all stand on floorAt at their own z
+  — the seat dropped ~0.42 into the belly on the jodel, which exposed:
+- **`planeScale` — the design scale ("0 · scale" group, 0.5–1.6).**
+  Scales the CAGE only (mesh + cage/loops overlays in _cage_ui, every
+  crew anchor in _cage_crew); seats and dummy never scale — they are
+  the ruler. OBJ export stays cage units. Superseded the first cut's
+  `fitScale` name when the unit question was settled — see G19d.
+- Seats gained `seatTilt` (squab recline 0–30°, tilts the pan front-up
+  and raises the FK thighs with it); `seatRake` relabelled "back
+  recline", range extended to 45° (glider positions). Lap belts are
+  OFF by default behind `seatBelt` (user: removed for now).
+
+**G19c — three material families + the sill floor (same day, user):**
+- **View alphas split into THREE CONCEPTUAL FAMILIES** (all cage pages,
+  _cage_ui): `fuselage α` (the exterior cage skin — glass keeps its own
+  slider on top), `int skin α` (the sheet linings: plywood / toele /
+  cloth / composite shell) and `structure α` (frames, posts, tubes,
+  dash, bulkhead, firewall, aluminium members). To make the split real
+  the metal construction's sheet linings got their OWN material name
+  `toele` (the generator's comment already called them that) — it was
+  'aluminium' for both sheets AND frames, which no viewer set could
+  separate. Fit green (interior materials are not fit-gated).
+- **THE FLOOR REFERENCE IS THE DOOR SILL (user ruling): the bottom of
+  the door cut is where you step in, so that IS the floor level.** The
+  crew layer measures the front-most door outline's lowest point
+  against the keel line at that station and uses that offset for
+  `floorAt` everywhere; an exploded door part is measured at its
+  as-built place via the faces' recorded `cutOff`. Fallback (doors
+  off / mirror v1): keel + 0.035 boards. On the jodel this raised the
+  floor 2.5 cm (doorSill 0.06 vs the boards guess).
+
+**G19d — THE UNIT, SETTLED (user: "we need solid ground here").**
+The question was whether to bake the 0.78 experiment into the fiche so
+the slider reads 1. Answer, from measurement: **no — 1 cage unit = 1
+metre (`CAGE_UNIT` in _cage_gen.js), and the "too big" reading is a
+PROPORTION defect, not a unit error.**
+
+    metres = cage units x CAGE_UNIT x planeScale
+
+is the only conversion in the tools; there is no second hidden factor.
+Why the constant stays 1.0:
+1. **A uniform scale cannot fix it.** Measured as-built (below), the
+   template is ~14% long, ~9% wide and ~33% TALL against a real Jodel
+   D112 (6.20 x ~1.02 x ~1.25 m). One multiplier trades length against
+   section: at ×0.88 length 6.23 and width 0.98 are RIGHT while the
+   cabin is still 0.2 m too tall; at ×0.78 the cabin height comes good
+   (1.18) and the aeroplane is 0.7 m too short. The excess is height,
+   and height has its own sliders (`roofY`, `keelY`, and `doorSill`,
+   which now sets the floor).
+2. **The fiche is fit-locked.** `_cage_fit.js` compares against the
+   Blender reference OBJs in their own units and is the project's
+   verdict; baking a factor would either break it or require a second
+   conversion at the boundary — the "two ways to state one fact"
+   ambiguity the macros ruling already outlawed. The user also
+   re-exports templates from Blender in those units.
+3. The cage sliders are therefore **metres**, which is what makes the
+   dummy and the dimensions pane readable at all.
+
+Measured at scale 1.0, as-built (jodel page defaults / cub preset):
+7.08 x 1.11 x 1.66 m, cabin height 1.51, head clearance 0.42 / cub
+8.19 x 1.13 x 1.93 m, cabin 1.79, clearance 0.70. Eye height reads
++0.97 above the floor at every scale — the proof the crew is metric.
+Recipe if a real D112 is wanted without touching proportions:
+planeScale 0.88 (length and width land within 3 cm) then take ~0.15 m
+out of the cabin height. Preset shapes were NOT changed — that is the
+slider-by-slider pass the user has asked for next.
+
+**G19e — same-day UI work (all cage pages, _cage_ui):**
+- **THE WIREFRAME IS QUADS.** `material.wireframe` draws the
+  renderer's TRIANGULATION; `quadWire()` walks the real face cycles
+  instead (one LineSegments per material, so section colours and the
+  family alphas still apply). Topology is finally readable at L2/L3.
+- **THE DIMENSIONS PANE** (bottom-left of the view, always on) — the
+  plane's length/width/height in metres AND feet-inches AND total
+  inches, plus the unit line. `dims box` in the view group draws the
+  measuring box round it (Box3Helper).
+- **THE MEASURE IS AS-BUILT**: a cut part flying out on `explode` must
+  not change the aeroplane's dimensions, so `measureBox` puts every
+  vertex back at its own part's place (faces carry `cutOff`) and reads
+  EXTERIOR faces only — seals and interior linings ride an exploded
+  door without recording the move, and being inside the skin they can
+  never set a dimension anyway. Verified identical at explode 0 and 1
+  (it read 7.24 x 3.11 x 2.42 before the fix — the exploded doors).
+- **Seat structure narrowed (user):** the frame the seat stands on is
+  now two rails at 2/3 of the seat width (`railHalf = hw * 2/3`) with
+  the cross tubes and legs on them, so it lands on the floor of a
+  fuselage that has narrowed by the belly; the cushions overhang it,
+  which is what a real light seat does.
+
+**G19f — controls in 3D, hands by geometry (user round 3):**
+- **HANDS FOLLOW THE GEOMETRY.** The dummy crossed its arms when the
+  console moved from beside the seat (single) to between the seats
+  (side-by-side), because the hand was hard-coded per stick style. Now
+  each control is asked WHICH SIDE OF THE PILOT it sits on (+x is the
+  pilot's left; the pilot is the LEFT seat, +x, in side-by-side) and
+  the near hand takes it; a control on the centreline — centre stick,
+  yoke — takes whichever hand is left over, and a yoke picks the
+  matching horn. Verified: console+stick single = L throttle / R stick,
+  side-by-side = R throttle (console is at dx −0.27, the pilot's right)
+  / L stick, wall throttle always the outboard hand, side-stick keeps
+  R and pushes the throttle to L. No combination crosses.
+  `window.CAGE_CREW` records the assignment + each grip's world
+  position (the CAGE_DBG idiom) for exactly this kind of check.
+- **FULL 3-AXIS PLACEMENT** for stick and throttle: `stickX/Y/Z` and
+  `thrX/Y/Z`, metres, +x pilot's left / +y up / +z nose, ALL DEFAULTING
+  TO 0 as SHIFTS off the auto-laced place. Offsets rather than absolute
+  stations because the styles do not share a datum (a wall lever, a
+  dash rod and a console quadrant each have their own natural home) —
+  this way one slider set adjusts every style and the default lacing
+  stays correct. Implemented as a Group per control, so the grip anchor
+  and therefore the IK follow for free. This also FIXES "throttle
+  height does not work": the old `thrH` was only read by the wall and
+  dash builders, so it did nothing in console mode — the shift now
+  applies to all three. Measured: every axis moves its grip by exactly
+  the slider value.
+- **Pedal spread** (`pedalSpread`, default 0.15 half-spacing) — how far
+  apart the pedals stand, for narrow footwells.
+- **The console box is a side-by-side fitting** (user): single and
+  tandem get the throttle QUADRANT ALONE on its own floor pedestal —
+  with one seat across the cabin there is nowhere for a box to stand.
+- **Seating starters DECOUPLED from the seat layout and DOWNGRADED**
+  (user): the starter sizes the CABIN only — one intent per control,
+  and a tandem pair in a wide cabin is now expressible. The old widths
+  came from the oversized template (halfW 0.45 = a 0.90 m cabin for a
+  SINGLE-seater); they are now real light-aircraft cabins measured
+  across the seats — single 0.66 m, tandem 0.68, side-by-side 1.05,
+  passenger 1.10.
+
+**G19g — THE SIZE QUESTION, ANSWERED WITH A MEASUREMENT (user: apply
+cub 0.68 / jodel 0.80 / sailplane 0.595 permanently, and a new plane's
+scale must READ 1).**
+- **BAKING THE FACTOR INTO THE LENGTH PARAMS DOES NOT WORK — measured,
+  do not retry.** A throwaway harness (scratchpad `bake_scale.js` +
+  `shape_check.js`) multiplied every length-dimensioned param and
+  compared the result, per-vertex and centroid-relative, against the
+  honest scaling: **jodel 12.8 mm / 0.39% off, cub 12.7 mm / 0.41%,
+  sailplane 3055 mm / 74% off.** Cause: the fiche carries
+  NON-PARAMETRIC constants — the whole layout is anchored at
+  `T.ring.z`, and the nose/windshield blocks carry template deltas —
+  so param scaling translates the aeroplane instead of scaling it, and
+  in MIRROR mode the pod reflects about that unscaled datum, which is
+  the 74%. The geometry-level scale (mesh + crew anchors x planeScale)
+  is a true similarity and stays the mechanism.
+- **SO THE SLIDER IS SHOWN RELATIVE.** `planeScale` remains the ONE
+  stored size number (a config export carries it and nothing else — no
+  second factor, no ambiguity), and the panel displays it as a ratio to
+  the size the current design was LOADED at: every preset opens at
+  ×1.000, and dragging means "bigger/smaller than this aeroplane".
+  `sizeRef` re-anchors on preset / saved-config / JSON import / reset,
+  never on a drag. Sizes now stored: page defaults (jodel) 0.80, piper
+  cub 0.68, sailplane 0.595. Measured on open: jodel 5.66 x 0.89 x
+  1.33 m (cabin 1.21, head clearance 0.12), cub 5.57 x 0.75 x 1.31
+  (cabin 1.22, clr 0.13), sailplane 5.08 x 0.76 x 1.01 (cabin 1.00,
+  clr 0.08) — all real light-aircraft numbers, no slider fiddling.
+- **The sailplane preset is the user's own export verbatim**
+  (sailPlane.json, 2026-08-19): tandem, 44-degree seat backs, console
+  quadrant, their control shifts. Trap handled: a config export is
+  diffed against CAGE_PARAMS but a PRESET applies over the PAGE
+  defaults, so every key their export omits and the page default
+  changes is restored to its CAGE_PARAMS value (`intCons`, `explodeD`)
+  — otherwise a jodel default leaks into their design.
+
+**G19h — the crew round-3 fixes (same day):**
+- **THE HEAD LOOKS STRAIGHT WHATEVER THE RECLINE** (user): the neck and
+  head now take up everything upstream (`need = -(root + lumbar +
+  thorax)`, neck 0.75 of it then the head, both clamped to the poser's
+  limits), so the 44-degree sailplane seat gives a level eye line
+  instead of a stare at the roof. This is what the poser's own
+  reclined presets did by hand.
+- **HANDS ARE SOLVED AS GRIPS, NOT POSES** (user: "the orientation of
+  the hands is quite wrong"). A closed hand does not point ALONG a
+  grip — its width lies along the grip and the fingers curl AROUND it,
+  away from the arm. Controls now record only the grip's AXIS
+  (`gripAt`), and `gripQuat` builds the hand basis at IK time from
+  that axis and the direction the arm arrives from: hand +x along the
+  grip, hand -y wrapping away from the shoulder. Feet keep an authored
+  orientation.
+- **FEET REST ON THE PEDALS PROPERLY**: the plate is a footplate RAMP
+  tilted 25 degrees toes-up (the poser's own ankle limit is 30 degrees
+  of dorsiflexion — a steeper plate could not be stood on), and the
+  ankle is placed so the MID-SOLE (0.06 forward of the ankle, 0.0725
+  below it) lands on the plate centre, plus 10 mm clearance along the
+  plate normal so the shoe does not sink into it.
+- **Pedals and quadrant FLOAT** (user): no floor posts, no pedestal —
+  the plates and the throttle box hang where they are placed. The
+  rudder bar between the pedals stays (it is the real linkage on this
+  class of aeroplane); say the word and it goes too.
+- **THE SECOND SEAT HAS ITS OWN SET**: `seat2H` / `seat2Rake` /
+  `seat2Tilt`, each -1 = follow the front seat. Verified independent
+  (squab 0.14 -> 0.30 moves only the rear pan) and that -1 restores.
+
+**G19i — dual controls, the jodel, and the pointy nose (user round 4):**
+- **THE POINTY AERO NOSE IS THREE EXISTING PARAMS, NOT A MISSING ONE**
+  (measured on the sailplane, side profile at the tip). `noseTip` 0.97
+  collapses the last ring to 3% of its size — a cone — and
+  **`crNoseCap` 3 keeps that cap edge FULLY SHARP**, which is the spike
+  and the shading kink; `cowlEase` decides whether the taper into it is
+  straight or curved. Verified: `crNoseCap 0` + `noseTip` 0.80-0.90 +
+  `cowlEase` ~0.9 gives a smooth ogive on the same aeroplane. The
+  parameters were simply not findable — they lived in three different
+  panel groups, one of them "don't touch" — so they are now ONE
+  subgroup, `3 · nose / tip shape`, labelled for what they do (tip
+  collapse / taper curve / taper fullness / tip loops / **tip
+  sharpness** / front cap crease). No new geometry was added: the
+  lesson is that a control nobody can find is the same as a missing
+  one.
+- **DUAL CONTROLS SIDE-BY-SIDE** (user): controls are built per SEAT
+  now (`mkStation`), so a side-by-side cabin gets a stick and a set of
+  pedals in front of each seat; the throttle stays single (one engine,
+  one lever) at the pilot's station. Single and tandem are unchanged.
+- **EVERY OCCUPANT IS POSED BY THE SAME RULES** (user: "the second
+  dummy should be correctly parametrized, the same way as the pilot").
+  `seatDummy(seat, station)` replaced the is-pilot flag: give a seat a
+  station and its occupant flies from it — same geometric hand
+  assignment, same grip solving, measured against ITS OWN seat centre.
+  A seat with no station rests its hands. Verified on the jodel: seat
+  +0.23 takes stick(dx 0) + throttle(dx +0.248) + both pedals, seat
+  -0.23 takes its own stick(dx 0) + both pedals, no crossing.
+  `window.CAGE_CREW` now records `stations[]`, one per occupant.
+- **The jodel page defaults ARE the user's export** (jodelSeating.json,
+  2026-08-19): halfW 0.795, roofY 0.815, waistY 0.04, bubble ON,
+  planeScale 0.745, and their seating (seatZ 0.205, squab 0.08, gap
+  0.23, pitch 0.84, elbows 0.08, both dummies). Opening cage5 lands on
+  it at ×1.000: 5.27 x 1.18 x 1.31 m, cabin 1.18, head clearance 0.15.
+- **Preset leak audit is now a script, not a guess** (scratchpad
+  `leak_audit.js`): it lists, per preset, every key the page defaults
+  change that the preset does not override — those silently become
+  part of that design. It caught `halfW`/`intCons` leaking into the cub
+  and `bubble` into the sailplane when the jodel defaults changed. RUN
+  IT WHENEVER THE PAGE DEFAULTS MOVE.
+
+**G19j — seat types, welded tubing, the hand on the grip (user round 5):**
+- **TUBING IS ONE WELDED RUN NOW.** The frames were separate capped
+  cylinders butted at each bend: they never joined and both end discs
+  showed (user: "it does not join its tube's geometry"). `tubeRun` does
+  the whole family — corners FILLETED by a quadratic bezier through the
+  corner with arms inset min(2.2r, 0.4 arm) (the cageRims seal idiom),
+  section PARALLEL-TRANSPORTED so it never flips along the run,
+  consecutive rings SHARING vertices so the surface is continuous, and
+  DOMED ends (rings at 60/30/0 degrees, radius r·sin, offset r·cos).
+  Each side of the light seat is now ONE sweep — leg, rail and back
+  upright — and cross members run a hair past the rails so the weld
+  closes. Every tube in the crew layer goes through it, so the three
+  seat types read at the same quality.
+- **THREE SEAT TYPES, ONE INTERFACE** (`seatType`): 0 `tube` (the light
+  frame + laced cushions), 1 `shell` (a moulded composite bucket — a
+  centre-plane profile of front lip / pan / filleted hinge / back /
+  integrated headrest, swept across x with a parabolic bolster, offset
+  to a real 11 mm thickness and rimmed, with a thin pad laid inside so
+  it is not bare carbon; this is the almost-lying seat — wind the back
+  recline up and the pilot lies in it), 2 `airliner` (deep squab, thick
+  raked back, separate headrest on posts, armrests with a rounded rail
+  and a pad, on a slim pedestal onto a floor track). Every builder
+  returns the same {panY, floor, szc, hw, backH, rake}, so the controls
+  and the dummy lace identically whichever is fitted — verified: all
+  three build with the cockpit unchanged.
+- **THE HAND HOLDS THE CONTROL, NOT THE WRIST.** The IK end effector is
+  the wrist JOINT, so a grip placed there put the control halfway up the
+  forearm (user). The wrist is now backed off along the hand's own axis
+  (its −y, from the grip basis) by `dumHandGrip`, scaled with stature.
+  Measured: wrist-to-grip distance equals the slider exactly (0.000 /
+  0.075 / 0.150). The debug record carries the wrist position beside the
+  grip so this stays checkable.
+- **Stick and throttle got LENGTHS, pedals got an ANGLE**: `stickLen`
+  (the centre stick's shaft; a side stick takes a third of it — that is
+  where a forearm-rest stick actually stands), `thrLen` (the lever, in
+  all three throttle styles — the wall lever and console quadrant sweep
+  their own direction by it, the push-pull rod scales 0.60/0.72 of it),
+  `pedalAngle` (the footplate ramp, 0-60 degrees, default 25 — the foot
+  anchor recomputes the sole contact so the shoe stays ON the plate at
+  any angle). Measured: each moves its grip by the slider value and
+  nothing else moves.
+
+**G19k — the interior toggles came back (user).** `groupsOverride`
+REPLACES the base panel, so every row _cage_ui defines is invisible on
+a curated page unless the page repeats it — and the interior master
+`intOn` plus its element flags (`intPillars`/`intBulk`/`intFire`/
+`intDash`) had never been carried over. The piper-cub preset sets
+intOn 0, so picking the Cub switched the interior off with no control
+to switch it back. All five now sit in 1 · global / conception beside
+the construction and thickness rows. Verified: Cub 5792 faces off →
+11610 on → 5792 off again, and each element flag drops its own
+geometry (pillars -4966, dash -896, bulkhead -114, firewall -96).
+TRAP FOR ANY FUTURE CURATED PAGE: adding a param to _cage_ui does NOT
+make it reachable in cage4/cage5 — check the override tree too.
+
+OPEN (crew layer): dashboard instruments/panel face, hands not shaped
+to grips (mitt geometry),
+canopy-aware head clearance (currently vs cabin roofY only), harness
+shoulder straps, per-seat TYPE (all seats share one today), the mannequin poser's draggable IK targets if manual
+posing is ever wanted in-tool. OPEN (sizing): the proportion pass —
+cabin height first, then the length family, with the pane + dummy as
+the instruments.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

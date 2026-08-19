@@ -7,9 +7,15 @@
   canvas{display:block;touch-action:none;}
   #wrap{flex:1;position:relative;overflow:hidden;}
   #cv{width:100%;height:100%;}
+  /* TWO BANDS. One row could not hold four stats and three buttons on a phone: the stats have min-width:0 so
+     they are what gives, and the cash figure — the number you check most — was the first thing to ellipse.
+     Band 1 carries the chrome and the date, band 2 the three live numbers, each with a third of the width. */
   #hud{position:absolute;top:0;left:0;right:0;padding:max(28px,env(safe-area-inset-top)) 12px 10px;
-    display:flex;align-items:center;gap:14px;pointer-events:none;z-index:12;
-    background:linear-gradient(var(--bg),rgba(31,29,27,0));}
+    display:flex;flex-direction:column;gap:7px;pointer-events:none;z-index:12;
+    background:linear-gradient(var(--bg) 72%,rgba(31,29,27,0));}
+  #hud .hrow{display:flex;align-items:center;gap:14px;min-width:0;}
+  #hud .hrow2{gap:10px;}
+  #hud .hrow2 .stat{flex:1 1 0;} /* equal thirds: no stat can crowd out another */
   .stat{display:flex;flex-direction:column;line-height:1.05;min-width:0;} /* min-width:0 lets a stat actually shrink — without it flex bottoms out at min-content and the bar overflows, clipping the tail buttons */
   #cashStat{pointer-events:auto;cursor:pointer;}
   #cashStat .lbl::after{content:" \2630";opacity:.5;font-size:9px;}
@@ -44,9 +50,9 @@
     .pbtn{width:38px;height:38px;}
     .sp{width:27px;min-width:24px;height:38px;font-size:11px;}
     #addBtn{height:38px;padding:0 11px;}
-    /* the HUD's fixed cost (3x34px buttons + gaps + margins + padding) leaves little for four stats,
-       and the FR labels are longer than the EN ones — reclaim the gaps before touching the content */
-    #hud{gap:8px;padding-left:8px;padding-right:8px;}
+    /* the stats have a band to themselves now, so only the padding needs reclaiming */
+    #hud{padding-left:8px;padding-right:8px;}
+    #hud .hrow2{gap:8px;}
     .stat .val{font-size:15px;}
   }
   @media(max-width:340px){
@@ -54,8 +60,8 @@
     .sp{width:24px;min-width:22px;font-size:10px;}
     #addBtn .lbl{display:none;}
     #addBtn{padding:0 12px;font-size:17px;}
-    #hud{gap:6px;}
-    #divStat .lbl{display:none;} /* the % value is self-explanatory; the word is what costs the width */
+    #hud .hrow2{gap:6px;}
+    /* (#divStat's label used to be dropped here to buy width for a single-row HUD; the second band pays for it now) */
     .stat .val{font-size:14px;}
     #clockStat .val{font-size:12px;}
   }
@@ -73,9 +79,14 @@
   .pulseBtn{animation:pb 1.1s ease-in-out infinite;}
   @keyframes pb{0%,100%{box-shadow:0 0 0 0 rgba(242,169,59,.0);}50%{box-shadow:0 0 0 5px rgba(242,169,59,.45);}}
   #chint{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);background:#171513;border:1px solid var(--accent2);border-radius:20px;padding:7px 16px;font-size:12.5px;color:var(--accent);z-index:6;display:none;pointer-events:none;white-space:nowrap;}
-  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:31;}
+  /* --barsH = the height of the persistent bottom chrome (dock + legend + tabbar), measured in JS on every
+     resize/layout change (syncBarsInset). A bottom sheet used to sit at bottom:0, i.e. ON TOP of the play,
+     speed and Add controls — including the ones that opened it — and the scrim greyed them out with it.
+     Both now stop at the bars, so the controls stay lit and usable while a sheet is up. */
+  :root{--barsH:0px;}
+  #scrim{position:fixed;left:0;right:0;top:0;bottom:var(--barsH);background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:31;}
   #scrim.show{opacity:1;pointer-events:auto;}
-  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);transform:translateY(110%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:32;padding:8px 16px max(18px,env(safe-area-inset-bottom));max-height:72dvh;overflow-y:auto;}
+  .sheet{position:fixed;left:0;right:0;bottom:var(--barsH);background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);transform:translateY(110%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:32;padding:8px 16px 18px;max-height:calc(72dvh - var(--barsH));overflow-y:auto;}
   .sheet.show{transform:translateY(0);}
   .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px;}
   .sheet h3{margin:0 0 2px;font-size:18px;} .sheet .real{font-size:12px;color:var(--muted);margin-bottom:12px;}
@@ -127,12 +138,12 @@
   #langRow{display:flex;width:fit-content;margin:24px auto 0;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px;}
   #langRow button{background:transparent;color:var(--muted);border:none;border-radius:999px;padding:7px 22px;font-weight:700;font-size:12.5px;letter-spacing:.05em;transition:background .15s,color .15s;cursor:pointer;}
   #langRow button.on{background:var(--accent);color:#23170c;}
-  #confirmM{position:fixed;inset:0;background:rgba(15,13,12,.62);z-index:55;display:none;align-items:center;justify-content:center;padding:28px;}
+  #confirmM{position:fixed;left:0;right:0;top:0;bottom:var(--barsH);background:rgba(15,13,12,.62);z-index:55;display:none;align-items:center;justify-content:center;padding:28px;}
   #confirmM.show{display:flex;}
   #confirmM .cbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:330px;width:100%;text-align:center;}
   #confirmM .cbox p{color:var(--text);margin:0 0 18px;line-height:1.5;font-size:15px;}
   #confirmM .btnrow{display:flex;gap:10px;} #confirmM .btnrow button{flex:1;}
-  #infoM{position:fixed;inset:0;background:rgba(15,13,12,.62);z-index:56;display:none;align-items:center;justify-content:center;padding:28px;}
+  #infoM{position:fixed;left:0;right:0;top:0;bottom:var(--barsH);background:rgba(15,13,12,.62);z-index:56;display:none;align-items:center;justify-content:center;padding:28px;}
   #infoM.show{display:flex;}
   #infoM .cbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:left;max-height:72dvh;overflow-y:auto;}
   #infoM .cbox h3{margin:0 0 10px;} #infoM .cbox .idesc{border:none;margin:0 0 14px;padding:0;}
@@ -156,7 +167,7 @@
   #brief .btnrow{width:280px;max-width:80vw;}
   #toasts{position:fixed;left:0;right:0;bottom:74px;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:60;pointer-events:none;padding:0 14px;}
   .toast{background:#171513;border:1px solid var(--line);border-radius:11px;padding:9px 14px;font-size:13px;max-width:440px;box-shadow:0 6px 20px rgba(0,0,0,.4);}
-  #coach{position:fixed;top:calc(env(safe-area-inset-top) + 58px);left:8px;right:8px;margin:0 auto;max-width:520px;z-index:28;
+  #coach{position:fixed;top:calc(var(--hudH, 58px) + 6px);left:8px;right:8px;margin:0 auto;max-width:520px;z-index:28;
     background:linear-gradient(180deg,#2b2620,#221f1b);border:1px solid var(--accent);border-radius:13px;padding:11px 13px;box-shadow:0 10px 28px rgba(0,0,0,.5);transition:transform .25s ease,opacity .25s ease;}
   #coach.hide{transform:translateY(-14px);opacity:0;pointer-events:none;}
   #coach.done{border-color:var(--good);}

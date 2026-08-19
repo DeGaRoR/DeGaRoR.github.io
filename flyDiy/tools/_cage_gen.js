@@ -2568,8 +2568,10 @@ function cageInterior(m, S) {
     liner(selPan, tSk || t0 * 0.4, () => 'plywood');
     liner(selPil, t0 * 1.6, () => 'woodFrame');
     // the TOELE (user): the metal skin's interior is metal too — thin
-    // sheet, same continuous-lining idiom
-    liner(selPanM, tSk || 0.008, () => 'aluminium');
+    // sheet, same continuous-lining idiom. Own material name so the
+    // viewer can fade interior SKIN apart from metal STRUCTURE
+    // (aluminium = frames/stringers/angles).
+    liner(selPanM, tSk || 0.008, () => 'toele');
     // the DOOR PANEL is plywood like the tub (user): inner liner +
     // edge walls over the door's own faces, glass excluded (the pane
     // keeps its seal and its view). Rides the exploded part.
@@ -2582,7 +2584,7 @@ function cageInterior(m, S) {
       else if (c === 'metal') selDoorM.push(i);
     });
     liner(selDoor, tSk || t0 * 0.4, () => 'plywood');
-    liner(selDoorM, tSk || 0.008, () => 'aluminium');
+    liner(selDoorM, tSk || 0.008, () => 'toele');
     // WOODEN BEAMS — TRUE SQUARE prisms (user ruling, second ask: the
     // chamfered octagon still read "rounded" at every level). Every
     // face carries its OWN four vertices, so the smooth-normal pass
@@ -5692,13 +5694,37 @@ function cageCanopy(m, S) {
   return m;
 }
 
+// ---------------------------------------------------------------------------
+// THE UNIT (2026-08-19, user: "we need solid ground here")
+// ---------------------------------------------------------------------------
+// ONE definition of how cage numbers become world numbers:
+//
+//     metres = cage units x CAGE_UNIT x spec-level plane scale
+//
+// CAGE_UNIT is a CONSTANT — the unit the fiche is written in. It is 1.0:
+// the template IS metric, measured against the crew (a 50th-percentile
+// dummy's seated eye lands 0.97 m above the floor in it, and the cage's
+// own length reads 6.6 m — both real light-aircraft numbers). The
+// "planes are too big" reading is NOT a unit error: it is PROPORTION
+// (the template's cabin is ~0.4 m taller than a light aeroplane's for
+// its length), which the cage's own sliders fix — see HANDOVER G19d.
+//
+// Changing this constant re-scales every measurement the tools report
+// without touching the fiche, so the fit gate (which works in template
+// units, against the Blender reference) stays exact either way. Do not
+// introduce a SECOND hidden factor anywhere: the per-build design
+// scale is a spec parameter, and it is the only other multiplier.
+const CAGE_UNIT = 1.0;                    // metres per cage unit
+
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                     CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                   CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy };
