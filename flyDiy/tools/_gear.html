@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<!--
+  GEAR BENCH (G20) — the undercarriage designer. Throwaway, gitignored
+  with the _cage*/_gear* family, never in MANIFEST. Serve from repo root
+  (launch: flydiy-node) and open /flyDiy/tools/_gear.html.
+
+  Four independent layers (see _gear_gen.js): STATION (where), LEG (how
+  it moves: beam / link / oleo), STEERING (fixed / linked / castor —
+  orthogonal, which is what makes a tailwheel and a trike nosewheel the
+  same module), CONTACT (wheel, brake, fairing). 'taildragger' and
+  'tricycle' are PRESETS over free stations, not types: four wheels
+  anywhere is a legal aeroplane here.
+
+  The body is a STUB that only exists to give the fitments a real surface
+  to bolt to — swap the provider for cageResolve and the same legs bolt
+  to the real cage.
+-->
+<meta charset="utf-8">
+<title>flyDiy — gear bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:10px;width:330px;flex:none;resize:horizontal;direction:rtl;
+    min-width:240px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r.wrap{flex-wrap:wrap}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  .r button{flex:none}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  #chk{position:absolute;left:10px;bottom:10px;z-index:2;
+    background:rgba(18,21,26,.84);border:1px solid var(--grid);
+    border-radius:5px;padding:7px 10px;pointer-events:none;line-height:1.55}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  details details{margin:6px 0;border-color:#1b2029}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+  .ok{color:#6fd08c} .warn{color:#e8c15a} .bad{color:#ff6b5a}
+</style>
+
+<header>
+  <h1>gear bench</h1>
+  <label>preset <select id="presetSel">
+    <option>taildragger</option><option>tricycle</option><option>free</option>
+  </select></label>
+  <label>airframe <select id="afSrc">
+    <option value="1">template fuselage</option><option value="0">stub</option>
+  </select></label>
+  <label><input type="checkbox" id="showBody" checked> body</label>
+  <label><input type="checkbox" id="sit" checked> sit on gear</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <button id="resetBtn">reset</button>
+  <button id="logBtn">log</button>
+  <button id="jsonBtn" title="download the config as JSON (also copied)">json</button>
+  <button id="impBtn" title="paste a config JSON">imp</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><div id="chk"></div></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_gear_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const G = window.GEAR_GEN, K = window.GEAR_KIT;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+
+// ---- parameters -----------------------------------------------------------
+// Stations are a FLAT set (st1..st4) so the panel, presets and the JSON
+// export all work the way the cage pages do. x = 0 is a single
+// centreline wheel; x > 0 is a mirrored pair.
+const DEF = {
+  // the stub airframe (a stand-in for the cage's contract)
+  afLen: 6.20, afHalfW: 0.42, afHeight: 0.46, afKeelY: -0.42, afKeelRise: 0.55,
+  mass: 620, cgZ: 1.25, cgY: 0.05, propR: 0.89, propZ: 3.85,
+  // station 1 — the mains
+  s1On: 1, s1Z: 0.62, s1X: 0.86, s1Leg: 1, s1R: 0.22, s1Drop: 0.62,
+  s1Brake: 1, s1Steer: 0, s1Fair: 0,
+  // station 2 — the tail (or nose) wheel
+  s2On: 1, s2Z: -3.05, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
+  s2Brake: 0, s2Steer: 1, s2Fair: 0,
+  // the wheel
+  whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
+  whValve: 1, whBrake: 0,
+  // (a) bending beam
+  beamAng: 62, beamW: 0.075, beamT: 0.020, beamTaper: 0.72, beamBow: 1.06,
+  beamRake: 0.10,
+  // (b) swinging link
+  linkAng: 58, linkArmW: 0.042, linkSwing: -42,
+  linkVee: 1, linkSpread: 0.46, linkX: 0, linkPanel: 1, linkPanelT: 0.004,
+  shockKind: 1, shockAt: 0.72, shockZ: 0.34, shockAng: 30,
+  bungeeSpan: 0.26,
+  // (c) telescopic oleo
+  oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55, oleoScissor: 0.052,
+  oleoBrace: 1, oleoBraceZ: 0.42,
+  // the tailwheel assembly
+  twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
+  twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
+  twLegDrop: 0.10, twSteer: 0, twSteerVis: 1, twHornY: 0.46, twHornZ: -0.30,
+};
+// EVERY LEG OPTION EXISTS PER STATION. The flat keys above are the base
+// values; each station gets its own copy (s1_beamW, s2_beamW, ...) so the
+// two are independent. The leg builders still read the plain names — a
+// station composes its own view of P before building.
+const LEG_ROWS = {
+  0: [
+    ['beamAng', 'attach angle', 0, 90, 1],
+    ['beamW', 'blade width', 0.03, 0.16, 0.002],
+    ['beamT', 'blade thick', 0.008, 0.05, 0.001],
+    ['beamTaper', 'tip taper', 0.35, 1, 0.01],
+    ['beamBow', 'bow out', 0.6, 1.6, 0.01],
+    ['beamRake', 'axle rake', -0.4, 0.4, 0.01],
+  ],
+  1: [
+    ['linkAng', 'pivot angle', 0, 90, 1],
+    ['linkSwing', 'wheel angle', -75, 75, 1],
+    ['linkArmW', 'tube dia', 0.02, 0.10, 0.002],
+    ['linkVee', 'V-strut', 0, 1, 1],
+    ['linkSpread', 'V base', 0.10, 1.00, 0.01],
+    ['linkX', 'crossed struts (Cub X)', 0, 1, 1],
+    ['linkPanel', 'V panel', 0, 1, 1],
+    ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
+    ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
+    ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
+    ['shockAng', 'shock top ang', 0, 90, 1],
+    ['bungeeSpan', 'bungee wrap', 0.10, 0.70, 0.01],
+  ],
+  2: [
+    ['oleoAng', 'attach angle', 0, 90, 1],
+    ['oleoDia', 'cylinder dia', 0.03, 0.14, 0.002],
+    ['oleoCyl', 'cylinder frac', 0.30, 0.80, 0.01],
+    ['oleoScissor', 'scissor throw', 0.02, 0.12, 0.002],
+    ['oleoBrace', 'drag brace', 0, 1, 1],
+    ['oleoBraceZ', 'brace top z', -0.8, 0.8, 0.02],
+  ],
+  3: [
+    ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
+    ['twSpringDrop', 'spring drop', 0.05, 0.70, 0.005],
+    ['twSpringW', 'spring width', 0.02, 0.10, 0.002],
+    ['twSpringT', 'leaf thick', 0.004, 0.020, 0.001],
+    ['twLeaves', 'leaves', 1, 4, 1],
+    ['twRake', 'castor rake', 0, 40, 0.5],
+    ['twTrail', 'castor trail', 0.01, 0.14, 0.002],
+    ['twLegDrop', 'swivel drop', 0.03, 0.30, 0.005],
+    ['twSteer', 'steer angle', -40, 40, 1],
+    ['twSteerVis', 'springs+chains', 0, 1, 1],
+    ['twHornY', 'rudder horn y', 0, 1.2, 0.01],
+    ['twHornZ', 'rudder horn z', -1.2, 0.6, 0.01],
+  ],
+};
+const LEG_KEYS = [];
+for (const rows of Object.values(LEG_ROWS))
+  for (const r of rows) if (LEG_KEYS.indexOf(r[0]) < 0) LEG_KEYS.push(r[0]);
+for (let i = 1; i <= 2; i++)
+  for (const k of LEG_KEYS) DEF['s' + i + '_' + k] = DEF[k];
+
+const P = JSON.parse(JSON.stringify(DEF));
+// a station's own view: the globals, with its leg options laid over
+const legP = i => {
+  const o = Object.assign({}, P);
+  for (const k of LEG_KEYS) o[k] = P['s' + i + '_' + k];
+  return o;
+};
+
+const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
+const STEERS = ['fixed', 'linked', 'castor'];
+
+const PRESETS = {
+  // stations sited on the REAL fuselage and tuned here until the CG
+  // angle sat in its 15-18 window (it reads 15.7)
+  taildragger: {
+    s1On: 1, s1Z: 2.55, s1X: 0.86, s1Leg: 1, s1R: 0.22, s1Drop: 0.62,
+    s1Brake: 1, s1Steer: 0, shockKind: 1, linkSwing: -42,
+    s2On: 1, s2Z: -3.95, s2X: 0, s2Leg: 3, s2R: 0.10, s2Steer: 1,
+    cgZ: 1.25, cgY: 0.05, propZ: 3.85,
+  },
+  // nose load reads 11.1% here, inside its 8-15 window
+  tricycle: {
+    s1On: 1, s1Z: 1.10, s1X: 0.90, s1Leg: 0, s1R: 0.20, s1Drop: 0.60,
+    s1Brake: 1, s1Steer: 0,
+    s2On: 1, s2Z: 3.70, s2X: 0, s2Leg: 2, s2R: 0.16, s2Drop: 0.60,
+    s2Brake: 0, s2Steer: 1,
+    cgZ: 1.45, cgY: 0.05, propZ: 3.95,
+  },
+  // a mixed pair, to keep the layers honestly independent: a blade on
+  // the mains and a castoring oleo up front
+  free: {
+    s1On: 1, s1Z: 1.30, s1X: 0.86, s1Leg: 0, s1R: 0.20, s1Drop: 0.58,
+    s2On: 1, s2Z: 3.60, s2X: 0, s2Leg: 2, s2R: 0.15, s2Drop: 0.58,
+    s2Steer: 1, cgZ: 1.60, cgY: 0.05, propZ: 3.95,
+  },
+};
+
+// ---- scene ----------------------------------------------------------------
+let yaw = -0.9, pitch = 0.24, ZOOM = 1, drag = null, panD = null;
+let centre = new THREE.Vector3(), centreOv = null, fitR = 4;
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
+                                           preserveDrawingBuffer: true });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.02, 200);
+scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95));
+const sun = new THREE.DirectionalLight(0xffffff, 0.78);
+sun.position.set(-3, 5, -4); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.28);
+sun2.position.set(4, -1, 4); scene.add(sun2);
+let root = null;
+
+// the ground the wheels stand on
+function groundPlane(y) {
+  const g = new THREE.Group();
+  const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33);
+  grid.position.y = y;
+  g.add(grid);
+  return g;
+}
+
+// ---- build ----------------------------------------------------------------
+function stations() {
+  const out = [];
+  for (let i = 1; i <= 2; i++) {
+    if (!P['s' + i + 'On']) continue;
+    out.push({ id: i, z: P['s' + i + 'Z'], x: P['s' + i + 'X'],
+               leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
+               drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
+               fair: Math.round(P['s' + i + 'Fair'] || 0),
+               steer: Math.round(P['s' + i + 'Steer']), P: legP(i) });
+  }
+  return out;
+}
+
+function build() {
+  if (root) {
+    root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    scene.remove(root);
+    if (root.userData.grd) scene.remove(root.userData.grd);
+  }
+  root = new THREE.Group();
+  scene.add(root);
+  // the CONTRACT at work: the legs cannot tell which of these they are
+  // bolted to, so the real fuselage needed no change to any of them
+  const useObj = BODY && $('afSrc').value === '1';
+  const AF = useObj ? BODY : G.stubAirframe(P);
+  if ($('showBody').checked) {
+    if (useObj) G.drawBody(root, AF); else G.drawStub(root, AF, P);
+  }
+
+  const bags = {};
+  for (const k of ['tyre', 'hub', 'brake', 'steel', 'alloy', 'chrome',
+                   'dark', 'bronze', 'fair'])
+    bags[k] = G.Bag();
+
+  const contacts = [];
+  for (const st of stations()) {
+    const sides = st.x > 0.01 ? [-1, 1] : [0];
+    for (const s of sides) {
+      const sgn = s === 0 ? 1 : s;
+      let r;
+      if (st.leg === 3) {
+        r = G.legTailwheel(bags, AF, st.P, st);
+      } else {
+        if (st.leg === 0) r = G.legBeam(bags, AF, st.P, st, sgn);
+        else if (st.leg === 1) r = G.legLink(bags, AF, st.P, st, sgn);
+        else r = G.legOleo(bags, AF, st.P, st, sgn);
+        // a steerable/castoring wheel hangs UNDER the leg on a swivel
+        if (st.steer > 0 && st.x < 0.01) {
+          const u = G.castorUnit(bags, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
+          G.wheel(bags, u.hub, u.axis, st.R, { brake: !!st.brake, P });
+          if (st.fair) G.spat(bags, u.hub, u.axis, st.R, st.fair === 2);
+          r = { axle: u.hub, axis: u.axis, travel: r.travel };
+        } else {
+          G.wheel(bags, r.axle, r.axis, st.R,
+                  { brake: !!st.brake, inboard: sgn, P });
+          if (st.fair) G.spat(bags, r.axle, r.axis, st.R, st.fair === 2);
+        }
+      }
+      contacts.push({ st, sgn, p: r.axle, R: st.R });
+    }
+  }
+  for (const k in bags) bags[k].mesh(root, G.MAT[k]);
+
+  // SIT IT ON ITS GEAR. Drawn level, a taildragger's tailwheel hangs in
+  // the air and the deck angle is invisible — but the resting attitude is
+  // exactly what you judge this hardware by. Pitch until the extreme fore
+  // and aft contacts share one ground line, then drop that line to y = 0.
+  let pitch = 0;
+  if ($('sit').checked && contacts.length > 1) {
+    const byZ = contacts.slice().sort((p, q) => p.p[2] - q.p[2]);
+    const A = byZ[0], B = byZ[byZ.length - 1];
+    pitch = Math.atan2((B.p[1] - B.R) - (A.p[1] - A.R), B.p[2] - A.p[2]);
+    root.rotation.x = pitch;
+  }
+  root.updateMatrixWorld(true);
+  let gy = 1e9;
+  const cw = [];
+  for (const c of contacts) {
+    const v = new THREE.Vector3(c.p[0], c.p[1], c.p[2]).applyMatrix4(root.matrix);
+    cw.push({ st: c.st, R: c.R, p: [v.x, v.y, v.z] });
+    gy = Math.min(gy, v.y - c.R);
+  }
+  root.position.y = -gy;
+  for (const c of cw) c.p[1] -= gy;
+  // the CG and the prop hub live in BODY space — they must ride the same
+  // attitude as the contacts or every check below compares two frames
+  const toW = p => {
+    const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(root.matrix);
+    return [v.x, v.y - gy, v.z];
+  };
+  const cgW = toW([0, P.cgY, P.cgZ]);
+  const hubW = toW([0, AF.cyAt(P.propZ), P.propZ]);
+  const grd = groundPlane(0);
+  scene.add(grd);
+  root.userData.grd = grd;
+  const mk = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), G.MAT.mark);
+  mk.position.set(cgW[0], cgW[1], cgW[2]);
+  grd.add(mk);
+
+  if ($('wire').checked)
+    root.traverse(o => { if (o.material && o.material.wireframe === false)
+      o.material = o.material.clone(), o.material.wireframe = true; });
+
+  const box = new THREE.Box3().setFromObject(root);
+  box.getCenter(centre);
+  fitR = box.getSize(new THREE.Vector3()).length() * 0.58;
+  let tris = 0;
+  for (const k in bags) tris += bags[k].tris;
+  $('stat').textContent = contacts.length + ' contacts · ' + tris + ' tris';
+  // STATIONS ARE NAMED BY WHERE THEY ARE (user), not by index: station 1
+  // is the mains on a taildragger but the AFT pair on a tricycle, so a
+  // fixed label would be wrong in one of the two presets.
+  {
+    const s1 = document.querySelector('[data-g="station 1"]');
+    const s2 = document.querySelector('[data-g="station 2"]');
+    if (s1 && s2) {
+      const fwd1 = P.s1Z >= P.s2Z;
+      s1.textContent = (fwd1 ? 'forward' : 'aft') + ' station';
+      s2.textContent = (fwd1 ? 'aft' : 'forward') + ' station';
+    }
+  }
+  checks(AF, cw, pitch, cgW, hubW);
+  draw();
+}
+
+// ---- the checks that make this a bench, not a viewer ----------------------
+// Ground geometry is unforgiving and the numbers are known: a taildragger
+// wants its mains 15-18 deg ahead of the CG, a nosewheel wants 8-15% of
+// the weight, and the prop wants FAR 23.925 clearance.
+function checks(AF, contacts, pitch, cg, hub) {
+  const rows = [];
+
+  const mains = contacts.filter(c => c.st.x > 0.01);
+  const singles = contacts.filter(c => c.st.x <= 0.01);
+  const row = (label, val, cls, note) =>
+    rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
+      '<b class="' + (cls || '') + '">' + val + '</b>' +
+      (note ? ' <span style="color:#4a525c">' + note + '</span>' : '') + '</div>');
+  if (mains.length) {
+    const mz = mains.reduce((s, c) => s + c.p[2], 0) / mains.length;
+    const track = Math.max(...mains.map(c => Math.abs(c.p[0]))) * 2;
+    row('track', track.toFixed(2) + ' m');
+    // tail or nose?
+    const tail = singles.find(c => c.p[2] < mz), nose = singles.find(c => c.p[2] > mz);
+    if (tail) {
+      const wb = mz - tail.p[2];
+      row('wheelbase', wb.toFixed(2) + ' m');
+      const ang = Math.atan2(mz - cg[2], Math.max(0.01, cg[1])) / D2R;
+      const ok = ang >= 15 && ang <= 18;
+      row('CG angle', ang.toFixed(1) + '&deg;',
+          ok ? 'ok' : (ang > 12 && ang < 22 ? 'warn' : 'bad'),
+          'want 15-18 (nose-over vs squat)');
+      row('deck angle', (-pitch / D2R).toFixed(1) + '&deg;', '',
+          'nose up, on its gear');
+    }
+    if (nose) {
+      const wb = nose.p[2] - mz;
+      row('wheelbase', wb.toFixed(2) + ' m');
+      const share = 100 * (cg[2] - mz) / wb;
+      const ok = share >= 8 && share <= 15;
+      row('nose load', share.toFixed(1) + '%',
+          ok ? 'ok' : (share > 5 && share < 20 ? 'warn' : 'bad'),
+          'want 8-15%');
+    }
+    // prop clearance, FAR 23.925: 0.229 taildragger / 0.178 nosewheel
+    const req = nose ? 0.178 : 0.229;
+    const gap = hub[1] - P.propR;
+    row('prop clearance', gap.toFixed(3) + ' m',
+        gap >= req ? 'ok' : 'bad', 'FAR min ' + req);
+  }
+  $('chk').innerHTML =
+    '<div style="color:#7d8996;letter-spacing:.14em;font-size:9px;' +
+    'margin-bottom:4px">GEOMETRY</div>' + rows.join('');
+}
+
+function draw() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dp = devicePixelRatio || 1;
+  renderer.setSize(r.width * dp, r.height * dp, false);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+  const R = fitR / ZOOM, C = centreOv || centre;
+  camera.position.set(C.x + R * Math.sin(yaw) * Math.cos(pitch),
+                      C.y + R * Math.sin(pitch),
+                      C.z + R * Math.cos(yaw) * Math.cos(pitch));
+  camera.lookAt(C);
+  renderer.render(scene, camera);
+}
+
+// ---- panel ----------------------------------------------------------------
+const ui = $('ui');
+const mkRow = (parent, k, label, lo, hi, st, names) => {
+  const d = document.createElement('div'); d.className = 'r';
+  if (names) {
+    d.innerHTML = '<span class="k">' + label + '</span><select id="p_' + k +
+      '" style="flex:1">' + names.map((n, i) =>
+        '<option value="' + i + '"' + (Math.round(P[k]) === i ? ' selected' : '') +
+        '>' + n + '</option>').join('') + '</select>';
+    parent.appendChild(d);
+    d.querySelector('select').onchange = e => {
+      P[k] = +e.target.value;
+      if (/Leg$/.test(k)) buildPanel();      // show that leg's options
+      build();
+    };
+    return;
+  }
+  d.innerHTML = '<span class="k">' + label + '</span>' +
+    '<input type="range" id="p_' + k + '" min="' + lo + '" max="' + hi +
+    '" step="' + st + '" value="' + P[k] + '">' +
+    '<span class="v" id="v_' + k + '">' + (+P[k]).toFixed(3) + '</span>';
+  parent.appendChild(d);
+  d.querySelector('input').oninput = e => {
+    $('v_' + k).textContent = (+e.target.value).toFixed(3);
+    P[k] = +e.target.value; build();
+  };
+};
+const GLOBAL_GROUPS = [
+  ['airframe', [
+    ['afLen', 'stub length', 3, 12, 0.05],
+    ['afHalfW', 'stub half width', 0.2, 1.2, 0.01],
+    ['afHeight', 'stub half height', 0.2, 1.2, 0.01],
+    ['afKeelY', 'stub keel y', -1.2, 0, 0.01],
+    ['afKeelRise', 'stub keel rise', 0, 1.5, 0.01],
+    ['mass', 'mass kg', 200, 4000, 10],
+    ['cgZ', 'CG z', -2, 4, 0.01], ['cgY', 'CG y', -0.5, 1.2, 0.01],
+    ['propR', 'prop radius', 0.3, 1.8, 0.01],
+    ['propZ', 'prop z', 0, 4.5, 0.05],
+  ]],
+  ['wheel', [
+    ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
+    ['whTread', 'tread', 0, 2, 1, ['ribbed', 'smooth', 'blocked']],
+    ['whRibs', 'ribs', 1, 5, 1],
+    ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
+    ['whBolts', 'rim bolts', 3, 10, 1],
+    ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
+    ['whValve', 'valve stem', 0, 1, 1],
+    ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  ]],
+];
+const STATION_ROWS = i => [
+  ['s' + i + 'On', 'fitted', 0, 1, 1],
+  ['s' + i + 'Z', 'station z', -4.5, 4.5, 0.01],
+  ['s' + i + 'X', 'half track', 0, 1.6, 0.01],
+  ['s' + i + 'Leg', 'suspension', 0, 3, 1, LEGS],
+  ['s' + i + 'Steer', 'steering', 0, 2, 1, STEERS],
+  ['s' + i + 'R', 'wheel radius', 0.06, 0.45, 0.005],
+  ['s' + i + 'Drop', 'leg drop', 0.10, 1.20, 0.005],
+  ['s' + i + 'Brake', 'brake', 0, 1, 1],
+  ['s' + i + 'Fair', 'fairing', 0, 2, 1, ['none', 'spat', 'trousers']],
+];
+// THE PANEL IS REBUILT WHENEVER A SUSPENSION CHANGES, so a station only
+// ever shows the options belonging to the leg it has fitted.
+function renderGroup(name, items, open) {
+  const det = document.createElement('details');
+  if (open) det.open = true;
+  const sum = document.createElement('summary');
+  sum.textContent = name;
+  sum.dataset.g = name;
+  det.appendChild(sum);
+  ui.appendChild(det);
+  for (const [k, label, lo, hi, stp, names] of items)
+    mkRow(det, k, label, lo, hi, stp, names);
+  return det;
+}
+function buildPanel() {
+  const openState = {};
+  ui.querySelectorAll('details').forEach(d => {
+    const s = d.querySelector('summary');
+    if (s) openState[s.dataset.g] = d.open;
+  });
+  ui.innerHTML = '';
+  renderGroup('airframe', GLOBAL_GROUPS[0][1],
+              openState['airframe'] !== undefined ? openState['airframe'] : false);
+  for (let i = 1; i <= 2; i++) {
+    const leg = Math.round(P['s' + i + 'Leg']);
+    const rows = STATION_ROWS(i).concat(
+      (LEG_ROWS[leg] || []).map(r =>
+        ['s' + i + '_' + r[0]].concat(r.slice(1))));
+    const nm = 'station ' + i;
+    renderGroup(nm, rows, openState[nm] !== undefined ? openState[nm] : true);
+  }
+  renderGroup('wheel', GLOBAL_GROUPS[1][1],
+              openState['wheel'] !== undefined ? openState['wheel'] : false);
+}
+function syncPanel() { buildPanel(); }
+function applyPreset(n) {
+  for (const k in DEF) P[k] = DEF[k];
+  const pre = PRESETS[n] || {};
+  Object.assign(P, pre);
+  // a preset may name a leg option flatly (it describes one configuration)
+  // — push those onto both stations so they take effect
+  for (const k in pre)
+    if (LEG_KEYS.indexOf(k) >= 0)
+      for (let i = 1; i <= 2; i++) P['s' + i + '_' + k] = pre[k];
+  buildPanel(); build();
+}
+$('presetSel').onchange = e => applyPreset(e.target.value);
+$('resetBtn').onclick = () => applyPreset($('presetSel').value);
+const configJSON = () => {
+  const d = {};
+  for (const k in P) if (P[k] !== DEF[k]) d[k] = P[k];
+  return JSON.stringify({ P: d }, null, 1);
+};
+$('jsonBtn').onclick = () => {
+  const t = configJSON();
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(new Blob([t], { type: 'application/json' }));
+  el.download = 'gear_config.json';
+  el.click();
+  if (navigator.clipboard) navigator.clipboard.writeText(t);
+  $('stat').textContent = 'config downloaded + copied to clipboard';
+};
+$('impBtn').onclick = () => {
+  const t = prompt('paste config JSON ({P:{...}})');
+  if (!t) return;
+  try {
+    const cfg = JSON.parse(t);
+    if (cfg.P) Object.assign(P, cfg.P);
+    buildPanel(); build();
+    $('stat').textContent = 'config imported';
+  } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
+};
+$('logBtn').onclick = () => {
+  const t = configJSON();
+  console.log(t);
+  if (navigator.clipboard) navigator.clipboard.writeText(t);
+  $('stat').textContent = 'config copied to clipboard';
+};
+for (const id of ['showBody', 'wire', 'sit', 'afSrc']) $(id).onchange = build;
+// the real fuselage, loaded once and baked into the same contract
+let BODY = null;
+fetch('_gear_body.obj').then(r => r.text()).then(t => {
+  BODY = G.objAirframe(t);
+  $('stat').textContent = 'fuselage loaded: ' + BODY.mesh.F.length + ' faces';
+  build();
+}).catch(e => { $('afSrc').value = '0';
+  $('stat').textContent = 'fuselage load failed: ' + e.message; });
+
+// ---- interaction ----------------------------------------------------------
+const viewEl = $('view');
+viewEl.addEventListener('mousedown', e => {
+  if (e.button === 1 || e.button === 2) {
+    panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
+    e.preventDefault();
+  } else drag = [e.clientX, e.clientY, yaw, pitch];
+});
+viewEl.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mousemove', e => {
+  if (panD) {
+    const r = cv.getBoundingClientRect();
+    const wpp = 2 * (fitR / ZOOM) * Math.tan(camera.fov * Math.PI / 360) /
+                Math.max(1, r.height);
+    const e0 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const e1 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    centreOv = panD[2].clone()
+      .addScaledVector(e0, -(e.clientX - panD[0]) * wpp)
+      .addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+    draw(); return;
+  }
+  if (!drag) return;
+  yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
+  pitch = Math.max(-1.35, Math.min(1.35, drag[3] + (e.clientY - drag[1]) * 0.006));
+  draw();
+});
+viewEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  ZOOM = Math.max(0.2, Math.min(30, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  draw();
+}, { passive: false });
+viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); });
+addEventListener('resize', draw);
+if (typeof ResizeObserver !== 'undefined')
+  new ResizeObserver(() => draw()).observe(viewEl);
+
+window.GEAR_UI = { P, build, draw, applyPreset, syncPanel,
+  get scene() { return scene; }, get root() { return root; },
+  get cam() { return camera; },
+  get frame() { return { centre, fitR, ZOOM, yaw, pitch, centreOv }; },
+  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
+    centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; } };
+buildPanel();
+applyPreset('taildragger');
+})();
+</script>

@@ -7037,6 +7037,323 @@ posing is ever wanted in-tool. OPEN (sizing): the proportion pass —
 cabin height first, then the length family, with the pane + dummy as
 the instruments.
 
+### G20 — THE GEAR BENCH (2026-08-19, started)
+
+`tools/_gear.html` + `_gear_gen.js` + `_gear_kit.js` — the
+undercarriage designer, in the light tool by user decision. Scope agreed:
+BENDING BEAM, TELESCOPIC and SWINGING LINK only; retraction and rigid
+skids are explicitly out for now.
+
+**THE MODEL — four INDEPENDENT layers** (so nothing is hard-coded to a
+configuration, and four wheels on a light aeroplane is legal):
+1. **STATION** — z along the body, x half-track (x = 0 is a single
+   centreline wheel, x > 0 a mirrored pair). Four free stations;
+   'taildragger' and 'tricycle' are PRESETS over them, never types.
+2. **LEG** — the kinematic family: `beam` (the leg IS the spring, a
+   tapered blade), `link` (swinging arm on a pivot + a separate shock:
+   coil-over / bungee wrap / rubber-donut stack), `oleo` (cylinder +
+   polished piston + gland boot + TORQUE SCISSOR + drag brace).
+3. **STEERING** — **ORTHOGONAL to the leg. This is the correction the
+   user's tailwheel question forced**: the first taxonomy filed a
+   tailwheel under "contact modules", which is wrong. A tailwheel and a
+   trike nosewheel are THE SAME castor module over different legs —
+   raked swivel axis, axle trailing it by `trail`, steering arm with
+   springs + chains to the rudder horn, breakout beyond the linked range.
+4. **CONTACT** — tyre + hub + brake disc/caliper (revolved profiles, the
+   G4.6 rule: never a cylinder with lids), optional spat.
+
+**THE TAILWHEEL IS ITS OWN ASSEMBLY** (user, rigorously): a LAMINATED
+leaf spring (n leaves, each shorter than the one above) bolted to the
+sternpost through a generated pad, carrying the castor unit at its tip.
+
+**FITMENTS ARE GENERATED** — no leg is drawn near the aeroplane: each
+asks the airframe contract for the surface POINT AND NORMAL at its
+station and builds its doubler pad, clamp block, lugs and bolts ON that
+surface (the pitot rule from G5, applied to every bolt).
+
+**THE AIRFRAME CONTRACT** — `AF = { surf(z, ang), keelAt, halfWAt,
+heightAt, nrmAt }`, `ang` measured from the keel. The bench supplies a
+stub body; swapping the provider for cageResolve bolts the same legs to
+the real cage. That is the whole point of the contract.
+
+**THE CHECKS** (what makes it a bench, not a viewer) — the aeroplane
+SITS ON ITS GEAR (pitch until the extreme fore/aft contacts share a
+ground line, then drop to y=0; drawn level a tailwheel hangs in the air
+and the deck angle is invisible), and the panel reports track,
+wheelbase, CG angle (taildragger, want 15-18 deg), nose load share
+(trike, want 8-15%), deck angle and prop clearance against FAR 23.925.
+Verified they DRIVE design: default taildragger CG angle 18.4 deg,
+moving cgZ to 0.95 flips it to -17.7 (would sit on its tail, flagged);
+trike nose load 12.5%, prop clearance 0.233 vs the 0.178 minimum.
+
+**G20b — round 2, user defects (same day):**
+- **THE TYRE WAS HALF INSIDE OUT.** Root cause found by reading the
+  profile, not by guessing: the section was traced crown -> -bead and
+  then JUMPED to +bead -> crown, so the first half ran in -h and its
+  faces wound the other way — and a phantom cylinder bridged the two
+  beads. The two build loops were simply swapped. **RULE for every
+  revolve: trace the section ONCE, monotonically along the axis.** A
+  node replica of the winding maths proved the sweeper itself was
+  correct (face normal . radial = +0.995 both signs) BEFORE the profile
+  was suspected — worth repeating, it took one script and no guessing.
+  Verified after: tyre normals sample 5 outward / 0 inward.
+- **LEGS NO LONGER RUN THROUGH THE WHEELS.** Every leg used to end at
+  the axle CENTRE, so the blade/arm/strut passed through the tyre. Each
+  now stops at the tyre's inboard face (R*0.40 + 0.02) and a shared
+  `axleStub` — machined step, bearing land, nut face — carries on
+  through the hub. Applies to beam, link and oleo alike.
+- **THE BUNGEE IS ONE CORD, WRAPPED** (it was "only a set of toruses"):
+  a single continuous path lashed racetrack-wise round two pins, turn
+  beside turn, swept once; `bungeeSpan` sets how compact the bundle is,
+  and rods carry the load out to the fuselage fitting and down to the
+  strut. First attempt spanned 0.16-0.90 of the shock and read as a
+  full-length bundle — a wrap has to be COMPACT to read as a wrap.
+- **FOUR STATIONS -> TWO** (user). The free preset is now a mixed pair
+  (blade mains + castoring oleo nose), which keeps the layers honestly
+  independent without a third leg.
+- **FAIRINGS REMOVED.** User: properly aerodynamic or not at all. The
+  crude swept teardrop is gone rather than left rough; a real spat
+  (streamlined section, elliptical cross-section, tyre cutout) is its
+  own item.
+- **A SHARED MODULE MUST NOT CARRY ONE USE'S FITTINGS.** The castor
+  module is deliberately shared by the tailwheel and the trike
+  nosewheel — but its springs-and-chains run to the RUDDER HORN, which
+  only exists at the tail; on the nosewheel they strung off into empty
+  space. The linkage is now an argument (`showLink`), not a property of
+  the module. A nosewheel is steered by rods inside the fuselage and
+  correctly shows no external linkage.
+
+**G20c — the V-strut, seated roots, legible stub (round 3):**
+- **THE LINK LEG IS A V-STRUT TRIANGLE.** A Cub's main gear is two tubes
+  from the belly meeting at the axle knuckle: the wheel swings about the
+  LINE JOINING THE TWO FUSELAGE FITTINGS, which is what makes the
+  triangle a swinging link and not a strut, and the bungee takes the
+  vertical load. Each foot gets its own pad, lug pair and bush;
+  `linkSpread` sets the V's base and `linkVee` 0 falls back to the
+  single trailing arm, which stays because a bush-plane trailing link is
+  its own real architecture.
+- **HARDWARE SITS ON ITS DOUBLER.** Every leg root stood 10-28 mm off
+  the skin, floating above its own pad. Roots now seat on the pad's
+  outer face (pad thickness + half the member) — beam blade, V-strut
+  feet, oleo trunnion and the tailwheel spring alike.
+- **THE STUB WAS NEVER MISSING, IT WAS ILLEGIBLE** (user: "I can't see
+  the airframe stub anymore"). A 20-30% double-sided shell with no depth
+  write reads as a pale wash. Fixed with DEFINITION, not opacity:
+  station rings every eighth of the length plus keel and waterlines as
+  lines over the shell. The gear still shows through, which is why the
+  body is translucent in the first place.
+
+**G20d — spats done properly, steering corrected (round 4):**
+- **THE SPAT IS A STREAMLINED BODY, built as the GREATER OF TWO SHAPES.**
+  A chordwise loft in the wheel's plane — rounded nose ahead of the tyre,
+  maximum depth at the axle, long fine run-out behind, elliptical section
+  at every station — but the streamline law ALONE is shallower than the
+  tyre at the front and back of the wheel, and the wheel punched straight
+  through it. So depth = max(streamline, wheel envelope + clearance), and
+  width likewise: the fairing encloses the wheel where the wheel is and
+  runs out to a fine tail where it is not. Bottom open on a chord line
+  with a rolled edge bead down both sides of the opening (what a real
+  glassfibre spat has where its halves join). Two depths: `spat` and
+  `trousers` (wraps further down).
+- **THE TAILWHEEL STEERING RAN CROSSED — a real bug, found by reading
+  the frame.** The castor's `side` vector is cross(down-ish axis,
+  forward), which comes out as -x, while the rudder horn was offset by
+  +x: the port arm was wired to the starboard horn. The arm ends swing
+  with the wheel so they use the STEERED frame; the horn is bolted to
+  the fin and must use the UNSTEERED one. There are always TWO runs, one
+  per side, each a spring at the wheel end and a chain to the horn.
+- **THE CHAIN INTERLOCKS.** Links are OVAL (a stadium, not a circle),
+  alternate 90 degrees, and each sits back inside the last by a third of
+  its length; spaced a whole link apart they read as a row of loose
+  rings, which is exactly what the user saw.
+- **STATIONS ARE NAMED BY POSITION, NOT INDEX** (user): the panel
+  relabels them 'forward station' / 'aft station' from their actual z on
+  every build. A fixed label could not work — station 1 is the mains on
+  a taildragger but the AFT pair on a tricycle.
+
+**G20e — THE WHEEL (round 5, user: "a gorgeous one, with options"):**
+The two-shell placeholder is replaced by a real aircraft wheel, all of it
+geometry:
+- **THE TREAD IS CUT, NOT PAINTED.** Circumferential grooves fall out of
+  a revolve for free, which is exactly what a ribbed aviation tyre has —
+  and being u-invariant they read correctly on a wheel that never spins
+  (the G4.6 finding, now modelled instead of textured). `whRibs` sets
+  how many.
+- **Three carcasses** (`whProfile`): standard, TUNDRA balloon (fat, low
+  pressure, round-shouldered) and slim for a glider or a spatted racer.
+  Everything scales off the radius, so one number sizes the wheel.
+- **Three treads** (`whTread`): ribbed, smooth, and BLOCKED — the bush
+  tyre's staggered lugs, which need angular variation and so are built as
+  geometry round the crown rather than in the profile.
+- **Three rims** (`whRim`): cast disc, spoked, lightened web; plus
+  `whBolts` bolt count, `whCap` hub cap (none/domed/flat), a valve stem,
+  sidewall moulding rings, and disc-or-drum brakes (`whBrake`) with a
+  drilled disc and a straddling caliper.
+**THE LESSON, HIT THREE TIMES IN ONE SESSION: hardware placed inside the
+tyre cavity is invisible.** The split-rim bolts (on the centreline
+flange, where a real one has them), the valve stem and then the brake
+were all modelled correctly and then completely hidden by the sidewall.
+Bolt heads moved to the outer disc face, the valve out through the rim
+beside the bead, the brake to 1.16 half-widths inboard so it clears the
+rim plate — verified numerically (brake spans x 0.733-0.783 against a
+tyre inboard face at 0.772). When detail cannot be seen it is not
+detail; check the silhouette, not just the drawing.
+
+**G20f — REVOLVE DECIDES ITS OWN WINDING (round 6, the structural fix
+that should have come first):**
+Three separate inverted-normal reports across two sessions — the tyre,
+the sidewall rings, then EVERY brake — were one bug wearing three hats:
+`revolve` only produced outward normals when the caller happened to
+trace its profile in the +axis direction, and "trace it monotonically"
+is a rule a caller can always forget. I had written that rule down in
+G20b and then broken it twice myself.
+**The primitive now works it out.** Close the profile back along the
+axis, take its signed area: that area IS the swept volume's orientation,
+so its sign says which way the faces must wind whatever the caller did.
+A cylinder traced +h gives A < 0 (the known-good case, measured), so
+A > 0 flips. Verified by SIGNED VOLUME, which is decisive for a closed
+solid: disc brake +9.33e-4, drum +2.45e-3, both positive = outward.
+RULE: a primitive that can be used wrongly eventually will be — give it
+the invariant instead of documenting the discipline.
+Also this round, all user-reported:
+- **THE RIDGE ON THE FLANKS** was a real step: the flank ended at 0.992R
+  while the crown began at 0.965R AT THE SAME half-width. The flank now
+  ends ON the crown's own edge radius, so they meet exactly.
+- **THE RIM IS INSET** behind the tyre wall (face at 0.74 of the half
+  width, bead seat at 0.90) with flange lips and a well, instead of
+  sitting flush with the sidewall.
+- **THE RIM OPTION DID NOTHING** because all three styles were drawn deep
+  in the cavity behind a solid plate that was always emitted. The outer
+  face IS the style now — solid dished disc / open spokes / lightened
+  web — measured at 1012 / 3452 / 3564 hub triangles.
+- tundra lug frame was left-handed (ax x tang = -rad), inverting every
+  block; it takes crs(rad, ax).
+NOTE the diagnostic trap: a first pass testing normals against each
+MESH's centroid returned ~50/50 everywhere and proved nothing, because a
+bag merges many separate solids into one buffer. Isolate one part, or
+use signed volume.
+
+**G20g — round 7, all user-reported:**
+- **CROWN SUBDIVISION IS NOW DYNAMIC.** A smooth tyre was still carrying
+  44 bands across the rolling surface. The crown is a gentle parabola so
+  it needs five samples; each GROOVE brings its own cluster of nine.
+  Measured: smooth 1808 tyre triangles, 3 ribs 4096, 5 ribs 5680 (was
+  ~5000 flat regardless of tread).
+- **THE PAIR WAS NOT MIRRORED.** `inboard` was taken from the station
+  sign when the wheel AXIS already encodes the side: a station builds
+  axis = [sgn,0,0], so +axis is outboard for BOTH wheels and inboard is
+  simply -axis. Multiplying by sgn again flipped it back on the port
+  wheel, putting that brake (and the valve) on the outboard face.
+  Verified: brake mean |x| 0.753 on both sides against a wheel at 0.86.
+- **ONE SPAT OF THE PAIR WAS INSIDE OUT** — the (fwd, up, ax) frame flips
+  handedness with the wheel side. The loft now measures
+  dot(cross(fwd, up), ax) and reverses its quads when negative. Same
+  class as the revolve bug; sweeps built on a side-dependent frame all
+  need this.
+- **THE GAP AT THE BEAD** is closed by a REAL FLANGE standing proud of
+  the tyre bead and rolled over at its lip, instead of a rim face flush
+  with the sidewall. The tyre now seats against it (user preferred rim
+  extrusion over rounding the tyre).
+- **THE CUB X** (`linkX`): the two shock struts run up and INBOARD past
+  the centreline so the gear reads head-on as an X under the belly,
+  rather than two independent vees. Only the upper fitting moves — the
+  strut keeps its bungee. CAUTION: modelled from the head-on X the user
+  described; I could not confirm from source whether the real J-3 fitting
+  is same-side or crossed, so this is offered as an OPTION (default off)
+  and wants a photo check before it becomes a preset.
+
+**G20h — round 8:**
+- **THE RIM WAS NOT A WINDING BUG, IT WAS A MISSING SOLID.** Reported as
+  inverted normals, but the drum was a single-surface shell with no wall:
+  looking into the well showed its backfaces, and a FrontSide material
+  simply let you see through. Its section is now a CLOSED LOOP (outer
+  surface out, inner surface back, joined at the lips) so it revolves
+  into a real walled wheel half — signed volume +2.38e-3, outward.
+  WORTH KEEPING IN MIND: "inverted normals" is the symptom of BOTH a
+  wrong winding and a surface with no back, and the two need different
+  fixes. Check for thickness before touching the winding.
+- **WHEEL ANGLE TO THE FUSELAGE IS CONTINUOUS** (`linkSwing`, degrees,
+  default -42): the leading/trailing arm was a 0/1 flag; it now sweeps
+  from trailing through 0 (axle straight under the pivot) to leading.
+  Ride height is untouched by it — the station's drop stays authoritative
+  — but the DECK ANGLE does change, correctly, because the wheelbase
+  does: measured, swing -60 to +40 takes the wheelbase 2.82 -> 4.94 m and
+  the deck 14.3 -> 8.2 deg. `linkArm`/`linkLead` are retired.
+DIAGNOSTIC NOTE: when aiming a camera or measuring a part, remember the
+whole assembly hangs off `root`, which carries the sit-on-gear rotation
+and lift — sampling geometry attributes gives ROOT-LOCAL coordinates
+(a wheel reads y = -1.0 there and y = +0.22 in the world). Convert with
+root.localToWorld before trusting a position.
+
+**G20i — THE REAL FUSELAGE, AND THE CONTRACT PAYING OFF (round 9):**
+The bench now runs on the user's exported `templatePlaneProcedural_2.obj`
+(copied to `tools/_gear_body.obj`, served, 2.6 MB) instead of the
+elliptical stub — and **not one leg, fitment or check changed**. That is
+the whole point of having put an airframe CONTRACT between them: the new
+provider answers the same five questions and the legs never knew what
+they were bolted to. Header select switches stub / template fuselage.
+- The export is a WHOLE AEROPLANE (20 643 v / 19 278 f: wings, interior,
+  instruments, seat, gauges). Faces are filtered to the CAGE MATERIALS,
+  which turns out to be exactly the fuselage skin — 1272 faces, x +-0.55,
+  keel -0.92, roof 1.00, i.e. the template cage's own dimensions — and
+  that filter is what keeps the WINGS out of the cross-sections.
+- `objAirframe` bakes a (station x angle) radius table once: slice the
+  mesh at each of 96 stations, then cast a ray from the section centre at
+  each of 72 angles and keep the OUTERMOST hit. Ray casting rather than
+  tracing the slice into an ordered loop means a section that comes back
+  as loose segments still answers correctly. Faces are bucketed by the
+  stations they span so each slice tests few.
+- **V-STRUT PANELS** (`linkPanel`, user's Cub photo): a light sheet
+  filling the triangle between the two tubes and the axle knuckle, inset
+  from the tube centrelines so the tubes still read as tubes at the edges
+  — on the real aeroplane it carries the NO STEP and stiffens the vee.
+- **PRESETS RE-SITED AND TUNED ON THE BENCH ITSELF.** The old stations
+  were sized for the stub and put the mains mid-boom on the real body,
+  throwing the CG geometry right out (CG angle 40.5 deg). Re-sited
+  against the real fuselage and iterated until the checks landed:
+  taildragger mains z 2.55 / tailwheel -3.95 / CG 1.25 reads **CG angle
+  15.7 deg** (window 15-18), wheelbase 6.02, deck 11.0, prop 0.973;
+  tricycle mains 1.10 / nose 3.70 / CG 1.45 reads **nose load 11.1%**
+  (window 8-15), wheelbase 2.52, prop 0.457. The bench was used to design
+  with, which is what it is for.
+
+**G20j — the options moved onto the station, and JSON export
+(round 10, user):**
+- **A STATION SHOWS ONLY ITS OWN SUSPENSION'S OPTIONS.** The panel was
+  four station rows plus every leg's option group on permanent display.
+  Now each station group carries the station rows AND the options for
+  whatever leg it has fitted; changing the suspension select rebuilds the
+  panel so the wrong options are never on screen. Groups are down to
+  four: airframe / forward station / aft station / wheel.
+- **AND THOSE OPTIONS ARE PER-STATION.** Every leg option now exists as
+  `s1_*` / `s2_*` (generated from the flat base values at boot), so two
+  stations running the SAME architecture stay independent — the old
+  globals would have had them share one blade width. A station composes
+  its own view of P (`legP(i)`: globals with its leg options laid over)
+  and the leg builders still read the plain names, so the generator did
+  not change. Verified: with both stations on beam, editing s1 blade
+  width to 0.14 leaves s2 at 0.075.
+  Presets may still name a leg option flatly — they describe ONE
+  configuration — and applyPreset pushes those onto both stations.
+- **JSON EXPORT/IMPORT** (`json` downloads + copies, `imp` pastes), same
+  `{P:{...}}` diff-against-defaults shape as the cage pages, so a bench
+  config can be handed over as a file the way the cage ones are.
+- `twR` RETIRED: the tailwheel now takes the station's `wheel radius`
+  like every other leg. It had its own radius as well, so the aft station
+  showed two rows both called "wheel radius" — two names for one thing.
+
+**OPEN, FIRST THING NEXT SESSION:** after the attitude solve went in,
+the TAILDRAGGER preset captures blank while the tricycle renders
+correctly. Ruled out: geometry missing (7 meshes, finite positions,
+visible, in scene), camera aim (bbox centre projects to NDC 0,0). NOT
+root-caused — suspects are a stale screenshot capture in the sink path
+rather than the app itself, or a lighting/normal issue specific to that
+build. Reproduce before changing anything.
+Also open: the doubler pads stand slightly proud of the belly rather
+than hugging it; the `link` leg should be the Cub's V-strut TRIANGLE,
+not a single arm; the kit duplicates the tubing helpers that
+_cage_crew.js has its own copy of (hoist one canonical kit later).
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

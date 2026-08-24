@@ -1,5 +1,42 @@
 # RECYCLE — Changelog
 
+## v1.17.2 — bottom-chrome layout fix + bag liveries survive a merge
+
+Two playtest bugs, one of them game-blocking.
+
+- **FIXED (blocking): sheets landed on the bottom controls and swallowed the tab bar.** `--barsH` — the
+  measured height of the dock + legend + tab bar that sheets and modals anchor to — was a PUSH model:
+  every place that showed or hid a bar had to remember to re-measure. Any that didn't left the value
+  holding a height that no longer existed, and the sheet anchored itself to that stale number: over the
+  dock, or over the tab bar, which also ate the taps because the sheet sits above them in z-order. That is
+  not a bug you fix once, it is one you re-introduce every time the chrome changes. The bars are now
+  **observed** — a `ResizeObserver` on each of them fires on any box change (`display:none` collapses the
+  box to 0, which is a change), so the measurement cannot drift from the layout no matter who toggles what.
+  Measured off `getBoundingClientRect()` rather than `offsetHeight`/`offsetParent`, and writes are diffed so
+  an unchanged value never touches style.
+- **FIXED: a merge repainted every bag in one livery.** The resolver walked the FIRST inlet edge it found,
+  which is wrong exactly where the question is interesting — a mixer merges up to three feeds, and taking
+  whichever inlet sorted first in `G.edges` turned a yellow mandate and a blue contract uniformly blue below
+  the junction. A node now resolves to a **weight map** over liveries, blended from every inlet in
+  proportion to what each is actually delivering (material on the belt; tonnage in the pit behind a loader
+  run, since loaders scoop non-selectively). Downstream of a merge the belt carries both colours in the real
+  ratio, and a loader's bucket carries three independent draws from its pit's mix. Which individual bag gets
+  which colour is a stable per-sprite dither on its variant seed, so nothing flickers as it travels — the
+  RATIO is true, an individual bag's colour is a draw from it, and every bag drawn is still a real particle.
+- `SPR_V` (the sprite variant seed) widened 3 → 12: three slots could only express thirds, so a 90/10 merge
+  drew as 67/33. The item-art reader takes `v % 3`, so old saves keep their exact art.
+- Gated: the reference plant must show both liveries at the junction where they meet, in proportion (it
+  reports `M6 wants blue+green, draws blue+green at 65/35%`), and the dither must spend a 3:1 mix as 9:3.
+  The probe finds the merge rather than assuming one, and only considers nodes that can actually carry bags
+  — past the opener every particle is a loose item and the livery is moot.
+- `sw.js` cache bumped to `recycle-pwa-v1.17.2`. **If the phone still looks wrong after updating, the old
+  service worker is serving a stale mix of files** — that is what happened on the dev server mid-session,
+  and it presents exactly as "the layout is broken". Pull to refresh twice, or reinstall the PWA.
+
+**Verified**: 705 QC checks / 74 suites, render smoke all green, i18n 312/312, legacy 8/8. Layout confirmed
+in a 375×812 viewport with a sheet open: sheet `[252,739]`, dock `[739,794]`, legend + tab bar below it,
+zero overlap, controls lit and tappable throughout.
+
 ## v1.17.0 — The big playtest batch: a plant sized to its contracts (2026-08-19)
 
 **The rebalance.** Throughput now has two ceilings instead of one, and the gap between them is the game. A

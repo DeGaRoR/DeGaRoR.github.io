@@ -762,7 +762,12 @@ function bulkAdd(n,mat,st){if(!n.containers)return false;
   if(cnt(n.containers[n.active])>=G.logi.containerCap){let nx=-1;for(let i=0;i<n.containers.length;i++)if(cnt(n.containers[i])<G.logi.containerCap){nx=i;break;}if(nx<0)return false;n.active=nx;}
   n.containers[n.active][mat][st]++;return true;}
 function bulkFullCount(n){if(!n.containers)return 0;let f=0;for(const c of n.containers)if(cnt(c)>=G.logi.containerCap)f++;return f;}
-function spawnSprite(e,mat,st){let s=P.pop();if(!s)s={};s.mat=mat;s.st=st;s.bale=null;s.t=0;s.v=(G.sprSeq=((G.sprSeq||0)+1)%3);e.sprites.push(s);}
+/* SPR_V = how many stable variant slots a sprite has. It was 3, because the only reader was the item art
+ * (p_<mat>_0..2). The bag livery now dithers a MERGED stream across this same seed, and three slots can
+ * only express thirds — a 90/10 merge drew as 67/33. Twelve slots resolve a merge to ~8%, and the art
+ * reader takes v%3, so old saves (v in 0..2) stay valid and keep their exact item art. */
+const SPR_V=12;
+function spawnSprite(e,mat,st){let s=P.pop();if(!s)s={};s.mat=mat;s.st=st;s.bale=null;s.t=0;s.v=(G.sprSeq=((G.sprSeq||0)+1)%SPR_V);e.sprites.push(s);}
 function spawnBale(e,tok){let s=P.pop();if(!s)s={};s.mat=null;s.st=0;s.bale=tok;s.t=0;s.v=0;e.sprites.push(s);}
 function killSprite(e,i){const s=e.sprites[i];e.sprites.splice(i,1);if(P.length<600)P.push(s);}
 // Win = the CONTRACT'S product made grade (≥80% of that product on-spec) and we're in the black.

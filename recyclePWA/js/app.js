@@ -62,18 +62,34 @@ const DBG_HIT=(location.hash||"").indexOf("hit")>=0;let _dbgTap=null; // add #hi
  *            sheets and the centred modals sit ON that value instead of on 0, so a popup never lands on the
  *            play / speed / Add controls — including the very buttons that opened it.
  *  --hudH  : how tall the top HUD is, now that it is two bands. The coach banner hangs off it.
- * Recomputed on resize and whenever the chrome is shown or hidden; cheap, and layout-driven rather than a
- * hardcoded pixel guess that goes stale the moment a band is added. */
+ *
+ * OBSERVED, NOT PUSHED. The first cut recomputed these from a handful of call sites — resize, showTabbar,
+ * showSheet — which made every future show/hide of a bar a call site somebody has to remember. Somebody
+ * didn't: hiding the legend or the tabbar by any other route left --barsH holding a height that no longer
+ * existed, and the sheet then anchored itself to that stale number — over the dock, or over the tab bar,
+ * which also swallowed the taps because the sheet sits above them in z-order. That is not a bug you fix
+ * once; it is a bug you re-introduce every time the chrome changes. So the bars are OBSERVED instead:
+ * a ResizeObserver fires on any box change (display:none collapses the box to 0, which is a change), so
+ * the measurement cannot drift from the layout no matter who toggles what. Writes are diffed so an
+ * unchanged value never touches style and never feeds itself a fresh layout. */
+const _BAR_IDS=["dock","legend","tabbar"];
+let _barsHLast=-1,_hudHLast=-1;
+function measuredBarsH(){ // rect-based: fractional, and immune to the offsetParent quirks of a flex/fixed child
+  let h=0;for(const id of _BAR_IDS){const el=document.getElementById(id);if(!el||!el.getBoundingClientRect)continue;
+    const r=el.getBoundingClientRect();if(r.height>0)h+=r.height;}
+  return Math.round(h);}
 function syncBarsInset(){
   const d=document.documentElement;if(!d||!d.style)return;
-  let h=0;for(const id of["dock","legend","tabbar"]){const el=document.getElementById(id);
-    if(el&&el.offsetParent!==null&&el.offsetHeight>0)h+=el.offsetHeight;}
-  d.style.setProperty("--barsH",h+"px");
+  const h=measuredBarsH();
+  if(h!==_barsHLast){_barsHLast=h;d.style.setProperty("--barsH",h+"px");}
   const hud=document.getElementById("hud");
-  if(hud&&hud.offsetHeight>0)d.style.setProperty("--hudH",hud.offsetHeight+"px");}
+  if(hud&&hud.getBoundingClientRect){const hh=Math.round(hud.getBoundingClientRect().height);
+    if(hh>0&&hh!==_hudHLast){_hudHLast=hh;d.style.setProperty("--hudH",hh+"px");}}}
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=cv.clientWidth;VH=cv.clientHeight;cv.width=VW*DPR;cv.height=VH*DPR;syncRect();syncBarsInset();syncCoachInset();}
 window.addEventListener("resize",resize);
 if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(cv); // URL bars resize the canvas without a window resize event
+if(window.ResizeObserver){const _bo=new ResizeObserver(()=>{syncBarsInset();syncCoachInset();syncToastInset();});
+  for(const id of _BAR_IDS.concat(["hud"])){const el=document.getElementById(id);if(el)_bo.observe(el);}}
 if(window.visualViewport){visualViewport.addEventListener("resize",resize);visualViewport.addEventListener("scroll",()=>syncRect());}
 function s2w(x,y){return {x:(x-cam.x)/cam.zoom,y:(y-cam.y)/cam.zoom};} // canvas-local px -> world
 function syncRect(){const r=cv.getBoundingClientRect();_rL=r.left;_rT=r.top;} // canvas offset in the viewport (safe-areas, HUD, mobile toolbar)
@@ -150,26 +166,67 @@ function bagKey(sid){return _bagKeyFromCol(bagCol(sid));}
  * DEFAULT colour — blue — for every contract on the site, so a yellow-bag mandate turned blue the instant
  * it left the pit and the screen contradicted itself (NNG-2: the screen is the real state). A particle
  * genuinely has no identity of its own (the buffers are counts per material+state, deliberately), so the
- * livery is resolved the same way the BUNKER art resolves it — from the mix actually held — and then
- * carried downstream by walking back up the graph to the nearest bunker. Memoised per frame: the walk is a
- * handful of hops and the answer cannot change inside one frame. */
-const _bagKeyCache={}; let _bagKeyFrame=-1;
+ * livery is resolved the same way the BUNKER art resolves it — from the mix actually held.
+ *
+ * A STREAM IS A MIX, NOT A COLOUR. The first cut resolved one key per node by walking up the FIRST inlet
+ * edge it found, which is wrong in the one place the question is interesting: a mixer merges up to three
+ * feeds, and taking whichever inlet happened to sort first in G.edges repainted every merged stream in one
+ * bunker's livery — a yellow mandate and a blue contract came out of the junction uniformly blue. So a node
+ * resolves to a WEIGHT MAP over liveries, blended from every inlet in proportion to what each is actually
+ * delivering right now (sprites on a belt; held tonnage behind a loader run, since loaders scoop
+ * non-selectively). Downstream of a merge the belt then carries both colours, in the real ratio.
+ *
+ * Which individual bag gets which colour is a per-sprite dither on its variant seed `v` — stable for the
+ * life of the sprite, so nothing flickers as it travels. That is a representative colouring, not a tracked
+ * one: the RATIO on the belt is true, an individual bag's colour is a draw from it. Nothing is fabricated —
+ * every bag drawn is a real particle — which is the line NNG-2 actually draws. Memoised per frame. */
+const _bagMixCache={}; let _bagMixFrame=-1;
+const _BAG_KEYS=["blue","green","yellow"];
 function bunkerKeyOf(n){ // livery of the bags a BUNKER is holding (falls back to its assignment when empty)
   const bt=(typeof bunkerBagType==="function")?bunkerBagType(n):null;
   if(bt)return (BAG_COL_BY[bt]&&_bagKeyFromCol(BAG_COL_BY[bt]))||"blue";
   return bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null);}
-function streamBagKey(nodeId,depth){ // livery of whatever is flowing OUT of this node
-  if(_bagKeyFrame!==G_frame){_bagKeyFrame=G_frame;for(const k in _bagKeyCache)delete _bagKeyCache[k];}
-  if(_bagKeyCache[nodeId]!==undefined)return _bagKeyCache[nodeId];
+function bunkerMixOf(n){ // {livery: tonnes} actually held, or the assignment when the pit is empty
+  const mx=(typeof bagMixOf==="function")?bagMixOf(n):null,out={};let tot=0;
+  if(mx)for(const bt in mx){const w=mx[bt];if(!(w>0))continue;
+    const k=(BAG_COL_BY[bt]&&_bagKeyFromCol(BAG_COL_BY[bt]))||"blue";out[k]=(out[k]||0)+w;tot+=w;}
+  if(tot>0)return out;
+  const o={};o[bunkerKeyOf(n)]=1;return o;}
+function _mixAdd(dst,src,w){if(!(w>0))return;let t=0;for(const k in src)t+=src[k];if(t<=0)return;
+  for(const k in src)dst[k]=(dst[k]||0)+src[k]/t*w;}
+function streamBagMix(nodeId,depth){ // livery weights of whatever is flowing OUT of this node
+  if(_bagMixFrame!==G_frame){_bagMixFrame=G_frame;for(const k in _bagMixCache)delete _bagMixCache[k];}
+  const hit=_bagMixCache[nodeId];if(hit!==undefined)return hit;
   const n=nodeById(nodeId);
-  let key;
-  if(!n)key=bagKey(null);
-  else if(isBunker(n))key=bunkerKeyOf(n);
-  else if((depth||0)>=6)key=bagKey(null);                      // pathological graph: stop rather than spin
-  else{ // walk upstream: bags only exist above the opener, so this is at most bunker → feeder → opener
-    let up=null;for(const e of G.edges)if(e.to===n.id){up=e.from;break;}
-    key=up!=null?streamBagKey(up,(depth||0)+1):bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null);}
-  _bagKeyCache[nodeId]=key;return key;}
+  let mix;
+  if(!n)mix=(function(){const o={};o[bagKey(null)]=1;return o;})();
+  else if(isBunker(n))mix=bunkerMixOf(n);
+  else if((depth||0)>=6)mix=(function(){const o={};o[bagKey(null)]=1;return o;})(); // pathological graph: stop rather than spin
+  else{ // blend EVERY inlet — a mixer has three, and one of them is not the answer
+    mix={};let any=false;
+    for(const e of G.edges){if(e.to!==n.id)continue;
+      // weight = what this inlet is delivering. A belt: the material on it (+ a floor, so a momentarily
+      // empty belt does not swing the whole downstream colour). A loader run: the tonnage in the pit behind
+      // it, because a loader takes every type in proportion to what is there.
+      const src=nodeById(e.from);if(!src)continue;
+      const w=(e.kind==="vehicle")?((typeof cnt==="function"?cnt(src.inBuf):0)+1):(e.sprites.length+0.25);
+      _mixAdd(mix,streamBagMix(e.from,(depth||0)+1),w);any=true;}
+    if(!any){mix={};mix[bagKey(n.supplier&&n.supplier!=="__none"?n.supplier:null)]=1;}}
+  _bagMixCache[nodeId]=mix;return mix;}
+/* Pick one livery out of a mix for ONE sprite. `v` is the sprite's stable variant seed (0..SPR_V-1), so the
+ * same bag keeps the same colour for its whole trip, and across the population the colours land in the
+ * mix's true proportions. */
+function bagKeyFromMix(mix,v){
+  let tot=0;for(const k in mix)tot+=mix[k];
+  if(!(tot>0))return bagKey(null);
+  let x=((v||0)+0.5)/SPR_V*tot;
+  for(const k of _BAG_KEYS){const w=mix[k];if(!(w>0))continue;x-=w;if(x<=0)return k;}
+  for(const k in mix)if(mix[k]>0)return k;
+  return bagKey(null);}
+function streamBagKey(nodeId,depth){ // dominant livery — for places that can only show ONE (labels, fallbacks)
+  const mix=streamBagMix(nodeId,depth);let best=null,bv=-1;
+  for(const k in mix)if(mix[k]>bv){bv=mix[k];best=k;}
+  return best||bagKey(null);}
 function siteMode(){return !!(G&&G.scenario&&G.scenario.siteRef);}
 const SITE_C={board:"#A7C28C",boardRow:"#9FBC82",whFloor:"#E9E3D5",wall:"#BCAF99",wallDk:"#9C8F78",surround:"#8FAA72"};
 const SITE_ZCOL={road:"#6E665C",truckin:"#5E6B82",truckout:"#8A8FA0",dirt:"#A98C5E",baling:"#F2A23B",bulk:"#BCE03A",feeder:"#5BCB5C",input:"#46BFB8",output:"#E0A45C"};
@@ -308,7 +365,7 @@ function drawSiteXings(XS){ if(!XS||!XS.list.length)return;
                  ctx.moveTo(c.x+6,c.y-10);ctx.lineTo(c.x+6,c.y+10);}
       ctx.stroke();}
     ctx.restore();}}
-function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bk=streamBagKey(e.from),_bc=BAG_COL_BY[_bk]||BAG_COL,L=pathLen(P);
+function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehicle")return;const _bmix=streamBagMix(e.from),L=pathLen(P);
   const holes=XS&&XS.byBot.get(e); // where THIS belt dives under an overpass
   if(holes){ctx.save();ctx.beginPath();          // even-odd: the whole world MINUS one rect per deck, so an
     ctx.rect(-CELL,-CELL,(SITE_LAYOUT.grid.w+2)*CELL,(SITE_LAYOUT.grid.h+2)*CELL); // item is progressively eaten
@@ -331,10 +388,10 @@ function drawSiteSprites(e,XS){const P=e.route;if(!P||P.length<2||e.kind==="vehi
     if(s.bale){const bi=img(BALE_IMG[baleDom(s.bale)]||"bale_0");
       if(bi)ctx.drawImage(bi,p.x-BALE_W/2,p.y-BALE_H/2,BALE_W,BALE_H);
       else{ctx.fillStyle=COL[baleDom(s.bale)];rr(ctx,p.x-5,p.y-4,10,8,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=1;ctx.stroke();}}
-    else if(s.st===0){const gi=img("bag_"+_bk); // an unopened bag, in the livery of the bunker it came out of
+    else if(s.st===0){const _k=bagKeyFromMix(_bmix,s.v),gi=img("bag_"+_k); // an unopened bag, drawn from the stream's real livery mix
       if(gi)ctx.drawImage(gi,p.x-5,p.y-5,10,10);
-      else{ctx.fillStyle=_bc;const r=SR[0];rr(ctx,p.x-r,p.y-r,r*2,r*2,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=0.8;ctx.stroke();}}
-    else{const pi=img("p_"+s.mat+"_"+(s.v||0)); // a liberated ITEM of its actual material (3 deterministic variants)
+      else{ctx.fillStyle=BAG_COL_BY[_k]||BAG_COL;const r=SR[0];rr(ctx,p.x-r,p.y-r,r*2,r*2,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=0.8;ctx.stroke();}}
+    else{const pi=img("p_"+s.mat+"_"+((s.v||0)%3)); // a liberated ITEM of its actual material (3 deterministic art variants out of SPR_V seed slots)
       if(pi){ // a soft material-coloured halo behind the item makes streams legible when tiny
         ctx.save();ctx.fillStyle=COL[s.mat];ctx.globalAlpha=0.5;ctx.beginPath();ctx.arc(p.x,p.y,6,0,7);ctx.fill();ctx.restore();
         ctx.drawImage(pi,p.x-4.5,p.y-4.5,9,9);}
@@ -894,11 +951,11 @@ function drawEdge(e){const pp=edgePath(e);if(!pp)return;
   else{ const jam=e.sprites.length>=(e.max||EDGE_MAX);ctx.strokeStyle=jam?"#7a3b34":CONV_COL;ctx.lineWidth=jam?5:4;ctx.setLineDash([]); }
   ctx.beginPath();ctx.moveTo(pp.p0.x,pp.p0.y);ctx.bezierCurveTo(pp.c0.x,pp.c0.y,pp.c1.x,pp.c1.y,pp.p1.x,pp.p1.y);ctx.stroke();
   ctx.setLineDash([]);}
-function drawSprites(e){const pp=edgePath(e);if(!pp)return;const _bc=bagCol();
+function drawSprites(e){const pp=edgePath(e);if(!pp)return;const _bmix=streamBagMix(e.from);
   for(const s of e.sprites){const p=bez(pp,Math.min(1,s.t));
     if(s.bale){const c=comp(s.bale);let dom="PET",mx=0;for(const m of MAT)if(c[m]>mx){mx=c[m];dom=m;}
       ctx.fillStyle=COL[dom];rr(ctx,p.x-5,p.y-4,10,8,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=1;ctx.stroke();}
-    else{if(s.st===0){ctx.fillStyle=_bc;const r=SR[0];rr(ctx,p.x-r,p.y-r,r*2,r*2,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=0.8;ctx.stroke();}else{ctx.fillStyle=COL[s.mat];ctx.beginPath();ctx.arc(p.x,p.y,SR[1],0,7);ctx.fill();}}}}
+    else{if(s.st===0){ctx.fillStyle=BAG_COL_BY[bagKeyFromMix(_bmix,s.v)]||BAG_COL;const r=SR[0];rr(ctx,p.x-r,p.y-r,r*2,r*2,2);ctx.fill();ctx.strokeStyle="#1a1714";ctx.lineWidth=0.8;ctx.stroke();}else{ctx.fillStyle=COL[s.mat];ctx.beginPath();ctx.arc(p.x,p.y,SR[1],0,7);ctx.fill();}}}}
 const VEH_COLS={loader:"#E0B341",forklift:"#E08A41",ctruck:"#6E9BC4"};
 // Draw each pool vehicle at its interpolated world position (vehPos, from the engine). Moving vehicles
 // ride the haul road at full opacity; stationary ones park just below the node they're working, dimmed.
@@ -934,8 +991,11 @@ function drawVehicles(){ if(!G.vehicles)return; const _parkIdx={};
         if(v.cls==="ctruck"){const ci=img("cont_2"); // hauled container, seated on the REAR of the bed (behind the cab)
           if(ci){siteShadow();ctx.drawImage(ci,-CONT_W/2,-CELL,CONT_W,CONT_H);noShadow();}} // its own drop shadow
         else{const _fb=nodeById(v.fromId); // bags heaped in the loader's bucket (front) — the livery of what it actually scooped
-          const gi=img("bag_"+(_fb?(isBunker(_fb)?bunkerKeyOf(_fb):streamBagKey(_fb.id)):bagKey(null)));
-          if(gi){ctx.drawImage(gi,-7,-dh/2-1,9,9);ctx.drawImage(gi,-1,-dh/2-3,9,9);ctx.drawImage(gi,3,-dh/2,8,8);}
+          // a loader scoops non-selectively, so a mixed pit rides in the bucket mixed: three bags, three draws
+          const _mx=_fb?(isBunker(_fb)?bunkerMixOf(_fb):streamBagMix(_fb.id)):null;
+          const _bag=k=>img("bag_"+(_mx?bagKeyFromMix(_mx,k):bagKey(null)));
+          const g0=_bag(1),g1=_bag(5),g2=_bag(9);
+          if(g0){ctx.drawImage(g0,-7,-dh/2-1,9,9);ctx.drawImage(g1||g0,-1,-dh/2-3,9,9);ctx.drawImage(g2||g0,3,-dh/2,8,8);}
           else{ctx.fillStyle="rgba(242,232,216,.85)";ctx.beginPath();ctx.arc(0,-dh/4,3.4,0,7);ctx.fill();}}}
       ctx.restore();ctx.globalAlpha=1;}
     else{

@@ -216,7 +216,41 @@ const driver = `
      // than no showcase, and the sprite table is keyed by type/role so a new type would silently miss.
      spriteless:G.nodes.filter(n=>TYPES[n.type]&&!isBulk(n)&&!isLandfill(n)&&!siteSpriteFor(n)).map(n=>n.type),
      unwired:G.nodes.reduce((a,n)=>a+sitePortsOf(n).filter(p=>portNeedsWire(n,p)).length,0),
-     labels:[...new Set(G.nodes.map(n=>siteNodeLabel(n)))].length};}
+     labels:[...new Set(G.nodes.map(n=>siteNodeLabel(n)))].length,
+     /* BAG LIVERY THROUGH A MERGE. The plant signs three streams in two liveries (blue + green), and its
+      * feeders are fed by several bunkers each, so a merged belt MUST carry more than one colour. The old
+      * resolver walked the first inlet edge only and repainted everything downstream in one livery; that
+      * looked like a rendering choice rather than the bug it was, so it is gated on the shipped plant. */
+     bagLiveries:(function(){let best=0;for(const n of G.nodes){const m=streamBagMix(n.id);
+       let k=0;for(const q in m)if(m[q]>1e-9)k++;if(k>best)best=k;}return best;})(),
+     /* The merge itself, found rather than assumed: the first node whose upstream pits span more than one
+      * livery. (The two feeders are each fed by same-livery pits here — Binfinity and Poubelle Air both tip
+      * green — so the blend appears further down, and hardcoding "the feeders are mixed" gated a fiction.)
+      * Reported as the weight split, so a 99/1 rounding artefact cannot pass as a blend. */
+     bagMerge:(function(){
+       const upBunkers=(id,seen)=>{seen=seen||{};if(seen[id])return[];seen[id]=1;const n2=nodeById(id);
+         if(!n2)return[];if(isBunker(n2))return[n2];
+         let a=[];for(const e of G.edges)if(e.to===id)a=a.concat(upBunkers(e.from,seen));return a;};
+       // bags only exist ABOVE the opener — past it every particle is a loose item and the livery is moot,
+       // so an export bay spanning two liveries proves nothing. Only test where a bag can actually be drawn.
+       const carriesBags=(id,seen)=>{seen=seen||{};if(seen[id])return false;seen[id]=1;
+         const n3=nodeById(id);if(!n3)return false;if(isBunker(n3))return true;
+         if(TYPES[n3.type]&&TYPES[n3.type].opener)return false;
+         for(const e of G.edges)if(e.to===id&&carriesBags(e.from,seen))return true;
+         return false;};
+       for(const n2 of G.nodes){
+         if(!carriesBags(n2.id))continue;
+         const libs=new Set(upBunkers(n2.id).map(b=>bunkerKeyOf(b)));
+         if(libs.size<2)continue;
+         const m=streamBagMix(n2.id);let tot=0;for(const q in m)tot+=m[q];
+         const parts=Object.keys(m).filter(q=>m[q]/tot>0.02).sort();
+         return {node:siteNodeLabel(n2),want:[...libs].sort().join("+"),got:parts.join("+"),
+                 split:parts.map(q=>Math.round(m[q]/tot*100)).join("/")};}
+       return null;})(),
+     // and the per-sprite dither must actually SPEND that mix, in its true proportion, not round it to one
+     bagDither:(function(){const mix={blue:3,green:1},hits={};
+       for(let v=0;v<SPR_V;v++){const k=bagKeyFromMix(mix,v);hits[k]=(hits[k]||0)+1;}
+       return (hits.blue||0)+":"+(hits.green||0)+":"+Object.keys(hits).length;})()};}
   begin("career","site_qc");for(let i=0;i<600;i++)tick(0.004);   // back to the rig for the rest of the run
   // ── seed a career, then hand the serialized save to the boot-resume pass below. Progression lives INSIDE
   //    the save (career:G.career), and CAREER is a live pointer into it — so a save with owned tech is the
@@ -237,7 +271,7 @@ const driver = `
   const careerAttached=(CAREER===G.career);
   CAREER.tech.push("r_airU","a_split");CAREER.claimed.push("a_first");recomputeTechMod();
   const bootSave=JSON.stringify(serializeGame());
-  __report({nodes:nodes0,veh:G.vehicles.length,edges:edges0,xings,
+  __report({nodes:nodes0,veh:G.vehicles.length,edges:edges0,xings,sprV:SPR_V,
     delivered:deliveredInRun,trucks:(G.trucks||[]).length,zoom:cam.zoom,camx:cam.x,
     careerAttached,bootSave,refPlant,coachLeak,
     conLen:conHtml.length,conHasIntake:/Site intake|Admission/.test(conHtml),conHasBuyers:/Buyers|Acheteurs/.test(conHtml),
@@ -343,6 +377,11 @@ ok(RP.recy === 0.9, "…and the RECY dial ships at 90% — the most it holds onc
 ok(RP.spriteless && RP.spriteless.length === 0, "every unit on it draws real art, not a fallback card" + (RP.spriteless && RP.spriteless.length ? " (" + [...new Set(RP.spriteless)].join(",") + ")" : ""));
 ok(RP.unwired === 0, "…and nothing on it opens unwired (" + RP.unwired + " loose ports)");
 ok(RP.labels === RP.nodes, "…and all " + RP.nodes + " captions are unique, so you can point at any of them (" + RP.labels + " distinct)");
+ok(RP.bagLiveries >= 2, "…and a merged belt carries more than one bag livery — a junction blends, it does not repaint (" + RP.bagLiveries + " on the richest stream)");
+ok(RP.bagMerge && RP.bagMerge.got === RP.bagMerge.want,
+  "…and at the junction where two liveries meet it shows BOTH, in proportion — " +
+  (RP.bagMerge ? RP.bagMerge.node + " wants " + RP.bagMerge.want + ", draws " + RP.bagMerge.got + " at " + RP.bagMerge.split + "%" : "no merge found"));
+ok(RP.bagDither === "9:3:2", "…and the per-sprite dither spends a 3:1 mix as 9:3 of " + (report.sprV || "?") + " slots, not one flat colour (" + RP.bagDither + ")");
 ok(report && report.conLen > 400 && report.conHasIntake && report.conHasBuyers, "contracts view renders (" + (report && report.conLen) + " chars, intake + buyers)");
 ok(report && report.conHasComp, "contracts view shows stream composition bars");
 ok(report && report.conTruckIcons >= 3, "each contract shows its bin-truck livery (" + (report && report.conTruckIcons) + " truck sprites)");
