@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <!--
-  CAGE5 — clone of CAGE4 (bubble-canopy / round-top variant) PLUS the
-  COCKPIT CREW layer (_cage_crew.js): seats ported from the game's seat
-  generator, procedural controls (stick / yoke / side stick, throttle as
-  wall lever / dash push-pull / console quadrant, pedals, optional centre
-  console) and the ATD-01 IK dummy from Downloads/mannequin_poser.html,
-  auto-laced to the controls. Serve from repo root (launch: flydiy-node)
-  and open /flyDiy/tools/_cage5.html.
+  CAGE6 — the whole aeroplane in the light editor. cage5's page definition
+  (_cage_page5.js: the jodel, the curated tree, the derived selectors) plus
+  the CREW layer and the GEAR layer.
 
-  The cage template is read as METRES here — the dummy is the calibration
-  instrument for sizing the aeroplane (eye point, head clearance and
-  reach shortfalls print in the status line).
+  The undercarriage is the gear bench's own modules (_gear_gen.js) standing on
+  the LIVE cage: _cage_gear.js answers the bench's airframe contract from the
+  mesh the editor has just built, so no leg, pad or bolt had to change. The
+  bench remains where a leg is DESIGNED; this is where it is fitted.
+
+  Serve from repo root (launch: flydiy-node) and open /flyDiy/tools/_cage6.html.
 -->
 <meta charset="utf-8">
-<title>flyDiy — cage5, crew &amp; cockpit</title>
+<title>flyDiy — cage6, the whole aeroplane</title>
 <style>
   :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
@@ -51,7 +50,7 @@
 </style>
 
 <header>
-  <h1>cage5 — crew &amp; cockpit</h1>
+  <h1>cage6 — airframe, crew &amp; gear</h1>
   <label>subsurf <select id="lvl">
     <option>0</option><option>1</option><option selected>2</option><option>3</option>
   </select></label>
@@ -71,5 +70,13 @@
 <script src="_cage_page5.js"></script>
 <script src="_cage_gen.js"></script>
 <script src="_cage_crew.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_gear_gen.js"></script>
+<script src="_gear_page.js"></script>
+<script src="_cage_gear.js"></script>
+<script src="_eng_gen.js"></script>
+<script src="_cowl_gen.js"></script>
+<script src="_cowl_rows.js"></script>
+<script src="_cage_cowl.js"></script>
 <script src="_cage_ui.js"></script>
 <script>CAGE_PAGE_SETUP();</script>

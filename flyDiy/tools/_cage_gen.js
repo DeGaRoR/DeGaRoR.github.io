@@ -1,5 +1,11 @@
 // CAGE2 GENERATOR — parametric rebuild of templatePlaneProcedural_{0,1,2}.
-// Throwaway prototype family (gitignored with _cage*), never in MANIFEST.
+//
+// NOT a throwaway any more, and the header used to say it was: these files are
+// git-tracked (they always were — see G12.3 v11), this one carries the SPEC
+// BOUNDARY the game's `spec.cage` is defined against (G21), and it contains no
+// reference to THREE at all, which is what makes it a `src/core` module in
+// waiting rather than a prototype. Still out of MANIFEST until the fuselage
+// graduates into the game; when it does, split it before it grows further.
 //
 // THE MODEL. One closed all-quad control cage for Catmull-Clark, built as a
 // STATION x LEVEL lattice. Nose at +z, tail at -z, y up, x mirrored.
@@ -4783,6 +4789,15 @@ function orientCage(m) {
 // and offsets are computed FROM the fiche so nothing here goes stale.
 // ---------------------------------------------------------------------------
 const CAGE_PARAMS = {
+  // THE DESIGN SCALE (G19d): metres = cage units x CAGE_UNIT x planeScale, and
+  // this is the second half of that one conversion. It was read all over the
+  // tools as `P.planeScale || 1` and declared NOWHERE — it existed only because
+  // each page's defaults happened to set it, so it had no default, no range in
+  // the base panel, and nothing that walked the parameter set could see it.
+  // 1 is the identity and the fiche's own scale, so declaring it moves nothing.
+  // Inert in this file by design: the cage is generated at its own size and the
+  // scale is applied by whatever consumes it (see _cage_ui.js `FS`).
+  planeScale: 1,
   paxCount: 1, paxLen: 1.756670, pilotLen: 0.662567, boomLen: 3.983966,
   tailLen: 0.169815, cabPillarW: 0.100000, paxPillarW: 0.075041,
   // unified pillar width: > 0 overrides BOTH cab and pax pillar widths
@@ -4948,6 +4963,59 @@ const CAGE_AFT_SUB = [
   ['aftRingCowl1W', 'ringCowl1W', -0.5],
   ['aftRingCowl2W', 'ringCowl2W', -0.5],
 ];
+
+// ---------------------------------------------------------------------------
+// THE SPEC BOUNDARY. The game's spec (src/core/60_gen_spec.js) carries a
+// build's fuselage in `spec.cage`; these are the ONLY conversion, both ways,
+// so the bench and the garage cannot drift into two dialects.
+//
+// A build carries its DEVIATIONS, never a copy of the template: the defaults
+// are CAGE_PARAMS above and stay there, which is what lets a spec written
+// before a parameter existed simply pick that parameter's default up — the
+// same migration-by-defaulting the game spec's own genDefaults performs, and
+// the reason `spec.cage: null` reads "the template" rather than "no cage".
+// ---------------------------------------------------------------------------
+function cageDefaults() {
+  return JSON.parse(JSON.stringify(CAGE_PARAMS));
+}
+
+// LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
+// but a bench page also carries its layers' (the crew's seats, controls and
+// dummy live in _cage_crew.js and are declared only in the page's defaults).
+// Both directions therefore pass a key they do not recognise straight through
+// instead of dropping it: a build file has to be able to carry the cockpit, and
+// the generator reads only the keys it knows, so an unknown one is inert here.
+// The cost is that an undeclared parameter has no default to be compared
+// against and so always reads as a deviation — the fix for that is for the
+// layer to declare its defaults, not for this boundary to guess them.
+
+// spec | bare cage object | null  ->  a FULL parameter set.
+// A null field means "as the template" exactly as it does in the game spec, so
+// a build may null a single parameter to hand it back rather than restating it.
+function cageFromSpec(spec) {
+  const P = cageDefaults();
+  const c = spec && typeof spec === 'object'
+    ? (spec.cage !== undefined ? spec.cage : spec)
+    : null;
+  if (c && typeof c === 'object' && !Array.isArray(c))
+    for (const k in c) if (c[k] !== undefined && c[k] !== null) P[k] = c[k];
+  return P;
+}
+
+// a full parameter set -> the value for `spec.cage`: the deviations alone, or
+// null when the build IS the template, which is what the spec field means by
+// null.
+function cageToSpec(P) {
+  if (!P || typeof P !== 'object') return null;
+  const out = {};
+  let n = 0;
+  for (const k in P) {
+    if (typeof P[k] === 'function') continue;
+    if (k in CAGE_PARAMS && P[k] === CAGE_PARAMS[k]) continue;
+    out[k] = P[k]; n++;
+  }
+  return n ? out : null;
+}
 
 function cageSpec(P) {
   const T = CAGE_DEFAULT, S = JSON.parse(JSON.stringify(T));
@@ -5721,10 +5789,12 @@ if (typeof module !== 'undefined')
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy };
+                     cageCanopy,
+                     cageDefaults, cageFromSpec, cageToSpec };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy };
+                   cageCanopy,
+                   cageDefaults, cageFromSpec, cageToSpec };

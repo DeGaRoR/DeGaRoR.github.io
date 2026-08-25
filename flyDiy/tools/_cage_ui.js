@@ -621,39 +621,59 @@ const savedCfgs = () => {
     localStorage.setItem(LSKEY, JSON.stringify(all));
     fillPresetSel();
   };
-  // JSON export/import: diffed against CAGE_PARAMS (not page defaults),
-  // so a config file is self-contained and portable between pages —
-  // the user's trusted alternative to localStorage
+  // JSON export/import: THE GAME'S OWN BUILD FILE (garage.js `envelope`), whose
+  // spec carries the fuselage in `spec.cage` — so what the bench writes is not a
+  // bench format the garage would have to learn, it is a build. `v` is read off
+  // the core spec IF the page has loaded it and is null otherwise, which is the
+  // guarded form garage.js itself uses rather than a second copy of the number.
+  //
+  // The cage fragment is DEVIATIONS from the template (cageToSpec), so a file
+  // means the same thing on every page: importing resolves through
+  // cageFromSpec, which starts from the template rather than from whatever this
+  // page's PAGE.defaults happen to be, and a build therefore fully determines
+  // the aeroplane instead of inheriting the sliders it did not mention.
+  const buildFile = () => JSON.stringify({
+    what: 'flydiy-build',
+    v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
+    name: 'cage', spec: { cage: G.cageToSpec(P) },
+  }, null, 1);
+  // Accepts a build envelope, a bare spec, the legacy {P:{...}} config, or a
+  // bare parameter object — a spec pasted out of a console is a good thing to
+  // want to load, and the old files stay loadable.
+  const readFile = txt => {
+    const o = JSON.parse(txt);
+    if (o && o.spec && typeof o.spec === 'object') return o.spec;
+    if (o && o.cage !== undefined) return o;
+    if (o && o.P && typeof o.P === 'object') return { cage: o.P };
+    return { cage: o };
+  };
+  const applySpec = (spec, what) => {
+    Object.assign(P, G.cageFromSpec(spec));
+    anchorSize();
+    syncSliders(); build();
+    $('stat').textContent = what;
+  };
   d.querySelector('#expCfg').onclick = () => {
-    const diff = { P: {} };
-    for (const k in P) if (P[k] !== G.CAGE_PARAMS[k]) diff.P[k] = P[k];
-    const txt = JSON.stringify(diff, null, 1);
+    const txt = buildFile();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([txt],
       { type: 'application/json' }));
-    a.download = 'cage_config.json';
+    a.download = 'cage_build.json';
     a.click();
     if (navigator.clipboard) navigator.clipboard.writeText(txt);
-    $('stat').textContent = 'config downloaded + copied to clipboard';
+    $('stat').textContent = 'build downloaded + copied to clipboard';
   };
   d.querySelector('#impCfg').onclick = () => {
-    const txt = prompt('paste config JSON ({P:{...}, M:{...}})');
+    const txt = prompt('paste a flyDiy build or cage config JSON');
     if (!txt) return;
-    try {
-      const cfg = JSON.parse(txt);
-      if (cfg.P) Object.assign(P, cfg.P);   // cfg.M (old macros) is ignored
-      anchorSize();
-      syncSliders(); build();
-      $('stat').textContent = 'config imported';
-    } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
+    try { applySpec(readFile(txt), 'build imported'); }
+    catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
   };
   d.querySelector('#logCfg').onclick = () => {
-    const diff = {};
-    for (const k in P) if (P[k] !== G.CAGE_PARAMS[k]) diff[k] = P[k];
-    const txt = JSON.stringify(diff, null, 1);
-    console.log('cage params (non-default):', txt);
+    const txt = JSON.stringify(G.cageToSpec(P), null, 1);
+    console.log('spec.cage (deviations from the template):', txt);
     if (navigator.clipboard) navigator.clipboard.writeText(txt);
-    $('stat').textContent = 'params logged to console + clipboard';
+    $('stat').textContent = 'spec.cage logged to console + clipboard';
   };
 }
 function fillPresetSel() {

@@ -7354,6 +7354,305 @@ than hugging it; the `link` leg should be the Cub's V-strut TRIANGLE,
 not a single arm; the kit duplicates the tubing helpers that
 _cage_crew.js has its own copy of (hoist one canonical kit later).
 
+## G21 — ONE AEROPLANE, FIVE CHANTIERS (2026-08-24)
+
+The user's question was strategic — bench versus game, what to redo — and the
+answer that fell out of the code is that **the bridge between editors is the
+SPEC, not the UI**. `_cage_gen.js` has never contained a single reference to
+THREE, and the gear bench was already written against an airframe contract so
+its legs could be bolted to the real cage later. So generators become modules,
+the bench stays a developer instrument (like make_perf and make_probe), and the
+garage consumes the same modules. Cage6 is that bench.
+
+**THE DIVISION OF LABOUR IS FORCED, NOT CHOSEN.** A light editor cannot see a
+mechanism — only GATE GEN's rigidity-rank check reports one, and rule 10 says
+no strain gate can. So geometry and joints belong in the bench, and anything
+that moves the truss (T-tail, twin fin, the structural half of the V) belongs
+in the game, serialised, with the fleet table in hand. That is why the tail
+work below stops exactly where it stops.
+
+Delivered against a GREEN `--all` battery (25 gates, 1753 s) taken after the
+core spec change; nothing in `src/` moved afterwards.
+
+### 1 — THE CAGE IS A SECTION OF THE SPEC (`GEN_SPEC_V` 4 -> 5)
+
+`spec.cage` carries a build's fuselage. **Null means THE TEMPLATE, not "no
+cage"** — the defaults stay with the generator that reads them (CAGE_PARAMS,
+fit-locked), and a build carries only its DEVIATIONS, because a second copy of
+those numbers under another name is the ambiguity G19d already outlawed.
+`cageFromSpec` / `cageToSpec` in `_cage_gen.js` are the only conversion, and
+the bench's json/imp now read and write the GAME'S OWN build envelope, so what
+cage6 exports is a build rather than a bench format the garage would have to
+learn.
+
+Three defects the round-trip check found, none of which a "does it still
+build" test would have seen:
+
+- **`planeScale` was read everywhere and DECLARED NOWHERE.** G19d calls it the
+  only other multiplier in the project, and it existed solely because each page
+  happened to set it — no default, no range, and invisible to anything walking
+  the parameter set. Declared at 1 (the identity, so nothing moved).
+- **The boundary dropped the crew layer.** Diffing against CAGE_PARAMS silently
+  deleted every parameter the cage itself does not own — seats, controls, the
+  dummy — which the old export had carried. RULE: **a parameter the boundary
+  does not recognise rides through, both ways.** A build file has to be able to
+  carry the cockpit; the generator reads only what it knows, so an unknown key
+  is inert.
+- **`genNormaliseSpec` lost the cage entirely.** Its sniff is `wings`, so a spec
+  carrying only a cage fell into the pre-G3 flat branch, which rebuilds the
+  spec field by field — and a section that is not listed there vanishes with
+  nothing reporting it.
+
+### 2 — THE GEAR STANDS ON THE LIVE CAGE
+
+`objAirframe` was split into `meshAirframe` (the bake) plus its two front doors,
+and `cageAirframe(mesh, scale)` answers the same contract from the cage the
+editor has just built. **Not one leg, pad, lug or bolt changed** — which was the
+whole point of G20's contract, and is the evidence it was worth writing.
+
+- The conversion to metres happens ONCE, on the vertices. The hardware is
+  metric and the aeroplane is not: the crew layer's rule, and the reason a
+  wheel can be a ruler.
+- Faces are filtered to the skin materials. With the interior on, the mesh goes
+  2592 -> 8410 faces and the skin does not move by a micron (measured) — a ray
+  from the section centre would otherwise stop on the dash.
+- The gear's parameter model moved to `_gear_page.js`, shared by the bench and
+  the cage layer. Extracted MECHANICALLY: a first attempt was retyped and had
+  drifted in six rows before it was compared. The check evaluates the ORIGINAL
+  page and the new file and compares all 146 keys.
+- **A LEG'S STATION IS ITS FUSELAGE FITTING, NOT ITS AXLE.** At `linkSwing` -42
+  a swinging link trails its wheel 0.65 m aft, so siting the fitting where the
+  wheel should go put the contacts BEHIND the CG: CG angle -1.3 deg, an
+  aeroplane that sits on its tail. Measured back to 16.2 deg at `s1Z` 2.00.
+- The ground comes to the aeroplane, not the reverse: the cage must not tilt
+  under the editor, so the same attitude is drawn by rolling the GROUND by
+  -pitch and offsetting it along its own normal. Same transform, inverted.
+  Wheels touch to 0 and 0; the third is 1.6 mm high because the bench's
+  `atan2` sit is exact only when the wheel radii match — 0.02 deg of deck
+  angle. Kept, deliberately: forking the rule to gain 1.6 mm would put the
+  bench and the editor into disagreement about how an aeroplane stands.
+
+### 3 — THE ENGINE (`_eng_gen.js`, verdict `_eng_check.js`)
+
+The propeller graduated out of the registry in G4.7; the engine never did, and
+it is the heaviest single item at the longest moment arm. Now: displacement
+from geometry, power from BMEP, mass from displacement, and a real envelope for
+the cowl to wrap. One placement rule for every family — each cylinder is an
+ANGLE about the crank axis and a STATION along it — so a V12 costs a table row,
+not a builder.
+
+**MASS TRACKS DISPLACEMENT, SUB-LINEARLY, AND ONE LAW COVERS EVERYTHING.**
+Per kW the registry spreads 0.84-1.65 kg and correlates with nothing. Per litre
+it still slides down with size (28.6 -> 19.5). A least-squares fit over the five
+air-cooled direct-drive engines gives
+
+    mass = 30.51 * litres^0.8735          worst error 6.2%
+
+and it fits a 2.2 litre flat four AND a 38.5 litre radial. A first cut used a
+flat 27 kg/litre and ran +31% on the IO-360 and +45% on the R-1830: **the
+constant was right on the engine it was read from and wrong everywhere else.**
+Architecture therefore does NOT get its own kg/litre; flat and radial are 1.00
+because they are the fit, inline and V are marked UNVALIDATED because the
+registry has no example of either.
+
+Two more, both worth keeping:
+- **The fit was made against masses that ALREADY INCLUDE accessories**, so
+  their flags must REMOVE them. Adding them on top of a fit containing them
+  read 12% heavy on every row at once.
+- **A HEAD'S RADIUS IS PERPENDICULAR TO ITS CYLINDER.** The envelope added it
+  along the axis too, widening a flat engine by a head at each end.
+- The crankcase is sized by what it houses (crank throw plus a bearing), not by
+  a fraction of the bore — as a bore fraction it came out narrower than the
+  crankshaft.
+
+The envelope is the BARE engine: induction and the accessories above it are not
+modelled, so its HEIGHT is a floor (A-65 0.24 m against roughly twice that
+installed) while its WIDTH is right (0.75 against ~0.79) because that is
+cylinders. A cowl carries its own clearance, which is what a cowl does anyway.
+
+### 4 — THE COWL, PORTED, AND WRAPPED AROUND THE ENGINE
+
+`_cowl_gen.js` is the user's standalone tool lifted verbatim — parameters,
+presets, maths, surface, lips, scoop, aft, nose cone, blades — on the repo's
+pinned r128 instead of a CDN. `_cowl_check.js` compares it against the original
+file point for point: **max deviation 0.00e+0 over 504 points, 104 parameters,
+11 presets.** `_pwr.html` is the powerplant bench: engine, cowl and propeller
+together, because the three are mutually constrained and the presets always
+encoded that implicitly (the C172 row is a wide flat barrel BECAUSE it covers a
+flat four).
+
+**THE COWL IS THE GREATER OF TWO SHAPES** — the form it wants to be, and the
+engine plus clearance. That is G20d's spat rule applied unchanged: a spat
+shallower than its tyre had the wheel punch through it, and a cowl shallower
+than its engine has the cylinders punch through it.
+
+- **TWO INTENTS, both legitimate.** `cowlApplyEngine` only GROWS (the safety
+  rule); `cowlSizeToEngine` SETS. Grow-only cannot give an inline six its narrow
+  cowl, because the barrel it starts from is already wider than the engine.
+- **FIT TO THE SILHOUETTE, NOT THE BOUNDING BOX.** A radial's box corners are
+  empty air between its cylinders, and requiring a rounded cowl to contain them
+  demands a square cowl for a round engine. `env.hull` publishes the points
+  actually occupied.
+- **`aftW` AND `aftH` ARE SEMI-AXES.** The first fit handed them full width and
+  height and built every cowl at twice the size — and the check PASSED it,
+  because it compared a half-dimension against a full one. RULE: **test the
+  emitted surface, not the parameter.** The check now samples the section at
+  the firewall and asks whether the engine's own silhouette is inside it.
+
+Result, from one engine change: flat four 0.810 x 0.344, inline six 0.255 x
+0.880, radial nine 1.171 x 1.201.
+
+**AND IT IS ON THE AEROPLANE** (`_cage_cowl.js`, cage6). The bench was not the
+deliverable — the user's ask was the cowl on the nose, with the blades — and
+getting it there took four corrections, every one of them a form of the same
+thing: THE BENCH'S STUB WAS STILL IN CHARGE.
+
+1. **The stub was DRAWN.** `buildAft` at aftMode 0 lofts a constant section aft
+   of the firewall in `mats.host`; on the bench that is what the cowl sits
+   against, and over a real fuselage it is a grey blob between the two. Not
+   called here — the same move the gear layer makes with `stubAirframe`.
+2. **The stub was still SHAPING it, which is the half that does not show.**
+   `inheritStub` defaults to 1, and `eSqAftTop`/`eSqAftBot`/`eDeckH`/`eKeelH`/
+   `eWaist` ALL read the stub's parameters when it is set. So the aft section
+   came from `stubSqTop` 0.81 and the values fitted from the cage were written
+   and never read — the section stood 290 mm proud of the fuselage at 45
+   degrees while half-width and half-height matched to the millimetre.
+   **Matching a bounding box is not matching a shape.**
+3. **The size window was too loose.** Selecting cap faces within 0.25 CAGE
+   units of the front swept in 0.19 m of a tapering nose, so the "face" was
+   partly the body behind it.
+4. **AND THE SLICE NEAR A NOSE TIP IS A LIE.** Reading the section from the
+   airframe contract 30 mm aft of the face gave half-width 0.043 m where the
+   face is 0.497, with its centre 0.34 m out — the cut crosses almost no faces
+   there, so the bake returns a sliver. Fitting to it shrank the cowl to
+   nothing WHILE EVERY ERROR METRIC IMPROVED (mean 6.2 mm), because the cowl
+   really had matched what it was handed. The cure is a division of labour:
+   **SIZE from the cap** (flat, its own vertices, exact) and **SHAPE from the
+   first station aft where the slice has grown to 90% of the cap's width.**
+
+As built: the station comes from the `capFace` marks with `firewall` and
+`pillarFront` as fallbacks (the interior pass consumes the marks — it uses
+those very faces to build its firewall — so on the page default they are gone);
+size and centre from the cap; squareness fitted per half by bisecting
+|u|^n + |v|^n = 1 over the profile and inverting `sqExp`; `waist` from where
+the section is actually widest, which on a drooping nose is not mid-height.
+Verified on the jodel: cowl 0.4959 x 0.3382 against a face of 0.4960 x 0.3406,
+and the joint reads continuous.
+
+The propeller is the tool's own — spinner, blades, material — hung on
+`axisXY()`/`bladePlaneZ()`, so it sits on the thrustline the cowl defines
+rather than on a station of its own.
+
+**FIT MODES (user ask, same day).** "Fitted" is not the only thing a builder
+wants: a cowl that seals to the nose and is then drawn by eye is real, and it
+is how most of the tool's own presets were made. `fitNose` is now three:
+
+    0 free     nothing inherited — the tool's controls, entirely
+    1 fitted   size AND section from the body (the default)
+    2 sealed   size from the body, SECTION from the tool's controls
+
+`inheritStub` is forced 0 in ALL of them. Leaving it set would make the aft
+section read `stubSqTop` and friends, which are not on this panel — the same
+dead-controls trap as before, pointing the other way. And the fitted values are
+written BACK onto the panel, so the sliders read what the cowl is rather than
+what the builder last typed, and switching fitted -> sealed hands over the
+shape the body chose instead of snapping to a stale one.
+
+**THE WHEEL FAIRING WAS INSIDE OUT** (user report). Measured with
+`tools/_spat_norm.js`: 1599 faces inward against 329 outward, IDENTICALLY on
+both sides. That last word is why it survived — the handedness term added in
+G20d only ever made the PAIR agree with each other, so left and right were
+consistently wrong and nothing about the pair looked asymmetric. A shell lit
+from inside reads as dark rather than as an obvious hole, which is why the
+tyre's version of this (G20b) was caught by eye and the spat's was not.
+`hand`'s sign inverted; now 1649 outward / 279 inward, and the residual are the
+edge bead, whose outward is radial about its own sweep path rather than about
+the fairing's axis. **RULE: comparing the two sides of a mirrored pair cannot
+find a winding error — count normals against an outward reference.**
+
+**THE DEFAULT AEROPLANE IS THE USER'S BUILD** (newDefault.json, imported
+verbatim into `_cage_page5.js`): 259 keys covering cage, cowl, gear and crew.
+Cage5 has no gear or cowl layer so those keys are inert there — one default
+aeroplane, each page showing the parts it has loaded.
+
+**THE PANEL IS THE TOOL'S OWN, EXTRACTED** (`_cowl_rows.js`, user report: "I
+miss controls from the original... chin scoop renders badly when I change
+parameters"). The first cut hand-picked about 35 keys, and THREE OF THEM DO NOT
+EXIST — `apY`, `apSpread`, `apN` are not parameters of the cowl at all. The row
+helper drops an unknown key silently, so those rows never appeared and nothing
+said so. What went missing with them: every aperture OFFSET (`apOffX`/`apOffY`,
+which is also the propeller's, since `axisXY()` reads them as the thrustline —
+that is the "vertical offset for the blade and apertures") and six of the chin
+scoop's nine numbers. A scoop driven by three of its nine renders badly because
+the other six are whatever the preset left behind.
+
+Now extracted from the tool's own panel source — 104 controls, every parameter
+covered, labels, ranges and `when` conditions verbatim, including the
+`advanced()` sub-panels that hold a third of them (missing those was worth 33
+parameters on the first pass). `_cowl_rows.js` is generated; the check is that
+no key is unknown to the generator and no parameter lacks a control, and both
+run to zero.
+
+**LOCKED AND HIDDEN ARE DIFFERENT STATES** (user ask). A control the fuselage is
+deciding is GREYED but still shows its value — the number is informative even
+when it is not yours to set — and carries a tooltip saying which mode would
+give it back. A control that does not APPLY (the lid's end radius when the lid
+is matched to the spinner) is HIDDEN, using the tool's own `when` conditions.
+Locked by mode: fitted = size + section, sealed = size only, free = nothing;
+`inheritStub` is locked in all three because the stub does not exist here.
+
+### 5 — THE TAIL: NOT STARTED. THREE ATTEMPTS REMOVED.
+
+No tail code exists. Three attempts were made and all three were deleted at the
+user's instruction; the chantier restarts from nothing in a fresh session. This
+entry is the only thing kept, because it is what stops the next attempt
+repeating the last three.
+
+1. Built off my own opinion, deleted on sight — "utterly ugly, I did not want
+   you to start on that on your own". RULE: when the user says they want to
+   redo something themselves, the useful contribution is the part underneath
+   that MEASUREMENT can settle. A fin is almost entirely SHAPE, and shape is
+   theirs.
+2. Built to the user's drawn design, passed every check it had, deleted anyway
+   — "looks nothing like my drawing".
+3. A 2D outline bench, deleted with the rest.
+
+WHAT THE ATTEMPTS ESTABLISHED, all of it verified before being written down:
+
+- **CREASE WEIGHT ALONE DOES NOT KEEP A CORNER SHARP.** In Catmull-Clark a
+  vertex with EXACTLY TWO sharp edges takes the crease rule,
+  (prev + 6P + next)/8 — cubic B-spline refinement along the crease. The line
+  stays sharp ACROSS the surface but the line itself still curves, so a fully
+  creased outline rounds off its own corners. Only THREE OR MORE sharp edges
+  reaches the corner branch and pins the vertex (cageSubdivide: `sharp.length
+  === 2` is crease, anything more falls through). Attempt 2 creased its outline
+  at weight 3, expected sharp corners, and got a smoothed polygon — most of why
+  it read as a blob. A round of a given radius is therefore a PINNED guard, a
+  FREE corner, a PINNED guard.
+- **WHAT THE USER'S DRAWING ACTUALLY SAYS**, after getting it wrong twice: the
+  leading edge continues FORWARD along the top of the fuselage as a dorsal,
+  with crease points where it bends — not a stub at the root. The fin's root
+  follows the SKIN. Only the RUDDER may reach the keel, and only aft of the
+  hinge. The cuts are straight lines applied after subdivision, and each of the
+  two TOP pieces may belong to fin or rudder (a rudder running forward over the
+  fin tip is a horn balance).
+- **A LINE BETWEEN TWO POINTS ON A CURVED BODY GOES INSIDE IT.** The dorsal and
+  the root both have to be SAMPLED along the deck; drawn point to point they
+  submerge wherever the deck rises between them.
+- **METHOD RULING (user): 2D FIRST.** Settle the outline flat — cage, limit
+  curve, cut lines, against the drawing — and only then give it thickness.
+  Every defect above is a SHAPE defect, and a green closed-volume check found
+  none of them. A manifold says nothing about whether the thing is the right
+  thing.
+
+Also worth keeping from attempt 2's 3D work, if thickness is reached again:
+capping a post-subsurf cut by chaining its boundary into loops FAILS where the
+cut plane leaves the slab through the leading edge, because the section pinches
+to a point and the boundary passes through one vertex twice (an Eulerian
+circuit problem). A FAN FROM THE CUT'S CENTROID needs no chaining — one
+triangle per open edge, reversed to close, centroid pinned into the plane — and
+closed both parts with zero open edges.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

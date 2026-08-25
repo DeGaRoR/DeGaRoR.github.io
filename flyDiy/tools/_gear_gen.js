@@ -388,7 +388,16 @@ function spat(bags, hub, axis, R, full) {
   }
   // the (fwd, up, ax) frame flips handedness with the wheel side, which
   // turned one fairing of the pair inside out
-  const hand = dot(crs(fwd, up), ax) >= 0 ? 1 : -1;
+  //
+  // THE SIGN WAS INVERTED, and the reason it survived is that this term only
+  // ever made the PAIR agree with each other — measured, both sides came out
+  // 1599 faces inward against 329 outward, so left and right were consistently
+  // wrong and nothing about the pair looked asymmetric. A fairing lit from
+  // inside reads as a dark shell rather than as an obvious hole, which is why
+  // the tyre's version of this (G20b) was caught and the spat's was not.
+  // Counting normals against the outward radial is what found it; comparing
+  // the two sides never could.
+  const hand = dot(crs(fwd, up), ax) >= 0 ? -1 : 1;
   for (let i = 0; i < NT; i++) for (let j = 0; j < NA; j++) {
     if (hand > 0)
       bag.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
@@ -415,20 +424,13 @@ const CAGE_MATS = new Set(["body", "pillarWindow", "pillarCabin",
   "pillarPassenger", "pillarTail", "pillarFront", "windshield",
   "skyWindows", "pilotWindow", "pasengerWindow", "ceilingLoop",
   "floorLoop", "waistband"]);
-function objAirframe(text) {
-  const V = [], F = [];
-  let cur = null;
-  for (const line of text.split("\n")) {
-    if (line.startsWith("v ")) {
-      const p = line.trim().split(/\s+/);
-      V.push([+p[1], +p[2], +p[3]]);
-    } else if (line.startsWith("usemtl ")) cur = line.slice(7).trim();
-    else if (line.startsWith("f ") && CAGE_MATS.has(cur)) {
-      F.push(line.trim().split(/\s+/).slice(1)
-        .map(s => parseInt(s.split("/")[0], 10) - 1));
-    }
-  }
-  if (!F.length) return null;
+// THE BAKE, over a plain indexed mesh — `V` a list of points, `F` a list of
+// index arrays, already filtered to the skin. Split out of objAirframe so a
+// FROZEN export and a LIVE cage reach the contract by the same code path
+// instead of two that can drift; the parser below and cageAirframe are now
+// only their two front doors.
+function meshAirframe(V, F) {
+  if (!F || !F.length) return null;
   let z0 = 1e9, z1 = -1e9;
   for (const f of F) for (const i of f) {
     if (V[i][2] < z0) z0 = V[i][2];
@@ -516,6 +518,45 @@ function objAirframe(text) {
   };
   return { z0, z1, surf, keelAt, halfWAt, heightAt, cyAt, nrmAt,
            mesh: { V, F }, stub: false };
+}
+
+function objAirframe(text) {
+  const V = [], F = [];
+  let cur = null;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("v ")) {
+      const p = line.trim().split(/\s+/);
+      V.push([+p[1], +p[2], +p[3]]);
+    } else if (line.startsWith("usemtl ")) cur = line.slice(7).trim();
+    else if (line.startsWith("f ") && CAGE_MATS.has(cur)) {
+      F.push(line.trim().split(/\s+/).slice(1)
+        .map(s => parseInt(s.split("/")[0], 10) - 1));
+    }
+  }
+  return meshAirframe(V, F);
+}
+
+// THE LIVE CAGE, in the same contract — this is what the stub was always a
+// stand-in for. Takes the cage mesh as built (`{V, F:[{v, m}]}`) and the scale
+// that turns cage units into metres.
+//
+// The hardware is METRIC and the aeroplane is not: the cage is generated at
+// its own size and worn at `planeScale`, so the conversion happens ONCE, here,
+// on the vertices. Every leg, pad, lug and bolt downstream is then in metres
+// without knowing a cage exists — which is the same rule the crew layer
+// follows, and the reason a dummy or a wheel can be the ruler at all.
+//
+// Faces are filtered to the skin materials for the reason the OBJ path filters
+// them: an interior, a dash and a set of seats are inside the body, and a ray
+// cast from the section centre would otherwise stop on the nearest of them.
+function cageAirframe(mesh, scale) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const k = scale || 1;
+  const V = mesh.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
+  const F = [];
+  for (const f of mesh.F)
+    if (f && f.v && f.v.length >= 3 && CAGE_MATS.has(f.m)) F.push(f.v.slice());
+  return meshAirframe(V, F);
 }
 function drawBody(parent, AF) {
   const bag = Bag();
@@ -993,6 +1034,7 @@ function legTailwheel(bags, AF, P, st) {
 }
 
 window.GEAR_GEN = { MAT, stubAirframe, drawStub, objAirframe, drawBody,
+                    meshAirframe, cageAirframe, CAGE_MATS,
                     wheel, spat, fitFrame,
                     fitPad, legBeam, legLink, legOleo, castorUnit,
                     legTailwheel, Bag };

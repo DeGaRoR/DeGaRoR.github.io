@@ -879,7 +879,8 @@ function garageInit(api) {
   const unwrap = txt => {
     const o = JSON.parse(txt);
     if (o && o.spec && typeof o.spec === 'object') return { name: o.name, spec: o.spec };
-    if (o && (o.wings || o.fuselage || o.cabin)) return { name: null, spec: o };
+    if (o && (o.wings || o.fuselage || o.cabin || o.cage))
+      return { name: null, spec: o };
     throw new Error('not a flyDiy build');
   };
 

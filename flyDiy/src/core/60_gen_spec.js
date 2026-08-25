@@ -441,6 +441,7 @@ const GEN_RULES = {
 // 4: the cabin gained its glazing surface — `cabin.glazing`, `cabin.canopy`,
 // `cabin.panel`, `cabin.pilot`, the seat offsets — plus `fuselage.tailY`,
 // `paint.regX` and `wings[].centre`.
+// 5: `cage` — the template-cage fuselage design (see the field).
 //
 // Nothing READS this number: `genNormaliseSpec` defaults every missing field
 // from GEN_DEFAULT, and a field left `null` stays null and keeps being derived,
@@ -448,7 +449,7 @@ const GEN_RULES = {
 // here to be honest about the shape having changed, and to give a future
 // migration something to branch on — not because one is needed today. Do not
 // add a migration that only re-does what normalisation already does.
-const GEN_SPEC_V = 4;
+const GEN_SPEC_V = 5;
 
 // The one preset this chantier ships: a strut-braced high-wing taildragger in
 // the Cub envelope. Nulls are the derived fields — that is most of the
@@ -576,6 +577,28 @@ const GEN_DEFAULT = {
           // has FLAT sides and belly and a rounded turtledeck, so these are
           // very different numbers on purpose.
           crownTop: 0.72, crownSide: 0.07 },
+  // THE TEMPLATE CAGE — the fuselage as a Catmull-Clark control cage (G12), and
+  // the slot a bench-built body arrives in. The block above describes a fuselage
+  // as a LOFT (a taper family plus crown knobs); this one describes it as the
+  // user's Blender cage — stations, levels, rails — which is what can carry
+  // doors, windows, a canopy and an interior. They are two descriptions of one
+  // part and only one of them can be in force, so this field is the switch:
+  //
+  //   null   the loft above builds the body, exactly as it always has
+  //   object the cage builds it, and the loft's shape knobs are inert
+  //
+  // NULL IS NOT "no cage", IT IS "THE TEMPLATE". The parameter set and its
+  // defaults live with the generator that reads them (tools/_cage_gen.js,
+  // CAGE_PARAMS — measured off templatePlaneProcedural_2 and fit-locked by
+  // _cage_fit.js), and they are NOT copied here: a number about the cage has one
+  // home, and a second copy under a different name is the ambiguity the units
+  // ruling (G19d) already outlawed. So this carries a BUILD's cage, never the
+  // template's — which is also why normalisation must leave an object here
+  // verbatim instead of filling it field by field from a default that is null.
+  //
+  // Units are metres (G19d: 1 cage unit = 1 metre; `planeScale` is a design
+  // scale on top, not a unit conversion).
+  cage: null,
   // The engine bay is its own component with its own cover, not the front of
   // the fuselage. It is a loft from the firewall section to a NOSE SECTION OF
   // ITS OWN, finished flat with a rounded-over front edge, and the propeller
@@ -743,6 +766,12 @@ function genNormaliseSpec(raw) {
     cargo: { len: f.cargoLen, kg: r.cargoKg },
     fuel: { litres: r.fuelL },
     fuselage: Object.assign({}, f, { material: r.material }),
+    // The cage post-dates the flat shape entirely, so a genuinely old spec
+    // never has one — but this branch is also what a spec carrying ONLY a cage
+    // falls into (the sniff above is `wings`, which such a spec has not got),
+    // and rebuilding `out` field by field is exactly where a section goes
+    // missing without anything reporting it.
+    cage: r.cage,
     cowl: r.cowl,
     engines: [{ type: r.engine, mount: 'nose',
                 place: { dx: p.engineDx, dy: p.engineDy } }],
@@ -824,6 +853,12 @@ function clampSpec(spec) {
   const fu = S.fuselage, cb = S.cabin;
   if (!GEN_MATERIALS[fu.material]) fu.material = 'tubeFabric';
   if (!GEN_SHAPES[fu.shape]) fu.shape = 'straight';
+  // The cage rides through verbatim — its generator owns its own ranges, and
+  // clamping a copy of them here would be the second home the field's own note
+  // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
+  // truthy non-object can never reach a consumer that reads fields off it.
+  if (S.cage !== null && (typeof S.cage !== 'object' || Array.isArray(S.cage)))
+    S.cage = null;
   if (!GEN_TANKS[S.fuel.tank]) S.fuel.tank = 'nose';
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
   const ct = S.controls;
