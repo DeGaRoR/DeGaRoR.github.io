@@ -102,8 +102,9 @@ const findPart = (M, name, occ) => {
 const zTailOf = M => {
   const R = M.resolved;
   const zBack = R.place.zAft + (R.P.accessories ? R.P.accLen : 0);
-  return Math.min(zBack, R.place.zOf(R.place.nSt - 1)
-    - 0.5 * (M.P.stagger || 0) * R.P.bore - 0.80 * R.P.bore);
+  // an inline is one row — no bank stagger (same formula as the builder)
+  const st = R.arch === 'inline' ? 0 : 0.5 * (M.P.stagger || 0) * R.P.bore;
+  return Math.min(zBack, R.place.zOf(R.place.nSt - 1) - st - 0.80 * R.P.bore);
 };
 const caseSDF = (M, p) => {
   const R = M.resolved, cR = R.place.caseR;

@@ -687,7 +687,12 @@ const EM = (() => {
 
     const cyls = [];
     for (let i = 0; i < R.cyl; i++) {
-      const a = L.ang[i];
+      // the INLINE lies on its side (G24.14, user ruling): all cylinders
+      // to ONE flank, apparatus on the other — a single lateral bank, so
+      // every flat-bank builder applies verbatim. (engResolve's envelope
+      // still assumes the vertical inline — a divergence for the cowl to
+      // note, physics-side.)
+      const a = inline ? Math.PI / 2 : L.ang[i];
       const sx = Math.sin(a) >= 0 ? 1 : -1;
       // bank stagger: the two rods share one crankpin, so one bank leads
       // (an inline has one bank — no stagger)
@@ -700,7 +705,8 @@ const EM = (() => {
       // crank — flat gives lateral cylinders, inline vertical ones
       const dir = [Math.sin(a), Math.cos(a), 0];
       const uw = { u: [Math.cos(a), -Math.sin(a), 0], w: [0, 0, 1] };
-      const e2 = inline ? [1, 0, 0] : [0, 1, 0];    // the plate/cover free axis
+      // the plate/cover free axis: ⊥ the cylinder, in the engine's plane
+      const e2 = Math.abs(Math.sin(a)) > 0.5 ? [0, 1, 0] : [1, 0, 0];
       cyls.push({
         i, sx, z, dir, uw, e2,
         rr0, finTop, headTop, rockerOut,
@@ -711,25 +717,19 @@ const EM = (() => {
         // the plug's TERMINAL (base + 0.41b of plug stack) — the lead
         // lands where a lead lands (G24.6).
         plugBaseT: P.twoStroke
-          ? (inline ? [0.16 * b, rockerOut - 0.24 * b, z - 0.10 * b]
-                    : [sx * (rockerOut - 0.24 * b), 0.30 * b, z - 0.16 * b])
+          ? [sx * (rockerOut - 0.24 * b), 0.30 * b, z - 0.16 * b]
           : [sx * (finTop + 0.42 * b), 0.50 * b, z - 0.14 * b],
         plugBaseB: P.twoStroke
-          ? (inline ? [-0.16 * b, rockerOut - 0.24 * b, z - 0.10 * b]
-                    : [sx * (rockerOut - 0.24 * b), -0.30 * b, z - 0.16 * b])
+          ? [sx * (rockerOut - 0.24 * b), -0.30 * b, z - 0.16 * b]
           : [sx * (finTop + 0.42 * b), -0.50 * b, z - 0.14 * b],
         plugT: P.twoStroke
-          ? (inline ? [0.16 * b, rockerOut + 0.17 * b, z - 0.10 * b]
-                    : [sx * (rockerOut + 0.17 * b), 0.30 * b, z - 0.16 * b])
+          ? [sx * (rockerOut + 0.17 * b), 0.30 * b, z - 0.16 * b]
           : [sx * (finTop + 0.42 * b), 0.91 * b, z - 0.14 * b],
         plugB: P.twoStroke
-          ? (inline ? [-0.16 * b, rockerOut + 0.17 * b, z - 0.10 * b]
-                    : [sx * (rockerOut + 0.17 * b), -0.30 * b, z - 0.16 * b])
+          ? [sx * (rockerOut + 0.17 * b), -0.30 * b, z - 0.16 * b]
           : [sx * (finTop + 0.42 * b), -0.91 * b, z - 0.14 * b],
         intakeP: [sx * (finTop + 0.30 * b), -0.52 * b, z + 0.34 * b],
-        // a two-stroke inline's exhaust port faces FORWARD, into the pipes
-        exhaustP: inline ? [0, finTop + 0.30 * b, z + 0.45 * b]
-                         : [sx * (finTop + 0.30 * b), -0.52 * b, z - 0.34 * b],
+        exhaustP: [sx * (finTop + 0.30 * b), -0.52 * b, z - 0.34 * b],
       });
     }
     // NEIGHBOUR GAPS (G24.5): same-bank cylinders sit one pitch apart and
@@ -1148,15 +1148,12 @@ const EM = (() => {
                   c.e2, ENGM_MAT.fin);
       }
       if (P.liquid) {
-        // the coolant outlet boss — head crown on a flat (UNDERSIDE when
-        // the radiator hangs below, G24.13: the circuit follows the
-        // radiator), head FLANK on an inline (the dome top is the plugs')
+        // the coolant outlet boss on the head crown — UNDERSIDE when the
+        // radiator hangs below (G24.13: the circuit follows the radiator)
         part('coolBoss' + c.i, 'tube');
         const cS = below ? -1 : 1;
-        const cbDir = inline ? [1, 0, 0] : [0, cS, 0];
-        const cbB = inline
-          ? [hrEff * 0.75, c.finTop + 0.55 * b, c.z]
-          : [c.sx * (c.finTop + 0.55 * b), cS * hrEff * 0.75, c.z];
+        const cbDir = [0, cS, 0];
+        const cbB = [c.sx * (c.finTop + 0.55 * b), cS * hrEff * 0.75, c.z];
         const cbL = hrEff * 0.25 + 0.24 * b;
         lathe(cbB, cbDir, null, [
           { t: 0, r: 0.10 * b }, { t: cbL, r: 0.10 * b },
@@ -1232,17 +1229,10 @@ const EM = (() => {
                 { capA: true, lipB: true, sides: S.pipe }));
       } else if (exMode === 3) {
         // TWO-STROKE MUSIC: the expansion chamber — cone out to a fat
-        // belly, cone back down to a thin stinger. A flat's port exits
-        // under; an inline's faces FORWARD and the pipe wraps down a
-        // flank (alternating sides so a twin's chambers stack cleanly).
+        // belly, cone back down to a thin stinger, sweeping aft low on
+        // the cylinder's own side
         part('exhaust' + c.i, 'tube');
-        const path = inline
-          ? fillet([c.exhaustP,
-              [0.10 * b, c.finTop * 0.55, c.z + 1.1 * b],
-              [(0.42 + 0.20 * (c.i % 2)) * cR, -0.25 * cR, c.z + 0.5 * b],
-              [(0.52 + 0.20 * (c.i % 2)) * cR, -(cR + L.sump) * 0.85,
-               c.z - 2.2 * b]], 0.9 * b)
-          : fillet([c.exhaustP,
+        const path = fillet([c.exhaustP,
               [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.40 * b],
               [c.sx * 0.60 * cR, sumpY - 0.9 * b, c.z - 0.7 * b],
               [c.sx * 0.55 * cR, sumpY - 0.9 * b, c.z - 2.4 * b]], 0.9 * b);
@@ -1384,13 +1374,7 @@ const EM = (() => {
       for (const c of cyls) {
         part('leadT' + c.i, 'tube');
         const mg = magL.pos;
-        const pT = routeClear(smooth(inline ? [
-          magL.towers[c.i],
-          [0.10 * cR, Math.max(cR * 1.25, c.plugT[1] - 0.5 * b),
-           (mg[2] + c.z) / 2],
-          [c.plugT[0], c.plugT[1] + 0.26 * b, c.plugT[2] - 0.05 * b],
-          c.plugT,
-        ] : [
+        const pT = routeClear(smooth([
           magL.towers[c.i],
           [c.sx * 0.30 * cR, cR * 1.12, (mg[2] + c.z) / 2],
           [c.sx * 0.75 * cR, cR * 0.75, c.z - 0.05 * b],
@@ -1403,13 +1387,7 @@ const EM = (() => {
 
         part('leadB' + c.i, 'tube');
         const mgB = magR.pos;
-        const pB = routeClear(smooth(inline ? [
-          magR.towers[c.i],
-          [-0.10 * cR, Math.max(cR * 1.25, c.plugB[1] - 0.5 * b),
-           (mgB[2] + c.z) / 2],
-          [c.plugB[0], c.plugB[1] + 0.26 * b, c.plugB[2] - 0.05 * b],
-          c.plugB,
-        ] : [
+        const pB = routeClear(smooth([
           magR.towers[c.i],
           [c.sx * 0.95 * cR, 0.30 * cR, (mgB[2] + c.z) / 2],
           [c.sx * 1.02 * cR, -0.45 * cR, c.z - 0.05 * b],

@@ -8623,6 +8623,19 @@ runaway).
 - **THE ALTERNATOR LOOKS LIKE ONE**: cooling-slot ring behind the
   pulley; panel label renamed.
 
+### G24.14 — THE INLINE LIES ON ITS SIDE (same day, user ruling)
+
+Cylinders all to ONE flank, apparatus on the other — not on top. The
+implementation got SIMPLER: the inline pins its placement angle to 90
+degrees and becomes a single lateral bank, so every flat-bank builder
+(ports, plugs, chambers, leads, coolant bosses) applies VERBATIM and all
+the inline-specific geometry branches were DELETED. The check's zTail
+formula learned that an inline has no bank stagger — the mismatch showed
+up instantly as a lead-clip fail on the 582 (the two fields disagreed by
+exactly the stagger term). Honest note: engResolve's inline ENVELOPE
+still assumes vertical cylinders — a divergence for the cowl fit,
+physics-side, recorded here.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
