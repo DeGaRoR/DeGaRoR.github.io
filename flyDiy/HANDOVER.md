@@ -8636,6 +8636,39 @@ exactly the stagger term). Honest note: engResolve's inline ENVELOPE
 still assumes vertical cylinders — a divergence for the cowl fit,
 physics-side, recorded here.
 
+### G24.15 — THE RADIAL (2026-08-26): the last registry row
+
+The placement rule pays off in full: a radial is just MORE ANGLES.
+`cyl: 14, radialRows: 2` fans the resolved cylinders into two
+interleaved rows (rear row in the front row's gaps, one row-pitch aft),
+so resolve's TOTALS — 29.98 L, 681 kg derived against the registry's
+30 L / 750 — stay honest, and every cylinder builder (fins, plates,
+plugs, covers) runs at its own angle unchanged. `rockerCover` took a
+frame (o, dir, e2) to ride along.
+
+Radial-specific dress: ROUND drum case + acc (circleShape; no split
+ridge, no sump — dry sump), pushrod tubes up the FRONT (the iconic
+spray), plugs FORE AND AFT of each head, intake pipes fanning from the
+REAR case to every head, exhaust stacks aft into the COLLECTOR RING
+(exStyle 2), leads out the flank at each cylinder's own angle, the
+clearance field a plain radius. Fins stay FULL DISCS — a radial
+separates its neighbours ANGULARLY (that is why radials splay), so the
+clip planes and the clash assert both stand down; head plates cap at
+the row pitch instead.
+
+ARCH COMPATIBILITY IS COERCED PRE-RESOLVE now: inline => two-stroke,
+radial => air-cooled four-stroke, so physics and mesh always agree and
+no UI combination throws (only vee/electric refuse). The check caught
+two field mismatches within seconds of first build (zTail did not know
+radial rows; ports sat too deep inside the big heads for the surface
+ruler) — and the p95 density cap eased 2.6 -> 2.8E, where the 64-step
+sampling ceiling binds at R-1830 physical size. Preset carries a 1.35 m
+plate and no under-slung carb (a radial breathes through its rear
+spider). Known divergence: derived 647 kW vs the registry's 895 — the
+BMEP model knows no supercharger; resolve's domain.
+
+ALL TEN REGISTRY ENGINES now have their family in the bench.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

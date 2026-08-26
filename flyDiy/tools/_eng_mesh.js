@@ -112,6 +112,7 @@ const EM = (() => {
     radW: 2.0,         // core width
     radH: 0.75,        // core height
     radD: 0.42,        // core depth
+    radialRows: 2,     // a radial's cylinders split into 1 or 2 rows
     mount: 1,          // conical tube mount + rubber shock stacks
     mountX: 1,         // diagonal brace tubes in the side planes
     mountGap: 0.85,    // firewall stand-off behind the engine, / caseR
@@ -163,15 +164,21 @@ const EM = (() => {
   // BUILD
   // -------------------------------------------------------------------------
   function engMeshBuild(spec) {
+    // ARCH COMPATIBILITY IS COERCED BEFORE RESOLVE (G24.15), so the
+    // physics and the mesh always agree and no UI combination throws:
+    // an inline here is a two-stroke, a radial is an air-cooled
+    // four-stroke. Only genuinely undressed families (vee, electric)
+    // refuse.
+    spec = Object.assign({}, spec);
+    const archAsk = spec.arch || EG.ENG_DEFAULT.arch;
+    if (archAsk === 'inline') spec.twoStroke = 1;
+    if (archAsk === 'radial') { spec.twoStroke = 0; spec.liquid = 0; }
     const R = EG.engResolve(spec);
-    // dressed families: FLAT, and INLINE for two-strokes (G24.12 — the
-    // registry's 277/582; an inline four-stroke would need its own
-    // valvetrain dress and refuses loudly rather than half-drawing)
-    if (R.arch !== 'flat' && !(R.arch === 'inline' && R.P.twoStroke))
-      throw new Error('engMeshBuild: dressed families are flat and ' +
-                      'inline two-stroke (got "' + R.arch + '"' +
-                      (R.arch === 'inline' ? ', four-stroke' : '') + ')');
+    if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial')
+      throw new Error('engMeshBuild: dressed families are flat, inline ' +
+                      '(two-stroke) and radial (got "' + R.arch + '")');
     const inline = R.arch === 'inline';
+    const radial = R.arch === 'radial';
     const P = Object.assign({}, ENGM_DEFAULT, R.P);   // R.P carries ride-through keys
     // the MESH's own default for a knob the physics fiche also carries:
     // real fins are thin and NUMEROUS (G24.6) — spec still overrides
@@ -685,18 +692,28 @@ const EM = (() => {
     const zBack = L.zAft + (R.P.accessories ? R.P.accLen : 0);
     const hasAcc = !!R.P.accessories;
 
+    const rows = radial
+      ? Math.min(2, Math.max(1, Math.round(P.radialRows))) : 1;
+    const perRow = radial ? Math.ceil(R.cyl / rows) : 0;
     const cyls = [];
     for (let i = 0; i < R.cyl; i++) {
-      // the INLINE lies on its side (G24.14, user ruling): all cylinders
-      // to ONE flank, apparatus on the other — a single lateral bank, so
-      // every flat-bank builder applies verbatim. (engResolve's envelope
-      // still assumes the vertical inline — a divergence for the cowl to
-      // note, physics-side.)
-      const a = inline ? Math.PI / 2 : L.ang[i];
+      // the INLINE lies on its side (G24.14): a single lateral bank. The
+      // RADIAL (G24.15) fans its cylinders about the crank — two rows
+      // interleave, the rear row sitting in the front row's gaps, one
+      // row pitch aft. Every builder downstream reads only (angle, z).
+      let a, z;
+      if (radial) {
+        const row = i % rows, idx = Math.floor(i / rows);
+        a = (idx + row * 0.5) * 2 * Math.PI / perRow;
+        z = L.zOf(0) - row * 1.45 * b;
+      } else {
+        a = inline ? Math.PI / 2 : L.ang[i];
+        // bank stagger: the two rods share one crankpin, so one bank
+        // leads (an inline has one bank — no stagger)
+        z = L.zOf(L.stn[i]) + (inline ? 0
+          : (Math.sin(a) >= 0 ? 1 : -1) * 0.5 * P.stagger * b);
+      }
       const sx = Math.sin(a) >= 0 ? 1 : -1;
-      // bank stagger: the two rods share one crankpin, so one bank leads
-      // (an inline has one bank — no stagger)
-      const z = L.zOf(L.stn[i]) + (inline ? 0 : sx * 0.5 * P.stagger * b);
       const rr0 = cR * 0.96;                    // barrel root, buried in the case
       const finTop = L.r0 + R.P.stroke + 0.55 * b;   // fin zone ends, head begins
       const headTop = finTop + 0.85 * b;
@@ -706,40 +723,64 @@ const EM = (() => {
       const dir = [Math.sin(a), Math.cos(a), 0];
       const uw = { u: [Math.cos(a), -Math.sin(a), 0], w: [0, 0, 1] };
       // the plate/cover free axis: ⊥ the cylinder, in the engine's plane
-      const e2 = Math.abs(Math.sin(a)) > 0.5 ? [0, 1, 0] : [1, 0, 0];
-      cyls.push({
+      const e2 = radial ? uw.u
+        : (Math.abs(Math.sin(a)) > 0.5 ? [0, 1, 0] : [1, 0, 0]);
+      const pt = r => [dir[0] * r, dir[1] * r, z];
+      // ports (all on the head, where the real bosses are). The plug PORT
+      // is the TERMINAL (base + 0.41b of plug stack). A radial's plugs
+      // sit FORE AND AFT of the head, axis along the crank; its intake
+      // enters the head's rear, the exhaust beside it.
+      let ports;
+      if (radial) {
+        const hp = pt(finTop + 0.42 * b), ip = pt(finTop + 0.30 * b);
+        ports = {
+          plugBaseT: [hp[0], hp[1], z + 0.30 * b],
+          plugBaseB: [hp[0], hp[1], z - 0.30 * b],
+          plugT: [hp[0], hp[1], z + 0.71 * b],
+          plugB: [hp[0], hp[1], z - 0.71 * b],
+          intakeP: [ip[0] + uw.u[0] * 0.45 * b, ip[1] + uw.u[1] * 0.45 * b,
+                    z - 0.45 * b],
+          exhaustP: [ip[0] - uw.u[0] * 0.45 * b, ip[1] - uw.u[1] * 0.45 * b,
+                     z - 0.45 * b],
+        };
+      } else {
+        ports = {
+          plugBaseT: P.twoStroke
+            ? [sx * (rockerOut - 0.24 * b), 0.30 * b, z - 0.16 * b]
+            : [sx * (finTop + 0.42 * b), 0.50 * b, z - 0.14 * b],
+          plugBaseB: P.twoStroke
+            ? [sx * (rockerOut - 0.24 * b), -0.30 * b, z - 0.16 * b]
+            : [sx * (finTop + 0.42 * b), -0.50 * b, z - 0.14 * b],
+          plugT: P.twoStroke
+            ? [sx * (rockerOut + 0.17 * b), 0.30 * b, z - 0.16 * b]
+            : [sx * (finTop + 0.42 * b), 0.91 * b, z - 0.14 * b],
+          plugB: P.twoStroke
+            ? [sx * (rockerOut + 0.17 * b), -0.30 * b, z - 0.16 * b]
+            : [sx * (finTop + 0.42 * b), -0.91 * b, z - 0.14 * b],
+          intakeP: [sx * (finTop + 0.30 * b), -0.52 * b, z + 0.34 * b],
+          exhaustP: [sx * (finTop + 0.30 * b), -0.52 * b, z - 0.34 * b],
+        };
+      }
+      cyls.push(Object.assign({
         i, sx, z, dir, uw, e2,
         rr0, finTop, headTop, rockerOut,
-        at: r => [dir[0] * r, dir[1] * r, z],
-        // ports (all on the head, where the real bosses are)
-        // a two-stroke's plugs sit in the head dome, side by side; a
-        // four-stroke's flank the rocker box top and bottom. The PORT is
-        // the plug's TERMINAL (base + 0.41b of plug stack) — the lead
-        // lands where a lead lands (G24.6).
-        plugBaseT: P.twoStroke
-          ? [sx * (rockerOut - 0.24 * b), 0.30 * b, z - 0.16 * b]
-          : [sx * (finTop + 0.42 * b), 0.50 * b, z - 0.14 * b],
-        plugBaseB: P.twoStroke
-          ? [sx * (rockerOut - 0.24 * b), -0.30 * b, z - 0.16 * b]
-          : [sx * (finTop + 0.42 * b), -0.50 * b, z - 0.14 * b],
-        plugT: P.twoStroke
-          ? [sx * (rockerOut + 0.17 * b), 0.30 * b, z - 0.16 * b]
-          : [sx * (finTop + 0.42 * b), 0.91 * b, z - 0.14 * b],
-        plugB: P.twoStroke
-          ? [sx * (rockerOut + 0.17 * b), -0.30 * b, z - 0.16 * b]
-          : [sx * (finTop + 0.42 * b), -0.91 * b, z - 0.14 * b],
-        intakeP: [sx * (finTop + 0.30 * b), -0.52 * b, z + 0.34 * b],
-        exhaustP: [sx * (finTop + 0.30 * b), -0.52 * b, z - 0.34 * b],
-      });
+        at: pt,
+      }, ports));
     }
     // NEIGHBOUR GAPS (G24.5): same-bank cylinders sit one pitch apart and
     // their fins and heads are WIDER than the half-pitch — the real engine
-    // clips them flat against each other, so the mesh does too.
-    for (const bank of [-1, 1]) {
-      const row = cyls.filter(c => c.sx === bank).sort((a, b2) => a.z - b2.z);
-      for (let i = 0; i < row.length; i++) {
-        row[i].gapDn = i > 0 ? row[i].z - row[i - 1].z : 1e9;
-        row[i].gapUp = i + 1 < row.length ? row[i + 1].z - row[i].z : 1e9;
+    // clips them flat against each other, so the mesh does too. A RADIAL
+    // separates its neighbours ANGULARLY (that is why radials splay), so
+    // its fins stay full discs.
+    if (radial) {
+      for (const c of cyls) { c.gapDn = 1e9; c.gapUp = 1e9; }
+    } else {
+      for (const bank of [-1, 1]) {
+        const row = cyls.filter(c => c.sx === bank).sort((a, b2) => a.z - b2.z);
+        for (let i = 0; i < row.length; i++) {
+          row[i].gapDn = i > 0 ? row[i].z - row[i - 1].z : 1e9;
+          row[i].gapUp = i + 1 < row.length ? row[i + 1].z - row[i].z : 1e9;
+        }
       }
     }
     // THE CASE FOLLOWS THE STAGGER (G24.10): the quinconce moved the banks
@@ -855,6 +896,13 @@ const EM = (() => {
       }
       const h = caseHalf(p[2]);
       if (!h || m <= 0) return p;
+      if (radial) {
+        // the round drum's field is just a radius
+        const rr2 = Math.hypot(p[0], p[1]) || 1e-9;
+        if (rr2 - h >= m) return p;
+        const s2 = (h + m) / rr2;
+        return [p[0] * s2, p[1] * s2, p[2]];
+      }
       const r = 0.55 * h, hr2 = h - r;
       const ax = Math.abs(p[0]), ay = Math.abs(p[1]);
       const qx = ax - hr2, qy = ay - hr2;
@@ -889,12 +937,24 @@ const EM = (() => {
     // ridges a real opposed case shows along its top and bottom centreline.
     // =======================================================================
     part('case');
-    const caseShape = roundRect(2 * cR, 2 * cR, 0.55 * cR);
+    // a radial's crankcase is a round drum; the opposed/inline case is the
+    // rounded-square casting
+    const circleShape = r2 => {
+      const n2 = sectOf(r2), out = [];
+      for (let k = 0; k < n2; k++) {
+        const a2 = k / n2 * 2 * Math.PI;
+        out.push([Math.cos(a2) * r2, Math.sin(a2) * r2]);
+      }
+      return out;
+    };
+    const caseShape = radial ? circleShape(cR)
+                             : roundRect(2 * cR, 2 * cR, 0.55 * cR);
     shapeLathe([0, 0, 0], Z, X, Y, caseShape, [
       { t: zNose, s: 0.86 }, { t: zNose - 0.05 * cR, s: 1 },
       { t: zTail + 0.05 * cR, s: 1 }, { t: zTail, s: 0.86 },
     ], ENGM_MAT.case, true, true);
 
+    if (!radial) {
     part('ridge', 'box', 2);
     {
       // the case halves' bolt flange: a thin spine, top and bottom
@@ -912,8 +972,11 @@ const EM = (() => {
       }
     }
 
-    // ---- sump: the wet belly the carb hangs from --------------------------
-    if (L.sump > 1e-6) {
+    }
+
+    // ---- sump: the wet belly the carb hangs from (a radial has none:
+    // dry sump, remote tank) --------------------------------------------
+    if (L.sump > 1e-6 && !radial) {
       part('sump');
       const xw = cR * 0.80, zA = zNose - 0.02 * cR, zB = zTail + 0.02 * cR;
       const sh = polyShape([[-xw, -cR * 0.48], [xw, -cR * 0.48],
@@ -923,7 +986,8 @@ const EM = (() => {
 
     // ---- accessory body: backplate + hump, and what lives on it -----------
     if (hasAcc) {
-      const shA = roundRect(2 * cR, 2 * cR, 0.55 * cR);
+      const shA = radial ? circleShape(cR)
+                         : roundRect(2 * cR, 2 * cR, 0.55 * cR);
       part('acc');
       shapeLathe([0, 0, 0], Z, X, Y, shA, [
         { t: zTail, s: ACC1 }, { t: accT1, s: ACC1 },
@@ -1139,9 +1203,12 @@ const EM = (() => {
         const n = Math.round(P.headFins);
         part('headFins' + c.i, 'fins', n);
         const hEnd = P.twoStroke ? c.rockerOut - 0.30 * b : c.headTop;
+        // a radial's plate width is capped by its ROW pitch instead of a
+        // same-bank gap (rows interleave diagonally)
+        const zCap = radial ? 0.70 * b : 1e9;
         finPlates(c.at, c.finTop + 0.10 * b, hEnd, n, hrEff * 1.15,
-                  -Math.min(c.gapDn / 2 - 0.03 * b, hrEff * 1.15),
-                  Math.min(c.gapUp / 2 - 0.03 * b, hrEff * 1.15),
+                  -Math.min(c.gapDn / 2 - 0.03 * b, hrEff * 1.15, zCap),
+                  Math.min(c.gapUp / 2 - 0.03 * b, hrEff * 1.15, zCap),
                   0.10 * b,
                   P.twoStroke ? null
                     : { z: -0.14 * b, w: 0.19 * b, floor: 0.42 * b },
@@ -1164,13 +1231,21 @@ const EM = (() => {
       // (rocker covers moved below the loop — one per cylinder or, VW
       // style, ONE per bank; G24.13)
 
-      // ---- pushrod tubes: four-stroke furniture ---------------------------
+      // ---- pushrod tubes: four-stroke furniture. A radial's run up the
+      // FRONT of the crankcase to each head — the iconic spray of tubes.
       if (!P.twoStroke) {
         const ry = P.rodPos >= 0 ? 1 : -1;
         for (const dz of [-0.20 * b, 0.20 * b]) {
           part('rod' + c.i, 'tube');
-          const A = [c.sx * cR * 0.86, ry * 0.42 * b, c.z + dz];
-          const B = [c.sx * (c.finTop + 0.10 * b), ry * 0.46 * b, c.z + dz];
+          const A = radial
+            ? [c.dir[0] * cR * 0.80 + c.uw.u[0] * dz,
+               c.dir[1] * cR * 0.80 + c.uw.u[1] * dz, c.z + 0.52 * b]
+            : [c.sx * cR * 0.86, ry * 0.42 * b, c.z + dz];
+          const B = radial
+            ? [c.dir[0] * (c.finTop + 0.10 * b) + c.uw.u[0] * dz,
+               c.dir[1] * (c.finTop + 0.10 * b) + c.uw.u[1] * dz,
+               c.z + 0.46 * b]
+            : [c.sx * (c.finTop + 0.10 * b), ry * 0.46 * b, c.z + dz];
           const path = resample([A, B]);
           const rr = path.map((_, k) =>
             0.068 * b * (k === path.length - 1 ? 1.5 : 1));  // head bellmouth
@@ -1181,7 +1256,9 @@ const EM = (() => {
 
       // ---- SPARK PLUGS (the leads' destination is a real plug) ------------
       if (P.leads) {
-        for (const [bb, ax] of P.twoStroke
+        for (const [bb, ax] of radial
+             ? [[c.plugBaseT, [0, 0, 1]], [c.plugBaseB, [0, 0, -1]]]
+             : P.twoStroke
              ? [[c.plugBaseT, c.dir], [c.plugBaseB, c.dir]]
              : [[c.plugBaseT, [0, 1, 0]], [c.plugBaseB, [0, -1, 0]]]) {
           part('plug' + c.i, 'tube', 4);
@@ -1193,8 +1270,15 @@ const EM = (() => {
       // (four-stroke only: a two-stroke breathes through its crankcase)
       if (P.intake && !P.twoStroke) {
         part('intake' + c.i, 'tube');
-        const A = [c.sx * 0.42 * cR, sumpY + 0.10 * b, c.z + 0.20 * b];
-        const knee = [c.sx * (c.finTop - 0.15 * b), sumpY + 0.16 * b, c.z + 0.34 * b];
+        // a radial's pipes fan out FROM THE REAR CASE to each head — the
+        // classic spider of induction tubes behind the cylinders
+        const A = radial
+          ? [c.dir[0] * 0.72 * cR, c.dir[1] * 0.72 * cR, zTail - 0.06 * cR]
+          : [c.sx * 0.42 * cR, sumpY + 0.10 * b, c.z + 0.20 * b];
+        const knee = radial
+          ? [c.dir[0] * L.rTip * 0.55, c.dir[1] * L.rTip * 0.55,
+             (zTail + c.z) / 2 - 0.20 * b]
+          : [c.sx * (c.finTop - 0.15 * b), sumpY + 0.16 * b, c.z + 0.34 * b];
         const path = fillet([A, knee, c.intakeP], 0.65 * b);
         artery('intake' + c.i, 'sump', 'head' + c.i,
           sweep(path, 0.16 * b, ENGM_MAT.intake,
@@ -1215,9 +1299,28 @@ const EM = (() => {
       }
 
       // ---- exhaust: head bottom-fwd port, down and out --------------------
-      // (an inline two-stroke always runs chambers when exhaust is on)
-      const exMode = inline ? (P.exStyle ? 3 : 0) : P.exStyle;
-      if (exMode === 1) {
+      // (an inline two-stroke always runs chambers; a radial runs aft
+      // stacks, into the COLLECTOR RING when the collector is chosen)
+      const exMode = inline ? (P.exStyle ? 3 : 0)
+                   : radial ? (P.exStyle ? (P.exStyle === 2 ? 2 : 1) : 0)
+                   : P.exStyle;
+      if (radial && exMode >= 1) {
+        part('exhaust' + c.i, 'tube');
+        const ringR = 0.55 * L.rTip, zRing = zTail - 0.30 * cR;
+        const knee = [c.dir[0] * L.rTip * 0.62, c.dir[1] * L.rTip * 0.62,
+                      c.z - 1.1 * b];
+        const tip = exMode === 2
+          ? [c.dir[0] * ringR, c.dir[1] * ringR, zRing]
+          : [c.dir[0] * L.rTip * 0.50, c.dir[1] * L.rTip * 0.50,
+             c.z - 2.0 * b];
+        const path = fillet([c.exhaustP, knee, tip], 0.8 * b);
+        artery('exhaust' + c.i, 'head' + c.i,
+               exMode === 2 ? 'collector' : 'tip',
+          sweep(path, 0.17 * b, ENGM_MAT.exhaust,
+                exMode === 2
+                  ? { capA: true, capB: true, sides: S.pipe }
+                  : { capA: true, lipB: true, sides: S.pipe }));
+      } else if (exMode === 1) {
         part('exhaust' + c.i, 'tube');
         const knee = [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.40 * b];
         const tip = [c.sx * 0.72 * cR, sumpY - P.exDrop * b, c.z + 0.30 * b];
@@ -1258,12 +1361,11 @@ const EM = (() => {
     // fine bevels, perimeter-spaced screws; wide covers earn 8 of them.
     if (!P.twoStroke && cyls.length) {
       const hT = cyls[0].headTop, rO = cyls[0].rockerOut;
-      const rockerCover = (zC, sxb, Wb, idx) => {
+      const rockerCover = (o2, dir2, e2C, Wb, idx) => {
         part('rocker' + idx);
         const bv = 0.030 * b, bw = P.rockerBossW;
         const rEff = Math.min(P.rockerR, 0.48 * Math.min(Wb / b, P.rockerH));
         const sh = roundRect(Wb, P.rockerH * b, rEff * b, ARC);
-        const o2 = [0, 0, zC], dir2 = [sxb, 0, 0];
         const t0 = hT + 0.02 * b, tF = t0 + 0.13 * b;
         const tFa = rO - 0.08 * b, tB = rO + P.rockerBoss * b;
         const seq = [
@@ -1283,7 +1385,7 @@ const EM = (() => {
         ];
         let prev = null;
         for (const s of seq) {
-          const rg = ringShape(mad(o2, dir2, s.t), Z, Y,
+          const rg = ringShape(mad(o2, dir2, s.t), Z, e2C,
                                sh.map(p => [p[0] * s.f[0], p[1] * s.f[1]]));
           if (prev) band(rg, prev, ENGM_MAT.rocker);
           else capAuto(rg, mad(o2, dir2, s.t), ENGM_MAT.rocker, false);
@@ -1305,30 +1407,48 @@ const EM = (() => {
             while (i2 + 1 < cum.length - 1 && cum[i2 + 1] < s2) i2++;
             const a3 = sh[i2], b3 = sh[(i2 + 1) % sh.length];
             const f2 = (s2 - cum[i2]) / ((cum[i2 + 1] - cum[i2]) || 1);
-            bolt([dir2[0] * tF,
-                  (a3[1] + (b3[1] - a3[1]) * f2) * 1.15,
-                  zC + (a3[0] + (b3[0] - a3[0]) * f2) * 1.11],
+            bolt(mad(mad(mad(o2, dir2, tF),
+                         e2C, (a3[1] + (b3[1] - a3[1]) * f2) * 1.15),
+                     Z, (a3[0] + (b3[0] - a3[0]) * f2) * 1.11),
                  dir2, 0.028 * b, ENGM_MAT.flange);
           }
         }
       };
-      if (P.rockerSpan && !inline) {
+      if (P.rockerSpan && !inline && !radial) {
         let bi = 0;
         for (const bank of [-1, 1]) {
           const row = cyls.filter(c2 => c2.sx === bank);
           if (!row.length) continue;
           const zs = row.map(c2 => c2.z);
-          rockerCover((Math.min(...zs) + Math.max(...zs)) / 2, bank,
+          rockerCover([0, 0, (Math.min(...zs) + Math.max(...zs)) / 2],
+                      [bank, 0, 0], [0, 1, 0],
                       (Math.max(...zs) - Math.min(...zs)) + P.rockerW * b,
                       bi++);
         }
       } else {
-        for (const c2 of cyls) rockerCover(c2.z, c2.sx, P.rockerW * b, c2.i);
+        for (const c2 of cyls)
+          rockerCover([0, 0, c2.z], radial ? c2.dir : [c2.sx, 0, 0],
+                      radial ? c2.uw.u : [0, 1, 0], P.rockerW * b, c2.i);
       }
     }
 
+    // ---- a RADIAL's collector: the ring behind the cylinders that every
+    // stack plunges into (G24.15) -------------------------------------------
+    if (radial && P.exStyle === 2 && cyls.length) {
+      part('collector', 'tube');
+      const ringR = 0.55 * L.rTip, zRing = zTail - 0.30 * cR;
+      const nR = Math.max(24, stepsOf(2 * Math.PI * ringR));
+      const ringPath = [];
+      for (let k = 0; k <= nR; k++) {
+        const a2 = k / nR * 2 * Math.PI;
+        ringPath.push([Math.sin(a2) * ringR, Math.cos(a2) * ringR, zRing]);
+      }
+      sweep(ringPath, 0.22 * b, ENGM_MAT.exhaust,
+            { capA: true, capB: true, sides: S.pipe });
+    }
+
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------
-    if (P.exStyle === 2 && !inline) {
+    if (P.exStyle === 2 && !inline && !radial) {
       for (const sx of [-1, 1]) {
         const side = cyls.filter(c => c.sx === sx);
         if (!side.length) continue;
@@ -1374,7 +1494,15 @@ const EM = (() => {
       for (const c of cyls) {
         part('leadT' + c.i, 'tube');
         const mg = magL.pos;
-        const pT = routeClear(smooth([
+        const pT = routeClear(smooth(radial ? [
+          // the radial harness: out along the case flank at the
+          // cylinder's own angle, forward to the FRONT plug
+          magL.towers[c.i],
+          [c.dir[0] * 1.18 * cR, c.dir[1] * 1.18 * cR,
+           (mg[2] + c.plugT[2]) / 2],
+          [c.plugT[0], c.plugT[1], c.plugT[2] + 0.26 * b],
+          c.plugT,
+        ] : [
           magL.towers[c.i],
           [c.sx * 0.30 * cR, cR * 1.12, (mg[2] + c.z) / 2],
           [c.sx * 0.75 * cR, cR * 0.75, c.z - 0.05 * b],
@@ -1387,7 +1515,13 @@ const EM = (() => {
 
         part('leadB' + c.i, 'tube');
         const mgB = magR.pos;
-        const pB = routeClear(smooth([
+        const pB = routeClear(smooth(radial ? [
+          magR.towers[c.i],
+          [c.dir[0] * 1.15 * cR, c.dir[1] * 1.15 * cR,
+           (mgB[2] + c.plugB[2]) / 2],
+          [c.plugB[0], c.plugB[1], c.plugB[2] - 0.26 * b],
+          c.plugB,
+        ] : [
           magR.towers[c.i],
           [c.sx * 0.95 * cR, 0.30 * cR, (mgB[2] + c.z) / 2],
           [c.sx * 1.02 * cR, -0.45 * cR, c.z - 0.05 * b],
@@ -1430,15 +1564,18 @@ const EM = (() => {
       part('carb');
       // the RISER reaches up INTO the sump (G24.9 — the carb's mounting
       // flange floated 0.11b below the block, top face showing)
+      // on a radial there is no sump box: the riser reaches on up to the
+      // round case bottom
+      const rEx = radial ? L.sump : 0;
       lathe(add(carb.pos, [0, carb.h / 2, 0]), [0, -1, 0],
             { u: [1, 0, 0], w: [0, 0, 1] }, inj ? [
         // fuel injection: a SERVO body — no float bowl (exclusive, G24.13)
-        { t: -0.17 * b, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
+        { t: -0.17 * b - rEx, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
         { t: 0, r: 0.42 * b }, { t: 0.10 * b, r: carb.r },
         { t: carb.h + 0.26 * b, r: carb.r },
         { t: carb.h + 0.26 * b, r: 0 },
       ] : [
-        { t: -0.17 * b, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
+        { t: -0.17 * b - rEx, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
         { t: 0, r: 0.42 * b }, { t: 0.10 * b, r: carb.r },
         { t: carb.h, r: carb.r },
         { t: carb.h, r: 0.36 * b },                       // float bowl

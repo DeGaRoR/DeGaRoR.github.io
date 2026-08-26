@@ -121,6 +121,11 @@ const PRESETS = {
     exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
   'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
     liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064, rpm: 6500 },
+  'P&W R-1830': { arch: 'radial', cyl: 14, radialRows: 2, geared: 1,
+    exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700,
+    finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,
+    // a radial breathes through its rear spider — no under-slung carb
+    carbOn: 0, airbox: 0, plumb: 0 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -138,9 +143,16 @@ const GROUPS = [
   ]],
   ['engine', [
     ['arch',    'layout',    'drop', [['flat', 'flat (boxer)'],
-                                      ['inline', 'inline (2-stroke)']]],
+                                      ['inline', 'inline (2-stroke)'],
+                                      ['radial', 'radial']]],
     ['cyl',     'cylinders', 'drop', [[1, 'single'], [2, 'twin'],
-                                      [4, 'four'], [6, 'six']]],
+                                      [4, 'four'], [6, 'six'],
+                                      [5, 'five (radial)'],
+                                      [7, 'seven (radial)'],
+                                      [9, 'nine (radial)'],
+                                      [14, 'fourteen (radial)']]],
+    ['radialRows', 'two-row radial', 'drop', [[1, 'one row'],
+                                              [2, 'two rows']]],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
     ['rpm',     'rpm',       1800, 6500, 50],
