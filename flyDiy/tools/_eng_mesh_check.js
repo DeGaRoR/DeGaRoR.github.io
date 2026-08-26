@@ -57,6 +57,17 @@ const CASES = [
   // the architecture axes (G24.5): engResolve's own flags driving geometry
   { name: 'liquid + geared', spec: { liquid: 1, geared: 1 } },
   { name: 'liquid, rad below', spec: { liquid: 1, radY: -0.9 } },
+  // the 912 dressed as one (G25.1): conical gearbox, twin top carbs with
+  // cone filters, liquid heads over finned barrels, coolant bottle
+  { name: '912 twin cones', spec: { bore: 0.0795, stroke: 0.0611, rpm: 5800,
+      liquid: 1, geared: 1, airStyle: 1 } },
+  // the corners the G25.6 audit found defects in — now held by the battery:
+  // a SIX's runners need per-station tracks (parity shared one), the
+  // electric gearbox kissed the can face, the ECU had no case at all
+  { name: 'flat six twin cones', spec: { cyl: 6, liquid: 1, geared: 1,
+      airStyle: 1 } },
+  { name: 'ECU + injected', spec: { bore: 5.125 * IN, stroke: 4.375 * IN,
+      rpm: 2700, injected: 1, rodPos: 1, ecuOn: 1 } },
   { name: 'two-stroke', spec: { twoStroke: 1, cyl: 2, exStyle: 3, geared: 1 } },
   // the inline family (G24.12): the registry's actual 277 and 582
   { name: 'rotax 277-ish', spec: { arch: 'inline', cyl: 1, twoStroke: 1,
@@ -69,6 +80,22 @@ const CASES = [
       geared: 1, exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700 } },
   { name: 'radial 7 single-row', spec: { arch: 'radial', cyl: 7,
       radialRows: 1, exStyle: 1 } },
+  // THE ELECTRIC (G25), one case per style plus the liquid axis. The plate
+  // is aircraft-side and sized per aeroplane (a park flyer's ply square,
+  // a trainer's real bulkhead) — the case specs say so like the presets do.
+  { name: 'RC 2212 (electric)', spec: { arch: 'electric',
+      fwW: 0.16, fwH: 0.14 } },
+  { name: 'liquid outrunner', spec: { arch: 'electric', liquid: 1,
+      fwW: 0.16, fwH: 0.14 } },
+  { name: 'geared pancake', spec: { arch: 'electric', eStyle: 1,
+      canD: 0.228, canL: 0.086, rpm: 5000, geared: 1,
+      fwW: 0.60, fwH: 0.55 } },
+  { name: 'FES outrunner', spec: { arch: 'electric', canD: 0.20, canL: 0.09,
+      rpm: 4500, fwW: 0.30, fwH: 0.30 } },
+  { name: 'EMRAX pancake', spec: { arch: 'electric', eStyle: 1, canD: 0.228,
+      canL: 0.086, rpm: 5000, fwW: 0.60, fwH: 0.55 } },
+  { name: 'E-811 housed liquid', spec: { arch: 'electric', eStyle: 2,
+      canD: 0.268, canL: 0.19, rpm: 2500, liquid: 1, fwW: 0.70, fwH: 0.65 } },
   // the LOD ladder: full battery EXCEPT density — a LOD trades density by
   // definition, but its cables must still connect and still not clip
   { name: 'LOD close', spec: ENGM_LODS[1].set, lod: true },
@@ -106,6 +133,7 @@ const findPart = (M, name, occ) => {
 // the case tail follows the stagger (G24.10) — same formula as the builder
 const zTailOf = M => {
   const R = M.resolved;
+  if (R.arch === 'electric') return R.place.zCanB;
   const zBack = R.place.zAft + (R.P.accessories ? R.P.accLen : 0);
   // bank stagger exists only on the flat; a radial's rear ROW sits one
   // mesh row-pitch aft (same formulas as the builder)
@@ -119,6 +147,13 @@ const zTailOf = M => {
 };
 const caseSDF = (M, p) => {
   const R = M.resolved, cR = R.place.caseR;
+  // the electric body's field is the can cylinder over its own z-range —
+  // the check's ruler, recomputed from resolve like the combustion one
+  if (R.arch === 'electric') {
+    const L = R.place;
+    if (p[2] > L.zCanF + 1e-9 || p[2] < L.zCanB - 1e-9) return 1e9;
+    return Math.hypot(p[0], p[1]) - L.canR;
+  }
   const zFront = -R.P.flangeLen;
   const zTail = zTailOf(M);
   const zAft = R.place.zAft;
@@ -266,9 +301,11 @@ for (const C of CASES) {
     } else if ((mm = a.name.match(/^intake(\d+)$/))) {
       const i = +mm[1]; nIntake++;
       exact(a.a1, M.ports.intake[i], a.name + ' ends ON its port');
-      near(a.a0, findPart(M, M.resolved.arch === 'radial' ? 'acc' : 'sump', 0),
-           a.name + ' leaves the ' +
-           (M.resolved.arch === 'radial' ? 'rear case' : 'sump'));
+      // the runner's source is what the artery DECLARES: the sump plenum,
+      // the radial's rear case, or its bank's twin top carb (G25.1)
+      const src = /^twinCarb/.test(a.from) ? a.from
+        : M.resolved.arch === 'radial' ? 'acc' : 'sump';
+      near(a.a0, findPart(M, src, 0), a.name + ' leaves the ' + src);
       near(a.a1, findPart(M, 'head' + i, 0), a.name + ' reaches the head');
     } else if ((mm = a.name.match(/^exhaust(\d+)$/))) {
       const i = +mm[1]; nExh++;
@@ -288,7 +325,13 @@ for (const C of CASES) {
       const k = +mm[1];
       exact(a.a0, M.ports.lugs[k], a.name + ' starts on its shock stack');
       exact(a.a1, M.ports.fwPts[k], a.name + ' ends on its firewall point');
-      near(a.a0, findPart(M, 'puck' + k, 0), a.name + ' is rooted in its puck');
+      // the RC outrunner's standoffs root in the X mount — a park flyer
+      // has no dynafocal rubber; everything else roots in its puck
+      const rcCross = M.resolved.arch === 'electric' &&
+                      !M.resolved.place.eStyle;
+      near(a.a0, findPart(M, rcCross ? 'mountCross' : 'puck' + k,
+           rcCross ? 0 : 0), a.name +
+           (rcCross ? ' is rooted in the X mount' : ' is rooted in its puck'));
       near(a.a1, findPart(M, 'firewall', 0), a.name + ' holds the firewall');
     } else if (a.name === 'fuel') {
       exact(a.a1, M.ports.carbIn, 'fuel line ends ON the bowl inlet');
@@ -312,19 +355,97 @@ for (const C of CASES) {
     } else if (a.name === 'coolantRet') {
       near(a.a0, findPart(M, 'radTank', 0), 'return hose leaves the radiator');
       near(a.a1, findPart(M, 'pumpBoss', 0), 'return hose lands on the pump');
+    } else if (a.name === 'overflow') {
+      near(a.a0, findPart(M, 'expTank', 0), 'overflow leaves the tank neck');
+      near(a.a1, findPart(M, 'coolBottle', 0), 'overflow reaches the bottle');
     } else if (a.name === 'airHorn') {
       near(a.a0, findPart(M, 'airRear', 0), 'the horn leaves the airbox');
       near(a.a1, findPart(M, 'carb', 0), 'the horn enters the carb throat');
+    } else if ((mm = a.name.match(/^phase(\d)$/))) {
+      // electric: three phase cables, motor -> controller
+      const i = +mm[1];
+      exact(a.a1, M.ports.escPhase[i], a.name + ' ends ON its controller port');
+      near(a.a0, findPart(M, M.resolved.place.eStyle ? 'termBox' : 'stator', 0),
+           a.name + ' leaves the motor');
+      near(a.a1, findPart(M, 'esc', 0), a.name + ' reaches the controller');
+    } else if ((mm = a.name.match(/^dc(\d)$/))) {
+      // electric: the DC pair, controller -> firewall grommet
+      const i = +mm[1];
+      exact(a.a1, M.ports.dcFw[i], a.name + ' ends ON its grommet');
+      near(a.a0, findPart(M, 'esc', 0), a.name + ' leaves the controller');
+      near(a.a1, findPart(M, 'firewall', 0), a.name + ' reaches the firewall');
+    } else if ((mm = a.name.match(/^coolant(\d)$/))) {
+      // electric liquid: jacket boss -> plate edge (the airframe's cooler
+      // lives beyond it — rough pass, declared in the builder)
+      const i = +mm[1];
+      exact(a.a1, M.ports.coolFw[i], a.name + ' ends ON its plate point');
+      near(a.a0, findPart(M, i ? 'coolBossB' : 'coolBossA', 0),
+           a.name + ' leaves its jacket boss');
+      near(a.a1, findPart(M, 'firewall', 0), a.name + ' reaches the firewall');
     }
   }
   // 4b — architecture consequences: the flags must actually change the parts
   const hasPart = re => M.parts.some(p => re.test(p.name));
-  if (M.P.liquid) {
-    hard(C.name + ': liquid has NO fins', !hasPart(/^fins|^headFins/));
+  if (M.P.liquid && M.resolved.arch !== 'electric') {
+    // LIQUID COOLS THE HEADS, NOT THE BARRELS (G25.1 user ruling — the
+    // 912's own architecture): barrel fins stay, head fins yield
+    hard(C.name + ': liquid keeps its barrel fins',
+         !M.P.baseFins || hasPart(/^fins\d/));
+    hard(C.name + ': liquid has NO head fins', !hasPart(/^headFins/));
     hard(C.name + ': liquid has a radiator', hasPart(/^radiator$/));
     hard(C.name + ': one hose per bank (the rail scheme)',
          M.arteries.filter(a => /^coolant[LR]$/.test(a.name)).length ===
          (M.resolved.arch === 'inline' ? 1 : 2));
+    if (M.P.fwOn) {
+      hard(C.name + ': liquid has its coolant bottle', hasPart(/^coolBottle$/));
+      hard(C.name + ': the overflow hose is routed',
+           M.arteries.some(a => a.name === 'overflow'));
+    }
+  }
+  // TWIN CONE FILTERS (G25.1): the 912 induction replaces the canister
+  {
+    const twinOn = M.P.airStyle === 1 && !M.P.injected && !M.P.twoStroke &&
+      M.resolved.arch === 'flat' && M.P.carbOn;
+    if (twinOn) {
+      hard(C.name + ': twin carbs, one per bank',
+           hasPart(/^twinCarbL$/) && hasPart(/^twinCarbR$/));
+      hard(C.name + ': a cone filter per carb',
+           hasPart(/^coneFilterL$/) && hasPart(/^coneFilterR$/));
+      hard(C.name + ': no canister airbox with twin cones', !hasPart(/^air$/));
+    }
+  }
+  // BAY FURNITURE (G25.1): the flags must produce their parts
+  if (M.resolved.arch !== 'electric') {
+    if (M.P.starter) hard(C.name + ': starter present', hasPart(/^starter$/));
+    if (M.P.oilFilter && !M.P.twoStroke)
+      hard(C.name + ': spin-on oil filter present', hasPart(/^oilFilter$/));
+    if (M.P.battOn && M.P.fwOn)
+      hard(C.name + ': battery on the plate', hasPart(/^battBox$/));
+    if (M.P.ecuOn && M.P.fwOn)
+      hard(C.name + ': ECU on the plate', hasPart(/^ecu$/));
+  }
+  if (M.resolved.arch === 'electric') {
+    // the electric consequences: a liquid can runs smooth and grows its
+    // jacket loop; an air can wears its style's dress
+    if (M.P.liquid) {
+      hard(C.name + ': liquid electric has no ribs/fins',
+           !hasPart(/^ribs$|^canFins$/));
+      if (M.P.fwOn)
+        hard(C.name + ': liquid electric has two hoses',
+             M.arteries.filter(a => /^coolant\d$/.test(a.name)).length === 2);
+    }
+    if (M.P.leads && (M.P.escOn === undefined || M.P.escOn))
+      hard(C.name + ': three phase cables',
+           M.arteries.filter(a => /^phase\d$/.test(a.name)).length === 3);
+    if (!M.resolved.place.eStyle)
+      hard(C.name + ': the outrunner shows its copper (open face)',
+           hasPart(/^windings$/) && hasPart(/^windBars$/) &&
+           hasPart(/^canFace$/));
+    if (M.P.plumb && M.P.fwOn && (M.P.escOn === undefined || M.P.escOn))
+      hard(C.name + ': a DC pair',
+           M.arteries.filter(a => /^dc\d$/.test(a.name)).length === 2);
+    hard(C.name + ': no combustion parts on an electric',
+         !hasPart(/^barrel|^head|^rocker|^carb|^mag|^sump$|^collector/));
   }
   if (M.P.twoStroke) {
     hard(C.name + ': two-stroke has no pushrods', !hasPart(/^rod\d/));
@@ -369,14 +490,69 @@ for (const C of CASES) {
   }
   // G24.2 — NO CLIPS: every vertex of every routed cable is outside the
   // case field. Tested on the EMITTED verts (ring surfaces, not
-  // centrelines), so the sweep radius is covered too.
+  // centrelines), so the sweep radius is covered too. The electric wiring
+  // (phase, DC) is held to the same rule against the can's own field.
   for (const p of M.parts) {
-    if (!/^lead[TB]\d+$|^injLine\d+$/.test(p.name)) continue;
+    if (!/^lead[TB]\d+$|^injLine\d+$|^phase\d$|^dc\d$/.test(p.name)) continue;
     let worst = 1e9;
     for (let i = p.v0; i < p.v1; i++)
       worst = Math.min(worst, caseSDF(M, M.V[i]));
     hard(C.name + ': ' + p.name + ' clears the case (no clip)',
          worst > -1e-4 * cR, 'worst ' + f(worst / cR, 3) + 'cR');
+  }
+  // G25.2 — THE CYLINDERS ARE METAL TOO (user report: twin runners went
+  // straight through them). The check recomputes each cylinder's capsule
+  // from the RESOLVE numbers — its own ruler, at 0.94x where the builder
+  // routes at 1.06x — and every emitted vertex of every routed line must
+  // clear every capsule except its OWN target's (parsed from the name:
+  // leadT2 lands on cylinder 2's plug, intake1 in head 1's port).
+  if (M.resolved.arch !== 'electric' && R.cyl) {
+    const b2 = R.P.bore;
+    const rows2 = R.arch === 'radial'
+      ? Math.min(2, Math.max(1, Math.round(M.P.radialRows || 1))) : 1;
+    const perRow2 = R.arch === 'radial' ? Math.ceil(R.cyl / rows2) : 0;
+    const caps = [];
+    for (let i = 0; i < R.cyl; i++) {
+      let a2, z2;
+      if (R.arch === 'radial') {
+        const row = i % rows2, idx = Math.floor(i / rows2);
+        a2 = (idx + row * 0.5) * 2 * Math.PI / perRow2;
+        z2 = R.place.zOf(0) - row * 1.45 * b2;
+      } else if (R.arch === 'inline') {
+        a2 = Math.PI / 2; z2 = R.place.zOf(R.place.stn[i]);
+      } else {
+        a2 = R.place.ang[i];
+        z2 = R.place.zOf(R.place.stn[i]) +
+          (Math.sin(a2) >= 0 ? 1 : -1) * 0.5 * (M.P.stagger || 0) * b2;
+      }
+      caps.push({ i, d: [Math.sin(a2), Math.cos(a2), 0], z: z2 });
+    }
+    const capR = 0.94 * b2 *
+      Math.max(R.P.finR / 2, R.place.headR / b2, 0.62);
+    const t0c = 1.00 * cR, t1c = R.place.rTip + 0.05 * b2;
+    const cylSDF = (pt, except) => {
+      let best = 1e9;
+      for (const cf of caps) {
+        if (cf.i === except) continue;
+        const rel = [pt[0], pt[1], pt[2] - cf.z];
+        const t = Math.max(t0c, Math.min(t1c,
+          rel[0] * cf.d[0] + rel[1] * cf.d[1] + rel[2] * cf.d[2]));
+        const e = [pt[0] - cf.d[0] * t, pt[1] - cf.d[1] * t, pt[2] - cf.z];
+        best = Math.min(best, Math.hypot(e[0], e[1], e[2]) - capR);
+      }
+      return best;
+    };
+    for (const p of M.parts) {
+      const mm2 = p.name.match(
+        /^(leadT|leadB|injLine|intake|exhaust)(\d+)$|^(fuel|throttle|overflow|airHorn|coolant[LR]|coolantRet)$/);
+      if (!mm2) continue;
+      const except = mm2[2] !== undefined ? +mm2[2] : -1;
+      let worst = 1e9;
+      for (let i = p.v0; i < p.v1; i++)
+        worst = Math.min(worst, cylSDF(M.V[i], except));
+      hard(C.name + ': ' + p.name + ' clears the cylinders (no clip)',
+           worst > -1e-4 * cR, 'worst ' + f(worst / cR, 3) + 'cR');
+    }
   }
   // G24.4 — the STRAIGHT mount tubes clear the two-tier acc body too. The
   // first 0.40*cR aft of the case tail is the shock-stack joint and exempt.
@@ -392,6 +568,104 @@ for (const C of CASES) {
       hard(C.name + ': ' + p.name + ' clears the acc body (straight)',
            worst > -1e-4 * cR, 'worst ' + f(worst / cR, 3) + 'cR');
     }
+  }
+  // G25.3 — NO KISSING FACES: the moiré assert. Two finite faces from
+  // different parts lying in ONE plane with real in-plane overlap
+  // z-fight on screen (the user saw it twice: the outrunner's capped
+  // face under its spokes, then the washers on the flange disc). The
+  // rule is "a part standing on another starts INSIDE it", and this
+  // measures it: canonical plane bucketing (normal + SIGNED offset — a
+  // mirror pair at +x/-x is not one plane), tolerance 0.0015*caseR, real
+  // projected overlap in both tangent axes, sliver faces ignored.
+  // Fin-stack pairs are exempt: G24.5's neighbour clip planes kiss BY
+  // DESIGN. Zero pairs is the assert, on every case.
+  {
+    const recs = [];
+    const kindOf = {};
+    for (const p of M.parts) kindOf[p.name] = p.kind;
+    for (const p of M.parts)
+      for (let fi = p.f0; fi < p.f1; fi++) {
+        const q = M.F[fi].v;
+        const a = M.V[q[0]], b3 = M.V[q[1]], c3 = M.V[q[2]], d3 = M.V[q[3]];
+        const u = [b3[0]-a[0], b3[1]-a[1], b3[2]-a[2]];
+        const w = [c3[0]-a[0], c3[1]-a[1], c3[2]-a[2]];
+        let n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+        const l = Math.hypot(n[0], n[1], n[2]);
+        if (l < 1e-14) continue;
+        n = [n[0]/l, n[1]/l, n[2]/l];
+        const pts = [a, b3, c3, d3];
+        recs.push({ part: p.name, n,
+          off: n[0]*a[0] + n[1]*a[1] + n[2]*a[2],
+          lo: [0,1,2].map(k => Math.min(...pts.map(p2 => p2[k]))),
+          hi: [0,1,2].map(k => Math.max(...pts.map(p2 => p2[k]))),
+          area: l / 2 });
+      }
+    const tol = 0.0015 * cR, minA = Math.pow(0.03 * cR, 2), shr = 0.004 * cR;
+    const buckets = new Map();
+    for (const r2 of recs) {
+      let n = r2.n, off = r2.off;
+      if (n[2] < -1e-6 || (Math.abs(n[2]) < 1e-6 && (n[1] < -1e-6 ||
+          (Math.abs(n[1]) < 1e-6 && n[0] < 0)))) {
+        n = [-n[0], -n[1], -n[2]]; off = -off;
+      }
+      const key = Math.round(n[0]*50) + ',' + Math.round(n[1]*50) + ',' +
+                  Math.round(n[2]*50);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(Object.assign({}, r2, { cOff: off }));
+    }
+    const flagged = new Set();
+    for (const arr of buckets.values()) {
+      if (arr.length < 2) continue;
+      arr.sort((x, y) => x.cOff - y.cOff);
+      for (let i = 0; i < arr.length; i++)
+        for (let j = i + 1; j < arr.length; j++) {
+          const A = arr[i], B = arr[j];
+          if (B.cOff - A.cOff > tol) break;
+          if (A.part === B.part) continue;
+          if (kindOf[A.part] === 'fins' && kindOf[B.part] === 'fins') continue;
+          // a lead may lie ON its own cylinder — the routing field exempts
+          // it, so a tangent facet of lead i on cylinder i's metal is
+          // contact, not a defect (two LEADS coplanar still flags)
+          {
+            const li = A.part.match(/^lead[TB](\d+)$/) ||
+                       B.part.match(/^lead[TB](\d+)$/);
+            if (li) {
+              const other = /^lead[TB]\d+$/.test(A.part) ? B.part : A.part;
+              if (new RegExp('^(barrel|fins|head|headFins)' + li[1] + '$')
+                  .test(other)) continue;
+            }
+          }
+          if (Math.min(A.area, B.area) < minA) continue;
+          const dp = Math.abs(A.n[0]*B.n[0] + A.n[1]*B.n[1] + A.n[2]*B.n[2]);
+          if (dp < 0.9995) continue;
+          const n = A.n;
+          const ref = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+          let u = [n[1]*ref[2]-n[2]*ref[1], n[2]*ref[0]-n[0]*ref[2],
+                   n[0]*ref[1]-n[1]*ref[0]];
+          const ul = Math.hypot(u[0], u[1], u[2]);
+          u = [u[0]/ul, u[1]/ul, u[2]/ul];
+          const w = [n[1]*u[2]-n[2]*u[1], n[2]*u[0]-n[0]*u[2],
+                     n[0]*u[1]-n[1]*u[0]];
+          const proj = (r3, ax) => {
+            let mn = 1e9, mx = -1e9;
+            for (const cx of [r3.lo[0], r3.hi[0]])
+              for (const cy of [r3.lo[1], r3.hi[1]])
+                for (const cz of [r3.lo[2], r3.hi[2]]) {
+                  const t2 = ax[0]*cx + ax[1]*cy + ax[2]*cz;
+                  if (t2 < mn) mn = t2; if (t2 > mx) mx = t2;
+                }
+            return [mn, mx];
+          };
+          let ov = true;
+          for (const ax of [u, w]) {
+            const [a0, a1] = proj(A, ax), [b0, b1] = proj(B, ax);
+            if (Math.min(a1, b1) - Math.max(a0, b0) < shr) ov = false;
+          }
+          if (ov) flagged.add([A.part, B.part].sort().join(' | '));
+        }
+    }
+    hard(C.name + ': no kissing faces (coplanar overlap = moire)',
+         flagged.size === 0, [...flagged].slice(0, 4).join(', '));
   }
   if (P.leads && P.mags) {
     hard(C.name + ': one top lead per cylinder', nLeadT === R.cyl, nLeadT);
@@ -460,12 +734,34 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
   hard('deterministic', same);
 }
 
+// ---- 5b: scale invariance, electric ---------------------------------------
+// the electric registry span is 28 mm to 420 mm of can — the same rule,
+// its own proof (fwOn: 0, the declared aircraft-side exception, as above)
+{
+  const S = 2;
+  const E1 = engMeshBuild({ arch: 'electric', fwOn: 0 });
+  const E2 = engMeshBuild({ arch: 'electric', fwOn: 0,
+    canD: 0.0278 * S, canL: 0.026 * S, fwW: 0.80 * S, fwH: 0.70 * S });
+  hard('electric scale: same counts',
+       E1.V.length === E2.V.length && E1.F.length === E2.F.length,
+       E1.V.length + ' vs ' + E2.V.length);
+  let worstE = 0;
+  if (E1.V.length === E2.V.length)
+    for (let i = 0; i < E1.V.length; i++)
+      for (let k = 0; k < 3; k++)
+        worstE = Math.max(worstE, Math.abs(E2.V[i][k] - S * E1.V[i][k]));
+  hard('electric scale: coordinates exactly 2x', worstE < 1e-9,
+       'worst ' + worstE.toExponential(2));
+}
+
 // dressed families: flat, inline (coerced two-stroke), radial (coerced
-// four-stroke, air) — only genuinely undressed layouts refuse
+// four-stroke, air), electric (G25) — only genuinely undressed layouts refuse
 {
   let threw = false;
   try { engMeshBuild({ arch: 'vee' }); } catch (e) { threw = true; }
   hard('a vee refuses loudly', threw);
+  hard('an electric builds (G25)',
+       engMeshBuild({ arch: 'electric' }).stats.quads > 0);
   hard('an inline is coerced to two-stroke',
        engMeshBuild({ arch: 'inline', cyl: 2 }).P.twoStroke === 1);
   hard('a radial is coerced to air-cooled four-stroke', (() => {

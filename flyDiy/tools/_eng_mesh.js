@@ -32,11 +32,10 @@
 // the same engine at 2x every length input and asserts the mesh scales
 // exactly; that assertion is what keeps this rule honest.
 //
-// SCOPE (first chantier): the FLAT family, dressed — which is six of the ten
-// registry rows and the calibration anchor (A-65). Radial, two-stroke, the
-// 912's gearbox/radiator and the electric outrunner are later chantiers; the
-// parts library and the routing-table design are what they will reuse.
-// engMeshBuild throws on any other architecture rather than half-drawing it.
+// SCOPE: every registry family is dressed — flat (G24), inline two-stroke
+// (G24.12/14), radial (G24.15) and ELECTRIC (G25: outrunner, axial pancake,
+// housed inrunner — its own branch on the shared primitives, mount and
+// plate). Only the vee still refuses, loudly, rather than half-drawing.
 //
 // The mesh is an ASSEMBLY OF PARTS THAT INTERSECT, hidden by flanges and
 // bosses at the joints — the gear and crew precedent. No booleans, no welded
@@ -102,9 +101,17 @@ const EM = (() => {
     injected: 0,       // induction: 0 = carburettor, 1 = fuel injection —
                        // EXCLUSIVE (G24.13): injection replaces the float
                        // bowl with a servo body + spider, never both
+    airStyle: 0,       // air filtration: 0 = canister airbox under the sump,
+                       // 1 = TWIN CONE FILTERS on twin top carbs (the 912
+                       // look, G25.1) — flat four-stroke carb engines only
     finShape: 0,       // barrel fins: 0 = discs, 1 = square plates (912)
     rockerSpan: 0,     // 1 = ONE cover per bank (the VW conversion look)
     plumb: 1,          // fuel line + throttle cable, firewall -> carb
+                       // (electric: the DC pair, controller -> firewall;
+                       // `leads` there gates the three phase cables — the
+                       // LOD recipes drop electric wiring for free)
+    eFins: 0,          // electric dress count (vent spokes / ribs / fins);
+                       // 0 = the governor picks from the circumference
     // RADIATOR (liquid only), position + size in caseR units (G24.9):
     radX: 0,           // lateral offset
     radY: 0.55,        // gap above the case top
@@ -113,6 +120,15 @@ const EM = (() => {
     radH: 0.75,        // core height
     radD: 0.42,        // core depth
     radialRows: 2,     // a radial's cylinders split into 1 or 2 rows
+    // ENGINE-BAY FURNITURE (G25.1, from the user's what-is-missing list):
+    starter: 1,        // starter motor on the accessory backplate
+    oilFilter: 1,      // spin-on oil filter canister (four-stroke only)
+    battOn: 1,         // battery box on the firewall plate
+    ecuOn: 0,          // modern ECU box on the plate (default: mags rule)
+    // SERVICE-LINE ENTRY OFFSETS (G25.1): move where fuel and throttle
+    // leave the plate, as fractions of the half-plate — the user's no-clip
+    // lever; the lines are also field-cleared now
+    fuelX: 0, fuelY: 0, thrX: 0, thrY: 0,
     mount: 1,          // conical tube mount + rubber shock stacks
     mountX: 1,         // diagonal brace tubes in the side planes
     mountGap: 0.85,    // firewall stand-off behind the engine, / caseR
@@ -141,6 +157,8 @@ const EM = (() => {
     spider: 'emSpider', flange: 'emFlange', mount: 'emMount',
     puck: 'emPuck', firewall: 'emFirewall', mark: 'emMark',
     fuel: 'emFuel', throttle: 'emThrottle',
+    esc: 'emEsc', phase: 'emPhase', bottle: 'emBottle',
+    copper: 'emCopper',
   };
 
   // ---- tiny vector kit ----------------------------------------------------
@@ -174,9 +192,12 @@ const EM = (() => {
     if (archAsk === 'inline') spec.twoStroke = 1;
     if (archAsk === 'radial') { spec.twoStroke = 0; spec.liquid = 0; }
     const R = EG.engResolve(spec);
-    if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial')
+    if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial' &&
+        R.arch !== 'electric')
       throw new Error('engMeshBuild: dressed families are flat, inline ' +
-                      '(two-stroke) and radial (got "' + R.arch + '")');
+                      '(two-stroke), radial and electric (got "' +
+                      R.arch + '")');
+    const elec = R.arch === 'electric';
     const inline = R.arch === 'inline';
     const radial = R.arch === 'radial';
     const P = Object.assign({}, ENGM_DEFAULT, R.P);   // R.P carries ride-through keys
@@ -214,6 +235,11 @@ const EM = (() => {
     //   circuit's anchors.
     const inj = !!P.injected && !P.twoStroke;
     const below = !!P.liquid && P.radY < 0;
+    // A RADIAL BREATHES THROUGH ITS REAR SPIDER (G25.2 — the R-1830
+    // preset always said so; the cylinder no-clip net proved the generic
+    // radial's under-slung carb + horn sat INSIDE the 6-o'clock cylinder,
+    // so the ruling is coerced now, like the other arch compat rules)
+    if (radial) { P.carbOn = 0; P.airbox = 0; }
 
     // ---- mesh + part bookkeeping ------------------------------------------
     const V = [], F = [], parts = [];
@@ -566,10 +592,13 @@ const EM = (() => {
     };
     // a WASHER + HEX HEAD — what reads as "bolted" at arm's length. Two
     // pieces (they do not share verts), so a part of N bolts declares 2N.
+    // The washer's base starts INSIDE the host (G25.3: faces never kiss —
+    // a base disc coplanar with the face it sits on z-fights, and every
+    // bolt set in the bench was doing it).
     const bolt = (pos, dir, rb, m) => {
       const { u, w } = frameOf(dir);
       lathe(pos, dir, { u, w }, [
-        { t: 0, r: 1.7 * rb }, { t: 0.35 * rb, r: 1.7 * rb },
+        { t: -0.15 * rb, r: 1.7 * rb }, { t: 0.35 * rb, r: 1.7 * rb },
       ], m, true, true, S.detail);
       const hex = [];
       for (let k = 0; k < 6; k++) {
@@ -684,10 +713,533 @@ const EM = (() => {
       ], ENGM_MAT.plug, false, true, S.detail);
     };
 
+    const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+
+    // =======================================================================
+    // MOUNT + FIREWALL, SHARED (G25) — one holder for every powertrain.
+    // The truss (four straight tubes lug -> plate point, shock stacks on
+    // the engine side, bolted pads + cones on the plate side) and the
+    // plate with its metre strip were combustion-inline until the electric
+    // arrived and wanted the SAME hardware: a pancake or a housed motor
+    // bolts exactly like a flat four, and the RC outrunner passes
+    // pucks: 0 because a park flyer stands on plain standoffs, not
+    // dynafocal rubber. Ports (lugs, fwPts) and the mountTube artery
+    // names are one contract either way, so the check's fitment rules
+    // hold both powertrains to the same standard. `artery` is passed in:
+    // each powertrain keeps its own routing ledger.
+    // =======================================================================
+    const fwPlateAt = zFw => {
+      const fwT = Math.max(0.008, 0.06 * cR);
+      part('firewall');
+      prism([0, 0, 0], Z, X, Y,
+            roundRect(P.fwW, P.fwH, 0.08 * Math.min(P.fwW, P.fwH)),
+            zFw - fwT, zFw, ENGM_MAT.firewall, true, true, 0.45 * fwT);
+      if (P.ruler) {
+        // THE METRE STRIP (G24.4): 0.1 m ticks, taller at each half metre,
+        // on a baseline near the plate's foot. Deliberately metric — the
+        // plate is the aircraft-side datum, and this is its scale.
+        const half = Math.floor(0.42 * P.fwW / 0.1) * 0.1;
+        const nT = Math.round(2 * half / 0.1) + 1;
+        const y0 = -0.32 * P.fwH;
+        part('ruler', 'box', nT + 1);
+        // bases sunk into the plate (G25.3: faces never kiss)
+        prism([0, y0, 0], Z, X, Y,
+              [[-half - 0.012, -0.004], [half + 0.012, -0.004],
+               [half + 0.012, 0.004], [-half - 0.012, 0.004]],
+              zFw - 0.004, zFw + 0.006, ENGM_MAT.mark, true, true);
+        for (let i = 0; i < nT; i++) {
+          const x = -half + i * 0.1;
+          const major = Math.abs(x / 0.5 - Math.round(x / 0.5)) < 1e-6;
+          prism([x, y0 + 0.004, 0], Z, X, Y,
+                [[-0.0045, 0], [0.0045, 0],
+                 [0.0045, major ? 0.052 : 0.028],
+                 [-0.0045, major ? 0.052 : 0.028]],
+                zFw - 0.004, zFw + 0.012, ENGM_MAT.mark, true, true);
+        }
+      }
+    };
+    const mountTruss = (lugC, lugs, fwPts, zFw, artery, opts) => {
+      opts = opts || {};
+      const tubeR = (opts.tubeR || 0.075) * cR;
+      for (let k = 0; k < 4; k++) {
+        part('mountTube' + k, 'tube');
+        // the tube runs INTO the plate (its end cap sat exactly on the
+        // plate plane, G25.3); declared ends stay on the ports
+        const dT = nrm(sub(fwPts[k], lugs[k]));
+        sweep(resample([lugs[k], mad(fwPts[k], dT, 0.03 * cR)]), tubeR,
+              ENGM_MAT.mount, { capA: true, capB: true, sides: S.detail });
+        artery('mountTube' + k, 'lug' + k, 'fw' + k,
+               { a0: lugs[k], a1: fwPts[k] });
+      }
+      if (P.mountX && opts.diag !== 0) {
+        // side-plane diagonals — STRAIGHT (user ruling: no curved tubing).
+        // They start on the shock stack's aft face like the main tubes, so
+        // the small acc body and the stand-off are what make straight work.
+        for (const [a, c] of [[0, 2], [2, 0], [1, 3], [3, 1]]) {
+          part('mountDiag', 'tube');
+          sweep(resample([lugs[a], fwPts[c]]), tubeR * 0.8, ENGM_MAT.mount,
+                { capA: true, capB: true, sides: S.detail });
+        }
+      }
+      if (opts.pucks !== 0) {
+        // ENGINE-SIDE (G24.4 rework): a machined boss on the aft face and a
+        // rubber puck, both ALONG THE CRANK AXIS — the stack stands the
+        // tube off the body, which is what lets it run straight.
+        for (let k = 0; k < 4; k++) {
+          part('lugBoss' + k);
+          lathe(lugC[k], [0, 0, -1], { u: X, w: Y }, [
+            { t: -0.035 * cR, r: 0.16 * cR }, { t: 0.10 * cR, r: 0.13 * cR },
+          ], ENGM_MAT.flange, true, true, S.detail);
+          part('puck' + k, 'tube');
+          lathe([lugC[k][0], lugC[k][1], lugC[k][2] - 0.10 * cR], [0, 0, -1],
+                { u: X, w: Y }, [
+            { t: -0.02 * cR, r: 0.15 * cR }, { t: 0.22 * cR, r: 0.15 * cR },
+          ], ENGM_MAT.puck, true, true, S.detail);
+        }
+      }
+      if (P.fwOn) {
+        for (let k = 0; k < 4; k++) {
+          const d = nrm(sub(fwPts[k], lugs[k]));
+          part('fwPad' + k);
+          prism([fwPts[k][0], fwPts[k][1], 0], Z, X, Y,
+                roundRect(0.36 * cR, 0.36 * cR, 0.09 * cR),
+                zFw - 0.012 * cR, zFw + 0.05 * cR, ENGM_MAT.flange,
+                true, true, 0.015 * cR);
+          part('fwCone' + k, 'tube');
+          lathe(fwPts[k], mul(d, -1), frameOf(d), [
+            { t: -0.02 * cR, r: 0.14 * cR }, { t: 0.15 * cR, r: 0.085 * cR },
+          ], ENGM_MAT.mount, true, false, S.detail);
+          if (P.screws) {
+            part('fwPadBolt' + k, 'solid', 8);
+            for (const [px, py] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
+              bolt([fwPts[k][0] + px * 0.12 * cR, fwPts[k][1] + py * 0.12 * cR,
+                    zFw + 0.05 * cR], Z, 0.026 * cR, ENGM_MAT.flange);
+          }
+        }
+      }
+    };
+    // the firewall points follow the lug pattern, clamped onto the plate —
+    // the combustion rule, shared verbatim
+    const fwPtsOf = (lugC, zFw) => lugC.map(p => [
+      Math.sign(p[0]) * Math.min(Math.abs(p[0]) * P.fwSpread, 0.42 * P.fwW / 2),
+      Math.sign(p[1]) * Math.min(Math.abs(p[1]) * P.fwSpread, 0.42 * P.fwH / 2),
+      zFw]);
+
+    // =======================================================================
+    // THE ELECTRIC (G25) — its own short branch, because the user's instinct
+    // was right: it shares almost nothing with a piston engine ABOVE the
+    // primitives, and everything BELOW them. The lathe, the prism, the
+    // artery, the governor, the mount truss and the plate all serve
+    // unchanged; what is new is a small parts library (can, controller,
+    // cables) and a routing table per style.
+    //
+    // THREE STYLES, resolve's own ELEC_STYLE riding through (place.eStyle):
+    //   0 OUTRUNNER — rotating vented bell, aft stator base, X mount
+    //     bolted to the plate on plain standoffs, heat-shrink ESC slung
+    //     under the standoff bay, three thin motor wires, DC pair aft.
+    //   1 AXIAL PANCAKE — EMRAX look: short drum, axial cooling ribs
+    //     round the rim, resolver bump, terminal box on the aft face,
+    //     truss mount, finned inverter ON the plate, three fat phase
+    //     cables, DC pair.
+    //   2 HOUSED INRUNNER — certified look: long smooth housing with
+    //     circumferential fins (a liquid one runs smooth: no fins, two
+    //     jacket bosses and hoses aft), front mounting ring, resolver,
+    //     truss, plate inverter, phase + DC.
+    //
+    // ROUGH FIRST PASS, declared: no bullet-connector bulges on the RC
+    // wires, no cooling-plate detail on the inverters, the liquid loop
+    // ends at the plate (the airframe's radiator is the energy module's
+    // side of the firewall). Every dimension is a ratio of canR/canL;
+    // `leads` gates the phase cables and `plumb` the DC pair, so the LOD
+    // recipes shed electric wiring exactly as they shed plug leads.
+    // =======================================================================
+    if (elec) {
+      const canL = L.canL, s = L.eStyle;
+      const zCF = L.zCanF, zCB = L.zCanB, zAft = L.zAft;
+      const flangeL = L.flangeL;
+      const ports = {};
+      const arteries = [];
+      const artery = (name, from, to, ends) =>
+        arteries.push(Object.assign({ name, from, to }, ends));
+      // dress count: vent spokes / ribs / fins from the circumference, so
+      // density stays the governor's call at every size
+      const nV = P.eFins > 0 ? Math.round(P.eFins)
+        : Math.max(6, Math.min(22, Math.round(2 * Math.PI * cR / (3.2 * EDGE))));
+
+      // ---- shaft + prop flange (all styles) -------------------------------
+      part('flange');
+      lathe([0, 0, 0], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.42 * cR }, { t: 0.16 * flangeL, r: 0.42 * cR },
+        { t: 0.16 * flangeL, r: 0.14 * cR }, { t: flangeL, r: 0.14 * cR },
+      ], ENGM_MAT.flange, true, false, S.shaft);
+      if (P.screws) {
+        part('flangeBolt', 'solid', 8);
+        for (let k = 0; k < 4; k++) {
+          const a2 = k / 4 * 2 * Math.PI;
+          bolt([Math.cos(a2) * 0.27 * cR, Math.sin(a2) * 0.27 * cR, 0],
+               [0, 0, 1], 0.05 * cR, ENGM_MAT.flange);
+        }
+      }
+      if (P.geared) {
+        // a reduction bell between flange and can — rare on electric and
+        // light when it exists, same as the resolve's mass reading. Its
+        // base starts INSIDE the can and its apex stops short of the
+        // flange disc's back (G25.6: the base disc sat exactly on the
+        // pancake's front face — the biggest kiss the detector ever found)
+        part('gearbox');
+        lathe([0, 0, zCF - 0.10 * canL], Z, { u: X, w: Y }, [
+          { t: 0, r: 0.78 * cR },
+          { t: 0.10 * canL + 0.55 * flangeL, r: 0.52 * cR },
+          { t: 0.10 * canL + 0.80 * flangeL, r: 0.24 * cR },
+        ], ENGM_MAT.acc, true, true, S.acc);
+      }
+
+      // ---- the can, per style ---------------------------------------------
+      if (s === 0) {
+        // OUTRUNNER, OPEN-FACED (G25.3, user review: the capped front disc
+        // z-fought the floating spokes, and a real outrunner is OPEN there
+        // — you see the copper through the slots). The front is a rim RING
+        // and a hub with genuinely open sectors between them, the spokes
+        // bridge ring to hub, and a recessed COPPER WINDINGS drum shows
+        // through the gaps. No booleans: openness is absence of geometry.
+        part('can');
+        lathe([0, 0, zCF], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.985 * cR }, { t: 0.05 * canL, r: 0.99 * cR },
+          { t: 0.90 * canL, r: cR }, { t: 0.94 * canL, r: 0.86 * cR },
+        ], ENGM_MAT.case, false, true, S.acc);
+        {
+          // the face RING: a washer with real thickness, sharing its rings
+          // outer radius steps INSIDE the can wall (0.965 vs 0.985) — the
+          // two cylinders were the same surface, the rim's own shimmer
+          const nF = sectOf(0.985 * cR, S.acc);
+          const zF2 = zCF - 0.045 * cR;
+          part('canFace');
+          const f0o = ring([0, 0, zCF], X, Y, 0.965 * cR, nF);
+          const f0i = ring([0, 0, zCF], X, Y, 0.80 * cR, nF);
+          const f1o = ring([0, 0, zF2], X, Y, 0.965 * cR, nF);
+          const f1i = ring([0, 0, zF2], X, Y, 0.80 * cR, nF);
+          band(f0i, f0o, ENGM_MAT.case);        // front annulus
+          band(f0o, f1o, ENGM_MAT.case);        // outer wall (in the can)
+          band(f1o, f1i, ENGM_MAT.case);        // back annulus
+          band(f1i, f0i, ENGM_MAT.case);        // inner wall — the slot edge
+        }
+        part('canHub');
+        lathe([0, 0, zCF + 0.012 * cR], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.30 * cR }, { t: 0.075 * cR, r: 0.34 * cR },
+        ], ENGM_MAT.case, true, true, S.acc);
+        // the spokes bridge hub to ring ACROSS the open sectors
+        part('canVents', 'fins', nV);
+        for (let k = 0; k < nV; k++) {
+          const a2 = k / nV * 2 * Math.PI;
+          const u2 = [Math.cos(a2), Math.sin(a2), 0];
+          const w2 = [-Math.sin(a2), Math.cos(a2), 0];
+          prism([0, 0, zCF], Z, u2, w2,
+                [[0.28 * cR, -0.030 * cR], [0.88 * cR, -0.030 * cR],
+                 [0.88 * cR, 0.030 * cR], [0.28 * cR, 0.030 * cR]],
+                -0.030 * cR, 0.045 * cR, ENGM_MAT.fin, true, true, 0.010 * cR);
+        }
+        // THE COPPER (G25.3): the windings drum, set back behind the open
+        // face, its bar texture riding the governor — what the slots show
+        const zW = zCF - 0.14 * canL;
+        part('windings');
+        lathe([0, 0, zW], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.82 * cR }, { t: 0.30 * canL, r: 0.82 * cR },
+        ], ENGM_MAT.copper, true, false, S.acc);
+        {
+          const nW = Math.max(12, Math.min(36, 2 * nV));
+          part('windBars', 'fins', nW);
+          for (let k = 0; k < nW; k++) {
+            const a2 = (k + 0.5) / nW * 2 * Math.PI;
+            const u2 = [Math.cos(a2), Math.sin(a2), 0];
+            const w2 = [-Math.sin(a2), Math.cos(a2), 0];
+            prism([0, 0, zW], Z, u2, w2,
+                  [[0.30 * cR, -0.022 * cR], [0.78 * cR, -0.022 * cR],
+                   [0.78 * cR, 0.022 * cR], [0.30 * cR, 0.022 * cR]],
+                  -0.018 * cR, 0.018 * cR, ENGM_MAT.copper, true, true);
+          }
+        }
+        // aft stator base: what the bell spins around, what the cross
+        // holds — its cap ends INSIDE the cross plate, not on its face
+        part('stator');
+        lathe([0, 0, zCB + 0.06 * canL], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.55 * cR },
+          { t: 0.06 * canL + (zCB - zAft) + 0.035 * cR, r: 0.55 * cR },
+        ], ENGM_MAT.acc, false, true, S.acc);
+        // and the copper peeking out between the aft lip and the stator
+        {
+          const nA = sectOf(0.80 * cR, S.acc);
+          part('windAft');
+          const a0 = ring([0, 0, zCB + 0.10 * canL], X, Y, 0.58 * cR, nA);
+          const a1 = ring([0, 0, zCB + 0.10 * canL], X, Y, 0.80 * cR, nA);
+          const a2 = ring([0, 0, zCB + 0.02 * canL], X, Y, 0.72 * cR, nA);
+          band(a0, a1, ENGM_MAT.copper);
+          band(a1, a2, ENGM_MAT.copper);
+        }
+      } else if (s === 1) {
+        // AXIAL PANCAKE: the EMRAX drum
+        part('can');
+        lathe([0, 0, zCF], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.93 * cR }, { t: 0.05 * canL, r: cR },
+          { t: 0.95 * canL, r: cR }, { t: canL, r: 0.90 * cR },
+        ], ENGM_MAT.case, true, true, S.acc);
+        if (!P.liquid) {
+          // axial cooling ribs around the rim
+          part('ribs', 'fins', nV);
+          for (let k = 0; k < nV; k++) {
+            const a2 = (k + 0.5) / nV * 2 * Math.PI;
+            const u2 = [Math.cos(a2), Math.sin(a2), 0];
+            const w2 = [-Math.sin(a2), Math.cos(a2), 0];
+            prism([u2[0] * 0.98 * cR, u2[1] * 0.98 * cR, 0], Z, u2, w2,
+                  [[0, -0.020 * cR], [0.09 * cR, -0.020 * cR],
+                   [0.09 * cR, 0.020 * cR], [0, 0.020 * cR]],
+                  zCF - 0.10 * canL, zCB + 0.10 * canL,
+                  ENGM_MAT.fin, true, true, 0.010 * cR);
+          }
+        }
+        if (P.screws) {
+          part('ringBolt', 'solid', 12);
+          for (let k = 0; k < 6; k++) {
+            const a2 = (k + 0.5) / 6 * 2 * Math.PI;
+            bolt([Math.cos(a2) * 0.66 * cR, Math.sin(a2) * 0.66 * cR, zCF],
+                 [0, 0, 1], 0.045 * cR, ENGM_MAT.flange);
+          }
+        }
+      } else {
+        // HOUSED INRUNNER: the certified housing, front mounting ring
+        part('can');
+        lathe([0, 0, zCF], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.80 * cR }, { t: 0.04 * canL, r: 0.97 * cR },
+          { t: 0.96 * canL, r: 0.97 * cR }, { t: canL, r: 0.78 * cR },
+        ], ENGM_MAT.case, true, true, S.acc);
+        part('mountRing');
+        // proud of the face; its back disc lands inside the can, never on
+        // the can's own front plane (G25.3)
+        lathe([0, 0, zCF + 0.02 * canL], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 1.12 * cR }, { t: 0.07 * canL, r: 1.12 * cR },
+        ], ENGM_MAT.flange, true, true, S.acc);
+        if (P.screws) {
+          part('ringBolt', 'solid', 16);
+          for (let k = 0; k < 8; k++) {
+            const a2 = (k + 0.5) / 8 * 2 * Math.PI;
+            bolt([Math.cos(a2) * 1.05 * cR, Math.sin(a2) * 1.05 * cR, zCF],
+                 [0, 0, 1], 0.040 * cR, ENGM_MAT.flange);
+          }
+        }
+        if (!P.liquid) {
+          // circumferential fins along the barrel — an air-cooled housing;
+          // a liquid one runs smooth and grows jacket bosses instead
+          part('canFins', 'fins', nV);
+          for (let k = 0; k < nV; k++) {
+            const zc = zCF - (0.16 + 0.68 * (k + 0.5) / nV) * canL;
+            const th = 0.68 * canL / nV * 0.16;
+            lathe([0, 0, zc], Z, { u: X, w: Y }, [
+              { t: -th, r: 0.965 * cR }, { t: -th, r: 1.07 * cR },
+              { t: th, r: 1.07 * cR }, { t: th, r: 0.965 * cR },
+            ], ENGM_MAT.fin, false, false, S.acc);
+          }
+        }
+      }
+      // resolver / encoder bump on the aft face (pancake + housed)
+      if (s !== 0) {
+        // both rooted INSIDE the aft face, never on its plane (G25.3)
+        part('resolver');
+        lathe([0, 0, zCB + 0.02 * canL], [0, 0, -1], { u: X, w: Y }, [
+          { t: 0, r: 0.16 * cR },
+          { t: (zCB - zAft) + 0.02 * canL, r: 0.14 * cR },
+        ], ENGM_MAT.acc, false, true, S.detail);
+        // terminal box on the aft face top — where the phase cables leave
+        part('termBox');
+        prism([0, 0.58 * cR, 0], Z, X, Y,
+              roundRect(0.56 * cR, 0.30 * cR, 0.07 * cR),
+              zCB + 0.03 * canL, zCB - 0.24 * cR, ENGM_MAT.acc,
+              true, true, 0.02 * cR);
+      }
+      // liquid jacket bosses — on the can flank (pancake/housed) or the
+      // STATOR base (outrunner: a rotating can cannot carry a jacket; the
+      // stator is what the water cools). G25.6 closes the gap where a
+      // liquid outrunner changed the physics but drew nothing. The boss
+      // tips are kept for the hoses, so both ends stay one formula.
+      let coolTip = null;
+      if (P.liquid) {
+        const bR = (s === 0 ? 0.50 : 0.90) * cR;
+        const zB0 = s === 0 ? 0.5 * (zCB + 0.06 * canL + zAft)
+                            : zCF - 0.5 * canL;
+        const zSp = s === 0 ? 0.25 * (zCB - zAft) : 0.20 * canL;
+        coolTip = [];
+        for (const [nm, sx2] of [['coolBossA', -1], ['coolBossB', 1]]) {
+          part(nm, 'tube');
+          const dir = nrm([sx2 * 0.643, 0.766, 0]);
+          const base = [dir[0] * bR, dir[1] * bR, zB0 + sx2 * zSp];
+          lathe(base, dir, frameOf(dir), [
+            { t: 0, r: 0.085 * cR }, { t: 0.26 * cR, r: 0.075 * cR },
+          ], ENGM_MAT.intake, false, true, S.detail);
+          coolTip.push(mad(base, dir, 0.26 * cR));
+        }
+      }
+
+      // ---- mount + plate --------------------------------------------------
+      const zFw = zAft - P.mountGap * cR;
+      let lugC, lugs;
+      if (s === 0) {
+        // the X mount: a cross plate on the stator's aft face, standoffs
+        // from its arm tips to the plate — no rubber on a park flyer
+        const wa = 0.16 * cR, la = 1.06 * cR, l2 = 0.92 * la;
+        if (P.mount) {
+          part('mountCross');
+          prism([0, 0, 0], Z, X, Y, polyShape(
+            [[la, wa], [wa, wa], [wa, la], [-wa, la], [-wa, wa], [-la, wa],
+             [-la, -wa], [-wa, -wa], [-wa, -la], [wa, -la], [wa, -wa],
+             [la, -wa]], 0.05 * cR),
+            zAft, zAft - 0.07 * cR, ENGM_MAT.mount, true, true, 0.02 * cR);
+        }
+        lugC = [[l2, 0, zAft - 0.07 * cR], [0, l2, zAft - 0.07 * cR],
+                [-l2, 0, zAft - 0.07 * cR], [0, -l2, zAft - 0.07 * cR]];
+        lugs = lugC.slice();
+      } else {
+        // the truss, exactly the combustion pattern — but the lugs bolt
+        // the CAN'S AFT FACE, at a radius the face actually has (G25.5,
+        // user: a visible air gap stood between silentblock and body —
+        // the first cut hung the lugs at zAft, the resolver's depth,
+        // where there is no metal at their radius). The aft disc reaches
+        // 0.90cR on a pancake and 0.78cR on a housed motor; the boss
+        // (r 0.16cR) lands fully on it either way.
+        const aftR = (s === 1 ? 0.90 : 0.78) * cR;
+        const rL = (aftR - 0.20 * cR) / Math.SQRT2;
+        lugC = [[-rL, rL, zCB], [rL, rL, zCB],
+                [-rL, -rL, zCB], [rL, -rL, zCB]];
+        lugs = lugC.map(p => [p[0], p[1], zCB - 0.26 * cR]);
+      }
+      const fwPts = fwPtsOf(lugC, zFw);
+      if (P.mount)
+        mountTruss(lugC, lugs, fwPts, zFw, artery,
+                   s === 0 ? { pucks: 0, diag: 0, tubeR: 0.05 } : {});
+      if (P.fwOn) fwPlateAt(zFw);
+
+      // ---- the controller and its wiring ----------------------------------
+      // style 0: an ESC brick slung under the standoff bay, strap round it.
+      // styles 1-2: a finned inverter box standing on the plate — airframe
+      // furniture, which is why the CG treats it as aft (resolve's note).
+      const escOn = P.escOn === undefined ? 1 : P.escOn;
+      let escPhase = [], escDC = [];
+      if (escOn) {
+        if (s === 0) {
+          const ec = [0, -1.15 * cR, (zAft + zFw) / 2];
+          part('esc');
+          prism([ec[0], ec[1], 0], Z, X, Y,
+                roundRect(1.0 * cR, 0.42 * cR, 0.12 * cR),
+                ec[2] + 0.28 * cR, ec[2] - 0.28 * cR,
+                ENGM_MAT.esc, true, true, 0.03 * cR);
+          part('escStrap', 'box');
+          prism([ec[0], ec[1], 0], Z, X, Y,
+                roundRect(1.06 * cR, 0.48 * cR, 0.13 * cR),
+                ec[2] + 0.06 * cR, ec[2] - 0.06 * cR,
+                ENGM_MAT.lead, true, true);
+          escPhase = [-1, 0, 1].map(i =>
+            [i * 0.26 * cR, ec[1] + 0.10 * cR, ec[2] + 0.28 * cR]);
+          escDC = [-1, 1].map(i =>
+            [i * 0.16 * cR, ec[1], ec[2] - 0.28 * cR]);
+        } else {
+          const ex = 1.55 * cR, ew = 1.5 * cR, eh = 1.1 * cR, ed = 0.38 * cR;
+          part('esc');
+          prism([ex, 0, 0], Z, X, Y, roundRect(ew, eh, 0.12 * cR),
+                zFw - 0.012 * cR, zFw + ed, ENGM_MAT.esc, true, true,
+                0.03 * cR);
+          part('escFins', 'fins', Math.max(4, Math.round(nV / 2)));
+          const nF = Math.max(4, Math.round(nV / 2));
+          for (let k = 0; k < nF; k++) {
+            const fx = ex + ((k + 0.5) / nF - 0.5) * 0.82 * ew;
+            prism([fx, 0, 0], Z, X, Y,
+                  [[-0.022 * cR, -0.40 * eh], [0.022 * cR, -0.40 * eh],
+                   [0.022 * cR, 0.40 * eh], [-0.022 * cR, 0.40 * eh]],
+                  zFw + ed - 0.012 * cR, zFw + ed + 0.09 * cR,
+                  ENGM_MAT.esc, true, true);
+          }
+          escPhase = [-1, 0, 1].map(i =>
+            [ex + i * 0.36 * cR, 0.30 * cR, zFw + ed]);
+          escDC = [-1, 1].map(i =>
+            [ex + i * 0.20 * cR, -0.42 * cR, zFw + ed]);
+        }
+      }
+      // motor-side phase ports: on the stator drum's surface (outrunner)
+      // or the terminal box's aft face (pancake/housed) — real metal, the
+      // fitment net holds both ends
+      const phase = s === 0
+        ? [-1, 0, 1].map(i => {
+            const a2 = Math.PI + i * 0.5;          // about the bottom
+            return [Math.sin(a2) * 0.55 * cR, Math.cos(a2) * 0.55 * cR,
+                    zCB + 0.06 * canL - 0.55 * (0.06 * canL + (zCB - zAft))];
+          })
+        : [-1, 0, 1].map(i => [i * 0.16 * cR, 0.58 * cR, zCB - 0.24 * cR]);
+      ports.phase = phase; ports.escPhase = escPhase;
+      ports.lugs = lugs; ports.fwPts = fwPts;
+      if (P.leads && escOn) {
+        for (let i = 0; i < 3; i++) {
+          part('phase' + i, 'tube');
+          const a0 = phase[i], a1 = escPhase[i];
+          const mid = [0.5 * (a0[0] + a1[0]),
+                       0.5 * (a0[1] + a1[1]) - (s === 0 ? 0.30 : 0.55) * cR,
+                       0.5 * (a0[2] + a1[2])];
+          // the pancake/housed cables leave a box on TOP of the can and
+          // drop aft-and-right to the plate inverter; they live wholly
+          // aft of the can, so no field is needed — by construction
+          if (s !== 0) { mid[0] += 0.55 * cR; mid[1] = Math.max(mid[1], -0.10 * cR); }
+          artery('phase' + i, s === 0 ? 'stator' : 'termBox', 'esc',
+            sweep(smooth([a0, mid, a1]),
+                  (s === 0 ? 0.035 : 0.055) * cR, ENGM_MAT.phase,
+                  { capA: true, capB: true, sides: S.detail }));
+        }
+      }
+      // the DC pair: controller -> firewall grommets (the battery lives
+      // beyond the plate, with the fuel — energy module territory)
+      if (P.plumb && P.fwOn && escOn) {
+        const dcFw = [-1, 1].map(i =>
+          s === 0 ? [i * 0.50 * cR, -1.50 * cR, zFw]
+                  : [1.55 * cR + i * 0.20 * cR, -0.95 * cR, zFw]);
+        ports.dcFw = dcFw;
+        part('grommet', 'solid', 2);
+        for (const g of dcFw)
+          lathe(g, Z, { u: X, w: Y }, [
+            { t: -0.015 * cR, r: 0.075 * cR }, { t: 0.035 * cR, r: 0.065 * cR },
+          ], ENGM_MAT.lead, true, true, S.detail);
+        for (let i = 0; i < 2; i++) {
+          part('dc' + i, 'tube');
+          const a0 = escDC[i], a1 = dcFw[i];
+          const mid = [0.5 * (a0[0] + a1[0]), 0.5 * (a0[1] + a1[1]) - 0.18 * cR,
+                       0.5 * (a0[2] + a1[2])];
+          artery('dc' + i, 'esc', 'firewall',
+            sweep(smooth([a0, mid, a1]), 0.045 * cR, ENGM_MAT.lead,
+                  { capA: true, capB: true, sides: S.detail }));
+        }
+      }
+      // liquid: hoses boss -> plate edge, bowed clear of the rim; the
+      // airframe's radiator is the other side of the plate (rough pass)
+      if (P.liquid && P.fwOn) {
+        const coolFw = [-1, 1].map(i => [i * 0.78 * cR, 0.60 * cR, zFw]);
+        ports.coolFw = coolFw;
+        for (let i = 0; i < 2; i++) {
+          const sx2 = i === 0 ? -1 : 1;
+          const dir = nrm([sx2 * 0.643, 0.766, 0]);
+          const a0 = coolTip[i];
+          part('coolant' + i, 'tube');
+          artery('coolant' + i, 'coolBoss', 'firewall',
+            sweep(smooth([a0,
+              [dir[0] * 1.30 * cR, dir[1] * 1.30 * cR, 0.5 * (a0[2] + zFw)],
+              coolFw[i]]), 0.055 * cR, ENGM_MAT.intake,
+              { capA: true, capB: true, sides: S.pipe }));
+        }
+      }
+
+      endParts();
+      let tris = 0;
+      for (const f of F) tris += new Set(f.v).size >= 4 ? 2 : 1;
+      return { V, F, parts, ports, arteries, resolved: R, P,
+               edgeTarget: EDGE,
+               stats: { verts: V.length, quads: F.length, tris } };
+    }
+
     // =======================================================================
     // LAYOUT — every port the routing table cites, computed once.
     // =======================================================================
-    const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
     const zFront = -R.P.flangeLen;
     const zBack = L.zAft + (R.P.accessories ? R.P.accLen : 0);
     const hasAcc = !!R.P.accessories;
@@ -790,11 +1342,15 @@ const EM = (() => {
     // stub of shaft still shows, and everything aft (acc tiers, mags,
     // lugs) keys off the extended tail.
     // coverage is MANDATORY (the pad assert); the shaft-stub preference
-    // yields when a big bore needs the room (IO-360, caught by the assert)
-    const zNose = Math.max(zFront,
-      Math.min(-0.02 * R.P.flangeLen,
+    // yields when a big bore needs the room (IO-360, caught by the assert).
+    // A geared FLAT engine holds its nose back a gearbox length (G25.1):
+    // resolve moved the crank aft, and the case must not creep forward
+    // into the room the conical gearbox now occupies.
+    const gearLen = L.gearLen || 0;
+    const zNose = Math.max(zFront - gearLen,
+      Math.min(-0.02 * R.P.flangeLen - gearLen,
                Math.max(Math.max(...cyls.map(c => c.z), -1e9) + 0.80 * b,
-                        -0.30 * R.P.flangeLen)));
+                        -0.30 * R.P.flangeLen - gearLen)));
     const zTail = Math.min(zBack,
       Math.min(...cyls.map(c => c.z), 1e9) - 0.80 * b);
 
@@ -831,6 +1387,21 @@ const EM = (() => {
     // the AABB test could not)
     carb.bowlIn = add(carb.pos, [0.44 * b, -0.48 * b, 0]);
     carb.arm = add(carb.pos, [-0.44 * b, 0.10 * b, 0]);
+    // TWIN TOP CARBS + CONE FILTERS (G25.1, the 912 review): the under-slung
+    // canister gives way to two carburettors riding the case top aft, each
+    // breathing through a conical filter — flat four-stroke carb engines
+    // only. The LEFT carb carries the services, so the fuel/throttle ports
+    // move to it and the side-of-destination rule below follows for free.
+    const twin = P.airStyle === 1 && !inj && !P.twoStroke &&
+                 !radial && !inline && P.carbOn;
+    const twinC = twin ? [-1, 1].map(sx2 => ({
+      sx: sx2,
+      pos: [sx2 * 0.52 * cR, cR + 0.55 * b, zTail + 0.14 * cR],
+    })) : null;
+    if (twin) {
+      carb.bowlIn = add(twinC[0].pos, [-0.42 * b, -0.30 * b, 0]);
+      carb.arm = add(twinC[0].pos, [-0.40 * b, 0.16 * b, 0]);
+    }
 
     // engine-side mount: boss + rubber puck stand the tube OFF the case
     // (0.32*cR of stack), so a STRAIGHT tube starts clear of the backplate
@@ -839,17 +1410,19 @@ const EM = (() => {
                   [-0.78 * cR, -0.62 * cR, zTail], [0.78 * cR, -0.62 * cR, zTail]];
     const lugs = lugC.map(p => [p[0], p[1], zTail - 0.26 * cR]);  // tube attach
     const zFw = L.zAft - P.mountGap * cR;
-    const fwT = Math.max(0.008, 0.06 * cR);
-    const fwPts = lugC.map(p => [
-      Math.sign(p[0]) * Math.min(Math.abs(p[0]) * P.fwSpread, 0.42 * P.fwW / 2),
-      Math.sign(p[1]) * Math.min(Math.abs(p[1]) * P.fwSpread, 0.42 * P.fwH / 2),
-      zFw]);
+    const fwPts = fwPtsOf(lugC, zFw);
     // each service leaves the firewall on the SIDE OF ITS DESTINATION —
-    // fuel right (the bowl inlet is right), throttle left (the arm is
-    // left). The first cut crossed both over the centreline, straight
-    // through the drooping exhaust stacks (G24.2).
-    const fuelFw = [0.36 * P.fwW * cR / 2, -0.30 * P.fwH * cR / 2, zFw];
-    const thrFw = [-0.36 * P.fwW * cR / 2, -0.30 * P.fwH * cR / 2, zFw];
+    // computed FROM the destination now (G25.1), so when the twin carbs
+    // move both services to the left carb, the entries follow. The first
+    // cut crossed the centreline through the drooping stacks (G24.2).
+    // fuelX/fuelY/thrX/thrY are the user's entry offsets (half-plate
+    // fractions) — the no-clip lever the review asked for.
+    const fuelFw = [Math.sign(carb.bowlIn[0] || 1) * 0.36 * P.fwW * cR / 2 +
+                    P.fuelX * P.fwW / 2,
+                    -0.30 * P.fwH * cR / 2 + P.fuelY * P.fwH / 2, zFw];
+    const thrFw = [Math.sign(carb.arm[0] || -1) * 0.36 * P.fwW * cR / 2 +
+                   P.thrX * P.fwW / 2,
+                   -0.30 * P.fwH * cR / 2 + P.thrY * P.fwH / 2, zFw];
 
     const ports = { magL: magL.pos, magR: magR.pos, carbIn: carb.bowlIn,
                     carbArm: carb.arm, fuelFw, thrFw, lugs, fwPts,
@@ -929,8 +1502,60 @@ const EM = (() => {
     const relax = pts => pts.map((p, i) => (i === 0 || i === pts.length - 1)
       ? p : [0, 1, 2].map(k =>
         0.25 * pts[i - 1][k] + 0.5 * p[k] + 0.25 * pts[i + 1][k]));
-    const routeClear = (path, m, fade) =>
-      clearCase(relax(clearCase(path, m, fade)), m, fade);
+    // THE CYLINDERS JOIN THE FIELD (G25.2, user report: the twin runners
+    // went straight through the cylinders — the G24.2 field knew the case
+    // and the acc dome and NOTHING ELSE, so every route that left the
+    // spine was flying blind). Each cylinder is a CAPSULE about its own
+    // placement axis — radius covering fins, visual head and rocker — and
+    // a routed line is pushed radially off every capsule EXCEPT its own
+    // target's (a lead must land on its plug, a runner in its own port).
+    // The builder's capsule runs fat (1.06x) and the check measures the
+    // same formula at 0.94x — the G24.2 conservative/real split, so the
+    // assert stays non-circular. Electric: no cylinders, the capsule set
+    // is empty, and routeSafe degenerates to the old case-only route.
+    // routeSafe REPLACED routeClear outright — every routed line goes
+    // through the one combined field now, which is the whole point.
+    const cylRad = 1.06 * b * Math.max(R.P.finR / 2, L.headR / b, 0.62);
+    const cylField = cyls.map(c => ({
+      i: c.i, d: c.dir, z: c.z,
+      t0: 0.95 * cR, t1: c.rockerOut + 0.10 * b,
+    }));
+    const clearCyls = (path, margin, fade, except) =>
+      path.map((p, i, arr) => {
+        let m = margin;
+        if (fade) {
+          const t = i / (arr.length - 1 || 1);
+          m *= Math.min(1, 4 * t, 4 * (1 - t));
+        }
+        if (m <= 0) return p;
+        let q = p;
+        // ITERATED, because one push is not enough between NEIGHBOURS: a
+        // line threading two adjacent capsules (the radial's interleaved
+        // rows) gets pushed out of one and into the other, and whoever is
+        // processed last wins — measured -0.055cR on the R-1830's leads.
+        // A few rounds walk the point out along the bisector until both
+        // are clear (the gap always opens radially, so it converges).
+        for (let it = 0; it < 4; it++) {
+          let moved = false;
+          for (const cf of cylField) {
+            if (cf.i === except) continue;
+            const rel = [q[0], q[1], q[2] - cf.z];
+            const t = Math.max(cf.t0, Math.min(cf.t1, dot(rel, cf.d)));
+            const cp = [cf.d[0] * t, cf.d[1] * t, cf.z];
+            const e = sub(q, cp);
+            const dE = len(e);
+            if (dE >= cylRad + m) continue;
+            q = mad(cp, dE > 1e-9 ? mul(e, 1 / dE) : [0, 0, -1], cylRad + m);
+            moved = true;
+          }
+          if (!moved) break;
+        }
+        return q;
+      });
+    const routeSafe = (path, m, fade, except) => {
+      const f = pts => clearCyls(clearCase(pts, m, fade), m, fade, except);
+      return f(relax(f(path)));
+    };
 
     // =======================================================================
     // THE CASE — rounded-square section along z, with the vertical-split
@@ -1014,12 +1639,17 @@ const EM = (() => {
       for (const [mg, occ] of [[magL, 0], [magR, 1]]) {
         // mounting flange ring against the backplate, then the body
         part('magPad');
+        // 1.22, not 1.25: at 1.25 the pad and the puck cylinders shared a
+        // common tangent plane, and coarse tessellation snapped both
+        // facets onto it (the no-kissing assert's catch at q0.6)
         lathe([mg.pos[0], mg.pos[1], accT1], [0, 0, -1], { u: X, w: Y }, [
-          { t: -0.01 * cR, r: 1.25 * mg.r }, { t: 0.05 * cR, r: 1.25 * mg.r },
+          { t: -0.01 * cR, r: 1.22 * mg.r }, { t: 0.05 * cR, r: 1.22 * mg.r },
         ], ENGM_MAT.pad, true, true, S.acc);
         part('mag');
+        // the body roots INSIDE the backplate, not on its face (G25.3)
         lathe(mg.pos, [0, 0, -1], { u: [1, 0, 0], w: [0, 1, 0] }, [
-          { t: -1.4 * mg.r, r: 0 }, { t: -1.4 * mg.r, r: 0.80 * mg.r },
+          { t: -1.4 * mg.r - 0.03 * cR, r: 0 },
+          { t: -1.4 * mg.r - 0.03 * cR, r: 0.80 * mg.r },
           { t: 0, r: 0.86 * mg.r }, { t: 0.3 * mg.r, r: mg.r },
           { t: 1.1 * mg.r, r: mg.r }, { t: 1.25 * mg.r, r: 0 },
         ], ENGM_MAT.mag, false, false, S.acc);
@@ -1082,18 +1712,43 @@ const EM = (() => {
         { t: 0.62 * cR, r: 0 },
       ], ENGM_MAT.oil, false, false, S.acc);
     }
+    // ---- starter + spin-on oil filter (G25.1, the bay-furniture review) ---
+    if (P.starter) {
+      // body drum aft off the backplate, solenoid drum riding on top —
+      // low on the right flank, where the ring gear lives
+      part('starter', 'solid', 2);
+      const sp = [0.58 * cR, -0.30 * cR, accT1 + 0.02 * cR];
+      lathe(sp, [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.17 * cR }, { t: 0.52 * cR, r: 0.17 * cR },
+        { t: 0.60 * cR, r: 0.10 * cR },
+      ], ENGM_MAT.mag, true, true, S.acc);
+      lathe([sp[0] - 0.04 * cR, sp[1] + 0.24 * cR, sp[2] - 0.06 * cR],
+            [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.085 * cR }, { t: 0.38 * cR, r: 0.085 * cR },
+      ], ENGM_MAT.mag, true, true, S.acc);
+    }
+    if (P.oilFilter && !P.twoStroke) {
+      // the spin-on canister, left-low on the backplate (a two-stroke
+      // premixes and has none)
+      part('oilFilter', 'tube');
+      lathe([-0.58 * cR, -0.30 * cR, accT1 + 0.02 * cR], [0, 0, -1],
+            { u: X, w: Y }, [
+        { t: 0, r: 0.145 * cR }, { t: 0.05 * cR, r: 0.16 * cR },
+        { t: 0.42 * cR, r: 0.16 * cR }, { t: 0.47 * cR, r: 0.115 * cR },
+      ], ENGM_MAT.filter, true, true, S.acc);
+    }
 
     // ---- prop shaft, flange, bolt ring ------------------------------------
-    if (P.geared) {
-      // the reduction bell (G24.13 rework — it read "insignificant"):
-      // a fat two-step housing with rib rings and its bolt circle
+    if (P.geared && (radial || inline)) {
+      // the compact reduction bell (G24.13) — the radial's nose cone and
+      // the two-strokes' end-boxes keep their approved look
       part('gearbox');
       lathe([0, 0, 0], Z, { u: X, w: Y }, [
-        { t: zNose - 0.02 * cR, r: 0.74 * cR },
+        { t: zNose - 0.035 * cR, r: 0.74 * cR },
         { t: zNose * 0.66, r: 0.68 * cR },
         { t: zNose * 0.40, r: 0.50 * cR },
         { t: zNose * 0.18, r: 0.44 * cR },
-        { t: -0.12 * R.P.flangeLen, r: 0.38 * cR },
+        { t: -0.12 * R.P.flangeLen - 0.05 * cR, r: 0.38 * cR },
       ], ENGM_MAT.case, true, true, S.shaft);
       part('gearRib', 'fins', 2);
       lathe([0, 0, 0], Z, { u: X, w: Y }, [
@@ -1109,17 +1764,65 @@ const EM = (() => {
           bolt([0.56 * cR * Math.cos(a), 0.56 * cR * Math.sin(a),
                 zNose * 0.53], Z, 0.022 * cR, ENGM_MAT.flange);
         }
+    } else if (P.geared) {
+      // THE 912 GEARBOX IS A CLEAR CONE (G25.1 user review): a bolted base
+      // ring on the case nose and ONE straight taper to the shaft boss —
+      // and it has real room now, because resolve moved the crank aft by
+      // gearLen. Rib rings ride the cone at their own radius; the bolt
+      // circle sits on the base step, where the real ring of nuts lives.
+      // The apex ends short of the flange disc's back plane and the base
+      // back sits at its own depth inside the case (G25.3: every buried
+      // cap gets its OWN plane — zNose was collecting four of them).
+      const gz1 = -0.12 * R.P.flangeLen - 0.05 * cR;
+      const t2 = zNose + 0.16 * (gz1 - zNose);   // cone start (after the step)
+      const t3 = gz1 - 0.10 * cR;                // cone end at the boss
+      part('gearbox');
+      lathe([0, 0, 0], Z, { u: X, w: Y }, [
+        { t: zNose - 0.035 * cR, r: 0.80 * cR },
+        { t: zNose + 0.10 * (gz1 - zNose), r: 0.80 * cR },
+        { t: t2, r: 0.68 * cR },
+        { t: t3, r: 0.30 * cR },
+        { t: gz1, r: 0.30 * cR },
+      ], ENGM_MAT.case, true, true, S.shaft);
+      part('gearRib', 'fins', 2);
+      for (const f of [0.38, 0.68]) {
+        const tR = t2 + f * (t3 - t2);
+        const rr = (0.68 + f * (0.30 - 0.68)) * cR + 0.05 * cR;
+        lathe([0, 0, 0], Z, { u: X, w: Y }, [
+          { t: tR - 0.035 * cR, r: rr }, { t: tR + 0.035 * cR, r: rr },
+        ], ENGM_MAT.case, true, true, S.shaft);
+      }
+      if (P.screws)
+        for (let k = 0; k < 8; k++) {
+          part('gearBolt', 'solid', 2);
+          const a = (k + 0.5) / 8 * 2 * Math.PI;
+          bolt([0.73 * cR * Math.cos(a), 0.73 * cR * Math.sin(a),
+                zNose + 0.13 * (gz1 - zNose)], Z, 0.022 * cR,
+               ENGM_MAT.flange);
+        }
     }
     part('flange');
+    // NOSE BOSS -> EXPOSED SHAFT -> PROP-MOUNTING DISC (G25.3, user
+    // review: the piston nose read as a bare bearing face — its old disc
+    // was NARROWER than the barrel behind it — while the electric showed
+    // shaft + disc. One grammar for every powertrain now: the crank nose
+    // emerges from its seal boss, runs as a visible shaft, and ends in a
+    // flange disc wider than the shaft, bolt circle riding the disc.
+    // splits are fractions of the ACTUAL nose depth (zNose varies from a
+    // deep geared snout to a big bore's sliver), ordered by construction
+    const bossEnd = 0.62 * zNose;
+    const discBk = Math.max(0.52 * zNose, -0.08 * b);
     lathe([0, 0, 0], Z, { u: X, w: Y }, [
-      { t: zNose, r: 0.52 * cR }, { t: -0.30 * R.P.flangeLen, r: 0.52 * cR },
-      { t: -0.30 * R.P.flangeLen, r: R.P.flangeR * b },
-      { t: 0, r: R.P.flangeR * b }, { t: 0, r: 0.20 * b },
+      { t: zNose - 0.045 * cR, r: 0.26 * b }, { t: bossEnd, r: 0.26 * b },
+      { t: bossEnd, r: 0.16 * b },
+      { t: discBk, r: 0.16 * b },
+      { t: discBk, r: 0.55 * b }, { t: 0, r: 0.55 * b },
+      { t: 0, r: 0.20 * b },
       { t: 0.12 * b, r: 0.20 * b }, { t: 0.12 * b, r: 0 },
     ], ENGM_MAT.flange, true, false, S.shaft);
     if (P.screws) {
       // six hex bolts on the flange face — what says "flange"
-      const nb = 6, rb = 0.040 * b, rc = 0.30 * b;
+      const nb = 6, rb = 0.040 * b, rc = 0.40 * b;
       for (let k = 0; k < nb; k++) {
         part('flangeBolt', 'solid', 2);
         const a = k / nb * 2 * Math.PI;
@@ -1127,17 +1830,21 @@ const EM = (() => {
       }
     }
     // ---- timing cover: the raised disc a real case wears on its nose ------
-    part('timing');
-    lathe([0, 0, 0], Z, { u: X, w: Y }, [
-      { t: zNose, r: 0.60 * cR }, { t: zNose + 0.055 * cR, r: 0.60 * cR },
-    ], ENGM_MAT.case, true, true, S.shaft);
-    if (P.screws)
-      for (let k = 0; k < 6; k++) {
-        part('timingScrew', 'solid', 2);
-        const a = (k + 0.5) / 6 * 2 * Math.PI;
-        bolt([0.48 * cR * Math.cos(a), 0.48 * cR * Math.sin(a),
-              zNose + 0.055 * cR], Z, 0.020 * cR, ENGM_MAT.flange);
-      }
+    // (not when the conical gearbox IS the front cover — the 912's truth)
+    if (!(P.geared && !radial && !inline)) {
+      part('timing');
+      lathe([0, 0, 0], Z, { u: X, w: Y }, [
+        { t: zNose - 0.015 * cR, r: 0.60 * cR },
+        { t: zNose + 0.055 * cR, r: 0.60 * cR },
+      ], ENGM_MAT.case, true, true, S.shaft);
+      if (P.screws)
+        for (let k = 0; k < 6; k++) {
+          part('timingScrew', 'solid', 2);
+          const a = (k + 0.5) / 6 * 2 * Math.PI;
+          bolt([0.48 * cR * Math.cos(a), 0.48 * cR * Math.sin(a),
+                zNose + 0.055 * cR], Z, 0.020 * cR, ENGM_MAT.flange);
+        }
+    }
 
     // =======================================================================
     // CYLINDERS — barrel + fins + head + rocker cover + pushrod tubes,
@@ -1149,27 +1856,40 @@ const EM = (() => {
 
       part('cylPad' + c.i);
       // the machined pad the barrel bolts to — the case flank stops being
-      // a bare wall (G24.4 "personality")
-      prism(o, c.dir, Z, c.e2, roundRect(1.45 * b, 1.45 * b, 0.30 * b),
+      // a bare wall (G24.4 "personality"). Its axial span CLAMPS to the
+      // neighbour gap (G25.3: same-bank pads overlapped and their proud
+      // faces z-fought where they did; a two-row radial's rows sit one
+      // pad-width apart, so its pads tiled edge to edge)
+      const padGap = radial ? (rows > 1 ? 1.45 * b : 8 * b)
+                            : Math.min(c.gapDn, c.gapUp, 8 * b);
+      const padZ = Math.min(1.45 * b, padGap - 0.06 * b);
+      prism(o, c.dir, Z, c.e2,
+            roundRect(padZ, 1.45 * b, Math.min(0.30 * b, 0.40 * padZ)),
             cR * 0.88, cR * 1.03, ENGM_MAT.pad, false, true, 0.05 * b);
 
       // the neighbour planes: fins and heads are wider than the half-pitch
-      // and get CLIPPED against the next cylinder, like the real casting
+      // and get CLIPPED against the next cylinder, like the real casting.
+      // LIQUID COOLS THE HEADS, NOT THE BARRELS (G25.1, user ruling — and
+      // the 912's own architecture: liquid heads, ram-air cylinders): the
+      // barrel keeps its fins in every configuration; only the HEAD fins
+      // yield to the water jacket. A liquid engine with baseFins off gets
+      // the smooth jacket casting instead.
       const air = !P.liquid;
+      const finned = !!P.baseFins;
+      const coreR = (!finned && P.liquid) ? 0.56 * b : 0.51 * b;
       const zLim = [c.z - Math.min(c.gapDn / 2 - 0.03 * b, 4 * b),
                     c.z + Math.min(c.gapUp / 2 - 0.03 * b, 4 * b)];
       const hrEff = Math.min(L.headR, 0.48 * Math.min(c.gapDn, c.gapUp, 8 * b));
 
       part('barrel' + c.i);
-      // base flange at the case wall, then the core the fins ride on — or,
-      // liquid-cooled, one smooth water-jacket casting
+      // base flange at the case wall, then the core the fins ride on
       lathe(o, c.dir, uw, [
         { t: c.rr0, r: 0.62 * b }, { t: c.rr0 + 0.10 * b, r: 0.62 * b },
-        { t: c.rr0 + 0.10 * b, r: air ? 0.51 * b : 0.56 * b },
-        { t: c.finTop, r: air ? 0.51 * b : 0.56 * b },
+        { t: c.rr0 + 0.10 * b, r: coreR },
+        { t: c.finTop, r: coreR },
       ], ENGM_MAT.barrel, false, false, S.cyl);
 
-      if (air && P.baseFins) {
+      if (finned) {
         const n = Math.max(2, Math.round(P.finN));
         part('fins' + c.i, 'fins', n);
         const finR = R.P.finR * b / 2;
@@ -1191,7 +1911,7 @@ const EM = (() => {
       // generous L.headR — the cowl's truth is conservative, the visual
       // head is honest); a two-stroke head runs on into a plain dome
       lathe(o, c.dir, uw, [
-        { t: c.finTop, r: air ? 0.51 * b : 0.56 * b },
+        { t: c.finTop, r: coreR },
         { t: c.finTop + 0.06 * b, r: hrEff },
         { t: c.headTop, r: hrEff },
         P.twoStroke ? { t: c.rockerOut - 0.10 * b, r: hrEff * 0.62 }
@@ -1266,35 +1986,69 @@ const EM = (() => {
         }
       }
 
-      // ---- intake riser: sump plenum -> head bottom-aft port --------------
-      // (four-stroke only: a two-stroke breathes through its crankcase)
+      // ---- intake riser: plenum -> head bottom-aft port -------------------
+      // (four-stroke only: a two-stroke breathes through its crankcase).
+      // Twin mode (G25.1): each bank's runner drops FROM ITS TOP CARB down
+      // the aft flank, field-cleared so it hugs the outside of the case.
       if (P.intake && !P.twoStroke) {
         part('intake' + c.i, 'tube');
         // a radial's pipes fan out FROM THE REAR CASE to each head — the
         // classic spider of induction tubes behind the cylinders
+        const tc = twin ? twinC[c.sx < 0 ? 0 : 1] : null;
         const A = radial
           ? [c.dir[0] * 0.72 * cR, c.dir[1] * 0.72 * cR, zTail - 0.06 * cR]
+          : twin
+          ? [tc.pos[0], tc.pos[1] - 0.62 * b,
+             tc.pos[2] + (L.stn[c.i] - (L.nSt - 1) / 2) * 0.12 * b]
           : [c.sx * 0.42 * cR, sumpY + 0.10 * b, c.z + 0.20 * b];
-        const knee = radial
-          ? [c.dir[0] * L.rTip * 0.55, c.dir[1] * L.rTip * 0.55,
-             (zTail + c.z) / 2 - 0.20 * b]
-          : [c.sx * (c.finTop - 0.15 * b), sumpY + 0.16 * b, c.z + 0.34 * b];
-        const path = fillet([A, knee, c.intakeP], 0.65 * b);
-        artery('intake' + c.i, 'sump', 'head' + c.i,
-          sweep(path, 0.16 * b, ENGM_MAT.intake,
-                { capA: true, capB: true, sides: S.pipe }));
-        // FLANGED at both ends (G24.11): a bare tube punching a wall was
-        // not at the level of the rest — a tapered boss at the sump, a
-        // collar at the head port
+        // TWIN RUNNERS RUN LIKE A REAL MANIFOLD (G25.2 — the first cut
+        // dropped straight down the flank, through the cylinders): down
+        // AFT of the whole bank, forward UNDER the fins, then up into the
+        // OWN port — the only cylinder its field pass exempts.
+        // each station's runner rides its OWN track, PROPORTIONAL to the
+        // station, not its parity (G25.6: on a SIX, stations 0 and 2 both
+        // drew parity track 0 and swept through each other; the carb
+        // outlets spread along the bowl the same way)
+        const trk = twin ? 0.15 * b * L.stn[c.i] : 0;
+        const knees = radial
+          ? [[c.dir[0] * L.rTip * 0.55, c.dir[1] * L.rTip * 0.55,
+              (zTail + c.z) / 2 - 0.20 * b]]
+          : twin
+          ? [[c.sx * (0.95 * cR + 0.25 * b + 0.5 * trk), 0.30 * cR,
+              zTail - 0.02 * cR],
+             [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b,
+              zTail - 0.02 * cR],
+             [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b, c.z + 0.50 * b]]
+          : [[c.sx * (c.finTop - 0.15 * b), sumpY + 0.16 * b,
+              c.z + 0.34 * b]];
+        let path = fillet([A, ...knees, c.intakeP], 0.55 * b);
+        // the margin CARRIES THE PIPE'S OWN RADIUS (the lead precedent —
+        // a 0.16b tube cleared by 0.06b is still 0.10b inside the metal)
+        path = routeSafe(path, 0.185 * b + 0.05 * b, true, c.i);
+        // THE FIT (G25.1 review: "they should hug much better"): the tube
+        // now PLUNGES past both ports into the metal — the declared artery
+        // ends stay ON the ports (the routing contract the check holds),
+        // the geometry runs deeper, and the mouths flare into their bosses.
         const dI0 = nrm(sub(path[1], path[0]));
+        const dIN = nrm(sub(path[path.length - 1], path[path.length - 2]));
+        const pathX = [mad(path[0], dI0, -0.12 * b), ...path,
+                       mad(c.intakeP, dIN, 0.10 * b)];
+        const rr2 = pathX.map((_, k2) =>
+          0.16 * b * (k2 <= 1 || k2 >= pathX.length - 2 ? 1.15 : 1));
+        sweep(pathX, rr2, ENGM_MAT.intake,
+              { capA: true, capB: true, sides: S.pipe });
+        artery('intake' + c.i,
+               twin ? ('twinCarb' + (c.sx < 0 ? 'L' : 'R')) : 'sump',
+               'head' + c.i, { a0: A, a1: c.intakeP });
+        // FLANGED at both ends (G24.11, enlarged G25.1): a tapered boss at
+        // the plenum, a flared collar seated on the head port
         part('intFlange' + c.i, 'tube');
         lathe(path[0], dI0, null, [
-          { t: -0.02 * b, r: 0.24 * b }, { t: 0.15 * b, r: 0.20 * b },
+          { t: -0.02 * b, r: 0.28 * b }, { t: 0.18 * b, r: 0.215 * b },
         ], ENGM_MAT.intake, true, true, S.pipe);
-        const dIN = nrm(sub(path[path.length - 1], path[path.length - 2]));
         part('intCollar' + c.i, 'tube');
-        lathe(path[path.length - 1], dIN, null, [
-          { t: -0.16 * b, r: 0.20 * b }, { t: -0.01 * b, r: 0.225 * b },
+        lathe(c.intakeP, dIN, null, [
+          { t: -0.22 * b, r: 0.19 * b }, { t: -0.02 * b, r: 0.27 * b },
         ], ENGM_MAT.intake, true, true, S.pipe);
       }
 
@@ -1494,7 +2248,7 @@ const EM = (() => {
       for (const c of cyls) {
         part('leadT' + c.i, 'tube');
         const mg = magL.pos;
-        const pT = routeClear(smooth(radial ? [
+        const pT = routeSafe(smooth(radial ? [
           // the radial harness: out along the case flank at the
           // cylinder's own angle, forward to the FRONT plug
           magL.towers[c.i],
@@ -1508,14 +2262,14 @@ const EM = (() => {
           [c.sx * 0.75 * cR, cR * 0.75, c.z - 0.05 * b],
           [c.plugT[0], c.plugT[1] + 0.24 * b, c.plugT[2]],
           c.plugT,
-        ]), lr + 0.030 * cR);
+        ]), lr + 0.030 * cR, false, c.i);
         artery('leadT' + c.i, 'magL', 'plugT' + c.i,
           sweep(pT, lr, ENGM_MAT.lead,
                 { capA: true, capB: true, sides: S.detail }));
 
         part('leadB' + c.i, 'tube');
         const mgB = magR.pos;
-        const pB = routeClear(smooth(radial ? [
+        const pB = routeSafe(smooth(radial ? [
           magR.towers[c.i],
           [c.dir[0] * 1.15 * cR, c.dir[1] * 1.15 * cR,
            (mgB[2] + c.plugB[2]) / 2],
@@ -1527,7 +2281,7 @@ const EM = (() => {
           [c.sx * 1.02 * cR, -0.45 * cR, c.z - 0.05 * b],
           [c.plugB[0], c.plugB[1] - 0.24 * b, c.plugB[2]],
           c.plugB,
-        ]), lr + 0.030 * cR);
+        ]), lr + 0.030 * cR, false, c.i);
         artery('leadB' + c.i, 'magR', 'plugB' + c.i,
           sweep(pB, lr, ENGM_MAT.lead,
                 { capA: true, capB: true, sides: S.detail }));
@@ -1540,17 +2294,17 @@ const EM = (() => {
       part('spider');
       const sp = [0, cR * 1.06, (zFront + zBack) / 2];
       lathe(sp, [0, 1, 0], { u: [1, 0, 0], w: [0, 0, 1] }, [
-        { t: -0.06 * cR, r: 0 }, { t: -0.06 * cR, r: 0.16 * cR },
+        { t: -0.11 * cR, r: 0 }, { t: -0.11 * cR, r: 0.16 * cR },
         { t: 0.10 * cR, r: 0.13 * cR }, { t: 0.16 * cR, r: 0 },
       ], ENGM_MAT.spider, false, false, S.acc);
       for (const c of cyls) {
         part('injLine' + c.i, 'tube');
-        const path = routeClear(smooth([
+        const path = routeSafe(smooth([
           add(sp, [c.sx * 0.10 * cR, 0.05 * cR, 0]),
           [c.sx * 0.60 * cR, cR * 0.95, c.z + 0.30 * b],
           [c.sx * (c.finTop - 0.05 * b), 0.30 * b, c.z + 0.34 * b],
           add(c.intakeP, [0, 0.16 * b, 0]),
-        ]), 0.020 * b + 0.025 * cR);
+        ]), 0.020 * b + 0.025 * cR, false, c.i);
         artery('injLine' + c.i, 'spider', 'head' + c.i,
           sweep(path, 0.020 * b, ENGM_MAT.spider,
                 { capA: true, capB: true, sides: S.detail }));
@@ -1558,9 +2312,51 @@ const EM = (() => {
     }
 
     // =======================================================================
-    // CARBURETTOR + AIRBOX, hanging from the sump
+    // CARBURETTOR + AIRBOX — under-slung canister, or the 912's TWIN TOP
+    // CARBS with CONE FILTERS (G25.1, the user's reference)
     // =======================================================================
-    if (P.carbOn) {
+    if (P.carbOn && twin) {
+      for (const tc of twinC) {
+        const side = tc.sx < 0 ? 'L' : 'R';
+        part('twinCarb' + side);
+        // float bowl below, throat body above — a Bing on its perch
+        lathe(tc.pos, [0, 1, 0], { u: X, w: Z }, [
+          { t: -0.62 * b, r: 0.30 * b },
+          { t: -0.24 * b, r: 0.30 * b },
+          { t: -0.24 * b, r: 0.24 * b },
+          { t: 0.26 * b, r: 0.24 * b },
+          { t: 0.34 * b, r: 0.17 * b },
+        ], ENGM_MAT.carb, true, true, S.acc);
+        // the conical filter, aft-and-outboard off the inlet elbow — the
+        // chrome base ring, the pleat-orange cone, the chrome tip
+        const cd = nrm([tc.sx * 0.30, 0.06, -0.95]);
+        const cb = add(tc.pos, [tc.sx * 0.06 * b, 0.06 * b, -0.30 * b]);
+        part('coneBase' + side, 'tube');
+        lathe(cb, cd, null, [
+          { t: -0.06 * b, r: 0.20 * b }, { t: 0.10 * b, r: 0.31 * b },
+          { t: 0.22 * b, r: 0.31 * b },
+        ], ENGM_MAT.air, true, false, S.acc);
+        part('coneFilter' + side, 'tube');
+        lathe(cb, cd, null, [
+          { t: 0.22 * b, r: 0.30 * b }, { t: 1.05 * b, r: 0.13 * b },
+        ], ENGM_MAT.filter, false, false, S.acc);
+        part('coneTip' + side, 'tube');
+        lathe(cb, cd, null, [
+          { t: 1.05 * b, r: 0.135 * b }, { t: 1.16 * b, r: 0.10 * b },
+        ], ENGM_MAT.air, false, true, S.acc);
+      }
+      // the services land on the LEFT carb — its inlet boss tip IS the
+      // fuel port, and the arm spans the throttle port, like the sump carb
+      part('carbInlet', 'tube');
+      lathe(add(twinC[0].pos, [-0.26 * b, -0.30 * b, 0]), [-1, 0, 0], null, [
+        { t: 0, r: 0.055 * b }, { t: 0.16 * b, r: 0.055 * b },
+      ], ENGM_MAT.carb, false, true, S.detail);
+      part('carbArm', 'tube');
+      sweep(resample([add(twinC[0].pos, [-0.24 * b, 0.16 * b, 0]),
+                      add(twinC[0].pos, [-0.42 * b, 0.16 * b, 0])]),
+            0.03 * b, ENGM_MAT.carb,
+            { capA: true, capB: true, sides: S.detail });
+    } else if (P.carbOn) {
       part('carb');
       // the RISER reaches up INTO the sump (G24.9 — the carb's mounting
       // flange floated 0.11b below the block, top face showing)
@@ -1643,9 +2439,15 @@ const EM = (() => {
                              [ax[0], ax[1] + 0.02 * b,
                               (ax[2] + carb.pos[2]) / 2],
                              hPort], 0.30 * b);
+        // buried at both mouths (G25.1 fit pass) — declared ends stay on
+        // the ports, the metal runs deeper
+        const dH0 = nrm(sub(path[1], path[0]));
+        const dHN = nrm(sub(path[path.length - 1], path[path.length - 2]));
+        sweep([mad(path[0], dH0, -0.10 * b), ...path,
+               mad(hPort, dHN, 0.12 * b)],
+              0.19 * b, ENGM_MAT.air, { capA: true, capB: true, sides: S.pipe });
         artery('airHorn', 'air', 'carb',
-          sweep(path, 0.19 * b, ENGM_MAT.air,
-                { capA: true, capB: true, sides: S.pipe }));
+          { a0: path[0], a1: hPort });
       }
     }
 
@@ -1672,7 +2474,7 @@ const EM = (() => {
           prism([rC[0], rC[1] + sy2 * rH * 0.44, 0], Z, X, Y,
                 [[-rW * 0.46, -rH * 0.05], [rW * 0.46, -rH * 0.05],
                  [rW * 0.46, rH * 0.05], [-rW * 0.46, rH * 0.05]],
-                rC[2] + rD / 2, rC[2] + rD / 2 + 0.025 * cR,
+                rC[2] + rD / 2 - 0.010 * cR, rC[2] + rD / 2 + 0.025 * cR,
                 ENGM_MAT.carb, true, true);
         }
         const nS = Math.max(6, Math.round(stepsOf(rW) * 1.8));
@@ -1682,7 +2484,7 @@ const EM = (() => {
           prism([x2, rC[1], 0], Z, X, Y,
                 [[-0.014 * cR, -rH * 0.36], [0.014 * cR, -rH * 0.36],
                  [0.014 * cR, rH * 0.36], [-0.014 * cR, rH * 0.36]],
-                rC[2] + rD / 2, rC[2] + rD / 2 + 0.035 * cR,
+                rC[2] + rD / 2 - 0.008 * cR, rC[2] + rD / 2 + 0.035 * cR,
                 ENGM_MAT.mark, true, true);
         }
       }
@@ -1706,6 +2508,29 @@ const EM = (() => {
         { t: -0.12 * cR, r: 0 }, { t: -0.12 * cR, r: 0.12 * cR },
         { t: 0.14 * cR, r: 0.12 * cR }, { t: 0.14 * cR, r: 0 },
       ], ENGM_MAT.carb, false, false, S.acc);
+      // THE COOLANT BOTTLE (G25.1, "shouldn't we have some coolant
+      // reservoir?"): the expansion tank above is the pressure vessel; the
+      // OVERFLOW BOTTLE stands on the plate with its thin hose from the
+      // tank neck — the pair a real installation carries.
+      if (P.fwOn) {
+        const bC = [-0.26 * P.fwW, 0.06 * P.fwH, zFw + 0.44 * cR];
+        part('coolBottle');
+        lathe(bC, [0, 1, 0], null, [
+          { t: -0.80 * cR, r: 0.42 * cR }, { t: 0.55 * cR, r: 0.42 * cR },
+          { t: 0.75 * cR, r: 0.16 * cR }, { t: 0.92 * cR, r: 0.16 * cR },
+        ], ENGM_MAT.bottle, true, true, S.acc);
+        const expTop = [rC[0], rC[1] + rH / 2 + 0.24 * cR, rC[2]];
+        const neck = [bC[0], bC[1] + 0.80 * cR, bC[2]];
+        part('overflow', 'tube');
+        const po = routeSafe(smooth([expTop,
+          [0.55 * expTop[0] + 0.45 * neck[0],
+           Math.max(expTop[1], neck[1]) + 0.20 * cR,
+           0.5 * (expTop[2] + neck[2])],
+          neck]), 0.05 * cR, true);
+        artery('overflow', 'expTank', 'coolBottle',
+          sweep(po, 0.035 * cR, ENGM_MAT.puck,
+                { capA: true, capB: true, sides: S.detail }));
+      }
       part('pumpBoss', 'tube');
       const pumpAt = [-0.40 * cR, 0, zFront - 0.25 * (zFront - zBack)];
       const pumpY = below ? -(cR + L.sump) * 0.96 : cR * 0.90;
@@ -1731,7 +2556,7 @@ const EM = (() => {
         part(sx2 < 0 ? 'coolantL' : 'coolantR', 'tube');
         const tank = [rC[0] + sx2 * (rW / 2 + 0.02 * cR), rC[1],
                       rC[2] - 0.14 * cR];
-        const ph = routeClear(smooth([
+        const ph = routeSafe(smooth([
           [railX, railY, zLo2],
           [sx2 * 1.10 * cR, below ? -0.35 * cR : cR * 1.25,
            (zLo2 + rC[2]) / 2],
@@ -1743,7 +2568,7 @@ const EM = (() => {
                 { capA: true, capB: true, sides: S.pipe }));
       }
       part('coolantRet', 'tube');
-      const pRet = routeClear(smooth([
+      const pRet = routeSafe(smooth([
         [rC[0] - (rW / 2 + 0.02 * cR), rC[1] + (below ? rH * 0.4 : -rH * 0.4),
          rC[2]],
         [-0.85 * cR, below ? -(cR + L.sump) * 0.7 : cR * 1.30,
@@ -1756,107 +2581,72 @@ const EM = (() => {
     }
 
     // =======================================================================
-    // MOUNT + FIREWALL — the engine holds on to the aeroplane
+    // MOUNT + FIREWALL — the engine holds on to the aeroplane. The truss
+    // and the plate are the SHARED builders (G25): one holder for every
+    // powertrain, defined with the primitives above.
     // =======================================================================
-    if (P.mount) {
-      const tubeR = 0.075 * cR;
-      for (let k = 0; k < 4; k++) {
-        part('mountTube' + k, 'tube');
-        artery('mountTube' + k, 'lug' + k, 'fw' + k,
-          sweep(resample([lugs[k], fwPts[k]]), tubeR, ENGM_MAT.mount,
-                { capA: true, capB: true, sides: S.detail }));
-      }
-      if (P.mountX) {
-        // side-plane diagonals — STRAIGHT (user ruling: no curved tubing).
-        // They start on the shock stack's aft face like the main tubes, so
-        // the small acc body and the stand-off are what make straight work.
-        for (const [a, c] of [[0, 2], [2, 0], [1, 3], [3, 1]]) {
-          part('mountDiag', 'tube');
-          sweep(resample([lugs[a], fwPts[c]]), tubeR * 0.8, ENGM_MAT.mount,
-                { capA: true, capB: true, sides: S.detail });
-        }
-      }
-      // ENGINE-SIDE (G24.4 rework): a machined boss on the case's aft face
-      // and a rubber puck, both ALONG THE CRANK AXIS — the stack stands the
-      // tube 0.32*caseR off the case, which is what lets it run straight.
-      for (let k = 0; k < 4; k++) {
-        part('lugBoss' + k);
-        lathe(lugC[k], [0, 0, -1], { u: X, w: Y }, [
-          { t: -0.02 * cR, r: 0.16 * cR }, { t: 0.10 * cR, r: 0.13 * cR },
-        ], ENGM_MAT.flange, true, true, S.detail);
-        part('puck' + k, 'tube');
-        lathe([lugC[k][0], lugC[k][1], zTail - 0.10 * cR], [0, 0, -1],
-              { u: X, w: Y }, [
-          { t: 0, r: 0.15 * cR }, { t: 0.22 * cR, r: 0.15 * cR },
-        ], ENGM_MAT.puck, true, true, S.detail);
-      }
-      if (P.fwOn) {
-        for (let k = 0; k < 4; k++) {
-          const d = nrm(sub(fwPts[k], lugs[k]));
-          part('fwPad' + k);
-          prism([fwPts[k][0], fwPts[k][1], 0], Z, X, Y,
-                roundRect(0.36 * cR, 0.36 * cR, 0.09 * cR),
-                zFw, zFw + 0.05 * cR, ENGM_MAT.flange, true, true, 0.015 * cR);
-          part('fwCone' + k, 'tube');
-          lathe(fwPts[k], mul(d, -1), frameOf(d), [
-            { t: -0.02 * cR, r: 0.14 * cR }, { t: 0.15 * cR, r: 0.085 * cR },
-          ], ENGM_MAT.mount, true, false, S.detail);
-          if (P.screws) {
-            part('fwPadBolt' + k, 'solid', 8);
-            for (const [px, py] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-              bolt([fwPts[k][0] + px * 0.12 * cR, fwPts[k][1] + py * 0.12 * cR,
-                    zFw + 0.05 * cR], Z, 0.026 * cR, ENGM_MAT.flange);
-          }
-        }
-      }
+    if (P.mount) mountTruss(lugC, lugs, fwPts, zFw, artery);
+    if (P.fwOn) fwPlateAt(zFw);
+    // ---- PLATE FURNITURE (G25.1): battery box + optional ECU --------------
+    // Aircraft-side, in METRES by the plate's own declared exception — a
+    // battery is 17 x 13 cm whatever engine sits ahead of it. (Fuseboxes
+    // live in the cabin; the harness is a later chantier.)
+    if (P.fwOn && P.battOn) {
+      part('battBox', 'box');
+      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
+            roundRect(0.17, 0.13, 0.012), zFw - 0.005, zFw + 0.11,
+            ENGM_MAT.puck, true, true, 0.006);
+      part('battStrap', 'box');
+      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
+            roundRect(0.176, 0.03, 0.008), zFw + 0.104, zFw + 0.118,
+            ENGM_MAT.flange, true, true);
+      part('battTerm', 'solid', 2);
+      for (const tx of [-1, 1])
+        lathe([0.30 * P.fwW + tx * 0.055, -0.10 * P.fwH + 0.045, zFw + 0.11],
+              Z, { u: X, w: Y }, [
+          { t: -0.006, r: 0.011 }, { t: 0.020, r: 0.009 },
+        ], ENGM_MAT.flange, false, true, S.detail);
     }
-    if (P.fwOn) {
-      part('firewall');
-      prism([0, 0, 0], Z, X, Y,
-            roundRect(P.fwW, P.fwH, 0.08 * Math.min(P.fwW, P.fwH)),
-            zFw - fwT, zFw, ENGM_MAT.firewall, true, true, 0.45 * fwT);
-      if (P.ruler) {
-        // THE METRE STRIP (G24.4): 0.1 m ticks, taller at each half metre,
-        // on a baseline near the plate's foot. Deliberately metric — the
-        // plate is the aircraft-side datum, and this is its scale.
-        const half = Math.floor(0.42 * P.fwW / 0.1) * 0.1;
-        const nT = Math.round(2 * half / 0.1) + 1;
-        const y0 = -0.32 * P.fwH;
-        part('ruler', 'box', nT + 1);
-        prism([0, y0, 0], Z, X, Y,
-              [[-half - 0.012, -0.004], [half + 0.012, -0.004],
-               [half + 0.012, 0.004], [-half - 0.012, 0.004]],
-              zFw, zFw + 0.006, ENGM_MAT.mark, true, true);
-        for (let i = 0; i < nT; i++) {
-          const x = -half + i * 0.1;
-          const major = Math.abs(x / 0.5 - Math.round(x / 0.5)) < 1e-6;
-          prism([x, y0 + 0.004, 0], Z, X, Y,
-                [[-0.0045, 0], [0.0045, 0],
-                 [0.0045, major ? 0.052 : 0.028], [-0.0045, major ? 0.052 : 0.028]],
-                zFw, zFw + 0.012, ENGM_MAT.mark, true, true);
-        }
-      }
+    if (P.fwOn && P.ecuOn) {
+      part('ecu', 'box');
+      prism([-0.27 * P.fwW, 0.22 * P.fwH, 0], Z, X, Y,
+            roundRect(0.15, 0.10, 0.010), zFw - 0.004, zFw + 0.035,
+            ENGM_MAT.esc, true, true, 0.004);
+      part('ecuRibs', 'fins', 5);
+      for (let k = 0; k < 5; k++)
+        prism([-0.27 * P.fwW - 0.056 + k * 0.028, 0.22 * P.fwH, 0], Z, X, Y,
+              [[-0.004, -0.042], [0.004, -0.042], [0.004, 0.042],
+               [-0.004, 0.042]],
+              zFw + 0.031, zFw + 0.047, ENGM_MAT.esc, true, true);
     }
 
     // ---- the SERVICES through the firewall: fuel + throttle ---------------
+    // Midpoints are DESTINATION-AWARE now (the twin carbs moved the bowl to
+    // the case top) and both lines run through the clearance field — the
+    // G25.1 no-clip pass; fuelX/fuelY/thrX/thrY moved the entries above.
     if (P.plumb && P.carbOn && P.fwOn) {
       part('fuel', 'tube');
-      const pf = smooth([
+      const pf = routeSafe(smooth([
         fuelFw,
-        [fuelFw[0] * 0.55, fuelFw[1] - 0.35 * cR, zFw + 0.35 * (carb.pos[2] - zFw)],
-        [carb.bowlIn[0] + 0.30 * b, carb.bowlIn[1] - 0.22 * b, carb.bowlIn[2] - 0.3 * b],
+        [fuelFw[0] * 0.55 + carb.bowlIn[0] * 0.30,
+         0.55 * fuelFw[1] + 0.45 * carb.bowlIn[1] - 0.10 * cR,
+         zFw + 0.35 * (carb.bowlIn[2] - zFw)],
+        [carb.bowlIn[0] + Math.sign(carb.bowlIn[0] || 1) * 0.28 * b,
+         carb.bowlIn[1] - 0.20 * b, carb.bowlIn[2] - 0.3 * b],
         carb.bowlIn,
-      ]);
+      ]), 0.05 * b + 0.015 * cR, true);
       artery('fuel', 'firewall', 'carb',
         sweep(pf, Math.max(0.045 * b, 0.020 * cR), ENGM_MAT.fuel,
               { capA: true, capB: true }));
       part('throttle', 'tube');
-      const pt = smooth([
+      const pt = routeSafe(smooth([
         thrFw,
-        [thrFw[0] * 0.9, thrFw[1] - 0.30 * cR, zFw + 0.4 * (carb.pos[2] - zFw)],
+        [thrFw[0] * 0.9,
+         0.55 * thrFw[1] + 0.45 * carb.arm[1] - 0.10 * cR,
+         zFw + 0.4 * (carb.arm[2] - zFw)],
         [carb.arm[0] - 0.16 * b, carb.arm[1] + 0.05 * b, carb.arm[2] - 0.25 * b],
         carb.arm,
-      ]);
+      ]), 0.04 * b + 0.012 * cR, true);
       artery('throttle', 'firewall', 'carbArm',
         sweep(pt, Math.max(0.020 * b, 0.009 * cR), ENGM_MAT.throttle,
               { capA: true, capB: true }));

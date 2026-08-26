@@ -82,6 +82,9 @@ const COL = {
   emSpider: '#a08c4a', emFlange: '#c3cad2', emMount: '#2f6f3f',
   emPuck: '#1d2126', emFirewall: '#aab3bd', emMark: '#22262b',
   emFuel: '#b04a3a', emThrottle: '#20242a',
+  emEsc: '#3a4148', emPhase: '#c4611f',      // HV orange, the real convention
+  emBottle: '#ded9c4',                       // the translucent coolant bottle
+  emCopper: '#b3622f',                       // the windings through the slots
 };
 const NEUTRAL = '#8d949c';
 
@@ -96,7 +99,11 @@ const DEFAULTS = Object.assign(
     // the architecture axes are engResolve's OWN flags — mass and power
     // in the readout follow them because the physics reads the same dict
     twoStroke: EG.ENG_DEFAULT.twoStroke, liquid: EG.ENG_DEFAULT.liquid,
-    geared: EG.ENG_DEFAULT.geared, arch: 'flat', finN: 14 },
+    geared: EG.ENG_DEFAULT.geared, arch: 'flat', finN: 14,
+    // the electric fiche (G25) rides the same dict
+    eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
+    canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,
+    escOn: EG.ENG_DEFAULT.escOn },
   JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
 let P = JSON.parse(JSON.stringify(DEFAULTS));
 
@@ -116,7 +123,7 @@ const PRESETS = {
   'flat twin': { cyl: 2 },
   'flat six': { cyl: 6, exStyle: 2 },
   'rotax 912 (flat)': { bore: 0.0795, stroke: 0.0611, rpm: 5800,
-    liquid: 1, geared: 1 },
+    liquid: 1, geared: 1, airStyle: 1 },
   'rotax 277': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1,
     exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
   'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
@@ -126,12 +133,54 @@ const PRESETS = {
     finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,
     // a radial breathes through its rear spider — no under-slung carb
     carbOn: 0, airbox: 0, plumb: 0 },
+  // THE ELECTRIC LADDER (G25) — the registry's seven new rows plus the
+  // anchor. Can dims are the manufacturers' where published (2212 = 28x26,
+  // EMRAX 228 = 228x86, 268 would be 268x91, E-811 268 dia, SP260D 418
+  // dia); volts are the real pack classes (3S/12S/e-PPG 24S, FES 116 V,
+  // EMRAX 400 V, Velis 345 V, SP260D 580 V). The plate is per-aeroplane:
+  // a park flyer's ply square up to a trainer bulkhead.
+  'RC 2212 outrunner': { arch: 'electric', eStyle: 0, canD: 0.0278,
+    canL: 0.026, rpm: 8500, volts: 11.1, fwW: 0.16, fwH: 0.14 },
+  'RC 6374 outrunner': { arch: 'electric', eStyle: 0, canD: 0.063,
+    canL: 0.074, rpm: 4600, volts: 44.4, fwW: 0.22, fwH: 0.20 },
+  'e-PPG 12 kW': { arch: 'electric', eStyle: 0, canD: 0.208, canL: 0.115,
+    rpm: 2600, volts: 88.8, fwW: 0.42, fwH: 0.42 },
+  'FES sustainer': { arch: 'electric', eStyle: 0, canD: 0.20, canL: 0.09,
+    rpm: 4500, volts: 116, fwW: 0.32, fwH: 0.32 },
+  'EMRAX 228': { arch: 'electric', eStyle: 1, canD: 0.228, canL: 0.086,
+    rpm: 5000, volts: 400, fwW: 0.60, fwH: 0.55 },
+  'pipistrel E-811': { arch: 'electric', eStyle: 2, canD: 0.268, canL: 0.19,
+    rpm: 2500, volts: 345, liquid: 1, fwW: 0.70, fwH: 0.65 },
+  'SP260D-class': { arch: 'electric', eStyle: 2, canD: 0.418, canL: 0.30,
+    rpm: 2500, volts: 580, liquid: 1, fwW: 0.85, fwH: 0.80 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
 const mm = x => (x * 1000).toFixed(0);
 const sFmt = x => x ? x : 'auto';
+// POWERTRAIN IS THE TOP CHOICE (G25, user ruling) and it CONDITIONS the
+// panel: an electric shares the polycount, mount and plate groups with the
+// piston families and nothing else — each group may carry a `show`
+// predicate on P. The electric group repeats liquid/geared under its own
+// labels because the piston 'architecture' group is hidden with the rest.
+const isElec = p => p.arch === 'electric';
+const isPiston = p => p.arch !== 'electric';
 const GROUPS = [
+  ['electric', [
+    ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
+                                  [1, 'axial pancake (EMRAX)'],
+                                  [2, 'housed (certified)']]],
+    ['canD',    'can dia mm',    0.020, 0.450, 0.001, mm],
+    ['canL',    'can length mm', 0.015, 0.350, 0.001, mm],
+    ['rpm',     'rpm',           500, 12000, 50],
+    ['volts',   'pack volts',    7, 800, 0.1, x => x.toFixed(0)],
+    ['eFins',   'vents/ribs/fins', 0, 24, 1, sFmt],
+    ['escOn',   'controller',    'check'],
+    ['leads',   'phase cables',  'check'],
+    ['plumb',   'DC pair',       'check'],
+    ['liquid',  'liquid cooled', 'check'],
+    ['geared',  'reduction drive', 'check'],
+  ], isElec],
   ['polycount', [
     ['quality',    'density',      0.3, 2, 0.02],
     ['sideCyl',    'cyl sides',    0, 32, 2, sFmt],
@@ -157,12 +206,12 @@ const GROUPS = [
     ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
     ['rpm',     'rpm',       1800, 6500, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
-  ]],
+  ], isPiston],
   ['architecture', [
     ['twoStroke', 'two-stroke',    'check'],
     ['liquid',    'liquid cooled', 'check'],
     ['geared',    'gearbox',       'check'],
-  ]],
+  ], isPiston],
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],
     ['finR',     'fin dia /b',  1.1, 1.7, 0.01],
@@ -178,23 +227,25 @@ const GROUPS = [
                                               [1, 'square (912)']]],
     ['rockerSpan', 'bank rocker cover', 'check'],
     ['baseFins', 'barrel fins on', 'check'],
-  ]],
+  ], isPiston],
   ['induction + exhaust', [
     ['injected','induction',  'drop', [[0, 'carburettor'],
                                        [1, 'fuel injection']]],
+    ['airStyle','air filtration', 'drop', [[0, 'canister airbox'],
+                                           [1, 'twin cones (912)']]],
     ['airbox',  'air filter', 'check'],
     ['intake',  'intake risers', 'check'],
     ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
                                        [2, 'collector'], [3, 'expansion']]],
     ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
-  ]],
+  ], isPiston],
   ['ignition + accessories', [
     ['leads',   'plug leads', 'check'],
     ['leadR',   'lead r /b',  0.02, 0.06, 0.002],
     ['mags',    'magnetos',   'check'],
     ['genOn',   'alternator', 'check'],
     ['oilFill', 'oil filler', 'check'],
-  ]],
+  ], isPiston],
   ['radiator (liquid)', [
     ['radX', 'lateral',   -1.0, 1.0, 0.02],
     ['radY', 'height +/-', -1.5, 1.6, 0.02],
@@ -202,7 +253,19 @@ const GROUPS = [
     ['radW', 'width',     1.2, 3.5, 0.02],
     ['radH', 'core height', 0.4, 1.6, 0.02],
     ['radD', 'depth',     0.2, 0.8, 0.02],
-  ]],
+  ], isPiston],
+  ['engine bay', [
+    ['starter',   'starter motor', 'check'],
+    ['oilFilter', 'oil filter',    'check'],
+    ['battOn',    'battery',       'check'],
+    ['ecuOn',     'ECU box',       'check'],
+  ], isPiston],
+  ['services (entry points)', [
+    ['fuelX', 'fuel entry x',     -0.9, 0.9, 0.01],
+    ['fuelY', 'fuel entry y',     -0.9, 0.9, 0.01],
+    ['thrX',  'throttle entry x', -0.9, 0.9, 0.01],
+    ['thrY',  'throttle entry y', -0.9, 0.9, 0.01],
+  ], isPiston],
   ['mount + firewall', [
     ['mount',    'mount',      'check'],
     ['mountX',   'diagonals',  'check'],
@@ -283,6 +346,9 @@ const PROPS = {
   emExhaust: [0.30, 0.72], emLead: [0.05, 0.90], emPuck: [0.05, 0.95],
   emFuel: [0.10, 0.80], emThrottle: [0.10, 0.90], emIntake: [0.40, 0.60],
   emFirewall: [0.75, 0.35], emAir: [0.30, 0.70],
+  emEsc: [0.30, 0.55], emPhase: [0.05, 0.80],    // anodised box, rubber HV
+  emBottle: [0.0, 0.45],                          // plastic, a little sheen
+  emCopper: [0.90, 0.38],                         // enamelled winding wire
 };
 const COLUSER = {};      // the pickers' overrides (rocker gold, case paint)
 const colOf = name => COLUSER[name] || COL[name] || NEUTRAL;
@@ -375,9 +441,21 @@ function rebuild() {
     fitDone = true;
     place();
   }
-  $('stat').textContent =
-    R.archName + ' ' + R.cyl + ' — ' + R.litres.toFixed(2) + ' L  ' +
-    (R.powerW / 1000).toFixed(1) + ' kW  ' + R.mass.toFixed(0) + ' kg\n' +
+  // the readout speaks each powertrain's own language: litres and kW for
+  // a piston engine; torque, cont/burst power, implied KV and cells for
+  // an electric — all from the same resolve dict the mesh reads
+  const head = R.arch === 'electric'
+    ? R.archName + ' — ' +
+      R.torque.toFixed(R.torque < 1 ? 2 : 1) + ' Nm  ' +
+      (R.powerW / 1000).toFixed(R.powerW < 2000 ? 2 : 1) + ' kW cont / ' +
+      (R.powerPeakW / 1000).toFixed(R.powerPeakW < 2000 ? 2 : 1) + ' burst  ' +
+      (R.mass < 1 ? (R.mass * 1000).toFixed(0) + ' g'
+                  : R.mass.toFixed(1) + ' kg') + '\n' +
+      'KV ' + R.kv.toFixed(0) + '  ' + R.cells + 'S (' +
+      R.P.volts.toFixed(0) + ' V)  ' + R.rpm + ' rpm'
+    : R.archName + ' ' + R.cyl + ' — ' + R.litres.toFixed(2) + ' L  ' +
+      (R.powerW / 1000).toFixed(1) + ' kW  ' + R.mass.toFixed(0) + ' kg';
+  $('stat').textContent = head + '\n' +
     MESH.stats.verts + ' v  ' + MESH.stats.quads + ' q  ' +
     (MESH.stats.tris / 1000).toFixed(1) + 'k tris\n' +
     MESH.arteries.length + ' lines  edge ' + (MESH.edgeTarget * 1000).toFixed(0) + ' mm';
@@ -385,9 +463,40 @@ function rebuild() {
 
 /* ---- panel -------------------------------------------------------------- */
 let curPreset = 'continental A-65';
+let lastPiston = { arch: 'flat', rpm: 2300 };
+let lastElec = { rpm: 8500 };
 function buildPanel() {
   const ui = $('ui');
   ui.innerHTML = '';
+
+  // POWERTRAIN, the top choice (G25): it conditions every group below.
+  // Switching remembers the last piston layout and gives the electric its
+  // own rpm scale, so the toggle lands on a sane machine either way.
+  const pw = document.createElement('div');
+  pw.className = 'r';
+  pw.innerHTML = '<span class="k">powertrain</span>';
+  const psel = document.createElement('select');
+  for (const [val2, lab2] of [['piston', 'piston'], ['electric', 'electric']]) {
+    const o = document.createElement('option');
+    o.value = val2; o.textContent = lab2;
+    psel.appendChild(o);
+  }
+  psel.value = P.arch === 'electric' ? 'electric' : 'piston';
+  psel.onchange = () => {
+    if (psel.value === 'electric') {
+      lastPiston = { arch: P.arch, rpm: P.rpm };
+      P.arch = 'electric';
+      P.rpm = lastElec.rpm;
+    } else {
+      lastElec = { rpm: P.rpm };
+      P.arch = lastPiston.arch;
+      P.rpm = lastPiston.rpm;
+    }
+    fitDone = false;
+    buildPanel(); rebuild();
+  };
+  pw.appendChild(psel);
+  ui.appendChild(pw);
 
   const pr = document.createElement('div');
   pr.className = 'r';
@@ -427,7 +536,8 @@ function buildPanel() {
   lr.appendChild(lsel);
   ui.appendChild(lr);
 
-  for (const [gname, rows] of GROUPS) {
+  for (const [gname, rows, show] of GROUPS) {
+    if (show && !show(P)) continue;      // the powertrain conditions the panel
     const det = document.createElement('details');
     det.open = true;
     const sum = document.createElement('summary');

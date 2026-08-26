@@ -101,10 +101,71 @@ const ENG_ARCH = {
     nStations: () => 1,
   },
   electric: {
-    name: 'Electric outrunner', counts: [0], kM: 1.00, bmep: 0,
+    name: 'Electric', counts: [0], kM: 1.00, bmep: 0,
     angles: () => [], stations: () => [], nStations: () => 1,
   },
 };
+
+// ---------------------------------------------------------------------------
+// ELECTRIC (G25). A different engine, same epistemology — three steps, each
+// a physical law calibrated on real machines, not a fudge:
+//
+//   1. TORQUE IS GEOMETRY:  T = 2 * sigma * Vrotor
+//      A PM machine's torque is airgap shear stress times rotor surface
+//      times radius, which collapses to twice the rotor volume times sigma.
+//      Sigma is a REAL, NARROW parameter, the electric BMEP: continuous
+//      shear comes out 15 kPa for a bare RC outrunner and 25-28 kPa for
+//      aerospace axial-flux and liquid-cooled machines — one order of
+//      magnitude below BMEP's bar, same kind of number.
+//   2. POWER IS RPM:  P = T * omega. That is the whole story, and it is
+//      why a 57-gram can at 8500 rpm keeps a park flyer up while the same
+//      torque law's big brother turns 2500 on a Velis.
+//   3. MASS TRACKS TORQUE, NOT POWER, AND SUB-LINEARLY. Fitted log-log
+//      over five real motors spanning 0.15 to 220 Nm continuous — the
+//      2212 outrunner (0.057 kg), EMRAX 188 (7.0), EMRAX 228 (12.3),
+//      EMRAX 268 (20.3), Pipistrel E-811 (22.7):
+//
+//          mass = 0.274 * T^0.822          (worst error ~5%)
+//
+//      ONE law covers a 57 g park-flyer can and a certified trainer motor
+//      — a 1500x torque span — and the exponent lands within 6% of the
+//      combustion mass law's 0.8735 on displacement, which is the same
+//      finding wearing two hats: the material around a working volume
+//      does not thicken in proportion to it. The declared outlier is the
+//      SP260D class (Siemens' record one-off reads 5.2 kW/kg; the law
+//      says 80 kg where it weighs 50) — excluded from the fit and noted,
+//      the A-65 move.
+//
+// THE FICHE INPUT IS THE CAN — outer diameter and length, the two numbers
+// a caliper gives you — plus rpm. Style constants map can to rotor:
+// an outrunner's magnet ring runs close to the can wall (kD 0.82), an
+// axial-flux pancake works nearly its whole disc (0.90), a housed
+// inrunner gives up radius to stator iron and case (0.75). Liquid
+// cooling multiplies sigma by 1.30: that is WHAT COOLING BUYS, shear you
+// may sustain, and it is why the E-811 and the pancakes read hotter
+// than the bare RC can.
+//
+// THE CONTROLLER IS PART OF THE POWERPLANT AS NORMALLY EQUIPPED (the
+// registry's dry-engine convention): escOn folds ~0.085 kg per cont-kW
+// in. THE BATTERY IS NOT — it is the fuel tank's analog and belongs to
+// the energy module (see HANDOVER riders), exactly as the combustion
+// rows exclude their fuel.
+// ---------------------------------------------------------------------------
+// `kL` is the active-length fraction OF THE CAN LENGTH — except the pancake,
+// whose torque rides its DISC: an axial-flux machine's airgap is the annular
+// face, so its effective length scales with DIAMETER (diskL) and the can's
+// axial length barely matters. The cylindrical rule read the EMRAX 268 36%
+// low; the disc rule is the physical fix, not a tuned one.
+const ELEC_STYLE = [
+  { key: 'outrunner', name: 'Outrunner', kD: 0.82, kL: 0.55, sigma: 15e3 },
+  { key: 'pancake', name: 'Axial pancake', kD: 0.90, diskL: 0.23, sigma: 28e3 },
+  { key: 'housed', name: 'Housed inrunner', kD: 0.75, kL: 0.55, sigma: 25e3 },
+];
+const ELEC_MASS_K = 0.274;      // kg at one newton-metre (continuous)
+const ELEC_MASS_E = 0.822;      // exponent on torque
+const ELEC_ESC_KGKW = 0.085;    // controller kg per continuous kW
+const ELEC_LIQ_K = 1.30;        // sigma multiplier a water jacket buys
+const ELEC_PEAK_K = 2.0;        // burst/continuous ratio (declared, not rated)
 
 // ---------------------------------------------------------------------------
 // THE FICHE. Defaults are a Continental A-65 — the engine the whole fleet's
@@ -124,6 +185,16 @@ const ENG_DEFAULT = {
   // would make one number mean three.
   geared: 0, gearRatio: 2.27,
   liquid: 0,
+  // ELECTRIC (arch 'electric'): the can IS the fiche. Defaults are the
+  // registry's own 2212 outrunner — the electric anchor, as the A-65 is
+  // the combustion one. rpm rides the shared key (electric default 8500
+  // when the spec is silent — a can spins an order of magnitude faster
+  // than a crank, and inheriting 2300 would make the anchor read dead).
+  eStyle: 0,               // index into ELEC_STYLE
+  canD: 0.0278,            // m — can / housing outer diameter
+  canL: 0.026,             // m — can / housing length, bearing to bearing
+  volts: 11.1,             // pack voltage (readout: cells, implied KV)
+  escOn: 1,                // controller in the mass, as normally equipped
   // installation
   accessories: 1,          // magnetos, pumps, starter, alternator
   exhaust: 1,
@@ -146,12 +217,98 @@ const ENG_MAT = {
 };
 
 // ---------------------------------------------------------------------------
+// RESOLVE, ELECTRIC — same output shape as the combustion resolve (env, cgZ,
+// items, place), so the cowl fit, the mount and the mesh read one contract.
+// Every dimension is a ratio of canD/canL — no metre constants (the electric
+// registry span is 28 mm to 420 mm of can, the same 15x the scale check
+// guards on the combustion side).
+// ---------------------------------------------------------------------------
+function elecResolve(P, spec) {
+  const s = Math.max(0, Math.min(ELEC_STYLE.length - 1, Math.round(P.eStyle)));
+  const ST = ELEC_STYLE[s];
+  const rpm = (spec && spec.rpm !== undefined) ? P.rpm : 8500;
+
+  // 1. torque is geometry
+  const rotorD = ST.kD * P.canD;
+  const rotorL = ST.diskL ? ST.diskL * P.canD : ST.kL * P.canL;
+  const Vr = Math.PI / 4 * rotorD * rotorD * rotorL;
+  const sigma = ST.sigma * (P.liquid ? ELEC_LIQ_K : 1);
+  const torque = 2 * sigma * Vr;                       // Nm, continuous
+
+  // 2. power is rpm
+  const omega = rpm / 60 * 2 * Math.PI;
+  const powerW = torque * omega;                       // continuous
+  const powerPeakW = ELEC_PEAK_K * powerW;             // burst, declared
+
+  // 3. mass tracks torque, sub-linearly; the extras declared, never folded
+  const motorMass = ELEC_MASS_K * Math.pow(torque, ELEC_MASS_E);
+  const escMass = P.escOn ? ELEC_ESC_KGKW * powerW / 1000 : 0;
+  let mass = motorMass + escMass;
+  // a belt/planetary reduction is rare on electric and light when it
+  // exists — a ratio of the motor, never the combustion rule's +3 kg
+  // constant (which would triple a park-flyer can)
+  if (P.geared) mass += 0.22 * motorMass;
+  if (P.liquid) mass += 0.06 * motorMass;              // jacket + pump share
+
+  // ---- ENVELOPE + CG ------------------------------------------------------
+  // The BARE MOTOR, like the combustion envelope is the bare engine: fins
+  // and ribs stand a little proud on the dressed styles, the controller is
+  // airframe-side and excluded — a cowl carries its own clearance anyway.
+  const canR = P.canD / 2;
+  const rE = canR * (s === 0 ? 1.0 : 1.07);
+  const flangeL = 0.30 * P.canD;                       // shaft + prop flange
+  const aftL = (s === 0 ? 0.30 : 0.18) * P.canL;       // stator base / resolver
+  const zCanF = -flangeL, zCanB = zCanF - P.canL;
+  const zAft = zCanB - aftL;
+  const hull = [];
+  for (let k = 0; k < 16; k++) {
+    const t = k / 16 * Math.PI * 2;
+    hull.push([Math.sin(t) * rE, Math.cos(t) * rE]);
+  }
+  const env = { x0: -rE, x1: rE, y0: -rE, y1: rE, z0: zAft, z1: 0, hull,
+                width: 2 * rE, height: 2 * rE, length: -zAft, radius: rE };
+
+  // CG: the motor is one dense lump at mid-can — the whole point of the
+  // electric nose is how SHORT that arm is. The controller's arm is style-
+  // dependent (an RC ESC rides the motor, a big inverter the firewall);
+  // it is carried AT THE AFT FACE here, the conservative end of the
+  // engine's own envelope — the airframe will place it properly.
+  const items = [{ what: 'motor', m: motorMass * 0.96,
+                   z: zCanF - 0.5 * P.canL },
+                 { what: 'flange', m: motorMass * 0.04, z: -0.5 * flangeL }];
+  if (escMass) items.push({ what: 'controller', m: escMass, z: zAft });
+  const mTot = items.reduce((q, it) => q + it.m, 0) || 1;
+  const cgZ = items.reduce((q, it) => q + it.m * it.z, 0) / mTot;
+
+  return {
+    arch: 'electric', archName: ST.name + ' electric', styleKey: ST.key,
+    cyl: 0, displacement: 0, litres: 0, bmep: 0,
+    torque, sigma, powerW, powerPeakW, powerHP: powerW / 745.7, rpm,
+    kv: P.volts > 0 ? rpm / (0.85 * P.volts) : 0,      // loaded ~0.85*KV*V
+    cells: Math.max(1, Math.round(P.volts / 3.7)),
+    mass, motorMass, escMass,
+    kgPerLitre: 0, kgPerKW: powerW ? mass / (powerW / 1000) : 0,
+    env, cgZ, items,
+    place: { canR, canD: P.canD, canL: P.canL, rotorD, rotorL, flangeL,
+             zCanF, zCanB, zAft, eStyle: s,
+             // the combustion place contract, satisfied trivially so the
+             // shared consumers (governor, mount, check rulers) read one
+             // shape: caseR IS the can radius
+             caseR: canR, ang: [], stn: [], nSt: 1, pitch: 0,
+             r0: canR, cylLen: 0, rTip: canR, headR: 0, sump: 0,
+             zOf: () => zCanB },
+    P: Object.assign({}, P, { rpm }),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // RESOLVE — the numbers. Pure; no geometry, no THREE, node-callable.
 // ---------------------------------------------------------------------------
 function engResolve(spec) {
   const P = Object.assign({}, ENG_DEFAULT, spec || {});
+  if (P.arch === 'electric') return elecResolve(P, spec);
   const A = ENG_ARCH[P.arch] || ENG_ARCH.flat;
-  const n = P.arch === 'electric' ? 0 : Math.max(1, Math.round(P.cyl));
+  const n = Math.max(1, Math.round(P.cyl));
 
   // 1. displacement
   const swept = Math.PI / 4 * P.bore * P.bore * P.stroke;   // m3 per cylinder
@@ -189,6 +346,12 @@ function engResolve(spec) {
   // it. As a bore fraction it came out 0.12 m across on an A-65, which is
   // narrower than the crankshaft, and the whole engine read as a toy.
   const caseR = P.caseK * (0.55 * P.stroke + 0.45 * P.bore);
+  // A GEARED FLAT ENGINE IS LONGER (G25.1, the 912 review): the reduction
+  // gearbox is a real conical housing AHEAD of the case, so the crank —
+  // and everything on it — moves aft to make room. Flat only: the radial's
+  // nose cone and the two-strokes' compact end-boxes already read right,
+  // and the R-1830's approved look must not move.
+  const gearLen = (P.geared && P.arch === 'flat') ? 0.85 * caseR : 0;
   // A CYLINDER IS MOSTLY NOT ITS STROKE. Measured off the real engines: an
   // A-65 is 0.79 m across a 0.22 m crankcase, so each cylinder projects
   // 0.285 m on a 0.092 m stroke — three times it. The finned barrel and a
@@ -201,8 +364,9 @@ function engResolve(spec) {
   // engine is not a bare barrel and a cowl has to clear this
   const sump = P.sump * caseR;
 
-  // stations run aft from the flange; z = 0 is the CRANK NOSE (flange face)
-  const zOf = s => -(P.flangeLen + 0.5 * pitch + s * pitch);
+  // stations run aft from the flange; z = 0 is the CRANK NOSE (flange face);
+  // a geared flat engine's stations sit a gearbox further aft
+  const zOf = s => -(P.flangeLen + gearLen + 0.5 * pitch + s * pitch);
   let x0 = -caseR, x1 = caseR, y0 = -caseR - sump, y1 = caseR;
   for (let i = 0; i < n; i++) {
     const c = Math.cos(ang[i]), s = Math.sin(ang[i]);
@@ -277,7 +441,7 @@ function engResolve(spec) {
     env, cgZ, items,
     // the placement rule, published so the geometry and the cowl agree
     place: { ang, stn, nSt, pitch, r0, cylLen, rTip, caseR, headR, sump,
-             zOf, zAft },
+             gearLen, zOf, zAft },
     P,
   };
 }
@@ -434,8 +598,8 @@ function engBuild(spec) {
 }
 
 if (typeof module !== 'undefined')
-  module.exports = { ENG_ARCH, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
+  module.exports = { ENG_ARCH, ELEC_STYLE, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
                      engResolve, engBuild };
 if (typeof window !== 'undefined')
-  window.ENG_GEN = { ENG_ARCH, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
+  window.ENG_GEN = { ENG_ARCH, ELEC_STYLE, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
                      engResolve, engBuild };

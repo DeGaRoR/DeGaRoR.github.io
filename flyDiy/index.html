@@ -506,6 +506,62 @@ const POWERPLANTS = {
     engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180 },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },
+  // THE ELECTRIC LADDER (G25). One 180 W park-flyer can was the whole
+  // electric market; these seven run it from a 2 m RC model to an aerobatic
+  // monster, matching the real market in both power AND price: 0.8 -> 2.2 ->
+  // 12 -> 22 -> 55 -> 57.6 -> 260 kW against 55 -> 130 -> 3800 -> 9500 ->
+  // 11000 -> 28000 -> 90000 cr.
+  //
+  // CONVENTIONS, because an electric row means slightly different things:
+  //   - `mass` is MOTOR + CONTROLLER (the powerplant as normally equipped —
+  //     the dry-engine convention's electric reading). THE BATTERY IS NOT
+  //     IN IT: it is the fuel tank's analog, priced and weighed by the
+  //     energy module (see HANDOVER riders), exactly as combustion rows
+  //     exclude fuel. That is also why an EMRAX undercuts a Rotax 912 in
+  //     credits and the sticker shock arrives with the packs.
+  //   - `powerW` is the rating the market sells the unit by (continuous for
+  //     the aircraft motors, takeoff/max for FES and the e-PPG, burst for
+  //     RC cans) — tools/_eng_check.js prints the model's continuous
+  //     reading against each so the gap stays visible.
+  //   - EMRAX 228 vs E-811: nearly the same numbers, 2.5x the price — the
+  //     difference IS the type certificate, and that is the honest market.
+  // Tstatic on the A-65's own curve (P^2/3 D^2/3) and kV2 through
+  // GEN_RULES.propV0K, like the middle-market rows above.
+  outrunner3548_12x6: {
+    price: 55,
+    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800 },
+    prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
+  },
+  outrunner6374_18x10: {
+    price: 130,
+    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200 },
+    prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
+  },
+  eppg_direct_130: {
+    price: 3800,
+    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000 },
+    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
+  },
+  fes_folding_100: {
+    price: 9500,
+    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000 },
+    prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
+  },
+  emrax228_3blade: {
+    price: 11000,
+    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000 },
+    prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
+  },
+  e811_velis: {
+    price: 28000,
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600 },
+    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
+  },
+  sp260d_class: {
+    price: 90000,
+    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000 },
+    prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
+  },
 };
 const POLARS = {
   usa35b_AR7: { a3d: 4.34, Cl0: 0.35, aStall: 0.297, Cd0: 0.010, eAR: Math.PI * 0.75 * 6.95, Cm0: -0.080 },

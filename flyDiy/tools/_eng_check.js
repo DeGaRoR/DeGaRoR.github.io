@@ -160,9 +160,100 @@ hard('a bigger bore makes more power and more mass',
 hard('displacement is the geometry', Math.abs(base.litres -
      1000 * Math.PI / 4 * base.P.bore ** 2 * base.P.stroke * 4) < 1e-9);
 
+// ---- ELECTRIC (G25) -------------------------------------------------------
+// The reference rows are REAL published machines — can dimensions, rpm,
+// CONTINUOUS torque and dry motor mass (no controller: escOn 0 here, so the
+// mass column is the motor law alone). The model gets only the caliper
+// numbers; torque, power and mass are its to earn. Same instrument rule:
+// disagreement is the finding, not a fail.
+//   Data notes: RC "ratings" are bursts, so cont torque is the honest column
+//   and runs ~55-60% of the sticker. FES publishes 22 kW MAX — the model's
+//   cont reading low there is the burst/cont gap showing, not an error.
+//   The SP260D is the DECLARED outlier of the mass law (a Siemens record
+//   one-off at 5.2 kW/kg); it stays in the table so the outlier stays seen.
+console.log();
+console.log('ELECTRIC MODEL vs REAL MACHINES (torque/mass continuous, motor only)');
+console.log(pad('motor', 24) + padL('can mm', 9) + padL('Nm ref', 8) +
+            padL('Nm mod', 8) + padL('err', 7) + padL('kW mod', 8) +
+            padL('kg ref', 8) + padL('kg mod', 8) + padL('err', 7));
+console.log('-'.repeat(87));
+const REF_E = [
+  { name: '2212 outrunner', style: 0, canD: 0.0278, canL: 0.026, rpm: 8500,
+    torque: 0.16, mass: 0.057 },
+  { name: '6374 outrunner', style: 0, canD: 0.063, canL: 0.074, rpm: 4600,
+    torque: 2.5, mass: 0.72 },
+  { name: 'M50-class e-PPG', style: 0, canD: 0.208, canL: 0.115, rpm: 2600,
+    torque: 45, mass: 6.2 },
+  { name: 'FES (LZ Design)', style: 0, canD: 0.20, canL: 0.09, rpm: 4500,
+    torque: 47, mass: 7.3 },
+  { name: 'EMRAX 228', style: 1, canD: 0.228, canL: 0.086, rpm: 5000,
+    torque: 96, mass: 12.3 },
+  { name: 'EMRAX 268', style: 1, canD: 0.268, canL: 0.091, rpm: 4500,
+    torque: 200, mass: 20.3 },
+  { name: 'Pipistrel E-811', style: 2, canD: 0.268, canL: 0.19, rpm: 2500,
+    liquid: 1, torque: 220, mass: 22.7 },
+  { name: 'SP260D (outlier)', style: 2, canD: 0.418, canL: 0.30, rpm: 2500,
+    liquid: 1, torque: 1000, mass: 50 },
+];
+const errT = [], errEM = [];
+for (const r of REF_E) {
+  const R = engResolve({ arch: 'electric', eStyle: r.style, canD: r.canD,
+                         canL: r.canL, rpm: r.rpm, liquid: r.liquid || 0,
+                         escOn: 0 });
+  const eT = pct(R.torque, r.torque), eM = pct(R.mass, r.mass);
+  errT.push(Math.abs(eT)); errEM.push(Math.abs(eM));
+  console.log(pad(r.name, 24) +
+    padL(f(r.canD * 1000, 0) + 'x' + f(r.canL * 1000, 0), 9) +
+    padL(f(r.torque, r.torque < 1 ? 2 : 0), 8) +
+    padL(f(R.torque, R.torque < 1 ? 2 : 0), 8) +
+    padL((eT >= 0 ? '+' : '') + f(eT, 0) + '%', 7) +
+    padL(f(R.powerW / 1000, R.powerW < 2000 ? 2 : 1), 8) +
+    padL(f(r.mass, r.mass < 1 ? 3 : 1), 8) +
+    padL(f(R.mass, R.mass < 1 ? 3 : 1), 8) +
+    padL((eM >= 0 ? '+' : '') + f(eM, 0) + '%', 7));
+  hard(r.name + ': positive torque/power/mass',
+       R.torque > 0 && R.powerW > 0 && R.mass > 0);
+  hard(r.name + ': envelope is positive',
+       R.env.width > 0 && R.env.height > 0 && R.env.length > 0);
+  hard(r.name + ': CG is behind the flange and inside the motor',
+       R.cgZ < 0 && R.cgZ > R.env.z0, 'cgZ=' + f(R.cgZ, 3));
+}
+console.log('-'.repeat(87));
+console.log('mean |torque err| ' + f(mean(errT)) + '%   ' +
+            'mean |mass err| ' + f(mean(errEM)) + '%');
+
+// the electric knobs move the right things
+{
+  const e0 = engResolve({ arch: 'electric' });
+  const big = engResolve({ arch: 'electric', canD: 0.0278 * 1.2 });
+  const fast = engResolve({ arch: 'electric', rpm: 8500 * 1.3 });
+  const liq = engResolve({ arch: 'electric', liquid: 1 });
+  const noEsc = engResolve({ arch: 'electric', escOn: 0 });
+  hard('electric anchor is the 2212 (spec-silent rpm defaults 8500)',
+       e0.rpm === 8500 && Math.abs(e0.motorMass - 0.057) < 0.015,
+       f(e0.motorMass, 3) + ' kg');
+  hard('a bigger can makes more torque and more mass',
+       big.torque > e0.torque && big.mass > e0.mass);
+  hard('rpm buys power, not torque',
+       Math.abs(fast.torque - e0.torque) < 1e-12 && fast.powerW > e0.powerW);
+  hard('liquid cooling buys shear (power up, mass up a little)',
+       liq.torque > e0.torque && liq.mass > e0.mass);
+  hard('the controller is a declared addition', noEsc.mass < e0.mass);
+  hard('electric torque is the geometry', Math.abs(e0.torque -
+       2 * e0.sigma * Math.PI / 4 * e0.place.rotorD ** 2 * e0.place.rotorL)
+       < 1e-12);
+}
+
 console.log();
 console.log('A-65 identity (the fleet\'s anchor): ' +
   f(base.litres, 2) + ' L, ' + f(base.powerW / 1000) + ' kW, ' +
   f(base.mass) + ' kg  (registry: 2.80 L, 48.5 kW, 80 kg)');
+{
+  const e = engResolve({ arch: 'electric' });
+  console.log('2212 identity (the electric anchor): ' +
+    f(e.torque, 2) + ' Nm, ' + f(e.powerW, 0) + ' W cont / ' +
+    f(e.powerPeakW, 0) + ' W burst, ' + f(e.motorMass * 1000, 0) +
+    ' g motor  (registry: 180 W, 100 g w/ mount+ESC)');
+}
 console.log(fail ? '\nENG CHECK: FAIL (' + fail + ')' : '\nENG CHECK: OK');
 process.exit(fail ? 1 : 0);
