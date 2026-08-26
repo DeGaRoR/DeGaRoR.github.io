@@ -1064,6 +1064,12 @@ function seatPlaces(A, P) {
     return [{ x: gp, zBack: A.zBack, pilot: true },
             { x: -gp, zBack: A.zBack, pilot: false }];
   }
+  // SECTION - SEAT - PASSENGER (G26.4, user ruling): the tandem rear
+  // seat lives in the passenger section — remove the section and the
+  // seat (and its dummy, which follows the seat count) goes with it.
+  // Side-by-side is untouched: both seats share the pilot bay.
+  if (Math.max(0, Math.round(P.paxCount || 0)) < 1)
+    return [{ x: 0, zBack: A.zBack, pilot: true }];
   return [{ x: 0, zBack: A.zBack, pilot: true },
           { x: 0, zBack: A.zBack - P.seatPitch, pilot: false }];
 }

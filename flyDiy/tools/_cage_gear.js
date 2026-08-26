@@ -49,7 +49,12 @@ Object.assign(gearDef, {
   // tail. Measured back to 16.2 deg, inside the 15-18 window, at 2.00.
   s1On: 1, s1Z: 2.00, s1X: 0.80, s1Leg: 1, s1R: 0.20, s1Drop: 0.45,
   s1Brake: 1, s1Steer: 0, s1Fair: 0,
-  s2On: 1, s2Z: -2.26, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
+  // G26.4 (user): a TAILWHEEL station follows the tail — when the leg
+  // is a tailwheel, station z is measured FORWARD OF THE AFT EXTREMITY
+  // (AF.z0, which tracks the boom/rod length by construction), so
+  // shortening the boom carries the wheel with the tail. Non-tailwheel
+  // legs (a trike's nose unit) keep the absolute station.
+  s2On: 1, s2Z: 0.06, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
   s2Brake: 0, s2Steer: 1, s2Fair: 0,
   shockKind: 1, linkSwing: -42,
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
@@ -68,7 +73,8 @@ const legSubs = i => Object.keys(GP.LEG_ROWS).map(kind =>
 
 const station = (i, name) => [name, [
   ['s' + i + 'On',    'fitted',       0, 1, 1],
-  ['s' + i + 'Z',     'station z',   -4, 4, 0.01],
+  ['s' + i + 'Z',     i === 2 ? 'z / tail offset' : 'station z',
+                                     -4, 4, 0.01],
   ['s' + i + 'X',     'half track',   0, 1.6, 0.01],
   ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS],
   ['s' + i + 'R',     'wheel radius', 0.05, 0.40, 0.005],
@@ -125,8 +131,13 @@ PAGE.post = ctx => {
 
   // IDENTICAL to the bench's loop, deliberately: if this had to be written
   // differently to run on a real body, the contract would not be one.
+  // (One cage-side remap first: tailwheel stations are TAIL-RELATIVE —
+  // see the defaults note above. The bench keeps absolute stations.)
+  const stations = GP.gearStations(P);
+  for (const st of stations)
+    if (st.leg === 3) st.z = AF.z0 + Math.max(0.02, st.z);
   const contacts = [];
-  for (const st of GP.gearStations(P)) {
+  for (const st of stations) {
     const sides = st.x > 0.01 ? [-1, 1] : [0];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;

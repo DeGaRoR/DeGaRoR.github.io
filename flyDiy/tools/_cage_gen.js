@@ -147,10 +147,20 @@ const CAGE_MAT = {
   pilot: { roof: 'skyWindows', ceilB: 'ceilingLoop', glass: 'pilotWindow',
            bandG: 'pilotWindow', band: 'waistband', waistG: 'body',
            door: 'body', floorB: 'floorLoop', belly: 'body' },
+  // THE TAPER (G26 v2, user: "invent a new color for it") — a proper
+  // section like cabin and boom: its whole body reads 'taper' while the
+  // painted longeron rails (waistband / ceiling / floor loops) run
+  // through, exactly as they do on every other section
+  taper: { roof: 'taper', ceilB: 'ceilingLoop', glass: 'taper',
+           bandG: 'taper', band: 'waistband', waistG: 'taper',
+           door: 'taper', floorB: 'floorLoop', belly: 'taper' },
 };
 const CAGE_PILLAR = m => ({ roof: m, ceilB: m, glass: m, bandG: m, band: m,
                             waistG: m, door: m, floorB: m, belly: m });
-const isPillarMat = mat => mat.roof === mat.glass && mat.roof === mat.belly;
+// pillar test: uniform band AND a pillar-family name — the taper
+// section's body is uniform too, but it is a SECTION, not a mechanism
+const isPillarMat = mat => mat.roof === mat.glass && mat.roof === mat.belly
+  && /^pillar/.test(mat.roof);
 
 // ---------------------------------------------------------------------------
 // resolve: spec -> ordered rings + bays + windshield/nose specials
@@ -254,7 +264,20 @@ function cageResolve(S) {
   const zPaxB = S.ring.z - S.pilot.len - S.cabinPillarW
               - S.pax.count * S.pax.len - (S.pax.count - 1) * S.paxPillarW;
   const zPaxA = zPaxB - S.paxPillarW;
-  const zPost = zPaxA - S.boom.len;
+  // THE TAPER (G26): a dedicated tightening section between the aft
+  // cabin pillar and the boom — the contraction stops living on the
+  // passenger pillar. A PROPER SECTION like cabin and boom (user v2):
+  // EXPLICITLY present or absent (spec.taper, not a zero length), its
+  // own materials, and GATED BY ITS OWN PILLAR at the aft end — every
+  // section sits between pillars. ADDITIVE lengths throughout.
+  // In rod mode the tightening carries NO SKIN (user ruling): the
+  // pillar and bay never emit — the taper is the truss's span only.
+  const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
+  const tpW = TAP && !S.rod
+    ? (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0;
+  const zTaperA = zPaxA - (TAP ? TAP.len : 0);   // fwd end of taper pillar
+  const zTaperP = zTaperA - tpW;                 // aft ring of taper pillar
+  const zPost = zTaperP - S.boom.len;
   const zCap  = zPost - S.tail.len;
 
   const tailD = { Ww: S.tail.halfW, Wr: S.tail.halfW, roofY: S.tail.roofY,
@@ -289,7 +312,37 @@ function cageResolve(S) {
   // never exist in this mode; the boom re-bases on the mirrored
   // aperture. pax is forced 0 in cageSpec.
   const MIR = !!CFG.mirror;
-  if (!MIR) {
+  // THE ROD (G26, user v2 ruling): boomStyle 'rod' means THE TUBE IS
+  // THE BOOM AND THE TAIL — one bare structural cylinder from the aft
+  // bulkhead to the tail, fin and stab clamping straight onto it. The
+  // fuselage table STOPS at the bulkhead (aft cap, rearAperture
+  // capable); no fuselage skin is ever lofted aft of it, and the
+  // tightening section carries no skin either (truss only, interior
+  // pass). buildCage2 emits the rod as its own closed component.
+  const ROD = !MIR && S.rod ? S.rod : null;
+  // rod rings are regular 14-gons on the rod circle (6 levels + the two
+  // centre columns): even spacing = the CC limit is a circle. Control
+  // radius compensates the n-gon shrink so the DISPLAYED tube hits
+  // rod.r: limit radius of a regular n-gon under CC = r*(2+cos(2pi/n))/3.
+  const rodRing = (name, z) => {
+    const rc = ROD.r * 3 / (2 + Math.cos(2 * Math.PI / 14));
+    const th = k => k * Math.PI / 7;
+    const at = k => ({ x: rc * Math.sin(th(k)),
+                       y: ROD.y + rc * Math.cos(th(k)), z });
+    const lv = { roof: at(1), ceil: at(2), band: at(3),
+                 waist: at(4), floor: at(5), keel: at(6) };
+    lv.roof.yC = ROD.y + rc; lv.roof.zC = z;
+    lv.keel.yC = ROD.y - rc; lv.keel.zC = z;
+    return { name, kind: 'full', rod: 1, lv };
+  };
+  // the taper's aft section = the boom root: the aft dims MOVED AFT off
+  // the pillar pair (their historic seat), plus an own width factor.
+  // Both rings of the taper pillar take it (a pillar is a prism band).
+  const tWw = TAP ? W * (TAP.w || 1) : W;
+  const taperD = TAP ? { Ww: tWw, Wr: Wr * (tWw / W), roofY: S.aft.roofY,
+                         ceilY: S.aft.ceilY, floorY: S.aft.floorYA,
+                         keelY: S.aft.keelYA } : aftDA;
+  if (!MIR && !ROD) {
   add(fullRing('tailCap', zCap, tailD), { mat: CAGE_MAT.plain });
   // the tail pillar band is tailMid -> tailPost: with the unified pillar
   // width set, tailMid sits pillarW forward of the post (template midT
@@ -308,18 +361,29 @@ function cageResolve(S) {
     const lp = (a, b) => a + (b - a) * (1 - t);      // 1-t: from aft toward tail
     const sq = y => S.waistY + (y - S.waistY) * p;
     add(fullRing('boomMid', zPost + t * S.boom.len, {
-      Ww: lp(aftDA.Ww, tailD.Ww) * p, Wr: lp(aftDA.Wr, tailD.Wr) * p,
-      roofY: sq(lp(aftDA.roofY, tailD.roofY)),
-      ceilY: sq(lp(aftDA.ceilY, tailD.ceilY)),
-      floorY: sq(lp(aftDA.floorY, tailD.floorY)),
-      keelY: sq(lp(aftDA.keelY, tailD.keelY)),
+      Ww: lp(taperD.Ww, tailD.Ww) * p, Wr: lp(taperD.Wr, tailD.Wr) * p,
+      roofY: sq(lp(taperD.roofY, tailD.roofY)),
+      ceilY: sq(lp(taperD.ceilY, tailD.ceilY)),
+      floorY: sq(lp(taperD.floorY, tailD.floorY)),
+      keelY: sq(lp(taperD.keelY, tailD.keelY)),
     }), { mat: CAGE_MAT.plain });
   }
-  add(fullRing('pilPaxA', zPaxA, aftDA), { mat: CAGE_PILLAR('pillarPassenger') });
+  // the taper section, gated aft by ITS OWN PILLAR (user: all sections
+  // sit between pillars): pilTaperA/B = the tight ring pair at the
+  // boom junction, then the taper bay in the section's own materials
+  if (TAP) {
+    add(fullRing('pilTaperA', zTaperP, taperD),
+        { mat: CAGE_PILLAR('pillarTaper') });
+    add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
+  }
+  // with the taper on, the pillar pair reverts to the full cabin section
+  // — a pillar is a pillar again, the contraction is the taper's
+  if (!MIR) add(fullRing('pilPaxA', zPaxA, TAP ? cabD : aftDA),
+                { mat: CAGE_PILLAR('pillarPassenger') });
   let z = zPaxB;
   if (!MIR) for (let i = 0; i < S.pax.count; i++) {
-    add(fullRing('pilPaxB' + (i || ''), z, i ? cabD : aftDB),
+    add(fullRing('pilPaxB' + (i || ''), z, (i || TAP) ? cabD : aftDB),
         { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
     z += S.pax.len;
     if (i < S.pax.count - 1) {
@@ -372,7 +436,9 @@ function cageResolve(S) {
     add(ringAt('noseMid', zWs + A.pillarW
         + (zTip - zWs - A.pillarW) * 0.55), { mat: CAGE_MAT.plain });
     add(ringAt('noseTip', zTip), null);
-    return { rings, bays, aero: true };
+    return { rings, bays, aero: true,
+             rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing }
+                          : null };
   }
 
   add(fullRing('ring', S.ring.z, ringD),
@@ -527,13 +593,15 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  return { rings, bays, chain, noseTwin, noseRing, mirrorZ };
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
+           rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing } : null };
 }
 
 // ---------------------------------------------------------------------------
 // emit: resolved structure -> {V, F} for one step
 // ---------------------------------------------------------------------------
-const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft']);
+const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft',
+                            'pilTaperB']);
 
 // step: 0 zones | 1 pillars+rails | 2 guard loops | 'crease' = step-1
 // geometry + edge crease tags (the canonical economic output)
@@ -709,6 +777,57 @@ function buildCage2(S, step) {
     emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture),
             !!(S.config && S.config.rearAperture));
 
+  // ---- THE ROD (G26) ------------------------------------------------------
+  // The tube IS the boom and the tail (user ruling): the table stopped
+  // at the aft bulkhead, capped above — the rod is its OWN closed
+  // component, bare, fin and stab clamping straight onto it. Root ring
+  // embedded 10 mm into the pillar band (never coplanar with the aft
+  // cap), constant section to the tail tip, both cap rings creased,
+  // length edges smooth. Called AFTER orientCage: the flood never
+  // reaches a second component and the global volume flip follows the
+  // fuselage — this component normalizes itself.
+  const emitRodFree = () => {
+    if (MIR || !S.rod || !R.rodSpan) return;
+    const F0 = F.length;
+    const rT = R.rodSpan.ring('rodTip', R.rodSpan.zTip);
+    const rR = R.rodSpan.ring('rodRoot', R.rodSpan.zRoot + 0.01);
+    if (sv >= 2) for (const r of [rT, rR]) {
+      r.lv = { ...r.lv };
+      r.lv.bandG = lerpLv(r.lv.band, r.lv.ceil, S.gBandT);
+      r.lv.waistG = lerpLv(r.lv.waist, r.lv.floor, S.gWaistT);
+    }
+    const a = mkIds(rT, true), b = mkIds(rR, true);
+    const M2 = 'boomTube';
+    face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, M2);
+    face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, M2);
+    const sh = ordOf(rT);
+    for (let k = 0; k + 1 < sh.length; k++) {
+      const hi = sh[k], lo = sh[k + 1];
+      face(a.P[hi], b.P[hi], b.P[lo], a.P[lo], M2);
+      face(a.M[lo], b.M[lo], b.M[hi], a.M[hi], M2);
+    }
+    face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, M2);
+    face(a.C.keel, b.C.keel, b.M.keel, a.M.keel, M2);
+    emitCap(a, rT, () => M2);                    // tip: the aft-cap grid
+    const nCap0 = F.length;
+    emitCap(b, rR, () => M2);                    // root grid faces forward
+    for (let i = nCap0; i < F.length; i++) F[i].v.reverse();
+    if (E) { tagLoop(a, rT, CW.cap); tagLoop(b, rR, CW.cap); }
+    // winding is consistent by construction; one signed volume decides
+    // in/out for the whole slice
+    let vol = 0;
+    for (let i = F0; i < F.length; i++) {
+      const p = F[i].v.map(vi => V[vi]);
+      for (let t = 1; t + 1 < p.length; t++) {
+        const [q, r2, s2] = [p[0], p[t], p[t + 1]];
+        vol += q[0] * (r2[1] * s2[2] - r2[2] * s2[1])
+             - q[1] * (r2[0] * s2[2] - r2[2] * s2[0])
+             + q[2] * (r2[0] * s2[1] - r2[1] * s2[0]);
+      }
+    }
+    if (vol < 0) for (let i = F0; i < F.length; i++) F[i].v.reverse();
+  };
+
   // ---- bridge the ring sequence ------------------------------------------
   const bandMat = (mat, hi, lo) =>
       hi === 'roof' ? (lo === 'ceil' ? mat.ceilB : mat.glass)  // step 0: roof->waist
@@ -825,7 +944,8 @@ function buildCage2(S, step) {
     const fam = nm =>
         nm === 'tailCap' ? CW.cap
       : nm === 'tailMid' || nm === 'tailPost' ? CW.pillar
-      : /^pilPax/.test(nm) || /^pilCab/.test(nm) ? CW.pillar
+      : /^pilPax/.test(nm) || /^pilCab/.test(nm)
+        || /^pilTaper/.test(nm) ? CW.pillar
       // a frame ring crease would PIN the repositioned canopy (bent
       // crossing) — the bubble's front frame is the seam crease instead
       // bubble: the remaining window-pillar ring must read SMOOTH (user:
@@ -868,6 +988,7 @@ function buildCage2(S, step) {
   if (R.aero) {
     emitCap(ids[seq.length - 1], seq[seq.length - 1], capMat(false));
     orientCage({ V, F });
+    emitRodFree();
     return E ? { V, F, E } : { V, F };
   }
 
@@ -1296,6 +1417,7 @@ function buildCage2(S, step) {
   }
 
   orientCage({ V, F });
+  emitRodFree();
   const out = E ? { V, F, E } : { V, F };
   if (dashRim.length) out.dashRim = dashRim;
   if (seamS.length) out.seamS = seamS;
@@ -2148,6 +2270,18 @@ function cageCut(m, S) {
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
     cutZone(z, 0);
+  // DOOR REMOVED (G26.4, user): define the door, then take it away —
+  // the OPENING stays and everything around it (jambs, sills, broken
+  // waist runs, frames) is built exactly as if the door were hung; the
+  // panel itself is simply not there. Deleting the separated part here
+  // means the interior/rim passes never see it: no door liner, no door
+  // rim, a clean empty bay. Needs cutParts on (the door must separate
+  // before it can be removed).
+  if (C.doorGone) {
+    const keep = [];
+    for (const f of F) if (!(f.cutPart && f.doorKey)) keep.push(f);
+    if (keep.length !== F.length) m.F = keep;
+  }
   return m;
 }
 
@@ -2372,15 +2506,21 @@ function cageInterior(m, S) {
       }
       return inner.get(vi);
     };
+    // CLOSED SOLIDS (G26.4, user): the outer face used to BE the
+    // fuselage skin — an open shell that could not stand without it.
+    // The outer sheet is now emitted too, inset EVER SO SLIGHTLY
+    // (LIN_EPS) below the skin (or below baseT for the composite's
+    // second-stage extrusions, whose base plane is the shell's own
+    // inner face) so nothing is ever coplanar with what it lines.
+    const LIN_EPS = 0.0015;
     const outerOf = vi => {
       if (!outer.has(vi)) {
-        if (baseT) {
-          const n = vN.get(vi);
-          const l = Math.hypot(n[0], n[1], n[2]) || 1;
-          outer.set(vi, V.push([V[vi][0] - n[0]/l*baseT,
-                                V[vi][1] - n[1]/l*baseT,
-                                V[vi][2] - n[2]/l*baseT]) - 1);
-        } else outer.set(vi, V.push(V[vi].slice()) - 1);
+        const d = (baseT || 0) + LIN_EPS;
+        const n = vN.get(vi);
+        const l = Math.hypot(n[0], n[1], n[2]) || 1;
+        outer.set(vi, V.push([V[vi][0] - n[0]/l*d,
+                              V[vi][1] - n[1]/l*d,
+                              V[vi][2] - n[2]/l*d]) - 1);
       }
       return outer.get(vi);
     };
@@ -2396,6 +2536,8 @@ function cageInterior(m, S) {
       const f = F[fi];
       add.push({ v: f.v.slice().reverse().map(innerOf), m: matF(F[fi]),
                  att: 1 });
+      // the OUTER sheet closes the solid (skin winding — outward)
+      add.push({ v: f.v.map(outerOf), m: matF(F[fi]), att: 1 });
       for (let e = 0; e < 4; e++) {
         const a = f.v[e], b = f.v[(e + 1) % 4];
         if (eCount.get(cageEdgeKey(a, b)) !== 1) continue;
@@ -2405,9 +2547,11 @@ function cageInterior(m, S) {
     }
   };
   // the FRONT pillar is a pillar in ALL constructions (user ruling);
-  // capFace excluded — the pusher rear disc shares its material
+  // capFace excluded — the pusher rear disc shares its material.
+  // pillarTaper (G26): the taper section's aft gate — hoops, thick
+  // posts and punched frames like every other pillar.
   const PM = new Set(['pillarWindow', 'pillarCabin', 'pillarPassenger',
-                      'pillarFront']);
+                      'pillarFront', 'pillarTaper']);
   // ---- carbon: the COMPOSITE MONOCOQUE (user redesign) ---------------------
   // 1) the WHOLE skin extrudes into ONE continuous inner shell — the
   //    body IS the structure; 2) FROM THAT SURFACE the pillar bands
@@ -2427,7 +2571,7 @@ function cageInterior(m, S) {
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
       if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
-      if (GLM2.has(f.m)) return;
+      if (GLM2.has(f.m) || f.m === 'boomTube') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
       shell.push(i);
@@ -2552,7 +2696,8 @@ function cageInterior(m, S) {
     // the posts; the structure (posts, beams, webs) stays as built.
     const selPan = [], selPil = [], selPanM = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.cutPart || f.m === 'joint' || f.capFace)
+      if (f.v.length !== 4 || f.cutPart || f.m === 'joint' || f.capFace
+          || f.m === 'boomTube')            // the rod lines nothing
         return;
       const [cy, cz] = cenOf(f);
       const c = consAt(cy, cz);
@@ -3657,8 +3802,13 @@ function cageInterior(m, S) {
     const consBoom = CM.boomBelow || cons;
     if (consBoom === 'wood' || consBoom === 'tube'
         || consBoom === 'metal') {
-      const NFr = Math.max(0, Math.round(S.boom.len) - 1);
-      const sp = S.boom.len / (NFr + 1);
+      // the station march covers the TAPER too (G26): frames in the
+      // tightening exactly like a C172's — the slices adapt to
+      // whatever section the skin takes there (taper bay + its pillar)
+      const aftSpan = S.boom.len + (S.taper
+        ? S.taper.len + (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0);
+      const NFr = Math.max(0, Math.round(aftSpan) - 1);
+      const sp = aftSpan / (NFr + 1);
       // no station forward of k=1 (user: the floating mini-ring by the
       // cabin is gone — the boom connects to the pax pillar HOOP)
       const kLo = 1;
@@ -3669,7 +3819,11 @@ function cageInterior(m, S) {
       // the waist longeron poked through the boom skin, user screenshot)
       const BOOM_IN = TUBE_RP + 0.005;
       const topCh = [[], []], botCh = [[], []];
-      for (let k = kLo; k <= kHi; k++) {
+      // ROD MODE (G26): no boom skin to slice and the rod IS the
+      // structure — the station machinery idles (empty chains no-op
+      // downstream; the cabin-side longeron runs still emit). The
+      // tightening truss is its own block below.
+      for (let k = kLo; S.rod ? false : k <= kHi; k++) {
         const zk = k === 0 ? zPax0 - 0.03
                  : k === NFr + 1 ? zBoom0 + 0.05
                  : zPax0 - k * sp;
@@ -3937,9 +4091,12 @@ function cageInterior(m, S) {
           // the aft-most band's corner node is NOT a chine anchor (user
           // rule, sharp aft shoulder): the boom chine run below gets a
           // straight extrapolated terminus instead of bending down to
-          // the dropped corner
-          if (i > 0 && md.P) chnP.push(inCtr(md.P, cyv));
-          if (i > 0 && md.M) chnM.push(inCtr(md.M, cyv));
+          // the dropped corner. ROD MODE: the bulkhead is full cabin
+          // section (no shoulder) and the tightening truss's bottom
+          // longeron starts at this very node — the chine run extends
+          // onto it, member meeting member (G26 planned joints).
+          if ((i > 0 || S.rod) && md.P) chnP.push(inCtr(md.P, cyv));
+          if ((i > 0 || S.rod) && md.M) chnM.push(inCtr(md.M, cyv));
         }
         for (const p of topCh[0]) runsP[runsP.length - 1].push(p);
         for (const p of topCh[1]) runsM[runsM.length - 1].push(p);
@@ -4025,7 +4182,7 @@ function cageInterior(m, S) {
       const selC = [];
       F.forEach((f, i) => {
         if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
-        if (GLM.has(f.m)) return;
+        if (GLM.has(f.m) || f.m === 'boomTube') return;
         const [cy, cz] = cenOf(f);
         const c = consAt(cy, cz);
         if (c === 'tube' || (c === 'wood' && !covered.has(i)))
@@ -4034,6 +4191,202 @@ function cageInterior(m, S) {
       liner(selC, (I.skinT > 0 ? I.skinT : 0.006), () => 'cloth');
     })();
     }
+    // ---- G26: POD-AND-ROD FITTINGS + THE TIGHTENING TRUSS -------------------
+    // FITMENT IS REAL HARDWARE (user v3): the rod fixes on the aft
+    // bulkhead through a BOLTED SOCKET — solid flange plate (fittings
+    // never carry lightening holes), a bolt ring, and a welded sleeve
+    // the tube slides into — and the tightening grips it at a WELDED
+    // COLLAR — sleeve + solid flange the truss tubes land on, clamp
+    // bolts top and bottom. An X ACROSS THE BULKHEAD runs from the
+    // hoop's four corner nodes to the socket flange rim — the
+    // reinforcement meets exactly where the boom connects.
+    // PLANNED JOINTS, never accidental (user): every member STARTS at
+    // the bulkhead hoop's own nodes (bandEnds[0].mid — the same nodes
+    // the cabin longeron and chine runs land on) and ENDS on a flange
+    // rim at its own bearing angle; the cabin chine run is extended
+    // onto the same corner nodes in rod mode (see the pairs loop — the
+    // aft-corner exclusion was the sharp-shoulder rule, and the
+    // bulkhead is full cabin section here). SIX converging longerons
+    // (top / waist / bottom pairs, continuing the ceiling-rail, waist
+    // and chine chains) + one diagonal per side, each realized in the
+    // boom section's technique via member(); carbon falls back to tube
+    // (a molded pod still carries real fittings).
+    // taperPanels: flat sheets laid ON the longerons — the landing
+    // gear's V-panel idiom: inset from the member centrelines so the
+    // tubes still read at the edges, lifted outward by the tube
+    // radius, thin box.
+    if (S.rod) (() => {
+      const rr = S.rod.r, cyR = S.rod.y;
+      const circ = (n, rad, z) => {
+        const o = [];
+        for (let k = 0; k < n; k++) {
+          const a2 = k * 2 * Math.PI / n;
+          o.push([Math.sin(a2) * rad, cyR + Math.cos(a2) * rad, z]);
+        }
+        return o;
+      };
+      const q4 = (p0, p1, p2, p3, mm) => add.push({
+        v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
+            V.push(p2.slice()) - 1, V.push(p3.slice()) - 1],
+        m: mm || 'aluminium' });
+      // SOLID ring plate: front/back annulus sheets + rim walls
+      const plate = (rOut, rIn, z, wz) => {
+        const O = circ(16, rOut, z), H = circ(16, rIn, z);
+        const zf = p => [p[0], p[1], p[2] + wz / 2];
+        const zb = p => [p[0], p[1], p[2] - wz / 2];
+        for (let k = 0; k < 16; k++) {
+          const j = (k + 1) % 16;
+          q4(zf(O[k]), zf(O[j]), zf(H[j]), zf(H[k]));
+          q4(zb(H[k]), zb(H[j]), zb(O[j]), zb(O[k]));
+          q4(zb(O[k]), zb(O[j]), zf(O[j]), zf(O[k]));
+          q4(zf(H[k]), zf(H[j]), zb(H[j]), zb(H[k]));
+        }
+      };
+      // welded sleeve: outer cylinder around the rod + end annuli
+      // closing onto the rod surface
+      const sleeve = (rS, z0, z1) => {
+        const A = circ(12, rS, z0), B = circ(12, rS, z1);
+        const Ai = circ(12, rr, z0), Bi = circ(12, rr, z1);
+        for (let k = 0; k < 12; k++) {
+          const j = (k + 1) % 12;
+          q4(A[k], B[k], B[j], A[j]);
+          q4(A[j], A[k], Ai[k], Ai[j]);
+          q4(Bi[j], Bi[k], B[k], B[j]);
+        }
+      };
+      // hex bolt stud along -z (heads aft, out of the flange face)
+      const bolt = (x, y, z, l, rB) => {
+        const c6 = [];
+        for (let k = 0; k < 6; k++) {
+          const a2 = k * Math.PI / 3;
+          c6.push([x + Math.cos(a2) * rB, y + Math.sin(a2) * rB]);
+        }
+        const a = c6.map(p => [p[0], p[1], z]);
+        const b = c6.map(p => [p[0], p[1], z - l]);
+        for (let k = 0; k < 6; k++)
+          q4(a[k], a[(k + 1) % 6], b[(k + 1) % 6], b[k]);
+        q4(b[0], b[1], b[2], b[3]);
+        q4(b[0], b[3], b[4], b[5]);
+      };
+      const mem = (A, B, w) =>
+        consAt((A[1] + B[1]) / 2, (A[2] + B[2]) / 2) === 'carbon'
+          ? tubeSeg(A, B, Math.max(0.008, w / 3)) : member(A, B, w);
+      // a point on a flange rim, bearing toward p from the rod axis
+      const rim = (p, rad, z) => {
+        const dx = p[0], dy = p[1] - cyR;
+        const l = Math.hypot(dx, dy) || 1;
+        return [dx / l * rad, cyR + dy / l * rad, z];
+      };
+      // ---- the bolted socket on the aft face ----
+      const zF = zPax0 - 0.012;
+      plate(rr + 0.055, rr + 0.006, zF, 0.008);
+      sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
+      for (let k = 0; k < 8; k++) {
+        const a2 = (k + 0.5) * Math.PI / 4;
+        bolt(Math.sin(a2) * (rr + 0.038),
+             cyR + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
+      }
+      // ---- planned joints: the bulkhead hoop's own nodes, processed
+      // EXACTLY as the longitudinal chains process them (inCtr — same
+      // point, same joint; the chine run is extended onto these nodes
+      // in rod mode, so member meets member, never skin)
+      const b0 = bandEnds[0], md = b0 && b0.mid;
+      const jn = n2 => n2 && b0 ? inCtr(n2, b0.cy) : n2;
+      const pa = rgn0('pilPaxA');
+      const cl = pa && pa.lv;
+      const fb = (n2, fx, fy) =>
+        n2 || (cl ? [fx, fy, zPax0] : null);
+      // ---- the X across the bulkhead, meeting at the socket ----
+      // INSIDE the cap, on an inner BACKING PLATE facing the bolted
+      // flange (the real arrangement: flange outside, backing ring
+      // inside, bolts through the bulkhead) — members land on the
+      // ring's rim, never graze the cap skin at glancing angles
+      const zXi = zPax0 + 0.015;
+      if (md || cl) {
+        plate(rr + 0.052, rr + 0.006, zXi, 0.007);
+        const XN = [
+          fb(md && jn(md.tL), cl && -cl.ceil.x, cl && cl.ceil.y),
+          fb(md && jn(md.tR), cl && cl.ceil.x, cl && cl.ceil.y),
+          fb(md && jn(md.P), cl && cl.floor.x, cl && cl.floor.y),
+          fb(md && jn(md.M), cl && -cl.floor.x, cl && cl.floor.y),
+        ].filter(Boolean);
+        for (const n2 of XN) mem(n2, rim(n2, rr + 0.049, zXi), 0.034);
+      }
+      if (!S.taper) return;
+      // ---- the welded collar the truss lands on ----
+      const zC2 = zPax0 - S.taper.len;
+      sleeve(rr + 0.006, zC2 + 0.045, zC2 - 0.045);
+      plate(rr + 0.045, rr + 0.006, zC2, 0.006);
+      bolt(0, cyR + rr + 0.024, zC2 - 0.003, 0.016, 0.007);
+      bolt(0, cyR - rr - 0.024, zC2 - 0.003, 0.016, 0.007);
+      // ---- the tightening truss: six longerons + side diagonals ----
+      const cp = (th2, sx) => [sx * Math.sin(th2) * (rr + 0.040),
+                               cyR + Math.cos(th2) * (rr + 0.040), zC2];
+      const sideN = sx => sx > 0
+        ? { t: fb(md && jn(md.tR), cl && cl.ceil.x, cl && cl.ceil.y),
+            w: fb(md && jn(md.wP), cl && cl.waist.x, cl && cl.waist.y),
+            b: fb(md && jn(md.P), cl && cl.floor.x, cl && cl.floor.y) }
+        : { t: fb(md && jn(md.tL), cl && -cl.ceil.x, cl && cl.ceil.y),
+            w: fb(md && jn(md.wM), cl && -cl.waist.x, cl && cl.waist.y),
+            b: fb(md && jn(md.M), cl && -cl.floor.x, cl && cl.floor.y) };
+      const NS = { 1: sideN(1), '-1': sideN(-1) };
+      for (const sx of [1, -1]) {
+        const N = NS[sx];
+        if (N.t) mem(N.t, cp(0.785, sx), 0.042);
+        if (N.w) mem(N.w, cp(1.571, sx), 0.036);
+        if (N.b) mem(N.b, cp(2.356, sx), 0.042);
+        if (N.t) mem(N.t, cp(2.356, sx), 0.024);   // side diagonal
+      }
+      // ---- optional flat cover panels on the truss ----
+      if (S.taper.panels) {
+        const TR = 0.015;                  // sit on the tube surfaces
+        const panel = pts => {
+          const cen = [0, 0, 0];
+          for (const p of pts) for (let i = 0; i < 3; i++)
+            cen[i] += p[i] / pts.length;
+          // sheet normal from the diagonals, oriented away from the
+          // rod axis so the panel lies OUTSIDE the tubes
+          const d1 = [pts[2][0] - pts[0][0], pts[2][1] - pts[0][1],
+                      pts[2][2] - pts[0][2]];
+          const d2 = [pts[3][0] - pts[1][0], pts[3][1] - pts[1][1],
+                      pts[3][2] - pts[1][2]];
+          let n2 = [d1[1] * d2[2] - d1[2] * d2[1],
+                    d1[2] * d2[0] - d1[0] * d2[2],
+                    d1[0] * d2[1] - d1[1] * d2[0]];
+          const nl = Math.hypot(n2[0], n2[1], n2[2]) || 1;
+          n2 = [n2[0] / nl, n2[1] / nl, n2[2] / nl];
+          const away = [cen[0], cen[1] - cyR, 0];
+          if (n2[0] * away[0] + n2[1] * away[1] < 0)
+            n2 = [-n2[0], -n2[1], -n2[2]];
+          const th = 0.004;
+          const at = (p, s) => {
+            const p2 = [p[0] + (cen[0] - p[0]) * 0.06,
+                        p[1] + (cen[1] - p[1]) * 0.06,
+                        p[2] + (cen[2] - p[2]) * 0.06];
+            return [p2[0] + n2[0] * (TR + s), p2[1] + n2[1] * (TR + s),
+                    p2[2] + n2[2] * (TR + s)];
+          };
+          // 'taperPanel' — PART OF THE FUSELAGE (user ruling): fades
+          // with the fuselage alpha, culls with the skin, and the
+          // fin's deck sweep may root a dorsal on it
+          const fa = pts.map(p => at(p, th));
+          const fbk = pts.map(p => at(p, 0));
+          q4(fa[0], fa[1], fa[2], fa[3], 'taperPanel');
+          q4(fbk[3], fbk[2], fbk[1], fbk[0], 'taperPanel');
+          for (let k = 0; k < 4; k++) {
+            const j = (k + 1) % 4;
+            q4(fa[k], fbk[k], fbk[j], fa[j], 'taperPanel');
+          }
+        };
+        const A = NS[1], B = NS['-1'];
+        if (A.t && A.w) panel([A.t, A.w, cp(1.571, 1), cp(0.785, 1)]);
+        if (A.w && A.b) panel([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
+        if (B.t && B.w) panel([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
+        if (B.w && B.b) panel([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
+        if (A.t && B.t) panel([B.t, A.t, cp(0.785, 1), cp(0.785, -1)]);
+        if (A.b && B.b) panel([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
+      }
+    })();
   })();
 
   // (the original cageResolve-based welded truss is RETIRED — the tube
@@ -4139,6 +4492,19 @@ function cageInterior(m, S) {
     for (let i = 0; i < NL; i++) O.push([baseT[i][0], baseT[i][1], zP]);
     for (let j = NS - 1; j >= 0; j--)
       O.push([bRT[0], yB + (bR[1] - yB) * j / NS, zP]);
+    // DASH CROWN (G26.4, user: real panels RISE from the windshield
+    // line in the middle — the face reads as a circle segment, not a
+    // horizontal extrusion). The OUTLINE's top arc lifts by an eased
+    // centre bump — zero at the corners, so the side chains still
+    // meet it — while the glareshield keeps sealing on the traced
+    // base row and simply ladders up to the raised face. The panel
+    // sits dashBack AFT of the glass base, where the windshield has
+    // already risen, so the crown has headroom by construction.
+    const CRN = I.dashCrown || 0;
+    if (CRN > 0) for (let i = 0; i < NL; i++) {
+      const u = i / Math.max(1, NL - 1);
+      O[NS + i][1] += CRN * Math.pow(Math.sin(Math.PI * u), 1.5);
+    }
     const NX = O.length;
     // in-plane inset of the full outline (normals toward the interior)
     let yTop = -1e9;
@@ -4866,6 +5232,23 @@ const CAGE_PARAMS = {
   aeroTipW: 0.10, aeroTipH: 0.12,
   rearAperture: 0,
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
+  // THE TAPER + THE ROD (G26, user design + v2 rulings). taperOn is the
+  // EXPLICIT presence of the tightening section between the aft cabin
+  // pillar and the boom — a proper section like cabin and boom (own
+  // materials, gated aft by its own pillar), never implied by a zero
+  // length. taperLen sizes it (additive — the plane grows), taperW
+  // scales its aft ring's width; the aft roof/keel params shape that
+  // ring and the pax pillar reverts to the full cabin section.
+  // boomStyle 1: THE TUBE IS THE BOOM AND THE TAIL — one bare cylinder
+  // off the aft bulkhead to the tail, fin/stab clamping straight on;
+  // rodY positions its axis (free height slider, user ruling), rodD is
+  // its DIAMETER. No skin over the tightening in rod mode (truss
+  // only); the aft bulkhead is capped (rearAperture works: the pusher
+  // path). All defaults inert = the historic table.
+  // taperPanels (rod mode): flat cover sheets laid on the tightening
+  // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
+  taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
+  boomStyle: 0, rodY: 0, rodD: 0.12,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -4946,6 +5329,14 @@ const CAGE_PARAMS = {
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   doorDepth: 0.008,
+  // DOOR REMOVED (G26.4): the door is DEFINED (jambs, sills, broken
+  // longeron runs — all built) but the panel itself is deleted after
+  // the cut, leaving the open doorway. Needs cutParts on.
+  doorGone: 0,
+  // ZERO SKIN (G26.4): display-level — the viewer omits the fuselage
+  // family (skin, pillars, taper, panels, doors) outright, beyond the
+  // alpha slider; glass and all structure stay. Inert in this file.
+  skinOn: 1,
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
@@ -4960,6 +5351,10 @@ const CAGE_PARAMS = {
   intCons: 0,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
   dashCrease: 1.5,
+  // DASH CROWN (G26.4): the panel face's top arc rises in the middle
+  // above the windshield base line — the rounded instrument panel of
+  // real cockpits. 0 = the historic horizontal extrusion.
+  dashCrown: 0,
   // G14: post-subsurf cutting of doors/windows into separate parts
   cutParts: 0, explodeD: 0,
 };
@@ -5115,6 +5510,17 @@ function cageSpec(P) {
   S.pax.len = P.paxLen;
   S.paxPillarW = P.pillarW > 0 ? P.pillarW : P.paxPillarW;
   S.boom.len = P.boomLen;
+  // G26: the dedicated taper section + the rod boom (see CAGE_PARAMS).
+  // Presence is EXPLICIT (taperOn); the length only sizes it, clamped
+  // away from degenerate.
+  S.taper = P.taperOn
+    ? { len: Math.max(0.08, P.taperLen || 0.6),
+        w: Math.max(0.1, Math.min(1, P.taperW == null ? 1 : P.taperW)),
+        panels: P.taperPanels ? 1 : 0 }
+    : 0;
+  S.rod = P.boomStyle
+    ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0 }
+    : 0;
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
@@ -5304,6 +5710,7 @@ function cageSpec(P) {
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
+            doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };
   // MIRRORED POD (G18 S2): v1 constraints — no pax bays, canopy closed
   // (S3 brings the bubble to the pod), doors off (the canopy IS the
@@ -5312,6 +5719,10 @@ function cageSpec(P) {
   S.config.mirror = P.mirror ? 1 : 0;
   if (S.config.mirror) {
     S.pax.count = 0;
+    // the pod keeps its extruded boom — taper/rod are regular-table
+    // machinery (the pod chantier comes later, HANDOVER G26 roadmap)
+    S.taper = 0;
+    S.rod = 0;
     // S3: the pod exists FOR the bubble — it stays; conv/open remain
     // closed on the pod until they earn their own chantier
     if (!(S.config.canopy && S.config.canopy.mode === 'bubble'))
@@ -5374,7 +5785,8 @@ function cageSpec(P) {
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
-                 dashDepth: P.dashDepth, dashCrease: P.dashCrease };
+                 dashDepth: P.dashDepth, dashCrease: P.dashCrease,
+                 dashCrown: Math.max(0, P.dashCrown || 0) };
   // (S5: the pod interior is LIVE — the pairs loop sweeps belly chines
   // per bay in pod bubble, wsBase filters to the front screen, and the
   // boom machinery idles without its stations. Known v1 gaps in

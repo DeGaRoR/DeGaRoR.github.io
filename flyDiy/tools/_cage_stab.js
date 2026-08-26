@@ -62,7 +62,7 @@ const GROUP = ['8b · tail — stab & elevator', [
   ['stRootGuard', 'root loops',  0, 1, 1, ['single + crease', 'guard pair']],
   ['position', [
     ['stX', 'root half-track', 0, 0.30, 0.005],
-    ['stY', 'height',         -0.20, 0.80, 0.005],
+    ['stY', 'h over boom keel', -0.20, 0.80, 0.005],
     ['stZ', 'fore-aft',       -0.60, 0.60, 0.005],
   ], 'open'],
   ['cut', [
@@ -115,7 +115,7 @@ const GROUP = ['8b · tail — stab & elevator', [
 const SKIN = (GG && GG.CAGE_MATS) || new Set(['body', 'pillarWindow',
   'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'windshield',
   'skyWindows', 'pilotWindow', 'pasengerWindow', 'ceilingLoop', 'floorLoop',
-  'waistband']);
+  'waistband', 'boomTube', 'taper', 'pillarTaper', 'taperPanel']);
 // as the fin layer: the deck sweep skips the glazing (the bubble canopy
 // dome sawtoothed it — a surface roots on structure, not glass)
 const GLASS = new Set(['windshield', 'skyWindows', 'pilotWindow',
@@ -159,6 +159,14 @@ PAGE.post = ctx => {
     z1: 1e9,
   };
   const m0 = FIN.buildFin2(S);
+  // G26.5 (user): the stab ANCHORS AT THE BOTTOM OF THE BOOM/ROD — its
+  // height rides the aft body instead of an absolute y. yRef = the
+  // UNDERSIDE of the live centreline sweep at the hinge station (the
+  // boom keel on a loft, the tube's belly on a rod — so it follows the
+  // rod height AND diameter); stY is the offset from there. No deck =
+  // 0 = the historic absolute placement.
+  const dzS = deck ? deck.z0 - FIN.FIN_DEFAULT.zCap : 0;
+  const yRef = deck ? deck.bot(FIN.FIN_DEFAULT.zH1 + dzS) : 0;
 
   const L = $('lvl') ? +$('lvl').value : 2;
   let s = m0;
@@ -186,7 +194,7 @@ PAGE.post = ctx => {
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
   for (const side of [1, -1]) {
     const half = FIN.finToStab(disp, { side, rootX: P.stX || 0,
-      stabY: P.stY || 0, sRef: rootLine, zOff: P.stZ || 0 });
+      stabY: yRef + (P.stY || 0), sRef: rootLine, zOff: P.stZ || 0 });
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
       const sub = part
         ? { V: half.V, F: half.F.filter(f => f.part === part) } : half;

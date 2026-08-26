@@ -420,10 +420,14 @@ function spat(bags, hub, axis, R, full) {
 // and keep the OUTERMOST hit. Ray casting (rather than tracing the
 // section into an ordered loop) means a slice that comes back as loose
 // segments still answers correctly.
+// boomTube = the G26 rod boom: it IS the aft fuselage — the tailwheel
+// probes it, and the fin/stab deck sweep (which borrows this set) must
+// trace its top line to the tail
 const CAGE_MATS = new Set(["body", "pillarWindow", "pillarCabin",
   "pillarPassenger", "pillarTail", "pillarFront", "windshield",
   "skyWindows", "pilotWindow", "pasengerWindow", "ceilingLoop",
-  "floorLoop", "waistband"]);
+  "floorLoop", "waistband", "boomTube", "taper", "pillarTaper",
+  "taperPanel"]);
 // THE BAKE, over a plain indexed mesh — `V` a list of points, `F` a list of
 // index arrays, already filtered to the skin. Split out of objAirframe so a
 // FROZEN export and a LIVE cage reach the contract by the same code path

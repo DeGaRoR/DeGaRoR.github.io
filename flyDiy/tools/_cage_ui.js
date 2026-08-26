@@ -30,11 +30,15 @@ const SEC = {
   pillarPassenger: '#2b28cc',
   pillarTail:      '#cc2b80',
   pillarFront:     '#8a5ecc',
+  taper:           '#2fa89c',
+  pillarTaper:     '#12ccb9',
+  taperPanel:      '#aab6c2',
   skyWindows:      '#cc5a12',
   ceilingLoop:     '#3a3a3a',
   floorLoop:       '#1c1c1c',
   waistband:       '#cc12a8',
   joint:           '#d8dde4',
+  boomTube:        '#8fa3b8',
   bulkhead:        '#8a7a5f',
   firewall:        '#8a4a2f',
   dash:            '#333a45',
@@ -181,8 +185,10 @@ const VIEW = { glassA: 0.35, bodyA: 1, skinA: 1, structA: 1, loops: 1 };
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
+// boomTube = the G26 rod: it IS structure — fading the fuselage skin
+// must leave the rod standing (the naked Ruckus test)
 const INTSTRUCT = new Set(['bulkhead', 'firewall', 'dash', 'tube',
-                           'woodFrame', 'aluminium']);
+                           'woodFrame', 'aluminium', 'boomTube']);
 const alphaOf = name =>
   GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
     : INTSKIN.has(name) ? VIEW.skinA
@@ -449,8 +455,20 @@ function build() {
 
   disposeObj(meshObj);
   for (const k in matCache) delete matCache[k];
-  meshObj = ($('curv') && $('curv').checked) ? curvatureMesh(s)
-    : ($('wire') && $('wire').checked) ? quadWire(s) : meshFrom(s);
+  // ZERO SKIN (G26.4, user): beyond the alpha slider — with skinOn 0
+  // BOTH skin families (the fuselage: skin, pillar bands, taper
+  // section, taper panels, cut doors — AND the interior linings:
+  // cloth, toele, plywood sheets, the composite shell) are omitted
+  // from the DISPLAYED mesh outright: what remains is glass, joints
+  // and the bare structure (the closed-liner rework makes the
+  // structural members stand on their own). The layers (fin/gear/
+  // crew) and the measurements still see the full mesh.
+  const skinCull = name => !GLASSM.has(name)
+    && !INTSTRUCT.has(name) && name !== 'joint';
+  const sd = (P.skinOn == null || P.skinOn) ? s
+    : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
+  meshObj = ($('curv') && $('curv').checked) ? curvatureMesh(sd)
+    : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.

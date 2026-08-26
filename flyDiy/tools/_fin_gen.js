@@ -140,12 +140,22 @@ function buildFin2(S) {
   // tailpost anchor: aft of the hinge the strand continues LEVEL
   const topAt = deck ? z => deck.top(Math.max(z, Z(D.zH1))) : null;
   const botAt = deck ? z => deck.bot(Math.max(z, Z(D.zH1))) : null;
+  // VERTICAL REBASE (G26.5, user): the root rows already ride the live
+  // deck, but the upper rows and corners were template-absolute — a
+  // deck that MOVES (the rod height slider) stretched the fin between
+  // a cured root and a fixed top. The whole fin now TRANSLATES with
+  // the deck: dyR = the live deck at the hinge station vs the sketch's
+  // own root level, added to every absolute height (rows and top/aft
+  // corners; the keel side, the dorsal and the shoulders were already
+  // relative). No deck = 0 = the sketch identity — and the stab's
+  // FLAT deck sits exactly at the sketch root, so it stays 0 there.
+  const dyR = deck ? topAt(Z(D.zH1)) - D.lo.H : 0;
 
   // the movable ROWS (the ring-editor rule: rows + corners is the shape).
   // The Cub tail is the proof case: it drops the mid row 0.46 and the u row
   // 0.19, and aligns its LE root and shoulder ONTO those rows.
-  const yMid = D.yMid + (S.midY || 0);
-  const yU = D.yU + (S.uY || 0);
+  const yMid = D.yMid + (S.midY || 0) + dyR;
+  const yU = D.yU + (S.uY || 0) + dyR;
 
   // THE ROOT'S FORWARD POINT IS ITS OWN STATION (user ask: shifting the
   // whole surface is not the control): rootFwd moves the drawn front
@@ -171,9 +181,9 @@ function buildFin2(S) {
   // clearance while kH1/kH2 stay on the keel at the tailpost.
   const leCz = zCc + (dorsal ? 0 : (S.leZ || 0));
   const tipZ = clamp(D.zTip + (S.tipZ || 0), D.zH1 + 0.12, leCz - 0.05);
-  const tipY = Math.max(yMid + 0.10, D.yTip + (S.tipY || 0));
+  const tipY = Math.max(yMid + 0.10, D.yTip + (S.tipY || 0) + dyR);
   const taZ = clamp(D.zTE + (S.aftZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
-  const taY = Math.max(yMid + 0.10, D.yTop + (S.aftY || 0));
+  const taY = Math.max(yMid + 0.10, D.yTop + (S.aftY || 0) + dyR);
   const baZ = clamp(D.zTE + (S.baseZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
   const baY = kY + (S.baseY || 0);
 

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<!--
+  CAGE8 — cage7 (the whole aeroplane + tail) plus the POD-AND-ROD chantier
+  (G26): the dedicated TAPER (tightening) section between the aft cabin
+  pillar and the boom, and the ROD boom — one structural cylinder off the
+  aft bulkhead, positioned by a free height slider, skinned (Wilga/
+  Archaeopteryx tightening) or naked (Ruckus/Chinook truss + tube).
+
+  Controls live in "7 · boom": boom style, taper length/width/skin,
+  rod height/radius. The interior pass follows: station frames march the
+  taper in loft mode; in rod mode the tube IS the structure, held by the
+  tightening truss and the bulkhead socket flange.
+
+  Serve from repo root (launch: flydiy-node) and open /flyDiy/tools/_cage8.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — cage8, pod &amp; rod</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;
+    overflow-x:hidden;padding:10px;width:340px;flex:none;
+    resize:horizontal;direction:rtl;min-width:240px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r.wrap{flex-wrap:wrap}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  .r button{flex:none}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  .leg{display:flex;gap:5px;align-items:center;margin:3px 0}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  details details{margin:6px 0;border-color:#1b2029}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+</style>
+
+<header>
+  <h1>cage8 — pod &amp; rod</h1>
+  <label>subsurf <select id="lvl">
+    <option>0</option><option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label><input type="checkbox" id="cage"> cage</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="color" checked> sections</label>
+  <button id="resetBtn">reset</button>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_page5.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_cage_crew.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_gear_gen.js"></script>
+<script src="_gear_page.js"></script>
+<script src="_cage_gear.js"></script>
+<script src="_eng_gen.js"></script>
+<script src="_cowl_gen.js"></script>
+<script src="_cowl_rows.js"></script>
+<script src="_cage_cowl.js"></script>
+<script src="_fin_gen.js"></script>
+<script src="_cage_fin.js"></script>
+<script src="_cage_stab.js"></script>
+<script src="_cage_ui.js"></script>
+<script>CAGE_PAGE_SETUP();</script>

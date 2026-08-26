@@ -31,19 +31,25 @@ window.CAGE_PAGE = {
     cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02, ringScrBot: -0.015,
     rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
     // ---- TAIL — stabilizer & elevator (_cage_stab.js) ----
+    // stY is measured FROM THE BOOM/ROD UNDERSIDE (G26.5) — 0.408 here
+    // reproduces the old absolute 0.33 over the jodel's -0.078 keel
     stOn: 1, stCut: 1, stCutGap: 0.012, stSolid: 1, stThick: 0.05,
-    stThickTE: 0.012, stX: 0.05, stY: 0.33, stZ: -0.035, stRootGuard: 1,
+    stThickTE: 0.012, stX: 0.05, stY: 0.408, stZ: -0.035, stRootGuard: 1,
     stTipZ: 0.22, stTipY: -0.05, stAftZ: -0.06, stAftY: -0.09, stBaseZ: -0.14,
     stBaseY: 0.335, stMidY: -0.14, stUY: 0.4, stRootFwd: -0.745,
     stLEZ: -0.015, stLEY: -0.2, stShoulderZ: 0.02, stShoulderY: 0.065,
     stTopY: -0.01, stTERoot: 0, stTEU: 0, stTEMid: 0, stSharpTip: 0.65,
     stSharpAft: 2.75, stSharpBase: 3, stSharpShoulder: 0.3, stSharpLE: 1.4,
     // ---- TAIL — fin & rudder (_cage_fin.js) ----
+    // fin heights CONVERTED for the G26.5 vertical rebase (+0.204 =
+    // the jodel deck's own offset from the sketch root): the fin now
+    // TRANSLATES with the deck — same displayed tail as before, and
+    // the rod height slider carries it whole
     finOn: 1, finProject: 1, finCut: 1, finCutGap: 0.012, finSolid: 1,
     finThick: 0.06, finThickTE: 0.015, finDorsal: 1, finRootGuard: 1,
-    finKeel: 1, finCrA: 0, finCrB: 0, finTipZ: -0.45, finTipY: -0.45,
-    finAftZ: 0.1, finAftY: -0.62, finBaseZ: -0.05, finBaseY: 0.15,
-    finMidY: -0.3, finUY: -0.1, finRootFwd: 0, finLEZ: -0.25, finLEY: 0,
+    finKeel: 1, finCrA: 0, finCrB: 0, finTipZ: -0.45, finTipY: -0.246,
+    finAftZ: 0.1, finAftY: -0.416, finBaseZ: -0.05, finBaseY: 0.15,
+    finMidY: -0.096, finUY: 0.104, finRootFwd: 0, finLEZ: -0.25, finLEY: 0,
     finShoulderZ: 0.323, finShoulderY: 0, finTopY: 0, finTERoot: 0, finTEU: 0,
     finTEMid: 0, finSharpTip: 3, finSharpAft: 3, finSharpBase: 2.5,
     finSharpShoulder: 0, finSharpLE: 2.5,
@@ -80,7 +86,9 @@ window.CAGE_PAGE = {
     // ---- UNDERCARRIAGE (_cage_gear.js / _gear_page.js) ----
     mass: 620, cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96, s1On: 1,
     s1Z: 2.04, s1X: 0.8, s1Leg: 1, s1R: 0.2, s1Drop: 0.33, s1Brake: 1,
-    s1Steer: 0, s1Fair: 0, s2On: 1, s2Z: -2.2, s2X: 0, s2Leg: 3, s2R: 0.07,
+    // s2Z is TAIL-RELATIVE for tailwheel legs (G26.4): fwd of the aft
+    // extremity, so the wheel follows the boom length
+    s1Steer: 0, s1Fair: 0, s2On: 1, s2Z: 0.06, s2X: 0, s2Leg: 3, s2R: 0.07,
     s2Drop: 0.22, s2Brake: 0, s2Steer: 1, s2Fair: 0, whProfile: 0, whTread: 0,
     whRibs: 3, whRim: 0, whBolts: 6, whCap: 1, whValve: 1, whBrake: 0,
     beamAng: 62, beamW: 0.075, beamT: 0.02, beamTaper: 0.72, beamBow: 1.06,
@@ -175,10 +183,12 @@ window.CAGE_PAGE = {
         ['intOn',     'interior',        0, 1, 1],
         ['intCons',   'construction',    0, 3, 1, ['composite', 'steel tube',
                                                   'plywood', 'aluminium']],
+        // ZERO SKIN (G26.4): the fuselage family omitted outright —
+        // beyond the alpha slider; glass and all structure stay
+        ['skinOn',    'fuselage skin',   0, 1, 1],
         ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
         ['skinT',     'skin thickness',  0, 0.06, 0.001],
         ['intPillars','pillar bodies',   0, 1, 1],
-        ['intBulk',   'aft bulkhead',    0, 1, 1],
         ['intFire',   'firewall',        0, 1, 1],
         ['intDash',   'dashboard',       0, 1, 1],
       ]],
@@ -251,11 +261,16 @@ window.CAGE_PAGE = {
       ['doors', [
         ['doorOn',    'pilot door',     0, 1, 1],
         ['doorSill',  'door sill',      0, 0.25, 0.002],
+        // define the door, then take it away: the open doorway stays,
+        // jambs and structure built as if it were hung (needs cut
+        // parts on)
+        ['doorGone',  'door removed',   0, 1, 1],
       ]],
       ['cockpit', [
         ['dashBack',  'dash setback',   0.01, 0.30, 0.005],
         ['dashLip',   'dash lip',       0.01, 0.10, 0.002],
         ['dashDepth', 'dash depth',     0.05, 0.80, 0.01],
+        ['dashCrown', 'dash crown',     0, 0.30, 0.005],
       ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,
@@ -363,6 +378,23 @@ window.CAGE_PAGE = {
       ['doorSillPax','door sill',      0, 0.25, 0.002],
     ]],
     ['7 · boom', [
+      // G26 — the dedicated tightening section + the rod boom. The
+      // taper is an EXPLICIT section (taperOn), gated aft by its own
+      // pillar; with it on, aft roof/keel y shape its aft ring (the
+      // boom root) and the pax pillar reverts to the full cabin
+      // section. Rod: the tube IS the boom and the tail — bare, fin
+      // and stab clamp straight onto it; no skin over the tightening.
+      ['boomStyle', 'boom style',      0, 1, 1, ['lofted skin',
+                                                 'rod (tube)']],
+      ['taperOn',   'taper section',   0, 1, 1],
+      ['taperLen',  'taper length',    0.08, 1.6, 0.01],
+      ['taperW',    'taper width ×',   0.15, 1.0, 0.005],
+      ['taperPanels','taper panels',   0, 1, 1],
+      ['rodY',      'rod height',     -0.9, 0.9, 0.005],
+      ['rodD',      'rod diameter',    0.04, 0.32, 0.002],
+      // moved here from the conception group (user: needed "back
+      // here" beside the rod controls — it is an aft-body concern)
+      ['intBulk',   'aft bulkhead',    0, 1, 1],
       ['boomLen',   'length',          1.0, 6.0, 0.01],
       ['aftRoofY',  'aft roof y',      0.20, 1.20, 0.005],
       ['aftKeelY',  'aft keel y',     -1.20, -0.10, 0.005],

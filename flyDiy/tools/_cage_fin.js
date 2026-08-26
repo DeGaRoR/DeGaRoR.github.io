@@ -119,7 +119,7 @@ if (PAGE.presets && PAGE.presets['piper cub'])
 const SKIN = (GG && GG.CAGE_MATS) || new Set(['body', 'pillarWindow',
   'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'windshield',
   'skyWindows', 'pilotWindow', 'pasengerWindow', 'ceilingLoop', 'floorLoop',
-  'waistband']);
+  'waistband', 'boomTube', 'taper', 'pillarTaper', 'taperPanel']);
 // A FIN ROOTS ON STRUCTURE, NOT GLASS: the deck sweep skips the glazing —
 // the sailplane's bubble canopy dome ('windshield') crosses the centreline
 // at a few sparse verts and sawtoothed the deck (measured: a 1.07-unit
@@ -233,7 +233,15 @@ PAGE.post = ctx => {
   if (!P.finOn) return;
 
   const cutMode = Math.round(P.finCut || 0);
-  const S = FIN.finSpec(P);
+  // ROD BOOM (G26.4, harmless clamp): the keel extension wraps the
+  // fuselage KEEL under the tail — on a bare tube it wraps the
+  // cylinder and reads as a canoe — and the DORSAL is a fairing onto a
+  // fuselage deck that a bare tube does not have (short booms sent it
+  // diving past the tightening, user report). Rod mode builds without
+  // both — as the real tube-boom aeroplanes fly — and the user's
+  // finKeel/finDorsal choices return with the loft.
+  const S = FIN.finSpec(P.boomStyle
+    ? { ...P, finKeel: 0, finDorsal: 0 } : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   const deck = FIN.finCentreline(mesh, deckSkin);
   S.deck = deck;                     // null-safe: no deck = the sketch as-is

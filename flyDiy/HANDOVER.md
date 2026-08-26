@@ -8669,6 +8669,537 @@ BMEP model knows no supercharger; resolve's domain.
 
 ALL TEN REGISTRY ENGINES now have their family in the bench.
 
+## G25 — THE ELECTRIC (2026-08-26)
+
+The user's plan, executed in order: establish the LIST (RC can to certified
+trainer motor), decompose into sub-systems, decide whether one component
+set covers the range (it does), build rough models on the same philosophy.
+Electric is the TOP CHOICE in the bench and CONDITIONS the whole panel.
+
+**THE LIST — seven registry rows join the lone 2212** (00_registry.js),
+realistic across power AND price: 3548 outrunner 0.8 kW/55 cr, 6374
+2.2 kW/130, e-PPG direct drive 12 kW/3800, FES sustainer 22 kW/9500,
+EMRAX 228 55 kW/11000, Pipistrel E-811 57.6 kW/28000 (same numbers as the
+EMRAX at 2.5x the price — the difference IS the type certificate, and
+that is the honest market), SP260D-class 260 kW/90000. CONVENTIONS
+declared in the registry: electric `mass` = motor + controller (the
+dry-engine convention's electric reading); THE BATTERY IS NOT IN IT — it
+is the fuel tank's analog, energy-module territory, which is also why an
+EMRAX undercuts a 912 in credits. Tstatic on the A-65's own P^2/3 D^2/3
+curve, kV2 through propV0K, like the middle-market rows.
+
+**THE PHYSICS** (_eng_gen.js, elecResolve — same output contract as the
+combustion resolve, so cowl/mount/mesh read one shape):
+  1. TORQUE IS GEOMETRY: T = 2*sigma*Vrotor. Airgap shear sigma is the
+     electric BMEP — a real, narrow band: 15 kPa bare RC outrunner,
+     25-28 kPa aerospace machines, x1.30 for liquid (that is WHAT COOLING
+     BUYS). Style constants map the caliper's can dims to the rotor; the
+     PANCAKE'S LENGTH IS ITS DISC (0.23*canD, not canL) — axial flux
+     works the annular face, and the cylindrical rule read the EMRAX 268
+     36% low before the disc rule (the physical fix, not a tuned one).
+  2. POWER IS RPM: P = T*omega; burst = 2x cont, declared.
+  3. MASS TRACKS TORQUE, SUB-LINEARLY: mass = 0.274*T^0.822, fitted
+     log-log over 2212 / EMRAX 188 / 228 / 268 / E-811 — worst ~5% over a
+     1500x torque span, and the exponent lands within 6% of the combustion
+     law's 0.8735 on displacement: the same finding wearing two hats.
+     DECLARED OUTLIER: SP260D (Siemens record one-off, 5.2 kW/kg).
+     Controller 0.085 kg/cont-kW, a declared addition (escOn); geared
+     adds 22% of motor mass (a RATIO — the combustion rule's +3 kg
+     constant would triple a park flyer).
+  _eng_check.js grew the REF_E instrument (8 real machines, model vs
+  published torque/mass from can dims alone: mean |torque err| ~11%,
+  |mass err| ~17%, honest data notes on the FES burst gap) plus knob
+  asserts (rpm buys power not torque, liquid buys shear, torque IS the
+  geometry). Electric anchor identity printed beside the A-65's.
+
+**THE DECOMPOSITION VERDICT**: motor can + shaft/flange + mount +
+controller + phase cables + DC pair + optional jacket/reduction covers
+the WHOLE range; a style is a table row, the ENG_ARCH move again. THREE
+STYLES dress it (_eng_mesh.js, own branch on the shared primitives):
+0 OUTRUNNER (rotating vented bell, aft stator, X-mount on plain
+standoffs — no dynafocal rubber on a park flyer — heat-shrink ESC slung
+under the standoff bay), 1 AXIAL PANCAKE (EMRAX drum, axial ribs,
+resolver, terminal box, truss mount, finned inverter ON the plate),
+2 HOUSED INRUNNER (certified housing, front mount ring, circumferential
+fins — liquid runs smooth and grows jacket bosses + hoses to the plate
+edge; the airframe's cooler is beyond it, declared rough). Phase cables
+are HV ORANGE (emPhase), gated by `leads`; the DC pair by `plumb` — so
+the LOD recipes shed electric wiring exactly as they shed plug leads.
+
+**MOUNT + FIREWALL EXTRACTED AND SHARED** (mountTruss / fwPlateAt /
+fwPtsOf): one holder for every powertrain, same ports (lugs, fwPts) and
+mountTube artery names, so the check's fitment rules hold both
+powertrains to one standard. Combustion output byte-identical after the
+refactor (checked before the electric landed).
+
+**THE CHECK** (_eng_mesh_check.js): four electric cases (2212, FES,
+EMRAX pancake, E-811 housed liquid) through the FULL battery — health,
+ledger, connectivity, density (med 0.33-0.44E), fitment (phase exact on
+controller ports, DC exact on grommets, coolant exact on plate points),
+no-clip against the can's own cylinder field, and A SECOND
+SCALE-INVARIANCE PROOF (28 mm to 420 mm of can, exactly 2x). The net
+paid immediately: it caught the style-0 phase ports floating INSIDE the
+can (a sign error twin to one already fixed in the stator lathe) and the
+puck assert firing on the puck-less RC mount. `ENGMESH: OK`,
+`ENG CHECK: OK`.
+
+**THE BENCH** (_engine.html): POWERTRAIN dropdown above the presets;
+groups carry `show` predicates — electric hides the five piston groups
+and shows its own (style, can dims, rpm to 12000, pack volts, dress
+count, controller/cables/liquid/reduction); switching remembers the last
+piston layout and swaps rpm scales. Seven electric presets with real can
+dims and pack classes. The readout speaks each powertrain's language —
+litres/kW piston, Nm + cont/burst kW + implied KV + cells electric — all
+from the one resolve dict. Verified in-browser: toggle, all presets,
+round-trip to the A-65, zero console errors.
+
+ROUGH-PASS NOTES, declared for the refine pass: no bullet connectors on
+RC wires, no FES ring-in-nose variant (it wears the plain outrunner),
+inverters are finned boxes without cold plates, the liquid loop stops at
+the plate, the default powertrain toggle leaves the 0.80 m plate under a
+28 mm motor (58k quads of governed plate — the presets carry sane plate
+sizes; a park flyer's ply square is 0.16 m).
+
+### G25.1 — THE THERMAL REVIEW (same day): 912 truths, fitment, the bay
+
+Seven user remarks on the piston generator, six implemented:
+
+- **LIQUID COOLS THE HEADS, NOT THE BARRELS** (user ruling — and the
+  912's own architecture: liquid heads, ram-air cylinders). Barrel fins
+  now stay in EVERY configuration; only the head fins yield to the water
+  jacket, and a liquid engine with baseFins off gets the smooth jacket
+  casting. Check asserts flipped to match.
+- **THE 912 GEARBOX IS A CLEAR CONE** — and it has ROOM: engResolve
+  gives a geared FLAT engine `gearLen = 0.85*caseR` of extra nose (the
+  crank and everything on it moves aft; envelope and CG follow), and the
+  mesh holds the case back so the cone — bolted base ring, ONE straight
+  taper to the shaft boss, ribs riding the cone at their own radius,
+  eight nuts on the base step — reads instead of being a 1 cm sliver.
+  The gearbox replaces the timing cover (the real 912's front IS the
+  gearbox); radial and inline keep their approved bells, no added length
+  (the R-1830's look must not move).
+- **TWIN CONE FILTERS** (`airStyle: 1`, the 912 induction): two Bing-ish
+  top carbs riding the case aft, each with a chrome-capped orange cone
+  filter aft-outboard; runners drop from EACH BANK'S carb down the aft
+  flank, FIELD-CLEARED so they hug outside the case; the canister airbox
+  stands down; fuel + throttle move to the LEFT carb — and the firewall
+  entries FOLLOW, because the side-of-destination rule is now computed
+  from the destination instead of hard-coded. Flat four-stroke carb
+  engines only; the compat block coerces everything else.
+- **THE COOLANT BOTTLE**: the expansion tank was already there (the dome
+  on the radiator) but the review was right that the pair was missing —
+  liquid engines now carry the overflow BOTTLE on the plate with its
+  thin hose from the tank neck, routed clear.
+- **INTAKE FIT** ("they should hug much better"): every runner and the
+  air horn now PLUNGE past both ports into the metal — the declared
+  artery ends stay ON the ports so the fitment contract still asserts —
+  with flared mouths, a bigger tapered boss at the plenum and a flared
+  collar seated on the head.
+- **SERVICE ENTRY KNOBS**: `fuelX/fuelY/thrX/thrY` (half-plate
+  fractions) move where fuel and throttle leave the plate — the user's
+  no-clip lever — and both lines run through `routeClear` now with
+  destination-aware midpoints, so the default routing stopped clipping
+  too.
+- **THE BAY FURNITURE** (from the what-is-missing list): STARTER (body
+  drum + solenoid, right-low on the backplate), SPIN-ON OIL FILTER
+  (left-low, four-strokes only — a two-stroke premixes), BATTERY BOX
+  with strap and terminals on the plate (17x13 cm, metres by the plate's
+  declared exception), optional ECU box with rib fins (`ecuOn`, default
+  off — mags rule). Answered, not modelled: FUSEBOXES ARE CABIN-SIDE
+  (user was right); still open for later chantiers: oil cooler + lines,
+  gascolator/fuel filter, cabin-heat muff + SCAT ducting, voltage
+  regulator, vacuum pump, primer lines, the harness that ties the bay
+  together.
+
+New check case '912 twin cones' runs the full battery (168 parts, 26
+routed lines, density 0.51/1.04E); liquid/twin/bay asserts added; both
+verdicts green (`ENG CHECK: OK`, `ENGMESH: OK`). Panel: 'engine bay' and
+'services (entry points)' groups (piston-only), 'air filtration'
+dropdown, the 912 preset carries `airStyle: 1`.
+
+### G25.2 — THE CYLINDERS JOIN THE FIELD (same day, user report:
+### the twin runners went straight through the cylinders)
+
+The G24.2 clearance field knew the case and the acc dome and NOTHING
+ELSE — every route that left the spine was flying blind, and the new
+top-carb runners proved it. Systematic cure, no new parts:
+
+- **EACH CYLINDER IS A CAPSULE** about its own placement axis (radius
+  covers fins, visual head and rocker; builder routes at 1.06x, the
+  check measures the same formula at 0.94x — the conservative/real
+  split, non-circular). `routeSafe` = case field + cylinder capsules,
+  relaxed and re-projected; it REPLACED `routeClear` outright, so EVERY
+  routed line — leads, injection, intake runners, fuel, throttle,
+  coolant hoses, return, overflow — goes through the one combined field.
+  Each line exempts only its OWN target cylinder (a lead must land on
+  its plug, a runner in its own port); the electric's capsule set is
+  empty and nothing changes there.
+- **THE CAPSULE PASS ITERATES (x4)**: one push is not enough between
+  NEIGHBOURS — a line threading two adjacent capsules (the radial's
+  interleaved rows) gets pushed out of one and into the other, and
+  whoever is processed last wins (measured -0.055cR on the R-1830's
+  leads). Iteration walks the point out along the bisector; the gap
+  always opens radially, so it converges.
+- **MARGINS CARRY THE PIPE'S OWN RADIUS** (the lead precedent, applied
+  to the runners): a 0.16b tube "cleared" by 0.06b is still 0.10b
+  inside the metal — the first twin-runner fail, -0.025cR emitted.
+- **TWIN RUNNERS RUN LIKE A REAL MANIFOLD** now: down AFT of the whole
+  bank, forward UNDER the fins, up into the own port — instead of
+  dropping through the neighbouring cylinder.
+- **A RADIAL BREATHES THROUGH ITS REAR SPIDER — COERCED.** The net
+  proved what the R-1830 preset always declared: the generic radial's
+  under-slung carb + air horn sat INSIDE the 6-o'clock cylinder
+  (-0.186cR on the throttle). carbOn/airbox now coerce off for radial
+  in the compat block, like the other arch rules; fuel/throttle go with
+  the carb (its fuel system lives behind the case).
+- **THE ASSERT IS PERMANENT** (`_eng_mesh_check.js`): the check
+  recomputes every capsule from the RESOLVE numbers — its own ruler —
+  and every EMITTED vertex of every routed line must clear every
+  capsule except its named target's. All 26 cases green.
+
+### G25.3 — THE OPEN OUTRUNNER AND THE NOSE GRAMMAR (same day,
+### user review of the electric)
+
+- **THE OUTRUNNER FRONT IS OPEN NOW.** The old face was a full capped
+  disc with the vent spokes floating a whisker above it — the moiré the
+  user circled was those near-coplanar faces fighting. And a real
+  outrunner IS open there: you see copper through the slots. The front
+  is now a rim RING (a washer with real thickness) and a hub, with
+  genuinely open sectors between them — openness is absence of
+  geometry, no booleans — the spokes bridge ring to hub across the
+  gaps, and a recessed COPPER WINDINGS drum (`emCopper`) with its
+  governor-counted bar texture shows through. A second copper ring
+  peeks out between the aft lip and the stator, where the real ones
+  show it too. Style 0 only (EMRAX and certified housings are closed);
+  asserted in the check (windings + bars + face present).
+- **ONE NOSE GRAMMAR FOR EVERY POWERTRAIN** (user: the electric had
+  shaft + fixation disc, the piston "only a bearing"). The piston
+  flange was indeed a disc NARROWER than the barrel behind it — it
+  read as a machined end, not a prop mount. Now: seal boss -> exposed
+  shaft -> prop-mounting DISC (0.55b, wider than everything behind it)
+  with the six-bolt circle moved out to ride it (rc 0.40b). The
+  boss/shaft/disc splits are FRACTIONS OF THE ACTUAL NOSE DEPTH,
+  ordered by construction — zNose runs from a geared 912's deep snout
+  to a big bore's sliver, and fixed metre-ish splits inverted the
+  profile on both ends of that range before the fractions.
+  `ENG CHECK: OK`, `ENGMESH: OK` (electric cases now 37 parts).
+
+### G25.4 — NO KISSING FACES (same day, user: "the moiré is still
+### there. You seem to have coplanar faces somewhere")
+
+Right, and this time it was HUNTED, not guessed: a scanner that finds
+cross-part face pairs lying in one plane with real in-plane overlap
+(canonical normal + SIGNED offset — a mirror pair at +x/-x is not one
+plane; projected-interval overlap in both tangent axes, so diagonal
+bevel facets stop false-flagging). What it found was SYSTEMIC — every
+part that stood on another started exactly ON its face:
+
+- bolt washers' base discs on every bolted face (the front-and-centre
+  moiré: washers on the prop flange disc) — fixed IN THE PRIMITIVE,
+  washer base now starts inside the host;
+- the timing cover, flange nose boss, and case front all stacking caps
+  at z = zNose — each burial now has its OWN depth; the gearbox base
+  back sat exactly on the sump's front plane (both at zNose-0.02cR),
+  and the 912 cone's apex kissed the flange disc's back;
+- mag bodies on the backplate, radiator slats + headers on the core
+  face, pucks on lug bosses, the plate inverter / ruler / battery / ECU
+  on the firewall, the mount-tube end caps ON the plate plane (tubes
+  now run into it, declared artery ends unchanged);
+- and three REAL geometry bugs the sweep exposed: same-bank cylinder
+  pads OVERLAPPED (1.45b wide on a 1.30b pitch — now clamped to the
+  gap, and to the row pitch on the two-row radial, whose pads tiled
+  edge-to-edge); the twin runners of one bank shared the same
+  under-bank track and swept through each other (per-station tracks
+  now); the injection spider rooted on the case top.
+- Two subtle ones for the record: a THIN flange disc (big bore, sliver
+  nose) put its back plane at the washer burial depth — the disc depth
+  rule changed, not the washer; and the magPad at 1.25x mag radius
+  shared a COMMON TANGENT PLANE with the puck cylinder, which coarse
+  tessellation snapped both facets onto (1.22x breaks it).
+
+**THE RULE IS AN ASSERT NOW** (`_eng_mesh_check.js`): "no kissing
+faces" runs the same detector on every case — tolerance 0.0015*caseR,
+sliver faces ignored, fin-stack pairs exempt (G24.5's clip planes kiss
+BY DESIGN) — and expects ZERO pairs. It immediately caught two configs
+the hand scan missed (the IO-360's thin disc, the q0.6 tangent snap).
+All 26 cases green; scanned clean across all eight families.
+
+### G25.5 — THE SILENTBLOCKS SEAT ON THE CAN (same day, user: a
+### significant air gap between silentblock and e-engine body)
+
+The pancake/housed truss hung its lugs at zAft — the RESOLVER'S depth,
+where the motor has no metal at the lugs' radius — so the boss+puck
+stacks floated an aftL short of the drum. The lugs now bolt the CAN'S
+AFT FACE itself (z = zCanB, bosses buried 0.035cR into it, the
+no-kissing rule), at a radius the face actually has: the aft disc
+reaches 0.90cR on a pancake and 0.78cR on a housed motor, and the four
+lugs sit on diagonals at (aftR - 0.20cR)/sqrt2 so the 0.16cR bosses
+land fully on metal either way. Ports and artery names unchanged — the
+fitment asserts followed the geometry. `ENGMESH: OK`.
+
+### G25.6 — THE AUDIT'S THREE FINDS, FIXED; THE BATTERY GROWS TO 30
+### (same day, from the coverage assessment the user asked for)
+
+Probing UI-reachable combos OUTSIDE the battery found three latent
+defects of already-fixed classes — proof that the asserts only protect
+the cases they run:
+
+- **A SIX'S TWIN RUNNERS SHARED TRACKS**: the per-station track offset
+  used PARITY (stn % 2), designed on the 912's four — on a six,
+  stations 0 and 2 drew the same track and their runners swept through
+  each other coaxially (16 cm2 of coincident tube). Tracks are
+  proportional to the station now, and the carb outlets spread along
+  the bowl instead of alternating two spots.
+- **THE ELECTRIC GEARBOX KISSED THE CAN** — its base disc sat exactly
+  on the pancake's front face (617 cm2, the largest coplanar pair the
+  detector ever measured; echo on the outrunner's face ring). It
+  predates the no-kissing rule: base now starts 0.10*canL inside the
+  can, apex pulled back from the flange disc's back.
+- **A LIQUID OUTRUNNER CHANGED PHYSICS BUT DREW NOTHING** (the
+  semantic gap from the assessment): it now grows its jacket bosses on
+  the STATOR base — a rotating can cannot carry a jacket; the stator
+  is what the water cools — with the same two hoses to the plate. The
+  boss tips feed the hoses from one formula, so the ends cannot drift.
+
+FOUR NEW CASES pin the corners: 'flat six twin cones', 'geared
+pancake', 'liquid outrunner', 'ECU + injected' — battery 26 -> 30, all
+green. One principled exemption added to the no-kissing detector: a
+LEAD may lie on ITS OWN cylinder (the routing field exempts it too);
+two leads coplanar still flag. `ENGMESH: OK`, `ENG CHECK: OK`.
+
+## G26 — POD AND ROD (2026-08-26)
+
+The user's redesign of the aft body, from four photo references (Wilga,
+C172, Ruckus, Chinook + the ZHAW Archaeopteryx): (1) the cabin-to-boom
+CONTRACTION stops living on the last passenger pillar — it gets a
+DEDICATED SECTION ("the tightening"), present even on continuous
+fuselages (C172/Wilga pierce aft-view windows in it), absent on others;
+(2) a REAL ROD boom — one structural cylinder replacing the lofted boom
++ tail cone, "fixed straight on the aft bulk", the tightening structure
+holding it; (3) rod height on the pod is a FREE SLIDER (user ruling —
+no named stops), Archaeopteryx = high, Ruckus/Chinook = mid; (4) this
+opens the pusher path (bulkhead face freed). RULINGS taken: taper
+length ADDITIVE (the plane grows); aftRoofY/aftKeelY MIGRATE to the
+taper's aft ring (with taper 0 they act at the pillar pair exactly as
+before — nothing deleted, fit identity); rod is CONSTANT SECTION,
+CAPPED, no swage. `_cage8.html` = cage7 clone + the "7 · boom" rows
+(boom style, taper section on/off, taper length/width, rod height/
+diameter). Params all default inert: taperOn 0, taperLen 0.6, taperW 1,
+boomStyle 0, rodY 0, rodD 0.12. Mirror (pod) FORCES taper/rod off —
+its own chantier.
+
+**V2 RULINGS (user review, same day — supersede the first cut):**
+(1) the skinned-rod variant (fuselage skin lofting onto a collar and
+continuing as the tube) is REJECTED — "the tube become the boom and
+the tail": rod mode is ALWAYS the bare cylinder, fuselage skin ends at
+the aft bulkhead, fin and stab clamp straight onto the tube, and the
+tightening NEVER carries skin in rod mode (truss only). taperSkin is
+gone; rod diameter is the slider (`rodD`, was radius). (2) the taper
+is A PROPER SECTION like cabin and boom: EXPLICIT presence (`taperOn`
+— never implied by a zero length; taperLen only sizes it, clamped ≥
+0.08), its OWN materials ('taper' body — new teal colour — with the
+waistband/ceiling/floor rails running through), and GATED AFT BY ITS
+OWN PILLAR ('pillarTaper', tight ring pair pilTaperA/B at the boom
+junction, width = pillarW|paxPillarW) — all sections sit between
+pillars. isPillarMat now also requires a pillar-family NAME (the taper
+body is uniform too, but it is a section, not a mechanism).
+
+**THE TAPER (ring-table insertion, cageResolve).** Table aft→front with
+taper on: tail stack · boom · pilTaperA/B (taperD dims: aftRoofY/
+aftKeelY + taperW width factor — the aft dims MOVED AFT off the pax
+pillar) · taper bay ('taper' materials) · pilPaxA/B at FULL CABIN dims
+(a pillar is a pillar again). Lengths additive. boomMid lerps from
+taperD (= aftDA when taper off — identity). pillarTaper joined the
+interior's PM set (hoops, thick posts, punched frames like every
+pillar) and the station-frame march covers taperLen + tpW + boomLen —
+the tightening grows C172-style frames for free. 'taper' and
+'pillarTaper' joined the gear CAGE_MATS skin set (fin/stab/tailwheel
+contracts see the section).
+
+**THE ROD.** Rings are REGULAR 14-GONS on the rod circle — 6 levels +
+2 centre columns evenly spaced, yC/zC carrying the top/bottom points —
+so the CC limit is a circle; the control radius compensates the n-gon
+shrink (limit r = rc·(2+cos(2π/n))/3 — measured on the displayed
+mesh: diameter 0.1403 vs rodD 0.14). The fuselage table stops at
+pilPaxA with the standard aft cap — rearAperture works there, THE
+PUSHER FACE — and emitRodFree() emits the rod as its OWN closed
+component: root ring embedded 10 mm into the pillar band (never
+coplanar with the cap), constant section to zCap (taper + boom + tail
+spans), both cap rings creased, length edges smooth. Emitted AFTER
+orientCage (the flood never reaches a second component; the global
+volume flip follows the fuselage) and self-normalized by its own
+signed volume.
+
+**THE STRUCTURE FOLLOWS (user: "utterly important").** In rod mode the
+whole boom station machinery IDLES (the station loop is skipped; empty
+chains no-op downstream, cabin-side longeron runs still emit — and the
+slicer must not find the rod's own skin). Instead, a dedicated block
+after it: SOCKET FLANGE (punched aluminium ring) on the aft face
+around the root — always; with the taper on, the TIGHTENING TRUSS —
+four longerons from the bulkhead's ceil/floor corners converging on
+the collar plane + one diagonal per side + the COLLAR CLAMP ring on
+the tube, each linear piece realized in the boom section's technique
+via member() (carbon falls back to tube — a molded pod still carries
+real fittings). 'boomTube' is excluded from every lining pass
+(plywood/toele/cloth/composite) and classed INTSTRUCT in the viewer:
+fading the fuselage skin leaves the rod standing — the naked-Ruckus
+test.
+
+**THE TAIL FOUND THE TUBE (the session's one placement bug).** With the
+rod on, fin + stab + tailwheel all planted themselves at the POD's aft
+end — the deck/keel envelope and the gear's airframe contract filter by
+the gear module's CAGE_MATS skin set, which didn't know 'boomTube', so
+the polyline ended at the bulkhead. Added to CAGE_MATS (+ the fin/stab
+fallback copies): the deck sweep traces the tube's top line, the fin
+roots ON the tube, the stab and tailwheel ride its tail end. Proper
+CLAMP fittings at the tail (fin/stab saddles on the tube) are a
+follow-up chantier.
+
+**VERIFIED (after the v2 rework).** FIT: OK (every new param inert at
+default; template bit-identical; taperOn 0 ignores any taperLen —
+explicit presence). Headless suite (scratchpad _rod_check): default
+closed 2-manifold; taper pillar pair present at exact width, both
+rings on the aft dims, pilPaxA back on cabin roof, bay length additive
+to 1e-9, taperW exact, 'taper'/'pillarTaper' faces present, wood
+frames emitted; rod (with and without tightening) = exactly TWO
+closed 2-manifolds with ZERO tightening skin; displayed tube diameter
+0.1403 vs rodD 0.14; combos (rod+bubble+doors, rod+aero, taper+pax0/2,
+rod+aperture, taper+roundTop+carbon) no NaN through the full display
+pipeline; mirror build bit-identical with rod params set. Full core
+gate battery exit 0; FIN/COWL/ENG/ENGMESH: OK. Browser (cage8): the
+teal taper section bracketed by its two pillars on the jodel; bare rod
+mid-height (pod, tube to the tail, truss + collar, fin/stab/tailwheel
+on the tube); bare rod high at cabin-roof level; pusher aft face with
+the rod exiting low.
+
+**V3 (user, same day) — FITMENT HARDWARE + PLANNED JOINTS + PANELS.**
+The fitment points became real hardware, the truss became a planned
+structure, and the tightening can carry flat cover panels:
+- **THE BOLTED SOCKET** (aft face): solid flange plate (a fitting never
+  carries lightening holes — new `plate()` = annulus sheets + rim
+  walls), an 8-bolt ring (hex studs, heads aft out of the flange), and
+  a welded `sleeve()` (outer cylinder + end annuli closing onto the
+  rod) the tube slides into. **THE WELDED COLLAR** (taper aft plane):
+  sleeve + solid flange the truss tubes land on, clamp bolts top and
+  bottom.
+- **THE X ACROSS THE BULKHEAD** (user ask): four members from the
+  hoop's corner nodes meeting where the boom connects — INSIDE the
+  cap, landing on an inner BACKING PLATE facing the bolted flange
+  (flange outside, backing ring inside, bolts through — the real
+  arrangement). The first cut ran hoop→outer flange rim and GRAZED
+  the cap dome at glancing angles — exactly the "accidental" look the
+  user banned; inside + backing plate killed it.
+- **PLANNED JOINTS, never accidental (user ruling, tube priority):**
+  every truss member STARTS at the bulkhead hoop's own nodes
+  (bandEnds[0].mid, processed through the same inCtr pull the
+  longitudinal chains use — same point, same joint) and ENDS on a
+  flange rim at its own bearing angle. SIX longerons (top pair off the
+  ceiling-rail nodes tL/tR, waist pair off the main-longeron nodes
+  wP/wM, bottom pair off the chine corners P/M — each CONTINUING its
+  cabin chain) + one diagonal per side. The cabin CHINE RUN is
+  extended onto the bulkhead corner nodes in rod mode (the aft-corner
+  exclusion was the sharp-shoulder rule; the bulkhead is full cabin
+  section here) — member meets member through the hoop, in every
+  construction (member() dispatch; fittings stay aluminium in all of
+  them; carbon members fall back to tube).
+- **TAPER PANELS** (`taperPanels`, default 0): flat sheets laid ON the
+  longerons — the landing gear's V-panel idiom: corners inset toward
+  the panel centroid so the tubes still read at the edges, lifted
+  outward by the tube radius along the sheet normal (oriented away
+  from the rod axis), thin box. Six facets: two strips per side split
+  at the waist longeron + top + bottom — the tightening reads as the
+  Wilga's faceted transition. Measured: +36 quads = exactly 6 panels.
+VERIFIED: full suite + FIT green after the rework; browser: side view
+(three longerons per side converging on the collar, steep clean
+piercings at the bulkhead), aft quarter (socket flange + bolt ring +
+sleeve on the rod, collar hardware, no grazing members), panels on
+(faceted cone bulkhead→collar). Wood realization: members as beams,
+fittings stay metal (280 alu faces both conceptions).
+
+**G26.4 (user playtest review, same day) — nine rulings, all landed:**
+- **THE TAILWHEEL FOLLOWS THE TAIL:** in the cage gear layer a
+  TAILWHEEL station's z is now measured FORWARD OF THE AFT EXTREMITY
+  (AF.z0 — which tracks boom/rod length by construction): shorten the
+  boom, the wheel rides with the tail. Defaults converted (s2Z -2.2 →
+  0.06); non-tailwheel legs keep absolute stations; the gear BENCH is
+  untouched (the remap is cage-side only).
+- **AFT BULKHEAD toggle moved to "7 · boom"** (user: "we need that
+  back here") — intBulk worked all along, including rod mode (114
+  faces ↔ 0); it just lived in the conception group.
+- **taperPanels are FUSELAGE** ('taperPanel' material, own colour):
+  they fade with the fuselage alpha, cull with the skin, and joined
+  CAGE_MATS — a dorsal can root on a paneled tightening.
+- **DORSAL + KEEL EXTENSION CLAMPED OFF IN ROD MODE** (harmless per
+  ruling): the keel extension wrapped the tube as a canoe and short
+  booms sent the dorsal diving past the tightening — a bare tube has
+  no deck to fair onto, and the real tube-boom aeroplanes carry
+  neither. Both user choices return with the loft.
+- **SECTION - SEAT - PASSENGER:** the tandem rear seat lives in the
+  passenger section — paxCount 0 removes seat and dummy with it
+  (seatPlaces guard; side-by-side untouched, both its seats share the
+  pilot bay; the mirrored pod keeps its tandem — it reads P.paxCount,
+  which the pod does not zero).
+- **ZERO SKIN** (`skinOn`, conception group): display-level cull of
+  BOTH skin families — fuselage (skin, pillar bands, taper, panels,
+  cut doors) AND interior linings (cloth/toele/plywood/composite);
+  glass, joints and all structure stay. The first cut kept the
+  linings and the closed cloth shell read as a beige fuselage —
+  linings are skin too. Layers and measurements still see the full
+  mesh.
+- **DOOR REMOVED** (`doorGone`, doors group): the door is DEFINED —
+  jambs, sills, broken longeron runs all built — then the separated
+  part is deleted at the end of cageCut, before the interior/rim
+  passes ever see it: an open doorway with the full structure around
+  it. Needs cutParts on. Measured: 240 door faces → 0.
+- **LINERS ARE CLOSED SOLIDS** (user: their outer face WAS the
+  fuselage): liner() now emits the outer sheet too, inset LIN_EPS
+  1.5 mm below the skin (below baseT + eps for the composite's
+  second-stage extrusions, whose base plane is the shell's own inner
+  face) — no coplanar faces anywhere, and the structure stands
+  without skin. Measured: plywood/toele/composite boundary edges → 0.
+- **DASH CROWN** (`dashCrown`, cockpit group): the panel face's top
+  arc RISES from the windshield line in the middle (eased sin^1.5
+  bump, zero at the corners so the side chains still meet) — the
+  rounded instrument panel of real cockpits; the glareshield keeps
+  sealing on the traced base row and ladders up to the raised face.
+  Measured: +0.145 at 0.15.
+VERIFIED: suite + FIT green after the gen changes; browser: short and
+long booms carry the tail + wheel together, bare-truss zero skin,
+tandem 1↔2 seats with the pax section, the open doorway, the crowned
+dash.
+
+**G26.5 (user, same day) — THE TAIL RIDES THE ROD, then COMMIT.**
+- **THE STAB ANCHORS AT THE BOTTOM OF THE BOOM/ROD** (user ruling): in
+  the stab layer, `stY` is now the offset from the UNDERSIDE of the
+  live centreline sweep at the hinge station (the boom keel on a loft,
+  the tube's belly on a rod — so it follows rodY AND rodD). Page
+  default converted (stY 0.33 absolute → 0.408 over the jodel's
+  -0.078 keel = the same displayed tail; the cub's keel equals the
+  template's, so the cub preset is unmoved). Panel label: "h over
+  boom keel". No deck = the historic absolute placement.
+- **THE FIN TRANSLATES WITH THE DECK** (user: "its bottom is anchored
+  to the rod, but its top remains in place"): buildFin2's root rows
+  already rode the live deck, but the upper rows/corners were
+  template-absolute — moving the deck stretched the fin. New VERTICAL
+  REBASE dyR = live deck at the hinge vs the sketch's own root level,
+  added to yMid/yU/tipY/taY (keel side, dorsal, shoulder and top-pair
+  were already relative; the stab's flat deck sits exactly at the
+  sketch root so it stays 0 there; no deck = the sketch identity —
+  FIN: OK untouched). The jodel's fin heights CONVERTED in the page
+  defaults (+0.204, the jodel deck's own offset) so the default tail
+  is unchanged; the sailplane's fin now honestly rides its lower pod
+  deck. Verified in browser: rod at -0.3 and +0.55 carry fin, stab
+  and tailwheel as one rigid tail; the default jodel tail matches the
+  tuned build.
+
+**ROADMAP:** (3) taper WINDOWS (aft-view glazing à la C172/Wilga — win
+marks on the taper bay's upper flanks); (4) the pusher ENGINE on the
+aperture (G24 bench mounts onto "a firewall plate" — the bulkhead is
+that plate); (5) taper+rod for the MIRRORED POD (the true motorized
+Archaeopteryx — the pod's extruded boom re-bases on the rod); tail
+clamp fittings on the tube; per-bay seats for multi-pax cabins (the
+association generalized); retire cage7 once cage8 is the bench.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
@@ -8902,6 +9433,13 @@ second contains and therefore re-anchors nothing in the gates (they call
 The linkage and prop spin hardcode 1/60 for the same reason and must move with it.
 
 ## ROADMAP (with implementation anchors)
+SUPERSEDED (user, 2026-08-26): the living roadmap is `ROADMAP.md` at the
+project root — phases P0-P12 + two floating chantiers, structured around the
+game loop with the VERTICAL SLICE (design → fly → plaque → hangar → mission)
+at P3, the UI revamp in two tranches, and a mapping table saying where every
+live item below moved. This section stays as history because its entries are
+cited throughout this file.
+
 SCOPE DECISION (user, 2026-08-02): sessions 1-3 only (fidelity), then the
 project BRANCHES to graphics/world/editor work (specced separately by the
 user). Sessions 4-6 below stay documented as reference but are NOT next.
