@@ -4671,19 +4671,36 @@ function cageSubdivide(m) {
   }
   F.forEach((f, fi) => { for (const v of f.v) { const A = vAdj[v];
     A.F[0] += fp[fi][0]; A.F[1] += fp[fi][1]; A.F[2] += fp[fi][2]; A.nf++; } });
+  // semi-sharp VERTEX weights (m.VW: Map index -> weight): a weighted
+  // vertex is pulled to the CORNER rule (pinned) for `weight` levels, then
+  // rounds — the missing knob for a corner with only two sharp edges (an
+  // outline's quad corner has no third edge to crease, so edge weights
+  // alone can never pin it; G21 §5 recorded the trap, this closes it).
+  // Children inherit weight-1, like edges. The fuselage never sets VW, so
+  // the fit-locked template is untouched.
+  const VW = m.VW || null;
   const NV = V.map((P0, i) => {
     const A = vAdj[i], n = A.n || 1, nf = A.nf || 1;
     const Fp = A.F.map(v => v / nf), R = A.R.map(v => v / n);
     const sm = [0, 1, 2].map(k => (Fp[k] + 2 * R[k] + (n - 3) * P0[k]) / n);
-    if (A.sharp.length < 2) return sm;
-    A.sharp.sort((x, y) => y.w - x.w);
-    const t = Math.min(1, (A.sharp[0].w + A.sharp[1].w) / 2);
-    if (A.sharp.length === 2) {
-      const E1 = V[A.sharp[0].o], E2 = V[A.sharp[1].o];
-      const cr = [0, 1, 2].map(k => (E1[k] + 6 * P0[k] + E2[k]) / 8);
-      return [0, 1, 2].map(k => sm[k] + (cr[k] - sm[k]) * t);
+    let res = sm;
+    if (A.sharp.length >= 2) {
+      A.sharp.sort((x, y) => y.w - x.w);
+      const t = Math.min(1, (A.sharp[0].w + A.sharp[1].w) / 2);
+      if (A.sharp.length === 2) {
+        const E1 = V[A.sharp[0].o], E2 = V[A.sharp[1].o];
+        const cr = [0, 1, 2].map(k => (E1[k] + 6 * P0[k] + E2[k]) / 8);
+        res = [0, 1, 2].map(k => sm[k] + (cr[k] - sm[k]) * t);
+      } else {
+        res = [0, 1, 2].map(k => sm[k] + (P0[k] - sm[k]) * t); // corner
+      }
     }
-    return [0, 1, 2].map(k => sm[k] + (P0[k] - sm[k]) * t);   // corner
+    const vw = VW ? (VW.get(i) || 0) : 0;
+    if (vw > 0) {
+      const t = Math.min(1, vw);
+      res = [0, 1, 2].map(k => res[k] + (P0[k] - res[k]) * t);
+    }
+    return res;
   });
   const fpIdx = fp.map(pt => { NV.push(pt); return NV.length - 1; });
   const epIdx = new Map();
@@ -4723,9 +4740,19 @@ function cageSubdivide(m) {
     }
   });
   const out = { V: NV, F: NF, E: NE };
+  // vertex weights: parents keep their indices, children inherit weight-1
+  if (VW) {
+    const nv = new Map();
+    for (const [i, w] of VW) if (w - 1 > 0) nv.set(i, w - 1);
+    if (nv.size) out.VW = nv;
+  }
   // recorded seam lines (open/bubble modes) survive subdivision: each
-  // parent edge becomes its two children through the edge point
-  for (const key of ['dashRim', 'seamS', 'seamA', 'dashRimA', 'seamSA'])
+  // parent edge becomes its two children through the edge point. A mesh can
+  // declare EXTRA chain keys in m.seamKeys (the fin's root strand rides the
+  // fuselage deck this way) — carried forward so multi-level works.
+  if (m.seamKeys) out.seamKeys = m.seamKeys;
+  for (const key of ['dashRim', 'seamS', 'seamA', 'dashRimA', 'seamSA']
+       .concat(m.seamKeys || []))
     if (m[key]) {
     out[key] = [];
     for (const [a, b] of m[key]) {
