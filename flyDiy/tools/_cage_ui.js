@@ -89,30 +89,30 @@ const BASE_GROUPS = [
     ['tailRoofY', 'tail roof y',   0.10, 1.00, 0.005],
     ['tailKeelY', 'tail keel y',  -0.50, 0.30, 0.005],
   ]],
-  ['windshield', [
-    ['wsRun',     'w/s run',       0.20, 2.00, 0.01],
-    ['wsTopOff',  'w/s top off',   0.00, 0.50, 0.005],
+  ['windscreen', [
+    ['wsRun',     'windscreen run', 0.20, 2.00, 0.01],
+    ['wsTopOff',  'windscreen top off', 0.00, 0.50, 0.005],
     ['wsBaseBow', 'base bow',      0.00, 1.20, 0.01],
     ['wsCeilBow', 'ceil bow',      0.00, 0.60, 0.005],
-    ['apilW',     'A-pillar w x',  0.20, 3.00, 0.01],
+    ['apilW',     'A-pillar w ×',  0.20, 3.00, 0.01],
     ['apilPerp',  'A-pillar perp', 0, 1, 0.05],
   ]],
   ['nose', [
     ['noseLen',   'nose len',      0.20, 2.50, 0.01],
-    ['noseW',     'nose w x',      0.50, 1.50, 0.01],
-    ['pfW',       'front pillar x',0.30, 3.00, 0.01],
+    ['noseW',     'nose w ×',      0.50, 1.50, 0.01],
+    ['pfW',       'front pillar ×',0.30, 3.00, 0.01],
   ]],
   ['creases', [
     ['crPillar',  'pillars',       0, 3, 0.05],
     ['crSill',    'sill',          0, 3, 0.05],
     ['crBand',    'waistband',     0, 3, 0.05],
     ['crCeil',    'ceil rail',     0, 3, 0.05],
-    ['crFrame',   'w/s frame',     0, 3, 0.05],
+    ['crFrame',   'windscreen frame', 0, 3, 0.05],
     ['crCap',     'caps',          0, 3, 0.05],
   ]],
   ['glazing', [
     ['skylight',  'skylight',      0, 1, 1],
-    ['skyExt',    'sky extent',    0, 5, 1],
+    ['skyExt',    'sky extent',    0, 5, 1, { when: P => +P.skylight }],
     ['winSillPilot', 'pilot win sill', 0, 0.9, 0.01],
     ['winSillPax',   'pax win sill',   0, 0.9, 0.01],
   ]],
@@ -128,23 +128,29 @@ const BASE_GROUPS = [
     ['intPillars','pillar bodies', 0, 1, 1],
     ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
     ['intDash',   'dashboard',     0, 1, 1],
-    ['dashBack',  'dash setback',  0.01, 0.30, 0.005],
-    ['dashLip',   'dash lip height', 0.01, 0.10, 0.002],
-    ['dashDepth', 'dash depth',    0.05, 0.80, 0.01],
-    ['dashCrease','dash crease',   0, 3, 0.05],
+    ['dashBack',  'dash setback',  0.01, 0.30, 0.005,
+     { when: P => +P.intOn && +P.intDash }],
+    ['dashLip',   'dash lip height', 0.01, 0.10, 0.002,
+     { when: P => +P.intOn && +P.intDash }],
+    ['dashDepth', 'dash depth',    0.05, 0.80, 0.01,
+     { when: P => +P.intOn && +P.intDash }],
+    ['dashCrease','dash crease',   0, 3, 0.05,
+     { when: P => +P.intOn && +P.intDash }],
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
-    ['rimWs',     'w/s rim',      0, 1, 1],
+    ['rimWs',     'windscreen rim', 0, 1, 1],
     ['rimDoor',   'door rim',     0, 1, 1],
     ['doorOn',    'pilot door',   0, 1, 1],
     ['doorPax',   'pax doors',    0, 1, 1],
     ['doorDeep',  'door to belly',0, 1, 1],
-    ['doorSill',  'door sill',    0, 0.25, 0.002],
-    ['doorSillPax','pax door sill',0, 0.25, 0.002],
+    ['doorSill',  'door sill',    0, 0.25, 0.002,
+     { when: P => +P.doorOn }],
+    ['doorSillPax','pax door sill',0, 0.25, 0.002,
+     { when: P => +P.doorPax }],
   ]],
 ];
 // a page may REPLACE the whole panel (the curated tree preview) or just
@@ -152,9 +158,7 @@ const BASE_GROUPS = [
 const GROUPS = PAGE.groupsOverride
   ? PAGE.groupsOverride
   : BASE_GROUPS.concat(PAGE.groups || []);
-// items may nest one level: ['sub name', [items...], 'open'?]
-const flatItems = items => items.flatMap(it =>
-  Array.isArray(it[1]) ? flatItems(it[1]) : [it]);
+// items may nest one level: ['sub name', [items...], 'open'?, {when}?]
 
 // ---- three.js scene -------------------------------------------------------
 let yaw = -0.85, pitch = 0.30, drag = null, ZOOM = 1;
@@ -181,7 +185,10 @@ const matCache = {};
 // (the sheet linings: plywood/toele/cloth/composite shell) and interior
 // STRUCTURE (frames, posts, tubes, dash, bulkhead, firewall). Glass
 // keeps its own alpha on top.
-const VIEW = { glassA: 0.35, bodyA: 1, skinA: 1, structA: 1, loops: 1 };
+const VIEW = { glassA: 0.35, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
+               loops: 1 };
+// layers read viewer state (the cowl layer's alpha) through this — G29
+window.CAGE_VIEW = VIEW;
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
@@ -516,9 +523,28 @@ function build() {
     `cage ${m.V.length} v / ${m.F.length} q  →  L${L}: ` +
     `${s.V.length} v / ${s.F.length} q`;
   // page post hook (cage5 crew layer): extra scene content rebuilt after
-  // every cage build — additive, pages without it are unaffected
-  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: s, P, stat: $('stat') }); }
+  // every cage build — additive, pages without it are unaffected.
+  // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry
+  // their translation as cutOff — the DISPLAY keeps the offsets, but the
+  // contracts (gear stance, fin/stab decks, the engine face) must never
+  // move with a flying door (user: the undercarriage followed `explode`)
+  let sFix = s;
+  if ((P.explodeD || 0) > 0) {
+    const V2 = s.V.map(p => p.slice());
+    const undone = new Set();
+    for (const f of s.F) if (f.cutOff)
+      for (const vi of f.v) {
+        if (undone.has(vi)) continue;
+        undone.add(vi);
+        V2[vi] = [V2[vi][0] - f.cutOff[0], V2[vi][1] - f.cutOff[1],
+                  V2[vi][2] - f.cutOff[2]];
+      }
+    sFix = Object.assign({}, s, { V: V2 });
+  }
+  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
+  // `when` rows follow their discriminators live (P just changed)
+  applyRowVis();
   draw();
 }
 
@@ -575,30 +601,227 @@ function loadRef() {
 
 // ---- ui -------------------------------------------------------------------
 const ui = $('ui');
-// a row is a slider, or — when `names` is given — a named select whose
-// option values are the indices (the param stays numeric underneath)
-const mkRow = (parent, k, label, lo, hi, st, val, oninput, names) => {
+// G28: panel chrome, injected AFTER the page's stylesheet so it wins —
+// a wider label column (ellipsis keeps rows one-line; every label also
+// carries its full text as a tooltip), and VISIBLE NESTING: top-level
+// groups keep their box, nested groups trade the box for an indent and
+// a guide line, so the level is readable at a glance.
+{
+  const st = document.createElement('style');
+  st.textContent = `
+    #ui .r span.k{width:118px}
+    #ui details details{border:none;border-left:2px solid #2a3140;
+      border-radius:0;padding:1px 0 1px 9px;margin:6px 0 6px 2px}
+    #ui details[open]>summary{color:#aab6c2}
+  `;
+  document.head.appendChild(st);
+}
+// A REAL RESIZE HANDLE (user, asked twice — the aside's CSS corner
+// resize was invisible and awkward): a full-height grip on the panel's
+// left edge, width persisted across sessions and pages.
+{
+  ui.style.resize = 'none';
+  try {
+    const w = parseInt(localStorage.getItem('cagePanelW') || '', 10);
+    if (w >= 240 && w <= innerWidth * 0.7) ui.style.width = w + 'px';
+  } catch (e) {}
+  const grip = document.createElement('div');
+  grip.style.cssText = 'flex:none;width:7px;cursor:col-resize;' +
+    'background:linear-gradient(90deg,transparent 2px,#242a33 2px,' +
+    '#242a33 5px,transparent 5px)';
+  if (ui.parentElement) ui.parentElement.insertBefore(grip, ui);
+  let gd = null;
+  grip.addEventListener('mousedown', e => {
+    gd = [e.clientX, ui.getBoundingClientRect().width];
+    e.preventDefault();
+  });
+  addEventListener('mousemove', e => {
+    if (!gd) return;
+    ui.style.width = Math.max(240, Math.min(innerWidth * 0.7,
+      gd[1] + (gd[0] - e.clientX))) + 'px';
+    draw();
+  });
+  addEventListener('mouseup', () => {
+    if (!gd) return;
+    gd = null;
+    try { localStorage.setItem('cagePanelW',
+      String(Math.round(ui.getBoundingClientRect().width))); }
+    catch (e) {}
+  });
+}
+// THE ROW GRAMMAR (P1, 2026-08-26): the widget is a PROPERTY OF THE
+// PARAMETER, inferred here from the declared range — pages declare
+// [key, label, lo, hi, step, names?, opts?] and never pick a widget:
+//   0..1 step 1, or a two-name list      -> checkbox
+//   a names list of 3+                   -> dropdown
+//   integer step spanning <= 8 stops     -> stepper (− n +)
+//   everything else                      -> slider + TYPED value field,
+//                                           double-click label = reset to
+//                                           the loaded design's value
+// The interactive element keeps id `p_<key>` and stays a DIRECT child of
+// the .r row — the cowl layer's lock/hide pass styles rows through exactly
+// that contract (el.disabled + el.parentElement), and it must keep working.
+// opts, all optional:
+//   when:     P => bool — the row exists only when true (rec §2; re-run
+//             after every build, so a discriminator reveals its rows live)
+//   level:    'expert' — hidden unless the expert switch is on
+//   dim:      'len' — value is cage units; show ≈ metres after planeScale
+//   copyFrom: 'frontKey' — renders an "= front" button: the FOREVER-SPLIT
+//             one-shot gesture made visible (the ruling itself unchanged —
+//             the halves stay independent after the copy)
+//   link:     {sentinel, from, test?} — live "follows" checkbox: checked
+//             writes the sentinel (the layer keeps resolving it live),
+//             unchecked writes the currently-effective value back
+const ROWMETA = [];
+const GROUPMETA = [];
+const EXPERT = { on: false };
+try { EXPERT.on = localStorage.getItem('cageExpert') === '1'; } catch (e) {}
+const fmtV = v => (+v).toFixed(3);
+const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
+  opts = opts || {};
   const d = document.createElement('div'); d.className = 'r';
-  if (names) {
-    d.innerHTML = `<span class="k">${label}</span>
-      <select id="p_${k}" style="flex:1">` +
-      names.map((n, i) =>
-        `<option value="${i}"${+val === i ? ' selected' : ''}>${n}</option>`)
-        .join('') + `</select>`;
-    parent.appendChild(d);
-    d.querySelector('select').onchange = e => oninput(+e.target.value);
-    return;
-  }
-  const rel = k === 'planeScale';
-  d.innerHTML = `<span class="k">${label}</span>
-    <input type="range" id="p_${k}" min="${lo}" max="${hi}" step="${st}"
-      value="${rel ? relSize() : val}">
-    <span class="v" id="v_${k}">${(rel ? relSize() : +val).toFixed(3)}</span>`;
+  const meta = { k, lo, hi, st, names, opts, row: d };
+  ROWMETA.push(meta);
+  const kSpan = document.createElement('span');
+  kSpan.className = 'k'; kSpan.textContent = label;
+  kSpan.title = label;               // ellipsized labels stay readable
+  d.appendChild(kSpan);
   parent.appendChild(d);
-  d.querySelector('input').oninput = e => {
-    $('v_' + k).textContent = (+e.target.value).toFixed(3);
-    oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value);
-  };
+  const rel = k === 'planeScale';
+  const isTwoNames = !!names && names.length === 2;
+  const isCheck = isTwoNames ||
+    (!names && lo === 0 && hi === 1 && st === 1);
+  const isStep = !names && !isCheck && Number.isInteger(lo) &&
+    Number.isInteger(hi) && Number.isInteger(st) && st >= 1 &&
+    (hi - lo) / st <= 8;
+  let widget = null;                     // the p_<k> element
+  if (names && !isTwoNames) {            // ---- dropdown ----
+    meta.kind = 'select';
+    const sel = document.createElement('select');
+    sel.id = 'p_' + k; sel.style.flex = '1';
+    sel.innerHTML = names.map((n, i) =>
+      `<option value="${i}"${+val === i ? ' selected' : ''}>${n}</option>`)
+      .join('');
+    d.appendChild(sel);
+    sel.onchange = e => oninput(+e.target.value);
+    widget = meta.el = sel;
+  } else if (isCheck) {                  // ---- checkbox ----
+    meta.kind = 'check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.id = 'p_' + k; cb.style.flex = 'none';
+    cb.checked = +val >= 1;
+    d.appendChild(cb);
+    let vs = null;
+    if (isTwoNames) {                    // show the active state's name
+      vs = document.createElement('span');
+      vs.className = 'v'; vs.id = 'v_' + k;
+      vs.style.cssText = 'width:auto;flex:1;text-align:left';
+      vs.textContent = names[cb.checked ? 1 : 0];
+      d.appendChild(vs);
+    }
+    cb.onchange = () => {
+      if (vs) vs.textContent = names[cb.checked ? 1 : 0];
+      oninput(cb.checked ? 1 : 0);
+    };
+    widget = meta.el = cb; meta.vs = vs;
+  } else if (isStep) {                   // ---- stepper ----
+    meta.kind = 'step';
+    const bm = document.createElement('button'); bm.textContent = '−';
+    const inp = document.createElement('input');
+    inp.id = 'p_' + k; inp.className = 'v';
+    inp.type = 'text'; inp.inputMode = 'numeric';
+    inp.style.cssText = 'background:#1a1f27;border:1px solid #242a33;' +
+      'border-radius:4px;color:#5db3ff;padding:1px 3px;font:inherit;' +
+      'text-align:right';
+    inp.value = String(+val);
+    const bp = document.createElement('button'); bp.textContent = '+';
+    d.appendChild(bm); d.appendChild(inp); d.appendChild(bp);
+    const put = v => {
+      v = Math.max(lo, Math.min(hi, v));
+      inp.value = String(v);
+      oninput(v);
+    };
+    bm.onclick = () => { if (!inp.disabled) put(+inp.value - st); };
+    bp.onclick = () => { if (!inp.disabled) put(+inp.value + st); };
+    inp.onchange = () => {
+      const v = parseFloat(inp.value);
+      if (Number.isFinite(v)) put(lo + Math.round((v - lo) / st) * st);
+      else inp.value = String(P[k] != null ? P[k] : val);
+    };
+    widget = meta.el = inp;
+  } else {                               // ---- slider + typed value ----
+    meta.kind = 'slider';
+    const rng = document.createElement('input');
+    rng.type = 'range'; rng.id = 'p_' + k;
+    rng.min = lo; rng.max = hi; rng.step = st;
+    rng.value = rel ? relSize() : val;
+    const vf = document.createElement('input');
+    vf.id = 'v_' + k; vf.className = 'v';
+    vf.type = 'text'; vf.inputMode = 'decimal';
+    vf.style.cssText = 'background:none;border:none;color:#5db3ff;' +
+      'padding:0;font:inherit;text-align:right';
+    vf.value = fmtV(rel ? relSize() : +val);
+    d.appendChild(rng); d.appendChild(vf);
+    if (opts.dim === 'len') {            // ≈ metres, after planeScale
+      const mu = document.createElement('span');
+      mu.style.cssText = 'flex:none;color:#4a525c;font-size:10px;' +
+        'width:52px;overflow:hidden;text-align:right';
+      d.appendChild(mu);
+      meta.mu = mu;
+    }
+    rng.oninput = e => {
+      vf.value = fmtV(+e.target.value);
+      oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value);
+    };
+    vf.onchange = () => {                // typed values clamp to the range
+      if (rng.disabled) { vf.value = fmtV(rng.value); return; }
+      let v = parseFloat(vf.value);
+      if (!Number.isFinite(v)) { vf.value = fmtV(rng.value); return; }
+      v = Math.max(lo, Math.min(hi, v));
+      rng.value = v; vf.value = fmtV(v);
+      oninput(rel ? (sizeRef || 1) * v : v);
+    };
+    widget = meta.el = rng; meta.vf = vf;
+  }
+  // double-click the label: reset to the loaded design's value (preset /
+  // import / reset re-anchor the baseline — rec §6's per-row reset)
+  if (meta.kind === 'slider' || meta.kind === 'step') {
+    kSpan.title = label + ' — double-click: reset to the loaded design';
+    kSpan.style.cursor = 'default';
+    kSpan.ondblclick = () => {
+      if (widget.disabled) return;
+      const bv = BASELINE[k] != null ? BASELINE[k] : DEFAULTS[k];
+      if (bv == null) return;
+      oninput(rel ? bv : bv);
+      syncSliders();
+    };
+  }
+  if (opts.link) {                       // live "follows" checkbox
+    const lc = document.createElement('input');
+    lc.type = 'checkbox'; lc.id = 'l_' + k; lc.style.flex = 'none';
+    lc.title = 'linked — follows ' + (opts.link.from || 'the front');
+    d.insertBefore(lc, kSpan.nextSibling);
+    meta.linkEl = lc;
+    lc.onchange = () => {
+      if (lc.checked) oninput(opts.link.sentinel);
+      else oninput(P[opts.link.from] != null ? P[opts.link.from]
+                                             : Math.max(lo, 0));
+      syncSliders();
+    };
+  }
+  if (opts.copyFrom) {                   // the one-shot "match front" gesture
+    const b = document.createElement('button');
+    b.textContent = '=';
+    b.title = 'copy the front value now (' + opts.copyFrom +
+      ') — the halves stay independent';
+    b.style.flex = 'none';
+    d.appendChild(b);
+    b.onclick = () => {
+      if (P[opts.copyFrom] == null) return;
+      oninput(P[opts.copyFrom]);
+      syncSliders();
+    };
+  }
 };
 // THE SIZE SLIDER READS ×1 FOR THE DESIGN YOU LOADED (user 2026-08-19:
 // "the new plane scale should say 1"). `planeScale` stays the ONE stored
@@ -612,7 +835,13 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names) => {
 let sizeRef = null;
 const relSize = () => sizeRef ? (P.planeScale || 1) / sizeRef
                               : (P.planeScale || 1);
-const anchorSize = () => { sizeRef = P.planeScale || 1; };
+// BASELINE = the whole-set load the per-row double-click resets to; it
+// re-anchors exactly where sizeRef does (preset, import, reset, boot)
+let BASELINE = JSON.parse(JSON.stringify(DEFAULTS));
+const anchorSize = () => {
+  sizeRef = P.planeScale || 1;
+  BASELINE = JSON.parse(JSON.stringify(P));
+};
 
 const LSKEY = 'cageCfg:' + location.pathname;
 const savedCfgs = () => {
@@ -733,6 +962,7 @@ fillPresetSel();
   mkA('fuselage α', 'bodyA');
   mkA('int skin α', 'skinA');
   mkA('structure α', 'structA');
+  mkA('cowl α', 'cowlA');          // see the engine through the shell (G29)
   const d = document.createElement('div'); d.className = 'r';
   d.innerHTML = `<span class="k">cutaway</span>
     <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;
@@ -790,6 +1020,26 @@ fillPresetSel();
 }
 
 // ---- parameter groups (one nesting level supported) -----------------------
+// after [k,label,lo,hi,st] a row may carry a names ARRAY and/or an opts
+// OBJECT, in either order; a (sub)group may carry 'open' and/or an opts
+// object after its item list
+const rowTail = it => {
+  let names, opts;
+  for (const x of it.slice(5)) {
+    if (Array.isArray(x)) names = x;
+    else if (x && typeof x === 'object') opts = x;
+  }
+  return { names, opts };
+};
+const groupTail = (el, def, from) => {
+  let gopts = {};
+  for (const x of def.slice(from)) {
+    if (x === 'open') el.open = true;
+    else if (x && typeof x === 'object') gopts = x;
+  }
+  GROUPMETA.push({ el, opts: gopts });
+  return gopts;
+};
 const renderItems = (parent, items, path) => {
   for (const it of items) {
     if (Array.isArray(it[1])) {
@@ -798,25 +1048,120 @@ const renderItems = (parent, items, path) => {
       const ss = document.createElement('summary');
       ss.textContent = it[0];
       sub.appendChild(ss);
-      if (it[2] === 'open') sub.open = true;
+      groupTail(sub, it, 2);
       parent.appendChild(sub);
       renderItems(sub, it[1], path + '/' + it[0]);
       continue;
     }
-    const [k, label, lo, hi, st, names] = it;
+    const [k, label, lo, hi, st] = it;
+    const { names, opts } = rowTail(it);
+    // aft-pod rows get the one-shot "= front" button automatically — the
+    // key table already exists in the generator (CAGE_AFT_SUB)
+    let o2 = opts;
+    if (G.CAGE_AFT_SUB && (!opts || !opts.copyFrom))
+      for (const [ak, fk] of G.CAGE_AFT_SUB)
+        if (ak === k) o2 = Object.assign({}, opts, { copyFrom: fk });
     mkRow(parent, k, label, lo, hi, st, P[k], v => { P[k] = v; build(); },
-          names);
+          names, o2);
   }
 };
-for (const [gname, items, open] of GROUPS) {
+for (const gdef of GROUPS) {
+  const gname = gdef[0], items = gdef[1];
   const det = document.createElement('details');
   det.dataset.g = gname;
   const sum = document.createElement('summary');
   sum.textContent = gname;
   det.appendChild(sum);
-  if (open === 'open' || gname === 'interior') det.open = true;
+  if (gname === 'interior') det.open = true;
+  groupTail(det, gdef, 2);
   ui.appendChild(det);
   renderItems(det, items, gname);
+}
+// ---- existence + expert pass (rec §2) -------------------------------------
+// `when` rows/groups re-evaluate after every build, so a discriminator
+// reveals its dependents live; expert-tagged content sits behind one
+// global switch (persisted) instead of a "don't touch" folder.
+function applyRowVis() {
+  const FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+  for (const g of GROUPMETA) {
+    let vis = !(g.opts.level === 'expert' && !EXPERT.on);
+    if (vis && g.opts.when) { try { vis = !!g.opts.when(P); } catch (e) {} }
+    g.el.style.display = vis ? '' : 'none';
+  }
+  for (const meta of ROWMETA) {
+    const o = meta.opts;
+    if (o && (o.when || o.level)) {
+      let vis = !(o.level === 'expert' && !EXPERT.on);
+      if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
+      meta.row.style.display = vis ? '' : 'none';
+    }
+    if (meta.mu)
+      meta.mu.textContent = P[meta.k] == null ? '' :
+        '≈ ' + (P[meta.k] * FS).toFixed(2) + ' m';
+  }
+}
+{
+  const hasExpert = GROUPMETA.some(g => g.opts.level === 'expert') ||
+    ROWMETA.some(m => m.opts && m.opts.level === 'expert');
+  if (hasExpert) {
+    const d = document.createElement('div'); d.className = 'r';
+    d.innerHTML = `<span class="k">expert rows</span>
+      <label style="flex:none"><input type="checkbox" id="expertOn"
+        ${EXPERT.on ? 'checked' : ''}></label>`;
+    const anchor = ui.querySelector('.r.wrap');
+    if (anchor) anchor.after(d); else ui.prepend(d);
+    d.querySelector('#expertOn').onchange = e => {
+      EXPERT.on = e.target.checked;
+      try { localStorage.setItem('cageExpert', EXPERT.on ? '1' : '0'); }
+      catch (err) {}
+      applyRowVis();
+    };
+  }
+}
+// ---- G28: one home for the chrome -----------------------------------------
+// The header's controls duplicate the panel's territory (user: "all in
+// panel or all in top bar"). They MOVE into the panel — the elements
+// themselves relocate, so ids and handlers survive — the header keeps
+// the title. subsurf (and a page's template-step select) join the
+// POLYCOUNT group when the page has one, the display toggles join
+// `view`, export/reset join the file row, which also gains COLLAPSE.
+{
+  const viewDet = document.querySelector('details[data-g="view"]');
+  const polyDet = document.querySelector('details[data-g="polycount"]');
+  const fileRow = ui.querySelector('.r.wrap');
+  const adopt = (id, label, host, first) => {
+    const el = $(id);
+    if (!el || !host) return;
+    const lab = el.closest('label');
+    const d = document.createElement('div'); d.className = 'r';
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = label;
+    d.appendChild(k); d.appendChild(el);
+    el.style.flex = el.tagName === 'SELECT' ? '1' : 'none';
+    const sum = host.querySelector('summary');
+    if (first && sum) sum.after(d); else host.appendChild(d);
+    if (lab) lab.remove();
+  };
+  adopt('step', 'template step', polyDet || viewDet, true);
+  adopt('lvl', 'subsurf', polyDet || viewDet, true);
+  // last-called lands first under the summary: view reads cage,
+  // wireframe, colours, curvature, then the alpha rows
+  adopt('curv', 'curvature heat', viewDet, true);
+  adopt('color', 'section colours', viewDet, true);
+  adopt('wire', 'wireframe', viewDet, true);
+  adopt('cage', 'control cage', viewDet, true);
+  if (fileRow) {
+    for (const [id, txt] of [['objBtn', 'obj'], ['resetBtn', 'reset']]) {
+      const b = $(id);
+      if (b) { b.textContent = txt; fileRow.appendChild(b); }
+    }
+    const col = document.createElement('button');
+    col.textContent = 'collapse';
+    col.title = 'close every group';
+    fileRow.appendChild(col);
+    col.onclick = () =>
+      ui.querySelectorAll('details').forEach(d2 => { d2.open = false; });
+  }
 }
 const lg = document.createElement('div');
 lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
@@ -825,19 +1170,35 @@ lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
 ui.appendChild(lg);
 
 function syncSliders() {
-  for (const [, items] of GROUPS) for (const [k] of flatItems(items)) {
-    const el = $('p_' + k);
-    if (el) {
-      const v = k === 'planeScale' ? relSize() : P[k];
+  for (const meta of ROWMETA) {
+    const { k, kind, names, opts } = meta;
+    const el = meta.el;
+    if (!el) continue;
+    const v = k === 'planeScale' ? relSize() : P[k];
+    if (v == null) continue;
+    if (kind === 'check') {
+      el.checked = +v >= 1;
+      if (meta.vs && names) meta.vs.textContent = names[el.checked ? 1 : 0];
+    } else if (kind === 'select') el.value = String(+v);
+    else if (kind === 'step') el.value = String(+v);
+    else {
       el.value = v;
-      const vs = $('v_' + k);
-      if (vs) vs.textContent = (+v).toFixed(3);
+      if (meta.vf) meta.vf.value = fmtV(+v);
+    }
+    if (meta.linkEl) {
+      const t = (opts.link && opts.link.test) ||
+        (x => x === opts.link.sentinel);
+      let on = false;
+      try { on = !!t(P[k]); } catch (e) {}
+      meta.linkEl.checked = on;
+      // while linked the number is the layer's to resolve — hide the widget
+      const vis = on ? 'none' : '';
+      el.style.display = vis;
+      if (meta.vf) meta.vf.style.display = vis;
+      if (meta.mu) meta.mu.style.display = vis;
     }
   }
-  const ex = $('p_explodeD');
-  if (ex) { ex.value = P.explodeD;
-    const vs = $('v_explodeD');
-    if (vs) vs.textContent = (+P.explodeD).toFixed(3); }
+  applyRowVis();
 }
 function applyPreset(name) {
   if (name.startsWith('* ')) {

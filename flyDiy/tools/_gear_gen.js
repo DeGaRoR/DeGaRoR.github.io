@@ -557,9 +557,22 @@ function cageAirframe(mesh, scale) {
   if (!mesh || !mesh.V || !mesh.F) return null;
   const k = scale || 1;
   const V = mesh.V.map(p => [p[0] * k, p[1] * k, p[2] * k]);
-  const F = [];
+  // AS-BUILT, not as-displayed (G29, user: the undercarriage moved with
+  // `explode`): a cut part's faces carry their translation as `cutOff` —
+  // measure every part back at its own place, the dims-pane rule. Cut
+  // verts are per-part duplicates, so each is moved back exactly once.
+  const F = [], undone = new Set();
   for (const f of mesh.F)
-    if (f && f.v && f.v.length >= 3 && CAGE_MATS.has(f.m)) F.push(f.v.slice());
+    if (f && f.v && f.v.length >= 3 && CAGE_MATS.has(f.m)) {
+      if (f.cutOff)
+        for (const i of f.v) {
+          if (undone.has(i)) continue;
+          undone.add(i);
+          V[i] = [V[i][0] - f.cutOff[0] * k, V[i][1] - f.cutOff[1] * k,
+                  V[i][2] - f.cutOff[2] * k];
+        }
+      F.push(f.v.slice());
+    }
   return meshAirframe(V, F);
 }
 function drawBody(parent, AF) {

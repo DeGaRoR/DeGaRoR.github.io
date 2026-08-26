@@ -45,32 +45,45 @@ if (!CW) { console.error('cage cowl layer: _cowl_gen.js not loaded'); return; }
 const ROWS = window.COWL_ROWS || [];
 // The aft termination is the BENCH'S STUB FUSELAGE (its own group in the
 // tool). This page has a real fuselage and does not draw it, so its controls
-// would move nothing.
-const SKIP_GROUPS = new Set(['g_aft']);
+// would move nothing. g_mesh's one row (detail) moved to the page's
+// polycount group (G28); the spinner and propeller groups moved to the
+// ENGINE layer (G29 — they are the engine's children now), which re-homes
+// their rows and builds their meshes. Their VALUES still ride through
+// CW.P (SHOWN keeps them), so the tool stays one parameter set.
+const SKIP_GROUPS = new Set(['g_aft', 'g_mesh', 'g_spin', 'g_prop']);
 
 const SHOWN = [];
 for (const g of ROWS) {
-  if (SKIP_GROUPS.has(g.id)) continue;
+  if (g.id === 'g_aft') continue;
   for (const r of g.rows) if (CW.P[r.k] !== undefined) SHOWN.push(r.k);
 }
-const cowlDef = { cowlOn: 1, fitNose: 1, cowlGap: 0.0, propOn: 1 };
+const cowlDef = { cowlOn: 1, fitNose: 1, cowlGap: 0.0 };
 for (const k of SHOWN) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
+// the 'material' names entry is an extraction artifact (the tool built
+// them at runtime) — the real list lives in CW.MATERIALS
+const rowNames = r => r.k === 'material' && CW.MATERIALS
+  ? CW.MATERIALS.map(mm => mm.name) : r.names;
 const groupItems = g => g.rows
   .filter(r => CW.P[r.k] !== undefined)
-  .map(r => ['cw_' + r.k, r.label, r.lo, r.hi, r.step, r.names]);
+  .map(r => ['cw_' + r.k, r.label, r.lo,
+             r.k === 'material' && CW.MATERIALS ? CW.MATERIALS.length - 1
+                                                : r.hi,
+             r.step, rowNames(r)]);
 
-const GROUP = ['2b · cowl & propeller', [
+const GROUP = ['2b · cowl', [
   ['cowlOn',  'cowl',            0, 1, 1],
   ['fitNose', 'fit to the nose', 0, 2, 1,
-   ['free (tool only)', 'fitted (size + section)', 'sealed (size only)']],
-  ['cowlGap', 'stand-off from face', -0.05, 0.15, 0.002],
-  ['propOn',  'propeller',       0, 1, 1],
+   ['free (tool only)', 'fitted (size + section)', 'sealed (size only)'],
+   { when: P => +P.cowlOn }],
+  ['cowlGap', 'stand-off from face', -0.05, 0.15, 0.002,
+   { when: P => +P.cowlOn }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.name.toLowerCase(), groupItems(g),
-                        g.id === 'g_body' || g.id === 'g_scoop' ? 'open' : undefined]))];
+                        g.id === 'g_body' || g.id === 'g_scoop' ? 'open' : undefined,
+                        { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
 // ---- WHAT IS LOCKED, AND WHAT DOES NOT APPLY ------------------------------
@@ -95,6 +108,26 @@ for (const g of ROWS) for (const r of g.rows) {
   try { WHENS[r.k] = new Function('P', 'return (' + r.when + ');'); }
   catch (e) { /* a condition that will not compile simply never hides */ }
 }
+// G28 AUDIT: relevance the tool's own rows never declared. The seam and
+// scoop sets follow their master toggles, the aperture dims follow the
+// mode that draws them, and the STUB section rows are dead here by
+// construction (inheritStub is forced 0 on this page) so they never
+// show. Supplemental, never overriding a tool `when` that says hide.
+const scoopW = Q => Q.scoopOn > 0;
+const apOne = Q => { const m2 = Math.round(Q.apMode); return m2 === 1 || m2 === 3; };
+const apPair = Q => Math.round(Q.apMode) >= 2;
+const dead = () => false;
+const WHEN_EXTRA = {
+  seamType: Q => Q.seamOn > 0, seamPos: Q => Q.seamOn > 0,
+  seamWidth: Q => Q.seamOn > 0, seamDepth: Q => Q.seamOn > 0,
+  scoopLen: scoopW, scoopW: scoopW, scoopH: scoopW, scoopSq: scoopW,
+  scoopLipH: scoopW, scoopDrop: scoopW, scoopRake: scoopW, scoopAp: scoopW,
+  scoopLipDepth: scoopW, scoopDuct: scoopW,
+  apW: apOne, apH: apOne, apSq: apOne, apOffX: apOne, apOffY: apOne,
+  pairX: apPair, pairW: apPair, pairH: apPair, pairY: apPair, pairSq: apPair,
+  stubDeckH: dead, stubWaist: dead, stubKeelH: dead,
+  stubSqTop: dead, stubSqBot: dead,
+};
 function applyRowStates(mode) {
   const locked = new Set(lockedFor(mode));
   for (const k of SHOWN) {
@@ -103,6 +136,9 @@ function applyRowStates(mode) {
     const rowEl = el.parentElement;
     let show = true;
     if (WHENS[k]) { try { show = !!WHENS[k](CW.P); } catch (e) { show = true; } }
+    if (show && WHEN_EXTRA[k]) {
+      try { show = !!WHEN_EXTRA[k](CW.P); } catch (e) { show = true; }
+    }
     rowEl.style.display = show ? '' : 'none';
     const lock = locked.has(k);
     el.disabled = lock;
@@ -146,13 +182,7 @@ function mats() {
   };
   return MATS;
 }
-function propMat() {
-  const M = CW.MATERIALS[Math.max(0, Math.min(CW.MATERIALS.length - 1,
-    Math.round(CW.P.material)))];
-  const m = mats().prop;
-  m.color.setHex(M.col); m.metalness = M.met; m.roughness = M.rgh;
-  return m;
-}
+// (propMat moved to the engine layer with the blades — G29)
 
 // ---- THE NOSE FACE --------------------------------------------------------
 // The cage's engine aperture, read off the marks it carries. The FORWARD one:
@@ -399,23 +429,19 @@ PAGE.post = ctx => {
   // gear layer makes with `stubAirframe`: the stub exists so the module can be
   // developed alone, and integration is exactly the moment it goes away.
   group.add(cowl);
-  CW.buildNose(group, M);
+  // (the nose cone and the propeller are the ENGINE's children now — G29;
+  // _cage_eng.js builds them on the crank)
 
-  if (P.propOn) {
-    const ax = CW.axisXY();
-    const pg = new THREE.Group();
-    pg.position.set(ax.x, ax.y, CW.bladePlaneZ());
-    const info = CW.propGeometry();
-    const pm = propMat();
-    for (let k = 0; k < Math.round(CW.P.bladeN); k++) {
-      const b = new THREE.Group();
-      b.add(new THREE.Mesh(info.geom, pm));
-      b.add(new THREE.Mesh(info.root, pm));
-      b.add(new THREE.Mesh(info.tip, pm));
-      b.rotation.z = k / Math.round(CW.P.bladeN) * Math.PI * 2;
-      pg.add(b);
-    }
-    group.add(pg);
+  // COWL ALPHA (G29, user): see the engine through the shell. The view
+  // panel owns the dial (viewer state, never spec); the layer's materials
+  // follow it every build.
+  const cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null)
+    ? window.CAGE_VIEW.cowlA : 1;
+  for (const nm of ['skin', 'host', 'dark', 'steel']) {
+    const mm = M[nm];
+    mm.transparent = cA < 1;
+    mm.opacity = cA;
+    mm.depthWrite = cA >= 1;
   }
 
   // ON THE FACE. The cowl's own origin is its firewall, so the group only has
@@ -423,16 +449,23 @@ PAGE.post = ctx => {
   // middle (which is NOT y = 0: a drooping nose puts it well below), z at the
   // face itself plus whatever stand-off the builder asked for.
   group.position.set(0, face.yc, face.z + (P.cowlGap || 0));
+  // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
+  // the face, scaled like the cage parts (explodeD is cage units, this
+  // group is metres, so × FS); the engine layer stages the cone and the
+  // blades beyond it
+  const ex = Math.max(0, P.explodeD || 0) * FS;
+  if (ex > 0) cowl.position.z += ex * 0.9;
   scene.add(group);
 
   applyRowStates(mode);
   window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode };
   if (stat) {
-    const eng = EG ? EG.engResolve({}) : null;
     stat.textContent += `  ·  cowl: face ${(face.halfW * 2).toFixed(2)}×` +
       `${(face.halfH * 2).toFixed(2)} at z ${face.z.toFixed(2)} · ` +
-      `${(CW.zEnd() * 1000).toFixed(0)} mm long · ` +
-      `prop ${CW.P.propD.toFixed(2)} m × ${Math.round(CW.P.bladeN)}`;
+      `${(CW.zEnd() * 1000).toFixed(0)} mm long`;
   }
 };
+// the engine layer reads the same nose face (G29) — one description of
+// where the firewall is, not two
+window.CAGE_NOSE = { noseFace };
 })();

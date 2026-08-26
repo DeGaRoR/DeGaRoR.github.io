@@ -192,13 +192,17 @@ function cageResolve(S) {
   // touches nothing. comp is faded in with sin(theta) so the waist stays
   // exactly at Ww and only the dome inflates against CC shrinkage.
   // Round top + round bottom = the full oval tube (sailplane pod, bizjet).
-  function roundTop(lv, Ww, roofY, Wk, keelY) {
+  function roundTop(lv, Ww, roofY, Wk, keelY, yWr, yBr) {
+    // yWr/yBr: the ring's OWN waist/band heights (the ride, below) —
+    // callers without them get the global line, exactly as before
+    const yW = yWr != null ? yWr : S.waistY;
+    const yB = yBr != null ? yBr : S.bandY;
     const rT = TOP.round || 0, rB = TOP.botRound || 0;
     const arcTo = (ww, half, deg) => {
       const th = deg * Math.PI / 180;
       const k = 1 + (TOP.comp - 1) * Math.sin(th);
       return { x: ww * Math.cos(th) * k,
-               y: S.waistY + half * Math.sin(th) * k };
+               y: yW + half * Math.sin(th) * k };
     };
     const mix = (l, p, r, useYC) => {
       l.x = l.x + (p.x - l.x) * r;
@@ -206,17 +210,17 @@ function cageResolve(S) {
                    l.yC = l.yC + (p.y - l.yC) * r; }
       else l.y = l.y + (p.y - l.y) * r;
     };
-    const topH = roofY - S.waistY;
+    const topH = roofY - yW;
     if (rT && topH > 1e-6) {
       mix(lv.roof, arcTo(Ww, topH, 90), rT, true);       // crown (centre col)
       mix(lv.roof, arcTo(Ww, topH, TOP.angRoof), rT);
       mix(lv.ceil, arcTo(Ww, topH, TOP.angCeil), rT);
-      const bt = Math.min(0.99, (S.bandY - S.waistY) / topH);
+      const bt = Math.min(0.99, (yB - yW) / topH);
       const bx = Ww * Math.sqrt(1 - bt * bt);
       lv.band.x = lv.band.x + (bx - lv.band.x) * rT;     // band: x only
     }
     const wk = Wk != null ? Wk : Ww;
-    const botH = (keelY != null ? keelY : lv.keel.y) - S.waistY;   // < 0
+    const botH = (keelY != null ? keelY : lv.keel.y) - yW;   // < 0
     if (rB && botH < -1e-6) {
       mix(lv.keel, arcTo(wk, botH, 90), rB, true);       // bottom crown
       mix(lv.keel, arcTo(wk, botH, TOP.angRoof), rB);
@@ -227,16 +231,32 @@ function cageResolve(S) {
 
   function fullRing(name, z, d) {
     const Wk = d.Wk != null ? d.Wk : d.Ww;
-    const wallT = (d.floorY - d.keelY) / (S.waistY - d.keelY);
+    // THE WAIST RIDES ITS EDGES (G28, user): the waistline is a GLOBAL
+    // height, and a ring whose own span does not contain it used to let
+    // the waist (and the band above it) leave the body — a low waistline
+    // ran straight on under the tail cone. Now the two levels slide along
+    // the ring's own vertical edges and stop against their neighbours:
+    // the waist stays between keel and ceiling, the band between waist
+    // and ceiling, and the floor tucks under a waist that comes down to
+    // it. Inactive wherever the global line already fits inside the ring
+    // — the template and the jodel default are bit-identical (FIT + the
+    // displayed-mesh hash both checked).
+    const eps = 0.03 * Math.max(1e-6, d.roofY - d.keelY);
+    const yW = Math.min(Math.max(S.waistY, d.keelY + 2 * eps),
+                        d.ceilY - 2 * eps);
+    const yB = Math.min(Math.max(S.bandY, yW + eps), d.ceilY - eps);
+    const yF = Math.min(d.floorY, yW - eps);
+    const wallT = (yF - d.keelY) / (yW - d.keelY);
     const lv = {
       roof:  { x: d.Wr, y: d.roofY, z },
       ceil:  { x: ceilX(d.Ww, d.Wr), y: d.ceilY, z },
-      band:  { x: bandX(d.Ww, d.Wr), y: S.bandY, z },
-      waist: { x: d.Ww, y: S.waistY, z },
-      floor: { x: Wk + (d.Ww - Wk) * wallT, y: d.floorY, z },
+      band:  { x: bandX(d.Ww, d.Wr), y: yB, z },
+      waist: { x: d.Ww, y: yW, z },
+      floor: { x: Wk + (d.Ww - Wk) * wallT, y: yF, z },
       keel:  { x: Wk, y: d.keelY, z },
     };
-    return { name, kind: 'full', lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY) };
+    return { name, kind: 'full',
+             lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY, yW, yB) };
   }
 
   const rings = [], bays = [];
@@ -1962,7 +1982,11 @@ function cageRims(m, S) {
       const sN = [];
       for (let k = 0; k < SS; k++) {
         const a = k * 2 * Math.PI / SS;
-        const cb = Math.cos(a) * r, cn = Math.sin(a) * r;
+        // FLAT SEAL (G28, user: "slim across the window"): the bead is a
+        // low strip straddling the seam, not a full round tube — the
+        // in-surface half-width keeps r, the out-of-surface rise drops
+        // to a fraction of it (n2 is the surface normal by construction)
+        const cb = Math.cos(a) * r, cn = Math.sin(a) * r * 0.38;
         let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
             qz = b[2]*cb + n2[2]*cn;
         if (mit) {
@@ -2241,8 +2265,19 @@ function cageCut(m, S) {
       ny += u[2]*w2[0]-u[0]*w2[2];
       nz += u[0]*w2[1]-u[1]*w2[0];
     }
+    // EXPLODE IS RADIAL, NEVER AXIAL (G28, user report: "deforms the
+    // nose"). A raked windscreen's mean normal leans FORWARD, so the
+    // glass slid up OVER the nose deck and the doubled shell read as a
+    // deformed nose. Parts unbolt OUT of the section: the axial (z)
+    // component is dropped and the direction renormalized — doors and
+    // flank windows are unchanged (their z is ~0 already), the screen
+    // now lifts straight off. A part with a near-pure axial normal
+    // (none today) would keep its own direction rather than degenerate.
     const nl = Math.hypot(nx, ny, nz) || 1;
-    const off = [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
+    const rl = Math.hypot(nx, ny);
+    const off = rl > 0.15 * nl
+      ? [nx/rl*C.explode, ny/rl*C.explode, 0]
+      : [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
     const map = new Map();
     for (const fi of keep) {
       F[fi].v = F[fi].v.map(vi => {

@@ -67,35 +67,56 @@ PAGE.defaults = Object.assign(gearDef, PAGE.defaults || {});
 // per station. That is the dividend of the parameter model being shared: the
 // ranges and labels here cannot drift from the bench's, because they ARE the
 // bench's.
-const legSubs = i => Object.keys(GP.LEG_ROWS).map(kind =>
-  [GP.LEGS[kind], GP.LEG_ROWS[kind].map(r =>
-    ['s' + i + '_' + r[0], r[1], r[2], r[3], r[4], r[5]])]);
-
+// G28 (user): the kind subfolders are GONE — conditional rows made the
+// nesting unnecessary. Every leg kind's detail rows splice FLAT into the
+// station group, each gated on the fitted kind (and the station being
+// on), so only the fitted leg's ~6-12 rows exist at a time. The two rows
+// whose discriminator is another row in the same set follow it too
+// (bungee wrap <- shock kind, brace top <- drag brace), per station.
+const legRowWhen = (i, key, kind) => {
+  const kw = P => +P['s' + i + 'On'] && +P['s' + i + 'Leg'] === +kind;
+  if (key === 'bungeeSpan')
+    return P => kw(P) && +P['s' + i + '_shockKind'] === 1;
+  if (key === 'oleoBraceZ')
+    return P => kw(P) && +P['s' + i + '_oleoBrace'];
+  return kw;
+};
+const legRows = i => {
+  const out = [];
+  for (const kind of Object.keys(GP.LEG_ROWS))
+    for (const r of GP.LEG_ROWS[kind])
+      out.push(['s' + i + '_' + r[0], r[1], r[2], r[3], r[4], r[5],
+                { when: legRowWhen(i, r[0], kind) }]);
+  return out;
+};
+const sOn = i => ({ when: P => +P['s' + i + 'On'] });
 const station = (i, name) => [name, [
   ['s' + i + 'On',    'fitted',       0, 1, 1],
   ['s' + i + 'Z',     i === 2 ? 'z / tail offset' : 'station z',
-                                     -4, 4, 0.01],
-  ['s' + i + 'X',     'half track',   0, 1.6, 0.01],
-  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS],
-  ['s' + i + 'R',     'wheel radius', 0.05, 0.40, 0.005],
-  ['s' + i + 'Drop',  'leg drop',     0.05, 1.00, 0.01],
-  ['s' + i + 'Brake', 'brake',        0, 1, 1],
-  ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS],
-  ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers']],
-  ['leg detail', legSubs(i)],
+                                     -4, 4, 0.01, sOn(i)],
+  ['s' + i + 'X',     'half track',   0, 1.6, 0.01, sOn(i)],
+  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
+  ['s' + i + 'R',     'wheel radius', 0.05, 0.40, 0.005, sOn(i)],
+  ['s' + i + 'Drop',  'leg drop',     0.05, 1.00, 0.01, sOn(i)],
+  ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
+  ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
+  ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
+   sOn(i)],
+  ...legRows(i),
 ]];
 
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
-  ['gearSit', 'stand it on the ground', 0, 1, 1],
-  station(1, 'station 1 — mains'),
-  station(2, 'station 2 — third wheel'),
+  ['gearSit', 'stand it on the ground', 0, 1, 1,
+   { when: P => +P.gearOn }],
+  station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn }]),
+  station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn }]),
   ['balance + prop', [
     ['cgZ',   'CG station z', -2, 4, 0.01],
     ['cgY',   'CG height y',  -1, 1, 0.01],
     ['propR', 'prop radius',  0.20, 2.00, 0.005],
     ['propZ', 'prop plane z', -1, 5, 0.01],
-  ]],
+  ], { when: P => +P.gearOn }],
 ]];
 // a page that curated its own tree replaced the base panel outright, so an
 // appended group has to go into THAT array; otherwise the base append list.

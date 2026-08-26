@@ -9200,6 +9200,257 @@ Archaeopteryx — the pod's extruded boom re-bases on the rod); tail
 clamp fittings on the tube; per-bay seats for multi-pax cabins (the
 association generalized); retire cage7 once cage8 is the bench.
 
+## G27 — THE PANEL GRAMMAR (ROADMAP P1, 2026-08-26)
+
+Tranche A of the slider revamp, done BEFORE wings on purpose: every bench
+page written after this inherits it instead of being retrofitted. UI ONLY
+— `_cage_gen.js` untouched, FIT: OK re-run green, and the only new writes
+into P are behind explicit gestures (a copy button, a link checkbox).
+
+**THE WIDGET IS A PROPERTY OF THE PARAMETER** (`_cage_ui.js` mkRow):
+pages declare `[key, label, lo, hi, step, names?, opts?]` and never pick
+a widget — 0..1 step 1 or a two-name list renders a CHECKBOX (a two-name
+row shows the active state's name: "boom style [x] rod (tube)"), a names
+list of 3+ a DROPDOWN, an integer step spanning <= 8 stops a STEPPER
+(− n +), everything else a SLIDER whose value is a TYPED FIELD (clamped
+to the range) with double-click-on-the-label reset. G24.8 made this
+ruling for the engine page; this generalises it to the helper every cage
+page and layer shares — the gear layer's generated LEG_ROWS came along
+without touching the bench. CONTRACT KEPT: the interactive element is id
+`p_<key>` and a DIRECT child of the `.r` row — the cowl layer's
+lock/hide pass (el.disabled + el.parentElement) runs unchanged, verified
+live (fitNose free/fitted unlocks and relocks `cw_aftW`).
+
+**EXISTENCE IS DECLARATIVE** (rec §2): rows and (sub)groups carry
+`when: P => bool`, re-evaluated after every build, so a discriminator
+reveals its dependents live. `level: 'expert'` + one global persisted
+"expert rows" switch replaces the "don't touch" folder (the group is
+kept, gated). Annotated: sky extent <- skylight; bubble + loop rows <-
+canopy=bubble and canLoops; dash rows <- intOn+intDash; door sills <-
+their doors; door removed <- pilot door; pax rows <- paxCount>0; stick/
+throttle/pedal position groups <- the control is fitted; dummy <-
+crewOn; 3b/4b aft groups <- mirror; seat 2 <- layout has a second seat;
+gear: only the FITTED leg kind's detail subfolder exists (per station),
+bungee wrap <- shock kind, brace top <- drag brace.
+
+**THE BOOM GROUP'S RULES ARE MEASURED, NOT ASSUMED.** A row is hidden in
+a mode only if varying it through the full display pipeline leaves the
+mesh hash byte-identical there (scratchpad probe, both intOn states —
+first run had intOn 0 and the truss absent, which made taperPanels read
+falsely inert: A PROBE MUST BUILD WHAT THE PAGE BUILDS). Measured: cone
+half-W/roof/keel and the pod ring are LOFT-ONLY; aft roof/keel go inert
+exactly when rod+taper replaces the bay with the truss; taper width is
+loft+taper only; taper panels exist only on the rod's truss; tailLen
+moves both modes (the rod spans it) so it stays.
+
+**THE SENTINELS ARE VISIBLE NOW.** Aft-pod rows carry an "=" button —
+the FOREVER-SPLIT one-shot copy gesture as a control instead of
+drag-below-zero lore; the ruling itself is unchanged (auto-attached from
+CAGE_AFT_SUB, no page edits). Seat 2 rows carry a LINK CHECKBOX bound to
+the crew layer's own test (v < 0 = follows the front seat, resolved
+live): ticked hides the slider, unticking writes the front seat's value
+in. Found while testing: the piper preset's `seat2H: -0.145` is INERT —
+the crew layer reads any negative as the sentinel, so that export value
+has always rendered as "follow the front"; the checkbox now says so
+honestly. Latent preset quirk, recorded, not fixed here.
+
+**PER-ROW RESET IS BASELINE-ANCHORED**: double-click resets to the value
+at the last whole-set load (preset / import / reset / boot — the same
+moments sizeRef re-anchors), not to the page default, so "reset" on a
+piper build means the piper's value. `dim: 'len'` rows show a faint
+"≈ x.xx m" after CAGE_UNIT × planeScale (the cage-unit lengths in the
+curated tree carry it; crew/gear are already metric and do not).
+
+Glossary (rec §5, mechanical only): w/s -> windscreen everywhere, bare
+"x" suffixes -> "×". Vocabulary beyond that stays the user's.
+
+VERIFIED: node --check on the three touched files; FIT: OK (generator
+identity); cage8 in-browser — 457 rows, 64 checkboxes, 23 dropdowns,
+zero console errors (the recurring 404 is the browser's automatic
+/tools/favicon.ico probe, pre-existing) — with 24 scripted DOM
+assertions green: widget kinds, every `when` above toggled live both
+ways, expert switch, stepper +/− and clamp, typed value + dblclick
+reset, seat-2 link/unlink round-trip, mirror on/off with forever-split
+copy then "=" re-copy after moving the front, cowl lock round-trip,
+piper/sailplane/jodel preset round-trips. cage2/6/7 boot clean on the
+same shared file. NOT DONE (recorded): the gear BENCH page (_gear.html)
+keeps its own old mkRow; segmented button rows for short name lists;
+metre display on BASE_GROUPS pages; per-row dirty dots and hover-tints
+(P8 territory).
+
+## G28 — THE PANEL, SECOND PASS + THREE GEOMETRY FIXES (2026-08-26)
+
+The user's 15-item review of G27's panel, all landed in one session.
+Geometry first, because each carries an identity proof:
+
+**THE WAIST RIDES ITS EDGES** (`fullRing`/`roundTop`, user: "I can get
+the waistline down past the tail"). The waistline is a GLOBAL height and
+every ring placed its waist at it absolutely, so a ring whose own span
+does not contain it (the tail cone, a high aft deck) let the waistband
+run out under the body. Now the waist clamps between the ring's own keel
+and ceiling, the band stays between waist and ceiling, and the floor
+tucks under a waist that comes down to it — the levels slide along their
+own vertical edges and stop against their neighbours. `roundTop` arcs
+about the ring's OWN waist/band (parameters defaulting to the global
+line). IDENTITY PROVED both ways: FIT: OK, and the jodel default's
+displayed skin hash (joints excluded) is bit-identical before/after
+(286468224 over 11736 faces). At waistY −0.35 the tail-region waistband
+sits at −0.136 against the body's −0.247 floor — contained. Honest
+limit: x stays the ring's waist width while the level rides; a full
+outline-ride (x following the wall) is a refinement if wanted.
+
+**EXPLODE IS RADIAL, NEVER AXIAL** (cageCut, user: "deforms the nose").
+Measured first: NO face shears — parts move rigidly — but the
+windshield's mean outward normal on a raked screen is [0, 0.44, 0.23],
+so the glass slid up-and-FORWARD over the nose deck and the doubled
+shell read as a deformed nose. The rule now: parts unbolt OUT of the
+section — the axial component is dropped, the direction renormalized
+(doors/flank windows have z≈0 and are unchanged; the screen lifts
+straight up, measured [0, 0.5, 0]). A near-pure-axial part would keep
+its own normal rather than degenerate. AND THE COWL ASSEMBLY EXPLODES
+(`_cage_cowl.js`): shell +0.9·e, nose cone +1.5·e, blades +2.0·e
+forward (e = explodeD × FS, display-side subgroup offsets — the fit is
+untouched, face z measured stable through a build at 0.4).
+
+**FLAT SEALS** (cageRims, user: "slim across the window"): the bead's
+section keeps its in-surface half-width and drops the out-of-surface
+rise to 0.38·r — a low strip straddling the seam instead of a full round
+tube. n2 is the surface normal by construction, so it is one line in the
+section loop; rimW stays the size dial. (Rims are post-subsurf: FIT does
+not see them, exports carry no rim geometry.)
+
+**THE PANEL** (`_cage_ui.js`, all pages):
+- A REAL RESIZE HANDLE — full-height grip on the panel's left edge
+  (the CSS corner resize was invisible; asked twice), width persisted.
+  Label column 92→118 px, ellipsis + full-text tooltip on every label.
+- ONE HOME FOR THE CHROME: the header's controls MOVE into the panel
+  (the elements relocate, ids and handlers survive) — subsurf/template
+  step into POLYCOUNT, cage/wireframe/colours/curvature into `view`,
+  export OBJ + reset onto the file row, which also gained COLLAPSE
+  (close every group). The header keeps the title.
+- VISIBLE NESTING: top-level groups keep their box; nested groups trade
+  it for an indent + guide line. Depth is now ≤2 everywhere: the gear's
+  kind subfolders are GONE (conditional rows made them unnecessary —
+  every leg kind's rows splice flat into the station, gated on the
+  fitted kind), engine/nose lost their single-child subs, and the three
+  control-position subfolders merged into ONE `controls` folder with
+  each control's position rows under its selector.
+- POLYCOUNT group (grouped, NOT merged, per ruling): subsurf, seal
+  sides, seal corner arcs, cowl detail (moved out of the cowl folder;
+  its lock/hide machinery still owns it — CAGE_UI's visibility pass
+  runs after the cowl's, so both compose).
+- SCALE → "don't touch" (user: recalibration tool, not a native
+  parameter); AFT BULKHEAD → conception; CUT PARTS got a row there too
+  (the piper preset sets it 0 and doors/explode silently died — the
+  intOn trap of 2026-08-19, same shape).
+
+**THE AUDIT, EXTENDED** (measured where uncertain, cited where ruled):
+arceau fit acts ONLY on bubble canopy + mirrored pod (probed all 8
+canopy×mirror combos); the section arc angles + CC compensation are
+inert at roundness 0/0 (probed both ways); doorGone needs doorOn AND
+cutParts; fin dorsal/keel rows follow the G26.4 rod-mode clamp; dorsal
+creases need the dorsal; slot width needs a cut; thickness rows need
+`solid`; every fin/stab subgroup follows its layer's master switch; the
+gear rows follow station-fitted, bungee wrap follows shock kind, brace
+top follows drag brace. COWL: the tool rows never declared seam/scoop/
+aperture relevance — a supplemental WHEN_EXTRA table in the cage layer
+gates them (seam set ← seamOn, ten scoop rows ← scoopOn, aperture dims
+← the mode that draws them, and the five STUB section rows are dead
+here by construction — inheritStub is forced 0 — so they never show);
+subgroups follow cowlOn, the prop folder follows propOn too. FOUND IN
+PASSING: the blade 'material' dropdown's names were an extraction
+artifact (one option showing raw source text) — it now reads
+CW.MATERIALS.
+
+**VOCABULARY PASS** (page5 + BASE): y-heights say `height`, `ceil` says
+`ceiling`, `half-W` says `half-width`, w/s says windscreen, bare `x`
+suffixes are `×`, merged control rows carry their owner's name (stick
+left / throttle fwd / pedal spread), 'pod ring t' → 'pod ring station',
+'CC comp' → 'CC compensation', 'sbs half-track' → 'sbs seat gap' (it is
+not a track). Fin/stab vocabulary untouched — it is the user's own.
+
+VERIFIED: FIT/FIN/COWL/ENG verdicts all OK; jodel skin hash identical;
+waist containment and explode direction measured (above); 17 structural
++ 9 dynamic DOM assertions green in cage8 (scoop/prop/cowl/rod/cut
+gating live both ways, relocated subsurf still drives the build,
+collapse closes everything, splitter drags and persists); presets
+round-trip with the right rows appearing (arceau on the sailplane,
+doorGone hidden on the piper); cage2/6/7 boot clean, zero console
+errors. NOT DONE (recorded): the seal flatness is a constant 0.38 (rimW
+remains the one size dial); the nose group's tip rows no longer
+duplicate the engine group's cowl-curve rows (one home, '2 · engine');
+fin/stab layers do not explode (not asked); the full outline-ride for
+the waist's x.
+
+## G29 — THE ENGINE ON THE AEROPLANE (2026-08-26)
+
+The dressed engine (G24/G25's `_eng_mesh.js`) is on the nose of cage8 —
+the second half of ROADMAP P0, plus a cowl alpha and one contract bug.
+
+**THE PAGE MODEL IS SHARED FIRST** (`_eng_page.js`): palette, material
+physics (metal/rough), default construction and the 18-preset table
+lifted VERBATIM out of `_engine.html` — the `_gear_page.js` move — and
+the bench rewired to consume it. Extraction proved against git HEAD by
+evaluating both sides: COL, PROPS, PRESETS, DEFAULTS all IDENTICAL (a
+duplicate `emAir` key in the old PROPS collapsed to its effective value).
+
+**THE LAYER** (`_cage_eng.js`, chained after the cowl's post):
+`engMeshBuild` runs on preset + `engDetail`, positioned by TWO of the
+project's own contracts, not new guesses:
+- **THE GENUINE FIREWALL REPLACES THE GENERIC PLATE** (user ruling):
+  built with `fwOn 0` — headless-verified ZERO plate-family parts
+  (plate, ruler, battery, ECU) with the 8 mount parts intact — and the
+  engine positioned so the bench's own firewall station (zFw = zAft −
+  mountGap·caseR, canR for the electric) lands EXACTLY on the cage's
+  engine face (the cowl layer's `noseFace`, now exported as
+  `window.CAGE_NOSE` — one description of where the firewall is). The
+  mount truss's backing pads and bolts therefore land ON the real
+  firewall. Bay furniture on the real plate is its own chantier.
+- **THE PROP AND NOSE CONE ARE THE ENGINE'S CHILDREN** (user ruling):
+  same cowl-tool geometry and cw_ rows (re-homed under "2 · engine"),
+  REBASED from the cowl frame onto the crank — the cone base moves from
+  coneBaseZ (cowl end + noseOff) to the flange face (local z 0), the
+  aperture-axis offsets bake out of the vertices and drive the ENGINE
+  GROUP instead, so the same two sliders steer shaft, spinner, blades
+  and engine together. NO AUTO COWL FITTING (user ruling): the cowl is
+  shaped around the engine by hand with its own controls; nothing
+  engine-side writes cowl parameters.
+- **POLYCOUNT**: the bench's global density governor rides the
+  polycount folder as `engine detail` (0.3–2; measured 18.0k quads at
+  0.8 → 28.9k at 1.4); the per-element side counts stay bench-only
+  (user ruling). Presets: all 17 registry rows (piston + electric
+  ladder; 'bare engine' is bench-only). Full cage build with the
+  engine: 63 ms.
+
+**COWL ALPHA** (user): a fifth view dial (`cowl α`) — viewer state,
+never spec — the cowl layer's four shell materials follow it every
+build, so the engine shows through the shell. VIEW is exported as
+`window.CAGE_VIEW` for layers.
+
+**THE CONTRACTS SEE THE AEROPLANE AS-BUILT** (user bug: the
+undercarriage moved with `explode`). Root cause: `cageAirframe` baked
+the DISPLAYED mesh, exploded doors included, so the stance polylines
+shifted. Fixed at both levels: build() hands every layer a mesh with
+cut parts measured back at their own place (the dims-pane rule —
+per-part duplicate verts, each moved back exactly once), and
+`cageAirframe` un-explodes defensively for any other caller. PROOF: the
+ENTIRE stat line (crew, gear stance, cowl face, engine, fin, stab) is
+byte-identical at explodeD 0 and 0.6.
+
+VERIFIED: ENGMESH: OK (module untouched, battery re-run), extraction
+diff IDENTICAL ×4, headless fwOn probe, and in-browser: engine built
+(A-65 default, stat speaks litres/kW/kg), R-1830 and RC-2212 presets
+round-trip clean, detail dial moves quads, prop rows live under
+"2 · engine", cowl folder renamed "2b · cowl", cowl α row present,
+explode-invariant stat, zero console errors; cage7 and the engine bench
+boot clean on the shared model. CAUGHT IN REVIEW: the naive rebase
+(subtract coneBaseZ) would have CANCELLED `noseOff` — the fore-aft dial
+dead while its row still moved. The cone base is flange + noseOff and
+the row now reads "base fwd of flange". NOT DONE (recorded): engine
+explode stays put (only cone + blades stage forward); no per-build
+caching of the engine mesh (63 ms says not yet needed); pusher
+placement is the G26 roadmap's item, unchanged.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

@@ -34,27 +34,36 @@ PAGE.defaults = Object.assign(finDef, PAGE.defaults || {});
 // (user ruling); the cut parts ride the page's own explode slider
 const GROUP = ['8 · tail — fin (2D)', [
   ['finOn',      'fin layer',         0, 1, 1, ['off', 'on']],
-  ['finDorsal',  'leading edge (dorsal)', 0, 1, 1, ['removed', 'present']],
+  // dorsal + keel extension are CLAMPED OFF in rod mode (G26.4: a bare
+  // tube has no deck to fair onto) — the rows follow the clamp (G28)
+  ['finDorsal',  'leading edge (dorsal)', 0, 1, 1, ['removed', 'present'],
+   { when: P => +P.finOn && !+P.boomStyle }],
   ['finRootGuard', 'root loops',      0, 1, 1, ['single + crease',
-                                                'guard pair']],
-  ['finKeel',    'keel extension',    0, 1, 1, ['off', 'on']],
-  ['finProject', 'root',              0, 1, 1, ['free', 'on the skin']],
+                                                'guard pair'],
+   { when: P => +P.finOn }],
+  ['finKeel',    'keel extension',    0, 1, 1, ['off', 'on'],
+   { when: P => +P.finOn && !+P.boomStyle }],
+  ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
+   { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
   // horizontal and the cut follows the mesh — move it with "mid row y")
   ['cut', [
     ['finCut',        'fin / rudder',   0, 2, 1,
      ['uncut', 'hinge only', 'horn balance']],
-    ['finCutGap',     'slot width',     0, 0.05, 0.001],
-  ], 'open'],
+    ['finCutGap',     'slot width',     0, 0.05, 0.001,
+     { when: P => +P.finCut > 0 }],
+  ], 'open', { when: P => +P.finOn }],
   // THICKNESS — post-subsurf, per part: flat sides at +-t/2, the rim
   // rounded everywhere on the outline (slot faces stay flat), thickness
   // thinning aft of the hinge to the TE value
   ['thickness', [
     ['finSolid',   'volume',         0, 1, 1, ['2D sheet', 'solid']],
-    ['finThick',   'base thickness', 0.01, 0.15, 0.002],
-    ['finThickTE', 'TE thickness',   0.004, 0.06, 0.002],
-  ], 'open'],
+    ['finThick',   'base thickness', 0.01, 0.15, 0.002,
+     { when: P => +P.finSolid }],
+    ['finThickTE', 'TE thickness',   0.004, 0.06, 0.002,
+     { when: P => +P.finSolid }],
+  ], 'open', { when: P => +P.finOn }],
   // the three corners, each free on two axes (+z fwd, +y up, cage units)
   ['corners', [
     ['finTipZ',  'tip fore-aft',     -0.60, 0.60, 0.005],
@@ -63,7 +72,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finAftY',  'top-aft up-down',  -0.90, 0.60, 0.005],
     ['finBaseZ', 'base fore-aft',    -0.50, 0.30, 0.005],
     ['finBaseY', 'base up-down',     -0.15, 0.50, 0.005],
-  ], 'open'],
+  ], 'open', { when: P => +P.finOn }],
   // the horizontal rows and the free points that ride them (the Cub tail is
   // drawn with these: rows down, LE root and shoulder ON their rows)
   ['rows & points', [
@@ -75,7 +84,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finShoulderZ', 'shoulder fwd of tip', -0.10, 0.50, 0.005],
     ['finShoulderY', 'shoulder above mid',  -0.10, 0.30, 0.005],
     ['finTopY',      'top pair bulge',   -0.30, 0.30, 0.005],
-  ]],
+  ], { when: P => +P.finOn }],
   // the trailing edge's offsets off the top-aft -> base chord, per row:
   // negative bulges aft (the Cub's D-shaped rudder), positive pulls
   // FORWARD — at the root that is the classic clearance notch (the
@@ -85,7 +94,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finTERoot', 'root aft− / notch+', -0.40, 0.40, 0.005],
     ['finTEU',    'u bulge aft',    -0.40, 0.20, 0.005],
     ['finTEMid',  'mid bulge aft',  -0.40, 0.20, 0.005],
-  ]],
+  ], { when: P => +P.finOn }],
   // ANGULAR PROFILES (the creasing the original plan promised): corner
   // sharpness = semi-sharp vertex weights on the outline corners, 0 round
   // (the sketch identity) .. 3 crisp; plus the dorsal's own bend creases
@@ -95,11 +104,12 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finSharpBase',     'base',      0, 3, 0.05],
     ['finSharpShoulder', 'shoulder',  0, 3, 0.05],
     ['finSharpLE',       'LE root',   0, 3, 0.05],
-  ], 'open'],
+  ], 'open', { when: P => +P.finOn }],
+  // only meaningful while the dorsal exists (user, G28 audit)
   ['dorsal creases', [
     ['finCrA', 'section A crease', 0, 3, 0.05],
     ['finCrB', 'section B crease', 0, 3, 0.05],
-  ]],
+  ], { when: P => +P.finOn && +P.finDorsal && !+P.boomStyle }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 

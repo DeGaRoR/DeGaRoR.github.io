@@ -54,7 +54,9 @@ window.CAGE_PAGE = {
     finTEMid: 0, finSharpTip: 3, finSharpAft: 3, finSharpBase: 2.5,
     finSharpShoulder: 0, finSharpLE: 2.5,
     // ---- COWL + PROPELLER (_cage_cowl.js) ----
-    cowlOn: 1, fitNose: 1, cowlGap: 0, propOn: 1, cw_cowlLen: 0.365,
+    // cw_cowlLen 0.455 (user, G29 playtest): the shell drawn out around
+    // the dressed engine — the manual-fit era's first number
+    cowlOn: 1, fitNose: 1, cowlGap: 0, propOn: 1, cw_cowlLen: 0.455,
     cw_aftW: 0.5346006505551372, cw_aftH: 0.3406349704887502, cw_taperW: 0.82,
     cw_taperH: 0.78, cw_lidRise: 0.06, cw_faceRise: 0.018, cw_lidLen: 0.125,
     cw_lidShoulder: 0.45, cw_keelSweep: 0.55, cw_deckSweep: 0,
@@ -134,22 +136,13 @@ window.CAGE_PAGE = {
   // Numbering matches the target layout; 6 wings / 8 tail / 9 wheels
   // live game-side. "don't touch" = frozen values, constants-to-be.
   groupsOverride: [
-    // SCALE (2026-08-19): metres = cage units × CAGE_UNIT (the fiche's
-    // unit, 1.0 — _cage_gen.js) × planeScale. The slider is shown
-    // RELATIVE to the design you loaded, so every preset opens at ×1.000
-    // and this means "bigger/smaller than this aeroplane". It scales the
-    // CAGE only — seats and dummy are metric and never scale, they are
-    // the ruler. Read the result in the dimensions pane.
-    ['0 · scale', [
-      ['planeScale', 'size ×',         0.50, 1.60, 0.005],
-    ], 'open'],
     ['1 · global', [
       ['longerons', [
-        ['waistY',    'waist y',        -0.40, 0.50, 0.005],
-        ['bandH',     'band height',     0.01, 0.30, 0.002],
+        ['waistY',    'waist height',   -0.40, 0.50, 0.005, { dim: 'len' }],
+        ['bandH',     'waistband height', 0.01, 0.30, 0.002, { dim: 'len' }],
         ['crSill',    'sill crease',     0, 3, 0.05],
         ['crCeil',    'roof crease',     0, 3, 0.05],
-        ['ceilInset', 'ceil inset x',    0.20, 3.00, 0.01],
+        ['ceilInset', 'ceiling inset ×', 0.20, 3.00, 0.01],
         ['ringPullIn','sill pull-in',    0.00, 0.15, 0.002],
       ], 'open'],
       // THE RING EDITOR (user design): the plane's shape = rings +
@@ -158,10 +151,14 @@ window.CAGE_PAGE = {
       // ring heights live in "7 · boom" (aft roof/keel y, cone roof/
       // keel y).
       ['rings', [
-        ['topRound',  'roundness top',   0.00, 1.00, 0.01],
-        ['botRound',  'roundness bottom',0.00, 1.00, 0.01],
-        ['topAngCeil','ceil angle',      25, 70, 1],
-        ['topAngRoof','roof angle',      55, 88, 1],
+        ['topRound',  'top roundness',   0.00, 1.00, 0.01],
+        ['botRound',  'bottom roundness',0.00, 1.00, 0.01],
+        // the arc angles + CC compensation only act on a rounded section
+        // (measured: inert at roundness 0/0 — G28 audit probe)
+        ['topAngCeil','ceiling angle',   25, 70, 1,
+         { when: P => +P.topRound > 0 || +P.botRound > 0 }],
+        ['topAngRoof','roof angle',      55, 88, 1,
+         { when: P => +P.topRound > 0 || +P.botRound > 0 }],
         ['ringNoseTop','nose deck lift', -0.35, 0.60, 0.005],
         ['ringNoseBot','nose bottom',    -0.35, 0.35, 0.005],
         ['ringScrBot', 'screen bottom',  -0.35, 0.35, 0.005],
@@ -186,96 +183,118 @@ window.CAGE_PAGE = {
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
-        ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
-        ['skinT',     'skin thickness',  0, 0.06, 0.001],
+        ['shellT',    'shell thickness', 0.01, 0.10, 0.002, { dim: 'len' }],
+        ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
         ['intPillars','pillar bodies',   0, 1, 1],
         ['intFire',   'firewall',        0, 1, 1],
         ['intDash',   'dashboard',       0, 1, 1],
+        // moved from "7 · boom" (user, G28): a conception concern
+        ['intBulk',   'aft bulkhead',    0, 1, 1],
+        // was invisible on this curated tree — but the piper preset sets
+        // it 0, and doors/explode silently do nothing without it (the
+        // intOn trap of 2026-08-19, same shape)
+        ['cutParts',  'cut parts',       0, 1, 1],
       ]],
     ], 'open'],
     ['2 · engine', [
-      // configuration select injected below (nose / pusher / wing)
-      ['cowl', [
-        ['cowlLoops', 'cowl loops',      0, 2, 1],
-        ['cowlEase',  'cowl ease',       0.00, 1.00, 0.01],
-        ['cowlBulge', 'cowl bulge',      0.85, 1.30, 0.005],
-      ]],
+      // configuration select injected below (nose / aero nose); the
+      // cowl-curve rows live inline now (G28: less nesting)
+      ['cowlLoops', 'cowl loops',      0, 2, 1],
+      ['cowlEase',  'cowl ease',       0.00, 1.00, 0.01],
+      ['cowlBulge', 'cowl bulge',      0.85, 1.30, 0.005],
     ]],
     ['3 · nose', [
-      ['noseLen',   'length',          0.20, 2.50, 0.01],
-      ['noseW',     'width x',         0.50, 1.50, 0.01],
-      ['noseH',     'depth x',         0.05, 1.20, 0.01],
+      ['noseLen',   'length',          0.20, 2.50, 0.01, { dim: 'len' }],
+      ['noseW',     'width ×',         0.50, 1.50, 0.01],
+      ['noseH',     'depth ×',         0.05, 1.20, 0.01],
       ['noseDroop', 'droop',          -0.20, 0.60, 0.005],
       ['noseCrown', 'deck crown',      0.00, 1.00, 0.005],
-      ['wsBaseLift','w/s base lift',   0.00, 0.80, 0.005],
+      ['wsBaseLift','windscreen base lift', 0.00, 0.80, 0.005],
       ['crSillNose','deck crease',     -1, 3, 0.05],
-      // THE TIP, in one place (user 2026-08-19: "the aero nose remains
-      // quite pointy, I did not find an option to get it smoother").
-      // The three that decide it: how far the last ring collapses, how
-      // the taper curves into it, and whether the cap edge is a CREASE
-      // — a fully-sharp cap edge on a collapsed ring is the spike.
-      ['tip shape', [
-        ['noseTip',   'tip collapse',   0.00, 0.98, 0.01],
-        ['cowlEase',  'taper curve',    0.00, 1.00, 0.01],
-        ['cowlBulge', 'taper fullness', 0.85, 1.30, 0.005],
-        ['cowlLoops', 'tip loops',      0, 2, 1],
-        ['crNoseCap', 'tip sharpness',  0, 3, 0.05],
-        ['crFrontCap','front cap crease', 0, 3, 0.05],
-      ], 'open'],
+      // THE TIP (user 2026-08-19: "the aero nose remains quite pointy").
+      // The rows that decide it, inline (G28: less nesting): how far the
+      // last ring collapses, how the taper curves into it, and whether
+      // the cap edge is a CREASE — a fully-sharp cap edge on a
+      // collapsed ring is the spike.
+      ['noseTip',   'tip collapse',   0.00, 0.98, 0.01],
+      ['crNoseCap', 'tip sharpness',  0, 3, 0.05],
+      ['crFrontCap','front cap crease', 0, 3, 0.05],
     ]],
     ['4 · cabin', [
       ['dimensions', [
         // seating starter select injected below
-        ['pilotLen',  'length',         0.30, 2.00, 0.01],
-        ['halfW',     'half width',     0.20, 1.00, 0.005],
-        ['roofHalfW', 'roof half-W',    0.15, 0.90, 0.005],
-        ['roofY',     'roof y',         0.40, 1.60, 0.005],
-        ['keelY',     'keel y',        -1.60, -0.30, 0.005],
-        ['floorY',    'floor y',       -1.20, 0.00, 0.005],
+        ['pilotLen',  'length',         0.30, 2.00, 0.01, { dim: 'len' }],
+        ['halfW',     'half width',     0.20, 1.00, 0.005, { dim: 'len' }],
+        ['roofHalfW', 'roof half-width', 0.15, 0.90, 0.005, { dim: 'len' }],
+        ['roofY',     'roof height',    0.40, 1.60, 0.005, { dim: 'len' }],
+        ['keelY',     'keel height',   -1.60, -0.30, 0.005, { dim: 'len' }],
+        ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
       ], 'open'],
       ['windows', [
-        ['wsRun',     'w/s run',        0.20, 2.00, 0.01],
-        ['wsTopOff',  'w/s top off',    0.00, 0.50, 0.005],
+        ['wsRun',     'windscreen run', 0.20, 2.00, 0.01, { dim: 'len' }],
+        ['wsTopOff',  'windscreen top offset', 0.00, 0.50, 0.005],
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
-        ['wsCeilBow', 'ceil bow',       0.00, 0.60, 0.005],
+        ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
         ['bubble',    'bubble glass',   0, 1, 1],
         ['skylight',  'skylight',       0, 1, 1],
-        ['skyExt',    'sky extent',     0, 5, 1],
-        ['winSillPilot', 'win sill',    0, 0.9, 0.01],
+        ['skyExt',    'sky extent',     0, 5, 1,
+         { when: P => +P.skylight }],
+        ['winSillPilot', 'window sill', 0, 0.9, 0.01],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
         ['mirror',    'mirrored pod',   0, 1, 1],
-        ['arcFit',    'arceau fit',     0, 1, 1],
-        ['bubH',      'bubble height',  0.2, 1.4, 0.01],
-        ['bubAt',     'bubble apex',    0.15, 0.85, 0.01],
-        ['bubW',      'bubble width',   0.8, 1.5, 0.01],
-        ['canLoops',  'canopy loops',   1, 3, 1],
-        ['bubH2',     'loop2 height',   0, 1.4, 0.01],
-        ['bubAt2',    'loop2 apex',     0.15, 0.85, 0.01],
-        ['bubW2',     'loop2 width',    0.8, 1.5, 0.01],
-        ['bubH3',     'loop3 height',   0, 1.4, 0.01],
-        ['bubAt3',    'loop3 apex',     0.15, 0.85, 0.01],
-        ['bubW3',     'loop3 width',    0.8, 1.5, 0.01],
-        ['rimW',      'joint size',     0.00, 0.04, 0.001],
+        // measured (G28 audit): only acts on a bubble canopy over a
+        // mirrored pod — the sailplane arceau
+        ['arcFit',    'arceau fit',     0, 1, 1,
+         { when: P => +P.canopy === 3 && +P.mirror }],
+        ['bubH',      'bubble height',  0.2, 1.4, 0.01,
+         { when: P => +P.canopy === 3 }],
+        ['bubAt',     'bubble apex',    0.15, 0.85, 0.01,
+         { when: P => +P.canopy === 3 }],
+        ['bubW',      'bubble width',   0.8, 1.5, 0.01,
+         { when: P => +P.canopy === 3 }],
+        ['canLoops',  'canopy loops',   1, 3, 1,
+         { when: P => +P.canopy === 3 }],
+        ['bubH2',     'loop2 height',   0, 1.4, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 2 }],
+        ['bubAt2',    'loop2 apex',     0.15, 0.85, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 2 }],
+        ['bubW2',     'loop2 width',    0.8, 1.5, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 2 }],
+        ['bubH3',     'loop3 height',   0, 1.4, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
+        ['bubAt3',    'loop3 apex',     0.15, 0.85, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
+        ['bubW3',     'loop3 width',    0.8, 1.5, 0.01,
+         { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
+        ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
       ], 'open'],
       ['doors', [
         ['doorOn',    'pilot door',     0, 1, 1],
-        ['doorSill',  'door sill',      0, 0.25, 0.002],
+        ['doorSill',  'door sill',      0, 0.25, 0.002,
+         { when: P => +P.doorOn, dim: 'len' }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung (needs cut
         // parts on)
-        ['doorGone',  'door removed',   0, 1, 1],
+        ['doorGone',  'door removed',   0, 1, 1,
+         { when: P => +P.doorOn && +P.cutParts }],
       ]],
       ['cockpit', [
-        ['dashBack',  'dash setback',   0.01, 0.30, 0.005],
-        ['dashLip',   'dash lip',       0.01, 0.10, 0.002],
-        ['dashDepth', 'dash depth',     0.05, 0.80, 0.01],
-        ['dashCrown', 'dash crown',     0, 0.30, 0.005],
+        ['dashBack',  'dash setback',   0.01, 0.30, 0.005,
+         { when: P => +P.intOn && +P.intDash, dim: 'len' }],
+        ['dashLip',   'dash lip',       0.01, 0.10, 0.002,
+         { when: P => +P.intOn && +P.intDash }],
+        ['dashDepth', 'dash depth',     0.05, 0.80, 0.01,
+         { when: P => +P.intOn && +P.intDash, dim: 'len' }],
+        ['dashCrown', 'dash crown',     0, 0.30, 0.005,
+         { when: P => +P.intOn && +P.intDash }],
       ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,
-    // duplicated (user ruling); every slider at -1 follows the front
-    // value (mirroring is the initial geometry only)
+    // duplicated (user ruling). FOREVER-SPLIT: the aft params take a
+    // one-shot copy of the front when the pod comes on; the "= front"
+    // button each row now carries is that same gesture made visible
+    // (the rows only exist with the pod on — rec §2's `when`)
     ['3b · aft deck', [
       ['aftNoseLen',  'length',        -1, 2.5, 0.01],
       ['aftNoseW',    'width x',       -1, 1.5, 0.01],
@@ -292,7 +311,7 @@ window.CAGE_PAGE = {
       ['aftCowlLoops','cowl loops',    -1, 2, 1],
       ['aftCowlEase', 'cowl ease',     -1, 1.0, 0.01],
       ['aftCowlBulge','cowl bulge',    -1, 1.3, 0.005],
-    ]],
+    ], { when: P => +P.mirror }],
     ['4b · aft cabin', [
       ['aftPilotLen', 'cockpit len',   -1, 2.0, 0.01],
       ['aftWsRun',    'screen run',    -1, 2.0, 0.01],
@@ -301,7 +320,7 @@ window.CAGE_PAGE = {
       ['aftWsCeilBow','ceil bow',      -1, 0.6, 0.005],
       ['aftRingWinW','window width',   -1, 0.25, 0.005],
       ['aftRingScrW','screen width',   -1, 0.25, 0.005],
-    ]],
+    ], { when: P => +P.mirror }],
     // THE CREW LAYER (cage5): seats, controls, dummy — a disjoint THREE
     // layer over the cage (never in the mesh, the gates or the OBJ).
     ['4c · crew & controls', [
@@ -316,47 +335,63 @@ window.CAGE_PAGE = {
         ['seatH',     'squab height',   0.06, 0.50, 0.005],
         ['seatRake',  'back recline',   5, 45, 0.5],
         ['seatTilt',  'squab recline',  0, 30, 0.5],
-        ['seatPitch', 'tandem pitch',   0.55, 1.35, 0.01],
-        ['seatGap',   'sbs half-track', 0.18, 0.45, 0.005],
+        ['seatPitch', 'tandem pitch',   0.55, 1.35, 0.01,
+         { when: P => +P.seatLayout === 2 }],
+        ['seatGap',   'sbs seat gap',   0.18, 0.45, 0.005,
+         { when: P => +P.seatLayout === 1 }],
         ['seatBelt',  'lap belts',      0, 1, 1],
       ], 'open'],
-      // the second seat's own set — each at -1 follows the front seat
+      // the second seat's own set — the sentinel (-1 = follows the front
+      // seat, resolved live by the crew layer) is now a visible LINK
+      // checkbox; unticking writes the front seat's value into the slider
       ['seat 2', [
-        ['seat2H',    'squab height',  -1, 0.50, 0.005],
-        ['seat2Rake', 'back recline',  -1, 45, 0.5],
-        ['seat2Tilt', 'squab recline', -1, 30, 0.5],
-      ]],
+        ['seat2H',    'squab height',  -1, 0.50, 0.005,
+         { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
+        ['seat2Rake', 'back recline',  -1, 45, 0.5,
+         { link: { sentinel: -1, from: 'seatRake', test: v => v < 0 } }],
+        ['seat2Tilt', 'squab recline', -1, 30, 0.5,
+         { link: { sentinel: -1, from: 'seatTilt', test: v => v < 0 } }],
+      ], { when: P => +P.crewOn && +P.seatLayout > 0 }],
+      // ONE controls folder (G28: the three position subfolders merged —
+      // each control's position rows sit right under its selector,
+      // existing only while that control is fitted). 3-axis shifts off
+      // the auto-laced place: +x pilot's left, +y up, +z toward the
+      // nose. 0 = as laced.
       ['controls', [
         ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
                                                   'none']],
+        ['stickX',    'stick left',    -0.45, 0.45, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick !== 3 }],
+        ['stickY',    'stick up',      -0.30, 0.45, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick !== 3 }],
+        ['stickZ',    'stick fwd',     -0.35, 0.50, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick !== 3 }],
+        ['stickLen',  'stick length',   0.18, 0.75, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick !== 3 }],
         ['ctlThr',    'throttle',       0, 3, 1, ['left wall lever',
                                                   'dash push-pull',
                                                   'console quadrant',
                                                   'none']],
+        ['thrX',      'throttle left', -0.60, 0.60, 0.005,
+         { when: P => +P.crewOn && +P.ctlThr !== 3 }],
+        ['thrY',      'throttle up',   -0.35, 0.45, 0.005,
+         { when: P => +P.crewOn && +P.ctlThr !== 3 }],
+        ['thrZ',      'throttle fwd',  -0.45, 0.60, 0.005,
+         { when: P => +P.crewOn && +P.ctlThr !== 3 }],
+        ['thrLen',    'lever length',   0.06, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.ctlThr !== 3 }],
         ['ctlPed',    'pedals',         0, 1, 1],
+        ['pedalZ',    'pedal distance', 0.60, 1.40, 0.005,
+         { when: P => +P.crewOn && +P.ctlPed }],
+        ['pedalH',    'pedal height',   0.02, 0.40, 0.005,
+         { when: P => +P.crewOn && +P.ctlPed }],
+        ['pedalSpread','pedal spread',  0.05, 0.32, 0.005,
+         { when: P => +P.crewOn && +P.ctlPed }],
+        ['pedalAngle','pedal angle',    0, 60, 1,
+         { when: P => +P.crewOn && +P.ctlPed }],
         ['consoleOn', 'centre console', 0, 1, 1],
       ], 'open'],
-      // 3-axis shifts off the auto-laced place: +x pilot's left,
-      // +y up, +z toward the nose. 0 = as laced.
-      ['stick position', [
-        ['stickX',    'shift left',    -0.45, 0.45, 0.005],
-        ['stickY',    'shift up',      -0.30, 0.45, 0.005],
-        ['stickZ',    'shift fwd',     -0.35, 0.50, 0.005],
-        ['stickLen',  'length',         0.18, 0.75, 0.005],
-      ]],
-      ['throttle position', [
-        ['thrX',      'shift left',    -0.60, 0.60, 0.005],
-        ['thrY',      'shift up',      -0.35, 0.45, 0.005],
-        ['thrZ',      'shift fwd',     -0.45, 0.60, 0.005],
-        ['thrLen',    'lever length',   0.06, 0.40, 0.005],
-      ]],
-      ['pedal position', [
-        ['pedalZ',    'distance',       0.60, 1.40, 0.005],
-        ['pedalH',    'height',         0.02, 0.40, 0.005],
-        ['pedalSpread','spread',        0.05, 0.32, 0.005],
-        ['pedalAngle','plate angle',    0, 60, 1],
-      ]],
       ['dummy', [
         ['dumOn',     'pilot dummy',    0, 1, 1],
         ['dum2On',    'second dummy',   0, 1, 1],
@@ -368,14 +403,18 @@ window.CAGE_PAGE = {
         ['dumRecline','recline offset',-15, 25, 0.5],
         ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
         ['dumMarkers','eye point',      0, 1, 1],
-      ], 'open'],
+      ], 'open', { when: P => +P.crewOn }],
     ], 'open'],
     ['5 · passengers', [
       ['paxCount',  'pax bays',        0, 4, 1],
-      ['paxLen',    'bay length',      0.4, 3.0, 0.01],
-      ['winSillPax','win sill',        0, 0.9, 0.01],
-      ['doorPax',   'pax doors',       0, 1, 1],
-      ['doorSillPax','door sill',      0, 0.25, 0.002],
+      ['paxLen',    'bay length',      0.4, 3.0, 0.01,
+       { when: P => +P.paxCount > 0, dim: 'len' }],
+      ['winSillPax','win sill',        0, 0.9, 0.01,
+       { when: P => +P.paxCount > 0 }],
+      ['doorPax',   'pax doors',       0, 1, 1,
+       { when: P => +P.paxCount > 0 }],
+      ['doorSillPax','door sill',      0, 0.25, 0.002,
+       { when: P => +P.paxCount > 0 && +P.doorPax, dim: 'len' }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The
@@ -387,42 +426,75 @@ window.CAGE_PAGE = {
       ['boomStyle', 'boom style',      0, 1, 1, ['lofted skin',
                                                  'rod (tube)']],
       ['taperOn',   'taper section',   0, 1, 1],
-      ['taperLen',  'taper length',    0.08, 1.6, 0.01],
-      ['taperW',    'taper width ×',   0.15, 1.0, 0.005],
-      ['taperPanels','taper panels',   0, 1, 1],
-      ['rodY',      'rod height',     -0.9, 0.9, 0.005],
-      ['rodD',      'rod diameter',    0.04, 0.32, 0.002],
-      // moved here from the conception group (user: needed "back
-      // here" beside the rod controls — it is an aft-body concern)
-      ['intBulk',   'aft bulkhead',    0, 1, 1],
-      ['boomLen',   'length',          1.0, 6.0, 0.01],
-      ['aftRoofY',  'aft roof y',      0.20, 1.20, 0.005],
-      ['aftKeelY',  'aft keel y',     -1.20, -0.10, 0.005],
-      ['tailLen',   'cone length',     0.05, 0.6, 0.005],
-      ['tailHalfW', 'cone half-W',     0.02, 0.40, 0.002],
-      ['tailRoofY', 'cone roof y',     0.10, 1.00, 0.005],
-      ['tailKeelY', 'cone keel y',    -0.50, 0.30, 0.005],
-      ['boomMidOn', 'pod ring',        0, 1, 1],
-      ['boomMidT',  'pod ring t',      0.1, 0.9, 0.01],
-      ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01],
+      // the `when` rules below are MEASURED, not assumed (P1 probe,
+      // 2026-08-26): each hidden row was varied through the full display
+      // pipeline in the mode that hides it and the mesh hash did not
+      // move. Cone shape + pod ring are loft-only; aft roof/keel go
+      // inert only when the rod's tightening TRUSS replaces the taper
+      // bay; panels exist only on that truss.
+      ['taperLen',  'taper length',    0.08, 1.6, 0.01,
+       { when: P => +P.taperOn, dim: 'len' }],
+      ['taperW',    'taper width ×',   0.15, 1.0, 0.005,
+       { when: P => +P.taperOn && !+P.boomStyle }],
+      ['taperPanels','taper panels',   0, 1, 1,
+       { when: P => +P.taperOn && +P.boomStyle === 1 }],
+      ['rodY',      'rod height',     -0.9, 0.9, 0.005,
+       { when: P => +P.boomStyle === 1, dim: 'len' }],
+      ['rodD',      'rod diameter',    0.04, 0.32, 0.002,
+       { when: P => +P.boomStyle === 1, dim: 'len' }],
+      ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
+      ['aftRoofY',  'aft roof height', 0.20, 1.20, 0.005,
+       { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+      ['aftKeelY',  'aft keel height',-1.20, -0.10, 0.005,
+       { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+      ['tailLen',   'cone length',     0.05, 0.6, 0.005, { dim: 'len' }],
+      ['tailHalfW', 'cone half-width', 0.02, 0.40, 0.002,
+       { when: P => !+P.boomStyle, dim: 'len' }],
+      ['tailRoofY', 'cone roof height', 0.10, 1.00, 0.005,
+       { when: P => !+P.boomStyle, dim: 'len' }],
+      ['tailKeelY', 'cone keel height', -0.50, 0.30, 0.005,
+       { when: P => !+P.boomStyle, dim: 'len' }],
+      ['boomMidOn', 'pod ring',        0, 1, 1,
+       { when: P => !+P.boomStyle }],
+      ['boomMidT',  'pod ring station', 0.1, 0.9, 0.01,
+       { when: P => !+P.boomStyle && +P.boomMidOn }],
+      ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01,
+       { when: P => !+P.boomStyle && +P.boomMidOn }],
     ]],
+    // POLYCOUNT (user, G28): every density dial in one place — grouped,
+    // not merged. The subsurf selector joins this folder at runtime
+    // (moved out of the header by _cage_ui); the cowl's own detail dial
+    // renders here instead of inside the cowl folder (its lock/hide
+    // machinery still owns it).
+    ['polycount', [
+      ['rimSides',  'seal sides',       4, 10, 1],
+      ['rimArc',    'seal corner arcs', 1, 6, 1],
+      ['cw_detail', 'cowl detail',      0.35, 2, 0.05,
+       { when: P => +P.cowlOn }],
+    ]],
+    // rec §2's `level`: the frozen constants exist and are inspectable,
+    // but sit behind the global "expert rows" switch instead of a name
+    // that begs to be ignored. SCALE moved here (user, G28): it was the
+    // recalibration tool, not a native design parameter — metres = cage
+    // units × CAGE_UNIT × planeScale, slider shown relative to the
+    // loaded design (see _cage_ui's sizeRef).
     ["don't touch", [
+      ['planeScale','size ×',          0.50, 1.60, 0.005],
       ['pillarW',   'pillar width',    0.00, 0.30, 0.005],
       ['cabPillarW','cabin pillar',    0.02, 0.30, 0.005],
       ['paxPillarW','pax pillar',      0.02, 0.30, 0.005],
-      ['apilW',     'A-pillar w x',    0.20, 3.00, 0.01],
+      ['apilW',     'A-pillar w ×',    0.20, 3.00, 0.01],
       ['apilPerp',  'A-pillar perp',   0, 1, 0.05],
-      ['pfW',       'front pillar x',  0.30, 3.00, 0.01],
-      ['topComp',   'CC comp',         1.00, 1.15, 0.005],
+      ['pfW',       'front pillar ×',  0.30, 3.00, 0.01],
+      ['topComp',   'CC compensation', 1.00, 1.15, 0.005,
+       { when: P => +P.topRound > 0 || +P.botRound > 0 }],
       ['crPillar',  'pillar crease',   0, 3, 0.05],
       ['crBand',    'band crease',     0, 3, 0.05],
       ['crCap',     'cap crease',      0, 3, 0.05],
       ['crFrame',   'frame crease',    0, 3, 0.05],
       ['crNoseCap', 'nose cap crease', 0, 3, 0.05],
       ['dashCrease','dash crease',     0, 3, 0.05],
-      ['rimSides',  'rim sides',       4, 10, 1],
-      ['rimArc',    'corner sections', 1, 6, 1],
-    ]],
+    ], { level: 'expert' }],
   ],
 
   // THE PRESETS. 'jodel' is the page default itself, so its override

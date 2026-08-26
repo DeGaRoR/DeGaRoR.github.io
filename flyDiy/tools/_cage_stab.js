@@ -59,22 +59,26 @@ if (PAGE.presets && PAGE.presets['piper cub'])
 
 const GROUP = ['8b · tail — stab & elevator', [
   ['stOn',    'stab layer',      0, 1, 1, ['off', 'on']],
-  ['stRootGuard', 'root loops',  0, 1, 1, ['single + crease', 'guard pair']],
+  ['stRootGuard', 'root loops',  0, 1, 1, ['single + crease', 'guard pair'],
+   { when: P => +P.stOn }],
   ['position', [
     ['stX', 'root half-track', 0, 0.30, 0.005],
     ['stY', 'h over boom keel', -0.20, 0.80, 0.005],
     ['stZ', 'fore-aft',       -0.60, 0.60, 0.005],
-  ], 'open'],
+  ], 'open', { when: P => +P.stOn }],
   ['cut', [
     ['stCut',    'stab / elevator', 0, 2, 1,
      ['uncut', 'hinge only', 'horn balance']],
-    ['stCutGap', 'slot width',      0, 0.05, 0.001],
-  ], 'open'],
+    ['stCutGap', 'slot width',      0, 0.05, 0.001,
+     { when: P => +P.stCut > 0 }],
+  ], 'open', { when: P => +P.stOn }],
   ['thickness', [
     ['stSolid',   'volume',         0, 1, 1, ['2D sheet', 'solid']],
-    ['stThick',   'base thickness', 0.01, 0.15, 0.002],
-    ['stThickTE', 'TE thickness',   0.004, 0.06, 0.002],
-  ], 'open'],
+    ['stThick',   'base thickness', 0.01, 0.15, 0.002,
+     { when: P => +P.stSolid }],
+    ['stThickTE', 'TE thickness',   0.004, 0.06, 0.002,
+     { when: P => +P.stSolid }],
+  ], 'open', { when: P => +P.stOn }],
   ['corners', [
     ['stTipZ',  'tip fore-aft',     -0.60, 0.60, 0.005],
     ['stTipY',  'tip outboard',     -0.80, 0.80, 0.005],
@@ -82,7 +86,7 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stAftY',  'tip-aft outboard', -0.90, 0.60, 0.005],
     ['stBaseZ', 'root-aft fore-aft', -0.50, 0.30, 0.005],
     ['stBaseY', 'root-aft outboard', -0.15, 0.50, 0.005],
-  ], 'open'],
+  ], 'open', { when: P => +P.stOn }],
   ['rows & points', [
     ['stRootFwd',   'root fwd point',   -1.20, 2.00, 0.005],
     ['stMidY',      'mid row',          -0.80, 0.40, 0.005],
@@ -92,7 +96,7 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stShoulderZ', 'shoulder fwd of tip', -0.10, 0.50, 0.005],
     ['stShoulderY', 'shoulder over mid',   -0.10, 0.30, 0.005],
     ['stTopY',      'tip pair bulge',   -0.30, 0.30, 0.005],
-  ]],
+  ], { when: P => +P.stOn }],
   // positive root offset = the classic rudder-clearance notch: the
   // elevator's inboard TE eases forward so the rudder can swing; its
   // spanwise reach is the u row's position
@@ -100,14 +104,14 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stTERoot', 'root aft− / notch+', -0.40, 0.40, 0.005],
     ['stTEU',    'u bulge aft',    -0.40, 0.20, 0.005],
     ['stTEMid',  'mid bulge aft',  -0.40, 0.20, 0.005],
-  ]],
+  ], { when: P => +P.stOn }],
   ['corner sharpness', [
     ['stSharpTip',      'tip',      0, 3, 0.05],
     ['stSharpAft',      'tip-aft',  0, 3, 0.05],
     ['stSharpBase',     'root-aft', 0, 3, 0.05],
     ['stSharpShoulder', 'shoulder', 0, 3, 0.05],
     ['stSharpLE',       'LE root',  0, 3, 0.05],
-  ]],
+  ], { when: P => +P.stOn }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
