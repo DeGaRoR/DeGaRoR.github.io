@@ -7653,6 +7653,976 @@ circuit problem). A FAN FROM THE CUT'S CENTROID needs no chaining — one
 triangle per open edge, reversed to close, centroid pinned into the plane — and
 closed both parts with zero open edges.
 
+## G22 — THE FIN, FROM THE USER'S OWN CAGE (2026-08-25)
+
+The tail chantier restarted exactly as G21 §5 prescribed: the user hand-built
+the 2D fin cage in Blender (Downloads/proceduralPlaneFinCage.obj, byte-copied
+to `tools/_fin_ref.obj`) and the session reverse-engineered it into a module.
+METHOD RULING confirmed on delivery of the sketch: cut every part in 2D first,
+subsurf runs on the 2D shape, volume comes afterwards; the control surfaces
+will be cut POST-subsurf, later. Cage6 was cloned to **`_cage7.html`** for the
+work.
+
+Files (same family pattern as the cowl): `_fin_gen.js` the module (FIN_DEFAULT
+is the fiche, buildFin2 the emitter, FIN_PARAMS the slider identity),
+`_fin_check.js` THE VERDICT (`node tools/_fin_check.js` — sketch reproduced
+29/29 v maxDev 0.00e+0 IN FILE ORDER, 18/18 faces, materials 100%; plus
+health sweeps and the deck/rebase assertions below), `_cage_fin.js` the cage7
+layer. `FIN: OK` and `FIT: OK` both green at delivery.
+
+**AN OPEN SHEET GOES THROUGH cageSubdivide BY MAX-CREASING ITS BOUNDARY**
+(the G16 crease law, generalised): every 1-face edge gets weight 9, so edge
+points never average missing faces and the outline refines as the cubic
+B-spline of the boundary verts — which is exactly Blender's subsurf rule for
+an open sheet, so the outline rounds its corners the way the user's modifier
+showed them. `cageSubdivide` gained one generic hook, fit-guarded: a mesh may
+list extra chain keys in `m.seamKeys` and they propagate like the seam lines
+(the fin's root strand rides this).
+
+**WHAT THE SKETCH'S ANNOTATIONS MEAN, as built:**
+- `leadingA/B` — the dorsal, two sections; each section's aft vertical edge
+  is a controllable SEMI-SHARP crease (crA at the A/B column, crB where B
+  meets the fin). Verified at the limit: uncreased, the A/B kink vertex eases
+  106.5 mm along the outline spline; at weight 3 it pins to 0.0 mm — the
+  boundary contributes two sharp edges, the creased column the third, and
+  three is the corner branch (G21 §5's rule, now load-bearing).
+- `doubleLoopH` — the root guard pair. The LOWER strand is the root boundary
+  and BELONGS TO THE SKIN (below).
+- `doubleLoopV` — the hinge guard pair at the tailpost, untouched by corner
+  moves (the future rudder cut needs it where it is).
+- `optionalKeelExtension` — `finKeel` toggle; the keel row rides the live
+  keel line at its measured 20.4 mm stand-off.
+- the 3 corners (tip, top-aft, rudder-base) each move on two axes; derived
+  verts re-lerp along the moved lines PLUS the sketch's own residuals, so
+  identity deltas rebuild the sketch bit-exactly and a raked TE stays
+  straight. The tip carries its LE shoulder with it.
+
+**THE ROUNDED ARTIFACT THROUGH THE FUSELAGE, found and cured twice over.**
+Measured, not guessed:
+1. With the keel tab on, the fold line it hangs from is no longer a boundary,
+   and its 0.55-unit quads pulled the fold — and through it a full metre of
+   root line — 86 mm down through the tail cone. THE RUDDER-BASE LINE STAYS
+   PUT: with the tab on, the aft strand edges are max-creased (they ARE the
+   boundary when the tab is off, so the toggle no longer changes how the
+   line above it behaves). 86 mm -> 0.4 mm.
+2. The residual is the B-spline sagging between root control points where
+   the deck curves (G21: a line between two points on a curved body goes
+   inside it). The root strands are PLACED on the live deck keeping only the
+   sketch's guard gaps (the sketch's own 0.4–15 mm offsets from the template
+   deck are absorbed as the imprecision the user reported), and after
+   subdivision `finProjectRoot` projects the boundary offspring back onto
+   the deck WHERE THE FUSELAGE EXISTS — aft of the tail cap the strand is
+   the rudder-base line hanging in air and keeps its subsurf shape. On the
+   jodel: 17.4 mm stray without the constraint, 0 with it.
+
+**THE FIN REBASES TO THE AEROPLANE IT IS GIVEN.** The sketch is anchored at
+the template's tail cap (`zCap` −4.162269), and the jodel's fuselage is a
+FULL UNIT shorter than the template it was drawn on — without the rebase the
+fin floated in air behind the aeroplane. With a live deck the whole fin
+translates by (deck aft end − zCap), so the hinge pair lands on the actual
+tailpost; the deck itself is the centreline of the SKIN materials of the mesh
+the editor just built (the gear contract's filter — with the interior on, an
+unfiltered sweep puts the dash in the deck).
+
+NOT DONE, deliberately: thickness (2D-first ruling), the fin/rudder cut
+(post-subsurf, needs the outline settled first), fin keys in the build
+envelope (bench-side until the tail reaches the game).
+
+### G22.1 — THE CUB TAIL, AND THE PARAMS THAT SPAN IT (same day)
+
+The user fitted the cage to the Cub (Downloads/finCub.obj, byte-copied to
+`tools/_fin_cub_ref.obj`): the SAME topology minus the dorsal, keel tab on,
+"edge loops as aligned as possible". Measured against the fiche that
+discipline is exact — loC/hiC, loH/hiH, kH1/kH2 and the zC/zH1/zH2 columns
+are BIT-IDENTICAL to the sketch; everything that differs is rows and corners.
+The ask was whether the settings span the distance from the sketch to this.
+They did not — six degrees of freedom were missing, all of them row/corner
+grammar, none of them topology:
+
+- **`finDorsal`** (user ruling: the leading edge is deleted OPTIONALLY).
+  Off = drop columns A/B (6 verts, 4 quads); the front column turns boundary
+  so the LE rounds off by itself, and the LE ROOT becomes a free corner
+  (`finLEZ/finLEY`, riding the u row). crA loses its edges, crB's column is
+  boundary anyway — both inert without the dorsal, by construction.
+- **`finMidY` / `finUY`** — the mid and u rows move (Cub: −0.455 / −0.191);
+  corner clamps now reference the MOVED mid row.
+- **`finShoulderZ/Y`** — the shoulder's offsets from the tip and the mid row
+  became sliders whose DEFAULTS are the fiche offsets (identity moves
+  nothing); the Cub zeroes the y offset and pushes the shoulder 0.285 fwd.
+- **`finTopY`** — the top guard pair takes ONE shared y on the tip→top-aft
+  chord plus this bulge (Cub: +0.083 proud of its chord).
+- **`finTERoot/finTEU/finTEMid`** — the trailing edge is the corner chord
+  plus per-row bulges: the Cub's D-shaped rudder sits 0.145–0.177 aft of the
+  chord at the root rows, easing to zero at both corners. The strand pair
+  shares one z (a guard pair is vertical-aligned by role).
+- **`finBaseY` moves the BASE CORNER ONLY** (was: the whole keel row). The
+  Cub sweeps its rudder bottom up 0.141 for tailwheel clearance while
+  kH1/kH2 stay on the keel at the tailpost — one corner, one intent.
+
+`FIN_CUB` in `_fin_gen.js` is the Cub as a settings dict, solved by
+inverting the build formulas and asserted by the check: **23/23 v NN maxDev
+4.25e-7, faces + materials 100%** — and the sketch identity stayed at
+0.00e+0 through the rework, which is what made it safe. The cage7 'piper
+cub' preset carries the dict, so selecting the Cub brings its tail. Health
+sweep now 48 cases (dorsal x keel x crease x corners+rows x deck).
+
+ON THE CUTS (user worry: "slightly unsure whether the cuts will be clean"):
+the sheet is PLANAR, so a post-subsurf cut is 2D polygon clipping — the
+Eulerian pinch G21 §5 recorded only exists after thickness, and its cure
+(fan from the cut centroid) is already written down. The cage is PLACED for
+the Cub's two cut lines: the hinge is the doubleLoopV pair, whose columns no
+corner or row slider ever moves (verified: the Cub kept them bit-exact), and
+the horn cut under the rudder's overhang runs along the mid row, which is a
+straight level line of cage verts wherever `finMidY` puts it. What the cut
+lines will NOT automatically follow is the moved outline between those rails
+— the cut is a straight line, the outline is a spline — which is the same
+"cuts are straight lines applied after subdivision" ruling G21 already
+records.
+
+### G22.2 — THE CUT, AND THE WIREFRAME (same day)
+
+The fin/rudder cut exists (`finCut2D` in `_fin_gen.js`, wired in cage7's
+panel): straight lines applied after subdivision, exactly as the G21 ruling
+prescribed, clipped by Sutherland–Hodgman on the planar sheet. Two modes plus
+off: `hinge only` (one vertical line, the fin keeps its crown) and `horn
+balance` (the rudder wraps over the fin top — the Cub). A `slot width` gap
+splits evenly across the line, `explode` slides the rudder aft for
+inspection, and the piper cub preset now cuts itself (`finCut: 2`).
+
+**THE RAILS COME FROM THE GEOMETRY, NOT FROM A NUMBER TYPED IN:**
+- The hinge is the MIDDLE of the doubleLoopV pair (`m0.cutZ`) — cut between
+  the guards and each part keeps a pinning column, the fuselage's own
+  door-cut lesson.
+- The horn line is where the mid row ACTUALLY SETTLED on the displayed
+  surface, read off the subdivided `finMidRow` chain (the seamKeys machinery
+  again). Measured: the cage row sits at y 1.4679 on the Cub and the surface
+  row at 1.4103 — 58 mm apart. A cut at the cage value would have missed the
+  drawn line by a band of quads; the rail must be read POST-subsurf, same as
+  the rims sweep the displayed boundary (G13). `horn line shift` trims it.
+
+Asserted in `_fin_check.js` (sketch + cub, both modes, L2): a gap of ZERO
+partitions the sheet EXACTLY (area conserved to 1e-6 — the convex-region
+decomposition neither loses nor doubles a face); with a real gap every
+output vertex lies wholly in its part's region, the area loss is the slots
+and nothing more, and EACH PART IS ONE CONNECTED PIECE (union-find over
+position-welded verts — the fin keeps its keel-tab sliver ahead of the
+hinge through the fold line, which is the fixed-structure bit a real rudder
+post has). Verified live on the Cub at L2 and L3: fin 83/319 q, rudder
+155/598 q, no errors, rails identical between node and browser.
+
+AND THE WIREFRAME WORKS (user ask): the fin layer now honours the page's
+`wireframe` toggle with the page's own quadWire convention — one
+LineSegments per section, section-coloured, parts exploded with the mesh.
+
+### G22.3 — THICKNESS (same day)
+
+The fin has volume (`finThicken` in `_fin_gen.js`; `thickness` group in
+cage7: solid on/off, base thickness, TE thickness). USER RULING taken as
+built: post-subsurf, poly-conscious, square-ish section, a small rounded
+LEADING EDGE, control surfaces thinned at their trailing ends, thicknesses
+parametrizable, no surface deformation.
+
+**THE ORDER IS THE WHOLE TRICK: settle 2D -> cut 2D -> thicken PER PART.**
+Because the cut happened on the flat sheet, there is no 3D slab to cut and
+G21 §5's Eulerian pinch cannot occur — each part is a flat polygon that
+gets two offset copies plus a rim band, CLOSED BY CONSTRUCTION. Asserted as
+a real manifold check (sketch + cub, cut and uncut): every edge used
+exactly twice in opposite directions, positive volume per part, all finite.
+Cost: the Cub's complete cut tail is 944 v / 940 q against the fuselage's
+11k — 2x the sheet plus the rim, where subdividing a shell would have paid
+4x per level.
+
+**THE SECTION:** flat sides at +-t(p)/2 — t is a FIELD, not a number: base
+thickness forward of the hinge, tapering linearly to the TE value at the
+aft extreme, so a control surface is thickest at its spar (41 mm base
+thinning to 10 mm at the Cub's scale). The rim is square everywhere — the
+root is buried in the fuselage, the slot faces are the hinge post — except
+along the LEADING EDGE, which gets an N=4 arc nose bulging along the
+in-plane outward normal (the drawn outline is the nose's crown). The LE is
+a recorded CHAIN (`finLE`, the seamKeys machinery a third time): the dorsal
+ridge to the tip with the dorsal on, the front column down to the root
+without it — and rim verts are classified by distance to that polyline, so
+the cut's new vertices ON the leading edge (where the horn line crosses it)
+round correctly too. Every boundary vertex carries one (N+1)-point profile,
+round or flat, so an LE-to-square transition is an ordinary quad strip and
+needs no corner cases — the same move that made the top guard pair share
+one y.
+
+Winding coherence is BY CONSTRUCTION (rim quads traverse their sheet edge
+opposite to the side faces; one signed-volume flip per part makes it
+outward), which is what the opposite-direction edge assertion verifies.
+
+**G22.3b — user review, same day: EVERYTHING ROUNDS, CUTS STAY FLAT.** The
+LE-only rounding made every round-to-square transition read as an odd
+bevel, and the first rule was also the more complicated one. Now: every
+OUTLINE edge gets the arc rim; only CUT-created edges stay flat — and they
+identify THEMSELVES: finCut2D reports the lines it cut along
+(`m.cutLines`), a rim edge with both ends on one of them (exact to ~1e-16
+by the clip arithmetic) is a slot face. The finLE chain is no longer needed
+for thickness at all (kept as the LE's identity marker).
+
+THE CORNER RULE (the user's red circle): where a rounded outline meets a
+slot, the arc is CLIPPED against the cut's half-plane — the round is CUT
+FLAT at the slot, not blended along the corner bisector. Verified: no fin
+rim point crosses the horn line (clamped exactly), the crown bulges the
+full t/2, slot faces stay planar. The dorsal's forward tip rounds with
+everything else, which closes the ridge end the top view showed square.
+
+Panel rulings applied: binary choices are DROP-DOWNS (sliders only for
+continuous numbers), and the cut parts ride the page's own `explode` slider
+— `finCutExplode` deleted, one gesture flies doors and rudder alike.
+
+### G22.4 — THE HORN CUT FOLLOWS THE MESH (same day, user report)
+
+The SH horn line crossed the quad rows and littered the seam with clipped
+triangles (wireframe evidence; the vertical hinge cut, running between the
+guard columns, read clean). USER RULING: constrain the base geometry so the
+horizontal stays horizontal, then cut ALONG the mesh — modifying the
+geometry slightly is allowed.
+
+**hornPrep** (set whenever horn mode is on): the mid row is MAX-CREASED — a
+creased row of same-y verts is an affine average of itself, so it stays
+EXACTLY horizontal at every subdivision level (asserted to 1e-9) — and the
+shoulder snaps onto the row, so the cut terminates on a mesh vertex.
+`finCutHorn` then cuts with NO horizontal clipping at all: faces PARTITION
+topologically along the row's own edge loop (flood fill that never crosses
+a row edge), the slot opens by shifting the two copies of the row apart by
+the half-gap, and only the vertical hinge cut below the row still clips.
+Asserted: ZERO non-quad faces away from the hinge (the triangles are gone);
+aft of the hinge the row's two sides re-weld inside the rudder, where the
+crease line reads as a rib. `finCutTopOff` is deleted — the row IS the horn
+line, `finMidY` moves it. Costs, stated: the horn-mode surface differs
+slightly from the uncut one (the crease + the shoulder snap), and the
+crease line continues across the rudder.
+
+The corner bevels the user circled fix themselves: every cut vertex now
+lands exactly on a cut line, so the rounded rims clip flat against the slot
+planes on BOTH sides of the gap.
+
+**ROOT ECONOMY, measured** (user ask: replace the hand-built root guard
+pair with creasing?). `finRootGuard` 'single + crease' drops the hi strand
+by NAME SUBSTITUTION in the face tables (hi->lo, degenerate quads vanish):
+sketch cage 29v/18q -> 23v/13q, every subdivided level 20-28% lighter. The
+single-creased root's surface sits within **13.8 mm** of the guard pair's
+(point-to-SURFACE at L2 — vert-NN first read 67 mm, which was sampling
+mismatch, a trap worth remembering). The pair stays the identity/default;
+the dropdown is the economy. What the pair buys is the root-belt fillet
+between the strand and the u row — 14 mm of it.
+
+### G22.5 — THE CUT GOES FULLY TOPOLOGICAL (same day, wireframe review)
+
+The user's wireframes showed three leftovers of the hybrid cut: a rounded
+"tooth" at the slot's aft top (the shift-transition jog got a round rim), a
+degenerate fan at the horn's forward tip (the corner-clamped arc collapses
+at sharp corners), and a HARD CORNER on the crown's TE outline (the row
+crease reached midTE: 3 sharp edges = pinned = a kink in a smooth curve).
+Resolution: no clipping anywhere, and simpler rules.
+
+- **`finCutMesh` replaces both cutters.** The hinge slot IS the drawn
+  doubleLoopV band: the strip of faces between the guard columns is
+  DELETED and each part keeps its own guard column at the cut face — which
+  is what the pair was drawn for. Faces partition by flood fill with the
+  rail chains as barriers; the horn slot opens by the row shift as before.
+  ASSERTED: **zero non-quad faces in the entire cut**, both modes.
+- **RAILS MUST BE CREASED TO STAY PUT — measured the hard way.** With the
+  columns uncreased, the drawn 0.024 band BALLOONED to 6-8x its width
+  under subdivision (topH1 slides forward under the tip's pull, topH2
+  slides aft; the creased row's own B-spline walked midH1 toward the
+  shoulder), and "delete the band" deleted a 0.38-area wedge. Under
+  cutPrep the guard columns are max-creased: a creased run of same-z verts
+  is an affine average of itself — an exact vertical line; verts may slide
+  ALONG a rail, which is harmless. The row/column crossing (midH1) has 4
+  sharp edges = a pinned corner. Mode 2 creases columns below the row only
+  (the crown stays smooth and uncut — no midTE corner, no rudder ridge:
+  the fwd row crease edges are inside the slot); mode 1 creases full
+  height, its crown kink landing exactly on the cut.
+- **Rim flatness went topological** (`cutKeys`: every emitted copy of a
+  rail vert, matched by the weld key) — no geometric line matching, so a
+  rail that is not perfectly straight still makes flat slot faces. And a
+  vertex touching any rail edge goes SQUARE: the round rim TAPERS into the
+  cut face over one mesh edge — the bisector blend and the clamped arc
+  both degenerated at sharp corners; the taper is the ordinary-quad answer.
+- `finCut2D`, `finCutHorn`, `finCutRails`, the SH clipper and the cutLines
+  machinery are DELETED. The Cub horn-cut solid is 708 v / 704 q.
+
+### G22.6 — THE CROWN HEALS, THE LINE ALIGNS, THE CUT CUTS THE ROUND
+(same day, wireframe review 2)
+
+Three user corrections on G22.5, all taken:
+
+- **THE CROWN BAND IS DEAD GEOMETRY — DELETED FOR GOOD.** In horn mode the
+  guard pair above the row pins a hinge that no longer exists there. Horn
+  prep now drops topH2 and the band face entirely; the crown heals with ONE
+  aft panel — a PENTAGON (midH1, midH2, midTE, topTE, topH1), because five
+  rail verts cannot be tiled by quads without a pole, and a pentagon's
+  subdivision is all quads with one mild interior pole mid-panel. Chosen
+  over the alternatives measured and rejected: a T-junction crack (the
+  above panel's edge vs the row's two edges), and creasing the crown
+  columns (pins topH1/topH2 = outline kinks). Counts: horn prep is −1 vert
+  −1 face at the cage, L2 = 16F+4.
+- **ONE HORIZONTAL LINE.** The half-and-half slot shift misaligned the
+  crown's underside (rowY+g2) against the aft body's top (rowY, sagging).
+  Now ONLY THE FIN'S row copies drop, by the FULL gap — the rudder's
+  underside sits exactly ON the row everywhere (verified: min y = rowY to
+  5 decimals) — and the row is creased FULL LENGTH again, its LAST edge at
+  weight 1: straight at the first level, then the TE end relaxes, so midTE
+  never pins into the hard corner of G22.4's complaint. Yellow, orange and
+  the aft body all cut around a single horizontal line, as the user drew.
+- **THE CUT CUTS THE ROUND** (user: "imagine the uncut piece, and just cut
+  through the rounded profile too"). The square-taper corner rule read as
+  the profile "stopping" at the cut. Restored: at a rail corner the rim arc
+  keeps the OUTLINE's own normal (never the bisector — that was G22.3's
+  bevel bug) and its points project into the cut's half-plane — the corner
+  is the uncut nose's cross-section, its verts aligned with the flat face.
+
+Cub horn solid: 668 v / 664 q. FIN: OK, FIT: OK.
+
+### G22.7 — THE TWO ARTERIES (same day, wireframe review 3)
+
+USER RULING that settles the crown: the fin has TWO MAIN ARTERIES — one
+straight vertical, one straight horizontal — DEFINING the cuts; the drawn
+doubled loops were those arteries all along, and G22.6's pentagon deleted
+the vertical one instead of disciplining it. The pentagon is REVERTED (it
+also could never have been cut cleanly); the drawn crown band is back and
+under cut prep BOTH modes crease the guard columns FULL HEIGHT: the
+vertical artery is an exact parallel strip through the crown (measured z
+spread 0.00 mm at L2). A structural lesson underneath: the crown band
+CANNOT be deleted at all — it is the only thing connecting the horn to the
+aft rudder over the slot — and every no-band topology is either a
+T-junction crack or a pole.
+
+THE HORIZONTAL ARTERY reconciles the two standing rulings ("one straight
+line" vs "no hard corner at midTE") instead of trading them: the aft row
+creases at weight 1 (straight backbone, TE end relaxed — the relaxation IS
+what keeps midTE off the corner trap), then `finStraightenRow` snaps the
+chain back onto the line, easing off over the last 30% of the run.
+Measured on the cub at L2: 0.00 mm off the line inland, easing to the
+smooth outline corner at the end. The check asserts inland exactness; the
+column creases give midH2 four sharp edges, so the artery leaves a PINNED
+corner. topH1/topH2 pinned by their column creases sit on a top row that
+is FLAT in both sketches, so no visible outline kink.
+
+## G23 — THE HORIZONTAL TAIL RIDES THE FIN MODEL (2026-08-25, prototype)
+
+USER RULING: the fin model is the base for the stabilizer + elevator; the
+two references (Piper Cub, Cessna 172) must both be reachable, and the
+current grammar already spans them — the Cub's rounded tailplane IS the
+FIN_CUB shape, the 172's tapered one is the corner sliders with the TE
+bulges at zero. The dorsal option is left out (a tailplane has none).
+
+`_cage_stab.js` (cage7) is the whole prototype — NO new generator: it calls
+`buildFin2` with st*-prefixed params (defaults mapped verbatim from
+FIN_CUB, so they cannot drift from the checked reference), dorsal and keel
+forced off, and `finToStab` (in `_fin_gen.js`) lays the finished solid
+FLAT: span = the fin's root->tip axis, thickness vertical, mirrored across
+the centreline (the right side is a reflection, so its faces reverse to
+stay outward; the left is two reflections = a rotation, winding survives).
+The elevator is the fin's 'hinge only' cut: the slot is the drawn guard
+band, the hinge columns creased, the elevator rides the page explode aft.
+
+THE ROOT IS A FLAT LINE, NOT THE DECK: a stab root runs straight along the
+fuselage side, so the sheet is built against a CONSTANT deck at the
+fiche's own root level — the tailpost REBASE still works (it only reads
+the deck's aft end, taken from the live centreline), and the root
+projection pins the strand dead straight. Placement: stX (root
+half-track), stY (height), stZ (fore-aft).
+
+Checked (`_fin_check.js` 6b, built exactly as the layer builds): both
+halves closed coherent solids, EXACT mirrors (vertex sets, 1e-7), nothing
+inboard of the root but the root rim's own radius (which buries in the
+fuselage side, as the fin's root rim buries in the deck). 580 v / 576 q
+per side at L2.
+
+PROTOTYPE HONESTY — not done: no fuselage-SIDE constraint (the deck
+machinery's sibling for w(z) at stab height); no 172 preset dict (sculpt
+and save, or hand me a sketch OBJ and it gets solved like the Cub fin
+was); no elevator inboard cutout for rudder clearance; stab keys not in
+the build envelope.
+
+### G23.1 — THREE DEFECTS OFF THE WIREFRAME (same day)
+
+- **The aft row is FULL HORIZONTAL** (user ruling, reversing the G22.4
+  balance: the straight line outranks the soft TE corner). The whole row
+  creases at full weight; midTE pins, and the TE outline's corner now sits
+  exactly ON the line — which is what a full-horizontal edge means.
+  `finStraightenRow` (the fade-and-snap compromise) is DELETED: it also
+  sheared the quad row above the line after subdivision, which was most of
+  the "irregular blend" at the band's aft edge.
+- **THE SLICE IS UNCONDITIONAL.** At a flat-meets-round rim corner the arc
+  points now project into the cut plane regardless of side. The one-sided
+  clamp only worked where the nose happened to bulge INTO the plane (the
+  fin's top corner); on the horn's underside the crown's LE bulges AWAY,
+  so the nose curled around the corner instead of being sliced. Verified:
+  corner rim points in-plane to 0.000 mm on both sides of the slot.
+- Row exactness is now asserted END TO END (1e-9, every row vertex).
+
+### G23.2 — CORNER SHARPNESS: THE PROMISED CREASE SLIDERS (2026-08-25)
+
+USER CALL-OUT, correct: the original plan's "creasing on selected edges,
+allowing for an angular profile" never became sliders — crA/crB only bend
+the dorsal, and the outline's corners always rounded. The structural
+reason it slipped: an outline QUAD CORNER has exactly two (boundary)
+edges, and G21 §5's own rule says a vertex pins only at three or more
+sharp edges — no edge crease can ever sharpen those corners.
+
+**SEMI-SHARP VERTEX WEIGHTS** close it: `cageSubdivide` now takes `m.VW`
+(Map vertex -> weight); a weighted vertex is blended to the CORNER rule
+(pinned) for `weight` levels then rounds, children inherit weight-1 —
+the vertex-level twin of the Pixar edge rule already in place. The
+fuselage never sets VW, so the fit-locked template is untouched (FIT: OK
+bit-guarded). Verified: weight 3 pins the cub's tip to 0.0e+0 through L2,
+weight 0 eases it 78 mm — that whole span is the corner-radius family.
+
+The fin's new `corner sharpness` group (stab: st-prefixed twins): tip,
+top-aft, base, shoulder, LE root — 0 round (the sketch identity) .. 3
+crisp. THE ANGULAR JODEL PROFILE demonstrated on the default aeroplane:
+straight swept LE (leC-shoulder-tip collinear, shoulder sharpness 0 so the
+line runs through), flat sloping top, straight TE, corners at 2.5-3 —
+reads as the three-view. The demo dict:
+    finDorsal 0, finKeel 1, finCut 1, finMidY -0.3, finUY -0.1,
+    finLEZ -0.25, finTipZ -0.45, finTipY -0.45, finShoulderZ 0.323,
+    finShoulderY 0, finAftZ 0.10, finAftY -0.62, finBaseZ -0.05,
+    finBaseY 0.15, bulges 0, finSharpTip 3, finSharpAft 3,
+    finSharpBase 2.5, finSharpLE 2.5, finSharpShoulder 0
+
+### G23.3 — THE JODEL TAILPLANE, SETTINGS ONLY (same day)
+
+The angular slab + elevator to the blueprint, driven entirely with the
+existing grammar — no code moved. The dict (st* on the jodel default):
+
+    stTipZ 0.9 (clamps onto the LE line), stTipY -0.49,
+    stShoulderZ 0.03, stShoulderY 0, stLEZ 0, stLEY 0,
+    stAftZ 0, stAftY -0.70, stBaseZ 0, stBaseY 0,
+    stMidY -0.35, stUY 0.10, stTopY 0, bulges 0,
+    stSharpTip 3, stSharpAft 3, stSharpBase 2.5, stSharpLE 2,
+    stSharpShoulder 0, stY 0.33, stX 0.05, stCut 1
+
+Reads as the three-view: near-straight unswept LE (the tip clamp keeps it
+0.05 aft of the LE root — ~2.5 deg, visually straight), straight TE, RAKED
+angular tips (LE corner outboard of the TE corner, both crisp), elevator
+across the span. TWO HONEST LIMITS found while fitting, both fiche
+stations the sliders cannot move: the ROOT CHORD's forward end is the
+drawn front column (zC), and the ELEVATOR CHORD is bounded by the fixed
+hinge pair (zH1/zH2) — ~21% here against the blueprint's ~35%. The natural
+next params if wanted: a hinge-station slider (move the guard pair as a
+unit) and a front-column station.
+
+### G23.4 — THE RUDDER-CLEARANCE NOTCH (same day)
+
+The classic pulled-apart elevator inboard-aft corner was ALREADY IN THE
+GRAMMAR, hiding behind a one-directional label: the per-row TE offsets
+were named "bulge aft" but their positive direction pulls a row FORWARD —
+at the root that is exactly the clearance notch. Three touches made it a
+real control: the root slider relabeled `root aft- / notch+` and widened
+to +0.40 (fin and stab), and buildFin2 clamps every TE row aft of the
+hinge band so a deep notch can never fold the surface through its own
+hinge columns. The notch's spanwise reach is the u row's position (stUY).
+Jodel tailplane dict gains `stTERoot 0.22, stTEU 0.03`. No new params —
+one relabel, one range, one clamp.
+
+### G23.5 — THE DEFAULT AEROPLANE GROWS ITS TAIL (same day)
+
+The angular jodel fin + tailplane dicts (G23.2-G23.4) are baked into the
+default aeroplane (`_cage_page5.js` defaults — inert on cage5/cage6, the
+cowl/gear precedent). PRESET SELF-CONTAINMENT, the G19 sailplane lesson
+applied twice: the piper cub preset now layers FIN_PARAMS under FIN_CUB
+(so the new finSharp* keys read 0, not the jodel's 3) and the stab layer
+merges its own Cub-mapped dict into the preset — SNAPSHOTTED before the
+defaults merge mutates it, or the preset would have dragged the whole
+jodel default set along. Round-trip verified: fresh load = angular jodel
+tail; cub preset = round Cub tail (sharps 0, horn cut, TE bulge -0.147,
+stab at 0.25); back to jodel = angular restored.
+
+### G23.6 — THE ROOT'S OWN FREEDOMS (2026-08-25)
+
+Two user asks off the baked jodel tail, both root-side:
+
+- **THE ROOT'S FORWARD POINT IS A STATION** (`finRootFwd` / `stRootFwd`):
+  the drawn front column (zC) moves as a parameter, clamped between the
+  dorsal's B column (dorsal on, else the dorsal-tip station) and the
+  hinge. This closes half of G23.3's "two stations the sliders cannot
+  move" — the root chord's forward end is now free; shifting the whole
+  surface was never the control.
+- **CENTRE-APART, NOT FORE-AFT** — the clearance correction: with the keel
+  tab off, `baseY` (previously INERT there) now lifts the strand's own TE
+  end off the root line, guard partner riding along. On the stab that is
+  the elevator's inboard-aft corner pulled OUTBOARD (relabeled `root-aft
+  outboard`), the classic centre-apart around the rudder; on a keel-less
+  fin it is the rudder's bottom corner pulled up. The TE chord anchors on
+  the lifted corner, and `stSharpBase` crisps it.
+
+TRAP FIXED ON THE WAY: the stab layer projected the WHOLE root strand
+flat (zMin -Infinity), silently erasing the lift — node said 0.300, the
+browser said 0.000. The projection now stops at the tail cap, as the
+fin's always did: aft of the fuselage the strand is the elevator's inboard
+edge and keeps its freedoms. RULE, again: verify the LAYER's output, not
+only the module's.
+
+### G23.7 — THE JODEL, RE-IMPORTED (2026-08-25)
+
+The default aeroplane is the user's build, again: newDefaultJodel.json
+imported verbatim into `_cage_page5.js` (392 keys, diffed 0/0/0 against
+the export by evaluating the page in node — the splice was generated, not
+retyped). What the export carries beyond the last import: the user's OWN
+re-tune of the tail — the fin with the DORSAL BACK ON over the angular
+corners, the stabilizer resculpted with the new stRootFwd (-0.745) and
+stBaseY (0.335, the centre-apart) freedoms — plus the dressed cowl's full
+parameter set from G24. The cub preset round-trip stays self-contained
+(verified: dorsal 0 / horn cut / its own stab after switching, jodel
+restored after switching back).
+
+### G23.8 — THE SAILPLANE'S SAWTOOTH DORSAL (2026-08-25)
+
+User report: the dorsal went "exotic" on the sailplane preset — stick-to-
+skin riding a sawtooth. TWO findings, one real:
+
+- The suspected culprit (the bubble canopy dome polluting the deck) was
+  WRONG for this cliff but right in principle: the dome IS 'windshield'
+  and does cross the centreline at sparse verts. Both layers now sample
+  the deck from STRUCTURE ONLY (glass materials excluded) — a fin roots
+  on the fuselage, not on glazing. Kept, though it did not move the
+  measured number.
+- THE REAL BUG, present since G22 and masked by every boxy boom:
+  `finCentreline` took a per-z-bucket MAX, so wherever a KEEL vert's
+  z-station had no deck twin at the same z, the keel point (y -0.6)
+  landed on the TOP polyline. Box booms carry deck and keel on the same
+  rings — identical stations, bug invisible; the sailplane's drooping
+  mirrored aero nose interleaves them — a 1.07-unit sawtooth. The sweep
+  now SPLITS the centreline points into top/bottom surfaces by each
+  point's position in its z-neighbourhood (window 0.3; a converged tip
+  belongs to both) before building the envelopes. Measured: worst deck
+  jump 1.071 -> 0.042 per 20 mm (the residual is the aft tip's honest
+  curvature); the template measurements (offKeel, root offsets) unchanged
+  to the last digit; FIN: OK, and the dorsal hugs the pod.
+
+RULE, earned twice today: a MAX over a bucket is not a surface — classify
+points to a surface before taking its envelope.
+
+## G24 — THE ENGINE, DRESSED (2026-08-25)
+
+The user's ask: a proper engine MESH generator — all visible elements
+modelled, consistent poly density, fully procedural, everything connected,
+"cables going from and to where they should" — as a standalone tool in
+cage7's editor style, wireframe mandatory. First chantier delivered: the
+FLAT family dressed (six of the ten registry rows, and the A-65 anchor).
+
+**Files (the cowl/fin family pattern):** `_eng_mesh.js` the module
+(`ENGM_DEFAULT` fiche + `engMeshBuild`, quad cage-shape sections),
+`_eng_mesh_check.js` THE VERDICT (`node tools/_eng_mesh_check.js`, 11 cases,
+`ENGMESH: OK` at delivery), `_engine.html` the bench (cage7 chrome: density
+select, quad wireframe, section colours, OBJ export; serve flydiy-node,
+open /flyDiy/tools/_engine.html). `_eng_gen.js` is UNTOUCHED: engResolve
+stays the physics/envelope truth the cowl fits to, and the visual builder
+stands on its published `place` rule, so the picture and the cowl agree by
+construction. `ENG CHECK: OK` re-verified after.
+
+**TWO PIECES OF MACHINERY carry everything, and the next families reuse
+them unchanged:**
+- **THE ARTERY** — a parallel-transport tube sweep along a path (fillet
+  elbows for pipes, Catmull-Rom sag for cables). Plug leads, intake
+  risers, exhaust stacks, injection lines, fuel line, throttle cable and
+  the mount tubes are all this one primitive, ROUTED FROM NAMED PORTS the
+  layout publishes — a family is a routing table, the ENG_ARCH move again.
+- **THE DENSITY GOVERNOR** — one edge target (0.34·caseR / quality) from
+  which every part derives section counts, path sampling, band subdivision
+  and cap fill (big caps are concentric rings, not fans — a fan's spokes
+  would be the longest edges in the mesh). "Consistent poly density" is
+  ASSERTED, not eyeballed: per-part median ≤ 2.2×target, global p95 ≤ 2.6×
+  (measured 1.1-1.2× at delivery). Dressed A-65 ≈ 7.1k quads at q1.
+
+**WHAT IS DRESSED:** finned barrels with base flanges, heads with real
+head fins, rounded-rect rocker covers, pushrod tubes (`rodPos`: below =
+Continental/VW, above = Lycoming — a preset-visible architecture fact),
+intake risers sump→head, exhaust as short stacks or per-side collectors,
+two magnetos whose EIGHT LEADS route left-mag→top plugs over the case
+spine and right-mag→bottom plugs down the flank (a lead crossing the
+exhaust would cook), generator, oil filler, carb + airbox under the sump,
+IO-360 injection spider with per-head lines, case split ridges, flange
+with bolt ring — and THE MOUNT: conical tube quad + side diagonals +
+rubber pucks onto a firewall plate, with the fuel line and throttle cable
+dropping from firewall grommets to the carb. The bench IS the
+vertical-surface answer; cage7 later swaps the plate for the real bulkhead.
+
+**RULES THAT PAID:**
+- **EVERY DIMENSION IS A RATIO of bore or caseR, never metres** — the
+  registry spans 28 mm to 1.4 m. Enforced by assertion: build at 2× every
+  length input → coordinates exactly 2× (this is what outlaws the absolute
+  constants engBuild carried, 0.03 chamfers and 0.012 flange steps).
+- **CONNECTIONS ARE TESTED ON THE EMITTED SURFACE, non-circularly:** each
+  artery end must land inside the TARGET PART's own emitted AABB (lead →
+  plug boss, riser → head, tube → firewall), which two independent
+  builders must agree on — plus exact endpoint-on-port identity.
+- **ASSEMBLY OF INTERSECTING PARTS, no booleans, no subsurf** (the gear
+  precedent; machinery renders at governor density). Triangles are quads
+  with a repeated vert — quadWire and OBJ already understand them.
+- The PART LEDGER closes (every face uses its own part's verts) and each
+  part is the number of connected pieces it declares (a fin stack is finN,
+  the ridge is 2, a tube is 1) — union-find per part in the check.
+
+NOT DONE, deliberately (later chantiers, mostly routing tables + a few
+parts): radial (two-row R-1830 = a stations row + ring harness), the
+two-strokes (expansion chambers, 582 radiator), the 912 (gearbox nose,
+top carbs, expansion tank), the electric outrunner (nothing shared —
+needs its own small builder; `engMeshBuild` REFUSES non-flat loudly rather
+than half-drawing it). Cage7 injection is wired-ready (same frame, same
+mesh shape, ports published) but not plugged in this session.
+
+### G24.1 — BEVELS, THE GOLD ON TOP, AND REAL HARDWARE (same day)
+
+User review, four asks, all delivered against a green re-run (A-65 now
+12.3k q at q1, still under the budget assert; p95 edge DROPPED to ~1.07×
+target because bevels add small edges, never long ones):
+
+- **BEVEL ALL THE HARD EDGES — done in the PRIMITIVES, not per part.**
+  `chamfer2D` cuts every profile corner with a two-step chamfer
+  (BEV = 0.055·caseR, clamped by each corner's own segments) before any
+  lathe revolves; capA/capB now CONVERT open ends into r=0 phantom points,
+  which routes end rims through the same chamfer — a capped end gets its
+  bevel for free. `shapeLathe` (case/acc rims) takes the same route in
+  metre space; `prism` grew rim bevels (shape inset about its own bbox
+  centre) + governed axial subdivision. One rule, ~30 parts beveled at
+  once — the whole point of owning the primitives.
+- **THE ROCKER COVERS** (the most visible part of the engine): mounting
+  flange band, beveled walls, stepped face, raised centre boss, and SIX
+  SCREWS riding the outline itself (sampled from the flange polygon, so
+  they stay on the flange at any rockerW/H). Screws are silver on the
+  gold — `bolt()` is a new primitive: washer (beveled lathe) + hex head
+  (6-gon prism), two pieces, so a part of N bolts declares 2N comps and
+  the connectivity check keeps counting.
+- **THE STAND HAS HARDWARE at both ends**: engine side = steel cup +
+  rubber puck + thru-bolt per lug (the dynafocal sandwich; the bolt head
+  sits case-side because the TUBE occupies the aft axis); firewall side =
+  each tube lands through a cone fitting onto a bolted pad, four hex
+  bolts each, heads on the engine side. Flange bolts upgraded to hex.
+- **THE COLLECTOR** (already optional: exhaust off/stacks/collector) is
+  now a real can: domed nose, straight run the stacks plunge into,
+  reduced tailpipe bending down-aft to an open lip — radius array over
+  one filleted sweep path. The sump also stopped being a box: `polyShape`
+  (rounded/subdivided arbitrary outline — to a trapezoid what roundRect
+  is to a rect) + beveled prism, so it joined the density regime.
+
+### G24.2 — CLIP HUNTING (same day)
+
+User review with circles on the render: leads sagging THROUGH the case
+shoulder, a bottom lead punching the acc dome at the zBack step, mount
+diagonals slicing the dome flank, the fuel line crossing the centreline
+through a drooping exhaust stack. The root cause is G22's deck lesson
+wearing a new hat: **a spline between two clear waypoints goes inside the
+curved body between them.** So routing stopped trusting waypoints:
+
+- **THE CLEARANCE FIELD** (`caseHalf` + `clearCase` + `routeClear`):
+  every SAMPLED point of a cable is pushed out of the case's rounded-rect
+  field (full section over the case, shrinking scale over the acc dome,
+  the split ridge over the spine) to surface + margin; one relax pass and
+  a re-projection fair the curve. Applied to both plug-lead looms, the
+  injection lines, and the mount diagonals (margin FADED at their ends —
+  those are joints — so they bow around the dome like a bent brace).
+- **THE FIELD IS CONTINUOUS AND CONSERVATIVE, deliberately.** First cut
+  used the real profile, discontinuous at zBack (case 1.0 -> dome 0.92),
+  and the no-clip assert immediately caught a tube ring straddling the
+  step: the ring tilts a vertex into the wider side (-0.061cR, flat six,
+  exactly at zBack). The builder's field blends through zBack and rounds
+  the dome numbers UP; the check measures against the real metal, so
+  conservative costs nothing and the assert stays non-circular.
+- **SERVICES LEAVE THE FIREWALL ON THE SIDE OF THEIR DESTINATION** —
+  fuel right (bowl inlet is right), throttle left (arm is left); the
+  first cut crossed both over the centreline. Asserted by sign.
+- **THE NO-CLIP ASSERT IS PERMANENT** (`_eng_mesh_check.js`): the check
+  recomputes the case field from the resolve numbers — its own ruler —
+  and every EMITTED vertex of every lead and injection line must clear it
+  (ring surfaces, not centrelines, so the sweep radius is covered).
+  Green across all 11 cases at delivery.
+
+### G24.3 — POLYCOUNT GROUPS AND THE LOD LADDER (2026-08-26)
+
+User ask: grouped polycount settings (sides per cylinder / shaft /
+accessories / small detail), LODs generated from them, a tri count in the
+readout. Delivered:
+
+- **FIVE SIDE GROUPS** in the fiche (`sideCyl`, `sideShaft`, `sideAcc`,
+  `sidePipe`, `sideDetail`; 0 = the governor picks from the radius, a
+  number is absolute), threaded through `sectOf` into every lathe and
+  sweep. `quality` keeps longitudinal sampling and corner arcs — the
+  groups control the ROUND sections, which is where the triangles live.
+  Bonus: fins and barrel at one explicit count align their seams.
+  `screws: 1` gates all four bolt sets — the first part-DROPPING lever
+  (~4k tris of hex+washer that stop reading long before the silhouette).
+- **`ENGM_LODS`** in the module (the game will consume it, not the page):
+  settings dicts only — same builder, same routing, same checks. Each set
+  carries EVERY key any rung touches (G23.5 self-containment; the page
+  taught the lesson again when far-then-close dragged far's dropped wires
+  along). Measured on the A-65:
+      hero 22.6k tris (all auto, q1) · close 14.0k · mid 8.8k ·
+      far 5.4k (screws off, leads+plumb off — thinner than a pixel there)
+  The check runs the LOD rungs through the FULL battery minus density
+  (a LOD trades density by definition; connections and no-clip still
+  assert) and asserts the ladder strictly descends.
+- **TRIS ARE COUNTED HONESTLY** (`stats.tris`): a cap-fan quad with a
+  repeated vertex is ONE triangle on screen, so tris != 2*quads. In the
+  page's stat line and the check's table.
+- The page's header density select died; `quality` lives in the new
+  `polycount` group with the side sliders and an LOD select that just
+  writes the recipe onto the sliders.
+
+WHAT TO AIM FOR (the user's question, answered with the fuselage as the
+yardstick — ~22k tris at L2): the engine only matters cowl-OFF. Hero/bench
+22.6k is fine for a single object; in-game walkaround wants the `close`
+rung (~14k), through-the-apertures or apron-neighbour `mid` (~9k), distant
+cowl-off `far` (~5k). Cowl ON, cull the engine entirely — that is the real
+far LOD, and it costs zero.
+
+### G24.4 — STRAIGHT MOUNTS, PERSONALITY, FITMENT, THE METRIC PLATE
+### (2026-08-26)
+
+User review, five asks. Hero is now 31.3k tris (budget assert raised to
+20k quads for the detail pass); the LOD rungs kept their numbers.
+
+- **THE MOUNT RUNS STRAIGHT** (user ruling: no curved tubing; option A
+  taken and made geometric). Engine-side is a machined boss + rubber puck
+  ALONG THE CRANK AXIS on the case's aft face corners — the 0.32·caseR
+  shock stack stands the tube off the case, and THAT is what lets every
+  tube and diagonal be a straight line. The other half of the fix is the
+  body itself:
+- **THE ACC BODY IS TWO TIERS** — a short backplate at 0.88 of the case
+  and a 0.60 centre hump — which is both what a real one looks like and
+  what the straight tubes need. Its aft face carries inspection covers
+  with centre nubs, an oil-screen plug, and mag mounting pads. The CASE
+  gained cylinder pads under the barrel flanges and a timing cover disc
+  with its screw ring on the nose. Asserted: mount tube/diagonal verts
+  aft of the stack zone clear the (new, two-tier) body field.
+- **FITMENT SCRUTINY**: the near() check went from AABB to SURFACE
+  distance (nearest emitted vertex, toleranced by the target part's own
+  median edge so it holds at every LOD) — and the eye had been right
+  where the box test was blind: the fuel line ended in AIR beside the
+  carb barrel (the "inlet" point was above the bowl and off its radius)
+  and the throttle arm never reached the barrel. Now: a real INLET BOSS
+  on the bowl flank (the fuel line's a1 IS its tip), an arm rooted in the
+  barrel, and — the best part — MAG CAPS WITH ONE LEAD TOWER PER
+  CYLINDER, so all eight leads start on actual metal (towers count with
+  the cylinder count: a six grows six towers per mag).
+- **THE PLATE IS METRIC AND FIXED ACROSS PRESETS** (declared exception to
+  the ratio rule; fwW/fwH now METRES, default 0.80 x 0.70). The scale-
+  invariance check builds fwOn:0 — but still scales fwW, because the
+  mount-point clamp reads it even with the plate off. A METRE STRIP sits
+  on the plate: 0.1 m ticks, taller each half metre.
+- **ACCESSORY TLC**: mags lightened, given caps + towers + pads;
+  generator grew a V-groove pulley and a hold-down strap; sidePipe
+  defaults to 10 because the governor's radius rule hands a thin exhaust
+  6 sides — density-consistent and visibly hexagonal at the open lip,
+  which is exactly the call the polycount groups exist to make.
+- Page: the preset select survives its own rebuild (it read "A-65"
+  forever); fw sliders in metres; new legend rows.
+
+### G24.5 — THE CLASH PLANES, THE GOLD, AND THE ARCHITECTURE AXES
+### (2026-08-26)
+
+- **CYLINDER INTERSECTION, CURED THE WAY THE FOUNDRY DOES IT.** Fins and
+  heads are WIDER than the half-pitch, so same-bank neighbours were
+  interpenetrating (user circle). Now each cylinder knows its neighbour
+  gaps: fin rings CLAMP to the mid-plane (the clipped disc grows the FLAT
+  a real Continental fin wears), and the head radius clamps to 0.48x the
+  gap — the visual head is honest while the envelope keeps engResolve's
+  generous L.headR (the cowl's truth stays conservative). ASSERTED: the
+  emitted z-ranges of consecutive same-bank fins/heads may kiss but never
+  overlap more than 0.02b.
+- **ROCKER COVERS v3**: parametric corner radius, boss height and
+  footprint (`rockerR/rockerBoss/rockerBossW`), FINE 0.03b bevels at
+  every step, corner sampling riding the `sideCyl` group — the gold obeys
+  the polycount panel now. The page grew a `finish` section with COLOUR
+  PICKERS (rocker + case paint) feeding the material cache.
+- **THE ARCHITECTURE AXES are engResolve's OWN flags** (`liquid`,
+  `geared`, `twoStroke`) driving geometry, so the readout's mass/power
+  move with them for free — the user asked whether the physical
+  properties are derived or hard-coded, and the answer is DERIVED, from
+  the same dict the mesh reads. liquid: fins swap for smooth water
+  jackets, per-head coolant bosses, a strutted radiator with side tanks +
+  expansion tank over the case aft, hoses per head and a return to a
+  pump boss (the fitment net immediately caught the first hoses ending
+  on the tank AXIS instead of its surface — d=0.24cR — and was right).
+  geared: the reduction bell on the nose. twoStroke: no pushrods, no
+  rockers (asserted absent), the head runs on into a plain dome with
+  dual plug bosses along the axis, and `exStyle 3` is the expansion
+  chamber — cone, belly, stinger, swept aft low.
+- Presets: 'rotax 912 (flat)' (1.20 L / 56.7 kW / 51 kg derived vs the
+  real 1.21/59.6/58) and 'two-stroke twin'. The REAL 582 is an INLINE
+  twin — the inline/vee cylinder orientation (dir [0,±1,0] with the
+  dress rotated) is the honest remaining gap to the registry's 277/582
+  rows, next chantier.
+
+### G24.6 — PLATE FINS, QUINCONCE, SPARK PLUGS (same day, from the
+### user's reference photos)
+
+- **FINS ARE THIN PLATES NOW, NOT TORUSES** (`finStack`): each fin is an
+  extruded plane — two faces and a beveled knife rim (0.018b) — THIN
+  (0.16 duty vs 0.30) and NUMEROUS (default 13 vs 9; the mesh owns this
+  default over the physics fiche's 9, spec still overrides). Casting
+  irregularity is DETERMINISTIC pseudo-noise (`hash1`, Math.sin-based —
+  Math.random is banned, builds must be bit-repeatable): a per-fin size
+  wobble, a gentle around-the-rim scallop, and a base-to-head taper
+  gradient. The neighbour clip planes apply per vertex, so the flats
+  against the next cylinder survive the rework.
+- **BANKS SIT PROPERLY EN QUINCONCE**: stagger default 0.22 -> 0.42b,
+  matching the O-200 photo — opposed cylinders no longer look at each
+  other. Same-bank pitch (and so the clip planes) unchanged.
+- **REAL SPARK PLUGS** (`sparkPlug`): steel boss, hex, WHITE CERAMIC
+  (new `emCeramic` material) and a terminal — and the plug PORTS moved to
+  the TERMINAL TIP (base + 0.41b, one number shared by layout and
+  builder), so every lead now lands where a lead lands. Part comps 4.
+- Hero 19.1k q / 35.5k tris (still under the 20k budget assert); ladder
+  21.2k / 14.0k / 8.5k tris. `ENGMESH: OK`, `ENG CHECK: OK`.
+
+### G24.7 — SQUARE HEAD FINS (same day, user review of G24.6)
+
+The reference's head fins are not discs: they are rounded-corner
+RECTANGLES following the casting, and that is also the CLEANER
+intersection answer — square flats meet the neighbour by construction
+instead of a disc being clipped. `finPlates`: each head fin is a notched
+rounded-rect plate (polyShape outline, corner arcs now min 2 segments),
+solid faces stopping at 0.45 scale (the centre is buried in the head — a
+hole would cost and never show), knife-rim bevel, height wobble WITHOUT
+flat wobble (the facing flats stay aligned, like the real stack). THE
+NOTCH: a small rectangle chopped from the top and bottom edges IN LINE
+WITH THE SPARK PLUGS (the user's ask, and the real head's relief
+channel) — the plug bosses now live in a clean channel instead of
+punching through plates; skipped on two-strokes (their plugs are in the
+dome) and auto-skipped when the fin is too narrow for it. Barrel fins
+stay round — on the reference they are machined steel and ARE round.
+Hero 20.0k q / 37.3k tris; budget ceiling 20k -> 24k (third user-driven
+detail raise; the LOD rungs are the game budget, the ceiling only guards
+runaway).
+
+### G24.8 — TICK BOXES, DROPDOWNS, AND THE UNIFORM STACK (same day)
+
+- **UI GRAMMAR (user ruling)**: every two-state knob is a CHECKBOX, every
+  discrete choice a DROPDOWN — the page row schema grew 'check' and
+  'drop' types (18 boxes, 3 new dropdowns: cylinders, pushrods
+  below/above, exhaust). Converting exhaust to a dropdown also FIXED a
+  bug: the slider's max was still 2, so the expansion chamber (3) was
+  unreachable from the panel.
+- **RANDOMISATION REVERTED** (user ruling): barrel fin wobble+scallop and
+  head-plate height wobble removed — the machined stack is regular; only
+  the base-to-head taper gradient remains. `hash1` deleted with it.
+- **CORNERS RIDE THE DENSITY SETTINGS**: new `ARC` (from `sideCyl`, else
+  quality) drives the rocker outline AND the head-plate corner arcs — the
+  governor alone left them static because their arcs are smaller than the
+  edge target. Head fins max 5 -> 10; plate corner radius 0.16b -> 0.10b
+  ("a tad too much" — it was). Hero 21.9k q / 41.0k tris at q1 (finer
+  corners are the density dial doing its job; still under the 24k
+  ceiling).
+
+### G24.9 — THE CARB RISER, THE RADIATOR, AND THE INSET BUG (same day)
+
+- **THE CARB NOW TOUCHES THE BLOCK**: its mounting flange floated 0.11b
+  below the sump with its top cap face showing (user circle). A riser
+  section extends the same lathe up INTO the sump — attached, flange
+  buried.
+- **THE RADIATOR IS PARAMETRIC AND DETAILED**: `radX/radY/radZ` position
+  + `radW/radH/radD` size (caseR units, own panel group), and the core
+  grew top/bottom header strips plus SLAT FINS across the face whose
+  count rides the governor — a radiator finally reads as one. Tanks,
+  struts, expansion tank and both hose ends all follow the parameters.
+- **THE PLATE-RIM ARTIFACT WAS A REAL BUG**: the knife-rim bevel inset
+  the outline by SCALING about the centre, which shifts the notch walls
+  sideways and twists the bevel quads — the shading defect the user
+  circled on the cut sides. The bevel is now a proper NORMAL OFFSET
+  (per-vertex miter, clamped), and the rims are clean. Rule worth
+  keeping: **an inset is an offset along normals; a scale is only an
+  inset for a circle.**
+
+### G24.10 — THE LIP, THE SCREW RING, AND THE BLOCK THAT FOLLOWS
+### (same day)
+
+- **ROCKER SCREWS WERE PLACED BY OUTLINE INDEX** — and roundRect's points
+  cluster at the corners, so index sampling bunched the screws there (the
+  "random distribution"). They are now spaced by PERIMETER arc length on
+  the lip's midline. And the lip itself was NARROWER THAN ITS SCREWS
+  (flange 1.12/1.16 vs washers 0.109b wide): now 1.22/1.30 and a touch
+  taller, screws 0.028b — a washer fits on the metal it bolts to.
+- **THE BLOCK FOLLOWS THE STAGGER**: the quinconce moved the banks but
+  the case kept its resolve-datum length, so the leading pad hung past
+  the nose (user catch) — and the new assert immediately found the SAME
+  overhang at the tail (-1.86cR on cylPad2). `zNose`/`zTail` extend the
+  case (+ridge+sump) to cover the outermost pads; the whole aft assembly
+  (acc tiers, mags, lugs, shock stacks, gen) keys off `zTail`, and the
+  check's field + mount-clearance window recompute the same formula.
+  ASSERTED: every cylPad's z-range lies within the case's.
+
+### G24.11 — AIRBOX v2, INTAKE FLANGES, COOLANT RAILS (same day)
+
+- **AIRBOX v2**: the old drum poked INTO the block and was a bare
+  cylinder. Now a ribbed filter canister BELOW the sump (domed front with
+  a centre bolt, three ribs, rear plate), and the horn into the carb
+  throat is a registered ARTERY with surface-fitment asserts at both
+  ends.
+- **INTAKE PIPES ARE FLANGED at both ends** — a tapered boss where they
+  leave the sump, a collar where they enter the head port. A bare tube
+  punching a wall "was not at the level of the rest" (user), and it
+  wasn't.
+- **COOLANT RAILS** (the "terribly messy" per-head hoses revised): each
+  bank's head bosses feed ONE rail running along the head crowns — the
+  912's own scheme — and a single hose per side drops to its radiator
+  tank; the return goes tank -> pump boss. Two hoses instead of four, no
+  more spaghetti over the case. Check: coolant arteries are per-BANK now
+  (coolantL/R, rail -> tank fitment).
+- **radY IS SIGNED**: positive stands the radiator above the case by
+  that gap, negative hangs it under the sump — struts, pump boss (flips
+  to the sump bottom), hose and return routing all follow the side. New
+  battery case 'liquid, rad below'.
+
+### G24.12 — NEW DEFAULTS, THE INLINE FAMILY, THE EXPOSED FILTER
+### (2026-08-26, user rulings)
+
+- **DEFAULTS**: 14 barrel fins, 8 head fins, density 2, stagger 0.5 (the
+  hero bench runs rich by ruling; the LOD rungs keep the game budget).
+  The check's quality-monotone and budget asserts re-anchored (budget now
+  an explicit q1 build; ceiling 24k -> 30k for the fin counts).
+- **rockerR IS CLAMPED** to 0.48x the smaller cover side — past half the
+  height the corner circles overlap and the outline self-intersects
+  (user report at >0.3).
+- **PRESETS AUDITED** against manufacturers' bore/stroke (comment in the
+  page carries the table); 912 corrected to 79.5 mm bore (1211 cc).
+- **THE INLINE FAMILY EXISTS — for two-strokes** (a four-stroke inline
+  needs its own valvetrain dress and refuses loudly). The cylinder frame
+  now comes straight from engResolve's angle rule (dir = [sin a, cos a]),
+  so vertical cylinders reuse every builder; inline specifics: forward-
+  facing exhaust ports into flank-wrapped expansion chambers (alternating
+  sides on a twin), dome plugs side by side, single coolant rail, no
+  intake risers (a two-stroke breathes through its case — now true for
+  flat 2Ts too). TRUE REGISTRY PRESETS: rotax 277 (0.28 L derived) and
+  rotax 582 (0.58 L, liquid, geared). Honest note: resolve's BMEP model
+  runs optimistic on small two-strokes (277 reads 27 kW vs 21) — that is
+  the physics fiche's domain, not the mesh's.
+  The zNose stub-preference yields to pad coverage when a big bore needs
+  the room (IO-360, caught by the pad assert immediately).
+- **THE FILTER ELEMENT IS EXPOSED** (user: it is what shows through the
+  nose cowl IRL): chromed end caps and an orange PLEATED element
+  (`emFilter`, pleat count on the governor) between them.
+
+### G24.13 — EXCLUSIVE INDUCTION, THE COMPAT TABLE, VW COVERS,
+### THE GEARBOX THAT MATTERS (same day)
+
+- **INJECTION AND CARBURETTOR ARE EXCLUSIVE** (user: "right?" — right):
+  one `induction` dropdown; injection swaps the float bowl for a SERVO
+  body, keeps the throttle arm, air filter and fuel-inlet boss, and adds
+  the spider. Meaningless on a two-stroke, so ignored there.
+- **OPTION COMPATIBILITY IS ONE RESOLVED BLOCK** at the top of the
+  builder (`inj`, `below`): injection exclusivity, two-stroke = no
+  valvetrain/no risers/carb only, liquid = no fins, inline = expansion
+  exhausts, radiator side moves the whole circuit. Audited and commented
+  in place.
+- **RADIATOR BELOW -> COOLANT CIRCUIT BELOW** (user): flat bosses exit
+  the head UNDERSIDE, the rails and hoses follow.
+- **THE GEARBOX READS NOW**: fat two-step bell, rib rings, bolt circle
+  (it was "insignificant"). NOTE: the 912 photo's same-side pair is one
+  BANK of the boxer — already what we build, no new layout.
+- **BARREL FIN SHAPE dropdown**: discs or square plates (912 style).
+- **VW BANK COVERS** (`rockerSpan`): the rocker builder extracted and
+  dispatched per cylinder OR one WIDE cover per bank — the VW conversion
+  wears one gold cover over both cylinders, 8 screws. VW preset carries
+  it.
+- **THE ALTERNATOR LOOKS LIKE ONE**: cooling-slot ring behind the
+  pulley; panel label renamed.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

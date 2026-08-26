@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!--
+  ENGINE — the standalone engine-mesh bench (G24). The FLAT family, dressed:
+  finned barrels, rocker covers, pushrod tubes, intake risers, exhaust,
+  magnetos + plug leads, carb, tube mount and firewall — all procedural, all
+  ratios of bore/caseR, density governed by one dial.
+
+  _eng_mesh.js is the module (verdict: node tools/_eng_mesh_check.js);
+  _eng_gen.js underneath is the physics the cowl already trusts. This page is
+  cage7's editor chrome on a bench of its own.
+
+  Serve from repo root (launch: flydiy-node) and open /flyDiy/tools/_engine.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — engine bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;
+    overflow-x:hidden;padding:10px;width:340px;flex:none;
+    resize:horizontal;direction:rtl;min-width:240px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  .leg{display:flex;gap:5px;align-items:center;margin:3px 0}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    white-space:pre;line-height:1.5}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+</style>
+
+<header>
+  <h1>engine — the flat family, dressed</h1>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="color" checked> sections</label>
+  <button id="resetBtn">reset</button>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_eng_gen.js"></script>
+<script src="_eng_mesh.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const EMOD = window.ENG_MESH, EG = window.ENG_GEN;
+
+/* ---- the palette: realistic when `sections` is on, plain steel when off.
+   One colour per module material, so the legend is the parts list. */
+const COL = {
+  emCase: '#8d949c', emRidge: '#7b828a', emSump: '#6a7078', emAcc: '#666d75',
+  emPad: '#79818a',
+  emBarrel: '#4a5058', emFin: '#585f67', emHead: '#9aa3ad', emRocker: '#b9a659',
+  emRod: '#a3abb4', emIntake: '#7a8a5f', emExhaust: '#4b4844',
+  emPlug: '#d8dde4', emCeramic: '#e9e4d8', emLead: '#31363d',
+  emMag: '#4a525b', emMagCap: '#2e343b',
+  emGen: '#59616a', emOil: '#c9a227', emCarb: '#7f8087', emAir: '#9ba3ab',
+  emFilter: '#b0512b',
+  emSpider: '#a08c4a', emFlange: '#c3cad2', emMount: '#2f6f3f',
+  emPuck: '#1d2126', emFirewall: '#aab3bd', emMark: '#22262b',
+  emFuel: '#b04a3a', emThrottle: '#20242a',
+};
+const NEUTRAL = '#8d949c';
+
+/* ---- parameters ---------------------------------------------------------
+   One dict drives engResolve AND the visual builder; unknown keys ride
+   through, which is the module's own contract. */
+const ENG_KEYS = { bore: 1, stroke: 1, rpm: 1, cyl: 1, finN: 1, finR: 1 };
+const DEFAULTS = Object.assign(
+  { bore: EG.ENG_DEFAULT.bore, stroke: EG.ENG_DEFAULT.stroke,
+    rpm: EG.ENG_DEFAULT.rpm, cyl: 4, finN: EG.ENG_DEFAULT.finN,
+    finR: EG.ENG_DEFAULT.finR,
+    // the architecture axes are engResolve's OWN flags — mass and power
+    // in the readout follow them because the physics reads the same dict
+    twoStroke: EG.ENG_DEFAULT.twoStroke, liquid: EG.ENG_DEFAULT.liquid,
+    geared: EG.ENG_DEFAULT.geared, arch: 'flat', finN: 14 },
+  JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
+let P = JSON.parse(JSON.stringify(DEFAULTS));
+
+const IN = 0.0254;
+// bore/stroke are the manufacturers' (audited G24.12): A-65 3.875x3.625in,
+// O-200 4.0625x3.875in, IO-360 5.125x4.375in, Jabiru 97.5x74, VW 2180
+// 92x82 (=2180cc), 912 79.5x61 (=1211cc), 277 72x68 (=277cc), 582 76x64
+// (=581cc)
+const PRESETS = {
+  'continental A-65': {},
+  'continental O-200': { bore: 4.0625 * IN, stroke: 3.875 * IN, rpm: 2750 },
+  'lycoming IO-360': { bore: 5.125 * IN, stroke: 4.375 * IN, rpm: 2700,
+    injected: 1, rodPos: 1 },
+  'jabiru 2200': { bore: 0.0975, stroke: 0.074, rpm: 3300 },
+  'VW 2180': { bore: 0.0922, stroke: 0.0818, rpm: 3200, genOn: 0,
+    rockerSpan: 1 },
+  'flat twin': { cyl: 2 },
+  'flat six': { cyl: 6, exStyle: 2 },
+  'rotax 912 (flat)': { bore: 0.0795, stroke: 0.0611, rpm: 5800,
+    liquid: 1, geared: 1 },
+  'rotax 277': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1,
+    exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
+  'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
+    liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064, rpm: 6500 },
+  'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
+};
+
+const mm = x => (x * 1000).toFixed(0);
+const sFmt = x => x ? x : 'auto';
+const GROUPS = [
+  ['polycount', [
+    ['quality',    'density',      0.3, 2, 0.02],
+    ['sideCyl',    'cyl sides',    0, 32, 2, sFmt],
+    ['sideShaft',  'shaft sides',  0, 32, 2, sFmt],
+    ['sideAcc',    'acc sides',    0, 32, 2, sFmt],
+    ['sidePipe',   'pipe sides',   0, 32, 2, sFmt],
+    ['sideDetail', 'detail sides', 0, 32, 2, sFmt],
+    ['screws',     'screws',       'check'],
+  ]],
+  ['engine', [
+    ['arch',    'layout',    'drop', [['flat', 'flat (boxer)'],
+                                      ['inline', 'inline (2-stroke)']]],
+    ['cyl',     'cylinders', 'drop', [[1, 'single'], [2, 'twin'],
+                                      [4, 'four'], [6, 'six']]],
+    ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
+    ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
+    ['rpm',     'rpm',       1800, 6500, 50],
+    ['stagger', 'stagger',   0, 0.5, 0.01],
+  ]],
+  ['architecture', [
+    ['twoStroke', 'two-stroke',    'check'],
+    ['liquid',    'liquid cooled', 'check'],
+    ['geared',    'gearbox',       'check'],
+  ]],
+  ['cylinder dress', [
+    ['finN',     'barrel fins', 4, 18, 1],
+    ['finR',     'fin dia /b',  1.1, 1.7, 0.01],
+    ['headFins', 'head fins',   0, 10, 1],
+    ['rockerW',  'rocker w /b', 0.6, 1.2, 0.01],
+    ['rockerH',  'rocker h /b', 0.4, 0.9, 0.01],
+    ['rockerR',  'rocker corner', 0.10, 0.40, 0.01],
+    ['rockerBoss', 'boss height', 0, 0.20, 0.01],
+    ['rockerBossW', 'boss size', 0.30, 0.80, 0.01],
+    ['rodPos',   'pushrods',    'drop', [[-1, 'below (Continental)'],
+                                         [1, 'above (Lycoming)']]],
+    ['finShape', 'barrel fin shape', 'drop', [[0, 'discs'],
+                                              [1, 'square (912)']]],
+    ['rockerSpan', 'bank rocker cover', 'check'],
+    ['baseFins', 'barrel fins on', 'check'],
+  ]],
+  ['induction + exhaust', [
+    ['injected','induction',  'drop', [[0, 'carburettor'],
+                                       [1, 'fuel injection']]],
+    ['airbox',  'air filter', 'check'],
+    ['intake',  'intake risers', 'check'],
+    ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
+                                       [2, 'collector'], [3, 'expansion']]],
+    ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
+  ]],
+  ['ignition + accessories', [
+    ['leads',   'plug leads', 'check'],
+    ['leadR',   'lead r /b',  0.02, 0.06, 0.002],
+    ['mags',    'magnetos',   'check'],
+    ['genOn',   'alternator', 'check'],
+    ['oilFill', 'oil filler', 'check'],
+  ]],
+  ['radiator (liquid)', [
+    ['radX', 'lateral',   -1.0, 1.0, 0.02],
+    ['radY', 'height +/-', -1.5, 1.6, 0.02],
+    ['radZ', 'fore-aft',  -0.5, 2.5, 0.02],
+    ['radW', 'width',     1.2, 3.5, 0.02],
+    ['radH', 'core height', 0.4, 1.6, 0.02],
+    ['radD', 'depth',     0.2, 0.8, 0.02],
+  ]],
+  ['mount + firewall', [
+    ['mount',    'mount',      'check'],
+    ['mountX',   'diagonals',  'check'],
+    ['mountGap', 'stand-off',  0.4, 2.0, 0.01],
+    ['fwOn',     'firewall',   'check'],
+    ['fwW',      'fw width m', 0.4, 1.4, 0.01, x => x.toFixed(2)],
+    ['fwH',      'fw height m', 0.4, 1.4, 0.01, x => x.toFixed(2)],
+    ['fwSpread', 'fw spread',  1.1, 2.2, 0.01],
+    ['ruler',    'metre strip', 'check'],
+    ['plumb',    'fuel+throttle', 'check'],
+  ]],
+];
+
+/* ---- scene -------------------------------------------------------------- */
+let renderer, scene, camera, root, gridGrp;
+const view = $('view');
+renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+camera = new THREE.PerspectiveCamera(38, 1, 0.01, 200);
+const keyL = new THREE.DirectionalLight(0xfff3e2, 1.9);
+keyL.position.set(3, 5, 4); scene.add(keyL);
+const fillL = new THREE.DirectionalLight(0x9fc4dd, 0.8);
+fillL.position.set(-4, 1, -3); scene.add(fillL);
+const rimL = new THREE.DirectionalLight(0xffffff, 0.6);
+rimL.position.set(0, -3, -5); scene.add(rimL);
+scene.add(new THREE.HemisphereLight(0x6a7480, 0x14161a, 0.6));
+root = new THREE.Group(); scene.add(root);
+gridGrp = new THREE.Group(); scene.add(gridGrp);
+
+let yaw = -0.85, pitch = 0.24, dist = 1.6;
+const tgt = new THREE.Vector3(0, 0, -0.25);
+function place() {
+  camera.position.set(tgt.x + dist * Math.cos(pitch) * Math.sin(yaw),
+                      tgt.y + dist * Math.sin(pitch),
+                      tgt.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(tgt);
+}
+let drag = null, lx = 0, ly = 0;
+renderer.domElement.addEventListener('pointerdown', e => {
+  drag = (e.shiftKey || e.button === 2 || e.button === 1) ? 'pan' : 'orb';
+  lx = e.clientX; ly = e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+  if (drag === 'orb') { yaw -= dx * 0.006; pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.006)); }
+  else {
+    const rt = new THREE.Vector3().subVectors(camera.position, tgt)
+      .cross(new THREE.Vector3(0, 1, 0)).normalize();
+    tgt.addScaledVector(rt, -dx * dist * 0.0016);
+    tgt.addScaledVector(new THREE.Vector3(0, 1, 0), dy * dist * 0.0016);
+  }
+  place();
+});
+addEventListener('pointerup', () => drag = null);
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+renderer.domElement.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(0.05, Math.min(40, dist * (1 + Math.sign(e.deltaY) * 0.10)));
+  place();
+}, { passive: false });
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', () => { resize(); place(); });
+
+/* ---- mesh -> THREE (cage7's meshFrom / quadWire conventions) ------------ */
+const matCache = {};
+/* not everything is polished aluminium: pipes are scaled steel, leads and
+   pucks are rubber — kill the metallic bloom that read exhaust as brass */
+const PROPS = {
+  emCeramic: [0.02, 0.32], emFilter: [0.0, 0.85], emAir: [0.85, 0.30],
+  emExhaust: [0.30, 0.72], emLead: [0.05, 0.90], emPuck: [0.05, 0.95],
+  emFuel: [0.10, 0.80], emThrottle: [0.10, 0.90], emIntake: [0.40, 0.60],
+  emFirewall: [0.75, 0.35], emAir: [0.30, 0.70],
+};
+const COLUSER = {};      // the pickers' overrides (rocker gold, case paint)
+const colOf = name => COLUSER[name] || COL[name] || NEUTRAL;
+const matOf = name => {
+  const col = $('color').checked ? colOf(name) : NEUTRAL;
+  const [met, rgh] = PROPS[name] || [0.55, 0.5];
+  const key = name + '_' + col;
+  if (!matCache[key])
+    matCache[key] = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(col), metalness: met, roughness: rgh,
+      side: THREE.DoubleSide });
+  return matCache[key];
+};
+function meshFrom(m) {
+  const pos = new Float32Array(m.V.length * 3);
+  m.V.forEach((p, i) => { pos[i*3] = p[0]; pos[i*3+1] = p[1]; pos[i*3+2] = p[2]; });
+  const byMat = new Map();
+  m.F.forEach(f => {
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    const t = byMat.get(f.m);
+    t.push(f.v[0], f.v[1], f.v[2], f.v[0], f.v[2], f.v[3]);
+  });
+  const idx = [], mats = [], groups = [];
+  for (const [name, tris] of byMat) {
+    groups.push([idx.length, tris.length, mats.length]);
+    for (const i of tris) idx.push(i);
+    mats.push(name);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, mats.map(matOf));
+}
+// QUAD wireframe — the real face cycles, one LineSegments per material
+function quadWire(m) {
+  const g = new THREE.Group();
+  const byMat = new Map();
+  for (const f of m.F) {
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    byMat.get(f.m).push(f);
+  }
+  for (const [name, faces] of byMat) {
+    const seen = new Set(), pos = [];
+    for (const f of faces)
+      for (let k = 0; k < 4; k++) {
+        const a = f.v[k], b = f.v[(k + 1) % 4];
+        if (a === b) continue;
+        const key = a < b ? a + '_' + b : b + '_' + a;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pos.push(...m.V[a], ...m.V[b]);
+      }
+    if (!pos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+      color: new THREE.Color($('color').checked ? colOf(name) : '#5d6673') })));
+  }
+  return g;
+}
+
+/* ---- rebuild ------------------------------------------------------------ */
+let MESH = null, fitDone = false;
+function rebuild() {
+  while (root.children.length) {
+    const o = root.children[0];
+    o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    root.remove(o);
+  }
+  MESH = EMOD.engMeshBuild(P);
+  root.add($('wire').checked ? quadWire(MESH) : meshFrom(MESH));
+
+  const R = MESH.resolved, e = R.env;
+  // the ground under the bench: under the LOWEST THING BUILT (an exhaust
+  // stack drops below the envelope), not under the envelope
+  while (gridGrp.children.length) gridGrp.remove(gridGrp.children[0]);
+  let yMin = 0;
+  for (const p of MESH.V) if (p[1] < yMin) yMin = p[1];
+  const span = Math.max(e.width, e.height, e.length) * 2.6;
+  const grid = new THREE.GridHelper(span, 26, 0x3a424c, 0x22272e);
+  grid.position.y = yMin - 0.02 * span;
+  grid.position.z = e.z0 * 0.5;
+  gridGrp.add(grid);
+
+  if (!fitDone) {
+    dist = 2.7 * Math.max(e.radius, e.length * 0.55);
+    tgt.set(0, -0.05 * e.height, e.z0 * 0.45);
+    fitDone = true;
+    place();
+  }
+  $('stat').textContent =
+    R.archName + ' ' + R.cyl + ' — ' + R.litres.toFixed(2) + ' L  ' +
+    (R.powerW / 1000).toFixed(1) + ' kW  ' + R.mass.toFixed(0) + ' kg\n' +
+    MESH.stats.verts + ' v  ' + MESH.stats.quads + ' q  ' +
+    (MESH.stats.tris / 1000).toFixed(1) + 'k tris\n' +
+    MESH.arteries.length + ' lines  edge ' + (MESH.edgeTarget * 1000).toFixed(0) + ' mm';
+}
+
+/* ---- panel -------------------------------------------------------------- */
+let curPreset = 'continental A-65';
+function buildPanel() {
+  const ui = $('ui');
+  ui.innerHTML = '';
+
+  const pr = document.createElement('div');
+  pr.className = 'r';
+  pr.innerHTML = '<span class="k">preset</span>';
+  const sel = document.createElement('select');
+  for (const k of Object.keys(PRESETS)) {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k;
+    sel.appendChild(o);
+  }
+  sel.value = curPreset;      // the select survives its own rebuild
+  sel.onchange = () => {
+    curPreset = sel.value;
+    P = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), PRESETS[sel.value]);
+    fitDone = false;
+    buildPanel(); rebuild();
+  };
+  pr.appendChild(sel);
+  ui.appendChild(pr);
+
+  // LOD recipes: applying one just sets the polycount group's sliders —
+  // same builder, same routing, only the numbers move
+  const lr = document.createElement('div');
+  lr.className = 'r';
+  lr.innerHTML = '<span class="k">LOD</span>';
+  const lsel = document.createElement('select');
+  for (const L of EMOD.ENGM_LODS) {
+    const o = document.createElement('option');
+    o.value = L.name; o.textContent = L.name;
+    lsel.appendChild(o);
+  }
+  lsel.onchange = () => {
+    const L = EMOD.ENGM_LODS.find(x => x.name === lsel.value);
+    Object.assign(P, JSON.parse(JSON.stringify(L.set)));
+    buildPanel(); rebuild();
+  };
+  lr.appendChild(lsel);
+  ui.appendChild(lr);
+
+  for (const [gname, rows] of GROUPS) {
+    const det = document.createElement('details');
+    det.open = true;
+    const sum = document.createElement('summary');
+    sum.textContent = gname;
+    det.appendChild(sum);
+    for (const row of rows) {
+      const [key, label, mn, mx, st, fmt] = row;
+      const r = document.createElement('div');
+      r.className = 'r';
+      const k = document.createElement('span');
+      k.className = 'k'; k.textContent = label;
+      r.appendChild(k);
+      if (mn === 'check') {              // two-state knob = a tick box
+        const inp = document.createElement('input');
+        inp.type = 'checkbox';
+        inp.checked = !!P[key];
+        inp.onchange = () => { P[key] = inp.checked ? 1 : 0; rebuild(); };
+        r.appendChild(inp);
+      } else if (mn === 'drop') {        // discrete choice = a dropdown
+        const sel2 = document.createElement('select');
+        for (const [val2, lab2] of mx) {
+          const o = document.createElement('option');
+          o.value = String(val2); o.textContent = lab2;
+          sel2.appendChild(o);
+        }
+        sel2.value = String(P[key]);
+        sel2.onchange = () => {
+          const vv = parseFloat(sel2.value);
+          P[key] = isNaN(vv) ? sel2.value : vv;    // 'flat'/'inline' are strings
+          rebuild();
+        };
+        r.appendChild(sel2);
+      } else {
+        const inp = document.createElement('input');
+        inp.type = 'range'; inp.min = mn; inp.max = mx; inp.step = st;
+        inp.value = P[key];
+        const val = document.createElement('span');
+        val.className = 'v';
+        const show = () => val.textContent = fmt ? fmt(+inp.value) : (+inp.value);
+        show();
+        inp.oninput = () => { P[key] = +inp.value; show(); rebuild(); };
+        r.appendChild(inp); r.appendChild(val);
+      }
+      det.appendChild(r);
+    }
+    ui.appendChild(det);
+  }
+
+  const fh = document.createElement('h2');
+  fh.textContent = 'finish';
+  ui.appendChild(fh);
+  for (const [key, label] of [['emRocker', 'rocker colour'],
+                              ['emCase', 'case colour']]) {
+    const r = document.createElement('div');
+    r.className = 'r';
+    r.innerHTML = '<span class="k">' + label + '</span>';
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = COLUSER[key] || COL[key];
+    inp.oninput = () => { COLUSER[key] = inp.value; rebuild(); };
+    r.appendChild(inp);
+    ui.appendChild(r);
+  }
+
+  const h = document.createElement('h2');
+  h.textContent = 'sections';
+  ui.appendChild(h);
+  for (const [name, col] of Object.entries(COL)) {
+    const l = document.createElement('div');
+    l.className = 'leg';
+    l.innerHTML = '<span class="sw" style="background:' + col + '"></span>' +
+      name.replace(/^em/, '').toLowerCase();
+    ui.appendChild(l);
+  }
+}
+
+/* ---- OBJ export --------------------------------------------------------- */
+$('objBtn').onclick = () => {
+  if (!MESH) return;
+  const L = ['# flyDiy engine bench'];
+  for (const p of MESH.V)
+    L.push('v ' + p[0].toFixed(6) + ' ' + p[1].toFixed(6) + ' ' + p[2].toFixed(6));
+  let mat = null;
+  for (const f of MESH.F) {
+    if (f.m !== mat) { mat = f.m; L.push('usemtl ' + mat); }
+    const q = [...new Set(f.v)];                    // repeated vert = triangle
+    L.push('f ' + q.map(i => i + 1).join(' '));
+  }
+  const blob = new Blob([L.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'engine.obj';
+  a.click();
+};
+
+$('resetBtn').onclick = () => {
+  P = JSON.parse(JSON.stringify(DEFAULTS));
+  fitDone = false;
+  buildPanel(); rebuild();
+};
+$('wire').onchange = rebuild;
+$('color').onchange = rebuild;
+
+buildPanel();
+resize();
+rebuild();
+place();
+(function tick() { requestAnimationFrame(tick); renderer.render(scene, camera); })();
+
+/* bench debug handles (the make_probe precedent: the closure is otherwise
+   sealed) — lets a headless session drive the camera and pump a frame out */
+window.__eng = {
+  P: () => P,
+  set(k, val) { P[k] = val; rebuild(); },
+  wire(on) { $('wire').checked = !!on; rebuild(); },
+  view(y, p, d, t) {
+    if (y != null) yaw = y; if (p != null) pitch = p; if (d != null) dist = d;
+    if (t) tgt.set(t[0], t[1], t[2]);
+    place();
+  },
+  shot(url) {
+    renderer.render(scene, camera);
+    return fetch(url, { method: 'POST',
+      body: renderer.domElement.toDataURL('image/png') }).then(r => r.text());
+  },
+};
+</script>

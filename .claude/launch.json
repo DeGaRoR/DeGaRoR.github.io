@@ -104,6 +104,15 @@
         "8126"
       ],
       "port": 8126
+    },
+    {
+      "name": "flydiy-node5",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8127"
+      ],
+      "port": 8127
     }
   ]
 }
