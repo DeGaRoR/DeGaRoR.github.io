@@ -31,6 +31,16 @@
 // game's flap and aileron bands, hinge lines and spar stations — the P2
 // reservation is inherited, not re-implemented.
 //
+// G34 (the G30 recorded list, the technical three):
+//   STRUCTURE — spars, ribs, carry-through and the strut fan live in the
+//   game's `frame` group (every internal beam); the binding filter finds
+//   them with a >=1-vertex rule, and the display joins the view panel's
+//   three-family transparency ruling: covering fades with `fuselage α`,
+//   structure with `structure α`.
+//   STRUTS — the root re-homes onto the LIVE cage surface (nearest point
+//   at its own station), carried per-vertex by binding.
+//   MASS/CG — the generator's own ledger + the wing's own nodes, as %MAC.
+//
 // Load after _gear_gen (airframe contract) and the game core scripts;
 // before _cage_ui. Chains PAGE.post.
 'use strict';
@@ -128,6 +138,7 @@ const COLS = {
   liftstrut: 0x8fa3b8,
   pitot: 0x7d8792,
   glassC: 0x9fc6e0,
+  struct: 0x5a6470,       // = the game's own frame paint
 };
 const MAT = {
   main:  mk(COLS.main, 0.05, 0.55),
@@ -139,10 +150,30 @@ const MAT = {
   flapL: mk(COLS.flapL, 0.05, 0.55),
   liftstrut: mk(COLS.liftstrut, 0.45, 0.35),
   pitot: mk(COLS.pitot, 0.45, 0.42),
+  struct: mk(COLS.struct, 0.30, 0.55),
+};
+// THE WING JOINS THE THREE-FAMILY TRANSPARENCY RULING (G34; the ruling is
+// the view panel's, 2026-08-19): the covering — main skin, regions,
+// ailerons, flaps — is EXTERIOR SKIN and fades with `fuselage α`; the
+// internal structure below fades with `structure α`. Struts and the pitot
+// are external hardware and stay solid (the rod rule: fading the skin
+// must leave the visible structure standing). Same transparent/opacity/
+// depthWrite treatment as the cage's own matOf, so the two skins fade as
+// one surface.
+const setA = (m, a) =>
+  { m.transparent = a < 1; m.opacity = a; m.depthWrite = a >= 1; };
+const applyView = () => {
+  const VW = window.CAGE_VIEW || {};
+  const aSkin = VW.bodyA != null ? VW.bodyA : 1;
+  const aStr = VW.structA != null ? VW.structA : 1;
+  for (const nm of ['main', 'centre', 'tip', 'ailR', 'ailL', 'flapR', 'flapL'])
+    setA(MAT[nm], aSkin);
+  setA(MAT.struct, aStr);
 };
 const glassMat = () => {
-  const a = (window.CAGE_VIEW && window.CAGE_VIEW.glassA != null)
-    ? window.CAGE_VIEW.glassA : 0.35;
+  const VW = window.CAGE_VIEW || {};
+  const a = Math.min(VW.glassA != null ? VW.glassA : 0.35,
+                     VW.bodyA != null ? VW.bodyA : 1);
   return new THREE.MeshStandardMaterial({
     color: COLS.glassC, metalness: 0.05, roughness: 0.15, side: D2,
     transparent: true, opacity: a, depthWrite: false });
@@ -183,7 +214,13 @@ function bodyFrameOf(def) {
 // [a,b,c],[a,c,d] — detected here so the wireframe draws QUAD edges (the
 // page's own ruling: the wireframe shows topology, not triangulation)
 // and the classifier sees whole primitives.
-function pickParts(g, keep, toCage, classOf) {
+// `mode` (G34): 'all' (default) keeps a face when EVERY vertex passes —
+// the skin filter, which must cut exactly at the wing boundary. 'any'
+// keeps it when ONE does — the structure filter, where a carry-through
+// or fan tube binds one end to a fuselage node and demanding every
+// vertex would drop the whole member. toCage receives the ORIGINAL
+// vertex index too, so a caller can move vertices by what they bind to.
+function pickParts(g, keep, toCage, classOf, mode) {
   const nv = g.nv, ok = new Uint8Array(nv);
   for (let i = 0; i < nv; i++) ok[i] = keep(i) ? 1 : 0;
   const out = {};                     // class -> {map,pos,idx,wpos,eseen}
@@ -193,7 +230,7 @@ function pickParts(g, keep, toCage, classOf) {
   const raw = i => [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]];
   const vtx = (B2, i) => {
     if (B2.map[i] < 0) {
-      const p = toCage(raw(i));
+      const p = toCage(raw(i), i);
       B2.map[i] = B2.pos.length / 3;
       B2.pos.push(p[0], p[1], p[2]);
     }
@@ -203,7 +240,7 @@ function pickParts(g, keep, toCage, classOf) {
     const key = a < b ? a + '_' + b : b + '_' + a;
     if (B2.eseen.has(key)) return;
     B2.eseen.add(key);
-    const A = toCage(raw(a)), C = toCage(raw(b));
+    const A = toCage(raw(a), a), C = toCage(raw(b), b);
     B2.wpos.push(A[0], A[1], A[2], C[0], C[1], C[2]);
   };
   const idxA = g.idx;
@@ -214,7 +251,8 @@ function pickParts(g, keep, toCage, classOf) {
       idxA[t+3] === a && idxA[t+4] === c;
     const vs = isQuad ? [a, b, c, idxA[t+5]] : [a, b, c];
     t += isQuad ? 6 : 3;
-    if (vs.some(i => !ok[i])) continue;
+    if (mode === 'any' ? !vs.some(i => ok[i]) : vs.some(i => !ok[i]))
+      continue;
     const cen = [0, 0, 0];
     for (const i of vs) {
       const p = raw(i);
@@ -328,13 +366,13 @@ PAGE.post = ctx => {
       : deckY + 0.01;                                     // high: the deck
   }
   const dx = P.wgDx || 0, dy = P.wgDy || 0;
-  // body (x aft, z lateral) -> cage (z forward, x lateral, y shared)
-  const toCage = p0 => {
-    const p = toBody(p0);
-    return [p[2],
-            yAnchor + (p[1] - refP[1]) + dy,
-            zCab - (p[0] - refP[0]) + dx];
-  };
+  // body (x aft, z lateral) -> cage (z forward, x lateral, y shared).
+  // bodyToCage maps a point ALREADY in the body frame (a def node);
+  // toCage first undoes the rest transform the emitted skin went through.
+  const bodyToCage = p => [p[2],
+                           yAnchor + (p[1] - refP[1]) + dy,
+                           zCab - (p[0] - refP[0]) + dx];
+  const toCage = p0 => bodyToCage(toBody(p0));
 
   // wing verts bind to spar nodes ONLY; a face is wing iff all its verts do
   const G_INFL = typeof GEN_INFL === 'number' ? GEN_INFL : 4;
@@ -349,6 +387,58 @@ PAGE.post = ctx => {
     }
     return any;
   };
+
+  // STRUTS ROOT ON THE CAGE (G34; the G30 honest divergence, closed).
+  // The game's strut root is a frame corner of the fuselage it generated
+  // and DISCARDED — visually close at trim 0, adrift with it. The fitting
+  // belongs on the live skin: project the root node to the nearest cage
+  // surface point at its own station (angle guess from the section's
+  // normalised coords, then a shrinking bracket — the section radius is
+  // not polar-uniform), and carry every vertex BOUND to that node by the
+  // same delta. A tube vertex binds exclusively to its end node, so the
+  // root ring, its cap, AND the internal fan members that converge there
+  // all move together; the wing end never moves.
+  const rootDelta = new Map();
+  if (AF && def.parts.bracing === 'strut') {
+    const prj = pt => {
+      const zs2 = Math.max(AF.z0 + 0.05, Math.min(AF.z1 - 0.05, pt[2]));
+      const u = pt[0] / Math.max(0.05, AF.halfWAt(zs2));
+      const v = (pt[1] - AF.cyAt(zs2)) / Math.max(0.05, AF.heightAt(zs2));
+      let ang = Math.atan2(u, -v), span = Math.PI / 6, best = null;
+      for (let it = 0; it < 3; it++) {
+        let bd = Infinity;
+        for (let k = -4; k <= 4; k++) {
+          const a2 = ang + span * k / 4, s = AF.surf(zs2, a2);
+          const d = (s[0]-pt[0])*(s[0]-pt[0]) + (s[1]-pt[1])*(s[1]-pt[1]);
+          if (d < bd) { bd = d; best = [a2, s]; }
+        }
+        ang = best[0]; span /= 4;
+      }
+      return best[1];
+    };
+    for (const sd of ['L', 'R']) {
+      const side = wf[sd];
+      if (!side || side.strutRoot == null) continue;
+      const p = bodyToCage(N2[side.strutRoot].p);
+      const s = prj(p);
+      rootDelta.set(side.strutRoot,
+                    [s[0]-p[0], s[1]-p[1], s[2]-p[2]]);
+    }
+  }
+  const withRoots = g => (p, i) => {
+    const q = toCage(p);
+    if (i != null && rootDelta.size)
+      for (let k = 0; k < G_INFL; k++) {
+        const w = g.ww[i * G_INFL + k];
+        if (w > 1e-6) {              // w1 binding: first hit is THE node
+          const d = rootDelta.get(g.wi[i * G_INFL + k]);
+          if (d) { q[0] += d[0]; q[1] += d[1]; q[2] += d[2]; }
+          break;
+        }
+      }
+    return q;
+  };
+  applyView();
 
   group = new THREE.Group();
   const WIRE = !!(document.getElementById('wire') &&
@@ -395,10 +485,37 @@ PAGE.post = ctx => {
       group.add(o);
     }
   }
+  // WING STRUCTURE (G34, the G30 note): spars, ribs, carry-through and
+  // the strut fan are the `frame` group's wing-bound faces — the same
+  // binding filter, with the >=1-vertex rule (a carry-through tube binds
+  // one end to a fuselage node; its far cap drops, open inside the body).
+  // The node set gains the cantilever box's lower caps (FB/RB), which the
+  // skin filter never needs — the covering binds to the upper spars alone.
+  const WNS = new Set(WN);
+  for (const side of [wf.L, wf.R]) if (side)
+    for (const arr of [side.FB, side.RB]) if (arr)
+      for (const i of arr) WNS.add(i);
+  const structVert = g => i => {
+    for (let k = 0; k < G_INFL; k++)
+      if (g.ww[i * G_INFL + k] > 1e-6)
+        return WNS.has(g.wi[i * G_INFL + k]);
+    return false;
+  };
+  let structFaces = 0;
+  if (gs.frame) {
+    const parts = pickParts(gs.frame, structVert(gs.frame),
+                            withRoots(gs.frame), null, 'any');
+    if (parts.x) {
+      group.add(WIRE ? new THREE.LineSegments(parts.x.wire, wireMat('struct'))
+                     : new THREE.Mesh(parts.x.geo, MAT.struct));
+      structFaces = parts.x.geo.index.count / 3;
+    }
+  }
   const yes = () => true;
   for (const nm of ['liftstrut', 'pitot'])
     if (gs[nm]) {
-      const parts = pickParts(gs[nm], yes, toCage, null);
+      const parts = pickParts(gs[nm], yes,
+        nm === 'liftstrut' ? withRoots(gs[nm]) : toCage, null);
       if (parts.x) group.add(WIRE
         ? new THREE.LineSegments(parts.x.wire, wireMat(nm))
         : new THREE.Mesh(parts.x.geo, MAT[nm]));
@@ -417,13 +534,41 @@ PAGE.post = ctx => {
     }
   scene.add(group);
 
-  window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
-                       skinFaces: faces, anchor: { zCab, yAnchor }, group };
+  // MASS & CG (G34): the mass is the generator's OWN ledger — the `wings`
+  // section plus `bracing`, which only the wing opens (61_gen_frame.js) —
+  // so it carries the spars, box or fan, ribs, covering and struts with
+  // no second bookkeeping to drift. The CG sums the wing's own nodes
+  // (WNS: spar caps, box caps — ribs and covering are billed onto them),
+  // clean of payload because the default spec keeps fuel in the NOSE tank
+  // (a wing/panel tank would land on the spar roots — declared here so
+  // a future tank dropdown knows to revisit). Reported as %MAC off the
+  // spec's own cBar/xAC: the numbers P3's declared join will read.
+  const led = def.parts.ledger || {};
+  const wMass = ((led.wings && led.wings.mass) || 0) +
+                ((led.bracing && led.bracing.mass) || 0);
+  let cgx = 0, cgm = 0;
+  for (const i of WNS) { const n = N2[i]; cgx += n.p[0] * n.m; cgm += n.m; }
+  const g2 = def.spec.geom || {};
+  const cgMac = cgm > 0 && g2.cBar
+    ? 0.25 + (cgx / cgm - g2.xAC) / g2.cBar : null;
+
+  window.CAGE_WING = { def, semi: g2.semi,
+                       skinFaces: faces, structFaces,
+                       massKg: wMass, cgMac,
+                       strutRoots: [...rootDelta.keys()].map(id => {
+                         const d = rootDelta.get(id), p = bodyToCage(N2[id].p);
+                         return { id, at: [p[0]+d[0], p[1]+d[1], p[2]+d[2]] };
+                       }),
+                       anchor: { zCab, yAnchor }, group };
   if (stat) {
-    const g2 = def.spec.geom || {};
-    stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +
+    stat.textContent += '  ·  wing: ' +
+      (g2.Sw ? g2.Sw.toFixed(1) + ' m2 · ' : '') +
       'span ' + P.wgSpan.toFixed(1) + ' · ' +
-      (gspec.wings[0].position) + '/' + gspec.bracing.type;
+      wMass.toFixed(0) + ' kg · ' +
+      (cgMac != null ? 'cg ' + (100 * cgMac).toFixed(0) + '% mac · ' : '') +
+      // the BUILT bracing, not the requested one — the game's substitution
+      // rule (a cranked or short-offset wing gets the box) is never silent
+      (gspec.wings[0].position) + '/' + def.parts.bracing;
   }
 };
 })();

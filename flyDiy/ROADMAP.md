@@ -62,7 +62,7 @@ option, not as a gate.
 | Fin + stabiliser | `_cage7.html` (G22, G23) | DONE, integrated |
 | Engine, dressed, all ten registry families + electric | `_engine.html` (G24, G25) | DONE, **not integrated** |
 | Rod & pod (taper section, rod boom, tail pod) | G26, `_cage8.html` | IN PROGRESS — rod in, pod remaining |
-| Wings | game-side only (`src/core/6x_gen_*`) | not in the bench |
+| Wings | `_cage_wing.js` over the game's `6x_gen_*` (G30-G34) | IN THE BENCH — outline/creases rework remains (user) |
 | Fuel / battery / payload systems | — | not started |
 
 ## THE PHASES
@@ -101,8 +101,10 @@ written afterwards inherits it instead of being retrofitted:
 
 **P2 — wings into the bench.** — STARTED 2026-08-26 (G30: the game wing
 verbatim on the cage, binding-filtered extraction, deck/keel anchoring,
-"6 · wings" panel; the rework arc — cage-style outline/creases, struts on
-the cage, structure display — continues with the user).
+"6 · wings" panel; G31 full parameter surfaces; G32 colours/wireframe/
+explode; G34 structure display + struts rooted on the live cage +
+mass/CG as %MAC — the technical rework done. REMAINING, and it closes
+P2: the cage-style outline/creases rework, with the user).
 Import the game's wing generator (`6x_gen_*`) as modules — the G21 move,
 again — and rework outline, tips, crank, sweep and creases in the cage style,
 against the live fuselage the way the fin was built against the live deck.
