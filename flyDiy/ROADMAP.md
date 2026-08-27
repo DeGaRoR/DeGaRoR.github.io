@@ -99,7 +99,10 @@ written afterwards inherits it instead of being retrofitted:
   sharpness, roundness), units in metres after `planeScale`, one sign
   convention stated once (+forward, +up, +pilot's left).
 
-**P2 — wings into the bench.**
+**P2 — wings into the bench.** — STARTED 2026-08-26 (G30: the game wing
+verbatim on the cage, binding-filtered extraction, deck/keel anchoring,
+"6 · wings" panel; the rework arc — cage-style outline/creases, struts on
+the cage, structure display — continues with the user).
 Import the game's wing generator (`6x_gen_*`) as modules — the G21 move,
 again — and rework outline, tips, crank, sweep and creases in the cage style,
 against the live fuselage the way the fin was built against the live deck.

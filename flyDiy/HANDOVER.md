@@ -9451,6 +9451,194 @@ explode stays put (only cone + blades stage forward); no per-build
 caching of the engine mesh (63 ms says not yet needed); pusher
 placement is the G26 roadmap's item, unchanged.
 
+## G30 — THE GAME'S WING ON THE CAGE (2026-08-26, ROADMAP P2 opens)
+
+P2's ruling is "import from the game, and rework from there" — so the
+first chantier imports VERBATIM and re-authors nothing (the G21§5 rule:
+shape is the user's; here the shape is the game wing they already fly).
+
+**THE GAME GENERATOR RUNS INSIDE THE BENCH.** cage8 loads the game's own
+chain (00_registry + 60/60b/61/62/63) as plain scripts — zero top-level
+name collisions between the core's globals and the bench's, checked
+mechanically — and `_cage_wing.js` builds spec.wings from the panel,
+runs resolveSpec → genFrame → genSkin (NOTE: resolveSpec returns
+{spec, auto}, and genSkin wants a def CARRYING the spec — the layer
+assembles {spec, ...frame}), and keeps the WING SUBSET. src/core is
+untouched; the physics contract does not move.
+
+**EXTRACTION IS BY BINDING, NOT BY BOX.** The game fuses the wing
+covering into its whole-aeroplane `skin` group — but every vertex
+carries node influences, and a wing vertex binds EXCLUSIVELY to spar
+nodes (wingSectionAt builds weights from wF/wR alone). WNODES = the
+def's parts.wf ids; a face is wing iff every vertex binds only to
+WNODES. MEASURED on the default: 1840 wing faces, 2810 fuselage faces,
+ZERO mixed — the filter cuts exactly at the boundary, no holes, no
+bleed. liftstrut, pitot, ailR/L (+ flapR/L when a flap type is set)
+come over wholesale — they are wing parts by construction.
+
+**FRAMES.** genSkin emits in the game's REST pose; the layer inverts
+genRestFrame's affine (sampled at basis points) back to the body frame,
+then maps body → cage (game x is AFT, cage z FORWARD, y shared, lateral
+swaps axis). ANCHORING is the fin's own move: root LE at the cage's
+cabin-front ring station, root height on the live deck (high wing,
+measured 0.632 m on the jodel) or the keel band (low, −0.398 m), read
+through the gear module's airframe contract — then fore-aft/height trim
+sliders. No spec-place plumbing: the trims are post-transform, so they
+cannot be cancelled by anchor recomputation (the G29 noseOff lesson,
+applied before it happened).
+
+**THE PANEL** ("6 · wings" — the number the curated tree always
+reserved): position high/low, bracing strut/cantilever, span (metres
+readout), chord, taper, sweep, dihedral, incidence, washout, aerofoil
+(NACA dropdown), tip (GEN_TIPS by name), crank + outer dihedral
+(gated), centre section (high wing only), spar stations, two trims —
+all `when`-gated on wingOn per the G27 grammar.
+
+**STOL IS RESERVED BY CONSTRUCTION**: the imported wing carries the
+game's aileron/flap bands, hinge lines and spar stations — the P2
+reservation is inherited, not re-implemented.
+
+VERIFIED in-browser: zero console errors; extraction purity (above);
+span 12 → semi 6; square tip 1040 faces vs rounded 1840; low/high
+anchors as measured; ailerons/struts/pitot present. NOT DONE (recorded,
+the rework arc): wing structure display (spars/ribs from the `frame`
+group — the same binding filter works there with a ≥1-vertex rule for
+the carry-through), aileron/flap span-chord controls (S.controls),
+cage-style creases/outline rework (with the user), struts rooted on the
+CAGE fuselage (they still land where the game fuselage was — visually
+close at trim 0, honest divergence), wing explode, mass/CG readout.
+
+## G31 — THE FULL SURFACES (2026-08-26, user: "it's upsetting losing
+## half the parameters in a port")
+
+The G29/G30 imports exposed presets and a detail dial and dropped the
+tools' parameter surfaces. RULE, earned twice in one day: **A PORT'S
+FIRST DELIVERABLE IS THE PARAMETER SURFACE, VERBATIM — presets are a
+convenience on top of it, never a substitute for it.** (The cowl import
+already knew this — 104 controls extracted, "no key unknown, no control
+lacking" — and the engine/wing ports ignored the precedent.)
+
+**THE ENGINE PANEL IS THE BENCH'S, WHOLE.** The bench's GROUPS table
+moved VERBATIM into `_eng_page.js` (labels, ranges, drop value-pairs,
+`show` predicates) and both panels render from it — the bench unchanged
+(ENG CHECK/ENGMESH re-run OK), the cage layer mapping every row with an
+`eng_` prefix: drops keep their VALUE tables (the panel stores indices,
+the spec gets values — arch strings, cyl counts, rodPos ±1), `show`
+translates to `when` over the effective architecture, and a POWERTRAIN
+row (piston/electric) plays the bench's top-choice role. 64 rows render:
+engine geometry (incl. exhaust style + stack drop), architecture,
+cylinder dress, induction + exhaust, ignition, RADIATOR (gated liquid &&
+not-radial, the G28 audit discipline applied on entry), engine bay,
+services, mount + firewall, electric. Excluded on purpose: the five
+per-element side counts (standing ruling) and the plate family (below).
+
+**A PRESET IS A STARTER, NOT A MODE** (the seating-starter pattern):
+selecting one writes its values into the rows ONCE — drops mapped
+value→index — and everything stays editable after; "custom" is simply
+the state after you touch anything. Verified: 912 → liquid/geared/twin
+cones land in the rows, radiator appears, then finN edited to 9 and the
+build follows the EDIT; IO-360 → injection + pushrods above; R-1830 →
+radial 14 two-row; EMRAX flips the powertrain and the panel; A-65 back.
+
+**THE MOUNT ATTACHES TO THE GENUINE FIREWALL AT ITS GENUINE SIZE**: the
+plate dims handed to the builder ARE the cage face's (spec.fwW/fwH =
+2·halfW/2·halfH, measured 1.07×0.68 on the jodel vs the phantom
+0.80×0.70 before), so the truss spread, its backing pads and bolts, and
+the fuel/throttle service entries all land on the real face. fwOn stays
+0; the plate furniture (battery, ECU, ruler) awaits the bay chantier.
+
+**THE WING PANEL IS THE GARAGE'S, WHOLE, IN ITS OWN WORDS** (user: "use
+the same wording again"): labels and ranges verbatim from garage.js —
+Position (high/MID/low — mid was missing), Span, Chord root, CHORD TIP
+(writes taper as @chordTip does), Tips (GEN_TIPS display names), Crank
+at, Dih. outer, Sweep (−15..30), Dihedral, Incidence, Washout, CAMBER
+and THICKNESS (the NACA digits as two knobs, composed cam·1000 + 400 +
+thick exactly as the garage's @ paths), Fore/aft, Height, 'struts &
+fixation' (Lift struts / Cantilever), and the whole 'CONTROL SURFACES'
+group that G30 forgot: Flaps (GEN_FLAPS names — none/plain/slotted/
+Fowler), flap span/chord, ail. span/chord. Verified: slotted flaps grow
+flapR/L and re-cut the fixed skin (face count moves), chord tip 1.10
+gives taper 0.6875 exactly, camber 4 → NACA 4412, mid wing anchors at
+the waist band.
+
+**EVERY WING PART ITS OWN COLOUR** (user): fixed skin fabric, ailerons
+signal orange, flaps green, lift struts steel blue, pitot bare steel.
+
+VERIFIED: zero console errors on cage8 AND the engine bench (shared
+table); ENG CHECK: OK, ENGMESH: OK; 13 dynamic assertions green (all
+listed above). NOT DONE (recorded): elevator/rudder chords stay
+tail-side (the game tail is not imported yet); duplicate rpm/liquid/
+geared/leads/plumb rows across the electric and piston folders mirror
+the bench's own duplication (one visible at a time); the wing legend is
+colour-only (no swatch list in the side pane yet).
+
+## G32 — WING PARTS COLOURED, THE FIREWALL PLANE RULE, THE MOUNT'S OWN
+## KNOBS (2026-08-27)
+
+**THE fwPlane RULE** (the session's real find). Everything that lives on
+the aircraft-side plane — battery box, ECU, coolant overflow bottle, the
+fuel/throttle services, the electric's DC pair and coolant hoses, and
+the mount's OWN airframe fittings (pads, cones, bolts) — was gated on
+`P.fwOn`, the BENCH PLATE flag. With the genuine firewall (fwOn 0,
+G29/G31) all of it silently vanished: the truss ended BARE on the face
+(the user's "I don't think you've attached everything to the firewall"),
+and the bench's batteries/ECU/bottle had no home. Now `fwPlane = fwOn ||
+mount` gates the plane furniture; only the plate itself and its metre
+strip stay fwOn's own; the fittings are unconditional inside mountTruss
+(a mounted engine always carries them — only 'bare engine' goes
+without). The check's ledger expectations follow, and the SCALE cases
+extend their declared aircraft-side exception to the metric family
+(battOn/ecuOn/plumb off) — the mount + fittings stay ON in them, so the
+fixation now PROVES the ratio rule. Verified on the jodel: 4 pads +
+4 cones + 4 bolt sets on the face, battery on the face, fuel + throttle
+routed, no plate, no ruler; bottle appears with liquid.
+
+**THE MOUNT'S KNOBS** (user): `mountR` (tube radius ×, new ENGM param,
+default 1 = identity), `engine up/down` (cage row, moves the whole
+powertrain incl. spinner/blades on the crank), `fw spread` range
+1.1–2.2 → 0.8–3.6 AND the fwPtsOf clamp eased 42%-of-half → 84% (the
+clamp bound long before the slider did — that was the "very narrow
+area"; defaults sit inside both ceilings, so nothing moved by itself).
+
+**THE PROP LOST ITS SHAFT** (user): the engine provides the crank and
+flange, so the cowl tool's aft shaft is not drawn — the spinner cone is
+built in the layer from the tool's own profile (spinProfile/spinR/
+spinLen), base on the flange + the noseOff dial, blade plane riding the
+cone at bladeStation exactly as the tool placed it. The two shaft rows
+retired from the panel; the subgroup is 'nose cone'.
+
+**WING PARTS, COLOURED AND HONEST** (user): the MAIN skin wears the
+fuselage's own grey (SEC.body 8b95a2); the CENTRE SECTION (blue) and the
+TIP BOWS (violet) are their own regions — classified per primitive by
+body |z| against the root station and the tip bow's start — ailerons
+orange, flaps green, struts boom-grey, pitot steel. Measured: 7 distinct
+wing children on the default, each its declared colour.
+
+**CENTRE SECTION SEMANTICS FIXED** (user: "open and glass are
+inverted"): the game emits a 'glass' carry-through into its CANOPY
+group, which the extraction never read — glass looked like a hole.
+The binding filter now pulls the wing-bound canopy faces and they take
+the GLAZING treatment (translucent, depthWrite off, riding the view
+panel's glass α). 'open' emits the top surface only (the Cub look) and
+correctly shows fewer skin faces — both verified live.
+
+**WIREFRAME APPLIES TO THE WING** (user): pickParts reconstructs QUADS
+from genMesh's tri pairs ([a,b,c],[a,c,d] — the diagonal never draws)
+and emits per-part quad-edge LineSegments in part colours when the wire
+toggle is on — every wing child measured LineSegments in wire mode.
+
+**EXPLODE REACHES THE CONTROL SURFACES** (user): ailerons and flaps
+unbolt aft-and-slightly-down (−0.65·e z, −0.18·e y, e = explodeD × FS),
+measured moving with every offset aft.
+
+VERIFIED: ENGMESH: OK (after extending the scale declaration),
+ENG CHECK / FIT / FIN / COWL CHECK: OK, zero console errors, and the
+in-browser assertions above. NOT DONE (recorded): the fw fitting detail
+is the bench's own pad/cone/bolt set — richer hardware (doubler rings,
+nut collars) awaits its own pass now that the fittings are VISIBLE at
+all; wing wireframe covers the wing layer only (fin/gear/engine layers
+keep solid render under the cage's wire toggle).
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

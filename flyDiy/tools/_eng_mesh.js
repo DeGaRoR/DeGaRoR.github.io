@@ -132,6 +132,7 @@ const EM = (() => {
     mount: 1,          // conical tube mount + rubber shock stacks
     mountX: 1,         // diagonal brace tubes in the side planes
     mountGap: 0.85,    // firewall stand-off behind the engine, / caseR
+    mountR: 1,         // mount tube radius, x the truss's own 0.075*caseR
     fwOn: 1,           // the firewall plate itself
     // THE PLATE IS AIRCRAFT-SIDE, IN METRES — the declared exception to the
     // everything-is-a-ratio rule (G24.4, user ruling: fixed across presets).
@@ -235,6 +236,14 @@ const EM = (() => {
     //   circuit's anchors.
     const inj = !!P.injected && !P.twoStroke;
     const below = !!P.liquid && P.radY < 0;
+    // THE AIRFRAME PLANE EXISTS whenever the engine is HELD — by the
+    // bench's plate (fwOn) or by a mount onto a genuine firewall (the
+    // cage, fwOn 0 + mount 1). Everything that lives ON that plane —
+    // battery, ECU, coolant bottle, the fuel/throttle services, the
+    // electric's DC pair and coolant hoses — keys off THIS, not off the
+    // plate itself (G32: fwOn-gating them left the cage's firewall bare).
+    // Only the plate and its metre strip stay fwOn's own.
+    const fwPlane = !!(P.fwOn || P.mount);
     // A RADIAL BREATHES THROUGH ITS REAR SPIDER (G25.2 — the R-1830
     // preset always said so; the cylinder no-clip net proved the generic
     // radial's under-slung carb + horn sat INSIDE the 6-o'clock cylinder,
@@ -760,7 +769,7 @@ const EM = (() => {
     };
     const mountTruss = (lugC, lugs, fwPts, zFw, artery, opts) => {
       opts = opts || {};
-      const tubeR = (opts.tubeR || 0.075) * cR;
+      const tubeR = (opts.tubeR || 0.075) * cR * (P.mountR || 1);
       for (let k = 0; k < 4; k++) {
         part('mountTube' + k, 'tube');
         // the tube runs INTO the plate (its end cap sat exactly on the
@@ -797,7 +806,13 @@ const EM = (() => {
           ], ENGM_MAT.puck, true, true, S.detail);
         }
       }
-      if (P.fwOn) {
+      // THE AIRFRAME-SIDE FITTINGS ARE MOUNT HARDWARE, NOT PLATE
+      // FURNITURE (G32, user: "the fixation to the firewall needs to be
+      // more detailed" — with the plate off, the fwOn gate here left the
+      // tubes ending BARE on the cage's genuine firewall, no pads, no
+      // cones, no bolts). A mounted engine always carries them; only the
+      // bench's bare-engine preset (mount 0) goes without.
+      {
         for (let k = 0; k < 4; k++) {
           const d = nrm(sub(fwPts[k], lugs[k]));
           part('fwPad' + k);
@@ -819,10 +834,14 @@ const EM = (() => {
       }
     };
     // the firewall points follow the lug pattern, clamped onto the plate —
-    // the combustion rule, shared verbatim
+    // the combustion rule, shared verbatim. The clamp reaches 84% of the
+    // half-plate now (G32, user: the cage attached over "a very narrow
+    // area" — the old 42%-of-half ceiling bound long before the spread
+    // slider did; defaults are inside both ceilings, so small engines are
+    // unchanged and only a wide ask actually widens).
     const fwPtsOf = (lugC, zFw) => lugC.map(p => [
-      Math.sign(p[0]) * Math.min(Math.abs(p[0]) * P.fwSpread, 0.42 * P.fwW / 2),
-      Math.sign(p[1]) * Math.min(Math.abs(p[1]) * P.fwSpread, 0.42 * P.fwH / 2),
+      Math.sign(p[0]) * Math.min(Math.abs(p[0]) * P.fwSpread, 0.42 * P.fwW),
+      Math.sign(p[1]) * Math.min(Math.abs(p[1]) * P.fwSpread, 0.42 * P.fwH),
       zFw]);
 
     // =======================================================================
@@ -1191,7 +1210,7 @@ const EM = (() => {
       }
       // the DC pair: controller -> firewall grommets (the battery lives
       // beyond the plate, with the fuel — energy module territory)
-      if (P.plumb && P.fwOn && escOn) {
+      if (P.plumb && fwPlane && escOn) {
         const dcFw = [-1, 1].map(i =>
           s === 0 ? [i * 0.50 * cR, -1.50 * cR, zFw]
                   : [1.55 * cR + i * 0.20 * cR, -0.95 * cR, zFw]);
@@ -1213,7 +1232,7 @@ const EM = (() => {
       }
       // liquid: hoses boss -> plate edge, bowed clear of the rim; the
       // airframe's radiator is the other side of the plate (rough pass)
-      if (P.liquid && P.fwOn) {
+      if (P.liquid && fwPlane) {
         const coolFw = [-1, 1].map(i => [i * 0.78 * cR, 0.60 * cR, zFw]);
         ports.coolFw = coolFw;
         for (let i = 0; i < 2; i++) {
@@ -2512,7 +2531,7 @@ const EM = (() => {
       // reservoir?"): the expansion tank above is the pressure vessel; the
       // OVERFLOW BOTTLE stands on the plate with its thin hose from the
       // tank neck — the pair a real installation carries.
-      if (P.fwOn) {
+      if (fwPlane) {
         const bC = [-0.26 * P.fwW, 0.06 * P.fwH, zFw + 0.44 * cR];
         part('coolBottle');
         lathe(bC, [0, 1, 0], null, [
@@ -2591,7 +2610,7 @@ const EM = (() => {
     // Aircraft-side, in METRES by the plate's own declared exception — a
     // battery is 17 x 13 cm whatever engine sits ahead of it. (Fuseboxes
     // live in the cabin; the harness is a later chantier.)
-    if (P.fwOn && P.battOn) {
+    if (fwPlane && P.battOn) {
       part('battBox', 'box');
       prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
             roundRect(0.17, 0.13, 0.012), zFw - 0.005, zFw + 0.11,
@@ -2607,7 +2626,7 @@ const EM = (() => {
           { t: -0.006, r: 0.011 }, { t: 0.020, r: 0.009 },
         ], ENGM_MAT.flange, false, true, S.detail);
     }
-    if (P.fwOn && P.ecuOn) {
+    if (fwPlane && P.ecuOn) {
       part('ecu', 'box');
       prism([-0.27 * P.fwW, 0.22 * P.fwH, 0], Z, X, Y,
             roundRect(0.15, 0.10, 0.010), zFw - 0.004, zFw + 0.035,
@@ -2624,7 +2643,7 @@ const EM = (() => {
     // Midpoints are DESTINATION-AWARE now (the twin carbs moved the bowl to
     // the case top) and both lines run through the clearance field — the
     // G25.1 no-clip pass; fuelX/fuelY/thrX/thrY moved the entries above.
-    if (P.plumb && P.carbOn && P.fwOn) {
+    if (P.plumb && P.carbOn && fwPlane) {
       part('fuel', 'tube');
       const pf = routeSafe(smooth([
         fuelFw,

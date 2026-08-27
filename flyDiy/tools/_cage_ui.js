@@ -762,7 +762,9 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       'padding:0;font:inherit;text-align:right';
     vf.value = fmtV(rel ? relSize() : +val);
     d.appendChild(rng); d.appendChild(vf);
-    if (opts.dim === 'len') {            // ≈ metres, after planeScale
+    // ≈ metres: 'len' = cage units (× CAGE_UNIT × planeScale), 'm' = the
+    // value already is metres (game-side wing spans)
+    if (opts.dim === 'len' || opts.dim === 'm') {
       const mu = document.createElement('span');
       mu.style.cssText = 'flex:none;color:#4a525c;font-size:10px;' +
         'width:52px;overflow:hidden;text-align:right';
@@ -1097,7 +1099,8 @@ function applyRowVis() {
     }
     if (meta.mu)
       meta.mu.textContent = P[meta.k] == null ? '' :
-        '≈ ' + (P[meta.k] * FS).toFixed(2) + ' m';
+        '≈ ' + (P[meta.k] * (meta.opts.dim === 'm' ? 1 : FS)).toFixed(2) +
+        ' m';
   }
 }
 {

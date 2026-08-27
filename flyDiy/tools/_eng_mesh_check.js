@@ -396,7 +396,9 @@ for (const C of CASES) {
     hard(C.name + ': one hose per bank (the rail scheme)',
          M.arteries.filter(a => /^coolant[LR]$/.test(a.name)).length ===
          (M.resolved.arch === 'inline' ? 1 : 2));
-    if (M.P.fwOn) {
+    // fwPlane rule (G32): plane furniture exists whenever the engine is
+    // HELD — the bench's plate or a mount onto a genuine firewall
+    if (M.P.fwOn || M.P.mount) {
       hard(C.name + ': liquid has its coolant bottle', hasPart(/^coolBottle$/));
       hard(C.name + ': the overflow hose is routed',
            M.arteries.some(a => a.name === 'overflow'));
@@ -419,10 +421,10 @@ for (const C of CASES) {
     if (M.P.starter) hard(C.name + ': starter present', hasPart(/^starter$/));
     if (M.P.oilFilter && !M.P.twoStroke)
       hard(C.name + ': spin-on oil filter present', hasPart(/^oilFilter$/));
-    if (M.P.battOn && M.P.fwOn)
-      hard(C.name + ': battery on the plate', hasPart(/^battBox$/));
-    if (M.P.ecuOn && M.P.fwOn)
-      hard(C.name + ': ECU on the plate', hasPart(/^ecu$/));
+    if (M.P.battOn && (M.P.fwOn || M.P.mount))
+      hard(C.name + ': battery on the plane', hasPart(/^battBox$/));
+    if (M.P.ecuOn && (M.P.fwOn || M.P.mount))
+      hard(C.name + ': ECU on the plane', hasPart(/^ecu$/));
   }
   if (M.resolved.arch === 'electric') {
     // the electric consequences: a liquid can runs smooth and grows its
@@ -430,7 +432,7 @@ for (const C of CASES) {
     if (M.P.liquid) {
       hard(C.name + ': liquid electric has no ribs/fins',
            !hasPart(/^ribs$|^canFins$/));
-      if (M.P.fwOn)
+      if (M.P.fwOn || M.P.mount)
         hard(C.name + ': liquid electric has two hoses',
              M.arteries.filter(a => /^coolant\d$/.test(a.name)).length === 2);
     }
@@ -441,7 +443,8 @@ for (const C of CASES) {
       hard(C.name + ': the outrunner shows its copper (open face)',
            hasPart(/^windings$/) && hasPart(/^windBars$/) &&
            hasPart(/^canFace$/));
-    if (M.P.plumb && M.P.fwOn && (M.P.escOn === undefined || M.P.escOn))
+    if (M.P.plumb && (M.P.fwOn || M.P.mount) &&
+        (M.P.escOn === undefined || M.P.escOn))
       hard(C.name + ': a DC pair',
            M.arteries.filter(a => /^dc\d$/.test(a.name)).length === 2);
     hard(C.name + ': no combustion parts on an electric',
@@ -690,15 +693,20 @@ hard('LOD ladder descends (hero > close > mid > far)',
 
 // ---- 5: scale invariance --------------------------------------------------
 {
-  // fwOn: 0 — the plate and its metre strip are the DECLARED aircraft-side
-  // exception to the ratio rule; fwW still scales because the mount-point
-  // clamp reads it even with the plate off
+  // the DECLARED aircraft-side exceptions to the ratio rule are OFF: the
+  // plate + strip (fwOn), and — since the fwPlane rule (G32) keys the
+  // plane furniture off mount-or-plate — the metric battery/ECU and the
+  // metre-anchored service lines too. fwW still scales because the
+  // mount-point clamp reads it even with the plate off; the mount, its
+  // fittings and mountR stay ON, so the fixation proves the ratio rule.
   const S = 2;
-  const M1 = engMeshBuild({ fwOn: 0 });
-  const M2 = engMeshBuild({ fwOn: 0, bore: ENG_DEFAULT.bore * S,
+  const bare = { fwOn: 0, battOn: 0, ecuOn: 0, plumb: 0 };
+  const M1 = engMeshBuild(Object.assign({}, bare));
+  const M2 = engMeshBuild(Object.assign({}, bare, {
+    bore: ENG_DEFAULT.bore * S,
     stroke: ENG_DEFAULT.stroke * S, flangeLen: ENG_DEFAULT.flangeLen * S,
     accLen: ENG_DEFAULT.accLen * S,
-    fwW: ENGM_DEFAULT.fwW * S, fwH: ENGM_DEFAULT.fwH * S });
+    fwW: ENGM_DEFAULT.fwW * S, fwH: ENGM_DEFAULT.fwH * S }));
   hard('scale: same vert count', M1.V.length === M2.V.length,
        M1.V.length + ' vs ' + M2.V.length);
   hard('scale: same quad count', M1.F.length === M2.F.length);
@@ -739,9 +747,10 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
 // its own proof (fwOn: 0, the declared aircraft-side exception, as above)
 {
   const S = 2;
-  const E1 = engMeshBuild({ arch: 'electric', fwOn: 0 });
-  const E2 = engMeshBuild({ arch: 'electric', fwOn: 0,
-    canD: 0.0278 * S, canL: 0.026 * S, fwW: 0.80 * S, fwH: 0.70 * S });
+  const bareE = { arch: 'electric', fwOn: 0, battOn: 0, ecuOn: 0, plumb: 0 };
+  const E1 = engMeshBuild(Object.assign({}, bareE));
+  const E2 = engMeshBuild(Object.assign({}, bareE,
+    { canD: 0.0278 * S, canL: 0.026 * S, fwW: 0.80 * S, fwH: 0.70 * S }));
   hard('electric scale: same counts',
        E1.V.length === E2.V.length && E1.F.length === E2.F.length,
        E1.V.length + ' vs ' + E2.V.length);

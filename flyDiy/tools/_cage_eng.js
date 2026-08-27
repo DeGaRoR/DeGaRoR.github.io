@@ -1,62 +1,84 @@
-// CAGE ENGINE LAYER (G29) — the dressed engine (G24/G25's _eng_mesh.js) on
-// the nose of the aeroplane.
+// CAGE ENGINE LAYER (G29, full surface G31) — the dressed engine
+// (G24/G25's _eng_mesh.js) on the nose of the aeroplane.
 //
-// THE GENUINE FIREWALL: the bench's generic plate (fwOn) is never built
-// here — the cage's own firewall is the plate. The engine is positioned so
-// its firewall STATION (zFw = zAft - mountGap·caseR, the bench's own
-// formula) lands exactly on the cage's engine face, and the mount truss's
-// backing pads and bolts therefore land ON that face — the same move the
-// cowl layer makes with the stub fuselage: the stand-in exists so the
-// module can be developed alone, and integration is the moment it goes
-// away. fwOn 0 also stands down the plate furniture (battery, ECU, ruler)
-// — bay furniture placement on the real firewall is its own chantier.
+// THE WHOLE BENCH PANEL IS HERE (G31, user: "too shabby" — the first cut
+// exposed presets only). The parameter table is the bench's own
+// (_eng_page.js GROUPS, one home, same labels and ranges); every row
+// renders here with an `eng_` prefix, drops carry their VALUE tables (the
+// cage stores indices, the spec gets values), and the group `show`
+// predicates translate to `when`s over the effective architecture. A
+// PRESET IS A STARTER, not a mode: selecting one writes its values into
+// the rows ONCE (the seating-starter pattern) and everything stays
+// editable after — "custom" is simply the state after you touch anything.
+//
+// THE GENUINE FIREWALL: the bench's plate family (fwOn, fwW/fwH, ruler,
+// battery/ECU placement ON the plate) never draws here — the cage's own
+// firewall is the plate. The engine is positioned so the bench's firewall
+// STATION (zFw = zAft − mountGap·caseR) lands exactly on the cage's
+// engine face, and — G31 — the plate DIMENSIONS handed to the builder ARE
+// THE FACE'S, so the mount truss's spread, its backing pads and bolts,
+// and the fuel/throttle service entries all land on the real firewall at
+// its real size instead of a phantom 0.80 m plate's.
 //
 // THE PROP AND THE NOSE CONE ARE CHILDREN OF THE ENGINE (user ruling),
-// not of the cowl: the geometry is still the cowl tool's (spinner profile,
-// blade generator, the same cw_ parameter rows), but it is REBASED from
-// the cowl's frame onto the crank — the cone base moves from
-// coneBaseZ (cowl end + noseOff) onto the flange face, and the aperture
-// axis offsets bake out because the crank IS the axis here. The engine
-// group itself sits on the cowl's aperture axis, so the same two offset
-// sliders move shaft, spinner, blades and engine together — NO AUTO COWL
-// FITTING (user ruling): the builder aligns the cowl around the engine by
-// hand, with the cowl's own controls.
+// rebased from the cowl frame onto the crank; the engine group rides the
+// cowl's aperture axis so the same two offsets steer everything. NO AUTO
+// COWL FITTING (user ruling): the cowl is shaped by hand around it.
 //
-// POLYCOUNT: the bench's global density governor (`quality`) rides the
-// page's polycount group as `engDetail`; the per-element side counts stay
-// bench-only (user ruling).
+// POLYCOUNT: the global density governor rides the polycount folder as
+// `engine detail` (+ the screws LOD toggle); the five per-element side
+// counts stay bench-only (user ruling, G29).
 //
-// Load after _eng_gen/_eng_mesh/_eng_page and after _cage_cowl (it uses
-// the cowl layer's noseFace export and runs after it in the post chain);
-// before _cage_ui.
+// Load after _eng_gen/_eng_mesh/_eng_page and after _cage_cowl; before
+// _cage_ui. Chains PAGE.post.
 'use strict';
 (() => {
 
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const EM = window.ENG_MESH, EP = window.ENG_PAGE,
       CW = window.COWL_GEN, CG2 = window.CAGE2;
-if (!EM || !EP || !CW) {
+if (!EM || !EP || !CW || !EP.GROUPS) {
   console.error('cage engine layer: _eng_mesh/_eng_page/_cowl_gen not loaded');
   return;
 }
 
-// ---- parameters -----------------------------------------------------------
-// presets are the shared table's, minus the bench-only 'bare engine' row
-const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
-PAGE.defaults = Object.assign(
-  { engOn: 1, engPreset: 0, engDetail: 0.8, propOn: 1 },
-  PAGE.defaults || {});
+// ---- the parameter surface ------------------------------------------------
+// bench keys that do NOT become rows here: the per-element polycounts
+// (ruling), and the plate family (the genuine firewall owns it)
+const SKIP = new Set(['quality', 'sideCyl', 'sideShaft', 'sideAcc',
+                      'sidePipe', 'sideDetail', 'screws',
+                      'fwOn', 'fwW', 'fwH', 'ruler']);
+const ED = EP.engDefaults();
+const VALS = {};                 // drop key -> value table (P stores index)
+const defaults = { engOn: 1, engPreset: 0, engPower: 0,
+                   engDetail: 0.8, eng_screws: ED.screws ? 1 : 0,
+                   engY: 0, propOn: 1 };
+for (const [, rows] of EP.GROUPS)
+  for (const r of rows) {
+    const [k, , m3, opts] = r;
+    if (SKIP.has(k)) continue;
+    if (m3 === 'drop') {
+      VALS[k] = opts.map(o => o[0]);
+      const i = VALS[k].indexOf(ED[k]);
+      defaults['eng_' + k] = i >= 0 ? i : 0;
+    } else if (m3 === 'check') defaults['eng_' + k] = ED[k] ? 1 : 0;
+    else defaults['eng_' + k] = ED[k];
+  }
+PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
+
+// the effective architecture, for the group `show` predicates and the spec
+const archOf = P => Math.round(P.engPower)
+  ? 'electric'
+  : (VALS.arch[Math.round(P.eng_arch)] || 'flat');
 
 // ---- panel ----------------------------------------------------------------
-// the spinner + propeller rows are the cowl TOOL's own (cw_ keys), re-homed
-// under the engine because that is whose children they are now
+const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
-// the cone roots on the FLANGE now, so its offset row says so
 const LBL = { noseOff: 'base fwd of flange' };
 const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
   { rows: [] }).rows
-  .filter(r => CW.P[r.k] !== undefined)
+  .filter(r => CW.P[r.k] !== undefined && !DEAD_SPIN.has(r.k))
   .map(r => ['cw_' + r.k, LBL[r.k] || r.label, r.lo,
              r.k === 'material' && CW.MATERIALS ? CW.MATERIALS.length - 1
                                                 : r.hi,
@@ -64,29 +86,66 @@ const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
 const SPINPROP_KEYS = ['g_spin', 'g_prop'].flatMap(id =>
   ((window.COWL_ROWS || []).find(g => g.id === id) || { rows: [] })
     .rows.map(r => r.k));
+// the tool's own shaft is RETIRED here (G32, user): the engine provides
+// the crank and the flange — its rows go with it
+const DEAD_SPIN = new Set(['shaftR', 'shaftLen']);
+
+// bench groups -> cage subgroups, every row, same labels + ranges
+const engRow = r => {
+  const [k, label, m3, a, b, ] = r;
+  if (m3 === 'drop')
+    return ['eng_' + k, label, 0, Math.max(1, a.length - 1), 1,
+            a.map(o => o[1])];
+  if (m3 === 'check') return ['eng_' + k, label, 0, 1, 1];
+  return ['eng_' + k, label, m3, a, b];
+};
+const BENCH_SUBS = [];
+for (const g of EP.GROUPS) {
+  const [name, rows, show] = g;
+  if (name === 'polycount') continue;      // engDetail + screws live in
+                                           // the page's own polycount folder
+  const items = rows.filter(r => !SKIP.has(r[0])).map(engRow);
+  if (!items.length) continue;
+  let when = P => +P.engOn;
+  if (show === EP.isElec) when = P => +P.engOn && archOf(P) === 'electric';
+  else if (show === EP.isPiston)
+    when = P => +P.engOn && archOf(P) !== 'electric';
+  // the radiator only exists on a liquid engine, and a radial coerces
+  // air-cooled (G28 audit discipline, applied to the import)
+  if (name === 'radiator (liquid)')
+    when = P => +P.engOn && archOf(P) !== 'electric' &&
+                +P.eng_liquid && archOf(P) !== 'radial';
+  BENCH_SUBS.push([name === 'engine' ? 'engine geometry' : name,
+                   items, { when }]);
+}
 
 const ENG_ITEMS = [
   ['engOn',     'engine',        0, 1, 1],
-  ['engPreset', 'engine preset', 0, Math.max(1, PRESET_NAMES.length - 1), 1,
-   PRESET_NAMES, { when: P => +P.engOn }],
+  ['engPower',  'powertrain',    0, 1, 1, ['piston', 'electric'],
+   { when: P => +P.engOn }],
+  // A STARTER: writes the preset's values into the rows once — every
+  // row below stays yours to edit after (the seating-starter pattern)
+  ['engPreset', 'preset (applies once)', 0,
+   Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
+   { when: P => +P.engOn }],
+  ['engY',      'engine up/down', -0.5, 0.5, 0.005,
+   { when: P => +P.engOn, dim: 'm' }],
+  ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
-  ['nose cone & shaft', grpItems('g_spin'), { when: P => +P.engOn }],
+  ['nose cone', grpItems('g_spin'), { when: P => +P.engOn }],
   ['propeller', grpItems('g_prop'),
    { when: P => +P.engOn && +P.propOn }],
 ];
-// join the page's own "2 · engine" folder when it has one (the curated
-// tree); a page without it gets a group of its own
 const host = (PAGE.groupsOverride || []).find(g => g[0] === '2 · engine');
 if (host) host[1].push(...ENG_ITEMS);
 else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
   .push(['2c · engine', ENG_ITEMS]);
-// the global density governor joins the polycount folder
 const poly = (PAGE.groupsOverride || []).find(g => g[0] === 'polycount');
-if (poly) poly[1].push(['engDetail', 'engine detail', 0.3, 2, 0.02,
-                        { when: P => +P.engOn }]);
+if (poly) poly[1].push(
+  ['engDetail', 'engine detail', 0.3, 2, 0.02, { when: P => +P.engOn }],
+  ['eng_screws', 'engine screws', 0, 1, 1, { when: P => +P.engOn }]);
 
 // ---- materials ------------------------------------------------------------
-// the shared bench palette (_eng_page.js) as THREE materials
 const matCache = {};
 const matOf = name => {
   if (!matCache[name]) {
@@ -97,9 +156,6 @@ const matOf = name => {
   }
   return matCache[name];
 };
-const steelMat = new THREE.MeshStandardMaterial({
-  color: 0x6d737a, metalness: 0.90, roughness: 0.35,
-  side: THREE.DoubleSide });
 const propM = new THREE.MeshStandardMaterial({
   color: 0xc79a63, metalness: 0.0, roughness: 0.62,
   side: THREE.DoubleSide });
@@ -134,11 +190,31 @@ function meshFrom(m) {
 
 // ---- the build ------------------------------------------------------------
 let group = null;
+let lastPreset = null;           // the one-shot starter's memory
 const dispose = o => {
   if (!o) return;
   o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
   if (o.parent) o.parent.remove(o);
 };
+
+// write a preset's values into the eng_ rows (drops become indices)
+function applyEngPreset(P, name) {
+  const pre = EP.PRESETS[name];
+  if (!pre) return;
+  const base = Object.assign(EP.engDefaults(), pre);
+  P.engPower = base.arch === 'electric' ? 1 : 0;
+  for (const [, rows] of EP.GROUPS)
+    for (const r of rows) {
+      const k = r[0];
+      if (SKIP.has(k) || base[k] === undefined) continue;
+      if (r[2] === 'drop') {
+        const i = VALS[k].indexOf(base[k]);
+        if (i >= 0) P['eng_' + k] = i;
+      } else if (r[2] === 'check') P['eng_' + k] = base[k] ? 1 : 0;
+      else P['eng_' + k] = base[k];
+    }
+  P.eng_screws = base.screws ? 1 : 0;
+}
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
@@ -146,6 +222,17 @@ PAGE.post = ctx => {
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   if (!P.engOn) return;
+
+  // the preset starter fires exactly when the row changes
+  const psel = Math.round(P.engPreset);
+  if (lastPreset === null) lastPreset = psel;
+  else if (psel !== lastPreset) {
+    lastPreset = psel;
+    applyEngPreset(P, PRESET_NAMES[psel]);
+    const UI = window.CAGE_UI;
+    if (UI && UI.syncSliders) UI.syncSliders();
+  }
+
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const nf = window.CAGE_NOSE && window.CAGE_NOSE.noseFace;
   const face = nf ? nf(mesh, FS) : null;
@@ -154,12 +241,26 @@ PAGE.post = ctx => {
     return;
   }
 
-  const spec = Object.assign(EP.engDefaults(),
-    EP.PRESETS[PRESET_NAMES[Math.round(P.engPreset)] ] || {}, {
-      quality: Math.max(0.3, P.engDetail || 0.8),
-      fwOn: 0,                 // the genuine firewall is the cage's own
-      mount: 1,
-    });
+  // spec: every panel row, values through the drop tables; the plate the
+  // builder computes against IS the cage's face (G31 — the mount spread,
+  // backing pads and service entries land on the real firewall)
+  const spec = EP.engDefaults();
+  for (const [, rows] of EP.GROUPS)
+    for (const r of rows) {
+      const k = r[0];
+      if (SKIP.has(k)) continue;
+      const v = P['eng_' + k];
+      if (v === undefined) continue;
+      spec[k] = r[2] === 'drop'
+        ? VALS[k][Math.max(0, Math.min(VALS[k].length - 1, Math.round(v)))]
+        : (r[2] === 'check' ? (v ? 1 : 0) : v);
+    }
+  spec.arch = archOf(P);
+  spec.quality = Math.max(0.3, P.engDetail || 0.8);
+  spec.screws = P.eng_screws ? 1 : 0;
+  spec.fwOn = 0;                     // the genuine firewall is the cage's
+  spec.fwW = Math.max(0.2, Math.min(2.2, 2 * face.halfW));
+  spec.fwH = Math.max(0.2, Math.min(2.2, 2 * face.halfH));
   let M;
   try { M = EM.engMeshBuild(spec); }
   catch (e) {
@@ -167,8 +268,6 @@ PAGE.post = ctx => {
     return;
   }
   const R = M.resolved;
-  // the bench's own firewall-station formula (piston and electric both):
-  // that station goes ON the cage's engine face
   const Pm = Object.assign({}, EM.ENGM_DEFAULT, R.P);
   const cR = R.place.caseR != null ? R.place.caseR : R.place.canR;
   const zFw = R.place.zAft - Pm.mountGap * cR;
@@ -176,25 +275,57 @@ PAGE.post = ctx => {
   group = new THREE.Group();
   group.add(meshFrom(M));
 
-  // spinner + shaft + blades — rebased from the cowl frame to the crank.
-  // The values are pushed into CW.P HERE because the cowl layer now skips
-  // these rows, and with the cowl off its post never runs at all.
+  // spinner + blades — the cowl tool's geometry, on the crank. NO SHAFT
+  // (G32, user): the engine provides the crank and the flange, so the
+  // tool's own aft shaft is not drawn — the cone is built here from the
+  // tool's own profile (spinProfile / spinR / spinLen), base on the
+  // flange plus the noseOff dial.
   for (const k of SPINPROP_KEYS)
     if (P['cw_' + k] !== undefined && CW.P[k] !== undefined)
       CW.P[k] = P['cw_' + k];
-  // rebase: subtracting coneBaseZ (= cowl end + noseOff) would cancel the
-  // builder's own offset dial — so the cone base lands at flange + noseOff
-  // and the row reads "base fwd of flange"
-  const ax = CW.axisXY(), cb = CW.coneBaseZ();
+  const ax = CW.axisXY();
   const nOff = CW.P.noseOff || 0;
   const ng = new THREE.Group();
-  CW.buildNose(ng, { prop: propMat(), steel: steelMat });
-  ng.position.set(-ax.x, -ax.y, -cb + nOff);   // cone base -> flange + dial
+  {
+    const d2 = Math.max(0.35, Math.min(2, CW.P.detail || 1));
+    const NS = Math.max(10, Math.round(16 * d2));
+    const SA = Math.max(20, Math.round(40 * d2));
+    const pos = [], idx = [];
+    for (let i = 0; i < NS; i++) {
+      const u = i / (NS - 1);
+      const r2 = CW.P.spinR * CW.spinProfile(u), z2 = u * CW.P.spinLen;
+      for (let j = 0; j < SA; j++) {
+        const th = j / SA * Math.PI * 2;
+        pos.push(Math.cos(th) * r2, Math.sin(th) * r2, z2);
+      }
+    }
+    for (let i = 0; i < NS - 1; i++)
+      for (let j = 0; j < SA; j++) {
+        const j2 = (j + 1) % SA;
+        idx.push(i * SA + j, i * SA + j2, (i + 1) * SA + j2,
+                 i * SA + j, (i + 1) * SA + j2, (i + 1) * SA + j);
+      }
+    const base = pos.length / 3;
+    pos.push(0, 0, 0);                       // base cap fan
+    for (let j = 0; j < SA; j++) {
+      const j2 = (j + 1) % SA;
+      idx.push(base, j2, j);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position',
+      new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    ng.add(new THREE.Mesh(geo, propMat()));
+  }
+  ng.position.set(0, 0, nOff);               // cone base -> flange + dial
   group.add(ng);
   let pg = null;
   if (P.propOn) {
     pg = new THREE.Group();
-    pg.position.set(0, 0, CW.bladePlaneZ() - cb + nOff);
+    // the blade plane rides the cone exactly as the tool placed it
+    pg.position.set(0, 0, nOff + CW.P.spinLen *
+      Math.max(0.02, Math.min(0.95, CW.P.bladeStation)));
     const info = CW.propGeometry();
     const pm = propMat();
     for (let k = 0; k < Math.round(CW.P.bladeN); k++) {
@@ -208,12 +339,9 @@ PAGE.post = ctx => {
     group.add(pg);
   }
 
-  // ON THE THRUSTLINE, BOLTED TO THE GENUINE FIREWALL: the crank rides the
-  // cowl's aperture axis (the same two offsets steer everything), and the
-  // engine's firewall station lands on the face plane
-  group.position.set(ax.x, face.yc + ax.y, face.z - zFw);
-  // the assembly explodes with the airframe (G28's staging, now the
-  // engine's: cone past the engine, blades past the cone)
+  // ON THE THRUSTLINE, BOLTED TO THE GENUINE FIREWALL — plus the mount's
+  // own up/down (G32)
+  group.position.set(ax.x, face.yc + ax.y + (P.engY || 0), face.z - zFw);
   const ex = Math.max(0, P.explodeD || 0) * FS;
   if (ex > 0) {
     ng.position.z += ex * 1.5;
@@ -221,8 +349,8 @@ PAGE.post = ctx => {
   }
   scene.add(group);
 
-  window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
-                      resolved: R, zFw, quads: M.stats && M.stats.quads };
+  window.CAGE_ENG = { name: PRESET_NAMES[psel], resolved: R, zFw,
+                      spec, quads: M.stats && M.stats.quads };
   if (stat) {
     const head = R.arch === 'electric'
       ? (R.powerW / 1000).toFixed(1) + ' kW cont'
