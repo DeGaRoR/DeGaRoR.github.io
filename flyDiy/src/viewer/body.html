@@ -25,10 +25,12 @@
     </div>
   </header>
   <div id="mid">
+    <!-- The OLD EDITOR's rows and readout lived here until G35; the cage
+         editor (#edWrap, end of file) replaced them. What stays is the
+         BUILDS bar — saving is something you do TO a build — plus the
+         door to the new editor. -->
     <section id="garage" class="panel">
-      <header><h2>Garage</h2><button id="gClose" aria-label="Close">×</button></header>
-      <!-- BUILDS. Not part of the aeroplane, so it sits above the sections
-           rather than inside them: saving is something you do TO a build. -->
+      <header><h2>Builds</h2><button id="gClose" aria-label="Close">×</button></header>
       <div id="gBuilds">
         <select id="gSlot" title="Saved builds"></select>
         <button id="gSave"  title="Save over the selected build">Save</button>
@@ -38,8 +40,7 @@
         <button id="gImport" title="Load a build from a .json file">Import</button>
         <input id="gFile" type="file" accept="application/json,.json" hidden>
       </div>
-      <div id="gRows"></div>
-      <div id="gRead"></div>
+      <button id="gEdit" title="Open the cage editor">Open the editor</button>
     </section>
     <div id="uvp" class="panel"><canvas id="uvc" width="384" height="384"></canvas>
       <span id="uvleg"></span></div>
@@ -102,3 +103,27 @@
     </div>
   </footer>
 </div>
+
+<!-- THE EDITOR (G35): the cage bench, embedded — the game's editor since the
+     old garage panel retired. Markup mirrors tools/_cage8.html with the two
+     colliding ids namespaced (#cgC canvas, #cgUi panel — _cage_ui.js prefers
+     them and falls back to the bench pages' own #c/#ui). Hidden until the
+     garage build is opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<section id="edWrap" hidden>
+  <header>
+    <h1>garage — cage editor</h1>
+    <label>subsurf <select id="lvl">
+      <option>0</option><option>1</option><option selected>2</option><option>3</option>
+    </select></label>
+    <label><input type="checkbox" id="cage"> cage</label>
+    <label><input type="checkbox" id="wire"> wireframe</label>
+    <label><input type="checkbox" id="color" checked> sections</label>
+    <button id="resetBtn">reset</button>
+    <button id="objBtn">export OBJ</button>
+    <button id="edClose" title="Back to the game">back to the game</button>
+  </header>
+  <main>
+    <div id="view"><span id="stat"></span><canvas id="cgC"></canvas></div>
+    <aside id="cgUi"></aside>
+  </main>
+</section>

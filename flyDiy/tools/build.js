@@ -58,6 +58,20 @@ const MANIFEST = {
     // (genHangarSupported) before it offers it as an environment
     scripts: ['render_world.js', 'hangar.js', 'garage.js', 'app.js'],
   },
+  // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
+  // old garage panel retired. The list and its ORDER are tools/_cage8.html's
+  // script list verbatim (that page stays the standalone bench); the files
+  // live in tools/ because the bench is where they are developed and gated.
+  // They land at the head of the RENDER slot behind a CAGE_UI_LAZY flag, so
+  // the editor boots on first open (app.js openEditor), not at page load.
+  editor: [
+    '_cage_page5.js', '_cage_gen.js', '_cage_crew.js',
+    '_gear_kit.js', '_gear_gen.js', '_gear_page.js', '_cage_gear.js',
+    '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
+    '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
+    '_cage_wing.js', '_fin_gen.js', '_cage_fin.js', '_cage_stab.js',
+    '_cage_ui.js',
+  ],
 };
 
 const read = f => fs.readFileSync(f, 'utf8');
@@ -127,9 +141,14 @@ function buildViewer(coreBody) {
   const bodyHtml = read(path.join(VIEW_DIR, V.body));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
+  const editor = MANIFEST.editor.map(f => read(path.join(__dirname, f)));
+  editor.forEach((s, i) => syntaxCheck(MANIFEST.editor[i], s));
   const models = MANIFEST.models.map(f => read(path.join(MODELS_DIR, f)));
   models.forEach((m, i) => syntaxCheck(MANIFEST.models[i], m));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
+  // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
+  // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting
+  const LAZY = `<script>window.CAGE_UI_LAZY = 1;</script>`;
 
   // --- single-file artifact: everything inlined ---
   let art = shell;
@@ -138,7 +157,9 @@ function buildViewer(coreBody) {
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
   art = fill(art, 'MODELS', models.map(m => `<script>\n${m}</script>`).join('\n'));
-  art = fill(art, 'RENDER', scripts.slice(0, -1).map(s => `<script>\n${s}</script>`).join('\n'));
+  art = fill(art, 'RENDER', [LAZY]
+    .concat(editor.map(s => `<script>\n${s}</script>`))
+    .concat(scripts.slice(0, -1).map(s => `<script>\n${s}</script>`)).join('\n'));
   art = fill(art, 'APP', `<script>\n${scripts[scripts.length - 1]}</script>`);
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
   if (!art.includes('function makeAutopilot')) {
@@ -168,8 +189,10 @@ function buildViewer(coreBody) {
   dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => ref(CORE_DIR, 'src/core', f)).join('\n'));
   dev = fill(dev, 'MODELS', MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f)).join('\n'));
-  dev = fill(dev, 'RENDER', V.scripts.slice(0, -1)
-    .map(f => ref(VIEW_DIR, 'src/viewer', f)).join('\n'));
+  dev = fill(dev, 'RENDER', [LAZY]
+    .concat(MANIFEST.editor.map(f => ref(__dirname, 'tools', f)))
+    .concat(V.scripts.slice(0, -1).map(f => ref(VIEW_DIR, 'src/viewer', f)))
+    .join('\n'));
   dev = fill(dev, 'APP', ref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]));
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
   const devFile = path.join(ROOT, 'dev.html');

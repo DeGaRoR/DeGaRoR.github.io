@@ -15,7 +15,13 @@
 // } then loads _cage_gen.js and this file. The page's HTML skeleton must
 // carry the header controls and the #view/#ui layout (see _cage2.html).
 'use strict';
-(() => {
+// THE BOOT IS A NAMED FUNCTION (G35): standalone bench pages boot at load
+// exactly as before; the GAME bundle sets window.CAGE_UI_LAZY before this
+// script and calls CAGE_UI_BOOT() on first garage entry instead — the
+// editor pays its build cost when opened, not at game boot. Re-entry is
+// a no-op (CAGE_UI already set).
+function CAGE_UI_BOOT() {
+if (window.CAGE_UI) return;
 const G = window.CAGE2;
 const PAGE = window.CAGE_PAGE || {};
 const $ = id => document.getElementById(id);
@@ -163,7 +169,9 @@ const GROUPS = PAGE.groupsOverride
 // ---- three.js scene -------------------------------------------------------
 let yaw = -0.85, pitch = 0.30, drag = null, ZOOM = 1;
 let M0 = null, MS = null;
-const cv = $('c');
+// namespaced ids first (the GAME's editor mount — its shell already owns
+// #c and #ui), the bench pages' own ids as the fallback
+const cv = $('cgC') || $('c');
 const renderer = new THREE.WebGLRenderer({
   canvas: cv, antialias: true, preserveDrawingBuffer: true });
 const scene = new THREE.Scene();
@@ -600,7 +608,7 @@ function loadRef() {
 }
 
 // ---- ui -------------------------------------------------------------------
-const ui = $('ui');
+const ui = $('cgUi') || $('ui');
 // G28: panel chrome, injected AFTER the page's stylesheet so it wins —
 // a wider label column (ellipsis keeps rows one-line; every label also
 // carries its full text as a tooltip), and VISIBLE NESTING: top-level
@@ -982,6 +990,79 @@ fillPresetSel();
   dl.querySelector('#canLoopsV').onchange = e => {
     VIEW.loops = e.target.checked ? 1 : 0; build();
   };
+  // BACKDROP (G35, user: "keep the option to display it in hangar too").
+  // The old garage's environment — the hangar room, with its mood dial —
+  // carried over to the editor that replaced it. hangar.js's room builder
+  // is only present in the GAME bundle, so the rows appear there and never
+  // on the standalone bench pages; prefs share the old garage's own keys.
+  // The room lights are physical-units and its moods return a tone-mapping
+  // exposure, so both renderer settings flip with the room and flip back.
+  // NOT ported (recorded): the PMREM self-bake app.js gives the stand view
+  // — reflective metals read flatter here; the direct light does the work.
+  if (typeof genHangarBuild === 'function' &&
+      typeof genHangarSupported === 'function' && genHangarSupported(THREE)) {
+    const pref = k => { try { return localStorage.getItem(k); }
+                        catch (e) { return null; } };
+    const prefSet = (k, v) => { try { localStorage.setItem(k, v); }
+                               catch (e) {} };
+    let edRoom = null, edKind = pref('flydiy.garageEnv') || 'hangar',
+        edMood = Math.max(0, Math.min(3, +pref('flydiy.garageMood') || 0));
+    const BG0 = scene.background, TM0 = renderer.toneMapping,
+          EX0 = renderer.toneMappingExposure;
+    const applyRoom = () => {
+      const on = edKind === 'hangar';
+      if (on && !edRoom) {
+        try {
+          edRoom = genHangarBuild(THREE);
+          // the floor under the wheels: the gear layer's contact height
+          const gy = window.CAGE_GEAR && typeof window.CAGE_GEAR.gy === 'number'
+            ? window.CAGE_GEAR.gy : 0;
+          edRoom.group.position.y = gy;
+        } catch (e) { console.error('hangar backdrop:', e); edRoom = null; }
+      }
+      if (edRoom) {
+        if (on && edRoom.group.parent !== scene) scene.add(edRoom.group);
+        if (!on && edRoom.group.parent) scene.remove(edRoom.group);
+      }
+      const inRoom = on && edRoom;
+      scene.background = inRoom ? edRoom.background : BG0;
+      scene.fog = inRoom ? edRoom.fog : null;
+      sun.visible = sun2.visible = !inRoom;
+      renderer.physicallyCorrectLights = !!inRoom;
+      renderer.toneMapping = inRoom ? THREE.ACESFilmicToneMapping : TM0;
+      renderer.toneMappingExposure = inRoom
+        ? edRoom.setMood(edMood).ex : EX0;
+      const mr = document.getElementById('edMoodRow');
+      if (mr) mr.style.display = inRoom ? '' : 'none';
+      draw();
+    };
+    const db = document.createElement('div'); db.className = 'r';
+    db.innerHTML = `<span class="k">backdrop</span>
+      <select id="edBackdrop"><option value="studio">studio</option>
+      <option value="hangar">hangar</option></select>`;
+    det.appendChild(db);
+    const bsel = db.querySelector('#edBackdrop');
+    bsel.value = edKind === 'hangar' ? 'hangar' : 'studio';
+    bsel.onchange = () => {
+      edKind = bsel.value === 'hangar' ? 'hangar' : 'studio';
+      prefSet('flydiy.garageEnv', edKind);
+      applyRoom();
+    };
+    const dm = document.createElement('div'); dm.className = 'r';
+    dm.id = 'edMoodRow';
+    dm.innerHTML = `<span class="k">mood</span>
+      <select id="edMood"><option>afternoon</option><option>overcast</option>
+      <option>golden</option><option>night</option></select>`;
+    det.appendChild(dm);
+    const msel = dm.querySelector('#edMood');
+    msel.selectedIndex = edMood;
+    msel.onchange = () => {
+      edMood = Math.max(0, Math.min(3, msel.selectedIndex | 0));
+      prefSet('flydiy.garageMood', edMood);
+      applyRoom();
+    };
+    applyRoom();
+  }
   // the measuring box round the aeroplane (the pane below the view is
   // always on — the box is the display option)
   const db = document.createElement('div'); db.className = 'r';
@@ -1300,4 +1381,6 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; } };
 build();
-})();
+}
+window.CAGE_UI_BOOT = CAGE_UI_BOOT;
+if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();

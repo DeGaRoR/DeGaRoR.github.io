@@ -9665,6 +9665,94 @@ VERIFIED: cage8 — wheel group renders, tundra/smooth/bulge 1.25 builds
 clean, defaults identity; the gear bench renders from the shared rows,
 zero console errors on both.
 
+## G34 — wing structure/struts/mass-CG, REVERTED (2026-08-27)
+
+Built and reverted the same day (commits 2e22507 / c8e218f). The wing
+layer grew a structure display, cage-rooted struts and a mass/CG
+readout; the assertions were green but the LOOK was wrong (user: "the
+new structure is very wrong ... the struts are wrong"). The number
+stays burned; the lesson is G21§5's — visual wing work happens WITH the
+user, inside the outline/creases rework. The code is recoverable from
+2e22507 if a piece (the ledger mass/CG join, say) is ever wanted.
+
+## G35 — THE CAGE EDITOR REPLACES THE GARAGE PANEL (2026-08-28,
+## ROADMAP P3 opens)
+
+User: "Backup the current version of the game, that's the last time
+we'll see the old editor, then replace with our new one. We should keep
+the option to display it in hangar too." Rulings taken by question:
+the editor EMBEDS in the game (the P10 "garage rebased" move pulled
+forward), and "display in hangar" means the old garage's backdrop
+option carries over to the new editor.
+
+**THE BACKUP IS THE ARTIFACT**: index.html is fully self-contained
+(zero external refs, fonts as data URIs), so one copy IS the complete
+old game — `earlierVersions/2026-08-28-preP3-last-old-garage.html`,
+9.2 MB, the last build carrying the old panel.
+
+**THE BENCH STACK JOINS THE BUNDLE.** `MANIFEST.editor` (build.js) is
+tools/_cage8.html's script list VERBATIM, order included — 19 files,
+~18.6k lines, inlined at the head of the RENDER slot in index.html and
+referenced with content-hash ?v= in dev.html. Checked mechanically
+before the move (the G30 discipline): core + bench + viewer concatenate
+with ZERO top-level redeclarations, and no bench file contains
+UISMOKE's block-picking marker literals.
+
+**BOOT IS LAZY, IDS ARE NAMESPACED, PAGES STAY STANDALONE.**
+_cage_ui.js's load-time IIFE became `CAGE_UI_BOOT()` — without
+`window.CAGE_UI_LAZY` it self-boots exactly as before, so cage2..cage8
+are untouched; the bundle sets the flag ahead of the editor scripts and
+app.js boots on FIRST OPEN (the editor pays its build cost when opened,
+not at game boot — measured: CAGE_UI absent until entry). The only two
+DOM id collisions with the game shell (#c, #ui) are namespaced as
+#cgC/#cgUi — _cage_ui.js prefers them and falls back, so one grammar
+serves both mounts. The editor overlay (#edWrap, body.html) mirrors
+cage8's markup; its CSS is cage8's style block scoped under #edWrap
+with a LOCAL palette, so the bench's dark mono grammar and the game HUD
+never fight.
+
+**THE FLOW**: picking "⚒ Garage build" enters the stand (enterGarage,
+untouched — solver stopped, room under the wheels, #bEnv/#bMood as
+ever) AND opens the editor; `back to the game` drops you at the stand —
+builds bar, env buttons, Roll out & fly; `Open the editor` in the
+builds bar goes back in. bReset/load-test re-entries do NOT reopen the
+editor over your view.
+
+**THE OLD PANEL IS GONE; WHAT STAYED WAS NEVER THE EDITOR.** garage.js
+lost SECTIONS/GROUPS, the row builders, refresh/report, the shakedown
+readout and the test/roll buttons (1411 → ~730 lines); it keeps the
+eight paint bakers (the flying skin's sheets), the G7 BUILDS bar
+(save/load/export/import + WIP autosave — rebuild() is now just
+api.apply + autosave) and window.GARAGE_SPEC. #gRows/#gRead left
+body.html; the #garage section is retitled "Builds" and gained the
+editor door.
+
+**THE HANGAR IS THE EDITOR'S BACKDROP** (the user's chosen reading):
+backdrop studio/hangar + mood rows in the editor's view panel, gated on
+genHangarBuild/genHangarSupported so they exist only in the game bundle
+— the standalone bench pages never see them. The room drops in at the
+gear layer's contact height, the bench suns yield to the room's own
+physical-unit lights (physicallyCorrectLights + ACESFilmic + the mood's
+own exposure, all restored on studio), prefs share the old garage keys
+(flydiy.garageEnv/garageMood). NOT ported (recorded): the PMREM
+self-bake the stand view gives the room — metals read flatter in the
+editor; the direct light does the work.
+
+**WHAT THIS CHANTIER IS NOT (the join).** The editor edits the CAGE
+build; the FLOWN 'gen' aeroplane still comes from the spec pipeline
+(saves, GARAGE_SPEC, the default). Until P3's declared
+parameter table lands, the editor's knobs do not reach the plaque —
+that join is the NEXT chantier, and it is the whole point of P3.
+
+VERIFIED: build green (index.html 9.8 MB, syntax OK); dev.html AND the
+artifact both drive the full loop in-browser — boot (editor NOT booted,
+lazy flag honoured), 'gen' → stand + editor (563 panel rows), hangar
+backdrop on (room in scene, AFTERNOON bg, fog; pixel-sampled 99.5% lit
+at warm tones vs the dark studio), mood persists, close → builds bar
+visible at the stand, reopen via the door, Roll out & fly → TAKEOFF
+ROLL, zero console errors throughout; UISMOKE PASS (its handler
+inventory now lists edClose/gEdit); core battery PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

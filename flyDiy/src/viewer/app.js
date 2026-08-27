@@ -1392,12 +1392,32 @@
   }
   $('bReset').onclick = fullReset;
   // selecting the Garage build puts you IN the garage; any other aeroplane is
-  // finished and goes straight to the strip
+  // finished and goes straight to the strip. Since G35 the garage's editor
+  // is the CAGE EDITOR overlay — it opens with the garage, and closing it
+  // leaves you at the stand (builds bar, env buttons, Roll out & fly).
   $('selAc').onchange = e => {
     setAircraft(e.target.value);
-    if (curKey === 'gen') enterGarage(); else rollOut();
+    if (curKey === 'gen') { enterGarage(); openEditor(); } else rollOut();
     hud();
   };
+  // ---- THE EDITOR (G35): the cage bench, embedded. Boot is LAZY — the
+  // bundle sets CAGE_UI_LAZY before the bench scripts, so the editor pays
+  // its build cost on first open, not at game boot. Re-entry just redraws.
+  function openEditor() {
+    const w = $('edWrap');
+    if (!w || typeof CAGE_UI_BOOT !== 'function') return;
+    w.hidden = false;
+    try {
+      if (!window.CAGE_UI) {
+        CAGE_UI_BOOT();
+        if (typeof CAGE_PAGE_SETUP === 'function') CAGE_PAGE_SETUP();
+      } else window.CAGE_UI.draw();
+    } catch (err) { console.error('cage editor boot:', err); }
+  }
+  if ($('edClose')) $('edClose').onclick = () => {
+    const w = $('edWrap'); if (w) w.hidden = true;
+  };
+  if ($('gEdit')) $('gEdit').onclick = () => openEditor();
   { // departure + destination selects: spawn anywhere, fly circuit or leg
     const fill = (sel, first, firstLabel, skipId) => {
       sel.innerHTML = '';

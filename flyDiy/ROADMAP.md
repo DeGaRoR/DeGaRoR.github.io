@@ -111,7 +111,13 @@ here, but the geometry RESERVES it: hinge lines, aft-spar nodes and slat/flap
 station allowances exist from the first build, so P12 adds surfaces without
 rebuilding the wing.
 
-**P3 — THE VERTICAL SLICE (the hinge).**
+**P3 — THE VERTICAL SLICE (the hinge).** — STARTED 2026-08-28 (G35: the
+cage editor EMBEDS in the game and replaces the old garage panel — the
+P10 "garage rebased" move pulled forward by the user; the old game is
+archived whole as earlierVersions/2026-08-28-preP3-last-old-garage.html;
+the hangar room carried over as the editor's backdrop. NEXT: the
+declared physics-bearing table + the bench→spec join, so the editor's
+knobs reach the flown aeroplane and the plaque).
 The first full turn of the loop, ugly by design. Almost everything it needs
 already exists — GATE GEN flies a generated aeroplane headless around a full
 circuit and prints its stats (the SHAKEDOWN line: Vs, VCruise, L/D, wing

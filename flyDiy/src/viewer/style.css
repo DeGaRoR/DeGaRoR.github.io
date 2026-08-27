@@ -292,3 +292,55 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition:none !important; }
   }
+
+/* ======================================================================
+   THE EDITOR (G35): the cage bench, embedded. The whole block is scoped
+   under #edWrap so the bench's grammar (its own dark palette, mono font,
+   slider rows, details tree) and the game HUD never fight; the palette
+   custom properties are LOCAL to the overlay. Mirrors tools/_cage8.html's
+   own <style>, which stays the authority for the standalone bench pages.
+   ====================================================================== */
+#edWrap { --bg:#12151a; --fg:#dfe6ee; --dim:#7d8996; --acc:#5db3ff; --grid:#242a33;
+  position:fixed; inset:0; z-index:40; background:var(--bg); color:var(--fg);
+  font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;
+  display:flex; flex-direction:column; }
+#edWrap[hidden] { display:none; }
+#edWrap * { box-sizing:border-box; }
+#edWrap header { padding:8px 12px; border-bottom:1px solid var(--grid);
+  display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+#edWrap h1 { font-size:13px; margin:0; color:var(--fg); }
+#edWrap label { color:var(--dim); display:inline-flex; gap:5px; align-items:center;
+  text-transform:none; letter-spacing:0; }
+#edWrap select, #edWrap button { background:#1a1f27; color:var(--fg);
+  border:1px solid var(--grid); padding:3px 8px; border-radius:4px; font:inherit;
+  text-transform:none; letter-spacing:0;
+  -webkit-appearance:auto; appearance:auto; }
+#edWrap select option { background:#1a1f27; color:var(--fg); }
+#edWrap main { display:flex; flex:1; min-height:0; }
+#edWrap #view { position:relative; flex:1; min-width:0; }
+#edWrap canvas { display:block; width:100%; height:100%; }
+#edWrap aside { border-left:1px solid var(--grid); overflow-y:auto;
+  overflow-x:hidden; padding:10px; width:340px; flex:none;
+  resize:horizontal; direction:rtl; min-width:240px; max-width:70vw; }
+#edWrap aside > * { direction:ltr; }
+#edWrap .r { display:flex; gap:6px; align-items:center; margin:5px 0; min-width:0; }
+#edWrap .r.wrap { flex-wrap:wrap; }
+#edWrap .r span.k { color:var(--dim); width:92px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+#edWrap .r select { min-width:60px; flex:1; }
+#edWrap .r button { flex:none; }
+#edWrap input[type=range] { flex:1; min-width:30px; accent-color:var(--acc); }
+#edWrap .v { width:46px; flex:none; text-align:right; color:var(--acc); }
+#edWrap .leg { display:flex; gap:5px; align-items:center; margin:3px 0; }
+#edWrap .sw { width:13px; height:13px; border-radius:3px; flex:none; }
+#edWrap #stat { position:absolute; left:10px; top:8px; color:var(--dim); z-index:2; }
+#edWrap h2 { font-size:11px; color:var(--dim); margin:14px 0 4px;
+  text-transform:uppercase; }
+#edWrap details { margin:8px 0; border:1px solid var(--grid); border-radius:5px;
+  padding:2px 8px; }
+#edWrap details details { margin:6px 0; border-color:#1b2029; }
+#edWrap summary { cursor:pointer; color:var(--dim); font-size:11px;
+  text-transform:uppercase; padding:4px 0; }
+#edWrap #edClose { margin-left:auto; border-color:#5db3ff66; color:var(--acc); }
+/* the door in the builds bar */
+#garage #gEdit { width:100%; margin-top:6px; }
