@@ -9639,6 +9639,32 @@ nut collars) awaits its own pass now that the fittings are VISIBLE at
 all; wing wireframe covers the wing layer only (fin/gear/engine layers
 keep solid render under the cage's wire toggle).
 
+## G33 — THE WHEEL ROWS COME BACK, AND THE TYRE BALLOONS (2026-08-27)
+
+The user remembered choosing wheel types on the original gear bench and
+could not find them in the cage — right again: the bench's whole
+'wheel' group (carcass standard/tundra balloon/slim, tread ribbed/
+smooth/blocked, ribs, rim style, bolts, hub cap, valve, brake type)
+existed in the SHARED DEFAULTS since G21§2 but never got panel rows in
+the cage layer. The port-the-full-surface rule, third strike, same cure:
+the rows moved VERBATIM into `_gear_page.js` as WHEEL_ROWS (their one
+home), the bench references them, and the cage's "9 · undercarriage"
+gained the group (gated on gearOn). Tundra + smooth tread = the bush
+slick the user asked for, and it was always one dropdown away.
+
+**SIDEWALL INFLATION** (`whBulge`, new, default 1 = identity): the two
+sidewall widths of the revolved carcass multiply by it — the bead stays
+on the rim and the crown band stays put, so the tyre balloons without
+leaving its wheel. MEASURED (R 0.2 m): standard 0.160 m wide, tundra
+0.232, tundra at 1.3 → 0.302 (exactly 1.3× the sidewalls), slim 0.116.
+Found in passing: TYRE's own `bulge` column was never read — left
+unread and noted, rather than wired in and silently moving every
+default tyre.
+
+VERIFIED: cage8 — wheel group renders, tundra/smooth/bulge 1.25 builds
+clean, defaults identity; the gear bench renders from the shared rows,
+zero console errors on both.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

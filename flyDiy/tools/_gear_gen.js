@@ -160,10 +160,16 @@ function wheel(bags, ctr, axis, R, opt) {
   // and being u-invariant they read right on a wheel that never spins.
   const ribs = Math.max(1, Math.round(P.whRibs == null ? 3 : P.whRibs));
   const rEdge = R * (1 - prof.crown);        // crown radius at its edge
+  // SIDEWALL INFLATION (G33, user: "a more inflated shape on the
+  // sides"): whBulge multiplies the two sidewall widths only — the bead
+  // stays on the rim and the crown band stays put, so the tyre balloons
+  // without leaving its wheel. 1 = the profile as drawn before (and
+  // TYRE's own `bulge` column stays what it always was: unread).
+  const B = P.whBulge == null ? 1 : Math.max(0.5, P.whBulge);
   const flank = s => [
     [bead * 1.03, s * beadH * 1.00],
-    [R * 0.60, s * hw],                      // widest: the sidewall bulge
-    [R * prof.bulgeAt, s * hw * 0.97],
+    [R * 0.60, s * hw * B],                  // widest: the sidewall bulge
+    [R * prof.bulgeAt, s * hw * 0.97 * B],
     [R * 0.945, s * half * 1.16],
     [rEdge, s * half],                       // MEETS THE CROWN EXACTLY
   ];

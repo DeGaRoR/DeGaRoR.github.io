@@ -26,6 +26,8 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
+  whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
+                     // top of the carcass profile; 1 = as drawn before)
   // (a) bending beam
   beamAng: 62, beamW: 0.075, beamT: 0.020, beamTaper: 0.72, beamBow: 1.06,
   beamRake: 0.10,
@@ -101,6 +103,21 @@ for (let i = 1; i <= 2; i++)
 const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
 const STEERS = ['fixed', 'linked', 'castor'];
 
+// THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
+// entirely; the port-the-full-surface rule again). Lifted verbatim from
+// the bench's own group + the new sidewall bulge.
+const WHEEL_ROWS = [
+  ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
+  ['whTread', 'tread', 0, 2, 1, ['ribbed', 'smooth', 'blocked']],
+  ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
+  ['whRibs', 'ribs', 1, 5, 1],
+  ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
+  ['whBolts', 'rim bolts', 3, 10, 1],
+  ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
+  ['whValve', 'valve stem', 0, 1, 1],
+  ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+];
+
 const PRESETS = {
   // stations sited on the REAL fuselage and tuned here until the CG
   // angle sat in its 15-18 window (it reads 15.7)
@@ -151,6 +168,6 @@ const gearStations = P => {
   return out;
 };
 
-window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, PRESETS,
-                     gearDefaults, gearLegP, gearStations };
+window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, WHEEL_ROWS,
+                     PRESETS, gearDefaults, gearLegP, gearStations };
 })();

@@ -353,16 +353,9 @@ const GLOBAL_GROUPS = [
     ['propR', 'prop radius', 0.3, 1.8, 0.01],
     ['propZ', 'prop z', 0, 4.5, 0.05],
   ]],
-  ['wheel', [
-    ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
-    ['whTread', 'tread', 0, 2, 1, ['ribbed', 'smooth', 'blocked']],
-    ['whRibs', 'ribs', 1, 5, 1],
-    ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
-    ['whBolts', 'rim bolts', 3, 10, 1],
-    ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
-    ['whValve', 'valve stem', 0, 1, 1],
-    ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
-  ]],
+  // the wheel rows are SHARED with the cage layer now (G33) —
+  // _gear_page.js is their one home
+  ['wheel', GP.WHEEL_ROWS],
 ];
 const STATION_ROWS = i => [
   ['s' + i + 'On', 'fitted', 0, 1, 1],

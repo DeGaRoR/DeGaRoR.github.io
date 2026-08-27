@@ -111,6 +111,9 @@ const GROUP = ['9 · undercarriage', [
    { when: P => +P.gearOn }],
   station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn }]),
   station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn }]),
+  // the wheel dressing — shared rows (G33: this group never made the
+  // cage port; tundra + smooth tread = the bush slick)
+  ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn }],
   ['balance + prop', [
     ['cgZ',   'CG station z', -2, 4, 0.01],
     ['cgY',   'CG height y',  -1, 1, 0.01],
