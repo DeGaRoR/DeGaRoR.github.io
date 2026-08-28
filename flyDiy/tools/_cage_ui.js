@@ -1006,11 +1006,42 @@ fillPresetSel();
                         catch (e) { return null; } };
     const prefSet = (k, v) => { try { localStorage.setItem(k, v); }
                                catch (e) {} };
-    let edRoom = null, edOn = false,
+    let edRoom = null, edOn = false, edEnv = null,
         edKind = pref('flydiy.garageEnv') || 'hangar',
         edMood = Math.max(0, Math.min(3, +pref('flydiy.garageMood') || 0));
     const BG0 = scene.background, TM0 = renderer.toneMapping,
-          EX0 = renderer.toneMappingExposure;
+          EX0 = renderer.toneMappingExposure, OE0 = renderer.outputEncoding;
+    // THE ROOM'S OWN AMBIENT (G35.4). The stand view's room reads bright
+    // because app.js bakes the room into a PMREM environment map — the
+    // walls and floor are LIT BY THE ROOM ITSELF, not just the lamps —
+    // and renders with sRGB output encoding. The editor's room did
+    // neither, which is the whole "huge difference in rendering" the
+    // user saw: same room, no ambient, linear output. Both port here,
+    // the same recipe as app.js getHangar(): bake once at construction
+    // lighting from the room's centre (shafts hidden), mood then only
+    // scales envMapIntensity. Applied in room mode, restored for the
+    // studio so the bench look never moves.
+    const bakeEnv = () => {
+      try {
+        const physWas = renderer.physicallyCorrectLights;
+        renderer.physicallyCorrectLights = true;
+        const tmp = new THREE.Scene();
+        tmp.background = edRoom.background;
+        tmp.add(edRoom.group);
+        if (edRoom.shafts) edRoom.shafts.visible = false;
+        const rt = new THREE.WebGLCubeRenderTarget(256,
+          { type: THREE.HalfFloatType });
+        const cc = new THREE.CubeCamera(0.5, 100, rt);
+        cc.position.set(0, 3.2, 0);
+        cc.update(renderer, tmp);
+        if (edRoom.shafts) edRoom.shafts.visible = true;
+        const pm = new THREE.PMREMGenerator(renderer);
+        edEnv = pm.fromCubemap(rt.texture).texture;
+        pm.dispose(); rt.dispose();
+        tmp.remove(edRoom.group);
+        renderer.physicallyCorrectLights = physWas;
+      } catch (e) { console.warn('hangar env bake:', e); edEnv = null; }
+    };
     // THE ROOM TAKES THE GRID'S OWN TRANSFORM. The bench's ruling (gear
     // layer): the cage must not tilt under the editor, so the GROUND
     // comes to the aeroplane — the contact plane is rolled by -pitch and
@@ -1077,7 +1108,7 @@ fillPresetSel();
     const applyRoom = () => {
       const on = edKind === 'hangar';
       if (on && !edRoom) {
-        try { edRoom = genHangarBuild(THREE); }
+        try { edRoom = genHangarBuild(THREE); bakeEnv(); }
         catch (e) { console.error('hangar backdrop:', e); edRoom = null; }
       }
       if (edRoom) {
@@ -1088,11 +1119,13 @@ fillPresetSel();
       placeRoom();
       scene.background = inRoom ? edRoom.background : BG0;
       scene.fog = inRoom ? edRoom.fog : null;
+      scene.environment = inRoom ? edEnv : null;
       // the room lights the scene alone: the bench's hemi + two suns on
       // top of the room's physical-unit lamps was a plain white wash
       // (user: "washed out by a layer of white ... a lighting issue")
       hemi.visible = sun.visible = sun2.visible = !inRoom;
       renderer.physicallyCorrectLights = !!inRoom;
+      renderer.outputEncoding = inRoom ? THREE.sRGBEncoding : OE0;
       renderer.toneMapping = inRoom ? THREE.ACESFilmicToneMapping : TM0;
       renderer.toneMappingExposure = inRoom
         ? edRoom.setMood(edMood).ex : EX0;

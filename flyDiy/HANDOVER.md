@@ -9824,6 +9824,40 @@ clipped-white 0.02% at the exact close-on-the-fuselage framing the
 user's screenshot blew out at; section colours and the crew legible
 through the glazing; zero console errors; UISMOKE PASS.
 
+## G35.4 — THE ROOM'S OWN AMBIENT (2026-08-28, user: "still huge
+## differences in rendering/lighting between the game and the editor")
+
+The stand view's room is bright because of two renderer-level things
+the editor's room had neither of. app.js's renderer runs
+`outputEncoding = sRGBEncoding` (a large midtone lift the bench never
+sets — its colours are picked under linear output, the 63_gen_skin
+hex-chip note), and getHangar() BAKES THE ROOM INTO A PMREM
+ENVIRONMENT map — the walls and floor are lit by the room itself, not
+just the lamps. Without the bake the editor's hangar was a dark cavern
+with lamp pools; without sRGB it sat darker still.
+
+Both port into the room path, same recipe as app.js: bake once at
+construction lighting from the room's centre (CubeCamera 256 half-
+float, shafts hidden, physical lights on for the bake), PMREM →
+`scene.environment`; sRGB output + the mood's exposure while the room
+is up. ALL of it restores with the studio — environment null, linear
+output, bench tone mapping — so the bench look never moves (measured:
+studio average tone back to the bench's own dark 39/255; standalone
+cage8 boots identically). Mood keeps scaling envMapIntensity only; the
+bake is mood-independent, exactly as the stand view's.
+
+NOT ported, still (recorded): shadow mapping (the game runs
+PCFSoftShadowMap and the room's key casts; the bench meshes carry no
+cast/receive flags, so the aeroplane shows no ground shadow in the
+editor's room). The remaining visible delta, small next to the
+ambient.
+
+VERIFIED live: scene.environment set in room mode, average frame tones
+167/163/153 (was 144/135/121 direct-only, and a cavern before that),
+zero clipped white; studio round-trip exact; UISMOKE PASS; zero
+console errors; screenshot side-by-sides read as the same room as the
+stand view.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
