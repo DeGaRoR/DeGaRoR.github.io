@@ -302,21 +302,27 @@
   }
 
 /* ======================================================================
-   THE EDITOR (G35): the cage bench, embedded. The whole block is scoped
-   under #edWrap so the bench's grammar (its own dark palette, mono font,
-   slider rows, details tree) and the game HUD never fight; the palette
-   custom properties are LOCAL to the overlay. Mirrors tools/_cage8.html's
-   own <style>, which stays the authority for the standalone bench pages.
+   THE EDITOR (G35, remounted G36): the cage bench as a PANEL over the
+   game's own garage view — no canvas of its own since the build renders
+   in the game scene. Scoped under #edWrap; palette custom properties are
+   LOCAL to the panel. tools/_cage8.html keeps its own <style> and stays
+   the authority for the standalone bench pages.
    ====================================================================== */
 #edWrap { --bg:#12151a; --fg:#dfe6ee; --dim:#7d8996; --acc:#5db3ff; --grid:#242a33;
-  position:fixed; inset:0; z-index:40; background:var(--bg); color:var(--fg);
+  /* stops above the game's bottom bar: HANGAR/mood and the flight
+     buttons stay reachable while editing */
+  position:fixed; top:0; right:0; bottom:52px; width:400px; z-index:40;
+  background:rgba(14,17,21,0.96); color:var(--fg);
   font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;
-  display:flex; flex-direction:column; }
+  display:flex; flex-direction:column;
+  border-left:1px solid var(--grid); }
 #edWrap[hidden] { display:none; }
 #edWrap * { box-sizing:border-box; }
 #edWrap header { padding:8px 12px; border-bottom:1px solid var(--grid);
-  display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  display:flex; gap:14px; align-items:center; }
 #edWrap h1 { font-size:13px; margin:0; color:var(--fg); }
+#edWrap #edBar { padding:6px 12px; border-bottom:1px solid var(--grid);
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 #edWrap label { color:var(--dim); display:inline-flex; gap:5px; align-items:center;
   text-transform:none; letter-spacing:0; }
 #edWrap select, #edWrap button { background:#1a1f27; color:var(--fg);
@@ -324,13 +330,8 @@
   text-transform:none; letter-spacing:0;
   -webkit-appearance:auto; appearance:auto; }
 #edWrap select option { background:#1a1f27; color:var(--fg); }
-#edWrap main { display:flex; flex:1; min-height:0; }
-#edWrap #view { position:relative; flex:1; min-width:0; }
-#edWrap canvas { display:block; width:100%; height:100%; }
-#edWrap aside { border-left:1px solid var(--grid); overflow-y:auto;
-  overflow-x:hidden; padding:10px; width:340px; flex:none;
-  resize:horizontal; direction:rtl; min-width:240px; max-width:70vw; }
-#edWrap aside > * { direction:ltr; }
+#edWrap aside { flex:1; overflow-y:auto; overflow-x:hidden; padding:10px;
+  min-height:0; }
 #edWrap .r { display:flex; gap:6px; align-items:center; margin:5px 0; min-width:0; }
 #edWrap .r.wrap { flex-wrap:wrap; }
 #edWrap .r span.k { color:var(--dim); width:92px; flex:none; overflow:hidden;
@@ -341,7 +342,6 @@
 #edWrap .v { width:46px; flex:none; text-align:right; color:var(--acc); }
 #edWrap .leg { display:flex; gap:5px; align-items:center; margin:3px 0; }
 #edWrap .sw { width:13px; height:13px; border-radius:3px; flex:none; }
-#edWrap #stat { position:absolute; left:10px; top:8px; color:var(--dim); z-index:2; }
 #edWrap h2 { font-size:11px; color:var(--dim); margin:14px 0 4px;
   text-transform:uppercase; }
 #edWrap details { margin:8px 0; border:1px solid var(--grid); border-radius:5px;
@@ -350,6 +350,13 @@
 #edWrap summary { cursor:pointer; color:var(--dim); font-size:11px;
   text-transform:uppercase; padding:4px 0; }
 #edWrap #edClose { margin-left:auto; border-color:#5db3ff66; color:var(--acc); }
+/* the stat line and the dims pane dock in flow — there is no viewport
+   to float over any more */
+#edWrap #edStat { padding:6px 10px; border-top:1px solid var(--grid);
+  color:var(--dim); font-size:10px; line-height:1.5; max-height:96px;
+  overflow-y:auto; flex:none; }
+#edWrap #stat { position:static; }
+#edWrap #dims { position:static !important; margin:10px 0 0; }
 /* the door in the builds bar */
 #garage #gEdit { width:100%; margin-top:6px; }
 </style>
@@ -461,14 +468,19 @@
   </footer>
 </div>
 
-<!-- THE EDITOR (G35): the cage bench, embedded — the game's editor since the
-     old garage panel retired. Markup mirrors tools/_cage8.html with the two
-     colliding ids namespaced (#cgC canvas, #cgUi panel — _cage_ui.js prefers
-     them and falls back to the bench pages' own #c/#ui). Hidden until the
-     garage build is opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<!-- THE EDITOR (G35, remounted G36): the cage bench, embedded — the game's
+     editor since the old garage panel retired. Since G36 this is a PANEL
+     ONLY: the cage build renders in the game's own garage scene through
+     the game's own renderer and camera (window.CAGE_UI_SCENE mount), so
+     there is no editor canvas — the game view behind IS the viewport, and
+     #bEnv/#bMood keep ruling the room. Hidden until the garage build is
+     opened; CAGE_UI_BOOT() runs lazily on first entry. -->
 <section id="edWrap" hidden>
   <header>
-    <h1>garage — cage editor</h1>
+    <h1>cage editor</h1>
+    <button id="edClose" title="Back to the game">back to the game</button>
+  </header>
+  <div id="edBar">
     <label>subsurf <select id="lvl">
       <option>0</option><option>1</option><option selected>2</option><option>3</option>
     </select></label>
@@ -477,12 +489,9 @@
     <label><input type="checkbox" id="color" checked> sections</label>
     <button id="resetBtn">reset</button>
     <button id="objBtn">export OBJ</button>
-    <button id="edClose" title="Back to the game">back to the game</button>
-  </header>
-  <main>
-    <div id="view"><span id="stat"></span><canvas id="cgC"></canvas></div>
-    <aside id="cgUi"></aside>
-  </main>
+  </div>
+  <aside id="cgUi"></aside>
+  <div id="edStat"><span id="stat"></span></div>
 </section>
 
 
@@ -29204,24 +29213,33 @@ const GROUPS = PAGE.groupsOverride
 // items may nest one level: ['sub name', [items...], 'open'?, {when}?]
 
 // ---- three.js scene -------------------------------------------------------
+// EXTERNAL SCENE (G36): when the GAME mounts the editor it hands a Group
+// via window.CAGE_UI_SCENE before boot. The cage build then lives inside
+// the game's own garage scene and is rendered by the game's own renderer
+// — its hangar, its moods, its sRGB/ACES/shadow pipeline — and this file
+// creates NO renderer, camera rig, canvas wiring or lights of its own.
+// One renderer, one look: the cure for the G35.2-4 pipeline chase (user:
+// "why wouldn't you just use the previous environment as it is and put
+// the mesh in it?"). Standalone bench pages keep the whole local rig.
 let yaw = -0.85, pitch = 0.30, drag = null, ZOOM = 1;
 let M0 = null, MS = null;
+const EXT = window.CAGE_UI_SCENE || null;
 // namespaced ids first (the GAME's editor mount — its shell already owns
 // #c and #ui), the bench pages' own ids as the fallback
-const cv = $('cgC') || $('c');
-const renderer = new THREE.WebGLRenderer({
+const cv = EXT ? null : ($('cgC') || $('c'));
+const renderer = EXT ? null : new THREE.WebGLRenderer({
   canvas: cv, antialias: true, preserveDrawingBuffer: true });
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x12151a);
+const scene = EXT || new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
 const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95);
-scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 0.75);
 sun.position.set(-3, 4, -5);
-scene.add(sun);
 const sun2 = new THREE.DirectionalLight(0xcfd8ff, 0.25);
 sun2.position.set(4, -1, 3);
-scene.add(sun2);
+if (!EXT) {
+  scene.background = new THREE.Color(0x12151a);
+  scene.add(hemi); scene.add(sun); scene.add(sun2);
+}
 let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
@@ -29595,6 +29613,12 @@ function build() {
 }
 
 function draw() {
+  // EXT: the game's loop renders the shared scene; ping the mount so the
+  // sit transform follows every rebuild (pitch/gy move with the gear)
+  if (!renderer) {
+    if (window.CAGE_ON_BUILD) window.CAGE_ON_BUILD();
+    return;
+  }
   const r = cv.parentElement.getBoundingClientRect();
   const dp = devicePixelRatio || 1;
   renderer.setSize(r.width * dp, r.height * dp, false);
@@ -30028,178 +30052,47 @@ fillPresetSel();
   dl.querySelector('#canLoopsV').onchange = e => {
     VIEW.loops = e.target.checked ? 1 : 0; build();
   };
-  // BACKDROP (G35, user: "keep the option to display it in hangar too").
-  // The old garage's environment — the hangar room, with its mood dial —
-  // carried over to the editor that replaced it. hangar.js's room builder
-  // is only present in the GAME bundle, so the rows appear there and never
-  // on the standalone bench pages; prefs share the old garage's own keys.
-  // The room lights are physical-units and its moods return a tone-mapping
-  // exposure, so both renderer settings flip with the room and flip back.
-  // NOT ported (recorded): the PMREM self-bake app.js gives the stand view
-  // — reflective metals read flatter here; the direct light does the work.
-  if (typeof genHangarBuild === 'function' &&
-      typeof genHangarSupported === 'function' && genHangarSupported(THREE)) {
-    const pref = k => { try { return localStorage.getItem(k); }
-                        catch (e) { return null; } };
-    const prefSet = (k, v) => { try { localStorage.setItem(k, v); }
-                               catch (e) {} };
-    let edRoom = null, edOn = false, edEnv = null,
-        edKind = pref('flydiy.garageEnv') || 'hangar',
-        edMood = Math.max(0, Math.min(3, +pref('flydiy.garageMood') || 0));
-    const BG0 = scene.background, TM0 = renderer.toneMapping,
-          EX0 = renderer.toneMappingExposure, OE0 = renderer.outputEncoding;
-    // THE ROOM'S OWN AMBIENT (G35.4). The stand view's room reads bright
-    // because app.js bakes the room into a PMREM environment map — the
-    // walls and floor are LIT BY THE ROOM ITSELF, not just the lamps —
-    // and renders with sRGB output encoding. The editor's room did
-    // neither, which is the whole "huge difference in rendering" the
-    // user saw: same room, no ambient, linear output. Both port here,
-    // the same recipe as app.js getHangar(): bake once at construction
-    // lighting from the room's centre (shafts hidden), mood then only
-    // scales envMapIntensity. Applied in room mode, restored for the
-    // studio so the bench look never moves.
-    const bakeEnv = () => {
-      try {
-        const physWas = renderer.physicallyCorrectLights;
-        renderer.physicallyCorrectLights = true;
-        const tmp = new THREE.Scene();
-        tmp.background = edRoom.background;
-        tmp.add(edRoom.group);
-        if (edRoom.shafts) edRoom.shafts.visible = false;
-        const rt = new THREE.WebGLCubeRenderTarget(256,
-          { type: THREE.HalfFloatType });
-        const cc = new THREE.CubeCamera(0.5, 100, rt);
-        cc.position.set(0, 3.2, 0);
-        cc.update(renderer, tmp);
-        if (edRoom.shafts) edRoom.shafts.visible = true;
-        const pm = new THREE.PMREMGenerator(renderer);
-        edEnv = pm.fromCubemap(rt.texture).texture;
-        pm.dispose(); rt.dispose();
-        tmp.remove(edRoom.group);
-        renderer.physicallyCorrectLights = physWas;
-      } catch (e) { console.warn('hangar env bake:', e); edEnv = null; }
-    };
-    // THE ROOM TAKES THE GRID'S OWN TRANSFORM. The bench's ruling (gear
-    // layer): the cage must not tilt under the editor, so the GROUND
-    // comes to the aeroplane — the contact plane is rolled by -pitch and
-    // sits gy along its own normal. The hangar floor is that plane, so
-    // the wheels REST on it by construction; placing the level room at
-    // y = gy (the first cut) was the wrong frame and half-sank the
-    // aeroplane. Re-applied after EVERY build (pitch and gy move with
-    // the gear), and the bench's own grid yields to the floor while the
-    // room is up — coplanar lines would flicker.
-    // THE ROOM SPEAKS PBR (G35.3). Under the room's physical lights the
-    // bench's Lambert families read ~pi brighter than Standard ones —
-    // Lambert's diffuse has no 1/pi, Standard's does — which is exactly
-    // why the user's wash spared the wings and fins (those layers are
-    // MeshStandardMaterial) while the cage skin, gear kit and dummies
-    // blew white. Measured live: clipped-white 1.6% -> 0 on the same
-    // frame when every Lambert is understudied by a Standard clone.
-    // So the ROOM VIEW swaps each Lambert for a matte Standard
-    // understudy (colour, sides and alpha kept) and hands the original
-    // back with the studio — a display treatment at display time, like
-    // alphaOf, instead of rewriting every layer's material table. Runs
-    // with placeRoom after every build, so rebuilt parts are covered.
-    const pbrFor = new Map(), pbrBack = new Map();
+  // THE GAME'S ROOM LIGHTS THE BUILD (G36). The G35.2-4 arc tried to
+  // reproduce the stand view's pipeline inside the bench renderer —
+  // physical lights, understudies, PMREM, sRGB — and each pass only
+  // half-converged (user: "still huge differences ... why wouldn't you
+  // just use the previous environment as it is and put the mesh in
+  // it?"). That is what happens now: in the game (EXT) the build lives
+  // in the game's own garage scene and takes its renderer, room, moods
+  // and #bEnv/#bMood buttons wholesale; the bench keeps its flat rig.
+  // Two display treatments remain ours, re-applied after every build:
+  //   - the Lambert->Standard understudy (G35.3's finding stands — the
+  //     bench's Lambert families read ~pi brighter than Standard under
+  //     the game's pipeline, so they would blow white);
+  //   - the gearSit grid yields to the room's real floor.
+  if (EXT) {
+    const pbrFor = new Map();
     const pbrOf = m => {
       if (!pbrFor.has(m)) {
-        const s = new THREE.MeshStandardMaterial({
+        pbrFor.set(m, new THREE.MeshStandardMaterial({
           color: m.color.clone(), roughness: 0.85, metalness: 0.0,
           map: m.map || null, side: m.side, transparent: m.transparent,
           opacity: m.opacity, depthWrite: m.depthWrite,
           emissive: m.emissive ? m.emissive.clone() : 0x000000,
-          vertexColors: m.vertexColors });
-        pbrFor.set(m, s); pbrBack.set(s, m);
+          vertexColors: m.vertexColors }));
       }
       return pbrFor.get(m);
     };
-    const applyPBR = () => {
+    const extPass = () => {
       scene.traverse(o => {
+        if (o instanceof THREE.GridHelper) o.visible = false;
         if (!o.material) return;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         let touched = false;
-        const nm = mats.map(m => {
-          if (edOn && m.type === 'MeshLambertMaterial')
-            { touched = true; return pbrOf(m); }
-          if (!edOn && pbrBack.has(m))
-            { touched = true; return pbrBack.get(m); }
-          return m;
-        });
+        const nm = mats.map(m => m.type === 'MeshLambertMaterial'
+          ? (touched = true, pbrOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
       });
     };
-    const placeRoom = () => {
-      const G2 = window.CAGE_GEAR || {};
-      const p2 = +G2.pitch || 0, gy = +G2.gy || 0;
-      if (edRoom) {
-        edRoom.group.rotation.set(-p2, 0, 0);
-        edRoom.group.position.set(0, Math.cos(p2) * gy, -Math.sin(p2) * gy);
-      }
-      scene.traverse(o => {
-        if (o instanceof THREE.GridHelper && (!edRoom || o.parent !== edRoom.group))
-          o.visible = !edOn;
-      });
-      applyPBR();
-    };
-    const applyRoom = () => {
-      const on = edKind === 'hangar';
-      if (on && !edRoom) {
-        try { edRoom = genHangarBuild(THREE); bakeEnv(); }
-        catch (e) { console.error('hangar backdrop:', e); edRoom = null; }
-      }
-      if (edRoom) {
-        if (on && edRoom.group.parent !== scene) scene.add(edRoom.group);
-        if (!on && edRoom.group.parent) scene.remove(edRoom.group);
-      }
-      const inRoom = edOn = !!(on && edRoom);
-      placeRoom();
-      scene.background = inRoom ? edRoom.background : BG0;
-      scene.fog = inRoom ? edRoom.fog : null;
-      scene.environment = inRoom ? edEnv : null;
-      // the room lights the scene alone: the bench's hemi + two suns on
-      // top of the room's physical-unit lamps was a plain white wash
-      // (user: "washed out by a layer of white ... a lighting issue")
-      hemi.visible = sun.visible = sun2.visible = !inRoom;
-      renderer.physicallyCorrectLights = !!inRoom;
-      renderer.outputEncoding = inRoom ? THREE.sRGBEncoding : OE0;
-      renderer.toneMapping = inRoom ? THREE.ACESFilmicToneMapping : TM0;
-      renderer.toneMappingExposure = inRoom
-        ? edRoom.setMood(edMood).ex : EX0;
-      const mr = document.getElementById('edMoodRow');
-      if (mr) mr.style.display = inRoom ? '' : 'none';
-      draw();
-    };
-    // the room follows every rebuild: the gear (and with it pitch/gy)
-    // may have moved, and the layers rebuild their grids
-    { const prevPost = PAGE.post;
-      PAGE.post = ctx => { if (prevPost) prevPost(ctx); placeRoom(); }; }
-    const db = document.createElement('div'); db.className = 'r';
-    db.innerHTML = `<span class="k">backdrop</span>
-      <select id="edBackdrop"><option value="studio">studio</option>
-      <option value="hangar">hangar</option></select>`;
-    det.appendChild(db);
-    const bsel = db.querySelector('#edBackdrop');
-    bsel.value = edKind === 'hangar' ? 'hangar' : 'studio';
-    bsel.onchange = () => {
-      edKind = bsel.value === 'hangar' ? 'hangar' : 'studio';
-      prefSet('flydiy.garageEnv', edKind);
-      applyRoom();
-    };
-    const dm = document.createElement('div'); dm.className = 'r';
-    dm.id = 'edMoodRow';
-    dm.innerHTML = `<span class="k">mood</span>
-      <select id="edMood"><option>afternoon</option><option>overcast</option>
-      <option>golden</option><option>night</option></select>`;
-    det.appendChild(dm);
-    const msel = dm.querySelector('#edMood');
-    msel.selectedIndex = edMood;
-    msel.onchange = () => {
-      edMood = Math.max(0, Math.min(3, msel.selectedIndex | 0));
-      prefSet('flydiy.garageMood', edMood);
-      applyRoom();
-    };
-    applyRoom();
+    const prevPost = PAGE.post;
+    PAGE.post = ctx => { if (prevPost) prevPost(ctx); extPass(); };
+    extPass();
   }
   // the measuring box round the aeroplane (the pane below the view is
   // always on — the box is the display option)
@@ -30214,13 +30107,16 @@ fillPresetSel();
     'background:rgba(18,21,26,.84);border:1px solid #242a33;border-radius:5px;' +
     'padding:7px 10px;color:#dfe6ee;pointer-events:none;' +
     'font:11px/1.55 ui-monospace,Menlo,Consolas,monospace';
-  $('view').appendChild(dimsEl);
+  // EXT has no #view; the dims pane docks at the panel's foot instead
+  ($('view') || ui).appendChild(dimsEl);
+  // EXT: the game camera is the camera — the bench presets have nothing
+  // to move, so the row stays off the panel
   const vb = document.createElement('div'); vb.className = 'r';
   vb.innerHTML = `<span class="k">camera</span>
     <button data-v="q">3/4</button><button data-v="s">side</button>
     <button data-v="f">front</button><button data-v="t">top</button>
     <button data-v="i">inside</button><button data-v="r">refit</button>`;
-  det.appendChild(vb);
+  if (!EXT) det.appendChild(vb);
   vb.querySelectorAll('button').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
     if (v === 'i') {
@@ -30467,11 +30363,14 @@ for (const id of ['wire', 'color'])
 if ($('step')) $('step').onchange = () => { loadRef(); build(); };
 if ($('refOn')) $('refOn').onchange = loadRef;
 if ($('refA')) $('refA').oninput = loadRef;
-const viewEl = $('view');
+const viewEl = EXT ? null : $('view');
 // left drag = orbit; MIDDLE or RIGHT drag = PAN (user ask) — the pan
 // moves the look-at centre in the camera's screen plane, scaled to the
-// world size per pixel at the target distance; dblclick refits both
+// world size per pixel at the target distance; dblclick refits both.
+// EXT has no viewport of its own — the game canvas and its controls are
+// the viewport — so the whole wiring block is skipped.
 let panD = null;
+if (viewEl) {
 viewEl.addEventListener('mousedown', e => {
   if (e.button === 1 || e.button === 2) {
     panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
@@ -30510,6 +30409,7 @@ addEventListener('resize', () => MS && draw());
 // follow the #view box live, not only on window resize
 if (typeof ResizeObserver !== 'undefined')
   new ResizeObserver(() => MS && draw()).observe(viewEl);
+}
 
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
@@ -34457,6 +34357,7 @@ function garageInit(api) {
   function applyEnv() {
     const s = garageScene();
     if (craft.parent !== s) s.add(craft);
+    if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
@@ -35623,6 +35524,7 @@ function garageInit(api) {
     $('bGo').textContent = 'Roll out & fly';
   }
   function rollOut() {
+    closeEditor();       // flying with the craft hidden is not a thing (G36)
     rig = null;
     // Rolling out is the one way to leave a FINISHED test without passing
     // through enterGarage, so the sandbags have to be taken off here too — or
@@ -35659,23 +35561,53 @@ function garageInit(api) {
     if (curKey === 'gen') { enterGarage(); openEditor(); } else rollOut();
     hud();
   };
-  // ---- THE EDITOR (G35): the cage bench, embedded. Boot is LAZY — the
-  // bundle sets CAGE_UI_LAZY before the bench scripts, so the editor pays
-  // its build cost on first open, not at game boot. Re-entry just redraws.
+  // ---- THE EDITOR (G35, remounted G36): the cage bench, embedded. Boot
+  // is LAZY — the bundle sets CAGE_UI_LAZY before the bench scripts, so
+  // the editor pays its build cost on first open, not at game boot.
+  // Since G36 the cage build renders IN THE GAME'S OWN GARAGE SCENE (one
+  // renderer, one look — the cure for chasing pipeline parity): the
+  // mount below receives the cage objects at boot, the game craft hides
+  // while the editor is open, and the sit transform inverts the bench's
+  // tilted-ground convention onto the room's level floor.
+  const edSit = new THREE.Group(), edSitP = new THREE.Group();
+  edSit.add(edSitP);
+  // the cage builds z-FORWARD; the room's long axis is x with the door
+  // at -x, the way the game craft noses — turn the build to face it
+  edSit.rotation.y = -Math.PI / 2;
+  edSit.visible = false;
+  function placeEditor() {
+    const G = window.CAGE_GEAR;
+    if (!G) return;
+    // the gear layer's ground plane is rot(-pitch) at gy along its own
+    // normal; inverted here — pitch the AEROPLANE, lift it so the
+    // rotated contact plane lands on the room floor (groundY)
+    edSitP.rotation.x = +G.pitch || 0;
+    edSit.position.y = groundY - (+G.gy || 0);
+  }
+  window.CAGE_ON_BUILD = placeEditor;
   function openEditor() {
     const w = $('edWrap');
     if (!w || typeof CAGE_UI_BOOT !== 'function') return;
     w.hidden = false;
     try {
       if (!window.CAGE_UI) {
+        window.CAGE_UI_SCENE = edSitP;      // the mount, read at boot
         CAGE_UI_BOOT();
         if (typeof CAGE_PAGE_SETUP === 'function') CAGE_PAGE_SETUP();
-      } else window.CAGE_UI.draw();
+      }
     } catch (err) { console.error('cage editor boot:', err); }
+    craft.visible = false;
+    edSit.visible = true;
+    applyEnv();                             // parents the mount into the room
+    placeEditor();
   }
-  if ($('edClose')) $('edClose').onclick = () => {
-    const w = $('edWrap'); if (w) w.hidden = true;
-  };
+  function closeEditor() {
+    const w = $('edWrap');
+    if (w) w.hidden = true;
+    edSit.visible = false;
+    craft.visible = true;
+  }
+  if ($('edClose')) $('edClose').onclick = () => closeEditor();
   if ($('gEdit')) $('gEdit').onclick = () => openEditor();
   { // departure + destination selects: spawn anywhere, fly circuit or leg
     const fill = (sel, first, firstLabel, skipId) => {

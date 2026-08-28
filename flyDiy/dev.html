@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
-<link rel="stylesheet" href="src/viewer/style.css?v=e1f7ac56">
+<link rel="stylesheet" href="src/viewer/style.css?v=a060c978">
 </head>
 <body>
 <!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
@@ -114,14 +114,19 @@
   </footer>
 </div>
 
-<!-- THE EDITOR (G35): the cage bench, embedded — the game's editor since the
-     old garage panel retired. Markup mirrors tools/_cage8.html with the two
-     colliding ids namespaced (#cgC canvas, #cgUi panel — _cage_ui.js prefers
-     them and falls back to the bench pages' own #c/#ui). Hidden until the
-     garage build is opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<!-- THE EDITOR (G35, remounted G36): the cage bench, embedded — the game's
+     editor since the old garage panel retired. Since G36 this is a PANEL
+     ONLY: the cage build renders in the game's own garage scene through
+     the game's own renderer and camera (window.CAGE_UI_SCENE mount), so
+     there is no editor canvas — the game view behind IS the viewport, and
+     #bEnv/#bMood keep ruling the room. Hidden until the garage build is
+     opened; CAGE_UI_BOOT() runs lazily on first entry. -->
 <section id="edWrap" hidden>
   <header>
-    <h1>garage — cage editor</h1>
+    <h1>cage editor</h1>
+    <button id="edClose" title="Back to the game">back to the game</button>
+  </header>
+  <div id="edBar">
     <label>subsurf <select id="lvl">
       <option>0</option><option>1</option><option selected>2</option><option>3</option>
     </select></label>
@@ -130,12 +135,9 @@
     <label><input type="checkbox" id="color" checked> sections</label>
     <button id="resetBtn">reset</button>
     <button id="objBtn">export OBJ</button>
-    <button id="edClose" title="Back to the game">back to the game</button>
-  </header>
-  <main>
-    <div id="view"><span id="stat"></span><canvas id="cgC"></canvas></div>
-    <aside id="cgUi"></aside>
-  </main>
+  </div>
+  <aside id="cgUi"></aside>
+  <div id="edStat"><span id="stat"></span></div>
 </section>
 
 
@@ -185,10 +187,10 @@
 <script src="tools/_fin_gen.js?v=dbe38f83"></script>
 <script src="tools/_cage_fin.js?v=3cf19ff3"></script>
 <script src="tools/_cage_stab.js?v=44b25855"></script>
-<script src="tools/_cage_ui.js?v=1e6dc0e5"></script>
+<script src="tools/_cage_ui.js?v=14b75787"></script>
 <script src="src/viewer/render_world.js?v=e09cda7d"></script>
 <script src="src/viewer/hangar.js?v=3bbdadfc"></script>
 <script src="src/viewer/garage.js?v=a9ce201e"></script>
-<script src="src/viewer/app.js?v=80ea460c"></script>
+<script src="src/viewer/app.js?v=6e420756"></script>
 </body>
 </html>

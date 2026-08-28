@@ -198,6 +198,7 @@
   function applyEnv() {
     const s = garageScene();
     if (craft.parent !== s) s.add(craft);
+    if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
@@ -1364,6 +1365,7 @@
     $('bGo').textContent = 'Roll out & fly';
   }
   function rollOut() {
+    closeEditor();       // flying with the craft hidden is not a thing (G36)
     rig = null;
     // Rolling out is the one way to leave a FINISHED test without passing
     // through enterGarage, so the sandbags have to be taken off here too — or
@@ -1400,23 +1402,53 @@
     if (curKey === 'gen') { enterGarage(); openEditor(); } else rollOut();
     hud();
   };
-  // ---- THE EDITOR (G35): the cage bench, embedded. Boot is LAZY — the
-  // bundle sets CAGE_UI_LAZY before the bench scripts, so the editor pays
-  // its build cost on first open, not at game boot. Re-entry just redraws.
+  // ---- THE EDITOR (G35, remounted G36): the cage bench, embedded. Boot
+  // is LAZY — the bundle sets CAGE_UI_LAZY before the bench scripts, so
+  // the editor pays its build cost on first open, not at game boot.
+  // Since G36 the cage build renders IN THE GAME'S OWN GARAGE SCENE (one
+  // renderer, one look — the cure for chasing pipeline parity): the
+  // mount below receives the cage objects at boot, the game craft hides
+  // while the editor is open, and the sit transform inverts the bench's
+  // tilted-ground convention onto the room's level floor.
+  const edSit = new THREE.Group(), edSitP = new THREE.Group();
+  edSit.add(edSitP);
+  // the cage builds z-FORWARD; the room's long axis is x with the door
+  // at -x, the way the game craft noses — turn the build to face it
+  edSit.rotation.y = -Math.PI / 2;
+  edSit.visible = false;
+  function placeEditor() {
+    const G = window.CAGE_GEAR;
+    if (!G) return;
+    // the gear layer's ground plane is rot(-pitch) at gy along its own
+    // normal; inverted here — pitch the AEROPLANE, lift it so the
+    // rotated contact plane lands on the room floor (groundY)
+    edSitP.rotation.x = +G.pitch || 0;
+    edSit.position.y = groundY - (+G.gy || 0);
+  }
+  window.CAGE_ON_BUILD = placeEditor;
   function openEditor() {
     const w = $('edWrap');
     if (!w || typeof CAGE_UI_BOOT !== 'function') return;
     w.hidden = false;
     try {
       if (!window.CAGE_UI) {
+        window.CAGE_UI_SCENE = edSitP;      // the mount, read at boot
         CAGE_UI_BOOT();
         if (typeof CAGE_PAGE_SETUP === 'function') CAGE_PAGE_SETUP();
-      } else window.CAGE_UI.draw();
+      }
     } catch (err) { console.error('cage editor boot:', err); }
+    craft.visible = false;
+    edSit.visible = true;
+    applyEnv();                             // parents the mount into the room
+    placeEditor();
   }
-  if ($('edClose')) $('edClose').onclick = () => {
-    const w = $('edWrap'); if (w) w.hidden = true;
-  };
+  function closeEditor() {
+    const w = $('edWrap');
+    if (w) w.hidden = true;
+    edSit.visible = false;
+    craft.visible = true;
+  }
+  if ($('edClose')) $('edClose').onclick = () => closeEditor();
   if ($('gEdit')) $('gEdit').onclick = () => openEditor();
   { // departure + destination selects: spawn anywhere, fly circuit or leg
     const fill = (sel, first, firstLabel, skipId) => {

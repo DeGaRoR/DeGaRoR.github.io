@@ -9858,6 +9858,58 @@ zero clipped white; studio round-trip exact; UISMOKE PASS; zero
 console errors; screenshot side-by-sides read as the same room as the
 stand view.
 
+## G36 — ONE RENDERER: THE BUILD MOVES INTO THE GAME'S OWN SCENE
+## (2026-08-28, user: "still washed out ... why wouldn't you just use
+## the previous environment as it is and put the mesh in it?")
+
+The user's question ended the G35.2-4 arc. Reproducing the stand
+view's pipeline inside the bench renderer — physical lights, the
+understudy swap, the PMREM bake, sRGB — converged only piecewise
+(after G35.4 the room read washed-flat: shadows, bake conditions and
+colour-space details still differed), and every future rendering
+change would have had to land twice. SUPERSEDED by the architecture
+the user named: the editor is now a PANEL over the game's own garage
+view, and the cage build renders in the game's scene, through the
+game's renderer, camera, room, moods and buttons. Identical rendering
+by construction, not by pursuit.
+
+**THE MOUNT.** app.js owns two nested groups: edSit (yaw -90°, so the
+cage's z-forward faces the door the game craft noses; carries the
+height) holding edSitP (the bench's sit pitch). openEditor hands edSitP
+to the bench as `window.CAGE_UI_SCENE` BEFORE the lazy boot; _cage_ui
+treats it as its scene (EXT mode) and creates NO renderer, canvas
+wiring, camera rig or lights of its own — the whole local rig stays,
+untouched, for the standalone bench pages. The game craft hides while
+the editor is open and returns on close; rollOut() closes the editor
+(flying with the craft hidden is not a thing). applyEnv parents the
+mount alongside the craft, so #bEnv's hangar/studio swap carries the
+build with it. The sit transform inverts the bench's tilted-ground
+convention onto the level floor: edSitP.rotation.x = pitch,
+edSit.y = groundY - gy, re-applied after every rebuild via the
+CAGE_ON_BUILD ping (draw() is that ping in EXT — the game's loop does
+the rendering).
+
+**WHAT REMAINS OURS, per build (the EXT pass):** the Lambert->Standard
+understudy (G35.3's finding stands — the bench's Lambert families read
+~pi brighter than Standard under the game's pipeline and would blow
+white) and the gearSit grid yielding to the room's real floor. The
+G35/35.4 backdrop machinery — bench-side room, mood rows, PMREM bake,
+sRGB/exposure juggling — is DELETED, not gated: the game's own
+environment is the environment. #edWrap slimmed to a right-docked
+panel (header, controls, rows, stat + dims at the foot), stopping
+above the game's bottom bar so ROLL OUT & FLY and the env buttons stay
+reachable; the bench camera-preset row stays off the panel in EXT (the
+game camera is the camera).
+
+VERIFIED live, dev + artifact: the cage build parents through
+edSitP/edSit into the game Scene; on its wheels on the level floor;
+the room, moods (bMood cycles while editing), studio swap (mount
+follows), slider rebuild (span 12 lands in the stat), close/reopen,
+and Roll out & fly -> TAKEOFF ROLL with the editor auto-closed — all
+green; the screenshot reads as the stand view's exact room. Standalone
+cage8 boots identically (own renderer, camera row present, 1840 wing
+faces). UISMOKE PASS; zero console errors.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

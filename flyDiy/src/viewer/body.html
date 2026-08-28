@@ -104,14 +104,19 @@
   </footer>
 </div>
 
-<!-- THE EDITOR (G35): the cage bench, embedded — the game's editor since the
-     old garage panel retired. Markup mirrors tools/_cage8.html with the two
-     colliding ids namespaced (#cgC canvas, #cgUi panel — _cage_ui.js prefers
-     them and falls back to the bench pages' own #c/#ui). Hidden until the
-     garage build is opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<!-- THE EDITOR (G35, remounted G36): the cage bench, embedded — the game's
+     editor since the old garage panel retired. Since G36 this is a PANEL
+     ONLY: the cage build renders in the game's own garage scene through
+     the game's own renderer and camera (window.CAGE_UI_SCENE mount), so
+     there is no editor canvas — the game view behind IS the viewport, and
+     #bEnv/#bMood keep ruling the room. Hidden until the garage build is
+     opened; CAGE_UI_BOOT() runs lazily on first entry. -->
 <section id="edWrap" hidden>
   <header>
-    <h1>garage — cage editor</h1>
+    <h1>cage editor</h1>
+    <button id="edClose" title="Back to the game">back to the game</button>
+  </header>
+  <div id="edBar">
     <label>subsurf <select id="lvl">
       <option>0</option><option>1</option><option selected>2</option><option>3</option>
     </select></label>
@@ -120,10 +125,7 @@
     <label><input type="checkbox" id="color" checked> sections</label>
     <button id="resetBtn">reset</button>
     <button id="objBtn">export OBJ</button>
-    <button id="edClose" title="Back to the game">back to the game</button>
-  </header>
-  <main>
-    <div id="view"><span id="stat"></span><canvas id="cgC"></canvas></div>
-    <aside id="cgUi"></aside>
-  </main>
+  </div>
+  <aside id="cgUi"></aside>
+  <div id="edStat"><span id="stat"></span></div>
 </section>
