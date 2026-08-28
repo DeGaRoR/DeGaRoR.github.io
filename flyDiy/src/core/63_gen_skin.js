@@ -1730,7 +1730,15 @@ function genSkin(def) {
   // axis — the viewer turns the MESH. Nothing is deformed, so nothing outside
   // the surface can be dragged along by it (the rounded tip used to swing with
   // the aileron because it happened to carry the aileron's vertex tag).
-  const NAF = 9, NSURF = 4;          // chordwise points: fixed part / surface
+  // chordwise points: fixed part / control surface. The fixed panels used
+  // to loft at 9 while the centre carry-through lofts the full genAirfoil
+  // contour at GEN_AF = 22 — a visible resolution cliff at the root rib
+  // (user, G43: "make the wing as detailed as the center"). The panels
+  // now match the centre's own sampling; the surfaces take the same
+  // density over their ~0.3 chord. Display resolution only: the loft is
+  // ruled on the same spar frames and the node weights are built the
+  // same way, so nothing physical moves.
+  const NAF = GEN_AF, NSURF = 7;
   for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
     const sd = side > 0 ? 'R' : 'L';
     const zAll = [P.zRoot, ...P.zs];

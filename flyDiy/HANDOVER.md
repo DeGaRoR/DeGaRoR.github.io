@@ -10200,6 +10200,24 @@ VERIFIED: matte floor and brick under AFTERNOON; visible soft shadow
 under fuselage, wings and gear; no acne; 2 spots casting (counted);
 60 fps held; UISMOKE PASS.
 
+## G43 — THE WING PANELS LOFT AT THE CENTRE'S OWN DENSITY (2026-08-28,
+## user: "you treat the central section and the wing sections
+## differently in terms of subdivision ... make the wing as detailed as
+## the center")
+
+Measured before touched: the centre carry-through lofts the full
+genAirfoil contour at GEN_AF = 22 points per surface, while the outer
+FIXED PANELS lofted genAfSeg at NAF = 9 and the control surfaces at
+NSURF = 4 — a visible resolution cliff at the root rib, worst on the
+leading-edge silhouette. Now NAF = GEN_AF (the panels sample the same
+contour density the centre always had) and NSURF = 7 (the same density
+over a surface's ~0.3 chord). Display resolution only: the loft is
+ruled on the same spar frames with the same node-weight construction,
+so nothing physical moves — and the default wing's skin faces go
+1840 -> 4128 (the counts G30/G36 recorded are historical baselines,
+not invariants). Change is in src/core/63_gen_skin.js, so the full
+core battery gates the commit.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
