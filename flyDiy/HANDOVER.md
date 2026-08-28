@@ -9795,6 +9795,35 @@ backdrop row — correctly gated out); artifact + dev rebuild green;
 UISMOKE PASS; screenshots — aeroplane on its wheels in the room,
 colours legible under AFTERNOON.
 
+## G35.3 — THE ROOM SPEAKS PBR (2026-08-28, user: "the white wash is
+## not gone. Why is it only on some parts? Fins and wings escape")
+
+The user's question WAS the diagnosis. Under the room's physical
+lights the bench's MeshLambertMaterial families read ~pi brighter than
+the MeshStandardMaterial ones — Lambert's diffuse term has no 1/pi,
+Standard's BRDF does — so the cage skin, the gear kit and the dummies
+(Lambert) blew white while the wings, fins and engine (the layers that
+happen to be Standard) shaded correctly. G35.2's hemisphere fix was
+real but partial: it removed the flat fill, not the pi.
+
+**MEASURED, then fixed where display concerns live.** A/B in the live
+scene: understudying every Lambert with a Standard clone took
+clipped-white from 1.6% to 0 on the same frame (34 distinct materials,
+222 uses). The fix is that experiment made permanent: while the room
+is up, placeRoom's pass swaps each Lambert for a cached matte Standard
+understudy (colour, map, sides, alpha and emissive carried), and hands
+the ORIGINAL back with the studio — the alphaOf philosophy, a display
+treatment at display time, instead of rewriting the material table of
+every layer (and silently changing the standalone benches' look).
+Because it rides the same after-every-build hook as the room
+placement, rebuilt parts are covered automatically.
+
+VERIFIED live: zero Lambert materials in room mode (1370 Standard),
+all 222 restored in studio, re-understudied after a slider rebuild;
+clipped-white 0.02% at the exact close-on-the-fuselage framing the
+user's screenshot blew out at; section colours and the crew legible
+through the glazing; zero console errors; UISMOKE PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

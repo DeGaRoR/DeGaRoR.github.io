@@ -30057,6 +30057,47 @@ fillPresetSel();
     // aeroplane. Re-applied after EVERY build (pitch and gy move with
     // the gear), and the bench's own grid yields to the floor while the
     // room is up — coplanar lines would flicker.
+    // THE ROOM SPEAKS PBR (G35.3). Under the room's physical lights the
+    // bench's Lambert families read ~pi brighter than Standard ones —
+    // Lambert's diffuse has no 1/pi, Standard's does — which is exactly
+    // why the user's wash spared the wings and fins (those layers are
+    // MeshStandardMaterial) while the cage skin, gear kit and dummies
+    // blew white. Measured live: clipped-white 1.6% -> 0 on the same
+    // frame when every Lambert is understudied by a Standard clone.
+    // So the ROOM VIEW swaps each Lambert for a matte Standard
+    // understudy (colour, sides and alpha kept) and hands the original
+    // back with the studio — a display treatment at display time, like
+    // alphaOf, instead of rewriting every layer's material table. Runs
+    // with placeRoom after every build, so rebuilt parts are covered.
+    const pbrFor = new Map(), pbrBack = new Map();
+    const pbrOf = m => {
+      if (!pbrFor.has(m)) {
+        const s = new THREE.MeshStandardMaterial({
+          color: m.color.clone(), roughness: 0.85, metalness: 0.0,
+          map: m.map || null, side: m.side, transparent: m.transparent,
+          opacity: m.opacity, depthWrite: m.depthWrite,
+          emissive: m.emissive ? m.emissive.clone() : 0x000000,
+          vertexColors: m.vertexColors });
+        pbrFor.set(m, s); pbrBack.set(s, m);
+      }
+      return pbrFor.get(m);
+    };
+    const applyPBR = () => {
+      scene.traverse(o => {
+        if (!o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        let touched = false;
+        const nm = mats.map(m => {
+          if (edOn && m.type === 'MeshLambertMaterial')
+            { touched = true; return pbrOf(m); }
+          if (!edOn && pbrBack.has(m))
+            { touched = true; return pbrBack.get(m); }
+          return m;
+        });
+        if (touched)
+          o.material = Array.isArray(o.material) ? nm : nm[0];
+      });
+    };
     const placeRoom = () => {
       const G2 = window.CAGE_GEAR || {};
       const p2 = +G2.pitch || 0, gy = +G2.gy || 0;
@@ -30068,6 +30109,7 @@ fillPresetSel();
         if (o instanceof THREE.GridHelper && (!edRoom || o.parent !== edRoom.group))
           o.visible = !edOn;
       });
+      applyPBR();
     };
     const applyRoom = () => {
       const on = edKind === 'hangar';
