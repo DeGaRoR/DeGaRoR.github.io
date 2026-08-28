@@ -10218,6 +10218,32 @@ so nothing physical moves — and the default wing's skin faces go
 not invariants). Change is in src/core/63_gen_skin.js, so the full
 core battery gates the commit.
 
+## G44 — THE 4K SKY, AND THE QUICK RUNWAY (2026-08-28, user)
+
+**SKY**: the user's alps_field_4k.hdr replaces the 1k EXR — same
+tone-map recipe, 4096x2048 at q80, 1.6 MB (measured against 3072/q72
+alternatives; the sky is the largest visible surface and earns the
+spend). Sphere radius 150 -> 600 so the ground below fits.
+
+**THE QUICK RUNWAY**: a 500 m grass field and a 320x24 m mown strip
+with edge markers, wheel-worn pair and threshold bar, running the door
+axis off the apron — canvas-baked like the rest of the room, zero
+payload weight. The texture turns 90° on the strip rather than
+compound-rotating the mesh. The honest destination stays the P11
+consistency goal (the GAME's scenery seen from the hangar); this is
+the interim so the door has somewhere to look.
+
+SIZE LEDGER (the user's worry, start of the discipline): artifact
+34.6 MB — walls payload 19.5 MB (shrinks ~15 MB when the wardrobe is
+pruned), sky 2.1 MB base64, floor 3.0 MB, models ~2 MB, everything
+else ~8 MB. The ASSET MANAGER (next sessions) owns this ledger
+properly: registry with per-asset byte cost, one prep tool, budget
+report in the build line, lazy payloads later (P10).
+
+VERIFIED: alps crisp at the horizon through the door; strip aligned
+out the door axis over the grass; core battery PASS (G43's run);
+UISMOKE PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

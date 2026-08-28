@@ -975,10 +975,74 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
   else HANGAR_SKY_IMG.onload = ok;
   skyMat = new THREE.MeshBasicMaterial({ map: st, side: THREE.BackSide,
     fog: false });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), skyMat);
+  // radius 600 (G44): far enough that the field and strip below never
+  // poke through; the 4k equirect carries the extra screen coverage
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(600, 48, 24), skyMat);
   sky.scale.x = -1;               // equirect reads right-way-round inside
   sky.rotation.y = Math.PI / 2;   // horizon feature out the door
   put(sky);
+}
+
+// THE QUICK RUNWAY (G44, user: "model a quick runway ... put it
+// outside"). The honest destination is the GAME's own scenery seen from
+// the hangar (the P11 consistency goal, recorded at G41); until then, a
+// grass field and a strip off the apron give the door somewhere to look.
+// Canvas-baked like the rest of the room — no payload weight. The strip
+// runs the door axis (-x), threshold just past the apron.
+{
+  const grassAlb = sheet(512, 512, (g, W2, H2) => {
+    g.fillStyle = '#6d7c4e'; g.fillRect(0, 0, W2, H2);
+    for (let i = 0; i < 2600; i++) {
+      g.globalAlpha = rr(0.04, 0.14);
+      g.fillStyle = rand() < 0.5 ? '#5c6b40' : '#87925c';
+      g.beginPath();
+      g.arc(rand() * W2, rand() * H2, rr(2, 14), 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+  }, false);
+  grassAlb.repeat.set(1 / 9, 1 / 9);          // 9 m of grass per tile
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshStandardMaterial({ map: grassAlb, roughness: 0.96,
+      metalness: 0 }));
+  { const uv = grass.geometry.attributes.uv;   // metric, like the floor
+    for (let i = 0; i < uv.count; i++)
+      uv.setXY(i, uv.getX(i) * 500, uv.getY(i) * 500);
+    uv.needsUpdate = true; }
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.set(-150, -0.05, 0);
+  grass.receiveShadow = true;
+  put(grass);
+  // the strip: mown grass runway, edge-marked, a centreline of worn dirt
+  const stripAlb = sheet(256, 1024, (g, W2, H2) => {
+    g.fillStyle = '#77855a'; g.fillRect(0, 0, W2, H2);     // mown, lighter
+    for (let i = 0; i < 900; i++) {
+      g.globalAlpha = rr(0.05, 0.12);
+      g.fillStyle = rand() < 0.5 ? '#6a7850' : '#8a9663';
+      g.beginPath(); g.arc(rand() * W2, rand() * H2, rr(2, 10), 0, 7); g.fill();
+    }
+    g.globalAlpha = 0.5; g.fillStyle = '#9aa27a';           // wheel-worn pair
+    g.fillRect(W2 * 0.40, 0, W2 * 0.055, H2);
+    g.fillRect(W2 * 0.545, 0, W2 * 0.055, H2);
+    g.globalAlpha = 1; g.fillStyle = '#e8e4d8';             // edge markers
+    for (let k = 0; k < 10; k++) {
+      g.fillRect(W2 * 0.03, (k + 0.45) * H2 / 10, W2 * 0.05, H2 / 46);
+      g.fillRect(W2 * 0.92, (k + 0.45) * H2 / 10, W2 * 0.05, H2 / 46);
+    }
+    // threshold bar at the near end
+    g.fillRect(W2 * 0.08, H2 - H2 / 60, W2 * 0.84, H2 / 90);
+  }, false);
+  // long axis along x (out the door): the geometry carries the length,
+  // the texture turns 90° to follow it — no compound rotations to argue
+  // with
+  stripAlb.center.set(0.5, 0.5);
+  stripAlb.rotation = Math.PI / 2;
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(320, 24),
+    new THREE.MeshStandardMaterial({ map: stripAlb, roughness: 0.95,
+      metalness: 0 }));
+  strip.rotation.x = -Math.PI / 2;
+  strip.position.set(-HD - 26 - 160, -0.03, 0);
+  strip.receiveShadow = true;
+  put(strip);
 }
 
 // ---- roof: portal trusses, purlins, deck, roof lights ---------------------
