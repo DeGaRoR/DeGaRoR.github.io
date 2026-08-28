@@ -1059,14 +1059,17 @@ fillPresetSel();
           ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
-        // CONTACT SHADOW (G41, user: "the lack of them looks real odd"):
-        // the room's key light casts (PCFSoft, 2048) and the floor
-        // receives — the build only had to opt in. Translucent parts
-        // (canopy glass) do not cast: an opaque pane shadow reads wrong.
+        // CONTACT SHADOW (G41, G42): the build CASTS onto the room —
+        // now onto the centre lamps' spot maps, which actually cover
+        // the stand — but does NOT self-receive: receiving put shadow
+        // acne stripes on the thin double-sided fabric (the user's
+        // "artifacts on the side of the aircraft"). Translucent parts
+        // (canopy glass) cast nothing: an opaque pane shadow reads
+        // wrong.
         if (o.isMesh) {
           const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
           o.castShadow = !(m0 && m0.transparent);
-          o.receiveShadow = true;
+          o.receiveShadow = false;
         }
       });
     };

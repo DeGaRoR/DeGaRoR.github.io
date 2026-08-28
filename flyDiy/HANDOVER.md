@@ -10159,6 +10159,47 @@ cockpit; the crew stat reads its cage-frame baseline (cabin h 1.19 ·
 eye +0.91 fl · head clr 0.16) in the EDITOR and identically on
 standalone cage8; UISMOKE PASS.
 
+## G42 — ROUGHNESS TOLD THE TRUTH, AND THE LAMPS LEARNED TO CAST
+## (2026-08-28, user: "roughness can make materials more shiny but not
+## less ... did you invert specular and roughness?" / "the plane does
+## not emit any cast shadow ... are we clean with our lighting
+## management?")
+
+**NOT INVERTED — DARKENED.** The G37/G40 EXR→JPG roughness conversions
+applied a hidden transfer: the floor's true mean 0.313 shipped as
+0.20, concrete004/008 worse — everything glossier than authored, and
+the slider could not compensate because a rough MAP is a multiplicand
+and the multiplier was clamped at 1. Both halves fixed: the
+value-exact ImageMagick recipe is `-grayscale Average -set colorspace
+Gray` (found by test matrix against the EXR's own mean; floor 0.3134
+vs truth 0.3134), every set reconverted (floor 0.31, concretes
+0.74/0.77, sandstone/slab/rusty 0.27-0.29 — the assets' own truth),
+and the multiplier ceiling lifted to 2 so a part can always be DULLER
+than its map. The wet-mirror floor is gone.
+
+**THE LIGHTING AUDIT** (the user's question, answered as a list). The
+room's sources are: the KEY (door sun, directional, the only
+shadow-caster until now, PCFSoft 2048 — its beam stops at the door
+pool), a HEMISPHERE ambient, SIX shop lamps (PointLights, physical
+units, NO shadows — point shadows cost six faces each), the window
+fill lights, the skyPanel emissive, and the PMREM self-bake as
+ambient/reflections; the moods scale all of it coherently (ENV0). The
+aeroplane stands in the CENTRE AISLE, between the lamp rows, outside
+the key's beam — so it was lit almost entirely by shadowless sources:
+castShadow on the build (G41) was correct and did nothing visible.
+THE FIX: the two CENTRE lamps became shadow-casting SPOTLIGHTS aimed
+at the stand (same colour, same candela, same mood scaling, 1024 maps,
+cone 0.62/penumbra 0.45) — a real contact shadow under the aeroplane
+from the lights that plausibly make it. Measured: still a flat 16.7 ms
+frame. The build casts and does NOT self-receive — receiving put
+shadow-acne stripes on the thin double-sided fabric (the user's
+"artifacts on the side"). The user's blob-projection fallback was NOT
+needed.
+
+VERIFIED: matte floor and brick under AFTERNOON; visible soft shadow
+under fuselage, wings and gear; no acne; 2 spots casting (counted);
+60 fps held; UISMOKE PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

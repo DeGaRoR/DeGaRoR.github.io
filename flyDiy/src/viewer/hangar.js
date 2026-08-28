@@ -27,7 +27,8 @@ const GEN_HANGAR_NEEDS = ['Group', 'Color', 'Fog', 'Mesh', 'BoxGeometry',
   'CylinderGeometry', 'PlaneGeometry', 'ConeGeometry', 'TorusGeometry',
   'ShapeGeometry', 'Shape', 'BufferGeometry', 'Float32BufferAttribute',
   'MeshStandardMaterial', 'MeshBasicMaterial', 'MeshPhysicalMaterial',
-  'HemisphereLight', 'DirectionalLight', 'PointLight', 'CanvasTexture',
+  'HemisphereLight', 'DirectionalLight', 'PointLight', 'SpotLight',
+  'CanvasTexture',
   'Vector2', 'Vector3', 'Matrix4', 'Box3'];
 function genHangarSupported(THREE) {
   return !!THREE && GEN_HANGAR_NEEDS.every(k => THREE[k] !== undefined);
@@ -1526,7 +1527,23 @@ for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
   g.add(bulb);
   const drop = cyl(0.012, 0.012, RIDGE - y - 0.2, M.steelDark, 0, (RIDGE - y) / 2, 0, 6);
   g.add(drop);
-  const L = new THREE.PointLight(0xffd9a0, 90, 26, 2);
+  // THE CENTRE PAIR CASTS (G42, user: "the plane does not emit any cast
+  // shadow"). The stand sits in the centre aisle, between the lamp rows,
+  // where the only shadow-caster (the door sun) never reaches — so the
+  // two lamps nearest the stand become SpotLights aimed at it, each with
+  // its own shadow map. Same colour, same candela, same mood scaling;
+  // the cost is two 1024 maps, and the aeroplane finally stands ON the
+  // floor instead of hovering over it.
+  let L;
+  if (k === 1) {
+    L = new THREE.SpotLight(0xffd9a0, 90, 26, 0.62, 0.45, 2);
+    L.castShadow = true;
+    L.shadow.mapSize.set(1024, 1024);
+    L.shadow.camera.near = 1; L.shadow.camera.far = 30;
+    L.shadow.normalBias = 0.03;
+    L.target.position.set(x, 0, s * 1.5);
+    G.add(L.target);
+  } else L = new THREE.PointLight(0xffd9a0, 90, 26, 2);
   L.position.y = -0.2;
   g.add(L);
   lamps.push(L);
@@ -1681,7 +1698,9 @@ const setPart = (key, st) => {
   if (s.set === 'baked') {
     m.map = p.baked.map; m.normalMap = p.baked.nor;
     m.roughnessMap = p.baked.rough;
-    m.roughness = Math.min(1, p.baked.rough0 * s.rough);
+    // ceiling 2, not 1 (G42): a rough map is a MULTIPLICAND, so a
+    // multiplier above 1 is the only way to be DULLER than the map
+    m.roughness = Math.min(2, p.baked.rough0 * s.rough);
     if (m.normalScale && p.baked.ns)
       m.normalScale.copy(p.baked.ns).multiplyScalar(s.nrm);
   } else {
@@ -1692,7 +1711,7 @@ const setPart = (key, st) => {
         nor: partTex(L.nor), rough: partTex(L.rough) };
     }
     m.map = c.map; m.normalMap = c.nor; m.roughnessMap = c.rough;
-    m.roughness = Math.min(1, s.rough);
+    m.roughness = Math.min(2, s.rough);
     if (m.normalScale) m.normalScale.set(s.nrm, s.nrm);
     c.map.repeat.set(1 / s.tile, 1 / s.tile);
     c.nor.repeat.copy(c.map.repeat); c.rough.repeat.copy(c.map.repeat);
