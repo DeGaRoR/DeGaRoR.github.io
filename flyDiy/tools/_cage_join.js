@@ -73,19 +73,27 @@ function cageJoinSpec(P, M, T) {
       mount: 'nose', place: { dx: 0, dy: 0 },
     }],
   };
-  // ---- MEASURED: the built cage through its contracts ----
+  // ---- MEASURED: the built cage through its contracts. SECTIONED keys
+  // only (G48): `cab`/`fuse`/`seating`/`pilots` are DERIVED aliases that
+  // genAlias rebuilds FROM the sections at the end of resolveSpec — a
+  // measurement written flat survives normalisation as a dead top-level
+  // key and is then overwritten by the default-derived section, so it
+  // never reaches the frame (the same trap the engine row hit in G45,
+  // one comment up). Likewise `contactR` is recomputed from `wheelR`
+  // (× cos camber) inside resolveSpec, so the measured wheel radius
+  // must land on `wheelR` to matter.
   if (M.gearType) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
-    if (M.contactR > 0) spec.gear.contactR = M.contactR;
+    if (M.contactR > 0) spec.gear.wheelR = M.contactR;
   }
-  const cab = {};
-  if (M.halfW > 0) cab.halfW = M.halfW;
-  if (M.cabH > 0) cab.h = M.cabH;
-  if (Object.keys(cab).length) spec.cab = cab;
-  if (M.tailArm > 0) spec.fuse = { tailArm: M.tailArm };
-  if (M.seating) spec.seating = M.seating;
-  if (M.pilots >= 1) spec.pilots = M.pilots;
+  const cabin = {};
+  if (M.halfW > 0) cabin.halfW = M.halfW;
+  if (M.cabH > 0) cabin.h = M.cabH;
+  if (M.seating) cabin.seating = M.seating;
+  if (M.pilots >= 1) cabin.pilots = M.pilots;
+  if (Object.keys(cabin).length) spec.cabin = cabin;
+  if (M.tailArm > 0) spec.fuselage = { tailArm: M.tailArm };
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
   // save keeps what you built, even where physics does not read it yet
   if (M.cage) spec.cage = M.cage;

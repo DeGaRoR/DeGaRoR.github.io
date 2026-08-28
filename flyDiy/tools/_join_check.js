@@ -34,10 +34,17 @@ const P = {
   wgFlapSpan: 0.45, wgFlapChord: 0.22, wgAilSpan: 0.36, wgAilChord: 0.22,
   engPreset: T.PRESET_NAMES.indexOf('rotax 912 (flat)'),
 };
+// Every measured value here is chosen to DIFFER from what resolveSpec
+// would derive on its own (side2 vs the default tandem2, 0.52 vs the
+// side2 seat's 0.53, wheelR 0.21 vs the default 0.20...) — the resolved-
+// spec assertions below cannot tell "the measurement landed" from "the
+// default happens to match" otherwise. That is exactly how the G48 alias
+// bug hid: the export carried the rows, the check read the EXPORT, and
+// resolveSpec quietly rebuilt every one of them from the defaults.
 const M = {
   gearType: 'taildragger', track: 1.62, contactR: 0.21,
   halfW: 0.52, cabH: 1.21, tailArm: 5.1,
-  seating: 'tandem2', pilots: 1,
+  seating: 'side2', pilots: 2,
   cage: { waistY: -0.05 },
 };
 
@@ -56,20 +63,41 @@ ok(POWERPLANTS[s.engines[0].type] != null, 'registry row exists');
 for (const k in CAGE_JOIN_ENGINES)
   ok(POWERPLANTS[CAGE_JOIN_ENGINES[k]] != null, 'registry row for "' + k + '"');
 ok(s.gear.type === 'taildragger' && s.gear.track === 1.62 &&
-   s.gear.contactR === 0.21, 'gear measurements pass');
-ok(s.cab.halfW === 0.52 && s.cab.h === 1.21, 'cabin envelope passes');
-ok(s.fuse.tailArm === 5.1, 'tail arm passes');
-ok(s.seating === 'tandem2' && s.pilots === 1, 'seating + pilots pass');
+   s.gear.wheelR === 0.21, 'gear measurements pass (wheelR, not contactR)');
+ok(s.cabin.halfW === 0.52 && s.cabin.h === 1.21, 'cabin envelope passes');
+ok(s.fuselage.tailArm === 5.1, 'tail arm passes');
+ok(s.cabin.seating === 'side2' && s.cabin.pilots === 2,
+   'seating + pilots pass (sectioned)');
 ok(s.cage && s.cage.waistY === -0.05, 'spec.cage rides along');
 
-// the pipeline must BUILD what the join hands it
+// the pipeline must BUILD what the join hands it — and the MEASURED rows
+// must SURVIVE it. Asserting the export alone is how the G48 bug stayed
+// green: genAlias overwrites the flat cab/fuse/seating/pilots aliases
+// from the sections at the end of resolveSpec, so a row can be present
+// in the export and gone from the aeroplane. Every measured row is
+// therefore asserted on the RESOLVED spec, plus its `auto` flag — a row
+// that arrived must NOT be marked as derived.
 try {
   const RS = resolveSpec(JSON.parse(JSON.stringify(s)));
-  const fr = genFrame(RS.spec);
+  const R = RS.spec;
+  const fr = genFrame(R);
   const cg = fr.cg0;
   ok(cg.every(v => Number.isFinite(v)) && cg[3] > 50,
      'resolveSpec + genFrame -> finite CG, mass ' + cg[3].toFixed(0) + ' kg');
-  ok(RS.spec.engine === 'rotax912_warp', 'engine survives normalisation');
+  ok(R.engine === 'rotax912_warp', 'engine survives normalisation');
+  ok(R.cabin.halfW === 0.52 && !RS.auto['cab.halfW'],
+     'RESOLVED cab halfW = measured 0.52, not auto');
+  ok(R.cabin.h === 1.21 && !RS.auto['cab.h'],
+     'RESOLVED cab h = measured 1.21, not auto');
+  ok(R.fuselage.tailArm === 5.1 && !RS.auto['fuse.tailArm'],
+     'RESOLVED tail arm = measured 5.1, not auto');
+  ok(R.cabin.seating === 'side2' && R.crew === 2,
+     'RESOLVED seating side2, crew 2');
+  ok(R.gear.track === 1.62 && R.gear.wheelR === 0.21,
+     'RESOLVED gear track + wheelR = measured');
+  ok(Math.abs(R.gear.contactR -
+      0.21 * Math.cos((R.gear.camber || 0) * Math.PI / 180)) < 1e-9,
+     'RESOLVED contactR derives from the measured wheelR');
 } catch (e) {
   ok(false, 'pipeline threw: ' + e.message);
 }

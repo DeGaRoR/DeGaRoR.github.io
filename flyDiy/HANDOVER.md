@@ -10273,15 +10273,18 @@ Every deepening of physics is an EDIT TO THIS TABLE first.
 |   | fantasy presets — flat twin/six — fall back to a65, DECLARED) |
 
 **MEASURED — the join reads the built cage through its contracts**
+(G48: SECTIONED spec fields only — the flat aliases cab/fuse/seating/
+pilots are rebuilt from the sections by genAlias at the end of
+resolveSpec, so a measurement written flat never reaches the frame)
 | measurement | source | spec field |
 |---|---|---|
 | gear type | CAGE_GEAR.contacts: the single wheel fore or aft of the mains | gear.type |
 | track | mains contact spread | gear.track |
-| wheel radius | mains contact R | gear.contactR |
-| cabin half-width | cageAirframe halfWAt at the cabin station | cab.halfW |
-| cabin height | deck−keel envelope at the cabin station (OUTER skin — declared: interior height is smaller by structure) | cab.h |
-| tail arm | firewall z − aft extreme (AF.z0) | fuse.tailArm |
-| crew | the crew layer's pilot+pax count | pilots / seating (single/tandem2 map) |
+| wheel radius | mains contact R | gear.wheelR (contactR DERIVES from it × cos camber in resolveSpec) |
+| cabin half-width | cageAirframe halfWAt at the cabin station | cabin.halfW |
+| cabin height | deck−keel envelope at the cabin station (OUTER skin — declared: interior height is smaller by structure) | cabin.h |
+| tail arm | firewall z − aft extreme (AF.z0) | fuselage.tailArm |
+| crew | the crew layer's pilot+pax count | cabin.pilots / cabin.seating (single/tandem2 map) |
 
 **DEFAULT-v1 — declared gaps, the increments queue in order**
 noseGap, cab.len, boxRear/cargo, fuel (litres+tank), material,
@@ -10417,7 +10420,43 @@ Measured: 35 -> 75 colour groups, the full SEC palette aboard
 (waistband, pillars, glazing alphas); in-flight screenshot shows the
 editor's exact look on the roll.
 
-## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
+## G48 — THE MEASURED ROWS ACTUALLY ARRIVE (2026-08-28, found by the
+## editor/physics/cage analysis pass)
+
+FIVE OF THE SEVEN MEASURED ROWS NEVER REACHED PHYSICS, and the verdict
+was green the whole time. Mechanism: cageJoinSpec wrote the FLAT
+aliases — spec.cab / spec.fuse / spec.seating / spec.pilots — but the
+export carries `wings`, so genNormaliseSpec takes the sectioned branch
+and the flat keys survive only as dead top-level properties; genAlias
+then rebuilds exactly those aliases FROM the sections at the end of
+resolveSpec (S.cab = S.cabin, S.seating = S.cabin.seating, ...), so
+the default-derived sections overwrote every measurement. Separately
+spec.gear.contactR is recomputed from wheelR × cos(camber) at
+resolve time, so the measured wheel radius was discarded too. Only
+gear.type and gear.track (real section fields) ever landed. Measured
+before the fix: export halfW 0.52 / h 1.21 / tailArm 5.1 / side2 /
+2 pilots → resolved 0.36 / 1.00 / 4.94 / tandem2 / crew 1.
+
+WHY THE GATE MISSED IT: _join_check.js asserted the EXPORT OBJECT.
+The rows were present in the export and gone from the aeroplane. The
+G45 entry even records the same trap being found ONCE (flat `engine`
+vs `engines:[{type}]`) — the lesson generalises: EVERY alias row had
+the same failure mode, and the only honest assertion surface is the
+RESOLVED spec.
+
+THE FIX (tools/_cage_join.js): the MEASURED block writes sectioned
+keys — spec.cabin = {halfW, h, seating, pilots}, spec.fuselage =
+{tailArm}, and the measured radius goes to spec.gear.wheelR (contactR
+now derives from it, as resolveSpec always intended). THE GATE
+(tools/_join_check.js): every measured row is asserted on the RESOLVED
+spec with its auto flag (`R.cabin.halfW === 0.52 && !RS.auto['cab.halfW']`
+...), and the canned measurements are chosen to DIFFER from every
+derivable default (side2 + 2 pilots, halfW 0.52 vs the side2 seat's
+0.53, wheelR 0.21 vs 0.20) so "the default happens to match" can never
+impersonate "the measurement landed". Negative-verified: the new gate
+run against the OLD join fails hard (exit 1). Canned-check mass moved
+402 → 473 kg — the wider cabin, both crew and the real wheels now
+reach the ledger and the frame, which is the whole point of the table.
 
 The user's list after playing the merged build, grouped into sessions. Numbering
 is new (T/C/P/G) and does not collide with the old playtest numbers. Each item
