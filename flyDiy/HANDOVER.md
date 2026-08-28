@@ -9753,6 +9753,48 @@ visible at the stand, reopen via the door, Roll out & fly → TAKEOFF
 ROLL, zero console errors throughout; UISMOKE PASS (its handler
 inventory now lists edClose/gEdit); core battery PASS.
 
+## G35.2 — THE BACKDROP SITS AND LIGHTS (2026-08-28, user playtest)
+
+The user's screenshots: the aeroplane half-sunk in the hangar floor,
+not resting on its gear, and every surface "washed out by a layer of
+white ... it looks like a lighting issue". Both real, both in the G35
+backdrop block:
+
+**THE ROOM NOW TAKES THE GRID'S OWN TRANSFORM.** The bench's ruling
+(gear layer, G21§2 lineage) is THE GROUND COMES TO THE AEROPLANE — the
+cage must not tilt under the editor, so the contact plane is rolled by
+-pitch and sits gy along its own normal. G35's first cut put the LEVEL
+room at y = gy: the wrong frame, and the aeroplane sank to its belly.
+The room group now carries exactly the bench grid's transform
+(rotation -pitch, position n·gy), so the wheels REST on the floor by
+construction — measured: every contact 0.000-0.002 m off the floor
+plane, room at rot 9.6° / (0, -0.817, -0.139) on the jodel — and the
+placement re-applies after EVERY build via a PAGE.post chain, because
+pitch and gy move with the gear. The bench's own GridHelper yields
+while the room is up (coplanar lines would flicker) and returns with
+the studio.
+
+**THE WASH WAS THE BENCH'S OWN HEMISPHERE.** The scene's
+HemisphereLight(0.95) was never hidden — G35 hid only the two suns —
+so it flat-filled everything on top of the room's physical-unit lamps.
+It now toggles with the room like the suns; the fuselage reads as a
+white aeroplane under shop light (shaded, section colours legible),
+the wing greys read instead of clipping. Measured: clipped-white
+pixels 12.9% of frame (the lamp highlights), warm average tones.
+
+**THE CG/NP POINT WAS NEVER LOST** — it is the STAND VIEW's
+(buildIndicators, canvas sprites), one click behind the editor via
+`back to the game`, verified live with the posts standing over the
+craft. The EDITOR cannot show a calculated CG/CL yet because the
+editor has no mass model — that is precisely the P3 join, next
+chantier; drawing the old spec pipeline's CG on the cage build would
+be a lie.
+
+VERIFIED: standalone cage8 boots identically (1840 wing faces, no
+backdrop row — correctly gated out); artifact + dev rebuild green;
+UISMOKE PASS; screenshots — aeroplane on its wheels in the room,
+colours legible under AFTERNOON.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

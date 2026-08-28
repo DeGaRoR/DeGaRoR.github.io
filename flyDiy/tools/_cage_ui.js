@@ -177,7 +177,8 @@ const renderer = new THREE.WebGLRenderer({
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
-scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95));
+const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 0.75);
 sun.position.set(-3, 4, -5);
 scene.add(sun);
@@ -1005,29 +1006,50 @@ fillPresetSel();
                         catch (e) { return null; } };
     const prefSet = (k, v) => { try { localStorage.setItem(k, v); }
                                catch (e) {} };
-    let edRoom = null, edKind = pref('flydiy.garageEnv') || 'hangar',
+    let edRoom = null, edOn = false,
+        edKind = pref('flydiy.garageEnv') || 'hangar',
         edMood = Math.max(0, Math.min(3, +pref('flydiy.garageMood') || 0));
     const BG0 = scene.background, TM0 = renderer.toneMapping,
           EX0 = renderer.toneMappingExposure;
+    // THE ROOM TAKES THE GRID'S OWN TRANSFORM. The bench's ruling (gear
+    // layer): the cage must not tilt under the editor, so the GROUND
+    // comes to the aeroplane — the contact plane is rolled by -pitch and
+    // sits gy along its own normal. The hangar floor is that plane, so
+    // the wheels REST on it by construction; placing the level room at
+    // y = gy (the first cut) was the wrong frame and half-sank the
+    // aeroplane. Re-applied after EVERY build (pitch and gy move with
+    // the gear), and the bench's own grid yields to the floor while the
+    // room is up — coplanar lines would flicker.
+    const placeRoom = () => {
+      const G2 = window.CAGE_GEAR || {};
+      const p2 = +G2.pitch || 0, gy = +G2.gy || 0;
+      if (edRoom) {
+        edRoom.group.rotation.set(-p2, 0, 0);
+        edRoom.group.position.set(0, Math.cos(p2) * gy, -Math.sin(p2) * gy);
+      }
+      scene.traverse(o => {
+        if (o instanceof THREE.GridHelper && (!edRoom || o.parent !== edRoom.group))
+          o.visible = !edOn;
+      });
+    };
     const applyRoom = () => {
       const on = edKind === 'hangar';
       if (on && !edRoom) {
-        try {
-          edRoom = genHangarBuild(THREE);
-          // the floor under the wheels: the gear layer's contact height
-          const gy = window.CAGE_GEAR && typeof window.CAGE_GEAR.gy === 'number'
-            ? window.CAGE_GEAR.gy : 0;
-          edRoom.group.position.y = gy;
-        } catch (e) { console.error('hangar backdrop:', e); edRoom = null; }
+        try { edRoom = genHangarBuild(THREE); }
+        catch (e) { console.error('hangar backdrop:', e); edRoom = null; }
       }
       if (edRoom) {
         if (on && edRoom.group.parent !== scene) scene.add(edRoom.group);
         if (!on && edRoom.group.parent) scene.remove(edRoom.group);
       }
-      const inRoom = on && edRoom;
+      const inRoom = edOn = !!(on && edRoom);
+      placeRoom();
       scene.background = inRoom ? edRoom.background : BG0;
       scene.fog = inRoom ? edRoom.fog : null;
-      sun.visible = sun2.visible = !inRoom;
+      // the room lights the scene alone: the bench's hemi + two suns on
+      // top of the room's physical-unit lamps was a plain white wash
+      // (user: "washed out by a layer of white ... a lighting issue")
+      hemi.visible = sun.visible = sun2.visible = !inRoom;
       renderer.physicallyCorrectLights = !!inRoom;
       renderer.toneMapping = inRoom ? THREE.ACESFilmicToneMapping : TM0;
       renderer.toneMappingExposure = inRoom
@@ -1036,6 +1058,10 @@ fillPresetSel();
       if (mr) mr.style.display = inRoom ? '' : 'none';
       draw();
     };
+    // the room follows every rebuild: the gear (and with it pitch/gy)
+    // may have moved, and the layers rebuild their grids
+    { const prevPost = PAGE.post;
+      PAGE.post = ctx => { if (prevPost) prevPost(ctx); placeRoom(); }; }
     const db = document.createElement('div'); db.className = 'r';
     db.innerHTML = `<span class="k">backdrop</span>
       <select id="edBackdrop"><option value="studio">studio</option>
