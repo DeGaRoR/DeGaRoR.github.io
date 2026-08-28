@@ -177,6 +177,10 @@
       }
       renderer.physicallyCorrectLights = physWas;
       hangar.setMood(hangarMood);
+      // the wall wardrobe (G40): restore the saved choice with the room
+      if (hangar.setWall)
+        hangar.setWall(prefGet('flydiy.wallSet', 'baked'),
+                       +prefGet('flydiy.wallTile', 2) || 2);
     } catch (e) {
       // a room that will not build is a fallback, not a dead garage
       hangar = null;
@@ -232,6 +236,23 @@
     prefSet('flydiy.garageMood', hangarMood);
     if (inGarage) applyEnv();
   }
+  // THE ENV HANDLE (G40): the editor panel's "hangar" section drives the
+  // room through this — lighting mood, wall wardrobe, tile size — instead
+  // of reaching into closures. Everything persists through the same prefs
+  // the buttons use.
+  window.GARAGE_ENV = {
+    moods: () => (getHangar() ? hangar.moods : []),
+    mood: () => hangarMood,
+    setMood: i => setMood(i),
+    walls: () => (getHangar() && hangar.walls) ? hangar.walls : [],
+    wall: () => (getHangar() && hangar.wallState) ? hangar.wallState() : null,
+    setWall: (k, t) => {
+      if (!getHangar() || !hangar.setWall) return;
+      const r = hangar.setWall(k, t);
+      prefSet('flydiy.wallSet', r.key);
+      prefSet('flydiy.wallTile', r.tile);
+    },
+  };
   // The two buttons are GARAGE-ONLY and hide themselves outside it: a room you
   // are not in is not a setting worth showing, and the rail is already full.
   // The mood button additionally hides in the studio, which has one light and

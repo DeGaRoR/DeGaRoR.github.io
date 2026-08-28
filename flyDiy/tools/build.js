@@ -56,9 +56,11 @@ const MANIFEST = {
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
     // (genHangarSupported) before it offers it as an environment
-    // hangar_floor.js before hangar.js: the floor payload (G37) starts
-    // its images decoding at load and hangar.js reads it when building
-    scripts: ['render_world.js', 'hangar_floor.js', 'hangar.js', 'garage.js', 'app.js'],
+    // hangar_floor.js / hangar_walls.js before hangar.js: the texture
+    // payloads (G37/G40) start their images decoding at load and
+    // hangar.js reads them when building
+    scripts: ['render_world.js', 'hangar_floor.js', 'hangar_walls.js',
+              'hangar.js', 'garage.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

@@ -224,7 +224,12 @@ const wallAlb = sheet(1024, 512, (g, W, H) => {
   }
   g.globalAlpha = 1;
 });
-wallAlb.repeat.set(3, 1);
+// METRIC-LEGACY repeats (G40): the wall boxes now carry world-metre UVs,
+// so the baked sheet's old "3 tiles per wall, 1 per height" becomes
+// per-metre numbers sized to the long side wall it was authored against.
+// The short bands squish a little — the baked wall is the LEGACY option
+// in the wardrobe now, kept working, not kept perfect.
+wallAlb.repeat.set(3 / 26, 1 / 8.4);
 // the outside is the same sheeting, weathered harder and never in the sun here
 const wallOutAlb = sheet(512, 256, (g, W, H) => {
   g.fillStyle = '#5f6259'; g.fillRect(0, 0, W, H);
@@ -733,6 +738,30 @@ const box = (w, h, d, mat, x, y, z, ry) => {
   m.castShadow = m.receiveShadow = true;
   return m;
 };
+// A WALL BOX CARRIES METRIC, WORLD-ALIGNED UVs (G40, user: "get the
+// textures projected coherently — same size, no stretching"). BoxGeometry
+// UVs run 0..1 per face, so a texture stretches with the face; here every
+// vertex instead takes its WORLD coordinates (metres) along the face's
+// two in-plane axes, so one texture.repeat = 1/tileM projects every wall
+// piece at the same real size, and adjacent bands stay continuous (the
+// world offset rides in the uv rather than restarting per box). Walls are
+// axis-aligned translated boxes — no ry — which is what makes this exact.
+// Only the WALL pieces use it: everything else keeps the 0..1 grammar its
+// baked sheets were authored in.
+const mbox = (w, h, d, mat, x, y, z) => {
+  const m = box(w, h, d, mat, x, y, z);
+  const g = m.geometry, pos = g.attributes.position,
+        nrm = g.attributes.normal, uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const nx = Math.abs(nrm.getX(i)), ny = Math.abs(nrm.getY(i));
+    const px = pos.getX(i) + x, py = pos.getY(i) + y, pz = pos.getZ(i) + z;
+    if (nx > 0.5) uv.setXY(i, pz, py);          // side faces: (z, y)
+    else if (ny > 0.5) uv.setXY(i, px, pz);     // top/bottom: (x, z)
+    else uv.setXY(i, px, py);                   // front/back: (x, y)
+  }
+  uv.needsUpdate = true;
+  return m;
+};
 const cyl = (r1, r2, h, mat, x, y, z, seg) => {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg || 18), mat);
   m.position.set(x, y, z);
@@ -789,9 +818,9 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
 for (const s of [1, -1]) {
   put(box(2 * HD, 1.1, 0.25, M.stem, 0, 0.55, s * HW));
   // lower sheeting to the sill
-  put(box(2 * HD, 2.1, 0.12, M.wall, 0, 2.15, s * HW));
+  put(mbox(2 * HD, 2.1, 0.12, M.wall, 0, 2.15, s * HW));
   // upper sheeting, sill 3.2 to eaves
-  put(box(2 * HD, EAVE - 5.2, 0.12, M.wall, 0, 5.2 + (EAVE - 5.2) / 2, s * HW));
+  put(mbox(2 * HD, EAVE - 5.2, 0.12, M.wall, 0, 5.2 + (EAVE - 5.2) / 2, s * HW));
   put(box(2 * HD + 0.4, EAVE + 0.4, 0.06, M.wallOut, 0, (EAVE + 0.4) / 2, s * (HW + 0.16)));
   // THE GLAZING BAND. Industrial steel windows, 3.2 to 5.2 m: high enough to
   // light the whole floor and clear a wing, which is why real hangars glaze
@@ -815,7 +844,7 @@ for (const s of [1, -1]) {
 
 // back wall (+x), with a personnel door and a high window
 {
-  put(box(0.14, EAVE, 2 * HW, M.wall, HD, EAVE / 2, 0));
+  put(mbox(0.14, EAVE, 2 * HW, M.wall, HD, EAVE / 2, 0));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
   const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wall);
@@ -836,8 +865,8 @@ for (const s of [1, -1]) {
 {
   const side = (HW - DOOR_W / 2);
   for (const s of [1, -1])
-    put(box(0.14, EAVE, side, M.wall, -HD, EAVE / 2, s * (DOOR_W / 2 + side / 2)));
-  put(box(0.14, EAVE - DOOR_H, DOOR_W, M.wall, -HD, DOOR_H + (EAVE - DOOR_H) / 2, 0));
+    put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2, s * (DOOR_W / 2 + side / 2)));
+  put(mbox(0.14, EAVE - DOOR_H, DOOR_W, M.wall, -HD, DOOR_H + (EAVE - DOOR_H) / 2, 0));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
   const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wall);
@@ -1535,8 +1564,58 @@ const setMood = i => {
   return m;
 };
 
+// ---- THE WALL WARDROBE (G40, user: "a few material options ... keep
+// them as working versions, it's hard for me to see"). The interior
+// wall material can wear any of the payload sets (hangar_walls.js,
+// Poly Haven, 2 m default tile) or fall back to the baked sheet metal.
+// ONE material object throughout — M.wall stays in M, so the moods'
+// envMapIntensity scaling covers whatever it wears — and, r128 being
+// r128, ONE uv transform per material (taken from .map), which here is
+// a feature: the tile size is a single number and every map follows.
+// The unused sets get deleted once a wall is chosen.
+const WALLSETS = { baked: { name: 'sheet metal (baked)' } };
+if (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS)
+  for (const k in HANGAR_WALL_SETS) WALLSETS[k] = HANGAR_WALL_SETS[k];
+let wallKey = 'baked',
+    wallTile = (typeof HANGAR_WALL_TILE_M === 'number') ? HANGAR_WALL_TILE_M : 2;
+const wallTexCache = {};
+const wallTex = (img, srgb) => {
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  if (srgb) t.encoding = THREE.sRGBEncoding;
+  const ok = () => { t.needsUpdate = true; };
+  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  return t;
+};
+const setWall = (key, tileM) => {
+  if (WALLSETS[key]) wallKey = key;
+  if (+tileM > 0) wallTile = Math.max(0.25, Math.min(12, +tileM));
+  const m = M.wall;
+  if (wallKey === 'baked') {
+    m.map = wallAlb; m.normalMap = corrNrm; m.roughnessMap = wallRgh;
+    m.normalScale.set(0.8, 0.8);
+  } else {
+    let c = wallTexCache[wallKey];
+    if (!c) {
+      const s = WALLSETS[wallKey];
+      c = wallTexCache[wallKey] =
+        { map: wallTex(s.diff, true), nor: wallTex(s.nor), rough: wallTex(s.rough) };
+    }
+    m.map = c.map; m.normalMap = c.nor; m.roughnessMap = c.rough;
+    m.normalScale.set(1, 1);
+    c.map.repeat.set(1 / wallTile, 1 / wallTile);
+    c.nor.repeat.copy(c.map.repeat); c.rough.repeat.copy(c.map.repeat);
+  }
+  m.needsUpdate = true;
+  return { key: wallKey, tile: wallTile };
+};
+
 return {
   group: ROOT, background: BG, fog: FOG,
+  walls: Object.keys(WALLSETS).map(k =>
+    ({ key: k, name: WALLSETS[k].name || k })),
+  setWall, wallState: () => ({ key: wallKey, tile: wallTile }),
   // the aeroplane stands on the floor at y = 0 in the room's own frame, nose
   // toward the door at -x. The caller lines the room up with the aeroplane
   // rather than moving the aeroplane, so the sim keeps its own coordinates.

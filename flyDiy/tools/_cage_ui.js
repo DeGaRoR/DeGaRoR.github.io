@@ -1064,6 +1064,52 @@ fillPresetSel();
     const prevPost = PAGE.post;
     PAGE.post = ctx => { if (prevPost) prevPost(ctx); extPass(); };
     extPass();
+
+    // THE HANGAR SECTION (G40, user): lighting mood, the wall wardrobe
+    // and its tile size, driven through the game's GARAGE_ENV handle.
+    // Boot happens on first garage entry, so the room already exists and
+    // the lists are live. Sizes assume every wall set covers its stated
+    // tile (2 m by default) — the slider is the manual override.
+    if (window.GARAGE_ENV) {
+      const GE = window.GARAGE_ENV;
+      const hd = document.createElement('details');
+      hd.open = true; hd.dataset.g = 'hangar';
+      const hs = document.createElement('summary');
+      hs.textContent = 'hangar';
+      hd.appendChild(hs);
+      det.after(hd);
+      const row = html => { const d = document.createElement('div');
+        d.className = 'r'; d.innerHTML = html; hd.appendChild(d); return d; };
+      const mr = row(`<span class="k">lighting</span><select></select>`);
+      const msel = mr.querySelector('select');
+      (GE.moods() || []).forEach((n, i) => {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = String(n).toLowerCase();
+        msel.appendChild(o);
+      });
+      msel.selectedIndex = GE.mood() || 0;
+      msel.onchange = () => GE.setMood(msel.selectedIndex);
+      const wr = row(`<span class="k">walls</span><select></select>`);
+      const wsel = wr.querySelector('select');
+      for (const w of GE.walls()) {
+        const o = document.createElement('option');
+        o.value = w.key; o.textContent = w.name;
+        wsel.appendChild(o);
+      }
+      const cur = GE.wall();
+      if (cur) wsel.value = cur.key;
+      const tr = row(`<span class="k">tile size</span>
+        <input type="range" min="0.5" max="6" step="0.1"><span class="v"></span>`);
+      const tin = tr.querySelector('input'), tv = tr.querySelector('.v');
+      tin.value = cur ? cur.tile : 2;
+      tv.textContent = (+tin.value).toFixed(1) + ' m';
+      const applyWall = () => {
+        GE.setWall(wsel.value, +tin.value);
+        tv.textContent = (+tin.value).toFixed(1) + ' m';
+      };
+      wsel.onchange = applyWall;
+      tin.oninput = applyWall;
+    }
   }
   // the measuring box round the aeroplane (the pane below the view is
   // always on — the box is the display option)

@@ -10019,6 +10019,54 @@ series; UISMOKE PASS; zero console errors from real usage (two
 NotFoundError entries in the log are this session's own synthetic
 pointer probes hitting setPointerCapture, not the game).
 
+## G40 — THE WALL WARDROBE, AND THE HANGAR SECTION (2026-08-28, user:
+## six Poly Haven wall sets, "pay attention to the UV mapping ...
+## same size, no stretching ... assume 2m x 2m")
+
+**METRIC, WORLD-ALIGNED WALL UVs.** BoxGeometry runs uv 0..1 per face,
+so a texture stretched with the wall it was on — the exact complaint.
+The five interior wall boxes now build through `mbox`: every vertex
+takes its WORLD coordinates (metres) along the face's two in-plane
+axes, so one `texture.repeat = 1/tileM` projects every piece at the
+same real size AND adjacent bands stay continuous (the world offset
+rides in the uv — brick courses run through the glazing line, measured
+by eye and by repeat: tile 4 m -> repeat 0.25 exactly). The gables were
+already metric (ShapeGeometry uv = shape coords). Only wall pieces use
+mbox; everything else keeps the 0..1 grammar its baked sheets assume.
+r128's one-uv-transform-per-material (from .map) is a FEATURE here:
+one tile number, every map follows.
+
+**THE WARDROBE**: `tools/wall_tex_prep.js` bakes
+assets/hangar_walls/{factory, rustymetal, concrete004, concrete008,
+slabwall, sandstone} (1k, EXR→PNG/JPG once via ImageMagick; normals
+value-exact except factory's, whose bias is the asset's own) into
+`src/viewer/hangar_walls.js` — 16.2 MB payload, artifact 12.7 → 29.4 MB.
+ALL SIX ARE WORKING OPTIONS on the user's ruling ("it's hard for me to
+see"); the unused ones get deleted once a wall is chosen, and the
+payload reverts to one set. hangar.js's `setWall(key, tileM)` swaps
+maps on the ONE M.wall object (moods' envMapIntensity scaling covers
+whatever it wears), with the baked sheet metal kept as the legacy
+option (its repeats re-based to per-metre; short bands squish a
+little). Choice + tile persist as flydiy.wallSet/wallTile and restore
+with the room.
+
+**THE HANGAR SECTION** in the editor panel: lighting (the four moods as
+a select), walls (the wardrobe), tile size (0.5-6 m slider, default
+2 m = the sets' stated coverage) — driven through the new
+`window.GARAGE_ENV` handle app.js exposes (moods/setMood/walls/
+setWall), so the panel never reaches into closures. The game's own
+#bEnv/#bMood buttons still work; their state and the selects don't
+cross-sync yet (recorded).
+
+KNOWN SIMPLIFICATION (recorded): the PMREM environment is baked once at
+construction with the baked walls — switching to brick does not re-tint
+the ambient bounce. A re-bake on wall change is a later nicety.
+
+VERIFIED: factory + sandstone screenshots (uniform tile size across
+side bands, rear wall and gables; courses continuous across bands);
+tile 4 m -> map repeat 0.25 measured; prefs persist; UISMOKE PASS;
+zero console errors.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
