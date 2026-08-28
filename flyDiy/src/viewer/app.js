@@ -503,7 +503,10 @@
       geo.setAttribute('position', new THREE.BufferAttribute(g.pos, 3));
       geo.setAttribute('uv', new THREE.BufferAttribute(g.uv, 2));
       geo.setIndex(new THREE.BufferAttribute(g.idx, 1));
-      geo.computeVertexNormals();
+      // the cage snapshot CARRIES its normals (G47): recomputing them
+      // across the merged unwelded meshes flat-shaded the cowl
+      if (g.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(g.nrm, 3));
+      else geo.computeVertexNormals();
       return geo;
     };
     const matCache = {};
@@ -756,11 +759,16 @@
     const b = $('bSkin'), has = !!model;
     // `ready` gates on texture decode: the wireframe holds the frame rather
     // than showing an untextured mirror for the beat before the maps land
-    const gen = has && model.gen;
+    // BOOLEANS, not truthiness chains (G47): `has && model.gen` is
+    // UNDEFINED when gen is absent, and r128 only skips rendering on
+    // `visible === false` — so `grp.visible = undefined` RENDERED while
+    // the label and the wireframe took the hidden path. The cage visual
+    // (and the PA-18, all along) froze on screen in Frame mode.
+    const gen = !!(has && model.gen);
     // GARAGE: Frame mode strips the COVERING off the generated aeroplane and
     // leaves the welded truss standing. That is the build sequence, not a
     // debug view, so it shows real tubes rather than the line wireframe.
-    const showSkin = has && model.ready && (skinMode < 2 || gen);
+    const showSkin = !!(has && model.ready && (skinMode < 2 || gen));
     if (model) model.grp.visible = showSkin;
     // Covered: fabric and cowl on, the truss and the engine block hidden under
     // them. Bare frame: the reverse — the welded chassis with the engine hung

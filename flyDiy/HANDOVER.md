@@ -10363,6 +10363,50 @@ Flex x4 cycles clean; Roll out & fly → TAKEOFF ROLL → LIFT-OFF →
 CLIMB at 91 km/h, +2.5 m/s — screenshot of the cage-built aeroplane
 climbing over the game world. JOIN: OK; UISMOKE PASS.
 
+## G47 — THE VISUAL SITS, SHOWS ITS COLOURS, AND YIELDS TO THE FRAME
+## VIEW (2026-08-28, user's punch list on G46)
+
+Four fixed, measured; three deferred with their design named.
+
+**GROUND CONTACT** (user: "sits 20-30 cm on top"): the sim's body
+frame is CG-RELATIVE — makeSkinBinding subtracts defCG and the pose
+adds cg back — so the wheels-to-axles calibration must take the
+lattice axle RELATIVE TO THE REST CG. The raw-frame first cut floated
+the aeroplane a CG's height high (and ~0.9 m aft, unnoticed).
+Measured: off [2.692, 0.322] -> [1.827, -0.101], the model dropped
+0.27 m, wheels touch on the floor-level view.
+
+**FRAME VIEW** (user: "the mesh stays in place, only the n/b structure
+carries forward"): `has && model.gen` is UNDEFINED for models without
+the flag, and r128 skips rendering only on `visible === false` — so
+`grp.visible = undefined` RENDERED while the label and wireframe took
+the hidden path. Boolean coercion; the PA-18 had frozen in Frame mode
+the same way all along. Verified hidden at mode 2 now.
+
+**COLOURS** (user: "suddenly all grey"): the snapshot froze the
+DISPLAY state — with section colours toggled off, the neutral
+#b9c6d4 became the flying paint. The snapshot now forces section
+colours on (build, capture, restore). **COWL SHADING**: the original
+normals ride the snapshot through the same rotation; recomputing them
+across merged unwelded meshes had flat-shaded the cowl.
+
+**DEFERRED to G47.2, design named** (user's remaining list): PROP SPIN
+and CONTROL-SURFACE DEFLECTION on the visual need the editor layers to
+NAME their meshes (eng: spinner/blades + hub; wing: ailR/L, flapR/L;
+fin/stab: rudder/elevator) so the snapshot can carry them as separate
+groups — hinge tables come from the join's own genSkin run, REST-frame
+converted (the wing layer's bodyFrameOf inversion is the tool). GEAR
+ARTICULATION (wheels turn, suspension flexes, tailwheel bends): bind
+the wheel meshes per-axle-node — position follows the node, so
+suspension flex EMERGES — and spin by ground speed; the tyre meshes
+must first be split per wheel (cluster by contact proximity, or
+per-wheel bags in the gear kit). "The physical model should correspond
+to the one chosen in the editor" HOLDS for physics already (the G45
+table is the contract); these are the visual's moving parts.
+
+VERIFIED: JOIN OK, UISMOKE PASS, floor-level screenshot with tyres on
+the slab, section colours + smooth cowl in the world.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

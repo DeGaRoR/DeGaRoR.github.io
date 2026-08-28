@@ -154,25 +154,37 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       return g;                      // the inner (pitch) mount
     })();
     if (!mount) return null;
-    // calibration: rest-lattice main axles (body frame) vs cage mains
+    // calibration: rest-lattice main axles vs cage mains. The sim's body
+    // frame is CG-RELATIVE (makeSkinBinding subtracts defCG; the pose
+    // adds cg back), so the lattice axle must be taken RELATIVE TO THE
+    // REST CG — the raw-frame first cut floated the aeroplane a CG's
+    // height above the runway (G47, user: "does not touch the ground").
     let off = [0, 0];
     try {
       const RS = resolveSpec(JSON.parse(JSON.stringify(spec)));
       const fr = genFrame(RS.spec);
+      const cg0 = fr.cg0;
       const mains = fr.refs.mains.map(i => fr.nodes[i].p);
-      const bx = (mains[0][0] + mains[1][0]) / 2,
-            by = (mains[0][1] + mains[1][1]) / 2;
+      const bx = (mains[0][0] + mains[1][0]) / 2 - cg0[0],
+            by = (mains[0][1] + mains[1][1]) / 2 - cg0[1];
       const G2 = window.CAGE_GEAR;
       const cm = G2.contacts.filter(c => c.st && c.st.x > 0.01);
       const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
             cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       off = [bx - (-cz), by - cy];   // model x = -cage z, y shared
     } catch (e) { console.warn('cage visual calibration:', e); }
+    // the snapshot captures the SECTION COLOURS regardless of the view
+    // toggle (G47, user: "the fuselage is suddenly all grey" — the
+    // neutral display mode had been frozen into the flying paint)
+    const colBox = document.getElementById('color');
+    const colWas = colBox ? colBox.checked : true;
+    if (colBox && !colWas) { colBox.checked = true; window.CAGE_UI.build(); }
     // merge the build's meshes into groups by material look
     const groups = {}, mats = {};
     mount.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
-    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    const tmp = new THREE.Matrix4(), nm = new THREE.Matrix3(),
+          v = new THREE.Vector3(), n = new THREE.Vector3();
     mount.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
       const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
@@ -182,21 +194,31 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (!mats[key]) mats[key] = { color: m0.color.getHex(),
         ...(m0.transparent ? { opacity: m0.opacity } : {}),
         rough: 0.85, metal: 0 };
-      const G3 = groups[key] || (groups[key] = { pos: [], idx: [] });
+      const G3 = groups[key] || (groups[key] = { pos: [], idx: [], nrm: [] });
       tmp.multiplyMatrices(inv, o.matrixWorld);   // object -> cage frame
+      nm.getNormalMatrix(tmp);
       const p = o.geometry.attributes.position;
+      const na = o.geometry.attributes.normal;
       const base = G3.pos.length / 3;
       for (let i = 0; i < p.count; i++) {
         v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
         G3.pos.push(-v.z, v.y, v.x);              // cage -> model frame
+        // the ORIGINAL normals ride along, through the same rotation —
+        // recomputing them over merged unwelded meshes flat-shades
+        if (na) { n.set(na.getX(i), na.getY(i), na.getZ(i))
+          .applyMatrix3(nm).normalize();
+          G3.nrm.push(-n.z, n.y, n.x); }
+        else G3.nrm.push(0, 1, 0);
       }
       const idx = o.geometry.index;
       if (idx) for (let i = 0; i < idx.count; i++) G3.idx.push(base + idx.getX(i));
       else for (let i = 0; i < p.count; i++) G3.idx.push(base + i);
     });
+    if (colBox && !colWas) { colBox.checked = false; window.CAGE_UI.build(); }
     for (const k in groups) {
       const g = groups[k];
       groups[k] = { pos: new Float32Array(g.pos),
+        nrm: new Float32Array(g.nrm),
         uv: new Float32Array((g.pos.length / 3) * 2),
         idx: new Uint32Array(g.idx), nv: g.pos.length / 3 };
     }
