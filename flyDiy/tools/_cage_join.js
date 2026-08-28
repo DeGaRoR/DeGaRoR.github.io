@@ -187,32 +187,43 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           v = new THREE.Vector3(), n = new THREE.Vector3();
     mount.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
-      const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
-      if (!m0 || !m0.color) return;
-      const key = 'c' + m0.color.getHexString() +
-        (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
-      if (!mats[key]) mats[key] = { color: m0.color.getHex(),
-        ...(m0.transparent ? { opacity: m0.opacity } : {}),
-        rough: 0.85, metal: 0 };
-      const G3 = groups[key] || (groups[key] = { pos: [], idx: [], nrm: [] });
+      const matList = Array.isArray(o.material) ? o.material : [o.material];
+      if (!matList[0] || !matList[0].color) return;
+      const geo = o.geometry, idx = geo.index;
+      const p = geo.attributes.position, na = geo.attributes.normal;
       tmp.multiplyMatrices(inv, o.matrixWorld);   // object -> cage frame
       nm.getNormalMatrix(tmp);
-      const p = o.geometry.attributes.position;
-      const na = o.geometry.attributes.normal;
-      const base = G3.pos.length / 3;
-      for (let i = 0; i < p.count; i++) {
-        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
-        G3.pos.push(-v.z, v.y, v.x);              // cage -> model frame
-        // the ORIGINAL normals ride along, through the same rotation —
-        // recomputing them over merged unwelded meshes flat-shades
-        if (na) { n.set(na.getX(i), na.getY(i), na.getZ(i))
-          .applyMatrix3(nm).normalize();
-          G3.nrm.push(-n.z, n.y, n.x); }
-        else G3.nrm.push(0, 1, 0);
+      // A MULTI-MATERIAL MESH SPLITS BY ITS GEOMETRY GROUPS (G47.2 fix,
+      // user: "the fuselage mesh is still all grey" — the cage fuselage
+      // is ONE mesh with a material array, and reading material[0]
+      // collapsed every section band into the body grey). Each range
+      // lands in its own colour group, vertices carried per-index so
+      // the ORIGINAL normals survive (recomputing over merged unwelded
+      // meshes flat-shades).
+      const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
+        ? geo.groups
+        : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
+      for (const r of ranges) {
+        const m0 = matList[r.materialIndex] || matList[0];
+        if (!m0 || !m0.color) continue;
+        const key = 'c' + m0.color.getHexString() +
+          (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
+        if (!mats[key]) mats[key] = { color: m0.color.getHex(),
+          ...(m0.transparent ? { opacity: m0.opacity } : {}),
+          rough: 0.85, metal: 0 };
+        const G3 = groups[key] || (groups[key] = { pos: [], idx: [], nrm: [] });
+        const end = Math.min(r.start + r.count, idx ? idx.count : p.count);
+        for (let i = r.start; i < end; i++) {
+          const vi = idx ? idx.getX(i) : i;
+          v.set(p.getX(vi), p.getY(vi), p.getZ(vi)).applyMatrix4(tmp);
+          G3.idx.push(G3.pos.length / 3);
+          G3.pos.push(-v.z, v.y, v.x);            // cage -> model frame
+          if (na) { n.set(na.getX(vi), na.getY(vi), na.getZ(vi))
+            .applyMatrix3(nm).normalize();
+            G3.nrm.push(-n.z, n.y, n.x); }
+          else G3.nrm.push(0, 1, 0);
+        }
       }
-      const idx = o.geometry.index;
-      if (idx) for (let i = 0; i < idx.count; i++) G3.idx.push(base + idx.getX(i));
-      else for (let i = 0; i < p.count; i++) G3.idx.push(base + i);
     });
     if (colBox && !colWas) { colBox.checked = false; window.CAGE_UI.build(); }
     for (const k in groups) {

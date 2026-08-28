@@ -10407,6 +10407,16 @@ table is the contract); these are the visual's moving parts.
 VERIFIED: JOIN OK, UISMOKE PASS, floor-level screenshot with tyres on
 the slab, section colours + smooth cowl in the world.
 
+SECOND PASS same hour (user: "the fuselage mesh is still all grey"):
+the cage FUSELAGE is one mesh with a MATERIAL ARRAY (per-section
+geometry groups), and the snapshot read material[0] — every band
+collapsed into the body grey; the single-material wing meshes were
+why the wing kept its colours. The snapshot now splits by geometry
+groups, vertices carried per-index so the original normals survive.
+Measured: 35 -> 75 colour groups, the full SEC palette aboard
+(waistband, pillars, glazing alphas); in-flight screenshot shows the
+editor's exact look on the roll.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
