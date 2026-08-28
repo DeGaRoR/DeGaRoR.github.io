@@ -10244,6 +10244,83 @@ VERIFIED: alps crisp at the horizon through the door; strip aligned
 out the door axis over the grass; core battery PASS (G43's run);
 UISMOKE PASS.
 
+## G45 — THE DECLARED PHYSICS-BEARING TABLE (2026-08-28, ROADMAP P3
+## ruling 3: "written down BEFORE the button"). THE SPEC OF THE JOIN.
+
+The editor's knobs reach the flown aeroplane ONLY through this table.
+A row is JOINED (it writes a spec field the solver reads), MEASURED
+(the join reads the built geometry through a contract, not a knob),
+DEFAULT-v1 (the game's own default fills it — a declared gap, each an
+INCREMENT candidate), or COSMETIC (it shapes what you see, never what
+flies — honest set dressing until a later increment says otherwise).
+Every deepening of physics is an EDIT TO THIS TABLE first.
+
+**JOINED — the editor writes the spec directly**
+| editor rows | spec field |
+|---|---|
+| wings: span, chord root | wings[0].span / .chord |
+| wings: chord tip | wings[0].taper (tip/root, clamped 0.2..1) |
+| wings: sweep, dihedral, incidence, washout | wings[0].* verbatim |
+| wings: camber+thickness | wings[0].naca (cam·1000 + 400 + thick) |
+| wings: position, tips, centre section | wings[0].position/.tip/.centre |
+| wings: crank at, dih. outer | wings[0].crankAt/.dihedralOut |
+| wings: spar stations | wings[0].panels |
+| struts & fixation | bracing.type (strut / cantilever) |
+| flaps type/span/chord, ail. span/chord | controls.flap.* / .aileron.* |
+| engine: preset (+powertrain) | engine = the registry key, via the
+|   | PRESET→POWERPLANTS map in _cage_join.js (A-65→a65_sensenich74,
+|   | 912→rotax912_warp, ... electric presets→their rows; the two
+|   | fantasy presets — flat twin/six — fall back to a65, DECLARED) |
+
+**MEASURED — the join reads the built cage through its contracts**
+| measurement | source | spec field |
+|---|---|---|
+| gear type | CAGE_GEAR.contacts: the single wheel fore or aft of the mains | gear.type |
+| track | mains contact spread | gear.track |
+| wheel radius | mains contact R | gear.contactR |
+| cabin half-width | cageAirframe halfWAt at the cabin station | cab.halfW |
+| cabin height | deck−keel envelope at the cabin station (OUTER skin — declared: interior height is smaller by structure) | cab.h |
+| tail arm | firewall z − aft extreme (AF.z0) | fuse.tailArm |
+| crew | the crew layer's pilot+pax count | pilots / seating (single/tandem2 map) |
+
+**DEFAULT-v1 — declared gaps, the increments queue in order**
+noseGap, cab.len, boxRear/cargo, fuel (litres+tank), material,
+systems, paint, place.*, tail.* (AUTO by the game's volume
+coefficients — the measured tailArm feeds the arm, the surfaces size
+themselves), prop (auto from the registry row), fuse.shape (the G26
+boom/pod style → GEN_SHAPES family is the FIRST queued increment).
+
+**COSMETIC — declared set dressing (ruling 3's honest boundary)**
+cage curvature, creases, windows, canopy, interior, seats/dummy dress,
+engine dress geometry (bore/stroke/fins/exhaust...), cowl shape, wheel
+dress (carcass/tread/rim/bulge), fin+stab SHAPES (v1 — the game's tail
+flies; the bench tail is what you see), section colours. The
+spec.cage payload (cageToSpec) RIDES ALONG in the export so the save
+keeps the shape — GEN_SPEC_V5 already round-trips it.
+
+**THE BUTTON**: `build & fly` in the editor bar → _cage_join.js
+gathers P + the measurements, builds the spec, hands it to
+GARAGE_SPEC.set (the G7 save pipeline: loadSpec → rebuild → apply →
+enterGarage → WIP autosave) and closes the editor onto the stand,
+where the FLOWN aeroplane now is the one the table just built. Node
+verdict: tools/_join_check.js (canned P+M → field assertions →
+resolveSpec+genFrame run to a finite CG) — "JOIN: OK".
+
+BUILT AND FLOWN the same day. One gotcha found by the verdict: the
+spec's canonical engine field is `engines: [{type,...}]` — a flat
+`engine` is derived and the normaliser overwrites it; the join writes
+the canonical form. VERIFIED end-to-end in the game: the stand card
+read "402 kg · Continental A-65 · 10.0 m"; the editor set span 11.6 +
+the 912 preset; `build & fly` → "392 kg · Rotax 912 UL · 11.6 m" (the
+ledger's own mass), measured exports sane (taildragger, track 1.60,
+contactR 0.20, cab h 1.31 envelope, tailArm 5.27, side2) — then
+Roll out & fly: HOLDING → TAKEOFF ROLL → LIFT-OFF → CLIMB, 90 km/h
+through 43 m on the AP. THE FIRST FULL DESIGN→FLY TURN. JOIN: OK,
+UISMOKE PASS, no gate marker literals in the new file. NEXT (P3
+continues): the TEST FLIGHT button + the PLAQUE (the headless
+SHAKEDOWN circuit from the editor), save-to-hangar naming, the one
+mission.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering
