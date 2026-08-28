@@ -404,9 +404,19 @@
     // the generated model is never cached — the whole point is that a slider
     // rebuilds it. Everything else decodes once and is kept forever.
     if (key !== 'gen' && modelCache[key]) return modelCache[key];
-    const data = key === 'gen' ? genSkin(curDef) : MODELS3D[key];
+    // THE CAGE VISUAL (G46, user: "that's still the old model flying").
+    // When build & fly froze the editor's meshes (window.CAGE_VISUAL,
+    // model frame, mount pre-calibrated wheels-to-axles), the gen
+    // aircraft flies THAT — down the same path as the PA-18's imported
+    // skin: rigid body-frame pose + makeSkinBinding wing flex. Absent a
+    // snapshot (fresh reload, the smoke gate), the generated skin flies
+    // as before.
+    const data = key === 'gen'
+      ? ((window.CAGE_VISUAL && window.CAGE_VISUAL.cage)
+          ? window.CAGE_VISUAL : genSkin(curDef))
+      : MODELS3D[key];
     if (!data) return null;
-    const dec = data.generated ? data.groups : decodeModel(data);
+    const dec = (data.cage || data.generated) ? data.groups : decodeModel(data);
     // The payload's base64 strings are dead once decoded — the c172's alone are
     // ~6 MB of JS heap held for the life of the page. modelCache never evicts,
     // so decode happens exactly once and dropping them is safe. (Anything that
@@ -449,8 +459,10 @@
     // v3 payloads carry texs/mats tables + per-group mat; v2 shim implies them
     const texSrcs = data.texs || (data.tex ? { skin: data.tex } : {});
     const mats = data.mats || { skin: { tex: 'skin' }, glass: { opacity: 0.28, color: 0xaad4ea } };
-    // generated groups are already named by material; imported ones carry a mat field
-    const grpMat = data.generated
+    // generated groups are already named by material; imported ones carry a
+    // mat field; the cage visual's groups ARE their material keys
+    const grpMat = data.cage ? (name => name)
+      : data.generated
       ? (name => (mats[name] ? name : 'skin'))
       : (name => (data.texs && data.groups[name].mat) ||
                  (name === 'glass' ? 'glass' : 'skin'));
@@ -568,7 +580,8 @@
       const mesh = new THREE.Mesh(geo, matFor(name));
       mesh.renderOrder = RENDER_ORDER[name] || 0;
       if (isProp) { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); props.push(mesh); }
-      if (name === 'skin' || isProp)
+      if (name === 'skin' || isProp ||
+          (data.cage && !(mats[name] && mats[name].opacity < 1)))
         mesh.castShadow = true;             // the skin replaces the proxy's sun shadow
       meshes[name] = mesh;
       grp.add(mesh);
@@ -635,12 +648,21 @@
     // Rigged groups: wing-band vertices follow the sim spar stations, and
     // sid-tagged vertices turn about their hinge lines. `skin` alone for the
     // pa18; the c172 also rigs the groups its nose gear is split across.
-    const def = AIRCRAFT[key]();
-    const rigs = (SKIN_CFG[key].rig || ['skin']).filter(n => dec[n]).map(name => {
+    // THE CAGE VISUAL (G46) rigs every group against the LIVE def (the
+    // spec-built lattice buildModel was handed — never a second build),
+    // with the mount the snapshot calibrated wheels-to-axles.
+    const def = data.cage ? curDef : AIRCRAFT[key]();
+    const cfg = data.cage
+      ? { off: [(data.off && data.off[0]) || 0, (data.off && data.off[1]) || 0, 0],
+          tags: ['WF', 'WR'],
+          zRoot: (curDef.parts && curDef.parts.zRoot) || 0.5, xMax: 1.5 }
+      : SKIN_CFG[key];
+    const rigNames = data.cage ? Object.keys(dec) : (SKIN_CFG[key].rig || ['skin']);
+    const rigs = rigNames.filter(n => dec[n]).map(name => {
       const posAttr = meshes[name].geometry.attributes.position;
       return {
         posAttr, base: posAttr.array.slice(),
-        bind: makeSkinBinding(posAttr.array, dec[name].nv, def, SKIN_CFG[key]),
+        bind: makeSkinBinding(posAttr.array, dec[name].nv, def, cfg),
         // control surface hinges (payload v2: per-vertex surface ids + hinge table)
         hb: (data.v >= 2 && dec[name].sid) ? makeHingeBinding(dec[name], data.surfaces) : null,
       };
@@ -648,10 +670,12 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
-    modelCache[key] = Object.assign(entry, { grp, props, rigs, deltas,
+    const m = Object.assign(entry, { grp, props, rigs, deltas,
+                        off: cfg.off,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
-    return modelCache[key];
+    if (key !== 'gen') modelCache[key] = m;   // gen is never cached
+    return m;
   }
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3();
@@ -659,7 +683,8 @@
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
-    const [xA, yU] = sim.axes(), cg = sim.cgPos(), O = SKIN_CFG[curKey].off;
+    const [xA, yU] = sim.axes(), cg = sim.cgPos(),
+          O = model.off || SKIN_CFG[curKey].off;
     vX.set(xA[0], xA[1], xA[2]); vY.set(yU[0], yU[1], yU[2]);
     vZ.crossVectors(vX, vY);                     // z left: keeps the basis proper (no mirror)
     mBasis.makeBasis(vX, vY, vZ);

@@ -10321,6 +10321,48 @@ continues): the TEST FLIGHT button + the PLAQUE (the headless
 SHAKEDOWN circuit from the editor), save-to-hangar naming, the one
 mission.
 
+## G46 — THE AEROPLANE YOU BUILT IS THE AEROPLANE THAT FLIES
+## (2026-08-28, user: "that's still the old model flying, the yellow
+## plane")
+
+G45 joined the PHYSICS; the visual still flew the game's generated
+skin in its yellow livery — correct numbers wearing the wrong body.
+The user chose the proper fix over a rigid mount, and the proper fix
+was already in the house: the PA-18 and C172 are precisely "an
+imported mesh bound to the physics lattice", so the cage build goes
+down THE SAME PATH.
+
+**THE SNAPSHOT** (_cage_join.js): build & fly freezes the editor's
+meshes — merged by material look into ~35 flat-colour groups — into
+the MODEL frame ((x,y,z)m = (-z,y,x)c, the pure rotation the G36 mount
+already proved), and calibrates the mount THE PA-18'S WAY: main wheels
+onto the sim's axle nodes (off = rest-lattice mains, from the join's
+own resolveSpec+genFrame run, minus the cage mains contacts; measured
+[2.69, 0.32] on the default).
+
+**THE CONSUMPTION** (app.js buildModel): key 'gen' with a
+window.CAGE_VISUAL standing takes the IMPORTED-model branch — rigid
+body-frame pose + makeSkinBinding spanwise wing flex — with three
+cage-specific rules: the binding runs against the LIVE curDef (never a
+second build), every group rigs (the binding's own zRoot/xMax band
+selects the wing verts), and gen stays uncached. model.off overrides
+SKIN_CFG in poseModel. Absent a snapshot (fresh reload, the smoke
+gate's sandbox), the generated skin flies exactly as before.
+
+DECLARED v1 GAPS: the visual is not in the SAVE (a reload flies the
+generated skin until the next build & fly); the prop does not spin and
+control surfaces do not deflect ON THE VISUAL (the physics ones do —
+the sim never had visual surfaces on imported models either... the
+PA-18 does hinge via sid; the cage snapshot carries no sids YET — the
+hinge tables are the natural next increment); the interior/dummies
+ride along frozen.
+
+VERIFIED: build & fly → the STAND holds the white/pink cage aeroplane
+(one visible pink mesh outside the hidden editor mount — counted);
+Flex x4 cycles clean; Roll out & fly → TAKEOFF ROLL → LIFT-OFF →
+CLIMB at 91 km/h, +2.5 m/s — screenshot of the cage-built aeroplane
+climbing over the game world. JOIN: OK; UISMOKE PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

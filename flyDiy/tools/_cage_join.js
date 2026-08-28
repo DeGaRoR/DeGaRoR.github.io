@@ -135,8 +135,76 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       ? Object.keys(window.ENG_PAGE.PRESETS).filter(n => n !== 'bare engine')
       : [],
   });
+  // THE VISUAL SNAPSHOT (G46): the aeroplane the game FLIES should be
+  // the one you built — so build & fly also freezes the editor's meshes
+  // (cage frame) into the MODEL frame (x aft, y up, z left: the mesh-
+  // aircraft convention) and calibrates the mount the way the PA-18's
+  // is calibrated — main wheels onto the sim's axle nodes. app.js's
+  // buildModel consumes window.CAGE_VISUAL through the imported-model
+  // path: rigid body-frame pose + makeSkinBinding wing flex. Cage ->
+  // model is the pure rotation (x,y,z)m = (-z, y, x)c. v1 declared
+  // gaps: the visual is not in the save (a reload flies the generated
+  // skin until the next build & fly); control surfaces and the prop do
+  // not animate on the visual.
+  const snapshot = spec => {
+    const mount = (() => {           // edSitP: the editor's mount group
+      let g = window.CAGE_WING && window.CAGE_WING.group;
+      while (g && g.parent && !g.parent.isScene &&
+             g.parent.parent && !g.parent.parent.isScene) g = g.parent;
+      return g;                      // the inner (pitch) mount
+    })();
+    if (!mount) return null;
+    // calibration: rest-lattice main axles (body frame) vs cage mains
+    let off = [0, 0];
+    try {
+      const RS = resolveSpec(JSON.parse(JSON.stringify(spec)));
+      const fr = genFrame(RS.spec);
+      const mains = fr.refs.mains.map(i => fr.nodes[i].p);
+      const bx = (mains[0][0] + mains[1][0]) / 2,
+            by = (mains[0][1] + mains[1][1]) / 2;
+      const G2 = window.CAGE_GEAR;
+      const cm = G2.contacts.filter(c => c.st && c.st.x > 0.01);
+      const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
+            cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
+      off = [bx - (-cz), by - cy];   // model x = -cage z, y shared
+    } catch (e) { console.warn('cage visual calibration:', e); }
+    // merge the build's meshes into groups by material look
+    const groups = {}, mats = {};
+    mount.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    mount.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m0 || !m0.color) return;
+      const key = 'c' + m0.color.getHexString() +
+        (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
+      if (!mats[key]) mats[key] = { color: m0.color.getHex(),
+        ...(m0.transparent ? { opacity: m0.opacity } : {}),
+        rough: 0.85, metal: 0 };
+      const G3 = groups[key] || (groups[key] = { pos: [], idx: [] });
+      tmp.multiplyMatrices(inv, o.matrixWorld);   // object -> cage frame
+      const p = o.geometry.attributes.position;
+      const base = G3.pos.length / 3;
+      for (let i = 0; i < p.count; i++) {
+        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
+        G3.pos.push(-v.z, v.y, v.x);              // cage -> model frame
+      }
+      const idx = o.geometry.index;
+      if (idx) for (let i = 0; i < idx.count; i++) G3.idx.push(base + idx.getX(i));
+      else for (let i = 0; i < p.count; i++) G3.idx.push(base + i);
+    });
+    for (const k in groups) {
+      const g = groups[k];
+      groups[k] = { pos: new Float32Array(g.pos),
+        uv: new Float32Array((g.pos.length / 3) * 2),
+        idx: new Uint32Array(g.idx), nv: g.pos.length / 3 };
+    }
+    return { cage: true, groups, mats, off, zRoot: 0, surfaces: null };
+  };
   window.CAGE_JOIN = {
     export: () => cageJoinSpec(window.CAGE_UI.P, measure(), tables()),
+    snapshot,
   };
   // THE BUTTON. The editor bar exists in the game DOM at load; the
   // handler runs the whole loop turn: export -> the save pipeline ->
@@ -151,7 +219,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     b.onclick = () => {
       if (!window.CAGE_UI || !window.GARAGE_SPEC) return;
       try {
-        window.GARAGE_SPEC.set(window.CAGE_JOIN.export());
+        const spec = window.CAGE_JOIN.export();
+        // the visual freezes BEFORE the spec applies: setAircraft('gen')
+        // rebuilds the model and must find it already standing
+        window.CAGE_VISUAL = snapshot(spec);
+        window.GARAGE_SPEC.set(spec);
         const c = document.getElementById('edClose');
         if (c && c.onclick) c.onclick();
       } catch (e) { console.error('build & fly:', e); }
