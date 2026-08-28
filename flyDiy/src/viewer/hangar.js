@@ -1001,13 +1001,32 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
     g.globalAlpha = 1;
   }, false);
   grassAlb.repeat.set(1 / 9, 1 / 9);          // 9 m of grass per tile
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500),
+  // THE HORIZON ROLL-OFF (G44.2, user: "you've made the terrain fade
+  // into black ... curve it so we don't see the seams"). The black was
+  // the room fog — tinted to the mood's dark INTERIOR colour — eating
+  // the outdoors; the outdoor pieces now carry fog:false (real lights
+  // dim them with the moods instead) and the ground CURVES down past
+  // r0 = 160 m, so its edge rolls under the sky sphere's horizon and
+  // there is no seam to see from the door.
+  const R0 = 160, KDROP = 3.5e-4;
+  const rollOff = (geo, posX, posZ) => {
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const wx = p.getX(i) + posX, wz = -p.getY(i) + posZ;
+      const r = Math.hypot(wx, wz);
+      if (r > R0) p.setZ(i, p.getZ(i) - KDROP * (r - R0) * (r - R0));
+    }
+    p.needsUpdate = true;
+    geo.computeVertexNormals();
+  };
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 28, 28),
     new THREE.MeshStandardMaterial({ map: grassAlb, roughness: 0.96,
-      metalness: 0 }));
+      metalness: 0, fog: false }));
   { const uv = grass.geometry.attributes.uv;   // metric, like the floor
     for (let i = 0; i < uv.count; i++)
       uv.setXY(i, uv.getX(i) * 500, uv.getY(i) * 500);
     uv.needsUpdate = true; }
+  rollOff(grass.geometry, -150, 0);
   grass.rotation.x = -Math.PI / 2;
   grass.position.set(-150, -0.05, 0);
   grass.receiveShadow = true;
@@ -1036,9 +1055,10 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
   // with
   stripAlb.center.set(0.5, 0.5);
   stripAlb.rotation = Math.PI / 2;
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(320, 24),
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(320, 24, 22, 2),
     new THREE.MeshStandardMaterial({ map: stripAlb, roughness: 0.95,
-      metalness: 0 }));
+      metalness: 0, fog: false }));
+  rollOff(strip.geometry, -HD - 26 - 160, 0);   // rides the same curve
   strip.rotation.x = -Math.PI / 2;
   strip.position.set(-HD - 26 - 160, -0.03, 0);
   strip.receiveShadow = true;
