@@ -9947,6 +9947,42 @@ VERIFIED: build green (12.7 MB); both-planes-visible heading frame;
 golden/afternoon screenshots over the slab; build centred at default
 azimuth; UISMOKE PASS; zero console errors.
 
+## G38 — ONE RECIPE FOR EVERY PART (2026-08-28, user: "wings and fins
+## still more washed out ... get back to a super simple material for
+## all, just a color")
+
+The user's eye was right, and the audit shows why: G36's pass
+understudied only the LAMBERT families, leaving each layer's own
+authored params in play — the wing layer ran roughness 0.55 /
+metalness 0.05 while the understudied body ran 0.85 / 0.00, and the
+glossier surfaces drank more of the room's environment and read
+washed. Fins, engine, cowl each carried their own numbers too.
+
+**THE EXT PASS NOW UNDERSTUDIES EVERY LIT MESH MATERIAL** (Lambert,
+Phong, Standard, Physical) with the same matte Standard: colour, sides
+and alpha are the part's own — SYNCED each pass, because some layers
+mutate their instances in place (the wing's fuselage-α fade) —
+roughness 0.85, metalness 0, no maps, no emissive, for everything.
+Understudies mark themselves (userData.cageUni) so a pass never
+understudies an understudy. Unlit markers and wire lines pass through.
+AUDITED live: 291 lit materials in the build, ONE recipe; the only
+other materials are one unlit marker and two wire lines. Colour is now
+the only variable on the aeroplane.
+
+**THE PINK CHECK** (user): the wing MAIN skin temporarily wears the
+waistband's own #cc12a8 (comment marks the revert to 0x8b95a2) so
+wing-vs-body can be judged on the same paint. With one recipe, the
+remaining differences are pure geometry — the wing's upper surface
+faces the lamps, the waist stripe faces sideways.
+
+The layers' own material tables are UNTOUCHED — the bench pages keep
+their authored look; the uniform recipe is the game editor's display
+treatment, and the right baseline until materials become a real
+chantier (P9).
+
+VERIFIED: recipe audit above; UISMOKE PASS; zero console errors;
+screenshot — pink wing + pink waist under AFTERNOON over the slab.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

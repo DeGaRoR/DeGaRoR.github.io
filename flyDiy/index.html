@@ -27277,7 +27277,11 @@ const D2 = THREE.DoubleSide;
 const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({
   color: c, metalness: met, roughness: rgh, side: D2 });
 const COLS = {
-  main:  0x8b95a2,        // = the fuselage body grey
+  // G38 DIAGNOSTIC (user): the wing wears the WAISTBAND'S OWN PINK
+  // (SEC.waistband #cc12a8) so wing-vs-body shading can be compared on
+  // the same colour — any residual difference is the pipeline, not the
+  // paint. Revert to the body grey 0x8b95a2 when the check is done.
+  main:  0xcc12a8,
   tip:   0xa85fb0,
   centre: 0x3f8fc0,
   ailR: 0xcc7a1f, ailL: 0xcc7a1f,
@@ -30060,23 +30064,40 @@ fillPresetSel();
   // it?"). That is what happens now: in the game (EXT) the build lives
   // in the game's own garage scene and takes its renderer, room, moods
   // and #bEnv/#bMood buttons wholesale; the bench keeps its flat rig.
-  // Two display treatments remain ours, re-applied after every build:
-  //   - the Lambert->Standard understudy (G35.3's finding stands — the
-  //     bench's Lambert families read ~pi brighter than Standard under
-  //     the game's pipeline, so they would blow white);
-  //   - the gearSit grid yields to the room's real floor.
+  //
+  // ONE RECIPE FOR EVERY PART (G38, user: "get back to a super simple
+  // material for all, just a color, and same settings for everything
+  // else"). The G36 pass understudied only the Lambert families, which
+  // left each layer's OWN roughness/metalness in play — the wing sat at
+  // 0.55/0.05 while the understudied body sat at 0.85/0.00, and the
+  // glossier surfaces drank more of the room's environment and read
+  // washed (the user's eye was right). Now EVERY lit mesh material in
+  // the build is understudied by the same matte Standard — colour,
+  // sides and alpha are the part's own; roughness 0.85, metalness 0,
+  // no maps, no emissive, for everything. Colour/alpha SYNC each pass,
+  // because some layers mutate their material instances in place (the
+  // wing's fuselage-alpha fade). Unlit markers and wire lines pass
+  // through. Re-applied after every build; the gearSit grid keeps
+  // yielding to the room's real floor.
   if (EXT) {
-    const pbrFor = new Map();
-    const pbrOf = m => {
-      if (!pbrFor.has(m)) {
-        pbrFor.set(m, new THREE.MeshStandardMaterial({
-          color: m.color.clone(), roughness: 0.85, metalness: 0.0,
-          map: m.map || null, side: m.side, transparent: m.transparent,
-          opacity: m.opacity, depthWrite: m.depthWrite,
-          emissive: m.emissive ? m.emissive.clone() : 0x000000,
-          vertexColors: m.vertexColors }));
+    const uniFor = new Map();
+    const LIT = new Set(['MeshLambertMaterial', 'MeshPhongMaterial',
+                         'MeshStandardMaterial', 'MeshPhysicalMaterial']);
+    const uniOf = m => {
+      let u = uniFor.get(m);
+      if (!u) {
+        u = new THREE.MeshStandardMaterial({
+          roughness: 0.85, metalness: 0.0,
+          vertexColors: m.vertexColors });
+        u.userData.cageUni = 1;        // never understudy an understudy
+        uniFor.set(m, u);
       }
-      return pbrFor.get(m);
+      u.color.copy(m.color);
+      u.side = m.side;
+      u.transparent = m.transparent;
+      u.opacity = m.opacity;
+      u.depthWrite = m.depthWrite;
+      return u;
     };
     const extPass = () => {
       scene.traverse(o => {
@@ -30084,8 +30105,8 @@ fillPresetSel();
         if (!o.material) return;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         let touched = false;
-        const nm = mats.map(m => m.type === 'MeshLambertMaterial'
-          ? (touched = true, pbrOf(m)) : m);
+        const nm = mats.map(m => (LIT.has(m.type) && !m.userData.cageUni)
+          ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
       });

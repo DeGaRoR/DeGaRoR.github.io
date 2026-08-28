@@ -120,7 +120,11 @@ const D2 = THREE.DoubleSide;
 const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({
   color: c, metalness: met, roughness: rgh, side: D2 });
 const COLS = {
-  main:  0x8b95a2,        // = the fuselage body grey
+  // G38 DIAGNOSTIC (user): the wing wears the WAISTBAND'S OWN PINK
+  // (SEC.waistband #cc12a8) so wing-vs-body shading can be compared on
+  // the same colour — any residual difference is the pipeline, not the
+  // paint. Revert to the body grey 0x8b95a2 when the check is done.
+  main:  0xcc12a8,
   tip:   0xa85fb0,
   centre: 0x3f8fc0,
   ailR: 0xcc7a1f, ailL: 0xcc7a1f,
