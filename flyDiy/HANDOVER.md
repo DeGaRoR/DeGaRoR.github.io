@@ -10283,7 +10283,9 @@ resolveSpec, so a measurement written flat never reaches the frame)
 | wheel radius | mains contact R | gear.wheelR (contactR DERIVES from it × cos camber in resolveSpec) |
 | cabin half-width | cageAirframe halfWAt at the cabin station | cabin.halfW |
 | cabin height | deck−keel envelope at the cabin station (OUTER skin — declared: interior height is smaller by structure) | cabin.h |
-| tail arm | firewall z − aft extreme (AF.z0) | fuselage.tailArm |
+| tail arm | G49: windscreen-base ring (= the firewall) → the cage's tailPost ring, via cageResolve × FS; falls back to the whole-skin extremes when the anatomy cannot be resolved (rod booms: aft skin extreme — the rod is in CAGE_MATS) | fuselage.tailArm |
+| tail-end section | G49: halfW / keel / deck at the tailPost ring, y datum'd on the cabin keel (outer skin, same declaration as cab.h); absent on rod booms (no tail rings) | fuselage.tailW / .tailBot / .tailTop (tailY stays 0 — it is the editor's offset knob) |
+| cowl deck | G49: deck sampled just forward of the windscreen base ÷ cabin height; never measured off the fallback anchor | fuselage.cowlDeck |
 | crew | the crew layer's pilot+pax count | cabin.pilots / cabin.seating (single/tandem2 map) |
 
 **DEFAULT-v1 — declared gaps, the increments queue in order**
@@ -10457,6 +10459,152 @@ impersonate "the measurement landed". Negative-verified: the new gate
 run against the OLD join fails hard (exit 1). Canned-check mass moved
 402 → 473 kg — the wider cabin, both crew and the real wheels now
 reach the ledger and the frame, which is the whole point of the table.
+
+## G49 — THE FUSELAGE KNOBS ARE MEASURED (2026-08-28, the analysis
+## pass's "MEASURED STATIONS" increment, scoped to the loft's own
+## parameter space)
+
+The frame's fuselage geometry is entirely parameterised by the loft
+knobs (cab.halfW/h + tailArm/tailW/tailBot/tailTop/cowlDeck + the
+shape family), so the layering-clean way to make the frame sit inside
+the aeroplane you built is to MEASURE THOSE KNOBS off the cage —
+core stays cage-ignorant, the loft fields become the cage's projection
+into the frame's parameter space, and every value passes through
+clampSpec's envelope like any other. (Deriving beams from cage edges
+stays rejected: mechanism farm, substep cost, full recalibration —
+the analysis pass's ruling, same tar pit as ruling 3.)
+
+THE ANCHOR. G45 measured tailArm as the whole skin (z1−z0),
+"firewall ~ the skin's forward extreme" — which stretched the NOSE
+into the tail arm: the lattice's stations ran one nose-length too far
+aft. The firewall is the WINDSCREEN BASE (cowl deck forward of it,
+the glass step above it), and the cage names that ring: measure() now
+reads cageResolve's rings — wsFront → wsAft → aeroWsA → ring, first
+resolvable — at their WAIST z (the ws rings SLOPE: roof z is aft of
+keel z; the base is the lower levels). Ring z is cage units ×
+CAGE_UNIT × planeScale = AF metres. tailArm = firewall → tailPost
+ring. Fallbacks are the old measurement, declared in the table.
+
+THE SECTIONS. tailW / tailBot / tailTop are read off the airframe
+contract at the tailPost ring; y is datum'd on the CABIN KEEL — the
+same outer-skin declaration cab.h already carries. cowlDeck = deck
+just forward of the windscreen base ÷ cabin height, never measured
+off the fallback anchor (it would read the nose tip). Rod booms have
+no tail rings — the section rows are simply absent and the defaults
+hold (declared).
+
+MEASURED (node, default template, planeScale 1, L2 airframe): zFw
+3.380, zPost −3.992; tailArm 7.37 (whole-skin would be 8.19), tailW
+0.054, tailBot 0.838, tailTop 1.416, cowlDeck 0.650 → RESOLVED
+6.50 / 0.06 / 0.80 / 1.20 / 0.65 — the oversized template pins the
+envelope clamps exactly as clampSpec intends (G19d: the template is
+proportionally huge; a real build's planeScale sits inside), and
+genFrame builds: 54 nodes / 208 beams / finite CG. The join verdict
+gains the rows (canned values ≠ every default, asserted RESOLVED,
+cowlDeck's auto flag checked). NEXT in this arc (with the user's
+eye, G34's lesson): noseGap/cab.len/postGap from the pillar rings —
+they move visible proportions; then the C5 bilinear binding.
+
+## G50 — THE HANGAR GETS REAL FURNITURE (2026-08-28, the prop
+## pipeline: table, baker, codec, one material, gate, bench)
+
+Twenty-nine downloaded objects became a prop LIBRARY, on the same
+shape as everything else here: a DECLARED TABLE, a baker, a payload,
+a decoder, a node verdict, and a bench to look at it on.
+
+    tools/props_table.py      the table (rows, groups, provenance,
+                              and a DISCARDED list with reasons)
+    assets/props/<src>/       the delivered asset, byte-for-byte
+    tools/prop_prep.py        the baker (--report = inventory only)
+    src/props/props_<g>.js    one pack per editor group
+    src/core/51_prop_codec.js decodeProp — pure JS, browser + node
+    src/viewer/props.js       the ONE material factory
+    tools/_prop_check.js      GATE PROPS
+    tools/_props.html         the prop bench (shelf / one / facts)
+    docs/PROP-IMPORT-PROC.md  the procedure
+
+WHY A SECOND CODEC. 50_model_codec.js bakes an AEROPLANE: one bb for
+the whole model, no normals (the skin is smooth-shaded from recomputed
+ones), plus the skin-deformation binding. A prop is the opposite case
+— dozens of small rigid objects, each wanting its own quantisation
+range and each needing the AUTHOR'S normals, because a barrel whose
+normals were recomputed is a faceted barrel and a chamfer baked into
+a normal map has nothing to sit on. So: per-prop bb, per-PART uv range
+(industrial_storage_cart wraps u to 2.0 and would otherwise clip), and
+int8 normals in the payload. 13 bytes a vertex, 6 a triangle.
+
+THE ONE MATERIAL is the whole point of the "optimised material" ask.
+diff (sRGB) + arm (linear: R ao, G rough, B metal) + nor — ONE image
+serving aoMap/roughnessMap/metalnessMap, which is Poly Haven's own
+packing, so the viewer has one factory and no per-asset branches. The
+baker converts everything else INTO that shape at bake time: spec-gloss
+(older Sketchfab exports) becomes diffuse + 1−glossiness in G;
+transmissive glass becomes a transparent standard material (r128 has
+none, and a gauge cover is 200 triangles); an author's 25× emissive
+strength is a bloom number and is clamped to 3×. A channel found
+constant folds to a scalar and leaves the image; an identity normal map
+is dropped. Occlusion is read from R ONLY where the author declares it
+— Poly Haven names the file "arm", the Sketchfab exports point
+occlusionTexture at the same image as metallicRoughness, which is the
+same statement — and is otherwise OFF rather than guessed at, because
+a metallicRoughness map has nothing in R and reading it makes a prop
+mysteriously dirty.
+
+GEOMETRY AS-IS, per the standing rule. No decimation, no welding, no
+clipping. The only transforms are rigid ones the table declares: a
+uniform scale where an export arrived in millimetres (wood_crate came
+in 1009 units wide), a quarter turn to lay a wheel flat (old_tyre is
+delivered standing on its edge), and the origin move `place` implies.
+Where one delivered file holds two objects, `mats` selects WHOLE
+primitives into two props (metal_trash_can → bin_metal +
+bin_metal_rust; wood_crate → three crates). Nothing is cut.
+TEXTURES ARE re-encoded — 1k → 512 (256 under half a metre) — because
+the user asked for it in this batch; the delivered maps stay at full
+resolution in assets/props/, so raising `tex` and re-baking gets the
+quality straight back.
+
+THE ORIGIN CONTRACT, which is what makes placement sites simple:
+`place` = floor/surface re-origins the prop (footprint centred,
+underside on y=0) and the gate ASSERTS it to 2 mm; wall/ceiling/mount
+keep the delivered origin, because there the origin IS the mount
+point. Corollary the bench had to learn: those props hang BELOW y=0,
+so anything showing them on a floor lifts them — the BAKE must not, or
+the hangar loses the mount point.
+
+THE GATE reads the declared table out of props_table.py's own source
+and asserts the BAKED payload against it — the G48 lesson applied, an
+assertion that reads the object the code just wrote proves nothing.
+It checks the count/order/labels, that every prop decodes, normals
+unit to 2e-2, indices in range, the bb actually bounding the decoded
+positions, dim == bb extent, the origin contract, the material
+invariant (ao set implies an arm map to read R from), that every named
+texture is in the pack, and that nothing is a millimetre or a hundred
+metres.
+
+MEASURED: 29 props, 57 parts, 305 998 verts, 358 508 tris, 158 unique
+textures — 7.79 MB of geometry + 8.40 MB of maps = 19.03 MB of payload,
+index.html 35.5 → 54.1 MB. Heaviest: compressor 79 k tris (1.6 MB),
+radio_bench 42 k, weldingcart / cart_tool 29 k each. The two `tools`
+props carry 24 materials between them = 24 draw calls; they are shadow
+boards covered in individually-textured hand tools and only atlasing
+brings that down. Verified in the bench, all 29 shot one at a time:
+scale, origin, textures, normals and AO all land.
+
+DISCARDED, with reasons, in props_table.py's DISCARDED list so the
+next session does not re-import them: boxes.glb (166 820 tris and
+21.6 MB for cardboard boxes, and decimation is off the table),
+scandinavian_masonry_heater (ships as .blend only — no glTF — and the
+shed already has a stove), exterior_aircon_unit (delivered as two
+variants of the same mesh, the heaviest map set in the batch, the only
+one needing a separate opacity path, and the least hangar-shaped thing
+in it — one table row plus an alpha path if overruled).
+
+STILL OPEN: the asset editor proper (step 3 — _props.html is its seed:
+list, groups, facts and the material chips are already read out of
+PROP_REG) and the hangar swap (step 4 — hangar.js still draws bench(),
+shelving(), toolChest(), drum(), tyreStack(), bottleRack(),
+stepladder(), partsTrolley(), pegboard() from primitives; the props
+that replace each are named in the table's notes).
 
 The user's list after playing the merged build, grouped into sessions. Numbering
 is new (T/C/P/G) and does not collide with the old playtest numbers. Each item

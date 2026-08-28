@@ -44,6 +44,7 @@ const P = {
 const M = {
   gearType: 'taildragger', track: 1.62, contactR: 0.21,
   halfW: 0.52, cabH: 1.21, tailArm: 5.1,
+  tailW: 0.14, tailBot: 0.31, tailTop: 0.52, cowlDeck: 0.66,
   seating: 'side2', pilots: 2,
   cage: { waistY: -0.05 },
 };
@@ -66,6 +67,9 @@ ok(s.gear.type === 'taildragger' && s.gear.track === 1.62 &&
    s.gear.wheelR === 0.21, 'gear measurements pass (wheelR, not contactR)');
 ok(s.cabin.halfW === 0.52 && s.cabin.h === 1.21, 'cabin envelope passes');
 ok(s.fuselage.tailArm === 5.1, 'tail arm passes');
+ok(s.fuselage.tailW === 0.14 && s.fuselage.tailBot === 0.31 &&
+   s.fuselage.tailTop === 0.52, 'tail-end section passes (G49)');
+ok(s.fuselage.cowlDeck === 0.66, 'cowl deck passes (G49)');
 ok(s.cabin.seating === 'side2' && s.cabin.pilots === 2,
    'seating + pilots pass (sectioned)');
 ok(s.cage && s.cage.waistY === -0.05, 'spec.cage rides along');
@@ -91,6 +95,11 @@ try {
      'RESOLVED cab h = measured 1.21, not auto');
   ok(R.fuselage.tailArm === 5.1 && !RS.auto['fuse.tailArm'],
      'RESOLVED tail arm = measured 5.1, not auto');
+  ok(R.fuselage.tailW === 0.14 && R.fuselage.tailBot === 0.31 &&
+     R.fuselage.tailTop === 0.52,
+     'RESOLVED tail-end section = measured (tailY 0)');
+  ok(R.fuselage.cowlDeck === 0.66 && !RS.auto['fuse.cowlDeck'],
+     'RESOLVED cowl deck = measured 0.66, not auto');
   ok(R.cabin.seating === 'side2' && R.crew === 2,
      'RESOLVED seating side2, crew 2');
   ok(R.gear.track === 1.62 && R.gear.wheelR === 0.21,

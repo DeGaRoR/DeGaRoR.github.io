@@ -93,7 +93,17 @@ function cageJoinSpec(P, M, T) {
   if (M.seating) cabin.seating = M.seating;
   if (M.pilots >= 1) cabin.pilots = M.pilots;
   if (Object.keys(cabin).length) spec.cabin = cabin;
-  if (M.tailArm > 0) spec.fuselage = { tailArm: M.tailArm };
+  // G49: the tail-end section and the cowl deck ride with the tail arm —
+  // clampSpec's envelope bounds them, and tailY stays 0 (it is the
+  // editor's OFFSET knob; these are absolute measurements).
+  const fus = {};
+  if (M.tailArm > 0) fus.tailArm = M.tailArm;
+  if (M.tailW > 0) fus.tailW = M.tailW;
+  if (typeof M.tailBot === 'number' && isFinite(M.tailBot))
+    fus.tailBot = M.tailBot;
+  if (M.tailTop > 0) fus.tailTop = M.tailTop;
+  if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
+  if (Object.keys(fus).length) spec.fuselage = fus;
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
   // save keeps what you built, even where physics does not read it yet
   if (M.cage) spec.cage = M.cage;
@@ -125,8 +135,51 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const zs = Math.max(AF.z0 + 0.05, Math.min(AF.z1 - 0.05, zCab - 0.3));
       M.halfW = AF.halfWAt(zs);
       M.cabH = AF.surf(zs, Math.PI)[1] - AF.surf(zs, 0)[1];
-      // firewall ~ the skin's forward extreme; tailpost its aft one
-      M.tailArm = AF.z1 - AF.z0;
+      // G49: the fuselage knobs are MEASURED off the cage's own anatomy.
+      // The x-anchor is the WINDSCREEN BASE ring — the lattice's firewall
+      // (cowl deck forward of it, the glass step above it) — read from
+      // cageResolve's named rings, replacing G45's "firewall ~ the
+      // skin's forward extreme", which stretched the whole nose into the
+      // tail arm. The ws rings SLOPE (roof z is aft of keel z), so the
+      // base is their WAIST/KEEL z, not their roof. Ring z is cage
+      // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
+      let zFw = AF.z1, fwOk = false, zPost = null;
+      try {
+        const C2 = window.CAGE2;
+        const R = C2.cageResolve(C2.cageSpec({ ...P }));
+        const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+        const zOf = (name) => {
+          const r = R.rings.find(q => q.name === name);
+          const l = r && r.lv && (r.lv.waist || r.lv.keel);
+          return l && isFinite(l.z) ? l.z * FS : null;
+        };
+        const fw = zOf('wsFront') != null ? zOf('wsFront')
+                 : zOf('wsAft') != null ? zOf('wsAft')
+                 : zOf('aeroWsA') != null ? zOf('aeroWsA') : zOf('ring');
+        if (fw != null) { zFw = fw; fwOk = true; }
+        zPost = zOf('tailPost');           // a ROD boom has no tail rings
+      } catch (e) {}
+      // tail arm: firewall -> the cage's own tail post (the lattice's
+      // last full station); the post/fin land postGap beyond it, still a
+      // DEFAULT-v1 gap. Falls back to the G45 whole-skin measurement
+      // when the anatomy cannot be resolved (rod booms fall back on the
+      // aft skin extreme — the rod is in CAGE_MATS, G26).
+      M.tailArm = zFw - (zPost != null ? zPost : AF.z0);
+      // y is measured from the cabin keel — the same outer-skin datum
+      // cab.h declares (interior is smaller by structure).
+      const yD = AF.surf(zs, 0)[1];
+      if (zPost != null) {
+        M.tailW = AF.halfWAt(zPost);
+        M.tailBot = AF.surf(zPost, 0)[1] - yD;
+        M.tailTop = AF.surf(zPost, Math.PI)[1] - yD;
+      }
+      if (fwOk && M.cabH > 0.5) {
+        // the deck just FORWARD of the windscreen base, as a fraction of
+        // cabin height. Never measured off the fallback anchor: with
+        // zFw = AF.z1 the sample would read the nose tip, not the cowl.
+        const zCowl = Math.min(AF.z1 - 0.02, zFw + 0.10);
+        M.cowlDeck = (AF.surf(zCowl, Math.PI)[1] - yD) / M.cabH;
+      }
     }
     // crew: the pilot always; seating from the cage's own layout rows
     M.pilots = 1 + ((P.dum2On && P.paxCount >= 1) ? 1 : 0);
