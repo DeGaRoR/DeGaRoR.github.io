@@ -9983,6 +9983,42 @@ chantier (P9).
 VERIFIED: recipe audit above; UISMOKE PASS; zero console errors;
 screenshot — pink wing + pink waist under AFTERNOON over the slab.
 
+## G39 — THE ORBIT IS SMOOTHED, AND IT ORBITS THE BUILD (2026-08-28,
+## user: "very shaky ... slightly jumps ... the original editor always
+## had it")
+
+MEASURED BEFORE FIXED: the frame loop paces a rock-steady 60 fps
+(median 16.7 ms, max 16.8 — no hitches), and under synthetic
+1-event-per-frame input the camera advances perfectly uniform steps —
+the orbit MATH was never the shake. The judder is the INPUT PATH: one
+mouse pixel is a fixed 0.006 rad quantum, which at the garage's
+viewing distance is an ~8 cm jump at the aeroplane, aliased against
+event/frame timing. The old bench camera orbited 3-4x closer and drew
+per event, which is why the G35 editor felt fine and the game's
+garage never did.
+
+**INPUT WRITES TARGETS, THE LOOP EASES THE ACTUALS** — azT/elT/distT
+from drag/pinch/wheel, az/el/dist converge at 0.28/frame (~50 ms, with
+an epsilon snap so it settles instead of drizzling). Measured: one
+coarse 12 px quantum that WAS a single 0.7 m camera jump now spreads
+over ~12 frames in a clean exponential (0.198, 0.143, 0.103, ... —
+ratio 0.72, total travel conserved). Aircraft switches still SNAP
+(dist and distT set together). Flight inherits the same easing —
+chase pan and wheel zoom read as weight.
+
+**AND THE ORBIT COMES TO THE BUILD.** G37 moved the build onto the
+orbit point — but the frame loop re-targets the camera from
+sim.cgPos() EVERY FRAME, which silently un-centred it (the G37 fix
+never actually held). Now the loop targets the editor build's own
+bounding centre (edTarget, recomputed each rebuild) while the editor
+is open, and the craft's cg otherwise; the mount stays at the room's
+natural parking spot.
+
+VERIFIED: pacing + uniformity measurements above; the quantum-decay
+series; UISMOKE PASS; zero console errors from real usage (two
+NotFoundError entries in the log are this session's own synthetic
+pointer probes hitting setPointerCapture, not the game).
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

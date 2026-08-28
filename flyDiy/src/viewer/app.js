@@ -26,7 +26,17 @@
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
   const target = new THREE.Vector3(2.2, 1, 0);
+  // THE ORBIT IS SMOOTHED (G39, user: "very shaky ... slightly jumps
+  // when moving", and the old garage always had it). Input writes the
+  // TARGETS; the frame loop eases the actuals toward them. The judder
+  // was never the math (measured: perfectly uniform steps under
+  // synthetic input) — it is the input path: one mouse pixel is a fixed
+  // 0.006 rad quantum, which at dist 14 is an ~8 cm jump at the
+  // aeroplane, aliased against event/frame timing. The easing melts
+  // both the quantum and the aliasing; ~50 ms to converge, so it reads
+  // as weight, not lag.
   let az = -2.5, el = 0.22, dist = 14;
+  let azT = az, elT = el, distT = dist;
   function placeCamera() {
     camera.position.set(
       target.x + dist * Math.cos(el) * Math.cos(az),
@@ -838,7 +848,7 @@
     applySkinVis();
     applyWire();
     if (uvOn) drawUV();
-    dist = def.params.viewDist;
+    dist = distT = def.params.viewDist;   // aircraft change SNAPS, no glide
     const PP = POWERPLANTS[def.params.powerplant];
     let half = 0;                          // wingspan from the wing strips, like the solver
     for (const st of def.strips) if (st.kind === 'wing')
@@ -894,18 +904,18 @@
     if (!touches.has(e.pointerId)) return;
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) {
-      az += (e.clientX - px) * 0.006; el += (e.clientY - py) * 0.006;
-      el = Math.max(-0.05, Math.min(1.4, el));
+      azT += (e.clientX - px) * 0.006; elT += (e.clientY - py) * 0.006;
+      elT = Math.max(-0.05, Math.min(1.4, elT));
       px = e.clientX; py = e.clientY;
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch0 > 0) dist = Math.max(4, Math.min(200, dist0 * pinch0 / Math.max(20, d)));
+      if (pinch0 > 0) distT = Math.max(4, Math.min(200, dist0 * pinch0 / Math.max(20, d)));
     }
   });
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
-    dist = Math.max(4, Math.min(120, dist * (1 + e.deltaY * 0.001)));
+    distT = Math.max(4, Math.min(120, distT * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
   // ================= phase rail =================
@@ -1416,6 +1426,7 @@
   // at -x, the way the game craft noses — turn the build to face it
   edSit.rotation.y = -Math.PI / 2;
   edSit.visible = false;
+  const edTarget = new THREE.Vector3(2.2, 1, 0);
   function placeEditor() {
     const G = window.CAGE_GEAR;
     if (!G) return;
@@ -1424,17 +1435,14 @@
     // rotated contact plane lands on the room floor (groundY)
     edSitP.rotation.x = +G.pitch || 0;
     edSit.position.set(0, groundY - (+G.gy || 0), 0);
-    // ...and CENTRE THE BUILD ON THE ORBIT TARGET (user: the orbit rode
-    // a plane of its own). The camera orbits `target` (2.2, 1, 0), tuned
-    // for the game craft's footprint; a build mounted off that point
-    // sweeps around the view instead of turning in place. The bounding
-    // centre moves with every rebuild, so this rides the same hook.
+    // ...and the ORBIT COMES TO THE BUILD (G39; G37 moved the build to
+    // the orbit point, but the frame loop re-targets the camera every
+    // frame, so the target is what must move): the camera orbits the
+    // build's own bounding centre, recomputed with every rebuild.
     edSit.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(edSitP);
-    if (isFinite(bb.min.x) && isFinite(bb.max.x)) {
-      edSit.position.x = target.x - (bb.min.x + bb.max.x) / 2;
-      edSit.position.z = target.z - (bb.min.z + bb.max.z) / 2;
-    }
+    if (isFinite(bb.min.x) && isFinite(bb.max.x))
+      bb.getCenter(edTarget);
   }
   window.CAGE_ON_BUILD = placeEditor;
   function openEditor() {
@@ -1718,7 +1726,16 @@
     // could see anyway.
     if (!inGarage) WF.worldUpdate(cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
-    target.set(cg[0], cg[1], cg[2]);
+    // the orbit centre: the EDITOR'S build when it is open (G39 — the
+    // per-frame cg overwrite silently un-centred it), the craft otherwise
+    if (edSit.visible) target.copy(edTarget);
+    else target.set(cg[0], cg[1], cg[2]);
+    // ease the orbit toward its targets (see the G39 note at the top);
+    // snap the last hair so it settles instead of drizzling
+    az += (azT - az) * 0.28; if (Math.abs(azT - az) < 1e-4) az = azT;
+    el += (elT - el) * 0.28; if (Math.abs(elT - el) < 1e-4) el = elT;
+    dist += (distT - dist) * 0.28;
+    if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
     sync();
     poseModel();
