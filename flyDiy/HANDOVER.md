@@ -9910,6 +9910,43 @@ green; the screenshot reads as the stand view's exact room. Standalone
 cage8 boots identically (own renderer, camera row present, 1840 wing
 faces). UISMOKE PASS; zero console errors.
 
+## G37 — THE ORBIT CENTRES, AND THE FLOOR IS A REAL SLAB (2026-08-28)
+
+Three user items on the G36 mount, plus a confirmation:
+
+**THE ORBIT RODE A PLANE OF ITS OWN** because the camera orbits a fixed
+`target` (2.2, 1, 0) tuned for the game craft's footprint (model x AFT,
+nose near the origin), and the cage build was mounted ~2.5 m off it —
+orbiting swung the aeroplane around the view instead of turning it in
+place. placeEditor now CENTRES THE BUILD'S BOUNDING BOX on the orbit
+target (x and z), re-computed on every rebuild via the same
+CAGE_ON_BUILD hook, so the orbit is horizontal AND centred whatever the
+design's length. HEADING: with the mount centred, the build and the
+game craft measure PARALLEL in one frame (both were shown together to
+check) — the cage's z-forward under the mount's yaw noses the same way
+the craft always did; the earlier "flipped" reading came from
+screenshots taken at different test camera angles.
+
+**THE FLOOR WEARS concrete_floor_damaged_01** (Poly Haven CC0, the
+user's 1k set, one tile = 5 m): `tools/floor_tex_prep.js` bakes
+assets/concrete_floor_damaged_01/ into `src/viewer/hangar_floor.js`
+(committed, like the model payloads) as pre-decoding <img> data URIs
+— diff 777 KB, normal 2.1 MB, rough 99 KB; artifact 9.8 → 12.7 MB.
+The EXR normal/rough maps were converted once with ImageMagick; the
+normal survived value-exact (mean 0.500/0.500/0.996 measured), the
+roughness conversion lands at mean 0.20 — exactly the canvas floor's
+authored base (#333), so the beloved reflective look carries. hangar.js
+uses the payload when present (RepeatWrapping at 26/5 x 36/5,
+anisotropy 8, diff sRGB) and keeps the canvas floor as the FALLBACK —
+a payload-less build and the smoke gate's stub still stand. The
+material joins M either way, so THE MOODS KEEP WORKING UNCHANGED (the
+user's ask): envMapIntensity scaling, lamp/key/exposure — verified
+GOLDEN raking across the slab, bMood cycling while editing.
+
+VERIFIED: build green (12.7 MB); both-planes-visible heading frame;
+golden/afternoon screenshots over the slab; build centred at default
+azimuth; UISMOKE PASS; zero console errors.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

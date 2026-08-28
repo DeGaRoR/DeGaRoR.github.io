@@ -1423,7 +1423,18 @@
     // normal; inverted here — pitch the AEROPLANE, lift it so the
     // rotated contact plane lands on the room floor (groundY)
     edSitP.rotation.x = +G.pitch || 0;
-    edSit.position.y = groundY - (+G.gy || 0);
+    edSit.position.set(0, groundY - (+G.gy || 0), 0);
+    // ...and CENTRE THE BUILD ON THE ORBIT TARGET (user: the orbit rode
+    // a plane of its own). The camera orbits `target` (2.2, 1, 0), tuned
+    // for the game craft's footprint; a build mounted off that point
+    // sweeps around the view instead of turning in place. The bounding
+    // centre moves with every rebuild, so this rides the same hook.
+    edSit.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(edSitP);
+    if (isFinite(bb.min.x) && isFinite(bb.max.x)) {
+      edSit.position.x = target.x - (bb.min.x + bb.max.x) / 2;
+      edSit.position.z = target.z - (bb.min.z + bb.max.z) / 2;
+    }
   }
   window.CAGE_ON_BUILD = placeEditor;
   function openEditor() {

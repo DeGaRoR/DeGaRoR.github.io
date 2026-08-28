@@ -652,10 +652,35 @@ const boardNrm = normalFromHeight(512, 512, (g, W, H) => {
 }, 1.5);
 for (const t of [slabNrm, gritNrm, boardNrm]) t.repeat.set(1, 1);
 
+// THE FLOOR WEARS A SCANNED SLAB when the payload is present (G37, user):
+// concrete_floor_damaged_01 (Poly Haven CC0), one tile = 5 m of real
+// floor, carried by src/viewer/hangar_floor.js as pre-decoding images.
+// The baked canvas floor stays the fallback, so a payload-less build
+// (and the smoke gate's stub) still stands. The material object joins M
+// either way, so the moods' envMapIntensity scaling covers it unchanged.
+const FLOOR_IMG = (typeof HANGAR_FLOOR_IMG !== 'undefined') ? HANGAR_FLOOR_IMG : null;
+const floorTex = (img, srgb) => {
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  if (srgb) t.encoding = THREE.sRGBEncoding;
+  const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
+  t.repeat.set(2 * HD / tile, 2 * HW / tile);
+  const ok = () => { t.needsUpdate = true; };
+  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  return t;
+};
+
 const M = {
-  floor: new THREE.MeshStandardMaterial({ map: floorAlb, roughnessMap: floorRgh,
-    normalMap: slabNrm, normalScale: new THREE.Vector2(0.35, 0.35),
-    roughness: 1, metalness: 0.12, envMapIntensity: 1.7 }),
+  floor: FLOOR_IMG
+    ? new THREE.MeshStandardMaterial({ map: floorTex(FLOOR_IMG.diff, true),
+        roughnessMap: floorTex(FLOOR_IMG.rough),
+        normalMap: floorTex(FLOOR_IMG.nor),
+        normalScale: new THREE.Vector2(1, 1),
+        roughness: 1, metalness: 0.06, envMapIntensity: 1.7 })
+    : new THREE.MeshStandardMaterial({ map: floorAlb, roughnessMap: floorRgh,
+        normalMap: slabNrm, normalScale: new THREE.Vector2(0.35, 0.35),
+        roughness: 1, metalness: 0.12, envMapIntensity: 1.7 }),
   wall: new THREE.MeshStandardMaterial({ map: wallAlb, normalMap: corrNrm,
     normalScale: new THREE.Vector2(0.8, 0.8), roughnessMap: wallRgh,
     roughness: 0.70, metalness: 0.14, side: THREE.DoubleSide }),
