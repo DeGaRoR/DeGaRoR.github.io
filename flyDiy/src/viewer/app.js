@@ -177,10 +177,17 @@
       }
       renderer.physicallyCorrectLights = physWas;
       hangar.setMood(hangarMood);
-      // the wall wardrobe (G40): restore the saved choice with the room
-      if (hangar.setWall)
-        hangar.setWall(prefGet('flydiy.wallSet', 'baked'),
-                       +prefGet('flydiy.wallTile', 2) || 2);
+      // the part system (G41): restore every part's saved dress with the
+      // room. One JSON pref, whole-state.
+      if (hangar.setPart) {
+        let saved = {};
+        try { saved = JSON.parse(prefGet('flydiy.hangarParts', '{}')) || {}; }
+        catch (e) {}
+        for (const k in saved) hangar.setPart(k, saved[k]);
+      }
+      // the daylight card fed the bake as the door's big soft source;
+      // with a real sky standing outside, the EYE gets the mountains
+      if (hangar.hasSky && hangar.dayCard) hangar.dayCard.visible = false;
     } catch (e) {
       // a room that will not build is a fallback, not a dead garage
       hangar = null;
@@ -236,21 +243,28 @@
     prefSet('flydiy.garageMood', hangarMood);
     if (inGarage) applyEnv();
   }
-  // THE ENV HANDLE (G40): the editor panel's "hangar" section drives the
-  // room through this — lighting mood, wall wardrobe, tile size — instead
-  // of reaching into closures. Everything persists through the same prefs
-  // the buttons use.
+  // THE ENV HANDLE (G40, reworked G41): the editor panel's "hangar"
+  // section drives the room through this — lighting mood, the material
+  // library, per-part dress — instead of reaching into closures. The
+  // whole part state persists as one JSON pref.
+  const savePartsPref = () => {
+    if (!hangar || !hangar.parts) return;
+    const all = {};
+    for (const p of hangar.parts) all[p.key] = hangar.partState(p.key);
+    prefSet('flydiy.hangarParts', JSON.stringify(all));
+  };
   window.GARAGE_ENV = {
     moods: () => (getHangar() ? hangar.moods : []),
     mood: () => hangarMood,
     setMood: i => setMood(i),
-    walls: () => (getHangar() && hangar.walls) ? hangar.walls : [],
-    wall: () => (getHangar() && hangar.wallState) ? hangar.wallState() : null,
-    setWall: (k, t) => {
-      if (!getHangar() || !hangar.setWall) return;
-      const r = hangar.setWall(k, t);
-      prefSet('flydiy.wallSet', r.key);
-      prefSet('flydiy.wallTile', r.tile);
+    library: () => (getHangar() && hangar.library) ? hangar.library : [],
+    parts: () => (getHangar() && hangar.parts) ? hangar.parts : [],
+    part: k => (getHangar() && hangar.partState) ? hangar.partState(k) : null,
+    setPart: (k, st) => {
+      if (!getHangar() || !hangar.setPart) return null;
+      const r = hangar.setPart(k, st);
+      savePartsPref();
+      return r;
     },
   };
   // The two buttons are GARAGE-ONLY and hide themselves outside it: a room you
@@ -909,7 +923,18 @@
   // ================= interaction =================
   const touches = new Map();
   let px = 0, py = 0, pinch0 = 0, dist0 = 0;
+  // EDITOR PAN (G41, user: "proper rotate, and pan in this editor"):
+  // middle or right drag while the editor is open moves the orbit centre
+  // in the camera's screen plane; dblclick refits to the build's centre.
+  // Flight and the plain stand view keep left-drag orbit only.
+  const edPan = new THREE.Vector3();
+  let panD = null;
   canvas.addEventListener('pointerdown', e => {
+    if (edSit.visible && (e.button === 1 || e.button === 2)) {
+      panD = { x: e.clientX, y: e.clientY, base: edPan.clone() };
+      e.preventDefault();
+      return;
+    }
     canvas.setPointerCapture(e.pointerId);
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) { px = e.clientX; py = e.clientY; }
@@ -918,10 +943,27 @@
       pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = dist;
     }
   });
-  const endTouch = e => touches.delete(e.pointerId);
+  canvas.addEventListener('contextmenu', e => {
+    if (edSit.visible) e.preventDefault();
+  });
+  canvas.addEventListener('dblclick', () => {
+    if (edSit.visible) edPan.set(0, 0, 0);
+  });
+  const endTouch = e => { panD = null; touches.delete(e.pointerId); };
   canvas.addEventListener('pointerup', endTouch);
   canvas.addEventListener('pointercancel', endTouch);
   canvas.addEventListener('pointermove', e => {
+    if (panD) {
+      // world metres per screen pixel at the target distance
+      const wpp = 2 * dist * Math.tan(camera.fov * Math.PI / 360)
+        / Math.max(1, canvas.clientHeight || canvas.height);
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      edPan.copy(panD.base)
+        .addScaledVector(right, -(e.clientX - panD.x) * wpp)
+        .addScaledVector(up, (e.clientY - panD.y) * wpp);
+      return;
+    }
     if (!touches.has(e.pointerId)) return;
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) {
@@ -1748,8 +1790,9 @@
     if (!inGarage) WF.worldUpdate(cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
-    // per-frame cg overwrite silently un-centred it), the craft otherwise
-    if (edSit.visible) target.copy(edTarget);
+    // per-frame cg overwrite silently un-centred it), the craft otherwise;
+    // the editor's pan offset rides on top (G41)
+    if (edSit.visible) target.copy(edTarget).add(edPan);
     else target.set(cg[0], cg[1], cg[2]);
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling

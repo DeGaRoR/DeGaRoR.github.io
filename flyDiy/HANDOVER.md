@@ -10067,6 +10067,71 @@ side bands, rear wall and gables; courses continuous across bands);
 tile 4 m -> map repeat 0.25 measured; prefs persist; UISMOKE PASS;
 zero console errors.
 
+## G41 — THE PART SYSTEM: a material library over the whole hangar
+## (2026-08-28, user: parts list, rough/normal sliders, brick round the
+## back, an HDRI outside, contact shadows, pan)
+
+**THE LIBRARY AND THE PARTS** (supersedes G40's wall-only wardrobe).
+LIB = every payload set (now EIGHT: the six G40 walls + rusty metal
+sheet + the floor slab); PARTS = ten dressable surfaces, each on its
+OWN material instance with its baked originals captured: ground,
+walls·sides, wall·back, brick stem, roof, beams·main (portal trusses +
+stanchions, split from M.steel), beams·secondary (purlins + ridge,
+split from M.steelDark), windows, man door (split from M.paintGreen),
+hangar doors. `setPart(key, {set, tile, rough, nrm})` dresses any part
+in any set — or its baked self — with independent tile size, a
+roughness multiplier and a normal-influence multiplier; the whole
+state persists as ONE JSON pref (flydiy.hangarParts) and restores with
+the room. The editor's hangar section grew per-part sub-groups
+(material / tile size / roughness x / normal x) plus the lighting
+select, all through GARAGE_ENV.
+
+**METRIC UVs EVERYWHERE A SET CAN LAND**: the floor plane, the stems,
+the door leaf skins, the man door and the inner roof deck joined the
+walls on world-metre UVs (quad() grew a [uw, vh] metric form); every
+baked sheet's repeat was RE-BASED so nothing visibly moved (floor 1
+sheet over 26x36, stem 6 courses per 26 m, door 2 tiles per leaf, roof
+exactly its old uvScale-6 pitch).
+
+**THE BRICK RUNS ROUND THE BACK** (user): same stem course on the +x
+wall, interrupted at the personnel door.
+
+**THE SKY STANDS OUTSIDE** (user's alps_field_1k.exr, tone-mapped LDR
+once via ImageMagick, mean 0.51): a 150 m backdrop sphere, unlit and
+unfogged, dimmed with the moods. The daylight CARD still feeds the
+environment bake as the door's big soft source, then hides — the eye
+gets the mountains through the door, the glazing band and the gable
+window. The user's stated alternative — scenery that IS the game world
+seen from the hangar, and the hangar seen in the game — is the real
+destination and is recorded here as the consistency goal for P11.
+
+**CONTACT SHADOWS** (user: "the lack of them looks real odd"): the
+room's key already casts PCFSoft 2048 and the floor receives — the
+editor build just never opted in. The EXT pass now sets castShadow on
+every opaque build mesh (translucent canopy panes excluded — an opaque
+pane shadow reads wrong) and receiveShadow everywhere. True AO (SSAO)
+is NOT this — recorded as a possible later pass if shadows alone do
+not carry it.
+
+**PAN IN THE EDITOR** (user): middle/right drag moves the orbit centre
+in the camera's screen plane (world-metres-per-pixel at target
+distance), dblclick refits to the build's centre, context menu
+suppressed while the editor is open. Measured: 80x40 px right-drag =
+0.62 m eased shift; flight input untouched.
+
+Answered in passing (user asked): THE JOIN IS STILL NOT DONE — the
+editor edits the cage build, Roll out & fly still flies the old spec
+pipeline. The declared physics-bearing table + bench→spec export is
+the next P3 chantier.
+
+Artifact 29.4 → 32.5 MB (rustysheet + sky). VERIFIED: ten parts dress
+independently (factory sides + sandstone back + rusty doors in one
+frame); alps through the door; soft shadow under the build; pan
+measured; tile/rough/normal sliders live; UISMOKE PASS; the only
+console errors are this session's own synthetic pointer probes.
+RECORDED: the mood select and #bMood still do not cross-sync; the env
+bake keeps the baked-wall tint after a dress change.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

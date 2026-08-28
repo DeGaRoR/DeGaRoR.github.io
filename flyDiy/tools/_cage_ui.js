@@ -1059,17 +1059,28 @@ fillPresetSel();
           ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
+        // CONTACT SHADOW (G41, user: "the lack of them looks real odd"):
+        // the room's key light casts (PCFSoft, 2048) and the floor
+        // receives — the build only had to opt in. Translucent parts
+        // (canopy glass) do not cast: an opaque pane shadow reads wrong.
+        if (o.isMesh) {
+          const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
+          o.castShadow = !(m0 && m0.transparent);
+          o.receiveShadow = true;
+        }
       });
     };
     const prevPost = PAGE.post;
     PAGE.post = ctx => { if (prevPost) prevPost(ctx); extPass(); };
     extPass();
 
-    // THE HANGAR SECTION (G40, user): lighting mood, the wall wardrobe
-    // and its tile size, driven through the game's GARAGE_ENV handle.
-    // Boot happens on first garage entry, so the room already exists and
-    // the lists are live. Sizes assume every wall set covers its stated
-    // tile (2 m by default) — the slider is the manual override.
+    // THE HANGAR SECTION (G40, rebuilt G41): lighting, then ONE
+    // sub-group per hangar part — material from the library, tile size,
+    // roughness and normal-influence multipliers — all through the
+    // game's GARAGE_ENV handle. Boot happens on first garage entry, so
+    // the room exists and the lists are live. Tile default = each set's
+    // stated coverage (2 m; the floor slab 5 m); the sliders are the
+    // manual override the user asked for.
     if (window.GARAGE_ENV) {
       const GE = window.GARAGE_ENV;
       const hd = document.createElement('details');
@@ -1078,9 +1089,9 @@ fillPresetSel();
       hs.textContent = 'hangar';
       hd.appendChild(hs);
       det.after(hd);
-      const row = html => { const d = document.createElement('div');
-        d.className = 'r'; d.innerHTML = html; hd.appendChild(d); return d; };
-      const mr = row(`<span class="k">lighting</span><select></select>`);
+      const row = (host, html) => { const d = document.createElement('div');
+        d.className = 'r'; d.innerHTML = html; host.appendChild(d); return d; };
+      const mr = row(hd, `<span class="k">lighting</span><select></select>`);
       const msel = mr.querySelector('select');
       (GE.moods() || []).forEach((n, i) => {
         const o = document.createElement('option');
@@ -1089,26 +1100,47 @@ fillPresetSel();
       });
       msel.selectedIndex = GE.mood() || 0;
       msel.onchange = () => GE.setMood(msel.selectedIndex);
-      const wr = row(`<span class="k">walls</span><select></select>`);
-      const wsel = wr.querySelector('select');
-      for (const w of GE.walls()) {
-        const o = document.createElement('option');
-        o.value = w.key; o.textContent = w.name;
-        wsel.appendChild(o);
+      const lib = GE.library();
+      for (const part of GE.parts()) {
+        const pd = document.createElement('details');
+        const ps = document.createElement('summary');
+        ps.textContent = part.name;
+        pd.appendChild(ps);
+        hd.appendChild(pd);
+        const st = GE.part(part.key) || { set: 'baked', tile: 2, rough: 1, nrm: 1 };
+        const sr = row(pd, `<span class="k">material</span><select></select>`);
+        const sel2 = sr.querySelector('select');
+        for (const L of lib) {
+          const o = document.createElement('option');
+          o.value = L.key; o.textContent = L.name;
+          sel2.appendChild(o);
+        }
+        sel2.value = st.set;
+        const mkSlide = (label, min, max, step, val, unit) => {
+          const d = row(pd, `<span class="k">${label}</span>
+            <input type="range" min="${min}" max="${max}" step="${step}">
+            <span class="v"></span>`);
+          const inp = d.querySelector('input'), v = d.querySelector('.v');
+          inp.value = val;
+          v.textContent = (+val).toFixed(unit === 'm' ? 1 : 2) +
+            (unit === 'm' ? ' m' : '');
+          return { inp, v, unit };
+        };
+        const tile = mkSlide('tile size', 0.5, 8, 0.1, st.tile, 'm');
+        const rough = mkSlide('roughness ×', 0, 2, 0.05, st.rough, '');
+        const nrm = mkSlide('normal ×', 0, 2, 0.05, st.nrm, '');
+        const apply = () => {
+          GE.setPart(part.key, { set: sel2.value, tile: +tile.inp.value,
+            rough: +rough.inp.value, nrm: +nrm.inp.value });
+          tile.v.textContent = (+tile.inp.value).toFixed(1) + ' m';
+          rough.v.textContent = (+rough.inp.value).toFixed(2);
+          nrm.v.textContent = (+nrm.inp.value).toFixed(2);
+        };
+        sel2.onchange = apply;
+        tile.inp.oninput = apply;
+        rough.inp.oninput = apply;
+        nrm.inp.oninput = apply;
       }
-      const cur = GE.wall();
-      if (cur) wsel.value = cur.key;
-      const tr = row(`<span class="k">tile size</span>
-        <input type="range" min="0.5" max="6" step="0.1"><span class="v"></span>`);
-      const tin = tr.querySelector('input'), tv = tr.querySelector('.v');
-      tin.value = cur ? cur.tile : 2;
-      tv.textContent = (+tin.value).toFixed(1) + ' m';
-      const applyWall = () => {
-        GE.setWall(wsel.value, +tin.value);
-        tv.textContent = (+tin.value).toFixed(1) + ' m';
-      };
-      wsel.onchange = applyWall;
-      tin.oninput = applyWall;
     }
   }
   // the measuring box round the aeroplane (the pane below the view is

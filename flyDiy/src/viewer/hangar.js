@@ -129,7 +129,8 @@ const floorRgh = sheet(1024, 1024, (g, W, H) => {
   }
   g.globalAlpha = 1;
 }, true);
-floorAlb.repeat.set(1, 1); floorRgh.repeat.set(1, 1);
+// metric-uv re-base (G41): same one-sheet-over-the-floor look
+floorAlb.repeat.set(1 / 26, 1 / 36); floorRgh.repeat.set(1 / 26, 1 / 36);
 
 // corrugated sheeting, as a normal map: a real profile, not a bump guess
 const corrNrm = sheet(512, 64, (g, W, H) => {
@@ -265,7 +266,8 @@ const blockAlb = sheet(512, 256, (g, W, H) => {
   }
   g.globalAlpha = 1;
 });
-blockAlb.repeat.set(6, 1);
+// metric-uv re-base (G41): 6 courses per 26 m, one per 1.1 m stem
+blockAlb.repeat.set(6 / 26, 1 / 1.1);
 // the roof, inside: unlined sheeting, dustier and darker than the walls
 const roofAlb = sheet(512, 256, (g, W, H) => {
   g.fillStyle = '#5a5b54'; g.fillRect(0, 0, W, H);
@@ -430,7 +432,8 @@ const doorAlb = sheet(512, 512, (g, W, H) => {
   }
   g.globalAlpha = 1;
 });
-doorAlb.repeat.set(2, 1);
+// metric-uv re-base (G41): 2 tiles per 5.15 m leaf, one per door height
+doorAlb.repeat.set(2 / 5.15, 1 / 6.4);
 const doorNrm = normalFromHeight(512, 512, (g, W, H) => {
   const nR = 18, rw = W / nR;
   for (let i = 0; i < nR; i++) {
@@ -669,8 +672,9 @@ const floorTex = (img, srgb) => {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = 8;
   if (srgb) t.encoding = THREE.sRGBEncoding;
+  // the floor plane carries METRIC uvs since G41 — one tile = tile metres
   const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
-  t.repeat.set(2 * HD / tile, 2 * HW / tile);
+  t.repeat.set(1 / tile, 1 / tile);
   const ok = () => { t.needsUpdate = true; };
   if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
   return t;
@@ -689,6 +693,7 @@ const M = {
   wall: new THREE.MeshStandardMaterial({ map: wallAlb, normalMap: corrNrm,
     normalScale: new THREE.Vector2(0.8, 0.8), roughnessMap: wallRgh,
     roughness: 0.70, metalness: 0.14, side: THREE.DoubleSide }),
+  // roofAlb re-based (G41): the quad's old uvScale 6 became metric uv
   roofIn: new THREE.MeshStandardMaterial({ map: roofAlb, normalMap: corrNrm,
     normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.80, metalness: 0.10,
     side: THREE.FrontSide }),
@@ -729,6 +734,15 @@ const M = {
     emissiveIntensity: 1.7, roughness: 0.9, side: THREE.DoubleSide }),
   daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
 };
+// DEDICATED PART MATERIALS (G41, user: assign materials to parts of the
+// hangar). Parts the library dresses independently need their OWN
+// instances — M.wall was every interior wall, M.steel every piece of
+// steel — split here so the part system below can dress one without
+// dressing them all. Same authored numbers as their parents.
+M.wallBack = M.wall.clone();
+M.beamMain = M.steel.clone();
+M.beamSec = M.steelDark.clone();
+M.manDoor = M.paintGreen.clone();
 
 // ---- primitive helpers ----------------------------------------------------
 const G = new THREE.Group();                 // everything static
@@ -778,9 +792,13 @@ const quad = (a, b, c, d, mat, uvScale) => {
   const g2 = new THREE.BufferGeometry();
   g2.setAttribute('position', new THREE.Float32BufferAttribute(
     [...a, ...b, ...c, ...a, ...c, ...d], 3));
-  const us = uvScale || 1;
+  // uvScale: a number (square, the original grammar) or [uw, vh] —
+  // the metric form the part system's surfaces use (G41)
+  const us = uvScale || 1,
+        uw = Array.isArray(us) ? us[0] : us,
+        vh = Array.isArray(us) ? us[1] : us;
   g2.setAttribute('uv', new THREE.Float32BufferAttribute(
-    [0, 0, us, 0, us, us, 0, 0, us, us, 0, us], 2));
+    [0, 0, uw, 0, uw, vh, 0, 0, uw, vh, 0, vh], 2));
   g2.computeVertexNormals();
   const m = new THREE.Mesh(g2, mat);
   m.castShadow = m.receiveShadow = true;
@@ -805,6 +823,10 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
 // floor, and an apron outside the door so the eye does not fall off the world
 {
   const f = new THREE.Mesh(new THREE.PlaneGeometry(2 * HD, 2 * HW), M.floor);
+  { const uv = f.geometry.attributes.uv;      // metric uvs (G41)
+    for (let i = 0; i < uv.count; i++)
+      uv.setXY(i, uv.getX(i) * 2 * HD, uv.getY(i) * 2 * HW);
+    uv.needsUpdate = true; }
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
   put(f);
   const ap = new THREE.Mesh(new THREE.PlaneGeometry(26, 2 * HW),
@@ -816,7 +838,7 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
 
 // side walls: concrete stem, corrugated above, glazing band between
 for (const s of [1, -1]) {
-  put(box(2 * HD, 1.1, 0.25, M.stem, 0, 0.55, s * HW));
+  put(mbox(2 * HD, 1.1, 0.25, M.stem, 0, 0.55, s * HW));
   // lower sheeting to the sill
   put(mbox(2 * HD, 2.1, 0.12, M.wall, 0, 2.15, s * HW));
   // upper sheeting, sill 3.2 to eaves
@@ -844,10 +866,15 @@ for (const s of [1, -1]) {
 
 // back wall (+x), with a personnel door and a high window
 {
-  put(mbox(0.14, EAVE, 2 * HW, M.wall, HD, EAVE / 2, 0));
+  put(mbox(0.14, EAVE, 2 * HW, M.wallBack, HD, EAVE / 2, 0));
+  // THE STEM RUNS ROUND THE BACK TOO (G41, user: "I like the brick
+  // bottom on the sides ... add that to the back") — same course, same
+  // height, interrupted where the personnel door stands.
+  put(mbox(0.25, 1.1, 13.0 + HW, M.stem, HD, 0.55, (13.0 - HW) / 2));
+  put(mbox(0.25, 1.1, HW - 14.0, M.stem, HD, 0.55, (14.0 + HW) / 2));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
-  const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wall);
+  const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wallBack);
   gm.rotation.y = Math.PI / 2; gm.position.x = HD;
   gm.receiveShadow = true;
   put(gm);
@@ -857,7 +884,7 @@ for (const s of [1, -1]) {
     put(box(0.10, 1.7, 0.08, M.steelDark, HD - 0.10, EAVE - 1.3, -2.1 + k * 1.05));
   put(box(0.12, 0.10, 4.3, M.steelDark, HD - 0.10, EAVE - 2.15, 0),
       box(0.12, 0.10, 4.3, M.steelDark, HD - 0.10, EAVE - 0.45, 0));
-  put(box(0.10, 2.1, 0.95, M.paintGreen, HD - 0.08, 1.05, 13.5));
+  put(mbox(0.10, 2.1, 0.95, M.manDoor, HD - 0.08, 1.05, 13.5));
   put(cyl(0.03, 0.03, 0.16, M.brass, HD - 0.16, 1.0, 13.15, 8));
 }
 
@@ -892,7 +919,7 @@ for (const s of [1, -1]) {
     const g = new THREE.Group(); g.position.set(x, 0, leafZ);
     // the skin, on its own material so the corrugation runs vertically like a
     // real door and not horizontally like the wall behind it
-    g.add(box(0.10, DOOR_H, LW, M.door, 0, DOOR_H / 2, 0));
+    g.add(mbox(0.10, DOOR_H, LW, M.door, 0, DOOR_H / 2, 0));
     // frame: sill channel, head channel, two stiles, and the diagonal brace
     // every sliding leaf carries against racking
     g.add(box(0.14, 0.18, LW, M.doorTrim, 0.01, 0.11, 0),
@@ -928,6 +955,29 @@ for (const s of [1, -1]) {
   day.rotation.y = Math.PI / 2;
   day.position.set(-HD - 3.0, DOOR_H / 2, 0);
   put(day);
+  M.dayCardMesh = day;      // the caller hides it once a real sky stands
+}
+
+// THE SKY (G41, user: "we need a proper HDRI ... something to look at
+// outside"). alps_field, tone-mapped LDR on a backdrop sphere round the
+// shed — visible through the door, the glazing band and the gable
+// window. Unlit and unfogged (the room fog would eat it), dimmed with
+// the moods in setMood. The daylight CARD stays for the environment
+// bake (it is the big soft source that bake reads); the caller hides it
+// after baking so the eye gets the mountains instead — see app.js.
+let skyMat = null;
+if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
+  const st = new THREE.Texture(HANGAR_SKY_IMG);
+  st.encoding = THREE.sRGBEncoding;
+  const ok = () => { st.needsUpdate = true; };
+  if (HANGAR_SKY_IMG.complete && HANGAR_SKY_IMG.naturalWidth) ok();
+  else HANGAR_SKY_IMG.onload = ok;
+  skyMat = new THREE.MeshBasicMaterial({ map: st, side: THREE.BackSide,
+    fog: false });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), skyMat);
+  sky.scale.x = -1;               // equirect reads right-way-round inside
+  sky.rotation.y = Math.PI / 2;   // horizon feature out the door
+  put(sky);
 }
 
 // ---- roof: portal trusses, purlins, deck, roof lights ---------------------
@@ -935,33 +985,38 @@ for (const s of [1, -1]) {
   const NT = 7;
   for (let i = 0; i < NT; i++) {
     const x = -HD + 0.6 + (2 * HD - 1.2) * i / (NT - 1);
-    // top chords to the ridge, bottom tie, king post, web diagonals
-    put(strut([x, EAVE, -HW], [x, RIDGE, 0], 0.10, M.steel, 6),
-        strut([x, EAVE, HW], [x, RIDGE, 0], 0.10, M.steel, 6),
-        strut([x, EAVE - 0.05, -HW], [x, EAVE - 0.05, HW], 0.085, M.steel, 6),
-        strut([x, EAVE, 0], [x, RIDGE - 0.1, 0], 0.06, M.steel, 6));
+    // top chords to the ridge, bottom tie, king post, web diagonals —
+    // the MAIN BEAMS of the part system (G41), on their own material
+    put(strut([x, EAVE, -HW], [x, RIDGE, 0], 0.10, M.beamMain, 6),
+        strut([x, EAVE, HW], [x, RIDGE, 0], 0.10, M.beamMain, 6),
+        strut([x, EAVE - 0.05, -HW], [x, EAVE - 0.05, HW], 0.085, M.beamMain, 6),
+        strut([x, EAVE, 0], [x, RIDGE - 0.1, 0], 0.06, M.beamMain, 6));
     for (const s of [1, -1]) for (const f of [0.34, 0.67]) {
       const zt = s * HW * f, yt = EAVE + (RIDGE - EAVE) * (1 - f);
-      put(strut([x, EAVE, zt], [x, yt, zt], 0.045, M.steel, 6));
-      put(strut([x, EAVE, s * HW * (f - 0.33)], [x, yt, zt], 0.04, M.steel, 6));
+      put(strut([x, EAVE, zt], [x, yt, zt], 0.045, M.beamMain, 6));
+      put(strut([x, EAVE, s * HW * (f - 0.33)], [x, yt, zt], 0.04, M.beamMain, 6));
     }
     // stanchion down the wall, so the frame reads as a portal
-    for (const s of [1, -1]) put(box(0.34, EAVE, 0.30, M.steel, x, EAVE / 2, s * (HW - 0.3)));
+    for (const s of [1, -1]) put(box(0.34, EAVE, 0.30, M.beamMain, x, EAVE / 2, s * (HW - 0.3)));
   }
-  // purlins and the deck underside
+  // purlins and the deck underside — the SECONDARY BEAMS (G41)
   for (const s of [1, -1]) {
     for (let k = 0; k <= 6; k++) {
       const f = k / 6, z = s * HW * f, y = EAVE + (RIDGE - EAVE) * (1 - f) - 0.14;
-      put(box(2 * HD - 1, 0.14, 0.10, M.steelDark, 0, y, z));
+      put(box(2 * HD - 1, 0.14, 0.10, M.beamSec, 0, y, z));
     }
     // ridge to eave, running the full depth. Wound so the normal faces DOWN
     // into the shed, which is the side anything in here can see.
     const R0 = [-HD - 0.3, RIDGE, 0], R1 = [HD + 0.3, RIDGE, 0];
     const E0 = [-HD - 0.3, EAVE, s * (HW + 0.5)], E1 = [HD + 0.3, EAVE, s * (HW + 0.5)];
-    put(s > 0 ? quad(R0, R1, E1, E0, M.roofIn, 6) : quad(R1, R0, E0, E1, M.roofIn, 6));
+    // metric uv on the INNER deck (a part system surface, G41): u along
+    // the ridge, v down the slope, both in metres
+    const SLOPE = Math.hypot(RIDGE - EAVE, HW + 0.5), RW = 2 * HD + 0.6;
+    put(s > 0 ? quad(R0, R1, E1, E0, M.roofIn, [RW, SLOPE])
+              : quad(R1, R0, E0, E1, M.roofIn, [RW, SLOPE]));
     put(s > 0 ? quad(E0, E1, R1, R0, M.roofOut, 6) : quad(E1, E0, R0, R1, M.roofOut, 6));
   }
-  put(box(2 * HD, 0.3, 0.7, M.steelDark, 0, RIDGE + 0.05, 0));
+  put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
   // ROOF LIGHTS. Four translucent panels down each slope: the reason the middle
   // of a hangar is not a cave, and the softest light in the scene.
   // t = 0 at the ridge, 1 at the eave: one function, so a roof light cannot end
@@ -1564,22 +1619,46 @@ const setMood = i => {
   return m;
 };
 
-// ---- THE WALL WARDROBE (G40, user: "a few material options ... keep
-// them as working versions, it's hard for me to see"). The interior
-// wall material can wear any of the payload sets (hangar_walls.js,
-// Poly Haven, 2 m default tile) or fall back to the baked sheet metal.
-// ONE material object throughout — M.wall stays in M, so the moods'
-// envMapIntensity scaling covers whatever it wears — and, r128 being
-// r128, ONE uv transform per material (taken from .map), which here is
-// a feature: the tile size is a single number and every map follows.
-// The unused sets get deleted once a wall is chosen.
-const WALLSETS = { baked: { name: 'sheet metal (baked)' } };
+// ---- THE MATERIAL LIBRARY AND THE PART SYSTEM (G41, supersedes G40's
+// wall-only wardrobe; user: "manage a material library and assign them
+// to parts of the hangar"). The LIBRARY is every payload texture set
+// (hangar_walls.js + the floor slab); every PART owns one material
+// instance, registered below with its baked originals captured, so any
+// part can wear any set — or its baked self — with an independent tile
+// size, a roughness multiplier and a normal-influence multiplier.
+// Materials stay the SAME OBJECTS in M throughout, so the moods'
+// envMapIntensity scaling covers whatever a part wears. r128's one
+// uv-transform-per-material (from .map) means tile size is one number
+// per part and every map follows. The unused sets get deleted once
+// choices settle.
+const LIB = {};
 if (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS)
-  for (const k in HANGAR_WALL_SETS) WALLSETS[k] = HANGAR_WALL_SETS[k];
-let wallKey = 'baked',
-    wallTile = (typeof HANGAR_WALL_TILE_M === 'number') ? HANGAR_WALL_TILE_M : 2;
-const wallTexCache = {};
-const wallTex = (img, srgb) => {
+  for (const k in HANGAR_WALL_SETS) LIB[k] = HANGAR_WALL_SETS[k];
+if (typeof HANGAR_FLOOR_IMG !== 'undefined' && HANGAR_FLOOR_IMG)
+  LIB.slabfloor = { name: 'damaged concrete (floor)',
+    diff: HANGAR_FLOOR_IMG.diff, nor: HANGAR_FLOOR_IMG.nor,
+    rough: HANGAR_FLOOR_IMG.rough, tile: 5 };
+const PARTS = {
+  ground:    { name: 'ground',            mat: M.floor,    tile: 5 },
+  wallSides: { name: 'walls · sides',     mat: M.wall,     tile: 2 },
+  wallBack:  { name: 'wall · back',       mat: M.wallBack, tile: 2 },
+  stem:      { name: 'brick stem',        mat: M.stem,     tile: 2 },
+  roof:      { name: 'roof',              mat: M.roofIn,   tile: 2 },
+  beamsMain: { name: 'beams · main',      mat: M.beamMain, tile: 2 },
+  beamsSec:  { name: 'beams · secondary', mat: M.beamSec,  tile: 2 },
+  windows:   { name: 'windows',           mat: M.glass,    tile: 2 },
+  doorMan:   { name: 'man door',          mat: M.manDoor,  tile: 2 },
+  doorMain:  { name: 'hangar doors',      mat: M.door,     tile: 2 },
+};
+for (const k in PARTS) {
+  const p = PARTS[k], m = p.mat;
+  p.baked = { map: m.map || null, nor: m.normalMap || null,
+    rough: m.roughnessMap || null, rough0: m.roughness,
+    ns: m.normalScale ? m.normalScale.clone() : null };
+  p.state = { set: 'baked', tile: p.tile, rough: 1, nrm: 1 };
+  p.cache = {};
+}
+const partTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = 8;
@@ -1588,34 +1667,47 @@ const wallTex = (img, srgb) => {
   if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
   return t;
 };
-const setWall = (key, tileM) => {
-  if (WALLSETS[key]) wallKey = key;
-  if (+tileM > 0) wallTile = Math.max(0.25, Math.min(12, +tileM));
-  const m = M.wall;
-  if (wallKey === 'baked') {
-    m.map = wallAlb; m.normalMap = corrNrm; m.roughnessMap = wallRgh;
-    m.normalScale.set(0.8, 0.8);
+const setPart = (key, st) => {
+  const p = PARTS[key];
+  if (!p) return null;
+  const s = p.state;
+  if (st) {
+    if (st.set && (st.set === 'baked' || LIB[st.set])) s.set = st.set;
+    if (+st.tile > 0) s.tile = Math.max(0.25, Math.min(12, +st.tile));
+    if (+st.rough >= 0) s.rough = Math.max(0, Math.min(2, +st.rough));
+    if (+st.nrm >= 0) s.nrm = Math.max(0, Math.min(2, +st.nrm));
+  }
+  const m = p.mat;
+  if (s.set === 'baked') {
+    m.map = p.baked.map; m.normalMap = p.baked.nor;
+    m.roughnessMap = p.baked.rough;
+    m.roughness = Math.min(1, p.baked.rough0 * s.rough);
+    if (m.normalScale && p.baked.ns)
+      m.normalScale.copy(p.baked.ns).multiplyScalar(s.nrm);
   } else {
-    let c = wallTexCache[wallKey];
+    let c = p.cache[s.set];
     if (!c) {
-      const s = WALLSETS[wallKey];
-      c = wallTexCache[wallKey] =
-        { map: wallTex(s.diff, true), nor: wallTex(s.nor), rough: wallTex(s.rough) };
+      const L = LIB[s.set];
+      c = p.cache[s.set] = { map: partTex(L.diff, true),
+        nor: partTex(L.nor), rough: partTex(L.rough) };
     }
     m.map = c.map; m.normalMap = c.nor; m.roughnessMap = c.rough;
-    m.normalScale.set(1, 1);
-    c.map.repeat.set(1 / wallTile, 1 / wallTile);
+    m.roughness = Math.min(1, s.rough);
+    if (m.normalScale) m.normalScale.set(s.nrm, s.nrm);
+    c.map.repeat.set(1 / s.tile, 1 / s.tile);
     c.nor.repeat.copy(c.map.repeat); c.rough.repeat.copy(c.map.repeat);
   }
   m.needsUpdate = true;
-  return { key: wallKey, tile: wallTile };
+  return Object.assign({}, s);
 };
 
 return {
   group: ROOT, background: BG, fog: FOG,
-  walls: Object.keys(WALLSETS).map(k =>
-    ({ key: k, name: WALLSETS[k].name || k })),
-  setWall, wallState: () => ({ key: wallKey, tile: wallTile }),
+  library: [{ key: 'baked', name: '(part’s own)' }].concat(
+    Object.keys(LIB).map(k => ({ key: k, name: LIB[k].name || k }))),
+  parts: Object.keys(PARTS).map(k => ({ key: k, name: PARTS[k].name })),
+  setPart, partState: k => (PARTS[k] ? Object.assign({}, PARTS[k].state) : null),
+  dayCard: M.dayCardMesh || null, hasSky: !!skyMat,
   // the aeroplane stands on the floor at y = 0 in the room's own frame, nose
   // toward the door at -x. The caller lines the room up with the aeroplane
   // rather than moving the aeroplane, so the sim keeps its own coordinates.

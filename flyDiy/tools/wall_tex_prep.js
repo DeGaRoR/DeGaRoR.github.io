@@ -23,6 +23,7 @@ const OUT = path.join(ROOT, 'src', 'viewer', 'hangar_walls.js');
 const SETS = [
   ['factory', 'factory wall'],
   ['rustymetal', 'rusty painted metal'],
+  ['rustysheet', 'rusty metal sheet'],
   ['concrete004', 'concrete 004'],
   ['concrete008', 'concrete 008'],
   ['slabwall', 'concrete slab'],
@@ -53,6 +54,14 @@ for (const [k, name] of SETS) {
 }
 body += `  };
 })() : null;
+`;
+// THE SKY (G41): alps_field_1k.exr tone-mapped once to an LDR equirect —
+// the backdrop sphere outside the hangar, dimmed with the moods.
+const sky = `data:image/jpeg;base64,` +
+  fs.readFileSync(path.join(ROOT, 'assets', 'hangar_sky', 'alps_field.jpg'))
+    .toString('base64');
+body += `const HANGAR_SKY_IMG = (typeof Image !== 'undefined')
+  ? (() => { const i = new Image(); i.src = '${sky}'; return i; })() : null;
 `;
 fs.writeFileSync(OUT, body);
 console.log(`src/viewer/hangar_walls.js (${(body.length / 1048576).toFixed(1)} MB) — ` +
