@@ -115,9 +115,15 @@ rebuilding the wing.
 cage editor EMBEDS in the game and replaces the old garage panel — the
 P10 "garage rebased" move pulled forward by the user; the old game is
 archived whole as earlierVersions/2026-08-28-preP3-last-old-garage.html;
-the hangar room carried over as the editor's backdrop. NEXT: the
-declared physics-bearing table + the bench→spec join, so the editor's
-knobs reach the flown aeroplane and the plaque).
+the hangar room carried over as the editor's backdrop, matured G40-44
+into the part-system material library + real lighting).
+THE JOIN LANDED same day (G45): the declared physics-bearing table is
+in HANDOVER (ruling 3, written before the button), _cage_join.js maps
+it, `build & fly` runs export → GARAGE_SPEC.set → the stand, and the
+FIRST FULL DESIGN→FLY TURN is verified — an editor-set 912 + 11.6 m
+wing flew ROLL→LIFT-OFF→CLIMB on the AP. REMAINING in P3: the TEST
+FLIGHT button + THE PLAQUE (headless SHAKEDOWN from the editor),
+save-to-hangar naming + logbook stub, the ONE MISSION.
 The first full turn of the loop, ugly by design. Almost everything it needs
 already exists — GATE GEN flies a generated aeroplane headless around a full
 circuit and prints its stats (the SHAKEDOWN line: Vs, VCruise, L/D, wing
