@@ -1487,7 +1487,19 @@
     fullReset();
   }
 
-  $('bGo').onclick = () => { if (inGarage) rollOut(); started = true; };
+  $('bGo').onclick = () => {
+    if (inGarage) {
+      // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
+      // and fly still gives the old yellow plane"): an OPEN editor
+      // exports through the join first — the same path as its own
+      // build & fly button — then rolls out. A closed editor flies the
+      // stand's aeroplane as always.
+      const fly = $('edFly');
+      if (edSit.visible && fly && fly.onclick) fly.onclick();
+      rollOut();
+    }
+    started = true;
+  };
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = makeAutopilot(sim, def, world); applyRoute(); started = false; running = true;
