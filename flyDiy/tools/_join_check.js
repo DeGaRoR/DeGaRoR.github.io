@@ -43,6 +43,7 @@ const P = {
 // resolveSpec quietly rebuilt every one of them from the defaults.
 const M = {
   gearType: 'taildragger', track: 1.62, contactR: 0.21,
+  twX: 4.8, twY: 0.05, twR: 0.11,
   halfW: 0.52, cabH: 1.21, tailArm: 5.1,
   tailW: 0.14, tailBot: 0.31, tailTop: 0.52, cowlDeck: 0.66,
   seating: 'side2', pilots: 2,
@@ -65,6 +66,9 @@ for (const k in CAGE_JOIN_ENGINES)
   ok(POWERPLANTS[CAGE_JOIN_ENGINES[k]] != null, 'registry row for "' + k + '"');
 ok(s.gear.type === 'taildragger' && s.gear.track === 1.62 &&
    s.gear.wheelR === 0.21, 'gear measurements pass (wheelR, not contactR)');
+ok(s.gear.y === undefined && s.gear.twX === 4.8 && s.gear.twY === 0.05 &&
+   s.gear.twR === 0.11,
+   'measured third wheel passes; mains height stays derived (G51)');
 ok(s.cabin.halfW === 0.52 && s.cabin.h === 1.21, 'cabin envelope passes');
 ok(s.fuselage.tailArm === 5.1, 'tail arm passes');
 ok(s.fuselage.tailW === 0.14 && s.fuselage.tailBot === 0.31 &&
@@ -104,6 +108,10 @@ try {
      'RESOLVED seating side2, crew 2');
   ok(R.gear.track === 1.62 && R.gear.wheelR === 0.21,
      'RESOLVED gear track + wheelR = measured');
+  ok(RS.auto['gear.y'] === true,
+     'RESOLVED gear y stays DERIVED (prop clearance owns it)');
+  ok(R.gear.twX === 4.8 && R.gear.twY === 0.05 && R.gear.twR === 0.11,
+     'RESOLVED tailwheel station/height/radius = measured');
   ok(Math.abs(R.gear.contactR -
       0.21 * Math.cos((R.gear.camber || 0) * Math.PI / 180)) < 1e-9,
      'RESOLVED contactR derives from the measured wheelR');

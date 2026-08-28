@@ -1097,6 +1097,17 @@ function clampSpec(spec) {
   // short has no vertical stiffness whatever its k) and the shakedown says so.
   S.gear.legDrop = genClampN(S.gear.legDrop, 0.15, 1.20);
   S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
+  // The THIRD WHEEL the join measures off the built cage (G51). They were
+  // nullable expose-the-derivation fields with no bounds because nothing ever
+  // wrote them; now that a measurement does, they get the same generous-but-
+  // non-degenerate envelope as the leg lengths. twY is an axle height in the
+  // lattice's own datum (the cabin keel line since G49); twX is a station,
+  // NEGATIVE for a nose wheel ahead of the firewall. gear.y stays DERIVED —
+  // the prop-clearance rule owns it, and a measured low axle makes long soft
+  // levers of the class-k gear members (measured: 0.35 m of sag onto the
+  // belly at gy −0.15; the length-aware-k reform is the real cure).
+  S.gear.twX = genClampN(S.gear.twX, -1.50, 8.00);
+  S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6fafde0f7a1e7d1e
+// body-sha256: c8d8bb2150cff5bc
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4231,6 +4231,90 @@ function makeLinkage(tau) {
 if (typeof module !== 'undefined')
   module.exports = { decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas,
                      applySkinDeform, makeHingeBinding, applyHinges, makeLinkage };
+// prop_codec.js — decode baked HANGAR PROP payloads (see tools/prop_prep.py).
+// Pure JS, no three.js: the same code runs in the artifact and in the node gate.
+//
+// WHY A SECOND CODEC. 50_model_codec.js bakes an AEROPLANE: one bounding box
+// for the whole model, no normals (the aircraft skin is smooth-shaded from a
+// recomputed normal), and a skin-deformation binding. A prop is the opposite
+// case — dozens of small rigid objects, each wanting its own quantisation
+// range, and each needing the AUTHOR'S normals, because a barrel whose normals
+// were recomputed is a faceted barrel and a chamfer that was baked into the
+// normal map has nothing to sit on. So: per-prop bb, per-part uv range, and
+// normals in the payload.
+//
+// Layout per part (little-endian):
+//   u32 nVerts, u32 nTris,
+//   int16 pos[3n]  quantised over the PROP's bb (0.03 mm on a 2 m prop),
+//   int8  nrm[3n]  snorm unit normal (~0.9 deg),
+//   uint16 uv[2n]  quantised over the PART's own uv range (props whose uv
+//                  wraps past 1.0 are normal — industrial_storage_cart does),
+//   uint16 idx[3t] (nVerts is asserted <= 65536 at bake time).
+
+function decodePropPart(bb, part) {
+  const raw = (typeof atob === 'function')
+    ? (() => { const s = atob(part.b64), a = new Uint8Array(s.length);
+               for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; })()
+    : new Uint8Array(Buffer.from(part.b64, 'base64'));
+  const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+  const nv = dv.getUint32(0, true), nt = dv.getUint32(4, true);
+  const [x0, y0, z0, x1, y1, z1] = bb;
+  const sx = (x1 - x0) / 65535, sy = (y1 - y0) / 65535, sz = (z1 - z0) / 65535;
+  let o = 8;
+  const pos = new Float32Array(nv * 3);
+  for (let i = 0; i < nv; i++, o += 6) {
+    pos[i * 3]     = x0 + (dv.getInt16(o,     true) + 32768) * sx;
+    pos[i * 3 + 1] = y0 + (dv.getInt16(o + 2, true) + 32768) * sy;
+    pos[i * 3 + 2] = z0 + (dv.getInt16(o + 4, true) + 32768) * sz;
+  }
+  const nrm = new Float32Array(nv * 3);
+  for (let i = 0; i < nv * 3; i++, o++) nrm[i] = dv.getInt8(o) / 127;
+  const [u0, v0] = part.uvMin, [us, vs] = part.uvScl;
+  const uv = new Float32Array(nv * 2);
+  for (let i = 0; i < nv; i++, o += 4) {
+    uv[i * 2]     = u0 + dv.getUint16(o,     true) / 65535 * us;
+    uv[i * 2 + 1] = v0 + dv.getUint16(o + 2, true) / 65535 * vs;
+  }
+  const idx = new Uint16Array(nt * 3);
+  for (let i = 0; i < nt * 3; i++, o += 2) idx[i] = dv.getUint16(o, true);
+  return { mat: part.mat, nv, nt, pos, nrm, uv, idx };
+}
+
+// prop -> { key, bb, parts:[{mat,nv,nt,pos,nrm,uv,idx}] }. Decoding is per
+// prop, not per pack: the editor shows one at a time and the hangar places a
+// handful, so nothing pays for the props it never puts on the floor.
+function decodeProp(prop) {
+  return { key: prop.key, bb: prop.bb,
+           parts: prop.parts.map(p => decodePropPart(prop.bb, p)) };
+}
+
+// ---------------------------------------------------------------------------
+// THE PROP REGISTRY. Every baked pack calls this at script eval, so by the time
+// anything asks, PROP_REG holds every prop in the build, in table order. The
+// registry is the ONE place the editor, the hangar and the gate agree on what
+// exists — nothing downstream scans a directory or a filename.
+// ---------------------------------------------------------------------------
+const PROP_REG = { groups: [], props: {}, order: [], texs: {} };
+
+function registerPropPack(pack) {
+  for (const g of pack.groups || [])
+    if (!PROP_REG.groups.some(x => x[0] === g[0])) PROP_REG.groups.push(g);
+  for (const id in pack.texs) PROP_REG.texs[id] = pack.texs[id];
+  for (const key of pack.order) {
+    PROP_REG.props[key] = pack.props[key];
+    PROP_REG.order.push(key);
+  }
+  return PROP_REG;
+}
+
+function propList(group) {
+  return PROP_REG.order
+    .map(k => PROP_REG.props[k])
+    .filter(p => !group || p.group === group);
+}
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { decodeProp, decodePropPart, registerPropPack, propList, PROP_REG };
 // ============================================================
 // GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
 //
@@ -5330,6 +5414,17 @@ function clampSpec(spec) {
   // short has no vertical stiffness whatever its k) and the shakedown says so.
   S.gear.legDrop = genClampN(S.gear.legDrop, 0.15, 1.20);
   S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
+  // The THIRD WHEEL the join measures off the built cage (G51). They were
+  // nullable expose-the-derivation fields with no bounds because nothing ever
+  // wrote them; now that a measurement does, they get the same generous-but-
+  // non-degenerate envelope as the leg lengths. twY is an axle height in the
+  // lattice's own datum (the cabin keel line since G49); twX is a station,
+  // NEGATIVE for a nose wheel ahead of the firewall. gear.y stays DERIVED —
+  // the prop-clearance rule owns it, and a measured low axle makes long soft
+  // levers of the class-k gear members (measured: 0.35 m of sag onto the
+  // belly at gy −0.15; the length-aware-k reform is the real cure).
+  S.gear.twX = genClampN(S.gear.twX, -1.50, 8.00);
+  S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -11149,4 +11244,4 @@ function makeLoadTest(sim, def, cfg) {
            limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
 }
 if (typeof module !== 'undefined')
-  module.exports = { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };
+  module.exports = { decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };

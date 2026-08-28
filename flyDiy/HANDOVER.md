@@ -10286,6 +10286,7 @@ resolveSpec, so a measurement written flat never reaches the frame)
 | tail arm | G49: windscreen-base ring (= the firewall) → the cage's tailPost ring, via cageResolve × FS; falls back to the whole-skin extremes when the anatomy cannot be resolved (rod booms: aft skin extreme — the rod is in CAGE_MATS) | fuselage.tailArm |
 | tail-end section | G49: halfW / keel / deck at the tailPost ring, y datum'd on the cabin keel (outer skin, same declaration as cab.h); absent on rod booms (no tail rings) | fuselage.tailW / .tailBot / .tailTop (tailY stays 0 — it is the editor's offset knob) |
 | cowl deck | G49: deck sampled just forward of the windscreen base ÷ cabin height; never measured off the fallback anchor | fuselage.cowlDeck |
+| third wheel | G51: the single (non-mains) contact's axle — station firewall-anchored, height in the keel datum, radius verbatim; gated on the same anatomy resolution as the sections. The MAINS height stays DERIVED (prop clearance owns gear.y; a measured low axle makes long soft levers of the class-k gear members) | gear.twX / .twY / .twR |
 | crew | the crew layer's pilot+pax count | cabin.pilots / cabin.seating (single/tandem2 map) |
 
 **DEFAULT-v1 — declared gaps, the increments queue in order**
@@ -10504,6 +10505,57 @@ gains the rows (canned values ≠ every default, asserted RESOLVED,
 cowlDeck's auto flag checked). NEXT in this arc (with the user's
 eye, G34's lesson): noseGap/cab.len/postGap from the pillar rings —
 they move visible proportions; then the C5 bilinear binding.
+
+## G51 — THE OVERLAY VIEW, AND THE THIRD WHEEL IS MEASURED
+## (2026-08-28, user: "my current plane does not fly anymore" + "I need
+## a view with the physical + visual model enabled at the same time")
+
+**THE OVERLAY VIEW.** bSkin now cycles FOUR modes: Covered/Skin ×1 →
+Flex ×4 → Frame ×1 → OVERLAY ×1. Overlay poses the skin exactly as
+mode 0 and draws the strain-coloured line frame — the structure as
+the solver actually has it — THROUGH it (depth test off on the line
+and point materials, renderOrder above the opaque pass), so the
+physics lattice reads inside the aeroplane you built. Every mode but
+Flex is real deflection, and the labels say so. Two traps fixed on
+the way in: the imported-skin path indexed SKIN_GAINS[skinMode]
+(mode 3 would have been an undefined gain → NaN deform), and
+showSkin's `skinMode < 2` tests all became `!== 2`. Verified in the
+browser: label cycle correct, no console errors posing in overlay.
+
+**THE DIAGNOSIS** (three-era shakedown in node, the same design
+through preG48 / G48 / G49 measurement sets, default template and a
+planeScale-0.64 side2 approximation of the user's plane): every era
+flies in the approximation — but the eras SHIFT the aeroplane hard:
+G48 landed the second crew member and the wider cabin (392→479 kg),
+and G49's honestly-measured HIGH tail (the template belly sweeps up:
+tailBot 0.20→~0.54 at that scale) RAISED THE DERIVED TAILWHEEL with
+it — the lattice hung TW a fixed twLeg below the tail post — and
+steepened the three-point deck angle 9.8°→13.6°, toward stall alpha
+on the roll. The user's actual failure needs their exported build to
+reproduce exactly; these are the mechanisms in play.
+
+**THE THIRD WHEEL IS MEASURED** (the fix for the tail side): the
+single contact's axle from the gear editor's own contacts — twX
+firewall-anchored, twY in the keel datum, twR verbatim — gated on
+the same anatomy resolution as the sections (no anatomy, no datum).
+The sim's tailwheel then sits where the built one sits, and the
+deck angle follows the built stance (measured: 1.5° per 0.12 m of
+tail-contact height, exactly the contact geometry).
+
+**gear.y IS NOT MEASURED, deliberately.** First cut measured both
+ends; the mains collapsed: with gy measured at −0.15 the aeroplane
+settled 0.35 m onto its belly at 0.7% strain — the class-k gear
+members become long soft LEVERS (k carries no length), a mechanism
+no strain gate can see (rule 10's lesson in new clothes). The
+prop-clearance rule owns gear.y (the spec's own comment: "the two
+hard geometric constraints"), and the length-aware-k reform is the
+real cure — measure the mains only after it. twX/twY got clampSpec
+bounds ([-1.5, 8.0] / [-1.0, 1.5]); gear.y deliberately got none.
+
+JOIN: OK (third-wheel rows asserted RESOLVED, gear.y asserted
+STILL AUTO). Overlay verified live. NEXT unchanged: pillar-ring
+proportions with the user, then C5; length-aware k gets the gear
+class first when it comes.
 
 ## G50 — THE HANGAR GETS REAL FURNITURE (2026-08-28, the prop
 ## pipeline: table, baker, codec, one material, gate, bench)

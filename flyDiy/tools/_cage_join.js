@@ -86,6 +86,14 @@ function cageJoinSpec(P, M, T) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
+    // G51: the measured third wheel — axle height in the keel datum,
+    // station firewall-anchored. clampSpec bounds them. gear.y is NOT
+    // written: the mains stay on the prop-clearance derivation.
+    if (typeof M.twX === 'number' && isFinite(M.twX))
+      spec.gear.twX = M.twX;
+    if (typeof M.twY === 'number' && isFinite(M.twY))
+      spec.gear.twY = M.twY;
+    if (M.twR > 0) spec.gear.twR = M.twR;
   }
   const cabin = {};
   if (M.halfW > 0) cabin.halfW = M.halfW;
@@ -179,6 +187,25 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // zFw = AF.z1 the sample would read the nose tip, not the cowl.
         const zCowl = Math.min(AF.z1 - 0.02, zFw + 0.10);
         M.cowlDeck = (AF.surf(zCowl, Math.PI)[1] - yD) / M.cabH;
+      }
+      // G51: the THIRD WHEEL is measured. The lattice used to hang it a
+      // fixed twLeg below the tail post — so G49's honestly high measured
+      // tail RAISED the tailwheel with it and steepened the three-point
+      // attitude toward stall alpha (the "does not fly any more" report).
+      // The gear editor already stood the built plane on its wheels; the
+      // third wheel's axle is read from ITS contact, in the same keel
+      // datum as the sections. The MAINS height stays DERIVED on purpose:
+      // the prop-clearance rule owns gear.y, and a measured low axle
+      // makes long soft levers of the class-k gear members (0.35 m of
+      // sag onto the belly, measured — length-aware k is the real cure).
+      // Gated on the same anatomy resolution: without it, no datum.
+      if (zPost != null && G2.contacts && G2.contacts.length) {
+        const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
+        if (single) {
+          M.twX = zFw - single.p[2];      // model x aft of the firewall
+          M.twY = single.p[1] - yD;
+          if (single.R > 0) M.twR = single.R;
+        }
       }
     }
     // crew: the pilot always; seating from the cage's own layout rows

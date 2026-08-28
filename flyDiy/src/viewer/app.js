@@ -389,8 +389,13 @@
   // texture-decode race in the measurement, not the lighting.
   const modelCache = {};
   // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame,
-  // flex x1. The gain is x4 in mode 1 AND NOWHERE ELSE — the frame view is the
-  // structure as the solver actually has it, and the button says so.
+  // flex x1 · 3 = OVERLAY, flex x1 (G51, user: "a view with the physical +
+  // visual model enabled at the same time"): the skin poses as in mode 0 and
+  // the strain-coloured line frame — the structure as the solver actually has
+  // it — draws THROUGH it (depth test off), so you can see how the physics
+  // lattice sits inside the aeroplane you built. The gain is x4 in mode 1 AND
+  // NOWHERE ELSE — every other mode is the real deflection, and the button
+  // says so.
   const SKIN_GAINS = [1, 4];
   const LINK_TAU = 0.15;   // s per pole, two poles; 0 -> raw ctl on the surfaces
   let model = null, skinMode = 0;
@@ -750,7 +755,8 @@
     for (const r of model.rigs) {
       if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
       applySkinDeform(r.bind, r.base, r.posAttr.array,
-                      model.deltas.P, model.deltas.N, SKIN_GAINS[skinMode],
+                      model.deltas.P, model.deltas.N,
+                      skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
     }
@@ -768,7 +774,7 @@
     // GARAGE: Frame mode strips the COVERING off the generated aeroplane and
     // leaves the welded truss standing. That is the build sequence, not a
     // debug view, so it shows real tubes rather than the line wireframe.
-    const showSkin = !!(has && model.ready && (skinMode < 2 || gen));
+    const showSkin = !!(has && model.ready && (skinMode !== 2 || gen));
     if (model) model.grp.visible = showSkin;
     // Covered: fabric and cowl on, the truss and the engine block hidden under
     // them. Bare frame: the reverse — the welded chassis with the engine hung
@@ -786,9 +792,18 @@
       const cover = model.cover || ['skin', 'cowl'];
       for (const n in model.meshes)
         model.meshes[n].visible = (n === 'frame' || n === 'engine') ? skinMode === 2
-                                : cover.includes(n) ? skinMode < 2 : true;
+                                : cover.includes(n) ? skinMode !== 2 : true;
     }
-    lines.visible = pts.visible = !showSkin;
+    // OVERLAY (mode 3): the line frame draws WITH the skin, x-rayed through
+    // it — depth test off, rendered after the opaque pass — so the physics
+    // lattice reads inside the covered aeroplane. Every other mode keeps the
+    // lines depth-tested (mode 2 shows them alone, nothing to x-ray).
+    const overlay = skinMode === 3;
+    lines.visible = pts.visible = !showSkin || overlay;
+    // guarded: the UI smoke's THREE stub builds lines/pts without materials
+    if (lines.material) lines.material.depthTest = !overlay;
+    if (pts.material) pts.material.depthTest = !overlay;
+    lines.renderOrder = 998; pts.renderOrder = 999;
     if (proxy) proxy.mesh.visible = !showSkin;   // the visible skin casts the shadow instead
     b.style.display = has ? '' : 'none';
     // The gain is IN THE LABEL. Two of these three modes show the aeroplane's
@@ -796,8 +811,8 @@
     // say only "Covered / Flex ×4 / Bare frame" — which reads as though the ×4
     // belonged to the middle mode's name rather than being a property the other
     // two also have (at ×1). Naming every mode's gain removes the question.
-    b.textContent = gen ? ['Covered ×1', 'Flex ×4', 'Frame ×1'][skinMode]
-                        : ['Skin ×1', 'Flex ×4', 'Frame ×1'][skinMode];
+    b.textContent = gen ? ['Covered ×1', 'Flex ×4', 'Frame ×1', 'Overlay ×1'][skinMode]
+                        : ['Skin ×1', 'Flex ×4', 'Frame ×1', 'Overlay ×1'][skinMode];
     b.classList.toggle('on', showSkin);
   }
   // ---- WIRE: the mesh as built. Materials are cached per material NAME, so
@@ -868,7 +883,7 @@
   };
 
   $('bSkin').onclick = () => {
-    skinMode = (skinMode + 1) % 3; applySkinVis();
+    skinMode = (skinMode + 1) % 4; applySkinVis();
   };
 
   // ---- W10 route: spawn at any aerodrome (default the home base), fly
