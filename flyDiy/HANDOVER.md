@@ -10132,6 +10132,33 @@ console errors are this session's own synthetic pointer probes.
 RECORDED: the mood select and #bMood still do not cross-sync; the env
 bake keeps the baked-wall tint after a dress change.
 
+## G41.2 — WORLD MATH UNDER THE MOUNT, audited (2026-08-28, user: "the
+## eyesight line of the pilot has not been properly rotated ... ensure
+## the rotation has been properly done everywhere")
+
+The class of bug: a layer computes a point via matrixWorld — which,
+since G36, includes the editor's sit/yaw MOUNT — and then adds the
+result as a LOCAL child of its own group: transformed twice. On the
+standalone bench (identity mount) the two frames coincide, so the bug
+was invisible for weeks and shipped with the mount.
+
+AUDITED MECHANICALLY: grep for matrixWorld / getWorld* / worldToLocal
+across every bench layer. ONLY _cage_crew.js uses world math. Its IK
+(bone aiming through parent-world-inverse), grip orientation and reach
+checks are RELATIVE world computations — invariant under a rigid
+mount, correct as they stand. The one offender was the eye-point
+block: the sight line and crown placed world points as local children
+(the user's floating line), and worse, fed WORLD heights into
+cage-frame stat numbers — "eye +/head clr" read wrong in the editor
+without looking wrong. All of it now converts back through the group's
+own world matrix (worldToLocal + group-quaternion inverse): exact
+under any mount, a no-op standalone.
+
+VERIFIED: the sight line sits inside the build's bounds at the
+cockpit; the crew stat reads its cage-frame baseline (cabin h 1.19 ·
+eye +0.91 fl · head clr 0.16) in the EDITOR and identically on
+standalone cage8; UISMOKE PASS.
+
 ## POST-G6 BACKLOG — tail, propeller, fairings (raised 2026-08-12)
 
 The user's list after playing the merged build, grouped into sessions. Numbering

@@ -1257,20 +1257,33 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   }
 
   // ---- eye point + head clearance (the sizing instruments) ----
+  // WORLD -> THE GROUP'S OWN FRAME (G41.2, user: "the eyesight line of
+  // the pilot has not been properly rotated like the rest of the
+  // plane"). head.matrixWorld includes whatever transform the build is
+  // mounted under — identity on the bench pages, the sit/yaw mount in
+  // the game editor — so a world point added as a LOCAL child of
+  // `group` was transformed twice (the floating line), and the world
+  // heights fed cage-frame numbers (eye/head-clr read wrong under the
+  // mount). Everything here now converts back through the group's own
+  // world matrix: exact everywhere, a no-op standalone. The IK and
+  // reach code above needs none of this — it is relative world math,
+  // invariant under a rigid mount.
   if (dums.length && P.dumMarkers) {
     const head = dums[0].bones.head;
     head.updateWorldMatrix(true, false);
-    const eye = new THREE.Vector3(0, 0.125, 0.082)
-      .applyMatrix4(head.matrixWorld);
+    const eye = group.worldToLocal(new THREE.Vector3(0, 0.125, 0.082)
+      .applyMatrix4(head.matrixWorld));
     ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
+    const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
     const fwd = new THREE.Vector3(0, 0, 1)
-      .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+      .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()))
+      .applyQuaternion(gq);
     const lg = new THREE.BufferGeometry().setFromPoints(
       [eye, eye.clone().addScaledVector(fwd, 0.6)]);
     group.add(new THREE.Line(lg, new THREE.LineBasicMaterial(
       { color: 0xff4d3d, transparent: true, opacity: 0.55 })));
-    const crown = new THREE.Vector3(0, 0.245, 0)
-      .applyMatrix4(head.matrixWorld);
+    const crown = group.worldToLocal(new THREE.Vector3(0, 0.245, 0)
+      .applyMatrix4(head.matrixWorld));
     const seatFloor = A.floorAt(pilot.zBack + 0.20);
     notes.unshift('eye +' + (eye.y - seatFloor).toFixed(2) + ' fl',
                   'head clr ' + (A.roofY - crown.y).toFixed(2));
