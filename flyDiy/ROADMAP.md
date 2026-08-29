@@ -119,11 +119,30 @@ the hangar room carried over as the editor's backdrop, matured G40-44
 into the part-system material library + real lighting).
 THE JOIN LANDED same day (G45): the declared physics-bearing table is
 in HANDOVER (ruling 3, written before the button), _cage_join.js maps
-it, `build & fly` runs export → GARAGE_SPEC.set → the stand, and the
+it, `build & fly` runs export → GARAGE_SPEC.update → the stand, and the
 FIRST FULL DESIGN→FLY TURN is verified — an editor-set 912 + 11.6 m
-wing flew ROLL→LIFT-OFF→CLIMB on the AP. REMAINING in P3: the TEST
-FLIGHT button + THE PLAQUE (headless SHAKEDOWN from the editor),
-save-to-hangar naming + logbook stub, the ONE MISSION.
+wing flew ROLL→LIFT-OFF→CLIMB on the AP. THE PLAQUE landed at G60.
+THE SHELF landed at G63 (the user: "the save/import mechanism seems
+broken, and it is somehow redundant with the presets in the editor") —
+one store and one format instead of three, the editor finally LOADS
+what you loaded, the join UPDATES instead of replacing, the stock
+designs are ordinary builds, and GATE BUILD is the loading gate
+ruling 4 has been promising since the slice opened.
+REMAINING in P3: THE ENGINEERING BENCH — a test section that fills the
+plaque and resurrects the wing loading (G64, the user: "that's the
+engineering section before you try and roll out"); the FLOW COLLAPSE
+itself — `build & fly` retires, the panel hides instead of swapping
+aeroplanes, roll out reads the certificate (G65); then the ONE MISSION.
+
+THE FLOW, as the user put it: "we simply have hangar for edition, and
+it computes what it needs live, and then the roll out where we try and
+fly" — with an engineering bench between them, because a plaque you
+get for free is not a certificate. Tests are a DECLARED LIST so more
+can be added; the wing loading comes back with the aeroplane ON ITS
+BACK, which is how a homebuilt sandbag test is actually done and the
+only way the bags can push the wing the way they look like they push
+it (the rig loads +y while the viewer drew the bags on top — the
+physics is right, the picture was not).
 The first full turn of the loop, ugly by design. Almost everything it needs
 already exists — GATE GEN flies a generated aeroplane headless around a full
 circuit and prints its stats (the SHAKEDOWN line: Vs, VCruise, L/D, wing
@@ -305,6 +324,15 @@ honest destination is the GAME's own scenery seen from the hangar"), and
 the two should be one clock. Also open: the procedural grass and strip
 outside the door are lit by the room's lights rather than by the sky's own
 ground, and a mission that names a time of day has nothing to set.
+
+Also open, and the user's own proposal (2026-08-29): ONE panorama graded into
+several hours instead of one per hour. Prototyped at G62.1 as a test area
+(`tools/sky_grade.py`, `sky_prep.py --lab`, `make_probe.js --sky-lab`) and it
+reads — golden, sunset, dusk and night all convince in the real room; only
+overcast does not, and cannot, since there are no clouds in a clear-sky source
+to reveal. Adopting it shrinks the SOURCES (125 MB of HDR to 26); shrinking the
+PAYLOAD as well means moving the grade into a fragment shader, which it is
+already shaped for.
 
 ## SEQUENCING RATIONALE
 
