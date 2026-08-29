@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c8d8bb2150cff5bc
+// body-sha256: e92b8fd7b40deaa0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4082,6 +4082,12 @@ function defCG(def) {
 }
 
 // cfg: { tags:['WF','WR'], zRoot, xMax, off:[ox,oy,oz] }  (model-frame thresholds)
+// Optional gates (G58.1): xMin and yMin close the wing box from the other two
+// sides. The original selector was "outboard of zRoot and forward of xMax" —
+// which on the cage visual also caught the cabin SIDEWALL (it sits exactly at
+// |z| = zRoot = cab.halfW), the strut roots and the GEAR LEG, and pulled them
+// aft with the lifting wing (user's circles, at ×4 flex). Absent fields keep
+// the imported fleet's bindings exactly as they were.
 function makeSkinBinding(pos, nv, def, cfg) {
   const cg0 = defCG(def);
   const sides = { P: {}, N: {} };            // keyed by |z| station
@@ -4108,6 +4114,8 @@ function makeSkinBinding(pos, nv, def, cfg) {
   for (let i = 0; i < nv; i++) {
     const x = pos[i*3], z = pos[i*3+2], az = Math.abs(z);
     if (az < cfg.zRoot || x > cfg.xMax) continue;
+    if (cfg.xMin !== undefined && x < cfg.xMin) continue;
+    if (cfg.yMin !== undefined && pos[i*3+1] < cfg.yMin) continue;
     let k = 0;
     while (k < zs.length - 1 && az > zs[k]) k++;
     const zA = k === 0 ? cfg.zRoot : zs[k-1];
@@ -4879,6 +4887,13 @@ const GEN_DEFAULT = {
           material: 'tubeFabric', shape: 'straight',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // THE MEASURED BOOM PROFILE (G54.1): rows of {t, w, yb, yt} with t
+          // normalised over boxRear..tailArm. When present, the aft stations
+          // take their section from HERE (interpolated by t) instead of the
+          // shape family's exponent — the built boom's own heights, section by
+          // section. null = derive from `shape` exactly as before. The join
+          // writes it; clampSpec bounds every row and drops a degenerate list.
+          profile: null,
           // TAIL-END SECTION HEIGHT. Not a new dimension: clampSpec moves
           // tailBot and tailTop together by it, on the clone, so 61_gen_frame.js
           // still reads only those two and the offset cannot accumulate across
@@ -5299,6 +5314,12 @@ function clampSpec(spec) {
   // moving the spar root off its frame. It costs lift-curve slope either way,
   // which is why forward sweep is allowed and is not free.
   w.sweep = genClamp(w.sweep || 0, -15, 30);
+  // The wing's fore-aft STATION, now that the join measures it off the built
+  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
+  // default. The envelope spans a wing rooted on the firewall to one rooted
+  // well down the cabin; static margin is the honest consequence either way,
+  // and the shakedown posts it.
+  w.xLE = genClampN(w.xLE, -0.20, 3.00);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
@@ -5398,6 +5419,24 @@ function clampSpec(spec) {
   // fields the generator normally derives, but which the editor now exposes.
   // Bounded so an override cannot go degenerate; still nullable, so leaving
   // them alone keeps the derivation.
+  // G54.1: the measured boom profile — every row bounded, t strictly rising,
+  // deck kept above floor; anything degenerate falls back to the shape family.
+  if (Array.isArray(fu.profile)) {
+    const P2 = [];
+    let tPrev = -1;
+    for (const r of fu.profile) {
+      if (!r || !isFinite(r.t) || !isFinite(r.w) ||
+          !isFinite(r.yb) || !isFinite(r.yt)) continue;
+      const t = genClamp(r.t, 0, 1);
+      if (t <= tPrev + 1e-6) continue;
+      const yb = genClamp(r.yb, -0.40, 1.20);
+      P2.push({ t, w: genClamp(r.w, 0.05, 0.90),
+                yb, yt: genClamp(r.yt, yb + 0.06, 1.60) });
+      tPrev = t;
+      if (P2.length >= 16) break;
+    }
+    fu.profile = P2.length >= 2 ? P2 : null;
+  } else fu.profile = null;
   cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
   cb.len = genClampN(cb.len, 0.60, 2.60);
@@ -5406,6 +5445,11 @@ function clampSpec(spec) {
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
   S.tail.vHeight = genClampN(S.tail.vHeight, 0.60, 2.20);
   S.tail.vChord = genClampN(S.tail.vChord, 0.40, 1.80);
+  // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
+  // like the other measured stations; nullable keeps the volume-coefficient
+  // derivation for everything that does not measure them.
+  S.tail.hX = genClampN(S.tail.hX, 2.00, 9.00);
+  S.tail.vX = genClampN(S.tail.vX, 2.00, 9.00);
   S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
   S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
@@ -5419,12 +5463,23 @@ function clampSpec(spec) {
   // wrote them; now that a measurement does, they get the same generous-but-
   // non-degenerate envelope as the leg lengths. twY is an axle height in the
   // lattice's own datum (the cabin keel line since G49); twX is a station,
-  // NEGATIVE for a nose wheel ahead of the firewall. gear.y stays DERIVED —
-  // the prop-clearance rule owns it, and a measured low axle makes long soft
-  // levers of the class-k gear members (measured: 0.35 m of sag onto the
-  // belly at gy −0.15; the length-aware-k reform is the real cure).
+  // NEGATIVE for a nose wheel ahead of the firewall.
   S.gear.twX = genClampN(S.gear.twX, -1.50, 8.00);
   S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
+  // The RIDE HEIGHT, measured since G53. G51 blamed its collapse on soft long
+  // levers and left it derived — WRONG twice over: the collapse was a rule-10
+  // snap-through (the mains' anchors all lay in the belly plane; the axle
+  // reflected through it at 0.28% strain), and it was the DERIVED depth that
+  // had been hiding the mechanism. With the mains' snap-blocker in the frame,
+  // a measured shallow stance stands. Prop clearance is no longer guaranteed
+  // by derivation — the shakedown's propClear row posts what the built stance
+  // actually leaves under the registry prop.
+  S.gear.y = genClampN(S.gear.y, -0.90, 0.90);
+  // The mains STATION, measured by the join since G52. Setting it bypasses
+  // the CG/rake placement rule — deliberately: the wheels go where the built
+  // aeroplane's wheels are, and the shakedown's noseOver row posts the
+  // consequence. The height (gear.y) stays the prop-clearance rule's.
+  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -6214,8 +6269,34 @@ function genLattice(S, gearX, track, kScale) {
   if (boxRear > cabRear + 1e-6) xs.push(boxRear);
   for (let i = 1; i <= fu.tailBays; i++)
     xs.push(boxRear + (fu.tailArm - boxRear) * i / fu.tailBays);
+  // G54.1: when the join measured the boom PROFILE, the aft stations take
+  // their section from it, row-interpolated by the same normalised t — the
+  // built boom's own heights, section by section, instead of the family
+  // exponent. The user's prescription verbatim: mains fixed, tailwheel
+  // measured, "adjust the height of every section of the boom".
+  const PROF = Array.isArray(fu.profile) && fu.profile.length >= 2
+             ? fu.profile : null;
+  const profAt = t0 => {
+    let a = PROF[0], b = PROF[PROF.length - 1];
+    if (t0 <= a.t) b = PROF[1];
+    else if (t0 >= b.t) a = PROF[PROF.length - 2];
+    else for (let i = 1; i < PROF.length; i++)
+      if (PROF[i].t >= t0) { b = PROF[i]; a = PROF[i - 1]; break; }
+    const u = Math.max(0, Math.min(1,
+      (t0 - a.t) / Math.max(1e-6, b.t - a.t)));
+    return { w: a.w + (b.w - a.w) * u, yb: a.yb + (b.yb - a.yb) * u,
+             yt: a.yt + (b.yt - a.yt) * u };
+  };
   const ST = xs.map(x => {
     if (x <= boxRear) {
+      // G54.3: the ring AT the box end takes the measured profile's first
+      // row when there is one — the built belly can already be sweeping up
+      // at the passenger pillar, and the full-box default dipped below it
+      // (user: "still one fitting issue around the passenger pillar").
+      if (PROF && x >= boxRear - 1e-6) {
+        const p = profAt(0);
+        return { x, w: p.w, yb: p.yb, yt: p.yt };
+      }
       // firewall is slightly narrower and lower than the cabin (cowl line)
       const u = x / Math.max(1e-6, cab.noseGap);
       const f = x < cab.noseGap ? u : 1;
@@ -6225,10 +6306,11 @@ function genLattice(S, gearX, track, kScale) {
       return { x, w: cab.halfW * (0.92 + 0.08 * f), yb: -0.02 * f,
                yt: cab.h * (deck + (1 - deck) * f) };
     }
+    const t0 = (x - boxRear) / Math.max(1e-6, fu.tailArm - boxRear);
+    if (PROF) { const p = profAt(t0); return { x, w: p.w, yb: p.yb, yt: p.yt }; }
     // the SHAPE FAMILY is the profile of the aft taper: an exponent on the
     // station fraction, so width, floor and deck all narrow together but on a
     // straight, late (waisted) or early (pod-and-boom) curve. See GEN_SHAPES.
-    const t0 = (x - boxRear) / Math.max(1e-6, fu.tailArm - boxRear);
     const t = SHP.taper === 1 ? t0 : Math.pow(t0, SHP.taper);
     return { x, w: cab.halfW + (fu.tailW - cab.halfW) * t,
              yb: -0.02 + (fu.tailBot + 0.02) * t,
@@ -6394,7 +6476,26 @@ function genLattice(S, gearX, track, kScale) {
     // the strut braces from the longeron OPPOSITE the wing: down from a high
     // wing, up from a low one. Rule 1's barrier is the offset, not the direction
     const sd = s > 0 ? 'R' : 'L';
-    const strutRoot = F[nearestRing(xF)][opposeTag + sd];
+    // G59.2: THE LIFT STRUT LANDS ON THE CABIN LONGERON (user: "the truss
+    // should get onto the main longerons of the cabin, at the bottom for
+    // high wing, and at the top for low wings"). `nearestRing` alone could
+    // pick a station AFT of the cabin — on a measured boom those rings are
+    // already tapering, so the strut foot came out 0.23 m inboard and
+    // 0.19 m above the cabin's own corner: hanging in air, attached to a
+    // former instead of the structure. A lift strut is a primary member and
+    // lands on the cabin box; clamp it to the last full-section ring.
+    // STRICTLY forward of boxRear: since G54.3 the ring AT the box end
+    // takes the measured profile's first row — the PAX PILLAR section,
+    // which is already narrower and higher than the cabin. That is right
+    // for the skin and wrong for a strut foot, and it is what put the
+    // foot 0.23 m inboard of the cabin side. The cabin rings keep the
+    // full cab.halfW section; land on the aft-most of those.
+    const iBox = (() => {
+      let r = 0;
+      ST.forEach((s, i) => { if (s.x < boxRear - 0.01) r = i; });
+      return r;
+    })();
+    const strutRoot = F[Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -6609,6 +6710,21 @@ function genLattice(S, gearX, track, kScale) {
   B(GAL, fwdR, 'gear', false, 'wire');
   B(GAR, fwdR, 'gear', false, 'leg'); B(GAR, AA.BR, 'gear');
   B(GAR, fwdL, 'gear', false, 'wire');
+  // RULE 10 FOR THE MAINS (G53). Every one of the six members above lands on a
+  // BELLY node, and the belly is a near-horizontal plane — so the axle is held
+  // by three anchors it can REFLECT THROUGH. That is a snap-through, and it is
+  // invisible to every strain gate: measured, the axle flipped 0.62 m UP at
+  // 0.28% strain and the aeroplane settled on its belly with the wheels in the
+  // air. It stayed hidden while the ride height was DERIVED, because a deep leg
+  // puts the mirror position far enough away that the members must compress 37%
+  // to reach it; measuring the ride height off a real build (0.32 m of leg)
+  // drops that barrier to 13% and the gear flips on the first bounce.
+  // The tailwheel has carried exactly this cure since G4.6 (TW->TPT, below).
+  // A near-vertical member up to the ring's TOP corner is also what a
+  // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
+  // INTERNAL: under the covering it should not be visible.
+  B(GAL, F[iFwd].TL, 'gear', false, 'inner');
+  B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   pt(GAL, 3.5); pt(GAR, 3.5);                          // wheels, tyres, brakes
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node

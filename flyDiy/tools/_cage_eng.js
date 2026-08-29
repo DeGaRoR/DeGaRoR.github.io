@@ -319,10 +319,14 @@ PAGE.post = ctx => {
     ng.add(new THREE.Mesh(geo, propMat()));
   }
   ng.position.set(0, 0, nOff);               // cone base -> flange + dial
+  // G55: NAMED for the join's snapshot (G47.2's prescription) — the parts
+  // that turn with the propeller carry their identity at the source
+  ng.name = 'edSpinner';
   group.add(ng);
   let pg = null;
   if (P.propOn) {
     pg = new THREE.Group();
+    pg.name = 'edProp';
     // the blade plane rides the cone exactly as the tool placed it
     pg.position.set(0, 0, nOff + CW.P.spinLen *
       Math.max(0.02, Math.min(0.95, CW.P.bladeStation)));

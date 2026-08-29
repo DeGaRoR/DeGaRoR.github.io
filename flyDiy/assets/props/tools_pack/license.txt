@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tools Pack
+* source:	https://sketchfab.com/3d-models/tools-pack-9b5b474257fd4a789353556bf8134b14
+* author:	MadeByYeshe (https://sketchfab.com/MadeByYeshe)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tools Pack" (https://sketchfab.com/3d-models/tools-pack-9b5b474257fd4a789353556bf8134b14) by MadeByYeshe (https://sketchfab.com/MadeByYeshe) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

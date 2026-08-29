@@ -46,6 +46,7 @@ const MAT = {
   tyre:    lam(0x23262b),
   hub:     lam(0xb9c2cc),
   brake:   lam(0x6e757e),
+  brakefix: lam(0x6e757e),     // the caliper: brake-coloured, does not turn
   steel:   lam(0x98a2ad),      // legs, blades, leaf springs
   alloy:   lam(0xc6ccd3),      // machined fittings, oleo cylinder
   chrome:  lam(0xdde3ea),      // the polished piston
@@ -325,7 +326,11 @@ function wheel(bags, ctr, axis, R, opt) {
       const up = [0, 1, 0];
       const rad = nrm(sub(up, mul(ax, dot(up, ax))));
       const cc = add(off(ctr, ax, dz), mul(rad, R * 0.52));
-      boxIn(bags.brake, cc, [R * 0.15, R * 0.24, R * 0.115],
+      // G58.3: the CALIPER does not turn with the wheel — it bolts to the
+      // leg. When the caller provides a `brakefix` bag (the cage join's
+      // per-wheel split), the caliper goes there and stays static; the
+      // bench and every other caller fall through to `brake` unchanged.
+      boxIn(bags.brakefix || bags.brake, cc, [R * 0.15, R * 0.24, R * 0.115],
             nrm(crs(rad, ax)), rad, ax);
       taper(bags.dark, add(cc, mul(rad, R * 0.16)),
             add(cc, add(mul(rad, R * 0.40), mul(ax, -s * R * 0.10))),
@@ -698,7 +703,8 @@ function legBeam(bags, AF, P, st, sgn) {
   // axle boss at the tip
   const axis = [sgn, 0, 0];
   axleStub(bags, axleIn, axis, hubIn);
-  return { axle, axis, travel: nrm([sgn * 0.32, 1, 0]) };
+  // G58.7: `root` is the AIRFRAME anchor — the join pins the leg there
+  return { axle, axis, root: F.p, travel: nrm([sgn * 0.32, 1, 0]) };
 }
 
 // (b) SWINGING LINK — the axle rides an arm that rotates about a pivot on
@@ -858,7 +864,7 @@ function legLink(bags, AF, P, st, sgn) {
             12, true);
   const axis = [sgn, 0, 0];
   axleStub(bags, axleIn, axis, hubIn);
-  return { axle, axis, travel: nrm(crs(pax, sub(axle, pivot))) };
+  return { axle, axis, root: FF.p, travel: nrm(crs(pax, sub(axle, pivot))) };
 }
 
 // (c) TELESCOPIC OLEO — a sliding piston in a cylinder, held in torsion
@@ -915,7 +921,7 @@ function legOleo(bags, AF, P, st, sgn) {
   }
   const axis = [sgn, 0, 0];
   axleStub(bags, axleIn, axis, hubIn);
-  return { axle, axis, travel: mul(dir, -1) };
+  return { axle, axis, root: F.p, travel: mul(dir, -1) };
 }
 
 // ---- 3. STEERING: THE CASTOR MODULE ---------------------------------------
@@ -1015,7 +1021,7 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink) {
       boxIn(bags.alloy, h, [0.006, 0.020, 0.010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     }
   }
-  return { hub, axis: F(side), ax, trail: P.twTrail };
+  return { hub, axis: F(side), ax, top, trail: P.twTrail };
 }
 
 // ---- THE TAILWHEEL ASSEMBLY ----------------------------------------------
@@ -1050,9 +1056,15 @@ function legTailwheel(bags, AF, P, st) {
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
                          P.twSpringT * leaves * 0.5 + 0.016),
          mul(F.n, -1), 0.009, 0.024);
-  const u = castorUnit(bags, P, tip, 1, st.R, P.twSteer, true);
+  // G58.3: a caller that wants the castor assembly separable (the cage
+  // join yaws it for ground manoeuvring) passes `bags.castorBags`; the
+  // bench and every other caller fall through unchanged.
+  const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
+                       P.twSteer, true);
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
-  return { axle: u.hub, axis: u.axis, travel: nrm([0, 1, 0.35]),
+  // G58.7: the leaf spring's two ends — `root` bolts to the fuselage and
+  // must not move; `tip` is the castor's swivel top. The join pins both.
+  return { axle: u.hub, axis: u.axis, root, tip, travel: nrm([0, 1, 0.35]),
            castor: u };
 }
 

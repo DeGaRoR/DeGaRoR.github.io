@@ -562,6 +562,13 @@ const GEN_DEFAULT = {
           material: 'tubeFabric', shape: 'straight',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // THE MEASURED BOOM PROFILE (G54.1): rows of {t, w, yb, yt} with t
+          // normalised over boxRear..tailArm. When present, the aft stations
+          // take their section from HERE (interpolated by t) instead of the
+          // shape family's exponent — the built boom's own heights, section by
+          // section. null = derive from `shape` exactly as before. The join
+          // writes it; clampSpec bounds every row and drops a degenerate list.
+          profile: null,
           // TAIL-END SECTION HEIGHT. Not a new dimension: clampSpec moves
           // tailBot and tailTop together by it, on the clone, so 61_gen_frame.js
           // still reads only those two and the offset cannot accumulate across
@@ -982,6 +989,12 @@ function clampSpec(spec) {
   // moving the spar root off its frame. It costs lift-curve slope either way,
   // which is why forward sweep is allowed and is not free.
   w.sweep = genClamp(w.sweep || 0, -15, 30);
+  // The wing's fore-aft STATION, now that the join measures it off the built
+  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
+  // default. The envelope spans a wing rooted on the firewall to one rooted
+  // well down the cabin; static margin is the honest consequence either way,
+  // and the shakedown posts it.
+  w.xLE = genClampN(w.xLE, -0.20, 3.00);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
@@ -1081,6 +1094,24 @@ function clampSpec(spec) {
   // fields the generator normally derives, but which the editor now exposes.
   // Bounded so an override cannot go degenerate; still nullable, so leaving
   // them alone keeps the derivation.
+  // G54.1: the measured boom profile — every row bounded, t strictly rising,
+  // deck kept above floor; anything degenerate falls back to the shape family.
+  if (Array.isArray(fu.profile)) {
+    const P2 = [];
+    let tPrev = -1;
+    for (const r of fu.profile) {
+      if (!r || !isFinite(r.t) || !isFinite(r.w) ||
+          !isFinite(r.yb) || !isFinite(r.yt)) continue;
+      const t = genClamp(r.t, 0, 1);
+      if (t <= tPrev + 1e-6) continue;
+      const yb = genClamp(r.yb, -0.40, 1.20);
+      P2.push({ t, w: genClamp(r.w, 0.05, 0.90),
+                yb, yt: genClamp(r.yt, yb + 0.06, 1.60) });
+      tPrev = t;
+      if (P2.length >= 16) break;
+    }
+    fu.profile = P2.length >= 2 ? P2 : null;
+  } else fu.profile = null;
   cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
   cb.len = genClampN(cb.len, 0.60, 2.60);
@@ -1089,6 +1120,11 @@ function clampSpec(spec) {
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
   S.tail.vHeight = genClampN(S.tail.vHeight, 0.60, 2.20);
   S.tail.vChord = genClampN(S.tail.vChord, 0.40, 1.80);
+  // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
+  // like the other measured stations; nullable keeps the volume-coefficient
+  // derivation for everything that does not measure them.
+  S.tail.hX = genClampN(S.tail.hX, 2.00, 9.00);
+  S.tail.vX = genClampN(S.tail.vX, 2.00, 9.00);
   S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
   S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
@@ -1102,12 +1138,23 @@ function clampSpec(spec) {
   // wrote them; now that a measurement does, they get the same generous-but-
   // non-degenerate envelope as the leg lengths. twY is an axle height in the
   // lattice's own datum (the cabin keel line since G49); twX is a station,
-  // NEGATIVE for a nose wheel ahead of the firewall. gear.y stays DERIVED —
-  // the prop-clearance rule owns it, and a measured low axle makes long soft
-  // levers of the class-k gear members (measured: 0.35 m of sag onto the
-  // belly at gy −0.15; the length-aware-k reform is the real cure).
+  // NEGATIVE for a nose wheel ahead of the firewall.
   S.gear.twX = genClampN(S.gear.twX, -1.50, 8.00);
   S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
+  // The RIDE HEIGHT, measured since G53. G51 blamed its collapse on soft long
+  // levers and left it derived — WRONG twice over: the collapse was a rule-10
+  // snap-through (the mains' anchors all lay in the belly plane; the axle
+  // reflected through it at 0.28% strain), and it was the DERIVED depth that
+  // had been hiding the mechanism. With the mains' snap-blocker in the frame,
+  // a measured shallow stance stands. Prop clearance is no longer guaranteed
+  // by derivation — the shakedown's propClear row posts what the built stance
+  // actually leaves under the registry prop.
+  S.gear.y = genClampN(S.gear.y, -0.90, 0.90);
+  // The mains STATION, measured by the join since G52. Setting it bypasses
+  // the CG/rake placement rule — deliberately: the wheels go where the built
+  // aeroplane's wheels are, and the shakedown's noseOver row posts the
+  // consequence. The height (gear.y) stays the prop-clearance rule's.
+  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.

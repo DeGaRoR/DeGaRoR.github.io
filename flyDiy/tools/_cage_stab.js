@@ -205,6 +205,8 @@ PAGE.post = ctx => {
       const obj = wire ? DRAW.finQuadWire(sub, bySec)
                        : DRAW.finMesh(sub, bySec);
       if (part === 'rudder' && ex) obj.position.z = -ex;  // elevator, aft
+      if (part === 'rudder')                               // G59
+        obj.name = 'edSurf_elev' + (side > 0 ? 'R' : 'L');
       group.add(obj);
     }
   }

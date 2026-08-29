@@ -149,8 +149,34 @@ function genLattice(S, gearX, track, kScale) {
   if (boxRear > cabRear + 1e-6) xs.push(boxRear);
   for (let i = 1; i <= fu.tailBays; i++)
     xs.push(boxRear + (fu.tailArm - boxRear) * i / fu.tailBays);
+  // G54.1: when the join measured the boom PROFILE, the aft stations take
+  // their section from it, row-interpolated by the same normalised t — the
+  // built boom's own heights, section by section, instead of the family
+  // exponent. The user's prescription verbatim: mains fixed, tailwheel
+  // measured, "adjust the height of every section of the boom".
+  const PROF = Array.isArray(fu.profile) && fu.profile.length >= 2
+             ? fu.profile : null;
+  const profAt = t0 => {
+    let a = PROF[0], b = PROF[PROF.length - 1];
+    if (t0 <= a.t) b = PROF[1];
+    else if (t0 >= b.t) a = PROF[PROF.length - 2];
+    else for (let i = 1; i < PROF.length; i++)
+      if (PROF[i].t >= t0) { b = PROF[i]; a = PROF[i - 1]; break; }
+    const u = Math.max(0, Math.min(1,
+      (t0 - a.t) / Math.max(1e-6, b.t - a.t)));
+    return { w: a.w + (b.w - a.w) * u, yb: a.yb + (b.yb - a.yb) * u,
+             yt: a.yt + (b.yt - a.yt) * u };
+  };
   const ST = xs.map(x => {
     if (x <= boxRear) {
+      // G54.3: the ring AT the box end takes the measured profile's first
+      // row when there is one — the built belly can already be sweeping up
+      // at the passenger pillar, and the full-box default dipped below it
+      // (user: "still one fitting issue around the passenger pillar").
+      if (PROF && x >= boxRear - 1e-6) {
+        const p = profAt(0);
+        return { x, w: p.w, yb: p.yb, yt: p.yt };
+      }
       // firewall is slightly narrower and lower than the cabin (cowl line)
       const u = x / Math.max(1e-6, cab.noseGap);
       const f = x < cab.noseGap ? u : 1;
@@ -160,10 +186,11 @@ function genLattice(S, gearX, track, kScale) {
       return { x, w: cab.halfW * (0.92 + 0.08 * f), yb: -0.02 * f,
                yt: cab.h * (deck + (1 - deck) * f) };
     }
+    const t0 = (x - boxRear) / Math.max(1e-6, fu.tailArm - boxRear);
+    if (PROF) { const p = profAt(t0); return { x, w: p.w, yb: p.yb, yt: p.yt }; }
     // the SHAPE FAMILY is the profile of the aft taper: an exponent on the
     // station fraction, so width, floor and deck all narrow together but on a
     // straight, late (waisted) or early (pod-and-boom) curve. See GEN_SHAPES.
-    const t0 = (x - boxRear) / Math.max(1e-6, fu.tailArm - boxRear);
     const t = SHP.taper === 1 ? t0 : Math.pow(t0, SHP.taper);
     return { x, w: cab.halfW + (fu.tailW - cab.halfW) * t,
              yb: -0.02 + (fu.tailBot + 0.02) * t,
@@ -329,7 +356,26 @@ function genLattice(S, gearX, track, kScale) {
     // the strut braces from the longeron OPPOSITE the wing: down from a high
     // wing, up from a low one. Rule 1's barrier is the offset, not the direction
     const sd = s > 0 ? 'R' : 'L';
-    const strutRoot = F[nearestRing(xF)][opposeTag + sd];
+    // G59.2: THE LIFT STRUT LANDS ON THE CABIN LONGERON (user: "the truss
+    // should get onto the main longerons of the cabin, at the bottom for
+    // high wing, and at the top for low wings"). `nearestRing` alone could
+    // pick a station AFT of the cabin — on a measured boom those rings are
+    // already tapering, so the strut foot came out 0.23 m inboard and
+    // 0.19 m above the cabin's own corner: hanging in air, attached to a
+    // former instead of the structure. A lift strut is a primary member and
+    // lands on the cabin box; clamp it to the last full-section ring.
+    // STRICTLY forward of boxRear: since G54.3 the ring AT the box end
+    // takes the measured profile's first row — the PAX PILLAR section,
+    // which is already narrower and higher than the cabin. That is right
+    // for the skin and wrong for a strut foot, and it is what put the
+    // foot 0.23 m inboard of the cabin side. The cabin rings keep the
+    // full cab.halfW section; land on the aft-most of those.
+    const iBox = (() => {
+      let r = 0;
+      ST.forEach((s, i) => { if (s.x < boxRear - 0.01) r = i; });
+      return r;
+    })();
+    const strutRoot = F[Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -544,6 +590,21 @@ function genLattice(S, gearX, track, kScale) {
   B(GAL, fwdR, 'gear', false, 'wire');
   B(GAR, fwdR, 'gear', false, 'leg'); B(GAR, AA.BR, 'gear');
   B(GAR, fwdL, 'gear', false, 'wire');
+  // RULE 10 FOR THE MAINS (G53). Every one of the six members above lands on a
+  // BELLY node, and the belly is a near-horizontal plane — so the axle is held
+  // by three anchors it can REFLECT THROUGH. That is a snap-through, and it is
+  // invisible to every strain gate: measured, the axle flipped 0.62 m UP at
+  // 0.28% strain and the aeroplane settled on its belly with the wheels in the
+  // air. It stayed hidden while the ride height was DERIVED, because a deep leg
+  // puts the mirror position far enough away that the members must compress 37%
+  // to reach it; measuring the ride height off a real build (0.32 m of leg)
+  // drops that barrier to 13% and the gear flips on the first bounce.
+  // The tailwheel has carried exactly this cure since G4.6 (TW->TPT, below).
+  // A near-vertical member up to the ring's TOP corner is also what a
+  // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
+  // INTERNAL: under the covering it should not be visible.
+  B(GAL, F[iFwd].TL, 'gear', false, 'inner');
+  B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   pt(GAL, 3.5); pt(GAR, 3.5);                          // wheels, tyres, brakes
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node

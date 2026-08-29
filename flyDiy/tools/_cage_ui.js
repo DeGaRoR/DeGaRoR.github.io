@@ -1094,7 +1094,9 @@ fillPresetSel();
       det.after(hd);
       const row = (host, html) => { const d = document.createElement('div');
         d.className = 'r'; d.innerHTML = html; host.appendChild(d); return d; };
-      const mr = row(hd, `<span class="k">lighting</span><select></select>`);
+      // A MOOD IS A SKY NOW (G62), so the row says what it actually picks:
+      // the HDRI standing outside the door, and the light rig measured off it.
+      const mr = row(hd, `<span class="k">time of day</span><select></select>`);
       const msel = mr.querySelector('select');
       (GE.moods() || []).forEach((n, i) => {
         const o = document.createElement('option');
@@ -1103,6 +1105,64 @@ fillPresetSel();
       });
       msel.selectedIndex = GE.mood() || 0;
       msel.onchange = () => GE.setMood(msel.selectedIndex);
+      // THE SHED'S SIZE (G53). Three numbers rebuild the whole room, so the
+      // sliders commit on RELEASE, not on every pixel of a drag — a rebuild
+      // is a thousand lines of geometry and a fresh environment bake.
+      if (GE.setDims && GE.dims()) {
+        const L = GE.dimLimits();
+        const dimRow = (key, label, mul, unit) => {
+          const d0 = GE.dims();
+          const d = row(hd, `<span class="k">${label}</span>
+            <input type="range" min="${L[key][0] * mul}" max="${L[key][1] * mul}"
+                   step="${mul > 1 ? 0.5 : 0.1}"><span class="v"></span>`);
+          const inp = d.querySelector('input'), v = d.querySelector('.v');
+          const show = n => { v.textContent = (+n).toFixed(1) + ' ' + unit; };
+          inp.value = d0[key] * mul; show(inp.value);
+          inp.oninput = () => show(inp.value);
+          inp.onchange = () => {
+            const got = GE.setDims({ [key]: +inp.value / mul });
+            if (got) show(got[key] * mul);
+          };
+        };
+        dimRow('HW', 'width', 2, 'm');       // the sliders speak in FULL sizes
+        dimRow('HD', 'depth', 2, 'm');
+        dimRow('EAVE', 'eaves', 1, 'm');
+      }
+      // REFLECTIONS (G52): where scene.environment is baked FROM. The room's
+      // own cube pass is the default; the sky option PMREMs the HDRI that now
+      // actually shows through the cut windows — whichever of the five the
+      // time of day above has hung there. Absent when there is no sky.
+      const srcs = GE.envSources ? GE.envSources() : [];
+      if (srcs.length) {
+        const er = row(hd, `<span class="k">reflections</span><select></select>`);
+        const esel = er.querySelector('select');
+        for (const [k, n] of srcs) {
+          const o = document.createElement('option');
+          o.value = k; o.textContent = n;
+          esel.appendChild(o);
+        }
+        esel.value = GE.envSource();
+        esel.onchange = () => GE.setEnvSource(esel.value);
+      }
+      // THE BAKED FLOOR SHADOW: the furniture's print on the slab.
+      if (GE.groundShadow && GE.groundShadow() !== null) {
+        const gr = row(hd, `<span class="k">floor shadow</span>
+          <input type="range" min="0" max="1" step="0.05"><span class="v"></span>`);
+        const gi = gr.querySelector('input'), gv = gr.querySelector('.v');
+        gi.value = GE.groundShadow(); gv.textContent = (+gi.value).toFixed(2);
+        gi.oninput = () => { const r = GE.groundShadow(+gi.value);
+          gv.textContent = (+r).toFixed(2); };
+      }
+      // THE MOBILE KIT is the room's only clutter standing in the open floor,
+      // and it follows the aeroplane — which is exactly what is in the way
+      // when the question is about the shape.
+      if (GE.setMobile) {
+        const kr = row(hd, `<span class="k">mobile kit</span>
+          <label style="flex:none"><input type="checkbox"></label>`);
+        const kc = kr.querySelector('input');
+        kc.checked = GE.mobileShown();
+        kc.onchange = () => GE.setMobile(kc.checked);
+      }
       const lib = GE.library();
       for (const part of GE.parts()) {
         const pd = document.createElement('details');

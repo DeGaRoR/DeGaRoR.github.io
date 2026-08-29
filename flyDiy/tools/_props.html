@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<!--
+  PROP BENCH — the hangar prop library, on a table.
+
+  Serve from the repo root and open /flyDiy/tools/_props.html.
+
+  This is the verification surface for the prop pipeline:
+      tools/props_table.py  (declared)  ->  tools/prop_prep.py  (bake)
+      -> src/props/props_*.js           ->  src/core/51_prop_codec.js (decode)
+      -> src/viewer/props.js            ->  here
+  Nothing on this page knows any asset's name: the grid, the list and the facts
+  panel are all read out of PROP_REG, so a prop that is in the table and not on
+  this page is a bake failure, not a page that needs editing.
+
+  SHELF shows every prop at once on a metre grid — the view that catches a
+  wrong scale, a wrong origin or a texture that did not survive the bake.
+  ONE shows a single prop with its facts: dimensions, triangle count, every
+  material and which of the three maps it actually carries, and its source and
+  licence. The seed of the asset editor.
+-->
+<meta charset="utf-8">
+<title>flyDiy — prop bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 41px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;
+    width:340px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  .grp{color:var(--dim);letter-spacing:.14em;font-size:9px;margin:12px 0 4px}
+  .item{padding:3px 6px;border-radius:4px;cursor:pointer;display:flex;
+    justify-content:space-between;gap:8px}
+  .item:hover{background:#1a1f27}
+  .item.sel{background:#1d2b3a;color:var(--acc)}
+  .item i{color:var(--dim);font-style:normal;font-size:10px}
+  table{border-collapse:collapse;width:100%;margin:6px 0}
+  td{padding:1px 4px;vertical-align:top}
+  td.k{color:var(--dim);width:78px}
+  .maps span{display:inline-block;padding:0 4px;margin-right:3px;border-radius:3px;
+    background:#1a1f27;color:var(--dim);font-size:10px}
+  .maps span.has{background:#1d2b3a;color:var(--acc)}
+  a{color:var(--acc)}
+</style>
+<header>
+  <h1>PROP BENCH</h1>
+  <button id="mShelf" class="on">shelf</button>
+  <button id="mOne">one</button>
+  <label>group <select id="grp"><option value="">all</option></select></label>
+  <span id="tot" style="color:var(--dim)"></span>
+</header>
+<main>
+  <div id="view"><canvas id="c"></canvas><div id="stat"></div></div>
+  <aside id="side"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script>
+(async () => {
+  const packs = await (await fetch('../src/props/props_packs.json')).json();
+  for (const f of packs) {
+    const src = await (await fetch('../src/props/' + f)).text();
+    (0, eval)(src);
+  }
+  start();
+})().catch(e => { document.getElementById('stat').textContent = 'load failed: ' + e.message; });
+
+const $ = id => document.getElementById(id);
+let scene, camera, renderer, root, grid;
+let yaw = -0.8, pitch = 0.28, ZOOM = 1, drag = null, panD = null;
+let centre = new THREE.Vector3(), centreOv = null, fitR = 4;
+let mode = 'shelf', group = '', sel = null;
+
+function envMap() {
+  // A studio sky, PMREM'd. metalness = 1 with no environment is black, so the
+  // bench owes every prop the same kind of ambient the hangar gives it.
+  // The dome is a MeshBasicMaterial on purpose: a hand-written shader that
+  // omits <encodings_fragment> writes alpha 1.0 into r128's RGBE target and
+  // every MeshStandardMaterial in the scene goes black (the W18 trap).
+  const s = new THREE.Scene();
+  const g = new THREE.SphereGeometry(50, 24, 16);
+  const cv = document.createElement('canvas');
+  cv.width = 4; cv.height = 64;
+  const x = cv.getContext('2d');
+  const gr = x.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, '#cfe0f2'); gr.addColorStop(0.52, '#8fa2b4');
+  gr.addColorStop(0.56, '#4a4740'); gr.addColorStop(1, '#241f19');
+  x.fillStyle = gr; x.fillRect(0, 0, 4, 64);
+  const t = new THREE.CanvasTexture(cv);
+  t.encoding = THREE.sRGBEncoding;
+  s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide })));
+  const pm = new THREE.PMREMGenerator(renderer);
+  const rt = pm.fromScene(s, 0.04);
+  pm.dispose(); g.dispose();
+  return rt.texture;
+}
+
+function start() {
+  const cv = $('c');
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x12151a);
+  camera = new THREE.PerspectiveCamera(38, 1, 0.02, 300);
+  scene.environment = envMap();
+  scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.35));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  sun.position.set(-4, 7, 5); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  const c = sun.shadow.camera;
+  c.left = -16; c.right = 16; c.top = 16; c.bottom = -16; c.far = 60;
+  sun.shadow.normalBias = 0.02;
+  scene.add(sun, sun.target);
+  const fill = new THREE.DirectionalLight(0xcfd8ff, 0.35);
+  fill.position.set(5, 2, -4); scene.add(fill);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
+    new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.92 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+  scene.add(floor);
+
+  for (const [id, name] of PROP_REG.groups) {
+    const o = document.createElement('option');
+    o.value = id; o.textContent = name; $('grp').appendChild(o);
+  }
+  $('grp').onchange = () => { group = $('grp').value; build(); };
+  $('mShelf').onclick = () => setMode('shelf');
+  $('mOne').onclick = () => setMode('one');
+  sel = PROP_REG.order[0];
+  const tris = PROP_REG.order.reduce((a, k) => a + PROP_REG.props[k].nt, 0);
+  $('tot').textContent = PROP_REG.order.length + ' props, ' +
+    tris.toLocaleString() + ' tris, ' + Object.keys(PROP_REG.texs).length + ' textures';
+  bindInput();
+  build();
+}
+
+function setMode(m) {
+  mode = m;
+  $('mShelf').className = m === 'shelf' ? 'on' : '';
+  $('mOne').className = m === 'one' ? 'on' : '';
+  centreOv = null; ZOOM = 1;
+  build();
+}
+
+function keys() {
+  return PROP_REG.order.filter(k => !group || PROP_REG.props[k].group === group);
+}
+
+function build() {
+  // Geometry and materials are SHARED across instances by propBuild's cache,
+  // so a rebuild drops the group and never disposes what is in it.
+  if (root) scene.remove(root);
+  root = new THREE.Group();
+  scene.add(root);
+  if (grid) scene.remove(grid);
+
+  const list = keys();
+  if (mode === 'one') {
+    if (!list.includes(sel)) sel = list[0];
+    const p = PROP_REG.props[sel];
+    // A wall or ceiling prop hangs BELOW its origin, which is the whole point
+    // of those origins — on the bench floor that puts it under the slab, so
+    // the bench lifts it onto the grid rather than the bake moving it.
+    const lift = Math.max(0, -p.bb[1]);
+    root.add(propPlace(THREE, sel, 0, 0, 0, lift));
+    grid = new THREE.GridHelper(Math.max(4, Math.ceil(Math.max(p.dim[0], p.dim[2])) * 2),
+                                Math.max(4, Math.ceil(Math.max(p.dim[0], p.dim[2])) * 2),
+                                0x39424e, 0x232a33);
+    scene.add(grid);
+    centre.set(0, p.dim[1] / 2, 0);
+    fitR = Math.max(...p.dim) * 2.1 + 0.4;
+  } else {
+    // SHELF: everything on a 2.5 m pitch, in table order, biggest row last.
+    const pitch2 = 2.6, cols = Math.ceil(Math.sqrt(list.length));
+    list.forEach((k, i) => {
+      const p = PROP_REG.props[k];
+      const x = (i % cols - (cols - 1) / 2) * pitch2;
+      const z = (Math.floor(i / cols) - (Math.ceil(list.length / cols) - 1) / 2) * pitch2;
+      // ceiling props hang from a notional 2.6 m soffit so they are not buried
+      root.add(propPlace(THREE, k, x, z, 0,
+        p.place === 'ceiling' ? 2.6 : Math.max(0, -p.bb[1])));
+    });
+    const span = cols * pitch2;
+    grid = new THREE.GridHelper(span + pitch2, cols + 1, 0x39424e, 0x232a33);
+    scene.add(grid);
+    centre.set(0, 0.7, 0);
+    fitR = span * 0.95;
+  }
+  side();
+  draw();
+}
+
+function mapChips(m) {
+  const has = s => m[s] ? ' class="has"' : '';
+  return '<div class="maps"><span' + has('map') + '>diff</span>' +
+    '<span' + has('arm') + '>arm</span>' +
+    '<span' + has('nor') + '>nor</span>' +
+    (m.emisMap || m.emis ? '<span class="has">emis</span>' : '') +
+    (m.ao ? '<span class="has">ao</span>' : '') +
+    (m.blend ? '<span class="has">blend</span>' : '') + '</div>';
+}
+
+function side() {
+  const el = $('side');
+  let h = '';
+  if (mode === 'one') {
+    const p = PROP_REG.props[sel];
+    h += '<div style="font-size:14px;color:var(--acc)">' + p.label + '</div>' +
+      '<div style="color:var(--dim);margin-bottom:8px">' + p.key + '</div>' +
+      '<table>' +
+      row('size', p.dim.map(v => v.toFixed(2)).join(' x ') + ' m') +
+      row('origin', p.place) +
+      row('geometry', p.nt.toLocaleString() + ' tris, ' + p.nv.toLocaleString() + ' verts') +
+      row('parts', p.parts.length + ' (' + p.parts.length + ' draw call' +
+          (p.parts.length > 1 ? 's' : '') + ')') +
+      row('bb y', p.bb[1].toFixed(3) + ' .. ' + p.bb[4].toFixed(3)) +
+      '</table>' +
+      '<div class="grp">MATERIALS</div>';
+    for (const name in p.mats) {
+      const m = p.mats[name];
+      h += '<div style="margin:6px 0"><div>' + name + '</div>' + mapChips(m) +
+        '<div style="color:var(--dim);font-size:10px">rough ' + m.rough +
+        ' &middot; metal ' + m.metal + (m.blend ? ' &middot; opacity ' + m.opacity : '') +
+        '</div></div>';
+    }
+    h += '<div class="grp">SOURCE</div><table>' +
+      row('title', p.src.title) + row('author', p.src.author) +
+      row('licence', p.src.lic) +
+      row('link', '<a href="' + p.src.url + '" target="_blank">' + p.src.dir + '</a>') +
+      '</table><div style="color:var(--dim);margin-top:8px">' + p.note + '</div>';
+  }
+  h += '<div class="grp">LIBRARY</div>';
+  let last = null;
+  for (const k of keys()) {
+    const p = PROP_REG.props[k];
+    if (p.group !== last) {
+      last = p.group;
+      const g = PROP_REG.groups.find(x => x[0] === last);
+      h += '<div class="grp">' + (g ? g[1] : last) + '</div>';
+    }
+    h += '<div class="item' + (k === sel && mode === 'one' ? ' sel' : '') +
+      '" data-k="' + k + '"><span>' + p.label + '</span><i>' +
+      Math.max(...p.dim).toFixed(1) + ' m &middot; ' + (p.nt / 1000).toFixed(1) + 'k</i></div>';
+  }
+  el.innerHTML = h;
+  for (const d of el.querySelectorAll('.item'))
+    d.onclick = () => { sel = d.dataset.k; mode = 'one'; setMode('one'); };
+}
+const row = (k, v) => '<tr><td class="k">' + k + '</td><td>' + v + '</td></tr>';
+
+function draw() {
+  const cv = $('c'), r = cv.parentElement.getBoundingClientRect();
+  const dp = Math.min(2, devicePixelRatio || 1);
+  renderer.setSize(r.width * dp, r.height * dp, false);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+  const R = fitR / ZOOM, C = centreOv || centre;
+  camera.position.set(C.x + R * Math.sin(yaw) * Math.cos(pitch),
+                      C.y + R * Math.sin(pitch),
+                      C.z + R * Math.cos(yaw) * Math.cos(pitch));
+  camera.lookAt(C);
+  renderer.render(scene, camera);
+  const info = renderer.info.render;
+  $('stat').textContent = info.calls + ' draw calls, ' +
+    info.triangles.toLocaleString() + ' tris';
+}
+
+function bindInput() {
+  const v = $('view'), cv = $('c');
+  v.addEventListener('mousedown', e => {
+    if (e.button === 1 || e.button === 2) {
+      panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
+      e.preventDefault();
+    } else drag = [e.clientX, e.clientY, yaw, pitch];
+  });
+  v.addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('mouseup', () => { drag = null; panD = null; });
+  addEventListener('mousemove', e => {
+    if (panD) {
+      const r = cv.getBoundingClientRect();
+      const wpp = 2 * (fitR / ZOOM) * Math.tan(camera.fov * Math.PI / 360) /
+                  Math.max(1, r.height);
+      const e0 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const e1 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      centreOv = panD[2].clone()
+        .addScaledVector(e0, -(e.clientX - panD[0]) * wpp)
+        .addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+      draw(); return;
+    }
+    if (!drag) return;
+    yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
+    pitch = Math.max(-0.2, Math.min(1.35, drag[3] + (e.clientY - drag[1]) * 0.006));
+    draw();
+  });
+  v.addEventListener('wheel', e => {
+    e.preventDefault();
+    ZOOM = Math.max(0.2, Math.min(30, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    draw();
+  }, { passive: false });
+  v.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); });
+  addEventListener('resize', draw);
+  // textures decode asynchronously; a frame shot before they land shows an
+  // untextured PBR prop under a reflection probe, which is a MIRROR (the W18b
+  // trap). Keep drawing for a few seconds so the bench settles honestly.
+  let t0 = Date.now();
+  (function pump() {
+    if (Date.now() - t0 < 8000) { draw(); requestAnimationFrame(pump); }
+  })();
+}
+window.PROP_BENCH = { get scene() { return scene; }, get cam() { return camera; },
+  setView: (y, p, z) => { yaw = y; pitch = p; if (z) ZOOM = z; draw(); },
+  select: k => { sel = k; setMode('one'); }, draw, build };
+</script>

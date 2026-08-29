@@ -277,6 +277,35 @@ clusters at the engine-bench finish. G13's I-series is the foundation.
 Aesthetic content with no loop dependency, so it floats; the deferred
 fuel-plumbing dress from P4 can ride with it.
 
+**F3 — the prop library and the asset editor.** LANDED in part, 2026-08-28
+(HANDOVER G50): 29 downloaded objects are a declared table, a baker, group
+packs, one material factory, GATE PROPS and a bench (`tools/_props.html`).
+A second batch (G51) took it to 40 props and DID the hangar swap: the drawn
+bench/pegboard/shelving/toolChest/drum/tyreStack/bottleRack/stepladder/
+partsTrolley are deleted and the room is furnished from the library. What
+remains is the asset editor proper, growing out of that bench — it already
+lists, groups and reports facts from PROP_REG, so what is missing is the
+working surface, not the data. Floating because it is set dressing: it makes
+the shed a place, and it moves no number on the plaque.
+
+**F4 — the day cycle.** LANDED in part, 2026-08-29 (HANDOVER G62): the
+hangar's moods are five HDRI skies (the alps field plus the Kloppenheim
+noon / covered / sunset / night series), each carrying a light rig
+MEASURED off its own HDR — sun direction and colour, how directional the
+sky is, sky and ground colour — with one authored `level` per row for the
+day cycle, because Poly Haven's HDRIs are not calibrated to a common
+absolute scale. `tools/sky_prep.py` is where that line between measured
+and authored lives.
+
+What remains is the cycle itself and the WORLD's half of it. The room is
+lit by a time of day; the sim's own scenery is not, so flying out of a
+sunset hangar still arrives in the world's fixed daylight. That is the
+P11 consistency goal seen from the other end (recorded at G41: "the
+honest destination is the GAME's own scenery seen from the hangar"), and
+the two should be one clock. Also open: the procedural grass and strip
+outside the door are lit by the room's lights rather than by the sky's own
+ground, and a mission that names a time of day has nothing to set.
+
 ## SEQUENCING RATIONALE
 
 - **Why the slice sits at P3 and not later:** it is the earliest HONEST

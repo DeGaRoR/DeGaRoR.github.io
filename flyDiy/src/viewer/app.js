@@ -37,11 +37,26 @@
   // as weight, not lag.
   let az = -2.5, el = 0.22, dist = 14;
   let azT = az, elT = el, distT = dist;
+  // THE CAMERA IS BOUND TO THE ROOM (G55, user: "we need camera bounding to
+  // the hangar size"). Outside the garage nothing changes — a world camera has
+  // a world to be in. INSIDE it, an orbit that walks through the wall shows
+  // you the shed from a field, which is both wrong and the fastest way to lose
+  // your bearings; so the eye is kept inside the shell, a hand's breadth off
+  // the sheeting and under the eaves. It is a CLAMP, not a collision: the
+  // orbit still goes all the way round, it just slides along the wall when the
+  // radius would take it through.
   function placeCamera() {
-    camera.position.set(
-      target.x + dist * Math.cos(el) * Math.cos(az),
-      Math.max(0.4, target.y + dist * Math.sin(el)),
-      target.z + dist * Math.cos(el) * Math.sin(az));
+    let x = target.x + dist * Math.cos(el) * Math.cos(az),
+        y = Math.max(0.4, target.y + dist * Math.sin(el)),
+        z = target.z + dist * Math.cos(el) * Math.sin(az);
+    const room = inGarage && garageIsHangar() && hangar && hangar.dims;
+    if (room) {
+      const d = hangar.dims, m = 0.55, gy = hangar.group.position.y;
+      x = Math.max(-(d.HD - m), Math.min(d.HD - m, x));
+      z = Math.max(-(d.HW - m), Math.min(d.HW - m, z));
+      y = Math.max(gy + 0.5, Math.min(gy + d.EAVE - 0.5, y));
+    }
+    camera.position.set(x, y, z);
     camera.lookAt(target);
   }
 
@@ -77,8 +92,25 @@
   // So the room turns it on for itself and hands it back on the way out. The
   // world and the two mesh aircraft are calibrated under the legacy model and
   // must not inherit this.
+  // WHAT THE CARD ALLOWS (G57, user: "harsh blurring of the wing texture on low
+  // incidence angle"). At a grazing angle one pixel's footprint is long and
+  // thin; mip selection takes the long axis and the texture goes to mush.
+  // Anisotropic filtering is the answer and costs almost nothing, but three
+  // defaults to 1 and this viewer asked for 4. Published so every other file —
+  // props, workshop, the hangar — asks the same question once.
+  // ASKED, not assumed: the headless smoke gate stubs THREE with what the
+  // viewer needed before any of this existed, so `capabilities` is not there
+  // and reaching through it throws at module eval — which is a dead viewer, not
+  // a missing filter setting.
+  if (typeof window !== 'undefined') {
+    const cap = renderer.capabilities;
+    window.FLYDIY_ANISO = (cap && typeof cap.getMaxAnisotropy === 'function')
+      ? cap.getMaxAnisotropy() : 8;
+  }
+
   const WORLD_EXPOSURE = renderer.toneMappingExposure;
   const WORLD_PHYSLIGHTS = !!renderer.physicallyCorrectLights;
+
 
   const studio = new THREE.Scene();
   studio.background = new THREE.Color(0xe9e6de);
@@ -145,13 +177,92 @@
   // missing constructor should degrade to the studio, not throw on boot.
   const hangarScene = new THREE.Scene();
   let hangar = null, hangarTried = false;
+  // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
+  // that as a new option"). Two sources, one target:
+  //   'room' — a cube camera on the floor sees the glazing, the roof lights and
+  //            the open door, and a PMREM of THAT is what every glossy thing in
+  //            here reflects. It is the difference between "lit" and "in a
+  //            room", and it is the default because the room is the subject.
+  //   'sky'  — the alps_field equirect straight into PMREM. Now that the
+  //            windows are actually cut, the sky is what is really outside
+  //            them, so this is the honest outdoor answer: cooler, more
+  //            directional, and it does not know the shed is there.
+  // Nothing else changes — the lamps, the door key and the moods are lights,
+  // and lights are not an environment.
+  // read at first build, not here: prefGet is declared further down and this
+  // line runs at module eval, which is inside its temporal dead zone
+  let envSource = 'room';
+  let mobileOn = true;
+  // THE SHED'S OWN SIZE (G53). A viewer preference like the mood, not part of
+  // the aeroplane: half-width, half-depth and eaves height in metres. null
+  // means "whatever genHangarBuild's own default is", which is what a fresh
+  // profile gets. Read at first build — prefGet is declared further down.
+  let hangarDims = null;
+  const DIM_LIMS = { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
+  let envRT = null, envPM = null;
+  function bakeHangarEnv() {
+    if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
+    // the bake has to happen under the room's OWN lighting model, or the
+    // environment it produces belongs to a different sun than the one that
+    // will light the aeroplane standing in it
+    const physWas = renderer.physicallyCorrectLights;
+    renderer.physicallyCorrectLights = true;
+    const pm = new THREE.PMREMGenerator(renderer);
+    // ASKED FOR, not remembered (G62): the sky changes with the mood, so the
+    // texture to bake is whichever one is hanging outside right now
+    const sky = hangar.skyTexture ? hangar.skyTexture() : null;
+    const skyReady = envSource === 'sky' && sky && sky.image &&
+                     sky.image.width && pm.fromEquirectangular;
+    // PMREMGenerator.dispose() frees its own ping-pong target and shaders, NOT
+    // the target it just handed back — that one is the caller's. It used to be
+    // baked twice a session and nobody noticed; a mood is a sky now, so this
+    // runs on every mood change, and the old one has to go or the day cycle
+    // leaks a render target per click (measured: +2 textures a change).
+    let rt = null;
+    if (skyReady) {
+      pm.compileEquirectangularShader();
+      rt = pm.fromEquirectangular(sky);
+    } else if (THREE.WebGLCubeRenderTarget) {
+      if (!envRT) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+      const cam = new THREE.CubeCamera(0.5, 100, envRT);
+      cam.position.set(0, 3.2, 0);
+      hangar.shafts.visible = false;        // dust is not geometry to reflect
+      cam.update(renderer, hangarScene);
+      hangar.shafts.visible = true;
+      rt = pm.fromCubemap(envRT.texture);
+    }
+    if (rt) {
+      hangarScene.environment = rt.texture;
+      if (envPM && envPM !== rt) envPM.dispose();
+      envPM = rt;
+    }
+    pm.dispose();
+    renderer.physicallyCorrectLights = physWas;
+    // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
+    // asked for before it lands falls back to the room and comes back here.
+    // The room's own `onSkyReady` (wired in getHangar) covers the swap case;
+    // this covers the very first bake, before that wiring is in place.
+    if (envSource === 'sky' && !skyReady && sky && sky.image && !sky.image.__envHook) {
+      sky.image.__envHook = 1;
+      sky.image.addEventListener('load', () => { sky.needsUpdate = true; bakeHangarEnv(); });
+    }
+  }
+  function setEnvSource(k) {
+    envSource = k === 'sky' ? 'sky' : 'room';
+    prefSet('flydiy.hangarEnvSrc', envSource);
+    if (getHangar()) bakeHangarEnv();
+  }
   function getHangar() {
     if (hangarTried) return hangar;
     hangarTried = true;
     if (typeof genHangarBuild !== 'function' ||
         !genHangarSupported(THREE)) return null;
     try {
-      hangar = genHangarBuild(THREE);
+      if (hangarDims === null) {
+        try { hangarDims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); }
+        catch (e) { hangarDims = null; }
+      }
+      hangar = genHangarBuild(THREE, hangarDims || undefined);
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;
@@ -162,21 +273,23 @@
       // the bake has to happen under the room's OWN lighting model, or the
       // environment it produces belongs to a different sun than the one that
       // will light the aeroplane standing in it
-      const physWas = renderer.physicallyCorrectLights;
-      renderer.physicallyCorrectLights = true;
-      if (THREE.PMREMGenerator && THREE.WebGLCubeRenderTarget && renderer.setRenderTarget) {
-        const rt = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
-        const cam = new THREE.CubeCamera(0.5, 100, rt);
-        cam.position.set(0, 3.2, 0);
-        hangar.shafts.visible = false;      // dust is not geometry to reflect
-        cam.update(renderer, hangarScene);
-        hangar.shafts.visible = true;
-        const pm = new THREE.PMREMGenerator(renderer);
-        hangarScene.environment = pm.fromCubemap(rt.texture).texture;
-        pm.dispose(); rt.dispose();
-      }
-      renderer.physicallyCorrectLights = physWas;
+      envSource = prefGet('flydiy.hangarEnvSrc', 'room') === 'sky' ? 'sky' : 'room';
+      mobileOn = prefGet('flydiy.hangarMobile', '1') !== '0';
+      const gsK = parseFloat(prefGet('flydiy.groundShadow', ''));
+      if (isFinite(gsK) && hangar.groundShadow) hangar.groundShadow(gsK);
+      if (hangar.mobileShow) hangar.mobileShow(mobileOn);
+      // THE MOOD GOES FIRST (G62). It is the sky now, not just a set of light
+      // intensities: it decides what stands outside the door, which way the
+      // key points, and therefore both what the environment bake sees and
+      // where the floor shadow falls. Baking before it ran meant baking the
+      // wrong room.
       hangar.setMood(hangarMood);
+      // a swapped-in equirect decodes asynchronously, and the room bake sees
+      // it through the open door just as the sky bake reads it directly — so
+      // either way, the environment is worth having again once it lands
+      if (hangar.onSkyReady) hangar.onSkyReady(() => bakeHangarEnv());
+      bakeHangarEnv();
+      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
       // the part system (G41): restore every part's saved dress with the
       // room. One JSON pref, whole-state.
       if (hangar.setPart) {
@@ -196,6 +309,53 @@
     return hangar;
   }
 
+  // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
+  // so changing a dimension means throwing the old one away and asking again —
+  // there is no in-place resize and there should not be, because half the room
+  // is derived from the numbers (the roof slope, the door leaves, the glazing
+  // bays, where every fitting stands).
+  //
+  // THE ONE THING THAT MUST SURVIVE IT is the prop library: propBuild caches
+  // one geometry and one material per prop and hands out Meshes over them, so
+  // disposing a prop mesh's geometry would take out every future instance of
+  // that prop as well. props.js marks them; everything else is the room's own
+  // and is disposed here, or a few slider drags leak a shed each.
+  function disposeHangar() {
+    if (!hangar) return;
+    if (hangar.disposeGroundShadow) hangar.disposeGroundShadow();
+    hangarScene.remove(hangar.group);
+    const mats = new Set();
+    hangar.group.traverse(o => {
+      if (!o.geometry || o.userData.sharedGeo) return;
+      o.geometry.dispose();
+      if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+        .forEach(m => mats.add(m));
+    });
+    for (const m of mats) m.dispose();
+    // a material's dispose does NOT take its maps with it, and the backdrop's
+    // is a 4k equirect — the one texture in this room big enough that leaking
+    // one per slider drag would be felt
+    if (hangar.skyTexture) {
+      const t = hangar.skyTexture();
+      if (t && t.dispose) t.dispose();
+    }
+    hangar = null; hangarTried = false;
+  }
+  function setDims(d) {
+    const cur = (hangar && hangar.dims) ? hangar.dims : {};
+    const next = { HW: cur.HW, HD: cur.HD, EAVE: cur.EAVE };
+    for (const k in DIM_LIMS)
+      if (d && typeof d[k] === 'number')
+        next[k] = Math.max(DIM_LIMS[k][0], Math.min(DIM_LIMS[k][1], d[k]));
+    hangarDims = next;
+    prefSet('flydiy.hangarDims', JSON.stringify(next));
+    const was = envKind;
+    disposeHangar();
+    envKind = was;
+    if (inGarage) applyEnv();
+    return getHangar() ? hangar.dims : null;
+  }
+
   // ---- which room, and its mood -------------------------------------------
   // A viewer preference, not part of the aeroplane: it does NOT go in the spec,
   // so it never lands in a saved build or a shared design.
@@ -206,7 +366,12 @@
                               catch (e) { return d; } };
   const prefSet = (k, v) => { try { if (PREF) PREF.setItem(k, v); } catch (e) {} };
   let envKind = prefGet('flydiy.garageEnv', 'hangar') === 'studio' ? 'studio' : 'hangar';
-  let hangarMood = Math.max(0, Math.min(3, +prefGet('flydiy.garageMood', 0) | 0));
+  // how many moods there could be before the room has been built and can say.
+  // The saved pref is clamped against the room's own list the moment there is
+  // one (setMood, applyEnv), so this is a sanity bound and nothing more.
+  const MOOD_MAX = 16;
+  let hangarMood = Math.max(0, Math.min(MOOD_MAX - 1,
+                                        +prefGet('flydiy.garageMood', 0) | 0));
   // the room actually in use: the hangar if it is wanted AND it built
   function garageScene() {
     if (envKind === 'hangar') { const h = getHangar(); if (h) return hangarScene; }
@@ -228,6 +393,26 @@
     if (hangar) hangar.group.position.y = groundY + rigLift;
     if (studioFloor) studioFloor.position.y = groundY + rigLift;
     const inRoom = inGarage && garageIsHangar() && hangar;
+    // THE MOBILE KIT stands next to whatever aeroplane is in the room, so it
+    // is re-placed from the aeroplane's own footprint every time we come
+    // through here — a DC-3 pushes it out, a drone lets it back in. The
+    // aeroplane's box is measured, not assumed: `craft` holds the model when
+    // there is one and the wireframe when there is not, and both span it.
+    if (inRoom && hangar.placeMobile) {
+      const bb = new THREE.Box3().setFromObject(craft);
+      if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
+        hangar.placeMobile({ x0: bb.min.x, x1: bb.max.x,
+                             z0: bb.min.z, z1: bb.max.z });
+      // the kit moved, so its print on the floor moves with it
+      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      // and the aeroplane's own print follows the aeroplane — every slider
+      // comes back through here (apply -> enterGarage -> applyEnv), so this IS
+      // the drag path, and it is four 256^2 draws
+      if (hangar.bakeCraftShadow) hangar.bakeCraftShadow(renderer, hangarScene, craft);
+    }
+    // a pref saved against an older, shorter mood list is clamped here, once
+    // the room is standing and can say how many skies it actually has
+    if (hangar && hangar.moods) hangarMood = Math.min(hangarMood, hangar.moods.length - 1);
     renderer.toneMappingExposure = inRoom ? hangar.setMood(hangarMood).ex
                                           : WORLD_EXPOSURE;
     renderer.physicallyCorrectLights = inRoom ? true : WORLD_PHYSLIGHTS;
@@ -239,9 +424,16 @@
     if (inGarage) applyEnv();
   }
   function setMood(i) {
-    hangarMood = Math.max(0, Math.min(3, i | 0));
+    // the room owns the list — it is a sky per row now (G62), and a build that
+    // ships four of them and one that ships five must both clamp correctly
+    const n = (hangar && hangar.moods) ? hangar.moods.length : MOOD_MAX;
+    hangarMood = Math.max(0, Math.min(n - 1, i | 0));
     prefSet('flydiy.garageMood', hangarMood);
     if (inGarage) applyEnv();
+    // A MOOD IS A NEW SKY, so the reflections belong to a different time of
+    // day: re-bake. Deliberately NOT in applyEnv — that is on the editor's
+    // slider drag path and a PMREM per frame would stall it.
+    if (hangar) bakeHangarEnv();
   }
   // THE ENV HANDLE (G40, reworked G41): the editor panel's "hangar"
   // section drives the room through this — lighting mood, the material
@@ -254,6 +446,32 @@
     prefSet('flydiy.hangarParts', JSON.stringify(all));
   };
   window.GARAGE_ENV = {
+    // dev-only: reach the room's internals from the console
+    _debug: () => ({ hangar: hangar, renderer: renderer, scene: hangarScene }),
+    // the baked floor shadow's strength; 0 turns it off
+    groundShadow: v => {
+      if (!getHangar() || !hangar.groundShadow) return null;
+      const r = hangar.groundShadow(v);
+      if (v !== undefined) prefSet('flydiy.groundShadow', String(v));
+      return r;
+    },
+    // the shed's own size, in metres, and the envelope it may be dragged over
+    dims: () => (getHangar() && hangar.dims) ? hangar.dims : null,
+    dimLimits: () => DIM_LIMS,
+    setDims: setDims,
+    // the mobile kit: where it stands, and whether it stands at all
+    mobile: () => (getHangar() && hangar.mobile) ? hangar.mobile() : [],
+    mobileShown: () => mobileOn,
+    setMobile: on => {
+      mobileOn = on !== false;
+      prefSet('flydiy.hangarMobile', mobileOn ? '1' : '0');
+      if (getHangar() && hangar.mobileShow) hangar.mobileShow(mobileOn);
+      return mobileOn;
+    },
+    envSources: () => (getHangar() && hangar.hasSky)
+      ? [['room', 'the room itself'], ['sky', 'the sky (HDRI)']] : [],
+    envSource: () => envSource,
+    setEnvSource: setEnvSource,
     moods: () => (getHangar() ? hangar.moods : []),
     mood: () => hangarMood,
     setMood: i => setMood(i),
@@ -488,7 +706,7 @@
     for (const t in texSrcs) {
       entry.pending++;
       texs[t] = new THREE.TextureLoader().load(texSrcs[t], landed, undefined, landed);
-      texs[t].anisotropy = 4;
+      texs[t].anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 4;
       // The generated paint is authored in sRGB (canvas colours are), so it has
       // to be declared as such or the renderer treats it as linear and encodes
       // it a second time on output — every colour comes out washed pale. The
@@ -503,9 +721,17 @@
         texs[t].encoding = THREE.sRGBEncoding;
     }
     if (!entry.pending) entry.ready = true;
-    const mkGeo = g => {
+    const mkGeo = (g, ownPos) => {
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(g.pos, 3));
+      // `ownPos` hands the geometry ITS OWN copy of the positions. The
+      // default wraps the payload's array — which is what every rigged
+      // group wants (poseSkinGen writes through it) — but anything the
+      // build MUTATES (geo.translate on the prop) must not write into a
+      // payload that could be built twice: the second translate doubles
+      // the offset and the prop lands +hub AFT, i.e. mid-fuselage
+      // (user: "the prop sometimes ends up in the middle"). G58.5.
+      geo.setAttribute('position',
+        new THREE.BufferAttribute(ownPos ? g.pos.slice() : g.pos, 3));
       geo.setAttribute('uv', new THREE.BufferAttribute(g.uv, 2));
       geo.setIndex(new THREE.BufferAttribute(g.idx, 1));
       // the cage snapshot CARRIES its normals (G47): recomputing them
@@ -576,7 +802,8 @@
     grp.matrixAutoUpdate = false;
     const meshes = {}, props = [];
     for (const name in dec) {
-      const geo = mkGeo(dec[name]);
+      const isProp0 = name === 'prop' || name === 'proptip' || name === 'spinner';
+      const geo = mkGeo(dec[name], isProp0);   // prop groups get their own copy
       // WHAT TURNS WITH THE PROPELLER, named rather than prefix-matched. This
       // used to be `name.startsWith('prop')`, which read as "every group named
       // prop*" and was wrong twice over: it caught `proptip` by luck, it missed
@@ -593,6 +820,203 @@
         mesh.castShadow = true;             // the skin replaces the proxy's sun shadow
       meshes[name] = mesh;
       grp.add(mesh);
+    }
+    // G55 MOVING PARTS (cage visual): each wheel is its own group pivoted
+    // at its AXLE and ridden on its axle NODE at pose time — suspension
+    // travel is the physics showing through, not an animation. The prop
+    // parts join `props` and spin with the existing throttle law.
+    const wheelParts = [], stretchRigs = [], surfParts = [];
+    let castorRig = null;
+    if (data.cage && Array.isArray(data.parts)) {
+      const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
+                : curDef.refs.tw;
+      // BY SIGN, NOT BY TAG (G58.3): NM tags 'AXLEL' at z NEGATIVE, while
+      // the snapshot's 'mainsL' is the wheel built at model z POSITIVE —
+      // matching by name transplanted each wheel to the opposite side and
+      // its outboard face pointed inboard (user: "mirrored wrong").
+      const m0 = curDef.refs.mains && curDef.refs.mains[0],
+            m1 = curDef.refs.mains && curDef.refs.mains[1];
+      const zPos = m0 != null && curDef.nodes[m0].p[2] > 0;
+      const nodeOf = { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
+                       tw: twi };
+      let twWheel = null;
+      const legNode = { legL: nodeOf.mainsL, legR: nodeOf.mainsR,
+                        legT: nodeOf.tw };
+      for (const pt of data.parts) {
+        const pg = new THREE.Group();
+        for (const name in pt.groups) {
+          const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
+          mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
+          pg.add(mesh);
+        }
+        if (pt.kind === 'prop') {
+          // THE WANDERING PROPELLER (G58.6, user: "the prop sometimes
+          // ends up in the middle"). The snapshot rebases every part's
+          // vertices about its pivot so it can SPIN about the hub — so
+          // the group MUST be put back at that pivot, exactly as the
+          // wheels and the castor are. This line was missing, and the
+          // prop therefore drew at the group origin: displaced by
+          // −pivot, i.e. ~3.4 m AFT of the nose = the middle of the
+          // fuselage. It only ever showed on a cage build (the
+          // generated skin has its own correct prop path), which is
+          // why it read as intermittent.
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          // G59.1: spin about the ENGINE'S OWN SHAFT, carried by the
+          // snapshot — not the model x axis, which cones a disc that the
+          // pitch calibration and the mount offsets have tilted
+          if (pt.axis) pg.userData.spinAxis = pt.axis;
+          grp.add(pg); props.push(pg);
+        }
+        else if (pt.stretch && legNode[pt.kind] != null) {
+          // G58.3: a LEG deforms toward its axle — verts stay unrebased,
+          // each weighted by nearness to the axle, so the attachment end
+          // holds the airframe while the axle end rides the node: the
+          // suspension visually compresses and stays lined up.
+          grp.add(pg);
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            // ALIASING (G58.4): mkGeo wraps the snapshot's OWN array, and
+            // the stretch pose mutates it in place — a garage transfer
+            // rebuilds the model and would otherwise take LAST FRAME'S
+            // deformed positions as the new rest. Pin a pristine copy on
+            // the part data the first time, restore it on every rebuild.
+            const src = pt.groups[Object.keys(pt.groups)
+              .find(k => pt.groups[k].pos === pa.array)] || null;
+            if (src) {
+              if (!src.base0) src.base0 = pa.array.slice();
+              else pa.array.set(src.base0);
+            }
+            const base = pa.array.slice();
+            const W = new Float32Array(pa.count);
+            // G58.7 TWO ANCHORS. The weight is the vertex's PROJECTION
+            // along root → moving end: 0 at the airframe bolt (pinned,
+            // "both the start and end anchor points remain in original
+            // position") and 1 at the axle/swivel end, so the spring
+            // elongates and shrinks between two fixed attachments. The
+            // first cut weighted by distance-from-axle over the unit's
+            // own extent, which let the fuselage end drift.
+            if (pt.root) {
+              const ax0 = pt.root, ax1 = pt.pivot;
+              const ex = ax1[0] - ax0[0], ey = ax1[1] - ax0[1],
+                    ez = ax1[2] - ax0[2];
+              const L2 = Math.max(1e-6, ex * ex + ey * ey + ez * ez);
+              for (let i = 0; i < pa.count; i++) {
+                const t = ((base[i * 3] - ax0[0]) * ex +
+                           (base[i * 3 + 1] - ax0[1]) * ey +
+                           (base[i * 3 + 2] - ax0[2]) * ez) / L2;
+                W[i] = Math.max(0, Math.min(1, t));
+              }
+            } else {
+              let dmax = 1e-6;
+              const ds = new Float32Array(pa.count);
+              for (let i = 0; i < pa.count; i++) {
+                const d = Math.hypot(base[i * 3] - pt.pivot[0],
+                                     base[i * 3 + 1] - pt.pivot[1],
+                                     base[i * 3 + 2] - pt.pivot[2]);
+                ds[i] = d; if (d > dmax) dmax = d;
+              }
+              for (let i = 0; i < pa.count; i++)
+                W[i] = Math.pow(Math.max(0, 1 - ds[i] / dmax), 1.2);
+            }
+            stretchRigs.push({ posAttr: pa, base, w: W,
+                               idx: legNode[pt.kind], rest0: null });
+          });
+        }
+        else if (pt.surf) {
+          // G59.3 (user: "the control surfaces are not deformed the same
+          // way as the wing... They should be anchored on the wing they
+          // belong, and associated with the same nodes and beams as the
+          // rest"). A rigid group that only rotates cannot ride the spar
+          // flex, so a bending wing left its aileron straight. Same shape
+          // as the generated skin: HINGE IN THE VERTICES first, then let
+          // the SAME spar binding the wing skin uses add its deformation
+          // on top (applySkinDeform's `hinged` path is additive, and the
+          // codec says so: "runs BEFORE the flex pass").
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            const base = pa.array.slice();
+            // the binding is built on DESIGN positions (the group's own
+            // translation added back), because that is the frame the
+            // spar stations live in
+            const dsg = new Float32Array(base.length);
+            for (let i = 0; i < base.length; i += 3) {
+              dsg[i] = base[i] + pt.pivot[0];
+              dsg[i + 1] = base[i + 1] + pt.pivot[1];
+              dsg[i + 2] = base[i + 2] + pt.pivot[2];
+            }
+            const nv2 = base.length / 3;
+            // the binding itself is built in a SECOND PASS below: `def`
+            // and `cfg` are declared after this block, and reaching them
+            // from here is a temporal dead zone, not a value
+            surfParts.push({ posAttr: pa, base, dsg, nv2, bind: null,
+              hinged: new Uint8Array(nv2).fill(1),
+              axis: pt.axis || [0, 0, 1],
+              drive: pt.drive, sgn: pt.sgn || 1 });
+          });
+        }
+        else if (pt.kind === 'castorT') {
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          castorRig = { obj: pg, idx: nodeOf.tw, pivot: pt.pivot,
+                        axle: pt.axle, axis: pt.axis, rest0: null };
+        }
+        else if (nodeOf[pt.kind] != null) {
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          const w = { obj: pg, idx: nodeOf[pt.kind], R: pt.R, prev: null };
+          wheelParts.push(w);
+          if (pt.kind === 'tw') twWheel = w;
+        }
+      }
+      // the tailwheel WHEEL lives INSIDE the castor: yaw carries it, and
+      // its own spin stays about its axle in the castor's frame
+      if (castorRig && twWheel && castorRig.obj.add && castorRig.axle) {
+        castorRig.obj.add(twWheel.obj);
+        if (twWheel.obj.position && twWheel.obj.position.set)
+          twWheel.obj.position.set(
+            castorRig.axle[0] - castorRig.pivot[0],
+            castorRig.axle[1] - castorRig.pivot[1],
+            castorRig.axle[2] - castorRig.pivot[2]);
+        twWheel.child = true;              // the castor drives its position
+      }
+    }
+    // G58.5 TRIPWIRE: the propeller belongs AHEAD of the nose. If it ever
+    // lands aft of the skin's forward extreme, say so loudly with what a
+    // repro needs, rather than silently drawing a blade through the cabin.
+    if (props.length) {
+      try {
+        // the nose = the forward extreme of the AIRFRAME's own groups
+        // (dec.skin exists only on the generated payload; a cage build's
+        // groups are colour keys — which is why the first cut of this
+        // check was dead exactly where the bug lived)
+        let noseX = 1e9;
+        for (const n in dec) {
+          const sp = dec[n].pos;
+          for (let i = 0; i < sp.length; i += 3) if (sp[i] < noseX) noseX = sp[i];
+        }
+        const pm = props[0];
+        const pa2 = pm.geometry.attributes.position.array;
+        let cx = 0;
+        for (let i = 0; i < pa2.length; i += 3) cx += pa2[i];
+        cx = cx / (pa2.length / 3) + (pm.position ? pm.position.x : 0);
+        // half a metre of slack: a spinner tip is legitimately ahead of
+        // the blades' own centre (the PA-18 reads 0.13 m and is correct)
+        if (cx > noseX + 0.50)
+          console.warn('FLYDIY: propeller at x', cx.toFixed(2),
+            'is AFT of the nose', noseX.toFixed(2),
+            '— key', key, 'cage', !!data.cage,
+            '. Please report this line with your build export.');
+      } catch (e) {}
     }
     grp.frustumCulled = false;
     grp.traverse(o => { o.frustumCulled = false; });
@@ -660,11 +1084,48 @@
     // spec-built lattice buildModel was handed — never a second build),
     // with the mount the snapshot calibrated wheels-to-axles.
     const def = data.cage ? curDef : AIRCRAFT[key]();
-    const cfg = data.cage
-      ? { off: [(data.off && data.off[0]) || 0, (data.off && data.off[1]) || 0, 0],
-          tags: ['WF', 'WR'],
-          zRoot: (curDef.parts && curDef.parts.zRoot) || 0.5, xMax: 1.5 }
-      : SKIN_CFG[key];
+    // G58.1: the cage visual's wing band is a CLOSED BOX, not a half-space.
+    // The measured spec knows the wing exactly — xLE, chord, sweep, the root
+    // spar's height — so the binding takes only verts inside it (small
+    // margins absorb the G54.2 pitch rotation of the captured frame). The
+    // old open selector also caught the cabin sidewall (it sits exactly at
+    // |z| = zRoot), the strut roots and the gear leg, and pulled them aft
+    // with the lifting wing.
+    const cageCfg = () => {
+      const W2 = curDef.spec && curDef.spec.wing;
+      const zR = ((curDef.parts && curDef.parts.zRoot) || 0.5) + 0.06;
+      const offC = [(data.off && data.off[0]) || 0,
+                    (data.off && data.off[1]) || 0, 0];
+      if (!W2 || W2.xLE == null)
+        return { off: offC, tags: ['WF', 'WR'], zRoot: zR, xMax: 1.5 };
+      // the binding tests SNAPSHOT-LOCAL coordinates — design minus
+      // (cg0 + off) on x and y (which is why the old `x ≤ 1.5` was, in
+      // design terms, "everything but the extreme tail"). The box is
+      // authored in design coords and shifted here; margins absorb the
+      // G54.2 pitch rotation.
+      const cg0b = defCG(curDef);
+      const dx0 = cg0b[0] + offC[0], dy0 = cg0b[1] + offC[1];
+      const sw = Math.tan((W2.sweep || 0) * Math.PI / 180) * W2.span * 0.5;
+      let yMin;
+      try {
+        const F = curDef.parts.wf.R.F;
+        yMin = Math.min(curDef.nodes[F[0]].p[1],
+                        curDef.nodes[F[F.length - 1]].p[1]) - 0.30 - dy0;
+      } catch (e) { yMin = undefined; }
+      return { off: offC, tags: ['WF', 'WR'], zRoot: zR,
+               xMin: W2.xLE - 0.15 + Math.min(0, sw) - dx0,
+               xMax: W2.xLE + W2.chord + 0.25 + Math.max(0, sw) - dx0,
+               yMin };
+    };
+    const cfg = data.cage ? cageCfg() : SKIN_CFG[key];
+    // G59.3 second pass: bind each control surface to the SAME spar
+    // stations the wing skin uses, so it flexes with the wing it is
+    // bolted to instead of only deflecting on its hinge.
+    for (const s2 of surfParts) {
+      try { s2.bind = makeSkinBinding(s2.dsg, s2.nv2, def, cfg); }
+      catch (e) { s2.bind = null; }
+      s2.dsg = null;
+    }
     const rigNames = data.cage ? Object.keys(dec) : (SKIN_CFG[key].rig || ['skin']);
     const rigs = rigNames.filter(n => dec[n]).map(name => {
       const posAttr = meshes[name].geometry.attributes.position;
@@ -680,13 +1141,18 @@
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
     const m = Object.assign(entry, { grp, props, rigs, deltas,
                         off: cfg.off,
+                        wheelParts: wheelParts.length ? wheelParts : null,
+                        stretchRigs: stretchRigs.length ? stretchRigs : null,
+                        surfParts: surfParts.length ? surfParts : null,
+                        castorRig,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     if (key !== 'gen') modelCache[key] = m;   // gen is never cached
     return m;
   }
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
-        vY = new THREE.Vector3(), vZ = new THREE.Vector3();
+        vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
+        vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
   function poseModel() {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -701,8 +1167,17 @@
       cg[1] + O[0]*xA[1] + O[1]*yU[1],
       cg[2] + O[0]*xA[2] + O[1]*yU[2]);
     model.grp.matrix.copy(mBasis);
-    for (const p of model.props)
-      p.rotation.x += (8 + 110 * sim.ctl.thr) * (1/60);            // visual only
+    if (running)                                 // a paused world holds its prop
+      for (const p of model.props) {
+        const d = (8 + 110 * sim.ctl.thr) * (1/60);                // visual only
+        const ax2 = p.userData && p.userData.spinAxis;
+        if (ax2 && p.quaternion && p.quaternion.setFromAxisAngle) {
+          // G59.1: about the shaft, so the disc stays in its own plane
+          p.userData.spinAng = (p.userData.spinAng || 0) + d;
+          vSpin.set(ax2[0], ax2[1], ax2[2]);
+          p.quaternion.setFromAxisAngle(vSpin, p.userData.spinAng);
+        } else p.rotation.x += d;
+      }
     const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
     if (model.gen) {
       // ONLY mode 1 exaggerates. This used to read SKIN_GAINS[min(skinMode,1)],
@@ -759,6 +1234,95 @@
                       skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+    }
+    // G55: each wheel rides its AXLE NODE — its position is the node's
+    // live coordinates in the SAME basis the pose maps the group into
+    // (minus the pose's own x/y offset), so suspension travel is exact by
+    // construction: the leg compresses in the sim, the wheel follows.
+    // Spin is rolling contact from the node's own motion along body-x
+    // (which points AFT, hence the sign).
+    const nodeLocal = idx => {
+      const i3 = idx * 3;
+      const dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - cg[1],
+            dz = sim.p[i3 + 2] - cg[2];
+      return [dx * xA[0] + dy * xA[1] + dz * xA[2] - O[0],
+              dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
+              dx * vZ.x + dy * vZ.y + dz * vZ.z];
+    };
+    if (model.wheelParts) for (const w of model.wheelParts) {
+      if (!w.obj.position || !w.obj.position.set) continue;    // smoke stub
+      const i3 = w.idx * 3;
+      if (!w.child) {                       // the castor drives its child
+        const L = nodeLocal(w.idx);
+        w.obj.position.set(L[0], L[1], L[2]);
+      }
+      if (w.prev && w.obj.rotation) {
+        const mx = (sim.p[i3] - w.prev[0]) * xA[0] +
+                   (sim.p[i3 + 1] - w.prev[1]) * xA[1] +
+                   (sim.p[i3 + 2] - w.prev[2]) * xA[2];
+        w.obj.rotation.z -= mx / Math.max(0.05, w.R);
+      }
+      w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
+    }
+    // G58.3: the LEGS stretch toward their axle — each vertex moves by its
+    // nearness-weight times the node's travel since rest, so the airframe
+    // end holds and the axle end follows: the suspension compresses.
+    if (model.stretchRigs) for (const s of model.stretchRigs) {
+      if (!s.posAttr || !s.posAttr.array) continue;
+      const L = nodeLocal(s.idx);
+      if (!s.rest0) { s.rest0 = L; continue; }
+      const ddx = L[0] - s.rest0[0], ddy = L[1] - s.rest0[1],
+            ddz = L[2] - s.rest0[2];
+      const p2 = s.posAttr.array, b = s.base, W = s.w;
+      for (let i = 0; i < W.length; i++) {
+        p2[i * 3] = b[i * 3] + W[i] * ddx;
+        p2[i * 3 + 1] = b[i * 3 + 1] + W[i] * ddy;
+        p2[i * 3 + 2] = b[i * 3 + 2] + W[i] * ddz;
+      }
+      s.posAttr.needsUpdate = true;
+    }
+    // G59: the CONTROL SURFACES deflect about their own hinges, driven by
+    // the same linkage the generated skin uses (so they lag identically).
+    // `link` carries da/de/dr/fl in radians of surface deflection.
+    if (model.surfParts) for (const s of model.surfParts) {
+      if (!s.posAttr || !s.posAttr.array) continue;
+      const ang = s.sgn * (link[s.drive] || 0);
+      const b = s.base, out = s.posAttr.array;
+      const ax = s.axis, ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
+      // Rodrigues about the hinge, which passes through the group's own
+      // origin because the snapshot rebased these verts about the pivot
+      for (let i = 0; i < b.length; i += 3) {
+        const x = b[i], y = b[i + 1], z = b[i + 2];
+        const d = ax[0] * x + ax[1] * y + ax[2] * z;
+        out[i]     = x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1;
+        out[i + 1] = y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1;
+        out[i + 2] = z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1;
+      }
+      // ...then the wing's own flex, ADDED on top of the deflected verts
+      if (s.bind && s.bind.bound.length)
+        applySkinDeform(s.bind, s.base, out, model.deltas.P, model.deltas.N,
+                        skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
+                        s.hinged);
+      s.posAttr.needsUpdate = true;
+    }
+    // the CASTOR rides the tailwheel node (rigid offset axle→swivel) and
+    // YAWS about its own raked axis with the rudder linkage — ground
+    // manoeuvring, everything but the spring (user's spec). If it steers
+    // the wrong way, the sign on `link.dr` below is the one-char fix.
+    if (model.castorRig) {
+      const c = model.castorRig;
+      if (c.obj.position && c.obj.position.set && c.obj.quaternion) {
+        const L = nodeLocal(c.idx);
+        if (!c.rest0) c.rest0 = L;
+        else c.obj.position.set(
+          c.pivot[0] + L[0] - c.rest0[0],
+          c.pivot[1] + L[1] - c.rest0[1],
+          c.pivot[2] + L[2] - c.rest0[2]);
+        if (c.axis && c.obj.quaternion.setFromAxisAngle) {
+          vY.set(c.axis[0], c.axis[1], c.axis[2]);
+          c.obj.quaternion.setFromAxisAngle(vY, -(link.dr || 0));
+        }
+      }
     }
   }
   function applySkinVis() {
@@ -940,6 +1504,11 @@
     const mass = sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg';
     $('acName').textContent = def.params.name;
     $('acSpec').textContent = `${mass} · ${PP.engine.name} · ${(half*2).toFixed(1)} m · ${sim.n} nodes`;
+    // the plaque belongs to the GARAGE BUILD alone, so every aircraft
+    // change re-asks: switching to a fleet aeroplane left the previous
+    // build's numbers hanging on screen, which is the one thing a plaque
+    // must never do — it would be reading someone else's certificate.
+    if (typeof drawPlaque === 'function') drawPlaque();
   }
 
   const cN = [0.34, 0.49, 0.69], cT = [1, 0.6, 0.24], cC = [0.31, 0.85, 0.91];
@@ -1164,6 +1733,88 @@
     if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def); }
     return shakeVal;
   };
+
+  // ---- THE PLAQUE (P3) -------------------------------------------------
+  // The aeroplane's own measured numbers, posted where it was built.
+  // genShakedown has computed every one of these since G4; it lost its
+  // panel at G35, so a builder has had no way to learn that the thing
+  // they welded will not climb until the runway tells them. The verdict
+  // comes first because that is the question a plaque answers; the rows
+  // under it are the WHY, and each carries the code's OWN threshold —
+  // nothing here invents a limit that the generator does not already use.
+  function drawPlaque() {
+    const box = $('plaque');
+    if (!box) return;                              // core-only build
+    const on = curKey === 'gen' && inGarage;
+    box.classList.toggle('on', on);
+    if (!on) return;
+    let s = null;
+    try { s = shakeOf(); } catch (e) {}
+    if (!s) { box.classList.remove('on'); return; }
+    const n1 = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
+    $('pqName').textContent = (def.params && def.params.name) || '';
+    // THE VERDICT is the generator's own flyableCircuit, and when it says
+    // no it must say WHY — the two terms it is made of (climb and take-off
+    // run) are exactly what the builder can act on.
+    const v = $('pqVerdict');
+    const why = [];
+    if (!s.flyableCircuit) {
+      if ((s.climbRate || 0) < 0.5) why.push('it will not climb (' +
+        n1(s.climbRate, 2) + ' m/s)');
+      if ((s.TORun || 0) > 1100) why.push('take-off run ' +
+        n1(s.TORun, 0) + ' m');
+      if (!why.length) why.push('marginal climb and field length');
+    }
+    v.className = s.flyableCircuit ? 'ok' : 'bad';
+    v.textContent = s.flyableCircuit
+      ? 'FLIES A CIRCUIT'
+      : 'WILL NOT FLY A CIRCUIT — ' + why.join('; ');
+    // rows: label, value, and a verdict class where the code has a rule
+    const rows = [];
+    const H = t => rows.push('<div class="h">' + t + '</div>');
+    const R = (label, val, cls) => rows.push('<div class="r' +
+      (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' +
+      val + '</b></div>');
+    H('weights');
+    R('empty', n1(s.empty, 0) + ' kg');
+    R('payload', n1(s.payload, 0) + ' kg');
+    R('all-up', n1(s.mass, 0) + ' kg');
+    R('cost', n1(s.cost, 0));
+    H('wing');
+    R('area', n1(s.Sw, 1) + ' m²');
+    R('loading', n1(s.wingLoad, 1) + ' kg/m²');
+    R('aspect', n1(s.AR, 1));
+    R('L/D', n1(s.LD, 1), (s.LD || 0) < 6 ? 'warn' : '');
+    H('speeds & field');
+    R('stall', n1(s.Vs * 3.6, 0) + ' km/h');
+    R('cruise', n1(s.VCruise * 3.6, 0) + ' km/h');
+    R('climb', n1(s.climbRate, 2) + ' m/s',
+      (s.climbRate || 0) < 0.5 ? 'bad' : '');
+    R('take-off run', n1(s.TORun, 0) + ' m',
+      (s.TORun || 0) > 1100 ? 'bad' : ((s.TORun || 0) > 500 ? 'warn' : ''));
+    H('balance');
+    R('CG', n1(s.cgX, 2) + ' m');
+    R('neutral pt', n1(s.npX, 2) + ' m');
+    // the fleet's own band: the Cub measures 0.22, the stock build 0.20.
+    // Under 0.05 is twitchy; negative is unflyable.
+    R('static margin', n1(s.staticMargin, 2),
+      (s.staticMargin || 0) < 0 ? 'bad'
+        : (s.staticMargin || 0) < 0.05 ? 'warn' : '');
+    H('on the ground');
+    R('stands on', s.onWheels ? 'its wheels' : (s.restsOn || '—'),
+      s.onWheels ? '' : 'bad');
+    R('deck angle', n1(s.deckAngle, 1) + '°');
+    R('prop clear', n1(s.propClear, 2) + ' m',
+      (s.propClear || 0) < 0.05 ? 'bad'
+        : (s.propClear || 0) < 0.12 ? 'warn' : '');
+    R('nose-over', n1(s.noseOver, 0) + '°',
+      (s.noseOver || 0) < 15 ? 'warn' : '');
+    if (s.gearFolded) R('gear', 'FOLDED', 'bad');
+    $('pqRows').innerHTML = rows.join('');
+    $('pqNote').textContent = s.engineName + ' · ' + n1(s.hp, 0) + ' hp · ' +
+      s.propName + ' · ' + s.gearType + ' · ' + s.bracing +
+      ' — measured on this build, not estimated.';
+  }
 
   let gInd = null, gLabels = [];
   // a word floated above each marker. Canvas -> sprite, because a line drawing
@@ -1484,9 +2135,15 @@
     applyEnv();
     railPhase = ''; setRail('GARAGE');
     $('bGo').textContent = 'Roll out & fly';
+    // THE PLAQUE goes up whenever the aeroplane comes home — including
+    // after build & fly, which reaches here through GARAGE_SPEC.apply, so
+    // a rebuilt aeroplane always posts ITS OWN numbers and never the
+    // previous build's (shakeOf caches per def, so this is one settle).
+    drawPlaque();
   }
   function rollOut() {
     closeEditor();       // flying with the craft hidden is not a thing (G36)
+    const pq = $('plaque'); if (pq) pq.classList.remove('on');
     rig = null;
     // Rolling out is the one way to leave a FINISHED test without passing
     // through enterGarage, so the sandbags have to be taken off here too — or

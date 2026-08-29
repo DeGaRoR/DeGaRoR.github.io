@@ -53,6 +53,12 @@ function defCG(def) {
 }
 
 // cfg: { tags:['WF','WR'], zRoot, xMax, off:[ox,oy,oz] }  (model-frame thresholds)
+// Optional gates (G58.1): xMin and yMin close the wing box from the other two
+// sides. The original selector was "outboard of zRoot and forward of xMax" —
+// which on the cage visual also caught the cabin SIDEWALL (it sits exactly at
+// |z| = zRoot = cab.halfW), the strut roots and the GEAR LEG, and pulled them
+// aft with the lifting wing (user's circles, at ×4 flex). Absent fields keep
+// the imported fleet's bindings exactly as they were.
 function makeSkinBinding(pos, nv, def, cfg) {
   const cg0 = defCG(def);
   const sides = { P: {}, N: {} };            // keyed by |z| station
@@ -79,6 +85,8 @@ function makeSkinBinding(pos, nv, def, cfg) {
   for (let i = 0; i < nv; i++) {
     const x = pos[i*3], z = pos[i*3+2], az = Math.abs(z);
     if (az < cfg.zRoot || x > cfg.xMax) continue;
+    if (cfg.xMin !== undefined && x < cfg.xMin) continue;
+    if (cfg.yMin !== undefined && pos[i*3+1] < cfg.yMin) continue;
     let k = 0;
     while (k < zs.length - 1 && az > zs[k]) k++;
     const zA = k === 0 ? cfg.zRoot : zs[k-1];

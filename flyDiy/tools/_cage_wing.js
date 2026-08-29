@@ -270,6 +270,9 @@ PAGE.post = ctx => {
   // the generator's own defaults (its fuselage is built and discarded;
   // only the wing subset is kept). The NACA digits and the tip chord
   // compose exactly as the garage's own @ knobs do.
+  // G59.2: the airframe contract, hoisted — the frame this layer builds
+  // needs the BUILT cabin, not the generator's default one (see below).
+  const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
   const gspec = {
     wings: [{
@@ -293,6 +296,21 @@ PAGE.post = ctx => {
       aileron: { span: P.wgAilSpan, chord: P.wgAilChord },
     },
   };
+  // THE STRUT LANDS ON THE BUILT CABIN (G59.2, user: "the wing struts do
+  // not land where they should... the reference for hook points should be
+  // the internal structure"). The comment above is the bug: with only the
+  // wing rows, the frame drawn here carries the GENERATOR'S DEFAULT cabin
+  // (halfW 0.36) while the built one measured 0.59 — so the lift strut's
+  // foot hung 0.23 m inboard and 0.19 m above the cabin's own lower
+  // longeron, attached to nothing. Measured off the same airframe contract
+  // the gear and the join use, so all three agree.
+  if (AF) {
+    const zc0 = (spec && spec.ring && spec.ring.z != null ? spec.ring.z : 2.0) * FS;
+    const zs0 = Math.max(AF.z0 + 0.05, Math.min(AF.z1 - 0.05, zc0 - 0.3));
+    const hw0 = AF.halfWAt(zs0);
+    const hh0 = AF.surf(zs0, Math.PI)[1] - AF.surf(zs0, 0)[1];
+    if (hw0 > 0.05 && hh0 > 0.2) gspec.cabin = { halfW: hw0, h: hh0 };
+  }
   let def, pay;
   try {
     const RS = resolveSpec(gspec);        // -> {spec, auto}
@@ -321,7 +339,6 @@ PAGE.post = ctx => {
   const S2 = spec || {};
   const zCab = (S2.ring && S2.ring.z != null ? S2.ring.z : 2.0) * FS;
   let yAnchor = refP[1];
-  const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
   if (AF) {
     const zs = Math.max(AF.z0 + 0.05, Math.min(AF.z1 - 0.05, zCab - 0.3));
     const deckY = AF.surf(zs, Math.PI)[1];
@@ -403,9 +420,13 @@ PAGE.post = ctx => {
   for (const nm of ['liftstrut', 'pitot'])
     if (gs[nm]) {
       const parts = pickParts(gs[nm], yes, toCage, null);
-      if (parts.x) group.add(WIRE
-        ? new THREE.LineSegments(parts.x.wire, wireMat(nm))
-        : new THREE.Mesh(parts.x.geo, MAT[nm]));
+      if (parts.x) {
+        const o2 = WIRE
+          ? new THREE.LineSegments(parts.x.wire, wireMat(nm))
+          : new THREE.Mesh(parts.x.geo, MAT[nm]);
+        o2.name = 'edFit_' + nm;      // G59.2: named, so it can be measured
+        group.add(o2);
+      }
     }
   // CONTROL SURFACES EXPLODE (G32, user): unbolt aft and slightly down —
   // assembly-style, scaled like the cage parts
@@ -416,6 +437,11 @@ PAGE.post = ctx => {
         const o = WIRE ? new THREE.LineSegments(parts.x.wire, wireMat(nm))
                        : new THREE.Mesh(parts.x.geo, MAT[nm]);
         if (ex > 0) o.position.set(0, -0.18 * ex, -0.65 * ex);
+        // G59: NAMED for the join's snapshot, exactly as the engine layer
+        // names its prop — these are the surfaces that must deflect on the
+        // flown aeroplane. The hinge line is the group's own inboard/
+        // outboard extent at its FORWARD edge; the join derives it.
+        o.name = 'edSurf_' + nm;
         group.add(o);
       }
     }

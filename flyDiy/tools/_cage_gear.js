@@ -149,9 +149,31 @@ PAGE.post = ctx => {
   scene.add(group);
 
   const bags = {};
-  for (const k of ['tyre', 'hub', 'brake', 'steel', 'alloy', 'chrome',
-                   'dark', 'bronze', 'fair'])
+  for (const k of ['tyre', 'hub', 'brake', 'brakefix', 'steel', 'alloy',
+                   'chrome', 'dark', 'bronze', 'fair'])
     bags[k] = GG.Bag();
+  // G58.2: EACH WHEEL GETS ITS OWN BAGS, so the join can ride it on its
+  // axle node and SPIN it (G47.2's "per-wheel bags in the gear kit",
+  // user: "identify the individual meshes corresponding to the wheel and
+  // move those"). A PROXY hands the wheel() call its own tyre/hub/brake
+  // while the leg, castor fork and spat keep writing into the shared
+  // bags — so exactly the parts that turn, turn, and the fork does NOT
+  // rotate with the wheel. Zero changes inside the gear kit itself.
+  const wheelUnits = [];
+  const allBags = () => { const b = {};
+    for (const k in bags) b[k] = GG.Bag(); return b; };
+  const wheelProxy = () => {
+    const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag() };
+    wheelUnits.push(wb);
+    return { proxy: Object.assign({}, bags, wb), wb };
+  };
+  // G58.3: the LEGS are separable units too — the join stretch-binds them
+  // between their airframe attachment and the moving axle, so the
+  // suspension visually compresses and stays lined up with the wheel.
+  // The tailwheel additionally splits its CASTOR assembly (fork), which
+  // yaws for ground manoeuvring; its leaf SPRING stays in the leg unit.
+  const legUnits = [];
+  let castorUnitOut = null;
 
   // IDENTICAL to the bench's loop, deliberately: if this had to be written
   // differently to run on a real body, the contract would not be one.
@@ -166,27 +188,69 @@ PAGE.post = ctx => {
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r;
+      const wu = wheelProxy();
+      const lb = allBags();               // this unit's LEG bags
       if (st.leg === 3) {
-        r = GG.legTailwheel(bags, AF, st.P, st);
+        // legTailwheel builds spring AND wheel into one bag-set; the
+        // proxies route the spinning parts to the wheel unit, the fork
+        // to the castor unit, and the spring stays in the leg unit
+        const cb = allBags();
+        const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
+        r = GG.legTailwheel(proxy, AF, st.P, st);
+        if (r.castor)
+          castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
+                            axle: r.axle };
       } else {
-        if (st.leg === 0) r = GG.legBeam(bags, AF, st.P, st, sgn);
-        else if (st.leg === 1) r = GG.legLink(bags, AF, st.P, st, sgn);
-        else r = GG.legOleo(bags, AF, st.P, st, sgn);
+        if (st.leg === 0) r = GG.legBeam(lb, AF, st.P, st, sgn);
+        else if (st.leg === 1) r = GG.legLink(lb, AF, st.P, st, sgn);
+        else r = GG.legOleo(lb, AF, st.P, st, sgn);
         if (st.steer > 0 && st.x < 0.01) {
-          const u = GG.castorUnit(bags, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
-          GG.wheel(bags, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
+          const u = GG.castorUnit(lb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
+          GG.wheel(wu.proxy, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
           if (st.fair) GG.spat(bags, u.hub, u.axis, st.R, st.fair === 2);
           r = { axle: u.hub, axis: u.axis, travel: r.travel };
         } else {
-          GG.wheel(bags, r.axle, r.axis, st.R,
+          GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });
           if (st.fair) GG.spat(bags, r.axle, r.axis, st.R, st.fair === 2);
         }
       }
+      wu.wb.axle = r.axle; wu.wb.R = st.R;
+      wu.wb.kind = (st.leg === 3 || st.x <= 0.01) ? 'T'
+                 : (r.axle[0] > 0 ? 'L' : 'R');
+      // G58.7: BOTH ends are anchors. `root` bolts to the airframe and
+      // must stay put; the moving end is the spring's own tip (the
+      // castor's swivel top) on a tailwheel, the axle otherwise — the
+      // user's rule: "the spring should elongate or shrink, but both
+      // the start and end anchor points remain in original position".
+      legUnits.push({ bags: lb, kind: wu.wb.kind, axle: r.axle,
+                      root: r.root || null, moving: r.tip || r.axle });
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
   for (const k in bags) bags[k].mesh(group, GG.MAT[k]);
+  // G58.2/.3: bake each unit into its own NAMED group — the join's
+  // snapshot picks these up by name, exactly as it does the prop's
+  for (const wb of wheelUnits) {
+    const wg = new THREE.Group();
+    wg.name = 'edWheel' + (wb.kind || 'T');
+    for (const k of ['tyre', 'hub', 'brake'])
+      wb[k].mesh(wg, GG.MAT[k]);
+    group.add(wg);
+  }
+  for (const lu of legUnits) {
+    const lg = new THREE.Group();
+    lg.name = 'edLeg' + lu.kind;
+    for (const k in lu.bags) lu.bags[k].mesh(lg, GG.MAT[k]);
+    group.add(lg);
+  }
+  if (castorUnitOut) {
+    const cgp = new THREE.Group();
+    cgp.name = 'edCastorT';
+    for (const k in castorUnitOut.bags)
+      castorUnitOut.bags[k].mesh(cgp, GG.MAT[k]);
+    group.add(cgp);
+  }
 
   // ---- THE GROUND COMES TO THE AEROPLANE ---------------------------------
   // The bench pitches the whole machine until the extreme contacts share a
@@ -247,7 +311,13 @@ PAGE.post = ctx => {
     const req = nose ? 0.178 : 0.229;
     notes.push('prop clr ' + gap.toFixed(3) + (gap >= req ? '' : '!'));
   }
-  window.CAGE_GEAR = { AF, contacts, pitch, gy };
+  window.CAGE_GEAR = { AF, contacts, pitch, gy,
+    // G58.3: the separable units' anchors, for the join's moving parts
+    units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,
+                                        root: u.root, moving: u.moving })),
+             castor: castorUnitOut
+               ? { top: castorUnitOut.top, ax: castorUnitOut.ax,
+                   axle: castorUnitOut.axle } : null } };
   if (stat && notes.length) stat.textContent += '  ·  gear: ' + notes.join(' · ');
 };
 })();

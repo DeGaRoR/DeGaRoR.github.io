@@ -294,6 +294,7 @@ PAGE.post = ctx => {
                      : disp;
     const obj = wire ? finQuadWire(sub, bySec) : finMesh(sub, bySec);
     if (part === 'rudder' && ex) obj.position.z = -ex;   // explode aft
+    if (part === 'rudder') obj.name = 'edSurf_rud';       // G59
     group.add(obj);
   }
   if ($('cage') && $('cage').checked && L > 0)

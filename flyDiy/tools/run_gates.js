@@ -42,6 +42,8 @@ const GATES = [
   { id: 'PA18', file: 'test_pa18.js', tier: 'core' },     // mesh aircraft
   { id: 'C172M', file: 'test_c172_model.js', tier: 'core' },
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
+  // the hangar prop library: baked payload vs the declared table
+  { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

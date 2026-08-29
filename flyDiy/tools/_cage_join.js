@@ -87,8 +87,13 @@ function cageJoinSpec(P, M, T) {
     if (M.track > 0) spec.gear.track = M.track;
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
     // G51: the measured third wheel — axle height in the keel datum,
-    // station firewall-anchored. clampSpec bounds them. gear.y is NOT
-    // written: the mains stay on the prop-clearance derivation.
+    // station firewall-anchored. clampSpec bounds them.
+    // G52: the mains STATION is measured (gear.x).
+    // G53: the RIDE HEIGHT too (gear.y) — the snap-blocker made it safe.
+    if (typeof M.gearX === 'number' && isFinite(M.gearX))
+      spec.gear.x = M.gearX;
+    if (typeof M.gearY === 'number' && isFinite(M.gearY))
+      spec.gear.y = M.gearY;
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
@@ -100,18 +105,44 @@ function cageJoinSpec(P, M, T) {
   if (M.cabH > 0) cabin.h = M.cabH;
   if (M.seating) cabin.seating = M.seating;
   if (M.pilots >= 1) cabin.pilots = M.pilots;
+  // G52: the cabin's x-extent from the pillar rings
+  if (M.noseGap > 0) cabin.noseGap = M.noseGap;
+  if (M.cabLen > 0) cabin.len = M.cabLen;
   if (Object.keys(cabin).length) spec.cabin = cabin;
+  // G52: the wing's fore-aft station, from the wing layer's own anchor
+  if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
+    spec.wings[0].xLE = M.wingXLE;
   // G49: the tail-end section and the cowl deck ride with the tail arm —
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
   const fus = {};
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
+  if (M.postGap > 0) fus.postGap = M.postGap;
+  // G54: the boom's path between the measured endpoints. clampSpec
+  // falls back to 'straight' if the key is ever not a GEN_SHAPES row.
+  if (M.shape) fus.shape = M.shape;
+  // G54.1: every boom section, measured. Wins over the family when set.
+  if (Array.isArray(M.profile) && M.profile.length >= 2)
+    fus.profile = M.profile;
   if (M.tailW > 0) fus.tailW = M.tailW;
   if (typeof M.tailBot === 'number' && isFinite(M.tailBot))
     fus.tailBot = M.tailBot;
   if (M.tailTop > 0) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
   if (Object.keys(fus).length) spec.fuselage = fus;
+  // G54.3: the tail surfaces, measured off the placed fin/stab layers.
+  // clampSpec's envelope bounds every one; anything unmeasured keeps the
+  // volume-coefficient derivation.
+  const tl = {};
+  if (M.hSpan > 0) tl.hSpan = M.hSpan;
+  if (M.hChord > 0) tl.hChord = M.hChord;
+  if (M.hX > 0) tl.hX = M.hX;
+  if (M.vHeight > 0) tl.vHeight = M.vHeight;
+  if (M.vChord > 0) tl.vChord = M.vChord;
+  if (M.vX > 0) tl.vX = M.vX;
+  if (M.vSweep === 0) tl.vSweep = 0;
+  if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  if (Object.keys(tl).length) spec.tail = tl;
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
   // save keeps what you built, even where physics does not read it yet
   if (M.cage) spec.cage = M.cage;
@@ -123,6 +154,62 @@ if (typeof module !== 'undefined' && module.exports)
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
+  // the editor's inner (pitch) mount — the frame every capture and every
+  // layer-bounds measurement is taken in (shared by snapshot and measure)
+  const edMount = () => {
+    let g = window.CAGE_WING && window.CAGE_WING.group;
+    while (g && g.parent && !g.parent.isScene &&
+           g.parent.parent && !g.parent.parent.isScene) g = g.parent;
+    return g;
+  };
+  // mount-frame bounds of the TAIL SURFACES, classified geometrically in
+  // one traversal (the fin/stab layers do not export their placed groups):
+  // aft of the pax pillar, OUTBOARD of the boom = stab, ABOVE the boom's
+  // deck = fin. Wing/struts/gear are forward of the region; the boom skin
+  // fails both classifiers; the tailwheel fails both.
+  const tailSurfBounds = (zAft, boomHalfW, yDeckRel, yD) => {
+    const mnt = edMount();
+    if (!mnt || typeof THREE === 'undefined') return null;
+    mnt.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    const mk = () => ({ x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9,
+                        z0: 1e9, z1: -1e9, topZ: 0, n: 0 });
+    const stab = mk(), fin = mk();
+    const grow = (B, x, y, z) => { B.n++;
+      if (x < B.x0) B.x0 = x; if (x > B.x1) B.x1 = x;
+      // the TOP VERTEX rides along (user: "match it to the top point of
+      // the fin") — the apex is placed from it, not from the z-midpoint
+      // the dorsal drags forward
+      if (y > B.y1) { B.y1 = y; B.topZ = z; }
+      if (y < B.y0) B.y0 = y;
+      if (z < B.z0) B.z0 = z; if (z > B.z1) B.z1 = z; };
+    const xBand = Math.max(0.32, boomHalfW + 0.08);
+    const each = fn => mnt.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      const p = o.geometry.attributes.position;
+      if (!p) return;
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      for (let i = 0; i < p.count; i++) {
+        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
+        if (v.z <= zAft) fn(v);
+      }
+    });
+    // pass 1: the STAB is everything outboard of the boom
+    each(v => { if (Math.abs(v.x) > xBand) grow(stab, v.x, v.y, v.z); });
+    // pass 2: the FIN is the centreline surface above the deck — MINUS the
+    // stab's own centre section (a high-mounted stab's root sits near the
+    // centreline above the deck and would otherwise steal the fin's top
+    // point; measured: fin.y1 read the stab root, apex 0.14 too high)
+    const sOK = stab.n > 20;
+    each(v => {
+      if (Math.abs(v.x) > xBand || v.y - yD <= yDeckRel + 0.08) return;
+      if (sOK && v.y >= stab.y0 - 0.04 && v.y <= stab.y1 + 0.04 &&
+          v.z >= stab.z0 - 0.04 && v.z <= stab.z1 + 0.04) return;
+      grow(fin, v.x, v.y, v.z);
+    });
+    return { stab: sOK ? stab : null, fin: fin.n > 20 ? fin : null };
+  };
   const measure = () => {
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
@@ -152,20 +239,21 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // base is their WAIST/KEEL z, not their roof. Ring z is cage
       // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
       let zFw = AF.z1, fwOk = false, zPost = null;
+      let zOf2 = () => null;               // named-ring z lookup, metres
       try {
         const C2 = window.CAGE2;
         const R = C2.cageResolve(C2.cageSpec({ ...P }));
         const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
-        const zOf = (name) => {
+        zOf2 = (name) => {
           const r = R.rings.find(q => q.name === name);
           const l = r && r.lv && (r.lv.waist || r.lv.keel);
           return l && isFinite(l.z) ? l.z * FS : null;
         };
-        const fw = zOf('wsFront') != null ? zOf('wsFront')
-                 : zOf('wsAft') != null ? zOf('wsAft')
-                 : zOf('aeroWsA') != null ? zOf('aeroWsA') : zOf('ring');
+        const fw = zOf2('wsFront') != null ? zOf2('wsFront')
+                 : zOf2('wsAft') != null ? zOf2('wsAft')
+                 : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
         if (fw != null) { zFw = fw; fwOk = true; }
-        zPost = zOf('tailPost');           // a ROD boom has no tail rings
+        zPost = zOf2('tailPost');          // a ROD boom has no tail rings
       } catch (e) {}
       // tail arm: firewall -> the cage's own tail post (the lattice's
       // last full station); the post/fin land postGap beyond it, still a
@@ -199,12 +287,146 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // makes long soft levers of the class-k gear members (0.35 m of
       // sag onto the belly, measured — length-aware k is the real cure).
       // Gated on the same anatomy resolution: without it, no datum.
-      if (zPost != null && G2.contacts && G2.contacts.length) {
+      // Wheel measurements gate on what they actually need (a ROD boom
+      // has no tail rings, and its wheels deserve measuring too): the
+      // keel DATUM exists whenever the airframe does; only the stations
+      // (twX) additionally need the firewall anchor.
+      if (G2.contacts && G2.contacts.length) {
         const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
-        if (single) {
+        if (single && fwOk) {
           M.twX = zFw - single.p[2];      // model x aft of the firewall
           M.twY = single.p[1] - yD;
           if (single.R > 0) M.twR = single.R;
+        }
+        // G53: the RIDE HEIGHT — the mains' axle in the keel datum. This
+        // is the row whose absence floated the whole frame 0.36 m above
+        // the visual (gear.y sat on the legDrop default, yBoundBy said
+        // so). Live only since the mains got their rule-10 snap-blocker:
+        // without it a shallow measured stance reflected the axle through
+        // the belly-plane anchors at 0.28% strain.
+        const mainsY = G2.contacts.filter(c => c.st && c.st.x > 0.01);
+        if (mainsY.length)
+          M.gearY = mainsY.reduce((s, c) => s + c.p[1], 0) / mainsY.length - yD;
+      }
+      // G52: the PILLAR PROPORTIONS and the wing's station (user: "the
+      // visual fit remains very approximate"). The cabin's x-extent is
+      // the pillars' own: noseGap = firewall -> cabin front pillar
+      // (pilCabB), cab.len = front pillar -> aft cabin pillar (pilPaxA).
+      // postGap = tail post -> the skin's aft extreme, so the derived
+      // stab/fin stations land at the built tail rather than 0.47-0.60 m
+      // behind it. The wing's xLE comes from where the wing layer
+      // actually anchors the FRONT SPAR: the cage's `ring` station
+      // (+ the panel's dx), minus sparFront x chord back to the LE.
+      if (fwOk) {
+        const zCabF = zOf2('pilCabB'), zCabA = zOf2('pilPaxA');
+        if (zCabF != null && zFw > zCabF) M.noseGap = zFw - zCabF;
+        if (zCabF != null && zCabA != null && zCabF > zCabA)
+          M.cabLen = zCabF - zCabA;
+        if (zPost != null && zPost > AF.z0) M.postGap = zPost - AF.z0;
+        // the MAINS STATION: with gear.x measured, the wheels-to-axles
+        // calibration collapses to off[0] = zFw − cg0[0] — the visual's
+        // x-mapping becomes firewall-EXACT for every part, not just the
+        // wheels. The CG/rake placement rule is bypassed; noseOver is
+        // posted by the shakedown, which is the honest trade.
+        const mains2 = (G2.contacts || []).filter(c => c.st && c.st.x > 0.01);
+        if (mains2.length)
+          M.gearX = zFw - mains2.reduce((s, c) => s + c.p[2], 0) / mains2.length;
+        const zRing = zOf2('ring');
+        if (zRing != null) {
+          const sparF = (typeof GEN_RULES !== 'undefined' &&
+                         GEN_RULES.sparFront) || 0.15;
+          M.wingXLE = (zFw - zRing - (P.wgDx || 0))
+                    - sparF * (P.wgChord || 1.5);
+        }
+        // G54: the SHAPE FAMILY — the PATH of the boom between the
+        // measured endpoints (user: "it starts diverging from the
+        // passenger pillar onwards"). The lattice interpolates its
+        // aft stations with the family's exponent; the cage's own
+        // curve says which family. Sample belly/deck/width at the
+        // boom midpoint, invert t^e per channel, average, and pick
+        // the nearest GEN_SHAPES row. A frame belly that hangs below
+        // the built one GROUNDS before the tailwheel and holds the
+        // tail up — this row is why the sim's boom follows the built
+        // boom.
+        if (zPost != null && zCabA != null && zCabA > zPost + 0.5 &&
+            typeof GEN_SHAPES !== 'undefined') {
+          const zMid = (zCabA + zPost) / 2;
+          const es = [];
+          const chan = (v0, vm, v1) => {
+            const d = v1 - v0;
+            if (Math.abs(d) < 0.08) return;
+            const u = (vm - v0) / d;
+            if (u > 0.02 && u < 0.98) es.push(Math.log(u) / Math.log(0.5));
+          };
+          chan(AF.surf(zCabA, 0)[1], AF.surf(zMid, 0)[1],
+               AF.surf(zPost, 0)[1]);                       // belly
+          chan(AF.surf(zCabA, Math.PI)[1], AF.surf(zMid, Math.PI)[1],
+               AF.surf(zPost, Math.PI)[1]);                 // deck
+          chan(AF.halfWAt(zCabA), AF.halfWAt(zMid), AF.halfWAt(zPost));
+          if (es.length) {
+            const e = es.reduce((s, v) => s + v, 0) / es.length;
+            let best = null, bd = 1e9;
+            for (const k in GEN_SHAPES) {
+              const d = Math.abs(GEN_SHAPES[k].taper - e);
+              if (d < bd) { bd = d; best = k; }
+            }
+            if (best) M.shape = best;
+          }
+          // G54.1: the three-family exponent was too coarse for a real
+          // boom (user: "adjust the height of every section of the
+          // boom") — so EVERY section is measured: nine rows over the
+          // same t-domain the lattice interpolates (boxRear..tailArm ↔
+          // pax pillar..tail post), width + floor + deck each, in the
+          // keel datum. The shape family stays measured as the
+          // fallback for saves that predate the profile.
+          const NP = 9, prof = [];
+          for (let i = 0; i < NP; i++) {
+            const t = i / (NP - 1);
+            const z = zCabA + (zPost - zCabA) * t;
+            prof.push({ t: +t.toFixed(4),
+              w: AF.halfWAt(z),
+              yb: AF.surf(z, 0)[1] - yD,
+              yt: AF.surf(z, Math.PI)[1] - yD });
+          }
+          M.profile = prof;
+        }
+        // G54.3: THE TAIL SURFACES (user: "these ones seem never to have
+        // been matched" — correct, they were declared cosmetic v1 at
+        // G45). Measured from the placed fin/stab layers' own meshes:
+        // stations from their z-midpoints, span/chord from extents,
+        // heights in the keel datum. stabH and vHeight invert the
+        // lattice's own placement formulas (stabY = tailY + stabH·
+        // (finTop − tailY); finTop = tailTop + 0.82·vHeight) so the
+        // frame's tips land where the built surfaces are. Areas follow
+        // span × chord — the flown tail volume becomes the BUILT tail's,
+        // and the shakedown posts the stability that results.
+        if (fwOk && zPost != null &&
+            typeof M.tailTop === 'number' && typeof M.tailBot === 'number') {
+          const TB = tailSurfBounds(zCabA != null ? zCabA - 0.8 : zPost + 1.5,
+                                    M.tailW || 0.2, M.tailTop, yD);
+          const sB = TB && TB.stab, fB = TB && TB.fin;
+          const tailYm = M.tailBot + 0.55 * (M.tailTop - M.tailBot);
+          if (sB && (sB.x1 - sB.x0) > 0.5) {
+            M.hSpan = 2 * Math.max(Math.abs(sB.x0), Math.abs(sB.x1));
+            M.hChord = sB.z1 - sB.z0;
+            M.hX = zFw - (sB.z0 + sB.z1) / 2;
+            M.stabY = (sB.y0 + sB.y1) / 2 - yD;
+          }
+          if (fB && (fB.y1 - fB.y0) > 0.3) {
+            const finTop = fB.y1 - yD;
+            M.vHeight = (finTop - M.tailTop) / 0.82;
+            M.vChord = fB.z1 - fB.z0;
+            // the apex lands ON the fin's top vertex: with vSweep 0 the
+            // lattice puts FIN at (vX, finTop), so vX = the top point's
+            // own station (user: "the top point of the fin"). The sweep
+            // is BAKED into where that point is — so vSweep must be 0 or
+            // the lattice leans the apex aft a second time.
+            M.vX = zFw - fB.topZ;
+            M.vSweep = 0;
+            if (typeof M.stabY === 'number' && finTop > tailYm + 0.1)
+              M.stabH = Math.max(0, Math.min(1,
+                (M.stabY - tailYm) / (finTop - tailYm)));
+          }
         }
       }
     }
@@ -247,26 +469,89 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // adds cg back), so the lattice axle must be taken RELATIVE TO THE
     // REST CG — the raw-frame first cut floated the aeroplane a CG's
     // height above the runway (G47, user: "does not touch the ground").
-    let off = [0, 0];
+    let off = [0, 0], beta = 0;
     try {
       const RS = resolveSpec(JSON.parse(JSON.stringify(spec)));
       const fr = genFrame(RS.spec);
       const cg0 = fr.cg0;
       const mains = fr.refs.mains.map(i => fr.nodes[i].p);
-      const bx = (mains[0][0] + mains[1][0]) / 2 - cg0[0],
-            by = (mains[0][1] + mains[1][1]) / 2 - cg0[1];
+      const mfx = (mains[0][0] + mains[1][0]) / 2,
+            mfy = (mains[0][1] + mains[1][1]) / 2;
       const G2 = window.CAGE_GEAR;
       const cm = G2.contacts.filter(c => c.st && c.st.x > 0.01);
       const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
             cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
-      off = [bx - (-cz), by - cy];   // model x = -cage z, y shared
+      // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has
+      // rotated... would you get confused with the plane's resting
+      // position?" — yes, for three rounds). poseModel maps the visual's
+      // local x-axis onto the BODY AXIS (noseFrame→tailMid) — and the
+      // measured-high boom INCLINES that axis in the design frame
+      // (+3.69° on the default build). A level-captured visual therefore
+      // rode tail-HIGH by the inclination: keel diverging aft, the
+      // visual tailwheel floating ~15 cm off the ground the frame's TW
+      // was touching. NOTE the first cut solved the rotation from the
+      // WHEELS and got exactly 0 — the wheels are the two points the
+      // measurements already agree on; they cannot see this. The angle
+      // is the AXIS'S OWN: rotate the capture by −φ so that when the
+      // pose lifts the axis, the visual lands on the frame.
+      const meanP = ids => {
+        const a = Array.isArray(ids) ? ids : [ids];
+        let sx = 0, sy = 0;
+        for (const i of a) { sx += fr.nodes[i].p[0]; sy += fr.nodes[i].p[1]; }
+        return [sx / a.length, sy / a.length];
+      };
+      const nF = meanP(fr.refs.noseFrame), tM = meanP(fr.refs.tailMid);
+      beta = -Math.atan2(tM[1] - nF[1], tM[0] - nF[0]);
+      const cb = Math.cos(beta), sb = Math.sin(beta);
+      const rmx = (-cz) * cb - cy * sb,        // cage mains, rotated
+            rmy = (-cz) * sb + cy * cb;
+      off = [(mfx - cg0[0]) - rmx, (mfy - cg0[1]) - rmy];
     } catch (e) { console.warn('cage visual calibration:', e); }
+    const cB = Math.cos(beta), sB = Math.sin(beta);
     // the snapshot captures the SECTION COLOURS regardless of the view
     // toggle (G47, user: "the fuselage is suddenly all grey" — the
     // neutral display mode had been frozen into the flying paint)
     const colBox = document.getElementById('color');
     const colWas = colBox ? colBox.checked : true;
     if (colBox && !colWas) { colBox.checked = true; window.CAGE_UI.build(); }
+    // G55 MOVING PARTS: wheels and the prop peel off into their OWN
+    // groups before the merge, each with a pivot, so the game can ride
+    // them on their axle nodes (suspension = the physics showing
+    // through) and spin the prop. Wheels classify geometrically — a
+    // mesh whose centre sits within 2.4 R of a gear contact is that
+    // wheel's tyre/hub/brake (the leg's centre is up the leg and stays
+    // static). The prop cannot be found geometrically (it sits at the
+    // cowl face, well BEHIND the cage's own nose tip), so the engine
+    // layer NAMES it at the source (edSpinner/edProp — G47.2's rule).
+    const PARTS = { wheels: [], others: [], prop: { kind: 'prop', groups: {} } };
+    try {
+      const GB = window.CAGE_GEAR || {};
+      for (const c of GB.contacts || [])
+        PARTS.wheels.push({
+          kind: c.st.x <= 0.01 ? 'tw' : (c.p[0] > 0 ? 'mainsL' : 'mainsR'),
+          R: c.R, cx: c.p[0], cy2: c.p[1], cz2: c.p[2], groups: {} });
+      // G58.3: the legs stretch-follow their axle (suspension visually
+      // compresses); the castor fork yaws for ground manoeuvring
+      for (const u of (GB.units && GB.units.legs) || [])
+        PARTS.others.push({ src: 'edLeg' + u.kind,
+          kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
+          stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
+          groups: {} });
+      // G59 CONTROL SURFACES. Each named surface becomes its own part
+      // with a HINGE derived from its own geometry: the hinge line is
+      // the surface's FORWARD edge (x is aft in the model frame, so its
+      // minimum x), and the axis is the direction that edge runs —
+      // SPANWISE (z) for ailerons/flaps/elevators, VERTICAL (y) for the
+      // rudder. Sign and drive per surface, ailerons antisymmetric.
+      for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud',
+                        'elevR', 'elevL'])
+        PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
+          surf: nm, groups: {} });
+      if (GB.units && GB.units.castor)
+        PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
+          topC: GB.units.castor.top, axC: GB.units.castor.ax,
+          axleC: GB.units.castor.axle, groups: {} });
+    } catch (e) {}
     // merge the build's meshes into groups by material look
     const groups = {}, mats = {};
     mount.updateMatrixWorld(true);
@@ -288,6 +573,36 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // lands in its own colour group, vertices carried per-index so
       // the ORIGINAL normals survive (recomputing over merged unwelded
       // meshes flat-shades).
+      // G55/G58.2: which part does this mesh belong to? EVERYTHING is
+      // named at its source now — the engine layer names the prop
+      // (edSpinner/edProp), the gear layer bakes each wheel's
+      // tyre/hub/brake into its own named group (edWheelL/R/T). The
+      // first cut sliced wheels out PER TRIANGLE and produced severed
+      // forks and a tailwheel that spun with its castor (user: "the
+      // weirdest thing"); identity beats surgery.
+      let part = null;
+      {
+        let a = o;
+        while (a && a !== mount) {
+          if (a.name === 'edProp' || a.name === 'edSpinner') {
+            part = PARTS.prop; break;
+          }
+          if (a.name === 'edWheelL' || a.name === 'edWheelR' ||
+              a.name === 'edWheelT') {
+            const want = a.name === 'edWheelT' ? 'tw'
+                       : (a.name === 'edWheelL' ? 'mainsL' : 'mainsR');
+            part = PARTS.wheels.find(w => w.kind === want) || null;
+            break;
+          }
+          if (a.name && (a.name.lastIndexOf('edLeg', 0) === 0 ||
+                         a.name.lastIndexOf('edSurf_', 0) === 0 ||
+                         a.name === 'edCastorT')) {
+            part = PARTS.others.find(u => u.src === a.name) || null;
+            break;
+          }
+          a = a.parent;
+        }
+      }
       const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
         ? geo.groups
         : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
@@ -299,33 +614,343 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (!mats[key]) mats[key] = { color: m0.color.getHex(),
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
           rough: 0.85, metal: 0 };
-        const G3 = groups[key] || (groups[key] = { pos: [], idx: [], nrm: [] });
         const end = Math.min(r.start + r.count, idx ? idx.count : p.count);
-        for (let i = r.start; i < end; i++) {
-          const vi = idx ? idx.getX(i) : i;
+        // one vertex into a bucket: cage -> model frame, then the G54.2
+        // pitch calibration about the model z (left) axis, so the pose's
+        // body-axis alignment lands the visual exactly on the frame
+        const pushV = (G3, vi) => {
           v.set(p.getX(vi), p.getY(vi), p.getZ(vi)).applyMatrix4(tmp);
           G3.idx.push(G3.pos.length / 3);
-          G3.pos.push(-v.z, v.y, v.x);            // cage -> model frame
+          const px = -v.z, py = v.y;
+          G3.pos.push(px * cB - py * sB, px * sB + py * cB, v.x);
           if (na) { n.set(na.getX(vi), na.getY(vi), na.getZ(vi))
             .applyMatrix3(nm).normalize();
-            G3.nrm.push(-n.z, n.y, n.x); }
+            const qx = -n.z, qy = n.y;
+            G3.nrm.push(qx * cB - qy * sB, qx * sB + qy * cB, n.x); }
           else G3.nrm.push(0, 1, 0);
-        }
+        };
+        const bucket = part ? part.groups : groups;
+        const G3 = bucket[key] || (bucket[key] = { pos: [], idx: [], nrm: [] });
+        for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
     });
     if (colBox && !colWas) { colBox.checked = false; window.CAGE_UI.build(); }
-    for (const k in groups) {
-      const g = groups[k];
-      groups[k] = { pos: new Float32Array(g.pos),
-        nrm: new Float32Array(g.nrm),
-        uv: new Float32Array((g.pos.length / 3) * 2),
-        idx: new Uint32Array(g.idx), nv: g.pos.length / 3 };
+    const bake = g => ({ pos: new Float32Array(g.pos),
+      nrm: new Float32Array(g.nrm),
+      uv: new Float32Array((g.pos.length / 3) * 2),
+      idx: new Uint32Array(g.idx), nv: g.pos.length / 3 });
+    // G55: finalize the parts — each rebased about its PIVOT (the wheel's
+    // axle; the spinner's own origin for the prop), pitch-calibrated like
+    // everything else, so the game spins/rides them about the right point
+    const rotP = (x, y, z) => [x * cB - y * sB, x * sB + y * cB, z];
+    let hub = null, hubRaw = null, spinners = 0, propAxis = null;
+    mount.traverse(o => {
+      if (o.name === 'edSpinner') {
+        spinners++;
+        if (!hub) {
+          o.getWorldPosition(v); v.applyMatrix4(inv);
+          hubRaw = [v.x, v.y, v.z];
+          hub = rotP(-v.z, v.y, v.x);
+          // G59.1 THE SHAFT AXIS (user: "the propeller and nose cone are
+          // wrongly rotated, and they oscillate. They should be perfectly
+          // aligned with the engine's shaft"). The spinner is built along
+          // its own +z; the thrustline is NOT the model x axis — the
+          // engine carries its mount offsets and the whole capture is
+          // pitch-calibrated (G54.2) — so spinning about x coned the disc.
+          // Take the spinner's own axis through the same two transforms
+          // the vertices take, and spin about THAT.
+          try {
+            const d = new THREE.Vector3(0, 0, 1)
+              .transformDirection(o.matrixWorld).transformDirection(inv);
+            const a2 = rotP(-d.z, d.y, d.x);
+            const L2 = Math.hypot(a2[0], a2[1], a2[2]) || 1;
+            propAxis = [a2[0] / L2, a2[1] / L2, a2[2] / L2];
+          } catch (e2) {}
+        }
+      }
+    });
+    // G58.4 TRIPWIRE (user: "the prop sometimes ends up in the middle" —
+    // not reproduced in four capture cycles, so the degenerate state
+    // must NAME ITSELF when it happens): a spinner captured behind the
+    // windscreen is not a hub. Refuse it — the prop then rides the
+    // static merge at its captured place instead of spinning around a
+    // wrong pivot — and say so loudly with everything a repro needs.
+    try {
+      const G2t = window.CAGE_GEAR;
+      if (hub && G2t && G2t.AF && hubRaw && hubRaw[2] < G2t.AF.z1 - 0.6) {
+        console.warn('CAGE JOIN: prop hub captured at', hubRaw,
+          'which is INSIDE the body (skin nose z =', G2t.AF.z1,
+          ', spinners seen:', spinners,
+          ') — prop left static this build. Please report what the',
+          'editor was showing (explode? engine panel open?) when this',
+          'logged.');
+        hub = null;
+      }
+    } catch (e) {}
+    // a refused hub folds the prop back into the STATIC merge — present
+    // and correct at its captured place, just not spinning this build
+    if (!hub) for (const k in PARTS.prop.groups) {
+      const src = PARTS.prop.groups[k];
+      const dst = groups[k] || (groups[k] = { pos: [], idx: [], nrm: [] });
+      const base0 = dst.pos.length / 3;
+      for (const ix of src.idx) dst.idx.push(ix + base0);
+      for (const pv2 of src.pos) dst.pos.push(pv2);
+      for (const nv2 of src.nrm) dst.nrm.push(nv2);
+      delete PARTS.prop.groups[k];
     }
-    return { cage: true, groups, mats, off, zRoot: 0, surfaces: null };
+    for (const k in groups) groups[k] = bake(groups[k]);
+    const parts = [];
+    for (const pt of PARTS.wheels.concat(PARTS.others, [PARTS.prop])) {
+      const keys = Object.keys(pt.groups);
+      if (!keys.length) continue;
+      // pivot: wheel = its axle; castor = its swivel TOP (it yaws about
+      // it); stretch legs keep their verts UNREBASED (the game deforms
+      // them per-vertex toward the axle) with the axle as reference
+      // G59: a control surface's pivot is the centre of its own FORWARD
+      // edge — computed in the MODEL frame from the captured vertices,
+      // so it needs no anchor from the layer that drew it.
+      let hingeAxis = null;
+      if (pt.surf) {
+        let mnx = 1e9, mxx = -1e9;
+        for (const k of keys) {
+          const q = pt.groups[k].pos;
+          for (let i = 0; i < q.length; i += 3) {
+            const x0 = q[i] * cB - q[i + 1] * sB;
+            if (x0 < mnx) mnx = x0; if (x0 > mxx) mxx = x0;
+          }
+        }
+        const band = mnx + 0.18 * Math.max(0.02, mxx - mnx);
+        let sx = 0, sy = 0, sz = 0, n2 = 0,
+            y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
+        for (const k of keys) {
+          const q = pt.groups[k].pos;
+          for (let i = 0; i < q.length; i += 3) {
+            const x0 = q[i] * cB - q[i + 1] * sB,
+                  yy = q[i] * sB + q[i + 1] * cB, zz = q[i + 2];
+            if (x0 > band) continue;
+            sx += x0; sy += yy; sz += zz; n2++;
+            if (yy < y0) y0 = yy; if (yy > y1) y1 = yy;
+            if (zz < z0) z0 = zz; if (zz > z1) z1 = zz;
+          }
+        }
+        if (!n2) continue;
+        pt.pivotM = [sx / n2, sy / n2, sz / n2];
+        // the hinge runs along the forward edge's longer extent
+        hingeAxis = (y1 - y0) > (z1 - z0) ? [0, 1, 0] : [0, 0, 1];
+      }
+      const pv = pt.pivotM ? pt.pivotM
+        : pt.kind === 'prop' ? hub
+        : pt.kind === 'castorT'
+          ? rotP(-pt.topC[2], pt.topC[1], pt.topC[0])
+          : pt.axleC ? rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0])
+                     : rotP(-pt.cz2, pt.cy2, pt.cx);
+      if (!pv) continue;
+      const gs2 = {};
+      for (const k of keys) {
+        const g = bake(pt.groups[k]);
+        if (!pt.stretch)
+          for (let i = 0; i < g.pos.length; i += 3) {
+            g.pos[i] -= pv[0]; g.pos[i + 1] -= pv[1]; g.pos[i + 2] -= pv[2];
+          }
+        gs2[k] = g;
+      }
+      const out2 = { kind: pt.kind, R: pt.R || 0, pivot: pv,
+                     stretch: !!pt.stretch, groups: gs2 };
+      if (pt.kind === 'prop' && propAxis) out2.axis = propAxis;  // G59.1
+      if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
+        out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
+      if (pt.surf) {                       // G59: what drives it, and how
+        out2.surf = pt.surf;
+        out2.axis = hingeAxis;
+        const S2 = pt.surf;
+        out2.drive = (S2 === 'rud') ? 'dr'
+                   : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
+                   : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';
+        // ailerons are ANTISYMMETRIC; the rest move together
+        out2.sgn = (S2 === 'ailL') ? -1 : 1;
+      }
+      if (pt.kind === 'castorT') {
+        const axm = rotP(-pt.axC[2], pt.axC[1], pt.axC[0]);
+        out2.axis = axm;                     // swivel axis, model frame
+        out2.axle = rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0]);
+      }
+      parts.push(out2);
+    }
+    return { cage: true, groups, mats, off, pitch: beta, parts,
+             zRoot: 0, surfaces: null };
+  };
+  // THE FIT REPORT (G52, user: "the visual fit remains very approximate").
+  // Frame vs visual, in numbers, in the model frame the pose shares (the
+  // snapshot's `off` applied to the visual). Printed at every build & fly
+  // so a misfit is a ROW, not a squint at the overlay. LE compares the
+  // frame's derived leading edge against the outboard band of the visual
+  // (|z| beyond 40% semispan is wing out there, nothing else is).
+  const fitReport = (spec, vis) => {
+    if (!vis || !vis.groups) return null;
+    const RS = resolveSpec(JSON.parse(JSON.stringify(spec)));
+    const fr = genFrame(RS.spec);
+    const W2 = RS.spec.wing, cg0 = fr.cg0;
+    // THE DATUM. The pose puts the visual at cg + off, and the frame's own
+    // node coordinates are lattice (x = 0 at the firewall) — so the visual
+    // reaches the lattice datum by + off + cg0, NOT by + off alone. Getting
+    // this wrong reads every x row as a metre of misfit that is not there.
+    // With gear.x measured (G52) off[0] reduces to zFw − cg0[0], so this sum
+    // is exactly "x aft of the firewall" for every vertex.
+    const ox = (vis.off ? vis.off[0] : 0) + cg0[0],
+          oy = (vis.off ? vis.off[1] : 0) + cg0[1];
+    // G54.2: the snapshot is pitch-calibrated; comparisons happen in the
+    // DESIGN frame, so un-rotate each visual vertex by the baked pitch
+    const vB = vis.pitch || 0, cV = Math.cos(vB), sV = Math.sin(vB);
+    const uX = (x, y) => x * cV + y * sV, uY = (x, y) => -x * sV + y * cV;
+    // frame: the WING is what compares honestly — the fuselage's extremes are
+    // different PARTS on the two sides (the frame's forward node is an engine
+    // mount, the visual's is a spinner tip), so those rows are labelled as
+    // extents and read as trends, not as errors.
+    let fy1 = -1e9, fz = 0, fx0 = 1e9, fx1 = -1e9;
+    for (const n of fr.nodes) {
+      fx0 = Math.min(fx0, n.p[0]); fx1 = Math.max(fx1, n.p[0]);
+      fy1 = Math.max(fy1, n.p[1]);
+      if (n.tag === 'WF' || n.tag === 'WR') fz = Math.max(fz, Math.abs(n.p[2]));
+    }
+    let vx0 = 1e9, vx1 = -1e9, vy1 = -1e9, vz = 0;
+    for (const k in vis.groups) {
+      const p = vis.groups[k].pos;
+      for (let i = 0; i < p.length; i += 3) {
+        const x = uX(p[i], p[i + 1]) + ox, az = Math.abs(p[i + 2]);
+        vx0 = Math.min(vx0, x); vx1 = Math.max(vx1, x);
+        vy1 = Math.max(vy1, uY(p[i], p[i + 1]) + oy); vz = Math.max(vz, az);
+      }
+    }
+    // the outboard band is wing and nothing else; measure its LE and TE
+    const band = 0.55 * vz;
+    let vLE = 1e9, vTE = -1e9;
+    for (const k in vis.groups) {
+      const p = vis.groups[k].pos;
+      for (let i = 0; i < p.length; i += 3)
+        if (Math.abs(p[i + 2]) > band) {
+          const x = uX(p[i], p[i + 1]) + ox;
+          if (x < vLE) vLE = x;
+          if (x > vTE) vTE = x;
+        }
+    }
+    // the frame's wing at that same station, sweep included
+    const yB = band, sw = Math.tan((W2.sweep || 0) * Math.PI / 180);
+    const ch = W2.chord * (1 - (1 - W2.taper) * (yB / Math.max(0.01, vz)));
+    const fLE = W2.xLE + sw * yB;
+    // the BOOM at its midpoint (G54): the path between the measured
+    // endpoints is the shape family's exponent — this row is what said
+    // "diverging from the passenger pillar onwards" in numbers
+    const fu2 = RS.spec.fuse;
+    const SHP2 = (typeof GEN_SHAPES !== 'undefined' && GEN_SHAPES[fu2.shape])
+               || { taper: 1 };
+    const tE = Math.pow(0.5, SHP2.taper);
+    const xMid = fu2.boxRear + (fu2.tailArm - fu2.boxRear) * 0.5;
+    const PR = Array.isArray(fu2.profile) && fu2.profile.length >= 2
+             ? fu2.profile : null;
+    const pAt = (t2) => {                    // profile row at t2 (G54.1)
+      let a = PR[0], b = PR[PR.length - 1];
+      for (let i = 1; i < PR.length; i++)
+        if (PR[i].t >= t2) { b = PR[i]; a = PR[i - 1]; break; }
+      const u = Math.max(0, Math.min(1,
+        (t2 - a.t) / Math.max(1e-6, b.t - a.t)));
+      return { yb: a.yb + (b.yb - a.yb) * u, yt: a.yt + (b.yt - a.yt) * u };
+    };
+    const fBelly = PR ? pAt(0.5).yb : -0.02 + (fu2.tailBot + 0.02) * tE;
+    const fDeck = PR ? pAt(0.5).yt
+                : RS.spec.cab.h + (fu2.tailTop - RS.spec.cab.h) * tE;
+    let vBelly = 1e9, vDeck = -1e9;
+    for (const k in vis.groups) {
+      const p = vis.groups[k].pos;
+      for (let i = 0; i < p.length; i += 3) {
+        if (Math.abs(uX(p[i], p[i + 1]) + ox - xMid) > 0.15 ||
+            Math.abs(p[i + 2]) > 0.5) continue;
+        const y = uY(p[i], p[i + 1]) + oy;
+        if (y < vBelly) vBelly = y;
+        if (y > vDeck) vDeck = y;
+      }
+    }
+    const row = (part, f, v) => ({ part, frame: +f.toFixed(2),
+      visual: +v.toFixed(2), delta: +(v - f).toFixed(2) });
+    const out = [
+      row('semispan (m)', fz, vz),
+      row('wing LE @ outboard', fLE, vLE),
+      row('wing TE @ outboard', fLE + ch, vTE),
+      row('top y (fin apex vs skin)', fy1, vy1),
+      row('extent fwd (mount vs spinner)', fx0, vx0),
+      row('extent aft (post vs rudder TE)', fx1, vx1),
+    ];
+    if (vBelly < 1e8) out.push(
+      row('boom belly @ mid (' + (PR ? 'profile' : fu2.shape) + ')',
+          fBelly, vBelly),
+      row('boom deck @ mid', fDeck, vDeck));
+    // THE TAIL CHECK (G54.2, user: "run a check comparing the coordinates
+    // of the tail... would you get confused with the plane's resting
+    // position?"). Three layers, so the failing one NAMES itself:
+    //  1 IDENTITY  — resolved spec vs the cage's own contacts. A gating
+    //    failure on this build (missing ring, odd wheel count) shows as a
+    //    non-zero delta here and NOWHERE else.
+    //  2 STANCE    — the deck angle the resolved wheels imply vs the one
+    //    the cage's contacts imply. Equal identities force equal angles.
+    //  3 SETTLED   — a real sim settle: the pitch the physics reaches and
+    //    the tailwheel's height over ground. THIS is where suspension
+    //    asymmetry (soft mains compressing more than the tail leg) or any
+    //    resting-position confusion becomes a number.
+    try {
+      const M2 = measure(), R2 = RS.spec, D2R = 180 / Math.PI;
+      const deckOf = (gx, gy2, cR, tx, ty, tR) =>
+        Math.atan2((ty - tR) - (gy2 - cR), tx - gx) * D2R;
+      if (typeof M2.twY === 'number' && R2.gear.twY != null) {
+        out.push(row('IDENT TW x: resolved vs cage', R2.gear.twX, M2.twX));
+        out.push(row('IDENT TW y: resolved vs cage', R2.gear.twY, M2.twY));
+      }
+      if (typeof M2.gearY === 'number' && R2.gear.y != null)
+        out.push(row('IDENT mains y: resolved vs cage', R2.gear.y, M2.gearY));
+      if (typeof M2.twY === 'number' && typeof M2.gearY === 'number')
+        out.push(row('STANCE deck deg: resolved vs cage',
+          deckOf(R2.gear.x, R2.gear.y, R2.gear.contactR,
+                 R2.gear.twX, R2.gear.twY, R2.gear.twR),
+          deckOf(M2.gearX, M2.gearY, M2.contactR, M2.twX, M2.twY,
+                 M2.twR || R2.gear.twR)));
+      const def2 = buildGen(JSON.parse(JSON.stringify(spec)));
+      const sim2 = makeSim(def2, null); sim2.reset(0);
+      for (let i = 0; i < 300; i++) sim2.step(1 / 60);
+      const ix = {}; def2.nodes.forEach((n, i) => {
+        if (n.tag && !(n.tag in ix)) ix[n.tag] = i; });
+      const agl = t => ix[t] === undefined ? NaN
+        : sim2.p[ix[t] * 3 + 1] - (def2.nodes[ix[t]].r || 0);
+      const axv = sim2.axes();
+      out.push(row('SETTLED TW over ground (want 0)', 0, agl('TW')));
+      out.push(row('SETTLED mains over ground (want 0)', 0,
+        Math.min(agl('AXLEL'), agl('AXLER'))));
+      // the BODY AXIS (noseFrame→tailMid) is itself inclined in the
+      // design frame — the settled axis pitch equals stance MINUS that
+      // inclination. Comparing raw axis pitch to stance is the trap
+      // that hid the G54.2 rotation for three rounds: name both.
+      const mean = ids => {
+        const a = Array.isArray(ids) ? ids : [ids];
+        let sx = 0, sy = 0;
+        for (const i of a) { sx += def2.nodes[i].p[0]; sy += def2.nodes[i].p[1]; }
+        return [sx / a.length, sy / a.length];
+      };
+      const nF = mean(def2.refs.noseFrame), tM = mean(def2.refs.tailMid);
+      const phiAxis = Math.atan2(tM[1] - nF[1], tM[0] - nF[0]) * D2R;
+      const builtDeck = (typeof M2.twY === 'number' &&
+                         typeof M2.gearY === 'number')
+        ? deckOf(M2.gearX, M2.gearY, M2.contactR, M2.twX, M2.twY,
+                 M2.twR || R2.gear.twR) : NaN;
+      out.push(row('AXIS inclination deg (design)', 0, phiAxis));
+      out.push(row('SETTLED axis pitch vs predicted (stance − axis)',
+        builtDeck - phiAxis,
+        Math.atan2(-axv[0][1], Math.hypot(axv[0][0], axv[0][2])) * D2R));
+    } catch (e3) {
+      out.push({ part: 'TAIL CHECK THREW', frame: 0, visual: 0,
+                 delta: String(e3.message).slice(0, 40) });
+    }
+    return out;
   };
   window.CAGE_JOIN = {
     export: () => cageJoinSpec(window.CAGE_UI.P, measure(), tables()),
-    snapshot,
+    snapshot, fitReport,
   };
   // THE BUTTON. The editor bar exists in the game DOM at load; the
   // handler runs the whole loop turn: export -> the save pipeline ->
@@ -344,6 +969,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // the visual freezes BEFORE the spec applies: setAircraft('gen')
         // rebuilds the model and must find it already standing
         window.CAGE_VISUAL = snapshot(spec);
+        try {
+          const fit = fitReport(spec, window.CAGE_VISUAL);
+          if (fit) { console.log('CAGE JOIN fit report:'); console.table(fit); }
+        } catch (e2) {}
         window.GARAGE_SPEC.set(spec);
         const c = document.getElementById('edClose');
         if (c && c.onclick) c.onclick();

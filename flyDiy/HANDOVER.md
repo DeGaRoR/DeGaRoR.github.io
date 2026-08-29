@@ -10287,14 +10287,20 @@ resolveSpec, so a measurement written flat never reaches the frame)
 | tail-end section | G49: halfW / keel / deck at the tailPost ring, y datum'd on the cabin keel (outer skin, same declaration as cab.h); absent on rod booms (no tail rings) | fuselage.tailW / .tailBot / .tailTop (tailY stays 0 — it is the editor's offset knob) |
 | cowl deck | G49: deck sampled just forward of the windscreen base ÷ cabin height; never measured off the fallback anchor | fuselage.cowlDeck |
 | third wheel | G51: the single (non-mains) contact's axle — station firewall-anchored, height in the keel datum, radius verbatim; gated on the same anatomy resolution as the sections. The MAINS height stays DERIVED (prop clearance owns gear.y; a measured low axle makes long soft levers of the class-k gear members) | gear.twX / .twY / .twR |
+| pillar proportions | G52: noseGap = firewall → cabin front pillar (pilCabB); cab.len = front pillar → aft cabin pillar (pilPaxA); postGap = tail post → aft skin extreme (clamp floor 0.35 declares the cap gap) | cabin.noseGap / cabin.len / fuselage.postGap |
+| wing station | G52: xLE from where the wing layer anchors the FRONT SPAR — the cage's `ring` station + the panel's dx − sparFront×chord. Static margin follows the real geometry; the shakedown posts it | wings[0].xLE |
+| ride height | G53: mains axle in the keel datum, live only since the mains got their rule-10 snap-blocker | gear.y |
+| boom path | G54: shape family fitted from the boom's own exponent (fallback), and EVERY SECTION measured — nine {t,w,yb,yt} rows pax-pillar→tail-post; the lattice's aft stations interpolate them; the pillar ring takes row 0 | fuselage.shape / fuselage.profile |
+| tail surfaces | G54: stab span/chord/station + mount height, fin height/chord + apex at the fin's own TOP VERTEX (vSweep 0 — the sweep is baked into where that point is), classified geometrically (outboard = stab, centreline-above-deck = fin, stab band excluded) | tail.hSpan/.hChord/.hX/.stabH/.vHeight/.vChord/.vX/.vSweep |
 | crew | the crew layer's pilot+pax count | cabin.pilots / cabin.seating (single/tandem2 map) |
 
 **DEFAULT-v1 — declared gaps, the increments queue in order**
-noseGap, cab.len, boxRear/cargo, fuel (litres+tank), material,
-systems, paint, place.*, tail.* (AUTO by the game's volume
-coefficients — the measured tailArm feeds the arm, the surfaces size
-themselves), prop (auto from the registry row), fuse.shape (the G26
-boom/pod style → GEN_SHAPES family is the FIRST queued increment).
+boxRear/cargo, fuel (litres+tank), material, systems, paint, place.*,
+tail.* (AUTO by the game's volume coefficients — the measured tailArm
+and postGap feed the stations, the surfaces size themselves), prop
+(auto from the registry row), fuse.shape (the G26 boom/pod style →
+GEN_SHAPES family is the FIRST queued increment). noseGap and cab.len
+moved to MEASURED in G52.
 
 **COSMETIC — declared set dressing (ruling 3's honest boundary)**
 cage curvature, creases, windows, canopy, interior, seats/dummy dress,
@@ -10557,7 +10563,659 @@ STILL AUTO). Overlay verified live. NEXT unchanged: pillar-ring
 proportions with the user, then C5; length-aware k gets the gear
 class first when it comes.
 
+## G52 — THE FIT REPORT, THE PILLAR PROPORTIONS, AND THE WING'S
+## STATION (2026-08-28, user's overlay screenshots: "the visual fit
+## remains very approximate, I think we can do better")
+
+**THE FIT REPORT.** Numbers, not squints: every build & fly prints a
+console.table comparing frame vs visual, and CAGE_JOIN.fitReport(spec,
+vis) exposes it. A misfit is a ROW now.
+
+THE DATUM, which the first cut got wrong and which is the whole trick:
+the pose puts the visual at **cg + off**, while the frame's nodes are
+LATTICE coordinates (x = 0 at the firewall) — so a visual vertex
+reaches the lattice datum by **+ off + cg0**, not by + off alone. The
+first report omitted cg0 and read a metre of misfit that was not
+there. With gear.x measured, off[0] reduces algebraically to
+zFw − cg0[0], so the sum is exactly "x aft of the firewall" for every
+vertex.
+
+WHAT COMPARES HONESTLY: the WING. The fuselage's extremes are
+different PARTS on the two sides — the frame's forward-most node is an
+engine MOUNT, the visual's is a SPINNER TIP — so those rows are
+labelled as extents and read as trends, never as errors. The outboard
+band (|z| > 55% semispan) is wing and nothing else, so its LE and TE
+compare exactly, sweep and taper included.
+
+MEASURED LIVE (default build, after the G52 measurements):
+```
+semispan            frame 5.00  visual 5.00  delta  0.00
+wing LE @ outboard  frame 0.47  visual 0.47  delta  0.00
+wing TE @ outboard  frame 2.07  visual 2.07  delta  0.00
+extent aft          frame 5.31  visual 5.35  delta +0.04   (rudder TE past the post)
+top y               frame 2.03  visual 1.91  delta −0.12   (fin SHAPE is declared cosmetic)
+extent fwd          frame −0.48 visual −1.09 delta −0.61   (spinner ahead of the mount node)
+```
+The wing — the part that actually makes lift, and the part whose
+misplacement the user could see in the overlay — is now EXACT. The
+two remaining deltas are both declared: the v1 cosmetic tail shape,
+and the prop/spinner having no node to be measured against.
+
+**PILLAR PROPORTIONS MEASURED** (the mid-body offset in the
+screenshots): noseGap = firewall → pilCabB, cab.len = pilCabB →
+pilPaxA, postGap = tailPost → aft skin extreme (clamp floor 0.35
+declares the cap gap; hX/vX then land ~0.25-0.32 aft of the last
+station instead of 0.47-0.60 — the flown stab/fin sit at the built
+tail). Existing clamped fields, the G49 pattern verbatim.
+
+**THE WING'S STATION MEASURED.** The wing layer anchors the front
+spar on the cage's `ring` station (+ panel dx); xLE = that station
+− sparFront × chord. Measured on the default template at 0.64 scale:
+xLE 0.28 vs the noseGap-derived 0.71 — the visual wing sat 0.43 m
+FORWARD of the flown one, which is a chunk of the screenshots'
+misfit. THE CONSEQUENCE IS STABILITY: static margin fell 0.18 →
+0.03 in the same measurement (npX 1.06, cgX 1.01) — the join is now
+honest enough that WHERE YOU PUT THE WING decides whether the
+aeroplane is flyable, and the shakedown's SM row is the instrument
+that says so. (This may well be part of "does not fly anymore" once
+re-exported: a forward-anchored wing on a short-coupled design is
+genuinely marginal. That is the game working.)
+
+**THE MAINS STATION MEASURED — and the calibration collapses.** The
+first live fit report showed every x row shifted −0.6..−1.4 m: the
+wheels-to-axles calibration was absorbing the difference between the
+CG/rake rule's axle station and the BUILT wheels' station, sliding
+the whole visual until wheels met axles. With gear.x measured
+(firewall − mean mains contact z), off[0] reduces ALGEBRAICALLY to
+zFw − cg0[0] — the visual's x-mapping becomes firewall-EXACT for
+every part, not just the wheels. The CG/rake anti-noseover placement
+is bypassed by the measurement, deliberately: the wheels go where
+the built aeroplane's wheels are and the shakedown's noseOver row
+posts the consequence (same honesty trade as xLE/staticMargin).
+gear.y stays the prop-clearance rule's (G51's lesson holds).
+
+Also measured on the way: the default plane's semispan matched
+EXACTLY (frame 5.00 / visual 5.00) — the user's top-view tip
+overshoot is design-specific, their own fit report will name it.
+
+wings[0].xLE got a clampSpec bound ([-0.20, 3.00], nullable);
+gear.x got [-0.50, 3.00]. JOIN: OK with the G52 rows asserted on
+the RESOLVED spec (len and xLE auto flags checked).
+
+## G53 — THE RIDE HEIGHT IS MEASURED, AND THE MAINS GET THEIR
+## SNAP-BLOCKER (2026-08-28, user's overlay screenshots: "the whole
+## thing is 30 cm too high, wings included" / "5 cm delta on the
+## wheels" / "the nose does not coincide")
+
+**THE 30 cm, measured:** the built cage carries its keel 0.316 m
+above the mains axle; the frame carried its belly 0.680 m above its
+axle — because gear.y sat on the legDrop DEFAULT (yBoundBy said so)
+and had never looked at the built gear. Wheels-to-axles alignment
+then floats the whole frame 0.364 m high, wings included. The nose
+row was the same error (the built thrustline measured within 1.4 cm
+of the derived engY); the 5 cm wheel delta is real suspension
+compression (~4 cm under weight) against a rigidly-posed visual —
+the G47.2 articulation gap, shrunk by the honest ride height.
+
+**G51'S DIAGNOSIS WAS WRONG, twice.** It blamed a measured-low axle
+on "long soft levers of the class-k gear members" and left gear.y
+derived. Measured properly: the axle moved 0.62 m UPWARD at 0.28%
+member strain while the aeroplane settled onto its BELLY — a
+RULE-10 SNAP-THROUGH, not sag. All six of the mains' members land
+on BELLY nodes, one near-horizontal plane the axle can reflect
+straight through; and it was the DERIVED depth that had been hiding
+the mechanism (a deep leg needs 37% member compression to reach the
+mirror position; the built 0.32 m stance needs 13% and flips on the
+first bounce). The steep-leg re-anchor hypothesis was ALSO tested
+and falsified — the fold happens at every axle station.
+
+**THE CURE the tailwheel has had since G4.6:** a near-vertical
+INTERNAL snap-blocking member. The mains get theirs — AXLE to the
+straddling ring's TOP corner, both sides (61_gen_frame.js, gear
+section), which is also what a bungee-sprung light aeroplane
+actually has. Verified live A/B: without, belly-rest at wheels-in-
+the-air; with, all three wheels within 2 cm of ground.
+
+**gear.y is then MEASURED** (mains axle in the keel datum, clamp
+[-0.90, 0.90]) — the G51 assertion "gear.y stays DERIVED" inverted
+to "= measured, not auto". Prop clearance is no longer guaranteed
+by derivation; the shakedown's propClear row posts what the built
+stance leaves under the registry prop (measured: 0.05 m on the
+default build). Wheel rows re-gated to what each needs (a ROD boom
+has no tail rings but its wheels deserve measuring: datum = AF
+keel, only twX needs the firewall anchor).
+
+**VERIFIED END-TO-END** in the live game: export → gear.y −0.316
+(not auto) → frame belly 0.296 vs cage keel 0.316 above the axle —
+HEIGHT ERROR 0.02 m (belly longeron vs outer skin, honest). On
+wheels, no fold, susShift 0.08, deck angle 9.65° = the built
+stance. The same honesty now posts TORun 500 / flyableCircuit
+false on the heavier, real-stance, SM-0.03 default — THE PLAQUE
+(shakedown at build & fly) is the next urgent piece so the builder
+sees Vs/SM/TORun before the runway does. FULL BATTERY (--all, 31
+gates): PASS. NOT COMMITTED —
+a concurrent session works the props arc in the same tree;
+committing waits for the user.
+
 ## G50 — THE HANGAR GETS REAL FURNITURE (2026-08-28, the prop
+## G51 — THE SHED IS FURNISHED (2026-08-28, the second prop batch and
+## G52 — THE WINDOWS ARE CUT, AND THE KIT FOLLOWS THE AEROPLANE
+## G54 — THE SHED IS A PARAMETER, AND THERE IS WORK IN IT
+## G55 — THE WORK IS REAL WORK (2026-08-29, the user's list off the
+## G56 — CONTACT SHADOW, THE SUN OUT OF THE SKY, AND WELDED CAGES
+## G57 — THE SSAO REBUILT, AND THE WING TURNED ROUND (2026-08-29)
+
+THE FIRST SSAO WAS A WASH and the user was right to call it. Three
+things made it one, all three now fixed:
+  1  HALF RESOLUTION with a plain 3x3 box blur — six full-res pixels of
+     smear, which is a soft darkening everywhere rather than a line
+     where two surfaces meet. Full res now.
+  2  NORMALS FROM dFdx/dFdy. Those are per-2x2-quad, so the normal is
+     blocky and wildly wrong on any silhouette and every edge bled
+     occlusion into the air beside it. Now the 5-TAP RECONSTRUCTION:
+     sample both neighbours on each axis, keep the CLOSER one, so the
+     basis is built from points on the same surface as the centre.
+  3  A 0.34 m RADIUS WITH NO FALL-OFF. That is a room-scale ambient
+     term, not a contact shadow. 0.20 m and a power curve (1.7), so
+     only what is genuinely tucked into a corner goes dark.
+And the blur is BILATERAL now, separable, weighted by depth difference:
+a blur that does not know where the surfaces are is precisely what
+turns ambient occlusion into haze. Four draws instead of three.
+MEASURED, because "it looks better" is not a verdict: two OFF frames
+one after the other differ by 0.37 mean (the camera is settled), the
+best shift match between OFF and ON is dx=0 dy=0 (no reprojection
+error), and the frame mean goes 116.3 -> 110.0. Aligned, structured,
+only darkening.
+
+ANISOTROPY WAS 4 (user: "harsh blurring of the wing texture on low
+incidence angle"). At a grazing angle one pixel's footprint is long and
+thin, mip selection takes the LONG axis, and the texture goes to mush —
+which is the wing's normal condition, since it lies nearly edge-on for
+most of a walk round it. app.js now publishes window.FLYDIY_ANISO =
+capabilities.getMaxAnisotropy() (16 here) and props.js, workshop.js,
+hangar.js and the aircraft loader all ask it instead of carrying 4 or
+8. SIDE EFFECT WORTH KNOWING: the floor's own detail is no longer
+mushed away either, so the slab reads considerably harder than it did.
+The dial is already in the editor — hangar > ground > normal x.
+THE GATE CAUGHT THE GUARD: the headless smoke harness stubs THREE, so
+`renderer.capabilities` is not there and reaching through it threw at
+module eval. ASK, do not assume — the rule this room already lives by.
+
+THE STANDS ARE TURNED A QUARTER (user) and EACH IS AS LONG AS THE PIECE
+IS HIGH ABOVE IT. A wing has dihedral, so its underside climbs toward
+the tips and a row of equal trestles leaves the outer two in the air.
+wsOnStands now rays the piece downward at each stand's station, takes
+the lowest surface there, and scales the trestle to reach it —
+measured, so it follows any dihedral the spec asks for. Measured on the
+default wing: outer stands 1.228, inner 1.060.
+
+THE WING HAS FLAPS CUT IN (the spec asks for `flap: 'plain'`, and they
+are their own group, so the cut-out in the covering comes free) and is
+turned 180 degrees so the LEADING EDGE is the side you walk past.
+
+## G58 — THE FLOOR SHADOW IS BAKED (2026-08-29, the user's projection
+## G59 — TWO WOODS IN THE WALL LIBRARY, AND THE AEROPLANE'S OWN PRINT
+## G60 — THE SSAO IS REMOVED, AND EVERY LAMP CASTS (2026-08-29)
+
+Deleted outright, not disabled — src/viewer/ssao.js is gone, with its
+manifest row, its render branch, its GARAGE_ENV handles, its prefs and
+its editor row. The room renders the way it did before G56. The G58
+GROUND SHADOW BAKE and the G59 craft print STAY: they are what actually
+grounded the furniture and the aeroplane, they are baked rather than
+per-frame, and they are the reason the SSAO had nothing left to earn.
+The G57 write-up keeps the record of what a screen-space pass needs to
+not be a wash (full res, 5-tap normals, bilateral blur), should one
+ever come back on a renderer that vendors its own.
+
+EVERY LAMP CASTS NOW (user: "just fix the shadowless lamps"). Four of
+the six were PointLights with no shadow map — their light went straight
+through everything, which is the other half of why the room read flat
+and why the G58 floor bake had to carry the whole grounding job alone.
+All six are the same fitting the G42 centre pair proved out: SpotLight,
+castShadow, a 1024 map, near 1 / far 30, normalBias 0.03. The centre
+pair keeps its G42 aim at the stand; the outer four aim into their own
+bay at z * 0.75, tipped toward the aisle the way a hung shade throws.
+Cost: four more 1024 maps, 12.3 ms a hand-pumped frame in the furnished
+shed with the aeroplane in it. Verified in AFTERNOON and in GOLDEN —
+the tool cart, the drum, the stove and every trestle throw a lamp
+shadow that was simply absent before.
+
+## G61 — THE SPEC-GLOSS ALPHA TRAP (2026-08-29, user: "the trestles are
+## hyper shiny, there should be a conversion issue")
+
+THERE WAS, AND IT WAS MINE. glTF's spec-gloss keeps GLOSSINESS IN THE
+ALPHA of specularGlossinessTexture. The converter read it as
+`si.convert('RGBA').split()[3]` — and convert('RGBA') on a texture that
+HAS no alpha SYNTHESISES 255. The trestle's map is an L-mode PNG, so
+alpha came out 255 everywhere, inverted to 0, and the whole arm map's
+G channel was a constant zero. The fold then did what it is supposed to
+do with a constant channel — `rough = rough * mean(G)` = 1.0 * 0.0 —
+and the material baked at ROUGHNESS 0, which under a reflection probe
+is a mirror. The user saw chrome sawhorses.
+
+THE FIX, three layers deep because a silent conversion error is the
+kind that comes back:
+  1  BELIEVE THE ALPHA ONLY IF IT IS REAL. mode in RGBA/LA/PA *and* a
+     minimum below 255. Otherwise the material's own glossinessFactor
+     is the honest answer and no map is written — which is right for
+     this class of asset anyway: an exporter that dropped the alpha was
+     not storing glossiness in it. The baker logs the line.
+  2  A CLAMP IN THE BAKER: roughness under 0.04 with no map to vary it
+     is a conversion accident, not an authored look. Logged and clamped
+     to 0.4.
+  3  GATE PROPS ASSERTS IT: `!blend && rough < 0.04 && !arm` fails.
+     Glass is exempt — it is transparent and meant to be sharp.
+NEGATIVE-VERIFIED: the rule fired on the old trestle record, and left a
+glass pane and a roughness-mapped material alone.
+
+The trestle now bakes at rough 1.0 / metal 0 / no arm map, which is
+what glossinessFactor 0.0 and specularFactor [0,0,0] were saying all
+along. Every other spec-gloss asset in the table (the carpet, the
+cardboard box) was re-checked by the same bake and is unchanged.
+
+## (2026-08-29)
+
+THE WOODS: brown_planks_09 ('brown planks') and raw_plank_wall ('raw
+plank wall'), Poly Haven CC0, into the part-system library the same way
+as every set before them — assets/hangar_walls/<key>/ holding the
+library's own contract (diff_1k.jpg / nor_gl_1k.png / rough_1k.jpg),
+two rows in wall_tex_prep.js's SETS. The import step does the
+unpacking, so the prep file stays one recipe: brown_planks ships a
+plain rough map, raw_plank_wall packs it as arm's G channel, and both
+were written out as plain rough at import. hangar_walls.js 21.3 ->
+25.9 MB; index.html 60.9 -> 65.7 MB. The G40 note still stands: these
+are working options, and the unused sets get deleted once walls are
+chosen.
+
+THE AEROPLANE'S PRINT (the user's counter-proposal, verbatim: "a
+smaller sprite just for the plane, dynamically"). The furniture bake
+deliberately leaves the craft out — it changes with every slider, and
+re-baking the room per drag is the wrong trade. CS is the same recipe
+end to end (under-floor ortho, lowest-surface depth, pow 1.6, one blur
+pair) but the camera and the quad are sized to the CRAFT's own Box3
+plus 0.9 m of penumbra margin, the target is 256^2, and it re-bakes in
+applyEnv — which IS the slider path (apply -> enterGarage -> applyEnv),
+and also where the mobile kit already re-bakes. Layer 4, so the room
+bake (layer 3) never sees the plane and this one never sees the room.
+The quad rides at y 0.016, above the furniture quad, so the two never
+z-fight where the kit's print runs under a wing. One dial drives both:
+the editor's `floor shadow` row sets both quads' opacity.
+
+MEASURED: 0.3 ms warm (1.3 first), against the ~340 ms a spec apply
+already spends in buildGen + genSkin + the texture bakes. The sliders
+cannot feel it.
+
+THE BUG THE FIRST CUT HAD, for the pattern's sake: CS was declared
+inside the bake's own block, and the return object references CS.bake —
+block-scoped, so the ROOM WOULD HAVE DIED at return with a
+ReferenceError and fallen back to the studio. node --check does not
+catch scoping; the probe run does. Declare next to GS, where the
+return can see it.
+
+## idea, generalised)
+
+THE DIAGNOSIS WAS THE USER'S: the car and the drawing table floated
+because four of the six lamps are PointLights with no shadow map (their
+light goes straight through everything), and SSAO's 0.2 m radius cannot
+see an occluder the size of a car. The floor itself was never the
+problem — it has receiveShadow and shows the window patches.
+
+THE FIX IS THEIR PROJECTION IDEA DONE ROOM-WIDE. One orthographic
+camera UNDER the floor looking up renders every piece of furniture with
+a MeshDepthMaterial: each texel records the height of the LOWEST
+surface above it, which is exactly what a contact shadow depends on.
+FROM BELOW, not above — from above a table prints by its lid; from
+below the legs print hard little feet, the tabletop prints a soft pool,
+and the car cover whose skirt nearly touches the ground prints
+near-black. The camera's far plane at 2.6 m IS the "truncated to the
+bottom": pendant lamps and roof never print. BasicDepthPacking writes
+1 - fragCoordZ and an ortho camera's depth is LINEAR, so the sample is
+(1 - h/CUT) with no unpacking at all. A pow(1.6) shaping, two
+separable gaussian pass-pairs (~40 cm penumbra — one pair left a 20 cm
+fringe that vanished under the object's own sides), and the result is
+one black quad on the slab with the bake as its alphaMap. Four draws at
+1024^2 per BAKE — on room build and on mobile-kit move, not per frame.
+
+WHO PRINTS: the FURN list — prop() and the workshop place() push, the
+four drawn fittings are wrapped at their call sites. The BUILDING is
+not in it (a floor that occludes itself is a black floor), and neither
+is the aeroplane, which has real spot shadows. Baked at layer 3 with
+scene.overrideMaterial; fog:false on the overlay or the room fog tints
+the darkening grey.
+
+VERIFIED BY READING THE TEXTURE BACK, not by eye:
+readRenderTargetPixels at the car's uv = 215/255, its ring at
++-1.5 m = ~190, the table = 125, open floor = 4, and the MIRROR
+positions = 1 — the map is aligned and empty where it should be. The
+chase that led there is worth keeping: the prints LOOKED displaced in
+oblique screenshots, and the numbers said dx=dy=0 — it was PARALLAX
+(a 1.4 m sack truck's handle projects sideways; its print sits at its
+base). Trust the pixel read, not the glance. Editor row: hangar >
+floor shadow (0-1); GARAGE_ENV._debug()/_gs are the dev handles this
+debugging earned.
+
+ALSO LEARNED, for future probe sessions: once the Browser pane goes
+hidden, canvas.setPointerCapture starts failing and the orbit-by-
+PointerEvent trick dies mid-session. Rendering a throwaway camera
+directly (renderer.render(scene, cam) + same-task drawImage) still
+works, and needs no input at all.
+
+## (2026-08-29)
+
+SSAO, WRITTEN HERE (src/viewer/ssao.js). A shadow map over a 28 m shed
+is ~1.4 cm a texel and cannot draw where a jerrycan meets the floor;
+that is ambient occlusion's job. three's SSAOPass lives in examples/,
+and vendor/three.min.js is the CORE build pinned at r128 — so rather
+than vendor four example files this is a self-contained pass out of
+what the core already has: a colour target owning a DepthTexture, a
+full-screen quad, two ShaderMaterials. Three draws: scene -> beauty,
+depth -> occlusion at half res, colour x blur(occlusion) -> screen.
+Normals come from the depth by derivative (no second geometry pass),
+which needs WebGL2 or OES_standard_derivatives; without it the pass
+returns null and the loop renders exactly as before. GARAGE ONLY.
+THE ENCODING TRAP, in its post-processing form (the W18 one again):
+anything drawn into an offscreen target owes that target its encoding.
+The beauty target is declared sRGB so three encodes into it as it would
+to the screen, and the composite is a RAW ShaderMaterial, which three
+does not run <encodings_fragment> on, so what it writes goes out
+untouched. Either half wrong and the room is washed pale or twice dark.
+
+THE SUN COMES OUT OF THE SKY IMAGE. sunFromSky() reads the brightest
+patch of the equirect's upper hemisphere on a 128x64 canvas, converts
+(u, v) back to a direction, UNDOES the backdrop sphere's own scale.x =
+-1 and rotation.y = PI/2, and the key light is stood off along it. The
+shadows on the floor now agree with the daylight in the windows above
+them. Guarded at every step — no payload, no canvas, an undecoded
+image: any of them and the authored direction stands.
+
+THE ROOF PANE WAS OPAQUE, which is why the sky was not visible through
+the roof lights: the mesh was never removed and the hole is genuinely
+cut (G55), but M.skyPanel was an emissive SOLID, so the opening was
+filled by a glowing sheet. Transparent at 0.30 with depthWrite off, the
+emissive kept as the milky wash a diffusing rooflight really has.
+
+THE CAGES ARE WELDED TUBE (wsTubeCage). The generator's frame mesh is
+8-sided with members that simply intersect — right at aeroplane
+distance, wrong at two metres, where every facet and every unmitred end
+shows. The cage is re-lofted at workshop resolution: 12-sided tube and
+a sphere at every node 1.35x the fattest tube on it, which swallows the
+ends of everything meeting there. That is the rounded corner. NOTE the
+distinction that matters: drawing def.beams AS STICKS is what looked
+like a physics debug view (G55); the beam list is still the only place
+a joint is described, and used as a SKELETON it is correct. Wood gets a
+fatter radius on fewer sides, because spruce is eased, not turned.
+Cost: frame 4 340 -> 12 312 tris.
+
+THE STANDS ARE A PROP. work_trestle (Cavalete de obra, Gato_Ze,
+CC-BY-4.0) at 336 tris, and the height a piece rests at is the prop's
+own measured top (0.827 m) handed in by the room — not a number two
+files agreed on. GATE PROPS caught the row going in: its label used
+double quotes for an apostrophe and the table parser expects single, so
+the prop baked and the gate said 40 vs 39. The parser is the contract.
+
+## furnished shed)
+
+THE STRUCTURE CAME OUT OF THE WRONG THING. G54's frame and hull were
+drawn from `def.beams` — the PHYSICS CAGE, a stick model of where the
+loads go. Drawn as tubes it looks like a physics debug view, which is
+what it is. genSkin has a `frame` GROUP: the generator's own structure
+MESH, with real section and real joints, and that is what an airframe
+on trestles looks like. All four pieces now come out of the mesh
+groups, and everything a piece must NOT have is simply a group that is
+never asked for — wheels (tyre/wheelhub/gearmetal), seats (seat/
+sframe/belt), crew (dumm/dumj/dumk), dash, cowl, engine.
+
+THE BANDS ARE MEASURED off the MESH, not read from the spec: the spec's
+wing chord is 1.6 and the mesh's wing is a metre across, because they
+are different quantities in different frames. wsWingBand finds the wing
+by looking outboard of any tail surface (past 55% of the half-span only
+the wing exists) and reading its chord and height straight off the
+vertices. The body is the `frame` group inside the resolved cabin's own
+halfW, above the undercarriage and aft of the firewall.
+
+THE FOUR PIECES: the WHOLE wing (both panels and the centre section,
+which is what comes off the jig in one piece) with the ailerons and
+flaps left off; the welded tube fuselage; the WOODEN CABIN, the same
+extraction with fuselage.material = 'wood' — the generator answers with
+spruce box section — cut at the back of the cabin; and an A65 out of
+the registry on a bench, `engine` group alone.
+
+THE STANDS WERE PLACED WRONG and the user caught it. They sat at
+fractions of the span EITHER SIDE OF THE ORIGIN — and a piece is not
+centred on its origin: a fuselage runs 0 to 5 m aft, so both trestles
+ended up under its nose. wsOnStands now measures the piece and puts n
+stands evenly along ITS OWN footprint, on its own centre-line. A
+trestle's TOP SURFACE is at exactly `h` too; it used to measure to the
+top slab's centre, so every piece stood 7 cm inside its own stands.
+
+THE ROOF LIGHTS ARE HOLES NOW, which is the same fix the side glazing
+had at G52 and was missed here: one quad per slope with four glowing
+panels laid on it is a picture of a rooflight. The slope is emitted as
+a grid with the openings missing, each carrying a semi-transparent pane
+a hair below the deck plane, a kerb round all four edges and two
+glazing bars across. Everything on that slope — deck, opening, pane,
+kerb — goes through ONE slopeP(s, x, t), so a rooflight cannot end up
+in a different plane from the hole it is in.
+
+THE CAMERA IS BOUND TO THE ROOM. Outside the garage nothing changes; in
+it the eye is clamped inside the shell, 0.55 m off the sheeting and
+under the eaves, against the LIVE dims. It is a clamp, not a collision:
+the orbit still goes all the way round, it just slides along the wall.
+
+LAMPS: the four pendants that hung over the benches at eaves height
+with nothing above them are gone (a lamp needs a rod), and the six that
+DO hang from a rod got a filament — an emissive sphere at the light's
+own position, dimmed with the moods, because the fitting read as a cold
+shell with light arriving from an invisible point.
+
+## (2026-08-28, the user: "the hangar is a tad too big" + "populated
+## with parts of planes being worked")
+
+THE DIMENSIONS ARE ARGUMENTS NOW. genHangarBuild(THREE, dims) takes
+HW / HD / EAVE; RIDGE follows the eaves unless given, and DOOR_W and
+DOOR_H follow the width and the eaves, because a door that no longer
+fits its own gable is not a door. The whole room was always this one
+function, so a new size is simply a second call — there is no in-place
+resize and there should not be, since half the room is DERIVED from the
+numbers (roof slope, door leaves, glazing bays, where every fitting
+stands).
+
+FX / FZ ARE THE TRICK that made it cheap. The layout was composed
+against the authored shed — HD 13, HW 18 — so every ABSOLUTE coordinate
+in the placement goes through `FX = v => v * HD / 13` and its z twin,
+and anything written against a WALL (HW - 1.05) is left alone because
+that is a real clearance: the bench stands a metre off the wall in any
+shed. 75 wrapped coordinates, applied by a script, not by hand.
+
+THE DEFAULT CHANGED: 36 x 26 m and 8.4 m to the eaves became 28 x 20
+and 7.0. The room was drawn for a DC-3's 29 m span and this game's
+generator CLAMPS A WING TO 14 M — the old shed put the aeroplane in the
+middle of a field. Sliders in the editor's hangar section (width,
+depth, eaves, in FULL metres) drive it live, committing on release
+because a drag is a rebuild; the envelope is 14-48 m wide, 12-40 deep,
+4.2-11 to the eaves, and the whole thing persists as one pref.
+
+THE ONE THING A REBUILD MUST NOT DISPOSE is the prop library. propBuild
+caches ONE geometry and ONE material per prop and hands out Meshes over
+them, so disposing a prop mesh's geometry takes out every future
+instance of that prop as well. props.js marks them `userData.sharedGeo`
+and disposeHangar() skips exactly those; everything else is the room's
+own and is disposed, or a few slider drags leak a shed each.
+
+WORK IN PROGRESS, FROM THE GENERATOR (src/viewer/workshop.js). Three
+pieces, and they are NOT baked props — they are the same buildGen ->
+genSkin pipeline the flying aeroplane comes out of, run on canned specs
+and shown in part:
+  wing   the starboard panel on trestles, cut out of the `skin` group
+  frame  the welded tube fuselage, `def.beams` with cls 'fus' as tubes
+  hull   the same lattice in spruce (square section: a wooden fuselage
+         is a box of longerons, not a welded tube frame) plus the gear
+         members and the generated wheels, standing on its own feet
+The point of doing it this way rather than modelling three more props
+is that when the generator learns a new tip shape or a better truss,
+the aeroplanes half-built on the floor learn it too, for free. Cost:
+~11 k triangles, built at first garage entry, zero payload.
+
+TWO BUGS THIS COST, both found by MEASURING the pieces rather than
+looking at them:
+  1. computeBoundingBox() READS THE POSITION ATTRIBUTE and knows
+     nothing about the index. The first cut kept the original arrays
+     and just wrote a shorter index — so a wing panel still reported
+     the whole aeroplane's box, and everything that grounded or centred
+     it did so against a box four times too big: the panel ended up
+     beside its trestles with a slice of fuselage on them. wsGeo now
+     COMPACTS, rebuilding position and uv from the referenced vertices.
+  2. A WING PANEL IS A TWO-AXIS CUT. Outboard of the root takes the
+     wing — and the starboard TAILPLANE with it, because the stab spans
+     z too and sits at x 5.4 while the wing sits at 0.4. The aft bound
+     comes from the RESOLVED spec's own xLE + chord, which is the
+     generator's answer to "where is the wing" rather than a guess.
+     Measured after: 5.43 x 1.03 x 1.26 m including its trestles, which
+     is a wing panel; before, 8.4 x 2.35 x 5.2, which is not.
+
+## (2026-08-28, the user's list after walking round the furnished shed)
+
+SIX ITEMS, ALL FROM LOOKING AT IT.
+
+1. THE GROUPED CARDBOARD IS DISMISSED. cardboard_box_set-_low_poly is
+   110 triangles for a whole group of boxes, which buys no lids and no
+   thickness: from anywhere but dead ahead it reads as flat card
+   standing on the floor. box_cardboard (the Poly Haven scan) and the
+   three crates take its place in the corner and on the shelves, and
+   they stack. 40 props -> 39.
+
+2. THE REST OF THE DRAWN FITTINGS ARE GONE: engineStand, wingJig,
+   leaningProp and jackStand deleted, and the three alloy sheets that
+   leaned on the end of stockRack with them (the "big grey thing next
+   to the planks stand"). What is left drawn is what the user kept —
+   the rolling work platform, the stock rack and the drawing board.
+
+3. THE DRAWING BOARD'S FEET. The top is tilted 0.22 rad about x and all
+   four legs were one height, so the raised side stood 18 cm clear of
+   the board it holds up. Each leg is now as long as the board is high
+   above IT: h = 0.95 + sz * 0.42 * sin(TILT) - 0.026.
+
+4. THE SHOP LAMPS ARE PROPS. The drawn cone-and-bulb is gone; six
+   lamp_pendant hang in its place. The LIGHT stays drawn (a light is
+   not a model) and so does the drop rod, because the prop's own chain
+   is 1.36 m and the roof over the lamp rows is at 9.9 m — roofY(z)
+   already existed for the slope, and is reused rather than
+   re-derived. Careful: the local `top` in that loop is the ROOF
+   height and there is a DirectionalLight called `top` in scope.
+
+5. THE WINDOWS ARE ACTUALLY CUT (user: "can we properly cut into the
+   hangar for the windows? Especially now that we have a proper
+   HDRI"). The INNER skin was already three bands with the 3.2-5.2 m
+   glazing band left open — but the OUTER skin was ONE slab from the
+   ground to the eaves standing 16 cm outboard of it, so every window
+   in the room looked at sheet steel and the sky was nowhere in it.
+   The outer skin is now the same three bands plus a 0.25 m strip on
+   each of the ten mullion lines (the ends carry the skin's 0.2 m
+   overhang too), so the panes are the only thing left open. The gable
+   window got the same treatment: it was a pane laid on the inside of a
+   solid back wall, and the wall is now four mboxes round the opening.
+   The alps_field sphere is what you see through both.
+
+6. THE MOBILE KIT (user: "a couple of light mobile assets ... closer to
+   the plane ... its placement dependent on the plane model, so it
+   always stays close without ever overlapping"). Six props —
+   cart_tool + toolbox_open + toolchest_metal to starboard, stepladder
+   to port, handtruck + jerrycan at the nose — in their own group,
+   re-placed from the AEROPLANE'S OWN Box3 every time applyEnv runs,
+   which is the one door every way into the room goes through. They sit
+   on a 1.15 m clearance ring outside the box and are clamped to
+   HW - 2.2 so they never leave the shed. Measured: span 6 -> +-4.42,
+   span 10 -> +-6.17, span 17 (clamped by the envelope to 14) -> +-8.17,
+   clearance exactly 1.15 either side at every span.
+   THE BUG THAT CHECK FOUND, and it would never have shown in a
+   screenshot of one aeroplane: `lim(v, m)` takes a MAGNITUDE, and the
+   port side was passing -(HW - 2.2), so max(-m, ...) returned +15.8
+   and put the ladder, the sack truck and the jerrycan against the far
+   wall on the WRONG SIDE. Numbers, not pictures, caught it.
+
+7. REFLECTIONS FROM THE HDRI, as a new option (user: "can we get
+   lighting from HDRI? Try that as a new option"). scene.environment is
+   still baked from the room's own cube pass by default — that is the
+   difference between "lit" and "in a room" — but the editor's hangar
+   section now offers `the sky (HDRI)`, which PMREMs the alps_field
+   equirect straight in. Now that the windows are really cut, the sky
+   is what is really outside them, so it is the honest outdoor answer:
+   visibly cooler and more directional on the upper surfaces. The bake
+   moved out of getHangar into bakeHangarEnv() so it can be re-run; the
+   equirect is a data-URI image and decode is asynchronous, so a 'sky'
+   bake asked for before it lands falls back to the room and re-bakes
+   on load. Also new on the same panel: a mobile-kit checkbox, because
+   the kit is the room's only clutter standing in the OPEN floor and
+   that is exactly what is in the way when the question is the shape.
+
+MEASURED: 39 props, 544 690 tris, 25.45 MB of payload; index.html 60.7 MB.
+
+## the hangar swap)
+
+ELEVEN MORE ASSETS, AND THE DRAWN FITTINGS RETIRED. The batch was
+bought to replace the primitives rather than to sit beside them, and
+it does: hangar.js no longer draws bench(), pegboard(), shelving(),
+toolChest(), drum(), tyreStack(), bottleRack(), stepladder() or
+partsTrolley() — those functions are gone, with M.peg / M.leather /
+M.rug and the pegboard canvas sheet gone with them. stoveCorner()
+survives as a shell around stove_masonry, because the flue is the one
+part that cannot be a prop: it is a DOMESTIC heater with a 2.4 m stub
+and this shed is 8.4 m to the eaves, so the pipe is still drawn on up
+through the roof. What stays drawn is what has no prop — the engine
+stand, the wing jig, the leaning propeller, the drawing board, the
+work platforms, the stock rack and the jack stands.
+
+THE BRIDGE is `prop(key, x, z, ry, y)` in hangar.js: it ASKS whether
+the library is there (`PROPS_OK`) exactly as the room asks THREE
+whether it can be built at all, so a build without the packs still
+stands — it is just an emptier shed. The moods reach the props through
+propSetEnv (r128 has no scene.environmentIntensity; ENV0 only captured
+the materials that existed when it ran).
+
+MEASURED SURFACES, NOT GUESSED ONES. Everything that stands on
+something was placed on a height read off the prop's own decoded
+geometry — upward-facing triangle area binned by height, in the page:
+bench 0.96, desk 0.78, table 0.68, cart_tool 0.90, cart_storage 1.28,
+crate 0.41, drum 0.90, and rack_steel's four shelves at 0.44 / 0.92 /
+1.42 / 1.90. A mug 3 cm above a bench top is the one mistake that
+makes a whole room look wrong, and eyeballing it in a browser you
+cannot screenshot is not a method.
+
+THE FRINGE (the batch's real find). signed_persian_qum_carpet.glb is
+631 556 triangles — 1.76x the entire library at that point — and
+630 456 of them are the two 3 cm FRINGES at the ends of the rug,
+modelled thread by thread, in a flat beige with no texture on them at
+all. The carpet itself is the other 1 100 triangles and carries the
+whole pattern. Found by rendering the file SPLIT BY MATERIAL rather
+than by trusting the totals; `mats: ['material']` then keeps the
+carpet primitive whole and simply never instantiates the fringe
+primitive — the same selection that makes two bins out of one file,
+not a cut. rug_persian costs 18 KB. It is also placed 4 mm off the
+slab: the bake put its underside on y = 0 and so is the floor, and two
+coplanar double-sided faces are a z-fight, not a rug.
+
+TWO OTHER TRAPS THE BATCH PAID FOR. tool_cart.glb arrives in INCHES
+(41 x 35 x 23 units) and carries decorative `edge_color...` materials
+that own no triangles at all — the baker now skips an empty material
+instead of dying in min() on an empty vertex list. And GATE PROPS
+caught its own bug honestly: the uint16 index limit is PER PART, not
+per prop, and cart_tool_cab holds 70 012 verts across nine parts of at
+most 19 503 each.
+
+LOADED SHELVES. Bare shelving reads as a showroom. loadedRack() fills
+the measured shelves from a stock list, seeded, and the stock list is
+what FITS: boxes_cardboard (1.54 m wide) and toolbox_open (0.77) were
+tried and dropped — on a 0.92 x 0.60 shelf they hung off both ends and
+read as a landslide.
+
+MEASURED: 40 props (29 + 11), 544 800 tris, 77 parts, 192 textures,
+25.65 MB of payload; index.html 54.1 -> 60.9 MB. Heaviest now
+cart_tool_cab 80 k tris / 1.8 MB (a box on wheels, ten materials) and
+compressor 79 k. Verified in the browser, hand-pumped: the room built,
+39 of the 40 props placed (stove_barrel is library-only), four
+elevations shot, and the shelf overflow and the rug z-fight were both
+FOUND that way and fixed.
+
 ## pipeline: table, baker, codec, one material, gate, bench)
 
 Twenty-nine downloaded objects became a prop LIBRARY, on the same
@@ -11274,3 +11932,440 @@ Riders: energy module (fuel burn + electric packs; refresh mass-derived contact
 arrays ~1 Hz, NOT per-substep) fits session 2 or 5. Then: gliders (atmosphere
 is the feature; winch trivial, aerotow deferred; high-AR wing = structural
 final exam).
+
+## G58 — THE JOIN IS VISUALLY EXACT, AND THE FIRST PARTS MOVE
+## (2026-08-29, physics session; in-code comment tags G54.x/G55 map
+## HERE — the props session claimed G54-G57 while this was built)
+
+The user's acceptance ("well done, this was hard, we made it") closed
+the fit arc; this entry is its ledger, then the first moving-parts
+slice.
+
+**THE BOOM PROFILE (code tag G54/G54.1).** The shape family measured
+by exponent fit was too coarse (user: "the shape is wrong. Check the
+keel") — so EVERY section is measured: nine {t,w,yb,yt} rows,
+pax-pillar → tail post, keel datum; genLattice's aft stations
+interpolate them (fuselage.profile, clampSpec-bounded rows, family
+kept as fallback). The ring AT the box end takes row 0 (code tag
+G54.3 — the pillar dip).
+
+**THE PITCH CALIBRATION (code tag G54.2) — the three-round trap.**
+poseModel aligns the visual's x-axis to the BODY AXIS (noseFrame →
+tailMid), and the measured-high boom INCLINES that axis (+3.69° on
+the default). A level-captured visual rode tail-high by exactly that:
+keel diverging aft, visual tailwheel floating 15 cm, "like the plane
+has rotated" (the user's resting-position hunch was the answer). The
+FIRST fix solved the rotation from the wheels and got exactly 0 —
+the wheels are the two points the measurements already agree on and
+CANNOT see it. The angle is the axis's own inclination, from the
+frame's refs; the snapshot pre-rotates by −φ (vis.pitch), fitReport
+un-rotates when comparing. World-verified: posed visual TW within
+5 cm of the frame's TW node (was ~15+).
+
+**THE TAIL SURFACES (code tag G54.3)** — declared cosmetic since G45,
+now measured: geometric classification (aft region; outboard = stab,
+centreline-above-deck = fin, the stab's own centre section EXCLUDED —
+a high-mounted stab's root steals the fin's top point otherwise), the
+fin apex anchored at the fin's own TOP VERTEX with vSweep 0 (the
+sweep is baked into where that point is; leaving the default sweep
+leaned the apex aft a second time, 38 cm). Areas follow span×chord —
+the flown tail volume is the BUILT tail's.
+
+**THE INSTRUMENT** that found it all: fitReport's three layers —
+IDENT (resolved spec vs cage contacts; a gating failure names
+itself), STANCE (deck angle both ways), SETTLED (real sim: wheels
+over ground, axis pitch vs stance − axis inclination — comparing raw
+axis pitch to stance is the trap that hid the rotation). Printed at
+every build & fly.
+
+**MOVING PARTS SLICE 1 (code tag G55): wheels and prop.**
+- The snapshot peels the wheels PER TRIANGLE (the gear kit bakes
+  merged per-material bags — no mesh sits near an axle): a triangle
+  whose centroid lies within 1.35 R + 5 cm of a gear contact is that
+  wheel's — tyre, hub, brake, and the fork's axle-end, which is what
+  an axle end does. The prop cannot be found geometrically (it sits
+  at the cowl face, BEHIND the cage's nose tip), so the engine layer
+  NAMES it at the source (edSpinner/edProp — G47.2's rule).
+- Each part is rebased about its pivot (axle / spinner origin),
+  pitch-calibrated like everything else. buildModel raises them as
+  their own groups: prop joins `props` (existing throttle spin law);
+  wheels become model.wheelParts.
+- poseModel rides each wheel on its AXLE NODE: position = the node's
+  live coordinates in the pose's own basis minus the pose offset —
+  SUSPENSION TRAVEL IS THE PHYSICS SHOWING THROUGH, not an animation.
+  Spin is rolling contact from the node's motion along body-x (which
+  points AFT, hence the sign; if a wheel spins backwards the sign at
+  the single `-=` in poseModel is the one-character fix).
+- Measured on the default build: parts = mainsL/R 28.7k verts each
+  (symmetric), tw 27.3k, prop 11.6k; pose loop clean.
+
+NEXT in the chantier: control surfaces (name ailR/L, flapR/L,
+rudder/elevator at their layers exactly as the engine named its prop;
+hinge tables from the join's genSkin run), tailwheel castor steer,
+leg flex visuals. NOT COMMITTED — the no-battery/no-commit order
+stands; G-NUMBERING NOTE: duplicate G51/G52 headings exist between
+the two sessions' uncommitted entries and need one renumbering pass
+at commit time.
+
+## G58.5 — THE WANDERING PROPELLER (2026-08-29, user: "the prop
+## sometimes ends up in the middle... happens when transferring
+## from/to the garage")
+
+NOT REPRODUCED on the default build: the user's recipe (reload →
+select Garage build → garage → roll out) was run verbatim, plus five
+gen↔pa18 transfer cycles, and the prop geometry AND its mesh position
+were byte-stable at the nose every time (hub [-1.44, -0.07], prop
+finalX [-1.61, -1.52], skin nose -0.89). genSkin's hub is correct
+under both a JOINED-only spec and a fully measured one.
+
+THE MECHANISM, found while hunting and killed regardless, because it
+produces EXACTLY the observed displacement: `mkGeo` WRAPS the
+payload's position array (no copy — deliberate, the rigged groups
+write through it), and the prop path does `geo.translate(-hub)`,
+which MUTATES that array. Build the same payload twice and the
+second translate doubles the offset while `mesh.position` is set to
+hub once — net **+hub AFT**, which on this build is 1.44 m: the
+cabin. mkGeo now takes an `ownPos` flag and the three prop groups
+(prop/proptip/spinner) get their own copy, so no build can corrupt
+the payload for the next one. Corollary fixed for free: `spinner` is
+NOT filtered out of `rigs` (only names starting with 'prop' are), so
+poseSkinGen was writing deltas into the shared payload too.
+
+TRIPWIRE: buildModel now warns — with hub, key, cage flag and a
+request for the build export — if the propeller's own centre lands
+AFT of the skin's forward extreme. Verified silent on healthy
+builds across repeated transfers. If the user sees it again, that
+console line plus their export JSON closes it.
+
+STILL OPEN: the user's own build could not be tested here (their
+spec lives in their browser). Ask for EXPORT JSON on the next
+sighting.
+
+## G58.6 — THE WANDERING PROPELLER, FOUND (2026-08-29, closed by the
+## user's export + the tripwire's own console line)
+
+MY BUG, one missing line in the G55 parts loop. The snapshot rebases
+every moving part's vertices about its pivot so the game can spin or
+ride it; buildModel must therefore put the group BACK at that pivot —
+which it did for the wheels and the castor and NOT for the prop. The
+prop drew at the group origin, i.e. displaced by −pivot: 3.48 m AFT of
+the nose on the default build. The middle of the fuselage.
+
+WHY IT READ AS INTERMITTENT: only cage builds have parts. A fresh
+reload with no build & fly flies the GENERATED skin, whose own prop
+path (geo.translate(−hub) + position=hub) is correct — so the fault
+appeared and vanished with whether a snapshot existed, not with any
+transfer. Four transfer cycles on the generated path were byte-stable,
+which is exactly why it could not be reproduced there.
+
+WHY THE FIRST TRIPWIRE MISSED IT: it keyed on `dec.skin`, which only
+the generated payload has — a cage build's groups are colour keys. The
+check was dead precisely where the bug lived, and it fired instead on
+the PA-18 at 0.13 m (a legitimate spinner-ahead-of-blades reading).
+Now it scans ALL groups for the nose and allows 0.50 m of slack.
+
+VERIFIED: prop group position == its pivot [-3.48, 0.07, 0] in the
+live scene after build & fly; wheels/castor at theirs; the three
+stretch legs correctly at origin (unrebased by design).
+
+LESSON, worth carrying: REBASE AND REPOSITION ARE ONE OPERATION. Any
+part whose vertices are rebased about a pivot at capture time must
+have that pivot restored at build time, or it is silently displaced by
+exactly the pivot — a large, structured error that looks like a
+different part entirely.
+
+G58.5's payload-copy fix stands on its own merit (geo.translate
+mutating a wrapped payload array is a real latent hazard) but was NOT
+the cause.
+
+## G59 — THE CONTROL SURFACES FLY, AND THE SPRING IS PINNED AT BOTH
+## ENDS (2026-08-29, user: "let's do the control surfaces now")
+
+**THE SURFACES.** Named at their source layers, the pattern the prop
+established and the wheels proved: _cage_wing names ailR/ailL/flapR/
+flapL, _cage_fin names the rudder, _cage_stab names each elevator half
+(they already existed as discrete meshes — the fin/stab layers split
+'fin' vs 'rudder' parts under cutMode, the wing layer draws the game's
+own aileron/flap groups). All become `edSurf_<name>`.
+
+THE HINGE IS DERIVED FROM THE SURFACE ITSELF, so no layer has to
+publish one: the hinge line is the surface's FORWARD edge (minimum x
+in the model frame, a 18% band), the pivot is that edge's centre, and
+the axis is whichever way the edge is longer — SPANWISE (z) for
+ailerons/flaps/elevators, VERTICAL (y) for the rudder. Drive and sign
+come off the name: da (ailerons, ANTISYMMETRIC — ailL sgn −1), de
+(elevators, together), dr (rudder), fl (flaps). poseModel turns each
+by a quaternion about its captured axis using the SAME linkage the
+generated skin uses, so the visual lag is identical.
+
+MEASURED in flight on the default build, AP flying: ailR z −0.173 /
+ailL z +0.173 (±20°, antisymmetric), rudder y −0.078 (9°), both
+elevators z +0.144 (16.5°). Five surfaces, all live.
+
+**THE TAILWHEEL SPRING, both ends anchored** (user: "the assembly
+chain and spring should remain fixed at both its extremities. The
+spring should elongate or shrink, but both the start and end anchor
+points need to remain where they are"). The first stretch weighting
+was distance-from-axle over the unit's own extent, which let the
+FUSELAGE end drift. The leg functions now return `root` (the airframe
+attachment from their own fitFrame) and legTailwheel also returns
+`tip` (the castor's swivel top, which is the spring's real moving
+end). The weight is now the vertex's PROJECTION along root → moving
+end, clamped to [0,1]: exactly 0 at the bolt, exactly 1 at the far
+anchor, linear between — the spring elongates and shrinks between two
+fixed attachments. Verified: legT root [2.24,−0.21,0], pivot
+[2.55,−0.31,0]; mains legs carry theirs too.
+
+Gates: UISMOKE / SKIN / CTRL PASS, JOIN OK. Still uncommitted.
+NEXT: flaps have no geometry on the default build (flap type 'none') —
+the row exists and will light up on a flapped design; then THE PLAQUE.
+
+## G59.1/.2 — THE PROP SPINS TRUE, AND THE STRUT LANDS ON THE CABIN
+## (2026-08-29, user's punch list on G59)
+
+**THE PROP WOBBLE.** G58.6 put the prop group back at its hub but still
+spun it with `rotation.x` — the MODEL x axis. The captured prop disc is
+not perpendicular to that: the whole snapshot is pitch-calibrated
+(G54.2) and the engine carries its own mount offsets, so spinning about
+x coned the disc — "wrongly rotated, and they oscillate". The snapshot
+now carries the SPINNER'S OWN AXIS, taken through the same two
+transforms its vertices take (world → mount → model → pitch), and
+poseModel turns the prop by a quaternion about that axis with an
+accumulating angle. MEASURED: axis [-0.9979, 0.0644, 0] = tilted 3.69°
+from model x, which is EXACTLY the pitch-calibration angle — the
+diagnosis and the fix agree to two decimals.
+
+**THE STRUT FOOT.** The editor's wing layer builds its frame from a
+spec carrying ONLY the wing rows — its own comment said "its fuselage
+is built and discarded" — so the lift strut hooked the GENERATOR'S
+DEFAULT cabin (halfW 0.36) while the built one measures 0.59. The foot
+hung 0.23 m inboard and 0.19 m above the cabin's lower longeron,
+attached to nothing. The layer now measures halfW and cabin height off
+the SAME airframe contract the gear and the join use (AF hoisted above
+the spec build), so all three agree. MEASURED: lateral error 0.228 →
+0.004 m (on the longeron), vertical +0.189 → −0.119.
+
+Two smaller things on the way: `strutRoot` is additionally clamped to a
+CABIN ring — since G54.3 the ring AT boxRear takes the measured
+profile's first row (the pax-pillar section, narrower and higher, right
+for the skin and wrong for a strut foot). And the editor's liftstrut and
+pitot meshes are now named (edFit_*) so they can be measured at all —
+the first attempt at this measured the pitot by accident.
+
+RESIDUAL, declared: the strut foot is 0.12 m below the cabin corner —
+the frame's wing-root height vs the cage's deck anchor. Visible only
+at close range; the lateral fit is exact.
+
+## G59.3 — THE CONTROL SURFACES FLEX WITH THE WING THEY ARE BOLTED TO
+## (2026-08-29, user: "the control surfaces are not deformed the same
+## way as the wing... They should be anchored on the wing they belong,
+## and associated with the same nodes and beams as the rest")
+
+G59 made each surface a rigid group that ROTATED about its hinge. A
+rigid group cannot ride spar flex, so a bending wing left its aileron
+straight — structurally wrong, and visible.
+
+The cure is the shape the GENERATED skin has always used, and the codec
+already documents it (makeHingeBinding's header: "Runs BEFORE the flex
+pass; applySkinDeform adds flex on top of hinged verts"):
+  1  HINGE IN THE VERTICES — Rodrigues about the hinge, which passes
+     through the group's own origin because the snapshot rebased these
+     verts about the pivot. The group keeps identity rotation.
+  2  THEN THE WING'S OWN FLEX, added on top, through the SAME
+     makeSkinBinding/applySkinDeform the wing skin uses — same spar
+     stations, same nodes, same gain (and so the same x4 in Flex mode).
+`hinged` is an all-ones mask, which is exactly what selects
+applySkinDeform's ADDITIVE branch.
+
+MEASURED: with the real def and the real wing-box cfg, ailR and ailL
+bind 468 of 468 vertices each. rud/elevR/elevL bind 0 — CORRECT and
+declared: the imported-skin binding models WING flex only (the tail is
+outside the wing box), which has been its limit since G46. The tail
+surfaces still hinge; they just do not flex.
+
+TRAP FOR THE NEXT SESSION: `def` and `cfg` are declared AFTER the parts
+loop in buildModel, so the binding is built in a SECOND PASS below
+them — reaching them from the loop is a temporal dead zone, not a
+value, and the try/catch would have swallowed it into "never flexes".
+
+ALSO measured on the way: a parked aeroplane has ~zero spar deflection,
+so an x1-vs-x4 comparison on the stand proves NOTHING (both are 4x of
+zero). That false negative cost a round; test flex in flight, or
+compare against the wing skin's own vertices.
+
+## G62 — THE MOOD IS A SKY (2026-08-29, user: "I have HDRI of several day
+## conditions ... the lighting conditions harmonized. We can still keep the
+## alps with an afternoon lighting for now")
+
+WHAT WAS WRONG. The four moods this room shipped with were a light rig
+with no picture behind them. The sky outside stayed the alpine
+afternoon whichever one you picked, so GOLDEN lit the shed orange under
+a blue midday sky and NIGHT dimmed the lamps while the sun blazed
+through the gable window. A mood was a set of numbers; it is a SKY now,
+and the numbers are read off that sky.
+
+THE SET. Five rows: the alps field the shed was built against, and the
+Kloppenheim time-of-day series (noon / covered afternoon / sunset /
+night), all Poly Haven CC0 4k HDRIs, all four Kloppenheim panoramas the
+SAME PLACE at four times — which is what makes the set one day rather
+than four unrelated looks. Sources live in `assets/hangar_sky/*.hdr`.
+
+THE PIPELINE, three files:
+  assets/hangar_sky/*.hdr
+    -> python tools/sky_prep.py   -> <key>.jpg + skies.json
+    -> node tools/sky_tex_prep.js -> src/viewer/hangar_sky.js
+The sky is out of `wall_tex_prep.js` entirely: it rode along with the
+walls when there was one of it, and a sky is not a wall.
+
+**THE LINE BETWEEN MEASURED AND AUTHORED, which is the whole design.**
+Poly Haven does not calibrate its HDRIs to a common absolute scale:
+this set's mean radiance runs 0.79 / 0.81 / 0.49 / 0.50 / 0.32 for an
+afternoon, a noon, an overcast, a sunset and a NIGHT. That is not a
+day, and absolute radiance ratios therefore CANNOT carry one. The first
+cut tried and produced a night 22% as bright as noon; the numbers were
+real and the conclusion was nonsense. What survives an arbitrary
+per-file normalisation is everything SHAPED, and that is what is
+measured:
+
+  direct = sunLux / (sunLux + skyLux)
+
+integrated over the sphere in float — 0.80 for the alpine sun, 0.46
+under cloud, 0.005 for a veiled sunset with no disc left in it at all,
+0.69 for a hard little moon. Plus the sun's DIRECTION (solid-angle and
+radiance weighted centroid of the disc), and the sun / sky / ground /
+horizon COLOURS. All scale-invariant, all honest.
+
+Exactly one number per row is a decision: `level`, how much light this
+sky puts into the shed, anchored at 1.00 for the alps. Plus the room's
+own choices that are not in the radiance at all — lamp candela,
+exposure, dust-shaft opacity, and the display image's target mean.
+
+THE ANCHOR REPRODUCES ITSELF, BY CONSTRUCTION. RIG0 in sky_prep.py is
+the old MOODS[0] row verbatim; every other row is that row times
+`level` times the directness ratio against the alps' own. Two overrides
+(key colour, daylight-card colour) keep the alps' authored warmth,
+since the user asked for it as it is; delete them and it harmonizes
+with the rest.
+
+THREE TRAPS, each of which changed a number quietly:
+
+  1  **A LIGHT'S COLOUR CARRIES LUMINANCE.** Hand a lamp the measured
+     sky chroma instead of the hand-picked one and the room gets
+     brighter with no intensity touched. Every intensity is now
+     re-expressed for the colour it ends up with, so intensity x colour
+     is what is preserved. It is also why the orange sunset key comes
+     out STRONGER than its level alone says: an orange lamp delivers
+     less light per unit of intensity.
+  2  **THE GROUND BOUNCE IS OCCLUDED.** The lower hemisphere integrates
+     to about a third of the sky's irradiance — right for something
+     standing in that field, wrong for something on a concrete floor
+     inside a shed. The old hand-picked ground colour encoded that at
+     about a sixth. The share and the colour stay measured; the
+     absolute level is anchored to what the room already used (x0.148).
+  3  **AN ALL-DOME SKY MUST NOT OUT-GLOW A SUNNY ONE.** Uncapped, the
+     veiled sunset's ambient ratio (5.1) put more fill in the shed at
+     dusk than the alpine afternoon delivered — visible in the probe as
+     an apron outside the door reading BRIGHTER than the sky above it.
+     HEMI_CAP = 2.0.
+
+THE TONE CURVE IS A STRAIGHT EXPOSURE INTO sRGB, not ACES — fitted
+against the existing hand-made alps_field.jpg over five candidates
+(mae 0.024 vs 0.035 for an ACES shoulder, and the same clipped
+highlights). It is also the right answer independently: the backdrop is
+a MeshBasicMaterial with toneMapped on, so the renderer puts a second
+shoulder on it, and two shoulders read as fog.
+
+THE SUN VECTOR IS MEASURED NOW, not scanned. G56 read the brightest
+pixel of the LDR picture at run time; a clipped bloom has no centroid
+(every pixel of it is 255, so the scan returned whichever corner it met
+first) and it landed ~10 deg high on the alps. The float integral finds
+the real disc, and finds a small hard moon over a bright horizon for
+the same reason. `sunFromSky` is gone; `sunDir(uv, yaw)` is the
+conversion that is left, and it still spells the sphere's mirror-and-
+turn out longhand because that is the part that goes backwards.
+
+WHICH WAY THE PANORAMA FACES IS THE ROW'S. It used to be a fixed
+quarter turn, chosen to frame the alps' mountains out of the door — and
+with it the sun sat 126 deg off the door axis, i.e. behind the shed.
+Fine for the alps; it hid the sunset. Each row now carries a `yaw`
+solved from its measured sun and a wanted offset (`sunOff`): 126 for
+the alps, which IS its existing quarter turn, so the mountains do not
+move, and 40 for the Kloppenheim rows, which rakes the floor at dusk.
+hangar.js applies the same yaw to the sphere and to the sun vector.
+
+MEMORY: five 4k equirects decoded at once is ~170 MB of bitmap for four
+skies nobody is looking at, so `img()` decodes on demand and the cache
+holds ONE; the outgoing THREE.Texture is disposed on swap. The cost is
+a re-decode when a mood is cycled back to, against a mood change that
+already re-bakes the environment and the floor shadow.
+
+ORDER, in app.js getHangar: **the mood goes FIRST**. It is the sky now,
+so it decides what stands outside the door, which way the key points,
+and therefore both what the environment bake sees and where the floor
+shadow falls. Baking before it ran meant baking the wrong room. And
+`setMood` re-bakes the environment — deliberately NOT in `applyEnv`,
+which is the editor's slider-drag path, where a PMREM per frame would
+stall it.
+
+TRAP, caught by the probe: `key` was the row's identifier AND the key
+light's intensity in the same object literal, and JS keeps the last
+one — every row silently lost its name. It ships as `keyI`.
+
+PAYLOAD: src/viewer/hangar_sky.js 6.2 MB (5 equirects, 4.6 MB of JPEG);
+hangar_walls.js 27.2 -> 23.9 MB with the old sky removed; index.html
+67.3 -> 70.0 MB.
+
+NOT DONE, worth knowing: the outdoor grass and strip are still
+procedural surfaces lit by the room's own lights, so they do not track
+the HDRI's own ground beyond what the rig does for them. And the four
+moods' names moved (`GOLDEN` is `SUNSET`, `NOON` is new), so a saved
+`flydiy.garageMood` pref points at a different row than it used to —
+clamped, never out of range.
+
+## G60 — THE PLAQUE (2026-08-29, ROADMAP P3: "the game's unit of
+## pride")
+
+genShakedown has measured every one of these numbers since G4. It lost
+its panel at G35 when the old garage rows were deleted, and since then
+a builder has had NO WAY to learn that the aeroplane they welded will
+not climb until the runway told them. The plaque is that panel, and it
+posts where the aeroplane was built.
+
+WHAT IT SAYS. The VERDICT first, because that is the question a plaque
+answers — the generator's own `flyableCircuit`, and when it says no it
+says WHY, out of the two terms that flag is actually made of (climb
+gradient x climb speed, and take-off run), because those are what the
+builder can act on. Then the rows, grouped: weights (empty / payload /
+all-up / cost), wing (area / loading / aspect / L-D), speeds and field
+(stall / cruise / climb / take-off run), balance (CG / neutral point /
+static margin), and on the ground (stands on / deck angle / prop
+clearance / nose-over / folded). The footer names the engine, prop,
+gear and bracing and ends "measured on this build, not estimated",
+which is the whole point of the join.
+
+EVERY THRESHOLD IS THE CODE'S OWN — nothing here invents a limit the
+generator does not already use: flyableCircuit and gearFolded and
+onWheels are genShakedown's; the static-margin band is the fleet's
+measured one (Cub 0.22, stock build 0.20, so under 0.05 warns and
+negative is bad); prop clearance keys off the clearance rule.
+
+MEASURED, both ways round. Stock generated build: FLIES A CIRCUIT —
+405 kg, L/D 8.3, climb 1.91 m/s, take-off 401 m, SM 0.21, prop clear
+0.30. The cage build off the same template: "WILL NOT FLY A CIRCUIT —
+it will not climb (0.10 m/s)", flagging L/D 5.4 (warn), climb (bad)
+and PROP CLEAR 0.05 m (bad). That last row is G53 closing its own
+loop: measuring the ride height took prop clearance off the derivation
+that used to guarantee it, and the plaque is where that now shows up
+BEFORE the runway.
+
+LIFECYCLE: drawn from enterGarage (so build & fly, which reaches it
+through GARAGE_SPEC.apply, always posts the NEW build's numbers —
+shakeOf caches per def, so it is one settle), hidden on rollOut, and
+re-asked on every aircraft change. That last one was a real bug caught
+in test: switching to a fleet aeroplane left the previous build's
+numbers on screen, which is a plaque reading someone else's
+certificate.
+
+UISMOKE PASS. Still uncommitted.
+NEXT in P3: save-to-hangar naming (the plaque is what a hangar entry
+should carry), then the one mission.

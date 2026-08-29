@@ -1,0 +1,187 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v4.4.56",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "scandinavian_masonry_heater"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "scandinavian_masonry_heater",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cylinder.001",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "COLOR_0": 3,
+            "COLOR_1": 4
+          },
+          "indices": 5,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "scandinavian_masonry_heater_nor_gl",
+      "uri": "textures/scandinavian_masonry_heater_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "scandinavian_masonry_heater_diff",
+      "uri": "textures/scandinavian_masonry_heater_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "scandinavian_masonry_heater_metal-scandinavian_masonry_heater_rough",
+      "uri": "textures/scandinavian_masonry_heater_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 7689,
+      "max": [
+        0.4550207853317261,
+        2.360107898712158,
+        0.8586798310279846
+      ],
+      "min": [
+        -0.7126761674880981,
+        -0.0003744145215023309,
+        -0.4765990078449249
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 7689,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 7689,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5121,
+      "count": 7689,
+      "normalized": true,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5123,
+      "count": 7689,
+      "normalized": true,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5123,
+      "count": 28050,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 92268,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 92268,
+      "byteOffset": 92268,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 61512,
+      "byteOffset": 184536,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 30756,
+      "byteOffset": 246048,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 61512,
+      "byteOffset": 276804,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 56100,
+      "byteOffset": 338316,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 394416,
+      "uri": "scandinavian_masonry_heater.bin"
+    }
+  ]
+}

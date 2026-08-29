@@ -1,0 +1,11 @@
+[
+ "props_bench.js",
+ "props_storage.js",
+ "props_machine.js",
+ "props_handling.js",
+ "props_vessel.js",
+ "props_tools.js",
+ "props_curio.js",
+ "props_vehicle.js",
+ "props_fixture.js"
+]

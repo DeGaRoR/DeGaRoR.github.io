@@ -122,6 +122,15 @@
         "8128"
       ],
       "port": 8128
+    },
+    {
+      "name": "flydiy-props",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8117"
+      ],
+      "port": 8117
     }
   ]
 }

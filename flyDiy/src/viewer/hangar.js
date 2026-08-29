@@ -34,13 +34,14 @@ function genHangarSupported(THREE) {
   return !!THREE && GEN_HANGAR_NEEDS.every(k => THREE[k] !== undefined);
 }
 
-function genHangarBuild(THREE) {
+function genHangarBuild(THREE, dims) {
 
 // ===========================================================================
-// THE GARAGE. A working hangar, big enough for a DC-3 (29 m span) with room to
-// walk round it: 26 m deep, 36 m wide, 8.4 m to the eaves and 11.6 m to the
-// ridge. Long axis is x, doors at -x, which is the end the aeroplane's nose
-// points at (model frame: x AFT).
+// THE GARAGE. A working hangar, sized by its caller — 20 m deep, 28 m wide and
+// 7.0 m to the eaves by default, which is a club hangar for one or two light
+// aeroplanes rather than the DC-3 shed it was first drawn as. Long axis is x,
+// doors at -x, which is the end the aeroplane's nose points at (model frame:
+// x AFT).
 //
 // Everything here is built from primitives and canvas-baked sheets — no
 // external art. The light is the point: north glazing down both flanks, four
@@ -49,11 +50,30 @@ function genHangarBuild(THREE) {
 // bakes its own environment map off itself (CubeCamera -> PMREM) and every
 // material reads its ambient from the room it is standing in.
 // ===========================================================================
-const HW = 18, HD = 13, EAVE = 8.4, RIDGE = 11.6;   // half-width, half-depth
-// The opening is nearly the whole gable end, which is what a hangar door IS: a
-// shed you cannot get the aeroplane into is a shed. 31 m clear passes a DC-3's
-// 28.96 m span with a metre either side, and the leaves park in the corners.
-const DOOR_W = 31, DOOR_H = 6.4;
+// THE DIMENSIONS ARE A PARAMETER (G53, user: "I think the hangar is a tad too
+// big ... could you get its dimension parametrized"). The whole room is this
+// one function, so it always could be: the caller passes half-width,
+// half-depth and eaves height, and asking again with different numbers builds
+// a different shed. The ridge follows the eaves unless it is given, and the
+// door follows the width — a shed you cannot get the aeroplane into is not a
+// shed, and a door that no longer fits its own gable is not a door.
+//
+// HANGAR_DIMS is the DEFAULT, and it changed with this chantier: the shed was
+// drawn for a DC-3's 29 m span, and this game's generator clamps a wing to
+// 14 m. 36 m of width put the aeroplane in the middle of a field.
+const D0 = dims || (typeof HANGAR_DIMS !== 'undefined' ? HANGAR_DIMS : null) || {};
+const HW = D0.HW || 14, HD = D0.HD || 10, EAVE = D0.EAVE || 7.0;
+const RIDGE = D0.RIDGE || (EAVE + 2.6);
+// The opening is nearly the whole gable end. It leaves 2.5 m of wall each side
+// for the leaves to park against, and it cannot be taller than the eaves.
+const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = Math.min(6.4, EAVE - 1.4);
+
+// THE LAYOUT WAS COMPOSED against the authored shed — 26 m deep by 36 m wide,
+// HD 13 and HW 18 — and every ABSOLUTE coordinate in the placement below is
+// mapped through these. Anything written against a wall (HW - 1.05) is a real
+// clearance and is left alone: the bench stands a metre off the wall in any
+// shed. Only the positions ALONG the walls scale.
+const FX = v => v * HD / 13, FZ = v => v * HW / 18;
 
 const rand = (s => () => (s = s * 1664525 + 1013904223 >>> 0) / 4294967296)(20260811);
 const rr = (a, b) => a + (b - a) * rand();
@@ -67,7 +87,7 @@ const sheet = (w, h, draw, linear) => {
   // r128 declares colour space per texture as an ENCODING; a data sheet
   // (normal, roughness) must stay linear or every value in it is bent.
   if (!linear) t.encoding = THREE.sRGBEncoding;
-  t.anisotropy = 8;
+  t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 };
@@ -174,16 +194,6 @@ const woodAlb = sheet(512, 512, (g, W, H) => {
   g.globalAlpha = 1;
 });
 woodAlb.repeat.set(3, 1);
-
-// pegboard: the shadow board a tidy shop paints behind its tools
-const pegAlb = sheet(512, 512, (g, W, H) => {
-  g.fillStyle = '#c8bda6'; g.fillRect(0, 0, W, H);
-  g.fillStyle = 'rgba(60,52,40,.55)';
-  for (let y = 12; y < H; y += 22) for (let x = 12; x < W; x += 22) {
-    g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill();
-  }
-});
-pegAlb.repeat.set(2, 1);
 
 // ---- materials ------------------------------------------------------------
 // PROFILED STEEL SHEETING, drawn rather than tinted: panel seams every sheet
@@ -399,7 +409,7 @@ const normalFromHeight = (w, hgt, draw, strength) => {
   }
   g.putImageData(out, 0, 0);
   const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   return t;
 };
 
@@ -671,7 +681,7 @@ const FLOOR_IMG = (typeof HANGAR_FLOOR_IMG !== 'undefined') ? HANGAR_FLOOR_IMG :
 const floorTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
+  t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   if (srgb) t.encoding = THREE.sRGBEncoding;
   // the floor plane carries METRIC uvs since G41 — one tile = tile metres
   const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
@@ -717,22 +727,32 @@ const M = {
   paintBlue: new THREE.MeshStandardMaterial({ color: 0x27455e, roughness: 0.48, metalness: 0.20 }),
   wood: new THREE.MeshStandardMaterial({ map: woodAlb, roughness: 0.74, metalness: 0 }),
   woodPale: new THREE.MeshStandardMaterial({ color: 0xc2a276, roughness: 0.80 }),
-  peg: new THREE.MeshStandardMaterial({ map: pegAlb, roughness: 0.88 }),
   glass: new THREE.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.06, metalness: 0,
     // `thickness` is r132+ and this build is r128: transmission alone, with
     // the opacity carrying what the refraction slab would have.
     transmission: 0.90, transparent: true, opacity: 0.5,
     envMapIntensity: 1.4, side: THREE.DoubleSide }),
   rubber: new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.95 }),
+  // the filament itself: emissive, unlit by anything else, and scaled with the
+  // moods like every other material in here
+  bulb: new THREE.MeshStandardMaterial({ color: 0x1a1206, roughness: 0.35,
+    emissive: 0xffcc7a, emissiveIntensity: 2.2 }),
   brass: new THREE.MeshStandardMaterial({ color: 0xb08d4a, roughness: 0.32, metalness: 0.9 }),
   alu: new THREE.MeshStandardMaterial({ color: 0xa8adb3, roughness: 0.30, metalness: 0.92 }),
   canvasM: new THREE.MeshStandardMaterial({ color: 0xa89a80, roughness: 0.95 }),
-  leather: new THREE.MeshStandardMaterial({ color: 0x6b4630, roughness: 0.72 }),
-  rug: new THREE.MeshStandardMaterial({ color: 0x74362f, roughness: 0.96 }),
   lampWarm: new THREE.MeshStandardMaterial({ color: 0xffe6b8, emissive: 0xffcf87,
     emissiveIntensity: 3.2, roughness: 0.6 }),
+  // THE ROOF PANE IS GLAZING, not a lit panel (G56, user: "I can't see the HDRI
+  // through the roof windows, did you remove the mesh?"). The mesh was never
+  // removed and the hole is genuinely cut — but this material was an OPAQUE
+  // emissive, so the opening was filled by a glowing sheet and the sky behind
+  // it was never in the picture. Transparent now, with the emissive kept as the
+  // milky wash a diffusing rooflight really has over what you can see through
+  // it; depthWrite off so the sky sphere sorts behind it rather than being
+  // rejected by its own depth.
   skyPanel: new THREE.MeshStandardMaterial({ color: 0xdfeaf6, emissive: 0xcfe2f7,
-    emissiveIntensity: 1.7, roughness: 0.9, side: THREE.DoubleSide }),
+    emissiveIntensity: 1.7, roughness: 0.9, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.30, depthWrite: false }),
   daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
 };
 // DEDICATED PART MATERIALS (G41, user: assign materials to parts of the
@@ -844,11 +864,26 @@ for (const s of [1, -1]) {
   put(mbox(2 * HD, 2.1, 0.12, M.wall, 0, 2.15, s * HW));
   // upper sheeting, sill 3.2 to eaves
   put(mbox(2 * HD, EAVE - 5.2, 0.12, M.wall, 0, 5.2 + (EAVE - 5.2) / 2, s * HW));
-  put(box(2 * HD + 0.4, EAVE + 0.4, 0.06, M.wallOut, 0, (EAVE + 0.4) / 2, s * (HW + 0.16)));
+  // THE OUTER SKIN IS CUT FOR THE GLAZING (user: "can we properly cut into the
+  // hangar for the windows?"). It used to be one slab from the ground to the
+  // eaves standing OUTSIDE the band, so every window in the room looked at
+  // sheet steel with the sky nowhere in it. Now it is the same three bands the
+  // inner skin already had, plus a strip on each mullion — the panes are the
+  // only thing left open, and they see the sky sphere.
+  const nBay = 9, bayW = (2 * HD) / nBay;
+  const SILL = 3.2, HEAD = 5.2, zOut = s * (HW + 0.16);
+  put(box(2 * HD + 0.4, SILL, 0.06, M.wallOut, 0, SILL / 2, zOut));
+  put(box(2 * HD + 0.4, EAVE + 0.4 - HEAD, 0.06, M.wallOut, 0,
+          HEAD + (EAVE + 0.4 - HEAD) / 2, zOut));
+  for (let i = 0; i <= nBay; i++) {
+    // the two ends carry the skin's 0.2 m overhang as well as the mullion
+    const end = i === 0 ? -1 : i === nBay ? 1 : 0;
+    put(box(0.25 + (end ? 0.2 : 0), HEAD - SILL, 0.06, M.wallOut,
+            -HD + bayW * i + end * 0.1, (SILL + HEAD) / 2, zOut));
+  }
   // THE GLAZING BAND. Industrial steel windows, 3.2 to 5.2 m: high enough to
   // light the whole floor and clear a wing, which is why real hangars glaze
   // exactly there.
-  const nBay = 9, bayW = (2 * HD) / nBay;
   for (let i = 0; i < nBay; i++) {
     const cx = -HD + bayW * (i + 0.5);
     const gl = box(bayW - 0.25, 2.0, 0.03, M.glass, cx, 4.2, s * HW);
@@ -867,7 +902,14 @@ for (const s of [1, -1]) {
 
 // back wall (+x), with a personnel door and a high window
 {
-  put(mbox(0.14, EAVE, 2 * HW, M.wallBack, HD, EAVE / 2, 0));
+  // CUT FOR THE GABLE WINDOW, in four pieces round the opening — the pane used
+  // to be laid on the inside of a solid wall, which is a picture of a window.
+  const gwY0 = EAVE - 2.1, gwY1 = EAVE - 0.5, gwZ = 2.1;
+  put(mbox(0.14, gwY0, 2 * HW, M.wallBack, HD, gwY0 / 2, 0));
+  put(mbox(0.14, EAVE - gwY1, 2 * HW, M.wallBack, HD, gwY1 + (EAVE - gwY1) / 2, 0));
+  for (const sd of [-1, 1])
+    put(mbox(0.14, gwY1 - gwY0, HW - gwZ, M.wallBack, HD,
+             (gwY0 + gwY1) / 2, sd * (HW + gwZ) / 2));
   // THE STEM RUNS ROUND THE BACK TOO (G41, user: "I like the brick
   // bottom on the sides ... add that to the back") — same course, same
   // height, interrupted where the personnel door stands.
@@ -959,28 +1001,57 @@ for (const s of [1, -1]) {
   M.dayCardMesh = day;      // the caller hides it once a real sky stands
 }
 
+// the quarter turn the single alps sky was hung at, and the fallback for a row
+// that carries no yaw of its own
+const SKY_YAW0 = Math.PI / 2;
+
 // THE SKY (G41, user: "we need a proper HDRI ... something to look at
-// outside"). alps_field, tone-mapped LDR on a backdrop sphere round the
-// shed — visible through the door, the glazing band and the gable
-// window. Unlit and unfogged (the room fog would eat it), dimmed with
-// the moods in setMood. The daylight CARD stays for the environment
-// bake (it is the big soft source that bake reads); the caller hides it
-// after baking so the eye gets the mountains instead — see app.js.
-let skyMat = null;
-if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
-  const st = new THREE.Texture(HANGAR_SKY_IMG);
-  st.encoding = THREE.sRGBEncoding;
-  const ok = () => { st.needsUpdate = true; };
-  if (HANGAR_SKY_IMG.complete && HANGAR_SKY_IMG.naturalWidth) ok();
-  else HANGAR_SKY_IMG.onload = ok;
-  skyMat = new THREE.MeshBasicMaterial({ map: st, side: THREE.BackSide,
-    fog: false });
+// outside"; a SET of them at G62). A tone-mapped equirect on a backdrop
+// sphere round the shed — visible through the door, the glazing band and
+// the gable window. Unlit and unfogged (the room fog would eat it). The
+// daylight CARD stays for the environment bake (it is the big soft source
+// that bake reads); the caller hides it after baking so the eye gets the
+// mountains instead — see app.js.
+//
+// ONE SPHERE, FIVE SKIES (G62). The picture is not built here any more: it
+// belongs to the mood, and `setSky` swaps it. The rows come from
+// hangar_sky.js, they decode one at a time (a 4k equirect is 33 MB of
+// bitmap), and the outgoing texture is disposed — a mood cycled round the
+// clock a dozen times must not leave a dozen of them on the GPU.
+const SKY_ROWS = (typeof HANGAR_SKIES !== 'undefined' && HANGAR_SKIES &&
+                  HANGAR_SKIES.length) ? HANGAR_SKIES : null;
+let skyMat = null, skyMesh = null, skyOnReady = null;
+if (SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
+  skyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
   // radius 600 (G44): far enough that the field and strip below never
   // poke through; the 4k equirect carries the extra screen coverage
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(600, 48, 24), skyMat);
-  sky.scale.x = -1;               // equirect reads right-way-round inside
-  sky.rotation.y = Math.PI / 2;   // horizon feature out the door
-  put(sky);
+  skyMesh = new THREE.Mesh(new THREE.SphereGeometry(600, 48, 24), skyMat);
+  skyMesh.scale.x = -1;           // equirect reads right-way-round inside
+  skyMesh.rotation.y = SKY_YAW0;  // per row; see setSky
+  put(skyMesh);
+}
+function setSky(row) {
+  if (!skyMat || !row || typeof row.img !== 'function') return;
+  // WHICH WAY THE PANORAMA FACES is the row's, not the room's (G62). It used
+  // to be a fixed quarter turn chosen to frame the alps' mountains out of the
+  // door; each sky now carries the yaw that puts ITS sun where the row asked
+  // for it (tools/sky_prep.py solves it from the measured sun and a wanted
+  // offset off the door axis), and the alps' number is exactly the quarter
+  // turn it always had.
+  if (skyMesh) skyMesh.rotation.y = (row.yaw !== undefined) ? row.yaw : SKY_YAW0;
+  const img = row.img();
+  if (!img) return;
+  const st = new THREE.Texture(img);
+  st.encoding = THREE.sRGBEncoding;
+  // the data URI decodes asynchronously; whoever baked an environment off
+  // the old picture is told when the new one has actually landed
+  const ok = () => { st.needsUpdate = true; if (skyOnReady) skyOnReady(); };
+  if (img.complete && img.naturalWidth) ok();
+  else img.addEventListener('load', ok);
+  const was = skyMat.map;
+  skyMat.map = st;
+  skyMat.needsUpdate = true;      // a material that gains a map recompiles
+  if (was && was.dispose) was.dispose();
 }
 
 // THE QUICK RUNWAY (G44, user: "model a quick runway ... put it
@@ -1084,6 +1155,12 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
     // stanchion down the wall, so the frame reads as a portal
     for (const s of [1, -1]) put(box(0.34, EAVE, 0.30, M.beamMain, x, EAVE / 2, s * (HW - 0.3)));
   }
+  // THE SLOPE, as one function. Every roof surface, opening, pane and glazing
+  // bar is placed through it, so none of them can drift out of the plane.
+  const slopeP = (s, x, t) =>
+    [x, RIDGE + (EAVE - RIDGE) * t, s * (HW + 0.5) * t];
+  const LT0 = 0.30, LT1 = 0.62, LHW = 1.8, NLIGHT = 4;
+  const lightX = k => -HD + 3.4 + k * (2 * HD - 6.8) / 3;
   // purlins and the deck underside — the SECONDARY BEAMS (G41)
   for (const s of [1, -1]) {
     for (let k = 0; k <= 6; k++) {
@@ -1092,28 +1169,66 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
     }
     // ridge to eave, running the full depth. Wound so the normal faces DOWN
     // into the shed, which is the side anything in here can see.
-    const R0 = [-HD - 0.3, RIDGE, 0], R1 = [HD + 0.3, RIDGE, 0];
-    const E0 = [-HD - 0.3, EAVE, s * (HW + 0.5)], E1 = [HD + 0.3, EAVE, s * (HW + 0.5)];
-    // metric uv on the INNER deck (a part system surface, G41): u along
-    // the ridge, v down the slope, both in metres
+    // THE DECK IS CUT FOR THE ROOF LIGHTS (G55, user: "the top windows could
+    // also be properly cut plus a semi transparent surface and an
+    // outline/chassis"). It used to be ONE quad per slope with four glowing
+    // panels laid on top of it — a picture of a roof light, not a hole, and
+    // the same mistake the side glazing had before G52. Now the slope is
+    // emitted as a grid with the four openings missing from it, so what is
+    // behind a roof light is the sky.
+    //
+    // t runs 0 at the ridge to 1 at the eave, and EVERYTHING on this slope —
+    // deck, opening, glazing, frame — is placed through the same slopeP, so a
+    // roof light cannot end up in a different plane from the hole it is in.
     const SLOPE = Math.hypot(RIDGE - EAVE, HW + 0.5), RW = 2 * HD + 0.6;
-    put(s > 0 ? quad(R0, R1, E1, E0, M.roofIn, [RW, SLOPE])
-              : quad(R1, R0, E0, E1, M.roofIn, [RW, SLOPE]));
-    put(s > 0 ? quad(E0, E1, R1, R0, M.roofOut, 6) : quad(E1, E0, R0, R1, M.roofOut, 6));
+    const SX0 = -HD - 0.3, SX1 = HD + 0.3;
+    const deck = (x0, x1, t0, t1) => {
+      const a = slopeP(s, x0, t0), b = slopeP(s, x1, t0),
+            c = slopeP(s, x1, t1), d = slopeP(s, x0, t1);
+      const uv = [(x1 - x0) / RW * RW, (t1 - t0) * SLOPE];
+      put(s > 0 ? quad(a, b, c, d, M.roofIn, uv) : quad(b, a, d, c, M.roofIn, uv));
+      put(s > 0 ? quad(d, c, b, a, M.roofOut, 6) : quad(c, d, a, b, M.roofOut, 6));
+    };
+    deck(SX0, SX1, 0, LT0);                       // above the openings
+    deck(SX0, SX1, LT1, 1);                       // below them
+    let xc = SX0;                                 // and the piers between them
+    for (let k = 0; k < NLIGHT; k++) {
+      deck(xc, lightX(k) - LHW, LT0, LT1);
+      xc = lightX(k) + LHW;
+    }
+    deck(xc, SX1, LT0, LT1);
   }
   put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
-  // ROOF LIGHTS. Four translucent panels down each slope: the reason the middle
-  // of a hangar is not a cave, and the softest light in the scene.
-  // t = 0 at the ridge, 1 at the eave: one function, so a roof light cannot end
-  // up in a different plane from the roof it is a hole in.
-  const onSlope = (s, x, t) => [x, RIDGE + (EAVE - RIDGE) * t - 0.06, s * HW * t];
-  for (const s of [1, -1]) for (let k = 0; k < 4; k++) {
-    const x = -HD + 3.4 + k * (2 * HD - 6.8) / 3;
-    const a = onSlope(s, x - 1.8, 0.30), b = onSlope(s, x + 1.8, 0.30),
-          c = onSlope(s, x + 1.8, 0.62), d = onSlope(s, x - 1.8, 0.62);
+  // ROOF LIGHTS. Four openings down each slope — the reason the middle of a
+  // hangar is not a cave, and the softest light in the scene. Each is a hole in
+  // the deck (above), a semi-transparent pane sitting in it, a kerb round its
+  // edge and two bars across: the frame is what makes a rooflight read as a
+  // fitting rather than as a rectangle of brighter roof.
+  for (const s of [1, -1]) for (let k = 0; k < NLIGHT; k++) {
+    const x = lightX(k);
+    const P = (dx, t) => slopeP(s, x + dx, t);
+    // the pane, a hair below the deck plane so it never z-fights the kerb
+    const drop = v => [v[0], v[1] - 0.02, v[2]];
+    const a = drop(P(-LHW, LT0)), b = drop(P(LHW, LT0)),
+          c = drop(P(LHW, LT1)), d = drop(P(-LHW, LT1));
     const p = s > 0 ? quad(a, b, c, d, M.skyPanel) : quad(b, a, d, c, M.skyPanel);
     p.castShadow = false;
     put(p);
+    // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
+    // quads in the slope's own plane rather than as boxes, because a box on a
+    // sloping plane needs a rotation to be got wrong.
+    const KX = 0.16, KT = 0.022, up = v => [v[0], v[1] + 0.015, v[2]];
+    const band = (x0, x1, t0, t1) => {
+      const q = [up(P(x0, t0)), up(P(x1, t0)), up(P(x1, t1)), up(P(x0, t1))];
+      put(s > 0 ? quad(q[0], q[1], q[2], q[3], M.steelDark, 2)
+                : quad(q[1], q[0], q[3], q[2], M.steelDark, 2));
+    };
+    band(-LHW, LHW, LT0, LT0 + KT);               // head
+    band(-LHW, LHW, LT1 - KT, LT1);               // sill
+    band(-LHW, -LHW + KX, LT0, LT1);              // jambs
+    band(LHW - KX, LHW, LT0, LT1);
+    for (let j = 1; j < 3; j++)                   // glazing bars across
+      band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0, LT1);
   }
 }
 
@@ -1121,294 +1236,133 @@ if (typeof HANGAR_SKY_IMG !== 'undefined' && HANGAR_SKY_IMG) {
 // FITTINGS — the things that make it a place where aeroplanes get built
 // ===========================================================================
 
-// a bench: top, apron, legs, a shelf under, and whatever is standing on it
-function bench(x, z, len, ry, opts) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  const H = 0.92, D = 0.72;
-  const top = box(len, 0.075, D, M.wood, 0, H, 0);
-  g.add(top, box(len - 0.1, 0.16, 0.05, M.woodPale, 0, H - 0.12, D / 2 - 0.03));
-  for (const sx of [-1, 1]) for (const sz of [-1, 1])
-    g.add(box(0.09, H - 0.04, 0.09, M.woodPale,
-              sx * (len / 2 - 0.14), (H - 0.04) / 2, sz * (D / 2 - 0.12)));
-  g.add(box(len - 0.4, 0.04, D - 0.3, M.woodPale, 0, 0.22, 0));
-  // drawer bank
-  g.add(box(0.62, 0.68, D - 0.12, M.paintBlue, len / 2 - 0.45, 0.55, 0));
-  for (let k = 0; k < 3; k++) {
-    g.add(box(0.58, 0.18, 0.03, M.steelDark, len / 2 - 0.45, 0.30 + k * 0.22, D / 2 - 0.07));
-    // `g.add(x)` returns the GROUP, not x — writing `.rotation` on the end of it
-    // laid the whole bench on its side, three times over
-    const hdl = cyl(0.012, 0.012, 0.16, M.alu, len / 2 - 0.45, 0.30 + k * 0.22, D / 2 - 0.10, 8);
-    hdl.rotation.z = Math.PI / 2;
-    g.add(hdl);
-  }
-  if (opts && opts.vice) {                 // every bench has one, at the left end
-    const v = new THREE.Group();
-    v.position.set(-len / 2 + 0.35, H + 0.04, 0.10);
-    v.add(box(0.26, 0.10, 0.16, M.steelDark, 0, 0.05, 0),
-          box(0.10, 0.20, 0.20, M.steelDark, -0.10, 0.14, 0),
-          box(0.10, 0.20, 0.20, M.steelDark, 0.06, 0.14, 0));
-    const scr = cyl(0.018, 0.018, 0.34, M.alu, 0.16, 0.14, 0, 8);
-    scr.rotation.z = Math.PI / 2; v.add(scr);
-    v.add(cyl(0.014, 0.014, 0.26, M.steelDark, 0.33, 0.14, 0, 8));
-    g.add(v);
-  }
-  // clutter: jars, tins, offcuts, a mug
-  for (let i = 0; i < (opts && opts.clutter != null ? opts.clutter : 6); i++) {
-    const cx = rr(-len / 2 + 0.6, len / 2 - 1.0), r = rr(0.045, 0.085);
-    const kind = rand();
-    if (kind < 0.45) g.add(cyl(r, r, rr(0.09, 0.17), M.alu, cx, H + 0.07, rr(-0.2, 0.2), 12));
-    else if (kind < 0.75) g.add(box(rr(0.1, 0.3), rr(0.05, 0.12), rr(0.08, 0.2),
-      rand() < 0.5 ? M.woodPale : M.steelDark, cx, H + 0.06, rr(-0.22, 0.22), rand() * 3));
-    else g.add(cyl(r * 1.2, r, rr(0.16, 0.26), M.paintRed, cx, H + 0.12, rr(-0.2, 0.2), 12));
-  }
-  G.add(g);
+
+
+
+
+// ---- THE PROP LIBRARY (G51) ------------------------------------------------
+// The shed's furniture is no longer drawn. Every fitting that had a real prop
+// in the library is placed from it instead — the drawn bench(), pegboard(),
+// shelving(), toolChest(), drum(), tyreStack(), bottleRack(), stepladder(),
+// partsTrolley() and the old stove corner are gone, and their calls below name
+// a prop key instead. What is still drawn is what has no prop: the engine
+// stand, the wing jig, the leaning propeller, the drawing board, the work
+// platforms, the stock rack and the jack stands.
+//
+// Every prop was baked with its origin where it meets the world (see
+// tools/props_table.py `place`), so a placement site gives x, z, a heading and
+// — only for the wall and ceiling props — the height of the thing it hangs on.
+// ASK, DO NOT ASSUME, exactly as the room does with THREE: a build without the
+// prop packs still stands, it is just an emptier shed.
+const PROPS_OK = typeof propPlace === 'function' &&
+                 typeof PROP_REG !== 'undefined' && PROP_REG.order.length > 0;
+// Everything that should print a ground shadow. prop() and the workshop feed
+// it; the drawn fittings are pushed at their call sites. The BUILDING is not
+// in it — a floor that occludes itself is a black floor.
+const FURN = [];
+function prop(key, x, z, ry, y, parent) {
+  if (!PROPS_OK) return null;
+  if (!PROP_REG.props[key]) { console.warn('hangar: no prop ' + key); return null; }
+  const g = propPlace(THREE, key, x, z, ry, y);
+  (parent || G).add(g);
+  FURN.push(g);
   return g;
 }
 
-// pegboard with a tool shadow-board on it
-function pegboard(x, z, w, ry) {
-  const g = new THREE.Group();
-  g.position.set(x, 1.75, z); g.rotation.y = ry || 0;
-  g.add(box(w, 1.5, 0.03, M.peg, 0, 0, 0));
-  const tool = (tx, ty, kind) => {
-    if (kind === 0) {                       // spanner
-      g.add(box(0.035, 0.34, 0.02, M.alu, tx, ty, 0.035));
-      g.add(box(0.075, 0.07, 0.02, M.alu, tx, ty + 0.18, 0.035));
-      g.add(box(0.065, 0.06, 0.02, M.alu, tx, ty - 0.18, 0.035));
-    } else if (kind === 1) {                // hammer
-      g.add(cyl(0.014, 0.014, 0.30, M.wood, tx, ty, 0.035, 8));
-      g.add(box(0.11, 0.05, 0.05, M.steelDark, tx, ty + 0.16, 0.035));
-    } else if (kind === 2) {                // screwdriver
-      g.add(cyl(0.011, 0.011, 0.20, M.alu, tx, ty - 0.06, 0.035, 8));
-      g.add(cyl(0.021, 0.018, 0.11, M.paintRed, tx, ty + 0.10, 0.035, 8));
-    } else if (kind === 3) {                // pliers
-      g.add(box(0.03, 0.24, 0.02, M.steelDark, tx - 0.012, ty, 0.035));
-      g.add(box(0.03, 0.24, 0.02, M.steelDark, tx + 0.012, ty, 0.035));
-      g.add(box(0.055, 0.07, 0.025, M.paintRed, tx, ty - 0.13, 0.035));
-    } else {                                // file
-      g.add(box(0.022, 0.30, 0.018, M.steelDark, tx, ty, 0.035));
-      g.add(cyl(0.016, 0.012, 0.09, M.wood, tx, ty + 0.19, 0.035, 8));
-    }
-  };
-  const n = Math.floor(w / 0.24);
-  for (let i = 0; i < n; i++)
-    for (const ty of [0.34, -0.14])
-      if (rand() < 0.78) tool(-w / 2 + 0.16 + i * 0.24, ty, Math.floor(rand() * 5));
-  G.add(g);
-  return g;
+// ---- THE MOBILE KIT --------------------------------------------------------
+// Everything else in this room is nailed to a wall, because that is what makes
+// the middle of the floor read as the aeroplane's. These four are the
+// exception the user asked for: the kit you actually walk over to the
+// aeroplane with. The caller hands in the aeroplane's FOOTPRINT in the room's
+// own frame (x aft, z spanwise, nose at -x) and they are placed on a clearance
+// ring outside it — never inside the box, never further than a step from it,
+// and re-placed whenever the aeroplane changes, so a DC-3 pushes them out and
+// a drone lets them back in.
+const MOBILE = new THREE.Group();
+G.add(MOBILE);
+function placeMobile(bb) {
+  for (let i = MOBILE.children.length - 1; i >= 0; i--)
+    MOBILE.remove(MOBILE.children[i]);
+  if (!PROPS_OK || !bb || !isFinite(bb.x0)) return 0;
+  const CLR = 1.15;                       // metres of daylight round the box
+  // lim takes a MAGNITUDE, so the port side passes HW - 2.2, not its negative:
+  // handing it -(HW - 2.2) made max(-m, ...) return +15.8 and put the ladder,
+  // the sack truck and the jerrycan against the far wall on the wrong side.
+  const lim = (v, m) => Math.max(-m, Math.min(m, v));
+  const zR = lim(Math.max(bb.z1, 0.6) + CLR, HW - 2.2);
+  const zL = lim(Math.min(bb.z0, -0.6) - CLR, HW - 2.2);
+  const xN = lim(bb.x0 - CLR * 0.7, HD - 2.0);      // ahead of the nose (-x)
+  const xT = lim(bb.x1 + CLR * 0.7, HD - 2.0);      // behind the tail (+x)
+  const xM = lim((bb.x0 + bb.x1) / 2, HD - 2.0);    // abeam
+  // the cart lives under the starboard wing root, where the work is
+  prop('cart_tool', xM - 0.9, zR, Math.PI / 2 - 0.18, 0, MOBILE);
+  prop('toolbox_open', xM - 0.9, zR + 0.06, 0.5, 0.90, MOBILE);
+  prop('toolchest_metal', xM + 0.8, zR + 0.15, Math.PI / 2 + 0.22, 0, MOBILE);
+  // the ladder stands off the port wing, the sack truck by the nose
+  prop('stepladder', xM + 0.4, zL, -Math.PI / 2 + 0.3, 0, MOBILE);
+  prop('handtruck', xN, zL * 0.45, 1.9, 0, MOBILE);
+  prop('jerrycan', xN + 0.5, zL * 0.45 + 0.7, 0.8, 0, MOBILE);
+  return mobileList();
 }
+// Where the kit ended up, and whether it is shown at all. The editor offers
+// both: the kit is the room's only clutter that stands IN the open floor, and
+// when the question is about the shape it is in the way.
+function mobileList() {
+  return MOBILE.children.map(o => ({
+    key: o.name.replace('prop:', ''),
+    x: +o.position.x.toFixed(2), z: +o.position.z.toFixed(2),
+  }));
+}
+function mobileShow(on) { MOBILE.visible = on !== false; return MOBILE.visible; }
 
-// steel shelving, loaded with boxes and tins
-function shelving(x, z, w, ry) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  const H = 2.3, D = 0.55;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1])
-    g.add(box(0.05, H, 0.05, M.steelDark, sx * (w / 2 - 0.04), H / 2, sz * (D / 2 - 0.04)));
-  for (let k = 0; k < 5; k++) {
-    const y = 0.25 + k * (H - 0.4) / 4;
-    g.add(box(w, 0.03, D, M.steelDark, 0, y, 0));
-    let cx = -w / 2 + 0.15;
-    while (cx < w / 2 - 0.25) {
-      const bw = rr(0.22, 0.55), bh = rr(0.18, 0.34);
-      if (rand() < 0.75)
-        g.add(box(bw, bh, rr(0.3, D - 0.06),
-          [M.canvasM, M.woodPale, M.paintBlue, M.paintRed][Math.floor(rand() * 4)],
-          cx + bw / 2, y + bh / 2 + 0.02, rr(-0.05, 0.05)));
-      cx += bw + rr(0.04, 0.16);
-    }
-  }
-  G.add(g);
-  return g;
-}
-
-// an engine on a stand, the centrepiece of any build shop
-function engineStand(x, z, ry) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  // stand
-  g.add(box(0.09, 0.09, 1.3, M.paintRed, 0, 0.09, 0),
-        box(1.0, 0.09, 0.09, M.paintRed, 0.25, 0.09, 0),
-        box(0.14, 0.95, 0.14, M.paintRed, 0, 0.55, 0),
-        box(0.5, 0.10, 0.10, M.paintRed, 0.2, 1.0, 0));
-  for (const [cx, cz] of [[0.6, 0.55], [0.6, -0.55], [-0.15, 0]]) {
-    const w = cyl(0.06, 0.06, 0.04, M.rubber, cx, 0.06, cz, 12);
-    w.rotation.x = Math.PI / 2; g.add(w);
-  }
-  // a flat four: case, jugs, accessories
-  const e = new THREE.Group(); e.position.set(0.30, 1.16, 0);
-  e.add(box(0.46, 0.30, 0.30, M.steelDark, 0, 0, 0));
-  for (const s of [1, -1]) for (const cx of [-0.13, 0.13]) {
-    const jug = cyl(0.085, 0.095, 0.26, M.steel, cx, -0.02, s * 0.27, 12);
-    jug.rotation.x = Math.PI / 2; e.add(jug);
-    for (let f = 0; f < 5; f++) {
-      const fin = cyl(0.105, 0.105, 0.012, M.steelDark, cx, -0.02, s * (0.20 + f * 0.045), 12);
-      fin.rotation.x = Math.PI / 2; e.add(fin);
-    }
-  }
-  const shaft = cyl(0.04, 0.04, 0.22, M.alu, -0.32, 0, 0, 12);
-  shaft.rotation.z = Math.PI / 2; e.add(shaft);
-  e.add(box(0.14, 0.16, 0.18, M.brass, 0.22, 0.06, 0));
-  for (const s of [1, -1])
-    e.add(strut([0.0, -0.14, s * 0.10], [0.30, -0.36, s * 0.12], 0.014, M.alu));
-  g.add(e);
-  G.add(g);
-  return g;
-}
-
-// trestles with a wing panel across them, half-covered
-function wingJig(x, z, ry) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  for (const cz of [-1.7, 1.7]) {
-    const t = new THREE.Group(); t.position.z = cz;
-    for (const s of [-1, 1]) {
-      t.add(strut([s * 0.42, 0.02, -0.28], [s * 0.06, 0.88, 0], 0.035, M.woodPale));
-      t.add(strut([s * 0.42, 0.02, 0.28], [s * 0.06, 0.88, 0], 0.035, M.woodPale));
-    }
-    t.add(box(1.0, 0.07, 0.10, M.woodPale, 0, 0.90, 0));
-    g.add(t);
-  }
-  // the panel: ribs on a spar, part covered
-  g.add(box(1.25, 0.06, 4.6, M.woodPale, 0, 0.98, 0));
-  for (let k = 0; k < 9; k++) {
-    const rz = -2.1 + k * 0.52;
-    g.add(box(1.15, 0.02, 0.02, M.woodPale, 0, 1.04, rz),
-          box(1.15, 0.02, 0.02, M.woodPale, 0, 0.94, rz));
-    for (const cx of [-0.4, 0, 0.4])
-      g.add(box(0.02, 0.10, 0.02, M.woodPale, cx, 0.99, rz));
-  }
-  const cov = box(1.22, 0.02, 2.1, M.canvasM, 0, 1.06, -1.15);
-  g.add(cov);
-  G.add(g);
-  return g;
-}
-
-// a propeller leaning against the wall — the shop's own ornament
-function leaningProp(x, z, ry) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z); g.rotation.set(0, ry || 0, 0.22);
-  const hub = cyl(0.10, 0.10, 0.09, M.brass, 0, 1.05, 0, 16);
-  hub.rotation.x = Math.PI / 2; g.add(hub);
-  for (const s of [1, -1]) {
-    const bl = new THREE.Group(); bl.position.y = 1.05;
-    for (let k = 0; k < 6; k++) {
-      const t = k / 5, r = 0.12 + t * 0.9;
-      const w = 0.16 * (1 - 0.35 * t) * (t > 0.9 ? (1 - t) / 0.1 : 1);
-      const seg = box(w, 0.028, 0.05, M.wood, 0, s * r, 0);
-      seg.rotation.y = s * (0.42 - 0.3 * t);
-      bl.add(seg);
-    }
-    g.add(bl);
-  }
-  G.add(g);
-  return g;
-}
-
-// drums, cans, a tyre stack, a gas bottle rack — the floor furniture
-function drum(x, z, mat) {
-  const g = new THREE.Group(); g.position.set(x, 0, z);
-  g.add(cyl(0.29, 0.29, 0.88, mat, 0, 0.44, 0, 20));
-  for (const y of [0.28, 0.60]) g.add(cyl(0.30, 0.30, 0.05, M.steelDark, 0, y, 0, 20));
-  g.add(cyl(0.29, 0.29, 0.03, M.steelDark, 0, 0.89, 0, 20));
-  G.add(g); return g;
-}
-function tyreStack(x, z, n) {
-  const g = new THREE.Group(); g.position.set(x, 0, z);
-  for (let k = 0; k < n; k++) {
-    const t = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.115, 10, 22), M.rubber);
-    t.rotation.x = Math.PI / 2; t.position.set(rr(-0.03, 0.03), 0.12 + k * 0.23, rr(-0.03, 0.03));
-    t.rotation.z = rand() * 3; t.castShadow = true;
-    g.add(t);
-  }
-  G.add(g); return g;
-}
-function bottleRack(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  g.add(box(1.1, 0.06, 0.5, M.steelDark, 0, 0.05, 0),
-        box(1.1, 0.05, 0.05, M.steelDark, 0, 1.15, -0.2));
-  for (const [cx, mat] of [[-0.36, M.paintGreen], [-0.02, M.steelDark], [0.34, M.paintRed]]) {
-    g.add(cyl(0.115, 0.115, 1.35, mat, cx, 0.72, 0, 14));
-    g.add(cyl(0.05, 0.05, 0.14, M.brass, cx, 1.46, 0, 10));
-    g.add(cyl(0.09, 0.09, 0.06, M.steelDark, cx, 1.52, 0, 10));
-  }
-  G.add(g); return g;
-}
-function toolChest(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  g.add(box(1.05, 0.95, 0.52, M.paintRed, 0, 0.60, 0));
-  g.add(box(1.09, 0.05, 0.56, M.woodPale, 0, 1.10, 0));
-  for (let k = 0; k < 4; k++) {
-    g.add(box(1.0, 0.16, 0.02, M.steelDark, 0, 0.28 + k * 0.21, 0.27));
-    const h = box(0.5, 0.03, 0.03, M.alu, 0, 0.28 + k * 0.21, 0.29);
-    g.add(h);
-  }
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const w = cyl(0.07, 0.07, 0.04, M.rubber, sx * 0.42, 0.07, sz * 0.18, 10);
-    w.rotation.x = Math.PI / 2; g.add(w);
-  }
-  G.add(g); return g;
-}
-function stepladder(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  for (const s of [-1, 1]) {
-    g.add(strut([s * 0.24, 0.02, -0.30], [s * 0.16, 2.0, -0.06], 0.032, M.woodPale));
-    g.add(strut([s * 0.24, 0.02, 0.42], [s * 0.16, 2.0, 0.06], 0.028, M.woodPale));
-  }
-  for (let k = 0; k < 6; k++) {
-    const t = k / 6;
-    g.add(box(0.46 - t * 0.06, 0.03, 0.13, M.woodPale, 0, 0.22 + k * 0.29, -0.28 + t * 0.22));
-  }
-  g.add(box(0.46, 0.04, 0.24, M.woodPale, 0, 2.0, -0.05));
-  G.add(g); return g;
-}
-// a wood stove and a chair: the cosy corner every real shop has
+// THE COSY CORNER. The stove is a prop now; the flue is not, and cannot be —
+// scandinavian_masonry_heater is a DOMESTIC heater with a 2.4 m stub, and this
+// shed is 8.4 m to the eaves, so the pipe has to be drawn on up through the
+// roof or it ends in mid-air. The glow, the log basket and the rug's chair
+// come with it.
 function stoveCorner(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  g.add(box(1.3, 0.06, 1.3, M.stem, 0, 0.03, 0));
-  g.add(cyl(0.30, 0.34, 0.78, M.steelDark, 0, 0.42, 0, 16));
-  g.add(cyl(0.36, 0.36, 0.05, M.steelDark, 0, 0.83, 0, 16));
-  const door = cyl(0.16, 0.16, 0.03, M.lampWarm, 0, 0.42, 0.33, 14);
-  door.rotation.x = Math.PI / 2; g.add(door);
-  const glow = new THREE.PointLight(0xff7a2a, 14, 7, 2);
-  glow.position.set(0, 0.45, 0.5); g.add(glow);
-  // the flue goes THROUGH the roof, as a flue does — the height comes from the
-  // shed's own eave so it cannot end in mid-air when the geometry changes
-  {
-    const top = EAVE + 0.6, fl = cyl(0.09, 0.09, top - 0.86, M.steelDark, 0, 0.86 + (top - 0.86) / 2, 0, 12);
-    g.add(fl);
-    g.add(cyl(0.16, 0.16, 0.10, M.steelDark, 0, top - 0.9, 0, 12));   // roof collar
-    g.add(cyl(0.13, 0.13, 0.06, M.steelDark, 0, 1.30, 0, 12));        // stove collar
+  const g = new THREE.Group();
+  g.position.set(x, 0, z); g.rotation.y = ry || 0;
+  g.add(box(1.7, 0.06, 1.7, M.stem, 0, 0.03, 0));          // the hearth slab
+  if (!prop('stove_masonry', x, z, ry)) {                   // fallback: a drum
+    g.add(cyl(0.30, 0.34, 0.78, M.steelDark, 0, 0.42, 0, 16));
+    g.add(cyl(0.36, 0.36, 0.05, M.steelDark, 0, 0.83, 0, 16));
   }
-  // log basket + logs
-  g.add(cyl(0.30, 0.26, 0.34, M.wood, 0.95, 0.17, 0.2, 14));
+  // the flue, from the heater's own stub up through the roof
+  {
+    const y0 = 2.36, top = EAVE + 0.6;
+    g.add(cyl(0.09, 0.09, top - y0, M.steelDark, 0, y0 + (top - y0) / 2, 0, 12));
+    g.add(cyl(0.16, 0.16, 0.10, M.steelDark, 0, top - 0.9, 0, 12));   // roof collar
+  }
+  const glow = new THREE.PointLight(0xff7a2a, 14, 7, 2);
+  glow.position.set(0, 0.6, 0.75); g.add(glow);
+  // log basket + logs, still drawn: nothing in the library is a log
+  g.add(cyl(0.30, 0.26, 0.34, M.wood, 1.15, 0.17, 0.35, 14));
   for (let k = 0; k < 5; k++) {
-    const l = cyl(0.055, 0.055, rr(0.28, 0.38), M.wood, 0.95 + rr(-0.1, 0.1),
-                  0.36 + k * 0.05, 0.2 + rr(-0.1, 0.1), 8);
+    const l = cyl(0.055, 0.055, rr(0.28, 0.38), M.wood, 1.15 + rr(-0.1, 0.1),
+                  0.36 + k * 0.05, 0.35 + rr(-0.1, 0.1), 8);
     l.rotation.set(rand() * 3, rand() * 3, Math.PI / 2 + rr(-0.4, 0.4));
     g.add(l);
   }
-  // armchair
-  const ch = new THREE.Group(); ch.position.set(-0.2, 0, 1.5); ch.rotation.y = -0.7;
-  ch.add(box(0.78, 0.18, 0.72, M.leather, 0, 0.42, 0),
-         box(0.78, 0.62, 0.16, M.leather, 0, 0.72, -0.34),
-         box(0.14, 0.30, 0.72, M.leather, -0.34, 0.60, 0),
-         box(0.14, 0.30, 0.72, M.leather, 0.34, 0.60, 0));
-  for (const sx of [-1, 1]) for (const sz of [-1, 1])
-    ch.add(box(0.07, 0.34, 0.07, M.wood, sx * 0.32, 0.17, sz * 0.29));
-  g.add(ch);
-  const rug = box(2.6, 0.012, 2.0, M.rug, 0.1, 0.006, 1.7);
-  g.add(rug);
-  G.add(g); return g;
+  G.add(g);
+  return g;
 }
+
+
+
 // a drawing board with plans, under a lamp
 function planTable(x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
+  const TILT = 0.22;
   const top = box(1.5, 0.05, 1.0, M.woodPale, 0, 0.95, 0);
-  top.rotation.x = -0.22; g.add(top);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1])
-    g.add(box(0.07, 0.9, 0.07, M.wood, sx * 0.65, 0.45, sz * 0.42));
+  top.rotation.x = -TILT; g.add(top);
+  // EACH LEG IS AS LONG AS THE BOARD IS HIGH ABOVE IT. The top is tilted, so
+  // one height for all four left the raised side standing 18 cm clear of the
+  // board it is supposed to be holding up.
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const h = 0.95 + sz * 0.42 * Math.sin(TILT) - 0.026;
+    g.add(box(0.07, h, 0.07, M.wood, sx * 0.65, h / 2, sz * 0.42));
+  }
   const paper = box(1.2, 0.006, 0.82,
     new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, 1.0, 0.02);
   paper.rotation.x = -0.22; g.add(paper);
@@ -1466,96 +1420,191 @@ function stockRack(x, z, ry) {
       }
     }
   }
-  // a couple of alloy sheets leaning on the end
-  for (let k = 0; k < 3; k++) {
-    const s = box(1.5, 2.0, 0.012, M.alu, 0.55 + k * 0.05, 1.0, 3.3 + k * 0.06);
-    s.rotation.set(0, Math.PI / 2, 0.12); g.add(s);
-  }
-  G.add(g); return g;
-}
-// a parts trolley with a cowling on it, parked by the aeroplane
-function partsTrolley(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  g.add(box(1.2, 0.05, 0.7, M.woodPale, 0, 0.72, 0),
-        box(1.1, 0.04, 0.6, M.woodPale, 0, 0.30, 0));
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(box(0.05, 0.7, 0.05, M.steelDark, sx * 0.54, 0.36, sz * 0.30));
-    const w = cyl(0.075, 0.075, 0.04, M.rubber, sx * 0.54, 0.06, sz * 0.30, 10);
-    w.rotation.x = Math.PI / 2; g.add(w);
-  }
-  g.add(box(1.15, 0.04, 0.04, M.steelDark, 0, 1.0, -0.30));
-  for (const sx of [-1, 1]) g.add(cyl(0.02, 0.02, 0.3, M.steelDark, sx * 0.54, 0.87, -0.30, 8));
-  // a cowling half, upside down
-  const cw = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.40, 0.55, 18, 1, true,
-    0, Math.PI), M.paintRed);
-  cw.rotation.set(Math.PI / 2, 0, 0.4); cw.position.set(-0.1, 0.86, 0.02);
-  cw.castShadow = true; g.add(cw);
-  G.add(g); return g;
-}
-// jack stands and a wheel off the aeroplane
-function jackStand(x, z) {
-  const g = new THREE.Group(); g.position.set(x, 0, z);
-  g.add(cyl(0.05, 0.05, 0.55, M.paintRed, 0, 0.28, 0, 10));
-  for (const a of [0, 2.09, 4.19])
-    g.add(strut([0, 0.50, 0], [Math.cos(a) * 0.28, 0.02, Math.sin(a) * 0.28], 0.022, M.paintRed));
-  g.add(box(0.16, 0.03, 0.16, M.steelDark, 0, 0.57, 0));
   G.add(g); return g;
 }
 
 // ---- placement ------------------------------------------------------------
-bench(-4.5, HW - 1.0, 3.2, Math.PI, { vice: true, clutter: 7 });
-bench(-0.6, HW - 1.0, 2.6, Math.PI, { clutter: 5 });
-pegboard(-4.5, HW - 0.30, 3.0, Math.PI);
-pegboard(-0.6, HW - 0.30, 2.4, Math.PI);
-shelving(4.4, HW - 0.9, 3.0, Math.PI);
-shelving(8.2, HW - 0.9, 2.4, Math.PI);
-bench(3.0, -HW + 1.0, 3.0, 0, { vice: true, clutter: 6 });
-pegboard(3.0, -HW + 0.30, 2.8, 0);
-shelving(-2.4, -HW + 0.9, 2.6, 0);
-engineStand(8.4, -HW + 2.4, -0.5);
-wingJig(-1.5, -HW + 2.6, 0.06);
-leaningProp(10.6, HW - 1.1, Math.PI * 0.5);
-toolChest(0.6, -HW + 2.4, 0.2);
-toolChest(-6.2, HW - 2.2, Math.PI + 0.15);
-stepladder(-8.4, -HW + 3.0, 0.5);
-stepladder(9.4, HW - 3.4, -0.6);
-drum(11.4, -HW + 1.4, M.paintGreen);
-drum(11.4, -HW + 2.3, M.paintBlue);
-drum(10.6, -HW + 1.8, M.paintRed);
-tyreStack(-10.2, HW - 1.5, 4);
-tyreStack(-11.0, HW - 2.3, 3);
-bottleRack(11.6, HW - 1.6, -Math.PI / 2);
-stoveCorner(10.4, 12.2, -0.5);
-planTable(-9.0, 8.6, 0.4);
 // EVERYTHING STANDS AGAINST A WALL. A working shed keeps the middle of the
 // floor clear — that is where the aeroplane goes, and it is the only way it
 // reads as the subject rather than as one more object in a cluttered room.
-workPlatform(6.5, HW - 2.6, 0.10);
-workPlatform(-7.5, -HW + 2.6, -0.10);
-partsTrolley(9.6, HW - 2.4, 0.4);
-partsTrolley(-9.4, -HW + 2.6, -0.3);
-jackStand(-11.2, HW - 3.6); jackStand(-11.6, HW - 4.4);
-toolChest(-8.0, HW - 2.4, Math.PI + 0.1);
+// The shed is x in [-HD, HD] (door at -HD) and z in [-HW, HW]; the two long
+// runs are the z = +-HW walls and the back wall is x = +HD.
+//
+// MEASURED SURFACES, not guessed ones. A prop that something else stands on
+// was measured off its own decoded geometry (upward-facing triangle area,
+// binned by height) rather than eyeballed, because a mug 3 cm above a bench
+// top is the one mistake that makes a whole room look wrong:
+const TOP = {
+  bench: 0.96,      // workbench_wood
+  desk: 0.78,       // metal_office_desk
+  table: 0.68,      // table_wood
+  cartTool: 0.90,   // cart_tool, top tray  (lower shelf 0.20)
+  cartCab: 0.90,    // cart_tool_cab
+  cartStore: 1.28,  // cart_storage, top    (middle 0.78, bottom 0.18)
+  crate: 0.41,      // crate_wood_a
+  drum: 0.90,       // drum_steel
+};
+const SHELVES = [0.44, 0.92, 1.42, 1.90];       // rack_steel, measured
+
+// A LOADED RACK. Bare shelving reads as a showroom; what makes a rack look
+// used is that the shelves are full and not tidy. Only props that fit the
+// 0.48 m gap and the 0.60 m depth go on one, and the seeded PRNG picks, so
+// the same shed comes back every time.
+// Only what FITS: the shelf is 0.92 x 0.60 with a 0.48 m gap above it, so
+// toolbox_open (0.77 m wide) was tried and dropped out — on the rack it hung
+// off both ends and read as a landslide.
+const SHELF_STOCK = ['box_cardboard', 'crate_wood_a', 'jerrycan',
+                     'instrument_panel'];   // boxes_cardboard was dismissed
+function loadedRack(x, z, ry) {
+  prop('rack_steel', x, z, ry);
+  const c = Math.cos(ry), sn = Math.sin(ry);
+  for (const y of SHELVES) {
+    if (y > 1.5 && rand() < 0.45) continue;     // the top shelf is half empty
+    let u = -0.24;                              // along the rack, local x
+    while (u < 0.26) {
+      const k = SHELF_STOCK[Math.floor(rand() * SHELF_STOCK.length)];
+      const v = rr(-0.05, 0.05);                // in and out, local z
+      prop(k, x + u * c + v * sn, z - u * sn + v * c, rand() * 3, y);
+      u += rr(0.26, 0.36);
+    }
+  }
+}
+
+// ===== THE SHOP RUN (z = +HW): benches, boards, tool storage ================
+prop('workbench_wood', FX(-5.0), HW - 1.00, Math.PI);
+prop('vice_bench', FX(-5.95), HW - 1.10, Math.PI * 0.5, TOP.bench);
+prop('toolbox_open', FX(-4.25), HW - 1.00, Math.PI - 0.35, TOP.bench);
+prop('radio_bench', FX(-3.95), HW - 1.05, Math.PI + 0.25, TOP.bench);
+prop('toolrack_wall', FX(-5.0), HW - 0.12, Math.PI, 1.62);
+prop('stool_wood', FX(-3.2), HW - 2.10, 0.6);
+
+prop('table_wood', FX(-1.7), HW - 1.05, Math.PI);
+prop('box_cardboard', FX(-2.1), HW - 1.00, 0.4, TOP.table);
+prop('crate_wood_a', FX(-1.2), HW - 1.05, -0.25, TOP.table);
+prop('jerrycan', FX(-0.9), HW - 1.85, 0.8);
+
+loadedRack(FX(1.5), HW - 0.55, Math.PI);
+loadedRack(FX(2.6), HW - 0.55, Math.PI);
+loadedRack(FX(3.7), HW - 0.55, Math.PI);
+prop('cart_storage', FX(5.7), HW - 1.10, Math.PI + 0.08);
+prop('box_cardboard', FX(5.4), HW - 1.10, 0.3, TOP.cartStore);
+prop('crate_wood_a', FX(6.1), HW - 1.05, -0.5, TOP.cartStore);
+prop('toolchest_metal', FX(7.3), HW - 0.95, Math.PI + 0.12);
+prop('cart_tool_cab', FX(8.7), HW - 0.95, Math.PI - 0.08);
+prop('bottle_lpg', FX(9.9), HW - 0.85, 0.5);
+prop('handtruck', FX(10.8), HW - 0.55, Math.PI + 0.15);
+
+// ===== THE BUILD RUN (z = -HW): the desk, the machines, the work ===========
+prop('desk_metal', FX(2.6), -HW + 0.90, 0);
+prop('lamp_desk', FX(3.35), -HW + 1.15, -0.55, TOP.desk);   // clamps to the top
+prop('instrument_panel', FX(1.95), -HW + 1.05, 0.35, TOP.desk);
+prop('stool_wood', FX(2.4), -HW + 1.95, -0.4);
+prop('toolrack_wall', FX(2.6), -HW + 0.12, 0, 1.62);
+
+loadedRack(FX(-1.2), -HW + 0.55, 0);
+loadedRack(FX(-2.3), -HW + 0.55, 0);
+prop('toolchest_metal', FX(0.5), -HW + 0.85, 0.15);
+prop('cart_tool', FX(-8.2), -HW + 1.40, -0.30);
+prop('drillpress', FX(7.4), -HW + 0.95, 0.10);
+prop('barrel_plastic', FX(9.0), -HW + 0.85, 0);
+prop('bin_metal', FX(10.2), -HW + 0.90, 0.3);
+
+// STILL DRAWN: nothing in the library is an aero engine, a wing under
+// construction, a propeller, a drawing board or a rolling scaffold.
+FURN.push(planTable(FX(-9.2), FZ(8.4), 0.4));
+FURN.push(workPlatform(FX(6.6), HW - 3.1, 0.10));
+FURN.push(workPlatform(FX(-6.6), -HW + 3.2, -0.10));
 // ry = PI, not -PI/2: the long stock lies along local z, so a quarter turn put
 // every length of tube and spruce straight through the end wall
-stockRack(HD - 1.6, -8.5, Math.PI);
-tyreStack(-6.0, -HW + 1.6, 2);
-drum(-8.2, -HW + 1.5, M.paintBlue);
-// a stack of crates
-for (let k = 0; k < 3; k++)
-  put(box(rr(0.7, 1.0), 0.55, rr(0.6, 0.9), M.woodPale,
-          -11.4, 0.28 + k * 0.56, -HW + 4.0 + rr(-0.2, 0.2), rr(-0.3, 0.3)));
-// a compressor under the back bench, and a hose reel on the wall
-put(cyl(0.22, 0.22, 1.1, M.paintRed, 11.9, 0.55, 6.2, 14));
-put(box(0.5, 0.28, 0.3, M.steelDark, 11.9, 1.22, 6.2));
+FURN.push(stockRack(HD - 1.6, -8.5, Math.PI));
+
+// ===== THE BACK WALL (x = +HD): gas, air, fuel and the bins ================
+prop('weldingcart', HD - 1.15, 15.0, -Math.PI / 2 - 0.20);
+prop('bottle_propane', HD - 0.85, 13.9, 0.4);
+prop('bottle_propane', HD - 0.90, 13.2, -0.9);
+prop('bottle_lpg', HD - 1.65, 13.6, 0.2);
+prop('compressor', HD - 1.25, 6.2, -Math.PI / 2);
+prop('hosereel_wall', HD - 0.14, 3.6, -Math.PI / 2, 2.20);
+prop('drum_steel', HD - 0.95, -14.6, 0.5);
+prop('drum_steel', HD - 0.95, -15.4, -0.3);
+prop('barrel_plastic', HD - 1.75, -15.0, 0);
+prop('jerrycan', HD - 1.9, -13.9, 0.9);
+prop('jerrycan', HD - 2.3, -14.2, -0.4);
+prop('bin_metal', HD - 1.05, -3.2, 0.3);
+prop('bin_metal_rust', HD - 1.05, -4.2, -0.5);
+prop('crate_wood_c', HD - 1.10, -10.6, Math.PI / 2 + 0.1);
+prop('crate_wood_b', HD - 1.05, -11.7, Math.PI / 2 - 0.2);
+
+// ===== THE DOOR END (x = -HD): tyres, crates and the unfinished car ========
+// A TYRE IS ONE PROP AND A STACK IS A STACK: 0.165 m of tread per lift, and a
+// turn on each, so no two read as the same casting.
+const tyreStack = (x, z, n) => {
+  for (let k = 0; k < n; k++)
+    prop('tyre', x + rr(-0.03, 0.03), z + rr(-0.03, 0.03), rand() * 3, k * 0.165);
+};
+tyreStack(FX(-11.3), HW - 1.7, 4);
+tyreStack(FX(-12.0), HW - 2.6, 3);
+tyreStack(FX(-11.6), HW - 3.4, 2);
+tyreStack(FX(-11.4), -HW + FZ(8.4), 3);
+prop('car_covered', FX(-9.9), HW - FZ(5.6), Math.PI / 2 + 0.05);
+
+prop('crate_wood_c', FX(-11.6), -HW + 3.6, 0.15);
+prop('crate_wood_a', FX(-11.6), -HW + 3.6, -0.20, TOP.crate);
+prop('crate_wood_b', FX(-11.8), -HW + 4.7, 0.35);
+prop('box_cardboard', FX(-10.7), -HW + 3.9, 0.8);
+prop('box_cardboard', FX(-10.8), -HW + 3.95, -0.4, 0.34);
+// the delivered "cardboard box set" was dismissed (no lids, no thickness: flat
+// card from any angle but dead ahead) — the Poly Haven box and the crates take
+// its place, and they stack
+prop('box_cardboard', FX(-11.4), -HW + 6.0, 0.1);
+prop('box_cardboard', FX(-11.5), -HW + 6.05, 1.2, 0.34);
+prop('crate_wood_a', FX(-10.8), -HW + 6.6, -0.3);
+prop('crate_wood_c', FX(-11.5), -HW + 7.6, 0.5);
+prop('stepladder', FX(-11.9), -HW + FZ(11.6), 1.4);
+prop('stepladder', FX(-8.6), -HW + 3.9, 0.5);
+
+// ===== WORK IN PROGRESS ====================================================
+// The shed had furniture and no WORK in it. These three come out of the game's
+// own generator rather than the prop library (see src/viewer/workshop.js), so
+// when the generator learns a new tip shape or a better truss, the aeroplanes
+// half-built on this floor learn it too.
 {
-  const reel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.09, 8, 20), M.paintBlue);
-  reel.rotation.y = Math.PI / 2; reel.position.set(HD - 0.4, 2.4, 4.0);
-  put(reel);
+  // the stands are a PROP now (user: "your stands are still really shaky"), so
+  // the height the pieces rest at is the trestle's own top, measured off the
+  // baked payload rather than agreed between two files
+  const trestleTop = (PROPS_OK && PROP_REG.props.work_trestle)
+    ? PROP_REG.props.work_trestle.bb[4] : 0.82;
+  const wsMats = { wood: M.woodPale, steel: M.steel, trestleTop: trestleTop,
+                   stand: (x, z, ry) => prop('work_trestle', x, z, ry) };
+  const place = (kind, x, z, ry) => {
+    const g = (typeof wsPiece === 'function') ? wsPiece(THREE, kind, wsMats) : null;
+    if (!g) return null;
+    g.position.set(x, 0, z); g.rotation.y = ry || 0;
+    G.add(g);
+    FURN.push(g);
+    return g;
+  };
+  // the whole wing along the shop wall, the welded fuselage down the build
+  // side, the wooden cabin by the door and the engine on its bench
+  place('wing', FX(-2.4), FZ(12.4), 0.05);
+  place('frame', FX(3.6), FZ(-12.2), 0.04);
+  place('cabin', FX(-8.2), FZ(-10.4), -0.30);
+  place('engine', FX(9.2), FZ(-6.4), -Math.PI / 2 + 0.2);
 }
-// a workbench radio, because the shop has a radio
-put(box(0.34, 0.22, 0.18, M.woodPale, -3.4, 1.07, HW - 1.05));
-put(cyl(0.07, 0.07, 0.02, M.steelDark, -3.4, 1.07, HW - 1.15, 12)).rotation.x = Math.PI / 2;
+
+// ===== THE COSY CORNER =====================================================
+FURN.push(stoveCorner(FX(11.1), FZ(12.4), -0.5));
+// 4 mm off the slab: the rug was baked with its underside on y = 0 and so
+// is the floor, and two coplanar double-sided faces are a z-fight
+prop('rug_persian', FX(8.6), FZ(13.8), 0.30, 0.004);
+prop('chair_lounge', FX(8.9), FZ(13.6), 2.35);
+prop('stool_wood', FX(7.6), FZ(12.5), 1.1);
+prop('drum_steel', FX(9.6), FZ(15.9), 0);          // the log drum, doubling as a table
+prop('barrel_plastic', FX(10.6), FZ(16.2), 0.4);
+
+// NO PENDANTS OVER THE BENCHES. Four of them used to hang here at eaves
+// height with nothing above them — a lamp needs a rod to hang from, and the
+// six that have one are placed with the shop lamps further down.
 
 // ---- lighting -------------------------------------------------------------
 // The room is a GROUP, not a scene: the viewer owns the scene, and the garage
@@ -1573,14 +1622,58 @@ ROOT.add(hemi);
 // THE DOOR. One shadow-casting key, angled the way a low afternoon sun comes
 // through an open hangar door — long shapes down the floor, the aeroplane lit
 // from the nose.
+// THE SUN COMES OUT OF THE SKY IMAGE (G56, user: "the HDRI sun vector";
+// measured off the HDR itself at G62). The equirect is the only thing in this
+// room that knows where the light actually is; the key light used to point the
+// way the shed was drawn, so the shadows on the floor disagreed with the
+// daylight in the windows above them.
+//
+// The (u, v) is no longer scanned off the LDR picture at run time — it is
+// integrated off the float HDR by tools/sky_prep.py, which is strictly better
+// on two counts: a clipped LDR bloom has no centroid (every pixel of it reads
+// 255, so the scan returned whichever corner it met first), and a small hard
+// moon over a bright horizon is found for the same reason. What is left here
+// is the conversion, and the sphere's own orientation (scale.x = -1, then a
+// quarter turn about y) has to be applied to the direction to match how the
+// backdrop is hung — the one part that is easy to get backwards, which is why
+// it is still written out longhand.
+function sunDir(uv, yaw) {
+  if (!uv || uv.length !== 2) return null;
+  // equirect: u wraps the horizon, v runs top (zenith) to bottom
+  const phi = (uv[0] - 0.5) * 2 * Math.PI, theta = uv[1] * Math.PI;
+  let x = Math.sin(theta) * Math.cos(phi), y = Math.cos(theta),
+      z = Math.sin(theta) * Math.sin(phi);
+  x = -x;                                        // scale.x = -1
+  const a = (yaw !== undefined) ? yaw : SKY_YAW0;    // ...then rotation.y = a
+  const c = Math.cos(a), sn = Math.sin(a), rx = x, rz = z;
+  x = rx * c + rz * sn; z = -rx * sn + rz * c;
+  const L = Math.hypot(x, y, z) || 1;
+  return [x / L, Math.max(0.12, y / L), z / L];  // never below the horizon
+}
+
 const key = new THREE.DirectionalLight(0xffe0b0, 2.6);
-key.position.set(-30, 5.0, 7.5);
-key.target.position.set(6, 0.6, -3);
+key.position.set(-(HD + 17), EAVE * 0.6, FZ(7.5));
+key.target.position.set(FX(6), 0.6, FZ(-3));
+// AIM IS PER SKY, so it is a function and not a one-off: the sun moves when
+// the mood does, and so must every shadow on the floor. Stand the light off at
+// a distance that keeps the whole shed in its shadow frustum, aimed at the
+// middle of the floor.
+function aimKey(uv, yaw) {
+  const sun = sunDir(uv, yaw);
+  if (!sun) return;
+  const R = 2 * HD + 22;
+  key.target.position.set(0, 0.6, 0);
+  key.position.set(sun[0] * R, Math.max(EAVE * 0.8, sun[1] * R), sun[2] * R);
+  key.target.updateMatrixWorld();
+}
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.left = -26; key.shadow.camera.right = 26;
-key.shadow.camera.top = 16; key.shadow.camera.bottom = -12;
-key.shadow.camera.near = 1; key.shadow.camera.far = 90;
+// the shadow box is the SHED, not a remembered number: a frustum sized for a
+// room twice this one spends its depth precision on empty air and the contact
+// shadow under the wheels goes soft
+key.shadow.camera.left = -(HW + 8); key.shadow.camera.right = HW + 8;
+key.shadow.camera.top = HD + 3; key.shadow.camera.bottom = -(HD + 3);
+key.shadow.camera.near = 1; key.shadow.camera.far = 2 * HD + 64;
 key.shadow.bias = 0; key.shadow.normalBias = 0.02;
 key.shadow.normalBias = 0.02;
 ROOT.add(key, key.target);
@@ -1590,27 +1683,33 @@ const winFill = [];
 for (const s of [1, -1]) {
   const w = new THREE.DirectionalLight(0xcfe0f2, 0.34);
   winFill.push(w);
-  w.position.set(-4, 9, s * 30);
+  w.position.set(FX(-4), EAVE + 0.6, s * (HW + 12));
   w.target.position.set(0, 1, 0);
   ROOT.add(w, w.target);
 }
 // the roof lights, from straight above
 const top = new THREE.DirectionalLight(0xe6eef8, 0.46);
-top.position.set(2, 30, 1); ROOT.add(top);
+top.position.set(FX(2), 2 * RIDGE + 8, FZ(1)); ROOT.add(top);
 
-// shop lamps: conical shades on a drop, with the bulb doing the work
+// SHOP LAMPS. The shade is hanging_industrial_lamp now, not a drawn cone; what
+// is still drawn is the LIGHT (a light is not a model) and the drop rod, since
+// the prop's own chain is 1.36 m and the roof over the lamp rows is at 9.9 m.
+// The prop hangs BELOW its origin, so the origin goes up at the rod's foot.
 const lamps = [];
 for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
-  const x = -8 + k * 8, z = s * 9.5, y = 6.2;
+  const x = FX(-8 + k * 8), z = s * FZ(9.5), y = EAVE * 0.74;
   const g = new THREE.Group(); g.position.set(x, y, z);
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.34, 20, 1, true), M.paintGreen);
-  cone.rotation.x = Math.PI; cone.material.side = THREE.DoubleSide;
-  g.add(cone);
-  g.add(cyl(0.05, 0.05, 0.10, M.steelDark, 0, 0.2, 0, 10));
-  const bulb = cyl(0.09, 0.09, 0.02, M.lampWarm, 0, -0.16, 0, 14);
-  g.add(bulb);
-  const drop = cyl(0.012, 0.012, RIDGE - y - 0.2, M.steelDark, 0, (RIDGE - y) / 2, 0, 6);
+  const hook = 1.30;                       // prop origin, above the group
+  prop('lamp_pendant', x, z, rr(-3, 3), y + hook);
+  const roof = roofY(z), rodH = roof - (y + hook);   // NOT `top`: that is a light
+  const drop = cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6);
   g.add(drop);
+  // A LIT LAMP NEEDS A LIT BULB. The prop's shade carries an emissive map but
+  // nothing inside it glows, so the fitting read as a cold shell with light
+  // arriving from an invisible point. This is that point, made visible.
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb);
+  bulb.position.y = 0.12; bulb.castShadow = false;
+  g.add(bulb);
   // THE CENTRE PAIR CASTS (G42, user: "the plane does not emit any cast
   // shadow"). The stand sits in the centre aisle, between the lamp rows,
   // where the only shadow-caster (the door sun) never reaches — so the
@@ -1618,17 +1717,21 @@ for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
   // its own shadow map. Same colour, same candela, same mood scaling;
   // the cost is two 1024 maps, and the aeroplane finally stands ON the
   // floor instead of hovering over it.
-  let L;
-  if (k === 1) {
-    L = new THREE.SpotLight(0xffd9a0, 90, 26, 0.62, 0.45, 2);
-    L.castShadow = true;
-    L.shadow.mapSize.set(1024, 1024);
-    L.shadow.camera.near = 1; L.shadow.camera.far = 30;
-    L.shadow.normalBias = 0.03;
-    L.target.position.set(x, 0, s * 1.5);
-    G.add(L.target);
-  } else L = new THREE.PointLight(0xffd9a0, 90, 26, 2);
-  L.position.y = -0.2;
+  // EVERY LAMP CASTS (G60, user: "fix the shadowless lamps"). Four of the six
+  // were PointLights with no shadow map — their light went straight through
+  // everything, which is why the floor bake had to carry the whole grounding
+  // job alone. All six are now the same fitting the G42 centre pair proved
+  // out; the cost is four more 1024 maps. The centre pair keeps its G42 aim
+  // at the stand, and the outer four aim into their own bay, tipped a little
+  // toward the aisle the way a hung shade actually throws.
+  const L = new THREE.SpotLight(0xffd9a0, 90, 26, 0.62, 0.45, 2);
+  L.castShadow = true;
+  L.shadow.mapSize.set(1024, 1024);
+  L.shadow.camera.near = 1; L.shadow.camera.far = 30;
+  L.shadow.normalBias = 0.03;
+  L.target.position.set(x, 0, k === 1 ? s * 1.5 : z * 0.75);
+  G.add(L.target);
+  L.position.y = 0.12;                     // inside the prop's shade
   g.add(L);
   lamps.push(L);
   G.add(g);
@@ -1689,34 +1792,73 @@ for (const s of [1, -1]) for (let k = 0; k < 4; k++) {
 ROOT.add(shafts);
 
 // ---- moods ----------------------------------------------------------------
-// The same four the session shipped. `env` was `scene.environmentIntensity`,
-// which r128 does not have — so each material's own envMapIntensity is scaled
-// from the value it was authored with. Authored values are captured once, here,
-// because scaling a scaled value compounds every time the mood changes.
+// A MOOD IS A SKY (G62, user: "HDRI of several day conditions ... the lighting
+// conditions harmonized"). The four hand-authored rows this room shipped with
+// were a light rig with no picture behind it: the sun outside stayed the alpine
+// afternoon whichever one you picked, so GOLDEN lit the shed orange under a
+// blue midday sky. Now each row IS a sky — the picture in the doorway and the
+// rig are the same row, and the rig was measured off that picture's own HDR by
+// tools/sky_prep.py (where the sun is, what colour it is, how directional it
+// is; see that tool for what is measured and what is authored). Nothing in
+// this file decides a lighting number any more; it applies one.
+//
+// The alps/AFTERNOON row is the anchor and comes back exactly as it was — the
+// user asked to keep it — except that its key light now points where the sun
+// in that picture actually is rather than at the brightest clipped pixel of
+// its bloom.
+//
+// `env` was `scene.environmentIntensity`, which r128 does not have — so each
+// material's own envMapIntensity is scaled from the value it was authored
+// with. Authored values are captured once, here, because scaling a scaled
+// value compounds every time the mood changes.
 const ENV0 = new Map();
 for (const k in M) if (M[k] && M[k].envMapIntensity !== undefined)
   ENV0.set(M[k], M[k].envMapIntensity);
-const MOODS = [
-  { n: 'AFTERNOON', key: 2.8,  hemi: 0.30, lamp: 70,  ex: 0.92, kc: 0xffdca8, bg: 0x14120f, env: 0.55, top: 0.46 },
-  { n: 'OVERCAST',  key: 1.1,  hemi: 0.62, lamp: 120, ex: 0.98, kc: 0xdfe7f2, bg: 0x181a1c, env: 0.70, top: 0.66 },
-  { n: 'GOLDEN',    key: 3.6,  hemi: 0.16, lamp: 140, ex: 0.90, kc: 0xffa855, bg: 0x140f0a, env: 0.34, top: 0.22 },
-  { n: 'NIGHT',     key: 0.06, hemi: 0.05, lamp: 190, ex: 1.02, kc: 0x9fb6d8, bg: 0x0b0a09, env: 0.06, top: 0.03 },
+// WITHOUT THE PAYLOAD there is still a room: the headless gate and any
+// core-only build get the alps row's numbers with no picture to hang behind
+// them, which is exactly what this shed was before G41.
+const MOODS = SKY_ROWS || [
+  { key: 'alps', name: 'AFTERNOON', keyI: 2.8, kc: 0xffdca8, hemi: 0.274,
+    hemiSky: 0xc5d9ff, hemiGnd: 0x343422, top: 0.567, env: 0.55, lamp: 70,
+    ex: 0.92, bg: 0x151511, card: 0xf2ecdc, panel: 2.6, shaft: 0.055 },
 ];
-let moodI = 0;
+let moodI = -1;
 const setMood = i => {
-  const m = MOODS[moodI = Math.max(0, Math.min(MOODS.length - 1, i | 0))];
-  key.intensity = m.key; key.color.setHex(m.kc);
+  const j = Math.max(0, Math.min(MOODS.length - 1, i | 0));
+  const m = MOODS[j];
+  // THE SKY AND THE SUN MOVE ONLY WHEN THE ROW DOES: a re-apply of the same
+  // mood (applyEnv runs on every editor slider drag) must not re-decode a 4k
+  // equirect or re-aim a light that is already aimed.
+  if (j !== moodI) { moodI = j; setSky(m); aimKey(m.sunUV, m.yaw); }
+  key.intensity = m.keyI; key.color.setHex(m.kc);
   hemi.intensity = m.hemi;
+  if (m.hemiSky !== undefined) hemi.color.setHex(m.hemiSky);
+  if (m.hemiGnd !== undefined) hemi.groundColor.setHex(m.hemiGnd);
   for (const L of lamps) L.intensity = m.lamp;
   top.intensity = m.top;
-  for (const w of winFill) w.intensity = m.env * 0.6;
-  // the environment was baked ONCE, in daylight, so it has to be dimmed with
+  if (m.hemiSky !== undefined) top.color.setHex(m.hemiSky);
+  // the glazing bands ARE the sky seen through a wall, so they wear its
+  // colour too. (The anchor's authored 0xcfe0f2 and its measured sky chroma
+  // differ by about 1% of luminance — below anything the eye can find, and
+  // worth it not to leave one light burning daylight-blue at dusk.)
+  for (const w of winFill) {
+    w.intensity = m.env * 0.6;
+    if (m.hemiSky !== undefined) w.color.setHex(m.hemiSky);
+  }
+  // the environment is baked in ONE sky, so it has to be scaled with
   // everything else or the room stays lit by a sun that has gone
   for (const [mat, e0] of ENV0) mat.envMapIntensity = e0 * (m.env / 0.55);
+  // the props are materials too, and they were built after ENV0 was
+  // captured — propSetEnv scales the ones already built AND the ones
+  // the editor builds later, from the factory's own record
+  if (typeof propSetEnv === 'function') propSetEnv(m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
-  M.daylight.color.setHex(i === 3 ? 0x2b3550 : i === 2 ? 0xffd9a2 : 0xf2ecdc);
-  M.skyPanel.emissiveIntensity = i === 3 ? 0.15 : i === 1 ? 3.4 : 2.6;
-  shaftMat.opacity = i === 3 ? 0.03 : i === 2 ? 0.11 : i === 1 ? 0.035 : 0.055;
+  M.daylight.color.setHex(m.card);
+  M.skyPanel.emissiveIntensity = m.panel;
+  // the filaments follow the lamps they are in, or a night shed has cold bulbs
+  // burning in it
+  M.bulb.emissiveIntensity = 0.5 + m.lamp / 70;
+  shaftMat.opacity = m.shaft;
   return m;
 };
 
@@ -1762,7 +1904,7 @@ for (const k in PARTS) {
 const partTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
+  t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   if (srgb) t.encoding = THREE.sRGBEncoding;
   const ok = () => { t.needsUpdate = true; };
   if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
@@ -1804,6 +1946,231 @@ const setPart = (key, st) => {
   return Object.assign({}, s);
 };
 
+// ---- THE GROUND SHADOW BAKE (G58) ------------------------------------------
+// The user's diagnosis was right: the car and the drawing table floated,
+// because four of the six lamps are PointLights with no shadow map — their
+// light goes straight through everything — and SSAO's 0.2 m radius cannot see
+// an occluder the size of a car. The floor itself was never the problem (it
+// has receiveShadow and shows the window patches); what was missing is the
+// AMBIENT shadow, the one a big object prints on the ground under any light.
+//
+// This is the user's projection idea, generalised: ONE orthographic camera
+// UNDER the floor looking up renders every piece of furniture with a depth
+// material, so each texel records the height of the LOWEST surface above it —
+// which is exactly what a contact shadow depends on. That height becomes an
+// intensity (near the floor = dark, 2.6 m up = nothing, above that clipped by
+// the camera's own far plane, so the pendant lamps and the roof never print),
+// a separable blur gives it a penumbra, and the result is one darkening quad
+// laid on the slab. Four draws at 1024^2, once per room build and once per
+// mobile-kit move — not per frame.
+//
+// FROM BELOW, not above: from above the camera sees a table's TOP and a tall
+// object would print by its lid; from below it sees the underside — legs
+// print hard little feet, the tabletop prints a soft pool, and a car cover
+// whose skirt nearly touches the ground prints near-black. That is the
+// "truncated to the bottom" in the user's ask, done by the depth test itself.
+const GS = { on: true };
+const CS = { on: true };   // the aeroplane's own print, below
+{
+  const SIZE = 1024, CUT = 2.6, LAYER = 3;
+  const mk = () => new THREE.WebGLRenderTarget(SIZE, SIZE, {
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat });
+  GS.rtA = mk(); GS.rtB = mk();
+  GS.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.BasicDepthPacking });
+  GS.depthMat.side = THREE.DoubleSide;      // undersides face the camera
+  GS.cam = new THREE.OrthographicCamera(-HD, HD, HW, -HW, 0.02, CUT);
+  GS.cam.up.set(0, 0, 1);
+  GS.cam.layers.set(LAYER);
+  const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  // BasicDepthPacking writes 1 - fragCoordZ, and an ortho camera's depth is
+  // LINEAR — so the sample IS (1 - height/CUT), and the shaping curve turns it
+  // into an intensity. pow on the first pass only; the second just blurs.
+  GS.blur = new THREE.ShaderMaterial({
+    uniforms: { tSrc: { value: null }, uTexel: { value: new THREE.Vector2(1 / SIZE, 1 / SIZE) },
+                uDir: { value: new THREE.Vector2(1, 0) }, uPow: { value: 1 } },
+    vertexShader: VERT,
+    fragmentShader: [
+      'precision highp float; varying vec2 vUv;',
+      'uniform sampler2D tSrc; uniform vec2 uTexel, uDir; uniform float uPow;',
+      'void main() {',
+      '  float w[5]; w[0]=0.227; w[1]=0.194; w[2]=0.121; w[3]=0.054; w[4]=0.016;',
+      '  float s = pow(texture2D(tSrc, vUv).r, uPow) * w[0];',
+      '  for (int i = 1; i < 5; i++) {',
+      '    vec2 o = uDir * uTexel * float(i) * 2.6;',
+      '    s += pow(texture2D(tSrc, vUv + o).r, uPow) * w[i];',
+      '    s += pow(texture2D(tSrc, vUv - o).r, uPow) * w[i];',
+      '  }',
+      '  gl_FragColor = vec4(vec3(s), 1.0);',
+      '}'].join('\n'),
+  });
+  GS.fsQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), GS.blur);
+  GS.fsScene = new THREE.Scene(); GS.fsScene.add(GS.fsQuad);
+  GS.fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  // THE OVERLAY: a black quad whose alpha is the baked occlusion. alphaMap
+  // reads the GREEN channel; the bake writes all three the same. fog off, or
+  // the room fog tints the darkening grey.
+  const geo = new THREE.PlaneGeometry(2 * HD, 2 * HW);
+  {  // the framebuffer's v runs +z -> -z once the plane lies flat; flip to match
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+  }
+  GS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color: 0x000000, alphaMap: GS.rtA.texture, transparent: true,
+    opacity: 0.9, depthWrite: false, fog: false }));
+  GS.quad.rotation.x = -Math.PI / 2;
+  GS.quad.position.y = 0.012;               // above the slab AND the rug
+  GS.quad.renderOrder = 1;
+  GS.quad.visible = false;                  // nothing to show until a bake ran
+  G.add(GS.quad);
+
+  GS.bake = function (renderer, scene) {
+    if (!renderer || !scene || !renderer.setRenderTarget) return false;
+    try {
+      for (const f of FURN)
+        if (f) f.traverse(o => { if (o.isMesh) o.layers.enable(LAYER); });
+      const gy = ROOT.position.y;
+      GS.cam.position.set(0, gy - 0.01, 0);
+      GS.cam.lookAt(0, gy + 1, 0);
+      const prevT = renderer.getRenderTarget();
+      const prevC = renderer.getClearColor(new THREE.Color());
+      const prevA = renderer.getClearAlpha();
+      const prevO = scene.overrideMaterial;
+      renderer.setClearColor(0x000000, 1);
+      scene.overrideMaterial = GS.depthMat;
+      renderer.setRenderTarget(GS.rtA);
+      renderer.clear();
+      renderer.render(scene, GS.cam);
+      scene.overrideMaterial = prevO;
+      GS.blur.uniforms.tSrc.value = GS.rtA.texture;   // shape + blur across
+      GS.blur.uniforms.uDir.value.set(1, 0);
+      GS.blur.uniforms.uPow.value = 1.6;
+      renderer.setRenderTarget(GS.rtB);
+      renderer.render(GS.fsScene, GS.fsCam);
+      GS.blur.uniforms.tSrc.value = GS.rtB.texture;   // blur down
+      GS.blur.uniforms.uDir.value.set(0, 1);
+      GS.blur.uniforms.uPow.value = 1.0;
+      renderer.setRenderTarget(GS.rtA);
+      renderer.render(GS.fsScene, GS.fsCam);
+      // A SECOND PASS-PAIR. One gaussian leaves the fringe around a car-sized
+      // occluder ~20 cm wide, which vanishes under the object's own sides; a
+      // contact shadow reads by the ring that PEEKS OUT, so the ring has to be
+      // wide enough to peek. Two iterations ~= 40 cm of penumbra.
+      GS.blur.uniforms.tSrc.value = GS.rtA.texture;
+      GS.blur.uniforms.uDir.value.set(1, 0);
+      renderer.setRenderTarget(GS.rtB);
+      renderer.render(GS.fsScene, GS.fsCam);
+      GS.blur.uniforms.tSrc.value = GS.rtB.texture;
+      GS.blur.uniforms.uDir.value.set(0, 1);
+      renderer.setRenderTarget(GS.rtA);
+      renderer.render(GS.fsScene, GS.fsCam);
+      renderer.setRenderTarget(prevT);
+      renderer.setClearColor(prevC, prevA);
+      GS.quad.visible = GS.on;
+      return true;
+    } catch (e) {
+      if (window.console) console.warn('ground shadow bake:', e.message);
+      return false;
+    }
+  };
+  GS.dispose = function () {
+    GS.rtA.dispose(); GS.rtB.dispose();
+    CS.rtA.dispose(); CS.rtB.dispose();
+    if (CS.quad.geometry) CS.quad.geometry.dispose();
+    GS.blur.dispose(); GS.depthMat.dispose(); GS.fsQuad.geometry.dispose();
+  };
+
+  // ---- THE AEROPLANE'S OWN PRINT (G59) -------------------------------------
+  // The furniture bake deliberately leaves the aeroplane out: it changes with
+  // every slider, and re-baking the whole room per drag is the wrong trade.
+  // This is the user's counter-proposal — a SMALL sprite just for the plane,
+  // dynamic. Same recipe end to end (under-floor ortho, lowest surface,
+  // pow + blur), but the camera and the quad are sized to the CRAFT's own
+  // footprint and the target is 256^2, so a bake is four small draws and the
+  // sliders never feel it. Layer 4, so the room bake (layer 3) never sees the
+  // plane and this one never sees the room.
+  {
+    const SIZE = 256, CUT = 2.6, LAYER = 4, PAD = 0.9;
+    const mk = () => new THREE.WebGLRenderTarget(SIZE, SIZE, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat });
+    CS.rtA = mk(); CS.rtB = mk();
+    CS.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.02, CUT);
+    CS.cam.up.set(0, 0, 1);
+    CS.cam.layers.set(LAYER);
+    const geo = new THREE.PlaneGeometry(1, 1);
+    { const uv = geo.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i)); }
+    CS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: 0x000000, alphaMap: CS.rtA.texture, transparent: true,
+      opacity: 0.9, depthWrite: false, fog: false }));
+    CS.quad.rotation.x = -Math.PI / 2;
+    // a hair above the furniture quad, so the two never z-fight where the
+    // mobile kit's print runs under a wing
+    CS.quad.position.y = 0.016;
+    CS.quad.renderOrder = 1;
+    CS.quad.visible = false;
+    G.add(CS.quad);
+
+    CS.bake = function (renderer, scene, craft) {
+      if (!renderer || !scene || !craft || !renderer.setRenderTarget) return false;
+      try {
+        const bb = new THREE.Box3().setFromObject(craft);
+        if (!isFinite(bb.min.x) || bb.max.x <= bb.min.x) {
+          CS.quad.visible = false;
+          return false;
+        }
+        craft.traverse(o => { if (o.isMesh) o.layers.enable(LAYER); });
+        const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+        const hw = (bb.max.x - bb.min.x) / 2 + PAD, hh = (bb.max.z - bb.min.z) / 2 + PAD;
+        const gy = ROOT.position.y;
+        CS.cam.left = -hw; CS.cam.right = hw; CS.cam.top = hh; CS.cam.bottom = -hh;
+        CS.cam.updateProjectionMatrix();
+        CS.cam.position.set(cx, gy - 0.01, cz);
+        CS.cam.lookAt(cx, gy + 1, cz);
+        const prevT = renderer.getRenderTarget();
+        const prevC = renderer.getClearColor(new THREE.Color());
+        const prevA = renderer.getClearAlpha();
+        const prevO = scene.overrideMaterial;
+        renderer.setClearColor(0x000000, 1);
+        scene.overrideMaterial = GS.depthMat;
+        renderer.setRenderTarget(CS.rtA);
+        renderer.clear();
+        renderer.render(scene, CS.cam);
+        scene.overrideMaterial = prevO;
+        // the shared blur, retuned to this target's texel and put back after
+        GS.blur.uniforms.uTexel.value.set(1 / SIZE, 1 / SIZE);
+        const pass = (src, dst, dir, pw) => {
+          GS.blur.uniforms.tSrc.value = src.texture;
+          GS.blur.uniforms.uDir.value.set(dir[0], dir[1]);
+          GS.blur.uniforms.uPow.value = pw;
+          renderer.setRenderTarget(dst);
+          renderer.render(GS.fsScene, GS.fsCam);
+        };
+        pass(CS.rtA, CS.rtB, [1, 0], 1.6);
+        pass(CS.rtB, CS.rtA, [0, 1], 1.0);
+        GS.blur.uniforms.uTexel.value.set(1 / 1024, 1 / 1024);
+        renderer.setRenderTarget(prevT);
+        renderer.setClearColor(prevC, prevA);
+        // the quad wears the print exactly where the camera looked
+        CS.quad.scale.set(2 * hw, 2 * hh, 1);
+        CS.quad.position.x = cx; CS.quad.position.z = cz;
+        CS.quad.visible = CS.on;
+        return true;
+      } catch (e) {
+        if (window.console) console.warn('craft shadow bake:', e.message);
+        return false;
+      }
+    };
+  }
+}
+
+// A ROOM IS NEVER SKYLESS. The sky belongs to the mood now, so a caller that
+// forgets to set one would get a backdrop sphere with no picture on it — this
+// is the room's own default, and any caller's own setMood immediately replaces
+// it. (`moodI` starts at -1 so the first call always installs.)
+setMood(0);
+
 return {
   group: ROOT, background: BG, fog: FOG,
   library: [{ key: 'baked', name: '(part’s own)' }].concat(
@@ -1815,9 +2182,32 @@ return {
   // toward the door at -x. The caller lines the room up with the aeroplane
   // rather than moving the aeroplane, so the sim keeps its own coordinates.
   doorAxis: -1, floorY: 0,
+  dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   lights: { key: key, hemi: hemi, top: top, winFill: winFill, lamps: lamps },
   mats: M, shafts: shafts, faceShafts: faceShafts,
-  moods: MOODS.map(m => m.n), setMood: setMood,
+  // the kit that follows the aeroplane, and the equirect the caller may bake
+  // an environment from instead of the room's own cube pass
+  placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow,
+  // the baked floor shadow: re-run after anything on the floor moves
+  bakeGroundShadow: GS.bake, disposeGroundShadow: GS.dispose,
+  bakeCraftShadow: CS.bake,
+  _gs: GS,                           // dev handle: the bake's own targets
+  groundShadow: v => {
+    if (v !== undefined) {
+      GS.on = CS.on = v > 0;
+      GS.quad.material.opacity = CS.quad.material.opacity = Math.max(0, Math.min(1, v));
+      GS.quad.visible = GS.on && GS.quad.material.alphaMap === GS.rtA.texture;
+      if (!CS.on) CS.quad.visible = false;
+    }
+    return GS.on ? GS.quad.material.opacity : 0;
+  },
+  // THE SKY IS LIVE NOW (G62): it changes with the mood, so the caller that
+  // PMREMs it has to be able to ask for the current one rather than being
+  // handed one at build time — and to be told when a swapped-in equirect has
+  // finished decoding, since a bake against a blank texture is a black room.
+  skyTexture: () => (skyMat ? skyMat.map : null),
+  onSkyReady: fn => { skyOnReady = fn; },
+  moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,
 };
 }

@@ -28,6 +28,11 @@ const SETS = [
   ['concrete008', 'concrete 008'],
   ['slabwall', 'concrete slab'],
   ['sandstone', 'sandstone brick'],
+  // the woods (G59): a boarded shop lining. brown_planks_09 ships a plain
+  // rough map; raw_plank_wall packed it as arm's G — both were unpacked to the
+  // library's own contract by the import step, so this file stays one recipe.
+  ['planks09', 'brown planks'],
+  ['rawplank', 'raw plank wall'],
 ];
 
 const uri = (k, f, mime) =>
@@ -55,14 +60,11 @@ for (const [k, name] of SETS) {
 body += `  };
 })() : null;
 `;
-// THE SKY (G41): alps_field_1k.exr tone-mapped once to an LDR equirect —
-// the backdrop sphere outside the hangar, dimmed with the moods.
-const sky = `data:image/jpeg;base64,` +
-  fs.readFileSync(path.join(ROOT, 'assets', 'hangar_sky', 'alps_field.jpg'))
-    .toString('base64');
-body += `const HANGAR_SKY_IMG = (typeof Image !== 'undefined')
-  ? (() => { const i = new Image(); i.src = '${sky}'; return i; })() : null;
-`;
+// THE SKY LEFT THIS FILE AT G62. It was one alps_field equirect riding along
+// with the walls; it is a SET of five times of day now, each with the light
+// rig measured off its own HDR, and it has its own source, its own tool and
+// its own payload: assets/hangar_sky/ -> tools/sky_prep.py ->
+// tools/sky_tex_prep.js -> src/viewer/hangar_sky.js. A sky is not a wall.
 fs.writeFileSync(OUT, body);
 console.log(`src/viewer/hangar_walls.js (${(body.length / 1048576).toFixed(1)} MB) — ` +
   report.join(', '));

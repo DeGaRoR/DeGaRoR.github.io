@@ -46,6 +46,13 @@ const M = {
   twX: 4.8, twY: 0.05, twR: 0.11,
   halfW: 0.52, cabH: 1.21, tailArm: 5.1,
   tailW: 0.14, tailBot: 0.31, tailTop: 0.52, cowlDeck: 0.66,
+  noseGap: 0.93, cabLen: 1.24, postGap: 0.42, wingXLE: 0.55, gearX: 0.82,
+  gearY: -0.31, shape: 'boom',
+  hSpan: 2.4, hChord: 0.8, hX: 5.0, vHeight: 1.1, vChord: 0.9, vX: 5.2,
+  stabH: 0.15,
+  profile: [{ t: 0, w: 0.45, yb: -0.05, yt: 1.15 },
+            { t: 0.5, w: 0.22, yb: 0.28, yt: 0.66 },
+            { t: 1, w: 0.14, yb: 0.31, yt: 0.52 }],
   seating: 'side2', pilots: 2,
   cage: { waistY: -0.05 },
 };
@@ -66,14 +73,24 @@ for (const k in CAGE_JOIN_ENGINES)
   ok(POWERPLANTS[CAGE_JOIN_ENGINES[k]] != null, 'registry row for "' + k + '"');
 ok(s.gear.type === 'taildragger' && s.gear.track === 1.62 &&
    s.gear.wheelR === 0.21, 'gear measurements pass (wheelR, not contactR)');
-ok(s.gear.y === undefined && s.gear.twX === 4.8 && s.gear.twY === 0.05 &&
-   s.gear.twR === 0.11,
-   'measured third wheel passes; mains height stays derived (G51)');
+ok(s.gear.twX === 4.8 && s.gear.twY === 0.05 && s.gear.twR === 0.11,
+   'measured third wheel passes (G51)');
 ok(s.cabin.halfW === 0.52 && s.cabin.h === 1.21, 'cabin envelope passes');
 ok(s.fuselage.tailArm === 5.1, 'tail arm passes');
 ok(s.fuselage.tailW === 0.14 && s.fuselage.tailBot === 0.31 &&
    s.fuselage.tailTop === 0.52, 'tail-end section passes (G49)');
 ok(s.fuselage.cowlDeck === 0.66, 'cowl deck passes (G49)');
+ok(s.cabin.noseGap === 0.93 && s.cabin.len === 1.24 &&
+   s.fuselage.postGap === 0.42, 'pillar proportions pass (G52)');
+ok(s.wings[0].xLE === 0.55, 'wing station passes (G52)');
+ok(s.gear.x === 0.82, 'mains station passes (G52)');
+ok(s.gear.y === -0.31, 'ride height passes (G53)');
+ok(s.fuselage.shape === 'boom', 'shape family passes (G54)');
+ok(Array.isArray(s.fuselage.profile) && s.fuselage.profile.length === 3,
+   'boom profile passes (G54.1)');
+ok(s.tail.hSpan === 2.4 && s.tail.hX === 5.0 && s.tail.vHeight === 1.1 &&
+   s.tail.vX === 5.2 && s.tail.stabH === 0.15,
+   'tail surfaces pass (G54.3)');
 ok(s.cabin.seating === 'side2' && s.cabin.pilots === 2,
    'seating + pilots pass (sectioned)');
 ok(s.cage && s.cage.waistY === -0.05, 'spec.cage rides along');
@@ -104,12 +121,43 @@ try {
      'RESOLVED tail-end section = measured (tailY 0)');
   ok(R.fuselage.cowlDeck === 0.66 && !RS.auto['fuse.cowlDeck'],
      'RESOLVED cowl deck = measured 0.66, not auto');
+  ok(R.cabin.noseGap === 0.93 && R.cabin.len === 1.24 && !RS.auto['cab.len'],
+     'RESOLVED pillar proportions = measured, len not auto');
+  ok(R.fuselage.postGap === 0.42, 'RESOLVED post gap = measured 0.42');
+  ok(R.wings[0].xLE === 0.55 && !RS.auto['wing.xLE'],
+     'RESOLVED wing LE station = measured 0.55, not auto');
+  ok(R.gear.x === 0.82, 'RESOLVED mains station = measured 0.82');
   ok(R.cabin.seating === 'side2' && R.crew === 2,
      'RESOLVED seating side2, crew 2');
   ok(R.gear.track === 1.62 && R.gear.wheelR === 0.21,
      'RESOLVED gear track + wheelR = measured');
-  ok(RS.auto['gear.y'] === true,
-     'RESOLVED gear y stays DERIVED (prop clearance owns it)');
+  ok(R.gear.y === -0.31 && !RS.auto['gear.y'],
+     'RESOLVED ride height = measured -0.31, not auto (G53)');
+  ok(R.fuselage.shape === 'boom', 'RESOLVED shape family = measured boom');
+  ok(Array.isArray(R.fuselage.profile) && R.fuselage.profile.length === 3 &&
+     Math.abs(R.fuselage.profile[1].yb - 0.28) < 1e-9,
+     'RESOLVED boom profile = measured rows, clamped envelope');
+  ok(R.tail.hSpan === 2.4 && R.tail.hX === 5.0 && !RS.auto['tail.hX'] &&
+     R.tail.vHeight === 1.1 && R.tail.vX === 5.2 && R.tail.stabH === 0.15,
+     'RESOLVED tail surfaces = measured, stations not auto');
+  // the frame must actually FOLLOW the profile: the mid-boom station's floor
+  // sits at the measured 0.28, not on the family curve
+  {
+    const fr2 = genFrame(R);
+    const bx = R.fuse.boxRear, ta = R.fuse.tailArm;
+    let bestI = -1, bestD = 1e9;
+    fr2.nodes.forEach((n, i) => {
+      if (!n.tag || n.tag.indexOf('S') !== 0 || n.tag.indexOf('B') < 0) return;
+      const t = (n.p[0] - bx) / Math.max(1e-6, ta - bx);
+      if (t > 0.05 && Math.abs(t - 0.5) < bestD) { bestD = Math.abs(t - 0.5); bestI = i; }
+    });
+    const tB = (fr2.nodes[bestI].p[0] - bx) / (ta - bx);
+    const want = 0.28 * ((tB <= 0.5 ? tB / 0.5 : (1 - (tB - 0.5) / 0.5))) +
+      (tB <= 0.5 ? -0.05 * (1 - tB / 0.5) : 0.31 * ((tB - 0.5) / 0.5));
+    ok(Math.abs(fr2.nodes[bestI].p[1] - want) < 0.02,
+       'FRAME mid-boom floor follows the measured profile (' +
+       fr2.nodes[bestI].p[1].toFixed(3) + ' vs ' + want.toFixed(3) + ')');
+  }
   ok(R.gear.twX === 4.8 && R.gear.twY === 0.05 && R.gear.twR === 0.11,
      'RESOLVED tailwheel station/height/radius = measured');
   ok(Math.abs(R.gear.contactR -
