@@ -120,11 +120,13 @@ const D2 = THREE.DoubleSide;
 const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({
   color: c, metalness: met, roughness: rgh, side: D2 });
 const COLS = {
-  // G38 DIAGNOSTIC (user): the wing wears the WAISTBAND'S OWN PINK
-  // (SEC.waistband #cc12a8) so wing-vs-body shading can be compared on
-  // the same colour — any residual difference is the pipeline, not the
-  // paint. Revert to the body grey 0x8b95a2 when the check is done.
-  main:  0xcc12a8,
+  // THE CHECK IS DONE (G62.3). G38 put the WAISTBAND'S OWN PINK (#cc12a8) on
+  // the wing so wing-vs-body shading could be compared on one colour, and left
+  // a note to revert to the body grey when it was over. It was not reverted,
+  // and it cost a diagnosis: an 8.4 m magenta wing sitting a metre under the
+  // environment probe tinted the WHOLE SHED through scene.environment. Back to
+  // SEC.body, which is what the paragraph above says the main skin wears.
+  main:  0x8b95a2,
   tip:   0xa85fb0,
   centre: 0x3f8fc0,
   ailR: 0xcc7a1f, ailL: 0xcc7a1f,
@@ -151,6 +153,35 @@ const glassMat = () => {
     color: COLS.glassC, metalness: 0.05, roughness: 0.15, side: D2,
     transparent: true, opacity: a, depthWrite: false });
 };
+// AEROSKIN ON THE WING (G68.1). The same factory the fuselage uses, so the
+// wing cannot drift from the body it is bolted to — which is the whole point
+// of there being one factory. It takes the CONSTRUCTION's own finish and its
+// structure grammar, with `wing: 1` switching the grammar's members from a
+// metric pitch to the wing's real ribs and spars: a rib is an integer station
+// and a spar is an integer rail, and the field carries both.
+//
+// Falls back to the bench's own flat palette when AEROSKIN is not loaded, so
+// a standalone _cage*.html page with no src/viewer on it still builds.
+function wingMat(cl) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  const P0 = (window.CAGE_UI && window.CAGE_UI.P) || {};
+  const on = document.getElementById('mat');
+  if (!A || !on || on.value !== 'material') return MAT[cl] || MAT.main;
+  const cons = ['carbon', 'tubeFabric', 'wood', 'alloy'][
+    Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] || 'tubeFabric';
+  const FS = ((window.CAGE2 && window.CAGE2.CAGE_UNIT) || 1) *
+             (P0.planeScale || 1);
+  return A.aeroMaterial(THREE, {
+    finish: A.aeroFinishFor('body', cons),
+    grm: cons, struct: 1, wing: 1,
+    surf: 1, fieldM: 1,          // the wing's field is ALREADY in metres
+    side: THREE.DoubleSide,
+    // the TIP takes the trim colour it always had - G31's "every part its own
+    // colour" survives as a tint over the finish rather than as a flat paint
+    tint: cl === 'tip' ? COLS.tip : undefined,
+  });
+}
+
 const wireMats = {};
 const wireMat = nm => wireMats[nm] ||
   (wireMats[nm] = new THREE.LineBasicMaterial({ color: COLS[nm] || 0x8b95a2 }));
@@ -187,19 +218,26 @@ function bodyFrameOf(def) {
 // [a,b,c],[a,c,d] — detected here so the wireframe draws QUAD edges (the
 // page's own ruling: the wireframe shows topology, not triangulation)
 // and the classifier sees whole primitives.
-function pickParts(g, keep, toCage, classOf) {
+// `field(i)` -> the four numbers of THE SURFACE FIELD (G66) for source
+// vertex i, or null. The wing's is built in wingField() below; everything
+// else passes nothing and takes the shader's triplanar branch.
+function pickParts(g, keep, toCage, classOf, field) {
   const nv = g.nv, ok = new Uint8Array(nv);
   for (let i = 0; i < nv; i++) ok[i] = keep(i) ? 1 : 0;
   const out = {};                     // class -> {map,pos,idx,wpos,eseen}
   const bucket = cl => out[cl] || (out[cl] = {
     map: new Int32Array(nv).fill(-1), pos: [], idx: [],
-    wpos: [], eseen: new Set() });
+    wpos: [], eseen: new Set(), fld: field ? [] : null });
   const raw = i => [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]];
   const vtx = (B2, i) => {
     if (B2.map[i] < 0) {
       const p = toCage(raw(i));
       B2.map[i] = B2.pos.length / 3;
       B2.pos.push(p[0], p[1], p[2]);
+      if (B2.fld) {
+        const a = field(i) || [0, 0, 0, 0];
+        B2.fld.push(a[0], a[1], a[2], a[3]);
+      }
     }
     return B2.map[i];
   };
@@ -240,6 +278,8 @@ function pickParts(g, keep, toCage, classOf) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(B2.pos), 3));
+    if (B2.fld) geo.setAttribute('aStruct',
+      new THREE.BufferAttribute(new Float32Array(B2.fld), 4));
     geo.setIndex(B2.idx);
     geo.computeVertexNormals();
     const wire = new THREE.BufferGeometry();
@@ -372,6 +412,10 @@ PAGE.post = ctx => {
   };
 
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:wing';
   const WIRE = !!(document.getElementById('wire') &&
                   document.getElementById('wire').checked);
   const ex = Math.max(0, P.explodeD || 0) * FS;
@@ -392,6 +436,64 @@ PAGE.post = ctx => {
   const W2 = def.spec.wing || {};
   const tipOn = (W2.tipR || 0) > 1e-6;
   const tipZ = tipOn ? W2.tipZ : Infinity;
+  // ---- THE WING'S SURFACE FIELD (G68.1) ----------------------------------
+  // The same four numbers the cage carries (G66), read off the wing's own
+  // structure rather than a lattice — and the MEANING is preserved exactly,
+  // which is what lets one shader draw both:
+  //
+  //   .x  sL  metres SPANWISE from the root      (ribs are spaced along it)
+  //   .y  sC  metres CHORDWISE from the LE       (spars run along it)
+  //   .z  st  station: INTEGER AT EVERY RIB      (fraction between)
+  //   .w  lv  rail:    0 at the FRONT SPAR, 1 at the REAR SPAR
+  //
+  // So a rib is an integer station and a spar is an integer rail, exactly as
+  // a bulkhead and a longeron are on the fuselage. The leading edge falls at
+  // lv ~= -0.3 and the trailing edge at ~1.7, because the spars are at 0.15
+  // and 0.65 chord and the coordinate is linear in chord.
+  //
+  // THE RIB STATIONS ARE THE ONES THE MASS MODEL PAID FOR. `parts.ribZ`
+  // (G66) is emitted by 61_gen_frame.js from its own "one rib every 0.4 m"
+  // rule — the same rule that bills their mass. garage.js used to carry
+  // GEN_RIBS = 13, right for the default Cub's semispan and wrong for every
+  // other, and the tapes drifted off the ribs on any other wing.
+  //
+  // genSkin's PANEL uv is where chord and span come from: u is the chord
+  // fraction (0 at the LE) and v is 0.53 + 0.44 * spanFraction — that zone
+  // contract is declared in 63_gen_skin.js and has not moved since G5.
+  const PT = def.parts || {};
+  // DEDUPED, and it matters: genLattice walks the spar panels once per side,
+  // so every rib station appears TWICE in the list. Sorted-with-duplicates
+  // the walk below counts two stations per rib and the tapes come out at
+  // HALF the real pitch — 0.18 m instead of the 0.367 m the mass model
+  // billed. Measured on the stock wing: st ran 0..22 where there are 11 ribs.
+  const ribZ = (PT.ribZ || []).slice().sort((a, b) => a - b)
+    .filter((z, i, A) => i === 0 || z - A[i - 1] > 1e-4);
+  const sparF = PT.sparFront != null ? PT.sparFront : 0.15;
+  const sparR = PT.sparRear != null ? PT.sparRear : 0.65;
+  const sparSpan = Math.max(1e-4, sparR - sparF);
+  const wingField = g => {
+    if (!g.uv) return null;
+    return i => {
+      const cf = g.uv[i * 2];                        // chord fraction, 0 = LE
+      const az = Math.abs(toBody(
+        [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2]);
+      const chord = PT.chordAt ? PT.chordAt(az) : 1;
+      // st: which rib bay, and where inside it. Ribs are NOT evenly spaced
+      // across the whole span — 61_gen_frame divides each panel separately —
+      // so this walks the real list rather than dividing by a mean pitch.
+      let st = 0;
+      if (ribZ.length) {
+        let k = 0;
+        while (k < ribZ.length && ribZ[k] < az) k++;
+        const lo = k > 0 ? ribZ[k - 1] : zRoot;
+        const hi = k < ribZ.length ? ribZ[k] : ribZ[ribZ.length - 1];
+        const d = hi - lo;
+        st = k + (d > 1e-6 ? (az - hi) / d : 0);
+      }
+      return [az - zRoot, cf * chord, st, (cf - sparF) / sparSpan];
+    };
+  };
+
   const skinClass = cen => {
     const az = Math.abs(toBody(cen)[2]);
     if (az <= zRoot + 1e-3) return 'centre';
@@ -399,9 +501,10 @@ PAGE.post = ctx => {
     return 'main';
   };
   if (gs.skin) {
-    const parts = pickParts(gs.skin, wingVert(gs.skin), toCage, skinClass);
+    const parts = pickParts(gs.skin, wingVert(gs.skin), toCage, skinClass,
+                            wingField(gs.skin));
     for (const cl of ['main', 'centre', 'tip']) {
-      const pr = add(parts, cl, MAT[cl]);
+      const pr = add(parts, cl, wingMat(cl));
       if (pr) faces += pr.geo.index.count / 3;
     }
   }
@@ -419,6 +522,8 @@ PAGE.post = ctx => {
   const yes = () => true;
   for (const nm of ['liftstrut', 'pitot'])
     if (gs[nm]) {
+      // the strut and the pitot are FITTINGS, not skin: no ribs, no spars,
+      // no field — they take the shader's triplanar branch
       const parts = pickParts(gs[nm], yes, toCage, null);
       if (parts.x) {
         const o2 = WIRE
@@ -432,10 +537,16 @@ PAGE.post = ctx => {
   // assembly-style, scaled like the cage parts
   for (const nm of ['ailR', 'ailL', 'flapR', 'flapL'])
     if (gs[nm]) {
-      const parts = pickParts(gs[nm], yes, toCage, null);
+      // AN AILERON IS WING SKIN. It carries the field like the rest of the
+      // covering — same ribs, same spar coordinate, same tapes — because it
+      // is built out of the same wing and hinged off it. Giving it the
+      // AEROSKIN material and NOT the field would leave one material on
+      // both shader branches at once, which is the one thing the split
+      // cannot express (the same trap cageCut sprang in G66).
+      const parts = pickParts(gs[nm], yes, toCage, null, wingField(gs[nm]));
       if (parts.x) {
         const o = WIRE ? new THREE.LineSegments(parts.x.wire, wireMat(nm))
-                       : new THREE.Mesh(parts.x.geo, MAT[nm]);
+                       : new THREE.Mesh(parts.x.geo, wingMat(nm));
         if (ex > 0) o.position.set(0, -0.18 * ex, -0.65 * ex);
         // G59: NAMED for the join's snapshot, exactly as the engine layer
         // names its prop — these are the surfaces that must deflect on the

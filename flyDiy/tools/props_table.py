@@ -87,6 +87,13 @@ SOURCES = {
     'wood_crate':                  ('Wood Crate', 'Pedro Silva', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/wood-crate-d331f79189704cd49ba013752f2b8d80'),
     'cardboard_box_set':           ('Cardboard Box Set - Low Poly', 'Pixel_Monster', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/cardboard-box-set-low-poly-5d3d508061e544739e37c685af235684'),
     'tool_pack_box':               ('Complete Tool Pack - Realistic 3D Toolbox', 'GAMICO', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/complete-tool-pack-realistic-3d-toolbox-1e5dfcb2c0314eb38c105ffc0029b8a1'),
+    # third batch (2026-08-30): the machine shop. All four are photogrammetry
+    # scans of the same workshop by the same author, which is why they sit
+    # together and why they look like each other.
+    'panel_saw':                   ('Scie a format - Lycee pro de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/scie-a-format-lycee-pro-de-fourchambault-aac60fce483a4ec0859a802e91a24b46'),
+    'bandsaw':                     ('Scie a ruban - Lycee pro de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/scie-a-ruban-lycee-pro-de-fourchambault-d40ef066d71e4ab8add3c795044e1a40'),
+    'jointer':                     ('Degauchisseuse - Lycee pro de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/degauchisseuse-lycee-pro-de-fourchambault-8671b197c39a40a7b654dd37d4600857'),
+    'thicknesser':                 ('Raboteuse - Lycee professionnel de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/raboteuse-lycee-professionnel-de-fourchambault-b0d579ac5d744497b74177d0ee141cbe'),
 }
 
 
@@ -152,6 +159,33 @@ PROPS = [
       'bench_vice_01_1k.gltf',
       'replaces the vice drawn inside bench(); origin is the mounting face, '
       'so it sits on a bench top by placing it AT the top', place='mount', tex=256),
+
+    # The four woodworking machines from the Lycee Pro de Fourchambault, which
+    # are PHOTOGRAMMETRY SCANS and behave unlike everything above them:
+    #   - they arrive in metres, standing on Y, min-y already ~0.1 -> scale 1,
+    #     rot 0. Nothing needs turning; this is measured, not assumed.
+    #   - their materials are UDIM TILES (u1_v1, u2_v1, ...), one material and
+    #     one 4k JPEG per tile, which is why one machine is 4-8 materials.
+    #   - they are exported KHR_materials_unlit with a baseColorTexture and
+    #     nothing else: no normal map, no roughness map, the scan's own
+    #     lighting baked into the albedo. The baker drops the unlit flag, so
+    #     they light like everything else in the shed and merely read a little
+    #     flat. An unlit material would have been a fifth self-lit thing with
+    #     no switch, one section after G65 closed that hole.
+    #   - they are HEAVY: 80-137 k tris each, 453 k for the set, against 79 k
+    #     for the compressor that used to be the worst. Not decimated, on
+    #     purpose ([[import-models-as-is]]): the geometry IS the asset, and
+    #     the cost is a loading screen.
+    P('panelsaw', 'machine', 'sliding panel saw', 'panel_saw', 'panel_saw.glb',
+      '4.4 x 3.6 m sliding-table saw, the biggest machine in the shed and the '
+      'one that needs clear floor on two sides'),
+    P('bandsaw', 'machine', 'band saw', 'bandsaw', 'bandsaw.glb',
+      '2.8 m tall; goes against a wall since only its front face is worked'),
+    P('jointer', 'machine', 'surface planer', 'jointer', 'jointer.glb',
+      '2.7 m of table, wants length along a wall, not across the floor'),
+    P('thicknesser', 'machine', 'thicknesser', 'thicknesser', 'thicknesser.glb',
+      'the pair to the jointer - one flattens a face, the other brings it to '
+      'thickness, so they stand together'),
 
     # ---- handling ----------------------------------------------------------
     P('handtruck', 'handling', 'sack truck', 'hand_truck',

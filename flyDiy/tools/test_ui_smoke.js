@@ -137,8 +137,14 @@ let rafCb = null, rafCount = 0;
 const sandbox = {
   console, window: { innerWidth: 390, innerHeight: 800, devicePixelRatio: 2,
                      addEventListener() {} },
+  // A DOCUMENT HAS A BODY. It never did here, and app.js never asked — until
+  // G77.1 put the editor's width classes on it, because the CANVAS has to move
+  // with the panel and the canvas is not inside #ui. A stub that is missing a
+  // thing every real document has does not test a narrower app, it tests a
+  // different one.
   document: { getElementById: id => (els[id] = els[id] || el(id)),
-              createElement: () => el('_ce' + (++ceN)) },
+              createElement: () => el('_ce' + (++ceN)),
+              get body() { return (els.__body = els.__body || el('body')); } },
   requestAnimationFrame: cb => { rafCb = cb; rafCount++; },
   // timers fire immediately: the point of this gate is to EXECUTE the deferred
   // path (the boot-splash teardown), not to model the event loop
@@ -152,6 +158,17 @@ const sandbox = {
   // bridge on the executed path and lets this gate drive the load test the way
   // the panel does. If the bridge's shape ever changes, this notices.
   garageInit: api => { sandbox.garageApi = api; },
+  // ...and the ENGINEERING BENCH bridge the same way (G64). src/viewer/bench.js
+  // is not in the executed block either, so capturing the api is what keeps
+  // app.js's benchInit call on the executed path AND lets this gate drive a
+  // live test the way the bench does. If the bridge's shape changes, this
+  // notices.
+  benchInit: api => { sandbox.benchApi = api; },
+  // ...and THE EDITOR PANEL bridge (G77), for the same reason: src/viewer/
+  // editor.js is in the RENDER block, which is not executed here, so without
+  // this stub app.js would skip the whole editorInit call and the bridge would
+  // never be on the executed path at all.
+  editorInit: api => { sandbox.editorApi = api; },
 };
 sandbox.window.document = sandbox.document;
 vm.createContext(sandbox);
@@ -169,7 +186,11 @@ try {
   handlers['bGo'] && handlers['bGo']();
   frames(120);
   // exercise every wired button (Skin cycles all 3 states)
-  for (const id of ['bSkin', 'bSkin', 'bSkin', 'bTel', 'bPause', 'bPause', 'bReset'])
+  // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
+  // does not exist in this sandbox, so what it proves is the WIRING — that the
+  // handler is on the button and returns cleanly with no editor to open.
+  for (const id of ['bSkin', 'bSkin', 'bSkin', 'bTel', 'bPause', 'bPause',
+                    'bEdit', 'bReset'])
     handlers[id] && handlers[id]({ target: els[id] });
   // aircraft switch through the dropdown: model-less path, then cache reuse
   handlers['selAc']({ target: { value: 'drone' } });
@@ -222,6 +243,114 @@ try {
     G.endLoadTest();
     if (els['phName'].textContent !== 'GARAGE')
       throw new Error('leaving the load test did not return to the garage');
+  }
+
+  // ---- THE ENGINEERING BENCH (G64) ----
+  // The bench drives the same rig through its own bridge, so what is asserted
+  // here is the BRIDGE: the four calls a live test makes, plus the two the
+  // instant test makes, plus the plaque switch that decides whether a build
+  // has a certificate at all. The plaque is the one with a real trap in it —
+  // it used to post itself on entering the garage, and a regression that
+  // brought that back would hand every untested aeroplane a certificate.
+  {
+    const B = sandbox.benchApi;
+    if (!B) throw new Error('the bench bridge was never called');
+    for (const k of ['shake', 'densAlt', 'plaque', 'showPhysical', 'loadTest',
+                     'loadTestState', 'endLoadTest'])
+      if (typeof B[k] !== 'function') throw new Error(`bench bridge has no ${k}`);
+    // the plaque is EARNED: off until a test says otherwise, and off again
+    // the moment the bench withdraws it
+    B.plaque(false);
+    if (els['plaque'].classList.contains('on'))
+      throw new Error('an untested build must not carry a plaque');
+    const sh = B.shake();
+    if (!sh || !isFinite(sh.mass))
+      throw new Error('the bench check measured nothing');
+    B.plaque(true);
+    if (!els['pqVerdict'].textContent)
+      throw new Error('the plaque posted no verdict');
+    console.log(`bench check: ${sh.flyableCircuit ? 'FLIES A CIRCUIT' :
+      'WILL NOT FLY A CIRCUIT'} — ${sh.mass.toFixed(0)} kg, climb ` +
+      `${sh.climbRate.toFixed(2)} m/s, take-off ${sh.TORun.toFixed(0)} m`);
+    // THE DENSITY-ALTITUDE TEST (G72) and the plaque section it earns. The
+    // section must NOT be on the plaque before its own test has run — it is a
+    // measurement of this aeroplane, and the plaque's whole rule is that a
+    // certificate you get for free is not one.
+    B.plaque(true);
+    if (/thin air/i.test(els['pqRows'].innerHTML))
+      throw new Error('the thin-air rows appeared before the test that fills them');
+    const da = B.densAlt();
+    if (!da || !da.cases || da.cases.length < 2)
+      throw new Error('the density-altitude test measured nothing');
+    const hot = da.cases.filter(c => c.id === 'hot')[0];
+    if (!(hot.densAlt > 1000) || !(hot.TORun > 0) || !isFinite(hot.climbRate))
+      throw new Error(`the hot-and-high case is not a measurement ` +
+                      `(DA ${hot.densAlt}, run ${hot.TORun}, climb ${hot.climbRate})`);
+    if (!(hot.TORun > da.cases.filter(c => c.id === 'isa')[0].TORun))
+      throw new Error('thin air did not lengthen the take-off run');
+    B.plaque(true);
+    if (!/thin air/i.test(els['pqRows'].innerHTML))
+      throw new Error('the plaque did not grow its thin-air section');
+    console.log(`bench density altitude: DA ${hot.densAlt.toFixed(0)} m — ` +
+      `${hot.TORun.toFixed(0)} m take-off, ${hot.climbRate.toFixed(2)} m/s climb on ` +
+      `${(hot.power * 100).toFixed(0)}% power, service ceiling ` +
+      `${da.serviceCeiling == null ? '> ' + da.ceilingCap : da.serviceCeiling.toFixed(0)} m`);
+    // the live test, through the bench's own calls
+    B.showPhysical(true);
+    B.loadTest();
+    for (let i = 0; i < 60 && !B.loadTestState().done; i++) frames(60);
+    const ls = B.loadTestState();
+    if (!ls.done) throw new Error('the bench never finished the wing loading');
+    if (!(ls.ultPct > ls.limitPct) || !(ls.limitPct > 0))
+      throw new Error(`bench wing loading did not grow with load ` +
+                      `(${ls.limitPct} -> ${ls.ultPct})`);
+    console.log(`bench wing loading: ${ls.verdict} — limit ` +
+      `${ls.limitPct.toFixed(2)}% ultimate ${ls.ultPct.toFixed(2)}% of semispan`);
+    B.endLoadTest();
+    B.showPhysical(false);
+    B.plaque(false);
+    if (els['plaque'].classList.contains('on'))
+      throw new Error('withdrawing the plaque left it on screen');
+  }
+
+  // ---- ONE ROOM (G65) ----
+  // `build & fly` is retired: the export is a STEP inside rolling out and
+  // inside running a test, not a third button between them. If it ever comes
+  // back as a button, the intermediate stop comes back with it.
+  if (handlers['edFly'])
+    throw new Error('build & fly came back — the middle step is back with it');
+  if (typeof sandbox.window.BUILD_SYNC !== 'function')
+    throw new Error('rolling out has no way to commit the editor');
+  // ROLL OUT READS THE CERTIFICATE and is NEVER locked. The label is the whole
+  // mechanism: a locked button would be the game refusing to let you build a
+  // bad aeroplane, which is the one thing the roadmap says it must not do.
+  {
+    const say = () => els['bGo'].textContent;
+    sandbox.window.BENCH_STATE = () => ({ any: false, passed: false });
+    sandbox.window.BENCH_CHANGED();
+    if (say() !== 'Roll out untested')
+      throw new Error(`untested build did not say so ("${say()}")`);
+    if (els['bGo'].disabled)
+      throw new Error('roll out must never be locked');
+    sandbox.window.BENCH_STATE = () => ({ any: true, passed: true });
+    sandbox.window.BENCH_CHANGED();
+    if (say() !== 'Roll out & fly')
+      throw new Error(`a passed build still read untested ("${say()}")`);
+    console.log('roll out reads the certificate, and is never locked');
+  }
+
+  // ---- THE EDITOR PANEL (G77) ----
+  // The bridge, and the one thing it is for: the panel says how wide it has
+  // become and the game's HUD moves over. If the width call ever stops
+  // arriving, the bottom bar's right-hand end goes back under an opaque
+  // 640 px panel and nothing on screen says why.
+  {
+    const E = sandbox.editorApi;
+    if (!E) throw new Error('the editor panel bridge was never called');
+    for (const k of ['panelWidth', 'isGen', 'inGarage'])
+      if (typeof E[k] !== 'function') throw new Error(`editor bridge has no ${k}`);
+    E.panelWidth(436); E.panelWidth(640);
+    console.log('editor panel bridge wired');
   }
 
   // ...and ROLL OUT commits it: physics back on, autopilot flying the circuit

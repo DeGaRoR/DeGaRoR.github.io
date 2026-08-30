@@ -1,11 +1,18 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e92b8fd7b40deaa0
+// body-sha256: db8e395b2cbc61e8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
 // Units: m, kg, N, s, rad. Axes: x aft (nose -x), y up, z right.
 // ============================================================
 
+// THE REFERENCE DENSITY, and it is a datum rather than "the density". Every
+// design-time number in this project is computed in this air — Vs, the plant
+// gains and their derivatives, the synthesised propeller, every anchored gate
+// metric — and it is what defines EQUIVALENT airspeed. The air the solver
+// actually flies in varies with height and with the day (05_atmos.js); this
+// does not. ATM.RHO0 is the same number, and 05_atmos.js keeps them exactly
+// equal on purpose.
 const RHO = 1.225;
 
 
@@ -16,25 +23,42 @@ const RHO = 1.225;
 // ============================================================
 // `price` is what the powerplant COSTS, in credits, second-hand and installed —
 // added for the GARAGE's build ledger (G3). Inert for the hand-written fiches.
+//
+// `aspiration` is PHYSICS-BEARING (G72) and is the only thing in this table the
+// atmosphere reads. It says how this engine's shaft power responds to thin air:
+//   'na'       breathes it, so power lapses with density (Gagg-Ferrar)
+//   'electric' does not — the power comes out of the pack, and only the
+//              PROPELLER notices the altitude
+// The difference is large enough to change which aeroplane gets out of a
+// mountain strip in August, which is exactly why it is declared per row rather
+// than sniffed from the name. See 05_atmos.js for both scalings.
+//
+// AN HONEST CUT, named here because it is a real aeroplane getting a wrong
+// number: the R-1830 Twin Wasp was SUPERCHARGED, and a supercharged engine
+// holds its power to its critical altitude instead of lapsing from sea level.
+// We have no blower model, so it is declared 'na' and the DC-3 therefore loses
+// more at altitude than the real one did. 'turbo' is reserved for when there
+// is something behind it; a field that lies quietly is worse than one that is
+// missing.
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
-    engine: { name: 'Continental A-65', mass: 80, powerW: 48500 },
+    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na' },
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
   },
   r1830_hs23e50: {
     price: 65000,
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000 },
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na' },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
     price: 38000,
-    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000 },
+    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na' },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
     price: 3500,
-    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000 },
+    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
   // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
@@ -59,32 +83,32 @@ const POWERPLANTS = {
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
     price: 6000,
-    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000 },
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
   },
   rotax582_ivo: {
     price: 5500,
-    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000 },
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na' },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
   },
   jabiru2200_std: {
     price: 15000,
-    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000 },
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
   },
   rotax912_warp: {
     price: 18000,
-    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600 },
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na' },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
   },
   o200_eprops: {
     price: 24000,
-    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600 },
+    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na' },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
   outrunner2212_9x47: {
     price: 25,
-    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180 },
+    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric' },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },
   // THE ELECTRIC LADDER (G25). One 180 W park-flyer can was the whole
@@ -110,37 +134,37 @@ const POWERPLANTS = {
   // GEN_RULES.propV0K, like the middle-market rows above.
   outrunner3548_12x6: {
     price: 55,
-    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800 },
+    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric' },
     prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
   },
   outrunner6374_18x10: {
     price: 130,
-    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200 },
+    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric' },
     prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
   },
   eppg_direct_130: {
     price: 3800,
-    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000 },
+    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric' },
     prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
   },
   fes_folding_100: {
     price: 9500,
-    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000 },
+    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric' },
     prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
   },
   emrax228_3blade: {
     price: 11000,
-    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000 },
+    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric' },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
   },
   e811_velis: {
     price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600 },
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric' },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
   },
   sp260d_class: {
     price: 90000,
-    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000 },
+    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric' },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
   },
 };
@@ -168,6 +192,145 @@ const PAR = {
 
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;
 
+// ============================================================
+// THE ATMOSPHERE — pressure, temperature and density with height.
+// Units: m, K, Pa, kg/m3, m/s. Altitude `h` is metres above MEAN SEA LEVEL,
+// which is what the solver's node y already is (placeAtAerodrome offsets every
+// node by the strip's own elev, so a build sitting on a 420 m bench has y=420).
+//
+// ONE MODEL, FOUR LINES. A constant-lapse-rate atmosphere, integrated exactly
+// rather than approximated:
+//
+//     T(h) = Tsl - L h                          Tsl = 288.15 + dISA
+//     p(h) = psl (T(h)/Tsl)^(g0/(L R))          psl = QNH
+//     rho  = p / (R T)
+//     a    = sqrt(gamma R T)
+//
+// At dISA = 0 and QNH = 101325 those ARE the ISA troposphere — the tables come
+// out to better than 0.02% without a single fitted constant. The point of
+// writing it this way rather than as the usual "add 120 ft of density altitude
+// per degree above standard" is that the offset day is then exact too: a
+// 35-degree afternoon is the same four lines, not a correction bolted onto
+// them.
+//
+// WHAT IS COMPUTED AND WHAT IS CHOSEN. Everything above is computed. The only
+// things ever chosen are the two numbers that describe the DAY — the sea-level
+// temperature offset and the QNH — and those are weather, which is a decision
+// by definition. There is no third knob, and a preset that wants a different
+// density has to say which of those two it is moving.
+//
+// RHO0 = 1.225 is the SAME number as RHO in 00_registry.js and that is not a
+// duplicate: it is the reference density, the datum that defines equivalent
+// airspeed and the air in which every design-time number in this project (Vs,
+// the plant gains, the synthesised prop) is computed. The solver's air varies;
+// the datum does not.
+//
+// HONEST CUTS, all small and all named:
+//   - `h` is GEOMETRIC altitude, not geopotential. The difference is 0.03% of
+//     the pressure at 1 km and 0.3% at 11 km — below the noise of everything
+//     that reads this.
+//   - Dry air only. Saturated air at 30 C is under 1% lighter than dry, which
+//     is smaller than the gust field's own amplitude.
+//   - Above the tropopause it goes isothermal, which is correct, and irrelevant
+//     to a fleet whose best climber runs out under 6 km.
+// ============================================================
+
+const ATM = {
+  T0: 288.15,        // K   ISA sea-level temperature
+  P0: 101325,        // Pa  ISA sea-level pressure
+  RHO0: 1.225,       // kg/m3  the EAS datum (== RHO)
+  L: 0.0065,         // K/m tropospheric lapse rate
+  R: 287.0528,       // J/(kg K) specific gas constant, dry air
+  G0: 9.80665,       // m/s2 standard gravity
+  GAMMA: 1.4,
+  HTROP: 11000,      // m   tropopause
+};
+// g0/(L R) = 5.25588. The density exponent is one less, and it is the one the
+// density-altitude inverse needs, so both are named rather than re-typed.
+ATM.EXP_P = ATM.G0 / (ATM.L * ATM.R);
+ATM.EXP_R = ATM.EXP_P - 1;
+
+// makeAtmos({ oatC, qnhPa }) — the day. Both optional; the empty call is ISA.
+//   oatC   sea-level outside air temperature in Celsius (or pass dISA directly)
+//   qnhPa  sea-level pressure in Pa (1013.25 hPa = 101325)
+function makeAtmos(cfg) {
+  const c = cfg || {};
+  const dISA = c.oatC != null ? (c.oatC + 273.15) - ATM.T0 : (c.dISA || 0);
+  const Tsl = ATM.T0 + dISA;
+  const psl = c.qnhPa != null ? c.qnhPa : ATM.P0;
+  const Tt = Tsl - ATM.L * ATM.HTROP;                       // tropopause temp
+  const pt = psl * Math.pow(Tt / Tsl, ATM.EXP_P);           // and pressure
+  const T = h => (h <= ATM.HTROP ? Tsl - ATM.L * h : Tt);
+  const p = h => (h <= ATM.HTROP
+    ? psl * Math.pow((Tsl - ATM.L * h) / Tsl, ATM.EXP_P)
+    : pt * Math.exp(-ATM.G0 * (h - ATM.HTROP) / (ATM.R * Tt)));
+  // DENSITY AS A RATIO TO THE DATUM, not as p/(R T) — and the reason is the
+  // whole invariant this file exists to protect. p0/(R T0) is 1.2250003, not
+  // 1.225: ISA's sea-level density is a ROUNDED number, so computing it from
+  // the gas law lands 2.6e-7 away from the constant every design-time number in
+  // this project was derived at, and sigma(0) comes out 1.0000003 instead of 1.
+  // That is enough to move a printed digit somewhere in a 33-gate battery for
+  // no physical reason at all. Expressed as a ratio the gas law is identical
+  // (both terms are exactly 1 at ISA sea level, by construction) and the datum
+  // stays the declared 1.225 rather than a coincidence.
+  const sigma = h => (p(h) / ATM.P0) * (ATM.T0 / T(h));
+  const rho = h => ATM.RHO0 * sigma(h);
+  const a = h => Math.sqrt(ATM.GAMMA * ATM.R * T(h));
+  // The altitude at which the STANDARD atmosphere has this density — the
+  // number that actually predicts performance, and the one a pilot quotes.
+  const densityAlt = h =>
+    (ATM.T0 / ATM.L) * (1 - Math.pow(sigma(h), 1 / ATM.EXP_R));
+  // Pressure altitude: what the altimeter reads with 1013 set.
+  const pressureAlt = h => (ATM.T0 / ATM.L) * (1 - Math.pow(p(h) / ATM.P0, 1 / ATM.EXP_P));
+  return { dISA, Tsl, psl, T, p, rho, sigma, a, densityAlt, pressureAlt,
+           oatC: Tsl - 273.15 };
+}
+
+// The standard day. Used wherever there is no world to ask — genShakedown builds
+// its sim with world = null, and a wind-tunnel probe must never be in weather.
+const ATMOS_ISA = makeAtmos({});
+
+// ---- what the powerplant does about it -------------------------------------
+// A NATURALLY ASPIRATED PISTON breathes the air, so its shaft power falls with
+// density: Gagg & Ferrar's 1934 correlation, still the one every performance
+// manual uses, P/P0 = 1.132 sigma - 0.132. It is slightly worse than linear in
+// sigma, which is why it is worth carrying rather than writing P ~ rho.
+//
+// AN ELECTRIC MOTOR DOES NOT. Its shaft power is set by the pack and the
+// controller, and thin air neither helps nor hinders it — the only thing that
+// changes is what the propeller can do with it. That difference is real, it is
+// large (a piston loses a quarter of its thrust where a motor loses a
+// twentieth), and it costs one declared field on the registry row.
+function atmosPowerRatio(sig, aspiration) {
+  if (aspiration === 'electric') return 1;
+  // Written as 1 - 1.132(1 - sigma) rather than 1.132 sigma - 0.132. Same line,
+  // but this one returns EXACTLY 1 at sigma = 1 instead of 1 + 2e-16.
+  return Math.max(0, 1 - 1.132 * (1 - sig));
+}
+
+// ---- and what the PROPELLER does about THAT ---------------------------------
+// Not asserted. Re-derived from the same three lines 60_gen_spec.js already uses
+// to synthesise a prop from its disc:
+//
+//     Tstatic = fm (2 rho A)^(1/3) P^(2/3)
+//     V0      = propV0K P / Tstatic
+//     kV2     = Tstatic / V0^2
+//
+// Hold fm, A and propV0K fixed, move rho and P, and the ratios fall out:
+//
+//     kT = sigma^(1/3) (P/P0)^(2/3)          Tstatic ratio
+//     kV = kT / (V0ratio)^2 = sigma          kV2 ratio  — for BOTH families
+//
+// kV2 is sigma either way, which is not a coincidence: kV2 = Tstatic^3/(k P)^2,
+// so the P dependence cancels exactly and only the rho^(1/3) cubed survives.
+// The two families differ in kT alone — sigma for the piston (its power lapses
+// too), sigma^(1/3) for the motor (only the disc is thinner). At sigma = 1 both
+// are exactly 1, which is the identity the whole gate battery stands on.
+function atmosPropScale(sig, aspiration) {
+  const pr = atmosPowerRatio(sig, aspiration);
+  const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
+  return { kT, kV: sig, power: pr };
+}
 // ============================================================
 function buildCub() {
   const nodes = [], beams = [];
@@ -1868,19 +2031,78 @@ function makeWorld(seed) {
     [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
     [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
   ];
+  // ---- THE SURFACE LAYER (G72) -------------------------------------------
+  // `y` has been an argument of wind() since the field was written and has
+  // never been read. It is read now: the ground drags on the air, so the wind
+  // near it is slower than the wind above it, and an aeroplane on final is in
+  // measurably different air from the one at circuit height.
+  //
+  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
+  // and the height every anemometer, every windsock and every METAR means is
+  // 10 m. So `refH` says which height `base` was measured at, and the profile
+  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
+  // wind-resource and building-code calculation uses, with alpha set by how
+  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
+  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
+  //
+  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
+  // and is what the fleet's whole wind calibration was measured in. That is a
+  // deliberate, declared boundary rather than a compatibility fudge: "no
+  // reference height" honestly means "we are not claiming to know where this
+  // wind was measured", and the only answer that does not invent information is
+  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
+  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
+  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
+  // not a side effect of this one.
+  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
+  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
+  function shearK(x, y, z, refH, alpha) {
+    const agl = y - terrainH(x, z);
+    // a power law has no zero: floor the height rather than pretend it does.
+    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
+    return Math.pow(h / refH, alpha);
+  }
   function wind(x, y, z, t) {
     if (!windSpec) return W0;
     const b = windSpec.base, g = windSpec.gust || 0;
-    WV[0] = b[0]; WV[1] = b[1]; WV[2] = b[2];
-    if (g > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
+    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
+    // the gusts ride the local wind, so they die out in the surface layer and
+    // grow in the shear instead of being the same everywhere from grass to
+    // circuit height
+    const gk = g * k;
+    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
       const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += g * 0.30 * ax * s;
-      WV[1] += g * 0.18 * ay * s;
-      WV[2] += g * 0.30 * az * s;
+      WV[0] += gk * 0.30 * ax * s;
+      WV[1] += gk * 0.18 * ay * s;
+      WV[2] += gk * 0.30 * az * s;
     }
     return WV;
   }
-  function setWind(spec) { windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0 } : null; }
+  function setWind(spec) {
+    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
+                        refH: spec.refH || 0,
+                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+  }
+
+  // ---- the day: ONE weather state, air and wind together (G72) ------------
+  // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
+  // They are one object rather than two setters because a hot gusty afternoon
+  // is ONE thing a player picks, and because the solver has to be able to ask
+  // "what is the air here" without knowing which preset put it there.
+  //
+  // `atmos` is read through a GETTER on the returned world so the sim sees a
+  // change live, exactly as it already does for wind — no reset, mid-flight.
+  // Absent weather is the standard day and the zero wind vector, so every
+  // existing gate is untouched by the mere existence of this.
+  let weather = null;
+  let atmos = ATMOS_ISA;
+  function setWeather(spec) {
+    weather = spec || null;
+    const hasAir = spec && (spec.oatC != null || spec.qnhPa != null || spec.dISA != null);
+    atmos = hasAir ? makeAtmos(spec) : ATMOS_ISA;
+    setWind(spec ? (spec.wind || null) : null);
+  }
 
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
@@ -1895,6 +2117,10 @@ function makeWorld(seed) {
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
+    // ---- the day (G72): the air is a getter so it is read LIVE ----
+    get atmos() { return atmos; },
+    get weather() { return weather; },
+    setWeather,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
   };
@@ -2925,6 +3151,25 @@ function makeSim(def, world) {
   // as before and no fleet number moves.
   const PR = P_.prop || PP.prop;
   const PROPA = Math.PI * (PR.D / 2) ** 2;
+  // THE AIR THIS SIM IS IN. A sim built with no world flies the STANDARD day:
+  // genShakedown makes one that way on purpose, and a wind-tunnel probe must
+  // never be in weather — which now includes the weather's air, not just its
+  // wind. Read per pass rather than captured, because the viewer sets a new day
+  // live exactly the way it already sets a new wind.
+  // setAtmos(air, h) — the air AND the altitude a wind-tunnel probe is run at.
+  // A TUNNEL IS AT A DECLARED AIR STATE, never at the incidental height the
+  // aeroplane's nodes happen to be sitting at: every design-time number in
+  // 64_gen_build is measured through probes, and if those read the model's own
+  // ride height then a taller undercarriage would quietly change the stall
+  // speed on the sheet. Default: ISA sea level, which is the datum.
+  let atmOver = null, hProbe = 0;
+  const setAtmos = (a, h) => { atmOver = a || null; hProbe = h || 0; };
+  const airOf = () => atmOver || (world && world.atmos) || ATMOS_ISA;
+  // THE ENGINE'S OWN RELATION TO IT, declared on the registry row: 'na'
+  // breathes the air and lapses with it, an electric motor's power comes out of
+  // the pack and does not. Absent = 'na', because everything that flew before
+  // this line existed was a piston.
+  const ASP = (PP.engine && PP.engine.aspiration) || 'na';
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -3000,10 +3245,50 @@ function makeSim(def, world) {
   const sc=[0,0,0], sw_=[0,0,0], sn=[0,0,0];
   function aeroPass(probe) {
     bodyAxes();
-    // mean velocity (mass-weighted)
-    let vmx=0, vmy=0, vmz=0;
-    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
-    vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // mean velocity (mass-weighted), and the mean altitude in the same sweep
+    let vmx=0, vmy=0, vmz=0, pmy=0;
+    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i];
+                                 pmy+=p[i*3+1]*m[i]; }
+    vmx/=totalM; vmy/=totalM; vmz/=totalM; pmy/=totalM;
+
+    // THE AIR, SAMPLED ONCE FOR THE WHOLE PASS at the aeroplane's own altitude.
+    // Node y is metres above MEAN SEA LEVEL already (placeAtAerodrome offsets
+    // every node by the strip's own elev), so there is no new datum here.
+    // Once, not per strip, and that is a declared cut rather than laziness: the
+    // density gradient across a 13 m span is 1e-4 of the density, and this pass
+    // runs up to 200 times a frame.
+    const AIR = airOf();
+    // A TUNNEL PROBE reads the DECLARED air (hProbe, ISA sea level unless the
+    // bench says otherwise); a FLYING aeroplane reads the air at its own mean
+    // altitude. The two must not be the same line: if a probe read the model's
+    // own ride height, a taller undercarriage would change the stall speed on
+    // the sheet, and the sheet is what two builds are compared by.
+    //
+    // AND A SIM WITH NO WORLD HAS NO PLACE, so it has no altitude either — it
+    // flies in the declared air too. That is genShakedown's own existing ruling
+    // about the ground ("settled on a flat plane, so the answer does not depend
+    // on which patch of grass it is parked on") extended to the air, and it is
+    // needed for the same reason: the STANCE is measured by settling rather
+    // than probing, so without this clause a 1.2e-4 density difference from the
+    // aeroplane's own ride height reached the design sheet — enough to flip
+    // which main wheel a deliberately-broken variant came to rest on.
+    // genDensityAlt is unaffected by construction: it sets its height itself.
+    const hAir = (probe || !world) ? hProbe : pmy;
+    const rho = AIR.rho(hAir), sig = AIR.sigma(hAir);
+    // EQUIVALENT AIRSPEED is the speed this aeroplane's WING thinks it is
+    // doing: the speed at sea level that would make the same dynamic pressure.
+    // Every V-number in this project (Vs, VCruise, VAppr, the plant gains) was
+    // derived at rho0 and is therefore already an EAS, so this factor is what
+    // lets the autopilot keep flying the numbers it was tuned with when the air
+    // thins. At sea level it is EXACTLY 1 and nothing moves.
+    const easK = Math.sqrt(sig);
+    // and what the powerplant makes of it — see 05_atmos.js, where both
+    // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
+    // asserted.
+    const PS = atmosPropScale(sig, ASP);
+    out.rho = rho; out.sigma = sig; out.easK = easK;
+    out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
+    out.powerK = PS.power; out.thrustK = PS.kT;
 
     // world samples: ONE terrain height (ground effect) and ONE wind vector
     // under the wing per pass; strips re-sample wind at their own position
@@ -3012,15 +3297,21 @@ function makeSim(def, world) {
     // byte-identical to the pre-wind one.
     let gH = null, wcx = 0, wcy = 0, wcz = 0;
     if (world) {
-      let sx = 0, sz = 0, sN = 0;
+      let sx = 0, sy = 0, sz = 0, sN = 0;
       for (const st of def.strips) if (st.kind === 'wing') {
         sx += p[st.fIn*3] + p[st.fOut*3];
+        sy += p[st.fIn*3+1] + p[st.fOut*3+1];
         sz += p[st.fIn*3+2] + p[st.fOut*3+2];
         sN += 2;
       }
-      const mx = sx / sN, mz = sz / sN;
+      const mx = sx / sN, my = sy / sN, mz = sz / sN;
       gH = world.terrainH(mx, mz);
-      if (world.wind) { const wv = world.wind(mx, 0, mz, simT); wcx = wv[0]; wcy = wv[1]; wcz = wv[2]; }
+      // the CG sample used to pass a literal 0 for y. It was silent while the
+      // wind field ignored y and wrong the moment it stopped (G72): the wing
+      // would have been told the wind at sea level while its own strips, which
+      // sample at their real positions two lines down, felt the wind at
+      // altitude — the two disagreeing about the same air.
+      if (world.wind) { const wv = world.wind(mx, my, mz, simT); wcx = wv[0]; wcy = wv[1]; wcz = wv[2]; }
     }
     // prop advance ratio uses AIRSPEED (thrust decays with air, not ground)
     const Vfwd = Math.max(0, -((vmx-wcx)*xAft[0]+(vmy-wcy)*xAft[1]+(vmz-wcz)*xAft[2]));
@@ -3035,11 +3326,11 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tper = ctl.thr * Math.max(0, PR.Tstatic - PR.kV2 * Vfwd * Vfwd);
+      const Tper = ctl.thr * Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
       T = Tper * nE;                                   // registry values are per engine
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines
-      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (RHO * PROPA)) - Vfwd;
+      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (rho * PROPA)) - Vfwd;
       const per = T / def.refs.engine.length;          // spread over the MOUNTS
       for (const e of def.refs.engine) {
         f[e*3]   -= per * xAft[0];
@@ -3049,9 +3340,14 @@ function makeSim(def, world) {
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     out.thrust = T; out.wash = wash;
-    // out.V/alpha are AIR-relative (true IAS/aero alpha); out.Vg is groundspeed
+    // THREE SPEEDS, and the distinction is load-bearing now that the air can be
+    // thin: out.V is TRUE airspeed (air-relative — what alpha is built on and
+    // what a propeller advances into), out.Veas is what the wing and the
+    // instrument feel, out.Vg is over the ground (wheels, brakes, stop
+    // detection). At sea level the first two are the same number exactly.
     const avx = vmx - wcx, avy = vmy - wcy, avz = vmz - wcz;
     out.V = Math.hypot(avx, avy, avz);
+    out.Veas = out.V * easK;
     out.Vg = Math.hypot(vmx, vmy, vmz);
     out.windX = wcx; out.windY = wcy; out.windZ = wcz;
     out.alpha = Math.atan2(-(avx*yUp[0]+avy*yUp[1]+avz*yUp[2]),
@@ -3145,7 +3441,7 @@ function makeSim(def, world) {
       const [Cl, Cd] = fl > 0
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
-      const q = 0.5 * RHO * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
       const lx=(u*sn[0]-w_*sc[0])*iv, ly=(u*sn[1]-w_*sc[1])*iv, lz=(u*sn[2]-w_*sc[2])*iv;
@@ -3187,7 +3483,7 @@ function makeSim(def, world) {
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
                   rx*zRt[0]+ry*zRt[1]+rz*zRt[2]];
-      const k = 0.5 * RHO * Vr * 0.25;
+      const k = 0.5 * rho * Vr * 0.25;
       for (const i of ids) {
         f[i*3]   += k*(CdA[0]*cb[0]*xAft[0] + CdA[1]*cb[1]*yUp[0] + CdA[2]*cb[2]*zRt[0]);
         f[i*3+1] += k*(CdA[0]*cb[0]*xAft[1] + CdA[1]*cb[1]*yUp[1] + CdA[2]*cb[2]*zRt[1]);
@@ -3323,6 +3619,33 @@ function makeSim(def, world) {
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; }
   }
 
+  // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
+  // cruise speed off the power curve, thrCruise, the climb gradient, the
+  // take-off roll integration — used to re-type `Tstatic - kV2 V^2` straight
+  // off the registry. That was harmless while the air was a constant and became
+  // a SECOND, quieter engine the moment it stopped being one: the sheet would
+  // have gone on quoting sea-level thrust while the aeroplane flew on less.
+  // `floor` is the caller's own — genTrim floors the bracket at 1 N so a ratio
+  // cannot divide by zero, the take-off roll floors it at 0 — and it is passed
+  // rather than chosen here so the two readers keep their own numbers exactly.
+  // What air a PROBE is in, for the readers that have to convert between the
+  // equivalent airspeeds the sheet is written in and the true ones the tunnel
+  // prescribes. Cheap, and it keeps the conversion in one place.
+  function probeAir() {
+    const A = airOf(), sg = A.sigma(hProbe);
+    return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
+             easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP),
+             aspiration: ASP };
+  }
+
+  function thrustAt(V, floor = 0, hAlt) {
+    const A = airOf();
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP);
+    return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
+           * (def.params.nEngines || 1);
+  }
+
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
   function probe(vel) {
     for (let i = 0; i < n; i++) {
@@ -3371,7 +3694,8 @@ function makeSim(def, world) {
   function axes() { bodyAxes(); return [xAft.slice(), yUp.slice(), zRt.slice()]; }
 
   return { p, v, m, r, beams, n, ctl, out, totalM,
-           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes };
+           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           setAtmos, atmos: airOf, thrustAt, probeAir };
 }
 
 
@@ -3544,9 +3868,20 @@ function makeAutopilot(sim, def, world) {
     // Vg = groundspeed (wheels: brakes, stop detection). The wind sample is
     // the solver's last CG wind — exact zeros when no wind is set, so the
     // zero-wind battery is byte-identical to the pre-wind one.
+    //
+    // AND V IS AN EQUIVALENT AIRSPEED (G72). Every speed this autopilot flies —
+    // VClimb, VCruise, VAppr, VTurn, VClimbMin, VDerotate — was derived or
+    // tuned at rho0, which makes every one of them an EAS whether anyone said
+    // so or not. Feeding it a TRUE airspeed instead works perfectly at sea
+    // level and stalls the aeroplane at altitude, because it would hold a
+    // number that no longer corresponds to the dynamic pressure it was chosen
+    // for. easK is exactly 1 at sea level, so this line moves nothing there.
+    // Vt (TRUE) is kept for beta, which is a geometric angle and wants the real
+    // speed, not the felt one.
     const o_ = sim.out;
     const Vg = Math.hypot(vcg[0], vcg[1], vcg[2]);
-    const V = Math.hypot(vcg[0] - (o_.windX || 0), vcg[1] - (o_.windY || 0), vcg[2] - (o_.windZ || 0));
+    const Vt = Math.hypot(vcg[0] - (o_.windX || 0), vcg[1] - (o_.windY || 0), vcg[2] - (o_.windZ || 0));
+    const V = Vt * (o_.easK || 1);
     const nose = [-xA[0], -xA[2]];
     const nL = Math.hypot(nose[0], nose[1]) || 1e-9;
     nose[0] /= nL; nose[1] /= nL;
@@ -3595,7 +3930,7 @@ function makeAutopilot(sim, def, world) {
     eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
     vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
-    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(V, 5);
+    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
@@ -4434,6 +4769,118 @@ const GEN_MATERIALS = {
   },
 };
 
+// ===========================================================================
+// GEN_BUILD_GRAMMAR (G68) — HOW EACH CONSTRUCTION SHOWS ITSELF
+// ===========================================================================
+// The four rows above already move physics and have always moved NOTHING you
+// can see: the longest-standing open playtest item in HANDOVER is "Structure
+// has no visual feedback ... Four materials look identical". This is the
+// other half of each row — what an aeroplane built that way actually looks
+// like, in metres, so the fasteners and seams land on the real structure
+// instead of being a decorative tiled texture (the user's own objection).
+//
+// It lives HERE, beside GEN_MATERIALS, because it is the same fact seen from
+// the other side. `alloy.cd0`'s own comment already reads "flush rivets, but
+// laps and oil-canning" — the grammar was documented in a comment and not
+// implemented.
+//
+// EVERY LENGTH IS METRES, and every one is a real number rather than a chosen
+// one. The renderer consumes them through the G66 surface field, whose sL and
+// sC are also metres, so a 25 mm rivet pitch is 25 mm on the aeroplane at any
+// size of aeroplane.
+//
+// THE PITCHES ARE NOT THE CAGE'S RING SPACING, and must not be. The cage's
+// rings sit at ANATOMY stations (pillars, bulkheads, the tailpost) 0.6-1.5 m
+// apart, and the boom is a single ~4 m bay with no ring in it at all (seen
+// directly in G66's lattice view). A real airframe carries frames every
+// 0.38-0.50 m regardless. So the frames run at their own metric pitch along
+// sL and the cage's own rings get a HEAVIER line on top — which is also what
+// a real frame diagram looks like, bulkheads being frames like any other.
+const GEN_BUILD_GRAMMAR = {
+  // 4130 tube + Ceconite. THERE ARE NO FASTENERS IN THE COVERING AT ALL: the
+  // fabric is cemented and sewn to the frame and there is nothing to rivet.
+  // Everything you see is the STRUCTURE PUSHING THROUGH A MEMBRANE, which is
+  // why this row is all tape and sag and no heads.
+  tubeFabric: {
+    name: 'tube + fabric',
+    framePitch: 0.42,        // truss bays; the tape crosses at each
+    stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
+    panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
+    // 50 mm (2 in) pinked-edge surface tape, doped, rising 0.3-0.8 mm with a
+    // soft shoulder. This ridge is most of what makes a covered airframe read
+    // as covered — garage.js's own comment, and it was right.
+    tape: { w: 0.050, rise: 0.00065 },
+    // fabric slack between members: 0.5-1.5 % of the pitch, FLAT-BOTTOMED.
+    // The exponent is what makes it read as a membrane under tension rather
+    // than as a wave, and 1.4 is the value the old bump sheet used.
+    sag: { frac: 0.006, exp: 1.4 },
+    dish: 0,
+    fastener: null,
+    seam: null,
+    rough: { member: -0.04, seam: 0 },   // dope pools slightly on a tape
+  },
+  // spruce + birch ply. Pinned and glued: the pins are a STIPPLE under dope,
+  // not bright dots, and they follow every glue line.
+  wood: {
+    name: 'spruce + ply',
+    framePitch: 0.38,
+    stringerPitch: 0.22,
+    panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
+    panelAround: 0.85,       // and will not wrap much past this
+    tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
+    sag: { frac: 0.0015, exp: 2.0 },     // ply dishes; it does not sag
+    dish: -0.0003,
+    // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
+    fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
+                dia: 0.0016, rise: 0.00012 },
+    seam: { width: 0.015, step: 0.0004 },   // a 10:1 scarf, sanded flush-ish
+    rough: { member: 0.0, seam: 0.05 },
+  },
+  // 2024-T3 semi-monocoque. The loudest grammar, and where believability is
+  // won: A RIVET IS A LOAD PATH. It exists only where the skin meets a frame,
+  // a stringer, a spar cap or another sheet — never in the middle of a panel.
+  alloy: {
+    name: '2024 alloy sheet',
+    framePitch: 0.45,        // 380-500 mm; the C172 is ~20 in
+    stringerPitch: 0.14,     // 100-180 mm on a light aeroplane
+    panelAlong: 1.0, panelAround: 0.55,
+    tape: { w: 0.012, rise: 0.00008 },   // the frame telegraphing through
+    sag: { frac: 0, exp: 1 },
+    // OIL-CANNING, and it is what makes metal read as metal in raking light.
+    // 0.5-2 mm, and it DISHES IN more than it bulges out — hence the sign.
+    dish: -0.0012,
+    // AN470 universal: 4.8 mm across, 1.4 mm proud, 20-25 mm pitch (the 4D-6D
+    // design rule). EDGE DISTANCE is 2D, so the row sits 5-8 mm INSIDE the
+    // sheet edge rather than on it — a cheap, strong, specific cue, and it
+    // falls out for free here because the row is on the member and the panel
+    // line is beside it.
+    fastener: { kind: 'rivet', pitch: 0.024, rowW: 0.016,
+                dia: 0.0048, rise: 0.0014 },
+    // lap: 20-25 mm overlap, one sheet thickness of step
+    seam: { width: 0.022, step: 0.0008 },
+    rough: { member: 0.02, seam: 0.06 },
+  },
+  // carbon over foam. ALMOST NOTHING, AND THAT IS THE LOOK — the point of a
+  // moulded structure is that it has no fasteners and no seams in the flying
+  // surfaces. Getting this row right means resisting the urge to add detail.
+  carbon: {
+    name: 'carbon + epoxy',
+    framePitch: 0, stringerPitch: 0,     // nothing telegraphs through a moulding
+    panelAlong: 0, panelAround: 0,
+    // ONE line, at the waterline, because that is where the mould splits —
+    // and the waist rail is exactly sC = 0, so it costs a single comparison
+    partingAtWaist: 0.003,
+    tape: { w: 0, rise: 0 },
+    sag: { frac: 0, exp: 1 },
+    dish: 0,
+    // 5-10 mm weave print-through at ~0.05 mm is the whole difference between
+    // "moulded" and "plastic"; it rides the finish's own twill sheet
+    fastener: null,
+    seam: null,
+    rough: { member: 0, seam: 0.03 },
+  },
+};
+
 // Fuselage shape families. The aft body tapers from the cabin box to the
 // tailpost, and the FAMILY is the profile of that taper — an exponent on the
 // station fraction, applied to width, floor and deck alike. Straight is a
@@ -5085,9 +5532,27 @@ function genDefaults(target, defaults) {
   return target;
 }
 
+// THE SECTIONED KEYS. The sniff below used to be `Array.isArray(r.wings)`
+// alone, which is true of every spec the game itself writes and false of every
+// PARTIAL one — a file carrying only a cage, or only a paint, took the pre-G3
+// flat branch and came out the other side with `controls`, `prop`, `systems`,
+// `bracing` and a sectioned `meta` quietly missing, because that branch
+// rebuilds `out` field by field from the FLAT names. A spec that names any
+// section is a sectioned spec: normalising it is genDefaults' job and nothing
+// else's. (G63; the `cage` line below was the one-field patch this replaces.)
+// ONLY keys the flat shape CANNOT have. `tail`, `gear`, `cowl` and `paint` are
+// deliberately absent from this list: the flat shape carries all four under
+// those very names, so sniffing on them would route a genuine old file into
+// the sectioned branch and lose it. `wings` keeps its array test because the
+// flat name is `wing`, singular.
+const GEN_SECTIONED = ['cabin', 'fuselage', 'cage', 'engines', 'controls',
+                       'bracing', 'prop', 'systems', 'fuel', 'cargo', 'meta'];
+const genIsSectioned = r => Array.isArray(r.wings) ||
+  GEN_SECTIONED.some(k => r[k] !== undefined && r[k] !== null);
+
 function genNormaliseSpec(raw) {
   const r = genClone(raw && typeof raw === 'object' ? raw : {});
-  if (Array.isArray(r.wings)) return genDefaults(r, GEN_DEFAULT);
+  if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
   const out = {
@@ -5099,10 +5564,9 @@ function genNormaliseSpec(raw) {
     fuel: { litres: r.fuelL },
     fuselage: Object.assign({}, f, { material: r.material }),
     // The cage post-dates the flat shape entirely, so a genuinely old spec
-    // never has one — but this branch is also what a spec carrying ONLY a cage
-    // falls into (the sniff above is `wings`, which such a spec has not got),
-    // and rebuilding `out` field by field is exactly where a section goes
-    // missing without anything reporting it.
+    // never has one, and since G63 a spec that carries one is sniffed as
+    // SECTIONED and never reaches here. Kept because a hand-written hybrid
+    // costs one field to honour and nothing to leave out.
     cage: r.cage,
     cowl: r.cowl,
     engines: [{ type: r.engine, mount: 'nose',
@@ -6384,6 +6848,7 @@ function genLattice(S, gearX, track, kScale) {
   // corner. Only ONE crank: two sections, no more.
   const zCrank = w.crankAt > 0 ? zRoot + (G.semi - zRoot) * w.crankAt : 0;
   const zs = [];
+  const ribZ = [];              // rib stations, metres from the centreline
   for (let i = 1; i <= w.panels; i++)
     zs.push(zRoot + (G.semi - zRoot) * i / w.panels);
   if (zCrank > 0) {
@@ -6528,6 +6993,14 @@ function genLattice(S, gearX, track, kScale) {
       const nRib = Math.max(1, Math.round((zo - zi) / 0.4));
       const ribM = nRib * 0.5 * (chordAt(zi) + chordAt(zo)) * 0.30;
       pt(cF[i + 1], 0.5 * ribM); pt(cR[i + 1], 0.5 * ribM);
+      // ...AND WHERE THEY ARE (G66). This loop has always known the rib
+      // COUNT — it bills their mass — and thrown the stations away, so
+      // anything that wanted to draw a rib tape had to guess: garage.js
+      // carried GEN_RIBS = 13, which is right for the default Cub's
+      // semispan and drifts on every other one. The pitch is the same 0.4 m
+      // rule, read once, so the structure that pays for the ribs and the
+      // surface that shows them cannot disagree.
+      for (let k = 1; k <= nRib; k++) ribZ.push(zi + (zo - zi) * k / nRib);
     }
     let cFB = null, cRB = null;
     sec('bracing');
@@ -6844,6 +7317,8 @@ function genLattice(S, gearX, track, kScale) {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, GAL, GAR, TW,
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
+    ribZ,                       // G66: where the ribs the mass model billed are
+
     bracing: useStrut ? 'strut' : 'cantilever box', strutOffset, trike,
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
@@ -7388,6 +7863,10 @@ const GEN_LOOP = { rollWT: 0.62, rollZeta: 1.70, pitchWT: 1.30, pitchZeta: 1.90 
 // Analytic from the strips — the same model the solver integrates, so these are
 // the real numbers rather than an estimate of them.
 function genPlant(nodes, strips, P, V) {
+  // AT THE DATUM, deliberately: these gains size the autopilot's loops once,
+  // at the design condition, and a real aeroplane's control throws do not
+  // grow to compensate for thin air either. DECLARED CONSEQUENCE (G72): the
+  // AP is honestly sloppier at altitude.
   const q = 0.5 * RHO * V * V;
   let M = 0, cx = 0, cy = 0, cz = 0;
   for (const n of nodes) { M += n.m; cx += n.p[0]*n.m; cy += n.p[1]*n.m; cz += n.p[2]*n.m; }
@@ -7466,7 +7945,11 @@ function genParams(S, fr, strips) {
   const polarTail = genTailPolar(hAR, M.cd0);
   const mass = fr.cg0[3];
   const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
-  const Vs = Math.sqrt(2 * mass * 9.81 / (1.225 * G.Sw * ClMax3D));
+  // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
+  // air (RHO), not in the air the aeroplane happens to be in. G72 only made
+  // that explicit — the literal used to say 1.225 as if it were a fact about
+  // the sky rather than the definition of the yardstick.
+  const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
   const cda = genFusCdA(S, fr);
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -10636,7 +11119,10 @@ function genClMax(def, flap) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
     const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
-    const CL = L / (0.5 * 1.225 * V * V * Sw);
+    // RHO, not the live density: every number on this sheet is quoted at the
+    // datum, which is what makes them comparable between two builds and what
+    // makes the speeds equivalent airspeeds (G72).
+    const CL = L / (0.5 * RHO * V * V * Sw);
     if (CL > CLmax) { CLmax = CL; aStall = al; }
   }
   // aStall is a BODY angle (the probe pitches the flow about the rest pose),
@@ -10668,10 +11154,9 @@ function genTrim(def) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   const aMax = 0.85 * def.params.polarWing.aStall;
-  const PPc = POWERPLANTS[def.params.powerplant];
-  const PRc = def.params.prop || PPc.prop;
-  const nEc = def.params.nEngines || 1;
-  const Tav = v => Math.max(1, PRc.Tstatic - PRc.kV2 * v * v) * nEc;
+  // through the SIM, so the sheet and the aeroplane cannot disagree about how
+  // much thrust there is in this air (G72). Identical at the datum.
+  const Tav = v => sim.thrustAt(v, 1);
   const dragAt = v => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag;
 
   // ---- CRUISE SPEED FROM THE POWER CURVE ---------------------------------
@@ -10725,15 +11210,11 @@ function genTrim(def) {
   def.params.stabTrim = s1;
   const fin = at(s1);
   // cruise throttle from the drag the tunnel just measured against the thrust
-  // the prop can make at that speed
-  // the aeroplane's OWN prop where it has one (a GARAGE build always does)
-  const PP = POWERPLANTS[def.params.powerplant];
-  const PR = def.params.prop || PP.prop;
-  // BOTH estimates below are about what the AEROPLANE pulls, so both carry the
-  // engine count. They used to read the per-disc figure while the solver flew
-  // on twice it (`T = Tper * refs.engine.length`, fixed G4.9).
-  const nE = def.params.nEngines || 1;
-  const Tavail = Math.max(1, PR.Tstatic - PR.kV2 * V * V) * nE;
+  // the prop can make at that speed. sim.thrustAt carries the aeroplane's OWN
+  // prop (a GARAGE build always has one) AND its engine count — the two things
+  // this block used to re-derive, and the second of which it once got wrong
+  // (it read the per-disc figure while the solver flew on twice it, G4.9).
+  const Tavail = sim.thrustAt(V, 1);
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
@@ -10802,36 +11283,68 @@ function genTrim(def) {
     g.alphaTD = genAlphaForLift(sim, 1.10 * g.VsFlap, W, aMax);
     sim.ctl.flap = 0;
     // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
-    const rc = genProbeAt(sim, A.VClimb, genAlphaForLift(sim, A.VClimb, W, aMax));
-    g.gammaClimb = Math.max(0.004, (Tav(A.VClimb) - rc.drag) / W);
+    g.gammaClimb = Math.max(0.004, genClimbAt(sim, def, W, aMax));
     genTuneAP(def);
   }
-  // TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
-  // backtrack, so it has to err LONG.
-  //
-  // Rebuilt in G4.9, because the engine-count fix took away the error that was
-  // cancelling this one. The old form was `1.35 * Vlof^2 / (2*acc)` with ONE
-  // constant acceleration off 0.92*Tstatic and `Vlof = 1.05*VRot`. Two things
-  // were wrong with it and the doubled thrust hid both — it read 119 m against
-  // the 103 m the over-powered aeroplane actually flew, which looked like the
-  // deliberate safety bias the comment claimed. On honest thrust the same
-  // formula reads 119 m against 292 m flown: optimistic by 2.4x, and on a
-  // backtrack decision optimistic is the dangerous direction.
-  //
-  // 1. IT DOES NOT UNSTICK AT 1.05*VRot. VRot is where the autopilot starts
-  //    asking; the wheels leave when the wing can carry the aeroplane AT THE
-  //    LIFTOFF ATTITUDE, which is a tunnel question. Measured against flown
-  //    takeoffs this is right to a few per cent and high rather than low
-  //    (gen 21.4 predicted / 20.8 flown, cub 19.0 / 17.6).
-  // 2. THE ACCELERATION IS NOT CONSTANT. Thrust falls as kV2*V^2 the whole way
-  //    down the roll while drag climbs, so the mean is nothing like the
-  //    standing value. Integrate s = INT V dV / a(V) instead.
-  //
-  // The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
-  // level — which under-reads lift and so over-reads both the weight on the
-  // wheels and the rolling drag: conservative, deliberately.
+  // the take-off roll, measured in whatever air this sim is in (genTORunAt)
+  def.params.ap.TORun = genTORunAt(sim, def, W).TORun;
+  return def;
+}
+
+// ---------------------------------------------------------------------------
+// THE TWO PERFORMANCE MEASUREMENTS, LIFTED OUT OF genTrim (G72) so that the
+// bench can run the identical integration in air that is not the datum's. Not
+// rewritten — moved, line for line — because a density-altitude sheet computed
+// by a second, similar method would be a sheet about the method.
+//
+// THE ONE THING THAT IS NEW in both is the EAS/TAS conversion. Every speed on
+// the fiche (VRot, VClimb) is an equivalent airspeed, and genProbeAt prescribes
+// a TRUE one, so at altitude the tunnel has to be run faster to put the wing at
+// the same dynamic pressure. easK is exactly 1 at the datum, so dividing by it
+// leaves every existing number bit-for-bit where it was.
+// ---------------------------------------------------------------------------
+
+// WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
+function genClimbAt(sim, def, W, aMax) {
+  const A = def.params.ap;
+  const Vc = A.VClimb / sim.probeAir().easK;      // the EAS, flown as a TAS
+  const rc = genProbeAt(sim, Vc, genAlphaForLift(sim, Vc, W, aMax));
+  // RAW, and deliberately allowed to go negative. genTrim floors it at 0.004
+  // because the autopilot's circuit geometry divides by it; a CEILING search
+  // has to be able to see the gradient reach zero and pass through it, and a
+  // floor applied here would have put the ceiling at infinity in both.
+  return (sim.thrustAt(Vc, 1) - rc.drag) / W;
+}
+
+// TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
+// backtrack, so it has to err LONG.
+//
+// Rebuilt in G4.9, because the engine-count fix took away the error that was
+// cancelling this one. The old form was `1.35 * Vlof^2 / (2*acc)` with ONE
+// constant acceleration off 0.92*Tstatic and `Vlof = 1.05*VRot`. Two things
+// were wrong with it and the doubled thrust hid both — it read 119 m against
+// the 103 m the over-powered aeroplane actually flew, which looked like the
+// deliberate safety bias the comment claimed. On honest thrust the same
+// formula reads 119 m against 292 m flown: optimistic by 2.4x, and on a
+// backtrack decision optimistic is the dangerous direction.
+//
+// 1. IT DOES NOT UNSTICK AT 1.05*VRot. VRot is where the autopilot starts
+//    asking; the wheels leave when the wing can carry the aeroplane AT THE
+//    LIFTOFF ATTITUDE, which is a tunnel question. Measured against flown
+//    takeoffs this is right to a few per cent and high rather than low
+//    (gen 21.4 predicted / 20.8 flown, cub 19.0 / 17.6).
+// 2. THE ACCELERATION IS NOT CONSTANT. Thrust falls as kV2*V^2 the whole way
+//    down the roll while drag climbs, so the mean is nothing like the
+//    standing value. Integrate s = INT V dV / a(V) instead.
+//
+// The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
+// level — which under-reads lift and so over-reads both the weight on the
+// wheels and the rolling drag: conservative, deliberately.
+function genTORunAt(sim, def, W) {
   const A_ = def.params.ap;
-  let Vun = 1.05 * A_.VRot;
+  // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
+  // twice over: less thrust to accelerate on, and further to accelerate to.
+  let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
   {
     let lo = 1, hi = 4 * Vun + 40;
     for (let k = 0; k < 40; k++) {
@@ -10844,7 +11357,7 @@ function genTrim(def) {
   let sRoll = 0;
   for (let i = 0; i < NS; i++) {
     const Vi = Vun * (i + 0.5) / NS;
-    const Ti = Math.max(0, PR.Tstatic - PR.kV2 * Vi * Vi) * nE;
+    const Ti = sim.thrustAt(Vi, 0);
     const ri = genProbeAt(sim, Vi, 0);
     const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
     const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
@@ -10858,8 +11371,7 @@ function genTrim(def) {
   // rather than modelled, at 0.8 — above the worse of the two measured ratios
   // (0.53 gen, 0.18 cub), because this number's whole job is to be long.
   // Reads 320 m against the preset's 292 m flown.
-  def.params.ap.TORun = Math.round(1.8 * sRoll);
-  return def;
+  return { TORun: Math.round(1.8 * sRoll), Vun };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -11042,8 +11554,8 @@ function genShakedown(def) {
     const cl = genClMax(def, 0), fl = genClMax(def, 1);
     out.ClMaxClean = cl.CLmax;
     out.ClMaxFlap = fl.CLmax;
-    out.VsFlap = Math.sqrt(2 * fl.W / (1.225 * fl.Sw * Math.max(1e-6, fl.CLmax)));
-    out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (1.225 * cl.Sw * Math.max(1e-6, cl.CLmax)));
+    out.VsFlap = Math.sqrt(2 * fl.W / (RHO * fl.Sw * Math.max(1e-6, fl.CLmax)));
+    out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (RHO * cl.Sw * Math.max(1e-6, cl.CLmax)));
     out.VAppr = def.params.ap.VAppr;
   }
   if (P && P.ledger) {
@@ -11111,7 +11623,7 @@ function buildGen(specIn) {
   params.gen.aStall = gClean.aStall;
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);
-    const VsFlap = Math.sqrt(2 * g.W / (1.225 * g.Sw * Math.max(1e-6, g.CLmax)));
+    const VsFlap = Math.sqrt(2 * g.W / (RHO * g.Sw * Math.max(1e-6, g.CLmax)));
     // BOTH SPEEDS OFF THE SAME INSTRUMENT. `r` is a ratio, so everything common
     // to the two ends cancels — but only if the two are measured the same way.
     // This divided the flapped PROBE by `gen.Vs`, which is analytic and on the
@@ -11120,7 +11632,7 @@ function buildGen(specIn) {
     // `VsRatio` was already doing it this way; this is the same sum, and
     // `gClean` is the scan that was run three lines up.
     const VsClean = Math.sqrt(2 * gClean.W /
-                    (1.225 * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+                    (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
     const r = VsFlap / VsClean;
     params.ap.VAppr *= r;
     params.ap.VApprShort *= r;
@@ -11132,6 +11644,105 @@ function buildGen(specIn) {
   }
   genTrim(def);
   return def;
+}
+
+// ---------------------------------------------------------------------------
+// THE DENSITY-ALTITUDE SHEET (G72) — the bench's second instant test.
+//
+// The question it answers is the one the plaque could not: this aeroplane
+// takes 320 m of grass and climbs 3 m/s ON THE STANDARD DAY AT SEA LEVEL, and
+// every number a builder has ever been shown has silently carried that
+// qualifier. What does it do out of a mountain strip in August, and where does
+// it stop climbing at all?
+//
+// It is the SAME two measurements genTrim takes — genClimbAt and genTORunAt,
+// the same functions, not a second method — run against a different air
+// through sim.setAtmos. Nothing here models anything; the modelling is all in
+// 05_atmos.js and in the solver, and this file only asks.
+//
+// THE CEILING is bisected on the climb gradient, which is why genClimbAt
+// returns a raw one. Absolute = where the rate of climb reaches zero; service =
+// where it reaches 0.5 m/s, which is roughly the 100 ft/min every light-
+// aircraft manual quotes and is the honest one to publish, since an aeroplane
+// at its absolute ceiling cannot turn.
+// ---------------------------------------------------------------------------
+const GEN_DA_CASES = [
+  { id: 'isa', name: 'ISA, sea level',        h: 0,    dISA: 0  },
+  // A REAL SUMMER MOUNTAIN STRIP, and the numbers behind the choice: 1000 m of
+  // pressure altitude at ISA+20 is a bit over 1600 m of density altitude, which
+  // is an ordinary afternoon in the Alps and an ordinary afternoon in Colorado.
+  { id: 'hot', name: '1000 m strip, ISA+20',  h: 1000, dISA: 20 },
+];
+const GEN_DA_SERVICE = 0.5;      // m/s, the service-ceiling bar
+const GEN_DA_CAP = 12000;        // m, the edge of what this model will claim
+
+function genDensityAlt(def) {
+  const A = def.params.ap || {};
+  // fiche-only aircraft have no VRot/liftoffTh, so there is no roll to
+  // integrate; say so rather than returning a sheet of NaN.
+  if (!(A.VClimb > 0) || !(A.VRot > 0) || A.liftoffTh == null) return null;
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const W = sim.totalM * 9.81;
+  const aMax = 0.85 * def.params.polarWing.aStall;
+
+  const at = (h, dISA) => {
+    sim.setAtmos(dISA ? makeAtmos({ dISA }) : ATMOS_ISA, h);
+    sim.ctl.flap = 0;
+    const air = sim.probeAir();
+    const gam = genClimbAt(sim, def, W, aMax);
+    return {
+      pressAlt: h, dISA, densAlt: air.densityAlt, sigma: air.sigma,
+      oatC: air.oatC, power: air.power, aspiration: air.aspiration,
+      climbGrad: gam,
+      // RATE of climb is the gradient times the TRUE speed, and VClimb is an
+      // equivalent one — the aeroplane really is going faster up there.
+      climbRate: gam * A.VClimb / air.easK,
+      VClimbTAS: A.VClimb / air.easK,
+      TORun: genTORunAt(sim, def, W).TORun,
+    };
+  };
+  const cases = GEN_DA_CASES.map(c => Object.assign({ id: c.id, name: c.name },
+                                                    at(c.h, c.dISA)));
+  // CLIMB ONLY for the ceiling search — `at` also integrates a take-off roll,
+  // which is 70-odd tunnel probes an iteration and means nothing at 3000 m.
+  // AND WHERE THE MODEL STOPS BEING HONEST. 12 km is not a physical bound, it
+  // is the edge of what is defensible here: above it the missing pieces start
+  // to matter more than the ones that are present. It bites on ELECTRIC builds,
+  // which in this model keep climbing almost indefinitely — a motor's power
+  // does not lapse, so the only thing taking the thrust away is rho^(1/3). That
+  // is correct as far as it goes and it goes too far: a real one is stopped by
+  // its battery and by the tips of its own propeller going transonic, and this
+  // model has neither. A null ceiling means "above 12 000 m and do not believe
+  // us", not "infinite".
+  const rocAt = h => {
+    sim.setAtmos(ATMOS_ISA, h);
+    sim.ctl.flap = 0;
+    const air = sim.probeAir();
+    return genClimbAt(sim, def, W, aMax) * A.VClimb / air.easK;
+  };
+  const ceiling = target => {
+    if (!(rocAt(0) > target)) return 0;            // it does not climb down here
+    let lo = 0, hi = GEN_DA_CAP;
+    if (rocAt(hi) > target) return null;           // beyond the model's honesty
+    for (let k = 0; k < 24; k++) {
+      const m = 0.5 * (lo + hi);
+      if (rocAt(m) > target) lo = m; else hi = m;
+    }
+    return 0.5 * (lo + hi);
+  };
+  const out = {
+    cases,
+    serviceCeiling: ceiling(GEN_DA_SERVICE),
+    absCeiling: ceiling(0),
+    serviceBar: GEN_DA_SERVICE,
+    ceilingCap: GEN_DA_CAP,
+  };
+  // the ceilings are PRESSURE altitudes on the standard day, so their density
+  // altitude is the same number — but say it, rather than leave it inferred
+  out.serviceCeilingDA = out.serviceCeiling;
+  sim.setAtmos(null, 0);
+  return out;
 }
 // ============================================================
 // GARAGE 5/5 — the LOAD TEST RIG. Static proof-of-structure, in the sim.
@@ -11155,6 +11766,26 @@ function buildGen(specIn) {
 //      and at 5.7 g the body frame flipped mid-run: the trace jumped 5.10 -> 0.22.
 //   3. BOLT THE FUSELAGE DOWN. Every non-wing node is pinned each step, which
 //      is what trestles are. Nothing to balance, nothing to tumble.
+//
+// AND THE AEROPLANE GOES ON ITS BACK (G64). Version 3 loaded the wing UPWARD
+// on an upright aeroplane, which is the right BENDING — FAR 23's +3.8 g and
+// +5.7 g are flight loads and a flying wing bends up — and the wrong PICTURE:
+// the viewer drew the sandbags resting on top of the wing and the wing then
+// rose to meet them. The user's report was exactly that, "it was bending the
+// wing the wrong way around". Flipping the load would have been worse than the
+// drawing, because it would prove the wing against NEGATIVE g while printing
+// positive-g numbers. So the aeroplane is turned over instead, which is how a
+// homebuilt sandbag test is actually done and what this gate's own header has
+// always said it was ("the real rig inverts the aeroplane and stands the
+// fuselage on supports"): bags on the upward-facing lower surface, pressing
+// DOWN with gravity, bending the wing the way flight does.
+//
+// Nothing measured changes by construction: `rise` resolves onto the BODY up
+// axis, which `bodyAxes` builds geometrically out of upLo->upHi, so it turns
+// over with the aeroplane. The jig datum is taken after the settle either way,
+// so the wing's own 1 g — which now adds to the bags instead of opposing them —
+// cancels out of every reported deflection.
+//
 // And the load is RAMPED, not stepped: DEFDAMP is a rate with tau = 2 s, so a
 // step leaves the wing ringing past fifteen seconds and reading it at one
 // instant samples the ring. `relax` bleeds the deformation velocity — only the
@@ -11279,7 +11910,33 @@ function makeLoadTest(sim, def, cfg) {
     return worst;
   }
 
+  // 180 degrees about the aeroplane's OWN x axis, through its centre of mass:
+  // about a WORLD axis it would come to rest pitched by twice the body axis's
+  // inclination (the boom sits ~3.7 deg nose-down to the frame axis, G54), and
+  // a rig that pitches the aeroplane while claiming to invert it is one more
+  // picture that disagrees with its numbers.
+  function invert() {
+    const a = sim.axes()[0];                       // body x, nose -> tail
+    let cx = 0, cy = 0, cz = 0, M = 0;
+    for (let i = 0; i < sim.n; i++) {
+      const m = def.nodes[i].m; M += m;
+      cx += m * sim.p[i*3]; cy += m * sim.p[i*3+1]; cz += m * sim.p[i*3+2];
+    }
+    if (!(M > 0)) return;
+    cx /= M; cy /= M; cz /= M;
+    for (let i = 0; i < sim.n; i++) {
+      const o = i * 3;
+      const dx = sim.p[o] - cx, dy = sim.p[o+1] - cy, dz = sim.p[o+2] - cz;
+      const k = 2 * (a[0]*dx + a[1]*dy + a[2]*dz);   // Rodrigues at 180 deg:
+      sim.p[o]   = cx + k*a[0] - dx;                 //   v' = 2(a.v)a - v
+      sim.p[o+1] = cy + k*a[1] - dy;
+      sim.p[o+2] = cz + k*a[2] - dz;
+      sim.v[o] = sim.v[o+1] = sim.v[o+2] = 0;        // it is set down, not thrown
+    }
+  }
+
   function begin() {
+    invert();                       // on its back, on the trestles
     // clear of the ground so contact never joins in, then bolt the rig down
     for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
@@ -11306,8 +11963,10 @@ function makeLoadTest(sim, def, cfg) {
     // ramp to ultimate, recording the limit case on the way past
     const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
+    // the bags press DOWN, because they are bags. The aeroplane being inverted
+    // is what makes that the flight-load direction through the spar.
     for (let k = 0; k < bags.length; k++)
-      sim.impulse(bags[k][0], 0, n * bags[k][1] * dt, 0);
+      sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
     sim.step(dt); clamp(); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the
@@ -11360,4 +12019,4 @@ function makeLoadTest(sim, def, cfg) {
            limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
 }
 if (typeof module !== 'undefined')
-  module.exports = { decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genFrame, genShakedown, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };
+  module.exports = { ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, RHO, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genSkin, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };

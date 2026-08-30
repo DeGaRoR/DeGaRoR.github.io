@@ -336,19 +336,78 @@ function makeWorld(seed) {
     [2.71, 0.009, 0.008, 5.1, 0.7, 1.0, 0.6],
     [0.29, 0.002, 0.003, 1.9, 1.0, 0.25, 0.8],
   ];
+  // ---- THE SURFACE LAYER (G72) -------------------------------------------
+  // `y` has been an argument of wind() since the field was written and has
+  // never been read. It is read now: the ground drags on the air, so the wind
+  // near it is slower than the wind above it, and an aeroplane on final is in
+  // measurably different air from the one at circuit height.
+  //
+  // WHERE THE REPORTED WIND IS. A wind speed is meaningless without a height,
+  // and the height every anemometer, every windsock and every METAR means is
+  // 10 m. So `refH` says which height `base` was measured at, and the profile
+  // is the engineering power law u/uref = (z/zref)^alpha — the same one every
+  // wind-resource and building-code calculation uses, with alpha set by how
+  // rough the ground is (0.10 open water, 0.14 open grass, 0.20 scrub and
+  // trees). It is a fit, not a derivation, and it is a good one to about 200 m.
+  //
+  // A SPEC WITH NO refH IS A UNIFORM COLUMN, which is exactly the pre-G72 model
+  // and is what the fleet's whole wind calibration was measured in. That is a
+  // deliberate, declared boundary rather than a compatibility fudge: "no
+  // reference height" honestly means "we are not claiming to know where this
+  // wind was measured", and the only answer that does not invent information is
+  // to blow it everywhere equally. GATE WIND and the XCTY gates anchor to that
+  // column; the CONDITIONS presets and GATE HOTHIGH declare a refH and fly the
+  // profile. Re-anchoring the fleet battery onto sheared wind is named work,
+  // not a side effect of this one.
+  const WIND_TOP_H = 300;              // m agl: above this the profile has run out
+  const WIND_ALPHA = 0.14;             // open grassland, the default surface here
+  function shearK(x, y, z, refH, alpha) {
+    const agl = y - terrainH(x, z);
+    // a power law has no zero: floor the height rather than pretend it does.
+    const h = Math.min(WIND_TOP_H, Math.max(0.2, agl));
+    return Math.pow(h / refH, alpha);
+  }
   function wind(x, y, z, t) {
     if (!windSpec) return W0;
     const b = windSpec.base, g = windSpec.gust || 0;
-    WV[0] = b[0]; WV[1] = b[1]; WV[2] = b[2];
-    if (g > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
+    const k = windSpec.refH ? shearK(x, y, z, windSpec.refH, windSpec.alpha) : 1;
+    WV[0] = b[0] * k; WV[1] = b[1] * k; WV[2] = b[2] * k;
+    // the gusts ride the local wind, so they die out in the surface layer and
+    // grow in the shear instead of being the same everywhere from grass to
+    // circuit height
+    const gk = g * k;
+    if (gk > 0) for (const [om, kx, kz, ph, ax, ay, az] of GC) {
       const s = Math.sin(om * t + kx * x + kz * z + ph);
-      WV[0] += g * 0.30 * ax * s;
-      WV[1] += g * 0.18 * ay * s;
-      WV[2] += g * 0.30 * az * s;
+      WV[0] += gk * 0.30 * ax * s;
+      WV[1] += gk * 0.18 * ay * s;
+      WV[2] += gk * 0.30 * az * s;
     }
     return WV;
   }
-  function setWind(spec) { windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0 } : null; }
+  function setWind(spec) {
+    windSpec = spec ? { base: spec.base || [0, 0, 0], gust: spec.gust || 0,
+                        refH: spec.refH || 0,
+                        alpha: spec.alpha != null ? spec.alpha : WIND_ALPHA } : null;
+  }
+
+  // ---- the day: ONE weather state, air and wind together (G72) ------------
+  // setWeather({ oatC, qnhPa, wind: { base, gust } }) — everything a day is.
+  // They are one object rather than two setters because a hot gusty afternoon
+  // is ONE thing a player picks, and because the solver has to be able to ask
+  // "what is the air here" without knowing which preset put it there.
+  //
+  // `atmos` is read through a GETTER on the returned world so the sim sees a
+  // change live, exactly as it already does for wind — no reset, mid-flight.
+  // Absent weather is the standard day and the zero wind vector, so every
+  // existing gate is untouched by the mere existence of this.
+  let weather = null;
+  let atmos = ATMOS_ISA;
+  function setWeather(spec) {
+    weather = spec || null;
+    const hasAir = spec && (spec.oatC != null || spec.qnhPa != null || spec.dISA != null);
+    atmos = hasAir ? makeAtmos(spec) : ATMOS_ISA;
+    setWind(spec ? (spec.wind || null) : null);
+  }
 
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
@@ -363,6 +422,10 @@ function makeWorld(seed) {
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
     hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
+    // ---- the day (G72): the air is a getter so it is read LIVE ----
+    get atmos() { return atmos; },
+    get weather() { return weather; },
+    setWeather,
     // ---- v0 shim: same live objects, byte-identical values ----
     trees, meadows, CELL, wind, setWind,
   };

@@ -523,7 +523,7 @@ function genTyreDataURI() {
 }
 
 // ---------------------------------------------------------------------------
-// BUILDS + the spec handle. api is the bridge app.js hands over (see its
+// THE SHELF + the spec handle. api is the bridge app.js hands over (see its
 // GARAGE bridge block).
 //
 // THE PANEL IS GONE (G35, user: "that's the last time we'll see the old
@@ -532,16 +532,24 @@ function genTyreDataURI() {
 // the game's editor; the last build carrying it is
 // earlierVersions/2026-08-28-preP3-last-old-garage.html. What remains
 // here is what was never the editor: the paint bakers above, and below —
-// the BUILDS bar (save/load/export/import, the G7 persistence) and
-// window.GARAGE_SPEC, the external handle on a build.
+// THE SHELF (G63) and window.GARAGE_SPEC, the external handle on a build.
+//
+// THE SHELF is what the BUILDS bar became. Three stores used to hold a
+// design — this one, the cage editor's own `cageCfg:<pathname>` map, and a
+// hardcoded preset list that was literally the user's own exports pasted into
+// _cage_page5.js because there was no working way to load a build back into
+// the editor. Two of them wrote files both tagged `flydiy-build` with
+// incompatible payloads, and each silently destroyed the other's data on
+// import. Now: ONE store, ONE format, and the stock designs are rows in the
+// same list as your own aeroplanes.
 // ---------------------------------------------------------------------------
 function garageInit(api) {
   const $ = id => document.getElementById(id);
-  const host = $('garage');
+  const host = $('edShelf');
   if (!host) return;
 
   // =====================================================================
-  // BUILDS — saving, loading, and the file on disk.
+  // SAVING, LOADING, AND THE FILE ON DISK.
   //
   // WHAT IS SAVED IS THE SPEC, NULLS AND ALL. A field left null is one the
   // generator DERIVES, and it has to stay null: freeze the derived number into
@@ -575,22 +583,114 @@ function garageInit(api) {
   // The envelope carries the spec version so a future migration has something
   // to branch on. Nothing reads it today — genNormaliseSpec does the work — and
   // that is deliberate; see the note on GEN_SPEC_V in 60_gen_spec.js.
-  const envelope = (name, s) => JSON.stringify({
+  //
+  // `plaque` and `log` ride BESIDE the spec, never inside it (G63): a test
+  // result is not a design decision, and putting one in the spec would make it
+  // an input to the generator that produced it. `log` is the logbook stub the
+  // fleet grows out of — when it was built, what has been tested, what it has
+  // flown.
+  const newLog = () => ({ built: null, tests: [], flights: [] });
+  const envelope = (name, s, pq, lg) => JSON.stringify({
     what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
-    name: name || 'build', spec: s,
+    // NULL when the build has no slot yet, never a placeholder: the working
+    // build used to be written under the literal name 'working', so a user
+    // who saved a build actually called `working` had every later unnamed
+    // session silently adopt it as its slot.
+    name: name || null, spec: s,
+    plaque: pq || null, log: lg || newLog(),
   });
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
   const unwrap = txt => {
     const o = JSON.parse(txt);
-    if (o && o.spec && typeof o.spec === 'object') return { name: o.name, spec: o.spec };
+    if (o && o.spec && typeof o.spec === 'object')
+      return { name: o.name, spec: o.spec, plaque: o.plaque || null,
+               log: o.log || newLog() };
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
-      return { name: null, spec: o };
+      return { name: null, spec: o, plaque: null, log: newLog() };
     throw new Error('not a flyDiy build');
+  };
+
+  // ---- THE EDITOR, as a load target -------------------------------------
+  // The one thing the game could never do (G63). `CAGE_UI.applySpec` is the
+  // editor's own route in — cageFromSpec from the TEMPLATE, not from the
+  // page's defaults — so a build fully determines the aeroplane instead of
+  // inheriting whatever sliders it did not mention.
+  const ed = () => (window.CAGE_UI && window.CAGE_UI.applySpec) ? window.CAGE_UI : null;
+  const join = () => (window.CAGE_JOIN && window.CAGE_JOIN.export) ? window.CAGE_JOIN : null;
+
+  // ---- THE UPDATE (G63) -------------------------------------------------
+  // `build & fly` used to hand the join's output to `set`, which replaces
+  // wholesale — so every field the join does not write was silently reset to
+  // the generator's defaults on every single build: the name, the registration,
+  // the whole paint, the propeller, the cowl, the fuel, the systems, the
+  // baggage, the elevator and rudder chords, and every un-measured key of the
+  // cabin, gear and tail sections. A build was therefore un-paintable: the
+  // colours came back yellow the moment you touched a slider.
+  //
+  // The join is an UPDATE to the build you already have, which is a different
+  // operation from loading a file. `set` keeps its "load replaces, never
+  // merges" ruling (a build is a whole aeroplane); `update` merges per KEY, so
+  // `gear.x` moves while `gear.fairing` stays.
+  //
+  // DECLARED HAZARD: a key the join writes only when it can MEASURE it keeps
+  // its previous value when the measurement is missing, rather than reverting
+  // to derived. That is the right answer when a measurement fails (the last
+  // good number beats a silent revert) and the wrong one if a design could
+  // lose a part mid-session — which it cannot, because switching designs goes
+  // through `set`, not through here.
+  const isPlain = o => o && typeof o === 'object' && !Array.isArray(o);
+  function merge(base, over) {
+    if (!isPlain(over)) return over;
+    const out = isPlain(base) ? Object.assign({}, base) : {};
+    for (const k in over) {
+      if (Array.isArray(over[k])) {
+        // WINGS merge element-wise: the join writes nearly every wing key but
+        // not `place`, and a wholesale replace loses it. Every other array —
+        // the boom profile, the engine list — is a measurement of a whole
+        // thing and replaces as a whole.
+        out[k] = (k === 'wings' && Array.isArray(base && base[k]))
+          ? over[k].map((w, i) => merge(base[k][i], w))
+          : over[k];
+      } else if (isPlain(over[k])) out[k] = merge(base && base[k], over[k]);
+      else out[k] = over[k];
+    }
+    return out;
+  }
+
+  // ---- THE STOCK DESIGNS ------------------------------------------------
+  // What the editor's `presets` menu was. They are BAKED here into ordinary
+  // builds so that stock and saved designs travel one code path: a preset used
+  // to be applied over `CAGE_PARAMS + PAGE.defaults` while an import started
+  // from `CAGE_PARAMS` alone, so the same aeroplane arrived DIFFERENT depending
+  // on which door it came through — the sailplane row carried a hand-written
+  // patch for exactly that and the piper cub did not.
+  //
+  // Baking is `template + page defaults + the preset's own overrides`, taken
+  // back out through `cageToSpec` as deviations from the template. Read-only:
+  // saving a stock design makes your own copy, which is what a stock design is
+  // for.
+  const STOCK = (() => {
+    const out = [];
+    try {
+      const C = window.CAGE2, PG = window.CAGE_PAGE;
+      if (!C || !C.cageToSpec || !PG || !PG.presets) return out;
+      for (const nm in PG.presets) {
+        const full = Object.assign(C.cageDefaults(), PG.defaults || {},
+                                   PG.presets[nm] || {});
+        out.push({ name: nm, spec: { cage: C.cageToSpec(full) } });
+      }
+    } catch (e) {}
+    return out;
+  })();
+  const stockByName = n => {
+    for (const s of STOCK) if (s.name === n) return s;
+    return null;
   };
 
   let spec = api.defaults();
   let slotName = '';
+  let plaque = null, log = newLog();
   // RESTORE THE WORKING BUILD. A reload used to be destructive — the spec lived
   // only in this closure and nothing wrote it anywhere — which is exactly how a
   // build gets lost. Anything unreadable is ignored rather than thrown: a
@@ -599,7 +699,9 @@ function garageInit(api) {
     const wip = lsGet(WIP);
     if (wip) try {
       const got = unwrap(wip);
-      spec = got.spec;
+      spec = got.spec; plaque = got.plaque; log = got.log;
+      try { if (typeof genNormaliseSpec === 'function') spec = genNormaliseSpec(spec); }
+      catch (e) {}
       // and WHICH BUILD it was, so Save still knows its target after a reload.
       // Only if that slot still exists — a name pointing at a build that was
       // deleted would make Save silently resurrect it.
@@ -610,60 +712,125 @@ function garageInit(api) {
   // REBUILD, post-panel: the bridge apply plus the WIP autosave the old
   // panel's rebuild always did. Loading a build still rebuilds the
   // aeroplane; nothing refreshes rows that no longer exist.
+  //
+  // The WIP is written with a NULL name when the build is unnamed. It used to
+  // be written with the literal string 'working', which meant a user who saved
+  // a build actually called `working` had every later unnamed session silently
+  // adopt it as its slot.
+  const writeWip = () => lsSet(WIP, envelope(slotName, spec, plaque, log));
   function rebuild() {
     api.apply(spec);
-    lsSet(WIP, envelope(slotName || 'working', spec));
+    writeWip();
   }
 
-  // ---- the builds bar ---------------------------------------------------
+  // ---- the shelf --------------------------------------------------------
   // Load replaces the spec wholesale and rebuilds from it. It does NOT merge:
   // a build is a whole aeroplane, and merging one into another gives you a
   // third thing that nobody designed.
-  function loadSpec(s, name) {
-    spec = s;
+  //
+  // ...and it now loads THE EDITOR TOO. That was the missing half: the game
+  // rebuilt its aeroplane and the editor went on showing the page template, so
+  // the next export overwrote the build you had just opened with the template
+  // you never asked for. When the editor is up, the load runs back OUT through
+  // the join as well, so the flying spec and the editor cannot disagree about
+  // what you just opened — which is also how a stock design, whose file is a
+  // cage and nothing else, arrives as a whole aeroplane.
+  // A LOADED FILE IS NORMALISED ON THE WAY IN (G63). A build file may be
+  // PARTIAL — a stock design is a cage and nothing else, a hand-written one
+  // might be a paint and nothing else — and the generator fills the rest at
+  // build time, so the aeroplane looked right. What was wrong was the spec the
+  // shelf then held: it carried only the sections the file mentioned, so the
+  // next export through the join had no paint, no name and no propeller to
+  // preserve, and `update`'s whole point evaporated. Normalising here fills
+  // every missing section from GEN_DEFAULT while KEEPING every derived null,
+  // which is the one thing that must not be frozen.
+  const whole = s => {
+    try { return (typeof genNormaliseSpec === 'function') ? genNormaliseSpec(s) : s; }
+    catch (e) { return s; }
+  };
+  function loadSpec(s, name, pq, lg) {
+    spec = whole(s);
     slotName = name || '';
+    plaque = pq || null;
+    log = lg || newLog();
     // clampSpec runs inside the build, so an out-of-envelope or partial file
     // is pulled straight rather than refused — what flies is the honest
     // readout of what the file asked for.
     rebuild();
+    const E = ed();
+    if (E) {
+      E.applySpec(spec);
+      // ...and then straight back out through the join (G65), which also
+      // FREEZES THE VISUAL. That is the declared G46 gap closed — "the visual
+      // is not in the save, a reload flies the generated skin until the next
+      // build & fly" — without a single mesh byte in localStorage: the save
+      // carries `spec.cage`, the editor is seeded from it, and the snapshot is
+      // regenerated from what the editor then built. Fix the construction,
+      // not the output.
+      if (typeof window.BUILD_SYNC === 'function') window.BUILD_SYNC();
+      else { const J = join();
+             if (J) { try { spec = merge(spec, J.export()); rebuild(); } catch (e) {} } }
+    }
     fillSlots();
   }
   const slotSel = $('gSlot');
+  const STOCK_TAG = '⚙ ';       // the shelf marks what it did not build
   function fillSlots() {
     if (!slotSel) return;
     const names = slotNames();
     slotSel.innerHTML = '';
     const opt = (v, t) => { const o = document.createElement('option');
                             o.value = v; o.textContent = t; slotSel.appendChild(o); };
-    opt('', names.length ? '— saved builds —' : '— no saved builds —');
+    opt('', names.length ? '— designs —' : '— stock designs —');
+    for (const s of STOCK) opt(STOCK_TAG + s.name, STOCK_TAG + s.name);
     for (const n of names) opt(n, n);
     slotSel.value = names.indexOf(slotName) >= 0 ? slotName : '';
     // storage unavailable is not an error worth a dialog, but the controls
-    // should not pretend to work
+    // should not pretend to work. The SELECT stays live either way — the stock
+    // designs are in the bundle, not in storage.
     const dis = !LS;
-    for (const id of ['gSlot', 'gSave', 'gSaveAs', 'gDel'])
+    for (const id of ['gSave', 'gSaveAs', 'gDel'])
       if ($(id)) $(id).disabled = dis;
   }
   const saveAs = name => {
     if (!name) return;
-    if (!lsSet(SLOT + name, envelope(name, spec)))
+    if (!log.built) log.built = new Date().toISOString().slice(0, 10);
+    // NAMING IT IS NAMING IT (G65). The shelf's name and the aeroplane's own
+    // `meta.name` were two different strings for one thing, so the plaque
+    // headed a build "Garage Special" while the shelf called it yours. The
+    // shelf row wins, because it is the one you typed.
+    if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
+    spec.meta.name = name;
+    if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))
       return void alert('Could not save — browser storage is full or disabled.');
     slotName = name;
+    // the working build now belongs to a slot, and has to say so: that
+    // association is what makes a reload come back as unsaved changes TO THIS
+    // AEROPLANE rather than as an orphan.
+    writeWip();
     fillSlots();
   };
   if (slotSel) slotSel.addEventListener('change', () => {
     const n = slotSel.value; if (!n) return;
+    if (n.lastIndexOf(STOCK_TAG, 0) === 0) {
+      const st = stockByName(n.slice(STOCK_TAG.length));
+      // a stock design opens UNNAMED: it is a starting point, and the first
+      // Save asks what you have made of it
+      if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
+      return void fillSlots();
+    }
     const txt = lsGet(SLOT + n);
     if (!txt) return void fillSlots();
-    try { loadSpec(unwrap(txt).spec, n); }
+    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log); }
     catch (e) { alert('That saved build could not be read: ' + e.message); }
   });
   if ($('gSave')) $('gSave').addEventListener('click', () =>
-    saveAs(slotName || (prompt('Name this build:', 'My aeroplane') || '').trim()));
+    saveAs(slotName || (prompt('Name this aeroplane:', 'My aeroplane') || '').trim()));
   if ($('gSaveAs')) $('gSaveAs').addEventListener('click', () =>
     saveAs((prompt('Save as:', slotName || 'My aeroplane') || '').trim()));
   if ($('gDel')) $('gDel').addEventListener('click', () => {
     const n = slotSel && slotSel.value; if (!n) return;
+    if (n.lastIndexOf(STOCK_TAG, 0) === 0) return;   // stock is not yours to delete
     if (!confirm('Delete the saved build "' + n + '"?')) return;
     lsDel(SLOT + n);
     if (slotName === n) slotName = '';
@@ -673,7 +840,8 @@ function garageInit(api) {
   // really saved. The name is the build's, so a folder of them reads as a fleet.
   if ($('gExport')) $('gExport').addEventListener('click', () => {
     const name = slotName || 'flydiy-build';
-    const blob = new Blob([envelope(name, spec)], { type: 'application/json' });
+    const blob = new Blob([envelope(name, spec, plaque, log)],
+                          { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
@@ -687,7 +855,8 @@ function garageInit(api) {
     r.onload = () => {
       try {
         const got = unwrap(String(r.result));
-        loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''));
+        loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
+                 got.plaque, got.log);
       } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
     };
     r.readAsText(f);
@@ -696,7 +865,7 @@ function garageInit(api) {
     $('gImport').addEventListener('click', () => { fileIn.value = ''; fileIn.click(); });
     fileIn.addEventListener('change', () => readFile(fileIn.files && fileIn.files[0]));
   }
-  // drop a build anywhere on the panel
+  // drop a build anywhere on the shelf
   host.addEventListener('dragover', e => { e.preventDefault(); });
   host.addEventListener('drop', e => {
     e.preventDefault();
@@ -706,26 +875,39 @@ function garageInit(api) {
 
   // THE HANDLE THE COMMENT IN app.js ALWAYS CLAIMED EXISTED. It never did, and
   // that is precisely how a build ends up trapped in this closure with no way
-  // to get it out. Now it is real: read it, set it, save it, or dump it.
+  // to get it out. Now it is real: read it, set it, update it, save it, or
+  // dump it.
   try {
     window.GARAGE_SPEC = {
       get: () => JSON.parse(JSON.stringify(spec)),
-      set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName),
+      set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName, plaque, log),
+      // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
+      update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild(); },
       resolved: () => api.resolved(),
-      json: () => envelope(slotName || 'build', spec),
+      json: () => envelope(slotName || 'build', spec, plaque, log),
       list: slotNames,
+      stock: () => STOCK.map(s => s.name),
+      name: () => slotName,
+      log: () => log,
+      // the plaque and the logbook are WRITTEN here and read by the bench
+      // (G64): one place a result about a build is kept, beside the build.
+      // They persist WITHOUT rebuilding — a result is not a design change, and
+      // routing it through `rebuild` would tear down and re-derive the whole
+      // aeroplane every time a test wrote down what it found.
+      plaque: v => (v === undefined ? plaque : (plaque = v, writeWip(), plaque)),
+      note: row => { log.tests.push(row); writeWip(); },
       save: saveAs,
-      load: n => { const t = lsGet(SLOT + n); if (t) loadSpec(unwrap(t).spec, n); },
+      load: n => { const t = lsGet(SLOT + n); if (!t) return;
+                   const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
     };
   } catch (e) {}
 
-  // the builds bar only makes sense while the garage build is selected
+  // the shelf only makes sense while the garage build is selected — but it
+  // lives INSIDE the editor panel now, which is garage-only already, so this
+  // only has to follow the aircraft select for the case where the panel is
+  // left open over a fleet aeroplane.
   const acSel = $('selAc');
-  const sync = () => {
-    host.style.display = api.isGen() ? '' : 'none';
-  };
+  const sync = () => { host.style.display = api.isGen() ? '' : 'none'; };
   if (acSel) acSel.addEventListener('change', () => setTimeout(sync, 0));
-  const close = $('gClose');
-  if (close) close.addEventListener('click', () => { host.style.display = 'none'; });
   sync();
 }

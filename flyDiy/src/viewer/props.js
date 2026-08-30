@@ -65,6 +65,12 @@ function propMaterial(THREE, rec) {
     envMapIntensity: 1.0,
     side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide,
   };
+  // FLAT SHADING, when the baker asks for it (G62.11). three computes the
+  // normal from the fragment's own derivatives and ignores the attribute, so a
+  // structure reads as the flat plates and straight tube it is instead of
+  // being smoothed into something upholstered. Only the airframes use it; the
+  // furniture is smooth-shaded and stays that way.
+  if (rec.flat) o.flatShading = true;
   if (rec.map) o.map = propTexture(THREE, rec.map, true);
   if (rec.arm) {
     const arm = propTexture(THREE, rec.arm, false);

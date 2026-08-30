@@ -195,6 +195,10 @@ PAGE.post = ctx => {
   const wire = $('wire') && $('wire').checked;
   const bySec = !$('color') || $('color').checked;
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:stab';
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
   for (const side of [1, -1]) {
     const half = FIN.finToStab(disp, { side, rootX: P.stX || 0,

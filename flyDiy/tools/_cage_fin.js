@@ -156,6 +156,113 @@ function mats() {
   return MATS;
 }
 
+// AEROSKIN ON THE TAIL (G68.2). The same factory the fuselage and the wing
+// use — one factory, so a tail cannot drift from the aeroplane it is bolted
+// to. Falls back to the layer's own section palette when AEROSKIN is not
+// loaded or the material mode is off, so the standalone _cage7 bench and the
+// section-colour diagnostic both keep working exactly as before.
+function tailMat(k) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  const sel = typeof document !== 'undefined'
+    && document.getElementById('mat');
+  if (!A || !sel || sel.value !== 'material')
+    return mats()[k] || mats()._plain;
+  const P0 = (window.CAGE_UI && window.CAGE_UI.P) || {};
+  const cons = ['carbon', 'tubeFabric', 'wood', 'alloy'][
+    Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] || 'tubeFabric';
+  return A.aeroMaterial(THREE, {
+    finish: A.aeroFinishFor('body', cons),
+    grm: cons, struct: 1, wing: 1,     // a tail is a flying surface: ribs+spar
+    surf: 1, fieldM: tailFS(),         // cage units -> metres
+    side: THREE.DoubleSide,
+  });
+}
+
+// ---- THE TAIL'S SURFACE FIELD (G68.2) --------------------------------------
+// The same four numbers the cage and the wing carry (G66, G68.1), so one
+// shader draws all three:
+//
+//   .x  sL  metres SPANWISE from the root      (ribs are spaced along it)
+//   .y  sC  metres CHORDWISE from the LE       (the spar runs along it)
+//   .z  st  station: integer at every rib
+//   .w  lv  rail: 0 at the SPAR, 1 at a notional rear spar
+//
+// CHORD IS ALWAYS z, because the cage is z-forward and the fin is built in
+// the cage's own frame; the SPAN is whichever of x/y is the long one. The fin
+// stands on y and `finToStab` lays the SAME MODEL flat onto x, so detecting
+// it from the mesh's own extents costs two comparisons and means the fin and
+// the stab need no separate code at all — which is the whole point of the
+// stab being the fin laid flat (G23).
+//
+// THE RIB PITCH IS DECLARED, NOT DERIVED, and that is a real difference from
+// the wing. `61_gen_frame` bills wing ribs on its own 0.4 m rule and now
+// exports their stations (G66); it models the tail as a handful of nodes and
+// bills no tail ribs at all. Light-aircraft tail ribs run closer than wing
+// ribs — 0.20-0.30 m — because the surfaces are small and the loads local.
+// 0.26 m until something physical has an opinion.
+const TAIL_RIB = 0.26;
+// THE TAIL BUILDS IN CAGE UNITS, NOT METRES, and that is the one place this
+// differs from the wing: the wing comes over from genSkin in the game's model
+// frame, which is already metric, while the fin is built in the cage's own
+// frame and the whole build is scaled by CAGE_UNIT x planeScale on the way to
+// the scene. So the field stays in cage units — consistent with the cage's
+// own (G66) — the material is told the conversion through `fieldM`, and the
+// rib pitch is converted the other way to place the ribs 0.26 REAL metres
+// apart whatever the aeroplane's scale. Measured before the fix: sC ran to
+// 3.91 on a 3.13 m surface, which is the 0.745 planeScale exactly.
+const tailFS = () => ((window.CAGE2 && window.CAGE2.CAGE_UNIT) || 1) *
+  ((window.CAGE_UI && window.CAGE_UI.P && window.CAGE_UI.P.planeScale) || 1);
+function finField(m) {
+  const ribL = TAIL_RIB / Math.max(1e-6, tailFS());   // cage units
+  const bb = [[1e9, -1e9], [1e9, -1e9], [1e9, -1e9]];
+  for (const p of m.V) for (let k = 0; k < 3; k++) {
+    if (p[k] < bb[k][0]) bb[k][0] = p[k];
+    if (p[k] > bb[k][1]) bb[k][1] = p[k];
+  }
+  const ext = bb.map(b => b[1] - b[0]);
+  const SA = ext[0] > ext[1] ? 0 : 1;            // span axis: x (stab) or y
+  const lo = bb[SA][0], hi = bb[SA][1], sp = ext[SA] || 1;
+  // a mirrored stab straddles the centreline, so its root is 0; a fin (or a
+  // half stab) roots at whichever end sits nearer it
+  const root = (lo < -0.1 * sp && hi > 0.1 * sp) ? 0
+    : (Math.abs(lo) < Math.abs(hi) ? lo : hi);
+  // THE LOCAL CHORD, bucketed by span: a tail surface is tapered and swept,
+  // so the leading edge is not at one z. Without this the chord fraction is
+  // measured from the foremost point of the WHOLE surface and the leading
+  // edge treatment lands in the middle of the tip.
+  const NB = 48, zLo = new Float32Array(NB).fill(1e9),
+        zHi = new Float32Array(NB).fill(-1e9);
+  const bin = a => Math.max(0, Math.min(NB - 1,
+    Math.floor(Math.abs(a - root) / sp * NB)));
+  for (const p of m.V) {
+    const b = bin(p[SA]);
+    if (p[2] < zLo[b]) zLo[b] = p[2];
+    if (p[2] > zHi[b]) zHi[b] = p[2];
+  }
+  for (let i = 0; i < NB; i++) if (zLo[i] > zHi[i]) {   // an empty bin
+    let j = i; while (j > 0 && zLo[j] > zHi[j]) j--;
+    zLo[i] = zLo[j]; zHi[i] = zHi[j];
+  }
+  // INTERPOLATED BETWEEN BINS, not read out of one. Taking the bin's own
+  // value makes the leading edge a STAIRCASE — 48 steps across the span —
+  // and it shows: the LE treatment came out with a hard jagged boundary
+  // running down the fin, which reads as a modelling fault rather than as a
+  // shading one. The chord varies smoothly, so the sampling must too.
+  const at = (T, a) => {
+    const f = Math.max(0, Math.min(NB - 1.001,
+      Math.abs(a - root) / sp * NB - 0.5));
+    const i = Math.floor(f), t = f - i;
+    return T[i] + (T[Math.min(NB - 1, i + 1)] - T[i]) * t;
+  };
+  return p => {
+    const s = Math.abs(p[SA] - root);
+    const le = at(zHi, p[SA]);                            // +z is FORWARD
+    const c = Math.max(1e-4, le - at(zLo, p[SA]));
+    const cf = (le - p[2]) / c;
+    return [s, le - p[2], s / ribL, (cf - 0.30) / 0.40];
+  };
+}
+
 function finMesh(m, bySection) {
   const g = new THREE.Group();
   const byMat = new Map();
@@ -164,18 +271,24 @@ function finMesh(m, bySection) {
     if (!byMat.has(k)) byMat.set(k, []);
     byMat.get(k).push(f);
   }
+  const fld = finField(m);
   for (const [k, faces] of byMat) {
-    const pos = [];
+    const pos = [], fa = [];
     for (const f of faces) {
       const p = f.v.map(i => m.V[i]);
       for (let t = 1; t + 1 < p.length; t++)
-        pos.push(...p[0], ...p[t], ...p[t + 1]);
+        for (const q of [p[0], p[t], p[t + 1]]) {
+          pos.push(q[0], q[1], q[2]);
+          const a = fld(q); fa.push(a[0], a[1], a[2], a[3]);
+        }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('aStruct',
+      new THREE.BufferAttribute(new Float32Array(fa), 4));
     geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, mats()[k] || mats()._plain));
+    g.add(new THREE.Mesh(geo, tailMat(k)));
   }
   return g;
 }
@@ -286,6 +399,10 @@ PAGE.post = ctx => {
   const wire = $('wire') && $('wire').checked;
   const bySec = !$('color') || $('color').checked;
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:fin';
   // the page's own explode slider moves the rudder off its hinge, the same
   // gesture that flies the doors out
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;

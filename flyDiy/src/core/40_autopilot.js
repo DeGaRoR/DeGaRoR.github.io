@@ -167,9 +167,20 @@ function makeAutopilot(sim, def, world) {
     // Vg = groundspeed (wheels: brakes, stop detection). The wind sample is
     // the solver's last CG wind — exact zeros when no wind is set, so the
     // zero-wind battery is byte-identical to the pre-wind one.
+    //
+    // AND V IS AN EQUIVALENT AIRSPEED (G72). Every speed this autopilot flies —
+    // VClimb, VCruise, VAppr, VTurn, VClimbMin, VDerotate — was derived or
+    // tuned at rho0, which makes every one of them an EAS whether anyone said
+    // so or not. Feeding it a TRUE airspeed instead works perfectly at sea
+    // level and stalls the aeroplane at altitude, because it would hold a
+    // number that no longer corresponds to the dynamic pressure it was chosen
+    // for. easK is exactly 1 at sea level, so this line moves nothing there.
+    // Vt (TRUE) is kept for beta, which is a geometric angle and wants the real
+    // speed, not the felt one.
     const o_ = sim.out;
     const Vg = Math.hypot(vcg[0], vcg[1], vcg[2]);
-    const V = Math.hypot(vcg[0] - (o_.windX || 0), vcg[1] - (o_.windY || 0), vcg[2] - (o_.windZ || 0));
+    const Vt = Math.hypot(vcg[0] - (o_.windX || 0), vcg[1] - (o_.windY || 0), vcg[2] - (o_.windZ || 0));
+    const V = Vt * (o_.easK || 1);
     const nose = [-xA[0], -xA[2]];
     const nL = Math.hypot(nose[0], nose[1]) || 1e-9;
     nose[0] /= nL; nose[1] /= nL;
@@ -218,7 +229,7 @@ function makeAutopilot(sim, def, world) {
     eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
     eARslow += dt / 2.0 * (eAR - eARslow);
     vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
-    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(V, 5);
+    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
 
     const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9

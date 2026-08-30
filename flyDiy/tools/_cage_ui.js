@@ -193,6 +193,42 @@ sun2.position.set(4, -1, 3);
 if (!EXT) {
   scene.background = new THREE.Color(0x12151a);
   scene.add(hemi); scene.add(sun); scene.add(sun2);
+  // THE STANDALONE BENCH NEEDS AN ENVIRONMENT FOR AEROSKIN, and G35.3 is why:
+  // Lambert's diffuse term has no 1/pi and Standard's BRDF does, so a rig
+  // whose intensities were picked against Lambert renders Standard about pi
+  // darker. This rig was picked against Lambert. The G35 arc already proved
+  // that CHASING the game's pipeline here is a dead end — G36 replaced it
+  // with "the editor renders in the game's own scene" — so this is
+  // deliberately NOT that: one neutral gradient probe, enough that a
+  // Standard material has something to reflect and the bench stays a usable
+  // working surface.
+  //
+  // THE BENCH IS NOT WHERE THE LOOK IS JUDGED. The room is. Anything read
+  // off this rig is a shape, not a colour.
+  try {
+    const g = document.createElement('canvas');
+    g.width = 4; g.height = 64;
+    const gx = g.getContext('2d');
+    const gr = gx.createLinearGradient(0, 0, 0, 64);
+    gr.addColorStop(0.00, '#c8d8ec');            // sky
+    gr.addColorStop(0.52, '#8b939c');            // horizon
+    gr.addColorStop(1.00, '#2a2722');            // ground
+    gx.fillStyle = gr; gx.fillRect(0, 0, 4, 64);
+    const et = new THREE.CanvasTexture(g);
+    et.mapping = THREE.EquirectangularReflectionMapping;
+    et.encoding = THREE.sRGBEncoding;
+    const pm = new THREE.PMREMGenerator(renderer);
+    pm.compileEquirectangularShader();
+    scene.environment = pm.fromEquirectangular(et).texture;
+    pm.dispose(); et.dispose();
+    // AND NOTHING ELSE. Setting renderer.outputEncoding here would be the
+    // obvious next step and it is the wrong one: it moves EVERY existing
+    // bench page's authored colours, and G38's ruling is that the layers'
+    // own tables and the bench's own look stay untouched. Adding an
+    // environment is surgical by comparison — r128 routes scene.environment
+    // to Standard/Physical materials ONLY, so the Lambert families that make
+    // up the rest of the bench cannot see it and do not move.
+  } catch (e) {}
 }
 let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
@@ -221,8 +257,97 @@ const alphaOf = name =>
     : VIEW.bodyA;
 const colOf = name => new THREE.Color(
   !$('color').checked ? '#b9c6d4' : (SEC[name] || '#5a6470'));
+
+// AEROSKIN (G67). The bench's flat Lambert palette is still what a SECTION
+// view wants — the section colours ARE the diagnostic, and G38's whole point
+// was that colour should be the only variable while the loop was being
+// validated ugly. So the material mode is a switch, and AEROSKIN is the other
+// position of it:
+//
+//   sections   flat colour per SEC name (the palette, unchanged)
+//   material   the finish for this section under the current construction,
+//              with the section's colour tinting its albedo
+//
+// One factory for both worlds: the GAME's matFor calls the same
+// aeroMaterial(), so the garage and the flown aeroplane are the same code and
+// cannot drift. That is the answer to "the shaders used for the planes should
+// be as consistent as possible".
+const AK = () => (typeof window !== 'undefined' && window.AEROSKIN) || null;
+const aeroOn = () => !!(AK() && $('mat') && $('mat').value === 'material');
+// metres per unit of the field and of object space: the cage builds in its
+// own units and the mesh is scaled by FS, so this is the one number that puts
+// a 0.30 m weave at 0.30 m on screen (see uFieldM in aeroskin.js)
+const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+// the construction the SKIN is made of. The cage's own interior model already
+// carries this per section (cageInterior's consMap: 'carbon' | 'tube' |
+// 'wood' | 'metal'), and its tokens are the ones GEN_MATERIALS uses under
+// different names — the mapping is stated once, here.
+// (cageSpec builds the same list from intCons; the internal token stays
+// 'metal' and is NOT renamed casually — G14's ruling — while the material the
+// player reads is 'aluminium')
+const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
+                   carbon: 'carbon' };
+const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal'][
+  Math.max(0, Math.min(3, Math.round(P.intCons || 0)))]] || 'tubeFabric';
+// which section is on which shader branch — filled by meshFrom from the
+// mesh's own groups, so there is ONE description of the split (G66)
+const matSurf = {};
+// THE PLAYER'S OWN CHOICES, per section: a colour (tinting the albedo) and a
+// finish override. Both persist as one JSON pref, the shape G41's hangar
+// parts already proved — one key, restores with the build.
+const secTint = {};
+const secFin = {};
+const AERO_PREF = 'flydiy.aeroSections';
+function aeroLoadPrefs() {
+  try {
+    const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
+    Object.assign(secTint, j.tint || {});
+    Object.assign(secFin, j.finish || {});
+  } catch (e) {}
+}
+function aeroSavePrefs() {
+  try {
+    localStorage.setItem(AERO_PREF,
+      JSON.stringify({ tint: secTint, finish: secFin }));
+  } catch (e) {}
+}
+aeroLoadPrefs();
+
 const matOf = name => {
   const a = alphaOf(name);
+  if (aeroOn()) {
+    const A = AK();
+    // THE SECTION WEARS ITS MATERIAL UNTIL YOU PICK A COLOUR. The SEC palette
+    // is a DIAGNOSTIC — magenta waistband, green pillars, chosen so sections
+    // can be told apart — and it is not a livery. Defaulting the tint to it
+    // would mean AEROSKIN's first impression is a harlequin, and it would
+    // also apply the sRGB conversion to hexes that were picked without it.
+    // So the stack starts where the user said it should: "base material from
+    // the configurator, per section -> color picker tinting the albedo". No
+    // pick, no tint — the finish's own colour, which is what doped fabric,
+    // birch ply and alclad actually look like.
+    const tint = secTint[name] != null ? secTint[name] : null;
+    const key = 'a:' + name + ':' + a + ':' + (tint == null ? '-' : tint) +
+                ':' + (secFin[name] || '') + ':' + consOf();
+    if (matCache[key]) return matCache[key];
+    if (A.AERO_GLASS.has(name)) {
+      matCache[key] = A.aeroGlass(THREE, { opacity: a, fieldM: fieldM() });
+    } else {
+      matCache[key] = A.aeroMaterial(THREE, {
+        // the construction picks the finish; the player's override wins
+        finish: secFin[name] || A.aeroFinishFor(name, consOf()),
+        // G68: the same construction also says how the structure SHOWS, and
+        // only exterior skin carries it
+        grm: consOf(), struct: A.aeroIsSkin(name) ? 1 : 0,
+        tint, opacity: a, fieldM: fieldM(),
+        // the field is per-SECTION and pure (see _surf_check): the mesh
+        // publishes which groups carry it, and meshFrom passes it in
+        surf: matSurf[name] ? 1 : 0,
+        side: THREE.DoubleSide,
+      });
+    }
+    return matCache[key];
+  }
   const neutral = !$('color').checked;
   const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
   if (!matCache[key]) {
@@ -240,6 +365,28 @@ const matOf = name => {
   }
   return matCache[key];
 };
+
+// THE SURFACE FIELD on the geometry (G66). aStruct = [sL, sC, st, lv] —
+// metres along the body, metres around the section, station, rail. It is
+// what replaces a UV unwrap: one metric coordinate, so a tiled material is
+// the same real size on every surface, and the station/rail pair is where
+// the fasteners and seams come from because the lattice IS the structure.
+//
+// Geometry with no lattice (the rim beads, the interior liners and frames —
+// everything the post-passes ADD) reads (0,0,0,0) here and takes the
+// shader's triplanar branch instead. That split is per-MATERIAL, never
+// within one, and _surf_check.js asserts it: a material that mixed the two
+// could not be drawn at all.
+function surfAttr(m) {
+  const n = m.V.length, a = new Float32Array(n * 4);
+  const A = m.A;
+  if (A) for (let i = 0; i < n; i++) {
+    const q = A[i];
+    if (!q) continue;
+    a[i*4] = q[0]; a[i*4+1] = q[1]; a[i*4+2] = q[2]; a[i*4+3] = q[3];
+  }
+  return new THREE.BufferAttribute(a, 4);
+}
 
 function meshFrom(m) {
   // indexed geometry with per-material groups: welded verts give the same
@@ -260,10 +407,88 @@ function meshFrom(m) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aStruct', surfAttr(m));
   g.setIndex(idx);
   for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
   g.computeVertexNormals();
-  return new THREE.Mesh(g, mats.map(matOf));
+  // which draw group is on which shader branch — the material factory reads
+  // it instead of re-deriving it, so there is ONE description of the split.
+  // ONE INDEX PER GROUP is enough, and deliberately so: _surf_check asserts
+  // that every material is PURE (all its faces fielded, or none), which is
+  // the invariant the shader needs anyway. Scanning the whole range instead
+  // would be O(indices x groups) on every slider drag for an answer the
+  // first vertex already gives.
+  const surfMats = mats.map((nm, gi) => !!(m.A && m.A[idx[groups[gi][0]]]));
+  mats.forEach((nm, gi) => { matSurf[nm] = surfMats[gi]; });
+  const mesh = new THREE.Mesh(g, mats.map(matOf));
+  mesh.userData.surfMats = surfMats;
+  mesh.userData.matNames = mats;
+  return mesh;
+}
+
+// THE FIELD, SEEN (G66). A 0.25 m checkerboard straight off (sL, sC): if the
+// field is metric and unstretched the squares are squares, everywhere, at
+// every station — which is the whole claim, and the cheapest way to falsify
+// it is to look. The station/rail mode draws the lattice instead: integer
+// stations and rails solid, GUARDS IN RED, because a guard is a
+// Catmull-Clark pinning loop and no aeroplane has a former there — a red
+// line where a rivet row will go is the bug this mode exists to catch.
+// Unlit on purpose: this is a diagnostic, not a material.
+const SURF_TILE = 0.25;
+function surfMesh(m, mode) {
+  const mesh = meshFrom(m);
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: { uTile: { value: SURF_TILE }, uMode: { value: mode === 'grid' ? 1 : 0 } },
+    vertexShader: `
+      attribute vec4 aStruct;
+      varying vec4 vS; varying vec3 vN;
+      void main() {
+        vS = aStruct;
+        vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float uTile; uniform int uMode;
+      varying vec4 vS; varying vec3 vN;
+      // a line AT every integer of x, one pixel wide whatever the zoom
+      float atInt(float x) {
+        float d = abs(x - floor(x + 0.5));
+        return 1.0 - smoothstep(0.0, fwidth(x) * 1.2, d);
+      }
+      void main() {
+        float lit = 0.45 + 0.55 * abs(normalize(vN).z);
+        vec3 c;
+        if (uMode == 1) {
+          // THE LATTICE. A line at every integer station (blue) and every
+          // integer rail (orange) — and NOTHING on a guard, because a guard
+          // is a Catmull-Clark pinning loop and no aeroplane has a former
+          // there. So the diagnostic is a line that should not exist: a
+          // guard wrongly given an integer shows up as a DOUBLED line
+          // beside a pillar, which is exactly the bug that would put a
+          // rivet row on a subdivision artefact.
+          c = vec3(0.16, 0.18, 0.22);
+          c = mix(c, vec3(0.35, 0.80, 1.00), atInt(vS.z));
+          c = mix(c, vec3(1.00, 0.75, 0.25), atInt(vS.w));
+        } else {
+          // the metric checker
+          vec2 t = vec2(vS.x, vS.y) / uTile;
+          float ck = mod(floor(t.x) + floor(t.y), 2.0);
+          c = mix(vec3(0.20, 0.23, 0.28), vec3(0.78, 0.80, 0.84), ck);
+          // the datum lines: sL = 0 is the FIREWALL, sC = 0 is the WAIST rail
+          c = mix(c, vec3(0.2, 1.0, 0.4),
+                  1.0 - smoothstep(0.0, fwidth(vS.x) * 1.5, abs(vS.x)));
+          c = mix(c, vec3(1.0, 0.3, 0.8),
+                  1.0 - smoothstep(0.0, fwidth(vS.y) * 1.5, abs(vS.y)));
+        }
+        // no field at all (the rim beads, the liners): flat grey, and it
+        // should look like a DIFFERENT thing, because it is
+        if (vS == vec4(0.0)) c = vec3(0.30, 0.28, 0.26);
+        gl_FragColor = vec4(c * lit, 1.0);
+      }`,
+  });
+  mesh.material = mesh.material.map(() => mat);
+  return mesh;
 }
 
 // QUAD WIREFRAME (user 2026-08-19: "not triangulated, only quad topo").
@@ -492,7 +717,9 @@ function build() {
     && !INTSTRUCT.has(name) && name !== 'joint';
   const sd = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
-  meshObj = ($('curv') && $('curv').checked) ? curvatureMesh(sd)
+  const surfSel = $('surf') ? $('surf').value : 'off';
+  meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
+    : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
@@ -540,6 +767,12 @@ function build() {
   $('stat').textContent =
     `cage ${m.V.length} v / ${m.F.length} q  →  L${L}: ` +
     `${s.V.length} v / ${s.F.length} q`;
+  // The materials panel lists the sections THIS build actually has. Guarded
+  // because build() runs during boot, BEFORE the panel's own host elements
+  // exist — and they are const/let, so reaching them early is a temporal
+  // dead zone throw, not an undefined. (`node --check does not catch
+  // scoping; the probe run does` — this file's own lesson, twice over.)
+  try { buildMatPanel(); applyDecals(); } catch (e) {}
   // page post hook (cage5 crew layer): extra scene content rebuilt after
   // every cage build — additive, pages without it are unaffected.
   // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry
@@ -848,6 +1081,14 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       syncSliders();
     };
   }
+  // STYLING AND SELECTION HOOKS (G77). The game's editor re-parents these
+  // rows into its own two-column panel — one part at a time — so it needs to
+  // find a row by its key and style it by its kind without knowing anything
+  // about how the widget inside was built. Attributes only: no behaviour
+  // hangs off either of them, and the bench pages ignore both.
+  d.dataset.k = k;
+  d.dataset.kind = meta.kind || '';
+  d.classList.add('r-' + (meta.kind || 'x'));
 };
 // THE SIZE SLIDER READS ×1 FOR THE DESIGN YOU LOADED (user 2026-08-19:
 // "the new plane scale should say 1"). `planeScale` stays the ONE stored
@@ -869,12 +1110,40 @@ const anchorSize = () => {
   BASELINE = JSON.parse(JSON.stringify(P));
 };
 
+// LOADING A BUILD INTO THE EDITOR. This is the one operation that never
+// existed (G63): `cageFromSpec` was reachable only from the paste-a-JSON
+// prompt below, so a build loaded by the GAME rebuilt the game's aeroplane
+// and left the editor showing the page template — and the next export
+// overwrote the build with that template. Hoisted out of the bar's closure
+// and published on window.CAGE_UI so the shelf, the game's own load path and
+// the import all take the SAME route in.
+//
+// It starts from `cageFromSpec`, which starts from CAGE_PARAMS rather than
+// from this page's defaults, so a build fully determines the aeroplane
+// instead of inheriting the sliders it did not mention.
+function applySpec(spec, what) {
+  Object.assign(P, G.cageFromSpec(spec));
+  anchorSize();                            // the loaded design is now x1.000
+  syncSliders(); build();
+  if (what && $('stat')) $('stat').textContent = what;
+}
+
 const LSKEY = 'cageCfg:' + location.pathname;
-const savedCfgs = () => {
-  try { return JSON.parse(localStorage.getItem(LSKEY) || '{}'); }
-  catch (e) { return {}; }
+// A PARSE FAILURE MUST NOT BE A WIPE. `savedCfgs` returning {} on a corrupt
+// key was fine for reading and fatal for writing: the next save wrote that
+// empty map back over every config in it. `cfgsOrNull` tells the two apart.
+const cfgsOrNull = () => {
+  try { const o = JSON.parse(localStorage.getItem(LSKEY) || '{}');
+        return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null; }
+  catch (e) { return null; }
 };
-{
+const savedCfgs = () => cfgsOrNull() || {};
+// THE BENCH BAR. The GAME has a shelf instead (garage.js): one store, one
+// format, stock designs and your own aeroplanes in one list. Two save bars
+// over one design is how the project ended up with three stores and two
+// incompatible files both tagged `flydiy-build`, so in the game this block
+// does not exist at all. The standalone bench pages keep it.
+if (!window.CAGE_IN_GAME) {
   // 'wrap' so the buttons fold to a second line instead of overflowing
   // the pane (user bug: json/imp were clipped invisible)
   const d = document.createElement('div'); d.className = 'r wrap';
@@ -889,7 +1158,9 @@ const savedCfgs = () => {
   d.querySelector('#saveCfg').onclick = () => {
     const name = prompt('config name');
     if (!name) return;
-    const all = savedCfgs();
+    const all = cfgsOrNull();
+    if (!all) return void alert('The saved configs are unreadable — saving now '
+      + 'would overwrite them all. Clear ' + LSKEY + ' by hand first.');
     all[name] = { P: { ...P } };
     localStorage.setItem(LSKEY, JSON.stringify(all));
     fillPresetSel();
@@ -919,12 +1190,6 @@ const savedCfgs = () => {
     if (o && o.cage !== undefined) return o;
     if (o && o.P && typeof o.P === 'object') return { cage: o.P };
     return { cage: o };
-  };
-  const applySpec = (spec, what) => {
-    Object.assign(P, G.cageFromSpec(spec));
-    anchorSize();
-    syncSliders(); build();
-    $('stat').textContent = what;
   };
   d.querySelector('#expCfg').onclick = () => {
     const txt = buildFile();
@@ -1055,7 +1320,16 @@ fillPresetSel();
         if (!o.material) return;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         let touched = false;
-        const nm = mats.map(m => (LIT.has(m.type) && !m.userData.cageUni)
+        // AEROSKIN IS NOT UNDERSTUDIED (G67). This pass exists to give
+        // every part one matte recipe while the loop was validated ugly, and
+        // an AEROSKIN material is a MeshStandardMaterial, so without this it
+        // would be replaced by flat grey the moment the editor opened in the
+        // game — the whole chantier invisible, in the one place it matters.
+        // It is skipped BY DESIGN, not as an exception: the uniform recipe
+        // was declared at G38 as the baseline "until materials become a real
+        // chantier (P9)", and this is that chantier.
+        const nm = mats.map(m => (LIT.has(m.type) && !m.userData.cageUni
+          && !m.userData.aeroskin)
           ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
@@ -1127,6 +1401,71 @@ fillPresetSel();
         dimRow('HW', 'width', 2, 'm');       // the sliders speak in FULL sizes
         dimRow('HD', 'depth', 2, 'm');
         dimRow('EAVE', 'eaves', 1, 'm');
+      }
+      // THE LIGHT SWITCHES (G62.3, user: "I'll need turning off the hangar
+      // lights from the garage, so I can run tests and see what light source
+      // interacts correctly and not"). One toggle per source, plus the one
+      // that is not a light: whether the AEROPLANE is in the room's own
+      // reflection probe, which is where a saturated paint job leaks into
+      // every surface in the shed.
+      if (GE.lights && GE.lights().length) {
+        const lr = row(hd, `<span class="k">lights</span><span class="lt"></span>`);
+        const host = lr.querySelector('.lt');
+        const mk = (key, label, get, set) => {
+          const b = document.createElement('button');
+          b.className = 'tg';
+          b.textContent = label;
+          const paint = () => b.classList.toggle('off', !get());
+          b.onclick = () => { set(!get()); paint(); };
+          paint();
+          host.appendChild(b);
+          return b;
+        };
+        for (const L of GE.lights())
+          mk(L.key, L.key, () => GE.lightOn(L.key), v => GE.setLight(L.key, v));
+        if (GE.setCraftInProbe)
+          mk('probe', 'craft→probe', () => GE.craftInProbe(),
+             v => GE.setCraftInProbe(v));
+      }
+      // THE LAMP RIG (G64, user: "for the lamps, give me an intensity and
+      // spread control please, as well as a light temperature control"). Here
+      // rather than in a panel of its own, because the panel of its own was
+      // the thing he asked to have removed. None of the three rebuilds
+      // anything, so unlike the size sliders they commit live on drag.
+      if (GE.lampRig && GE.lampRig()) {
+        const R0 = GE.lampRig();
+        const knob = (key, label, min, max, step, fmt, toUi, fromUi) => {
+          const d = row(hd, `<span class="k">${label}</span>
+            <input type="range" min="${min}" max="${max}" step="${step}">
+            <span class="v"></span>`);
+          const inp = d.querySelector('input'), v = d.querySelector('.v');
+          const show = n => { v.textContent = fmt(+n); };
+          inp.value = toUi(R0[key]); show(inp.value);
+          inp.oninput = () => {
+            show(inp.value);
+            GE.setLampRig({ [key]: fromUi(+inp.value) });
+          };
+        };
+        const I = v => v;
+        knob('gain', 'lamp power', 0, 3, 0.05, n => '×' + n.toFixed(2), I, I);
+        // the slider speaks in FULL cone degrees; three.js wants the half-angle
+        knob('angle', 'lamp spread', 20, 140, 1, n => n.toFixed(0) + '°',
+             r => Math.round(2 * r * 180 / Math.PI), d => d * Math.PI / 360);
+        knob('kelvin', 'lamp colour', 1800, 6500, 50,
+             n => n.toFixed(0) + ' K', I, I);
+      }
+      // HOW THE SKY IS MADE (G62.3): the GPU grade against the precomputed
+      // pictures, switchable live. Only shows when the payload carries both.
+      if (GE.skyModes && GE.skyModes().length > 1) {
+        const sr = row(hd, `<span class="k">sky source</span><select></select>`);
+        const ssel = sr.querySelector('select');
+        for (const [k, n] of GE.skyModes()) {
+          const o = document.createElement('option');
+          o.value = k; o.textContent = n;
+          ssel.appendChild(o);
+        }
+        ssel.value = GE.skyMode();
+        ssel.onchange = () => GE.setSkyMode(ssel.value);
       }
       // REFLECTIONS (G52): where scene.environment is baked FROM. The room's
       // own cube pass is the default; the sky option PMREMs the HDRI that now
@@ -1329,10 +1668,21 @@ function applyRowVis() {
         '≈ ' + (P[meta.k] * (meta.opts.dim === 'm' ? 1 : FS)).toFixed(2) +
         ' m';
   }
+  // ...AND THEN THE PANEL THAT OWNS THE ROWS (G77). In the game the rows do
+  // not live in the accordion above: the editor moves them into its own
+  // part inspector, so the GROUP-level `when`/`level` rules just applied to
+  // the <details> elements no longer reach them. This is where it takes over.
+  // The order matters — it runs LAST, over rows this pass has just decided
+  // about, and it is the only hook that can override that decision.
+  if (typeof window !== 'undefined' && window.CAGE_ON_VIS)
+    try { window.CAGE_ON_VIS(); } catch (e) {}
 }
 {
-  const hasExpert = GROUPMETA.some(g => g.opts.level === 'expert') ||
-    ROWMETA.some(m => m.opts && m.opts.level === 'expert');
+  // In the game the switch is a pill at the foot of the properties column
+  // (the design's `expert rows`, beside `reset part`) and the editor owns it.
+  const hasExpert = !window.CAGE_IN_GAME &&
+    (GROUPMETA.some(g => g.opts.level === 'expert') ||
+     ROWMETA.some(m => m.opts && m.opts.level === 'expert'));
   if (hasExpert) {
     const d = document.createElement('div'); d.className = 'r';
     d.innerHTML = `<span class="k">expert rows</span>
@@ -1372,6 +1722,40 @@ function applyRowVis() {
     if (first && sum) sum.after(d); else host.appendChild(d);
     if (lab) lab.remove();
   };
+  // the surface-field view (G66) makes its OWN control: every bench page
+  // would otherwise need the same three lines of HTML, and this one is a
+  // diagnostic that has to be available wherever a cage is built.
+  // AEROSKIN's own switch (G67), built here for the same reason: every bench
+  // page would otherwise need the same lines, and the material mode has to be
+  // reachable wherever a cage is built.
+  if (!$('mat') && viewDet) {
+    const s3 = document.createElement('select');
+    s3.id = 'mat';
+    for (const [v, t] of [['sections', 'section colours'],
+                          ['material', 'AEROSKIN']]) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t; s3.appendChild(o);
+    }
+    s3.title = 'flat section colours (the diagnostic palette) or the real ' +
+      'finish for each section under the current construction, tinted by ' +
+      'the section colour';
+    viewDet.appendChild(s3);
+  }
+  adopt('mat', 'materials', viewDet, true);
+  if (!$('surf') && viewDet) {
+    const s2 = document.createElement('select');
+    s2.id = 'surf';
+    for (const [v, t] of [['off', 'off'], ['tile', 'metric checker'],
+                          ['grid', 'stations & rails']]) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t; s2.appendChild(o);
+    }
+    s2.title = 'the surface field: a ' + SURF_TILE +
+      ' m checker off (sL, sC) — squares stay square where the field is ' +
+      'metric — or the station/rail lattice, with GUARD loops in red';
+    viewDet.appendChild(s2);
+  }
+  adopt('surf', 'surface field', viewDet, true);
   adopt('step', 'template step', polyDet || viewDet, true);
   adopt('lvl', 'subsurf', polyDet || viewDet, true);
   // last-called lands first under the summary: view reads cage,
@@ -1393,11 +1777,260 @@ function applyRowVis() {
       ui.querySelectorAll('details').forEach(d2 => { d2.open = false; });
   }
 }
+// THE SECTION LEGEND is a bench diagnostic — a key to the flat colour palette
+// the `sections` display mode paints. In the game the part tree IS the legend
+// (and G79 will tint the selected part in the view), so it does not appear
+// there; it stays the anchor the materials panel inserts itself before.
 const lg = document.createElement('div');
-lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
-  `<div class="leg"><span class="sw" style="background:${SEC[k]}"></span>${k}</div>`
-).join('');
+if (!window.CAGE_IN_GAME)
+  lg.innerHTML = '<h2>sections</h2>' + Object.keys(SEC).map(k =>
+    `<div class="leg"><span class="sw" style="background:${SEC[k]}"></span>${k}</div>`
+  ).join('');
 ui.appendChild(lg);
+
+// ---- THE MATERIALS PANEL (G67) --------------------------------------------
+// The user's ask, from the start: "at some point I will want to tweak
+// individual materials, so maybe it's better to make me a little editor like
+// the hangar". So this is the hangar section's own shape (G41): one row per
+// dressable thing, the choice on the left, the override on the right, and
+// the whole state persisted as ONE JSON pref that restores with the build.
+//
+// THE LIST IS READ OFF THE BUILD, never hard-coded — the same discipline
+// _props.html states for the prop bench ("nothing on this page knows any
+// asset's name"). A section that exists in the mesh and not in this panel
+// would be a bake failure, not a panel that needs editing; and the sections
+// that exist depend on what you built (a rod boom has no taper, a pod has no
+// tail cap), so a fixed list would go stale the first time a discriminator
+// moved.
+// ---- DECALS (G69) ---------------------------------------------------------
+// The registration first, because it is the one every aeroplane must carry
+// and because G4.5 named it the seed of exactly this. It is placed in the
+// SURFACE FIELD — metres along the body, metres around the section — so it
+// holds its proportions on any shape, lands on both flanks by construction,
+// and needs no projection matrix at all (see aeroskin.js).
+const DEC = {
+  reg: null,              // filled from the spec's own meta on first build
+  regH: 0.30,             // 300 mm is the legal marking height in most places
+  regL: 2.10, regC: 0.28, // metres aft of the firewall, metres above the waist
+  regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both
+  imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
+};
+let decPanel = null, decImgAspect = 1;
+function decLoadPrefs() {
+  try {
+    const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
+    Object.assign(DEC, j.dec || {});
+  } catch (e) {}
+}
+function decSavePrefs() {
+  try {
+    const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
+    j.dec = DEC;
+    localStorage.setItem(AERO_PREF, JSON.stringify(j));
+  } catch (e) {}
+}
+// THE REGISTRATION IS THE AEROPLANE'S OWN, not a field in this panel: the
+// spec already carries it (`meta.reg`, default F-PGAR) and garage.js's
+// registration sheet has always read it from there. The panel edits it; the
+// spec owns it.
+function decReg() {
+  if (DEC.reg != null) return DEC.reg;
+  try {
+    const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
+    const r = S && ((S.meta && S.meta.reg) || S.reg);
+    if (r) return (DEC.reg = r);
+  } catch (e) {}
+  return (DEC.reg = 'F-PGAR');
+}
+function applyDecals() {
+  const A = AK();
+  if (!A || !A.aeroSetDecals) return;
+  if (!aeroOn()) { A.aeroSetDecals(THREE, []); return; }
+  const list = [];
+  // page 0: the registration. Its trim colour is the paint block's, which is
+  // what garage.js used, so the two paths cannot disagree about it.
+  let trim = 0x1b3a5c, base = 0xf2c437;
+  try {
+    const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
+    if (S && S.paint) { trim = S.paint.trim; base = S.paint.base; }
+  } catch (e) {}
+  const asp = A.aeroDecalText(THREE, 0, decReg(), trim, 0xffffff) || 3.2;
+  list.push({ page: 0, sL: DEC.regL, sC: DEC.regC,
+    w: DEC.regH * Math.max(1.2, asp), h: DEC.regH,
+    rough: -0.06, target: +DEC.regTarget });
+  if (DEC.imgOn) list.push({ page: 1, sL: DEC.imgL, sC: DEC.imgC,
+    w: DEC.imgW, h: DEC.imgH, rough: -0.04, target: +DEC.imgTarget });
+  A.aeroSetDecals(THREE, list);
+}
+
+let matPanel = null, matPanelBody = null, matPanelSig = '';
+// built ONCE, and in its own <details> so the section list rebuilding under
+// it cannot wipe a text field the user is typing into
+function buildDecPanel() {
+  const A = AK();
+  if (!A || decPanel) return;
+  decLoadPrefs();
+  decPanel = document.createElement('details');
+  decPanel.dataset.g = 'decals';
+  decPanel.innerHTML = '<summary>decals</summary>';
+  const body = document.createElement('div');
+  decPanel.appendChild(body);
+  ui.insertBefore(decPanel, lg);
+  const row = (label, title) => {
+    const d = document.createElement('div'); d.className = 'r';
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = title || label;
+    d.appendChild(k); body.appendChild(d); return d;
+  };
+  const num = (lab, key, lo, hi, step, title) => {
+    const d = row(lab, title);
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = lo; i.max = hi; i.step = step;
+    i.value = DEC[key]; i.style.flex = '1';
+    const v = document.createElement('span');
+    v.className = 'v'; v.textContent = (+DEC[key]).toFixed(2);
+    i.oninput = () => { DEC[key] = +i.value; v.textContent = (+i.value).toFixed(2);
+      decSavePrefs(); applyDecals(); draw(); };
+    d.appendChild(i); d.appendChild(v);
+  };
+  const pick = (lab, key, names, title) => {
+    const d = row(lab, title);
+    const sel2 = document.createElement('select'); sel2.style.flex = '1';
+    names.forEach((n, i) => { const o = document.createElement('option');
+      o.value = i; o.textContent = n; sel2.appendChild(o); });
+    sel2.value = DEC[key];
+    sel2.onchange = () => { DEC[key] = +sel2.value; decSavePrefs();
+      applyDecals(); draw(); };
+    d.appendChild(sel2);
+  };
+  // the registration
+  {
+    const d = row('registration', 'the aeroplane\'s own marking — the spec ' +
+      'carries it as meta.reg and this edits it');
+    const i = document.createElement('input');
+    i.type = 'text'; i.value = decReg(); i.style.flex = '1';
+    i.spellcheck = false;
+    i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
+      decSavePrefs(); applyDecals(); draw(); };
+    d.appendChild(i);
+  }
+  num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
+  num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall');
+  num('height on side', 'regC', -1.0, 1.2, 0.02,
+      'metres around the section from the waist rail, + upward');
+  pick('goes on', 'regTarget', ['the fuselage', 'the flying surfaces', 'both'],
+       'a decal is on BOTH flanks by construction — the surface field is ' +
+       'mirrored about the spine, which is what a registration wants');
+  // an image, projected the same way
+  {
+    const d = row('livery image', 'any image, placed in metres on the skin');
+    const f = document.createElement('input');
+    f.type = 'file'; f.accept = 'image/*'; f.style.flex = '1';
+    f.onchange = () => {
+      const file = f.files && f.files[0];
+      if (!file) return;
+      const fr = new FileReader();
+      fr.onload = () => {
+        const im = new Image();
+        im.onload = () => {
+          decImgAspect = A.aeroDecalImage(THREE, 1, im) || 1;
+          DEC.imgOn = 1; DEC.imgH = DEC.imgW / Math.max(0.05, decImgAspect);
+          decSavePrefs(); applyDecals(); draw();
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    };
+    d.appendChild(f);
+  }
+  num('image width', 'imgW', 0.1, 4.0, 0.05, 'metres');
+  num('image station', 'imgL', -1.0, 6.0, 0.05, 'metres AFT of the firewall');
+  num('image height on side', 'imgC', -1.2, 1.2, 0.02, 'metres from the waist');
+  pick('image goes on', 'imgTarget',
+       ['the fuselage', 'the flying surfaces', 'both']);
+}
+
+function buildMatPanel() {
+  const A = AK();
+  if (!A) return;
+  buildDecPanel();
+  if (!matPanel) {
+    matPanel = document.createElement('details');
+    matPanel.dataset.g = 'materials';
+    matPanel.innerHTML = '<summary>materials</summary>';
+    matPanelBody = document.createElement('div');
+    matPanel.appendChild(matPanelBody);
+    ui.insertBefore(matPanel, lg);
+  }
+  // only rebuild the DOM when the section list actually changes: this runs
+  // after every build, and a slider drag must not rebuild a panel of selects
+  // under the user's cursor
+  const names = Object.keys(matSurf).sort();
+  const sig = names.join(',') + '|' + consOf();
+  if (sig === matPanelSig) return;
+  matPanelSig = sig;
+  matPanelBody.textContent = '';
+  const cons = consOf();
+  const mkRow2 = (label, title) => {
+    const d = document.createElement('div'); d.className = 'r';
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = title || label;
+    d.appendChild(k); matPanelBody.appendChild(d); return d;
+  };
+  const head = mkRow2('construction', 'the skin material every section ' +
+    'inherits its finish from (the "3b interior" construction row)');
+  const hv = document.createElement('span');
+  hv.className = 'v'; hv.textContent = cons;
+  head.appendChild(hv);
+  for (const nm of names) {
+    const isGlass = A.AERO_GLASS.has(nm);
+    const derived = A.aeroFinishFor(nm, cons);
+    const row = mkRow2(nm, isGlass ? 'glazing: its own family (transmission ' +
+      '+ clearcoat), no finish to choose' : 'finish and colour for ' + nm);
+    if (isGlass) {
+      const v = document.createElement('span');
+      v.className = 'v'; v.textContent = 'glass';
+      row.appendChild(v);
+      continue;
+    }
+    const sfin = document.createElement('select');
+    sfin.style.flex = '1';
+    const o0 = document.createElement('option');
+    o0.value = ''; o0.textContent = 'auto (' + derived + ')';
+    sfin.appendChild(o0);
+    for (const k of Object.keys(A.AERO_FINISH)) {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = A.AERO_FINISH[k].name;
+      sfin.appendChild(o);
+    }
+    sfin.value = secFin[nm] || '';
+    sfin.onchange = () => {
+      if (sfin.value) secFin[nm] = sfin.value; else delete secFin[nm];
+      aeroSavePrefs(); build();
+    };
+    row.appendChild(sfin);
+    const col = document.createElement('input');
+    col.type = 'color';
+    col.style.flex = 'none'; col.style.width = '30px';
+    col.title = 'tint the albedo. The colour you pick is the colour you get ' +
+      '(it is converted sRGB -> linear on the way to the shader)';
+    const base = A.AERO_FINISH[secFin[nm] || derived];
+    col.value = '#' + (secTint[nm] != null ? secTint[nm] : base.base)
+      .toString(16).padStart(6, '0');
+    col.oninput = () => {
+      secTint[nm] = parseInt(col.value.slice(1), 16);
+      aeroSavePrefs(); build();
+    };
+    row.appendChild(col);
+    // double-click the LABEL to drop back to the finish's own colour — the
+    // same per-row reset gesture G27 established for every other row
+    row.firstChild.style.cursor = 'pointer';
+    row.firstChild.ondblclick = () => {
+      delete secTint[nm]; delete secFin[nm];
+      aeroSavePrefs(); build();
+    };
+  }
+}
 
 function syncSliders() {
   for (const meta of ROWMETA) {
@@ -1464,7 +2097,7 @@ $('objBtn').onclick = () => {
   a.download = 'cage_' + step + '.obj';
   a.click();
 };
-for (const id of ['lvl', 'cage', 'curv'])
+for (const id of ['lvl', 'cage', 'curv', 'surf', 'mat'])
   if ($(id)) $(id).onchange = build;
 for (const id of ['wire', 'color'])
   if ($(id)) $(id).onchange = () => {
@@ -1527,9 +2160,36 @@ if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
 window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
+  // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
+  // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
+  // fragment — layer keys included, view keys excluded. Every shelf load,
+  // every import and the game's own openEditor go through these, so there is
+  // one route in and one route out instead of a preset menu standing in for
+  // the load path that never existed.
+  applySpec, toSpec: () => G.cageToSpec(P),
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
-  get M0() { return M0; }, get MS() { return MS; } };
+  get M0() { return M0; }, get MS() { return MS; },
+  // ---- WHAT THE GAME'S EDITOR READS (G77) --------------------------------
+  // The panel above is the BENCH's. The game builds its own two-column screen
+  // over the same rows — it MOVES these DOM nodes rather than rebuilding
+  // them, so every behaviour they carry (the typed value, the clamp, the
+  // double-click reset, the `link` checkbox, the `= front` button, the ≈ m
+  // readout, the `when` hiding) is the same code in both places and cannot
+  // drift. Everything below is a handle on state this file already keeps.
+  ROWMETA, GROUPMETA, SEC, DEFAULTS, EXPERT, applyRowVis,
+  // the design the per-row and per-part resets go back to. It re-anchors on
+  // every whole-set load (preset, import, reset, boot) — see anchorSize.
+  get BASELINE() { return BASELINE; },
+  // one route for writing a parameter from outside, so a reset and a slider
+  // drag take the same path in
+  setParam: (k, v) => { P[k] = v; } };
+// THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
+// first build(): the panel it builds is what the build's own applyRowVis pass
+// then decides the visibility of, and doing it the other way round would show
+// one frame of every row at once.
+if (window.CAGE_ON_ROWS) try { window.CAGE_ON_ROWS(); } catch (e) {
+  console.error('editor panel:', e); }
 build();
 }
 window.CAGE_UI_BOOT = CAGE_UI_BOOT;

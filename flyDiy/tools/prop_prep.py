@@ -217,6 +217,22 @@ def channel_stats(img):
 
 
 FLAT = 0.035          # a channel this tight is a constant wearing a texture's hat
+# AN AO CHANNEL THAT IS BLACK IS NOT OCCLUSION, IT IS AN EMPTY CHANNEL (G62.11,
+# user: "The garbage bin objects seem to have a material issue, they render
+# black"). glTF says R of a metallicRoughness map is unused, and three of the
+# delivered "arm" files have nothing in it — measured across the whole library:
+#
+#     every healthy map          R mean 0.44 .. 0.995
+#     metal_trash_can_arm        R mean 0.005  (max 0.18)
+#     metal_trash_can_rust_arm   R mean 0.004  (max 0.15)
+#     barrel_stove_arm           R mean 0.006  (max 0.15)
+#
+# The flatness test does not catch them - 0.00 to 0.18 is not flat - so the
+# baker believed the channel and wrote an aoMap that multiplies ALL indirect
+# light by zero. On a metal, which has no diffuse to fall back on, that is a
+# black object. Real occlusion is mostly UNoccluded; nothing legitimate sits
+# down here, and the gap to the next map up is a factor of eighty.
+AO_MIN_MEAN = 0.25
 
 
 class TexBank:
@@ -391,7 +407,11 @@ def bake_material(j, bufs, base, mdef, bank, budget, log):
         img, name = arm_img, arm_name
         st = channel_stats(img)
         flat = [st[c][1] - st[c][0] < FLAT for c in range(3)]
-        use_ao = armed and not flat[0]
+        ao_dead = st[0][2] < AO_MIN_MEAN
+        use_ao = armed and not flat[0] and not ao_dead
+        if armed and ao_dead:
+            log.append('    ! arm %s has no AO in R (mean %.3f) - ignored, or it'
+                       ' would multiply every ambient term by zero' % (arm_name, st[0][2]))
         if flat[1]:
             out['rough'] = round(out['rough'] * st[1][2], 4)
         if flat[2]:
@@ -605,7 +625,22 @@ def main(argv):
         files.append(name)
         tex_bytes += g['bank'].bytes
         print('%-22s %2d props  %7.2f MB' % (name, len(g['order']), len(body) / 1048576))
-    json.dump(files, open(os.path.join(OUT_DIR, 'props_packs.json'), 'w'), indent=1)
+    # KEEP THE PACKS THIS BAKER DOES NOT OWN (G62.11). The manifest is shared:
+    # tools/jodel_prep.py writes props_airframe.js into the same directory and
+    # the same list. Rewriting it wholesale silently dropped that pack out of
+    # the build — index.html shrank by 2 MB and GATE PROPS caught it, which is
+    # the only reason it was noticed. Anything already listed that is still on
+    # disk and is not ours stays, in its existing position.
+    mf = os.path.join(OUT_DIR, 'props_packs.json')
+    try:
+        prev = json.load(open(mf))
+    except Exception:
+        prev = []
+    foreign = [f for f in prev if f not in files
+               and os.path.exists(os.path.join(OUT_DIR, f))]
+    json.dump(files + foreign, open(mf, 'w'), indent=1)
+    if foreign:
+        print('kept %d pack(s) from another baker: %s' % (len(foreign), ', '.join(foreign)))
     print('---\n%d props, %d packs — geometry %.2f MB, textures %.2f MB'
           % (len(rows), len(files), total_geo / 1048576, tex_bytes / 1048576))
 

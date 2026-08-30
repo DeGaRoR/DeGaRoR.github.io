@@ -62,11 +62,23 @@ function genHangarBuild(THREE, dims) {
 // drawn for a DC-3's 29 m span, and this game's generator clamps a wing to
 // 14 m. 36 m of width put the aeroplane in the middle of a field.
 const D0 = dims || (typeof HANGAR_DIMS !== 'undefined' ? HANGAR_DIMS : null) || {};
-const HW = D0.HW || 14, HD = D0.HD || 10, EAVE = D0.EAVE || 7.0;
+// 30 x 25 x 7 (user, 2026-08-29). This table and the editor's sliders speak
+// in HALF width and HALF depth, so a 30 m wide, 25 m deep shed is HW 15,
+// HD 12.5.
+const HW = D0.HW || 15, HD = D0.HD || 12.5, EAVE = D0.EAVE || 7.0;
 const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // The opening is nearly the whole gable end. It leaves 2.5 m of wall each side
 // for the leaves to park against, and it cannot be taller than the eaves.
 const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = Math.min(6.4, EAVE - 1.4);
+// THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
+// have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
+// track, each sliding to its own side, so unlike the six-leaf front they never
+// have to pass each other and both hang in the SAME plane. That matters beyond
+// the ironmongery — the wing's shadow lands on one flat surface instead of
+// straddling two at different depths.
+const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
+const BD_X = HD - 0.34;                    // the leaf plane, hung inside
+const BD_FACE = BD_X - 0.05;               // ...and the face you look at
 
 // THE LAYOUT WAS COMPOSED against the authored shed — 26 m deep by 36 m wide,
 // HD 13 and HW 18 — and every ABSOLUTE coordinate in the placement below is
@@ -74,6 +86,11 @@ const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = Math.min(6.4, EAVE - 1.4);
 // clearance and is left alone: the bench stands a metre off the wall in any
 // shed. Only the positions ALONG the walls scale.
 const FX = v => v * HD / 13, FZ = v => v * HW / 18;
+
+// THE STOVE'S FIRE. Declared up here because stoveCorner() builds it halfway
+// down the file and the mood code at the bottom has to be able to find it: a
+// light nothing holds a reference to is a light nothing can turn off.
+const STOVE = { light: null, cd0: 14 };
 
 const rand = (s => () => (s = s * 1664525 + 1013904223 >>> 0) / 4294967296)(20260811);
 const rr = (a, b) => a + (b - a) * rand();
@@ -913,7 +930,11 @@ for (const s of [1, -1]) {
   // THE STEM RUNS ROUND THE BACK TOO (G41, user: "I like the brick
   // bottom on the sides ... add that to the back") — same course, same
   // height, interrupted where the personnel door stands.
-  put(mbox(0.25, 1.1, 13.0 + HW, M.stem, HD, 0.55, (13.0 - HW) / 2));
+  // ...and interrupted again for the BACK DOORS (G64): a course of brick
+  // running behind a closed door opening is the tell that the opening is
+  // painted on.
+  put(mbox(0.25, 1.1, HW - BD_W / 2, M.stem, HD, 0.55, -(BD_W / 2 + HW) / 2));
+  put(mbox(0.25, 1.1, 13.0 - BD_W / 2, M.stem, HD, 0.55, (13.0 + BD_W / 2) / 2));
   put(mbox(0.25, 1.1, HW - 14.0, M.stem, HD, 0.55, (14.0 + HW) / 2));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
@@ -929,6 +950,53 @@ for (const s of [1, -1]) {
       box(0.12, 0.10, 4.3, M.steelDark, HD - 0.10, EAVE - 0.45, 0));
   put(mbox(0.10, 2.1, 0.95, M.manDoor, HD - 0.08, 1.05, 13.5));
   put(cyl(0.03, 0.03, 0.16, M.brass, HD - 0.16, 1.0, 13.15, 8));
+
+  // THE BACK DOORS, CLOSED (G64). Same vocabulary as the front — header beam,
+  // track, sill and head channels, stiles, intermediate rails, anti-rack
+  // braces, hangers and rollers, guide shoes, one wicket — at two thirds the
+  // size and shut, because the job here is a BACKDROP. A big flat painted
+  // surface is what makes the pale wing hanging in front of it read; the
+  // plank wall it used to hang on has the same value and the same grain as
+  // the wing does.
+  //
+  // The leaves hang INSIDE the building, in front of the wall's own reveal.
+  // That is not a shortcut round cutting the wall: it is what a top-hung
+  // sliding door does, and it is what the front door already does at
+  // -HD + 0.42.
+  put(box(0.5, 0.55, BD_W + 1.2, M.steel, HD - 0.1, BD_H + 0.28, 0));
+  put(box(0.22, 0.14, 2 * HW - 1, M.steelDark, BD_X - 0.08, BD_H + 0.62, 0));
+  const BLW = BD_W / 2;                          // two leaves, butted at z = 0
+  for (const s of [-1, 1]) {
+    const leafZ = s * BLW / 2;
+    const g = new THREE.Group(); g.position.set(BD_X, 0, leafZ);
+    // IN = -1: at the back wall "further into the room" is -x, so every offset
+    // the front door writes as +0.01 is written -0.01 here. One constant beats
+    // a mirrored copy with the signs edited by hand.
+    const IN = -1;
+    g.add(mbox(0.10, BD_H, BLW, M.door, 0, BD_H / 2, 0));
+    g.add(box(0.14, 0.18, BLW, M.doorTrim, IN * 0.01, 0.11, 0),
+          box(0.14, 0.20, BLW, M.doorTrim, IN * 0.01, BD_H - 0.12, 0));
+    for (const e of [-1, 1])
+      g.add(box(0.14, BD_H, 0.20, M.doorTrim, IN * 0.01, BD_H / 2, e * (BLW / 2 - 0.10)));
+    for (const k of [1, 2])
+      g.add(box(0.13, 0.13, BLW - 0.4, M.doorTrim, IN * 0.01, k * BD_H / 3, 0));
+    for (const [y0, y1] of [[0.3, BD_H / 3 - 0.1], [BD_H / 3 + 0.1, 2 * BD_H / 3 - 0.1]])
+      put(strut([BD_X + IN * 0.02, y0, leafZ - BLW / 2 + 0.3],
+                [BD_X + IN * 0.02, y1, leafZ + BLW / 2 - 0.3], 0.03, M.steelDark));
+    for (const o of [-1, 1]) {
+      g.add(box(0.10, 0.34, 0.12, M.steelDark, IN * 0.01, BD_H + 0.30, o * BLW * 0.3));
+      const wl = cyl(0.09, 0.09, 0.05, M.steel, IN * 0.01, BD_H + 0.52, o * BLW * 0.3, 12);
+      wl.rotation.x = Math.PI / 2; g.add(wl);
+      g.add(box(0.16, 0.10, 0.14, M.steelDark, IN * 0.01, 0.05, o * BLW * 0.34));
+    }
+    if (s < 0) {                                  // the wicket everybody uses
+      g.add(box(0.06, 2.05, 0.86, M.doorTrim, -IN * 0.06, 1.03, -0.9));
+      g.add(box(0.05, 1.92, 0.76, M.door, -IN * 0.10, 1.02, -0.9));
+      g.add(cyl(0.028, 0.028, 0.12, M.brass, -IN * 0.16, 1.02, -0.60, 10));
+    }
+    g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    G.add(g);
+  }
 }
 
 // door wall (-x): a big sliding opening, leaves parked open, daylight beyond
@@ -937,6 +1005,15 @@ for (const s of [1, -1]) {
   for (const s of [1, -1])
     put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2, s * (DOOR_W / 2 + side / 2)));
   put(mbox(0.14, EAVE - DOOR_H, DOOR_W, M.wall, -HD, DOOR_H + (EAVE - DOOR_H) / 2, 0));
+  // THE BRICK COURSE RUNS ROUND THE FRONT TOO (G66, user: "continue the
+  // little brick part at the bottom of the wall on the front side of the
+  // hangar too, it is missing"). It always has on the two side walls and,
+  // since G41, on the back; the door wall was the one elevation that had
+  // sheeting straight down to the slab. Only the two returns each side of the
+  // opening get it — 2.5 m apiece here — because the rest of this wall is a
+  // hole 25 m wide, and a stem across a doorway is a threshold, not a wall.
+  for (const s2 of [1, -1])
+    put(mbox(0.25, 1.1, side, M.stem, -HD, 0.55, s2 * (DOOR_W / 2 + side / 2)));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
   const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wall);
@@ -1018,11 +1095,157 @@ const SKY_YAW0 = Math.PI / 2;
 // hangar_sky.js, they decode one at a time (a 4k equirect is 33 MB of
 // bitmap), and the outgoing texture is disposed — a mood cycled round the
 // clock a dozen times must not leave a dozen of them on the GPU.
+// THE GRADED SET IS THE ONLY SET (G62.6, user: "go, retire the kloppenheim
+// set"). It arrived at G62.1 as a test area beside five delivered panoramas
+// and it won on every count that was measured: one 8k picture plus a gain map
+// serves every hour for 5.98 MB against 6.1 MB for six baked 4k ones, the GPU
+// grade renders within noise of a plain texture fetch, and a new hour is a row
+// of uniforms instead of another asset.
 const SKY_ROWS = (typeof HANGAR_SKIES !== 'undefined' && HANGAR_SKIES &&
                   HANGAR_SKIES.length) ? HANGAR_SKIES : null;
-let skyMat = null, skyMesh = null, skyOnReady = null;
+
+// ---- THE RUNTIME GRADE (G62.2, user: "do the runtime shader version") -----
+// The lab payload can arrive in either of two shapes and this room takes both.
+// A row with `src` carries its own baked equirect; a row with `u` carries only
+// UNIFORMS, and the picture is made on the GPU out of ONE base panorama plus a
+// gain map that puts back the range its JPEG clipped. Six hours cost 2.2 MB
+// that way against 6.1 MB of baked pictures, and a seventh costs one row.
+//
+// The GLSL is tools/sky_grade.py's own, carried in the payload: the offline
+// grade and this one are a line-for-line pair, and the light rig every row
+// quotes was MEASURED off the offline half. If the two ever drift the room is
+// lit for a sky it is not showing, so they ship together out of one file.
+const SKY_GRADE = (typeof HANGAR_SKY_GRADE !== 'undefined') ? HANGAR_SKY_GRADE : null;
+let gradeScene = null, gradeMat = null, gradeCam = null, gradeReady = false;
+let skyDirty = false;
+
+// The sphere becomes a ShaderMaterial when the grade is live: the grade IS the
+// texture lookup, so there is no intermediate picture to bake at full size.
+// `tonemapping_fragment` and `encodings_fragment` are the two chunks
+// MeshBasicMaterial would have run, included by hand because a raw
+// ShaderMaterial gets neither and the backdrop would come out unmapped.
+function makeGradeMaterial(forTarget) {
+  const V3 = () => new THREE.Vector3(1, 1, 1);
+  const u = {
+    uBase: { value: null }, uGain: { value: null },
+    uK: { value: 1 }, uGMax: { value: 1 }, uOutK: { value: 1 }, uPeak: { value: 1 },
+    uSunU: { value: 0 }, uHB: { value: 0.026 }, uEcurve: { value: 1 },
+    uSat: { value: 1 }, uExposure: { value: 1 },
+    uSunG: { value: 1 }, uZenG: { value: 1 }, uHorG: { value: 1 },
+    uGndG: { value: 1 }, uStarWarm: { value: 0 },
+    uSunT: { value: V3() }, uZenT: { value: V3() }, uHorT: { value: V3() },
+    uGndT: { value: V3() }, uSkyWT: { value: V3() }, uGndWT: { value: V3() },
+    uGlowT: { value: new THREE.Vector3(0, 0, 0) },
+    uSkyW: { value: new THREE.Vector2(1, 1) },
+    uGndW: { value: new THREE.Vector2(1, 1) },
+    uGlow: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uStar: { value: new THREE.Vector3(0, 0, 1) },
+  };
+  const NLc = String.fromCharCode(10);
+  const tail = forTarget
+    // the probe target holds bytes, so encode exactly as the baked JPEGs did
+    ? 'gl_FragColor = vec4(fdL2S(c), 1.0);'
+    // the backdrop hands display-linear to the renderer's own tone map
+    : 'gl_FragColor = vec4(c, 1.0);' + NLc +
+      '#include <tonemapping_fragment>' + NLc + '#include <encodings_fragment>';
+  const vert = 'varying vec2 vUv;' + NLc + 'void main() {' + NLc + '  vUv = uv;' + NLc +
+    (forTarget
+      ? '  gl_Position = vec4(position.xy, 0.0, 1.0);'
+      : '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);') +
+    NLc + '}';
+  const frag = 'varying vec2 vUv;' + NLc + SKY_GRADE.glsl + NLc +
+    'void main() {' + NLc + '  vec3 c = fdSkyGrade(vUv, gl_FragCoord.xy);' + NLc +
+    '  ' + tail + NLc + '}';
+  return new THREE.ShaderMaterial({
+    uniforms: u, side: forTarget ? THREE.FrontSide : THREE.BackSide,
+    fog: false, depthWrite: !forTarget,
+    vertexShader: vert, fragmentShader: frag,
+  });
+}
+
+function gradeUniforms(mat, uu) {
+  const U = mat.uniforms;
+  const set3 = (k, v) => U[k].value.set(v[0], v[1], v[2]);
+  U.uK.value = uu.k; U.uOutK.value = uu.outK; U.uPeak.value = uu.peak;
+  U.uGMax.value = SKY_GRADE.gmax;
+  U.uSunU.value = uu.sunU; U.uHB.value = uu.hb; U.uEcurve.value = uu.ecurve;
+  U.uSat.value = uu.sat; U.uExposure.value = uu.exposure;
+  U.uSunG.value = uu.sunG; U.uZenG.value = uu.zenG;
+  U.uHorG.value = uu.horG; U.uGndG.value = uu.gndG;
+  U.uStarWarm.value = uu.starWarm;
+  set3('uSunT', uu.sunT); set3('uZenT', uu.zenT); set3('uHorT', uu.horT);
+  set3('uGndT', uu.gndT); set3('uSkyWT', uu.skyWT); set3('uGndWT', uu.gndWT);
+  set3('uGlowT', uu.glowT); set3('uStar', uu.star);
+  U.uSkyW.value.set(uu.skyW[0], uu.skyW[1]);
+  U.uGndW.value.set(uu.gndW[0], uu.gndW[1]);
+  U.uGlow.value.set(uu.glow[0], uu.glow[1], uu.glow[2], uu.glow[3]);
+}
+
+// The two source pictures, decoded once and kept. Unlike the baked set there
+// is only ever ONE panorama in memory, however many hours the game offers.
+function gradeTextures() {
+  if (gradeReady) return true;
+  if (!SKY_GRADE || typeof Image === 'undefined' || !THREE.ShaderMaterial) return false;
+  const mk = src => {
+    const i = new Image();
+    const t = new THREE.Texture(i);
+    t.wrapS = THREE.RepeatWrapping;
+    // BOTH are read RAW: the shader does its own sRGB decode on the base, and
+    // the gain map is data rather than colour. Letting three decode either
+    // would apply the transform twice.
+    t.encoding = THREE.LinearEncoding;
+    i.onload = () => { t.needsUpdate = true; skyDirty = true; if (skyOnReady) skyOnReady(); };
+    i.src = src;
+    return t;
+  };
+  gradeMat = { sphere: makeGradeMaterial(false), target: makeGradeMaterial(true) };
+  const base = mk(SKY_GRADE.base), gain = mk(SKY_GRADE.gain);
+  for (const m of [gradeMat.sphere, gradeMat.target]) {
+    m.uniforms.uBase.value = base;
+    m.uniforms.uGain.value = gain;
+  }
+  gradeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  gradeScene = new THREE.Scene();
+  gradeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), gradeMat.target));
+  gradeReady = true;
+  return true;
+}
+
+// The reflection probe needs the graded sky as a TEXTURE, because that is what
+// PMREM reads. So the same shader is run once into a small target — small on
+// purpose, since PMREM resamples to 256 and a full-size copy would cost 33 MB
+// to gain nothing. What the EYE sees is not this: it is the sphere, graded per
+// fragment at the base picture's own resolution.
+let skyRT = null;
+function renderSky(renderer) {
+  if (!gradeReady || !renderer || !renderer.setRenderTarget) return null;
+  if (!skyRT && THREE.WebGLRenderTarget) {
+    skyRT = new THREE.WebGLRenderTarget(1024, 512, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      wrapS: THREE.RepeatWrapping, generateMipmaps: false,
+    });
+    skyRT.texture.encoding = THREE.sRGBEncoding;   // the shader writes sRGB bytes
+  }
+  if (!skyRT) return null;
+  const was = renderer.getRenderTarget ? renderer.getRenderTarget() : null;
+  renderer.setRenderTarget(skyRT);
+  renderer.render(gradeScene, gradeCam);
+  renderer.setRenderTarget(was);
+  skyDirty = false;
+  return skyRT.texture;
+}
+
+// WHICH WAY THE SKY IS MADE (G62.3, user: "can we have the GPU version as an
+// option, and the precomputed as the other option?"). 'gpu' grades the one
+// base panorama per fragment; 'baked' hangs the picture the offline grade
+// already wrote. A row in the lab payload carries both, so this is a live
+// switch and the two can be compared on the same frame - which is the only
+// way to judge either the performance or the look.
+let skyMode = 'gpu';
+let skyMatBaked = null, skyMat = null, skyMesh = null, skyOnReady = null;
 if (SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
-  skyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
+  skyMatBaked = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
+  skyMat = gradeTextures() ? gradeMat.sphere : skyMatBaked;
   // radius 600 (G44): far enough that the field and strip below never
   // poke through; the 4k equirect carries the extra screen coverage
   skyMesh = new THREE.Mesh(new THREE.SphereGeometry(600, 48, 24), skyMat);
@@ -1031,7 +1254,11 @@ if (SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
   put(skyMesh);
 }
 function setSky(row) {
-  if (!skyMat || !row || typeof row.img !== 'function') return;
+  if (!skyMat || !row) return;
+  // pick the path this row can actually serve, then hang the right material
+  const useGpu = skyMode === 'gpu' && row.u && gradeReady;
+  skyMat = useGpu ? gradeMat.sphere : skyMatBaked;
+  if (skyMesh) skyMesh.material = skyMat;
   // WHICH WAY THE PANORAMA FACES is the row's, not the room's (G62). It used
   // to be a fixed quarter turn chosen to frame the alps' mountains out of the
   // door; each sky now carries the yaw that puts ITS sun where the row asked
@@ -1039,6 +1266,16 @@ function setSky(row) {
   // offset off the door axis), and the alps' number is exactly the quarter
   // turn it always had.
   if (skyMesh) skyMesh.rotation.y = (row.yaw !== undefined) ? row.yaw : SKY_YAW0;
+  // THE GRADED PATH: nothing to swap, just a new set of uniforms. The
+  // reflection target stays stale until someone hands us a renderer - see
+  // `renderSky`, which app.js calls straight after a mood changes.
+  if (useGpu) {
+    gradeUniforms(gradeMat.sphere, row.u);
+    gradeUniforms(gradeMat.target, row.u);
+    skyDirty = true;
+    return;
+  }
+  if (typeof row.img !== 'function') return;
   const img = row.img();
   if (!img) return;
   const st = new THREE.Texture(img);
@@ -1260,6 +1497,40 @@ const PROPS_OK = typeof propPlace === 'function' &&
 // it; the drawn fittings are pushed at their call sites. The BUILDING is not
 // in it — a floor that occludes itself is a black floor.
 const FURN = [];
+// ===== EMITTERS ============================================================
+// A LIGHT SOURCE IS NOT ALWAYS A `Light` (G65, user: "when I turn everything
+// off, I still have the bottom light ... I don't have options for turning all
+// of them on or off"). The mute system only ever knew about THREE.Light
+// objects. Every self-lit MATERIAL in the room was outside it, so with all
+// five switches thrown the shed still had, measured on the built page:
+//
+//   lamp_desk    emissive fffaa5 @ 1.0, one mesh at y 1.49  <- "the bottom light"
+//   lamp_pendant emissive ffffff @ 1.0, five meshes at y 5.83
+//   skyPanel     emissive cfe2f7 @ 0.43, eight roof panels at y 8.39
+//
+// This is the same bug as the G62.3 stove, and finding it by eye a second time
+// is the part worth fixing. So emitters are REGISTERED rather than hunted: a
+// material either gets claimed by a source as it is built, or the sweep at the
+// end of the room catches it and files it under `glow` — which then shows up
+// as a switch. Nothing self-lit can be added to this room again without a way
+// to turn it off.
+const EMIT = [];                      // { mat, e0, key }
+const emitSeen = new Set();
+const claimMat = (m, k) => {
+  if (!m || emitSeen.has(m)) return;
+  emitSeen.add(m);
+  if (!m.emissive || m.emissive.getHex() === 0 || !(m.emissiveIntensity > 0)) return;
+  EMIT.push({ mat: m, e0: m.emissiveIntensity, key: k });
+};
+const claim = (obj, k) => {
+  if (!obj || !obj.traverse) return obj;
+  obj.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    for (const m of [].concat(o.material)) claimMat(m, k);
+  });
+  return obj;
+};
+
 function prop(key, x, z, ry, y, parent) {
   if (!PROPS_OK) return null;
   if (!PROP_REG.props[key]) { console.warn('hangar: no prop ' + key); return null; }
@@ -1302,6 +1573,12 @@ function placeMobile(bb) {
   prop('stepladder', xM + 0.4, zL, -Math.PI / 2 + 0.3, 0, MOBILE);
   prop('handtruck', xN, zL * 0.45, 1.9, 0, MOBILE);
   prop('jerrycan', xN + 0.5, zL * 0.45 + 0.7, 0.8, 0, MOBILE);
+  // THE KIT IS BUILT AFTER THE ROOM IS (G65). It needs the aeroplane's own
+  // bounding box, so it arrives long after the emitter sweep has run and would
+  // otherwise be the one way a self-lit material could still get in unswitched.
+  // Claiming is idempotent — prop materials are shared per key, so anything
+  // already registered is skipped.
+  claim(MOBILE, 'glow');
   return mobileList();
 }
 // Where the kit ended up, and whether it is shown at all. The editor offers
@@ -1334,8 +1611,22 @@ function stoveCorner(x, z, ry) {
     g.add(cyl(0.09, 0.09, top - y0, M.steelDark, 0, y0 + (top - y0) / 2, 0, 12));
     g.add(cyl(0.16, 0.16, 0.10, M.steelDark, 0, top - 0.9, 0, 12));   // roof collar
   }
-  const glow = new THREE.PointLight(0xff7a2a, 14, 7, 2);
+  // THE FIRE IS A LIGHT AND IT WAS NOT IN THE ROOM'S BOOKS (G62.7, user:
+  // "All lamps turned off (I can still see the stove one), but still something
+  // is lighting up the airplane"). It was constructed here, at 14 candela, and
+  // then never touched again: no mood scaled it and no switch could reach it.
+  // Every other source in the shed dims with the hour, so at NIGHT — where the
+  // sun is 0.076 and the lamps are off — this one burned on at 14 and became
+  // most of the light in the building. Measured on a night view with the lamps
+  // muted: removing it took the frame from 7.71 to 3.72, i.e. it was 52% of
+  // what was lighting the aeroplane, and it is 0.6 m off the floor, which is
+  // why what it lit was lit FROM UNDERNEATH.
+  //
+  // It is registered now (STOVE below): the mood scales it with the lamps, and
+  // the light panel can switch it off like anything else.
+  const glow = new THREE.PointLight(0xff7a2a, STOVE.cd0, 7, 2);
   glow.position.set(0, 0.6, 0.75); g.add(glow);
+  STOVE.light = glow;
   // log basket + logs, still drawn: nothing in the library is a log
   g.add(cyl(0.30, 0.26, 0.34, M.wood, 1.15, 0.17, 0.35, 14));
   for (let k = 0; k < 5; k++) {
@@ -1496,7 +1787,7 @@ prop('handtruck', FX(10.8), HW - 0.55, Math.PI + 0.15);
 
 // ===== THE BUILD RUN (z = -HW): the desk, the machines, the work ===========
 prop('desk_metal', FX(2.6), -HW + 0.90, 0);
-prop('lamp_desk', FX(3.35), -HW + 1.15, -0.55, TOP.desk);   // clamps to the top
+claim(prop('lamp_desk', FX(3.35), -HW + 1.15, -0.55, TOP.desk), 'desk');  // clamps to the top
 prop('instrument_panel', FX(1.95), -HW + 1.05, 0.35, TOP.desk);
 prop('stool_wood', FX(2.4), -HW + 1.95, -0.4);
 prop('toolrack_wall', FX(2.6), -HW + 0.12, 0, 1.62);
@@ -1506,6 +1797,34 @@ loadedRack(FX(-2.3), -HW + 0.55, 0);
 prop('toolchest_metal', FX(0.5), -HW + 0.85, 0.15);
 prop('cart_tool', FX(-8.2), -HW + 1.40, -0.30);
 prop('drillpress', FX(7.4), -HW + 0.95, 0.10);
+
+// ===== THE MACHINE SHOP (G66) ==============================================
+// Four scans of real machines from one lycee workshop, and the reason they go
+// HERE is that this wall was the only run long enough: 7.6 m of clear
+// elevation between the tool cart and the tool chest, which is 5.7 m of
+// machine and four half-metre gaps. They are 80-137 k tris each, so they are
+// also the four heaviest objects in the building.
+//
+// A machine shop is not a row of machines, it is a WORKFLOW, and these four
+// are in the order the timber goes through them: cut it to length on the band
+// saw, flatten a face on the surface planer, bring it to thickness on the
+// thicknesser. Standing the pair together is not decoration either — a
+// jointer and a thicknesser are used one after the other on the same board,
+// which is why every real shop has them within a pace of each other.
+// SPACED BY MEASUREMENT, not by eye. The first pass put the band saw 15 cm
+// INSIDE the tool cart and left the planer 45 mm off the brick course. The run
+// is 7.27 m of clear wall between the cart's end and the tool chest's start;
+// the three machines are 5.73 m of that, so the four gaps are 0.385 m each,
+// and every one of them stands 0.30 m off the wall plane so nothing touches
+// the stem.
+prop('bandsaw', FX(-6.19), -HW + 1.16, 0);
+prop('jointer', FX(-3.53), -HW + 1.38, 0);
+prop('thicknesser', FX(-1.00), -HW + 0.93, 0);
+// The panel saw stands OFF the wall, because it is the one machine you cannot
+// use against one: 4.4 x 3.6 m of sliding table and outrigger that needs a
+// full sheet's clearance on two sides. It leaves a 1.1 m walkway behind it,
+// which is the aisle to the other three.
+prop('panelsaw', FX(-4.30), -HW + 5.20, 0);
 prop('barrel_plastic', FX(9.0), -HW + 0.85, 0);
 prop('bin_metal', FX(10.2), -HW + 0.90, 0.3);
 
@@ -1524,7 +1843,10 @@ prop('bottle_propane', HD - 0.85, 13.9, 0.4);
 prop('bottle_propane', HD - 0.90, 13.2, -0.9);
 prop('bottle_lpg', HD - 1.65, 13.6, 0.2);
 prop('compressor', HD - 1.25, 6.2, -Math.PI / 2);
-prop('hosereel_wall', HD - 0.14, 3.6, -Math.PI / 2, 2.20);
+// MOVED CLEAR OF THE BACK DOORS (G66). G64 cut an 11 m opening through
+// z = +-5.5 of this wall and left the hose reel hanging at z = 3.6 — bolted,
+// in other words, to a sliding door leaf. It goes on the pier beyond the jamb.
+prop('hosereel_wall', HD - 0.14, 7.6, -Math.PI / 2, 2.20);
 prop('drum_steel', HD - 0.95, -14.6, 0.5);
 prop('drum_steel', HD - 0.95, -15.4, -0.3);
 prop('barrel_plastic', HD - 1.75, -15.0, 0);
@@ -1574,7 +1896,15 @@ prop('stepladder', FX(-8.6), -HW + 3.9, 0.5);
   // baked payload rather than agreed between two files
   const trestleTop = (PROPS_OK && PROP_REG.props.work_trestle)
     ? PROP_REG.props.work_trestle.bb[4] : 0.82;
+  // ...and so is its FOOTPRINT, for the same reason: wsOnStands stops a
+  // trestle at the lowest surface anywhere under its beam, and it can only do
+  // that if it knows how big the beam is. Measured off the baked payload, like
+  // the top.
+  const tb = (PROPS_OK && PROP_REG.props.work_trestle)
+    ? PROP_REG.props.work_trestle.bb : null;
   const wsMats = { wood: M.woodPale, steel: M.steel, trestleTop: trestleTop,
+                   standFoot: tb ? [Math.max(tb[3], -tb[0]), Math.max(tb[5], -tb[2])]
+                                 : [0.26, 0.43],
                    stand: (x, z, ry) => prop('work_trestle', x, z, ry) };
   const place = (kind, x, z, ry) => {
     const g = (typeof wsPiece === 'function') ? wsPiece(THREE, kind, wsMats) : null;
@@ -1584,12 +1914,169 @@ prop('stepladder', FX(-8.6), -HW + 3.9, 0.5);
     FURN.push(g);
     return g;
   };
-  // the whole wing along the shop wall, the welded fuselage down the build
-  // side, the wooden cabin by the door and the engine on its bench
+  // THE TWO GENERATED BODY PIECES ARE RETIRED (G62.10, user: "It's a jodel
+  // dr1050 wooden structure for a body, and one for the wing. We can use that
+  // to replace the 2 structures we have; the metal one and the wooden one").
+  // `wsTubeFrame` and `wsWoodCabin` still exist in workshop.js and still work —
+  // they are the generator's own output and will follow it if it changes — but
+  // the floor now carries the author's hand-modelled DR1050 instead, which is a
+  // real aeroplane rather than a rendering of this game's spec.
+  //
+  // The generated WING stays exactly where it was (user: "Don't touch the
+  // existing wing, she's good"), and so does the engine on its bench.
   place('wing', FX(-2.4), FZ(12.4), 0.05);
-  place('frame', FX(3.6), FZ(-12.2), 0.04);
-  place('cabin', FX(-8.2), FZ(-10.4), -0.30);
   place('engine', FX(9.2), FZ(-6.4), -Math.PI / 2 + 0.2);
+
+  // THE JODEL FUSELAGE, on the build side where the welded frame used to be.
+  // It is a prop like everything else in here: baked by tools/jodel_prep.py
+  // into the same pack format the furniture uses, so it prints a floor shadow
+  // and scales with the moods without knowing anything about either.
+  // ON TRESTLES, LIKE THE WING (G63, user: "Put the Jodel chassis on its
+  // trestles like before ... adjust the vertical size of the trestles so the
+  // body really lies on them, no gap between body and trestles, and no
+  // clipping either"). That is `wsOnStands`, which already does the job
+  // properly for the generated wing: it rays the piece DOWNWARD at each
+  // stand's own station and stretches that trestle to whatever surface it
+  // finds there. A fuselage keel is curved, so three equal trestles would
+  // leave two of them short — these three each reach their own bit of keel.
+  //
+  // The rotation goes on the WRAPPER, not on the prop, so the trestles turn
+  // with what they carry instead of being laid out across it.
+  {
+    const b = prop('airframe_jodel_body', 0, 0, 0);
+    if (b) {
+      G.remove(b);
+      const i = FURN.indexOf(b); if (i >= 0) FURN.splice(i, 1);
+      const stood = (typeof wsOnStands === 'function')
+        ? wsOnStands(THREE, b, wsMats, 3) : null;
+      const g = stood || b;
+      g.position.set(FX(3.6), 0, FZ(-12.2));
+      // 180 degrees AND A BIT MORE (user), so the chassis is nose-for-tail
+      // against the finished aeroplane and off its axis by twelve degrees:
+      // two parked parallel read as a diagram, two at an angle read as a shed.
+      g.rotation.y = Math.PI + 0.21;
+      G.add(g); FURN.push(g);
+    }
+  }
+
+  // THE JODEL WING, HUNG CHORD-UP IN FRONT OF THE BACK WALL (user: "I'll want
+  // the wing hanged in front of the back wall, where things are least
+  // interesting so far ... you may also have it hang chord up from the
+  // ceiling, I've seen that done"). And it is how a wing waits for its
+  // covering: on edge it costs a metre and a half of wall instead of nine
+  // metres of floor.
+  //
+  // `prop()` only offers a heading, because every other prop in the shed
+  // stands on something. This one is turned onto its edge as well, so it is
+  // placed and then rolled: a quarter turn about Z takes the CHORD from x into
+  // y, leaving the span along z and the thickness across. The piece was baked
+  // 'ceiling' — origin at its top — so after the roll the top is at +halfChord
+  // and the hang height is that much below the strap.
+  {
+    // 1.20 m LOWER (G64 dropped it 70 cm, G64.1 another 50 — user: "The wing
+    // sits too high"). It hangs across the MIDDLE of the doors now instead of
+    // riding along their head rail, which reads as stored rather than stowed.
+    const wx = HD - 1.7, wz = 0, top = EAVE * 0.72 - 1.20;
+    const w = prop('airframe_jodel_wing', wx, wz, 0);
+    if (w) {
+      const half = 0.84;                       // half the 1.68 m chord
+      w.rotation.z = Math.PI / 2;
+      w.position.set(wx, top - half, wz);
+      // two straps to the roof, because a wing floating on nothing reads as a
+      // bug. Same trick as the lamps' drop rods: the LIGHT is not a model, but
+      // the thing holding it up is.
+      for (const cz of [-2.6, 2.6]) {
+        const roof = roofY(cz), len = roof - (top + 0.02);
+        if (len > 0.05)
+          put(cyl(0.010, 0.010, len, M.steelDark, wx, top + 0.02 + len / 2, cz, 6));
+      }
+
+      // ITS SHADOW ON THE WALL BEHIND IT (G63, user: "The wing can be quite
+      // invisible depending on the texture chosen for the back wall. Could we
+      // use the same trick as with the ground, and calculate a shadow map? Or
+      // just precalculate it, and project it on a transparent plane").
+      //
+      // This is the second half of that sentence, and it is not a cheat: the
+      // wing hangs 1.6 m off a wall in a room whose only shadow-casters point
+      // DOWN, so the wall behind it gets no shadow from anything. What is
+      // missing there is real — the occlusion between a large flat object and
+      // the surface a hand's breadth behind it — and nothing in the frame
+      // computes it. A pale spruce structure against pale planks then has
+      // nothing to separate it from its background, which is what he saw.
+      //
+      // PRECALCULATED rather than rendered, because this wing never moves.
+      // A render target would recompute the same image every bake for the same
+      // answer, cost a texture unit, and need a camera pointed at a wall. The
+      // silhouette is a soft tapered slab, drawn straight into an alpha map:
+      // wide plateau across the span, narrower toward the tips as the wing
+      // tapers, soft everywhere because a shadow from a big diffuse source is.
+      const bb = new THREE.Box3().setFromObject(w);
+      const spanZ = bb.max.z - bb.min.z, chordY = bb.max.y - bb.min.y;
+      // 90% ACROSS, 80% DOWN, AND PROPERLY BLURRED (G64, user: "The shadow is
+      // too rough. Shrink it to 80% vertical and 90% horizontal, then blur it
+      // significantly"). The first version faded its edges with a pair of
+      // smoothsteps, which is a ramp, not a blur: it kept the silhouette's
+      // corners and read as a smudge with a shape. This one draws the crisp
+      // mask small in the middle of the sheet and then actually BLURS it —
+      // two passes of a separable box filter, which is a close enough
+      // Gaussian for something this soft and costs nothing at bake time.
+      //
+      // 14 px of blur on a 256 x 64 sheet across a 9 m quad is about 0.45 m of
+      // penumbra, which is what a 4 m ceiling of diffuse light gives a wing
+      // hanging a metre off the doors.
+      const shW = (spanZ + 1.1) * 0.90, shH = (chordY + 0.9) * 0.80;
+      const shTex = sheet(256, 64, (g2, W2, H2) => {
+        const N = W2 * H2, a = new Float32Array(N), b = new Float32Array(N);
+        for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
+          // the mask itself occupies the middle 70%, leaving the blur room to
+          // run out inside the sheet instead of clipping at its edge
+          const u = ((i + 0.5) / W2 - 0.5) / 0.70 + 0.5,
+                v = ((j + 0.5) / H2 - 0.5) / 0.70 + 0.5;
+          if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+          const e = Math.abs(2 * u - 1);            // 0 at root, 1 at a tip
+          const hv = 0.5 * (1 - 0.30 * e * e);      // the wing's taper
+          a[j * W2 + i] = (Math.abs(v - 0.5) <= hv) ? 1 : 0;
+        }
+        const blur = (src, dst, rx, ry) => {
+          for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
+            let t = 0, n = 0;
+            for (let k = -rx; k <= rx; k++) {
+              const x = i + k; if (x < 0 || x >= W2) continue;
+              t += src[j * W2 + x]; n++;
+            }
+            dst[j * W2 + i] = t / n;
+          }
+          for (let i = 0; i < W2; i++) for (let j = 0; j < H2; j++) {
+            let t = 0, n = 0;
+            for (let k = -ry; k <= ry; k++) {
+              const y = j + k; if (y < 0 || y >= H2) continue;
+              t += dst[y * W2 + i]; n++;
+            }
+            src[j * W2 + i] = t / n;
+          }
+        };
+        blur(a, b, 14, 7); blur(a, b, 14, 7);
+        const img = g2.createImageData(W2, H2), d = img.data;
+        for (let p = 0; p < N; p++) {
+          d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
+          d[p * 4 + 3] = Math.round(255 * Math.min(1, a[p]));
+        }
+        g2.putImageData(img, 0, 0);
+      }, true);
+      // the plane is drawn in x-y and turned to face the room, so its width
+      // runs along z (the span) and its height along y (the chord). It sits on
+      // the DOOR now, not the wall behind it, and a little low because every
+      // fitting in here is above it.
+      const q = new THREE.Mesh(
+        new THREE.PlaneGeometry(shW, shH),
+        new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: shTex,
+          transparent: true, opacity: 0.5, depthWrite: false, fog: false }));
+      q.rotation.y = -Math.PI / 2;
+      q.position.set(BD_FACE - 0.02, (bb.min.y + bb.max.y) / 2 - 0.14, wz);
+      q.renderOrder = 1;
+      put(q);
+    }
+  }
 }
 
 // ===== THE COSY CORNER =====================================================
@@ -1616,8 +2103,44 @@ const BG = new THREE.Color(0x14120f);
 const FOG = new THREE.Fog(0x1a1712, 40, 120);
 ROOT.add(G);
 
-const hemi = new THREE.HemisphereLight(0xbfd2e6, 0x3a3128, 0.30);
-ROOT.add(hemi);
+// THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we
+// simply cut the shafts and the windows from the hangar mesh, like we've done.
+// Then we really need only 2 lights; the sun and the ceiling lamps ... I have
+// the feeling we multiplied unphysical light sources, and now we struggle with
+// the management of them. I suggest simplification").
+//
+// He was right, and the reason it works NOW is that the openings are genuinely
+// cut (G52/G55) and the key light casts: the sun comes in through the glazing
+// and the skylights BY ITSELF, at the correct angle. The three fills existed
+// because the shell used to be solid. Every one of them was a second sun with
+// no occlusion, and every one was DOUBLE-COUNTED, because the environment
+// probe is baked with them switched on.
+//
+// GONE, all three:
+//   hemi  - a HemisphereLight, which by construction lights everything from
+//           everywhere and can never be occluded by anything.
+//   top   - a second sun from straight above, duplicating what the real one
+//           already does through the skylights now that it casts.
+//   win   - two more, standing TWELVE METRES OUTSIDE the flanks and lighting
+//           the far wall straight through the near one. Measured, this was the
+//           second-largest source in the shed and most of what the walls
+//           looked like; it is what put a specular sheen on the sheeting that
+//           answered to nothing in the room.
+//
+// WHAT IS LEFT is what a shed has: the SUN, the LAMPS, and the INDIRECT light,
+// which `scene.environment` already models properly from a cube pass of this
+// room that sees the real sky through the real openings.
+//
+// MEASURED on a wall camera before committing: six sources gave mean 64.4 with
+// 14.5% of the frame crushed to black; sun+lamps+env alone gave 50.2 and 35.2%
+// (too dark, as the user predicted); sun+lamps+env with the environment
+// carrying its proper weight gave 75.2 and 3.8%. Brighter AND better shaded
+// than what it replaces, at three fewer lights. Night is unchanged either way,
+// because the lamps carry it.
+//
+// Deleting them rather than zeroing them is deliberate: three.js compiles the
+// light COUNT into every material's shader, so a zero-intensity light is still
+// paid for on every fragment.
 
 // THE DOOR. One shadow-casting key, angled the way a low afternoon sun comes
 // through an open hangar door — long shapes down the floor, the aeroplane lit
@@ -1678,29 +2201,71 @@ key.shadow.bias = 0; key.shadow.normalBias = 0.02;
 key.shadow.normalBias = 0.02;
 ROOT.add(key, key.target);
 
-// the glazing bands as light: two soft fills, one per flank, no shadows
-const winFill = [];
-for (const s of [1, -1]) {
-  const w = new THREE.DirectionalLight(0xcfe0f2, 0.34);
-  winFill.push(w);
-  w.position.set(FX(-4), EAVE + 0.6, s * (HW + 12));
-  w.target.position.set(0, 1, 0);
-  ROOT.add(w, w.target);
-}
-// the roof lights, from straight above
-const top = new THREE.DirectionalLight(0xe6eef8, 0.46);
-top.position.set(FX(2), 2 * RIDGE + 8, FZ(1)); ROOT.add(top);
+
+
+
 
 // SHOP LAMPS. The shade is hanging_industrial_lamp now, not a drawn cone; what
 // is still drawn is the LIGHT (a light is not a model) and the drop rod, since
 // the prop's own chain is 1.36 m and the roof over the lamp rows is at 9.9 m.
 // The prop hangs BELOW its origin, so the origin goes up at the rod's foot.
+// THREE ROWS OF THREE (G62.9, user: "Add a full new row of 3 lamps in the
+// middle"). It also answers the thing G62.8 left open honestly: the centre
+// aisle went dark when the lamps stopped being aimed sideways at it, and the
+// right way to light the stand is a fitting ABOVE the stand — one the player
+// can look up and see — not a spotlight pointed at it from the flank.
+// FIVE IN A CROSS (G63, user: "keep only 5 lamps; the 3 in the middle, and 2
+// on each side, in the middle too, in a cross pattern"). Nine fittings in a
+// 3x3 grid lit the shed evenly and read as a warehouse; five on the two
+// centrelines light the aisle where the work is and leave the corners to fall
+// off, which is what a shed with a modest electrical bill looks like.
+//
+// It also pays for itself twice over — see `casts` below.
+const LAMP_XZ = [[-8, 0], [0, 0], [8, 0], [0, 9.5], [0, -9.5]];
 const lamps = [];
-for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
-  const x = FX(-8 + k * 8), z = s * FZ(9.5), y = EAVE * 0.74;
+
+// THE LAMP RIG IS THREE KNOBS NOW (G64, user: "for the lamps, give me an
+// intensity and spread control please, as well as a light temperature
+// control"). They live in the editor's existing hangar section — no new panel
+// (G62.10, user: "remove your new panel, we can already access these options,
+// and the panel masks the game's buttons").
+//
+// POWER is a GAIN, not a value, because the mood already owns the candela: a
+// night shed and a noon shed do not run their lamps at the same output, and a
+// knob that overwrote that would undo the whole measured rig. It multiplies.
+//
+// SPREAD is the SpotLight's own half-angle; the UI speaks in full cone degrees
+// because that is what a fitting's datasheet says.
+//
+// TEMPERATURE replaces a hex that was picked by eye. The colour comes off the
+// usual black-body approximation, and it goes into the Color the same way
+// every other hex in this file does — straight in, unconverted, because r128
+// has no colour management and treats what you hand it as working space. The
+// default, 4000 K, is not a guess: it is the Kelvin whose curve lands nearest
+// the 0xffd9a0 these lamps have always burned at (255,207,167 against
+// 255,217,160, twelve counts out of 255 apart), so opening the slider does not
+// move the room.
+const LAMP = { gain: 1, angle: 0.62, kelvin: 4000, rgb: new THREE.Color(0xffd9a0) };
+const kelvinRGB = (K, out) => {
+  const t = Math.max(10, Math.min(400, K / 100));
+  let r, g, b;
+  if (t <= 66) { r = 255; g = 99.4708025861 * Math.log(t) - 161.1195681661; }
+  else {
+    r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+    g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+  }
+  if (t >= 66) b = 255;
+  else if (t <= 19) b = 0;
+  else b = 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  const c = v => Math.max(0, Math.min(1, v / 255));
+  return out.setRGB(c(r), c(g), c(b));
+};
+kelvinRGB(LAMP.kelvin, LAMP.rgb);
+for (const [ax, az] of LAMP_XZ) {
+  const x = FX(ax), z = FZ(az), y = EAVE * 0.74;
   const g = new THREE.Group(); g.position.set(x, y, z);
   const hook = 1.30;                       // prop origin, above the group
-  prop('lamp_pendant', x, z, rr(-3, 3), y + hook);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
   const roof = roofY(z), rodH = roof - (y + hook);   // NOT `top`: that is a light
   const drop = cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6);
   g.add(drop);
@@ -1720,16 +2285,66 @@ for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
   // EVERY LAMP CASTS (G60, user: "fix the shadowless lamps"). Four of the six
   // were PointLights with no shadow map — their light went straight through
   // everything, which is why the floor bake had to carry the whole grounding
-  // job alone. All six are now the same fitting the G42 centre pair proved
-  // out; the cost is four more 1024 maps. The centre pair keeps its G42 aim
-  // at the stand, and the outer four aim into their own bay, tipped a little
-  // toward the aisle the way a hung shade actually throws.
-  const L = new THREE.SpotLight(0xffd9a0, 90, 26, 0.62, 0.45, 2);
-  L.castShadow = true;
-  L.shadow.mapSize.set(1024, 1024);
-  L.shadow.camera.near = 1; L.shadow.camera.far = 30;
-  L.shadow.normalBias = 0.03;
-  L.target.position.set(x, 0, k === 1 ? s * 1.5 : z * 0.75);
+  // job alone. All six are now the same fitting the G42 centre pair proved out;
+  // the cost is four more 1024 maps.
+  //
+  // AND EVERY LAMP NOW POINTS AT THE FLOOR UNDER ITSELF (G62.8, user: "I can
+  // clearly see 6 lamps hanging, but I can see only 5 marks on the ground, 4
+  // on the sides, and a big one on the plane ... there's no lamp straight on
+  // top of the plane, innit?"). Correct on both counts, and the arithmetic was
+  // right there in the aim: the two CENTRE lamps were pointed at z = +/-1.5 —
+  // the centreline — from 7.9 m out on either flank. Both pools landed in the
+  // same place and merged into one patch, on an aeroplane that has no lamp
+  // above it. Four outer pools plus that merged one is exactly the five marks
+  // he counted.
+  //
+  // THE AIM WAS G42'S, AND ITS REASON IS GONE. It existed because "the stand
+  // sits in the centre aisle ... where the only shadow-caster never reaches",
+  // i.e. to ground the aeroplane with a contact shadow. G58 then BAKED a floor
+  // shadow and G59 added the craft's own print, which is that job done
+  // properly and independently of where any lamp happens to point. The aim
+  // outlived its purpose and all it did afterwards was put light on the floor
+  // where no fitting hangs.
+  //
+  // A hung shade throws DOWN. Six lamps, six pools, each under its own lamp —
+  // which is also the only version that survives a player looking up.
+  // WHICH LAMPS CAST, AND WHY IT IS NOT ALL OF THEM (G62.10). Every shadow
+  // map is a FRAGMENT TEXTURE UNIT, and this platform has sixteen. Measured
+  // on the built page:
+  //
+  //     9 spot shadow maps + 1 directional + 7 material samplers = 17
+  //
+  // — one over, and the symptom is not a slow frame, it is
+  // "FRAGMENT shader texture image units count exceeds
+  // MAX_TEXTURE_IMAGE_UNITS(16)" and a material that never compiles. Adding
+  // the third lamp row broke it by exactly one unit.
+  //
+  // So the budget has to be spent where it buys something. A real-time shadow
+  // map is for things that MOVE, and the only thing that moves in this shed is
+  // the aeroplane — which stands under the CENTRE row. Everything static is
+  // grounded by the baked floor shadow (G58) and the craft's own print (G59),
+  // which is that job done better and for free.
+  //
+  // Centre row casts, flanks do not: 3 + 1 + 7 = 11, five units of headroom
+  // for the next material that wants a map.
+  //
+  // AND THE CROSS BUYS IT BACK (G63). That compromise was forced by the ninth
+  // fitting and nothing else; at five lamps the sum is
+  //
+  //     5 spot shadow maps + 1 directional + 7 material samplers = 13
+  //
+  // — three units under the ceiling. So G60's rule stands again unqualified:
+  // every lamp in this shed casts a shadow. Cutting four fittings did not cost
+  // shadows, it restored them.
+  const casts = true;
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), 90, 26, LAMP.angle, 0.45, 2);
+  L.castShadow = casts;
+  if (casts) {
+    L.shadow.mapSize.set(1024, 1024);
+    L.shadow.camera.near = 1; L.shadow.camera.far = 30;
+    L.shadow.normalBias = 0.03;
+  }
+  L.target.position.set(x, 0, z);
   G.add(L.target);
   L.position.y = 0.12;                     // inside the prop's shade
   g.add(L);
@@ -1779,9 +2394,27 @@ const faceShafts = cam => {
   }
 };
 
+// THE SHAFT HAS TO REACH THE FLOOR, and how far that is depends on how high
+// the roof is — which has been a parameter since G53 (user: "do the light
+// cones respond to the lamp's height?"). It did not: the length was a flat
+// 7.2 m from EAVE + 1.2, so it only landed correctly at the eaves height it
+// was hand-set against. At the 4.2 m minimum it drove 1.7 m THROUGH the slab;
+// at the 11 m maximum it stopped five metres short and hung in the air.
+//
+// (For the record, since the question was about lamps: the LAMP pools do
+// respond, and always did — a spot cone is geometry, so a lower fitting makes
+// a smaller, brighter pool with no code involved. These cones are the ROOF
+// lights' dust, not the lamps'. Nothing volumetric is drawn under a lamp.)
+//
+// A normalised direction drops 1/|dir| per unit length, so the length that
+// falls H metres is H * |dir|. 0.88 of the way down is where the alpha
+// gradient has faded out anyway, and it is the proportion the hand-set 7.2
+// happened to give at the eaves height it was written for.
 for (const s of [1, -1]) for (let k = 0; k < 4; k++) {
   const x = -HD + 3.4 + k * (2 * HD - 6.8) / 3;
-  shaft([x, EAVE + 1.2, s * HW * 0.45], [0.14, -1, -s * 0.12], 7.2, 3.0);
+  const dir = [0.14, -1, -s * 0.12];
+  const len = (EAVE + 1.2) * 0.88 * Math.hypot(dir[0], dir[1], dir[2]);
+  shaft([x, EAVE + 1.2, s * HW * 0.45], dir, len, 3.0);
 }
 // The door opening had a shaft of its own. It failed for a reason worth
 // keeping: a roof light is a SMALL aperture, so a card standing in its beam is
@@ -1814,6 +2447,126 @@ ROOT.add(shafts);
 const ENV0 = new Map();
 for (const k in M) if (M[k] && M[k].envMapIntensity !== undefined)
   ENV0.set(M[k], M[k].envMapIntensity);
+
+// ---- THE LIGHT SWITCHES (G62.3, user: "I'll need turning off the hangar
+// lights from the garage, so I can run tests and see what light source
+// interacts correctly and not") ---------------------------------------------
+//
+// One switch per SOURCE, not per lamp: the point is to answer "which of these
+// is doing that?", and the room has exactly six answers plus the environment.
+// A mute is a multiplier of zero applied AFTER the mood has set its
+// intensities, so it survives a mood change - flipping the sky must not
+// silently switch the lights back on underneath a test.
+//
+// `env` is the odd one and the interesting one: it is not a light, it is
+// scene.environment, and muting it is how you find out how much of the room is
+// the PMREM rather than the lamps. It works by zeroing every material's own
+// envMapIntensity, the same lever the moods use.
+// THE SWEEP (G65). M.bulb and M.skyPanel are marked seen because they are
+// driven by the mood and handled by name below; everything else self-lit that
+// nobody claimed lands in `glow`, and `glow` only becomes a switch if the
+// sweep actually found something. Today it finds nothing — which is the point:
+// the switch list below is now provably the complete list of ways this room
+// makes light.
+emitSeen.add(M.bulb);
+emitSeen.add(M.skyPanel);
+claim(G, 'glow');
+const strays = EMIT.filter(e => e.key === 'glow');
+if (strays.length && typeof console !== 'undefined')
+  console.warn('hangar: ' + strays.length + ' unclaimed emitter(s) filed under "glow"');
+
+
+// THE TEXTURE-UNIT BUDGET, COUNTED OUT LOUD (G66). Twice now a shadow map too
+// many has cost a whole afternoon, and both times the symptom was not a slow
+// frame but "FRAGMENT shader texture image units count exceeds
+// MAX_TEXTURE_IMAGE_UNITS(16)" and a material that silently never compiled.
+// The budget is invisible in the source: it is the sum of one thing the
+// lighting code decides and another the material library decides, and neither
+// file mentions the other.
+//
+// So it is printed. Every shadow-casting light is one fragment sampler, and so
+// is every map on the busiest material in the room; three.js adds the
+// environment on top. This does not fix anything by itself — it turns a cliff
+// into a number, in the file where the next person will add the sixth lamp.
+const texBudget = () => {
+  const MAPS = ['map', 'aoMap', 'alphaMap', 'bumpMap', 'displacementMap',
+    'emissiveMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap',
+    'specularMap', 'envMap'];
+  let casters = 0, worst = 0, worstName = '';
+  G.traverse(o => {
+    if (o.isLight && o.castShadow) casters++;
+    if (!o.isMesh || !o.material) return;
+    for (const m of [].concat(o.material)) {
+      if (!m) continue;
+      const n = MAPS.reduce((a2, k) => a2 + (m[k] ? 1 : 0), 0);
+      if (n > worst) { worst = n; worstName = m.name || m.type; }
+    }
+  });
+  if (key.castShadow) casters++;                 // the sun lives outside G
+  const need = casters + worst + 1;              // +1 for scene.environment
+  const cap = 16;                                // the floor this game targets
+  const msg = 'hangar texture units: ' + casters + ' shadow + ' + worst
+            + ' maps (' + worstName + ') + 1 env = ' + need + ' of ' + cap;
+  if (typeof console !== 'undefined') {
+    if (need > cap) console.error(msg + ' — OVER BUDGET, a material will not compile');
+    else console.log(msg);
+  }
+  return { casters: casters, maps: worst, need: need, cap: cap };
+};
+
+const LIGHTS = [
+  { key: 'key',    name: 'sun / key' },
+  { key: 'lamps',  name: 'shop lamps' },
+  { key: 'desk',   name: 'bench lamp' },
+  { key: 'stove',  name: 'stove fire' },
+  { key: 'panels', name: 'roof panels' },
+  { key: 'env',    name: 'environment (PMREM)' },
+  { key: 'shafts', name: 'dust shafts' },
+];
+if (strays.length) LIGHTS.push({ key: 'glow', name: 'stray emitters' });
+const muted = {};
+const lit = k => !muted[k];
+function applyMutes(m) {
+  if (muted.key) key.intensity = 0;
+  if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
+  if (muted.lamps) {
+    for (const L of lamps) L.intensity = 0;
+    M.bulb.emissiveIntensity = 0;
+  }
+  if (muted.panels) M.skyPanel.emissiveIntensity = 0;
+  // ...and every registered emitter, whichever source owns it
+  for (const e of EMIT) if (muted[e.key]) e.mat.emissiveIntensity = 0;
+  if (muted.env) {
+    for (const [mat] of ENV0) mat.envMapIntensity = 0;
+    if (typeof propSetEnv === 'function') propSetEnv(0);
+    if (typeof aeroSetEnv === 'function') aeroSetEnv(0);
+  }
+  shafts.visible = !muted.shafts && (m ? m.shaft > 0 : true);
+}
+// the three knobs. Anything the mood owns is re-applied through setMood, which
+// also re-runs the mutes over the top — the same door setLight goes through,
+// for the same reason: a slider must not be able to relight a muted source.
+function setLampRig(p) {
+  if (p) {
+    if (typeof p.gain === 'number') LAMP.gain = Math.max(0, Math.min(4, p.gain));
+    if (typeof p.angle === 'number') LAMP.angle = Math.max(0.10, Math.min(1.30, p.angle));
+    if (typeof p.kelvin === 'number') {
+      LAMP.kelvin = Math.max(1500, Math.min(8000, p.kelvin));
+      kelvinRGB(LAMP.kelvin, LAMP.rgb);
+    }
+  }
+  setMood(moodI);
+  return lampRig();
+}
+const lampRig = () => ({ gain: LAMP.gain, angle: LAMP.angle, kelvin: LAMP.kelvin,
+                         hex: LAMP.rgb.getHex() });
+
+function setLight(k, on) {
+  if (!LIGHTS.some(l => l.key === k)) return null;
+  muted[k] = !on;
+  setMood(moodI);            // re-apply the mood, then the mutes over it
+  return !muted[k];
+}
 // WITHOUT THE PAYLOAD there is still a room: the headless gate and any
 // core-only build get the alps row's numbers with no picture to hang behind
 // them, which is exactly what this shed was before G41.
@@ -1831,20 +2584,17 @@ const setMood = i => {
   // equirect or re-aim a light that is already aimed.
   if (j !== moodI) { moodI = j; setSky(m); aimKey(m.sunUV, m.yaw); }
   key.intensity = m.keyI; key.color.setHex(m.kc);
-  hemi.intensity = m.hemi;
-  if (m.hemiSky !== undefined) hemi.color.setHex(m.hemiSky);
-  if (m.hemiGnd !== undefined) hemi.groundColor.setHex(m.hemiGnd);
-  for (const L of lamps) L.intensity = m.lamp;
-  top.intensity = m.top;
-  if (m.hemiSky !== undefined) top.color.setHex(m.hemiSky);
-  // the glazing bands ARE the sky seen through a wall, so they wear its
-  // colour too. (The anchor's authored 0xcfe0f2 and its measured sky chroma
-  // differ by about 1% of luminance — below anything the eye can find, and
-  // worth it not to leave one light burning daylight-blue at dusk.)
-  for (const w of winFill) {
-    w.intensity = m.env * 0.6;
-    if (m.hemiSky !== undefined) w.color.setHex(m.hemiSky);
+  // the mood sets the candela; the rig's three knobs ride on top of it
+  for (const L of lamps) {
+    L.intensity = m.lamp * LAMP.gain;
+    L.angle = LAMP.angle;
+    L.color.copy(LAMP.rgb);
   }
+  // THE FIRE DOES NOT KNOW WHAT TIME IT IS, and tying it to the lamps was a
+  // mistake worth recording: scaled that way it went 14 -> 38 cd at night,
+  // which is the opposite of what a night wants. It is a constant, set once
+  // and reasserted here only so a mood change cannot leave it muted-then-lit.
+  if (STOVE.light) STOVE.light.intensity = STOVE.cd0;
   // the environment is baked in ONE sky, so it has to be scaled with
   // everything else or the room stays lit by a sun that has gone
   for (const [mat, e0] of ENV0) mat.envMapIntensity = e0 * (m.env / 0.55);
@@ -1852,13 +2602,28 @@ const setMood = i => {
   // captured — propSetEnv scales the ones already built AND the ones
   // the editor builds later, from the factory's own record
   if (typeof propSetEnv === 'function') propSetEnv(m.env / 0.55);
+  // AND SO IS THE AEROPLANE (G67). It never was: app.js set envMapIntensity
+  // once when the material was built and nothing touched it again, so under
+  // GOLDEN or NIGHT the room dimmed around a machine still reflecting a
+  // midday probe. Same shape as the props — the factory keeps each
+  // material's own env0 and scales from it, so materials built later by the
+  // editor arrive already correct.
+  if (typeof aeroSetEnv === 'function') aeroSetEnv(m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
   M.daylight.color.setHex(m.card);
   M.skyPanel.emissiveIntensity = m.panel;
+  // the registered emitters. The shop lamps' own shades follow the power knob,
+  // because a shade that stays white-hot while its lamp is turned down is the
+  // same lie the bulb used to tell.
+  for (const e of EMIT)
+    e.mat.emissiveIntensity = e.e0 * (e.key === 'lamps' ? LAMP.gain : 1);
   // the filaments follow the lamps they are in, or a night shed has cold bulbs
   // burning in it
-  M.bulb.emissiveIntensity = 0.5 + m.lamp / 70;
+  M.bulb.emissiveIntensity = (0.5 + m.lamp / 70) * LAMP.gain;
+  M.bulb.emissive.copy(LAMP.rgb);       // a filament is the colour it burns at
   shaftMat.opacity = m.shaft;
+  // LAST, so a mood change cannot turn a muted source back on
+  applyMutes(m);
   return m;
 };
 
@@ -2170,6 +2935,7 @@ const CS = { on: true };   // the aeroplane's own print, below
 // is the room's own default, and any caller's own setMood immediately replaces
 // it. (`moodI` starts at -1 so the first call always installs.)
 setMood(0);
+texBudget();          // print the fragment-sampler count, once, per G66
 
 return {
   group: ROOT, background: BG, fog: FOG,
@@ -2183,7 +2949,9 @@ return {
   // rather than moving the aeroplane, so the sim keeps its own coordinates.
   doorAxis: -1, floorY: 0,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
-  lights: { key: key, hemi: hemi, top: top, winFill: winFill, lamps: lamps },
+  lights: { key: key, lamps: lamps },
+  lampRig: lampRig, setLampRig: setLampRig,
+  texBudget: texBudget,        // dev: what the room costs in fragment samplers
   mats: M, shafts: shafts, faceShafts: faceShafts,
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
@@ -2205,9 +2973,47 @@ return {
   // PMREMs it has to be able to ask for the current one rather than being
   // handed one at build time — and to be told when a swapped-in equirect has
   // finished decoding, since a bake against a blank texture is a black room.
-  skyTexture: () => (skyMat ? skyMat.map : null),
+  // A GRADED ROOM HAS NO MAP to hand over - the picture only exists as the
+  // sphere's own shader - so it answers with the small target instead, which
+  // is the same pixels at probe resolution. `renderSky` is idempotent: it
+  // returns the existing target unless a mood (or a decode) dirtied it.
+  skyTexture: () => (skyMat && skyMat.map ? skyMat.map
+    : (skyRT && !skyDirty ? skyRT.texture : null)),
+  // the GPU/baked switch. `null` from setSkyMode means this payload has only
+  // one of the two, which is the case for the shipping set.
+  skyModes: () => {
+    const r = MOODS[Math.max(0, moodI)] || {};
+    const m = [];
+    if (r.u && gradeReady) m.push(['gpu', 'GPU shader (one panorama)']);
+    if (typeof r.img === 'function') m.push(['baked', 'precomputed pictures']);
+    return m;
+  },
+  skyMode: () => skyMode,
+  setSkyMode: m => {
+    const want = m === 'baked' ? 'baked' : 'gpu';
+    if (want === skyMode) return skyMode;
+    skyMode = want;
+    const row = MOODS[Math.max(0, moodI)];
+    if (row) setSky(row);
+    return skyMode;
+  },
+  renderSky: r => (gradeReady ? (skyDirty || !skyRT ? renderSky(r)
+                                                    : skyRT.texture) : null),
+  graded: !!(SKY_GRADE && gradeReady),
+  _skyRT: () => skyRT,          // dev handle: the probe reads it back to
+                                // check the shader against the offline grade
+
   onSkyReady: fn => { skyOnReady = fn; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   mood: () => moodI,
+  // THE LIGHT SWITCHES: one per source, so a test can ask which one is doing
+  // it. NOT `lights` - that name is already the dev handle onto the light
+  // OBJECTS four lines up, and an object literal carrying a name twice keeps
+  // only the last one. That is the second time this file has been bitten by
+  // exactly that (see `keyI`), and the first symptom is always a handle that
+  // silently becomes something else.
+  lightSwitches: LIGHTS.map(l => ({ key: l.key, name: l.name })),
+  lightOn: k => lit(k),
+  setLight: setLight,
 };
 }

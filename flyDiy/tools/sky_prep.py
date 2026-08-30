@@ -60,52 +60,80 @@ import sys
 import numpy as np
 from PIL import Image
 
+import sky_grade
+
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 SKY = os.path.join(ROOT, 'assets', 'hangar_sky')
 
-# ---------------------------------------------------------------- the table
-# Everything here is a DECISION; everything else in this file is a
-# measurement. Per row:
-#   level - how much light this sky puts into the shed. Alps is the anchor at
-#           1.00 and the rest are a day cycle, because the sources are not
-#           absolutely calibrated (see the module docstring).
-#   mean  - what the display image should average to. The alps value is the
-#           mean of the existing hand-made alps_field.jpg, so that picture
-#           comes back unchanged; the rest ride the same day curve the eye
-#           expects to see through the door.
-#   lamp  - the shop lamps' candela. A room decision: a night shed runs them up.
-#   ex    - renderer exposure the room is graded at, as the old moods carried it.
-#   shaft - opacity of the roof-light dust shafts. Needs a hard sun to exist.
-#   sunOff- how far off the door axis the sun should stand, in degrees. The
-#           backdrop sphere's yaw is SOLVED from this and the measured sun, so
-#           it is a framing decision expressed in what you actually want to see
-#           out of a 31 m opening. The alps value is not chosen: 126 deg is
-#           what its existing quarter-turn measures to, so that row's mountains
-#           stay exactly where they were. The Kloppenheim field is the same
-#           field all the way round, so its rows are free to put the sun where
-#           it does some good - 40 deg is off the door's shoulder, which rakes
-#           the floor at sunset instead of hiding the sun behind the shed.
-#   kc    - OVERRIDE for the key light's colour, and `card` the same for the
-#           daylight card standing in the doorway (the big soft source the
-#           room's own environment bake reads). Only the alps carries them: its
-#           sun measures white (0xfffdf9) and its sky measures blue, and the
-#           shed has always been lit warm against both - and the user asked to
-#           keep the alps as it is "for now". Every other row uses its own
-#           measured colours. Delete the two overrides and the alps harmonizes
-#           with the rest of the set.
-SKIES = [
-    # key       name        source                    level  mean  lamp   ex   shaft sunOff  kc        card
-    ('alps',    'AFTERNOON', 'alps_field.hdr',         1.00, None,  70, 0.92, 0.055, 126, 0xffdca8, 0xf2ecdc),
-    ('noon',    'NOON',      'kloppenheim_noon.hdr',   1.15, 0.54,  55, 0.86, 0.050,  40, None,     None),
-    ('covered', 'OVERCAST',  'kloppenheim_covered.hdr', 0.72, 0.47, 120, 0.98, 0.035, 40, None,     None),
-    ('sunset',  'SUNSET',    'kloppenheim_sunset.hdr',  0.42, 0.32, 140, 0.92, 0.090, 40, None,     None),
-    ('night',   'NIGHT',     'kloppenheim_night.hdr',   0.10, 0.17, 190, 1.02, 0.030, 40, None,     None),
-]
 ANCHOR = 'alps'
+
+# --------------------------------------------------------------- THE TABLE
+# ONE panorama, graded into every hour (user, 2026-08-29: "we can officially
+# retire the previous 5 HDRI's, and keep only the alps"). It began as a test
+# area beside a five-HDRI set; it won, and it is now the only set there is.
+# What decided it: the grade runs on the GPU from a single base picture plus a
+# gain map, so a whole day costs 5.98 MB at 8k against 6.1 MB for six baked 4k
+# pictures — and a seventh hour costs one row rather than another panorama.
+#
+# The old note, kept because it is still the argument for the shape: the
+# alps field's own radiance, graded into other hours by tools/sky_grade.py
+# (user 2026-08-29: "alter the alps HDRI to fit the sunset and night moods ...
+# I know it is hacky, but I prefer it, and would love to package only one").
+#
+# THE COLUMNS. `grade` is the recipe name in tools/sky_grade.py. `level` is how
+# much light this hour puts into the shed. `lamp`, `ex` and `shaft` are room
+# decisions (candela, renderer exposure, dust-shaft opacity). `sunOff` is how
+# far off the door axis the sun should stand, in degrees, and the backdrop
+# sphere's yaw is SOLVED from it and the measured sun. `kc`/`card` are colour
+# overrides and only the alps row carries them, because the shed has always
+# been lit warm against a sun that measures white.
+#
+# `mean` is None on most rows ON PURPOSE: the grade sets the level in RADIANCE
+# and one shared exposure (the anchor's) is what makes five pictures one day.
+# NIGHT is the exception and has to be, for the same reason the shipping set
+# needed one: at a true linear night the picture is a black rectangle. Its
+# `mean` lifts the DISPLAY only - the light rig is still measured off the
+# graded radiance, and `level` sets the room independently.
+SKIES = [
+    # key      name        grade      level  mean  lamp   ex   shaft sunOff  kc        card
+    ('alps',    'AFTERNOON', 'as-is',   1.00, None,  70, 0.92, 0.055, 126, 0xffdca8, 0xf2ecdc),
+    # ...and the graded rows turn the sphere so the door LOOKS AT the hour.
+    # The whole point of grading is the warm quarter of sky, and at the alps'
+    # own 126 deg that quarter is behind the shed: the first run through the
+    # room gave a grey valley out of a doorway that was supposed to be a
+    # sunset. Same panorama, different quarter of it - which is free, because
+    # this one is mountains the whole way round.
+    ('ggolden', 'GOLDEN',    'golden',  0.62, None, 110, 0.90, 0.100,  126, None,     None),
+    ('gsunset', 'SUNSET',    'sunset',  0.42, None, 140, 0.92, 0.075,  126, None,     None),
+    ('gdusk',   'DUSK',      'dusk',    0.20, None, 170, 0.98, 0.045,  126, None,     None),
+    ('gnight',  'NIGHT',     'night',   0.07, 0.085, 190, 1.02, 0.030, 126, None,     None),
+    ('gcovered', 'OVERCAST', 'covered', 0.72, None, 120, 0.98, 0.035,  126, None,     None),
+]
+# THE LAB RUNS OFF THE 8k (user, 2026-08-29). The backdrop is the one thing
+# you look at through a 31 m door and 4k was measurably under 1:1 there: at a
+# 1920 viewport the opening spans about 50 deg of azimuth and ~770 screen
+# pixels, and 4096 px per 360 deg only puts 570 of them across it. 8k puts
+# 1140. With the runtime grade this is ONE picture, so it is the only place in
+# the whole set that pays for the resolution.
+SKY_SRC = 'alps_field_8k.hdr'
+# ...but the ROWS are graded and measured at half of it. The integrals are the
+# same to four decimals at 4k, the preview JPEGs are a reference and not the
+# payload, and grading 33 million pixels six times over costs minutes and
+# gigabytes for nothing. Only `base` and `gain` — the two the shader actually
+# samples — are written at full resolution.
+SKY_MEASURE_MAX = 4096
 
 # the alps/AFTERNOON rig exactly as hangar.js authored it (the old MOODS[0]).
 # The measured ratios multiply into these, so the anchor reproduces itself.
-RIG0 = {'key': 2.8, 'hemi': 0.30, 'top': 0.46, 'env': 0.55}
+# ENV CARRIES THE INDIRECT NOW (G62.5). hemi/top/win are gone from the room, so
+# the environment is the only thing left modelling anything that is not the sun
+# or a lamp - and 0.55 was tuned as a SUPPLEMENT to three other fills. Measured
+# against them, x2.2 puts the room back where it was and better: mean 75.2 with
+# 3.8% of the frame crushed, against 64.4 and 14.5% for the six-source rig.
+# `hemi` and `top` stay in this table because they are still MEASUREMENTS of
+# the sky's shape, and the directness ratio is derived from them; the room just
+# no longer has a light to apply them to.
+RIG0 = {'key': 2.8, 'hemi': 0.30, 'top': 0.46, 'env': 1.21}
 # ...and the COLOURS those intensities were authored against. A light's colour
 # carries luminance: hand a lamp the measured sky chroma instead of the hand-
 # picked one and the room gets brighter without anybody changing an intensity,
@@ -327,13 +355,38 @@ def keep_level(i0, authored_hex, colour):
 
 
 def main():
-    imgs, meas = {}, {}
-    for key, name, src, level, mean, lamp, ex, shaft, off, kc, card in SKIES:
-        p = os.path.join(SKY, src)
-        if not os.path.exists(p):
-            sys.exit('missing source: %s' % p)
-        print('reading %-26s' % src, end=' ', flush=True)
-        imgs[key] = read_hdr(p)
+    table = SKIES
+    outdir = SKY
+
+    imgs, meas, srcs, refs = {}, {}, {}, {}
+    base = base_uv = None
+    base_peak = 0.0
+    bp = os.path.join(SKY, SKY_SRC)
+    if not os.path.exists(bp):
+        sys.exit('missing source: %s' % bp)
+    print('reading %-26s' % SKY_SRC, end=' ', flush=True)
+    base_full = read_hdr(bp)
+    # the grading/measuring copy, decimated if the source is bigger
+    step = max(1, base_full.shape[1] // SKY_MEASURE_MAX)
+    base = base_full[::step, ::step] if step > 1 else base_full
+    bm = measure(base)
+    base_uv, base_peak = bm['sunUV'], bm['peak']
+    print('%dx%d (rows at %dx%d) -> grading %d rows off it'
+          % (base_full.shape[1], base_full.shape[0],
+             base.shape[1], base.shape[0], len(table)))
+    for key, name, src, level, mean, lamp, ex, shaft, off, kc, card in table:
+        if src not in sky_grade.GRADES:
+            sys.exit('unknown grade: %s' % src)
+        srcs[key] = '%s (graded: %s)' % (SKY_SRC, src)
+        print('grading %-25s' % src, end=' ', flush=True)
+        imgs[key] = sky_grade.grade(base, sky_grade.GRADES[src], base_uv)
+        # the yardstick the glow and the stars were measured against, kept so
+        # the shader can be handed absolute numbers (see uniforms())
+        H0 = base.shape[0]
+        e0 = np.cos(((np.arange(H0, dtype=np.float32) + 0.5) / H0) * math.pi)[:, None]
+        refs[key] = sky_grade.sky_level(
+            sky_grade.grade(base, dict(sky_grade.GRADES[src], glow=None,
+                                       stars=None, exposure=1.0), base_uv), e0)
         meas[key] = measure(imgs[key])
         m = meas[key]
         print('%dx%d  peak %8.0f  mean %.4f  sun %s %.4f sr' %
@@ -347,11 +400,11 @@ def main():
     print('\nanchor %s: directness %.3f, ground bounce x%.3f (occlusion)'
           % (ANCHOR, a_direct, gnd_k))
 
-    rows, domes = [], {}
+    rows, domes, anchor_k = [], {}, None
     print('\n%-9s %-9s %6s %6s | %5s %5s %5s %5s %5s | %-9s %-9s %8s' %
           ('key', 'name', 'direct', 'level', 'key', 'hemi', 'top', 'env',
            'panel', 'keyColour', 'fog', 'jpeg'))
-    for key, name, src, level, mean, lamp, ex, shaft, off, kc, card in SKIES:
+    for key, name, src, level, mean, lamp, ex, shaft, off, kc, card in table:
         m, img = meas[key], imgs[key]
         sun, sky = lum_of(m['sunE']), lum_of(m['skyE'])
         direct = sun / max(1e-9, sun + sky)
@@ -388,12 +441,26 @@ def main():
             tgt = (float(np.asarray(Image.open(ref).convert('RGB'),
                                     dtype=np.float32).mean() / 255.0)
                    if os.path.exists(ref) else 0.50)
-        k = solve_exposure(img, tgt)
+        # THE EXPOSURE IS THE ANCHOR'S, FULL STOP. Re-solving it
+        # per row would normalise every graded picture back to the same mean
+        # and undo the grade's whole job: the recipes decide the level in
+        # RADIANCE, and ONE shared exposure is what turns five of them into
+        # one day rather than five pictures of the same brightness.
+        # ...and `anchor_k` is captured ONLY on the anchor row. Capturing it
+        # from whichever row last solved its own exposure means NIGHT's lift
+        # becomes the shared exposure for every row after it, which is how
+        # OVERCAST came out as a sheet of paper.
+        if anchor_k is not None and mean is None:
+            k = anchor_k
+        else:
+            k = solve_exposure(img, tgt)
+            if key == ANCHOR:
+                anchor_k = k
         out = (srgb(img * k) * 255 + 0.5).astype(np.uint8)
         im = Image.fromarray(out)
         if OUT_W != img.shape[1]:
             im = im.resize((OUT_W, OUT_W // 2), Image.LANCZOS)
-        jpg = os.path.join(SKY, '%s.jpg' % key)
+        jpg = os.path.join(outdir, '%s.jpg' % key)
         im.save(jpg, quality=JPEG_Q, optimize=True, subsampling=JPEG_SUB)
 
         # THE GLAZING PANELS glow with whatever the window shows, which is the
@@ -422,9 +489,15 @@ def main():
         yaw = math.radians(off) - (m['sunUV'][0] - 0.5) * 2 * math.pi
 
         rows.append({
-            'key': key, 'name': name, 'src': src, 'file': '%s.jpg' % key,
+            'key': key, 'name': name, 'src': srcs[key],
+            'file': '%s.jpg' % key, 'grade': src,
             'bytes': os.path.getsize(jpg),
             'yaw': round(yaw, 5), 'sunOff': off,
+            # THE RUNTIME HALF: what the fragment shader needs to reproduce
+            # this row from the ONE base picture, instead of from its own JPEG
+            'u': (sky_grade.uniforms(sky_grade.GRADES[src], base_uv,
+                                     float(base_peak), refs[key], anchor_k, k)
+                  ),
             # ---- measured
             'sunUV': m['sunUV'], 'hasSun': m['hasSun'],
             'sunColor': sunc,
@@ -461,7 +534,35 @@ def main():
         'rig0': RIG0, 'keyAmbient': KEY_AMBIENT, 'hemiCap': HEMI_CAP,
         'skies': rows,
     }
-    with open(os.path.join(SKY, 'skies.json'), 'w') as f:
+    # THE ONE PICTURE, and the gain map that carries the range the JPEG
+    # clipped. Everything the shader needs to rebuild any of the rows
+    # above from this single panorama.
+    # FULL RESOLUTION here, and only here: this pair IS the payload
+    bb, gg2, gmax = sky_grade.pack(base_full, anchor_k)
+    Image.fromarray(bb).save(os.path.join(outdir, 'base.jpg'),
+                             quality=JPEG_Q, optimize=True, subsampling=JPEG_SUB)
+    # PNG, not JPEG: this map is read back through an exp2 over 17 stops,
+    # where a JPEG's ringing round the disc edge becomes real radiance
+    Image.fromarray(gg2).save(os.path.join(outdir, 'gain.png'), optimize=True)
+    with open(os.path.join(outdir, '_grade.glsl'), 'w') as f:
+        f.write(sky_grade.GLSL)
+    out['gmax'] = gmax
+    out['baseExposure'] = anchor_k
+    out['baseSize'] = [int(base_full.shape[1]), int(base_full.shape[0])]
+    out['basePeak'] = float(base_peak)
+    nz = float((gg2.max(axis=2) > 0).mean())
+    bsz = os.path.getsize(os.path.join(outdir, 'base.jpg')) / 1048576
+    gsz = os.path.getsize(os.path.join(outdir, 'gain.png')) / 1048576
+    print('runtime: base.jpg %.2f MB + gain.png %.2f MB = %.2f MB for ALL '
+          'rows (gmax %.1f stops, %.1f%% of pixels clipped) + _grade.glsl'
+          % (bsz, gsz, bsz + gsz, gmax, nz * 100))
+    print('         base is %dx%d' % (base_full.shape[1], base_full.shape[0]))
+    out['source'] = SKY_SRC
+    out['note'] = ('GENERATED by tools/sky_prep.py - do not edit. ONE '
+                   'panorama (%s) graded into %d hours by tools/sky_grade.py, '
+                   'each measured exactly as a delivered sky would be.'
+                   % (SKY_SRC, len(rows)))
+    with open(os.path.join(outdir, 'skies.json'), 'w') as f:
         json.dump(out, f, indent=2)
     tot = sum(r['bytes'] for r in rows)
     print('\nassets/hangar_sky/skies.json  +  %d display equirects, %.1f MB'

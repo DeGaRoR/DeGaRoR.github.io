@@ -8,6 +8,13 @@
 // object the code just wrote proves nothing. The table is parsed out of the
 // python source, so there is still exactly one authority for what exists.
 //
+// TWO BAKERS, TWO TABLES, ONE REGISTRY (G62.10). The Jodel airframes come from
+// OBJ rather than glTF and so from a second baker, tools/jodel_prep.py, with
+// its own declared table. That is a widening of the contract, not a hole in
+// it: this gate reads BOTH declarations and the registry must equal their
+// union exactly, in order. It caught the airframes the moment they were
+// registered without being declared here, which is the gate doing its job.
+//
 // Run: node tools/_prop_check.js        (contract: one final `GATE PROPS: ...`)
 const fs = require('fs');
 const path = require('path');
@@ -29,6 +36,13 @@ for (const m of tableSrc.matchAll(/^\s{4}P\('([a-z0-9_]+)',\s*'([a-z]+)',\s*'([^
 const declaredGroups = [];
 for (const m of tableSrc.matchAll(/^\s{4}\('([a-z]+)',\s+'([^']*)'\),$/gm))
   declaredGroups.push(m[1]);
+
+// ...and the airframe table, whose rows are dicts rather than P() calls
+const airSrc = fs.readFileSync(path.join(__dirname, 'jodel_prep.py'), 'utf8');
+const airGroup = (airSrc.match(/^GROUP = \('([a-z]+)',/m) || [])[1];
+for (const m of airSrc.matchAll(/dict\(key='([a-z0-9_]+)',\s*label='([^']*)'/g))
+  declared.push({ key: m[1], group: airGroup, label: m[2] });
+if (airGroup && !declaredGroups.includes(airGroup)) declaredGroups.push(airGroup);
 console.log(`declared: ${declared.length} props in ${declaredGroups.length} groups`);
 if (declared.length < 5) { console.log('GATE PROPS: FAIL (could not read the table)'); process.exit(1); }
 

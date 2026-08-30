@@ -416,6 +416,10 @@ PAGE.post = ctx => {
   const M = mats(), aps = CW.apertureList();
 
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:cowl';
   const cowl = new THREE.Group();
   CW.buildSurface(cowl, M, aps);
   CW.buildLips(cowl, M, aps);

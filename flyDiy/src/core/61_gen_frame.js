@@ -264,6 +264,7 @@ function genLattice(S, gearX, track, kScale) {
   // corner. Only ONE crank: two sections, no more.
   const zCrank = w.crankAt > 0 ? zRoot + (G.semi - zRoot) * w.crankAt : 0;
   const zs = [];
+  const ribZ = [];              // rib stations, metres from the centreline
   for (let i = 1; i <= w.panels; i++)
     zs.push(zRoot + (G.semi - zRoot) * i / w.panels);
   if (zCrank > 0) {
@@ -408,6 +409,14 @@ function genLattice(S, gearX, track, kScale) {
       const nRib = Math.max(1, Math.round((zo - zi) / 0.4));
       const ribM = nRib * 0.5 * (chordAt(zi) + chordAt(zo)) * 0.30;
       pt(cF[i + 1], 0.5 * ribM); pt(cR[i + 1], 0.5 * ribM);
+      // ...AND WHERE THEY ARE (G66). This loop has always known the rib
+      // COUNT — it bills their mass — and thrown the stations away, so
+      // anything that wanted to draw a rib tape had to guess: garage.js
+      // carried GEN_RIBS = 13, which is right for the default Cub's
+      // semispan and drifts on every other one. The pitch is the same 0.4 m
+      // rule, read once, so the structure that pays for the ribs and the
+      // surface that shows them cannot disagree.
+      for (let k = 1; k <= nRib; k++) ribZ.push(zi + (zo - zi) * k / nRib);
     }
     let cFB = null, cRB = null;
     sec('bracing');
@@ -724,6 +733,8 @@ function genLattice(S, gearX, track, kScale) {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, GAL, GAR, TW,
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
+    ribZ,                       // G66: where the ribs the mass model billed are
+
     bracing: useStrut ? 'strut' : 'cantilever box', strutOffset, trike,
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,

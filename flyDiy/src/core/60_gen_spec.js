@@ -109,6 +109,118 @@ const GEN_MATERIALS = {
   },
 };
 
+// ===========================================================================
+// GEN_BUILD_GRAMMAR (G68) — HOW EACH CONSTRUCTION SHOWS ITSELF
+// ===========================================================================
+// The four rows above already move physics and have always moved NOTHING you
+// can see: the longest-standing open playtest item in HANDOVER is "Structure
+// has no visual feedback ... Four materials look identical". This is the
+// other half of each row — what an aeroplane built that way actually looks
+// like, in metres, so the fasteners and seams land on the real structure
+// instead of being a decorative tiled texture (the user's own objection).
+//
+// It lives HERE, beside GEN_MATERIALS, because it is the same fact seen from
+// the other side. `alloy.cd0`'s own comment already reads "flush rivets, but
+// laps and oil-canning" — the grammar was documented in a comment and not
+// implemented.
+//
+// EVERY LENGTH IS METRES, and every one is a real number rather than a chosen
+// one. The renderer consumes them through the G66 surface field, whose sL and
+// sC are also metres, so a 25 mm rivet pitch is 25 mm on the aeroplane at any
+// size of aeroplane.
+//
+// THE PITCHES ARE NOT THE CAGE'S RING SPACING, and must not be. The cage's
+// rings sit at ANATOMY stations (pillars, bulkheads, the tailpost) 0.6-1.5 m
+// apart, and the boom is a single ~4 m bay with no ring in it at all (seen
+// directly in G66's lattice view). A real airframe carries frames every
+// 0.38-0.50 m regardless. So the frames run at their own metric pitch along
+// sL and the cage's own rings get a HEAVIER line on top — which is also what
+// a real frame diagram looks like, bulkheads being frames like any other.
+const GEN_BUILD_GRAMMAR = {
+  // 4130 tube + Ceconite. THERE ARE NO FASTENERS IN THE COVERING AT ALL: the
+  // fabric is cemented and sewn to the frame and there is nothing to rivet.
+  // Everything you see is the STRUCTURE PUSHING THROUGH A MEMBRANE, which is
+  // why this row is all tape and sag and no heads.
+  tubeFabric: {
+    name: 'tube + fabric',
+    framePitch: 0.42,        // truss bays; the tape crosses at each
+    stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
+    panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
+    // 50 mm (2 in) pinked-edge surface tape, doped, rising 0.3-0.8 mm with a
+    // soft shoulder. This ridge is most of what makes a covered airframe read
+    // as covered — garage.js's own comment, and it was right.
+    tape: { w: 0.050, rise: 0.00065 },
+    // fabric slack between members: 0.5-1.5 % of the pitch, FLAT-BOTTOMED.
+    // The exponent is what makes it read as a membrane under tension rather
+    // than as a wave, and 1.4 is the value the old bump sheet used.
+    sag: { frac: 0.006, exp: 1.4 },
+    dish: 0,
+    fastener: null,
+    seam: null,
+    rough: { member: -0.04, seam: 0 },   // dope pools slightly on a tape
+  },
+  // spruce + birch ply. Pinned and glued: the pins are a STIPPLE under dope,
+  // not bright dots, and they follow every glue line.
+  wood: {
+    name: 'spruce + ply',
+    framePitch: 0.38,
+    stringerPitch: 0.22,
+    panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
+    panelAround: 0.85,       // and will not wrap much past this
+    tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
+    sag: { frac: 0.0015, exp: 2.0 },     // ply dishes; it does not sag
+    dish: -0.0003,
+    // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
+    fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
+                dia: 0.0016, rise: 0.00012 },
+    seam: { width: 0.015, step: 0.0004 },   // a 10:1 scarf, sanded flush-ish
+    rough: { member: 0.0, seam: 0.05 },
+  },
+  // 2024-T3 semi-monocoque. The loudest grammar, and where believability is
+  // won: A RIVET IS A LOAD PATH. It exists only where the skin meets a frame,
+  // a stringer, a spar cap or another sheet — never in the middle of a panel.
+  alloy: {
+    name: '2024 alloy sheet',
+    framePitch: 0.45,        // 380-500 mm; the C172 is ~20 in
+    stringerPitch: 0.14,     // 100-180 mm on a light aeroplane
+    panelAlong: 1.0, panelAround: 0.55,
+    tape: { w: 0.012, rise: 0.00008 },   // the frame telegraphing through
+    sag: { frac: 0, exp: 1 },
+    // OIL-CANNING, and it is what makes metal read as metal in raking light.
+    // 0.5-2 mm, and it DISHES IN more than it bulges out — hence the sign.
+    dish: -0.0012,
+    // AN470 universal: 4.8 mm across, 1.4 mm proud, 20-25 mm pitch (the 4D-6D
+    // design rule). EDGE DISTANCE is 2D, so the row sits 5-8 mm INSIDE the
+    // sheet edge rather than on it — a cheap, strong, specific cue, and it
+    // falls out for free here because the row is on the member and the panel
+    // line is beside it.
+    fastener: { kind: 'rivet', pitch: 0.024, rowW: 0.016,
+                dia: 0.0048, rise: 0.0014 },
+    // lap: 20-25 mm overlap, one sheet thickness of step
+    seam: { width: 0.022, step: 0.0008 },
+    rough: { member: 0.02, seam: 0.06 },
+  },
+  // carbon over foam. ALMOST NOTHING, AND THAT IS THE LOOK — the point of a
+  // moulded structure is that it has no fasteners and no seams in the flying
+  // surfaces. Getting this row right means resisting the urge to add detail.
+  carbon: {
+    name: 'carbon + epoxy',
+    framePitch: 0, stringerPitch: 0,     // nothing telegraphs through a moulding
+    panelAlong: 0, panelAround: 0,
+    // ONE line, at the waterline, because that is where the mould splits —
+    // and the waist rail is exactly sC = 0, so it costs a single comparison
+    partingAtWaist: 0.003,
+    tape: { w: 0, rise: 0 },
+    sag: { frac: 0, exp: 1 },
+    dish: 0,
+    // 5-10 mm weave print-through at ~0.05 mm is the whole difference between
+    // "moulded" and "plastic"; it rides the finish's own twill sheet
+    fastener: null,
+    seam: null,
+    rough: { member: 0, seam: 0.03 },
+  },
+};
+
 // Fuselage shape families. The aft body tapers from the cabin box to the
 // tailpost, and the FAMILY is the profile of that taper — an exponent on the
 // station fraction, applied to width, floor and deck alike. Straight is a
@@ -760,9 +872,27 @@ function genDefaults(target, defaults) {
   return target;
 }
 
+// THE SECTIONED KEYS. The sniff below used to be `Array.isArray(r.wings)`
+// alone, which is true of every spec the game itself writes and false of every
+// PARTIAL one — a file carrying only a cage, or only a paint, took the pre-G3
+// flat branch and came out the other side with `controls`, `prop`, `systems`,
+// `bracing` and a sectioned `meta` quietly missing, because that branch
+// rebuilds `out` field by field from the FLAT names. A spec that names any
+// section is a sectioned spec: normalising it is genDefaults' job and nothing
+// else's. (G63; the `cage` line below was the one-field patch this replaces.)
+// ONLY keys the flat shape CANNOT have. `tail`, `gear`, `cowl` and `paint` are
+// deliberately absent from this list: the flat shape carries all four under
+// those very names, so sniffing on them would route a genuine old file into
+// the sectioned branch and lose it. `wings` keeps its array test because the
+// flat name is `wing`, singular.
+const GEN_SECTIONED = ['cabin', 'fuselage', 'cage', 'engines', 'controls',
+                       'bracing', 'prop', 'systems', 'fuel', 'cargo', 'meta'];
+const genIsSectioned = r => Array.isArray(r.wings) ||
+  GEN_SECTIONED.some(k => r[k] !== undefined && r[k] !== null);
+
 function genNormaliseSpec(raw) {
   const r = genClone(raw && typeof raw === 'object' ? raw : {});
-  if (Array.isArray(r.wings)) return genDefaults(r, GEN_DEFAULT);
+  if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
   const out = {
@@ -774,10 +904,9 @@ function genNormaliseSpec(raw) {
     fuel: { litres: r.fuelL },
     fuselage: Object.assign({}, f, { material: r.material }),
     // The cage post-dates the flat shape entirely, so a genuinely old spec
-    // never has one — but this branch is also what a spec carrying ONLY a cage
-    // falls into (the sniff above is `wings`, which such a spec has not got),
-    // and rebuilding `out` field by field is exactly where a section goes
-    // missing without anything reporting it.
+    // never has one, and since G63 a spec that carries one is sniffed as
+    // SECTIONED and never reaches here. Kept because a hand-written hybrid
+    // costs one field to honour and nothing to leave out.
     cage: r.cage,
     cowl: r.cowl,
     engines: [{ type: r.engine, mount: 'nose',

@@ -163,6 +163,42 @@ const isPillarMat = mat => mat.roof === mat.glass && mat.roof === mat.belly
   && /^pillar/.test(mat.roof);
 
 // ---------------------------------------------------------------------------
+// THE SURFACE FIELD (G66) — the rail index every skin vertex carries
+// ---------------------------------------------------------------------------
+// The cage's RINGS are the formers and its LEVELS are the longerons, so the
+// lattice IS the structure and a material system needs no UV unwrap: it needs
+// the lattice's own coordinate, in metres. Every vertex carries
+//
+//   aStruct = [ sL, sC, st, lv ]
+//     sL  metres along the body on the waist rail, 0 at the FIREWALL, +AFT
+//         (laps face aft: a seam's direction is the airflow's)
+//     sC  metres around the section, 0 ON THE WAIST RAIL, + upward
+//     st  station coordinate: integer = a structural ring, fraction = inside
+//         a bay
+//     lv  level coordinate:  integer = a structural rail, fraction = a guard
+//
+// sC and lv are per-LEVEL, so the +x and -x halves carry IDENTICAL values.
+// That is not a simplification, it is forced: P() welds by position with x
+// snapped to 0, so the roof-crown and keel chains are SHARED between the two
+// halves and a wrapping coordinate would be double-valued there. The tile
+// therefore mirrors across the spine and the keel — which is how a fabric
+// aeroplane is actually covered, two halves with a seam and a tape down each
+// centreline. ANY FUTURE NON-MIRROR-SYMMETRIC SURFACE COORDINATE BREAKS THIS
+// SILENTLY, as a smear rather than an error.
+//
+// GUARDS ARE NOT STRUCTURE. The `name + '+g'` rings and the waistG/bandG
+// levels exist to pin Catmull-Clark, not because an aeroplane has a former
+// there — so they take FRACTIONAL coordinates and nothing is ever drawn on
+// them. That is what lets an alloy fuselage carry 0.45 m frames on a cage
+// whose rings are 1.2 m apart, without adding a single vertex.
+const CAGE_LVI_BASE = { keel: 0, floor: 1, waist: 2, band: 3, ceil: 4, roof: 5 };
+const cageLvIndex = S => ({
+  ...CAGE_LVI_BASE,
+  waistG: 2 - (S.gWaistT || 0),      // lerp(waist -> floor, gWaistT)
+  bandG:  3 + (S.gBandT || 0),       // lerp(band  -> ceil,  gBandT)
+});
+
+// ---------------------------------------------------------------------------
 // resolve: spec -> ordered rings + bays + windshield/nose specials
 // ---------------------------------------------------------------------------
 function lerpLv(a, b, t) {
@@ -673,16 +709,23 @@ function buildCage2(S, step) {
     bays.push({ mat, guards: sv >= 2 ? guards : null });
   }
 
-  const seq = [], bayOf = [];
+  // stOf: the station coordinate of each seq ring. A KEPT ring is a real
+  // former and takes the next integer; a guard ring takes its own bay t and
+  // never an integer (see THE SURFACE FIELD).
+  const seq = [], bayOf = [], stOf = [];
+  let stN = 0;
   for (let k = 0; k < kept.length; k++) {
-    seq.push(kept[k]);
+    seq.push(kept[k]); stOf.push(stN);
     if (k < kept.length - 1) {
       const b = bays[k];
       if (b.guards)
-        for (const t of b.guards)
+        for (const t of b.guards) {
           seq.push(lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g'));
+          stOf.push(stN + t);
+        }
       const subs = 1 + (b.guards ? b.guards.length : 0);
       for (let s = 0; s < subs; s++) bayOf.push(b.mat);
+      stN++;
     }
   }
 
@@ -693,16 +736,148 @@ function buildCage2(S, step) {
     r.lv.waistG = lerpLv(r.lv.waist, r.lv.floor, S.gWaistT);
   }
 
+  // level order present on a ring, top -> bottom
+  const ordOf = r => LV.filter(k => r.lv[k] != null);
+
+  // ---- THE SURFACE FIELD's tables (G66) -----------------------------------
+  const LVI = cageLvIndex(S);
+  // sC: arc length around a ring's own polyline, datum ON THE WAIST RAIL.
+  // The waist is the widest line and the one rail that is present at every
+  // step, so anchoring there puts the tile seam on a real longeron instead
+  // of mid-panel — and a stripe painted along a level is straight because
+  // the level is, not because of where the arc starts.
+  //
+  // THE CENTRELINE COLUMN GETS ITS OWN ARC, and it must. A ring's roof and
+  // keel levels exist TWICE — once on the flank (P/M) and once on the
+  // centreline (C) — and the roof strip, the belly strip and every cap face
+  // run between the two. Giving both the level's arc made those faces ZERO
+  // WIDE in the field: measured on the built mesh, the rails and pillars
+  // came out area-exact (1.000) while `body` sat at 0.554 with a tail to
+  // 4.4, which is the smear those degenerate quads produce. So the C column
+  // keeps walking around the section from its flank neighbour — further
+  // above the waist, further below it — which is what the arc means.
+  const arcOf = r => {
+    const ord = ordOf(r), P0 = {};
+    let s = 0;
+    for (let i = ord.length - 1; i >= 0; i--) {          // keel -> roof
+      if (i < ord.length - 1) {
+        const a = r.lv[ord[i + 1]], b = r.lv[ord[i]];
+        s += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      }
+      P0[ord[i]] = s;
+    }
+    const w = P0.waist != null ? P0.waist
+      : P0.floor != null ? P0.floor : 0;
+    for (const k in P0) P0[k] -= w;
+    // THE FLANK -> CENTRELINE TRAVERSE, SPLIT ONTO THE AXIS EACH COMPONENT
+    // BELONGS TO. On a plain ring the centre column is the crown or the
+    // keel, straight across the section, and the whole traverse is sC's. On
+    // a NOSE ring, a cowl loop or the windscreen's centre chain the crown
+    // LEADS — its own z is well forward of its flank's — and that part of
+    // the traverse is an advance along the body, so it is sL's. Splitting
+    // is not double counting: it is what parameterising a surface means.
+    // Giving all of it to sC left the roof and belly strips with no extent
+    // in the field; giving all of it to sL put the chain forward of the
+    // nose ring on the ruler while sitting behind it in space.
+    const C = {}, D = {}, L = {};
+    for (const k of ord) {
+      const l = r.lv[k];
+      const cy = l.yC != null ? l.yC : l.y, cz = l.zC != null ? l.zC : l.z;
+      const dL = Math.hypot(l.y - cy, l.z - cz);         // along the body
+      const dC = Math.abs(l.x);                          // across the section
+      D[k] = Math.hypot(dC, dL);            // the whole traverse — caps only
+      L[k] = (cz > l.z ? -1 : 1) * dL;      // sL is +aft; a leading crown is -
+      C[k] = P0[k] + (P0[k] >= 0 ? dC : -dC);
+    }
+    return { P: P0, C, D, L };
+  };
+  const sCOf = seq.map(arcOf);
+  // sL: arc length along the WAIST rail, tail -> nose, then datum'd on the
+  // firewall and flipped so it runs +AFT.
+  const wz = r => r.lv.waist || r.lv.floor || r.lv.keel || r.lv.roof;
+  const sLraw = [];
+  {
+    let acc = 0;
+    for (let i = 0; i < seq.length; i++) {
+      if (i) {
+        const a = wz(seq[i - 1]), b = wz(seq[i]);
+        acc += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      }
+      sLraw.push(acc);
+    }
+  }
+  // THE FIREWALL IS THE WINDSCREEN BASE, and the join already says so (G49):
+  // the same `wsFront -> wsAft -> aeroWsA -> ring` first-resolvable chain the
+  // tail arm is measured from. One description of where the firewall is.
+  let iFw = -1;
+  for (const nm of ['wsFront', 'wsAft', 'aeroWsA', 'ring']) {
+    const j = seq.findIndex(r => r.name === nm);
+    if (j >= 0) { iFw = j; break; }
+  }
+  if (iFw < 0) iFw = seq.length - 1;
+  const sLOf = sLraw.map(v => sLraw[iFw] - v);
+  // ONE RULER for anything off the ring lattice — the centre chain, the cowl
+  // deck, the rod, the pod's boom. Their sL/st are read out of the seq's own
+  // (waist z -> sL) and (waist z -> st) tables, linearly interpolated and
+  // linearly EXTRAPOLATED past the ends (the rod runs aft of the tail cap).
+  // Exact at every ring, monotone between: a special vertex never disagrees
+  // with the lattice it joins.
+  const zTab = seq.map(r => wz(r).z);
+  const tabAt = (tab, z) => {
+    const n = zTab.length;
+    if (n === 1) return tab[0];
+    let i = 0;
+    while (i < n - 2 && zTab[i + 1] < z) i++;        // zTab ascends tail->nose
+    const dz = zTab[i + 1] - zTab[i];
+    const t = Math.abs(dz) < 1e-9 ? 0 : (z - zTab[i]) / dz;
+    return tab[i] + (tab[i + 1] - tab[i]) * t;
+  };
+  const sLat = z => tabAt(sLOf, z);
+  const stAt = z => tabAt(stOf, z);
+  const sfOf = i => ({ sL: sLOf[i], sC: sCOf[i], st: stOf[i] });
+  const sfAt = (z, arc) => ({ sL: sLat(z), sC: arc, st: stAt(z) });
+
   // ---- vertices -----------------------------------------------------------
   const V = [], F = [], dashRim = [], seamS = [], seamA = [];
   const dashRimA = [], seamSA = [];      // pod bubble: aft-half records
   const vid = new Map();
-  const P = (x, y, z) => {
+  // A: the per-vertex surface field, parallel to V. A weld hit KEEPS THE
+  // FIRST value and that is correct by construction — every position two
+  // call sites can both reach is a centreline vertex, where sC and lv are
+  // per-level and sL/st are per-ring, so both sites compute the same four
+  // numbers. The verdict (_surf_check.js) asserts there are no holes.
+  const A = [];
+  const P = (x, y, z, a) => {
     if (Math.abs(x) < 1e-9) x = 0;
     const k = x.toFixed(6) + ',' + y.toFixed(6) + ',' + z.toFixed(6);
     if (vid.has(k)) return vid.get(k);
-    V.push([x, y, z]); vid.set(k, V.length - 1);
+    V.push([x, y, z]); A.push(a || null); vid.set(k, V.length - 1);
     return V.length - 1;
+  };
+  // the four numbers for one (ring, level, column): sf carries the ring's
+  // sL/st and its two arc tables — the flank's and the centreline's.
+  //
+  // A CAP IS A POLE, and poles have no metric parameterisation. A cap grid
+  // closes the end of the body with faces that run flank -> centreline
+  // WITHIN ONE RING, so sL cannot advance across them and the field has no
+  // area there — the tile smears across the nose bowl and the tail cone.
+  // The convention: on a cap the flank-to-centre traverse is spent on sL,
+  // UNROLLING THE LID ALONG THE BODY (capDir points away from the body, so
+  // the tile keeps its size and its direction over the tip); everywhere
+  // else the same traverse is spent on sC, CONTINUING AROUND THE SECTION
+  // (which is what the crown and keel centrelines are). st does not advance
+  // either way, and should not: a nose bowl IS one station.
+  const aOf = (sf, k, cen) => {
+    if (!sf) return null;
+    const lvi = LVI[k] != null ? LVI[k] : 0;
+    if (cen && sf.capDir && sf.sC)
+      return [sf.sL + sf.capDir * (sf.sC.D[k] || 0),
+              sf.sC.P[k] != null ? sf.sC.P[k] : 0, sf.st, lvi];
+    if (cen && sf.sC)
+      return [sf.sL + (sf.sC.L[k] || 0),
+              sf.sC.C[k] != null ? sf.sC.C[k] : 0, sf.st, lvi];
+    const t = sf.sC ? sf.sC.P : null;
+    return [sf.sL, t && t[k] != null ? t[k] : 0, sf.st, lvi];
   };
   const face = (a, b, c, d, m) => F.push({ v: [a, b, c, d], m });
   // crease tags (step 'crease' only): max weight wins on shared edges
@@ -749,24 +924,28 @@ function buildCage2(S, step) {
     }
   };
 
-  const mkIds = (r, capRing) => {
+  const mkIds = (r, capRing, sf) => {
     const o = { P: {}, M: {}, C: {} };
     for (const k of LV) {
       const l = r.lv[k];
       if (!l) continue;
-      o.P[k] = P(l.x, l.y, l.z);
-      o.M[k] = P(-l.x, l.y, l.z);
+      const a = aOf(sf, k);
+      o.P[k] = P(l.x, l.y, l.z, a);
+      o.M[k] = P(-l.x, l.y, l.z, a);
       if (k === 'roof' || k === 'keel' || k === 'waist' && r.kind === 'nose'
           || capRing)
-        o.C[k] = P(0, l.yC != null ? l.yC : l.y, l.zC != null ? l.zC : l.z);
+        o.C[k] = P(0, l.yC != null ? l.yC : l.y, l.zC != null ? l.zC : l.z,
+                   aOf(sf, k, 1));
     }
     return o;
   };
-  const ids = seq.map((r, i) =>
-    mkIds(r, i === 0 || (R.aero && i === seq.length - 1)));
-
-  // level order present on a ring, top -> bottom
-  const ordOf = r => LV.filter(k => r.lv[k] != null);
+  // seq is built TAIL-FIRST, so the cap at i 0 is the tail (it unrolls
+  // aft, +1) and the aero cap at the end is the nose (forward, -1)
+  const ids = seq.map((r, i) => {
+    const cap = (i === 0 && !MIR) ? 1
+      : (R.aero && i === seq.length - 1) ? -1 : 0;
+    return mkIds(r, !!cap, { ...sfOf(i), capDir: cap });
+  });
 
   // ---- cap grids ----------------------------------------------------------
   // One mechanism for both fuselage ends. 'aperture' = the engine face
@@ -816,7 +995,19 @@ function buildCage2(S, step) {
       r.lv.bandG = lerpLv(r.lv.band, r.lv.ceil, S.gBandT);
       r.lv.waistG = lerpLv(r.lv.waist, r.lv.floor, S.gWaistT);
     }
-    const a = mkIds(rT, true), b = mkIds(rR, true);
+    // The rod is its own component and its own single bay. st COUNTS
+    // FORWARD everywhere (seq is built tail-first, so the tail is 0 and the
+    // nose is highest) and the rod runs aft of the bulkhead, so its tip is
+    // -1, not +1. Its root takes the fuselage's ruler where it sits and the
+    // TIP CONTINUES THE ARC from there, so the tube's own length is metric
+    // whatever the datum: a tape crossing the aft bulkhead does not jump and
+    // the rod inherits no extrapolation error.
+    const wR = wz(rR), wT = wz(rT);
+    const sLR = sLat(wR.z);
+    const b = mkIds(rR, true, { sL: sLR, sC: arcOf(rR), st: 0, capDir: -1 });
+    const a = mkIds(rT, true, {
+      sL: sLR + Math.hypot(wT.x - wR.x, wT.y - wR.y, wT.z - wR.z),
+      sC: arcOf(rT), st: -1, capDir: 1 });
     const M2 = 'boomTube';
     face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, M2);
     face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, M2);
@@ -1009,7 +1200,7 @@ function buildCage2(S, step) {
     emitCap(ids[seq.length - 1], seq[seq.length - 1], capMat(false));
     orientCage({ V, F });
     emitRodFree();
-    return E ? { V, F, E } : { V, F };
+    return E ? { V, F, E, A } : { V, F, A };
   }
 
   // ---- windshield slope + deck + cowl + nose (cowl mode) ------------------
@@ -1023,7 +1214,29 @@ function buildCage2(S, step) {
     const chAll = { ...R.chain };
     if (sv >= 2) chAll.bandG = lerpLv(chAll.band, chAll.ceil, S.gBandT);
     const chain = { roof: a.C.roof };
-    for (const k of chLv) chain[k] = P(0, chAll[k].y, chAll[k].z);
+    // The chain is wsFront's upper levels FOLDED FORWARD onto the
+    // centreline, and it is neither a centre column nor a cap. Each level
+    // folds to its OWN z — the chain's waist sits ~0.56 m ahead of the
+    // flank it comes from, its ceiling only ~0.13 m — so the fold is a real
+    // advance along the body and sL has to carry it, or the whole
+    // windshield slope has no extent in the field and smears.
+    //
+    // The advance is measured IN THE BODY PLANE (y, z) and the sideways x
+    // is deliberately left out: x is the fold itself, and the fold is what
+    // sC already describes. Spending the full 3-D traverse on sL instead
+    // overshot by the flank's own half-width and put the chain FORWARD of
+    // the nose ring on the ruler while sitting behind it in space — which
+    // is the one inversion the verdict found.
+    {
+      const sfF = sfOf(iF), wsL = seq[iF].lv;
+      for (const k of chLv) {
+        const src = wsL[k] || wsL.waist;
+        const d = Math.hypot(src.y - chAll[k].y, src.z - chAll[k].z);
+        chain[k] = P(0, chAll[k].y, chAll[k].z,
+          [sfF.sL - d, sfF.sC.P[k] != null ? sfF.sC.P[k] : 0, sfF.st,
+           LVI[k] != null ? LVI[k] : 0]);
+      }
+    }
     // slope bands: wsFront flank columns fold to the chain
     const sOrd = ['roof'].concat(chLv);
     const bub = S.top && S.top.bubble;
@@ -1184,7 +1397,30 @@ function buildCage2(S, step) {
       noseSeq.push(tw);
     }
     noseSeq.push(prepNose(R.noseRing));
-    const nIds = noseSeq.map((r, i) => mkIds(r, i === noseSeq.length - 1));
+    // The cowl loops and the nose rings CONTINUE THE ARC, they do not
+    // re-read the ruler: noseSeq is an ordered loft forward of the
+    // windscreen base, so sL keeps accumulating on the waist rail exactly as
+    // it did aft of it (negative, because sL runs +aft from the firewall).
+    // Reading them off an extrapolated (z -> sL) table instead put the cowl
+    // loops' CENTRE columns — which sit far forward of their own flanks — at
+    // the wrong distance, and the ruler ran backwards there.
+    // Which of these rings counts as a FORMER is the grammar's question
+    // (G68), not the field's; here they are simply the next stations.
+    const nsf = [];
+    {
+      let acc = sLOf[iF], st2 = stOf[iF], prev = wz(seq[iF]);
+      for (const r of noseSeq) {
+        const w2 = wz(r);
+        acc -= Math.hypot(w2.x - prev.x, w2.y - prev.y, w2.z - prev.z);
+        st2 += 1;
+        nsf.push({ sL: acc, sC: arcOf(r), st: st2 });
+        prev = w2;
+      }
+    }
+    const nIds = noseSeq.map((r, i) => {
+      const cap = i === noseSeq.length - 1;
+      return mkIds(r, cap, cap ? { ...nsf[i], capDir: -1 } : nsf[i]);
+    });
 
     // low bands: wsFront -> [cowl loops] -> [twin] -> ring; deck at waist
     const lowSets = [];
@@ -1275,11 +1511,11 @@ function buildCage2(S, step) {
     // edge whatever the source's own z layout (aftPilotLen moves it).
     const SA = S.config.mirrorAftSpec;
     let sV = V, sF = F, sE = E, sAp = mirAp, sIds0 = ids[0],
-        sDR = dashRim, sSS = seamS,
+        sDR = dashRim, sSS = seamS, sA = A,
         zBs = R.mirrorZ + S.cabinPillarW / 2;
     if (SA) {
       const half = buildCage2(SA, step);
-      sV = half.V; sF = half.F; sE = half.E || null;
+      sV = half.V; sF = half.F; sE = half.E || null; sA = half.A || [];
       sAp = half._mirAp; sIds0 = half._ids0; zBs = half._zB;
       sDR = half.dashRim || []; sSS = half.seamS || [];
     }
@@ -1288,10 +1524,32 @@ function buildCage2(S, step) {
     const rz = z => CZ - z;
     const nF0 = sF.length;
     const map = new Map();
+    // A REFLECTED RULER IS THE RULER REFLECTED. The pod's aft half is the
+    // front half mirrored about z = CZ/2, so its field mirrors about the
+    // field's value THERE and every increment survives — which is what keeps
+    // sL metric across the whole pod. Re-reading sL/st out of the (z -> sL)
+    // table instead would hand the aft half a ruler built for the front
+    // half's stations only.
+    //
+    // The datum is GEOMETRIC, not looked up: the two pilCabB rings straddle
+    // the plane by half the arceau, so the ruler crosses it by exactly that
+    // half and the arceau band measures its own width. Reading sLat(CZ/2)
+    // instead put a lookup where a distance belongs, and the arceau came out
+    // the wrong length.
+    // sL and st RUN OPPOSITE WAYS BY DESIGN — sL counts aft from the
+    // firewall, st counts forward from the tail — so their mirror datums sit
+    // on opposite sides of seq[0]: the reflected half is aft, which means a
+    // HIGHER sL and a LOWER st. Same sign on both put the arceau's stations
+    // backwards while its length stayed right, which is exactly the kind of
+    // half-correct the verdict exists to catch.
+    const w0 = wz(seq[0]);
+    const sLmir = sLOf[0] + Math.abs(rz(w0.z) - w0.z) / 2;
+    const stMir = stOf[0] - 0.5;              // the arceau is one bay
     const mOf = i => {
       if (!map.has(i)) {
-        const p = sV[i];
-        map.set(i, P(p[0], p[1], rz(p[2])));
+        const p = sV[i], q = sA[i];
+        map.set(i, P(p[0], p[1], rz(p[2]),
+          q ? [2 * sLmir - q[0], q[1], 2 * stMir - q[2], q[3]] : null));
       }
       return map.get(i);
     };
@@ -1357,15 +1615,34 @@ function buildCage2(S, step) {
       const tipY = { waist: S.tail.roofY, floor: S.tail.floorY,
                      keel: S.tail.keelY };
       const dzB = S.boom.len + S.tail.len;
+      // the pod's boom marches AFT from the reflected aperture, so like the
+      // nose and the rod it CONTINUES THE ARC rather than re-reading the
+      // table: sL accumulates on the waist rail, st counts down (aft)
+      let bsL = null, bst = null, bPrev = null;
+      {
+        const ai = apIds.P && apIds.P.waist;
+        const aa = ai != null ? A[ai] : null;
+        bsL = aa ? aa[0] : 0;
+        bst = aa ? aa[2] : 0;
+        bPrev = ap.waist ? { x: ap.waist.x, y: ap.waist.y, z: rz(ap.waist.z) }
+                         : null;
+      }
       const mk2 = (lv2, cap2) => {
         const o2 = { P: {}, M: {}, C: {} };
+        const w2 = wz({ lv: lv2 });
+        if (bPrev && w2)
+          bsL += Math.hypot(w2.x - bPrev.x, w2.y - bPrev.y, w2.z - bPrev.z);
+        if (w2) bPrev = w2;
+        bst -= 1;
+        const sf2 = { sL: bsL, sC: arcOf({ lv: lv2 }), st: bst,
+                      capDir: cap2 ? 1 : 0 };
         for (const k in lv2) {
-          const l = lv2[k];
-          o2.P[k] = P(l.x, l.y, l.z);
-          o2.M[k] = P(-l.x, l.y, l.z);
+          const l = lv2[k], a2 = aOf(sf2, k);
+          o2.P[k] = P(l.x, l.y, l.z, a2);
+          o2.M[k] = P(-l.x, l.y, l.z, a2);
           if (k === 'waist' || k === 'keel' || cap2)
             o2.C[k] = P(0, l.yC != null ? l.yC : l.y,
-                        l.zC != null ? l.zC : l.z);
+                        l.zC != null ? l.zC : l.z, aOf(sf2, k, 1));
         }
         return o2;
       };
@@ -1438,7 +1715,7 @@ function buildCage2(S, step) {
 
   orientCage({ V, F });
   emitRodFree();
-  const out = E ? { V, F, E } : { V, F };
+  const out = E ? { V, F, E, A } : { V, F, A };
   if (dashRim.length) out.dashRim = dashRim;
   if (seamS.length) out.seamS = seamS;
   if (seamA.length) out.seamA = seamA;
@@ -2281,8 +2558,19 @@ function cageCut(m, S) {
     const map = new Map();
     for (const fi of keep) {
       F[fi].v = F[fi].v.map(vi => {
-        if (!map.has(vi)) map.set(vi,
-          V.push([V[vi][0]+off[0], V[vi][1]+off[1], V[vi][2]+off[2]]) - 1);
+        if (!map.has(vi)) {
+          const ni = V.push([V[vi][0]+off[0], V[vi][1]+off[1],
+                             V[vi][2]+off[2]]) - 1;
+          // THE SURFACE FIELD RIDES THE CUT (G66). A cut part is the SAME
+          // SKIN moved, not new skin: the door that swings out keeps the
+          // panel lines, the fasteners and the livery it had when it was
+          // shut, so its vertices keep their field exactly. Without this
+          // the door came away unfielded while the body around it stayed
+          // fielded, which leaves ONE MATERIAL on both shader branches at
+          // once — the one thing the split cannot express.
+          if (m.A) m.A[ni] = m.A[vi] ? m.A[vi].slice() : null;
+          map.set(vi, ni);
+        }
         return map.get(vi);
       });
       F[fi].cutPart = 1;
@@ -5045,11 +5333,35 @@ const cageEdgeKey = (a, b) => a < b ? a + '_' + b : b + '_' + a;
 function cageSubdivide(m) {
   const { V, F } = m;
   const E = m.E || new Map();
+  // THE SURFACE FIELD RIDES THE SAME WEIGHTS (G66). All three Catmull-Clark
+  // rules are affine — face point = mean of corners, edge point =
+  // (Pa+Pb+f0+f1)/4 or the creased midpoint, vertex point =
+  // (F + 2R + (n-3)P)/n, and the creased (E1 + 6P + E2)/8 — and their weights
+  // sum to 1. Applying them to a scalar yields the limit surface's own
+  // parameterisation of the limit surface, which is the definition of a good
+  // UV and is what every DCC package does for subdivision UVs.
+  //
+  // A DISTANCE-TO-NEAREST FIELD MUST NEVER BE CARRIED THIS WAY: it is
+  // |.|-shaped with a crease at the midpoint between two members, so
+  // averaging rounds the peak off and the error moves with member spacing.
+  // dF/dR are recovered in the fragment shader from fract(st) and fract(lv).
+  //
+  // Everything below is written INLINE beside the position it mirrors, so
+  // the two cannot desynchronise, and is guarded so a mesh without the
+  // field takes a byte-identical path (this is what protects _cage_fit.js).
+  const AT = m.A || null;
+  const AN = 4;
   const fp = F.map(f => {
     const s = [0, 0, 0];
     for (const i of f.v) { s[0] += V[i][0]; s[1] += V[i][1]; s[2] += V[i][2]; }
     return s.map(v => v / f.v.length);
   });
+  const fpA = AT ? F.map(f => {
+    const s = [0, 0, 0, 0];
+    for (const i of f.v) { const a = AT[i];
+      if (a) for (let k = 0; k < AN; k++) s[k] += a[k]; }
+    return s.map(v => v / f.v.length);
+  }) : null;
   const ER = new Map();
   F.forEach((f, fi) => {
     for (let k = 0; k < f.v.length; k++) {
@@ -5060,18 +5372,26 @@ function cageSubdivide(m) {
   });
   // per-vertex adjacency incl. incident crease weights
   const vAdj = V.map(() => ({ F: [0, 0, 0], R: [0, 0, 0], n: 0, nf: 0,
-                              sharp: [] }));
+                              sharp: [],
+                              FA: AT ? [0, 0, 0, 0] : null,
+                              RA: AT ? [0, 0, 0, 0] : null }));
+  const at = i => (AT && AT[i]) || null;
   for (const [key, e] of ER) {
     const mid = [0, 1, 2].map(i => (V[e.a][i] + V[e.b][i]) / 2);
+    const aa = at(e.a), ab = at(e.b);
+    const midA = AT ? [0, 1, 2, 3].map(i =>
+      ((aa ? aa[i] : 0) + (ab ? ab[i] : 0)) / 2) : null;
     const w = E.get(key) || 0;
     for (const v of [e.a, e.b]) {
       const A = vAdj[v];
       A.R[0] += mid[0]; A.R[1] += mid[1]; A.R[2] += mid[2]; A.n++;
+      if (midA) for (let i = 0; i < AN; i++) A.RA[i] += midA[i];
       if (w > 0) A.sharp.push({ w, o: v === e.a ? e.b : e.a });
     }
   }
   F.forEach((f, fi) => { for (const v of f.v) { const A = vAdj[v];
-    A.F[0] += fp[fi][0]; A.F[1] += fp[fi][1]; A.F[2] += fp[fi][2]; A.nf++; } });
+    A.F[0] += fp[fi][0]; A.F[1] += fp[fi][1]; A.F[2] += fp[fi][2]; A.nf++;
+    if (fpA) for (let i = 0; i < AN; i++) A.FA[i] += fpA[fi][i]; } });
   // semi-sharp VERTEX weights (m.VW: Map index -> weight): a weighted
   // vertex is pulled to the CORNER rule (pinned) for `weight` levels, then
   // rounds — the missing knob for a corner with only two sharp edges (an
@@ -5080,11 +5400,20 @@ function cageSubdivide(m) {
   // Children inherit weight-1, like edges. The fuselage never sets VW, so
   // the fit-locked template is untouched.
   const VW = m.VW || null;
+  const NA = AT ? [] : null;
   const NV = V.map((P0, i) => {
     const A = vAdj[i], n = A.n || 1, nf = A.nf || 1;
     const Fp = A.F.map(v => v / nf), R = A.R.map(v => v / n);
     const sm = [0, 1, 2].map(k => (Fp[k] + 2 * R[k] + (n - 3) * P0[k]) / n);
     let res = sm;
+    // the field's own P0/sm/cr, same indices, same t
+    const Q0 = AT ? (at(i) || [0, 0, 0, 0]) : null;
+    let smA = null, resA = null;
+    if (AT) {
+      const FpA = A.FA.map(v => v / nf), RA = A.RA.map(v => v / n);
+      smA = [0, 1, 2, 3].map(k => (FpA[k] + 2 * RA[k] + (n - 3) * Q0[k]) / n);
+      resA = smA;
+    }
     if (A.sharp.length >= 2) {
       A.sharp.sort((x, y) => y.w - x.w);
       const t = Math.min(1, (A.sharp[0].w + A.sharp[1].w) / 2);
@@ -5092,18 +5421,29 @@ function cageSubdivide(m) {
         const E1 = V[A.sharp[0].o], E2 = V[A.sharp[1].o];
         const cr = [0, 1, 2].map(k => (E1[k] + 6 * P0[k] + E2[k]) / 8);
         res = [0, 1, 2].map(k => sm[k] + (cr[k] - sm[k]) * t);
+        if (AT) {
+          const Q1 = at(A.sharp[0].o) || Q0, Q2 = at(A.sharp[1].o) || Q0;
+          const crA = [0, 1, 2, 3].map(k => (Q1[k] + 6 * Q0[k] + Q2[k]) / 8);
+          resA = [0, 1, 2, 3].map(k => smA[k] + (crA[k] - smA[k]) * t);
+        }
       } else {
         res = [0, 1, 2].map(k => sm[k] + (P0[k] - sm[k]) * t); // corner
+        if (AT) resA = [0, 1, 2, 3].map(k => smA[k] + (Q0[k] - smA[k]) * t);
       }
     }
     const vw = VW ? (VW.get(i) || 0) : 0;
     if (vw > 0) {
       const t = Math.min(1, vw);
       res = [0, 1, 2].map(k => res[k] + (P0[k] - res[k]) * t);
+      if (AT) resA = [0, 1, 2, 3].map(k => resA[k] + (Q0[k] - resA[k]) * t);
     }
+    if (NA) NA.push(resA);
     return res;
   });
-  const fpIdx = fp.map(pt => { NV.push(pt); return NV.length - 1; });
+  const fpIdx = fp.map((pt, fi) => {
+    NV.push(pt); if (NA) NA.push(fpA[fi]);
+    return NV.length - 1;
+  });
   const epIdx = new Map();
   for (const [key, e] of ER) {
     const w = E.get(key) || 0;
@@ -5115,6 +5455,16 @@ function cageSubdivide(m) {
     const t = Math.min(1, w);
     const sh = [0, 1, 2].map(i => (V[e.a][i] + V[e.b][i]) / 2);
     NV.push([0, 1, 2].map(i => sm[i] + (sh[i] - sm[i]) * t));
+    if (NA) {
+      const qa = at(e.a) || [0, 0, 0, 0], qb = at(e.b) || [0, 0, 0, 0];
+      const smQ = [0, 1, 2, 3].map(i => {
+        let s = qa[i] + qb[i], d = 2;
+        for (const fi of e.f) { s += fpA[fi][i]; d++; }
+        return s / d;
+      });
+      const shQ = [0, 1, 2, 3].map(i => (qa[i] + qb[i]) / 2);
+      NA.push([0, 1, 2, 3].map(i => smQ[i] + (shQ[i] - smQ[i]) * t));
+    }
     epIdx.set(key, NV.length - 1);
   }
   const NF = [], NE = new Map();
@@ -5141,6 +5491,7 @@ function cageSubdivide(m) {
     }
   });
   const out = { V: NV, F: NF, E: NE };
+  if (NA) out.A = NA;
   // vertex weights: parents keep their indices, children inherit weight-1
   if (VW) {
     const nv = new Map();
@@ -5436,6 +5787,16 @@ function cageDefaults() {
   return JSON.parse(JSON.stringify(CAGE_PARAMS));
 }
 
+// VIEW KEYS ARE NOT DESIGN. `explodeD` is HOW YOU LOOK at the build, not
+// what the build is — the view panel says so in as many words — but it has
+// always lived in P alongside the parameters, so `cageToSpec`'s "everything
+// that differs from the template" swept it into the saved spec. Two ways it
+// bit: a build saved mid-inspection carried an explode distance forever, and
+// the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
+// flies. Declared here rather than guessed, and skipped in both directions.
+// (G63.)
+const CAGE_VIEW_KEYS = { explodeD: 1 };
+
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
 // dummy live in _cage_crew.js and are declared only in the page's defaults).
@@ -5455,7 +5816,10 @@ function cageFromSpec(spec) {
     ? (spec.cage !== undefined ? spec.cage : spec)
     : null;
   if (c && typeof c === 'object' && !Array.isArray(c))
-    for (const k in c) if (c[k] !== undefined && c[k] !== null) P[k] = c[k];
+    for (const k in c) {
+      if (k in CAGE_VIEW_KEYS) continue;          // an older file may carry one
+      if (c[k] !== undefined && c[k] !== null) P[k] = c[k];
+    }
   return P;
 }
 
@@ -5468,6 +5832,7 @@ function cageToSpec(P) {
   let n = 0;
   for (const k in P) {
     if (typeof P[k] === 'function') continue;
+    if (k in CAGE_VIEW_KEYS) continue;
     if (k in CAGE_PARAMS && P[k] === CAGE_PARAMS[k]) continue;
     out[k] = P[k]; n++;
   }
@@ -6264,11 +6629,13 @@ if (typeof module !== 'undefined')
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy,
-                     cageDefaults, cageFromSpec, cageToSpec };
+                     cageDefaults, cageFromSpec, cageToSpec,
+                     CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy,
-                   cageDefaults, cageFromSpec, cageToSpec };
+                   cageDefaults, cageFromSpec, cageToSpec,
+                   CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

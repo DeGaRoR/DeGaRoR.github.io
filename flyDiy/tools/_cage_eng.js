@@ -273,6 +273,10 @@ PAGE.post = ctx => {
   const zFw = R.place.zAft - Pm.mountGap * cR;
 
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:eng';
   group.add(meshFrom(M));
 
   // spinner + blades — the cowl tool's geometry, on the crank. NO SHAFT

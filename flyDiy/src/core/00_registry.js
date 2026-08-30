@@ -4,6 +4,13 @@
 // Units: m, kg, N, s, rad. Axes: x aft (nose -x), y up, z right.
 // ============================================================
 
+// THE REFERENCE DENSITY, and it is a datum rather than "the density". Every
+// design-time number in this project is computed in this air — Vs, the plant
+// gains and their derivatives, the synthesised propeller, every anchored gate
+// metric — and it is what defines EQUIVALENT airspeed. The air the solver
+// actually flies in varies with height and with the day (05_atmos.js); this
+// does not. ATM.RHO0 is the same number, and 05_atmos.js keeps them exactly
+// equal on purpose.
 const RHO = 1.225;
 
 
@@ -14,25 +21,42 @@ const RHO = 1.225;
 // ============================================================
 // `price` is what the powerplant COSTS, in credits, second-hand and installed —
 // added for the GARAGE's build ledger (G3). Inert for the hand-written fiches.
+//
+// `aspiration` is PHYSICS-BEARING (G72) and is the only thing in this table the
+// atmosphere reads. It says how this engine's shaft power responds to thin air:
+//   'na'       breathes it, so power lapses with density (Gagg-Ferrar)
+//   'electric' does not — the power comes out of the pack, and only the
+//              PROPELLER notices the altitude
+// The difference is large enough to change which aeroplane gets out of a
+// mountain strip in August, which is exactly why it is declared per row rather
+// than sniffed from the name. See 05_atmos.js for both scalings.
+//
+// AN HONEST CUT, named here because it is a real aeroplane getting a wrong
+// number: the R-1830 Twin Wasp was SUPERCHARGED, and a supercharged engine
+// holds its power to its critical altitude instead of lapsing from sea level.
+// We have no blower model, so it is declared 'na' and the DC-3 therefore loses
+// more at altitude than the real one did. 'turbo' is reserved for when there
+// is something behind it; a field that lies quietly is worse than one that is
+// missing.
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
-    engine: { name: 'Continental A-65', mass: 80, powerW: 48500 },
+    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na' },
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
   },
   r1830_hs23e50: {
     price: 65000,
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000 },
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na' },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
     price: 38000,
-    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000 },
+    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na' },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
     price: 3500,
-    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000 },
+    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
   // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
@@ -57,32 +81,32 @@ const POWERPLANTS = {
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
     price: 6000,
-    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000 },
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
   },
   rotax582_ivo: {
     price: 5500,
-    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000 },
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na' },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
   },
   jabiru2200_std: {
     price: 15000,
-    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000 },
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na' },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
   },
   rotax912_warp: {
     price: 18000,
-    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600 },
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na' },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
   },
   o200_eprops: {
     price: 24000,
-    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600 },
+    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na' },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
   outrunner2212_9x47: {
     price: 25,
-    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180 },
+    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric' },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },
   // THE ELECTRIC LADDER (G25). One 180 W park-flyer can was the whole
@@ -108,37 +132,37 @@ const POWERPLANTS = {
   // GEN_RULES.propV0K, like the middle-market rows above.
   outrunner3548_12x6: {
     price: 55,
-    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800 },
+    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric' },
     prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
   },
   outrunner6374_18x10: {
     price: 130,
-    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200 },
+    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric' },
     prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
   },
   eppg_direct_130: {
     price: 3800,
-    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000 },
+    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric' },
     prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
   },
   fes_folding_100: {
     price: 9500,
-    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000 },
+    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric' },
     prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
   },
   emrax228_3blade: {
     price: 11000,
-    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000 },
+    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric' },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
   },
   e811_velis: {
     price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600 },
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric' },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
   },
   sp260d_class: {
     price: 90000,
-    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000 },
+    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric' },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
   },
 };

@@ -119,8 +119,9 @@ the hangar room carried over as the editor's backdrop, matured G40-44
 into the part-system material library + real lighting).
 THE JOIN LANDED same day (G45): the declared physics-bearing table is
 in HANDOVER (ruling 3, written before the button), _cage_join.js maps
-it, `build & fly` runs export → GARAGE_SPEC.update → the stand, and the
-FIRST FULL DESIGN→FLY TURN is verified — an editor-set 912 + 11.6 m
+it, `build & fly` ran export → the save pipeline → the stand (that
+button is retired at G65; the export is a step inside testing and
+rolling out now), and the FIRST FULL DESIGN→FLY TURN is verified — an editor-set 912 + 11.6 m
 wing flew ROLL→LIFT-OFF→CLIMB on the AP. THE PLAQUE landed at G60.
 THE SHELF landed at G63 (the user: "the save/import mechanism seems
 broken, and it is somehow redundant with the presets in the editor") —
@@ -128,21 +129,36 @@ one store and one format instead of three, the editor finally LOADS
 what you loaded, the join UPDATES instead of replacing, the stock
 designs are ordinary builds, and GATE BUILD is the loading gate
 ruling 4 has been promising since the slice opened.
-REMAINING in P3: THE ENGINEERING BENCH — a test section that fills the
-plaque and resurrects the wing loading (G64, the user: "that's the
-engineering section before you try and roll out"); the FLOW COLLAPSE
-itself — `build & fly` retires, the panel hides instead of swapping
-aeroplanes, roll out reads the certificate (G65); then the ONE MISSION.
+THE ENGINEERING BENCH landed at G64 and the FLOW COLLAPSED at G65, so
+P3's turn is now a turn: pick the Garage build and you are in the
+hangar editing; the bench tab runs a DECLARED LIST of tests and the
+plaque fills from them; any slider withdraws the certificate; ROLL OUT
+& FLY exports through the join and flies what you built. No
+intermediate screen anywhere in it. The wing loading came back with the
+aeroplane ON ITS BACK — how a homebuilt sandbag test is actually done,
+and the only way the bags can push the wing the way they look like they
+push it (the rig loaded +y while the viewer drew the bags on top; the
+physics was right and the picture was not). G46's declared visual gap
+closed on the way past: the save carries the cage, the editor is seeded
+from it, and the snapshot is REGENERATED — no mesh bytes in storage.
 
-THE FLOW, as the user put it: "we simply have hangar for edition, and
-it computes what it needs live, and then the roll out where we try and
-fly" — with an engineering bench between them, because a plaque you
-get for free is not a certificate. Tests are a DECLARED LIST so more
-can be added; the wing loading comes back with the aeroplane ON ITS
-BACK, which is how a homebuilt sandbag test is actually done and the
-only way the bags can push the wing the way they look like they push
-it (the rig loads +y while the viewer drew the bags on top — the
-physics is right, the picture was not).
+REMAINING in P3: the ONE MISSION. The logbook stub it writes into
+exists (built date, tests, flights) and nothing reads it back yet.
+
+FOUND BY PUTTING BOTH ON SCREEN (G65.1): the editor's cage build and
+the physics lattice stand ~2.8 m apart along the room, and always have
+— placeEditor grounds the build and leaves it at the CAGE's own datum.
+It was invisible while the two were never up together. The instruments
+now measure the gap and follow the aeroplane you can see; moving the
+BUILD onto the lattice instead is the deeper fix and wants its own
+chantier, because it re-places the aeroplane in a room P11's own work
+is composed around.
+
+TEST FLIGHT is DECLARED but not built — a row in the bench's own table
+with no `run`. Its one open decision is taken: IN PAGE, not shelled to
+node, because index.html is a zero-network single-file artifact and the
+game already runs the same sim in the browser. It is what would add a
+LANDING RUN to the plaque, which genShakedown does not compute.
 The first full turn of the loop, ugly by design. Almost everything it needs
 already exists — GATE GEN flies a generated aeroplane headless around a full
 circuit and prints its stats (the SHAKEDOWN line: Vs, VCruise, L/D, wing
@@ -210,7 +226,45 @@ one in physics; the bench needs the pusher cowl and mount). Judged by the
 loop: each configuration must earn mission types or plaque numbers, not just
 exist.
 
-**P8 — the editor experience (tranche B of the UI revamp).**
+**P8 — the editor experience (tranche B of the UI revamp).** — STARTED
+2026-08-30, and it carries a DESIGN: the Claude design session's option 9b
+("Bone") rebaselines the whole editor screen on one rule — every surface has
+exactly one job. The view shows and is manipulated directly; the parts column
+selects; the properties column edits; everything about the aeroplane AS AN
+OBJECT lives behind its name. High fidelity: colours, type, spacing and copy
+are final. The handoff bundle is `design_handoff_garage_editor_9b`.
+
+THE ARC, AND ITS NUMBERS ARE RESERVED (three sessions share this tree, and
+G72 went to the atmosphere while this was mid-flight):
+- **G76 — the part table. LANDED.** `tools/_cage_parts.js`: 7 assemblies,
+  33 parts, the param -> part map, the part -> section map, the placement
+  strip per part, and the existence rules. GATE PARTS (tier core, `--selftest`
+  negative-verified) holds it against the editor's own 537 rows and the 28
+  sections real builds emit.
+- **G77 — the panel is two columns. LANDED.** `src/viewer/editor.js` +
+  `editor.css`. §4's tree and inspector, §5's placement strip, §6's
+  changed-from-loaded dots with per-row and per-part reset. It builds no
+  widget: the rows are `_cage_ui.js`'s own elements, moved, so the row grammar
+  stays one implementation across the game and the benches.
+- G78 — the view owns looking: the icon rail (camera, display, night,
+  explode, measure) with its flyouts, the name chip, the two verbs bottom
+  left, and the SHED'S OWN SHEET (user's ruling: tuning the atmosphere or the
+  hangar is a different interface). `#edBar`, `#bEnv`, `#bMood`, `#uvp` and
+  the game's bottom bar retire with it.
+- G79 — selection is bidirectional: raycast on the material groups selects
+  the part, hover tints, the part callout in the view.
+- G80 — the sheet: the plaque, the bench summary and its sub-page, the
+  logbook, the store and the rack, all behind the aeroplane's NAME.
+  `#edShelf`, `#edTabs` and `#plaque` collapse into it — the "one store, one
+  format" line G63 started, finished.
+
+DECIDED WITH THE USER ON THE WAY IN (2026-08-30): the standalone cage benches
+KEEP today's accordion — the new UI is game-side, which is also the smallest
+footprint in `_cage_ui.js` while the materials session is live in it; the
+editor IS the garage screen (no "back to the game" door, the parts column
+folds instead); and every tree node is selectable including the assemblies and
+a root, because "we should still have a top layer where everything is visible".
+
 The structural half, designed AFTER the loop is live because the loop is
 what it serves — the badges ARE stat feedback now, not tool decoration:
 - §3 configure THEN shape: a first screen of ~eight discriminators, each
@@ -232,11 +286,58 @@ what it serves — the badges ARE stat feedback now, not tool decoration:
   is the general mechanism — the mirrored pod becomes an instance with
   per-param links instead of 22 duplicated rows.
 
-**P9 — materials & mapping.**
+**P9 — materials & mapping.** — PULLED FORWARD, STARTED 2026-08-29 (G66),
+user: "we are going to give materials to the procedural planes".
 Parameter-space UVs (the C4 item, still open), PBR materials per part,
 liveries and registration decals (G4.5's decals are the seed). Liveries are
 an ATTACHMENT system as much as an art one — your plane, your colours — and
 land after P8 because materials hang off the final part model.
+
+WHY THE P8 DEPENDENCY DISSOLVED, and it is not a waiver: P8 §4 says selection
+tints geometry "(SEC groups)". The cage's ~30 section names ALREADY ARE the
+part model as far as materials are concerned — a material system keyed on them
+needs nothing P8 has not got, and P8's part tree will be a nicer selector over
+the same keys, not a different set of keys. The ordering argument that stands
+is the other one: P9's liveries are designed against P6's fleet, so the
+LIVERY half still wants the fleet in front of it. The material half does not.
+
+The arc, one chantier each: G66 the surface field (the coordinate that
+replaces a UV unwrap — LANDED); G67 AEROSKIN, the one material — finish table,
+per-section tint, the materials panel, glass, the moods reaching the aeroplane
+at last, GATE SKINMAT (LANDED; the four constructions now measurably differ,
+and a livery set in the editor arrives unchanged on the aeroplane that flies).
+Still owed from G67: the detail sheets are procedural rather than the agreed
+~25 MB of curated CC0, only the CAGE is AEROSKIN (the wing/gear/engine layers
+still wear G38's grey), and the per-section finish and tint live in a pref
+rather than in the spec — ruling 4 wants them in a `spec.finish` block with a
+GEN_SPEC_V bump and its migrator before liveried builds are shared.
+G68 the structure grammar — LANDED: GEN_BUILD_GRAMMAR beside GEN_MATERIALS,
+fasteners and seams and panel lines and oil-canning per construction, from the
+real structure in real millimetres, with the analytic masks deciding WHERE and
+a mipped stamp supplying the pixels. THE "FOUR MATERIALS LOOK IDENTICAL"
+PLAYTEST ITEM IS CLOSED — fabric and alloy now differ 3.5x in measured local
+contrast at the same luminance. G68.1 then gave the WING its own field, at the
+user's steer ("do the wing spars first"): rib tapes on the stations the mass
+model paid for, spars as integer rails, the washed-out leading edge — the
+three things the user named as right about the old yellow plane. G68.2 then
+did the FIN and STAB — one `finMesh`, both surfaces, because the stab is the
+fin laid flat (G23) — with a DECLARED tail rib pitch, since the frame bills no
+tail ribs to read. Still owed: rib LACING is not drawn on any surface, the
+tail's LE treatment is a chord FRACTION where it should be metres from the
+edge, and GEN_ACCESS (hatches, inspection rings, fuel caps) is designed and
+unwritten.
+G68.3 put the leading-edge treatment in METRES rather than chord fraction.
+G69 the decals — LANDED: the surface field IS the projection, so a marking is
+placed in metres and holds its proportions on any shape (G4.5's own conclusion,
+generalised); the registration reads correctly on both flanks, an atlas with
+dilated pages carries it and any image the player loads, and the panel edits
+it. Still owed from G69: a decal is on BOTH sides or neither, placement lives
+in a pref rather than the spec, and there is no craft-space ORTHOGRAPHIC
+projector for a livery that must run continuously across fuselage, wing root
+and fairing — designed, not written.
+Then G67.1 the default cage at boot and the old generated skin archived;
+G70 interior, technical parts and wear. The material library and the
+wall-wardrobe prune ride with G66/G67.
 
 **P10 — into the game shell.**
 - The garage rebased on the bench modules and the P8 part tree; the spec
@@ -274,10 +375,13 @@ Aeroplanes of P9 fidelity cannot land in the current world. Two halves:
 Build two or three real aircraft against reference models (F1), benchmark
 against published numbers — the DIVERGENCE LEDGER machinery is exactly this
 — and tweak the physical model where the ledger says so. STOL goes LIVE on
-the P2 reservations (flaps/slats/VGs with physics to measure them). Far
-backlog behind it: STOL competition mode, the jet module + SubSonex, the
-gliders' atmosphere (thermals/ridge — the wind(x,y,z,t) plumbing is where
-they plug in).
+the P2 reservations (flaps/slats/VGs with physics to measure them). REYNOLDS
+NUMBER lands here and nowhere earlier: F5 gave the air a density and
+deliberately left Cd0 and CLmax fixed against it, which is a real omission
+and exactly the kind the ledger is built to price. Far backlog behind it:
+STOL competition mode, the jet module + SubSonex, the gliders' atmosphere
+(thermals/ridge — the wind(x,y,z,t) plumbing is where they plug in, and F5
+made that argument load-bearing instead of decorative).
 
 ## FLOATING CHANTIERS (pull forward at will)
 
@@ -331,8 +435,58 @@ several hours instead of one per hour. Prototyped at G62.1 as a test area
 reads — golden, sunset, dusk and night all convince in the real room; only
 overcast does not, and cannot, since there are no clouds in a clear-sky source
 to reveal. Adopting it shrinks the SOURCES (125 MB of HDR to 26); shrinking the
-PAYLOAD as well means moving the grade into a fragment shader, which it is
-already shaped for.
+PAYLOAD as well meant moving the grade into a fragment shader, and G62.2 did:
+base.jpg + a per-channel gain map = 1.66 MB for every hour there will ever
+be, verified against the offline grade to one 8-bit level. Mounted at
+`tools/_sky.html`. The decision to adopt it is still open.
+
+**F5 — the atmosphere.** LANDED 2026-08-30 (HANDOVER G72), pulled forward on
+the user's own reading: "our skies are poorly modelled. No air density, no
+engine response to lower air density. Probably nothing about temperature
+either... we need a very correct flight model. Not the ultimate super accurate
+one, but something that does not lie."
+
+The air is a real thing now. `src/core/05_atmos.js` is one constant-lapse-rate
+atmosphere in four lines — temperature, pressure, density, speed of sound —
+exact at ISA and exact for an offset day, with the only two chosen numbers
+being the ones that describe the DAY (sea-level temperature and QNH). It feeds
+every dynamic-pressure term, the propwash disc, and the propeller, and the
+engine's response falls out of 60_gen_spec's own momentum-theory synthesis
+rather than being asserted: a naturally aspirated piston lapses (Gagg-Ferrar),
+an electric motor does not, and the difference is one declared `aspiration`
+field on the registry row.
+
+The load-bearing half was NOT the density. It was declaring that every V-number
+in the project — Vs, VClimb, VCruise, VAppr — is an EQUIVALENT airspeed, which
+they all already were and nobody had said. The autopilot flew them as TRUE
+airspeeds, which is identical at sea level and stalls the aeroplane at altitude;
+the instrument printed "ias" over a true airspeed for the same reason. One
+factor of sqrt(sigma) in one place in `40_autopilot.js` fixed both.
+
+The bench earned a DENSITY ALTITUDE test (the same genClimbAt / genTORunAt
+measurements, run in different air) and the plaque a "in thin air" section, so
+the qualifier that has silently sat on every number the game ever showed — at
+ISA, at sea level — is now visible and answerable. Wind grew a vertical
+dimension: `refH` makes a wind a SURFACE wind and the column shears above it.
+
+DELIVERED RED, deliberately, on the user's own call. GATE WIND fails one case —
+the DC-3's crosswind landing, touchdown drift 0.79 -> -3.67 m/s against a 1.8
+bound. It is NOT the density (isolated: density live + autopilot on TAS lands
+unchanged) and it is NOT new (HEAD's own physics fails identically on a +0.8%
+cruise-speed nudge; the cliff sat 0.5% away). Two stacked pre-existing faults,
+both traced: the DC-3's wheel-landing flare balloons when it arrives slightly
+hot, and the decrab rudder then sits pinned at its clamp for five seconds while
+the aeroplane is CLIMBING, turning the crab into a sideslip. Fixing either is
+arrival work on a calibrated fleet and happens WITH the user. The bound was not
+relaxed and nothing was tuned. Full writeup in HANDOVER G72.
+
+STILL OPEN, and named rather than implied: that DC-3 arrival; re-anchoring the fleet's wind gates
+onto sheared wind (they still fly the uniform column they were calibrated in);
+Reynolds number (P12); turbo/supercharging (`aspiration` reserves 'turbo' and
+the R-1830 is lapsing like a normally-aspirated engine because of it); the
+battery model that would give an electric aeroplane a real ceiling instead of a
+refusal to guess; thermals and ridge lift, which are the same `wind(x,y,z,t)`
+plug the roadmap has always pointed at.
 
 ## SEQUENCING RATIONALE
 

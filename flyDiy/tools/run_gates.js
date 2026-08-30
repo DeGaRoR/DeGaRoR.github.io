@@ -22,6 +22,10 @@ const { spawnSync } = require('child_process');
 // session ritual's "never deliver on a non-zero exit" now reads "never deliver
 // without a green --all".
 const GATES = [
+  // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
+  // exact sea-level identity every other gate's anchors depend on, and the
+  // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.
+  { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   { id: 'WIND', file: 'test_wind.js', tier: 'fleet' },   // flies the WHOLE fleet: 222 s
@@ -44,6 +48,17 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // THE BUILD FILE (G63): save -> load -> editor -> join -> resolved spec.
+  // ruling 4 promised this battery a loading gate and it never had one.
+  { id: 'BUILD', file: 'test_build.js', tier: 'core' },
+  // AEROSKIN (G67): the declared finish + role tables against the cage's own
+  // section list, and the r128 constraints the shader stands on
+  { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
+  // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
+  { id: 'SURF', file: '_surf_check.js', tier: 'core' },
+  // THE PART TABLE (G76): the declared assembly against the editor's own row
+  // list and the sections real builds emit — every slider in exactly one part
+  { id: 'PARTS', file: '_parts_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },
@@ -57,6 +72,12 @@ const GATES = [
   // in core: it is the only gate that asserts an upright arrival on a bench.
   { id: 'XCTY4', file: 'test_xcty4.js', tier: 'core' },
   { id: 'XCTY5', file: 'test_xcty5.js', tier: 'fleet' },
+  // HOT AND HIGH (G72): the atmosphere with an aeroplane in it. GATE ATMOS
+  // proves the model, this proves it reaches the wing and the engine — two
+  // flown take-offs off a 113 m strip on two different days, the electric-
+  // vs-piston split the `aspiration` field buys, and a full circuit in that
+  // air. Fleet tier: it flies.
+  { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'fleet' },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
@@ -85,12 +106,20 @@ for (const g of GATES) {
   if (only && !only.includes(g.id)) continue;
   if (coreOnly && g.tier !== 'core') { skipped++; continue; }
   const t0 = Date.now();
-  // 900 s, not 300: WIND flies the WHOLE fleet through gusty circuits and is
-  // the long pole (~226 s on a quiet machine, ~297 s on a busy one). A 300 s
-  // cap turned an ordinary slow machine into a red battery with no failed
-  // check to point at — a timeout is not a verdict, and a false red is worse
-  // than a slow one. If a gate ever genuinely hangs, this still catches it.
-  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: 900_000 });
+  // 1800 s, not 900 and certainly not 300: a timeout is not a verdict, and a
+  // false red is worse than a slow one. WIND was the original reason (it flies
+  // the WHOLE fleet through gusty circuits: ~226 s quiet, ~297 s busy) and a
+  // 300 s cap turned an ordinary slow machine into a red battery with no
+  // failed check to point at.
+  //
+  // RAISED 900 -> 1800 (2026-08-29). GEN had crept to 872/883/882 s over three
+  // runs in one afternoon and then took 901 — and was killed one second short
+  // of its own verdict. Run uncapped it is GATE GEN: PASS, 74/74 checks, in
+  // 901 s. That is a false red of the exact kind the paragraph above is about,
+  // and it will recur every time the generator gains a case, so the headroom
+  // is doubled rather than shaved. If a gate ever genuinely hangs, this still
+  // catches it.
+  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: 1800_000 });
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   const stdout = r.stdout || '';
   const pass = r.status === 0 && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);

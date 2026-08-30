@@ -20,6 +20,26 @@
 //      and at 5.7 g the body frame flipped mid-run: the trace jumped 5.10 -> 0.22.
 //   3. BOLT THE FUSELAGE DOWN. Every non-wing node is pinned each step, which
 //      is what trestles are. Nothing to balance, nothing to tumble.
+//
+// AND THE AEROPLANE GOES ON ITS BACK (G64). Version 3 loaded the wing UPWARD
+// on an upright aeroplane, which is the right BENDING — FAR 23's +3.8 g and
+// +5.7 g are flight loads and a flying wing bends up — and the wrong PICTURE:
+// the viewer drew the sandbags resting on top of the wing and the wing then
+// rose to meet them. The user's report was exactly that, "it was bending the
+// wing the wrong way around". Flipping the load would have been worse than the
+// drawing, because it would prove the wing against NEGATIVE g while printing
+// positive-g numbers. So the aeroplane is turned over instead, which is how a
+// homebuilt sandbag test is actually done and what this gate's own header has
+// always said it was ("the real rig inverts the aeroplane and stands the
+// fuselage on supports"): bags on the upward-facing lower surface, pressing
+// DOWN with gravity, bending the wing the way flight does.
+//
+// Nothing measured changes by construction: `rise` resolves onto the BODY up
+// axis, which `bodyAxes` builds geometrically out of upLo->upHi, so it turns
+// over with the aeroplane. The jig datum is taken after the settle either way,
+// so the wing's own 1 g — which now adds to the bags instead of opposing them —
+// cancels out of every reported deflection.
+//
 // And the load is RAMPED, not stepped: DEFDAMP is a rate with tau = 2 s, so a
 // step leaves the wing ringing past fifteen seconds and reading it at one
 // instant samples the ring. `relax` bleeds the deformation velocity — only the
@@ -144,7 +164,33 @@ function makeLoadTest(sim, def, cfg) {
     return worst;
   }
 
+  // 180 degrees about the aeroplane's OWN x axis, through its centre of mass:
+  // about a WORLD axis it would come to rest pitched by twice the body axis's
+  // inclination (the boom sits ~3.7 deg nose-down to the frame axis, G54), and
+  // a rig that pitches the aeroplane while claiming to invert it is one more
+  // picture that disagrees with its numbers.
+  function invert() {
+    const a = sim.axes()[0];                       // body x, nose -> tail
+    let cx = 0, cy = 0, cz = 0, M = 0;
+    for (let i = 0; i < sim.n; i++) {
+      const m = def.nodes[i].m; M += m;
+      cx += m * sim.p[i*3]; cy += m * sim.p[i*3+1]; cz += m * sim.p[i*3+2];
+    }
+    if (!(M > 0)) return;
+    cx /= M; cy /= M; cz /= M;
+    for (let i = 0; i < sim.n; i++) {
+      const o = i * 3;
+      const dx = sim.p[o] - cx, dy = sim.p[o+1] - cy, dz = sim.p[o+2] - cz;
+      const k = 2 * (a[0]*dx + a[1]*dy + a[2]*dz);   // Rodrigues at 180 deg:
+      sim.p[o]   = cx + k*a[0] - dx;                 //   v' = 2(a.v)a - v
+      sim.p[o+1] = cy + k*a[1] - dy;
+      sim.p[o+2] = cz + k*a[2] - dz;
+      sim.v[o] = sim.v[o+1] = sim.v[o+2] = 0;        // it is set down, not thrown
+    }
+  }
+
   function begin() {
+    invert();                       // on its back, on the trestles
     // clear of the ground so contact never joins in, then bolt the rig down
     for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
@@ -171,8 +217,10 @@ function makeLoadTest(sim, def, cfg) {
     // ramp to ultimate, recording the limit case on the way past
     const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
+    // the bags press DOWN, because they are bags. The aeroplane being inverted
+    // is what makes that the flight-load direction through the spar.
     for (let k = 0; k < bags.length; k++)
-      sim.impulse(bags[k][0], 0, n * bags[k][1] * dt, 0);
+      sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
     sim.step(dt); clamp(); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the

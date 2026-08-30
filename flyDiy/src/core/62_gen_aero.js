@@ -492,6 +492,10 @@ const GEN_LOOP = { rollWT: 0.62, rollZeta: 1.70, pitchWT: 1.30, pitchZeta: 1.90 
 // Analytic from the strips — the same model the solver integrates, so these are
 // the real numbers rather than an estimate of them.
 function genPlant(nodes, strips, P, V) {
+  // AT THE DATUM, deliberately: these gains size the autopilot's loops once,
+  // at the design condition, and a real aeroplane's control throws do not
+  // grow to compensate for thin air either. DECLARED CONSEQUENCE (G72): the
+  // AP is honestly sloppier at altitude.
   const q = 0.5 * RHO * V * V;
   let M = 0, cx = 0, cy = 0, cz = 0;
   for (const n of nodes) { M += n.m; cx += n.p[0]*n.m; cy += n.p[1]*n.m; cz += n.p[2]*n.m; }
@@ -570,7 +574,11 @@ function genParams(S, fr, strips) {
   const polarTail = genTailPolar(hAR, M.cd0);
   const mass = fr.cg0[3];
   const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
-  const Vs = Math.sqrt(2 * mass * 9.81 / (1.225 * G.Sw * ClMax3D));
+  // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
+  // air (RHO), not in the air the aeroplane happens to be in. G72 only made
+  // that explicit — the literal used to say 1.225 as if it were a fact about
+  // the sky rather than the definition of the yardstick.
+  const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
   const cda = genFusCdA(S, fr);
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock

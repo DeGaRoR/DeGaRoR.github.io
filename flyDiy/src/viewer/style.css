@@ -97,25 +97,9 @@
     pointer-events:auto; cursor:pointer; }
   #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
 
-  /* ---- garage: the builder's panel, left of the minimap (chantier G1) ----
-     margin-right:auto keeps the minimap pinned right whether or not this is
-     showing, so #mid needs no layout change when the panel hides. */
-  #garage { margin-right:auto; pointer-events:auto; width:296px; padding:10px 12px 12px;
-    max-height:calc(100vh - 190px); overflow-y:auto; }
-  #garage header { display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:8px; }
-  #garage h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.18em;
-    text-transform:uppercase; color:var(--amber); }
-  #garage h3 { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.16em;
-    text-transform:uppercase; color:var(--faint); margin:11px 0 6px; }
-  #gClose { padding:2px 7px; font-size:13px; line-height:1; border-radius:6px; }
-  /* BUILDS. One row, because saving is housekeeping and should not compete with
-     the aeroplane for attention: the slot select takes the space and the verbs
-     are as small as they can be and still be hit. */
-  #gBuilds { display:flex; gap:4px; align-items:center; margin-bottom:9px; }
-  #gBuilds select { flex:1 1 auto; min-width:0; }
-  #gBuilds button { padding:4px 7px; font-size:9px; line-height:1.1; flex:0 0 auto; }
-  #gBuilds button:disabled, #gBuilds select:disabled { opacity:.4; cursor:default; }
+  /* The GARAGE panel that lived here (chantier G1) is gone: its rows went at
+     G35 with the old editor, and its BUILDS bar went into the editor panel at
+     G63 as THE SHELF. See #edShelf, down with the rest of #edWrap. */
   /* the two single-glyph verbs are square so they read as a pair */
   #gSaveAs, #gDel { padding:4px 6px; font-size:11px; }
   /* ROLL OUT: the commit. Full width above the sections, because it is the one
@@ -293,83 +277,15 @@
     * { transition:none !important; }
   }
 
-/* ======================================================================
-   THE EDITOR (G35, remounted G36): the cage bench as a PANEL over the
-   game's own garage view — no canvas of its own since the build renders
-   in the game scene. Scoped under #edWrap; palette custom properties are
-   LOCAL to the panel. tools/_cage8.html keeps its own <style> and stays
-   the authority for the standalone bench pages.
-   ====================================================================== */
-#edWrap { --bg:#12151a; --fg:#dfe6ee; --dim:#7d8996; --acc:#5db3ff; --grid:#242a33;
-  /* stops above the game's bottom bar: HANGAR/mood and the flight
-     buttons stay reachable while editing */
-  position:fixed; top:0; right:0; bottom:52px; width:400px; z-index:40;
-  background:rgba(14,17,21,0.96); color:var(--fg);
-  font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;
-  display:flex; flex-direction:column;
-  border-left:1px solid var(--grid); }
-#edWrap[hidden] { display:none; }
-#edWrap * { box-sizing:border-box; }
-#edWrap header { padding:8px 12px; border-bottom:1px solid var(--grid);
-  display:flex; gap:14px; align-items:center; }
-#edWrap h1 { font-size:13px; margin:0; color:var(--fg); }
-#edWrap #edBar { padding:6px 12px; border-bottom:1px solid var(--grid);
-  display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-#edWrap label { color:var(--dim); display:inline-flex; gap:5px; align-items:center;
-  text-transform:none; letter-spacing:0; }
-#edWrap select, #edWrap button { background:#1a1f27; color:var(--fg);
-  border:1px solid var(--grid); padding:3px 8px; border-radius:4px; font:inherit;
-  text-transform:none; letter-spacing:0;
-  -webkit-appearance:auto; appearance:auto; }
-#edWrap select option { background:#1a1f27; color:var(--fg); }
-#edWrap aside { flex:1; overflow-y:auto; overflow-x:hidden; padding:10px;
-  min-height:0; }
-#edWrap .r { display:flex; gap:6px; align-items:center; margin:5px 0; min-width:0; }
-#edWrap .r.wrap { flex-wrap:wrap; }
-#edWrap .r span.k { color:var(--dim); width:92px; flex:none; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; }
-#edWrap .r select { min-width:60px; flex:1; }
-#edWrap .r button { flex:none; }
-#edWrap input[type=range] { flex:1; min-width:30px; accent-color:var(--acc); }
-#edWrap .v { width:46px; flex:none; text-align:right; color:var(--acc); }
-#edWrap .leg { display:flex; gap:5px; align-items:center; margin:3px 0; }
-#edWrap .sw { width:13px; height:13px; border-radius:3px; flex:none; }
-#edWrap h2 { font-size:11px; color:var(--dim); margin:14px 0 4px;
-  text-transform:uppercase; }
-#edWrap details { margin:8px 0; border:1px solid var(--grid); border-radius:5px;
-  padding:2px 8px; }
-#edWrap details details { margin:6px 0; border-color:#1b2029; }
-#edWrap summary { cursor:pointer; color:var(--dim); font-size:11px;
-  text-transform:uppercase; padding:4px 0; }
-#edWrap #edClose { margin-left:auto; border-color:#5db3ff66; color:var(--acc); }
-/* the stat line and the dims pane dock in flow — there is no viewport
-   to float over any more */
-#edWrap #edStat { padding:6px 10px; border-top:1px solid var(--grid);
-  color:var(--dim); font-size:10px; line-height:1.5; max-height:96px;
-  overflow-y:auto; flex:none; }
-#edWrap #stat { position:static; }
-#edWrap #dims { position:static !important; margin:10px 0 0; }
-/* the door in the builds bar */
-#garage #gEdit { width:100%; margin-top:6px; }
 
-/* ---- THE PLAQUE (P3) ------------------------------------------------
-   The builder's own numbers. Verdict first, because the one thing a
-   plaque must answer is "does it fly" — everything under it is why. */
-#plaque { display:none; }
-#plaque.on { display:block; }
-#plaque header span { font-size:10px; color:var(--faint); }
-#pqVerdict { margin:6px 0 8px; padding:6px 8px; border-radius:5px;
-  font-size:12px; letter-spacing:.04em; border:1px solid var(--grid); }
-#pqVerdict.ok   { color:#7ee3a8; border-color:#7ee3a855; background:#7ee3a814; }
-#pqVerdict.bad  { color:#ff9a76; border-color:#ff9a7655; background:#ff9a7614; }
-#pqRows { display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; }
-#pqRows .r { display:flex; justify-content:space-between; align-items:baseline;
-  border-bottom:1px solid #161b23; padding:2px 0; }
-#pqRows .r span { font-size:9.5px; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--faint); }
-#pqRows .r b { font-weight:500; font-size:11.5px; }
-#pqRows .r.warn b { color:#ffc46b; }
-#pqRows .r.bad  b { color:#ff9a76; }
-#pqRows .h { grid-column:1 / -1; font-size:9.5px; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--dim); margin:6px 0 1px; }
-#pqNote { margin-top:7px; font-size:10px; line-height:1.5; color:var(--dim); }
+/* THE EDITOR'S OWN STYLING LEFT THIS FILE at G77 and lives in
+   src/viewer/editor.css — the whole panel was redrawn (design option 9b)
+   and the bench palette it used to bring in (blue on slate, monospace) sat
+   next to the game's amber on one screen, which is half of what made the
+   editor unreadable. What stays here is what is about the GAME: the flight
+   HUD, the boot splash, the aircraft card, and the one rule below, which is
+   about a button on the game's own bottom bar. */
+/* ROLL OUT UNTESTED (G65). Amber, never disabled: it is your aeroplane,
+   and building it wrong and learning why is content, not error. The button
+   says what it knows and then gets out of the way. */
+#bGo.warn { color:#ffc46b; border-color:#ffc46b66; background:#ffc46b14; }

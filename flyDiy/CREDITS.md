@@ -73,6 +73,22 @@ Modifications made:
   were converted once to PNG/JPG with ImageMagick — browsers read no EXR — at
   the delivered 1k resolution.
 
+## Jodel DR1050 structures (`assets/jodel_structure/`, baked into the artifact)
+
+- **Model**: the author of this repository, in Blender 4.0. A DR1050 fuselage
+  structure (spruce formers and longerons, welded steel tube cockpit frame) and
+  the cranked DR1050 wing structure (32 rib stations on two spars).
+- **Licence**: own work. No third-party attribution applies.
+- Baked by `tools/jodel_prep.py` into `src/props/props_airframe.js`, in the
+  same pack format the Poly Haven / Sketchfab props use.
+- Modifications: **geometry none** — no decimation, no welding, no retopology.
+  The delivered OBJs are the author's own optimized exports and every triangle
+  in them is in the payload; the only transform is the rigid one that puts each
+  origin where the piece meets the world. **Materials assigned, not read**: the
+  MTL ships `Kd 0 0 0` for `jojo_wood` (Blender writes black when the colour
+  lives in a node graph), so the four material names are mapped to spruce and
+  three steels in the baker rather than taken at face value.
+
 ## Hangar props (`assets/props/`, baked into the artifact)
 
 The shed's furniture. Every row of the declared table in `tools/props_table.py`
@@ -110,6 +126,26 @@ footer alongside the aircraft credits:
   https://sketchfab.com/3d-models/tool-cart-16ceecf05f3e453e96c050f4c43f86b5
 - "Signed Persian Qum Carpet" by **mfb64** (https://sketchfab.com/mfb64) —
   https://sketchfab.com/3d-models/signed-persian-qum-carpet-3d72e11edc964f21aadbd2d41d699527
+
+The machine shop (added 2026-08-30) — four photogrammetry scans of the same
+real workshop, by the same author:
+
+- "Scie a format - Lycee pro de Fourchambault" by **Yannoid** (https://sketchfab.com/y.decouessin) —
+  https://sketchfab.com/3d-models/scie-a-format-lycee-pro-de-fourchambault-aac60fce483a4ec0859a802e91a24b46
+- "Scie a ruban - Lycee pro de Fourchambault" by **Yannoid** (https://sketchfab.com/y.decouessin) —
+  https://sketchfab.com/3d-models/scie-a-ruban-lycee-pro-de-fourchambault-d40ef066d71e4ab8add3c795044e1a40
+- "Degauchisseuse - Lycee pro de Fourchambault" by **Yannoid** (https://sketchfab.com/y.decouessin) —
+  https://sketchfab.com/3d-models/degauchisseuse-lycee-pro-de-fourchambault-8671b197c39a40a7b654dd37d4600857
+- "Raboteuse - Lycee professionnel de Fourchambault" by **Yannoid** (https://sketchfab.com/y.decouessin) —
+  https://sketchfab.com/3d-models/raboteuse-lycee-professionnel-de-fourchambault-b0d579ac5d744497b74177d0ee141cbe
+
+> **OPEN, and not fixed here.** The line above says this list is "carried in
+> the sim's footer". It is not: `#credit` in `src/viewer/body.html` names the
+> aircraft authors only, and nothing appends the prop authors to it. That was
+> already true before these four scans, and they make it four names worse. It
+> is left alone deliberately - `body.html` was being edited by another session
+> at the time - but CC-BY's attribution clause is not satisfied by a file in
+> the repo, so the footer needs the list (or a credits panel that shows it).
 
 Modifications made, as CC-BY asks to be indicated (and applied to the CC0
 assets identically):

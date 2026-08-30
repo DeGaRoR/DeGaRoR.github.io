@@ -7,5 +7,6 @@
  "props_tools.js",
  "props_curio.js",
  "props_vehicle.js",
- "props_fixture.js"
+ "props_fixture.js",
+ "props_airframe.js"
 ]

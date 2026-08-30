@@ -146,6 +146,10 @@ PAGE.post = ctx => {
   if (!AF) { if (stat) stat.textContent += '  ·  gear: no skin to stand on'; return; }
 
   group = new THREE.Group();
+  // NAMED for the editor (G76/G77): the part table says which layer a
+  // part lives in, and G79's raycast resolves a hit to a part through
+  // that. One string, no behaviour.
+  group.name = 'cageLayer:gear';
   scene.add(group);
 
   const bags = {};

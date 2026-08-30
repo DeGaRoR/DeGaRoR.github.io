@@ -39,6 +39,18 @@ before every battery so stale hand-edits get overwritten, loudly.
 
 - `src/core/00_registry.js` — RHO, POWERPLANTS/POLARS registries, PAR
   (rudderSign is live in the solver hot loop), wheel-friction consts CRR/MU_*.
+  RHO is the DATUM (G72), not "the density": the air every design-time number
+  is computed in and the thing that defines equivalent airspeed. POWERPLANTS
+  rows carry `aspiration` ('na' | 'electric'), which is physics-bearing and the
+  only field in that table the atmosphere reads.
+- `src/core/05_atmos.js` — THE AIR (G72). Pure, world-free, no state: one
+  constant-lapse-rate atmosphere (T/p/rho/a/sigma, density and pressure
+  altitude), the Gagg-Ferrar power lapse, and the two propeller scalings
+  re-derived from 60_gen_spec's own synthesis. `ATMOS_ISA` is the standard day
+  and is what anything without a world flies in. It sits in the 00_ band rather
+  than with the world because 60_gen_spec and 64_gen_build need it as much as
+  the solver does. The model, its constants and its named cuts are in that
+  file's own header — there is no separate spec document to drift from it.
 - `src/core/10..16_aircraft_*.js` — one fiche per aircraft (cub, dc3, chinook,
   c172, jodel, drone, pa18). Fully self-contained builders; only POLARS is
   external. The ideal parallel-agent boundary: one agent per fiche, zero
@@ -248,6 +260,30 @@ Flexbody gates (appended, keeping the physics log prefix diffable): MODEL
 linkage), UISMOKE (executes the built artifact's core+models+app blocks in a
 node vm with DOM/THREE stubs — the vendor and render blocks are deliberately
 NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
+
+GATE ATMOS (appended G72, core tier, under a second) is the atmosphere with no
+aeroplane in it: the ISA tables to 0.2% over 11 km, the density-altitude
+round-trip that closes the inverse exponent against the forward model, the
+offset day both ways, the Gagg-Ferrar lapse, and the propeller scalings
+RE-SYNTHESISED from 60_gen_spec's own three lines rather than compared to
+themselves. Its load-bearing section is 2: at ISA sea level rho(0) === 1.225
+EXACTLY, sigma === 1, densityAlt === 0 and every scaling factor === 1. That is
+not pedantry — 1.2250003 is just as correct physically and would have moved a
+printed digit somewhere in thirty-six gates for no physical reason. Section 8
+asserts every POWERPLANTS row declares an `aspiration`, so a new registry row
+cannot quietly default an electric motor into lapsing like a piston. Section 9
+covers the surface layer, INCLUDING that a wind with no `refH` is still a
+uniform column.
+
+GATE HOTHIGH (appended G72, fleet tier, ~120 s) is the same air with an
+aeroplane in it, which is a different claim: that the model REACHES the wing
+and the engine. Four sections — the solver reporting the air the model says it
+is in; the PA-18 and the C172 FLOWN off Brekk Strip on two different days, so
+the take-off run grows while the unstick EAS does not and the TAS does; an
+electric build losing measurably less field length than a piston one, which
+falls out of the prop synthesis and is asserted nowhere; and a full circuit off
+that strip in the viewer's own "Hot afternoon" preset, shear included, so the
+gate and the game fly one condition and not two.
 
 ## AXES & SIGNS (the rudder saga lives here — reread twice)
 - x AFT (nose = −x), y UP, z... **+z is physically the LEFT side** when the nose
@@ -11524,6 +11560,20 @@ Analytic polars (no Re), global-AR induced drag per strip, no wind,
 no P-factor/swirl/slipstream-over-wing for tractors, no windmilling-prop drag
 (Chinook glide slightly optimistic for exactly this reason), fuel/battery mass
 frozen, friction plane horizontal, no compressibility (<M0.35 fleet).
+The ATMOSPHERE (G72) closes "no air model" and opens four smaller cuts of its
+own, all named in `src/core/05_atmos.js`: GEOMETRIC rather than geopotential
+altitude (0.03% of the pressure at 1 km, 0.12% at 8); DRY air only (saturated
+30 C air is under 1% lighter, below the gust field's own amplitude); ISOTHERMAL
+above 11 km, which is correct and irrelevant here; and NO REYNOLDS EFFECT, so
+Cd0 and CLmax do not move with density even though they really do — that one is
+a real omission and it belongs to P12's divergence ledger, not to the air.
+Turbo/supercharging is NOT modelled: `aspiration` reserves 'turbo' and nothing
+implements it, so the R-1830 Twin Wasp — a supercharged engine — lapses from
+sea level and the DC-3 therefore loses more at altitude than the real one did.
+An ELECTRIC ceiling is not a ceiling: with no battery model and no propeller
+Mach limit, a motor whose power does not lapse climbs almost indefinitely, so
+genDensityAlt refuses to search above 12 km and says "> 12000 m" rather than a
+number it does not have.
 Flaps (added session 2): polar-delta model per strip (no slat modeling, no
 Fowler area growth — dCl0 stands in for both), flap deltas scale linearly with
 setting, no asymmetric-flap failure mode, Chinook flaperon droop partial (0.6)
@@ -11539,11 +11589,24 @@ bending the wing actually does IS exact, because the spar stations carry it).
 TORun is an analytic estimate deliberately biased high (119 m for an airframe
 in the Cub's 60 m class) — the AP only uses it to decide whether to backtrack,
 and over-estimating errs toward backtracking.
-Wind (added session 3): no shear/boundary-layer profile (wind constant with
-height), gusts are 4 deterministic sine components per axis, not true Dryden
-spectra; no thermals/ridge lift YET (the wind(x,y,z,t) plumbing is exactly
-where they plug in); tunnel probes with a wind-bearing world sample wind too
-(set none, or makeSim without world, for clean tunnel numbers).
+Wind (added session 3, amended G72): gusts are 4 deterministic sine components
+per axis, not true Dryden spectra; no thermals/ridge lift YET (the
+wind(x,y,z,t) plumbing is exactly where they plug in). Tunnel probes with a
+wind-bearing world sample wind too (set none, or makeSim without world, for
+clean tunnel numbers) — and since G72 a probe also reads a DECLARED air state
+rather than the aeroplane's own ride height, so `sim.setAtmos(air, h)` is the
+only thing that moves it.
+THE SHEAR CUT MOVED, it did not close (G72). `wind()` now reads its `y`: a spec
+carrying `refH` is a surface wind at that height and shears above it by the
+engineering power law (alpha 0.14 open grass, capped at 300 m agl). A spec
+WITHOUT `refH` is still a uniform column, and that is deliberate rather than
+lazy — it is the air the whole fleet's wind calibration was measured in, so
+GATE WIND and the XCTY gates keep it while the CONDITIONS presets and GATE
+HOTHIGH fly the profile. RE-ANCHORING THE FLEET BATTERY ONTO SHEARED WIND IS
+NAMED, UNDONE WORK: the 10 m wind those gates quote becomes about 1.5x that at
+circuit height, which is real weather and will move touchdown drift and the
+gust altitude bound. Do it as its own chantier, with the numbers in front of
+you, not as a side effect.
 Ground effect (added session 1, 2026-08): wing strips only — TAIL EXCLUDED
 (would need a per-surface span datum); one terrain sample per aero pass (flat
 within a span where GE matters); McCormick sigma = (16h/b)^2/(1+(16h/b)^2)
@@ -12621,3 +12684,2794 @@ PAYLOAD sense needs the grade at RUNTIME — it is a pure per-pixel function of
 (u, v, source RGB), so it ports to a fragment shader almost line for line:
 one 1.5 MB equirect in, a graded 2k render target out, used for both the
 backdrop and the PMREM. That is the next step if the look is accepted.
+
+## G64 — THE ENGINEERING BENCH (2026-08-29, user: "let's have a test
+## section... that's the engineering section before you try and roll out")
+
+Asked where the plaque numbers should live once the build step goes, the
+user did not answer the question — they replaced it. Not a live readout:
+a TEST SECTION. "We could run the test to get the plaque numbers, but
+also resurrect the wing loading... We could have this section ready for
+adding more tests if required. Once the tests are passed (and we should
+have visuals if available), the data gets filled."
+
+That is a better answer than the one that was offered, and it turns the
+plaque from a readout into a CERTIFICATE. A certificate you get for free
+is not one.
+
+THE BENCH. `src/viewer/bench.js`, a second panel in the editor column
+behind a design/bench tab, with the plaque underneath it. The tests are
+a DECLARED LIST (`BENCH_TESTS`) because the user asked for the section
+to be ready for more: a test is a row plus whatever it needs on the
+bridge, and the UI, the staleness, the verdict line and the logbook
+entry all follow from the row. Two kinds, because the two that exist
+differ in that one way and nothing else — `instant` returns its verdict
+from `run`; `live` steps the sim, so it starts, is polled and ends, and
+the bench shows the PHYSICAL aeroplane while it does, because watching
+the wing bend IS the test. NO TEST INVENTS A THRESHOLD: the verdicts are
+`genShakedown`'s own `flyableCircuit` and the rig's own `state.verdict`.
+
+THE ROWS
+  BENCH CHECK   genShakedown. Trim, balance, field length; fills the
+                plaque. Instant.
+  WING LOADING  the sandbag rig. Live.
+  TEST FLIGHT   DECLARED, NOT BUILT — the AP circuit that brings back a
+                landing run, which genShakedown does not compute. Its
+                one open decision (shell to node, or step the sim in the
+                page) resolves to IN PAGE: index.html is a zero-network
+                single-file artifact and the game already runs this exact
+                sim in the browser. A row with no `run` renders as what
+                it is rather than pretending not to exist.
+
+THE WING LOADING WAS UNREACHABLE, and had been since G35. The rig
+(65_gen_loadtest.js), `startLoadTest`/`loadTestState`/`endLoadTest`, the
+sized-by-share sandbags, the navy straightedge datum, the red deflection
+bar, the yield flag on the complaining member, the LOAD TEST rail and
+the `.gtest` CSS all existed and were called by NOTHING — the button
+died with the old panel and the only caller left was GATE UISMOKE. The
+bench is now the caller.
+
+...AND THE AEROPLANE GOES ON ITS BACK. The user's report: "it was
+bending the wing the wrong way around. We were loading the wing with
+bags, and it was deforming upwards." Both halves are true and only one
+of them is a bug. 65_gen_loadtest.js:175 applied a POSITIVE-y impulse
+while app.js drew each bag at `p[1] + clear`, i.e. resting on top: bags
+above, wing rising to meet them. The PHYSICS was right — FAR 23's
++3.8 g and +5.7 g are flight loads and a flying wing bends up — so
+flipping the impulse would have been worse than the drawing, because it
+would prove the wing against NEGATIVE g while printing positive-g
+numbers.
+
+So the aeroplane is turned over instead, which is how a homebuilt
+sandbag test is actually done and, word for word, what GATE LOAD's own
+header has always claimed this rig was: "the real rig INVERTS the
+aeroplane and stands the fuselage on supports". `invert()` rotates every
+node 180 degrees about the aeroplane's OWN x axis through its centre of
+mass, BEFORE the pin list is captured — about a world axis it would come
+to rest pitched by twice the body axis's inclination (the boom sits
+~3.7 deg to the frame axis, G54), and a rig that pitches the aeroplane
+while claiming to invert it is one more picture that disagrees with its
+numbers. The bags then press DOWN, because they are bags.
+
+NOTHING DRAWN NEEDED CHANGING, which is the strongest evidence the fix
+is the right one. The bags still sit at `p[1] + clear` — the surface
+above the spar in world is now the wing's UNDERSIDE, which is exactly
+what you pile bags on — and the deflection bar still runs along
+`sim.axes()[1]`, which now points down in world, so it draws downward
+from the straightedge to the tip. The wing bends TOWARDS the bags.
+
+AND NOTHING MEASURED CHANGED EITHER, by construction: `rise` resolves
+onto the BODY up axis, which `bodyAxes` builds geometrically out of
+upLo->upHi and which therefore turns over with the aeroplane. The jig
+datum is taken after the settle either way, so the wing's own 1 g — now
+adding to the bags instead of opposing them — cancels out of every
+reported deflection. Measured on the stock build, old rig vs new:
+
+              1.0 g     3.8 g     5.7 g   linearity      worst @ ult
+  upright    0.742 %   2.785 %   4.157 %  0.988/0.983   61% of yield
+  on its back 0.732 %   2.755 %   4.120 %  0.990/0.987   65% of yield
+
+Within 1.3 %, linearity slightly better, all HELD. The four-point rise
+in the yield proxy is the honest part: inverted, the wing's own weight
+adds to the bags at ultimate instead of subtracting.
+
+THE PLAQUE IS EARNED. `plaqueLive` in app.js is the bench saying a
+certificate was issued; `drawPlaque` respects it, so an untested
+aeroplane has no plaque and entering the garage no longer hands one out.
+Every editor rebuild withdraws it — `CAGE_ON_BUILD` now calls
+`BENCH_DIRTY` alongside `placeEditor`, which is the load test's own "a
+changed spec loses its certificate" ruling generalised to the whole
+bench. `window.BENCH_STATE()` is what G65 will label ROLL OUT from; it
+is a report, never a lock, because building it wrong and learning why is
+content and not error.
+
+THE JOIN STOPS SWALLOWING. `_cage_join.js` had a bare `catch (e) {}`
+around `cageResolve`, and losing it set `fwOk` false, which skips the
+entire firewall-anchored block: the cabin's x-extent, the gear station
+and ride height, the wing station, the boom shape and its nine profile
+rows, and all eight tail rows. What came out was a plausible generic
+aeroplane with nothing anywhere saying that seven measurements had gone
+missing. `CAGE_JOIN.errors()` now carries them and the bench reads the
+list before every test: a measurement you could not take is a FAILED
+test, not a quieter aeroplane.
+
+Also: `GARAGE_SPEC.plaque`/`note` persist through `writeWip` rather than
+`rebuild` — a result is not a design change, and routing one through the
+rebuild would tear down and re-derive the whole aeroplane every time a
+test wrote down what it found.
+
+AND ONE FAULT THE NEGATIVE-VERIFY FOUND. Breaking `cageResolve` on
+purpose in the live page proved the new error path — "CANNOT MEASURE
+THIS BUILD", with the reason — but left the PREVIOUS run's plaque
+hanging underneath it. That is G60's own bug in a new place: a plaque
+reading someone else's certificate, here for an aeroplane that was never
+successfully built. A failed measurement now withdraws the plaque and
+writes its own logbook row. Verified in the page: good run posts,
+broken run withdraws, repaired run posts again.
+
+VERIFIED. GATE UISMOKE now captures the BENCH bridge the same way it has
+always captured the garage's, and drives a full live test through it —
+`shake`, `plaque` on and off, `showPhysical`, `loadTest`,
+`loadTestState`, `endLoadTest`. It asserts the plaque is EARNED (off
+until a test says otherwise), which is the one with a real trap in it:
+the plaque used to post itself on entering the garage, and a regression
+that brought that back would hand every untested aeroplane a
+certificate. Headless numbers: bench check FLIES A CIRCUIT — 405 kg,
+climb 1.91 m/s, take-off 401 m, which is G60's stock anchor to the
+digit; wing loading HELD — limit 2.58 %, ultimate 3.83 % of semispan.
+
+MEASURED IN THE BROWSER, the loop the user asked for:
+  run the bench check  ->  WILL NOT FLY A CIRCUIT, 67 km/h stall,
+                           0.10 m/s climb, 496 m take-off; plaque fills,
+                           logbook gets its row
+  move the span slider ->  UNTESTED, plaque withdrawn, rows "not run"
+  run it again         ->  FLIES A CIRCUIT, 60 km/h, 0.44 m/s, 341 m
+A design change moved the plaque, which is G52's "the join is now honest
+enough that where you put the wing decides whether the aeroplane is
+flyable" arriving where a player can see it.
+
+NOT DONE (recorded). The live test's PROGRESSION could not be watched in
+this session's browser pane — the pane does not composite, so the tab is
+`hidden` and requestAnimationFrame fires once and stops; the rig steps in
+the rAF loop, so it settles and waits. Headless (GATE UISMOKE, GATE LOAD
+and a direct probe) is what proved it. Someone with a visible pane should
+watch one run and confirm the bags land on the wing.
+`build & fly` still exists as a button (G65 retires it — the bench's own
+export already does the work). `closeEditor` still swaps the cage build
+for the generated model (G65). ROLL OUT does not read BENCH_STATE yet
+(G65). The logbook records tests but no flights.
+
+NEXT: G65, one room — the flow the user actually asked for.
+
+GATE LOAD, re-anchored from its own output after the inversion (never by
+hand). The fleet table stands where it stood — the whole point of doing
+this in the BODY frame:
+
+  airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst @ult
+  GEN tubeFabric strut         0.73 %      2.76 %        4.12 %     65% (wing)
+  GEN tubeFabric cantilever    4.55 %     17.02 %       25.23 %    158% (wing)
+  GEN wood strut               0.81 %      3.17 %        4.78 %    302% (wing)
+  GEN wood cantilever          1.36 %      5.14 %        7.69 %    107% (wing)
+  GEN alloy strut              0.50 %      1.91 %        2.90 %     96% (wing)
+  GEN alloy cantilever         2.28 %      8.60 %       12.81 %     86% (wing)
+  GEN carbon strut             0.16 %      0.62 %        0.92 %      9% (wing)
+  GEN carbon cantilever        1.15 %      4.36 %        6.53 %     11% (wing)
+  PA-18 (imported)             2.27 %      8.88 %       13.66 %          n/a
+  C172 (imported)              3.14 %     11.54 %       16.97 %          n/a
+
+The over-yield rows are the same ones GATE LOAD has always REPORTED and
+deliberately not gated (the allowable is one area for a whole wing class
+and the worst member is the lift strut, which a real aeroplane sizes
+separately — see the gate's own note).
+
+FULL BATTERY --all: 33 gates, PASS. Still uncommitted.
+
+## G65 — ONE ROOM (2026-08-29, user: "there's an intermediate step to
+## build... It's one too much")
+
+The flow the whole chantier was for. You edited, pressed BUILD & FLY,
+landed on a bare stand to read the plaque, and pressed ROLL OUT & FLY.
+The middle stop is gone. There is a hangar you build in and a strip you
+fly from, and the engineering bench (G64) between them.
+
+WHY THE STOP EXISTED, and it was never a design decision: `#edWrap` is a
+fixed 400 px right-hand panel at z-index 40 and `#plaque` sat in the
+right-aligned `#mid` column UNDERNEATH it. You had to close the editor
+to read your own numbers. G64 moved the plaque into the panel; this
+removes what was left.
+
+WHAT WENT
+  `build & fly`  the button is deleted from _cage_join.js. It did three
+                 things — export through the table, freeze the visual,
+                 hand the result to the save pipeline — and all three
+                 are still done, by app.js's `syncBuild`, which runs as
+                 a STEP inside the two operations that actually need a
+                 committed build: running a bench test, and rolling out.
+                 One export, so a test and a flight can never read
+                 different builds.
+  the stand      `closeEditor` used to set `edSit.visible = false;
+                 craft.visible = true`, so hiding the sliders SWAPPED
+                 the aeroplane for a different-looking one. That swap
+                 WAS the stand. Closing the panel now hides the panel.
+
+THE MESH HIDES, NOT THE CRAFT. `craft.visible = false` was how the cage
+build got the room to itself, and it took the CG and neutral-point posts
+with it — they are children of `craft`, and they are exactly what you
+want standing against the build you are shaping. `applyStand()` hides
+`model.grp`, the shadow proxy and the strain lines instead, and it has
+the last word after `applySkinVis` (which decides WHICH of the model's
+meshes show; this decides WHETHER the model shows at all).
+
+ROLL OUT READS THE CERTIFICATE, AND IS NEVER LOCKED. `Roll out & fly`
+when the bench is green, `Roll out untested` in amber when it is not.
+Never disabled: it is your aeroplane, and the roadmap's own P8 ruling
+says derivation is the engineer's handbook and not a guardrail —
+building it wrong and learning why is content, not error. GATE UISMOKE
+asserts both labels and that the button is not disabled, because a lock
+is the one regression here that would change what the game IS.
+
+THE VISUAL IS BACK IN THE SAVE — by construction, not by storage. G46's
+declared v1 gap was "the visual is not in the SAVE, so a reload flies
+the generated skin until the next build & fly". The answer is NOT mesh
+bytes in localStorage: the save already carries `spec.cage`, G63 made
+the editor seed from it, and a load now runs straight back out through
+`BUILD_SYNC`, which snapshots what the editor just built. Measured: load
+the piper cub, 66 groups / 345,276 verts / 13 moving parts; load a saved
+build, 67 groups / 341,568 verts. Different aeroplanes, each snapshotted
+from its own file. Fix the construction, not the output.
+
+NAMING IT IS NAMING IT. The shelf's name and the aeroplane's own
+`meta.name` were two strings for one thing, so the plaque headed a build
+"Garage Special" while the shelf called it yours. Saving writes the name
+you typed into the spec, and the plaque reads it.
+
+THE LOGBOOK'S OTHER HALF. The bench writes what a build was TESTED for;
+`logFlight` writes what it has DONE — from, to, touchdown sink, speed
+and distance off the centreline, one row per arrival (STOPPED persists
+for as long as you leave it sitting there, so the row is guarded). A
+stub on purpose: P6 grows it into the fleet rack. But a flight that
+leaves no trace is why an aeroplane never becomes yours.
+
+THE FLOW, END TO END, as it now is:
+  pick the Garage build  ->  you are in the hangar, editing
+  design tab             ->  shelf, sliders, the shape rebuilding live
+  bench tab              ->  run the tests, the plaque fills
+  move any slider        ->  the plaque is withdrawn, ROLL OUT goes amber
+  ROLL OUT & FLY         ->  exports through the join and flies what you
+                             built
+No intermediate screen anywhere in it.
+
+VERIFIED IN THE PAGE. Opening the Garage build lands in the editor with
+no `#edFly` anywhere in the DOM and ROLL OUT reading "Roll out
+untested", amber, `disabled` false. Closing the panel and reopening it
+leaves the cage build standing throughout (cageVisible true in all three
+states) — the swap is gone. Saving as "Mossy Stonebraker" puts that name
+on the spec, on the shelf and at the head of the plaque. GATE UISMOKE
+adds: `build & fly` must not come back as a button, `BUILD_SYNC` must
+exist for rolling out to commit through, and both roll-out labels.
+
+NOT DONE (recorded). The live wing-loading test still could not be
+WATCHED in this session (the browser pane does not composite, so the tab
+is `hidden` and rAF fires once — headless is what proved it; see G64).
+`passed()` requires every usable test, so ROLL OUT reads untested until
+the wing loading has been run as well as the bench check — correct, and
+worth a look in play. The logbook records flights but nothing reads them
+back yet. The ONE MISSION is what remains of P3.
+
+FULL BATTERY --all: 33 gates, PASS (G63 + G64 + G65 together). Still
+uncommitted — the tree is shared with the skies/props session, whose own
+uncommitted work (hangar.js, hangar_sky.js, sky_prep.py, sky_tex_prep.js,
+make_probe.js, _sky_lab.js, sky_grade.py) rides in the same working copy.
+
+## G62.2 — THE GRADE MOVES TO THE GPU, AND THE HALO GOES (2026-08-29, user:
+## "do the runtime shader version ... you've added a significant halo, right
+## on the part in front of the garage ... it almost annihilates the detail
+## visible from the hangar. Also please mount this in browser")
+
+### THE HALO WAS A UNITS BUG, and it is worth the paragraph
+
+The horizon glow's `amp` was a multiple of the SOURCE PANORAMA'S MEAN
+LUMINANCE. That is a number with nothing to do with the sky the grade
+actually produces, and once each recipe had taken the sky down two or three
+stops the glow was left sitting on top at full daylight strength. Measured,
+per recipe, against the sky band it lands on:
+
+    golden  6.2x   sunset 21.6x   dusk 25.7x   night 12.2x   covered 5.1x
+
+— so between six and twenty-six times the sky it was drawn over. The user saw
+it as an orange wall in the doorway with the mountains and the village gone
+behind it, which is exactly what it was.
+
+`amp` is now a multiple of `sky_level()`: the mean luminance of the GRADED
+sky between 5 and 50 degrees of elevation, measured after the tints and before
+the glow. `amp = 0.5` now means what it looks like it means — half as much
+again at the brightest point — and it is self-correcting for any recipe,
+because it is referred to the picture that recipe made. Star gain rides the
+same yardstick. The glow bands were tightened at the same time (the old ones
+were wide enough to reach the ridge even at a sane amplitude).
+
+THE LESSON, which is the same one as G62's `level`: an additive term needs a
+yardstick, and the only defensible yardstick is the thing it is being added
+to. Anything else is a number that happens to have looked right once.
+
+### THE RUNTIME GRADE
+
+Grading offline derives many hours from one panorama but still SHIPS one
+picture per hour. To package one, the grade has to run on the GPU. It needs
+two things the browser does not otherwise have, and both are in the payload:
+
+  1  **THE RADIANCE BACK.** The display JPEG is clipped — the sun is a flat
+     white blob — and step 1 of the grade separates the disc from the sky by
+     LOG-LUMINANCE. Grade the LDR picture and you dim one large flat region
+     and leave a hole. So `sky_grade.pack()` writes a GAIN MAP:
+     `log2(radiance / display-linear)`, zero everywhere the base did not clip,
+     which is why it costs 0.14 MB over 17 stops. PER CHANNEL, and that is not
+     a detail: a scalar map cannot undo clipping that happened in only some
+     channels, and in a warm bloom red clips long before blue. Measured, the
+     scalar version reconstructed the sun to a 37% median error; per-channel
+     lands at 0.8%.
+  2  **THE GLOBALS.** `peak` and the graded sky level are whole-image
+     reductions and a fragment shader cannot do them. They are measured
+     offline and handed over as uniforms — which is also what keeps the two
+     halves agreeing about what `amp` means.
+
+PAYLOAD: base.jpg 1.52 MB + gain.png 0.14 MB = **1.66 MB for every hour there
+will ever be**, against 6.1 MB for six baked pictures and 4.6 MB for the five
+delivered HDRIs. A seventh hour costs one row of uniforms.
+
+WHERE IT RUNS. Two entry points, one GLSL function:
+  - the BACKDROP SPHERE is a ShaderMaterial — the grade IS the texture lookup,
+    so there is no intermediate picture and it runs at the base panorama's own
+    resolution. `tonemapping_fragment` and `encodings_fragment` are included
+    by hand, because a raw ShaderMaterial gets neither and the backdrop would
+    otherwise come out untone-mapped.
+  - the REFLECTION PROBE needs a texture, because that is what PMREM reads, so
+    the same shader runs once into a 1024x512 target. Small on purpose: PMREM
+    resamples to 256, and a full-size copy would cost 33 MB to gain nothing.
+
+THE TWO IMPLEMENTATIONS LIVE IN ONE FILE. The GLSL is a string constant in
+`tools/sky_grade.py`, directly under the numpy it mirrors, and it is carried
+into the payload from there. The risk with two implementations is that they
+drift, and if they drift the room is lit for a sky it is not showing — the
+light rig every row quotes was measured off the PYTHON half. One deliberate
+difference, marked at its site: the star hash. Python's is a 64-bit integer
+mix, WebGL1 has no integer bit ops, so the shader uses a float hash. Stars are
+noise the rig never sees.
+
+VERIFIED, not assumed. The probe reads the render target back and diffs it
+against the offline JPEG for the same row:
+
+    row        meanGPU  meanCPU   median|d|  p95   p99.9
+    alps        127.53   127.71      1        7     17
+    ggolden      71.50    71.86      1        6     13
+    gsunset      43.35    43.80      1        4     10
+    gdusk        23.90    24.09      1        3      6
+    gnight       30.52    30.68      1        3     31   <- the stars
+    gcovered     67.12    67.32      1        4      9
+
+One 8-bit level of median difference, and the residual is the CPU reference
+being resampled 4096 -> 1024 to compare at all. The `as-is` row is the built-in
+check: identity uniforms must reproduce the base picture, and it does.
+
+### FRAMING: THE GRADED ROWS CAME BACK TO 126 DEGREES
+
+G62.1 turned them to 40 so the door looked at the warm quarter. With the halo
+gone that trade stopped being worth it: at 40 the door frames flat field and
+a treeline, at 126 it frames the mountains, the village and the snow line —
+and a graded evening puts warm light ON those rather than in front of them.
+The alps' own framing, for every hour. One number per row if that is wrong.
+
+### MOUNTED
+
+`node tools/sky_tex_prep.js --lab` also writes **tools/_sky.html**: dev.html
+exactly as it is, plus the payload, the flag, and a strip of six buttons. It
+lands in the hangar with the generated aeroplane already selected, because the
+game's own mood control is garage-only AND gen-only and a bare copy of
+dev.html opens on a PA-18 in the studio with every sky control hidden — a
+maze, not a test area.
+
+    node flyDiy/tools/_serve.js 8125          # from the repo root
+    http://localhost:8125/flyDiy/tools/_sky.html
+
+`tools/_probe.html --sky-lab` still exists and is still the AGENT's way in; it
+hand-pumps requestAnimationFrame, so nothing moves for a person.
+
+STILL REVERSIBLE, and still not adopted. `hangar.js` reads `HANGAR_SKY_GRADE`
+and `HANGAR_SKIES_LAB` only when a page has set `FLYDIY_SKY_LAB`; the artifact
+carries the two guard expressions and none of the payload. Deleting
+`tools/sky_grade.py`, `tools/_sky_lab.js`, `tools/_sky.html` and
+`assets/hangar_sky/lab/` takes the whole experiment out.
+
+## G62.3 — THE LIGHT SWITCHES, THE TWO SKY SOURCES, AND WHY THE SHED WAS PINK
+## (2026-08-29, user: "I'll need turning off the hangar lights from the garage
+## ... can we have the GPU version as an option, and the precomputed as the
+## other option? ... There seem to be a global pink glow in the whole hangar")
+
+### THE PINK: THE AEROPLANE WAS IN ITS OWN REFLECTION PROBE
+
+The user was right that it was global, and the cause is worth the section
+because it will come back the next time anything colourful stands in the shed.
+
+`bakeHangarEnv` puts a CubeCamera at (0, 3.2, 0) — the middle of the floor,
+head height — and renders `hangarScene` into it. THE AEROPLANE IS IN THAT
+SCENE. It stands directly under the probe with an 8.4 m wing about a metre
+below it, so it filled a large part of the lower hemisphere, and the PMREM of
+that becomes `scene.environment` for EVERY material in the room. The shed was
+being lit by whatever colour the wing was painted, and the aeroplane was
+reflecting itself.
+
+The wing was painted `#cc12a8`. Not a livery — a leftover DIAGNOSTIC. G38 put
+the waistband's own magenta on the main wing skin so wing-vs-body shading
+could be compared on one colour, with a note in `tools/_cage_wing.js` saying
+"Revert to the body grey 0x8b95a2 when the check is done". It was never
+reverted, and it has been tinting the room ever since.
+
+MEASURED on the back wall (mean RGB, and (R+B)/2G as a magenta index):
+
+    magenta wing, craft in the probe    54.40 47.48 43.02    1.0258
+    magenta wing, craft OUT of probe    47.80 43.81 36.83    0.9658
+    grey wing,    craft in the probe    54.33 51.91 44.16    0.9487
+    grey wing,    craft OUT of probe    53.80 51.45 43.91    0.9495
+
+Read the last two rows: with a NEUTRAL aeroplane the probe exclusion makes
+essentially no difference (0.9487 vs 0.9495, and 0% on a door view). The whole
+effect was the wing's SATURATION — a magenta surface has almost no green, so
+it did not merely tint the ambient, it took 9% of the green out of the entire
+room (47.48 -> 51.91). That is why "some pink seems to impact indirect
+lighting a lot": chroma in a probe is not a tint on top of the light, it is a
+subtraction from two of its three channels.
+
+BOTH ARE FIXED. The wing is back to `SEC.body` grey, and the craft is out of
+the environment bake by default — the same treatment the dust shafts already
+had ("dust is not geometry to reflect"). The exclusion is now insurance rather
+than a visible change, and that is the right state for it: the next saturated
+paint job cannot do this again. `craft→probe` is a switch, because a lighting
+test is exactly what wants to toggle it.
+
+STILL PINK, and on purpose: the fuselage's `waistband` and `pillarTail`
+sections are the cage bench's part-identification colours (`SEC` in
+`tools/_cage_ui.js`). They are meant to be readable, not painted.
+
+### THE LIGHT SWITCHES
+
+One toggle per SOURCE in the editor's hangar section, because the question a
+lighting test asks is "which of these is doing that?" and the room has exactly
+seven answers:
+
+    key · hemi · top · win · lamps · env · shafts    (+ craft→probe)
+
+`env` is the interesting one: it is not a light, it is `scene.environment`, and
+muting it zeroes every material's own `envMapIntensity` — the same lever the
+moods use. It is how you find out how much of the room is the PMREM rather
+than the lamps, which is the question the probe bug above turned out to be.
+
+A MUTE IS APPLIED AFTER THE MOOD, at the tail of `setMood`, and that ordering
+is the whole design: flipping the sky must not silently switch the lights back
+on underneath a running test. `bakeHangarEnv` was likewise changed to RESTORE
+the dust shafts rather than force them visible, or every bake would have
+undone a mute.
+
+### THE TWO SKY SOURCES, SWITCHABLE LIVE
+
+A lab row now carries BOTH shapes — `u` (the shader's uniforms) and `src` (the
+picture the offline grade baked) — so `sky source` in the editor, and the
+strip on `tools/_sky.html`, flip between them on the same frame. It costs
+10.3 MB in a bench payload that is not in the artifact, which is the right
+place to pay for an A/B.
+
+MEASURED, 1280x720, four alternating rounds of 40 rendered frames each:
+
+    steady state   GPU   5.23 5.30 5.33 5.29 ms      median 5.30
+                   baked 5.17 5.27 5.21 5.30 ms      median 5.27
+
+A dead heat — 0.6%, inside the noise. That is not surprising once stated: the
+grade is ~40 ALU and one extra texture fetch on the fragments the backdrop
+covers, against a room full of shadowed geometry. Changing HOUR costs ~67 ms
+either way, and that is the PMREM re-bake and the floor shadow, not the sky.
+
+Visually: mean absolute difference over a whole rendered frame **0.09 / 255**,
+max 15 (the sun's disc edge). They are the same picture.
+
+So the choice is not performance and it is not looks. It is:
+
+    payload      GPU 1.66 MB for every hour   ·   baked 6.1 MB for six
+    memory       GPU one 4k bitmap, always    ·   baked one per hour, re-decoded
+                     + a 1024x512 target           on every switch
+    a new hour   GPU one row of uniforms      ·   baked a 4k JPEG to bake and ship
+
+### A TRAP, FOR THE THIRD TIME IN THIS CHANTIER
+
+`lights` was already the dev handle onto the light OBJECTS. Adding the switch
+list under the same name in the same object literal replaced it — JS keeps the
+last one — and `hangar.lights.key.intensity` silently became undefined. Same
+shape as the `key`/`keyI` collision at G62. It ships as `lightSwitches`.
+
+And `craftInProbe` was initialised from `prefGet` at module eval, which is
+inside that function's temporal dead zone. The file carries that warning twice
+already; this is the third time it has bitten. It is read at first build now,
+beside `envSource`.
+
+## G62.5 — THE RIG IS TWO LIGHTS AND AN ENVIRONMENT; 8k; A BIGGER SHED; AND
+## THE CAMERA CLAMP THAT WAS SHORTER THAN THE NEAR PLANE (2026-08-29)
+
+### THE SIMPLIFICATION WAS THE USER'S, AND THE EVIDENCE BACKED IT
+
+> "why don't we simply cut the shafts and the windows from the hangar mesh,
+> like we've done. Then we really need only 2 lights; the sun and the ceiling
+> lamps ... I have the feeling we multiplied unphysical light sources, and now
+> we struggle with the management of them. I suggest simplification."
+
+Correct, and the reason it works NOW rather than before is worth stating: the
+openings are genuinely cut (G52 glazing, G55 skylights and gable) and the key
+light casts, so THE SUN GETS IN BY ITSELF, at the right angle, through the
+right holes. The three fills were invented when the shell was still solid.
+Each was a second sun with no occlusion, and each was DOUBLE-COUNTED, because
+the environment probe is baked with them switched on.
+
+Deleted: `hemi` (a HemisphereLight — by construction lights everything from
+everywhere, never occluded), `top` (a second sun from straight above,
+duplicating what the real one now does through the skylights), `win` (two
+more, standing twelve metres OUTSIDE the flanks, lighting the far wall through
+the near one — measured at G62.4 as the second-largest source in the shed).
+
+Kept: `key`, `lamps`, and `scene.environment`, which is the honest model of
+everything that is not a direct source — a cube pass of this room that sees
+the real sky through the real openings, PMREM'd.
+
+MEASURED on a wall camera before committing, mean / % of frame crushed:
+
+    six sources (as it was)          64.4    14.5%
+    sun + lamps + env, probe rebaked 50.2    35.2%   <- too dark, as predicted
+    sun + lamps + env, env x2.2      75.2     3.8%   <- brighter AND better shaded
+
+Night is unchanged either way (29.9 -> 29.3): the fills were already near zero
+there and the lamps carry it.
+
+So `RIG0['env']` goes 0.55 -> 1.21. That is not a fudge: 0.55 was tuned as a
+SUPPLEMENT to three other fills, and with them gone the environment has to
+carry what they were carrying. `hemi` and `top` stay in sky_prep's table
+because they are still MEASUREMENTS of the sky's shape and the directness
+ratio is derived from them — the room simply no longer has a light to apply
+them to.
+
+DELETED, not zeroed, and that matters: three.js compiles the light COUNT into
+every material's shader, so a zero-intensity light is still paid for on every
+fragment.
+
+### THE CAMERA CLAMP WAS SHORTER THAN THE NEAR PLANE
+
+> "I often see half-through a wall, and that looks bad"
+
+G55 already clamped the eye to 0.55 m inside the shell, so this looked like it
+should not happen. It happened because 0.55 is measured to the wall's CENTRE
+and the sheeting is 0.12 thick: the eye sat 0.49 m off the inner FACE, and the
+camera's near plane is 0.50. The wall was inside the near plane and was being
+clipped away — you were not seeing through a gap, you were seeing through a
+wall that had ceased to be drawn.
+
+A margin that is a hand-picked number cannot be right, because the thing it
+has to clear is the near plane. It is derived from it now:
+
+    m = camera.near + 0.25 + 0.06        // near + clear air + half the sheet
+
+and it follows the near plane if that ever changes.
+
+### THE SHED IS 30 x 25 x 7
+
+Default `HW 15, HD 12.5, EAVE 7`. NOTE the units: this table and the editor's
+sliders speak in HALF width and HALF depth, so a 30 m wide, 25 m deep shed is
+15 and 12.5. A profile that has ever touched the dimension sliders carries
+`flydiy.hangarDims` and that pref WINS over the default — clear it to pick the
+new size up.
+
+### 8k
+
+> "I wonder if we should not have it in double the resolution, given how
+> visible it is, advice?"
+
+Yes, and the arithmetic says so: at a 1920 viewport the door opening spans
+about 50 degrees of azimuth and roughly 770 screen pixels, and a 4k equirect
+puts only 570 pixels across that — under 1:1, which is why it read soft. 8k
+puts 1140 across it.
+
+It is affordable for exactly one reason: THE RUNTIME GRADE MADE IT ONE
+PICTURE. base.jpg 5.42 MB + gain.png 0.57 MB = **5.98 MB for every hour there
+will ever be**, against 6.1 MB for six baked 4k pictures. Doubling the
+resolution of the only thing you actually look at costs nothing net.
+
+THE ROWS ARE STILL MEASURED AT 4k. `LAB_MEASURE_MAX` decimates the source for
+grading and measurement: the sphere integrals agree to four decimals, the
+preview JPEGs are a reference rather than the payload, and grading 33 million
+pixels six times over costs minutes and gigabytes for nothing. Only `base` and
+`gain` — the two images the shader samples — are written at full resolution.
+
+The cost that IS real: 134 MB of decoded bitmap resident instead of 33 MB.
+One panorama, always; it does not scale with the number of hours.
+
+## G66 — THE SURFACE FIELD (2026-08-29, ROADMAP P9 pulled forward, user: "we
+## are going to give materials to the procedural planes"). THE COORDINATE THAT
+## REPLACES A UV UNWRAP.
+
+**FIRST OF THE MATERIALS ARC (G66-G70).** The aeroplane that flies wears one
+flat grey — G38's uniform recipe, declared there as the placeholder "until
+materials become a real chantier (P9)". This chantier lays the ground for the
+material, not the material: nothing looks different yet, on purpose.
+
+**THE RULING: NO UV UNWRAP, AND NO PURE TRIPLANAR.** The cage's RINGS are the
+formers and its LEVELS are the longerons, so the lattice already IS the
+structure and the parameterisation it needs is its own. Every airframe vertex
+now carries
+
+    aStruct = [ sL, sC, st, lv ]
+      sL   metres along the body on the waist rail, 0 at the FIREWALL, +AFT
+      sC   metres around the section, 0 ON THE WAIST RAIL, + upward
+      st   station: integer = a structural ring, fraction = inside a bay
+      lv   rail:    integer = a structural rail, fraction = a guard
+
+`.xy` is metric, so one tile number gives every surface on the aeroplane the
+same real-world texel density — the same move G40 made for the hangar walls,
+on a curved body. `.zw` is the structure, and `fwidth()` on the pair recovers
+bay length, band width and metres-per-pixel in the fragment shader with no
+uniforms at all. Geometry with no lattice takes a triplanar branch instead.
+
+**sC IS PER-LEVEL, AND THAT IS FORCED, NOT CHOSEN.** `buildCage2`'s `P()`
+welds by position with x snapped to 0, so the roof-crown and keel chains are
+SHARED between the two halves and a wrapping coordinate would be double-valued
+there. Signed-arc-magnitude makes both halves meet at the same value: the tile
+mirrors across the spine and the keel, which is how a fabric aeroplane is
+actually covered. **Any future non-mirror-symmetric surface coordinate breaks
+this silently, as a smear rather than an error** — the comment says so at the
+generator.
+
+**GUARDS ARE NOT STRUCTURE.** The guard rings (name + "+g") and the
+waistG/bandG levels pin Catmull-Clark; no aeroplane has a former there. They
+take FRACTIONAL coordinates and nothing is ever drawn on them. This is what
+lets an alloy fuselage carry 0.45 m frames on a cage whose rings are 1.2 m
+apart without adding a vertex (G68's job).
+
+**CATMULL-CLARK CARRIES IT, AND A DISTANCE FIELD MUST NOT BE.** All three CC
+rules are affine and their weights sum to 1, so applying them to a scalar
+yields the limit surface's own parameterisation of the limit surface. A
+distance-to-nearest-member field is V-shaped with a crease at the midpoint
+between members: averaging rounds the peak off and the error moves with member
+spacing. So dF/dR are derived in the shader from fract(st)/fract(lv) and never
+stored. The carrier is written INLINE beside each position it mirrors and
+guarded by `if (A)`, so a mesh without the field takes a byte-identical path —
+which is what protects the fit.
+
+**THE FLANK -> CENTRELINE TRAVERSE SPLITS ONTO THE AXIS EACH COMPONENT BELONGS
+TO**, and getting this wrong twice is most of what the session cost. On a
+plain ring the centre column is the crown or the keel, straight across, and
+the traverse is all sC's. On a nose ring, a cowl loop or the windscreen's
+centre chain the crown LEADS — its own z is well forward of its flank's — and
+that part is an advance along the body, so it is sL's. Give it all to sC and
+the roof and belly strips have NO EXTENT in the field (measured: `body` at
+texel-density 0.554 while the rails sat at 1.000 exactly). Give it all to sL
+and the chain lands forward of the nose ring on the ruler while sitting behind
+it in space. **A CAP IS A POLE** and gets the one exception: the lid unrolls
+along the body, because a nose bowl is one station and sL cannot advance
+across it otherwise.
+
+**MEASURED, because "it looks right" is not a verdict.** Texel density is the
+ratio of a quad's area in (sL, sC) to its area in space — 1.000 for a perfect
+parameterisation, and there is no art in it. At two subdivision levels,
+area-weighted, over nine shapes:
+
+    median      1.000    (area-EXACT; the rails and pillars are 1.000 to 3 dp)
+    p95         < 1.20
+    p05         > 0.40
+    pole area   9.5 - 22 %   (highest on the pod: a mirrored body has two
+                              nose bowls)
+
+Everything outside the band is a POLE — the tail cap, the nose bowl, the crown
+and keel centrelines — bounded and local, where any non-atlas parameterisation
+must degrade. **That is handled in the shader, not here:** it measures its own
+local scale with fwidth() and blends toward triplanar exactly where the field
+stops being metric, which costs nothing and leaves no seam. Forcing a perfect
+global parameterisation would have been the wrong fight.
+
+**THE INVARIANT THE SHADER ACTUALLY DEPENDS ON** is not "everything has a
+field". The post-passes ADD geometry with no lattice — a rim bead is swept
+along a boundary polyline, the interior liners and frames are their own
+components — and those take the triplanar branch by design. What the shader
+cannot do is take BOTH branches inside one draw group. So:
+
+    EVERY MATERIAL IS PURE — all of its faces have the field, or none do.
+
+`cageCut` broke it. A cut part is the SAME SKIN MOVED — the door that swings
+out keeps the panel lines and the livery it had when it was shut — and its
+duplicated vertices came away unfielded while the body around them stayed
+fielded, putting `body`, `waistband` and `floorLoop` on both branches at once.
+**THE NODE VERDICT PASSED THROUGHOUT: it ran with `cutParts` off.** The bench
+page ships `cutParts 1` and it was reading the live page's own mesh that found
+it. The verdict's pipeline cases are the BENCH PAGE'S settings now, not the
+defaults — a purity test that does not exercise the passes which duplicate
+geometry is testing nothing.
+
+**THE VERDICT** — `node tools/_surf_check.js` gives `SURF: OK`. Nine shapes
+(stock, round top, rod, taper, doors+windows, bubble, mirrored pod, aero nose,
+cowl loops), each reaching a different emitter. Checks: no holes; the ruler is
+monotone against the station coordinate on the mesh's OWN EDGES; the sL step
+equals the waist rail's own length to 1e-6; CC edge points sit on the parent
+midpoint; texel density as above; material purity through the full display
+pipeline; and the absent path byte-identical. NEGATIVE-VERIFIED with
+`--selftest`, which breaks the field five ways and requires each to be caught
+(hole, non-finite, sL reversed, sC datum lost, guard on an integer) — all five
+CAUGHT.
+
+**FOUR BUGS THE VERDICT CAUGHT BEFORE THEY SHIPPED**, none visible by eye: the
+nose read an EXTRAPOLATED ruler instead of continuing the arc; the rod's
+stations counted the wrong way (st counts forward, the rod runs aft); the
+pod's arceau took a looked-up datum where a distance belongs, so the band
+measured the wrong length; and the pod's station datum sat on the same side as
+its sL datum when the two run opposite by design. The last one is the shape to
+remember — **the length was right and the stations were backwards**, which is
+exactly the half-correct a verdict exists for.
+
+**ONE CHECK WAS WRONG TWICE**, and both times it conflated COLUMNS. Sorting
+every waist-level vertex by z and demanding monotonicity fails on a correct
+field, because a ring's centre column sits at zC — on a cowl loop, far forward
+of its own flanks — so the columns interleave. The invariant that holds is
+local and topological: along any lattice edge running ALONG the body, the
+ruler and the station coordinate must disagree in sign. Likewise "sC is 0 on
+the waist rail" is true of the FLANK column only; the nose deck's crown is
+genuinely up-and-over from the rail and must be nonzero, or the whole deck
+goes zero-wide.
+
+**SEEN, NOT ONLY MEASURED.** The bench's view group grew a `surface field`
+select that every page gets for free (it builds its own control): a 0.25 m
+metric checker straight off (sL, sC), and the station/rail lattice. The
+checker holds its size from the nose to the tail cone while the section
+narrows sharply — which is precisely the compression G4.5 recorded for the old
+normalised-angle body UV ("a glyph of fixed u-width covers less and less
+physical distance the further aft it sits") — and the waist rail runs straight
+and unbroken the whole length. The lattice view draws a line at every integer
+station and rail and NOTHING on a guard, so the diagnostic is a line that
+should not exist: a doubled line beside a pillar would be a rivet row about to
+land on a subdivision artefact. There is none.
+
+**AND IT SHOWED SOMETHING G68 NEEDS.** There are no station lines aft of the
+cabin at all: the boom is a single ~4 m bay with no intermediate structural
+ring. The frame's own `fu.tailBays` and the visual former count are two
+opinions about one thing, and the grammar will have to synthesise the
+intermediate frames analytically from a framePitch — round(bayLen / pitch), no
+new geometry — rather than assume the cage's rings are the formers.
+
+**parts.ribs.** `61_gen_frame.js` has always computed the rib COUNT (one every
+0.4 m of span) to bill their mass and thrown the stations away, so anything
+wanting to draw a rib tape had to guess: `garage.js` carried `GEN_RIBS = 13`,
+right for the default Cub's semispan and wrong for every other. The stations
+are exported now, from the same 0.4 m rule read once, so the structure that
+pays for the ribs and the surface that shows them cannot disagree.
+
+**THE JOIN CARRIES IT, AND STOPS MERGING BY COLOUR.** `_cage_join.js`'s
+snapshot keyed its groups on the material's colour hex, so two sections
+wearing the same tint merged irreversibly and the flown aeroplane could never
+be told which band was the waistband. It keys on the SECTION NAME now
+(`meshFrom` publishes the ordered names it grouped by — one description of the
+split), carries `srf` beside pos/nrm/idx, and records per material whether
+that group is on the field branch. The field crosses the join unchanged, and
+that is the point of it being a SURFACE coordinate: arc lengths measured on
+the skin are not touched by the cage-to-model rotation or the pitch
+calibration the way a position or a normal is. `uv` stays an all-zero array —
+the cage has no unwrap and never will.
+
+VERIFIED: `FIT: OK` unchanged — 320/320 vertices, 318/318 faces, maxDev
+3.6e-5 against the Blender reference, and the cageSpec identity exact. The
+`if (A)` guard exists for exactly this.
+
+DECLARED v1 GAPS:
+- The rim beads (`joint`) and the interior liners and frames (`cloth`,
+  `plywood`, `woodFrame`, `tube`, `bulkhead`, `firewall`, `dash`) carry no
+  field and take triplanar. For the liners that is a v1: "nails on plywood
+  into beams" wants the lattice, and `cageInterior`'s own emitter knows its
+  frames. Ply grain on triplanar is a good v1; the fasteners are G68's.
+- `cageCanopy`'s bubble is a new component built on the displayed seam and has
+  no field of its own. It is PURE (all-unfielded), so the invariant holds.
+- The longitudinal ruler is the waist rail's arc, shared by every level of a
+  ring. Where a ring flares hard against its neighbour (cowl-to-firewall, the
+  boom pinch) the upper and lower rails stretch against it. The remedy is
+  costed: scale sL per level rather than per ring — exact in both axes, at the
+  price of a chordwise panel line no longer being perfectly straight. Shipped
+  on the shared ruler; switch if it reads stretched.
+- Only the fuselage cage carries the field. The wing, fin, stab, gear, engine
+  and cowl layers emit none and will take triplanar until they earn a lattice
+  of their own.
+
+NEXT: G67 — AEROSKIN, the one material. MeshStandardMaterial +
+onBeforeCompile (r128 routes `scene.environment` to Standard materials ONLY,
+so a hand-written ShaderMaterial gets no PMREM at all), the finish table, the
+per-section tint, the editor panel, and glass.
+
+## G62.6 — THE KLOPPENHEIM SET IS RETIRED (2026-08-29, user: "go, retire the
+## kloppenheim set. Also remove your new panel")
+
+The graded set arrived at G62.1 as a test area beside five delivered
+panoramas. It won on every count that was measured, so it is now the only set
+there is and the `--lab` mode is gone with the thing it was testing:
+
+  - `tools/sky_prep.py` has ONE table, always graded, always from
+    `alps_field_8k.hdr`. No mode flag.
+  - `tools/sky_tex_prep.js` has ONE output shape: base.jpg + gain.png + the
+    GLSL + a row of UNIFORMS per hour. No baked pictures in the payload.
+  - `hangar.js` reads `HANGAR_SKIES` directly; the `FLYDIY_SKY_LAB` gate and
+    `HANGAR_SKIES_LAB` are gone.
+  - `make_probe.js --sky-lab`, `tools/_sky_lab.js` and `tools/_sky.html` are
+    gone. The lab page's panel went with them — the user's reason is the right
+    one and worth recording: **the options were already in the editor, and the
+    panel sat on top of the game's own buttons.** A bench UI that duplicates a
+    real one is not a convenience, it is a second thing to keep in step.
+
+DELETED from assets/hangar_sky/: the four Kloppenheim .hdr sources, their four
+baked hours, the 4k alps .hdr (superseded by the 8k), and the whole lab/
+directory. 248 MB -> 114 MB, of which 104 MB is the one 8k source.
+
+KEPT, and not by accident: `alps_field.jpg`. It is the hand-made picture the
+anchor's display exposure is solved against (`mean=None` on the anchor row
+reads it); delete it and the anchor silently falls back to a hard-coded 0.50.
+
+PAYLOAD: src/viewer/hangar_sky.js 6.17 -> 7.99 MB, and that buys 8k instead of
+4k AND a sixth hour. index.html 70.0 -> 73.7 MB.
+
+VERIFIED in dev.html — not a lab page — six hours, `graded: true`, `skyModes`
+reporting only `gpu`, the shed at 30x25x7, four light switches, and both lab
+globals `undefined`.
+
+## G65.1 — THE INSTRUMENTS GO ON THE AEROPLANE YOU CAN SEE (2026-08-29,
+## user: "there is a discrepancy between the markers in the garage and
+## the positions on the CG, wheels, etc")
+
+WHAT IT IS, and it is not what G65 changed: THE CAGE BUILD AND THE
+PHYSICS LATTICE STAND ABOUT 2.8 m APART ALONG THE ROOM, and always
+have. `placeEditor` grounds the editor's build (edSitP pitched by the
+gear layer, edSit lifted to groundY - gy) and leaves it at the CAGE's
+own datum in x and z; the lattice sits at the FRAME's datum. Nothing
+has ever tied the two, and vertically they agree only because groundY
+is read off the lattice's own main wheel.
+
+WHAT G65 DID was make them visible at the same time. Before it,
+`openEditor` set `craft.visible = false`, so the CG/NP posts and the
+three ground-contact crosses — children of `craft`, built from `sim.p`
+— were hidden for exactly as long as the cage build was up; and with
+the panel closed the cage build was hidden and the model stood in its
+place, so the instruments were correct there too. The two were never on
+screen together, so a 2.8 m gap sat in the room for thirty chantiers
+without anyone being able to see it. G65 put both up at once.
+
+DIAGNOSED BY MEASURING, not by reading the diff: the diff does not
+touch `placeEditor`, `buildIndicators`, `gInd`, `gLabels` or `groundY` —
+only `edSit.visible`. What the page said:
+
+  landmark        cage build (world x)   physics lattice     delta
+  main axles           -2.143                0.49            2.63
+  tailwheel            +2.616                5.30            2.68
+
+The SAME translation at both ends is what says it is a translation and
+not a pose difference — and the two things that could have differed
+already agree: half-track 0.8 m both, deck angle 9.65 deg both.
+
+THE FIX. The instruments are an instrument: they describe the aeroplane,
+so they belong ON the aeroplane you are looking at. `gInd` and the two
+labels moved into their own group under `craft`, and `standOffset()`
+measures the gap off the one landmark both aeroplanes agree is a wheel —
+the gear layer publishes its legs' AXLES in the editor mount's own
+frame, the frame names the same two nodes GAL/GAR. Measured, never
+derived, and recomputed on every rebuild, so it follows the design.
+
+IT RETURNS NULL WHEN IT CANNOT MEASURE — no gear layer, no GAL/GAR, a
+build mid-rebuild — and the caller then HIDES the instruments. An
+instrument in the wrong place is worse than no instrument, and that is
+the whole lesson of this bug.
+
+VERIFIED in the page, stock build: offset measured -2.825, 0, 0 (y and
+z exactly zero, as a pure fore-aft translation must be). Indicator
+ground marks land at (-2.28, +/-0.8) and (2.73, 0); the cage's own wheel
+axles are at (-2.28, +/-0.8) and (2.52, 0). The mains are EXACT — they
+are the landmark. The tailwheel is 21 cm out, and that residual is
+REAL and not a framing error: it is the gap between the cage's own
+tailwheel station and the `gear.twX` clampSpec bounds it to, which is
+precisely the sort of thing the G52 fit report exists to report. The CG
+and NP posts now stand just aft of the mains, where a CG belongs; before
+the fix they were 3 m behind the tail.
+
+STILL OPEN, and worth its own chantier: the two aeroplanes are still
+2.8 m apart. Moving the BUILD onto the lattice instead of the
+instruments onto the build would be the deeper fix — one aeroplane, one
+place, and it would stop the aeroplane jumping station when you roll
+out — but it re-places the build in a room whose lighting, floor shadow
+and props another session is actively composing around where it stands.
+Not to be done unilaterally. The transform is known: the snapshot's own
+`off` plus `cg0` (G52's datum note, "the visual reaches lattice frame by
++off+cg0, NOT +off").
+
+FULL BATTERY --all after the fix: 33 gates, PASS. Still uncommitted.
+
+## G62.7 — THE LIGHT NOBODY WAS HOLDING (2026-08-29, user: "All lamps turned
+## off (I can still see the stove one), but still something is lighting up the
+## airplane ... hunt all light sources, we're still missing some")
+
+There was exactly one, and the way to find it was to stop reading code and
+enumerate what is actually in the scene:
+
+    S.traverse(o => { if (o.isLight) ... })
+
+Eight lights at NIGHT with the lamps muted: six SpotLights at intensity 0
+(correctly muted), the sun at 0.076 — and a **PointLight at 14 candela**.
+
+THE STOVE FIRE. Constructed inside `stoveCorner()` halfway down the file,
+`new THREE.PointLight(0xff7a2a, 14, 7, 2)`, assigned to nothing and referenced
+by nothing afterwards. No mood scaled it, no switch could reach it. Every other
+source in the shed dims with the hour; this one burned at 14 cd at noon and at
+midnight, and at midnight the sun is 0.076 — so it was most of the light in
+the building, from 0.6 m off the floor, which is why what it lit was lit FROM
+UNDERNEATH (the user saw it on the bottom of the wing on the trestles).
+
+MEASURED, night with the lamps off, on a patch tight to the fuselage:
+stove off 3.42, stove on 4.11 — a fifth of the light on the aeroplane. On a
+wider night view it was 7.71 vs 3.72, i.e. **52% of the frame**.
+
+THE LESSON, which is the general one: `hangar.lights` was a hand-kept list, and
+a light that is never added to it is invisible to every switch, every mood and
+every review. The scene graph is the only authority on what is emitting. There
+are now five switches (key, lamps, stove, env, shafts) and the traverse above
+is how the next one gets found.
+
+A MISTAKE MADE AND UNDONE ON THE WAY, recorded because it was tempting: the
+first fix scaled the fire with the lamps, on the reasoning that a shop lights
+its stove when it lights its lamps. That took it to 38 cd at night — brighter,
+in the mood the user had just asked to darken. A fire does not know what time
+it is. It is a constant, and what it needed was a switch, not a curve.
+
+CLEARED, and worth writing down so nobody hunts them again: the editor's own
+three-light rig in `tools/_cage_ui.js` is NOT in this scene (8 lights before
+opening the editor, 8 after — it belongs to the standalone `_cage8.html`
+bench), and emissive MATERIALS (lamp shades, filaments, glazing panels, the
+fire's own glow) cannot light anything in three.js, so none of them were ever
+suspects.
+
+## G62.8 — SIX LAMPS, SIX POOLS (2026-08-29, user: "I can clearly see 6 lamps
+## hanging, but I can see only 5 marks on the ground, 4 on the sides, and a big
+## one on the plane ... there's no lamp straight on top of the plane, innit?")
+
+Right on both counts, and the arithmetic was sitting in one line:
+
+    L.target.position.set(x, 0, k === 1 ? s * 1.5 : z * 0.75);
+
+The lamps hang in two rows of three at z = +/-7.9. The two CENTRE ones (k === 1,
+one per row) were aimed at z = +/-1.5 — the centreline — from 7.9 m out on
+either flank. Both pools landed in the same place and merged into one patch,
+on an aeroplane with no fitting above it. Four outer pools plus that merged one
+is exactly the five marks he counted.
+
+THE AIM WAS G42'S AND ITS REASON HAD GONE. It was introduced because "the stand
+sits in the centre aisle ... where the only shadow-caster (the door sun) never
+reaches" — i.e. to ground the aeroplane with a contact shadow. G58 then BAKED a
+floor shadow and G59 added the craft's own print, which is that job done
+properly and independently of where any lamp points. The aim outlived its
+purpose by two chantiers, and all it did afterwards was lay light on the floor
+where nothing hangs.
+
+All six now target their own (x, z): a hung shade throws DOWN. Verified from an
+orthographic camera under the eaves, at night with everything but the lamps
+switched off: SIX pools, one under each fitting, each with the shade's own
+silhouette at its centre. A blob count on that frame agrees.
+
+CONSEQUENCE, and it is the honest one: the centre aisle is now dark at night,
+because there is no lamp over it. The aeroplane is grounded by the baked floor
+shadow rather than by a spotlight pointed at it from the side. If the stand
+should be lit, the answer is to HANG A LAMP OVER THE STAND — a fitting the
+player can see — not to re-aim one that is somewhere else.
+
+## G67 — AEROSKIN: ONE MATERIAL FOR THE WHOLE AEROPLANE (2026-08-29, ROADMAP
+## P9, user: "everything PBR, let's aim for real high"). THE END OF THE GREY.
+
+**THIS RETIRES G38's UNIFORM RECIPE**, which that chantier declared as a
+placeholder in its own words: "the uniform recipe is the game editor's display
+treatment, and the right baseline until materials become a real chantier
+(P9)". This is that chantier. The aeroplane you build now wears the material
+it is made of, and so does the aeroplane that flies.
+
+**THE VEHICLE IS MeshStandardMaterial + ONE onBeforeCompile, and in r128 that
+is not a preference.** Read out of `vendor/three.min.js`, not recalled:
+
+    getParameters:  const w = r.isMeshStandardMaterial ? y.environment : null
+
+A hand-written ShaderMaterial is NOT `isMeshStandardMaterial`, so it never
+receives `scene.environment` — the PMREM bake of the room simply does not
+reach it, the same hole app.js already documents for the gear and the
+spinner. Three more reasons point the same way and any one of them would
+decide it: `refreshMaterialUniforms` uploads `envMapIntensity` only for
+Standard/Physical, so the moods keep working; `encodings_fragment` stays in
+the shader tail, and the RGBE-black trap W18 paid for was precisely a
+hand-written ShaderMaterial with none of three's chunks; and the depth path
+needs no `customDepthMaterial`.
+
+    Material.customProgramCacheKey() { return this.onBeforeCompile.toString() }
+
+**ONE module-level function object therefore means ONE PROGRAM for every
+section.** VERIFIED at runtime, not assumed: three materials with different
+finishes, tints and branches share the hook BY REFERENCE and return an
+identical cache key; only `defines.AEROSKIN_SURF` differs; glass has its own
+hook and its own program. The corollary is the sharpest footgun in the file
+and the gate asserts it in the source text: **never interpolate a per-material
+value into the injected GLSL**, because the key is the FUNCTION's source, not
+the generated source — two materials whose generated shaders differ and whose
+function source matches would silently share the first one's program.
+
+**TWO COORDINATE BRANCHES, by #define, never by a runtime `if`.**
+`AEROSKIN_SURF 1` is G66's metric surface field: `aStruct.xy` is metres along
+and around the body, so one tile number gives every surface the same real
+texel density. `AEROSKIN_SURF 0` is object-space triplanar with a whiteout
+blend, for geometry that has no lattice — the rim beads, the interior liners
+and frames. A runtime mix would cost four fetches everywhere and put
+`texture2D` in divergent control flow, where derivatives are undefined.
+Whiteout and not UDN for the triplanar case, deliberately: UDN stacks wrinkles
+that share a frame, and three planes are three different frames.
+
+**THE PACKING: one RGBA sheet, three maps** — rg normal.xy, b roughness, a
+metalness. props.js's ONE MATERIAL logic pushed one step further, and it is a
+requirement rather than an optimisation: the room's rig is 1 casting
+directional + 6 casting spots (G60) = 7 shadow samplers plus the envMap,
+which leaves the material two of a realistic sixteen. It also makes the
+triplanar branch three fetches instead of nine.
+
+**THE ALBEDO IS THE PARAMETER, THE LOOK IS THE NORMAL** — the user's own
+ruling ("the look of the material would essentially come from its normal and
+roughness maps, because the albedo should be parametrizable, with a color
+picker"). So a finish carries NO colour map: its sheet is normal + roughness +
+metalness, the colour is the material's own `color`, and the sheet modulates
+value only, off the same channel that carries the weave.
+
+**THE COLOUR TRAP, and it is easy to state backwards.** r128 feeds a flat
+`color` to the shader as LINEAR while an sRGB-declared texture is converted,
+so a hex fed in unconverted renders about twice as bright as the swatch looks.
+Converting therefore DARKENS the picture relative to the legacy path — it does
+not lighten it — and what it actually does is make the aeroplane the colour
+you chose. MEASURED on the fuselage flank in the room: the G38 understudy at
+SEC.body reads (138,110,115), AEROSKIN at the same hex reads (94,68,79), a
+linear ratio of 0.43 against the 0.47-0.57 the conversion alone predicts — so
+the shading was right and the whole difference was this.
+
+**WHICH SETTLED THE DEFAULT TINT.** The first pass tinted every section from
+`SEC` and the aeroplane came out a harlequin, and a dark one. `SEC` is a
+DIAGNOSTIC palette — magenta waistband, green pillars, picked so sections can
+be told apart — not a livery, and its hexes were chosen without the
+conversion. So the stack starts where the user said it should: "base material
+from the configurator, per section -> color picker tinting the albedo". No
+pick, no tint: the section wears its finish's own colour, which is what doped
+fabric, birch ply and alclad actually look like.
+
+**THE TWO DECLARED TABLES.** `AERO_FINISH`: ten rows, each stating its tile in
+METRES (the number that makes the scale coherent, per finish, because a fabric
+weave and a ply sheet are not the same size in the world), its roughness and
+metalness scalars, and its base colour. `AERO_ROLE` + `AERO_BY_CONS`: the
+cage's ~30 section names collapse to a handful of ROLES, and the construction
+the spec already carries picks the finish per role — which is what stops this
+being thirty dropdowns. `_cage_ui.js`'s GLASSM/INTSKIN/INTSTRUCT sets were
+already a degenerate version of that table. The interior liners resolve by
+NAME, because `plywood`, `cloth`, `composite` and `toele` say what they are
+made of.
+
+**FOUR CONSTRUCTIONS, FOUR AEROPLANES.** The longest-standing open playtest
+item is "Structure has no visual feedback ... Four materials look identical".
+Measured on the flank, in the room, same pixels:
+
+    tubeFabric  (141,130,108)  lum 131.1     warm cream, matte
+    wood        (133,97,52)    lum 101.1     birch
+    alloy       (139,132,117)  lum 132.2     cool, glossier
+    carbon      (22,20,17)     lum  20.4     near black
+
+HONEST: fabric and alloy are the close pair (131 vs 132 luminance, 9 apart in
+blue). That is not a failure of the finish table, it is true — a doped-fabric
+aeroplane and a painted alclad one ARE similar in colour at five metres. What
+separates them is rib tapes against rivet lines, and that is G68.
+
+**GLASS: transmission + clearcoat, and the recipe follows from reading the
+chunk.** r128's transmission is ONE line at the tail of `meshphysical_frag` —
+alpha modulation that SPARES THE SPECULAR — so the specular IS the glass, and
+the thing to do is feed it. `clearcoat 1.0 / clearcoatRoughness 0.03` adds a
+second sharp lobe that lands in `indirectSpecular`, which transmission then
+reads back to RAISE alpha: the canopy goes near-invisible facing nothing and
+snaps to a hard glint on the roof lights. It is also the closest r128 gets to
+a two-layer model. No `thickness` before r132 (VERIFIED undefined on the built
+material); `opacity` carries the slab exactly as hangar.js:730 documents for
+the shed's own windows. The moulding ripple goes on the CLEARCOAT normal only,
+leaving the base normal smooth — physically a wavy outer surface over a clean
+bulk, and it stops the transmitted image wobbling. FrontSide, `depthWrite`
+false, casts nothing. NOT `sheen`: r128 has only the old crude `Color` API.
+
+**alphaTest STAYS AT 0 EVERYWHERE.** r128's `getDepthMaterial` copies neither
+`map` nor `alphaTest` onto the depth variants, so an alpha-tested cut-out
+casts a SOLID shadow anyway — and a registration decal is paint on an opaque
+panel that must cut nothing. Keeping it at 0 also keeps ALPHATEST out of the
+program cache key and early-Z alive, which is worth having under
+`logarithmicDepthBuffer`. There is no `customDepthMaterial` anywhere.
+
+**THE UNDERSTUDY HAD TO LET IT THROUGH, and this was going to break on first
+integration.** G38's EXT pass replaces every material whose type is in `LIT` —
+which includes `MeshStandardMaterial` — with flat grey. An AEROSKIN material
+is exactly that type, so without an exemption the whole chantier would have
+been invisible in the one place it matters, the game. It is skipped BY DESIGN
+(`userData.aeroskin`), not as an exception: G38 declared the uniform recipe
+the baseline until P9, and this supersedes it for the airframe.
+
+**THE MOODS REACH THE AEROPLANE, and they never did.** A gap found while
+building this: `app.js` set `envMapIntensity` once when the material was built
+and nothing touched it again, so under GOLDEN or NIGHT the room dimmed around
+a machine still reflecting a midday probe. `aeroSetEnv(f)` is now registered
+beside `propSetEnv` in `setMood` and in its muted branch, scaling from each
+material's own recorded `env0` so materials the editor builds LATER arrive
+already correct. VERIFIED live: a glass material read `envMapIntensity` 3.08
+after a mood, not its authored 1.4.
+
+**MATERIALS ARE POOLED, NOT REBUILT.** A spec apply already spends ~340 ms in
+buildGen + genSkin + the texture bakes; recreating thirty Standard materials
+per apply would add `initMaterial` and a full clone of
+`ShaderLib.standard.uniforms` each, for values that can be written directly.
+Pooling also keeps `userData.env0` stable across applies, which is what
+`aeroSetEnv` reads — props.js's own posture.
+
+**THE MATERIALS PANEL** (the user's ask, from the start: "make me a little
+editor like the hangar"). The hangar section's own shape from G41: one row per
+section, finish on the left, colour on the right, double-click the label to
+reset, and the whole state persisted as ONE JSON pref that restores with the
+build. **THE LIST IS READ OFF THE BUILD**, never hard-coded — the discipline
+`_props.html` states for the prop bench — because which sections exist depends
+on what you built, and a fixed list goes stale the first time a discriminator
+moves. Measured live: 19 rows on the stock build, with the glazing correctly
+excluded from the finish choice.
+
+**THE JOIN CARRIES WHAT IT IS, NOT WHAT IT LOOKED LIKE.** The snapshot now
+records the FINISH KEY and the shader branch per material, so the game rebuilds
+from the same factory the editor used rather than approximating with a colour
+and two scalars — which is the whole answer to "the shaders used for the
+planes should be as consistent as possible": there is one factory and both
+worlds call it. This is also why the colour lives on `material.color` rather
+than in a uniform: `_cage_join.js` reads `m0.color.getHex()` off every
+material it freezes, and a material hiding its albedo in a uniform snapshots
+as WHITE.
+
+**A TRAP INSIDE THAT ONE**, and it would have read as a lighting bug: the
+colour that comes back out of a snapshot is ALREADY LINEAR (r128 stores
+`material.color` linearly and `getHex` hands it back the same way), so
+converting it again on the way in would darken the flown aeroplane against
+the one in the editor by the square of the transfer. The factory takes `tint`
+(sRGB, converts) or `tintLin` (already linear, does not), and they are not
+interchangeable.
+
+**VERIFIED END TO END.** A livery set in the editor from the cage's own rings
+— red body, cream waistband and ceiling loop, navy belly, which is exactly the
+case the user described ("exploiting the rings of the plane, like the waist
+band or the floor and ceiling loops") — snapshotted to 18 section-keyed
+material records carrying `fin`, `surf`, roughness and the resolved colour,
+plus 18 groups carrying the surface field, and came out on the FLOWN aeroplane
+unchanged. The red round-trips to 0x930906 linear, which is #c8352c converted
+exactly once.
+
+**THE STANDALONE BENCH GETS AN ENVIRONMENT, AND ONLY THAT.** G35.3's finding
+in reverse: Lambert's diffuse term has no 1/pi and Standard's BRDF does, so a
+rig whose intensities were picked against Lambert renders Standard about pi
+darker — and this rig was picked against Lambert. The G35 arc already proved
+that CHASING the game's pipeline in the bench is a dead end (G36 replaced it
+with "the editor renders in the game's own scene"), so this is deliberately
+not that: one neutral gradient probe, enough that a Standard material has
+something to reflect. Setting `renderer.outputEncoding` would have been the
+obvious next step and is the wrong one — it moves every existing bench page's
+authored colours, and G38's ruling is that those stay untouched. Adding an
+environment is surgical by comparison: r128 routes `scene.environment` to
+Standard/Physical ONLY, so the Lambert families cannot see it and do not move.
+**THE BENCH IS NOT WHERE THE LOOK IS JUDGED. The room is.**
+
+**GATE SKINMAT** (`tools/test_skinmat.js`, in the core battery). Asserts the
+declared tables against what the code does, per the G48 rule — the tables are
+parsed out of aeroskin.js's own SOURCE and checked against the cage's REAL
+section list, gathered from ten builds chosen to reach different emitters
+(rod, taper, pod, bubble, and one per interior construction, because the
+interior emits a different liner and frame for each and a role table that only
+ever sees one of them has five rows nothing tests). COVERAGE: every section
+resolves to a finish under every construction, or is glass, or is exempt —
+"we need to clearly account for every material". SCALE: every tile is a real
+material size in metres. METALNESS IS NOT SHININESS: a painted finish may not
+creep above 0.25, or the livery turns grey and takes its colour from the sky.
+PROGRAMS: one shared hook, only AEROSKIN_SURF in defines, no interpolation in
+any shader block. r128: nine banned APIs (`colorSpace`, `thickness`,
+`sheenColor`, `ior`, `textureGrad`, `environmentIntensity`...) and three
+required ones. DISCRIMINATION: the four constructions must give four skins
+that differ by more than a name. NEGATIVE-VERIFIED — eight probes, all CAUGHT.
+
+**THE GATE FAILED ON ITS OWN DOCUMENTATION FIRST**, and the cause is worth
+recording because it will recur in any line-based check in this repo: the
+banned-API scan matched `environmentIntensity` inside the header sentence
+explaining that r128 does not have it. Stripping comments did not fix it
+either — **the files are CRLF, and JS's `.` does not match `\r`**, so
+`//.*$` stops before the carriage return and the line survives the strip
+untouched. Normalise CRLF first.
+
+GATE SURF joined the battery in the same pass: G66's field stopped being a
+bench diagnostic the moment AEROSKIN made it load-bearing for the flown
+aeroplane, so `_surf_check.js` now prints the gate contract.
+
+DECLARED v1 GAPS:
+- The DETAIL SHEETS ARE PROCEDURAL, baked on a canvas at 512 POT. They are
+  honest microsurface (weave, twill, grain, mill finish) and they cost the
+  artifact nothing, but they are not scanned material. The loader is written
+  so a baked CC0 payload replaces them one-for-one — same packing, same names,
+  same tile metres — and that import is its own pass, with the user's chosen
+  sets. THE SIZE BUDGET AGREED IS ~25 MB with 2k on the heroes, and the
+  hangar wall wardrobe prune (~15 MB) rides with it.
+- ONLY THE CAGE IS AEROSKIN. The wing, fin, stab, gear, engine and cowl layers
+  still take G38's uniform recipe, so a fabric fuselage sits beside a flat
+  white wing. That is G70's work (and it wants a name->finish map for the
+  layers' own material names, which exist), not a gap in the shader: the
+  triplanar branch is exactly what they will use.
+- No fasteners, no seams, no panel lines, no spar traces — G68. Until then a
+  construction reads as colour and gloss, which is why fabric and alloy are
+  the close pair above.
+- No projection, no decals — G69. The albedo stack composites on top of
+  exactly where this one stops.
+- The per-section finish and tint live in a localStorage pref, NOT in the
+  spec, so they do not travel with a saved build yet. Ruling 4 says save
+  compatibility is forever from the slice onward, so the home is a
+  `spec.finish` block with a GEN_SPEC_V bump AND its migrator — declared, not
+  paid, and it must land before builds carrying liveries are shared.
+- The poles (tail cap, nose bowl, the two centrelines) still take the field's
+  degraded parameterisation rather than blending to triplanar; measured at
+  9.5-22 % of area at G66. The blend is designed and cheap and is not written.
+
+NEXT: G68 — the structure grammar. Fasteners, seams, panel lines and spar
+traces, per construction, landing on the real structure: `GEN_BUILD_GRAMMAR`
+beside `GEN_MATERIALS`, the analytic masks deciding WHERE and a mipped stamp
+atlas supplying the pixels, and the intermediate frames synthesised from a
+pitch because the boom is one 4 m bay with no former in it.
+
+## G62.9 — NINE LAMPS, AND THE CONES THAT DID NOT KNOW HOW HIGH THE ROOF WAS
+## (2026-08-29, user: "Add a full new row of 3 lamps in the middle ... Do the
+## light cones respond to the lamp's height?")
+
+THREE ROWS OF THREE. `for (const s of [1, 0, -1])` — the loop already read `z`
+rather than `s` everywhere else, so the middle row cost one character. It also
+closes G62.8 honestly: the centre aisle went dark when the lamps stopped being
+aimed sideways at the stand, and the right way to light the stand is a FITTING
+ABOVE IT that the player can look up and see. Verified from under the eaves at
+night: nine pools in a clean 3x3, one under each lamp, and the aeroplane now
+throws a real wing shadow from a lamp that is actually there.
+
+COST: nothing measurable. Nine shadow-casting spots benched 5.17 ms/frame at
+1280x720 against 4.7-5.3 for six — the shed's geometry dominates, not the
+light count.
+
+### THE CONE QUESTION, WHICH HAD TWO ANSWERS
+
+**The lamp pools always responded, and always will**: a spot cone is geometry,
+so a lower fitting gives a smaller, brighter pool with no code in the loop. And
+nothing volumetric is drawn under a lamp at all — the shade is a prop, and the
+only thing the lamp contributes is light.
+
+**The visible cones are the ROOF lights' dust, and they did NOT respond.** They
+were placed with a hard-coded length:
+
+    shaft([x, EAVE + 1.2, s * HW * 0.45], [0.14, -1, -s * 0.12], 7.2, 3.0);
+
+7.2 m from EAVE + 1.2, which only lands correctly at the one eaves height it
+was hand-set against. The eaves have been a parameter since G53 (4.2 to 11 m),
+so at the bottom of that range the shaft drove 1.7 m THROUGH the slab and at
+the top it stopped five metres short and hung in mid-air.
+
+A normalised direction falls 1/|dir| per unit of length, so the length that
+drops H metres is H * |dir|. The shafts now compute it:
+
+    const len = (EAVE + 1.2) * 0.88 * Math.hypot(dir[0], dir[1], dir[2]);
+
+0.88 is where the alpha gradient has faded out anyway, and it is the proportion
+the hand-set 7.2 happened to give at the height it was written for — so the
+default shed looks the same and every other shed is now correct.
+
+THE PATTERN, for the third time in this chantier: a number that was measured
+once by hand against one configuration, in a file where that configuration
+later became a parameter. See also the camera clamp that was shorter than the
+near plane (G62.5) and the glow amplitude referred to the wrong yardstick
+(G62.2). When the shed became adjustable, everything hand-fitted to it needed
+to be re-derived, and this is the third piece that was missed.
+
+## G62.10 — THE JODEL GOES IN (2026-08-29, user: "go, bake and place them, but
+## first apply a metal material to the metal tubes, I had asked for it several
+## times. These parts look wrong in wood")
+
+Fair, and the reason it kept not happening is worth naming: every previous pass
+CONFIRMED the assignment in the data ("yes, six objects carry metalTubes") and
+never once applied it to a material. Reading the manifest is not shipping the
+finish.
+
+### THE ROUTE: A SECOND BAKER, THE SAME PACK
+
+`prop_prep.py` reads glTF, wants an atlas and a PBR chain, and is budgeted for
+0.2-4 m furniture. These are OBJ, carry no textures at all, and are 5 m and 9 m
+airframes. So `tools/jodel_prep.py` writes the SAME pack format from OBJ + MTL:
+51_prop_codec.js decodes it, props.js builds it, and the hangar places it with
+the same `prop()` call as a workbench. One new tool, no new runtime path.
+
+THE FINISHES ARE ASSIGNED IN THE BAKER, and that is deliberate. The MTL ships
+`Kd 0 0 0` for `jojo_wood` — what Blender writes when the colour lives in a
+node graph — so taking the file at face value paints the airframe black. The
+four names map to spruce and three steels, the tube frame at metalness 0.90 /
+roughness 0.34 so it READS as welded steel next to wood rather than as grey
+paint.
+
+AND THE COLOURS ARE LINEAR. props.js does `new THREE.Color(r, g, b)` and r128
+has no colour management, so the number written IS the working-space value. The
+first bake used sRGB-looking figures and produced cream instead of spruce.
+
+### PLACED
+
+- the BODY on the build side, where the generated welded frame used to be;
+  `wsTubeFrame` and `wsWoodCabin` are no longer placed (they still exist and
+  still work — they follow the generator, which the hand-modelled Jodel cannot)
+- the WING hung CHORD-UP in front of the back wall (user: "where things are
+  least interesting so far"), on two straps to the roof. `prop()` offers only a
+  heading because everything else in the shed stands on something, so the wing
+  is placed and then rolled a quarter turn about Z, which takes the chord from
+  x into y and leaves the span across the wall. On edge it costs a metre and a
+  half of wall instead of nine metres of floor. Measured in place: x 10.80 to
+  11.31, y 3.37 to 5.05, z -4.43 to 4.43.
+- the generated wing and the engine bench are untouched, as asked.
+
+### TWO THINGS THE BUILD CAUGHT
+
+**A HARD PLATFORM LIMIT, and it was the ninth lamp.** Adding the third lamp row
+took the shed to nine shadow-casting spots, and the FIRST SYMPTOM WAS NOT A
+SLOW FRAME — it was `FRAGMENT shader texture image units count exceeds
+MAX_TEXTURE_IMAGE_UNITS(16)` and a material that never compiled. Measured on
+the built page: 9 spot shadow maps + 1 directional + 7 material samplers = 17,
+against 16 available. One over.
+
+The budget now goes where it buys something: the CENTRE row casts, the flanks
+do not. A real-time shadow map is for things that MOVE, and the only thing that
+moves in this shed is the aeroplane, which stands under the centre row;
+everything static is grounded by the baked floor shadow (G58) and the craft's
+own print (G59). 3 + 1 + 7 = 11, five units of headroom. It is a genuine step
+back from G60's "every lamp casts" and it is forced by the hardware, not
+chosen — the alternative was nine lamps and broken materials.
+
+**GATE PROPS FAILED, CORRECTLY.** The registry held 42 props and the declared
+table said 40. That gate exists to assert the baked payload against the
+DECLARATION rather than against itself, and a second baker registering props
+nothing had declared is exactly the hole it was built to find. Fixed by
+widening the contract, not the gate's tolerance: `_prop_check.js` now reads
+BOTH declared tables and the registry must equal their union, in order.
+
+## G62.11 — FLAT SHADING, AND THE AO CHANNEL THAT WAS BLACK (2026-08-29, user:
+## "Just go for flat shading for the new parts. Please check all your normals
+## ... The garbage bin objects seem to have a material issue, they render black")
+
+### THE BINS: AN EMPTY CHANNEL BELIEVED
+
+`bin_metal` and `bin_metal_rust` carried `aoMap` off an arm texture whose RED
+channel averages **0.005**. aoMap multiplies the indirect term, so that is
+every ambient contribution times zero — and on a metal, which has no diffuse
+to fall back on, zero ambient is a black object.
+
+The baker already guards R with a FLATNESS test, on the reasoning that "AO
+lives in R only where the author says so". It does not catch this: 0.00 to 0.18
+is not flat, it is noise, so the channel looked authored. Surveying every arm
+map in the library settles what legitimate occlusion looks like:
+
+    every healthy map            R mean 0.44 .. 0.995
+    metal_trash_can_arm          R mean 0.005  (max 0.18)
+    metal_trash_can_rust_arm     R mean 0.004  (max 0.15)
+    barrel_stove_arm             R mean 0.006  (max 0.15)
+
+Three of thirty-four, and the gap to the next map up is a factor of eighty.
+glTF says R of a metallicRoughness map is unused, and Poly Haven shipped these
+three with nothing in it. `AO_MIN_MEAN = 0.25`: real occlusion is mostly
+UNoccluded, and a channel this dark is an empty channel, not a dark room. The
+baker now says so in the log and drops it.
+
+NOTE THE THIRD ONE. The user reported two bins; the survey found the barrel
+stove had the same defect and nobody had noticed. That is the argument for
+measuring the whole library instead of the object that was complained about.
+
+### FLAT SHADING, AND THE NORMALS CHECKED BEFORE TRUSTING THEM
+
+`rec.flat` -> `MeshStandardMaterial.flatShading`, set on all four airframe
+finishes and on nothing else: a wing rib and a steel tube are flat plate and
+straight cylinder, and smoothing their normals rounds off the edges that say
+so. The furniture stays smooth.
+
+Flat shading derives the normal from the FRAGMENT DERIVATIVES, which is to say
+from the winding — so the winding had to be checked before relying on it. Per
+face, the geometric normal from the vertex order against the authored vertex
+normal:
+
+    BODY  17 707 faces — 99.97% agree, 5 disagree, 240 DEGENERATE
+    WING  17 670 faces — 99.92% agree, 15 disagree, 0 degenerate
+
+They point outwards. The twenty stragglers are covered by `dbl`, which flips
+the normal on a back face anyway.
+
+THE 240 DEGENERATE FACES DID MATTER, and only under flat shading: a zero-area
+triangle's normal is a cross product of parallel edges, which is a zero vector
+that normalises to NaN. They are dropped at bake (486 triangles after
+fan-triangulation, 35 190 -> 34 704).
+
+### THE SHARED MANIFEST, AND HOW THE PACK FELL OUT OF THE BUILD
+
+`prop_prep.py` wrote `props_packs.json` wholesale from the packs IT bakes. The
+first time it ran after the airframes were added — the AO re-bake above — it
+silently dropped `props_airframe.js` from the list, and build.js stopped
+inlining it. index.html shrank by 2 MB and the two structures left the game.
+
+GATE PROPS caught it immediately, which is the second time in two chantiers
+that gate has earned its place. Fixed on both sides: `prop_prep.py` keeps any
+listed pack that is still on disk and is not one of its own, and
+`jodel_prep.py` registers itself rather than relying on a hand-edit. A manifest
+two tools write is owned by neither.
+
+## G68 — THE STRUCTURE GRAMMAR (2026-08-29, ROADMAP P9, user: "it needs to
+## make sense, and relates to the internal plane structure, its conception
+## type"). FOUR CONSTRUCTIONS, FOUR AEROPLANES.
+
+**THE LONGEST-STANDING OPEN PLAYTEST ITEM IS CLOSED.** "Structure has no
+visual feedback ... Four materials look identical" has been in the list since
+G3.3. It is not any more, and the difference is not a palette swap: an alloy
+aeroplane is riveted, a fabric one shows its stringers through the covering, a
+wooden one is a pinned and scarfed ply skin, and a composite one is a moulding
+with a parting line and nothing else.
+
+**GEN_BUILD_GRAMMAR LIVES BESIDE GEN_MATERIALS**, in `60_gen_spec.js`, because
+it is the same fact seen from the other side. The four rows there have always
+moved physics and never moved anything you could see — and `alloy.cd0`'s own
+comment already read "flush rivets, but laps and oil-canning". The grammar was
+documented in a comment and not implemented.
+
+**EVERY LENGTH IS A REAL NUMBER, IN METRES**, and the G66 surface field is
+also metres, so a 24 mm rivet pitch is 24 mm on the aeroplane at any size of
+aeroplane. The rows, abridged:
+
+    tubeFabric  frames 0.42  stringers 0.16  NO FASTENERS AT ALL
+                50 mm surface tape rising 0.65 mm; sag 0.6 % of pitch, exp 1.4
+    wood        frames 0.38  stringers 0.22  gimp pins 1.6 mm at 25 mm
+                ply panels 2.0 x 0.85 m, scarfed at a frame
+    alloy       frames 0.45  stringers 0.14  AN470 rivets 4.8 mm at 24 mm
+                panels 1.0 x 0.55 m, 22 mm lap with a 0.8 mm step,
+                oil-canning -1.2 mm (it DISHES IN)
+    carbon      no frames, no stringers, no fasteners, no panels
+                ONE parting line, 3 mm, at the waterline
+
+**THE TWO ROWS WITH NO FASTENERS ARE THE POINT, NOT AN OMISSION.** Fabric is
+cemented and sewn to the frame — there is nothing to rivet, and everything you
+see is THE STRUCTURE PUSHING THROUGH A MEMBRANE. A moulding has no fasteners
+in its flying surfaces at all, and resisting the urge to add detail there is
+what makes it read as moulded. Both are asserted by the gate, because they are
+the two most wrong things this system could draw.
+
+**THE PITCHES ARE NOT THE CAGE'S RING SPACING, AND MUST NOT BE.** The cage's
+rings sit at ANATOMY stations 0.6-1.5 m apart and the boom is a single ~4 m
+bay with no ring in it — seen directly in G66's own lattice view, which is why
+that view exists. A real airframe carries frames every 380-500 mm regardless.
+So the frames run at their own metric pitch along sL and the cage's rings take
+a heavier line on top, which is also what a real frame diagram looks like:
+bulkheads are frames like any other.
+
+**THE MASKS DECIDE WHERE, A MIPPED STAMP SUPPLIES THE PIXELS**, and the
+aliasing arithmetic is what forces the split. A 4.8 mm rivet head on a 6 m
+aeroplane filling half a 1920-wide frame is 6.25 mm per pixel — SMALLER THAN
+ONE PIXEL at the game's ordinary framing, at a 24 mm pitch. An analytic head
+samples that once per fragment and moires and crawls; fading it to the mean
+gives flat, where a real minified rivet row converges to a faint continuous
+LINE and stays legible. So the frames, stringers, panel lines, laps and the
+parting line are analytic 1-D functions of the surface field, antialiased on
+`fwidth()` of a coordinate already in metres — all of the structural meaning
+and none of the high frequency — and the heads come from a repeating tile
+whose coordinate is continuous, so mips and anisotropy are correct for free.
+Mip 5 of a rivet row IS that faint line.
+
+The user's objection — "not a decorative tiled texture" — is answered by the
+first half and not contradicted by the second: the objection is to decorative
+PLACEMENT. A tile stamped along a real stringer, at the real pitch, with the
+panel line beside it, is a rivet row.
+
+**EDGE DISTANCE FALLS OUT FOR FREE**, and it is the cheapest strong cue in the
+whole grammar: the 2D rule puts rivets 5-8 mm INSIDE the sheet edge, not on
+it. Because the row is drawn on the MEMBER and the panel line is drawn at the
+panel boundary beside it, the offset is a consequence of the layout rather
+than a number anyone tuned.
+
+**THE RULE THIS CHANTIER LEARNED, THREE TIMES, WITH THREE MATERIALS' NAMES ON
+IT: THE DETAIL SHEET IS MICROSURFACE AND MUST NEVER PRODUCE A VISIBLE RIDGE.**
+Anything you can see as a SHAPE belongs to the grammar. The alclad sheet ran
+120 cycles of a 0.10-amplitude ripple across its tile — a line every 6 mm,
+strong enough to see — and a painted alloy fuselage came out CORRUGATED, which
+is exactly the failure `garage.js`'s own comment records about the old wing
+("read as corrugated iron rather than doped fabric"). The ply grain ran 46
+cycles across a 0.55 m tile at full height and came out as corrugated
+cardboard. And the fabric weave ran 22 threads across a 0.30 m tile — 13 mm
+each — and came out as basket-weave upholstery. All three are fixed, and the
+fix is structural: `hs` and `bs` now scale what a sheet does to the NORMAL and
+to ROUGHNESS/COLOUR separately, because wood is almost all colour grain and
+almost no height, and treating those as one number is what made a varnished
+ply sheet look like a roofing panel.
+
+**A BUG THAT NO SCREENSHOT COULD HAVE SHOWN.** The fabric weave was
+
+    sin(u*24)*cos(v*24) - sin(u*24+PI)*cos(v*24+PI)
+
+described in its own comment as "two out-of-phase combs". Shifting both terms
+by PI negates both factors, so the product is unchanged and the difference is
+IDENTICALLY ZERO. Every fabric aeroplane had a flat sheet where its weave
+should be, and it took a close-up to notice, because "no visible weave" and "a
+subtle weave" are the same picture at any normal distance.
+
+**A DISPLAY GAIN, AND IT IS NAMED AS ONE.** Every amplitude in the grammar is
+a real dimension, so the shader's dH is the true slope of the real surface —
+and the true slope of a 0.65 mm rib tape over a 50 mm shoulder is 1.3 %, which
+is 0.6 degrees and reads as nothing. Real tapes are legible across an airfield
+anyway, because a doped tape has a pinked edge and a lip of dope that a
+Gaussian has not, and because the sun is a harder source than six shop lamps.
+Rather than corrupt the grammar's numbers to compensate — they are the honest
+ones, and this chantier's whole claim is that they are real — the exaggeration
+is ONE uniform, `uGGain` at 4.0, where it is visible and tunable. Same posture
+as garage.js's `nrmScale`. Fasteners carry their own much smaller gain (0.35):
+a driven head is already a 1.4 mm dome on a 2.4 mm radius, a genuinely steep
+slope, and at the tape's gain it read as a row of ball bearings.
+
+**A PANEL LINE IS A HAIRLINE, NOT THE LAP.** The first cut used the lap width
+(22 mm) as the groove's own width and the boundary became a broad soft swell
+you had to be told about. The visible line is the SHEET EDGE — half a
+millimetre — and the lap width is what the STEP is spread over. The step
+itself is a delta in the gradient and is ramped over no less than a pixel, or
+it aliases into confetti.
+
+**MEASURED, at 1.6 m off the flank in the room, same pixels, same lights.**
+`lum` is mean luminance and `detail` is mean absolute difference between
+adjacent pixels — which is what "you can see structure" actually means:
+
+    tubeFabric  rgb 204,194,177   lum 194.9   detail 1.68
+    wood        rgb 200,164,110   lum 168.1   detail 1.31
+    alloy       rgb 202,196,186   lum 196.3   detail 0.49
+    carbon      rgb  40, 36, 33   lum  36.3   detail 7.24
+
+G67 recorded fabric and alloy as the close pair — 131.1 against 132.2 in
+luminance — and said what would separate them: "rib tapes against rivet lines,
+and that is G68". It is: their luminance is still within 1.4 (194.9 vs 196.3)
+and their DETAIL now differs by 3.5x. Fabric is soft-textured and quilted
+between stringers; alloy is a smooth sheet ruled by rivet lines. Carbon's 7.24
+is real twill in the highlight, not moire — confirmed by looking.
+
+**GATE SKINMAT grew the grammar's half.** GEN_MATERIALS and GEN_BUILD_GRAMMAR
+must agree on the construction list (a fifth construction in one and not the
+other would build an aeroplane with no structure and nothing would say so);
+every pitch is a real pitch; a fastener head must be under 0.6 of its own
+pitch (heads that touch are a weld bead, not a row) and the row band must be
+wider than the head it carries; tubeFabric and carbon must have NO fastener;
+the four grammars must differ; and — THE TWO OPINIONS ABOUT ONE THING — the
+skin may never draw FEWER frames than `fuselage.tailBays` builds, or the
+aeroplane visibly disagrees with its own stress model. 13 negative probes, all
+CAUGHT.
+
+DECLARED v1 GAPS:
+- ONLY THE FUSELAGE CAGE HAS STRUCTURE. The wing, fin and stab carry no
+  surface field, so they have no rib tapes and no spar traces — and the user
+  named the old yellow plane's wing spars as the thing that worked ("the spars
+  in the wings were convincing"). `61_gen_frame.js` now exports `parts.ribs`
+  (G66) so the stations are in hand; what is missing is a field on the wing
+  loft, which is the same shape of work G66 did for the cage.
+- No access panels, no inspection rings, no fuel caps. GEN_ACCESS is designed
+  (a declared table of REQUIREMENTS, each naming what it serves and a
+  placement rule, resolved against built geometry and SNAPPED to structure)
+  and not written. The acceptance test for it is stated: you can point at any
+  hatch and say what is behind it, and no tank means no fuel cap.
+- The panel grid is perfectly regular. Real sheets vary, and a stagger seeded
+  on the panel id would cost nothing.
+- Fabric's rib LACING (25 mm inside the slipstream, 50-75 outside) and the
+  stitched envelope seams are not drawn; only the tape over them is.
+- The intermediate frames run at their own pitch and the cage's real rings do
+  NOT yet take the heavier line the row above promises — the bulkhead doubler
+  and its double rivet row are designed and not written.
+
+NEXT: G69 — the orthographic projection and the decals. The albedo stack
+composites on top of exactly where G67's stopped, and G68 has not touched it.
+
+## G63 — five lamps in a cross, the chassis on measured trestles, the wing's shadow on the wall
+
+**The lamps.** Nine fittings in a 3×3 grid lit the shed evenly and read as a
+warehouse. Five — the three down the centreline plus the middle lamp of each
+flank row — light the aisle where the work is and let the corners fall off,
+which is what a shed with a modest electrical bill looks like.
+
+It also undoes G62.10's one honest regression. That section had to write
+"centre row casts, flanks do not" because nine shadow maps plus the door sun
+plus seven material samplers came to seventeen fragment texture units on a
+platform with sixteen. At five lamps the sum is **5 + 1 + 7 = 13**, three under
+the ceiling, so G60's rule stands again without a footnote: *every lamp in this
+shed casts a shadow*. Cutting four fittings did not cost shadows, it restored
+them. Measured live: `lamps 5, lampsCast 5, maxTex 16`.
+
+**The chassis on trestles.** `wsOnStands` already knew how to do this for the
+generated wing, so the Jodel fuselage now goes through the same door: the
+rotation goes on the WRAPPER rather than the prop, so the trestles turn with
+what they carry instead of being laid out across it — 180° plus twelve degrees,
+so the chassis is nose-for-tail against the finished aeroplane and off its
+axis. Two parked parallel read as a diagram; two at an angle read as a shed.
+
+**And `wsOnStands` was measuring with the wrong instrument.** It rayed once,
+straight down the piece's centre-line, which is right for a wing — a wing is
+solid where you look. The Jodel fuselage is an OPEN FRAME. The centre station's
+ray went clean between two longerons, reported nothing, fell back to the
+nominal height, and left the body hanging 40 mm over that trestle. Widening it
+to a 3×7 grid of rays only moved the failure: the grid threaded the gaps too
+and stopped one beam **55 mm inside the structure** — the clipping the user
+named in the same sentence as the gap.
+
+Rays sample; triangles are the thing itself. Each station now takes every
+triangle whose plan footprint overlaps the beam's own measured footprint (the
+trestle prop's bb, handed in like its top surface already was) and stops at the
+lowest corner of any of them. That is exactly "as high as it goes without
+touching", so there is no gap, and a triangle overlapping the beam can never
+end up above it, so it cannot clip. Overlap is tested on the triangle's plan
+bounding box — conservative in the safe direction: at worst a beam stops a hair
+low, never a hair high. One pass over the piece's triangles per station,
+34 704 × 3 here, once when the shed is built.
+
+Verified live, clearance from each beam top to the lowest structure above it:
+
+| station | before (1 ray) | 3×7 rays | triangles |
+|---|---|---|---|
+| x = 5.17 | 0 mm | 0 mm | **0 mm** |
+| x = 3.46 | *no hit* → 40 mm gap | 0 mm | **0 mm** |
+| x = 1.75 | 0 mm | **−55 mm (clipping)** | **0 mm** |
+
+The 5 mm deadband on "is this scale worth applying" was itself leaving a 2.4 mm
+gap, so it is 0.5 mm now.
+
+**The wing's shadow on the wall.** The hung wing can vanish against the raw
+plank wall (user). The fix is the second half of his own suggestion — "just
+precalculate it, and project it on a transparent plane" — and it is not a
+cheat: the wing hangs 1.6 m off a wall in a room whose only casters point DOWN,
+so nothing in the frame computes the occlusion between a large flat object and
+the surface a hand's breadth behind it. That shadow is real and it was missing.
+Pale spruce against pale planks then had nothing to separate it from its
+background.
+
+Precalculated rather than rendered, because this wing never moves: a render
+target would recompute the same image every bake, for the same answer, and cost
+a texture unit. The alpha is drawn straight into a 256×64 canvas — a wide
+plateau across the span, narrowing toward the tips as the wing tapers, soft
+everywhere because a shadow from a big diffuse source is. The quad is the
+wing's own measured bounding box plus a margin for the spread, set 15 mm off
+the wall's inner face and 140 mm low, because every fitting in here is above it.
+
+**Not done, and why:** the garage doors on the back wall (his other idea). They
+would work, but they solve it for this wall and this wing only, and the shadow
+generalises — anything hung there from now on separates from its background for
+free. The doors remain a good idea on their own merits, as set dressing rather
+than as a fix.
+
+### G68.1 — THE WING'S OWN STRUCTURE (same day, user: "do the wing spars
+### first"). RIB TAPES, SPARS, AND THE WASHED-OUT LEADING EDGE.
+
+G68 gave the fuselage its grammar and left the wing on G38's flat grey, which
+is backwards: the wing is the one part of the old yellow plane the user named
+as RIGHT — "the spars in the wings were convincing … the leading edge of the
+wing was washed out. That was all good."
+
+**THE WING GETS THE SAME FOUR NUMBERS, AND THEIR MEANING IS PRESERVED
+EXACTLY** — which is what lets one shader draw a fuselage and a wing:
+
+    .x  sL  metres SPANWISE from the root       (ribs are spaced along it)
+    .y  sC  metres CHORDWISE from the LE        (spars run along it)
+    .z  st  station: INTEGER AT EVERY RIB
+    .w  lv  rail: 0 at the FRONT SPAR, 1 at the REAR SPAR
+
+A rib is an integer station and a spar is an integer rail, exactly as a
+bulkhead and a longeron are on the fuselage. The leading edge falls at
+lv ≈ -0.3 and the trailing edge at ≈ 1.7 because the spars sit at 0.15 and
+0.65 chord and the coordinate is linear in chord — MEASURED on the stock wing:
+sL 0..4.41 m, sC 0..1.60 m (the chord), lv -0.30..1.70. Nothing was fitted;
+those are the numbers falling out of the contract.
+
+**IT COSTS NO NEW GEOMETRY AND NO NEW GENERATOR.** genSkin's PANEL uv already
+carries the chord fraction in u and the span fraction in v (0.53 + 0.44·s —
+the zone contract declared in `63_gen_skin.js` and unmoved since G5), and
+`_cage_wing.js` was throwing it away in `pickParts`. It carries it now, and
+`parts.chordAt` turns the fraction into metres.
+
+**THE REAL MEMBERS ARE NOW DRAWN, which closes G68's own declared gap.** The
+metric pitches place the frames and stringers a CONSTRUCTION has; a new term
+places the ones the GENERATOR KNOWS ABOUT — an integer station, an integer
+rail. On the fuselage that is the pillars and the named rails taking a light
+extra line; on the wing it is the whole story, because ribs are not evenly
+spaced across the span (61_gen_frame divides each spar panel separately) and
+spars are at two chord fractions, which is not a pitch at all. So the wing
+runs with its metric pitches switched off entirely.
+
+**THE RIB STATIONS ARE THE ONES THE MASS MODEL PAID FOR.** `parts.ribZ` (added
+at G66) comes from 61_gen_frame's own "one rib every 0.4 m" rule — the same
+rule that bills their mass — so the structure that pays for a rib and the
+surface that shows it cannot disagree. Measured on the stock wing: 0.367 m,
+the 0.4 m rule rounded to fit each panel. `garage.js` carried `GEN_RIBS = 13`,
+right for the default Cub's semispan and wrong for every other one.
+
+**THE BUG THAT LOOKED ENTIRELY PLAUSIBLE.** `genLattice` walks the spar panels
+ONCE PER SIDE, so every rib station appears TWICE in `ribZ`. Sorted with its
+duplicates, the field's walk counted two stations per rib and the tapes came
+out at HALF the real pitch — 0.18 m instead of 0.367 — which is a perfectly
+believable-looking wing. It showed up as `st` running 0..22 where there are
+eleven ribs, and it is the kind of thing that is only ever found by printing
+the number. The layer dedupes; GATE SKINMAT now asserts the pitch and asserts
+that the station count matches the span it covers, which is what catches the
+list doubling again.
+
+**A SECOND ARITHMETIC BUG, in the sag.** The amplitude is a fraction of the
+BAY and the chain rule then divides by that same bay, because `t` is
+`fract(station)` and not metres. The first cut multiplied by the bay again at
+the end, cancelling the division and leaving the sag about 2.7x too shallow to
+see. The wing looked flat and the uniforms all read correct, which is what
+made it worth checking the algebra rather than the plumbing.
+
+**THE WASHED-OUT LEADING EDGE is not a normal feature at all**, and that is
+why it belongs in this file rather than in a texture: the LE is a metal
+D-skin on a fabric wing and bare polished alloy on a metal one, so it is
+SMOOTHER and LIGHTER than the covering behind it. It is a roughness step over
+the first 7.5 % of chord — read straight off `lv`, since chord fraction is
+`sparFront + lv·sparSpan` — which is exactly what garage.js's mr sheet did with
+a gradient over the same 7.5 %.
+
+**AN AILERON IS WING SKIN.** The control surfaces take the field too, not just
+the material: same ribs, same spar coordinate, same tapes, because they are
+built out of the same wing and hinged off it. Giving them the AEROSKIN
+material and NOT the field would put one material on both shader branches at
+once — the one thing the split cannot express, and the same trap `cageCut`
+sprang in G66. The lift strut and the pitot are FITTINGS, not skin: no ribs,
+no spars, no field, and they take the triplanar branch.
+
+VERIFIED: the wing's materials are pure (no material on both branches),
+`st` runs -1..11 over eleven ribs, and at a raking angle the tapes read across
+the upper surface with the fuselage's stringers telegraphing through beside
+them — which is the picture the user described from the old aeroplane, now
+driven by the real rib stations instead of a constant.
+
+DECLARED v1 GAPS:
+- The FIN and STAB still have no field. They are the same shape of work and
+  the same layer idiom; they were not in the ask.
+- Rib LACING (25 mm inside the propeller slipstream, 50-75 outside) is not
+  drawn — only the tape over it. The slipstream distinction is a real and
+  cheap one: it is a radius about the thrustline.
+- The TIP keeps its trim colour as a tint over the finish, which is G31's
+  "every part its own colour" surviving into the material system. The old
+  aeroplane's tinted tip was a painted band at the tip bow (span fraction
+  ~0.86, recorded in garage.js); `uG5.z` carries that station and nothing
+  reads it yet.
+- The wing's field is built from genSkin's PANEL uv, so anything that is not
+  in the panel zone — a fuselage-blended root fairing, say — would need its
+  own answer.
+
+## G64 — three knobs on the lamps, doors on the back wall, and the shadow that lands on them
+
+**The lamp rig.** Power, spread and colour temperature, in the editor's
+existing *hangar* section — not a panel of their own, because the panel of its
+own is the thing that got removed in G62.10.
+
+*Power is a GAIN, not a value.* The mood already owns the candela: a night shed
+and a noon shed do not run their lamps at the same output, and a knob that
+overwrote `m.lamp` would undo the whole measured rig. It multiplies, and the
+filament's emissive follows it, so turning the lamps up lights the bulbs too.
+
+*Spread* is the SpotLight's own half-angle; the slider speaks in full cone
+degrees, because that is what a fitting's datasheet says.
+
+*Temperature* replaces a hex picked by eye. The colour comes off the usual
+black-body approximation and goes into the `Color` the way every other hex in
+this file does — straight in, unconverted, because r128 has no colour
+management and treats what you hand it as working space. The default is not a
+guess: **4000 K** is the Kelvin whose curve lands nearest the `0xffd9a0` these
+lamps have always burned at — (255, 207, 167) against (255, 217, 160), twelve
+counts out of 255 apart — so opening the slider does not move the room.
+
+All three go through `setMood(moodI)`, the same door `setLight` uses, for the
+same reason: a slider must not be able to relight a muted source. Verified
+live: gain 1→2 took a lamp 70→140 cd, spread 0.62→1.00 rad, 4000 K→2200 K took
+the colour `ffcda6`→`ff9227`, and restoring the defaults restored all three.
+
+**Doors on the back wall.** A bi-parting pair — two leaves on ONE track, each
+sliding to its own side, so unlike the six-leaf front they never have to pass
+each other and both hang in the same plane. That is not just ironmongery: it
+means the wing's shadow lands on one flat surface instead of straddling two at
+different depths. Same vocabulary as the front (header beam, track, sill and
+head channels, stiles, intermediate rails, anti-rack braces, hangers, rollers,
+guide shoes, one wicket) at two thirds the size and shut, because the job is a
+BACKDROP. They pick up `M.door`/`M.doorTrim`, so the part system already drives
+them.
+
+The leaves hang INSIDE the building, in front of the wall's own reveal. That is
+not a shortcut round cutting the wall — it is what a top-hung sliding door
+does, and what the front door already does at `-HD + 0.42`. The brick course IS
+interrupted for the opening, though: a course of brick running behind a closed
+door is the tell that the opening is painted on.
+
+**The wing, 70 cm lower** (user), which also drops its whole chord inside the
+doors' 4.4 m instead of leaving half of it above them.
+
+**The shadow, 90% across and 80% down, and actually blurred.** G63's version
+faded its edges with a pair of smoothsteps, which is a ramp, not a blur: it
+kept the silhouette's corners and read as a smudge with a shape. This one draws
+the crisp mask into the middle 70% of the sheet and then blurs it — two passes
+of a separable box filter, a close enough Gaussian for something this soft, and
+free at bake time. 14 px on a 256×64 sheet across a 9 m quad is about 0.45 m of
+penumbra, which is what a 4 m ceiling of diffuse light gives a wing hanging a
+metre off the doors. It sits on the DOOR now, 20 mm off the leaf face, not on
+the wall behind it.
+
+### G68.2 — THE FIN AND THE STAB (2026-08-30, user: "now do the fin and
+### stab"). ONE finMesh, BOTH SURFACES.
+
+**THE TAIL GETS THE SAME FOUR NUMBERS**, with the same meaning as the cage
+(G66) and the wing (G68.1): sL spanwise metres, sC chordwise metres, st an
+integer at every rib, lv 0 at the spar. Three surfaces, one shader, one
+factory.
+
+**IT IS ONE FUNCTION, BECAUSE THE STAB IS THE FIN LAID FLAT.** `_cage_stab.js`
+draws through `CAGE_FIN_DRAW.finMesh` — G23's ruling, that the stab IS the fin
+model — so the field goes in there once and both surfaces have it. CHORD IS
+ALWAYS z, because the cage is z-forward and the fin builds in the cage's own
+frame; the SPAN is whichever of x/y is the long one, since `finToStab` lays
+the same model onto x. Detecting it from the mesh's own extents costs two
+comparisons and means neither surface needs a line of its own. MEASURED on the
+built fin: x extent 0 (a flat sheet at this stage), y 2.596, z 3.978 — the fin
+stands on y; the stab's is x 2.552, y 0, z 3.978.
+
+**THE RIB PITCH IS DECLARED, NOT DERIVED, and that is the real difference from
+the wing.** `61_gen_frame` bills wing ribs on its own 0.4 m rule and now
+exports their stations (G66); it models the tail as a handful of nodes and
+bills NO tail ribs at all. So there is nothing to read, and inventing a
+physics list to read would be worse than saying so. Light-aircraft tail ribs
+run closer than wing ribs — 0.20-0.30 m, because the surfaces are small and
+the loads local — and `TAIL_RIB = 0.26` until something physical has an
+opinion. GATE SKINMAT asserts the band, so it cannot drift silently.
+
+**THE LOCAL CHORD IS BUCKETED BY SPAN**, because a tail surface is tapered and
+swept and its leading edge is not at one z. Without it the chord fraction is
+measured from the foremost point of the WHOLE surface — and on this fin, whose
+dorsal runs 3.9 m forward along the boom, the leading-edge treatment would
+land in the middle of the tip.
+
+**AND THE BUCKETS MUST BE INTERPOLATED, which is a bug you can see.** Reading
+the bin's own value makes the leading edge a STAIRCASE, 48 steps across the
+span, and it showed up as a hard jagged boundary running down the fin that
+reads as a modelling fault rather than a shading one. The chord varies
+smoothly and the sampling has to as well. Caught by A/B against the section
+palette: the jag was in `material` and not in `sections`, which is what said
+it was mine.
+
+**A SILENT POOL BUG, and it is the most useful thing found here.**
+`aeroMaterial` pools on a key, and `fieldM` was not in it. The cage and the
+tail build in CAGE UNITS and hand over `CAGE_UNIT x planeScale`; the wing
+(imported from genSkin in the game's model frame) and the flown payload are
+already metric and hand over 1. Pooled on a key that ignored it, whichever
+asked first won and the other silently got its neighbour's scale — the tail
+came out wearing the wing's. It surfaced as sC reading 3.91 on a 3.13 m
+surface, which is the 0.745 planeScale exactly, and it would never have been
+visible as anything but "the tail's ribs look a bit close". The key carries it
+now, and GATE SKINMAT asserts that the key mentions every option that varies
+between callers — finish, tint, surf, side, opacity, grammar, wing AND fieldM
+— because the failure mode is one caller getting another's material with no
+error anywhere.
+
+VERIFIED, in the room: 27 AEROSKIN meshes, ALL 27 carrying the field and NONE
+without — the purity invariant the shader's two branches depend on. Two
+distinct `fieldM` values now coexist correctly (0.745 for the cage and tail,
+1 for the wing). The fin shows chordwise tapes stacked up its span and the
+stab shows its own, with the fuselage's stringers running along the boom
+beside them.
+
+DECLARED v1 GAPS:
+- The tail has ONE notional spar pair (lv 0 at 0.30 chord, 1 at 0.70). Real
+  light tails are single-spar; the second is a coordinate convenience and
+  nothing draws it heavily.
+- Rib LACING is still not drawn on any surface — only the tape over it.
+- The fin's root/dorsal region carries a very long local chord (3.9 m on this
+  aeroplane, because the dorsal runs forward along the boom), so its chord
+  FRACTION compresses there. Correct arithmetic, but it means the LE
+  treatment is narrow in metres at the root and wide at the tip, which is the
+  opposite of a real D-skin. A metres-from-LE cut-off would be the honest fix
+  and is one line.
+
+## G65 — a light source is not always a `Light`
+
+User: *"when I turn everything off, I still have the bottom light... I don't
+have options for turning all of them on or off."* Both halves were right.
+
+The mute system only ever knew about `THREE.Light` objects. Every self-lit
+MATERIAL in the room was outside it, so with all five switches thrown the shed
+still had — measured on the built page, all five muted:
+
+| material | emissive | where | what it is |
+|---|---|---|---|
+| `lamp_desk` | `fffaa5` @ 1.0 | 1 mesh, y 1.49 | **the bottom light** |
+| `lamp_pendant` | `ffffff` @ 1.0 | 5 meshes, y 5.83 | the pendant shades |
+| `skyPanel` | `cfe2f7` @ 0.43 | 8 meshes, y 8.39 | the roof glazing |
+
+This is the same bug as the G62.3 stove, which is the part worth fixing:
+finding these by eye a second time is not a method. **Emitters are REGISTERED
+now, not hunted.** A material is either claimed by a source as it is built
+(`claim(prop(...), 'lamps')`) or the sweep at the end of the room catches it
+and files it under `glow` — which then appears as a switch, and logs a warning.
+`M.bulb` and `M.skyPanel` are marked seen because the mood drives them and they
+are handled by name. Nothing self-lit can be added to this room again without a
+way to turn it off.
+
+The switch list is therefore now provably complete rather than merely current:
+
+    key · lamps · desk · stove · panels · env · shafts
+
+`desk` and `panels` are new. The shop lamps' shades also follow the G64 power
+knob now — a shade that stays white-hot while its lamp is turned down is the
+same lie the bulb used to tell.
+
+**Verified live**, one view, everything on vs everything off:
+
+| | live emitters | frame mean | frame max |
+|---|---|---|---|
+| all on | 4 | 15.96 | 232 |
+| all off | **0** | **2.02** | 73 |
+| restored | 4 | 15.96 | 232 |
+
+The residual max of 73 with everything off is the SKY, seen through the cut
+glazing. That is the view out of the window, not a light in the shed, and it
+should not have a switch.
+
+**Nine.** For the record, since it came up: the "9" was never nine light
+sources. It was nine shadow maps — the 3×3 lamp grid of G62.9, whose ninth map
+blew the 16-unit fragment budget. The room has never had more than seven ways
+of making light, and until now three of them had no switch.
+
+**One hole closed with it:** `placeMobile` builds the kit that follows the
+aeroplane, and it needs the craft's bounding box, so it runs long after the
+sweep. It claims its own props now. Claiming is idempotent — prop materials are
+shared per key — so this is a no-op for everything already registered.
+
+**The limit, stated:** a stray found *after* the editor's panel was built gets
+muted through `setLight('glow', …)` and logs a warning, but its switch only
+appears in the panel on the next reload. Nothing in the room does that today.
+
+
+## G66 — the machine shop, the brick round the front, and the texture budget counted out loud
+
+### The four machines
+
+Four photogrammetry scans of one real workshop (Lycee Pro de Fourchambault,
+by Yannoid, CC-BY-4.0) through the ordinary pipeline: rows in
+`tools/props_table.py`, baked by `tools/prop_prep.py`, asserted by GATE PROPS.
+No second baker was needed — they are glTF, which is what that baker eats.
+
+They behave unlike everything else in the table, and all of it was measured
+rather than assumed:
+
+- **They arrive correct.** Metres, standing on Y, min-y ~0.1. `scale=1`,
+  `rot=(0,0,0)`. Nothing needed turning.
+- **Their materials are UDIM tiles** (`u1_v1`, `u2_v1`, ...) — one material and
+  one JPEG per tile, which is why one machine is 4-8 materials and the four are
+  26 between them.
+- **They are `KHR_materials_unlit`**, baseColorTexture and nothing else: no
+  normal map, no roughness map, the scan's own lighting baked into the albedo.
+  The baker drops the unlit flag, so they light like everything else and merely
+  read a little flat. Worth noticing that an unlit material would have been a
+  fifth self-lit thing with no switch, one section after G65 closed that hole.
+- **They are heavy**: 80/116/120/137 k tris, 453 k for the set, against the
+  79 k compressor that used to be the worst in the building. Not decimated, on
+  purpose ([[import-models-as-is]]). `props_machine.js` goes 3.7 -> 15.8 MB and
+  index.html 74 -> 87 MB. That is the price and it is a loading screen.
+
+**Placed by measurement, twice.** The first pass put the band saw 15 cm inside
+the tool cart and left the planer 45 mm off the brick. The wall run is 7.27 m
+of clear elevation between the cart and the tool chest; the three machines are
+5.73 m of it, so the four gaps are 0.385 m each and every machine stands 0.30 m
+off the wall plane. Verified live: gaps 0.39 / 0.39 / 0.38, wall clearance 0.30
+on all three, no overlap anywhere.
+
+They stand in the order the timber goes through them — band saw, surface
+planer, thicknesser — and the planer and thicknesser are together because they
+are used one after the other on the same board. The panel saw stands OFF the
+wall, because it is the one machine you cannot use against one: 4.4 x 3.6 m of
+sliding table and outrigger. It leaves a 0.96 m aisle behind it.
+
+**One thing G64 broke, found while placing these:** the back doors cut an 11 m
+opening through z = +-5.5, and the hose reel was still bolted at z = 3.6 —
+to a sliding door leaf. It is on the pier beyond the jamb now.
+
+### The brick course round the front
+
+It has always run on the side walls and, since G41, on the back; the door wall
+was the one elevation with sheeting straight down to the slab. Only the two
+2.5 m returns each side of the opening get it, because the rest of that wall is
+a hole 25 m wide and a stem across a doorway is a threshold, not a wall.
+
+### The texture-unit overflow
+
+**It does not reproduce, and the world was never the culprit.** Measured:
+
+- the world scene has **2 lights, 1 shadow caster**, and its busiest material
+  uses **1** texture; its worst linked program has 3 sampler uniforms.
+- with `gl.linkProgram` hooked to catch failures and dump the offending
+  fragment shader's sampler list, **zero** link failures across: a clean boot,
+  all six moods, all seven light switches off and on, the studio environment,
+  and rolling out to fly.
+
+What it actually was is the GARAGE's shadow budget, and G63 fixed it without
+knowing: G62.10 recorded "9 spot + 1 directional + 7 material = 17", and
+cutting the lamps to a cross of five took that to 13. The errors looked like
+they came from the world because the craft's material had been compiled against
+the hangar's light count earlier in the page's life.
+
+So instead of a fix there is a **counter**, because twice now a shadow map too
+many has cost an afternoon and the symptom is never a slow frame — it is a
+material that silently never compiles. `texBudget()` runs once when the room is
+built and prints the sum, since the budget is otherwise invisible in the
+source: it is one number the lighting code decides plus another the material
+library decides, and neither file mentions the other. It logs an error, not a
+log line, when it goes over.
+
+    hangar texture units: 6 shadow + 6 maps + 1 env = 13 of 16
+
+### Left alone deliberately
+
+`CREDITS.md` says the CC-BY names are "carried in the sim's footer". They are
+not — `#credit` in `src/viewer/body.html` names the aircraft authors only, and
+nothing appends the prop authors. That was already true and these four scans
+make it four names worse. `body.html` was being edited by another session at
+the time, so it is flagged in CREDITS.md rather than touched. A file in the
+repo does not satisfy CC-BY's attribution clause; the footer needs the list.
+
+## G72 — THE AIR IS A REAL THING (2026-08-30, ROADMAP F5 opened, user: "our
+## skies are poorly modelled. No air density, no engine response to lower air
+## density. Probably nothing about temperature either ... we need a very
+## correct flight model. Not the ultimate super accurate one, but something
+## that does not lie")
+
+WHAT WAS WRONG, and it was four things rather than one.
+
+1. `const RHO = 1.225` was a compile-time constant used at four force sites,
+   plus the bare literal `1.225` in five more places in `64_gen_build.js` that
+   would have gone on quoting sea-level air after the constant moved.
+2. Thrust was `thr * max(0, Tstatic - kV2 V^2)` with no density term at all. An
+   aeroplane climbed to 5000 m on sea-level thrust.
+3. There was no temperature anywhere. No OAT, no QNH, no density altitude.
+4. THE INSTRUMENTS AND THE AUTOPILOT WERE BOTH LYING, in the same way and for
+   the same reason. `r-ias` printed `o.V * 3.6` and `o.V` is a TRUE airspeed;
+   the autopilot flew `VCruise`/`VClimb`/`VAppr` as true airspeeds when every
+   one of those numbers had been DERIVED at rho0 and was therefore an
+   equivalent one. Identical at sea level. Wrong everywhere else, on the one
+   instrument a pilot uses to decide not to stall.
+
+THE MODEL is four lines, in `src/core/05_atmos.js`, integrated exactly rather
+than corrected:
+
+    T(h) = Tsl - L h                        Tsl = 288.15 + dISA
+    p(h) = psl (T(h)/Tsl)^(g0/(L R))        psl = QNH
+    rho  = p / (R T)
+    a    = sqrt(gamma R T)
+
+At dISA = 0, QNH = 101325 those ARE the ISA troposphere — measured against the
+published tables, better than 0.006% of the density at 2 km and 0.12% at 8, and
+the residual is the declared geometric-vs-geopotential cut rather than a fitted
+constant. The point of writing it this way instead of as the usual "add 120 ft
+of density altitude per degree above standard" is that the OFFSET day is then
+exact too: a 35 C afternoon is the same four lines, not a correction bolted onto
+them. WHAT IS COMPUTED AND WHAT IS CHOSEN: everything above is computed, and the
+only chosen numbers are the two that describe the DAY. There is no third knob,
+and a preset that wants different air has to say which of those two it is
+moving.
+
+### THE ONE NUMBER THAT HAD TO BE EXACT
+
+p0/(R T0) is **1.2250003**, not 1.225. ISA's sea-level density is a ROUNDED
+number, so computing it from the gas law lands 2.6e-7 away from the constant
+that every design-time number in this project was derived at, and sigma(0) comes
+out 1.0000003 instead of 1. That is enough to move a printed digit somewhere in
+a thirty-six-gate battery for no physical reason whatever, and it would have
+been indistinguishable from a real bug.
+
+So DENSITY IS EXPRESSED AS A RATIO TO THE DATUM, not as p/(R T):
+
+    sigma(h) = (p(h)/p0) (T0/T(h))          both terms exactly 1 at ISA SL
+    rho(h)   = RHO0 * sigma(h)              RHO0 === RHO === 1.225
+
+Identical physics — it is the gas law divided by itself — and the datum stays
+the declared 1.225 rather than a coincidence. The same reasoning killed a second
+1-ulp trap: the Gagg-Ferrar lapse is written `1 - 1.132(1 - sigma)` rather than
+`1.132 sigma - 0.132`, because only the first returns EXACTLY 1 at sigma = 1.
+GATE ATMOS section 2 asserts all of it with `===`.
+
+### EAS WAS THE LOAD-BEARING HALF, NOT THE DENSITY
+
+Adding density WITHOUT this would have stalled the autopilot at altitude and
+turned the whole fleet battery red for a perfectly correct reason. Every speed
+in the project is an EQUIVALENT airspeed and always was; G72 only said so. The
+whole conversion is one line in `40_autopilot.js`:
+
+    const Vt = Math.hypot(...);          // TRUE, kept for beta
+    const V  = Vt * (o_.easK || 1);      // EQUIVALENT, which is what it flies
+
+`easK = sqrt(sigma)` is exactly 1 at sea level, so the line moves nothing there.
+`beta` keeps the true speed because it is a geometric angle and wants the real
+one. `genParams`' Vs and `genPlant`'s q stay at the datum on purpose: they are
+design-condition quantities, and the DECLARED CONSEQUENCE is that the AP's gains
+are sized at sea level and it is honestly sloppier up high, exactly like a real
+aeroplane whose control throws do not grow with altitude.
+
+### THE ENGINE'S ANSWER FALLS OUT OF THE PROP SYNTHESIS
+
+Not asserted. `60_gen_spec.js` already builds a propeller from momentum theory
+in three lines; hold fm, area and propV0K fixed, move rho and P, and the ratios
+drop out:
+
+    kT = sigma^(1/3) (P/P0)^(2/3)        Tstatic ratio
+    kV = sigma                           kV2 ratio, for BOTH families
+
+kV2 is sigma either way and that is not luck: kV2 = Tstatic^3/(k P)^2, so the P
+dependence cancels exactly and only the rho^(1/3) cubed survives. The families
+differ in kT ALONE — sigma for a piston (its power lapses too), sigma^(1/3) for
+a motor (only the disc is thinner). GATE ATMOS section 7 checks the closed form
+by RE-SYNTHESISING the prop at the moved (rho, P) from first principles, which
+is the only way a claim like that can be checked without checking it against
+itself. The cost is one declared field, `aspiration: 'na' | 'electric'`, on all
+seventeen POWERPLANTS rows, and a gate section that refuses to let a new row
+omit it.
+
+### ONE THRUST MODEL, TWO READERS
+
+`64_gen_build.js` re-typed `Tstatic - kV2 V^2` off the registry in three places
+— the cruise speed off the power curve, thrCruise, the climb gradient, the
+take-off integration. Harmless while the air was a constant; a SECOND, quieter
+engine the moment it stopped being one, and the sheet would have gone on quoting
+sea-level thrust while the aeroplane flew on less. All three now call
+`sim.thrustAt(V, floor)`, with the floor passed rather than chosen so each
+reader keeps its own number exactly (genTrim floors the bracket at 1 N, the
+take-off roll at 0).
+
+### A WIND TUNNEL IS AT A DECLARED AIR STATE
+
+The trap this avoids is quiet and would have been very hard to find later. Every
+design-time number is measured through `sim.probe()`, and if a probe read the air
+at the model's own node height, then A TALLER UNDERCARRIAGE WOULD CHANGE THE
+STALL SPEED ON THE SHEET. So the sample height is `probe ? hProbe : pmy` — a
+tunnel is at ISA sea level unless `sim.setAtmos(air, h)` says otherwise, a flying
+aeroplane is at its own mass-weighted mean altitude. Density is sampled ONCE per
+aero pass, not per strip: the gradient across a 13 m span is 1e-4 of the density
+and the pass runs up to 200 times a frame.
+
+### THE SURFACE LAYER, AND THE COLUMN THAT STAYED
+
+`wind(x, y, z, t)` has taken a `y` since it was written and never read one. It
+reads it now, by the engineering power law `u/uref = (z/zref)^alpha`, alpha 0.14
+for open grass, floored near the ground (a power law has no zero) and capped at
+300 m agl. `refH` says WHERE the reported wind was measured — 10 m, the height
+every anemometer, windsock and METAR means — so 3 m/s at 10 m reads 2.17 at 1 m
+and 4.56 at 200. Gusts ride the local wind, so they die in the surface layer
+instead of being the same from the grass to circuit height.
+
+A SPEC WITH NO `refH` IS STILL A UNIFORM COLUMN, and that is a declared boundary
+rather than a compatibility fudge: "no reference height" honestly means "we are
+not claiming to know where this wind was measured", and blowing it everywhere
+equally is the only answer that invents nothing. It also happens to be the air
+the fleet's entire wind calibration was measured in, so GATE WIND and the XCTY
+gates keep it while the CONDITIONS presets and GATE HOTHIGH fly the profile.
+Re-anchoring that battery onto sheared wind is named, undone work.
+
+ALSO FIXED, and it was latent: `30_solver.js` passed a literal `0` for y on the
+CG wind sample. Silent while the field ignored y; the moment it stopped, the
+wing would have been told the wind at sea level while its own strips — which
+sample at their real positions two lines further down — felt the wind at
+altitude. The two would have disagreed about the same air.
+
+### THE BENCH EARNED A SECOND TEST, AND THE PLAQUE A SECTION
+
+Every number this game has ever shown carried a silent qualifier: at ISA, at sea
+level. DENSITY ALTITUDE is a declared row in `BENCH_TESTS` that runs the SAME two
+measurements (`genClimbAt`, `genTORunAt`, lifted out of genTrim line for line,
+not rewritten) in different air, and reports the take-off run, the climb and the
+ceilings. Its verdict invents no threshold — it is `flyableCircuit`'s own 0.3 m/s
+and 1100 m, asked over a hot mountain strip instead of at the datum. The plaque
+grows an "in thin air" section, gated on the sheet belonging to the aeroplane
+currently on screen, so a rebuild takes it away with the rest of the certificate.
+
+### HOW IT WAS VERIFIED, WHICH IS THE PART WORTH COPYING
+
+The battery is a twenty-minute instrument and this change touched the solver, the
+autopilot, the registry and the whole design-time sheet. Running it to find out
+whether a refactor was clean would have mixed the refactor's bugs into the
+physics' real movement, which is the exact thing that makes a divergence table
+useless.
+
+So the refactor was proved WITHOUT the battery, in about ninety seconds, by a
+trick worth reusing: `tools/flight_core.js` on disk was still the PRE-CHANGE
+build (run_gates rebuilds at the start of a run, and nothing had rebuilt since),
+so both cores could be `require`d into one node process at once and compared
+directly.
+
+  - DESIGN TIME: `def.params` and the entire `genShakedown` sheet, field by
+    field with `Object.is`, for all seven hand-written fiches and four generated
+    builds. Identical.
+  - FLIGHT: `sim.p`, `sim.v`, every `sim.out` field, every control and every
+    `ap.dbg` value after a flown 40-150 s, across nine cases covering all seven
+    aircraft, with and without wind, through ROLL / CLIMB / CRUISE / INBOUND.
+    BIT-IDENTICAL in all nine.
+
+Only then was the density scaffold flipped (`const hAir = 0` became
+`probe ? hProbe : pmy`, one line) and the full battery run, so everything it
+reported was physics and none of it was refactoring.
+
+### THE NUMBERS
+
+    420 m strip at 35 C          DA 1133 m, sigma 0.896
+                                 piston keeps 89% of thrust, electric 96%
+
+    PA-18 off Brekk (113 m), flown, standard day -> hot afternoon
+      take-off run              155 m -> 191 m   (x1.23)
+      unstick EAS                     x1.000     (the wing is unmoved)
+      unstick TAS                     x1.036     (it really is going faster)
+    C172, same                  432 m -> 520 m   (x1.20)
+
+    Garage build, ISA SL -> 1000 m at ISA+20 (DA 1614 m)
+      Rotax 912 UL   273 m / 2.80 m/s  ->  430 m / 2.01 m/s on 83% power
+                     x1.575, service ceiling 4590 m
+      EMRAX 228      219 m / 2.87 m/s  ->  278 m / 2.78 m/s on 100% power
+                     x1.269, service ceiling > 12000 m
+
+The last two lines are the whole chantier in miniature, and nothing anywhere in
+the code says "electric aeroplanes do better at altitude".
+
+AN HONEST RESULT WORTH STATING PLAINLY: this world is LOW. Its terrain tops out
+near 500 m and its highest strip is 113 m, so ALTITUDE alone is worth about one
+per cent here and the TEMPERATURE is the whole story. The model does not
+exaggerate a small effect to look impressive; the big numbers live on the bench,
+where the question is what a design WOULD do out of a mountain strip rather than
+what this world happens to contain.
+
+### WHAT MOVED
+
+Full battery, 38 gates, against the pre-change log line for line (`--verbose`,
+split per gate; the timings live in the summary block so the bodies are
+deterministic and a diff is meaningful).
+
+    IDENTICAL, 17 gates    everything with no aero in it — MODEL, SKIN, CTRL,
+                           C172M, WORLDRENDER, PROPS, BUILD, SKINMAT, SURF,
+                           PARTS, BIOME, AERO, SETTLE, TREE, LOAD, GE, FLAPS
+    TIMING ONLY, 2 gates   WORLD and HYDRO print a bake time in ms; the
+                           checksums and every count are identical. Not
+                           movements.
+    FLOWN CIRCUITS, 19     M3, DRONE, DC3, JODEL, C172, CHINOOK, PA18, STRESS,
+                           XCTY 1-5, WIND, GEN's circuit, UISMOKE, FLEX. Phase
+                           timings shift a few tenths of a second, touchdown
+                           sink by about 0.01 m/s, cross-track by a few metres.
+                           All of them stayed inside their own bounds except the
+                           one below.
+    THE DESIGN SHEET       BIT-IDENTICAL, and deliberately so. `def.params` and
+                           the whole `genShakedown` output for all seven fiches
+                           and four generated builds match HEAD field for field
+                           under Object.is. It is the tunnel-air rules that buy
+                           this: a probe is at the datum, and a world-less sim
+                           has no altitude either.
+
+The flown movement is the physics arriving. The fleet cruises at 100-250 m,
+where sigma is 0.976-0.990, so an aeroplane holding an EQUIVALENT airspeed is
+now doing 0.5-1.2% more TRUE airspeed than it used to and covers the circuit
+slightly faster. That is the correct behaviour and it is the whole point.
+
+A NOTE ON WHAT THE FICHE SPEEDS MEAN, since the 1% has to land somewhere. The
+generated aeroplane's VCruise comes out of genTrim's power curve computed at the
+datum, so it was always an EAS. The seven hand-written fiches' VCruise numbers
+were hand-tuned IN FLIGHT at their own cruise altitude, which makes them, strictly,
+true airspeeds up there. G72 declares all of them EAS. The two readings differ by
+at most 1.2% (the DC-3, the highest cruiser) and by 0.3-0.9% for everyone else,
+and one convention for the whole project is worth more than that difference.
+
+### AND THE ONE THING THAT BROKE — GATE WIND, W-DC3. OPEN, NOT FIXED.
+
+**The battery is RED on delivery and that is deliberate.** The user's call, asked
+and answered: hand it over red rather than tune anything.
+
+    touchdown drift   0.79 -> -3.67 m/s   (the bound is 1.8)
+    float             4.3 -> 9.9 s
+    off centreline    0.5 -> 7.0 m
+    touchdown speed   143 -> 124 km/h
+
+IT IS NOT THE DENSITY. Isolated by building two more cores and flying the same
+case through each: with density LIVE and the autopilot still flying TAS, the
+landing is unchanged (float 4.5 s, drift 0.62). With the forces pinned at the
+datum and the autopilot flying EAS, the full failure reproduces (float 9.8 s,
+drift -3.80). It is the EAS conversion, through the ~1% of circuit geometry it
+moves.
+
+AND IT IS PRE-EXISTING. On HEAD's own physics, nudging the DC-3's VCruise by
++0.8% and changing nothing else produces the identical failure — float 4.3 ->
+9.7 s, drift 0.79 -> -3.04. Mapped: x1.004 passes, x1.008 fails. THE GATE WAS
+SITTING 0.5% FROM A CLIFF and any change of that size in either direction was
+going to find it.
+
+THE MECHANISM, traced rather than guessed (agl / vs / rudder every 0.3 s through
+the flare, both sides of the cliff):
+
+  - Below the threshold the DC-3 descends monotonically and touches at t+4.4 s
+    with the decrab rudder still climbing through 0.20.
+  - Above it, at t+4.5 s the sink rate goes POSITIVE — the aeroplane balloons,
+    2.48 m agl up to 3.42 — while the flare's attitude ramp keeps pitching up
+    (3.8 deg to 5.1).
+  - Through the whole 5-second balloon the decrab rudder is PINNED at its
+    +/-0.35 clamp, and lateral velocity walks from +0.53 to -2.92 m/s. The
+    rudder is holding the nose straight in a crab, which is a sideslip, and
+    nothing takes it off while the aeroplane is going UP.
+
+So there are two faults stacked, and neither belongs to the atmosphere:
+
+  1. THE FLARE BALLOONS on a wheel landing arriving slightly hot. HANDOVER
+     already names the knob for exactly this — "DC-3: flareThMax BELOW L=W
+     attitude kills float".
+  2. THE DECRAB RUDDER HAS NO BUSINESS SITTING AT FULL DEFLECTION FOR FIVE
+     SECONDS WHILE THE AEROPLANE IS CLIMBING AWAY. `40_autopilot.js` gates it
+     on `agl < decrabAgl` and on there being a crosswind, and on nothing else —
+     no drift feedback, no descending test. That is the general fault; the
+     balloon is only what exposes it.
+
+Fixing either is arrival work on a calibrated fleet, which the roadmap says
+happens WITH the user and not uninvited. The bound was NOT relaxed: 3.7 m/s of
+lateral velocity at touchdown is a genuinely bad landing, and that bound is what
+would catch the next one.
+
+### AND A SECOND RED THAT IS NOT THIS CHANTIER'S — GATE UISMOKE
+
+The delivery battery also failed UISMOKE, and it is worth writing down because
+the cause is the CONCURRENT-SESSION HAZARD this file already warns about rather
+than anything in G72.
+
+    TypeError: Cannot read properties of undefined (reading 'classList')
+        at Object.panelWidth (app.js:2904)
+
+`editorInit` and its `panelWidth` do not exist in HEAD; they are another
+session's uncommitted G77 editor-panel work, and `src/viewer/app.js` and
+`src/viewer/editor.js` were written at 02:07 and 02:11 — between this
+chantier's own recheck battery (in which UISMOKE PASSED, with the density-
+altitude assertions added to it) and the delivery run. The new `panelWidth`
+does `document.body.classList.toggle(...)`, and this gate's DOM stub has
+`getElementById` and `createElement` and no `body` at all.
+
+DELIBERATELY NOT FIXED HERE, though the fix is one line in the stub. That file
+belongs to a session that is mid-edit in it, and the lesson recorded after G49
+is exactly this: every battery REBUILDS index.html from the shared tree, so
+avoid bundle-rebuilding deliveries while a parallel session owns build files.
+The delivered index.html therefore carries their in-progress G77 code; it heals
+when they finish.
+
+## THE EDITOR EXPERIENCE — NUMBERS RESERVED (2026-08-30)
+## G76-G80 belong to the P8 tranche-B arc. Three sessions are working the
+## same tree; G72 was claimed for THE ATMOSPHERE while this arc was already
+## mid-flight, so the arc moved wholesale rather than interleave. Please do
+## not take G78, G79 or G80 for anything else:
+##   G76  the part table               LANDED (below)
+##   G77  the panel is two columns     LANDED (below)
+##   G78  the view owns looking        the icon rail, the name chip, the two
+##                                     verbs, the shed's own sheet; #edBar,
+##                                     #bEnv, #bMood, #uvp retire
+##   G79  selection is bidirectional   raycast click selects, hover tints,
+##                                     the part callout in the view
+##   G80  the sheet                    plaque + bench + logbook + store +
+##                                     rack behind the aeroplane's NAME;
+##                                     #edShelf, #edTabs, #plaque collapse
+##                                     into it
+
+## G76 — THE PART TABLE (2026-08-30, ROADMAP P8 §4, from the design session's
+## handoff: "this mapping table is the first thing to write, and it should
+## live beside the spec, not in the UI")
+
+THE EDITOR RENDERS 537 PARAMETERS AND NOTHING SAID WHICH PART OF THE AEROPLANE
+ANY OF THEM BELONGED TO. The panel's groups were a numbering that grew with the
+benches — `1 · global`, `2b · cowl`, `3b · aft deck`, `4c · crew & controls`,
+`don't touch` — and a numbering is not an aeroplane. `tools/_cage_parts.js` is
+the declaration that is: 7 assemblies, 33 parts, nested by the anchor each part
+is built against, and four things read it.
+
+  the TREE       which parts exist on THIS build, nested (G77)
+  the INSPECTOR  which rows a part owns, in which groups, in which order
+  the VIEW       which mesh sections ARE that part — tint and raycast (G79)
+  the BADGES     which rows count toward a part's changed dot (P8 §6)
+
+Per row: `key`, `name`, `parent` (null = assembly), `when(P)` for existence,
+`count(P)` for "Passenger bay ×3", `place` — the P8 §5 placement strip as
+`{fore, up, len, wide, at}` — `groups` of parameter keys, `sections` (the mesh
+material names), and `layer` (which THREE group holds the geometry).
+
+**IT IS A DECLARATION, AND GATE PARTS IS WHY IT STAYS TRUE.**
+`tools/_parts_check.js`, tier core, modelled on GATE SKINMAT including its
+`--selftest`. Nine rules, nine negative cases, all nine caught:
+
+  PARAMS     both directions. Every key the panel renders is claimed by
+             EXACTLY ONE part (an orphan is a slider that silently vanishes
+             from the editor, and there is no screen on which the absence
+             shows), and every key the table claims is really rendered (a
+             phantom is a typo that never appears as anything at all).
+  SECTIONS   every material name a REAL BUILD emits is owned by exactly one
+             part, and nothing is owned that no build emits. 28 sections over
+             12 shapes — stock / rod / taper / rod+panels / pod / no-skin /
+             passengers / skylight and the four interior constructions.
+  PLACEMENT  every `place` key is one of that part's own rows. The strip
+             re-presents; it never introduces.
+  SHAPE      one root, parents resolve, no cycles, assemblies have children,
+             every `when` callable against CAGE_PARAMS.
+  EXISTENCE  every `when` actually discriminates on some buildable aeroplane.
+             A `when` true for every shape in the set is not an existence
+             rule, it is a mistake that hides nothing. The keys a `when` reads
+             are discovered through a Proxy, so there is no list to keep in
+             step with the table.
+
+**THE PANEL IS READABLE IN NODE, WITH NO DOM.** The row tables are plain data
+on `window.CAGE_PAGE` and every layer pushes its own group into them at load,
+so the gate boots `_cage_page5` + the eight layer files behind a `window` shim
+and a Proxy stand-in for THREE, and reads `groupsOverride` directly. The
+alternative was parsing the sources, and a parser goes stale the first time a
+layer COMPOSES its rows instead of writing them out — `_cage_wing.js` already
+does (its tip and flap name lists come from `GEN_TIPS`/`GEN_FLAPS`). The wing
+layer needs the game core, so the gate loads `flight_core.js` into the globals
+first; without it that layer logs "game core (60..63) not loaded" and pushes no
+group at all, and the gate would have measured a panel with no wings in it.
+
+**TWO TRAPS, BOTH FOUND BY MEASURING RATHER THAN READING.**
+
+1. **A KEY CAN BE RENDERED TWICE, ON PURPOSE.** The engine page shows
+   `eng_rpm` under both `electric` and `engine geometry`, and `eng_liquid`,
+   `eng_geared`, `eng_leads`, `eng_plumb` likewise: they mean the same thing to
+   both powertrains and a builder should not have to know which folder to look
+   in. 543 rows, 537 distinct keys. So the table claims a KEY and the panel
+   moves every row carrying it — the coverage check counts distinct keys, not
+   rows, and would otherwise have demanded six duplicate claims.
+
+2. **THE SECTION LIST DEPENDS ON THE SUBDIVISION LEVEL.** `_cage_ui.js`
+   SUBDIVIDES FIRST and runs the crease passes on the refined mesh, and the
+   dashboard traces the DISPLAYED windscreen seam — so at level 0 there is no
+   `dash` in the mesh at all, and the first cut of this gate reported a section
+   the editor shows on every screen as one no build emits. The gate builds the
+   way the editor builds (level 1; the list does not change again at 2, which
+   is the editor's default) and off the PAGE's own aeroplane, not the bare
+   template — several sections, the taper panels among them, exist on the jodel
+   and not on CAGE_PARAMS.
+
+WHAT THE TABLE DECIDED THAT THE DESIGN'S MOCK DID NOT SAY:
+
+- **Wings, gear and tail are full editable branches**, not read-only stubs.
+  The handoff's second open question asked; the answer was already in the
+  bundle, since G30/G20/G22 put those layers in the game with complete
+  parameter tables. The mock's tree is one aeroplane's, not the schema — it has
+  no tail branch and no mirrored pod.
+- **`don't touch` is not a part.** It is `level: expert` on the groups holding
+  the frozen constants, declared per GROUP, which is what P1 §2 asked for and
+  what the accordion never quite delivered.
+- **The `body` section belongs to the FUSELAGE assembly**, not to any one part
+  of it: it is the whole covering, so clicking bare skin selects the fuselage
+  and clicking a window selects that window.
+- **A root part, `The aeroplane`.** The user's own requirement — "we should
+  still have a top layer where everything is visible" — so an assembly shows
+  every part under it and the root shows all 537 rows. The tree NARROWS the
+  panel; it is never the only way to reach a row.
+
+## G77 — THE PANEL IS TWO COLUMNS (2026-08-30, ROADMAP P8 §4/§5/§6, and the
+## design session's option 9b "Bone"). THE END OF THE ONE-COLUMN ACCORDION.
+
+The editor was a 400 px column holding four unrelated things and one flat
+accordion of 537 sliders in eighteen groups, in the bench's blue-on-slate next
+to the game's amber-on-glass. Now there are two columns and each has one job:
+**the parts column SELECTS and never edits; the properties column EDITS the
+selection and nothing else.**
+
+`src/viewer/editor.js` (`editorInit`, the third bridge beside `garageInit` and
+`benchInit`) and `src/viewer/editor.css` (the whole 9b palette, scoped under
+`#edWrap`). `tools/build.js` grew `MANIFEST.viewer.styles` — two stylesheets,
+because they are two designs, and because one sheet is the one place two
+sessions working on two different surfaces are guaranteed to collide.
+
+**IT BUILDS NO WIDGET, AND THAT IS THE WHOLE DESIGN.** Every row on screen is
+`_cage_ui.js`'s own DOM node, MOVED. The typed value and its clamp, the
+double-click-label reset, the `link` checkbox that makes a sentinel visible,
+the `= front` one-shot copy, the `≈ m` readout that follows planeScale, the
+`when` clauses — all of it is the same code the bench pages run, because it is
+literally the same elements. A second implementation of the row grammar would
+drift from the first inside a week and the drift would be invisible: both would
+look like sliders.
+
+`_cage_ui.js` gained three hooks and nothing else moved: `CAGE_ON_ROWS` (the
+rows exist), `CAGE_ON_VIS` (a visibility pass has just run), `CAGE_ON_PAGE`
+(the page's derived selectors have been injected), plus published handles
+(`ROWMETA`, `GROUPMETA`, `SEC`, `EXPERT`, `BASELINE`, `applyRowVis`,
+`setParam`) and two data attributes on each row. Under `CAGE_IN_GAME` it also
+skips the section legend, the expert checkbox and the collapse button, which
+the editor owns instead. The bench pages are untouched and keep the accordion —
+the user's call, and the smallest possible footprint in a file the live
+materials session is also editing.
+
+**FOUR THINGS THAT HAD TO BE GOT RIGHT, AND WERE GOT WRONG FIRST.**
+
+1. **THE ROWS LEAVE THE ACCORDION AT BOOT, NOT WHEN SELECTED.** The first cut
+   moved only the selected part's rows, which was invisible while the root was
+   selected and obvious the moment it was not: opening on the cabin left five
+   hundred rows sitting in their old groups under `editor & shed`, which is the
+   screen this chantier exists to replace. Every claimed row is parked in a
+   hidden nursery at adopt time; the inspector takes what it needs from there
+   and puts it back.
+
+2. **THE EMPTIED GROUPS ARE MOVED, NOT REMOVED.** `_cage_page5.js` injects two
+   rows that are not parameters — the nose CONFIGURATION and the seating
+   STARTER, one intent writing several raw params — and it finds its host by
+   `details[data-g=...]` AFTER the panel is built. Removing the emptied groups
+   deleted both selectors silently. They live in the nursery instead, and
+   `CAGE_ON_PAGE` collects the injected rows into the part and group a small
+   declared map names (engine/fitted, cabin/dimensions).
+
+3. **GROUP-LEVEL `when` DOES NOT SURVIVE THE MOVE.** `applyRowVis` hides a
+   GROUP by setting `display` on its `<details>`; a row lifted out of that
+   element is out of reach of the rule that used to hide it. The inherited
+   rules are captured by DOM containment BEFORE anything moves and reapplied
+   in `CAGE_ON_VIS`, which runs last, over rows `_cage_ui` has just decided
+   about. `seat 2` (crew on, more than one seat) is the row that proves it.
+
+4. **THE BASELINE IS WHAT THE AEROPLANE SETTLES TO, not what was loaded.**
+   This is the one worth remembering. `_cage_ui`'s BASELINE is a copy of P at
+   the instant of the load — but a spec that does not mention the cowl's aft
+   section arrives holding the TEMPLATE's numbers, and the fit-to-nose derives
+   the real ones during the first build. On the sailplane that is
+   `cw_aftW` 0.535 -> 0.050: five rows permanently flagged as changed on a
+   design nobody has touched. Counting passes ("take it on the second
+   applyRowVis") fails too, because the number of passes a load costs is not
+   fixed — a mirrored pod adds one, since the FOREVER-SPLIT copy re-syncs the
+   sliders mid-build. The rule that works is the honest one: keep re-taking the
+   baseline until the first thing the builder actually does, where "does" is a
+   capture listener on the panel for input/change/click. A LOAD RE-OPENS THAT
+   WINDOW, because the shelf's own `change` fires before the handler that
+   loads.
+   Riding with it: a change smaller than HALF THE ROW'S OWN STEP is not a
+   change. Half of the disagreement above is in the fifteenth decimal — a value
+   that went out through `cageToSpec` and came back — and a dot for that is a
+   dot that never goes away.
+
+**AND ONE RULE ABOUT DOTS.** A part that is not on the aeroplane does not
+count. Turning the mirrored pod on and off again leaves every `aft*` sentinel
+holding the one-shot copy the FOREVER-SPLIT ruling made of the front: 22 rows
+that differ from the design you loaded and that you cannot see, reach or reset.
+A dot with nowhere to click is worse than no dot.
+
+WHAT IS ON SCREEN NOW: the parts tree (assemblies as headings, parts, section
+leaves, and separators ONLY under the leaves — deliberate, and specifically
+asked for), the breadcrumb and `N changed`, the placement strip first on every
+part under one heading naming its anchor, quiet group headings with a hairline,
+per-row changed dots, per-part dots rolled up the tree, `reset part`, the expert
+switch, and a parts column that folds to a 46 px tab (panel 640 -> 436, row grid
+124/1fr/64 -> 110/1fr/62). Selection and the fold persist.
+
+STILL HERE AND MARKED SO: `#edShelf`, `#edTabs` and the bench pane are re-homed
+to the head of the properties column. They are G80's, and deleting them now
+would take saving and the bench off the screen for two chantiers. `#edBar` is
+G78's. So is the game's bottom bar: the design retires it, but the two verbs
+that replace it (roll out & fly, run the bench) land with the icon rail, and
+hiding the bar before its replacement exists would leave no way out of the
+garage. What DID go: the minimap, the UV pane, the telemetry and the credit line
+are hidden while the editor is up, and `style.css`'s entire editor block is
+gone — it described a panel that no longer exists.
+
+**THE OPTIONS THAT ARE NOT THE AEROPLANE'S.** What `#cgUi` is left holding once
+every parameter row has moved out is exactly `view`, `hangar`, `polycount` (the
+subsurf and template-step selects), `decals` and `materials` — how you look at
+the build, the shed, and the finish. That is the user's own split ("the options
+belonging to the editor and not the settings of the plane") and it FELL OUT of
+the part table rather than being sorted by hand: a row nothing claims is a row
+about the editor. G78 takes the first into the view's icon rail and the second
+into the shed's own sheet.
+
+MEASURED, NOT EYEBALLED: the design is high-fidelity, so the panel was checked
+against it through `getComputedStyle` — panel #201d1a at 640, board #1a1815 at
+250, one shadow `-18px 0 44px rgba(0,0,0,.55)`, rows 34 px on 124/1fr/64 at gap
+14, labels 400 12 #c0b8ac, values 500 12 #f4efe6, group headings 600 10/.2em
+uppercase #8a8377 over a `rgba(255,248,236,.09)` hairline, tree levels
+600 10/.18em / 500 11.5 / 400 11 at 14/27/40 px indent, toggles 30x16 r9, pills
+7 px radius on `rgba(255,255,255,.18)`. IBM Plex Sans only; no monospace
+anywhere in the editor.
+ONE TRAP IN THAT: `_cage_ui.js` writes the value field's colour and the
+stepper's whole box as INLINE styles — it must, because the bench pages have no
+stylesheet that would dress them — and an inline style outranks any selector.
+The three properties carrying the bench blue are taken back with `!important`,
+and only those; layout wins on specificity alone.
+
+### G68.3 — THE LEADING EDGE IN METRES (2026-08-30, user: "fix the LE
+### treatment"). ONE LINE, AND THE RIGHT ONE.
+
+G68.2 declared it: the washed-out leading edge was a chord FRACTION, which
+makes the band narrow where the chord is short and wide where it is long. On
+this aeroplane's fin — a 3.9 m root chord under the dorsal against a 0.6 m tip
+— that is narrow at the root and wide at the tip, the exact opposite of a real
+D-skin. sC is ALREADY metres from the leading edge, so the honest version is
+also the shorter one: a 0.12 m band, measured from the edge, on every flying
+surface whatever its taper.
+
+**AND IT IS BOTH HALVES OF THE FEATURE NOW.** Roughness alone reads as a
+change of reflection; the LE is bare polished metal ahead of painted fabric,
+so it is LIGHTER as well as smoother. The albedo mixes 30 % toward a pale grey
+over the same band, which is what garage.js's paint sheet did (mix toward
+0xdfe3e8 at the very edge) and what "washed out" actually describes.
+
+
+## G69 — PROJECTION AND DECALS (2026-08-30, ROADMAP P9). THE REGISTRATION,
+## AND THE END OF THE ALBEDO STACK.
+
+**THE FIELD IS THE PROJECTION.** G4.5 built the first decal and wrote down
+exactly why it needed one: the body's u is NORMALISED ANGLE, so "a glyph of
+fixed u-width covers less and less physical distance the further aft it sits",
+and it closed by saying "the decal mechanism is now the answer for any future
+marking that must hold its shape".
+
+The G66 surface field IS that mechanism, generalised. sL and sC are METRES on
+the skin, so a decal is placed at a metric position with a metric size and
+holds its proportions by construction — on a fuselage, a wing or a fin,
+whatever the shape underneath. There is no projection matrix, no unwrap and no
+second geometry: it is two subtractions and a texture read. G4.5 needed a
+whole extra `decal` group of lifted patches with their own 0..1 grid; this
+needs none of it, because the coordinate it wanted is now the coordinate the
+aeroplane already carries.
+
+**THE ATLAS**, 1024 square, sixteen 256 pages. Page 0 is the registration,
+page 1 an image the player loads, and the rest are free. Three traps, all of
+them ones this repo has paid for before:
+- flipY stays TRUE, the canvas convention everywhere here except props.js
+  (which sets false because glTF's uv origin is top-left). The page rect does
+  the v flip explicitly and ONCE, because mixing the two conventions is how a
+  registration ends up mirrored for a reason that has nothing to do with which
+  side of the aeroplane it is on.
+- THE CANVAS IS PREMULTIPLIED, so a page whose clear pixels are black fringes
+  DARK the moment a mip averages a glyph edge against them —
+  `render_world.js` records this twice ("a white transparent clear comes back
+  black"). The colour is DILATED outward into the transparent surround, five
+  passes, so alpha carries the coverage and RGB carries no surprises.
+- `texture.encoding` is INERT on a uniform three did not generate a decode
+  function for — it is read for map/envMap/emissiveMap and friends, not for
+  ours — so setting it is documentation and the shader calls sRGBToLinear
+  itself.
+Plus an INSET rather than a gutter: at low mip a page averages into its
+neighbours, and an inset costs nothing where a gutter costs a page.
+
+**THE LOOP IS UNIFORM, DELIBERATELY.** Constant bound, break on a UNIFORM, and
+the in/out test is a WEIGHT rather than a `continue`. The obvious way to write
+it — skip the decal when the fragment is outside its rectangle — makes control
+flow divergent, and divergent flow makes texture2D's mip level undefined. That
+shows up as the decal's edge crawling and nowhere else, which is not a bug
+anyone finds by looking at a still.
+
+**THE FAR SIDE READS BACKWARDS, AND IT TOOK THREE ATTEMPTS.** sC is |signed
+arc| about the spine so the flanks share it, but sL runs aft and is NOT
+mirrored — so the glyph lies along the same PHYSICAL direction on both sides,
+and seen from the far side that direction crosses the eye the other way. G4.5
+hit this and answered it by walking the far arc backwards; the answer here is
+the same one applied to a coordinate: negate the along-body coordinate on one
+flank, keyed on which OBJECT axis is lateral.
+
+**THE LESSON IS ABOUT THE INSTRUMENT, NOT THE CODE.** The first fix went in on
+a hunch and flipped the WRONG flank. The second REMOVED it again — with a
+comment confidently explaining that the mirroring was about the spine and so
+could not affect a flank marking — because the side that was supposed to be
+broken looked fine. It was not fine: the registration was six characters, the
+frame had clipped the first, and a mirrored string read as a correct one. Only
+with G-ABCD, which is not a palindrome and was not clipped, did both sides
+become unambiguous. A TEST WHOSE FAILURE LOOKS LIKE ITS PASS IS NOT A TEST,
+and the string is the test here. The sign is now MEASURED and the comment says
+so, because reasoning about the handedness of the cage frame got it wrong
+twice.
+
+**A BACKTICK ENDS A TEMPLATE LITERAL, THREE TIMES.** Every GLSL block in
+aeroskin.js is a template literal, and three separate prose comments inside
+them quoted a uniform's name in backticks. The failure is spectacular and
+misleading: the rest of the shader becomes JavaScript, so the error names a
+GLSL identifier as an unexpected token, or calls `.encoding` on a string, or
+reports `AERO_BUILT` uninitialised because the module aborted halfway. GATE
+SKINMAT now greps the blocks for backticks, which is the cheapest possible
+guard and belongs in the gate rather than in a habit.
+
+**THE PANEL.** A `decals` group of its own — built ONCE, so the section list
+rebuilding under it cannot wipe a text field mid-type. The registration
+string, its height in metres (300 mm default, which is the legal marking size
+in most places), its station and its height on the side, and which surfaces it
+goes on. Then a file input: any image the player picks is drawn into page 1
+and placed the same way, in metres, which is "project complex liveries from
+images onto anything" for the case that does not need a projector at all.
+
+THE REGISTRATION IS THE AEROPLANE'S OWN. `spec.meta.reg` already carries it
+(default F-PGAR) and garage.js's registration sheet has always read it from
+there; the panel edits it, the spec owns it. Its colour is `spec.paint.trim`,
+for the same reason — so the two paths cannot disagree about what colour the
+registration is.
+
+VERIFIED in the room, both flanks, with G-ABCD: reads correctly on each. The
+decal uniforms are SHARED BY REFERENCE across every AEROSKIN material, so one
+write reaches the whole aeroplane including materials the editor builds later.
+
+DECLARED v1 GAPS:
+- A decal is on BOTH sides or neither. The field is mirrored about the spine
+  and cannot supply a one-sided mask; an asymmetric marking needs the flank
+  sign as a mask, which is the same value the mirroring already computes.
+- FOUR decals maximum (AERO_MAXD), a constant loop bound. Raising it is a
+  one-line change and one more program permutation of nothing.
+- The decal placement lives in a localStorage pref, NOT in the spec — the
+  same gap G67 declared for the finishes and tints. `spec.finish` with a
+  GEN_SPEC_V bump and its migrator is owed before liveried builds are shared,
+  and it should carry the decals when it lands.
+- No ORTHOGRAPHIC projector in craft space. The field covers every case that
+  wants a marking ON a surface; a livery that must run across the fuselage,
+  the wing root and the fairing as one continuous image needs a common craft
+  frame, which is a shared uCraftInv uniform and a per-frame update. Designed,
+  not written.
+- The atlas is baked at runtime and never persisted, so a loaded livery image
+  does not survive a reload.
+
+## G77.1 — THE VIEW IS THE FREE ESTATE (2026-08-30, user: "when the selection
+## bars are open, they should not be considered rendered on top of the 3D
+## content, they should render alongside the window of 3D content, and
+## therefore the center of orbiting is calculated based on the space
+## available, which does not include the space taken by the slider/parts
+## bars")
+
+The design handoff flags this as the thing a previous revision got wrong, in
+as many words: *the render is NOT a full-frame background — it occupies exactly
+the free estate, and when the parts column collapses the render's box widens
+and re-centres with it.* G77 deferred it. It should not have: an opaque 640 px
+panel over a full-frame render puts the aeroplane's centre BEHIND the
+properties column, so you orbit a point you cannot see and the build sits
+jammed against the panel edge.
+
+**THE CANVAS SHRINKS.** `body.ed-open` insets `#c` by the panel's own width
+(640, or 436 folded), with the same 160 ms ease the fold uses, and `#ui` — the
+HUD, which is over the render — is inset by the same amount.
+
+AND THAT IS THE WHOLE FIX, because `camera.lookAt(target)` centres the target
+in the CANVAS. Nothing about the orbit, the pan, the room clamp or
+`placeEditor`'s bounding-box target had to learn that a panel exists. The
+alternative — keeping the canvas full-frame and shifting the camera's
+principal point left by half the panel width (`setViewOffset(W + P, H, P, 0,
+W, H)`) — reaches the same picture while still rendering a third of every
+frame under an opaque panel, and leaves two places that have to agree about
+the panel's width instead of none.
+
+Two things had to follow:
+
+- **THE DRAWING BUFFER IS SIZED FROM THE CANVAS, NOT FROM THE WINDOW.**
+  `resize()` read `window.innerWidth/innerHeight`, which is exactly the
+  assumption "the canvas is the window". It reads `canvas.clientWidth/
+  clientHeight` now — that one line is what makes the CSS above true rather
+  than merely stretched.
+- **A ResizeObserver ON THE CANVAS drives it**, so the render follows the
+  panel's fold through the transition instead of snapping at the end of it.
+  `window.onresize` alone cannot see a width change that came from a class.
+
+The classes moved from `#ui` to `<body>` on the way past: the canvas has to
+move too, and it is not inside `#ui`. One holder, so there is one answer to
+"is the editor up, and how wide is it" and not two.
+
+A floor of 240 px on the render's width is insurance for a window narrower
+than the panel: a zero-width drawing buffer is a black screen with nothing on
+it to say why.
+
+## G76/G77 — THE BATTERY (2026-08-30)
+
+`node tools/run_gates.js --all`: **37 of 38 green**, 1905 s.
+
+  GATE PARTS      PASS — 7 assemblies, 33 parts, 537 rows, 28 sections over
+                  12 shapes; `--selftest` catches all nine broken rules
+  GATE UISMOKE    PASS — and the editor bridge is on the executed path now
+  GATE WIND       FAIL — NOT THIS ARC. One sub-gate, `W-DC3`, one check,
+                  `|tdDrift|<1.8`: the DC-3 touchdown-drift defect the
+                  ATMOSPHERE chantier exposed with the EAS change and left
+                  red on the user's call. `tools/flight_core.js` is
+                  byte-identical across this arc's builds — nothing here
+                  reaches physics.
+
+Everything else green including GEN (918 s), STRESS, FLEX, LOAD, BUILD,
+SKINMAT, SURF, the two mesh aircraft and the whole fleet.
+
+ONE TRAP THE GATE CAUGHT, and it is the good kind. `panelWidth` reached
+`document.body.classList` — and GATE UISMOKE's DOM stub had no `body`. It
+never needed one, because nothing in app.js had ever asked for it; G77.1's
+canvas move is what made body the natural holder for the editor's width
+classes (the canvas is not inside `#ui`). The stub has a body now: a stub
+missing something every real document has does not test a narrower app, it
+tests a different one.

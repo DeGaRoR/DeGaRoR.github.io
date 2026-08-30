@@ -26,32 +26,13 @@
   </header>
   <div id="mid">
     <!-- The OLD EDITOR's rows and readout lived here until G35; the cage
-         editor (#edWrap, end of file) replaced them. What stays is the
-         BUILDS bar — saving is something you do TO a build — plus the
-         door to the new editor. -->
-    <section id="garage" class="panel">
-      <header><h2>Builds</h2><button id="gClose" aria-label="Close">×</button></header>
-      <div id="gBuilds">
-        <select id="gSlot" title="Saved builds"></select>
-        <button id="gSave"  title="Save over the selected build">Save</button>
-        <button id="gSaveAs" title="Save as a new build">+</button>
-        <button id="gDel"   title="Delete the selected build">−</button>
-        <button id="gExport" title="Download this build as a .json file">Export</button>
-        <button id="gImport" title="Load a build from a .json file">Import</button>
-        <input id="gFile" type="file" accept="application/json,.json" hidden>
-      </div>
-      <button id="gEdit" title="Open the cage editor">Open the editor</button>
-    </section>
-    <!-- THE PLAQUE (P3): the aeroplane's OWN measured numbers, posted
-         where you built it. genShakedown has computed all of this since
-         G4; it lost its panel at G35 and the builder has been flying
-         blind ever since. -->
-    <section id="plaque" class="panel">
-      <header><h2>The plaque</h2><span id="pqName"></span></header>
-      <div id="pqVerdict"></div>
-      <div id="pqRows"></div>
-      <div id="pqNote"></div>
-    </section>
+         editor (#edWrap, end of file) replaced them. The BUILDS bar that
+         stayed behind moved INTO that panel at G63 and became THE SHELF —
+         saving is something you do to the design you are looking at, and
+         having it over here was half of why there were three stores. -->
+    <!-- THE PLAQUE (P3) moved into the editor's ENGINEERING BENCH at G64:
+         it is what the tests fill, and over here it was underneath the
+         editor panel, which is the only reason the build step existed. -->
     <div id="uvp" class="panel"><canvas id="uvc" width="384" height="384"></canvas>
       <span id="uvleg"></span></div>
     <div id="mmp" class="panel"><canvas id="mm" width="344" height="344"></canvas></div>
@@ -69,6 +50,13 @@
         <div class="cell"><span>Aileron</span><b id="r-da">0.0°</b></div>
         <div class="cell"><span>Rudder</span><b id="r-dr">0.0°</b></div>
         <div class="cell"><span>Peak strain</span><b id="r-str">0</b></div>
+        <!-- THE AIR (G72). TAS beside the PFD's IAS so the two can be seen to
+             diverge; OAT and density altitude because they are the reason; and
+             POWER, which is what the density altitude actually costs. -->
+        <div class="cell"><span>TAS</span><b id="r-tas">0 km/h</b></div>
+        <div class="cell"><span>OAT</span><b id="r-oat">15 &deg;C</b></div>
+        <div class="cell"><span>Density alt</span><b id="r-dalt">0 m</b></div>
+        <div class="cell"><span>Power</span><b id="r-pwr">100%</b></div>
       </div>
       <div id="legend">
         <em><i style="background:var(--cyan)"></i>altitude</em>
@@ -90,11 +78,17 @@
       </select>
       <select id="selFrom" aria-label="Departure"></select>
       <select id="selDest" aria-label="Destination"></select>
-      <select id="selWind" aria-label="Wind">
-        <option value="calm">Calm</option>
-        <option value="light">Breeze 2.5 m/s</option>
-        <option value="mod">Wind 4 + gusts</option>
-        <option value="fresh">Fresh 6 + gusts</option>
+      <!-- CONDITIONS, not wind (G72): a day is air AND wind, and the air half
+           is what decides whether a build gets out of a mountain strip. The
+           four standard-day rows carry the exact wind vectors the wind-only
+           selector had, so nothing about the old presets moved. -->
+      <select id="selCond" aria-label="Conditions">
+        <option value="calm">Standard day &middot; calm</option>
+        <option value="light">Standard &middot; breeze 2.5 m/s</option>
+        <option value="mod">Standard &middot; wind 4 + gusts</option>
+        <option value="fresh">Standard &middot; fresh 6 + gusts</option>
+        <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
+        <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
       </select>
       <div id="grp">
         <button id="bGo" class="pri">Fly the circuit</button>
@@ -105,7 +99,11 @@
       <button id="bSkin">Skin</button>
       <button id="bWire">Wire</button>
       <button id="bUV">UV</button>
-      <!-- garage only: which room you build in, and its light -->
+      <!-- garage only: the editor door, then which room you build in and its
+           light. The door used to live on the #garage BUILDS panel, which the
+           shelf replaced (G63) — it belongs with the other garage-only
+           buttons, and it is the only way back in once the panel is closed. -->
+      <button id="bEdit" title="Open the editor">Editor</button>
       <button id="bEnv" title="Hangar or studio">Hangar</button>
       <button id="bMood" title="Light in the hangar">Afternoon</button>
       <span id="credit">PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison · C172 model: NLM (CC-BY 4.0)</span>
@@ -114,28 +112,95 @@
   </footer>
 </div>
 
-<!-- THE EDITOR (G35, remounted G36): the cage bench, embedded — the game's
-     editor since the old garage panel retired. Since G36 this is a PANEL
-     ONLY: the cage build renders in the game's own garage scene through
-     the game's own renderer and camera (window.CAGE_UI_SCENE mount), so
-     there is no editor canvas — the game view behind IS the viewport, and
-     #bEnv/#bMood keep ruling the room. Hidden until the garage build is
+<!-- THE EDITOR. A PANEL ONLY since G36: the cage build renders in the
+     game's own garage scene through the game's own renderer and camera
+     (the window.CAGE_UI_SCENE mount), so there is no editor canvas — the
+     game view behind IS the viewport. Hidden until the garage build is
      opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<!-- TWO COLUMNS, ONE JOB EACH (G77, design option 9b). The PROPERTIES column
+     edits the selected part and nothing else; the PARTS column selects and
+     never edits. src/viewer/editor.js owns both, and builds no widget of its
+     own: every row below the header is _cage_ui.js's own element, MOVED into
+     #edRows one part at a time, so the row grammar is one implementation. -->
 <section id="edWrap" hidden>
-  <header>
-    <h1>cage editor</h1>
-    <button id="edClose" title="Back to the game">back to the game</button>
-  </header>
-  <div id="edBar">
-    <label>subsurf <select id="lvl">
-      <option>0</option><option>1</option><option selected>2</option><option>3</option>
-    </select></label>
-    <label><input type="checkbox" id="cage"> cage</label>
-    <label><input type="checkbox" id="wire"> wireframe</label>
-    <label><input type="checkbox" id="color" checked> sections</label>
-    <button id="resetBtn">reset</button>
-    <button id="objBtn">export OBJ</button>
+  <div id="edProps">
+    <!-- STILL HERE, AND NOT FOR LONG (G77). The shelf is G80's — it folds into
+         the sheet behind the aeroplane's name, with the plaque, the bench and
+         the rack. The tabs go with it. #edBar is G78's: it is how you LOOK at
+         the build, and that belongs in the view's icon rail. They are re-homed
+         here rather than deleted because deleting them now would take saving
+         and the bench off the screen for two chantiers. -->
+    <div id="edLegacy">
+      <div id="edShelf">
+        <select id="gSlot" title="Stock designs and your saved aeroplanes"></select>
+        <button id="gSave"  title="Save over this aeroplane">save</button>
+        <button id="gSaveAs" title="Save as a new aeroplane">+</button>
+        <button id="gDel"   title="Delete the selected aeroplane">−</button>
+        <button id="gExport" title="Download this build as a .json file">export</button>
+        <button id="gImport" title="Load a build from a .json file">import</button>
+        <input id="gFile" type="file" accept="application/json,.json" hidden>
+      </div>
+      <div id="edTabs">
+        <button id="tabDesign" class="on">design</button>
+        <button id="tabBench">bench</button>
+        <button id="edClose" title="Back to the game">close</button>
+      </div>
+      <div id="edBar">
+        <label>subsurf <select id="lvl">
+          <option>0</option><option>1</option><option selected>2</option><option>3</option>
+        </select></label>
+        <label><input type="checkbox" id="cage"> cage</label>
+        <label><input type="checkbox" id="wire"> wireframe</label>
+        <label><input type="checkbox" id="color" checked> sections</label>
+        <button id="resetBtn">reset</button>
+        <button id="objBtn">export OBJ</button>
+      </div>
+    </div>
+    <!-- the selection, and what has moved on it since the design was loaded -->
+    <header id="edPropHead">
+      <span id="edCrumb"></span><b id="edPartName"></b><span id="edChanged"></span>
+    </header>
+    <div id="edRows"></div>
+    <!-- THE ENGINEERING BENCH (G64): the declared tests, then the plaque they
+         fill. The plaque starts empty on purpose — a certificate you get for
+         free is not one. bench.js owns #bTests; app.js owns the plaque rows. -->
+    <div id="edBench" hidden>
+      <section id="plaque">
+        <header><h2>The plaque</h2><span id="pqName"></span></header>
+        <div id="pqVerdict"></div>
+        <div id="pqRows"></div>
+        <div id="pqNote"></div>
+      </section>
+    </div>
+    <div id="edMeasure"></div>
+    <footer id="edPropFoot">
+      <span id="edPartMeta"></span>
+      <button id="edResetPart" class="pill"
+              title="Every row of this part back to the design you loaded">reset part</button>
+      <button id="edExpert" class="pill"
+              title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
+    </footer>
+    <!-- THE EDITOR'S OWN OPTIONS, and the room's — what #cgUi is left holding
+         once every parameter row has moved into the inspector above. How you
+         look at the build, the shed, and the aeroplane's materials. G78 takes
+         the first two out: the view's options become an icon rail, and the
+         shed gets its own sheet, because tuning the atmosphere or the hangar
+         is a different interface from designing an aeroplane. -->
+    <div id="edOpts">
+      <div id="edOptsHead"><span>editor &amp; shed</span><i></i><em>view · room · materials</em></div>
+      <aside id="cgUi"></aside>
+    </div>
+    <div id="edStat"><span id="stat"></span></div>
   </div>
-  <aside id="cgUi"></aside>
-  <div id="edStat"><span id="stat"></span></div>
+  <!-- IT SELECTS, IT NEVER EDITS. The tree is the declared assembly of
+       tools/_cage_parts.js, filtered to the parts this build actually has. -->
+  <div id="edParts">
+    <div id="edPartsHead">
+      <button id="edCollapse" class="pill" title="Fold the parts column">›</button>
+      <b>Parts</b>
+    </div>
+    <div id="edTree"></div>
+    <div id="edTreeFoot">or click a part in the view</div>
+  </div>
+  <button id="edPartsTab" title="Show the parts column">‹<b>Parts</b></button>
 </section>

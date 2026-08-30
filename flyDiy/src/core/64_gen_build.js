@@ -45,7 +45,10 @@ function genClMax(def, flap) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * Math.cos(al), -V * Math.sin(al), 0]);
     const L = -r.Fx * Math.sin(al) + r.Fy * Math.cos(al);
-    const CL = L / (0.5 * 1.225 * V * V * Sw);
+    // RHO, not the live density: every number on this sheet is quoted at the
+    // datum, which is what makes them comparable between two builds and what
+    // makes the speeds equivalent airspeeds (G72).
+    const CL = L / (0.5 * RHO * V * V * Sw);
     if (CL > CLmax) { CLmax = CL; aStall = al; }
   }
   // aStall is a BODY angle (the probe pitches the flow about the rest pose),
@@ -77,10 +80,9 @@ function genTrim(def) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   const aMax = 0.85 * def.params.polarWing.aStall;
-  const PPc = POWERPLANTS[def.params.powerplant];
-  const PRc = def.params.prop || PPc.prop;
-  const nEc = def.params.nEngines || 1;
-  const Tav = v => Math.max(1, PRc.Tstatic - PRc.kV2 * v * v) * nEc;
+  // through the SIM, so the sheet and the aeroplane cannot disagree about how
+  // much thrust there is in this air (G72). Identical at the datum.
+  const Tav = v => sim.thrustAt(v, 1);
   const dragAt = v => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag;
 
   // ---- CRUISE SPEED FROM THE POWER CURVE ---------------------------------
@@ -134,15 +136,11 @@ function genTrim(def) {
   def.params.stabTrim = s1;
   const fin = at(s1);
   // cruise throttle from the drag the tunnel just measured against the thrust
-  // the prop can make at that speed
-  // the aeroplane's OWN prop where it has one (a GARAGE build always does)
-  const PP = POWERPLANTS[def.params.powerplant];
-  const PR = def.params.prop || PP.prop;
-  // BOTH estimates below are about what the AEROPLANE pulls, so both carry the
-  // engine count. They used to read the per-disc figure while the solver flew
-  // on twice it (`T = Tper * refs.engine.length`, fixed G4.9).
-  const nE = def.params.nEngines || 1;
-  const Tavail = Math.max(1, PR.Tstatic - PR.kV2 * V * V) * nE;
+  // the prop can make at that speed. sim.thrustAt carries the aeroplane's OWN
+  // prop (a GARAGE build always has one) AND its engine count — the two things
+  // this block used to re-derive, and the second of which it once got wrong
+  // (it read the per-disc figure while the solver flew on twice it, G4.9).
+  const Tavail = sim.thrustAt(V, 1);
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
@@ -211,36 +209,68 @@ function genTrim(def) {
     g.alphaTD = genAlphaForLift(sim, 1.10 * g.VsFlap, W, aMax);
     sim.ctl.flap = 0;
     // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
-    const rc = genProbeAt(sim, A.VClimb, genAlphaForLift(sim, A.VClimb, W, aMax));
-    g.gammaClimb = Math.max(0.004, (Tav(A.VClimb) - rc.drag) / W);
+    g.gammaClimb = Math.max(0.004, genClimbAt(sim, def, W, aMax));
     genTuneAP(def);
   }
-  // TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
-  // backtrack, so it has to err LONG.
-  //
-  // Rebuilt in G4.9, because the engine-count fix took away the error that was
-  // cancelling this one. The old form was `1.35 * Vlof^2 / (2*acc)` with ONE
-  // constant acceleration off 0.92*Tstatic and `Vlof = 1.05*VRot`. Two things
-  // were wrong with it and the doubled thrust hid both — it read 119 m against
-  // the 103 m the over-powered aeroplane actually flew, which looked like the
-  // deliberate safety bias the comment claimed. On honest thrust the same
-  // formula reads 119 m against 292 m flown: optimistic by 2.4x, and on a
-  // backtrack decision optimistic is the dangerous direction.
-  //
-  // 1. IT DOES NOT UNSTICK AT 1.05*VRot. VRot is where the autopilot starts
-  //    asking; the wheels leave when the wing can carry the aeroplane AT THE
-  //    LIFTOFF ATTITUDE, which is a tunnel question. Measured against flown
-  //    takeoffs this is right to a few per cent and high rather than low
-  //    (gen 21.4 predicted / 20.8 flown, cub 19.0 / 17.6).
-  // 2. THE ACCELERATION IS NOT CONSTANT. Thrust falls as kV2*V^2 the whole way
-  //    down the roll while drag climbs, so the mean is nothing like the
-  //    standing value. Integrate s = INT V dV / a(V) instead.
-  //
-  // The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
-  // level — which under-reads lift and so over-reads both the weight on the
-  // wheels and the rolling drag: conservative, deliberately.
+  // the take-off roll, measured in whatever air this sim is in (genTORunAt)
+  def.params.ap.TORun = genTORunAt(sim, def, W).TORun;
+  return def;
+}
+
+// ---------------------------------------------------------------------------
+// THE TWO PERFORMANCE MEASUREMENTS, LIFTED OUT OF genTrim (G72) so that the
+// bench can run the identical integration in air that is not the datum's. Not
+// rewritten — moved, line for line — because a density-altitude sheet computed
+// by a second, similar method would be a sheet about the method.
+//
+// THE ONE THING THAT IS NEW in both is the EAS/TAS conversion. Every speed on
+// the fiche (VRot, VClimb) is an equivalent airspeed, and genProbeAt prescribes
+// a TRUE one, so at altitude the tunnel has to be run faster to put the wing at
+// the same dynamic pressure. easK is exactly 1 at the datum, so dividing by it
+// leaves every existing number bit-for-bit where it was.
+// ---------------------------------------------------------------------------
+
+// WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
+function genClimbAt(sim, def, W, aMax) {
+  const A = def.params.ap;
+  const Vc = A.VClimb / sim.probeAir().easK;      // the EAS, flown as a TAS
+  const rc = genProbeAt(sim, Vc, genAlphaForLift(sim, Vc, W, aMax));
+  // RAW, and deliberately allowed to go negative. genTrim floors it at 0.004
+  // because the autopilot's circuit geometry divides by it; a CEILING search
+  // has to be able to see the gradient reach zero and pass through it, and a
+  // floor applied here would have put the ceiling at infinity in both.
+  return (sim.thrustAt(Vc, 1) - rc.drag) / W;
+}
+
+// TAKEOFF RUN to 2.5 m agl. The AP only uses it to decide whether to
+// backtrack, so it has to err LONG.
+//
+// Rebuilt in G4.9, because the engine-count fix took away the error that was
+// cancelling this one. The old form was `1.35 * Vlof^2 / (2*acc)` with ONE
+// constant acceleration off 0.92*Tstatic and `Vlof = 1.05*VRot`. Two things
+// were wrong with it and the doubled thrust hid both — it read 119 m against
+// the 103 m the over-powered aeroplane actually flew, which looked like the
+// deliberate safety bias the comment claimed. On honest thrust the same
+// formula reads 119 m against 292 m flown: optimistic by 2.4x, and on a
+// backtrack decision optimistic is the dangerous direction.
+//
+// 1. IT DOES NOT UNSTICK AT 1.05*VRot. VRot is where the autopilot starts
+//    asking; the wheels leave when the wing can carry the aeroplane AT THE
+//    LIFTOFF ATTITUDE, which is a tunnel question. Measured against flown
+//    takeoffs this is right to a few per cent and high rather than low
+//    (gen 21.4 predicted / 20.8 flown, cub 19.0 / 17.6).
+// 2. THE ACCELERATION IS NOT CONSTANT. Thrust falls as kV2*V^2 the whole way
+//    down the roll while drag climbs, so the mean is nothing like the
+//    standing value. Integrate s = INT V dV / a(V) instead.
+//
+// The roll integrates at ZERO body alpha — the aeroplane accelerates roughly
+// level — which under-reads lift and so over-reads both the weight on the
+// wheels and the rolling drag: conservative, deliberately.
+function genTORunAt(sim, def, W) {
   const A_ = def.params.ap;
-  let Vun = 1.05 * A_.VRot;
+  // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
+  // twice over: less thrust to accelerate on, and further to accelerate to.
+  let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
   {
     let lo = 1, hi = 4 * Vun + 40;
     for (let k = 0; k < 40; k++) {
@@ -253,7 +283,7 @@ function genTrim(def) {
   let sRoll = 0;
   for (let i = 0; i < NS; i++) {
     const Vi = Vun * (i + 0.5) / NS;
-    const Ti = Math.max(0, PR.Tstatic - PR.kV2 * Vi * Vi) * nE;
+    const Ti = sim.thrustAt(Vi, 0);
     const ri = genProbeAt(sim, Vi, 0);
     const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
     const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
@@ -267,8 +297,7 @@ function genTrim(def) {
   // rather than modelled, at 0.8 — above the worse of the two measured ratios
   // (0.53 gen, 0.18 cub), because this number's whole job is to be long.
   // Reads 320 m against the preset's 292 m flown.
-  def.params.ap.TORun = Math.round(1.8 * sRoll);
-  return def;
+  return { TORun: Math.round(1.8 * sRoll), Vun };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -451,8 +480,8 @@ function genShakedown(def) {
     const cl = genClMax(def, 0), fl = genClMax(def, 1);
     out.ClMaxClean = cl.CLmax;
     out.ClMaxFlap = fl.CLmax;
-    out.VsFlap = Math.sqrt(2 * fl.W / (1.225 * fl.Sw * Math.max(1e-6, fl.CLmax)));
-    out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (1.225 * cl.Sw * Math.max(1e-6, cl.CLmax)));
+    out.VsFlap = Math.sqrt(2 * fl.W / (RHO * fl.Sw * Math.max(1e-6, fl.CLmax)));
+    out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (RHO * cl.Sw * Math.max(1e-6, cl.CLmax)));
     out.VAppr = def.params.ap.VAppr;
   }
   if (P && P.ledger) {
@@ -520,7 +549,7 @@ function buildGen(specIn) {
   params.gen.aStall = gClean.aStall;
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);
-    const VsFlap = Math.sqrt(2 * g.W / (1.225 * g.Sw * Math.max(1e-6, g.CLmax)));
+    const VsFlap = Math.sqrt(2 * g.W / (RHO * g.Sw * Math.max(1e-6, g.CLmax)));
     // BOTH SPEEDS OFF THE SAME INSTRUMENT. `r` is a ratio, so everything common
     // to the two ends cancels — but only if the two are measured the same way.
     // This divided the flapped PROBE by `gen.Vs`, which is analytic and on the
@@ -529,7 +558,7 @@ function buildGen(specIn) {
     // `VsRatio` was already doing it this way; this is the same sum, and
     // `gClean` is the scan that was run three lines up.
     const VsClean = Math.sqrt(2 * gClean.W /
-                    (1.225 * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+                    (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
     const r = VsFlap / VsClean;
     params.ap.VAppr *= r;
     params.ap.VApprShort *= r;
@@ -541,4 +570,103 @@ function buildGen(specIn) {
   }
   genTrim(def);
   return def;
+}
+
+// ---------------------------------------------------------------------------
+// THE DENSITY-ALTITUDE SHEET (G72) — the bench's second instant test.
+//
+// The question it answers is the one the plaque could not: this aeroplane
+// takes 320 m of grass and climbs 3 m/s ON THE STANDARD DAY AT SEA LEVEL, and
+// every number a builder has ever been shown has silently carried that
+// qualifier. What does it do out of a mountain strip in August, and where does
+// it stop climbing at all?
+//
+// It is the SAME two measurements genTrim takes — genClimbAt and genTORunAt,
+// the same functions, not a second method — run against a different air
+// through sim.setAtmos. Nothing here models anything; the modelling is all in
+// 05_atmos.js and in the solver, and this file only asks.
+//
+// THE CEILING is bisected on the climb gradient, which is why genClimbAt
+// returns a raw one. Absolute = where the rate of climb reaches zero; service =
+// where it reaches 0.5 m/s, which is roughly the 100 ft/min every light-
+// aircraft manual quotes and is the honest one to publish, since an aeroplane
+// at its absolute ceiling cannot turn.
+// ---------------------------------------------------------------------------
+const GEN_DA_CASES = [
+  { id: 'isa', name: 'ISA, sea level',        h: 0,    dISA: 0  },
+  // A REAL SUMMER MOUNTAIN STRIP, and the numbers behind the choice: 1000 m of
+  // pressure altitude at ISA+20 is a bit over 1600 m of density altitude, which
+  // is an ordinary afternoon in the Alps and an ordinary afternoon in Colorado.
+  { id: 'hot', name: '1000 m strip, ISA+20',  h: 1000, dISA: 20 },
+];
+const GEN_DA_SERVICE = 0.5;      // m/s, the service-ceiling bar
+const GEN_DA_CAP = 12000;        // m, the edge of what this model will claim
+
+function genDensityAlt(def) {
+  const A = def.params.ap || {};
+  // fiche-only aircraft have no VRot/liftoffTh, so there is no roll to
+  // integrate; say so rather than returning a sheet of NaN.
+  if (!(A.VClimb > 0) || !(A.VRot > 0) || A.liftoffTh == null) return null;
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const W = sim.totalM * 9.81;
+  const aMax = 0.85 * def.params.polarWing.aStall;
+
+  const at = (h, dISA) => {
+    sim.setAtmos(dISA ? makeAtmos({ dISA }) : ATMOS_ISA, h);
+    sim.ctl.flap = 0;
+    const air = sim.probeAir();
+    const gam = genClimbAt(sim, def, W, aMax);
+    return {
+      pressAlt: h, dISA, densAlt: air.densityAlt, sigma: air.sigma,
+      oatC: air.oatC, power: air.power, aspiration: air.aspiration,
+      climbGrad: gam,
+      // RATE of climb is the gradient times the TRUE speed, and VClimb is an
+      // equivalent one — the aeroplane really is going faster up there.
+      climbRate: gam * A.VClimb / air.easK,
+      VClimbTAS: A.VClimb / air.easK,
+      TORun: genTORunAt(sim, def, W).TORun,
+    };
+  };
+  const cases = GEN_DA_CASES.map(c => Object.assign({ id: c.id, name: c.name },
+                                                    at(c.h, c.dISA)));
+  // CLIMB ONLY for the ceiling search — `at` also integrates a take-off roll,
+  // which is 70-odd tunnel probes an iteration and means nothing at 3000 m.
+  // AND WHERE THE MODEL STOPS BEING HONEST. 12 km is not a physical bound, it
+  // is the edge of what is defensible here: above it the missing pieces start
+  // to matter more than the ones that are present. It bites on ELECTRIC builds,
+  // which in this model keep climbing almost indefinitely — a motor's power
+  // does not lapse, so the only thing taking the thrust away is rho^(1/3). That
+  // is correct as far as it goes and it goes too far: a real one is stopped by
+  // its battery and by the tips of its own propeller going transonic, and this
+  // model has neither. A null ceiling means "above 12 000 m and do not believe
+  // us", not "infinite".
+  const rocAt = h => {
+    sim.setAtmos(ATMOS_ISA, h);
+    sim.ctl.flap = 0;
+    const air = sim.probeAir();
+    return genClimbAt(sim, def, W, aMax) * A.VClimb / air.easK;
+  };
+  const ceiling = target => {
+    if (!(rocAt(0) > target)) return 0;            // it does not climb down here
+    let lo = 0, hi = GEN_DA_CAP;
+    if (rocAt(hi) > target) return null;           // beyond the model's honesty
+    for (let k = 0; k < 24; k++) {
+      const m = 0.5 * (lo + hi);
+      if (rocAt(m) > target) lo = m; else hi = m;
+    }
+    return 0.5 * (lo + hi);
+  };
+  const out = {
+    cases,
+    serviceCeiling: ceiling(GEN_DA_SERVICE),
+    absCeiling: ceiling(0),
+    serviceBar: GEN_DA_SERVICE,
+    ceilingCap: GEN_DA_CAP,
+  };
+  // the ceilings are PRESSURE altitudes on the standard day, so their density
+  // altitude is the same number — but say it, rather than leave it inferred
+  out.serviceCeilingDA = out.serviceCeiling;
+  sim.setAtmos(null, 0);
+  return out;
 }

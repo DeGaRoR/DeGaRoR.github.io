@@ -8,6 +8,25 @@ function makeSim(def, world) {
   // as before and no fleet number moves.
   const PR = P_.prop || PP.prop;
   const PROPA = Math.PI * (PR.D / 2) ** 2;
+  // THE AIR THIS SIM IS IN. A sim built with no world flies the STANDARD day:
+  // genShakedown makes one that way on purpose, and a wind-tunnel probe must
+  // never be in weather — which now includes the weather's air, not just its
+  // wind. Read per pass rather than captured, because the viewer sets a new day
+  // live exactly the way it already sets a new wind.
+  // setAtmos(air, h) — the air AND the altitude a wind-tunnel probe is run at.
+  // A TUNNEL IS AT A DECLARED AIR STATE, never at the incidental height the
+  // aeroplane's nodes happen to be sitting at: every design-time number in
+  // 64_gen_build is measured through probes, and if those read the model's own
+  // ride height then a taller undercarriage would quietly change the stall
+  // speed on the sheet. Default: ISA sea level, which is the datum.
+  let atmOver = null, hProbe = 0;
+  const setAtmos = (a, h) => { atmOver = a || null; hProbe = h || 0; };
+  const airOf = () => atmOver || (world && world.atmos) || ATMOS_ISA;
+  // THE ENGINE'S OWN RELATION TO IT, declared on the registry row: 'na'
+  // breathes the air and lapses with it, an electric motor's power comes out of
+  // the pack and does not. Absent = 'na', because everything that flew before
+  // this line existed was a piston.
+  const ASP = (PP.engine && PP.engine.aspiration) || 'na';
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -83,10 +102,50 @@ function makeSim(def, world) {
   const sc=[0,0,0], sw_=[0,0,0], sn=[0,0,0];
   function aeroPass(probe) {
     bodyAxes();
-    // mean velocity (mass-weighted)
-    let vmx=0, vmy=0, vmz=0;
-    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
-    vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // mean velocity (mass-weighted), and the mean altitude in the same sweep
+    let vmx=0, vmy=0, vmz=0, pmy=0;
+    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i];
+                                 pmy+=p[i*3+1]*m[i]; }
+    vmx/=totalM; vmy/=totalM; vmz/=totalM; pmy/=totalM;
+
+    // THE AIR, SAMPLED ONCE FOR THE WHOLE PASS at the aeroplane's own altitude.
+    // Node y is metres above MEAN SEA LEVEL already (placeAtAerodrome offsets
+    // every node by the strip's own elev), so there is no new datum here.
+    // Once, not per strip, and that is a declared cut rather than laziness: the
+    // density gradient across a 13 m span is 1e-4 of the density, and this pass
+    // runs up to 200 times a frame.
+    const AIR = airOf();
+    // A TUNNEL PROBE reads the DECLARED air (hProbe, ISA sea level unless the
+    // bench says otherwise); a FLYING aeroplane reads the air at its own mean
+    // altitude. The two must not be the same line: if a probe read the model's
+    // own ride height, a taller undercarriage would change the stall speed on
+    // the sheet, and the sheet is what two builds are compared by.
+    //
+    // AND A SIM WITH NO WORLD HAS NO PLACE, so it has no altitude either — it
+    // flies in the declared air too. That is genShakedown's own existing ruling
+    // about the ground ("settled on a flat plane, so the answer does not depend
+    // on which patch of grass it is parked on") extended to the air, and it is
+    // needed for the same reason: the STANCE is measured by settling rather
+    // than probing, so without this clause a 1.2e-4 density difference from the
+    // aeroplane's own ride height reached the design sheet — enough to flip
+    // which main wheel a deliberately-broken variant came to rest on.
+    // genDensityAlt is unaffected by construction: it sets its height itself.
+    const hAir = (probe || !world) ? hProbe : pmy;
+    const rho = AIR.rho(hAir), sig = AIR.sigma(hAir);
+    // EQUIVALENT AIRSPEED is the speed this aeroplane's WING thinks it is
+    // doing: the speed at sea level that would make the same dynamic pressure.
+    // Every V-number in this project (Vs, VCruise, VAppr, the plant gains) was
+    // derived at rho0 and is therefore already an EAS, so this factor is what
+    // lets the autopilot keep flying the numbers it was tuned with when the air
+    // thins. At sea level it is EXACTLY 1 and nothing moves.
+    const easK = Math.sqrt(sig);
+    // and what the powerplant makes of it — see 05_atmos.js, where both
+    // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
+    // asserted.
+    const PS = atmosPropScale(sig, ASP);
+    out.rho = rho; out.sigma = sig; out.easK = easK;
+    out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
+    out.powerK = PS.power; out.thrustK = PS.kT;
 
     // world samples: ONE terrain height (ground effect) and ONE wind vector
     // under the wing per pass; strips re-sample wind at their own position
@@ -95,15 +154,21 @@ function makeSim(def, world) {
     // byte-identical to the pre-wind one.
     let gH = null, wcx = 0, wcy = 0, wcz = 0;
     if (world) {
-      let sx = 0, sz = 0, sN = 0;
+      let sx = 0, sy = 0, sz = 0, sN = 0;
       for (const st of def.strips) if (st.kind === 'wing') {
         sx += p[st.fIn*3] + p[st.fOut*3];
+        sy += p[st.fIn*3+1] + p[st.fOut*3+1];
         sz += p[st.fIn*3+2] + p[st.fOut*3+2];
         sN += 2;
       }
-      const mx = sx / sN, mz = sz / sN;
+      const mx = sx / sN, my = sy / sN, mz = sz / sN;
       gH = world.terrainH(mx, mz);
-      if (world.wind) { const wv = world.wind(mx, 0, mz, simT); wcx = wv[0]; wcy = wv[1]; wcz = wv[2]; }
+      // the CG sample used to pass a literal 0 for y. It was silent while the
+      // wind field ignored y and wrong the moment it stopped (G72): the wing
+      // would have been told the wind at sea level while its own strips, which
+      // sample at their real positions two lines down, felt the wind at
+      // altitude — the two disagreeing about the same air.
+      if (world.wind) { const wv = world.wind(mx, my, mz, simT); wcx = wv[0]; wcy = wv[1]; wcz = wv[2]; }
     }
     // prop advance ratio uses AIRSPEED (thrust decays with air, not ground)
     const Vfwd = Math.max(0, -((vmx-wcx)*xAft[0]+(vmy-wcy)*xAft[1]+(vmz-wcz)*xAft[2]));
@@ -118,11 +183,11 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tper = ctl.thr * Math.max(0, PR.Tstatic - PR.kV2 * Vfwd * Vfwd);
+      const Tper = ctl.thr * Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
       T = Tper * nE;                                   // registry values are per engine
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines
-      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (RHO * PROPA)) - Vfwd;
+      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (rho * PROPA)) - Vfwd;
       const per = T / def.refs.engine.length;          // spread over the MOUNTS
       for (const e of def.refs.engine) {
         f[e*3]   -= per * xAft[0];
@@ -132,9 +197,14 @@ function makeSim(def, world) {
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     out.thrust = T; out.wash = wash;
-    // out.V/alpha are AIR-relative (true IAS/aero alpha); out.Vg is groundspeed
+    // THREE SPEEDS, and the distinction is load-bearing now that the air can be
+    // thin: out.V is TRUE airspeed (air-relative — what alpha is built on and
+    // what a propeller advances into), out.Veas is what the wing and the
+    // instrument feel, out.Vg is over the ground (wheels, brakes, stop
+    // detection). At sea level the first two are the same number exactly.
     const avx = vmx - wcx, avy = vmy - wcy, avz = vmz - wcz;
     out.V = Math.hypot(avx, avy, avz);
+    out.Veas = out.V * easK;
     out.Vg = Math.hypot(vmx, vmy, vmz);
     out.windX = wcx; out.windY = wcy; out.windZ = wcz;
     out.alpha = Math.atan2(-(avx*yUp[0]+avy*yUp[1]+avz*yUp[2]),
@@ -228,7 +298,7 @@ function makeSim(def, world) {
       const [Cl, Cd] = fl > 0
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
-      const q = 0.5 * RHO * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
       const lx=(u*sn[0]-w_*sc[0])*iv, ly=(u*sn[1]-w_*sc[1])*iv, lz=(u*sn[2]-w_*sc[2])*iv;
@@ -270,7 +340,7 @@ function makeSim(def, world) {
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
                   rx*zRt[0]+ry*zRt[1]+rz*zRt[2]];
-      const k = 0.5 * RHO * Vr * 0.25;
+      const k = 0.5 * rho * Vr * 0.25;
       for (const i of ids) {
         f[i*3]   += k*(CdA[0]*cb[0]*xAft[0] + CdA[1]*cb[1]*yUp[0] + CdA[2]*cb[2]*zRt[0]);
         f[i*3+1] += k*(CdA[0]*cb[0]*xAft[1] + CdA[1]*cb[1]*yUp[1] + CdA[2]*cb[2]*zRt[1]);
@@ -406,6 +476,33 @@ function makeSim(def, world) {
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; }
   }
 
+  // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
+  // cruise speed off the power curve, thrCruise, the climb gradient, the
+  // take-off roll integration — used to re-type `Tstatic - kV2 V^2` straight
+  // off the registry. That was harmless while the air was a constant and became
+  // a SECOND, quieter engine the moment it stopped being one: the sheet would
+  // have gone on quoting sea-level thrust while the aeroplane flew on less.
+  // `floor` is the caller's own — genTrim floors the bracket at 1 N so a ratio
+  // cannot divide by zero, the take-off roll floors it at 0 — and it is passed
+  // rather than chosen here so the two readers keep their own numbers exactly.
+  // What air a PROBE is in, for the readers that have to convert between the
+  // equivalent airspeeds the sheet is written in and the true ones the tunnel
+  // prescribes. Cheap, and it keeps the conversion in one place.
+  function probeAir() {
+    const A = airOf(), sg = A.sigma(hProbe);
+    return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
+             easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP),
+             aspiration: ASP };
+  }
+
+  function thrustAt(V, floor = 0, hAlt) {
+    const A = airOf();
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP);
+    return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
+           * (def.params.nEngines || 1);
+  }
+
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
   function probe(vel) {
     for (let i = 0; i < n; i++) {
@@ -454,7 +551,8 @@ function makeSim(def, world) {
   function axes() { bodyAxes(); return [xAft.slice(), yUp.slice(), zRt.slice()]; }
 
   return { p, v, m, r, beams, n, ctl, out, totalM,
-           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes };
+           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           setAtmos, atmos: airOf, thrustAt, probeAir };
 }
 
 

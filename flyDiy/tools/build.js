@@ -20,6 +20,11 @@ const VENDOR_DIR = path.join(ROOT, 'vendor');
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
+    // solver — 60_gen_spec synthesises the prop against a density and
+    // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
+    // rather than with the world.
+    '05_atmos.js',
     '10_aircraft_cub.js',
     '11_aircraft_dc3.js',
     '12_aircraft_chinook.js',
@@ -61,7 +66,14 @@ const MANIFEST = {
     catch (e) { return []; } })(),
   viewer: {
     shell: 'shell.html',
-    style: 'style.css',
+    // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
+    // HUD's amber on glass, the boot splash, the aircraft card. editor.css is
+    // the editor's own palette (design option 9b), scoped entirely under
+    // #edWrap. They are separate files because they are separate designs and
+    // the screen shows one or the other, and because a single sheet is the one
+    // place two sessions working on two different surfaces are guaranteed to
+    // collide.
+    styles: ['style.css', 'editor.css'],
     body: 'body.html',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -77,9 +89,23 @@ const MANIFEST = {
     // workshop.js after garage.js: the workshop pieces bake their sheets with
     // garage.js's own canvas bakers. hangar.js only CALLS them (lazily, at
     // first garage entry), so its own position is unchanged.
+    // bench.js after garage.js: the bench writes its results into the
+    // shelf's logbook (window.GARAGE_SPEC.note), and before app.js, which
+    // calls benchInit with the bridge
+    // aeroskin.js before hangar.js: the room's setMood scales every
+    // material's own envMapIntensity (r128 has no scene.environmentIntensity)
+    // and the aeroplane's factory has to exist to be registered. It is loaded
+    // ahead of the EDITOR too, which needs it at first garage entry — the
+    // editor block lands at the head of RENDER, so the dependency is on the
+    // lazy CAGE_UI_BOOT, not on script order.
+    // editor.js after bench.js and before app.js (G77): it is the third
+    // bridge app.js hands out, beside garageInit and benchInit, and like them
+    // it must be defined before app.js runs. It attaches window.CAGE_ON_ROWS,
+    // which _cage_ui.js calls when it has built its rows — so the editor panel
+    // does not need CAGE_UI to exist at load, only at first garage entry.
     scripts: ['render_world.js', 'hangar_floor.js', 'hangar_walls.js',
-              'hangar_sky.js', 'props.js', 'hangar.js', 'garage.js',
-              'workshop.js', 'app.js'],
+              'hangar_sky.js', 'props.js', 'aeroskin.js', 'hangar.js',
+              'garage.js', 'workshop.js', 'bench.js', 'editor.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's
@@ -88,6 +114,9 @@ const MANIFEST = {
   // They land at the head of the RENDER slot behind a CAGE_UI_LAZY flag, so
   // the editor boots on first open (app.js openEditor), not at page load.
   editor: [
+    // THE DECLARED ASSEMBLY (G76) first: the part tree, the param -> part map
+    // and the part -> section map every later file reads. Pure data, no deps.
+    '_cage_parts.js',
     '_cage_page5.js', '_cage_gen.js', '_cage_crew.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js', '_cage_gear.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
@@ -161,7 +190,7 @@ function buildViewer(coreBody) {
     return [];
   }
   const shell = read(shellPath);
-  const css = read(path.join(VIEW_DIR, V.style));
+  const css = V.styles.map(f => read(path.join(VIEW_DIR, f))).join('\n');
   const bodyHtml = read(path.join(VIEW_DIR, V.body));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
@@ -173,8 +202,11 @@ function buildViewer(coreBody) {
   props.forEach((m, i) => syntaxCheck(MANIFEST.props[i], m));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
-  // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting
-  const LAZY = `<script>window.CAGE_UI_LAZY = 1;</script>`;
+  // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
+  // CAGE_IN_GAME rides with it (G63) and says which SHELF owns saving: the
+  // game's (garage.js, one store and one format) rather than the bench's own
+  // preset/config bar. The standalone _cage*.html pages set neither.
+  const LAZY = `<script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>`;
 
   // --- single-file artifact: everything inlined ---
   let art = shell;
@@ -214,7 +246,9 @@ function buildViewer(coreBody) {
                      catch (e) { return ''; } };
   const ref = (dir, sub, f) => `<script src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
   let dev = shell;
-  dev = fill(dev, 'STYLE', `<link rel="stylesheet" href="src/viewer/${V.style}${ver(path.join(VIEW_DIR, V.style))}">`);
+  dev = fill(dev, 'STYLE', V.styles.map(f =>
+    `<link rel="stylesheet" href="src/viewer/${f}${ver(path.join(VIEW_DIR, f))}">`)
+    .join('\n'));
   dev = fill(dev, 'BODY', bodyHtml);
   dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => ref(CORE_DIR, 'src/core', f)).join('\n'));

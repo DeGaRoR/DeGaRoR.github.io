@@ -11,7 +11,7 @@
 // in node against flight_core.js. The browser glue below (game bundle
 // only, gated on CAGE_UI_LAZY) gathers M from the live contracts and
 // wires the `build & fly` button into the editor bar: export → the G7
-// save pipeline (GARAGE_SPEC.set: loadSpec → rebuild → apply →
+// save pipeline (GARAGE_SPEC.update since G63: merge → rebuild → apply →
 // enterGarage → WIP autosave) → the editor closes onto the stand, where
 // the flown aeroplane IS the one this table just built.
 'use strict';
@@ -210,7 +210,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     });
     return { stab: sOK ? stab : null, fin: fin.n > 20 ? fin : null };
   };
+  // WHAT THE MEASUREMENT COULD NOT TAKE (G64). One list, refilled by every
+  // measure(), read by the engineering bench. A join that cannot measure the
+  // build must not hand back a plausible aeroplane in silence — that is a
+  // failed test, and the bench says so instead of posting a plaque for an
+  // aeroplane nobody built.
+  const ERRS = [];
   const measure = () => {
+    ERRS.length = 0;
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
     const G2 = window.CAGE_GEAR || {};
@@ -254,7 +261,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                  : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
-      } catch (e) {}
+      } catch (e) {
+        // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
+        // block below — the cabin's x-extent, the gear station and ride
+        // height, the wing station, the boom shape and profile, and all eight
+        // tail rows — and the build that came out was a plausible generic
+        // aeroplane with no sign anywhere that seven measurements had gone
+        // missing. The bench reads this list and calls the test failed, which
+        // is what a measurement you could not take actually means.
+        ERRS.push('the cage would not resolve, so nothing could be measured '
+                  + 'off it: ' + e.message);
+      }
       // tail arm: firewall -> the cage's own tail post (the lattice's
       // last full station); the post/fin land postGap beyond it, still a
       // DEFAULT-v1 gap. Falls back to the G45 whole-skin measurement
@@ -435,7 +452,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     M.seating = (P.paxCount >= 1)
       ? (P.seatLayout === 1 ? 'side2' : 'tandem2') : 'single';
     if (window.CAGE2 && window.CAGE2.cageToSpec)
-      try { M.cage = window.CAGE2.cageToSpec(P); } catch (e) {}
+      try { M.cage = window.CAGE2.cageToSpec(P); }
+      catch (e) { ERRS.push('the shape could not be written to the build: '
+                            + e.message); }
     return M;
   };
   const tables = () => ({
@@ -513,7 +532,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // neutral display mode had been frozen into the flying paint)
     const colBox = document.getElementById('color');
     const colWas = colBox ? colBox.checked : true;
-    if (colBox && !colWas) { colBox.checked = true; window.CAGE_UI.build(); }
+    // ...and AT ZERO EXPLODE, for exactly the same reason (G63). The colour
+    // toggle was caught here at G47; the explode distance is the other view
+    // knob living in P, and building with the parts blown apart froze an
+    // exploded aeroplane into the mesh that flies. Both are restored below.
+    const UP = window.CAGE_UI.P;
+    const expWas = +UP.explodeD || 0;
+    if (colBox && !colWas) colBox.checked = true;
+    if (expWas) UP.explodeD = 0;
+    if ((colBox && !colWas) || expWas) window.CAGE_UI.build();
     // G55 MOVING PARTS: wheels and the prop peel off into their OWN
     // groups before the merge, each with a pivot, so the game can ride
     // them on their axle nodes (suspension = the physics showing
@@ -606,14 +633,44 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
         ? geo.groups
         : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
+      // THE SECTION NAME IS THE KEY, NOT THE COLOUR (G66). Merging by
+      // colour hex threw away the one thing a material system needs: two
+      // sections that happen to wear the same tint merged irreversibly, so
+      // the flown aeroplane could never be told that THIS band is the
+      // waistband and THAT one is the taper. meshFrom publishes the ordered
+      // section names it built the groups from (userData.matNames) — one
+      // description of the split — and the colour rides along as a
+      // fallback key for every layer that has no section vocabulary.
+      const secNames = o.userData && o.userData.matNames;
+      const secField = o.userData && o.userData.surfMats;
+      const sAttr = geo.attributes.aStruct;
       for (const r of ranges) {
         const m0 = matList[r.materialIndex] || matList[0];
         if (!m0 || !m0.color) continue;
-        const key = 'c' + m0.color.getHexString() +
-          (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
+        const sec = secNames && secNames[r.materialIndex];
+        const key = sec ? 's' + sec
+          : 'c' + m0.color.getHexString() +
+            (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
+        // AEROSKIN (G67) rides across as WHAT IT IS, not as what it looked
+        // like: the finish key and the shader branch, so the game rebuilds
+        // the same material from the same factory rather than approximating
+        // it with a colour and two scalars. `color` still carries the
+        // resolved albedo (AEROSKIN keeps it on material.color for exactly
+        // this reason), so a payload from a build made before this — or from
+        // a layer that is not AEROSKIN — still reads correctly.
+        const ud = m0.userData || {};
         if (!mats[key]) mats[key] = { color: m0.color.getHex(),
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
-          rough: 0.85, metal: 0 };
+          ...(sec ? { sec } : {}),
+          ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),
+          ...(ud.aeroGrm ? { grm: ud.aeroGrm } : {}),
+          // whether this group carries the surface field decides which
+          // branch the shader takes for it, and the join is where that
+          // fact has to survive into the game
+          ...((ud.aeroSurf || (secField && secField[r.materialIndex]))
+              ? { surf: 1 } : {}),
+          rough: ud.aeroFinish ? m0.roughness : 0.85,
+          metal: ud.aeroFinish ? m0.metalness : 0 };
         const end = Math.min(r.start + r.count, idx ? idx.count : p.count);
         // one vertex into a bucket: cage -> model frame, then the G54.2
         // pitch calibration about the model z (left) axis, so the pose's
@@ -628,16 +685,35 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const qx = -n.z, qy = n.y;
             G3.nrm.push(qx * cB - qy * sB, qx * sB + qy * cB, n.x); }
           else G3.nrm.push(0, 1, 0);
+          // THE SURFACE FIELD CROSSES THE JOIN UNCHANGED (G66), and that is
+          // the point of it being a SURFACE coordinate: sL and sC are arc
+          // lengths measured on the skin, so the cage -> model rotation and
+          // the pitch calibration do not touch them the way they touch a
+          // position or a normal. The field the editor built is the field
+          // the aeroplane flies with.
+          if (G3.srf) {
+            if (sAttr) G3.srf.push(sAttr.getX(vi), sAttr.getY(vi),
+                                   sAttr.getZ(vi), sAttr.getW(vi));
+            else G3.srf.push(0, 0, 0, 0);
+          }
         };
         const bucket = part ? part.groups : groups;
-        const G3 = bucket[key] || (bucket[key] = { pos: [], idx: [], nrm: [] });
+        const G3 = bucket[key] || (bucket[key] = { pos: [], idx: [], nrm: [],
+                                                   srf: sAttr ? [] : null });
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
     });
-    if (colBox && !colWas) { colBox.checked = false; window.CAGE_UI.build(); }
+    if (colBox && !colWas) colBox.checked = false;
+    if (expWas) UP.explodeD = expWas;
+    if ((colBox && !colWas) || expWas) window.CAGE_UI.build();
+    // uv stays an all-zero array: the cage has no unwrap and never will —
+    // `srf` is what replaces it, and it is FOUR numbers, not two. The uv is
+    // kept because mkGeo still binds it and a missing attribute is a
+    // different (louder) failure than an unused one.
     const bake = g => ({ pos: new Float32Array(g.pos),
       nrm: new Float32Array(g.nrm),
       uv: new Float32Array((g.pos.length / 3) * 2),
+      ...(g.srf && g.srf.length ? { srf: new Float32Array(g.srf) } : {}),
       idx: new Uint32Array(g.idx), nv: g.pos.length / 3 });
     // G55: finalize the parts — each rebased about its PIVOT (the wheel's
     // axle; the spinner's own origin for the prop), pitch-calibrated like
@@ -950,33 +1026,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   };
   window.CAGE_JOIN = {
     export: () => cageJoinSpec(window.CAGE_UI.P, measure(), tables()),
+    // read AFTER export: measure() is what fills it
+    errors: () => ERRS.slice(),
     snapshot, fitReport,
   };
-  // THE BUTTON. The editor bar exists in the game DOM at load; the
-  // handler runs the whole loop turn: export -> the save pipeline ->
-  // back to the stand with the aeroplane this table built.
-  const bar = document.getElementById('edBar');
-  if (bar) {
-    const b = document.createElement('button');
-    b.id = 'edFly';
-    b.textContent = 'build & fly';
-    b.title = 'Export the build through the physics table and put it on the stand';
-    bar.appendChild(b);
-    b.onclick = () => {
-      if (!window.CAGE_UI || !window.GARAGE_SPEC) return;
-      try {
-        const spec = window.CAGE_JOIN.export();
-        // the visual freezes BEFORE the spec applies: setAircraft('gen')
-        // rebuilds the model and must find it already standing
-        window.CAGE_VISUAL = snapshot(spec);
-        try {
-          const fit = fitReport(spec, window.CAGE_VISUAL);
-          if (fit) { console.log('CAGE JOIN fit report:'); console.table(fit); }
-        } catch (e2) {}
-        window.GARAGE_SPEC.set(spec);
-        const c = document.getElementById('edClose');
-        if (c && c.onclick) c.onclick();
-      } catch (e) { console.error('build & fly:', e); }
-    };
-  }
+  // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
+  // It's one too much"). `build & fly` did three things — export through this
+  // table, freeze the visual, hand the result to the save pipeline — and then
+  // closed the editor onto a stand whose only reason to exist was that the
+  // plaque was hidden behind the panel. All three are still done, by
+  // app.js's `syncBuild`, which runs as a STEP inside the two operations that
+  // actually need a committed build: running a bench test, and rolling out.
+  // What is left here is the table and the measurements, which is what this
+  // file was always for.
 })();

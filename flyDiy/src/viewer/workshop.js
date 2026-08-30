@@ -189,29 +189,83 @@ function wsOnStands(THREE, piece, mats, n) {
   // station, take the lowest surface there, and stretch the trestle to reach
   // it. The prop is one mesh at a fixed height, so "stretch" is a scale on y —
   // which is what a builder does with a packing block anyway.
-  const ray = new THREE.Raycaster();
-  const down = new THREE.Vector3(0, -1, 0);
-  const meshes = [];
+  // THE PROBE IS THE TRESTLE'S WHOLE FOOTPRINT, and it is not a raycast (G63).
+  // One ray down the middle was right for a wing, which is solid where you
+  // look. The Jodel fuselage is an OPEN FRAME: the centre station's ray went
+  // clean between two longerons and reported nothing, the station fell back to
+  // the nominal height, and the body hung four centimetres over that trestle.
+  // A grid of rays only moved the problem — 3x7 rays still threaded the gaps
+  // and left one beam 55 mm INSIDE the structure, which is the other failure
+  // the user named.
+  //
+  // Rays sample; triangles are the thing itself. For each station take every
+  // triangle whose PLAN footprint overlaps the beam's, and the beam stops at
+  // the lowest corner of any of them. That is exactly "as high as it goes
+  // without touching", so there is no gap, and it cannot clip because a
+  // triangle overlapping the beam can never end up above it. Overlap is tested
+  // on the triangle's plan bounding box, which is conservative in the safe
+  // direction: at worst a beam stops a hair low, never a hair high.
+  //
+  // Cost is one pass over the piece's triangles per station — 17k x 3 here,
+  // which is nothing, and it happens once when the shed is built.
+  const FOOT = mats.standFoot || [0.26, 0.43];   // half extents, x by z
+  const tri = [];                                 // [minx, maxx, minz, maxz, miny]
   inner.updateMatrixWorld(true);
-  inner.traverse(o => { if (o.isMesh) meshes.push(o); });
+  inner.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position, idx = o.geometry.index;
+    const m = o.matrixWorld, v = new THREE.Vector3();
+    const nT = idx ? idx.count : pos.count;
+    for (let t = 0; t + 2 < nT; t += 3) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, y0 = Infinity;
+      for (let c = 0; c < 3; c++) {
+        v.fromBufferAttribute(pos, idx ? idx.getX(t + c) : t + c).applyMatrix4(m);
+        if (v.x < x0) x0 = v.x; if (v.x > x1) x1 = v.x;
+        if (v.z < z0) z0 = v.z; if (v.z > z1) z1 = v.z;
+        if (v.y < y0) y0 = v.y;
+      }
+      tri.push(x0, x1, z0, z1, y0);
+    }
+  });
   const under = x => {
-    ray.set(new THREE.Vector3(x, bb.max.y + H + 2, cz), down);
-    const hit = ray.intersectObjects(meshes, false);
-    return hit.length ? hit[hit.length - 1].point.y : H;
+    const ax = x - FOOT[0], bx = x + FOOT[0],
+          az = cz - FOOT[1], bz = cz + FOOT[1];
+    let lo = Infinity;
+    for (let i = 0; i < tri.length; i += 5) {
+      if (tri[i] > bx || tri[i + 1] < ax) continue;
+      if (tri[i + 2] > bz || tri[i + 3] < az) continue;
+      if (tri[i + 4] < lo) lo = tri[i + 4];
+    }
+    return isFinite(lo) ? lo : null;
   };
+
+  // measure every station first, then fill any that found nothing at all from
+  // its neighbours — a station in mid-air is a worse answer than an average
+  const want = [];
+  for (let i = 0; i < n; i++)
+    want.push(under(bb.min.x + len * (i + 0.5) / n));
+  for (let i = 0; i < n; i++) {
+    if (want[i] !== null) continue;
+    let lo = null, hi = null;
+    for (let j = i - 1; j >= 0; j--) if (want[j] !== null) { lo = want[j]; break; }
+    for (let j = i + 1; j < n; j++) if (want[j] !== null) { hi = want[j]; break; }
+    want[i] = (lo !== null && hi !== null) ? (lo + hi) / 2 : (lo !== null ? lo : (hi !== null ? hi : H));
+  }
 
   for (let i = 0; i < n; i++) {
     const x = bb.min.x + len * (i + 0.5) / n;
-    const want = Math.max(H * 0.5, under(x));
+    const want_ = Math.max(H * 0.5, want[i]);
     // THE STAND IS TURNED A QUARTER from where it was (user): its beam runs
     // ALONG whatever it carries now, not across it.
     const g = mats.stand ? mats.stand(x, cz, 0) : null;
     if (g) {
-      if (Math.abs(want - H) > 0.005) g.scale.y = want / H;
+      // 0.5 mm, not 5 mm: the deadband exists to skip a pointless near-unity
+      // scale, and at 5 mm it was leaving a measurable gap of its own (G63).
+      if (Math.abs(want_ - H) > 0.0005) g.scale.y = want_ / H;
       out.add(g);
     } else {
       out.add(wsTrestle(THREE, mats.wood, x, cz,
-        Math.max(0.5, Math.min(1.15, (bb.max.z - bb.min.z) * 0.75)), want));
+        Math.max(0.5, Math.min(1.15, (bb.max.z - bb.min.z) * 0.75)), want_));
     }
   }
   return wsGround(THREE, out);
