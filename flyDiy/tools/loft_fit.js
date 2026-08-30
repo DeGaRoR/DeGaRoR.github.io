@@ -46,8 +46,19 @@
 // The --assert form is what graduates into GATE GEN once the loft rework lands.
 // It is the numeric definition of "the crank is unrepresentable", and it is
 // worth more than any screenshot.
-const { buildGen, genSkin, genRestFrame, GEN_DEFAULT } =
-  require('./flight_core.js');
+// RETIRED WITH genSkin (G67.1). This instrument measured the DECK LINE of the
+// old generated fuselage -- the numeric definition of "the crank is
+// unrepresentable", which was worth more than any screenshot and is why the
+// reasoning below is kept rather than deleted. Its subject is gone: the
+// fuselage is the cage's, its loft is 60b_gen_loft.js, and GATE CAGEFIT
+// measures it against three reference OBJs vertex-for-vertex. Re-aiming this
+// at the cage is a real and useful piece of work; it is not this chantier's.
+const { buildGen, genRestFrame, GEN_DEFAULT } = require('./flight_core.js');
+if (!process.argv.includes('--i-know-it-is-retired')) {
+  console.log('loft_fit.js is RETIRED (G67.1): it measured the OLD fuselage');
+  console.log('deck line, and genSkin no longer exists. See the header.');
+  process.exit(0);
+}
 
 // ---------------------------------------------------------------------------
 // the spread

@@ -184,6 +184,9 @@ const cv = EXT ? null : ($('cgC') || $('c'));
 const renderer = EXT ? null : new THREE.WebGLRenderer({
   canvas: cv, antialias: true, preserveDrawingBuffer: true });
 const scene = EXT || new THREE.Scene();
+// a handle for measuring the bench from the console — every placement bug in
+// the light arc was found by reading boxes, not by squinting at a screenshot
+window.CAGE_SCENE = scene;
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
 const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.95);
 const sun = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -297,21 +300,49 @@ const matSurf = {};
 // parts already proved — one key, restores with the build.
 const secTint = {};
 const secFin = {};
+// THE PER-SECTION DIALS (the user: "I'd want to be able to control scaling,
+// roughness and normal/bump size for every material"). Multipliers on the
+// finish's own numbers, so 1 is the material as designed and the finish table
+// stays the authority on what a material IS. Absent means 1 and costs no
+// storage: only the sections somebody has actually dialled are written.
+const secTile = {}, secRough = {}, secNrm = {};
+// THE CONDITION OF THE AEROPLANE (G70). One number: 0 is the day it left the
+// shop, 1 is twenty years on a grass strip. Everything it does and everywhere
+// it lands is derived (see applyWear and aeroskin.js's THE WEAR) — this is
+// the only thing anybody sets.
+const WEAR = { amount: 0.0 };
 const AERO_PREF = 'flydiy.aeroSections';
 function aeroLoadPrefs() {
   try {
     const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
     Object.assign(secTint, j.tint || {});
     Object.assign(secFin, j.finish || {});
+    Object.assign(secTile, j.tile || {});
+    Object.assign(secRough, j.rough || {});
+    Object.assign(secNrm, j.nrm || {});
+    Object.assign(WEAR, j.wear || {});
   } catch (e) {}
 }
+// READ, MODIFY, WRITE — never write the whole key. This used to store
+// `{tint, finish}` flat, which SILENTLY DELETED the decal block (G69 keeps
+// its placement under `dec` in the same pref): changing one section's finish
+// wiped where the registration sat, and you only found out after a reload.
+// The wear block below would have been the second casualty.
 function aeroSavePrefs() {
   try {
-    localStorage.setItem(AERO_PREF,
-      JSON.stringify({ tint: secTint, finish: secFin }));
+    const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
+    j.tint = secTint; j.finish = secFin; j.wear = WEAR;
+    j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
+    localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
 aeroLoadPrefs();
+// THE LAYERS ASK AEROSKIN, AND AEROSKIN ASKS HERE (G70). The gear, engine,
+// cowl and cabin layers must know whether the aeroplane is wearing its
+// finishes or the diagnostic palette, and none of them owns this select —
+// so the switch is published once instead of four modules reaching into a
+// DOM element that belongs to this file.
+if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 
 const matOf = name => {
   const a = alphaOf(name);
@@ -328,7 +359,9 @@ const matOf = name => {
     // birch ply and alclad actually look like.
     const tint = secTint[name] != null ? secTint[name] : null;
     const key = 'a:' + name + ':' + a + ':' + (tint == null ? '-' : tint) +
-                ':' + (secFin[name] || '') + ':' + consOf();
+                ':' + (secFin[name] || '') + ':' + consOf() +
+                ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
+                ':' + (secNrm[name] || 1);
     if (matCache[key]) return matCache[key];
     if (A.AERO_GLASS.has(name)) {
       matCache[key] = A.aeroGlass(THREE, { opacity: a, fieldM: fieldM() });
@@ -340,6 +373,8 @@ const matOf = name => {
         // only exterior skin carries it
         grm: consOf(), struct: A.aeroIsSkin(name) ? 1 : 0,
         tint, opacity: a, fieldM: fieldM(),
+        // the three dials; absent is the finish's own number
+        tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -794,6 +829,11 @@ function build() {
   }
   if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
+  // THE WEAR IS MEASURED AFTER THE LAYERS, and it has to be: its two sources
+  // are the exhaust exit and the wheel, and neither exists until the engine
+  // and gear layers have run. `s`, not `sFix` — the field belongs to the
+  // aeroplane as built, and an exploded door has not moved on its own skin.
+  try { applyWear(s, FS); } catch (e) { console.error('wear:', e); }
   // `when` rows follow their discriminators live (P just changed)
   applyRowVis();
   draw();
@@ -1416,16 +1456,77 @@ fillPresetSel();
           b.className = 'tg';
           b.textContent = label;
           const paint = () => b.classList.toggle('off', !get());
+          b.__paint = paint;            // the ALL/NONE masters repaint the row
           b.onclick = () => { set(!get()); paint(); };
           paint();
           host.appendChild(b);
           return b;
         };
+        // ALL / NONE FIRST (user: "we need to be able to add lights one by
+        // one from nothingness (all look black)"). The point of the strip is
+        // not to toggle a source, it is to ANSWER A QUESTION — which of these
+        // is doing that? — and the only reliable way to ask it is to go to
+        // black and add one back. Doing that seven clicks at a time is how a
+        // source gets left on and a wrong answer gets believed.
+        const master = (label, pick) => {
+          const b = document.createElement('button');
+          b.className = 'tg alt';
+          b.textContent = label;
+          b.onclick = () => { GE.setLights(pick); repaint(); };
+          host.appendChild(b);
+        };
+        const paints = [];
+        master('none', () => false);
+        master('all', () => true);
         for (const L of GE.lights())
-          mk(L.key, L.key, () => GE.lightOn(L.key), v => GE.setLight(L.key, v));
+          paints.push(mk(L.key, L.key, () => GE.lightOn(L.key),
+                         v => GE.setLight(L.key, v)));
         if (GE.setCraftInProbe)
           mk('probe', 'craft→probe', () => GE.craftInProbe(),
              v => GE.setCraftInProbe(v));
+        function repaint() { paints.forEach(b => b.__paint && b.__paint()); }
+      }
+      // THE WORLD'S LIGHTS, in the same shape (this chantier). The world has
+      // never had a panel, which is most of why its two independent uplights —
+      // the hemisphere's ground half and the environment's ground cap — sat
+      // there stacked on each other for so long: with no way to isolate
+      // either, there was no way to notice there were two.
+      if (GE.worldLights && GE.worldLights().length) {
+        const wr = row(hd, `<span class="k">world lights</span><span class="lt"></span>`);
+        const whost = wr.querySelector('.lt');
+        const wPaints = [];
+        const wmk = (key, label) => {
+          const b = document.createElement('button');
+          b.className = 'tg';
+          b.textContent = label;
+          b.__paint = () => b.classList.toggle('off', !GE.worldLightOn(key));
+          b.onclick = () => { GE.setWorldLight(key, !GE.worldLightOn(key)); b.__paint(); };
+          b.__paint(); whost.appendChild(b); wPaints.push(b); return b;
+        };
+        const wmaster = (label, pick) => {
+          const b = document.createElement('button');
+          b.className = 'tg alt'; b.textContent = label;
+          b.onclick = () => { GE.setWorldLights(pick); wPaints.forEach(x => x.__paint()); };
+          whost.appendChild(b);
+        };
+        wmaster('none', () => false);
+        wmaster('all', () => true);
+        for (const L of GE.worldLights()) wmk(L.key, L.key);
+      }
+      // THE GROUND BOUNCE. How much of the lit floor an aeroplane standing on
+      // it can actually see — the term the reflection probe never had, and the
+      // reason the belly of the wing used to glow. It is a judgement, not a
+      // measurement, so it is a knob: 0 is a floor that returns nothing, 1 is
+      // the unoccluded half-dome of concrete this room used to hand back.
+      if (GE.groundBounce && GE.setGroundBounce) {
+        const d = row(hd, `<span class="k">ground bounce</span>
+          <input type="range" min="0" max="1" step="0.01">
+          <span class="v"></span>`);
+        const inp = d.querySelector('input'), v = d.querySelector('.v');
+        const show = n => { v.textContent = (+n).toFixed(2); };
+        inp.value = GE.groundBounce(); show(inp.value);
+        inp.oninput = () => show(inp.value);          // the re-bake is not free
+        inp.onchange = () => show(GE.setGroundBounce(+inp.value));
       }
       // THE LAMP RIG (G64, user: "for the lamps, give me an intensity and
       // spread control please, as well as a light temperature control"). Here
@@ -1731,11 +1832,28 @@ function applyRowVis() {
   if (!$('mat') && viewDet) {
     const s3 = document.createElement('select');
     s3.id = 'mat';
-    for (const [v, t] of [['sections', 'section colours'],
-                          ['material', 'AEROSKIN']]) {
+    // THE MATERIAL IS THE DEFAULT NOW (G67.1), and the section palette is the
+    // diagnostic it always said it was. It was the other way round at G67
+    // because AEROSKIN was new and the palette was how you told the sections
+    // apart; but the game now OPENS on the cage build, and opening it in a
+    // harlequin of magenta and green would say the aeroplane looks like that.
+    // The order of these two rows IS the default — the first option is what a
+    // select shows — so it is stated here rather than set somewhere else.
+    for (const [v, t] of [['material', 'AEROSKIN'],
+                          ['sections', 'section colours']]) {
       const o = document.createElement('option');
       o.value = v; o.textContent = t; s3.appendChild(o);
     }
+    // ...and the choice STICKS, which the diagnostic view needs more than the
+    // default does: switching to section colours to find a band and coming
+    // back to a rebuilt panel that had silently reverted was the annoyance.
+    try {
+      const sv = localStorage.getItem('flydiy.cageMatView');
+      if (sv === 'sections' || sv === 'material') s3.value = sv;
+    } catch (e) {}
+    s3.addEventListener('change', () => {
+      try { localStorage.setItem('flydiy.cageMatView', s3.value); } catch (e) {}
+    });
     s3.title = 'flat section colours (the diagnostic palette) or the real ' +
       'finish for each section under the current construction, tinted by ' +
       'the section colour';
@@ -1863,6 +1981,80 @@ function applyDecals() {
   A.aeroSetDecals(THREE, list);
 }
 
+// ---- THE WEAR (G70) -------------------------------------------------------
+// The dial is one number; WHERE it lands is measured off this build, every
+// build. Two sources, and both are real places on the aeroplane rather than
+// numbers somebody liked:
+//
+//   THE EXHAUST EXIT — the engine layer reads it off the pipes' own
+//     triangles (aft-most, then lowest), so it follows the cylinder count,
+//     the architecture and every slider on the engine panel.
+//   THE WHEEL — the gear layer already publishes its contacts, and what a
+//     main wheel throws up the belly starts at its own station.
+//
+// AND THE CONVERSION IS THE INTERESTING PART. Both are points in the scene's
+// metric frame; the shader wants the SURFACE FIELD (metres aft of the
+// firewall, metres around from the waist). Rather than write down where the
+// firewall is a second time — the join already owns that chain, and a second
+// copy is exactly how two descriptions drift apart — the point is matched to
+// the NEAREST FIELDED VERTEX ON THE CAGE and that vertex's own (sL, sC) is
+// read out. The aeroplane answers the question about itself, in the
+// coordinate it already carries, and nothing here knows what a firewall is.
+function wearFieldAt(m, FS, p) {
+  if (!m || !m.A || !p) return null;
+  // the mesh is in cage units and the point is in metres
+  const x = p[0] / FS, y = p[1] / FS, z = p[2] / FS;
+  let bi = -1, bd = Infinity;
+  for (let i = 0; i < m.V.length; i++) {
+    const q = m.A[i];
+    if (!q || (q[0] === 0 && q[1] === 0)) continue;   // no field on this one
+    const v = m.V[i];
+    const dx = v[0] - x, dy = v[1] - y, dz = v[2] - z;
+    const d = dx * dx + dy * dy + dz * dz;
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return bi < 0 ? null : [m.A[bi][0] * FS, m.A[bi][1] * FS];
+}
+function applyWear(m, FS) {
+  const A = AK();
+  if (!A || !A.aeroSetWear) return;
+  if (!aeroOn() || !(WEAR.amount > 0)) {
+    A.aeroSetWear(THREE, { amount: 0 });
+    return;
+  }
+  let exhaust = null, splash = null;
+  try {
+    const E = window.CAGE_ENG;
+    const f = E && E.exhaustAt && wearFieldAt(m, FS, E.exhaustAt);
+    // 1.6 m of run and a 90 mm plume at the source: a soot trail off a
+    // stub stack reaches about the back of the cabin and spreads as it goes.
+    //
+    // THE RUN STARTS AT THE SKIN, and this is not a fudge — it is measured.
+    // A stub stack exits FORWARD of the firewall (this build: 0.65 m
+    // forward), and the streak's strongest stretch is its first third; spent
+    // ahead of sL 0 that third lands on the COWL, which has no surface field
+    // and cannot draw it, so what reached the fuselage was the tail of a
+    // trail whose head had gone nowhere. Soot leaves the stack, is dragged
+    // aft, and lands on the first thing behind it: the run starts where the
+    // skin does. The plume's LENGTH is unchanged, so it still reaches the
+    // same station on the aeroplane.
+    if (f) exhaust = [Math.max(0, f[0]), f[1], 1.6, 0.09];
+  } catch (e) {}
+  try {
+    const G = window.CAGE_GEAR;
+    // the MAINS, not the tailwheel: the tailwheel runs in the same track the
+    // mains have already sprayed, and it is 200 mm from the ground with
+    // nothing above it to stain
+    const c = (G && G.contacts || []).filter(u => Math.abs(u.p[0]) > 0.01);
+    if (c.length) {
+      const pick = c[0].p;
+      const f = wearFieldAt(m, FS, pick);
+      if (f) splash = [f[0], f[1], 1.2, 0.16];
+    }
+  } catch (e) {}
+  A.aeroSetWear(THREE, { amount: WEAR.amount, exhaust, splash });
+}
+
 let matPanel = null, matPanelBody = null, matPanelSig = '';
 // built ONCE, and in its own <details> so the section list rebuilding under
 // it cannot wipe a text field the user is typing into
@@ -1979,14 +2171,48 @@ function buildMatPanel() {
   };
   const head = mkRow2('construction', 'the skin material every section ' +
     'inherits its finish from (the "3b interior" construction row)');
+  // DERIVED, not chosen: this row READS OUT the construction the sections
+  // inherit from. The game's FINISH view shows the `intCons` row itself and
+  // skips this one — two rows labelled `construction`, one of them dead, is
+  // worse than either alone. The bench keeps it: there is no other row there
+  // that says which AEROSKIN construction the intent resolved to.
+  head.dataset.matHead = 'derived';
   const hv = document.createElement('span');
   hv.className = 'v'; hv.textContent = cons;
   head.appendChild(hv);
+  // THE CONDITION DIAL (G70). One row, above the section list, because it is
+  // a property of the AEROPLANE and not of any section — and because every
+  // placement under it is derived, there is nothing else to expose.
+  {
+    const d = mkRow2('condition', 'how much this aeroplane has been flown: ' +
+      'grime in the weave, chalked paint on the upper surfaces, dulled ' +
+      'metal, and streaks from the exhaust and the wheels — all placed off ' +
+      'the build itself');
+    d.dataset.matHead = '1';
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.05;
+    i.value = WEAR.amount; i.style.flex = '1';
+    const v = document.createElement('span');
+    v.className = 'v';
+    // the words are the user's own: factory fresh -> flown -> weathered
+    const say = x => x < 0.02 ? 'factory fresh'
+               : x < 0.35 ? 'run in' : x < 0.7 ? 'flown' : 'weathered';
+    v.textContent = say(+WEAR.amount);
+    i.oninput = () => {
+      WEAR.amount = +i.value; v.textContent = say(+i.value);
+      aeroSavePrefs(); build();
+    };
+    d.appendChild(i); d.appendChild(v);
+  }
   for (const nm of names) {
     const isGlass = A.AERO_GLASS.has(nm);
     const derived = A.aeroFinishFor(nm, cons);
     const row = mkRow2(nm, isGlass ? 'glazing: its own family (transmission ' +
       '+ clearcoat), no finish to choose' : 'finish and colour for ' + nm);
+    // WHICH SECTION THIS ROW IS ABOUT. The bench reads it off the label; the
+    // game's FINISH view moves these rows under the PART that owns the
+    // section, and a label is not something to partition a panel by.
+    row.dataset.sec = nm;
     if (isGlass) {
       const v = document.createElement('span');
       v.className = 'v'; v.textContent = 'glass';
@@ -2022,14 +2248,55 @@ function buildMatPanel() {
       aeroSavePrefs(); build();
     };
     row.appendChild(col);
-    // double-click the LABEL to drop back to the finish's own colour — the
-    // same per-row reset gesture G27 established for every other row
+    // double-click the LABEL to drop the whole section back to its finish's
+    // own numbers — the same per-row reset gesture G27 established for every
+    // other row, now covering the dials below as well
     row.firstChild.style.cursor = 'pointer';
     row.firstChild.ondblclick = () => {
       delete secTint[nm]; delete secFin[nm];
+      delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
       aeroSavePrefs(); build();
     };
+    // THE THREE DIALS, under the section they belong to. They MULTIPLY the
+    // finish's own tile, roughness and normal strength, so 1.00 is the
+    // material as designed — which is why they are x and not a value, and
+    // why an untouched section stores nothing at all.
+    for (const [key, store, label] of [['tile', secTile, 'tile x'],
+                                       ['rough', secRough, 'roughness x'],
+                                       ['nrm', secNrm, 'normal x']]) {
+      const d = mkRow2('   ' + label,
+        'multiplies the finish’s own ' + key + ' for ' + nm +
+        ' — 1.00 is the material as it was designed');
+      d.className = 'r dial';
+      d.dataset.sec = nm;
+      const inp = document.createElement('input');
+      inp.type = 'range'; inp.min = '0.25'; inp.max = '4'; inp.step = '0.05';
+      inp.value = String(store[nm] != null ? store[nm] : 1);
+      const v = document.createElement('span');
+      v.className = 'v';
+      const show = () => { v.textContent = (+inp.value).toFixed(2); };
+      show();
+      inp.oninput = () => {
+        show();
+        const x = +inp.value;
+        if (Math.abs(x - 1) < 1e-6) delete store[nm]; else store[nm] = x;
+        aeroSavePrefs(); build();
+      };
+      d.appendChild(inp); d.appendChild(v);
+      d.firstChild.style.cursor = 'pointer';
+      d.firstChild.ondblclick = () => {
+        delete store[nm]; inp.value = '1'; show();
+        aeroSavePrefs(); build();
+      };
+    }
   }
+  // THE SECTION LIST JUST CHANGED SHAPE. Everything above is rebuilt DOM, and
+  // the game's FINISH view is holding the old nodes in its own column — it has
+  // to be told, or it shows the finish of an aeroplane that no longer exists.
+  // Announced only on a real rebuild: the signature check above returns early
+  // on every other build, which is nearly all of them.
+  if (window.CAGE_ON_MAT) try { window.CAGE_ON_MAT(); } catch (e) {
+    console.error('finish view:', e); }
 }
 
 function syncSliders() {
@@ -2178,6 +2445,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   // readout, the `when` hiding) is the same code in both places and cannot
   // drift. Everything below is a handle on state this file already keeps.
   ROWMETA, GROUPMETA, SEC, DEFAULTS, EXPERT, applyRowVis,
+  // the materials panel's own two bodies, for the same reason: the FINISH view
+  // moves these rows rather than building a second set of colour pickers.
+  get MATBODY() { return matPanelBody; },
+  get DECBODY() { return decPanel ? decPanel.lastChild : null; },
   // the design the per-row and per-part resets go back to. It re-anchors on
   // every whole-set load (preset, import, reset, boot) — see anchorSize.
   get BASELINE() { return BASELINE; },

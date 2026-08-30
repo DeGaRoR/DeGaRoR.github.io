@@ -56,9 +56,72 @@ const GATES = [
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
   { id: 'SURF', file: '_surf_check.js', tier: 'core' },
+  // THE LIGHT RIG (this chantier): the contract, the census, the switchboard,
+  // and the specific lines whose removal brings back "the aeroplane is lit
+  // from below" — which has been reported three times, each time by a
+  // different KIND of source that no switch could reach.
+  { id: 'LIGHT', file: '_light_check.js', tier: 'core' },
+  // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
+  // the geometry that lands there. Every fitting on its own skin, one per
+  // flank, snapped to real structure, standing OUT, no two in one place, and
+  // still asking for the same fittings after a save. Placed over six SHAPES x
+  // five SPECIFICATIONS, because the shapes alone never build an IFR
+  // wing-tank aeroplane and that is where the collisions were.
+  { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  // THE WING'S SHAPE (G67.1): thirteen wings frozen as digests over every
+  // position, uv and binding weight, so the wing could leave 63_gen_skin.js
+  // without changing by a millimetre. Sub-second, and it stays in the battery
+  // afterwards — the wing is the aeroplane's, and nothing should move it by
+  // accident.
+  { id: 'WINGSPLIT', file: '_wing_split.js', tier: 'core' },
+  // ---- THE CAGE'S OWN CHECKERS (G67.1) ------------------------------------
+  // These five have existed for chantiers and were never in the battery: each
+  // was written as the verdict for its own bench and then left to be run by
+  // hand, which means "green" has never included them. They come in now
+  // because THE OLD GENERATED SKIN IS BEING DELETED, and GATE GEN's
+  // assertions about the old aeroplane's fuselage, cowl, engine, tail and
+  // wheels go with it — this is where that coverage actually lives, on the
+  // geometry the aeroplane is built from today rather than on a mesh nobody
+  // sees any more. Promoting them is the replacement; a quietly smaller GATE
+  // GEN would have been the alternative, and it is not one.
+  //
+  // All five are under 3 s: they measure generators, not flights.
+  { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
+  { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
+  { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
+  { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
+  { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
+  // three leg families as three different drawings — the check GATE GEN lost
+  // when the old skin's leg drawer went — plus the wheel turning on its own,
+  // the tyre reading as a circle, and the leg mirroring vertex for vertex.
+  // Runs headless on a THREE stub, which is the only reason it never existed.
+  { id: 'GEAR', file: '_gear_check.js', tier: 'core' },
+  { id: 'BAY', file: '_bay_check.js', tier: 'core' },
   // THE PART TABLE (G76): the declared assembly against the editor's own row
   // list and the sections real builds emit — every slider in exactly one part
   { id: 'PARTS', file: '_parts_check.js', tier: 'core' },
+  // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
+  // frame's own strut root snapped to the built skin — and the declared
+  // fitting's own dimensions
+  { id: 'STRUT', file: '_strut_check.js', tier: 'core' },
+  // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
+  // stand beside your build, held to their PUBLISHED span and length — every
+  // measurement taken against a reference is worth exactly what that check is
+  // — and the display-only rule, read off refplane.js's own source
+  { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE ENERGY MODULE (G97-G101): fourteen aeroplanes frozen as numbers —
+  // cg0, every node mass and position, the ledger's empty/payload split and
+  // the fitting list — BEFORE `spec.fuel` grows into a section with a v5->v6
+  // migrator. The migration must move none of them, and "moved" is invisible:
+  // a tank landing two rings aft shifts the CG, and genFrame then places the
+  // main gear against that CG, and the aeroplane still looks completely normal
+  { id: 'ENERGYBASE', file: '_energy_base.js', tier: 'core' },
+  // ...and the module itself. G97: the INTERIOR VOLUME — the swept section,
+  // the wall taken off along the edge normals, and whether a given solid
+  // actually fits. Every way it can be wrong is silent and reads as a slightly
+  // roomier aeroplane, so every one of them has a check
+  { id: 'ENERGY', file: '_energy_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

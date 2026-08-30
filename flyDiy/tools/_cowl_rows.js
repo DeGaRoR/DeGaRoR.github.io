@@ -156,6 +156,19 @@ const COWL_ROWS = [
     { k: 'scoopLipDepth', label: 'Lip roll depth', lo: 0, hi: 0.15, step: 0.002 },
     { k: 'scoopDuct', label: 'Inner duct length', lo: 0, hi: 0.3, step: 0.005 },
   ] },
+  // ---- Fasteners, parting line, oil door ----
+  { id: 'g_fast', name: 'Fasteners & access', rows: [
+    { k: 'fastOn', label: 'Camloc fasteners', lo: 0, hi: 1, step: 1 },
+    { k: 'fastPitch', label: 'Fastener pitch', lo: 0.05, hi: 0.30, step: 0.005 },
+    { k: 'fastD', label: 'Head diameter', lo: 0.008, hi: 0.030, step: 0.001 },
+    { k: 'partOn', label: 'Parting line', lo: 0, hi: 1, step: 1 },
+    { k: 'partY', label: 'Parting line height  (waist -> deck)', lo: -0.9, hi: 0.9, step: 0.02 },
+    { k: 'partW', label: 'Parting line width', lo: 0.001, hi: 0.006, step: 0.0002 },
+    { k: 'oilOn', label: 'Oil door', lo: 0, hi: 1, step: 1 },
+    { k: 'oilZ', label: 'Oil door station', lo: 0.05, hi: 0.95, step: 0.01 },
+    { k: 'oilW', label: 'Oil door width', lo: 0.05, hi: 0.30, step: 0.005 },
+    { k: 'oilL', label: 'Oil door length', lo: 0.05, hi: 0.35, step: 0.005 },
+  ] },
   // ---- Aft termination ----
   { id: 'g_aft', name: 'Aft termination', rows: [
     { k: 'aftMode', label: 'Termination', lo: 0, hi: 1, step: 1, names: ['Blend into fuselage', 'Nacelle tail cone'] },

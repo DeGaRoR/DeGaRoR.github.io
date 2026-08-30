@@ -11,7 +11,7 @@
   let def, sim, ap, nb, curKey;
   // `rigLift` lives up here with groundY because applyEnv() reads it, and that
   // runs long before the load-test block further down is reached.
-  let studioFloor = null, groundY = 0, rigLift = 0;
+  let groundY = 0, rigLift = 0;
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -118,62 +118,45 @@
 
   const WORLD_EXPOSURE = renderer.toneMappingExposure;
   const WORLD_PHYSLIGHTS = !!renderer.physicallyCorrectLights;
+  // WHAT THE AEROPLANE'S envMapIntensity SHOULD BE OUT THERE — and it is not
+  // 1.0, because the world counts the sky TWICE for anything Standard.
+  //
+  // The world has a HemisphereLight AND a scene.environment baked from the
+  // same sky dome. r128 routes scene.environment to MeshStandardMaterial and
+  // nothing else, so the split is uneven in a way nothing declares:
+  //   terrain, trees, buildings (Lambert)  -> hemisphere only        = one sky
+  //   the AEROPLANE, the water  (Standard) -> hemisphere + probe     = two skies
+  // The aeroplane is therefore the one object in the scene carrying twice the
+  // ambient of everything around it — which is precisely the complaint. It
+  // does not read as "too bright", because a second broad, pale source lifts
+  // the dark channels far more than the bright one: it reads as FLAT. Measured
+  // on the wing's upper surface, saturation (max-min)/max:
+  //   the shed        0.474
+  //   the world       0.350   <- the same paint, two skies
+  //   env at 0.5      0.401
+  //   env at 0        0.443   (and every metal goes black)
+  //
+  // Half, because two skies should sum to one. It is the smallest correction
+  // that stops the double count, and it is applied to the ENVIRONMENT rather
+  // than the hemisphere on purpose: the hemisphere is the only ambient the
+  // Lambert world has, and halving that would darken the terrain to fix the
+  // aeroplane. This touches exactly the materials that were counted twice.
+  const WORLD_ENV = 0.5;
 
 
-  const studio = new THREE.Scene();
-  studio.background = new THREE.Color(0xe9e6de);
-  {
-    // A three-light room, the same shape as any product stand: a broad sky
-    // term so nothing is ever black, one key that actually casts, and a warm
-    // fill opposite it to keep the shaded side readable.
-    studio.add(new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 1.0));
-    const key = new THREE.DirectionalLight(0xffffff, 2.2);
-    key.position.set(-6, 12, 8);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    // the shadow box is sized to an aeroplane, not to a world — a world-sized
-    // frustum spends all its depth precision on empty air and the contact
-    // shadow under the wheels goes soft and detached
-    const c = key.shadow.camera;
-    c.left = -14; c.right = 14; c.top = 14; c.bottom = -14;
-    c.near = 1; c.far = 48;
-    studio.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4e6, 0.5);
-    fill.position.set(9, 5, -7);
-    studio.add(fill);
-    // THE FLOOR, and it earns its place: without a surface to catch the key
-    // light the aeroplane floats in a void and you cannot read its stance —
-    // which is half of what you are looking at when you set gear and dihedral.
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(400, 400),
-      new THREE.ShadowMaterial({ opacity: 0.18 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    studio.add(floor);
-    studioFloor = floor;
-    // An environment, because every material on this aeroplane is a
-    // MeshStandardMaterial and r128 only reaches those through scene.environment.
-    // Without one the metal reads black in here — the same trap the gear legs
-    // and the spinner fell into against a dim sky.
-    if (THREE.PMREMGenerator && renderer.setRenderTarget) {
-      const dome = new THREE.Scene();
-      const cv = document.createElement('canvas');
-      cv.width = 8; cv.height = 64;
-      const g2 = cv.getContext('2d');
-      const gr = g2.createLinearGradient(0, 0, 0, 64);
-      gr.addColorStop(0, '#f4f2ec'); gr.addColorStop(0.55, '#e9e6de');
-      gr.addColorStop(1, '#b9b3a5');
-      g2.fillStyle = gr; g2.fillRect(0, 0, 8, 64);
-      const tx = new THREE.CanvasTexture(cv);
-      tx.encoding = THREE.sRGBEncoding;
-      dome.add(new THREE.Mesh(new THREE.SphereGeometry(100, 16, 12),
-        new THREE.MeshBasicMaterial({ map: tx, side: THREE.BackSide })));
-      const pm = new THREE.PMREMGenerator(renderer);
-      pm.compileEquirectangularShader();
-      studio.environment = pm.fromScene(dome).texture;
-      pm.dispose();
-    }
-  }
+  // THE STUDIO IS GONE (user, 2026-08-30: "retire it").
+  //
+  // It was a white void with a full-strength HemisphereLight, a warm fill and
+  // a PMREM dome whose floor was a bright #b9b3a5 — four sources, not one of
+  // them switchable, in a project whose whole complaint was that the aeroplane
+  // was lit from below by something nobody could turn off. Its selector was
+  // retired at G78 and nothing asked for it on purpose; it survived only as
+  // the silent fallback for a hangar that would not build.
+  //
+  // A silent fallback into an un-auditable light rig is the worst possible
+  // answer to a failed build, because the symptom it produces is "the
+  // lighting is wrong" in a room nobody knows they are in. A failed hangar is
+  // an ERROR now: the garage stays empty and says so, loudly and once.
 
   // ---- THE HANGAR, built on demand ----------------------------------------
   // Deferred because it is a thousand lines of geometry and a dozen baked
@@ -182,7 +165,7 @@
   //
   // `genHangarSupported` is asked rather than assumed. The headless smoke gate
   // stubs THREE with what the viewer needed before this room existed, and a
-  // missing constructor should degrade to the studio, not throw on boot.
+  // missing constructor should leave the room unbuilt, not throw on boot.
   const hangarScene = new THREE.Scene();
   let hangar = null, hangarTried = false;
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
@@ -262,9 +245,63 @@
       const shWas = hangar.shafts.visible;
       const crWas = craft.visible;
       hangar.shafts.visible = false;        // dust is not geometry to reflect
-      if (!craftInProbe) craft.visible = false;
+      // THE AEROPLANE IS IN ITS OWN REFLECTION PROBE — AGAIN, AND BY A SECOND
+      // DOOR (user: "the plane is lit from the bottom, and I can also see that
+      // in the generated wing in the hangar, the yellow one").
+      //
+      // G62.3 found this once and excluded `craft`. But in the garage the
+      // aeroplane you are looking at is NOT `craft` — it is the EDITOR'S CAGE,
+      // on its own mount, and no exclusion ever covered it. The cube camera
+      // sits at (0, 3.2, 0) and the wing's upper surface is at 2.14, so a lit
+      // 10 m wing fills most of the probe's lower hemisphere from one metre
+      // away. Photographed from the probe's own position looking down, the
+      // frame is almost entirely wing; the floor is a small dark patch at the
+      // edge.
+      //
+      // So the wing was lighting its own underside, through the environment,
+      // and it did it hardest exactly where the user saw it: at night, when
+      // the lamps make the wing top the brightest thing in the building.
+      // MEASURED at NIGHT, belly as a percentage of the wing's own top
+      // surface: 287% with the cage in the probe, 3.4% with it out.
+      //
+      // THE LESSON, and it is the same one twice: an exclusion written against
+      // one object is not a rule, it is a special case. What belongs in a
+      // room's probe is THE ROOM — everything the player brought into it is a
+      // subject, and a subject that lights itself is a mirror.
+      const subjects = [craft, edSit, refSit];
+      const subWas = subjects.map(o => o && o.visible);
+      if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
+      // THE GROUND BOUNCE IS OCCLUDED (user: "the plane is lit from the
+      // bottom"). This camera sits at 3.2 m in an empty middle of the floor,
+      // so the whole lower half of the cube is lit concrete at full radiance —
+      // and G62.5 then multiplied the environment by 2.2 to replace three
+      // deleted OVERHEAD fills. Both were right on their own terms and the
+      // product is a floor that shines upward. Measured before this line
+      // existed: at NIGHT the environment alone put 0 on the top of the wing
+      // and 7.4 on its underside.
+      //
+      // What is missing is occlusion. A wing 1.9 m over a slab shades the very
+      // floor that would light it, and the gap between them is enclosed —
+      // nothing like the free hemisphere the probe records. G62 had already
+      // measured the same term for the hemisphere light it later deleted and
+      // anchored it at x0.148; the probe never got it. This is that term,
+      // applied to the surfaces the room declares as ground.
+      //
+      // Scaling the material COLOUR is what makes it a bounce rather than a
+      // blackout: colour multiplies the albedo map, so the floor comes back
+      // with its own texture and its own lamp pools, at the fraction of the
+      // radiance a shaded underside can actually see.
+      const gb = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      const gWas = [];
+      if (gb < 1 && hangar.groundMats) for (const m of hangar.groundMats) {
+        if (!m || !m.color) continue;
+        gWas.push([m, m.color.clone()]);
+        m.color.multiplyScalar(gb);
+      }
       cam.update(renderer, hangarScene);
+      for (const [m, c0] of gWas) m.color.copy(c0);
       hangar.shafts.visible = shWas;
+      subjects.forEach((o, i) => { if (o) o.visible = subWas[i]; });
       craft.visible = crWas;
       rt = pm.fromCubemap(envRT.texture);
     }
@@ -341,9 +378,10 @@
       // with a real sky standing outside, the EYE gets the mountains
       if (hangar.hasSky && hangar.dayCard) hangar.dayCard.visible = false;
     } catch (e) {
-      // a room that will not build is a fallback, not a dead garage
+      // there is no other room to fall back to, so this is an error and not
+      // a shrug — see garageScene()
       hangar = null;
-      if (window.console) console.warn('hangar unavailable, using the studio:', e.message);
+      if (window.console) console.error('hangar unavailable, the garage will be empty:', e.message);
     }
     return hangar;
   }
@@ -388,9 +426,7 @@
         next[k] = Math.max(DIM_LIMS[k][0], Math.min(DIM_LIMS[k][1], d[k]));
     hangarDims = next;
     prefSet('flydiy.hangarDims', JSON.stringify(next));
-    const was = envKind;
     disposeHangar();
-    envKind = was;
     if (inGarage) applyEnv();
     return getHangar() ? hangar.dims : null;
   }
@@ -404,19 +440,29 @@
   const prefGet = (k, d) => { try { const v = PREF && PREF.getItem(k); return v == null ? d : v; }
                               catch (e) { return d; } };
   const prefSet = (k, v) => { try { if (PREF) PREF.setItem(k, v); } catch (e) {} };
-  let envKind = prefGet('flydiy.garageEnv', 'hangar') === 'studio' ? 'studio' : 'hangar';
+  // THE ROOM IS NO LONGER A CHOICE (G78, design option 9b) and no longer has
+  // an alternative to fall back to either — see the studio's obituary above.
   // how many moods there could be before the room has been built and can say.
   // The saved pref is clamped against the room's own list the moment there is
   // one (setMood, applyEnv), so this is a sanity bound and nothing more.
   const MOOD_MAX = 16;
   let hangarMood = Math.max(0, Math.min(MOOD_MAX - 1,
                                         +prefGet('flydiy.garageMood', 0) | 0));
-  // the room actually in use: the hangar if it is wanted AND it built
+  // THE ROOM IS THE HANGAR. If it cannot be built the scene is EMPTY and the
+  // console says why — an empty room is a bug you can see and report, and the
+  // thing it replaced was a second uncontrolled light rig you could not.
+  let hangarFailSaid = false;
   function garageScene() {
-    if (envKind === 'hangar') { const h = getHangar(); if (h) return hangarScene; }
-    return studio;
+    const h = getHangar();
+    if (!h && !hangarFailSaid) {
+      hangarFailSaid = true;
+      if (window.console) console.error(
+        'garage: the hangar could not be built, so the room is empty. ' +
+        'There is no fallback room by design — see app.js.');
+    }
+    return hangarScene;
   }
-  function garageIsHangar() { return garageScene() === hangarScene; }
+  function garageIsHangar() { garageScene(); return !!hangar; }
   // Put the aeroplane in the chosen room and give the renderer the settings
   // that room was lit for. Exposure is a RENDERER setting, not a scene one, so
   // it has to be handed back when we leave or the world inherits the hangar's.
@@ -424,13 +470,13 @@
     const s = garageScene();
     if (craft.parent !== s) s.add(craft);
     if (edSit.parent !== s) s.add(edSit);   // the editor's mount (G36)
+    if (refSit.parent !== s) s.add(refSit); // the reference's (G89)
     // `rigLift` is the load test's own 200 m hop clear of the ground. The room
     // takes the same offset so the aeroplane stays standing in it: the camera
     // tracks the CG and went up with the aeroplane, but the hangar did not, and
     // the test ran against an empty sky. Nothing MOVES relative to anything —
     // that is the point — so the rig still reads exactly as before.
     if (hangar) hangar.group.position.y = groundY + rigLift;
-    if (studioFloor) studioFloor.position.y = groundY + rigLift;
     const inRoom = inGarage && garageIsHangar() && hangar;
     // THE MOBILE KIT stands next to whatever aeroplane is in the room, so it
     // is re-placed from the aeroplane's own footprint every time we come
@@ -456,11 +502,6 @@
                                           : WORLD_EXPOSURE;
     renderer.physicallyCorrectLights = inRoom ? true : WORLD_PHYSLIGHTS;
     syncEnvBtn();
-  }
-  function setEnvKind(k) {
-    envKind = k === 'studio' ? 'studio' : 'hangar';
-    prefSet('flydiy.garageEnv', envKind);
-    if (inGarage) applyEnv();
   }
   function setMood(i) {
     // the room owns the list — it is a sky per row now (G62), and a build that
@@ -521,12 +562,48 @@
     lampRig: () => (getHangar() && hangar.lampRig) ? hangar.lampRig() : null,
     setLampRig: p => (getHangar() && hangar.setLampRig) ? hangar.setLampRig(p) : null,
     lightOn: k => (getHangar() && hangar.lightOn) ? hangar.lightOn(k) : true,
+    // THE MASTER SWITCH (user: "we need to be able to add lights one by one
+    // from nothingness (all look black)"). One re-bake, one known state — as
+    // opposed to seven clicks, seven re-bakes and seven chances to leave a
+    // source somewhere you did not mean.
+    setLights: pick => {
+      if (!getHangar() || !hangar.setLights) return null;
+      const r = hangar.setLights(pick);
+      if (inGarage) applyEnv();
+      bakeHangarEnv();          // the probe is a photograph of the room: see setLight
+      return r;
+    },
+    // the world's panel, offered through the same handle so one piece of UI
+    // can drive either room. It is only live once the world has been built.
+    worldLights: () => (WF && WF.lightSwitches) ? WF.lightSwitches : [],
+    worldLightOn: k => (WF && WF.lightOn) ? WF.lightOn(k) : true,
+    setWorldLight: (k, v) => (WF && WF.setLight) ? WF.setLight(k, v) : null,
+    setWorldLights: pick => (WF && WF.setLights) ? WF.setLights(pick) : null,
+    // THE GROUND BOUNCE, as a knob rather than a constant, because it is the
+    // one number in this rig that is a judgement: how much of a lit floor an
+    // aeroplane standing on it can actually see. Changing it re-bakes.
+    groundBounce: () => window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1,
+    setGroundBounce: v => {
+      if (!window.LIGHT_RIG) return null;
+      const g = window.LIGHT_RIG.setGroundBounce(v);
+      if (getHangar()) bakeHangarEnv();
+      return g;
+    },
     setLight: (k, on) => {
       if (!getHangar() || !hangar.setLight) return null;
       const r = hangar.setLight(k, on);
       // muting the environment changes what the probe would bake, and muting
       // a light changes what the floor shadow should look like
       if (inGarage) applyEnv();
+      // AND THE PROBE HAS TO BE BAKED AGAIN, or the switch is a lie. The
+      // environment is a photograph of the room taken under whatever lights
+      // were on at the time; turning a lamp off afterwards leaves its light in
+      // the picture, so the room keeps being lit by a lamp that is visibly
+      // dark. It cost a false reading during this chantier's own ablation:
+      // "lamps off" still measured the lamps, because the probe remembered
+      // them. A switch is a user action, so the PMREM is affordable here —
+      // unlike a slider drag, which is why applyEnv still does not do it.
+      if (k !== 'env') bakeHangarEnv();
       return r;
     },
     // GPU grade vs precomputed pictures, live, on the same frame
@@ -561,8 +638,8 @@
   };
   // The two buttons are GARAGE-ONLY and hide themselves outside it: a room you
   // are not in is not a setting worth showing, and the rail is already full.
-  // The mood button additionally hides in the studio, which has one light and
-  // no weather — offering "Golden hour" for a white void would be a lie.
+  // The mood button additionally hides when the room did not build: offering
+  // "Golden hour" for an empty scene would be a lie.
   function syncEnvBtn() {
     const eb = $('bEnv'), mb = $('bMood');
     if (!eb || !mb) return;                       // core-only build
@@ -575,8 +652,9 @@
     const h = show && garageIsHangar() && hangar;
     mb.style.display = h ? '' : 'none';
     // the label says WHERE YOU ARE, not what the click will do. A button that
-    // names its own effect reads as a state and gets misread as one.
-    eb.textContent = h ? 'Hangar' : 'Studio';
+    // names its own effect reads as a state and gets misread as one. There is
+    // one room now, so the only other thing it can say is that there is none.
+    eb.textContent = h ? 'Hangar' : 'No room';
     eb.classList.toggle('on', !!h);
     if (h) {
       const nm = hangar.moods[hangarMood] || '';
@@ -688,6 +766,26 @@
   // and reverted, because the problem it appeared to fix turned out to be a
   // texture-decode race in the measurement, not the lighting.
   const modelCache = {};
+  // THE ONE DECODE (G89). The payload's base64 is DESTROYED on first decode
+  // (see buildModel below — 6 MB of heap for the c172, correctly freed), so a
+  // second, independent decodeModel() of the same payload returns nothing —
+  // and whether it does depends on whether you have flown that aeroplane yet,
+  // which is a bug that hides until someone plays in the other order. The
+  // reference plane (refplane.js) wants the same geometry, so the rule
+  // buildModel's own comment already states is made real here: EVERYTHING
+  // THAT WANTS AN IMPORTED PAYLOAD'S GEOMETRY ASKS THIS, and it decodes at
+  // most once per model for the life of the page.
+  const decCache = {};
+  window.MODEL_DECODE = key => {
+    if (decCache[key]) return decCache[key];
+    const d = MODELS3D[key];
+    if (!d || !d.groups) return null;
+    const out = decodeModel(d);
+    for (const g in d.groups) d.groups[g].b64 = null;
+    return (decCache[key] = out);
+  };
+  // and the payload itself, for the tables that ride with it (mats, texs, bb)
+  window.MODEL_PAYLOAD = key => MODELS3D[key] || null;
   // skinMode: 0 = skin, flex x1 · 1 = skin, flex x4 (exaggerated) · 2 = frame,
   // flex x1 · 3 = OVERLAY, flex x1 (G51, user: "a view with the physical +
   // visual model enabled at the same time"): the skin poses as in mode 0 and
@@ -713,20 +811,27 @@
     // When build & fly froze the editor's meshes (window.CAGE_VISUAL,
     // model frame, mount pre-calibrated wheels-to-axles), the gen
     // aircraft flies THAT — down the same path as the PA-18's imported
-    // skin: rigid body-frame pose + makeSkinBinding wing flex. Absent a
-    // snapshot (fresh reload, the smoke gate), the generated skin flies
-    // as before.
+    // skin: rigid body-frame pose + makeSkinBinding wing flex.
+    //
+    // AND THERE IS NO LONGER ANYTHING ELSE FOR IT TO BE (G67.1). This used to
+    // fall back to `genSkin(curDef)` when no snapshot existed — G46 declared
+    // that ("absent a snapshot, the generated skin flies as before") and it is
+    // what kept the old generated aeroplane flyable for a whole arc after the
+    // cage had replaced it. The boot now commits the editor before the first
+    // frame, so a snapshot always exists; if one does not, the honest answer
+    // is NO MESH — the truss and the indicators, which is what the aeroplane
+    // actually is at that moment — rather than a second, different aeroplane
+    // that nobody built.
     const data = key === 'gen'
       ? ((window.CAGE_VISUAL && window.CAGE_VISUAL.cage)
-          ? window.CAGE_VISUAL : genSkin(curDef))
+          ? window.CAGE_VISUAL : null)
       : MODELS3D[key];
     if (!data) return null;
-    const dec = (data.cage || data.generated) ? data.groups : decodeModel(data);
-    // The payload's base64 strings are dead once decoded — the c172's alone are
-    // ~6 MB of JS heap held for the life of the page. modelCache never evicts,
-    // so decode happens exactly once and dropping them is safe. (Anything that
-    // later wants to rebuild must go through modelCache, not decodeModel.)
-    if (!data.generated) for (const g in data.groups) data.groups[g].b64 = null;
+    // IMPORTED payloads go through window.MODEL_DECODE (G89), which owns the
+    // one decode and the b64 drop; the cage and the generated skin are already
+    // decoded groups and never had a b64 to lose.
+    const dec = (data.cage || data.generated) ? data.groups
+      : (window.MODEL_DECODE(key) || decodeModel(data));
     // the generated payload asks for a `paint` map; the viewer bakes it (canvas
     // is not available to core). Without garage.js it degrades to flat colour.
     if (data.generated) {
@@ -1505,8 +1610,6 @@
     $('bWire').classList.toggle('on', wireOn);
   }
   $('bWire').onclick = () => { wireOn = !wireOn; applyWire(); };
-  if ($('bEnv')) $('bEnv').onclick = () =>
-    setEnvKind(garageIsHangar() ? 'studio' : 'hangar');
   if ($('bMood')) $('bMood').onclick = () =>
     setMood(hangar ? (hangarMood + 1) % hangar.moods.length : 0);
 
@@ -1671,6 +1774,7 @@
       e.preventDefault();
       return;
     }
+    if (e.button === 0) downAt = { x: e.clientX, y: e.clientY, t: Date.now() };
     canvas.setPointerCapture(e.pointerId);
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) { px = e.clientX; py = e.clientY; }
@@ -1685,9 +1789,75 @@
   canvas.addEventListener('dblclick', () => {
     if (edSit.visible) edPan.set(0, 0, 0);
   });
+  // ---- G79: CLICKING THE AEROPLANE SELECTS ITS PART ---------------------
+  // The raycast lives here because the camera, the canvas and the mount do —
+  // and it reports a HIT, not a part: which mesh section was struck, which
+  // named object, which layer. Turning that into a part is the part table's
+  // business and src/viewer/editor.js's job, so app.js never learns the
+  // assembly and editor.js never learns the scene graph.
+  const pickRay = new THREE.Raycaster(), pickNDC = new THREE.Vector2();
+  function pickAt(cx, cy) {
+    if (!edSit.visible) return null;
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    pickNDC.x = ((cx - r.left) / r.width) * 2 - 1;
+    pickNDC.y = -((cy - r.top) / r.height) * 2 + 1;
+    // outside the render is not a miss, it is not a question
+    if (Math.abs(pickNDC.x) > 1 || Math.abs(pickNDC.y) > 1) return null;
+    pickRay.setFromCamera(pickNDC, camera);
+    let hits;
+    try { hits = pickRay.intersectObject(edSitP, true); }
+    catch (e) { return null; }
+    for (const h of hits) {
+      const o = h.object;
+      // the highlight overlay is not a thing you can click ON
+      if (!o.visible || (o.userData && o.userData.edHi)) continue;
+      // THE CAGE MESH: one draw group per section, so the face that was hit
+      // names the section directly. r128 stamps `materialIndex` on the face
+      // for multi-material geometry; the group scan is the fallback for a
+      // build where it does not.
+      const names = o.userData && o.userData.matNames;
+      if (names && h.face) {
+        let mi = h.face.materialIndex;
+        if (mi == null && o.geometry.groups && h.faceIndex != null) {
+          const i0 = h.faceIndex * 3;
+          for (const g of o.geometry.groups)
+            if (i0 >= g.start && i0 < g.start + g.count) { mi = g.materialIndex; break; }
+        }
+        if (names[mi]) return { section: names[mi], name: '', layer: 'cage',
+                                point: h.point.toArray() };
+      }
+      // A LAYER OBJECT: the nearest name on the way up is the part (the layers
+      // name what they build — edWheelL, edProp, edSurf_ailR, edFit_pitot),
+      // and the group at the top says which layer it belongs to.
+      let p = o, name = '', layer = '';
+      while (p && p !== edSitP) {
+        const n = p.name || '';
+        if (n.lastIndexOf('cageLayer:', 0) === 0) layer = n.slice(10);
+        else if (!name && n) name = n;
+        p = p.parent;
+      }
+      if (layer) return { section: null, name, layer, point: h.point.toArray() };
+    }
+    return null;
+  }
+  // A CLICK IS NOT A DRAG. The same button orbits the camera, so a pick only
+  // happens when the pointer barely moved and did not linger — otherwise
+  // every orbit would end by selecting whatever was under the cursor.
+  let downAt = null;
+  const HOVER_MS = 110;
+  let hoverT = 0;
   const endTouch = e => { panD = null; touches.delete(e.pointerId); };
-  canvas.addEventListener('pointerup', endTouch);
-  canvas.addEventListener('pointercancel', endTouch);
+  canvas.addEventListener('pointerup', e => {
+    if (downAt && edSit.visible && e.button === 0 &&
+        Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
+        Date.now() - downAt.t < 500 &&
+        typeof window.EDITOR_PICK === 'function')
+      window.EDITOR_PICK(pickAt(e.clientX, e.clientY), false);
+    downAt = null;
+    endTouch(e);
+  });
+  canvas.addEventListener('pointercancel', e => { downAt = null; endTouch(e); });
   canvas.addEventListener('pointermove', e => {
     if (panD) {
       // world metres per screen pixel at the target distance
@@ -1700,6 +1870,18 @@
         .addScaledVector(up, (e.clientY - panD.y) * wpp);
       return;
     }
+    // HOVER, and only when nothing else is going on. A ray into the mount
+    // walks a hundred thousand triangles, so it is thrown at most every
+    // HOVER_MS and never while a button is down — an orbit must not pay for a
+    // tint it is about to throw away.
+    if (!touches.size && !panD && edSit.visible &&
+        typeof window.EDITOR_PICK === 'function') {
+      const now = Date.now();
+      if (now - hoverT > HOVER_MS) {
+        hoverT = now;
+        window.EDITOR_PICK(pickAt(e.clientX, e.clientY), true);
+      }
+    }
     if (!touches.has(e.pointerId)) return;
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) {
@@ -1711,6 +1893,12 @@
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       if (pinch0 > 0) distT = Math.max(4, Math.min(200, dist0 * pinch0 / Math.max(20, d)));
     }
+  });
+  // leaving the render clears the hover: a tint that outlives the pointer
+  // reads as a selection, and there is already one of those
+  canvas.addEventListener('pointerleave', () => {
+    if (edSit.visible && typeof window.EDITOR_PICK === 'function')
+      window.EDITOR_PICK(null, true);
   });
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
@@ -2339,6 +2527,12 @@
   }
   function enterGarage() {
     inGarage = true; started = false; running = true;
+    // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
+    // openEditor at first, which returns early when the cage editor cannot
+    // boot — so a garage without an editor stayed dressed as a cockpit, with
+    // the PFD and the phase rail watching you not build anything. Entering the
+    // garage IS the workshop; the panel is a thing IN it.
+    setMode(true);
     // The room comes back DOWN here rather than in endLoadTest, because this is
     // the one door every way out of a test goes through — finishing it, editing
     // the aeroplane mid-test, or resetting. applyEnv() below picks it up.
@@ -2394,6 +2588,19 @@
     scene.add(craft);                  // out of the room, onto the strip
     renderer.toneMappingExposure = WORLD_EXPOSURE;
     renderer.physicallyCorrectLights = WORLD_PHYSLIGHTS;
+    // THE AEROPLANE FLEW OUT STILL REFLECTING THE SHED (user: "the planes look
+    // really washed out when they get out of the garage and into the world").
+    // Every mood scales the aeroplane's own envMapIntensity to suit the room's
+    // probe — AFTERNOON runs it at x2.2 (hangar.js setMood, via aeroSetEnv) —
+    // and NOTHING put it back. Measured on the wing after rolling out of an
+    // AFTERNOON shed: envMapIntensity 2.20, against an authored 1.0, now
+    // pointed at a completely different environment. The aeroplane was being
+    // lit by the world and reflecting it at more than twice the strength it
+    // was built for, which is exactly what "washed out" looks like.
+    //
+    // The world's probe is baked at its own level, so the aeroplane wants its
+    // AUTHORED response out here: 1.0, the factory's own env0.
+    if (typeof aeroSetEnv === 'function') aeroSetEnv(WORLD_ENV);
     syncEnvBtn();
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
@@ -2440,6 +2647,66 @@
   // mount below receives the cage objects at boot, the game craft hides
   // while the editor is open, and the sit transform inverts the bench's
   // tilted-ground convention onto the room's level floor.
+  // THE REFERENCE PLANE'S MOUNT (G89). A SIBLING of the editor's, never a
+  // child: the reference is not part of the aeroplane, so it must not inherit
+  // the gear layer's pitch, must not enter placeEditor's orbit-target box, and
+  // must not be reachable by the part raycast (which targets edSitP alone, so
+  // that last one is free). refplane.js owns everything inside it; app.js owns
+  // only the group, the floor line and the build's box to measure against.
+  const refSit = new THREE.Group();
+  refSit.visible = false;
+  window.REF_MOUNT = {
+    group: refSit,
+    // the floor the build stands on — the main wheel's centre less its radius
+    groundY: () => groundY,
+    // the build's own as-displayed box, in WORLD units, for the discrepancy
+    // line. Null when there is no build standing (which is never, in the
+    // editor, but the caller should not have to know that).
+    // LOCAL CLIPPING is a RENDERER setting, not a material one, and it is off
+    // by default. The reference's half-model view is the only thing in the
+    // project that wants it, so it is turned on ONLY while that view is asked
+    // for and off again after — nothing else in the scene carries a clipping
+    // plane, so this can never reach another session's materials.
+    setClipping: on => { renderer.localClippingEnabled = !!on; },
+    // NOT Box3().setFromObject(edSitP), AND THAT COST A REAL BUG. In r128 that
+    // walks every DESCENDANT CARRYING GEOMETRY and never consults `visible` —
+    // and this mount holds an invisible 12 x 12 GridHelper (the bench's own
+    // ground grid, off in the game). So "your build" measured 12.00 m long and
+    // 12.00 m wide, every time, whatever you had actually built: two numbers
+    // plausible enough to read straight past, on an aeroplane that looked
+    // correct. The G58 lesson again — a screenshot would never have caught it
+    // and the numbers gave it away on sight.
+    //
+    // So the walk is explicit. MESHES ONLY: a helper is a LineSegments, and a
+    // wireframe grid is not a dimension. VISIBLE ONLY, and it stops at an
+    // invisible BRANCH rather than at an invisible leaf — traverse() does not
+    // prune, so an invisible group of visible children would measure the lot.
+    // And the editor's own selection overlay is skipped, because it re-draws
+    // geometry that is already being measured and can only agree or
+    // double-count.
+    buildBox: () => {
+      if (!edSit.visible) return null;
+      edSit.updateMatrixWorld(true);
+      const b = new THREE.Box3(), v = new THREE.Vector3();
+      const walk = o => {
+        if (!o.visible || o.userData.edHi) return;
+        if (o.isMesh && o.geometry) {
+          const g = o.geometry;
+          if (!g.boundingBox) g.computeBoundingBox();
+          const bb = g.boundingBox;
+          if (bb && isFinite(bb.min.x)) for (let i = 0; i < 8; i++) {
+            v.set(i & 1 ? bb.max.x : bb.min.x,
+                  i & 2 ? bb.max.y : bb.min.y,
+                  i & 4 ? bb.max.z : bb.min.z);
+            b.expandByPoint(o.localToWorld(v));
+          }
+        }
+        for (const c of o.children) walk(c);
+      };
+      walk(edSitP);
+      return isFinite(b.min.x) && b.min.x <= b.max.x ? b : null;
+    },
+  };
   const edSit = new THREE.Group(), edSitP = new THREE.Group();
   edSit.add(edSitP);
   // the cage builds z-FORWARD; the room's long axis is x with the door
@@ -2522,6 +2789,14 @@
     const untested = st && !st.passed;
     b.textContent = untested ? 'Roll out untested' : 'Roll out & fly';
     b.classList.toggle('warn', !!untested);
+    // ...and the verb in the view says the same thing (G78). Two buttons, one
+    // sentence: the bottom bar's is what the game has always had and is hidden
+    // in the garage now, and the verb is what you actually press.
+    const v = $('edRoll');
+    if (v) {
+      v.textContent = b.textContent;
+      v.classList.toggle('warn', !!untested);
+    }
   }
   window.BENCH_CHANGED = syncGoLabel;
 
@@ -2584,7 +2859,6 @@
     // own rebuild lands in a room that already exists
     if (booted) { seedEditor(); placeEditor(); }
     syncGoLabel();
-    edPanel(true);
   }
   // THE PANEL IS 640 PX WIDE NOW (G77), and it is opaque. The game's own HUD
   // has to get out from under it: the bottom bar's right-hand end used to sit
@@ -2599,17 +2873,43 @@
   // The classes live on <body> because the CANVAS has to move too — see the
   // note on resize(). One holder, so there is one answer to "is the editor up
   // and how wide is it" and not two.
-  function edPanel(open) {
-    const w = $('edWrap'), b = document.body;
+  // ---- TWO INTERFACES (G86) ----------------------------------------------
+  // FLIGHT and WORKSHOP are separate chrome layers over one renderer, and
+  // NEITHER BORROWS FROM THE OTHER. The user's own words: "I don't care about
+  // telemetry and speed/alt stats in garage, and I don't care about part
+  // selection in flight mode. Different interfaces entirely."
+  //
+  // This is ONE SWITCH and not a dozen rules each hiding one thing, which is
+  // what the screen had grown and is exactly why the old aircraft card was
+  // rendering underneath the new name chip: `#card` was never anybody's to
+  // hide, so nobody did.
+  //
+  // The mode is a fact about the SCREEN and lives on <body>, where the canvas
+  // can read it too (G77.1 — the render is the free estate, and how much
+  // estate is free depends on which interface is up).
+  function setMode(ws) {
+    const b = document.body, w = $('edWrap'), v = $('edView'), u = $('wsUI');
     if (!b) return;
-    b.classList.toggle('ed-open', !!open);
+    b.classList.toggle('mode-ws', !!ws);
+    b.classList.toggle('mode-fly', !ws);
     b.classList.toggle('ed-narrow',
-      !!(open && w && w.classList.contains('pcol-off')));
+      !!(ws && w && w.classList.contains('pcol-off')));
+    if (u) u.hidden = !ws;
+    if (v) v.hidden = !ws;
+    if (!ws && typeof window.EDITOR_RELEASE === 'function')
+      window.EDITOR_RELEASE();
+    // A BACKSTOP FOR THE RENDER'S SIZE. The canvas's width transitions with
+    // the panel (G77.1) and the drawing buffer follows its client box, so a
+    // transition that does not finish leaves the buffer at whatever it had
+    // reached. `transitionend` covers the ordinary case; this covers the ones
+    // where the event never arrives — a tab backgrounded across the switch, a
+    // second mode change interrupting the first. One timer, once per switch.
+    setTimeout(resize, 220);
   }
   function closeEditor() {
     const w = $('edWrap');
     if (w) w.hidden = true;
-    edPanel(false);
+    setMode(false);
     // ...AND THE AEROPLANE STAYS (G65). Closing the panel used to put the
     // GENERATED model back on the stand in place of the cage build, so hiding
     // the sliders swapped the aeroplane for a different-looking one — the
@@ -2899,9 +3199,32 @@
   // _cage_parts.js's. What it does need is to say how wide it has become, so
   // the HUD underneath can move over. Guarded, so a core-only build still runs.
   if (typeof editorInit === 'function') editorInit({
+    // THE RIGHT PANEL REPORTS ITS WIDTH, and body carries it as the inset the
+    // canvas and the floating chrome are laid out against. It is a NUMBER and
+    // not a class because two independent folds make four widths, and four
+    // classes is three chances to get the fourth wrong. (The LEFT panel has
+    // two states, so it stays a class.)
     panelWidth: px => {
       const b = document.body;
-      if (b) b.classList.toggle('ed-narrow', px < 600);
+      if (b) b.style.setProperty('--ws-right', (px | 0) + 'px');
+    },
+    // THE FRAMING PRESETS (G78). The rail drives the GAME's orbit camera —
+    // the same az/el/dist the mouse drives — by writing its targets, so a
+    // preset EASES into place exactly the way a drag does rather than
+    // teleporting. The build faces -x (edSit turns the cage's +z-forward onto
+    // the room's long axis, door end), so az = PI looks it in the nose and
+    // az = 0 sits behind the tail.
+    camera: k => {
+      if (k === 'r') { edPan.set(0, 0, 0); distT = 14; azT = -2.5; elT = 0.22; return; }
+      if (k === 'q') { azT = -2.5; elT = 0.25; distT = 12; edPan.set(0, 0, 0); }
+      if (k === 's') { azT = -Math.PI / 2; elT = 0.06; distT = 13; edPan.set(0, 0, 0); }
+      if (k === 't') { azT = -Math.PI / 2; elT = 1.35; distT = 15; edPan.set(0, 0, 0); }
+      if (k === 'f') { azT = Math.PI; elT = 0.10; distT = 10; edPan.set(0, 0, 0); }
+      // COCKPIT is an approximation and says so: the orbit camera cannot sit
+      // at the eye point, so this is the closest it gets — in tight, low, and
+      // looking forward over the cabin. A real eye-point view wants the crew
+      // layer's own marker and a camera that is not an orbit.
+      if (k === 'i') { azT = 0.12; elT = 0.16; distT = 4.4; edPan.set(0, 0, 0); }
     },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
@@ -2915,7 +3238,7 @@
   // The editor panel is opaque and 640 px wide. Rendering the full window
   // under it puts the aeroplane's centre behind the properties column: you
   // orbit around a point you cannot see, and the build sits jammed against
-  // the panel edge. So the CANVAS ITSELF shrinks — `body.ed-open` insets it by
+  // the panel edge. So the CANVAS ITSELF shrinks — `body.mode-ws` insets it by
   // the panel's width — and everything else follows for free, because
   // `camera.lookAt(target)` centres the target in the CANVAS. Nothing about
   // the orbit, the pan or the room clamp had to learn about the panel.
@@ -2979,7 +3302,7 @@
       }
     }
     const cg = sim.cgPos();
-    // The world does not exist while you are in the studio, so it is not
+    // The world does not exist while you are in the garage, so it is not
     // updated: no terrain paging, no sky, no weather, no LOD churn. That is
     // most of what the garage used to spend its frame on for scenery nobody
     // could see anyway.
@@ -2997,6 +3320,9 @@
     dist += (distT - dist) * 0.28;
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
+    // (The part callout used to be re-projected here every other frame. It is
+    // gone — it sat on the one thing it was naming — and the frame loop got
+    // its projection back.)
     sync();
     poseModel();
     if (++frame % 6 === 0) { hud(); drawMap(); if (telWrap.classList.contains('show')) drawTel(); }
@@ -3011,6 +3337,49 @@
     if (!b || b.classList.contains('gone')) return;
     b.classList.add('gone');
     setTimeout(() => b.parentNode && b.parentNode.removeChild(b), 600);
+  }
+  // ---- THE GAME OPENS ON YOUR OWN AEROPLANE (G67.1) ------------------------
+  // It used to open on the PA-18, parked on an apron. That was right while the
+  // imported meshes were the only aeroplanes with a skin on them; it stopped
+  // being right at G45, when a design could be built and flown, and it became
+  // actively misleading at G67, when the thing you build started wearing real
+  // materials and the thing you booted into did not.
+  //
+  // So the first thing on screen is the aeroplane you are building, in the
+  // room you build it in — and the PA-18 and the C172 take the role the
+  // 2026-08-08 scope decision gave them: measuring sticks in the rack, one
+  // selection away.
+  //
+  // IT RUNS LAST, after every bridge above has been wired, because opening the
+  // editor is not a small thing: it boots the cage bundle, the four layers, the
+  // hangar's own panel section and the part tree, and each of those expects the
+  // room, the mount and the garage handle to exist. This is also the point that
+  // pays the cost the LAZY boot was deferring — deliberately, because "later"
+  // is now "at boot" and the loading screen is the honest place for it.
+  //
+  // AND IT FALLS BACK. If any of that throws, the game still opens — on the
+  // PA-18, on the apron, exactly as it did — with the error in the console
+  // rather than a black screen. A boot path is the one place where a partial
+  // failure must not be fatal.
+  try {
+    const sel = $('selAc');
+    if (sel) sel.value = 'gen';
+    setAircraft('gen');
+    enterGarage();
+    openEditor();
+    // ...AND THE AEROPLANE BEHIND THE CAGE IS THE CAGE. Until now the first
+    // build of a session had no snapshot, so `buildModel('gen')` fell back to
+    // genSkin (G46's declared "absent a snapshot ... the generated skin flies
+    // as before") — invisible in the garage, where the editor's own meshes are
+    // what you look at, and the reason a roll-out was the first moment the two
+    // agreed. Committing at boot is the same step roll-out takes, taken once
+    // more, and it is what lets the old generated skin stop being a thing the
+    // game can fall back into.
+    syncBuild();
+  } catch (err) {
+    console.error('cage boot:', err);
+    try { const sel = $('selAc'); if (sel) sel.value = 'pa18';
+          setAircraft('pa18'); } catch (e2) {}
   }
   hud();
   loop();

@@ -176,5 +176,8 @@ try {
   ok(false, 'measurement-less export threw: ' + e.message);
 }
 
-console.log(fails ? '\nJOIN: FAIL (' + fails + ')' : '\nJOIN: OK');
+// THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
+// runner requires BOTH signals — the line and the exit code.
+if (fails) console.log('\n  ' + fails + ' check(s) failed');
+console.log('GATE JOIN: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

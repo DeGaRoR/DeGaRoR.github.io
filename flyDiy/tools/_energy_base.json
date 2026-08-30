@@ -1,0 +1,1188 @@
+{
+ "stock": {
+  "cg": [
+   0.860135,
+   0.419326,
+   0,
+   405.468968
+  ],
+  "n": 54,
+  "mass": 2578064046,
+  "pos": 2502378035,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.278,
+    1876,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "nose tank": {
+  "cg": [
+   0.827836,
+   0.430439,
+   0,
+   419.054459
+  ],
+  "n": 54,
+  "mass": 2883070590,
+  "pos": 2860241987,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    50.4,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    25.463,
+    1841,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "wing tank": {
+  "cg": [
+   0.91639,
+   0.454469,
+   0,
+   405.660634
+  ],
+  "n": 54,
+  "mass": 1034521722,
+  "pos": 2000921023,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.469,
+    1884,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCapWing:2",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "panel tank": {
+  "cg": [
+   0.895526,
+   0.508958,
+   0,
+   434.630463
+  ],
+  "n": 54,
+  "mass": 2632704850,
+  "pos": 3964452057,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    64.8,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.639,
+    1891,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCapWing:2",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "dry": {
+  "cg": [
+   0.947073,
+   0.392028,
+   0,
+   369.491819
+  ],
+  "n": 54,
+  "mass": 2098002922,
+  "pos": 2634918039,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    0,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.301,
+    1877,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "brimmed": {
+  "cg": [
+   0.873501,
+   0.542777,
+   0,
+   470.733108
+  ],
+  "n": 54,
+  "mass": 1243081978,
+  "pos": 4182130781,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    100.8,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.742,
+    1895,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCapWing:2",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "side by side": {
+  "cg": [
+   0.83306,
+   0.363337,
+   0,
+   492.071646
+  ],
+  "n": 54,
+  "mass": 3201028046,
+  "pos": 45120551,
+  "ledger": {
+   "bracing": [
+    24.916,
+    1046,
+    0
+   ],
+   "cabin": [
+    160,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.763,
+    10024,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    64.481,
+    2708,
+    0
+   ],
+   "gear": [
+    26.272,
+    1875,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.949,
+    2115,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "tandem two-up": {
+  "cg": [
+   0.952066,
+   0.347201,
+   0,
+   485.357992
+  ],
+  "n": 54,
+  "mass": 3725481150,
+  "pos": 1952139501,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    160,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    26.167,
+    1871,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "freighter": {
+  "cg": [
+   1.152913,
+   0.305007,
+   0,
+   560.13483
+  ],
+  "n": 58,
+  "mass": 4008537958,
+  "pos": 3358717027,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    160,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    63.375,
+    2662,
+    0
+   ],
+   "gear": [
+    25.318,
+    1835,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.845,
+    2110,
+    0
+   ]
+  },
+  "access": [
+   "baggageDoor:1",
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "ifr panel": {
+  "cg": [
+   0.828653,
+   0.43018,
+   0,
+   418.655381
+  ],
+  "n": 54,
+  "mass": 3225640242,
+  "pos": 2560706531,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    25.464,
+    1841,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    26,
+    9500,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "navAerial:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticDrain:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "xpdrAerial:1"
+  ],
+  "derived": 0
+ },
+ "electric": {
+  "cg": [
+   1.07414,
+   0.430733,
+   0,
+   353.545546
+  ],
+  "n": 54,
+  "mass": 2105202798,
+  "pos": 2603823135,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    35.889,
+    28789,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    25.838,
+    1857,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ },
+ "alloy": {
+  "cg": [
+   0.890745,
+   0.439016,
+   0,
+   417.723971
+  ],
+  "n": 54,
+  "mass": 3687430369,
+  "pos": 2684245731,
+  "ledger": {
+   "bracing": [
+    22.652,
+    1767,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.017,
+    10073,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    58.317,
+    4549,
+    0
+   ],
+   "gear": [
+    27.21,
+    2570,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    12.931,
+    1009,
+    0
+   ],
+   "wings": [
+    71.597,
+    4836,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1"
+  ],
+  "derived": 0
+ },
+ "carbon": {
+  "cg": [
+   0.753863,
+   0.407299,
+   0,
+   366.220683
+  ],
+  "n": 54,
+  "mass": 2989855877,
+  "pos": 869410083,
+  "ledger": {
+   "bracing": [
+    18.121,
+    2990,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    86.485,
+    10178,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    41.239,
+    6804,
+    0
+   ],
+   "gear": [
+    22.142,
+    3318,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    8.488,
+    1401,
+    0
+   ],
+   "wings": [
+    51.745,
+    6954,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1"
+  ],
+  "derived": 0
+ },
+ "tricycle": {
+  "cg": [
+   0.783978,
+   0.40496,
+   0,
+   408.225321
+  ],
+  "n": 54,
+  "mass": 475608461,
+  "pos": 1035078477,
+  "ledger": {
+   "bracing": [
+    25.534,
+    1072,
+    0
+   ],
+   "cabin": [
+    80,
+    760,
+    1
+   ],
+   "cargo": [
+    10,
+    0,
+    1
+   ],
+   "engines": [
+    87.372,
+    10008,
+    0
+   ],
+   "fuel": [
+    36,
+    0,
+    1
+   ],
+   "fuselage": [
+    57.731,
+    2425,
+    0
+   ],
+   "gear": [
+    29.034,
+    1949,
+    0
+   ],
+   "paint": [
+    0,
+    1800,
+    0
+   ],
+   "systems": [
+    12,
+    2400,
+    0
+   ],
+   "tail": [
+    10.691,
+    449,
+    0
+   ],
+   "wings": [
+    59.863,
+    2111,
+    0
+   ]
+  },
+  "access": [
+   "beacon:1",
+   "commAerial:1",
+   "fuelCap:1",
+   "fuelDrain:1",
+   "grabHandle:2",
+   "inspAileron:2",
+   "inspBelly:1",
+   "inspTail:1",
+   "oatProbe:1",
+   "oilDoor:1",
+   "staticPort:2",
+   "step:2",
+   "tieDownTail:1",
+   "venturi:1"
+  ],
+  "derived": 0
+ }
+}

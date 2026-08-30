@@ -46,9 +46,13 @@ const MANIFEST = {
     // the body's SHAPE, owned in one place: one C1 curve that both the truss
     // and the covering sample. Needs genClamp from 60_; consumed by 61_ and 63_.
     '60b_gen_loft.js',
+    // WHERE THE ENERGY LIVES (G97-G101). Needs GEN_RULES from 60_; consumed by
+    // 61_, which bills the mass of whatever ends up in these bays. It has to
+    // sit between them for that reason and no other.
+    '60c_gen_energy.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
-    '63_gen_skin.js',
+    '63_gen_wing.js',
     '64_gen_build.js',
     '65_gen_loadtest.js',
     '90_node_exports.js',
@@ -103,9 +107,20 @@ const MANIFEST = {
     // it must be defined before app.js runs. It attaches window.CAGE_ON_ROWS,
     // which _cage_ui.js calls when it has built its rows — so the editor panel
     // does not need CAGE_UI to exist at load, only at first garage entry.
-    scripts: ['render_world.js', 'hangar_floor.js', 'hangar_walls.js',
+    // light_rig.js FIRST, before every room: it owns the renderer contract
+    // (exposure + physicallyCorrectLights), the ground-bounce term that any
+    // environment probe is occluded by, and the switchboard each room
+    // declares its own sources into. A room applies a rig; it decides none.
+    scripts: ['light_rig.js', 'render_world.js', 'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'aeroskin.js', 'hangar.js',
-              'garage.js', 'workshop.js', 'bench.js', 'editor.js', 'app.js'],
+    // refplane.js before editor.js (G89): the editor's tree offers the
+    // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel
+    // and its boot, so the handle must exist before editorInit runs. It needs
+    // nothing of the editor in return — the mount and the floor line come
+    // from app.js's window.REF_MOUNT, and it reads them lazily, when a
+    // preset is picked.
+              'garage.js', 'workshop.js', 'bench.js', 'refplane.js',
+              'editor.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's
@@ -119,9 +134,19 @@ const MANIFEST = {
     '_cage_parts.js',
     '_cage_page5.js', '_cage_gen.js', '_cage_crew.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js', '_cage_gear.js',
+    // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
+    // with no post hook, so they only have to be loaded before the layer.
+    '_fit_site.js', '_fit_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
-    '_cage_wing.js', '_fin_gen.js', '_cage_fin.js', '_cage_stab.js',
+    '_strut_gen.js', '_cage_wing.js', '_fin_gen.js', '_cage_fin.js', '_cage_stab.js',
+    // THE FITTINGS LAYER IS LAST IN THE POST CHAIN, and it has to be: it
+    // measures the sill off the ground line the GEAR settled on, and G84 puts
+    // fittings on the WING's loft and the COWL's shell. PAGE.post runs in load
+    // order, so anything earlier would read the previous build's wing — stale
+    // by one slider drag, and undefined on the first.
+    '_cage_access.js',
+    '_cage_light.js',       // G96: the aeroplane's own lights + switches
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
   ],

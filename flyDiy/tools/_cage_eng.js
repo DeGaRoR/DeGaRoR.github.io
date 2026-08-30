@@ -146,8 +146,22 @@ if (poly) poly[1].push(
   ['eng_screws', 'engine screws', 0, 1, 1, { when: P => +P.engOn }]);
 
 // ---- materials ------------------------------------------------------------
+// AEROSKIN (G70). The engine bench's palette is its PARTS LIST — one colour
+// per module material, so the legend and the model agree — and G25 dressed
+// thirty of them. `AERO_HARD.eng` says what each one is made of; the colour
+// on the row is still the colour. An engine is also the closest the camera
+// ever gets to any surface here, which is why the cast finish is the one row
+// in the table with the smallest tile.
+const AKM = () => (typeof window !== 'undefined' && window.AEROSKIN) || null;
 const matCache = {};
 const matOf = name => {
+  const A = AKM();
+  if (A && A.aeroHardMat) {
+    const m = A.aeroHardMat(THREE, 'eng', name,
+      new THREE.Color(EP.COL[name] || EP.NEUTRAL).getHex(),
+      { side: THREE.DoubleSide });
+    if (m) return m;
+  }
   if (!matCache[name]) {
     const [met, rgh] = EP.PROPS[name] || [0.55, 0.5];
     matCache[name] = new THREE.MeshStandardMaterial({
@@ -159,9 +173,18 @@ const matOf = name => {
 const propM = new THREE.MeshStandardMaterial({
   color: 0xc79a63, metalness: 0.0, roughness: 0.62,
   side: THREE.DoubleSide });
+// THE PROPELLER'S MATERIAL IS A CHOICE, not a name — the cowl bench's own
+// MATERIALS table, whose index also drives the blade's DENSITY — so it maps
+// by index (AERO_PROP_FIN). A laminated wooden blade and a carbon one differ
+// in more than colour, and this is where that finally shows.
 const propMat = () => {
-  const M = CW.MATERIALS[Math.max(0, Math.min(CW.MATERIALS.length - 1,
-    Math.round(CW.P.material)))];
+  const i = Math.max(0, Math.min(CW.MATERIALS.length - 1,
+    Math.round(CW.P.material)));
+  const M = CW.MATERIALS[i];
+  const A = AKM();
+  if (A && A.aeroHardOn && A.aeroHardOn() && A.AERO_PROP_FIN[i])
+    return A.aeroMaterial(THREE, { finish: A.AERO_PROP_FIN[i], tint: M.col,
+      surf: 0, fieldM: 1, side: THREE.DoubleSide });
   propM.color.setHex(M.col); propM.metalness = M.met; propM.roughness = M.rgh;
   return propM;
 };
@@ -185,7 +208,27 @@ function meshFrom(m) {
   g.setIndex(idx);
   for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
   g.computeVertexNormals();
-  return new THREE.Mesh(g, mats.map(matOf));
+  const mesh = new THREE.Mesh(g, mats.map(matOf));
+  // THE EXHAUST EXIT, MEASURED (G70). The wear needs a source for the soot
+  // streak, and the only honest one is where the pipe actually ends — which
+  // moves with the cylinder count, the architecture and every slider on the
+  // engine panel. So it is read off the pipes' own triangles rather than
+  // declared: aft-most first (the cage builds z-forward, so aft is -z), and
+  // the lowest vertex among those within 30 mm of it, because a tailpipe
+  // exits down as well as back.
+  const et = byMat.get('emExhaust');
+  if (et && et.length) {
+    let zm = Infinity;
+    for (const vi of et) zm = Math.min(zm, m.V[vi][2]);
+    let best = null;
+    for (const vi of et) {
+      const p = m.V[vi];
+      if (p[2] > zm + 0.03) continue;
+      if (!best || p[1] < best[1]) best = p;
+    }
+    if (best) mesh.userData.exhaustExit = best.slice();
+  }
+  return mesh;
 }
 
 // ---- the build ------------------------------------------------------------
@@ -277,7 +320,8 @@ PAGE.post = ctx => {
   // part lives in, and G79's raycast resolves a hit to a part through
   // that. One string, no behaviour.
   group.name = 'cageLayer:eng';
-  group.add(meshFrom(M));
+  const engMesh = meshFrom(M);
+  group.add(engMesh);
 
   // spinner + blades — the cowl tool's geometry, on the crank. NO SHAFT
   // (G32, user): the engine provides the crank and the flange, so the
@@ -357,7 +401,20 @@ PAGE.post = ctx => {
   }
   scene.add(group);
 
-  window.CAGE_ENG = { name: PRESET_NAMES[psel], resolved: R, zFw,
+  // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
+  // the engine's local frame; the group has just been placed on the thrust
+  // line, so one localToWorld puts it in the same metric frame the gear
+  // publishes its contacts in — which is what lets the wear ask the CAGE
+  // where that point is on its skin.
+  let exhaustAt = null;
+  if (engMesh.userData.exhaustExit) {
+    group.updateMatrixWorld(true);
+    const v = new THREE.Vector3().fromArray(engMesh.userData.exhaustExit);
+    engMesh.localToWorld(v);
+    exhaustAt = [v.x, v.y, v.z];
+  }
+
+  window.CAGE_ENG = { name: PRESET_NAMES[psel], resolved: R, zFw, exhaustAt,
                       spec, quads: M.stats && M.stats.quads };
   if (stat) {
     const head = R.arch === 'electric'

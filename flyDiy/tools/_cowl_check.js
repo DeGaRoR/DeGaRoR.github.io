@@ -67,9 +67,22 @@ if (orig) {
   ok('the preset table came across whole',
      Object.keys(orig.PRESETS).join() === Object.keys(C.PRESETS).join(),
      Object.keys(C.PRESETS).length + ' presets');
-  ok('the parameter set came across whole',
-     Object.keys(orig.P).sort().join() === Object.keys(C.P).sort().join(),
-     Object.keys(C.P).length + ' parameters');
+  // EVERY ORIGINAL PARAMETER SURVIVED — which is the port question. It used to
+  // require the two sets to be IDENTICAL, and that was right while the port was
+  // the whole story: nothing had been added, so equality and no-loss were the
+  // same assertion. G94 added the fasteners, the parting line and the oil door,
+  // which the original tool never had, and an ADDITION is not a port defect
+  // while a DELETION still is. The teeth are unchanged in the direction that
+  // matters, and the surface check above is untouched: the ported surface is
+  // still the original surface to 1e-12.
+  {
+    const lost = Object.keys(orig.P).filter(k => C.P[k] === undefined);
+    ok('every parameter of the original survived the port',
+       lost.length === 0,
+       lost.length ? 'lost: ' + lost.join(', ')
+                   : Object.keys(orig.P).length + ' original, ' +
+                     Object.keys(C.P).length + ' now');
+  }
 }
 
 // ---- 2. the surface is still a surface ----------------------------------
@@ -192,5 +205,8 @@ ok('a loose cowl on a small engine is left alone',
    C.P.aftW === 3.0 && C.P.aftH === 3.0 && C.P.cowlLen === 3.0);
 ok('  ...and reports that it already fits', big.fits);
 
-console.log(fail ? '\nCOWL CHECK: FAIL (' + fail + ')' : '\nCOWL CHECK: OK');
+// THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
+// runner requires BOTH signals — the line and the exit code.
+if (fail) console.log('\n  ' + fail + ' check(s) failed');
+console.log('GATE COWL: ' + (fail ? 'FAIL' : 'PASS'));
 process.exit(fail ? 1 : 0);

@@ -173,5 +173,7 @@ for (let step = 0; step < 3; step++) {
   if (worst > 1e-4) anyFail = true;
 }
 
-console.log(anyFail ? '\nFIT: FAIL' : '\nFIT: OK');
+// THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
+// runner requires BOTH signals — the line and the exit code.
+console.log('GATE CAGEFIT: ' + (anyFail ? 'FAIL' : 'PASS'));
 process.exit(anyFail ? 1 : 0);

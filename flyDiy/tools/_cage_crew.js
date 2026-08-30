@@ -27,9 +27,20 @@ const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
-// ---- materials (Lambert, to match the page's shading) ---------------------
+// ---- materials ------------------------------------------------------------
+// Lambert is the fallback and was the whole story until G70. AEROSKIN now
+// dresses the cabin from `AERO_HARD.crew`: the seat pans and their piping are
+// leather, the lap belts are nylon webbing, the seat frames are 4130 tube and
+// the knobs and joints are moulded plastic. It is the interior half of G70,
+// and it matters more than its area suggests — the cabin is the ONE part of
+// this aeroplane the camera goes inside.
+//
+// M IS A LIVE LOOKUP, not a table of objects, because the material view is a
+// switch: `M.cushion` has to answer differently after it is thrown, and there
+// are 45 call sites that must not each learn about it. The Lambert set stays
+// underneath as MFALL and is what a bench with no AEROSKIN loaded still gets.
 const lam = c => new THREE.MeshLambertMaterial({ color: c });
-const M = {
+const MFALL = {
   shell:   lam(0xd6a11c),      // ATD amber
   joint:   lam(0x24282e),
   dark:    lam(0x363b42),
@@ -43,8 +54,26 @@ const M = {
   console: lam(0x2b3038),
   shellC:  lam(0x2f333a),      // moulded composite
   trim:    lam(0x8d949c),
+  // THE PANEL (G94). An instrument is three things you can name from two
+  // metres: the bezel it is clamped in, the dark face, and the needle.
+  bezel:   lam(0x2a2d33),
+  dial:    lam(0x0e1013),
+  needle:  lam(0xe8e4d8),
+  board:   lam(0x9a7b4e),      // floorboards
   marker:  new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
 };
+// FrontSide, matching the Lambert it replaces. A getter per name, so every
+// `M.cushion` in the file below is now a question rather than a constant and
+// not one of them had to change.
+const M = {};
+for (const nm of Object.keys(MFALL)) {
+  Object.defineProperty(M, nm, { enumerable: true, get() {
+    const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+    if (!A || !A.aeroHardMat) return MFALL[nm];
+    return A.aeroHardMat(THREE, 'crew', nm, MFALL[nm].color.getHex(),
+                         { side: THREE.FrontSide }) || MFALL[nm];
+  } });
+}
 
 // ---- small builders -------------------------------------------------------
 function tube(parent, mat, a, b, r, open) {
@@ -727,6 +756,236 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
            label: 'throttle (quadrant)' };
 }
 
+// ---------------------------------------------------------------------------
+// THE INSTRUMENT PANEL (G94)
+// ---------------------------------------------------------------------------
+// THE PANEL SHOWS WHAT THE BUILD BOUGHT, and that is the whole design. The
+// spec already carries `systems.fit` — minimal / basic / IFR — and GEN_SYSTEMS
+// already bills it 6 / 12 / 26 kg and 700 / 2400 / 9500 credits. Until now
+// nothing drew the instruments that mass and that money paid for: the cage
+// built a `dash` shell and left it a blank sheet of metal, which is the one
+// thing a cockpit cannot be.
+//
+// It is the rule GEN_ACCESS states for the fittings — "no tank means no fuel
+// cap" — pointed at the panel: no gyros bought, no gyros on the panel.
+//
+// THE SIZES ARE THE REAL ONES. 3 1/8 in = 79.4 mm and 2 1/4 in = 57.2 mm are
+// the two standard instrument cut-outs, and every panel ever drilled is a
+// packing problem in those two numbers. So the layout is not authored: the
+// instruments pack into rows across the panel's OWN usable width, biggest
+// first, and a narrower cabin gets fewer per row.
+const INSTR = {
+  // the six primary flight instruments, all 80 mm
+  ai:    { name: 'attitude',        d: 0.0794 },
+  asi:   { name: 'airspeed',        d: 0.0794 },
+  alt:   { name: 'altimeter',       d: 0.0794 },
+  turn:  { name: 'turn & slip',     d: 0.0794 },
+  dg:    { name: 'heading',         d: 0.0794 },
+  vsi:   { name: 'vertical speed',  d: 0.0794 },
+  // the tachometer is 80 mm on anything with a real engine, and it is the
+  // instrument you actually look at; the rest of the engine group is 57
+  tacho: { name: 'tachometer',      d: 0.0794 },
+  oilP:  { name: 'oil pressure',    d: 0.0572 },
+  oilT:  { name: 'oil temperature', d: 0.0572 },
+  fuel:  { name: 'fuel',            d: 0.0572 },
+  volts: { name: 'volts',           d: 0.0572 },
+  // THE COMPASS IS NOT ON THE PANEL. It sits on the coaming, away from the
+  // iron in everything else — which is also why it is the one instrument a
+  // minimal panel cannot leave out.
+  compass: { name: 'compass',       d: 0.0700, coaming: true },
+};
+// WHAT EACH FIT BUYS. Day VFR is what an engine and an airframe need to be
+// flown; basic adds the two gyros and a fuel gauge; IFR is the full six-pack
+// with an electrical system behind it.
+const PANEL_FIT = {
+  minimal: ['asi', 'alt', 'tacho', 'oilP', 'oilT', 'compass'],
+  basic:   ['asi', 'alt', 'vsi', 'dg', 'tacho', 'oilP', 'oilT', 'fuel',
+            'compass'],
+  ifr:     ['ai', 'asi', 'alt', 'turn', 'dg', 'vsi', 'tacho', 'oilP', 'oilT',
+            'fuel', 'volts', 'compass'],
+};
+// THE FIT IS A PURCHASE, NOT A VIEW SETTING, so it is read from the spec and
+// never from a control on this panel. The bench has no game spec behind it and
+// falls back to `basic`, which is what GEN_DEFAULT buys.
+function panelFit() {
+  try {
+    const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
+    const f = S && S.systems && S.systems.fit;
+    if (f && PANEL_FIT[f]) return f;
+  } catch (e) {}
+  return 'basic';
+}
+
+// a flat disc and an annular rim, into a bag. The panel faces AFT (-z), which
+// is the direction the seats are.
+function discInto(bag, cx, cy, cz, r, seg) {
+  const c = bag.v(cx, cy, cz);
+  const ring = [];
+  for (let i = 0; i < seg; i++) {
+    const a = 2 * Math.PI * i / seg;
+    ring.push(bag.v(cx + Math.cos(a) * r, cy + Math.sin(a) * r, cz));
+  }
+  for (let i = 0; i < seg; i++) bag.tri(c, ring[(i + 1) % seg], ring[i]);
+}
+function rimInto(bag, cx, cy, cz, rIn, rOut, depth, seg) {
+  const a0 = [], a1 = [], b0 = [], b1 = [];
+  for (let i = 0; i < seg; i++) {
+    const a = 2 * Math.PI * i / seg, c = Math.cos(a), s = Math.sin(a);
+    a0.push(bag.v(cx + c * rIn, cy + s * rIn, cz));
+    a1.push(bag.v(cx + c * rOut, cy + s * rOut, cz));
+    b0.push(bag.v(cx + c * rIn, cy + s * rIn, cz + depth));
+    b1.push(bag.v(cx + c * rOut, cy + s * rOut, cz + depth));
+  }
+  for (let i = 0; i < seg; i++) {
+    const j = (i + 1) % seg;
+    bag.quad(a0[i], a1[i], a1[j], a0[j]);     // the rim face, at the pilot
+    bag.quad(b1[i], b1[j], a1[j], a1[i]);     // the outer wall
+    bag.quad(b0[j], b0[i], a0[i], a0[j]);     // the cut-out wall
+  }
+}
+
+// THE PANEL ITSELF. Built on the two anchors the dash already has — the face
+// station the push-pull throttle mounts through, and the height it mounts at —
+// so the panel and the throttle cannot disagree about where the dash is.
+function buildPanel(parent, A, P, pilotX) {
+  const fit = panelFit();
+  const want = PANEL_FIT[fit] || PANEL_FIT.basic;
+  const zFace = A.zDash + 0.005;
+  // UNDER THE LIP the cage actually built, when it built one. The fallback is
+  // the throttle's own mounting height, which is what this used before the
+  // measurement existed and is right to within a coaming when there is no
+  // dash shell at all (a cabin with the panel switched off).
+  const yTop = (A.dashLip != null)
+    ? A.dashLip - 0.012
+    : A.floorAt(A.zDash) + 0.42 + 0.135;
+  const yMid = yTop - 0.135;
+  // the usable band: 270 mm deep (the spec's own cabin.panel.depth), stopping
+  // 50 mm short of the cabin wall on each side
+  const H = 0.135, xLim = Math.max(0.16, A.halfW - 0.05);
+  const bez = Bag(M.bezel), dial = Bag(M.dial), ned = Bag(M.needle);
+  const placed = [];
+  const onPanel = want.filter(k => INSTR[k] && !INSTR[k].coaming)
+    .sort((a, b) => INSTR[b].d - INSTR[a].d);
+  const GAP = 0.012;
+  // ---- ROWS FIRST, THEN CENTRE EACH ROW ON THE PILOT ----------------------
+  // The first cut packed left-to-right FROM the pilot's centreline and wrapped
+  // to the far edge of the cabin, which scattered nine instruments across the
+  // whole coaming — every one of them in a legal place and the panel looking
+  // like nothing anybody would build. A panel is a BLOCK in front of the
+  // person flying: fill rows to the usable width, then centre each row.
+  const rows = [[]];
+  let wide = 0;
+  const room = Math.min(2 * xLim, 6 * 0.0794 + 5 * GAP);
+  for (const k of onPanel) {
+    const I = INSTR[k], row = rows[rows.length - 1];
+    const w = row.reduce((t, q) => t + INSTR[q].d + GAP, 0);
+    if (row.length && w + I.d > room) rows.push([k]); else row.push(k);
+  }
+  let rowY = yMid + H - 0.030, overflow = 0;
+  for (const row of rows) {
+    const wRow = row.reduce((t, q) => t + INSTR[q].d, 0) + (row.length - 1) * GAP;
+    const hRow = Math.max(...row.map(q => INSTR[q].d));
+    wide = Math.max(wide, wRow);
+    let x = Math.max(-xLim, Math.min(xLim - wRow, pilotX - wRow / 2));
+    const cy = rowY - hRow / 2;
+    if (cy - hRow / 2 < yMid - H) { overflow += row.length; continue; }
+    for (const k of row) {
+      const r = INSTR[k].d / 2;
+      placed.push({ k, cx: x + r, cy, r });
+      x += INSTR[k].d + GAP;
+    }
+    rowY -= hRow + GAP;
+  }
+  // ---- THE PLATE the instruments are cut into ------------------------------
+  // A panel is a flat sheet bolted behind the coaming, and without it the
+  // instruments read as dials stuck to the inside of the fuselage. It is sized
+  // to what it actually carries rather than to the cabin, which is why it is
+  // built after the layout and not before.
+  if (placed.length) {
+    const px0 = Math.min(...placed.map(q => q.cx - q.r)) - 0.022;
+    const px1 = Math.max(...placed.map(q => q.cx + q.r)) + 0.022;
+    const py0 = Math.min(...placed.map(q => q.cy - q.r)) - 0.022;
+    const py1 = Math.max(...placed.map(q => q.cy + q.r)) + 0.028;
+    const pl = Bag(M.console);
+    const z = zFace + 0.001;
+    pl.quad(pl.v(px0, py0, z), pl.v(px1, py0, z),
+            pl.v(px1, py1, z), pl.v(px0, py1, z));
+    pl.mesh(parent);
+  }
+  for (const p of placed) {
+    const seg = p.r > 0.035 ? 22 : 16;
+    rimInto(bez, p.cx, p.cy, zFace, p.r * 0.86, p.r, 0.010, seg);
+    discInto(dial, p.cx, p.cy, zFace - 0.004, p.r * 0.86, seg);
+    // ONE NEEDLE, and a DIFFERENT angle on each: a panel of needles all at
+    // twelve o'clock reads as a decal. The angle is a hash of the
+    // instrument's own name, so it is stable across rebuilds — a random one
+    // would twitch every time a slider moved.
+    let h = 0;
+    for (let i = 0; i < p.k.length; i++) h = (h * 31 + p.k.charCodeAt(i)) & 1023;
+    const a = (h / 1024) * Math.PI * 2;
+    const L = p.r * 0.78, w = p.r * 0.055;
+    const ux = Math.cos(a), uy = Math.sin(a), z = zFace - 0.0055;
+    ned.quad(
+      ned.v(p.cx - uy * w, p.cy + ux * w, z),
+      ned.v(p.cx + uy * w, p.cy - ux * w, z),
+      ned.v(p.cx + ux * L + uy * w * 0.4, p.cy + uy * L - ux * w * 0.4, z),
+      ned.v(p.cx + ux * L - uy * w * 0.4, p.cy + uy * L + ux * w * 0.4, z));
+  }
+  if (want.includes('compass')) {
+    const r = INSTR.compass.d / 2;
+    // ON THE PILOT'S OWN CENTRELINE, clamped inside the cabin — the same x the
+    // rows are centred on. (It was reading a local the layout rewrite had
+    // taken away, which is what a ReferenceError in a post hook looks like.)
+    const x0 = Math.max(-xLim + r, Math.min(xLim - r, pilotX));
+    const cy = yMid + H + r * 0.9;
+    rimInto(bez, x0, cy, zFace - 0.02, r * 0.80, r, 0.030, 16);
+    discInto(dial, x0, cy, zFace - 0.024, r * 0.80, 16);
+    placed.push({ k: 'compass', cx: x0, cy, r });
+  }
+  bez.mesh(parent); dial.mesh(parent); ned.mesh(parent);
+  // THE LAYER PUBLISHES ITS OWN MEASUREMENT, the way the gear and the engine
+  // layers do: where the panel actually landed, so a station that is wrong can
+  // be READ rather than hunted for in a screenshot.
+  const ext = placed.length
+    ? { x0: Math.min(...placed.map(q => q.cx - q.r)),
+        x1: Math.max(...placed.map(q => q.cx + q.r)),
+        y0: Math.min(...placed.map(q => q.cy - q.r)),
+        y1: Math.max(...placed.map(q => q.cy + q.r)), z: zFace }
+    : null;
+  return { fit, n: placed.length, overflow, ext, yMid, zFace, xLim };
+}
+
+// ---------------------------------------------------------------------------
+// THE FLOORBOARDS (G94)
+// ---------------------------------------------------------------------------
+// The floor has been a NUMBER since this layer was written — `floorAt(z)` is
+// the keel plus a board thickness, and every seat, pedal and console stands on
+// it — but nothing ever drew the boards, so the furniture stood on the inside
+// of the covering. They are the cheapest piece of interior there is and the
+// one that makes the rest look fitted.
+function buildFloor(parent, A, P) {
+  const z0 = A.zBack - 0.34, z1 = A.zDash - 0.02;
+  if (!(z1 > z0 + 0.10)) return 0;
+  const bag = Bag(M.board);
+  const N = Math.max(4, Math.round((z1 - z0) / 0.18));
+  // A BOARD IS AS WIDE AS THE CABIN IS THERE. The floor sits a little way up
+  // from the keel, where the section is still narrowing, so its half-width is
+  // taken from the airframe at that station rather than from the cabin's
+  // widest point — a rectangle would poke through the covering at both ends.
+  let prev = null;
+  for (let i = 0; i <= N; i++) {
+    const z = z0 + (z1 - z0) * i / N;
+    const y = A.floorAt(z);
+    const w = Math.max(0.10, Math.min(A.halfW - 0.03,
+      A.halfW * (i === 0 || i === N ? 0.72 : 0.94)));
+    const row = [bag.v(-w, y, z), bag.v(w, y, z)];
+    if (prev) bag.quad(prev[0], prev[1], row[1], row[0]);
+    prev = row;
+  }
+  bag.mesh(parent);
+  return N;
+}
+
 // ---- THE DUMMY (mannequin_poser.html port) --------------------------------
 const BONES = [
   ['root',      null,       [0, 0, 0]],
@@ -1052,7 +1311,23 @@ function anchors(spec, P, mesh) {
               - (P.dashBack || 0.05)) * k - 0.02;
   // (overall plane dims now come from the displayed bounding box in the
   // viewer's dimensions pane — the honest measure, canopy included)
-  return { k, floorAt, halfW: spec.cabin.halfW * k,
+  // THE COAMING LIP, MEASURED (G94). The instrument panel has to sit UNDER the
+  // dash shell, in the opening you can actually see into — and the first cut
+  // put it at floor + 0.42, which is where the push-pull throttle mounts and
+  // is most of a coaming's height too high: nine instruments were built
+  // correctly and hidden behind the cowl deck, with only their bottom edges
+  // showing. The cage emits that shell as the `dash` material, so its LOWEST
+  // vertex is the lip, and the aeroplane can be asked instead of assumed.
+  let dashLip = null;
+  if (mesh && mesh.F && mesh.V) {
+    let lo = 1e9;
+    for (const f of mesh.F) {
+      if (f.m !== 'dash') continue;
+      for (const vi of f.v) { const y = mesh.V[vi][1] * k; if (y < lo) lo = y; }
+    }
+    if (lo < 1e8) dashLip = lo;
+  }
+  return { k, dashLip, floorAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0 };
 }
@@ -1138,6 +1413,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (thrMode === 2) thr = consoleThr;
   st1.thr = thr;
   let pedals = st1.pedals;
+
+  // ---- THE PANEL AND THE FLOOR (G94) --------------------------------------
+  // Both are DERIVED and neither is a choice: the floor is where `floorAt`
+  // has always said it is, and the panel shows the instruments the build
+  // bought. They are drawn after the controls so the throttle's own rod
+  // reaches through the panel rather than being buried behind it.
+  const floorN = buildFloor(group, A, P);
+  const panel = buildPanel(group, A, P, pilot.x);
 
   // ---- dummies ----
   const st = STATURES[clamp(Math.round(P.dumSize), 0, 2)];
@@ -1249,7 +1532,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     }
     return dum;
   };
-  const DBG = window.CAGE_CREW = { stations: [],
+  // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
+  // this layer spent its life working out — where the floor is, where the
+  // coaming lip is, how wide the cabin is at a station — and re-deriving them
+  // over there would be a second description of the cabin.
+  const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
+    seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
+                                panY: s2.panY })),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
@@ -1296,6 +1585,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   {
     const fl = A.floorAt(pilot.zBack + 0.20);
     notes.unshift('cabin h ' + (A.roofY - fl).toFixed(2));
+  }
+  // THE PANEL REPORTS WHAT IT COULD NOT FIT, rather than quietly dropping it.
+  // An aeroplane whose cabin is too narrow for the panel it bought is a design
+  // problem, and the bench is where a design problem is supposed to show.
+  if (panel) {
+    notes.push('panel ' + panel.fit + ' ' + panel.n + ' instr' +
+      (panel.overflow ? ' (' + panel.overflow + ' DID NOT FIT)' : ''));
+    notes.push('floor ' + floorN + ' boards');
   }
   if (stat && notes.length)
     stat.textContent += '  ·  crew: ' + notes.join(' · ');

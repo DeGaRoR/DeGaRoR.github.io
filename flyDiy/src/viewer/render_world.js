@@ -34,6 +34,9 @@ function buildWorldScene(scene, world, renderer, camera) {
   // that 1.3 km back cost almost nothing.
   const NEAR_R = 450, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
+  // the sky dome, held so the switchboard further down can reach it: it is
+  // parented to the CAMERA, so it is not findable by walking the scene
+  let worldSky = null;
   scene.fog = new THREE.Fog(C(HAZE), 600, 5200);
   scene.add(camera);
 
@@ -85,6 +88,7 @@ function buildWorldScene(scene, world, renderer, camera) {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 20), skyMat(false));
     sky.renderOrder = -1000; sky.frustumCulled = false;
     camera.add(sky);
+    worldSky = sky;                 // the switchboard below needs a handle
   }
 
   // ---- W18: the reflection map -------------------------------------------
@@ -99,6 +103,11 @@ function buildWorldScene(scene, world, renderer, camera) {
   // atlas needs it: the cube is LINEAR data that gets tone mapped once, later,
   // when the reflection is drawn. Bake it tone mapped and every reflection is
   // ACES-flattened twice and reads chalky.
+  // the occlusion factor every ambient-from-below in this project is scaled
+  // by, hoisted here because BOTH the environment bake and the hemisphere
+  // light below need it, and they must never disagree
+  const gb = (typeof window !== 'undefined' && window.LIGHT_RIG)
+    ? window.LIGHT_RIG.groundBounce() : 1;
   let envMap = null;
   if (THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     const es = new THREE.Scene();
@@ -108,9 +117,18 @@ function buildWorldScene(scene, world, renderer, camera) {
     // right for a horizon and wrong for what an aircraft's underside actually
     // sees. One averaged upland green is honest for a static bake — the belly
     // should pick up ground bounce, not more sky.
+    //
+    // AND THE BOUNCE IS OCCLUDED, at the same measured fraction the shed uses
+    // (LIGHT_RIG.groundBounce). Painted at full radiance this cap is a
+    // half-dome of upland green pressed against the aeroplane's underside, and
+    // it showed: measured on the wing in flight, the belly came back RGB
+    // (14, 60, 34) — green, from a light source that is a solid colour and
+    // never moves. A real belly sees ground it is itself shading, through air
+    // that has already scattered most of it away.
     const grndG = new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2);
     es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({
-      color: C(0x6d7a45), side: THREE.BackSide, toneMapped: false, fog: false })));
+      color: C(0x6d7a45).multiplyScalar(gb), side: THREE.BackSide,
+      toneMapped: false, fog: false })));
     const pmrem = new THREE.PMREMGenerator(renderer);
     envMap = pmrem.fromScene(es, 0.035, 1, 100).texture;   // slight blur: a sky, not a mirror
     scene.environment = envMap;
@@ -118,8 +136,40 @@ function buildWorldScene(scene, world, renderer, camera) {
     domeG.dispose(); grndG.dispose();
   }
 
-  scene.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));
-  const sun = new THREE.DirectionalLight(C(SUNC), 2.75);
+  // THE WORLD'S RIG, DECLARED ONCE. It is read here and again by the tree
+  // impostor bake ~550 lines down, which lights a white tree and freezes the
+  // result into an atlas that is drawn as an UNLIT MeshBasicMaterial. That
+  // atlas is therefore immune to every later lighting change: edit the rig
+  // without editing the bake and the far forest stays lit for a world that no
+  // longer exists — silently, and for ever, because nothing downstream can
+  // tell you. Two literals that must agree are a bug waiting for its first
+  // edit, so there is one.
+  const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75 };
+  const hemiLight = () => {
+    const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
+    h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
+    return h;
+  };
+
+  // THE HEMISPHERE STAYS OUT HERE, and that is not an oversight — the shed
+  // deleted its own at G62.5 for reasons that genuinely do not carry across
+  // the door. In the shed EVERYTHING is a MeshStandardMaterial, so
+  // scene.environment reaches all of it and models the indirect light
+  // properly, with occlusion. Out here the terrain, the trees and the
+  // buildings are MeshLambertMaterial, and r128 routes scene.environment to
+  // Standard materials ONLY. Delete this light and the whole world loses its
+  // ambient at once: every slope facing away from the sun goes black, while
+  // the aeroplane — the one Standard thing in the scene — would not change at
+  // all. It is the only ambient the world has.
+  //
+  // WHAT WAS WRONG WITH IT is the ground half, which is the same fault the
+  // shed's probe had: a full-strength upward light that nothing can occlude.
+  // It is the SECOND uplight on the aeroplane's belly, stacked on the
+  // environment's own ground cap above — the two were independent and neither
+  // knew about the other. The sky half is untouched.
+  const hemi = hemiLight();
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(C(SUNC), RIG.sun);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0009;
@@ -128,6 +178,37 @@ function buildWorldScene(scene, world, renderer, camera) {
     sc.left = -110; sc.right = 110; sc.top = 110; sc.bottom = -110;
     sc.near = 20; sc.far = 1500; sc.updateProjectionMatrix(); }
   scene.add(sun); scene.add(sun.target);
+
+  // ---- THE WORLD'S SWITCHBOARD -------------------------------------------
+  // The shed has had one since G62.3 and the world has never had anything: no
+  // way to ask which source is doing what, and no way to turn any of it off.
+  // That is most of why the world's two uplights survived so long — nobody
+  // could isolate either one, so nobody could see there were two.
+  //
+  // Same machinery as the shed's, from LIGHT_RIG, rather than a second copy
+  // that drifts. Levels are re-asserted first and the mutes go over the top,
+  // which is the ordering the shed learned the hard way: a mute must survive
+  // whatever else touches the rig.
+  const worldSwitch = (typeof window !== 'undefined' && window.LIGHT_RIG)
+    ? window.LIGHT_RIG.board('world') : null;
+  if (worldSwitch) {
+    worldSwitch
+      .declare('sun', 'sun', 'light', () => { sun.intensity = 0; })
+      .declare('hemi', 'sky ambient', 'light', () => { hemi.intensity = 0; })
+      .declare('env', 'environment (PMREM)', 'env', () => { scene.environment = null; })
+      // the dome is a MeshBasicMaterial parented to the CAMERA: unlit, always
+      // full brightness, and the last thing left on screen when everything
+      // else is off
+      .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; });
+  }
+  function applyWorldLights() {
+    if (!worldSwitch) return;
+    sun.intensity = RIG.sun;
+    hemi.intensity = RIG.hemi;
+    scene.environment = envMap;
+    if (worldSky) worldSky.visible = true;
+    worldSwitch.apply();
+  }
 
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
@@ -670,8 +751,9 @@ function buildWorldScene(scene, world, renderer, camera) {
       const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
       bMat.toneMapped = false;
       sc.add(new THREE.Mesh(srcGeo, bMat));
-      sc.add(new THREE.HemisphereLight(C(0xbcd8f0), C(0x6a5a3c), 0.50));
-      const dl = new THREE.DirectionalLight(C(SUNC), 2.75);
+      // the SAME rig the world runs, from the same object — see RIG
+      sc.add(hemiLight());
+      const dl = new THREE.DirectionalLight(C(SUNC), RIG.sun);
       dl.position.copy(SUN).multiplyScalar(400);
       dl.target.position.set(0, cy, 0);
       sc.add(dl); sc.add(dl.target);
@@ -1467,6 +1549,18 @@ function buildWorldScene(scene, world, renderer, camera) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, minimap: miniCanvas, setWindVis, envMap,
-           treeLod: { near: uNear, cam: uCam } };
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap,
+           treeLod: { near: uNear, cam: uCam },
+           // the world's own light panel — the same shape the shed exposes, so
+           // one piece of UI can drive either room
+           lightSwitches: worldSwitch ? worldSwitch.list() : [],
+           lightOn: k => worldSwitch ? worldSwitch.on(k) : true,
+           setLight: (k, v) => { if (!worldSwitch) return null;
+             const r = worldSwitch.set(k, v); applyWorldLights(); return r; },
+           setLights: pick => { if (!worldSwitch) return null;
+             worldSwitch.list().forEach(l => worldSwitch.set(l.key, pick(l.key)));
+             applyWorldLights();
+             return worldSwitch.list().filter(l => worldSwitch.on(l.key)).map(l => l.key); },
+           claimed: () => new Set([sun, hemi,
+             worldSky && worldSky.material].filter(Boolean)) };
 }

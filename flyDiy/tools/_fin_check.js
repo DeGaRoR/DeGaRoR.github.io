@@ -587,5 +587,7 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
     fail('finSpec({}) is not the identity');
 }
 
-console.log(anyFail ? '\nFIN: FAIL' : '\nFIN: OK');
+// THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
+// runner requires BOTH signals — the line and the exit code.
+console.log('GATE FIN: ' + (anyFail ? 'FAIL' : 'PASS'));
 process.exit(anyFail ? 1 : 0);

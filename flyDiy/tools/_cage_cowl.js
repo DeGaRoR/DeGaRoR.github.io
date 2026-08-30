@@ -169,6 +169,45 @@ function syncFitted() {
 // ---- materials ------------------------------------------------------------
 // the powerplant bench's set, rebuilt here: makeMats() lives in that page, not
 // in the module, so a second consumer needs its own
+// AEROSKIN (G70): a cowl is SHEET METAL on every aeroplane, fabric ones
+// included — it is the panel that takes the heat, the oil and a fastener
+// every hundred millimetres, and nobody has ever covered one in cloth. So
+// `AERO_HARD.cowl` sends the skin to alclad whatever the fuselage behind it
+// is made of, which is a statement about aeroplanes rather than a default.
+//
+// NOT MEMOISED across the switch: `mats()` caches, so the AEROSKIN answer is
+// asked for first and the cache below stays exactly the fallback it was.
+// THE COWL ALPHA (G29) IS PART OF THE MATERIAL, not something done to it
+// afterwards. AEROSKIN materials are POOLED on their look, so mutating one
+// in place would reach through the pool into whoever else asked for the same
+// finish; the opacity therefore goes into the key, exactly as the cage's own
+// sections already pass theirs. The dial has 20 stops, so the pool is bounded
+// and every material on it shares one program and one sheet.
+const AKC = () => (typeof window !== 'undefined' && window.AEROSKIN) || null;
+function cowlMats(cA) {
+  const A = AKC(), base = mats(), out = {};
+  for (const nm of Object.keys(base)) {
+    const b = base[nm];
+    // A COWL AGES FASTER THAN WHAT IT IS BOLTED TO. It is the panel that
+    // catches the exhaust, the oil weep and every hand that has ever opened
+    // it, and — since the streaks live in the surface field and the cowl has
+    // none — a higher rate is also the honest way to say "the soot starts
+    // here" on the one surface that cannot draw the trail.
+    const m = (A && A.aeroHardMat)
+      ? A.aeroHardMat(THREE, 'cowl', nm, b.color.getHex(),
+                      { side: THREE.DoubleSide, opacity: cA,
+                        wearK: nm === 'skin' ? 1.5 : undefined })
+      : null;
+    if (m) { out[nm] = m; continue; }
+    // the fallback set is mutated in place as it always was — but not the
+    // propeller, which is never see-through
+    if (nm !== 'prop') {
+      b.transparent = cA < 1; b.opacity = cA; b.depthWrite = cA >= 1;
+    }
+    out[nm] = b;
+  }
+  return out;
+}
 let MATS = null;
 function mats() {
   if (MATS) return MATS;
@@ -413,7 +452,13 @@ PAGE.post = ctx => {
 
   CW.prepareLid();
   CW.prepareMesh();
-  const M = mats(), aps = CW.apertureList();
+  // COWL ALPHA (G29, user): see the engine through the shell. The view panel
+  // owns the dial (viewer state, never spec) and the materials are built to
+  // it — read HERE, before the shell is built, because the alpha is now part
+  // of which material this is rather than a property set on it afterwards.
+  const cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null)
+    ? window.CAGE_VIEW.cowlA : 1;
+  const M = cowlMats(cA), aps = CW.apertureList();
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
@@ -424,6 +469,10 @@ PAGE.post = ctx => {
   CW.buildSurface(cowl, M, aps);
   CW.buildLips(cowl, M, aps);
   CW.buildScoop(cowl, M);
+  // G94: the fasteners, the parting line and the oil door — the three things
+  // that say this panel comes off. Guarded, because the cowl module is shared
+  // with a bench that may predate them.
+  if (CW.buildDetail) CW.buildDetail(cowl, M);
   // NO buildAft — THE STUB FUSELAGE IS NOT DRAWN HERE.
   // `buildAft` is the bench's stand-in for the aeroplane: at aftMode 0 it lofts
   // a constant section aft from the firewall in `mats.host`, and at aftMode 1 a
@@ -435,18 +484,6 @@ PAGE.post = ctx => {
   group.add(cowl);
   // (the nose cone and the propeller are the ENGINE's children now — G29;
   // _cage_eng.js builds them on the crank)
-
-  // COWL ALPHA (G29, user): see the engine through the shell. The view
-  // panel owns the dial (viewer state, never spec); the layer's materials
-  // follow it every build.
-  const cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null)
-    ? window.CAGE_VIEW.cowlA : 1;
-  for (const nm of ['skin', 'host', 'dark', 'steel']) {
-    const mm = M[nm];
-    mm.transparent = cA < 1;
-    mm.opacity = cA;
-    mm.depthWrite = cA >= 1;
-  }
 
   // ON THE FACE. The cowl's own origin is its firewall, so the group only has
   // to move to the aperture's centre — x on the centreline, y at the face's

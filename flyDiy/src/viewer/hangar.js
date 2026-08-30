@@ -92,6 +92,18 @@ const FX = v => v * HD / 13, FZ = v => v * HW / 18;
 // light nothing holds a reference to is a light nothing can turn off.
 const STOVE = { light: null, cd0: 14 };
 
+// THE GROUND, DECLARED. Every surface here is something the reflection probe
+// sees BELOW itself, and what a probe sees below itself is the single largest
+// uncontrolled source of light on the underside of an aeroplane — measured at
+// NIGHT, the environment put 0 on the top of the wing and 7.4 on its belly.
+//
+// It is a list rather than a test on the mesh (y < 0, faces up, …) because a
+// probe cannot be asked to guess: the apron and the grass sit OUTSIDE the
+// shed and still fill the bottom of the cube, and the runway is 320 m of it.
+// See LIGHT_RIG.groundBounce for what is done with them and why.
+const GROUND = [];
+const ground = m => { GROUND.push(m); return m; };
+
 const rand = (s => () => (s = s * 1664525 + 1013904223 >>> 0) / 4294967296)(20260811);
 const rr = (a, b) => a + (b - a) * rand();
 
@@ -772,6 +784,8 @@ const M = {
     transparent: true, opacity: 0.30, depthWrite: false }),
   daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
 };
+// the slab is the biggest single thing the probe sees under itself
+ground(M.floor);
 // DEDICATED PART MATERIALS (G41, user: assign materials to parts of the
 // hangar). Parts the library dresses independently need their OWN
 // instances — M.wall was every interior wall, M.steel every piece of
@@ -868,7 +882,7 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
   put(f);
   const ap = new THREE.Mesh(new THREE.PlaneGeometry(26, 2 * HW),
-    new THREE.MeshStandardMaterial({ color: 0x9a958a, roughness: 0.95 }));
+    ground(new THREE.MeshStandardMaterial({ color: 0x9a958a, roughness: 0.95 })));
   ap.rotation.x = -Math.PI / 2; ap.position.set(-HD - 13, -0.01, 0);
   ap.receiveShadow = true;
   put(ap);
@@ -1328,8 +1342,8 @@ function setSky(row) {
     geo.computeVertexNormals();
   };
   const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 28, 28),
-    new THREE.MeshStandardMaterial({ map: grassAlb, roughness: 0.96,
-      metalness: 0, fog: false }));
+    ground(new THREE.MeshStandardMaterial({ map: grassAlb, roughness: 0.96,
+      metalness: 0, fog: false })));
   { const uv = grass.geometry.attributes.uv;   // metric, like the floor
     for (let i = 0; i < uv.count; i++)
       uv.setXY(i, uv.getX(i) * 500, uv.getY(i) * 500);
@@ -1364,8 +1378,8 @@ function setSky(row) {
   stripAlb.center.set(0.5, 0.5);
   stripAlb.rotation = Math.PI / 2;
   const strip = new THREE.Mesh(new THREE.PlaneGeometry(320, 24, 22, 2),
-    new THREE.MeshStandardMaterial({ map: stripAlb, roughness: 0.95,
-      metalness: 0, fog: false }));
+    ground(new THREE.MeshStandardMaterial({ map: stripAlb, roughness: 0.95,
+      metalness: 0, fog: false })));
   rollOff(strip.geometry, -HD - 26 - 160, 0);   // rides the same curve
   strip.rotation.x = -Math.PI / 2;
   strip.position.set(-HD - 26 - 160, -0.03, 0);
@@ -2515,13 +2529,25 @@ const texBudget = () => {
 };
 
 const LIGHTS = [
-  { key: 'key',    name: 'sun / key' },
-  { key: 'lamps',  name: 'shop lamps' },
-  { key: 'desk',   name: 'bench lamp' },
-  { key: 'stove',  name: 'stove fire' },
-  { key: 'panels', name: 'roof panels' },
-  { key: 'env',    name: 'environment (PMREM)' },
-  { key: 'shafts', name: 'dust shafts' },
+  { key: 'key',    name: 'sun / key',            kind: 'light' },
+  { key: 'lamps',  name: 'shop lamps',           kind: 'light' },
+  { key: 'desk',   name: 'bench lamp',           kind: 'emissive' },
+  { key: 'stove',  name: 'stove fire',           kind: 'light' },
+  { key: 'panels', name: 'roof panels',          kind: 'emissive' },
+  { key: 'env',    name: 'environment (PMREM)',  kind: 'env' },
+  { key: 'shafts', name: 'dust shafts',          kind: 'unlit' },
+  // THE THIRD KIND, and the one that has never had a switch. The backdrop is a
+  // MeshBasicMaterial: it is lit by nothing, so it is at full brightness in a
+  // room where every light is off, and no amount of muting can touch it.
+  //
+  // G65 ruled that the sky through the cut glazing is "the view out of the
+  // window, not a light in the shed, and it should not have a switch". That
+  // was right about what it IS and wrong about what the switchboard is FOR:
+  // the user asked to start from nothing and add sources back one at a time,
+  // and a panel that cannot reach black cannot answer that. It is also not
+  // merely scenery — the environment probe is baked from this room, so the
+  // backdrop lights the shed through the door and the rooflights.
+  { key: 'sky',    name: 'the view outside',     kind: 'unlit' },
 ];
 if (strays.length) LIGHTS.push({ key: 'glow', name: 'stray emitters' });
 const muted = {};
@@ -2542,6 +2568,11 @@ function applyMutes(m) {
     if (typeof aeroSetEnv === 'function') aeroSetEnv(0);
   }
   shafts.visible = !muted.shafts && (m ? m.shaft > 0 : true);
+  // VISIBILITY IS SET BOTH WAYS, unlike an intensity. setMood re-asserts every
+  // intensity before the mutes run, so a muted light is restored for free when
+  // it is switched back on — but nothing re-asserts `visible`, so an unlit
+  // source that only ever gets hidden here can never come back.
+  if (skyMesh) skyMesh.visible = !muted.sky;
 }
 // the three knobs. Anything the mood owns is re-applied through setMood, which
 // also re-runs the mutes over the top — the same door setLight goes through,
@@ -2566,6 +2597,16 @@ function setLight(k, on) {
   muted[k] = !on;
   setMood(moodI);            // re-apply the mood, then the mutes over it
   return !muted[k];
+}
+// THE MASTER (user: "we need to be able to add lights one by one from
+// nothingness (all look black)"). Throwing seven switches by hand is not the
+// same instrument: it takes seven re-bakes and seven chances to leave one in
+// the wrong state, and the whole point of starting from black is that you know
+// what state you are in. `only` is the loop the ablation actually runs.
+function setLights(pick) {
+  for (const l of LIGHTS) muted[l.key] = !pick(l.key);
+  setMood(moodI);
+  return LIGHTS.filter(l => !muted[l.key]).map(l => l.key);
 }
 // WITHOUT THE PAYLOAD there is still a room: the headless gate and any
 // core-only build get the alps row's numbers with no picture to hang behind
@@ -3012,8 +3053,26 @@ return {
   // only the last one. That is the second time this file has been bitten by
   // exactly that (see `keyI`), and the first symptom is always a handle that
   // silently becomes something else.
-  lightSwitches: LIGHTS.map(l => ({ key: l.key, name: l.name })),
+  lightSwitches: LIGHTS.map(l => ({ key: l.key, name: l.name, kind: l.kind })),
   lightOn: k => lit(k),
   setLight: setLight,
+  setLights: setLights,
+  // the room's own census claim: every material and light a switch can reach.
+  // LIGHT_RIG.census compares this against the scene graph, and anything
+  // emitting that is not in here is a source with no switch — which is what
+  // this bug has been, three times, in three different disguises.
+  claimed: () => {
+    const s = new Set();
+    for (const e of EMIT) s.add(e.mat);
+    s.add(M.bulb); s.add(M.skyPanel); s.add(M.daylight);
+    if (skyMesh && skyMesh.material) s.add(skyMesh.material);
+    if (shaftMat) s.add(shaftMat);
+    s.add(key); if (STOVE.light) s.add(STOVE.light);
+    for (const L of lamps) s.add(L);
+    return s;
+  },
+  // the surfaces the reflection probe sees UNDER itself, for the bake to
+  // occlude — see LIGHT_RIG.groundBounce
+  groundMats: GROUND,
 };
 }

@@ -780,5 +780,8 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
 }
 
 console.log();
-console.log(fail ? 'ENGMESH: FAIL (' + fail + ')' : 'ENGMESH: OK');
+// THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
+// runner requires BOTH signals — the line and the exit code.
+if (fail) console.log('  ' + fail + ' check(s) failed');
+console.log('GATE ENGMESH: ' + (fail ? 'FAIL' : 'PASS'));
 process.exit(fail ? 1 : 0);

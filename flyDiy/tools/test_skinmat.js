@@ -132,7 +132,14 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   // its gloss; only genuinely bare metal goes high. A painted finish that
   // crept up would turn the livery grey and take its colour from the sky —
   // W18's own words, and invisible in a screenshot of a grey aeroplane.
-  const bare = /^(bareAlu|steelTube)$/.test(k);
+  // THE EXEMPTION IS A LIST OF BARE METALS, not a raised ceiling (G70 added
+  // the five hardware rows). Each one is a surface with no paint film on it
+  // at all: a sand-cast crankcase, a plated piston, a bronze bush, a pipe
+  // that has been to 700 C, and enamelled winding wire. Everything PAINTED —
+  // a leg, a bracket, an engine mount, a spat, a firewall — stays on `trim`
+  // and stays a dielectric, which is the rule this check exists to hold.
+  const bare = /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper)$/
+    .test(k);
   check(bare || r.metal <= 0.25,
     `finish ${k}: metalness ${r.metal} on a painted surface`);
   // a base that is pure black or pure white is a colour nobody chose
@@ -414,6 +421,127 @@ if (BG) {
 }
 
 // ---------------------------------------------------------------------------
+// 9 THE HARDWARE (G70) — every layer's own material names have a home
+// ---------------------------------------------------------------------------
+// The same COVERAGE rule as section 1, applied to the four layers that were
+// still wearing G38's understudy grey, and read the same way: the names are
+// PARSED OUT OF EACH LAYER'S SOURCE rather than copied here, so a layer that
+// grows a material nobody dressed fails this gate instead of quietly taking
+// a default. That is the G48 rule — an assertion that reads the object the
+// code just wrote proves nothing.
+//
+// It is also the check that would have caught the whole point of G70 before
+// it was written: on the day this was added, `AERO_HARD` was empty and every
+// one of these 60-odd names was a hole.
+const layerSrc = f => fs.readFileSync(path.join(ROOT, 'tools', f), 'utf8');
+// keys of the first `<decl> = {` object literal after the anchor, one nesting
+// level only — enough for a flat palette, and it fails loudly rather than
+// silently if one of these ever stops being flat
+const objKeys = (src, anchor) => {
+  const i = src.indexOf(anchor);
+  if (i < 0) return null;
+  const j = src.indexOf('{', i);
+  let depth = 0, k = j, body = '';
+  for (; k < src.length; k++) {
+    const c = src[k];
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (!depth) break; }
+    if (depth === 1 && c !== '{') body += c;
+  }
+  const out = [];
+  for (const mm of body.matchAll(/(^|[,\n])\s*([A-Za-z_$][\w$]*)\s*:/g))
+    out.push(mm[2]);
+  return out.length ? out : null;
+};
+const LAYERS = [
+  ['gear', '_gear_gen.js', 'const MAT = {'],
+  ['eng', '_eng_page.js', 'const COL = {'],
+  ['cowl', '_cage_cowl.js', 'MATS = {'],
+  ['crew', '_cage_crew.js', 'const MFALL = {'],
+];
+for (const [layer, file, anchor] of LAYERS) {
+  const names = objKeys(layerSrc(file), anchor);
+  if (!check(!!names, `${layer}: could not read its material table from ${file}`))
+    continue;
+  const holes = names.filter(n =>
+    A.aeroHardFinish(layer, n) === undefined);
+  check(holes.length === 0,
+    `${layer}: ${holes.length} material(s) with no finish`, holes.join(', '));
+  // and nothing in the table describes a material that layer does not have:
+  // a row for a name nobody draws is a claim that went stale
+  const ghosts = Object.keys(A.AERO_HARD[layer] || {})
+    .filter(n => !names.includes(n));
+  check(ghosts.length === 0,
+    `${layer}: finish rows for materials the layer no longer has`,
+    ghosts.join(', '));
+}
+// every finish the hardware table names must exist, and the ones exempted
+// from the dielectric rule must be the ones that are actually bare metal
+for (const layer of Object.keys(A.AERO_HARD))
+  for (const n of Object.keys(A.AERO_HARD[layer])) {
+    const f = A.AERO_HARD[layer][n];
+    check(f === null || !!A.AERO_FINISH[f],
+      `${layer}.${n} names a finish that does not exist`, String(f));
+  }
+// THE PROPELLER MAPS BY INDEX, so the two tables must be the same length —
+// a seventh blade material added to the cowl bench would otherwise silently
+// fall off the end and take the fallback.
+{
+  const CW = require(path.join(ROOT, 'tools', '_cowl_gen.js'));
+  check(A.AERO_PROP_FIN.length === CW.MATERIALS.length,
+    'AERO_PROP_FIN and the cowl bench disagree on how many blade materials ' +
+    'there are', `${A.AERO_PROP_FIN.length} vs ${CW.MATERIALS.length}`);
+  A.AERO_PROP_FIN.forEach((f, i) => check(!!A.AERO_FINISH[f],
+    `blade material ${i} maps to a finish that does not exist`, String(f)));
+}
+for (const k of Object.keys(A.AERO_WEAR_K))
+  check(!!A.AERO_FINISH[k],
+    `AERO_WEAR_K names a finish that does not exist`, k);
+
+// ---------------------------------------------------------------------------
+// 10 THE WEAR (G70) — one dial, and it must not divide the quad
+// ---------------------------------------------------------------------------
+// The condition of the aeroplane rides the SHARED uniform block, so one
+// write reaches every material including the ones the game builds for the
+// aeroplane that flies. These are source-level assertions for the same
+// reason section 3's are: each failure is silent at runtime.
+check(/uniform vec4 uWear;/.test(SRC) && /uniform float uWearK;/.test(SRC),
+  'the wear uniforms are not declared in the fragment prelude');
+check(/uWear:\s*\{\s*value/.test(SRC) && /uWearE:\s*\{\s*value/.test(SRC),
+  'the wear uniforms are not in the shared (aeroplane-wide) block');
+check(/uWearK:\s*\{\s*value/.test(SRC),
+  'the per-material wear rate is not a per-material uniform');
+// THE BRANCH MUST BE ON UNIFORMS ONLY. `aeroW` is the dial times this
+// material's rate — both uniforms — so the whole quad takes the same path and
+// the texture fetch inside it has defined derivatives. A branch on anything
+// varying would put texture2D in divergent flow, which is the trap the decal
+// loop is written around and which shows up only as a crawling edge.
+check(/float aeroWA = uWear\.x \* uWearK;/.test(SRC) &&
+      /if \(aeroWA > 0\.0\) \{/.test(SRC),
+  'the wear branch is not on uniforms alone');
+// the streak helper takes its source as a parameter and returns 0 for an
+// undeclared one, so an aeroplane with no exhaust measured gets no streak
+check(/float aeroStreak\(vec2 m, vec4 s\) \{/.test(SRC),
+  'aeroStreak is not the declared source-and-run helper');
+check(/if \(s\.z <= 0\.0\) return 0\.0;/.test(SRC),
+  'an undeclared wear source does not answer "no streak"');
+// and metalness must fall with wear, or weathering is invisible on every
+// metal aeroplane: the environment map washes an albedo change straight out
+check(/metalnessFactor \*= 1\.0 - 0\.55 \* max\(aeroWG/.test(SRC),
+  'wear does not dull metalness');
+{
+  // the sources are placed in the SURFACE FIELD, so the streaks are on the
+  // fuselage and the flying surfaces only — the hardware has no coordinate
+  // to run them along and must not pretend to
+  const surfOnly = SRC.slice(SRC.indexOf('float aeroWA = uWear.x'));
+  const seg = surfOnly.slice(0, surfOnly.indexOf('}\n`'));
+  const iS = seg.indexOf('aeroWS =');
+  const iG = seg.indexOf('#if AEROSKIN_SURF == 1');
+  check(iG >= 0 && iS > iG,
+    'the streaks are computed outside the surface-field branch');
+}
+
+// ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {
   // NEGATIVE VERIFY: break each rule and require the check to notice.
   const probes = [
@@ -449,6 +577,19 @@ if (process.argv.includes('--selftest')) {
     ['a 0.9 m tail rib pitch', () => !(0.9 >= 0.18 && 0.9 <= 0.32)],
     ['a backtick in a GLSL block',
       () => 'vec2 a;  // the `uTile` uniform'.includes('`')],
+    // G70
+    ['a layer material with no finish',
+      () => A.aeroHardFinish('gear', '__undressed__') === undefined],
+    ['a finish row for a material the layer dropped',
+      () => ['tyre', '__gone__'].filter(n => !['tyre'].includes(n)).length > 0],
+    ['a blade material that fell off the end of the map',
+      () => ![ 'ply', 'ply' ][2]],
+    ['a wear branch on a varying',
+      () => !/float aeroWA = uWear\.x \* uWearK;/.test('float aeroWA = vSurf.x;')],
+    ['a streak with no source check',
+      () => !/if \(s\.z <= 0\.0\) return 0\.0;/.test('float aeroStreak() { return 1.0; }')],
+    ['wear that leaves metalness alone',
+      () => !/metalnessFactor \*= 1\.0 - 0\.55/.test('metalnessFactor *= 1.0;')],
   ];
   let caught = 0;
   for (const [nm, f] of probes) {
@@ -461,8 +602,11 @@ if (process.argv.includes('--selftest')) {
     `selftest: ${probes.length - caught} probe(s) went unnoticed`);
 }
 
+const hardN = Object.keys(A.AERO_HARD)
+  .reduce((n, l) => n + Object.keys(A.AERO_HARD[l]).length, 0);
 console.log(`  sections ${sections.size}, finishes ` +
-  `${Object.keys(A.AERO_FINISH).length}, constructions ${CONSTRUCTIONS.length}`);
+  `${Object.keys(A.AERO_FINISH).length}, constructions ${CONSTRUCTIONS.length}` +
+  `, hardware ${hardN} names over ${Object.keys(A.AERO_HARD).length} layers`);
 for (const f of fail) console.log('  FAIL ' + f);
 console.log('GATE SKINMAT: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

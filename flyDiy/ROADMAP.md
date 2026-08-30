@@ -197,6 +197,17 @@ and "flies far" are made of. The fuel-system DRESS (lines, gascolator,
 plumbing at engine-bench finish) is explicitly deferred cosmetics — it rides
 with F2 or a later dress pass.
 
+OPENED 2026-08-30, arc numbers claimed **G97-G101** (see the claim block in
+HANDOVER; it was G95-G99 until the P8 session took those mid-planning, and it
+is held loosely per the numbering note below). A tank or a pack is a PHYSICAL
+THING YOU BUY — a real solid at a standard capacity, dropped into a declared
+bay, positioned and rotated until it fits around the pilot, whose swept volume
+IS its capacity. G97 the interior volume + the wing spars · G98 the vessel
+catalogue · G99 placement, fit and clearance · G100 the loading table and
+CG(fill) · G101 the balance panel. BURN AND DISCHARGE is deliberately NOT in
+this arc — it needs the flight loop, while everything above is provable on the
+bench (RULING 1), so it is named and left for the next chantier.
+
 **P5 — missions & economy v0.**
 Contracts generated over the aerodrome registry: cargo demand, passengers
 who want to go somewhere, payment in the credits the registry already prices
@@ -246,17 +257,114 @@ G72 went to the atmosphere while this was mid-flight):
   changed-from-loaded dots with per-row and per-part reset. It builds no
   widget: the rows are `_cage_ui.js`'s own elements, moved, so the row grammar
   stays one implementation across the game and the benches.
-- G78 — the view owns looking: the icon rail (camera, display, night,
-  explode, measure) with its flyouts, the name chip, the two verbs bottom
-  left, and the SHED'S OWN SHEET (user's ruling: tuning the atmosphere or the
-  hangar is a different interface). `#edBar`, `#bEnv`, `#bMood`, `#uvp` and
-  the game's bottom bar retire with it.
-- G79 — selection is bidirectional: raycast on the material groups selects
-  the part, hover tints, the part callout in the view.
-- G80 — the sheet: the plaque, the bench summary and its sub-page, the
-  logbook, the store and the rack, all behind the aeroplane's NAME.
-  `#edShelf`, `#edTabs` and `#plaque` collapse into it — the "one store, one
-  format" line G63 started, finished.
+- **G78 — the view owns looking. LANDED.** The icon rail (camera, display,
+  night, explode, measure) with its flyouts, the name chip, the two verbs
+  bottom left, and the SHED'S OWN SHEET (user's ruling: tuning the atmosphere
+  or the hangar is a different interface). `#edBar`, `#bEnv`, `#bMood`,
+  `#bEdit` and the game's whole bottom bar left the garage with it, and the
+  STUDIO stopped being a choice — the hangar is the only room. Also G77.1
+  (user): the render is the FREE ESTATE, not a full frame under an opaque
+  panel, so the orbit centre follows the space available.
+- **G79 — selection is bidirectional. LANDED.** A raycast on the material
+  groups selects the part, hover tints both ways (view → tree row, tree row →
+  geometry), and the selected part carries the design's callout, pinned to a
+  world point on itself. app.js reports a HIT and editor.js resolves it
+  through the part table, so an unknown layer — GEN_ACCESS's, when it lands —
+  resolves the moment its part row exists, with no edit to the editor. The
+  root is a tree row now, which is what makes "everything visible" a place you
+  can go back to.
+- ~~G80 — the sheet behind the aeroplane's NAME.~~ **SUPERSEDED 2026-08-30 by
+  the user's design review**: the plaque, the bench and the store go into a
+  permanent LEFT INFORMATION PANEL instead of a sheet, because a plaque you
+  have to open hides the consequence of the slider you just moved. Only the
+  fleet RACK stays a sheet. The name chip goes with it — it was a door to a
+  sheet that no longer exists. See G87.
+
+**THE UI MODEL (2026-08-30, the user's design review after G76-G79).** The
+review is written up as `futureDesigns/UI-MODEL.md` — the authority on WHAT
+GOES WHERE, with the 9b handoff remaining the authority on colour, type,
+spacing and copy, and the three layout disagreements between them listed and
+argued. In one line: **two interfaces, one renderer; in the workshop, observe
+LEFT, change RIGHT, select RIGHTMOST, look in the MIDDLE.**
+Arc numbers: **G86 LANDED**. The rest are NOT pre-reserved — see the note on
+numbering below.
+- **G86 the two interfaces. LANDED.** FLIGHT and WORKSHOP as separate chrome
+  layers (`#ui` / `#wsUI`), so the aircraft card cannot render under the name
+  chip and the PFD cannot watch you build. The mode follows the GARAGE, not the
+  editor's boot. Gated twice: the mode is observable (UISMOKE's classList stub
+  is real now) and the seam holds (ten flight ids inside `#ui`, eight workshop
+  ids inside `#wsUI`, checked on the built artifact). The `#edStat` blob and
+  the parts column's help text went with it.
+- **the INFORMATION panel. LANDED as G91.** Plaque, bench and fleet on the
+  left, 280 px, folding, pushing the render and its centring. The
+  aeroplane's SHEET and the NAME CHIP retire with it (a door to a room
+  that is now a wall is a sign), and so do the design/bench TABS — they
+  existed because the plaque and the sliders shared a column, and they are
+  on opposite sides of the screen now. The two panel insets became two
+  custom properties on <body>, because four things have to agree about the
+  free estate and the same arithmetic was written out four times.
+- **the tree's TOP LEVEL. LANDED as G102.** It is a SCENE, not an aeroplane:
+  roots register themselves through `window.CAGE_TREE_ROOTS.add({...})`, so
+  the shed and the world join it without editing editor.js — which is what
+  three sessions in one file most needed. Build plane and Reference plane
+  read as peers now (they always shared a class; one was in capitals). The
+  tree folds per branch, with `fold all`, persisted.
+- **the THIRD FOLD. LANDED as G103.** The properties column folds too, so
+  all three workshop surfaces do and folded to their spines the render has
+  the screen (651 px -> 1433 px of a 1571 px window). The right panel's
+  four widths are COMPUTED in one place and published as a number rather
+  than declared as four classes.
+- the tree grows its remaining ROOTS — the shed and the world as scene
+  objects, through the registry above; `Design & construction` at the head of
+  the aeroplane (which is where the "conception" rows the user could not find
+  belong — they decide what ALL of it is made of and were filed under one part
+  of it); per-assembly collapse.
+- **the FINISH view. LANDED as G104.** SHAPE/FINISH as two views of the SAME
+  tree — the tree stays the only selector (the noun), the tab is the
+  adjective. Per-part finish, tint and G102's three dials, moved from
+  `_cage_ui.js`'s materials panel under the part whose `sections` claim them;
+  whole-aeroplane livery and markings on the root; and the CONCEPTION row the
+  user could not find (`intCons`) is live at the head of the livery instead of
+  read out dead beside it. The join is `sections` in the part table, which
+  GATE PARTS already held true in both directions — the finish view needed no
+  new rule. The part callout went with it, at the user's request, and took
+  `EDITOR_FRAME`, `projectPoint` and ~900 vector ops per highlight build.
+- **`spec.finish` — THE FINISH IS NOT YET THE AEROPLANE'S.** Split out of the
+  line above and NOT landed: every section's tint, finish and dials, plus the
+  wear and the decals, live in ONE localStorage key, so the whole fleet wears
+  one paint and a saved build does not carry its own. `spec.finish` + the
+  GEN_SPEC_V bump + a migrator, across four files two other sessions are live
+  in. This is the half of the material manager that is not too early, and it
+  is the next chantier in this arc.
+- VIEW STATE NEVER FLIES — a real bug the user found: `explodeD` is
+  declared out of the spec but the SNAPSHOT captures the meshes as drawn, so an
+  aeroplane rolled out while exploded flies exploded. Fixed in `syncBuild`,
+  gated by a vertex-identical snapshot at two explode settings.
+- the pass — the 108 NATIVE checkboxes whose OS accent is the red the user
+  has no place for (the G77 toggle styling was scoped to the inspector and
+  never generalised), the heading hierarchy at an assembly selection, and one
+  sweep of focus/hover/reduced-motion.
+
+**ON NUMBERING, AND WHY THIS ARC STOPPED RESERVING (2026-08-30).** G76-G80 were
+reserved in this file before the work started, and the reservation was read and
+honoured by the GEN_ACCESS session (which took G81-G85 the same way). It was
+then quietly broken twice: the ATMOSPHERE session took G72 mid-flight, and the
+REFERENCE-OVERLAY session took G89 AND G90 — both reserved here — and had
+working code on disk with those numbers baked into its comments before anybody
+noticed. Renumbering someone else's in-flight work is worse than the collision,
+so both were ceded.
+
+THE HONEST CONCLUSION: a reservation only binds sessions that read it, and a G
+number is a LABEL, not an identifier. Nothing in the code, the gates or the save
+format keys off one; the cost of a collision is a confusing handover, not a
+broken build. So the protocol changes:
+
+  TAKE A NUMBER WHEN THE CHANTIER LANDS, not when it is planned — by reading
+  the last `## G` heading in HANDOVER.md and taking the next free one. Reserve
+  at most the one you are writing right now.
+
+Planned work is named by WHAT IT IS, as the list above now does. A plan that
+needs a number to be findable was not named well enough.
 
 DECIDED WITH THE USER ON THE WAY IN (2026-08-30): the standalone cage benches
 KEEP today's accordion — the new UI is game-side, which is also the smallest
@@ -335,9 +443,163 @@ it. Still owed from G69: a decal is on BOTH sides or neither, placement lives
 in a pref rather than the spec, and there is no craft-space ORTHOGRAPHIC
 projector for a livery that must run continuously across fuselage, wing root
 and fairing — designed, not written.
-Then G67.1 the default cage at boot and the old generated skin archived;
-G70 interior, technical parts and wear. The material library and the
-wall-wardrobe prune ride with G66/G67.
+G70 the interior, the technical parts and the wear — LANDED: the gear, the
+engine, the cowl, the propeller and the cabin leave G38's understudy grey for
+AEROSKIN through `AERO_HARD` (65 material names over 4 layers, read out of the
+four layers' own tables), eight new finishes for the hardware vocabulary, and
+ONE CONDITION DIAL whose every placement is derived — grime in the
+microsurface, chalking on what faces the sun, metal dulling, and streaks that
+run from the MEASURED exhaust exit and the mains' own contact. Still owed from
+G70: glass takes no wear, the streaks are on the fielded surfaces only, there
+is no per-part condition, and the wing's diagnostic part colours (G31's purple
+tip, orange ailerons) survive into the material view where they read as a
+mistake rather than as a part list.
+G67.1 the default cage at boot — LANDED, and larger than it looked: the game
+now OPENS on the cage build, in the hangar, with the editor open and committed,
+so the aeroplane you see first is the one you are building; AEROSKIN is the
+default view rather than the section palette; and `buildModel('gen')` no longer
+falls back to the old generated skin, which is what actually took it off the
+flight path. THE OLD SKIN IS NOT DELETED, and the reason is worth carrying:
+`_cage_wing.js` builds the WING of every cage build out of `genSkin`, so the
+wing was lifted out of it first — `genWingInto`/`genWing`, verbatim, with GATE
+WINGSPLIT freezing thirteen wings as digests to prove the move changed nothing
+— and the workshop's wing and engine were re-homed with it (the engine on the
+bench is the engine bench's own engine now). What still holds the file alive is
+GATE GEN, which asserts on the old aeroplane's fuselage, tail, cowl, prop and
+gear MESHES; deleting it means promoting the cage's own checkers
+(`_cowl_check`, `_fin_check`, `_eng_mesh_check`, `_cage_fit`, `_join_check`,
+none of them in the battery) rather than accepting a quietly smaller gate.
+G67.2 CLOSED IT (2026-08-30): `63_gen_skin.js` is `63_gen_wing.js`, genSkin is
+deleted (flight_core 658 -> 538 KB), and the coverage moved rather than
+vanished — `_cage_fit`, `_fin_check`, `_cowl_check`, `_eng_mesh_check` and
+`_join_check` joined the battery as CAGEFIT/FIN/COWL/ENGMESH/JOIN (five
+checkers that had existed for chantiers and were only ever run by hand). GATE
+GEN kept 70 of its 75 checks; the five that went are each recorded where they
+stood. G67.3 THEN CLOSED THE ONE GAP IT DECLARED: GATE GEAR (`tools/_gear_check.js`)
+runs the undercarriage headless on a THREE stub and asserts the three leg
+families are three different drawings — the check GATE GEN lost — plus the
+wheel turning on its own, the tyre reading as a circle, the leg mirroring
+vertex for vertex, the spat clearing the ground and the castor filling its own
+bags. TWO LESSONS IN IT: a dodecagon tyre PASSED the first roundness check
+(a revolve puts every vertex on the circle, so faceting is a SAGITTA and not a
+radial spread), and the wheel deliberately does not mirror — a valve stem and a
+bolt circle are fitted at an arbitrary clock angle, so the structure is checked
+vertex-for-vertex and the wheel as a volume.
+THE INSTRUMENT WORTH REUSING: diff a gate's CHECK NAMES before and after
+surgery. A deleted assertion leaves no trace, and this one immediately caught a
+frame-side gear check deleted by accident because it shared a comment header
+with its skin-side neighbour.
+G94-G98 CLOSED THE INTERIOR AND LIT THE AEROPLANE (2026-08-30). G94 the
+instrument panel, the floorboards and the cowl's own detail — the panel's
+rows are laid out first and then CENTRED on the pilot, and its height comes
+from a MEASURED coaming lip rather than from the throttle's mounting height.
+G95 the part highlight became an OUTLINE in a noticeable colour, at the user's
+ask, with the mode kept as an option so the default can be chosen later.
+G96 THE AEROPLANE HAS LIGHTS: eight of them, in the user's own two groups
+(outside = physical switches, inside = potentiometers), every one owning
+emitting geometry per the user's rule "there should be no light without
+emitting geometry", every position measured off the thing it is mounted on,
+levers and knobs on the panel, and exactly TWO real `THREE.Light`s because r128
+is a forward renderer and the hangar already runs seven. G97 the fin and stab's
+dendritic shading — the tail's ribs were on the object-space path where the
+rail coordinate jumps between panels; `ribM` puts them on the metric one.
+G98 THE LAMP BAY became a real fitting: the wing is CUT along its own loft
+rows, the hole is closed by an interior cage the user drew himself (a quad and
+two ribs on the aerofoil profile, all three from the cut's own boundary), the
+lamp is a solid of revolution, and it is FITTED to the interpolated section at
+its own station so it cannot protrude — GATE BAY asserts all three, each
+against the defect that produced it. Four frames-and-measurement lessons in it,
+all in the HANDOVER entry: a bench with no transform cannot catch a frame bug;
+a bay is ONE LOFT CELL, so it has no mid-span; DIHEDRAL makes the intersection
+of two stations a section neither of them has; and a floor on a derived
+quantity is a way of ignoring the measurement that was taken.
+STILL OWED from the lighting arc: the instrument light (the user's own
+"later"), the beacon does not flash, and nothing switches on at night by
+itself.
+
+The material library and the wall-wardrobe prune ride with G66/G67.
+
+GEN_ACCESS — THE FITTINGS — OPENED 2026-08-30, arc numbers RESERVED G81-G85
+(claimed in HANDOVER before starting, per the G76-G80 note's own protocol).
+This is the "technical parts" third of G70 and it is not a new design: the
+G68 gap list already declares it — "a declared table of REQUIREMENTS, each
+naming what it serves and a placement rule, resolved against built geometry
+and SNAPPED to structure" — with the acceptance test stated, "you can point
+at any hatch and say what is behind it, and no tank means no fuel cap".
+What the arc adds is REAL GEOMETRY, because a filler cap and a pitot mast
+stand off the skin and the grammar can only draw what is flush.
+DERIVED, NEVER PLACED: `spec.fuel.tank` decides where the cap goes,
+`spec.systems.fit` decides how many aerials, `spec.fuselage.material`
+decides whether a panel laces, screws or doubles. That is the wear ruling
+("a hand-placed smudge is decoration, and decoration does not survive the
+aeroplane changing shape under it") applied to the thing it was written
+about. THE MOUNT ALREADY EXISTS: `fitFrame`/`fitPad` in _gear_gen.js:606
+answer point-normal-and-bolted-pad on the skin, proven on the whole
+undercarriage; the surface field's integer st/lv choose the station, the
+contract mounts the part. G81 the site · G82 the table · G83 the body's
+fittings · G84 the wing and the cowl · G85 it was already saved.
+
+G81-G84 LANDED (uncommitted). 19 declared requirements, 14 forms, three
+skins each with its own placer — the fuselage a mesh with a field in cage
+units, the wing the SAME FIELD in metres meaning span/chord/rib/spar, the
+cowl an analytic surface evaluated rather than searched. GATE FIT is core
+tier: 354 fittings measured over 6 shapes x 5 specifications, eleven
+negative probes all caught. Measured in the page: 14 fittings on the stock
+aeroplane, 18 with wing tanks + IFR + a cargo bay, and SIX on a minimal
+day-VFR machine with no tank — which is the acceptance test doing its job.
+G85 CLOSED THE ARC BY CORRECTING IT. The gap G83 and G84 both declared —
+"spec.access does not exist, the switches live in the panel not the save" —
+was WRONG: `cageToSpec` passes every unrecognised key straight into
+`spec.cage` and `cageFromSpec` reads it back, which is how all eight cage
+layers persist theirs. A private `spec.access` would have singled this one
+out from seven; a GEN_SPEC_V bump would have been dishonest (nothing about
+the shape changed); and a migrator is forbidden by the version note's own
+last line. What was owed was a TEST — what an aeroplane wears is saved
+because what it IS is saved — so GATE FIT now asserts the equipment and the
+switches both survive a round trip, and that the aeroplane asks for the same
+fittings on both sides of it. Thirteen negative probes.
+
+STILL OPEN: cross-layer clearance (the gate checks fittings against their own
+skin and each other, not against the gear, engine or tail — the tail tie-down
+buried inside the tailwheel castor was found by counting pixels, and nothing
+stops the next one); nothing on the fin or stabiliser; a biplane's lower wing;
+and ONE NAMED BOUNDARY DEFECT — an aeroplane that IS the template still writes
+sixteen layer keys into `spec.cage`, because `cageToSpec` can only compare
+against CAGE_PARAMS and no layer's defaults are there. The cure is in the
+code's own comment (let it take the defaults to compare against, and pass
+`CAGE_PAGE.defaults`); it fixes all eight layers at once and belongs to
+whoever owns that boundary, not to this arc.
+
+THE LIFT-STRUT FOOT — LANDED 2026-08-30, arc numbers RESERVED G86-G88
+(claimed in HANDOVER before starting, same protocol). User, with both feet
+circled on a screenshot: the struts were drawn from `63_gen_skin`'s beams and
+stopped at truss NODES with no fitting at all — in mid-air beside the belly at
+one end and buried in the covering at the other. Now every one of the four
+ends is a bolted doubler with a clevis on it: the fuselage foot through the
+undercarriage's own `fitFrame`/`fitPad` (the user named the method), the wing
+fitting through the same object on the wing's own surface, under a high wing
+and over a low one. Two editor rows, `strut fore/aft` (which moves BOTH ends,
+so the strut stays straight) and `foot lateral` (arc length round the section),
+BOUNDED by the wing's structural chord — `strutBand`, 6 % clear of the leading
+edge and 4 % clear of the aileron hinge — so the drawn ends can never leave
+the beams they stand for. GATE STRUT, core tier.
+NO NEW PHYSICS, on the user's ruling ("prefer constraining the visuals to the
+existing physics rather than adding new physics now"): the divergence between
+each drawn wing fitting and its beam is REPORTED every build, and is 3 mm at
+zero trim. STILL OPEN, and it is where the user's "if the attachment points
+are significantly shifted, it should be reflected in the physics" points:
+`61_gen_frame` roots both members of a side at ONE node, so the two clevises
+are 116 mm apart where a real pair is much further; giving them their own
+stations is a FRAME chantier. Also open: no jury struts, no fairing where a
+strut enters the wing.
+THE LESSON THIS ARC PAID FOR, three times: a frame that is nearly right draws
+a picture that is nearly right. `toCage` undoes genSkin's rest pose and is for
+SKIN vertices; a node sent through it tilts by the whole rest pitch. The
+airframe contract is a SAMPLED surface and missed the drawn skin by 3.5 mm,
+enough to cut a doubler in half. And the ray that finds the wing must be cast
+ACROSS it, not along the strut, or a 28-degree strut walks its fitting 153 mm
+inboard of the spar. All three were found by LOOKING, and all three would have
+survived any gate this project has.
 
 **P10 — into the game shell.**
 - The garage rebased on the bench modules and the P8 part tree; the spec
@@ -385,13 +647,28 @@ made that argument load-bearing instead of decorative).
 
 ## FLOATING CHANTIERS (pull forward at will)
 
-**F1 — the reference overlay.** 3D model import instead of blueprints: a GLB
+**F1 — the reference overlay.** — PULLED FORWARD, STARTED 2026-08-30, arc
+numbers RESERVED G89-G93 (claimed in HANDOVER before starting, per the
+G76-G80 note's own protocol), user: "the goal is to recreate an existing
+airplane by importing the model in lieu of blueprints".
+3D model import instead of blueprints: a GLB
 as a ghost in the bench, scale/align, match by eye. The in-repo Cub and C172
 are free; more from the same modeller as they come. Display-only, r128 loads
 GLBs, deliberately small. Pull it forward the moment matching a real
 aeroplane would help — wings (P2) is the likely moment. Blueprints only if a
 wanted aeroplane has no model. Imports also join the P6 rack as found
 aircraft.
+
+TWO THINGS THE ENTRY ABOVE GOT WRONG, both found by measuring rather than
+reading, and they make this cheaper than it looks. THERE IS NO GLB TO LOAD
+and r128 does NOT load one — no loader is vendored. The Cub and the C172 are
+already BAKED payloads (`MODEL_PA18`/`MODEL_C172`, `src/models/`), already
+inlined in the artifact, already decoded by `decodeModel`: the reference
+costs zero new bytes and no loader. And it lands in the GAME EDITOR, not the
+bench — the editor is the garage screen now (G35/G78), and the benches keep
+their accordion (the P8 ruling). Both models measure TRUE SCALE on decode
+(PA-18 span 10.713 m, C172 11.00 m), so the size slider is a correction knob
+for future imports, not a necessity for these two.
 
 **F2 — naked structures.** Door removal and the tube structure dressed to
 hero level for the open-frame class (Top Rudder / Ruckus): the truss stops

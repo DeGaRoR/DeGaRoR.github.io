@@ -221,6 +221,540 @@ const GEN_BUILD_GRAMMAR = {
   },
 };
 
+
+// ===========================================================================
+// GEN_ACCESS (G82) — WHAT AN AEROPLANE HAS TO HAVE ON THE OUTSIDE OF IT
+// ===========================================================================
+// The third table in this file, and it is one more fact seen from one more
+// side. GEN_MATERIALS says what a construction WEIGHS and DRAGS;
+// GEN_BUILD_GRAMMAR says what it LOOKS LIKE; this says what has to be BOLTED
+// TO IT so the thing can be fuelled, inspected, flown and tied down.
+//
+// It is this file's own long-standing gap, written out at last. HANDOVER's
+// G68 list has carried it for two chantiers:
+//
+//   "No access panels, no inspection rings, no fuel caps. GEN_ACCESS is
+//    designed (a declared table of REQUIREMENTS, each naming what it serves
+//    and a placement rule, resolved against built geometry and SNAPPED to
+//    structure) and not written. The acceptance test for it is stated: you
+//    can point at any hatch and say what is behind it, and no tank means no
+//    fuel cap."
+//
+// ---------------------------------------------------------------------------
+// EVERY ROW NAMES WHAT IT SERVES, AND THAT IS THE POINT OF THE TABLE.
+//
+// `serves` is not a comment. It is the answer to the acceptance test, it is
+// what the verdict prints, and GATE ACCESS fails a row that leaves it empty.
+// An aeroplane with a hatch nobody can explain has decoration on it, and
+// decoration is what this arc exists to avoid — the ruling is already on the
+// record for wear: "a hand-placed smudge is decoration, and decoration does
+// not survive the aeroplane changing shape under it".
+//
+// So there is no row for "a panel, about here, because it looks bare". Every
+// one is a thing a real aeroplane cannot do without, and the ones this
+// particular aeroplane does not need do not appear on it.
+//
+// ---------------------------------------------------------------------------
+// `need(R)` IS THE HALF THAT MAKES IT HONEST.
+//
+// R is a REQUIREMENTS RECORD, not a spec: a small flat reading of what the
+// aeroplane is, which both front doors below produce. That indirection is the
+// airframe contract's own, for its stated reason — objAirframe and
+// cageAirframe reach one meshAirframe "instead of two that can drift". The
+// game spec and the cage editor's parameters are two descriptions of one
+// aeroplane, and this table must not learn either of them.
+//
+// `need` returns HOW MANY, so 0 is the honest answer and not a special case:
+//   no tank                  -> no filler cap
+//   minimal panel, no radio  -> no aerials at all, which is a visible and
+//                               correct difference between two aeroplanes
+//   no cargo bay             -> no baggage door
+//   carbon                   -> no laced ring and no screwed panel: you do
+//                               not cut an inspection hole in a moulding,
+//                               and not having any is the point of one
+//
+// ---------------------------------------------------------------------------
+// THE PLACEMENT RULE IS METRIC, AND THEN IT IS SNAPPED.
+//
+// `at(R)` returns { sL, lv }. sL is METRES aft of the firewall, because a
+// station is a real distance: a fitting 300 mm behind the cabin is 300 mm
+// behind the cabin on any aeroplane. `lv` is the RAIL it sits on — 0 keel,
+// 1 floor, 2 waist, 3 band, 4 ceiling, 5 roof, fractions in between — plus
+// the two names the rails do not cover, 'crown' and 'keel', which mean the
+// CENTRELINE at the top and at the bottom.
+//
+// ROUND THE SECTION IS A PLACE, NOT A DISTANCE, and getting that wrong cost
+// two rewrites. Metres round the section fail because a fuselage SHRINKS:
+// "0.67 m below the waist" is on the belly at the cabin and 300 mm off the
+// aeroplane at the tailpost, so the tail tie-down silently never appeared at
+// all. A fraction of the measured arc fails for a subtler reason — the arc
+// has to be sampled over a fore-aft window, and the window's maximum
+// overshoots the section at its aft end. `lv` needs no measurement: it is
+// exact at every station, and "on the keel" means the same thing everywhere.
+//
+// `snap` then rounds the STATION onto real structure, which _fit_site.js does
+// as an integer rounding rather than a search, because the field's st IS an
+// integer at every ring.
+//
+// MOST FITTINGS WANT 'bay', NOT 'ring'. An access panel goes BETWEEN two
+// frames, because a frame is precisely what it is there to reach past; a
+// panel centred on a former is the tell that a hatch was placed by eye. The
+// exceptions are the ones that bolt THROUGH structure — a step, a tie-down,
+// an aerial doubler — and they take 'ring' for the same reason.
+//
+// ---------------------------------------------------------------------------
+// SIDES. sC and lv are mirrored across the spine and the keel by construction
+// (_cage_gen.js:180), so a metric site names a point on EACH flank and 'both'
+// is the cheap case. A one-sided fitting is declared here and drawn into its
+// own group, because GATE GEN asserts the aeroplane mirrors and `pitot` has
+// had to do exactly that since G5 (63_gen_skin.js:436).
+//
+// `on` NAMES WHOSE SKIN IT IS. The fuselage cage, the wing loft and the cowl
+// are three different surfaces with three different coordinates, and a row
+// says which one it belongs to rather than pretending there is one. G83
+// places the body's; the wing's and the cowl's are G84. A row is DECLARED
+// here the moment the aeroplane needs it, even if its placer is not written
+// yet — because the alternative is a wing-tank aeroplane that silently has no
+// filler cap anywhere, which is the acceptance test failing quietly, and
+// quietly is how this gap survived two chantiers already.
+//
+// EVERY DIMENSION IS METRES, and every one is a real number rather than a
+// chosen one — the rule GEN_BUILD_GRAMMAR set, and the reason its rivet pitch
+// is 24 mm and not "small".
+const GEN_ACCESS = {
+  // -------------------------------------------------------------------------
+  // FLUIDS — the openings named first, and the ones with the strictest
+  // justification: each is where a fluid enters or leaves, so where it goes
+  // is decided by where the fluid is.
+  // -------------------------------------------------------------------------
+  fuelCap: {
+    name: 'Fuel filler cap',
+    serves: 'the fuel tank',
+    // THE ACCEPTANCE TEST, IN ONE LINE: no tank, no cap. And a wing tank's
+    // cap is not on the fuselage at all — GEN_TANKS already says where the
+    // fuel is, so this row does not get an opinion about it.
+    need: R => (R.tank === 'nose' && R.fuelL > 0) ? 1 : 0,
+    // ahead of the windscreen on the cowl deck: where a nose tank is filled
+    // from, and why a Cub's cap sits in front of the pilot's face
+    // ON THE CROWN, AND WELL FORWARD. Two things about the nose had to be
+    // measured rather than assumed: it has NO ROOF RAIL at all (its ring is
+    // deck/floor/keel, so lv 5 does not exist forward of the firewall), and
+    // its "deck" sits at WAIST height — the nose is a slender cone whose top
+    // is the waist line. So the crown query is the right one and it lands on
+    // the top of the nose, which is where a Cub's cap is. At sL -0.10 it hits
+    // the windscreen and is correctly refused; -0.35 is clear of it on every
+    // build in the battery.
+    at: () => ({ sL: -0.35, lv: 'crown' }),
+    snap: 'bay', side: 'centre',
+    form: 'capProud', size: { d: 0.075, h: 0.014 },
+  },
+  fuelCapWing: {
+    name: 'Wing filler cap',
+    serves: 'the wing tank',
+    need: R => (R.fuelL > 0 && (R.tank === 'wing' || R.tank === 'panel'))
+      ? 2 : 0,
+    on: 'wing',
+    // THE WING'S OWN FIELD, which is the same four numbers meaning something
+    // else (G68.1): sL is spanwise METRES FROM THE ROOT, lv is 0 at the front
+    // spar and 1 at the rear. A tank sits in the bay BETWEEN the spars, so its
+    // cap is between them too — 0.30 is just aft of the front spar, where the
+    // filler neck clears it.
+    //
+    // ON THE UPPER SURFACE, and that is not a detail: chordwise distance from
+    // the leading edge is identical on both skins, so `side` is the only thing
+    // that stops the cap being fitted to the underside of the wing.
+    at: R => ({ sL: R.semispan * (R.tank === 'panel' ? 0.62 : 0.24),
+                lv: 0.30 }),
+    snap: 'bay', side: 'upper',
+    form: 'capFlush', size: { d: 0.075, h: 0.004 },
+  },
+  fuelDrain: {
+    name: 'Fuel drain',
+    serves: 'the tank sump — the pre-flight fuel sample',
+    need: R => R.fuelL > 0 ? 1 : 0,
+    // THE LOWEST POINT UNDER THE TANK. A sump drain anywhere else drains
+    // nothing, which is why sC is pinned to the keel and not offered a range.
+    at: R => ({ sL: R.tank === 'nose' ? 0.10 : 0.55, lv: 'keel' }),
+    snap: 'bay', side: 'centre',
+    form: 'drainValve', size: { d: 0.022, h: 0.030 },
+  },
+  oilDoor: {
+    name: 'Oil filler door',
+    serves: 'the engine oil filler and the dipstick',
+    need: R => (R.engine && R.cowl) ? 1 : 0,
+    on: 'cowl',
+    // THE COWL IS AN ANALYTIC SURFACE, not a mesh with a field: `surfPoint(th,
+    // z)` evaluates it directly (_cowl_gen.js:311). So this row speaks the
+    // cowl's own parameters — `frac` along its length from the firewall, and
+    // `az` the section angle, where 0 is the starboard flank, 90 the crown and
+    // 180 the port flank. 122 degrees is the port upper shoulder, which is
+    // where you reach an oil filler from standing beside the aeroplane.
+    at: () => ({ frac: 0.45, az: 122 }),
+    snap: 'free', side: 'port',
+    form: 'doorHinged', size: { w: 0.170, h: 0.130, t: 0.006 },
+  },
+  staticDrain: {
+    name: 'Static system drain',
+    serves: 'the static line — water out of the instrument plumbing',
+    need: R => R.systems === 'ifr' ? 1 : 0,
+    // CLEAR OF THE FUEL DRAIN, which is the other thing on the keel and which
+    // MOVES: a nose tank drains at 0.10 and a wing tank at 0.55. At a fixed
+    // 0.72 with a 'bay' snap the two collapsed into the same bay on every IFR
+    // wing-tank aeroplane and drew through each other. Measured from the back
+    // of the cabin it clears both, and 'free' keeps it there — a drain is a
+    // small fitting through its own doubler and has no reason to sit on a
+    // frame, unlike the things that bolt through one.
+    at: R => ({ sL: R.cabinAft * 0.85, lv: 'keel' }),
+    snap: 'free', side: 'centre',
+    form: 'drainValve', size: { d: 0.018, h: 0.024 },
+  },
+
+  // -------------------------------------------------------------------------
+  // ACCESS — the inspection traps. WHAT THEY REACH DECIDES WHERE THEY ARE,
+  // and the four constructions reach it four different ways: you unlace a
+  // fabric ring, unscrew an alloy plate or a ply doubler, and on a moulding
+  // you do not go in at all.
+  // -------------------------------------------------------------------------
+  inspTail: {
+    name: 'Tail inspection ring',
+    serves: 'the elevator and rudder cable runs at the tailpost',
+    // ONE ON A SLIM BOOM, ONE EACH SIDE ON A FULL SECTION, and that is what a
+    // real aeroplane does rather than a concession: a pod-and-boom tail is a
+    // tube a few hundred millimetres across, and two 130 mm rings on it would
+    // meet round the back. Measured: on the rod build the port and starboard
+    // rings landed 112 mm apart and needed 150. The narrow case puts its one
+    // ring underneath, which is where you would actually cut it.
+    need: R => R.material === 'carbon' ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
+    at: R => ({ sL: R.tailArm * 0.86,
+                lv: R.tailHalfW < 0.16 ? 'keel' : 1.7 }),
+    snap: 'bay', side: R => R.tailHalfW < 0.16 ? 'centre' : 'both',
+    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    size: { w: 0.130, h: 0.130 },
+  },
+  inspBelly: {
+    name: 'Belly inspection panel',
+    serves: 'the control runs and the seat-belt anchorages under the floor',
+    need: R => R.material === 'carbon' ? 0 : 1,
+    at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
+    snap: 'bay', side: 'centre',
+    form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
+    size: { w: 0.200, h: 0.150 },
+  },
+  inspAileron: {
+    name: 'Aileron bellcrank cover',
+    serves: 'the aileron bellcrank and its cable ends',
+    need: R => (R.wing && R.material !== 'carbon') ? 2 : 0,
+    on: 'wing',
+    // AFT OF THE REAR SPAR (lv > 1) and UNDERNEATH, because that is where a
+    // bellcrank is and where you reach it from. lv runs past 1 to the trailing
+    // edge — with the stock 15/65% spars the TE is lv 1.7 — so 1.25 is in the
+    // bay between the rear spar and the aileron hinge.
+    at: R => ({ sL: R.semispan * 0.66, lv: 1.25 }),
+    snap: 'bay', side: 'lower',
+    form: 'plateOval', size: { w: 0.150, h: 0.110 },
+  },
+  baggageDoor: {
+    name: 'Baggage door',
+    serves: 'the cargo bay',
+    // no bay, no door — the same shape of test as the fuel cap
+    need: R => R.cargo > 0.25 ? 1 : 0,
+    at: R => ({ sL: R.cabinAft + R.cargo * 0.5, lv: 2.6 }),
+    snap: 'bayrail', side: 'port',
+    form: 'doorHinged', size: { w: 0.480, h: 0.420, t: 0.008 },
+  },
+
+  // -------------------------------------------------------------------------
+  // INSTRUMENTS — the things that have to sit in clean air, which is what
+  // decides where each one goes. A static port in the wake of a door frame
+  // reads the wrong altitude, and that is not a cosmetic fact.
+  // -------------------------------------------------------------------------
+  staticPort: {
+    name: 'Static port',
+    serves: 'the altimeter, the ASI and the VSI',
+    need: R => R.systems === 'minimal' ? 0 : 2,
+    // aft of the cabin, on the flank at waist height: the flattest and least
+    // disturbed piece of skin an aeroplane has
+    at: R => ({ sL: R.cabinAft + 0.30, lv: 1.85 }),
+    snap: 'bay', side: 'both',
+    form: 'portStatic', size: { d: 0.030, h: 0.003 },
+  },
+  venturi: {
+    name: 'Venturi',
+    serves: 'the vacuum for the turn indicator, on an aeroplane with no'
+          + ' engine-driven pump',
+    need: R => (R.systems === 'basic' && R.material === 'tubeFabric') ? 1 : 0,
+    at: () => ({ sL: 0.34, lv: 1.45 }),
+    snap: 'ring', side: 'port',
+    form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
+  },
+  oatProbe: {
+    name: 'OAT probe',
+    serves: 'the outside air temperature gauge',
+    need: R => R.systems === 'minimal' ? 0 : 1,
+    // ABOVE THE WAIST AND WELL AFT OF THE VENTURI. Both want clean air low on
+    // the port side of the nose, and the first cut put them 53 mm apart —
+    // which is not "near", it is interpenetrating, since the venturi alone is
+    // 190 mm long. An OAT probe lives by the windscreen post where the pilot
+    // can read it, so up it goes.
+    at: () => ({ sL: 0.30, lv: 2.45 }),
+    snap: 'free', side: 'port',
+    form: 'probeOAT', size: { d: 0.012, len: 0.075 },
+  },
+
+  // -------------------------------------------------------------------------
+  // AERIALS AND LIGHTS — GEN_SYSTEMS already prices the radios, so it also
+  // decides what is on the outside carrying them.
+  // -------------------------------------------------------------------------
+  commAerial: {
+    name: 'Comm aerial',
+    serves: 'the VHF radio',
+    need: R => R.systems === 'minimal' ? 0 : 1,
+    at: R => ({ sL: R.cabinAft + 0.45, lv: 'crown' }),
+    snap: 'ring', side: 'centre',
+    form: 'bladeAerial', size: { h: 0.230, c: 0.090, t: 0.010 },
+  },
+  navAerial: {
+    name: 'Nav aerial',
+    serves: 'the VOR receiver',
+    need: R => R.systems === 'ifr' ? 1 : 0,
+    at: R => ({ sL: R.tailArm * 0.55, lv: 'crown' }),
+    snap: 'ring', side: 'centre',
+    // `foot` is what it OCCUPIES, which is not what it spans. The wire runs
+    // 1.2 m aft to the fin and passes clean over anything under it, so
+    // clearance is a question about the MAST — 140 mm of insulator and base.
+    // Without it the aerial demanded 650 mm of empty deck and pushed the
+    // beacon off a short-coupled aeroplane for no physical reason.
+    form: 'wireAerial', size: { h: 0.120, run: 1.20, foot: 0.140 },
+  },
+  xpdrAerial: {
+    name: 'Transponder aerial',
+    serves: 'the transponder',
+    // UNDERNEATH, ALWAYS: a transponder aerial talks to a radar below it.
+    //
+    // AND AFT OF THE FUEL DRAIN, which is the other thing on the keel. At
+    // 0.65 of the cabin length the two were 0.72 m and 0.55 m apart before the
+    // snap and IN THE SAME BAY after it — the same point, to the millimetre,
+    // on any IFR aeroplane with wing tanks. Measured aft from the back of the
+    // cabin instead, it is clear of the drain on every fuselage, and it is
+    // also where a real one is: under the baggage bay, behind the spar.
+    need: R => R.systems === 'ifr' ? 1 : 0,
+    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
+                lv: 'keel' }),
+    snap: 'bay', side: 'centre',
+    form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
+  },
+  beacon: {
+    name: 'Anti-collision beacon',
+    serves: 'being seen',
+    need: R => R.systems === 'minimal' ? 0 : 1,
+    // 'free', not 'ring'. A beacon is a small light on its own doubler and
+    // does not bolt through a frame, and snapping it to one put it on the
+    // same station as the comm aerial — two fittings in one place, which
+    // draws as z-fighting rather than as a mistake.
+    //
+    // AND ITS STATION IS A FRACTION OF THE WAY AFT, not a fraction of the tail
+    // arm. Those are different: 0.40 of the tail arm is still over the CABIN
+    // on a short-coupled aeroplane, where the roof is glazed and the fitting
+    // is refused. Measured from the back of the cabin to the tailpost it is
+    // always on the turtledeck, which is where a beacon goes.
+    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
+                lv: 'crown' }),
+    snap: 'free', side: 'centre',
+    form: 'lightBeacon', size: { d: 0.062, h: 0.055 },
+  },
+
+  // -------------------------------------------------------------------------
+  // HANDLING — how a person gets in, and how the aeroplane spends the night.
+  // These bolt THROUGH structure, so they snap to a ring and not to a bay: a
+  // step screwed to unsupported fabric is a step that leaves with the first
+  // person who stands on it.
+  // -------------------------------------------------------------------------
+  // A STEP IS NEEDED WHEN THE SILL IS HIGH, and that is a measurement, not a
+  // proxy for one. The first cut keyed on the cabin's own HEIGHT, which is
+  // the wrong quantity twice over: it says nothing about how far off the
+  // ground the floor is, and on the resolved default it landed 0.01 m under
+  // its own threshold — a fitting appearing or vanishing on a knife edge that
+  // means nothing. `sillH` is the cabin keel above the ground line, which is
+  // exactly what a person climbing in has to deal with. 0.62 m is a long
+  // step up and about where real aeroplanes start fitting one.
+  step: {
+    name: 'Boarding step',
+    serves: 'getting in over a high sill',
+    need: R => R.sillH > 0.62 ? (R.doorBoth ? 2 : 1) : 0,
+    at: R => ({ sL: R.cabinAft - 0.12, lv: 0.85 }),
+    snap: 'ring', side: R => R.doorBoth ? 'both' : 'port',
+    form: 'stepBoard', size: { reach: 0.150, w: 0.110, r: 0.011 },
+  },
+  grabHandle: {
+    name: 'Grab handle',
+    serves: 'the same hand, one move earlier',
+    // it goes with the step, because it is half of the same movement
+    need: R => R.sillH > 0.62 ? (R.doorBoth ? 2 : 1) : 0,
+    at: R => ({ sL: R.cabinAft - 0.30, lv: 3.3 }),
+    snap: 'ring', side: R => R.doorBoth ? 'both' : 'port',
+    form: 'handleGrab', size: { reach: 0.070, w: 0.130, r: 0.009 },
+  },
+  tieDownTail: {
+    name: 'Tail tie-down',
+    serves: 'the night, and the wind',
+    need: () => 1,
+    // FORWARD OF THE TAILWHEEL, and that is why it is 0.86 and not 0.94. At
+    // 0.94 it lands ON the tailpost, which is exactly where the tailwheel leg
+    // and its castor are: measured on the bench build, the assembly spans
+    // z -2.69..-2.17 and the ring sat at -2.31, entirely inside it. The
+    // geometry was correct and completely invisible.
+    //
+    // IT WAS FOUND BY COUNTING PIXELS, not by the gate, and that is the
+    // declared limit of GATE FIT: it checks fittings against the SKIN and
+    // against each other, and knows nothing about the gear, engine or tail
+    // layers. Cross-layer clearance is not solved here.
+    at: R => ({ sL: R.tailArm * 0.86, lv: 'keel' }),
+    snap: 'ring', side: 'centre',
+    form: 'ringTiedown', size: { d: 0.044, t: 0.008 },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// THE TWO FRONT DOORS. One table, two ways in — the objAirframe/cageAirframe
+// idiom, for its stated reason: a frozen description and a live one must reach
+// the same code "instead of two that can drift".
+//
+// Both produce a REQUIREMENTS RECORD. Everything in it is either read off a
+// declaration this file already owns (GEN_TANKS, GEN_SYSTEMS, GEN_MATERIALS)
+// or measured off the aeroplane. Nothing is invented, and a field nobody can
+// supply is left null so a `need` can refuse on it.
+// IT TAKES A RESOLVED SPEC, and that is not a preference. In GEN_DEFAULT
+// `cabin.h`, `cabin.len` and `fuselage.tailArm` are all NULL — null means
+// "derive it", and resolveSpec is what does. Handed a raw spec this would
+// fall back to plausible constants and place every fitting on an aeroplane
+// that does not exist, silently. It is the G48 lesson in a new place: any
+// assertion or measurement against the spec has to run POST-resolveSpec,
+// because the interesting values are derived and the raw ones are holes.
+//
+// So the fallbacks below are a LAST RESORT for a partial spec, and `derived`
+// records whether any of them fired. GATE ACCESS asserts it is false for a
+// resolved spec — a fallback that becomes the normal path is a measurement
+// that has quietly stopped measuring.
+function genAccessNeeds(S) {
+  const f = S.fuselage || {};
+  const c = S.cabin || {};
+  const g = S.gear || {};
+  let derived = 0;
+  const need = (v, d) => { if (v == null) { derived++; return d; } return v; };
+  const cabH = need(c.h, 1.15);
+  return {
+    tank:      (S.fuel && S.fuel.litres > 0) ? (S.fuel.tank || 'nose') : null,
+    fuelL:     (S.fuel && S.fuel.litres) || 0,
+    systems:   (S.systems && S.systems.fit) || 'basic',
+    material:  f.material || 'tubeFabric',
+    cargo:     (S.cargo && S.cargo.len) || 0,
+    engine:    !!((S.engines && S.engines.length) || S.engine),
+    cowl:      !!(S.cowl && S.cowl.on !== false),
+    // `wings` IS AN ARRAY (one entry per plane; a biplane has two), and
+    // reading it as a single object is how this row silently answered "no
+    // wing" for every aeroplane ever built.
+    wing:      !!(S.wings && S.wings.length),
+    // the geometry the placement rules need, in metres on the skin
+    tailArm:   need(f.tailArm, 4.0),
+    // the section at the tailpost, which decides whether two inspection rings
+    // fit side by side or one goes underneath
+    tailHalfW: need(f.tailW, 0.10),
+    // half the span, because a wing fitting's station is measured from the
+    // ROOT outward. `wings` is an array; the first plane is the one fittings
+    // go on (a biplane's lower wing is P7's problem).
+    semispan:  ((S.wings && S.wings[0] && S.wings[0].span) || 10) * 0.5,
+    cabinAft:  need(c.len, 1.6) + 0.45,
+    deckArc:   cabH * 0.50,
+    keelArc:   cabH * 0.42,
+    // THE SILL ABOVE THE GROUND LINE, and it is two real dimensions and
+    // nothing else: the leg hangs the axle `legDrop` below the bottom of the
+    // fuselage, and the wheel carries the axle `wheelR` off the ground. Their
+    // sum IS how far the floor is up. The first cut subtracted a fraction of
+    // the cabin height as well, which mixed the cabin's frame into the gear's,
+    // and it read `gear.drop` — a key that does not exist, so the fallback
+    // fired on every aeroplane and the whole term was a constant.
+    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20),
+    doorBoth:  true,
+    derived,
+  };
+}
+
+// The LIVE CAGE's own parameters. The editor never has a game spec in hand
+// during a build — the join is what makes one, and running the join on every
+// pixel of a slider drag is not a thing to do — so the cage reads its own
+// knobs. The keys are ones the panel already carries, which is the discipline
+// _cage_parts.js applies to its own `when(P)` discriminators.
+//
+// `extra` carries the handful of facts the CAGE HAS NO KNOB FOR — the tank,
+// the instrument fit, the covering — which live in the game spec and reach
+// the editor through GARAGE_SPEC. Defaulted rather than assumed absent,
+// because an aeroplane with no declared tank is a bench artefact, not a
+// design decision.
+function genAccessNeedsCage(P, extra) {
+  const E = extra || {};
+  const keel = Math.abs((P.waistY || 0) - (P.keelY == null ? -0.7 : P.keelY));
+  const deck = Math.abs((P.roofY == null ? 1.0 : P.roofY) - (P.waistY || 0));
+  const bays = Math.max(0, Math.round(+P.paxCount || 0));
+  let derived = 0;
+  return {
+    tank:      E.tank !== undefined ? E.tank : 'nose',
+    fuelL:     E.fuelL !== undefined ? E.fuelL : 50,
+    systems:   E.systems || 'basic',
+    material:  E.material || 'tubeFabric',
+    cargo:     E.cargo || 0,
+    engine:    !!(P.engOn == null ? 1 : +P.engOn),
+    cowl:      !!(P.cowlOn == null ? 1 : +P.cowlOn),
+    wing:      !!(P.wingOn == null ? 1 : +P.wingOn),
+    // MEASURED OFF THE CAGE, not guessed. The cabin's length, the bays and
+    // the boom's run are parameters the panel already has, so a short
+    // aeroplane gets its fittings closer together — which is the whole reason
+    // the rules are metric rather than fractions of anything.
+    tailArm:   (P.pilotLen || 1.6) + (P.paxLen || 0) * bays
+               + (+P.taperOn ? (P.taperLen || 0) : 0) + (P.boomLen || 2.2),
+    cabinAft:  (P.pilotLen || 1.6) + 0.45,
+    // a ROD boom is its own diameter; a lofted tail cone is its half-width
+    tailHalfW: (+P.boomStyle === 1) ? (P.rodD || 0.18) * 0.5
+                                    : (P.tailHalfW == null ? 0.10 : P.tailHalfW),
+    semispan:  (P.wgSpan || 10) * 0.5,
+    deckArc:   deck * 0.94,
+    keelArc:   keel * 0.94,
+    // MEASURED BY THE LAYER, which has both ends of it: the gear layer
+    // publishes the ground line it settled the aeroplane onto (CAGE_GEAR.gy)
+    // and the cage's own keel is on the mesh. Passed in rather than guessed
+    // here, and counted when it is not — a step that appears because nobody
+    // measured is the decoration this table exists to refuse.
+    sillH:     E.sillH != null ? E.sillH : (derived++, 0.62),
+    doorBoth:  !!(+P.doorOn) && !(+P.doorGone),
+    derived,
+  };
+}
+
+// every row THIS aeroplane needs, with its count and its site rule already
+// resolved — the list the layer draws and the verdict prints
+function genAccessList(R) {
+  const out = [];
+  for (const key in GEN_ACCESS) {
+    const row = GEN_ACCESS[key];
+    let n = 0;
+    try { n = Math.max(0, Math.round(row.need(R) || 0)); } catch (e) { n = 0; }
+    if (!n) continue;
+    let at = null;
+    try { at = row.at(R); } catch (e) { at = null; }
+    if (!at) continue;
+    out.push({
+      key, n, at,
+      name:   row.name,
+      serves: row.serves,
+      on:     row.on || 'body',
+      snap:   row.snap || 'free',
+      side:   typeof row.side === 'function' ? row.side(R) : (row.side || 'both'),
+      form:   typeof row.form === 'function' ? row.form(R) : row.form,
+      size:   row.size,
+    });
+  }
+  return out;
+}
+
 // Fuselage shape families. The aft body tapers from the cabin box to the
 // tailpost, and the FAMILY is the profile of that taper — an exponent on the
 // station fraction, applied to width, floor and deck alike. Straight is a

@@ -59,6 +59,11 @@ const THREE = {
   Scene: class { constructor(){ this.children=[]; } add(){} remove(){} },
   Color: class { constructor(){} setHex(){return this;} lerp(){return this;} get r(){return 0;} get g(){return 0;} get b(){return 0;} },
   Vector2: class { constructor(x = 0, y = 0) { this.x = x; this.y = y; } },
+  // G79: the editor's click-to-select throws a ray into the build. Here there
+  // is no build and no camera worth the name, so the ray hits nothing — which
+  // is the honest stub: it proves the wiring is constructed and reached, and
+  // claims nothing about what a ray would find.
+  Raycaster: class { setFromCamera() {} intersectObject() { return []; } },
   Fog: class {},
   PerspectiveCamera: class { constructor(){ this.position = vec(); } lookAt(){} updateProjectionMatrix(){} },
   Vector3: function(...a) { return vec(...a); },
@@ -122,8 +127,37 @@ const THREE = {
 const handlers = {};
 function el(id) {
   return {
-    id, style: {}, textContent: '', innerHTML: '', title: '', className: '',
-    classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
+    id,
+    // A REAL `style` (the third fold). It was `{}`, which is fine for
+    // `style.display = 'none'` and not for the custom properties the workshop
+    // lays itself out with — the panel reports its width and body carries it
+    // as `--ws-right`, and a stub with no setProperty cannot see that happen.
+    style: (() => {
+      const v = {};
+      return { setProperty: (k, x) => { v[k] = x; },
+               getPropertyValue: k => v[k] || '',
+               removeProperty: k => { delete v[k]; } };
+    })(),
+    textContent: '', innerHTML: '', title: '', className: '',
+    // A REAL classList (G86). It was three no-ops and a `false`, which was
+    // fine while nothing the gate cared about was expressed as a class — and
+    // then the WORKSHOP/FLIGHT mode became exactly that. A stub that always
+    // answers "no" cannot tell a mode switch from a mode that never happened.
+    classList: (() => {
+      const set = new Set();
+      return {
+        add: (...c) => c.forEach(x => set.add(x)),
+        remove: (...c) => c.forEach(x => set.delete(x)),
+        contains: c => set.has(c),
+        toggle: (c, on) => {
+          const want = on === undefined ? !set.has(c) : !!on;
+          if (want) set.add(c); else set.delete(c);
+          return want;
+        },
+        get length() { return set.size; },
+        toString: () => [...set].join(' '),
+      };
+    })(),
     addEventListener() {}, setPointerCapture() {}, appendChild() {},
     getContext: () => new Proxy({}, { get: () => () => {} }),
     width: 460, height: 180,
@@ -339,6 +373,21 @@ try {
     console.log('roll out reads the certificate, and is never locked');
   }
 
+  // ---- TWO INTERFACES (G86) ----
+  // The mode is the whole chantier, so the mode is what is asserted: the
+  // garage must be in WORKSHOP and rolling out must put it back in FLIGHT.
+  // Before G86 this was a dozen rules each hiding one thing, and the one
+  // nobody wrote was `#card` — which is why the old aircraft card was
+  // rendering underneath the new name chip.
+  {
+    const cls = sandbox.document.body.classList;
+    if (!cls.contains('mode-ws'))
+      throw new Error(`the garage is not in workshop mode (${cls})`);
+    if (cls.contains('mode-fly'))
+      throw new Error('the garage is in both modes at once');
+    console.log('mode: workshop in the garage');
+  }
+
   // ---- THE EDITOR PANEL (G77) ----
   // The bridge, and the one thing it is for: the panel says how wide it has
   // become and the game's HUD moves over. If the width call ever stops
@@ -349,8 +398,18 @@ try {
     if (!E) throw new Error('the editor panel bridge was never called');
     for (const k of ['panelWidth', 'isGen', 'inGarage'])
       if (typeof E[k] !== 'function') throw new Error(`editor bridge has no ${k}`);
-    E.panelWidth(436); E.panelWidth(640);
-    console.log('editor panel bridge wired');
+    // the width the panel reports has to arrive as the inset the render is
+    // laid out against — that chain is what keeps the aeroplane centred in
+    // what you can actually see (G77.1), and it is one call long
+    const b = sandbox.document.body;
+    E.panelWidth(92);
+    if (b.style.getPropertyValue('--ws-right') !== '92px')
+      throw new Error(`the panel's width did not reach the render's inset ` +
+        `(${b.style.getPropertyValue('--ws-right')})`);
+    E.panelWidth(640);
+    if (b.style.getPropertyValue('--ws-right') !== '640px')
+      throw new Error('the inset did not follow the panel back');
+    console.log('editor panel bridge wired; width reaches the inset');
   }
 
   // ...and ROLL OUT commits it: physics back on, autopilot flying the circuit
@@ -358,7 +417,41 @@ try {
   frames(240);
   if (els['phName'].textContent === 'GARAGE')
     throw new Error('roll out did not leave the garage');
-  console.log(`garage -> roll out -> ${els['phName'].textContent}`);
+  {
+    const cls = sandbox.document.body.classList;
+    if (!cls.contains('mode-fly') || cls.contains('mode-ws'))
+      throw new Error(`roll out did not switch the interface (${cls})`);
+  }
+  console.log(`garage -> roll out -> ${els['phName'].textContent}, mode: flight`);
+
+  // ---- THE SEAM (G86), asserted on the built artifact's own markup --------
+  // The two interfaces are two CONTAINERS, and the value of that is entirely
+  // in nothing straddling them. Checked here rather than in a gate of its own
+  // because this is where the UI is already exercised, and checked against the
+  // ARTIFACT rather than against src/ because the artifact is what ships.
+  {
+    const body = html.slice(html.indexOf('<canvas id="c">'));
+    const iUI = body.indexOf('<div id="ui">');
+    const iWS = body.indexOf('<section id="wsUI"');
+    if (iUI < 0 || iWS < 0) throw new Error('the two interface layers are not both there');
+    if (iWS < iUI) throw new Error('#wsUI is not after #ui — the seam is inside out');
+    const flight = ['card', 'rail', 'pfd', 'telp', 'mmp', 'uvp', 'bottom',
+                    'selAc', 'bGo', 'credit'];
+    const workshop = ['edWrap', 'edView', 'edInfo', 'edShed', 'edScrim',
+                      'edTree', 'edRows', 'edRail', 'plaque', 'edBench',
+                      'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish'];
+    for (const id of flight) {
+      const at = body.indexOf(`id="${id}"`);
+      if (at < 0) throw new Error(`flight chrome missing: ${id}`);
+      if (at > iWS) throw new Error(`${id} is FLIGHT chrome sitting inside the workshop layer`);
+    }
+    for (const id of workshop) {
+      const at = body.indexOf(`id="${id}"`);
+      if (at < 0) throw new Error(`workshop chrome missing: ${id}`);
+      if (at < iWS) throw new Error(`${id} is WORKSHOP chrome sitting outside its layer`);
+    }
+    console.log(`the seam holds: ${flight.length} flight ids, ${workshop.length} workshop ids`);
+  }
 
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);
   console.log(`ran app block: raf x${rafCount}, handlers wired: ${Object.keys(handlers).sort().join(' ')}`);

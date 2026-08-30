@@ -56,6 +56,32 @@ const MAT = {
   mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
 };
 
+// AEROSKIN (G70). The undercarriage was the most visible thing still wearing
+// G38's understudy grey — it is at eye height, it is what you walk past, and
+// a tyre that is not rubber is the single most obvious wrong material on the
+// aeroplane. `AERO_HARD.gear` says what each of the names above is MADE OF;
+// the colour stays the one on the row beside it.
+//
+// LAZY, AND IT HAS TO BE: in the game bundle `aeroskin.js` loads AFTER this
+// file (dev.html's order, and build.js copies it), so resolving at module
+// load would find no AEROSKIN and cache the Lambert answer forever. It is
+// resolved on first use and pooled by the factory, so this costs one map
+// lookup per bag.
+// NOT CACHED HERE, deliberately: the material view is a switch the player can
+// throw mid-session, and a cache in the layer would have to be invalidated by
+// something that knows about it. The factory already pools on the look, so
+// asking every time costs a string join and a Map hit.
+function gearMat(name) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  const m0 = MAT[name];
+  if (!A || !A.aeroHardMat) return m0;
+  // FrontSide, matching the Lambert it replaces: these are closed solids,
+  // and the one open shell (the spat) has always shown its inside as empty.
+  return A.aeroHardMat(THREE, 'gear', name,
+    m0 && m0.color ? m0.color.getHex() : 0x9aa1a9,
+    { side: THREE.FrontSide }) || m0;
+}
+
 // ---- THE AIRFRAME STUB ----------------------------------------------------
 // The bench's own body: an elliptical section swept along z with a
 // drooping keel. It exists ONLY to give the fitments a real surface to
@@ -1068,7 +1094,7 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
-window.GEAR_GEN = { MAT, stubAirframe, drawStub, objAirframe, drawBody,
+window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS,
                     wheel, spat, fitFrame,
                     fitPad, legBeam, legLink, legOleo, castorUnit,

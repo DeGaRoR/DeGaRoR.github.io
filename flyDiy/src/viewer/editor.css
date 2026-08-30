@@ -1,19 +1,16 @@
 /* ======================================================================
    THE EDITOR, REBASELINED (G77) — design option 9b "Bone".
-
    One rule, and every rule below follows from it: EVERY SURFACE HAS
    EXACTLY ONE JOB. The parts column selects and never edits. The
    properties column edits the selected part and nothing else. The view
-   (G78) shows. The sheet (G80) holds everything about the aeroplane as
-   an object.
-
+   shows. The INFORMATION panel on the left says what the aeroplane is.
+   All three fold, and folded to their spines the render has the screen.
    Scoped entirely under #edWrap. src/viewer/style.css keeps the GAME's
    own palette (amber on glass) for the flight HUD, and tools/_cage8.html
    keeps its own <style> for the standalone bench pages — three
    palettes, three places, none of them leaking into the others. The
    editor's palette replaces the bench blue that used to come in with
    _cage_ui.js and sit next to the game's amber on one screen.
-
    THREE GREYS, ONE ACCENT, TWO ALERT COLOURS. No other hue anywhere:
    saturated colour on this screen belongs to the aeroplane's own section
    tints, and a UI that also uses it stops being a background.
@@ -40,7 +37,6 @@
   /* the properties row grid, as three numbers so the collapsed panel can
      tighten all of it at once */
   --ed-lab:124px; --ed-val:64px; --ed-gap:14px;
-
   position:fixed; top:0; right:0; bottom:0; width:640px; z-index:40;
   display:flex; flex-direction:row;
   background:var(--ed-panel); color:var(--ed-ink);
@@ -57,26 +53,122 @@
   box-shadow:-18px 0 44px rgba(0,0,0,.55);
   transition:width .16s ease;
 }
+
 #edWrap[hidden] { display:none; }
+
 #edWrap * { box-sizing:border-box; }
-/* the parts column folded: 640 -> 436, and the row grid tightens with it */
-#edWrap.pcol-off { width:436px; --ed-lab:110px; --ed-val:62px; --ed-gap:12px; }
+
+/* THREE SURFACES, THREE FOLDS, and the right-hand one is two of them: its
+   width is the sum of whichever of the properties column and the parts
+   column are showing. Four widths cannot be four classes without the fourth
+   being wrong, so editor.js MEASURES it and publishes both the panel's width
+   and --ws-right from one place. What is declared here is the row grid,
+   which tightens when the properties column is the narrow one. */
+#edWrap.pcol-off { --ed-lab:110px; --ed-val:62px; --ed-gap:12px; }
+#edWrap.prop-off #edProps { display:none; }
+#edPropsTab { display:none; }
+#edWrap.prop-off #edPropsTab { display:flex; }
+/* the two spines are one thing wearing one look */
+#edPropsTab, #edPartsTab { width:46px; flex:none; flex-direction:column;
+  align-items:center; justify-content:flex-start; gap:12px; padding:16px 0;
+  background:var(--ed-board); border:0; border-left:1px solid var(--ed-hair);
+  color:var(--ed-faint); cursor:pointer; }
+#edPropsTab b, #edPartsTab b { writing-mode:vertical-rl;
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.22em;
+  text-transform:uppercase; }
+#edPropsTab:hover, #edPartsTab:hover { color:var(--ed-dim); }
+#edPropFold { margin-right:2px; padding:4px 8px; }
+
+/* ======================================================================
+   INFORMATION (left) — WHAT THIS AEROPLANE IS.
+   Answers "did it work?", and it is a PANEL and not a sheet because the
+   plaque is the feedback loop of the whole game: one you have to open
+   hides the consequence of the slider you just moved.
+   OBSERVE LEFT, CHANGE RIGHT. Same palette as the properties column and
+   the same grammar — this is the other half of one screen, not a second
+   design — but narrower, because reading a verdict needs less width than
+   editing thirty rows.
+   ====================================================================== */
+#edInfo {
+  --ed-panel:#201d1a; --ed-board:#1a1815;
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#8a8377;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-warn:#d8a07a; --ed-bad:#e08a5a;
+  position:fixed; left:0; top:0; bottom:0; width:280px; z-index:40;
+  display:flex; flex-direction:column;
+  background:var(--ed-panel); color:var(--ed-ink);
+  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size:12px; line-height:1.4; font-variant-numeric:tabular-nums;
+  /* mirrored: the one shadow, thrown the other way */
+  box-shadow:18px 0 44px rgba(0,0,0,.55);
+  transition:width .16s ease;
+}
+
+#edInfo * { box-sizing:border-box; }
+
+body.mode-ws.info-off #edInfo { display:none; }
+
+#edInfoTab { display:none; }
+
+body.mode-ws.info-off #edInfoTab { display:flex; }
+
+/* THE NAME, and nothing else at this size. It was a chip floating over the
+   render until this panel existed (G78); a name is information about the
+   aeroplane, so it belongs at the head of the information. */
+#edInfoHead { flex:none; padding:18px 20px 15px;
+  border-bottom:1px solid var(--ed-hair); }
+
+#edInfoHead b { display:block; font:600 15px/1.2 'IBM Plex Sans';
+  letter-spacing:.04em; color:var(--ed-ink); }
+
+#edSpec { display:block; margin-top:6px; font:400 10.5px/1.5 'IBM Plex Sans';
+  color:var(--ed-faint); }
+
+#edInfoBody { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 20px 18px;
+  min-height:0; }
+
+#edInfoFold { position:absolute; right:8px; top:16px; padding:4px 8px; }
+
+#edInfoTab { position:fixed; left:0; top:0; bottom:0; width:46px; z-index:40;
+  flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:12px; padding:16px 0; background:var(--ed-board, #1a1815); border:0;
+  border-right:1px solid rgba(255,248,236,.09); color:#8a8377;
+  cursor:pointer; font-family:'IBM Plex Sans', sans-serif; }
+
+#edInfoTab b { writing-mode:vertical-rl; font:600 10px/1 'IBM Plex Sans';
+  letter-spacing:.22em; text-transform:uppercase; }
+
+/* the fleet: which aeroplane, and everything you do to it as an object */
+#edFleet #shAc { margin:2px 0 8px; }
+
+#edFleet #shAc select { width:100%; }
+
+#edFleet #edShelf { flex-wrap:wrap; }
 
 /* ---- the two columns ------------------------------------------------ */
 #edProps { flex:1; min-width:0; display:flex; flex-direction:column; }
+
 #edParts { width:250px; flex:none; display:flex; flex-direction:column;
   background:var(--ed-board); border-left:1px solid var(--ed-hair); }
+
 #edWrap.pcol-off #edParts { display:none; }
+
 #edPartsTab { display:none; }
+
 #edWrap.pcol-off #edPartsTab { display:flex; }
 
 /* ---- the parts column: it SELECTS, it never edits -------------------- */
 #edPartsHead { display:flex; align-items:center; gap:8px;
   padding:17px 14px 14px; border-bottom:1px solid var(--ed-hair); }
+
 #edPartsHead b { margin-left:auto; font:600 10px/1 'IBM Plex Sans';
   letter-spacing:.22em; text-transform:uppercase; color:var(--ed-faint); }
+
 #edTree { flex:1; overflow-y:auto; overflow-x:hidden; padding:8px 0;
   min-height:0; }
+
 #edTreeFoot { padding:11px 14px; border-top:1px solid var(--ed-hair);
   font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint); }
 
@@ -86,51 +178,129 @@
   padding:6px 12px 6px 14px; cursor:pointer;
   border-left:2px solid transparent; border-bottom:1px solid transparent;
   transition:background .12s ease, color .12s ease; }
+
 .edN:hover { background:rgba(255,255,255,.03); }
+
+/* pointed at IN THE VIEW (G79): the same lift the pointer gives a row, given
+   from the other end, so the tree answers "what did I just point at" */
+.edN.hov { background:rgba(255,255,255,.05); }
+
+.edN.hov > span { color:var(--ed-ink); }
+
 .edN.on { background:var(--ed-acc-soft); border-left-color:var(--ed-acc); }
+
 .edN > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 .edN > i { margin-left:auto; flex:none; font-style:normal;
   font:500 9px/1 'IBM Plex Sans'; color:var(--ed-acc); }
+
 .edN > i.warn { color:var(--ed-warn); }
+
 /* THE THREE LEVELS. Assemblies read as headings, parts as rows, the
    section leaves quieter still — and SEPARATORS ONLY UNDER THE LEAVES.
    Assemblies and parts have no rule under them: that is deliberate, and
    was specifically asked for. */
 .edN.lv0 > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
+
 .edN.lv1 > span { font:500 11.5px/1.35 'IBM Plex Sans'; letter-spacing:.01em;
   color:var(--ed-dim); }
+
 .edN.lv2 > span { font:400 11px/1.35 'IBM Plex Sans'; letter-spacing:.01em;
   color:var(--ed-faint); }
-.edN.lv2 { border-bottom-color:var(--ed-hair); }
-.edN.on > span { color:var(--ed-ink); }
-.edN.lv1 { padding-left:27px; }
-.edN.lv2 { padding-left:40px; }
 
-/* the collapsed tab: a 46 px spine, and the only thing on it is the word */
-#edPartsTab { width:46px; flex:none; flex-direction:column; align-items:center;
-  justify-content:flex-start; gap:12px; padding:16px 0;
-  background:var(--ed-board); border:0; border-left:1px solid var(--ed-hair);
-  color:var(--ed-faint); cursor:pointer; }
-#edPartsTab b { writing-mode:vertical-rl; font:600 10px/1 'IBM Plex Sans';
-  letter-spacing:.22em; text-transform:uppercase; }
+.edN.lv2 { border-bottom-color:var(--ed-hair); }
+
+.edN.on > span { color:var(--ed-ink); }
+
+.edN.lv1 { padding-left:16px; }
+
+.edN.lv2 { padding-left:29px; }
+
+/* THE SCENE'S OBJECTS, at the top level: the build, the reference standing
+   beside it, and the shed and the world when they arrive. They are PEERS —
+   one name style, one weight, one size — and they read as THINGS rather than
+   as headings, because an assembly heading is a label and these are
+   selectable. A rule under each separates it from the branch it owns.
+   (They already shared a class; what made them look different was one of
+   them being written in capitals.) */
+.edN.root { border-bottom-color:var(--ed-hair); margin-bottom:6px;
+  padding-top:8px; padding-bottom:8px; }
+
+.edN.root > span { font:500 12px/1.35 'IBM Plex Sans'; letter-spacing:.02em;
+  text-transform:none; color:var(--ed-dim); }
+
+.edN.root.on > span { color:var(--ed-ink); }
+
+/* THE DISCLOSURE. A fixed 11 px gutter on every row that could have one, so
+   folding a branch never shifts the labels beside it — the same reservation
+   the 2 px selection mark makes. */
+.edN > u.fold { flex:none; width:11px; text-decoration:none; font-style:normal;
+  font-size:8px; line-height:1; color:var(--ed-faint); cursor:pointer;
+  text-align:center; }
+
+.edN > u.fold.none { cursor:inherit; }
+
+.edN > u.fold:not(.none):hover { color:var(--ed-acc); }
+
+#edFoldAll { padding:5px 8px; }
+
 
 /* ---- the properties column: it EDITS the selection ------------------- */
 #edPropHead { display:flex; align-items:baseline; gap:9px;
   padding:17px 20px 14px; border-bottom:1px solid var(--ed-hair); flex:none; }
+
 #edCrumb { font:400 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
   text-transform:uppercase; color:var(--ed-faint); }
+
 #edPartName { font:600 15px/1 'IBM Plex Sans'; letter-spacing:.04em;
   color:var(--ed-ink); }
+
 #edChanged { margin-left:auto; font:500 10px/1 'IBM Plex Sans';
   letter-spacing:.08em; text-transform:uppercase; color:var(--ed-acc); }
+
+/* ---- SHAPE / FINISH: two views of one tree (G103) --------------------
+   A segmented control, not two buttons and not two panels. It sits on its
+   own line under the part's name because it is subordinate to it: the tree
+   picked the noun, this picks the adjective. `flex-basis:100%` is what wraps
+   it, so the head stays one flex row and gains no nesting. */
+#edPropHead { flex-wrap:wrap; }
+
+#edViewTabs { flex-basis:100%; display:flex; gap:2px; margin-top:12px;
+  padding:2px; border-radius:5px; background:var(--ed-track); }
+
+.edTab { flex:1; padding:6px 0; border:0; border-radius:3px;
+  background:transparent; color:var(--ed-faint); cursor:pointer;
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.16em;
+  text-transform:uppercase; transition:color .12s ease, background .12s ease; }
+
+.edTab:hover { color:var(--ed-dim); }
+
+.edTab.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+
+/* the reference plane and the shed are not painted, so they get no tabs —
+   and the FINISH view has no per-part reset and no expert rows to show */
+#edWrap.noview #edViewTabs,
+#edWrap.fin #edResetPart, #edWrap.fin #edExpert { display:none; }
+
+/* ...and the two accordion groups the FINISH view took over are gone from the
+   overflow. `materials & extras` is the honest home for a row NOTHING has
+   claimed; these are claimed now, one tab away, and a second copy of the
+   colour wells is exactly the duplication this screen is replacing. */
+#edWrap #cgUi > details[data-g="materials"],
+#edWrap #cgUi > details[data-g="decals"] { display:none; }
+
 #edRows { flex:1; overflow-y:auto; overflow-x:hidden; padding:2px 20px 14px;
   min-height:0; }
+
 #edPropFoot { display:flex; align-items:center; gap:10px; flex:none;
   padding:13px 20px; border-top:1px solid var(--ed-hair); }
+
 #edPartMeta { font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 #edPropFoot .pill { margin-left:auto; }
+
 #edPropFoot .pill + .pill { margin-left:0; }
 
 /* THE GROUP HEADING: label, then a hairline filling the row, then the
@@ -138,11 +308,15 @@
    type size — the previous panel used a disclosure triangle and nesting,
    and one level of that is exactly what the part tree replaced. */
 .edH { display:flex; align-items:center; gap:10px; margin:20px 0 8px; }
+
 .edH > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
+
 .edH > i { flex:1; height:1px; background:var(--ed-hair); }
+
 .edH > em { flex:none; font-style:normal; font:400 10px/1 'IBM Plex Sans';
   color:var(--ed-faint); }
+
 .edH.hide, .edG.hide { display:none; }
 
 /* ---- the rows themselves --------------------------------------------
@@ -153,11 +327,14 @@
    changes, and it changes HERE. */
 #edRows .r { display:flex; align-items:center; gap:var(--ed-gap);
   height:34px; margin:0; min-width:0; }
+
 #edRows .r > span.k { width:var(--ed-lab); flex:none;
   font:400 12px/1.3 'IBM Plex Sans'; letter-spacing:0; color:var(--ed-dim);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 #edRows .r > .v { width:var(--ed-val); flex:none; text-align:right;
   font:500 12px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
 /* THE ONE PLACE THIS SHEET HAS TO SHOUT. _cage_ui.js writes the value field's
    colour and the stepper's whole box as INLINE styles — it has to, because the
    standalone bench pages have no stylesheet that would dress them otherwise —
@@ -168,15 +345,19 @@
   background:none !important; border:0 !important; padding:0 !important;
   color:var(--ed-ink) !important;
   font:500 12px/1 'IBM Plex Sans' !important; text-align:right; }
+
 /* the ≈ metres readout beside a length: a derived fact, not a value */
 #edWrap .r > span:not(.k):not(.v):not(.lt) { color:var(--ed-faint) !important;
   font:400 10px/1 'IBM Plex Sans' !important; }
+
 #edRows .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
   outline-offset:2px; }
+
 /* THE CHANGED DOT (P8 §6). It sits in the row's own left gutter rather than
    before the label, so a column of them reads as a column and the labels
    stay aligned whether or not anything has moved. */
 #edRows .r { position:relative; }
+
 #edRows .r.chg > span.k::before { content:'●'; position:absolute; left:-11px;
   top:50%; transform:translateY(-50%); font-size:7px; color:var(--ed-acc); }
 
@@ -184,15 +365,20 @@
 #edRows .r input[type=range] { flex:1; min-width:30px; height:18px;
   -webkit-appearance:none; appearance:none; background:transparent;
   cursor:pointer; }
+
 #edRows .r input[type=range]::-webkit-slider-runnable-track { height:3px;
   border-radius:2px; background:var(--ed-track); }
+
 #edRows .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
   appearance:none; width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
+
 #edRows .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
+
 #edRows .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
   border:none; border-radius:50%; background:var(--ed-acc); }
+
 #edRows .r input[type=range]::-moz-range-progress { height:3px;
   border-radius:2px; background:rgba(230,219,201,.55); }
 
@@ -202,12 +388,16 @@
   flex:none; width:30px; height:16px; margin:0; border-radius:9px;
   background:var(--ed-off); border:1px solid var(--ed-off-bd);
   position:relative; cursor:pointer; transition:background .12s ease; }
+
 #edRows .r input[type=checkbox]::after { content:''; position:absolute;
   top:2px; left:2px; width:10px; height:10px; border-radius:50%;
   background:var(--ed-panel); transition:left .12s ease; }
+
 #edRows .r input[type=checkbox]:checked { background:var(--ed-acc);
   border-color:var(--ed-acc); }
+
 #edRows .r input[type=checkbox]:checked::after { left:16px; }
+
 #edRows .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
   text-align:left; }
 
@@ -215,11 +405,53 @@
   font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
   border-radius:7px; }
+
 #edRows .r select option { background:var(--ed-panel); color:var(--ed-ink); }
+
+/* ---- the finish view's own controls ----------------------------------
+   The colour well is a native input because a colour well is one of the two
+   things the platform does better than we would; it is given the panel's
+   own frame so it reads as part of the row and not as an escapee. */
+#edRows .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
+  border:1px solid var(--ed-border); border-radius:4px; background:none;
+  cursor:pointer; }
+
+#edRows .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
+
+#edRows .r input[type=color]::-webkit-color-swatch { border:0;
+  border-radius:2px; }
+
+#edRows .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
+  'IBM Plex Sans'; color:var(--ed-dim); }
+
+#edRows .r input[type=file]::-webkit-file-upload-button {
+  margin-right:8px; padding:4px 9px; border:1px solid var(--ed-border);
+  border-radius:4px; background:var(--ed-plate); color:var(--ed-dim);
+  cursor:pointer; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.1em;
+  text-transform:uppercase; }
+
+/* THE THREE DIALS BELONG TO THE SECTION ABOVE THEM. An indent and a lighter
+   label is the whole grammar — they multiply the finish's own numbers, so
+   they are a detail of the row above and never a row of their own. */
+#edRows .r.dial > .k { padding-left:12px; color:var(--ed-faint);
+  font-size:10px; }
+
+#edRows .r.dial { min-height:26px; }
+
+#edRows .r.dial + .r:not(.dial) { margin-top:10px; }
+
+/* the empty case: a part whose finish is somewhere else, and the way there */
+#edRows > .refNote { margin:22px 0 0; padding:14px 15px;
+  border:1px solid var(--ed-hair); border-radius:6px;
+  font:400 12px/1.65 'IBM Plex Sans'; color:var(--ed-faint); }
+
+#edRows > .refNote .pill { display:block; margin-top:11px; }
+
 #edRows .r button { flex:none; padding:5px 9px;
   font:500 10px/1 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-dim); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:7px; cursor:pointer; }
+
 #edRows .r button:hover { border-color:rgba(255,255,255,.3); }
 
 /* ---- pills, the one button shape ------------------------------------ */
@@ -227,9 +459,12 @@
   text-transform:uppercase; color:var(--ed-dim); background:transparent;
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
   cursor:pointer; transition:border-color .12s ease, color .12s ease; }
+
 #edWrap .pill:hover { border-color:rgba(255,255,255,.3); }
+
 #edWrap .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
   border-color:var(--ed-acc); }
+
 #edWrap button:focus-visible, #edWrap select:focus-visible,
 #edWrap input:focus-visible, .edN:focus-visible {
   outline:2px solid var(--ed-acc); outline-offset:2px; }
@@ -243,161 +478,224 @@
    live here, below the aeroplane, visibly not part of it. */
 #edOpts { flex:none; max-height:34%; overflow-y:auto; overflow-x:hidden;
   border-top:1px solid var(--ed-hair); background:rgba(0,0,0,.14); }
+
 #edOptsHead { display:flex; align-items:center; gap:10px; cursor:pointer;
   padding:11px 20px; }
+
 #edOptsHead > span::before { content:'▾'; display:inline-block; width:10px;
   margin-right:5px; font-size:8px; }
+
 #edWrap.opts-off #edOptsHead > span::before { content:'▸'; }
+
 #edOptsHead > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
+
 #edOptsHead > i { flex:1; height:1px; background:var(--ed-hair); }
+
 #edOptsHead > em { flex:none; font-style:normal; font:400 10px/1;
   color:var(--ed-faint); }
+
 #edWrap.opts-off #edOpts { max-height:none; }
+
 #edWrap.opts-off #cgUi { display:none; }
+
+#edWrap.opts-empty #edOpts { display:none; }
+
 #edWrap #cgUi { padding:0 20px 14px; }
+
 #edWrap #cgUi .r { display:flex; gap:8px; align-items:center; margin:6px 0;
   min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; }
+
 #edWrap #cgUi .r > span.k { width:104px; flex:none; color:var(--ed-dim);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 #edWrap #cgUi .r > .v { width:52px; flex:none; text-align:right;
   color:var(--ed-ink); font:500 11.5px/1; }
+
 #edWrap #cgUi input[type=range] { flex:1; min-width:30px;
   accent-color:var(--ed-acc); }
+
 #edWrap #cgUi select, #edWrap #cgUi button, #edWrap #cgUi input[type=text] {
   font:400 11px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
   border-radius:6px; padding:4px 7px; }
+
 #edWrap #cgUi select { flex:1; min-width:60px; }
+
 #edWrap #cgUi select option { background:var(--ed-panel); }
+
 #edWrap #cgUi details { margin:8px 0; border:1px solid var(--ed-hair);
   border-radius:7px; padding:2px 9px; }
+
 #edWrap #cgUi details details { border-color:rgba(255,248,236,.05); }
+
 #edWrap #cgUi summary { cursor:pointer; color:var(--ed-faint);
   font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.16em;
   text-transform:uppercase; padding:7px 0; list-style:none; }
+
 #edWrap #cgUi summary::-webkit-details-marker { display:none; }
+
 #edWrap #cgUi details[open] > summary { color:var(--ed-dim); }
+
 #edWrap #cgUi .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1;
   min-width:0; }
+
 #edWrap #cgUi .lt button.tg { padding:2px 6px; font-size:10px; flex:none;
   color:var(--ed-acc); border-color:var(--ed-border); }
+
 #edWrap #cgUi .lt button.tg.off { color:var(--ed-faint); opacity:.55;
   text-decoration:line-through; }
+
 #edWrap #cgUi h2 { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.16em;
   text-transform:uppercase; color:var(--ed-faint); margin:14px 0 5px; }
+
 #edWrap #cgUi .leg { display:flex; gap:6px; align-items:center; margin:3px 0; }
+
 #edWrap #cgUi .sw { width:12px; height:12px; border-radius:3px; flex:none; }
 
 /* the measurement pane and the mesh-count line: facts about the build, at
    the foot where a fact belongs. #dims is created by _cage_ui.js and moved
    here; #edStat is the vertex/quad count. */
 #edMeasure { flex:none; padding:0 20px; }
+
 #edWrap #dims { position:static !important; margin:10px 0 0; padding:0;
   background:none !important; border:0 !important;
   font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
+
 #edStat { flex:none; padding:8px 20px 10px; border-top:1px solid var(--ed-hair);
   font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint); }
 
-/* ---- STILL HERE, AND NOT FOR LONG (G77) -----------------------------
-   The shelf (one store, one format — G63), the design/bench tabs and the
-   view bar. G80 folds the first into the sheet behind the aeroplane's
-   name; G78 folds the last into the view's icon rail. Removing them now
-   would take saving and the bench off the screen for two chantiers, so
-   they are re-homed to the head of this column and dressed to match. */
-#edLegacy { flex:none; border-bottom:1px solid var(--ed-hair);
-  padding:10px 20px 12px; display:flex; flex-direction:column; gap:7px; }
-#edWrap #edShelf { display:flex; gap:5px; align-items:center; padding:0;
-  border:0; }
-#edWrap #edShelf select { flex:1 1 auto; min-width:0; padding:5px 8px;
-  font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
-  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+/* ---- THE STORE, IN THE SHEET (G78) ----------------------------------
+   The shelf and the design/bench tabs left the head of the properties
+   column and went behind the aeroplane's NAME, which is where everything
+   about it as an OBJECT lives. G80 puts the plaque, the bench summary,
+   the logbook and the fleet rack around them; this is what they look
+   like in the meantime.
+   #edBar is a NURSERY now, never shown: `subsurf`, `cage`, `wireframe`
+   and `sections` are elements _cage_ui.js adopts out of it at boot and
+   the icon rail's flyouts then take, and `reset` / `export OBJ` have no
+   place in the design's screen — resetting a whole design belongs with
+   saving (G80), and an OBJ dump is a bench tool. */
+#edWrap #edBar { display:none; }
+
+#edFleet #edShelf { display:flex; gap:6px; align-items:center;
+  flex-wrap:wrap; }
+
+#edFleet #edShelf select { flex:1 1 240px; min-width:0; padding:7px 10px;
+  font:400 12px/1.2 'IBM Plex Sans'; color:#f4efe6;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
   border-radius:7px; }
-#edWrap #edShelf select option { background:var(--ed-panel); }
-#edWrap #edShelf button { flex:0 0 auto; font:500 9.5px/1 'IBM Plex Sans';
-  letter-spacing:.06em; text-transform:uppercase; color:var(--ed-dim);
-  background:transparent; border:1px solid var(--ed-btn-bd);
-  border-radius:6px; padding:6px 7px; cursor:pointer; }
-#edWrap #edShelf button:hover { border-color:rgba(255,255,255,.3); }
-#edWrap #edShelf button:disabled, #edWrap #edShelf select:disabled {
+
+#edFleet #edShelf select option { background:#201d1a; color:#f4efe6; }
+
+#edFleet #edShelf button {
+  flex:0 0 auto; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:#c0b8ac; background:transparent;
+  border:1px solid rgba(255,255,255,.18); border-radius:7px;
+  padding:7px 11px; cursor:pointer; }
+
+#edFleet #edShelf button:hover {
+  border-color:rgba(255,255,255,.3); }
+
+#edFleet #edShelf button:disabled, #edFleet #edShelf select:disabled {
   opacity:.4; cursor:default; }
-#edWrap #edTabs { display:flex; gap:6px; }
-#edWrap #edTabs button { flex:1; font:500 10px/1 'IBM Plex Sans';
-  letter-spacing:.08em; text-transform:uppercase; color:var(--ed-dim);
-  background:transparent; border:1px solid var(--ed-btn-bd);
-  border-radius:7px; padding:7px 0; cursor:pointer; }
-#edWrap #edTabs button.on { color:var(--ed-acc-ink); background:var(--ed-acc);
-  border-color:var(--ed-acc); }
-#edWrap #edBar { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-  font:400 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-faint); }
-#edWrap #edBar label { display:inline-flex; gap:5px; align-items:center; }
-#edWrap #edBar button, #edWrap #edBar select { font:500 9.5px/1 'IBM Plex Sans';
-  letter-spacing:.06em; text-transform:uppercase; color:var(--ed-dim);
-  background:transparent; border:1px solid var(--ed-btn-bd);
-  border-radius:6px; padding:5px 8px; cursor:pointer; }
 
 /* ---- THE BENCH pane (G64), until the sheet takes it (G80) ------------ */
-#edWrap #edBench { flex:1; overflow-y:auto; overflow-x:hidden;
-  padding:10px 20px; min-height:0; }
-#edWrap #edBench[hidden] { display:none; }
-#edWrap .bHead { display:flex; gap:8px; align-items:center;
+
+/* ---- THE BENCH (G64), a SECTION of the information now --------------
+   Not a pane competing with the sliders for a column: it scrolls with
+   the plaque above it, because the two are one answer to one question. */
+#edInfo #edBench { padding:0; margin-top:6px; }
+
+#edInfo .bHead { display:flex; gap:8px; align-items:center;
   font:600 10px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase;
   color:var(--ed-faint); margin:4px 0 12px; }
-#edWrap .bHead b { margin-left:auto; font-weight:500; letter-spacing:.06em; }
-#edWrap .bHead b.ok { color:var(--ed-acc); }
-#edWrap .bHead b.bad { color:var(--ed-bad); }
-#edWrap .bHead b.dim { color:var(--ed-faint); }
-#edWrap .bHead button { flex:none; font:500 9.5px/1 'IBM Plex Sans';
+
+#edInfo .bHead b { margin-left:auto; font-weight:500; letter-spacing:.06em; }
+
+#edInfo .bHead b.ok { color:var(--ed-acc); }
+
+#edInfo .bHead b.bad { color:var(--ed-bad); }
+
+#edInfo .bHead b.dim { color:var(--ed-faint); }
+
+#edInfo .bHead button { flex:none; font:500 9.5px/1 'IBM Plex Sans';
   letter-spacing:.06em; text-transform:uppercase; color:var(--ed-dim);
   background:transparent; border:1px solid var(--ed-btn-bd);
   border-radius:7px; padding:6px 9px; cursor:pointer; }
-#edWrap .bT { border:1px solid var(--ed-hair); border-radius:8px;
+
+#edInfo .bT { border:1px solid var(--ed-hair); border-radius:8px;
   padding:9px 11px; margin:0 0 8px; }
-#edWrap .bT.dim { opacity:.5; }
-#edWrap .bT1 { display:flex; gap:8px; align-items:baseline; }
-#edWrap .bT1 .bN { color:var(--ed-ink); flex:none;
+
+#edInfo .bT.dim { opacity:.5; }
+
+#edInfo .bT1 { display:flex; gap:8px; align-items:baseline; }
+
+#edInfo .bT1 .bN { color:var(--ed-ink); flex:none;
   font:500 12px/1 'IBM Plex Sans'; }
-#edWrap .bT1 button { flex:none; font:500 9.5px/1 'IBM Plex Sans';
+
+#edInfo .bT1 button { flex:none; font:500 9.5px/1 'IBM Plex Sans';
   letter-spacing:.06em; text-transform:uppercase; color:var(--ed-dim);
   background:transparent; border:1px solid var(--ed-btn-bd);
   border-radius:6px; padding:4px 8px; cursor:pointer; }
-#edWrap .bT1 b { margin-left:auto; text-align:right; font-weight:500;
+
+#edInfo .bT1 b { margin-left:auto; text-align:right; font-weight:500;
   font:500 11px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
-#edWrap .bT.ok .bT1 b { color:var(--ed-acc); }
-#edWrap .bT.bad .bT1 b { color:var(--ed-bad); }
-#edWrap .bT.run .bT1 b { color:var(--ed-warn); }
-#edWrap .bB { color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans';
+
+#edInfo .bT.ok .bT1 b { color:var(--ed-acc); }
+
+#edInfo .bT.bad .bT1 b { color:var(--ed-bad); }
+
+#edInfo .bT.run .bT1 b { color:var(--ed-warn); }
+
+#edInfo .bB { color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans';
   margin-top:4px; }
-#edWrap .bW { color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans';
+
+#edInfo .bW { color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans';
   margin-top:6px; padding-top:6px; border-top:1px solid var(--ed-hair); }
 
 /* ---- THE PLAQUE, in the 9b palette (G80 moves it into the sheet) ----- */
-#edWrap #plaque { display:none; }
-#edWrap #plaque.on { display:block; }
-#edWrap #plaque header { display:flex; gap:9px; align-items:baseline;
+#edInfo #plaque { display:none; }
+
+#edInfo #plaque.on { display:block; }
+
+#edInfo #plaque header { display:flex; gap:9px; align-items:baseline;
   margin:18px 0 8px; }
-#edWrap #plaque h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+
+#edInfo #plaque h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); margin:0; }
-#edWrap #plaque header span { font:400 10px/1 'IBM Plex Sans';
+
+#edInfo #plaque header span { font:400 10px/1 'IBM Plex Sans';
   color:var(--ed-faint); }
-#edWrap #pqVerdict { margin:8px 0 10px; padding:8px 10px; border-radius:7px;
+
+#edInfo #pqVerdict { margin:8px 0 10px; padding:8px 10px; border-radius:7px;
   font:500 11.5px/1.3 'IBM Plex Sans'; letter-spacing:.02em;
   border:1px solid var(--ed-border); color:var(--ed-ink); }
-#edWrap #pqVerdict.ok { color:var(--ed-acc); border-color:var(--ed-acc); }
-#edWrap #pqVerdict.bad { color:var(--ed-bad); border-color:var(--ed-bad); }
-#edWrap #pqRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
-#edWrap #pqRows .r { display:flex; justify-content:space-between;
+
+#edInfo #pqVerdict.ok { color:var(--ed-acc); border-color:var(--ed-acc); }
+
+#edInfo #pqVerdict.bad { color:var(--ed-bad); border-color:var(--ed-bad); }
+
+#edInfo #pqRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
+
+#edInfo #pqRows .r { display:flex; justify-content:space-between;
   align-items:baseline; padding:5px 0; border-bottom:1px solid var(--ed-hair); }
-#edWrap #pqRows .r span { font:400 11.5px/1 'IBM Plex Sans';
+
+#edInfo #pqRows .r span { font:400 11.5px/1 'IBM Plex Sans';
   color:var(--ed-dim); text-transform:none; letter-spacing:0; }
-#edWrap #pqRows .r b { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
+#edInfo #pqRows .r b { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
 /* no green "ok" colour anywhere: ok is simply the ink */
-#edWrap #pqRows .r.warn b { color:var(--ed-warn); }
-#edWrap #pqRows .r.bad b { color:var(--ed-bad); }
-#edWrap #pqRows .h { grid-column:1 / -1; font:600 10px/1 'IBM Plex Sans';
+#edInfo #pqRows .r.warn b { color:var(--ed-warn); }
+
+#edInfo #pqRows .r.bad b { color:var(--ed-bad); }
+
+#edInfo #pqRows .h { grid-column:1 / -1; font:600 10px/1 'IBM Plex Sans';
   letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint);
   margin:16px 0 4px; }
-#edWrap #pqNote { margin-top:10px; font:400 10.5px/1.6 'IBM Plex Sans';
+
+#edInfo #pqNote { margin-top:10px; font:400 10.5px/1.6 'IBM Plex Sans';
   color:var(--ed-faint); }
 
 /* ---- THE VIEW IS THE FREE ESTATE ------------------------------------
@@ -407,28 +705,327 @@
    the CANVAS, the orbit centre follows the available space with nothing in
    app.js having to know the panel exists. The transition matches the
    panel's fold, and a ResizeObserver keeps the drawing buffer with it.
-
    The HUD is over the render, so it is inset by the same amount. And the
    minimap, the UV pane and the telemetry are about FLYING: they have no
    business on screen while you are building, which is the design's
    "removed from the always-on UI". (The bottom bar itself stays until G78
    gives the view its two verbs — hiding it before its replacement exists
    would leave no way out of the garage.) */
+
 /* the floor is insurance for a window narrower than the panel: the render
    would otherwise be zero pixels wide, and a zero-width drawing buffer is a
    black screen with no way to tell why */
-body.ed-open #c { width:max(240px, calc(100% - 640px));
-  transition:width .16s ease; }
-body.ed-open.ed-narrow #c { width:max(240px, calc(100% - 436px)); }
-body.ed-open #ui { right:640px; transition:right .16s ease; }
-body.ed-open.ed-narrow #ui { right:436px; }
-body.ed-open #mid, body.ed-open #telp { display:none; }
-body.ed-open #credit, body.ed-open #hint { display:none; }
+
+/* ---- THE INSETS, IN ONE PLACE ---------------------------------------
+   How much estate the render has is now decided by TWO panels that can
+   each fold, and the canvas, the floating chrome and the scrim all have
+   to agree about it to the pixel. Two custom properties on <body> are
+   that agreement; before this the same arithmetic was written out four
+   times and the third one was already wrong. */
+body.mode-ws { --ws-left:280px; --ws-right:640px; }
+
+
+body.mode-ws.info-off  { --ws-left:46px; }
+
+body.mode-ws #c { margin-left:var(--ws-left);
+  width:max(240px, calc(100% - var(--ws-left) - var(--ws-right)));
+  transition:width .16s ease, margin-left .16s ease; }
+
+/* ---- ONE SWITCH, TWO INTERFACES (G86) --------------------------------
+   The flight layer is not TRIMMED in the workshop, it is ABSENT — and
+   the workshop layer is absent in flight. Every complaint about "too
+   much on screen" in the garage was one of these: the aircraft card
+   under the name chip, the phase rail, the PFD, the telemetry. None of
+   them was ever anybody's to hide, so nobody hid them.
+   #ui is not `display:none` but `visibility:hidden` + `pointer-events`
+   off: the minimap and the telemetry canvases are drawn into every
+   frame by the loop, and a display:none canvas has no client box, so
+   the map would come back a different size than it went away. */
+body.mode-ws #ui { visibility:hidden; pointer-events:none; }
+
+body.mode-fly #wsUI { display:none; }
+
+#wsUI[hidden] { display:none; }
+
 @media (prefers-reduced-motion:reduce) {
-  body.ed-open #c, body.ed-open #ui { transition:none; }
+  body.mode-ws #c { transition:none; }
 }
+
+/* ======================================================================
+   THE VIEW LAYER (G78) — floating chrome over the render.
+   It is inset by the panel's own width, exactly as the canvas is, so
+   nothing on it can land under the panel. Everything here is about HOW
+   YOU LOOK at the build, or what you do with it WHOLE; nothing here
+   edits a parameter.
+   ====================================================================== */
+#edView { position:fixed; left:var(--ws-left, 0px); top:0; bottom:0;
+  right:var(--ws-right, 0px); z-index:42;
+  pointer-events:none;
+  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric:tabular-nums;
+  transition:right .16s ease;
+  --ed-plate:rgba(32,29,26,.94); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
+  --ed-faint:#8a8377; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-panel:#201d1a; --ed-board:#1a1815; --ed-warn:#d8a07a; }
+
+#edView[hidden] { display:none; }
+
+#edView > * { pointer-events:auto; }
+
+@media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
+
+/* THE RAIL. Five questions about looking, one glyph and one word each. */
+#edRail { position:absolute; left:22px; top:100px; display:flex;
+  flex-direction:column; gap:6px; padding:6px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px; }
+
+.edRailBtn { display:flex; flex-direction:column; align-items:center; gap:3px;
+  width:50px; padding:8px 0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+
+.edRailBtn:hover { background:rgba(255,255,255,.06); }
+
+.edRailBtn.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+
+.edRailBtn svg { width:15px; height:15px; fill:none; stroke:currentColor;
+  stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+
+.edRailBtn span { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
+  text-transform:uppercase; }
+
+/* the flyout: the rail's own answer, beside it, never over the panel */
+#edFly { position:absolute; left:84px; top:100px; width:296px;
+  max-height:calc(100% - 200px); overflow-y:auto;
+  padding:12px 14px 14px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px; }
+
+#edFly[hidden] { display:none; }
+
+#edFlyHead { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:9px; margin-bottom:4px;
+  border-bottom:1px solid var(--ed-hair); }
+
+#edFlyBody .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+
+#edFlyBody .r > span.k { width:104px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+
+#edFlyBody .r > .v { width:48px; flex:none; text-align:right; }
+
+#edFlyBody input[type=range] { flex:1; min-width:30px; }
+
+#edFlyBody select { flex:1; min-width:0; }
+
+#edFlyBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
+
+#edFlyBody #dims { position:static !important; margin:4px 0 0;
+  padding:0 !important; background:none !important; border:0 !important;
+  font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
+
+.edCam { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 4px; }
+
+#edView .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ed-dim); background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
+  cursor:pointer; transition:border-color .12s ease; }
+
+#edView .pill:hover { border-color:rgba(255,255,255,.3); }
+
+#edView .pill.wide { display:block; width:100%; margin-top:12px;
+  text-align:center; color:var(--ed-acc); }
+
+/* THE TWO VERBS, bottom left. The primary is never disabled: it is your
+   aeroplane, and building it wrong and learning why is content, not error —
+   it changes its WORDS when the bench has not passed, and nothing else. */
+#edVerbs { position:absolute; left:22px; bottom:22px; display:flex;
+  align-items:center; gap:9px; }
+
+.verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ed-ink);
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+  padding:14px 18px; border-radius:8px; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease; }
+
+.verb:hover { border-color:rgba(255,255,255,.3); }
+
+.verb.pri { font-weight:600; padding:14px 20px; color:var(--ed-acc-ink);
+  background:var(--ed-acc); border-color:var(--ed-acc); }
+
+.verb.pri:hover { background:#f0e7d8; }
+
+.verb.pri.warn { color:var(--ed-acc-ink); background:var(--ed-warn);
+  border-color:var(--ed-warn); }
+
+/* ======================================================================
+   THE SHEETS. One grammar, two subjects: the aeroplane as an OBJECT
+   (behind its name) and the ROOM (behind the light). Both cover the view
+   and neither covers the panel — you can still see what you were editing.
+   ====================================================================== */
+
+/* THE CHIP STAYS. The scrim goes UNDER the view layer, not over it, so the
+   name you opened the sheet from is still there with its chevron turned and
+   its border lit — the door reads as the door you came through. The rail and
+   the verbs are about the build, and the sheet is not, so those two hide. */
+#edScrim { position:fixed; left:var(--ws-left, 0px); top:0; bottom:0;
+  right:var(--ws-right, 0px); z-index:41;
+  background:rgba(11,9,6,.8); transition:right .16s ease; }
+
+body.sheet-open #edRail, body.sheet-open #edFly,
+body.sheet-open #edVerbs { display:none; }
+
+#edScrim[hidden] { display:none; }
+
+#edShed { position:fixed; left:calc(var(--ws-left, 0px) + 22px); top:118px;
+  bottom:22px; right:calc(var(--ws-right, 0px) + 22px); z-index:43; display:flex; flex-direction:column;
+  background:var(--ed-panel, #201d1a); color:#f4efe6;
+  border:1px solid rgba(255,248,236,.14); border-radius:12px; overflow:hidden;
+  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric:tabular-nums; transition:right .16s ease; }
+
+#edShed[hidden] { display:none; }
+
+#edShed > header { display:flex; align-items:baseline;
+  gap:12px; padding:20px 24px 16px;
+  border-bottom:1px solid rgba(255,248,236,.09); }
+
+#edShed > header b { font:600 22px/1 'IBM Plex Sans'; }
+
+#edShed > header span {
+  font:400 11.5px/1.4 'IBM Plex Sans'; color:#8a8377; }
+
+#edShed > header .pill { margin-left:auto;
+  font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:#c0b8ac; background:transparent;
+  border:1px solid rgba(255,255,255,.18); border-radius:7px; padding:7px 11px;
+  cursor:pointer; }
+
+#shedBody { flex:1; overflow-y:auto; padding:18px 24px 24px; }
+
+#edInfo .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:#8a8377;
+  margin:18px 0 8px; }
+
+#edInfo .note:first-child { margin-top:0; }
+
+#edFleet #shAc select { padding:7px 10px; font:400 12px/1.2 'IBM Plex Sans';
+  color:#f4efe6; background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.18); border-radius:7px; }
+
+#edFleet #edFleet #shAc select option { background:#201d1a; color:#f4efe6; }
+
+/* the room's own panel, moved here whole */
+#shedBody details { margin:8px 0; border:1px solid rgba(255,248,236,.09);
+  border-radius:7px; padding:2px 10px; }
+
+#shedBody summary { cursor:pointer; color:#8a8377;
+  font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.16em;
+  text-transform:uppercase; padding:8px 0; list-style:none; }
+
+#shedBody summary::-webkit-details-marker { display:none; }
+
+#shedBody .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:#c0b8ac; }
+
+#shedBody .r > span.k { width:120px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+
+#shedBody .r > .v { width:56px; flex:none; text-align:right; color:#f4efe6; }
+
+#shedBody input[type=range] { flex:1; min-width:30px; accent-color:#e6dbc9; }
+
+#shedBody select { flex:1; min-width:0; padding:5px 8px;
+  font:400 11.5px/1.2 'IBM Plex Sans'; color:#f4efe6;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
+  border-radius:7px; }
+
+#shedBody select option { background:#201d1a; }
+
+#shedBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
+
+#shedBody .lt button.tg, #edFlyBody .lt button.tg {
+  padding:3px 7px; font:400 10px/1.2 'IBM Plex Sans'; flex:none;
+  color:#e6dbc9; background:transparent;
+  border:1px solid rgba(255,248,236,.14); border-radius:5px; cursor:pointer; }
+
+#shedBody .lt button.tg.off, #edFlyBody .lt button.tg.off {
+  color:#8a8377; opacity:.55; text-decoration:line-through; }
+
+/* the ALL / NONE masters are VERBS, not states: they never wear the `off`
+   look, because they are not a source. They read as a pair set apart from
+   the switches they drive. */
+#shedBody .lt button.tg.alt, #edFlyBody .lt button.tg.alt {
+  color:#c8b48c; border-color:rgba(200,180,140,.34);
+  background:rgba(200,180,140,.07); letter-spacing:.04em; }
+
+#shedBody .lt button.tg.alt:hover, #edFlyBody .lt button.tg.alt:hover {
+  background:rgba(200,180,140,.16); }
+
+/* ---- THE GAME'S BOTTOM BAR is gone in the garage (G78). The two verbs
+   replace it, and everything else on it — from, to, conditions, reset,
+   pause, telemetry, skin, wire, UV — is about FLYING. `selAc` is the one
+   exception and it is on loan to the sheet, which is where "which
+   aeroplane" belongs until G80's rack takes the question over. */
+
+/* nothing to hide one by one any more — the whole flight layer is away */
 
 /* ---- reduced motion: no transitions at all, as style.css already does */
 @media (prefers-reduced-motion:reduce) {
-  #edWrap, #edWrap * { transition:none !important; }
+  #edWrap, #edWrap *, #edInfo, #edInfo *, #edShed, #edScrim, #c {
+    transition:none !important; }
 }
+
+/* ==========================================================================
+   THE REFERENCE PLANE (G90-G92). Appended in its own #edRef scope, at the end
+   of the sheet, because editor.css is shared and an appended block is the one
+   edit that can never collide with a rule somebody else is moving.
+   THE ROWS THEMSELVES NEED NOTHING HERE. #edRef is a child of #edRows, and
+   every row rule above is written `#edRows .r` — a DESCENDANT selector — so
+   refplane.js's hand-built rows inherit the whole grammar (label width, the
+   slider track and thumb, the toggle, the value column) for free, and the
+   reference's panel cannot drift away from the aeroplane's. What is left here
+   is only what the reference has and a part does not: its buttons, and its
+   two measurement tables.
+   ========================================================================== */
+#edRef { display:block; }
+
+#edRef .refBtns { display:flex; flex-wrap:wrap; gap:6px;
+  padding:2px 0 8px var(--ed-lab); }
+
+#edRef .refBtns .pill { flex:none; }
+
+/* the model's own material list can run to 26 rows (the C172), so it is the
+   one block in the panel that scrolls on its own rather than pushing the
+   measurements off the bottom of the column */
+#edRef .refMats { max-height:224px; overflow-y:auto; }
+
+#edRef .refNote { padding:6px 0 2px var(--ed-lab);
+  font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint); }
+
+#edRef .refCap { margin:10px 0 4px; font:500 9px/1 'IBM Plex Sans';
+  letter-spacing:.14em; color:var(--ed-faint); }
+
+#edRef .refCap:first-child { margin-top:2px; }
+
+/* THE MEASUREMENT TABLE. Four columns, fixed widths, so metres line up under
+   metres down both tables — the reference's and your build's — and the gap
+   between them can be read without counting digits. */
+#edRef .refD { display:flex; gap:9px; align-items:baseline;
+  font:400 11px/1.7 'IBM Plex Mono', ui-monospace, monospace; }
+
+#edRef .refD > span { width:52px; flex:none; color:var(--ed-faint);
+  font-family:'IBM Plex Sans'; }
+
+#edRef .refD > b  { width:62px; flex:none; font-weight:500;
+  color:var(--ed-ink); }
+
+#edRef .refD > i  { width:62px; flex:none; font-style:normal;
+  color:var(--ed-acc); }
+
+#edRef .refD > em { flex:1; min-width:0; font-style:normal;
+  color:var(--ed-faint); }
+
+#edRef .refDims { margin-top:4px; }

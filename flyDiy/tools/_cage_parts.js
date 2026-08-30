@@ -73,7 +73,7 @@ const CAGE_PARTS = [
   // "we should still have a top layer where everything is visible". The tree
   // narrows the panel; it must never be the only way to see the whole set.
   // =========================================================================
-  { key: 'craft', name: 'The aeroplane', parent: null, root: true },
+  { key: 'craft', name: 'Build plane', parent: null, root: true },
 
   // =========================================================================
   // FUSELAGE — the cage itself. `body` is the whole covering, so it belongs to
@@ -204,6 +204,24 @@ const CAGE_PARTS = [
              at: 'the aft extremity' },
     groups: [['cone', ['tailLen', 'tailHalfW', 'tailRoofY', 'tailKeelY']]] },
 
+  // THE FITTINGS (G81-G83). They are not a shape you draw — they are what
+  // GEN_ACCESS says this aeroplane must carry, resolved against the built
+  // skin, so there are no position sliders here and there should not be: a
+  // fitting whose station you can drag is decoration, and the table's whole
+  // claim is that each one is where it is because of what it serves.
+  //
+  // The rows are therefore a switch per FAMILY and a fastener density, which
+  // is what somebody actually wants to change. `layer: 'access'` matches the
+  // group _cage_access.js names, so G79's raycast can resolve a hit to it.
+  { key: 'access', name: 'Fittings', parent: 'fuselage', layer: 'access',
+    when: P => +P.accOn,
+    groups: [
+      ['fitted', ['accOn']],
+      ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
+                    'accHandling']],
+      ['detail', ['accDetail']],
+    ] },
+
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
     layer: 'cage',
     sections: ['bulkhead', 'firewall', 'tube', 'plywood', 'woodFrame', 'cloth',
@@ -240,7 +258,11 @@ const CAGE_PARTS = [
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
-    groups: [['fixation', ['wgBrace']]] },
+    // G88: the foot is the strut's own place on the fuselage, so it is the
+    // strut part's rows and not the wing panel's — the plate, its bolts and
+    // both members move together when they move.
+    groups: [['fixation', ['wgBrace']],
+             ['foot', ['wgStrutZ', 'wgStrutX']]] },
 
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
@@ -355,9 +377,17 @@ const CAGE_PARTS = [
                       'cw_scoopSq', 'cw_scoopLipH', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipDepth',
                       'cw_scoopDuct']],
+      // G94: what says this panel comes off. The fasteners and the parting
+      // line belong to the cowl and to nothing else — they are drawn on its
+      // own surface, and a camloc's pitch is a property of the panel it holds.
+      ['fasteners & access', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD',
+                              'cw_partOn', 'cw_partY', 'cw_partW',
+                              'cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL']],
     ] },
 
-  { key: 'prop', name: 'Propeller', parent: 'power', layer: 'cowl',
+  // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the
+  // spinner and the blades), even though its parameters are the cowl page's
+  { key: 'prop', name: 'Propeller', parent: 'power', layer: 'eng',
     when: P => +P.propOn,
     place: { fore: 'cw_noseOff', at: 'on the crankshaft flange' },
     groups: [
@@ -466,6 +496,23 @@ const CAGE_PARTS = [
       ['dummies', ['dumOn', 'dum2On', 'dumSize']],
       ['posture', ['dumElbows', 'dumKnees', 'dumRecline', 'dumHandGrip']],
       ['markers', ['dumMarkers']],
+    ] },
+
+  // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you
+  // actually interact with is the SWITCH: the row of throws and dimmers under
+  // the instruments belongs with the seats and the controls. The lamps
+  // themselves are hung all over the aeroplane, which is exactly why they are
+  // one part rather than nine — a light is a circuit, not a place.
+  { key: 'lights', name: 'Lights', parent: 'fit', layer: 'light',
+    when: P => +P.lightOn,
+    groups: [
+      ['fitted', ['lightOn', 'lightSw']],
+      ['outside (switches)', ['li_taxi', 'li_beacon', 'li_land', 'li_nav']],
+      ['inside (dimmers)', ['li_flood', 'li_panel', 'li_pedal', 'li_pax']],
+      // the wing bay is the lights' own geometry: where it is cut, how big it
+      // is, how deep the box behind it goes, and how big the lamp in it is
+      ['the wing bay', ['li_bayFrac', 'li_bayHalf', 'li_bayChord',
+                        'li_bayDepth', 'li_lampSize']],
     ] },
 
   // =========================================================================

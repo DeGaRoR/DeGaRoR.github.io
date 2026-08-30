@@ -3,10 +3,12 @@
 //
 // The shed had furniture but nothing being BUILT in it, which is the one thing
 // a builder's hangar is for. These are not baked props: they are the same
-// buildGen -> genSkin pipeline the flying aeroplane comes out of, run on canned
-// specs and then shown in PART. A wing on trestles is the aeroplane's own wing
-// with the fuselage left out; the tube fuselage is the aeroplane's own
-// structure with the covering, the wheels and the fittings left off.
+// same generators the flying aeroplane comes out of, run on canned specs and
+// then shown in PART. A wing on trestles is the aeroplane's own wing with the
+// fuselage left out; the tube fuselage is the aeroplane's own structure with
+// the covering, the wheels and the fittings left off; and since G67.1 the
+// engine on the bench is the engine bench's own engine, which is the one the
+// aeroplane wears.
 //
 // That is the point of doing it this way rather than modelling four more props:
 // when the generator learns something — a new tip shape, a different truss,
@@ -15,8 +17,9 @@
 // are a few tenths of a second and no payload at all.
 //
 // WHAT IS TAKEN FROM WHERE
-//   THE SKIN comes out of genSkin's MESH groups — the wing, the engine, the
-//     covering. THE CAGE is re-lofted from the beam list at workshop
+//   THE WING comes out of genWing's MESH groups (G67.1: it used to be
+//     genSkin's, and keeping the wing was all it was ever asked for).
+//     THE CAGE is re-lofted from the beam list at workshop
 //     resolution (wsTubeCage): the generator's frame mesh is 8-sided with
 //     members that simply intersect, which is right at aeroplane distance and
 //     wrong at two metres. Drawing def.beams AS STICKS is what looked like a
@@ -36,7 +39,7 @@
 //     which is the same rule buildModel follows and for the same reason.
 // ============================================================
 
-const WS_OK = () => typeof buildGen === 'function' && typeof genSkin === 'function'
+const WS_OK = () => typeof buildGen === 'function' && typeof genWing === 'function'
   && typeof GEN_DEFAULT !== 'undefined';
 
 // ANISOTROPY. A wing lies almost edge-on to the eye for most of a walk round
@@ -69,7 +72,7 @@ function wsDef(key, over) {
 }
 
 // ---- geometry helpers ------------------------------------------------------
-// A genSkin group, optionally keeping only the triangles every vertex of which
+// A payload group, optionally keeping only the triangles every vertex of which
 // passes `keep`. The kept triangles are COMPACTED — a new position and uv array
 // holding only the vertices they actually reference.
 //
@@ -300,7 +303,10 @@ function wsWing(THREE, mats) {
   // the point: a wing on trestles with its flaps still to hang.
   const { spec, def } = wsDef('wing', { wings: [Object.assign(
     {}, GEN_DEFAULT.wings[0], { flap: 'plain' })] });
-  const g = genSkin(def).groups.skin;
+  // G67.1: the WING, from the wing's own generator. This used to ask for a
+  // whole aeroplane and keep the covering — one of the two things that kept
+  // the old generated skin alive after the cage had replaced everything else.
+  const g = genWing(def).groups.skin;
   const band = wsWingBand(g);
   if (!band) return null;
   const geo = wsGeo(THREE, g, (p, i) => {
@@ -438,6 +444,61 @@ function wsWoodCabin(THREE, mats) {
   return wsOnStands(THREE, piece, mats, 2);
 }
 
+// THE ENGINE, from the engine bench's own module (G67.1). `engMeshBuild`
+// returns a quad mesh with a material name on every face — the same 30-name
+// palette `AERO_HARD.eng` dresses on the aeroplane — so this is one mesh with
+// a material array, exactly as `_cage_eng.js` builds it. Absent either module
+// (a core-only page, or a build with no editor bundle) the piece simply does
+// not appear, which is the rule every workshop piece already follows.
+function wsEngineMesh(THREE, def) {
+  const EM = typeof window !== 'undefined' ? window.ENG_MESH : null;
+  if (!EM || typeof EM.engMeshBuild !== 'function') return null;
+  const E = (def.spec.engines && def.spec.engines[0]) || {};
+  let M;
+  // the bench's own defaults, at the workshop's own detail: this is a prop on
+  // a floor two metres from the eye, so it is drawn at full quality rather
+  // than at the aeroplane's distance-tuned governor
+  try { M = EM.engMeshBuild(Object.assign({}, EM.ENGM_DEFAULT,
+    { arch: 'flat', quality: 1.0, screws: 1, fwOn: 0 })); }
+  catch (e) { return null; }
+  if (!M || !M.V || !M.F || !M.F.length) return null;
+  const pos = new Float32Array(M.V.length * 3);
+  M.V.forEach((p, i) => { pos[i*3] = p[0]; pos[i*3+1] = p[1]; pos[i*3+2] = p[2]; });
+  const byMat = new Map();
+  for (const f of M.F) {
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    const t = byMat.get(f.m);
+    t.push(f.v[0], f.v[1], f.v[2], f.v[0], f.v[2], f.v[3]);
+  }
+  const idx = [], names = [], groups = [];
+  for (const [nm, tris] of byMat) {
+    groups.push([idx.length, tris.length, names.length]);
+    for (const i of tris) idx.push(i);
+    names.push(nm);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  for (const [st, ct, mi] of groups) geo.addGroup(st, ct, mi);
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  const P = (typeof window !== 'undefined' && window.ENG_PAGE) || null;
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  const mats = names.map(nm => {
+    const col = (P && P.COL[nm]) || (P && P.NEUTRAL) || '#8d949c';
+    const hex = new THREE.Color(col).getHex();
+    const am = A && A.aeroHardMat
+      ? A.aeroHardMat(THREE, 'eng', nm, hex, { side: THREE.DoubleSide }) : null;
+    if (am) return am;
+    const pr = (P && P.PROPS[nm]) || [0.55, 0.5];
+    return new THREE.MeshStandardMaterial({ color: hex, metalness: pr[0],
+      roughness: pr[1], side: THREE.DoubleSide });
+  });
+  const mesh = new THREE.Mesh(geo, mats);
+  mesh.castShadow = mesh.receiveShadow = true;
+  return mesh;
+}
+
 // 4. AN ENGINE ON A BENCH. The A65 out of the registry, taken as the `engine`
 //    group alone — no cowl, no prop, no spinner: an engine on a bench is a
 //    bare engine.
@@ -445,13 +506,15 @@ function wsEngineBench(THREE, mats) {
   const { def } = wsDef('engine', {
     engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 } }],
   });
-  const g = genSkin(def).groups.engine;
-  if (!g) return null;
-  const geo = wsGeo(THREE, g, null);
-  if (!geo) return null;
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    color: 0x6a6f74, roughness: 0.52, metalness: 0.62, side: THREE.DoubleSide }));
-  m.castShadow = m.receiveShadow = true;
+  // G67.1: THE ENGINE ON THE BENCH IS THE ENGINE. It used to be genSkin's
+  // `engine` group — a lump the size and shape of a powerplant, which was the
+  // right answer while nothing better existed and the reason this piece was
+  // the second thing holding the old skin alive. The engine bench (G24/G25)
+  // builds a real one, cylinder by cylinder, and it is the SAME module the
+  // aeroplane's own nose uses: crack a cowl open in the editor and the engine
+  // on the bench beside it is the same engine.
+  const m = wsEngineMesh(THREE, def);
+  if (!m) return null;
   const piece = new THREE.Group();
   piece.add(m);
   const bb = new THREE.Box3().setFromObject(piece);

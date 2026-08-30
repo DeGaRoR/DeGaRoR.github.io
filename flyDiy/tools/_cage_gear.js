@@ -232,27 +232,27 @@ PAGE.post = ctx => {
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
-  for (const k in bags) bags[k].mesh(group, GG.MAT[k]);
+  for (const k in bags) bags[k].mesh(group, GG.gearMat(k));
   // G58.2/.3: bake each unit into its own NAMED group — the join's
   // snapshot picks these up by name, exactly as it does the prop's
   for (const wb of wheelUnits) {
     const wg = new THREE.Group();
     wg.name = 'edWheel' + (wb.kind || 'T');
     for (const k of ['tyre', 'hub', 'brake'])
-      wb[k].mesh(wg, GG.MAT[k]);
+      wb[k].mesh(wg, GG.gearMat(k));
     group.add(wg);
   }
   for (const lu of legUnits) {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
-    for (const k in lu.bags) lu.bags[k].mesh(lg, GG.MAT[k]);
+    for (const k in lu.bags) lu.bags[k].mesh(lg, GG.gearMat(k));
     group.add(lg);
   }
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
     for (const k in castorUnitOut.bags)
-      castorUnitOut.bags[k].mesh(cgp, GG.MAT[k]);
+      castorUnitOut.bags[k].mesh(cgp, GG.gearMat(k));
     group.add(cgp);
   }
 

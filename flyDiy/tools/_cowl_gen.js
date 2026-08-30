@@ -24,6 +24,11 @@ const P={
   cowlLen:0.365, aftW:0.425, aftH:0.3, taperW:0.82, taperH:0.78,
   // section control points: width, plus independent top and bottom apex + squareness
   sqAftTop:0.82, sqAftBot:0.82, sqFrontTop:0.54, sqFrontBot:0.48,
+  // FASTENERS, PARTING LINE, OIL DOOR (G94). 110 mm is the camloc pitch a
+  // light aeroplane is actually built to; 16 mm is the head across the flats.
+  fastOn:1, fastPitch:0.11, fastD:0.016,
+  partOn:1, partY:0.0, partW:0.0022,
+  oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16,
   deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
   lidRise:0.06, faceRise:0.018, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
@@ -651,6 +656,183 @@ function buildScoop(group,mats){
   group.add(new THREE.Mesh(fan(last,new THREE.Vector3(0,cyF,zc),false,null),mats.dark));
 }
 
+/* ==================== FASTENERS, PARTING LINE, OIL DOOR ====================
+   A COWL IS A PANEL YOU TAKE OFF, and until now nothing here said so. This
+   generator could draw the shape of a cowl in twelve ways and every one of
+   them came out as a moulded blob, because the three things that actually
+   identify a cowl were all missing: the row of fasteners that holds it on,
+   the line it comes apart along, and the little door you check the oil
+   through. They are also the first things the eye finds, because they are the
+   only straight lines on a curved object.
+
+   EVERYTHING IS PLACED ON THE SURFACE, through `surfPoint` — the same
+   function the shell is lofted from — so a fastener cannot drift off the cowl
+   when the section, the taper or a lobe moves under it. That is the pitot
+   rule from G5 and the fitPad rule from the undercarriage, applied here.
+
+   THE PITCH IS A REAL DIMENSION. Camlocs go in at 100-120 mm on a light
+   aeroplane: close enough that the panel does not oil-can between them, far
+   enough apart that you are not turning forty of them to check the oil. The
+   default is 110 mm and the row COUNT falls out of the cowl's own girth. */
+function cowlNormalAt(th,z){
+  const e=0.004, ez=Math.max(0.004,P.cowlLen*0.02);
+  const a=surfPoint(th-e,z), b=surfPoint(th+e,z);
+  const c=surfPoint(th,Math.max(0,z-ez)), d=surfPoint(th,z+ez);
+  const t1=[b[0]-a[0],b[1]-a[1],0];                 // along the section
+  const t2=[d[0]-c[0],d[1]-c[1],2*ez];              // along the axis
+  const n=[t1[1]*t2[2]-0*t2[1], 0*t2[0]-t1[0]*t2[2], t1[0]*t2[1]-t1[1]*t2[0]];
+  const L=Math.hypot(n[0],n[1],n[2])||1;
+  const p=surfPoint(th,z);
+  const out=(p[0]*n[0]+(p[1]-spineY(z))*n[1])>=0?1:-1;   // point it outward
+  return [out*n[0]/L,out*n[1]/L,out*n[2]/L];
+}
+/* one camloc: a shallow disc standing proud of the skin, with a slot in it.
+   The slot is what makes it read as a fastener rather than a rivet, and it is
+   two triangles. */
+function camlocInto(pos,idx,th,z,r,rise){
+  const p=surfPoint(th,z), n=cowlNormalAt(th,z);
+  const c=[p[0],p[1],z];
+  const t=[-n[1],n[0],0], L0=Math.hypot(t[0],t[1])||1;
+  const e1=[t[0]/L0,t[1]/L0,0];
+  const e2=[n[1]*e1[2]-n[2]*e1[1],n[2]*e1[0]-n[0]*e1[2],n[0]*e1[1]-n[1]*e1[0]];
+  const SEG=10, base=pos.length/3;
+  const at=(k,rr,h)=>{
+    const a=2*Math.PI*k/SEG,cs=Math.cos(a),sn=Math.sin(a);
+    pos.push(c[0]+e1[0]*cs*rr+e2[0]*sn*rr+n[0]*h,
+             c[1]+e1[1]*cs*rr+e2[1]*sn*rr+n[1]*h,
+             c[2]+e1[2]*cs*rr+e2[2]*sn*rr+n[2]*h);
+  };
+  for(let k=0;k<SEG;k++) at(k,r,0);
+  for(let k=0;k<SEG;k++) at(k,r*0.92,rise);
+  const ctr=pos.length/3;
+  pos.push(c[0]+n[0]*rise,c[1]+n[1]*rise,c[2]+n[2]*rise);
+  for(let k=0;k<SEG;k++){
+    const j=(k+1)%SEG;
+    idx.push(base+k,base+j,base+SEG+j, base+k,base+SEG+j,base+SEG+k);
+    idx.push(base+SEG+k,base+SEG+j,ctr);
+  }
+}
+function buildDetail(group,mats){
+  const ze=zEnd(), d=clamp(P.detail,0.35,2);
+  /* ---- THE PARTING LINE, along the waist ------------------------------
+     Where the two halves come apart. It is a NARROW DARK STRIP rather than a
+     modelled gap: a real parting line is a 2 mm shadow, and geometry that
+     thin is worse than a strip at every distance the cowl is ever seen from. */
+  if(P.partOn){
+    const th0=P.partY*Math.PI*0.5;                 // 0 = the waist, +-1 = pole
+    const NZ=Math.max(6,Math.round(22*d)), w=Math.max(0.0015,P.partW);
+    for(const sgn of [1,-1]){
+      const rings=[];
+      for(let i=0;i<=NZ;i++){
+        const z=ze*i/NZ;
+        const row=[];
+        for(const o of [-w,w]){
+          const th=sgn>0?(th0+o):(Math.PI-th0-o);
+          const p=surfPoint(th,z), n=cowlNormalAt(th,z);
+          row.push(new THREE.Vector3(p[0]+n[0]*0.0006,p[1]+n[1]*0.0006,
+                                     z+n[2]*0.0006));
+        }
+        rings.push(row);
+      }
+      const pos=[],idx=[];
+      for(const r of rings) for(const v of r) pos.push(v.x,v.y,v.z);
+      for(let i=0;i<NZ;i++){
+        const a=i*2,b=i*2+1,c=(i+1)*2+1,e=(i+1)*2;
+        idx.push(a,b,c,a,c,e);
+      }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+      g.setIndex(idx); g.computeVertexNormals();
+      group.add(new THREE.Mesh(g,mats.dark));
+    }
+  }
+  /* ---- THE FASTENERS -------------------------------------------------
+     Two rows, and both are where a real cowl has them: round the AFT EDGE,
+     which is the row that carries the whole panel onto the firewall, and
+     along the PARTING LINE, which holds the halves to each other. */
+  if(P.fastOn){
+    const pos=[],idx=[], r=Math.max(0.004,P.fastD*0.5), pitch=Math.max(0.04,P.fastPitch);
+    // the aft edge: pitch measured round the section's own girth
+    {
+      const zA=Math.min(ze*0.06,0.02);
+      let girth=0; const NG=64;
+      let prev=surfPoint(0,zA);
+      for(let k=1;k<=NG;k++){
+        const p=surfPoint(2*Math.PI*k/NG,zA);
+        girth+=Math.hypot(p[0]-prev[0],p[1]-prev[1]); prev=p;
+      }
+      const n=Math.max(6,Math.round(girth/pitch));
+      for(let k=0;k<n;k++) camlocInto(pos,idx,2*Math.PI*k/n,zA,r,r*0.35);
+    }
+    // and along the parting line, both flanks
+    if(P.partOn){
+      const th0=P.partY*Math.PI*0.5;
+      const n=Math.max(2,Math.round(ze/pitch));
+      for(const sgn of [1,-1])
+        for(let k=1;k<=n;k++){
+          const z=ze*k/(n+1);
+          camlocInto(pos,idx,sgn>0?th0:Math.PI-th0,z,r,r*0.35);
+        }
+    }
+    if(idx.length){
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+      g.setIndex(idx); g.computeVertexNormals();
+      group.add(new THREE.Mesh(g,mats.steel));
+    }
+  }
+  /* ---- THE OIL DOOR ---------------------------------------------------
+     On the top deck, aft of the middle, where you can reach it standing on
+     the ground. Drawn as a proud panel with its own hinge line, because that
+     is what you see: the door sits a millimetre off the skin and the hinge is
+     the one straight edge on it. */
+  if(P.oilOn){
+    const zc=ze*clamp(P.oilZ,0.05,0.95), hw=Math.max(0.02,P.oilW*0.5);
+    const hl=Math.max(0.02,P.oilL*0.5);
+    const NA=9, NZ=7, rings=[];
+    const p0=surfPoint(Math.PI/2,zc);
+    const halfAng=Math.min(Math.PI*0.33, hw/Math.max(0.05,Math.hypot(p0[0],1)));
+    for(let i=0;i<=NZ;i++){
+      const z=clamp(zc-hl+2*hl*i/NZ,0.002,ze-0.002), row=[];
+      for(let j=0;j<=NA;j++){
+        const th=Math.PI/2-halfAng+2*halfAng*j/NA;
+        const p=surfPoint(th,z), n=cowlNormalAt(th,z);
+        row.push(new THREE.Vector3(p[0]+n[0]*0.0015,p[1]+n[1]*0.0015,
+                                   z+n[2]*0.0015));
+      }
+      rings.push(row);
+    }
+    const pos=[],idx=[];
+    for(const r2 of rings) for(const v of r2) pos.push(v.x,v.y,v.z);
+    const S=NA+1;
+    for(let i=0;i<NZ;i++) for(let j=0;j<NA;j++){
+      const a=i*S+j,b=i*S+j+1,c=(i+1)*S+j+1,e=(i+1)*S+j;
+      idx.push(a,b,c,a,c,e);
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    g.setIndex(idx); g.computeVertexNormals();
+    group.add(new THREE.Mesh(g,mats.skin));
+    // the hinge, on the forward edge
+    const hp=[],hi=[];
+    const hz=clamp(zc+hl,0.002,ze-0.002);
+    for(let j=0;j<=NA;j++){
+      const th=Math.PI/2-halfAng+2*halfAng*j/NA;
+      const p=surfPoint(th,hz), n=cowlNormalAt(th,hz);
+      hp.push(p[0]+n[0]*0.0022,p[1]+n[1]*0.0022,hz+n[2]*0.0022);
+      hp.push(p[0]+n[0]*0.0022,p[1]+n[1]*0.0022,hz+n[2]*0.0022-0.008);
+    }
+    for(let j=0;j<NA;j++){
+      const a=j*2,b=j*2+1,c=(j+1)*2+1,e=(j+1)*2;
+      hi.push(a,b,c,a,c,e);
+    }
+    const gh=new THREE.BufferGeometry();
+    gh.setAttribute('position',new THREE.Float32BufferAttribute(hp,3));
+    gh.setIndex(hi); gh.computeVertexNormals();
+    group.add(new THREE.Mesh(gh,mats.steel));
+  }
+}
+
 /* ============================ AFT ============================ */
 function buildAft(group,mats){
   const s0=sectionAtZ(0);
@@ -897,6 +1079,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, lipProfile, buildLips, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

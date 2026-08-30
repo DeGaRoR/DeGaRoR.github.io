@@ -39,7 +39,7 @@
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const GG = window.GEAR_GEN, CG2 = window.CAGE2;
 if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
-    typeof genSkin !== 'function') {
+    typeof genWing !== 'function') {
   console.error('cage wing layer: game core (60..63) not loaded');
   return;
 }
@@ -61,6 +61,10 @@ PAGE.defaults = Object.assign({
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
   wgCentre: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgPanels: 3, wgDx: 0, wgDy: 0,
+  // G86/G87: the lift strut's two trim offsets, in METRES off the site the
+  // structure picks (see the strut block below). Zero is the frame's own
+  // answer, so a build that never touches them is the one physics asked for.
+  wgStrutZ: 0, wgStrutX: 0,
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   wgAilSpan: 0.38, wgAilChord: 0.22,
@@ -93,6 +97,23 @@ const WING_ITEMS = [
   ['wgDy',     'height',         -1.0, 1.0, 0.02, on],
   ['struts & fixation', [
     ['wgBrace', 'fixation',      0, 1, 1, ['lift struts', 'cantilever']],
+    // G86/G87, user: "sliders ... to control the exact placement fore/aft
+    // and lateral", then "constrained to the wing chord ... excluding the
+    // leading edge and the control surface ... the fore/aft position of both
+    // ends need to be similar". Both are METRES off the site the structure
+    // picks, and both are bounded so the drawn fittings stay on the beams
+    // they stand for:
+    //   fore/aft  moves the foot AND both wing fittings together, so the
+    //             strut stays straight. Its usable range is the wing's own
+    //             structural chord and is CLAMPED per build — the range here
+    //             is the widest chord's, and a narrow wing stops sooner and
+    //             says so in the status line.
+    //   lateral   moves only the foot, as ARC LENGTH around the section
+    //             (never an angle: see _strut_gen.js).
+    ['wgStrutZ', 'strut fore/aft', -0.20, 0.20, 0.01,
+     { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
+    ['wgStrutX', 'foot lateral',   -0.25, 0.35, 0.01,
+     { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -356,7 +377,11 @@ PAGE.post = ctx => {
     const RS = resolveSpec(gspec);        // -> {spec, auto}
     const fr = genFrame(RS.spec);
     def = Object.assign({ spec: RS.spec }, fr);
-    pay = genSkin(def);
+    // G67.1: the WING, not the whole aeroplane. This asked genSkin for a
+    // complete aircraft and threw all of it away but the wing — which is
+    // also what kept the old generated skin alive long after the cage had
+    // replaced every other part of it.
+    pay = genWing(def);
   } catch (e) {
     if (stat) stat.textContent += '  ·  wing: ' + e.message;
     return;
@@ -494,12 +519,368 @@ PAGE.post = ctx => {
     };
   };
 
-  const skinClass = cen => {
+  // ---- THE LANDING-LIGHT BAY (G96) ---------------------------------------
+  // THE WING IS REALLY CUT, and along its own geometry: the bay is a band of
+  // the D-NOSE — forward of the front spar, between two stations — and the
+  // faces in it are not drawn as covering at all. What goes in the hole is
+  // THE SAME FACES, re-drawn as glass, which is why the lens follows the
+  // profile exactly and cannot come adrift when the aerofoil, the taper or
+  // the washout moves: it IS the wing's surface, in a different material.
+  //
+  // The bay is declared by the LIGHT layer (window.CAGE_LIGHT_BAY) because
+  // that layer has to put a lamp in the hole this one makes. Two descriptions
+  // of one bay would be a lamp behind solid skin.
+  // resolved against the panel FIRST — this layer runs before the light
+  // layer's own build, so reading the declaration raw gets the defaults
+  if (typeof window !== 'undefined' && window.CAGE_BAY_FROM_P && window.CAGE_UI)
+    window.CAGE_BAY_FROM_P(window.CAGE_UI.P);
+  const BAY = (typeof window !== 'undefined' && window.CAGE_LIGHT_BAY) || null;
+  // THE BAY IS CUT WHEN THE LAMP IS FITTED, NOT WHEN IT IS SWITCHED ON (G98,
+  // user: "it appears only when I turn some lights on"). A landing light is a
+  // hole in the wing whether or not anybody has flicked the switch — gating
+  // the geometry on the switch made the wing change shape when you turned the
+  // light on, which is a thing no aeroplane does.
+  const bayOn = !!(BAY && window.CAGE_UI && +window.CAGE_UI.P.lightOn);
+  const semiW = (def.spec.geom && def.spec.geom.semi) || 5;
+  const bayZ = semiW * (BAY ? BAY.frac : 0.24);
+  const uOf = vs => {
+    const g2 = gs.skin;
+    if (!g2 || !g2.uv) return 1;
+    let u = 0;
+    for (const i of vs) u += g2.uv[i * 2] / vs.length;
+    return u;                            // chord fraction, 0 at the LE
+  };
+  // THE CUT SNAPS TO THE WING'S OWN ROWS, and that is the user's instruction
+  // ("preferably along existing geometry") arriving as an arithmetic fact
+  // rather than a preference. A wing is LOFTED at discrete spanwise stations,
+  // so the face centroids form a discrete set; a metre-wide band asked for a
+  // cut BETWEEN two rows and got nothing at all — 500 faces passed the chord
+  // test, none passed the span test, and the bay came out empty with every
+  // number in it correct.
+  //
+  // So the rows are collected first and the bay takes the nearest ones. The
+  // cut then follows edges the loft already has, which is the only way the
+  // lens can share the covering's vertices exactly.
+  let bayAt = null;
+  const bayRows = (() => {
+    if (!bayOn || !gs.skin) return null;
+    const g2 = gs.skin, idxA = g2.idx, seen = new Map();
+    const raw2 = i => [g2.pos[i*3], g2.pos[i*3+1], g2.pos[i*3+2]];
+    for (let t = 0; t < idxA.length; ) {
+      const a2 = idxA[t], b2 = idxA[t+1], c2 = idxA[t+2];
+      const isQ = t + 5 < idxA.length && idxA[t+3] === a2 && idxA[t+4] === c2;
+      const vs2 = isQ ? [a2, b2, c2, idxA[t+5]] : [a2, b2, c2];
+      t += isQ ? 6 : 3;
+      const cen2 = [0, 0, 0];
+      for (const i of vs2) { const p2 = raw2(i);
+        cen2[0] += p2[0] / vs2.length; cen2[1] += p2[1] / vs2.length;
+        cen2[2] += p2[2] / vs2.length; }
+      const az2 = Math.abs(toBody(cen2)[2]);
+      const k2 = Math.round(az2 * 1e4);
+      if (!seen.has(k2)) seen.set(k2, az2);
+    }
+    const rows = [...seen.values()].sort((x, y) => x - y);
+    if (!rows.length) return null;
+    // the row nearest the declared station, plus its neighbours out to the
+    // declared half-width — at least one row, so the bay is never empty
+    let best = rows[0];
+    for (const r of rows) if (Math.abs(r - bayZ) < Math.abs(best - bayZ)) best = r;
+    const keep = rows.filter(r => Math.abs(r - best) <= BAY.half + 1e-6);
+    const use = keep.length ? keep : [best];
+    // THE STATION IT ACTUALLY SNAPPED TO, not the one it was asked for. The
+    // light layer puts a lamp behind this bay and has to use the row the cut
+    // landed on, or the two end up a subdivision apart.
+    bayAt = use.reduce((t, r) => t + r, 0) / use.length;
+    return new Set(use.map(r => Math.round(r * 1e4)));
+  })();
+  const skinClass = (cen, vs) => {
     const az = Math.abs(toBody(cen)[2]);
+    // the bay first: it is a hole in whatever class it falls in
+    // ONE BAY PER SIDE, not one spanning both (G98). The class used to be a
+    // single 'lamp' collecting both wings, so its bound was centred on the
+    // fuselage and a lamp placed from it landed on the centreline. Splitting
+    // by the SIGN of the span coordinate gives each side its own hole, its own
+    // lens and its own bound — and makes the two switchable apart, which the
+    // single class could never be.
+    if (bayRows && vs && bayRows.has(Math.round(az * 1e4)) &&
+        uOf(vs) < BAY.chord)
+      return toBody(cen)[2] >= 0 ? 'lampR' : 'lampL';
     if (az <= zRoot + 1e-3) return 'centre';
     if (tipOn && az >= tipZ - 1e-3) return 'tip';
     return 'main';
   };
+  // THE LENS: the covering's own material family, made glass. Not the cabin
+  // glazing — a landing-light lens is a thick clear moulding, not a window,
+  // and it has to read as one when the lamp behind it is off.
+  // ---- THE BAY'S INTERIOR CAGE (G98) --------------------------------------
+  // A landing light does not open into the whole wing: it sits in a little
+  // box with an AFT WALL and SIDE WALLS, and without one you look straight
+  // through the aeroplane. `bayCage` below builds it — a quad and two ribs,
+  // all three taken from the cut's own boundary, so the side walls carry the
+  // aerofoil profile by construction and the whole thing follows the wing
+  // when the wing changes. A hand-built box could not.
+  // FLAGGED aeroskin, or the G38 understudy replaces it with flat grey and the
+  // bay reads as a big pale trough instead of the dark box it is — which is
+  // exactly how it first came out.
+  const bayMat = () => {
+    const m = new THREE.MeshStandardMaterial({
+      color: 0x15171b, roughness: 0.42, metalness: 0.10,
+      side: THREE.DoubleSide });
+    m.userData.aeroskin = 1;
+    return m;
+  };
+  // THE BAY'S CAGE IS A QUAD AND TWO PROFILES (G98, the user's own drawing:
+  // "Mine is a quad, and 2 plane following the leading edge profile, and
+  // done, no need for fancy").
+  //
+  // The first attempt offset every cut face inward along its own normal and
+  // bridged the boundary — a shell. It was wrong twice over: on a band that
+  // WRAPS THE LEADING EDGE the upper and lower offsets run at each other and
+  // cross, and even where they do not, the result is a curved trough that
+  // intersects the lamp. A lamp bay in a real wing is not a moulding. It is
+  // the back of the D-nose closed off: a flat rib at each end cut to the
+  // aerofoil, and a plate across the back of them.
+  //
+  // All three come from the cut's OWN BOUNDARY — the edges used once — so the
+  // cage follows whatever the aerofoil, the taper and the washout are doing
+  // without being told any of it.
+  function bayCage(geo) {
+    const src = geo.getAttribute('position'), idx = geo.getIndex();
+    if (!src || !idx) return null;
+    // WELD FIRST. pickParts hands back split vertices, and on split vertices
+    // every edge is used once — the boundary test returns the whole mesh.
+    const P = [], map = new Map(), wid = new Int32Array(src.count);
+    for (let i = 0; i < src.count; i++) {
+      const x = src.getX(i), y = src.getY(i), z = src.getZ(i);
+      const k = (Math.round(x * 1e4)) + ',' + (Math.round(y * 1e4)) + ',' +
+                (Math.round(z * 1e4));
+      let id = map.get(k);
+      if (id === undefined) { id = P.length; P.push([x, y, z]); map.set(k, id); }
+      wid[i] = id;
+    }
+    const seen = new Map();
+    const kk = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+    for (let t = 0; t + 2 < idx.count; t += 3) {
+      const v = [wid[idx.getX(t)], wid[idx.getX(t + 1)], wid[idx.getX(t + 2)]];
+      for (let k = 0; k < 3; k++) {
+        const a = v[k], b = v[(k + 1) % 3], key = kk(a, b);
+        const e = seen.get(key); if (e) e.n++; else seen.set(key, { a, b, n: 1 });
+      }
+    }
+    const bnd = [];
+    for (const e of seen.values()) if (e.n === 1) bnd.push(e);
+    if (bnd.length < 4) return null;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const q of P) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0];
+                         if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }
+    const xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+    // AN EDGE IS EITHER SPANWISE OR IN A PROFILE, and which it is decides
+    // which of the three walls it belongs to. Spanwise edges are the two aft
+    // trims (upper and lower); profile edges are the two end ribs.
+    const endI = new Set(), endO = new Set(), aftU = new Set(), aftL = new Set();
+    for (const e of bnd) {
+      const A = P[e.a], B = P[e.b];
+      const dx = Math.abs(A[0] - B[0]);
+      const dr = Math.hypot(A[1] - B[1], A[2] - B[2]);
+      if (dx > dr) {                       // along the span: an aft trim
+        const set = (A[1] + B[1]) / 2 > ym ? aftU : aftL;
+        set.add(e.a); set.add(e.b);
+      } else {                             // across the chord: an end rib
+        const set = (A[0] + B[0]) / 2 < xm ? endI : endO;
+        set.add(e.a); set.add(e.b);
+      }
+    }
+    const pos = [], out = [];
+    const put = q => { pos.push(q[0], q[1], q[2]); return pos.length / 3 - 1; };
+    // --- the two ribs: the profile itself, filled ---------------------------
+    // THE ORDER COMES FROM THE EDGES, NOT FROM AN ANGLE. The first fill
+    // sorted the rib's vertices by their angle about the centroid and fanned
+    // them, which assumes the profile is star-shaped about that point and
+    // invents the ordering rather than reading it. A loft also repeats its
+    // leading-edge SEAM vertex, and two coincident points share an angle, so
+    // the fan emitted degenerate slivers. Chaining the boundary instead —
+    // each rib is an open polyline, walked end to end, closed across the
+    // chord, ear-clipped in its own plane — covers the rib exactly once with
+    // no triangle that was not already implied by the cut.
+    //
+    // This is NOT what cured the moire the user reported; the inset below is.
+    // Both were wrong, and fixing the triangulation first is what made that
+    // visible.
+    const chain = (verts, edges) => {
+      const adj = new Map();
+      for (const e of edges) {
+        if (!verts.has(e.a) || !verts.has(e.b)) continue;
+        (adj.get(e.a) || adj.set(e.a, []).get(e.a)).push(e.b);
+        (adj.get(e.b) || adj.set(e.b, []).get(e.b)).push(e.a);
+      }
+      let start = -1;
+      for (const [v, nb] of adj) if (nb.length === 1) { start = v; break; }
+      if (start < 0) start = adj.keys().next().value;
+      if (start === undefined) return [];
+      const loop = [start], used = new Set();
+      let cur = start, prev = -1;
+      for (;;) {
+        const nb = adj.get(cur) || [];
+        let nx = -1;
+        for (const v of nb) {
+          const k = cur < v ? cur + '_' + v : v + '_' + cur;
+          if (v !== prev && !used.has(k)) { nx = v; used.add(k); break; }
+        }
+        if (nx < 0 || nx === start) break;
+        loop.push(nx); prev = cur; cur = nx;
+      }
+      return loop;
+    };
+    // ear clip on the (y, z) projection: an end rib sits on one loft station,
+    // so x is all but constant across it and the profile is the shape
+    const earClip = loop => {
+      const tri = [], n = loop.length;
+      if (n < 3) return tri;
+      const A2 = i => [P[loop[i]][1], P[loop[i]][2]];
+      let area = 0;
+      for (let i = 0; i < n; i++) {
+        const a = A2(i), b = A2((i + 1) % n);
+        area += a[0] * b[1] - b[0] * a[1];
+      }
+      const idsL = [...Array(n).keys()];
+      if (area < 0) idsL.reverse();
+      const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) -
+                              (a[1] - o[1]) * (b[0] - o[0]);
+      const inside = (a, b, c, q) => cr(a, b, q) >= 0 && cr(b, c, q) >= 0 &&
+                                     cr(c, a, q) >= 0;
+      let guard = n * n + 16;
+      while (idsL.length > 3 && guard-- > 0) {
+        let cut = false;
+        for (let k = 0; k < idsL.length; k++) {
+          const i0 = idsL[(k + idsL.length - 1) % idsL.length];
+          const i1 = idsL[k], i2 = idsL[(k + 1) % idsL.length];
+          const a = A2(i0), b = A2(i1), c = A2(i2);
+          if (cr(a, b, c) <= 0) continue;                 // reflex
+          let clear = true;
+          for (const j of idsL) {
+            if (j === i0 || j === i1 || j === i2) continue;
+            if (inside(a, b, c, A2(j))) { clear = false; break; }
+          }
+          if (!clear) continue;
+          tri.push([loop[i0], loop[i1], loop[i2]]);
+          idsL.splice(k, 1); cut = true; break;
+        }
+        if (!cut) break;
+      }
+      if (idsL.length === 3)
+        tri.push([loop[idsL[0]], loop[idsL[1]], loop[idsL[2]]]);
+      return tri;
+    };
+    const prof = bnd.filter(e => {
+      const A = P[e.a], B = P[e.b];
+      return Math.abs(A[0] - B[0]) <=
+             Math.hypot(A[1] - B[1], A[2] - B[2]);
+    });
+    // AND EACH RIB IS SET IN A FEW MILLIMETRES. This is the fix for the
+    // stipple the user reported twice — "overlapping faces on the interior
+    // sides", then "we still have the moire ... try moving the interior face
+    // outwards by a few mm". They were right, and the cause is not the rib's
+    // triangulation at all: A RIB FILLS THE CUT'S END PLANE, AND THE WING
+    // COVERING THAT CARRIES ON PAST THE CUT HAS FACES IN THAT SAME PLANE.
+    // Two coplanar surfaces from two different meshes, and the depth buffer
+    // cannot choose between them. No amount of care inside one of them helps;
+    // it has to move. 3 mm into the bay — which is also where a rib
+    // physically is, behind the skin rather than flush with the cut.
+    const RIB_IN = 0.003;
+    for (const set of [endI, endO]) {
+      if (set.size < 3) continue;
+      const loop = chain(set, prof);
+      if (loop.length < 3) continue;
+      const dx = set === endI ? RIB_IN : -RIB_IN;
+      const local = new Map();
+      const idOf = w2 => { let v = local.get(w2);
+        if (v === undefined) {
+          const q = P[w2];
+          v = put([q[0] + dx, q[1], q[2]]);
+          local.set(w2, v);
+        }
+        return v; };
+      for (const t of earClip(loop))
+        out.push(idOf(t[0]), idOf(t[1]), idOf(t[2]));
+    }
+    // --- the aft wall: one quad per loft row, upper trim to lower trim ------
+    const line = set => [...set].map(i => P[i]).sort((a, b) => a[0] - b[0]);
+    const U = line(aftU), L = line(aftL);
+    if (U.length >= 2 && L.length >= 2) {
+      const at = (arr, x) => {            // the trims share the loft's rows,
+        let best = arr[0], bd = Infinity; // but never assume it — match by x
+        for (const q of arr) { const d = Math.abs(q[0] - x);
+                               if (d < bd) { bd = d; best = q; } }
+        return best;
+      };
+      const xs = [...new Set(U.concat(L).map(q => q[0]))].sort((a, b) => a - b);
+      for (let i = 0; i + 1 < xs.length; i++) {
+        const a = put(at(U, xs[i])), b = put(at(U, xs[i + 1]));
+        const c = put(at(L, xs[i + 1])), d = put(at(L, xs[i]));
+        out.push(a, b, c, a, c, d);
+      }
+    }
+    if (!out.length) return null;
+    const G = new THREE.BufferGeometry();
+    G.setAttribute('position',
+      new THREE.BufferAttribute(new Float32Array(pos), 3));
+    G.setIndex(out);
+    G.computeVertexNormals();
+    return G;
+  }
+  // THE BAY'S OWN SECTION — the two branches of the aerofoil, per station.
+  //
+  // NOT SAMPLED AT MID-SPAN, and NOT BINNED. Both were tried and both came
+  // back empty for the same underlying reason: A BAY IS ONE LOFT CELL. It has
+  // two stations and no middle, so a mid-span filter matched nothing; and it
+  // carries about a dozen points per station, so binning the chord put one
+  // point in most bins and reported an aerofoil with no thickness.
+  //
+  // What it actually is: at each station, an UPPER branch and a LOWER branch,
+  // each a polyline in (chord, height). Interpolate both at the chord you
+  // care about and subtract. Exact, no resolution to choose, and it stays
+  // right whether the bay spans one loft cell or ten — the consumer takes the
+  // thinnest station, which is the room the lamp really has.
+  function section(geo) {
+    const src = geo.getAttribute('position');
+    if (!src || !src.count) return null;
+    const sta = new Map();
+    for (let i = 0; i < src.count; i++) {
+      const k = Math.round(src.getX(i) * 1e3);
+      let a2 = sta.get(k);
+      if (!a2) sta.set(k, a2 = []);
+      a2.push([src.getZ(i), src.getY(i)]);
+    }
+    const out = [];
+    for (const [k, pts] of sta) {
+      let ym = 0;
+      for (const q of pts) ym += q[1];
+      ym /= pts.length;
+      const byZ = (p2, q) => p2[0] - q[0];
+      const up = pts.filter(q => q[1] >= ym).sort(byZ);
+      const dn = pts.filter(q => q[1] < ym).sort(byZ);
+      if (up.length < 2 || dn.length < 2) continue;
+      // THE STATION CARRIES ITS OWN x, and it has to. A wing has DIHEDRAL, so
+      // two stations of the same bay sit at different heights — 38 mm apart
+      // on this aeroplane. Comparing them at a shared chord and keeping the
+      // thinner reading described a section neither of them has. The consumer
+      // interpolates BETWEEN them at the lamp's own station instead.
+      out.push({ x: k / 1e3, up, dn });
+    }
+    return out.length ? out : null;
+  }
+  const lensMatW = () => {
+    const m = new THREE.MeshStandardMaterial({
+      color: 0xdfeaf2, roughness: 0.07, metalness: 0.0,
+      transparent: true, opacity: 0.34, side: THREE.DoubleSide,
+      depthWrite: false });
+    m.userData.aeroskin = 1;      // the understudy must not flatten the glass
+    return m;
+  };
+  // KEPT for the strut block below: a fitting on the wing has to sit on the
+  // wing that is DRAWN, exactly as the fuselage fitting sits on the drawn
+  // cage. This is that surface, in cage space, before it is dressed.
+  let wingGeo = null;
   if (gs.skin) {
     const parts = pickParts(gs.skin, wingVert(gs.skin), toCage, skinClass,
                             wingField(gs.skin));
@@ -507,6 +888,60 @@ PAGE.post = ctx => {
       const pr = add(parts, cl, wingMat(cl));
       if (pr) faces += pr.geo.index.count / 3;
     }
+    // THE LENS, over the hole the classifier just made. Same faces, same
+    // frame, glass instead of covering — and named so the light layer can
+    // find where it ended up rather than recomputing it.
+    const bayBox = {};
+    const bayProf = {};
+    const bx = b => ({ min: [b.min.x, b.min.y, b.min.z],
+                       max: [b.max.x, b.max.y, b.max.z] });
+    for (const sd of ['R', 'L']) {
+      const pr = parts['lamp' + sd];
+      if (!pr) continue;
+      const o = WIRE
+        ? new THREE.LineSegments(pr.wire, wireMat('glassC'))
+        : new THREE.Mesh(pr.geo, lensMatW());
+      o.name = 'edLens_wing' + sd;
+      o.renderOrder = 3;
+      group.add(o);
+      // THE INTERIOR CAGE (G98, user: "it misses an interior cage ... it is
+      // contained in a little cage, with an aft wall and side walls with the
+      // profile of the wing"). Without it you see straight through the wing.
+      // A quad and two ribs, all three taken from the cut's own boundary —
+      // so the side walls carry the aerofoil profile by construction, exactly
+      // as the lens does, and the back is a flat plate across them.
+      const cg = bayCage(pr.geo);
+      if (cg) { const m = new THREE.Mesh(cg, bayMat());
+                m.name = 'edBay_wing' + sd; group.add(m); }
+      const b = new THREE.Box3().setFromObject(o);
+      if (isFinite(b.min.x)) bayBox[sd] = b;
+      bayProf[sd] = section(pr.geo);
+    }
+    if (parts.lampR || parts.lampL) {
+      // the bay's OWN extent, measured off the lens that was just built, so
+      // the light layer places its lamp from the hole rather than from the
+      // request that made it. ONE LENS SPANS BOTH WINGS (the class collects
+      // both sides), so the station is carried separately from the box.
+      // published PER SIDE and in this group's own (identity) frame, so the
+      // light layer measures a real box rather than reconstructing a station
+      window.CAGE_WING_BAY = { half: BAY.half, chord: BAY.chord,
+        depth: BAY.depth,
+        // PLAIN NUMBERS, not a Box3: r128's Box3 has no `toArray`, and the
+        // TypeError it throws lands in the post hook where it takes the whole
+        // layer down with it.
+        R: bayBox.R ? bx(bayBox.R) : null,
+        L: bayBox.L ? bx(bayBox.L) : null,
+        // AND THE SECTION, not only the box (G98, user: "your lamp sticks out
+        // a tad. Have this not happen by default"). It did, and the box is
+        // exactly why: the box's height is the aerofoil at the AFT cut, where
+        // it is thickest, and the lamp sits well forward of that in the
+        // D-nose where there is a good deal less room. A lamp sized from the
+        // box is oversized by the taper of the section it is fitted into.
+        // So the bay reports its own thickness AS A FUNCTION OF CHORD and the
+        // light layer fits the lamp to the station it actually occupies.
+        profR: bayProf.R, profL: bayProf.L };
+    } else window.CAGE_WING_BAY = null;
+    if (parts.main) wingGeo = parts.main.geo;
   }
   // GLASS CENTRE (G32, user): the game emits a 'glass' carry-through into
   // its CANOPY group — the binding filter pulls the wing-bound faces out
@@ -519,8 +954,159 @@ PAGE.post = ctx => {
       group.add(o);
     }
   }
+  // ---- THE LIFT STRUTS STAND ON THE STRUCTURE, AND ON THE SKIN (G87) -----
+  // User, with both feet circled on a screenshot: "struts need to be properly
+  // positioned on the 3d fuselage, probably using the same method as the
+  // suspension fittings; a clear metal plate with bolts and screws,
+  // constrained to the aircraft skin"; then, on the first cut: "I hope you
+  // also ensured that the struts are also well anchored on the wings? ... it
+  // also needs to be fixed through attachment with geometry. It should be
+  // constrained to remain straight, in that sense that the fore/aft position
+  // of both ends need to be similar ... prefer constraining the visuals to
+  // the existing physics rather than adding new physics now."
+  //
+  // WHAT THIS DRAWS AND WHAT IT DOES NOT. It draws BOTH ends of both struts
+  // as real fittings, on the surfaces that are really there. It moves NO
+  // physics: the strut is 61_gen_frame.js's own beam, from its own strut
+  // root to its own spar node, and the two trim sliders are bounded so the
+  // drawn ends stay within a fitting's length of the beam's. If a build ever
+  // wants a strut somewhere the beam is not, that is a change to the frame
+  // and it belongs in the frame — this file will not fake it.
+  //
+  // NODES ARE ALREADY BODY-FRAME. `toCage` is written for SKIN vertices,
+  // which genSkin emits in the REST pose, so it undoes that pose first
+  // (`toBody`). A node from `def.nodes` has never been through it, and
+  // sending one through toCage tilts it by the whole rest pitch — a
+  // taildragger's ~10 degrees, which is half a metre out at the wing
+  // station. The first cut of this block did exactly that. `nodeCage` is
+  // toCage without the undo, and it is the only correct map for a node.
+  const nodeCage = p => [p[2], yAnchor + (p[1] - refP[1]) + dy,
+                         zCab - (p[0] - refP[0]) + dx];
+  let strutOn = false, strutNote = '';
+  const SG = window.STRUT_GEN;
+  if (SG && GG && AF && !WIRE && gs.liftstrut) {
+    // the external wing beams, grouped BY THEIR ROOT — which is what
+    // discovers that both struts of a side share one fuselage fitting
+    // (61_gen_frame: B(strutRoot, WF[mid]) and B(strutRoot, WR[mid]))
+    // rather than assuming it. A wing whose fan ever roots elsewhere gets
+    // its own plate there with no edit here.
+    const byRoot = new Map();
+    for (const b of (def.beams || []))
+      if (b.ext && b.cls === 'wing') {
+        if (!byRoot.has(b.a)) byRoot.set(b.a, []);
+        byRoot.get(b.a).push(b.b);
+      }
+
+    // THE FORE/AFT TRIM MOVES BOTH ENDS, AND IS BOUNDED BY THE WING'S OWN
+    // STRUCTURE (user). A strut is straight and unraked: shifting only its
+    // foot would skew it, so one number shifts the foot AND both wing
+    // fittings by the same amount along the body. And the band it may move
+    // in is not a taste — it is the wing's structural chord, "excluding the
+    // leading edge and the control surface sections":
+    //
+    //   forward limit   the front fitting may not go ahead of the nose rib
+    //   aft limit       the rear fitting may not go behind the aileron hinge
+    //
+    // so the range is a few tenths of a chord and it SHRINKS on a narrow
+    // wing, which is right: a 1.15 m chord has less room than a 2.10 m one.
+    // Outside it the slider clamps and the status line says so, because a
+    // control that silently stops is a control that lies.
+    const CW = def.spec.wing || {};
+    const chord = CW.chord || 1.6;
+    const sF = PT.sparFront != null ? PT.sparFront : 0.15;
+    const sR = PT.sparRear != null ? PT.sparRear : 0.65;
+    const ailC = (def.spec.controls && def.spec.controls.aileron &&
+                  def.spec.controls.aileron.chord) || 0.22;
+    const band = SG.strutBand(chord, sF, sR, ailC);
+    // cage +z is FORWARD and body +x is AFT, so the slider's "fore" is -x
+    const want = -(P.wgStrutZ || 0);
+    const sx = Math.max(band.lo, Math.min(band.hi, want));
+    const clamped = Math.abs(sx - want) > 1e-6;
+
+    // THE WING'S OWN SURFACE, for the fittings that land on it. This layer
+    // owns the geometry and THREE; the strut module owns the fitting and
+    // knows nothing about either. So what crosses between them is ONE RAW
+    // RAY — from, direction, first hit, and a normal turned to face where
+    // the ray started. Which surface of the wing a fitting belongs on is the
+    // strut's question, not this file's, and it asks it by aiming the ray.
+    let wingRay = null;
+    if (wingGeo && THREE.Raycaster) {
+      const probe = new THREE.Mesh(wingGeo, MAT.main);
+      probe.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster();
+      rc.far = 1.2;
+      const o = new THREE.Vector3(), d = new THREE.Vector3();
+      wingRay = (from, dir) => {
+        o.set(from[0], from[1], from[2]);
+        d.set(dir[0], dir[1], dir[2]).normalize();
+        rc.set(o, d);
+        const h = rc.intersectObject(probe, false);
+        if (!h.length || !h[0].face) return null;
+        const n = h[0].face.normal;
+        // FACING THE RAY'S ORIGIN, always. The wing skin is double-sided and
+        // its winding is genSkin's business, so the only trustworthy way to
+        // orient a normal here is against the direction we came from.
+        const sg2 = n.x * d.x + n.y * d.y + n.z * d.z > 0 ? -1 : 1;
+        return { p: h[0].point.toArray(),
+                 n: [n.x * sg2, n.y * sg2, n.z * sg2] };
+      };
+    }
+
+    if (byRoot.size) {
+      const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
+      let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0;
+      for (const [root, tips] of byRoot) {
+        const rp = N2[root].p;
+        const site = SG.strutSite(AF, nodeCage([rp[0] + sx, rp[1], rp[2]]),
+                                  0, P.wgStrutX || 0);
+        // FRONT FIRST: cage z is forward, so the front spar's fitting is the
+        // larger z, and it takes the forward pin.
+        const ends = tips
+          .map(id => { const q = N2[id].p;
+                       return { top: nodeCage([q[0] + sx, q[1], q[2]]),
+                                beam: nodeCage(q) }; })
+          .sort((a, b) => b.top[2] - a.top[2]);
+        const r = SG.strutBuild(bags, AF, site, ends, { wingRay });
+        if (r) {
+          dSnap = Math.max(dSnap, site.snap.d);
+          for (const st2 of r.struts) {
+            sLen += st2.len; sN++;
+            dOff = Math.max(dOff, st2.off);
+            if (st2.tip !== st2.node) onWing++;
+          }
+        }
+      }
+      if (sN) {
+        const sg = new THREE.Group();
+        // the part table resolves a hit through the nearest name on the way
+        // up (editor.js HIT_NAME), so the group carries it and the three
+        // meshes under it do not need one each
+        sg.name = 'edFit_liftstrut';
+        bags.strut.mesh(sg, MAT.liftstrut);
+        bags.alloy.mesh(sg, GG.gearMat('alloy'));
+        bags.steel.mesh(sg, GG.gearMat('steel'));
+        group.add(sg);
+        strutOn = true;
+        // WHAT THE STATUS LINE SAYS, and why each number is there:
+        //   snap   how far the frame's strut root was from the built skin
+        //   off    how far the drawn wing fitting is from its BEAM's own end
+        //          — the visuals' whole licence, reported every build
+        //   fwd    the fore/aft trim actually applied, with ! when clamped
+        strutNote = 'strut: snap ' + (dSnap * 1000).toFixed(0) +
+          ' mm · ' + (sLen / sN).toFixed(2) + ' m · ' + onWing + '/' + sN +
+          ' on wing · off ' + (dOff * 1000).toFixed(0) + ' mm' +
+          // ...and it is shown when the trim is NON-ZERO **or** when it was
+          // clamped, which are not the same thing: a wing whose band has
+          // collapsed clamps a moved slider back to zero, and that is exactly
+          // the case the player most needs told about.
+          (sx || clamped ? ' · fwd ' + (-sx).toFixed(2) +
+                           (clamped ? '!' : '') : '');
+      }
+    }
+  }
+  if (stat && strutNote) stat.textContent += '  ·  ' + strutNote;
   const yes = () => true;
-  for (const nm of ['liftstrut', 'pitot'])
+  for (const nm of (strutOn ? ['pitot'] : ['liftstrut', 'pitot']))
     if (gs[nm]) {
       // the strut and the pitot are FITTINGS, not skin: no ribs, no spars,
       // no field — they take the shader's triplanar branch

@@ -172,7 +172,12 @@ function tailMat(k) {
     Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] || 'tubeFabric';
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
-    grm: cons, struct: 1, wing: 1,     // a tail is a flying surface: ribs+spar
+    grm: cons, struct: 1, wing: 1,     // a tail is a flying surface
+    // THE TAIL'S RIBS ARE DRAWN IN METRES (G97), not off the field's station
+    // index: this mesh is far coarser than the wing's and `fract(station)`
+    // wanders with the triangulation on it. TAIL_RIB is already the declared
+    // real pitch, so handing it over is one argument.
+    ribM: TAIL_RIB,
     surf: 1, fieldM: tailFS(),         // cage units -> metres
     side: THREE.DoubleSide,
   });

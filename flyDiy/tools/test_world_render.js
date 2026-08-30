@@ -176,7 +176,13 @@ const THREE = {
   DirectionalLight: class extends Obj3 { constructor() { super();
     this.shadow = { mapSize: { set() {} }, camera: { left:0, right:0, top:0, bottom:0, near:0, far:0,
       updateProjectionMatrix() {} }, bias: 0, normalBias: 0 }; this.target = new Obj3(); } },
-  HemisphereLight: class extends Obj3 {},
+  // a HemisphereLight IS its two colours — a stub without `groundColor` is not
+  // standing in for the real thing, it is hiding the half of it that this
+  // chantier had to occlude (the ground bounce). It threw here first, which is
+  // the stub doing its job late rather than the world doing something wrong.
+  HemisphereLight: class extends Obj3 {
+    constructor(sky, gnd, i) { super(); this.color = sky; this.groundColor = gnd;
+      this.intensity = i; } },
   RepeatWrapping: 1000, DoubleSide: 2, BackSide: 1, sRGBEncoding: 3000,
   LinearFilter: 1006, LinearMipmapLinearFilter: 1008, RGBAFormat: 1023,
   RGBADepthPacking: 3201,
