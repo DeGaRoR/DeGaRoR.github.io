@@ -829,6 +829,12 @@ const GEN_PROP_MATS = {
   wood:   { name: 'Wood',      kg: 2.40, price: 900 },
   alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },
   carbon: { name: 'Carbon',    kg: 1.60, price: 5200 },
+  // G125: the scanned woods, priced as the boutique blanks they are. Mass
+  // scales the wood anchor by Wood Handbook density (birch ~680: hard maple
+  // ~705 -> 2.50, black walnut ~640 -> 2.25) — a walnut prop really is the
+  // lighter one, and the vintage look is what the premium buys.
+  maple:  { name: 'Maple',     kg: 2.50, price: 1300 },
+  walnut: { name: 'Walnut',    kg: 2.25, price: 1500 },
 };
 
 // PITCH is a real trade and ONE number carries it: the figure of merit in
@@ -909,10 +915,23 @@ const GEN_FINISH = {
 // the two is the windscreen (see 63_gen_skin.js). A drone has no windscreen at
 // all, so its deck is 1.0 and the nose runs continuously into the body — which
 // is the whole visual difference between an aeroplane and an airframe.
+//
+// `crew` IS THE NUMBER OF SEATS, not the number of people in them — the
+// loading is `cabin.pilots` plus `cabin.pax`, below. The name is older than
+// the distinction and is left alone because four files read it.
 const GEN_SEATING = {
   single:  { halfW: 0.32, h: 0.92, len: 0.62, crew: 1, deck: 0.70 },
   tandem2: { halfW: 0.36, h: 1.00, len: 0.78, crew: 2, deck: 0.70 },
   side2:   { halfW: 0.53, h: 1.05, len: 0.90, crew: 2, deck: 0.70 },
+  // FOUR SEATS (2026-08-31, the user: "we need passenger seats and passengers,
+  // impacting the mass and CG"). Two rows of two and a 2+2 — a wider, taller,
+  // longer box, because four people need one. The numbers are the side-by-side
+  // grown by what the second row costs: 0.86 m of pitch on `side4` (the spec's
+  // own `cabin.seatPitch` default), and `tandem4`'s narrower pair-behind-pair.
+  // NEITHER IS THE DEFAULT and neither changes an existing aeroplane: a spec
+  // that does not name them resolves exactly as it did.
+  side4:   { halfW: 0.56, h: 1.12, len: 1.76, crew: 4, deck: 0.70 },
+  tandem4: { halfW: 0.42, h: 1.06, len: 1.94, crew: 4, deck: 0.70 },
   drone:   { halfW: 0.20, h: 0.30, len: 0.55, crew: 0, deck: 1.00 },
 };
 
@@ -1127,7 +1146,14 @@ function genMigrateSpec(r) {
 // aeroplane, which is the point.
 const GEN_DEFAULT = {
   v: GEN_SPEC_V,
-  meta: { name: 'Garage Special', reg: 'F-PGAR' },
+  // `role` and `class` are the birth flow's LABELS (NEW-AIRCRAFT §5.1/§5.2):
+  // an intention and a size class, stored because missions, the fleet and
+  // the plaque will read them — and NEVER constraints. Null = unstated, and
+  // null is why GEN_SPEC_V does not move for them: genDefaults fills the
+  // missing field and an older spec means exactly what it meant. The legal
+  // values live with the declaration (tools/_cage_design.js), not here —
+  // clampSpec type-guards only, the `finish` argument.
+  meta: { name: 'Garage Special', reg: 'F-PGAR', role: null, class: null },
   cabin: {
     seating: 'tandem2',
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
@@ -1135,6 +1161,11 @@ const GEN_DEFAULT = {
     // J-3-class aeroplane is flown solo; loading both seats is a different
     // aeroplane and should read as one.
     pilots: 1,
+    // AND THE PASSENGERS. Same idea as `pilots` and the same units: how many
+    // of the remaining seats are FILLED for the flight the gates measure.
+    // 0 by default — a two-seat aeroplane flown solo is the aeroplane this
+    // battery has always measured, and it stays that.
+    pax: 0,
     baggage: 10,             // kg
     halfW: null, h: null, len: null, noseGap: 0.62,
     // WHERE THE SEATS SIT, as an OFFSET from what the cabin derives. The base is
@@ -1396,7 +1427,8 @@ const GEN_DEFAULT = {
   // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
   // so it is one of the two things that set prop clearance, the other being
   // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
-  gear: { type: 'taildragger', fairing: 'none', suspension: 'bungee',
+  gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
+          suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
           legDrop: null, twLeg: null, camber: 0,
@@ -1579,6 +1611,18 @@ function clampSpec(spec) {
   const fu = S.fuselage, cb = S.cabin;
   if (!GEN_MATERIALS[fu.material]) fu.material = 'tubeFabric';
   if (!GEN_SHAPES[fu.shape]) fu.shape = 'straight';
+  // THE PART'S OWN CONSTRUCTION (G116) — additive, no default written: absent
+  // means the aeroplane's own material, which is what every spec written
+  // before these fields existed already meant, and why GEN_SPEC_V does not
+  // move (nothing to branch on; genDefaults fills nothing). The one thing to
+  // clamp is that a value names a real material — an unknown falls back to
+  // absent rather than reaching GEN_MATERIALS as undefined.
+  if (S.wings && S.wings[0] && S.wings[0].material != null &&
+      !GEN_MATERIALS[S.wings[0].material]) delete S.wings[0].material;
+  if (S.tail && S.tail.finMaterial != null &&
+      !GEN_MATERIALS[S.tail.finMaterial]) delete S.tail.finMaterial;
+  if (S.tail && S.tail.stabMaterial != null &&
+      !GEN_MATERIALS[S.tail.stabMaterial]) delete S.tail.stabMaterial;
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -1685,6 +1729,13 @@ function clampSpec(spec) {
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
 
+  // the birth flow's labels: TYPE guards only — the legal value tables live
+  // with the declaration (tools/_cage_design.js), and a second copy of them
+  // here is the second home the `finish` note above already forbids. A
+  // non-string is unstated, never an error.
+  if (S.meta.role != null && typeof S.meta.role !== 'string') S.meta.role = null;
+  if (S.meta.class != null && typeof S.meta.class !== 'string') S.meta.class = null;
+
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
   // normalised clone every time, so this cannot accumulate across calls the way
@@ -1771,6 +1822,19 @@ function clampSpec(spec) {
   // as though it should is worse than one that is honestly cosmetic. If a drag
   // model arrives, this is the field it keys off.
   if (!['none', 'spat', 'full'].includes(S.gear.fairing)) S.gear.fairing = 'none';
+  // G121.2: the THIRD WHEEL's own fairing. Priced only where the layer
+  // actually draws one (a tricycle's nosewheel; the tailwheel castor has no
+  // spat branch) — see genGearCdA, which owns that condition.
+  if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
+  // is an array by design and `nEngines` multiplies thrust honestly — but
+  // every mount today is the one nose pair, so a second entry would fly as
+  // doubled thrust with ZERO asymmetry: no offset nacelles, no engine-out,
+  // no Vmc. That is not a twin, it is a lie wearing one's spec. Clamped
+  // here, loudly, until P7 gives each engine its own mount nodes; the clamp
+  // is the declared guard the review asked for in place of a later surprise.
+  if (Array.isArray(S.engines) && S.engines.length > 1)
+    S.engines = S.engines.slice(0, 1);
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
@@ -1941,6 +2005,14 @@ function resolveSpec(spec) {
   }
   S.seats = seat.crew;
   S.crew = genClamp(S.pilots | 0, 1, seat.crew);
+  // WHO ELSE IS ABOARD. `pilots` has always been LOADING rather than capacity
+  // (its own comment in GEN_DEFAULT says so); `pax` is the same idea for the
+  // seats the flight crew are not in, so the two together are the occupants
+  // and `seats` stays the capacity. Clamped to what is left, so a spec cannot
+  // load five people into four seats — and 0 by default, which is why no
+  // existing aeroplane's mass moves.
+  S.pax = genClamp(S.cab.pax | 0, 0, Math.max(0, seat.crew - S.crew));
+  S.occupants = S.crew + S.pax;
 
   // 2. wing longitudinal placement — the front spar lands on the cabin-front
   //    frame, which is what puts a high-wing carry-through over the cabin
@@ -2010,13 +2082,22 @@ function resolveSpec(spec) {
   put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
   t.hX += pl.tailDx; t.vX += pl.tailDx;
   const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
-  const Sh = GEN_RULES.Vh * S.geom.Sw * cBar / lh;
-  const Sv = GEN_RULES.Vv * S.geom.Sw * w.span / lv;
+  // G115: the tail AREAS are derivable, not imposed — `put`, not assignment.
+  // The volume rule fills them when the builder says nothing (identical to
+  // the old unconditional write for every existing build), but a set Sh or
+  // Sv now STICKS: the auto-tail was silently rescuing every design from the
+  // classic mistake, and a fin you cannot shrink is a fin you cannot learn
+  // from. Areas resolve FIRST so the spans and chords below derive from the
+  // EFFECTIVE area, whichever of the rule or the builder supplied it. The
+  // arms stay computed — they are geometry readouts, not choices.
+  put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
+  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
+  const Sh = t.Sh, Sv = t.Sv;
   put(t, 'hSpan', Math.sqrt(Sh * GEN_RULES.hAR), 'tail.hSpan');
   put(t, 'hChord', Sh / t.hSpan, 'tail.hChord');
   put(t, 'vHeight', Math.sqrt(Sv * GEN_RULES.vAR), 'tail.vHeight');
   put(t, 'vChord', Sv / t.vHeight, 'tail.vChord');
-  S.tail.Sh = Sh; S.tail.Sv = Sv; S.tail.lh = lh; S.tail.lv = lv;
+  S.tail.lh = lh; S.tail.lv = lv;
   // THE FIN'S RAKE, derived from what it already was. The skin swept the fin's
   // leading edge by a hardcoded 0.30 of the chord over the fin's height; left
   // null that is exactly what comes back, so making it a control moves no

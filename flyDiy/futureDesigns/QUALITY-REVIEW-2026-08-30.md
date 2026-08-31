@@ -284,9 +284,10 @@ real customer).
 Coordination note: touches `60_gen_spec.js`, `_cage_gen.js`, `garage.js` — files other live
 sessions own pieces of; this wants to be agreed as an opening move, not done around them.
 
-### P-2 · THE TEST PILOT — **LANDED as G107, 2026-08-31** (items 1-3 + 5, plus the
-TESTED≠PASSED rider; plaque persistence deferred — blocked on load-path BENCH_DIRTY
-sequencing owned by the finish session; test-card parameters are the named next cut)
+### P-2 · THE TEST PILOT — **LANDED WHOLE, G107 → G107.3 (2026-08-31)**: the pilot,
+GATE PILOT, the in-page TEST FLIGHT + landing run, touchdown markers, TESTED≠PASSED,
+the test card (G107.1), the arrival card (G107.2), and plaque persistence (G107.3 —
+the empty-bench rule dissolved the BENCH_DIRTY load-path race)
 (Missions are dropped from the near-term plan per the user's direction. The coming days' game is
 build → test → try. The current AP's failures are the blocker: it climbs forever, attempts
 impossible take-offs, rolls forever — it trusts the aircraft completely, where a test pilot trusts
@@ -326,7 +327,14 @@ himself. It also lands "in surprising ways" off faulty descent profiles.)
    `--tier=core` convenience flag + the habit of `--only` during chantiers is the cheap relief;
    keeping the fleet gates as benchmarks costs nothing when they aren't in the inner loop.
 
-### P-3 · The sim stops lying (ruling 3-conformant increments, no rewrite)
+### P-3 · The sim stops lying — **LANDED as G115 "honesty" (2026-08-31)**: gear/strut
+drag as a delta from the reference gear, the surface table (grass = the calibration
+datum, verbatim), the fin's own polar + the measured weathervane (Cn_beta on the
+plaque) + settable tail areas, and the plaque made self-consistent (derived TO air
+segment, one stall instrument). **S3 REFUTED BY MEASUREMENT**: free-yaw decay at two
+damper settings shows DEFDAMP is ~10-15% of yaw damping at cruise, not "half" — no
+solver fix needed (tools/_yaw_probe.js). GATE HONEST holds all four, --selftest.
+Deferred as planned: Reynolds (P12), P-factor/torque (P7), the donor AP's flare mix.
 Ranked by plaque corruption per unit of work:
 1. **Gear/strut drag increment** — the declared join the spats note has promised since POST-G6;
    makes L/D, VCruise, TO run honest and makes the gear choice a real trade.
@@ -341,7 +349,13 @@ Ranked by plaque corruption per unit of work:
 Explicitly deferred as the roadmap already rules: Reynolds (P12), P-factor/torque (worth doing when
 P7 makes engines plural), stall hysteresis.
 
-### P-4 · P4-proofing the solver — write into the burn/discharge chantier's spec
+### P-4 · P4-proofing the solver — **LANDED as G121 (2026-08-31)**: the `setNodeMass`
+door (live `totalM` getter, exact cgPos through a drain, ground re-rig, reset restores),
+`node.mFuel` records, dry-mass substeps (B2's "divergent at reserves" measured as a
+FORECAST for vessels-on-light-nodes, not a current fact — mechanism ×1.28 real, fix free
+when inert), live taxiFF in both pilots, the plaque's AT-RESERVES sheet (margin 0.195→
+0.159 measured on a 120 L build), and the B8 twin clamp. GATE MASS, --selftest. Burn
+itself stays with the energy arc — this is its floor. **(original below)**
 Small and localized, but silent if missed: recompute `totalM` when masses change (else alpha itself
 corrupts and DEFDAMP becomes a growing invisible drag), size substeps at MINIMUM fuel (stable full,
 divergent at reserves today), rebuild ground spring/damping constants, un-freeze `taxiFF`, and quote

@@ -34,7 +34,66 @@ function genHangarSupported(THREE) {
   return !!THREE && GEN_HANGAR_NEEDS.every(k => THREE[k] !== undefined);
 }
 
-function genHangarBuild(THREE, dims) {
+// THE SHEET BAKERY IS BAKED ONCE PER PROCESS (G123). Every canvas sheet in
+// this file is a pure function of a fixed seed, so the second shed to be built
+// was redrawing byte-identical textures and handing the GPU a second copy of
+// them: measured at 264 ms and 18.4 MB per exterior build, and the world scene
+// builds one at boot now. The memo is keyed on the CALL INDEX plus the
+// sheet's size, encoding and the length of its own draw source — the index
+// alone would silently return the wrong texture if the sequence of calls ever
+// diverged between variants, and the fingerprint is what makes that a miss
+// (a rebake) instead of a mistake.
+//
+// Sharing is safe in the other direction too: three's Material.dispose() does
+// NOT dispose an attached texture, and neither disposer here touches maps, so
+// tearing down one shed cannot blind the other. Every `repeat.set` applied to
+// these sheets is a constant, never a function of the dims, so two sheds of
+// different sizes can wear the same tile.
+const HANGAR_SHEETS = new Map();
+const hangarSheetKey = (kind, w, h, extra, draw) => {
+  let f = 2166136261;                                  // FNV-1a over the source
+  const src = draw.toString();
+  for (let i = 0; i < src.length; i++) {
+    f ^= src.charCodeAt(i); f = (f * 16777619) >>> 0;
+  }
+  return kind + '|' + w + 'x' + h + '|' + extra + '|' + f.toString(36);
+};
+
+function genHangarBuild(THREE, dims, opts) {
+
+// THE SAME SHED, SEEN FROM OUTSIDE (G123, the user: "we'll replace the
+// 'houses' with an exterior mesh of our hangar, door closed, no inside
+// assets"). The flight world used to stand a 15 x 10 coloured box where this
+// building is, so taxiing past the hangar and standing inside it were two
+// different places. `opts.exterior` builds the SHELL out of this same file —
+// not a copy of it, not a simplified twin maintained beside it — so the
+// building in the world cannot drift from the room you build in.
+//
+// It is not "the shell minus the furniture". Roughly two thirds of the shell's
+// mesh count is INTERIOR STRUCTURE — seven portal trusses, their purlins, and
+// a 162-mesh glazing band — none of which anything outside a closed shed can
+// see. `EXT` drops those, closes the doors, and returns before the fittings,
+// the lights, the sky, the moods and the two shadow bakes ever run.
+//
+// Three of those matter beyond the mesh count, and each would be a real bug in
+// the world scene rather than a cost: the key light is added to ROOT (a second
+// shadow-casting sun), the ground and craft shadow bakes allocate four render
+// targets at build time, and setMood calls the PROCESS-GLOBAL propSetEnv /
+// aeroSetEnv — so two live hangars would fight over the environment scale for
+// every prop and every aeroplane in the app. The early return is upstream of
+// all three.
+const EXT = !!(opts && opts.exterior);
+
+// THE FRAME FAMILY (HANGARS S4). A shell is a BUILD, not a material: the
+// club and the works are the same steel portal at two sizes, and `field` is
+// a different building — timber post-and-beam, board cladding, one top-hung
+// sliding leaf, no concrete stem, no glazing band, no roof lights. The
+// branch is HERE, once, on what the structure IS; the floor, the anchors,
+// the fit-out engine, the lamps, the moods, the part system and both shadow
+// bakes are shared, which is the whole reason a second family is a chantier
+// and not a rewrite.
+const SHELL = (opts && opts.shell) || 'club';
+const FRAME = SHELL === 'field' ? 'timber' : 'portal';
 
 // ===========================================================================
 // THE GARAGE. A working hangar, sized by its caller — 20 m deep, 28 m wide and
@@ -69,7 +128,12 @@ const HW = D0.HW || 15, HD = D0.HD || 12.5, EAVE = D0.EAVE || 7.0;
 const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // The opening is nearly the whole gable end. It leaves 2.5 m of wall each side
 // for the leaves to park against, and it cannot be taller than the eaves.
-const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = Math.min(6.4, EAVE - 1.4);
+// The timber shed's door runs nearly TO its eave instead — at a 3.6 m eave
+// the portal's formula leaves a 2.2 m opening, which is a stable door, not a
+// hangar door; a timber lintel is shallower than a steel header, so 0.5 m of
+// beam is what the opening actually gives up.
+const DOOR_W = Math.max(6, 2 * HW - 5);
+const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
 // track, each sliding to its own side, so unlike the six-leaf front they never
@@ -78,7 +142,10 @@ const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = Math.min(6.4, EAVE - 1.4);
 // straddling two at different depths.
 const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
 const BD_X = HD - 0.34;                    // the leaf plane, hung inside
-const BD_FACE = BD_X - 0.05;               // ...and the face you look at
+// ...and the face you look at. The timber shed has no back doors at all —
+// its back wall is boards — so the "face" the hung wing throws its shadow on
+// is the wall's own inner skin.
+const BD_FACE = FRAME === 'timber' ? HD - 0.18 : BD_X - 0.05;
 
 // THE LAYOUT WAS COMPOSED against the authored shed — 26 m deep by 36 m wide,
 // HD 13 and HW 18 — and every ABSOLUTE coordinate in the placement below is
@@ -104,11 +171,39 @@ const STOVE = { light: null, cd0: 14 };
 const GROUND = [];
 const ground = m => { GROUND.push(m); return m; };
 
-const rand = (s => () => (s = s * 1664525 + 1013904223 >>> 0) / 4294967296)(20260811);
+// AND WHICH OF THEM ARE OUTSIDE (G123). GROUND is "what the probe sees below
+// itself" and the shed's own floor is in it; this is the smaller list of
+// surfaces that are OUT OF THE BUILDING, and it exists because they must not be
+// lit by a reflection probe baked inside it. app.js hands these the sky's own
+// PMREM instead. Declared, not tested for, for the same reason GROUND is: a
+// probe cannot be asked to guess where the wall is.
+const OUTDOOR = [];
+const outdoor = m => { OUTDOOR.push(m); return ground(m); };
+
+// THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
+// MEMOISED across builds, so on the second build their draw callbacks do not
+// run and do not draw from this stream — which would leave every later
+// rand()-driven placement at a different position depending on whether the
+// world's shed happened to be built first. The stream is therefore reset to a
+// fixed GEOMETRY seed the moment the bakery is done, in both paths, so the room
+// is identical however it was reached.
+let RSEED = 20260811;
+const rand = () => (RSEED = RSEED * 1664525 + 1013904223 >>> 0) / 4294967296;
 const rr = (a, b) => a + (b - a) * rand();
 
+// Asked for BEFORE the sheets, because the two heaviest of them exist only to
+// be thrown away when it is present: the scanned slab (G37) is what the floor
+// actually wears, and the hand-baked 2048 albedo, its 1024 roughness map and
+// slabNrm are the fallback for a payload-less build alone.
+const FLOOR_IMG = (typeof HANGAR_FLOOR_IMG !== 'undefined') ? HANGAR_FLOOR_IMG : null;
+
 // ---- canvas sheets --------------------------------------------------------
+let sheetIx = 0, sheetBaked = 0, sheetHit = 0;
 const sheet = (w, h, draw, linear) => {
+  const key = (sheetIx++) + ':' + hangarSheetKey('s', w, h, linear ? 1 : 0, draw);
+  const memo = HANGAR_SHEETS.get(key);
+  if (memo) { sheetHit++; return memo; }
+  sheetBaked++;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
@@ -118,6 +213,7 @@ const sheet = (w, h, draw, linear) => {
   if (!linear) t.encoding = THREE.sRGBEncoding;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  HANGAR_SHEETS.set(key, t);
   return t;
 };
 
@@ -126,7 +222,7 @@ const sheet = (w, h, draw, linear) => {
 // The roughness sheet is where the reflection lives — a polished slab is not
 // uniformly polished, it is burnished where the machine went and dull where
 // the traffic is, and that variation is the whole look.
-const floorAlb = sheet(2048, 2048, (g, W, H) => {
+const floorAlb = FLOOR_IMG ? null : sheet(2048, 2048, (g, W, H) => {
   g.fillStyle = '#615e58'; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 2600; i++) {          // aggregate mottle
     const x = rand() * W, y = rand() * H, r = rr(6, 90);
@@ -164,7 +260,7 @@ const floorAlb = sheet(2048, 2048, (g, W, H) => {
   g.beginPath(); g.moveTo(0.10 * W, 0); g.lineTo(0.10 * W, H); g.stroke();
   g.beginPath(); g.moveTo(0.90 * W, 0); g.lineTo(0.90 * W, H); g.stroke();
 }, false);
-const floorRgh = sheet(1024, 1024, (g, W, H) => {
+const floorRgh = FLOOR_IMG ? null : sheet(1024, 1024, (g, W, H) => {
   g.fillStyle = '#333333'; g.fillRect(0, 0, W, H);          // 0.20 base
   for (let i = 0; i < 500; i++) {                            // burnished swirls
     g.globalAlpha = rr(0.05, 0.18);
@@ -180,7 +276,7 @@ const floorRgh = sheet(1024, 1024, (g, W, H) => {
   g.globalAlpha = 1;
 }, true);
 // metric-uv re-base (G41): same one-sheet-over-the-floor look
-floorAlb.repeat.set(1 / 26, 1 / 36); floorRgh.repeat.set(1 / 26, 1 / 36);
+if (floorAlb) { floorAlb.repeat.set(1 / 26, 1 / 36); floorRgh.repeat.set(1 / 26, 1 / 36); }
 
 // corrugated sheeting, as a normal map: a real profile, not a bump guess
 const corrNrm = sheet(512, 64, (g, W, H) => {
@@ -418,6 +514,10 @@ limeAlb.repeat.set(3, 1);
 // height field and Sobel it. Cheaper to author than hand-drawn normals and it
 // cannot disagree with the albedo, because both are drawn by the same code.
 const normalFromHeight = (w, hgt, draw, strength) => {
+  const key = (sheetIx++) + ':' + hangarSheetKey('n', w, hgt, strength, draw);
+  const memo = HANGAR_SHEETS.get(key);
+  if (memo) { sheetHit++; return memo; }
+  sheetBaked++;
   const c = document.createElement('canvas'); c.width = w; c.height = hgt;
   const g = c.getContext('2d');
   g.fillStyle = '#808080'; g.fillRect(0, 0, w, hgt);
@@ -439,6 +539,7 @@ const normalFromHeight = (w, hgt, draw, strength) => {
   g.putImageData(out, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
+  HANGAR_SHEETS.set(key, t);
   return t;
 };
 
@@ -547,118 +648,20 @@ const wallRgh = sheet(512, 256, (g, W, H) => {
 }, true);
 wallRgh.repeat.set(3, 1);
 
-// ---- FLOOR FINISHES --------------------------------------------------------
-// The slab is half the room's light: it is the biggest surface, and everything
-// glossy in here reflects it. Four of them, from the burnished concrete it is
-// poured as to the resin a tidy shop rolls on.
-const epoxyAlb = sheet(1024, 1024, (g, W, H) => {
-  g.fillStyle = '#4a5a58'; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 900; i++) {                 // roller mottle, flow lines
-    g.globalAlpha = rr(0.02, 0.07);
-    g.fillStyle = rand() < 0.5 ? '#5f716e' : '#3b4846';
-    g.beginPath(); g.ellipse(rand() * W, rand() * H, rr(30, 200), rr(10, 50), rand(), 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-  g.strokeStyle = 'rgba(24,30,29,.5)'; g.lineWidth = 4;    // the saw cuts still telegraph
-  for (let i = 1; i < 6; i++) {
-    const p = i / 6 * W;
-    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, H); g.stroke();
-    g.beginPath(); g.moveTo(0, p); g.lineTo(W, p); g.stroke();
-  }
-  g.strokeStyle = 'rgba(222,186,70,.7)'; g.lineWidth = 10;
-  g.beginPath(); g.moveTo(0.12 * W, 0); g.lineTo(0.12 * W, H); g.stroke();
-  g.beginPath(); g.moveTo(0.88 * W, 0); g.lineTo(0.88 * W, H); g.stroke();
-});
-const epoxyRgh = sheet(512, 512, (g, W, H) => {
-  g.fillStyle = '#1c1c1c'; g.fillRect(0, 0, W, H);          // near-gloss resin
-  for (let i = 0; i < 300; i++) {
-    g.globalAlpha = rr(0.04, 0.16);
-    g.fillStyle = rand() < 0.5 ? '#2e2e2e' : '#101010';
-    g.beginPath(); g.ellipse(rand() * W, rand() * H, rr(30, 160), rr(14, 60), rand(), 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-}, true);
-const wornAlb = sheet(1024, 1024, (g, W, H) => {
-  g.fillStyle = '#726c62'; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 1400; i++) {                // exposed aggregate
-    g.globalAlpha = rr(0.03, 0.14);
-    g.fillStyle = rand() < 0.5 ? '#958f83' : '#565049';
-    g.beginPath(); g.arc(rand() * W, rand() * H, rr(2, 9), 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-  for (let i = 0; i < 26; i++) {                  // patches and repairs
-    g.globalAlpha = rr(0.10, 0.26);
-    g.fillStyle = rand() < 0.5 ? '#807a6e' : '#5d574e';
-    const x = rand() * W, y = rand() * H;
-    g.beginPath();
-    for (let k = 0; k <= 9; k++) {
-      const a = k / 9 * 7, r = rr(30, 110);
-      g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-    }
-    g.fill();
-  }
-  g.globalAlpha = 1;
-  g.strokeStyle = 'rgba(40,37,33,.5)'; g.lineWidth = 3;   // cracks
-  for (let i = 0; i < 22; i++) {
-    let x = rand() * W, y = rand() * H;
-    g.beginPath(); g.moveTo(x, y);
-    for (let k = 0; k < 7; k++) { x += rr(-70, 70); y += rr(-70, 70); g.lineTo(x, y); }
-    g.stroke();
-  }
-});
-const wornRgh = sheet(512, 512, (g, W, H) => {
-  g.fillStyle = '#b0b0b0'; g.fillRect(0, 0, W, H);          // dry, barely reflective
-  for (let i = 0; i < 300; i++) {
-    g.globalAlpha = rr(0.05, 0.18);
-    g.fillStyle = rand() < 0.5 ? '#d0d0d0' : '#8c8c8c';
-    g.beginPath(); g.arc(rand() * W, rand() * H, rr(20, 120), 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-}, true);
-const woodFlAlb = sheet(1024, 1024, (g, W, H) => {
-  g.fillStyle = '#8a6437'; g.fillRect(0, 0, W, H);
-  const nb = 20, bw = W / nb;
-  for (let i = 0; i < nb; i++) {                  // boards, end joints staggered
-    const x = i * bw, k = rr(0.85, 1.15);
-    g.fillStyle = 'rgb(' + Math.round(138 * k) + ',' + Math.round(100 * k) + ',' + Math.round(55 * k) + ')';
-    g.fillRect(x, 0, bw - 1, H);
-    for (let j = 0; j < 40; j++) {
-      g.globalAlpha = rr(0.03, 0.12);
-      g.strokeStyle = rand() < 0.5 ? '#5b3f20' : '#b18f5e';
-      g.lineWidth = rr(0.6, 2.2);
-      const xx = x + rand() * bw;
-      g.beginPath(); g.moveTo(xx, 0);
-      for (let y = 0; y <= H; y += 64) g.lineTo(xx + Math.sin(y * 0.02 + i) * 2.0, y);
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-    g.fillStyle = 'rgba(48,32,16,.45)'; g.fillRect(x + bw - 2, 0, 2, H);
-    const jy = rand() * H;                        // the odd end joint
-    g.fillRect(x, jy, bw, 2);
-  }
-  for (let i = 0; i < 300; i++) {                 // wear down the traffic lines
-    g.globalAlpha = rr(0.02, 0.08);
-    g.fillStyle = rand() < 0.5 ? '#c6a578' : '#4a3218';
-    g.beginPath(); g.ellipse(rand() * W, rand() * H, rr(20, 120), rr(30, 180), 0, 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-});
-const woodFlRgh = sheet(512, 512, (g, W, H) => {
-  g.fillStyle = '#8a8a8a'; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 240; i++) {
-    g.globalAlpha = rr(0.05, 0.2);
-    g.fillStyle = rand() < 0.5 ? '#6a6a6a' : '#a6a6a6';
-    g.beginPath(); g.ellipse(rand() * W, rand() * H, rr(20, 120), rr(8, 40), 0, 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-}, true);
-for (const t of [epoxyAlb, epoxyRgh, wornAlb, wornRgh, woodFlAlb, woodFlRgh]) t.repeat.set(1, 1);
+// THE FLOOR FINISHES ARE GONE (G123). Four hand-baked slab options —
+// epoxy, worn concrete, boards — 3 x 1024 albedo and 3 x 512 roughness,
+// ~14 MB of canvas, baked on every single build and APPLIED TO NOTHING. They
+// were the pre-G41 floor wardrobe; the material library and the part system
+// replaced them, and nothing has referenced them since. Measured by counting
+// references: each name occurred exactly twice, its own `const` and the
+// `repeat.set` loop that followed it.
+
 
 // ---- floor relief ----------------------------------------------------------
 // Slabs are not flat: there is a saw cut every four metres and the trowel
 // leaves a swirl. Small amplitudes on purpose — a floor that reads bumpy reads
 // as gravel.
-const slabNrm = normalFromHeight(512, 512, (g, W, H) => {
+const slabNrm = FLOOR_IMG ? null : normalFromHeight(512, 512, (g, W, H) => {
   g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 240; i++) {                       // trowel swirl
     g.globalAlpha = 0.10;
@@ -673,32 +676,19 @@ const slabNrm = normalFromHeight(512, 512, (g, W, H) => {
     g.beginPath(); g.moveTo(0, p); g.lineTo(W, p); g.stroke();
   }
 }, 1.6);
-const gritNrm = normalFromHeight(512, 512, (g, W, H) => {
-  g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 2200; i++) {                      // exposed aggregate
-    g.fillStyle = rand() < 0.5 ? '#b4b4b4' : '#5c5c5c';
-    g.beginPath(); g.arc(rand() * W, rand() * H, rr(2, 7), 0, 7); g.fill();
-  }
-  g.strokeStyle = '#4a4a4a'; g.lineWidth = 3;           // cracks, as grooves
-  for (let i = 0; i < 20; i++) {
-    let x = rand() * W, y = rand() * H;
-    g.beginPath(); g.moveTo(x, y);
-    for (let k = 0; k < 7; k++) { x += rr(-70, 70); y += rr(-70, 70); g.lineTo(x, y); }
-    g.stroke();
-  }
-}, 1.8);
-const boardNrm = normalFromHeight(512, 512, (g, W, H) => {
-  g.fillStyle = '#9a9a9a'; g.fillRect(0, 0, W, H);
-  const nb = 20, bw = W / nb;
-  for (let i = 0; i < nb; i++) {                        // each board crowns
-    const x = i * bw;
-    const lg = g.createLinearGradient(x, 0, x + bw, 0);
-    lg.addColorStop(0, '#4c4c4c'); lg.addColorStop(0.18, '#a4a4a4');
-    lg.addColorStop(0.82, '#a4a4a4'); lg.addColorStop(1, '#4c4c4c');
-    g.fillStyle = lg; g.fillRect(x, 0, bw, H);
-  }
-}, 1.5);
-for (const t of [slabNrm, gritNrm, boardNrm]) t.repeat.set(1, 1);
+// gritNrm and boardNrm went with them (G123): two more normalFromHeight
+// passes — a height field AND a central-difference over it — feeding nothing.
+
+if (slabNrm) slabNrm.repeat.set(1, 1);
+
+// ---- THE BAKERY ENDS HERE -------------------------------------------------
+// and the geometry's random stream starts, from a seed of its own. Without
+// this line the room would be laid out differently depending on whether the
+// sheets were baked or fetched from the memo — i.e. on whether the world's
+// shed happened to be built first — because a cached sheet draws nothing from
+// the stream. Everything below (tuft scatter, clutter jitter, wall wear) is
+// downstream of it.
+RSEED = 0x5f1d7a3b;
 
 // THE FLOOR WEARS A SCANNED SLAB when the payload is present (G37, user):
 // concrete_floor_damaged_01 (Poly Haven CC0), one tile = 5 m of real
@@ -706,7 +696,6 @@ for (const t of [slabNrm, gritNrm, boardNrm]) t.repeat.set(1, 1);
 // The baked canvas floor stays the fallback, so a payload-less build
 // (and the smoke gate's stub) still stands. The material object joins M
 // either way, so the moods' envMapIntensity scaling covers it unchanged.
-const FLOOR_IMG = (typeof HANGAR_FLOOR_IMG !== 'undefined') ? HANGAR_FLOOR_IMG : null;
 const floorTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -796,6 +785,71 @@ M.beamMain = M.steel.clone();
 M.beamSec = M.steelDark.clone();
 M.manDoor = M.paintGreen.clone();
 
+// TIMBER CLADDING (HANGARS S4). The field shed is boards — ONE skin, both
+// faces, which is what a single-skin barn wall is — so the wall family swaps
+// here, after the part clones, and everything downstream (the part system,
+// the moods, the probe) dresses planks without knowing the difference. The
+// roof stays corrugated iron: sheet over timber is what these buildings
+// actually wear. Board relief rides the metric-uv system like every wall
+// map: one tile is 3.5 m, so a 14-board sheet is a 0.25 m board.
+if (FRAME === 'timber') {
+  const plankDraw = vertical => (g, W, H) => {
+    const nb = 14;
+    for (let r = 0; r < nb; r++) {
+      const base = 0x76 + Math.floor(rr(-16, 12));
+      g.fillStyle = 'rgb(' + base + ',' + Math.floor(base * 0.88) + ',' +
+                    Math.floor(base * 0.70) + ')';
+      if (vertical) g.fillRect(r * W / nb, 0, W / nb, H);
+      else g.fillRect(0, r * H / nb, W, H / nb);
+      // grain streaks along the board, a knot or two across the sheet
+      g.globalAlpha = 0.18;
+      for (let k = 0; k < 6; k++) {
+        g.fillStyle = rand() < 0.5 ? '#5c4f3e' : '#9a8a6f';
+        if (vertical)
+          g.fillRect(r * W / nb + rr(1, W / nb - 3), 0, rr(0.5, 1.6), H);
+        else
+          g.fillRect(0, r * H / nb + rr(1, H / nb - 3), W, rr(0.5, 1.6));
+      }
+      g.globalAlpha = 1;
+    }
+    g.globalAlpha = 0.30; g.fillStyle = '#463c2e';
+    for (let k = 0; k < 9; k++) {
+      g.beginPath();
+      g.ellipse(rand() * W, rand() * H, rr(2, 5), rr(3, 7), rand(), 0, 7);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  };
+  const plankAlb = sheet(512, 256, plankDraw(false), true);
+  plankAlb.repeat.set(1 / 3.5, 1 / 3.5);
+  const plankAlbV = sheet(256, 512, plankDraw(true), true);
+  const plankNrm = normalFromHeight(512, 256, (g, W, H) => {
+    const nb = 14, bh = H / nb;
+    for (let r = 0; r < nb; r++) {
+      const y = r * bh;
+      const lg = g.createLinearGradient(0, y, 0, y + bh);
+      lg.addColorStop(0, '#c9c9c9'); lg.addColorStop(0.8, '#9a9a9a');
+      lg.addColorStop(1, '#3c3c3c');
+      g.fillStyle = lg; g.fillRect(0, y, W, bh);
+    }
+  }, 1.6);
+  plankNrm.repeat.set(1 / 3.5, 1 / 3.5);
+  M.wall = new THREE.MeshStandardMaterial({ map: plankAlb,
+    normalMap: plankNrm, normalScale: new THREE.Vector2(0.7, 0.7),
+    roughnessMap: wallRgh, roughness: 0.88, metalness: 0,
+    side: THREE.DoubleSide });
+  M.wallBack = M.wall.clone();
+  const out = M.wall.clone(); out.side = THREE.FrontSide;
+  M.wallOut = out;                    // the coarse LOD's outer skin
+  // the leaf is vertical boards with a painted frame — the trim family stays
+  M.door = new THREE.MeshStandardMaterial({ map: plankAlbV,
+    roughness: 0.85, metalness: 0 });
+  // the beam families are TIMBER here, and they stay the part system's
+  // 'beams' rows — a dressable post is a dressable truss
+  M.beamMain = M.wood.clone();
+  M.beamSec = M.wood.clone();
+}
+
 // ---- primitive helpers ----------------------------------------------------
 const G = new THREE.Group();                 // everything static
 const box = (w, h, d, mat, x, y, z, ry) => {
@@ -835,6 +889,22 @@ const cyl = (r1, r2, h, mat, x, y, z, seg) => {
   return m;
 };
 const put = (...m) => { for (const x of m) G.add(x); return m[0]; };
+
+// WHAT THE SHELL COSTS, counted rather than guessed. Nothing in this room was
+// ever merged or instanced, so meshes ARE draw calls, and until G123 there was
+// no census of them anywhere — texBudget() below counts fragment samplers,
+// which is a different question. The exterior build reports through this
+// because it is the one that has to live in someone else's scene.
+const census = () => {
+  let meshes = 0, tris = 0;
+  G.traverse(o => {
+    if (!o.isMesh || !o.geometry) return;
+    meshes++;
+    const g = o.geometry, idx = g.index;
+    tris += (idx ? idx.count : (g.attributes.position ? g.attributes.position.count : 0)) / 3;
+  });
+  return { meshes: meshes, tris: Math.round(tris) };
+};
 // FOUR CORNERS, in order. A sloping roof panel is a quadrilateral in space and
 // the honest way to build one is to say where its corners are — chaining
 // rotation.set() with rotateX() to tip a PlaneGeometry into the slope is what
@@ -881,28 +951,66 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
     uv.needsUpdate = true; }
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
   put(f);
-  const ap = new THREE.Mesh(new THREE.PlaneGeometry(26, 2 * HW),
-    ground(new THREE.MeshStandardMaterial({ color: 0x9a958a, roughness: 0.95 })));
-  ap.rotation.x = -Math.PI / 2; ap.position.set(-HD - 13, -0.01, 0);
-  ap.receiveShadow = true;
-  put(ap);
+  // NO APRON HERE ANY MORE (G123). It used to be a 26 x 30 plane of flat
+  // colour laid at y = -0.01, with no map at all — paint on the grass rather
+  // than a slab. Every paved surface is the SITE's now, declared once in
+  // 25_airfield.js and built with the rest of the outdoors further down, so
+  // that the apron you taxi off in the world and the apron you see through
+  // this door are one rectangle.
 }
 
-// side walls: concrete stem, corrugated above, glazing band between
+// side walls: concrete stem, corrugated above, glazing band between.
+// THE BAND FOLLOWS THE EAVES DOWN (HANGARS S3): 3.2-5.2 m is right for a
+// 7 m eave — high enough to light the floor and clear a wing — but a shed
+// dragged to the 4.2 m floor was drawing the sheet above the head with a
+// NEGATIVE height (EAVE - 5.2), which is an inside-out box you cannot see
+// from inside. The sill and head keep their authored values wherever they
+// fit and step down together where they do not.
+const SILL = Math.min(3.2, EAVE - 2.4), HEAD = Math.min(5.2, EAVE - 1.0);
+const GY = (SILL + HEAD) / 2, GH = HEAD - SILL;
+
+// TIMBER SIDE WALLS (HANGARS S4): boards from slab to eave, no stem, no
+// glazing band — and one small window toward the back of each flank,
+// genuinely CUT (G52's rule: an opening is pieces of wall around a hole,
+// never a pane laid on a solid face), because a shed lit only through its
+// door is a cave with a bright end.
+if (FRAME === 'timber') {
+  const WW = 1.1, WH = 0.9, WSILL = 1.45;    // the window, and its sill
+  const wxc = HD * 0.30;                     // toward the back, clear of door
+  for (const s of [1, -1]) {
+    const x0 = wxc - WW / 2, x1 = wxc + WW / 2;
+    put(mbox(x0 + HD, EAVE, 0.14, M.wall, (x0 - HD) / 2, EAVE / 2, s * HW));
+    put(mbox(HD - x1, EAVE, 0.14, M.wall, (x1 + HD) / 2, EAVE / 2, s * HW));
+    put(mbox(WW, WSILL, 0.14, M.wall, wxc, WSILL / 2, s * HW));
+    put(mbox(WW, EAVE - (WSILL + WH), 0.14, M.wall,
+             wxc, WSILL + WH + (EAVE - (WSILL + WH)) / 2, s * HW));
+    // the pane, a painted frame, one mullion
+    const gl = box(WW - 0.10, WH - 0.10, 0.03, M.glass, wxc, WSILL + WH / 2, s * HW);
+    gl.castShadow = false; put(gl);
+    put(box(WW, 0.07, 0.10, M.doorTrim, wxc, WSILL + 0.02, s * HW),
+        box(WW, 0.07, 0.10, M.doorTrim, wxc, WSILL + WH - 0.02, s * HW),
+        box(0.07, WH, 0.10, M.doorTrim, x0 + 0.02, WSILL + WH / 2, s * HW),
+        box(0.07, WH, 0.10, M.doorTrim, x1 - 0.02, WSILL + WH / 2, s * HW),
+        box(0.05, WH - 0.1, 0.08, M.doorTrim, wxc, WSILL + WH / 2, s * HW));
+  }
+} else
 for (const s of [1, -1]) {
   put(mbox(2 * HD, 1.1, 0.25, M.stem, 0, 0.55, s * HW));
-  // lower sheeting to the sill
-  put(mbox(2 * HD, 2.1, 0.12, M.wall, 0, 2.15, s * HW));
-  // upper sheeting, sill 3.2 to eaves
-  put(mbox(2 * HD, EAVE - 5.2, 0.12, M.wall, 0, 5.2 + (EAVE - 5.2) / 2, s * HW));
+  // lower sheeting, stem to the sill
+  put(mbox(2 * HD, SILL - 1.1, 0.12, M.wall, 0, 1.1 + (SILL - 1.1) / 2, s * HW));
+  // upper sheeting, head to eaves
+  put(mbox(2 * HD, EAVE - HEAD, 0.12, M.wall, 0, HEAD + (EAVE - HEAD) / 2, s * HW));
   // THE OUTER SKIN IS CUT FOR THE GLAZING (user: "can we properly cut into the
   // hangar for the windows?"). It used to be one slab from the ground to the
   // eaves standing OUTSIDE the band, so every window in the room looked at
   // sheet steel with the sky nowhere in it. Now it is the same three bands the
   // inner skin already had, plus a strip on each mullion — the panes are the
   // only thing left open, and they see the sky sphere.
-  const nBay = 9, bayW = (2 * HD) / nBay;
-  const SILL = 3.2, HEAD = 5.2, zOut = s * (HW + 0.16);
+  // one glazing bay per ~2.8 m of wall (HANGARS S3): nine at the club's own
+  // depth, and a deeper shed gets more bays at the same rhythm instead of
+  // nine panes stretched wide
+  const nBay = Math.max(4, Math.round(2 * HD / 2.8)), bayW = (2 * HD) / nBay;
+  const zOut = s * (HW + 0.16);
   put(box(2 * HD + 0.4, SILL, 0.06, M.wallOut, 0, SILL / 2, zOut));
   put(box(2 * HD + 0.4, EAVE + 0.4 - HEAD, 0.06, M.wallOut, 0,
           HEAD + (EAVE + 0.4 - HEAD) / 2, zOut));
@@ -915,24 +1023,53 @@ for (const s of [1, -1]) {
   // THE GLAZING BAND. Industrial steel windows, 3.2 to 5.2 m: high enough to
   // light the whole floor and clear a wing, which is why real hangars glaze
   // exactly there.
-  for (let i = 0; i < nBay; i++) {
-    const cx = -HD + bayW * (i + 0.5);
-    const gl = box(bayW - 0.25, 2.0, 0.03, M.glass, cx, 4.2, s * HW);
+  // AT EXTERIOR DETAIL THE BAND IS ONE PANE. Nine bays times nine meshes times
+  // two sides is 162 draw calls of glazing bar, and the outer skin's own
+  // mullions (just above) already give the band its vertical rhythm from
+  // outside. What is lost is frame depth at arm's length, which is a distance
+  // the world never renders this building from.
+  if (EXT) {
+    const gl = box(2 * HD - 0.25, GH, 0.03, M.glass, 0, GY, s * HW);
     gl.castShadow = false;
     put(gl);
-    put(box(bayW - 0.25, 0.09, 0.16, M.steelDark, cx, 3.2, s * HW),
-        box(bayW - 0.25, 0.09, 0.16, M.steelDark, cx, 5.2, s * HW),
-        box(0.10, 2.0, 0.16, M.steelDark, cx - (bayW - 0.25) / 2, 4.2, s * HW),
-        box(0.10, 2.0, 0.16, M.steelDark, cx + (bayW - 0.25) / 2, 4.2, s * HW));
+  } else
+  for (let i = 0; i < nBay; i++) {
+    const cx = -HD + bayW * (i + 0.5);
+    const gl = box(bayW - 0.25, GH, 0.03, M.glass, cx, GY, s * HW);
+    gl.castShadow = false;
+    put(gl);
+    put(box(bayW - 0.25, 0.09, 0.16, M.steelDark, cx, SILL, s * HW),
+        box(bayW - 0.25, 0.09, 0.16, M.steelDark, cx, HEAD, s * HW),
+        box(0.10, GH, 0.16, M.steelDark, cx - (bayW - 0.25) / 2, GY, s * HW),
+        box(0.10, GH, 0.16, M.steelDark, cx + (bayW - 0.25) / 2, GY, s * HW));
     for (let k = 1; k < 4; k++)                              // glazing bars
-      put(box(0.05, 2.0, 0.13, M.steelDark,
-              cx - (bayW - 0.25) / 2 + (bayW - 0.25) * k / 4, 4.2, s * HW));
-    put(box(bayW - 0.25, 0.04, 0.13, M.steelDark, cx, 4.2, s * HW));
+      put(box(0.05, GH, 0.13, M.steelDark,
+              cx - (bayW - 0.25) / 2 + (bayW - 0.25) * k / 4, GY, s * HW));
+    put(box(bayW - 0.25, 0.04, 0.13, M.steelDark, cx, GY, s * HW));
   }
 }
 
 // back wall (+x), with a personnel door and a high window
-{
+// TIMBER (HANGARS S4): solid boards, the person door by the corner, the
+// gable above — and NO back doors. The hung wing wants a big flat plane
+// behind it (G64's whole argument), and a board wall IS one; its shadow
+// sheet lands on BD_FACE, which the timber branch points at the boards.
+if (FRAME === 'timber') {
+  const MDZ = Math.min(13.5, HW - 1.5);
+  const z0 = MDZ - 0.55, z1 = MDZ + 0.55;      // the person-door opening
+  put(mbox(0.14, EAVE, z0 + HW, M.wallBack, HD, EAVE / 2, (z0 - HW) / 2));
+  put(mbox(0.14, EAVE, HW - z1, M.wallBack, HD, EAVE / 2, (z1 + HW) / 2));
+  put(mbox(0.14, EAVE - 2.1, 1.1, M.wallBack, HD,
+           2.1 + (EAVE - 2.1) / 2, MDZ));
+  const gable = new THREE.Shape();
+  gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
+  const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wallBack);
+  gm.rotation.y = Math.PI / 2; gm.position.x = HD;
+  gm.receiveShadow = true;
+  put(gm);
+  put(mbox(0.10, 2.1, 0.95, M.manDoor, HD - 0.08, 1.05, MDZ));
+  put(cyl(0.03, 0.03, 0.16, M.brass, HD - 0.16, 1.0, MDZ - 0.35, 8));
+} else {
   // CUT FOR THE GABLE WINDOW, in four pieces round the opening — the pane used
   // to be laid on the inside of a solid wall, which is a picture of a window.
   const gwY0 = EAVE - 2.1, gwY1 = EAVE - 0.5, gwZ = 2.1;
@@ -947,9 +1084,15 @@ for (const s of [1, -1]) {
   // ...and interrupted again for the BACK DOORS (G64): a course of brick
   // running behind a closed door opening is the tell that the opening is
   // painted on.
+  // The personnel door follows the wall in (HANGARS S3): its authored post at
+  // z = 13.5 stood OUTSIDE any shed narrower than 15 m, and the stem course
+  // that breaks around it was drawn 13-to-14 by literal — a NEGATIVE-length
+  // box below HW 14. The door keeps its place wherever the wall reaches it.
+  const MDZ = Math.min(13.5, HW - 1.5);
   put(mbox(0.25, 1.1, HW - BD_W / 2, M.stem, HD, 0.55, -(BD_W / 2 + HW) / 2));
-  put(mbox(0.25, 1.1, 13.0 - BD_W / 2, M.stem, HD, 0.55, (13.0 + BD_W / 2) / 2));
-  put(mbox(0.25, 1.1, HW - 14.0, M.stem, HD, 0.55, (14.0 + HW) / 2));
+  put(mbox(0.25, 1.1, (MDZ - 0.5) - BD_W / 2, M.stem, HD, 0.55,
+           ((MDZ - 0.5) + BD_W / 2) / 2));
+  put(mbox(0.25, 1.1, HW - (MDZ + 0.5), M.stem, HD, 0.55, ((MDZ + 0.5) + HW) / 2));
   const gable = new THREE.Shape();
   gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
   const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wallBack);
@@ -962,8 +1105,8 @@ for (const s of [1, -1]) {
     put(box(0.10, 1.7, 0.08, M.steelDark, HD - 0.10, EAVE - 1.3, -2.1 + k * 1.05));
   put(box(0.12, 0.10, 4.3, M.steelDark, HD - 0.10, EAVE - 2.15, 0),
       box(0.12, 0.10, 4.3, M.steelDark, HD - 0.10, EAVE - 0.45, 0));
-  put(mbox(0.10, 2.1, 0.95, M.manDoor, HD - 0.08, 1.05, 13.5));
-  put(cyl(0.03, 0.03, 0.16, M.brass, HD - 0.16, 1.0, 13.15, 8));
+  put(mbox(0.10, 2.1, 0.95, M.manDoor, HD - 0.08, 1.05, MDZ));
+  put(cyl(0.03, 0.03, 0.16, M.brass, HD - 0.16, 1.0, MDZ - 0.35, 8));
 
   // THE BACK DOORS, CLOSED (G64). Same vocabulary as the front — header beam,
   // track, sill and head channels, stiles, intermediate rails, anti-rack
@@ -1014,7 +1157,79 @@ for (const s of [1, -1]) {
 }
 
 // door wall (-x): a big sliding opening, leaves parked open, daylight beyond
-{
+// TIMBER (HANGARS S4): ONE top-hung leaf, and the track that carries it
+// runs PAST the building corner on outrigger posts — which is not a
+// shortcut, it is what real grass-strip timber hangars do: a leaf wider
+// than the wall beside its opening has nowhere else to go, so the track
+// cantilevers out and a post props its end. Parked open (interior) the
+// leaf stands clear of the whole opening; the exterior build shuts it.
+if (FRAME === 'timber') {
+  const side = (HW - DOOR_W / 2);
+  for (const s of [1, -1])
+    put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2,
+             s * (DOOR_W / 2 + side / 2)));
+  put(mbox(0.14, EAVE - DOOR_H, DOOR_W, M.wall, -HD,
+           DOOR_H + (EAVE - DOOR_H) / 2, 0));
+  // the lintel is a TIMBER beam, not a steel header
+  put(box(0.30, 0.34, DOOR_W + 1.0, M.wood, -HD + 0.04, DOOR_H + 0.17, 0));
+  const gable = new THREE.Shape();
+  gable.moveTo(-HW, EAVE); gable.lineTo(HW, EAVE); gable.lineTo(0, RIDGE);
+  const gm = new THREE.Mesh(new THREE.ShapeGeometry(gable), M.wall);
+  gm.rotation.y = -Math.PI / 2; gm.position.x = -HD;
+  put(gm);
+  // the leaf, its track, and the posts under the track's far end
+  const LW = DOOR_W + 0.4;
+  const parkZ = -(DOOR_W / 2 + LW / 2) + 1.0;   // clear, one metre on the jamb
+  const leafZ = EXT ? 0 : parkZ;
+  const tz0 = DOOR_W / 2 + 0.8, tz1 = parkZ - LW / 2 - 0.3;
+  put(box(0.12, 0.14, tz0 - tz1, M.steelDark, -HD - 0.24, DOOR_H + 0.42,
+          (tz0 + tz1) / 2));
+  for (const pz of [tz1 + 0.15, (tz1 - HW) / 2])
+    if (pz < -HW - 0.2)
+      put(box(0.14, DOOR_H + 0.38, 0.14, M.wood, -HD - 0.24,
+              (DOOR_H + 0.38) / 2, pz));
+  {
+    const g = new THREE.Group(); g.position.set(-HD - 0.15, 0, leafZ);
+    g.add(mbox(0.08, DOOR_H + 0.12, LW, M.door, 0, (DOOR_H + 0.12) / 2, 0));
+    // painted frame: sill and head channels, two stiles, and the Z-brace
+    // every ledged leaf carries against racking
+    g.add(box(0.10, 0.16, LW, M.doorTrim, -0.03, 0.10, 0),
+          box(0.10, 0.18, LW, M.doorTrim, -0.03, DOOR_H - 0.02, 0));
+    for (const e of [-1, 1])
+      g.add(box(0.10, DOOR_H + 0.08, 0.18, M.doorTrim, -0.03,
+                (DOOR_H + 0.08) / 2, e * (LW / 2 - 0.09)));
+    const bl = Math.hypot(DOOR_H - 0.6, LW - 0.8);
+    const brace = new THREE.Mesh(new THREE.BoxGeometry(0.07, bl, 0.16),
+                                 M.doorTrim);
+    brace.position.set(-0.03, DOOR_H / 2, 0);
+    brace.rotation.x = Math.atan2(LW - 0.8, DOOR_H - 0.6);
+    brace.castShadow = brace.receiveShadow = true;
+    g.add(brace);
+    for (const o of [-0.35, 0, 0.35]) {               // hangers and rollers
+      g.add(box(0.09, 0.30, 0.11, M.steelDark, -0.03, DOOR_H + 0.20, o * LW));
+      const wl = cyl(0.08, 0.08, 0.05, M.steel, -0.03, DOOR_H + 0.38,
+                     o * LW, 12);
+      wl.rotation.x = Math.PI / 2; g.add(wl);
+    }
+    if (!EXT) {                                        // the wicket
+      const wz = LW / 2 - 1.0;
+      g.add(box(0.05, 2.05, 0.86, M.doorTrim, -0.07, 1.03, wz));
+      g.add(box(0.04, 1.92, 0.76, M.door, -0.10, 1.02, wz));
+      g.add(cyl(0.028, 0.028, 0.12, M.brass, -0.14, 1.02, wz - 0.30, 10));
+    }
+    g.traverse(o => { if (o.isMesh) { o.castShadow = true;
+                                      o.receiveShadow = true; } });
+    G.add(g);
+  }
+  if (!EXT) {
+    const day = new THREE.Mesh(
+      new THREE.PlaneGeometry(DOOR_W + 1, DOOR_H + 0.6), M.daylight);
+    day.rotation.y = Math.PI / 2;
+    day.position.set(-HD - 3.0, DOOR_H / 2, 0);
+    put(day);
+    M.dayCardMesh = day;    // the caller hides it once a real sky stands
+  }
+} else {
   const side = (HW - DOOR_W / 2);
   for (const s of [1, -1])
     put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2, s * (DOOR_W / 2 + side / 2)));
@@ -1043,13 +1258,21 @@ for (const s of [1, -1]) {
   // Parked open, so the outermost leaf of each stack is the one you see.
   for (let t = 0; t < 3; t++)
     put(box(0.22, 0.14, 2 * HW - 1, M.steelDark, -HD + 0.34 + t * 0.24, DOOR_H + 0.62, 0));
-  const LW = 5.15;                                   // leaf width
+  // LEAF WIDTH IS A CONSEQUENCE, not a constant, once the doors have to shut.
+  // 5.15 was chosen for the parked pose, where the leaves nest at the jamb and
+  // their total width never has to add up to anything; six of them closed span
+  // 30.9 m against a 25 m opening, so the outer pair would hang three metres
+  // past the reveal. Closed, the width IS the opening over six.
+  const LW = EXT ? DOOR_W / 6 : 5.15;
   for (const s of [1, -1]) for (let t = 0; t < 3; t++) {
-    const x = -HD + 0.42 + t * 0.24;
+    const x = -HD + 0.42 + (EXT ? 0 : t * 0.24);
     // PARKED, i.e. NESTED at the jamb: three leaves standing one behind another
     // in their own tracks, not spread across the opening. Each is 0.30 m further
     // in than the last, which is the stagger the hangers give.
-    const leafZ = s * (DOOR_W / 2 - LW / 2 - t * 0.30);
+    // CLOSED (EXT), they butt across the opening instead — the arithmetic the
+    // back doors have used since G64, three leaves a side meeting at z = 0.
+    const leafZ = EXT ? s * LW * (t + 0.5)
+                      : s * (DOOR_W / 2 - LW / 2 - t * 0.30);
     const g = new THREE.Group(); g.position.set(x, 0, leafZ);
     // the skin, on its own material so the corrugation runs vertically like a
     // real door and not horizontally like the wall behind it
@@ -1065,15 +1288,17 @@ for (const s of [1, -1]) {
     for (const [y0, y1] of [[0.3, DOOR_H / 3 - 0.1], [DOOR_H / 3 + 0.1, 2 * DOOR_H / 3 - 0.1]])
       put(strut([x + 0.02, y0, leafZ - LW / 2 + 0.3], [x + 0.02, y1, leafZ + LW / 2 - 0.3],
                 0.03, M.steelDark));
-    // hangers and rollers up top, guide shoe at the foot
-    for (const o of [-1, 1]) {
+    // hangers and rollers up top, guide shoe at the foot. Six meshes a leaf,
+    // thirty-six across the door, all of them centimetres across: kept for the
+    // room, where you stand next to them, dropped for the exterior.
+    for (const o of EXT ? [] : [-1, 1]) {
       g.add(box(0.10, 0.34, 0.12, M.steelDark, 0.01, DOOR_H + 0.30, o * LW * 0.3));
       const w = cyl(0.09, 0.09, 0.05, M.steel, 0.01, DOOR_H + 0.52, o * LW * 0.3, 12);
       w.rotation.x = Math.PI / 2; g.add(w);
       g.add(box(0.16, 0.10, 0.14, M.steelDark, 0.01, 0.05, o * LW * 0.34));
     }
     // one leaf a side gets the wicket door everybody actually uses
-    if (t === 0) {
+    if (t === 0 && !EXT) {
       g.add(box(0.06, 2.05, 0.86, M.doorTrim, -0.06, 1.03, s * 0.9));
       g.add(box(0.05, 1.92, 0.76, M.door, -0.10, 1.02, s * 0.9));
       const knob = cyl(0.028, 0.028, 0.12, M.brass, -0.16, 1.02, s * 0.9 - s * 0.30, 10);
@@ -1085,11 +1310,13 @@ for (const s of [1, -1]) {
   // environment bake reads as a big soft source from that end
   // faces INTO the shed only: from outside it was a white card hanging in the
   // air beside the building
-  const day = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W + 1, DOOR_H + 0.6), M.daylight);
-  day.rotation.y = Math.PI / 2;
-  day.position.set(-HD - 3.0, DOOR_H / 2, 0);
-  put(day);
-  M.dayCardMesh = day;      // the caller hides it once a real sky stands
+  if (!EXT) {
+    const day = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W + 1, DOOR_H + 0.6), M.daylight);
+    day.rotation.y = Math.PI / 2;
+    day.position.set(-HD - 3.0, DOOR_H / 2, 0);
+    put(day);
+    M.dayCardMesh = day;    // the caller hides it once a real sky stands
+  }
 }
 
 // the quarter turn the single alps sky was hung at, and the fallback for a row
@@ -1257,7 +1484,7 @@ function renderSky(renderer) {
 // way to judge either the performance or the look.
 let skyMode = 'gpu';
 let skyMatBaked = null, skyMat = null, skyMesh = null, skyOnReady = null;
-if (SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
+if (!EXT && SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
   skyMatBaked = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
   skyMat = gradeTextures() ? gradeMat.sphere : skyMatBaked;
   // radius 600 (G44): far enough that the field and strip below never
@@ -1305,91 +1532,472 @@ function setSky(row) {
   if (was && was.dispose) was.dispose();
 }
 
-// THE QUICK RUNWAY (G44, user: "model a quick runway ... put it
-// outside"). The honest destination is the GAME's own scenery seen from
-// the hangar (the P11 consistency goal, recorded at G41); until then, a
-// grass field and a strip off the apron give the door somewhere to look.
-// Canvas-baked like the rest of the room — no payload weight. The strip
-// runs the door axis (-x), threshold just past the apron.
-{
+// ===========================================================================
+// THE OUTDOORS — the SITE, seen from the door (G123)
+// ===========================================================================
+// What stood here was the G44 "quick runway": a 500 m plane of one 512 canvas
+// tile at 9 m pitch, a 26 x 30 slab of flat colour with no map at all, and a
+// 320 x 24 strip pointing straight OUT of the door on the same axis. Its own
+// header named the destination and parked it — "the honest destination is the
+// GAME's own scenery seen from the hangar (the P11 consistency goal)".
+//
+// This is that. Every surface below is placed from src/core/25_airfield.js,
+// through siteToLocal, so the apron you taxi off in the world and the apron
+// you are looking at through this door are one rectangle. The runway is the
+// registry's HOME record, which puts it ACROSS the view at fifty metres with
+// its threshold nearly abeam the shed — because the hangar was always meant to
+// stand beside the strip, near one end, not on the end of it.
+//
+// The user, 2026-08-31: "The runway is usually perpendicular to the hangar.
+// The hangar is put on the side of the runway, usually at an extremity."
+if (!EXT) {
+  // the HOME record is handed in rather than looked up: hangar.js has no world
+  // and building one to read four numbers would be absurd. No record, no
+  // strip — the same ask-don't-assume the prop library and the sky payload use.
+  const HOME = (opts && opts.home) || null;
+  const SITE = (typeof siteOf === 'function') ? siteOf('HOME') : null;
+  const R = (HOME && typeof siteRunway === 'function') ? siteRunway(HOME) : null;
+  const HGR = SITE ? SITE.hangar : null;
+
+  // ---- world rect -> the shed's own frame ---------------------------------
+  const L = r => {
+    const a = siteToLocal(r.x0, r.z0, HGR), b = siteToLocal(r.x1, r.z1, HGR);
+    return { x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x),
+             z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) };
+  };
+  const LP = (x, z) => siteToLocal(x, z, HGR);
+
+  // ---- THE LIBRARY MATERIALS ---------------------------------------------
+  // The ground wears scanned sets now (assets/airfield -> site_tex.js), and
+  // wears them through the SAME LIB/PARTS wardrobe the walls use, so any of
+  // these four surfaces can be re-dressed from the editor. What is built here
+  // is each surface's DEFAULT; the canvas sheets stay as the fallback for a
+  // payload-less build, exactly as the floor slab does.
+  const ANISO = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
+  // ENV INTENSITY IS AUTHORED LOW OUT HERE, and the number is not cosmetic.
+  // The room's environment is a cube probe baked INSIDE the shed — warm sheet
+  // steel, warm lamps, a warm floor — and setMood then scales every material's
+  // envMapIntensity by env/0.55, which is 2.2x on the afternoon row. A neutral
+  // concrete slab standing in daylight was picking up 2.2x of a warm interior
+  // and rendering brown: measured at RGB(90,73,53) against an albedo whose own
+  // mean is (104,94,83). Authoring 0.45 lands these near 1.0 after the mood
+  // scaling, so the sun leads and the room only tints.
+  //
+  // This is the near half of ROADMAP F4's open item — "the procedural grass and
+  // strip outside the door are lit by the room's lights rather than by the
+  // sky's own ground". It is not closed here; it is stopped from being loud.
+  const ENV_OUT = 0.45;
+  const gmat = (key, tile, fallback, extra) => {
+    const o = Object.assign({ roughness: 1, metalness: 0, fog: false,
+                              envMapIntensity: ENV_OUT }, extra || {});
+    const maps = siteGroundMaps(THREE, key, tile, ANISO);
+    if (maps) Object.assign(o, maps);
+    else if (fallback) { o.map = fallback; }
+    return outdoor(new THREE.MeshStandardMaterial(o));
+  };
+
+  // canvas fallbacks, kept from G44 so a payload-less build still stands
   const grassAlb = sheet(512, 512, (g, W2, H2) => {
     g.fillStyle = '#6d7c4e'; g.fillRect(0, 0, W2, H2);
     for (let i = 0; i < 2600; i++) {
       g.globalAlpha = rr(0.04, 0.14);
       g.fillStyle = rand() < 0.5 ? '#5c6b40' : '#87925c';
-      g.beginPath();
-      g.arc(rand() * W2, rand() * H2, rr(2, 14), 0, 7); g.fill();
+      g.beginPath(); g.arc(rand() * W2, rand() * H2, rr(2, 14), 0, 7); g.fill();
     }
     g.globalAlpha = 1;
   }, false);
-  grassAlb.repeat.set(1 / 9, 1 / 9);          // 9 m of grass per tile
-  // THE HORIZON ROLL-OFF (G44.2, user: "you've made the terrain fade
-  // into black ... curve it so we don't see the seams"). The black was
-  // the room fog — tinted to the mood's dark INTERIOR colour — eating
-  // the outdoors; the outdoor pieces now carry fog:false (real lights
-  // dim them with the moods instead) and the ground CURVES down past
-  // r0 = 160 m, so its edge rolls under the sky sphere's horizon and
-  // there is no seam to see from the door.
+  grassAlb.repeat.set(1 / 9, 1 / 9);
+  const concAlb = sheet(512, 512, (g, W2, H2) => {
+    g.fillStyle = '#9a958a'; g.fillRect(0, 0, W2, H2);
+    for (let i = 0; i < 1400; i++) {
+      g.globalAlpha = rr(0.03, 0.10);
+      g.fillStyle = rand() < 0.5 ? '#b3ada0' : '#7d786f';
+      g.beginPath(); g.arc(rand() * W2, rand() * H2, rr(3, 26), 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+  }, false);
+  concAlb.repeat.set(1 / 4, 1 / 4);
+
+  M.grass = gmat('grass005', 2, grassAlb, { roughness: 0.96 });
+  M.strip = gmat('grass004', 2, grassAlb, { roughness: 0.95 });
+  M.apron = gmat('brushed', 2, concAlb, { roughness: 0.92, metalness: 0.02 });
+  M.taxi  = gmat('cracked', 4, concAlb, { roughness: 0.94, metalness: 0.02 });
+
+  // ---- THE MACRO BREAK-UP -------------------------------------------------
+  // A 2 m grass tile across a 700 m field repeats 350 times, and no amount of
+  // scan quality hides that: the eye reads the PERIOD, not the pixels. A second
+  // sampler at 180 m multiplies the albedo, so the field gets dry patches and
+  // mowing drift at a scale the tile cannot carry.
+  //
+  // It has to be an onBeforeCompile injection because r128 has ONE uv transform
+  // per material, taken from .map — every map on a material shares one repeat,
+  // so a second scale is unreachable any other way. vUv arrives already
+  // transformed, so the macro coordinate is carried from the raw `uv` attribute
+  // on its own varying. Same technique as aeroskin.js's structure sampler.
+  const macroTex = sheet(256, 256, (g, W2, H2) => {
+    g.fillStyle = '#808080'; g.fillRect(0, 0, W2, H2);
+    for (let i = 0; i < 260; i++) {
+      g.globalAlpha = rr(0.05, 0.20);
+      g.fillStyle = rand() < 0.5 ? '#5a5a5a' : '#b4b4b4';
+      g.beginPath(); g.arc(rand() * W2, rand() * H2, rr(10, 70), 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+  }, true);
+  const NL = String.fromCharCode(10);
+  const macroise = (mat, metres, amount) => {
+    mat.onBeforeCompile = sh => {
+      sh.uniforms.uMacro = { value: macroTex };
+      sh.uniforms.uMacroK = { value: 1 / metres };
+      sh.uniforms.uMacroA = { value: amount };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>',
+                 '#include <common>' + NL + 'varying vec2 vMacroUv;')
+        .replace('#include <uv_vertex>',
+                 '#include <uv_vertex>' + NL + '  vMacroUv = uv;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>',
+                 '#include <common>' + NL + 'varying vec2 vMacroUv;' + NL +
+                 'uniform sampler2D uMacro;' + NL +
+                 'uniform float uMacroK;' + NL + 'uniform float uMacroA;')
+        .replace('#include <map_fragment>',
+                 '#include <map_fragment>' + NL +
+                 '  { float m = texture2D(uMacro, vMacroUv * uMacroK).r;' + NL +
+                 '    diffuseColor.rgb *= mix(1.0, m * 2.0, uMacroA); }');
+    };
+    // r128 caches programs on the hook SOURCE, so two materials with the same
+    // injection share a program — but only if the key says so.
+    mat.customProgramCacheKey = () => 'site-macro-' + metres + '-' + amount;
+  };
+  macroise(M.grass, 180, 0.55);
+  macroise(M.strip, 90, 0.30);
+
+  // ---- helpers ------------------------------------------------------------
+  // metric uvs, like the floor: one texture tile is `tile` metres of ground,
+  // and the tile size becomes a live control in the editor on top of it.
+  const metricUV = (geo, w, d) => {
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * d);
+    uv.needsUpdate = true;
+    return geo;
+  };
+  // a flat rect in the local frame, wound to face up
+  const pad = (r, y, mat) => {
+    const w = r.x1 - r.x0, d = r.z1 - r.z0;
+    const g = metricUV(new THREE.PlaneGeometry(w, d), w, d);
+    const m = new THREE.Mesh(g, mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set((r.x0 + r.x1) / 2, y, (r.z0 + r.z1) / 2);
+    m.receiveShadow = true;
+    put(m);
+    return m;
+  };
+  // THE SLAB HAS A THICKNESS. The old apron was a plane at y = -0.01 with the
+  // grass 4 cm under it, which reads as paint rather than concrete: there is no
+  // edge to catch the light and nothing to cast the little shadow that tells
+  // you a slab is a slab. Four kerb quads is the whole difference.
+  const kerb = (r, top, drop, mat) => {
+    const q = (a, b, c, d2) => put(quad(a, b, c, d2, mat, 2));
+    const y0 = top, y1 = top - drop;
+    q([r.x0, y0, r.z0], [r.x0, y0, r.z1], [r.x0, y1, r.z1], [r.x0, y1, r.z0]);
+    q([r.x1, y0, r.z1], [r.x1, y0, r.z0], [r.x1, y1, r.z0], [r.x1, y1, r.z1]);
+    q([r.x1, y0, r.z0], [r.x0, y0, r.z0], [r.x0, y1, r.z0], [r.x1, y1, r.z0]);
+    q([r.x0, y0, r.z1], [r.x1, y0, r.z1], [r.x1, y1, r.z1], [r.x0, y1, r.z1]);
+  };
+  // paint: a coplanar decal, lifted and depth-write-free. The renderer runs a
+  // LOGARITHMIC depth buffer (app.js), under which coplanar surfaces z-fight
+  // whatever the offset — the world's own airfield block learned this and its
+  // fix is the one copied here.
+  let paintOrder = 40;
+  const paint = (x0, z0, x1, z1, col, y, op) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0)),
+      new THREE.MeshBasicMaterial({ color: col, transparent: op !== undefined,
+        opacity: op === undefined ? 1 : op, depthWrite: false, fog: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
+    m.renderOrder = paintOrder++;
+    put(m);
+    return m;
+  };
+
+  // ---- heights ------------------------------------------------------------
+  // Everything outside is stacked below the shed floor at y = 0, far enough
+  // apart that nothing z-fights and close enough that the door sill is a step
+  // rather than a kerb: apron -0.02, taxiway -0.04, strip -0.085, field -0.10.
+  const Y_APRON = -0.02, Y_TAXI = -0.04, Y_STRIP = -0.085, Y_FIELD = -0.10;
+  const SLAB = 0.22;
+
+  // ---- THE HORIZON ROLL-OFF (G44.2, kept) ---------------------------------
+  // The ground curves down past r0 = 160 m so its edge rolls under the sky
+  // sphere's horizon and there is no seam to see from the door. Everything
+  // outdoors carries fog:false: the room fog is tinted to the mood's dark
+  // INTERIOR colour and would eat the field.
   const R0 = 160, KDROP = 3.5e-4;
   const rollOff = (geo, posX, posZ) => {
-    const p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const wx = p.getX(i) + posX, wz = -p.getY(i) + posZ;
+    const p2 = geo.attributes.position;
+    for (let i = 0; i < p2.count; i++) {
+      const wx = p2.getX(i) + posX, wz = -p2.getY(i) + posZ;
       const r = Math.hypot(wx, wz);
-      if (r > R0) p.setZ(i, p.getZ(i) - KDROP * (r - R0) * (r - R0));
+      if (r > R0) p2.setZ(i, p2.getZ(i) - KDROP * (r - R0) * (r - R0));
     }
-    p.needsUpdate = true;
+    p2.needsUpdate = true;
     geo.computeVertexNormals();
   };
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 28, 28),
-    ground(new THREE.MeshStandardMaterial({ map: grassAlb, roughness: 0.96,
-      metalness: 0, fog: false })));
-  { const uv = grass.geometry.attributes.uv;   // metric, like the floor
-    for (let i = 0; i < uv.count; i++)
-      uv.setXY(i, uv.getX(i) * 500, uv.getY(i) * 500);
-    uv.needsUpdate = true; }
-  rollOff(grass.geometry, -150, 0);
-  grass.rotation.x = -Math.PI / 2;
-  grass.position.set(-150, -0.05, 0);
-  grass.receiveShadow = true;
-  put(grass);
-  // the strip: mown grass runway, edge-marked, a centreline of worn dirt
-  const stripAlb = sheet(256, 1024, (g, W2, H2) => {
-    g.fillStyle = '#77855a'; g.fillRect(0, 0, W2, H2);     // mown, lighter
-    for (let i = 0; i < 900; i++) {
-      g.globalAlpha = rr(0.05, 0.12);
-      g.fillStyle = rand() < 0.5 ? '#6a7850' : '#8a9663';
-      g.beginPath(); g.arc(rand() * W2, rand() * H2, rr(2, 10), 0, 7); g.fill();
+
+  // ---- THE FIELD ----------------------------------------------------------
+  // 700 m, centred so it carries the strip out to where the roll-off hides it.
+  const FCX = -150, FCZ = 60, FS = 700;
+  const fgeo = metricUV(new THREE.PlaneGeometry(FS, FS, 40, 40), FS, FS);
+  rollOff(fgeo, FCX, FCZ);
+  const field = new THREE.Mesh(fgeo, M.grass);
+  field.rotation.x = -Math.PI / 2;
+  field.position.set(FCX, Y_FIELD, FCZ);
+  field.receiveShadow = true;
+  put(field);
+
+  // ---- THE STRIP ----------------------------------------------------------
+  if (R && SITE) {
+    // only the part of it the door can see: past ~330 m the roll-off has taken
+    // it under the horizon anyway, and 1100 m of geometry to show 300 is waste.
+    // only the part of it the door can see: past ~340 m the roll-off has taken
+    // it under the horizon anyway, and 1100 m of geometry to show 340 is waste.
+    const SEEN = 340;
+    const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end0.x, R.cz + R.half);
+    const sx0 = Math.min(a.x, b.x), sx1 = Math.max(a.x, b.x);
+    const sz0 = Math.min(a.z, b.z);
+    const SW = sx1 - sx0, SCX = (sx0 + sx1) / 2, SCZ = sz0 + SEEN / 2;
+
+    // THE STRIP IS MOWN GRASS WITH PAINT ON IT, in two layers, and that is not
+    // a detail. One layer — a canvas of green with the markings drawn into it —
+    // is a PICTURE of a runway: it cannot carry the scanned grass the rest of
+    // the field wears, so the strip reads as a flat painted band laid on a
+    // textured meadow, which is exactly how the first cut of this looked.
+    const sBase = new THREE.PlaneGeometry(SW, SEEN);
+    sBase.rotateX(-Math.PI / 2);
+    metricUV(sBase, SW, SEEN);
+    const strip = new THREE.Mesh(sBase, M.strip);
+    strip.position.set(SCX, Y_STRIP, SCZ);
+    strip.receiveShadow = true;
+    put(strip);
+
+    // THE MARKINGS, on their own plane, with UVS COMPUTED PER VERTEX rather
+    // than by a texture transform. The first cut turned the canvas with
+    // `rotation = PI/2` plus a repeat and an offset, and the markings vanished:
+    // three composes that transform as translate(offset)·translate(centre)·
+    // rotate·scale(repeat)·translate(-centre), so the rotation and the window
+    // do not commute the way writing them one after another suggests. Reading
+    // each vertex back into the runway's own frame has no such ambiguity, and
+    // it works for any heading the record might carry.
+    const sMark = new THREE.PlaneGeometry(SW, SEEN);
+    sMark.rotateX(-Math.PI / 2);
+    { const uv = sMark.attributes.uv, po = sMark.attributes.position;
+      for (let i = 0; i < uv.count; i++) {
+        const Wp = siteToWorld(SCX + po.getX(i), SCZ + po.getZ(i), HGR);
+        const t = (Wp.x - R.end1.x) * -R.dx + (Wp.z - R.end1.z) * -R.dz;
+        const ac = (Wp.x - R.cx) * R.nx + (Wp.z - R.cz) * R.nz;
+        uv.setXY(i, t / R.len, (ac + R.wid / 2) / R.wid);
+      }
+      uv.needsUpdate = true; }
+    const RWc = 2048, RHc = 128;
+    const cv = document.createElement('canvas'); cv.width = RWc; cv.height = RHc;
+    sitePaintStrip(cv.getContext('2d'), R, RWc, RHc, true);   // marks only
+    const stex = new THREE.CanvasTexture(cv);
+    stex.encoding = THREE.sRGBEncoding;
+    stex.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
+    stex.wrapS = stex.wrapT = THREE.ClampToEdgeWrapping;
+    const marks = new THREE.Mesh(sMark, new THREE.MeshBasicMaterial({
+      map: stex, transparent: true, depthWrite: false, fog: false }));
+    marks.position.set(SCX, Y_STRIP + 0.01, SCZ);
+    marks.renderOrder = 30;
+    put(marks);
+
+    // ---- THE APRON ------------------------------------------------------
+    const ap = L(SITE.apron);
+    pad(ap, Y_APRON, M.apron);
+    kerb(ap, Y_APRON, SLAB, M.apron);
+    // SAW-CUT JOINTS on a 5 m grid, the way a slab that size is actually
+    // poured and cut. They are what makes the eye read SIZE off the concrete.
+    for (let x = ap.x0 + 5; x < ap.x1 - 0.5; x += 5)
+      paint(x - 0.02, ap.z0, x + 0.02, ap.z1, 0x2b2823, Y_APRON + 0.004, 0.55);
+    for (let z = ap.z0 + 5; z < ap.z1 - 0.5; z += 5)
+      paint(ap.x0, z - 0.02, ap.x1, z + 0.02, 0x2b2823, Y_APRON + 0.004, 0.55);
+    // the slot drain across the door line, and the lead-in the aeroplane
+    // follows out to the taxiway
+    paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
+    const tx = L(SITE.taxiway);
+    const lead = (tx.z0 + tx.z1) / 2;
+    paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
+    paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
+          0xd8bd4a, Y_APRON + 0.006, 0.9);
+    // tie-down rings, from the declaration
+    const ringGeo = new THREE.TorusGeometry(0.22, 0.05, 6, 10);
+    for (const rg of SITE.clutter.rings) {
+      const q2 = LP(rg[0], rg[1]);
+      const m = new THREE.Mesh(ringGeo, M.steel);
+      m.position.set(q2.x, Y_APRON + 0.02, q2.z);
+      m.rotation.x = Math.PI / 2;
+      m.castShadow = true;
+      put(m);
     }
-    g.globalAlpha = 0.5; g.fillStyle = '#9aa27a';           // wheel-worn pair
-    g.fillRect(W2 * 0.40, 0, W2 * 0.055, H2);
-    g.fillRect(W2 * 0.545, 0, W2 * 0.055, H2);
-    g.globalAlpha = 1; g.fillStyle = '#e8e4d8';             // edge markers
-    for (let k = 0; k < 10; k++) {
-      g.fillRect(W2 * 0.03, (k + 0.45) * H2 / 10, W2 * 0.05, H2 / 46);
-      g.fillRect(W2 * 0.92, (k + 0.45) * H2 / 10, W2 * 0.05, H2 / 46);
+
+    // ---- THE TAXIWAY, which now actually reaches the strip ---------------
+    pad(tx, Y_TAXI, M.taxi);
+    kerb(tx, Y_TAXI, SLAB - 0.04, M.taxi);
+    for (let z = tx.z0 + 3; z < tx.z1 - 1; z += 6)
+      paint((tx.x0 + tx.x1) / 2 - 0.09, z, (tx.x0 + tx.x1) / 2 + 0.09, z + 3,
+            0xd8bd4a, Y_TAXI + 0.006, 0.85);
+  }
+
+  // ---- THE FURNITURE ------------------------------------------------------
+  // All of it from the declaration, so the middle distance out of this door is
+  // the middle distance you taxi through.
+  if (SITE) {
+    const lam = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85,
+      metalness: 0, fog: false });
+    const wallM = lam(0xcbb79a), roofM = lam(0x9c5f43), trimM = lam(0x6d5744);
+    for (const b of SITE.buildings) {
+      const c = LP(b.x, b.z);
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(b.d, b.h, b.w),
+        b.trim ? trimM : wallM);
+      body.position.y = b.h / 2;
+      const rr2 = b.d * 0.60;
+      const rg = new THREE.CylinderGeometry(rr2, rr2, b.w * 1.05, 3, 1);
+      rg.rotateY(Math.PI / 2);
+      const roof = new THREE.Mesh(rg, roofM);
+      roof.position.y = b.h + rr2 * 0.5 - 0.02;
+      g.add(body); g.add(roof);
+      g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+      g.position.set(c.x, Y_FIELD, c.z);
+      g.rotation.y = -b.ry;
+      put(g);
     }
-    // threshold bar at the near end
-    g.fillRect(W2 * 0.08, H2 - H2 / 60, W2 * 0.84, H2 / 90);
-  }, false);
-  // long axis along x (out the door): the geometry carries the length,
-  // the texture turns 90° to follow it — no compound rotations to argue
-  // with
-  stripAlb.center.set(0.5, 0.5);
-  stripAlb.rotation = Math.PI / 2;
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(320, 24, 22, 2),
-    ground(new THREE.MeshStandardMaterial({ map: stripAlb, roughness: 0.95,
-      metalness: 0, fog: false })));
-  rollOff(strip.geometry, -HD - 26 - 160, 0);   // rides the same curve
-  strip.rotation.x = -Math.PI / 2;
-  strip.position.set(-HD - 26 - 160, -0.03, 0);
-  strip.receiveShadow = true;
-  put(strip);
+    // the windsock: the one thing on an airfield that tells you it is working
+    const wc = LP(SITE.windsock.x, SITE.windsock.z);
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h), lam(0xd8d2c4));
+    pole.position.set(wc.x, Y_FIELD + SITE.windsock.h / 2, wc.z);
+    pole.castShadow = true;
+    put(pole);
+    const sockM = lam(0xe4622e); sockM.side = THREE.DoubleSide;
+    const sock = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true), sockM);
+    sock.position.set(wc.x - 1.3, Y_FIELD + SITE.windsock.h - 0.5, wc.z);
+    sock.rotation.z = Math.PI / 2;
+    sock.castShadow = true;
+    put(sock);
+    // the boundary, in runs, with the taxiway's gate left open
+    const postGeo = new THREE.CylinderGeometry(0.07, 0.07, SITE.fence.h);
+    const postM = lam(0x8a7457);
+    for (const run of SITE.fence.runs)
+      for (let x = Math.max(run[0], run[1]); x >= Math.min(run[0], run[1]);
+           x -= SITE.fence.step) {
+        const c = LP(x, SITE.fence.z);
+        if (Math.abs(c.z) > 200) continue;         // past the roll-off
+        const m = new THREE.Mesh(postGeo, postM);
+        m.position.set(c.x, Y_FIELD + SITE.fence.h / 2, c.z);
+        m.castShadow = true;
+        put(m);
+      }
+    // the windbreak behind the shed, seen through the back doors and the gable
+    const T = SITE.trees;
+    const tg = new THREE.ConeGeometry(T.r, T.h, 7); tg.translate(0, T.h / 2, 0);
+    const tm = lam(0x4a6129);
+    for (let x = T.x1; x >= T.x0; x -= T.step) {
+      const c = LP(x + (x % 3) * 0.6, T.z + (x % 5) * 0.7);
+      const t = new THREE.Mesh(tg, tm);
+      t.position.set(c.x, Y_FIELD, c.z);
+      t.scale.setScalar(0.85 + (x % 7) / 9);
+      t.castShadow = true;
+      put(t);
+    }
+    // the runway's edge boards, near enough to be read
+    if (R) {
+      const mg = new THREE.BoxGeometry(1.6, 0.7, 0.5);
+      const mm = lam(0xe4dccb);
+      for (const P of siteMarkers(HOME)) {
+        const c = LP(P.x, P.z);
+        if (c.z > 340 || c.z < -40) continue;
+        const m = new THREE.Mesh(mg, mm);
+        m.position.set(c.x, Y_FIELD + 0.35, c.z);
+        m.castShadow = true;
+        put(m);
+      }
+    }
+  }
+
+  // ---- THE TUFTS ----------------------------------------------------------
+  // "there are no grass sprites, so it looks like a big green model" (the user).
+  // A ground texture, however good, is a picture of grass on a flat plane, and
+  // at the grazing angle you see a field from a doorway it reads as exactly
+  // that. What breaks it is PARALLAX: things standing up, occluding each other.
+  //
+  // The blade atlas, the crossed-quad geometry, the scatter and the instancing
+  // all live in site_ground.js now, because the WORLD grows the same grass
+  // round the same apron — see render_world.js. What is decided here is only
+  // what belongs to this room: where a tuft may not stand, and how it is lit.
+  if (THREE.InstancedMesh && SITE) {
+    const tuftMat = outdoor(new THREE.MeshStandardMaterial({
+      map: siteBladeTexture(THREE, rand, ANISO),
+      alphaTest: 0.42, side: THREE.FrontSide,
+      roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
+
+    // where a tuft may NOT stand: the paving, the strip, and the shed itself
+    const blocks = [L(SITE.apron), L(SITE.taxiway),
+                    { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }];
+    if (R) {
+      const a = LP(R.end0.x, R.cz - R.half), b = LP(R.end1.x, R.cz + R.half);
+      blocks.push({ x0: Math.min(a.x, b.x) - 1, x1: Math.max(a.x, b.x) + 1,
+                    z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) });
+    }
+    // measured from the door mouth, which is where the eye is
+    const rows = siteScatter(rand, {
+      count: 9000, radius: 62, near: 30, blocks: blocks,
+      cx: -HD, cz: 0, x0: -95, x1: 26, z0: -62, z1: 78,
+    });
+    put(siteTufts(THREE, rows, tuftMat, Y_FIELD - 0.02));
+  }
 }
 
 // ---- roof: portal trusses, purlins, deck, roof lights ---------------------
+// where the roof lights ended up, published for the dust shafts below the
+// exterior return — which used to keep their own copy of the positions and
+// drifted the moment the count became a parameter (HANGARS S3)
+let ROOFLIGHTS = { n: 0, x: () => 0 };
 {
-  const NT = 7;
+  // THE PORTAL FRAME IS INTERIOR STRUCTURE. Seven trusses at fourteen meshes
+  // each, plus fourteen purlins, is 112 draw calls standing entirely behind a
+  // solid deck and a shut door.
+  //
+  // THE COUNT FOLLOWS THE DEPTH (HANGARS S3). It was a fixed seven — only the
+  // SPACING stretched, so the works shed at twice the depth would have stood
+  // its trusses eight metres apart, which is not a bigger building, it is the
+  // same building pulled like taffy. One bay per ~4.2 m reproduces the seven
+  // the club was drawn with and gives the works its eleven.
+  // TIMBER (HANGARS S4): no portal, no trusses. Posts up the walls, a tie
+  // across at each station, a rafter pair to the ridge and a knee brace
+  // into each corner — post-and-beam, closer-spaced than steel because a
+  // 150 mm post is not a portal stanchion. Interior structure, like the
+  // trusses: the exterior build sees boards and a roof.
+  if (FRAME === 'timber' && !EXT) {
+    const NR = Math.max(4, 1 + Math.round(2 * HD / 2.25));
+    for (let i = 0; i < NR; i++) {
+      const x = -HD + 0.5 + (2 * HD - 1.0) * i / (NR - 1);
+      put(strut([x, EAVE, -HW], [x, RIDGE - 0.04, 0], 0.07, M.beamMain, 6),
+          strut([x, EAVE, HW], [x, RIDGE - 0.04, 0], 0.07, M.beamMain, 6),
+          strut([x, EAVE - 0.06, -HW], [x, EAVE - 0.06, HW], 0.06,
+                M.beamMain, 6));
+      for (const s of [1, -1]) {
+        put(box(0.15, EAVE, 0.15, M.beamMain, x, EAVE / 2, s * (HW - 0.10)));
+        put(strut([x, EAVE - 1.0, s * (HW - 0.14)],
+                  [x, EAVE - 0.08, s * (HW - 1.15)], 0.05, M.beamMain, 6));
+      }
+    }
+    // the top plate the rafters bear on, along each eave
+    for (const s of [1, -1])
+      put(box(2 * HD, 0.14, 0.14, M.beamMain, 0, EAVE - 0.02, s * (HW - 0.10)));
+  }
+  const NT = (EXT || FRAME === 'timber')
+    ? 0 : Math.max(4, 1 + Math.round(2 * HD / 4.2));
   for (let i = 0; i < NT; i++) {
     const x = -HD + 0.6 + (2 * HD - 1.2) * i / (NT - 1);
     // top chords to the ridge, bottom tie, king post, web diagonals —
@@ -1410,11 +2018,21 @@ function setSky(row) {
   // bar is placed through it, so none of them can drift out of the plane.
   const slopeP = (s, x, t) =>
     [x, RIDGE + (EAVE - RIDGE) * t, s * (HW + 0.5) * t];
-  const LT0 = 0.30, LT1 = 0.62, LHW = 1.8, NLIGHT = 4;
-  const lightX = k => -HD + 3.4 + k * (2 * HD - 6.8) / 3;
+  // roof lights at the club's own rhythm too (HANGARS S3): four per slope at
+  // HD 12.5, one more per ~3 m of extra depth
+  const LT0 = 0.30, LT1 = 0.62, LHW = 1.8;
+  // ...and the timber shed has NONE: with zero openings the deck below
+  // emits its three bands as one unbroken slope, and the rooflight loop
+  // never runs. Its daylight is the door and the two flank windows — a
+  // field shed IS dimmer than a glazed club hangar, and that is character,
+  // not a defect.
+  const NLIGHT = FRAME === 'timber' ? 0
+    : Math.max(2, Math.round(2 * HD / 6.25));
+  const lightX = k => -HD + 3.4 + k * (2 * HD - 6.8) / (NLIGHT - 1);
+  ROOFLIGHTS = { n: NLIGHT, x: lightX };
   // purlins and the deck underside — the SECONDARY BEAMS (G41)
   for (const s of [1, -1]) {
-    for (let k = 0; k <= 6; k++) {
+    for (let k = 0; k <= 6 && !EXT; k++) {
       const f = k / 6, z = s * HW * f, y = EAVE + (RIDGE - EAVE) * (1 - f) - 0.14;
       put(box(2 * HD - 1, 0.14, 0.10, M.beamSec, 0, y, z));
     }
@@ -1462,7 +2080,16 @@ function setSky(row) {
     const drop = v => [v[0], v[1] - 0.02, v[2]];
     const a = drop(P(-LHW, LT0)), b = drop(P(LHW, LT0)),
           c = drop(P(LHW, LT1)), d = drop(P(-LHW, LT1));
-    const p = s > 0 ? quad(a, b, c, d, M.skyPanel) : quad(b, a, d, c, M.skyPanel);
+    // FROM OUTSIDE A ROOF LIGHT IS GLASS, NOT A HOLE. M.skyPanel is an
+    // emissive card - the right thing seen from the floor of a dim shed, and
+    // from above in daylight it reads as a square cut out of the roof. The
+    // exterior build glazes them instead.
+    if (EXT && !M.skyPanelExt)
+      M.skyPanelExt = new THREE.MeshStandardMaterial({
+        color: 0x9fb4c2, roughness: 0.16, metalness: 0.0,
+        transparent: true, opacity: 0.72 });
+    const PM = EXT ? M.skyPanelExt : M.skyPanel;
+    const p = s > 0 ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
     p.castShadow = false;
     put(p);
     // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
@@ -1478,9 +2105,49 @@ function setSky(row) {
     band(-LHW, LHW, LT1 - KT, LT1);               // sill
     band(-LHW, -LHW + KX, LT0, LT1);              // jambs
     band(LHW - KX, LHW, LT0, LT1);
-    for (let j = 1; j < 3; j++)                   // glazing bars across
+    for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across
       band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0, LT1);
   }
+}
+
+// ===========================================================================
+// THE EXTERIOR BUILD STOPS HERE.
+// ===========================================================================
+// Everything above is the shell; everything below is the room. The return is
+// placed at this line rather than at the top of each following block because
+// the things it skips are not merely unnecessary outside — they are actively
+// wrong in another scene, and a guard per block is a guard that can be
+// forgotten. What is downstream: the fittings and the prop library, the work
+// in progress, ROOT and the key light, the shop lamps, the dust shafts, the
+// moods, the material part system, and the two shadow bakes.
+//
+// It returns G, the static group, and not ROOT — ROOT does not exist until
+// line ~2115 and its only other members are the key light and the shafts.
+if (EXT) {
+  if (typeof console !== 'undefined') {
+    const c = census();
+    console.log('hangar exterior: ' + c.meshes + ' meshes, ' +
+      c.tris.toLocaleString() + ' tris | sheets ' + sheetBaked + ' baked, ' +
+      sheetHit + ' from the memo');
+  }
+  return {
+    group: G,
+    dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
+    doorAxis: -1, floorY: 0,
+    mats: M, census: census,
+    // its own disposer: no props (so no sharedGeo to protect), no ground
+    // shadow, no sky texture. app.js's disposeHangar is written against the
+    // module-level garage instance and must not be pointed at this one.
+    dispose: function () {
+      const mats = new Set();
+      G.traverse(function (o) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+          .forEach(function (m) { mats.add(m); });
+      });
+      mats.forEach(function (m) { m.dispose(); });
+    },
+  };
 }
 
 // ===========================================================================
@@ -1569,24 +2236,16 @@ function placeMobile(bb) {
   for (let i = MOBILE.children.length - 1; i >= 0; i--)
     MOBILE.remove(MOBILE.children[i]);
   if (!PROPS_OK || !bb || !isFinite(bb.x0)) return 0;
-  const CLR = 1.15;                       // metres of daylight round the box
-  // lim takes a MAGNITUDE, so the port side passes HW - 2.2, not its negative:
-  // handing it -(HW - 2.2) made max(-m, ...) return +15.8 and put the ladder,
-  // the sack truck and the jerrycan against the far wall on the wrong side.
-  const lim = (v, m) => Math.max(-m, Math.min(m, v));
-  const zR = lim(Math.max(bb.z1, 0.6) + CLR, HW - 2.2);
-  const zL = lim(Math.min(bb.z0, -0.6) - CLR, HW - 2.2);
-  const xN = lim(bb.x0 - CLR * 0.7, HD - 2.0);      // ahead of the nose (-x)
-  const xT = lim(bb.x1 + CLR * 0.7, HD - 2.0);      // behind the tail (+x)
-  const xM = lim((bb.x0 + bb.x1) / 2, HD - 2.0);    // abeam
-  // the cart lives under the starboard wing root, where the work is
-  prop('cart_tool', xM - 0.9, zR, Math.PI / 2 - 0.18, 0, MOBILE);
-  prop('toolbox_open', xM - 0.9, zR + 0.06, 0.5, 0.90, MOBILE);
-  prop('toolchest_metal', xM + 0.8, zR + 0.15, Math.PI / 2 + 0.22, 0, MOBILE);
-  // the ladder stands off the port wing, the sack truck by the nose
-  prop('stepladder', xM + 0.4, zL, -Math.PI / 2 + 0.3, 0, MOBILE);
-  prop('handtruck', xN, zL * 0.45, 1.9, 0, MOBILE);
-  prop('jerrycan', xN + 0.5, zL * 0.45 + 0.7, 0.8, 0, MOBILE);
+  // The ring's arithmetic lives in core now (hangarFitRing, 26_hangar_fit.js)
+  // — same CLR, same clamps, and the magnitude-clamp lesson keeps its shape
+  // there: lim takes a MAGNITUDE, because handing it -(HW - 2.2) once put the
+  // ladder, the sack truck and the jerrycan against the far wall on the wrong
+  // side. Which rows appear follows the chosen KITS: the cart is the handling
+  // kit's, the toolbox the bench's, the jerrycan the stores' — a park-only
+  // shed walks nothing over to the aeroplane.
+  const rows = (typeof hangarFitRing === 'function')
+    ? hangarFitRing({ HW: HW, HD: HD, EAVE: EAVE }, KITS, bb) : [];
+  for (const r of rows) prop(r.prop, r.x, r.z, r.ry, r.y, MOBILE);
   // THE KIT IS BUILT AFTER THE ROOM IS (G65). It needs the aeroplane's own
   // bounding box, so it arrives long after the emitter sweep has run and would
   // otherwise be the one way a self-lit material could still get in unswitched.
@@ -1738,17 +2397,10 @@ function stockRack(x, z, ry) {
 // MEASURED SURFACES, not guessed ones. A prop that something else stands on
 // was measured off its own decoded geometry (upward-facing triangle area,
 // binned by height) rather than eyeballed, because a mug 3 cm above a bench
-// top is the one mistake that makes a whole room look wrong:
-const TOP = {
-  bench: 0.96,      // workbench_wood
-  desk: 0.78,       // metal_office_desk
-  table: 0.68,      // table_wood
-  cartTool: 0.90,   // cart_tool, top tray  (lower shelf 0.20)
-  cartCab: 0.90,    // cart_tool_cab
-  cartStore: 1.28,  // cart_storage, top    (middle 0.78, bottom 0.18)
-  crate: 0.41,      // crate_wood_a
-  drum: 0.90,       // drum_steel
-};
+// top is the one mistake that makes a whole room look wrong. The heights
+// ride inline on the kit site rows now (`y` in 26_hangar_fit.js — bench
+// 0.96, desk 0.78, table 0.68, cart_storage 1.28, crate 0.41); the rack's
+// shelves stay here because only loadedRack draws onto them:
 const SHELVES = [0.44, 0.92, 1.42, 1.90];       // rack_steel, measured
 
 // A LOADED RACK. Bare shelving reads as a showroom; what makes a rack look
@@ -1775,333 +2427,227 @@ function loadedRack(x, z, ry) {
   }
 }
 
-// ===== THE SHOP RUN (z = +HW): benches, boards, tool storage ================
-prop('workbench_wood', FX(-5.0), HW - 1.00, Math.PI);
-prop('vice_bench', FX(-5.95), HW - 1.10, Math.PI * 0.5, TOP.bench);
-prop('toolbox_open', FX(-4.25), HW - 1.00, Math.PI - 0.35, TOP.bench);
-prop('radio_bench', FX(-3.95), HW - 1.05, Math.PI + 0.25, TOP.bench);
-prop('toolrack_wall', FX(-5.0), HW - 0.12, Math.PI, 1.62);
-prop('stool_wood', FX(-3.2), HW - 2.10, 0.6);
-
-prop('table_wood', FX(-1.7), HW - 1.05, Math.PI);
-prop('box_cardboard', FX(-2.1), HW - 1.00, 0.4, TOP.table);
-prop('crate_wood_a', FX(-1.2), HW - 1.05, -0.25, TOP.table);
-prop('jerrycan', FX(-0.9), HW - 1.85, 0.8);
-
-loadedRack(FX(1.5), HW - 0.55, Math.PI);
-loadedRack(FX(2.6), HW - 0.55, Math.PI);
-loadedRack(FX(3.7), HW - 0.55, Math.PI);
-prop('cart_storage', FX(5.7), HW - 1.10, Math.PI + 0.08);
-prop('box_cardboard', FX(5.4), HW - 1.10, 0.3, TOP.cartStore);
-prop('crate_wood_a', FX(6.1), HW - 1.05, -0.5, TOP.cartStore);
-prop('toolchest_metal', FX(7.3), HW - 0.95, Math.PI + 0.12);
-prop('cart_tool_cab', FX(8.7), HW - 0.95, Math.PI - 0.08);
-prop('bottle_lpg', FX(9.9), HW - 0.85, 0.5);
-prop('handtruck', FX(10.8), HW - 0.55, Math.PI + 0.15);
-
-// ===== THE BUILD RUN (z = -HW): the desk, the machines, the work ===========
-prop('desk_metal', FX(2.6), -HW + 0.90, 0);
-claim(prop('lamp_desk', FX(3.35), -HW + 1.15, -0.55, TOP.desk), 'desk');  // clamps to the top
-prop('instrument_panel', FX(1.95), -HW + 1.05, 0.35, TOP.desk);
-prop('stool_wood', FX(2.4), -HW + 1.95, -0.4);
-prop('toolrack_wall', FX(2.6), -HW + 0.12, 0, 1.62);
-
-loadedRack(FX(-1.2), -HW + 0.55, 0);
-loadedRack(FX(-2.3), -HW + 0.55, 0);
-prop('toolchest_metal', FX(0.5), -HW + 0.85, 0.15);
-prop('cart_tool', FX(-8.2), -HW + 1.40, -0.30);
-prop('drillpress', FX(7.4), -HW + 0.95, 0.10);
-
-// ===== THE MACHINE SHOP (G66) ==============================================
-// Four scans of real machines from one lycee workshop, and the reason they go
-// HERE is that this wall was the only run long enough: 7.6 m of clear
-// elevation between the tool cart and the tool chest, which is 5.7 m of
-// machine and four half-metre gaps. They are 80-137 k tris each, so they are
-// also the four heaviest objects in the building.
+// ===== THE FIT-OUT (HANGARS S2) =============================================
+// The 72 hand-placed prop lines that lived here are DATA now: kit site rows
+// in src/core/26_hangar_fit.js, converted through the identity that FX/FZ
+// always were (along = (a+13)/26 says FX(a) at every dims). The engine
+// resolves anchors off HW/HD/EAVE, packs the walls, keeps the aircraft bay,
+// and reports what a small shell cannot take — so this file's whole job is
+// standing meshes at the answers, and a kit that is absent is simply never
+// asked for. What stays drawn here are the RECIPES — the loaded rack, the
+// tyre stack, the stove corner, the work in progress — because nothing in
+// the library is a fire or a half-built wing; the engine places them by
+// their declared footprints and DRAW below does the drawing.
 //
-// A machine shop is not a row of machines, it is a WORKFLOW, and these four
-// are in the order the timber goes through them: cut it to length on the band
-// saw, flatten a face on the surface planer, bring it to thickness on the
-// thicknesser. Standing the pair together is not decoration either — a
-// jointer and a thicknesser are used one after the other on the same board,
-// which is why every real shop has them within a pace of each other.
-// SPACED BY MEASUREMENT, not by eye. The first pass put the band saw 15 cm
-// INSIDE the tool cart and left the planer 45 mm off the brick course. The run
-// is 7.27 m of clear wall between the cart's end and the tool chest's start;
-// the three machines are 5.73 m of that, so the four gaps are 0.385 m each,
-// and every one of them stands 0.30 m off the wall plane so nothing touches
-// the stem.
-prop('bandsaw', FX(-6.19), -HW + 1.16, 0);
-prop('jointer', FX(-3.53), -HW + 1.38, 0);
-prop('thicknesser', FX(-1.00), -HW + 0.93, 0);
-// The panel saw stands OFF the wall, because it is the one machine you cannot
-// use against one: 4.4 x 3.6 m of sliding table and outrigger that needs a
-// full sheet's clearance on two sides. It leaves a 1.1 m walkway behind it,
-// which is the aisle to the other three.
-prop('panelsaw', FX(-4.30), -HW + 5.20, 0);
-prop('barrel_plastic', FX(9.0), -HW + 0.85, 0);
-prop('bin_metal', FX(10.2), -HW + 0.90, 0.3);
-
-// STILL DRAWN: nothing in the library is an aero engine, a wing under
-// construction, a propeller, a drawing board or a rolling scaffold.
-FURN.push(planTable(FX(-9.2), FZ(8.4), 0.4));
-FURN.push(workPlatform(FX(6.6), HW - 3.1, 0.10));
-FURN.push(workPlatform(FX(-6.6), -HW + 3.2, -0.10));
-// ry = PI, not -PI/2: the long stock lies along local z, so a quarter turn put
-// every length of tube and spruce straight through the end wall
-FURN.push(stockRack(HD - 1.6, -8.5, Math.PI));
-
-// ===== THE BACK WALL (x = +HD): gas, air, fuel and the bins ================
-prop('weldingcart', HD - 1.15, 15.0, -Math.PI / 2 - 0.20);
-prop('bottle_propane', HD - 0.85, 13.9, 0.4);
-prop('bottle_propane', HD - 0.90, 13.2, -0.9);
-prop('bottle_lpg', HD - 1.65, 13.6, 0.2);
-prop('compressor', HD - 1.25, 6.2, -Math.PI / 2);
-// MOVED CLEAR OF THE BACK DOORS (G66). G64 cut an 11 m opening through
-// z = +-5.5 of this wall and left the hose reel hanging at z = 3.6 — bolted,
-// in other words, to a sliding door leaf. It goes on the pier beyond the jamb.
-prop('hosereel_wall', HD - 0.14, 7.6, -Math.PI / 2, 2.20);
-prop('drum_steel', HD - 0.95, -14.6, 0.5);
-prop('drum_steel', HD - 0.95, -15.4, -0.3);
-prop('barrel_plastic', HD - 1.75, -15.0, 0);
-prop('jerrycan', HD - 1.9, -13.9, 0.9);
-prop('jerrycan', HD - 2.3, -14.2, -0.4);
-prop('bin_metal', HD - 1.05, -3.2, 0.3);
-prop('bin_metal_rust', HD - 1.05, -4.2, -0.5);
-prop('crate_wood_c', HD - 1.10, -10.6, Math.PI / 2 + 0.1);
-prop('crate_wood_b', HD - 1.05, -11.7, Math.PI / 2 - 0.2);
-
-// ===== THE DOOR END (x = -HD): tyres, crates and the unfinished car ========
-// A TYRE IS ONE PROP AND A STACK IS A STACK: 0.165 m of tread per lift, and a
-// turn on each, so no two read as the same casting.
+// A TYRE IS ONE PROP AND A STACK IS A STACK: 0.165 m of tread per lift, and
+// a turn on each, so no two read as the same casting.
 const tyreStack = (x, z, n) => {
   for (let k = 0; k < n; k++)
     prop('tyre', x + rr(-0.03, 0.03), z + rr(-0.03, 0.03), rand() * 3, k * 0.165);
 };
-tyreStack(FX(-11.3), HW - 1.7, 4);
-tyreStack(FX(-12.0), HW - 2.6, 3);
-tyreStack(FX(-11.6), HW - 3.4, 2);
-tyreStack(FX(-11.4), -HW + FZ(8.4), 3);
-prop('car_covered', FX(-9.9), HW - FZ(5.6), Math.PI / 2 + 0.05);
 
-prop('crate_wood_c', FX(-11.6), -HW + 3.6, 0.15);
-prop('crate_wood_a', FX(-11.6), -HW + 3.6, -0.20, TOP.crate);
-prop('crate_wood_b', FX(-11.8), -HW + 4.7, 0.35);
-prop('box_cardboard', FX(-10.7), -HW + 3.9, 0.8);
-prop('box_cardboard', FX(-10.8), -HW + 3.95, -0.4, 0.34);
-// the delivered "cardboard box set" was dismissed (no lids, no thickness: flat
-// card from any angle but dead ahead) — the Poly Haven box and the crates take
-// its place, and they stack
-prop('box_cardboard', FX(-11.4), -HW + 6.0, 0.1);
-prop('box_cardboard', FX(-11.5), -HW + 6.05, 1.2, 0.34);
-prop('crate_wood_a', FX(-10.8), -HW + 6.6, -0.3);
-prop('crate_wood_c', FX(-11.5), -HW + 7.6, 0.5);
-prop('stepladder', FX(-11.9), -HW + FZ(11.6), 1.4);
-prop('stepladder', FX(-8.6), -HW + 3.9, 0.5);
+// ---- the work in progress, drawn ------------------------------------------
+// These come out of the game's own generator rather than the prop library
+// (see src/viewer/workshop.js), so when the generator learns a new tip shape
+// or a better truss, the aeroplanes half-built on this floor learn it too.
+// The stands are a PROP (user: "your stands are still really shaky"), so the
+// height the pieces rest at is the trestle's own top, measured off the baked
+// payload rather than agreed between two files — and so is its FOOTPRINT,
+// because wsOnStands stops a trestle at the lowest surface anywhere under
+// its beam, and it can only do that if it knows how big the beam is.
+const wsTrestleTop = (PROPS_OK && PROP_REG.props.work_trestle)
+  ? PROP_REG.props.work_trestle.bb[4] : 0.82;
+const wsTrestleBB = (PROPS_OK && PROP_REG.props.work_trestle)
+  ? PROP_REG.props.work_trestle.bb : null;
+const wsMats = { wood: M.woodPale, steel: M.steel, trestleTop: wsTrestleTop,
+                 standFoot: wsTrestleBB
+                   ? [Math.max(wsTrestleBB[3], -wsTrestleBB[0]),
+                      Math.max(wsTrestleBB[5], -wsTrestleBB[2])]
+                   : [0.26, 0.43],
+                 stand: (x, z, ry) => prop('work_trestle', x, z, ry) };
+const wipGen = (kind, x, z, ry) => {
+  const g = (typeof wsPiece === 'function') ? wsPiece(THREE, kind, wsMats) : null;
+  if (!g) return null;
+  g.position.set(x, 0, z); g.rotation.y = ry || 0;
+  G.add(g);
+  FURN.push(g);
+  return g;
+};
 
-// ===== WORK IN PROGRESS ====================================================
-// The shed had furniture and no WORK in it. These three come out of the game's
-// own generator rather than the prop library (see src/viewer/workshop.js), so
-// when the generator learns a new tip shape or a better truss, the aeroplanes
-// half-built on this floor learn it too.
-{
-  // the stands are a PROP now (user: "your stands are still really shaky"), so
-  // the height the pieces rest at is the trestle's own top, measured off the
-  // baked payload rather than agreed between two files
-  const trestleTop = (PROPS_OK && PROP_REG.props.work_trestle)
-    ? PROP_REG.props.work_trestle.bb[4] : 0.82;
-  // ...and so is its FOOTPRINT, for the same reason: wsOnStands stops a
-  // trestle at the lowest surface anywhere under its beam, and it can only do
-  // that if it knows how big the beam is. Measured off the baked payload, like
-  // the top.
-  const tb = (PROPS_OK && PROP_REG.props.work_trestle)
-    ? PROP_REG.props.work_trestle.bb : null;
-  const wsMats = { wood: M.woodPale, steel: M.steel, trestleTop: trestleTop,
-                   standFoot: tb ? [Math.max(tb[3], -tb[0]), Math.max(tb[5], -tb[2])]
-                                 : [0.26, 0.43],
-                   stand: (x, z, ry) => prop('work_trestle', x, z, ry) };
-  const place = (kind, x, z, ry) => {
-    const g = (typeof wsPiece === 'function') ? wsPiece(THREE, kind, wsMats) : null;
-    if (!g) return null;
-    g.position.set(x, 0, z); g.rotation.y = ry || 0;
-    G.add(g);
-    FURN.push(g);
-    return g;
-  };
-  // THE TWO GENERATED BODY PIECES ARE RETIRED (G62.10, user: "It's a jodel
-  // dr1050 wooden structure for a body, and one for the wing. We can use that
-  // to replace the 2 structures we have; the metal one and the wooden one").
-  // `wsTubeFrame` and `wsWoodCabin` still exist in workshop.js and still work —
-  // they are the generator's own output and will follow it if it changes — but
-  // the floor now carries the author's hand-modelled DR1050 instead, which is a
-  // real aeroplane rather than a rendering of this game's spec.
-  //
-  // The generated WING stays exactly where it was (user: "Don't touch the
-  // existing wing, she's good"), and so does the engine on its bench.
-  place('wing', FX(-2.4), FZ(12.4), 0.05);
-  place('engine', FX(9.2), FZ(-6.4), -Math.PI / 2 + 0.2);
-
-  // THE JODEL FUSELAGE, on the build side where the welded frame used to be.
-  // It is a prop like everything else in here: baked by tools/jodel_prep.py
-  // into the same pack format the furniture uses, so it prints a floor shadow
-  // and scales with the moods without knowing anything about either.
-  // ON TRESTLES, LIKE THE WING (G63, user: "Put the Jodel chassis on its
-  // trestles like before ... adjust the vertical size of the trestles so the
-  // body really lies on them, no gap between body and trestles, and no
-  // clipping either"). That is `wsOnStands`, which already does the job
-  // properly for the generated wing: it rays the piece DOWNWARD at each
-  // stand's own station and stretches that trestle to whatever surface it
-  // finds there. A fuselage keel is curved, so three equal trestles would
-  // leave two of them short — these three each reach their own bit of keel.
-  //
-  // The rotation goes on the WRAPPER, not on the prop, so the trestles turn
-  // with what they carry instead of being laid out across it.
-  {
-    const b = prop('airframe_jodel_body', 0, 0, 0);
-    if (b) {
-      G.remove(b);
-      const i = FURN.indexOf(b); if (i >= 0) FURN.splice(i, 1);
-      const stood = (typeof wsOnStands === 'function')
-        ? wsOnStands(THREE, b, wsMats, 3) : null;
-      const g = stood || b;
-      g.position.set(FX(3.6), 0, FZ(-12.2));
-      // 180 degrees AND A BIT MORE (user), so the chassis is nose-for-tail
-      // against the finished aeroplane and off its axis by twelve degrees:
-      // two parked parallel read as a diagram, two at an angle read as a shed.
-      g.rotation.y = Math.PI + 0.21;
-      G.add(g); FURN.push(g);
-    }
-  }
-
-  // THE JODEL WING, HUNG CHORD-UP IN FRONT OF THE BACK WALL (user: "I'll want
-  // the wing hanged in front of the back wall, where things are least
-  // interesting so far ... you may also have it hang chord up from the
-  // ceiling, I've seen that done"). And it is how a wing waits for its
-  // covering: on edge it costs a metre and a half of wall instead of nine
-  // metres of floor.
-  //
-  // `prop()` only offers a heading, because every other prop in the shed
-  // stands on something. This one is turned onto its edge as well, so it is
-  // placed and then rolled: a quarter turn about Z takes the CHORD from x into
-  // y, leaving the span along z and the thickness across. The piece was baked
-  // 'ceiling' — origin at its top — so after the roll the top is at +halfChord
-  // and the hang height is that much below the strap.
-  {
-    // 1.20 m LOWER (G64 dropped it 70 cm, G64.1 another 50 — user: "The wing
-    // sits too high"). It hangs across the MIDDLE of the doors now instead of
-    // riding along their head rail, which reads as stored rather than stowed.
-    const wx = HD - 1.7, wz = 0, top = EAVE * 0.72 - 1.20;
-    const w = prop('airframe_jodel_wing', wx, wz, 0);
-    if (w) {
-      const half = 0.84;                       // half the 1.68 m chord
-      w.rotation.z = Math.PI / 2;
-      w.position.set(wx, top - half, wz);
-      // two straps to the roof, because a wing floating on nothing reads as a
-      // bug. Same trick as the lamps' drop rods: the LIGHT is not a model, but
-      // the thing holding it up is.
-      for (const cz of [-2.6, 2.6]) {
-        const roof = roofY(cz), len = roof - (top + 0.02);
-        if (len > 0.05)
-          put(cyl(0.010, 0.010, len, M.steelDark, wx, top + 0.02 + len / 2, cz, 6));
-      }
-
-      // ITS SHADOW ON THE WALL BEHIND IT (G63, user: "The wing can be quite
-      // invisible depending on the texture chosen for the back wall. Could we
-      // use the same trick as with the ground, and calculate a shadow map? Or
-      // just precalculate it, and project it on a transparent plane").
-      //
-      // This is the second half of that sentence, and it is not a cheat: the
-      // wing hangs 1.6 m off a wall in a room whose only shadow-casters point
-      // DOWN, so the wall behind it gets no shadow from anything. What is
-      // missing there is real — the occlusion between a large flat object and
-      // the surface a hand's breadth behind it — and nothing in the frame
-      // computes it. A pale spruce structure against pale planks then has
-      // nothing to separate it from its background, which is what he saw.
-      //
-      // PRECALCULATED rather than rendered, because this wing never moves.
-      // A render target would recompute the same image every bake for the same
-      // answer, cost a texture unit, and need a camera pointed at a wall. The
-      // silhouette is a soft tapered slab, drawn straight into an alpha map:
-      // wide plateau across the span, narrower toward the tips as the wing
-      // tapers, soft everywhere because a shadow from a big diffuse source is.
-      const bb = new THREE.Box3().setFromObject(w);
-      const spanZ = bb.max.z - bb.min.z, chordY = bb.max.y - bb.min.y;
-      // 90% ACROSS, 80% DOWN, AND PROPERLY BLURRED (G64, user: "The shadow is
-      // too rough. Shrink it to 80% vertical and 90% horizontal, then blur it
-      // significantly"). The first version faded its edges with a pair of
-      // smoothsteps, which is a ramp, not a blur: it kept the silhouette's
-      // corners and read as a smudge with a shape. This one draws the crisp
-      // mask small in the middle of the sheet and then actually BLURS it —
-      // two passes of a separable box filter, which is a close enough
-      // Gaussian for something this soft and costs nothing at bake time.
-      //
-      // 14 px of blur on a 256 x 64 sheet across a 9 m quad is about 0.45 m of
-      // penumbra, which is what a 4 m ceiling of diffuse light gives a wing
-      // hanging a metre off the doors.
-      const shW = (spanZ + 1.1) * 0.90, shH = (chordY + 0.9) * 0.80;
-      const shTex = sheet(256, 64, (g2, W2, H2) => {
-        const N = W2 * H2, a = new Float32Array(N), b = new Float32Array(N);
-        for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
-          // the mask itself occupies the middle 70%, leaving the blur room to
-          // run out inside the sheet instead of clipping at its edge
-          const u = ((i + 0.5) / W2 - 0.5) / 0.70 + 0.5,
-                v = ((j + 0.5) / H2 - 0.5) / 0.70 + 0.5;
-          if (u < 0 || u > 1 || v < 0 || v > 1) continue;
-          const e = Math.abs(2 * u - 1);            // 0 at root, 1 at a tip
-          const hv = 0.5 * (1 - 0.30 * e * e);      // the wing's taper
-          a[j * W2 + i] = (Math.abs(v - 0.5) <= hv) ? 1 : 0;
-        }
-        const blur = (src, dst, rx, ry) => {
-          for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
-            let t = 0, n = 0;
-            for (let k = -rx; k <= rx; k++) {
-              const x = i + k; if (x < 0 || x >= W2) continue;
-              t += src[j * W2 + x]; n++;
-            }
-            dst[j * W2 + i] = t / n;
-          }
-          for (let i = 0; i < W2; i++) for (let j = 0; j < H2; j++) {
-            let t = 0, n = 0;
-            for (let k = -ry; k <= ry; k++) {
-              const y = j + k; if (y < 0 || y >= H2) continue;
-              t += dst[y * W2 + i]; n++;
-            }
-            src[j * W2 + i] = t / n;
-          }
-        };
-        blur(a, b, 14, 7); blur(a, b, 14, 7);
-        const img = g2.createImageData(W2, H2), d = img.data;
-        for (let p = 0; p < N; p++) {
-          d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
-          d[p * 4 + 3] = Math.round(255 * Math.min(1, a[p]));
-        }
-        g2.putImageData(img, 0, 0);
-      }, true);
-      // the plane is drawn in x-y and turned to face the room, so its width
-      // runs along z (the span) and its height along y (the chord). It sits on
-      // the DOOR now, not the wall behind it, and a little low because every
-      // fitting in here is above it.
-      const q = new THREE.Mesh(
-        new THREE.PlaneGeometry(shW, shH),
-        new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: shTex,
-          transparent: true, opacity: 0.5, depthWrite: false, fog: false }));
-      q.rotation.y = -Math.PI / 2;
-      q.position.set(BD_FACE - 0.02, (bb.min.y + bb.max.y) / 2 - 0.14, wz);
-      q.renderOrder = 1;
-      put(q);
-    }
-  }
+// THE JODEL FUSELAGE. A prop like everything else in here: baked by
+// tools/jodel_prep.py into the same pack format the furniture uses, so it
+// prints a floor shadow and scales with the moods without knowing anything
+// about either. ON TRESTLES, LIKE THE WING (G63): `wsOnStands` rays the
+// piece DOWNWARD at each stand's own station and stretches that trestle to
+// whatever surface it finds there — a fuselage keel is curved, so three
+// equal trestles would leave two of them short. The rotation goes on the
+// WRAPPER, not on the prop, so the trestles turn with what they carry
+// instead of being laid out across it. (The heading the kit row carries is
+// 180 degrees AND A BIT MORE — nose-for-tail against the finished aeroplane
+// and off its axis by twelve degrees: two parked parallel read as a
+// diagram, two at an angle read as a shed.)
+function wipBody(x, z, ry) {
+  const b = prop('airframe_jodel_body', 0, 0, 0);
+  if (!b) return;
+  G.remove(b);
+  const i = FURN.indexOf(b); if (i >= 0) FURN.splice(i, 1);
+  const stood = (typeof wsOnStands === 'function')
+    ? wsOnStands(THREE, b, wsMats, 3) : null;
+  const g = stood || b;
+  g.position.set(x, 0, z);
+  g.rotation.y = ry;
+  G.add(g); FURN.push(g);
 }
 
-// ===== THE COSY CORNER =====================================================
-FURN.push(stoveCorner(FX(11.1), FZ(12.4), -0.5));
-// 4 mm off the slab: the rug was baked with its underside on y = 0 and so
-// is the floor, and two coplanar double-sided faces are a z-fight
-prop('rug_persian', FX(8.6), FZ(13.8), 0.30, 0.004);
-prop('chair_lounge', FX(8.9), FZ(13.6), 2.35);
-prop('stool_wood', FX(7.6), FZ(12.5), 1.1);
-prop('drum_steel', FX(9.6), FZ(15.9), 0);          // the log drum, doubling as a table
-prop('barrel_plastic', FX(10.6), FZ(16.2), 0.4);
+// THE JODEL WING, HUNG CHORD-UP IN FRONT OF THE BACK WALL (user: "you may
+// also have it hang chord up from the ceiling, I've seen that done"). On
+// edge it costs a metre and a half of wall instead of nine metres of floor.
+// `prop()` only offers a heading, because every other prop in the shed
+// stands on something. This one is turned onto its edge as well, so it is
+// placed and then rolled: a quarter turn about Z takes the CHORD from x into
+// y, leaving the span along z and the thickness across. The piece was baked
+// 'ceiling' — origin at its top — so after the roll the top is at +halfChord
+// and the hang height is that much below the strap.
+function wipWingHang(wx, wz) {
+  // 1.20 m LOWER (G64 dropped it 70 cm, G64.1 another 50 — user: "The wing
+  // sits too high"). It hangs across the MIDDLE of the doors now instead of
+  // riding along their head rail, which reads as stored rather than stowed.
+  // ...and never lower than a wing can hang (HANGARS S4): at the timber
+  // shed's 3.6 m eave the proportional drop put the chord's bottom edge
+  // THROUGH the slab. 1.9 m keeps the half-chord off the floor with head
+  // room under it, and changes nothing at any eave above 4.3.
+  const top = Math.max(EAVE * 0.72 - 1.20, 1.9);
+  const w = prop('airframe_jodel_wing', wx, wz, 0);
+  if (!w) return;
+  const half = 0.84;                       // half the 1.68 m chord
+  w.rotation.z = Math.PI / 2;
+  w.position.set(wx, top - half, wz);
+  // two straps to the roof, because a wing floating on nothing reads as a
+  // bug. Same trick as the lamps' drop rods: the LIGHT is not a model, but
+  // the thing holding it up is.
+  for (const cz of [wz - 2.6, wz + 2.6]) {
+    const roof = roofY(cz), len = roof - (top + 0.02);
+    if (len > 0.05)
+      put(cyl(0.010, 0.010, len, M.steelDark, wx, top + 0.02 + len / 2, cz, 6));
+  }
+
+  // ITS SHADOW ON THE WALL BEHIND IT (G63, user: "The wing can be quite
+  // invisible depending on the texture chosen for the back wall").
+  //
+  // PRECALCULATED rather than rendered, because this wing never moves.
+  // A render target would recompute the same image every bake for the same
+  // answer, cost a texture unit, and need a camera pointed at a wall. The
+  // silhouette is a soft tapered slab, drawn straight into an alpha map:
+  // wide plateau across the span, narrower toward the tips as the wing
+  // tapers, soft everywhere because a shadow from a big diffuse source is.
+  const bb = new THREE.Box3().setFromObject(w);
+  const spanZ = bb.max.z - bb.min.z, chordY = bb.max.y - bb.min.y;
+  // 90% ACROSS, 80% DOWN, AND PROPERLY BLURRED (G64, user: "The shadow is
+  // too rough. Shrink it to 80% vertical and 90% horizontal, then blur it
+  // significantly"). The first version faded its edges with a pair of
+  // smoothsteps, which is a ramp, not a blur: it kept the silhouette's
+  // corners and read as a smudge with a shape. This one draws the crisp
+  // mask small in the middle of the sheet and then actually BLURS it —
+  // two passes of a separable box filter, which is a close enough
+  // Gaussian for something this soft and costs nothing at bake time.
+  //
+  // 14 px of blur on a 256 x 64 sheet across a 9 m quad is about 0.45 m of
+  // penumbra, which is what a 4 m ceiling of diffuse light gives a wing
+  // hanging a metre off the doors.
+  const shW = (spanZ + 1.1) * 0.90, shH = (chordY + 0.9) * 0.80;
+  const shTex = sheet(256, 64, (g2, W2, H2) => {
+    const N = W2 * H2, a = new Float32Array(N), b = new Float32Array(N);
+    for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
+      // the mask itself occupies the middle 70%, leaving the blur room to
+      // run out inside the sheet instead of clipping at its edge
+      const u = ((i + 0.5) / W2 - 0.5) / 0.70 + 0.5,
+            v = ((j + 0.5) / H2 - 0.5) / 0.70 + 0.5;
+      if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+      const e = Math.abs(2 * u - 1);            // 0 at root, 1 at a tip
+      const hv = 0.5 * (1 - 0.30 * e * e);      // the wing's taper
+      a[j * W2 + i] = (Math.abs(v - 0.5) <= hv) ? 1 : 0;
+    }
+    const blur = (src, dst, rx, ry) => {
+      for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
+        let t = 0, n = 0;
+        for (let k = -rx; k <= rx; k++) {
+          const x = i + k; if (x < 0 || x >= W2) continue;
+          t += src[j * W2 + x]; n++;
+        }
+        dst[j * W2 + i] = t / n;
+      }
+      for (let i = 0; i < W2; i++) for (let j = 0; j < H2; j++) {
+        let t = 0, n = 0;
+        for (let k = -ry; k <= ry; k++) {
+          const y = j + k; if (y < 0 || y >= H2) continue;
+          t += dst[y * W2 + i]; n++;
+        }
+        src[j * W2 + i] = t / n;
+      }
+    };
+    blur(a, b, 14, 7); blur(a, b, 14, 7);
+    const img = g2.createImageData(W2, H2), d = img.data;
+    for (let p = 0; p < N; p++) {
+      d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
+      d[p * 4 + 3] = Math.round(255 * Math.min(1, a[p]));
+    }
+    g2.putImageData(img, 0, 0);
+  }, true);
+  // the plane is drawn in x-y and turned to face the room, so its width
+  // runs along z (the span) and its height along y (the chord). It sits on
+  // the DOOR now, not the wall behind it, and a little low because every
+  // fitting in here is above it.
+  const q = new THREE.Mesh(
+    new THREE.PlaneGeometry(shW, shH),
+    new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: shTex,
+      transparent: true, opacity: 0.5, depthWrite: false, fog: false }));
+  q.rotation.y = -Math.PI / 2;
+  q.position.set(BD_FACE - 0.02, (bb.min.y + bb.max.y) / 2 - 0.14, wz);
+  q.renderOrder = 1;
+  put(q);
+}
+
+// ---- the placement itself -------------------------------------------------
+// DRAW maps a declared recipe name to its drawing; everything else the
+// engine returns is a bare prop() call. The desk lamp's `light` field routes
+// through claim() so its emitter stays on the switchboard (G62.7's lesson:
+// a light nothing holds a reference to is a light nothing can turn off).
+const DRAW = {
+  loadedRack: r => loadedRack(r.x, r.z, r.ry),
+  tyreStack: r => tyreStack(r.x, r.z, r.n),
+  stoveCorner: r => FURN.push(stoveCorner(r.x, r.z, r.ry)),
+  planTable: r => FURN.push(planTable(r.x, r.z, r.ry)),
+  workPlatform: r => FURN.push(workPlatform(r.x, r.z, r.ry)),
+  stockRack: r => FURN.push(stockRack(r.x, r.z, r.ry)),
+  wipBody: r => wipBody(r.x, r.z, r.ry),
+  wipWingHang: r => wipWingHang(r.x, r.z),
+  wsWing: r => wipGen('wing', r.x, r.z, r.ry),
+  wsEngine: r => wipGen('engine', r.x, r.z, r.ry),
+};
+
+const KITS = (opts && opts.kits && opts.kits.length)
+  ? opts.kits.slice()
+  : ((typeof HANGAR_KITS_DEFAULT !== 'undefined')
+     ? HANGAR_KITS_DEFAULT.slice() : []);
+let FIT = { placed: [], recipes: [], unplaced: [], dims: { HW, HD, EAVE } };
+if (typeof hangarFit === 'function' && PROPS_OK) {
+  FIT = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, KITS,
+                  { reg: (typeof PROP_REG !== 'undefined') ? PROP_REG : null,
+                    shell: SHELL });
+  for (const p of FIT.placed) {
+    const g = prop(p.prop, p.x, p.z, p.ry, p.y);
+    if (g && p.light) claim(g, p.light);
+  }
+  for (const r of FIT.recipes) {
+    if (DRAW[r.recipe]) DRAW[r.recipe](r);
+    else console.warn('hangar: no recipe ' + r.recipe);
+  }
+  // NEVER SILENTLY (HANGARS §4.3): a kit that does not fit this shell says
+  // so. The editor shows the same report through fitReport on the return.
+  for (const u of FIT.unplaced)
+    console.info('hangar: not placed — ' + u.kit + '/' + u.key +
+                 ' (' + u.reason + ')');
+}
 
 // NO PENDANTS OVER THE BENCHES. Four of them used to hang here at eaves
 // height with nothing above them — a lamp needs a rod to hang from, and the
@@ -2431,8 +2977,13 @@ const faceShafts = cam => {
 // falls H metres is H * |dir|. 0.88 of the way down is where the alpha
 // gradient has faded out anyway, and it is the proportion the hand-set 7.2
 // happened to give at the eaves height it was written for.
-for (const s of [1, -1]) for (let k = 0; k < 4; k++) {
-  const x = -HD + 3.4 + k * (2 * HD - 6.8) / 3;
+// ONE shaft per roof light, AT the roof lights (HANGARS S3/S4): this loop
+// used to keep its own copy of the four positions, which drifted the moment
+// the count became a parameter of the depth — and a shed with no roof
+// lights (the timber field shed) gets no roof dust at all, because a cone
+// of lit dust under an unbroken deck is a picture of a leak.
+for (const s of [1, -1]) for (let k = 0; k < ROOFLIGHTS.n; k++) {
+  const x = ROOFLIGHTS.x(k);
   const dir = [0.14, -1, -s * 0.12];
   const len = (EAVE + 1.2) * 0.88 * Math.hypot(dir[0], dir[1], dir[2]);
   shaft([x, EAVE + 1.2, s * HW * 0.45], dir, len, 3.0);
@@ -2526,7 +3077,8 @@ const texBudget = () => {
   if (key.castShadow) casters++;                 // the sun lives outside G
   const need = casters + worst + 1;              // +1 for scene.environment
   const cap = 16;                                // the floor this game targets
-  const msg = 'hangar texture units: ' + casters + ' shadow + ' + worst
+  const msg = 'hangar sheets: ' + sheetBaked + ' baked, ' + sheetHit +
+            ' from the memo | texture units: ' + casters + ' shadow + ' + worst
             + ' maps (' + worstName + ') + 1 env = ' + need + ' of ' + cap;
   if (typeof console !== 'undefined') {
     if (need > cap) console.error(msg + ' — OVER BUDGET, a material will not compile');
@@ -2696,12 +3248,27 @@ const setMood = i => {
 const LIB = {};
 if (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS)
   for (const k in HANGAR_WALL_SETS) LIB[k] = HANGAR_WALL_SETS[k];
+// the airfield ground sets (G123): ten CC0 scans, and every part may wear any
+// of them — the walls included. They carry their own natural tile size as data;
+// the live control stays per part.
+if (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS)
+  for (const k in SITE_TEX_SETS) LIB[k] = SITE_TEX_SETS[k];
 if (typeof HANGAR_FLOOR_IMG !== 'undefined' && HANGAR_FLOOR_IMG)
   LIB.slabfloor = { name: 'damaged concrete (floor)',
     diff: HANGAR_FLOOR_IMG.diff, nor: HANGAR_FLOOR_IMG.nor,
     rough: HANGAR_FLOOR_IMG.rough, tile: 5 };
+// THE OUTDOORS JOINS THE WARDROBE (G123, the user: "add them to the material
+// editor, so we can freely pick, like we do for the hangar already"). The four
+// site surfaces are ordinary parts: each owns one material instance whose baked
+// original is captured below, so any of them can wear any set in LIB — the
+// scanned airfield ground, a wall texture, or its own baked self — at an
+// independent tile size, roughness and normal influence.
 const PARTS = {
   ground:    { name: 'ground',            mat: M.floor,    tile: 5 },
+  apron:     { name: 'apron · slab',      mat: M.apron,    tile: 2 },
+  taxiway:   { name: 'taxiway',           mat: M.taxi,     tile: 4 },
+  grass:     { name: 'field · grass',     mat: M.grass,    tile: 2 },
+  strip:     { name: 'runway · strip',    mat: M.strip,    tile: 2 },
   wallSides: { name: 'walls · sides',     mat: M.wall,     tile: 2 },
   wallBack:  { name: 'wall · back',       mat: M.wallBack, tile: 2 },
   stem:      { name: 'brick stem',        mat: M.stem,     tile: 2 },
@@ -2712,6 +3279,13 @@ const PARTS = {
   doorMan:   { name: 'man door',          mat: M.manDoor,  tile: 2 },
   doorMain:  { name: 'hangar doors',      mat: M.door,     tile: 2 },
 };
+// a part whose material was never built (the outdoors, in a payload-less or
+// exterior build) is dropped rather than offered: setPart would write into
+// undefined and the editor would list a row that does nothing.
+for (const k in PARTS) if (!PARTS[k].mat) delete PARTS[k];
+// the timber shed has no brick stem to dress — a part row for a surface
+// the building does not have is a control wired to nothing (HANGARS S4)
+if (FRAME === 'timber') delete PARTS.stem;
 for (const k in PARTS) {
   const p = PARTS[k], m = p.mat;
   p.baked = { map: m.map || null, nor: m.normalMap || null,
@@ -3003,9 +3577,15 @@ return {
   // rather than moving the aeroplane, so the sim keeps its own coordinates.
   doorAxis: -1, floorY: 0,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
+  shell: SHELL,
+  // the fit-out this room was built with, and what would not fit (HANGARS
+  // S2): the editor paints the report, the gate asserts nothing is dropped
+  // silently
+  kits: KITS.slice(), fitReport: FIT,
   lights: { key: key, lamps: lamps },
   lampRig: lampRig, setLampRig: setLampRig, lampRigDefault: lampRigDefault,
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
+  census: census,              // dev: meshes and triangles, which ARE draw calls here
   mats: M, shafts: shafts, faceShafts: faceShafts,
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
@@ -3087,5 +3667,8 @@ return {
   // the surfaces the reflection probe sees UNDER itself, for the bake to
   // occlude — see LIGHT_RIG.groundBounce
   groundMats: GROUND,
+  // the subset that stands OUTSIDE the shed: app.js lights these off the sky
+  // rather than off the room's own probe. See the declaration near the top.
+  outdoorMats: OUTDOOR,
 };
 }

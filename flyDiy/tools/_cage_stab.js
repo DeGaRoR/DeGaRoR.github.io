@@ -62,7 +62,9 @@ const GROUP = ['8b · tail — stab & elevator', [
   ['stRootGuard', 'root loops',  0, 1, 1, ['single + crease', 'guard pair'],
    { when: P => +P.stOn }],
   // THE STAB'S OWN CONSTRUCTION (G110) — see finCons; tailMat reads which
-  // of the two off the section it is dressing. Mass/price deferred.
+  // of the two off the section it is dressing. Mass/price follow since
+  // G116, stiffness/damping since G117 (`tail.stabMaterial`; a V-tail
+  // takes this one — it IS the stab).
   ['stCons', 'construction',     0, 4, 1,
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],

@@ -73,6 +73,72 @@ Modifications made:
   were converted once to PNG/JPG with ImageMagick — browsers read no EXR — at
   the delivered 1k resolution.
 
+## Airfield ground surfaces (`assets/airfield/`, baked into the artifact)
+
+Ten CC0 PBR sets, from two libraries, for the surfaces of the base aerodrome —
+the apron and taxiway, the mown strip, and the field they stand in. They are one
+library shared by both scenes: the same material dresses the ground you taxi on
+in the world and the ground you see through the hangar door.
+
+**Poly Haven, CC0** (https://polyhaven.com) — `anti_slip_concrete`,
+`cracked_concrete_02`, `brushed_concrete_04`, `dirt_floor`, `leafy_grass`,
+`asphalt_02`, `aerial_asphalt_01`.
+
+**ambientCG, CC0** (https://ambientcg.com) — `Ground003`, `Grass004`,
+`Grass005`.
+
+Neither licence requires attribution; both are recorded for the same reason as
+the sets above — a repository that cannot say where its art came from cannot
+re-derive it.
+
+Modifications made:
+
+- **Normalised, not retouched.** The three delivered shapes — Poly Haven's
+  packed `arm`, Poly Haven's plain `rough`, and ambientCG's own naming — become
+  one contract (`diff` / `nor_gl` / `rough`) in `tools/site_tex_import.py`. The
+  only channel work is lifting roughness out of `arm`'s GREEN, which is where
+  the format puts it; R is ambient occlusion and B is metalness, and both are
+  discarded. Nothing is recoloured, sharpened or tiled.
+- **Resampled, and reversibly.** Each set is written twice: a 1k archive and a
+  512 working copy. The artifact carries 512 (4.25 MB of base64 for all ten
+  against 19.6 MB at 1k), because ground read at grazing angles across hundreds
+  of metres does not resolve 1k. Raising a row's `tex` in
+  `tools/site_tex_prep.js` and re-running it restores the full resolution with
+  no re-import — the same budget rule the prop baker uses.
+- **Normals stay JPEG**, unlike `assets/hangar_walls/`, which keeps PNG. These
+  are ground planes, and PNG would cost about half a megabyte a set for a
+  difference nothing in this scene can show.
+- **Geometry discarded.** Every Poly Haven set is delivered as a glTF preview
+  sphere. Only the maps are imported; the sphere is not.
+
+## Wood detail sheets (`assets/wood/`, baked into the artifact)
+
+Four CC0 PBR wood sets for the AEROSKIN material library (G125) — the scanned
+grain the wooden propellers and the wood-construction airframe finishes wear.
+
+**Poly Haven, CC0** (https://polyhaven.com) — `white_maple_veneer` (the
+`maple` finish, and the `ply` skin's face), `walnut_veneer_02` (`walnut`),
+`natural_walnut_veneer` (`walnutFig`).
+
+**ambientCG, CC0** (https://ambientcg.com) — `Wood091B` (the `laminate`
+sheet: `spruce` structure and the beech laminate blade).
+
+Neither licence requires attribution; recorded for the usual reason.
+
+Modifications made:
+
+- **Normalised AND packed.** `tools/wood_tex_import.py` writes the same
+  `diff` / `nor_gl` / `rough` contract as the airfield sets, then packs each
+  into AEROSKIN's own detail-sheet layout (`aero_*.jpg`): R,G are the normal's
+  tangent xy taken verbatim from `nor_gl`, B is the diffuse's luminance
+  recentred on the sheet convention's 0.80 mean — wood grain is colour, not
+  height (G68), so the diffuse is the grain signal, and the albedo itself
+  stays the player's colour picker, exactly as the material system rules.
+- **Resampled, and reversibly.** 1k archive beside the 512 payload, the same
+  budget rule as every other import; all four sheets cost 0.18 MB of base64.
+- **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
+  only the maps are imported.
+
 ## Jodel DR1050 structures (`assets/jodel_structure/`, baked into the artifact)
 
 - **Model**: the author of this repository, in Blender 4.0. A DR1050 fuselage
@@ -170,6 +236,15 @@ assets identically):
   metallic-roughness. The delivered maps ship unaltered at full resolution in
   `assets/props/`, so the quality comes back by re-running the baker with a
   larger budget.
+
+## Design-tile silhouettes (the birth flow)
+
+- **What**: the inline SVG silhouettes and glyphs on the macro-row tiles
+  (`tools/_cage_design.js` — side/front/top-view builders plus the engine,
+  gear and scheme glyphs). The section, planform and tip thumbnails are
+  GENERATED from the build functions and are not artwork.
+- **Licence**: own work. No third-party attribution applies; no icon set was
+  imported (deliberately — see the standing footer gap noted above).
 
 Note: this repository has no top-level LICENSE file; the statements above
 apply to the PA-18, the C172, the hangar props and their derivatives only.

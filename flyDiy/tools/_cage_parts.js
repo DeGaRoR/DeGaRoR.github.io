@@ -66,6 +66,17 @@
 // inspectable, but they are not what building an aeroplane is about.
 const EXPERT = 'expert';
 
+// THE DECLARED FITTINGS, read from GEN_ACCESS itself. `_cage_access.js`
+// generates two nudge rows per key; this claims exactly those, from the same
+// list, so the two can never drift. Node-side the core is loaded by the gate
+// before this file; in the page it is on window. Empty is safe — the group
+// simply carries nothing and GATE PARTS' own coverage rule stays true.
+const ACC_FIT_KEYS = (function () {
+  const T = (typeof GEN_ACCESS !== 'undefined') ? GEN_ACCESS
+          : (typeof window !== 'undefined' ? window.GEN_ACCESS : null);
+  return T ? Object.keys(T) : [];
+})();
+
 const CAGE_PARTS = [
 
   // =========================================================================
@@ -102,6 +113,14 @@ const CAGE_PARTS = [
   // seating starter) DO belong here and are re-pointed in editor.js's DERIVED
   // map, because they write several raw params at once and that is precisely
   // what a discriminator is.
+  //
+  // REVISED, deliberately (NEW-AIRCRAFT §5.6, 2026-08-31): the DESIGN TILES
+  // (tools/_cage_design.js, rendered by design_flow.js when this part is
+  // selected) DO offer the engine model — as level 2 under the powertrain
+  // FAMILY, "preset (applies once)", filtered by family. That is a second
+  // RENDERING of the same engPreset row, not a second home: the slider above
+  // keeps its claim here-not-here unchanged, and the paragraph above stays
+  // true of the ROWS view it was written about.
   // =========================================================================
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
@@ -183,11 +202,19 @@ const CAGE_PARTS = [
 
   { key: 'pilotDoor', name: 'pilot door', parent: 'cabin', layer: 'cage',
     place: { up: 'doorSill', at: 'cut from the cabin side' },
-    groups: [['door', ['doorOn', 'doorSill', 'doorGone']]] },
+    // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
+    // `rimW` before, filed under `joints` — so the one control over how
+    // visible a door is did not appear when you selected a door, which is
+    // exactly what the user reported as "the door gap is too small".
+    groups: [['door', ['doorOn', 'doorSill', 'doorGone', 'doorDeep']],
+             ['the gap', ['doorRim', 'rimDoor', 'doorDepth']]] },
 
   { key: 'joints', name: 'window joints', parent: 'cabin', layer: 'cage',
     sections: ['joint'],
-    groups: [['seal', ['rimW']]] },
+    // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
+    // reaches every glazed zone rather than any one part
+    groups: [['seal', ['rimW']],
+             ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are
   // the front's full control set duplicated, not a mirror that tracks.
@@ -261,6 +288,13 @@ const CAGE_PARTS = [
       ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
                     'accHandling']],
       ['detail', ['accDetail']],
+      // THE FINE PLACEMENT (2026-08-31). Two nudges per declared fitting, in
+      // GEN_ACCESS's own units — `sL` metres aft of the firewall, `lv` a rail
+      // index — GENERATED from the same key list `_cage_access.js` generates
+      // its rows from, so a fitting added to the table cannot leave an
+      // unclaimed row behind and one removed cannot leave an orphan claim.
+      ['fine placement', ACC_FIT_KEYS.reduce((a2, k) =>
+        a2.concat(['acc_' + k + '_sL', 'acc_' + k + '_lv']), []), EXPERT],
     ] },
 
   { key: 'structure', name: 'Structure & skin', parent: 'fuselage',
@@ -270,7 +304,7 @@ const CAGE_PARTS = [
     groups: [
       ['construction', ['intOn']],   // intCons -> `design` (it decides ALL of it)
       ['covering', ['skinOn', 'skinT', 'shellT']],
-      ['members', ['intPillars', 'intFire', 'intBulk']],
+      ['members', ['intPillars', 'intFire', 'intBulk', 'bulkZ']],
       ['cutting', ['cutParts']],
     ] },
 
@@ -376,6 +410,12 @@ const CAGE_PARTS = [
   { key: 'engine', name: 'Engine', parent: 'power', layer: 'eng',
     when: P => +P.engOn,
     place: { up: 'engY', at: 'on the firewall face' },
+    // THE ENGINE IS FINISHED IN THREE (G113.4). AERO_HARD still says what
+    // every part IS — a plug is chrome, a lead is rubber — but the castings
+    // are painted, and the user asked for the block and the covers by name.
+    // Without this claim the three sections land in the root's 'unclaimed'
+    // bucket, which is a home but not an ANSWER.
+    sections: ['engBlock', 'engJug', 'engCover'],
     groups: [
       ['fitted', ['engOn', 'engPower', 'engPreset', 'engY']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
@@ -573,7 +613,9 @@ const CAGE_PARTS = [
       // is, how deep the box behind it goes, and how big the lamp in it is
       ['the wing bay', ['li_bayFrac', 'li_bayHalf', 'li_bayChord',
                         'li_bayDepth', 'li_lampSize']],
-      ['the beacon', ['li_beaconRpm']],
+      ['lamp fairings', ['li_podLen', 'li_podGirth', 'li_reflect']],
+      ['the navigation lights', ['li_navSpan', 'li_navChord', 'li_navRise']],
+      ['the beacon', ['li_beaconRpm', 'li_beaconSink']],
     ] },
 
   // =========================================================================

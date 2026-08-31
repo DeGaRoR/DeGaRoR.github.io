@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 34c3d5860109f275
+// body-sha256: 231480dbd6f8749e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -191,6 +191,36 @@ const PAR = {
 };
 
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;
+// THE GROUND HAS A SURFACE (G115, the review's S2: "a takeoff run off a paved
+// airfield and off a gravel bench are identical" — surfaceAt existed and was
+// never asked). Rows are [rolling resistance, brake mu, lateral mu], keyed by
+// the SURFACE enum. THE GRASS ROW IS THE THREE CLASSIC CONSTANTS ABOVE,
+// verbatim: grass is HOME, and HOME is the datum every fleet gate was
+// calibrated on — so the whole calm battery is bit-identical through this
+// change, and only the paved field and the gravel benches read differently.
+// Off-strip (surfaceAt returns -1) also reads the grass row for the same
+// reason; a rougher off-field row is a decision to take with the fleet
+// watching, not a default.
+const GROUND_SURF = {
+  0: [CRR, MU_BRAKE, MU_LAT],       // GRASS — the calibration datum
+  // G121.3 — THE OFF-STRIP ROWS, the decision G115 deliberately deferred
+  // "with the fleet watching" (a full --all battery judged this landing).
+  // The biome classifier has answered these classes off-strip all along;
+  // until now every one of them read as lawn.
+  1: [0.06, 0.50, 0.75],            // ROCK — firm but uneven; rolls hard, grips
+  2: [0.14, 0.25, 0.50],            // SCREE — loose stone rolling under the tyre
+  3: [0.10, 0.30, 0.60],            // FOREST FLOOR — duff and roots, soft
+  // WATER: hydrodynamic drag standing in for the hull this sim does not
+  // have. The wheels reach the LAKEBED through the column (terrainH is the
+  // bed), brakes do nothing in water, and there is almost no side grip —
+  // a ditching decelerates hard and slews, which is the honest half of the
+  // story; buoyancy and floats are a named cut, not a pretence.
+  4: [0.35, 0.0, 0.20],
+  5: [0.02, 0.55, 0.9],  // BISECT
+  6: [0.045, 0.38, 0.75],           // GRAVEL — rolls almost as easy, brakes worse
+  7: [0.10, 0.30, 0.6],             // SAND — reserved with the enum
+};
+const GROUND_DEF = GROUND_SURF[0];
 
 // ============================================================
 // THE ATMOSPHERE — pressure, temperature and density with height.
@@ -3141,6 +3171,903 @@ function bakeAerodromes(D) {
 
   return { strips, grade, surfaceAt, inBox, stats: { bakeMs: Date.now() - t0 } };
 }
+// ===========================================================================
+// THE SITE — the base aerodrome as a place, declared once.
+// ===========================================================================
+// THE RUNWAY IS NOT HERE. It is world.aerodromes[0] — the 'HOME' record in
+// 20_world.js — and this file READS it. That record's own comment has said
+// since it was written that "the h0 runway carve box / renderer decals are not
+// yet driven from these records", and until now they were not: render_world.js
+// restated -520 / 1100 / 30 by hand and hangar.js invented a third, unrelated
+// strip off the garage door. Three copies of one runway, and the garage's copy
+// pointed the wrong way.
+//
+// What IS here is the half the registry has no field for — where the buildings,
+// the paving and the furniture stand — plus the ONE frame conversion between
+// the world and the shed's own local frame. Both scenes read this file, so
+// there is one place to change the aerodrome and no way for them to disagree.
+//
+// FRAMES. The world is x/z with the runway along x at z = 0. The shed is drawn
+// in its own frame: long axis x, doors at -x, HD deep and HW wide (hangar.js).
+// Standing it beside the strip near the +x threshold with its doors facing the
+// runway is position (42, 62) and rotation.y = -PI/2, which gives
+//
+//     local -> world :  W = ( Hx - pz ,  py ,  Hz + px )
+//     world -> local :  px = Wz - Hz ,   pz = Hx - Wx
+//
+// so local -x (out of the door) is world -z, straight at the strip, and the
+// shed's 30 m frontage lies ALONG the runway. That is the whole reason the
+// garage's outdoors now shows the strip crossing the view instead of pointing
+// down it: the hangar was always meant to be beside the runway, not on it.
+//
+// EVERYTHING HERE MUST LIE INSIDE THE FLAT PAD — x in [-1180, 130], |z| < 90 —
+// where 20_world.js's h0 multiplies terrain by exactly zero. Every y = 0 in
+// both scenes depends on it, and GATE SITE asserts it, because an item nudged
+// past |z| = 90 does not fail: it floats, slightly, forever.
+// THE REGISTRY (HANGARS S5). One site per AUTHORED aerodrome, keyed by the
+// registry id. HOME is the record this file always held, verbatim and
+// unmoved; a meadow has no site — that is what a meadow is — and granting
+// one later (P6) is a value landing in a slot, not a schema change. The
+// generated A-strips never key a site: their ids are seed-dependent, and a
+// site keyed on one would silently detach under a different seed (gated).
+const AIRFIELD_SITES = {
+  HOME: {
+
+    // THE SHED. dims mirror hangar.js's own defaults (HW 15, HD 12.5, EAVE 7.0);
+    // the exterior build is handed these so the world's building and the room you
+    // stand in are the same size by construction, not by coincidence.
+    hangar: { x: 42, z: 62, ry: -Math.PI / 2, HW: 15, HD: 12.5, EAVE: 7.0 },
+
+    // THE APRON, re-declared. The old decal was 66 x 24 centred at (44, 48),
+    // which was fine under a 15 x 10 box and wrong under the real shed: the shed
+    // occupies z 49.5..74.5, so ten metres of that apron ran UNDER the building.
+    // It now stops at the door line and reaches west far enough to feed the
+    // taxiway. z1 laps 0.5 m into the doorway so there is no seam at the sill.
+    apron: { x0: 8, x1: 66, z0: 30, z1: 50 },
+
+    // THE TAXIWAY, which in the old layout did not touch the runway: it sat at
+    // x 32.5..47.5, fifteen metres BEYOND the threshold at x = 30, joined to
+    // nothing. It now runs from the apron's west end down to the strip and meets
+    // it inside its own length, which is what a backtrack entry looks like.
+    taxiway: { x0: 8, x1: 24, z0: 15, z1: 30 },
+
+    // THE BOUNDARY, with the gate the taxiway needs — the old fence ran straight
+    // across it. Two runs, posts every `step`, either side of the opening.
+    fence: { z: 26, h: 1.1, step: 6, runs: [[-80, 4], [28, 60]] },
+
+    windsock: { x: -30, z: 20, h: 6 },
+
+    // the neighbours, still boxes: a clubhouse and a second shed. Both clear the
+    // real hangar's footprint (x 27..57, z 49.5..74.5) and the apron.
+    buildings: [
+      { x: 16, z: 54, w: 6.5, d: 5.5, h: 2.8, ry: -0.09, trim: true },
+      { x: 66, z: 70, w: 12,  d: 8.5, h: 3.9, ry: 0.16 },
+    ],
+
+    // the windbreak behind the sheds. Pulled in from z 88..91 to 84: the old line
+    // sat ON the pad's 90 m edge, where the terrain is not quite zero any more.
+    trees: { z: 84, x0: 4, x1: 96, step: 8.5, r: 1.5, h: 6.2 },
+
+    clutter: {
+      drums: [[28, 44.5], [28.8, 45.4], [29.6, 44.2]],
+      drumDown: [30.6, 45.6],
+      crates: [[60, 52, 0], [61.2, 52.4, 0.4]],
+      crateTop: [60.2, 52.1, 0.2],
+      // straw, off the west end. Also pulled inside |z| < 90.
+      bales: [[-40, 82, 0.3], [-35, 85, 1.1], [-46, 86, 2.0], [-30, 80, 0.7]],
+      // tie-downs, all three ON the apron. One of the old three was at (43, 52),
+      // which is inside the real shed — a ring in the floor of the building.
+      rings: [[34, 42], [50, 42], [42, 36]],
+    },
+
+    // WHERE AN AEROPLANE STANDS when it is wheeled out of the shed: on the apron,
+    // nose out, quartered to the strip. DECLARED, DELIBERATELY NOT WIRED. Roll-out
+    // places at HOME.spawn, which is the W10 spawn identity every flying gate
+    // departs from; moving it would move every take-off measurement in the
+    // battery. This is here so the reference camera and any later taxi work have
+    // one answer to point at instead of inventing a second one.
+    stand: { x: 42, z: 40, hdg: Math.PI - 0.62 },
+  },
+  M1: null,
+  M2: null,
+  M3: null,
+};
+
+// a registry with a default is a rename, not a migration (HANGARS §6)
+function siteOf(id) { return AIRFIELD_SITES[id || 'HOME'] || null; }
+
+// THE DEFAULT SITE, kept forever: this one line keeps every `|| ...hangar`
+// fallback below byte-identical and any console muscle-memory working. New
+// code says siteOf(id); GATE SITE asserts this identity cannot drift.
+const AIRFIELD_SITE = AIRFIELD_SITES.HOME;
+
+// THE FLAT PAD, quoted from 20_world.js's h0 so the gate can assert against the
+// same numbers the terrain actually uses. Inside this box terrain is exactly 0.
+const AIRFIELD_PAD = { x0: -1180, x1: 130, zAbs: 90 };
+
+// ---- the frame conversion, both ways --------------------------------------
+// One rotation, written out rather than composed, because a THREE.js matrix is
+// not available to the core and a sign error here puts the runway behind the
+// shed. Verified by round-trip in GATE SITE.
+function siteToLocal(x, z, H) {
+  const h = H || AIRFIELD_SITE.hangar;
+  return { x: z - h.z, z: h.x - x };
+}
+function siteToWorld(px, pz, H) {
+  const h = H || AIRFIELD_SITE.hangar;
+  return { x: h.x - pz, z: h.z + px };
+}
+
+// ---- the runway, DERIVED from the registry record -------------------------
+// Everything a scene needs to draw the strip and its markings, computed from
+// {x, z, hdg, len, wid} so that no consumer restates them. `end0` is the end
+// the take-off run STARTS from (hdg points down the run), which for HOME is the
+// +x end — the one the hangar stands beside.
+function siteRunway(home) {
+  const dx = Math.cos(home.hdg), dz = Math.sin(home.hdg);
+  const hl = home.len / 2, hw = home.wid / 2;
+  // the threshold bars, and a quarter of the distance between them
+  const R0x = home.x - dx * (hl - 5), R0z = home.z - dz * (hl - 5);
+  const R1x = home.x + dx * (hl - 5), R1z = home.z + dz * (hl - 5);
+  const aimIn = (home.len - 10) / 4;
+  return {
+    cx: home.x, cz: home.z, hdg: home.hdg, len: home.len, wid: home.wid,
+    dx: dx, dz: dz,
+    nx: -dz, nz: dx,                                  // across the strip
+    end0: { x: home.x - dx * hl, z: home.z - dz * hl },
+    end1: { x: home.x + dx * hl, z: home.z + dz * hl },
+    // the painted threshold bars sit 5 m inside each end, as they were drawn
+    thr0: { x: R0x, z: R0z },
+    thr1: { x: R1x, z: R1z },
+    // THE PAINTED AIMING POINTS AND THE REGISTRY'S tdz ARE TWO DIFFERENT
+    // THINGS, and the old comment at render_world.js:1184-1188 said they were
+    // one ("the registry's tdz is exactly this point"). They are not: the
+    // paint sits a quarter of the THRESHOLD-TO-THRESHOLD distance in from each
+    // bar — 1090 / 4 = 272.5, so 25 - 272.5 = -247.5 — while HOME.tdz is
+    // [-450, 0], the autopilot's landing-frame origin (40_autopilot.js:58-65,
+    // "origin places tdz at s = -450"), hand-tuned and not on the len/4 rule
+    // at all. Deriving them from one number would move the aiming point 200 m
+    // or move every fiche's tuned approach. So both are carried, named apart.
+    aim0: { x: R0x + dx * aimIn, z: R0z + dz * aimIn },
+    aim1: { x: R1x - dx * aimIn, z: R1z - dz * aimIn },
+    tdz: { x: home.tdz ? home.tdz[0] : home.x, z: home.tdz ? home.tdz[1] : home.z },
+    half: hw,
+    markerOff: hw + 0.5,          // edge boards, just outside the mown edge
+    markerStep: 70,
+  };
+}
+
+// the edge marker boards, as world positions — one pair every markerStep from
+// end0 toward end1, sized off the record rather than counted out by hand.
+function siteMarkers(home) {
+  const R = siteRunway(home), out = [];
+  for (let t = 5; t <= R.len - 5; t += R.markerStep)
+    for (const s of [1, -1])
+      out.push({ x: R.end0.x + R.dx * t + R.nx * s * R.markerOff,
+                 z: R.end0.z + R.dz * t + R.nz * s * R.markerOff });
+  return out;
+}
+
+
+// ---- the strip's markings, painted once for both scenes --------------------
+// A 2D context and the runway record; no THREE, no DOM beyond the context's own
+// methods, so this stays in core beside the numbers it is drawing.
+//
+// It lives here rather than in either renderer because the two scenes now show
+// the SAME strip: the world lays this canvas over 1100 m of it, and the garage
+// sees the first 300 m of it through a hangar door forty metres away. A second
+// copy of the recipe would drift the moment either one was touched, which is
+// the whole failure this file exists to end.
+//
+// The layout is in the RUNWAY's own frame — `t` along it from end1, `a` across
+// it — so a strip of another length or heading paints itself correctly.
+// `marks` paints ONLY the paint - transparent everywhere else - so the strip
+// can be a scanned grass surface with its markings laid over it instead of a
+// picture of grass with markings drawn into it. The mowing stripes go translucent
+// in that mode: they are a difference in cut, not a difference in colour.
+function sitePaintStrip(q, R, RW, RH, marks) {
+  const U = t => t / R.len * RW, V = a => (a + R.wid / 2) / R.wid * RH;
+  const UW = w => w / R.len * RW, VW = w => w / R.wid * RH;
+  const sOf = P => (P.x - R.end1.x) * -R.dx + (P.z - R.end1.z) * -R.dz;
+  if (marks) q.clearRect(0, 0, RW, RH);
+  else { q.fillStyle = '#6b7a36'; q.fillRect(0, 0, RW, RH); }
+  q.globalAlpha = marks ? 0.20 : 1;
+  for (let i = 0; i < 7; i++) {                      // mowing stripes
+    q.fillStyle = i % 2 ? '#77873b' : '#5f6f2c';
+    q.fillRect(0, V(-10.5 + i * 3.5 - 1.7), RW, VW(3.4));
+  }
+  q.globalAlpha = 1;
+  q.fillStyle = '#8e9a55';                           // edge lines
+  for (const sg of [1, -1]) q.fillRect(0, V(sg * (R.half - 2.5) - 0.45), RW, VW(0.9));
+  q.fillStyle = '#e9e4d6';                           // threshold bars
+  for (const T of [R.thr0, R.thr1]) for (let k = 0; k < 5; k++)
+    q.fillRect(U(sOf(T) - 4.5), V(-8 + k * 4 - 0.75), UW(9), VW(1.5));
+  q.fillStyle = '#d9d3c0';                           // centre dashes
+  for (let t = 25.5; t < R.len - 25; t += 29)
+    q.fillRect(U(t - 5.5), V(-0.3), UW(11), VW(0.6));
+  // TOUCHDOWN MARKERS (G107): the aiming point, a quarter of the way in from
+  // each threshold — one per landing direction, the way a real runway wears
+  // them. NOT the registry's tdz; see the note on aim0/aim1 above.
+  q.fillStyle = '#efe9da';
+  for (const A of [R.aim0, R.aim1]) for (const zz of [-6.5, 4])
+    q.fillRect(U(sOf(A) - 9), V(zz), UW(18), VW(2.5));
+}
+
+// is (x, z) on the flat pad, where y = 0 is exact?
+function siteOnPad(x, z) {
+  return x >= AIRFIELD_PAD.x0 && x <= AIRFIELD_PAD.x1 &&
+         Math.abs(z) <= AIRFIELD_PAD.zAbs;
+}
+
+// ---- the flat ground, PER AERODROME (HANGARS S5) --------------------------
+// HOME sits on the h0 pad (the box above). A meadow is exactly its own
+// height inside 0.45 of its radius — quoted from 20_world.js's blendM,
+// `sstep(m.r * 0.45, m.r, d)`, the same way AIRFIELD_PAD quotes h0 — so a
+// granted meadow site's buildings must stand inside that circle or they
+// float, slightly, forever. The A-strips are graded by AERO with their own
+// feather; a site never keys one (seed-dependent ids), so no branch for
+// them is pretended here.
+function siteOnFlat(aero, x, z) {
+  if (!aero) return false;
+  if (aero.kind === 'meadow')
+    return Math.hypot(x - aero.x, z - aero.z) <= aero.r * 0.45;
+  return siteOnPad(x, z);
+}
+
+// the shed's footprint in the world, from its own dims — used by the gate to
+// prove nothing is paved under the building, and by the world scene to keep
+// the neighbours clear of it.
+function siteHangarBox(H) {
+  const h = H || AIRFIELD_SITE.hangar;
+  return { x0: h.x - h.HW, x1: h.x + h.HW, z0: h.z - h.HD, z1: h.z + h.HD };
+}
+// ===========================================================================
+// THE FIT-OUT — what a hangar IS, what is IN it, and what you can DO there.
+// ===========================================================================
+// HANGARS.md's rule in one line: a hangar is three separable things — a SHELL,
+// a FIT-OUT and a set of CAPABILITIES — and the whole design is in refusing to
+// collapse them into one "level". This file is all three declarations plus the
+// placement engine, and it is a CORE file on purpose: nothing in placement
+// needs THREE. Prop footprints come from PROP_REG (51_prop_codec.js), the
+// aeroplane's box is measured by the CALLER (app.js already did for the mobile
+// kit), and positions are arithmetic on HW/HD/EAVE — so GATE HANGAR proves
+// "every kit places into every shell, or reports" in plain node, and hangar.js
+// is left with the one job only it can do: standing meshes at the answers.
+//
+// THE CONVERSION IS AN IDENTITY, NOT A REDESIGN. hangar.js's layout was
+// composed against the authored shed — HD 13, HW 18 — and scaled through
+// FX = v*HD/13, FZ = v*HW/18. A site row here says the same thing as a
+// fraction: x = -HD + along*2HD with along = (a+13)/26 IS FX(a), at every
+// dims, forever. The HF_A()/HF_B()/HF_PF() helpers below keep the authored coordinate
+// visible in the table so the two forms can be compared by eye. The one
+// deliberate change: the back-wall run was authored UNSCALED (raw z for
+// HW 18), which at today's default HW 15 put the welding cart AT the wall
+// (z = 15.0) and a drum OUTSIDE it (z = -15.4). Converting by the AUTHORED
+// width moves that run to its authored intent — inside the room.
+// ===========================================================================
+
+// ---- THE SHELLS -----------------------------------------------------------
+// What the building IS: a structure family plus dimension DEFAULTS. Not a
+// score, and not a limit — the size sliders keep working and simply start
+// from the class (same ruling as the aeroplane's: derivation is the
+// engineer's handbook, never a guardrail). `lims` is the envelope the sliders
+// offer PER SHELL, because a timber field shed's 3.6 m eave is below the
+// steel shed's old floor of 4.2. Dims are HALF width / HALF depth, like
+// hangar.js's own (a 30 x 25 m club shed is HW 15, HD 12.5).
+//
+// `price` is credits, declared so the record has its shape — nothing charges
+// it yet (the ledger records, it does not gate; joining the wallet is P5).
+// `skin` is a DEFAULT dress per PART into hangar.js's LIB, applied before the
+// player's own overrides so their choices always win.
+// `sky` is the HDRI FAMILY this shed's moods are graded from — the user's
+// association point (2026-08-31: "associate a shed with an hdri, but for
+// now, we use alps for all sheds"). Today every mood row in HANGAR_SKIES is
+// a grading of the one alps panorama, so 'alps' everywhere IS the current
+// truth; keying the mood set off this field is the later chantier.
+const SHELLS = {
+  club: {
+    name: 'Club hangar', frame: 'portal', doors: 'sixLeaf',
+    dims: { HW: 15, HD: 12.5, EAVE: 7.0 },
+    lims: { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] },
+    skin: null, sky: 'alps', price: 0, status: 'live',
+  },
+  works: {
+    name: 'Works', frame: 'portal', doors: 'sixLeaf',
+    dims: { HW: 20, HD: 20, EAVE: 9.5 },
+    lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
+    skin: {
+      wallSides: { set: 'rustysheet', tile: 2 },
+      wallBack:  { set: 'rustysheet', tile: 2 },
+      roof:      { set: 'factory', tile: 2 },
+      stem:      { set: 'concrete008', tile: 2 },
+    },
+    sky: 'alps', price: 15000, status: 'live',
+  },
+  field: {
+    // Half-dims like every other row (club's row IS today's shed verbatim,
+    // and one column cannot switch units per row): a 14 x 18 m timber shed
+    // at a 3.6 m eave. CONFIRMED by the user 2026-08-31 ("yes half-dims
+    // is right") — the spec's "7 x 9" prose read as full metres, but a
+    // genuinely 7 m wide shed passes no wing this generator builds.
+    name: 'Field shed', frame: 'timber', doors: 'slidingLeaf',
+    dims: { HW: 7, HD: 9, EAVE: 3.6 },
+    lims: { HW: [4, 10], HD: [5, 12], EAVE: [3.0, 4.8] },
+    skin: {
+      wallSides: { set: 'rawplank', tile: 2 },
+      wallBack:  { set: 'rawplank', tile: 2 },
+      roof:      { set: 'rustysheet', tile: 2 },
+    },
+    sky: 'alps', price: 6000, status: 'live',
+  },
+};
+function shellLims(key) {
+  return (SHELLS[key] || SHELLS.club).lims;
+}
+
+// ---- THE CAPABILITIES -----------------------------------------------------
+// A capability is a VERB, derived from the fit-out — you can weld because
+// there is a welding kit, not because the hangar says level 3. Declared and
+// ADVISORY ONLY: gating what a player may build on where they are standing is
+// a P5 decision with the economy beside it.
+const HANGAR_CAPS = ['park', 'handwork', 'wood', 'tube', 'metal', 'composite',
+                     'engine', 'avionics', 'paperwork', 'store', 'handling',
+                     'warm', 'heavy'];
+
+// ---- THE KITS -------------------------------------------------------------
+// The kit is the record (HANGARS.md §4.1): a workbench belongs to the bench
+// kit, so "what does the wood kit contain" is answered by reading ONE row,
+// not by scanning 44. props_table.py's `group` is untouched — that is the
+// EDITOR's display axis and it is doing that job correctly; kits are a
+// second, orthogonal axis.
+//
+// Each kit:
+//   props    the CLAIM list. Every key in props_table.py is claimed by
+//            exactly one kit (GATE HANGAR rule 4) — plus `wip` claiming the
+//            two baked Jodel airframes from jodel_prep.py's table.
+//   sites    where the kit stands its props. A site may REFERENCE another
+//            kit's prop (the cosy corner borrows a stool; a crate rides a
+//            storage cart) — rule 3 checks references, rule 4 counts claims.
+//   recipes  drawn compounds (hangar.js's DRAW map): a loaded rack, a tyre
+//            stack, the stove corner. Declared here with explicit metre
+//            footprints so the gate can pack them and see their props.
+//   ring     rows for the aircraft clearance ring (the old mobile kit).
+//   grants   the verbs this kit earns.
+//
+// SITE ROW: { prop|recipe, at, along|fx/fz, out, dry, y?, on?, light?, n? }
+//   at     'shop' (z=+HW wall), 'build' (z=-HW wall), 'back' (x=+HD wall),
+//          'floor' (fractional), 'ring' is its own list.
+//   along  0..1 fraction along the wall (door corner -> back corner for the
+//          side walls, port corner -> starboard corner for the back wall).
+//   out    REAL metres off the wall plane — clearances never scale: the
+//          bench stands a metre off the wall in any shed (hangar.js's own
+//          rule, kept).
+//   fx/fz  floor position as fractions of HD/HW.
+//   dry    absolute heading, exactly as authored.
+//   y      rest height for things standing on other things — measured off
+//          decoded geometry (hangar.js's TOP table), inlined per site.
+//   on     the prop key this one stands on; unplaced with a reason when the
+//          carrier did not place. Sites with y/on skip the wall packing —
+//          they occupy someone else's footprint by design.
+//   light  a lamp switch key: hangar.js claim()s the placed prop into that
+//          switch (the desk lamp's emitter must stay switchable).
+//
+// HF_A() and HF_B() turn an AUTHORED coordinate into its fraction — HF_A for
+// the side walls (authored HD 13 frame), HF_B for the back wall (authored
+// HW 18 frame). Namespaced: these ride the page's shared global scope.
+const HF_A = v => (v + 13) / 26;          // side walls: authored x -> along
+const HF_B = v => (v + 18) / 36;          // back wall:  authored z -> along
+const HF_PF = (v, s) => v / s;            // floor: authored coord -> fraction
+
+const HANGAR_KITS = {
+  park: {
+    name: 'Bare shed', grants: ['park'],
+    props: [], sites: [], recipes: [], ring: [],
+  },
+
+  bench: {
+    name: 'Workbench', grants: ['handwork'],
+    props: ['workbench_wood', 'vice_bench', 'stool_wood', 'toolrack_wall',
+            'toolbox_open', 'toolchest_metal'],
+    sites: [
+      { prop: 'workbench_wood', at: 'shop', along: HF_A(-5.0), out: 1.00, dry: Math.PI },
+      { prop: 'vice_bench', at: 'shop', along: HF_A(-5.95), out: 1.10,
+        dry: Math.PI * 0.5, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolbox_open', at: 'shop', along: HF_A(-4.25), out: 1.00,
+        dry: Math.PI - 0.35, y: 0.96, on: 'workbench_wood' },
+      { prop: 'toolrack_wall', at: 'shop', along: HF_A(-5.0), out: 0.12,
+        dry: Math.PI, y: 1.62 },
+      { prop: 'toolrack_wall', at: 'build', along: HF_A(2.6), out: 0.12,
+        dry: 0, y: 1.62 },
+      { prop: 'stool_wood', at: 'shop', along: HF_A(-3.2), out: 2.10, dry: 0.6 },
+      { prop: 'stool_wood', at: 'build', along: HF_A(2.4), out: 1.95, dry: -0.4 },
+      { prop: 'toolchest_metal', at: 'shop', along: HF_A(7.3), out: 0.95,
+        dry: Math.PI + 0.12 },
+      { prop: 'toolchest_metal', at: 'build', along: HF_A(0.5), out: 0.85, dry: 0.15 },
+    ],
+    recipes: [],
+    ring: [
+      { prop: 'toolbox_open', station: 'abeamS', dx: -0.9, dz: 0.06,
+        dry: 0.5, y: 0.90 },
+      { prop: 'toolchest_metal', station: 'abeamS', dx: 0.8, dz: 0.15,
+        dry: Math.PI / 2 + 0.22 },
+    ],
+  },
+
+  wood: {
+    name: 'Woodshop', grants: ['wood'],
+    props: ['bandsaw', 'panelsaw', 'thicknesser', 'jointer',
+            'crate_wood_a', 'crate_wood_b', 'crate_wood_c'],
+    sites: [
+      // the machine run, in the order the timber goes through them (G66):
+      // spaced by measurement against the authored wall, and the spacing
+      // survives as fractions of it
+      { prop: 'bandsaw', at: 'build', along: HF_A(-6.19), out: 1.16, dry: 0 },
+      { prop: 'jointer', at: 'build', along: HF_A(-3.53), out: 1.38, dry: 0 },
+      { prop: 'thicknesser', at: 'build', along: HF_A(-1.00), out: 0.93, dry: 0 },
+      // the panel saw stands OFF the wall — the one machine you cannot use
+      // against one; its `out` IS the sheet clearance plus the walkway
+      { prop: 'panelsaw', at: 'build', along: HF_A(-4.30), out: 5.20, dry: 0 },
+      // the timber stock: crate stacks at the door end of the build wall
+      { prop: 'crate_wood_c', at: 'build', along: HF_A(-11.6), out: 3.6, dry: 0.15 },
+      { prop: 'crate_wood_a', at: 'build', along: HF_A(-11.6), out: 3.6,
+        dry: -0.20, y: 0.41, on: 'crate_wood_c' },
+      { prop: 'crate_wood_b', at: 'build', along: HF_A(-11.8), out: 4.7, dry: 0.35 },
+      { prop: 'crate_wood_a', at: 'build', along: HF_A(-10.8), out: 6.6, dry: -0.3 },
+      { prop: 'crate_wood_c', at: 'build', along: HF_A(-11.5), out: 7.6, dry: 0.5 },
+      // ...and the pair against the back wall
+      { prop: 'crate_wood_c', at: 'back', along: HF_B(-10.6), out: 1.10,
+        dry: Math.PI / 2 + 0.1 },
+      { prop: 'crate_wood_b', at: 'back', along: HF_B(-11.7), out: 1.05,
+        dry: Math.PI / 2 - 0.2 },
+    ],
+    recipes: [],
+    ring: [],
+  },
+
+  metal: {
+    name: 'Metalshop', grants: ['metal', 'tube'],
+    props: ['weldingcart', 'compressor', 'drillpress', 'rack_steel',
+            'drum_steel'],
+    sites: [
+      { prop: 'weldingcart', at: 'back', along: HF_B(15.0), out: 1.15,
+        dry: -Math.PI / 2 - 0.20 },
+      { prop: 'compressor', at: 'back', along: HF_B(6.2), out: 1.25,
+        dry: -Math.PI / 2 },
+      { prop: 'drillpress', at: 'build', along: HF_A(7.4), out: 0.95, dry: 0.10 },
+      { prop: 'drum_steel', at: 'back', along: HF_B(-14.6), out: 0.95, dry: 0.5 },
+      { prop: 'drum_steel', at: 'back', along: HF_B(-15.4), out: 0.95, dry: -0.3 },
+    ],
+    recipes: [
+      // the loaded racks: rack_steel plus a seeded scatter of shelf stock —
+      // drawn in hangar.js, declared here so the gate sees every prop a
+      // shelf can carry and every footprint a wall must fit
+      { recipe: 'loadedRack', at: 'shop', along: HF_A(1.5), out: 0.55,
+        dry: Math.PI, foot: [0.5, 0.33],
+        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                'instrument_panel'] },
+      { recipe: 'loadedRack', at: 'shop', along: HF_A(2.6), out: 0.55,
+        dry: Math.PI, foot: [0.5, 0.33],
+        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                'instrument_panel'] },
+      { recipe: 'loadedRack', at: 'shop', along: HF_A(3.7), out: 0.55,
+        dry: Math.PI, foot: [0.5, 0.33],
+        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                'instrument_panel'] },
+      { recipe: 'loadedRack', at: 'build', along: HF_A(-1.2), out: 0.55,
+        dry: 0, foot: [0.5, 0.33], loose: true,
+        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                'instrument_panel'] },
+      { recipe: 'loadedRack', at: 'build', along: HF_A(-2.3), out: 0.55,
+        dry: 0, foot: [0.5, 0.33], loose: true,
+        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan',
+                'instrument_panel'] },
+    ],
+    ring: [],
+  },
+
+  store: {
+    name: 'Stores', grants: ['store'],
+    props: ['box_cardboard', 'barrel_plastic', 'bin_metal', 'bin_metal_rust',
+            'jerrycan', 'bottle_lpg', 'bottle_propane'],
+    sites: [
+      { prop: 'box_cardboard', at: 'shop', along: HF_A(-2.1), out: 1.00,
+        dry: 0.4, y: 0.68, on: 'table_wood' },
+      { prop: 'jerrycan', at: 'shop', along: HF_A(-0.9), out: 1.85, dry: 0.8 },
+      { prop: 'box_cardboard', at: 'shop', along: HF_A(5.4), out: 1.10,
+        dry: 0.3, y: 1.28, on: 'cart_storage' },
+      { prop: 'bottle_lpg', at: 'shop', along: HF_A(9.9), out: 0.85, dry: 0.5 },
+      { prop: 'barrel_plastic', at: 'build', along: HF_A(9.0), out: 0.85, dry: 0 },
+      { prop: 'bin_metal', at: 'build', along: HF_A(10.2), out: 0.90, dry: 0.3 },
+      // the door-end cardboard, stacked (a box on a box is a `y` + `on`)
+      { prop: 'box_cardboard', at: 'build', along: HF_A(-10.7), out: 3.9, dry: 0.8 },
+      { prop: 'box_cardboard', at: 'build', along: HF_A(-10.8), out: 3.95,
+        dry: -0.4, y: 0.34, on: 'box_cardboard' },
+      { prop: 'box_cardboard', at: 'build', along: HF_A(-11.4), out: 6.0, dry: 0.1 },
+      { prop: 'box_cardboard', at: 'build', along: HF_A(-11.5), out: 6.05,
+        dry: 1.2, y: 0.34, on: 'box_cardboard' },
+      // gas and fuel on the back wall
+      { prop: 'bottle_propane', at: 'back', along: HF_B(13.9), out: 0.85, dry: 0.4 },
+      { prop: 'bottle_propane', at: 'back', along: HF_B(13.2), out: 0.90, dry: -0.9 },
+      { prop: 'bottle_lpg', at: 'back', along: HF_B(13.6), out: 1.65, dry: 0.2 },
+      { prop: 'barrel_plastic', at: 'back', along: HF_B(-15.0), out: 1.75, dry: 0 },
+      { prop: 'jerrycan', at: 'back', along: HF_B(-13.9), out: 1.9, dry: 0.9 },
+      { prop: 'jerrycan', at: 'back', along: HF_B(-14.2), out: 2.3, dry: -0.4 },
+      { prop: 'bin_metal', at: 'back', along: HF_B(-3.2), out: 1.05, dry: 0.3 },
+      { prop: 'bin_metal_rust', at: 'back', along: HF_B(-4.2), out: 1.05, dry: -0.5 },
+    ],
+    recipes: [
+      // ry = PI, not -PI/2: the long stock lies along local z (the authored
+      // lesson, kept with the row). And HF_B(-10.2), not HF_B(-8.5): the /36
+      // conversion walks the whole back run inboard, and the rack's ten
+      // metres of tube and spruce is the one thing on it that must not walk
+      // into the aircraft bay — at the club's own width this lands it at
+      // z = -8.5, byte-identical to the authored room.
+      { recipe: 'stockRack', at: 'back', along: HF_B(-10.2), out: 1.6,
+        dry: Math.PI, foot: [0.46, 5.3], loose: true, props: [] },
+    ],
+    ring: [
+      { prop: 'jerrycan', station: 'nose', dx: 0.5, dz: 0.7, dry: 0.8 },
+    ],
+  },
+
+  handling: {
+    name: 'Handling', grants: ['handling'],
+    props: ['handtruck', 'stepladder', 'work_trestle', 'cart_tool',
+            'cart_tool_cab', 'cart_storage'],
+    sites: [
+      { prop: 'cart_storage', at: 'shop', along: HF_A(5.7), out: 1.10,
+        dry: Math.PI + 0.08 },
+      { prop: 'cart_tool_cab', at: 'shop', along: HF_A(8.7), out: 0.95,
+        dry: Math.PI - 0.08 },
+      { prop: 'handtruck', at: 'shop', along: HF_A(10.8), out: 0.55,
+        dry: Math.PI + 0.15 },
+      { prop: 'cart_tool', at: 'build', along: HF_A(-8.2), out: 1.40, dry: -0.30 },
+      { prop: 'stepladder', at: 'build', along: HF_A(-8.6), out: 3.9, dry: 0.5 },
+      { prop: 'stepladder', at: 'floor', fx: HF_PF(-11.9, 13),
+        fz: HF_PF(11.6, 18) - 1, dry: 1.4 },
+    ],
+    recipes: [
+      { recipe: 'workPlatform', at: 'shop', along: HF_A(6.6), out: 3.1,
+        dry: 0.10, foot: [0.5, 1.05], props: [] },
+      { recipe: 'workPlatform', at: 'build', along: HF_A(-6.6), out: 3.2,
+        dry: -0.10, foot: [0.5, 1.05], loose: true, props: [] },
+    ],
+    ring: [
+      { prop: 'cart_tool', station: 'abeamS', dx: -0.9, dz: 0,
+        dry: Math.PI / 2 - 0.18 },
+      { prop: 'stepladder', station: 'abeamP', dx: 0.4, dz: 0,
+        dry: -Math.PI / 2 + 0.3 },
+      { prop: 'handtruck', station: 'nose', dx: 0, dz: 0, dry: 1.9 },
+    ],
+  },
+
+  office: {
+    name: 'Office corner', grants: ['avionics', 'paperwork'],
+    props: ['desk_metal', 'radio_bench', 'instrument_panel', 'lamp_desk'],
+    sites: [
+      { prop: 'desk_metal', at: 'build', along: HF_A(2.6), out: 0.90, dry: 0 },
+      { prop: 'lamp_desk', at: 'build', along: HF_A(3.35), out: 1.15,
+        dry: -0.55, y: 0.78, on: 'desk_metal', light: 'desk' },
+      { prop: 'instrument_panel', at: 'build', along: HF_A(1.95), out: 1.05,
+        dry: 0.35, y: 0.78, on: 'desk_metal' },
+      // the radio lives on the WORKBENCH, which is the bench kit's — an
+      // office without a bench keeps its radio boxed
+      { prop: 'radio_bench', at: 'shop', along: HF_A(-3.95), out: 1.05,
+        dry: Math.PI + 0.25, y: 0.96, on: 'workbench_wood' },
+    ],
+    recipes: [
+      { recipe: 'planTable', at: 'floor', fx: HF_PF(-9.2, 13), fz: HF_PF(8.4, 18),
+        dry: 0.4, foot: [0.8, 0.55], props: [] },
+    ],
+    ring: [],
+  },
+
+  comfort: {
+    name: 'Comfort', grants: ['warm'],
+    props: ['stove_masonry', 'stove_barrel', 'chair_lounge', 'rug_persian',
+            'lamp_pendant', 'hosereel_wall'],
+    // lamp_pendant is CLAIMED here and placed by the SHELL: the pendants are
+    // the room's light rig, and a room with no light is not a fit-out choice
+    // yet — gating the lamps on a kit is P5 content. stove_barrel is claimed
+    // and unplaced (it never stood in this room; a site is a later choice).
+    sites: [
+      { prop: 'rug_persian', at: 'floor', fx: HF_PF(8.6, 13), fz: HF_PF(13.8, 18),
+        dry: 0.30, y: 0.004 },
+      { prop: 'chair_lounge', at: 'floor', fx: HF_PF(8.9, 13), fz: HF_PF(13.6, 18),
+        dry: 2.35 },
+      // the corner borrows a stool, a drum and a barrel from the kits that
+      // own them — a tableau, not a claim
+      { prop: 'stool_wood', at: 'floor', fx: HF_PF(7.6, 13), fz: HF_PF(12.5, 18),
+        dry: 1.1 },
+      { prop: 'drum_steel', at: 'floor', fx: HF_PF(9.6, 13), fz: HF_PF(15.9, 18),
+        dry: 0 },
+      { prop: 'barrel_plastic', at: 'floor', fx: HF_PF(10.6, 13), fz: HF_PF(16.2, 18),
+        dry: 0.4 },
+      // moved clear of the back doors once already (G66): a wall-mounted
+      // prop must never hang on a leaf, and the engine now enforces what
+      // that lesson taught by hand
+      { prop: 'hosereel_wall', at: 'back', along: HF_B(7.6), out: 0.14,
+        dry: -Math.PI / 2, y: 2.20 },
+    ],
+    recipes: [
+      { recipe: 'stoveCorner', at: 'floor', fx: HF_PF(11.1, 13), fz: HF_PF(12.4, 18),
+        dry: -0.5, foot: [0.85, 0.85], props: ['stove_masonry'] },
+    ],
+    ring: [],
+  },
+
+  curio: {
+    name: 'Curios', grants: [],
+    props: ['car_covered', 'tyre', 'table_wood'],
+    sites: [
+      { prop: 'table_wood', at: 'shop', along: HF_A(-1.7), out: 1.05,
+        dry: Math.PI },
+      { prop: 'crate_wood_a', at: 'shop', along: HF_A(-1.2), out: 1.05,
+        dry: -0.25, y: 0.68, on: 'table_wood' },
+      { prop: 'car_covered', at: 'floor', fx: HF_PF(-9.9, 13),
+        fz: 1 - HF_PF(5.6, 18), dry: Math.PI / 2 + 0.05 },
+    ],
+    recipes: [
+      { recipe: 'tyreStack', at: 'shop', along: HF_A(-11.3), out: 1.7,
+        dry: 0, foot: [0.4, 0.4], n: 4, props: ['tyre'] },
+      { recipe: 'tyreStack', at: 'shop', along: HF_A(-12.0), out: 2.6,
+        dry: 0, foot: [0.4, 0.4], n: 3, props: ['tyre'] },
+      { recipe: 'tyreStack', at: 'shop', along: HF_A(-11.6), out: 3.4,
+        dry: 0, foot: [0.4, 0.4], n: 2, props: ['tyre'] },
+      { recipe: 'tyreStack', at: 'floor', fx: HF_PF(-11.4, 13),
+        fz: HF_PF(8.4, 18) - 1, dry: 0, foot: [0.4, 0.4], n: 3, props: ['tyre'] },
+    ],
+    ring: [],
+  },
+
+  // THE WORK IN PROGRESS, as a kit. HANGARS.md kept the two airframes outside
+  // the kit system "because they are not baked props" — which has been stale
+  // since G62.10: they ARE baked (tools/jodel_prep.py), placed by the same
+  // prop() as the furniture. A display kit fixes what the carve-out broke:
+  // rule 4 has no exception list, and a bare park-only shed shows no Jodel.
+  // The REAL work-in-progress mechanism — your wing on your trestles — stays
+  // a separate chantier (it wants the fleet container first); when it lands
+  // it replaces this kit's content, not the kit system.
+  wip: {
+    name: 'Work in progress', grants: [],
+    props: ['airframe_jodel_body', 'airframe_jodel_wing'],
+    sites: [],
+    recipes: [
+      { recipe: 'wipBody', at: 'floor', fx: HF_PF(3.6, 13), fz: HF_PF(-12.2, 18),
+        dry: Math.PI + 0.21, foot: [3.1, 0.8],
+        props: ['airframe_jodel_body', 'work_trestle'] },
+      // hung chord-up on the back doors, deliberately IN the doorway — it is
+      // the one thing in the room allowed there (G64: its shadow lands on
+      // one flat leaf plane), so it is flagged free of the keepouts
+      { recipe: 'wipWingHang', at: 'back', along: HF_B(0), out: 1.7,
+        dry: 0, foot: [0.2, 4.6], free: true,
+        props: ['airframe_jodel_wing'] },
+      { recipe: 'wsWing', at: 'floor', fx: HF_PF(-2.4, 13), fz: HF_PF(12.4, 18),
+        dry: 0.05, foot: [4.75, 1.0], props: ['work_trestle'] },
+      { recipe: 'wsEngine', at: 'floor', fx: HF_PF(9.2, 13), fz: HF_PF(-6.4, 18),
+        dry: -Math.PI / 2 + 0.2, foot: [0.65, 0.65], props: [] },
+    ],
+    ring: [],
+  },
+};
+
+// the default fit-out IS today's room: every kit on
+const HANGAR_KITS_DEFAULT = ['park', 'bench', 'wood', 'metal', 'store',
+                             'handling', 'office', 'comfort', 'curio', 'wip'];
+
+// ---- THE ENGINE -----------------------------------------------------------
+// hangarFit(dims, kitKeys) -> { placed, recipes, unplaced } with the one
+// invariant this whole mechanism exists for:
+//
+//     placed.length + recipes.length + unplaced.length
+//         === every site row the chosen kits declared.
+//
+// A kit that does not fit its shell places what it can and REPORTS the rest —
+// never silently. A field shed cannot take the full woodshop, and being told
+// so is the mechanism working.
+//
+// v1 fit rules, simplest honest set:
+//   1. bounds     the footprint stays inside the walls;
+//   2. doorway    a wall-MOUNTED prop (y >= 1) never hangs on a door leaf —
+//                 floor props may stand against a closed door, the room
+//                 always did that (the bins lean on the back doors today);
+//   3. the bay    nothing static intrudes on the aeroplane's slot: the
+//                 centre strip |z| <= 2.2 between the door and the back
+//                 clearance — that is what strips a panel saw from a shed
+//                 too narrow to hold it AND an aeroplane;
+//   4. packing    floor-standing wall sites pack per wall in declaration
+//                 order — an interval ALONG the wall and a band OUT from it,
+//                 because the jerrycan legitimately stands in front of the
+//                 table (same wall coordinate, different depth); an overlap
+//                 in both is reported, not shuffled.
+// Sites with `y`/`on` skip packing (they ride someone else's footprint), and
+// `on` itself is checked in a SECOND pass over everything else — nothing
+// stands on a prop that did not place, wherever in kit order the carrier
+// was declared (the stores' box rides the handling kit's cart).
+function hangarFootprint(key, reg) {
+  const R = reg || (typeof PROP_REG !== 'undefined' ? PROP_REG : null);
+  const p = R && R.props && R.props[key];
+  // half-extents; an unknown key gets a modest default so the report stays
+  // about the missing prop, not a crash
+  return p ? [p.dim[0] / 2, p.dim[2] / 2] : [0.4, 0.4];
+}
+
+function hangarFit(dims, kitKeys, opts) {
+  const HW = (dims && dims.HW) || 15, HD = (dims && dims.HD) || 12.5;
+  const EAVE = (dims && dims.EAVE) || 7.0;
+  const BD_W = Math.min(11.0, 2 * HW - 8);        // hangar.js's own derivation
+  const reg = opts && opts.reg;
+  // whether this shell HAS back-door leaves to keep wall-mounts off: the
+  // timber field shed's back wall is boards, and a hose reel may bolt to a
+  // board wall — the keepout is about door LEAVES, not about walls
+  const shellRec = SHELLS[(opts && opts.shell) || 'club'] || SHELLS.club;
+  const hasBackDoors = shellRec.doors === 'sixLeaf';
+  const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
+    .filter(k => HANGAR_KITS[k]);
+
+  const placed = [], recipes = [], unplaced = [];
+  const placedKeys = new Set();
+  const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
+
+  const resolve = s => {
+    if (s.at === 'shop') return { x: -HD + s.along * 2 * HD, z: HW - s.out };
+    if (s.at === 'build') return { x: -HD + s.along * 2 * HD, z: -HW + s.out };
+    if (s.at === 'back') return { x: HD - s.out, z: -HW + s.along * 2 * HW };
+    return { x: s.fx * HD, z: s.fz * HW };          // floor
+  };
+  // oriented half-extents: a quarter turn swaps them; anything between is
+  // taken at the nearer quarter, which over-covers slightly and that is the
+  // right direction for a clearance test
+  const orient = (foot, dry) => {
+    const q = Math.round((dry || 0) / (Math.PI / 2)) & 1;
+    return q ? [foot[1], foot[0]] : [foot[0], foot[1]];
+  };
+
+  const fit = (row, kit, isRecipe) => {
+    const foot = orient(isRecipe ? row.foot : hangarFootprint(row.prop, reg),
+                        row.dry);
+    const p = resolve(row);
+    const out = { kit, at: row.at, x: p.x, z: p.z, ry: row.dry || 0,
+                  y: row.y || 0 };
+    if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; }
+    else out.prop = row.prop;
+    const label = isRecipe ? row.recipe : row.prop;
+
+    // 1. bounds — even a `free` row: free waives the keepouts and the
+    // packing (the hung wing is ALLOWED across the doorway), never the
+    // walls. A nine-metre wing does not hang on an eight-metre wall.
+    if (Math.abs(p.x) + foot[0] > HD || Math.abs(p.z) + foot[1] > HW) {
+      unplaced.push({ kit, key: label, at: row.at,
+                      reason: 'outside the shell' });
+      return;
+    }
+    if (!row.free) {
+      // 2. a wall-mounted prop on the back wall must clear the door leaves
+      // (when the shell HAS them — a board wall takes a bolt anywhere)
+      if (hasBackDoors && row.at === 'back' && (row.y || 0) >= 1.0 &&
+          Math.abs(p.z) - foot[1] < BD_W / 2 + 0.4) {
+        unplaced.push({ kit, key: label, at: row.at,
+                        reason: 'on the door leaf' });
+        return;
+      }
+      // 3. the aeroplane's slot
+      if (Math.abs(p.z) - foot[1] < 2.2 &&
+          p.x - foot[0] < HD - 2.0 && p.x + foot[0] > -HD + 2.0) {
+        unplaced.push({ kit, key: label, at: row.at,
+                        reason: 'blocks the aircraft bay' });
+        return;
+      }
+      // 4. wall packing, floor-standing wall sites only: along x depth.
+      // `loose` rows are composed TUCKS — a rack nested behind a
+      // thicknesser's outfeed, a platform under a panel saw's outrigger —
+      // where the bounding boxes interpenetrate but the author's eye already
+      // resolved the geometry. They are declared, not guessed, and they keep
+      // every other rule (bounds, doorway, the bay).
+      if (lanes[row.at] && !(row.y > 0) && !row.on && !row.loose) {
+        const back = row.at === 'back';
+        const u = back ? p.z : p.x;
+        const iv = [u - foot[back ? 1 : 0], u + foot[back ? 1 : 0]];
+        const ov = [row.out - foot[back ? 0 : 1], row.out + foot[back ? 0 : 1]];
+        const hit = lanes[row.at].find(o =>
+          iv[0] < o.iv[1] && iv[1] > o.iv[0] &&
+          ov[0] < o.ov[1] && ov[1] > o.ov[0]);
+        if (hit) {
+          unplaced.push({ kit, key: label, at: row.at,
+                          reason: 'overlaps ' + hit.key });
+          return;
+        }
+        lanes[row.at].push({ iv, ov, key: label });
+      }
+    }
+    if (row.on && !placedKeys.has(row.on)) {
+      unplaced.push({ kit, key: label, at: row.at,
+                      reason: 'needs ' + row.on });
+      return;
+    }
+    if (row.light) out.light = row.light;
+    if (isRecipe) { recipes.push(out); (row.props || []).forEach(k => placedKeys.add(k)); }
+    else { placed.push(out); placedKeys.add(row.prop); }
+  };
+
+  // two passes: everything standing on the floor or a wall first, then the
+  // riders — so a box can ride a cart whichever kit declared the cart
+  for (const pass of [0, 1])
+    for (const k of keys) {
+      for (const s of HANGAR_KITS[k].sites)
+        if ((s.on ? 1 : 0) === pass) fit(s, k, false);
+      for (const r of HANGAR_KITS[k].recipes)
+        if ((r.on ? 1 : 0) === pass) fit(r, k, true);
+    }
+  return { placed, recipes, unplaced, dims: { HW, HD, EAVE } };
+}
+
+// ---- THE RING -------------------------------------------------------------
+// placeMobile's arithmetic, verbatim (hangar.js G65): the caller measures the
+// aeroplane's footprint in the room's own frame, and the chosen kits' ring
+// rows are placed on a clearance ring outside it. lim takes a MAGNITUDE — the
+// port side passes HW - 2.2, not its negative: handing it -(HW - 2.2) once
+// put the ladder, the sack truck and the jerrycan against the far wall on the
+// wrong side, and that lesson keeps its shape here.
+function hangarFitRing(dims, kitKeys, bb) {
+  if (!bb || !isFinite(bb.x0)) return [];
+  const HW = (dims && dims.HW) || 15, HD = (dims && dims.HD) || 12.5;
+  const CLR = 1.15;
+  const lim = (v, m) => Math.max(-m, Math.min(m, v));
+  const zR = lim(Math.max(bb.z1, 0.6) + CLR, HW - 2.2);
+  const zL = lim(Math.min(bb.z0, -0.6) - CLR, HW - 2.2);
+  const xN = lim(bb.x0 - CLR * 0.7, HD - 2.0);
+  const xM = lim((bb.x0 + bb.x1) / 2, HD - 2.0);
+  const AT = { abeamS: [xM, zR], abeamP: [xM, zL], nose: [xN, zL * 0.45] };
+  const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
+    .filter(k => HANGAR_KITS[k]);
+  const out = [];
+  for (const k of keys)
+    for (const r of HANGAR_KITS[k].ring) {
+      const a = AT[r.station];
+      if (!a) continue;
+      out.push({ kit: k, prop: r.prop, x: a[0] + r.dx, z: a[1] + r.dz,
+                 ry: r.dry, y: r.y || 0 });
+    }
+  return out;
+}
+
+// ---- THE VERBS ------------------------------------------------------------
+// Derived, never set. `heavy` comes from the SHELL — the door is the
+// generator's own wing clamp seen from outside: max(6, 2HW - 5) >= 14 m of
+// opening takes any wing this game can build. Everything else comes from the
+// fit-out, which is the split doing its job: a big empty shed lets you park a
+// big aeroplane and build nothing.
+function hangarCaps(shed) {
+  const s = shed || {};
+  const shell = SHELLS[s.shell] || SHELLS.club;
+  const dims = Object.assign({}, shell.dims, s.dims || {});
+  const keys = (s.kits && s.kits.length ? s.kits : []).filter(k => HANGAR_KITS[k]);
+  const got = new Set(['park']);
+  for (const k of keys) for (const g of HANGAR_KITS[k].grants) got.add(g);
+  if (Math.max(6, 2 * dims.HW - 5) >= 14) got.add('heavy');
+  // layup wants a warm, clean, enclosed bay — and not a draughty field shed
+  if (got.has('warm') && got.has('handwork') &&
+      (s.shell || 'club') !== 'field') got.add('composite');
+  if (got.has('metal') && got.has('handling')) got.add('engine');
+  return HANGAR_CAPS.filter(v => got.has(v));
+}
+
+// What an aeroplane WANTS of a hangar, read off its resolved spec's declared
+// constructions. Advisory only, forever the engineer's handbook: the editor
+// may show the line, nothing may enforce it (P5 owns that ruling).
+function hangarWants(S) {
+  const want = new Set();
+  const add = m => {
+    if (m === 'wood') want.add('wood');
+    else if (m === 'tubeFabric') want.add('tube');
+    else if (m === 'alloy') want.add('metal');
+    else if (m === 'carbon') want.add('composite');
+  };
+  if (S && S.fuselage) add(S.fuselage.material);
+  if (S && S.wings) for (const w of [].concat(S.wings)) add(w && w.material);
+  if (S && S.tail) { add(S.tail.finMaterial); add(S.tail.stabMaterial); }
+  return HANGAR_CAPS.filter(v => want.has(v));
+}
 // ============================================================
 function makeSim(def, world) {
   const P_ = def.params;
@@ -3192,11 +4119,14 @@ function makeSim(def, world) {
   bSpan = Math.max(0.1, bSpan * 2);
 
   function reset(drop = 0) {
+    totalM = 0;                    // G121: masses may have changed (setNodeMass)
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
       v[i*3] = v[i*3+1] = v[i*3+2] = 0;
       m[i] = nd.m; r[i] = nd.r;
+      totalM += nd.m;
+      rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
     for (const b of beams) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
@@ -3427,7 +4357,10 @@ function makeSim(def, world) {
         P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
-        P = P_.polarTail;
+        // G115: the fin flies its OWN polar when the def declares one (the
+        // generator does, from the real fin aspect ratio); the fleet's
+        // fiches never set polarFin, so the fallback keeps them bit-exact.
+        P = P_.polarFin || P_.polarTail;
       }
       // ground effect (wing strips only; tail excluded — honest cut):
       // McCormick sigma = (16h/b)^2 / (1 + (16h/b)^2)
@@ -3494,17 +4427,42 @@ function makeSim(def, world) {
     blob(def.refs.fusDragAft, P_.fusCdAAft);
   }
 
-  const G = -9.81, DEFDAMP = 0.5;
+  // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
+  // (tools/_yaw_probe.js runs free-yaw decay at two settings), not for play.
+  // No fiche and no generated build sets it, so everything flies 0.5 as ever.
+  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const mi = def.nodes[i].m;
+  // G121: the per-node rig is a FUNCTION now, because a node's mass can
+  // change (fuel burns; the sanctioned door is setNodeMass below) and the
+  // ground spring plus its critical-damping companion must follow the mass
+  // they carry, or the landing rollout at reserves rides constants rigged
+  // for full tanks. Identical arithmetic to the old loop.
+  function rigGround(i, mi) {
     // light nodes: Cub/drone-calibrated regime (unchanged); heavy nodes keep scaling
     KGn[i] = mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi;
     CGn[i] = 1.6 * Math.sqrt(KGn[i] * mi);
     KTn[i] = Math.min(2.2e4, 2e5 * mi);
     CTn[i] = Math.min(40, 300 * mi);
+  }
+  for (let i = 0; i < n; i++) rigGround(i, def.nodes[i].m);
+
+  // G121 — THE SANCTIONED MASS DOOR (the review's B1/B3, built BEFORE the
+  // energy arc's burn so it cannot be built wrong). `m[]` was always exposed
+  // and mutating it directly was always possible — and always wrong: totalM
+  // was summed once at construction, and it is the divisor under the
+  // mass-weighted mean velocity that alpha, vs, DEFDAMP's rigid mean, the
+  // probe CG and cgPos/cgVel are all built on. Drain fuel behind its back
+  // and ALPHA ITSELF corrupts — an invisible drag and rate damper that grow
+  // as the tanks empty, and nothing NaNs. This door keeps every consumer
+  // honest: the sum, the ground rig, nothing else touched. Burn calls this;
+  // nothing else writes m[].
+  function setNodeMass(i, kg) {
+    if (!(i >= 0 && i < n) || !(kg > 0.01)) return;
+    totalM += kg - m[i];
+    m[i] = kg;
+    rigGround(i, kg);
   }
 
   function trqOf() {
@@ -3560,9 +4518,34 @@ function makeSim(def, world) {
         const hL = Math.hypot(hx, hz) || 1e-9; hx/=hL; hz/=hL;
         const lx = -hz, lz = hx;
         const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
-        const muR = CRR + (isMain ? ctl.brake * MU_BRAKE : 0);
-        const kR = Math.min(muR * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
-        const kL = Math.min(MU_LAT * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
+        // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
+        // biome classifier with the aerodrome strips folded in (measured: 5
+        // at Morford's pavement, 0 at HOME); classes without a row read the
+        // grass row, which equals the classic constants — so HOME, the
+        // calibration datum, is unchanged to the last bit.
+        const su = world && world.surface
+          ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
+          : GROUND_DEF;
+        const muR = su[0] + (isMain ? ctl.brake * su[1] : 0);
+        // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
+        // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
+        // was never physical rolling — and it turned out to be load-bearing
+        // as the PLACEMENT-BOUNCE damper: at Morford the fleet's Cub, given
+        // pavement's 0.02 in that regime, kept 2.5x less rock damping than
+        // the grass the settle was calibrated on and flipped onto its back
+        // in 1.7 s, parked, on flat ground (measured; XCTY3 caught it). So
+        // the creep regime damps at least at the grass datum on EVERY
+        // surface — bit-identical at HOME, where muR == CRR — and the true
+        // surface coefficient applies from 0.2 m/s up, which is where the
+        // takeoff run, the brakes and the surface honesty actually live.
+        // 0.5 m/s, not the 0.2 regularization floor: the placement-bounce
+        // ROCKING measured 0.1-0.3 m/s fore-aft at the wheels, just above
+        // 0.2 — the band must cover the whole settle/rock regime. Costs a
+        // paved takeoff under a metre (it passes 0.5 m/s in the first
+        // second); HOME remains bit-identical (muR == CRR there).
+        const muRe = Math.abs(vr_) < 0.5 ? Math.max(muR, CRR) : muR;
+        const kR = Math.min(muRe * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
@@ -3693,7 +4676,12 @@ function makeSim(def, world) {
   }
   function axes() { bodyAxes(); return [xAft.slice(), yUp.slice(), zRt.slice()]; }
 
-  return { p, v, m, r, beams, n, ctl, out, totalM,
+  // G121: totalM is a GETTER — it was a copied value, so a mass change via
+  // setNodeMass would have been invisible to every external reader (the
+  // autopilot's taxi feedforward, the shakedown's weights). Same number as
+  // ever for anything that never changes mass; nothing writes it.
+  return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+           setNodeMass,
            reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            setAtmos, atmos: airOf, thrustAt, probeAir };
 }
@@ -3745,11 +4733,15 @@ function makeAutopilot(sim, def, world) {
   // So the bias is the throttle that exactly cancels rolling resistance,
   // derived per aeroplane. Nothing is tuned here: CRR and the prop curve are
   // both already in the registry.
+  // G121: a FUNCTION of the live mass, not a number captured at engagement —
+  // this exact feedforward being wrong is the documented 16 m creep below,
+  // and burning fuel would have made it wrong again. Identical value on every
+  // call for anything whose mass never changes, which is the whole fleet.
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // u = frame axis (landing direction); origin places tdz at s = -450
@@ -3989,7 +4981,8 @@ function makeAutopilot(sim, def, world) {
       // taxiFF cancels rolling resistance, the speed error does the rest, and
       // the cap rises with the feedforward so a heavy-footed aeroplane still
       // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
-      c.thr = clamp(taxiFF + 0.06 * (Vt - Vg), 0, taxiFF + 0.27);
+      const ff = taxiFF();
+      c.thr = clamp(ff + 0.06 * (Vt - Vg), 0, ff + 0.27);
       c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
@@ -4398,11 +5391,13 @@ function makeAutopilot(sim, def, world) {
 // ============================================================
 function makeTestPilot(sim, def, world) {
   const A = def.params.ap;
+  // TP + G121: live mass (see the donor's note); exposed as ap.taxiFF so
+  // the mass-proofing gate can watch it follow a drained tank.
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const mkFrame = (a, sx, sz) => {
@@ -4483,6 +5478,7 @@ function makeTestPilot(sim, def, world) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   ap.reEngage = () => { pendReEng = true; };
+  ap.taxiFF = taxiFF;              // TP/G121: instrument surface
 
   // TP: THE TEST CARD (G107.1). The game imposes a card on the flight —
   // target altitude and target speed — and the pilot flies it: the card
@@ -4647,7 +5643,8 @@ function makeTestPilot(sim, def, world) {
 
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
-      c.thr = clamp(taxiFF + 0.06 * (Vtgt - Vg), 0, taxiFF + 0.27);
+      const ff = taxiFF();
+      c.thr = clamp(ff + 0.06 * (Vtgt - Vg), 0, ff + 0.27);
       c.brake = Vg > Vtgt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
@@ -6132,6 +7129,12 @@ const GEN_PROP_MATS = {
   wood:   { name: 'Wood',      kg: 2.40, price: 900 },
   alu:    { name: 'Aluminium', kg: 4.20, price: 2200 },
   carbon: { name: 'Carbon',    kg: 1.60, price: 5200 },
+  // G125: the scanned woods, priced as the boutique blanks they are. Mass
+  // scales the wood anchor by Wood Handbook density (birch ~680: hard maple
+  // ~705 -> 2.50, black walnut ~640 -> 2.25) — a walnut prop really is the
+  // lighter one, and the vintage look is what the premium buys.
+  maple:  { name: 'Maple',     kg: 2.50, price: 1300 },
+  walnut: { name: 'Walnut',    kg: 2.25, price: 1500 },
 };
 
 // PITCH is a real trade and ONE number carries it: the figure of merit in
@@ -6212,10 +7215,23 @@ const GEN_FINISH = {
 // the two is the windscreen (see 63_gen_skin.js). A drone has no windscreen at
 // all, so its deck is 1.0 and the nose runs continuously into the body — which
 // is the whole visual difference between an aeroplane and an airframe.
+//
+// `crew` IS THE NUMBER OF SEATS, not the number of people in them — the
+// loading is `cabin.pilots` plus `cabin.pax`, below. The name is older than
+// the distinction and is left alone because four files read it.
 const GEN_SEATING = {
   single:  { halfW: 0.32, h: 0.92, len: 0.62, crew: 1, deck: 0.70 },
   tandem2: { halfW: 0.36, h: 1.00, len: 0.78, crew: 2, deck: 0.70 },
   side2:   { halfW: 0.53, h: 1.05, len: 0.90, crew: 2, deck: 0.70 },
+  // FOUR SEATS (2026-08-31, the user: "we need passenger seats and passengers,
+  // impacting the mass and CG"). Two rows of two and a 2+2 — a wider, taller,
+  // longer box, because four people need one. The numbers are the side-by-side
+  // grown by what the second row costs: 0.86 m of pitch on `side4` (the spec's
+  // own `cabin.seatPitch` default), and `tandem4`'s narrower pair-behind-pair.
+  // NEITHER IS THE DEFAULT and neither changes an existing aeroplane: a spec
+  // that does not name them resolves exactly as it did.
+  side4:   { halfW: 0.56, h: 1.12, len: 1.76, crew: 4, deck: 0.70 },
+  tandem4: { halfW: 0.42, h: 1.06, len: 1.94, crew: 4, deck: 0.70 },
   drone:   { halfW: 0.20, h: 0.30, len: 0.55, crew: 0, deck: 1.00 },
 };
 
@@ -6430,7 +7446,14 @@ function genMigrateSpec(r) {
 // aeroplane, which is the point.
 const GEN_DEFAULT = {
   v: GEN_SPEC_V,
-  meta: { name: 'Garage Special', reg: 'F-PGAR' },
+  // `role` and `class` are the birth flow's LABELS (NEW-AIRCRAFT §5.1/§5.2):
+  // an intention and a size class, stored because missions, the fleet and
+  // the plaque will read them — and NEVER constraints. Null = unstated, and
+  // null is why GEN_SPEC_V does not move for them: genDefaults fills the
+  // missing field and an older spec means exactly what it meant. The legal
+  // values live with the declaration (tools/_cage_design.js), not here —
+  // clampSpec type-guards only, the `finish` argument.
+  meta: { name: 'Garage Special', reg: 'F-PGAR', role: null, class: null },
   cabin: {
     seating: 'tandem2',
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
@@ -6438,6 +7461,11 @@ const GEN_DEFAULT = {
     // J-3-class aeroplane is flown solo; loading both seats is a different
     // aeroplane and should read as one.
     pilots: 1,
+    // AND THE PASSENGERS. Same idea as `pilots` and the same units: how many
+    // of the remaining seats are FILLED for the flight the gates measure.
+    // 0 by default — a two-seat aeroplane flown solo is the aeroplane this
+    // battery has always measured, and it stays that.
+    pax: 0,
     baggage: 10,             // kg
     halfW: null, h: null, len: null, noseGap: 0.62,
     // WHERE THE SEATS SIT, as an OFFSET from what the cabin derives. The base is
@@ -6699,7 +7727,8 @@ const GEN_DEFAULT = {
   // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
   // so it is one of the two things that set prop clearance, the other being
   // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
-  gear: { type: 'taildragger', fairing: 'none', suspension: 'bungee',
+  gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
+          suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
           legDrop: null, twLeg: null, camber: 0,
@@ -6882,6 +7911,18 @@ function clampSpec(spec) {
   const fu = S.fuselage, cb = S.cabin;
   if (!GEN_MATERIALS[fu.material]) fu.material = 'tubeFabric';
   if (!GEN_SHAPES[fu.shape]) fu.shape = 'straight';
+  // THE PART'S OWN CONSTRUCTION (G116) — additive, no default written: absent
+  // means the aeroplane's own material, which is what every spec written
+  // before these fields existed already meant, and why GEN_SPEC_V does not
+  // move (nothing to branch on; genDefaults fills nothing). The one thing to
+  // clamp is that a value names a real material — an unknown falls back to
+  // absent rather than reaching GEN_MATERIALS as undefined.
+  if (S.wings && S.wings[0] && S.wings[0].material != null &&
+      !GEN_MATERIALS[S.wings[0].material]) delete S.wings[0].material;
+  if (S.tail && S.tail.finMaterial != null &&
+      !GEN_MATERIALS[S.tail.finMaterial]) delete S.tail.finMaterial;
+  if (S.tail && S.tail.stabMaterial != null &&
+      !GEN_MATERIALS[S.tail.stabMaterial]) delete S.tail.stabMaterial;
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -6988,6 +8029,13 @@ function clampSpec(spec) {
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
 
+  // the birth flow's labels: TYPE guards only — the legal value tables live
+  // with the declaration (tools/_cage_design.js), and a second copy of them
+  // here is the second home the `finish` note above already forbids. A
+  // non-string is unstated, never an error.
+  if (S.meta.role != null && typeof S.meta.role !== 'string') S.meta.role = null;
+  if (S.meta.class != null && typeof S.meta.class !== 'string') S.meta.class = null;
+
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
   // normalised clone every time, so this cannot accumulate across calls the way
@@ -7074,6 +8122,19 @@ function clampSpec(spec) {
   // as though it should is worse than one that is honestly cosmetic. If a drag
   // model arrives, this is the field it keys off.
   if (!['none', 'spat', 'full'].includes(S.gear.fairing)) S.gear.fairing = 'none';
+  // G121.2: the THIRD WHEEL's own fairing. Priced only where the layer
+  // actually draws one (a tricycle's nosewheel; the tailwheel castor has no
+  // spat branch) — see genGearCdA, which owns that condition.
+  if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
+  // is an array by design and `nEngines` multiplies thrust honestly — but
+  // every mount today is the one nose pair, so a second entry would fly as
+  // doubled thrust with ZERO asymmetry: no offset nacelles, no engine-out,
+  // no Vmc. That is not a twin, it is a lie wearing one's spec. Clamped
+  // here, loudly, until P7 gives each engine its own mount nodes; the clamp
+  // is the declared guard the review asked for in place of a later surprise.
+  if (Array.isArray(S.engines) && S.engines.length > 1)
+    S.engines = S.engines.slice(0, 1);
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
@@ -7244,6 +8305,14 @@ function resolveSpec(spec) {
   }
   S.seats = seat.crew;
   S.crew = genClamp(S.pilots | 0, 1, seat.crew);
+  // WHO ELSE IS ABOARD. `pilots` has always been LOADING rather than capacity
+  // (its own comment in GEN_DEFAULT says so); `pax` is the same idea for the
+  // seats the flight crew are not in, so the two together are the occupants
+  // and `seats` stays the capacity. Clamped to what is left, so a spec cannot
+  // load five people into four seats — and 0 by default, which is why no
+  // existing aeroplane's mass moves.
+  S.pax = genClamp(S.cab.pax | 0, 0, Math.max(0, seat.crew - S.crew));
+  S.occupants = S.crew + S.pax;
 
   // 2. wing longitudinal placement — the front spar lands on the cabin-front
   //    frame, which is what puts a high-wing carry-through over the cabin
@@ -7313,13 +8382,22 @@ function resolveSpec(spec) {
   put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
   t.hX += pl.tailDx; t.vX += pl.tailDx;
   const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
-  const Sh = GEN_RULES.Vh * S.geom.Sw * cBar / lh;
-  const Sv = GEN_RULES.Vv * S.geom.Sw * w.span / lv;
+  // G115: the tail AREAS are derivable, not imposed — `put`, not assignment.
+  // The volume rule fills them when the builder says nothing (identical to
+  // the old unconditional write for every existing build), but a set Sh or
+  // Sv now STICKS: the auto-tail was silently rescuing every design from the
+  // classic mistake, and a fin you cannot shrink is a fin you cannot learn
+  // from. Areas resolve FIRST so the spans and chords below derive from the
+  // EFFECTIVE area, whichever of the rule or the builder supplied it. The
+  // arms stay computed — they are geometry readouts, not choices.
+  put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
+  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
+  const Sh = t.Sh, Sv = t.Sv;
   put(t, 'hSpan', Math.sqrt(Sh * GEN_RULES.hAR), 'tail.hSpan');
   put(t, 'hChord', Sh / t.hSpan, 'tail.hChord');
   put(t, 'vHeight', Math.sqrt(Sv * GEN_RULES.vAR), 'tail.vHeight');
   put(t, 'vChord', Sv / t.vHeight, 'tail.vChord');
-  S.tail.Sh = Sh; S.tail.Sv = Sv; S.tail.lh = lh; S.tail.lv = lv;
+  S.tail.lh = lh; S.tail.lv = lv;
   // THE FIN'S RAKE, derived from what it already was. The skin swept the fin's
   // leading edge by a hardcoded 0.30 of the chord over the fin's height; left
   // null that is exactly what comes back, so making it a control moves no
@@ -8043,6 +9121,20 @@ function genQuadArea(P, a, b, c, d) {
 // pass once the CG is known (see the gear section).
 function genLattice(S, gearX, track, kScale) {
   const M = GEN_MATERIALS[S.material];
+  // THE PART'S OWN CONSTRUCTION REACHES THE STRUCTURE (G116 mass + price,
+  // G117 stiffness + damping — the user: "carbon should cost", then
+  // "WYSIWYG is the rule"). `wing.material` / `tail.finMaterial` /
+  // `tail.stabMaterial` are additive spec fields (absent = the aeroplane's
+  // own), and the section material below follows the ledger's own marker:
+  // the wing's members weigh, cost, FLEX and damp as what the wing is built
+  // from. See B()'s note for why G116's mass move made the k/c coupling
+  // safe to take. A V-TAIL IS ONE SURFACE and takes the stab's material:
+  // it IS the horizontal tail, raked; there is no fin to build.
+  const MSEC = {
+    wings: GEN_MATERIALS[S.wing && S.wing.material] || M,
+    tail:  GEN_MATERIALS[S.tail && S.tail.stabMaterial] || M,
+  };
+  let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
@@ -8108,15 +9200,25 @@ function genLattice(S, gearX, track, kScale) {
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
     // a gear member is either the SPRING (vis 'leg') or its bracing
     const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
-    beams.push({ a, b, k: M.k[cls] * (isG ? kG : KS) * kGain, c: M.c[cls] * (isG ? cG : CS),
+    // MB THROUGHOUT (G117, the user: "WYSIWYG is the rule"): a member is
+    // stiff, damped, heavy and priced as WHAT THE SECTION IS BUILT FROM —
+    // G116 coupled the mass and the money and deliberately left k/c on the
+    // aeroplane's own calibration; G117 finished it, and G116's own mass
+    // move is what made that safe: with lin AND k from the same material,
+    // a carbon wing's stiffness-to-mass ratio in a MIXED build equals the
+    // all-carbon aeroplane's wing — a corner the FLEX matrix already flies.
+    // The aeroplane-level scalings (KS from the global refMass, wingK, the
+    // gear archetype) stay exactly where they were.
+    beams.push({ a, b, k: MB.k[cls] * (isG ? kG : KS) * kGain,
+                 c: MB.c[cls] * (isG ? cG : CS),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L });
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
-    const h = 0.5 * L * M.lin[cls];
+    const h = 0.5 * L * MB.lin[cls];
     nodes[a].m += h; nodes[b].m += h;
-    bill(2 * h, 2 * h * M.price);
+    bill(2 * h, 2 * h * MB.price);
   };
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
@@ -8142,13 +9244,16 @@ function genLattice(S, gearX, track, kScale) {
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
     e.mass += mass || 0; e.cost += cost || 0;
   };
-  const sec = s => { SEC = s; };
+  // ...and the section marker is ALSO the billing-material switch (G116):
+  // one coupling point, so bracing, gear and everything after the wing reset
+  // to the aeroplane's own material without a call site to forget.
+  const sec = s => { SEC = s; MB = MSEC[s] || M; };
   const spend = c => bill(0, c);
   const cover = (area, ids) => {
-    const m = area * M.cover;
+    const m = area * MB.cover;
     const per = m / ids.length;
     for (const i of ids) nodes[i].m += per;
-    bill(m, m * M.price);
+    bill(m, m * MB.price);
   };
   const pt = (i, m) => { nodes[i].m += m; bill(m, 0); };
 
@@ -8564,6 +9669,10 @@ function genLattice(S, gearX, track, kScale) {
     cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
     cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
+    // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
+    // tail section's default; the fin bills its own from here — sec('gear')
+    // below resets the marker, so nothing after can inherit it by accident
+    MB = GEN_MATERIALS[t.finMaterial] || M;
     // the fin's apex node follows the RAKE, so the truss leans with the fin the
     // skin draws instead of standing upright inside a swept one
     FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
@@ -8698,9 +9807,32 @@ function genLattice(S, gearX, track, kScale) {
   // that is a CG choice the player can make by moving the seat, not a default)
   sec('cabin');
   spend(S.seats * GEN_PRICES.seat);
-  const seatRings = S.seating === 'tandem2' ? [F[1], F[2]] : [F[1], F[1]];
-  for (let i = 0; i < S.crew; i++) {
-    const rg = seatRings[i] || F[1];
+  // WHICH FRAME EACH OCCUPANT SITS ON. This was a two-element literal, which
+  // is the whole of why the aeroplane could not carry more than two people:
+  // a third occupant fell through `|| F[1]` and was billed onto the front row
+  // with the pilot, so a full cabin loaded like a solo one and the CG did not
+  // move. It is per-LAYOUT now, and every existing layout resolves to exactly
+  // what it resolved to before.
+  //
+  // A ROW OF TWO IS ONE FRAME. `side2` and the front row of `side4` sit
+  // abreast, so both occupants bill onto the same ring — the mass is already
+  // split BL/BR, which is where the lateral half comes from.
+  const SEAT_ROWS = {
+    single:  [1],
+    tandem2: [1, 2],
+    side2:   [1, 1],
+    side4:   [1, 1, 2, 2],
+    tandem4: [1, 1, 2, 2],
+    drone:   [],
+  };
+  const seatRows = SEAT_ROWS[S.seating] || [1, 1];
+  // OCCUPANTS, not crew: `S.crew` is the flight crew and `S.pax` the rest.
+  // `S.occupants` is absent on a spec resolved by an older core, and there
+  // the old meaning is the right fallback rather than a guess.
+  const aboard = S.occupants != null ? S.occupants : S.crew;
+  for (let i = 0; i < aboard; i++) {
+    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : 1;
+    const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
   }
   sec('fuel');
@@ -8716,6 +9848,13 @@ function genLattice(S, gearX, track, kScale) {
               : S.fuel.tank === 'panel' ? wf.R.F[Math.min(1, wf.R.F.length - 1)]
               : F[0].TR;
   pt(tankL, 0.5 * fuelM); pt(tankR, 0.5 * fuelM);
+  // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
+  // chantier drains these through the solver's setNodeMass door, and
+  // genSubsteps sizes the integrator at DRY mass off the same records (a
+  // beam is stiffest, per unit mass, when its tank is empty: sized at full
+  // it is stable on departure and divergent at reserves).
+  nodes[tankL].mFuel = (nodes[tankL].mFuel || 0) + 0.5 * fuelM;
+  nodes[tankR].mFuel = (nodes[tankR].mFuel || 0) + 0.5 * fuelM;
   sec('systems');
   const SYS = GEN_SYSTEMS[S.systems.fit] || GEN_SYSTEMS.basic;
   spend(SYS.price);
@@ -8992,6 +10131,54 @@ function genFusCdA(S, fr) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// UNDERCARRIAGE AND BRACING DRAG (G115, the quality review's S1 — "no gear or
+// strut drag anywhere; a bush gear moves ZERO numbers"). Flat-plate area from
+// the gear's own DECLARED numbers: wheel radius, the fairing field that has
+// been in the spec since the start with a comment admitting it "quietly did
+// nothing to the numbers", the resolved leg drop, and the bracing choice.
+// Coefficients are the classic flat-plate values (Hoerner): an exposed wheel
+// 0.55 on its frontal, a spatted one 0.22, a full trouser 0.15; a bare leg is
+// a cylinder at 1.0, faired 0.30; a lift strut is a streamline section at
+// 0.10. Tyre width is 0.76R (the light-aircraft aspect), the third wheel is
+// never faired by the wheel fairing, and the strut length runs from the
+// lower longeron to ~55% semispan.
+function genGearCdA(S, semi) {
+  const G = S.gear;
+  const wCd = G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55;
+  const R = G.wheelR || 0.20, Rt = G.twR || 0.10;
+  // G121.2: the third wheel prices its OWN fairing — but only on a
+  // tricycle, because that is the only leg family the layer draws a shell
+  // for (the tailwheel castor has no spat branch, and a priced fairing with
+  // no geometry would be the INVERSE of the lie G115 fixed).
+  const tCd = S.gear.type === 'tricycle'
+    ? (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55)
+    : 0.55;
+  let cda = 2 * wCd * (2 * R * 0.76 * R)          // two mains
+          + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
+  const drop = G.legDrop || 0.42;
+  cda += 2 * (G.fairing === 'full' ? 0.30 : 1.0) * drop * 0.05;   // the legs
+  if (S.bracing.type === 'strut')
+    cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
+  return cda;
+}
+// THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
+// Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
+// INCLUDE a bare-wheeled, strut-braced undercarriage. Adding gear drag on top
+// would double-count it; what is added is the DIFFERENCE from that reference
+// gear, so the default build's numbers barely move and the choices finally
+// do: spats buy L/D, doubling the tyres costs cruise, dropping the struts
+// shows up on the plaque. Clamped so an extreme clean-up cannot eat the body.
+function genGearCdADelta(S, semi) {
+  // the reference shares THIS build's resolved leg drop: leg length is a
+  // stance choice the calibration already priced, not a drag knob — but the
+  // leg FAIRING still counts, through the Cd factor the fairing field picks.
+  const ref = { gear: { fairing: 'none', wheelR: 0.20, twR: 0.10,
+                        legDrop: S.gear.legDrop || 0.42 },
+                bracing: { type: 'strut' } };
+  return Math.max(-0.08, genGearCdA(S, semi) - genGearCdA(ref, semi));
+}
+
 // Autopilot block. Speeds come from the aeroplane's OWN stall speed; the
 // remaining ratios and gains are the Cub's, which is the airframe timescale
 // (span/V ~ 0.4 s) this family sits at. HANDOVER "AUTOPILOT RULES": D-gains
@@ -9256,7 +10443,13 @@ const GEN_CDT_MAX = 0.65;      // damping rate * dt
 function genSubsteps(nodes, beams) {
   let wMax = 0, cMax = 0;
   for (const b of beams) {
-    const inv = 1 / nodes[b.a].m + 1 / nodes[b.b].m;   // 1/reduced mass
+    // G121 (the review's B2): omega at DRY mass, not full-tanks mass. Fuel
+    // is billed onto nodes and a beam's frequency RISES as its node lightens
+    // — sized at full, a long-range build was stable on departure and headed
+    // for the recorded divergence neighbourhood at reserves. The dry floor
+    // guards a node that is mostly fuel. No fuel on the node = the old line.
+    const dry = i => Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0));
+    const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
   }
@@ -9374,6 +10567,14 @@ function genParams(S, fr, strips) {
                              (GEN_TIPS[S.wing.tip] || GEN_TIPS.rounded).e);
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = genTailPolar(hAR, M.cd0);
+  // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
+  // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
+  // which overstated directional stiffness and rudder power by ~25% and made
+  // fin PROPORTIONS a slider that moved nothing. vHeight²/Sv is the honest
+  // number, and it moves when the builder reshapes the fin. The fleet's
+  // fiches never set polarFin, so the solver's fallback keeps them exact.
+  const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
+  const polarFin = genTailPolar(vAR, M.cd0);
   const mass = fr.cg0[3];
   const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
   // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
@@ -9382,6 +10583,11 @@ function genParams(S, fr, strips) {
   // the sky rather than the definition of the yardstick.
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
   const cda = genFusCdA(S, fr);
+  // G115: the undercarriage and bracing join the drag build-up, as a DELTA
+  // from the calibration's implicit reference gear (see genGearCdADelta).
+  // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
+  const gearDCdA = genGearCdADelta(S, S.geom.semi);
+  cda.fusCdA[0] += gearDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -9421,7 +10627,7 @@ function genParams(S, fr, strips) {
     // sets it — so the fleet reads the registry exactly as before.
     prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
     substeps: genSubsteps(fr.nodes, fr.beams),
-    polarWing, polarTail,
+    polarWing, polarTail, polarFin,
     elevTau, rudTau, ailTau, downwash: 0.40,
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
@@ -9431,7 +10637,7 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, plant: pl },
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, plant: pl },
   };
 }
 // ============================================================
@@ -10377,6 +11583,28 @@ function genProbeAt(sim, V, a) {
   return r;
 }
 
+// G115 — THE FIN EXISTS NOW (the review's sharpest finding: "probe() returns
+// yawLeft and nothing in the repo ever reads it; the fin is the one major
+// surface the player can size with no consequence and no readout"). A
+// sideslip probe at cruise speed, a small beta either side, and the
+// WEATHERVANE STIFFNESS is the slope — normalised to Cn_beta on wing area
+// and span: the directional analogue of the static margin. Positive is
+// stable (nose swings back into the wind); the sign convention is verified
+// against the whole fleet in tools/_yaw_probe.js.
+function genYawStiff(sim, def, V) {
+  const bet = 0.06;
+  const yaw = b => sim.probe(
+    [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
+  const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
+  const g = def.params.gen || {};
+  const Sw = g.Sw || 10, b = Math.sqrt(Sw * (g.AR || 6));
+  // minus: with this velocity construction the whole fleet measures a
+  // NEGATIVE slope when stable (verified in tools/_yaw_probe.js — every
+  // fiche and the stock build), so the sign is flipped once, here, and
+  // stable reads positive the way the static margin does.
+  return -dN / (0.5 * RHO * V * V * Sw * b);
+}
+
 // Free-air CLmax by alpha sweep — the same scan GATE FLAPS runs on the fleet.
 // `flap` is the deflection to hold during the sweep, so one function measures
 // both the clean and the flapped maximum.
@@ -10640,15 +11868,21 @@ function genTORunAt(sim, def, W) {
     const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
     sRoll += Vi * (Vun / NS) / ai;
   }
-  // AIR SEGMENT, unstick to 2.5 m. NOT a climb at a settled speed — the
-  // aeroplane is accelerating and climbing at once, and how much of the
-  // surplus goes into height rather than into speed is an aeroplane-by-
-  // aeroplane thing: measured 23 m on the cub against 101 m on the garage
-  // preset, for the same 2.5 m. So it is carried as a fraction of the roll
-  // rather than modelled, at 0.8 — above the worse of the two measured ratios
-  // (0.53 gen, 0.18 cub), because this number's whole job is to be long.
-  // Reads 320 m against the preset's 292 m flown.
-  return { TORun: Math.round(1.8 * sRoll), Vun };
+  // AIR SEGMENT, unstick to 2.5 m — DERIVED now (G115; the review's S7: the
+  // flat 0.8·roll padding told a 6 m/s climber and a 0.5 m/s climber the
+  // same story). The aeroplane is accelerating AND climbing at once, so the
+  // segment is an energy height — the 2.5 m of clearance PLUS the kinetic
+  // climb from unstick to the screen speed — divided by the specific excess
+  // thrust measured at the mid-speed, in this sim's own air. The gradient
+  // floor is the flyable bar's own scale: below it the aeroplane is not
+  // leaving, and the ROLL rejection is the number that matters.
+  const W2 = W, Vscr = 1.15 * Vun;
+  const rm = genProbeAt(sim, 1.10 * Vun, 0.06);
+  const grad = Math.max(0.015,
+    (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
+  const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
+  return { TORun: Math.round(sRoll + air), Vun, sRoll: Math.round(sRoll),
+           air: Math.round(air) };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -10656,7 +11890,7 @@ function genTORunAt(sim, def, W) {
 // Works on ANY fiche, generated or hand-written — the geometry-only fields are
 // skipped when there is no spec. That is deliberate: the garage's numbers have
 // to be comparable with the fleet's, or they mean nothing.
-function genShakedown(def) {
+function genShakedown(def, opts) {
   const S = def.spec, P = def.parts;
   const g = def.params.gen || {};
   const sim = makeSim(def, null);
@@ -10753,10 +11987,15 @@ function genShakedown(def) {
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
     noseOver,
-    Vs: g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
+    // G115: the DISPLAYED stall is the measured one — same instrument as
+    // VsFlap and VsRatio below, so the three cells finally agree. The
+    // analytic g.Vs keeps deriving the AP's speed ladder, unchanged.
+    Vs: g.VsMeas ?? g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    // G115: the directional half of the balance story, measured the same way
+    cnBeta: genYawStiff(sim, def, V),
     TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
     stabTrim: def.params.stabTrim,
     // CAN IT FLY A CIRCUIT AT ALL — reported, never enforced, exactly like
@@ -10835,6 +12074,12 @@ function genShakedown(def) {
     out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (RHO * cl.Sw * Math.max(1e-6, cl.CLmax)));
     out.VAppr = def.params.ap.VAppr;
   }
+  // (G115 tried a flapless fallback here — VsFlap = Vs, ratio 1 — and GATE
+  // GEN's own contract threw it out: ABSENCE is the declared signal for "no
+  // high-lift device", and a fabricated ratio-one row is exactly the kind of
+  // number-that-means-nothing this chantier exists to remove. One instrument
+  // applies WHERE THE DEVICE EXISTS; where it does not, the honest cell is
+  // no cell.)
   if (P && P.ledger) {
     out.ledger = P.ledger;
     out.cost = 0;
@@ -10855,6 +12100,25 @@ function genShakedown(def) {
       out.cost += e.cost;
       if (e.payload) out.payload += e.mass; else out.empty += e.mass;
     }
+  }
+  // G121 (the review's B5): THE SHEET AT RESERVES. Every number above is
+  // quoted at one mass — full tanks — and with a nose or outboard tank the
+  // static margin genuinely MOVES as fuel burns; when burn arrives, a
+  // single-number plaque would be the new lie. The reserve sheet is the
+  // SAME airframe re-fed with 15% fuel: the RESOLVED spec goes back through
+  // buildGen, and because every derived field is non-null now, the geometry
+  // and the gear stay exactly where the full-tanks design put them — only
+  // the fuel kilos differ, which is precisely what "at reserves" means.
+  // Slim recursion: the reserve sheet does not itself carry one.
+  if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
+    try {
+      const rs = JSON.parse(JSON.stringify(S));
+      rs.fuel.litres = Math.max(4, 0.15 * rs.fuel.litres);
+      const rsh = genShakedown(buildGen(rs), { slim: true });
+      out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
+                      staticMargin: rsh.staticMargin,
+                      climbRate: rsh.climbRate, wingLoad: rsh.wingLoad };
+    } catch (e) {}
   }
   return out;
 }
@@ -10914,9 +12178,17 @@ function buildGen(specIn) {
     params.ap.VAppr *= r;
     params.ap.VApprShort *= r;
     params.gen.VsFlap = VsFlap;
+    params.gen.VsMeas = VsClean;          // G115: the MEASURED clean stall
     params.gen.aStallLdg = g.aStall;
   } else {
-    params.gen.VsFlap = params.gen.Vs;
+    // G115 (the review's S8): the plaque used to show an ANALYTIC Vs beside a
+    // MEASURED VsFlap — two instruments in adjacent cells, and their ratio
+    // disagreed with the displayed VsRatio. The measured clean stall is kept
+    // for DISPLAY; `gen.Vs` stays the analytic number the whole AP speed
+    // ladder is derived from, so nothing flies differently.
+    params.gen.VsMeas = Math.sqrt(2 * gClean.W /
+                        (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+    params.gen.VsFlap = params.gen.VsMeas;
     params.gen.aStallLdg = gClean.aStall;
   }
   genTrim(def);
@@ -11295,5 +12567,124 @@ function makeLoadTest(sim, def, cfg) {
   return { step: step, state: state, stations: st, semi: semi, W: W,
            limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
 }
+// ===========================================================================
+// THE PLAYER — the player's property as ONE document, one key, one version.
+// ===========================================================================
+// HANGARS.md §7: the shed's state lived in browser prefs, which is exactly
+// the defect G105 fixed for the aeroplane — a pref cannot be saved, shared or
+// reasoned about, and the moment there is more than one hangar a pref cannot
+// hold them at all. This document holds what the player OWNS: today the sheds
+// and the wallet, and nothing else needs to yet.
+//
+// ITS VERSION IS ITS OWN. G105's ruling, applied in reverse: state that is
+// not the aeroplane costs no spec version, so GEN_SPEC_V does not know this
+// file exists. PLAYER_V has its own migrator table, its own walk (the byte
+// shape of genMigrateSpec's), and its own vintage shelf — GATE PLAYER loads
+// tools/fixtures/player_*.json forever, because ruling 4 holds for property
+// the way it holds for builds.
+//
+// RESERVED FOR P6: `fleet` and `logs`. The fleet is rows of named aeroplanes
+// with plaques, logbooks, hours and wear — the same sentence as the sheds —
+// and when it moves in, the lift from the flydiy.build.* slots is
+// PLAYER_MIGRATORS' first real entry beside a frozen v1 fixture, NOT a second
+// container. (The slot store itself may well stay underneath as the file
+// cabinet — per-item envelopes, individually shareable; this document is the
+// ledger of ownership, not the filing.)
+//
+// The name is `player`, not `estate` — ROADMAP G77.1 already spends "free
+// estate" on screen real-estate, and this is property, not pixels.
+const PLAYER_V = 1;
+
+// { fromVersion: doc => doc } — each entry lifts a document one version. May
+// mutate and return its argument. Runs BEFORE normalisation, on the raw
+// shape the old game actually saved. EMPTY until a field changes UNITS, SIGN
+// or HOME; the mechanism exists before its first real entry so that entry
+// lands in an exercised, gated machine (GATE PLAYER injects a throwaway
+// migrator, runs the walk, and removes it — G106's idiom).
+const PLAYER_MIGRATORS = {};
+
+function playerMigrate(r) {
+  if (!r || typeof r !== 'object') return r;
+  const v = r.v;
+  if (typeof v !== 'number' || !isFinite(v)) return r;
+  if (v >= PLAYER_V) return r;              // current, or from the future
+  for (let i = Math.floor(v); i < PLAYER_V; i++)
+    if (PLAYER_MIGRATORS[i]) r = PLAYER_MIGRATORS[i](r) || r;
+  r.v = PLAYER_V;
+  return r;
+}
+
+// A FACTORY, not a shared const: the viewer mutates the live document, and a
+// shared default object would be mutated with it. The default shed is the
+// club at its own dims with the full fit-out — which is exactly the room the
+// game has always shown. `dims`, `parts` and `name` are OPTIONAL and absent:
+// absent means DERIVED (the shell's defaults), the same null-means-derived
+// ruling the spec lives by.
+function playerDefault() {
+  return {
+    what: 'flydiy-player', v: PLAYER_V,
+    wallet: 0,
+    sheds: {
+      HOME: {
+        shell: 'club',
+        kits: (typeof HANGAR_KITS_DEFAULT !== 'undefined'
+               ? HANGAR_KITS_DEFAULT.slice()
+               : ['park', 'bench', 'wood', 'metal', 'store', 'handling',
+                  'office', 'comfort', 'curio', 'wip']),
+      },
+    },
+  };
+}
+
+// Fills what is missing, carries what is present VERBATIM. Unknown shed ids
+// are preserved (a newer game's meadow shed must survive a round trip through
+// this one), unknown fields ride along untouched for the same reason.
+function playerNormalise(r) {
+  const def = playerDefault();
+  if (!r || typeof r !== 'object') return def;
+  r.what = 'flydiy-player';
+  if (typeof r.v !== 'number' || !isFinite(r.v)) r.v = PLAYER_V;
+  if (typeof r.wallet !== 'number' || !isFinite(r.wallet)) r.wallet = 0;
+  if (!r.sheds || typeof r.sheds !== 'object') r.sheds = def.sheds;
+  if (!r.sheds.HOME || typeof r.sheds.HOME !== 'object')
+    r.sheds.HOME = def.sheds.HOME;
+  const h = r.sheds.HOME;
+  if (typeof h.shell !== 'string') h.shell = 'club';
+  if (!Array.isArray(h.kits)) h.kits = def.sheds.HOME.kits;
+  return r;
+}
+
+// THE ONE-TIME LIFT: the two old pref values (already parsed, or null) into
+// a fresh v1 document. Pure, so the gate proves it without a browser. Dims
+// carry only their three finite keys; parts carry verbatim — clamping stays
+// a write-time concern (setDims), the same division of labour as the prefs
+// had. flydiy.hangarMobile and flydiy.hangarEnvSrc are NOT lifted: view
+// state never flies, and view state is not property (G106).
+function playerLift(dims, parts) {
+  const doc = playerDefault();
+  if (dims && typeof dims === 'object') {
+    const d = {};
+    for (const k of ['HW', 'HD', 'EAVE'])
+      if (typeof dims[k] === 'number' && isFinite(dims[k])) d[k] = dims[k];
+    if (Object.keys(d).length) doc.sheds.HOME.dims = d;
+  }
+  if (parts && typeof parts === 'object' && Object.keys(parts).length)
+    doc.sheds.HOME.parts = JSON.parse(JSON.stringify(parts));
+  return doc;
+}
+
+// THE COMPOSITION RULE. The SITE keeps position and class-default dims (the
+// declaration both scenes are gated against); the PLAYER's shed record owns
+// the player's own dims; the renderer composes, per key, so the building you
+// taxi past and the room you stand in are the same size by construction —
+// which 25_airfield.js's header always claimed and the pref split silently
+// broke: dragging the sliders resized the room and left the world's shed at
+// the declaration.
+function playerShedDims(doc, id, site) {
+  const s = doc && doc.sheds && doc.sheds[id];
+  const d = (s && s.dims) || {};
+  const h = (site && site.hangar) || {};
+  return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+}
 if (typeof module !== 'undefined')
-  module.exports = { ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, RHO, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

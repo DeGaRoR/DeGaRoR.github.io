@@ -2055,7 +2055,17 @@ function cageRims(m, S) {
     // itself is final geometry (never subdivided): section radius is the
     // real radius, and the section centre sits ON the surface so half the
     // tube is buried — only the outer half shows (user spec).
-    const r = kind === 'door' ? W.rim * 0.85 : W.rim;
+    // THE DOOR'S GAP IS ITS OWN NUMBER NOW (user, 2026-08-31: "the door gap
+    // is too small, so the door is almost invisible. Let's increase that, and
+    // have a slider for it too"). It was `rim * 0.85` — a hard-coded factor
+    // with no reason recorded, giving ~10 mm at the stock `rimW` and half of
+    // that buried, since the bead's centre sits ON the surface by design.
+    // `doorRim` is an absolute width because that is what the user is reading
+    // — millimetres round a door — and it is claimed by the DOOR in the part
+    // table, not by `joints`, which is why the control that already existed
+    // was unfindable from the thing it controls.
+    const r = kind === 'door' ? (W.doorRim > 0 ? W.doorRim : W.rim * 0.85)
+                              : W.rim;
     // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
     // elbows): corners sharper than ~35 deg are Chaikin-cut into two
     // points a small way down each arm — a physical seal rounds its
@@ -2727,7 +2737,24 @@ function cageInterior(m, S) {
     // inset instead: the panel sits just behind the back end of the
     // pillarCabin, toward the tail, flat and vertical regardless of the
     // aft shoulder.
-    const SETB = 0.010;
+    // WHERE ALONG THE PILLAR (user, 2026-08-31: "the z position of the aft
+    // bulkhead should be adjustable within the width of the corresponding
+    // pillar"). The panel has always sat a fixed 10 mm behind the cabin-side
+    // face of the aft pax pillar; `bulkZ` slides it through that pillar's own
+    // thickness, as a FRACTION of it, so the row keeps its meaning when the
+    // pillar is made wider or narrower — the idiom `paxPillarW` and
+    // `cabPillarW` already use. 0 is the position it has always had.
+    //
+    // THE BOUND IS THE PILLAR, and it is the right bound rather than a
+    // convenient one: outside `[zPaxA, zPaxB]` the panel leaves the never-cut
+    // `pillarPassenger` band and lands in a lofted bay, where the cabin-side
+    // cycle it is built from does not exist. `room` is the half-pillar less
+    // the panel's own thickness (BTH, 5 mm, declared below where it is used)
+    // and the 10 mm base setback, so the slider's ends stay INSIDE the band.
+    const PW = Math.max(0, I.paxPillarW || 0);
+    const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
+    const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
+    const SETB = 0.010 + bz * room;
     const INS = (I.pillars && cons !== 'tube' ? (I.shellT || 0.035) : 0)
               + 0.008;
     let bcx = 0, bcy = 0;
@@ -5298,8 +5325,18 @@ function cageWindows(m, S) {
     };
     const r0 = mkRing(g0, 0), r1 = mkRing(g1, dp);
     for (const [, [a, b]] of dir) {
-      add.push({ v: [a, b, r0.get(b), r0.get(a)], m: 'body' });
-      add.push({ v: [r0.get(a), r0.get(b), r1.get(b), r1.get(a)], m: 'body' });
+      // MARKED AS REVEAL. These two bands lie at the SAME field coordinate
+      // as the skin face they surround — the reveal insets along the outward
+      // normal, not across the surface — so a fitting site resolved by field
+      // lookup hits three faces where the aeroplane has one surface, and GATE
+      // FIT reads that as "the table wants 1 but the skin offers 3". It is 176
+      // checks with the reveal on, and it is why `winFrameW` could not simply
+      // be defaulted to a non-zero number. The mark is the fix: a 16 mm ring
+      // round a window is not somewhere a fuel cap goes, so `_fit_site.js`
+      // skips it and the outermost skin stays the one surface a site lands on.
+      add.push({ v: [a, b, r0.get(b), r0.get(a)], m: 'body', reveal: 1 });
+      add.push({ v: [r0.get(a), r0.get(b), r1.get(b), r1.get(a)],
+                 m: 'body', reveal: 1 });
     }
     for (const f of zoneFaces)
       add.push({ v: f.v.map(vi => r1.get(vi)),
@@ -5487,6 +5524,13 @@ function cageSubdivide(m) {
       if (f.win) nf.win = 1;
       if (f.door) { nf.door = 1; if (f.doorKey) nf.doorKey = f.doorKey; }
       if (f.capFace) nf.capFace = 1;
+      // THE REVEAL MARK RIDES THE SUBDIVISION, and forgetting that is how the
+      // first attempt at this failed silently: cageWindows runs INSIDE
+      // buildCage2, the mesh is subdivided twice afterwards, and a face field
+      // this loop does not name is simply gone by the time _fit_site.js looks
+      // for it. GATE FIT stayed red at exactly 176 WITH the mark in place,
+      // which is what "the mark never arrived" looks like from outside.
+      if (f.reveal) nf.reveal = 1;
       NF.push(nf);
     }
   });
@@ -5711,10 +5755,39 @@ const CAGE_PARAMS = {
   // the "passenger pillar" so the deck curve runs continuously to the
   // tail (user ask); the boom inherits the lifted aperture.
   ringNoseTop: 0, aftRingNoseTop: -1, aftRingNoseBot: -1,
+  // THE REVEAL STAYS OFF BY DEFAULT, and this is a measured decision rather
+  // than the old silence. The user asked for the real recess (2026-08-31) and
+  // it is REACHABLE now — `winFrameW` and `winDepth` are rows, `doorDepth` is
+  // a row under the door — but switching it on globally turns GATE FIT red on
+  // 176 checks: cageWinFrames raises a TRIPLE RING round every glazed zone,
+  // and the fitting placer reads those rings as extra skin, so a fitting the
+  // resolves to three sites.
+  //
+  // WHERE THAT GOT TO (2026-08-31, and it is half solved): the bands are
+  // MARKED now (`reveal: 1`), the mark is carried through cageSubdivide —
+  // which is where the first attempt silently lost it, leaving the gate at
+  // exactly 176 with the fix apparently in place — and _fit_site.js prefers
+  // real skin over them, falling back to them only where they are the sole
+  // body-material surface, which is the inside of a window frame and where
+  // "no site at all" is the worse answer. GATE FIT: 176 red -> 22.
+  //
+  // THE 22 THAT REMAIN ARE NOT THE BANDS. They are `oatProbe` resolving to
+  // three sites that are all GENUINE skin, so the reveal is changing the
+  // FIELD — the sL/sC the lookup searches — and not merely adding faces.
+  // GATE SURF goes red with it too, which points the same way. That is a
+  // question about cageWindows's own vertex field and it is the chantier
+  // this needs; until it is answered the recess is a choice, not a default.
+  // Everything above is inert at winFrameW 0, so none of it costs anything
+  // while it waits.
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
-  doorDepth: 0.008,
+  // THE DOOR'S OWN GAP and the REVEAL it sits in. `winFrameW` gates the whole
+  // frame/recess pass (cageWinFrames returns immediately at 0), so `doorDepth`
+  // and `winDepth` were dark from the day they were written — no rows, and
+  // nothing to switch them on. The user asked for the real recess knowing it
+  // changes every window on every build.
+  doorDepth: 0.020, doorRim: 0.020, bulkZ: 0,
   // DOOR REMOVED (G26.4): the door is DEFINED (jambs, sills, broken
   // longeron runs — all built) but the panel itself is deleted after
   // the cut, leaving the open doorway. Needs cutParts on.
@@ -6131,7 +6204,7 @@ function cageSpec(P) {
   }
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
-            doorDepth: P.doorDepth, rim: P.rimW,
+            doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
@@ -6203,6 +6276,9 @@ function cageSpec(P) {
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
                  pillars: P.intPillars ? 1 : 0,
+                 // the aft bulkhead's own station, and the pillar that bounds
+                 // it — the panel needs BOTH, and the width is resolved above
+                 bulkZ: P.bulkZ || 0, paxPillarW: S.paxPillarW,
                  skinT: skinTv,
                  cons: consG,
                  // the SECTION MODEL: one technique per {boom|pax|

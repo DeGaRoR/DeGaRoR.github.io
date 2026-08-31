@@ -150,7 +150,58 @@
     camera.lookAt(target);
   }
 
-  const WF = buildWorldScene(scene, world, renderer, camera);
+  // ---- prefs, and the player's own document --------------------------------
+  // The guarded-LS trio lives ABOVE the world build so the player's document
+  // can be read before anything is standing: the world's shed takes its size
+  // from it. (This file has warned three times that prefGet used to live in a
+  // temporal dead zone at eval; hoisting the trio here is the fix, not a
+  // fourth warning.) A viewer preference is still not part of the aeroplane —
+  // it does NOT go in the spec, so it never lands in a saved build.
+  const PREF = (() => {
+    try { return window.localStorage; } catch (e) { return null; }
+  })();
+  const prefGet = (k, d) => { try { const v = PREF && PREF.getItem(k); return v == null ? d : v; }
+                              catch (e) { return d; } };
+  const prefSet = (k, v) => { try { if (PREF) PREF.setItem(k, v); } catch (e) {} };
+
+  // THE PLAYER (HANGARS S1): the player's property as ONE document under one
+  // key — its own version and migrator walk beside the spec's (70_player.js).
+  // flydiy.hangarDims / flydiy.hangarParts are LIFTED once into it and never
+  // written again; the old keys stay in place (an older cached build may
+  // still read them) but this build's write path is the document alone. View
+  // state — hangarMobile, hangarEnvSrc, garageMood, groundShadow — stays a
+  // pref: view state never flies, and view state is not property (G106).
+  const PLAYER_KEY = 'flydiy.player';
+  let player = null;
+  function playerLoad() {
+    if (player) return player;
+    let doc = null;
+    try { doc = JSON.parse(prefGet(PLAYER_KEY, 'null')); } catch (e) {}
+    if (!doc) {                              // the one-time lift
+      let dims = null, parts = null;
+      try { dims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); } catch (e) {}
+      try { parts = JSON.parse(prefGet('flydiy.hangarParts', 'null')); } catch (e) {}
+      doc = playerLift(dims, parts);
+    }
+    player = playerNormalise(playerMigrate(doc));
+    // persist what the first load decided — a lift that is only re-run every
+    // boot would keep reading prefs that may go stale under it, and a
+    // migrated document should not need migrating twice
+    playerSave();
+    return player;
+  }
+  function playerSave() { if (player) prefSet(PLAYER_KEY, JSON.stringify(player)); }
+  const shedHome = () => playerLoad().sheds.HOME;
+
+  // THE WORLD'S SHED IS THE PLAYER'S SHED (HANGARS S1). The site declares
+  // where it stands and what the class measures; the player's record carries
+  // what the sliders made of it; the composition is handed in — the record
+  // is passed rather than looked up, G123's own ruling — so the building you
+  // taxi past and the room you stand in are the same size by construction.
+  const WF = buildWorldScene(scene, world, renderer, camera,
+    Object.assign({ shell: shedHome().shell },
+      playerShedDims(playerLoad(), 'HOME',
+        (typeof siteOf === 'function') ? siteOf('HOME') : null)));
 
   // ================= THE GARAGE'S OWN SCENE =================
   // The editor and the simulation are two different places, and this is what
@@ -266,12 +317,15 @@
   // line runs at module eval, which is inside its temporal dead zone
   let envSource = 'room';
   let mobileOn = true;
-  // THE SHED'S OWN SIZE (G53). A viewer preference like the mood, not part of
-  // the aeroplane: half-width, half-depth and eaves height in metres. null
-  // means "whatever genHangarBuild's own default is", which is what a fresh
-  // profile gets. Read at first build — prefGet is declared further down.
-  let hangarDims = null;
-  const DIM_LIMS = { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
+  // THE SHED'S OWN SIZE (G53, rehomed by HANGARS S1). Half-width, half-depth
+  // and eaves height in metres, and PROPERTY now, not a preference: it lives
+  // on the player's shed record (playerLoad), absent meaning "whatever the
+  // shell's own default is", which is what a fresh profile gets. The envelope
+  // the sliders may drag over is the SHELL's (26_hangar_fit.js) — a timber
+  // field shed's eave floor is below a steel shed's.
+  const dimLims = () => (typeof shellLims === 'function')
+    ? shellLims(shedHome().shell)
+    : { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
   let envRT = null, envPM = null;
   // whether the aeroplane contributes to the room's own reflection probe. Off
   // is correct (see the bake) and is the default; the switch is for tests.
@@ -279,6 +333,10 @@
   // line runs at module eval, which is inside its temporal dead zone. The
   // file already carries that warning twice; this is the third time it bit.
   let craftInProbe = false;
+  // the sky's own PMREM, kept beside envPM and disposed on the same discipline:
+  // PMREMGenerator.dispose() frees its ping-pong target, never the one it hands
+  // back, and a mood change re-bakes.
+  let skyPM = null;
   function bakeHangarEnv() {
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
     // the bake has to happen under the room's OWN lighting model, or the
@@ -392,6 +450,33 @@
       if (envPM && envPM !== rt) envPM.dispose();
       envPM = rt;
     }
+    // ---- THE OUTDOORS IS LIT BY THE SKY, NOT BY THE SHED (G123) ----------
+    // scene.environment is one texture for the whole room, and the room's is a
+    // cube probe taken INSIDE it: warm sheet steel, warm lamps, a warm floor.
+    // Every surface the garage added outside the door — apron, taxiway, strip,
+    // field and the grass tufts — was picking that up, and a neutral concrete
+    // slab standing in daylight rendered brown because of it.
+    //
+    // A per-material envMap overrides scene.environment, so the outdoor list
+    // the room declares gets a PMREM of the SKY instead. When the room is
+    // already using the sky as its environment there is nothing to do and the
+    // same target is reused rather than baked twice.
+    if (hangar.outdoorMats && hangar.outdoorMats.length) {
+      let srt = skyReady ? rt : null;
+      if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
+        const pm2 = new THREE.PMREMGenerator(renderer);
+        pm2.compileEquirectangularShader();
+        srt = pm2.fromEquirectangular(sky);
+        pm2.dispose();
+        if (skyPM && skyPM !== srt) skyPM.dispose();
+        skyPM = srt;
+      }
+      for (const m of hangar.outdoorMats) {
+        if (!m) continue;
+        m.envMap = srt ? srt.texture : null;
+        m.needsUpdate = true;
+      }
+    }
     pm.dispose();
     renderer.physicallyCorrectLights = physWas;
     // the equirect is a data-URI image and decode is asynchronous: a 'sky' bake
@@ -414,11 +499,18 @@
     if (typeof genHangarBuild !== 'function' ||
         !genHangarSupported(THREE)) return null;
     try {
-      if (hangarDims === null) {
-        try { hangarDims = JSON.parse(prefGet('flydiy.hangarDims', 'null')); }
-        catch (e) { hangarDims = null; }
-      }
-      hangar = genHangarBuild(THREE, hangarDims || undefined);
+      const shed = shedHome();
+      // THE ROOM IS HANDED THE AERODROME (G123). Its outdoors is the base
+      // field — the same apron, taxiway and strip the world scene lays down —
+      // and the runway comes from the registry record rather than from a
+      // second copy of the numbers. hangar.js has no world of its own, so the
+      // record is passed rather than looked up; without it the room simply
+      // draws no strip, the way it draws no props without the library. The
+      // KITS ride in the same way (HANGARS S2): the player's shed record says
+      // what the room is equipped with, and the fit engine does the placing.
+      hangar = genHangarBuild(THREE, shed.dims || undefined,
+        { home: world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0],
+          kits: shed.kits, shell: shed.shell });
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;
@@ -448,12 +540,17 @@
       if (hangar.onSkyReady) hangar.onSkyReady(() => bakeHangarEnv());
       bakeHangarEnv();
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
-      // the part system (G41): restore every part's saved dress with the
-      // room. One JSON pref, whole-state.
+      // the part system (G41, rehomed by HANGARS S1): the shell's default
+      // dress first, then every part's saved dress off the player's record —
+      // a class default the player's own choices always win over.
       if (hangar.setPart) {
-        let saved = {};
-        try { saved = JSON.parse(prefGet('flydiy.hangarParts', '{}')) || {}; }
-        catch (e) {}
+        const shellRec = (typeof SHELLS !== 'undefined' && SHELLS[shed.shell])
+          ? SHELLS[shed.shell] : null;
+        if (shellRec && shellRec.skin)
+          for (const k in shellRec.skin)
+            hangar.setPart(k, Object.assign({ rough: 1, nrm: 1 },
+                                            shellRec.skin[k]));
+        const saved = shed.parts || {};
         for (const k in saved) hangar.setPart(k, saved[k]);
       }
       // the daylight card fed the bake as the door's big soft source;
@@ -503,25 +600,29 @@
   function setDims(d) {
     const cur = (hangar && hangar.dims) ? hangar.dims : {};
     const next = { HW: cur.HW, HD: cur.HD, EAVE: cur.EAVE };
-    for (const k in DIM_LIMS)
+    const L = dimLims();
+    for (const k in L)
       if (d && typeof d[k] === 'number')
-        next[k] = Math.max(DIM_LIMS[k][0], Math.min(DIM_LIMS[k][1], d[k]));
-    hangarDims = next;
-    prefSet('flydiy.hangarDims', JSON.stringify(next));
+        next[k] = Math.max(L[k][0], Math.min(L[k][1], d[k]));
+    const shed = shedHome();
+    shed.dims = next;
+    playerSave();
     disposeHangar();
     if (inGarage) applyEnv();
+    // the world's shed follows the same record, live — dragging the slider
+    // resizes the building you will taxi past, not just the room you are in
+    if (WF && WF.setShedDims)
+      WF.setShedDims(Object.assign({ shell: shedHome().shell },
+        playerShedDims(player, 'HOME',
+          (typeof siteOf === 'function') ? siteOf('HOME') : null)));
     return getHangar() ? hangar.dims : null;
   }
 
   // ---- which room, and its mood -------------------------------------------
-  // A viewer preference, not part of the aeroplane: it does NOT go in the spec,
-  // so it never lands in a saved build or a shared design.
-  const PREF = (() => {
-    try { return window.localStorage; } catch (e) { return null; }
-  })();
-  const prefGet = (k, d) => { try { const v = PREF && PREF.getItem(k); return v == null ? d : v; }
-                              catch (e) { return d; } };
-  const prefSet = (k, v) => { try { if (PREF) PREF.setItem(k, v); } catch (e) {} };
+  // The prefs trio (PREF/prefGet/prefSet) lives at the top of the function
+  // now, above the world build — the player's document is read before the
+  // first scene stands. The rule it carried is unchanged: a viewer preference
+  // is not part of the aeroplane and never lands in a saved build.
   // THE ROOM IS NO LONGER A CHOICE (G78, design option 9b) and no longer has
   // an alternative to fall back to either — see the studio's obituary above.
   // how many moods there could be before the room has been built and can say.
@@ -606,7 +707,8 @@
     if (!hangar || !hangar.parts) return;
     const all = {};
     for (const p of hangar.parts) all[p.key] = hangar.partState(p.key);
-    prefSet('flydiy.hangarParts', JSON.stringify(all));
+    shedHome().parts = all;          // property, not a pref (HANGARS S1)
+    playerSave();
   };
   window.GARAGE_ENV = {
     // dev-only: reach the room's internals from the console
@@ -621,8 +723,71 @@
     },
     // the shed's own size, in metres, and the envelope it may be dragged over
     dims: () => (getHangar() && hangar.dims) ? hangar.dims : null,
-    dimLimits: () => DIM_LIMS,
+    dimLimits: () => dimLims(),
     setDims: setDims,
+    // THE SHELL (HANGARS S2/S3): what the building IS. Choosing one adopts
+    // its class dims explicitly (the sliders then start from there) and
+    // rebuilds; the player's per-part dress carries over — their choices
+    // always win over a class default.
+    shells: () => (typeof SHELLS !== 'undefined')
+      ? Object.keys(SHELLS).map(k => ({ key: k, name: SHELLS[k].name,
+                                        status: SHELLS[k].status }))
+      : [],
+    shell: () => shedHome().shell,
+    setShell: k => {
+      if (typeof SHELLS === 'undefined' || !SHELLS[k] ||
+          SHELLS[k].status !== 'live') return null;
+      const shed = shedHome();
+      if (shed.shell === k) return k;
+      shed.shell = k;
+      shed.dims = Object.assign({}, SHELLS[k].dims);
+      playerSave();
+      disposeHangar();
+      if (inGarage) applyEnv(); else getHangar();
+      if (WF && WF.setShedDims)
+        WF.setShedDims(Object.assign({ shell: shedHome().shell },
+          playerShedDims(player, 'HOME',
+            (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+      return shed.shell;
+    },
+    // THE FIT-OUT (HANGARS S2): which kits stand in the room. A toggle is a
+    // rebuild — the setDims idiom, and the same cost. `park` is the shed
+    // itself and is not offered as a checkbox.
+    kits: () => {
+      if (typeof HANGAR_KITS === 'undefined') return [];
+      const on = new Set(shedHome().kits);
+      return HANGAR_KITS_DEFAULT.filter(k => k !== 'park')
+        .map(k => ({ key: k, name: HANGAR_KITS[k].name, on: on.has(k) }));
+    },
+    setKit: (k, on) => {
+      if (typeof HANGAR_KITS === 'undefined' || !HANGAR_KITS[k] ||
+          k === 'park') return null;
+      const shed = shedHome();
+      const cur = new Set(shed.kits);
+      if (on !== false) cur.add(k); else cur.delete(k);
+      shed.kits = HANGAR_KITS_DEFAULT.filter(x => cur.has(x) || x === 'park');
+      playerSave();
+      disposeHangar();
+      if (inGarage) applyEnv(); else getHangar();
+      return shed.kits.slice();
+    },
+    // what the last build could not place, and never silently (§4.3)
+    fitReport: () => (getHangar() && hangar.fitReport)
+      ? hangar.fitReport : null,
+    // the verbs this shed has earned — derived, advisory, never enforced
+    caps: () => (typeof hangarCaps === 'function')
+      ? hangarCaps(shedHome()) : [],
+    // ...and what the current BUILD wants of one, read off its resolved
+    // spec's declared constructions (HANGARS S5). The engineer's handbook,
+    // never a guardrail: nothing anywhere enforces this (P5 owns that
+    // ruling, and an unconsidered enforcement is a game nobody can play).
+    wants: () => {
+      try {
+        const R = (window.GARAGE_SPEC && window.GARAGE_SPEC.resolved)
+          ? window.GARAGE_SPEC.resolved() : null;
+        return (R && typeof hangarWants === 'function') ? hangarWants(R) : [];
+      } catch (e) { return []; }
+    },
     // the mobile kit: where it stands, and whether it stands at all
     mobile: () => (getHangar() && hangar.mobile) ? hangar.mobile() : [],
     mobileShown: () => mobileOn,
@@ -1053,6 +1218,13 @@
               // and no caller ever passed it, so the far flank was mirrored
               // about the wrong axis on everything that flew.
               wing: m.wing || 0,
+              // the dialled deviations (G113): tile/roughness/normal
+              // multipliers, the tail's metric rib pitch and the part's own
+              // ageing rate — absent means the finish's defaults, exactly
+              // as in the editor. Without these a dialled section flew with
+              // the factory numbers.
+              tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
+              ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }
       const s = PBR[mn] || PBR._;
@@ -2436,6 +2608,26 @@
     R('static margin', n1(s.staticMargin, 2),
       (s.staticMargin || 0) < 0 ? 'bad'
         : (s.staticMargin || 0) < 0.05 ? 'warn' : '');
+    // G115: the directional half, at last — the fin was the one surface with
+    // no readout. Measured Cn_beta (weathervane stiffness): the stock build
+    // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
+    // swaps ends. Fin AREA and fin HEIGHT both move it now.
+    if (s.cnBeta != null)
+      R('weathervane', n1(s.cnBeta, 3),
+        (s.cnBeta || 0) < 0 ? 'bad' : (s.cnBeta || 0) < 0.03 ? 'warn' : '');
+    // G121: the sheet AT RESERVES — the same airframe with 15% fuel. The
+    // static margin is the row this group exists for: with a nose or
+    // outboard tank it genuinely moves as the fuel goes, and a plaque that
+    // quotes one mass would be lying the day burn arrives.
+    if (s.reserve) {
+      H('at reserves (' + n1(s.reserve.litres, 0) + ' L)');
+      R('all-up', n1(s.reserve.mass, 0) + ' kg');
+      R('stall', n1(s.reserve.Vs * 3.6, 0) + ' km/h');
+      R('static margin', n1(s.reserve.staticMargin, 2),
+        (s.reserve.staticMargin || 0) < 0 ? 'bad'
+          : (s.reserve.staticMargin || 0) < 0.05 ? 'warn' : '');
+      R('climb', n1(s.reserve.climbRate, 2) + ' m/s');
+    }
     H('on the ground');
     R('stands on', s.onWheels ? 'its wheels' : (s.restsOn || '—'),
       s.onWheels ? '' : 'bad');
@@ -3463,6 +3655,15 @@
       showCage = !on && !!window.CAGE_UI && inGarage;
       applyStand();
     },
+    // THE CERTIFICATE PERSISTS (G107.3): the two sheets only a test run can
+    // produce, handed to the bench for its stored snapshot — and seeded back
+    // on restore, memoised onto the CURRENT def so the plaque's gating
+    // (daFor === def, tfFor === def) accepts them as this aeroplane's own.
+    sheets: () => ({ densAlt: densAltIfRun(), flight: tfIfRun() }),
+    restoreSheets: sh => {
+      if (sh && sh.densAlt) { daVal = sh.densAlt; daFor = def; }
+      if (sh && sh.flight) { tfVal = sh.flight; tfFor = def; }
+    },
     // THE TEST FLIGHT (G107): the offscreen fast circuit on the test pilot;
     // the bench's card ({alt, Vkmh}) rides in (G107.1)
     circuitStart: card => tfStart(card),
@@ -3659,6 +3860,13 @@
     // more, and it is what lets the old generated skin stop being a thing the
     // game can fall back into.
     syncBuild();
+    // THE CERTIFICATE SURVIVES THE REFRESH (G107.3). The boot seed above is
+    // a dirty storm like any load — and the bench's rule (an empty bench
+    // never nulls the store) is what let the WIP's stored plaque live
+    // through it. Restore comes LAST, same as garage.js loadSpec does it.
+    if (typeof window.BENCH_RESTORE === 'function' && window.GARAGE_SPEC
+        && window.GARAGE_SPEC.plaque)
+      window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
   } catch (err) {
     console.error('cage boot:', err);
     try { const sel = $('selAc'); if (sel) sel.value = 'pa18';

@@ -49,11 +49,14 @@ function makeSim(def, world) {
   bSpan = Math.max(0.1, bSpan * 2);
 
   function reset(drop = 0) {
+    totalM = 0;                    // G121: masses may have changed (setNodeMass)
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
       v[i*3] = v[i*3+1] = v[i*3+2] = 0;
       m[i] = nd.m; r[i] = nd.r;
+      totalM += nd.m;
+      rigGround(i, nd.m);          // hoisted; reset only ever runs post-build
     }
     for (const b of beams) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
@@ -284,7 +287,10 @@ function makeSim(def, world) {
         P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
-        P = P_.polarTail;
+        // G115: the fin flies its OWN polar when the def declares one (the
+        // generator does, from the real fin aspect ratio); the fleet's
+        // fiches never set polarFin, so the fallback keeps them bit-exact.
+        P = P_.polarFin || P_.polarTail;
       }
       // ground effect (wing strips only; tail excluded — honest cut):
       // McCormick sigma = (16h/b)^2 / (1 + (16h/b)^2)
@@ -351,17 +357,42 @@ function makeSim(def, world) {
     blob(def.refs.fusDragAft, P_.fusCdAAft);
   }
 
-  const G = -9.81, DEFDAMP = 0.5;
+  // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
+  // (tools/_yaw_probe.js runs free-yaw decay at two settings), not for play.
+  // No fiche and no generated build sets it, so everything flies 0.5 as ever.
+  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const mi = def.nodes[i].m;
+  // G121: the per-node rig is a FUNCTION now, because a node's mass can
+  // change (fuel burns; the sanctioned door is setNodeMass below) and the
+  // ground spring plus its critical-damping companion must follow the mass
+  // they carry, or the landing rollout at reserves rides constants rigged
+  // for full tanks. Identical arithmetic to the old loop.
+  function rigGround(i, mi) {
     // light nodes: Cub/drone-calibrated regime (unchanged); heavy nodes keep scaling
     KGn[i] = mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi;
     CGn[i] = 1.6 * Math.sqrt(KGn[i] * mi);
     KTn[i] = Math.min(2.2e4, 2e5 * mi);
     CTn[i] = Math.min(40, 300 * mi);
+  }
+  for (let i = 0; i < n; i++) rigGround(i, def.nodes[i].m);
+
+  // G121 — THE SANCTIONED MASS DOOR (the review's B1/B3, built BEFORE the
+  // energy arc's burn so it cannot be built wrong). `m[]` was always exposed
+  // and mutating it directly was always possible — and always wrong: totalM
+  // was summed once at construction, and it is the divisor under the
+  // mass-weighted mean velocity that alpha, vs, DEFDAMP's rigid mean, the
+  // probe CG and cgPos/cgVel are all built on. Drain fuel behind its back
+  // and ALPHA ITSELF corrupts — an invisible drag and rate damper that grow
+  // as the tanks empty, and nothing NaNs. This door keeps every consumer
+  // honest: the sum, the ground rig, nothing else touched. Burn calls this;
+  // nothing else writes m[].
+  function setNodeMass(i, kg) {
+    if (!(i >= 0 && i < n) || !(kg > 0.01)) return;
+    totalM += kg - m[i];
+    m[i] = kg;
+    rigGround(i, kg);
   }
 
   function trqOf() {
@@ -417,9 +448,34 @@ function makeSim(def, world) {
         const hL = Math.hypot(hx, hz) || 1e-9; hx/=hL; hz/=hL;
         const lx = -hz, lz = hx;
         const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
-        const muR = CRR + (isMain ? ctl.brake * MU_BRAKE : 0);
-        const kR = Math.min(muR * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
-        const kL = Math.min(MU_LAT * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
+        // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
+        // biome classifier with the aerodrome strips folded in (measured: 5
+        // at Morford's pavement, 0 at HOME); classes without a row read the
+        // grass row, which equals the classic constants — so HOME, the
+        // calibration datum, is unchanged to the last bit.
+        const su = world && world.surface
+          ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
+          : GROUND_DEF;
+        const muR = su[0] + (isMain ? ctl.brake * su[1] : 0);
+        // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
+        // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
+        // was never physical rolling — and it turned out to be load-bearing
+        // as the PLACEMENT-BOUNCE damper: at Morford the fleet's Cub, given
+        // pavement's 0.02 in that regime, kept 2.5x less rock damping than
+        // the grass the settle was calibrated on and flipped onto its back
+        // in 1.7 s, parked, on flat ground (measured; XCTY3 caught it). So
+        // the creep regime damps at least at the grass datum on EVERY
+        // surface — bit-identical at HOME, where muR == CRR — and the true
+        // surface coefficient applies from 0.2 m/s up, which is where the
+        // takeoff run, the brakes and the surface honesty actually live.
+        // 0.5 m/s, not the 0.2 regularization floor: the placement-bounce
+        // ROCKING measured 0.1-0.3 m/s fore-aft at the wheels, just above
+        // 0.2 — the band must cover the whole settle/rock regime. Costs a
+        // paved takeoff under a metre (it passes 0.5 m/s in the first
+        // second); HOME remains bit-identical (muR == CRR there).
+        const muRe = Math.abs(vr_) < 0.5 ? Math.max(muR, CRR) : muR;
+        const kR = Math.min(muRe * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
@@ -550,7 +606,12 @@ function makeSim(def, world) {
   }
   function axes() { bodyAxes(); return [xAft.slice(), yUp.slice(), zRt.slice()]; }
 
-  return { p, v, m, r, beams, n, ctl, out, totalM,
+  // G121: totalM is a GETTER — it was a copied value, so a mass change via
+  // setNodeMass would have been invisible to every external reader (the
+  // autopilot's taxi feedforward, the shakedown's weights). Same number as
+  // ever for anything that never changes mass; nothing writes it.
+  return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+           setNodeMass,
            reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            setAtmos, atmos: airOf, thrustAt, probeAir };
 }

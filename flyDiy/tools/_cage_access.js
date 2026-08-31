@@ -68,6 +68,34 @@ const accDef = {
 };
 PAGE.defaults = Object.assign(accDef, PAGE.defaults || {});
 
+// THE NUDGES, GENERATED FROM THE DECLARED TABLE (user, 2026-08-31: "There
+// should be options for fine tuning the position of accessories").
+//
+// Nothing about a fitting's placement was adjustable — GEN_ACCESS is 19 rows
+// each carrying an `at(R)`, and the panel offered the five family switches and
+// one fastener-density slider and nothing else. Two rows per fitting is 38
+// rows, which is the honest answer and the one `eng_*` already lives with; the
+// alternative designs (a picker plus two sliders, a per-family offset) each
+// trade a real capability for a shorter list.
+//
+// They are GENERATED from GEN_ACCESS's own keys rather than typed out, so a
+// row added to the table gets its nudges for free and a row removed cannot
+// leave an orphan behind. They are EXPERT-level and grouped by family, so the
+// panel is unchanged until somebody goes looking.
+//
+// THE UNITS ARE THE TABLE'S OWN, which is the whole reason this is cheap:
+// `sL` is metres aft of the firewall and `lv` is a RAIL INDEX (0 keel, 2
+// waist, 4 ceiling, 5 roof), so `along` is a length and `around` is a rail
+// offset. The nudge is added BEFORE `snap` runs, which is what makes a nudge
+// on a ring-snapped fitting step ring by ring instead of sliding off its frame.
+const accFitKeys = () => {
+  const T = (typeof GEN_ACCESS !== 'undefined') ? GEN_ACCESS : window.GEN_ACCESS;
+  return T ? Object.keys(T) : [];
+};
+const ACC_KEYS = accFitKeys();
+for (const k of ACC_KEYS) { accDef['acc_' + k + '_sL'] = 0;
+                            accDef['acc_' + k + '_lv'] = 0; }
+
 const GROUP = ['9 · fittings', [
   ['accOn', 'access layer', 0, 1, 1, ['off', 'on']],
   ['families', [
@@ -81,6 +109,9 @@ const GROUP = ['9 · fittings', [
     ['accDetail', 'fastener density', 0.4, 2, 0.05, { when: P => +P.accOn }],
   ], { when: P => +P.accOn }],
 ], 'open'];
+// one subgroup per family, filled after FAMILY is declared (below) so the two
+// tables cannot disagree about which fitting belongs where
+GROUP[1].push(['fine placement', [], { when: P => +P.accOn, level: 'expert' }]);
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
 // which family a row belongs to — declared here rather than in the table,
@@ -96,6 +127,31 @@ const FAMILY = {
   beacon: 'accAerials',
   step: 'accHandling', grabHandle: 'accHandling', tieDownTail: 'accHandling',
 };
+
+// ---- and now the nudge rows, one pair per declared fitting ----------------
+// Built here because FAMILY is what decides the grouping and it is declared
+// just above; the group itself was pushed with the rest of the panel so its
+// position in the tree is not an accident of load order.
+{
+  const bin = {};
+  for (const k of ACC_KEYS) (bin[FAMILY[k] || 'accOn'] || (bin[FAMILY[k] || 'accOn'] = [])).push(k);
+  const NAME = { accFluids: 'fuel & oil', accAccess: 'inspection',
+                 accInstr: 'instruments', accAerials: 'aerials & lights',
+                 accHandling: 'steps & handles', accOn: 'unfamilied' };
+  const host = GROUP[1][GROUP[1].length - 1][1];
+  const T = (typeof GEN_ACCESS !== 'undefined') ? GEN_ACCESS : window.GEN_ACCESS;
+  for (const fam of Object.keys(bin)) {
+    const rows = [];
+    for (const k of bin[fam]) {
+      const label = (T && T[k] && T[k].name) ? T[k].name : k;
+      rows.push(['acc_' + k + '_sL', label + ' — along', -1.5, 1.5, 0.01,
+                 { dim: 'm' }]);
+      rows.push(['acc_' + k + '_lv', label + ' — around', -2, 2, 0.05]);
+    }
+    host.push([NAME[fam] || fam, rows,
+               { when: P => +P.accOn && +(P[fam] === undefined ? 1 : P[fam]) }]);
+  }
+}
 
 // the fastener pitch each construction actually uses, so a screwed panel on an
 // alloy aeroplane carries alloy's own row rather than a chosen number. Read
@@ -163,9 +219,16 @@ function cowlSite(row, P) {
   if (!CW || !CC || !CC.face || !CW.surfPoint || !CW.zEnd) return null;
   const zEnd = CW.zEnd();
   if (!(zEnd > 1e-4)) return null;
-  const th = (row.at.az == null ? 122 : row.at.az) * Math.PI / 180;
+  // ON A COWL the table speaks {frac, az} instead of {sL, lv} — a fraction
+  // along the cowl and a section angle — so the same two nudges mean the same
+  // two things in the units this surface uses: `along` shifts the fraction,
+  // `around` the angle. 0.20 m and 20 deg per unit keeps the row's own range
+  // sensible against a cowl that is under half a metre long.
+  const dF = (+P['acc_' + row.key + '_sL'] || 0) / Math.max(0.05, zEnd);
+  const dA = (+P['acc_' + row.key + '_lv'] || 0) * 20;
+  const th = ((row.at.az == null ? 122 : row.at.az) + dA) * Math.PI / 180;
   const z = zEnd * Math.min(0.96, Math.max(0.04,
-    row.at.frac == null ? 0.45 : row.at.frac));
+    (row.at.frac == null ? 0.45 : row.at.frac) + dF));
   const at3 = (t, zz) => {
     const q = CW.surfPoint(t, zz);
     return q && isFinite(q[0]) ? [q[0], q[1], zz] : null;
@@ -333,6 +396,14 @@ PAGE.post = ctx => {
     // would put every wing fitting on an aeroplane of the wrong size — which
     // on the default build, where planeScale is 1, looks exactly correct.
     const K2 = row.on === 'body' ? FS : 1;
+    // THE USER'S OWN OFFSET, in the table's own units and applied BEFORE the
+    // snap — so a nudge on a `ring`-snapped fitting steps ring by ring and a
+    // nudge on a `rail`-snapped one steps rail by rail, instead of sliding it
+    // off the structure the snap exists to put it on. Absent rows read 0.
+    const dSL = +P['acc_' + row.key + '_sL'] || 0;
+    const dLV = +P['acc_' + row.key + '_lv'] || 0;
+    const atSL = row.at.sL + dSL;
+    const atLV = (typeof row.at.lv === 'number') ? row.at.lv + dLV : row.at.lv;
     let sites;
     if (row.on === 'cowl') {
       const one = cowlSite(row, P);
@@ -340,15 +411,15 @@ PAGE.post = ctx => {
     } else if (row.on === 'wing') {
       if (!wingTried) { wingTried = true; wingF = wingField(scene); }
       sites = wingF ? SITE.accessSites(wingF, {
-        sL: row.at.sL, lv: row.at.lv, sC: row.at.sC,
+        sL: atSL, lv: atLV, sC: row.at.sC,
         snap: row.snap, side: row.side, allow: ['wing'],
       }) : [];
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is
       // metres and is. See UNITS at the top of this file.
       sites = SITE.accessSites(mesh, {
-        sL: row.at.sL / K2,
-        lv: row.at.lv,
+        sL: atSL / K2,
+        lv: atLV,
         sC: row.at.sC != null ? row.at.sC / K2 : undefined,
         snap: row.snap, side: row.side,
       });

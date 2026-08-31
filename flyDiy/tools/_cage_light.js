@@ -116,7 +116,21 @@ const defaults = { lightOn: 1, lightSw: 1,
   // far aft the cut reaches, depth how deep the box behind it is, and size
   // scales the lamp inside.
   li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13, li_bayDepth: 0.06,
-  li_lampSize: 1.0, li_beaconRpm: LIGHTS.beacon.rpm };
+  li_lampSize: 1.0, li_beaconRpm: LIGHTS.beacon.rpm,
+  // THE FAIRING'S SHAPE, for every lamp that wears one. `li_lampSize` scaled
+  // the LAMP; these two scale the pod around it, which is the other half of
+  // "more options for the lights geometry in general" (user, 2026-08-31).
+  li_podLen: 1.0, li_podGirth: 1.0,
+  // HOW DEEP THE BEACON SITS IN THE FIN. 0.5 is the old straddle — centre ON
+  // the fitted top line, so half the fairing is inside the fin and its inner
+  // faces render through the surface (measured: 619 of 633 beacon vertices
+  // inside the fin's own 44 mm slab, buried up to 221 mm). 0 sits it on top.
+  li_beaconSink: 0.16,
+  // THE WINGTIP NAV, which was five inline literals and no rows at all.
+  li_navSpan: 0.02, li_navChord: 0.10, li_navRise: 0.0,
+  // the reflector inside a lit fitting glows (user: "it feels strange to have
+  // this reflector full dark with a lit bulb in it")
+  li_reflect: 1 };
 for (const k of EXT) defaults['li_' + k] = 0;
 for (const k of INT) defaults['li_' + k] = 0;
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
@@ -141,7 +155,23 @@ const items = [
     ['li_bayDepth', 'lamp setback', 0.03, 0.28, 0.005, { dim: 'm' }],
     ['li_lampSize', 'lamp size', 0.4, 1.8, 0.05],
   ], { when: P => +P.lightOn }],
+  // EVERY FAIRING, not one row per lamp: the same economy GEN_ACCESS applies
+  // to its own fittings. Three knobs across all of them, not fifteen.
+  ['lamp fairings', [
+    ['li_podLen',   'fairing length',  0.5, 2.0, 0.05],
+    ['li_podGirth', 'fairing girth',   0.6, 1.8, 0.05],
+    ['li_reflect',  'reflector glows', 0, 1, 1],
+  ], { when: P => +P.lightOn }],
+  ['the navigation lights', [
+    ['li_navSpan',  'inboard from the tip', 0.00, 0.30, 0.005, { dim: 'm' }],
+    ['li_navChord', 'aft of the leading edge', 0.00, 0.40, 0.005, { dim: 'm' }],
+    ['li_navRise',  'up / down in the section', -1, 1, 0.05],
+  ], { when: P => +P.lightOn && +P.li_nav }],
   ['the beacon', [
+    // 0.5 is the old behaviour: the fairing's centre ON the fin's top edge,
+    // so half of it is inside the fin. The user reported the consequence as
+    // the red light rendering THROUGH the dorsal fin.
+    ['li_beaconSink', 'sunk into the fin', 0, 0.5, 0.01],
     // 0 parks the mirror and the beacon burns steady, which is also what an
     // aeroplane with a failed beacon motor looks like
     ['li_beaconRpm', 'rotation', 0, 120, 1, { dim: 'rpm' }],
@@ -183,6 +213,35 @@ function lensMat(key, level, colOver) {
   m.userData.aeroskin = 1;
   return (emMats[id] = m);
 }
+// THE REFLECTOR IS LIT BY THE BULB IT SURROUNDS (user, 2026-08-31: "is it
+// possible to set the inside reflector of the ceiling lamps use an emitting
+// material when turned on? Now it feels strange to have this reflector full
+// dark with a lit bulb in it").
+//
+// It is the lodge's own alloy, plus an emissive term driven by the SAME
+// `level(P, key)` every lens already reads, so one dimmer moves both and they
+// cannot disagree. Deliberately much weaker than the lens: a reflector is lit
+// BY the lamp, it is not the lamp — at parity the cup reads as a second bulb
+// and the fitting loses its shape.
+//
+// NOT an AERO_HARD change: `AERO_HARD.light` is `{lodge, seal}` and adding a
+// third name there would make every layer that reads the table carry a
+// finish for something that is a lighting state, not a material.
+const cupMats = {};
+function cupMat(level, colOver, on) {
+  const lv = on ? level : 0;
+  const col = colOver != null ? colOver : 0xfff0d8;
+  const id = lv.toFixed(2) + '|' + col;
+  if (cupMats[id]) return cupMats[id];
+  const row = MAT.lodge;
+  const m = new THREE.MeshStandardMaterial({
+    color: row.col, roughness: row.rough, metalness: row.metal,
+    emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55,
+    side: THREE.DoubleSide });
+  m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
+  return (cupMats[id] = m);
+}
+
 const bodyMats = {};
 function hwMat(kind) {
   if (bodyMats[kind]) return bodyMats[kind];
@@ -578,8 +637,19 @@ function lampFit(q, pf, setback) {
 //
 // So the inverse of the group's own world matrix is taken once, and every
 // point that comes out of a bound or a vertex goes through it.
-function sites(scene, group) {
+function sites(scene, group, P) {
   const out = {};
+  P = P || {};
+  // the placement rows this function reads, clamped once at the top so a
+  // stale save cannot reach the geometry below as a NaN
+  const num = (k, d, lo, hi) => {
+    const v = +P[k];
+    return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
+  };
+  const beaconSink = num('li_beaconSink', 0.16, 0, 0.5);
+  const navSpan = num('li_navSpan', 0.02, 0, 0.30);
+  const navChord = num('li_navChord', 0.10, 0, 0.40);
+  const navRise = num('li_navRise', 0, -1, 1);
   group.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
   const V = new THREE.Vector3();
@@ -701,18 +771,27 @@ function sites(scene, group) {
     // against the tip's own 52 mm and a chord of 1.04 m against 0.43. A
     // fairing sized from it is more than twice the fitting the tip can carry,
     // and it hangs below the wing (G100).
-    const tipR = slice(wb.max.x - 0.03, 0.04), tipL = slice(wb.min.x + 0.03, 0.04);
+    // `li_navSpan` replaces the 0.03 literal: how far INBOARD of the tip the
+    // section is sampled. The 0.04 tolerance stays a tolerance — it is the
+    // width of the sampling band, not a placement.
+    const tipR = slice(wb.max.x - navSpan - 0.01, 0.04),
+          tipL = slice(wb.min.x + navSpan + 0.01, 0.04);
     // THE LIGHT SITS AT THE TIP'S LEADING EDGE — forward, because being seen
     // from ahead is the entire purpose of a navigation light.
     // and each one carries the SIZE OF THE SURFACE IT SITS ON, so the fitting
     // can be shaped to a tip rather than stuck on it as a disc (G100)
     const tipLen = t => t ? Math.max(0.12, (t.zLE - t.zTE) * 0.45) : 0.20;
-    const tipY = t => t ? (t.y0 + t.y1) / 2 : 0;
-    if (tipR) out.navR = { p: [wb.max.x - 0.02, tipY(tipR), tipR.zLE - 0.10],
+    // `li_navRise` moves the lamp within the section's OWN thickness rather
+    // than by an absolute distance, so it means the same thing on a 52 mm tip
+    // and a 126 mm one: -1 the lower surface, 0 the mid-thickness, +1 the upper.
+    const tipY = t => t ? (t.y0 + t.y1) / 2 + navRise * (t.y1 - t.y0) * 0.5 : 0;
+    if (tipR) out.navR = { p: [wb.max.x - navSpan, tipY(tipR),
+                               tipR.zLE - navChord],
                            ax: [1, 0, 0], col: 0x18e04a, chord: [0, 0, -1],
                            len: tipLen(tipR), thick: tipR.y1 - tipR.y0,
                            pod: true, noseLens: true };
-    if (tipL) out.navL = { p: [wb.min.x + 0.02, tipY(tipL), tipL.zLE - 0.10],
+    if (tipL) out.navL = { p: [wb.min.x + navSpan, tipY(tipL),
+                               tipL.zLE - navChord],
                            ax: [-1, 0, 0], col: 0xff2a1e, chord: [0, 0, -1],
                            len: tipLen(tipL), thick: tipL.y1 - tipL.y0,
                            pod: true, noseLens: true };
@@ -788,12 +867,17 @@ function sites(scene, group) {
       if ((ch.name || '').indexOf('cageLayer:fin') !== 0) continue;
       const t = topSlice(ch, inv);
       if (!t) continue;
-      // laid along the fitted edge, and STRADDLING it: the fairing's centre is
-      // ON the line, so half of it is inside the fin — which is where the
-      // bracketry of a real one goes.
+      // laid along the fitted edge, and SEATED on it: `sink` says how much of
+      // the fairing stays inside the fin. It used to straddle unconditionally
+      // — centre ON the line, half the pod inside — and with DoubleSide on
+      // both the lodge and the lens that reads as the red light showing
+      // through the fin, which is what the user reported.
       const m = t.slope, k = Math.hypot(1, m);
+      // `sink` replaces the straddle. The comment above described the old
+      // behaviour and its reason ("which is where the bracketry of a real one
+      // goes") — true of the BRACKETRY, and the fairing is not bracketry.
       out.beacon = { p: [0, t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
-                     chord: [0, -m / k, -1 / k],
+                     chord: [0, -m / k, -1 / k], sink: beaconSink,
                      len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true };
     }
   }
@@ -801,17 +885,92 @@ function sites(scene, group) {
     const A = C.A;
     const seats = C.seatsAt || [];
     const pilot = seats.find(s => s.pilot) || seats[0];
+    // THE CEILING IS MEASURED, NOT ASSUMED (user, 2026-08-31: "The interior
+    // lights should indeed be on the ceiling, but right now they stick to the
+    // wing... it should stick to the top of the fuselage, preferably on a
+    // structural element, oriented correctly").
+    //
+    // WHAT THE REPORT IS, exactly: `A.roofY` is `spec.cabin.roofY`, a pure
+    // fuselage number, and there is no wing-relative cabin-lamp anchor
+    // anywhere in this file. But on a HIGH wing `yAnchor = deckY + 0.01`
+    // (_cage_wing.js) puts the wing AT the deck — measured on the stock build,
+    // roofY 0.607 against yAnchor 0.632, twenty-five millimetres apart — so a
+    // roof lamp and the wing are in the same place and the lamp reads as hung
+    // off the wing. It is not attached to it and never was.
+    //
+    // The fix is not a different number, it is a MEASUREMENT: ask the cage for
+    // the ceiling it actually built over this seat, the way the wing lamps ask
+    // the wing about itself, and hang the lamp from that with its axis along
+    // the surface's own inward normal. Then it is right for a high wing, a low
+    // wing and a parasol without knowing which it is on.
+    const ceilAt = (x, z) => {
+      const M = window.CAGE_UI && window.CAGE_UI.MS;
+      if (!M || !M.V || !M.F) return null;
+      const k = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) *
+                ((window.CAGE_UI.P && window.CAGE_UI.P.planeScale) || 1);
+      // the CEILING is the interior's own liner where there is one and the
+      // skin's roof band otherwise — both are named, so neither is guessed
+      const ROOF = { ceilingLoop: 1, body: 1, plywood: 1, cloth: 1,
+                     composite: 1, toele: 1, waistband: 1 };
+      // A CEILING FACES DOWN AND IS IN THE UPPER HALF OF THE CABIN. Both
+      // halves are needed and the first cut had neither: filtering only on
+      // "above the waist" and taking the LOWEST match returned a face 34 mm
+      // over the waist rail — a cabin SIDE, 573 mm below the roof line — and
+      // the lamp would have been mounted on the wall.
+      const hi = (A.waistY + A.roofY) / 2;
+      const near = [];
+      for (const f of M.F) {
+        if (!ROOF[f.m] || f.v.length < 3) continue;
+        let cx = 0, cy = 0, cz = 0;
+        for (const vi of f.v) {
+          cx += M.V[vi][0]; cy += M.V[vi][1]; cz += M.V[vi][2];
+        }
+        cx = cx / f.v.length * k; cy = cy / f.v.length * k;
+        cz = cz / f.v.length * k;
+        if (cy < hi) continue;                       // not in the roof half
+        const d = Math.hypot(cx - x, cz - z);
+        if (d > 0.45) continue;                      // near this seat, not the whole tube
+        // the face's own normal, so a high SIDE panel cannot pass for a roof
+        const a = M.V[f.v[0]], b = M.V[f.v[1]], c = M.V[f.v[2]];
+        const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+        const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+        const ny = uz * vx - ux * vz;
+        const nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
+        if (!(nl > 1e-12) || Math.abs(ny / nl) < 0.55) continue;
+        near.push({ y: cy, x: cx, z: cz });
+      }
+      if (!near.length) return null;
+      // THE CROWN FIRST, THEN THE LINER UNDER IT. Taking the LOWEST qualifying
+      // face was the first cut and it was wrong twice over: `body` is the whole
+      // fuselage skin, not just its roof, so a high SIDE panel qualifies, and
+      // the lowest of those sat 269 mm under the roof line — the lamp would
+      // have been screwed to the cabin wall. The crown is unambiguous; the
+      // liner, when the interior built one, is the first surface under it.
+      let crown = -1e9;
+      for (const q of near) if (q.y > crown) crown = q.y;
+      let best = null;
+      for (const q of near)
+        if (q.y > crown - 0.06 && (!best || q.y < best.y)) best = q;
+      return best;
+    };
     if (pilot) {
-      // the flood is in the ROOF over the pilot, aimed down
-      out.flood = { p: [pilot.x, A.roofY - 0.03, pilot.zBack + 0.12],
-                    ax: [0, -1, 0] };
+      // the flood is in the ROOF over the pilot, aimed down. `ceilAt` when the
+      // cage can be asked; the spec's roof line when it cannot (the bench
+      // builds this layer with no cage mesh in the page).
+      const cl = ceilAt(pilot.x, pilot.zBack + 0.12);
+      out.flood = { p: [pilot.x, (cl ? cl.y : A.roofY) - 0.03,
+                        pilot.zBack + 0.12],
+                    ax: [0, -1, 0], onCeiling: !!cl };
       // the pedalier lights are under the coaming, aimed into the footwell
       out.pedal = { p: [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
     }
     // the passenger lights are over every seat that is not the pilot's
-    out.pax = seats.filter(s => !s.pilot).map(s =>
-      ({ p: [s.x, A.roofY - 0.03, s.zBack + 0.10], ax: [0, -1, 0] }));
+    out.pax = seats.filter(s => !s.pilot).map(s => {
+      const cl = ceilAt(s.x, s.zBack + 0.10);
+      return { p: [s.x, (cl ? cl.y : A.roofY) - 0.03, s.zBack + 0.10],
+               ax: [0, -1, 0], onCeiling: !!cl };
+    });
     // the panel lights are IN THE COAMING LIP, shining down onto the
     // instruments — which is the realistic answer and the reason the lip had
     // to be measured for the panel in the first place.
@@ -856,13 +1015,21 @@ PAGE.post = (ctx) => {
   group.name = 'cageLayer:light';
   scene.add(group);
 
-  const S = sites(scene, group);
+  const S = sites(scene, group, P);
   const drawn = {};
   const sizeK = Math.max(0.2, +P.li_lampSize || 1);
+  const lenK = Math.max(0.2, +P.li_podLen || 1);
+  const girthK = Math.max(0.2, +P.li_podGirth || 1);
+  const reflectOn = P.li_reflect == null ? 1 : (+P.li_reflect ? 1 : 0);
   const lamp = (key, site, colOver) => {
     const L = LIGHTS[key], lv = level(P, key);
     const col = colOver != null ? colOver : L.col;
     const r = (site.r || L.w / 2) * sizeK;
+    // WHERE THE FITTING ACTUALLY ENDED UP. A pod that is seated rather than
+    // straddling moves its own origin, and the ROTOR has to move with it or
+    // the mirror sweeps inside the fin while the dome stands on top of it.
+    // Defaults to the site so every other installation is unchanged.
+    let seat = site.p;
     // A LAMP IS THREE THINGS, and leaving any of them out is what makes one
     // read as a sticker: the LODGE it sits in, the JOINT that fairs it to the
     // skin, and the LENS.
@@ -877,6 +1044,8 @@ PAGE.post = (ctx) => {
     // RIM round the cut, and the glass belongs to the wing.
     const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
     const lens = Bag(lensMat(key, lv, col));
+    // the reflector: the lodge's alloy, lit by the bulb it surrounds
+    const cup = Bag(cupMat(lv, col, reflectOn));
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
@@ -891,36 +1060,49 @@ PAGE.post = (ctx) => {
                      site.p[2] - site.ax[2] * r * 1.42],
               [r * 1.5, r * 0.22, r * 0.5]);
     } else if (site.pod) {
+      // SEATED, NOT STRADDLING (2026-08-31). See `seat` below.
       // ON A THIN SURFACE: a teardrop fairing sized from the surface itself,
       // with the glass on top of it. NO GASKET PLATE — `boxInto` builds an
       // AXIS-ALIGNED box, so on a fin (which lies in the y-z plane) an 87 mm
       // square plate stood out sideways as a black square through the fin.
       // That is what the user saw on every one of these. The fairing IS the
       // joint here; there is nothing left for a plate to do.
-      const wide = Math.max(site.thick || 0.05, r * 1.30);
+      const wide = Math.max(site.thick || 0.05, r * 1.30) * girthK;
       const high = Math.max(wide * 0.85, r * 1.25);
-      const chord = site.chord || [0, 0, -1], len = site.len || r * 7;
+      const chord = site.chord || [0, 0, -1], len = (site.len || r * 7) * lenK;
+      // THE FAIRING SITS ON THE SURFACE INSTEAD OF THROUGH IT. `site.sink` is
+      // the fraction of the fairing's height that stays buried; 0.5 puts its
+      // centre ON the fitted line, which is what this did unconditionally and
+      // is why the beacon's inner faces rendered through the fin. A wingtip
+      // light keeps 0.5 on purpose — there the fairing extends OUTBOARD along
+      // its axis and there is no surface to stand on.
+      const sink = site.sink == null ? 0.5 : site.sink;
+      const lift = high * (0.5 - sink);
+      const P0 = [site.p[0] + site.ax[0] * lift,
+                  site.p[1] + site.ax[1] * lift,
+                  site.p[2] + site.ax[2] * lift];
+      seat = P0;
       if (site.noseLens) {
         // A WINGTIP LIGHT'S LENS IS THE NOSE OF THE FAIRING. Drawing a dome on
         // the pod's flank instead gives a coloured ball stuck to a tip, which
         // is what the first cut looked like — and the ball has to be as wide
         // as the declared lens, which on a 52 mm tip is the whole fitting.
         // The same body, cut at a fraction of its length, in two materials.
-        podInto(lens, site.p, chord, site.ax, len, wide, high, 14, 12, 0, 0.32);
-        podInto(lodge, site.p, chord, site.ax, len, wide, high, 14, 16, 0.30, 1);
+        podInto(lens, P0, chord, site.ax, len, wide, high, 14, 12, 0, 0.32);
+        podInto(lodge, P0, chord, site.ax, len, wide, high, 14, 16, 0.30, 1);
         // the bulb inside, on the fairing's own axis
-        revolveInto(lens, [site.p[0] - chord[0] * len * 0.16,
-                           site.p[1] - chord[1] * len * 0.16,
-                           site.p[2] - chord[2] * len * 0.16],
+        revolveInto(lens, [P0[0] - chord[0] * len * 0.16,
+                           P0[1] - chord[1] * len * 0.16,
+                           P0[2] - chord[2] * len * 0.16],
                     chord, PROF.bulb, 10, Math.min(r, high * 0.34));
       } else {
-        podInto(lodge, site.p, chord, site.ax, len, wide, high);
+        podInto(lodge, P0, chord, site.ax, len, wide, high);
         // the lamp sits ON the fairing's widest station: at 0.42 of the
         // half-height the dome's centre is still under the skin and the lens
         // reads as a flat sticker rather than as glass standing proud.
         const st = high * 0.50;
-        const q = [site.p[0] + site.ax[0] * st, site.p[1] + site.ax[1] * st,
-                   site.p[2] + site.ax[2] * st];
+        const q = [P0[0] + site.ax[0] * st, P0[1] + site.ax[1] * st,
+                   P0[2] + site.ax[2] * st];
         revolveInto(lens, q, site.ax, PROF.bulb, 14, r * 0.80);
         domeInto(lens, [q[0] - site.ax[0] * r * 0.10,
                         q[1] - site.ax[1] * r * 0.10,
@@ -929,9 +1111,21 @@ PAGE.post = (ctx) => {
       }
     } else {
       // a proud fitting on a surface with room for it: housing, then the
-      // glass seated on its shoulder, then a gasket ring under the flange —
-      // REVOLVED about the lamp's own axis, not an axis-aligned box
+      // REFLECTOR inside it, then the glass seated on its shoulder, then a
+      // gasket ring under the flange — REVOLVED about the lamp's own axis,
+      // not an axis-aligned box.
+      //
+      // THE CUP WAS MISSING FROM THIS BRANCH ENTIRELY, and that is why the
+      // ceiling flood had a bulb standing in a bare barrel. `PROF.can` is a
+      // barrel with a flange and a shoulder — a HOUSING — and `PROF.cup` (the
+      // parabolic reflector) existed but was used only by the recessed wing
+      // lamp and the beacon's rotating mirror. It goes in every proud fitting
+      // now, on its own material so it can glow with the bulb.
       revolveInto(lodge, site.p, site.ax, PROF.can, 16, r);
+      revolveInto(cup, [site.p[0] - site.ax[0] * r * 0.30,
+                        site.p[1] - site.ax[1] * r * 0.30,
+                        site.p[2] - site.ax[2] * r * 0.30],
+                  site.ax, PROF.cup, 16, r * 0.74);
       revolveInto(lens, site.p, site.ax, PROF.bulb, 14, r * 0.85);
       domeInto(lens, [site.p[0] - site.ax[0] * r * 0.06,
                       site.p[1] - site.ax[1] * r * 0.06,
@@ -942,7 +1136,7 @@ PAGE.post = (ctx) => {
                          site.p[2] - site.ax[2] * r * 0.60],
                   site.ax, PROF.gasket, 16, r);
     }
-    lodge.mesh(group); seal.mesh(group);
+    lodge.mesh(group); seal.mesh(group); cup.mesh(group);
     const o = lens.mesh(group);
     // THE MIRROR THAT MAKES IT FLASH. It is a child GROUP so that it can turn
     // while the housing and the dome stand still, and it is REAL GEOMETRY
@@ -953,7 +1147,7 @@ PAGE.post = (ctx) => {
     if (L.rotor && !site.recess) {
       const rot = new THREE.Group();
       rot.name = 'liRotor_' + key;
-      rot.position.set(site.p[0], site.p[1], site.p[2]);
+      rot.position.set(seat[0], seat[1], seat[2]);
       // the mirror's own axis is ACROSS the beacon's, which is what makes the
       // beam horizontal on a beacon whose can stands vertical
       const a2 = Math.abs(site.ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
@@ -966,7 +1160,7 @@ PAGE.post = (ctx) => {
       rotors.push({ rot, host: group, dome: o, mat: o.material,
                     base: o.material.emissiveIntensity,
                     ax: nrm(site.ax), e1: side, e2: nrm(cross(site.ax, side)),
-                    rpm: beaconRpm, p: site.p.slice() });
+                    rpm: beaconRpm, p: seat.slice() });
     }
     drawn[key] = (drawn[key] || 0) + 1;
     return o;

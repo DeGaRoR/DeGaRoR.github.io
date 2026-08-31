@@ -34,11 +34,13 @@
 // ============================================================
 function makeTestPilot(sim, def, world) {
   const A = def.params.ap;
+  // TP + G121: live mass (see the donor's note); exposed as ap.taxiFF so
+  // the mass-proofing gate can watch it follow a drained tank.
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const mkFrame = (a, sx, sz) => {
@@ -119,6 +121,7 @@ function makeTestPilot(sim, def, world) {
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   ap.reEngage = () => { pendReEng = true; };
+  ap.taxiFF = taxiFF;              // TP/G121: instrument surface
 
   // TP: THE TEST CARD (G107.1). The game imposes a card on the flight —
   // target altitude and target speed — and the pilot flies it: the card
@@ -283,7 +286,8 @@ function makeTestPilot(sim, def, world) {
 
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
-      c.thr = clamp(taxiFF + 0.06 * (Vtgt - Vg), 0, taxiFF + 0.27);
+      const ff = taxiFF();
+      c.thr = clamp(ff + 0.06 * (Vtgt - Vg), 0, ff + 0.27);
       c.brake = Vg > Vtgt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };

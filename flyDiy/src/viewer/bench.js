@@ -220,11 +220,53 @@ function benchInit(api) {
   // Every editor rebuild invalidates it. `stale` is not a third state on top
   // of the results — it IS the absence of results, so there is one place the
   // question "has this aeroplane been tested" is answered.
+  //
+  // AND IT PERSISTS (G107.3, ruling 4's last unpaid debt on this panel): the
+  // results — plus the two sheets only a test run can produce — ride in the
+  // save envelope through `GARAGE_SPEC.plaque(...)`, and come back through
+  // `BENCH_RESTORE` below. The one rule that makes this safe in a tree where
+  // loading a build FIRES THE DIRTY HOOK (applySpec, the join, the boot
+  // seed all rebuild): a dirty that arrives with NOTHING on the bench never
+  // touches the store. Withdrawal is only withdrawal when there was
+  // something to withdraw; the load path's own storms always arrive over an
+  // empty bench, so the certificate they carried survives them.
   function clearResults() {
+    const had = Object.keys(results).length > 0;
     results = {};
     api.plaque(false);
+    if (had) try {
+      if (window.GARAGE_SPEC && window.GARAGE_SPEC.plaque)
+        window.GARAGE_SPEC.plaque(null);
+    } catch (e) {}
     render();
   }
+  // ...and the other direction: every SETTLED result mirrors the bench into
+  // the store, so the envelope always says what the bench would say.
+  function persist() {
+    try {
+      const G = window.GARAGE_SPEC;
+      if (!G || !G.plaque || !Object.keys(results).length) return;
+      G.plaque({ when: new Date().toISOString().slice(0, 10),
+                 results: JSON.parse(JSON.stringify(results)),
+                 sheets: (typeof api.sheets === 'function') ? api.sheets()
+                                                            : null });
+    } catch (e) {}
+  }
+  // the load path calls this LAST, after its own dirty storm (garage.js
+  // loadSpec; app.js boot). Restoring is not running: no logbook rows, no
+  // re-persist, and never over a live test.
+  window.BENCH_RESTORE = pq => {
+    if (live) return;
+    if (!pq || !pq.results || !Object.keys(pq.results).length) return;
+    busy = true;
+    results = JSON.parse(JSON.stringify(pq.results));
+    if (typeof api.restoreSheets === 'function')
+      api.restoreSheets(pq.sheets || null);
+    api.plaque(Object.keys(results).some(id =>
+      results[id] && results[id].fills === 'plaque'));
+    busy = false;
+    render();
+  };
   // app.js labels ROLL OUT off BENCH_STATE, so it has to be told when that
   // changed rather than polling it every frame
   const changed = () => {
@@ -269,6 +311,7 @@ function benchInit(api) {
                         note: errs.join(' · ') };
       api.plaque(false);
       note(t, results[t.id]);
+      persist();
       return render();
     }
     if (t.kind === 'live') {
@@ -293,6 +336,7 @@ function benchInit(api) {
     results[t.id] = r;
     if (r.fills === 'plaque') api.plaque(true);
     note(t, r);
+    persist();
     render();
   }
 
@@ -309,6 +353,7 @@ function benchInit(api) {
     // run) — the same honour runOne has always paid its instant rows
     if (r && r.fills === 'plaque') api.plaque(true);
     note(t, r);
+    persist();
     render();
   }
 

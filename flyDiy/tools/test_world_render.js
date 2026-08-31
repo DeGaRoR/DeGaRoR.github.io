@@ -11,7 +11,8 @@
 // camera the symptom is trees silently popping out of shadow, which is exactly
 // the kind of thing an eyeball test misses.
 const path = require('path');
-const { makeWorld } = require('./flight_core.js');
+const CORE = require('./flight_core.js');
+const { makeWorld } = CORE;
 
 let ok = true, why = [];
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
@@ -191,7 +192,13 @@ global.THREE = THREE;
 
 // ---- run the real world builder -------------------------------------------
 const fs = require('fs');
-const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
+// THE SAME VIEWER PREFIX THE ARTIFACT GIVES IT (G123). render_world.js is not
+// standalone: site_ground.js is the one factory for the aerodrome's ground
+// materials, blade atlas and tufts, and the build concatenates it ahead of both
+// scenes. Evaluating them together here is what keeps this sandbox honest —
+// injecting each symbol by name would drift the moment the factory grew one.
+const vsrc = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+const src = [vsrc('site_ground.js'), vsrc('render_world.js')].join(String.fromCharCode(10));
 const scene = new Obj3(); scene.fog = null;
 const camera = new Obj3(); camera.far = 6000;
 // A renderer stub with the whole draw-state surface the two boot-time bakes
@@ -210,8 +217,23 @@ const renderer = {
 };
 let WF;
 try {
-  const factory = new Function('THREE', 'document', src + '\nreturn buildWorldScene;');
-  WF = factory(THREE, global.document)(scene, makeWorld(), renderer, camera);
+  // THE SITE IS INJECTED, the hangar and the texture payload are NOT (G123).
+  // render_world.js reads the base aerodrome out of src/core/25_airfield.js —
+  // a hard dependency in the artifact, where core is concatenated ahead of every
+  // viewer script — so this sandbox has to hand it the same symbols rather than
+  // let the airfield block throw on a bare AIRFIELD_SITE.
+  //
+  // genHangarBuild, genHangarSupported and SITE_TEX_SETS are deliberately left
+  // UNDECLARED: each is behind a `typeof ... !== 'undefined'` guard, so leaving
+  // them out is what EXERCISES the degrade paths — no exterior shell, and the
+  // flat-colour paving fallback — which is exactly the half of that code a
+  // headless gate can cover.
+  const SITE_ARGS = ['AIRFIELD_SITE', 'AIRFIELD_SITES', 'siteOf',
+                   'siteRunway', 'siteMarkers', 'sitePaintStrip'];
+  const factory = new Function('THREE', 'document', ...SITE_ARGS,
+                               src + '\nreturn buildWorldScene;');
+  WF = factory(THREE, global.document, ...SITE_ARGS.map(k => CORE[k]))
+       (scene, makeWorld(), renderer, camera);
 } catch (e) {
   console.log('world build threw:\n' + (e.stack || e).toString().split('\n').slice(0, 5).join('\n'));
   console.log('GATE WORLDRENDER: FAIL');

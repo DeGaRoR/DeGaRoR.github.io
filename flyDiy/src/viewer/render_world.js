@@ -4,7 +4,7 @@
 // returns { worldUpdate(cg) } — per-frame sun-frustum follow + cloud drift.
 // Airfield decals are scaled to the CURRENT 1100 m runway (centre x=-520,
 // thresholds +20/-1060); the physics flat pad is x in [-1180, 130].
-function buildWorldScene(scene, world, renderer, camera) {
+function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const C = h => new THREE.Color(h).convertSRGBToLinear();
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
@@ -14,6 +14,7 @@ function buildWorldScene(scene, world, renderer, camera) {
   const socks = [];                   // every windsock: { pole:[x,y,z], mesh }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
+  let setShedDims = () => {};         // HANGARS S1: re-stand the shed at new dims (airfield block)
   // W17 tree LOD uniforms, shared by every tree material and refreshed once a
   // frame in worldUpdate. uCam drives the impostor view direction (so it wants
   // the CHASE CAMERA, not the CG); uCG drives the shadow-pass cull, because the
@@ -1148,64 +1149,88 @@ function buildWorldScene(scene, world, renderer, camera) {
     }
   }
 
-  { // airfield: mown grass strip, threshold bars, markers, hangars, windsock
+  { // THE BASE AERODROME, from the ONE declaration (G123)
+    // Every number in this block used to be a literal: a 1100 x 30 strip at
+    // (-520, 0) restated by hand beside the 'HOME' record that already said
+    // so, three coloured boxes for buildings, and decals for an apron that ran
+    // under one of them and a taxiway that reached nothing. It now reads
+    // src/core/25_airfield.js - the runway derived from the registry record,
+    // the site (paving, buildings, furniture) declared once and shared with
+    // the garage, so the field you taxi on and the field you see through the
+    // hangar door cannot disagree.
+    //
     // each layer gets its own height: coplanar decals + a log depth buffer z-fight
     // lit like the terrain, so the same sun shadows fall across them
+    const SITE = siteOf('HOME');    // the registry's default (HANGARS S5)
+    const WANISO = renderer.capabilities.getMaxAnisotropy();
+    const HOME = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
+    const R = siteRunway(HOME);
     const decal = (w, h, color, y, x, z) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-        new THREE.MeshLambertMaterial({ color: C(color), depthWrite: false }));
+        new THREE.MeshLambertMaterial({ color: C(color), depthWrite: false,
+          transparent: true }));
       m.rotation.x = -Math.PI / 2;
       m.renderOrder = Math.round(y * 100);
       m.receiveShadow = true;
       m.position.set(x, y, z); scene.add(m); return m;
     };
+    // rectangles arrive as world-frame {x0,x1,z0,z1}; a decal wants centre+size
+    const decalRect = (r, color, y) => decal(Math.abs(r.x1 - r.x0), Math.abs(r.z1 - r.z0),
+      color, y, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
     { // strip + all markings baked into ONE texture on ONE plane at 2 cm:
       // the old per-marking decal stack (5..17 cm) was visibly floating and
       // buried the foam trainer (14 cm tall) under its own runway markings.
-      const RW = 4096, RH = 128;                       // 1100x30 m -> ~3.7 px/m
+      //
+      const RW = 4096, RH = 128;                       // ~3.7 px/m at 1100 x 30
       const cv2 = document.createElement('canvas'); cv2.width = RW; cv2.height = RH;
       const q = cv2.getContext('2d');
-      const u = x => (x + 1070) / 1100 * RW, vv = z => (z + 15) / 30 * RH;
-      const uw = w => w / 1100 * RW, vw = w => w / 30 * RH;
-      q.fillStyle = '#6b7a36'; q.fillRect(0, 0, RW, RH);
-      for (let i = 0; i < 7; i++) {                    // mowing stripes
-        q.fillStyle = i % 2 ? '#77873b' : '#5f6f2c';
-        q.fillRect(0, vv(-10.5 + i * 3.5 - 1.7), RW, vw(3.4));
-      }
-      q.fillStyle = '#8e9a55';                         // edge lines
-      q.fillRect(0, vv(12.5 - 0.45), RW, vw(0.9));
-      q.fillRect(0, vv(-12.5 - 0.45), RW, vw(0.9));
-      q.fillStyle = '#e9e4d6';                         // threshold bars
-      for (const tx of [25, -1065]) for (let k = 0; k < 5; k++)
-        q.fillRect(u(tx - 4.5), vv(-8 + k * 4 - 0.75), uw(9), vw(1.5));
-      q.fillStyle = '#d9d3c0';                         // centre dashes
-      for (let i = 0; i < 37; i++)
-        q.fillRect(u(5 - i * 29 - 5.5), vv(-0.3), uw(11), vw(0.6));
-      // TOUCHDOWN MARKERS (G107): the aiming point, 25% in from each
-      // threshold — one per landing direction, the way a real runway wears
-      // them. The registry's tdz is exactly this point (24_world_aero: centre
-      // + len/4 on the approach side), so the pair marks what the test pilot
-      // is actually aiming at, whichever way the wind sends it in.
-      q.fillStyle = '#efe9da';
-      for (const tx of [25 - 272.5, -1065 + 272.5]) for (const zz of [-6.5, 4])
-        q.fillRect(u(tx - 9), vv(zz), uw(18), vw(2.5));
+      // the markings are painted by the SITE, not here (G123) — the garage
+      // door looks at this same strip, and one recipe is the point.
+      // TWO LAYERS, as in the garage: scanned mown grass with the paint laid
+      // over it. One canvas of green-with-markings is a picture of a runway,
+      // and it cannot wear the grass the field beside it wears.
+      sitePaintStrip(q, R, RW, RH, true);              // marks only
       const rtex = new THREE.CanvasTexture(cv2);
       rtex.encoding = THREE.sRGBEncoding;
       rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      const strip = new THREE.Mesh(new THREE.PlaneGeometry(1100, 30),
-        new THREE.MeshLambertMaterial({ map: rtex, depthWrite: false }));
-      strip.rotation.x = -Math.PI / 2;
-      strip.position.set(-520, 0.02, 0);
-      strip.renderOrder = 2;
-      strip.receiveShadow = true;
+      const yaw = Math.atan2(-R.dz, -R.dx);
+      const mkGeo = (metric) => {
+        const g = new THREE.PlaneGeometry(R.len, R.wid);
+        if (metric) {
+          const uv = g.attributes.uv;
+          for (let i = 0; i < uv.count; i++)
+            uv.setXY(i, uv.getX(i) * R.len, uv.getY(i) * R.wid);
+          uv.needsUpdate = true;
+        }
+        g.rotateX(-Math.PI / 2);
+        // the canvas runs end1 -> end0 along local +x; turn the whole geometry
+        // so that axis IS the runway's, whatever heading the record carries
+        g.rotateY(yaw);
+        return g;
+      };
+      const gmaps = siteGroundMaps(THREE, 'grass004', 2, WANISO);
+      const base = new THREE.Mesh(mkGeo(!!gmaps), gmaps
+        ? new THREE.MeshStandardMaterial(Object.assign({
+            roughness: 1, metalness: 0, depthWrite: false, transparent: true }, gmaps))
+        : new THREE.MeshLambertMaterial({ color: C(0x6b7a36), depthWrite: false,
+            transparent: true }));
+      base.position.set(R.cx, 0.02, R.cz);
+      base.renderOrder = 2;
+      base.receiveShadow = true;
+      scene.add(base);
+      const strip = new THREE.Mesh(mkGeo(false),
+        new THREE.MeshBasicMaterial({ map: rtex, transparent: true, depthWrite: false }));
+      strip.position.set(R.cx, 0.025, R.cz);
+      strip.renderOrder = 3;
       scene.add(strip);
     }
 
     const markGeo = new THREE.BoxGeometry(0.5, 0.7, 1.6);
     const markMat = new THREE.MeshLambertMaterial({ color: C(0xe4dccb) });
-    for (let x = 10; x >= -1070; x -= 70) for (const zz of [15.5, -15.5]) {
+    for (const P of siteMarkers(HOME)) {
       const m = new THREE.Mesh(markGeo, markMat);
-      m.position.set(x, 0.35, zz); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+      m.position.set(P.x, 0.35, P.z);
+      m.castShadow = true; m.receiveShadow = true; scene.add(m);
     }
 
     const wall = C(0xcbb79a), roofc = C(0x9c5f43), trim = C(0x6d5744);
@@ -1224,29 +1249,164 @@ function buildWorldScene(scene, world, renderer, camera) {
       g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
       return g;
     };
-    building(42, 62, 15, 10, 4.4, 0.05);
-    building(66, 70, 12, 8.5, 3.9, 0.16);
-    building(16, 54, 6.5, 5.5, 2.8, -0.09, trim);
+    for (const b of SITE.buildings)
+      building(b.x, b.z, b.w, b.d, b.h, b.ry, b.trim ? trim : null);
 
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 6),
+    // THE HANGAR IS THE HANGAR (G123). Where a 15 x 10 box stood, the real
+    // shell now stands - the same genHangarBuild the garage runs, asked for
+    // its exterior: doors shut, no fittings, no interior frame, no lights of
+    // its own. Its dims are HANDED IN now (HANGARS S1): app.js composes the
+    // player's own record over the declaration — which GATE SITE still holds
+    // against hangar.js's own defaults — so the building you taxi past is
+    // the room you were just standing in, at whatever size the sliders made
+    // it. `setShedDims` re-stands it live when they move.
+    //
+    // It ASKS whether the room can be built at all, the way app.js does: a
+    // stubbed THREE is a missing building, not a crash, and the smoke gate
+    // runs with one (which also leaves shedDims undefined there — the
+    // declaration is the fallback, and SITE.hangar is a legal dims object).
+    let shedNode = null;
+    function standShed(dims) {
+      if (!(typeof genHangarBuild === 'function' &&
+            typeof genHangarSupported === 'function' &&
+            genHangarSupported(THREE))) return;
+      const H = SITE.hangar;
+      if (shedNode) {
+        // the old building comes down whole: nothing in the exterior is a
+        // shared prop geometry, and material.dispose() leaves the memoised
+        // sheet textures alone (a dispose never takes maps with it)
+        scene.remove(shedNode);
+        const mats = new Set();
+        shedNode.traverse(o => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+            .forEach(m => mats.add(m));
+        });
+        mats.forEach(m => m.dispose());
+        shedNode = null;
+      }
+      const shed = genHangarBuild(THREE,
+        dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
+        { exterior: true, shell: dims && dims.shell });
+      shed.group.traverse(o => {
+        if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      });
+
+      // AND IT HAS A DISTANCE, because it was measured. The shell is 278
+      // meshes and this scene merges and instances nothing, so meshes ARE draw
+      // calls: with the camera on the apron the frame went 834 -> 1113, and
+      // from 520 m away it went 864 -> 1143. Identically, because the airfield
+      // block has no LOD at all — you pay a third more draw calls for a shed
+      // that is thirty pixels wide.
+      //
+      // The triangles were never the problem (+3 466 on 6.86 M, 0.05%). Past
+      // 320 m the shell becomes a box and a roof prism wearing the shell's own
+      // outer materials, which is all a thirty-pixel building can show anyway.
+      // THREE.LOD switches itself inside the renderer's projectObject, so
+      // nothing here has to be driven per frame.
+      const coarse = new THREE.Group();
+      {
+        const D = shed.dims, MT = shed.mats;
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), MT.wallOut);
+        body.position.y = D.EAVE / 2;
+        // THE GABLE, WRITTEN OUT. The obvious move is a three-sided
+        // CylinderGeometry like the box buildings use, but a triangular prism
+        // has ONE radius and this roof needs a width and a ridge height that
+        // are not related by it — every way of squashing it afterwards depends
+        // on which axis survived the two rotations, and the first attempt
+        // produced a shed with no roof at all. Six vertices are unambiguous.
+        const HWo = D.HW + 0.5;
+        const rgeo = new THREE.BufferGeometry();
+        rgeo.setAttribute('position', new THREE.Float32BufferAttribute([
+          -D.HD, D.RIDGE, 0,   D.HD, D.RIDGE, 0,      // 0,1 ridge
+          -D.HD, D.EAVE, -HWo, D.HD, D.EAVE, -HWo,    // 2,3 eave -z
+          -D.HD, D.EAVE,  HWo, D.HD, D.EAVE,  HWo,    // 4,5 eave +z
+        ], 3));
+        rgeo.setIndex([
+          0, 2, 3, 0, 3, 1,      // the -z slope
+          0, 1, 5, 0, 5, 4,      // the +z slope
+          0, 4, 2,               // the gable ends
+          1, 3, 5,
+        ]);
+        rgeo.computeVertexNormals();
+        const roof = new THREE.Mesh(rgeo, MT.roofOut);
+        coarse.add(body, roof);
+        coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+      }
+      let node = shed.group;
+      if (THREE.LOD) {
+        const lod = new THREE.LOD();
+        lod.addLevel(shed.group, 0);
+        lod.addLevel(coarse, 320);
+        node = lod;
+      }
+      node.position.set(H.x, 0, H.z);
+      node.rotation.y = H.ry;
+      scene.add(node);
+      shedNode = node;
+    }
+    standShed(shedDims);
+    setShedDims = dims => standShed(dims);
+
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, SITE.windsock.h),
       new THREE.MeshLambertMaterial({ color: C(0xd8d2c4) }));
-    pole.position.set(-30, 3, 20); pole.castShadow = true; pole.receiveShadow = true; scene.add(pole);
+    pole.position.set(SITE.windsock.x, SITE.windsock.h / 2, SITE.windsock.z);
+    pole.castShadow = true; pole.receiveShadow = true; scene.add(pole);
     const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.35, 2.6, 10, 1, true),
       new THREE.MeshLambertMaterial({ color: C(0xe4622e), side: THREE.DoubleSide }));
     sock.castShadow = true; scene.add(sock);
-    socks.push({ pole: [-30, 5.5, 20], mesh: sock });   // W13: wind-driven, see setWindVis
+    // W13: wind-driven, see setWindVis
+    socks.push({ pole: [SITE.windsock.x, SITE.windsock.h - 0.5, SITE.windsock.z], mesh: sock });
 
-    const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.1),
+    // THE BOUNDARY, in runs with a gate in it. The old fence was one line from
+    // x 60 to -80 that walked straight through the taxiway.
+    const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, SITE.fence.h),
       new THREE.MeshLambertMaterial({ color: C(0x8a7457) }));
-    for (let x = 60; x >= -80; x -= 6) {
-      const p = fp.clone(); p.position.set(x, 0.55, 26);
-      p.castShadow = true; p.receiveShadow = true; scene.add(p);
-    }
+    for (const run of SITE.fence.runs)
+      for (let x = Math.max(run[0], run[1]); x >= Math.min(run[0], run[1]); x -= SITE.fence.step) {
+        const fq = fp.clone(); fq.position.set(x, SITE.fence.h / 2, SITE.fence.z);
+        fq.castShadow = true; fq.receiveShadow = true; scene.add(fq);
+      }
 
-    // apron + taxiway (kept as decals, but low — the tall stack showed)
-    decal(66, 24, 0xa89a80, 0.02, 44, 48);
-    decal(15, 40, 0xa89a80, 0.03, 40, 36);
-    decal(66, 0.5, 0x8c7f68, 0.04, 44, 36.2);
+    // THE PAVING WEARS WHAT THE GARAGE'S PAVING WEARS (G123). Geometry alone
+    // is not "kept in sync": these were flat Lambert colour (0xa89a80) while
+    // the same two rectangles seen through the hangar door were scanned
+    // concrete, so taxiing out changed the ground under the wheels. They now
+    // read the same site library, at the same tile, from the same declaration.
+    //
+    // Standard rather than Lambert, deliberately and unlike the terrain around
+    // them: r128 routes scene.environment to Standard materials only, and these
+    // are the surfaces close enough to the aeroplane for that to show.
+    // depthWrite stays off and the renderOrder stack is kept - the log depth
+    // buffer does not forgive coplanar decals whatever the material.
+    const paved = (r, key, tile, y, fallback) => {
+      const w = Math.abs(r.x1 - r.x0), d = Math.abs(r.z1 - r.z0);
+      const maps = siteGroundMaps(THREE, key, tile, WANISO);
+      if (!maps) return decalRect(r, fallback, y);     // payload-less build
+      const g = new THREE.PlaneGeometry(w, d);
+      const uv = g.attributes.uv;                      // metric, like the room
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * d);
+      uv.needsUpdate = true;
+      g.rotateX(-Math.PI / 2);
+      // TRANSPARENT, though nothing about it is see-through. The aerodrome's
+      // grass patch below it has to fade at its edges, so it IS transparent —
+      // and three draws every transparent object after every opaque one,
+      // whatever its renderOrder. Opaque paving therefore disappeared under a
+      // patch that is nominally beneath it. One sorted pass, ordered by
+      // renderOrder, is the fix; these were already depthWrite:false decals.
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial(Object.assign({
+        roughness: 1, metalness: 0.02, depthWrite: false, transparent: true }, maps)));
+      m.position.set((r.x0 + r.x1) / 2, y, (r.z0 + r.z1) / 2);
+      m.renderOrder = Math.round(y * 100);
+      m.receiveShadow = true;
+      scene.add(m);
+      return m;
+    };
+    paved(SITE.apron, 'brushed', 2, 0.02, 0xa89a80);
+    paved(SITE.taxiway, 'cracked', 4, 0.03, 0xa89a80);
+    decal(Math.abs(SITE.apron.x1 - SITE.apron.x0), 0.5, 0x8c7f68, 0.04,
+          (SITE.apron.x0 + SITE.apron.x1) / 2, Math.min(SITE.apron.z0, SITE.apron.z1) + 0.2);
 
     const prop = (geo, mat, x, y, z, ry = 0, rz = 0) => {
       const m = new THREE.Mesh(geo, mat);
@@ -1257,33 +1417,89 @@ function buildWorldScene(scene, world, renderer, camera) {
     const rust  = new THREE.MeshLambertMaterial({ color: C(0xb2653a) });
     const wood  = new THREE.MeshLambertMaterial({ color: C(0xa8834f) });
     const straw = new THREE.MeshLambertMaterial({ color: C(0xd7bf7c) });
+    const CL = SITE.clutter;
 
     const drum = new THREE.CylinderGeometry(0.31, 0.31, 0.9, 12);
-    [[28, 44.5], [28.8, 45.4], [29.6, 44.2]].forEach(([x, z], i) =>
-      prop(drum, i === 1 ? rust : steel, x, 0.45, z));
-    prop(new THREE.CylinderGeometry(0.31, 0.31, 0.9, 12), rust, 30.6, 0.31, 45.6, 0, Math.PI / 2);
+    CL.drums.forEach((d2, i) => prop(drum, i === 1 ? rust : steel, d2[0], 0.45, d2[1]));
+    prop(new THREE.CylinderGeometry(0.31, 0.31, 0.9, 12), rust,
+         CL.drumDown[0], 0.31, CL.drumDown[1], 0, Math.PI / 2);
 
     const crate = new THREE.BoxGeometry(1.1, 0.8, 1.1);
-    prop(crate, wood, 60, 0.4, 52); prop(crate, wood, 61.2, 0.4, 52.4, 0.4);
-    prop(new THREE.BoxGeometry(1.1, 0.7, 1.1), wood, 60.2, 1.15, 52.1, 0.2);
+    CL.crates.forEach(c2 => prop(crate, wood, c2[0], 0.4, c2[1], c2[2]));
+    prop(new THREE.BoxGeometry(1.1, 0.7, 1.1), wood,
+         CL.crateTop[0], 1.15, CL.crateTop[1], CL.crateTop[2]);
 
     const bale = new THREE.CylinderGeometry(0.85, 0.85, 1.3, 12);
-    [[-40, 92, 0.3], [-35, 95, 1.1], [-46, 97, 2.0], [-30, 90, 0.7]].forEach(([x, z, r]) =>
-      prop(bale, straw, x, 0.85, z, r, Math.PI / 2));
+    CL.bales.forEach(b2 => prop(bale, straw, b2[0], 0.85, b2[1], b2[2], Math.PI / 2));
 
     { // windbreak behind the hangars (well clear of the strip)
-      const tg = new THREE.ConeGeometry(1.5, 6.2, 7); tg.translate(0, 3.1, 0);
+      const T = SITE.trees;
+      const tg = new THREE.ConeGeometry(T.r, T.h, 7); tg.translate(0, T.h / 2, 0);
       const tm = new THREE.MeshLambertMaterial({ color: C(0x4a6129) });
-      for (let x = 96; x >= 4; x -= 8.5) {
-        const t = prop(tg, tm, x + (x % 3) * 0.6, 0, 88 + (x % 5) * 0.7);
+      for (let x = T.x1; x >= T.x0; x -= T.step) {
+        const t = prop(tg, tm, x + (x % 3) * 0.6, 0, T.z + (x % 5) * 0.7);
         t.scale.setScalar(0.85 + (x % 7) / 9);
       }
     }
 
     // a working windsock pole gets a guy-line stake; tie-downs on the apron
     const ring = new THREE.TorusGeometry(0.22, 0.05, 6, 10);
-    for (const [x, z] of [[36, 44], [50, 44], [43, 52]])
-      prop(ring, steel, x, 0.1, z, 0, Math.PI / 2);
+    for (const rr2 of CL.rings) prop(ring, steel, rr2[0], 0.1, rr2[1], 0, Math.PI / 2);
+
+    // ---- THE AERODROME'S OWN GROUND (G123, the user: "give the same
+    // materials to the outside game too") -------------------------------
+    // The terrain here is a baked COLOUR map — one texel per ~17 m, painted
+    // khaki by the biome pass — and the garage's field is scanned grass. So
+    // rolling out of the hangar changed the ground under the wheels, which is
+    // the same disagreement between the two scenes this whole arc exists to
+    // end, one layer down.
+    //
+    // Retexturing the terrain is not the answer: it is a 24 km streamed mesh
+    // with its own colour pipeline. What IS the answer is that the aerodrome
+    // has its own ground, the way a real one does — mown, kept, and visibly
+    // different from the country around it. So this is a bounded patch over
+    // the flat pad, wearing the SAME set the garage's field wears, faded out
+    // at its edges so it stops being there without an edge.
+    const gpad = siteGroundMaps(THREE, 'grass005', 2, WANISO);
+    if (gpad) {
+      const box = siteHangarBox(SITE.hangar);
+      const PX = (box.x0 + box.x1) / 2 - 20, PZ = 20, PW = 300, PD = 220;
+      const pg = new THREE.PlaneGeometry(PW, PD);
+      { const uv = pg.attributes.uv;                  // metric, like the room
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * PW, uv.getY(i) * PD);
+        uv.needsUpdate = true; }
+      pg.rotateX(-Math.PI / 2);
+      const pm = new THREE.MeshStandardMaterial(Object.assign({
+        roughness: 1, metalness: 0, depthWrite: false }, gpad));
+      siteEdgeFade(THREE, pm, 0.42, PW, PD);
+      const patch = new THREE.Mesh(pg, pm);
+      patch.position.set(PX, 0.012, PZ);              // under every paving decal
+      patch.renderOrder = 0;   // under every decal the airfield lays
+      patch.receiveShadow = true;
+      scene.add(patch);
+
+      // and the same tufts, round the same apron. One draw call; the scatter,
+      // the blade atlas and the crossed-quad geometry are the garage's, out of
+      // site_ground.js, so the grass you taxi through is the grass you were
+      // looking at through the door.
+      if (THREE.InstancedMesh) {
+        let seed = 20260831;
+        const rnd = () => (seed = seed * 1664525 + 1013904223 >>> 0) / 4294967296;
+        const rwy = { x0: Math.min(R.end0.x, R.end1.x), x1: Math.max(R.end0.x, R.end1.x),
+                      z0: R.cz - R.half - 1, z1: R.cz + R.half + 1 };
+        const rows = siteScatter(rnd, {
+          count: 9000, radius: 78, near: 34,
+          blocks: [SITE.apron, SITE.taxiway, rwy, box],
+          cx: (SITE.apron.x0 + SITE.apron.x1) / 2, cz: SITE.apron.z0,
+          x0: SITE.apron.x0 - 60, x1: SITE.apron.x1 + 60,
+          z0: R.cz + R.half, z1: box.z1 + 20,
+        });
+        const tm2 = new THREE.MeshStandardMaterial({
+          map: siteBladeTexture(THREE, rnd, WANISO),
+          alphaTest: 0.42, side: THREE.FrontSide, roughness: 0.92, metalness: 0 });
+        scene.add(siteTufts(THREE, rows, tm2, 0.0));
+      }
+    }
   }
 
   { // stage-3 settlements: instanced houses/barns + bridge decks
@@ -1564,6 +1780,7 @@ function buildWorldScene(scene, world, renderer, camera) {
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
   return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap,
+           setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam },
            // the world's own light panel — the same shape the shed exposes, so
            // one piece of UI can drive either room

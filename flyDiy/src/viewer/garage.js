@@ -779,6 +779,13 @@ function garageInit(api) {
              if (J) { try { spec = merge(spec, J.export()); rebuild(); } catch (e) {} } }
     }
     fillSlots();
+    // THE CERTIFICATE COMES BACK WITH THE BUILD (G107.3). Everything above —
+    // applySpec, the join, the sync — fires the bench's dirty hook, which is
+    // right for an EDIT and wrong for a LOAD; so the restore happens LAST,
+    // with the pq captured at entry, once the storm this function itself
+    // caused is over. The bench decides what the stored certificate means;
+    // this line only delivers it in the right order.
+    if (typeof window.BENCH_RESTORE === 'function') window.BENCH_RESTORE(pq || null);
   }
   const slotSel = $('gSlot');
   const STOCK_TAG = '⚙ ';       // the shelf marks what it did not build
@@ -788,7 +795,7 @@ function garageInit(api) {
     slotSel.innerHTML = '';
     const opt = (v, t) => { const o = document.createElement('option');
                             o.value = v; o.textContent = t; slotSel.appendChild(o); };
-    opt('', names.length ? '— designs —' : '— stock designs —');
+    opt('', names.length ? '— load —' : '— stock designs —');
     for (const s of STOCK) opt(STOCK_TAG + s.name, STOCK_TAG + s.name);
     for (const n of names) opt(n, n);
     slotSel.value = names.indexOf(slotName) >= 0 ? slotName : '';
@@ -798,6 +805,16 @@ function garageInit(api) {
     const dis = !LS;
     for (const id of ['gSave', 'gSaveAs', 'gDel'])
       if ($(id)) $(id).disabled = dis;
+    // the ribbon's document title (2026-08-31): the slot the build belongs
+    // to, or the honest word for not having one — which is also where the
+    // birth flow's "replaces the unsaved build" warning gets its meaning
+    // classList guarded: the gates boot this file on DOM shims whose
+    // elements carry no classList (GATE BUILD went red on exactly that)
+    const nm = $('fbName');
+    if (nm) {
+      nm.textContent = slotName || 'unsaved';
+      if (nm.classList) nm.classList.toggle('unsaved', !slotName);
+    }
   }
   const saveAs = name => {
     if (!name) return;
@@ -817,6 +834,12 @@ function garageInit(api) {
     writeWip();
     fillSlots();
   };
+  // THE FRONT DOOR (NEW-AIRCRAFT §8.1) is a BUTTON on the ribbon now — it
+  // was a row in this select for a day, and a verb hiding in a load list is
+  // exactly the misfiling the ribbon exists to end.
+  if ($('gNew')) $('gNew').addEventListener('click', () => {
+    if (window.DESIGN_FLOW) window.DESIGN_FLOW.openBirth();
+  });
   if (slotSel) slotSel.addEventListener('change', () => {
     const n = slotSel.value; if (!n) return;
     if (n.lastIndexOf(STOCK_TAG, 0) === 0) {

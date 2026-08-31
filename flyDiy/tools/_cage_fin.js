@@ -51,8 +51,10 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
    { when: P => +P.finOn }],
   // THE FIN'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
-  // 1..4 pin what the tail is built from — grammar and the livery's
-  // auto-finish bottom-out. Mass/price do not follow it yet, declared.
+  // 1..4 pin what the tail is built from — grammar, the livery's auto-finish
+  // bottom-out, and the STRUCTURE itself (`tail.finMaterial` through the
+  // join): mass and price since G116, stiffness and damping since G117 —
+  // WYSIWYG, see genLattice's note.
   ['finCons', 'construction',      0, 4, 1,
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.finOn }],
@@ -182,7 +184,7 @@ function mats() {
 // finSkin/finRud from this page, stabSkin/stabElev when the stab borrows
 // finMesh — the CALLER knows which surface it is building, this function
 // cannot. Absent means finSkin, which is also what an uncut fin is.
-function tailMat(k, sec) {
+function tailMat(k, sec, boxPlane) {
   const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
   const sel = typeof document !== 'undefined'
     && document.getElementById('mat');
@@ -202,6 +204,7 @@ function tailMat(k, sec) {
   // factory call below stays as the standalone bench's path
   if (typeof window !== 'undefined' && window.CAGE_SECMAT) {
     const m = window.CAGE_SECMAT(sec || 'finSkin', {
+      boxDet: 1, boxPlane: boxPlane || 0,
       // THE TAIL IS ITS OWN SURFACE CLASS (G108). It is a flying surface
       // and everything that tested "> 0.5" still reads it as one; what the
       // class buys is that a marking can be aimed at the fuselage AND the
@@ -215,6 +218,10 @@ function tailMat(k, sec) {
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
     grm: cons, struct: 1, wing: 2,     // a flying surface, and class 2
+    // BOX-MAPPED MICROSURFACE (G113.3): the sheet comes off a craft-space
+    // plane instead of the field. The structure and the wash-out keep the
+    // field - they are different consumers of the same attribute.
+    boxDet: 1, boxPlane: boxPlane || 0,
     // THE TAIL'S RIBS ARE DRAWN IN METRES (G97), not off the field's station
     // index: this mesh is far coarser than the wing's and `fract(station)`
     // wanders with the triangulation on it. TAIL_RIB is already the declared
@@ -290,6 +297,32 @@ function finField(m) {
     let j = i; while (j > 0 && zLo[j] > zHi[j]) j--;
     zLo[i] = zLo[j]; zHi[i] = zHi[j];
   }
+  // ---- THE ENVELOPE MUST NOT DIP UNDER ITS OWN DATA (G113.3) -------------
+  // MEASURED, and it is the user's "the leading edge wash out is completely
+  // irregular and screwed up": one vertex in FIVE on the stabiliser came back
+  // with a NEGATIVE chord coordinate — ahead of its own leading edge — and
+  // 6.7 % on the fin. The wing, whose field is built elsewhere, had none.
+  //
+  // The cause is the interpolation directly below, and it is not a bug in it:
+  // `at()` blends between BIN CENTRES, so a vertex that IS its bin's maximum
+  // (which is exactly what a vertex ON the leading edge is) gets an `le`
+  // blended with a neighbour that lies further aft — i.e. behind itself. The
+  // shader then clamps with `max(sC, 0)` and the wash-out band saturates over
+  // a fifth of the panel in a shape that follows the TRIANGULATION rather
+  // than the leading edge. That is precisely what "irregular" looks like.
+  //
+  // ONE DILATION PASS FIXES IT, PROVABLY. After `Z[i] = max` over i-1, i, i+1,
+  // every bin straddling a vertex holds a value >= that vertex's own bin
+  // maximum, so any convex combination of the two bins `at()` interpolates
+  // between is >= the vertex — for every vertex, on any shape. The price is
+  // that the leading edge is read up to one bin of LE-variation forward,
+  // which on 48 bins is a small uniform bias and is strictly better than a
+  // fifth of the surface clamped to zero.
+  {
+    const Z = zHi.slice();
+    for (let i = 0; i < NB; i++)
+      zHi[i] = Math.max(Z[i], Z[Math.max(0, i - 1)], Z[Math.min(NB - 1, i + 1)]);
+  }
   // INTERPOLATED BETWEEN BINS, not read out of one. Taking the bin's own
   // value makes the leading edge a STAIRCASE — 48 steps across the span —
   // and it shows: the LE treatment came out with a hard jagged boundary
@@ -360,7 +393,18 @@ function finMesh(m, bySection, sec) {
       new THREE.BufferAttribute(new Float32Array(fa), 4));
     geo.setAttribute('normal',
       new THREE.BufferAttribute(new Float32Array(nor), 3));
-    g.add(new THREE.Mesh(geo, tailMat(k, sec)));
+    // WHICH PLANE THIS PANEL LIES IN, measured rather than assumed (G113.3).
+    // The user: "warning with the V tail configuration, let us be resistant
+    // to that" - so nothing here says "a fin is vertical". The panel's own
+    // accumulated |normal| decides: lateral-facing is a flank (side view),
+    // up-facing is a slab (plan view), and a CANTED panel simply takes
+    // whichever of the two it is more of, which is the correct answer for a
+    // V-tail without the code ever learning that one exists.
+    let nx = 0, ny = 0;
+    for (let i = 0; i < nor.length; i += 3) {
+      nx += Math.abs(nor[i]); ny += Math.abs(nor[i + 1]);
+    }
+    g.add(new THREE.Mesh(geo, tailMat(k, sec, nx >= ny ? 0 : 1)));
   }
   return g;
 }

@@ -28,6 +28,20 @@ function genQuadArea(P, a, b, c, d) {
 // pass once the CG is known (see the gear section).
 function genLattice(S, gearX, track, kScale) {
   const M = GEN_MATERIALS[S.material];
+  // THE PART'S OWN CONSTRUCTION REACHES THE STRUCTURE (G116 mass + price,
+  // G117 stiffness + damping — the user: "carbon should cost", then
+  // "WYSIWYG is the rule"). `wing.material` / `tail.finMaterial` /
+  // `tail.stabMaterial` are additive spec fields (absent = the aeroplane's
+  // own), and the section material below follows the ledger's own marker:
+  // the wing's members weigh, cost, FLEX and damp as what the wing is built
+  // from. See B()'s note for why G116's mass move made the k/c coupling
+  // safe to take. A V-TAIL IS ONE SURFACE and takes the stab's material:
+  // it IS the horizontal tail, raked; there is no fin to build.
+  const MSEC = {
+    wings: GEN_MATERIALS[S.wing && S.wing.material] || M,
+    tail:  GEN_MATERIALS[S.tail && S.tail.stabMaterial] || M,
+  };
+  let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
@@ -93,15 +107,25 @@ function genLattice(S, gearX, track, kScale) {
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
     // a gear member is either the SPRING (vis 'leg') or its bracing
     const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
-    beams.push({ a, b, k: M.k[cls] * (isG ? kG : KS) * kGain, c: M.c[cls] * (isG ? cG : CS),
+    // MB THROUGHOUT (G117, the user: "WYSIWYG is the rule"): a member is
+    // stiff, damped, heavy and priced as WHAT THE SECTION IS BUILT FROM —
+    // G116 coupled the mass and the money and deliberately left k/c on the
+    // aeroplane's own calibration; G117 finished it, and G116's own mass
+    // move is what made that safe: with lin AND k from the same material,
+    // a carbon wing's stiffness-to-mass ratio in a MIXED build equals the
+    // all-carbon aeroplane's wing — a corner the FLEX matrix already flies.
+    // The aeroplane-level scalings (KS from the global refMass, wingK, the
+    // gear archetype) stay exactly where they were.
+    beams.push({ a, b, k: MB.k[cls] * (isG ? kG : KS) * kGain,
+                 c: MB.c[cls] * (isG ? cG : CS),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L });
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
-    const h = 0.5 * L * M.lin[cls];
+    const h = 0.5 * L * MB.lin[cls];
     nodes[a].m += h; nodes[b].m += h;
-    bill(2 * h, 2 * h * M.price);
+    bill(2 * h, 2 * h * MB.price);
   };
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
@@ -127,13 +151,16 @@ function genLattice(S, gearX, track, kScale) {
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
     e.mass += mass || 0; e.cost += cost || 0;
   };
-  const sec = s => { SEC = s; };
+  // ...and the section marker is ALSO the billing-material switch (G116):
+  // one coupling point, so bracing, gear and everything after the wing reset
+  // to the aeroplane's own material without a call site to forget.
+  const sec = s => { SEC = s; MB = MSEC[s] || M; };
   const spend = c => bill(0, c);
   const cover = (area, ids) => {
-    const m = area * M.cover;
+    const m = area * MB.cover;
     const per = m / ids.length;
     for (const i of ids) nodes[i].m += per;
-    bill(m, m * M.price);
+    bill(m, m * MB.price);
   };
   const pt = (i, m) => { nodes[i].m += m; bill(m, 0); };
 
@@ -549,6 +576,10 @@ function genLattice(S, gearX, track, kScale) {
     cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
     cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
+    // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
+    // tail section's default; the fin bills its own from here — sec('gear')
+    // below resets the marker, so nothing after can inherit it by accident
+    MB = GEN_MATERIALS[t.finMaterial] || M;
     // the fin's apex node follows the RAKE, so the truss leans with the fin the
     // skin draws instead of standing upright inside a swept one
     FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
@@ -683,9 +714,32 @@ function genLattice(S, gearX, track, kScale) {
   // that is a CG choice the player can make by moving the seat, not a default)
   sec('cabin');
   spend(S.seats * GEN_PRICES.seat);
-  const seatRings = S.seating === 'tandem2' ? [F[1], F[2]] : [F[1], F[1]];
-  for (let i = 0; i < S.crew; i++) {
-    const rg = seatRings[i] || F[1];
+  // WHICH FRAME EACH OCCUPANT SITS ON. This was a two-element literal, which
+  // is the whole of why the aeroplane could not carry more than two people:
+  // a third occupant fell through `|| F[1]` and was billed onto the front row
+  // with the pilot, so a full cabin loaded like a solo one and the CG did not
+  // move. It is per-LAYOUT now, and every existing layout resolves to exactly
+  // what it resolved to before.
+  //
+  // A ROW OF TWO IS ONE FRAME. `side2` and the front row of `side4` sit
+  // abreast, so both occupants bill onto the same ring — the mass is already
+  // split BL/BR, which is where the lateral half comes from.
+  const SEAT_ROWS = {
+    single:  [1],
+    tandem2: [1, 2],
+    side2:   [1, 1],
+    side4:   [1, 1, 2, 2],
+    tandem4: [1, 1, 2, 2],
+    drone:   [],
+  };
+  const seatRows = SEAT_ROWS[S.seating] || [1, 1];
+  // OCCUPANTS, not crew: `S.crew` is the flight crew and `S.pax` the rest.
+  // `S.occupants` is absent on a spec resolved by an older core, and there
+  // the old meaning is the right fallback rather than a guess.
+  const aboard = S.occupants != null ? S.occupants : S.crew;
+  for (let i = 0; i < aboard; i++) {
+    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : 1;
+    const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
   }
   sec('fuel');
@@ -701,6 +755,13 @@ function genLattice(S, gearX, track, kScale) {
               : S.fuel.tank === 'panel' ? wf.R.F[Math.min(1, wf.R.F.length - 1)]
               : F[0].TR;
   pt(tankL, 0.5 * fuelM); pt(tankR, 0.5 * fuelM);
+  // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
+  // chantier drains these through the solver's setNodeMass door, and
+  // genSubsteps sizes the integrator at DRY mass off the same records (a
+  // beam is stiffest, per unit mass, when its tank is empty: sized at full
+  // it is stable on departure and divergent at reserves).
+  nodes[tankL].mFuel = (nodes[tankL].mFuel || 0) + 0.5 * fuelM;
+  nodes[tankR].mFuel = (nodes[tankR].mFuel || 0) + 0.5 * fuelM;
   sec('systems');
   const SYS = GEN_SYSTEMS[S.systems.fit] || GEN_SYSTEMS.basic;
   spend(SYS.price);

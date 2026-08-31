@@ -189,4 +189,34 @@ const PAR = {
 };
 
 const CRR = 0.05, MU_LAT = 0.8, MU_BRAKE = 0.45;
+// THE GROUND HAS A SURFACE (G115, the review's S2: "a takeoff run off a paved
+// airfield and off a gravel bench are identical" — surfaceAt existed and was
+// never asked). Rows are [rolling resistance, brake mu, lateral mu], keyed by
+// the SURFACE enum. THE GRASS ROW IS THE THREE CLASSIC CONSTANTS ABOVE,
+// verbatim: grass is HOME, and HOME is the datum every fleet gate was
+// calibrated on — so the whole calm battery is bit-identical through this
+// change, and only the paved field and the gravel benches read differently.
+// Off-strip (surfaceAt returns -1) also reads the grass row for the same
+// reason; a rougher off-field row is a decision to take with the fleet
+// watching, not a default.
+const GROUND_SURF = {
+  0: [CRR, MU_BRAKE, MU_LAT],       // GRASS — the calibration datum
+  // G121.3 — THE OFF-STRIP ROWS, the decision G115 deliberately deferred
+  // "with the fleet watching" (a full --all battery judged this landing).
+  // The biome classifier has answered these classes off-strip all along;
+  // until now every one of them read as lawn.
+  1: [0.06, 0.50, 0.75],            // ROCK — firm but uneven; rolls hard, grips
+  2: [0.14, 0.25, 0.50],            // SCREE — loose stone rolling under the tyre
+  3: [0.10, 0.30, 0.60],            // FOREST FLOOR — duff and roots, soft
+  // WATER: hydrodynamic drag standing in for the hull this sim does not
+  // have. The wheels reach the LAKEBED through the column (terrainH is the
+  // bed), brakes do nothing in water, and there is almost no side grip —
+  // a ditching decelerates hard and slews, which is the honest half of the
+  // story; buoyancy and floats are a named cut, not a pretence.
+  4: [0.35, 0.0, 0.20],
+  5: [0.02, 0.55, 0.9],  // BISECT
+  6: [0.045, 0.38, 0.75],           // GRAVEL — rolls almost as easy, brakes worse
+  7: [0.10, 0.30, 0.6],             // SAND — reserved with the enum
+};
+const GROUND_DEF = GROUND_SURF[0];
 

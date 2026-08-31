@@ -194,10 +194,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfoTab b { writing-mode:vertical-rl; font:600 10px/1 'IBM Plex Sans';
   letter-spacing:.22em; text-transform:uppercase; }
 
-/* the fleet: which aeroplane, and everything you do to it as an object */
-#edFleet #shAc { margin:2px 0 8px; }
+/* the stand: which aeroplane is the subject — the bench aircraft are
+   subjects to measure, not fleet members (2026-08-31; the file operations
+   moved to the ribbon over the view) */
+#edStand #shAc { margin:2px 0 8px; }
 
-#edFleet #shAc select { width:100%; }
+#edStand #shAc select { width:100%; }
 
 #edFleet #edShelf { flex-wrap:wrap; }
 
@@ -325,14 +327,14 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edChanged { margin-left:auto; font:500 10px/1 'IBM Plex Sans';
   letter-spacing:.08em; text-transform:uppercase; color:var(--ed-acc); }
 
-/* ---- SHAPE / FINISH: two views of one tree (G103) --------------------
-   A segmented control, not two buttons and not two panels. It sits on its
-   own line under the part's name because it is subordinate to it: the tree
-   picked the noun, this picks the adjective. `flex-basis:100%` is what wraps
-   it, so the head stays one flex row and gains no nesting. */
+/* ---- DESIGN / SHAPE / FINISH: three views of one tree (G103, widened
+   2026-08-31) -----------------------------------------------------------
+   A segmented control, not three panels. It HEADS the column now (the
+   user: "completely at the top, and divide the whole space") — above the
+   selection it qualifies, full width, three equal segments. */
 #edPropHead { flex-wrap:wrap; }
 
-#edViewTabs { flex-basis:100%; display:flex; gap:2px; margin-top:12px;
+#edViewTabs { display:flex; gap:2px; margin:14px 20px 0; flex:none;
   padding:2px; border-radius:5px; background:var(--ed-track); }
 
 .edTab { flex:1; padding:6px 0; border:0; border-radius:3px;
@@ -468,7 +470,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    the tree uses. This has to sit AFTER the rule above: `margin:0` is the same
    specificity, so source order is the whole of the cascade here. */
 #edRows > .r, #edRows > .lt, #edRows > .refNote,
-#edRows > .cgSwatch, #edRows > select, #edRows > label {
+#edRows > .cgSwatch, #edRows > select, #edRows > label,
+#edRows > .dfWrap {
   margin-left:var(--ed-indent); }
 
 /* THE SECTION ENDS HERE — the one rule in this column, on the last visible
@@ -975,28 +978,40 @@ body.mode-fly #wsUI { display:none; }
 
 @media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
 
-/* ONE BAR ACROSS THE TOP. The rail's five questions about LOOKING on the
-   left, the two things you DO with the build on the right, and the render
-   under all of it. It was a column down the left and a pair of verbs at the
-   bottom-left corner — two floating islands with the aeroplane between them.
-   The bar spans the free estate, which #edView already computes for it. */
+/* THE FILE RIBBON ACROSS THE TOP (2026-08-31): the build's name and the
+   whole of what you do with it AS A FILE — new, save, save as, load, the
+   json doors. The shelf's own container (#edFleet) lives inside, ids and
+   handlers untouched, so garage.js never learned the furniture moved. */
 #edTopBar { position:absolute; left:22px; right:22px; top:18px;
   display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; }
 
-/* IT WRAPS, because the free estate is not always wide enough for it. With
-   all three panels open on a 1100 px window the render is 414 px and the bar
-   wants 487 — it overflowed by 117 and pushed the verbs off the edge, which
-   is the regression a horizontal bar buys you and a vertical rail never had.
-   Wrapping puts the two verbs on a second row and nothing is unreachable;
-   `openFly` measures the bar's real bottom rather than assuming one row. */
 #edTopBar > * { min-width:0; }
+
+#edTopBar #edFleet { display:flex; flex-wrap:wrap; align-items:center;
+  gap:8px 10px; padding:7px 12px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px; max-width:100%; }
+
+#fbName { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  max-width:180px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+#fbName.unsaved { color:var(--ed-warn); font-weight:500; }
+
+#gNew { color:var(--ed-acc); }
+
+/* THE LOOK BAR AT THE BOTTOM (the user: display options below, both
+   floating). Same plate as the ribbon; the rail's flyouts now open UPWARD
+   from their buttons — openFly measures this bar's top. */
+#edBotBar { position:absolute; left:22px; right:22px; bottom:18px;
+  display:flex; align-items:center; }
 
 /* THE RAIL. Five questions about looking, one glyph and one word each. */
 #edRail { display:flex; flex-direction:row; gap:6px; padding:6px;
   background:var(--ed-plate); border:1px solid var(--ed-border);
   border-radius:9px; }
 
-/* the two verbs sit at the far end of the same bar */
+/* ROLL OUT rides the ribbon's row, far right (2026-08-31: "aligned with the
+   save/new UI, not a row below") — its own element, never part of the file
+   plate, and the bar's wrap keeps it on screen when the estate narrows. */
 #edActs { margin-left:auto; display:flex; align-items:center; gap:9px; }
 
 .edRailBtn { display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -1104,11 +1119,11 @@ body.mode-fly #wsUI { display:none; }
 
 #edInfo .note:first-child { margin-top:0; }
 
-#edFleet #shAc select { padding:7px 10px; font:400 12px/1.2 'IBM Plex Sans';
+#edStand #shAc select { padding:7px 10px; font:400 12px/1.2 'IBM Plex Sans';
   color:#f4efe6; background:rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.18); border-radius:7px; }
 
-#edFleet #edFleet #shAc select option { background:#201d1a; color:#f4efe6; }
+#edStand #shAc select option { background:#201d1a; color:#f4efe6; }
 
 /* A ROOT THAT BUILDS ITS OWN PANEL (G108). The shed's is an accordion of its
    own — ten material sub-groups under nine plain rows — so it is the one thing
@@ -1211,3 +1226,96 @@ body.mode-fly #wsUI { display:none; }
   color:var(--ed-faint); }
 
 #edRef .refDims { margin-top:4px; }
+
+/* =========================================================================
+   THE DESIGN TILES (design_flow.js over _cage_design.js). One component,
+   two hosts — the properties panel when `Design & construction` is
+   selected, and the #dfBirth overlay when there is nothing on the stand.
+   Everything reads the panel's own variables so both hosts wear the sheet's
+   one look; the tiles are pills grown a silhouette, not a new control
+   family. */
+.dfWrap { display:flex; flex-direction:column; gap:2px; min-width:0; }
+
+.dfStrip { display:flex; flex-wrap:wrap; gap:12px; padding:7px 2px 8px;
+  border-bottom:1px solid var(--ed-hair); margin-bottom:6px;
+  font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+.dfStrip b { font-weight:600; color:var(--ed-ink); }
+
+.dfNote { display:flex; align-items:center; gap:8px; padding:6px 8px;
+  margin:2px 0 6px; border:1px solid var(--ed-btn-bd); border-radius:7px;
+  font:400 11px/1.35 'IBM Plex Sans'; color:var(--ed-warn); }
+
+.dfGroupH { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ed-faint); margin:14px 0 4px; }
+
+.dfRowH { display:flex; align-items:baseline; gap:8px; margin:8px 0 5px;
+  min-width:0; }
+.dfRowH > span { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); }
+.dfRowH > em { font:400 10.5px/1.3 'IBM Plex Sans'; font-style:normal;
+  color:var(--ed-faint); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; min-width:0; }
+
+.dfGrid { display:grid; grid-template-columns:repeat(auto-fill,
+  minmax(86px, 1fr)); gap:6px; }
+
+.dfTile { display:flex; flex-direction:column; align-items:center; gap:5px;
+  padding:8px 4px 7px; background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:8px;
+  color:var(--ed-dim); cursor:pointer;
+  transition:border-color .12s ease, color .12s ease; }
+.dfTile svg { width:58px; height:36px; display:block; }
+.dfTile > span { font:500 10px/1.25 'IBM Plex Sans'; text-align:center; }
+.dfTile:hover { border-color:rgba(255,255,255,.3); }
+.dfTile.on { border-color:var(--ed-acc); color:var(--ed-ink); }
+/* an armed starter is a question, and wears the warn colour until answered */
+.dfTile.arm { border-color:var(--ed-warn); color:var(--ed-warn); }
+/* an option that exists in the design and not in the code: greyed, its
+   reason in the title — never simply absent (absence hides the backlog) */
+.dfTile:disabled { opacity:.35; cursor:not-allowed; }
+.dfTile:disabled:hover { border-color:var(--ed-btn-bd); }
+
+.dfField, .dfList { background:var(--ed-btn-bg); color:var(--ed-ink);
+  border:1px solid var(--ed-btn-bd); border-radius:7px; padding:6px 8px;
+  font:400 12px/1.2 'IBM Plex Sans'; width:100%; min-width:0; }
+
+.dfPill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ed-dim); background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
+  cursor:pointer; transition:border-color .12s ease; }
+.dfPill:hover { border-color:rgba(255,255,255,.3); }
+
+/* ---- the birth overlay ------------------------------------------------- */
+#dfBirth { position:fixed; inset:0; z-index:60;
+  background:rgba(12,11,10,.78); display:flex; align-items:center;
+  justify-content:center; }
+#dfBirth[hidden] { display:none; }
+
+.dfBirthBox { width:min(920px, 94vw); max-height:88vh; overflow:auto;
+  background:var(--ed-panel); border:1px solid var(--ed-hair);
+  border-radius:10px; padding:18px 20px 16px; }
+
+.dfBirthH { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; }
+.dfBirthH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
+  color:var(--ed-ink); }
+
+.dfBirthSub { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
+  margin:6px 0 12px; }
+
+.dfArchGrid { display:grid; grid-template-columns:repeat(auto-fill,
+  minmax(200px, 1fr)); gap:8px; }
+
+.dfArch { display:flex; flex-direction:column; align-items:flex-start;
+  gap:4px; text-align:left; padding:10px 12px;
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+  border-radius:8px; color:var(--ed-dim); cursor:pointer;
+  transition:border-color .12s ease; }
+.dfArch svg { width:64px; height:38px; display:block; }
+.dfArch b { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); }
+.dfArch span { font:400 10.5px/1.35 'IBM Plex Sans'; }
+.dfArch:hover { border-color:rgba(255,255,255,.3); }
+.dfArch:disabled { opacity:.35; cursor:not-allowed; }
+.dfArch:disabled:hover { border-color:var(--ed-btn-bd); }
+
+.dfBirthRow { display:flex; align-items:center; gap:12px; margin-top:14px; }
+.dfWarn { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-warn); }

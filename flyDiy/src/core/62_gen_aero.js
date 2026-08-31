@@ -190,6 +190,54 @@ function genFusCdA(S, fr) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// UNDERCARRIAGE AND BRACING DRAG (G115, the quality review's S1 — "no gear or
+// strut drag anywhere; a bush gear moves ZERO numbers"). Flat-plate area from
+// the gear's own DECLARED numbers: wheel radius, the fairing field that has
+// been in the spec since the start with a comment admitting it "quietly did
+// nothing to the numbers", the resolved leg drop, and the bracing choice.
+// Coefficients are the classic flat-plate values (Hoerner): an exposed wheel
+// 0.55 on its frontal, a spatted one 0.22, a full trouser 0.15; a bare leg is
+// a cylinder at 1.0, faired 0.30; a lift strut is a streamline section at
+// 0.10. Tyre width is 0.76R (the light-aircraft aspect), the third wheel is
+// never faired by the wheel fairing, and the strut length runs from the
+// lower longeron to ~55% semispan.
+function genGearCdA(S, semi) {
+  const G = S.gear;
+  const wCd = G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55;
+  const R = G.wheelR || 0.20, Rt = G.twR || 0.10;
+  // G121.2: the third wheel prices its OWN fairing — but only on a
+  // tricycle, because that is the only leg family the layer draws a shell
+  // for (the tailwheel castor has no spat branch, and a priced fairing with
+  // no geometry would be the INVERSE of the lie G115 fixed).
+  const tCd = S.gear.type === 'tricycle'
+    ? (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55)
+    : 0.55;
+  let cda = 2 * wCd * (2 * R * 0.76 * R)          // two mains
+          + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
+  const drop = G.legDrop || 0.42;
+  cda += 2 * (G.fairing === 'full' ? 0.30 : 1.0) * drop * 0.05;   // the legs
+  if (S.bracing.type === 'strut')
+    cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
+  return cda;
+}
+// THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
+// Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
+// INCLUDE a bare-wheeled, strut-braced undercarriage. Adding gear drag on top
+// would double-count it; what is added is the DIFFERENCE from that reference
+// gear, so the default build's numbers barely move and the choices finally
+// do: spats buy L/D, doubling the tyres costs cruise, dropping the struts
+// shows up on the plaque. Clamped so an extreme clean-up cannot eat the body.
+function genGearCdADelta(S, semi) {
+  // the reference shares THIS build's resolved leg drop: leg length is a
+  // stance choice the calibration already priced, not a drag knob — but the
+  // leg FAIRING still counts, through the Cd factor the fairing field picks.
+  const ref = { gear: { fairing: 'none', wheelR: 0.20, twR: 0.10,
+                        legDrop: S.gear.legDrop || 0.42 },
+                bracing: { type: 'strut' } };
+  return Math.max(-0.08, genGearCdA(S, semi) - genGearCdA(ref, semi));
+}
+
 // Autopilot block. Speeds come from the aeroplane's OWN stall speed; the
 // remaining ratios and gains are the Cub's, which is the airframe timescale
 // (span/V ~ 0.4 s) this family sits at. HANDOVER "AUTOPILOT RULES": D-gains
@@ -454,7 +502,13 @@ const GEN_CDT_MAX = 0.65;      // damping rate * dt
 function genSubsteps(nodes, beams) {
   let wMax = 0, cMax = 0;
   for (const b of beams) {
-    const inv = 1 / nodes[b.a].m + 1 / nodes[b.b].m;   // 1/reduced mass
+    // G121 (the review's B2): omega at DRY mass, not full-tanks mass. Fuel
+    // is billed onto nodes and a beam's frequency RISES as its node lightens
+    // — sized at full, a long-range build was stable on departure and headed
+    // for the recorded divergence neighbourhood at reserves. The dry floor
+    // guards a node that is mostly fuel. No fuel on the node = the old line.
+    const dry = i => Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0));
+    const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
   }
@@ -572,6 +626,14 @@ function genParams(S, fr, strips) {
                              (GEN_TIPS[S.wing.tip] || GEN_TIPS.rounded).e);
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = genTailPolar(hAR, M.cd0);
+  // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
+  // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
+  // which overstated directional stiffness and rudder power by ~25% and made
+  // fin PROPORTIONS a slider that moved nothing. vHeight²/Sv is the honest
+  // number, and it moves when the builder reshapes the fin. The fleet's
+  // fiches never set polarFin, so the solver's fallback keeps them exact.
+  const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
+  const polarFin = genTailPolar(vAR, M.cd0);
   const mass = fr.cg0[3];
   const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
   // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
@@ -580,6 +642,11 @@ function genParams(S, fr, strips) {
   // the sky rather than the definition of the yardstick.
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
   const cda = genFusCdA(S, fr);
+  // G115: the undercarriage and bracing join the drag build-up, as a DELTA
+  // from the calibration's implicit reference gear (see genGearCdADelta).
+  // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
+  const gearDCdA = genGearCdADelta(S, S.geom.semi);
+  cda.fusCdA[0] += gearDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -619,7 +686,7 @@ function genParams(S, fr, strips) {
     // sets it — so the fleet reads the registry exactly as before.
     prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
     substeps: genSubsteps(fr.nodes, fr.beams),
-    polarWing, polarTail,
+    polarWing, polarTail, polarFin,
     elevTau, rudTau, ailTau, downwash: 0.40,
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
@@ -629,6 +696,6 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, plant: pl },
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, plant: pl },
   };
 }

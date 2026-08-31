@@ -33,6 +33,10 @@ const P = {
     ? T.FLAP_KEYS.indexOf('slotted') : 0,
   wgFlapSpan: 0.45, wgFlapChord: 0.22, wgAilSpan: 0.36, wgAilChord: 0.22,
   engPreset: T.PRESET_NAMES.indexOf('rotax 912 (flat)'),
+  // G121.1: the fairing switch, at a NON-default state (1 = spat; the spec
+  // default is 'none', so "it landed" cannot be impersonated by the default)
+  s1Fair: 1,
+  s2Fair: 2,                       // G121.2: the third wheel's, likewise
 };
 // Every measured value here is chosen to DIFFER from what resolveSpec
 // would derive on its own (side2 vs the default tandem2, 0.52 vs the
@@ -65,6 +69,9 @@ ok(s.wings[0].position === 'high' && s.wings[0].centre === 'glass',
    'position + centre map by name');
 ok(s.wings[0].tip === 'rounded', 'tip maps by name');
 ok(s.bracing.type === 'strut', 'bracing maps');
+ok(s.gear.fairing === 'spat', 'fairing switch -> gear.fairing (G121.1)');
+ok(s.gear.twFairing === 'full',
+   'third-wheel switch -> gear.twFairing (G121.2)');
 ok(s.controls.flap.type !== undefined && s.controls.aileron.span === 0.36,
    'control surfaces pass');
 ok(s.engines[0].type === 'rotax912_warp', 'preset -> registry key');
@@ -123,6 +130,19 @@ try {
      'RESOLVED cowl deck = measured 0.66, not auto');
   ok(R.cabin.noseGap === 0.93 && R.cabin.len === 1.24 && !RS.auto['cab.len'],
      'RESOLVED pillar proportions = measured, len not auto');
+  // G121.1: the switch survives clampSpec and reaches the drag model's own
+  // field — asserted on the RESOLVED spec, and at all three states, because
+  // a mapping table with a hole is exactly the kind of thing that hides.
+  ok(R.gear.fairing === 'spat', 'RESOLVED fairing = spat, through the clamp');
+  ok(R.gear.twFairing === 'full',
+     'RESOLVED third-wheel fairing = full, through the clamp');
+  for (const [v, want] of [[0, 'none'], [2, 'full']]) {
+    const Pv = Object.assign({}, P, { s1Fair: v });
+    const Rv = resolveSpec(JSON.parse(JSON.stringify(
+      cageJoinSpec(Pv, M, T)))).spec;
+    ok(Rv.gear.fairing === want,
+       'RESOLVED fairing state ' + v + ' -> ' + want);
+  }
   ok(R.fuselage.postGap === 0.42, 'RESOLVED post gap = measured 0.42');
   ok(R.wings[0].xLE === 0.55 && !RS.auto['wing.xLE'],
      'RESOLVED wing LE station = measured 0.55, not auto');

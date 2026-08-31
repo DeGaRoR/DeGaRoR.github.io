@@ -217,7 +217,15 @@ function editorInit(api) {
   // FINISH is the AEROSKIN rows, by SECTION, moved under the part whose
   //        `sections` claim them; and on the root, the whole-aeroplane livery
   //        (construction, condition, decals) that belongs to no part at all.
-  let view = pref(LS_VIEW) === 'finish' ? 'finish' : 'shape';
+  // ...and DESIGN (2026-08-31, the user: "we'll now have 3 of them"): the
+  // whole aeroplane's macro rows — the tiles — as a third view. Selection-
+  // independent by nature: whatever part is selected, the DESIGN question is
+  // about the machine whole, which is what lets the tab replace the old
+  // "tiles when the design part is selected" dispatch without costing the
+  // design part its raw rows (they are SHAPE's again, convertible/open back
+  // on their slider).
+  let view = ['finish', 'design'].includes(pref(LS_VIEW)) ? pref(LS_VIEW)
+                                                          : 'shape';
   // WHERE A BORROWED ELEMENT GOES BACK TO. The parameter rows have one home
   // (the nursery) and need no map; the finish rows have two — the materials
   // panel's body and the decals panel's — and `buildMatPanel` clears its body
@@ -514,6 +522,14 @@ function editorInit(api) {
         return;
       }
     }
+    // THE DESIGN TILES (design_flow.js): the macro rows as the THIRD VIEW,
+    // shaped exactly like the FINISH dispatch below — one branch, no
+    // navigation axis. Whole-aeroplane by nature, so the selection rides
+    // along untouched and the design part's raw rows stay SHAPE's.
+    if (view === 'design' && window.DESIGN_FLOW &&
+        window.DESIGN_FLOW.renderTiles(rowsEl)) {
+      applyVis(); reopenFly(); return;
+    }
     if (view === 'finish') { renderFinish(); applyVis(); reopenFly(); return; }
     const shown = partsShown(sel);
     const many = shown.length > 1;
@@ -625,13 +641,14 @@ function editorInit(api) {
     // the panel's rows, partitioned by the section they are about. Read off the
     // DOM each time rather than cached: buildMatPanel rebuilds the lot whenever
     // the section list changes shape, and CAGE_ON_MAT brings us back here.
-    const bySec = new Map(), head = [];
+    const bySec = new Map(), head = [], glaze = [];
     for (const el of Array.from(body.children)) {
       const s = el.dataset && el.dataset.sec;
       if (s) { if (!bySec.has(s)) bySec.set(s, []); bySec.get(s).push(el); }
       // `derived` is the bench's read-out of the construction; the live row is
       // taken from the part table below and this would be its dead twin
-      else if (el.dataset && el.dataset.matHead === '1') head.push(el);
+      else if (el.dataset && el.dataset.matHead === '1')
+        (el.dataset.glaze ? glaze : head).push(el);
     }
     const shown = partsShown(sel);
     const p0 = PT.partByKey[sel];
@@ -660,10 +677,20 @@ function editorInit(api) {
       // — two rows labelled `construction`, one of them dead, is still worse
       // than either alone.
       emitEls(p0, 'livery', head, 'the whole aeroplane');
+      if (glaze.length) emitEls(p0, 'glazing', glaze, 'shared by every pane');
       const dec = CU.DECBODY;
       if (dec) emitEls(p0, 'markings',
         Array.from(dec.children), 'registration and images');
     }
+    // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the
+    // windshield: "I don't have any material options... it's really like it
+    // isn't there"). The dials are SHARED — one windscreen and one skylight
+    // are the same glass cut twice (G113.2's ruling stands) — but shared
+    // must not mean hidden on the root: selecting any part that OWNS a pane
+    // brings the one set of rows along. Borrowed once, under the first
+    // glass-owning part shown, never duplicated.
+    const GLASSSEC = (window.AEROSKIN && window.AEROSKIN.AERO_GLASS) || new Set();
+    let glazeDone = false;
     for (const p of shown) {
       const els = [];
       for (const s of (p.sections || [])) {
@@ -673,6 +700,11 @@ function editorInit(api) {
         for (const el of r) els.push(el);
       }
       emitEls(p, nameOf(p), els, '', true);
+      if (!isRoot && !glazeDone && glaze.length &&
+          (p.sections || []).some(s => GLASSSEC.has(s))) {
+        glazeDone = true;
+        emitEls(p, 'glazing', glaze, 'shared by every pane');
+      }
     }
     // ANYTHING THE TABLE HAS NOT CLAIMED still gets a home. GATE PARTS says
     // there is nothing here on a build it knows; a layer added since is a row
@@ -705,13 +737,15 @@ function editorInit(api) {
   }
 
   function setView(v) {
-    view = v === 'finish' ? 'finish' : 'shape';
+    view = ['finish', 'design'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');
-    const a = $('edTabShape'), b = $('edTabFinish');
+    const a = $('edTabShape'), b = $('edTabFinish'), c = $('edTabDesign');
     if (a) a.classList.toggle('on', view === 'shape');
     if (b) b.classList.toggle('on', view === 'finish');
+    if (c) c.classList.toggle('on', view === 'design');
     render();
+    syncCowlGhost();
   }
 
   // =========================================================================
@@ -996,6 +1030,7 @@ function editorInit(api) {
       if (rm) rm.textContent = rdef.meta || '';
       treeSig = '';
       render();
+      syncCowlGhost();
       return;
     }
     const p = PT.partByKey[key];
@@ -1007,6 +1042,67 @@ function editorInit(api) {
       : (p.layer ? p.layer + ' layer' : '');
     treeSig = '';                          // the selection mark moved
     render();
+    syncCowlGhost();
+  }
+
+
+  // =========================================================================
+  // THE COWL GETS OUT OF THE WAY
+  // =========================================================================
+  // The user: "when editing the livery of the engine, the cowl should
+  // automatically be set to transparent, or almost."
+  //
+  // G113.4 gave the engine three paintable sections and left the obvious
+  // complaint standing in its own handover: the paint is invisible under a
+  // closed cowl, and a control that is correct and unseeable disappoints like
+  // one that does nothing. This is the answer, and it is a VIEW change and
+  // nothing else — the same `cowl α` dial G29 built for exactly this ("see the
+  // engine through the shell"), DRIVEN rather than duplicated. Nothing here
+  // touches the spec, and the join already resets the row to 1 for flight
+  // (VIEW_STATE, `{ row: 'cowl α', to: 1 }`), so a ghosted cowl cannot fly.
+  const COWL_GHOST = 0.15;            // "transparent, or almost"
+  let cowlWas = null;                 // the builder's own value, while borrowed
+  let ghosting = false;               // declared BEFORE its reader, not after
+
+  function syncCowlGhost() {
+    if (!CU || !window.CAGE_VIEW || ghosting) return;
+    const V = window.CAGE_VIEW;
+    // ONLY WHERE THE PAINT IS. The livery view is where a finish is picked;
+    // in the structure view the cowl is context you are working against.
+    const want = view === 'finish' && sel === 'engine' && !!+CU.P.cowlOn;
+    if (want === (cowlWas !== null)) return;      // already in the right state
+    const before = V.cowlA;
+    if (want) {
+      // ALREADY SEEING THROUGH IT? LEAVE IT ALONE. Taking a dial the builder
+      // has already set further than we would is not help, and restoring it
+      // afterwards would be worse.
+      if (!(V.cowlA > COWL_GHOST)) return;
+      cowlWas = V.cowlA;
+      V.cowlA = COWL_GHOST;
+    } else {
+      // IF THE BUILDER MOVED IT WHILE WE HELD IT, IT IS THEIRS NOW. Restoring
+      // over a deliberate drag would be the borrow refusing to give the dial
+      // back — so only the value we ourselves wrote is taken away again.
+      if (V.cowlA === COWL_GHOST) V.cowlA = cowlWas;
+      cowlWas = null;
+    }
+    if (V.cowlA === before) return;               // nothing to redraw
+    showAlpha('cowl α', V.cowlA);
+    ghosting = true;
+    try { CU.build(); } finally { ghosting = false; }
+  }
+
+  // THE SLIDER MUST NOT LIE. `cowl α` is a row the builder can see and drag,
+  // and moving the value underneath it without moving the control is how a
+  // panel starts disagreeing with the thing it controls. `_cage_ui`'s own
+  // handler writes both halves on input; a programmatic change has to as well.
+  function showAlpha(label, v) {
+    const row = labelIndex().get(label);
+    if (!row) return;
+    const i = row.querySelector('input[type=range]');
+    const t = row.querySelector('span.v');
+    if (i) i.value = v;
+    if (t) t.textContent = (+v).toFixed(2);
   }
 
   // =========================================================================
@@ -1191,20 +1287,21 @@ function editorInit(api) {
     // so its own box is the whole of what is available.
     {
       const btn = [...$('edRail').children].filter(b => b.dataset.f === k)[0];
-      const view = $('edView'), bar = $('edTopBar');
+      const view = $('edView'), bar = $('edBotBar');
       if (btn && view) {
         const vb = view.getBoundingClientRect(), bb = btn.getBoundingClientRect();
         const w = fly.offsetWidth || 296;
         const x = Math.max(22, Math.min(bb.left - vb.left - 6, vb.width - w - 22));
         fly.style.left = Math.round(x) + 'px';
-        // ...and BELOW THE BAR, measured. The bar wraps when the estate is
-        // narrow, so its height is not a constant and a hard-coded top would
-        // put the flyout over the verbs on exactly the screens that have the
-        // least room to spare.
+        // ...and ABOVE THE BAR now (2026-08-31: the look controls moved to
+        // the bottom, the file ribbon took the top). Measured, because the
+        // bar wraps when the estate is narrow; anchored by `bottom` so the
+        // flyout grows UP from its button instead of over it.
         if (bar) {
-          const y = bar.getBoundingClientRect().bottom - vb.top + 10;
-          fly.style.top = Math.round(y) + 'px';
-          fly.style.maxHeight = Math.round(vb.height - y - 22) + 'px';
+          const up = vb.bottom - bar.getBoundingClientRect().top + 10;
+          fly.style.top = 'auto';
+          fly.style.bottom = Math.round(up) + 'px';
+          fly.style.maxHeight = Math.round(vb.height - up - 22) + 'px';
         }
       }
     }
@@ -1329,11 +1426,13 @@ function editorInit(api) {
     [/^edSurf_ail/, 'wingCtl'],
     [/^edSurf_rud/, 'fin'],
     [/^edSurf_elev/, 'stab'],
-    // the crew layer names nothing it builds, but the DUMMIES are skeletons
-    // and their bones are named — so the one split that can be made is the
-    // people from the furniture. Seats, controls and the console have no names
-    // at all and fall together on the layer's default part; that is the layer's
-    // to fix, not this table's.
+    // the crew layer NAMES ITS FURNITURE now (G113 closed the gap this
+    // comment used to declare): seats, control stations and the console
+    // carry identity wrappers, the dummies their figure names — and the
+    // bones stay as the fallback for anything struck inside a figure.
+    [/^edSeat/, 'seats'],
+    [/^edCtl|^edConsole/, 'controls'],
+    [/^edDum/, 'crew'],
     [/^(root|lumbar|thorax|neck|head|clavicle|shoulder|elbow|wrist|hip|knee|ankle)/,
      'crew'],
   ];
@@ -1613,9 +1712,11 @@ function editorInit(api) {
     const rp = $('edResetPart'); if (rp) rp.onclick = resetPart;
     const t1 = $('edTabShape'); if (t1) t1.onclick = () => setView('shape');
     const t2 = $('edTabFinish'); if (t2) t2.onclick = () => setView('finish');
+    const t3 = $('edTabDesign'); if (t3) t3.onclick = () => setView('design');
     wrap.classList.toggle('fin', view === 'finish');
     if (t1) t1.classList.toggle('on', view === 'shape');
     if (t2) t2.classList.toggle('on', view === 'finish');
+    if (t3) t3.classList.toggle('on', view === 'design');
     // THE SECTION LIST CHANGED SHAPE and the finish view is holding its rows.
     //
     // These are the one borrowed set that gets REPLACED rather than returned.
@@ -1708,16 +1809,8 @@ function editorInit(api) {
     // bench there. A button whose whole job is to press another visible
     // button is a second door to one room.
     //
-    // SAVE, on the other hand, had no door here at all — it lived only in the
-    // fleet section at the bottom of the information panel. Same discipline
-    // as ROLL OUT: delegate to the shelf's own handler rather than write a
-    // second one, because a second thing that decides what "save" means is a
-    // second thing that can disagree with the first.
-    const sv = $('edSave');
-    if (sv) sv.onclick = () => {
-      const g = document.getElementById('gSave');
-      if (g && !g.disabled) g.click();
-    };
+    // (the old #edSave verb retired 2026-08-31: SAVE lives on the file
+    // ribbon now — the shelf's own #gSave, one handler, one meaning)
     // ANYTHING THE BUILDER DOES ends the settling window above. Capture, so it
     // is seen before the handler it belongs to runs — which is what lets the
     // shelf's own `change` re-open the window for the design it loads. `click`

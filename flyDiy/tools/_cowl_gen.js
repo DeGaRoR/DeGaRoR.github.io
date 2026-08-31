@@ -60,13 +60,26 @@ const P={
   shankR:0.045, material:0, rpm:2400.0, tas:205.0, power:160.0, slip:12.0
 };
 
+// APPEND ONLY: the index is `material` in every preset above and cw_material
+// in every saved build, and AERO_PROP_FIN maps finishes onto it by the same
+// index (GATE SKINMAT holds the two lists to one length).
 const MATERIALS=[
-  {name:"Birch laminate",rho:700,col:0xc79a63,met:0.0,rgh:0.62},
-  {name:"Beech laminate",rho:730,col:0xb08050,met:0.0,rgh:0.58},
+  // `tileK`/`detRot` (G125.1, wooden rows): a blade is carved from a stack of
+  // boards, so its grain runs at BLADE pitch (tileK shrinks the sheet's tile)
+  // and SPANWISE (detRot turns the triplanar detail a quarter). Verified on
+  // pixels: without them the walnut blade read as one pale plank.
+  {name:"Birch laminate",rho:700,col:0xc79a63,met:0.0,rgh:0.62,detRot:1},
+  {name:"Beech laminate",rho:730,col:0xb08050,met:0.0,rgh:0.58,detRot:1},
   {name:"Aluminium 2025-T6",rho:2790,col:0xc9cdd2,met:0.92,rgh:0.24},
   {name:"Carbon / epoxy",rho:1550,col:0x2b2e33,met:0.15,rgh:0.38},
   {name:"Glass / epoxy",rho:1900,col:0xd9d5cc,met:0.05,rgh:0.42},
-  {name:"Wood core + CFRP shell",rho:950,col:0x8a7a63,met:0.05,rgh:0.48}
+  {name:"Wood core + CFRP shell",rho:950,col:0x8a7a63,met:0.05,rgh:0.48,detRot:1},
+  // G125: the scanned woods. Densities are Wood Handbook class values (hard
+  // maple ~705, black walnut ~640 kg/m3), the same shelf GEN_MATERIALS cites.
+  // Walnut's col is VARNISHED walnut, deliberately darker than the sheet's
+  // own tan mean — the tint is what says "oiled blade" against "raw veneer".
+  {name:"Maple laminate",rho:705,col:0xd9c8a8,met:0.0,rgh:0.52,tileK:0.5,detRot:1},
+  {name:"Walnut laminate",rho:640,col:0x6b482c,met:0.0,rgh:0.45,tileK:0.4,detRot:1}
 ];
 
 /* ============================ PRESETS ============================ */

@@ -111,6 +111,20 @@ function fieldHits(mesh, ax, tx, ty) {
     let bare = false;
     for (const i of ids) if (!A[i]) { bare = true; break; }
     if (bare) continue;
+    // THE REVEAL IS A SURFACE OF LAST RESORT (2026-08-31). The window frame
+    // pass insets along the outward NORMAL, so its two bands carry the SAME
+    // (sL, lv) as the skin loop they came from: three faces at one point on
+    // the aeroplane, and a site that should resolve once resolved three
+    // times. GATE FIT read that as "the table wants 1 but the skin offers 3"
+    // — 176 checks with `winFrameW` non-zero, which is what kept the real
+    // window recess from being a default.
+    //
+    // BUT SKIPPING THEM OUTRIGHT IS ALSO WRONG, and the gate said so: inside
+    // a glazed zone the bands are ALL the body-material surface there is, so
+    // four probe stations went from three sites to none. So the reveal is
+    // TAGGED here and weighed at the end: where real skin covers the point
+    // the bands are dropped, and where it does not they are what there is.
+    const isRev = !!f.reveal;
     const tris = ids.length >= 4 ? TRI4 : TRI3;
     for (const t of tris) {
       const ia = ids[t[0]], ib = ids[t[1]], ic = ids[t[2]];
@@ -138,10 +152,18 @@ function fieldHits(mesh, ax, tx, ty) {
         lv: a[3] * w0 + b[3] * w1 + c[3] * w2,
         n: triNormal(pa, pb, pc),
         mat: f.m,
+        reveal: isRev,
       });
     }
   }
-  return out;
+  // THE SKIN WINS WHERE THERE IS SKIN. See the note on `isRev` above: the
+  // reveal's bands share their field coordinate with the loop they were inset
+  // from, so keeping both would multiply every site inside a glazed zone.
+  // Where a real face covers the point the bands are dropped; where the bands
+  // are the only body-material surface there is — which is the whole inside of
+  // a window frame — they stand, because no site at all is the worse answer.
+  const solid = out.filter(h => !h.reveal);
+  return solid.length ? solid : out;
 }
 
 // ---------------------------------------------------------------------------

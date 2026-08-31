@@ -1380,20 +1380,40 @@ function anchors(spec, P, mesh) {
 }
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
+  const bays = Math.max(0, Math.round(P.paxCount || 0));
   if (lay === 0) return [{ x: 0, zBack: A.zBack, pilot: true }];
+  // SIDE BY SIDE, and a SECOND ROW behind it when the bays are there. Three
+  // bays is the same discriminator the join reads for `side4`/`tandem4`, so
+  // what you see in the cage and what the aeroplane weighs cannot disagree.
   if (lay === 1) {
     const gp = Math.min(P.seatGap, Math.max(0.18, A.halfW - 0.20));
-    return [{ x: gp, zBack: A.zBack, pilot: true },
-            { x: -gp, zBack: A.zBack, pilot: false }];
+    const row = [{ x: gp, zBack: A.zBack, pilot: true },
+                 { x: -gp, zBack: A.zBack, pilot: false }];
+    if (bays >= 3) {
+      const zr = A.zBack - P.seatPitch;
+      row.push({ x: gp, zBack: zr, pilot: false },
+               { x: -gp, zBack: zr, pilot: false });
+    }
+    return row;
   }
   // SECTION - SEAT - PASSENGER (G26.4, user ruling): the tandem rear
   // seat lives in the passenger section — remove the section and the
   // seat (and its dummy, which follows the seat count) goes with it.
   // Side-by-side is untouched: both seats share the pilot bay.
-  if (Math.max(0, Math.round(P.paxCount || 0)) < 1)
-    return [{ x: 0, zBack: A.zBack, pilot: true }];
-  return [{ x: 0, zBack: A.zBack, pilot: true },
-          { x: 0, zBack: A.zBack - P.seatPitch, pilot: false }];
+  if (bays < 1) return [{ x: 0, zBack: A.zBack, pilot: true }];
+  const col = [{ x: 0, zBack: A.zBack, pilot: true },
+               { x: 0, zBack: A.zBack - P.seatPitch, pilot: false }];
+  // FOUR IN TANDEM is two PAIRS, not four in a line: a fuselage long enough
+  // for four single seats nose to tail is not an aeroplane anybody builds.
+  if (bays >= 3) {
+    const gp = Math.min(P.seatGap, Math.max(0.14, A.halfW - 0.20));
+    col.length = 0;
+    col.push({ x: gp, zBack: A.zBack, pilot: true },
+             { x: -gp, zBack: A.zBack, pilot: false },
+             { x: gp, zBack: A.zBack - P.seatPitch, pilot: false },
+             { x: -gp, zBack: A.zBack - P.seatPitch, pilot: false });
+  }
+  return col;
 }
 
 // ---- THE BUILD HOOK -------------------------------------------------------
@@ -1424,9 +1444,18 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   const fb = (v, d) => (v == null || v < 0) ? d : v;
   const sp2 = { h: fb(P.seat2H, sp1.h), rake: fb(P.seat2Rake, sp1.rake),
                 tilt: fb(P.seat2Tilt, sp1.tilt) };
-  const seats = places.map((pl, i) => Object.assign({}, pl,
-    { SP: i && !pl.pilot ? sp2 : sp1 },
-    buildSeat(group, A, P, pl.x, pl.zBack, sbs, i && !pl.pilot ? sp2 : sp1)));
+  // NAMED for the editor (G113, closing the HIT_NAME gap): each seat under
+  // its own identity wrapper, so clicking a cushion selects Seats rather
+  // than the crew layer's first part. An identity group is transparent to
+  // anchorWorld (it updates ancestors itself) and to every bag.
+  const seats = places.map((pl, i) => {
+    const sg = new THREE.Group();
+    sg.name = 'edSeat' + (i + 1);
+    group.add(sg);
+    return Object.assign({}, pl,
+      { SP: i && !pl.pilot ? sp2 : sp1 },
+      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, i && !pl.pilot ? sp2 : sp1));
+  });
   const pilot = seats.find(s => s.pilot);
 
   // ---- controls ----
@@ -1436,11 +1465,16 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the pilot's station.
   const stickMode = Math.round(P.ctlStick), thrMode = Math.round(P.ctlThr);
   const mkStation = seat => {
+    // NAMED (G113): the station's stick and pedals under one wrapper, so a
+    // control resolves to the Controls part when clicked
+    const cg = new THREE.Group();
+    cg.name = 'edCtl';
+    group.add(cg);
     const o = { stick: null, pedals: null };
-    if (stickMode === 0) o.stick = buildStickCenter(group, A, P, seat.x, seat);
-    if (stickMode === 1) o.stick = buildYoke(group, A, P, seat.x);
-    if (stickMode === 2) o.stick = buildStickSide(group, A, P, seat.x, seat);
-    if (P.ctlPed) o.pedals = buildPedals(group, A, P, seat.x);
+    if (stickMode === 0) o.stick = buildStickCenter(cg, A, P, seat.x, seat);
+    if (stickMode === 1) o.stick = buildYoke(cg, A, P, seat.x);
+    if (stickMode === 2) o.stick = buildStickSide(cg, A, P, seat.x, seat);
+    if (P.ctlPed) o.pedals = buildPedals(cg, A, P, seat.x);
     return o;
   };
   const stn = seats.map(s2 => (s2.pilot || sbs) ? mkStation(s2) : null);
@@ -1456,10 +1490,16 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // yoke flies left-handed (throttle right), sticks right-handed
     // (throttle left, +x)
     const cx = sbs ? 0 : pilot.x + (stickMode === 1 ? -0.28 : 0.28);
-    consoleThr = buildConsole(group, A, P, cx, thrMode === 2, boxWanted);
+    const cog = new THREE.Group();
+    cog.name = 'edConsole';                              // G113: named
+    group.add(cog);
+    consoleThr = buildConsole(cog, A, P, cx, thrMode === 2, boxWanted);
   }
-  if (thrMode === 0) thr = buildThrottleWall(group, A, P, pilot.x);
-  if (thrMode === 1) thr = buildThrottleDash(group, A, P, pilot.x);
+  const tg = new THREE.Group();
+  tg.name = 'edCtl';                                     // G113: named
+  group.add(tg);
+  if (thrMode === 0) thr = buildThrottleWall(tg, A, P, pilot.x);
+  if (thrMode === 1) thr = buildThrottleDash(tg, A, P, pilot.x);
   if (thrMode === 2) thr = consoleThr;
   st1.thr = thr;
   let pedals = st1.pedals;
@@ -1601,9 +1641,15 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       tilt: s2.SP.tilt })) };
   const dums = [];
   if (P.dumOn) dums.push(seatDummy(pilot, st1, 1));
-  if (P.dum2On && seats.length > 1) {
-    const i2 = seats.indexOf(pilot) === 0 ? 1 : 0;
-    dums.push(seatDummy(seats[i2], stn[i2], 2));
+  // EVERY SEAT THAT IS NOT THE PILOT'S GETS A BODY IN IT when the second
+  // dummy is on. It used to be exactly one — `seats.length > 1` and a single
+  // push — which was right while there were only ever two seats and is what
+  // left a four-seat cabin with two empty chairs behind the front row.
+  if (P.dum2On) {
+    for (let si = 0; si < seats.length; si++) {
+      if (seats[si] === pilot) continue;
+      dums.push(seatDummy(seats[si], stn[si], si + 1));
+    }
   }
 
   // ---- eye point + head clearance (the sizing instruments) ----

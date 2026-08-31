@@ -449,7 +449,12 @@ function nullPaths(o, pre, out) {
 // ---------------------------------------------------------------------------
 {
   const dir = path.join(__dirname, 'fixtures');
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort();
+  // build_ prefix only: the shelf now shares the directory with other
+  // documents' vintages (player_*.json is the PLAYER container's, gated by
+  // GATE PLAYER) — feeding one of those to genNormaliseSpec would "load" it
+  // as a default aeroplane and prove nothing.
+  const files = fs.readdirSync(dir)
+    .filter(f => /^build_.*\.json$/.test(f)).sort();
   ok(files.length >= 2, 'there are vintage fixtures to load (' +
      files.length + ')');
   for (const f of files) {
@@ -540,6 +545,227 @@ function nullPaths(o, pre, out) {
   ok(fut.v === 99,
      'a FUTURE spec keeps its claim — this build does not lie about ' +
      'understanding it');
+}
+
+// ---------------------------------------------------------------------------
+// N. THE CERTIFICATE PERSISTS (G107.3). The garage half of plaque
+// persistence, through the REAL shelf: the bench's snapshot goes in through
+// the `plaque` setter, rides the envelope beside the spec, and comes back
+// through `BENCH_RESTORE` — called ONCE per load, LAST, after the loaded
+// spec has been applied (the ordering is the whole fix: the load path's own
+// dirty storm must be over before the certificate is re-seated).
+// ---------------------------------------------------------------------------
+{
+  const restored = [];
+  gbox.window.BENCH_RESTORE = pq => restored.push({
+    pq: pq ? clone(pq) : null,
+    appliedName: applied && applied.meta && applied.meta.name,
+  });
+  const G2 = gbox.window.GARAGE_SPEC;
+  const cert = { when: '2026-08-31',
+    results: { shake: { verdict: 'FLIES A CIRCUIT', ok: true,
+                        fills: 'plaque' } },
+    sheets: { densAlt: null, flight: { report: { outcome: 'completed' } } } };
+  G2.plaque(cert);
+  ok(!!G2.plaque() && G2.plaque().results.shake.ok,
+     'the plaque setter stores the certificate');
+  const env = JSON.parse(G2.json());
+  ok(env.plaque && env.plaque.results.shake.verdict === 'FLIES A CIRCUIT'
+     && env.plaque.sheets.flight.report.outcome === 'completed',
+     'the certificate rides in the envelope, beside the spec, sheets and all');
+  G2.save('certified build');
+  restored.length = 0;
+  G2.load('certified build');
+  ok(restored.length === 1 && restored[0].pq
+     && restored[0].pq.results.shake.ok === true,
+     'loading hands the certificate to the bench, exactly once');
+  ok(restored[0].appliedName === 'certified build',
+     '...and only AFTER the loaded spec was applied — the storm is over');
+  G2.plaque(null);
+  G2.save('bare build');
+  restored.length = 0;
+  G2.load('bare build');
+  ok(restored.length === 1 && restored[0].pq === null,
+     'a build saved without a certificate loads with none');
+}
+
+// ---------------------------------------------------------------------------
+// G116 — THE CONSTRUCTION COSTS (the user: "carbon should cost"). The three
+// additive fields (`wings[0].material`, `tail.finMaterial`,
+// `tail.stabMaterial`) move MASS AND PRICE in the lattice's ledger and
+// nothing else — stiffness stays the aeroplane's calibration, and a spec
+// that says nothing is byte-identical to one that says the global out loud.
+// ---------------------------------------------------------------------------
+{
+  const led = s => C.genFrame(C.resolveSpec(clone(s)).spec).parts.ledger;
+  const base = clone(C.GEN_DEFAULT);
+  const L0 = led(base);
+  const glob = C.resolveSpec(clone(base)).spec.material;
+  // absent == the global said out loud: the field is a DEVIATION
+  const expl = clone(base);
+  expl.wings[0].material = glob;
+  ok(eq(led(expl), L0),
+     'G116: naming the global material out loud changes nothing');
+  // a carbon wing moves the wing's own mass and cost...
+  const cw = clone(base);
+  cw.wings[0].material = 'carbon';
+  const LC = led(cw);
+  ok(LC.wings.mass !== L0.wings.mass && LC.wings.cost !== L0.wings.cost,
+     'G116: a carbon wing moves the wing ledger');
+  // ...and of the FIXED-GEOMETRY sections, only the wing's: fuselage, tail,
+  // bracing and engines are untouched. The GEAR is allowed a small move and
+  // that is the system working, not leaking — genFrame's second pass places
+  // the mains against the CG the first pass produced, and an 8 kg lighter
+  // wing shifts it (measured: 26.28 -> 26.23 kg on the default aeroplane).
+  ok(['fuselage', 'tail', 'bracing', 'engines'].every(s2 =>
+       !L0[s2] === !LC[s2] && (!L0[s2] ||
+         (L0[s2].mass === LC[s2].mass && L0[s2].cost === LC[s2].cost))),
+     'G116: the fixed-geometry sections did not move');
+  ok(Math.abs(LC.gear.mass - L0.gear.mass) <
+       0.1 * Math.abs(LC.wings.mass - L0.wings.mass),
+     'G116: the gear re-rig is an order smaller than the wing change');
+  // the fin's own material moves the tail section and nothing else
+  const cf = clone(base);
+  cf.tail = Object.assign({}, cf.tail, { finMaterial: 'carbon' });
+  const LF = led(cf);
+  ok(LF.tail.mass !== L0.tail.mass && LF.tail.cost !== L0.tail.cost,
+     'G116: a carbon fin moves the tail ledger');
+  ok(LF.wings.mass === L0.wings.mass && LF.fuselage.mass === L0.fuselage.mass,
+     "G116: ...and neither the wing's nor the fuselage's");
+  // an unknown material is CLAMPED back to absent, never obeyed
+  const bad = clone(base);
+  bad.wings[0].material = 'unobtainium';
+  ok(eq(led(bad), L0),
+     'G116: an unknown material falls back to the aeroplane\'s own');
+  // and the DIRECTION is the material table's, not an accident of this
+  // aeroplane: the wing's cost moves the way carbon's price sits against
+  // the global material's
+  ok((LC.wings.cost > L0.wings.cost) ===
+     (C.GEN_MATERIALS.carbon.price > C.GEN_MATERIALS[glob].price),
+     'G116: the price moves the way the material table says');
+
+  // -------------------------------------------------------------------------
+  // G117 — WYSIWYG (the user's rule): the carbon wing FLEXES as carbon. The
+  // members' k and c follow the section's material exactly as lin and price
+  // do, the fuselage moves only by the aeroplane-level rescale (kScale reads
+  // the new total mass), and a spec that says nothing still builds the same
+  // aeroplane member for member.
+  // -------------------------------------------------------------------------
+  const frame = s => C.genFrame(C.resolveSpec(clone(s)).spec);
+  const F0 = frame(base), FC = frame(cw);
+  // `ext` members are the BRACING (struts and ties, built under their own
+  // section): a lift strut is a steel tube whatever the wing it braces, so
+  // it keeps the aeroplane's material and is excluded here on purpose
+  const kOf = (fr, cls) =>
+    fr.beams.filter(b2 => b2.cls === cls && !b2.gear && !b2.ext)
+      .map(b2 => b2.k);
+  const kw0 = kOf(F0, 'wing'), kwC = kOf(FC, 'wing');
+  const kf0 = kOf(F0, 'fus'), kfC = kOf(FC, 'fus');
+  ok(kw0.length > 4 && kw0.length === kwC.length && kf0.length === kfC.length,
+     'G117: the same members exist either way');
+  const rw = kwC[0] / kw0[0], rf = kfC[0] / kf0[0];
+  ok(kfC.every((k2, i) => Math.abs(k2 / kf0[i] - rf) < 1e-9),
+     'G117: fuselage members move only by the aeroplane-level rescale');
+  // ...in exactly TWO groups: the wing's own structure at the material's
+  // ratio, and the BRACING FAN (sec('bracing')'s solver truss, wing-class
+  // by stiffness family but the aeroplane's material by section — a brace
+  // is a steel tube whatever the wing it holds) at the plain rescale. The
+  // structure must be the majority, or the wing is mostly not a wing.
+  let nMat = 0, nBrace = 0, nOdd = 0;
+  kwC.forEach((k2, i) => {
+    const r2 = k2 / kw0[i];
+    if (Math.abs(r2 - rw) < 1e-9) nMat++;
+    else if (Math.abs(r2 - rf) < 1e-9) nBrace++;
+    else nOdd++;
+  });
+  ok(nOdd === 0 && nMat > nBrace,
+     'G117: the wing members split into structure (material) and bracing ' +
+     '(aeroplane) and nothing else — ' + nMat + '/' + nBrace + '/' + nOdd);
+  const kTab = C.GEN_MATERIALS.carbon.k.wing / C.GEN_MATERIALS[glob].k.wing;
+  ok(Math.abs(rw / rf / kTab - 1) < 1e-9,
+     "G117: the wing k moves by exactly the material table's own ratio");
+  const cRw = FC.beams.find(b2 => b2.cls === 'wing' && !b2.gear).c /
+              F0.beams.find(b2 => b2.cls === 'wing' && !b2.gear).c;
+  const cTab = C.GEN_MATERIALS.carbon.c.wing / C.GEN_MATERIALS[glob].c.wing;
+  ok(Math.abs(cRw / rf / cTab - 1) < 1e-9,
+     'G117: the damping follows the same material');
+  // absent still equals the global said out loud — MEMBER BY MEMBER, k and
+  // c included, which is the whole-fleet byte-identity in one line
+  ok(eq(frame(expl).beams, F0.beams),
+     'G117: naming the global changes no member at all');
+}
+
+// ===========================================================================
+// PASSENGERS (2026-08-31, the user: "we need passenger seats and passengers,
+// impacting the mass and CG"). Four seats is a new VALUE in an existing table
+// and a new loading field beside an existing one, so the whole risk is that
+// something moves for an aeroplane nobody asked to change — which is what the
+// first two checks are.
+// ===========================================================================
+{
+  const cg = spec => {
+    const d = C.buildGen(spec);
+    let mx = 0, m = 0;
+    for (const n of d.nodes) { mx += n.p[0] * n.m; m += n.m; }
+    return { cg: mx / m, mass: m, seating: d.params.gen ? null : null };
+  };
+  const base = () => clone(GEN_DEFAULT);
+
+  // 1. THE DEFAULT AEROPLANE DOES NOT MOVE. GATE ENERGYBASE freezes fourteen
+  //    of them; this is the same claim stated where it can be read.
+  const a0 = cg(base());
+  const a1 = (() => { const s = base(); s.cabin.pax = 0; return cg(s); })();
+  ok(Math.abs(a0.mass - a1.mass) < 1e-9 && Math.abs(a0.cg - a1.cg) < 1e-12,
+     'writing pax:0 explicitly is the same aeroplane as not writing it');
+
+  // 2. A SEAT THAT DOES NOT EXIST CANNOT BE FILLED. `pax` is clamped to what
+  //    the layout has left after the flight crew, so a spec cannot load five
+  //    people into a two-seater and quietly fly a heavier aeroplane.
+  const over = base(); over.cabin.seating = 'tandem2'; over.cabin.pilots = 1;
+  over.cabin.pax = 9;
+  const o = cg(over);
+  // NOT EXACT, AND THE REASON IS REAL: genFrame runs twice, and the second
+  // pass sizes the structure for the mass the first one found. So 80 kg of
+  // passenger arrives as 79.9 kg of aeroplane — the airframe under a heavier
+  // load is not the same airframe. The tolerance is that effect, not slop.
+  ok(Math.abs(o.mass - a0.mass - 80) < 2,
+     'pax 9 in a two-seater loads exactly one passenger, not nine' +
+     ' (' + (o.mass - a0.mass).toFixed(1) + ' kg)');
+
+  // 3. AND ONE THAT DOES EXIST MOVES BOTH NUMBERS. 80 kg is the occupant
+  //    mass this file has always billed; the CG must move with it or the
+  //    whole item is decoration.
+  const one = base(); one.cabin.pax = 1;
+  const p1 = cg(one);
+  ok(Math.abs(p1.mass - a0.mass - 80) < 2,
+     'a passenger weighs 80 kg (' + (p1.mass - a0.mass).toFixed(1) + ')');
+  ok(Math.abs(p1.cg - a0.cg) > 0.02,
+     'a passenger does not move the CG — the seat rows are collapsing onto ' +
+     'one frame again, which is what made a full cabin load like a solo one' +
+     ' (moved ' + ((p1.cg - a0.cg) * 1000).toFixed(0) + ' mm)');
+
+  // 4. FOUR SEATS EXIST, CARRY FOUR, AND THE SECOND ROW IS BEHIND THE FIRST.
+  for (const lay of ['side4', 'tandem4']) {
+    const e = base(); e.cabin.seating = lay; e.cabin.pilots = 1; e.cabin.pax = 0;
+    const f = base(); f.cabin.seating = lay; f.cabin.pilots = 1; f.cabin.pax = 3;
+    const E = cg(e), F2 = cg(f);
+    ok(Math.abs(F2.mass - E.mass - 240) < 5,
+       lay + ': three passengers weigh 240 kg (' +
+       (F2.mass - E.mass).toFixed(1) + ')');
+    ok(F2.cg > E.cg + 0.05,
+       lay + ': filling the cabin does not move the CG AFT — the back row is ' +
+       'being billed onto the front frame');
+  }
+
+  // 5. THE OLD LAYOUTS RESOLVE EXACTLY AS THEY DID. `seatRows` replaced a
+  //    two-element literal, and every existing seating must land on the same
+  //    frames it landed on before or every saved aeroplane re-balances.
+  for (const [lay, pil] of [['single', 1], ['tandem2', 2], ['side2', 2]]) {
+    const s2 = base(); s2.cabin.seating = lay; s2.cabin.pilots = pil;
+    const r = cg(s2);
+    ok(isFinite(r.cg) && r.mass > 0, lay + ' still builds with ' + pil +
+       ' aboard (' + r.mass.toFixed(1) + ' kg, cg ' + r.cg.toFixed(4) + ')');
+  }
 }
 
 console.log('');

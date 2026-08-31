@@ -100,8 +100,11 @@ const station = (i, name) => [name, [
   ['s' + i + 'Drop',  'leg drop',     0.05, 1.00, 0.01, sOn(i)],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
+  // G121.2: hidden on the tailwheel castor — that leg draws no shell, and a
+  // visible switch that draws nothing and prices nothing is two lies at once
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
-   sOn(i)],
+   { when: P => +P['s' + i + 'On']
+             && !(i === 2 && Math.round(P.s2Leg) === 3) }],
   ...legRows(i),
 ]];
 

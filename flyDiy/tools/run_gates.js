@@ -41,6 +41,16 @@ const GATES = [
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core' },
+  // THE SIM DOES NOT LIE (G115): gear/strut drag as a delta from the
+  // calibration's reference gear, the ground's surface table, the fin's own
+  // polar + the measured weathervane, and the plaque agreeing with itself.
+  // Carries --selftest.
+  { id: 'HONEST', file: 'test_honest.js', tier: 'core' },
+  // MASS CAN CHANGE NOW (G121): the P-4 solver proofing, landed before the
+  // energy arc's burn — the setNodeMass door, live totalM, dry-mass substeps,
+  // the fuel record, the live taxi feedforward, the sheet at reserves, and
+  // the twin clamp. Carries --selftest.
+  { id: 'MASS', file: 'test_massproof.js', tier: 'core' },
   { id: 'TREE', file: 'test_tree.js', tier: 'core' },
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'MODEL', file: 'test_model.js', tier: 'core' },
@@ -106,6 +116,16 @@ const GATES = [
   // THE PART TABLE (G76): the declared assembly against the editor's own row
   // list and the sections real builds emit — every slider in exactly one part
   { id: 'PARTS', file: '_parts_check.js', tier: 'core' },
+  // THE MACRO ROWS (NEW-AIRCRAFT): the birth flow's declaration — every
+  // option writes something or carries a reason, every written key real,
+  // live classes inside the wing clamps, archetypes resolvable. Sub-second.
+  { id: 'DESIGN', file: '_design_check.js', tier: 'core' },
+  // ...and the declared canonical builds actually FLY: designBake -> clamp
+  // must not bite a declared value -> shakedown clears the circuit -> the
+  // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
+  // WITH THEIR REASON PRINTED, so the gate log is also the backlog. Fleet
+  // tier: it flies eight circuits.
+  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'fleet' },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared
@@ -116,6 +136,30 @@ const GATES = [
   // measurement taken against a reference is worth exactly what that check is
   // — and the display-only rule, read off refplane.js's own source
   { id: 'REF', file: '_ref_check.js', tier: 'core' },
+  // THE SITE (G123): the base aerodrome as ONE declared place. Asserts that
+  // neither scene restates the runway the HOME record already carries, that
+  // the frame conversion between the world and the shed round-trips, and the
+  // geometric claims a shared site has to keep — nothing paved under the
+  // building, a taxiway that reaches the strip, a fence with a gate in it, and
+  // everything inside the flat pad where y = 0 is exact.
+  { id: 'SITE', file: '_site_check.js', tier: 'core' },
+  // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
+  // version and migrator walk beside the spec's (G105's ruling: state that is
+  // not the aeroplane costs no spec version), the one-time lift of the two
+  // shed prefs, the composition rule that keeps the world's shed and the room
+  // you stand in the same size, and the vintage shelf that makes ruling 4
+  // hold for property the way it holds for builds. Source-scans app.js for
+  // the write-stop: nothing may quietly write the old pref keys again.
+  { id: 'PLAYER', file: '_player_check.js', tier: 'core' },
+  // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
+  // contract. The kit tables partition the declared prop tables exactly once,
+  // every capability verb is grantable, every kit places into every shell OR
+  // REPORTS — never silently — the club's golden room is frozen to the
+  // authored layout through the identity conversion, and every live shell
+  // BUILDS, interior and exterior, at its dims and its slider corners with
+  // no negative geometry (the instrumented stub caught the glazing band and
+  // the stem course inside-out at the old slider floor).
+  { id: 'HANGAR', file: '_hangar_check.js', tier: 'core' },
   // THE ENERGY MODULE (G97-G101): fourteen aeroplanes frozen as numbers —
   // cg0, every node mass and position, the ledger's empty/payload split and
   // the fitting list — BEFORE `spec.fuel` grows into a section with a v5->v6

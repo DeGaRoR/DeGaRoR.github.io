@@ -190,6 +190,10 @@ window.CAGE_PAGE = {
         ['intDash',   'dashboard',       0, 1, 1],
         // moved from "7 · boom" (user, G28): a conception concern
         ['intBulk',   'aft bulkhead',    0, 1, 1],
+        // WITHIN THE PILLAR, as a fraction of it: -1 the forward face,
+        // 0 where it has always sat, +1 the aft face.
+        ['bulkZ',     'bulkhead station', -1, 1, 0.05,
+         { when: P => +P.intOn && +P.intBulk }],
         // was invisible on this curated tree — but the piper preset sets
         // it 0, and doors/explode silently do nothing without it (the
         // intOn trap of 2026-08-19, same shape)
@@ -242,7 +246,16 @@ window.CAGE_PAGE = {
         ['winSillPilot', 'window sill', 0, 0.9, 0.01],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
-        ['mirror',    'mirrored pod',   0, 1, 1],
+        // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
+        // a builder chooses what the top of the fuselage does behind the
+        // cockpit — cabin roof running aft, or a turtledeck falling away.
+        // THE KEY STAYS `mirror`: it names the machinery (the aft body gets
+        // the nose's own control set), CAGE_AFT_SUB and the forever-split
+        // read it, and it rides spec.cage into every saved build — renaming
+        // the key is a migration, renaming the label is a string. Do not
+        // "fix" the mismatch.
+        ['mirror',    'body & deck',    0, 1, 1, ['cabin roof',
+                                                  'turtledeck']],
         // measured (G28 audit): only acts on a bubble canopy over a
         // mirrored pod — the sailplane arceau
         ['arcFit',    'arceau fit',     0, 1, 1,
@@ -268,11 +281,27 @@ window.CAGE_PAGE = {
         ['bubW3',     'loop3 width',    0.8, 1.5, 0.01,
          { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
         ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
+        // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
+        // `winDepth` were unreachable and `doorDepth` did nothing while it sat
+        // at 0. At 0 the windows are flush, as they were before this row.
+        ['winFrameW', 'window frame',   0.00, 0.05, 0.002, { dim: 'len' }],
+        ['winDepth',  'window recess',  0.00, 0.06, 0.002,
+         { when: P => +P.winFrameW > 0, dim: 'len' }],
       ], 'open'],
       ['doors', [
         ['doorOn',    'pilot door',     0, 1, 1],
         ['doorSill',  'door sill',      0, 0.25, 0.002,
          { when: P => +P.doorOn, dim: 'len' }],
+        // THE GAP, filed under the DOOR. `rimW` (the seal's gauge, in the
+        // glazing group above) was the only control over how visible a door
+        // is, which is why the user could not find it from the door.
+        ['doorRim',   'door gap',       0.004, 0.06, 0.001,
+         { when: P => +P.doorOn, dim: 'len' }],
+        ['rimDoor',   'draw the gap',   0, 1, 1,
+         { when: P => +P.doorOn }],
+        ['doorDepth', 'door recess',    0, 0.06, 0.002,
+         { when: P => +P.doorOn && +P.winFrameW > 0, dim: 'len' }],
+        ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung (needs cut
         // parts on)

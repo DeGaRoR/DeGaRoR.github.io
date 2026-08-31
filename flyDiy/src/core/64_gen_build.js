@@ -26,6 +26,28 @@ function genProbeAt(sim, V, a) {
   return r;
 }
 
+// G115 — THE FIN EXISTS NOW (the review's sharpest finding: "probe() returns
+// yawLeft and nothing in the repo ever reads it; the fin is the one major
+// surface the player can size with no consequence and no readout"). A
+// sideslip probe at cruise speed, a small beta either side, and the
+// WEATHERVANE STIFFNESS is the slope — normalised to Cn_beta on wing area
+// and span: the directional analogue of the static margin. Positive is
+// stable (nose swings back into the wind); the sign convention is verified
+// against the whole fleet in tools/_yaw_probe.js.
+function genYawStiff(sim, def, V) {
+  const bet = 0.06;
+  const yaw = b => sim.probe(
+    [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
+  const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
+  const g = def.params.gen || {};
+  const Sw = g.Sw || 10, b = Math.sqrt(Sw * (g.AR || 6));
+  // minus: with this velocity construction the whole fleet measures a
+  // NEGATIVE slope when stable (verified in tools/_yaw_probe.js — every
+  // fiche and the stock build), so the sign is flipped once, here, and
+  // stable reads positive the way the static margin does.
+  return -dN / (0.5 * RHO * V * V * Sw * b);
+}
+
 // Free-air CLmax by alpha sweep — the same scan GATE FLAPS runs on the fleet.
 // `flap` is the deflection to hold during the sweep, so one function measures
 // both the clean and the flapped maximum.
@@ -289,15 +311,21 @@ function genTORunAt(sim, def, W) {
     const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
     sRoll += Vi * (Vun / NS) / ai;
   }
-  // AIR SEGMENT, unstick to 2.5 m. NOT a climb at a settled speed — the
-  // aeroplane is accelerating and climbing at once, and how much of the
-  // surplus goes into height rather than into speed is an aeroplane-by-
-  // aeroplane thing: measured 23 m on the cub against 101 m on the garage
-  // preset, for the same 2.5 m. So it is carried as a fraction of the roll
-  // rather than modelled, at 0.8 — above the worse of the two measured ratios
-  // (0.53 gen, 0.18 cub), because this number's whole job is to be long.
-  // Reads 320 m against the preset's 292 m flown.
-  return { TORun: Math.round(1.8 * sRoll), Vun };
+  // AIR SEGMENT, unstick to 2.5 m — DERIVED now (G115; the review's S7: the
+  // flat 0.8·roll padding told a 6 m/s climber and a 0.5 m/s climber the
+  // same story). The aeroplane is accelerating AND climbing at once, so the
+  // segment is an energy height — the 2.5 m of clearance PLUS the kinetic
+  // climb from unstick to the screen speed — divided by the specific excess
+  // thrust measured at the mid-speed, in this sim's own air. The gradient
+  // floor is the flyable bar's own scale: below it the aeroplane is not
+  // leaving, and the ROLL rejection is the number that matters.
+  const W2 = W, Vscr = 1.15 * Vun;
+  const rm = genProbeAt(sim, 1.10 * Vun, 0.06);
+  const grad = Math.max(0.015,
+    (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
+  const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
+  return { TORun: Math.round(sRoll + air), Vun, sRoll: Math.round(sRoll),
+           air: Math.round(air) };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -305,7 +333,7 @@ function genTORunAt(sim, def, W) {
 // Works on ANY fiche, generated or hand-written — the geometry-only fields are
 // skipped when there is no spec. That is deliberate: the garage's numbers have
 // to be comparable with the fleet's, or they mean nothing.
-function genShakedown(def) {
+function genShakedown(def, opts) {
   const S = def.spec, P = def.parts;
   const g = def.params.gen || {};
   const sim = makeSim(def, null);
@@ -402,10 +430,15 @@ function genShakedown(def) {
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
     noseOver,
-    Vs: g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
+    // G115: the DISPLAYED stall is the measured one — same instrument as
+    // VsFlap and VsRatio below, so the three cells finally agree. The
+    // analytic g.Vs keeps deriving the AP's speed ladder, unchanged.
+    Vs: g.VsMeas ?? g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    // G115: the directional half of the balance story, measured the same way
+    cnBeta: genYawStiff(sim, def, V),
     TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
     stabTrim: def.params.stabTrim,
     // CAN IT FLY A CIRCUIT AT ALL — reported, never enforced, exactly like
@@ -484,6 +517,12 @@ function genShakedown(def) {
     out.VsRatio = out.VsFlap / Math.sqrt(2 * cl.W / (RHO * cl.Sw * Math.max(1e-6, cl.CLmax)));
     out.VAppr = def.params.ap.VAppr;
   }
+  // (G115 tried a flapless fallback here — VsFlap = Vs, ratio 1 — and GATE
+  // GEN's own contract threw it out: ABSENCE is the declared signal for "no
+  // high-lift device", and a fabricated ratio-one row is exactly the kind of
+  // number-that-means-nothing this chantier exists to remove. One instrument
+  // applies WHERE THE DEVICE EXISTS; where it does not, the honest cell is
+  // no cell.)
   if (P && P.ledger) {
     out.ledger = P.ledger;
     out.cost = 0;
@@ -504,6 +543,25 @@ function genShakedown(def) {
       out.cost += e.cost;
       if (e.payload) out.payload += e.mass; else out.empty += e.mass;
     }
+  }
+  // G121 (the review's B5): THE SHEET AT RESERVES. Every number above is
+  // quoted at one mass — full tanks — and with a nose or outboard tank the
+  // static margin genuinely MOVES as fuel burns; when burn arrives, a
+  // single-number plaque would be the new lie. The reserve sheet is the
+  // SAME airframe re-fed with 15% fuel: the RESOLVED spec goes back through
+  // buildGen, and because every derived field is non-null now, the geometry
+  // and the gear stay exactly where the full-tanks design put them — only
+  // the fuel kilos differ, which is precisely what "at reserves" means.
+  // Slim recursion: the reserve sheet does not itself carry one.
+  if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
+    try {
+      const rs = JSON.parse(JSON.stringify(S));
+      rs.fuel.litres = Math.max(4, 0.15 * rs.fuel.litres);
+      const rsh = genShakedown(buildGen(rs), { slim: true });
+      out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
+                      staticMargin: rsh.staticMargin,
+                      climbRate: rsh.climbRate, wingLoad: rsh.wingLoad };
+    } catch (e) {}
   }
   return out;
 }
@@ -563,9 +621,17 @@ function buildGen(specIn) {
     params.ap.VAppr *= r;
     params.ap.VApprShort *= r;
     params.gen.VsFlap = VsFlap;
+    params.gen.VsMeas = VsClean;          // G115: the MEASURED clean stall
     params.gen.aStallLdg = g.aStall;
   } else {
-    params.gen.VsFlap = params.gen.Vs;
+    // G115 (the review's S8): the plaque used to show an ANALYTIC Vs beside a
+    // MEASURED VsFlap — two instruments in adjacent cells, and their ratio
+    // disagreed with the displayed VsRatio. The measured clean stall is kept
+    // for DISPLAY; `gen.Vs` stays the analytic number the whole AP speed
+    // ladder is derived from, so nothing flies differently.
+    params.gen.VsMeas = Math.sqrt(2 * gClean.W /
+                        (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+    params.gen.VsFlap = params.gen.VsMeas;
     params.gen.aStallLdg = gClean.aStall;
   }
   genTrim(def);

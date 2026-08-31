@@ -443,8 +443,15 @@ try {
     const workshop = ['edWrap', 'edView', 'edInfo',
                       'edTree', 'edRows', 'edRail', 'plaque', 'edBench',
                       'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish',
-                      // G107: the view's chrome is ONE bar across the top
-                      'edTopBar', 'edActs', 'edSave', 'edRoll'];
+                      // 2026-08-31: the THIRD view (the design tiles), and
+                      // the chrome re-cut around the FILE RIBBON — the shelf
+                      // rides #edTopBar now, the look rail sits in #edBotBar,
+                      // ROLL OUT is its own floating action, and the ribbon
+                      // carries the build's name (#fbName) and the birth
+                      // flow's door (#gNew). #edStand keeps the on-loan
+                      // aircraft select beside the bench.
+                      'edTabDesign', 'edTopBar', 'edBotBar', 'edActs',
+                      'edRoll', 'fbName', 'gNew', 'edStand'];
     // ...AND WHAT WAS RETIRED STAYS RETIRED. Each of these was a SECOND door
     // to a room that already had one, which is the failure this screen keeps
     // having: `edVerbs` put the two actions in the opposite corner from the
@@ -457,7 +464,11 @@ try {
                      // body and the scrim that dimmed the view behind it all
                      // go. UI-MODEL section 2.4 reserves one sheet for the
                      // FLEET RACK and that chantier writes its own.
-                     'edShed', 'shedBody', 'edScrim'];
+                     'edShed', 'shedBody', 'edScrim',
+                     // 2026-08-31: SAVE lives on the file ribbon (#gSave, the
+                     // shelf's one handler); a second save verb was a second
+                     // thing that could disagree about what save means.
+                     'edSave'];
     for (const id of flight) {
       const at = body.indexOf(`id="${id}"`);
       if (at < 0) throw new Error(`flight chrome missing: ${id}`);
@@ -484,6 +495,28 @@ try {
       ['the preset is gated on a pilot', "!window.CAGE_CREW_EYE"],
     ]) if (html.indexOf(needle) < 0)
       throw new Error(`the interior view is half-wired: ${what} — not found`);
+    // THE COWL GETS OUT OF THE WAY is a contract across three files, and the
+    // interesting failures are all in the parts that are NOT the ghost itself:
+    // the layer has to read the dial, the rail has to keep offering it (or the
+    // builder cannot take it back), and the join has to reset it (or a ghosted
+    // cowl flies transparent). Asserted against the artifact, which is where
+    // the three have to meet.
+    //
+    // EVERY NEEDLE IS CODE, NOT PROSE. The block's own comments name `cowl α`
+    // and VIEW_STATE, so a check on those words would pass on the explanation
+    // rather than the mechanism — the trap this arc fell into three times.
+    for (const [what, needle] of [
+      ['the ghost has a stated value', 'const COWL_GHOST = 0.15;'],
+      ['it fires only on the engine, only in the livery view',
+        "view === 'finish' && sel === 'engine'"],
+      ['the cowl layer reads the dial', 'window.CAGE_VIEW.cowlA != null'],
+      ['the rail still offers the dial', "'structure α', 'cowl α'] }"],
+      ['the join resets it for flight', "_vView('cowlA')"],
+      ['the slider is moved with the value', "showAlpha('cowl α', V.cowlA);"],
+      ['a builder who moves it keeps it',
+        'if (V.cowlA === COWL_GHOST) V.cowlA = cowlWas;'],
+    ]) if (html.indexOf(needle) < 0)
+      throw new Error(`the cowl ghost is half-wired: ${what} — not found`);
     console.log(`the seam holds: ${flight.length} flight ids, ` +
       `${workshop.length} workshop ids, ${retired.length} retired`);
   }

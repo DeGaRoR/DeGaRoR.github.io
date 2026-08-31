@@ -154,8 +154,31 @@ if (poly) poly[1].push(
 // in the table with the smallest tile.
 const AKM = () => (typeof window !== 'undefined' && window.AEROSKIN) || null;
 const matCache = {};
+// WHICH ENGINE PARTS THE BUILDER PAINTS (G113.4). Everything else in
+// AERO_HARD.eng stays hardware — a spark plug is chrome and a lead is rubber,
+// and those are not choices. What IS a choice is the way an engine is
+// finished: the crankcase and its castings in one colour, the cylinders in
+// another, the rocker covers as the accent. Three groups, and every part in
+// AERO_HARD.eng that is not named here keeps the material the table gives it.
+const ENG_SEC = {
+  emCase: 'engBlock', emRidge: 'engBlock', emSump: 'engBlock',
+  emAcc: 'engBlock', emPad: 'engBlock',
+  emBarrel: 'engJug', emFin: 'engJug', emHead: 'engJug',
+  emRocker: 'engCover',
+};
 const matOf = name => {
   const A = AKM();
+  // the livery section first, exactly as the propeller does it: AERO_HARD
+  // still decides what the part IS (its bottom-out finish), and the section
+  // adds the builder's own finish, tint and dials on top.
+  const sec = ENG_SEC[name];
+  if (sec && typeof window !== 'undefined' && window.CAGE_SECMAT) {
+    const m = window.CAGE_SECMAT(sec, {
+      fin: A && A.aeroHardFinish && A.aeroHardFinish('eng', name),
+      tint0: EP.COL[name] || EP.NEUTRAL,
+      surf: 0, fieldM: 1, side: THREE.DoubleSide });
+    if (m) return m;
+  }
   if (A && A.aeroHardMat) {
     const m = A.aeroHardMat(THREE, 'eng', name,
       new THREE.Color(EP.COL[name] || EP.NEUTRAL).getHex(),
@@ -186,15 +209,21 @@ const propMat = (sec) => {
   // IS (its finish AND its density); the section adds the builder's tint and
   // dials on top. The spinner is its own section FOLLOWING the propeller, so
   // by default it wears the blade's material exactly as it always did.
+  // G125.1: the row's own tile scale and grain turn ride along — a laminated
+  // blade shows its glue lines at BLADE pitch, running SPANWISE. tileK0
+  // composes under the builder's dial in secMat; the fallback multiplies the
+  // same number in directly.
   if (typeof window !== 'undefined' && window.CAGE_SECMAT) {
     const m = window.CAGE_SECMAT(sec || 'prop',
       { fin: A && A.AERO_PROP_FIN[i], tint0: M.col,
-        surf: 0, fieldM: 1, side: THREE.DoubleSide });
+        surf: 0, fieldM: 1, side: THREE.DoubleSide,
+        tileK0: M.tileK, detRot: M.detRot });
     if (m) return m;
   }
   if (A && A.aeroHardOn && A.aeroHardOn() && A.AERO_PROP_FIN[i])
     return A.aeroMaterial(THREE, { finish: A.AERO_PROP_FIN[i], tint: M.col,
-      surf: 0, fieldM: 1, side: THREE.DoubleSide });
+      surf: 0, fieldM: 1, side: THREE.DoubleSide,
+      tileK: M.tileK, detRot: M.detRot });
   propM.color.setHex(M.col); propM.metalness = M.met; propM.roughness = M.rgh;
   return propM;
 };
@@ -268,6 +297,11 @@ function applyEngPreset(P, name) {
     }
   P.eng_screws = base.screws ? 1 : 0;
 }
+// THE ONE EXPORT of that mapping (2026-08-31): the birth flow bakes a
+// preset's values into a FRESH cage before cageToSpec (design_flow.js), and
+// GATE ARCHETYPES does the same headless — both through this exact function,
+// so the tile, the row and the gate cannot apply three different engines.
+if (typeof window !== 'undefined') window.CAGE_ENG_APPLY_PRESET = applyEngPreset;
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {

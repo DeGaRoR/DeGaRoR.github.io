@@ -44,11 +44,15 @@ function makeAutopilot(sim, def, world) {
   // So the bias is the throttle that exactly cancels rolling resistance,
   // derived per aeroplane. Nothing is tuned here: CRR and the prop curve are
   // both already in the registry.
+  // G121: a FUNCTION of the live mass, not a number captured at engagement —
+  // this exact feedforward being wrong is the documented 16 m creep below,
+  // and burning fuel would have made it wrong again. Identical value on every
+  // call for anything whose mass never changes, which is the whole fleet.
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
-    return Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
+    return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // u = frame axis (landing direction); origin places tdz at s = -450
@@ -288,7 +292,8 @@ function makeAutopilot(sim, def, world) {
       // taxiFF cancels rolling resistance, the speed error does the rest, and
       // the cap rises with the feedforward so a heavy-footed aeroplane still
       // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
-      c.thr = clamp(taxiFF + 0.06 * (Vt - Vg), 0, taxiFF + 0.27);
+      const ff = taxiFF();
+      c.thr = clamp(ff + 0.06 * (Vt - Vg), 0, ff + 0.27);
       c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };

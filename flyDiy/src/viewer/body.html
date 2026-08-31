@@ -172,22 +172,15 @@
          bench.js owns #bTests. TEST FLIGHT is a row in its table with no
          `run` yet, and lands here when it is built. -->
     <div id="edBench"></div>
-    <!-- THE FLEET. Which aeroplane is on the stand, and everything you do to
-         it as an object. `#shAc` takes the game's own aircraft select on loan
-         while the workshop is up; the RACK that replaces it is still to come,
-         and is the one thing that will want a sheet. -->
-    <div id="edFleet">
-      <div class="edH"><span>fleet</span><i></i><em>save format v7</em></div>
+    <!-- WHAT IS ON THE STAND. `#shAc` takes the game's own aircraft select
+         on loan while the workshop is up. The BENCH aircraft (the DC-3, the
+         fiches) are subjects to measure, not fleet members (the user's own
+         ruling, 2026-08-31) — which is why this stays beside the bench when
+         the FILE OPERATIONS moved to the ribbon over the view. The RACK is
+         still to come, and is the one thing that will want a sheet. -->
+    <div id="edStand">
+      <div class="edH"><span>on the stand</span><i></i></div>
       <div id="shAc"></div>
-      <div id="edShelf">
-        <select id="gSlot" title="Stock designs and your saved aeroplanes"></select>
-        <button id="gSave"  title="Save over this aeroplane">save</button>
-        <button id="gSaveAs" title="Save as a new aeroplane">save as</button>
-        <button id="gDel"   title="Delete the selected aeroplane">delete</button>
-        <button id="gExport" title="Download this build as a .json file">export</button>
-        <button id="gImport" title="Load a build from a .json file">import</button>
-        <input id="gFile" type="file" accept="application/json,.json" hidden>
-      </div>
     </div>
   </div>
   <button id="edInfoFold" class="pill" title="Fold the information panel">‹</button>
@@ -224,6 +217,22 @@
       <button id="resetBtn">reset</button>
       <button id="objBtn">export OBJ</button>
     </div>
+    <!-- THREE VIEWS OF ONE TREE (UI-MODEL §2.3, widened 2026-08-31 — the
+         user: "the structure and livery should be completely at the top,
+         and divide the whole space. We'll now have 3 of them"). The tree
+         stays the only selector — the noun; the tab is the adjective.
+         DESIGN is the whole aeroplane's macro rows (the tiles — selection-
+         independent by nature); SHAPE is what the selected part is; FINISH
+         is what it is made of and looks like. The bar heads the column,
+         above the selection it qualifies. -->
+    <nav id="edViewTabs">
+      <button id="edTabDesign" class="edTab"
+              title="The whole aeroplane's macro choices — class, role, configuration">design</button>
+      <button id="edTabShape" class="edTab on"
+              title="What this part is — its dimensions and its shape">shape</button>
+      <button id="edTabFinish" class="edTab"
+              title="What this part is made of — finish, colour, and the grain of it">finish</button>
+    </nav>
     <!-- the selection, and what has moved on it since the design was loaded -->
     <header id="edPropHead">
       <button id="edPropFold" class="pill" title="Fold the properties column">›</button>
@@ -237,19 +246,10 @@
               title="Every row of this part back to the design you loaded">reset part</button>
       <button id="edExpert" class="pill"
               title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
-      <!-- TWO VIEWS OF ONE TREE, not two panels (UI-MODEL §2.3). The tree
-           stays the only selector — the noun; the tab is the adjective. SHAPE
-           is what the part is; FINISH is what it is made of and looks like. -->
       <!-- the anchor this part is placed against — a fact about the
            SELECTION, so it belongs under the selection's name rather than in
            a footer at the far end of the column. -->
       <span id="edPartMeta"></span>
-      <nav id="edViewTabs">
-        <button id="edTabShape" class="edTab on"
-                title="What this part is — its dimensions and its shape">structure</button>
-        <button id="edTabFinish" class="edTab"
-                title="What this part is made of — finish, colour, and the grain of it">livery</button>
-      </nav>
     </header>
     <div id="edRows"></div>
     <!-- WHAT IS LEFT OF THE OLD ACCORDION. The parameter rows went into the
@@ -299,13 +299,38 @@
        left to right as HOW YOU LOOK AT IT, then WHAT YOU DO WITH IT.
        ROLL OUT is the primary and is NEVER disabled: it is your aeroplane, and
        building it wrong and learning why is content, not error. -->
+  <!-- THE FILE RIBBON (2026-08-31, the user: "typical new/save/save as/load
+       functionality... maybe a ribbon on top... we centralize all UI for
+       these operations"). `#edFleet` — the shelf's own container, ids,
+       handlers and drag-drop intact — simply LIVES HERE now: garage.js is
+       untouched by the move, and hiding when a bench aircraft is selected
+       comes free from its own sync (file operations are for YOUR build).
+       The look controls went to the matching bar at the BOTTOM. -->
   <div id="edTopBar">
-    <div id="edRail"></div>
+    <div id="edFleet">
+      <span id="fbName" title="The build on the stand">unsaved</span>
+      <button id="gNew" class="pill"
+              title="Start a new aeroplane — pick an archetype">✚ new</button>
+      <div id="edShelf">
+        <select id="gSlot" title="Stock designs and your saved aeroplanes"></select>
+        <button id="gSave"  title="Save over this aeroplane">save</button>
+        <button id="gSaveAs" title="Save as a new aeroplane">save as</button>
+        <button id="gDel"   title="Delete the selected aeroplane">delete</button>
+        <button id="gExport" title="Download this build as a .json file">export</button>
+        <button id="gImport" title="Load a build from a .json file">import</button>
+        <input id="gFile" type="file" accept="application/json,.json" hidden>
+      </div>
+    </div>
+    <!-- ROLL OUT rides the same row, far right (user: "aligned with the
+         save/new UI, not a row below") — still its own element, not part of
+         the file plate, and the row's wrap keeps it reachable when the
+         estate narrows. -->
     <div id="edActs">
-      <button id="edSave" class="verb"
-              title="Save this aeroplane — over itself, or under a name the first time">Save</button>
       <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
     </div>
+  </div>
+  <div id="edBotBar">
+    <div id="edRail"></div>
   </div>
   <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
 </div>

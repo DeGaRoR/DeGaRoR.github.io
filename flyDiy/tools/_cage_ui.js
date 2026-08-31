@@ -242,7 +242,14 @@ const matCache = {};
 // (the sheet linings: plywood/toele/cloth/composite shell) and interior
 // STRUCTURE (frames, posts, tubes, dash, bulkhead, firewall). Glass
 // keeps its own alpha on top.
-const VIEW = { glassA: 0.35, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
+// glassA STARTS AT 1 (2026-08-31). It was 0.35 — a see-into-the-cabin
+// default from before the glazing had a clarity dial of its own — and
+// since matOf takes min(view, clarity), that default silently CAPPED every
+// pane's material at 0.35 on every machine: clarity above it did nothing,
+// and the flown snapshot baked the capped pane in. The view alpha is a way
+// of LOOKING and still wins when it asks for less; a default that always
+// asks for less was a cap wearing a preference's clothes.
+const VIEW = { glassA: 1, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
                loops: 1 };
 // layers read viewer state (the cowl layer's alpha) through this — G29
 window.CAGE_VIEW = VIEW;
@@ -306,6 +313,11 @@ const secFin = {};
 // stays the authority on what a material IS. Absent means 1 and costs no
 // storage: only the sections somebody has actually dialled are written.
 const secTile = {}, secRough = {}, secNrm = {};
+// THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
+// a multiplier on the material's ageing rate, walked down the chains like
+// the dials — the one dial still sets the aeroplane, this says how much of
+// it each part shows. Absent means 1 and costs no storage.
+const secWear = {};
 // THE CONDITION OF THE AEROPLANE (G70). One number: 0 is the day it left the
 // shop, 1 is twenty years on a grass strip. Everything it does and everywhere
 // it lands is derived (see applyWear and aeroskin.js's THE WEAR) — this is
@@ -320,7 +332,9 @@ function aeroLoadPrefs() {
     Object.assign(secTile, j.tile || {});
     Object.assign(secRough, j.rough || {});
     Object.assign(secNrm, j.nrm || {});
+    Object.assign(secWear, j.wearM || {});
     Object.assign(WEAR, j.wear || {});
+    aeroLoadGlass(j);
   } catch (e) {}
 }
 // READ, MODIFY, WRITE — never write the whole key. This used to store
@@ -328,11 +342,18 @@ function aeroLoadPrefs() {
 // its placement under `dec` in the same pref): changing one section's finish
 // wiped where the registration sat, and you only found out after a reload.
 // The wear block below would have been the second casualty.
+// the glazing's dials come back with everything else — READ, MODIFY, WRITE,
+// for the same reason the comment above gives
+function aeroLoadGlass(j) {
+  if (j && j.glass) for (const k in GLASS_DEFV)
+    if (j.glass[k] !== undefined) GLASS[k] = j.glass[k];
+}
 function aeroSavePrefs() {
   try {
     const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
     j.tint = secTint; j.finish = secFin; j.wear = WEAR;
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
+    j.wearM = secWear; j.glass = GLASS;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -361,10 +382,32 @@ const matOf = name => {
     const key = 'a:' + name + ':' + a + ':' + (tint == null ? '-' : tint) +
                 ':' + (secFin[name] || '') + ':' + consOf() +
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
-                ':' + (secNrm[name] || 1);
+                ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
+                ':' + (WEAR.amount || 0) +
+                // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
+                // "none of the sliders do anything"). aeroGlass's own pool
+                // states the rule — "EVERY DIAL JOINS THE KEY, or two panes
+                // with different settings silently share one material" —
+                // and this cache in FRONT of it never learned it: a moved
+                // slider rebuilt into the same key and was handed the pane
+                // it had already built. The dials never reached the stand.
+                (A.AERO_GLASS.has(name)
+                  ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
+                            GLASS.grime, GLASS.refl, GLASS.rainbow].join(',')
+                  : '');
     if (matCache[key]) return matCache[key];
     if (A.AERO_GLASS.has(name)) {
-      matCache[key] = A.aeroGlass(THREE, { opacity: a, fieldM: fieldM() });
+      // the VIEW alpha still wins when it is asking for less: `glass a` is a
+      // way of LOOKING at the build and must be able to see through it
+      matCache[key] = A.aeroGlass(THREE, Object.assign({}, GLASS, {
+        tint: secTint[name] != null ? secTint[name] : GLASS.tint,
+        opacity: Math.min(a, GLASS.opacity),
+        ext: GLASS_EXT[name] || [0, 0, 0, 0],
+        // the condition dial reaches the glazing now, scaled by the pane's
+        // own wear multiplier exactly as every other section's is
+        wear: (WEAR.amount || 0) *
+              (secWear[name] != null ? secWear[name] : 1),
+        fieldM: fieldM() }));
     } else {
       matCache[key] = A.aeroMaterial(THREE, {
         // the construction picks the finish; the player's override wins
@@ -375,6 +418,7 @@ const matOf = name => {
         tint, opacity: a, fieldM: fieldM(),
         // the three dials; absent is the finish's own number
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
+        wearM: secWear[name],
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -421,7 +465,7 @@ const SEC_LIVE = {};                    // section -> epoch it last drew in
 const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
-                   rough: secRough, nrm: secNrm };
+                   rough: secRough, nrm: secNrm, wear: secWear };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -454,9 +498,19 @@ function secMat(name, g) {
     // everywhere by accident rather than by agreement — and the box
     // projector cannot be built on an accident.
     sideAxis: (g && g.sideAxis != null) ? g.sideAxis : 0,
+    // the box-mapped microsurface passes straight through (G113.3)
+    boxDet: g && g.boxDet ? 1 : 0,
+    boxPlane: (g && +g.boxPlane) || 0,
     side: (g && g.side != null) ? g.side : THREE.DoubleSide,
     opacity: (g && g.opacity != null) ? g.opacity : 1,
-    tileK: r.tileK, roughK: r.roughK, nrmK: r.nrmK,
+    // `tileK0` is the LAYER'S own base scale (G125.1: a laminated blade wants
+    // its glue lines at blade pitch, not fuselage pitch) — it COMPOSES with
+    // the builder's dial, so the dial's 1.0 still means "as this part was
+    // designed". `detRot` turns the triplanar grain a quarter: spanwise
+    // laminations on a blade, from the same sheet the fuselage lays fore-aft.
+    tileK: (r.tileK != null ? r.tileK : 1) * ((g && g.tileK0) || 1),
+    roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
+    detRot: g && g.detRot ? 1 : 0,
   });
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
@@ -535,6 +589,30 @@ function meshFrom(m) {
   // first vertex already gives.
   const surfMats = mats.map((nm, gi) => !!(m.A && m.A[idx[groups[gi][0]]]));
   mats.forEach((nm, gi) => { matSurf[nm] = surfMats[gi]; });
+  // EACH PANE'S OWN EXTENT, in field units, measured off the drawn mesh
+  // (G113.2). This is what makes "toward the edge" a real distance on a real
+  // pane: the alternative is a screen-space edge detect, and dirt that moves
+  // when the camera does is not dirt. Only the glass sections pay for it, and
+  // only over their own indices — this runs on every rebuild.
+  {
+    const A0 = AK();
+    for (const k in GLASS_EXT) delete GLASS_EXT[k];
+    if (A0 && A0.AERO_GLASS && m.A) mats.forEach((nm, gi) => {
+      if (!A0.AERO_GLASS.has(nm) || !surfMats[gi]) return;
+      const [st, ct] = groups[gi];
+      let lo0 = 1e9, lo1 = 1e9, hi0 = -1e9, hi1 = -1e9;
+      for (let i = st; i < st + ct; i++) {
+        const q = m.A[idx[i]];
+        if (!q) continue;
+        if (q[0] < lo0) lo0 = q[0];
+        if (q[0] > hi0) hi0 = q[0];
+        if (q[1] < lo1) lo1 = q[1];
+        if (q[1] > hi1) hi1 = q[1];
+      }
+      const F = fieldM();
+      if (hi0 > lo0) GLASS_EXT[nm] = [lo0 * F, lo1 * F, hi0 * F, hi1 * F];
+    });
+  }
   const mesh = new THREE.Mesh(g, mats.map(matOf));
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
@@ -1550,19 +1628,47 @@ fillPresetSel();
       });
       msel.selectedIndex = GE.mood() || 0;
       msel.onchange = () => GE.setMood(msel.selectedIndex);
+      // THE SHELL (HANGARS S2/S3): what the building IS, before how big it
+      // is. Shells still on the drawing board are offered greyed rather than
+      // hidden — a menu that shrinks is a menu you cannot trust.
+      if (GE.shells && GE.shells().length && GE.setShell) {
+        const sr = row(hd, `<span class="k">shell</span><select></select>`);
+        const ssel = sr.querySelector('select');
+        for (const s of GE.shells()) {
+          const o = document.createElement('option');
+          o.value = s.key;
+          o.textContent = s.name.toLowerCase() +
+            (s.status !== 'live' ? ' — soon' : '');
+          o.disabled = s.status !== 'live';
+          ssel.appendChild(o);
+        }
+        ssel.value = GE.shell();
+        ssel.onchange = () => {
+          const got = GE.setShell(ssel.value);
+          if (!got) ssel.value = GE.shell();
+          refreshDims(); paintFit(); paintCaps();
+        };
+      }
       // THE SHED'S SIZE (G53). Three numbers rebuild the whole room, so the
       // sliders commit on RELEASE, not on every pixel of a drag — a rebuild
-      // is a thousand lines of geometry and a fresh environment bake.
+      // is a thousand lines of geometry and a fresh environment bake. The
+      // envelope is the SHELL's now, so a shell change re-reads it.
+      const dimRefreshers = [];
+      function refreshDims() { dimRefreshers.forEach(f => f()); }
       if (GE.setDims && GE.dims()) {
-        const L = GE.dimLimits();
         const dimRow = (key, label, mul, unit) => {
-          const d0 = GE.dims();
           const d = row(hd, `<span class="k">${label}</span>
-            <input type="range" min="${L[key][0] * mul}" max="${L[key][1] * mul}"
-                   step="${mul > 1 ? 0.5 : 0.1}"><span class="v"></span>`);
+            <input type="range" step="${mul > 1 ? 0.5 : 0.1}"><span class="v"></span>`);
           const inp = d.querySelector('input'), v = d.querySelector('.v');
           const show = n => { v.textContent = (+n).toFixed(1) + ' ' + unit; };
-          inp.value = d0[key] * mul; show(inp.value);
+          const sync = () => {
+            const L = GE.dimLimits(), d0 = GE.dims();
+            if (!L || !d0) return;
+            inp.min = L[key][0] * mul; inp.max = L[key][1] * mul;
+            inp.value = d0[key] * mul; show(inp.value);
+          };
+          sync();
+          dimRefreshers.push(sync);
           inp.oninput = () => show(inp.value);
           inp.onchange = () => {
             const got = GE.setDims({ [key]: +inp.value / mul });
@@ -1572,6 +1678,50 @@ fillPresetSel();
         dimRow('HW', 'width', 2, 'm');       // the sliders speak in FULL sizes
         dimRow('HD', 'depth', 2, 'm');
         dimRow('EAVE', 'eaves', 1, 'm');
+      }
+      // THE FIT-OUT (HANGARS S2): a toggle per kit, in the lights strip's own
+      // shape. Below it, the two lines the whole mechanism exists for: what
+      // would NOT fit this shell — never silently — and the verbs the shed
+      // has earned (derived from the kits, advisory, never enforced).
+      let paintFit = () => {}, paintCaps = () => {};
+      if (GE.kits && GE.kits().length && GE.setKit) {
+        const kr = row(hd, `<span class="k">fit-out</span><span class="lt"></span>`);
+        const khost = kr.querySelector('.lt');
+        for (const k0 of GE.kits()) {
+          const b = document.createElement('button');
+          b.className = 'tg';
+          b.textContent = k0.name.toLowerCase();
+          const on = () => {
+            const k = (GE.kits() || []).find(x => x.key === k0.key);
+            return !!(k && k.on);
+          };
+          const paint = () => b.classList.toggle('off', !on());
+          b.onclick = () => { GE.setKit(k0.key, !on()); paint();
+                              paintFit(); paintCaps(); };
+          paint();
+          khost.appendChild(b);
+        }
+        const fr = row(hd, `<span class="k">won’t fit</span><span class="v"></span>`);
+        const cr = row(hd, `<span class="k">can do</span><span class="v"></span>`);
+        paintFit = () => {
+          const r = GE.fitReport ? GE.fitReport() : null;
+          const u = (r && r.unplaced) || [];
+          fr.style.display = u.length ? '' : 'none';
+          fr.querySelector('.v').textContent =
+            u.map(x => x.key + ' (' + x.reason + ')').join(', ');
+        };
+        paintCaps = () => {
+          // the advisory line (HANGARS S5): what the shed can do, and what
+          // the build on the floor WANTS of it — flagged, never enforced
+          const caps = (GE.caps && GE.caps()) || [];
+          const wants = (GE.wants && GE.wants()) || [];
+          let txt = caps.join(' · ');
+          if (wants.length)
+            txt += '  |  this build wants ' + wants.map(w =>
+              caps.includes(w) ? w : w + ' (not on hand)').join(' · ');
+          cr.querySelector('.v').textContent = txt;
+        };
+        paintFit(); paintCaps();
       }
       // THE LIGHT SWITCHES (G62.3, user: "I'll need turning off the hangar
       // lights from the garage, so I can run tests and see what light source
@@ -2103,6 +2253,18 @@ const DEC = {
   regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both, 3 body+tail
   regMode: 0,             // 0 field, 1 box side view, 2 box plan view
   regRot: 0,
+  // NULL FOLLOWS THE PAINT (G113.4). The glyph has always been drawn in
+  // `spec.paint.trim` with a white outline, which garage.js's own legacy
+  // sheet also uses — so the two could not disagree. They still cannot: null
+  // means "whatever the trim is", and a number is the builder overruling it
+  // for this marking only.
+  regCol: null, regOut: null,
+  // INDEPENDENT WIDTH (G113.1). The width was DERIVED — `regH * aspect` —
+  // and there was no way to stretch or condense a marking to fit the space
+  // it has. Locked (the default, and exactly what the old code did) the
+  // width still follows the height at the face's own aspect.
+  regW: 0.96, regLock: 1,
+  regFont: 0,             // an index into AEROSKIN.AERO_DEC_FONTS
   // THE BODY CHANNEL — fuselage, cowl, fin and stab when it is aimed there
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
   imgMode: 0, imgRot: 0, imgLock: 1,
@@ -2177,7 +2339,7 @@ function finishToSpec() {
   let n = 0;
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
-    Object.keys(secRough), Object.keys(secNrm)));
+    Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -2185,8 +2347,14 @@ function finishToSpec() {
     if (secTile[nm] != null) o.tile = secTile[nm];
     if (secRough[nm] != null) o.rough = secRough[nm];
     if (secNrm[nm] != null) o.nrm = secNrm[nm];
+    if (secWear[nm] != null) o.wearM = secWear[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
+  // THE GLAZING, deviations only — the same rule the sections and the decals
+  // follow, so a build that never touched the glass says nothing about it and
+  // goes on meaning the same thing when a later chantier changes the defaults.
+  const glass = {};
+  for (const k in GLASS_DEFV) if (GLASS[k] !== GLASS_DEFV[k]) glass[k] = GLASS[k];
   const decals = {};
   for (const k in DEC_DEF) if (DEC[k] !== DEC_DEF[k]) decals[k] = DEC[k];
   // THE REGISTRATION IS NOT THE FINISH'S. It is `spec.meta.reg` and has been
@@ -2197,6 +2365,7 @@ function finishToSpec() {
   if (n) out.sections = sections;
   if (WEAR.amount) out.wear = WEAR.amount;
   if (Object.keys(decals).length) out.decals = decals;
+  if (Object.keys(glass).length) out.glass = glass;
   return Object.keys(out).length ? out : null;
 }
 
@@ -2205,11 +2374,12 @@ function finishToSpec() {
 // paint underneath — which is the bug the whole block exists to fix. Null is
 // the factory finish and is a complete instruction, not a missing one.
 function finishFromSpec(f) {
-  for (const m of [secFin, secTint, secTile, secRough, secNrm])
+  for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear])
     for (const k in m) delete m[k];
   const reg = DEC.reg;                     // meta.reg's, not ours to clear
   Object.assign(DEC, JSON.parse(JSON.stringify(DEC_DEF)));
   DEC.reg = reg;
+  Object.assign(GLASS, JSON.parse(JSON.stringify(GLASS_DEFV)));
   WEAR.amount = 0;
   const o = (f && typeof f === 'object' && !Array.isArray(f)) ? f : null;
   if (o) {
@@ -2221,11 +2391,15 @@ function finishFromSpec(f) {
       if (typeof r.tile === 'number') secTile[nm] = r.tile;
       if (typeof r.rough === 'number') secRough[nm] = r.rough;
       if (typeof r.nrm === 'number') secNrm[nm] = r.nrm;
+      if (typeof r.wearM === 'number') secWear[nm] = r.wearM;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
       for (const k in DEC_DEF) if (k !== 'reg' && o.decals[k] !== undefined)
         DEC[k] = o.decals[k];
+    if (o.glass && typeof o.glass === 'object')
+      for (const k in GLASS_DEFV) if (o.glass[k] !== undefined)
+        GLASS[k] = o.glass[k];
   }
   aeroSavePrefs(); decSavePrefs();
   // EVERY ROW'S VALUE JUST CHANGED, and the panel only rebuilds when the
@@ -2261,9 +2435,18 @@ function applyDecals() {
   } catch (e) {}
   const onOf = t => DEC_ON[Math.max(0, Math.min(3, +t || 0))];
   const modeOf = m => DEC_MODE[Math.max(0, Math.min(2, +m || 0))];
-  const asp = A.aeroDecalText(THREE, 0, decReg(), trim, 0xffffff) || 3.2;
+  const asp = A.aeroDecalText(THREE, 0, decReg(),
+                DEC.regCol != null ? DEC.regCol : trim,
+                DEC.regOut != null ? DEC.regOut : 0xffffff,
+                DEC.regFont) || 3.2;
+  ASPECT.regOn = asp;
+  // LOCKED: the width follows the height at the face's own aspect, which is
+  // what the derived width always did. UNLOCKED: the builder's own number, so
+  // a marking can be condensed into a short flank or stretched along a boom.
+  if (DEC.regLock) DEC.regW = DEC.regH * Math.max(1.2, asp);
+  if (SYNC.regW) SYNC.regW();
   list.push({ page: 0, sL: DEC.regL, sC: DEC.regC,
-    w: DEC.regH * Math.max(1.2, asp), h: DEC.regH,
+    w: Math.max(0.02, DEC.regW), h: DEC.regH,
     rot: DEC.regRot, rough: -0.06,
     on: onOf(DEC.regTarget), mode: modeOf(DEC.regMode) });
   if (DEC.imgOn) list.push({ page: 1, sL: DEC.imgL, sC: DEC.imgC,
@@ -2351,6 +2534,25 @@ function applyWear(m, FS) {
   A.aeroSetWear(THREE, { amount: WEAR.amount, exhaust, splash });
 }
 
+// A COLOUR WELL FOR ONE PANE, and the same double-click-to-clear the other
+// sections' wells have — one idiom, not two.
+function glassWell(row, nm) {
+  const c = document.createElement('input');
+  c.type = 'color'; c.style.flex = 'none';
+  c.value = '#' + ((secTint[nm] != null ? secTint[nm] : GLASS.tint != null
+                    ? GLASS.tint : 0xaec9d8) >>> 0).toString(16).padStart(6, '0');
+  c.title = 'the tint of this pane';
+  c.oninput = () => { secTint[nm] = parseInt(c.value.slice(1), 16);
+    aeroSavePrefs(); build(); };
+  const k = row.querySelector('span.k');
+  if (k) { k.style.cursor = 'pointer';
+    k.ondblclick = () => { delete secTint[nm];
+      c.value = '#' + ((GLASS.tint != null ? GLASS.tint : 0xaec9d8) >>> 0)
+        .toString(16).padStart(6, '0');
+      aeroSavePrefs(); build(); }; }
+  row.appendChild(c);
+}
+
 let matPanel = null, matPanelBody = null, matPanelSig = '';
 // the value-only refresh for builds where the panel's SHAPE is unchanged:
 // today that is the colour wells of rows following an ancestor's tint —
@@ -2367,6 +2569,73 @@ function syncMatPanel() {
 // itself. They live here rather than inside the builder because `decRange`
 // and `applyDecals` are called from the build and the builder runs once.
 const SYNC = {}, GREY = {}, LOCK = {};
+// ---- SWITCHING PROJECTION KEEPS THE MARKING WHERE IT IS (G113.4) ---------
+// MEASURED, and it settles this the other way round from how it was planned.
+// The two frames do NOT differ by a constant anybody forgot to plumb: over
+// the cage's own fielded vertices the offset between craft space and the
+// field spreads 2.32 m along the body and 1.25 m around the section. That is
+// because `sL` and `sC` are ARC LENGTHS on a curved surface and the box
+// coordinates are a straight projection — the difference IS wrapping versus
+// projecting, which is the whole reason both modes exist. No shared origin
+// can reconcile them and one would be a lie.
+//
+// So the numbers are allowed to differ and the MARKING is what is preserved:
+// on a mode change, find the point the decal currently sits on and re-read
+// its coordinate in the frame being switched to. The mesh is the dictionary —
+// its vertices carry both the field (`aStruct`) and the position — so this is
+// a lookup, not a formula.
+function decReframe(fromMode, toMode, keys) {
+  if (fromMode === toMode) return;
+  const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+  if (!S || typeof THREE === 'undefined') return;
+  let mesh = null;
+  S.traverse(o => { if (!mesh && o.isMesh && o.userData && o.userData.matNames &&
+    o.geometry && o.geometry.attributes.aStruct) mesh = o; });
+  if (!mesh) return;
+  const A = mesh.geometry.attributes.aStruct, P = mesh.geometry.attributes.position;
+  S.updateWorldMatrix(true, false); mesh.updateWorldMatrix(true, false);
+  const toCraft = new THREE.Matrix4().copy(S.matrixWorld).invert()
+                    .multiply(mesh.matrixWorld);
+  const F = fieldM();
+  const v = new THREE.Vector3();
+  // the frame a mode reads a decal's centre in: 0 the field, 1 the flank
+  // (along, up), 2 the plan (lateral, along) — all in metres
+  const coord = (mode, i) => {
+    if (mode === 0) return [A.getX(i) * F, A.getY(i) * F];
+    v.fromBufferAttribute(P, i).applyMatrix4(toCraft);
+    return mode === 1 ? [-v.z, v.y] : [v.x, -v.z];
+  };
+  const want = [DEC[keys.l], DEC[keys.c]];
+  let best = -1, bestD = 1e9;
+  for (let i = 0; i < A.count; i++) {
+    if (A.getX(i) === 0 && A.getY(i) === 0) continue;   // unfielded vertex
+    const c = coord(fromMode, i);
+    const d = (c[0]-want[0])*(c[0]-want[0]) + (c[1]-want[1])*(c[1]-want[1]);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (best < 0) return;
+  const to = coord(toMode, best);
+  DEC[keys.l] = +to[0].toFixed(3);
+  DEC[keys.c] = +to[1].toFixed(3);
+  if (SYNC[keys.l]) SYNC[keys.l]();
+  if (SYNC[keys.c]) SYNC[keys.c]();
+}
+// ---- THE GLAZING (G113.2) -------------------------------------------------
+// ONE set of dials for every pane, not one per section, and the reason is the
+// aeroplane rather than the code: a windscreen and a skylight on the same
+// machine are the same glass, cut twice. Per-section tint stays per-section
+// (that is `secTint`, which glass has always been able to take and never had
+// a well for); what is shared is the CONDITION of the glazing.
+const GLASS = { tint: null, opacity: 0.5, scratch: 0, wipe: 0, grime: 0,
+                refl: 1, rainbow: 0 };
+const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
+// the pane's own extent in field metres, measured off the drawn mesh so
+// "toward the edge" is a real distance on a real pane
+const GLASS_EXT = {};
+// the measured aspect of whatever each channel is currently drawing, so a
+// locked ratio has something to be locked TO. The registration's is measured
+// by the text baker on every applyDecals; an image's is measured on load.
+const ASPECT = {};
 // the build's own size, re-read every rebuild
 let decSpan = { len: 6, span: 10, up: 2 };
 function decRange() {
@@ -2429,14 +2698,18 @@ function buildDecPanel() {
     d.appendChild(c);
     return d;
   };
-  const pick = (lab, key, names, title) => {
+  const pick = (lab, key, names, title, onChange) => {
     const d = row(lab, title);
     const sel2 = document.createElement('select'); sel2.style.flex = '1';
     names.forEach((n, i) => { const o = document.createElement('option');
       o.value = i; o.textContent = n; sel2.appendChild(o); });
     sel2.value = DEC[key];
-    sel2.onchange = () => { DEC[key] = +sel2.value; decSavePrefs();
-      applyDecals(); draw(); };
+    sel2.onchange = () => {
+      const was = +DEC[key];
+      DEC[key] = +sel2.value;
+      if (onChange) onChange(was, +sel2.value);
+      decSavePrefs(); applyDecals(); draw();
+    };
     d.appendChild(sel2);
   };
   // the registration
@@ -2451,6 +2724,43 @@ function buildDecPanel() {
     d.appendChild(i);
   }
   num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
+  num('width', 'regW', 0.10, 4.0, 0.02,
+      'metres. Locked, this follows the height at the face aspect; unlocked ' +
+      'it condenses or stretches the marking to fit the space it has', 'len');
+  // THE MARKING'S OWN COLOURS. Null follows the paint's trim (and white), so
+  // an aeroplane that never touches these looks exactly as it always has;
+  // double-click the label to go back to following.
+  {
+    const well = (lab, key, dflt, title) => {
+      const d = row(lab, title);
+      const c = document.createElement('input');
+      c.type = 'color'; c.style.flex = 'none';
+      const cur = () => {
+        if (DEC[key] != null) return DEC[key];
+        try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
+          if (S && S.paint && key === 'regCol') return S.paint.trim; } catch (e) {}
+        return dflt;
+      };
+      const paint = () => { c.value = '#' + (cur() >>> 0).toString(16).padStart(6, '0'); };
+      paint();
+      c.oninput = () => { DEC[key] = parseInt(c.value.slice(1), 16);
+        decSavePrefs(); applyDecals(); draw(); };
+      const k = d.querySelector('span.k');
+      if (k) { k.style.cursor = 'pointer';
+        k.ondblclick = () => { DEC[key] = null; paint();
+          decSavePrefs(); applyDecals(); draw(); }; }
+      d.appendChild(c);
+    };
+    well('ink', 'regCol', 0x1b3a5c,
+         'the glyph. Unset it follows the aeroplane trim colour — ' +
+         'double-click the label to go back to following');
+    well('outline', 'regOut', 0xffffff,
+         'the keyline around the glyph, which is what keeps a dark ' +
+         'registration legible on a dark flank');
+  }
+  pick('face', 'regFont', (A.AERO_DEC_FONTS || []).map(f => f.name),
+       'only the faces the artifact ships: a livery that renders in a ' +
+       'different font on somebody else machine is not a livery');
   num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('height on side', 'regC', -1.0, 1.2, 0.02,
       'metres around the section from the waist rail, + upward', 'up');
@@ -2460,7 +2770,8 @@ function buildDecPanel() {
        ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail'],
        'a decal is on BOTH flanks by construction — the surface field is ' +
        'mirrored about the spine, which is what a registration wants');
-  pick('projected as', 'regMode', MODE_NAMES, MODE_HELP);
+  pick('projected as', 'regMode', MODE_NAMES, MODE_HELP,
+       (a, b) => decReframe(a, b, { l: 'regL', c: 'regC' }));
 
   // ---- ONE CHANNEL PER SUBJECT (G108) ------------------------------------
   // The user: "the fuselage projection and the fin projection should be one
@@ -2470,7 +2781,6 @@ function buildDecPanel() {
   // Each channel takes an image, a projection and a placement of its own. The
   // BODY's reaches the fuselage, the cowl and the tail; the WING's reaches the
   // wing and its slabs and nothing else.
-  const ASPECT = {};
   const channel = (tag, keys, page, help) => {
     const h = row(tag, help);
     const f = document.createElement('input');
@@ -2517,6 +2827,23 @@ function buildDecPanel() {
     return apply;
   };
 
+  // THE REGISTRATION'S LOCK RUNS THE OTHER WAY, and that is not an
+  // inconsistency: a marking is specified by its legal HEIGHT ("300 mm is the
+  // usual"), so height drives width here where an image's width drives its
+  // height. The greyed slider is what says which of the pair is the input.
+  {
+    const apply = () => {
+      const on = !!DEC.regLock;
+      if (GREY.regW) GREY.regW(!on);
+      if (on) { DEC.regW = DEC.regH * Math.max(1.2, ASPECT.regOn || 3.2);
+                if (SYNC.regW) SYNC.regW(); }
+    };
+    LOCK.regH = () => { if (DEC.regLock) apply(); };
+    flag('lock ratio', 'regLock',
+         'hold the face aspect: the width follows the height', apply);
+    apply();
+  }
+
   const BODY = { on: 'imgOn', w: 'imgW', h: 'imgH', lock: 'imgLock' };
   const WING = { on: 'wimOn', w: 'wimW', h: 'wimH', lock: 'wimLock' };
 
@@ -2532,7 +2859,8 @@ function buildDecPanel() {
   num('body turn', 'imgRot', -0.6, 0.6, 0.01, 'radians');
   pick('body goes on', 'imgTarget',
        ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail']);
-  pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP);
+  pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP,
+       (a, b) => decReframe(a, b, { l: 'imgL', c: 'imgC' }));
 
   channel('wing image', WING, 2,
           'one image across the wing and its slabs, independent of the body');
@@ -2545,7 +2873,8 @@ function buildDecPanel() {
       'metres from the centreline, in PLAN', 'span');
   num('wing along', 'wimC', -3.0, 3.0, 0.02, 'metres fore and aft, in PLAN', 'len');
   num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
-  pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP);
+  pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP,
+       (a, b) => decReframe(a, b, { l: 'wimL', c: 'wimC' }));
   bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was
@@ -2635,6 +2964,61 @@ function buildMatPanel() {
     };
     d.appendChild(i); d.appendChild(v);
   }
+  // ---- THE GLAZING, once for every pane (G113.2) -------------------------
+  // The user asked for "a lot more options" on the glass and named most of
+  // them. These are the CONDITION of the glazing — one windscreen and one
+  // skylight on the same aeroplane are the same glass cut twice — while the
+  // TINT stays per-pane, on the section rows below.
+  //
+  // WHAT r128 ACTUALLY ALLOWS decided the list. Transparency and reflection
+  // are real material fields; the scratches, the wiper arc, the grime and the
+  // rainbow are drawn analytically in AEROGLASS_HOOK, because this release's
+  // MeshPhysicalMaterial has no `iridescence` and no `thickness` on this path
+  // and a downloaded scratch map would be the only bitmap in a material
+  // system whose every other sheet is baked at runtime.
+  {
+    const gr = (lab, key, lo, hi, step, title) => {
+      const d = mkRow2(lab, title);
+      // matHead '1' is "this row is the AEROPLANE'S, not a section's" —
+      // the same tag the condition dial carries, and what G104's finish view
+      // collects onto the root. A row with neither this nor a `data-sec`
+      // belongs to no bucket and is silently dropped, which is exactly what
+      // happened to the first cut of these.
+      d.dataset.matHead = '1';
+      // ...and `glaze` besides (2026-08-31, the user editing the windshield:
+      // "I don't have any material options like alpha, reflectivity" — they
+      // were on the ROOT only). The finish view uses this to bring the
+      // shared dials along wherever a GLASS section's part is selected: one
+      // set of rows, borrowed, never a second home.
+      d.dataset.glaze = '1';
+      const i = document.createElement('input');
+      i.type = 'range'; i.min = lo; i.max = hi; i.step = step;
+      i.value = GLASS[key]; i.style.flex = '1';
+      const v = document.createElement('span');
+      v.className = 'v'; v.textContent = (+GLASS[key]).toFixed(2);
+      i.oninput = () => { GLASS[key] = +i.value;
+        v.textContent = (+i.value).toFixed(2);
+        aeroSavePrefs(); build(); };
+      d.appendChild(i); d.appendChild(v);
+    };
+    gr('glazing: clarity', 'opacity', 0.05, 1, 0.01,
+       'how much of the pane you see THROUGH — the view alpha still wins ' +
+       'when it is asking for less, because that is a way of looking');
+    gr('glazing: scratches', 'scratch', 0, 1, 0.02,
+       'fine crazing in two crossed families, in real millimetres on the pane');
+    gr('glazing: wiper arc', 'wipe', 0, 1, 0.02,
+       'the swept band a wiper leaves — placed from a pivot, not tiled, ' +
+       'which is what makes it an arc rather than curved texture');
+    gr('glazing: edge grime', 'grime', 0, 1, 0.02,
+       'dirt gathering toward the frame, measured from the PANE own extent ' +
+       'so it does not move when the camera does');
+    gr('glazing: reflections', 'refl', 0, 2, 0.05,
+       'x the mood own environment strength, folded into the base so the ' +
+       'two do not fight');
+    gr('glazing: rainbow', 'rainbow', 0, 1, 0.02,
+       'thin-film flare at the limb. An EFFECT, not physics: r128 has no ' +
+       'iridescence and this is a Fresnel-driven hue rather than a film');
+  }
   for (const nm of names.concat(live)) {
     const isGlass = A.AERO_GLASS.has(nm);
     // a LAYER section's auto is the walked chain, not the role table: the
@@ -2648,9 +3032,12 @@ function buildMatPanel() {
     // section, and a label is not something to partition a panel by.
     row.dataset.sec = nm;
     if (isGlass) {
-      const v = document.createElement('span');
-      v.className = 'v'; v.textContent = 'glass';
-      row.appendChild(v);
+      // A PANE TAKES A COLOUR LIKE ANYTHING ELSE (G113.2). It always could —
+      // aeroGlass has had a `tint` argument since G67 — and the panel showed
+      // the dead word "glass" instead, which is a read-out of a fact nobody
+      // asked about. The CONDITION dials are shared and live once, at the
+      // head of the glazing block below; the colour is this pane's own.
+      glassWell(row, nm);
       continue;
     }
     const sfin = document.createElement('select');
@@ -2709,6 +3096,7 @@ function buildMatPanel() {
     row.firstChild.ondblclick = () => {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
+      delete secWear[nm];
       aeroSavePrefs(); build();
     };
     // THE THREE DIALS, under the section they belong to. They MULTIPLY the
@@ -2717,7 +3105,13 @@ function buildMatPanel() {
     // why an untouched section stores nothing at all.
     for (const [key, store, label] of [['tile', secTile, 'tile x'],
                                        ['rough', secRough, 'roughness x'],
-                                       ['nrm', secNrm, 'normal x']]) {
+                                       ['nrm', secNrm, 'normal x'],
+                                       // the part's own CONDITION (G114):
+                                       // multiplies how much of the
+                                       // aeroplane's one wear dial this
+                                       // part shows — 0.25 the pampered
+                                       // panel, 4 the one every hand opens
+                                       ['wear rate', secWear, 'wear x']]) {
       const d = mkRow2('   ' + label,
         'multiplies the finish’s own ' + key + ' for ' + nm +
         ' — 1.00 is the material as it was designed');

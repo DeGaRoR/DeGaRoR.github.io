@@ -148,6 +148,43 @@ for (const k of Object.keys(A.AERO_FINISH)) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b THE SCANNED SHEETS (G125) — both directions of the claim
+// ---------------------------------------------------------------------------
+// `sheet` on a finish row names a baked payload in wood_tex.js (generated:
+// tools/wood_tex_import.py -> tools/wood_tex_prep.js). Assert against the
+// generated TABLE, not the prose (G113.4's rule), and in BOTH directions: a
+// row claiming a sheet that is not baked falls back SILENTLY to the
+// procedural grain — correct at runtime, invisible forever — and a baked
+// sheet no row claims is payload bytes shipped for nothing.
+{
+  const wtPath = path.join(ROOT, 'src', 'viewer', 'wood_tex.js');
+  check(fs.existsSync(wtPath),
+    'wood_tex.js missing — run tools/wood_tex_import.py then wood_tex_prep.js');
+  const WT = fs.existsSync(wtPath) ? fs.readFileSync(wtPath, 'utf8') : '';
+  const baked = new Map([...WT.matchAll(/^ {4}(\w+): \{ px: (\d+),/gm)]
+    .map(m => [m[1], +m[2]]));
+  const claiming = Object.keys(A.AERO_FINISH)
+    .filter(k => A.AERO_FINISH[k].sheet);
+  check(claiming.length >= 5,
+    'no finish rows claim scanned sheets (the G125 rows have lost them)');
+  for (const k of claiming) {
+    const r = A.AERO_FINISH[k];
+    check(baked.has(r.sheet),
+      `finish ${k} claims sheet '${r.sheet}' that wood_tex.js does not bake`);
+    // the fallback is load-bearing: node, the gates and the first undecoded
+    // frame all render the procedural bake
+    check(!!r.bake,
+      `finish ${k} claims a sheet but declares no procedural fallback bake`);
+  }
+  const claimed = new Set(claiming.map(k => A.AERO_FINISH[k].sheet));
+  for (const [s, px] of baked) {
+    check(claimed.has(s), `baked sheet '${s}' is claimed by no finish row`);
+    // POT: the same WebGL1 RepeatWrapping+mipmaps rule AERO_TEX obeys
+    check((px & (px - 1)) === 0, `baked sheet '${s}' px ${px} is not POT`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 3 PROGRAMS — one hook, one define
 // ---------------------------------------------------------------------------
 // r128: Material.customProgramCacheKey() returns onBeforeCompile.toString().
@@ -311,6 +348,33 @@ if (BG) {
     'carbon telegraphs frames — nothing prints through a moulding');
   check(!!BG.carbon.partingAtWaist,
     'carbon has no mould parting line, which is its only real feature');
+
+  // ---- A SHEET EDGE STOPS WHERE THE SHEET RUN STOPS (2026-08-31) ----------
+  // The user's report was "the bump line riding along the waist should end at
+  // the window pillar and not extend into the nose part". `sL = 0` IS the
+  // windscreen base ring by the join's own definition (G49), so the mask is a
+  // smoothstep on m.x — no new uniform. These hold the three decisions in it,
+  // each of which is silent when it rots:
+  check(/float runFwd = \(uG5\.w < 0\.5\)/.test(SRC),
+    'the sheet-edge mask is gone, or it is no longer BODY-ONLY — on a wing ' +
+    'sL is a SPANWISE coordinate, so masking m.x < 0 there strips the laps ' +
+    'off half the surface');
+  check(/dH\.y \+= runFwd \* 2\.0 \* d \* dpB/.test(SRC),
+    'the longitudinal lap groove no longer fades forward of the window ' +
+    'pillar — it is a sheet EDGE and the nose deck is a different sheet run');
+  check(/dH\.y \+= runFwd \* 2\.0 \* 0\.0004 \* m\.y/.test(SRC),
+    'the mould parting line no longer stops at the window pillar, though the ' +
+    'nose is a different moulding');
+  // AND THE THINGS THAT MUST *NOT* BE MASKED. A longeron runs forward through
+  // the firewall and its print runs with it; the nose has its own frames and
+  // its own seams round the section. Masking either would take structure off
+  // the nose entirely, which is a bigger fault than the one being fixed.
+  check(/dH\.x \+= 2\.0 \* d \* dpA \/ w2/.test(SRC),
+    'the CIRCUMFERENTIAL lap is being masked too — the nose has its own ' +
+    'seams round the section');
+  check(/dH\.x \+= uG1\.y \* \(-2\.0 \* df \/ w2\)/.test(SRC),
+    'the tape/telegraphing term has been touched — a longeron runs forward ' +
+    'and its print on the skin runs with it');
 
   // AND THEY MUST ACTUALLY DIFFER. Same test as the finishes, on the other
   // half: four constructions that share a grammar look identical however
@@ -678,6 +742,39 @@ const secFinBad = tbl => Object.keys(tbl)
     "the first dummy's suit material leaks onto the second",
     JSON.stringify(r));
 
+  // THE DIALS CROSS THE JOIN (G113), and the chain is three files long with
+  // a silent failure at every link: the factory must STAMP the deviation on
+  // the material (the snapshot walks materials), the join must COPY it into
+  // the bucket, and the game's matFor must PASS it back to the same factory.
+  // A missing link shows up only as an aeroplane that flies with factory
+  // numbers, which nobody sees in a gate — so the wiring is asserted in the
+  // text, the level the trap lives at.
+  {
+    const joinSrc = layerSrc('_cage_join.js');
+    const appSrc = fs.readFileSync(
+      path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    for (const k of ['TileK', 'RoughK', 'NrmK', 'RibM', 'WearK', 'WearM']) {
+      check(new RegExp('userData\\.aero' + k + ' = ').test(SRC),
+        `aeroMaterial does not stamp aero${k} for the join`);
+      check(new RegExp('ud\\.aero' + k).test(joinSrc),
+        `the join does not copy aero${k} into the payload`);
+    }
+    for (const k of ['tileK', 'roughK', 'nrmK', 'ribM', 'wearK', 'wearM'])
+      check(new RegExp(k + ':\\s*m\\.' + k).test(appSrc),
+        `the game's matFor does not pass ${k} back to the factory`);
+  }
+
+  // THE PART'S OWN CONDITION (G114) walks the chain like a dial: the
+  // aileron shows the wing's treatment until it is told otherwise.
+  r = A.aeroSecResolve('wingAil', { wear: { wingSkin: 2.5 } },
+    { cons: 'wood' });
+  check(r.wearM === 2.5, "the wing's condition does not reach the aileron",
+    JSON.stringify(r));
+  r = A.aeroSecResolve('wingAil',
+    { wear: { wingAil: 0.5, wingSkin: 2.5 } }, { cons: 'wood' });
+  check(r.wearM === 0.5, "a part's own condition does not win",
+    JSON.stringify(r));
+
   // THE PART'S OWN CONSTRUCTION (G110) is CONSULTED at the material, not
   // just rendered as a row: GATE PARTS proves the rows exist, and this
   // proves the layer reads them — a construction row nothing consults is a
@@ -703,6 +800,8 @@ if (process.argv.includes('--selftest')) {
       secFinBad({ a: { parent: null, fin: '__nope__' } }).length > 0],
     ['a construction row nothing consults', () =>
       !/P0\.wgCons/.test('const cons = CONS4[intCons]')],
+    ['a dial the join forgets', () =>
+      !/ud\.aeroTileK/.test('mats[key] = { color, fin, grm }')],
     ['a section with no role', () => {
       const s2 = new Set(sections); s2.add('__nosuchrole__');
       const bad = [...s2].filter(x => !A.AERO_ROLE[x] && !A.AERO_GLASS.has(x));
@@ -839,6 +938,457 @@ if (process.argv.includes('--selftest')) {
   const JOIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8');
   check(/ud\.aeroWing \? \{ wing: ud\.aeroWing \} : \{\}/.test(JOIN),
         'projector: the snapshot does not record the surface class');
+}
+
+// ---------------------------------------------------------------------------
+// THE MARKING'S OWN CONTROLS (G113.1)
+// ---------------------------------------------------------------------------
+// The user: "the registration also should offer a lot more controls;
+// independent width and height, choice of police, plus station and height on
+// side". Station and height on side already existed; width was DERIVED from
+// the height and the face was one hard-coded string.
+{
+  const F = A.AERO_DEC_FONTS;
+  check(Array.isArray(F) && F.length >= 2,
+        'marking: there is no face table to choose from');
+
+  // ONLY WHAT THE ARTIFACT SHIPS. This is a zero-network single-file build,
+  // and a livery that renders in a different face on somebody else's machine
+  // is not a livery. The vendored set is the two Plex families; a face that
+  // named Helvetica would look right here and wrong everywhere else.
+  const CSS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'style.css'), 'utf8');
+  const shipped = [];
+  const re = /@font-face \{ font-family:'([^']+)'[^}]*?font-weight:([0-9 ]+)/g;
+  for (let m; (m = re.exec(CSS));)
+    shipped.push({ fam: m[1], w: m[2].trim().split(/\s+/).map(Number) });
+  check(shipped.length > 0, 'marking: no @font-face rules to check against');
+  for (const f of F) {
+    const m = /^([0-9]+)\s+[0-9.]+px\s+"([^"]+)"/.exec(f.css);
+    if (!check(m, 'marking: a face row is not "<weight> <size>px \\"<family>\\""',
+               f.name)) continue;
+    const wt = +m[1], fam = m[2];
+    const s2 = shipped.filter(x => x.fam === fam);
+    check(s2.length > 0, 'marking: the face names a family this build does ' +
+          'not ship', f.name + ' -> ' + fam);
+    // a variable face declares a RANGE (100 700); a static one declares one
+    const ok = s2.some(x => x.w.length > 1
+      ? (wt >= x.w[0] && wt <= x.w[1]) : x.w[0] === wt);
+    check(ok, 'marking: the face asks for a weight this build does not ship ' +
+          '(it will be SYNTHESISED, which is what G69 was doing at 700)',
+          f.name + ' -> ' + fam + ' ' + wt);
+  }
+  // ...and the faces have to be four different DRAWINGS, not four names for
+  // one. The tracking is what a monospaced legal marking and a sans logotype
+  // actually differ by at this size, so it is part of the row.
+  const tracks = new Set(F.map(f => f.track));
+  check(tracks.size > 1, 'marking: every face carries the same tracking — ' +
+        'they would differ in name only');
+
+  // the baker must take the face, or the row is a control over nothing
+  check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SRC),
+        'marking: the text baker does not take a face');
+  check(/const F = AERO_DEC_FONTS\[/.test(SRC) && /g\.font = F\.css;/.test(SRC),
+        'marking: the baker ignores the face it was handed');
+  check(!/g\.font = '700 96px/.test(SRC),
+        'marking: the hard-coded 700 Plex Mono is back — it is a weight this ' +
+        'build does not ship and the browser synthesises it');
+
+  // independent width, and the lock that keeps the old behaviour the default
+  const UI2 = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  check(/regW: [0-9.]+, regLock: 1/.test(UI2),
+        'marking: there is no independent width, or it does not default to ' +
+        'the derived one');
+  check(/if \(DEC\.regLock\) DEC\.regW = DEC\.regH \* Math\.max\(1\.2, asp\);/.test(UI2),
+        'marking: a locked width does not follow the height at the face aspect');
+  check(/w: Math\.max\(0\.02, DEC\.regW\)/.test(UI2),
+        'marking: the decal is not taking its width from the row');
+  check(/regFont: 0/.test(UI2), 'marking: the face is not part of the state');
+}
+
+// ---------------------------------------------------------------------------
+// THE GLAZING (G113.3)
+// ---------------------------------------------------------------------------
+// The user: "the glass material needs a lot more options, and the ability for
+// a scratch roughness map... transparency, possibly edge detection for some
+// corner dirt, reflection, possibly tinting or rainbow reflections. Be clever,
+// see what we need and what the three.js materials allow."
+//
+// What r128 allows is the whole shape of the answer: this MeshPhysicalMaterial
+// has transmission, clearcoat, clearcoatRoughness and reflectivity and NOTHING
+// else of the modern glass set. So tint, clarity and reflection are material
+// fields and the rest is drawn analytically.
+{
+  const G = /const GLASS_DEF = \{([\s\S]*?)\};/.exec(SRC);
+  check(G, 'glazing: there is no declared default set');
+  if (G) for (const k of ['tint', 'opacity', 'scratch', 'wipe', 'grime',
+                          'refl', 'rainbow'])
+    check(new RegExp('\\b' + k + ':').test(G[1]),
+          'glazing: the declared set is missing a dial', k);
+
+  // EVERY DIAL JOINS THE POOL KEY. The pool is keyed on LOOK; a dial that is
+  // not in the key means two panes with different settings silently share one
+  // material, and the second one you set does nothing. (Before this the key
+  // was tint and opacity alone, which was true when those were all a pane
+  // could differ by.)
+  const K = /const key = 'glass\|'([\s\S]*?);\n/.exec(SRC);
+  check(K, 'glazing: the pool key could not be read');
+  if (K) for (const k of ['opacity', 'scratch', 'wipe', 'grime', 'refl',
+                          'rainbow', 'ext'])
+    check(K[1].indexOf(k) >= 0,
+          'glazing: a dial is not in the pool key — two panes set differently ' +
+          'would share one material', k);
+
+  check(/uniform vec4  uGlass;/.test(SRC) && /uniform vec4  uGlassE;/.test(SRC),
+        'glazing: the dials or the pane extent are not declared');
+
+  // A SCRATCH IS GEOMETRY. On a transmission 0.92 / clearcoat 1.0 pane the
+  // BASE roughness barely shows — the clear layer owns the specular — so a
+  // scratch that only roughened the base was invisible, measured, in two
+  // renders that came back pixel-identical. It has to tilt the clearcoat
+  // normal, and this is the check that keeps it doing so.
+  check(/clearcoatNormal = normalize\(clearcoatNormal - T \* dg\.x - B \* dg\.y\);/
+        .test(SRC),
+        'glazing: the scratches no longer perturb the clearcoat normal — on ' +
+        'this material that makes them invisible');
+  check(/aeroGSC = sc;/.test(SRC),
+        'glazing: the scratch field is not carried to the clearcoat chunk');
+
+  // THE EDGE IS THE PANE'S OWN, not the screen's. A screen-space edge detect
+  // would move when the camera did, and dirt that moves is not dirt.
+  const UI3 = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  check(/GLASS_EXT\[nm\] = \[lo0 \* F, lo1 \* F, hi0 \* F, hi1 \* F\];/.test(UI3),
+        'glazing: the pane extent is not measured off the drawn mesh');
+  check(/uGlassE\.z > uGlassE\.x/.test(SRC),
+        'glazing: the grime does not guard on having a measured extent');
+
+  // THE MOOD STILL SCALES THE REFLECTION. aeroSetEnv multiplies every material
+  // by the room's factor off userData.env0, so the builder's dial has to be
+  // folded into the BASE rather than written on top, or the two fight and
+  // whichever ran last wins.
+  check(/envMapIntensity: 1\.4 \* G\('refl'\)/.test(SRC),
+        'glazing: the reflection dial is not folded into the base — it will ' +
+        'fight aeroSetEnv');
+
+  // AND THE RAINBOW IS AN EFFECT, said in the code. r128 has no iridescence;
+  // claiming it would be the kind of quiet lie this project keeps a ledger
+  // against.
+  check(!/iridescence:/.test(SRC),
+        'glazing: something is setting `iridescence`, which r128 does not have');
+  check(/EFFECT rather than physics/.test(SRC),
+        'glazing: the rainbow no longer says it is an effect');
+
+  // deviations only, like the sections and the decals — a build that never
+  // touched the glass must say nothing about it
+  check(/for \(const k in GLASS_DEFV\) if \(GLASS\[k\] !== GLASS_DEFV\[k\]\)/.test(UI3),
+        'glazing: the spec block is not deviations-only');
+  check(/if \(o\.glass && typeof o\.glass === 'object'\)/.test(UI3),
+        'glazing: the spec block never comes back in');
+}
+
+// ---------------------------------------------------------------------------
+// THE FLAT SURFACES (G113.3) — item 21 of the review
+// ---------------------------------------------------------------------------
+// The user: "I would much rather have some box mapping for the slabs. They
+// also look bad, even the fabric texture looks bad, and the leading edge wash
+// out is completely irregular and screwed up. We cannot rely on geometry for
+// the mapping of these parts, but they are also very flat, so let us use box
+// mapping. Warning with the V tail configuration, let us be resistant to
+// that."
+//
+// Two separate defects, and the second one was measurable.
+{
+  const FIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_fin.js'), 'utf8');
+
+  // ---- 1. THE LEADING EDGE ENVELOPE MUST NOT DIP UNDER ITS OWN DATA ------
+  // MEASURED IN THE PAGE before the fix: one vertex in FIVE on the stabiliser
+  // (348 of 1728) and 6.7 % on the fin came back with a NEGATIVE chord
+  // coordinate — ahead of their own leading edge. The wing, whose field is
+  // built elsewhere, had none. The shader clamps with max(sC, 0), so the
+  // wash-out band saturated over a fifth of the panel in a shape that
+  // followed the TRIANGULATION. That is what "completely irregular" was.
+  check(/const Z = zHi\.slice\(\);/.test(FIN) &&
+        /zHi\[i\] = Math\.max\(Z\[i\], Z\[Math\.max\(0, i - 1\)\], Z\[Math\.min\(NB - 1, i \+ 1\)\]\);/
+          .test(FIN),
+        'flat surfaces: the leading-edge envelope is no longer dilated — the ' +
+        'chord coordinate will go negative on any tapered tail again');
+
+  // ...and the INVARIANT the dilation exists for, property-tested rather than
+  // pattern-matched. `at()` is reimplemented here EXACTLY as the source
+  // writes it, so this fails if either the dilation or the interpolation
+  // changes shape.
+  {
+    const NB = 48;
+    const at = (T, f01) => {
+      const f = Math.max(0, Math.min(NB - 1.001, f01 * NB - 0.5));
+      const i = Math.floor(f), t = f - i;
+      return T[i] + (T[Math.min(NB - 1, i + 1)] - T[i]) * t;
+    };
+    let worstUn = 0, worstDi = 0;
+    let seed = 12345;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    for (let trial = 0; trial < 400; trial++) {
+      // a swept, tapered, sometimes kinked leading edge
+      const raw = new Float64Array(NB);
+      const a = rnd() * 2 - 1, b = rnd() * 3, k = Math.floor(rnd() * NB);
+      for (let i = 0; i < NB; i++)
+        raw[i] = a * i / NB + b * Math.pow(i / NB, 2) + (i === k ? rnd() : 0);
+      const dil = new Float64Array(NB);
+      for (let i = 0; i < NB; i++)
+        dil[i] = Math.max(raw[i], raw[Math.max(0, i - 1)], raw[Math.min(NB - 1, i + 1)]);
+      // every vertex sits in some bin and is at most that bin's own maximum
+      for (let s = 0; s < 200; s++) {
+        const f01 = s / 199;
+        const bin = Math.max(0, Math.min(NB - 1, Math.floor(f01 * NB)));
+        worstUn = Math.max(worstUn, raw[bin] - at(raw, f01));
+        worstDi = Math.max(worstDi, raw[bin] - at(dil, f01));
+      }
+    }
+    check(worstUn > 1e-6,
+          'flat surfaces: the UNDILATED envelope no longer dips under its own ' +
+          'data — this probe proves nothing and the dilation looks free');
+    check(worstDi <= 1e-12,
+          'flat surfaces: the dilated envelope still dips under its own data',
+          'worst ' + worstDi.toExponential(2));
+  }
+
+  // ---- 2. THE MICROSURFACE IS BOX-MAPPED, AND ONLY THE MICROSURFACE ------
+  check(/vec2 aeroDetST\(\)/.test(SRC),
+        'flat surfaces: the detail coordinate is not a function of its own');
+  check(/return mix\(fieldC, boxC, uBoxDet\) \/ uTileM;/.test(SRC),
+        'flat surfaces: the field/box detail choice is not a mix — a branch ' +
+        'around texture2D makes the mip level undefined');
+  // the STRUCTURE and the WASH-OUT are different consumers of the same
+  // attribute and must keep the field: ribs are placed on stations, and the
+  // wash-out is metres from a leading edge that only the field knows about.
+  check(/aeroStructure\(aeroM, aeroRA\)/.test(SRC),
+        'flat surfaces: the structure grammar has been moved off the field');
+  check(/uG4\.z > 0\.0 && uG5\.w > 0\.5/.test(SRC),
+        'flat surfaces: the leading-edge wash-out gate has changed shape');
+
+  // ---- 3. V-TAIL RESISTANCE IS MEASURED, NOT ASSUMED ---------------------
+  // Nothing may say "a fin is vertical". The panel's own accumulated normal
+  // decides its plane, so a canted surface takes whichever it is more of and
+  // the code never learns that a V-tail exists.
+  check(/nx \+= Math\.abs\(nor\[i\]\); ny \+= Math\.abs\(nor\[i \+ 1\]\);/.test(FIN),
+        'flat surfaces: the box plane is no longer measured off the panel ' +
+        'normals — a canted V-tail panel would take a plane it does not lie in');
+  check(/tailMat\(k, sec, nx >= ny \? 0 : 1\)/.test(FIN),
+        'flat surfaces: the measured plane is not handed to the material');
+
+  // ...and it has to reach the pool key, or a fin and a stab share a material
+  check(/o\.boxDet \? 'B' \+ \(\+o\.boxPlane \|\| 0\) : ''/.test(SRC),
+        'flat surfaces: the box plane is not in the pool key — the fin and ' +
+        'the stab would share one material and one plane');
+}
+
+
+// ---------------------------------------------------------------------------
+// G113.4 — THE ENGINE, THE INK, THE FRAME AND THE GLAZING'S YEARS
+// ---------------------------------------------------------------------------
+// Four items closing the twenty-one-item review: the engine becomes paintable,
+// the registration gets its own ink, a mode change stops moving the marking,
+// and glass finally takes the condition dial G70 declared it could not.
+//
+// EVERY PATTERN BELOW IS MATCHED AGAINST COMMENT-STRIPPED SOURCE. Three times
+// this arc an assertion searched for a name that the explanatory comment
+// directly above it also used, and passed on the prose rather than the code.
+{
+  const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '')
+                      .split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1'))
+                      .join('\n');
+  const UI4 = strip(fs.readFileSync(
+    path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8'));
+  const ENG = strip(fs.readFileSync(
+    path.join(ROOT, 'tools', '_cage_eng.js'), 'utf8'));
+  const SK = strip(SRC);
+
+  // ---- A. THE ENGINE IS THE BUILDER'S TO PAINT --------------------------
+  // The user: "try to get the material and color picker from the engine
+  // (block and covers should be pickable)". Three groups, because an engine
+  // is finished in three: the crankcase and its castings, the cylinders, and
+  // the rocker covers as the accent.
+  const engRows = ['engBlock', 'engJug', 'engCover'];
+  for (const k of engRows)
+    check(A.AERO_SEC[k] && A.AERO_SEC[k].layer === 'eng',
+          'engine: ' + k + ' is not a declared section on the eng layer');
+  check(A.AERO_SEC.engJug && A.AERO_SEC.engJug.parent === 'engBlock' &&
+        A.AERO_SEC.engCover && A.AERO_SEC.engCover.parent === 'engJug',
+        'engine: the three groups no longer inherit down the chain — a ' +
+        'painted crankcase must reach the cylinders and the covers');
+
+  // the map from the generator's own part names to those sections, parsed out
+  // of the generator rather than trusted
+  const engBlk = /const ENG_SEC = \{([\s\S]*?)\};/.exec(ENG);
+  check(!!engBlk, 'engine: no ENG_SEC map in _cage_eng.js');
+  if (engBlk) {
+    const pairs = [...engBlk[1].matchAll(/(\w+)\s*:\s*'(\w+)'/g)]
+                    .map(m => [m[1], m[2]]);
+    check(pairs.length >= 9,
+          'engine: the ENG_SEC map has shrunk', pairs.length + ' parts');
+    // BOTH DIRECTIONS, because a rename on either side is silent otherwise
+    const bad = pairs.filter(p => !engRows.includes(p[1]));
+    check(!bad.length,
+          'engine: ENG_SEC names a section that is not declared',
+          bad.map(p => p.join('->')).join(', '));
+    // every mapped name must be a real part in the hardware table — that is
+    // the list the generator actually draws from (mats.map(matOf) over one
+    // merged mesh), so a typo or a rename on either side becomes a row over
+    // nothing rather than a silent no-op
+    const dead = pairs.filter(p => !A.AERO_HARD.eng[p[0]]);
+    check(!dead.length,
+          'engine: ENG_SEC names a part that is not in AERO_HARD.eng — the ' +
+          'row would be a control over nothing',
+          dead.map(p => p[0]).join(', '));
+    const cover = engRows.filter(s => !pairs.some(p => p[1] === s));
+    check(!cover.length,
+          'engine: a declared engine section no part maps to', cover.join(', '));
+  }
+  // AND THE SECTION MUST BE ASKED FIRST. AERO_HARD still says what the part
+  // IS — its bottom-out finish — but the builder's own choice goes on top of
+  // it, so a hardware lookup that answered first would win every time and the
+  // rows would appear to do nothing.
+  const iSec = ENG.indexOf('window.CAGE_SECMAT(sec');
+  const iHard = ENG.indexOf('A.aeroHardMat(THREE');
+  check(iSec > 0 && iHard > 0 && iSec < iHard,
+        'engine: the hardware table answers before the livery section — the ' +
+        'pick would never reach the engine');
+  check(/fin: A && A\.aeroHardFinish && A\.aeroHardFinish\('eng', name\)/.test(ENG),
+        'engine: the section is not seeded with the hardware finish — a ' +
+        'crankcase would stop being cast aluminium the moment it was picked');
+
+  // ...AND THE ENGINE PART MUST CLAIM THEM. A section no part claims is not
+  // lost — it lands in the root's `unclaimed` bucket, which is a home but not
+  // an ANSWER: the user asked for the engine's paint to be IN the finish
+  // section, and a control you reach through a catch-all on another part has
+  // not been put anywhere. This is the difference between the sections
+  // existing and the sections being findable, and only the tree can tell.
+  {
+    const PARTS = strip(fs.readFileSync(
+      path.join(ROOT, 'tools', '_cage_parts.js'), 'utf8'));
+    const ent = /\{ key: 'engine',[\s\S]*?\n    groups: \[/.exec(PARTS);
+    check(!!ent, 'engine: no engine entry in the part table');
+    if (ent) {
+      const cl = /sections: \[([^\]]*)\]/.exec(ent[0]);
+      const got = cl ? cl[1].match(/'(\w+)'/g).map(x => x.slice(1, -1)) : [];
+      check(engRows.every(s => got.includes(s)),
+            'engine: the engine part does not claim its own sections — they ' +
+            'would only be reachable through the root\'s unclaimed bucket',
+            'claims [' + got.join(', ') + ']');
+    }
+  }
+
+  // ---- B. THE MARKING HAS ITS OWN INK ------------------------------------
+  // Left owed by G113.1: the registration was spec.paint.trim with a white
+  // outline and no row. NULL IS THE DEFAULT AND THAT IS THE POINT — null
+  // means inherit, so an untouched aeroplane still wears the trim and the
+  // legacy sheet cannot disagree with the panel.
+  check(/regCol: null, regOut: null,/.test(UI4),
+        'marking: the ink and the outline are not declared inheriting (null)');
+  check(/DEC\.regCol != null \? DEC\.regCol : trim/.test(UI4),
+        'marking: the ink no longer falls back to the trim colour');
+  check(/DEC\.regOut != null \? DEC\.regOut : 0xffffff/.test(UI4),
+        'marking: the outline no longer falls back to white');
+  check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SK),
+        'marking: the text baker does not take an ink and an outline');
+  // ...and USES both, which is the half a signature check cannot see
+  {
+    const body = (SK.split('function aeroDecalText')[1] || '').slice(0, 1400);
+    check(/colHex/.test(body) && /outHex/.test(body),
+          'marking: the baker takes an ink and an outline and draws with ' +
+          'neither');
+  }
+
+  // ---- C. A MODE CHANGE MUST NOT MOVE THE MARKING ------------------------
+  // G113 shipped three projection modes and left this: field measures a
+  // station from the firewall, box from the craft origin, so switching mode
+  // TELEPORTED an existing marking. The frames genuinely differ and no
+  // constant reconciles them (sL and sC are ARC LENGTHS, not Cartesian —
+  // measured, the offsets spread 2.32 m over one aeroplane), so the marking
+  // is re-read off the mesh instead of converted by arithmetic.
+  check(/function decReframe\(fromMode, toMode, keys\)/.test(UI4),
+        'marking: no decReframe — a mode change moves the marking');
+  const wired = (UI4.match(/decReframe\(a, b, \{/g) || []).length;
+  check(wired === 3,
+        'marking: not every projection row reframes on a mode change',
+        wired + ' of 3 wired');
+  check(/o\.geometry\.attributes\.aStruct/.test(UI4) &&
+        /mesh\.updateWorldMatrix/.test(UI4),
+        'marking: the reframe is not read off the DRAWN mesh — a constant ' +
+        'offset cannot reconcile an arc length with a Cartesian one');
+  check(/return mode === 1 \? \[-v\.z, v\.y\] : \[v\.x, -v\.z\];/.test(UI4),
+        'marking: the flank and the plan frames are no longer distinct');
+
+  // ---- D. THE GLAZING TAKES ITS YEARS ------------------------------------
+  // G70: "glass takes no wear", and G113.2 shipped the dials still saying so.
+  // The condition ADDS to the builder's own numbers rather than replacing
+  // them: the dials are the floor an aeroplane leaves the factory with.
+  check(/if \(k === 'scratch'\) return Math\.min\(1, v \+ wr \* 0\.55\);/.test(SK),
+        'glazing: the condition dial does not age the scratches, or it ' +
+        'REPLACES the number the builder set instead of adding to it');
+  check(/if \(k === 'grime'\)\s+return Math\.min\(1, v \+ wr \* 0\.70\);/.test(SK),
+        'glazing: the condition dial does not age the grime');
+  // and only those two: years do not change what colour a pane was tinted,
+  // nor how strongly the room reflects in it
+  for (const k of ['refl', 'rainbow', 'opacity'])
+    check(!new RegExp("k === '" + k + "'\\) return Math\\.min\\(1, v \\+ wr").test(SK),
+          'glazing: wear has been folded into ' + k + ', which is a choice ' +
+          'and not a condition');
+  check(/'\|' \+ wr\.toFixed\(3\)/.test(SK),
+        'glazing: the wear is not in the pool key — two panes at different ' +
+        'ages would share one material');
+  // the pane keeps its own multiplier, exactly as every airframe section does
+  check(/wear: \(WEAR\.amount \|\| 0\) \*\s*\(secWear\[name\] != null \? secWear\[name\] : 1\)/
+          .test(UI4),
+        'glazing: the pane cannot opt out of the years — its own wear ' +
+        'multiplier is not applied');
+
+  // ---- NEGATIVE VERIFY ---------------------------------------------------
+  if (process.argv.includes('--selftest')) {
+    const probes = [
+      ['ENG_SEC naming an undeclared section',
+        () => [['emCase', '__nope__']].filter(p => !engRows.includes(p[1])).length > 0],
+      ['ENG_SEC naming a part nothing builds',
+        () => !/\bemGhost\b/.test('const x = emCase + emRocker;')],
+      ['a declared engine section no part maps to',
+        () => engRows.filter(s => !['engBlock'].includes(s)).length > 0],
+      ['the hardware table answering before the section',
+        () => {
+          const s = '  A.aeroHardMat(THREE  window.CAGE_SECMAT(sec';
+          return !(s.indexOf('window.CAGE_SECMAT(sec') <
+                   s.indexOf('A.aeroHardMat(THREE'));
+        }],
+      ['an ink that cannot inherit the trim',
+        () => !/regCol: null, regOut: null,/.test('regCol: 0x1b3a5c, regOut: null,')],
+      ['a baker that ignores its outline',
+        () => !/outHex/.test('ctx.strokeStyle = "#fff"; ctx.fillStyle = colHex;')],
+      ['a projection row wired without the reframe',
+        () => ('decReframe(a, b, {decReframe(a, b, {')
+                .match(/decReframe\(a, b, \{/g).length !== 3],
+      ['a reframe that converts by arithmetic',
+        () => !/o\.geometry\.attributes\.aStruct/
+                .test('DEC[keys.l] += FIREWALL_OFFSET;')],
+      ['wear that REPLACES the number the builder set',
+        () => !/return Math\.min\(1, v \+ wr \* 0\.55\);/
+                .test("if (k === 'scratch') return wr * 0.55;")],
+      ['wear left out of the glass pool key',
+        () => !/'\|' \+ wr\.toFixed\(3\)/
+                .test("const key = 'glass|' + o.tint + '|' + G('opacity');")],
+      ['wear folded into the reflection',
+        () => /k === 'refl'\) return Math\.min\(1, v \+ wr/
+                .test("if (k === 'refl') return Math.min(1, v + wr * 0.4);")],
+      ['a pane that cannot opt out of the years',
+        () => !/secWear\[name\]/.test('wear: (WEAR.amount || 0),')],
+    ];
+    let caught = 0;
+    for (const p of probes) {
+      let ok = false;
+      try { ok = !!p[1](); } catch (e) { ok = false; }
+      console.log('  selftest ' + p[0].padEnd(42) + (ok ? 'CAUGHT' : 'MISSED'));
+      if (ok) caught++;
+    }
+    check(caught === probes.length,
+      'selftest (G113.4): ' + (probes.length - caught) + ' probe(s) went unnoticed');
+  }
 }
 
 const hardN = Object.keys(A.AERO_HARD)

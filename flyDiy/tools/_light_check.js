@@ -257,6 +257,88 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
       'the studio is back — a second light rig with no switches, entered by ' +
       'accident when the hangar fails to build');
 
+// ---------------------------------------------------------------------------
+// 5. THE AEROPLANE'S OWN LAMPS (2026-08-31, four items from the user's second
+//    review). Source rules, in this file's own idiom: each names a behaviour
+//    that is invisible from a number and silent when it rots.
+// ---------------------------------------------------------------------------
+{
+  // `read` is rooted at src/viewer; the cage layers live in tools/, and they
+  // are CRLF like everything else here — same normalisation, same reason.
+  const lit = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8')
+                .split(String.fromCharCode(13)).join('');
+
+  // 5a. THE BEACON IS SEATED, NOT STRADDLING. It used to put the fairing's
+  // centre ON the fin's fitted top line — measured, 286 of 633 of its vertices
+  // ended up under the fin's own top edge, buried up to 26 mm, and with
+  // DoubleSide on the lodge and the lens that is the red light showing THROUGH
+  // the fin the user reported.
+  check(/sink:\s*beaconSink/.test(lit),
+        'the beacon site no longer declares a sink — the fairing is back to ' +
+        'straddling the fin, which is what "the light renders through the ' +
+        'dorsal fin" looked like');
+  check(/const sink = site\.sink == null \? 0\.5 : site\.sink;/.test(lit),
+        'the pod branch lost its sink default — a site that does not declare ' +
+        'one must keep the OLD behaviour, or every wingtip light moves');
+  check(/const lift = high \* \(0\.5 - sink\)/.test(lit),
+        'the fairing is no longer lifted off the surface it sits on');
+
+  // 5b. AND THE ROTOR GOES WITH IT. The mirror is a child group positioned
+  // independently; leaving it at site.p sweeps it inside the fin while the
+  // dome stands on top — a fault that reads exactly like the one just fixed.
+  check(/rot\.position\.set\(seat\[0\], seat\[1\], seat\[2\]\)/.test(lit),
+        'the beacon rotor is placed at the SITE and not at the seated fairing ' +
+        '— the mirror sweeps inside the fin while the dome stands proud');
+
+  // 5c. THE CABIN LAMPS ASK THE CAGE WHERE ITS CEILING IS. `spec.cabin.roofY`
+  // is a fuselage number and always was — but on a HIGH wing the wing sits AT
+  // the deck, so a lamp at the roof line and the wing are in the same place
+  // and the lamp reads as hung off the wing. Measuring the built ceiling is
+  // what makes it right for a high wing, a low wing and a parasol alike.
+  check(/const ceilAt = \(x, z\) =>/.test(lit),
+        'the cabin lamps no longer measure the ceiling they hang from');
+  check(/ceilAt\(pilot\.x/.test(lit) && /ceilAt\(s\.x/.test(lit),
+        'the flood or the passenger lamps stopped using the measured ceiling');
+  check(/cl \? cl\.y : A\.roofY/.test(lit),
+        'the measured ceiling has no fallback — a bench page with no cage ' +
+        'mesh would put the cabin lamps at y = undefined');
+  check(/Math\.abs\(ny \/ nl\) < 0\.55/.test(lit),
+        'the ceiling search no longer checks the face NORMAL: `body` is the ' +
+        'whole fuselage skin, so a high side panel passes for a roof and the ' +
+        'lamp is screwed to the cabin wall (measured: 269 mm low)');
+  check(/q\.y > crown - 0\.06/.test(lit),
+        'the ceiling search stopped preferring the liner under the crown');
+
+  // 5d. THE REFLECTOR IS LIT BY THE BULB IT SURROUNDS, and the proud fitting
+  // has a reflector at all — `PROF.cup` existed and was used only by the
+  // recessed wing lamp and the beacon's mirror, so the ceiling flood was a
+  // bulb standing in a bare barrel.
+  check(/function cupMat\(/.test(lit),
+        'the lit-reflector material is gone — a dark reflector under a lit ' +
+        'bulb is what the user asked to have fixed');
+  check(/revolveInto\(cup, /.test(lit),
+        'the proud fitting has no reflector: PROF.can is a HOUSING, and the ' +
+        'bowl is PROF.cup');
+  check(/emissiveIntensity: lv \* 0\.55/.test(lit),
+        'the reflector no longer follows the lamp dimmer, or it is at parity ' +
+        'with the lens — at parity the cup reads as a second bulb');
+  check(/cupMats\[id\]/.test(lit),
+        'the reflector material is not pooled — one material per lamp per ' +
+        'dim step is a new program every time a slider moves');
+
+  // 5e. THE PLACEMENT ROWS ARE REAL ROWS, not literals with a comment.
+  for (const k of ['li_beaconSink', 'li_navSpan', 'li_navChord', 'li_navRise',
+                   'li_podLen', 'li_podGirth', 'li_reflect'])
+    check(lit.indexOf("'" + k + "'") >= 0 && lit.indexOf(k + ':') >= 0,
+          k + ' is not both declared and offered — a default with no row is ' +
+          'unreachable, and a row with no default reads NaN');
+  check(/wb\.max\.x - navSpan/.test(lit) && /tipR\.zLE - navChord/.test(lit),
+        'the wingtip nav is back to inline literals for its own position');
+  check(/Number\.isFinite\(v\) \? Math\.max\(lo, Math\.min\(hi, v\)\) : d/.test(lit),
+        'the placement rows are not clamped: a stale save reaches the ' +
+        'geometry as NaN and the fitting vanishes');
+}
+
 // ---------------------------------------------------------------- selftest
 // THE G48 RULE: a gate that has never failed has not been tested. Each probe
 // breaks one thing this file claims to guard; every one must be CAUGHT.

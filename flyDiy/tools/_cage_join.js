@@ -58,6 +58,12 @@ function cageJoinSpec(P, M, T) {
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
+      // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
+      // the aeroplane's own material, which is what every build before this
+      // field existed already meant. 1..4 in intCons's display order.
+      ...(Math.round(P.wgCons) > 0
+        ? { material: ['carbon', 'tubeFabric', 'wood',
+                       'alloy'][Math.round(P.wgCons) - 1] } : {}),
     }],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut' },
     controls: {
@@ -99,12 +105,32 @@ function cageJoinSpec(P, M, T) {
     if (typeof M.twY === 'number' && isFinite(M.twY))
       spec.gear.twY = M.twY;
     if (M.twR > 0) spec.gear.twR = M.twR;
+    // G121.1: THE FAIRING SWITCH REACHES THE PHYSICS. The mains' three-state
+    // row ('none'/'spat'/'trousers') has drawn the shell since the gear
+    // bench, and since G115 the spec's `gear.fairing` prices it
+    // (genGearCdA: spat 0.22 vs bare 0.55 on the wheel's frontal, trousers
+    // fair the legs too) — this line is the wire between them. A PARAM, not
+    // a measurement, deliberately: the drawn spat is generated FROM s1Fair,
+    // so the switch IS the geometry's own declaration, the same way accOn
+    // rides. The third wheel's s2Fair has no spec home yet — the drag model
+    // treats it as bare, honestly, until it earns a field.
+    spec.gear.fairing = ['none', 'spat', 'full'][Math.round(P.s1Fair || 0)]
+                        || 'none';
+    // G121.2: the third wheel's switch rides too — carried ALWAYS (the save
+    // keeps the choice), priced only where drawn (genGearCdA gates on type).
+    spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
+                          || 'none';
   }
   const cabin = {};
   if (M.halfW > 0) cabin.halfW = M.halfW;
   if (M.cabH > 0) cabin.h = M.cabH;
   if (M.seating) cabin.seating = M.seating;
   if (M.pilots >= 1) cabin.pilots = M.pilots;
+  // `pax` is a LOADING and 0 is a real value, so it is written whenever the
+  // measurement produced one — `>= 1` would make an empty cabin unwriteable
+  // and leave whatever the spec had before, which is the opposite of what a
+  // snapshot is for.
+  if (typeof M.pax === 'number' && M.pax >= 0) cabin.pax = M.pax;
   // G52: the cabin's x-extent from the pillar rings
   if (M.noseGap > 0) cabin.noseGap = M.noseGap;
   if (M.cabLen > 0) cabin.len = M.cabLen;
@@ -142,6 +168,15 @@ function cageJoinSpec(P, M, T) {
   if (M.vX > 0) tl.vX = M.vX;
   if (M.vSweep === 0) tl.vSweep = 0;
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
+  // 0 says nothing, absent means the aeroplane's own material
+  {
+    const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+    if (Math.round(P.finCons) > 0)
+      tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
+    if (Math.round(P.stCons) > 0)
+      tl.stabMaterial = CONS4[Math.round(P.stCons) - 1];
+  }
   if (Object.keys(tl).length) spec.tail = tl;
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
   // save keeps what you built, even where physics does not read it yet
@@ -554,10 +589,31 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         }
       }
     }
-    // crew: the pilot always; seating from the cage's own layout rows
-    M.pilots = 1 + ((P.dum2On && P.paxCount >= 1) ? 1 : 0);
-    M.seating = (P.paxCount >= 1)
-      ? (P.seatLayout === 1 ? 'side2' : 'tandem2') : 'single';
+    // CREW, PASSENGERS AND HOW MANY SEATS THERE ARE (2026-08-31). The cage
+    // has always had PAX BAYS (`paxCount`, 0-4) and the join has always
+    // thrown all but the first of them away: `seating` could only ever come
+    // out `single` or a two-seater, so an aeroplane you had built four bays
+    // into flew as a two-seater and weighed like one.
+    //
+    // The bays are the capacity now. The LOADING is still what the cage
+    // shows: the pilot always, the second dummy when it is drawn, and the
+    // rest of the seats empty — `cabin.pax` is a loading number and an
+    // aeroplane is not flown full because it could be.
+    const bays = Math.max(0, Math.round(+P.paxCount || 0));
+    const abreast = Math.round(P.seatLayout) === 1;
+    M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
+             : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
+             : 'single';
+    M.pilots = 1 + ((P.dum2On && bays >= 1) ? 1 : 0);
+    // AND THE LOADING IS WHAT THE CAGE DRAWS. `dum2On` puts a body in every
+    // seat that is not the pilot's, so with four seats it draws four people —
+    // and the join used to hand the game two, which is 160 kg of aeroplane
+    // that is on the screen and not on the scales. The capacity comes from the
+    // seating table rather than from a second copy of it here.
+    const CAP = (typeof GEN_SEATING !== 'undefined') ? GEN_SEATING
+              : (window.GEN_SEATING || null);
+    const seatsN = (CAP && CAP[M.seating]) ? CAP[M.seating].crew : M.pilots;
+    M.pax = P.dum2On ? Math.max(0, seatsN - M.pilots) : 0;
     if (window.CAGE2 && window.CAGE2.cageToSpec)
       try { M.cage = window.CAGE2.cageToSpec(P); }
       catch (e) { ERRS.push('the shape could not be written to the build: '
@@ -792,7 +848,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
             (kud.aeroFinish ? 'f' + kud.aeroFinish + (kud.aeroGrm || '') +
                               (kud.aeroSurf ? 'S' : '') +
-                              (kud.aeroWing ? 'W' + kud.aeroWing : '') : '');
+                              (kud.aeroWing ? 'W' + kud.aeroWing : '') +
+                              // the dials too (G113): two look-alike layer
+                              // sections dialled apart must not merge
+                              (kud.aeroTileK ? 'T' + kud.aeroTileK : '') +
+                              (kud.aeroRoughK ? 'R' + kud.aeroRoughK : '') +
+                              (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
+                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') : '');
         // AEROSKIN (G67) rides across as WHAT IT IS, not as what it looked
         // like: the finish key and the shader branch, so the game rebuilds
         // the same material from the same factory rather than approximating
@@ -811,6 +873,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // and which are its fuselage's. Without it every flown surface came
           // back class 0 and a livery aimed at one landed on all of them.
           ...(ud.aeroWing ? { wing: ud.aeroWing } : {}),
+          // the dialled deviations and the metric rib pitch (G113): the
+          // three dials multiply the finish's own numbers, ribM is the
+          // tail's declared pitch, wearK the part's own ageing rate —
+          // absent means the finish's defaults, exactly as in the editor
+          ...(ud.aeroTileK ? { tileK: ud.aeroTileK } : {}),
+          ...(ud.aeroRoughK ? { roughK: ud.aeroRoughK } : {}),
+          ...(ud.aeroNrmK ? { nrmK: ud.aeroNrmK } : {}),
+          ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
+          ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
+          ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
           // whether this group carries the surface field decides which
           // branch the shader takes for it, and the join is where that
           // fact has to survive into the game

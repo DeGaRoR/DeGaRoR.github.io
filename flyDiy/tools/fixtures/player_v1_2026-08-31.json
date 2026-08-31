@@ -1,0 +1,18 @@
+{
+  "what": "flydiy-player",
+  "v": 1,
+  "wallet": 0,
+  "sheds": {
+    "HOME": {
+      "shell": "club",
+      "kits": ["park", "bench", "wood", "metal", "store", "handling",
+               "office", "comfort", "curio", "wip"],
+      "dims": { "HW": 18, "HD": 14, "EAVE": 8 },
+      "parts": {
+        "ground": { "set": "cracked", "tile": 4, "rough": 1, "nrm": 1 },
+        "wallSides": { "set": "planks09", "tile": 2, "rough": 1.2, "nrm": 1 }
+      },
+      "name": "Home hangar"
+    }
+  }
+}

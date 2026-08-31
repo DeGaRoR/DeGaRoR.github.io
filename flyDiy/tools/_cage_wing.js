@@ -97,8 +97,10 @@ const WING_ITEMS = [
   // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what THIS surface is built from — the structure grammar and the
   // livery's auto-finish bottom-out both read it (carbon wings on a wooden
-  // fuselage is these two rows). MASS AND PRICE DO NOT FOLLOW IT YET: the
-  // wing bills the global construction until the coupling is designed.
+  // fuselage is these two rows). AND THE STRUCTURE IS THE MATERIAL'S
+  // (G116 mass + price, G117 stiffness + damping — "WYSIWYG is the rule"):
+  // the join writes `wing.material` and the lattice builds the wing's
+  // members from it, weight, cost, flex and all. See genLattice's note.
   ['wgCons', 'construction', 0, 4, 1,
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    on],

@@ -176,6 +176,24 @@
         "8144"
       ],
       "port": 8144
+    },
+    {
+      "name": "flydiy-design",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8148"
+      ],
+      "port": 8148
+    },
+    {
+      "name": "flydiy-hangars",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8151"
+      ],
+      "port": 8151
     }
   ]
 }
