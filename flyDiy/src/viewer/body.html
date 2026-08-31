@@ -119,6 +119,21 @@
       <span id="hint">drag to orbit · scroll to zoom</span>
     </div>
   </footer>
+  <!-- THE ARRIVAL CARD (G107.2): the flight's ENDING. Until now the phase
+       rail said STOPPED and the one thing the flight produced hid inside a
+       telemetry panel that fullReset() closes. This appears ONCE on STOPPED
+       with the pilot's own report — outcome, touchdown, landing run, the
+       verdicts — and the two ways onward. app.js populates and shows it;
+       it hides the moment the phase leaves STOPPED. -->
+  <div id="arrCard" class="panel" hidden>
+    <b id="arrTitle">ARRIVED</b>
+    <div id="arrRows"></div>
+    <div id="arrNotes"></div>
+    <div id="arrBtns">
+      <button id="bAgain" class="pri">Fly again</button>
+      <button id="bHangar">Back to the hangar</button>
+    </div>
+  </div>
 </div>
 
 <!-- WORKSHOP. The other interface (G86). Everything about DESIGNING
@@ -177,7 +192,7 @@
   </div>
   <button id="edInfoFold" class="pill" title="Fold the information panel">‹</button>
 </aside>
-<button id="edInfoTab" title="Show the information panel">›<b>Information</b></button>
+<button id="edInfoTab" title="Show the information panel">›<b>Information &amp; testing</b></button>
 
 <!-- THE EDITOR. A PANEL ONLY since G36: the cage build renders in the
      game's own garage scene through the game's own renderer and camera
@@ -213,24 +228,30 @@
     <header id="edPropHead">
       <button id="edPropFold" class="pill" title="Fold the properties column">›</button>
       <span id="edCrumb"></span><b id="edPartName"></b><span id="edChanged"></span>
-      <!-- TWO VIEWS OF ONE TREE, not two panels (UI-MODEL §2.3). The tree
-           stays the only selector — the noun; the tab is the adjective. SHAPE
-           is what the part is; FINISH is what it is made of and looks like. -->
-      <nav id="edViewTabs">
-        <button id="edTabShape" class="edTab on"
-                title="What this part is — its dimensions and its shape">shape</button>
-        <button id="edTabFinish" class="edTab"
-                title="What this part is made of — finish, colour, and the grain of it">finish</button>
-      </nav>
-    </header>
-    <div id="edRows"></div>
-    <footer id="edPropFoot">
-      <span id="edPartMeta"></span>
+      <!-- THE TWO PILLS BELONG TO THE TITLE, not to a footer (the user:
+           "reset parts and expert rows should be at the top of the menu,
+           integrated in the title bar"). Both act on the SELECTION, which is
+           what the title names, so they sat a column-scroll away from the
+           thing they operate on. -->
       <button id="edResetPart" class="pill"
               title="Every row of this part back to the design you loaded">reset part</button>
       <button id="edExpert" class="pill"
               title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
-    </footer>
+      <!-- TWO VIEWS OF ONE TREE, not two panels (UI-MODEL §2.3). The tree
+           stays the only selector — the noun; the tab is the adjective. SHAPE
+           is what the part is; FINISH is what it is made of and looks like. -->
+      <!-- the anchor this part is placed against — a fact about the
+           SELECTION, so it belongs under the selection's name rather than in
+           a footer at the far end of the column. -->
+      <span id="edPartMeta"></span>
+      <nav id="edViewTabs">
+        <button id="edTabShape" class="edTab on"
+                title="What this part is — its dimensions and its shape">structure</button>
+        <button id="edTabFinish" class="edTab"
+                title="What this part is made of — finish, colour, and the grain of it">livery</button>
+      </nav>
+    </header>
+    <div id="edRows"></div>
     <!-- WHAT IS LEFT OF THE OLD ACCORDION. The parameter rows went into the
          inspector at G77; the VIEW's rows went into the icon rail's flyouts
          and the ROOM's into the shed sheet at G78. What can still be here is
@@ -271,28 +292,29 @@
      the dims box keep their own behaviour and gain a home that says what they
      are for. -->
 <div id="edView" hidden>
-  <div id="edRail"></div>
-  <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
-  <!-- the two verbs. ROLL OUT is the primary and is NEVER disabled: it is your
-       aeroplane, and building it wrong and learning why is content, not error. -->
-  <div id="edVerbs">
-    <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
-    <button id="edRunBench" class="verb">Run the bench</button>
+  <!-- ONE BAR ACROSS THE TOP (the user: "put the floating menu on top"). The
+       rail was a column down the left and the verbs a pair bottom-left, so the
+       things you do to the build were at opposite corners of the render with
+       the aeroplane between them. They are one row now, and the row reads
+       left to right as HOW YOU LOOK AT IT, then WHAT YOU DO WITH IT.
+       ROLL OUT is the primary and is NEVER disabled: it is your aeroplane, and
+       building it wrong and learning why is content, not error. -->
+  <div id="edTopBar">
+    <div id="edRail"></div>
+    <div id="edActs">
+      <button id="edSave" class="verb"
+              title="Save this aeroplane — over itself, or under a name the first time">Save</button>
+      <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
+    </div>
   </div>
+  <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
 </div>
 
-<!-- THE SHEETS. Two of them, one grammar, and each is a different SUBJECT:
-     #edSheet is the aeroplane as an object (G80 fills it with the plaque, the
-     bench summary, the logbook, the store and the rack — for now it holds the
-     shelf and the design/bench tabs, which is what it is replacing); #edShed
-     is the ROOM, which the user ruled is a different interface from designing
-     an aeroplane. Both are opened from the view and cover it. -->
-<div id="edScrim" hidden></div>
-<section id="edShed" hidden>
-  <header>
-    <b>The shed</b><span>the room you build in — not the aeroplane</span>
-    <button id="shedClose" class="pill">close</button>
-  </header>
-  <div id="shedBody"></div>
-</section>
+<!-- THERE ARE NO SHEETS LEFT (G108). The aeroplane's went at G91 — the
+     plaque, the bench and the fleet are the permanent INFORMATION panel now,
+     because a plaque you have to open hides the consequence of the slider you
+     just moved. The shed's goes here: it is a tree ROOT beside the aeroplane
+     and the reference, which is what makes the WORLD's arrival cost nothing.
+     UI-MODEL section 2.4 reserves exactly one sheet for the FLEET RACK, and
+     that chantier brings its own scrim rather than inheriting a dead one. -->
 </section>

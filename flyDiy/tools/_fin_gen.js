@@ -580,10 +580,22 @@ function finCutMesh(s, opts) {
 // hinge, tapering linearly to thickTE at the aft extreme — a control
 // surface is thickest at its spar and thins to its trailing end. No other
 // deformation: the sheet's own shape is never touched.
+// RIM SEGMENTS across the rounded edge. It was a module constant at 4, with no
+// row anywhere, and four facets across a 60 mm edge is what the user saw:
+// "the fin and slabs rounding is too low poly, its sides show easily".
+// It is `opts.rimN` now, and the constant is the DEFAULT rather than the
+// value, so nothing moves for a caller that does not ask.
 const FIN_NOSE_N = 4;                    // rim segments (the LE nose arc)
+const FIN_NOSE_N_MAX = 12;
 
 function finThicken(m, opts) {
-  const N = FIN_NOSE_N;
+  // clamped AND NaN-guarded: a stale save or a blank field reaches here as
+  // NaN, and NaN survives Math.max/min silently — the loop below then runs
+  // zero times and the part comes out with no rim at all, which is a hole.
+  const rimAsked = Math.round(+opts.rimN);
+  const N = Number.isFinite(rimAsked)
+    ? Math.max(2, Math.min(FIN_NOSE_N_MAX, rimAsked))
+    : FIN_NOSE_N;
   const base = opts.thick, te = opts.thickTE === undefined
     ? opts.thick : opts.thickTE;
   const zH = opts.zHinge, zA = opts.zAftEnd;
@@ -688,7 +700,7 @@ function finThicken(m, opts) {
     //     bulges AWAY from the plane, so the nose curled around the corner
     //     instead of being sliced like the fin's edge just below it
     //     (user report, wireframe 4).
-    const prof = new Map();
+    const prof = new Map(), pNrm = new Map();
     for (const [vi, edges] of adj) {
       const rounds = edges.filter(e => !e.flat);
       const flats = edges.filter(e => e.flat);
@@ -700,6 +712,39 @@ function finThicken(m, opts) {
       ny /= L; nz /= L;
       const p = WV[vi], r = t[vi] / 2;
       const pts = [top[vi]];
+      // THE RIM'S NORMAL IS KNOWN EXACTLY, HERE AND NOWHERE ELSE (user,
+      // 2026-08-31: "the edge... should have smooth shading on the tranche...
+      // only apply smooth shading to the rim, so we don't generate shading
+      // artifacts on the flat surfaces").
+      //
+      // finMesh emits NON-INDEXED geometry and calls computeVertexNormals,
+      // which on a non-indexed buffer hands every vertex its own triangle's
+      // face normal — so the fin and the stab are faceted everywhere by
+      // construction, and there is no flatShading flag to turn off. The fix
+      // is not to weld: it is to AUTHOR the normal on the rim and leave the
+      // sheets alone, and the arc's normal is already in hand at the exact
+      // point it is being placed. At phi = +-PI/2 it is (+-1, 0, 0), which is
+      // the sheet's own direction, so the rim meets the flat sides tangentially
+      // and the junction needs no crease.
+      //
+      // Two cases keep the face normal instead, and both are right:
+      //   * a SQUARE corner (no round edges at this vertex — a slot corner
+      //     stays a corner)
+      //   * a vertex whose arc is PROJECTED into a cut plane, where the
+      //     surface is no longer the ideal arc: the normal is projected the
+      //     same way and renormalised, so the shading follows the geometry
+      //     rather than an arc that is not there.
+      const nrm = rounds.length ? [] : null;
+      const nAt = phi => {
+        const q = [Math.sin(phi), ny * Math.cos(phi), nz * Math.cos(phi)];
+        for (const f of flats) {
+          const d = q[1] * f.ny + q[2] * f.nz;
+          q[1] -= f.ny * d; q[2] -= f.nz * d;
+        }
+        const L = Math.hypot(q[0], q[1], q[2]);
+        return L > 1e-9 ? [q[0] / L, q[1] / L, q[2] / L] : [1, 0, 0];
+      };
+      if (nrm) nrm.push(nAt(Math.PI / 2));
       for (let k = 1; k < N; k++) {
         const phi = Math.PI / 2 - Math.PI * k / N;
         const x = r * Math.sin(phi);
@@ -711,14 +756,24 @@ function finThicken(m, opts) {
         }
         OV.push(q);
         pts.push(OV.length - 1);
+        if (nrm) nrm.push(nAt(phi));
       }
       pts.push(bot[vi]);
+      if (nrm) nrm.push(nAt(-Math.PI / 2));
       prof.set(vi, pts);
+      pNrm.set(vi, nrm);
     }
     for (const e of bEdges) {
       const Pa = prof.get(e.a), Pb = prof.get(e.b);
-      for (let k = 0; k < N; k++)
-        OF.push({ v: [Pb[k], Pa[k], Pa[k + 1], Pb[k + 1]], m: e.m, part });
+      const Na = pNrm.get(e.a), Nb = pNrm.get(e.b);
+      for (let k = 0; k < N; k++) {
+        // `n` is one normal per CORNER, in the face's own vertex order. Only
+        // the rim carries it; every other face falls through to the face
+        // normal, which is what keeps the flat sheets flat.
+        const f = { v: [Pb[k], Pa[k], Pa[k + 1], Pb[k + 1]], m: e.m, part };
+        if (Na && Nb) f.n = [Nb[k], Na[k], Na[k + 1], Nb[k + 1]];
+        OF.push(f);
+      }
     }
     // outward (per part): the sides + rim are coherent by construction, so
     // one signed volume decides the global flip
@@ -732,8 +787,20 @@ function finThicken(m, opts) {
              + a[2] * (b[0] * c[1] - b[1] * c[0]);
       }
     }
+    // THE FLIP REORDERS THE AUTHORED NORMALS AND DOES NOT NEGATE THEM, and
+    // getting that backwards is the one way this whole change goes silently
+    // wrong. `n` is a GEOMETRIC outward normal — built from (ny, nz), which
+    // is oriented away from the face's own centroid, and from the profile's
+    // own x — so it is already correct whichever way the winding came out.
+    // What the flip changes is the CORNER ORDER, so `n` has to be reordered
+    // to stay with its vertex; negating it as well would point the rim
+    // inward on exactly the parts the flip exists to fix.
+    // (GATE FIN forces this branch — no fin or stab built today reaches it.)
     if (vol < 0)
-      for (let fi = fStart; fi < OF.length; fi++) OF[fi].v.reverse();
+      for (let fi = fStart; fi < OF.length; fi++) {
+        OF[fi].v.reverse();
+        if (OF[fi].n) OF[fi].n.reverse();
+      }
   }
   return { V: OV, F: OF };
 }

@@ -37,6 +37,10 @@ const GATES = [
   { id: 'CHINOOK', file: 'test_chinook.js', tier: 'fleet' },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },   // covers `gen` too
   { id: 'GEN', file: 'test_gen.js', tier: 'core' },
+  // THE TEST PILOT (G107): the second autopilot's own battery, negative-first —
+  // a build that cannot fly must come back SAYING SO in bounded time. Carries
+  // --selftest (doctored reports; every check proven able to go red).
+  { id: 'PILOT', file: 'test_pilot.js', tier: 'core' },
   { id: 'TREE', file: 'test_tree.js', tier: 'core' },
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
   { id: 'MODEL', file: 'test_model.js', tier: 'core' },
@@ -98,9 +102,11 @@ const GATES = [
   // Runs headless on a THREE stub, which is the only reason it never existed.
   { id: 'GEAR', file: '_gear_check.js', tier: 'core' },
   { id: 'BAY', file: '_bay_check.js', tier: 'core' },
+  { id: 'BEACON', file: '_beacon_check.js', tier: 'core' },
   // THE PART TABLE (G76): the declared assembly against the editor's own row
   // list and the sections real builds emit — every slider in exactly one part
   { id: 'PARTS', file: '_parts_check.js', tier: 'core' },
+  { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared
   // fitting's own dimensions

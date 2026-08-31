@@ -112,7 +112,11 @@ function editorInit(api) {
   // THE BUILD. Its branch is the declared assembly, so it needs no panel of
   // its own — selecting it shows every row, which is the user's "top layer
   // where everything is visible".
-  registerRoot({ key: 'craft', name: 'Build plane', order: 0, parts: true });
+  // THE NAME COMES FROM THE PART TABLE, not from here. The tree row and the
+  // title bar read two different declarations of it, so renaming the root
+  // renamed it in one of the two places and left "Build plane" in the other.
+  registerRoot({ key: 'craft', order: 0, parts: true,
+                 name: (PT.partByKey.craft && PT.partByKey.craft.name) || 'My Plane' });
   // THE REFERENCE (G90, ROADMAP F1), registered here rather than by
   // refplane.js only because that file belongs to another session in flight;
   // the four lines below are its to take back whenever it likes.
@@ -130,6 +134,73 @@ function editorInit(api) {
     badge: () => (window.REFPLANE && window.REFPLANE.badge()) || '',
     refresh: () => { if (window.REFPLANE && window.REFPLANE.refresh) window.REFPLANE.refresh(); },
   });
+  // THE SHED AND THE WORLD (G108, the user: "I had once asked for the hangar
+  // and the world to become 2 entries in the tree, at the root level, like my
+  // plane and reference plane. Did we just not do that?"). The MECHANISM
+  // landed at G102 and the roots did not — `CAGE_TREE_ROOTS` had exactly two
+  // callers, both in this file, which is a registry nobody had registered
+  // anything with.
+  //
+  // THE SHED SHEET RETIRES WITH THEM, and that reverses G78's own ruling on
+  // purpose: UI-MODEL section 2.4's argument is that ONE SELECTOR SCALES AND
+  // TWO INTERFACES DO NOT, and the world arriving is the proof — a second
+  // bespoke pane per object was already two, and would have been three.
+  //
+  // Their rows are _cage_ui.js's and hangar.js's OWN elements, moved, exactly
+  // as every other row in this column is. They live in the nursery when not
+  // selected, so `labelIndex` finds them for the `night` flyout with no
+  // change: the rail BORROWS and the tree OWNS, which is why `time of day`
+  // can be the world's row and still answer a question about looking.
+  const shedHost = document.createElement('div');
+  shedHost.className = 'edRoot';
+  const worldHost = document.createElement('div');
+  worldHost.className = 'edRoot';
+  nursery.appendChild(shedHost);
+  nursery.appendChild(worldHost);
+
+  // which loose row belongs to which object. The four the `night` flyout
+  // claims are split by SUBJECT and not by where they were parked: the shed's
+  // own lamps are the shed's, the sky standing outside the door and what it
+  // does to the ground are the world's.
+  const SHED_ROWS = ['lights'];
+  const WORLD_ROWS = ['time of day', 'world lights', 'ground bounce'];
+  function fillRoots() {
+    // A ROOT'S HOST NEEDS A HOME. The parking loop keeps `.r` rows and
+    // anything with a `homeOf` entry and REMOVES the rest — which is right
+    // for the reference panel (refplane.js owns it whole) and wrong for
+    // these: detached, they are no longer under the nursery, so `labelIndex`
+    // cannot find the rows inside them and the `night` flyout comes up empty.
+    // Set HERE and not at construction, because `homeOf` is declared further
+    // down the file and a root is registered before it exists.
+    homeOf.set(shedHost, nursery);
+    homeOf.set(worldHost, nursery);
+    const hd = document.querySelector('#edWrap details[data-g="hangar"]') ||
+               nursery.querySelector('details[data-g="hangar"]');
+    if (hd && hd.parentElement !== shedHost) { hd.open = true; shedHost.appendChild(hd); }
+    const idx = labelIndex();
+    for (const [host, labels] of [[shedHost, SHED_ROWS], [worldHost, WORLD_ROWS]])
+      for (const label of labels) {
+        const r = idx.get(label);
+        if (r && r.parentElement !== host) host.appendChild(r);
+      }
+  }
+  const rootNote = (host, txt) => {
+    if (host.querySelector('.r, details')) return host;
+    const n = document.createElement('div');
+    n.className = 'refNote';
+    n.textContent = txt;
+    host.appendChild(n);
+    return host;
+  };
+  registerRoot({ key: 'shed', name: 'The shed', order: 20,
+    meta: 'the room you build in — not the aeroplane',
+    panel: () => { fillRoots();
+      return rootNote(shedHost, 'The shed is not in this build.'); } });
+  registerRoot({ key: 'world', name: 'The world', order: 30,
+    meta: 'the sky outside the door, and the light it throws',
+    panel: () => { fillRoots();
+      return rootNote(worldHost, 'The world is not in this build.'); } });
+
   let sel = pref(LS_SEL) || 'craft';
   if (!PT.partByKey[sel] && !rootFor(sel)) sel = 'craft';
   // =========================================================================
@@ -241,6 +312,43 @@ function editorInit(api) {
     // display flyout asks for it.
     const st = $('edStat');
     if (st) nursery.appendChild(st);
+    // ...and so is the AEROSKIN mode select. There were TWO controls for one
+    // idea: `#mat` chose AEROSKIN vs the diagnostic palette (labelled
+    // `materials`, left in the overflow), and `#color` chose whether that
+    // palette was coloured (labelled `section colours`, in the display
+    // flyout) — so the flyout's checkbox did nothing at all unless a select
+    // in another panel was already set. The user's ruling: one option, called
+    // `section colours`. The checkbox IS the switch now (see the wiring); the
+    // select is parked because window.CAGE_AERO_ON reads it and four layers
+    // read that, so it stays the mechanism while ceasing to be an interface.
+    const matEl = $('mat');
+    const matRow = matEl && matEl.closest ? matEl.closest('.r') : null;
+    if (matRow) nursery.appendChild(matRow);
+    // SECTION COLOURS IS THE WHOLE SWITCH. `#color` used to mean "colour the
+    // palette" INSIDE the palette mode, which is why ticking it under
+    // `display` could do nothing at all; it means "show the palette" now, and
+    // drives `#mat`.
+    //
+    // It is seeded FROM the persisted mode rather than from its own HTML
+    // `checked`, because the two disagree at boot: the markup ships it ticked
+    // and AEROSKIN has been the default view since G67.1.
+    //
+    // The previous handler is CALLED, not replaced: _cage_ui.js assigns
+    // `onchange = build` at module load, and the mode has to be written
+    // before that rebuild reads it. Wrapping is the only ordering that is not
+    // a guess about listener order.
+    const colEl = $('color');
+    if (colEl && matEl && !colEl.dataset.edMode) {
+      colEl.dataset.edMode = '1';
+      colEl.checked = matEl.value === 'sections';
+      const prev = colEl.onchange;
+      colEl.onchange = function (e) {
+        matEl.value = colEl.checked ? 'sections' : 'material';
+        try { localStorage.setItem('flydiy.cageMatView', matEl.value); }
+        catch (err) {}
+        if (prev) prev.call(colEl, e);
+      };
+    }
     // 3. EVERY CLAIMED ROW LEAVES THE ACCORDION NOW, not when it happens to be
     //    selected. The inspector shows one part at a time; the rest have to be
     //    somewhere, and that somewhere cannot be the accordion, because the
@@ -265,15 +373,13 @@ function editorInit(api) {
           if (r) nursery.appendChild(r);
         }
     }
-    // 5. THE ROOM GOES TO THE SHED SHEET, whole. The user's ruling: tuning the
-    //    atmosphere or the hangar is a different interface from designing an
-    //    aeroplane. The `night` flyout borrows its two light rows back and
-    //    returns them.
-    {
-      const hd = document.querySelector('#cgUi details[data-g="hangar"]');
-      const body = $('shedBody');
-      if (hd && body) { hd.open = true; body.appendChild(hd); }
-    }
+    // 5. THE ROOM GOES TO ITS OWN ROOT, whole (G108). It went to a SHEET at
+    //    G78 on the ruling that tuning the room is a different interface from
+    //    designing an aeroplane — which was true and is now the wrong answer
+    //    to it, because the world arrived and a second bespoke pane per scene
+    //    object does not scale. It is a tree root; the `night` flyout still
+    //    borrows the light rows back and returns them.
+    fillRoots();
     // 6. ...and the emptied accordion groups go with the rows. They are MOVED,
     //    not removed: _cage_page5.js's derived selectors are injected by
     //    `CAGE_PAGE_SETUP` after this runs and find their host by
@@ -300,9 +406,14 @@ function editorInit(api) {
   // details, every slider still editable afterwards — and they belong in the
   // inspector beside the rows they write. They have no key, so the part table
   // cannot place them; this does, by the accordion path they were injected at.
+  // BOTH OF THEM ARE DISCRIMINATORS, so both go to `Design & construction`
+  // (G108). A row that writes several raw params at once from one high-level
+  // choice is the definition of the thing that part exists to hold, and they
+  // were the two loudest examples of a decision about the WHOLE aeroplane
+  // filed under one part of it.
   const DERIVED = {
-    '2 · engine': ['engine', 'fitted'],
-    '4 · cabin/dimensions': ['cabin', 'dimensions'],
+    '2 · engine': ['design', 'configuration'],
+    '4 · cabin/dimensions': ['design', 'configuration'],
   };
   const extraRows = new Map();             // 'partKey/group' -> [row, …]
   function collectDerived() {
@@ -374,6 +485,10 @@ function editorInit(api) {
 
   function render() {
     if (!CU) return;
+    // ANYTHING THE FLYOUT IS HOLDING COMES HOME FIRST. A borrowed row is not
+    // a child of this column, so the parking loop below cannot see it — and
+    // returning it later would drop it into a column that has moved on.
+    returnRows();
     groupsOf.length = 0;
     // rows are PARKED, never destroyed: they are _cage_ui's elements and its
     // syncSliders/applyRowVis keep addressing them whether or not the part
@@ -395,10 +510,11 @@ function editorInit(api) {
       if (r && r.panel) {
         rowsEl.appendChild(r.panel());
         applyVis();
+        reopenFly();
         return;
       }
     }
-    if (view === 'finish') { renderFinish(); applyVis(); return; }
+    if (view === 'finish') { renderFinish(); applyVis(); reopenFly(); return; }
     const shown = partsShown(sel);
     const many = shown.length > 1;
     for (const p of shown) {
@@ -411,7 +527,7 @@ function editorInit(api) {
       // looking at.
       if (many && (p.groups || []).length) {
         const h = document.createElement('div');
-        h.className = 'edH';
+        h.className = 'edH edHP';
         h.innerHTML = '<span></span><i></i>';
         h.firstChild.textContent = nameOf(p);
         rowsEl.appendChild(h);
@@ -439,6 +555,7 @@ function editorInit(api) {
       }
     }
     applyVis();
+    reopenFly();
   }
 
   function emit(part, name, keys, meta, expert) {
@@ -475,10 +592,10 @@ function editorInit(api) {
   // claimed by exactly one part, and every claim is a section that exists. That
   // gate was written for the 3D highlight; the finish view is the second thing
   // it pays for, and it needed no new rule.
-  function emitEls(part, name, els, meta) {
+  function emitEls(part, name, els, meta, isPart) {
     if (!els.length) return;
     const h = document.createElement('div');
-    h.className = 'edH';
+    h.className = isPart ? 'edH edHP' : 'edH';
     h.innerHTML = '<span></span><i></i><em></em>';
     h.children[0].textContent = name;
     h.children[2].textContent = meta || '';
@@ -525,19 +642,24 @@ function editorInit(api) {
     // it are not properties of the cowl or of any other part — they are the
     // aeroplane's, and the root is where the aeroplane is selectable.
     if (isRoot) {
-      // THE CONSTRUCTION IS THE FIRST DECISION AND IT IS LIVE HERE. The user
-      // asked where "the conception slider, the one where we decide the
-      // materials and architecture of the plane" had gone: it is `intCons`,
-      // which the part table gives to `structure` because that is the part it
-      // dimensions. It is also the row every section's `auto (…)` finish is
-      // derived from, so showing only its RESULT at the head of the livery —
-      // as this panel did — is a read-out with no way back to the choice.
-      // The row itself comes here instead. It is the same element, so it is
-      // in exactly one place at a time and the shape view takes it back on the
-      // next selection, which is what re-parenting buys.
-      const cons = [];
-      for (const m of (rowsFor.get('intCons') || [])) cons.push(m.row);
-      emitEls(p0, 'livery', cons.concat(head), 'the whole aeroplane');
+      // THE CONSTRUCTION IS NOT IN THE LIVERY ANY MORE (G108, the user: "the
+      // construction material and type should definitely be in structure, and
+      // not in finish, big mistake").
+      //
+      // G104 borrowed `intCons` onto the head of this panel, and its reason
+      // was sound: the row was unfindable under `Fuselage -> Structure & skin`
+      // and the livery showed only its RESULT, a read-out with no way back to
+      // the choice. But the fix put a STRUCTURE decision in the FINISH view,
+      // and the user's verdict is the one that matters — what it decides is
+      // what the aeroplane is MADE OF, not what it looks like.
+      //
+      // It has a findable home of its own now: `Design & construction`, first
+      // under the aeroplane in the structure view, which is what UI-MODEL
+      // asked for and what makes both complaints go away at once. The livery
+      // keeps the bench's derived read-out suppressed exactly as G104 left it
+      // — two rows labelled `construction`, one of them dead, is still worse
+      // than either alone.
+      emitEls(p0, 'livery', head, 'the whole aeroplane');
       const dec = CU.DECBODY;
       if (dec) emitEls(p0, 'markings',
         Array.from(dec.children), 'registration and images');
@@ -550,7 +672,7 @@ function editorInit(api) {
         taken.add(s);
         for (const el of r) els.push(el);
       }
-      emitEls(p, nameOf(p), els, els.length ? '' : '');
+      emitEls(p, nameOf(p), els, '', true);
     }
     // ANYTHING THE TABLE HAS NOT CLAIMED still gets a home. GATE PARTS says
     // there is nothing here on a build it knows; a layer added since is a row
@@ -560,12 +682,14 @@ function editorInit(api) {
       for (const [s, r] of bySec) if (!taken.has(s)) for (const el of r) rest.push(el);
       emitEls(p0, 'unclaimed', rest, 'not yet in the part table');
     }
-    // A PART WITH NO SECTION IS NOT A PART WITH NO MATERIAL. Only the cage's
-    // own skin is sectioned; a wing, a cowl or a leg is either the aeroplane's
-    // construction — one choice, on the root — or hardware, whose finishes are
-    // declared in AEROSKIN's AERO_HARD table and are not the builder's to pick
-    // (a tyre is rubber and a chromed oleo piston is chrome). So the note says
-    // where the finish DOES come from, and takes you there.
+    // A PART WITH NO SECTION IS NOT A PART WITH NO MATERIAL. The cage's skin
+    // is sectioned off its own mesh groups, and the layer surfaces the
+    // builder paints — wing, tips, control surfaces, fin, rudder, stab —
+    // are declared sections too (AEROSKIN's AERO_SEC), each following its
+    // parent's livery until overridden. What remains here is HARDWARE,
+    // whose finishes are declared in AERO_HARD and are not the builder's to
+    // pick (a tyre is rubber and a chromed oleo piston is chrome). So the
+    // note says where the finish DOES come from, and takes you there.
     if (!rowsEl.children.length) {
       const n = document.createElement('div');
       n.className = 'refNote';
@@ -601,6 +725,15 @@ function editorInit(api) {
     if (!CU) return;
     rebaseCheck();
     const P = CU.P, ex = CU.EXPERT && CU.EXPERT.on;
+    // TWO WRITES, AND ONLY WHEN THE LAST ROW MOVED. applyVis runs at the end
+    // of every build; a class toggle on 537 unchanged rows is what turns a
+    // drag into a stutter (see the note on `display` below).
+    const endsWith = (g, el) => {
+      if (g.endRow === el) return;
+      if (g.endRow) g.endRow.classList.remove('endg');
+      if (el) el.classList.add('endg');
+      g.endRow = el;
+    };
     // the changed set, computed ONCE per pass and read by every badge and by
     // `reset part`. It covers every row, not just the ones on screen, because
     // the tree's dots are about parts you are not looking at.
@@ -617,8 +750,15 @@ function editorInit(api) {
         const want = partOk ? '' : 'none';
         for (const el of g.els) if (el.style.display !== want) el.style.display = want;
         g.head.classList.toggle('hide', !partOk);
+        endsWith(g, partOk && g.els.length ? g.els[g.els.length - 1] : null);
         continue;
       }
+      // THE RULE GOES AT THE END OF THE SECTION, never after its head (the
+      // user: "you put vertical separators after a head of section, it is
+      // very unclear"). Which row is last is not a static fact — expert rows,
+      // `when` rules and part existence all move it — so it is decided here,
+      // where visibility is already being decided, and nowhere else.
+      let lastVis = null;
       for (const m of g.rows) {
         let vis = partOk && !(g.expert && !ex);
         if (vis) {
@@ -647,7 +787,9 @@ function editorInit(api) {
         if (m.row.classList.contains('chg') !== chg)
           m.row.classList.toggle('chg', chg);
         if (chg) changedHere++;
+        lastVis = m.row;
       }
+      endsWith(g, lastVis);
       // a heading with nothing under it is a heading about nothing. Part
       // headings (group === null) follow their part instead.
       g.head.classList.toggle('hide',
@@ -666,7 +808,7 @@ function editorInit(api) {
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
     hiBuild(sel === 'craft' ? null : sel, 'sel');
-    hovKey = null; hiClear('hov');
+    hovKey = null; hovInst = ''; hiClear('hov');
   }
 
   // THE NAME CHIP. The aeroplane's own name — the one you typed on the shelf,
@@ -733,14 +875,23 @@ function editorInit(api) {
     const badges = rows.map(r => (r.rootDef && r.rootDef.badge)
       ? (r.rootDef.badge() || '') : partBadge(r.p));
     const sig = rows.map((r, i) => r.p.key + r.lvl + r.name + badges[i] +
-      (folded.has(r.p.key) ? '>' : '')).join('|') + '#' + sel;
+      (folded.has(r.p.key) ? '>' : '') +
+      (!r.p.root && i + 1 < rows.length && rows[i + 1].p.root ? '_' : ''))
+      .join('|') + '#' + sel;
     if (sig === treeSig) return;
     treeSig = sig;
     treeEl.textContent = '';
     rows.forEach((r, i) => {
       const d = document.createElement('div');
+      // A ROOT'S BRANCH ENDS WITH A RULE, and the root itself is not followed
+      // by one. The rule used to sit under the root row, which put a
+      // separator between a head and the very thing it heads. `edEnd` is the
+      // last row BEFORE the next root; the last row of the tree gets nothing,
+      // because the end of the list is already an end.
+      const ends = !r.p.root && i + 1 < rows.length && rows[i + 1].p.root;
       d.className = 'edN lv' + Math.min(2, r.lvl) +
-        (r.p.root ? ' root' : '') + (r.p.key === sel ? ' on' : '');
+        (r.p.root ? ' root' : '') + (ends ? ' edEnd' : '') +
+        (r.p.key === sel ? ' on' : '');
       d.tabIndex = 0;
       d.dataset.p = r.p.key;
       // THE DISCLOSURE, on any row that has something under it. It TOGGLES and
@@ -932,8 +1083,11 @@ function editorInit(api) {
       icon: 'M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z|M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z' },
     { k: 'display', label: 'display', title: 'What the build is drawn as',
       icon: 'M1.6 9S4.4 4.2 9 4.2 16.4 9 16.4 9 13.6 13.8 9 13.8 1.6 9 1.6 9Z|M9 11.1a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z',
+      // `subsurf` is deliberately absent (G106.1): it is a bench instrument
+      // and the game pins it at 2. See VIEW_STATE in tools/_cage_join.js —
+      // GATE VIEW holds this list and that table against each other.
       rows: ['control cage', 'wireframe', 'section colours', 'curvature heat',
-             'surface field', 'subsurf', 'template step', 'canopy loops',
+             'surface field', 'template step', 'canopy loops',
              'glass α', 'fuselage α', 'int skin α', 'structure α', 'cowl α'] },
     // 'the light in the shed' is now the light EVERYWHERE: the world got a
     // switchboard of its own this chantier, and the two belong in one place
@@ -941,8 +1095,12 @@ function editorInit(api) {
     // out there and not in here? — is about the pair, not either one.
     { k: 'night', label: 'night', title: 'The light, in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
-      rows: ['time of day', 'lights', 'world lights', 'ground bounce'],
-      shed: true },
+      // THE RAIL BORROWS, THE TREE OWNS. Two of these rows belong to `The
+      // shed` now and two to `The world`, and this flyout still shows all
+      // four — because "why does it look like that out there and not in
+      // here?" is one question about LOOKING, and looking is what the rail is
+      // for. borrow()/returnRows() put each one back where it came from.
+      rows: ['time of day', 'lights', 'world lights', 'ground bounce'] },
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
       rows: ['explode', 'cutaway'] },
@@ -975,7 +1133,13 @@ function editorInit(api) {
   // its rows back)
   function labelIndex() {
     const idx = new Map();
-    for (const host of [$('cgUi'), nursery, $('shedBody')]) {
+    // WHEREVER THE ROW IS. The nursery holds a root's rows while it is not
+    // selected — but while it IS, they are in the properties column, and a
+    // flyout that could not borrow from there showed an empty `night` panel
+    // for exactly the object whose light it is about. `render` returns
+    // borrowed rows before it re-parks the column and re-opens the flyout
+    // afterwards, so nothing is ever stranded in two places.
+    for (const host of [$('cgUi'), nursery, rowsEl]) {
       if (!host) continue;
       for (const r of host.querySelectorAll('.r')) {
         const k = r.querySelector('span.k');
@@ -1001,6 +1165,13 @@ function editorInit(api) {
     body.appendChild(row);
   }
 
+  // THE FLYOUT SURVIVES A SELECTION. `render` returned its rows before it
+  // re-parked the column, so the body is empty and its contents are back
+  // where they belong; this fills it again from wherever they are NOW. It is
+  // a re-open and not a repaint because openFly is already the one place that
+  // knows how a flyout is assembled.
+  function reopenFly() { if (flyOpen) openFly(flyOpen); }
+
   function openFly(k) {
     const fly = $('edFly'), body = $('edFlyBody'), head = $('edFlyHead');
     if (!fly) return;
@@ -1012,6 +1183,31 @@ function editorInit(api) {
     if (!k) { fly.hidden = true; return; }
     const t = RAIL.filter(x => x.k === k)[0];
     fly.hidden = false;
+    // UNDER ITS OWN BUTTON. With the rail across the top, an answer that
+    // always appears in the same place does not say which question it
+    // answers. Measured rather than computed from the button index, because
+    // the icons are not all the same width and a later one will not be.
+    // Clamped to the free estate — #edView is already inset by both panels,
+    // so its own box is the whole of what is available.
+    {
+      const btn = [...$('edRail').children].filter(b => b.dataset.f === k)[0];
+      const view = $('edView'), bar = $('edTopBar');
+      if (btn && view) {
+        const vb = view.getBoundingClientRect(), bb = btn.getBoundingClientRect();
+        const w = fly.offsetWidth || 296;
+        const x = Math.max(22, Math.min(bb.left - vb.left - 6, vb.width - w - 22));
+        fly.style.left = Math.round(x) + 'px';
+        // ...and BELOW THE BAR, measured. The bar wraps when the estate is
+        // narrow, so its height is not a constant and a hard-coded top would
+        // put the flyout over the verbs on exactly the screens that have the
+        // least room to spare.
+        if (bar) {
+          const y = bar.getBoundingClientRect().bottom - vb.top + 10;
+          fly.style.top = Math.round(y) + 'px';
+          fly.style.maxHeight = Math.round(vb.height - y - 22) + 'px';
+        }
+      }
+    }
     head.textContent = t.title;
     if (t.k === 'camera') buildCamera(body);
     const idx = labelIndex();
@@ -1023,23 +1219,16 @@ function editorInit(api) {
       const m = $('dims');
       if (m) borrow(m, body);
     }
-    // THE MESH COUNTS ARE A DIAGNOSTIC (G86). Five hundred characters of
-    // vertices, quads and per-layer measurements were sitting at the foot of
-    // the panel on every screen — the user's "big blob of text and numbers at
-    // the bottom". It is not information about the AEROPLANE, it is
-    // information about the BUILD, so it lives behind the display flyout with
-    // the rest of how-you-look-at-it.
-    if (t.k === 'display') {
-      const st = $('edStat');
-      if (st) borrow(st, body);
-    }
-    if (t.shed) {
-      const a = document.createElement('button');
-      a.className = 'pill wide';
-      a.textContent = 'tune the shed ›';
-      a.onclick = () => { openFly(null); openShed(true); };
-      body.appendChild(a);
-    }
+    // THE MESH COUNTS ARE GONE FROM THE SCREEN (the user: "you can fully drop
+    // the blob of text under display"). G86 moved them off the panel and
+    // behind this flyout; that was half the move, because a diagnostic nobody
+    // asked for is noise wherever it is drawn. #edStat stays in the nursery
+    // and _cage_ui.js keeps writing to it — the measurement is still taken,
+    // it is simply not on the screen. Nothing else reads it, so removing the
+    // borrow is the whole change.
+    // THE `tune the shed ›` PILL IS GONE with the sheet it opened (G108). The
+    // shed is a tree root; a flyout that is about LOOKING has no business
+    // being a second door to an object you can select.
   }
 
   // THE FRAMING PRESETS. The game's own orbit camera, driven through the
@@ -1049,42 +1238,42 @@ function editorInit(api) {
     wrap2.className = 'edCam';
     for (const [label, key] of [['3/4 front', 'q'], ['side', 's'],
                                 ['plan', 't'], ['nose', 'f'],
-                                ['cockpit', 'i'], ['refit', 'r']]) {
+                                ['interior', 'i'], ['refit', 'r']]) {
       const b = document.createElement('button');
       b.className = 'pill';
       b.textContent = label;
+      // INTERIOR IS THE PILOT'S OWN EYE POINT (G107), not the 4.4 m orbit
+      // that used to be called `cockpit` — app.js's own comment said that one
+      // was an approximation and named what a real one would need: "the crew
+      // layer's own marker and a camera that is not an orbit". The marker is
+      // published now (window.CAGE_CREW_EYE) and the orbit pivots about a
+      // point in front of the eyes, with the polar, radius and room clamps
+      // off and the pilot's head hidden.
+      //
+      // NO PILOT, NO VIEW. The crew layer is a switch on the aeroplane, so
+      // the button says why it cannot rather than framing nothing — asking
+      // the same published object app.js asks.
+      if (key === 'i' && !window.CAGE_CREW_EYE) {
+        b.disabled = true;
+        b.title = 'No pilot in this build — turn the crew layer on ' +
+                  '(Cabin fit → fitted)';
+      } else if (key === 'i') {
+        b.title = 'Look out of the pilot’s eyes. Drag to look around.';
+      }
       b.onclick = () => { if (api.camera) api.camera(key); };
       wrap2.appendChild(b);
     }
     body.appendChild(wrap2);
   }
 
-  // ---- the shed's sheet, and the loan --------------------------------------
-  // THE AEROPLANE'S SHEET IS GONE. Everything that was behind the name — the
-  // plaque, the bench, the store — is the INFORMATION PANEL now, permanently,
-  // because a plaque you have to open hides the consequence of the slider you
-  // just moved. The SHED keeps a sheet: the room is a different subject and
-  // wants width, and it becomes a tree branch in the chantier after this one.
-  function sheetState() {
-    document.body.classList.toggle('sheet-open', !$('edShed').hidden);
-  }
-  function openShed(on) {
-    const s = $('edShed'), sc = $('edScrim');
-    if (!s) return;
-    s.hidden = !on;
-    if (sc) sc.hidden = !on;
-    sheetState();
-    const body = $('shedBody');
-    // the room's whole panel, moved bodily: it is one subject and it already
-    // reads as one — the time of day and the light switches are borrowed back
-    // by the `night` flyout while it is open, and returned when it closes.
-    const hd = document.querySelector('#edWrap details[data-g="hangar"]') ||
-               nursery.querySelector('details[data-g="hangar"]');
-    if (on && body && hd && hd.parentElement !== body) {
-      hd.open = true;
-      body.appendChild(hd);
-    }
-  }
+  // ---- the loan ------------------------------------------------------------
+  // THERE ARE NO SHEETS LEFT. The aeroplane's went at G91 (the plaque became
+  // the permanent information panel, because a plaque you have to open hides
+  // the consequence of the slider you just moved) and the shed's goes here
+  // (it is a tree root). UI-MODEL section 2.4 reserves exactly one for the
+  // FLEET RACK — browsing forty aeroplanes wants width — and that chantier
+  // brings its own scrim back with it rather than inheriting a dead one.
+  //
   // WHICH AEROPLANE IS ON THE STAND is a question about the fleet, so the
   // game's own select is MOVED into the fleet section rather than copied — a
   // copy would be a second control writing the same state. It goes home when
@@ -1100,7 +1289,7 @@ function editorInit(api) {
     const sel2 = document.getElementById('selAc');
     if (sel2 && acHome && sel2.parentElement !== acHome)
       acHome.insertBefore(sel2, acNext);
-    openShed(false); openFly(null);
+    openFly(null);
   }
 
   // =========================================================================
@@ -1125,8 +1314,15 @@ function editorInit(api) {
   // edWheelL, edProp, edSurf_ailR, edFit_pitot, grown ad hoc across six layer
   // files — is read. When that convention is regularised the entries move.
   const HIT_NAME = [
-    [/^edWheelT|^edLegT|^edCastorT/, 'third'],
-    [/^edWheel|^edLeg|^edCastor/, 'mains'],
+    // THE WHEEL KIT IS ITS OWN PART AND WAS UNREACHABLE. Every gear mesh
+    // resolved to a STATION, so `hiBuild` built keys={'wheels'} while every
+    // mesh's owner came back 'mains' or 'third' — selecting `Wheels & tyres`
+    // highlighted NOTHING, on either side of the bridge. The wheels answer to
+    // the kit now and the legs to their station, which is also what makes
+    // "click a tyre, get the tyre; click a leg, get the leg" true.
+    [/^edWheel/, 'wheels'],
+    [/^edLegT|^edCastorT/, 'third'],
+    [/^edLeg|^edCastor/, 'mains'],
     [/^edSpinner|^edProp/, 'prop'],
     [/^edFit_liftstrut/, 'struts'],
     [/^edFit_pitot/, 'wingPanel'],
@@ -1256,7 +1452,26 @@ function editorInit(api) {
   // needs to know what to rebuild.
   let pinFor = null;
 
-  function hiBuild(partKey, which) {
+  // WHICH NAMED OBJECT a mesh belongs to — the nearest name on the way up,
+  // the same walk `ownerOf` does, stopping one step earlier. Used to narrow a
+  // hover to the ONE instance under the pointer.
+  const instOf = (o, layerRoot) => {
+    for (let p = o; p && p !== layerRoot; p = p.parent) if (p.name) return p.name;
+    return '';
+  };
+
+  // `only` narrows a LAYER highlight to the named instance under the pointer
+  // (the user: "tyres could be highlighted individually"). It is a NAME, not
+  // an object: app.js owns the scene graph and this file does not, and the
+  // hit already carries the nearest name for exactly this kind of question.
+  // The cage branch ignores it — a section is not an instance.
+  //
+  // DECLARED: the two main wheels are built as two groups with the SAME name
+  // (`edWheel` + the station's kind, _cage_gear.js:240), because they are one
+  // kit at one set of parameters. So a main tyre lights its PAIR and the
+  // tailwheel lights alone. Giving them separate names is the gear layer's
+  // call to make, not this file's to work around.
+  function hiBuild(partKey, which, only) {
     hiClear(which);
     const root = window.CAGE_UI_SCENE;
     // HIGHLIGHTING THE WHOLE AEROPLANE IS NOT A HIGHLIGHT. The root selects
@@ -1342,6 +1557,7 @@ function editorInit(api) {
       child.traverse(o => {
         if (!o.isMesh || (o.userData && o.userData.edHi)) return;
         if (!keys.has(ownerOf(o, child, def))) return;
+        if (only && instOf(o, child) !== only) return;
         if (wantFill) {
           const m = new THREE.Mesh(o.geometry, mat);
           m.renderOrder = 6;
@@ -1367,16 +1583,23 @@ function editorInit(api) {
   // Going with it: the world-point pin, the per-frame re-projection, and
   // app.js's projectPoint, which existed for nothing else.
   // app.js hands a HIT down on click, and on hover while nothing is dragging
-  let hovKey = null;
+  let hovKey = null, hovInst = '';
   window.EDITOR_PICK = (hit, hover) => {
     const key = partOfHit(hit);
+    const inst = (hit && hit.name) || '';
     if (!hover) {
+      // CLICKING OUTSIDE THE AEROPLANE DESELECTS (the user). The root is the
+      // "everything visible" row G102 introduced, so a miss goes UP rather
+      // than nowhere — the column always says what it is showing. `hit.miss`
+      // is app.js's own answer to "the ray was cast and hit nothing"; a bare
+      // null means the question was never asked and must change nothing.
       if (key) select(key);
+      else if (hit && hit.miss) select('craft');
       return;
     }
-    if (key === hovKey) return;
-    hovKey = key;
-    hiBuild(key === sel ? null : key, 'hov');
+    if (key === hovKey && inst === hovInst) return;
+    hovKey = key; hovInst = inst;
+    hiBuild(key === sel ? null : key, 'hov', inst);
     // ...and the tree says which row it is, which is the other half of the
     // design's "hover" — a tint you cannot name is a tint.
     for (const d of treeEl.children)
@@ -1451,10 +1674,6 @@ function editorInit(api) {
     layoutRight();
     // ---- the view layer -------------------------------------------------
     buildRail();
-    for (const [id, fn] of [['shedClose', () => openShed(false)],
-                            ['edScrim', () => openShed(false)]]) {
-      const el = $(id); if (el) el.onclick = fn;
-    }
     // THE INFORMATION PANEL FOLDS, like the parts column. Four columns is
     // 920 px of chrome and a 1440 frame has 520 px of render left; on a
     // narrow screen this is the one to give back first, because a verdict
@@ -1471,8 +1690,7 @@ function editorInit(api) {
     // ESC closes whatever is over the view, innermost first
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (!$('edShed').hidden) openShed(false);
-      else if (flyOpen) openFly(null);
+      if (flyOpen) openFly(null);
     });
     // THE VERBS. Roll out is the game's own #bGo — the same handler, not a
     // second one: a duplicate would be a second place that decides whether the
@@ -1483,16 +1701,22 @@ function editorInit(api) {
       const go = document.getElementById('bGo');
       if (go && go.onclick) go.onclick();
     };
-    // RUN THE BENCH shows the bench pane and runs the declared list. Both are
-    // bench.js's own controls; nothing here knows what a test is.
-    const rb = $('edRunBench');
-    if (rb) rb.onclick = () => {
-      // no tab to switch to any more — the bench is a section of the
-      // information panel and is already on screen. Scroll it into view and
-      // press bench.js's own run-all; nothing here knows what a test is.
-      const bt = $('bTests');
-      if (bt && bt.scrollIntoView) bt.scrollIntoView({ block: 'nearest' });
-      const all = $('bRunAll'); if (all && !all.disabled) all.click();
+    // RUN THE BENCH IS GONE FROM THE VIEW (the user: "run the bench is
+    // available only via the information panel"). It never did anything of
+    // its own: it scrolled to `#bTests` and clicked `#bRunAll`, and both of
+    // those have been ON SCREEN, in the information panel, since G91 put the
+    // bench there. A button whose whole job is to press another visible
+    // button is a second door to one room.
+    //
+    // SAVE, on the other hand, had no door here at all — it lived only in the
+    // fleet section at the bottom of the information panel. Same discipline
+    // as ROLL OUT: delegate to the shelf's own handler rather than write a
+    // second one, because a second thing that decides what "save" means is a
+    // second thing that can disagree with the first.
+    const sv = $('edSave');
+    if (sv) sv.onclick = () => {
+      const g = document.getElementById('gSave');
+      if (g && !g.disabled) g.click();
     };
     // ANYTHING THE BUILDER DOES ends the settling window above. Capture, so it
     // is seen before the handler it belongs to runs — which is what lets the

@@ -214,6 +214,16 @@ const fallbackMats = () => (FALLBACK || (FALLBACK = {
 const TINT = { paint: 0xc8ccd2, metal: 0xb9c2cc, lens: 0xd14b3a };
 
 function matFor(name) {
+  // the PAINT bag is the builder's (phase C): one livery section for the
+  // whole fitting set — trim by default, borrowing the fuselage's colour —
+  // which keeps the three-not-fifteen draw-call economy intact while giving
+  // the group the one tunable material the user asked of it. metal and lens
+  // stay hardware (the lens is the emitter; it must never dim).
+  if (name === 'paint' && window.CAGE_SECMAT) {
+    const ms = window.CAGE_SECMAT('accPaint',
+      { surf: 0, fieldM: 1, tint0: TINT.paint });
+    if (ms) return ms;
+  }
   const A = window.AEROSKIN;
   if (A && A.aeroHardMat) {
     const m = A.aeroHardMat(THREE, 'access', name, TINT[name], {});

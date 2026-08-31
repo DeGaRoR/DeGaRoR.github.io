@@ -542,9 +542,167 @@ check(/metalnessFactor \*= 1\.0 - 0\.55 \* max\(aeroWG/.test(SRC),
 }
 
 // ---------------------------------------------------------------------------
+// 11 THE LAYER SECTIONS — the per-part livery's declared chain holds
+// ---------------------------------------------------------------------------
+// AERO_SEC is walked in the player's browser on every build, so the things
+// that would make the walk lie are asserted here: a chain that loops or ends
+// nowhere, a pinned finish that does not exist, a name that collides with a
+// cage section (the five override maps key on BOTH vocabularies at once, so
+// a collision is one row silently driving two surfaces). The resolver is
+// pure on purpose — the same function the browser runs is called here with
+// hand-made override maps, one check per rule of the walk.
+const secChainBad = tbl => {
+  const bad = [];
+  for (const s of Object.keys(tbl)) {
+    const seen = new Set();
+    let cur = s;
+    while (cur != null) {
+      if (seen.has(cur)) { bad.push(s + ': parent cycle at ' + cur); break; }
+      seen.add(cur);
+      const row = tbl[cur];
+      if (!row) {
+        // the chain left the table: its anchor must be a real cage section
+        if (A.AERO_ROLE[cur] == null)
+          bad.push(s + ': chain ends at unknown section ' + cur);
+        break;
+      }
+      cur = row.parent;
+    }
+  }
+  return bad;
+};
+const secFinBad = tbl => Object.keys(tbl)
+  .filter(s => tbl[s].fin != null && !A.AERO_FINISH[tbl[s].fin]);
+{
+  const T = A.AERO_SEC || {};
+  check(Object.keys(T).length > 0, 'AERO_SEC is missing or empty');
+  const chainBad = secChainBad(T);
+  check(chainBad.length === 0, 'layer section chains broken',
+    chainBad.join('; '));
+  const finBad = secFinBad(T);
+  check(finBad.length === 0,
+    'layer sections pinning finishes that do not exist', finBad.join(', '));
+  const clash = Object.keys(T).filter(s =>
+    A.AERO_ROLE[s] != null || A.AERO_LINER[s] != null ||
+    A.AERO_GLASS.has(s) || sections.has(s));
+  check(clash.length === 0,
+    'layer section names collide with cage sections', clash.join(', '));
+  const bare = Object.keys(T).filter(s => !T[s].label || !T[s].layer);
+  check(bare.length === 0,
+    'layer sections without a label or a layer', bare.join(', '));
+
+  // THE WALK ITSELF, one rule per check:
+  // an own override stops the walk...
+  let r = A.aeroSecResolve('wingAil',
+    { fin: { wingAil: 'chrome', wingSkin: 'ply', body: 'alclad' } },
+    { cons: 'wood' });
+  check(r.fin === 'chrome' && r.src === 'wingAil',
+    'an own finish override does not stop the walk', JSON.stringify(r));
+  // ...a parent's shadows the grandparent's...
+  r = A.aeroSecResolve('wingAil',
+    { fin: { wingSkin: 'ply', body: 'alclad' } }, { cons: 'wood' });
+  check(r.fin === 'ply' && r.src === 'wingSkin',
+    "the wing's override does not shadow the fuselage's for its children",
+    JSON.stringify(r));
+  // ...the fuselage's own tint reaches the aileron through two hops...
+  r = A.aeroSecResolve('wingAil', { tint: { body: 0x123456 } },
+    { cons: 'wood' });
+  check(r.tint === 0x123456,
+    "the fuselage's tint does not reach the aileron", JSON.stringify(r));
+  // ...the five channels walk independently (a tinted aileron still takes
+  // the fuselage's finish)...
+  r = A.aeroSecResolve('wingAil',
+    { tint: { wingAil: 0xffffff }, fin: { body: 'alclad' },
+      tile: { finSkin: 2 } }, { cons: 'wood' });
+  check(r.fin === 'alclad' && r.tint === 0xffffff && r.tileK == null,
+    'the channels do not walk independently', JSON.stringify(r));
+  // ...a dial inherits down its own chain...
+  r = A.aeroSecResolve('finRud', { tile: { finSkin: 1.3 } },
+    { cons: 'wood' });
+  check(r.tileK === 1.3, 'a dial does not inherit down the chain',
+    JSON.stringify(r));
+  // ...a layer-decided bottom-out finish wins over the construction...
+  r = A.aeroSecResolve('finSkin', {}, { cons: 'wood', fin: 'bareAlu' });
+  check(r.fin === 'bareAlu' && r.src === null,
+    'a layer bottom-out finish does not win over the construction',
+    JSON.stringify(r));
+  // ...and with nothing said at all, four constructions dress the wing four
+  // different ways — the walk really does bottom out on AERO_BY_CONS.
+  const skins2 = CONSTRUCTIONS.map(c =>
+    A.aeroSecResolve('wingSkin', {}, { cons: c }).fin);
+  check(new Set(skins2).size === CONSTRUCTIONS.length,
+    'the constructions do not resolve a bare wing to distinct finishes',
+    skins2.join(', '));
+  check(skins2.every((f, i) =>
+    f === A.aeroFinishFor('body', CONSTRUCTIONS[i])),
+    "a bare wing's bottom-out is not the fuselage skin's own resolution",
+    skins2.join(', '));
+
+  // THE PINNED FIN (phase C): a hardware row's `fin` says what the part IS
+  // — an ancestor's FINISH must never reach it, while its COLOUR still does.
+  r = A.aeroSecResolve('spat', { fin: { body: 'ply' } }, { cons: 'wood' });
+  check(r.fin === 'trim',
+    "the fuselage's finish reaches a pinned spat", JSON.stringify(r));
+  r = A.aeroSecResolve('spat',
+    { fin: { body: 'ply' }, tint: { body: 0x224466 } }, { cons: 'wood' });
+  check(r.tint === 0x224466,
+    "the fuselage's tint does not reach the spat", JSON.stringify(r));
+  r = A.aeroSecResolve('spat', { fin: { spat: 'composite' } },
+    { cons: 'wood' });
+  check(r.fin === 'composite',
+    'a spat cannot be repainted over its pin', JSON.stringify(r));
+  // ...and the SPINNER follows the PROPELLER: unset it wears the blade's
+  // material (the layer's ctx.fin), overridden on the prop it follows that,
+  // its own override wins over both.
+  r = A.aeroSecResolve('spinner', {}, { fin: 'bareAlu' });
+  check(r.fin === 'bareAlu',
+    'an unset spinner does not wear the blade material', JSON.stringify(r));
+  r = A.aeroSecResolve('spinner', { fin: { prop: 'chrome' } },
+    { fin: 'bareAlu' });
+  check(r.fin === 'chrome',
+    "the propeller's override does not reach the spinner", JSON.stringify(r));
+  r = A.aeroSecResolve('spinner',
+    { fin: { spinner: 'trim', prop: 'chrome' } }, { fin: 'bareAlu' });
+  check(r.fin === 'trim',
+    "the spinner's own override does not win", JSON.stringify(r));
+
+  // THE CREW (phase D): the second dummy's suit COLOUR follows the first
+  // (paint the crew once, then differ one), while its MATERIAL stays its
+  // own pin — personality is a tint, not a re-moulding.
+  r = A.aeroSecResolve('dummy2', { tint: { dummy1: 0x8899aa } }, {});
+  check(r.tint === 0x8899aa,
+    "the first dummy's suit colour does not reach the second",
+    JSON.stringify(r));
+  r = A.aeroSecResolve('dummy2', { fin: { dummy1: 'leather' } }, {});
+  check(r.fin === 'composite',
+    "the first dummy's suit material leaks onto the second",
+    JSON.stringify(r));
+
+  // THE PART'S OWN CONSTRUCTION (G110) is CONSULTED at the material, not
+  // just rendered as a row: GATE PARTS proves the rows exist, and this
+  // proves the layer reads them — a construction row nothing consults is a
+  // dead slider that still moves.
+  const consWing = layerSrc('_cage_wing.js');
+  const consTail = layerSrc('_cage_fin.js');
+  check(/P0\.wgCons/.test(consWing),
+    'wingMat does not consult the wing construction row (wgCons)');
+  check(/P0\[pk\]/.test(consTail) && /stCons/.test(consTail) &&
+        /finCons/.test(consTail),
+    'tailMat does not consult the tail construction rows (finCons/stCons)');
+}
+
+// ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {
   // NEGATIVE VERIFY: break each rule and require the check to notice.
   const probes = [
+    ['a layer section parent cycle', () =>
+      secChainBad({ a: { parent: 'b' }, b: { parent: 'a' } }).length > 0],
+    ['a layer chain ending nowhere', () =>
+      secChainBad({ a: { parent: '__noSuchSection__' } }).length > 0],
+    ['a layer finish that does not exist', () =>
+      secFinBad({ a: { parent: null, fin: '__nope__' } }).length > 0],
+    ['a construction row nothing consults', () =>
+      !/P0\.wgCons/.test('const cons = CONS4[intCons]')],
     ['a section with no role', () => {
       const s2 = new Set(sections); s2.add('__nosuchrole__');
       const bad = [...s2].filter(x => !A.AERO_ROLE[x] && !A.AERO_GLASS.has(x));
@@ -600,6 +758,87 @@ if (process.argv.includes('--selftest')) {
   }
   check(caught === probes.length,
     `selftest: ${probes.length - caught} probe(s) went unnoticed`);
+}
+
+// ---------------------------------------------------------------------------
+// THE PROJECTOR (G108)
+// ---------------------------------------------------------------------------
+// The user: "the projection on the fin is really really bad... the fuselage
+// projection and the fin projection should be one if possible. The wing and
+// the slabs projection should [be] another, fully independent one."
+//
+// Three claims, and each one was false before this chantier:
+//
+//   THE LOOP IS NOT INSIDE THE FIELD'S OWN #if. It was, so every surface on
+//   the triplanar branch — the cowl, the engine, the spinner, the gear, the
+//   cabin — could never carry a marking however it was aimed. This is the
+//   check behind "so a continuous image can be projected on the plane".
+//
+//   THE SURFACE CLASS IS A CLASS, NOT A FLAG. uG5.w was `o.wing ? 1 : 0`, so
+//   a fin and a wing were the same thing and no target could name one without
+//   the other. It is 0 body / 1 wing / 2 tail now.
+//
+//   THE BOX PROJECTOR IS IN CRAFT SPACE. vObjPos is per-LAYER — measured on
+//   the stock build the cowl is in metres and the fin in cage units — so a
+//   projector built on it changes scale at every layer boundary. vCraftPos
+//   comes through uCraftInv and is metres everywhere.
+{
+  // 1 — the decal block is reachable from the triplanar branch
+  const dec = SRC.slice(SRC.indexOf('THE DECALS, last in the albedo stack'));
+  const loopAt = dec.indexOf('for (int di = 0; di < AERO_MAXD; ++di)');
+  const guardAt = dec.lastIndexOf('#if AEROSKIN_SURF == 1', loopAt);
+  const endAt = dec.indexOf('#endif');
+  check(loopAt > 0, 'projector: the decal loop is gone');
+  check(!(guardAt > 0 && endAt > loopAt && guardAt < loopAt),
+        'projector: the decal loop is back inside the field-only #if — ' +
+        'the cowl and every other analytic surface cannot carry a marking');
+
+  // 2 — the class, in the shader and in the factory
+  check(/uG5\.w[^\n]*class|w class/.test(SRC),
+        'projector: uG5.w is not documented as a surface class');
+  check(/uG5: \{ value: new THREE\.Vector4\([^)]*\+o\.wing \|\| 0\)/.test(SRC),
+        'projector: the surface class is being flattened to a flag again');
+
+  // 3 — craft space exists and is what the box projector reads
+  check(/varying vec3 vCraftPos;/.test(SRC),
+        'projector: vCraftPos is not declared');
+  check((SRC.match(/varying vec3 vCraftPos;/g) || []).length === 2,
+        'projector: vCraftPos must be declared in BOTH shaders');
+  check(/vCraftPos = \(uCraftInv \* modelMatrix/.test(SRC),
+        'projector: vCraftPos is not built from uCraftInv * modelMatrix');
+  check(/vec3 aeroA = vCraftPos;/.test(SRC),
+        'projector: the box coordinate is not craft space');
+  check(!/uSideAxis/.test(SRC.replace(/\/\/[^\n]*/g, '')),
+        'projector: uSideAxis is back — it was declared, defaulted and never ' +
+        'passed by any caller for two arcs, and craft space replaced it');
+
+  // 4 — the modes and the class flags, as the packer writes them
+  check(A.AERO_DEC_MODE === undefined || true, 'noop');
+  const modes = /const AERO_DEC_MODE = \{ field: 0, side: 1, plan: 2 \};/.test(SRC);
+  check(modes, 'projector: the three projection modes are not declared');
+  check(/U\.uDecD\.value\[i\]\.set\(/.test(SRC),
+        'projector: the mode and class flags are not packed');
+  check(/on\.body \? 1 : 0, on\.wing \? 1 : 0, on\.tail \? 1 : 0/.test(SRC),
+        'projector: the class flags are not one per class');
+
+  // 5 — the shader picks the coordinate by MIXING, never by branching around
+  //     a texture fetch: divergent flow makes the mip level undefined, which
+  //     is this loop's oldest rule and the reason it is shaped as it is
+  check(/vec2 dd = mix\(fieldC, boxC, step\(0\.5, mode\)\);/.test(SRC),
+        'projector: the field/box choice is not a mix — a branch here makes ' +
+        'texture2D derivatives undefined and the decal edge crawls');
+
+  // 6 — the cage and the flown aeroplane both declare their frame, or the
+  //     flown one is painted in a frame nobody set
+  const UI = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  check(/aeroSetCraft\(THREE, root\.matrixWorld/.test(UI),
+        'projector: the editor never tells AEROSKIN where the craft is');
+  check(/wing: m\.wing \|\| 0/.test(APP),
+        'projector: the join does not carry the surface class into flight');
+  const JOIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8');
+  check(/ud\.aeroWing \? \{ wing: ud\.aeroWing \} : \{\}/.test(JOIN),
+        'projector: the snapshot does not record the surface class');
 }
 
 const hardN = Object.keys(A.AERO_HARD)

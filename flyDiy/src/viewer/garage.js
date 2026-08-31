@@ -652,6 +652,13 @@ function garageInit(api) {
         out[k] = (k === 'wings' && Array.isArray(base && base[k]))
           ? over[k].map((w, i) => merge(base[k][i], w))
           : over[k];
+      } else if (k === 'finish') {
+        // THE FINISH REPLACES AS A WHOLE (G105), like the arrays above and for
+        // the same reason: it is one measurement of one thing. It is also
+        // written as DEVIATIONS, so "this section has no tint any more" is
+        // said by the section's absence — merged, an override could be put on
+        // and never taken off again.
+        out[k] = over[k];
       } else if (isPlain(over[k])) out[k] = merge(base && base[k], over[k]);
       else out[k] = over[k];
     }

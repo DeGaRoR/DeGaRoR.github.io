@@ -39,8 +39,15 @@ const LIGHTS = {
   nav: { name: 'navigation', grp: 'ext', ctl: 'switch', order: 3,
          col: 0xfff0e0, w: 0.052,
          note: 'port red, starboard green, tail white' },
+  // THE BEACON ROTATES (G99, user: "now do the beacon flash"). It is not a
+  // strobe and it is not a pulsing lamp: a light aeroplane's anti-collision
+  // beacon is a fixed red dome with a MIRROR TURNING INSIDE IT, and what you
+  // see from any one place is that beam sweeping past you once a turn. So
+  // `rpm` is a rotation rate and not a flash rate — and the flash you see IS
+  // the rotation, computed against the camera, rather than a sine wave
+  // pretending to be one. 45 rpm is the ordinary rate for the type.
   beacon: { name: 'beacon', grp: 'ext', ctl: 'switch', order: 1,
-            col: 0xff2412, w: 0.060 },
+            col: 0xff2412, w: 0.060, rotor: true, rpm: 45 },
   taxi: { name: 'taxi', grp: 'ext', ctl: 'switch', order: 0,
           col: 0xfff2d6, w: 0.090, beam: 0.62, thr: 1.6 },
   land: { name: 'take-off & landing', grp: 'ext', ctl: 'switch', order: 2,
@@ -109,7 +116,7 @@ const defaults = { lightOn: 1, lightSw: 1,
   // far aft the cut reaches, depth how deep the box behind it is, and size
   // scales the lamp inside.
   li_bayFrac: 0.24, li_bayHalf: 0.17, li_bayChord: 0.13, li_bayDepth: 0.06,
-  li_lampSize: 1.0 };
+  li_lampSize: 1.0, li_beaconRpm: LIGHTS.beacon.rpm };
 for (const k of EXT) defaults['li_' + k] = 0;
 for (const k of INT) defaults['li_' + k] = 0;
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
@@ -134,6 +141,11 @@ const items = [
     ['li_bayDepth', 'lamp setback', 0.03, 0.28, 0.005, { dim: 'm' }],
     ['li_lampSize', 'lamp size', 0.4, 1.8, 0.05],
   ], { when: P => +P.lightOn }],
+  ['the beacon', [
+    // 0 parks the mirror and the beacon burns steady, which is also what an
+    // aeroplane with a failed beacon motor looks like
+    ['li_beaconRpm', 'rotation', 0, 120, 1, { dim: 'rpm' }],
+  ], { when: P => +P.lightOn }],
 ];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
   .push(['2e · lights', items]);
@@ -153,6 +165,9 @@ const MAT = {
   lodge: { col: 0x9aa1a9, rough: 0.45, metal: 0.70 },  // machined housing
   seal:  { col: 0x2a2d33, rough: 0.60, metal: 0.10 },  // the rubber joint
 };
+// scratch, so the frame drive allocates nothing
+const vAx = new THREE.Vector3(), vCam = new THREE.Vector3(),
+      mInv = new THREE.Matrix4();
 const emMats = {};
 function lensMat(key, level, colOver) {
   const L = LIGHTS[key];
@@ -286,12 +301,74 @@ const PROF = {
   can: [[0.00, -0.62], [0.62, -0.62], [1.34, -0.58], [1.34, -0.48],
         [0.92, -0.44], [0.86, -0.06], [0.74, -0.02], [0.74, -0.10],
         [0.80, -0.46], [0.00, -0.50]],
+  // the gasket under a flange: a flat ring, revolved about the lamp's axis so
+  // it lies ON the skin whatever direction the lamp faces
+  gasket: [[0.00, -0.10], [1.45, -0.10], [1.45, 0.00], [0.00, 0.00]],
 };
 // THE CUP'S OWN EXTENT, read off its profile rather than typed beside it —
 // the recessed fit divides by these, and a profile edited without them is a
 // lamp that pokes through the wing again.
 PROF.cupRim = Math.max(...PROF.cup.map(q => q[0]));
 PROF.cupBack = -Math.min(...PROF.cup.map(q => q[1]));
+// A STREAMLINED FAIRING FOR A THIN SURFACE (G100, user: "you're also trying
+// to fit discs to very slim surfaces ... do some teardrop design that fits
+// better on thin surfaces").
+//
+// A fin is 40 mm thick and a wingtip is not much more; a 60 mm disc with an
+// 87 mm gasket plate under it is wider than the thing it is bolted to, which
+// is why every one of these read as a square stuck on a blade. What actually
+// goes there is a TEARDROP: long along the chord, no wider than the surface
+// it straddles, rounded at the nose and drawn out to a point aft.
+//
+// `along` is the chord, `up` is the direction the fitting stands off in, and
+// the body is lofted as ellipses on the (side, up) plane — so its width is set
+// by the SURFACE'S OWN THICKNESS and it can never overhang. The origin `c` is
+// the widest station, which is where the lamp goes: a beacon over the fin's
+// tip chord, a nav light at the tip's leading edge.
+const POD_NOSE = 0.34;         // where the widest station sits, along the pod
+// `u0`/`u1` cut the body at fractions of its length, so the SAME shape can be
+// drawn in two materials: a wingtip light's lens is not a dome stuck on the
+// side of the fairing, it IS the fairing's nose, and building it any other way
+// gives you a green ball glued to a pod.
+function podInto(bag, c, along, up, len, wide, high, seg, rows, u0, u1) {
+  const A = nrm(along), U = nrm(up), Sd = nrm(cross(A, U));
+  const S2 = seg || 14, R2 = rows || 16;
+  const lo = u0 == null ? 0 : u0, hi2 = u1 == null ? 1 : u1;
+  // the teardrop: a quarter ellipse to the shoulder, then a fine tail
+  const f = u => u <= POD_NOSE
+    ? Math.sqrt(Math.max(0, 1 - Math.pow((POD_NOSE - u) / POD_NOSE, 2)))
+    : Math.pow(Math.max(0, (1 - u) / (1 - POD_NOSE)), 0.72);
+  const ring = [];
+  for (let j = 0; j <= R2; j++) {
+    // COSINE-SPACED along the pod, not uniform. Both ends come to a point, so
+    // uniform rows put the first ring at 58% of full width one step off the
+    // nose and the fairing reads as a cut-off cylinder.
+    const uu = 0.5 * (1 - Math.cos(Math.PI * j / R2));
+    const u = lo + (hi2 - lo) * uu, k = f(u);
+    const t = (u - POD_NOSE) * len;
+    if (k < 1e-4) { ring.push({ pole: bag.v(c[0] + A[0] * t, c[1] + A[1] * t,
+                                            c[2] + A[2] * t) }); continue; }
+    const row = [];
+    for (let i = 0; i < S2; i++) {
+      const th = 2 * Math.PI * i / S2;
+      const a2 = Math.cos(th) * wide / 2 * k, b2 = Math.sin(th) * high / 2 * k;
+      row.push(bag.v(c[0] + A[0] * t + Sd[0] * a2 + U[0] * b2,
+                     c[1] + A[1] * t + Sd[1] * a2 + U[1] * b2,
+                     c[2] + A[2] * t + Sd[2] * a2 + U[2] * b2));
+    }
+    ring.push({ row });
+  }
+  for (let j = 0; j + 1 < ring.length; j++) {
+    const P0 = ring[j], P1 = ring[j + 1];
+    for (let i = 0; i < S2; i++) {
+      const i2 = (i + 1) % S2;
+      if (P0.pole && P1.row) bag.tri(P0.pole, P1.row[i2], P1.row[i]);
+      else if (P1.pole && P0.row) bag.tri(P1.pole, P0.row[i], P0.row[i2]);
+      else if (P0.row && P1.row)
+        bag.quad(P0.row[i], P0.row[i2], P1.row[i2], P1.row[i]);
+    }
+  }
+}
 function boxInto(bag, c, s) {
   const [x, y, z] = c, [a, b, d] = s;
   const v = [];
@@ -357,6 +434,106 @@ const skin = (pf, x, z) => {
   const d = on(a2.dn, z) * (1 - t) + on(b2.dn, z) * t;
   return u > d ? { u, d } : null;
 };
+// ---------------------------------------------------------------------------
+// THE BEACON'S FLASH — the sweep, not a sine wave
+// ---------------------------------------------------------------------------
+// A rotating beacon has ONE bright direction at a time. What an observer sees
+// is that beam crossing their line of sight, so the law is a lobe on the angle
+// between the beam and the viewer, and the flash rate falls out of the
+// rotation rate for free: turn the mirror faster and it flashes faster,
+// without a second number anywhere that could disagree with the first.
+//
+// Both vectors are flattened onto the plane the mirror turns in, because the
+// mirror sweeps in azimuth only — a beacon on a fin is just as bright to
+// someone above it as to someone level with it, which is the whole point of an
+// anti-collision light.
+//
+// `BEACON_LOBE` is the exponent. 26 gives a beam about 20 degrees wide at half
+// brightness — a real one is narrower, but a narrower one flickers between
+// frames at 60 Hz and reads as a fault rather than as a beacon.
+const BEACON_LOBE = 26;      // the beam's sharpness
+const BEACON_FLOOR = 0.12;   // the dome's own scatter, never black
+function beaconPhase(tSec, rpm) { return tSec * (rpm / 60) * Math.PI * 2; }
+// ax: the beacon's own axis. beam and view are 3-vectors in the same frame.
+function beaconGain(phase, ax, e1, e2, view) {
+  const d = view[0] * ax[0] + view[1] * ax[1] + view[2] * ax[2];
+  const fx = view[0] - ax[0] * d, fy = view[1] - ax[1] * d,
+        fz = view[2] - ax[2] * d;
+  const fl = Math.hypot(fx, fy, fz);
+  // straight up the axis there is no azimuth to compare against; the observer
+  // sees the dome's own scatter and nothing sweeps
+  if (fl < 1e-6) return BEACON_FLOOR;
+  const c = Math.cos(phase), sn = Math.sin(phase);
+  const bx = e1[0] * c + e2[0] * sn, by = e1[1] * c + e2[1] * sn,
+        bz = e1[2] * c + e2[2] * sn;
+  const dot = (bx * fx + by * fy + bz * fz) / fl;
+  const lobe = dot > 0 ? Math.pow(dot, BEACON_LOBE) : 0;
+  return BEACON_FLOOR + (1 - BEACON_FLOOR) * lobe;
+}
+
+// WHAT DRIVES IT, and why it is not a `requestAnimationFrame` loop in the
+// game. `Object3D.onBeforeRender` is handed the CAMERA THAT IS ABOUT TO DRAW —
+// which is the one thing the law needs and the one thing this layer has no
+// other way to get. It also fires exactly when a frame is being produced, so a
+// paused tab, a hidden pane and a headless run all cost nothing, and the phase
+// comes from the wall clock rather than from a frame count, so the beacon
+// turns at 45 rpm whatever the frame rate is doing.
+//
+// The BENCH still needs waking: its `draw()` is on demand, so nothing would
+// ever ask for a second frame. A rAF ticker calls it — and ONLY on the bench.
+// `window.CAGE_UI_SCENE` is set by the game and by nothing else, which is the
+// same test the beacon's own placement uses.
+const rotors = [];
+let tickRAF = 0;
+const nowSec = () => (typeof performance !== 'undefined' && performance.now
+  ? performance.now() : 0) / 1000;
+function driveRotor(R, camera) {
+  const rpm = +R.rpm || 0;
+  if (rpm <= 0) {                       // parked: steady, mirror stopped
+    R.rot.rotation.set(0, 0, 0);
+    R.mat.emissiveIntensity = R.base;
+    return;
+  }
+  const ph = beaconPhase(nowSec(), rpm);
+  R.rot.quaternion.setFromAxisAngle(vAx.set(R.ax[0], R.ax[1], R.ax[2]).normalize(), ph);
+  if (!camera) return;
+  // THE VIEWER, IN THE HOUSING'S FRAME — measured against the group the lamp
+  // hangs in, NOT against the rotor. Two reasons, and the first cost an hour.
+  // The rotor is turning, so its local frame turns with it and the camera
+  // appears to circle in it; un-spinning that afterwards means committing to a
+  // sign, and the sign that reads correctly is not the one the transform
+  // algebra says it should be. The housing does not move, so measure there and
+  // the question never arises. The second reason is the `edSit` trap of G98:
+  // in the GAME this group is rotated and offset, so a camera compared in
+  // world coordinates would give a beacon that flashes at the hangar.
+  R.host.updateMatrixWorld(true);
+  mInv.copy(R.host.matrixWorld).invert();
+  vCam.setFromMatrixPosition(camera.matrixWorld).applyMatrix4(mInv);
+  const g = beaconGain(ph, R.ax, R.e1, R.e2,
+                       [vCam.x - R.p[0], vCam.y - R.p[1], vCam.z - R.p[2]]);
+  R.mat.emissiveIntensity = R.base * g;
+}
+function tick() {
+  tickRAF = 0;
+  if (!rotors.length) return;
+  let live = false;
+  for (const R of rotors) if (+R.rpm > 0) live = true;
+  if (!live) return;
+  if (!window.CAGE_UI_SCENE && window.CAGE_UI && window.CAGE_UI.draw)
+    window.CAGE_UI.draw();                       // the bench, on demand
+  tickRAF = requestAnimationFrame(tick);
+}
+function armRotors() {
+  for (const R of rotors) {
+    R.dome.onBeforeRender = (rn, sc, cam) => driveRotor(R, cam);
+    driveRotor(R, null);
+  }
+  if (tickRAF) cancelAnimationFrame(tickRAF);
+  tickRAF = 0;
+  if (rotors.length && typeof requestAnimationFrame === 'function')
+    tickRAF = requestAnimationFrame(tick);
+}
+
 function lampFit(q, pf, setback) {
   if (!q) return null;
   const x = (q.min[0] + q.max[0]) / 2;
@@ -426,6 +603,60 @@ function sites(scene, group) {
     });
     return any ? b : null;
   };
+  // THE TOP OF A SURFACE, AND THE LINE IT RUNS ALONG. Not just the apex: a
+  // fin tip is SWEPT, so over the top 4% of its height the edge climbs 65 mm
+  // across 200 mm of chord. A fairing laid flat at the apex floats clear of
+  // the forward half of the very edge it is supposed to straddle, which is
+  // exactly what the user saw. So the band's own top line is fitted and the
+  // fitting is laid ALONG it.
+  const topSlice = (obj, invM, frac) => {
+    const v = new THREE.Vector3();
+    let yTop = -1e9, yLo = 1e9;
+    const P = [];
+    obj.updateMatrixWorld(true);
+    obj.traverse(o => {
+      if (!o.isMesh || !o.geometry) return;
+      const pos = o.geometry.getAttribute('position');
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i))
+          .applyMatrix4(o.matrixWorld).applyMatrix4(invM);
+        P.push(v.x, v.y, v.z);
+        if (v.y > yTop) yTop = v.y;
+        if (v.y < yLo) yLo = v.y;
+      }
+    });
+    if (!P.length || !(yTop > yLo)) return null;
+    const cut = yTop - (yTop - yLo) * (frac || 0.04);
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, n = 0;
+    for (let i = 0; i < P.length; i += 3) {
+      if (P[i + 1] < cut) continue;
+      n++;
+      if (P[i] < x0) x0 = P[i]; if (P[i] > x1) x1 = P[i];
+      if (P[i + 2] < z0) z0 = P[i + 2]; if (P[i + 2] > z1) z1 = P[i + 2];
+    }
+    if (!n || !(z1 > z0)) return null;
+    // the top line: the highest vertex in each of a few chord bins, then a
+    // least-squares fit through them. Binning first stops the fit being
+    // dragged by the crowd of vertices on the surfaces BELOW the edge.
+    const NB = 8, hi = new Array(NB).fill(-1e9), zc = new Array(NB).fill(0);
+    for (let i = 0; i < P.length; i += 3) {
+      if (P[i + 1] < cut) continue;
+      let k = Math.floor((P[i + 2] - z0) / (z1 - z0) * NB);
+      if (k < 0) k = 0; if (k >= NB) k = NB - 1;
+      if (P[i + 1] > hi[k]) { hi[k] = P[i + 1]; zc[k] = P[i + 2]; }
+    }
+    let sz = 0, sy = 0, szz = 0, szy = 0, m2 = 0;
+    for (let k = 0; k < NB; k++) {
+      if (hi[k] < -1e8) continue;
+      m2++; sz += zc[k]; sy += hi[k]; szz += zc[k] * zc[k]; szy += zc[k] * hi[k];
+    }
+    const den = m2 * szz - sz * sz;
+    const slope = m2 >= 2 && Math.abs(den) > 1e-9 ? (m2 * szy - sz * sy) / den : 0;
+    const zMid = (z0 + z1) / 2;
+    const yMid = m2 ? (sy - slope * sz) / m2 + slope * zMid : yTop;
+    return { y: yTop, yMid, slope, zMid, x0, x1, z0, z1, n };
+  };
   const W = window.CAGE_WING, C = window.CAGE_CREW;
   const wb = W && box(W.group);
   if (wb) {
@@ -462,16 +693,29 @@ function sites(scene, group) {
           if (v.z < z0) z0 = v.z; if (v.z > z1) z1 = v.z;
         }
       });
-      return n ? { y: (y0 + y1) / 2, zLE: z1, zTE: z0, n } : null;
+      return n ? { y: (y0 + y1) / 2, y0, y1, zLE: z1, zTE: z0, n } : null;
     };
     const span = wb.max.x - wb.min.x;
-    const tipR = slice(wb.max.x - 0.12, 0.16), tipL = slice(wb.min.x + 0.12, 0.16);
+    // AT THE TIP, AND ONLY AT THE TIP. A 0.24 m band of span is not a tip: on
+    // this wing it reports the section 120 mm inboard, which is 126 mm thick
+    // against the tip's own 52 mm and a chord of 1.04 m against 0.43. A
+    // fairing sized from it is more than twice the fitting the tip can carry,
+    // and it hangs below the wing (G100).
+    const tipR = slice(wb.max.x - 0.03, 0.04), tipL = slice(wb.min.x + 0.03, 0.04);
     // THE LIGHT SITS AT THE TIP'S LEADING EDGE — forward, because being seen
     // from ahead is the entire purpose of a navigation light.
-    if (tipR) out.navR = { p: [wb.max.x - 0.03, tipR.y, tipR.zLE - 0.05],
-                           ax: [1, 0, 0], col: 0x18e04a };
-    if (tipL) out.navL = { p: [wb.min.x + 0.03, tipL.y, tipL.zLE - 0.05],
-                           ax: [-1, 0, 0], col: 0xff2a1e };
+    // and each one carries the SIZE OF THE SURFACE IT SITS ON, so the fitting
+    // can be shaped to a tip rather than stuck on it as a disc (G100)
+    const tipLen = t => t ? Math.max(0.12, (t.zLE - t.zTE) * 0.45) : 0.20;
+    const tipY = t => t ? (t.y0 + t.y1) / 2 : 0;
+    if (tipR) out.navR = { p: [wb.max.x - 0.02, tipY(tipR), tipR.zLE - 0.10],
+                           ax: [1, 0, 0], col: 0x18e04a, chord: [0, 0, -1],
+                           len: tipLen(tipR), thick: tipR.y1 - tipR.y0,
+                           pod: true, noseLens: true };
+    if (tipL) out.navL = { p: [wb.min.x + 0.02, tipY(tipL), tipL.zLE - 0.10],
+                           ax: [-1, 0, 0], col: 0xff2a1e, chord: [0, 0, -1],
+                           len: tipLen(tipL), thick: tipL.y1 - tipL.y0,
+                           pod: true, noseLens: true };
     // THE LANDING AND TAXI LAMPS LIVE IN THE LEADING EDGE, inboard, where the
     // spar is deep enough to carry them and the prop wash is not.
     //
@@ -525,12 +769,32 @@ function sites(scene, group) {
   // only the GAME sets. Reading that global put the beacon on every aeroplane
   // in the game and none on the bench, which is a light that exists in one of
   // the two places it is supposed to.
+  //
+  // AND THE FIN GROUP IS NOT ONLY THE FIN (G100, user: "the beacon is wrongly
+  // positioned ... really off, fore by 0.8 meter or so, and too much up by
+  // 10-20 cm"). They were right to the decimetre, and the cause is the G96
+  // wing lesson arriving on the tail. `cageLayer:fin` carries the STABILISER
+  // as well, which reaches forward to the fuselage — so the group's box runs
+  // z -2.62 to +0.41 and its midpoint is z -1.10, while the fin's own tip
+  // chord is centred on z -2.05. Nearly a metre of tailplane, straight into
+  // the beacon's station.
+  //
+  // The fin is asked about ITSELF, the same way the wing is above: take the
+  // group's own vertices, keep the TOP SLICE, and read the chord centre and
+  // the apex off that. The top of a fin is fin and nothing else, whatever the
+  // group is called and whatever else is in it.
   if (scene && scene.children) {
     for (const ch of scene.children) {
       if ((ch.name || '').indexOf('cageLayer:fin') !== 0) continue;
-      const b = box(ch);
-      if (b) out.beacon = { p: [0, b.max.y + 0.012, (b.min.z + b.max.z) / 2],
-                            ax: [0, 1, 0] };
+      const t = topSlice(ch, inv);
+      if (!t) continue;
+      // laid along the fitted edge, and STRADDLING it: the fairing's centre is
+      // ON the line, so half of it is inside the fin — which is where the
+      // bracketry of a real one goes.
+      const m = t.slope, k = Math.hypot(1, m);
+      out.beacon = { p: [0, t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
+                     chord: [0, -m / k, -1 / k],
+                     len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true };
     }
   }
   if (C && C.A) {
@@ -550,10 +814,16 @@ function sites(scene, group) {
       ({ p: [s.x, A.roofY - 0.03, s.zBack + 0.10], ax: [0, -1, 0] }));
     // the panel lights are IN THE COAMING LIP, shining down onto the
     // instruments — which is the realistic answer and the reason the lip had
-    // to be measured for the panel in the first place
-    if (C.panel && C.panel.ext && A.dashLip != null)
+    // to be measured for the panel in the first place.
+    // THE LIP IS THE TOP OF THE DASH, not the bottom (2026-08-31): the crew
+    // layer used to hang the instruments under `dashLip`, so a lamp there was
+    // above them; the instruments are on the dash FACE now, so the lamp goes
+    // under `dashTop` — the traced windscreen base line, which is the coaming.
+    // Falls back to the old anchor for a crew layer that predates dashTop.
+    const lipY = A.dashTop != null ? A.dashTop : A.dashLip;
+    if (C.panel && C.panel.ext && lipY != null)
       out.panel = { x0: C.panel.ext.x0, x1: C.panel.ext.x1,
-                    y: A.dashLip - 0.004, z: C.panel.ext.z - 0.030 };
+                    y: lipY - 0.004, z: C.panel.ext.z - 0.030 };
   }
   return out;
 }
@@ -575,8 +845,13 @@ PAGE.post = (ctx) => {
     scene.remove(group);
     group = null;
   }
+  // the old rotors belong to a group that has just been thrown away
+  rotors.length = 0;
+  if (tickRAF) { cancelAnimationFrame(tickRAF); tickRAF = 0; }
   if (!+P.lightOn) return;
   bayFromP(P);            // the same resolution the wing layer did, one owner
+  const beaconRpm = P.li_beaconRpm != null ? +P.li_beaconRpm
+                                           : LIGHTS.beacon.rpm;
   group = new THREE.Group();
   group.name = 'cageLayer:light';
   scene.add(group);
@@ -615,22 +890,84 @@ PAGE.post = (ctx) => {
                      site.p[1] - site.ax[1] * r * 1.42,
                      site.p[2] - site.ax[2] * r * 1.42],
               [r * 1.5, r * 0.22, r * 0.5]);
+    } else if (site.pod) {
+      // ON A THIN SURFACE: a teardrop fairing sized from the surface itself,
+      // with the glass on top of it. NO GASKET PLATE — `boxInto` builds an
+      // AXIS-ALIGNED box, so on a fin (which lies in the y-z plane) an 87 mm
+      // square plate stood out sideways as a black square through the fin.
+      // That is what the user saw on every one of these. The fairing IS the
+      // joint here; there is nothing left for a plate to do.
+      const wide = Math.max(site.thick || 0.05, r * 1.30);
+      const high = Math.max(wide * 0.85, r * 1.25);
+      const chord = site.chord || [0, 0, -1], len = site.len || r * 7;
+      if (site.noseLens) {
+        // A WINGTIP LIGHT'S LENS IS THE NOSE OF THE FAIRING. Drawing a dome on
+        // the pod's flank instead gives a coloured ball stuck to a tip, which
+        // is what the first cut looked like — and the ball has to be as wide
+        // as the declared lens, which on a 52 mm tip is the whole fitting.
+        // The same body, cut at a fraction of its length, in two materials.
+        podInto(lens, site.p, chord, site.ax, len, wide, high, 14, 12, 0, 0.32);
+        podInto(lodge, site.p, chord, site.ax, len, wide, high, 14, 16, 0.30, 1);
+        // the bulb inside, on the fairing's own axis
+        revolveInto(lens, [site.p[0] - chord[0] * len * 0.16,
+                           site.p[1] - chord[1] * len * 0.16,
+                           site.p[2] - chord[2] * len * 0.16],
+                    chord, PROF.bulb, 10, Math.min(r, high * 0.34));
+      } else {
+        podInto(lodge, site.p, chord, site.ax, len, wide, high);
+        // the lamp sits ON the fairing's widest station: at 0.42 of the
+        // half-height the dome's centre is still under the skin and the lens
+        // reads as a flat sticker rather than as glass standing proud.
+        const st = high * 0.50;
+        const q = [site.p[0] + site.ax[0] * st, site.p[1] + site.ax[1] * st,
+                   site.p[2] + site.ax[2] * st];
+        revolveInto(lens, q, site.ax, PROF.bulb, 14, r * 0.80);
+        domeInto(lens, [q[0] - site.ax[0] * r * 0.10,
+                        q[1] - site.ax[1] * r * 0.10,
+                        q[2] - site.ax[2] * r * 0.10],
+                 site.ax, r * 0.86, r * 0.72, 16, 5);
+      }
     } else {
-      // a proud fitting: housing, then the glass seated on its shoulder
+      // a proud fitting on a surface with room for it: housing, then the
+      // glass seated on its shoulder, then a gasket ring under the flange —
+      // REVOLVED about the lamp's own axis, not an axis-aligned box
       revolveInto(lodge, site.p, site.ax, PROF.can, 16, r);
       revolveInto(lens, site.p, site.ax, PROF.bulb, 14, r * 0.85);
       domeInto(lens, [site.p[0] - site.ax[0] * r * 0.06,
                       site.p[1] - site.ax[1] * r * 0.06,
                       site.p[2] - site.ax[2] * r * 0.06],
                site.ax, r * 0.78, r * 0.62, 16, 4);
-      // the joint: a gasket plate under the flange, on the skin
-      boxInto(seal, [site.p[0] - site.ax[0] * r * 0.66,
-                     site.p[1] - site.ax[1] * r * 0.66,
-                     site.p[2] - site.ax[2] * r * 0.66],
-              [r * 2.9, r * 2.9, r * 0.22]);
+      revolveInto(seal, [site.p[0] - site.ax[0] * r * 0.60,
+                         site.p[1] - site.ax[1] * r * 0.60,
+                         site.p[2] - site.ax[2] * r * 0.60],
+                  site.ax, PROF.gasket, 16, r);
     }
     lodge.mesh(group); seal.mesh(group);
     const o = lens.mesh(group);
+    // THE MIRROR THAT MAKES IT FLASH. It is a child GROUP so that it can turn
+    // while the housing and the dome stand still, and it is REAL GEOMETRY
+    // aimed sideways — the user's rule again: no light without something to be
+    // bright. The bulb rides at the cup's focus, on the axis of rotation, so
+    // it stays put while the reflector sweeps round it, exactly as it does in
+    // the fitting.
+    if (L.rotor && !site.recess) {
+      const rot = new THREE.Group();
+      rot.name = 'liRotor_' + key;
+      rot.position.set(site.p[0], site.p[1], site.p[2]);
+      // the mirror's own axis is ACROSS the beacon's, which is what makes the
+      // beam horizontal on a beacon whose can stands vertical
+      const a2 = Math.abs(site.ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const side = nrm(cross(site.ax, a2));
+      const mir = Bag(hwMat('lodge')), fil = Bag(lensMat(key, lv, col));
+      revolveInto(mir, [0, 0, 0], side, PROF.cup, 14, r * 0.52);
+      revolveInto(fil, [0, 0, 0], site.ax, PROF.bulb, 10, r * 0.30);
+      mir.mesh(rot); fil.mesh(rot);
+      group.add(rot);
+      rotors.push({ rot, host: group, dome: o, mat: o.material,
+                    base: o.material.emissiveIntensity,
+                    ax: nrm(site.ax), e1: side, e2: nrm(cross(site.ax, side)),
+                    rpm: beaconRpm, p: site.p.slice() });
+    }
     drawn[key] = (drawn[key] || 0) + 1;
     return o;
   };
@@ -658,6 +995,8 @@ PAGE.post = (ctx) => {
     b.mesh(group);
     drawn.panel = 1;
   }
+
+  armRotors();       // the beacon starts turning as soon as it is built
 
   // ---- REAL LIGHT, AND ONLY WHERE IT EARNS ITS PLACE ----------------------
   // Every lamp above is emitting GEOMETRY, which is what the user's rule asks

@@ -45,7 +45,7 @@ const ST2FIN = {
 };
 const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   stSolid: 1, stThick: 0.05, stThickTE: 0.012,
-  stX: 0.05, stY: 0.25, stZ: 0 };
+  stX: 0.05, stY: 0.25, stZ: 0, stCons: 0 };
 for (const [sk, fk] of Object.entries(ST2FIN))
   stDef[sk] = FIN.FIN_CUB[fk] !== undefined ? FIN.FIN_CUB[fk]
                                             : FIN.FIN_PARAMS[fk];
@@ -60,6 +60,11 @@ if (PAGE.presets && PAGE.presets['piper cub'])
 const GROUP = ['8b · tail — stab & elevator', [
   ['stOn',    'stab layer',      0, 1, 1, ['off', 'on']],
   ['stRootGuard', 'root loops',  0, 1, 1, ['single + crease', 'guard pair'],
+   { when: P => +P.stOn }],
+  // THE STAB'S OWN CONSTRUCTION (G110) — see finCons; tailMat reads which
+  // of the two off the section it is dressing. Mass/price deferred.
+  ['stCons', 'construction',     0, 4, 1,
+   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
     ['stX', 'root half-track', 0, 0.30, 0.005],
@@ -187,8 +192,12 @@ PAGE.post = ctx => {
   if (solidOn) {
     let zA = Infinity;
     for (const p of s.V) zA = Math.min(zA, p[2]);
+    // `tailRimN` is the FIN's row, read here on purpose: the stab is the fin
+    // model laid flat (G23), so one knob decides how round the tail's edges
+    // are. Declared in _cage_fin.js, claimed there by the part table.
     disp = FIN.finThicken(disp, { thick: P.stThick || 0.05,
-      thickTE: P.stThickTE, zHinge: m0.cutZ, zAftEnd: zA });
+      thickTE: P.stThickTE, zHinge: m0.cutZ, zAftEnd: zA,
+      rimN: P.tailRimN });
   }
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -206,8 +215,11 @@ PAGE.post = ctx => {
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
       const sub = part
         ? { V: half.V, F: half.F.filter(f => f.part === part) } : half;
+      // the stab is the fin model laid flat, so it borrows finMesh — but it
+      // is its OWN livery section pair, and only the caller knows that
       const obj = wire ? DRAW.finQuadWire(sub, bySec)
-                       : DRAW.finMesh(sub, bySec);
+                       : DRAW.finMesh(sub, bySec,
+                           part === 'rudder' ? 'stabElev' : 'stabSkin');
       if (part === 'rudder' && ex) obj.position.z = -ex;  // elevator, aft
       if (part === 'rudder')                               // G59
         obj.name = 'edSurf_elev' + (side > 0 ? 'R' : 'L');

@@ -165,6 +165,81 @@ function checkSit(m) {
 }
 checkSit(measured);
 
+// ---------------------------------------------------------------------------
+// THE GROUND ATTITUDE. The half GATE REF did not have, and the half the user
+// reported: "the piper cub reference plane is not resting on its wheels".
+//
+// The old sit dropped the AUTHORED bounding box, which is right only for a
+// payload drawn sitting level on its wheels. The Cub is drawn fuselage-level,
+// so its mains went down and its tailwheel stayed 1.09 m up — and nothing
+// here noticed, because every check above is about SCALE.
+//
+// The preset declares its attitude; this RE-DERIVES it from the payload and
+// holds the declaration to it, exactly as `pub` is held to the decoded box.
+// The instrument is the lower convex hull: at the right attitude an aeroplane
+// rests on TWO contact patches, far apart, at the same height.
+// ---------------------------------------------------------------------------
+const CONTACT_TOL = 0.012;      // 12 mm — a tyre's own flat, not a drawing
+const BASE_MIN = 1.2;           // m between the contacts: it is not a pogo stick
+function checkAttitude() {
+  for (const pre of R.REF_PRESETS) {
+    if (!pre.model) continue;
+    const f = FILES[pre.model];
+    if (!f) continue;
+    const dec = decodeModel(loadPayload(f[0], f[1]));
+    const hull = R.refLowerHull(dec);
+    if (!check(!!hull && hull.length >= 2,
+               `${pre.key}: no lower hull — the sit has nothing to stand on`))
+      continue;
+
+    check(pre.sit && typeof pre.sit.pitch === 'number',
+      `preset ${pre.key} declares no ground attitude (\`sit.pitch\`) — without ` +
+      'one the sit assumes the payload was drawn on its wheels, which is ' +
+      'exactly the assumption that put the Cub on its nose');
+    const dec3 = R.refSitPitch(pre);
+
+    // AT THE DECLARED ATTITUDE, WHERE DOES IT TOUCH?
+    const t = dec3 * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
+    const yOf = q => q[1] * c - q[0] * sn;
+    const lo = R.refLowestY(hull, dec3);
+    check(Math.abs(lo - Math.min.apply(null, hull.map(yOf))) < 1e-9,
+      `${pre.key}: refLowestY disagrees with the hull it was given`);
+
+    const touch = hull.filter(q => yOf(q) <= lo + CONTACT_TOL);
+    const xs = touch.map(q => q[0] * c + q[1] * sn);
+    const base = Math.max.apply(null, xs) - Math.min.apply(null, xs);
+    check(base >= BASE_MIN,
+      `${pre.key}: at the declared ${dec3.toFixed(2)} deg nose-up it touches ` +
+      `the floor over ${base.toFixed(3)} m of wheelbase — an aeroplane rests ` +
+      `on two contacts at least ${BASE_MIN} m apart, so this attitude is wrong ` +
+      'or the payload has no undercarriage');
+
+    // AND THE DECLARED ONE IS THE BEST ONE. Any other attitude either lifts a
+    // contact or is a different aeroplane: a degree of error over a 5 m base
+    // is 87 mm of daylight under a wheel, which is what the user saw.
+    for (const d of [-3, -1, 1, 3]) {
+      const p2 = dec3 + d, t2 = p2 * Math.PI / 180;
+      const c2 = Math.cos(t2), s2 = Math.sin(t2);
+      const y2 = q => q[1] * c2 - q[0] * s2;
+      const lo2 = R.refLowestY(hull, p2);
+      const xs2 = hull.filter(q => y2(q) <= lo2 + CONTACT_TOL)
+                      .map(q => q[0] * c2 + q[1] * s2);
+      const b2 = Math.max.apply(null, xs2) - Math.min.apply(null, xs2);
+      check(b2 < base,
+        `${pre.key}: ${p2.toFixed(2)} deg puts it on a WIDER stance ` +
+        `(${b2.toFixed(3)} m) than the declared ${dec3.toFixed(2)} deg ` +
+        `(${base.toFixed(3)} m) — the declaration is not the attitude it parks in`);
+    }
+  }
+  // AND THE PITCH ACTUALLY CHANGES THE DROP. If it did not, every check above
+  // would pass on a formula that ignores its own argument.
+  const hullP = R.refLowerHull(decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+  check(Math.abs(R.refLowestY(hullP, 0) - R.refLowestY(hullP, 12.09)) > 0.05,
+    'the ground attitude does not move the lowest point — refLowestY is ' +
+    'ignoring its pitch, and the sit is back to dropping an authored box');
+}
+checkAttitude();
+
 // match-a-dimension inverts the measurement it is given
 for (const k of Object.keys(measured)) {
   const box = measured[k].box;
@@ -257,6 +332,33 @@ if (process.argv.includes('--selftest')) {
       return !missed; }],
     ['match-a-dimension accepting a zero', () =>
       R.refMatchScale(0, 10) === null],
+    // ---- the ground attitude ------------------------------------------
+    // The three ways this can rot, each broken here so the checks above are
+    // known to be able to go red rather than assumed to be.
+    ['a taildragger declared level', () => {
+      const hull = R.refLowerHull(
+        decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+      const stance = pitch => {
+        const t = pitch * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
+        const lo = R.refLowestY(hull, pitch);
+        const xs = hull.filter(q => q[1] * c - q[0] * sn <= lo + CONTACT_TOL)
+                       .map(q => q[0] * c + q[1] * sn);
+        return Math.max.apply(null, xs) - Math.min.apply(null, xs);
+      };
+      // level is what the payload is DRAWN at, and it balances on the mains
+      return stance(0) < BASE_MIN && stance(12.09) >= BASE_MIN; }],
+    ['a preset that declares no attitude at all', () =>
+      R.refSitPitch({ key: 'x' }) === 0 &&
+      R.refSitPitch({ key: 'x', sit: {} }) === 0],
+    ['a sit that ignores the pitch it is given', () => {
+      const hull = R.refLowerHull(
+        decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+      return Math.abs(R.refLowestY(hull, 0) - R.refLowestY(hull, 12.09)) > 0.05; }],
+    ['a hull that is not the lowest boundary', () => {
+      // a straight-line hull would make every attitude equally good
+      const h = R.refLowerHull({ g: { pos: new Float32Array(
+        [0, 0, 0,  1, 0, 0,  2, 0, 0,  1, 5, 0]) } });
+      return !!h && h.length === 2; }],
   ];
   let bad = 0;
   for (const [name, run] of cases) {

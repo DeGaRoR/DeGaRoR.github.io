@@ -108,6 +108,12 @@ const BENCH_TESTS = [
     name: 'Density altitude',
     blurb: 'The same take-off and climb, out of a hot mountain strip — and where it stops climbing.',
     kind: 'instant',
+    // ADVISORY (G107, the quality review's finding): "works hot and high" is
+    // a capability, not airworthiness — a sound sea-level trainer was reading
+    // NOT PASSED on the whole bench because it is not a bush plane. An
+    // advisory row still runs, still fills the plaque's thin-air sheet, and
+    // still shows its own verdict; it just cannot withhold the certificate.
+    advisory: true,
     needs: ['densAlt'],
     run(api) {
       const d = api.densAlt();
@@ -134,18 +140,54 @@ const BENCH_TESTS = [
     },
   },
   {
-    // DECLARED, NOT BUILT (G64). The roadmap's TEST FLIGHT: fly the harness
-    // circuit and bring back the landing run, which genShakedown does not
-    // compute and the plaque therefore cannot show. Its one open decision —
-    // shell out to node, or step the sim in the page — resolves to IN PAGE:
-    // index.html is a zero-network single-file artifact and the game already
-    // runs this exact sim in the browser. A row with no `run` renders as what
-    // it is rather than pretending not to exist.
+    // BUILT AT G107, as declared at G64 — IN PAGE, exactly as the row's open
+    // decision resolved: a second sim flies the whole circuit OFFSCREEN on the
+    // TEST PILOT (41_test_pilot.js), fast-stepped on a wall-clock budget, and
+    // brings back the landing run genShakedown cannot compute plus the
+    // pilot's own report — bounded attempts, structured verdicts. An
+    // aeroplane that cannot fly comes back SAYING SO ('rejected-takeoff',
+    // 'wont-climb'), which is a FAILED test with a reason, not a hang.
     id: 'flight',
     name: 'Test flight',
-    blurb: 'A full circuit on the autopilot, for the landing run.',
-    kind: 'instant',
-    needs: ['circuit'],
+    blurb: 'A full circuit on the test pilot — the landing run, and the pilot’s verdicts.',
+    kind: 'live',
+    offscreen: true,           // the circuit flies a second sim, not the stand
+    // THE TEST CARD (G107.1): the two setpoints the game imposes on the
+    // flight. Blank = the standard circuit. The pilot clamps an unsafe ask
+    // (never below its own approach speed or safe height) and SAYS so, and
+    // the plaque prints asked-vs-flown. Units are the UI's; app.js converts.
+    card: [{ k: 'alt', label: 'altitude', unit: 'm', ph: 'auto' },
+           { k: 'V', label: 'speed', unit: 'km/h', ph: 'auto' }],
+    needs: ['circuitStart', 'circuitPoll', 'circuitEnd'],
+    start(api, cv) {
+      const num = s => { const v = parseFloat(s); return isFinite(v) && v > 0 ? v : null; };
+      api.circuitStart({ alt: num(cv && cv.alt), Vkmh: num(cv && cv.V) });
+    },
+    poll(api) {
+      const r = api.circuitPoll();
+      if (!r) return { done: true, verdict: 'no circuit running', ok: false };
+      if (!r.done) return {
+        done: false,
+        running: r.phase + ' · t=' + benchNum(r.t, 0) + ' s',
+        progress: r.frac,
+      };
+      const rep = r.report, L = rep.landing;
+      const eventful = rep.verdicts.length > 0;
+      return {
+        done: true,
+        verdict: rep.outcome === 'completed'
+          ? (eventful ? 'COMPLETED, WITH NOTES' : 'FLEW THE CIRCUIT')
+          : String(rep.outcome || 'no verdict').toUpperCase().replace(/-/g, ' '),
+        ok: rep.outcome === 'completed',
+        note: (L ? 'landing run ' + benchNum(L.run, 0) + ' m · touchdown '
+                 + benchNum(L.sink, 2) + ' m/s · ' + benchNum(L.pastAim, 0)
+                 + ' m past the aim'
+                 : 'no landing')
+          + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
+        fills: 'plaque',
+      };
+    },
+    stop(api) { api.circuitEnd(); },
   },
 ];
 
@@ -167,6 +209,9 @@ function benchInit(api) {
   let results = {};        // id -> the last result of that test
   let live = null;         // { test, timer } while a live test runs
   let busy = false;        // suppress the dirty hook while WE are driving
+  const cardVals = {};     // id -> { k: string } — the typed test card (G107.1);
+                           // survives re-renders, deliberately NOT cleared by
+                           // BENCH_DIRTY: the card is the ASK, not a result
 
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function');
@@ -187,7 +232,9 @@ function benchInit(api) {
   };
   window.BENCH_DIRTY = () => { if (!busy) clearResults(); };
 
-  const passed = () => BENCH_TESTS.filter(t => usable(t))
+  // ADVISORY rows (dalt) do not gate the certificate — measured-but-not-a-
+  // bush-plane is information, not failure (G107).
+  const passed = () => BENCH_TESTS.filter(t => usable(t) && !t.advisory)
     .every(t => results[t.id] && results[t.id].ok);
   const anyRun = () => Object.keys(results).length > 0;
   // app.js asks this to label ROLL OUT. Never a lock — it is your aeroplane,
@@ -225,8 +272,8 @@ function benchInit(api) {
       return render();
     }
     if (t.kind === 'live') {
-      api.showPhysical(true);
-      t.start(api);
+      if (!t.offscreen) api.showPhysical(true);   // the flight flies a 2nd sim
+      t.start(api, cardVals[t.id] || {});
       live = { test: t };
       results[t.id] = { running: 'starting', ok: false };
       render();
@@ -256,8 +303,11 @@ function benchInit(api) {
     // rebuilds the aeroplane back onto its wheels
     busy = true;
     try { t.stop(api); } catch (e) {}
-    api.showPhysical(false);
+    if (!t.offscreen) api.showPhysical(false);
     busy = false;
+    // a live test can fill the plaque too (G107: the test flight's landing
+    // run) — the same honour runOne has always paid its instant rows
+    if (r && r.fills === 'plaque') api.plaque(true);
     note(t, r);
     render();
   }
@@ -299,7 +349,9 @@ function benchInit(api) {
     for (const t of BENCH_TESTS) {
       const r = results[t.id] || null;
       const can = usable(t);
-      const cls = !can ? 'dim' : r ? (r.running ? 'run' : (r.ok ? 'ok' : 'bad')) : '';
+      const cls = !can ? 'dim'
+        : r ? (r.running ? 'run' : (r.ok ? 'ok' : (t.advisory ? 'adv' : 'bad')))
+        : '';
       const line = !can ? 'not built yet'
         : r ? (r.running || r.verdict || '') : 'not run';
       bits.push('<div class="bT ' + cls + '">' +
@@ -307,6 +359,13 @@ function benchInit(api) {
         (can ? '<button data-t="' + t.id + '">run</button>' : '') +
         '<b>' + line + '</b></div>' +
         '<div class="bB">' + t.blurb + '</div>' +
+        // the test card's own fields (G107.1) — values live in cardVals so a
+        // re-render (every poll tick) puts back what was typed
+        (t.card && can ? '<div class="bCard">' + t.card.map(cfg =>
+          '<label>' + cfg.label + ' <input data-card="' + t.id + ':' + cfg.k +
+          '" value="' + ((cardVals[t.id] || {})[cfg.k] || '') +
+          '" placeholder="' + (cfg.ph || '') + '" inputmode="decimal"> ' +
+          cfg.unit + '</label>').join('') + '</div>' : '') +
         (r && r.note ? '<div class="bW">' + r.note + '</div>' : '') +
         '</div>');
     }
@@ -319,6 +378,13 @@ function benchInit(api) {
       b.onclick = () => {
         const t = BENCH_TESTS.filter(x => x.id === b.dataset.t)[0];
         if (t) runOne(t);
+      };
+    });
+    rows.querySelectorAll('input[data-card]').forEach(inp => {
+      inp.disabled = !!live;
+      inp.oninput = () => {
+        const [id, k] = inp.dataset.card.split(':');
+        (cardVals[id] || (cardVals[id] = {}))[k] = inp.value;
       };
     });
   }

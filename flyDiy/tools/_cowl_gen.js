@@ -28,7 +28,7 @@ const P={
   // light aeroplane is actually built to; 16 mm is the head across the flats.
   fastOn:1, fastPitch:0.11, fastD:0.016,
   partOn:1, partY:0.0, partW:0.0022,
-  oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16,
+  oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
   deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
   lidRise:0.06, faceRise:0.018, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
@@ -787,42 +787,71 @@ function buildDetail(group,mats){
      is what you see: the door sits a millimetre off the skin and the hinge is
      the one straight edge on it. */
   if(P.oilOn){
+    /* THE OUTLINE IS A SUPERELLIPSE, and it was a rectangle by omission (user,
+       2026-08-31: "the trap on the cowl is blocky, I guess it's real, but
+       wouldn't that be better if it were a circle?"). There was never an
+       outline OBJECT here: the door was the boundary of a tensor grid at a
+       constant angular half-extent, so its shape was not a choice anybody had
+       made. `oilSq` is the same 0..1 roundness the sections, the apertures and
+       the scoop already speak (sqExp / superPt) — 1 a rounded rectangle, 0.5 a
+       true ellipse (a CIRCLE when the two half-extents match on the surface),
+       0 a diamond. Default 1, which differs from the old sharp rectangle only
+       by the corner radius sqExp(1) = n:10 implies: 1 - 0.5^(1/10) = 6.7% of
+       the half-size, about 4 mm on the stock 130 mm door.
+       The mesh is a DISC now (a centre point and NR rings) rather than a grid,
+       because a grid cannot close a round outline without collapsing its end
+       rows into slivers. */
     const zc=ze*clamp(P.oilZ,0.05,0.95), hw=Math.max(0.02,P.oilW*0.5);
     const hl=Math.max(0.02,P.oilL*0.5);
-    const NA=9, NZ=7, rings=[];
+    const nSq=sqExp(P.oilSq===undefined?1:P.oilSq);
+    const NA=24, NR=3, rings=[];
     const p0=surfPoint(Math.PI/2,zc);
     const halfAng=Math.min(Math.PI*0.33, hw/Math.max(0.05,Math.hypot(p0[0],1)));
-    for(let i=0;i<=NZ;i++){
-      const z=clamp(zc-hl+2*hl*i/NZ,0.002,ze-0.002), row=[];
-      for(let j=0;j<=NA;j++){
-        const th=Math.PI/2-halfAng+2*halfAng*j/NA;
-        const p=surfPoint(th,z), n=cowlNormalAt(th,z);
-        row.push(new THREE.Vector3(p[0]+n[0]*0.0015,p[1]+n[1]*0.0015,
-                                   z+n[2]*0.0015));
-      }
+    /* the outline in the surface's own (angle, station) parameters, then
+       walked inward: one point per ring per angle, plus the centre. */
+    const at=(u,v)=>{
+      const th=clamp(Math.PI/2+u*halfAng,0,Math.PI);
+      const z=clamp(zc+v*hl,0.002,ze-0.002);
+      const q=surfPoint(th,z), n=cowlNormalAt(th,z);
+      return new THREE.Vector3(q[0]+n[0]*0.0015,q[1]+n[1]*0.0015,z+n[2]*0.0015);
+    };
+    const edge=[];
+    for(let j=0;j<NA;j++) edge.push(superPt(TAU*j/NA,1,1,nSq));
+    for(let r=1;r<=NR;r++){
+      const f=r/NR, row=[];
+      for(let j=0;j<NA;j++) row.push(at(edge[j][0]*f, edge[j][1]*f));
       rings.push(row);
     }
     const pos=[],idx=[];
+    const ctr=at(0,0); pos.push(ctr.x,ctr.y,ctr.z);          // index 0
     for(const r2 of rings) for(const v of r2) pos.push(v.x,v.y,v.z);
-    const S=NA+1;
-    for(let i=0;i<NZ;i++) for(let j=0;j<NA;j++){
-      const a=i*S+j,b=i*S+j+1,c=(i+1)*S+j+1,e=(i+1)*S+j;
+    for(let j=0;j<NA;j++) idx.push(0, 1+((j+1)%NA), 1+j);    // the centre fan
+    for(let r=0;r<NR-1;r++) for(let j=0;j<NA;j++){
+      const a=1+r*NA+j, b=1+r*NA+(j+1)%NA;
+      const c=1+(r+1)*NA+(j+1)%NA, e=1+(r+1)*NA+j;
       idx.push(a,b,c,a,c,e);
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setIndex(idx); g.computeVertexNormals();
     group.add(new THREE.Mesh(g,mats.skin));
-    // the hinge, on the forward edge
+    /* THE HINGE, on the forward edge — and it moves INBOARD with the roundness.
+       It used to be a straight chord at the door's forward extreme across the
+       full angular width, which is a station where a round door has no width
+       at all. It sits where the outline still spans something: 70% of the way
+       forward, at that row's own half-extent. */
     const hp=[],hi=[];
-    const hz=clamp(zc+hl,0.002,ze-0.002);
-    for(let j=0;j<=NA;j++){
-      const th=Math.PI/2-halfAng+2*halfAng*j/NA;
+    const hv=0.70;
+    const hu=Math.pow(Math.max(0,1-Math.pow(hv,nSq)),1/nSq);
+    const NH=Math.max(2,Math.round(NA/3));
+    const hz=clamp(zc+hv*hl,0.002,ze-0.002);
+    for(let j=0;j<=NH;j++){
+      const th=Math.PI/2+halfAng*hu*(2*j/NH-1);
       const p=surfPoint(th,hz), n=cowlNormalAt(th,hz);
       hp.push(p[0]+n[0]*0.0022,p[1]+n[1]*0.0022,hz+n[2]*0.0022);
       hp.push(p[0]+n[0]*0.0022,p[1]+n[1]*0.0022,hz+n[2]*0.0022-0.008);
     }
-    for(let j=0;j<NA;j++){
+    for(let j=0;j<NH;j++){
       const a=j*2,b=j*2+1,c=(j+1)*2+1,e=(j+1)*2;
       hi.push(a,b,c,a,c,e);
     }

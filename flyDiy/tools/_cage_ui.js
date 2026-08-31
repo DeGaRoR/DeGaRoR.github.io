@@ -401,6 +401,86 @@ const matOf = name => {
   return matCache[key];
 };
 
+// THE LAYER SECTIONS' ONE-LINER (the per-part livery). The cage's sections
+// come off the mesh's own groups; a LAYER's are declared in AEROSKIN's
+// AERO_SEC and claimed here, at draw time, by the layer that owns them —
+// which is what lets a wing follow the fuselage's paint and an aileron
+// follow the wing's without either module knowing the other exists. The
+// contract is gearMat's: null back means "draw what you drew before" (no
+// AEROSKIN, material view off, or an undeclared name), so a standalone
+// bench page keeps its flat palette.
+//
+// `g` carries GEOMETRY facts only — surf/fieldM/wing/ribM/struct/side/
+// opacity, plus `cons` (the part's construction, phase B's per-part
+// override rides in here) and `fin` (a layer-decided bottom-out finish,
+// the propeller's material choice). The LOOKS come from the five override
+// maps above, walked up the declared parent chain by aeroSecResolve — the
+// same maps the cage rows write, so `spec.finish` carries these sections
+// with no new machinery at all.
+const SEC_LIVE = {};                    // section -> epoch it last drew in
+const SEC_CTX = {};                     // section -> the g it last drew with
+let SEC_EPOCH = 0;
+const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
+                   rough: secRough, nrm: secNrm };
+function secMat(name, g) {
+  if (!aeroOn()) return null;
+  const A = AK();
+  if (!A || !A.AERO_SEC || !A.AERO_SEC[name] || !A.aeroSecResolve)
+    return null;
+  SEC_LIVE[name] = SEC_EPOCH;
+  SEC_CTX[name] = g || {};
+  const r = A.aeroSecResolve(name, SEC_OVER,
+    { cons: (g && g.cons) || consOf(), fin: g && g.fin });
+  return A.aeroMaterial(THREE, {
+    // `tint0` is the LAYER'S legacy palette colour — the birch-vs-beech of a
+    // blade, a spat's pale grey — used only when the whole walk says nothing:
+    // an inherited colour beats a default, a default beats the finish base
+    finish: r.fin,
+    tint: r.tint != null ? r.tint
+      : (g && g.tint0 != null) ? g.tint0 : null,
+    wearK: g && g.wearK,
+    grm: (g && g.cons) || consOf(),
+    struct: g && g.struct ? 1 : 0,
+    // THE CLASS PASSES THROUGH (G108). It was collapsed to a 0/1 flag here,
+    // so the fin — which asks for class 2 — arrived as a wing and a marking
+    // aimed at the fuselage-and-tail could not tell them apart.
+    wing: (g && +g.wing) || 0,
+    surf: g && g.surf ? 1 : 0,
+    fieldM: (g && g.fieldM != null) ? g.fieldM : 1,
+    ribM: g && g.ribM,
+    // WHICH OBJECT AXIS IS LATERAL. In the cage's own frame it is x; the
+    // flown model frame is z and app.js says so there. `uSideAxis` has
+    // documented this since G69 and nothing ever passed it, so it was 0
+    // everywhere by accident rather than by agreement — and the box
+    // projector cannot be built on an accident.
+    sideAxis: (g && g.sideAxis != null) ? g.sideAxis : 0,
+    side: (g && g.side != null) ? g.side : THREE.DoubleSide,
+    opacity: (g && g.opacity != null) ? g.opacity : 1,
+    tileK: r.tileK, roughK: r.roughK, nrmK: r.nrmK,
+  });
+}
+// the panel's view of the walk, for its own rows' labels and wells: the
+// same resolver, over the same maps, with the ctx the layer last drew with
+const secResolve = name => {
+  const A = AK();
+  const g = SEC_CTX[name] || {};
+  return A.aeroSecResolve(name, SEC_OVER,
+    { cons: g.cons || consOf(), fin: g.fin });
+};
+// ...and the AUTO label's view, which masks the section's OWN finish: the
+// auto option describes what picking it would DO, and with an override set
+// that is the reset — a row must never claim to be following itself
+const secResolveAuto = name => {
+  const A = AK();
+  const g = SEC_CTX[name] || {};
+  const fin2 = Object.assign({}, secFin);
+  delete fin2[name];
+  return A.aeroSecResolve(name,
+    { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm },
+    { cons: g.cons || consOf(), fin: g.fin });
+};
+if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
+
 // THE SURFACE FIELD on the geometry (G66). aStruct = [sL, sC, st, lv] —
 // metres along the body, metres around the section, station, rail. It is
 // what replaces a UV unwrap: one metric coordinate, so a tiled material is
@@ -807,7 +887,26 @@ function build() {
   // exist — and they are const/let, so reaching them early is a temporal
   // dead zone throw, not an undefined. (`node --check does not catch
   // scoping; the probe run does` — this file's own lesson, twice over.)
-  try { buildMatPanel(); applyDecals(); } catch (e) {}
+  // decRange BEFORE applyDecals: the sliders' bounds are the build's own
+  // extent, and the build has just changed
+  // A SWALLOWED BUILD ERROR IS WORSE THAN A LOUD ONE. This catch is here so
+  // one panel failing cannot take the whole rebuild with it — which is right
+  // — but it said nothing, and a decal panel that came up EMPTY looked like a
+  // layout bug for ten minutes before anyone thought to ask whether it had
+  // thrown. It still swallows; it just says so first.
+  // THE CRAFT FRAME, before anything is placed in it. The cage's own axes are
+  // x lateral, z forward, y up; `aft` flips the along axis so a station means
+  // the same thing here as it does in the surface field.
+  try {
+    const A0 = AK(), root = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+    if (A0 && A0.aeroSetCraft && root) {
+      root.updateWorldMatrix(true, false);
+      A0.aeroSetCraft(THREE, root.matrixWorld,
+                      { lateral: 'x', along: 'z', up: 'y', aft: true });
+    }
+  } catch (e) {}
+  try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
+  catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }
   // page post hook (cage5 crew layer): extra scene content rebuilt after
   // every cage build — additive, pages without it are unaffected.
   // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry
@@ -827,8 +926,17 @@ function build() {
       }
     sFix = Object.assign({}, s, { V: V2 });
   }
+  // THE LAYER SECTIONS ARE CLAIMED INSIDE THE POST HOOK, which runs AFTER
+  // the materials panel above was built — so the epoch turns over here, the
+  // layers stamp SEC_LIVE as they draw, and the panel gets a SECOND look
+  // below. Cheap by construction: buildMatPanel's signature check makes the
+  // second call a no-op on every build where no layer appeared or vanished.
+  SEC_EPOCH++;
   if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
+  for (const k in SEC_LIVE)
+    if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
+  try { buildMatPanel(); } catch (e) {}
   // THE WEAR IS MEASURED AFTER THE LAYERS, and it has to be: its two sources
   // are the exhaust exit and the wheel, and neither exists until the engine
   // and gear layers have run. `s`, not `sFix` — the field belongs to the
@@ -1163,6 +1271,11 @@ const anchorSize = () => {
 // instead of inheriting the sliders it did not mention.
 function applySpec(spec, what) {
   Object.assign(P, G.cageFromSpec(spec));
+  // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
+  // the file has no `finish` at all: that is a build with no overrides, and
+  // the aeroplane it describes is the factory one. Applying it only when
+  // present is exactly how a load inherits the last aeroplane's colours.
+  finishFromSpec(spec && spec.finish);
   anchorSize();                            // the loaded design is now x1.000
   syncSliders(); build();
   if (what && $('stat')) $('stat').textContent = what;
@@ -1219,7 +1332,7 @@ if (!window.CAGE_IN_GAME) {
   const buildFile = () => JSON.stringify({
     what: 'flydiy-build',
     v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
-    name: 'cage', spec: { cage: G.cageToSpec(P) },
+    name: 'cage', spec: { cage: G.cageToSpec(P), finish: finishToSpec() },
   }, null, 1);
   // Accepts a build envelope, a bare spec, the legacy {P:{...}} config, or a
   // bare parameter object — a spec pasted out of a console is a good thing to
@@ -1408,6 +1521,24 @@ fillPresetSel();
       det.after(hd);
       const row = (host, html) => { const d = document.createElement('div');
         d.className = 'r'; d.innerHTML = html; host.appendChild(d); return d; };
+      // DOUBLE-CLICK THE LABEL TO RESET. mkRow gives every parameter row this
+      // for free off the DEFAULTS table; the rows in this section are not
+      // parameter rows — they drive the ROOM, which has no P and no baseline —
+      // so they reach the owning module for the resting value instead. `get`
+      // returning null means the module is too old to publish one, and the
+      // affordance simply is not offered rather than resetting to a guess.
+      const resetOnLabel = (d, get, apply) => {
+        const kSpan = d.querySelector('.k');
+        if (!kSpan || typeof get !== 'function') return;
+        if (get() == null) return;
+        kSpan.title = kSpan.textContent + ' — double-click: reset';
+        kSpan.style.cursor = 'default';
+        kSpan.ondblclick = () => {
+          const b = get();
+          if (b == null) return;
+          apply(b);
+        };
+      };
       // A MOOD IS A SKY NOW (G62), so the row says what it actually picks:
       // the HDRI standing outside the door, and the light rig measured off it.
       const mr = row(hd, `<span class="k">time of day</span><select></select>`);
@@ -1527,6 +1658,13 @@ fillPresetSel();
         inp.value = GE.groundBounce(); show(inp.value);
         inp.oninput = () => show(inp.value);          // the re-bake is not free
         inp.onchange = () => show(GE.setGroundBounce(+inp.value));
+        // DOUBLE-CLICK THE LABEL TO RESET, the same affordance every _cage_ui
+        // row has (mkRow, above). These hangar rows are hand-built and have no
+        // DEFAULTS table behind them, so the resting value is read from the
+        // module that owns it (user, 2026-08-31: "neutralize the controls").
+        resetOnLabel(d, GE.groundBounceDefault, b => {
+          inp.value = b; show(GE.setGroundBounce(b));
+        });
       }
       // THE LAMP RIG (G64, user: "for the lamps, give me an intensity and
       // spread control please, as well as a light temperature control"). Here
@@ -1546,6 +1684,15 @@ fillPresetSel();
             show(inp.value);
             GE.setLampRig({ [key]: fromUi(+inp.value) });
           };
+          // same reset affordance as every other row — see the note on the
+          // ground-bounce row above
+          resetOnLabel(d, () => {
+            const D = GE.lampRigDefault && GE.lampRigDefault();
+            return D ? D[key] : null;
+          }, raw => {
+            inp.value = toUi(raw); show(inp.value);
+            GE.setLampRig({ [key]: raw });
+          });
         };
         const I = v => v;
         knob('gain', 'lamp power', 0, 3, 0.05, n => '×' + n.toFixed(2), I, I);
@@ -1875,7 +2022,20 @@ function applyRowVis() {
   }
   adopt('surf', 'surface field', viewDet, true);
   adopt('step', 'template step', polyDet || viewDet, true);
-  adopt('lvl', 'subsurf', polyDet || viewDet, true);
+  // SUBSURF IS A BENCH INSTRUMENT (G106.1, the user: "force subsurf too,
+  // level 2. It shouldn't even be an option in this editor anymore. OK to keep
+  // it in the cage, but not in game"). The subdivision level is how smooth the
+  // aeroplane IS, not how you are looking at it — the builder does not choose
+  // it any more than they choose how many rings a fuselage has. On the bench
+  // it is exactly the right control: that is where the template's behaviour at
+  // each level is the thing under study.
+  //
+  // The ELEMENT stays where it was built (#edBar, hidden) rather than being
+  // removed, because `build()` reads `+$('lvl').value` on every build and its
+  // markup carries `<option selected>2</option>`. A missing element there is a
+  // NaN level, which is a different and much louder kind of wrong.
+  if (!window.CAGE_IN_GAME)
+    adopt('lvl', 'subsurf', polyDet || viewDet, true);
   // last-called lands first under the summary: view reads cage,
   // wireframe, colours, curvature, then the alpha rows
   adopt('curv', 'curvature heat', viewDet, true);
@@ -1926,13 +2086,54 @@ ui.appendChild(lg);
 // SURFACE FIELD — metres along the body, metres around the section — so it
 // holds its proportions on any shape, lands on both flanks by construction,
 // and needs no projection matrix at all (see aeroskin.js).
+// TWO CHANNELS AND A REGISTRATION (G108). The user: "the fuselage projection
+// and the fin projection should be one if possible. The wing and the slabs
+// projection should [be] another, fully independent one, allowing its own
+// projection and image and settings."
+//
+// EVERY KEY BELOW THAT EXISTED BEFORE MEANS EXACTLY WHAT IT MEANT, and the
+// new ones default to the old behaviour — `spec.finish.decals` stores
+// DEVIATIONS from these values, so a build saved last week still describes
+// the same aeroplane. That is why the body channel is still spelt `img*`
+// rather than renamed to something tidier.
 const DEC = {
   reg: null,              // filled from the spec's own meta on first build
   regH: 0.30,             // 300 mm is the legal marking height in most places
   regL: 2.10, regC: 0.28, // metres aft of the firewall, metres above the waist
-  regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both
+  regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both, 3 body+tail
+  regMode: 0,             // 0 field, 1 box side view, 2 box plan view
+  regRot: 0,
+  // THE BODY CHANNEL — fuselage, cowl, fin and stab when it is aimed there
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
+  imgMode: 0, imgRot: 0, imgLock: 1,
+  // THE WING CHANNEL — its own image, its own placement, its own projection.
+  // It opens in PLAN because that is what makes a stripe cross both wings as
+  // one thing rather than as two mirrored halves.
+  wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
+  wimMode: 2, wimRot: 0, wimLock: 1,
 };
+// which surface CLASSES each `target` value means. 0/1/2 are G69's own and
+// keep their meanings exactly; 3 is the one the user asked for and the old
+// scalar could not express.
+const DEC_ON = [
+  { body: 1 },                        // 0 the fuselage
+  { wing: 1, tail: 1 },               // 1 the flying surfaces
+  { body: 1, wing: 1, tail: 1 },      // 2 both
+  { body: 1, tail: 1 },               // 3 the body and the tail
+];
+const DEC_MODE = ['field', 'side', 'plan'];
+const MODE_NAMES = ['round the body (field)', 'from the side (box)',
+                    'from above (box)'];
+const MODE_HELP =
+  'FIELD wraps: metres along and around the body, which is what a fuselage ' +
+  'marking must do and what a nearly flat fin cannot use. FROM THE SIDE and ' +
+  'FROM ABOVE are orthographic projections through the whole craft, so one ' +
+  'image runs unbroken across fuselage, cowl and fin, or across both wings.';
+let decApplyRanges = () => {};
+// what DEC means before anybody touches it. Frozen at module load, because
+// `spec.finish` carries DEVIATIONS and a deviation needs something to deviate
+// from — and because a reset has to have somewhere to reset TO.
+const DEC_DEF = JSON.parse(JSON.stringify(DEC));
 let decPanel = null, decImgAspect = 1;
 function decLoadPrefs() {
   try {
@@ -1946,6 +2147,92 @@ function decSavePrefs() {
     j.dec = DEC;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
+}
+
+// ===========================================================================
+// THE FINISH BELONGS TO THE AEROPLANE (G105)
+// ===========================================================================
+// Everything above stores the finish in ONE localStorage key, which is right
+// for a bench — one page, one aeroplane — and wrong for a fleet. In the game
+// it meant every aeroplane wore the same paint: loading a second build left
+// the first one's tints on it, and a build you saved and sent to somebody else
+// arrived in whatever colours THEY had last used.
+//
+// So the finish goes into the spec, the way the shape did at G63 and by the
+// same route: OUT through the join's export (`spec.finish`), IN through
+// applySpec. The pref stays and stays useful — it is the working state between
+// builds, and it is the bench's only home — but it is no longer the AUTHORITY.
+// `finishFromSpec` is, and the first thing it does is forget.
+//
+// DEVIATIONS ONLY, like `cageToSpec`: a section the builder has not touched is
+// a section this file does not mention, so a build goes on meaning the same
+// thing when a later chantier changes what `auto` derives.
+//
+// ONE OBJECT PER SECTION, not five parallel maps. The five maps are the
+// panel's internal shape (one per row kind); a file wants to say "this
+// section, these choices", and it makes "has this section been touched at all"
+// a question with an answer.
+function finishToSpec() {
+  const sections = {};
+  let n = 0;
+  const names = new Set([].concat(
+    Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
+    Object.keys(secRough), Object.keys(secNrm)));
+  for (const nm of names) {
+    const o = {};
+    if (secFin[nm]) o.fin = secFin[nm];
+    if (secTint[nm] != null) o.tint = secTint[nm];
+    if (secTile[nm] != null) o.tile = secTile[nm];
+    if (secRough[nm] != null) o.rough = secRough[nm];
+    if (secNrm[nm] != null) o.nrm = secNrm[nm];
+    if (Object.keys(o).length) { sections[nm] = o; n++; }
+  }
+  const decals = {};
+  for (const k in DEC_DEF) if (DEC[k] !== DEC_DEF[k]) decals[k] = DEC[k];
+  // THE REGISTRATION IS NOT THE FINISH'S. It is `spec.meta.reg` and has been
+  // since G69 — the panel edits it, the spec owns it. Writing it here as well
+  // would give one string two homes and let them disagree.
+  delete decals.reg;
+  const out = {};
+  if (n) out.sections = sections;
+  if (WEAR.amount) out.wear = WEAR.amount;
+  if (Object.keys(decals).length) out.decals = decals;
+  return Object.keys(out).length ? out : null;
+}
+
+// ...and IN. THE RESET IS THE POINT: this runs on every load, and a load that
+// only applied what the file mentions would leave the previous aeroplane's
+// paint underneath — which is the bug the whole block exists to fix. Null is
+// the factory finish and is a complete instruction, not a missing one.
+function finishFromSpec(f) {
+  for (const m of [secFin, secTint, secTile, secRough, secNrm])
+    for (const k in m) delete m[k];
+  const reg = DEC.reg;                     // meta.reg's, not ours to clear
+  Object.assign(DEC, JSON.parse(JSON.stringify(DEC_DEF)));
+  DEC.reg = reg;
+  WEAR.amount = 0;
+  const o = (f && typeof f === 'object' && !Array.isArray(f)) ? f : null;
+  if (o) {
+    const S = (o.sections && typeof o.sections === 'object') ? o.sections : {};
+    for (const nm in S) {
+      const r = S[nm] || {};
+      if (r.fin) secFin[nm] = r.fin;
+      if (typeof r.tint === 'number') secTint[nm] = r.tint;
+      if (typeof r.tile === 'number') secTile[nm] = r.tile;
+      if (typeof r.rough === 'number') secRough[nm] = r.rough;
+      if (typeof r.nrm === 'number') secNrm[nm] = r.nrm;
+    }
+    if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
+    if (o.decals && typeof o.decals === 'object')
+      for (const k in DEC_DEF) if (k !== 'reg' && o.decals[k] !== undefined)
+        DEC[k] = o.decals[k];
+  }
+  aeroSavePrefs(); decSavePrefs();
+  // EVERY ROW'S VALUE JUST CHANGED, and the panel only rebuilds when the
+  // SECTION LIST changes shape — so loading into an aeroplane with the same
+  // sections would have redrawn nothing and gone on showing the old numbers.
+  // Clearing the signature is how this file already says "rebuild next time".
+  matPanelSig = '';
 }
 // THE REGISTRATION IS THE AEROPLANE'S OWN, not a field in this panel: the
 // spec already carries it (`meta.reg`, default F-PGAR) and garage.js's
@@ -1972,12 +2259,21 @@ function applyDecals() {
     const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
     if (S && S.paint) { trim = S.paint.trim; base = S.paint.base; }
   } catch (e) {}
+  const onOf = t => DEC_ON[Math.max(0, Math.min(3, +t || 0))];
+  const modeOf = m => DEC_MODE[Math.max(0, Math.min(2, +m || 0))];
   const asp = A.aeroDecalText(THREE, 0, decReg(), trim, 0xffffff) || 3.2;
   list.push({ page: 0, sL: DEC.regL, sC: DEC.regC,
     w: DEC.regH * Math.max(1.2, asp), h: DEC.regH,
-    rough: -0.06, target: +DEC.regTarget });
+    rot: DEC.regRot, rough: -0.06,
+    on: onOf(DEC.regTarget), mode: modeOf(DEC.regMode) });
   if (DEC.imgOn) list.push({ page: 1, sL: DEC.imgL, sC: DEC.imgC,
-    w: DEC.imgW, h: DEC.imgH, rough: -0.04, target: +DEC.imgTarget });
+    w: DEC.imgW, h: DEC.imgH, rot: DEC.imgRot, rough: -0.04,
+    on: onOf(DEC.imgTarget), mode: modeOf(DEC.imgMode) });
+  // THE WING'S OWN CHANNEL: its own page in the atlas, its own placement, and
+  // never the body's classes — that is what "fully independent" means.
+  if (DEC.wimOn) list.push({ page: 2, sL: DEC.wimL, sC: DEC.wimC,
+    w: DEC.wimW, h: DEC.wimH, rot: DEC.wimRot, rough: -0.04,
+    on: { wing: 1 }, mode: modeOf(DEC.wimMode) });
   A.aeroSetDecals(THREE, list);
 }
 
@@ -2056,8 +2352,35 @@ function applyWear(m, FS) {
 }
 
 let matPanel = null, matPanelBody = null, matPanelSig = '';
+// the value-only refresh for builds where the panel's SHAPE is unchanged:
+// today that is the colour wells of rows following an ancestor's tint —
+// dragging the fuselage's colour must repaint the wing's well without
+// rebuilding a panel of selects under the cursor
+let matPanelSync = [];
+function syncMatPanel() {
+  for (const f of matPanelSync) try { f(); } catch (e) {}
+}
 // built ONCE, and in its own <details> so the section list rebuilding under
 // it cannot wipe a text field the user is typing into
+// the panel's own little registries: a value re-sync per key (so a locked
+// ratio can move the slider it owns), a grey-out per key, and the ratio rule
+// itself. They live here rather than inside the builder because `decRange`
+// and `applyDecals` are called from the build and the builder runs once.
+const SYNC = {}, GREY = {}, LOCK = {};
+// the build's own size, re-read every rebuild
+let decSpan = { len: 6, span: 10, up: 2 };
+function decRange() {
+  const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+  if (!S || typeof THREE === 'undefined' || !THREE.Box3) return;
+  try {
+    const b = new THREE.Box3().setFromObject(S);
+    if (!isFinite(b.min.x) || b.isEmpty()) return;
+    const d = b.getSize(new THREE.Vector3());
+    // the cage frame's lateral axis is x; along is z, up is y
+    decSpan = { span: Math.max(1, d.x), len: Math.max(1, d.z),
+                up: Math.max(0.5, d.y) };
+  } catch (e) {}
+}
 function buildDecPanel() {
   const A = AK();
   if (!A || decPanel) return;
@@ -2074,7 +2397,14 @@ function buildDecPanel() {
     k.className = 'k'; k.textContent = label; k.title = title || label;
     d.appendChild(k); body.appendChild(d); return d;
   };
-  const num = (lab, key, lo, hi, step, title) => {
+  // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE (G108). The image
+  // width was capped at a literal 4.0 m — the user: "the image max width is
+  // insufficient to cover the full plane" — and 4 m is a number that was
+  // right for one aeroplane. `decRange` re-reads the build's own extent on
+  // every rebuild and moves the bounds with it, so a 16 m biplane and a 6 m
+  // single-seater both get a slider that reaches their own tips.
+  const ranged = [];
+  const num = (lab, key, lo, hi, step, title, span) => {
     const d = row(lab, title);
     const i = document.createElement('input');
     i.type = 'range'; i.min = lo; i.max = hi; i.step = step;
@@ -2082,8 +2412,22 @@ function buildDecPanel() {
     const v = document.createElement('span');
     v.className = 'v'; v.textContent = (+DEC[key]).toFixed(2);
     i.oninput = () => { DEC[key] = +i.value; v.textContent = (+i.value).toFixed(2);
+      if (LOCK[key]) LOCK[key]();
       decSavePrefs(); applyDecals(); draw(); };
     d.appendChild(i); d.appendChild(v);
+    if (span) ranged.push({ i, v, key, span, lo });
+    SYNC[key] = () => { i.value = DEC[key]; v.textContent = (+DEC[key]).toFixed(2); };
+    GREY[key] = on => { i.disabled = !on; d.style.opacity = on ? '' : '.45'; };
+    return d;
+  };
+  const flag = (lab, key, title, onChange) => {
+    const d = row(lab, title);
+    const c = document.createElement('input');
+    c.type = 'checkbox'; c.checked = !!DEC[key];
+    c.onchange = () => { DEC[key] = c.checked ? 1 : 0;
+      decSavePrefs(); if (onChange) onChange(); applyDecals(); draw(); };
+    d.appendChild(c);
+    return d;
   };
   const pick = (lab, key, names, title) => {
     const d = row(lab, title);
@@ -2107,15 +2451,28 @@ function buildDecPanel() {
     d.appendChild(i);
   }
   num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
-  num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall');
+  num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('height on side', 'regC', -1.0, 1.2, 0.02,
-      'metres around the section from the waist rail, + upward');
-  pick('goes on', 'regTarget', ['the fuselage', 'the flying surfaces', 'both'],
+      'metres around the section from the waist rail, + upward', 'up');
+  num('turn', 'regRot', -0.6, 0.6, 0.01, 'radians — the atlas has always ' +
+      'carried a rotation and nothing ever offered it');
+  pick('goes on', 'regTarget',
+       ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail'],
        'a decal is on BOTH flanks by construction — the surface field is ' +
        'mirrored about the spine, which is what a registration wants');
-  // an image, projected the same way
-  {
-    const d = row('livery image', 'any image, placed in metres on the skin');
+  pick('projected as', 'regMode', MODE_NAMES, MODE_HELP);
+
+  // ---- ONE CHANNEL PER SUBJECT (G108) ------------------------------------
+  // The user: "the fuselage projection and the fin projection should be one
+  // if possible. The wing and the slabs projection should [be] another, fully
+  // independent one, allowing its own projection and image and settings."
+  //
+  // Each channel takes an image, a projection and a placement of its own. The
+  // BODY's reaches the fuselage, the cowl and the tail; the WING's reaches the
+  // wing and its slabs and nothing else.
+  const ASPECT = {};
+  const channel = (tag, keys, page, help) => {
+    const h = row(tag, help);
     const f = document.createElement('input');
     f.type = 'file'; f.accept = 'image/*'; f.style.flex = '1';
     f.onchange = () => {
@@ -2125,21 +2482,86 @@ function buildDecPanel() {
       fr.onload = () => {
         const im = new Image();
         im.onload = () => {
-          decImgAspect = A.aeroDecalImage(THREE, 1, im) || 1;
-          DEC.imgOn = 1; DEC.imgH = DEC.imgW / Math.max(0.05, decImgAspect);
+          ASPECT[keys.on] = A.aeroDecalImage(THREE, page, im) || 1;
+          DEC[keys.on] = 1;
+          if (DEC[keys.lock]) {
+            DEC[keys.h] = DEC[keys.w] / Math.max(0.05, ASPECT[keys.on]);
+            if (SYNC[keys.h]) SYNC[keys.h]();
+          }
           decSavePrefs(); applyDecals(); draw();
         };
         im.src = fr.result;
       };
       fr.readAsDataURL(file);
     };
-    d.appendChild(f);
-  }
-  num('image width', 'imgW', 0.1, 4.0, 0.05, 'metres');
-  num('image station', 'imgL', -1.0, 6.0, 0.05, 'metres AFT of the firewall');
-  num('image height on side', 'imgC', -1.2, 1.2, 0.02, 'metres from the waist');
-  pick('image goes on', 'imgTarget',
-       ['the fuselage', 'the flying surfaces', 'both']);
+    h.appendChild(f);
+  };
+  // THE RATIO LOCK, and it closes a live bug rather than only adding a row.
+  // The image height was computed ONCE, when the image loaded, and never
+  // again — so dragging the width STRETCHED the picture, and there was no
+  // height control to put it back with. The user reported the missing
+  // control; the stretch was the other half of the same defect. Locked (the
+  // default, and what the old code always did) the height follows the width
+  // at the image's own aspect; unlocked both are free, and the greyed slider
+  // is what says which of the two is being driven.
+  const lockPair = keys => {
+    const apply = () => {
+      const on = !!DEC[keys.lock];
+      if (GREY[keys.h]) GREY[keys.h](!on);
+      if (on) {
+        DEC[keys.h] = DEC[keys.w] / Math.max(0.05, ASPECT[keys.on] || 1);
+        if (SYNC[keys.h]) SYNC[keys.h]();
+      }
+    };
+    LOCK[keys.w] = () => { if (DEC[keys.lock]) apply(); };
+    return apply;
+  };
+
+  const BODY = { on: 'imgOn', w: 'imgW', h: 'imgH', lock: 'imgLock' };
+  const WING = { on: 'wimOn', w: 'wimW', h: 'wimH', lock: 'wimLock' };
+
+  channel('body image', BODY, 1,
+          'one image across the fuselage, the cowl and the tail');
+  num('body width', 'imgW', 0.1, 4.0, 0.05, 'metres', 'len');
+  num('body height', 'imgH', 0.1, 4.0, 0.05, 'metres', 'up');
+  const bodyLock = lockPair(BODY);
+  flag('body lock ratio', 'imgLock',
+       'hold the image aspect: the height follows the width', bodyLock);
+  num('body station', 'imgL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
+  num('body height on side', 'imgC', -1.2, 1.2, 0.02, 'metres from the waist', 'up');
+  num('body turn', 'imgRot', -0.6, 0.6, 0.01, 'radians');
+  pick('body goes on', 'imgTarget',
+       ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail']);
+  pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP);
+
+  channel('wing image', WING, 2,
+          'one image across the wing and its slabs, independent of the body');
+  num('wing width', 'wimW', 0.1, 4.0, 0.05, 'metres', 'span');
+  num('wing height', 'wimH', 0.1, 4.0, 0.05, 'metres', 'len');
+  const wingLock = lockPair(WING);
+  flag('wing lock ratio', 'wimLock',
+       'hold the image aspect: the height follows the width', wingLock);
+  num('wing across', 'wimL', -6.0, 6.0, 0.05,
+      'metres from the centreline, in PLAN', 'span');
+  num('wing along', 'wimC', -3.0, 3.0, 0.02, 'metres fore and aft, in PLAN', 'len');
+  num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
+  pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP);
+  bodyLock(); wingLock();
+
+  // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was
+  // capped at a literal 4.0 m — the user: "the image max width is
+  // insufficient to cover the full plane" — and 4 m is a number that was
+  // right for one aeroplane. These bounds are re-read from the build's own
+  // extent on every rebuild, so a 16 m biplane and a 6 m single-seater each
+  // get a slider that reaches their own tips.
+  decApplyRanges = () => {
+    for (const r of ranged) {
+      const m = Math.max(r.lo + 0.1, +(decSpan[r.span] * 1.1).toFixed(2));
+      r.i.max = m;
+      if (+r.i.min < 0) r.i.min = -m;
+    }
+  };
+  decApplyRanges();
 }
 
 function buildMatPanel() {
@@ -2158,10 +2580,19 @@ function buildMatPanel() {
   // after every build, and a slider drag must not rebuild a panel of selects
   // under the user's cursor
   const names = Object.keys(matSurf).sort();
-  const sig = names.join(',') + '|' + consOf();
-  if (sig === matPanelSig) return;
+  // ...then the LAYER sections this build actually drew (secMat's stamps),
+  // after the cage's own. The signature carries each one's RESOLVED
+  // auto-finish and its source — an override on `body` must relabel every
+  // `auto (follows …)` under it — but never a tint: a colour drag must not
+  // rebuild DOM under an open native picker (syncMatPanel covers the wells).
+  const live = Object.keys(SEC_LIVE).sort();
+  const sig = names.join(',') + '|' + consOf() + '|' +
+    live.map(n => { const r = secResolveAuto(n);
+                    return n + ':' + r.fin + ':' + (r.src || ''); }).join(',');
+  if (sig === matPanelSig) { syncMatPanel(); return; }
   matPanelSig = sig;
   matPanelBody.textContent = '';
+  matPanelSync = [];
   const cons = consOf();
   const mkRow2 = (label, title) => {
     const d = document.createElement('div'); d.className = 'r';
@@ -2204,9 +2635,12 @@ function buildMatPanel() {
     };
     d.appendChild(i); d.appendChild(v);
   }
-  for (const nm of names) {
+  for (const nm of names.concat(live)) {
     const isGlass = A.AERO_GLASS.has(nm);
-    const derived = A.aeroFinishFor(nm, cons);
+    // a LAYER section's auto is the walked chain, not the role table: the
+    // wing follows the fuselage's own choices before the construction
+    const lay = A.AERO_SEC && A.AERO_SEC[nm] ? secResolveAuto(nm) : null;
+    const derived = lay ? lay.fin : A.aeroFinishFor(nm, cons);
     const row = mkRow2(nm, isGlass ? 'glazing: its own family (transmission ' +
       '+ clearcoat), no finish to choose' : 'finish and colour for ' + nm);
     // WHICH SECTION THIS ROW IS ABOUT. The bench reads it off the label; the
@@ -2222,7 +2656,13 @@ function buildMatPanel() {
     const sfin = document.createElement('select');
     sfin.style.flex = '1';
     const o0 = document.createElement('option');
-    o0.value = ''; o0.textContent = 'auto (' + derived + ')';
+    // whose choice the auto is following: an ancestor section's override by
+    // its declared label ('body' is the fuselage's own skin), else the
+    // construction — the same word the cage rows always showed
+    const follow = lay && lay.src
+      ? 'follows ' + (lay.src === 'body' ? 'the fuselage'
+          : ((A.AERO_SEC[lay.src] || {}).label || lay.src)) + ' — ' : '';
+    o0.value = ''; o0.textContent = 'auto (' + follow + derived + ')';
     sfin.appendChild(o0);
     for (const k of Object.keys(A.AERO_FINISH)) {
       const o = document.createElement('option');
@@ -2240,9 +2680,23 @@ function buildMatPanel() {
     col.style.flex = 'none'; col.style.width = '30px';
     col.title = 'tint the albedo. The colour you pick is the colour you get ' +
       '(it is converted sRGB -> linear on the way to the shader)';
-    const base = A.AERO_FINISH[secFin[nm] || derived];
-    col.value = '#' + (secTint[nm] != null ? secTint[nm] : base.base)
-      .toString(16).padStart(6, '0');
+    // an UNSET well shows the colour the section actually wears: its own
+    // tint, else the inherited one (a layer row following an ancestor),
+    // else the finish's own base. Re-resolved in the closure so the sync
+    // pass repaints wells whose ancestor's tint just moved.
+    const wellV = () => {
+      const r = A.AERO_SEC && A.AERO_SEC[nm] ? secResolve(nm) : null;
+      const g0 = SEC_CTX[nm];
+      return '#' + (secTint[nm] != null ? secTint[nm]
+        : r && r.tint != null ? r.tint
+        : (r && g0 && g0.tint0 != null) ? g0.tint0
+        : A.AERO_FINISH[secFin[nm] || (r ? r.fin : derived)].base)
+        .toString(16).padStart(6, '0');
+    };
+    col.value = wellV();
+    matPanelSync.push(() => {
+      if (document.activeElement !== col) col.value = wellV();
+    });
     col.oninput = () => {
       secTint[nm] = parseInt(col.value.slice(1), 16);
       aeroSavePrefs(); build();
@@ -2454,7 +2908,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   get BASELINE() { return BASELINE; },
   // one route for writing a parameter from outside, so a reset and a slider
   // drag take the same path in
-  setParam: (k, v) => { P[k] = v; } };
+  setParam: (k, v) => { P[k] = v; },
+  // THE FINISH, in and out of the spec (G105). `applySpec` already calls the
+  // second one; the first is what `_cage_join.js`'s export puts on the build.
+  finishToSpec, finishFromSpec };
 // THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
 // first build(): the panel it builds is what the build's own applyRowVis pass
 // then decides the visibility of, and doing it the other way round would show

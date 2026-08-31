@@ -502,11 +502,174 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
       fail(`${label} mode ${mode}: thickness ${xMax * 2} > ${TH}`);
     if (xAft > 0.011)
       fail(`${label} mode ${mode}: TE not thinned (${(xAft * 2).toFixed(4)})`);
+    // ---- THE RIM'S AUTHORED NORMALS (2026-08-31) ---------------------------
+    // The tail is drawn NON-INDEXED and computeVertexNormals therefore made
+    // every face flat, tranche included. finThicken authors the arc's own
+    // normal on the rim and on nothing else; these hold that contract, and
+    // each one is a way it can silently rot.
+    {
+      const withN = solid.F.filter(f => f.n);
+      const noN = solid.F.filter(f => !f.n);
+      if (!withN.length)
+        fail(`${label} mode ${mode}: no face carries a rim normal — the ` +
+             'tranche is back to flat shading');
+      if (!noN.length)
+        fail(`${label} mode ${mode}: EVERY face carries a rim normal — the ` +
+             'flat sheets must keep their face normals (user ruling: smooth ' +
+             'the rim only, or the flats grow shading artefacts)');
+      for (const f of withN) {
+        if (f.n.length !== f.v.length) {
+          fail(`${label} mode ${mode}: a rim face carries ${f.n.length} ` +
+               `normals for ${f.v.length} corners`);
+          break;
+        }
+      }
+      let bad = 0, inward = 0;
+      // OUTWARD IS DECIDED LOCALLY, against the face's own geometric normal —
+      // NOT against a part centroid. A horn-balanced rudder is concave at the
+      // slot, and there the true outward normal points TOWARDS the centroid;
+      // a centroid test calls that a flip and is simply wrong about it.
+      // The face normal comes from the winding, which is what the volume flip
+      // changes, so this is the exact test for the trap it is guarding.
+      const fnOf = (a, b, c) => {
+        const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+        const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+        const x = uy * vz - uz * vy, y = uz * vx - ux * vz, z = ux * vy - uy * vx;
+        const L = Math.hypot(x, y, z);
+        return L > 1e-12 ? [x / L, y / L, z / L] : null;
+      };
+      for (const f of withN) {
+        for (let i = 0; i < f.n.length; i++) {
+          const q = f.n[i];
+          if (!q.every(Number.isFinite) ||
+              Math.abs(Math.hypot(q[0], q[1], q[2]) - 1) > 1e-6) { bad++; continue; }
+        }
+        const p = f.v.map(i => solid.V[i]);
+        for (let t = 1; t + 1 < p.length; t++) {
+          const fn = fnOf(p[0], p[t], p[t + 1]);
+          if (!fn) continue;                       // a degenerate sliver
+          for (const j of [0, t, t + 1]) {
+            const q = f.n[j];
+            if (fn[0] * q[0] + fn[1] * q[1] + fn[2] * q[2] < 0) inward++;
+          }
+        }
+      }
+      if (bad) fail(`${label} mode ${mode}: ${bad} rim normals are not unit`);
+      // AND EACH NORMAL IS ON ITS OWN CORNER. The sign test above cannot see a
+      // REORDER — two arc points one step apart have normals within 180/N deg
+      // of each other, so a shuffled `n` still dots positive with the face and
+      // still looks fine. This is the exact relation instead: on the rim the
+      // profile is x = r*sin(phi) and the normal's x is sin(phi), so within a
+      // quad the corner whose vertex is FURTHER along the thickness axis must
+      // carry the normal that is further along it too. It fires the moment the
+      // volume flip reorders `v` without reordering `n`.
+      let shuf = 0;
+      for (const f of withN) {
+        if (f.v.length !== 4) continue;
+        for (const [i, j] of [[0, 3], [1, 2]]) {
+          const dv = solid.V[f.v[i]][0] - solid.V[f.v[j]][0];
+          const dn = f.n[i][0] - f.n[j][0];
+          if (Math.abs(dv) > 1e-9 && Math.abs(dn) > 1e-9 &&
+              (dv > 0) !== (dn > 0)) shuf++;
+        }
+      }
+      if (shuf)
+        fail(`${label} mode ${mode}: ${shuf} rim corners carry a normal from ` +
+             'a DIFFERENT point on the arc — `n` was not reordered with `v`');
+      // THE FLIP TRAP: finThicken reverses the winding of a part whose signed
+      // volume came out negative, and an authored normal that did not go with
+      // it lights the tranche from inside.
+      if (inward)
+        fail(`${label} mode ${mode}: ${inward} rim normals face the opposite ` +
+             'way from their own triangle — the volume flip reversed the ' +
+             'winding and left `n` behind');
+    }
+
     if (label === 'cub' || VERBOSE)
       console.log(`solid ${label} mode ${mode}: ${solid.V.length} v / ` +
         `${solid.F.length} q · |x|max ${(xMax * 2).toFixed(3)} · aft ` +
-        `${(xAft * 2).toFixed(3)}`);
+        `${(xAft * 2).toFixed(3)} · rim faces ` +
+        `${solid.F.filter(f => f.n).length}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// THE EDGE SECTION COUNT is a setting now (`opts.rimN`), and it was a module
+// constant. If it is ignored the row is a slider that does nothing, which is
+// indistinguishable from the defect it was added to fix.
+// ---------------------------------------------------------------------------
+{
+  const s = FIN.buildFin2(FIN.finSpec(FIN.FIN_CUB));
+  let zA = Infinity;
+  for (const p of s.V) zA = Math.min(zA, p[2]);
+  const at = n => FIN.finThicken(s, { thick: 0.06, thickTE: 0.015,
+    zAftEnd: zA, rimN: n });
+  const n4 = at(4), n8 = at(8);
+  const rim = m => m.F.filter(f => f.n).length;
+  if (!(rim(n8) > rim(n4)))
+    fail(`rimN is ignored: 4 sections give ${rim(n4)} rim faces and 8 give ` +
+         `${rim(n8)} — the edge-sections row does nothing`);
+  if (Math.abs(rim(n8) / Math.max(1, rim(n4)) - 2) > 0.06)
+    fail(`rimN does not scale the rim linearly: ${rim(n4)} -> ${rim(n8)}`);
+  // the DEFAULT is unchanged, so no build moves on load
+  const dflt = FIN.finThicken(s, { thick: 0.06, thickTE: 0.015, zAftEnd: zA });
+  if (rim(dflt) !== rim(n4))
+    fail(`the rimN default is not ${FIN.FIN_NOSE_N || 4} — every existing ` +
+         'build changes shape on load');
+  // and it is CLAMPED: a 0 or a 200 from a stale save must not fold the rim
+  for (const n of [0, -3, 200, NaN]) {
+    const m = at(n);
+    if (!m.V.every(p => p.every(Number.isFinite)))
+      fail(`rimN ${n} produced a non-finite rim`);
+    if (!rim(m)) fail(`rimN ${n} produced no rim at all`);
+  }
+  if (VERBOSE || true)
+    console.log(`edge sections: 4 -> ${rim(n4)} rim faces, 8 -> ${rim(n8)}`);
+
+  // ---- THE VOLUME FLIP, FORCED ------------------------------------------
+  // finThicken reverses a part's winding when its signed volume comes out
+  // negative, and the authored normals have to go with it. No fin or stab the
+  // bench builds today lands on that branch, so the guard would sit there
+  // untested and the check above would be INERT — it passed with the flip's
+  // normal handling deleted. So the branch is provoked: hand finThicken a
+  // sheet wound the other way and require the invariant to hold anyway.
+  const flipped = { V: s.V, F: s.F.map(f => ({ v: f.v.slice().reverse(),
+                                               m: f.m, part: f.part })),
+                    cutKeys: s.cutKeys };
+  const fs = FIN.finThicken(flipped, { thick: 0.06, thickTE: 0.015,
+    zAftEnd: zA, rimN: 6 });
+  let flipBad = 0, flipRim = 0, flipShuf = 0;
+  for (const f of fs.F) {
+    if (!f.n) continue;
+    flipRim++;
+    if (f.v.length === 4) for (const [i, j] of [[0, 3], [1, 2]]) {
+      const dv = fs.V[f.v[i]][0] - fs.V[f.v[j]][0];
+      const dn = f.n[i][0] - f.n[j][0];
+      if (Math.abs(dv) > 1e-9 && Math.abs(dn) > 1e-9 &&
+          (dv > 0) !== (dn > 0)) flipShuf++;
+    }
+    const q = f.v.map(i => fs.V[i]);
+    for (let t = 1; t + 1 < q.length; t++) {
+      const ux = q[t][0] - q[0][0], uy = q[t][1] - q[0][1], uz = q[t][2] - q[0][2];
+      const vx = q[t+1][0] - q[0][0], vy = q[t+1][1] - q[0][1], vz = q[t+1][2] - q[0][2];
+      const nx = uy*vz - uz*vy, ny2 = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+      const L = Math.hypot(nx, ny2, nz);
+      if (L < 1e-12) continue;
+      for (const j of [0, t, t + 1]) {
+        const w = f.n[j];
+        if ((nx/L)*w[0] + (ny2/L)*w[1] + (nz/L)*w[2] < 0) flipBad++;
+      }
+    }
+  }
+  if (!flipRim) fail('the forced-flip case produced no rim to check');
+  if (flipBad)
+    fail(`the volume flip left ${flipBad} authored normals behind — a part ` +
+         'whose winding is reversed lights its tranche from the inside');
+  if (flipShuf)
+    fail(`the volume flip reordered ${flipShuf} corners without reordering ` +
+         'their normals — the tranche shades one arc step out of register');
+  console.log(`forced volume flip: ${flipRim} rim faces, ` +
+              `${flipBad} inverted, ${flipShuf} out of register`);
 }
 
 // ---- 6b: THE STAB — the horizontal tail is the same model, dorsal-less,

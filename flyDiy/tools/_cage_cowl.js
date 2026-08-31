@@ -193,6 +193,15 @@ function cowlMats(cA) {
     // it, and — since the streaks live in the surface field and the cowl has
     // none — a higher rate is also the honest way to say "the soot starts
     // here" on the one surface that cannot draw the trail.
+    // the cowl SKIN is the builder's to paint (phase C): its own livery
+    // section, alclad by default, borrowing the fuselage's colour; the
+    // faster ageing rides along. host/dark/steel stay hardware.
+    if (nm === 'skin' && typeof window !== 'undefined' && window.CAGE_SECMAT) {
+      const ms = window.CAGE_SECMAT('cowlSkin',
+        { surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: cA,
+          wearK: 1.5, tint0: b.color.getHex() });
+      if (ms) { out[nm] = ms; continue; }
+    }
     const m = (A && A.aeroHardMat)
       ? A.aeroHardMat(THREE, 'cowl', nm, b.color.getHex(),
                       { side: THREE.DoubleSide, opacity: cA,

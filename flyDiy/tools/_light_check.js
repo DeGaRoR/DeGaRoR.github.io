@@ -56,9 +56,16 @@ check(typeof RIG.applyRig === 'function', 'LIGHT_RIG.applyRig missing');
 check(typeof RIG.board === 'function', 'LIGHT_RIG.board missing');
 check(typeof RIG.census === 'function', 'LIGHT_RIG.census missing');
 check(typeof RIG.groundBounce === 'function', 'LIGHT_RIG.groundBounce missing');
-check(RIG.groundBounce() > 0 && RIG.groundBounce() < 1,
-      `ground bounce ${RIG.groundBounce()} is not a fraction — 1 is the ` +
-      'unoccluded half-dome of floor this whole chantier was about');
+// THE BOUND MOVED, AND WHO MOVED IT (2026-08-31). This read `< 1`, and its
+// message said why: 1 is the unoccluded half-dome of lit floor, which is the
+// belly-glow the G94 occlusion term was written to remove. The user overruled
+// it on the look and set the default to 1, so the check follows — `<= 1`,
+// which still catches the two things it was really guarding: a negative or
+// absent term, and a term above unity, which would be a floor returning more
+// light than falls on it. The physics argument stays in light_rig.js.
+check(RIG.groundBounce() > 0 && RIG.groundBounce() <= 1,
+      `ground bounce ${RIG.groundBounce()} is not a fraction — it is the ` +
+      'share of the lit floor an aeroplane standing on it can see, so 0 < b <= 1');
 
 // ---------------------------------------------------------------- 2. census
 // A SYNTHETIC SCENE with one of each kind, two of them unclaimed. The census

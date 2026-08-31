@@ -236,6 +236,107 @@ const RULES = [
 }
 
 // ---------------------------------------------------------------------------
+// 5b: THE EAR REACHES THE PLATE (G108)
+// ---------------------------------------------------------------------------
+// The one thing about the DRAWN fitting that this gate could not see, and it
+// was wrong for the whole life of the arc: the user, with the joint circled,
+// "there is a small gap between the end of the struts and the metal plate they
+// attach to, on both ends".
+//
+// It is decidable in node after all, and GATE GEAR (G67.3) is why: `lug` is
+// _gear_kit's, _gear_kit touches THREE at exactly one point (`bag.mesh()`),
+// so a stub records what the bench DRAWS through the bench's own output path.
+//
+// WHAT IS ASSERTED is the height the ear's ROOT reaches, off the skin, in the
+// fitting's own frame — and it is asserted about `strutClevisUp`, the
+// generator's OWN answer to which way the ear points, so reverting that line
+// turns this red. A gate that re-derived the cross product would be checking
+// its own copy of the rule.
+//
+// The declared intent is `stand * 0.92`: an ear whose root sits at 8 % of the
+// stand-off off the skin, which for either end is inside its own doubler.
+// What was drawn instead spanned 39..71 mm against a 7 mm plate.
+{
+  const fs2 = require('fs'), vm2 = require('vm');
+  function stubTHREE() {
+    function Mat(o) { Object.assign(this, { isMat: 1 }, o || {}); }
+    class BufferAttribute { constructor(a, n) { this.array = a; this.itemSize = n; } }
+    class BufferGeometry {
+      constructor() { this.attributes = {}; this.index = null; }
+      setAttribute(k, a) { this.attributes[k] = a; }
+      setIndex(i) { this.index = i; }
+      computeVertexNormals() {}
+    }
+    class Mesh { constructor(g, m) { this.geometry = g; this.material = m; } }
+    class LineSegments { constructor(g, m) { this.geometry = g; this.material = m; } }
+    return { BufferAttribute, BufferGeometry, Mesh, LineSegments,
+             LineBasicMaterial: Mat, MeshLambertMaterial: Mat,
+             MeshBasicMaterial: Mat, DoubleSide: 2, FrontSide: 0 };
+  }
+  const win = {};
+  {
+    const ctx = { window: win, THREE: stubTHREE(), console, Math, JSON,
+                  Float32Array, Object, Array, Set, Map, Number, String,
+                  isFinite, parseInt, parseFloat };
+    ctx.globalThis = ctx;
+    vm2.createContext(ctx);
+    for (const f of ['_gear_kit.js', '_gear_gen.js'])
+      vm2.runInContext(fs2.readFileSync(path.join(__dirname, f), 'utf8'), ctx,
+                       { filename: f });
+  }
+  const K = win.GEAR_KIT, GG = win.GEAR_GEN;
+  if (!check(!!K && !!GG, 'ear: the kit did not load headlessly')) {
+    // nothing below can run; the failure is already recorded
+  } else {
+    const F = SG.STRUT_FIT;
+    // ONE EAR, in the fitting's own frame, at a real site on the stub body
+    const earSpan = (up, stand) => {
+      const site = SG.strutSite(AF, [0.38, AF.keelAt(0.6) + 0.06, 0.6], 0, 0,
+                                { pad: PAD });
+      const reach = F.padL * 0.5 + F.lugGap + 0.10;
+      const S = SG.strutSkin(AF, site.z - reach, site.z + reach) || AF;
+      const Fr = GG.fitFrame(S, site.z, site.ang);
+      const zz = site.z + F.lugGap;
+      const p = S.surf(zz, site.ang), n = S.nrmAt(zz, site.ang);
+      const bag = K.Bag();
+      K.lug(bag, K.off(p, n, stand), Fr.fore,
+            up === 'RULE' ? SG.strutClevisUp(K, n, Fr.fore) : n,
+            F.lugR, F.lugT, stand * 0.92);
+      const m = bag.mesh({ add() {} }, {});
+      const a = m.geometry.attributes.position.array;
+      let lo = 1e9, hi = -1e9;
+      for (let i = 0; i < a.length; i += 3) {
+        const h = (a[i] - p[0]) * n[0] + (a[i+1] - p[1]) * n[1] + (a[i+2] - p[2]) * n[2];
+        lo = Math.min(lo, h); hi = Math.max(hi, h);
+      }
+      return { lo, hi };
+    };
+    for (const [end, stand, plate] of [['fuselage', F.standoff, F.padT],
+                                       ['wing', F.wingStandoff, F.wingPadT]]) {
+      const e = earSpan('RULE', stand);
+      check(e.lo <= plate,
+            'ear: the ' + end + ' clevis does not reach its plate',
+            (e.lo * 1000).toFixed(1) + ' mm off the skin, plate top ' +
+            (plate * 1000).toFixed(1) + ' mm');
+      check(e.hi >= stand - 1e-6,
+            'ear: the ' + end + ' clevis does not reach its pin',
+            (e.hi * 1000).toFixed(1) + ' vs ' + (stand * 1000).toFixed(1) + ' mm');
+      if (VERBOSE) console.log('  ' + end + ' ear: ' + (e.lo * 1000).toFixed(1) +
+        ' .. ' + (e.hi * 1000).toFixed(1) + ' mm off the skin (plate ' +
+        (plate * 1000).toFixed(1) + ', pin ' + (stand * 1000).toFixed(1) + ')');
+    }
+    // THE NEGATIVE PROBE IS THE BUG ITSELF: hand `lug` the surface normal, the
+    // way this file did until G108, and the ear must fail to reach the plate.
+    const bad = earSpan('n', F.standoff);
+    check(bad.lo > F.padT,
+          'ear: the OLD wrong vector still reaches the plate — this check is inert',
+          (bad.lo * 1000).toFixed(1) + ' mm');
+    if (VERBOSE) console.log('  probe (up = n, the G108 bug): ' +
+      (bad.lo * 1000).toFixed(1) + ' .. ' + (bad.hi * 1000).toFixed(1) + ' mm');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 6: NEGATIVE PROBES. Every rule above has to be breakable, or it is inert.
 // ---------------------------------------------------------------------------
 {

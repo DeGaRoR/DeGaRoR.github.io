@@ -232,7 +232,17 @@ PAGE.post = ctx => {
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
-  for (const k in bags) bags[k].mesh(group, GG.gearMat(k));
+  // the SPAT is the builder's to paint (phase C): its own livery section,
+  // trim by default, borrowing the fuselage's colour — everything else in
+  // the general bags stays on the gear's own hardware table
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const spatM = () => (SM && SM('spat', { surf: 0, fieldM: 1, tint0: 0xcfd6de }))
+    || GG.gearMat('fair');
+  // ...and only when there ARE spats: the section registry lists what this
+  // build actually drew, and an empty bag draws nothing
+  for (const k in bags)
+    bags[k].mesh(group, k === 'fair' && bags[k].tris ? spatM()
+                                                     : GG.gearMat(k));
   // G58.2/.3: bake each unit into its own NAMED group — the join's
   // snapshot picks these up by name, exactly as it does the prop's
   for (const wb of wheelUnits) {
@@ -242,17 +252,23 @@ PAGE.post = ctx => {
       wb[k].mesh(wg, GG.gearMat(k));
     group.add(wg);
   }
+  // the LEGS take a livery section too (phase C): steel tube by default,
+  // following nobody — but a builder can paint a leg without repainting the
+  // chrome piston or the tyres, which stay hardware. Only the 'steel' bag
+  // moves: it is the painted member (legs, blades, leaf springs).
+  const legM = k => (k === 'steel' && SM &&
+    SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad })) || GG.gearMat(k);
   for (const lu of legUnits) {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
-    for (const k in lu.bags) lu.bags[k].mesh(lg, GG.gearMat(k));
+    for (const k in lu.bags) lu.bags[k].mesh(lg, legM(k));
     group.add(lg);
   }
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
     for (const k in castorUnitOut.bags)
-      castorUnitOut.bags[k].mesh(cgp, GG.gearMat(k));
+      castorUnitOut.bags[k].mesh(cgp, legM(k));
     group.add(cgp);
   }
 

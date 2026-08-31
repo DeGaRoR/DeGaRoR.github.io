@@ -140,11 +140,20 @@ function checkShape(P) {
     }
     ok = check(n <= P.CAGE_PARTS.length, 'cycle in the part tree', p.key) && ok;
   }
-  // an assembly with no children is a part that forgot to say so
+  // AN ASSEMBLY WITH NEITHER CHILDREN NOR ROWS is a part that forgot to say
+  // so. The rule used to require CHILDREN, and it was too strong by exactly
+  // one case: `Design & construction` (G108) is a top-level row that carries
+  // its own rows and heads nothing, which is what makes it a PEER of Fuselage
+  // instead of a heading over it. The invariant this protects is unchanged —
+  // no empty headings — and it is stated more precisely now. An assembly that
+  // has neither is still the mistake it always was.
   for (const p of P.CAGE_PARTS) {
     if (p.parent !== null || p.root) continue;
     const kids = P.CAGE_PARTS.filter(c => c.parent === p.key).length;
-    ok = check(kids > 0, 'assembly with no parts under it', p.key) && ok;
+    const rows = (p.groups || []).reduce((n, g) => n + g[1].length, 0);
+    ok = check(kids > 0 || rows > 0,
+               'assembly with neither parts under it nor rows of its own',
+               p.key) && ok;
   }
   // every `when` survives being called on the real parameter set
   for (const p of P.CAGE_PARTS) {
@@ -233,6 +242,16 @@ function emittedSections() {
 const EMITTED = emittedSections();
 check(EMITTED.size > 20, 'too few sections to be a real coverage test',
   `${EMITTED.size}`);
+// THE LAYER SECTIONS join the emitted set from their declaration, not from a
+// build: they live on LAYER meshes (wing, fin, stab, …), which the cage
+// sweep above cannot see — and must not learn to, because CAGE_MATS and the
+// placement contracts filter by exactly the set it walks. AEROSKIN's
+// AERO_SEC is the one description of the layer-side names (the same
+// two-view rule the cage's own sections live under), so the ghost check
+// below still catches a part claiming a section NOBODY declares, and the
+// unowned check catches a declared section no part claims.
+const AS = require(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'));
+for (const s of Object.keys(AS.AERO_SEC || {})) EMITTED.add(s);
 
 function checkSections(P) {
   let ok = true;
@@ -380,6 +399,14 @@ if (process.argv.includes('--selftest')) {
     ['a `when` that never discriminates', fn => { const P = clone();
       P.partByKey.taper.when = Q => +Q.taperOn >= 0;
       return fn(P, checkExistence); }],
+    // G108 WIDENED THE ASSEMBLY RULE from "must have children" to "must have
+    // children OR rows of its own", because `Design & construction` is a
+    // top-level row that heads nothing. A widened rule needs its own probe or
+    // the widening is indistinguishable from deleting it: an assembly with
+    // NEITHER still has to go red.
+    ['an assembly heading nothing, with no rows either', fn => { const P = clone();
+      P.partByKey.design.groups = [];
+      return fn(P, checkShape); }],
   ];
   let bad = 0;
   for (const [name, run] of cases) {

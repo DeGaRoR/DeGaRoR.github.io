@@ -146,11 +146,118 @@ function cageJoinSpec(P, M, T) {
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
   // save keeps what you built, even where physics does not read it yet
   if (M.cage) spec.cage = M.cage;
+  // ...AND SO DOES THE FINISH (G105), one line below the shape and through the
+  // same door, because it is the same kind of thing: a complete answer about
+  // THIS aeroplane, written as deviations.
+  //
+  // `!== undefined` and not truthiness, unlike the shape above. NULL IS AN
+  // ANSWER HERE — it means the factory finish — and skipping it would make
+  // "I stripped the paint off" indistinguishable from "I did not measure the
+  // paint", so a build that had a tint could never go back to plain.
+  if (M.finish !== undefined) spec.finish = M.finish;
   return spec;
 }
 
+
+// ===========================================================================
+// THE VIEW IS NOT THE AEROPLANE (G106)
+// ===========================================================================
+// `snapshot` below freezes the editor's meshes into the mesh that FLIES, as
+// drawn. So every control that changes how the build is DRAWN is one more way
+// to fly the wrong aeroplane — and each one so far was found the same way, by
+// somebody noticing their aeroplane looked wrong in the air:
+//
+//   G47  the section colours   "the fuselage is suddenly all grey"
+//   G63  the explode distance  an aeroplane frozen mid-explosion
+//   G106 the family alphas     a see-through aeroplane (4 translucent
+//                              materials became 18)
+//   G106 wireframe, the field  an aeroplane with NO FUSELAGE (409,944
+//                              vertices down to 276,114)
+//
+// The first two were fixed with a save-force-restore pair each, which is the
+// right shape at the wrong scale: four pairs is four chances to forget a
+// restore, and — the actual failure — nothing anywhere LISTED the controls, so
+// the other four sat there through two chantiers.
+//
+// So this is the list. Every display control the editor shows is in exactly
+// one of these two tables, and GATE VIEW holds them against editor.js's own
+// RAIL in BOTH directions: a control nobody decided is red, and a decision for
+// a control that no longer exists is red too.
+//
+// The neutral is a CONSTANT, never computed from the state being neutralised.
+// A `to` that reads the current value is a neutralisation that agrees with
+// whatever it finds.
+const _vEl = id => (typeof document !== 'undefined'
+  ? document.getElementById(id) : null);
+// NULL FROM A GETTER MEANS THIS BUILD HAS NO SUCH CONTROL, which is not the
+// same as "already neutral": the game has no curvature-heat or template-step
+// control at all (they are bench instruments), and forcing a value into a
+// missing element would be writing to nothing and restoring nothing.
+const _vChk = id => ({
+  get: () => { const e = _vEl(id); return e ? e.checked : null; },
+  set: v => { const e = _vEl(id); if (e) e.checked = v; } });
+const _vSel = id => ({
+  get: () => { const e = _vEl(id); return e ? e.value : null; },
+  set: v => { const e = _vEl(id); if (e) e.value = v; } });
+const _vView = k => ({
+  get: () => ((typeof window !== 'undefined' && window.CAGE_VIEW)
+    ? window.CAGE_VIEW[k] : null),
+  set: v => { if (typeof window !== 'undefined' && window.CAGE_VIEW)
+    window.CAGE_VIEW[k] = v; } });
+const _vParam = k => ({
+  get: () => ((typeof window !== 'undefined' && window.CAGE_UI)
+    ? (+window.CAGE_UI.P[k] || 0) : null),
+  set: v => { if (typeof window !== 'undefined' && window.CAGE_UI)
+    window.CAGE_UI.P[k] = v; } });
+
+const VIEW_STATE = [
+  { row: 'explode',         ..._vParam('explodeD'), to: 0 },
+  { row: 'section colours', ..._vChk('color'),      to: true },
+  // THE THREE THAT REPLACE THE FUSELAGE MESH OUTRIGHT. build() picks one of
+  // surfMesh / curvatureMesh / quadWire / meshFrom, so with any of these on
+  // there is no skin in the scene for the capture to find at all.
+  { row: 'wireframe',       ..._vChk('wire'),       to: false },
+  { row: 'curvature heat',  ..._vChk('curv'),       to: false },
+  { row: 'surface field',   ..._vSel('surf'),       to: 'off' },
+  { row: 'template step',   ..._vSel('step'),       to: 'crease' },
+  // THE X-RAY KNOBS. All four default to 1 and exist to see through the
+  // aeroplane while you build it; the capture records `material.opacity`
+  // verbatim, so a fuselage left at 0.30 to look at the seats flies at 0.30.
+  { row: 'fuselage α',      ..._vView('bodyA'),     to: 1 },
+  { row: 'int skin α',      ..._vView('skinA'),     to: 1 },
+  { row: 'structure α',     ..._vView('structA'),   to: 1 },
+  { row: 'cowl α',          ..._vView('cowlA'),     to: 1 },
+  // PINNED, AND NOT OFFERED (G106.1). The game shows no subsurf control at all
+  // — editor.js's rail does not list it and _cage_ui.js does not adopt it —
+  // so this is belt and braces rather than a neutralisation anybody can defeat
+  // today. It is here because "the element happens to be hidden and happens to
+  // default to 2" is not a guarantee, and because a bench page that ever grew
+  // a capture would need it. `hidden` says the rail is right not to list it,
+  // which is the one direction GATE VIEW would otherwise call a ghost.
+  { row: 'subsurf', ..._vSel('lvl'), to: '2',
+    hidden: 'a bench instrument, not a display option: the subdivision level ' +
+      'is how smooth the aeroplane IS. The game pins it at 2 and offers no ' +
+      'control for it' },
+];
+
+// LOOKED AT, AND DELIBERATELY LEFT ALONE. Each was MEASURED, not assumed —
+// the numbers are in HANDOVER G106.
+const VIEW_KEEP = {
+  'glass α':
+    'glazing is MEANT to be transparent: 0.35 is the designed look and not ' +
+    'an X-ray setting, so forcing it to 1 would fly solid windows',
+  'control cage':
+    'a LineSegments overlay, and the capture takes meshes only (measured: ' +
+    'no change to the vertex count with it on)',
+  'canopy loops':
+    'a Line overlay, same as the control cage (measured: no change)',
+  'cutaway':
+    'a renderer clipping plane — it hides geometry from the CAMERA and ' +
+    'nothing from the capture (measured: no change)',
+};
+
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, CAGE_JOIN_ENGINES };
+  module.exports = { cageJoinSpec, CAGE_JOIN_ENGINES, VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
@@ -455,6 +562,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       try { M.cage = window.CAGE2.cageToSpec(P); }
       catch (e) { ERRS.push('the shape could not be written to the build: '
                             + e.message); }
+    // ...AND THE FINISH RIDES WITH THE SHAPE (G105). Same shape of statement,
+    // one line below it, because it is the same kind of thing: the editor's
+    // complete answer to a question about THIS aeroplane, written as
+    // deviations. Null is a legitimate answer — the factory finish — so it is
+    // written rather than skipped, and garage.js's merge replaces this key
+    // whole instead of merging it, or an override could never be taken off.
+    if (window.CAGE_UI && window.CAGE_UI.finishToSpec)
+      try { M.finish = window.CAGE_UI.finishToSpec(); }
+      catch (e) { ERRS.push('the finish could not be written to the build: '
+                            + e.message); }
     return M;
   };
   const tables = () => ({
@@ -475,7 +592,31 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // gaps: the visual is not in the save (a reload flies the generated
   // skin until the next build & fly); control surfaces and the prop do
   // not animate on the visual.
-  const snapshot = spec => {
+  // THE VIEW IS PUT BACK WHATEVER HAPPENS. Held in the closure rather than in
+  // the capture's own locals so the restore can be a `finally`: a capture that
+  // threw half way used to leave the builder looking at a NEUTRALISED
+  // aeroplane — explode zeroed, section colours forced on, the alphas back to
+  // 1 — with nothing on screen to say why their settings had moved.
+  let viewWas = null;
+  const viewNeutral = () => {
+    viewWas = VIEW_STATE.map(r => r.get());
+    let bent = false;
+    VIEW_STATE.forEach((r, i) => {
+      if (viewWas[i] === null || viewWas[i] === r.to) return;
+      r.set(r.to); bent = true;
+    });
+    if (!bent) { viewWas = null; return false; }
+    window.CAGE_UI.build();
+    return true;
+  };
+  const viewRestore = () => {
+    if (!viewWas) return;
+    const was = viewWas; viewWas = null;    // once, even if this throws
+    VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
+    window.CAGE_UI.build();
+  };
+
+  const snapshotAt = spec => {
     const mount = (() => {           // edSitP: the editor's mount group
       let g = window.CAGE_WING && window.CAGE_WING.group;
       while (g && g.parent && !g.parent.isScene &&
@@ -527,20 +668,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       off = [(mfx - cg0[0]) - rmx, (mfy - cg0[1]) - rmy];
     } catch (e) { console.warn('cage visual calibration:', e); }
     const cB = Math.cos(beta), sB = Math.sin(beta);
-    // the snapshot captures the SECTION COLOURS regardless of the view
-    // toggle (G47, user: "the fuselage is suddenly all grey" — the
-    // neutral display mode had been frozen into the flying paint)
-    const colBox = document.getElementById('color');
-    const colWas = colBox ? colBox.checked : true;
-    // ...and AT ZERO EXPLODE, for exactly the same reason (G63). The colour
-    // toggle was caught here at G47; the explode distance is the other view
-    // knob living in P, and building with the parts blown apart froze an
-    // exploded aeroplane into the mesh that flies. Both are restored below.
-    const UP = window.CAGE_UI.P;
-    const expWas = +UP.explodeD || 0;
-    if (colBox && !colWas) colBox.checked = true;
-    if (expWas) UP.explodeD = 0;
-    if ((colBox && !colWas) || expWas) window.CAGE_UI.build();
+    // THE CAPTURE IS OF THE AEROPLANE, NOT OF HOW YOU WERE LOOKING AT IT
+    // (G106). Every display control goes to its neutral and the build is
+    // redone once; the restore is the `finally` on the wrapper below, AFTER
+    // everything that reads the scene. See VIEW_STATE / VIEW_KEEP at the top
+    // of this file for the list, and for what is deliberately left alone.
+    viewNeutral();
     // G55 MOVING PARTS: wheels and the prop peel off into their OWN
     // groups before the merge, each with a pivot, so the game can ride
     // them on their axle nodes (suspension = the physics showing
@@ -648,9 +781,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const m0 = matList[r.materialIndex] || matList[0];
         if (!m0 || !m0.color) continue;
         const sec = secNames && secNames[r.materialIndex];
+        // ...and the fallback key carries WHAT IT IS as well as its colour:
+        // with the per-part livery, two layer materials can wear the same
+        // resolved tint over different finishes, and a colour-only bucket
+        // would merge them irreversibly (the exact failure the paragraph
+        // above records for the cage).
+        const kud = m0.userData || {};
         const key = sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
-            (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '');
+            (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
+            (kud.aeroFinish ? 'f' + kud.aeroFinish + (kud.aeroGrm || '') +
+                              (kud.aeroSurf ? 'S' : '') +
+                              (kud.aeroWing ? 'W' + kud.aeroWing : '') : '');
         // AEROSKIN (G67) rides across as WHAT IT IS, not as what it looked
         // like: the finish key and the shader branch, so the game rebuilds
         // the same material from the same factory rather than approximating
@@ -664,6 +806,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(sec ? { sec } : {}),
           ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),
           ...(ud.aeroGrm ? { grm: ud.aeroGrm } : {}),
+          // G108: the SURFACE CLASS (1 wing, 2 tail; absent means the body),
+          // so the flown aeroplane can be told which markings are its wing's
+          // and which are its fuselage's. Without it every flown surface came
+          // back class 0 and a livery aimed at one landed on all of them.
+          ...(ud.aeroWing ? { wing: ud.aeroWing } : {}),
           // whether this group carries the surface field decides which
           // branch the shader takes for it, and the join is where that
           // fact has to survive into the game
@@ -703,9 +850,20 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
     });
-    if (colBox && !colWas) colBox.checked = false;
-    if (expWas) UP.explodeD = expWas;
-    if ((colBox && !colWas) || expWas) window.CAGE_UI.build();
+    // (THE RESTORE USED TO BE HERE, AND THAT WAS THE BUG WITH TEETH. It runs
+    // `build()`, which puts the whole scene back into the view state — and
+    // four things below still read that scene: the spinner's world position,
+    // its shaft axis, and the gear's nose reference. So the VERTICES were
+    // captured un-exploded and the PROP'S PIVOT was read exploded, and the
+    // propeller flew a metre off the nose. Measured at explodeD 0.9: the hub
+    // at -3.4792 became -4.4828.
+    //
+    // It very probably also explains the G58.4 tripwire below — "the prop
+    // sometimes ends up in the middle", never reproduced in four capture
+    // cycles, whose own warning asks the reporter whether explode was on.
+    //
+    // The whole capture happens in ONE state now, and the restore is the
+    // wrapper's `finally`.)
     // uv stays an all-zero array: the cage has no unwrap and never will —
     // `srf` is what replaces it, and it is FOUR numbers, not two. The uv is
     // kept because mkGeo still binds it and a missing attribute is a
@@ -854,6 +1012,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null };
+  };
+  // ...and the view comes back, on the way out or on the way to a throw.
+  const snapshot = spec => {
+    try { return snapshotAt(spec); }
+    finally { viewRestore(); }
   };
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").
   // Frame vs visual, in numbers, in the model frame the pose shares (the

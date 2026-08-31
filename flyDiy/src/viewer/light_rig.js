@@ -77,7 +77,16 @@
   // the floor's own contribution to the bake — and the cost is that a mirror
   // would see a darker floor than the eye does. Nothing in this room is a
   // mirror; the floor is roughness 1.
-  var GROUND_BOUNCE = 0.148;
+  // OVERRULED BY THE USER, 2026-08-31: "set the ground bounce to 1". The
+  // argument above is right about the physics and lost on the look, and it
+  // stays in the file for exactly that reason — the next person to raise it
+  // deserves to find the answer already here rather than re-derive it. 0.148
+  // was the measured occlusion term; 1 is the unoccluded half-dome of lit
+  // concrete, and it brightens every underside in the room. GATE LIGHT's own
+  // check was written to forbid this value and was changed with it, on the
+  // same call, rather than quietly relaxed.
+  var GROUND_BOUNCE = 1;
+  var GROUND_BOUNCE_0 = GROUND_BOUNCE;      // the resting value, for reset
 
   // ---- the day-cycle row ---------------------------------------------------
   // Both rooms read a row of the SAME table. The hangar's rows come measured
@@ -210,6 +219,12 @@
     rowByKey: rowByKey,
     WORLD_ROW: WORLD_ROW,
     groundBounce: function () { return GROUND_BOUNCE; },
+    // THE DEFAULT IS PUBLISHED, not copied into the panel. The editor's
+    // ground-bounce row is hand-built (it is not a _cage_ui row and has no
+    // DEFAULTS table behind it), so "double-click to reset" needs somewhere
+    // to read the resting value from — and a number restated in the UI is a
+    // number that goes stale the first time this one moves.
+    groundBounceDefault: function () { return GROUND_BOUNCE_0; },
     setGroundBounce: function (v) {
       if (typeof v === 'number' && isFinite(v))
         GROUND_BOUNCE = Math.max(0, Math.min(1, v));

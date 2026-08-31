@@ -5803,15 +5803,46 @@ const CAGE_VIEW_KEYS = { explodeD: 1 };
 // Both directions therefore pass a key they do not recognise straight through
 // instead of dropping it: a build file has to be able to carry the cockpit, and
 // the generator reads only the keys it knows, so an unknown one is inert here.
-// The cost is that an undeclared parameter has no default to be compared
-// against and so always reads as a deviation — the fix for that is for the
-// layer to declare its defaults, not for this boundary to guess them.
+//
+// AND THEIR DEFAULTS ARE DECLARED — in the page's own `defaults` block, which
+// is THE DEFAULT AEROPLANE (_cage_page5.js: "one default aeroplane, each page
+// showing the parts it has loaded"; every layer merges its own table into it
+// at load). This boundary used to compare against CAGE_PARAMS alone, so every
+// layer key read as a deviation and a build that WAS the template still wrote
+// the whole layer population into `spec.cage` — 518 keys frozen at their
+// 2026-08-30 values, meaning no later change to a layer default could ever
+// reach a saved build (G106; the cost paragraph that used to stand here
+// predicted exactly this and named the fix). The declaration is read LAZILY,
+// at conversion time, because the page and its layers load in their own order
+// and some node tools load none of them — with no page in scope both
+// directions behave exactly as before.
+//
+// The baseline is deliberately SPLIT: CAGE_PARAMS keys compare against the
+// TEMPLATE (the page's jodel flavour of a cage key is a genuine deviation and
+// keeps riding in the stock design), layer keys compare against the DEFAULT
+// AEROPLANE, which is the only place they are declared and the value every
+// build actually boots with.
+function cageLayerDefaults() {
+  const pg = typeof window !== 'undefined' && window.CAGE_PAGE;
+  const d = pg && pg.defaults;
+  const out = {};
+  if (d) for (const k in d) {
+    if (k in CAGE_PARAMS || k in CAGE_VIEW_KEYS) continue;
+    if (typeof d[k] === 'function') continue;
+    out[k] = d[k];
+  }
+  return out;
+}
+const cageSameVal = (a, b) => a === b ||
+  (a && b && typeof a === 'object' && typeof b === 'object' &&
+   JSON.stringify(a) === JSON.stringify(b));
 
 // spec | bare cage object | null  ->  a FULL parameter set.
 // A null field means "as the template" exactly as it does in the game spec, so
 // a build may null a single parameter to hand it back rather than restating it.
 function cageFromSpec(spec) {
-  const P = cageDefaults();
+  const P = Object.assign(cageDefaults(),
+    JSON.parse(JSON.stringify(cageLayerDefaults())));
   const c = spec && typeof spec === 'object'
     ? (spec.cage !== undefined ? spec.cage : spec)
     : null;
@@ -5828,12 +5859,14 @@ function cageFromSpec(spec) {
 // null.
 function cageToSpec(P) {
   if (!P || typeof P !== 'object') return null;
+  const LD = cageLayerDefaults();
   const out = {};
   let n = 0;
   for (const k in P) {
     if (typeof P[k] === 'function') continue;
     if (k in CAGE_VIEW_KEYS) continue;
     if (k in CAGE_PARAMS && P[k] === CAGE_PARAMS[k]) continue;
+    if (!(k in CAGE_PARAMS) && k in LD && cageSameVal(P[k], LD[k])) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;

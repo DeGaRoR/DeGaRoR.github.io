@@ -68,6 +68,7 @@ PAGE.defaults = Object.assign({
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   wgAilSpan: 0.38, wgAilChord: 0.22,
+  wgCons: 0,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -93,6 +94,14 @@ const WING_ITEMS = [
   ['wgCentre', 'centre section', 0, 2, 1, ['solid', 'glass', 'open'],
    { when: P => +P.wingOn && +P.wgPos === 0 }],
   ['wgPanels', 'spar stations',  2, 5, 1, on],
+  // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
+  // 1..4 pin what THIS surface is built from — the structure grammar and the
+  // livery's auto-finish bottom-out both read it (carbon wings on a wooden
+  // fuselage is these two rows). MASS AND PRICE DO NOT FOLLOW IT YET: the
+  // wing bills the global construction until the coupling is designed.
+  ['wgCons', 'construction', 0, 4, 1,
+   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   on],
   ['wgDx',     'fore/aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'height',         -1.0, 1.0, 0.02, on],
   ['struts & fixation', [
@@ -183,23 +192,42 @@ const glassMat = () => {
 //
 // Falls back to the bench's own flat palette when AEROSKIN is not loaded, so
 // a standalone _cage*.html page with no src/viewer on it still builds.
+// which LIVERY SECTION each wing class draws as (AEROSKIN's AERO_SEC): the
+// skin and centre are the wing, the tips and each control-surface pair are
+// their own overridable rows, and every one of them FOLLOWS the wing (which
+// follows the fuselage) until the builder says otherwise. G31's diagnostic
+// tints (purple tip, orange ailerons) do NOT ride into the material view any
+// more — that was the G70-owed leak, and the per-part rows are its answer.
+const CLSEC = { main: 'wingSkin', centre: 'wingSkin', tip: 'wingTip',
+                ailR: 'wingAil', ailL: 'wingAil',
+                flapR: 'wingFlap', flapL: 'wingFlap' };
 function wingMat(cl) {
   const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
   const P0 = (window.CAGE_UI && window.CAGE_UI.P) || {};
   const on = document.getElementById('mat');
   if (!A || !on || on.value !== 'material') return MAT[cl] || MAT.main;
-  const cons = ['carbon', 'tubeFabric', 'wood', 'alloy'][
-    Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] || 'tubeFabric';
-  const FS = ((window.CAGE2 && window.CAGE2.CAGE_UNIT) || 1) *
-             (P0.planeScale || 1);
+  // the part's own construction wins over the aeroplane's (wgCons, G110);
+  // the ailerons and flaps take the wing's because this one function
+  // dresses every class
+  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const kc = Math.round(P0.wgCons || 0);
+  const cons = kc > 0 ? CONS4[kc - 1]
+    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
+      'tubeFabric';
+  // the editor's per-part livery, when its UI is on the page; the direct
+  // factory call below stays as the standalone bench's path
+  if (window.CAGE_SECMAT) {
+    const m = window.CAGE_SECMAT(CLSEC[cl] || 'wingSkin', {
+      cons, struct: 1, wing: 1,
+      surf: 1, fieldM: 1,        // the wing's field is ALREADY in metres
+      side: THREE.DoubleSide });
+    if (m) return m;
+  }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
     grm: cons, struct: 1, wing: 1,
     surf: 1, fieldM: 1,          // the wing's field is ALREADY in metres
     side: THREE.DoubleSide,
-    // the TIP takes the trim colour it always had - G31's "every part its own
-    // colour" survives as a tint over the finish rather than as a flat paint
-    tint: cl === 'tip' ? COLS.tip : undefined,
   });
 }
 
@@ -1082,7 +1110,12 @@ PAGE.post = ctx => {
         // up (editor.js HIT_NAME), so the group carries it and the three
         // meshes under it do not need one each
         sg.name = 'edFit_liftstrut';
-        bags.strut.mesh(sg, MAT.liftstrut);
+        // the struts JOIN the livery (phase C): painted trim by default,
+        // following the fuselage's colour; the flat Standard stays as the
+        // no-editor fallback. surf 0 — a strut has no lattice.
+        bags.strut.mesh(sg,
+          (window.CAGE_SECMAT && window.CAGE_SECMAT('strut',
+            { surf: 0, fieldM: 1, tint0: COLS.liftstrut })) || MAT.liftstrut);
         bags.alloy.mesh(sg, GG.gearMat('alloy'));
         bags.steel.mesh(sg, GG.gearMat('steel'));
         group.add(sg);

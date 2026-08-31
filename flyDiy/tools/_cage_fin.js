@@ -25,9 +25,14 @@ const FIN = window.FIN_GEN, CG2 = window.CAGE2, GG = window.GEAR_GEN;
 if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 
 // ---- parameters -----------------------------------------------------------
+// `tailRimN` is ONE row for BOTH tail surfaces on purpose. The fin and the
+// stabiliser are one drawing by design (G23) - the stab IS the fin model laid
+// flat - so how round their edges are is one property of the tail, not two
+// that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
   finCutGap: 0.012,
-  finSolid: 1, finThick: 0.06, finThickTE: 0.015 }, FIN.FIN_PARAMS);
+  finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
+  finCons: 0 }, FIN.FIN_PARAMS);
 PAGE.defaults = Object.assign(finDef, PAGE.defaults || {});
 
 // binary choices are DROP-DOWNS, sliders stay for the continuous numbers
@@ -44,6 +49,12 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['finKeel',    'keel extension',    0, 1, 1, ['off', 'on'],
    { when: P => +P.finOn && !+P.boomStyle }],
   ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
+   { when: P => +P.finOn }],
+  // THE FIN'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
+  // 1..4 pin what the tail is built from — grammar and the livery's
+  // auto-finish bottom-out. Mass/price do not follow it yet, declared.
+  ['finCons', 'construction',      0, 4, 1,
+   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -62,6 +73,12 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finThick',   'base thickness', 0.01, 0.15, 0.002,
      { when: P => +P.finSolid }],
     ['finThickTE', 'TE thickness',   0.004, 0.06, 0.002,
+     { when: P => +P.finSolid }],
+    // HOW ROUND THE EDGE IS, and it was 4 facets with no control at all.
+    // The outline's roundness comes from the subsurf, which the game pins at
+    // 2; the EDGE's comes from here, and four facets across a 60 mm tranche
+    // is what shows (user, 2026-08-31). Applies to the fin and the stab.
+    ['tailRimN',   'edge sections',  2, 12, 1,
      { when: P => +P.finSolid }],
   ], 'open', { when: P => +P.finOn }],
   // the three corners, each free on two axes (+z fwd, +y up, cage units)
@@ -161,18 +178,43 @@ function mats() {
 // to. Falls back to the layer's own section palette when AEROSKIN is not
 // loaded or the material mode is off, so the standalone _cage7 bench and the
 // section-colour diagnostic both keep working exactly as before.
-function tailMat(k) {
+// `sec` is the LIVERY SECTION this mesh draws as (AEROSKIN's AERO_SEC):
+// finSkin/finRud from this page, stabSkin/stabElev when the stab borrows
+// finMesh — the CALLER knows which surface it is building, this function
+// cannot. Absent means finSkin, which is also what an uncut fin is.
+function tailMat(k, sec) {
   const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
   const sel = typeof document !== 'undefined'
     && document.getElementById('mat');
   if (!A || !sel || sel.value !== 'material')
     return mats()[k] || mats()._plain;
   const P0 = (window.CAGE_UI && window.CAGE_UI.P) || {};
-  const cons = ['carbon', 'tubeFabric', 'wood', 'alloy'][
-    Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] || 'tubeFabric';
+  // the part's own construction wins over the aeroplane's (G110). The stab
+  // borrows this function too, so WHICH part is read off the section the
+  // caller already hands over — the one fact tailMat has that P does not.
+  const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
+  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const kc = Math.round(P0[pk] || 0);
+  const cons = kc > 0 ? CONS4[kc - 1]
+    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
+      'tubeFabric';
+  // the editor's per-part livery, when its UI is on the page; the direct
+  // factory call below stays as the standalone bench's path
+  if (typeof window !== 'undefined' && window.CAGE_SECMAT) {
+    const m = window.CAGE_SECMAT(sec || 'finSkin', {
+      // THE TAIL IS ITS OWN SURFACE CLASS (G108). It is a flying surface
+      // and everything that tested "> 0.5" still reads it as one; what the
+      // class buys is that a marking can be aimed at the fuselage AND the
+      // fin without landing on the wing, which is the grouping the user
+      // asked for: "the fuselage projection and the fin projection should
+      // be one".
+      cons, struct: 1, wing: 2, ribM: TAIL_RIB,
+      surf: 1, fieldM: tailFS(), side: THREE.DoubleSide });
+    if (m) return m;
+  }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
-    grm: cons, struct: 1, wing: 1,     // a tail is a flying surface
+    grm: cons, struct: 1, wing: 2,     // a flying surface, and class 2
     // THE TAIL'S RIBS ARE DRAWN IN METRES (G97), not off the field's station
     // index: this mesh is far coarser than the wing's and `fract(station)`
     // wanders with the triangulation on it. TAIL_RIB is already the declared
@@ -268,7 +310,7 @@ function finField(m) {
   };
 }
 
-function finMesh(m, bySection) {
+function finMesh(m, bySection, sec) {
   const g = new THREE.Group();
   const byMat = new Map();
   for (const f of m.F) {
@@ -277,23 +319,48 @@ function finMesh(m, bySection) {
     byMat.get(k).push(f);
   }
   const fld = finField(m);
+  // NORMALS ARE BUILT HERE, NOT COMPUTED (2026-08-31). This geometry is
+  // NON-INDEXED — three fresh positions per triangle, no welding — and
+  // computeVertexNormals on a non-indexed buffer gives every vertex its own
+  // triangle's face normal. That is why the fin and the stab were faceted
+  // everywhere including the rounded rim, and why there was no flatShading
+  // flag to turn off: the flatness was in the data.
+  //
+  // So: a face that CARRIES normals (`f.n`, one per corner — finThicken puts
+  // them on the rim and on nothing else) uses them, and every other face gets
+  // its face normal, exactly as before. The flat sheets are untouched, which
+  // is the user's own ruling — smooth the tranche, leave the flats alone.
+  const triN = (a, b, c) => {
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const x = uy * vz - uz * vy, y = uz * vx - ux * vz, z = ux * vy - uy * vx;
+    const L = Math.hypot(x, y, z) || 1;
+    return [x / L, y / L, z / L];
+  };
   for (const [k, faces] of byMat) {
-    const pos = [], fa = [];
+    const pos = [], fa = [], nor = [];
     for (const f of faces) {
       const p = f.v.map(i => m.V[i]);
-      for (let t = 1; t + 1 < p.length; t++)
-        for (const q of [p[0], p[t], p[t + 1]]) {
+      for (let t = 1; t + 1 < p.length; t++) {
+        const idx = [0, t, t + 1];
+        const fn = f.n ? null : triN(p[0], p[t], p[t + 1]);
+        for (const j of idx) {
+          const q = p[j];
           pos.push(q[0], q[1], q[2]);
           const a = fld(q); fa.push(a[0], a[1], a[2], a[3]);
+          const n = fn || f.n[j];
+          nor.push(n[0], n[1], n[2]);
         }
+      }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.setAttribute('aStruct',
       new THREE.BufferAttribute(new Float32Array(fa), 4));
-    geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, tailMat(k)));
+    geo.setAttribute('normal',
+      new THREE.BufferAttribute(new Float32Array(nor), 3));
+    g.add(new THREE.Mesh(geo, tailMat(k, sec)));
   }
   return g;
 }
@@ -397,7 +464,8 @@ PAGE.post = ctx => {
     let zA = Infinity;
     for (const p of s.V) zA = Math.min(zA, p[2]);
     disp = FIN.finThicken(disp, { thick: P.finThick || 0.06,
-      thickTE: P.finThickTE, zHinge: m0.cutZ, zAftEnd: zA });
+      thickTE: P.finThickTE, zHinge: m0.cutZ, zAftEnd: zA,
+      rimN: P.tailRimN });
   }
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -414,7 +482,11 @@ PAGE.post = ctx => {
   for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
     const sub = part ? { V: disp.V, F: disp.F.filter(f => f.part === part) }
                      : disp;
-    const obj = wire ? finQuadWire(sub, bySec) : finMesh(sub, bySec);
+    // an UNCUT fin is all fin skin; the rudder is its own livery row only
+    // once it exists as its own surface
+    const obj = wire ? finQuadWire(sub, bySec)
+                     : finMesh(sub, bySec, part === 'rudder' ? 'finRud'
+                                                             : 'finSkin');
     if (part === 'rudder' && ex) obj.position.z = -ex;   // explode aft
     if (part === 'rudder') obj.name = 'edSurf_rud';       // G59
     group.add(obj);

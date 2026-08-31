@@ -358,6 +358,30 @@ function strutSkin(AF, zLo, zHi) {
 //   REFERENCED and not copied (the wing-split refactor owns that table); with
 //   no table in scope it degrades to a radiused blade of the same chord and
 //   thickness, which is still a streamline member and never a round bar.
+// WHICH WAY THE EAR REACHES, and it is exported because it is the whole of
+// the bug this function had (G108, the user: "there is a small gap between the
+// end of the struts and the metal plate they attach to, on both ends. There
+// shouldn't be, especially since the modeling is pretty detailed").
+//
+// `lug`'s tang does NOT follow the vector its signature calls `up`. `up` only
+// fixes the section's plane; the tang extends along the BINORMAL, axis x up.
+// Handing it the surface normal therefore threw both ears sideways at pin
+// height: measured in the fitting's own frame they spanned 39..71 mm off the
+// skin, against a doubler whose top face is at 7. Thirty-two millimetres of
+// daylight, at all four ends, and `stand * 0.92` — the number that was
+// supposed to plant the ear 4.4 mm off the skin, inside the plate — was being
+// spent in a direction where it bought nothing.
+//
+// With this, the same ear spans 4.4..70.6 mm and its root is buried in the
+// doubler. `lug` IS NOT TOUCHED: it is _gear_kit's, the entire undercarriage
+// is drawn with it, and that geometry is proven and accepted by the user. A
+// caller was handing it the wrong vector, and the caller is what changes.
+//
+// EXPORTED so GATE STRUT asserts the GENERATOR'S OWN ANSWER. A gate that
+// re-derived `crs(n, fore)` would be checking its own copy of the rule and
+// would stay green if this line were reverted.
+function strutClevisUp(K, n, fore) { return K.crs(n, fore); }
+
 function strutBuild(bags, AF, site, ends, opt) {
   const W = typeof window !== 'undefined' ? window : null;
   const K = W && W.GEAR_KIT, GG = W && W.GEAR_GEN;
@@ -407,11 +431,30 @@ function strutBuild(bags, AF, site, ends, opt) {
   // about the body's own long axis and nothing else — so an athwartships pin
   // would let it swing in the one direction a lift strut may not.
   const half = FIT.bladeT * 0.5 + FIT.lugT * 0.5 + 0.0015;
+  // THE EAR REACHES THE PLATE, AND FOR A YEAR IT DID NOT (G108, the user:
+  // "there is a small gap between the end of the struts and the metal plate
+  // they attach to, on both ends. There shouldn't be, especially since the
+  // modeling is pretty detailed").
+  //
+  // `stand * 0.92` was always the right number — it puts the ear's root
+  // 4.4 mm off the skin, inside a 7 mm doubler. It was being spent in the
+  // WRONG DIRECTION. `lug`'s tang does not follow the vector named `up`: `up`
+  // only fixes the section's plane, and the tang extends along the BINORMAL,
+  // `axis x up`. Passing the surface normal therefore threw the ear sideways
+  // at pin height, and the measured span off the skin was 39..71 mm against a
+  // plate whose top is at 7 — twenty-six millimetres of daylight, which is
+  // exactly what the user circled.
+  //
+  // MEASURED, NOT REASONED ABOUT (tools/_strut_probe.js): with `crs(n, fore)`
+  // the same ear spans 4.4..70.6 mm and lands in the plate. `lug` IS NOT
+  // TOUCHED: it is _gear_kit's, the whole undercarriage is drawn with it, and
+  // that geometry is proven and accepted. This is a caller passing the wrong
+  // vector, and the caller is the thing that changes.
   const clevis = (p, n, fore, stand) => {
     const ctr = K.off(p, n, stand);
     for (const e of [-1, 1])
-      K.lug(bags.alloy, K.off(ctr, fore, e * half), fore, n,
-            FIT.lugR, FIT.lugT, stand * 0.92);
+      K.lug(bags.alloy, K.off(ctr, fore, e * half), fore,
+            strutClevisUp(K, n, fore), FIT.lugR, FIT.lugT, stand * 0.92);
     K.bolt(bags.steel, K.off(ctr, fore, -(half + FIT.lugT * 0.5 + 0.004)),
            fore, FIT.pinR, FIT.pinShank);
     return ctr;
@@ -537,7 +580,7 @@ function padOn(bags, K, ctr, n0, fore, L, W, t, proj, FIT) {
 }
 
 const API = { STRUT_FIT, STRUT_BAND, strutBand,
-              strutSnap, strutSite, strutSkin, strutBuild };
+              strutSnap, strutSite, strutSkin, strutBuild, strutClevisUp };
 if (typeof window !== 'undefined') window.STRUT_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

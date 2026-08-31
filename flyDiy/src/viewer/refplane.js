@@ -61,19 +61,90 @@
 // extent is not measured from the ground. A height here would be a number that
 // does not mean what it says, and the panel reports it as measured rather than
 // checking it.
+//
+// `sit` IS THE GROUND ATTITUDE, in degrees nose-up, and it exists because a
+// payload is modelled in whatever attitude the modeller drew it in. Measured
+// off the lower convex hull of each payload (see refLowerHull), as the pitch
+// that puts the aeroplane's two contact patches on ONE plane:
+//
+//   PA-18   main wheel  x -1.85  y -1.347      tailwheel  x 3.22  y -0.262
+//           1.085 m apart over a 5.07 m base -> 12.09 deg nose-up
+//   C172    nose wheel  x -2.99  y  0.010      mains      x -1.25  y  0.016
+//           6 mm over 1.74 m -> 0.20 deg, i.e. drawn on the ground already
+//
+// That is the whole of the user's report: the Cub is drawn FUSELAGE-LEVEL, so
+// dropping its bounding box put the mains on the floor and left the tailwheel
+// a metre in the air. The C172 is the case the old formula was written for.
+// Declared here rather than derived at runtime, and GATE REF re-derives it
+// from the payload and holds the declaration to it — the same contract `pub`
+// has, for the same reason: a number nothing checks is a number that rots.
 var REF_PRESETS = [
   { key: 'none', name: '— none —', model: null },
   { key: 'pa18', name: 'Piper PA-18 Super Cub', model: 'pa18',
-    pub: { span: 10.73, len: 6.88 } },
+    pub: { span: 10.73, len: 6.88 }, sit: { pitch: 12.09 } },
   { key: 'c172', name: 'Cessna 172', model: 'c172',
-    pub: { span: 11.00, len: 8.28 } },
+    pub: { span: 11.00, len: 8.28 }, sit: { pitch: 0.20 } },
 ];
 
 // THE SIT. The reference's lowest point lands on the floor the build stands
 // on. `trim` is the user's own correction on top, and it is a separate term on
 // purpose: "sit on wheels" has to be able to zero it without losing the drop.
-function refSitY(bbMinY, scale, groundY, trim) {
-  return groundY - bbMinY * scale + (trim || 0);
+//
+// `lowY` is the lowest point AT THE ATTITUDE THE AEROPLANE IS IN — see
+// refLowestY. It used to be the authored box's own min y, which is only the
+// same thing for an aeroplane drawn sitting level on its wheels.
+function refSitY(lowY, scale, groundY, trim) {
+  return groundY - lowY * scale + (trim || 0);
+}
+
+// THE LOWER CONVEX HULL of the payload projected onto (x = fore/aft, y = up).
+// A pitch changes which point is lowest, and re-walking 120 000 vertices on
+// every pixel of a slider drag to find out would be silly — the minimum of a
+// linear functional over a point set is always attained ON THE HULL, so this
+// is computed once at build time and the runtime answer is a loop over ~30
+// points. Monotone chain, lower half only; returns [[x, y], ...] left to right.
+function refLowerHull(dec) {
+  var pts = [], g, p, i;
+  for (g in dec) {
+    p = dec[g].pos;
+    for (i = 0; i < p.length; i += 3) pts.push([p[i], p[i + 1]]);
+  }
+  if (!pts.length) return null;
+  pts.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+  var h = [];
+  var cross = function (o, a, b) {
+    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  };
+  for (i = 0; i < pts.length; i++) {
+    while (h.length >= 2 &&
+           cross(h[h.length - 2], h[h.length - 1], pts[i]) <= 0) h.pop();
+    h.push(pts[i]);
+  }
+  return h;
+}
+
+// THE LOWEST POINT AT A GIVEN ATTITUDE, in the payload's own units.
+// The model frame is x AFT, y UP, z LEFT, so a PITCH is a rotation about z —
+// which is what `place` applies. Nose-up positive means the nose (x negative)
+// rises, so the rotated height is y*cos - x*sin. At pitch 0 this is exactly
+// the old bb.min.y, which is what makes the change invisible for a payload
+// that really was drawn on its wheels.
+function refLowestY(hull, pitchDeg) {
+  if (!hull || !hull.length) return 0;
+  var t = (pitchDeg || 0) * Math.PI / 180;
+  var c = Math.cos(t), s = Math.sin(t), lo = 1e9, i, v;
+  for (i = 0; i < hull.length; i++) {
+    v = hull[i][1] * c - hull[i][0] * s;
+    if (v < lo) lo = v;
+  }
+  return lo;
+}
+
+// the declared ground attitude of a preset, in degrees nose-up. 0 for a preset
+// that declares none — which is the old behaviour, not a guess dressed up.
+function refSitPitch(preset) {
+  return (preset && preset.sit && typeof preset.sit.pitch === 'number')
+    ? preset.sit.pitch : 0;
 }
 
 // MATCH A DIMENSION. You know the aeroplane's span; the model measures
@@ -118,7 +189,8 @@ function refDecodedBox(dec) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { REF_PRESETS: REF_PRESETS, refSitY: refSitY,
                      refMatchScale: refMatchScale, refFmtLen: refFmtLen,
-                     refDecodedBox: refDecodedBox };
+                     refDecodedBox: refDecodedBox, refLowerHull: refLowerHull,
+                     refLowestY: refLowestY, refSitPitch: refSitPitch };
   return;
 }
 
@@ -218,8 +290,11 @@ function build(key) {
     body.add(mesh);
     meshes.push(mesh);
   }
+  // the hull is computed ONCE here, beside the box, for exactly the same
+  // reason the box is: `place` runs on every pixel of a slider drag.
   built = { key: key, model: pre.model, dec: dec, payload: payload,
-            box: refDecodedBox(dec), mats: mats, meshes: meshes };
+            box: refDecodedBox(dec), hull: refLowerHull(dec),
+            sitPitch: refSitPitch(pre), mats: mats, meshes: meshes };
   var m = M();
   if (m) m.group.add(body);
   applyFinish();
@@ -322,15 +397,27 @@ function place() {
   if (!built || !built.box) { g.visible = false; paintDims(); return; }
   g.visible = true;
   body.scale.setScalar(S.scale);
-  body.rotation.set(S.pitch * Math.PI / 180, 0, 0);
+  // A PITCH IS A ROTATION ABOUT Z, and it was about X. The model frame is
+  // x AFT, y UP, z LEFT (refDecodedBox says so: length is x, span is z), so
+  // rotation.x turns the wings — the "pitch trim" slider was rolling the
+  // aeroplane. About z, and negated because +z points LEFT, so a positive
+  // rotation drops the nose and we want nose-up positive.
+  var pitch = built.sitPitch + S.pitch;
+  body.rotation.set(0, 0, -pitch * Math.PI / 180);
   g.rotation.set(0, S.yaw * Math.PI / 180, 0);
   // The model frame is x AFT, so its nose already points at -x — the door, the
   // way the game craft noses. That is why this mount has NO base yaw where the
   // editor's own has -PI/2: the cage builds z-forward and has to be turned;
   // an imported aeroplane does not.
   // fore/aft is therefore the room's -x, and lateral is z.
+  // AND THE DROP FOLLOWS THE ATTITUDE. Dropping the AUTHORED box's floor is
+  // only right for a payload drawn sitting level on its wheels; the Cub is
+  // drawn fuselage-level, so that put its mains down and its tailwheel a
+  // metre up (user, 2026-08-31: "the piper cub reference plane is not resting
+  // on its wheels").
   g.position.set(-S.fore,
-                 refSitY(built.box.min[1], S.scale, m.groundY(), S.trim),
+                 refSitY(refLowestY(built.hull, pitch), S.scale,
+                         m.groundY(), S.trim),
                  S.lat);
   drawBox();
   paintDims();
@@ -541,13 +628,20 @@ function buildPanel() {
   slider(host, 'yaw', -180, 180, 1, 0,
     function () { return S.yaw; }, function (v) { S.yaw = v; },
     function (v) { return v.toFixed(0) + '°'; });
+  // A TRIM, and now it says so: the preset's declared attitude is the zero,
+  // and this is the correction on top for a model drawn slightly off.
   slider(host, 'pitch trim', -15, 15, 0.1, 0,
     function () { return S.pitch; }, function (v) { S.pitch = v; },
     function (v) { return v.toFixed(1) + '°'; });
   var pb = el('div', 'refBtns');
+  // THE BUTTON'S NAME IS TRUE NOW. Both of these are TRIMS ON the preset's
+  // declared ground attitude, so zeroing them returns the aeroplane to the
+  // attitude it actually parks in — which for a taildragger is not level.
+  // Before the attitude was declared, zeroing `pitch` was the very move that
+  // lifted the Cub's tailwheel off the floor.
   pill(pb, 'sit on wheels', function () {
     S.trim = 0; S.pitch = 0; save(); rebuildPanel();
-  }, 'Drop it back onto the floor your build stands on, and zero the trims');
+  }, 'Back onto the floor your build stands on, in its own parked attitude');
   pill(pb, 'snap to nose', function () {
     var m = M(), bb = m && m.buildBox && m.buildBox();
     if (!bb || !built) return;

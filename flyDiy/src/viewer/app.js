@@ -45,10 +45,92 @@
   // the sheeting and under the eaves. It is a CLAMP, not a collision: the
   // orbit still goes all the way round, it just slides along the wall when the
   // radius would take it through.
+  // ---- INSIDE THE AEROPLANE (G107) --------------------------------------
+  // `edEye` is the pilot's own eye point, or null. When it is set the orbit
+  // pivots about a point a short way in FRONT of the eyes rather than about
+  // the whole build's bounding centre, so turning the mouse reads as looking
+  // around from the seat — which is the closest an orbit camera gets to a
+  // head, and app.js's own G78 comment said so and left it unbuilt.
+  //
+  // THREE CLAMPS COME OFF WITH IT, and each was right for the thing it was
+  // written about and wrong here: the polar limit (an exterior subject is
+  // never looked at from underneath), the 4 m minimum radius (an exterior
+  // subject is never that close), and the ROOM clamp — which keeps the eye
+  // off the shed's walls and would happily push a camera that is already
+  // inside a fuselage out through one. The user asked to "let the mouse orbit
+  // freely" and this is what was stopping it.
+  //
+  // THE NEAR PLANE MOVES TOO. It is 0.5 m for a hangar, which is further away
+  // than the instrument panel.
+  let edEye = null;
+  const CAM_NEAR = 0.5, EYE_NEAR = 0.035, EYE_PIVOT = 0.35;
+  const edEyeOn = () => !!edEye;
+  function setNear(n) {
+    if (camera.near === n) return;
+    camera.near = n;
+    camera.updateProjectionMatrix();
+  }
+  // the pilot's own head, hidden while you are looking out of it. The crew
+  // layer hands the bones over (window.CAGE_CREW_EYE) rather than this file
+  // learning a skeleton, and the layer is rebuilt on every edit — so what is
+  // remembered is the flag, and it is re-applied from the live list.
+  let edHidHeads = [];
+  function showHeads(on) {
+    for (const h of edHidHeads) h.visible = on;
+    if (on) edHidHeads = [];
+  }
+  // NO PILOT, NO INTERIOR VIEW. The crew layer is a switch on the aeroplane,
+  // so the rail DISABLES the preset rather than this putting a camera at the
+  // origin and calling it a cockpit — see buildCamera, which asks the same
+  // published object.
+  //
+  // `aim` is the whole difference between entering and following. Entering
+  // points the camera where the pilot is looking; following must NOT, because
+  // the crew layer is rebuilt on every edit and re-aiming on every pixel of a
+  // slider drag would rip the view out of your hands.
+  function applyInterior(aim) {
+    const E = window.CAGE_CREW_EYE;
+    if (!E || !E.p) return false;
+    const eye = new THREE.Vector3().fromArray(E.p);
+    const fwd = new THREE.Vector3().fromArray(E.fwd || [0, 0, 1]);
+    if (fwd.lengthSq() < 1e-9) fwd.set(0, 0, 1);
+    fwd.normalize();
+    // THE PIVOT IS IN FRONT OF THE EYES, not at them. An orbit of radius zero
+    // has no direction to place a camera along and lookAt(self) is degenerate;
+    // a pivot an arm's length ahead puts the camera AT the eye to begin with
+    // and turns the aeroplane around you when you drag.
+    edEye = eye.clone().addScaledVector(fwd, EYE_PIVOT);
+    if (aim) {
+      // the inverse of placeCamera, so the first frame IS the pilot's view
+      // rather than a guess at it
+      const back = fwd.clone().negate();
+      elT = el = Math.asin(Math.max(-1, Math.min(1, back.y)));
+      azT = az = Math.atan2(back.z, back.x);
+      distT = dist = EYE_PIVOT;
+      edPan.set(0, 0, 0);
+    }
+    setNear(EYE_NEAR);
+    showHeads(true);                     // the previous build's, now stale
+    edHidHeads = (E.heads || []).filter(h => h && h.visible);
+    for (const h of edHidHeads) h.visible = false;
+    return true;
+  }
+  function enterInterior() { applyInterior(true); }
+  // the build changed under the camera: the eyes moved and the head that was
+  // hidden was thrown away with the rest of the layer
+  function refreshInterior() { if (edEye) applyInterior(false); }
+  function exitInterior() {
+    if (!edEye) return;
+    edEye = null;
+    showHeads(true);
+    setNear(CAM_NEAR);
+    distT = dist = 12; azT = az = -2.5; elT = el = 0.25;
+  }
   function placeCamera() {
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
         z = target.z + dist * Math.cos(el) * Math.sin(az);
+    if (edEye) { camera.position.set(x, y, z); camera.lookAt(target); return; }
     const room = inGarage && garageIsHangar() && hangar && hangar.dims;
     if (room) {
       // THE MARGIN IS THE NEAR PLANE, not a number (G62.5, user: "I often see
@@ -561,6 +643,8 @@
     // spot half-angle, and the colour temperature the fittings burn at.
     lampRig: () => (getHangar() && hangar.lampRig) ? hangar.lampRig() : null,
     setLampRig: p => (getHangar() && hangar.setLampRig) ? hangar.setLampRig(p) : null,
+    lampRigDefault: () => (getHangar() && hangar.lampRigDefault)
+      ? hangar.lampRigDefault() : null,
     lightOn: k => (getHangar() && hangar.lightOn) ? hangar.lightOn(k) : true,
     // THE MASTER SWITCH (user: "we need to be able to add lights one by one
     // from nothingness (all look black)"). One re-bake, one known state — as
@@ -583,6 +667,8 @@
     // one number in this rig that is a judgement: how much of a lit floor an
     // aeroplane standing on it can actually see. Changing it re-bakes.
     groundBounce: () => window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1,
+    groundBounceDefault: () => (window.LIGHT_RIG && window.LIGHT_RIG.groundBounceDefault)
+      ? window.LIGHT_RIG.groundBounceDefault() : null,
     setGroundBounce: v => {
       if (!window.LIGHT_RIG) return null;
       const g = window.LIGHT_RIG.setGroundBounce(v);
@@ -959,6 +1045,14 @@
           : A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
               grm: m.grm || '', struct: m.grm ? 1 : 0,
               opacity: op, fieldM: 1, surf: m.surf ? 1 : 0,
+              // THE FLOWN AEROPLANE IS PAINTED LIKE THE EDITOR'S (G108). Two
+              // arguments were missing and both mattered to the markings: the
+              // surface CLASS, without which every flown surface was a
+              // fuselage, and the LATERAL AXIS, which is z in the model frame
+              // and x in the cage — `uSideAxis` has documented that since G69
+              // and no caller ever passed it, so the far flank was mirrored
+              // about the wrong axis on everything that flew.
+              wing: m.wing || 0,
               side: THREE.DoubleSide });
       }
       const s = PBR[mn] || PBR._;
@@ -1678,11 +1772,16 @@
     const to = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
     ap.setRoute(aeroById(fromId), to);
   }
+  // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
+  // attempts, structured verdicts; the hand-built fleet keeps the classic
+  // autopilot, which is what its eleven gates are calibrated on.
+  const mkPilot = k => (k === 'gen' && typeof makeTestPilot === 'function')
+    ? makeTestPilot(sim, def, world) : makeAutopilot(sim, def, world);
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
     sim.reset(0);
-    ap = makeAutopilot(sim, def, world);
+    ap = mkPilot(key);
     applyRoute();
     nb = sim.beams.length;
     if (lines) { craft.remove(lines); lines.geometry.dispose(); }
@@ -1839,7 +1938,12 @@
       }
       if (layer) return { section: null, name, layer, point: h.point.toArray() };
     }
-    return null;
+    // THE RAY WAS CAST AND HIT NOTHING — which is an ANSWER, and a different
+    // one from the `null`s above. Those mean "not a question": the stand is
+    // not up, the canvas has no size, the pointer is outside the render. The
+    // editor deselects on a miss and must not deselect on a non-question, so
+    // the two are told apart here rather than guessed at over there.
+    return { miss: true, section: null, name: '', layer: '' };
   }
   // A CLICK IS NOT A DRAG. The same button orbits the camera, so a pick only
   // happens when the pointer barely moved and did not linger — otherwise
@@ -1886,12 +1990,15 @@
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 1) {
       azT += (e.clientX - px) * 0.006; elT += (e.clientY - py) * 0.006;
-      elT = Math.max(-0.05, Math.min(1.4, elT));
+      // inside, you can look at your own feet and straight up at the skylight
+      elT = edEyeOn() ? Math.max(-1.45, Math.min(1.45, elT))
+                      : Math.max(-0.05, Math.min(1.4, elT));
       px = e.clientX; py = e.clientY;
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch0 > 0) distT = Math.max(4, Math.min(200, dist0 * pinch0 / Math.max(20, d)));
+      if (pinch0 > 0) distT = Math.max(edEyeOn() ? 0.12 : 4,
+        Math.min(edEyeOn() ? 3 : 200, dist0 * pinch0 / Math.max(20, d)));
     }
   });
   // leaving the render clears the hover: a tint that outlives the pointer
@@ -1902,7 +2009,11 @@
   });
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
-    distT = Math.max(4, Math.min(120, distT * (1 + e.deltaY * 0.001)));
+    // ONE PAIR OF BOUNDS, not two. The wheel said [4, 120] and the pinch said
+    // [4, 200], which is a difference nobody chose; they agree now, and both
+    // shrink to a cabin's worth of travel when the camera is inside one.
+    distT = edEyeOn() ? Math.max(0.12, Math.min(3, distT * (1 + e.deltaY * 0.001)))
+                      : Math.max(4, Math.min(120, distT * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
   // ================= phase rail =================
@@ -2024,8 +2135,69 @@
         `touchdown ${ap.tdInfo.sink.toFixed(2)} m/s · ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h · ` +
         `${Math.abs(ap.tdInfo.z).toFixed(1)} m off centreline`;
       logFlight();
+    } else if (ap.phase === 'STOPPED' && ap.report) {
+      // G107: a flight the TEST PILOT refused has no touchdown — the summary
+      // carries the pilot's own words instead of staying blank, and the
+      // refusal is logged as what it is.
+      const v = ap.report.verdicts;
+      $('tsum').textContent = (ap.report.outcome || 'stopped') +
+        (v.length ? ' — ' + v[v.length - 1].note : '');
+      logFlight();
+    }
+    // THE ARRIVAL CARD (G107.2): shown ONCE per stop, gone the moment the
+    // phase moves on (a new leg, a reset, a fresh roll) — so `nextLeg` and
+    // `departFrom` dismiss it by flying, with no extra wiring.
+    if (ap.phase === 'STOPPED' && !arrivalShown && (ap.tdInfo || ap.report)) {
+      arrivalShown = true; showArrival();
+    } else if (ap.phase !== 'STOPPED' && arrivalShown) {
+      arrivalShown = false; $('arrCard').hidden = true;
     }
   }
+  // THE ARRIVAL CARD (G107.2). The flight's ending, said to the player's
+  // face: until now `tdInfo` rendered only inside a telemetry panel that
+  // fullReset() closes, so the one thing a flight produced was behind a
+  // button nobody had pressed. The card reads the TEST PILOT's report when
+  // there is one (outcome, landing, card, verdicts) and falls back to the
+  // fleet autopilot's tdInfo — both pilots get an ending. The landing run
+  // for the fleet pilot is computed HERE, display-only, from the same frame
+  // numbers both pilots publish (`dbg.s` now vs `tdInfo.x` at touch).
+  let arrivalShown = false;
+  function showArrival() {
+    const el = $('arrCard');
+    if (!el) return;
+    const rep = ap.report || null, td = ap.tdInfo;
+    const outcome = rep ? (rep.outcome || 'stopped') : (td ? 'completed' : 'stopped');
+    $('arrTitle').textContent = outcome === 'completed' ? 'ARRIVED'
+      : String(outcome).toUpperCase().replace(/-/g, ' ');
+    el.classList.toggle('bad', outcome !== 'completed');
+    const rows = [];
+    const row = (l, v) => rows.push('<div><span>' + l + '</span><b>' + v + '</b></div>');
+    const L = rep && rep.landing;
+    if (td) {
+      row('touchdown', td.sink.toFixed(2) + ' m/s · ' + (td.V * 3.6).toFixed(0) + ' km/h');
+      row('off centreline', Math.abs(td.z).toFixed(1) + ' m');
+      row('landing run', Math.round(L ? L.run
+        : Math.abs((ap.dbg.s ?? td.x) - td.x)) + ' m');
+      row('past the aim', Math.round(L ? L.pastAim : td.x - ap.xAim) + ' m');
+    }
+    const cd = rep && rep.card;
+    if (cd && (cd.alt != null || cd.V != null)) {
+      const f = (a, v) => [a != null ? Math.round(a) + ' m' : null,
+                          v != null ? Math.round(v * 3.6) + ' km/h' : null]
+        .filter(Boolean).join(' · ');
+      row('test card', f(cd.alt, cd.V));
+      row('held', (cd.altFlown != null || cd.VFlown != null)
+        ? f(cd.altFlown, cd.VFlown) : 'never settled on the leg');
+    }
+    $('arrRows').innerHTML = rows.join('');
+    $('arrNotes').innerHTML = rep && rep.verdicts.length
+      ? rep.verdicts.map(v => '<i>' + v.t + ' s · ' + v.note + '</i>').join('')
+      : '';
+    // the hangar is only a place for YOUR aeroplane; a fleet fiche flies again
+    $('bHangar').style.display = curKey === 'gen' ? '' : 'none';
+    el.hidden = false;
+  }
+
   // THE LOGBOOK'S OTHER HALF (G65). The bench writes what a build was TESTED
   // for; this writes what it has actually done. A stub, deliberately — P6 grows
   // it into the fleet rack — but a flight that leaves no trace is why an
@@ -2039,12 +2211,20 @@
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
       const t = ap.tdInfo;
-      G.log().flights.push({
-        from: fromId, to: destId,
-        sink: +t.sink.toFixed(2), V: +(t.V * 3.6).toFixed(0),
-        off: +Math.abs(t.z).toFixed(1),
-      });
-      if (G.note) G.note({ id: 'flight', verdict: 'arrived', ok: true });
+      if (t) {
+        G.log().flights.push({
+          from: fromId, to: destId,
+          sink: +t.sink.toFixed(2), V: +(t.V * 3.6).toFixed(0),
+          off: +Math.abs(t.z).toFixed(1),
+        });
+        if (G.note) G.note({ id: 'flight', verdict: 'arrived', ok: true });
+      } else if (ap.report && ap.report.outcome) {
+        // G107: the test pilot refused the flight — that is a logbook row too
+        G.log().flights.push({ from: fromId, to: destId,
+                               outcome: ap.report.outcome });
+        if (G.note) G.note({ id: 'flight', verdict: ap.report.outcome,
+                             ok: false });
+      }
     } catch (e) {}
   }
 
@@ -2077,6 +2257,54 @@
     return daVal;
   };
   const densAltIfRun = () => (daFor === def ? daVal : null);
+
+  // THE TEST FLIGHT (G107) — the bench row the roadmap has carried since G64,
+  // finally with a `run`: a SECOND sim flies the whole circuit on the TEST
+  // PILOT, fast-stepped and offscreen, and brings back the LANDING RUN plus
+  // the pilot's own report. IN PAGE, per the row's declared decision — the
+  // game already runs this exact sim in the browser. Stepping is budgeted by
+  // WALL CLOCK per poll (not by step count) so a heavy build slows the test
+  // down instead of freezing the panel. Memoised on `def` like the two sheets
+  // above: a rebuild takes the flight away with the rest of the certificate.
+  let tf = null, tfFor = null, tfVal = null;
+  const tfIfRun = () => (tfFor === def ? tfVal : null);
+  // `card` (G107.1): { alt: metres, Vkmh: km/h } from the bench's own two
+  // fields — units convert HERE, at the UI boundary; the pilot speaks SI.
+  function tfStart(card) {
+    const s2 = makeSim(def, world);
+    s2.reset(0);
+    for (let i = 0; i < 600; i++) s2.step(1 / 60);   // parked settle
+    const pilot = (typeof makeTestPilot === 'function')
+      ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
+    if (pilot.setCard && card && (card.alt || card.Vkmh))
+      pilot.setCard({ alt: card.alt || NaN,
+                      V: card.Vkmh ? card.Vkmh / 3.6 : NaN });
+    // the budget grows with the card's climb; give the runner the same slack
+    tf = { sim: s2, ap: pilot, t: 0, maxS: (pilot.budget || 420) + 60, def };
+  }
+  function tfPoll() {
+    if (!tf) return null;
+    const t0 = performance.now();
+    let fin = null;
+    while (performance.now() - t0 < 60 && !fin) {
+      for (let i = 0; i < 60; i++) {
+        tf.ap.update(1 / 60); tf.sim.step(1 / 60); tf.t += 1 / 60;
+        if (tf.sim.stats().bad) { fin = { bad: true }; break; }
+        if ((tf.ap.phase === 'STOPPED' && tf.ap.t > 5) || tf.t > tf.maxS) {
+          fin = {}; break;
+        }
+      }
+    }
+    if (!fin) return { phase: tf.ap.phase, t: tf.t,
+                       frac: Math.min(1, tf.t / 300) };
+    const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
+    if (fin.bad) rep.outcome = 'broke-up';
+    else if (!rep.outcome) rep.outcome = 'gave-up';
+    tfFor = tf.def; tfVal = { report: rep, t: tf.t };
+    tf = null;
+    return { done: true, report: rep, t: tfVal.t };
+  }
+  function tfEnd() { tf = null; }
 
   // ---- THE PLAQUE (P3) -------------------------------------------------
   // The aeroplane's own measured numbers, posted where it was built.
@@ -2162,6 +2390,43 @@
       R('service ceiling', cap(da.serviceCeiling),
         (da.serviceCeiling != null && da.serviceCeiling < 500) ? 'warn' : '');
       R('absolute ceiling', cap(da.absCeiling));
+    }
+    // ON THE TEST FLIGHT (G107) — only when the test-pilot circuit has been
+    // flown on THIS build; the landing run is a number nothing else computes.
+    const tfr = tfIfRun();
+    if (tfr && tfr.report) {
+      const rep = tfr.report, L = rep.landing;
+      H('on the test flight');
+      R('outcome', rep.outcome || '—',
+        rep.outcome === 'completed' ? '' : 'bad');
+      if (L) {
+        R('landing run', n1(L.run, 0) + ' m',
+          (L.run || 0) > 500 ? 'warn' : '');
+        R('touchdown', n1(L.sink, 2) + ' m/s · ' + n1(L.V * 3.6, 0) + ' km/h',
+          (L.sink || 0) > 1.8 ? 'warn' : '');
+        R('past the aim', n1(L.pastAim, 0) + ' m',
+          Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
+      }
+      // the TEST CARD (G107.1): what was asked, what was flown — the flown
+      // means from the settled cruise leg, judged against the ask
+      const cd = rep.card;
+      if (cd && (cd.alt != null || cd.V != null)) {
+        const ask = [cd.alt != null ? n1(cd.alt, 0) + ' m' : null,
+                     cd.V != null ? n1(cd.V * 3.6, 0) + ' km/h' : null]
+          .filter(Boolean).join(' · ');
+        R('test card', ask);
+        const short = (cd.alt != null && cd.altFlown != null
+                        && cd.altFlown < cd.alt * 0.93)
+                   || (cd.V != null && cd.VFlown != null
+                        && cd.VFlown < cd.V * 0.93);
+        const flew = [cd.altFlown != null ? n1(cd.altFlown, 0) + ' m' : null,
+                      cd.VFlown != null ? n1(cd.VFlown * 3.6, 0) + ' km/h' : null]
+          .filter(Boolean).join(' · ');
+        R('held', flew || '— never settled on the leg', short || !flew ? 'warn' : '');
+      }
+      if (rep.verdicts.length)
+        R('pilot notes', rep.verdicts.length + ' — ' +
+          rep.verdicts[rep.verdicts.length - 1].code, 'warn');
     }
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
@@ -2619,9 +2884,23 @@
     }
     started = true;
   };
+  // THE ARRIVAL CARD's two ways onward (G107.2). "Fly again" is the whole of
+  // the old bGo-is-dead-after-landing dead-end fixed: reset AND go. The
+  // hangar door only shows for the garage build (showArrival hides it for a
+  // fleet fiche — the hangar is a place for YOUR aeroplane).
+  if ($('bAgain')) $('bAgain').onclick = () => {
+    $('arrCard').hidden = true;
+    fullReset();
+    started = true;
+  };
+  if ($('bHangar')) $('bHangar').onclick = () => {
+    $('arrCard').hidden = true;
+    enterGarage();
+    openEditor();
+  };
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
-    sim.reset(0); ap = makeAutopilot(sim, def, world); applyRoute(); started = false; running = true;
+    sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
     lastPhase = 'ROLL'; telBase = 0; flightLogged = false;
@@ -2786,8 +3065,12 @@
     if (!b || !inGarage) return;
     const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE()
                                                           : null;
+    // G107.1: "untested" was accusing TESTED aeroplanes — a build whose test
+    // flight was refused read "Roll out untested", which is the one thing it
+    // is not. Three states, three sentences: never a lock, ever.
     const untested = st && !st.passed;
-    b.textContent = untested ? 'Roll out untested' : 'Roll out & fly';
+    b.textContent = !untested ? 'Roll out & fly'
+      : st.any ? 'Roll out — not passed' : 'Roll out untested';
     b.classList.toggle('warn', !!untested);
     // ...and the verb in the view says the same thing (G78). Two buttons, one
     // sentence: the bottom bar's is what the game has always had and is hidden
@@ -2802,6 +3085,7 @@
 
   window.CAGE_ON_BUILD = () => {
     placeEditor();
+    refreshInterior();
     if (typeof window.BENCH_DIRTY === 'function') window.BENCH_DIRTY();
   };
   // THE EDITOR OPENS ON THE BUILD YOU LOADED (G63). It never did: the boot
@@ -2964,7 +3248,7 @@
       const cur = (ap.route && ap.route.to) || aeroById(fromId);
       if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
       telBase += ap.t;                 // new AP restarts its clock at 0
-      ap = makeAutopilot(sim, def, world);
+      ap = mkPilot(curKey);
       ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
     }
   }
@@ -3172,10 +3456,6 @@
     // the plaque is app.js's to draw (it needs `def`); the bench decides WHEN
     plaque: on => { plaqueLive = !!on; drawPlaque(); },
     // a LIVE test steps the physics model, so it has to be the thing on
-    // screen: while the editor panel is open the visible aeroplane is the
-    // cage build, and watching the wing bend IS the wing test. The join has
-    // just run, so the model wears the build's own snapshot either way.
-    // a LIVE test steps the physics model, so it has to be the thing on
     // screen: the aeroplane standing in the room is normally the cage build,
     // and watching the wing bend IS the wing test. Restoring is applyStand's
     // job, so there is one answer to "what is on the stand" and not two.
@@ -3183,6 +3463,11 @@
       showCage = !on && !!window.CAGE_UI && inGarage;
       applyStand();
     },
+    // THE TEST FLIGHT (G107): the offscreen fast circuit on the test pilot;
+    // the bench's card ({alt, Vkmh}) rides in (G107.1)
+    circuitStart: card => tfStart(card),
+    circuitPoll: () => tfPoll(),
+    circuitEnd: () => tfEnd(),
     // the export the bench needs before it measures anything — the same one
     // rolling out uses, so a test and a flight can never read different builds
     sync: () => syncBuild(),
@@ -3215,16 +3500,13 @@
     // the room's long axis, door end), so az = PI looks it in the nose and
     // az = 0 sits behind the tail.
     camera: k => {
+      if (k !== 'i') exitInterior();
       if (k === 'r') { edPan.set(0, 0, 0); distT = 14; azT = -2.5; elT = 0.22; return; }
       if (k === 'q') { azT = -2.5; elT = 0.25; distT = 12; edPan.set(0, 0, 0); }
       if (k === 's') { azT = -Math.PI / 2; elT = 0.06; distT = 13; edPan.set(0, 0, 0); }
       if (k === 't') { azT = -Math.PI / 2; elT = 1.35; distT = 15; edPan.set(0, 0, 0); }
       if (k === 'f') { azT = Math.PI; elT = 0.10; distT = 10; edPan.set(0, 0, 0); }
-      // COCKPIT is an approximation and says so: the orbit camera cannot sit
-      // at the eye point, so this is the closest it gets — in tight, low, and
-      // looking forward over the cabin. A real eye-point view wants the crew
-      // layer's own marker and a camera that is not an orbit.
-      if (k === 'i') { azT = 0.12; elT = 0.16; distT = 4.4; edPan.set(0, 0, 0); }
+      if (k === 'i') enterInterior();
     },
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
@@ -3313,6 +3595,7 @@
     // the editor's pan offset rides on top (G41)
     if (edSit.visible) target.copy(edTarget).add(edPan);
     else target.set(cg[0], cg[1], cg[2]);
+    if (edEye) { if (edSit.visible) target.copy(edEye); else exitInterior(); }
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
     az += (azT - az) * 0.28; if (Math.abs(azT - az) < 1e-4) az = azT;

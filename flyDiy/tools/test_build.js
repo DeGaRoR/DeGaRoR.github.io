@@ -44,6 +44,13 @@ vm.createContext(pageBox);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '_cage_page5.js'), 'utf8'),
                 pageBox, { filename: '_cage_page5.js' });
 const CAGE_PAGE = pageBox.window.CAGE_PAGE;
+// The game never runs without `window.CAGE_PAGE`, and since G106 the cage
+// boundary reads the page's `defaults` (THE DEFAULT AEROPLANE) lazily as the
+// layer keys' declared baseline — so the harness publishes the page where
+// CAGE2's own scope will find it, or every conversion below would exercise
+// the pageless fallback the game never takes. (Layers are not loaded here,
+// exactly as before; the baseline is the page's own declaration.)
+global.window = { CAGE_PAGE };
 
 // ---------------------------------------------------------------------------
 // The shelf, running for real. Minimal DOM + a localStorage that behaves like
@@ -330,6 +337,209 @@ function nullPaths(o, pre, out) {
   ok(store.getItem('flydiy.build.working') != null, 'the named slot is written');
   ok(SHELF.list().indexOf('working') >= 0, 'and the shelf lists it');
   ok(SHELF.log().built, 'saving stamps the logbook stub with a build date');
+}
+
+// ---------------------------------------------------------------------------
+// H. THE FINISH BELONGS TO THE AEROPLANE (G105). Two properties, and each of
+// them is a way a builder silently loses their paint.
+//
+// THE MIGRATION IS A NO-OP, BY CONSTRUCTION. `finish` is null by default, so
+// every aeroplane saved before it existed normalises to "no overrides" — which
+// is what it meant. That is why GEN_SPEC_V does not move for this field, and
+// this block is the assertion standing behind that sentence. (The 5 -> 6 bump
+// is the ENERGY MODULE's; see tools/_energy_base.js.)
+// ---------------------------------------------------------------------------
+{
+  ok(GEN_DEFAULT.finish === null,
+     'the factory finish is null — a spec that says nothing gets the ' +
+     'aeroplane its construction implies');
+  const old = clone(GEN_DEFAULT);
+  delete old.finish;                       // a spec written before the field
+  ok(genNormaliseSpec(old).finish === null,
+     'a spec from before the field normalises to the factory finish');
+
+  const FIN = { sections: { body: { fin: 'ply', tint: 0xC8B48A, tile: 1.4 },
+                            waistband: { rough: 0.8 } },
+                wear: 0.35, decals: { regH: 0.42, regTarget: 2 } };
+  const kept = genNormaliseSpec(Object.assign(clone(GEN_DEFAULT),
+                                              { finish: clone(FIN) })).finish;
+  ok(eq(kept, FIN),
+     'a finish rides through normalise verbatim — aeroskin.js owns which ' +
+     'names and ranges are real, not this level');
+  ok(C.clampSpec(Object.assign(clone(GEN_DEFAULT), { finish: 7 })).finish === null,
+     'clampSpec nulls a truthy non-object finish, the way it does the cage');
+  ok(eq(C.clampSpec(Object.assign(clone(GEN_DEFAULT),
+                                  { finish: clone(FIN) })).finish, FIN),
+     '...and leaves a real one alone');
+}
+
+// ---------------------------------------------------------------------------
+// H2. THE JOIN CARRIES IT, and carries a NULL. The finish rides out of the
+// editor beside the shape, through `cageJoinSpec`'s measurement bag — and the
+// null has to travel, unlike the shape's. `if (M.cage)` is right for a shape
+// because there is no such thing as an aeroplane with no shape; the finish's
+// null MEANS something ("stripped back to the factory"), so skipping it makes
+// that indistinguishable from "not measured" and a painted build could never
+// go back to plain.
+// ---------------------------------------------------------------------------
+{
+  const F = { sections: { body: { tint: 0x445566 } } };
+  ok(eq(cageJoinSpec(CAGE_PAGE.defaults, { finish: clone(F) }, {}).finish, F),
+     'the join writes the finish onto the build');
+  ok(cageJoinSpec(CAGE_PAGE.defaults, { finish: null }, {}).finish === null,
+     '...and writes the NULL, so paint can be stripped off again');
+  ok(!('finish' in cageJoinSpec(CAGE_PAGE.defaults, {}, {})),
+     '...and says nothing at all when nothing measured it');
+}
+
+// ---------------------------------------------------------------------------
+// I. AN OVERRIDE CAN BE TAKEN OFF AGAIN — the bug with teeth.
+//
+// The finish is written as DEVIATIONS, so "this section has no tint any more"
+// is said by the section's ABSENCE. `merge` deep-merges every other plain
+// object in the spec, which for this one field would mean a tint could be put
+// on and never removed: the build & fly after you cleared it would merge the
+// cleared object over the old one and put the tint straight back. So `finish`
+// replaces as a whole, and this is the check that says so.
+// ---------------------------------------------------------------------------
+{
+  SHELF.set(Object.assign(clone(GEN_DEFAULT), {
+    finish: { sections: { body: { tint: 0x112233 }, joint: { fin: 'ply' } },
+              wear: 0.4 } }));
+  SHELF.update({ finish: { sections: { body: { tint: 0x445566 } } } });
+  const a = SHELF.get().finish;
+  ok(a.sections.body.tint === 0x445566, 'a changed tint is the new one');
+  ok(!a.sections.joint, '...and a section whose override was cleared is GONE');
+  ok(a.wear === undefined, '...and so is a wear that went back to zero');
+  SHELF.update({ finish: null });
+  ok(SHELF.get().finish === null,
+     'and stripping the aeroplane back to the factory finish sticks');
+}
+
+// ---------------------------------------------------------------------------
+// J. THE LOAD PATH FORGETS FIRST. Read off the source, the way GATE SKINMAT
+// reads aeroskin.js, because no node harness boots `_cage_ui.js` (it is the
+// one file in that set that needs a document) and this is the single line that
+// makes the whole feature true: `applySpec` must call `finishFromSpec`
+// UNCONDITIONALLY. Guarded — `if (spec.finish)` — it reads like a safe tidy-up
+// and quietly restores the bug, because the previous aeroplane's paint is then
+// left sitting under the new one.
+// ---------------------------------------------------------------------------
+{
+  const src = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
+  const at = src.indexOf('function applySpec(');
+  const body = at < 0 ? '' : src.slice(at, src.indexOf('\n}', at));
+  ok(/finishFromSpec\(spec && spec\.finish\)/.test(body),
+     'applySpec applies the finish on every load, guarded only against a ' +
+     'null spec');
+  ok(!/if\s*\([^)]*spec\.finish[^)]*\)\s*finishFromSpec/.test(body),
+     '...and NOT only when the file happens to carry one');
+  ok(/finishToSpec,\s*finishFromSpec/.test(src),
+     'both halves are published on window.CAGE_UI');
+}
+
+// ---------------------------------------------------------------------------
+// K. THE VINTAGE SHELF (G106). Ruling 4's second half, finally: "the battery
+// keeps one old build of each vintage as a loading gate." tools/fixtures/
+// holds one FROZEN save per vintage — real files, not synthesised shapes, so
+// a change that breaks an old save breaks here first. The v5 fixture was
+// deliberately frozen BEFORE the boundary fix, so it carries the fat
+// 518-key `spec.cage` that vintage really wrote: the fat save must load
+// forever, and re-save SLIM without the aeroplane changing under it.
+// ---------------------------------------------------------------------------
+{
+  const dir = path.join(__dirname, 'fixtures');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort();
+  ok(files.length >= 2, 'there are vintage fixtures to load (' +
+     files.length + ')');
+  for (const f of files) {
+    const raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    const bare = raw && raw.what === 'flydiy-build' ? raw.spec : raw;
+    let spec = null, threw = null;
+    try { spec = genNormaliseSpec(bare); C.resolveSpec(spec); }
+    catch (e) { threw = e; }
+    ok(!threw && spec && spec.v === GEN_SPEC_V,
+       'vintage ' + f + ' loads and lands on v' + GEN_SPEC_V +
+       (threw ? ' (' + threw.message + ')' : ''));
+    if (!spec || !spec.cage) continue;
+    // the fat-vintage theorem: load, re-bake, re-load — same aeroplane,
+    // smaller file. Negative half: the shrink must be REAL, or the boundary
+    // fix has quietly stopped comparing.
+    const P1 = CAGE2.cageFromSpec(spec);
+    const slim = CAGE2.cageToSpec(P1) || {};
+    const P2 = CAGE2.cageFromSpec({ cage: slim });
+    const drift = Object.keys(P1).filter(k =>
+      !(k in CAGE2.CAGE_VIEW_KEYS) && !eq(P1[k], P2[k]));
+    ok(drift.length === 0, 'the fat ' + f + ' re-saves without the ' +
+       'aeroplane changing' + (drift.length ? ' (drifted: ' +
+       drift.slice(0, 5).join(', ') + ')' : ''));
+    const fat = Object.keys(spec.cage).length,
+          thin = Object.keys(slim).length;
+    ok(thin < fat / 3, 'and the re-save is deviations, not a snapshot (' +
+       fat + ' keys -> ' + thin + ')');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// L. A BUILD CARRIES ITS DEVIATIONS — NOW TRUE FOR THE LAYERS TOO (G106).
+// The boundary's own invariant, measured: baking the default aeroplane writes
+// (nearly) nothing, deviating one layer key writes exactly that key, and with
+// the page's declaration REMOVED the same bake goes fat again — which is the
+// negative proof that the comparison runs against the declaration and not
+// against luck.
+// ---------------------------------------------------------------------------
+{
+  const full = () => Object.assign(CAGE2.cageDefaults(), clone(CAGE_PAGE.defaults));
+  const baked = CAGE2.cageToSpec(full()) || {};
+  const nBase = Object.keys(baked).length;
+  ok(nBase < 60, 'the default aeroplane bakes to its cage deviations alone (' +
+     nBase + ' keys, all vs CAGE_PARAMS)');
+  ok(Object.keys(baked).every(k => k in CAGE2.CAGE_PARAMS),
+     '...and every one of them is a declared cage key, no layer snapshot');
+  const dev = full(); dev.finThick = 0.123;         // a layer (fin) key
+  const baked2 = CAGE2.cageToSpec(dev) || {};
+  ok(baked2.finThick === 0.123 &&
+     Object.keys(baked2).length === nBase + 1,
+     'deviating one layer key writes that key and nothing else');
+  const held = global.window; global.window = undefined;   // negative half
+  const fat = CAGE2.cageToSpec(full()) || {};
+  global.window = held;
+  ok(Object.keys(fat).length > 300,
+     'negative: with no page declaration in scope the same bake is fat again (' +
+     Object.keys(fat).length + ' keys)');
+}
+
+// ---------------------------------------------------------------------------
+// M. THE MIGRATOR WALK EXISTS BEFORE ITS FIRST ENTRY (G106). GEN_MIGRATORS is
+// empty on purpose — the version note forbids a migration that re-does what
+// normalisation does — so the WALK is exercised with throwaway entries
+// injected here and removed after: the v6 bump (the energy arc's) must land
+// in a machine that is already proven to run its steps in order, stamp the
+// version, and leave current and future saves alone.
+// ---------------------------------------------------------------------------
+{
+  const MIG = C.GEN_MIGRATORS;
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).length === 0,
+     'the migrator table exists and is empty (nothing to migrate today)');
+  const ran = [];
+  MIG[3] = s => { ran.push(3); if (s.oldName) s.newName = s.oldName; return s; };
+  MIG[4] = s => { ran.push(4); return s; };
+  const out = genNormaliseSpec({ v: 3, cabin: {}, oldName: 'carried' });
+  ok(ran.join(',') === '3,4', 'a v3 spec walks 3 then 4, in order');
+  ok(out.v === GEN_SPEC_V, '...and lands stamped v' + GEN_SPEC_V);
+  ok(out.newName === 'carried',
+     '...and a migrator saw the RAW old shape (its rename took)');
+  ran.length = 0;
+  genNormaliseSpec({ v: GEN_SPEC_V, cabin: {} });
+  ok(ran.length === 0, 'a current spec walks nothing');
+  delete MIG[3]; delete MIG[4];
+  const v4 = genNormaliseSpec({ v: 4, cabin: {} });
+  ok(v4.v === GEN_SPEC_V,
+     'an old vintage is stamped current even with an empty table');
+  const fut = genNormaliseSpec({ v: 99, cabin: {} });
+  ok(fut.v === 99,
+     'a FUTURE spec keeps its claim — this build does not lie about ' +
+     'understanding it');
 }
 
 console.log('');

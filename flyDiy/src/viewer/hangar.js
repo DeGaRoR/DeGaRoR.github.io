@@ -2259,7 +2259,14 @@ const lamps = [];
 // the 0xffd9a0 these lamps have always burned at (255,207,167 against
 // 255,217,160, twelve counts out of 255 apart), so opening the slider does not
 // move the room.
-const LAMP = { gain: 1, angle: 0.62, kelvin: 4000, rgb: new THREE.Color(0xffd9a0) };
+// SPREAD DEFAULT: 135 DEGREES OF FULL CONE (user, 2026-08-31). The stored
+// number is the SpotLight's half-angle in radians, which is what three.js
+// wants and what the datasheet does not: 135 deg full cone = 135*PI/360 =
+// 1.178097 rad. It was 0.62 (71 deg full), a tighter pool of light that put
+// the shed's floor in five discs with dark between them. Inside setLampRig's
+// own [0.10, 1.30] clamp and inside the slider's 20..140 range, both checked.
+const LAMP = { gain: 1, angle: 1.178097, kelvin: 4000,
+               rgb: new THREE.Color(0xffd9a0) };
 const kelvinRGB = (K, out) => {
   const t = Math.max(10, Math.min(400, K / 100));
   let r, g, b;
@@ -2591,6 +2598,12 @@ function setLampRig(p) {
 }
 const lampRig = () => ({ gain: LAMP.gain, angle: LAMP.angle, kelvin: LAMP.kelvin,
                          hex: LAMP.rgb.getHex() });
+// THE RESTING VALUES, PUBLISHED. The editor's three lamp knobs are hand-built
+// rows with no DEFAULTS table behind them, so "double-click to reset" has to
+// read the default from the module that owns it rather than restate it.
+const LAMP_0 = { gain: LAMP.gain, angle: LAMP.angle, kelvin: LAMP.kelvin };
+const lampRigDefault = () => ({ gain: LAMP_0.gain, angle: LAMP_0.angle,
+                                kelvin: LAMP_0.kelvin });
 
 function setLight(k, on) {
   if (!LIGHTS.some(l => l.key === k)) return null;
@@ -2991,7 +3004,7 @@ return {
   doorAxis: -1, floorY: 0,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   lights: { key: key, lamps: lamps },
-  lampRig: lampRig, setLampRig: setLampRig,
+  lampRig: lampRig, setLampRig: setLampRig, lampRigDefault: lampRigDefault,
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   mats: M, shafts: shafts, faceShafts: faceShafts,
   // the kit that follows the aeroplane, and the equirect the caller may bake

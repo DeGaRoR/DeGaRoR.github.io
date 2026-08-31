@@ -436,10 +436,28 @@ try {
     if (iUI < 0 || iWS < 0) throw new Error('the two interface layers are not both there');
     if (iWS < iUI) throw new Error('#wsUI is not after #ui — the seam is inside out');
     const flight = ['card', 'rail', 'pfd', 'telp', 'mmp', 'uvp', 'bottom',
-                    'selAc', 'bGo', 'credit'];
-    const workshop = ['edWrap', 'edView', 'edInfo', 'edShed', 'edScrim',
+                    'selAc', 'bGo', 'credit',
+                    // G107.2: the ARRIVAL CARD — the flight's ending is
+                    // flight chrome by definition
+                    'arrCard', 'bAgain', 'bHangar'];
+    const workshop = ['edWrap', 'edView', 'edInfo',
                       'edTree', 'edRows', 'edRail', 'plaque', 'edBench',
-                      'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish'];
+                      'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish',
+                      // G107: the view's chrome is ONE bar across the top
+                      'edTopBar', 'edActs', 'edSave', 'edRoll'];
+    // ...AND WHAT WAS RETIRED STAYS RETIRED. Each of these was a SECOND door
+    // to a room that already had one, which is the failure this screen keeps
+    // having: `edVerbs` put the two actions in the opposite corner from the
+    // rail, `edRunBench` scrolled to and pressed a button already on screen in
+    // the information panel, and `edPropFoot` held two controls that act on
+    // the selection at the far end of a scroll from the name of it. An id that
+    // comes back is a door that came back.
+    const retired = ['edVerbs', 'edRunBench', 'edPropFoot',
+                     // G108: the shed is a tree ROOT, so its sheet, the sheet's
+                     // body and the scrim that dimmed the view behind it all
+                     // go. UI-MODEL section 2.4 reserves one sheet for the
+                     // FLEET RACK and that chantier writes its own.
+                     'edShed', 'shedBody', 'edScrim'];
     for (const id of flight) {
       const at = body.indexOf(`id="${id}"`);
       if (at < 0) throw new Error(`flight chrome missing: ${id}`);
@@ -450,7 +468,24 @@ try {
       if (at < 0) throw new Error(`workshop chrome missing: ${id}`);
       if (at < iWS) throw new Error(`${id} is WORKSHOP chrome sitting outside its layer`);
     }
-    console.log(`the seam holds: ${flight.length} flight ids, ${workshop.length} workshop ids`);
+    for (const id of retired)
+      if (body.indexOf(`id="${id}"`) >= 0)
+        throw new Error(`retired chrome is back: ${id} (G107 removed it — ` +
+          'if it is wanted again, say why here rather than deleting this line)');
+    // THE INTERIOR VIEW IS A CONTRACT BETWEEN TWO FILES, and neither half is
+    // any use alone: the crew layer publishes where the pilot's eyes are, and
+    // the camera reads it. Delete the publish and the preset silently frames
+    // nothing; delete the read and the marker is computed for no one. Both
+    // sides are asserted against the artifact, which is where they have to
+    // meet.
+    for (const [what, needle] of [
+      ['the crew layer publishes the eye point', 'window.CAGE_CREW_EYE = {'],
+      ['the camera reads it', 'const E = window.CAGE_CREW_EYE;'],
+      ['the preset is gated on a pilot', "!window.CAGE_CREW_EYE"],
+    ]) if (html.indexOf(needle) < 0)
+      throw new Error(`the interior view is half-wired: ${what} — not found`);
+    console.log(`the seam holds: ${flight.length} flight ids, ` +
+      `${workshop.length} workshop ids, ${retired.length} retired`);
   }
 
   if (rafCount < 100) throw new Error(`loop stalled (raf x${rafCount})`);

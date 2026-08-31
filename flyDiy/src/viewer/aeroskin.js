@@ -405,6 +405,132 @@ function aeroHardMat(THREE, layer, name, tint, o) {
 }
 
 // ---------------------------------------------------------------------------
+// THE LAYER SECTIONS — the per-part livery, and the chain it hangs from
+// ---------------------------------------------------------------------------
+// AERO_HARD above dresses hardware nobody paints. This table is the other
+// half of the same split: the layer surfaces the builder DOES paint — a wing,
+// a fin, a rudder — each declared once, with the section it FOLLOWS. The
+// editor's five override maps (finish, tint, three dials) are keyed on these
+// names exactly as they are on the cage's own sections, so `spec.finish`
+// carries them with no new machinery: a section that says nothing walks up
+// its parent chain, and a chain that says nothing falls back to the
+// construction, which is precisely what `aeroFinishFor('body', cons)` — the
+// literal every layer used to hardcode — meant all along.
+//
+// `parent: 'body'` is the one CAGE anchor a painted chain terminates at (a
+// cage section is never a row HERE — its own overrides are simply the last
+// stop on the walk). `role` feeds AERO_BY_CONS when the walk bottoms out;
+// `fin` pins a bottom-out finish for parts whose material is not the
+// airframe's (declared in later rows, e.g. hardware that joins the livery).
+// `label` is what the editor's `auto (follows …)` read-out calls the parent.
+//
+// THESE NAMES ARE NOT CAGE MESH SECTIONS: they live on LAYER meshes, so the
+// gear/tail placement filters (CAGE_MATS and its declared copies) must NOT
+// learn them — that set is a cage-face filter, and a layer name in it would
+// be a lie the tailwheel acts on.
+const AERO_SEC = {
+  wingSkin: { parent: 'body',     role: 'skin', label: 'the wing',
+              layer: 'wing' },
+  wingTip:  { parent: 'wingSkin', role: 'skin', label: 'the wing tips',
+              layer: 'wing' },
+  wingAil:  { parent: 'wingSkin', role: 'skin', label: 'the ailerons',
+              layer: 'wing' },
+  wingFlap: { parent: 'wingSkin', role: 'skin', label: 'the flaps',
+              layer: 'wing' },
+  finSkin:  { parent: 'body',     role: 'skin', label: 'the fin',
+              layer: 'fin' },
+  finRud:   { parent: 'finSkin',  role: 'skin', label: 'the rudder',
+              layer: 'fin' },
+  stabSkin: { parent: 'body',     role: 'skin', label: 'the stabiliser',
+              layer: 'stab' },
+  stabElev: { parent: 'stabSkin', role: 'skin', label: 'the elevators',
+              layer: 'stab' },
+  // ---- the hardware the builder paints (phase C) --------------------------
+  // A PINNED `fin` says what the part IS unless the builder repaints THAT
+  // part: the fin channel stops at the section's own name (see the resolver),
+  // while tint and the dials still walk — a spat stays painted trim when the
+  // fuselage goes plywood, but it borrows the fuselage's colour. Rows with
+  // `parent: null` follow nobody; the spinner follows the PROPELLER, whose
+  // own bottom-out finish the engine layer passes per blade material
+  // (cw_material stays the structure-tab choice, exactly as the prop always
+  // worked — the section adds the override on top).
+  strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
+              layer: 'wing' },
+  spat:     { parent: 'body', fin: 'trim',      label: 'the wheel fairings',
+              layer: 'gear' },
+  gearLeg:  { parent: null,   fin: 'steelTube', label: 'the gear legs',
+              layer: 'gear' },
+  prop:     { parent: null,                     label: 'the propeller',
+              layer: 'eng' },
+  spinner:  { parent: 'prop',                   label: 'the spinner',
+              layer: 'eng' },
+  cowlSkin: { parent: 'body', fin: 'alclad',    label: 'the cowling',
+              layer: 'cowl' },
+  accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
+              layer: 'access' },
+  // ---- the cabin and its crew (phase D) -----------------------------------
+  // The seats follow NOBODY on purpose: a green fuselage does not force
+  // green leather. The dummies are the user's "give them a bit of
+  // personality": one suit COLOUR each, the second following the first
+  // (paint the crew once, then differ one) — the suit's MATERIAL stays
+  // pinned composite, because an ATD is an ATD whatever it wears.
+  seatTrim: { parent: null,     fin: 'leather',   label: 'the seats',
+              layer: 'crew' },
+  dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
+              layer: 'crew' },
+  dummy2:   { parent: 'dummy1', fin: 'composite', label: 'the pilot',
+              layer: 'crew' },
+};
+
+// the walk itself: section -> parent -> ... -> a cage anchor (which has no
+// row and therefore ends it). Bounded, because a declared table can still
+// hold a cycle and the gate that says it doesn't runs at commit time, not
+// in the player's browser.
+function aeroSecChain(sec) {
+  const chain = [];
+  for (let s = sec; s != null && chain.length < 9; ) {
+    chain.push(s);
+    const row = AERO_SEC[s];
+    if (!row) break;
+    s = row.parent;
+  }
+  return chain;
+}
+
+// THE RESOLVER, and it is pure on purpose: everything it reads walks in
+// through its arguments, so the node gate exercises the same code the
+// browser runs. `over` is the editor's five maps ({fin,tint,tile,rough,nrm},
+// each keyed by section); `ctx` is what the LAYER knows — `cons` the part's
+// construction token, `fin` an optional layer-decided bottom-out finish
+// (the propeller's material choice). Each of the five channels walks the
+// chain INDEPENDENTLY: a set value stops that channel and no other, so a
+// white-tinted aileron still follows the wing's finish and dials. `src`
+// names the section whose override supplied the finish (null when the
+// construction did), which is all the `auto (follows …)` label needs.
+function aeroSecResolve(sec, over, ctx) {
+  const row = AERO_SEC[sec] || {};
+  const chain = aeroSecChain(sec);
+  const walk = (map, ch) => {
+    if (map) for (const s of ch)
+      if (map[s] != null && map[s] !== '') return { v: map[s], src: s };
+    return { v: null, src: null };
+  };
+  // A PINNED fin walks its OWN name only: the pin says what the part IS —
+  // a spat is painted trim whatever the fuselage is built from — so an
+  // ancestor's FINISH never reaches it. Its COLOUR still does: tint and
+  // the dials keep the full chain.
+  const f = walk(over && over.fin, row.fin ? [sec] : chain);
+  const byCons = AERO_BY_CONS[ctx && ctx.cons] || AERO_BY_CONS.tubeFabric;
+  const fin = f.v != null ? f.v
+    : (ctx && ctx.fin) || row.fin || byCons[row.role || 'skin'] || byCons.skin;
+  return { fin, src: f.src,
+           tint: walk(over && over.tint, chain).v,
+           tileK: walk(over && over.tile, chain).v,
+           roughK: walk(over && over.rough, chain).v,
+           nrmK: walk(over && over.nrm, chain).v };
+}
+
+// ---------------------------------------------------------------------------
 // THE COLOUR TRAP, stated in both directions (63_gen_skin.js:2957 has the
 // measured pixel values). r128 feeds a material's flat `color` to the shader
 // as LINEAR, while a texture declared sRGBEncoding IS converted. Every colour
@@ -741,7 +867,16 @@ function aeroSharedU(THREE) {
     uDecN:  { value: 0 },
     uDecA:  { value: z4() },     // xy centre (sL, sC) m, zw half-size m
     uDecB:  { value: z4() },     // atlas rect u0 v0 du dv
-    uDecC:  { value: z4() },     // x rot, y roughness delta, z opacity, w target
+    uDecC:  { value: z4() },     // x rot, y roughness delta, z opacity, w unused
+    // G108: x mode (0 field, 1 box SIDE view, 2 box PLAN view), then one
+    // flag per surface CLASS — body, wing, tail. A mask of three floats and
+    // not a packed bitfield: three comparisons are exact and legible where
+    // pow/mod bit tests in GLSL ES 1.0 are neither.
+    uDecD:  { value: z4() },     // x mode, y onBody, z onWing, w onTail
+    // WORLD -> CRAFT: metres, x lateral, y aft, z up. SHARED, because it is a
+    // fact about the AEROPLANE and not about any one material — the same
+    // reason the decal list is shared.
+    uCraftInv: { value: new THREE.Matrix4() },
     uInset: { value: 0.02 },
     // THE CONDITION OF THE AEROPLANE (G70). One number the player sets, and
     // three vectors that say WHERE it lands — measured off the build, never
@@ -798,8 +933,42 @@ function aeroSetWear(THREE, o) {
 
 // THE LIST IS THE STATE. Callers hand over what the aeroplane wears; this
 // writes it into the shared uniforms and every material sees it at once.
-//   { page, sL, sC, w, h, rot, rough, opacity, target }
-//   target: 0 the fuselage, 1 the flying surfaces, 2 both
+//   { page, sL, sC, w, h, rot, rough, opacity, on, mode }
+//
+//   on:   which SURFACE CLASSES it lands on — {body, wing, tail}, any subset.
+//         It replaced a `target` scalar (0 fuselage / 1 flying surfaces /
+//         2 both) that could not say "the body AND the tail but not the
+//         wing", which is the one grouping the user asked for: "the fuselage
+//         projection and the fin projection should be one... the wing and the
+//         slabs another, fully independent one".
+//   mode: 'field' — metres along and around the body, the G66 surface field.
+//                   Right on a fuselage, where a marking must wrap.
+//         'side'  — an ORTHOGRAPHIC projection through the craft, in the
+//                   (along, up) plane. The projector G69's own gap list has
+//                   owed since it landed.
+//         'plan'  — the same, in the (lateral, along) plane: a stripe across
+//                   both wings is one continuous thing.
+const AERO_DEC_MODE = { field: 0, side: 1, plan: 2 };
+// WHERE THE AEROPLANE IS, as one matrix. The caller hands over the transform
+// of the craft's own root; this inverts it and folds in the axis convention,
+// so the shader gets metres in a frame it can rely on and no layer has to
+// agree with any other about units or origin — which they do not.
+function aeroSetCraft(THREE, rootMatrixWorld, axes) {
+  const U = aeroDecUniforms(THREE);
+  const a = axes || {};
+  const lat = a.lateral || 'x', along = a.along || 'z', up = a.up || 'y';
+  const sgn = a.aft === false ? 1 : -1;
+  const row = (ax, k) => (ax === 'x' ? [k, 0, 0] : ax === 'y' ? [0, k, 0] : [0, 0, k]);
+  const r0 = row(lat, 1), r1 = row(along, sgn), r2 = row(up, 1);
+  const P = new THREE.Matrix4();
+  P.set(r0[0], r0[1], r0[2], 0,
+        r1[0], r1[1], r1[2], 0,
+        r2[0], r2[1], r2[2], 0,
+        0, 0, 0, 1);
+  const inv = new THREE.Matrix4();
+  if (rootMatrixWorld) inv.copy(rootMatrixWorld).invert();
+  U.uCraftInv.value.copy(P).multiply(inv);
+}
 function aeroSetDecals(THREE, list) {
   const U = aeroDecUniforms(THREE);
   const n = Math.min(AERO_MAXD, (list || []).length);
@@ -810,15 +979,20 @@ function aeroSetDecals(THREE, list) {
       Math.max(1e-4, (d.w || 0.5) * 0.5), Math.max(1e-4, (d.h || 0.3) * 0.5));
     U.uDecB.value[i].set(r[0], r[1], r[2], r[3]);
     U.uDecC.value[i].set(d.rot || 0, d.rough || 0,
-      d.opacity != null ? d.opacity : 1, d.target != null ? d.target : 0);
+      d.opacity != null ? d.opacity : 1, 0);
+    const on = d.on || { body: 1 };
+    U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
+      on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
   }
 }
 
 const AERO_PARS_VS = `
 attribute vec4 aStruct;
+uniform mat4 uCraftInv;
 varying vec4 vSurf;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
+varying vec3 vCraftPos;
 `;
 
 // beginnormal_vertex runs BEFORE begin_vertex, so objectNormal and transformed
@@ -827,6 +1001,7 @@ const AERO_MAIN_VS = `
   vSurf   = aStruct;
   vObjPos = transformed;
   vObjNrm = objectNormal;
+  vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;
 `;
 
 // ---------------------------------------------------------------------------
@@ -920,11 +1095,15 @@ uniform int  uDecN;
 uniform vec4 uDecA[AERO_MAXD];
 uniform vec4 uDecB[AERO_MAXD];
 uniform vec4 uDecC[AERO_MAXD];
+uniform vec4 uDecD[AERO_MAXD];
 uniform float uInset;
-uniform float uSideAxis;   // which OBJECT axis is lateral: 0 x, 1 y, 2 z
 uniform float uGGain; // display gain over the PHYSICAL gradient - see below
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
-uniform vec4 uG5;   // x sparFront(chord frac)  y sparSpan  z tipStart  w wing?
+// uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
+// 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
+// flying surface" still reads true for both 1 and 2, which is why the widening
+// cost nothing — and the decal loop can finally tell a fin from a wing.
+uniform vec4 uG5;   // x sparFront(chord frac)  y sparSpan  z tipStart  w class
 uniform vec2  uTileM;      // metres per repeat of the detail sheet
 uniform float uFieldM;     // metres per unit of aStruct.xy / of object space
 uniform vec2  uDetail;     // x normal scale, y roughness gain
@@ -936,6 +1115,12 @@ uniform float uWearK;      // how fast THIS material ages; 1.0 = the airframe
 varying vec4 vSurf;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
+// CRAFT SPACE (G108): metres, x lateral, y aft, z up, ONE frame for the whole
+// aeroplane. vObjPos cannot do this job — every layer is in its own local
+// frame and its own units (measured on the stock build: the cowl, the gear
+// and the crew are in metres, the fin and stab in cage units at 0.745 m each)
+// so a projector built on it changes scale at every layer boundary it crosses.
+varying vec3 vCraftPos;
 
 vec3 aeroUnpack(vec4 t, float s) {
   vec2 xy = (t.rg * 2.0 - 1.0) * s;
@@ -1222,29 +1407,76 @@ const AERO_ALBEDO_FS = `
   // out-of-bounds decal would be the obvious way to write this and it is
   // wrong: divergent flow makes the mip level undefined, which shows up as
   // the decal's edge crawling and nowhere else.
-  #if AEROSKIN_SURF == 1
+  // THE BOX PROJECTOR WORKS IN CRAFT SPACE, and every axis convention is
+  // baked into uCraftInv on the way in — so there is no axis juggling here,
+  // no handedness to get wrong, and no uSideAxis. x is lateral, y runs AFT
+  // (the same sense the surface field's sL runs, so the station slider means
+  // one thing in both modes), z is up, all in metres.
+  //
+  // vObjPos CANNOT DO THIS JOB, and it took a picture to see why. Every layer
+  // is in its own local frame and its own units: measured on the stock build,
+  // the cowl, the gear and the crew are in metres (uFieldM 1) while the fin
+  // and stab are in cage units (0.745). A projector built on vObjPos placed
+  // the marking at a different scale on every layer it crossed — which is why
+  // a registration walked up to the cowl seam and stopped dead there.
+  vec3 aeroA = vCraftPos;
+  float aeroSideF = (aeroA.x < 0.0) ? -1.0 : 1.0;
   for (int di = 0; di < AERO_MAXD; ++di) {
     if (di >= uDecN) break;
-    // this decal is for the fuselage, the flying surfaces, or both
-    float tgt = uDecC[di].w;
-    float onMe = (tgt > 1.5) ? 1.0
-      : (tgt > 0.5) ? step(0.5, uG5.w) : (1.0 - step(0.5, uG5.w));
+    // WHICH SURFACES THIS ONE LANDS ON, by class rather than by a
+    // fuselage/flying/both scalar — the fin belongs with the fuselage and the
+    // wing does not, and the old scalar could not say so.
+    float cls = uG5.w;
+    float onMe = (cls < 0.5) ? uDecD[di].y
+               : (cls < 1.5) ? uDecD[di].z : uDecD[di].w;
     // THE FAR FLANK READS BACKWARDS unless its along-body axis is negated —
     // G4.5's trap, arriving by a new route. sL runs aft and is NOT mirrored,
     // so the glyph is laid out in the same physical direction on both sides;
     // seen from the other side that direction runs the other way across the
-    // eye. uSideAxis names which OBJECT axis is lateral (x in the cage,
-    // the wing and the tail; z in the flown model frame) and the positive
-    // flank is the one to mirror. Same answer G4.5 reached — "walk the far
+    // eye. CRAFT SPACE names the lateral axis for us now (G108 retired
+    // uSideAxis, which had been declared, defaulted and never passed by any
+    // caller since G69 — so it claimed "z in the flown model frame" and was
+    // 0 everywhere), and the positive flank is the one to mirror. Same answer G4.5 reached — "walk the far
     // arc BACKWARDS and flip nothing" - applied to a coordinate. WHICH sign
     // is measured, not derived: on this build the flank whose registration
     // reads backwards is the one at negative x, and reasoning about the
     // handedness of the cage frame got it wrong twice before the picture
     // settled it.
-    float sideC = (uSideAxis < 0.5) ? vObjPos.x
-                : (uSideAxis < 1.5) ? vObjPos.y : vObjPos.z;
-    float sideF = (sideC < 0.0) ? -1.0 : 1.0;
-    vec2 dd = vec2((aeroM.x - uDecA[di].x) * sideF, aeroM.y - uDecA[di].y);
+    // THE COORDINATE, one of three, chosen by a uniform and MIXED rather than
+    // branched: a per-fragment branch around a texture2D makes the mip level
+    // undefined, and this loop's whole shape exists to avoid that.
+    //
+    //   FIELD  metres along and around the body. It wraps, which is what a
+    //          fuselage marking must do, and it is meaningless where there is
+    //          no field — so on the triplanar branch it is not offered.
+    //   SIDE   an orthographic projection in (along, up): the flank view. A
+    //          marking runs continuously from the fuselage onto the fin,
+    //          which was the user's "the fuselage projection and the fin
+    //          projection should be one".
+    //   PLAN   the same in (lateral, along): a stripe crosses both wings as
+    //          one thing, because that is what looking down at it does.
+    float mode = uDecD[di].x;
+    vec2 fieldC = vec2((aeroM.x - uDecA[di].x) * aeroSideF,
+                        aeroM.y - uDecA[di].y);
+    // SIDE mirrors the far flank exactly as the field does, and for the same
+    // reason: the glyph is laid out along one physical direction, and seen
+    // from the other side that direction crosses the eye the other way.
+    // PLAN does not — a plan view has one handedness and a stripe drawn
+    // across the span is the same stripe from either wing tip.
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * aeroSideF,
+                        aeroA.z - uDecA[di].y);
+    vec2 planC = vec2(aeroA.x - uDecA[di].x, aeroA.y - uDecA[di].y);
+    vec2 boxC = mix(sideC2, planC, step(1.5, mode));
+    #if AEROSKIN_SURF == 1
+      vec2 dd = mix(fieldC, boxC, step(0.5, mode));
+    #else
+      // no field here: a triplanar surface has no aStruct to read, so the
+      // only honest coordinate is the box one. This is what lets a marking
+      // reach the COWL at all — the loop used to be inside the field's own
+      // #if, and every analytic surface was outside it.
+      vec2 dd = boxC;
+      if (mode < 0.5) onMe = 0.0;
+    #endif
     float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x);
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
@@ -1267,7 +1499,6 @@ const AERO_ALBEDO_FS = `
     diffuseColor.rgb = mix(diffuseColor.rgb, dc, a);
     aeroDecR += a * uDecC[di].y;
   }
-  #endif
   // and the leading edge is WASHED OUT, not merely polished — the other half
   // of the same feature, and the half garage.js did in its paint sheet
   // (mix toward 0xdfe3e8 at the very edge). Roughness alone reads as a
@@ -1526,9 +1757,8 @@ function aeroMaterial(THREE, o) {
   // got its neighbour's scale — the tail came out with the wing's, silently.
   const key = [o.finish, o.tint, 'L' + o.tintLin, o.surf ? 1 : 0, o.side || 0,
                o.opacity != null ? o.opacity : 1,
-               o.struct ? (o.grm || '') : '', o.wing ? 'w' : '',
+               o.struct ? (o.grm || '') : '', 'w' + (+o.wing || 0),
                'M' + (o.fieldM != null ? o.fieldM : 1),
-               'S' + (o.sideAxis != null ? o.sideAxis : 0),
                'W' + (o.wearK != null ? o.wearK : ''),
                // THE PER-SECTION DIALS (the user: "I'd want to be able to
                // control scaling, roughness and normal/bump size for every
@@ -1591,7 +1821,6 @@ function aeroMaterial(THREE, o) {
                                     GR && GR.rough ? GR.rough.seam : 0) },
     uGOn: { value: GR ? 1 : 0 },
     uGGain: { value: 4.0 },
-    uSideAxis: { value: o.sideAxis != null ? o.sideAxis : 0 },
     // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
     // light extra line over the metric frames; on the wing they ARE the
     // structure, so the metric pitches are switched off entirely and the ribs
@@ -1601,7 +1830,7 @@ function aeroMaterial(THREE, o) {
       o.wing ? 0.030 : 0.016,
       o.wing ? 0.12 : 0,              // LE band, METRES aft of the edge
       (GR && f) ? (o.wing ? 0.30 : 0.0) : 0) },
-    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, o.wing ? 1 : 0) },
+    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, +o.wing || 0) },
   });
   if (o.wing && GR) {
     // a wing has ribs and spars, not frames and stringers
@@ -1662,6 +1891,12 @@ function aeroMaterial(THREE, o) {
   // what the snapshot walks.
   m.userData.aeroFinish = o.finish;
   m.userData.aeroSurf = o.surf ? 1 : 0;
+  // G108: the SURFACE CLASS (0 body, 1 wing, 2 tail). The snapshot walks
+  // materials, so anything the flown aeroplane needs to be painted the same
+  // way has to be readable from one — and without this every flown surface
+  // came back class 0, which is why a marking aimed at the wing landed on
+  // the fuselage and one aimed at the fuselage landed on the lot.
+  m.userData.aeroWing = +o.wing || 0;
   m.userData.aeroGrm = o.struct ? (o.grm || '') : '';
   m.userData.env0 = m.envMapIntensity;
   m.onBeforeCompile = AEROSKIN_HOOK;
@@ -1734,13 +1969,16 @@ if (typeof window !== 'undefined')
                       AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                       aeroMaterial, aeroGlass,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
-                      aeroSetDecals, aeroDecalText, aeroDecalImage,
+                      aeroSetDecals, aeroSetCraft,
+                      aeroDecalText, aeroDecalImage,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
+                      AERO_SEC, aeroSecResolve,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear };
 if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
                      aeroPageRect,
-                     AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish };
+                     AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,
+                     AERO_SEC, aeroSecResolve };

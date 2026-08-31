@@ -168,6 +168,10 @@ const COWL_ROWS = [
     { k: 'oilZ', label: 'Oil door station', lo: 0.05, hi: 0.95, step: 0.01 },
     { k: 'oilW', label: 'Oil door width', lo: 0.05, hi: 0.30, step: 0.005 },
     { k: 'oilL', label: 'Oil door length', lo: 0.05, hi: 0.35, step: 0.005 },
+    // 1 = a rounded rectangle (the shape it has always had), 0.5 = a true
+    // ellipse, 0 = a diamond. Same 0..1 roundness the sections, the apertures
+    // and the scoop already speak.
+    { k: 'oilSq', label: 'Oil door roundness', lo: 0, hi: 1, step: 0.05 },
   ] },
   // ---- Aft termination ----
   { id: 'g_aft', name: 'Aft termination', rows: [

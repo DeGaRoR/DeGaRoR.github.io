@@ -15,6 +15,31 @@
    saturated colour on this screen belongs to the aeroplane's own section
    tints, and a UI that also uses it stops being a background.
    ====================================================================== */
+/* THE PALETTE BELONGS TO THE LAYER, NOT TO ONE PANEL (2026-08-31). It was
+   declared on `#edWrap` and RESTATED on `#edInfo`, and everything outside
+   both — the rail, its flyout, the floating chrome — resolved `var(--ed-off)`
+   to nothing. That is why rescoping the control rules alone was not enough:
+   the flyout's checkboxes came out `appearance:none` with a TRANSPARENT track,
+   which is a different wrong answer from the OS accent but still a wrong one.
+   Measured, on the display flyout, before this block existed.
+   Declared once on the workshop's two roots so every surface inherits it; the
+   two blocks below now restate identical values and are kept only so a panel
+   lifted out of the layer still has its ground. Adding a token here is the
+   only place it has to be added. */
+:is(#wsUI, #edView) {
+  --ed-panel:#201d1a; --ed-board:#1a1815;
+  --ed-plate:rgba(32,29,26,.94);
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#8a8377;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-track:rgba(0,0,0,.3);
+  --ed-off:rgba(255,255,255,.12); --ed-off-bd:rgba(255,255,255,.22);
+  --ed-warn:#d8a07a; --ed-bad:#e08a5a;
+  --ed-lab:113px; --ed-val:64px; --ed-gap:14px;
+}
+
 #edWrap {
   --ed-panel:#201d1a;      /* properties column, sheet */
   --ed-board:#1a1815;      /* parts column, rack */
@@ -36,7 +61,36 @@
   --ed-bad:#e08a5a;
   /* the properties row grid, as three numbers so the collapsed panel can
      tighten all of it at once */
-  --ed-lab:124px; --ed-val:64px; --ed-gap:14px;
+  /* THE INDENT IS PAID FOR BY THE LABEL, not by the slider. Indenting the
+     rows under their heading costs the row 11 px of width, and the slider is
+     the one element in it you have to hit with a mouse. Eighteen of these
+     labels were already ellipsised at 124 px and every one carries its full
+     text as a `title`, so the width comes off the half that was already
+     truncated. */
+  --ed-lab:113px; --ed-val:64px; --ed-gap:14px;
+  /* THE TYPE LADDER. One scale, declared once, used by BOTH columns — because
+     the failure it fixes spans them: the tree's assembly style and the
+     properties column's group-heading style were byte-identical
+     (600 10px uppercase .2em faint), so a LABEL in one column and a NAME in
+     the other were drawn the same. Worse, inside the tree the ladder ran
+     BACKWARDS: a root was 500 12px sentence-case dim while the assembly
+     inside it was 600 10px UPPERCASE with .18em tracking, and uppercase-bold
+     beats twelve pixels every time. The user: "you use the same font and
+     style for level 0 and level 2 — we need perfect consistency in the
+     fonts and sizes, helping intuitively to understand the level".
+     So: monotonic in size, weight and colour from the top down, and
+     UPPERCASE IS RESERVED FOR GROUP LABELS — the only rung that names a
+     kind of thing rather than a thing. Once it is the only one, it stops
+     competing with the names. */
+  --ed-t-root:500 13.5px/1.35 'IBM Plex Sans';
+  --ed-t-asm:500 12px/1.35 'IBM Plex Sans';
+  --ed-t-part:400 11.5px/1.35 'IBM Plex Sans';
+  --ed-t-leaf:400 10.5px/1.35 'IBM Plex Sans';
+  --ed-t-group:600 9.5px/1 'IBM Plex Sans';
+  /* ...and ONE indent step, so the ladder is visible as well as legible. The
+     roots had no inset of their own, which put `My Plane` and `FUSELAGE` on
+     the same left edge. */
+  --ed-indent:11px;
   position:fixed; top:0; right:0; bottom:0; width:640px; z-index:40;
   display:flex; flex-direction:row;
   background:var(--ed-panel); color:var(--ed-ink);
@@ -64,7 +118,7 @@
    being wrong, so editor.js MEASURES it and publishes both the panel's width
    and --ws-right from one place. What is declared here is the row grid,
    which tightens when the properties column is the narrow one. */
-#edWrap.pcol-off { --ed-lab:110px; --ed-val:62px; --ed-gap:12px; }
+#edWrap.pcol-off { --ed-lab:99px; --ed-val:62px; --ed-gap:12px; }
 #edWrap.prop-off #edProps { display:none; }
 #edPropsTab { display:none; }
 #edWrap.prop-off #edPropsTab { display:flex; }
@@ -175,7 +229,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* A ROW IS A ROW. The 2 px selection mark is RESERVED transparent on every
    row so selecting one shifts nothing sideways. */
 .edN { display:flex; align-items:center; gap:7px;
-  padding:6px 12px 6px 14px; cursor:pointer;
+  padding:5px 12px 5px 12px; cursor:pointer;
   border-left:2px solid transparent; border-bottom:1px solid transparent;
   transition:background .12s ease, color .12s ease; }
 
@@ -196,39 +250,51 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 .edN > i.warn { color:var(--ed-warn); }
 
-/* THE THREE LEVELS. Assemblies read as headings, parts as rows, the
-   section leaves quieter still — and SEPARATORS ONLY UNDER THE LEAVES.
+/* THE FOUR LEVELS, off the one ladder. Quieter and smaller at every step
+   down, and nothing below the root shouts — SEPARATORS ONLY UNDER THE LEAVES.
    Assemblies and parts have no rule under them: that is deliberate, and
    was specifically asked for. */
-.edN.lv0 > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.18em;
-  text-transform:uppercase; color:var(--ed-faint); }
-
-.edN.lv1 > span { font:500 11.5px/1.35 'IBM Plex Sans'; letter-spacing:.01em;
+.edN.lv0 > span { font:var(--ed-t-asm); letter-spacing:.06em;
   color:var(--ed-dim); }
 
-.edN.lv2 > span { font:400 11px/1.35 'IBM Plex Sans'; letter-spacing:.01em;
+.edN.lv1 > span { font:var(--ed-t-part); letter-spacing:.01em;
+  color:var(--ed-dim); }
+
+.edN.lv2 > span { font:var(--ed-t-leaf); letter-spacing:.01em;
   color:var(--ed-faint); }
 
 .edN.lv2 { border-bottom-color:var(--ed-hair); }
 
 .edN.on > span { color:var(--ed-ink); }
 
-.edN.lv1 { padding-left:16px; }
+/* the indent ladder: 0 for a root, one step per level under it */
+.edN.lv0:not(.root) { padding-left:calc(12px + var(--ed-indent)); }
 
-.edN.lv2 { padding-left:29px; }
+.edN.lv1 { padding-left:calc(12px + var(--ed-indent) * 2); }
+
+.edN.lv2 { padding-left:calc(12px + var(--ed-indent) * 3); }
 
 /* THE SCENE'S OBJECTS, at the top level: the build, the reference standing
    beside it, and the shed and the world when they arrive. They are PEERS —
    one name style, one weight, one size — and they read as THINGS rather than
    as headings, because an assembly heading is a label and these are
-   selectable. A rule under each separates it from the branch it owns.
-   (They already shared a class; what made them look different was one of
-   them being written in capitals.) */
-.edN.root { border-bottom-color:var(--ed-hair); margin-bottom:6px;
-  padding-top:8px; padding-bottom:8px; }
+   selectable, and they are the loudest thing in the column because they are
+   the top of it.
+   NO RULE UNDER A ROOT. There used to be one, and it sat between a head and
+   the branch it heads — the user's "you put vertical separators after a head
+   of section". The rule is `edEnd`'s, on the last row BEFORE the next root,
+   which is where a section actually ends. */
+.edN.root { padding-top:9px; padding-bottom:9px; padding-left:12px; }
 
-.edN.root > span { font:500 12px/1.35 'IBM Plex Sans'; letter-spacing:.02em;
-  text-transform:none; color:var(--ed-dim); }
+.edN.root + .edN { padding-top:7px; }
+
+.edN.root > span { font:var(--ed-t-root); letter-spacing:.01em;
+  text-transform:none; color:var(--ed-ink); }
+
+/* ...and the section ends here. Space below as well as a rule, so the next
+   root reads as a new object rather than as one more row. */
+.edN.edEnd { border-bottom-color:var(--ed-hair); margin-bottom:9px;
+  padding-bottom:9px; }
 
 .edN.root.on > span { color:var(--ed-ink); }
 
@@ -290,29 +356,93 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edWrap #cgUi > details[data-g="materials"],
 #edWrap #cgUi > details[data-g="decals"] { display:none; }
 
-#edRows { flex:1; overflow-y:auto; overflow-x:hidden; padding:2px 20px 14px;
-  min-height:0; }
+/* THE INDENT COMES OUT OF THE PADDING, not out of the controls. A group's
+   heading sits at the column's own left edge and its rows one step in, and
+   the row still ends where it always did — otherwise every slider pays for
+   the hierarchy. */
+/* ---------------------------------------------------------------------------
+   THE SCROLLBARS (2026-08-31, user: "the scroll bars of the slider panels and
+   others are ugly, they have a default styling and should be changed")
+   ---------------------------------------------------------------------------
+   There were SIX scrollers on this screen - #edInfoBody, #edTree, #edRows,
+   #edOpts, #edFly and #edRef .refMats - and not one line of scrollbar styling
+   anywhere in the project outside tools/_pwr.html. Every one of them was a
+   native Chromium bar: a wide light track with a grey thumb, over a panel that
+   is #201d1a.
+   Scoped to `#wsUI` and to `#wsUI *` for the same reason the controls above
+   are: these panels are the ones that scroll TODAY, and the next surface this
+   file grows should not have to remember to ask. The flight layer is a sibling
+   and keeps the platform's own.
+   No new colours: the thumb is --ed-off / --ed-off-bd, the same pair the
+   unchecked toggle uses, and the track is left transparent so a scrollbar over
+   the parts column and one over the properties column each sit on their own
+   ground rather than on a third one. */
+:is(#wsUI, #edView), :is(#wsUI, #edView) * { scrollbar-width:thin;
+  scrollbar-color:var(--ed-off) transparent; }
 
-#edPropFoot { display:flex; align-items:center; gap:10px; flex:none;
-  padding:13px 20px; border-top:1px solid var(--ed-hair); }
+:is(#wsUI, #edView) ::-webkit-scrollbar { width:9px; height:9px; }
 
-#edPartMeta { font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint);
+:is(#wsUI, #edView) ::-webkit-scrollbar-track { background:transparent; }
+
+:is(#wsUI, #edView) ::-webkit-scrollbar-thumb { background:var(--ed-off);
+  border:2px solid transparent; background-clip:padding-box;
+  border-radius:6px; }
+
+:is(#wsUI, #edView) ::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd);
+  background-clip:padding-box; }
+
+/* the corner where two bars meet, which defaults to the same pale grey */
+:is(#wsUI, #edView) ::-webkit-scrollbar-corner { background:transparent; }
+
+#edRows { flex:1; overflow-y:auto; overflow-x:hidden;
+  padding:2px 16px 14px 12px; min-height:0; }
+
+
+/* THE FOOTER IS GONE. It held `reset part`, `expert rows` and the part's
+   anchor — three facts about the SELECTION, sitting at the far end of a
+   scrolling column from the name that says what the selection is. All three
+   moved into the title bar (the user: "reset parts and expert rows should be
+   at the top of the menu, integrated in the title bar"). */
+#edPartMeta { flex-basis:100%; margin-top:7px;
+  font:400 10px/1.5 'IBM Plex Sans'; color:var(--ed-faint);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-#edPropFoot .pill { margin-left:auto; }
+#edPartMeta:empty { display:none; }
 
-#edPropFoot .pill + .pill { margin-left:0; }
+/* the two pills group to the right of the title, after the changed count */
+#edPropHead #edResetPart { margin-left:auto; }
 
-/* THE GROUP HEADING: label, then a hairline filling the row, then the
-   optional right-hand meta. The rule is what makes a group a group at this
-   type size — the previous panel used a disclosure triangle and nesting,
-   and one level of that is exactly what the part tree replaced. */
-.edH { display:flex; align-items:center; gap:10px; margin:20px 0 8px; }
+#edPropHead #edResetPart, #edPropHead #edExpert { align-self:center; }
 
-.edH > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+#edChanged + #edResetPart { margin-left:0; }
+
+/* THE GROUP HEADING: label, space, then the optional right-hand meta.
+   THE HAIRLINE THAT USED TO FILL THE ROW IS GONE. It ran across the row
+   immediately after the title — a separator between a head and the rows it
+   heads, which is the user's "you put vertical separators after a head of
+   section, it is very unclear. Put them only at the end of a section." The
+   rule is `.endg`'s now, on the last visible row of the group, decided in
+   applyVis because expert rows and `when` rules move which row that is.
+   What makes a group a group at this type size is the SPACE, and the space
+   is asymmetric on purpose: a title binds to what follows it. */
+.edH { display:flex; align-items:baseline; gap:10px; margin:24px 0 6px; }
+
+.edH > span { font:var(--ed-t-group); letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
 
-.edH > i { flex:1; height:1px; background:var(--ed-hair); }
+/* A PART NAME IS NOT A GROUP LABEL. At an assembly or the root the column
+   draws both, and they were identical (UI-MODEL G91: "160 of them, all the
+   same"). The part heading takes the tree's own part rung, so the two
+   columns agree about what a part is called. */
+.edH.edHP { margin:26px 0 4px; }
+
+.edH.edHP > span { font:var(--ed-t-asm); letter-spacing:.04em;
+  text-transform:none; color:var(--ed-ink); }
+
+.edH > i { display:none; }
+
+/* the first heading in the column needs no space above it */
+#edRows > .edH:first-child { margin-top:6px; }
 
 .edH > em { flex:none; font-style:normal; font:400 10px/1 'IBM Plex Sans';
   color:var(--ed-faint); }
@@ -325,8 +455,27 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    double-click-label reset, the `link` checkbox, the `= front` button and
    the metre readout are all the same code as on the bench. Only the look
    changes, and it changes HERE. */
+/* THE ROW HEIGHT came down a notch, on the user's own read: "while the design
+   feels light, and it's good, I think the space between lines is a tad too
+   big". 34 px was the 9b handoff's rhythm and this is the one number of it
+   that is being changed, deliberately and in one place — everything that
+   depends on the rhythm reads it from here. */
 #edRows .r { display:flex; align-items:center; gap:var(--ed-gap);
-  height:34px; margin:0; min-width:0; }
+  height:30px; margin:0; min-width:0; }
+
+/* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
+   user: "everything in the menu needs indentation"). One step, the same step
+   the tree uses. This has to sit AFTER the rule above: `margin:0` is the same
+   specificity, so source order is the whole of the cascade here. */
+#edRows > .r, #edRows > .lt, #edRows > .refNote,
+#edRows > .cgSwatch, #edRows > select, #edRows > label {
+  margin-left:var(--ed-indent); }
+
+/* THE SECTION ENDS HERE — the one rule in this column, on the last visible
+   row of a group. `applyVis` puts the class on and takes it off, and only
+   when the answer changed, because this runs on every pixel of a drag. */
+#edRows > .endg { border-bottom:1px solid var(--ed-hair);
+  margin-bottom:9px; padding-bottom:5px; height:auto; min-height:30px; }
 
 #edRows .r > span.k { width:var(--ed-lab); flex:none;
   font:400 12px/1.3 'IBM Plex Sans'; letter-spacing:0; color:var(--ed-dim);
@@ -350,7 +499,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edWrap .r > span:not(.k):not(.v):not(.lt) { color:var(--ed-faint) !important;
   font:400 10px/1 'IBM Plex Sans' !important; }
 
-#edRows .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
+:is(#wsUI, #edView) .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
   outline-offset:2px; }
 
 /* THE CHANGED DOT (P8 §6). It sits in the row's own left gutter rather than
@@ -361,70 +510,106 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edRows .r.chg > span.k::before { content:'●'; position:absolute; left:-11px;
   top:50%; transform:translateY(-50%); font-size:7px; color:var(--ed-acc); }
 
+/* ---------------------------------------------------------------------------
+   THE CONTROLS ARE SCOPED TO THE ROW, NOT TO THE PLACE THE ROW IS STANDING
+   ---------------------------------------------------------------------------
+   Every block below read `#edRows .r ...` and now reads `:is(#wsUI, #edView) .r ...`, and
+   that one prefix is the whole of the styling pass HANDOVER measured and
+   handed over unwritten (2026-08-31, "THE STYLING PASS - NOT DONE").
+   THE DEFECT, in one sentence: this editor MOVES ITS ROWS. The same element
+   lives in the nursery, then the inspector, then a flyout, then a root panel
+   - that is the re-parenting architecture the whole panel is built on - so
+   scoping the LOOK to one container made a control's appearance depend on
+   where it happened to be sitting. Measured before this change, on one build
+   at one instant: 111 of 118 checkboxes and 485 of 518 ranges were
+   `appearance:auto`, painting in the OS accent, which on the user's machine
+   is the red they objected to; eight of them are on screen the moment the
+   display flyout opens.
+   THE WORKSHOP IS TWO ROOTS, not one, and finding that out is half of why
+   this was worth measuring rather than assuming: `#wsUI` holds the panels,
+   and `#edView` — a SIBLING — holds the floating chrome, which is where
+   `#edFly` lives. Scoping to `#wsUI` alone would have left the rail's flyout
+   native, and the flyout is precisely the surface HANDOVER named ("open the
+   DISPLAY flyout and eight of them appear at once"). `:is(#wsUI, #edView)`
+   takes both and keeps the specificity of a single id, so nothing in the
+   cascade below moves. Between them they cover the inspector, the flyouts,
+   the root panels, the information panel, `#cgUi`'s colour wells and the
+   nursery. The flight layer `#ui` is a third sibling, owned by style.css, and
+   is untouched by construction rather than by care.
+   The palette moved to those same two roots with it — see the note above
+   `#edWrap`. Until it did, `--ed-off` lived on `#edWrap` alone, `#edInfo` and
+   `#edFly` are both outside that, and every token they asked for resolved to
+   nothing: the bars stayed native and the flyout's toggles came out
+   transparent. Measured, not assumed.
+   THE RULE, because this file will grow more surfaces: in a re-parenting
+   architecture, a look must key off the ROW, not off the place the row is
+   standing.
+   --------------------------------------------------------------------------- */
+
 /* the slider: 3 px track, accent fill at .55, an 11 px accent thumb */
-#edRows .r input[type=range] { flex:1; min-width:30px; height:18px;
+:is(#wsUI, #edView) .r input[type=range] { flex:1; min-width:30px; height:18px;
   -webkit-appearance:none; appearance:none; background:transparent;
   cursor:pointer; }
 
-#edRows .r input[type=range]::-webkit-slider-runnable-track { height:3px;
+:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-runnable-track { height:3px;
   border-radius:2px; background:var(--ed-track); }
 
-#edRows .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
+:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
   appearance:none; width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
 
-#edRows .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
+:is(#wsUI, #edView) .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-#edRows .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
+:is(#wsUI, #edView) .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
   border:none; border-radius:50%; background:var(--ed-acc); }
 
-#edRows .r input[type=range]::-moz-range-progress { height:3px;
+:is(#wsUI, #edView) .r input[type=range]::-moz-range-progress { height:3px;
   border-radius:2px; background:rgba(230,219,201,.55); }
 
 /* the checkbox, drawn as the design's toggle: 30 x 16 track, 10 px knob in
    the PANEL colour (a white knob reads as a second state) */
-#edRows .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
+:is(#wsUI, #edView) .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
   flex:none; width:30px; height:16px; margin:0; border-radius:9px;
   background:var(--ed-off); border:1px solid var(--ed-off-bd);
   position:relative; cursor:pointer; transition:background .12s ease; }
 
-#edRows .r input[type=checkbox]::after { content:''; position:absolute;
+:is(#wsUI, #edView) .r input[type=checkbox]::after { content:''; position:absolute;
   top:2px; left:2px; width:10px; height:10px; border-radius:50%;
   background:var(--ed-panel); transition:left .12s ease; }
 
-#edRows .r input[type=checkbox]:checked { background:var(--ed-acc);
+:is(#wsUI, #edView) .r input[type=checkbox]:checked { background:var(--ed-acc);
   border-color:var(--ed-acc); }
 
-#edRows .r input[type=checkbox]:checked::after { left:16px; }
+:is(#wsUI, #edView) .r input[type=checkbox]:checked::after { left:16px; }
 
-#edRows .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
+:is(#wsUI, #edView) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
   text-align:left; }
 
-#edRows .r select { flex:1; min-width:0; padding:5px 8px;
+:is(#wsUI, #edView) .r select { flex:1; min-width:0; padding:5px 8px;
   font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
   border-radius:7px; }
 
-#edRows .r select option { background:var(--ed-panel); color:var(--ed-ink); }
+:is(#wsUI, #edView) .r select option { background:var(--ed-panel); color:var(--ed-ink); }
 
 /* ---- the finish view's own controls ----------------------------------
    The colour well is a native input because a colour well is one of the two
    things the platform does better than we would; it is given the panel's
    own frame so it reads as part of the row and not as an escapee. */
-#edRows .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
+:is(#wsUI, #edView) .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
   border:1px solid var(--ed-border); border-radius:4px; background:none;
   cursor:pointer; }
 
-#edRows .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
+:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
 
-#edRows .r input[type=color]::-webkit-color-swatch { border:0;
+:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch { border:0;
   border-radius:2px; }
 
-#edRows .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
+:is(#wsUI, #edView) .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
   'IBM Plex Sans'; color:var(--ed-dim); }
 
-#edRows .r input[type=file]::-webkit-file-upload-button {
+:is(#wsUI, #edView) .r input[type=file]::-webkit-file-upload-button {
   margin-right:8px; padding:4px 9px; border:1px solid var(--ed-border);
   border-radius:4px; background:var(--ed-plate); color:var(--ed-dim);
   cursor:pointer; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.1em;
@@ -433,12 +618,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* THE THREE DIALS BELONG TO THE SECTION ABOVE THEM. An indent and a lighter
    label is the whole grammar — they multiply the finish's own numbers, so
    they are a detail of the row above and never a row of their own. */
-#edRows .r.dial > .k { padding-left:12px; color:var(--ed-faint);
+:is(#wsUI, #edView) .r.dial > .k { padding-left:12px; color:var(--ed-faint);
   font-size:10px; }
 
-#edRows .r.dial { min-height:26px; }
+:is(#wsUI, #edView) .r.dial { min-height:26px; }
 
-#edRows .r.dial + .r:not(.dial) { margin-top:10px; }
+:is(#wsUI, #edView) .r.dial + .r:not(.dial) { margin-top:10px; }
 
 /* the empty case: a part whose finish is somewhere else, and the way there */
 #edRows > .refNote { margin:22px 0 0; padding:14px 15px;
@@ -447,12 +632,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edRows > .refNote .pill { display:block; margin-top:11px; }
 
-#edRows .r button { flex:none; padding:5px 9px;
+:is(#wsUI, #edView) .r button { flex:none; padding:5px 9px;
   font:500 10px/1 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-dim); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:7px; cursor:pointer; }
 
-#edRows .r button:hover { border-color:rgba(255,255,255,.3); }
+:is(#wsUI, #edView) .r button:hover { border-color:rgba(255,255,255,.3); }
 
 /* ---- pills, the one button shape ------------------------------------ */
 #edWrap .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
@@ -648,11 +833,25 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edInfo .bT.run .bT1 b { color:var(--ed-warn); }
 
+/* advisory (G107): measured and informative, but it cannot withhold the
+   certificate — amber, not red */
+#edInfo .bT.adv .bT1 b { color:var(--ed-warn); }
+
 #edInfo .bB { color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans';
   margin-top:4px; }
 
 #edInfo .bW { color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans';
   margin-top:6px; padding-top:6px; border-top:1px solid var(--ed-hair); }
+
+/* the TEST CARD (G107.1): two small setpoint fields on the flight row —
+   the same row grammar, values right-aligned like every number here */
+#edInfo .bCard { display:flex; gap:12px; margin-top:5px;
+  color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans'; }
+#edInfo .bCard label { display:flex; align-items:center; gap:4px; }
+#edInfo .bCard input { width:50px; background:var(--ed-track);
+  border:1px solid var(--ed-border); border-radius:3px; color:var(--ed-ink);
+  font:inherit; padding:2px 5px; text-align:right; }
+#edInfo .bCard input:focus { outline:none; border-color:var(--ed-acc); }
 
 /* ---- THE PLAQUE, in the 9b palette (G80 moves it into the sheet) ----- */
 #edInfo #plaque { display:none; }
@@ -776,10 +975,29 @@ body.mode-fly #wsUI { display:none; }
 
 @media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
 
+/* ONE BAR ACROSS THE TOP. The rail's five questions about LOOKING on the
+   left, the two things you DO with the build on the right, and the render
+   under all of it. It was a column down the left and a pair of verbs at the
+   bottom-left corner — two floating islands with the aeroplane between them.
+   The bar spans the free estate, which #edView already computes for it. */
+#edTopBar { position:absolute; left:22px; right:22px; top:18px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; }
+
+/* IT WRAPS, because the free estate is not always wide enough for it. With
+   all three panels open on a 1100 px window the render is 414 px and the bar
+   wants 487 — it overflowed by 117 and pushed the verbs off the edge, which
+   is the regression a horizontal bar buys you and a vertical rail never had.
+   Wrapping puts the two verbs on a second row and nothing is unreachable;
+   `openFly` measures the bar's real bottom rather than assuming one row. */
+#edTopBar > * { min-width:0; }
+
 /* THE RAIL. Five questions about looking, one glyph and one word each. */
-#edRail { position:absolute; left:22px; top:100px; display:flex;
-  flex-direction:column; gap:6px; padding:6px; background:var(--ed-plate);
-  border:1px solid var(--ed-border); border-radius:9px; }
+#edRail { display:flex; flex-direction:row; gap:6px; padding:6px;
+  background:var(--ed-plate); border:1px solid var(--ed-border);
+  border-radius:9px; }
+
+/* the two verbs sit at the far end of the same bar */
+#edActs { margin-left:auto; display:flex; align-items:center; gap:9px; }
 
 .edRailBtn { display:flex; flex-direction:column; align-items:center; gap:3px;
   width:50px; padding:8px 0; border:0; border-radius:6px;
@@ -796,9 +1014,12 @@ body.mode-fly #wsUI { display:none; }
 .edRailBtn span { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
   text-transform:uppercase; }
 
-/* the flyout: the rail's own answer, beside it, never over the panel */
-#edFly { position:absolute; left:84px; top:100px; width:296px;
-  max-height:calc(100% - 200px); overflow-y:auto;
+/* THE FLYOUT OPENS UNDER ITS OWN BUTTON. `left` is written by openFly from
+   the button's measured position (and clamped to the free estate), because a
+   bar of five buttons with one answer always in the same place is a menu that
+   does not say which item it belongs to. `top` clears the bar. */
+#edFly { position:absolute; left:22px; top:86px; width:296px;
+  max-height:calc(100% - 130px); overflow-y:auto;
   padding:12px 14px 14px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px; }
 
@@ -829,6 +1050,12 @@ body.mode-fly #wsUI { display:none; }
 
 .edCam { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 4px; }
 
+/* a preset the aeroplane cannot offer says so and stays put — it carries its
+   reason in its `title` */
+#edView .pill:disabled { opacity:.4; cursor:not-allowed; }
+
+#edView .pill:disabled:hover { border-color:var(--ed-btn-bd); }
+
 #edView .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
   text-transform:uppercase; color:var(--ed-dim); background:transparent;
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
@@ -839,21 +1066,20 @@ body.mode-fly #wsUI { display:none; }
 #edView .pill.wide { display:block; width:100%; margin-top:12px;
   text-align:center; color:var(--ed-acc); }
 
-/* THE TWO VERBS, bottom left. The primary is never disabled: it is your
-   aeroplane, and building it wrong and learning why is content, not error —
-   it changes its WORDS when the bench has not passed, and nothing else. */
-#edVerbs { position:absolute; left:22px; bottom:22px; display:flex;
-  align-items:center; gap:9px; }
-
+/* THE VERBS. The primary is never disabled: it is your aeroplane, and
+   building it wrong and learning why is content, not error — it changes its
+   WORDS when the bench has not passed, and nothing else.
+   They are shorter than they were at the bottom of the screen, because they
+   now share a row with the rail and the row should read as one object. */
 .verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
   text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
-  padding:14px 18px; border-radius:8px; cursor:pointer;
+  padding:11px 16px; border-radius:8px; cursor:pointer;
   transition:background .12s ease, border-color .12s ease; }
 
 .verb:hover { border-color:rgba(255,255,255,.3); }
 
-.verb.pri { font-weight:600; padding:14px 20px; color:var(--ed-acc-ink);
+.verb.pri { font-weight:600; padding:11px 18px; color:var(--ed-acc-ink);
   background:var(--ed-acc); border-color:var(--ed-acc); }
 
 .verb.pri:hover { background:#f0e7d8; }
@@ -867,44 +1093,11 @@ body.mode-fly #wsUI { display:none; }
    and neither covers the panel — you can still see what you were editing.
    ====================================================================== */
 
-/* THE CHIP STAYS. The scrim goes UNDER the view layer, not over it, so the
-   name you opened the sheet from is still there with its chevron turned and
-   its border lit — the door reads as the door you came through. The rail and
-   the verbs are about the build, and the sheet is not, so those two hide. */
-#edScrim { position:fixed; left:var(--ws-left, 0px); top:0; bottom:0;
-  right:var(--ws-right, 0px); z-index:41;
-  background:rgba(11,9,6,.8); transition:right .16s ease; }
-
-body.sheet-open #edRail, body.sheet-open #edFly,
-body.sheet-open #edVerbs { display:none; }
-
-#edScrim[hidden] { display:none; }
-
-#edShed { position:fixed; left:calc(var(--ws-left, 0px) + 22px); top:118px;
-  bottom:22px; right:calc(var(--ws-right, 0px) + 22px); z-index:43; display:flex; flex-direction:column;
-  background:var(--ed-panel, #201d1a); color:#f4efe6;
-  border:1px solid rgba(255,248,236,.14); border-radius:12px; overflow:hidden;
-  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-  font-variant-numeric:tabular-nums; transition:right .16s ease; }
-
-#edShed[hidden] { display:none; }
-
-#edShed > header { display:flex; align-items:baseline;
-  gap:12px; padding:20px 24px 16px;
-  border-bottom:1px solid rgba(255,248,236,.09); }
-
-#edShed > header b { font:600 22px/1 'IBM Plex Sans'; }
-
-#edShed > header span {
-  font:400 11.5px/1.4 'IBM Plex Sans'; color:#8a8377; }
-
-#edShed > header .pill { margin-left:auto;
-  font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
-  text-transform:uppercase; color:#c0b8ac; background:transparent;
-  border:1px solid rgba(255,255,255,.18); border-radius:7px; padding:7px 11px;
-  cursor:pointer; }
-
-#shedBody { flex:1; overflow-y:auto; padding:18px 24px 24px; }
+/* THE SHEETS ARE GONE (G108). The aeroplane's went at G91 and the shed's is
+   a tree ROOT now, so the scrim, the sheet and its body all go with them.
+   UI-MODEL section 2.4 reserves one sheet for the FLEET RACK; that chantier
+   writes its own rather than inheriting a scrim that has spent a release
+   covering nothing. */
 
 #edInfo .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:#8a8377;
   margin:18px 0 8px; }
@@ -917,51 +1110,40 @@ body.sheet-open #edVerbs { display:none; }
 
 #edFleet #edFleet #shAc select option { background:#201d1a; color:#f4efe6; }
 
-/* the room's own panel, moved here whole */
-#shedBody details { margin:8px 0; border:1px solid rgba(255,248,236,.09);
+/* A ROOT THAT BUILDS ITS OWN PANEL (G108). The shed's is an accordion of its
+   own — ten material sub-groups under nine plain rows — so it is the one thing
+   in this column with real nesting, and the nesting is ALL it needs: the row
+   grid, the labels, the values, the ranges and the selects are the column's
+   own rules already. There WAS a second set of them, restated in raw hexes,
+   because the sheet lived outside #edWrap and inherited none of the palette.
+   Being inside the column is what deletes them. */
+.edRoot details { margin:8px 0; border:1px solid var(--ed-hair);
   border-radius:7px; padding:2px 10px; }
 
-#shedBody summary { cursor:pointer; color:#8a8377;
-  font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.16em;
+.edRoot summary { cursor:pointer; color:var(--ed-faint);
+  font:var(--ed-t-group); letter-spacing:.16em;
   text-transform:uppercase; padding:8px 0; list-style:none; }
 
-#shedBody summary::-webkit-details-marker { display:none; }
+.edRoot summary::-webkit-details-marker { display:none; }
 
-#shedBody .r { display:flex; gap:10px; align-items:center; margin:7px 0;
-  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:#c0b8ac; }
+.edRoot .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
-#shedBody .r > span.k { width:120px; flex:none; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; }
-
-#shedBody .r > .v { width:56px; flex:none; text-align:right; color:#f4efe6; }
-
-#shedBody input[type=range] { flex:1; min-width:30px; accent-color:#e6dbc9; }
-
-#shedBody select { flex:1; min-width:0; padding:5px 8px;
-  font:400 11.5px/1.2 'IBM Plex Sans'; color:#f4efe6;
-  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
-  border-radius:7px; }
-
-#shedBody select option { background:#201d1a; }
-
-#shedBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
-
-#shedBody .lt button.tg, #edFlyBody .lt button.tg {
+.edRoot .lt button.tg, #edFlyBody .lt button.tg {
   padding:3px 7px; font:400 10px/1.2 'IBM Plex Sans'; flex:none;
-  color:#e6dbc9; background:transparent;
-  border:1px solid rgba(255,248,236,.14); border-radius:5px; cursor:pointer; }
+  color:var(--ed-acc); background:transparent;
+  border:1px solid var(--ed-border); border-radius:5px; cursor:pointer; }
 
-#shedBody .lt button.tg.off, #edFlyBody .lt button.tg.off {
-  color:#8a8377; opacity:.55; text-decoration:line-through; }
+.edRoot .lt button.tg.off, #edFlyBody .lt button.tg.off {
+  color:var(--ed-faint); opacity:.55; text-decoration:line-through; }
 
 /* the ALL / NONE masters are VERBS, not states: they never wear the `off`
    look, because they are not a source. They read as a pair set apart from
    the switches they drive. */
-#shedBody .lt button.tg.alt, #edFlyBody .lt button.tg.alt {
+.edRoot .lt button.tg.alt, #edFlyBody .lt button.tg.alt {
   color:#c8b48c; border-color:rgba(200,180,140,.34);
   background:rgba(200,180,140,.07); letter-spacing:.04em; }
 
-#shedBody .lt button.tg.alt:hover, #edFlyBody .lt button.tg.alt:hover {
+.edRoot .lt button.tg.alt:hover, #edFlyBody .lt button.tg.alt:hover {
   background:rgba(200,180,140,.16); }
 
 /* ---- THE GAME'S BOTTOM BAR is gone in the garage (G78). The two verbs
@@ -974,7 +1156,7 @@ body.sheet-open #edVerbs { display:none; }
 
 /* ---- reduced motion: no transitions at all, as style.css already does */
 @media (prefers-reduced-motion:reduce) {
-  #edWrap, #edWrap *, #edInfo, #edInfo *, #edShed, #edScrim, #c {
+  #edWrap, #edWrap *, #edInfo, #edInfo *, #c {
     transition:none !important; }
 }
 

@@ -289,3 +289,24 @@
    and building it wrong and learning why is content, not error. The button
    says what it knows and then gets out of the way. */
 #bGo.warn { color:#ffc46b; border-color:#ffc46b66; background:#ffc46b14; }
+
+  /* ---- THE ARRIVAL CARD (G107.2): the flight's ending, over the strip ---- */
+  #arrCard { position:fixed; left:50%; bottom:120px; transform:translateX(-50%);
+    min-width:300px; max-width:420px; padding:14px 18px 13px;
+    pointer-events:auto; z-index:30; }
+  #arrCard[hidden] { display:none; }
+  #arrCard #arrTitle { display:block; font:600 15px/1.2 'IBM Plex Sans';
+    letter-spacing:.06em; color:var(--ink); margin-bottom:8px; }
+  #arrCard.bad #arrTitle { color:var(--amber); }
+  #arrCard #arrRows div { display:flex; justify-content:space-between; gap:18px;
+    font:400 11.5px/1.7 'IBM Plex Sans'; }
+  #arrCard #arrRows span { color:var(--faint); }
+  #arrCard #arrRows b { color:var(--ink); font-weight:500;
+    font-variant-numeric:tabular-nums; }
+  #arrCard #arrNotes { margin-top:7px; }
+  #arrCard #arrNotes:empty { display:none; }
+  #arrCard #arrNotes i { display:block; font:400 10.5px/1.5 'IBM Plex Sans';
+    font-style:normal; color:var(--dim); border-top:1px solid var(--line);
+    padding-top:5px; margin-top:4px; }
+  #arrCard #arrBtns { display:flex; gap:8px; margin-top:11px; }
+  #arrCard #arrBtns button { flex:1; padding:7px 0; }

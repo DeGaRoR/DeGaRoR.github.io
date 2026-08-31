@@ -177,11 +177,21 @@ const propM = new THREE.MeshStandardMaterial({
 // MATERIALS table, whose index also drives the blade's DENSITY — so it maps
 // by index (AERO_PROP_FIN). A laminated wooden blade and a carbon one differ
 // in more than colour, and this is where that finally shows.
-const propMat = () => {
+const propMat = (sec) => {
   const i = Math.max(0, Math.min(CW.MATERIALS.length - 1,
     Math.round(CW.P.material)));
   const M = CW.MATERIALS[i];
   const A = AKM();
+  // the livery section (phase C): cw_material keeps deciding what the blade
+  // IS (its finish AND its density); the section adds the builder's tint and
+  // dials on top. The spinner is its own section FOLLOWING the propeller, so
+  // by default it wears the blade's material exactly as it always did.
+  if (typeof window !== 'undefined' && window.CAGE_SECMAT) {
+    const m = window.CAGE_SECMAT(sec || 'prop',
+      { fin: A && A.AERO_PROP_FIN[i], tint0: M.col,
+        surf: 0, fieldM: 1, side: THREE.DoubleSide });
+    if (m) return m;
+  }
   if (A && A.aeroHardOn && A.aeroHardOn() && A.AERO_PROP_FIN[i])
     return A.aeroMaterial(THREE, { finish: A.AERO_PROP_FIN[i], tint: M.col,
       surf: 0, fieldM: 1, side: THREE.DoubleSide });
@@ -364,7 +374,7 @@ PAGE.post = ctx => {
       new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    ng.add(new THREE.Mesh(geo, propMat()));
+    ng.add(new THREE.Mesh(geo, propMat('spinner')));
   }
   ng.position.set(0, 0, nOff);               // cone base -> flange + dial
   // G55: NAMED for the join's snapshot (G47.2's prescription) — the parts

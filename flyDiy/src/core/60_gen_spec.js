@@ -1089,13 +1089,38 @@ const GEN_RULES = {
 // `paint.regX` and `wings[].centre`.
 // 5: `cage` — the template-cage fuselage design (see the field).
 //
-// Nothing READS this number: `genNormaliseSpec` defaults every missing field
-// from GEN_DEFAULT, and a field left `null` stays null and keeps being derived,
-// so an older spec loads correctly without being told what it is. The version is
-// here to be honest about the shape having changed, and to give a future
-// migration something to branch on — not because one is needed today. Do not
-// add a migration that only re-does what normalisation already does.
+// ONE THING READS THIS NUMBER: `genMigrateSpec` below walks a spec from its
+// own `v` to here through GEN_MIGRATORS, one step per version. Everything else
+// still holds: `genNormaliseSpec` defaults every missing field from
+// GEN_DEFAULT, a field left `null` stays null and keeps being derived, so an
+// older spec loads correctly without being told what it is — which is why the
+// migrator table is EMPTY today. Do not add a migration that only re-does what
+// normalisation already does; a migrator earns its entry only when a field
+// changes UNITS, SIGN, or HOME (`fuel.litres` becoming a vessel list is the
+// reserved case — the 5 -> 6 bump belongs to the energy arc). The mechanism
+// exists BEFORE its first real entry so that entry lands in an exercised,
+// gated machine: GATE BUILD injects a throwaway migrator, runs the walk, and
+// removes it (G106). Every real entry ships with a frozen save of the
+// OUTGOING vintage in tools/fixtures/, which GATE BUILD loads forever.
 const GEN_SPEC_V = 5;
+
+// { fromVersion: spec => spec } — each entry lifts a spec one version. May
+// mutate and return its argument. Runs BEFORE normalisation, on the raw shape
+// the old game actually saved.
+const GEN_MIGRATORS = {};
+
+function genMigrateSpec(r) {
+  if (!r || typeof r !== 'object') return r;
+  const v = r.v;
+  // no `v` at all: the pre-versioned flat shape — genNormaliseSpec's flat
+  // branch IS its migration, and stamps GEN_SPEC_V itself.
+  if (typeof v !== 'number' || !isFinite(v)) return r;
+  if (v >= GEN_SPEC_V) return r;            // current, or from the future
+  for (let i = Math.floor(v); i < GEN_SPEC_V; i++)
+    if (GEN_MIGRATORS[i]) r = GEN_MIGRATORS[i](r) || r;
+  r.v = GEN_SPEC_V;
+  return r;
+}
 
 // The one preset this chantier ships: a strut-braced high-wing taildragger in
 // the Cub envelope. Nulls are the derived fields — that is most of the
@@ -1380,6 +1405,35 @@ const GEN_DEFAULT = {
   // the fin. It was pinned at 45-78% of the run, which on a long fuselage put it
   // in the taper where the section halves in width.
   paint: { job: 'full', base: 0xf2c437, trim: 0x1b3a5c, sweep: 0.55, gloss: 0.42, regX: 0.30 },
+  // THE AEROPLANE'S FINISH (G105). `paint` above is the GENERATED skin's
+  // three-colour scheme, which every aeroplane in the fleet has had since G4.
+  // This is the AEROSKIN one: what each section of the cage is made of and
+  // what it looks like — the finish, the tint, the tile / roughness / normal
+  // multipliers, how flown it looks, and where the markings sit.
+  //
+  //   finish: { sections: { <sec>: {fin, tint, tile, rough, nrm} },
+  //             wear: 0..1,
+  //             decals: { regH, regL, regC, regTarget, img* } }
+  //
+  // NULL IS THE FACTORY FINISH, and it is the default for the same reason
+  // `cage` is null by default: every field of it is derivable, so a spec that
+  // says nothing gets the aeroplane its construction implies. That is also the
+  // whole of the migration — a spec written before this field existed is a
+  // spec with no overrides, which is exactly what it meant.
+  //
+  // AND THAT IS WHY GEN_SPEC_V DOES NOT MOVE FOR THIS. The version exists to
+  // give a MIGRATION something to branch on, and there is nothing to branch:
+  // genDefaults fills the null and the aeroplane is unchanged. The 5 -> 6 bump
+  // is reserved by the ENERGY MODULE arc (see tools/_energy_base.js), whose
+  // change to `spec.fuel` really does need one — taking it here for a field
+  // that needs no migrator would spend their number on bookkeeping.
+  //
+  // DELIBERATE GAP: a loaded livery IMAGE is not carried. `decals` holds where
+  // the image sits and how big it is, never the pixels — a base64 texture in a
+  // build file is a different decision, and one nobody has asked for.
+  // Sections are a MAP and not an array on purpose: a section that a build
+  // does not have is one this file simply does not mention.
+  finish: null,
 };
 
 const GEN_PRESETS = { garage: GEN_DEFAULT };
@@ -1425,7 +1479,9 @@ const genIsSectioned = r => Array.isArray(r.wings) ||
   GEN_SECTIONED.some(k => r[k] !== undefined && r[k] !== null);
 
 function genNormaliseSpec(raw) {
-  const r = genClone(raw && typeof raw === 'object' ? raw : {});
+  // migrate FIRST, on the clone: a migrator sees the raw shape its vintage
+  // actually wrote, before defaulting fills the modern fields in around it.
+  const r = genMigrateSpec(genClone(raw && typeof raw === 'object' ? raw : {}));
   if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
@@ -1529,6 +1585,13 @@ function clampSpec(spec) {
   // truthy non-object can never reach a consumer that reads fields off it.
   if (S.cage !== null && (typeof S.cage !== 'object' || Array.isArray(S.cage)))
     S.cage = null;
+  // ...and the finish rides through for the same reason and takes the same one
+  // guard: aeroskin.js owns which finish names and which multiplier ranges are
+  // real, and a second copy of those tables here is the second home that note
+  // forbids. The type is this level's business, because a truthy non-object
+  // would reach a consumer that reads `.sections` off it.
+  if (S.finish !== null && (typeof S.finish !== 'object' || Array.isArray(S.finish)))
+    S.finish = null;
   if (!GEN_TANKS[S.fuel.tank]) S.fuel.tank = 'nose';
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
   const ct = S.controls;

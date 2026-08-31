@@ -69,6 +69,17 @@ const M = {};
 for (const nm of Object.keys(MFALL)) {
   Object.defineProperty(M, nm, { enumerable: true, get() {
     const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+    // THE SEATS ARE THE BUILDER'S (phase D): cushion and piping are one
+    // livery section — leather by default, each keeping its own legacy
+    // shade until a pick unifies them — asked here in the getter so not
+    // one of the 45 call sites has to know.
+    if ((nm === 'cushion' || nm === 'pipe') &&
+        typeof window !== 'undefined' && window.CAGE_SECMAT) {
+      const ms = window.CAGE_SECMAT('seatTrim',
+        { surf: 0, fieldM: 1, side: THREE.FrontSide,
+          tint0: MFALL[nm].color.getHex() });
+      if (ms) return ms;
+    }
     if (!A || !A.aeroHardMat) return MFALL[nm];
     return A.aeroHardMat(THREE, 'crew', nm, MFALL[nm].color.getHex(),
                          { side: THREE.FrontSide }) || MFALL[nm];
@@ -844,24 +855,42 @@ function rimInto(bag, cx, cy, cz, rIn, rOut, depth, seg) {
   }
 }
 
-// THE PANEL ITSELF. Built on the two anchors the dash already has — the face
-// station the push-pull throttle mounts through, and the height it mounts at —
-// so the panel and the throttle cannot disagree about where the dash is.
+// THE PANEL ITSELF. Built on the anchors the dash already has — the face
+// station the push-pull throttle mounts through, and the dash shell's own
+// vertical band — so the panel and the throttle cannot disagree about where
+// the dash is, and the instruments are cut INTO the dash rather than hung
+// under it.
 function buildPanel(parent, A, P, pilotX) {
   const fit = panelFit();
   const want = PANEL_FIT[fit] || PANEL_FIT.basic;
-  const zFace = A.zDash + 0.005;
-  // UNDER THE LIP the cage actually built, when it built one. The fallback is
-  // the throttle's own mounting height, which is what this used before the
-  // measurement existed and is right to within a coaming when there is no
-  // dash shell at all (a cabin with the panel switched off).
-  const yTop = (A.dashLip != null)
-    ? A.dashLip - 0.012
-    : A.floorAt(A.zDash) + 0.42 + 0.135;
-  const yMid = yTop - 0.135;
-  // the usable band: 270 mm deep (the spec's own cabin.panel.depth), stopping
-  // 50 mm short of the cabin wall on each side
-  const H = 0.135, xLim = Math.max(0.16, A.halfW - 0.05);
+  // ON THE DASH'S AFT FACE, a few millimetres proud of it toward the seats.
+  // `A.zDash` is the station the THROTTLE mounts through — a datum inside the
+  // shell — and it stays that, untouched, because the pedal lights and the
+  // coaming lights read it. The dials need the face you can see.
+  const zFace = (A.dashAftZ != null ? A.dashAftZ : A.zDash) - 0.004;
+  // ON THE DASH FACE, not below it (user, 2026-08-31: "the instrument panel is
+  // positionned incorrectly with regard to the dashboard... 30-40 cm too low").
+  // G94 read the dash shell's LOWEST vertex and hung the panel 12 mm under it.
+  // That vertex is the BOTTOM of the dash box — `min(base.y) - dashDepth` —
+  // so the whole band was displaced by dashDepth, 0.35 m by default. The band
+  // is the dash's OWN y-extent now, inset a bezel's edge distance at each end,
+  // which is also what makes the panel FOLLOW the dash instead of being pushed
+  // down by it: grow the dashboard and the instruments stay on its face.
+  //
+  // The fallback (no dash shell at all — a cabin with `intDash` off) keeps
+  // G94's throttle-height guess and its 270 mm band, expressed the same way so
+  // the two branches cannot disagree about what "the panel's top" means.
+  const PAN_INSET = 0.012;              // bezel edge distance, top and bottom
+  const hasDash = A.dashLip != null && A.dashTop != null;
+  const yTop = hasDash ? A.dashTop - PAN_INSET
+                       : A.floorAt(A.zDash) + 0.42 + 0.135;
+  // a very shallow dash still has to carry SOMETHING: floor the band rather
+  // than invert it, and let the overflow counter report what did not fit
+  const yBot = hasDash ? Math.min(A.dashLip + PAN_INSET, yTop - 0.090)
+                       : yTop - 0.270;
+  const yMid = (yTop + yBot) / 2;
+  // the usable band, stopping 50 mm short of the cabin wall on each side
+  const H = (yTop - yBot) / 2, xLim = Math.max(0.16, A.halfW - 0.05);
   const bez = Bag(M.bezel), dial = Bag(M.dial), ned = Bag(M.needle);
   const placed = [];
   const onPanel = want.filter(k => INSTR[k] && !INSTR[k].coaming)
@@ -896,22 +925,15 @@ function buildPanel(parent, A, P, pilotX) {
     }
     rowY -= hRow + GAP;
   }
-  // ---- THE PLATE the instruments are cut into ------------------------------
-  // A panel is a flat sheet bolted behind the coaming, and without it the
-  // instruments read as dials stuck to the inside of the fuselage. It is sized
-  // to what it actually carries rather than to the cabin, which is why it is
-  // built after the layout and not before.
-  if (placed.length) {
-    const px0 = Math.min(...placed.map(q => q.cx - q.r)) - 0.022;
-    const px1 = Math.max(...placed.map(q => q.cx + q.r)) + 0.022;
-    const py0 = Math.min(...placed.map(q => q.cy - q.r)) - 0.022;
-    const py1 = Math.max(...placed.map(q => q.cy + q.r)) + 0.028;
-    const pl = Bag(M.console);
-    const z = zFace + 0.001;
-    pl.quad(pl.v(px0, py0, z), pl.v(px1, py0, z),
-            pl.v(px1, py1, z), pl.v(px0, py1, z));
-    pl.mesh(parent);
-  }
+  // ---- NO PLATE. THE DASHBOARD IS THE PLATE. -------------------------------
+  // G94 drew an M.console quad behind the dials, sized to the instrument bbox,
+  // arguing that without it "the instruments read as dials stuck to the inside
+  // of the fuselage". That was true only because the panel was hanging in the
+  // open air below the dash. On the dash's own face there is already a sheet
+  // behind every dial, and a second one is a black rectangle appearing from
+  // nowhere — the user's ruling, 2026-08-31: "that should not add a black
+  // panel out of nowhere, the dahsboard IS the supporting panel".
+  // The dials sit 1 mm proud of A.zDash either way, so nothing else moves.
   for (const p of placed) {
     const seg = p.r > 0.035 ? 22 : 16;
     rimInto(bez, p.cx, p.cy, zFace, p.r * 0.86, p.r, 0.010, seg);
@@ -1047,7 +1069,11 @@ const CHAINS = {
           label: 'R foot' },
 };
 
-function makeDummy(parent) {
+// `suitM` is THIS dummy's own suit material (phase D) — the per-dummy
+// livery section resolved by the caller, null on the standalone bench.
+// Joints and hands/feet stay the shared hardware; only the SHELL dresses.
+function makeDummy(parent, suitM) {
+  const suit = suitM || M.shell;
   const fig = new THREE.Group();
   parent.add(fig);
   const bones = {};
@@ -1065,13 +1091,13 @@ function makeDummy(parent) {
   {
     const g = shellGeom(-0.10, 0.07,
       t => 0.088 + 0.055 * smoothS(t) - 0.012 * t * t);
-    const m = new THREE.Mesh(g, M.shell); m.scale.z = 0.74;
+    const m = new THREE.Mesh(g, suit); m.scale.z = 0.74;
     att('root', m);
   }
   jball('lumbar', 0.082);
   {
     const g = shellGeom(0.0, 0.16, t => 0.098 + 0.030 * t);
-    const m = new THREE.Mesh(g, M.shell); m.scale.z = 0.74;
+    const m = new THREE.Mesh(g, suit); m.scale.z = 0.74;
     att('lumbar', m);
   }
   {
@@ -1079,7 +1105,7 @@ function makeDummy(parent) {
       const u = smoothS(clamp(t * 1.25, 0, 1));
       return 0.118 + 0.048 * u - 0.030 * Math.max(0, (t - 0.82) / 0.18);
     });
-    const m = new THREE.Mesh(g, M.shell); m.scale.set(1.06, 1, 0.70);
+    const m = new THREE.Mesh(g, suit); m.scale.set(1.06, 1, 0.70);
     att('thorax', m);
   }
   {
@@ -1090,17 +1116,17 @@ function makeDummy(parent) {
       const y = t * 2 - 1;
       return 0.098 * Math.sqrt(Math.max(0, 1 - y * y * 0.97));
     }, 16);
-    const h = new THREE.Mesh(g, M.shell);
+    const h = new THREE.Mesh(g, suit);
     h.position.y = 0.10; h.scale.set(0.94, 1, 0.90);
     att('head', h);
   }
   for (const s of ['L', 'R']) {
     jball('shoulder' + s, 0.062);
     att('shoulder' + s,
-        new THREE.Mesh(segmentGeom(0.29, 0.050, 0.055, 0.040), M.shell));
+        new THREE.Mesh(segmentGeom(0.29, 0.050, 0.055, 0.040), suit));
     jball('elbow' + s, 0.049);
     att('elbow' + s,
-        new THREE.Mesh(segmentGeom(0.26, 0.043, 0.046, 0.032), M.shell));
+        new THREE.Mesh(segmentGeom(0.26, 0.043, 0.046, 0.032), suit));
     jball('wrist' + s, 0.036);
     const hand = new THREE.Mesh(segmentGeom(0.165, 0.034, 0.046, 0.020),
                                 M.dark);
@@ -1110,10 +1136,10 @@ function makeDummy(parent) {
   for (const s of ['L', 'R']) {
     jball('hip' + s, 0.072);
     att('hip' + s,
-        new THREE.Mesh(segmentGeom(0.44, 0.068, 0.072, 0.052), M.shell));
+        new THREE.Mesh(segmentGeom(0.44, 0.068, 0.072, 0.052), suit));
     jball('knee' + s, 0.060);
     att('knee' + s,
-        new THREE.Mesh(segmentGeom(0.42, 0.058, 0.062, 0.040), M.shell));
+        new THREE.Mesh(segmentGeom(0.42, 0.058, 0.062, 0.040), suit));
     jball('ankle' + s, 0.043);
     const foot = new THREE.Mesh(new THREE.BoxGeometry(0.090, 0.055, 0.225),
                                 M.dark);
@@ -1311,23 +1337,44 @@ function anchors(spec, P, mesh) {
               - (P.dashBack || 0.05)) * k - 0.02;
   // (overall plane dims now come from the displayed bounding box in the
   // viewer's dimensions pane — the honest measure, canopy included)
-  // THE COAMING LIP, MEASURED (G94). The instrument panel has to sit UNDER the
-  // dash shell, in the opening you can actually see into — and the first cut
-  // put it at floor + 0.42, which is where the push-pull throttle mounts and
-  // is most of a coaming's height too high: nine instruments were built
-  // correctly and hidden behind the cowl deck, with only their bottom edges
-  // showing. The cage emits that shell as the `dash` material, so its LOWEST
-  // vertex is the lip, and the aeroplane can be asked instead of assumed.
-  let dashLip = null;
+  // THE DASH SHELL'S OWN BAND, MEASURED (G94, corrected here). The first cut
+  // put the panel at floor + 0.42, which is where the push-pull throttle
+  // mounts and is most of a coaming's height too high: nine instruments were
+  // built correctly and hidden behind the cowl deck. G94 moved it "to the
+  // lip" and took the LOWEST `dash` vertex — which is not the lip, it is the
+  // BOTTOM of the dash box (`yB = min(base.y) - dashDepth`, _cage_gen.js's
+  // own construction). Hanging the panel below that displaced it by exactly
+  // `dashDepth`, 0.35 m by default, and that was the user's "30-40 cm too
+  // low": move the dashDepth slider and the error tracked it 1:1.
+  //
+  // So BOTH edges are measured and named for what they are. `dashLip` keeps
+  // its name and its value because _cage_light.js reads it for the coaming
+  // panel lights and that station is genuinely the bottom lip; `dashTop` is
+  // the traced windscreen base line, and the two together are the face the
+  // instruments are cut into. The dash IS the panel (user, 2026-08-31), so
+  // nothing is drawn behind them.
+  //
+  // AND ITS AFT FACE, for the same reason. The dash is a BOX, not a plate —
+  // `dashDepth` runs it 0.35 m FORWARD from the windscreen base — and the
+  // panel's own station was `zDash + 0.005`, which lands 38 mm INSIDE it.
+  // That never showed while the instruments hung below the box in open air;
+  // the moment they moved onto its face it buried them. +z is forward here,
+  // so the aft face is the MINIMUM z the `dash` material reaches.
+  let dashLip = null, dashTop = null, dashAftZ = null;
   if (mesh && mesh.F && mesh.V) {
-    let lo = 1e9;
+    let lo = 1e9, hi = -1e9, za = 1e9;
     for (const f of mesh.F) {
       if (f.m !== 'dash') continue;
-      for (const vi of f.v) { const y = mesh.V[vi][1] * k; if (y < lo) lo = y; }
+      for (const vi of f.v) {
+        const y = mesh.V[vi][1] * k, z = mesh.V[vi][2] * k;
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+        if (z < za) za = z;
+      }
     }
-    if (lo < 1e8) dashLip = lo;
+    if (lo < 1e8) { dashLip = lo; dashTop = hi; dashAftZ = za; }
   }
-  return { k, dashLip, floorAt, halfW: spec.cabin.halfW * k,
+  return { k, dashLip, dashTop, dashAftZ, floorAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0 };
 }
@@ -1357,7 +1404,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     scene.remove(group);
     group = null;
   }
-  if (!P.crewOn) return;
+  if (!P.crewOn) {
+    if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
+    return;
+  }
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
   // part lives in, and G79's raycast resolves a hit to a part through
@@ -1429,9 +1479,16 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // EVERY OCCUPANT IS POSED THE SAME WAY (user 2026-08-19): the second
   // dummy is not a passenger ornament — give it a station and it flies
   // from it, by the identical rules. Without one it rests its hands.
-  const seatDummy = (seat, ST) => {
+  const seatDummy = (seat, ST, idx) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
-    const dum = makeDummy(group);
+    // the dummy's OWN suit (phase D): one colour of personality each, the
+    // second following the first; ATD amber is the walk's last word
+    const suit = (typeof window !== 'undefined' && window.CAGE_SECMAT &&
+      window.CAGE_SECMAT('dummy' + (idx || 1),
+        { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
+      || null;
+    const dum = makeDummy(group, suit);
+    dum.fig.name = 'edDum' + (idx || 1);
     dum.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;
     const recline = clamp((SP.rake - 7) + (P.dumRecline || 0), -10, 55);
@@ -1543,10 +1600,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
   const dums = [];
-  if (P.dumOn) dums.push(seatDummy(pilot, st1));
+  if (P.dumOn) dums.push(seatDummy(pilot, st1, 1));
   if (P.dum2On && seats.length > 1) {
     const i2 = seats.indexOf(pilot) === 0 ? 1 : 0;
-    dums.push(seatDummy(seats[i2], stn[i2]));
+    dums.push(seatDummy(seats[i2], stn[i2], 2));
   }
 
   // ---- eye point + head clearance (the sizing instruments) ----
@@ -1561,26 +1618,43 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // world matrix: exact everywhere, a no-op standalone. The IK and
   // reach code above needs none of this — it is relative world math,
   // invariant under a rigid mount.
-  if (dums.length && P.dumMarkers) {
+  // THE EYE POINT IS PUBLISHED, NOT JUST DRAWN (G107, the interior view).
+  // It was computed only when `dumMarkers` was on and only in order to draw a
+  // ball and a sight line — so the one object in the whole build that knows
+  // where a pilot's eyes are could not be asked where they are. It is now
+  // computed whenever there IS a pilot, in WORLD space because that is the
+  // frame a camera lives in, and `dumMarkers` still gates exactly what it
+  // always gated: the markers.
+  //
+  // THE HEADS RIDE ALONG. A camera at the eye point is inside the skull, and
+  // the view has no business learning the skeleton to find it — so the layer
+  // that built them hands them over.
+  if (dums.length) {
     const head = dums[0].bones.head;
     head.updateWorldMatrix(true, false);
-    const eye = group.worldToLocal(new THREE.Vector3(0, 0.125, 0.082)
-      .applyMatrix4(head.matrixWorld));
-    ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
-    const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
-    const fwd = new THREE.Vector3(0, 0, 1)
-      .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()))
-      .applyQuaternion(gq);
-    const lg = new THREE.BufferGeometry().setFromPoints(
-      [eye, eye.clone().addScaledVector(fwd, 0.6)]);
-    group.add(new THREE.Line(lg, new THREE.LineBasicMaterial(
-      { color: 0xff4d3d, transparent: true, opacity: 0.55 })));
-    const crown = group.worldToLocal(new THREE.Vector3(0, 0.245, 0)
-      .applyMatrix4(head.matrixWorld));
-    const seatFloor = A.floorAt(pilot.zBack + 0.20);
-    notes.unshift('eye +' + (eye.y - seatFloor).toFixed(2) + ' fl',
-                  'head clr ' + (A.roofY - crown.y).toFixed(2));
-  }
+    const eyeW = new THREE.Vector3(0, 0.125, 0.082)
+      .applyMatrix4(head.matrixWorld);
+    const fwdW = new THREE.Vector3(0, 0, 1)
+      .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+    if (typeof window !== 'undefined')
+      window.CAGE_CREW_EYE = { p: eyeW.toArray(), fwd: fwdW.toArray(),
+                               heads: dums.map(d => d.bones.head) };
+    if (P.dumMarkers) {
+      const eye = group.worldToLocal(eyeW.clone());
+      ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
+      const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
+      const fwd = fwdW.clone().applyQuaternion(gq);
+      const lg = new THREE.BufferGeometry().setFromPoints(
+        [eye, eye.clone().addScaledVector(fwd, 0.6)]);
+      group.add(new THREE.Line(lg, new THREE.LineBasicMaterial(
+        { color: 0xff4d3d, transparent: true, opacity: 0.55 })));
+      const crown = group.worldToLocal(new THREE.Vector3(0, 0.245, 0)
+        .applyMatrix4(head.matrixWorld));
+      const seatFloor = A.floorAt(pilot.zBack + 0.20);
+      notes.unshift('eye +' + (eye.y - seatFloor).toFixed(2) + ' fl',
+                    'head clr ' + (A.roofY - crown.y).toFixed(2));
+    }
+  } else if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
   // cabin height at the pilot station — the number the dummy judges
   {
     const fl = A.floorAt(pilot.zBack + 0.20);

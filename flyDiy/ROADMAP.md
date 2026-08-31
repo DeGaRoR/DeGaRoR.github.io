@@ -154,11 +154,26 @@ BUILD onto the lattice instead is the deeper fix and wants its own
 chantier, because it re-places the aeroplane in a room P11's own work
 is composed around.
 
-TEST FLIGHT is DECLARED but not built — a row in the bench's own table
-with no `run`. Its one open decision is taken: IN PAGE, not shelled to
-node, because index.html is a zero-network single-file artifact and the
-game already runs the same sim in the browser. It is what would add a
-LANDING RUN to the plaque, which genShakedown does not compute.
+TEST FLIGHT — BUILT at G107 (2026-08-31), exactly as declared: IN PAGE, an
+offscreen fast-stepped circuit flown by THE TEST PILOT (`41_test_pilot.js`,
+the second autopilot — `makeAutopilot` forked verbatim and given BOUNDED
+ATTEMPTS WITH STRUCTURED VERDICTS: rejected takeoff, put-down from a
+ground-effect hover, accepted ceilings, terrain go-around, a watchdog).
+Generated builds fly it in the game too; the hand-built fleet keeps the old
+AP so its eleven gates stay benchmarks. The LANDING RUN is on the plaque,
+GATE PILOT (core, --selftest) holds it negative-first, the strips wear
+TOUCHDOWN MARKERS at the registry's own tdz rule, and the dalt row went
+ADVISORY (TESTED is not PASSED). THE TEST CARD landed at G107.1 (same day):
+target altitude + target speed on the flight row, the pilot clamps an unsafe
+ask to its OWN approach speed and says so, flown means judged against the
+ask on the plaque, 'cant-hold-speed' said with both numbers — tried in the
+game on the user's 0.10 m/s WIP: "REJECTED TAKEOFF — card-clamped,
+wont-climb". THE ARRIVAL CARD landed at G107.2 (same day): the flight ends
+with a card — outcome, touchdown, landing run, past the aim, the test card
+asked-vs-held, the pilot's notes verbatim — for BOTH pilots (the fleet AP's
+falls back to tdInfo), with "Fly again" (the dead bGo, fixed) and "Back to
+the hangar". Still open from the arc: plaque persistence (blocked on the
+load-path BENCH_DIRTY sequencing, wants the finish session).
 The first full turn of the loop, ugly by design. Almost everything it needs
 already exists — GATE GEN flies a generated aeroplane headless around a full
 circuit and prints its stats (the SHAKEDOWN line: Vs, VCruise, L/D, wing
@@ -314,11 +329,19 @@ numbering below.
   the screen (651 px -> 1433 px of a 1571 px window). The right panel's
   four widths are COMPUTED in one place and published as a number rather
   than declared as four classes.
-- the tree grows its remaining ROOTS — the shed and the world as scene
-  objects, through the registry above; `Design & construction` at the head of
-  the aeroplane (which is where the "conception" rows the user could not find
-  belong — they decide what ALL of it is made of and were filed under one part
-  of it); per-assembly collapse.
+- **the tree grows its remaining ROOTS. LANDED as G108.** Four roots — the
+  build, the reference, `The shed` and `The world` — through G102's registry,
+  which had two callers and both were in editor.js. The SHED SHEET retires with
+  them (G78's ruling reversed on UI-MODEL section 2.4's own argument: one
+  selector scales, two interfaces do not), and `#edScrim` / `body.sheet-open`
+  go with it — the FLEET RACK brings its own back when it lands.
+  `Design & construction` is the first row under the aeroplane, holding
+  construction, the two derived configuration selectors, boom style, pod and
+  canopy, wing position and bracing, and the three existence switches. NOT
+  `engPreset`: it names a model rather than deciding what exists. GATE PARTS'
+  "assembly with no children" rule was widened to "no children NOR rows" for
+  the one case that is deliberately a top-level row heading nothing, with its
+  own negative probe. Per-assembly collapse already landed at G102.
 - **the FINISH view. LANDED as G104.** SHAPE/FINISH as two views of the SAME
   tree — the tree stays the only selector (the noun), the tab is the
   adjective. Per-part finish, tint and G102's three dials, moved from
@@ -329,21 +352,115 @@ numbering below.
   GATE PARTS already held true in both directions — the finish view needed no
   new rule. The part callout went with it, at the user's request, and took
   `EDITOR_FRAME`, `projectPoint` and ~900 vector ops per highlight build.
-- **`spec.finish` — THE FINISH IS NOT YET THE AEROPLANE'S.** Split out of the
-  line above and NOT landed: every section's tint, finish and dials, plus the
-  wear and the decals, live in ONE localStorage key, so the whole fleet wears
-  one paint and a saved build does not carry its own. `spec.finish` + the
-  GEN_SPEC_V bump + a migrator, across four files two other sessions are live
-  in. This is the half of the material manager that is not too early, and it
-  is the next chantier in this arc.
-- VIEW STATE NEVER FLIES — a real bug the user found: `explodeD` is
-  declared out of the spec but the SNAPSHOT captures the meshes as drawn, so an
-  aeroplane rolled out while exploded flies exploded. Fixed in `syncBuild`,
-  gated by a vertex-identical snapshot at two explode settings.
-- the pass — the 108 NATIVE checkboxes whose OS accent is the red the user
-  has no place for (the G77 toggle styling was scoped to the inspector and
-  never generalised), the heading hierarchy at an assembly selection, and one
-  sweep of focus/hover/reduced-motion.
+- **`spec.finish`. LANDED as G105**, and it closes what ROADMAP has owed since
+  G67. The finish is the aeroplane's now, not the browser's: it rides out
+  through the join beside the shape and in through `applySpec`, so two designs
+  keep two liveries and a build file carries its own paint. Deviations only,
+  one object per section, null = the factory finish.
+  **NO GEN_SPEC_V BUMP, and that is the finding** — the version exists to
+  branch a MIGRATION on and there is nothing to branch: an old spec gets null,
+  null means "no overrides", which is what it always meant. The 5 -> 6 bump
+  stays the ENERGY MODULE's, whose `spec.fuel` change really does need one.
+  GATE BUILD +12 checks, each negative-verified; the converters measured in
+  the browser and in `CAGE_VISUAL` (no node harness boots `_cage_ui.js`).
+  Still not carried, declared: a loaded livery IMAGE (placement yes, pixels
+  no), and the finish is exactly as fresh as the shape — it lands on the next
+  build sync, like every slider.
+- **VIEW STATE NEVER FLIES. LANDED as G106**, and the plan above was wrong
+  in three places, which is written up in HANDOVER because the corrections are
+  the useful part. The VERTICES were already un-exploded (G63 works). What
+  flew exploded was **the PROPELLER'S PIVOT** — the restore sat in the MIDDLE
+  of the capture, and its `build()` put the scene back before the hub and the
+  shaft axis were read out of it: measured at explode 0.9, the hub at -3.4792
+  became -4.4828, a metre off the nose. The restore is a `finally` around the
+  WHOLE capture now, so the capture happens in one state. This probably also
+  closes the G58.4 "prop sometimes ends up in the middle" tripwire, whose own
+  warning asks the reporter whether explode was on.
+  Reading for the user's other half — alpha — turned up three more: the family
+  alphas (4 translucent materials became 18: a see-through aeroplane) and the
+  two display modes that REPLACE the fuselage mesh outright, wireframe
+  (409,944 vertices to 276,114 — no fuselage at all) and the surface field.
+  The fix is a DECLARED TABLE in `_cage_join.js`: VIEW_STATE (10 neutralised,
+  each with a constant neutral) + VIEW_KEEP (5 exempt, each with its reason,
+  all five measured). **GATE VIEW** (new, tier core) holds it against
+  editor.js's own RAIL in both directions, so a display control added later
+  without a decision is red. 12 checks, every rule negative-verified.
+  ALSO NOT a usable instrument, contrary to the plan: "vertex-identical at two
+  explode settings" — two captures at the SAME setting disagree in the third
+  decimal on one translucent group, so that gate would have been red on
+  arrival.
+  **G106.1 — SUBSURF IS NOT A CHOICE.** I left subsurf alone and flagged it;
+  the user overruled it ("it shouldn't even be an option in this editor
+  anymore. OK to keep it in the cage, but not in game"), and the ruling is
+  right: the subdivision level is how smooth the aeroplane IS, not how you are
+  looking at it. Gone from the game in three places — `_cage_ui.js` does not
+  adopt it under CAGE_IN_GAME, the rail does not list it, and it is pinned at
+  2 in VIEW_STATE regardless. The ELEMENT stays parked and hidden because
+  `build()` reads its value every build. GATE VIEW gained a `hidden: '<why>'`
+  flag and two rules for it, since "decided but not shown" is exactly what a
+  stale ghost row looks like. Measured: editor at L1 (6,515 v on screen),
+  capture still 412,602 v.
+- **the TYPE LADDER, the top bar, the way inside and THE SCENE. LANDED as
+  G108** — the first four chantiers of the user's twenty-one-item review
+  (2026-08-31; the ordered plan for all of it is in the session's plan file). The heading
+  hierarchy item below is CLOSED by it, and so is half the pass: there is one
+  type scale now, declared on `#edWrap` and used by both columns, with
+  uppercase reserved for group labels — the ladder had been running BACKWARDS
+  (a root drawn quieter than the assembly inside it) and the tree's assembly
+  style was byte-identical to the properties column's group style. Separators
+  moved to the END of sections in both columns. Also: click-outside deselects;
+  `Wheels & tyres` highlighted NOTHING and now highlights the wheels (it
+  failed in both directions and had since the part table declared the kit);
+  hover narrows to the named instance; the icon rail and the two verbs became
+  ONE BAR across the top with `Save` on it; `Run the bench` is deleted, not
+  moved, because it only ever pressed a button already on screen in the
+  information panel; and the INTERIOR VIEW is real — `_cage_crew.js` publishes
+  the pilot's eye point (it was computed and thrown away, drawn as a marker
+  and askable by nobody), the orbit pivots 0.35 m in front of the eyes, the
+  polar / radius / shed clamps come off and the near plane goes to 35 mm.
+  GATE: UISMOKE's seam gained four ids, three RETIRED ids asserted absent, and
+  the two-file interior contract; four negative probes, four reds.
+- ~~the pass — the 108 NATIVE checkboxes whose OS accent is the red the user
+  has no place for~~ **LANDED as G112**, together with the scrollbars (which
+  had NO styling anywhere in the project outside `tools/_pwr.html`). Measured
+  after: 0 of 123 checkboxes and 0 of 565 ranges native, across both workshop
+  roots. TWO THINGS THE DIAGNOSIS GOT SHORT: the workshop is `#wsUI` AND
+  `#edView` — the flyout lives in the second, so `#wsUI .r` alone would have
+  left the very surface the diagnosis named untouched; and the PALETTE has the
+  same defect one level down, so after the rescope the flyout's toggles came
+  out `appearance:none` with a transparent track. Both roots carry the control
+  rules and the tokens now. THE RULE: in a re-parenting architecture, a look
+  keys off the ROW, not off the place the row is standing.
+  STILL OWED from this item: the focus-visible / hover / reduced-motion sweep
+  across the surfaces added since G77.
+- **THE SECOND BATCH — the user's twenty-item review after G108. SIX LANDED as
+  G112** (2026-08-31; the ordered plan for all twenty is in the session's plan
+  file): the instrument panel is ON the dashboard and the dash IS its plate —
+  it was displaced by exactly `dashDepth`, 0.35 m, because `dashLip` measured
+  the BOTTOM of the dash box and the panel was hung below it, and then buried
+  38 mm INSIDE the box once the height was right; the shed's lamps spread 135°
+  and the ground bounce is 1, with GATE LIGHT's own `< 1` bound rewritten
+  because the user overruled the G94 occlusion term (the argument stays in the
+  file, with a paragraph saying who overruled it); the Piper Cub rests on its
+  wheels — it is drawn FUSELAGE-LEVEL, 12.09° from its parked attitude, and
+  the `pitch trim` slider was rotating about the wrong axis and ROLLING it;
+  the tail's tranche is smooth-shaded and the flats are not, with `tailRimN`
+  a row (the tail was flat by CONSTRUCTION — non-indexed geometry, so
+  `computeVertexNormals` could only ever give face normals); the cowl's oil
+  door is a superellipse; and the styling pass above.
+  **STILL OWED, all named in HANDOVER G112 with what the reading established:**
+  the joints in black rubber and the dash's materials (HANDED to the per-part
+  livery arc, the user's call — the `rubber` finish already exists and the
+  change is four words in `AERO_BY_CONS`); the beacon inside the dorsal fin
+  (NOT a depth trick — the pod straddles the fin by design and the dorsal is
+  not in the fit); the cabin lamps, the wing-tip lamp placement and the lit
+  reflector; the artefact in the cabin (the engine layer sizes its
+  firewall-side hardware off the CAGE's aperture and nothing clamps it to the
+  engine — plus a zero-length normalise feeding a lathe a NaN axis); the aft
+  bulkhead's z within its pillar, the fitting nudges and the door gap; the
+  waist line's forward limit (CHEAP — `sL = 0` already IS the window pillar);
+  and passengers, which goes last because `61_gen_frame.js` and
+  `60_gen_spec.js` belong to the energy arc's live migrator.
 
 **ON NUMBERING, AND WHY THIS ARC STOPPED RESERVING (2026-08-30).** G76-G80 were
 reserved in this file before the work started, and the reservation was read and
@@ -439,10 +556,18 @@ G69 the decals — LANDED: the surface field IS the projection, so a marking is
 placed in metres and holds its proportions on any shape (G4.5's own conclusion,
 generalised); the registration reads correctly on both flanks, an atlas with
 dilated pages carries it and any image the player loads, and the panel edits
-it. Still owed from G69: a decal is on BOTH sides or neither, placement lives
-in a pref rather than the spec, and there is no craft-space ORTHOGRAPHIC
-projector for a livery that must run continuously across fuselage, wing root
-and fairing — designed, not written.
+it. Still owed from G69: a decal is on BOTH sides or neither. Its other two
+debts are PAID: placement moved into the spec at G105, and THE CRAFT-SPACE
+ORTHOGRAPHIC PROJECTOR LANDED AS G113 — two channels (fuselage+cowl+tail, and
+wing+slabs), three modes per decal (field, side, plan), a surface CLASS in
+place of the old is-it-a-flying-surface flag, and the decal loop out of the
+field's own `#if` so an analytic surface can carry a marking at all. THE
+FINDING WORTH CARRYING: `uFieldM` is NOT a common frame — measured, the cowl is
+in metres and the fin in cage units — so the projector reads a shared
+`uCraftInv`/`vCraftPos` instead of `vObjPos`, which also retired `uSideAxis`
+(declared, defaulted and passed by no caller since G69). Still owed from G113:
+the flat surfaces' DETAIL sheet is still field-mapped, which is the user's
+item 21.
 G70 the interior, the technical parts and the wear — LANDED: the gear, the
 engine, the cowl, the propeller and the cabin leave G38's understudy grey for
 AEROSKIN through `AERO_HARD` (65 material names over 4 layers, read out of the
@@ -454,6 +579,34 @@ G70: glass takes no wear, the streaks are on the fielded surfaces only, there
 is no per-part condition, and the wing's diagnostic part colours (G31's purple
 tip, orange ailerons) survive into the material view where they read as a
 mistake rather than as a part list.
+G109 the per-part livery, phase A (2026-08-31) — LANDED: the flying surfaces
+are SECTIONS now (AERO_SEC in aeroskin.js: wingSkin/wingTip/wingAil/wingFlap,
+finSkin/finRud, stabSkin/stabElev), each with the full finish/tint/three-dials
+row set in the livery view under its own part, and each FOLLOWING its parent —
+control surfaces the wing, the wing and the tail the fuselage — through a pure
+resolver (`aeroSecResolve`) the gate exercises directly. No new machinery: the
+five override maps, the pref, `spec.finish.sections` and the join carry the
+new names exactly as they carried the cage's (NO GEN_SPEC_V bump — the G105
+ruling, for the same reason). The join's colour-only fallback bucket gained
+the finish identity, or a carbon fin and a green-ply stab wearing one tint
+would merge irreversibly. G70's leaked diagnostic colours are DELETED,
+answered by real per-part rows. PHASE B LANDED AS G110 the same day: per-part
+CONSTRUCTION (wgCons/finCons/stCons, structure tab, 0 = 'as the aeroplane'),
+feeding grammar AND the auto-finish bottom-out — carbon fins on a wooden
+fuselage measured on the meshes themselves (fin composite/carbon beside wing
+ply/wood in one build); mass/price do not follow it yet, declared. PHASE C
+LANDED AS G111: seven hardware sections (strut — joining AEROSKIN at last —
+spat, gearLeg, prop, spinner-follows-prop, cowlSkin, accPaint), the
+PINNED-FIN rule (an ancestor's finish never reaches painted hardware, its
+colour does) and `tint0` (the layer's legacy palette as the walk's last word
+before the finish base). PHASE D LANDED AS G112, closing the arc: seatTrim
+(cushion+pipe in the M getter, following nobody) and one suit tint per dummy
+(dummy2 follows dummy1; the figures are named edDum1/edDum2; editor.js
+untouched). THE ARC IS CLOSED — every part the user listed has a livery row
+under its own part or a declared reason not to. Still owed, named at
+G109-G112: the three dials and the wing/rib grammar across the join,
+per-part wear, mass/price behind per-part construction, seats/console
+naming. HANDOVER G109-G112 are canonical.
 G67.1 the default cage at boot — LANDED, and larger than it looked: the game
 now OPENS on the cage build, in the hangar, with the editor open and committed,
 so the aeroplane you see first is the one you are building; AEROSKIN is the
@@ -513,9 +666,22 @@ all in the HANDOVER entry: a bench with no transform cannot catch a frame bug;
 a bay is ONE LOFT CELL, so it has no mid-span; DIHEDRAL makes the intersection
 of two stations a section neither of them has; and a floor on a derived
 quantity is a way of ignoring the measurement that was taken.
+G99 THE BEACON TURNS: a real mirror inside the dome, and the flash computed
+against the camera rather than animated — a clock-only pulse would flash at the
+same instant for every observer, which is a strobe and not a beacon. The rate
+IS the rotation rate, so there is no second number to disagree with the first.
+GATE BEACON's AIM assertion is what tells the two apart.
+G100 THE FITTINGS FIT THE SURFACE: the beacon was a metre forward because
+`cageLayer:fin` carries the STABILISER (G96's "the group is not only the wing",
+now on the tail) and because a fin tip is SWEPT, so a fairing laid at the apex
+floats over the forward half of its own edge; the black square through every
+lamp was an axis-aligned gasket plate on a surface that does not lie in the
+world's axes; and the discs on blades became TEARDROP FAIRINGS sized from the
+surface's own thickness — a straddling base for the beacon (an anti-collision
+light cannot be let into a fin and still be seen), and a tip fairing whose NOSE
+IS THE LENS for the nav lights.
 STILL OWED from the lighting arc: the instrument light (the user's own
-"later"), the beacon does not flash, and nothing switches on at night by
-itself.
+"later"), and nothing switches on at night by itself.
 
 The material library and the wall-wardrobe prune ride with G66/G67.
 
@@ -563,12 +729,17 @@ STILL OPEN: cross-layer clearance (the gate checks fittings against their own
 skin and each other, not against the gear, engine or tail — the tail tie-down
 buried inside the tailwheel castor was found by counting pixels, and nothing
 stops the next one); nothing on the fin or stabiliser; a biplane's lower wing;
-and ONE NAMED BOUNDARY DEFECT — an aeroplane that IS the template still writes
-sixteen layer keys into `spec.cage`, because `cageToSpec` can only compare
-against CAGE_PARAMS and no layer's defaults are there. The cure is in the
-code's own comment (let it take the defaults to compare against, and pass
-`CAGE_PAGE.defaults`); it fixes all eight layers at once and belongs to
-whoever owns that boundary, not to this arc.
+~~and ONE NAMED BOUNDARY DEFECT — an aeroplane that IS the template still writes
+sixteen layer keys into `spec.cage`~~ — CLOSED at G106 (2026-08-30, the quality
+review's P-1): "sixteen" had grown to **518 keys, ~470 of them frozen layer
+defaults**, before the boundary learned to read the declaration that existed
+all along — `CAGE_PAGE.defaults`, THE DEFAULT AEROPLANE — lazily, with the
+baseline split (cage keys vs the template, layer keys vs the default
+aeroplane). The default bake is 42 keys now, all genuine cage deviations, and
+GATE BUILD holds it with a negative probe plus a frozen fat-vintage fixture
+(`tools/fixtures/`) that must load forever. The same chantier gave
+`GEN_SPEC_V` its first reader: `GEN_MIGRATORS`/`genMigrateSpec`, the empty,
+exercised walk the energy arc's v6 plugs into.
 
 THE LIFT-STRUT FOOT — LANDED 2026-08-30, arc numbers RESERVED G86-G88
 (claimed in HANDOVER before starting, same protocol). User, with both feet
@@ -583,6 +754,19 @@ so the strut stays straight) and `foot lateral` (arc length round the section),
 BOUNDED by the wing's structural chord — `strutBand`, 6 % clear of the leading
 edge and 4 % clear of the aileron hinge — so the drawn ends can never leave
 the beams they stand for. GATE STRUT, core tier.
+THE FOOT DID NOT ACTUALLY TOUCH ITS PLATE UNTIL G108 (2026-08-31, the user:
+"there is a small gap between the end of the struts and the metal plate they
+attach to, on both ends"). Measured on the drawn geometry: the clevis ear
+spanned 38.9-71.0 mm off a 7 mm doubler at the fuselage and 21.9-53.7 mm off a
+5 mm one at the wing — thirty-two and seventeen millimetres of daylight, at all
+four ends. `lug`'s tang does not follow the vector its signature calls `up`; it
+follows the BINORMAL, so handing it the surface normal threw both ears sideways
+at pin height and `stand * 0.92` bought nothing. One exported line
+(`strutClevisUp`) and the ears now root 4.4 / 3.0 mm off the skin, inside their
+plates. `lug` untouched — the undercarriage is drawn with it. GATE STRUT gained
+a headless measurement of the DRAWN ear (GATE GEAR's stub trick), and its
+negative probe is the bug itself.
+
 NO NEW PHYSICS, on the user's ruling ("prefer constraining the visuals to the
 existing physics rather than adding new physics now"): the divergence between
 each drawn wing fitting and its beam is REPORTED every build, and is 3 mm at

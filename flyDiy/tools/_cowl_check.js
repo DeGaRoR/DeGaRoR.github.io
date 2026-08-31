@@ -205,6 +205,143 @@ ok('a loose cowl on a small engine is left alone',
    C.P.aftW === 3.0 && C.P.aftH === 3.0 && C.P.cowlLen === 3.0);
 ok('  ...and reports that it already fits', big.fits);
 
+// ---------------------------------------------------------------------------
+// THE OIL DOOR, AND THE STUB THAT MAKES IT REACHABLE (2026-08-31)
+// ---------------------------------------------------------------------------
+// This checker had no THREE at all, so `buildDetail` — the fasteners, the
+// parting line and the door — has never been held by anything. That was
+// tolerable while the door was a fixed rectangle; it is not now that its
+// outline is a SETTING, because "the slider does nothing" and "the slider
+// works" look identical from here.
+//
+// buildDetail touches exactly four names, so the stub is four names. It
+// records what was built rather than drawing it, which is all a shape check
+// needs. Nothing else in this file uses THREE, so nothing else is affected.
+{
+  const V3 = function (x, y, z) { this.x = x; this.y = y; this.z = z; };
+  const built = [];
+  global.THREE = {
+    Vector3: V3,
+    BufferGeometry: function () {
+      this.attributes = {}; this.index = null;
+      this.setAttribute = (k, a) => { this.attributes[k] = a; };
+      this.setIndex = i => { this.index = i; };
+      this.computeVertexNormals = () => {};
+    },
+    Float32BufferAttribute: function (arr, itemSize) {
+      this.array = arr; this.itemSize = itemSize;
+      this.count = arr.length / itemSize;
+    },
+    Mesh: function (geo, mat) { built.push({ geo, mat }); this.geometry = geo; },
+  };
+  const group = { add: () => {} };
+  const mats = { skin: 'skin', steel: 'steel', dark: 'dark' };
+
+  const doorOf = () => {
+    built.length = 0;
+    Object.assign(C.P, { fastOn: 0, partOn: 0, oilOn: 1 });
+    C.prepareLid();
+    C.buildDetail(group, mats);
+    // the door is the first skin mesh buildDetail emits
+    const m = built.filter(b => b.mat === 'skin')[0];
+    if (!m) return null;
+    const a = m.geo.attributes.position.array, idx = m.geo.index;
+    const pts = [];
+    for (let i = 0; i < a.length; i += 3) pts.push([a[i], a[i + 1], a[i + 2]]);
+    return { pts, idx, tris: idx.length / 3 };
+  };
+
+  Object.assign(C.P, { oilZ: 0.42, oilW: 0.13, oilL: 0.16, oilSq: 1 });
+  const rect = doorOf();
+  ok('the oil door is built at all', !!rect && rect.tris > 0,
+     rect ? rect.tris + ' tris, ' + rect.pts.length + ' pts' : 'nothing emitted');
+
+  if (rect) {
+    // NO DEGENERATE FACES. A round outline meshed on a rectangular grid
+    // collapses its end rows into slivers; this is the disc topology saying
+    // it did not.
+    const area = d => {
+      let worst = 0, zero = 0;
+      for (let t = 0; t < d.idx.length; t += 3) {
+        const A = d.pts[d.idx[t]], B = d.pts[d.idx[t + 1]], C2 = d.pts[d.idx[t + 2]];
+        const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2];
+        const vx = C2[0] - A[0], vy = C2[1] - A[1], vz = C2[2] - A[2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const s = 0.5 * Math.hypot(nx, ny, nz);
+        if (s < 1e-10) zero++;
+        worst = Math.max(worst, s);
+      }
+      return { zero, worst };
+    };
+    const ar = area(rect);
+    ok('no zero-area face on the door', ar.zero === 0,
+       ar.zero + ' degenerate of ' + rect.tris);
+
+    // THE ROUNDNESS IS REAL. A circle encloses pi/4 = 78.5% of the square it
+    // fits in; a diamond half of it. Measured as the ratio of summed triangle
+    // area to the door's own bounding rectangle, which needs no analytic form.
+    const fill = d => {
+      let A = 0, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
+      for (let t = 0; t < d.idx.length; t += 3) {
+        const a1 = d.pts[d.idx[t]], b1 = d.pts[d.idx[t + 1]], c1 = d.pts[d.idx[t + 2]];
+        const ux = b1[0] - a1[0], uy = b1[1] - a1[1], uz = b1[2] - a1[2];
+        const vx = c1[0] - a1[0], vy = c1[1] - a1[1], vz = c1[2] - a1[2];
+        A += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+      }
+      for (const q of d.pts) {
+        x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]);
+        y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
+        z0 = Math.min(z0, q[2]); z1 = Math.max(z1, q[2]);
+      }
+      // the door lies on the cowl's top deck: its span is (x, z)
+      return A / Math.max(1e-9, (x1 - x0) * (z1 - z0));
+    };
+    const fRect = fill(rect);
+    Object.assign(C.P, { oilSq: 0.5 }); const ell = doorOf();
+    Object.assign(C.P, { oilSq: 0 });   const dia = doorOf();
+    const fEll = fill(ell), fDia = fill(dia);
+    // MEASURED ON THE MESH, so it is deliberately a RANKING and not a
+    // constant. The door lies on the cowl's curved top deck, so its 3D area
+    // against its projected box is not the flat superellipse ratio and never
+    // will be — asserting pi/4 here would be a number that does not mean what
+    // it says. What the mesh has to prove is that the row moves the shape in
+    // the right direction; the ratio itself is proved below, where it is exact.
+    ok('the roundness row is not inert', fRect > fEll + 0.05 && fEll > fDia + 0.1,
+       'box fill ' + f(fRect) + ' > ' + f(fEll) + ' > ' + f(fDia));
+    for (const d of [rect, ell, dia])
+      ok('  ...and every door is finite',
+         d.pts.every(q => q.every(Number.isFinite)));
+    ok('  ...and none of them is degenerate',
+       area(ell).zero === 0 && area(dia).zero === 0);
+    Object.assign(C.P, { oilSq: 1 });
+
+    // AND THE OUTLINE IS THE SHAPE IT CLAIMS, exactly, in the parameter domain
+    // where the superellipse actually lives. Same `sqExp` and `superPt` the
+    // door is built from, so this cannot drift away from it.
+    //   n = 1  diamond  area/box = 1/2
+    //   n = 2  ellipse  area/box = pi/4
+    //   n = 10 (the default) = 0.9858, i.e. 1.4% shy of a true rectangle
+    const outlineFill = sq => {
+      const n = C.sqExp(sq), N = 2048;
+      let A = 0;
+      for (let j = 0; j < N; j++) {
+        const a = C.superPt(C.TAU * j / N, 1, 1, n);
+        const b = C.superPt(C.TAU * (j + 1) / N, 1, 1, n);
+        A += 0.5 * (a[0] * b[1] - a[1] * b[0]);        // the shoelace
+      }
+      return Math.abs(A) / 4;                          // box is 2 x 2
+    };
+    ok('outline at roundness 0 is a diamond',
+       Math.abs(outlineFill(0) - 0.5) < 0.002, f(outlineFill(0)) + ' vs 0.500');
+    ok('outline at roundness 0.5 is a true ellipse',
+       Math.abs(outlineFill(0.5) - Math.PI / 4) < 0.002,
+       f(outlineFill(0.5)) + ' vs 0.785');
+    ok('outline at roundness 1 is a rectangle to within 2%',
+       outlineFill(1) > 0.98, f(outlineFill(1)) + ' vs 1.000');
+  }
+  delete global.THREE;
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fail) console.log('\n  ' + fail + ' check(s) failed');

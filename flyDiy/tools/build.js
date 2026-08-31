@@ -39,6 +39,9 @@ const MANIFEST = {
     '24_world_aero.js',
     '30_solver.js',
     '40_autopilot.js',
+    // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
+    // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
+    '41_test_pilot.js',
     '50_model_codec.js',
     '51_prop_codec.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)

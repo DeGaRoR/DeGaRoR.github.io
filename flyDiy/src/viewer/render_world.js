@@ -1181,6 +1181,14 @@ function buildWorldScene(scene, world, renderer, camera) {
       q.fillStyle = '#d9d3c0';                         // centre dashes
       for (let i = 0; i < 37; i++)
         q.fillRect(u(5 - i * 29 - 5.5), vv(-0.3), uw(11), vw(0.6));
+      // TOUCHDOWN MARKERS (G107): the aiming point, 25% in from each
+      // threshold — one per landing direction, the way a real runway wears
+      // them. The registry's tdz is exactly this point (24_world_aero: centre
+      // + len/4 on the approach side), so the pair marks what the test pilot
+      // is actually aiming at, whichever way the wind sends it in.
+      q.fillStyle = '#efe9da';
+      for (const tx of [25 - 272.5, -1065 + 272.5]) for (const zz of [-6.5, 4])
+        q.fillRect(u(tx - 9), vv(zz), uw(18), vw(2.5));
       const rtex = new THREE.CanvasTexture(cv2);
       rtex.encoding = THREE.sRGBEncoding;
       rtex.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -1370,6 +1378,12 @@ function buildWorldScene(scene, world, renderer, camera) {
         q.fillStyle = '#c9c2ae';
         for (let u = 16; u < 500; u += 60) { q.fillRect(u, 6, 8, 5); q.fillRect(u, 53, 8, 5); }
       }
+      // TOUCHDOWN MARKERS (G107): the aiming point at 25% from each end —
+      // the registry's own tdz rule (centre + len/4, approach side), which is
+      // the SAME length-fraction on every strip, so one shared texture can
+      // carry it. A pair of bold bars astride the centreline, per direction.
+      q.fillStyle = '#efe9da';
+      for (const um of [128, 384]) { q.fillRect(um - 5, 14, 10, 10); q.fillRect(um - 5, 40, 10, 10); }
       const t = new THREE.CanvasTexture(cv2);
       t.encoding = THREE.sRGBEncoding;
       return t;

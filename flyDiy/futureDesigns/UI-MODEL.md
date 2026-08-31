@@ -163,10 +163,13 @@ G78 sheet into the shed branch, and the world's (the F5 atmosphere session's
 conditions) into the world branch. **GATE PARTS extends** to cover all three
 roots — every row of every object claimed exactly once.
 
-### G89 — THE FINISH VIEW — **the UI LANDED as G104; `spec.finish` did NOT**
-The tabs, the per-part rows and the root's livery are on screen. What is still
-owed is the paragraph in bold below — and it is the half that matters, so this
-section stays open until it lands. See HANDOVER `## G104`.
+### G89 — THE FINISH VIEW — **LANDED: the UI as G104, `spec.finish` as G105**
+Both halves are in. The tabs, the per-part rows and the root's livery are on
+screen, and the finish now belongs to the aeroplane rather than to the browser.
+ONE CORRECTION to the paragraph in bold below: it landed WITHOUT a GEN_SPEC_V
+bump and without a migrator, because there is nothing to migrate — an old spec
+gets `finish: null`, which is "no overrides", which is what it meant. The 5 -> 6
+bump belongs to the energy module. See HANDOVER `## G104` and `## G105`.
 
 SHAPE/FINISH tabs over the properties panel. Per-part finish, tint, tile scale,
 roughness ×, normal ×. Whole-aeroplane livery on the root: scheme, registration,
@@ -177,7 +180,14 @@ ROADMAP already lists this as owed from G67, and ruling 4 requires it before
 liveried builds are shared. A manager is then a later UI over data that already
 round-trips; scaffolding UI now would reserve the wrong thing.
 
-### G90 — VIEW STATE NEVER FLIES
+### G90 — VIEW STATE NEVER FLIES — **LANDED as G106**
+Landed, and the diagnosis below is superseded: the vertices were already fine,
+and what flew exploded was the PROPELLER'S PIVOT, read out of the scene after
+the restore had already put it back. Four more display controls were corrupting
+the capture besides (the family alphas, wireframe, the surface field). The fix
+is a declared table plus GATE VIEW; see HANDOVER `## G106`.
+
+The original note, kept because its premise is the one to distrust:
 **A real bug, found by the user**: `explodeD` is correctly declared out of the
 spec (G63's `CAGE_VIEW_KEYS`), but `CAGE_JOIN.snapshot()` captures the meshes AS
 DRAWN — so an aeroplane rolled out while exploded flies exploded, and one rolled
@@ -187,17 +197,30 @@ through: neutralise explode, the family alphas, cutaway and the display modes;
 rebuild; snapshot; restore. **GATE**: a snapshot taken at `explodeD 0.5` is
 vertex-identical to one taken at `0`.
 
-### G91 — THE PASS
-- **The controls get the palette.** 108 checkboxes on the current screen are
-  NATIVE (`appearance:auto`, `accent-color:auto`) and Chrome paints them in the
-  OS accent — which is the red the user has no place for. The G77 toggle
-  styling was scoped `#edRows` and never generalised; it goes to the whole
-  editor surface. Same for selects, ranges and number fields in the flyouts,
-  the sheets and the overflow.
-- **Heading hierarchy in the properties panel.** The real failure is at an
-  assembly or root selection, where part-name headings and group headings are
-  drawn identically — 160 of them, all the same. Part headings read louder.
-- Focus rings, hover states and reduced-motion swept once across every surface.
+### G91 — THE PASS — **LANDED as G112** (the controls and the scrollbars),
+### G108 (the headings). One sweep still owed, named at the foot.
+- ~~**The controls get the palette.**~~ **DONE at G112.** Measured before: 111
+  of 118 checkboxes and 485 of 518 ranges `appearance:auto`, painting in the OS
+  accent. Measured after: 0 of 123 and 0 of 565, across both workshop roots.
+  The scrollbars went with them — six scrollers, and there had been no
+  scrollbar styling anywhere in the project outside `tools/_pwr.html`.
+  **TWO THINGS THIS SECTION GOT SHORT, both found by measuring:**
+  the workshop is TWO roots, `#wsUI` for the panels and `#edView` for the
+  floating chrome — and `#edFly`, the surface this item was really about, is in
+  the second, so `#wsUI` alone would have missed it; and the PALETTE has the
+  same defect one level down (`--ed-off` lives on `#edWrap`, and `#edInfo` and
+  `#edFly` are both outside it), so rescoping the rules alone gave the flyout
+  `appearance:none` toggles with a transparent track. Both roots carry the
+  control rules AND the tokens now.
+  **THE RULE this section should have stated:** in a re-parenting architecture,
+  a look keys off the ROW, not off the place the row is standing.
+- ~~**Heading hierarchy in the properties panel.**~~ **DONE at G108** — one
+  type ladder on `#edWrap`, used by both columns, uppercase reserved for group
+  labels.
+- **STILL OWED:** focus-visible, hover and `prefers-reduced-motion` swept once
+  across every surface added since G77 (the top bar, the flyouts, the root
+  panels, the information panel). `style.css` has the reduced-motion block;
+  `editor.css` still covers only part of its own surface.
 
 ---
 

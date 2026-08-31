@@ -73,7 +73,44 @@ const CAGE_PARTS = [
   // "we should still have a top layer where everything is visible". The tree
   // narrows the panel; it must never be the only way to see the whole set.
   // =========================================================================
-  { key: 'craft', name: 'Build plane', parent: null, root: true },
+  { key: 'craft', name: 'My Plane', parent: null, root: true },
+
+  // =========================================================================
+  // DESIGN & CONSTRUCTION — the discriminators, first under the aeroplane
+  // (UI-MODEL section 2.4; ROADMAP P8 section 3's "configure THEN shape",
+  // preserved by ORDER rather than enforced by a mode).
+  //
+  // These rows decide WHAT THE AEROPLANE IS before any of it is shaped: what
+  // it is made of, whether it has a boom or a tail cone, a pod or a cabin,
+  // where the wing sits and whether it is braced, and which of the big
+  // assemblies exist at all. Every one of them was filed under a PART of the
+  // aeroplane while deciding something about ALL of it — `intCons` under
+  // `Fuselage -> Structure & skin` is the case the user could not find twice
+  // ("where is the conception slider?", then "the construction material and
+  // type should definitely be in structure, and not in finish").
+  //
+  // IT IS AN ASSEMBLY WITH NO PARTS UNDER IT, deliberately: it is a top-level
+  // row that carries its OWN rows, which is what makes it a peer of Fuselage
+  // rather than a heading over one. GATE PARTS' "assembly with no parts under
+  // it" rule was widened for exactly this, and only this — an assembly with
+  // neither children nor groups is still a part that forgot to say so.
+  //
+  // NOT HERE, and it is a judgement worth stating: `engPreset`. UI-MODEL lists
+  // "powertrain" among the discriminators, but choosing a Rotax 912 does not
+  // decide which parts EXIST — it names a model, and a builder looks for it
+  // under Engine. The two DERIVED selectors (the nose configuration and the
+  // seating starter) DO belong here and are re-pointed in editor.js's DERIVED
+  // map, because they write several raw params at once and that is precisely
+  // what a discriminator is.
+  // =========================================================================
+  { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
+    groups: [
+      ['construction', ['intCons']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy']],
+      ['wing', ['wgPos', 'wgBrace']],
+      ['what it has', ['wingOn', 'gearOn', 'crewOn']],
+    ] },
+
 
   // =========================================================================
   // FUSELAGE — the cage itself. `body` is the whole covering, so it belongs to
@@ -116,7 +153,10 @@ const CAGE_PARTS = [
     groups: [
       ['dimensions', ['pilotLen', 'halfW', 'roofHalfW', 'roofY', 'keelY',
                       'floorY']],
-      ['pod & canopy', ['mirror', 'canopy', 'bubble', 'arcFit', 'bubH', 'bubAt',
+      // mirror + canopy -> `design`: they decide whether there IS a pod and
+      // what kind, which is a configuration question. What is left here is
+      // the SHAPE of the one you chose.
+      ['pod & canopy', ['bubble', 'arcFit', 'bubH', 'bubAt',
                         'bubW', 'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                         'bubAt3', 'bubW3']],
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
@@ -193,7 +233,7 @@ const CAGE_PARTS = [
     sections: ['boomTube'],
     place: { up: 'rodY', len: 'boomLen', at: 'aft of the taper' },
     groups: [
-      ['style', ['boomStyle', 'rodY', 'rodD']],
+      ['style', ['rodY', 'rodD']],   // boomStyle -> `design`
       ['length & rings', ['boomLen', 'aftRoofY', 'aftKeelY']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
@@ -215,6 +255,7 @@ const CAGE_PARTS = [
   // group _cage_access.js names, so G79's raycast can resolve a hit to it.
   { key: 'access', name: 'Fittings', parent: 'fuselage', layer: 'access',
     when: P => +P.accOn,
+    sections: ['accPaint'],
     groups: [
       ['fitted', ['accOn']],
       ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
@@ -227,7 +268,7 @@ const CAGE_PARTS = [
     sections: ['bulkhead', 'firewall', 'tube', 'plywood', 'woodFrame', 'cloth',
                'composite', 'aluminium', 'toele'],
     groups: [
-      ['construction', ['intOn', 'intCons']],
+      ['construction', ['intOn']],   // intCons -> `design` (it decides ALL of it)
       ['covering', ['skinOn', 'skinT', 'shellT']],
       ['members', ['intPillars', 'intFire', 'intBulk']],
       ['cutting', ['cutParts']],
@@ -239,33 +280,38 @@ const CAGE_PARTS = [
   // asked whether these render read-only until P2 finishes; they do not, and
   // never needed to: the layer is in the bundle with its complete param table.
   // =========================================================================
-  { key: 'wings', name: 'Wings', parent: null, layer: 'wing',
-    groups: [['fitted', ['wingOn']]] },
+  { key: 'wings', name: 'Wings', parent: null, layer: 'wing' },
 
   { key: 'wingPanel', name: 'Wing panels', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
     place: { fore: 'wgDx', up: 'wgDy', len: 'wgChord', wide: 'wgSpan',
              at: 'on the cabin carry-through' },
+    // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
+    // own livery rows, following the fuselage until overridden
+    sections: ['wingSkin', 'wingTip'],
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip', 'wgCrankAt',
                     'wgSweep']],
-      ['rigging', ['wgPos', 'wgDihedral', 'wgDihedralOut', 'wgIncidence',
-                   'wgWashout']],
+      ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
+                   'wgWashout']],   // wgPos -> `design`
       ['aerofoil', ['wgCamber', 'wgThick']],
-      ['structure', ['wgCentre', 'wgPanels']],
+      ['structure', ['wgCentre', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
+    sections: ['strut'],
     // G88: the foot is the strut's own place on the fuselage, so it is the
     // strut part's rows and not the wing panel's — the plate, its bolts and
     // both members move together when they move.
-    groups: [['fixation', ['wgBrace']],
-             ['foot', ['wgStrutZ', 'wgStrutX']]] },
+    // wgBrace -> `design`: whether the wing is braced at all decides
+    // whether this part exists. What is left is where its foot sits.
+    groups: [['foot', ['wgStrutZ', 'wgStrutX']]] },
 
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
+    sections: ['wingAil', 'wingFlap'],
     groups: [
       ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord']],
       ['ailerons', ['wgAilSpan', 'wgAilChord']],
@@ -281,11 +327,16 @@ const CAGE_PARTS = [
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn,
     place: { fore: 'finRootFwd', at: 'on the boom deck' },
+    sections: ['finSkin', 'finRud'],
     groups: [
       ['layer', ['finOn', 'finProject', 'finRootGuard', 'finDorsal',
                  'finKeel']],
+      ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
-      ['thickness', ['finSolid', 'finThick', 'finThickTE']],
+      // `tailRimN` is claimed HERE and not by the stabiliser, because it is one
+      // knob for both surfaces (they are one drawing, G23) and GATE PARTS
+      // requires every rendered key to be claimed by exactly one part.
+      ['thickness', ['finSolid', 'finThick', 'finThickTE', 'tailRimN']],
       ['corners', ['finTipZ', 'finTipY', 'finAftZ', 'finAftY', 'finBaseZ',
                    'finBaseY']],
       ['rows & points', ['finRootFwd', 'finMidY', 'finUY', 'finLEZ', 'finLEY',
@@ -299,8 +350,10 @@ const CAGE_PARTS = [
   { key: 'stab', name: 'Stabiliser & elevator', parent: 'tail', layer: 'stab',
     when: P => +P.stOn,
     place: { fore: 'stZ', up: 'stY', wide: 'stX', at: 'on the boom keel' },
+    sections: ['stabSkin', 'stabElev'],
     groups: [
       ['layer', ['stOn', 'stRootGuard']],
+      ['construction', ['stCons']],
       ['position', ['stX', 'stY', 'stZ']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stSolid', 'stThick', 'stThickTE']],
@@ -351,6 +404,7 @@ const CAGE_PARTS = [
   { key: 'cowl', name: 'Cowl', parent: 'power', layer: 'cowl',
     when: P => +P.cowlOn,
     place: { len: 'cw_cowlLen', at: 'wrapped round the engine' },
+    sections: ['cowlSkin'],
     groups: [
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
       ['nose curve', ['cowlLoops', 'cowlEase', 'cowlBulge']],
@@ -382,7 +436,8 @@ const CAGE_PARTS = [
       // own surface, and a camloc's pitch is a property of the panel it holds.
       ['fasteners & access', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD',
                               'cw_partOn', 'cw_partY', 'cw_partW',
-                              'cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL']],
+                              'cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL',
+                              'cw_oilSq']],
     ] },
 
   // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the
@@ -390,6 +445,7 @@ const CAGE_PARTS = [
   { key: 'prop', name: 'Propeller', parent: 'power', layer: 'eng',
     when: P => +P.propOn,
     place: { fore: 'cw_noseOff', at: 'on the crankshaft flange' },
+    sections: ['prop', 'spinner'],
     groups: [
       ['fitted', ['propOn']],
       ['nose cone', ['cw_noseOff', 'cw_spinR', 'cw_spinLen', 'cw_spinRound',
@@ -405,12 +461,14 @@ const CAGE_PARTS = [
   // RUNNING GEAR — the undercarriage bench (G20), two stations and one wheel
   // kit shared between them.
   // =========================================================================
-  { key: 'gear', name: 'Running gear', parent: null, layer: 'gear',
-    groups: [['fitted', ['gearOn']]] },
+  { key: 'gear', name: 'Running gear', parent: null, layer: 'gear' },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
     when: P => +P.gearOn,
     place: { fore: 's1Z', up: 's1Drop', wide: 's1X', at: 'station 1' },
+    // gearLeg dresses EVERY painted leg member (mains, third's castor) —
+    // one section, claimed here where most of the legs are
+    sections: ['gearLeg'],
     groups: [
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1R', 's1Drop', 's1Brake',
                    's1Steer', 's1Fair']],
@@ -450,6 +508,7 @@ const CAGE_PARTS = [
 
   { key: 'wheels', name: 'Wheels & tyres', parent: 'gear', layer: 'gear',
     when: P => +P.gearOn,
+    sections: ['spat'],
     groups: [
       ['carcass', ['whProfile', 'whTread', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
@@ -460,10 +519,10 @@ const CAGE_PARTS = [
   // dummy. A disjoint layer over the cage; never in the mesh, the gates or the
   // OBJ.
   // =========================================================================
-  { key: 'fit', name: 'Cabin fit', parent: null, layer: 'crew',
-    groups: [['fitted', ['crewOn']]] },
+  { key: 'fit', name: 'Cabin fit', parent: null, layer: 'crew' },
 
   { key: 'seats', name: 'Seats', parent: 'fit', layer: 'crew',
+    sections: ['seatTrim'],
     when: P => +P.crewOn,
     place: { fore: 'seatZ', up: 'seatH', at: 'on the cabin floor' },
     groups: [
@@ -491,6 +550,7 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
+    sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,
     groups: [
       ['dummies', ['dumOn', 'dum2On', 'dumSize']],
@@ -513,6 +573,7 @@ const CAGE_PARTS = [
       // is, how deep the box behind it goes, and how big the lamp in it is
       ['the wing bay', ['li_bayFrac', 'li_bayHalf', 'li_bayChord',
                         'li_bayDepth', 'li_lampSize']],
+      ['the beacon', ['li_beaconRpm']],
     ] },
 
   // =========================================================================

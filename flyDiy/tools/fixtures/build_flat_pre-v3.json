@@ -1,0 +1,23 @@
+{
+ "name": "vintage flat special",
+ "reg": "F-POLD",
+ "wing": {
+  "span": 10.4,
+  "chord": 1.5,
+  "strut": true
+ },
+ "fuse": {},
+ "place": {
+  "wingDx": 0.12,
+  "engineDx": 0,
+  "tailDx": -0.1
+ },
+ "engine": "rotax912",
+ "seating": "tandem",
+ "pilots": 1,
+ "fuelL": 48,
+ "material": "wood",
+ "paint": {
+  "base": 15909943
+ }
+}
