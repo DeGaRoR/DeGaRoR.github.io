@@ -804,6 +804,59 @@ function nullPaths(o, pre, out) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// THE LOGBOOK ACCRUES (G152). G130 gave the log a READER; the rows it read had
+// no time in them, so the panel could count flights and could never total
+// anything. Hours are what an aeroplane earns, and the one number that makes a
+// fleet read as a fleet rather than as a list of files.
+//
+// The property that needs a gate is what happens to a row saved BEFORE the
+// clock existed — and every logbook in existence today is made of those rows.
+// BEING PRECISE ABOUT WHAT THIS CAN AND CANNOT PROVE: for a SUM, "not counted"
+// and "counted as zero" are the same arithmetic, so no assertion here can tell
+// them apart. What it really guards is that a missing clock does not POISON the
+// total — `s + undefined` is NaN, and a logbook reading "NaN h" is the
+// realistic bug. The distinction would start to matter the day something takes
+// a MEAN flight time; the guard in `hoursOf` is written for that day too.
+// ---------------------------------------------------------------------------
+{
+  const L = SHELF.log();
+  L.flights.length = 0;
+  L.flights.push({ from: 'HOME', to: 'CIRCUIT', sink: 0.82, V: 77, off: 0.1,
+                   t: 294, on: '2026-09-01', run: 152 });
+  L.flights.push({ from: 'HOME', to: 'M1', outcome: 'gave-up',
+                   t: 600, on: '2026-09-01' });
+  SHELF.note({ id: 'probe', verdict: 'redraw', ok: true });   // any note redraws
+  const meta = (els.lgMeta && els.lgMeta.textContent) || '';
+  const html = (els.lgRows && els.lgRows.innerHTML) || '';
+  ok(/2 flights/.test(meta), 'the logbook counts its flights (' + meta + ')');
+  ok(/0\.25 h/.test(meta),
+     'and ACCRUES them: 294 + 600 s is 0.25 h (' + meta + ')');
+  // anchored to the ELEMENT, not merely present in the markup: the same
+  // duration is also in the row's hover tip, so a loose /4:54/ passed happily
+  // with the visible clock deleted (found by negative verification, which is
+  // the entire reason it is run)
+  ok(/<i>4:54<\/i>/.test(html), "the arrival's own clock is on its row");
+  ok(/landing run 152 m/.test(html), 'the landing run rides the row');
+  ok(/gave up/.test(html), 'a refused flight is still a row');
+
+  // the one that matters: a pre-G152 row has no clock and must not read as 0
+  L.flights.push({ from: 'HOME', to: 'CIRCUIT', sink: 0.7, V: 70, off: 0.2 });
+  SHELF.note({ id: 'probe', verdict: 'redraw', ok: true });
+  const meta2 = (els.lgMeta && els.lgMeta.textContent) || '';
+  ok(/3 flights/.test(meta2),
+     'a row from before the clock is still a flight (' + meta2 + ')');
+  ok(/0\.25 h/.test(meta2),
+     '...and does not poison the total to NaN (' + meta2 + ')');
+
+  // and the new fields have to survive the envelope, or the hours reset on load
+  SHELF.save('logtest');
+  const env = JSON.parse(store.getItem('flydiy.build.logtest'));
+  const r0 = env && env.log && env.log.flights && env.log.flights[0];
+  ok(!!r0 && r0.t === 294 && r0.on === '2026-09-01' && r0.run === 152,
+     'the clock, the date and the run all ride the save envelope');
+}
+
 console.log('');
 console.log('GATE BUILD: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

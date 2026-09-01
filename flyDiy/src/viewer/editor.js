@@ -728,6 +728,12 @@ function editorInit(api) {
     view = ['finish', 'design'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');
+    // G153: and DESIGN carries its own class for the same reason FINISH does —
+    // the tiles are the whole aeroplane's, so there is no selected part to
+    // reset and no expert rows among them. The two pills were left visible and
+    // INERT here (named at G129), which is a control that lies about what it
+    // will do.
+    wrap.classList.toggle('des', view === 'design');
     const a = $('edTabShape'), b = $('edTabFinish'), c = $('edTabDesign');
     if (a) a.classList.toggle('on', view === 'shape');
     if (b) b.classList.toggle('on', view === 'finish');

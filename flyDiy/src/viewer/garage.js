@@ -794,6 +794,17 @@ function garageInit(api) {
   // count, the last six flights newest-first — into #edLog, and hides the
   // section while the log is empty. Guarded like everything in this file:
   // the gates boot it on DOM shims.
+  // G152: the two readings a logbook needs, in one place because the panel,
+  // the fleet rack and GATE BUILD all have to agree about them.
+  // A row with no `t` is NOT COUNTED — it is a flight from before the clock
+  // existed, and treating it as zero would claim it took no time.
+  const hoursOf = fl => (fl || []).reduce(
+    (s, f) => s + (typeof f.t === 'number' && isFinite(f.t) && f.t > 0 ? f.t : 0),
+    0) / 3600;
+  const clock = s => {
+    const n = Math.max(0, Math.round(s || 0));
+    return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+  };
   function renderLog() {
     try {
       const sec = $('edLog'), meta = $('lgMeta'), rows = $('lgRows');
@@ -802,16 +813,29 @@ function garageInit(api) {
       const built = log && log.built;
       if (!fl.length && !built) { sec.hidden = true; return; }
       sec.hidden = false;
+      // G152: THE HOURS. Summed over the rows that HAVE a time — a row from
+      // before G152 has none, and counting it as zero would quietly claim the
+      // aeroplane flew it in no time at all. Shown once it rounds to a
+      // hundredth, so a single circuit reads 0.08 h rather than 0.00.
       meta.textContent = (built ? 'built ' + built + ' · ' : '') +
-        fl.length + ' flight' + (fl.length === 1 ? '' : 's');
+        fl.length + ' flight' + (fl.length === 1 ? '' : 's') +
+        (hoursOf(fl) >= 0.005 ? ' · ' + hoursOf(fl).toFixed(2) + ' h' : '');
       const row = f => {
         const leg = (f.from || '?') + ' → ' +
                     (f.to === 'CIRCUIT' ? 'circuit' : (f.to || '?'));
         const what = f.outcome
           ? String(f.outcome).replace(/-/g, ' ')
           : 'sink ' + f.sink + ' m/s · ' + f.V + ' km/h';
-        return '<div class="lgR' + (f.outcome ? ' bad' : '') + '"><span>' +
-               leg + '</span><b>' + what + '</b></div>';
+        // the row's own clock, and the detail that would crowd it on hover
+        const tip = [f.on || null,
+                     f.t != null ? clock(f.t) : null,
+                     f.run != null ? 'landing run ' + f.run + ' m' : null,
+                     f.off != null ? 'off centre ' + f.off + ' m' : null]
+                    .filter(Boolean).join(' · ');
+        return '<div class="lgR' + (f.outcome ? ' bad' : '') + '"' +
+               (tip ? ' title="' + tip + '"' : '') + '><span>' +
+               leg + '</span><i>' + (f.t != null ? clock(f.t) : '') +
+               '</i><b>' + what + '</b></div>';
       };
       rows.innerHTML = fl.slice(-6).reverse().map(row).join('');
     } catch (e) {}
@@ -838,8 +862,12 @@ function garageInit(api) {
       const role = e2.spec && e2.spec.meta && e2.spec.meta.role;
       if (role) bits.push(role);
       if (e2.plaque) bits.push('tested');
-      const nf = (e2.log && e2.log.flights && e2.log.flights.length) || 0;
-      if (nf) bits.push(nf + (nf === 1 ? ' flight' : ' flights'));
+      const fl = (e2.log && e2.log.flights) || [];
+      if (fl.length) bits.push(fl.length + (fl.length === 1 ? ' flight' : ' flights'));
+      // G152: the hours on the rack, so the fleet reads as a fleet and not as
+      // a list of files. Same rule as the panel: untimed rows are not counted.
+      const h = hoursOf(fl);
+      if (h >= 0.005) bits.push(h.toFixed(1) + ' h');
       return bits.join(' · ');
     } catch (e) { return ''; }
   };

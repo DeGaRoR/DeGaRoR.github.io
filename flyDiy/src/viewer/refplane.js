@@ -330,6 +330,15 @@ var body = null;                // THREE.Group holding the meshes, under refSit
 var built = null;               // { key, model, dec, payload, box, mats, meshes }
 var texCache = {};              // model key -> { texName: Texture }
 var panelEl = null, dimsEl = null, matsEl = null;
+// G153: WHAT THE PANEL SAYS WHILE THE BYTES ARE IN THE AIR. Since G149 the
+// geometry is an external file, so a preset lands a beat after you pick it —
+// and on a slow link, several beats. Throughout that the panel said
+// "No reference standing.", which is a statement about the AEROPLANE and reads
+// as "that one is not available". These two make it a statement about the
+// PANEL instead, and give a failed fetch its own words rather than letting it
+// look identical to having picked nothing.
+var loadingKey = null;          // the preset whose bytes are in flight
+var failedKey = null;           // ...and one whose fetch came back empty
 var boxHelper = null, CLIP = null, CLIP_B = null;
 
 function M() { return window.REF_MOUNT || null; }
@@ -368,6 +377,10 @@ function disposeBuilt() {
 
 function build(key) {
   disposeBuilt();
+  // G153: a new ask clears the last one's verdict — a stale "could not be
+  // loaded" under a different aeroplane's name is worse than no note at all.
+  failedKey = null;
+  if (loadingKey !== key) loadingKey = null;
   var pre = presetOf(key);
   if (!pre || !pre.model) {
     var m0 = M();
@@ -394,8 +407,13 @@ function build(key) {
   // have moved on) and nothing built it meanwhile. A null resolve is a failed
   // fetch: the aeroplane is absent, exactly as if it had not shipped.
   if (!dec && payload && payload.bin && typeof window.MODEL_LOAD === 'function') {
+    loadingKey = key; failedKey = null; paintDims();
     window.MODEL_LOAD(pre.model).then(function (d2) {
-      if (!d2 || S.preset !== key || built) return;
+      if (loadingKey === key) loadingKey = null;
+      // the user may have moved on, or something may have built it meanwhile:
+      // in both cases this resolve is stale and only the status is repainted
+      if (S.preset !== key || built) { paintDims(); return; }
+      if (!d2) { failedKey = key; paintDims(); return; }
       build(key); paintMats(); paintDims();
     });
     return;
@@ -678,7 +696,14 @@ function paintMats() {
 function paintDims() {
   if (!dimsEl) return;
   if (!built || !built.box) {
-    dimsEl.innerHTML = '<div class="refNote">No reference standing.</div>';
+    // G153: three different silences, told apart. Names come from REF_PRESETS,
+    // our own declared table, so they are safe to write into the note.
+    var w = presetOf(loadingKey || failedKey);
+    var nm = w ? w.name : '';
+    dimsEl.innerHTML = '<div class="refNote">' +
+      (loadingKey ? 'Loading ' + nm + '…'
+       : failedKey ? nm + ' could not be loaded.'
+       : 'No reference standing.') + '</div>';
     return;
   }
   var b = built.box, s = S.scale, m = M();

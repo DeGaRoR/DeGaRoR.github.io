@@ -270,6 +270,73 @@ function run(mut) {
        'the fence run ' + a + '..' + b + ' crosses the taxiway');
   ok(F.runs.length >= 2 || !crossesZ, 'the fence has no gate for the taxiway');
 
+  // ---- THE WAY OUT (G151): the declared taxi route off the stand -----------
+  // The roll-out places the aeroplane on the STAND and the pilot follows this
+  // route to the centreline. It is DECLARED rather than computed because every
+  // obstacle on it belongs to the place and not to the autopilot: an invented
+  // straight line from the stand crossed the fence at x = -7, and every lead
+  // value shallow enough for LINEUP to work with crossed it somewhere.
+  // These checks are the route's contract with the two pilots that fly it.
+  if (S.taxiOut) {
+    const segRect = (A, B, r) => {
+      const [rx0, rx1] = [Math.min(r.x0, r.x1), Math.max(r.x0, r.x1)];
+      const [rz0, rz1] = [Math.min(r.z0, r.z1), Math.max(r.z0, r.z1)];
+      for (let t = 0; t <= 1.0001; t += 0.005) {
+        const x = A[0] + t * (B[0] - A[0]), z = A[1] + t * (B[1] - A[1]);
+        if (x > rx0 && x < rx1 && z > rz0 && z < rz1) return true;
+      }
+      return false;
+    };
+    const legs = [[S.stand.x, S.stand.z], ...S.taxiOut.map(p => [p[0], p[1]])];
+    const last = legs[legs.length - 1];
+    // THE STAND FACES THE WAY OUT. Not a preference — a standstill turn is
+    // the one thing the taxi cannot do: measured, a 67 deg turn from rest sat
+    // on the rudder's clamp and scrubbed round at 0.15 m/s, 228 s for 108 m.
+    // An aeroplane is parked pointing the way it will leave, and this asserts
+    // the parked heading and the first leg cannot drift apart.
+    {
+      const nose = [Math.cos(S.stand.hdg), Math.sin(S.stand.hdg)];
+      const w = S.taxiOut[0];
+      const d = Math.hypot(w[0] - S.stand.x, w[1] - S.stand.z) || 1e-9;
+      const want = [(w[0] - S.stand.x) / d, (w[1] - S.stand.z) / d];
+      const dot = nose[0] * want[0] + nose[1] * want[1];
+      ok(dot > 0.966,                      // 15 degrees
+         'the stand faces ' + (Math.acos(Math.max(-1, Math.min(1, dot))) * 57.3)
+         .toFixed(0) + ' deg away from its own first taxi point');
+    }
+    // it ENDS on the centreline, inside the strip, with a run left in front
+    near(last[1], R.cz, 0.01, 'the taxi route does not end on the centreline');
+    ok(last[0] > rw.x0 + 10 && last[0] < rw.x1 - 10,
+       'the taxi route enters the strip outside its length (x ' + last[0] + ')');
+    ok(Math.max(Math.abs(last[0] - rw.x0), Math.abs(last[0] - rw.x1)) > 400,
+       'the taxi route enters with no room left for a take-off run');
+    for (let i = 1; i < legs.length; i++) {
+      const A = legs[i - 1], B = legs[i];
+      ok(!segRect(A, B, box), 'taxi leg ' + i + ' passes under the hangar');
+      // a leg that crosses the fence LINE must cross it through the GATE
+      if ((A[1] - F.z) * (B[1] - F.z) < 0) {
+        const t = (F.z - A[1]) / (B[1] - A[1]);
+        const xc = A[0] + t * (B[0] - A[0]);
+        for (const [a, b] of F.runs)
+          ok(!(xc > Math.min(a, b) && xc < Math.max(a, b)),
+             'taxi leg ' + i + ' crosses the fence at x ' + xc.toFixed(1) +
+             ', inside the run ' + a + '..' + b);
+      }
+    }
+    // THE INTERCEPT, and it is why the route has a middle point at all. TAXI
+    // hands over to LINEUP 22 m short of the last point; LINEUP only takes the
+    // aeroplane on when it is within 8 m of the centreline. So the final leg
+    // must be shallow enough that 22 m back along it is already inside 8 m.
+    // Straight from the stand this is 16 m, and the aeroplane spends 324 s
+    // crawling in — which is the defect this whole route exists to prevent.
+    const P = legs[legs.length - 2];
+    const L = Math.hypot(last[0] - P[0], last[1] - P[1]) || 1e-9;
+    const crossAtHandover = 22 * Math.abs(last[1] - P[1]) / L;
+    ok(crossAtHandover < 8,
+       'the last taxi leg is too steep: ' + crossAtHandover.toFixed(1) +
+       ' m off the centreline at the 22 m handover, and LINEUP wants < 8');
+  }
+
   // ---- ON THE PAD ---------------------------------------------------------
   const pts = [];
   const push = (x, z, what) => pts.push([x, z, what]);
@@ -280,6 +347,8 @@ function run(mut) {
   for (const b of S.buildings) push(b.x, b.z, 'a building');
   push(S.windsock.x, S.windsock.z, 'the windsock');
   push(S.stand.x, S.stand.z, 'the stand');
+  // G151: the taxi route is driven on, so every point on it must be flat too
+  if (S.taxiOut) for (const p of S.taxiOut) push(p[0], p[1], 'the taxi route');
   for (const [a, b] of S.fence.runs) { push(a, S.fence.z, 'the fence'); push(b, S.fence.z, 'the fence'); }
   for (let x = S.trees.x0; x <= S.trees.x1; x += S.trees.step) push(x, S.trees.z, 'a tree');
   for (const k in S.clutter) {
@@ -349,6 +418,29 @@ const BREAKS = [
                        HW: 4, HD: 5, EAVE: 3 } }; } }],
   // ...and a site may never key a seed-dependent strip id
   ['a site keyed on a seed strip', { SITES: T => { T.A3 = T.HOME; } }],
+  // G151 — THE WAY OUT. Each break is a real way to write a route that looks
+  // fine in the file and drives the aeroplane through something.
+  // this one IS the bug the route was written to prevent: straight from the
+  // stand to a shallow entry crosses the fence line at x = -7, inside the
+  // -80..4 run. Measured, not invented.
+  ['a taxi route through the fence', { S: S => { S.taxiOut = [[-98, 0]]; } }],
+  // ...and pulling the entry in to miss the fence makes it too steep instead,
+  // which is the trap that makes a single straight leg unwritable at all
+  ['a taxi route that misses the fence by being too steep',
+   { S: S => { S.taxiOut = [[-18, 0]]; } }],
+  ['a taxi route ending off the centreline',
+   { S: S => { S.taxiOut = [[16, 22], [-80, 6]]; } }],
+  ['a taxi route entering past the strip end',
+   { S: S => { S.taxiOut = [[16, 22], [120, 0]]; } }],
+  ['a taxi route whose last leg is too steep for LINEUP',
+   { S: S => { S.taxiOut = [[16, 22], [-4, 0]]; } }],
+  ['a taxi route under the hangar',
+   { S: S => { S.taxiOut = [[42, 62], [16, 22], [-80, 0]]; } }],
+  ['a taxi route point off the flat pad',
+   { S: S => { S.taxiOut = [[16, 120], [-80, 0]]; } }],
+  // the regression that produced the whole chantier: parked facing the shed
+  ['the stand parked facing away from its own route',
+   { S: S => { S.stand = { x: 42, z: 40, hdg: Math.PI - 0.62 }; } }],
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {

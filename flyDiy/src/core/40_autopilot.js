@@ -31,6 +31,24 @@ function placeAtAerodrome(sim, a) {
   }
 }
 
+// G151: THE STAND. placeAtAerodrome puts the aeroplane on the strip's SPAWN
+// IDENTITY — the W10 datum every flying gate departs from, which is exactly
+// why it must never move: shifting it would move every take-off measurement
+// in the battery at once. But a PLAYER rolling out of the shed has not been
+// teleported onto the runway; the aeroplane was wheeled onto the apron, and
+// landing it 75 m away facing the wrong way is the first thing every flight
+// used to show (G123 named it and wired `site.stand` to nothing).
+// This places it on that declared stand instead. The spawn identity is NOT
+// touched — the taxi that follows ENDS on the centreline, so the datum keeps
+// its meaning and the gates keep their numbers.
+// It is deliberately a THIN wrapper rather than a second copy of the
+// transform: placeAtAerodrome reads exactly hdg / spawn / elev, so a stand is
+// just another pose to hand it. One transform, one place, as ever.
+function placeAtStand(sim, a, st) {
+  return placeAtAerodrome(sim, st
+    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: a.elev } : a);
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed
@@ -89,13 +107,19 @@ function makeAutopilot(sim, def, world) {
   // covers TORun + margin, else taxi back along the strip and turn
   // around (TAXI/LINEUP), then the normal ROLL takes over. Use on a
   // fresh makeAutopilot instance so restAlt/integrators latch clean.
-  ap.departFrom = (from, to) => {
+  // G151: `taxiOut` is the SITE's declared way from its stand to the
+  // centreline (see 25_airfield.js). Optional, and absent for every caller
+  // that departs from the strip itself — GATE XCTY5's backtrack passes two
+  // arguments and is unchanged.
+  ap.departFrom = (from, to, taxiOut) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
     ap.shortFld = false;
     ap.trackHold = false;
     ap.taxiTgt = null;
+    ap.taxiPath = null;
+    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.phase = 'DEPART'; phaseT = 0;
   };
   // arrival switch: destination landing frame + arrival altitude refs
@@ -336,11 +360,42 @@ function makeAutopilot(sim, def, world) {
         ap.dirX = -1;
         const need = (A.TORun ?? 500) + 60;
         const sPos = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
-        if (from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
-        // backtrack: taxi to the run start for this direction (clamped to
-        // the strip); LINEUP then turns it onto the centreline
-        const sStart = Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
+        // G151: HOW FAR OFF THE CENTRELINE — the question this planner never
+        // asked, because until the stand was wired every departure already
+        // stood on the strip. LINEUP is a FINAL ALIGNMENT: it pursues the
+        // centreline at taxi speed on whatever intercept it happens to have,
+        // which is right after a backtrack turn (a metre or two off) and
+        // hopeless from an APRON. MEASURED from the home stand, 40 m out:
+        // 324 s to reach ROLL, wandering 375 m down the runway to do it, and
+        // the test pilot's 600 s budget then expired during the ROLLOUT of a
+        // perfectly sound aeroplane. So when we are genuinely off the strip,
+        // TAXI onto the centreline first — which is what TAXI already does.
+        const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const offCl = Math.abs(sCr0) > 15;
+        if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
+        // THE DECLARED WAY OUT wins whenever the site states one, because the
+        // obstacles are the PLACE's and this planner cannot see a fence.
+        if (offCl && ap.taxiOut) {
+          const path = ap.taxiOut.map(p => [p[0], p[1]]);
+          ap.taxiTgt = path.shift();
+          ap.taxiPath = path;
+          ap.phase = 'TAXI'; phaseT = 0;
+          break;
+        }
+        // THE ENTRY POINT, computed. On the centreline and short of runway —
+        // the BACKTRACK case — this is the run start, and the expression is
+        // unchanged because GATE XCTY5 flies exactly it.
+        // Off the centreline with nothing declared, aim AHEAD by a lead
+        // proportional to the offset so the intercept is shallow: TAXI's own
+        // 22 m exit then hands over near LINEUP's 8 m gate rather than far
+        // outside it. Clamped onto the strip, and far enough back that the run
+        // still fits.
+        const sStart = offCl
+          ? Math.min(Math.max(sPos + Math.max(60, 3.5 * Math.abs(sCr0)),
+                              -from.len / 2 + 25), from.len / 2 - need - 25)
+          : Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
         ap.taxiTgt = [from.x + ux * sStart, from.z + uz * sStart];
+        ap.taxiPath = null;
         ap.phase = 'TAXI'; phaseT = 0;
         break;
       }
@@ -351,7 +406,16 @@ function makeAutopilot(sim, def, world) {
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
-        if (dist < 22 || phaseT > 120) { ap.phase = 'LINEUP'; phaseT = 0; }
+        // G151: a declared route is a LIST of points, and only the LAST one
+        // hands over to LINEUP. Intermediate points are held to a tighter
+        // radius than the final one, because a 22 m corner-cut through a 24 m
+        // fence gate is a fence. A single-target taxi — W14's backtrack — has
+        // no list, takes the 22 m branch, and is unchanged.
+        const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
+        if (dist < (lastLeg ? 22 : 10) || phaseT > 120) {
+          if (lastLeg) { ap.phase = 'LINEUP'; phaseT = 0; }
+          else { ap.taxiTgt = ap.taxiPath.shift(); phaseT = 0; }
+        }
         break;
       }
 

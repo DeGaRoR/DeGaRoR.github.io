@@ -2145,9 +2145,29 @@
   let fromId = 'HOME', destId = 'CIRCUIT';
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   function applyRoute() {
-    placeAtAerodrome(sim, aeroById(fromId));   // HOME is a bit-exact no-op
-    const to = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
-    ap.setRoute(aeroById(fromId), to);
+    const from = aeroById(fromId);
+    const to = destId === 'CIRCUIT' ? from : aeroById(destId);
+    // G151: ON THE APRON, NOT ON THE RUNWAY. `placeAtAerodrome` puts the
+    // aeroplane on the strip's SPAWN IDENTITY — the datum every flying gate
+    // departs from — and rolling out onto it teleported the player 75 m from
+    // the shed facing away from it, which is the first thing every single
+    // flight showed. G123 declared `site.stand` for exactly this and wired it
+    // to nothing, because moving the spawn would have moved every take-off
+    // measurement in the battery.
+    // Nothing moves now either: the aeroplane starts on the STAND, and the
+    // pilot's own DEPART planner (built for W14's backtrack, taught in G151 to
+    // notice it is off the centreline) taxis it onto the strip. The spawn
+    // identity keeps its meaning because that is where the taxi ENDS.
+    const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
+    const stand = st && st.stand;
+    if (stand) {
+      placeAtStand(sim, from, stand);
+      ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
+      ap.departFrom(from, to, st.taxiOut);   // then plan from the live pose
+    } else {
+      placeAtAerodrome(sim, from);   // HOME is a bit-exact no-op
+      ap.setRoute(from, to);
+    }
   }
   // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
   // attempts, structured verdicts; the hand-built fleet keeps the classic
@@ -2503,10 +2523,12 @@
   // Not stepping is the whole of it. With the solver idle the sim stays exactly
   // where reset() put it, which IS the rest lattice rigidly placed — so the
   // skin poses to its rest shape for free and needs no special path.
-  const APRON = {                    // in front of the hangars at (42,62)/(16,54)
-    hdg: Math.PI - 0.62,             // quartered to the strip: a build stand pose
-    elev: 0, tdz: [0, 0], spawn: [26, 40],
-  };
+  // G153: `APRON` stood here — one declaration, zero readers, named as dead by
+  // G123 and deleted now that it is also WRONG. It carried a build-stand pose
+  // (hdg PI-0.62, spawn [26,40]) that the site has genuinely declared since
+  // G123 and that G151 corrected; leaving a second, stale answer beside the
+  // live one is how three copies of a runway happened in the first place.
+  // `siteOf('HOME').stand` is the one answer.
   let inGarage = false;
   // ---- THE TRACE'S CHANNELS (the user: "I'd like to have more info on the
   // trace and be able to select/deselect the one I want to see from the
@@ -2896,17 +2918,40 @@
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
       const t = ap.tdInfo;
+      // G152: WHEN, AND FOR HOW LONG. The row carried where it went and how it
+      // touched down, and no TIME at all — so a logbook could count flights and
+      // could never accrue anything. Hours are the number an aeroplane earns:
+      // they are what "my Cub has 40 hours on it" means, and the whole reason a
+      // fleet feels like a fleet. `ap.t` is the flight's own clock (and since
+      // G151 it includes the taxi, which is honest — that time was flown).
+      // OLD ROWS HAVE NEITHER FIELD and never will; every reader treats a
+      // missing `t` as "not counted" rather than as zero, so an imported
+      // logbook from before today reads as flights-without-hours instead of
+      // silently claiming 0.00 h. No version bump: there is nothing to branch a
+      // migration on, which is the G105 ruling applied again.
+      const stamp = r => {
+        r.t = Math.max(0, Math.round(ap.t));
+        r.on = new Date().toISOString().slice(0, 10);
+        return r;
+      };
       if (t) {
-        G.log().flights.push({
+        const row = stamp({
           from: fromId, to: destId,
           sink: +t.sink.toFixed(2), V: +(t.V * 3.6).toFixed(0),
           off: +Math.abs(t.z).toFixed(1),
         });
+        // the LANDING RUN, when the pilot measured one. The test pilot's
+        // report carries it (G107 put it on the plaque); the fleet AP does not,
+        // so the field is present or absent rather than faked.
+        const L = ap.report && ap.report.landing;
+        if (L && L.run != null) row.run = L.run;
+        G.log().flights.push(row);
         if (G.note) G.note({ id: 'flight', verdict: 'arrived', ok: true });
       } else if (ap.report && ap.report.outcome) {
-        // G107: the test pilot refused the flight — that is a logbook row too
-        G.log().flights.push({ from: fromId, to: destId,
-                               outcome: ap.report.outcome });
+        // G107: the test pilot refused the flight — that is a logbook row too,
+        // and it still cost the time it took to find out
+        G.log().flights.push(stamp({ from: fromId, to: destId,
+                                     outcome: ap.report.outcome }));
         if (G.note) G.note({ id: 'flight', verdict: ap.report.outcome,
                              ok: false });
       }

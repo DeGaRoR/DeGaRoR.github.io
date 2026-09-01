@@ -1,4 +1,4 @@
-# flyDiy — ROADMAP (2026-08-26, v2: the vertical slice)
+# flyDiy — ROADMAP (v3 2026-09-01: the player's reorder · v2 2026-08-26: the vertical slice)
 
 This document SUPERSEDES `HANDOVER.md` § ROADMAP (the sessions 1-6 / W-branch
 list). That section stays where it is as history — its entries are cited all
@@ -13,6 +13,497 @@ the last three — which left the core hypothesis untested until after
 materials. v2 puts the loop's first full turn immediately after wings and
 interleaves bench work with loop work from there.
 
+---
+
+# THE PLAN (v3 — 2026-09-01)
+
+The loop is live end to end: design → certify on the bench tab → roll out →
+AP circuit or leg → arrival card → logbook write. So the plan stops being
+sequenced by architecture and is sequenced by play. The judging criterion for
+everything below, in the user's words:
+
+> "I want to build lots of small planes, test them, do some little airports,
+> reach them and watch the autopilot struggle or not."
+
+**HOW TO READ THIS.** Eight phases, in the order I suggest tackling them.
+Items inside a phase are ordered too, but a phase is done when its items are —
+not in lockstep. **Everything the project owes is in a phase below**: the old
+P-phases, the debt register, WORLD-V2's W-stages, and the user's own idea
+list. If it is not below, it is not planned. Sizes are S (a few hours, several
+fit in a session), M (one chantier), L (its own arc, opened with a design
+conversation). The old P/W/G numbers stay in brackets so every item is
+traceable to the record below and to `futureDesigns/`.
+
+**THREE SCOPE RULINGS** that shape the order. The GAME aspect — economy,
+progression, missions-as-pressure — is deprioritised on the user's own call
+("I don't care so much about the game aspect at this stage"), so the old P5
+economy is Phase 8 and the one mission is flavour, not pressure. MANUAL
+CONTROLS, joystick and TrackIR stay an OPTION, pulled when the user asks
+("you're the engineer, not the pilot" is the current fun, and it holds).
+And the ONE EDITOR ruling (§ THE RULINGS, below the plan) governs everything:
+no item may deliver a control that lives only on a bench page.
+
+**TWO THINGS THAT ARE NOT PHASES**, because they ride along with whatever
+chantier touches them:
+
+- **STANDING DEBT.** `futureDesigns/DEBT-REGISTER-2026-09-01.md` holds every
+  open item from HANDOVER, deduplicated, with the paid ones verified and
+  struck. The ones that must be TAKEN WITH a specific chantier are named in
+  the phases below; the rest are picked up by whoever is next in that file.
+- **THE PLAYTEST CYCLE.** Play → a numbered review → the review becomes
+  chantiers. It is the proven engine here: the 21-item review became G108-G118
+  and the 20-item batch became G112-G119, both landed whole. Open each stretch
+  with a playtest, and let it REORDER what follows. This plan is a proposal,
+  not a queue that outranks what the aeroplane in front of you is doing.
+
+---
+
+## PHASE 1 — THE FRICTION PASS
+*Make what already exists feel finished. Everything here is visible in the
+first ten minutes of play, and almost all of it is small.*
+
+1. ~~**The sweep-30 ruling, applied.**~~ **DONE — G150, 2026-09-01.** The one
+   red in the battery, ruled and closed. It was a TIMEOUT, not a crash. Leaves
+   ONE item owed, promoted into Phase 2 below: the **balance advisory**.
+2. ~~**The roll-out spot.**~~ **DONE — G151, 2026-09-01.** The aeroplane is
+   wheeled out now: it starts on the declared stand and TAXIS to the
+   centreline through the fence gate, under both pilots, reaching the take-off
+   roll in 91 s where the first attempt took 324 s. `HOME.spawn` never moved —
+   the taxi ends on it — so every take-off measurement in the battery is
+   unchanged. GATE SITE +11 checks, 8 negative trials, 8 caught.
+   LEFT OWED, measured not excused: **the taxi governor is thrust-limited**
+   (~1.4 m/s where a real taxi is 4-5), because `taxiFF` derives break-even as
+   `CRR*m*g/T0` and thrust is not linear in throttle. Pre-existing — XCTY5's
+   backtrack crawls the same way behind a 1500 s budget. Raising the cap moves
+   every taxi in the battery, so it is a controller decision to take WITH the
+   fleet watching. In the register.
+3. ~~**The logbook reads back.**~~ **DONE — G152, 2026-09-01, and this item
+   was HALF STALE.** The read-back itself landed at **G130**: `renderLog()`
+   has been drawing built date, flight count and the last six flights in the
+   information panel all along, and this roadmap went on saying "nothing shows
+   it". What was genuinely missing was the CLOCK — the rows carried no time, so
+   the logbook could count flights and could never total anything. Flights now
+   record `t` (the flight's own clock, taxi included), `on` (the date) and
+   `run` (the landing run, when the pilot measured one — present or absent,
+   never faked), and hours accrue in the panel (`3 flights · 0.25 h`) and on
+   the fleet rack. GATE BUILD +8, negative-verified 5/5 against the real
+   source. No version bump (the G105 ruling again).
+   **THE LESSON, and it is now twice in two days:** read the code before
+   believing a document that says something is missing — including this one.
+   G47.2's prop spin was the same kind of stale.
+4. ~~**Diagnostic colours off the finished aeroplane.**~~ **STALE — already
+   fixed.** The wingtip/aileron leak died at **G109** (per-part rows answered
+   it) and the GEN_ACCESS fittings have routed through `CAGE_SECMAT` /
+   `aeroHardMat` since **G111**; the Lambert palette that looked like a
+   diagnostic is a bench-only fallback. Verified in the code, G153.
+5. ~~**The styling sweep.**~~ **DONE — G153**, and half of it was stale too:
+   the 15 colour wells were covered by G112's `:is(#wsUI, #edView) .r` rescope.
+   What was genuinely missing was **`#edView`** — the icon rail, its flyouts,
+   the camera pills and the two verbs float over the render rather than inside
+   `#edWrap`, so no focus rule reached them, and the reduced-motion rule had
+   the container but not its children. Both closed; flight.css already did the
+   same for `#ui`, so the two stylesheets now agree.
+6. **Small honesty fixes** — one of three was real.
+   - ~~a floor on the glass factor (G129)~~ **STALE**: the glass exemption was
+     deleted when transmission was measured out; glass scales with the mood
+     like every other material.
+   - **The reference panel's loading affordance** — **DONE, G153.** It said
+     `No reference standing.` while the bytes were in the air, which is a
+     statement about the aeroplane, not the panel. It now names what it is
+     loading, and gives a failed fetch its own words.
+   - **The DESIGN tab's inert pills** — **DONE, G153.** `.fin` hid them for
+     FINISH; DESIGN set no class, so both stood there inert.
+7. ~~**Latent guards.**~~ **DONE — G153.** `iStrut`'s `Math.max(0, -1)` turned
+   "crank not found" into station 0, the CENTRELINE — it would have rooted both
+   lift struts at the fuselage and drawn a plausible aeroplane with its bracing
+   attached to nothing. Falls back to the uncranked rule now. Dead `APRON`
+   deleted: zero readers, and since G151 it also carried a stale stand pose
+   beside the live one.
+8. **The bench-page audit** — **DONE as an audit, G153; NOTHING DELETED.**
+   Of the seventeen: `_probe` / `_probe_base` / `_lean` are LIVE TOOLING, not
+   benches (the capture rig is GATE LIGHT's own path); `_cage8` is cited by
+   `build.js` as the authority for `MANIFEST.editor`'s script list AND its
+   order; six have a live `.js` partner; five are cited only by HANDOVER; and
+   **`_cage6.html` and `_loft.html` are referenced by nothing at all.**
+   Those two are the only clear candidates. **Left in place on purpose:** a
+   grep finds what references a page, not a page you open by hand, and
+   `_loft.html` is the largest of them. They are tracked, so retiring them
+   later costs nothing. **Your call.**
+
+## PHASE 2 — THE CATALOGUE, BREADTH
+*"Build lots of small planes." The amateur range, filled. Every item is small
+or medium, and each one directly multiplies what you can build tonight.*
+
+1. **The cowl follows the engine** [M]. Presets keyed on the registry family
+   so a radial gets a radial cowl by default — the user's own "important for
+   radial geometry". The registry knows the family and the cowl layer already
+   consumes the dressed envelope (G29).
+2. **Amateur-range engine fill** [S each, M for the batch]. More radials and
+   inlines as registry rows + dress; rows have been cheap since G25. **The
+   in-line orientation** knob (upright / inverted / left / right) rides this
+   chantier.
+3. **Exhaust, properly** [M]. Routed pipes, configurable exits, a silencer
+   option. Dress first — a declared drag or mass row only if it earns one
+   (ruling 3: honest set dressing is allowed, a fake number is not).
+4. **Registration on the wing** [S]. The plan-mode projector already exists
+   (G113), so this is placement, not plumbing. Take the registration-ink row
+   (G113.1) with it.
+5. **Recent colours remembered** in the livery editor [S]. A viewer pref, not
+   spec.
+6. **Engine braces pickable** [S]. Extends G113.4's engine-paint move to the
+   mount members.
+7. **The decal kit** [M-L]. Ready-to-apply layered decals: stripes, two- and
+   three-colour schemes, transparency, the bent fore/aft two-tone transition,
+   several layers. Extends G69/G113; state extends `spec.finish.decals`. Take
+   the both-sides-or-neither debt (G69) with it.
+8. **The travel pod** [M]. A belly/baggage pod as a real solid with honest
+   mass, GEN_ACCESS-style.
+9. **Wilga-type suspension** [M]. A leg family on G148's drawn-place + delta
+   contract. Its natural co-chantier is the per-member two-end leg weights
+   G148 left owed.
+10. **The balance advisory** [M, owed by G150's ruling]. The engineer's
+   handbook, first instance: when a design choice walks the neutral point away
+   from the CG — a swept tip is the measured case, 0.62 m → 2.52 m with
+   nothing following it — the editor SAYS so and suggests the wing station
+   that fixes it. **Guidance you may ignore, never a guardrail** (P8 §3's own
+   ruling: building it wrong and learning why is content). This is what makes
+   G150's "it is a bad aeroplane" true in words and not only in the plaque's
+   numbers, and the same machinery serves every later configuration in
+   Phase 6 — a V-tail and a biplane both move the balance.
+
+## PHASE 3 — THE GROUND LOOKS REAL
+*Three chantiers, and the first is the largest single visible improvement
+available anywhere in the project. All on today's 24 km world — no new data,
+no size change, no contract change.*
+
+1. **W1 — the splat terrain material** [M]. Replaces altitude-banded vertex
+   colour (a coloured paste) with tiling PBR materials selected per fragment,
+   triplanar on steep ground. **The ten CC0 scans are already shipped** in
+   `site_tex.js` and the weights are already computed (the SURFACE classifier
+   + the biome stage). Depends on nothing.
+2. **W3 — tree source geometry** [M]. Today: a cylinder, a cone and an
+   icosahedron. The impostor ladder, chunking, species and tinting all stay —
+   the atlas is baked at boot FROM the near geometry, so replacing the source
+   upgrades every tier at once. Taken before W2 because it is cheaper and more
+   visible on the world we are actually flying.
+3. **W2 — the clipmap** [L]. Replaces the two-ring mesh; removes the ring
+   seam, the ~100 m far strips and the 5 km fog cap in one move, and is what
+   makes metre-scale ground under the wheels possible at all.
+
+## PHASE 4 — LITTLE AIRPORTS
+*The user's named joy: "in FS, I designed hundreds of little airports, but
+here they get to be in the official game." This is WORLD-V2 §9, pulled far
+forward from its W7 slot, because it is playable content and its foundation
+is already sitting hardcoded in the physics hot path.*
+
+1. **The modifier layer** [M]. Generalise the two hardcoded rectangles inside
+   `h0` into §9.2's typed list — flatten / grade / surface / exclude first.
+   The spec's own words: this is "simultaneously the editor's foundation and
+   half of the world's quality". It is also the move `25_airfield.js` already
+   made once, for the same reason.
+2. **The strip is a profile, not a rectangle** [M]. Centreline (bush strips
+   CURVE), width that may vary, longitudinal slope, crossfall, surface →
+   the friction row that `GROUND_SURF` already holds. **The one-way sloping
+   strip** — land uphill, take off downhill — falls out for free, and is a
+   signature bush mechanic.
+3. **The airfield editor v0** [L]. In the game, on the modifier format. Place
+   and edit a strip. Designed against §9.5's two constraints: it may only ever
+   write modifier records (an editor that MUTATES terrain breaks GATE WORLD
+   silently), and physics and renderer must agree in the same frame.
+4. **The base aerodrome, rebuilt through the new layer** [M]. Its own proof,
+   and it retires the last hand-written numbers.
+5. **Sites become destinations** [S]. The `AIRFIELD_SITES` null meadow slots
+   (G128) are the granting hook.
+
+**THE HONEST COST, stated up front:** airports authored on today's 24 km world
+DO NOT SURVIVE the island — the coordinates die at Phase 7's W5. The FORMAT,
+the editor and the practice all survive. Build practice airports on the
+practice world knowingly, or wait for Phase 7 and lose the play in between.
+My recommendation is to build them now: the editor is the durable artefact.
+
+## PHASE 5 — REACH THEM, AND WATCH
+*"Reach them and watch the autopilot struggle or not." The flying half. The
+machinery mostly exists — departure/destination selects, multi-leg chaining
+(W14), arrival cards for both pilots (G107.2).*
+
+1. **Destinations worth the leg** [S, then free]. The world has exactly FOUR
+   today (HOME + three meadows). Every strip Phase 4 births lands here.
+2. **Fuel burn and pack discharge** [M-L, P4's declared remainder]. The one
+   thing the arrival card cannot say: there is no `fuel used` row because
+   nothing burns fuel (`mFuel` is a mass, not a rate). Contact arrays refresh
+   ~1 Hz, not per substep. Range, endurance and cruise-at-weight join the
+   plaque with it.
+3. **Vne and a sink-rate limit** [M, G141]. Declared nowhere, so only the
+   stall colours a readout today. The two PFD warns were left OWED rather
+   than faked; this is where they are paid.
+4. **The WHY report** [M, old P6]. Post-flight: why it porpoised, why it would
+   not rotate, why it dropped a wing — built from checks the project already
+   computes (CG angle, nose load, static margin, the AP's own telemetry). The
+   arrival card is the natural surface and the test pilot's verdicts are
+   already the raw material.
+5. **The seat you MOVE is the seat that is BILLED** [M, G119]. `seatX/Y/Pitch`
+   reach the crew layer and stop, so sliding a seat aft changes the drawing
+   and not the balance. Fixing it re-baselines the fourteen ENERGYBASE
+   aeroplanes — which is exactly why it belongs beside item 2, whose mass work
+   re-baselines them anyway. Do both once.
+6. **The ONE MISSION** [M, P3's last named item]. A cargo contract HOME → an
+   existing aerodrome, AP end to end, watch it or skip to the outcome (both,
+   because skip is what fleet play will use), outcome to the logbook.
+
+## PHASE 6 — THE CATALOGUE, CONFIGURATIONS
+*The shapes that need a design conversation before a line is written. Each is
+its own arc; none is a side effect of another. Ordered by ratio of new
+aeroplanes to risk.*
+
+1. **V-tail** [L]. The physics half exists — settable Sv/Sh since G115, and
+   the microsurface already resolves canted panels without knowing V-tails
+   exist. Geometry and join are the arc. Its opening gate is the synthetic
+   canted-panel probe G113.3 owed and never wrote.
+2. **Double boom** [M-L]. The rod exists (G26); twin booms carrying a shared
+   tail.
+3. **Elliptic wing** [M-L]. An outline family decided against the
+   three-station architecture G140 just landed — more stations versus an
+   analytic outline is the chantier's first decision, and it is taken with the
+   wing's owner.
+4. **Retractable gear** [L]. G148's rigging contract is the enabler and drag
+   is already delta-from-reference (G115), so this is a drag delta + a motion
+   law + editor rows rather than new physics.
+5. **Wing-mounted engines and multiengine** [L, old P7]. Physics has counted
+   engines honestly since G4.9. Unlocks the twin references (P.68) as mimicry
+   targets and the heavy-cargo tier later.
+6. **Pushers** [M-L, old P7]. The Chinook has always been one in physics; the
+   bench needs the pusher cowl and mount.
+7. **Turboprops and small turbines** [L]. A new registry family and its
+   aspiration law. Distinct from the far-backlog jet module.
+8. **Biplane** [L]. The big one: a second wing plane, cabane and interplane
+   struts, fittings for the lower wing (G85 names the gap — `wings` is an
+   array and only the first plane carries fittings), and the join.
+9. **STOL surfaces** [L]. Slats and tips as GEOMETRY on the stations P2
+   reserved. **The PHYSICS stays in Phase 8** by the standing ruling: flaps
+   are real and measured (GATE FLAPS), and a slat without measured physics is
+   a slider that lies.
+
+## PHASE 7 — THE ISLAND
+*The world grows up. WORLD-V2 §2-§8. This is the only phase that invalidates
+every golden hash, and it is staged so that the step which does that does
+nothing else.*
+
+0. **THE WORLD-PATH DECISION** — real topology or procedural. Needed BEFORE
+   W4, and nothing in Phases 1-6 depends on it. Recommendation and reasoning
+   in the section below.
+1. **W4 — the offline bake** [L]. The node tool: erosion at 4096², the guide
+   fields (flow accumulation, slope, curvature, aspect, fill depth), the delta
+   format, the `h0` fallback. Still on the 24 km domain, so it is provable
+   against a world that already works. **§4.3's guided detail is the single
+   highest-value idea in the world spec** — detail synthesised BELOW the bake
+   and steered by the erosion reads as eroded all the way down, which is
+   precisely the defect the user named in MSFS.
+2. **W5 — the island** [L]. Grow the domain, lay in the spine, re-bake. The
+   step that changes every golden, and it should change ONLY that.
+3. **W6 — hero tiles and site nomination** [L]. 4 m tiles streamed near sites;
+   the landability pass scores and NOMINATES, the author PROMOTES. Over
+   22 000 km² that is the difference between forty sites and four.
+4. **W7 — the editor matures** on the format Phase 4 shipped.
+5. **Aerial perspective** [M, W-V2 §6.4]. On a 250 km island the horizon at
+   3000 m is 195 km. Height-dependent extinction and in-scattering, not fog.
+6. **ONE CLOCK for hangar and world** [M, F4's owed half]. Flying out of a
+   sunset hangar still arrives in fixed daylight. Includes the
+   graded-panorama adoption decision (G62.2 — 1.66 MB for every hour there
+   will ever be) and the outdoor grass still lit by the room's lights.
+
+## PHASE 8 — DEPTH, WHEN YOU WANT IT
+*Everything deliberately deferred. Not "someday" — each has a trigger, and the
+trigger is you asking for it.*
+
+1. **Manual controls, joystick, TrackIR** [L]. The user's own "at some point,
+   I'll want to fly them myself." `reEngage` and `holdWas` landed in W14; what
+   remains is input UI and its gate.
+2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one
+   sheet UI-MODEL still reserves), hours, wear, the found aircraft as
+   measuring sticks, the envelope card on the plaque.
+3. **Missions and economy v0** [L, old P5]. Contracts over the site registry,
+   parts costing credits, the wallet the player document already declares and
+   nothing charges (HANGARS.md §11 Q4 is one line).
+4. **Validation against reality** [L, old P12]. Two or three real aircraft
+   against reference models, benchmarked on published numbers through the
+   DIVERGENCE LEDGER. **STOL physics goes live here** on Phase 6's geometry.
+   **Reynolds number lands here and nowhere earlier** — F5 gave the air a
+   density and deliberately left Cd0 and CLmax fixed against it.
+5. **Deform and break** [L]. Design doc first — it does not exist on paper.
+   Breaking is content: test-to-destruction, damage and repairs in the
+   logbook, scars as attachment.
+6. **The fixed-step accumulator** [M]. The sim runs at the display's refresh
+   rate. Feel work starts here, and slow-motion-reads-as-rubber dies first.
+7. **The remaining sim-honesty debts** [M each, all in the register]: the
+   donor AP's flare EAS/groundspeed mix; the fleet wind gates still flying the
+   uniform column F5 replaced; turbo/supercharging (`aspiration` reserves
+   'turbo' and the R-1830 lapses like a normally-aspirated engine); the
+   battery model that would give an electric aeroplane a real ceiling;
+   interference drag (`gear.track` and camber are unread by the drag model);
+   `intCons → fuselage.material`, the slider audit's headline gap.
+8. **Far backlog**: the jet module and SubSonex, thermals and ridge lift (the
+   `wind(x,y,z,t)` plug F5 made load-bearing), STOL competition mode, the
+   asset editor proper (G50's step 3), naked structures / open-frame dress
+   (old F2, with P4's deferred fuel plumbing riding along).
+
+---
+
+## THE SWEEP-30 RULING — **RULED AND LANDED as G150** (2026-09-01)
+
+Asked since G130 and re-named in six chantiers without ever being made
+concrete. Measured first, then ruled by the user the same day: **"say it's a
+bad aeroplane."** Full write-up in HANDOVER G150; the measurement that made
+the decision possible is kept below because it is the useful part.
+
+**THE LESSON:** a question that has been asked six times is not waiting for an
+answer, it is waiting for a MEASUREMENT.
+
+**AND THE SURPRISE:** under the TEST PILOT the 30° aeroplane *completes* the
+circuit (568 s, zero verdicts) — the donor `makeAutopilot` hung at the same
+geometry. So the red was half about the aeroplane and half about the DONOR
+AP's rigidity, the same class of defect as G115's self-retuning AP. **When a
+gate says an aeroplane cannot fly, ask which pilot was flying it.**
+
+**IT IS A TIMEOUT, NOT A CRASH.** The harness flies 600 simulated seconds and
+requires `STOPPED`. Nothing diverges; no NaN; the physics is sound and the
+gate's other two sweep checks (np walks aft monotonically, sweep costs
+lift-curve slope symmetrically) both PASS.
+
+| sweep | static margin | TO run | circuit |
+|---|---|---|---|
+| 0° | 21.5 % | 351 m | 294 s — flies |
+| 16° | 48.4 % | 615 m | 273 s — flies |
+| 24° | 63.2 % | 1129 m | 312 s — flies |
+| 27° | 69.0 % | 1624 m | 356 s — flies |
+| **30°** | **75.1 %** | **1801 m** | **stuck in INBOUND at 600 s** |
+
+**THE PLAYER CAN REACH IT.** G140 retired the sweep slider, but `tipX` clamps
+to `tan(30°) × exposed semispan` — deliberately the same envelope. Dragging
+the tip fully aft gives SM 76.1 %, TO 1746 m, and reaches ROLLOUT at 594 s of
+a 600 s budget. So it is not a legacy-only corner; it is one slider away.
+
+**WHAT IS ACTUALLY WRONG WITH THE AEROPLANE:** sweeping the wing walks the
+neutral point from 0.62 m to 2.52 m and NOTHING moves the CG to follow. A
+75 % static margin is a dart — it needs 1.8 km of runway and flies the
+circuit at a crawl. Measured confirmation that balance is the whole story:
+`sweep 30 + xLE −0.7` (pull the wing forward) lands SM at 51.8 % and flies a
+normal 302 s circuit.
+
+**THE OPTIONS:**
+- **A — it is a bad aeroplane, and the game should say so.** Stop requiring a
+  completed circuit at the extreme; assert instead that THE TEST PILOT
+  returns a bounded verdict naming the problem. Fits ruling 3's own words:
+  *building it wrong and learning why is content, not error.* The machinery
+  exists (`41_test_pilot.js` already returns 'wont-climb', 'card-clamped').
+- **B — narrow the envelope.** Clamp the tip offset so full deflection is
+  ~24-27°, which flies. Costs a legal design and raises a save-compat
+  question for anything already at full reach.
+- **C — raise the harness budget.** Cheapest, and the tip-offset case really
+  does land at 594 s. But "it eventually lands" is a weak standard and a
+  20-minute-per-case gate is expensive.
+- **D — let the balance follow the planform.** The engineer's-handbook idea
+  P8 §3 already ruled for: the editor ADVISES that a swept tip wants the wing
+  forward, guidance you may ignore. Fixes the cause rather than the symptom,
+  but is a feature, not a gate decision.
+
+**THE USER CHOSE A** (2026-09-01). `swept wings still fly a circuit` is
+retired; four checks replace it — the band that must fly still flies on the
+donor AP, and the extreme must never diverge, must reach a bounded verdict,
+and must name the reason if it does not complete. **Silence is the only
+failure left.** Negative-verified 3/3 on doctored reports.
+
+**D IS STILL OWED, and it is the honest remainder.** Nothing yet says the
+aeroplane is bad *in words* — the plaque's 1801 m take-off run says it in
+numbers, but no verdict names the 75 % static margin, because the test pilot
+completed the flight and had nothing to complain about. The BALANCE ADVISORY
+(the editor telling you a swept tip wants the wing forward — P8 §3's
+engineer's handbook, guidance you may ignore) is what fully serves the ruling.
+It was deliberately not smuggled into G150. It is Phase 2/5 work.
+
+## THE WORLD-PATH RULING (recommendation, decision open)
+
+The question: stay procedural, or start from existing topology (Sicily?
+Kodiak?). The answer WORLD-V2's own architecture gives: **tier 1 does not
+care who authored it** — it is a baked grid either way, goldens re-captured
+in the commit that lands it. The question is therefore only "what is the best
+way to fill a 49 m grid with believable orogeny", and there the recommendation
+is clear:
+
+**RECOMMENDED: a real island's DEM as the tier-1 base.** Copernicus GLO-30
+(free, 30 m, whole earth) resampled onto the 49 m grid; `bakeHydrology` and
+the guide-field export run OVER it, so §4.3's guided detail — the document's
+own "single highest-value idea" — works identically; hero tiles still bake;
+modifiers still compose. What it buys:
+- It DELETES the two hardest unpriced jobs in the spec: authoring a
+  convincing 250 × 90 spine, and making browser-scale erosion iterations
+  read as real mountain structure at 49 m. A real DEM **is** the erosion,
+  already run for a few million years at full resolution.
+- The user's own MSFS critique ("l'érosion a fait un job superficiel — real
+  data, generic noise beneath") is answered from BOTH ends: real structure
+  above the bake, guided synthesis below it.
+- The airport joy doubles on places that exist: real valleys, real approaches,
+  real river bars to find.
+
+**Candidate: CORSICA, and it was already the spec's anchor** — 183 × 83 km
+fits the 200 km box the spec keeps, the spine crossing IS the signature
+flight §2.2 wants, and it has genuine mountain strips to mimic. Kodiak
+(160 × 108) is the purest bush fantasy but largely treeless; Sicily
+(~290 km wide) oversizes the box and is agricultural across the west — Etna
+is tempting and it is the least bush of the three. Taste decides; the
+engineering is identical. A middle option that keeps the "official game"
+feel: REAL ROCK, INVENTED NAMES — the topology is Corsica's, the places are
+ours, and nobody expects LFKJ's charts to work.
+
+The §12 Q2 fallback (authored mask + procedural fill) stays available if a
+real island chafes. DECISION DEADLINE: before W4, because the bake tool's
+input pipeline differs (DEM ingest vs erosion loop — ingest is the simpler
+tool). Nothing before W4 depends on it.
+
+## THE IDEA LIST, MAPPED (the user's 2026-09-01 list, so nothing is lost)
+
+Every idea from the list, with the phase that owns it. Sorted by phase, so
+this doubles as "what do I get, and when".
+
+| idea | phase | item | size |
+|---|---|---|---|
+| Cowl preset follows engine type | 2 | 1 | M |
+| More radials + inlines (amateur range filled) | 2 | 2 | S each |
+| In-line engine up/down/left/right | 2 | 2 | M |
+| Exhaust proper + silencer | 2 | 3 | M |
+| Registration on the wing | 2 | 4 | S |
+| Remember recent colours | 2 | 5 | S |
+| Colour for engine braces | 2 | 6 | S |
+| Ready-to-apply layered decals | 2 | 7 | M-L |
+| Travel pod | 2 | 8 | M |
+| Wilga-type suspension | 2 | 9 | M |
+| Little airports | 4 | all | L (the phase) |
+| V-tail | 6 | 1 | L |
+| Double boom | 6 | 2 | M-L |
+| Elliptic wing | 6 | 3 | M-L |
+| Retractable wheels | 6 | 4 | L |
+| Wing-mounted engines / multiengine | 6 | 5 | L |
+| Pushers | 6 | 6 | M-L |
+| Turboprops / small turbines | 6 | 7 | L |
+| Biplane | 6 | 8 | L |
+| STOL wing, slats/tips (geometry) | 6 | 9 | L |
+| Time of day synced with the hangar | 7 | 6 | M |
+| Manual controls, joystick, TrackIR | 8 | 1 | L |
+| STOL physics | 8 | 4 | L |
+
+## THE NEXT PLAYTEST (proposed)
+
+Themed: **build three real aeroplanes against their reference ghosts** (the
+split view exists for exactly this), certify each on the bench tab, fly each
+to a meadow and back, land the review as a numbered batch. It exercises the
+catalogue's gaps — the review will name which PHASE 2 items hurt first, which
+is better information than this document can give itself — plus the
+references, the AP and the arrival cards. It will also run straight into
+Phase 1's logbook gap and roll-out teleport, which is the point: **the order
+should come from play.** If the playtest disagrees with the phases above, the
+playtest wins.
+
+---
+
 ## THE GAME, IN ONE PARAGRAPH (the judging criterion for every phase)
 
 Design your plane, see if it flies. Test it — yourself or automatically —
@@ -25,14 +516,28 @@ option, not as a gate.
 
 ## THE RULINGS
 
-1. **BENCH UNTIL INTEGRATION.** The cage bench stays the working surface; the
-   in-game garage is kept but frozen, and is REBASED at P10 on the bench's
-   parameter model. This is the architecture G21 settled: the bridge between
-   editors is the SPEC, not the UI — generators are modules, the game
-   consumes the same modules. Nothing bench-side is lost; nothing is spent on
-   the old panel meanwhile. The vertical slice does not contradict this: the
-   harness is headless and the bench already exports the game's own build
-   envelope.
+1. ~~**BENCH UNTIL INTEGRATION.**~~ **OVERTURNED BY THE USER 2026-09-01:**
+   *"I disagree with bench until integration. The bench does not exist anymore,
+   the editor is in game. We do not need separate benches anymore."*
+   **THE RULING IS NOW: ONE EDITOR, AND IT IS IN THE GAME.** The in-game
+   editor IS the working surface — it has been since G35 embedded it and G65
+   collapsed the flow, and the roadmap simply never caught up. What the old
+   ruling got right is kept and is the reason the reversal costs nothing: the
+   bridge is the SPEC, not the UI, and the generators are MODULES, so the game
+   consumes exactly what the bench pages consumed. What changes:
+   - New part work is designed against the in-game editor. No chantier may
+     require a bench page to be useful, and none may deliver a control that
+     exists only on one.
+   - The seventeen `tools/*.html` bench pages are LEGACY. They are not deleted
+     in the same breath — some are the only harness for a checker, and the
+     retirement is an audit, not a keystroke (Phase 1, item 8) — but nothing
+     new is built on them and the `CAGE_IN_GAME` carve-out that keeps the old
+     accordion alive is a debt, not an architecture.
+   - The HEADLESS half is untouched and was never the bench: the node
+     verdicts (`_cage_fit`, `_fin_check`, `_join_check`, GATE GEAR's THREE
+     stub …) are the battery and stay exactly as they are.
+   The P10 line "the garage rebased on the bench modules" is therefore already
+   DONE, and was done early, by the user's own call at G35.
 2. **THE LOOP IS VALIDATED UGLY.** The slice (P3) exists to test whether
    design → fly → stats → hangar → mission is fun, with zero art budget.
    Every phase after it is judged by what it adds to the loop.
@@ -52,7 +557,19 @@ option, not as a gate.
    version bump ships its migrator, and the battery keeps one old build of
    each vintage as a loading gate.
 
-## WHERE THE BENCH STANDS (2026-08-26)
+---
+---
+
+# ════════ THE RECORD ════════
+#### Everything below this line is HISTORY, kept because it is cited all over
+#### HANDOVER and because the as-built detail is the useful part. **THE PLAN
+#### ABOVE SUPERSEDES ITS ORDERING.** The old phase numbers (P0-P12) and
+#### floating chantiers (F1-F6) survive as LABELS you will meet in commit
+#### messages and gate comments — every live item they still own has been
+#### lifted into a numbered phase above. Read this section to find out how
+#### something came to be, not to find out what to do next.
+
+## WHERE THE BENCH STOOD (2026-08-26 — superseded by the ONE EDITOR ruling)
 
 | Part | Bench | State |
 |---|---|---|
@@ -65,7 +582,11 @@ option, not as a gate.
 | Wings | game-side only (`src/core/6x_gen_*`) | not in the bench |
 | Fuel / battery / payload systems | — | not started |
 
-## THE PHASES
+## THE OLD PHASES (P0-P12) — AS-BUILT RECORD, NOT THE PLAN
+
+*(Superseded for ORDERING by THE PLAN at the top of this file. Kept whole
+because the as-built notes under each are cited across HANDOVER and are the
+most detailed account of how each system came to be.)*
 
 **P0 — finish what is open.** — DONE 2026-08-26 (G26 rod-and-pod by the
 user; the engine into the cage is HANDOVER G29: dressed engine on the

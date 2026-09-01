@@ -456,9 +456,17 @@ function genLattice(S, gearX, track, kScale) {
     // station, exactly as always. Cranked: THE CRANK — the crank station is
     // the strut station now (zCrank was inserted into zs, so it is findable
     // by value), which is what keeps every brace member inboard of the break.
-    const iStrut = zCrank > 0
-      ? Math.max(0, zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9))
-      : (WF.length > 1 ? 1 : 0);
+    // G153: a crank station that cannot be found is a BUG, not a root strut.
+    // `Math.max(0, findIndex(...))` turned the -1 into station 0 — the
+    // CENTRELINE — so a float mismatch in the 1e-9 compare would silently root
+    // both lift struts at the fuselage and draw a plausible aeroplane with its
+    // bracing attached to nothing. Latent today (zCrank is inserted into zs by
+    // value, so it is always found), and latent is exactly when to fix it.
+    // The honest fallback is the UNCRANKED rule: the first interior station,
+    // which is where the strut goes on a wing with no break.
+    const iCrank = zCrank > 0
+      ? zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9) : -1;
+    const iStrut = iCrank >= 0 ? iCrank : (WF.length > 1 ? 1 : 0);
     if (useStrut) {
       // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
       // barrier against snap-through fold is the strut anchor a full cabin

@@ -345,9 +345,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edTab.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
 
 /* the reference plane and the shed are not painted, so they get no tabs —
-   and the FINISH view has no per-part reset and no expert rows to show */
+   and neither the FINISH view nor the DESIGN view has a per-part reset or any
+   expert rows to show. G153 added `.des`: the design TILES are the whole
+   aeroplane's, so both pills were visible and inert there (named at G129). */
 #edWrap.noview #edViewTabs,
-#edWrap.fin #edResetPart, #edWrap.fin #edExpert { display:none; }
+#edWrap.fin #edResetPart, #edWrap.fin #edExpert,
+#edWrap.des #edResetPart, #edWrap.des #edExpert { display:none; }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
    overflow. `materials & extras` is the honest home for a row NOTHING has
@@ -653,6 +656,18 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edWrap button:focus-visible, #edWrap select:focus-visible,
 #edWrap input:focus-visible, .edN:focus-visible {
+  outline:2px solid var(--ed-acc); outline-offset:2px; }
+
+/* G153: ...AND #edView, the workshop's OTHER root. The icon rail, its flyouts,
+   the camera pills and the two verbs float OVER the render rather than living
+   inside #edWrap, so every rule above missed all of them and a keyboard user
+   got no ring anywhere on that layer. This is exactly the defect G112 found in
+   the control palette — `#wsUI .r` alone left the very surface the diagnosis
+   named untouched — and exactly its cure: KEY OFF THE ROOT, NOT THE PLACE.
+   flight.css keeps the same three rules for #ui; this is the workshop's copy,
+   and the two stylesheets now say the same thing about both layers. */
+#edView button:focus-visible, #edView select:focus-visible,
+#edView input:focus-visible {
   outline:2px solid var(--ed-acc); outline-offset:2px; }
 
 /* ---- THE EDITOR'S OWN OPTIONS, and the room's ------------------------
@@ -975,6 +990,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo .lgR span { font:400 12px/1.2 'IBM Plex Sans'; color:var(--ed-dim);
   flex:none; }
 
+/* G152: the row's own clock. `margin-right:auto` keeps it beside the leg and
+   still pushes the verdict to the right edge, so the row reads
+   leg / duration ......... what happened. */
+#edInfo .lgR i { font:400 10.5px/1.2 'IBM Plex Sans'; font-style:normal;
+  color:var(--ed-faint); flex:none; margin-right:auto; }
+
 #edInfo .lgR b { font:500 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   text-align:right; }
 
@@ -1056,7 +1077,12 @@ body.mode-fly #wsUI { display:none; }
 
 #edView > * { pointer-events:auto; }
 
-@media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
+/* G153: the CHILDREN too. This stopped the layer itself animating and left
+   every flyout, pill and icon inside it transitioning — the container is not
+   the surface the reader sees move. `#ui *` is what flight.css already does. */
+@media (prefers-reduced-motion:reduce) {
+  #edView, #edView *, #edView *::after { transition:none !important; }
+}
 
 /* THE FILE RIBBON ACROSS THE TOP (2026-08-31; re-cut 2026-09-01): the
    build's name and the four VERBS — save, save as, new, load. The nouns

@@ -26542,3 +26542,356 @@ say "loading" the way the plaque says "untested"); ref textures (tex=
 user's call per aeroplane; the props/models .js manifests could fold into
 index.html now that they are kilobytes (kept external so a rebake does not
 rebuild the page); a real slow-network session.
+
+## G150 — THE SWEEP-30 RED, RULED AND CLOSED (2026-09-01, the user's ruling on
+## a question asked since G130: "say it's a bad aeroplane")
+
+THE LONGEST-STANDING RED IN THE BATTERY. GATE GEN's `swept wings still fly a
+circuit` had been red since G130 and was re-named in six chantiers (G135,
+G138, G141, G142, G145, G149) without ever being made concrete. It was
+re-asked every time as a yes/no about a premise, and answered none of those
+times, which is itself the lesson: **a question that has been asked six times
+is not waiting for an answer, it is waiting for a MEASUREMENT.**
+
+### WHAT IT ACTUALLY WAS: A TIMEOUT, NOT A CRASH
+
+Measured on the real generator before any decision was taken:
+
+| sweep | static margin | TO run | circuit |
+|---|---|---|---|
+| 0 deg | 21.5 % | 351 m | flies, 294 s |
+| 16 deg | 48.4 % | 615 m | flies, 273 s |
+| 24 deg | 63.2 % | 1129 m | flies, 312 s |
+| 27 deg | 69.0 % | 1624 m | flies, 356 s |
+| **30 deg** | **75.1 %** | **1801 m** | **still INBOUND at 600 s** |
+
+Nothing diverges, no value is NaN, and the gate's OTHER two sweep checks (np
+walks aft monotonically, sweep costs lift-curve slope symmetrically) were
+green throughout. The harness flies 600 simulated seconds and requires
+`STOPPED`; the aeroplane simply did not get there.
+
+**THE CAUSE IS BALANCE, NOT PLANFORM.** Sweep walks the neutral point from
+0.62 m to 2.52 m and NOTHING moves the CG to follow, so the build arrives at a
+75 % static margin — a dart. Proven from the other side: `sweep 30` with the
+wing pulled 0.7 m forward (`xLE -0.7`) lands SM at 51.8 % and flies a normal
+302 s circuit. Same planform, ordinary aeroplane.
+
+**AND THE PLAYER CAN REACH IT**, which is the fact that made the ruling
+matter. G140 retired the sweep slider, so the first read was "legacy-only
+corner, dissolve it". Wrong: `genClampSpec` clamps `tipX` to
+`tan(30 deg) x exposed semispan` — deliberately the same envelope the angle
+always had (60_gen_spec.js:1944) — so dragging the tip fully aft in the editor
+gives SM 76.1 %, TO 1746 m, and reaches ROLLOUT at 594 s of a 600 s budget.
+One slider, not a hand-written spec.
+
+### THE RULING, AND WHAT IT CHANGED
+
+The user chose: **it is a BAD aeroplane, not an illegal one — the game should
+say so.** That is ruling 3's own words applied ("building it wrong and
+learning why is content, not error"), and it rejects the three alternatives
+for stated reasons: not narrowing the clamp (do not delete a legal design to
+make a gate green), not raising the harness budget (hides the badness), and
+the balance-advisory idea is a FEATURE, kept and deferred rather than smuggled
+in as a gate fix.
+
+So `swept wings still fly a circuit` is retired and replaced by four checks:
+
+- `the sweeps that must fly, fly` — the band (-15, 12) on the DONOR autopilot,
+  standard unchanged.
+- `an extreme sweep never diverges` — 30 deg may be bad, never broken.
+- `an extreme sweep reaches a bounded verdict` — THE TEST PILOT must reach a
+  non-null `report.outcome` instead of flying for ever.
+- `an extreme sweep that does not complete says why` — and if that outcome is
+  not `completed`, at least one verdict must name the reason.
+
+Silence is now the only failure. The extreme is allowed to be a dart; it is
+not allowed to be undiscussable.
+
+### THE FINDING THAT NEITHER SIDE OF THE QUESTION EXPECTED
+
+**Under the TEST PILOT, the 30 deg aeroplane completes the circuit** —
+`outcome: 'completed'`, STOPPED at 568 s, zero verdicts. The donor
+`makeAutopilot` hung in INBOUND at the same geometry.
+
+So the six-chantier red was never only about the aeroplane. It was half about
+the DONOR AP's rigidity: the test pilot's bounded attempts (accepted ceilings
+above all) get a marginal machine home where the donor circles. This is the
+same class of defect as G115's "the AP retunes itself and masks a bad CG",
+and it is worth carrying: **when a gate says an aeroplane cannot fly, ask
+which pilot was flying it.**
+
+The checks are still the right ones — they now pass because the aeroplane is
+flyable-but-poor, which is exactly the state the ruling describes, and check 4
+bites the moment that stops being true.
+
+### NEGATIVE-VERIFIED, 3/3
+
+On doctored reports, since a check that cannot fail gates nothing: sim blew up
+-> caught; flew for ever with no outcome -> caught; gave up in SILENCE with
+zero verdicts -> caught. (The idiom is GATE PILOT's own `--selftest`.)
+
+### STILL OWED, AND IT IS THE INTERESTING HALF
+
+**Nothing SAYS the aeroplane is bad in words.** The plaque's own numbers do
+say it — a 1801 m take-off run is impossible to miss — but no verdict names
+the 75 % static margin, because the test pilot completed the flight and had
+nothing to complain about. The ruling's spirit is fully served only when the
+BALANCE ADVISORY lands: the editor telling you a swept tip wants the wing
+forward, which is P8 section 3's engineer's-handbook idea (guidance you may
+ignore, never a guardrail). It is ROADMAP Phase 2/5 work and was deliberately
+NOT smuggled into this chantier.
+
+Also unchanged and still owed: the DC-3 `W-DC3` crosswind red (GATE WIND), the
+battery's other declared defect, which is arrival work on a calibrated fleet
+and happens WITH the user.
+
+## G151 — THE AEROPLANE IS WHEELED OUT, NOT TELEPORTED (2026-09-01, ROADMAP
+## Phase 1 item 2; the debt G123 declared and deliberately did not wire)
+
+Roll out and the aeroplane appeared 75 m from the shed, facing away from it.
+`site.stand` — "where an aeroplane stands when it is wheeled out of the shed"
+— had been DECLARED at G123 and wired to nothing, because `placeAtAerodrome`
+puts the aeroplane on `HOME.spawn`, the W10 spawn identity every flying gate
+departs from, and moving that would move every take-off measurement in the
+battery at once.
+
+**NOTHING MOVED, AND THAT IS THE WHOLE DESIGN.** The aeroplane now starts on
+the stand and TAXIS to the centreline, so the spawn keeps its meaning — it is
+where the taxi ENDS. Every gate departs from it exactly as before.
+
+### FOUR PIECES
+
+- **`placeAtStand(sim, a, st)`** (40_autopilot.js), a THIN wrapper:
+  `placeAtAerodrome` reads exactly `hdg`/`spawn`/`elev`, so a stand is just
+  another pose to hand it. One transform, not a second copy of it.
+- **`taxiOut`** on the site — the declared way out, `[[16, 22], [-80, 0]]`.
+- **The DEPART planner learned to ask how far off the centreline it is**, in
+  BOTH pilots (41 is 40's fork; the same edit, carried).
+- **TAXI follows a LIST**, advancing through waypoints, only the last handing
+  over to LINEUP — and holding intermediate points to a 10 m radius rather
+  than 22 m, because a 22 m corner-cut through a 24 m gate is a fence.
+
+### THREE MEASURED FAILURES, EACH ONE THE REASON A PIECE EXISTS
+
+**1. LINEUP CANNOT CROSS AN APRON — 324 s.** The naive fix (place on the
+stand, let `departFrom` plan) put the planner straight into LINEUP, because
+there was plenty of runway ahead and it never asked about cross-track. LINEUP
+is a FINAL ALIGNMENT: it pursues the centreline at taxi speed on whatever
+intercept it happens to have. From 40 m out that is 324 s to reach ROLL,
+wandering 375 m down the runway — and on the TEST PILOT the 600 s budget then
+expired during ROLLOUT and returned `gave-up` **on a perfectly sound
+aeroplane**. Hence the cross-track branch.
+
+**2. AN INVENTED STRAIGHT LINE DRIVES THROUGH THE FENCE.** With a computed
+lead the aeroplane crossed the fence line (z 26) at x = -15, inside the
+-80..4 run. The geometry is a trap and worth writing down: the fence's only
+gap is x 4..28, and a straight line from the stand to a centreline entry
+passes through it ONLY for entries around x -66..2 — every one of which is too
+STEEP for LINEUP's 8 m gate at TAXI's 22 m handover. **There is no single
+straight leg that is both through the gate and shallow enough.** So the route
+is DECLARED, because every obstacle on it belongs to the place and the
+autopilot cannot see a fence.
+
+**3. THE STAND WAS PARKED FACING THE SHED, AND A STANDSTILL TURN IS THE ONE
+THING THE TAXI CANNOT DO.** With the route declared it still crossed at
+x = -15 and took 230 s. The rudder was **pinned at its -0.45 clamp for the
+entire taxi** while the aeroplane scrubbed round at 0.15 m/s. `hdg` of
+`Math.PI - 0.62` points the nose at (-0.81, +0.58) — up the apron TOWARDS the
+hangar at z 62 — so the first act was a 67 deg turn from rest. A tyre dragged
+sideways eats the whole thrust margin, and turn rate needs the speed the
+scrub is preventing. Aeroplanes are parked pointing the way they will leave;
+`hdg` is `-2.5361` now, the bearing to the first waypoint, and GATE SITE
+asserts the two cannot drift apart.
+
+### AFTER: 91 s, THROUGH THE GATE, BOTH PILOTS
+
+Crosses the fence line at x = 21.5 (6.5 m of clearance inside a 24 m gate),
+reaches ROLL at 91 s, and completes the circuit under BOTH pilots — the test
+pilot returning `completed`, not `gave-up`. Departure from the spawn is
+byte-unchanged (ROLL at 0 s, STOPPED at 294 s, identical trace).
+
+### WHAT IS STILL SLOW, MEASURED RATHER THAN EXCUSED
+
+**91 s for 130 m is ~1.4 m/s, about a third of a real taxi**, and it is NOT
+this chantier's doing. The taxi governor is THRUST-LIMITED at low speed:
+throttle sits at 0.45 against its own cap of ff+0.27 = 0.49 for the first
+65 s while the aeroplane accelerates at ~0.015 m/s². `taxiFF` derives
+break-even as `CRR*m*g/T0`, which assumes **thrust is linear in throttle**;
+it is not, so "0.27 of authority above break-even" is much less real margin
+than it reads. This is pre-existing — GATE XCTY5's backtrack has the same
+crawl and a 1500 s budget that hides it. Raising the cap would move every
+taxi in the battery, so it is NAMED and left: it is a controller decision to
+take with the fleet watching, not something to tune inside a chantier about a
+spawn point. In the register as its own item.
+
+### GATES
+
+**GATE SITE +11 checks (167 -> 178)**, all on the declared route: it ends on
+the centreline, inside the strip, with a take-off run left; no leg passes
+under the hangar; any leg crossing the fence line does it through the GATE;
+the final leg is shallow enough that 22 m back along it is already inside
+LINEUP's 8 m; every point is on the flat pad; and the stand faces its own
+first waypoint. **8 new negative trials, 8 caught (22/22 overall)** — each one
+a real way to write a route that looks fine in the file and drives the
+aeroplane through something.
+**GATE XCTY5 PASS, unchanged**: `sawTaxi=true`, `taxiOffStrip=0.0`. The
+backtrack stops on the centreline, so `offCl` is false and it takes the old
+expression, which is why that expression was kept byte-identical.
+**GATE UISMOKE independently confirms it through the real app path**, and its
+own line says so: `garage -> roll out -> TAXI, mode: flight`.
+
+## G152 — THE LOGBOOK ACCRUES (2026-09-01, ROADMAP Phase 1 item 3)
+
+### FIRST, A CORRECTION: THE READ-BACK WAS ALREADY DONE
+
+ROADMAP called for "the logbook read-back — nothing reads the log today", and
+the debt register repeated it. **Both were STALE.** `renderLog()` has been in
+garage.js since **G130**, drawing `#edLog` in the information panel: built
+date, flight count, and the last six flights newest-first with their leg and
+their outcome. The fleet popup's `slotMeta` has shown `role · tested · N
+flights` since the same chantier.
+
+This is the second stale deferral found in two days (the first was G47.2's
+prop spin, live in app.js since G59.1). **Read the code before believing a
+document that says something is missing** — including this one.
+
+### WHAT WAS ACTUALLY MISSING: THE CLOCK
+
+The reader was fine. The ROWS had no time in them. `logFlight` recorded
+`from / to / sink / V / off`, or `from / to / outcome` — so a logbook could
+count flights and **could never total anything**. Hours are the number an
+aeroplane earns; "my Cub has 40 hours on it" is the whole of why a fleet reads
+as a fleet and not as a list of files, and it was unrepresentable.
+
+Three fields, one helper pair, three readers:
+
+- **`t`** — `ap.t`, the flight's own clock, rounded to the second. Since G151
+  that includes the taxi, which is honest: that time was flown.
+- **`on`** — the date, so a row can say when.
+- **`run`** — the landing run, when the pilot measured one. The TEST PILOT's
+  `report.landing` carries it (G107 put it on the plaque); the fleet AP does
+  not, so the field is **present or absent rather than faked**.
+- **`hoursOf(fl)` and `clock(s)`** in garage.js, in one place because the
+  panel, the fleet rack and GATE BUILD all have to agree about them.
+- Read by the panel meta (`built … · 3 flights · 0.25 h`), the row's own
+  `<i>4:54</i>`, a hover tip carrying date + run + off-centre, and the rack
+  (`role · tested · 6 flights · 1.2 h`).
+
+**NO VERSION BUMP, and it is the G105 ruling applied again**: an old row has no
+`t`, there is nothing to branch a migration on, and every reader already treats
+a missing clock as "not counted".
+
+### GATE BUILD +8 CHECKS, AND ONE OF THEM WAS WRONG UNTIL THE PROBES RAN
+
+Negative-verified by mutating the REAL `src/viewer/garage.js` five ways —
+restore in a `finally` with a retrying write, and the file asserted
+byte-identical afterwards (the G124 lesson: a restore that silently fails makes
+every later probe red for somebody else's reason).
+
+**4 of 5 caught on the first run. The miss is the useful part.** The mutation
+"delete the visible clock from the row" was NOT caught, because the assertion
+was a bare `/4:54/` over the row markup — and the same duration also appears in
+the row's hover TIP, so the check passed with the visible clock gone. Anchored
+to `<i>4:54</i>` it discriminates, and 5/5 are caught. **A substring assertion
+over markup tests that a string exists SOMEWHERE, which is not what "it is on
+the row" means.**
+
+### AND ONE ASSERTION THAT CANNOT PROVE WHAT ITS NAME CLAIMED
+
+The check labelled "an untimed row is not counted as zero" was renamed, because
+for a SUM those two are the same arithmetic and no assertion can separate them.
+What it really guards is that a missing clock does not POISON the total —
+`s + undefined` is NaN, and a logbook reading `NaN h` is the realistic bug (the
+first mutation, caught). The distinction starts to matter the day something
+takes a MEAN flight time; `hoursOf`'s guard is written for that day too, and
+the comment says so rather than letting a future reader trust the old label.
+
+STILL OWED, unchanged and named at G130: the fleet RACK proper (UI-MODEL §2.4
+reserves it a sheet — forty aeroplanes, browsing, width). The rack is where
+hours stop being a number on one build and become a comparison between
+aeroplanes, which is P6's own subject.
+
+## G153 — THE FRICTION PASS FINISHES (2026-09-01, ROADMAP Phase 1 items 4-8)
+
+### THE HEADLINE IS NOT THE CODE: FOUR OF THESE ITEMS WERE ALREADY DONE
+
+Phase 1 listed five remaining chores. Checked against the code before touching
+anything — the discipline G152 had just paid for — **four were stale**:
+
+| item | claimed | actually |
+|---|---|---|
+| purple wingtip / orange ailerons leak into the finished view | open | **fixed at G109**; `_cage_wing.js` says so in its own comment |
+| GEN_ACCESS fittings read as cyan/magenta diagnostics | open | **fixed at G111**; `matFor` routes through `CAGE_SECMAT('accPaint')` then `aeroHardMat`, and the Lambert palette is a bench-only fallback |
+| a pitch-black mood shows full-strength glints (glass exemption) | open | **the exemption was DELETED**; `aeroGlass` says it "was unjustified complexity, so it went" once transmission was measured out |
+| the 15 native colour wells in `#cgUi` | open | **fixed at G112**; `:is(#wsUI, #edView) .r input[type=color]` covers them |
+
+**THAT IS FOUR STALE ENTRIES IN ONE SESSION** (plus G152's logbook and G47.2's
+prop spin: six in two days). The failure mode is structural, not careless: a
+chantier fixes something and updates ITS OWN entry, while the same defect is
+also written down in a roadmap phase, a gap list and a debt register that
+nobody walks. **A planning document decays silently, and the only detector is
+reading the code.** DEBT-REGISTER §6b now carries the rule.
+
+### WHAT WAS REAL, AND FIXED
+
+- **`APRON` deleted** (app.js). One declaration, zero readers, named dead at
+  G123 — and by G151 it was also WRONG, carrying a stale build-stand pose
+  (`hdg PI-0.62`, `spawn [26,40]`) beside the site's live `stand`. A second
+  stale answer next to the real one is exactly how three copies of one runway
+  happened; `siteOf('HOME').stand` is the answer.
+- **The `iStrut` −1 guard** (`61_gen_frame.js`). `Math.max(0, findIndex(...))`
+  turned "crank station not found" into **station 0, the centreline** — a float
+  mismatch in the 1e-9 compare would have rooted both lift struts at the
+  fuselage and drawn a plausible aeroplane with its bracing attached to
+  nothing. Latent today (zCrank is inserted into `zs` by value), and latent is
+  when to fix it. The honest fallback is the UNCRANKED rule: the first interior
+  station, which is where a strut goes on a wing with no break.
+- **The reference panel says what it is doing** (`refplane.js`). Since G149 the
+  geometry is an external file, so a preset lands a beat after you pick it and
+  the panel said `No reference standing.` throughout — a statement about the
+  AEROPLANE, reading as "that one is not available". `loadingKey` / `failedKey`
+  make it a statement about the PANEL, and give a failed fetch its own words
+  instead of letting it look identical to having picked nothing.
+- **The DESIGN tab hides `reset part` and `expert rows`** (editor.js +
+  editor.css). `.fin` hid them for FINISH; DESIGN set no class, so both pills
+  stood there inert (named at G129). A control that lies about what it will do.
+- **`#edView` gets a focus ring and reduced motion.** The icon rail, its
+  flyouts, the camera pills and the two verbs float OVER the render rather than
+  inside `#edWrap`, so every focus rule missed them and a keyboard user got no
+  ring anywhere on that layer. **This is precisely the G112 defect again** —
+  `#wsUI .r` alone left the very surface the diagnosis named untouched — and
+  precisely its cure: KEY OFF THE ROOT, NOT THE PLACE. The reduced-motion rule
+  had the container but not its children, which is the same mistake one level
+  down. flight.css already did both for `#ui`; the two stylesheets agree now.
+
+Verified by loading both stylesheets in the browser and walking `cssRules`:
+506 rules, all four new/changed selectors present and parsed. **A probe trap
+worth carrying:** in current Chrome every `CSSStyleRule` has a (empty, truthy)
+`cssRules` for CSS nesting, so `if (r.cssRules)` swallows every style rule and
+reports zero. Test `r.selectorText` first.
+
+### THE BENCH-PAGE AUDIT (item 8) — REPORTED, NOTHING DELETED
+
+The user's ruling retired the benches as an ARCHITECTURE; it did not say which
+files may go, and the roadmap made this an audit for that reason. Seventeen
+`tools/*.html`, by what actually requires them:
+
+- **LIVE TOOLING, not benches — keep**: `_probe.html`, `_probe_base.html` (the
+  capture rig; required by `make_probe.js`, `_light_check.js`, `_light_probe.js`
+  — GATE LIGHT's own path), and `_lean.html` (the 2026-09-01 lean-pillar study,
+  paired with `_lean_page.js`).
+- **A bench page with a LOAD-BEARING citation**: `_cage8.html` — `build.js`
+  names it as the authority for `MANIFEST.editor`'s script list *and its order*.
+  Deleting it loses the provenance of that ordering.
+- **Bench pages whose `.js` partner is live in the game**: `_cage2`, `_cage5`,
+  `_engine`, `_gear`, `_props`, `_pwr`.
+- **Cited only by HANDOVER (historical)**: `_cage`, `_cage3`, `_cage4`,
+  `_cage7`, `_wins`.
+- **Referenced by NOTHING**: `_cage6.html`, `_loft.html`.
+
+**NOTHING WAS DELETED, deliberately.** A textual grep finds what references a
+page; it cannot find a page the user opens by hand, and `_loft.html` (47 KB) is
+the largest of them. The two unreferenced files are the only clear candidates,
+and they are tracked, so removing them later costs nothing and recovers from
+git. This is a decision to take with the user, not one to take while they are
+away for the sake of two files.

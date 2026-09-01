@@ -77,7 +77,10 @@ function makeTestPilot(sim, def, world) {
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
               world ? world.aerodromes[0] : HOMEISH);
-  ap.departFrom = (from, to) => {
+  // G151: `taxiOut` — the site's declared way out. Donor's signature, carried.
+  ap.departFrom = (from, to, taxiOut) => {
+    ap.taxiPath = null;
+    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -315,9 +318,29 @@ function makeTestPilot(sim, def, world) {
         ap.dirX = -1;
         const need = (A.TORun ?? 500) + 60;
         const sPos = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
-        if (from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
-        const sStart = Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
+        // G151, the donor's change carried across verbatim (this planner is
+        // 40_autopilot's, forked): LINEUP is a final alignment and cannot be
+        // asked to cross an apron. See the donor for the measurement — 324 s
+        // and a 375 m wander, which on THIS pilot also burned the 600 s
+        // budget and produced a 'gave-up' on a sound aeroplane.
+        const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const offCl = Math.abs(sCr0) > 15;
+        if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
+        // the site's declared route wins — the fence is the place's, not the
+        // pilot's (see the donor for the measurement that proved it).
+        if (offCl && ap.taxiOut) {
+          const path = ap.taxiOut.map(p => [p[0], p[1]]);
+          ap.taxiTgt = path.shift();
+          ap.taxiPath = path;
+          ap.phase = 'TAXI'; phaseT = 0;
+          break;
+        }
+        const sStart = offCl
+          ? Math.min(Math.max(sPos + Math.max(60, 3.5 * Math.abs(sCr0)),
+                              -from.len / 2 + 25), from.len / 2 - need - 25)
+          : Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
         ap.taxiTgt = [from.x + ux * sStart, from.z + uz * sStart];
+        ap.taxiPath = null;
         ap.phase = 'TAXI'; phaseT = 0;
         break;
       }
@@ -328,7 +351,14 @@ function makeTestPilot(sim, def, world) {
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
-        if (dist < 22 || phaseT > 120) { ap.phase = 'LINEUP'; phaseT = 0; }
+        // G151, carried: only the LAST point hands over to LINEUP, and the
+        // intermediate ones hold a tighter radius so a corner-cut cannot clip
+        // the gate the route exists to use.
+        const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
+        if (dist < (lastLeg ? 22 : 10) || phaseT > 120) {
+          if (lastLeg) { ap.phase = 'LINEUP'; phaseT = 0; }
+          else { ap.taxiTgt = ap.taxiPath.shift(); phaseT = 0; }
+        }
         break;
       }
 

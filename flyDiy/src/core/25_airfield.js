@@ -88,12 +88,41 @@ const AIRFIELD_SITES = {
     },
 
     // WHERE AN AEROPLANE STANDS when it is wheeled out of the shed: on the apron,
-    // nose out, quartered to the strip. DECLARED, DELIBERATELY NOT WIRED. Roll-out
-    // places at HOME.spawn, which is the W10 spawn identity every flying gate
-    // departs from; moving it would move every take-off measurement in the
-    // battery. This is here so the reference camera and any later taxi work have
-    // one answer to point at instead of inventing a second one.
-    stand: { x: 42, z: 40, hdg: Math.PI - 0.62 },
+    // nose out, quartered to the strip. **WIRED AT G151** — the roll-out places
+    // here now. HOME.spawn is untouched and still means what it always meant:
+    // it is the W10 spawn identity every flying gate departs from, and moving it
+    // would move every take-off measurement in the battery. The taxi below ENDS
+    // on the centreline, so the datum keeps its meaning.
+    // hdg is the direction the aeroplane FACES, in the aerodrome convention
+    // (nose = (cos hdg, sin hdg) — HOME's own pi gives the -x runway heading).
+    // IT NOW FACES THE WAY OUT, and that is a fix, not a preference. The old
+    // `Math.PI - 0.62` pointed the nose at (-0.81, +0.58) — up the apron
+    // TOWARDS THE SHED at z 62 — so the first thing the aeroplane had to do
+    // was turn 67 degrees from a standstill. Measured, it could not: the
+    // rudder sat pinned at its -0.45 clamp for the whole taxi while the
+    // aeroplane scrubbed round at 0.15 m/s, taking 228 s to cover 108 m and
+    // arriving through the fence. A tyre being dragged sideways eats the whole
+    // thrust margin, and turn rate needs the speed the scrub is preventing.
+    // Aeroplanes are parked pointing the way they will leave; this one now is.
+    // GATE SITE asserts this heading still points at taxiOut[0], so the two
+    // cannot drift apart.
+    stand: { x: 42, z: 40, hdg: -2.5361 },
+
+    // THE WAY OUT, DECLARED — because it is a property of THIS PLACE and the
+    // autopilot cannot see any of it. A straight line from the stand to the
+    // centreline crosses the boundary fence: the fence stands at z 26 with runs
+    // x -80..4 and x 28..60, so the ONLY way through is the gate between them,
+    // which is what the taxiway (x 8..24) exists to use. Measured on the first
+    // attempt, an invented straight line crossed z 26 at x = -7 — through the
+    // wire, at every lead value that also gave LINEUP a shallow enough
+    // intercept to work with.
+    // So the points are stated, in order, from the stand to the centreline:
+    // west along the apron and south through the gate, then a long shallow
+    // entry that puts the aeroplane inside LINEUP's own 8 m gate when it
+    // arrives (measured 4.9 m) with 990 m of strip left in front of it.
+    // A site with no `taxiOut` falls back to the pilot's computed entry, which
+    // is correct wherever there is nothing to drive around.
+    taxiOut: [[16, 22], [-80, 0]],
   },
   M1: null,
   M2: null,

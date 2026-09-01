@@ -561,9 +561,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edTab.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
 
 /* the reference plane and the shed are not painted, so they get no tabs —
-   and the FINISH view has no per-part reset and no expert rows to show */
+   and neither the FINISH view nor the DESIGN view has a per-part reset or any
+   expert rows to show. G153 added `.des`: the design TILES are the whole
+   aeroplane's, so both pills were visible and inert there (named at G129). */
 #edWrap.noview #edViewTabs,
-#edWrap.fin #edResetPart, #edWrap.fin #edExpert { display:none; }
+#edWrap.fin #edResetPart, #edWrap.fin #edExpert,
+#edWrap.des #edResetPart, #edWrap.des #edExpert { display:none; }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
    overflow. `materials & extras` is the honest home for a row NOTHING has
@@ -869,6 +872,18 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edWrap button:focus-visible, #edWrap select:focus-visible,
 #edWrap input:focus-visible, .edN:focus-visible {
+  outline:2px solid var(--ed-acc); outline-offset:2px; }
+
+/* G153: ...AND #edView, the workshop's OTHER root. The icon rail, its flyouts,
+   the camera pills and the two verbs float OVER the render rather than living
+   inside #edWrap, so every rule above missed all of them and a keyboard user
+   got no ring anywhere on that layer. This is exactly the defect G112 found in
+   the control palette — `#wsUI .r` alone left the very surface the diagnosis
+   named untouched — and exactly its cure: KEY OFF THE ROOT, NOT THE PLACE.
+   flight.css keeps the same three rules for #ui; this is the workshop's copy,
+   and the two stylesheets now say the same thing about both layers. */
+#edView button:focus-visible, #edView select:focus-visible,
+#edView input:focus-visible {
   outline:2px solid var(--ed-acc); outline-offset:2px; }
 
 /* ---- THE EDITOR'S OWN OPTIONS, and the room's ------------------------
@@ -1191,6 +1206,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo .lgR span { font:400 12px/1.2 'IBM Plex Sans'; color:var(--ed-dim);
   flex:none; }
 
+/* G152: the row's own clock. `margin-right:auto` keeps it beside the leg and
+   still pushes the verdict to the right edge, so the row reads
+   leg / duration ......... what happened. */
+#edInfo .lgR i { font:400 10.5px/1.2 'IBM Plex Sans'; font-style:normal;
+  color:var(--ed-faint); flex:none; margin-right:auto; }
+
 #edInfo .lgR b { font:500 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   text-align:right; }
 
@@ -1272,7 +1293,12 @@ body.mode-fly #wsUI { display:none; }
 
 #edView > * { pointer-events:auto; }
 
-@media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
+/* G153: the CHILDREN too. This stopped the layer itself animating and left
+   every flyout, pill and icon inside it transitioning — the container is not
+   the surface the reader sees move. `#ui *` is what flight.css already does. */
+@media (prefers-reduced-motion:reduce) {
+  #edView, #edView *, #edView *::after { transition:none !important; }
+}
 
 /* THE FILE RIBBON ACROSS THE TOP (2026-08-31; re-cut 2026-09-01): the
    build's name and the four VERBS — save, save as, new, load. The nouns
@@ -6174,12 +6200,41 @@ const AIRFIELD_SITES = {
     },
 
     // WHERE AN AEROPLANE STANDS when it is wheeled out of the shed: on the apron,
-    // nose out, quartered to the strip. DECLARED, DELIBERATELY NOT WIRED. Roll-out
-    // places at HOME.spawn, which is the W10 spawn identity every flying gate
-    // departs from; moving it would move every take-off measurement in the
-    // battery. This is here so the reference camera and any later taxi work have
-    // one answer to point at instead of inventing a second one.
-    stand: { x: 42, z: 40, hdg: Math.PI - 0.62 },
+    // nose out, quartered to the strip. **WIRED AT G151** — the roll-out places
+    // here now. HOME.spawn is untouched and still means what it always meant:
+    // it is the W10 spawn identity every flying gate departs from, and moving it
+    // would move every take-off measurement in the battery. The taxi below ENDS
+    // on the centreline, so the datum keeps its meaning.
+    // hdg is the direction the aeroplane FACES, in the aerodrome convention
+    // (nose = (cos hdg, sin hdg) — HOME's own pi gives the -x runway heading).
+    // IT NOW FACES THE WAY OUT, and that is a fix, not a preference. The old
+    // `Math.PI - 0.62` pointed the nose at (-0.81, +0.58) — up the apron
+    // TOWARDS THE SHED at z 62 — so the first thing the aeroplane had to do
+    // was turn 67 degrees from a standstill. Measured, it could not: the
+    // rudder sat pinned at its -0.45 clamp for the whole taxi while the
+    // aeroplane scrubbed round at 0.15 m/s, taking 228 s to cover 108 m and
+    // arriving through the fence. A tyre being dragged sideways eats the whole
+    // thrust margin, and turn rate needs the speed the scrub is preventing.
+    // Aeroplanes are parked pointing the way they will leave; this one now is.
+    // GATE SITE asserts this heading still points at taxiOut[0], so the two
+    // cannot drift apart.
+    stand: { x: 42, z: 40, hdg: -2.5361 },
+
+    // THE WAY OUT, DECLARED — because it is a property of THIS PLACE and the
+    // autopilot cannot see any of it. A straight line from the stand to the
+    // centreline crosses the boundary fence: the fence stands at z 26 with runs
+    // x -80..4 and x 28..60, so the ONLY way through is the gate between them,
+    // which is what the taxiway (x 8..24) exists to use. Measured on the first
+    // attempt, an invented straight line crossed z 26 at x = -7 — through the
+    // wire, at every lead value that also gave LINEUP a shallow enough
+    // intercept to work with.
+    // So the points are stated, in order, from the stand to the centreline:
+    // west along the apron and south through the gate, then a long shallow
+    // entry that puts the aeroplane inside LINEUP's own 8 m gate when it
+    // arrives (measured 4.9 m) with 990 m of strip left in front of it.
+    // A site with no `taxiOut` falls back to the pilot's computed entry, which
+    // is correct wherever there is nothing to drive around.
+    taxiOut: [[16, 22], [-80, 0]],
   },
   M1: null,
   M2: null,
@@ -7657,6 +7712,24 @@ function placeAtAerodrome(sim, a) {
   }
 }
 
+// G151: THE STAND. placeAtAerodrome puts the aeroplane on the strip's SPAWN
+// IDENTITY — the W10 datum every flying gate departs from, which is exactly
+// why it must never move: shifting it would move every take-off measurement
+// in the battery at once. But a PLAYER rolling out of the shed has not been
+// teleported onto the runway; the aeroplane was wheeled onto the apron, and
+// landing it 75 m away facing the wrong way is the first thing every flight
+// used to show (G123 named it and wired `site.stand` to nothing).
+// This places it on that declared stand instead. The spawn identity is NOT
+// touched — the taxi that follows ENDS on the centreline, so the datum keeps
+// its meaning and the gates keep their numbers.
+// It is deliberately a THIN wrapper rather than a second copy of the
+// transform: placeAtAerodrome reads exactly hdg / spawn / elev, so a stand is
+// just another pose to hand it. One transform, one place, as ever.
+function placeAtStand(sim, a, st) {
+  return placeAtAerodrome(sim, st
+    ? { hdg: st.hdg, spawn: [st.x, st.z], elev: a.elev } : a);
+}
+
 function makeAutopilot(sim, def, world) {
   const A = def.params.ap;
   // TAXI BREAKAWAY (G4.9). The taxi governor below is a proportional speed
@@ -7715,13 +7788,19 @@ function makeAutopilot(sim, def, world) {
   // covers TORun + margin, else taxi back along the strip and turn
   // around (TAXI/LINEUP), then the normal ROLL takes over. Use on a
   // fresh makeAutopilot instance so restAlt/integrators latch clean.
-  ap.departFrom = (from, to) => {
+  // G151: `taxiOut` is the SITE's declared way from its stand to the
+  // centreline (see 25_airfield.js). Optional, and absent for every caller
+  // that departs from the strip itself — GATE XCTY5's backtrack passes two
+  // arguments and is unchanged.
+  ap.departFrom = (from, to, taxiOut) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
     ap.shortFld = false;
     ap.trackHold = false;
     ap.taxiTgt = null;
+    ap.taxiPath = null;
+    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.phase = 'DEPART'; phaseT = 0;
   };
   // arrival switch: destination landing frame + arrival altitude refs
@@ -7962,11 +8041,42 @@ function makeAutopilot(sim, def, world) {
         ap.dirX = -1;
         const need = (A.TORun ?? 500) + 60;
         const sPos = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
-        if (from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
-        // backtrack: taxi to the run start for this direction (clamped to
-        // the strip); LINEUP then turns it onto the centreline
-        const sStart = Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
+        // G151: HOW FAR OFF THE CENTRELINE — the question this planner never
+        // asked, because until the stand was wired every departure already
+        // stood on the strip. LINEUP is a FINAL ALIGNMENT: it pursues the
+        // centreline at taxi speed on whatever intercept it happens to have,
+        // which is right after a backtrack turn (a metre or two off) and
+        // hopeless from an APRON. MEASURED from the home stand, 40 m out:
+        // 324 s to reach ROLL, wandering 375 m down the runway to do it, and
+        // the test pilot's 600 s budget then expired during the ROLLOUT of a
+        // perfectly sound aeroplane. So when we are genuinely off the strip,
+        // TAXI onto the centreline first — which is what TAXI already does.
+        const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const offCl = Math.abs(sCr0) > 15;
+        if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
+        // THE DECLARED WAY OUT wins whenever the site states one, because the
+        // obstacles are the PLACE's and this planner cannot see a fence.
+        if (offCl && ap.taxiOut) {
+          const path = ap.taxiOut.map(p => [p[0], p[1]]);
+          ap.taxiTgt = path.shift();
+          ap.taxiPath = path;
+          ap.phase = 'TAXI'; phaseT = 0;
+          break;
+        }
+        // THE ENTRY POINT, computed. On the centreline and short of runway —
+        // the BACKTRACK case — this is the run start, and the expression is
+        // unchanged because GATE XCTY5 flies exactly it.
+        // Off the centreline with nothing declared, aim AHEAD by a lead
+        // proportional to the offset so the intercept is shallow: TAXI's own
+        // 22 m exit then hands over near LINEUP's 8 m gate rather than far
+        // outside it. Clamped onto the strip, and far enough back that the run
+        // still fits.
+        const sStart = offCl
+          ? Math.min(Math.max(sPos + Math.max(60, 3.5 * Math.abs(sCr0)),
+                              -from.len / 2 + 25), from.len / 2 - need - 25)
+          : Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
         ap.taxiTgt = [from.x + ux * sStart, from.z + uz * sStart];
+        ap.taxiPath = null;
         ap.phase = 'TAXI'; phaseT = 0;
         break;
       }
@@ -7977,7 +8087,16 @@ function makeAutopilot(sim, def, world) {
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
-        if (dist < 22 || phaseT > 120) { ap.phase = 'LINEUP'; phaseT = 0; }
+        // G151: a declared route is a LIST of points, and only the LAST one
+        // hands over to LINEUP. Intermediate points are held to a tighter
+        // radius than the final one, because a 22 m corner-cut through a 24 m
+        // fence gate is a fence. A single-target taxi — W14's backtrack — has
+        // no list, takes the 22 m branch, and is unchanged.
+        const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
+        if (dist < (lastLeg ? 22 : 10) || phaseT > 120) {
+          if (lastLeg) { ap.phase = 'LINEUP'; phaseT = 0; }
+          else { ap.taxiTgt = ap.taxiPath.shift(); phaseT = 0; }
+        }
         break;
       }
 
@@ -8371,7 +8490,10 @@ function makeTestPilot(sim, def, world) {
   };
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
               world ? world.aerodromes[0] : HOMEISH);
-  ap.departFrom = (from, to) => {
+  // G151: `taxiOut` — the site's declared way out. Donor's signature, carried.
+  ap.departFrom = (from, to, taxiOut) => {
+    ap.taxiPath = null;
+    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -8609,9 +8731,29 @@ function makeTestPilot(sim, def, world) {
         ap.dirX = -1;
         const need = (A.TORun ?? 500) + 60;
         const sPos = (cg[0] - from.x) * ux + (cg[2] - from.z) * uz;
-        if (from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
-        const sStart = Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
+        // G151, the donor's change carried across verbatim (this planner is
+        // 40_autopilot's, forked): LINEUP is a final alignment and cannot be
+        // asked to cross an apron. See the donor for the measurement — 324 s
+        // and a 375 m wander, which on THIS pilot also burned the 600 s
+        // budget and produced a 'gave-up' on a sound aeroplane.
+        const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
+        const offCl = Math.abs(sCr0) > 15;
+        if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
+        // the site's declared route wins — the fence is the place's, not the
+        // pilot's (see the donor for the measurement that proved it).
+        if (offCl && ap.taxiOut) {
+          const path = ap.taxiOut.map(p => [p[0], p[1]]);
+          ap.taxiTgt = path.shift();
+          ap.taxiPath = path;
+          ap.phase = 'TAXI'; phaseT = 0;
+          break;
+        }
+        const sStart = offCl
+          ? Math.min(Math.max(sPos + Math.max(60, 3.5 * Math.abs(sCr0)),
+                              -from.len / 2 + 25), from.len / 2 - need - 25)
+          : Math.max(-from.len / 2 + 25, from.len / 2 - need - 25);
         ap.taxiTgt = [from.x + ux * sStart, from.z + uz * sStart];
+        ap.taxiPath = null;
         ap.phase = 'TAXI'; phaseT = 0;
         break;
       }
@@ -8622,7 +8764,14 @@ function makeTestPilot(sim, def, world) {
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
-        if (dist < 22 || phaseT > 120) { ap.phase = 'LINEUP'; phaseT = 0; }
+        // G151, carried: only the LAST point hands over to LINEUP, and the
+        // intermediate ones hold a tighter radius so a corner-cut cannot clip
+        // the gate the route exists to use.
+        const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
+        if (dist < (lastLeg ? 22 : 10) || phaseT > 120) {
+          if (lastLeg) { ap.phase = 'LINEUP'; phaseT = 0; }
+          else { ap.taxiTgt = ap.taxiPath.shift(); phaseT = 0; }
+        }
         break;
       }
 
@@ -12764,9 +12913,17 @@ function genLattice(S, gearX, track, kScale) {
     // station, exactly as always. Cranked: THE CRANK — the crank station is
     // the strut station now (zCrank was inserted into zs, so it is findable
     // by value), which is what keeps every brace member inboard of the break.
-    const iStrut = zCrank > 0
-      ? Math.max(0, zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9))
-      : (WF.length > 1 ? 1 : 0);
+    // G153: a crank station that cannot be found is a BUG, not a root strut.
+    // `Math.max(0, findIndex(...))` turned the -1 into station 0 — the
+    // CENTRELINE — so a float mismatch in the 1e-9 compare would silently root
+    // both lift struts at the fuselage and draw a plausible aeroplane with its
+    // bracing attached to nothing. Latent today (zCrank is inserted into zs by
+    // value, so it is always found), and latent is exactly when to fix it.
+    // The honest fallback is the UNCRANKED rule: the first interior station,
+    // which is where the strut goes on a wing with no break.
+    const iCrank = zCrank > 0
+      ? zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9) : -1;
+    const iStrut = iCrank >= 0 ? iCrank : (WF.length > 1 ? 1 : 0);
     if (useStrut) {
       // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
       // barrier against snap-through fold is the strut anchor a full cabin
@@ -16052,7 +16209,7 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
 <script src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script src="src/models/c172_model.js?v=267306e7"></script>
@@ -57052,6 +57209,17 @@ function garageInit(api) {
   // count, the last six flights newest-first — into #edLog, and hides the
   // section while the log is empty. Guarded like everything in this file:
   // the gates boot it on DOM shims.
+  // G152: the two readings a logbook needs, in one place because the panel,
+  // the fleet rack and GATE BUILD all have to agree about them.
+  // A row with no `t` is NOT COUNTED — it is a flight from before the clock
+  // existed, and treating it as zero would claim it took no time.
+  const hoursOf = fl => (fl || []).reduce(
+    (s, f) => s + (typeof f.t === 'number' && isFinite(f.t) && f.t > 0 ? f.t : 0),
+    0) / 3600;
+  const clock = s => {
+    const n = Math.max(0, Math.round(s || 0));
+    return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+  };
   function renderLog() {
     try {
       const sec = $('edLog'), meta = $('lgMeta'), rows = $('lgRows');
@@ -57060,16 +57228,29 @@ function garageInit(api) {
       const built = log && log.built;
       if (!fl.length && !built) { sec.hidden = true; return; }
       sec.hidden = false;
+      // G152: THE HOURS. Summed over the rows that HAVE a time — a row from
+      // before G152 has none, and counting it as zero would quietly claim the
+      // aeroplane flew it in no time at all. Shown once it rounds to a
+      // hundredth, so a single circuit reads 0.08 h rather than 0.00.
       meta.textContent = (built ? 'built ' + built + ' · ' : '') +
-        fl.length + ' flight' + (fl.length === 1 ? '' : 's');
+        fl.length + ' flight' + (fl.length === 1 ? '' : 's') +
+        (hoursOf(fl) >= 0.005 ? ' · ' + hoursOf(fl).toFixed(2) + ' h' : '');
       const row = f => {
         const leg = (f.from || '?') + ' → ' +
                     (f.to === 'CIRCUIT' ? 'circuit' : (f.to || '?'));
         const what = f.outcome
           ? String(f.outcome).replace(/-/g, ' ')
           : 'sink ' + f.sink + ' m/s · ' + f.V + ' km/h';
-        return '<div class="lgR' + (f.outcome ? ' bad' : '') + '"><span>' +
-               leg + '</span><b>' + what + '</b></div>';
+        // the row's own clock, and the detail that would crowd it on hover
+        const tip = [f.on || null,
+                     f.t != null ? clock(f.t) : null,
+                     f.run != null ? 'landing run ' + f.run + ' m' : null,
+                     f.off != null ? 'off centre ' + f.off + ' m' : null]
+                    .filter(Boolean).join(' · ');
+        return '<div class="lgR' + (f.outcome ? ' bad' : '') + '"' +
+               (tip ? ' title="' + tip + '"' : '') + '><span>' +
+               leg + '</span><i>' + (f.t != null ? clock(f.t) : '') +
+               '</i><b>' + what + '</b></div>';
       };
       rows.innerHTML = fl.slice(-6).reverse().map(row).join('');
     } catch (e) {}
@@ -57096,8 +57277,12 @@ function garageInit(api) {
       const role = e2.spec && e2.spec.meta && e2.spec.meta.role;
       if (role) bits.push(role);
       if (e2.plaque) bits.push('tested');
-      const nf = (e2.log && e2.log.flights && e2.log.flights.length) || 0;
-      if (nf) bits.push(nf + (nf === 1 ? ' flight' : ' flights'));
+      const fl = (e2.log && e2.log.flights) || [];
+      if (fl.length) bits.push(fl.length + (fl.length === 1 ? ' flight' : ' flights'));
+      // G152: the hours on the rack, so the fleet reads as a fleet and not as
+      // a list of files. Same rule as the panel: untimed rows are not counted.
+      const h = hoursOf(fl);
+      if (h >= 0.005) bits.push(h.toFixed(1) + ' h');
       return bits.join(' · ');
     } catch (e) { return ''; }
   };
@@ -58685,6 +58870,15 @@ var body = null;                // THREE.Group holding the meshes, under refSit
 var built = null;               // { key, model, dec, payload, box, mats, meshes }
 var texCache = {};              // model key -> { texName: Texture }
 var panelEl = null, dimsEl = null, matsEl = null;
+// G153: WHAT THE PANEL SAYS WHILE THE BYTES ARE IN THE AIR. Since G149 the
+// geometry is an external file, so a preset lands a beat after you pick it —
+// and on a slow link, several beats. Throughout that the panel said
+// "No reference standing.", which is a statement about the AEROPLANE and reads
+// as "that one is not available". These two make it a statement about the
+// PANEL instead, and give a failed fetch its own words rather than letting it
+// look identical to having picked nothing.
+var loadingKey = null;          // the preset whose bytes are in flight
+var failedKey = null;           // ...and one whose fetch came back empty
 var boxHelper = null, CLIP = null, CLIP_B = null;
 
 function M() { return window.REF_MOUNT || null; }
@@ -58723,6 +58917,10 @@ function disposeBuilt() {
 
 function build(key) {
   disposeBuilt();
+  // G153: a new ask clears the last one's verdict — a stale "could not be
+  // loaded" under a different aeroplane's name is worse than no note at all.
+  failedKey = null;
+  if (loadingKey !== key) loadingKey = null;
   var pre = presetOf(key);
   if (!pre || !pre.model) {
     var m0 = M();
@@ -58749,8 +58947,13 @@ function build(key) {
   // have moved on) and nothing built it meanwhile. A null resolve is a failed
   // fetch: the aeroplane is absent, exactly as if it had not shipped.
   if (!dec && payload && payload.bin && typeof window.MODEL_LOAD === 'function') {
+    loadingKey = key; failedKey = null; paintDims();
     window.MODEL_LOAD(pre.model).then(function (d2) {
-      if (!d2 || S.preset !== key || built) return;
+      if (loadingKey === key) loadingKey = null;
+      // the user may have moved on, or something may have built it meanwhile:
+      // in both cases this resolve is stale and only the status is repainted
+      if (S.preset !== key || built) { paintDims(); return; }
+      if (!d2) { failedKey = key; paintDims(); return; }
       build(key); paintMats(); paintDims();
     });
     return;
@@ -59033,7 +59236,14 @@ function paintMats() {
 function paintDims() {
   if (!dimsEl) return;
   if (!built || !built.box) {
-    dimsEl.innerHTML = '<div class="refNote">No reference standing.</div>';
+    // G153: three different silences, told apart. Names come from REF_PRESETS,
+    // our own declared table, so they are safe to write into the note.
+    var w = presetOf(loadingKey || failedKey);
+    var nm = w ? w.name : '';
+    dimsEl.innerHTML = '<div class="refNote">' +
+      (loadingKey ? 'Loading ' + nm + '…'
+       : failedKey ? nm + ' could not be loaded.'
+       : 'No reference standing.') + '</div>';
     return;
   }
   var b = built.box, s = S.scale, m = M();
@@ -60504,6 +60714,12 @@ function editorInit(api) {
     view = ['finish', 'design'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');
+    // G153: and DESIGN carries its own class for the same reason FINISH does —
+    // the tiles are the whole aeroplane's, so there is no selected part to
+    // reset and no expert rows among them. The two pills were left visible and
+    // INERT here (named at G129), which is a control that lies about what it
+    // will do.
+    wrap.classList.toggle('des', view === 'design');
     const a = $('edTabShape'), b = $('edTabFinish'), c = $('edTabDesign');
     if (a) a.classList.toggle('on', view === 'shape');
     if (b) b.classList.toggle('on', view === 'finish');
@@ -64188,9 +64404,29 @@ function editorInit(api) {
   let fromId = 'HOME', destId = 'CIRCUIT';
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   function applyRoute() {
-    placeAtAerodrome(sim, aeroById(fromId));   // HOME is a bit-exact no-op
-    const to = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
-    ap.setRoute(aeroById(fromId), to);
+    const from = aeroById(fromId);
+    const to = destId === 'CIRCUIT' ? from : aeroById(destId);
+    // G151: ON THE APRON, NOT ON THE RUNWAY. `placeAtAerodrome` puts the
+    // aeroplane on the strip's SPAWN IDENTITY — the datum every flying gate
+    // departs from — and rolling out onto it teleported the player 75 m from
+    // the shed facing away from it, which is the first thing every single
+    // flight showed. G123 declared `site.stand` for exactly this and wired it
+    // to nothing, because moving the spawn would have moved every take-off
+    // measurement in the battery.
+    // Nothing moves now either: the aeroplane starts on the STAND, and the
+    // pilot's own DEPART planner (built for W14's backtrack, taught in G151 to
+    // notice it is off the centreline) taxis it onto the strip. The spawn
+    // identity keeps its meaning because that is where the taxi ENDS.
+    const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
+    const stand = st && st.stand;
+    if (stand) {
+      placeAtStand(sim, from, stand);
+      ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
+      ap.departFrom(from, to, st.taxiOut);   // then plan from the live pose
+    } else {
+      placeAtAerodrome(sim, from);   // HOME is a bit-exact no-op
+      ap.setRoute(from, to);
+    }
   }
   // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
   // attempts, structured verdicts; the hand-built fleet keeps the classic
@@ -64546,10 +64782,12 @@ function editorInit(api) {
   // Not stepping is the whole of it. With the solver idle the sim stays exactly
   // where reset() put it, which IS the rest lattice rigidly placed — so the
   // skin poses to its rest shape for free and needs no special path.
-  const APRON = {                    // in front of the hangars at (42,62)/(16,54)
-    hdg: Math.PI - 0.62,             // quartered to the strip: a build stand pose
-    elev: 0, tdz: [0, 0], spawn: [26, 40],
-  };
+  // G153: `APRON` stood here — one declaration, zero readers, named as dead by
+  // G123 and deleted now that it is also WRONG. It carried a build-stand pose
+  // (hdg PI-0.62, spawn [26,40]) that the site has genuinely declared since
+  // G123 and that G151 corrected; leaving a second, stale answer beside the
+  // live one is how three copies of a runway happened in the first place.
+  // `siteOf('HOME').stand` is the one answer.
   let inGarage = false;
   // ---- THE TRACE'S CHANNELS (the user: "I'd like to have more info on the
   // trace and be able to select/deselect the one I want to see from the
@@ -64939,17 +65177,40 @@ function editorInit(api) {
       const G = window.GARAGE_SPEC;
       if (!G || !G.log) return;
       const t = ap.tdInfo;
+      // G152: WHEN, AND FOR HOW LONG. The row carried where it went and how it
+      // touched down, and no TIME at all — so a logbook could count flights and
+      // could never accrue anything. Hours are the number an aeroplane earns:
+      // they are what "my Cub has 40 hours on it" means, and the whole reason a
+      // fleet feels like a fleet. `ap.t` is the flight's own clock (and since
+      // G151 it includes the taxi, which is honest — that time was flown).
+      // OLD ROWS HAVE NEITHER FIELD and never will; every reader treats a
+      // missing `t` as "not counted" rather than as zero, so an imported
+      // logbook from before today reads as flights-without-hours instead of
+      // silently claiming 0.00 h. No version bump: there is nothing to branch a
+      // migration on, which is the G105 ruling applied again.
+      const stamp = r => {
+        r.t = Math.max(0, Math.round(ap.t));
+        r.on = new Date().toISOString().slice(0, 10);
+        return r;
+      };
       if (t) {
-        G.log().flights.push({
+        const row = stamp({
           from: fromId, to: destId,
           sink: +t.sink.toFixed(2), V: +(t.V * 3.6).toFixed(0),
           off: +Math.abs(t.z).toFixed(1),
         });
+        // the LANDING RUN, when the pilot measured one. The test pilot's
+        // report carries it (G107 put it on the plaque); the fleet AP does not,
+        // so the field is present or absent rather than faked.
+        const L = ap.report && ap.report.landing;
+        if (L && L.run != null) row.run = L.run;
+        G.log().flights.push(row);
         if (G.note) G.note({ id: 'flight', verdict: 'arrived', ok: true });
       } else if (ap.report && ap.report.outcome) {
-        // G107: the test pilot refused the flight — that is a logbook row too
-        G.log().flights.push({ from: fromId, to: destId,
-                               outcome: ap.report.outcome });
+        // G107: the test pilot refused the flight — that is a logbook row too,
+        // and it still cost the time it took to find out
+        G.log().flights.push(stamp({ from: fromId, to: destId,
+                                     outcome: ap.report.outcome }));
         if (G.note) G.note({ id: 'flight', verdict: ap.report.outcome,
                              ok: false });
       }
