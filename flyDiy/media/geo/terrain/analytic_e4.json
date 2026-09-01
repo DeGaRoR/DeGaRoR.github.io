@@ -1,0 +1,19 @@
+{
+ "magic": "FDTQ1",
+ "bounds": {
+  "x0": -12000,
+  "z0": -12000,
+  "x1": 12000,
+  "z1": 12000
+ },
+ "side": 24000,
+ "patch": 32,
+ "minDepth": 4,
+ "maxDepth": 8,
+ "eps": 4,
+ "source": "analytic seed 0",
+ "hMin": -140.71556235911956,
+ "step0": 2.9296875,
+ "nodes": 4481,
+ "leaves": 3361
+}

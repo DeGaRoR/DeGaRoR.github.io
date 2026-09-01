@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<!--
+  TERRAIN BENCH — look at the adaptive quadtree, and calibrate eps by EYE.
+
+  futureDesigns/WORLD-V2.md is arithmetic. This is the instrument that tells
+  us whether the arithmetic describes something anyone would want to fly over,
+  and it exists because eps cannot be argued to a value — it has to be looked
+  at. Bake a few, open them here, and pick.
+
+  THE VIEW THAT MATTERS IS `error`. It samples the ANALYTIC source and the
+  DECODED asset at the same points and paints the difference, so the question
+  "what did eps 4 actually throw away, and where" has a picture instead of an
+  opinion. Everything else on the rail is navigation.
+
+  Serve from repo root (launch: flydiy-node) and open
+  /flyDiy/tools/_terrain.html?asset=media/geo/terrain/analytic_e4
+-->
+<meta charset="utf-8">
+<title>flyDiy — terrain bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button,input[type=text]{background:#1a1f27;color:var(--fg);
+    border:1px solid var(--grid);padding:3px 8px;border-radius:4px;font:inherit}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 41px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;
+    width:290px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    text-shadow:0 1px 3px #000}
+  h2{font-size:10px;color:var(--dim);margin:14px 0 5px;letter-spacing:.12em}
+  table{border-collapse:collapse;width:100%;font-size:11px}
+  td{padding:1px 0} td.n{text-align:right;color:var(--acc)}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:2px;
+    margin-right:5px;vertical-align:-1px}
+  .hint{color:var(--dim);font-size:10px;margin-top:8px;line-height:1.5}
+</style>
+
+<header>
+  <h1>terrain bench</h1>
+  <label>asset <input type="text" id="asset" size="30"></label>
+  <button id="load">load</button>
+  <label>paint <select id="paint">
+    <option value="depth">depth</option>
+    <option value="error">error vs source</option>
+    <option value="height">height</option>
+  </select></label>
+  <button id="wire">wireframe</button>
+  <button id="lod" class="on">distance LOD</button>
+  <span id="msg" style="color:var(--dim)"></span>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="terrain_codec.js"></script>
+<script src="flight_core.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+$('asset').value = P.get('asset') || 'media/geo/terrain/analytic_e4';
+
+// ---- scene ---------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(45, 1, 5, 120000);
+scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x33383f, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(-0.4, 1, 0.3); scene.add(sun);
+
+let yaw = -0.7, pitch = 0.55, dist = 20000, drag = null;
+const target = new THREE.Vector3(0, 0, 0);
+function place() {
+  camera.position.set(
+    target.x + dist * Math.cos(pitch) * Math.sin(yaw),
+    target.y + dist * Math.sin(pitch),
+    target.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(target);
+}
+cv.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY, b: e.button });
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 0) { yaw -= dx * 0.005; pitch = Math.max(0.02, Math.min(1.5, pitch + dy * 0.005)); }
+  else { const k = dist * 0.0015;
+         target.x -= (Math.cos(yaw) * dx - Math.sin(yaw) * dy) * k;
+         target.z += (Math.sin(yaw) * dx + Math.cos(yaw) * dy) * k; }
+  place();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(60, Math.min(80000, dist * (e.deltaY > 0 ? 1.12 : 0.89)));
+  place(); rebuildIfLod();
+}, { passive: false });
+
+function resize() {
+  const w = $('view').clientWidth, h = $('view').clientHeight;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', () => { resize(); });
+
+// ---- the asset -----------------------------------------------------------
+// Gunzip with the platform's own DecompressionStream — the codec deliberately
+// knows nothing about compression (see its header note).
+async function gunzip(buf) {
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([buf]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+let ASSET = null, WORLD = null, root = null, group = null;
+const PAL = [0x3b4a5a, 0x3f6b8a, 0x3f8a76, 0x5c9a48, 0x9aa347, 0xc08a3e,
+             0xcc5f3a, 0xcc3a6b, 0xa03acc, 0x6b3acc, 0x3a5fcc, 0x3aa0cc,
+             0x3accb0, 0xcccccc];
+
+async function load(prefix) {
+  $('msg').textContent = 'loading…';
+  const [h, t, b] = await Promise.all([
+    fetch('../../' + prefix + '.json').then(r => r.json()),
+    fetch('../../' + prefix + '.topo').then(r => r.arrayBuffer()),
+    fetch('../../' + prefix + '.bin').then(r => r.arrayBuffer()),
+  ]);
+  const raw = await gunzip(b);
+  root = TERRAIN_CODEC.decodeRaw(h, new Uint8Array(t), raw);
+  ASSET = h;
+  // ground truth, for the error view
+  if (!WORLD && typeof makeWorld === 'function') WORLD = makeWorld(0);
+  target.set(0, 0, 0);
+  dist = h.side * 0.85; place();
+  build();
+  $('msg').textContent = '';
+}
+
+// ---- build ---------------------------------------------------------------
+// One BufferGeometry per drawn leaf. No index sharing yet: this is a bench,
+// and the question it answers is about the SHAPE of the tree, not the draw
+// call count. A real renderer shares one index buffer across every patch of
+// the same size, which is most of the point of fixed-size patches.
+function drawnLeaves() {
+  const out = [];
+  const useLod = $('lod').classList.contains('on');
+  (function walk(n) {
+    if (!n.kids) { out.push(n); return; }
+    if (!useLod) { n.kids.forEach(walk); return; }
+    // distance LOD: stop descending once the node is small on screen
+    const s = ASSET.side / (1 << n.d);
+    const cx = ASSET.bounds.x0 + (n.ix + 0.5) * s;
+    const cz = ASSET.bounds.z0 + (n.iz + 0.5) * s;
+    const d = Math.hypot(camera.position.x - cx, camera.position.z - cz);
+    if (d > s * 6) out.push(n); else n.kids.forEach(walk);
+  })(root);
+  return out;
+}
+
+function build() {
+  if (group) { group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); scene.remove(group); }
+  group = new THREE.Group(); scene.add(group);
+
+  const mode = $('paint').value, wire = $('wire').classList.contains('on');
+  const N = ASSET.patch + 1, Pn = ASSET.patch;
+  const leaves = drawnLeaves();
+  const byDepth = new Map();
+  let tris = 0, worstErr = 0;
+
+  // index buffer is the same for every patch — build it once
+  const idx = [];
+  for (let j = 0; j < Pn; j++) for (let i = 0; i < Pn; i++) {
+    const a = j * N + i;
+    idx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1);
+  }
+
+  for (const n of leaves) {
+    byDepth.set(n.d, (byDepth.get(n.d) || 0) + 1);
+    const s = ASSET.side / (1 << n.d), step = s / Pn;
+    const ox = ASSET.bounds.x0 + n.ix * s, oz = ASSET.bounds.z0 + n.iz * s;
+    const pos = new Float32Array(N * N * 3);
+    const col = new Float32Array(N * N * 3);
+    const c = new THREE.Color();
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const k = j * N + i, x = ox + i * step, z = oz + j * step, y = n.h[k];
+      pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
+      if (mode === 'depth') c.setHex(PAL[n.d % PAL.length]);
+      else if (mode === 'height') { const t = Math.max(0, Math.min(1, (y + 100) / 700)); c.setHSL(0.34 - 0.34 * t, 0.45, 0.22 + 0.5 * t); }
+      else {
+        // ERROR: the decoded surface against the analytic source, at this
+        // vertex. This is the calibration view and the reason the bench loads
+        // flight_core.js at all.
+        const e = WORLD ? Math.abs(y - WORLD.terrainH(x, z)) : 0;
+        if (e > worstErr) worstErr = e;
+        const t = Math.min(1, e / (ASSET.eps * 2));
+        c.setHSL((1 - t) * 0.45, 0.75, 0.18 + 0.45 * t);
+      }
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    tris += idx.length / 3;
+    group.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+      vertexColors: true, wireframe: wire, side: THREE.DoubleSide })));
+  }
+
+  const rows = [...byDepth.keys()].sort((a, b) => a - b).map(d =>
+    `<tr><td><span class="sw" style="background:#${PAL[d % PAL.length].toString(16).padStart(6,'0')}"></span>` +
+    `depth ${d}</td><td class="n">${(ASSET.side / ((1 << d) * Pn)).toFixed(1)} m</td>` +
+    `<td class="n">${byDepth.get(d)}</td></tr>`).join('');
+  $('ui').innerHTML =
+    `<h2>ASSET</h2><table>` +
+    `<tr><td>source</td><td class="n">${ASSET.source || '?'}</td></tr>` +
+    `<tr><td>eps</td><td class="n">${ASSET.eps} m</td></tr>` +
+    `<tr><td>patch</td><td class="n">${ASSET.patch}</td></tr>` +
+    `<tr><td>nodes</td><td class="n">${ASSET.nodes}</td></tr>` +
+    `<tr><td>leaves</td><td class="n">${ASSET.leaves}</td></tr></table>` +
+    `<h2>DRAWN</h2><table>${rows}` +
+    `<tr><td>patches</td><td class="n"></td><td class="n">${leaves.length}</td></tr>` +
+    `<tr><td>triangles</td><td class="n"></td><td class="n">${(tris/1000).toFixed(0)}k</td></tr></table>` +
+    (mode === 'error' ? `<h2>ERROR</h2><table><tr><td>worst seen</td>` +
+      `<td class="n">${worstErr.toFixed(2)} m</td></tr>` +
+      `<tr><td>budget</td><td class="n">${ASSET.eps} m</td></tr></table>` +
+      `<p class="hint">Green is agreement, red is 2x eps. Red should appear only
+       where the tree ran out of depth — if it is everywhere, eps is too loose;
+       if there is none at all, eps is paying for detail nobody sees.</p>` : '') +
+    `<p class="hint">drag: orbit &middot; right-drag: pan &middot; wheel: zoom</p>`;
+  $('stat').textContent = `${leaves.length} patches  ${(tris/1000).toFixed(0)}k tris`;
+}
+
+let lodTimer = null;
+function rebuildIfLod() {
+  if (!ASSET || !$('lod').classList.contains('on')) return;
+  clearTimeout(lodTimer); lodTimer = setTimeout(build, 120);
+}
+
+// ---- ui ------------------------------------------------------------------
+$('load').onclick = () => load($('asset').value).catch(e => {
+  $('msg').textContent = 'failed: ' + e.message; console.error(e); });
+$('paint').onchange = () => ASSET && build();
+for (const id of ['wire', 'lod'])
+  $(id).onclick = () => { $(id).classList.toggle('on'); ASSET && build(); };
+
+resize(); place();
+(function tick() { requestAnimationFrame(tick); renderer.render(scene, camera); })();
+$('load').click();
+</script>
