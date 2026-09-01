@@ -26434,3 +26434,111 @@ to the whole leg), its own chantier. The sim still has no unsprung node
 besides the axle (the torque scissor's knee follows nothing). Gear rigs
 deliberately take no Flex ×4 gain (suspension travel is not elastic
 flex); the skin around them does.
+
+## G149 — THE ASSETS LEAVE THE ARTIFACT (2026-09-01, the user: "We need to
+properly externalize the assets. I did not realize they kept being base64
+encoded, which does not seem to make any sense ... 3d models and textures
+should all get out and into their proper external structure ... Prioritize
+extensibility ... let's do what scales best, and what requires most little
+work when importing GLB/GLTF")
+
+WHAT THE 97.83 MiB ACTUALLY WAS, remeasured before touching anything:
+build.js never encoded a byte — nine offline bakers baked data-URI textures
+and b64 geometry into committed .js payloads (hangar_walls.js alone 25 MB)
+and build.js concatenated text. dev.html loaded the SAME base64-stuffed
+files as <script src>: external scripts, not external assets. 95.9% of the
+artifact was base64; nothing at runtime ever fetched a real file.
+
+THE FORMAT DECISION, put to the user and settled: GLB stays the IMPORT
+format, never the served one. The import pipeline (declared tables ->
+bakers -> quantized geometry + budgeted textures) already does what
+gltf-transform would; only the CONTAINER was wrong. So the bakers now write
+the exact bytes they used to base64 as real files under media/ — no
+re-encode anywhere, no GLB writer, no GLTFLoader — and the payload .js
+files became slim manifests. Importing a new aeroplane is unchanged: drop
+the GLB, add the table row, run the baker.
+
+THE STORE (flyDiy/media/): tex/{walls,floor,site,wood,sky,props,models/<k>}
+as real .jpg/.png, geo/{models,props,airframe} as one .bin per asset with
+groups/parts at off/len. Content hash IN THE FILENAME (self-busting; ?v=
+stays only on script refs); each baker prunes what it owns — two grains,
+whole-dir or stem-owned, because model_prep and ref_prep share geo/models/
+and jodel_prep got geo/airframe/ so prop_prep could own geo/props/ outright
+(G62.11's props_packs.json lesson, applied to a directory).
+
+ONE PREFIX, ONE FETCH. Every generated payload resolves
+B = FLYDIY_ASSET_BASE || '' inside its own scope (never top-level — two
+classic scripts would collide); pages at flyDiy/ set nothing, tools/ bench
+pages and make_probe's HEAD set '../'. src/viewer/assets.js publishes
+ASSET_FETCH(url) -> Promise<Uint8Array>, cached by URL, rejection cached
+too — the ONE network door. app.js adds MODEL_LOAD(key) (fetch + the one
+decode, promise-cached); MODEL_DECODE keeps its sync contract where null
+now also means "still on the wire". The codecs take the bin bytes as a
+second argument; a group still carrying b64 decodes as before, so the
+selftests' synthetic payloads survive the container change.
+
+THE THREE ASYNC SEAMS, each a contained edit at a named site:
+- refplane build(): geometry not landed -> MODEL_LOAD().then(build again IF
+  S.preset is still this key and nothing built meanwhile), repaint panes.
+- app buildModel(): imported skin not landed -> fly the truss, re-enter
+  setAircraft(key) when the bytes land (only if still selected and a real
+  decode arrived — a null resolve retries nothing, which is also what keeps
+  the fetchless smoke sandbox from looping). Flyables warm at boot.
+- props propMesh(): returns the group NOW — named, placeable, empty — and
+  fills it when propWarm lands; window.PROP_LANDED tells the hangar to
+  claim late emitters under the switch key remembered at placement
+  (PENDING_LIGHT), re-assert the mood, and nudge the debounced env re-bake
+  (roomTexLanded, which floor/partTex landings also fire — a wall that
+  arrives after bakeHangarEnv is a real case now). wipBody WAITS instead:
+  wsOnStands measures a Box3 over the piece, and three trestles stretched
+  to an empty box would stand at nothing.
+
+DELETED OUTRIGHT (user ruling): a22, p68, rv8, sr22 — "SKETCHFAB Standard"
+never permits redistribution, so GLBs, payloads, presets, table rows and
+CREDITS rows are gone, not gitignored. GATE REF's PUBLISHABLE list still
+stands guard. The five CC-BY held back for ROOM (da40, g115, yak18t, eiii,
+pa28) shipped the day the ceiling died: twelve payloads in both pages now,
+draco still catalogued-not-published (no spec holds its scale).
+
+GATES. UISMOKE reads the payloads from the files the artifact references
+(after asserting it references every one) — and in doing so exposed that
+pick('const MODEL_PA18') had only ever executed ONE payload block; it now
+runs all twelve plus the ten packs, async-wrapped, with an fs-backed
+ASSET_FETCH so the pa18/c172 switches exercise the real decode. REF/PROPS
+decode through fs-read bins — same codec, same slices, identical verdicts
+to the b64 era (byte-exact container swap, proven by the unchanged span/
+sit/symmetry numbers). NEW GATE MEDIA (core): referenced==present BOTH ways
+over 372 files (the catalogue of payloads on disk, not the publish list —
+draco taught it the difference on its first run), zero data:image in
+externalized manifests, index.html data: budget 400 KB (the fonts stay
+inlined by design), and THE SIZE BUDGET AT LAST MECHANICAL: 6 MiB declared
+in the gate, 3.98 measured, after a year of the limit living in comments.
+
+THE BACKUP RULING: "THE BACKUP IS THE ARTIFACT" is superseded — the last
+single-file build (102.9 MB) is archived in flyDiy/archiveSingle/
+(gitignored, local), and git is the backup henceforth. KNOWN DEGRADATIONS,
+accepted: file:// is dead (fetch does not run there and file-origin images
+taint WebGL) — tools/_serve.js is the dev path, and it learned .woff2/.bin
+MIME; slow networks see props/textures pop in and the env re-bake follow
+(verified by mechanism and localhost pixels, NOT under a simulated 3G — a
+real slow-link session is the honest remaining test).
+
+VERIFIED: full core battery run end to end. It caught FOUR gates this
+entry had missed — test_model/skin/ctrl and C172M call decodeModel
+directly, and C172M also asserted its maps were data URIs — each fixed
+(fs-read bin passed in; maps asserted as media/tex files on disk) and
+re-run green. Everything else green EXCEPT GATE GEN, whose sweep-30
+"never landed" red PRE-DATES this session (the G130 round recorded it;
+the user's ruling is still owed) and is pure flight physics no codec
+touch can reach. REF selftest 17/17, MEDIA selftest 6/6; browser on
+dev.html AND built index.html — textured hangar, 40 prop bins + airframe +
+model bins all 200, prop bench at ../ renders 47 props / 1.07 M tris, lazy
+MODEL_LOAD('pa28') decodes 42 groups on demand.
+
+OWED, named: a loading affordance for the reference panel (the preset
+lands silently a beat after selection on a slow link; the dropdown could
+say "loading" the way the plaque says "untested"); ref textures (tex=
+'copy') are now affordable and the bake prints their cost every run — the
+user's call per aeroplane; the props/models .js manifests could fold into
+index.html now that they are kilobytes (kept external so a rebake does not
+rebuild the page); a real slow-network session.

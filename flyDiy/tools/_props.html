@@ -63,8 +63,13 @@
   <aside id="side"></aside>
 </main>
 
+<!-- this page lives in tools/, one level below the payloads' own frame: the
+     baked manifests carry page-relative 'media/...' URLs, and this global is
+     the one prefix that re-roots them (see tools/_media_lib.js BASE_DECL). -->
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
 <script src="../src/viewer/props.js"></script>
 <script>
 (async () => {

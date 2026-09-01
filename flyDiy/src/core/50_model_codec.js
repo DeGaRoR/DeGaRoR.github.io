@@ -2,6 +2,16 @@
 // Pure JS, no three.js: same code runs in the artifact and in the node gates.
 // Layout per group (little-endian): u32 nVerts, u32 nTris,
 //   int16 pos[3*nVerts] (quantized over bb), uint16 uv[2*nVerts], uint16 idx[3*nTris].
+//
+// THE BYTES LIVE OUTSIDE THE PAYLOAD since 2026-09-01: the payload .js is a
+// slim manifest whose groups carry `off`/`len` into ONE binary file per model
+// (payload.bin names it, under media/geo/models/), and decodeModel takes that
+// file's bytes as its second argument. Who fetches is the caller's business —
+// the browser goes through ASSET_FETCH/MODEL_LOAD (src/viewer/assets.js,
+// app.js), the gates read the file with fs and hand it in. A group that still
+// carries `b64` decodes exactly as before (the selftests' synthetic payloads,
+// and any not-yet-rebaked tree), so the container change cannot strand a
+// fixture.
 
 function decodeB64(b64) {
   if (typeof atob === 'function') {
@@ -12,14 +22,24 @@ function decodeB64(b64) {
   return new Uint8Array(Buffer.from(b64, 'base64'));
 }
 
-function decodeModel(model) {
+// group -> DataView over its bytes, wherever they live (b64 field or a slice
+// of the model's own bin). Throws on a bin group with no bin bytes handed in:
+// a silent empty decode would be a payload that "loaded" as no aeroplane.
+function groupView(g, bin, name) {
+  if (g.b64) { const raw = decodeB64(g.b64);
+               return new DataView(raw.buffer, raw.byteOffset, raw.byteLength); }
+  if (!bin) throw new Error('decodeModel: group "' + name + '" needs the ' +
+    'model\'s bin bytes and none were passed — fetch payload.bin first');
+  return new DataView(bin.buffer, bin.byteOffset + g.off, g.len);
+}
+
+function decodeModel(model, bin) {
   const [x0, y0, z0, x1, y1, z1] = model.bb;
   const sx = (x1 - x0) / 65535, sy = (y1 - y0) / 65535, sz = (z1 - z0) / 65535;
   const out = {};
   for (const name in model.groups) {
     const g = model.groups[name];
-    const raw = decodeB64(g.b64);
-    const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+    const dv = groupView(g, bin, name);
     const nv = dv.getUint32(0, true), nt = dv.getUint32(4, true);
     let o = 8;
     const pos = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);

@@ -5,19 +5,25 @@ Usage: python tools/model_prep.py <key> [<out.js>]
   <key> selects the per-model config tools/models/<key>.py (e.g. pa18);
   <out.js> defaults to src/models/<key>_model.js. Requires Pillow.
 
-Payload v3: const <ID> = { v:3, bb, hub, surfaces,
-                           texs: {name: dataURI}, mats: {name: {tex|opacity,color}},
-                           groups: {name: {nv, nt, sid, mat, b64}} }
+Payload v5 (externalized 2026-09-01): const <ID> = { v:5, bb, hub, surfaces,
+                           bin: 'media/geo/models/<key>.<h8>.bin',
+                           texs: {name: 'media/tex/models/<key>/...'},
+                           mats: {name: {tex|opacity,color}},
+                           groups: {name: {nv, nt, sid, mat, off, len}} }
   - group binary layout (little-endian, unchanged since v2): u32 nVerts,
     u32 nTris, int16 pos[3n] (quantized over bb), uint16 uv[2n],
-    uint16 idx[3t], optional uint8 sid[n]
+    uint16 idx[3t], optional uint8 sid[n] — all groups back to back in ONE
+    bin file, off/len naming each group's slice
   - bb spans the union of ALL kept verts; positions ~0.2 mm resolution
-  - textures per config: jpeg recompressed, or png passthrough (keeps alpha)
-Decode counterpart: decodeModel() in src/core/50_model_codec.js (pure JS,
-same code in the artifact and the node gates). v2 payloads still decode.
+  - textures per config: jpeg recompressed, or png passthrough (keeps alpha),
+    written as real files (hash-in-filename) instead of data URIs
+Decode counterpart: decodeModel() in src/core/50_model_codec.js (pure JS;
+the browser fetches the bin through MODEL_LOAD/ASSET_FETCH, the gates read
+it with fs). Groups still carrying b64 (older payloads) still decode.
 """
-import base64, importlib, io, json, os, struct, sys
+import importlib, io, json, os, struct, sys
 from PIL import Image
+from media_lib import write_media, prune_media, prune_media_stems, BASE_DECL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -89,7 +95,7 @@ def build_group(V, VT, faces, gdef, SID, bb, with_sid=False):
         buf.write(struct.pack('<3H', *t))
     if with_sid:
         buf.write(bytes(sids))
-    return len(pos), len(tris), base64.b64encode(buf.getvalue()).decode()
+    return len(pos), len(tris), buf.getvalue()
 
 
 MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
@@ -127,13 +133,15 @@ def resolve_pbr(src, CFG, faces):
 
 
 def bake_texture(src, spec):
+    """-> (encoded bytes, extension). The caller writes them to media/ —
+    encoding decisions stay here, where the budget lives."""
     path = os.path.join(src, spec['tex'])
     if spec.get('fmt') == 'copy':
         # verbatim: the source file's own bytes, at its own resolution and
         # quality. No re-encode, so nothing is lost and nothing is guessed.
         data = open(path, 'rb').read()
-        mime = MIME[os.path.splitext(path)[1].lower()]
-        return f'data:{mime};base64,' + base64.b64encode(data).decode(), len(data)
+        ext = os.path.splitext(path)[1].lower().lstrip('.').replace('jpeg', 'jpg')
+        return data, ext
     if spec.get('fmt', 'jpeg') == 'png':
         img = Image.open(path)
         if max(img.size) > spec.get('max', 4096):
@@ -143,14 +151,14 @@ def bake_texture(src, spec):
             data = tb.getvalue()
         else:
             data = open(path, 'rb').read()       # passthrough keeps alpha bit-exact
-        return 'data:image/png;base64,' + base64.b64encode(data).decode(), len(data)
+        return data, 'png'
     img = Image.open(path).convert('RGB')
     img.thumbnail((spec.get('max', 1024), spec.get('max', 1024)))
     tb = io.BytesIO()
     # subsampling 0 (4:4:4) matters for data maps: a normal map's signal lives in
     # R and G, and chroma subsampling is exactly what throws those away
     img.save(tb, 'JPEG', quality=spec.get('q', 80), subsampling=spec.get('sub', 2))
-    return 'data:image/jpeg;base64,' + base64.b64encode(tb.getvalue()).decode(), len(tb.getvalue())
+    return tb.getvalue(), 'jpg'
 
 
 # Defaults for the imported data maps. metalRough is low-frequency by nature and
@@ -178,11 +186,22 @@ def main(key, out=None):
     bb = (lo, hi)
 
     PBR, pbrnotes = resolve_pbr(src, CFG, faces)
+    # the model key, held apart: the pbr loop below rebinds `key` for its map
+    # names, and the media subdir must not follow it there
+    mkey = key
     texs, report = {}, []
+
+    def bake_tex(name, spec):
+        # encoded by bake_texture (budgets live there), written byte-exact as
+        # a real file under media/tex/models/<key>/ (2026-09-01)
+        data, ext = bake_texture(src, spec)
+        texs[name] = write_media(f'tex/models/{mkey}', name, ext, data)
+        return len(data)
+
     for mname, spec in CFG['mats'].items():
         if 'tex' not in spec:
             continue
-        texs[mname], nbytes = bake_texture(src, spec)
+        nbytes = bake_tex(mname, spec)
         report.append(f'tex {mname}: {nbytes // 1024} KB {spec.get("fmt", "jpeg")}')
     # imported data maps, keyed <material>_mr / <material>_nrm
     pbrbytes = 0
@@ -202,16 +221,21 @@ def main(key, out=None):
             ts['tex'] = rec[kind]
             key = f'{mname}_{kind}'
             assert key not in CFG['mats'], f'material name collides with map key {key}'
-            texs[key], nbytes = bake_texture(src, ts)
+            nbytes = bake_tex(key, ts)
             pbrbytes += nbytes
             report.append(f'{kind} {mname}: {nbytes // 1024} KB')
 
+    # ONE bin per model: the groups' bytes back to back, off/len per group
     parts = []
+    bin_buf = bytearray()
     for gname, gdef in CFG['groups'].items():
         ws = bool(gdef.get('sid'))
-        nv, nt, b64 = build_group(V, VT, faces, gdef, SID, bb, with_sid=ws)
-        parts.append(f'{gname}:{{nv:{nv},nt:{nt},sid:{1 if ws else 0},mat:"{gdef["mat"]}",b64:"{b64}"}}')
+        nv, nt, raw = build_group(V, VT, faces, gdef, SID, bb, with_sid=ws)
+        parts.append(f'{gname}:{{nv:{nv},nt:{nt},sid:{1 if ws else 0},'
+                     f'mat:"{gdef["mat"]}",off:{len(bin_buf)},len:{len(raw)}}}')
+        bin_buf += raw
         report.append(f'{gname}: {nv} verts {nt} tris')
+    bin_rel = write_media('geo/models', mkey, 'bin', bytes(bin_buf))
     surf_js = ','.join(
         '{name:"%s",drive:"%s",sgn:%d,k:%g,p:[%g,%g,%g],ax:[%g,%g,%g],ramp:%s}' % (
             n, s['drive'], s['sgn'], s.get('k', 1), *s['p'], *s['ax'],
@@ -246,25 +270,36 @@ def main(key, out=None):
                 f.append('emis:[%g,%g,%g]' % tuple(p['emis']))
         return ','.join(f)
     mats_js = ','.join('%s:{%s}' % (m, mat_fields(m, s)) for m, s in CFG['mats'].items())
-    texs_js = ',\n  '.join(f'{m}:"{uri}"' for m, uri in texs.items())
+    texs_js = ',\n    '.join(f'{m}:B+{json.dumps(rel)}' for m, rel in texs.items())
     bbjs = '[' + ','.join(f'{v:.4f}' for v in lo + hi) + ']'
     hub = CFG['hub']
     with open(out, 'w', newline='\n') as f:
         f.write('// generated by tools/model_prep.py — do not edit\n')
         f.write(f'// source: {CFG["credit"]}\n')
-        f.write(f'const {CFG["id"]} = {{ v:{4 if PBR else 3}, bb:{bbjs}, hub:[{hub[0]:g},{hub[1]:g},{hub[2]:g}],\n')
+        f.write('// Geometry bytes in the bin file below (fetched via MODEL_LOAD/\n')
+        f.write('// ASSET_FETCH; gates read it with fs); groups carry off/len into\n')
+        f.write('// it. B re-roots the media paths for pages not at flyDiy/.\n')
+        f.write(f'const {CFG["id"]} = (() => {{\n')
+        f.write(f'  {BASE_DECL}\n')
+        f.write(f'  return {{ v:5, bb:{bbjs}, hub:[{hub[0]:g},{hub[1]:g},{hub[2]:g}],\n')
         f.write(f'  surfaces:[{surf_js}],\n')
+        f.write(f'  bin:B+{json.dumps(bin_rel)},\n')
         f.write(f'  mats:{{{mats_js}}},\n')
         f.write(f'  texs:{{{texs_js}}},\n')
         f.write(f'  groups:{{{",".join(parts)}}} }};\n')
+        f.write('})();\n')
         f.write(f"if (typeof module !== 'undefined') module.exports = {{ {CFG['id']} }};\n")
+    # this bake owns <key>.* in the shared geo dir and all of its own tex dir
+    prune_media_stems('geo/models', [mkey], [bin_rel])
+    prune_media(f'tex/models/{mkey}', list(texs.values()))
     print(' | '.join(report))
     for n in pbrnotes:
         print('  pbr: ' + n)
     if PBR:
         print(f'  pbr: {len(PBR)} materials carry imported factors, '
               f'data maps {pbrbytes // 1024} KB')
-    print(f'{out}: {os.path.getsize(out) // 1024} KB')
+    print(f'{out}: {os.path.getsize(out) // 1024} KB manifest + '
+          f'{len(bin_buf) // 1024} KB bin ({bin_rel})')
 
 
 if __name__ == '__main__':

@@ -34,6 +34,7 @@ R — so AO is taken from R only when the author's own filename says `arm`, and
 is otherwise switched off rather than guessed at.
 """
 import base64, hashlib, importlib.util, io, json, math, os, struct, sys
+from media_lib import write_media, write_media_named, prune_media, BASE_DECL
 
 from PIL import Image, ImageChops
 
@@ -237,15 +238,22 @@ AO_MIN_MEAN = 0.25
 
 class TexBank:
     """Pack-level texture store, deduplicated by encoded bytes: two props cut
-    from one delivered file share their maps instead of shipping them twice."""
+    from one delivered file share their maps instead of shipping them twice.
+    Since 2026-09-01 a map is a real file under media/tex/props/, named by its
+    own sha12 (content-addressed = self-busting; a re-encode is a new name),
+    and by_hash holds the page-relative path instead of a data URI. Report
+    runs write nothing (write=False computes the same names)."""
 
-    def __init__(self):
+    def __init__(self, write=True):
         self.by_hash, self.order, self.bytes = {}, [], 0
+        self.write = write
 
     def add(self, raw, mime):
         h = hashlib.sha256(raw).hexdigest()[:12]
         if h not in self.by_hash:
-            self.by_hash[h] = 'data:%s;base64,%s' % (mime, base64.b64encode(raw).decode())
+            name = '%s.%s' % (h, 'png' if mime == 'image/png' else 'jpg')
+            self.by_hash[h] = (write_media_named('tex/props', name, raw)
+                               if self.write else 'media/tex/props/' + name)
             self.order.append(h)
             self.bytes += len(raw)
         return h
@@ -488,7 +496,7 @@ def pack_part(name, verts, tris, bb):
     return {'mat': name, 'nv': len(verts), 'nt': len(tris),
             'uvMin': [round(u0, 6), round(v0, 6)],
             'uvScl': [round(ur, 6), round(vr, 6)],
-            'b64': base64.b64encode(bytes(b)).decode()}
+            'bytes': bytes(b)}      # -> off/len into the prop's bin (main)
 
 
 def bake(row, bank, log):
@@ -594,10 +602,11 @@ def main(argv):
     total_geo = 0
     for row in rows:
         bank_key = row['group']
-        bank = groups.setdefault(bank_key, {'bank': TexBank(), 'props': {}, 'order': []})['bank']
+        bank = groups.setdefault(bank_key, {'bank': TexBank(write=not report),
+                                            'props': {}, 'order': []})['bank']
         log = []
         p = bake(row, bank, log)
-        geo = sum(len(x['b64']) for x in p['parts'])
+        geo = sum(len(x['bytes']) for x in p['parts'])
         total_geo += geo
         print('%-18s %-9s %6d tris  %5.2f x %5.2f x %5.2f m  geo %6.1f KB'
               % (p['key'], p['group'], p['nt'], *p['dim'], geo / 1024))
@@ -608,19 +617,46 @@ def main(argv):
     if report:
         return
 
+    # ONE bin per prop (media/geo/props/<key>.<h8>.bin): the parts' bytes back
+    # to back, each named by off/len in the pack. The pack .js is a slim
+    # manifest — no base64 anywhere in it. jodel_prep.py writes its airframe
+    # bins to media/geo/airframe/, so this directory is wholly ours to prune.
+    bin_rels = []
+    for g in groups.values():
+        for pkey, p in g['props'].items():
+            buf = bytearray()
+            for part in p['parts']:
+                raw = part.pop('bytes')
+                part['off'] = len(buf)
+                part['len'] = len(raw)
+                buf += raw
+            p['bin'] = write_media('geo/props', pkey, 'bin', bytes(buf))
+            bin_rels.append(p['bin'])
+    prune_media('geo/props', bin_rels)
+
     files, tex_bytes = [], 0
     for gid, gname in TABLE.GROUPS:
         if gid not in groups:
             continue
         g = groups[gid]
-        pack = {'v': 1, 'groups': [[gid, gname]], 'order': g['order'],
+        pack = {'v': 2, 'groups': [[gid, gname]], 'order': g['order'],
                 'texs': {h: g['bank'].by_hash[h] for h in g['bank'].order},
                 'props': g['props']}
         name = 'props_%s.js' % gid
         body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/prop_prep.py from\n'
                 '// assets/props/, per the declared table in tools/props_table.py.\n'
-                '// Group: %s. Decoded by src/core/51_prop_codec.js.\n'
-                'registerPropPack(%s);\n' % (gname, json.dumps(pack, separators=(',', ':'))))
+                '// Group: %s. Decoded by src/core/51_prop_codec.js; geometry in\n'
+                '// media/geo/props/ (per-prop bin, parts carry off/len), textures\n'
+                '// in media/tex/props/. B re-roots the media paths for pages that\n'
+                '// do not live at flyDiy/ (see tools/_media_lib.js).\n'
+                'registerPropPack((p => {\n'
+                '  %s\n'
+                '  for (const k in p.texs) p.texs[k] = B + p.texs[k];\n'
+                '  for (const k in p.props) if (p.props[k].bin) '
+                'p.props[k].bin = B + p.props[k].bin;\n'
+                '  return p;\n'
+                '})(%s));\n'
+                % (gname, BASE_DECL, json.dumps(pack, separators=(',', ':'))))
         open(os.path.join(OUT_DIR, name), 'w', encoding='utf8').write(body)
         files.append(name)
         tex_bytes += g['bank'].bytes
@@ -641,6 +677,13 @@ def main(argv):
     json.dump(files + foreign, open(mf, 'w'), indent=1)
     if foreign:
         print('kept %d pack(s) from another baker: %s' % (len(foreign), ', '.join(foreign)))
+    # a full bake is the whole texture story for media/tex/props/ — anything
+    # this run did not emit is a stale map from a superseded encode
+    gone = prune_media('tex/props',
+                       [g['bank'].by_hash[h] for g in groups.values()
+                        for h in g['bank'].order])
+    if gone:
+        print('pruned %d stale map(s) from media/tex/props/' % len(gone))
     print('---\n%d props, %d packs — geometry %.2f MB, textures %.2f MB'
           % (len(rows), len(files), total_geo / 1048576, tex_bytes / 1048576))
 

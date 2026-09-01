@@ -27,7 +27,7 @@ metal material").
 
     python tools/jodel_prep.py
 """
-import base64
+from media_lib import write_media, prune_media, BASE_DECL
 import collections
 import io
 import json
@@ -213,7 +213,7 @@ def bake(piece):
                 continue
             parts.append(dict(mat=mtl, nv=nv, nt=nt, uvMin=[0.0, 0.0],
                               uvScl=[1.0, 1.0],
-                              b64=base64.b64encode(blob).decode('ascii')))
+                              bytes=blob))   # -> off/len into the piece's bin (main)
             nvT += nv; ntT += nt
             todo = chunk.pop() if chunk else []
     mats = {m: dict(FINISH[m]) for m in bymat}
@@ -241,14 +241,36 @@ def main():
               % (rec['key'], rec['nv'], rec['nt'], len(rec['parts']),
                  ' + '.join(sorted(rec['mats'])), rec['dim']))
 
-    pack = dict(v=1, groups=[list(GROUP)], order=order, texs={}, props=props)
+    # ONE bin per piece under media/geo/airframe/ — NOT geo/props/, which
+    # prop_prep.py owns and prunes wholesale (the props_packs.json lesson,
+    # G62.11, applied to a directory). Parts carry off/len into it.
+    bin_rels = []
+    for pkey, rec in props.items():
+        buf = bytearray()
+        for part in rec['parts']:
+            raw = part.pop('bytes')
+            part['off'] = len(buf)
+            part['len'] = len(raw)
+            buf += raw
+        rec['bin'] = write_media('geo/airframe', pkey, 'bin', bytes(buf))
+        bin_rels.append(rec['bin'])
+    prune_media('geo/airframe', bin_rels)
+
+    pack = dict(v=2, groups=[list(GROUP)], order=order, texs={}, props=props)
     body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/jodel_prep.py from\n'
             '// assets/jodel_structure/ (modelled by the author of this repo).\n'
             '// Group: airframes in build. Decoded by src/core/51_prop_codec.js,\n'
             '// built into three.js by src/viewer/props.js — the same path every\n'
             '// other prop takes. Flat colours, no textures: the finishes are\n'
             '// assigned in the baker because the MTL ships Kd 0 0 0.\n'
-            'registerPropPack(' + json.dumps(pack, separators=(',', ':')) + ');\n')
+            '// Geometry in media/geo/airframe/ (per-piece bin, off/len parts);\n'
+            '// B re-roots the paths for pages not at flyDiy/.\n'
+            'registerPropPack((p => {\n'
+            '  ' + BASE_DECL + '\n'
+            '  for (const k in p.props) if (p.props[k].bin) '
+            'p.props[k].bin = B + p.props[k].bin;\n'
+            '  return p;\n'
+            '})(' + json.dumps(pack, separators=(',', ':')) + '));\n')
     io.open(OUT, 'w', encoding='utf-8', newline='\n').write(body)
 
     # REGISTER IN THE SHARED MANIFEST. build.js reads props_packs.json, and a

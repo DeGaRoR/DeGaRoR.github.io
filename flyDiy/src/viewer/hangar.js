@@ -692,6 +692,25 @@ RSEED = 0x5f1d7a3b;
 // The baked canvas floor stays the fallback, so a payload-less build
 // (and the smoke gate's stub) still stands. The material object joins M
 // either way, so the moods' envMapIntensity scaling covers it unchanged.
+// A WALL THAT ARRIVES AFTER THE BAKE (2026-09-01, external media). The room's
+// maps are files over the network now, not data URIs decoded in-process, so a
+// slow link can land them after bakeHangarEnv has already read the room — and
+// the reflection probe would hold an untextured shed until the next mood
+// change. Each landing nudges the same callback the sky uses (onSkyReady →
+// bakeHangarEnv in app.js), debounced: thirty maps landing together are one
+// new room, not thirty bakes. Reads of skyOnReady stay inside the timeout so
+// a texture cached-complete at script eval cannot touch the binding before
+// its `let` below has run.
+let roomTexTimer = null;
+const roomTexLanded = () => {
+  if (roomTexTimer) clearTimeout(roomTexTimer);
+  roomTexTimer = setTimeout(() => {
+    roomTexTimer = null;
+    skyDirty = true;
+    if (skyOnReady) skyOnReady();
+  }, 200);
+};
+
 const floorTex = (img, srgb) => {
   const t = new THREE.Texture(img);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -700,7 +719,7 @@ const floorTex = (img, srgb) => {
   // the floor plane carries METRIC uvs since G41 — one tile = tile metres
   const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
   t.repeat.set(1 / tile, 1 / tile);
-  const ok = () => { t.needsUpdate = true; };
+  const ok = () => { t.needsUpdate = true; roomTexLanded(); };
   if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
   return t;
 };
@@ -2207,6 +2226,23 @@ const claim = (obj, k) => {
   return obj;
 };
 
+// A PROP THAT LANDS LATE (2026-09-01, external media) owes the room's books
+// exactly what it owed at placement: its emitters claimed under the right
+// switch — remembered here, because the group was empty when the placement
+// loop tried — everything else filed under `glow`, the same drawer the
+// end-of-room sweep uses. Then the current mood re-asserts every intensity
+// and mute over the newcomer, and the probe is told the room changed
+// (roomTexLanded's debounce, so a dozen props landing together are one bake).
+// The slot is per-build like everything in this closure; the latest room owns
+// it, which is also who a late prop should report to.
+const PENDING_LIGHT = new Map();      // pending group -> switch key
+if (typeof window !== 'undefined') window.PROP_LANDED = (key, g) => {
+  claim(g, PENDING_LIGHT.get(g) || 'glow');
+  PENDING_LIGHT.delete(g);
+  setMood(moodI);
+  roomTexLanded();
+};
+
 function prop(key, x, z, ry, y, parent) {
   if (!PROPS_OK) return null;
   if (!PROP_REG.props[key]) { console.warn('hangar: no prop ' + key); return null; }
@@ -2457,16 +2493,35 @@ const wipGen = (kind, x, z, ry) => {
 // and off its axis by twelve degrees: two parked parallel read as a
 // diagram, two at an angle read as a shed.)
 function wipBody(x, z, ry) {
-  const b = prop('airframe_jodel_body', 0, 0, 0);
-  if (!b) return;
-  G.remove(b);
-  const i = FURN.indexOf(b); if (i >= 0) FURN.splice(i, 1);
-  const stood = (typeof wsOnStands === 'function')
-    ? wsOnStands(THREE, b, wsMats, 3) : null;
-  const g = stood || b;
-  g.position.set(x, 0, z);
-  g.rotation.y = ry;
-  G.add(g); FURN.push(g);
+  // wsOnStands MEASURES the piece (Box3 over its meshes), so unlike every
+  // other placement this one cannot run over a still-empty pending group —
+  // three trestles stretched to an empty box would stand at nothing. Wait for
+  // the geometry, then run the same drawing; the trestles' own prop is warm
+  // by construction once the body's is (same deferred pass, and stands are
+  // placed inside `run`).
+  const run = () => {
+    const b = prop('airframe_jodel_body', 0, 0, 0);
+    if (!b) return;
+    G.remove(b);
+    const i = FURN.indexOf(b); if (i >= 0) FURN.splice(i, 1);
+    const stood = (typeof wsOnStands === 'function')
+      ? wsOnStands(THREE, b, wsMats, 3) : null;
+    const g = stood || b;
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    G.add(g); FURN.push(g);
+  };
+  if (typeof propReady === 'function' && !propReady('airframe_jodel_body')
+      && typeof propWarm === 'function') {
+    Promise.all([propWarm('airframe_jodel_body'),
+                 propWarm('work_trestle').catch(() => {})])
+      .then(() => { run(); if (typeof window !== 'undefined'
+        && typeof window.PROP_LANDED === 'function')
+        window.PROP_LANDED('airframe_jodel_body', null); })
+      .catch(() => {});
+    return;
+  }
+  run();
 }
 
 // THE JODEL WING, HUNG CHORD-UP IN FRONT OF THE BACK WALL (user: "you may
@@ -2530,7 +2585,12 @@ if (typeof hangarFit === 'function' && PROPS_OK) {
                     shell: SHELL });
   for (const p of FIT.placed) {
     const g = prop(p.prop, p.x, p.z, p.ry, p.y);
-    if (g && p.light) claim(g, p.light);
+    // a group still waiting on its geometry has nothing to claim yet; the
+    // switch key is remembered and PROP_LANDED claims it when the meshes land
+    if (g && p.light) {
+      if (g.userData.propPending) PENDING_LIGHT.set(g, p.light);
+      else claim(g, p.light);
+    }
   }
   for (const r of FIT.recipes) {
     if (DRAW[r.recipe]) DRAW[r.recipe](r);
@@ -3193,7 +3253,8 @@ const partTex = (img, srgb) => {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = (typeof window !== "undefined" && window.FLYDIY_ANISO) || 8;
   if (srgb) t.encoding = THREE.sRGBEncoding;
-  const ok = () => { t.needsUpdate = true; };
+  // roomTexLanded: external media can land after the env bake — see floorTex
+  const ok = () => { t.needsUpdate = true; roomTexLanded(); };
   if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
   return t;
 };

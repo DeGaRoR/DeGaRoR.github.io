@@ -92,6 +92,32 @@ function propMaterial(THREE, rec) {
   return m;
 }
 
+// ---- the geometry bytes (2026-09-01, external media) ----------------------
+// A baked prop names its own binary file (prop.bin, media/geo/props/) and the
+// bytes are fetched ONCE through ASSET_FETCH, held here until the prop is
+// built, then dropped — the decoded arrays are the keeper. A prop whose parts
+// still carry b64 (selftest fixtures, unbaked trees) is ready by definition.
+const PROP_BINS = new Map();            // prop key -> Uint8Array (fetched, undecoded)
+const PROP_WARMS = new Map();           // prop key -> in-flight Promise
+function propReady(key) {
+  if (PROP_BUILT.has(key) || PROP_BINS.has(key)) return true;
+  const p = PROP_REG.props[key];
+  return !!p && !p.bin;
+}
+function propWarm(key) {
+  const p = PROP_REG.props[key];
+  if (!p) return Promise.reject(new Error('unknown prop: ' + key));
+  if (propReady(key)) return Promise.resolve();
+  if (typeof window === 'undefined' || typeof window.ASSET_FETCH !== 'function')
+    return Promise.reject(new Error('prop ' + key + ': no ASSET_FETCH here'));
+  let w = PROP_WARMS.get(key);
+  if (!w) {
+    w = window.ASSET_FETCH(p.bin).then(buf => { PROP_BINS.set(key, buf); });
+    PROP_WARMS.set(key, w);
+  }
+  return w;
+}
+
 // Build the geometry + materials for one prop, ONCE. Later calls for the same
 // key hand out fresh Meshes over the same buffers: a hangar with six crates
 // uploads one crate.
@@ -100,7 +126,8 @@ function propBuild(THREE, key) {
   if (built) return built;
   const prop = PROP_REG.props[key];
   if (!prop) throw new Error('unknown prop: ' + key);
-  const dec = decodeProp(prop);
+  const dec = decodeProp(prop, PROP_BINS.get(key));
+  PROP_BINS.delete(key);                // decoded arrays are the keeper now
   const geos = [], mats = [];
   for (const part of dec.parts) {
     const g = new THREE.BufferGeometry();
@@ -121,10 +148,8 @@ function propBuild(THREE, key) {
 
 // A placeable instance. Transparent parts go last in the group so a gauge glass
 // does not sort in front of the dial behind it.
-function propMesh(THREE, key) {
+function fillPropMesh(THREE, key, g) {
   const b = propBuild(THREE, key);
-  const g = new THREE.Group();
-  g.name = 'prop:' + key;
   const order = b.geos.map((_, i) => i)
     .sort((a, c) => (b.mats[a].transparent ? 1 : 0) - (b.mats[c].transparent ? 1 : 0));
   for (const i of order) {
@@ -138,6 +163,29 @@ function propMesh(THREE, key) {
     g.add(m);
   }
   g.userData.prop = b.prop;
+  return g;
+}
+function propMesh(THREE, key) {
+  const g = new THREE.Group();
+  g.name = 'prop:' + key;
+  if (propReady(key)) return fillPropMesh(THREE, key, g);
+  // THE BYTES ARE STILL ON THE WIRE. The caller gets its group NOW — named,
+  // placeable, empty — and the meshes land in it when the fetch does. Every
+  // placement site keeps working untouched (position and rotation live on the
+  // group), and whoever needs to know a prop materialised late (the hangar's
+  // emitter books, the env bake) hooks window.PROP_LANDED once. A failed
+  // fetch leaves the group empty: the prop is absent, not the room broken.
+  g.userData.propPending = true;
+  propWarm(key).then(() => {
+    fillPropMesh(THREE, key, g);
+    g.userData.propPending = false;
+    propSetEnv(PROP_ENV);             // late materials wear the current mood
+    if (typeof window !== 'undefined' && typeof window.PROP_LANDED === 'function')
+      window.PROP_LANDED(key, g);
+  }).catch(e => {
+    if (typeof console !== 'undefined')
+      console.warn('prop ' + key + ' failed to load:', e && e.message);
+  });
   return g;
 }
 
@@ -172,4 +220,4 @@ function propDispose(key) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
-                     propSetEnv, propEnv, propDispose };
+                     propSetEnv, propEnv, propDispose, propWarm, propReady };

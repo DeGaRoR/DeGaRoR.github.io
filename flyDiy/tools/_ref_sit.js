@@ -119,7 +119,13 @@ const want = keys.length ? keys
 
 for (const key of want) {
   let dec;
-  try { dec = decodeModel(loadPayload(key)); }
+  // geometry bytes external since G149: the payload names its bin, fs reads it
+  try {
+    const p = loadPayload(key);
+    const bin = p.bin ? new Uint8Array(fs.readFileSync(
+      path.join(__dirname, '..', ...p.bin.split('/')))) : undefined;
+    dec = decodeModel(p, bin);
+  }
   catch (e) { console.log(`${key}: cannot load — ${e.message}`); continue; }
   const box = R.refDecodedBox(dec);
   const hull = R.refLowerHull(dec);

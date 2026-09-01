@@ -35,7 +35,8 @@ invisible. No triangle is lost and no vertex is merged; the chunker walks
 triangles in source order and starts a new group when the next one would not
 fit.
 """
-import base64, io, importlib, json, os, struct, sys
+import hashlib, io, importlib, json, os, struct, sys
+from media_lib import write_media, prune_media, prune_media_stems, BASE_DECL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -122,7 +123,7 @@ def image_bytes(j, bin_, ti):
     return bytes(raw), ext
 
 
-def read_material(j, bin_, m, key, texs, want_tex, cost):
+def read_material(j, bin_, m, key, texs, want_tex, cost, bake_tex=None):
     """One payload `mats` record, plus any texture it brings with it.
 
     THE LIVERY IS OPTIONAL, AND BY DEFAULT IT IS DECLINED (`tex='none'`).
@@ -164,10 +165,10 @@ def read_material(j, bin_, m, key, texs, want_tex, cost):
         raw, ext = image_bytes(j, bin_, bt['index'])
         if raw:
             cost[0] += len(raw)
-            if want_tex:
-                mime = 'image/png' if ext == 'png' else 'image/jpeg'
-                texs[key] = ('data:%s;base64,%s' % (mime, base64.b64encode(raw).decode()),
-                             len(raw))
+            if want_tex and bake_tex:
+                # byte-for-byte into media/tex/models/<key>/ — externalized
+                # 2026-09-01; still verbatim, still never re-encoded
+                texs[key] = (bake_tex(key, raw, ext), len(raw))
                 rec['tex'] = key
     if 'tex' not in rec:
         rec['color'] = (srgb(c[0]) << 16) | (srgb(c[1]) << 8) | srgb(c[2])
@@ -265,7 +266,7 @@ def encode(cv, cu, ct, bb):
                                      round(min(max(v, 0.0), 1.0) * 65535)))
     for t in ct:
         buf.write(struct.pack('<3H', *t))
-    return base64.b64encode(buf.getvalue()).decode()
+    return buf.getvalue()
 
 
 # -------------------------------------------------------------------- bake --
@@ -285,6 +286,15 @@ def bake(row, dry=False):
     matdefs = {m.get('name', '?'): m for m in j.get('materials', [])}
     want_tex = row.get('tex', 'none') == 'copy'
     cost = [0]                       # what the liveries WOULD cost, reported either way
+
+    # textures land as real files under media/tex/models/<key>/ (2026-09-01);
+    # a dry run computes the same hashed name and writes nothing
+    def bake_tex(mk, raw, ext):
+        if dry:
+            h8 = hashlib.sha256(raw).hexdigest()[:8]
+            return f'media/tex/models/{key}/{mk}.{h8}.{ext}'
+        return write_media(f'tex/models/{key}', mk, ext, raw)
+
     texs, mats, groups = {}, {}, []
     nv_tot = nt_tot = nt_src = 0
     for name in sorted(bym, key=lambda n: -sum(len(t) for _, _, t in bym[n])):
@@ -292,7 +302,7 @@ def bake(row, dry=False):
         if mk in mats:
             sys.exit(f'{key}: material key collision on {mk} (from {name})')
         mats[mk] = read_material(j, bin_, matdefs.get(name, {}), mk, texs,
-                                 want_tex, cost)
+                                 want_tex, cost, bake_tex)
         nt_src += sum(len(t) for _, _, t in bym[name])
         for i, (cv, cu, ct) in enumerate(chunk(bym[name])):
             gname = mk if i == 0 else f'{mk}__{i + 1}'
@@ -301,14 +311,29 @@ def bake(row, dry=False):
     if nt_tot != nt_src:
         sys.exit(f'{key}: chunker lost triangles ({nt_src} in, {nt_tot} out)')
 
-    gjs = ','.join('%s:{nv:%d,nt:%d,sid:0,mat:"%s",b64:"%s"}' % (g, nv, nt, mk, b)
-                   for g, mk, nv, nt, b in groups)
+    # ONE binary file per model (media/geo/models/<key>.<h8>.bin): the groups'
+    # encoded bytes back to back, each named by off/len in the payload. The
+    # payload .js is a slim manifest now — no base64 anywhere in it.
+    bin_buf = bytearray()
+    offs = []
+    for _, _, _, _, raw in groups:
+        offs.append(len(bin_buf))
+        bin_buf += raw
+    if dry:
+        h8 = hashlib.sha256(bytes(bin_buf)).hexdigest()[:8]
+        bin_rel = f'media/geo/models/{key}.{h8}.bin'
+    else:
+        bin_rel = write_media('geo/models', key, 'bin', bytes(bin_buf))
+
+    gjs = ','.join('%s:{nv:%d,nt:%d,sid:0,mat:"%s",off:%d,len:%d}'
+                   % (g, nv, nt, mk, o, len(raw))
+                   for (g, mk, nv, nt, raw), o in zip(groups, offs))
     mjs = ','.join('%s:{%s}' % (mk, ','.join(
         (f'tex:"{r["tex"]}"' if k == 'tex' else
          f'color:0x{r["color"]:06x}' if k == 'color' else f'{k}:{r[k]}')
         for k in ('tex', 'color', 'opacity', 'rough', 'metal') if k in r))
         for mk, r in mats.items())
-    tjs = ',\n  '.join(f'{m}:"{uri}"' for m, (uri, _) in texs.items())
+    tjs = ',\n    '.join(f'{m}:B+{json.dumps(rel)}' for m, (rel, _) in texs.items())
     bbjs = '[' + ','.join(f'{v:.4f}' for v in lo + hi) + ']'
     credit = (f'"{row["title"]}" by {row["author"]}, {row["lic"]}; {row["url"]} '
               f'— baked by tools/ref_prep.py, geometry as delivered'
@@ -320,31 +345,42 @@ def bake(row, dry=False):
         '// REFERENCE ONLY: no control surfaces, no propeller hub, no skin\n'
         '//   binding. This payload is never flown — it stands beside the\n'
         '//   build in the garage (src/viewer/refplane.js).\n'
+        '// The geometry bytes live in the bin file below (fetched via\n'
+        '//   MODEL_LOAD/ASSET_FETCH; the gates read it with fs); groups carry\n'
+        '//   off/len into it. B re-roots the media paths for pages that do\n'
+        '//   not live at flyDiy/ (see tools/_media_lib.js).\n'
         # json.dumps, not an f-string quote: a title with an apostrophe (the
-        # RV-8's) or the quotes the credit line puts round it would otherwise
-        # close the JS string and the payload would not parse.
-        f'const MODEL_{key.upper()} = {{ v:4, ref:1, lic:{json.dumps(row["lic"])},\n'
+        # Yak-18T's) or the quotes the credit line puts round it would
+        # otherwise close the JS string and the payload would not parse.
+        f'const MODEL_{key.upper()} = (() => {{\n'
+        f'  {BASE_DECL}\n'
+        f'  return {{ v:5, ref:1, lic:{json.dumps(row["lic"])},\n'
         f'  credit:{json.dumps(credit)},\n'
         f'  bb:{bbjs},\n'
+        f'  bin:B+{json.dumps(bin_rel)},\n'
         f'  mats:{{{mjs}}},\n'
         f'  texs:{{{tjs}}},\n'
         f'  groups:{{{gjs}}} }};\n'
+        f'}})();\n'
         f"if (typeof module !== 'undefined') module.exports = {{ MODEL_{key.upper()} }};\n")
 
     out = os.path.join(ROOT, 'src', 'models', f'{key}_model.js')
     if not dry:
         with open(out, 'w', newline='\n') as f:
             f.write(body)
+        # this bake owns <key>.* in the shared dirs; other models' files stand
+        prune_media_stems('geo/models', [key], [bin_rel])
+        prune_media(f'tex/models/{key}', [rel for rel, _ in texs.values()])
     texb = sum(n for _, n in texs.values())
     print(f'{key:8} {len(groups):3} groups ({len(mats)} materials) '
           f'{nv_tot:>7} verts {nt_tot:>7} tris · '
           + (f'{len(texs)} textures {texb // 1024} KB · ' if want_tex else
-             f'no maps (the liveries would add {cost[0] // 1024} KB, '
-             f'{int(cost[0] * 4 / 3) // 1024} KB base64) · ') +
+             f'no maps (the liveries would add {cost[0] // 1024} KB) · ') +
           f'span {hi[2]-lo[2]:.3f} length {hi[0]-lo[0]:.3f} '
           f'height {hi[1]-lo[1]:.3f} m · minY {lo[1]:.4f} · '
-          f'{len(body) // 1024} KB {"(dry)" if dry else "-> " + os.path.relpath(out, ROOT)}')
-    return len(body)
+          f'{len(body) // 1024} KB manifest + {len(bin_buf) // 1024} KB bin '
+          f'{"(dry)" if dry else "-> " + os.path.relpath(out, ROOT)}')
+    return len(body) + len(bin_buf)
 
 
 def main(argv):

@@ -2,7 +2,11 @@
 const { decodeModel, buildPA18, makeSim, makeWorld } = require('./flight_core.js');
 const { MODEL_PA18 } = require('../src/models/pa18_model.js');
 
-const dec = decodeModel(MODEL_PA18);
+// geometry bytes external since G149: the payload names its bin, fs reads it
+const fs = require('fs'), path = require('path');
+const bin = MODEL_PA18.bin ? new Uint8Array(fs.readFileSync(
+  path.join(__dirname, '..', ...MODEL_PA18.bin.split('/')))) : undefined;
+const dec = decodeModel(MODEL_PA18, bin);
 let ok = true, why = [];
 const chk = (c, msg) => { if (!c) { ok = false; why.push(msg); } };
 

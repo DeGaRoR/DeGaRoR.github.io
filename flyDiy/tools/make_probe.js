@@ -18,6 +18,11 @@ const root = path.join(__dirname, '..');
 
 const HEAD = `
 <script>
+// the probe lives in tools/, one level below dev.html's frame. The src/href
+// rewrite below re-roots the TAGS; the baked payloads' own 'media/...' URL
+// strings are inside JS the rewrite cannot see, and this global is the one
+// prefix that re-roots them (see tools/_media_lib.js BASE_DECL).
+window.FLYDIY_ASSET_BASE = '../';
 window.__err = [];
 window.addEventListener('error', e => __err.push('ERR ' + e.message +
   (e.error && e.error.stack ? '\\n' + e.error.stack.split('\\n').slice(0, 4).join('\\n') : '')));

@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 // build.js — assembles all GENERATED files from src/ parts. Never edit outputs by hand.
 //   tools/flight_core.js  (node gates require it)
-//   ../index.html         (single-file artifact, fully self-contained: vendor+fonts+core inlined)
-//   ../dev.html           (no-build dev page: <script src>/<link> refs, works from file://)
+//   ../index.html         (the served page: vendor+fonts+core+viewer+editor inlined,
+//                          model/prop payloads as <script src> refs — multi-file
+//                          since 2026-09-01; the last single-file build is
+//                          archived in ../archiveSingle/, local only)
+//   ../dev.html           (no-build dev page: <script src>/<link> refs throughout;
+//                          serve it with tools/_serve.js, not file://)
 // Ordering authority for core concatenation is MANIFEST.core below.
 const fs = require('fs');
 const os = require('os');
@@ -75,45 +79,35 @@ const MANIFEST = {
     '90_node_exports.js',
   ],
   // baked 3D model payloads (tools/model_prep.py for the two FLYABLE ones,
-  // tools/ref_prep.py for the reference-only ones — data, not core): inlined
-  // into the artifact's MODELS slot, <script src> refs in dev.html.
+  // tools/ref_prep.py for the reference-only ones — data, not core):
+  // <script src> refs in BOTH pages since 2026-09-01, when the artifact went
+  // multi-file (assets externalized) and the single-file form retired to
+  // flyDiy/archiveSingle/. The old 100 MiB-per-file push ceiling died with
+  // it, and with it the ROOM reason to hold a payload back.
   //
-  // THIS LIST IS THE PUBLISH LIST. Everything on it is inlined into
-  // index.html, which is committed and served — so it is also what GATE REF
-  // holds against each payload's declared licence. Dropping an aeroplane from
-  // the reference set is one line here: the preset stays in refplane.js's
-  // table, the panel filters its dropdown against what actually loaded, and
-  // the gate reports the difference every run.
-  // Reference-only payloads (G138/G142, tools/ref_prep.py from
-  // tools/ref_table.py). SIXTEEN are baked; six ride in the artifact, and the
-  // line below is the whole of that decision.
+  // THIS LIST IS THE PUBLISH LIST. Everything on it is referenced by the
+  // committed, served index.html — so it is also what GATE REF holds against
+  // each payload's declared licence. Dropping an aeroplane from the reference
+  // set is one line here: the preset stays in refplane.js's table, the panel
+  // filters its dropdown against what actually loaded, and the gate reports
+  // the difference every run.
   //
-  // WHAT IS HELD BACK, AND WHY. Not taste — three hard reasons, in this order:
-  //   LICENCE   a22, p68, rv8, sr22 say "SKETCHFAB Standard", which does not
-  //             permit redistribution. GATE REF fails the build if one appears
-  //             here. Never shippable without helijah's say-so.
+  // WHAT IS NOT HERE, AND WHY. Two hard reasons:
+  //   DELETED   a22, p68, rv8, sr22 said "SKETCHFAB Standard", which does not
+  //             permit redistribution — never shippable, so on 2026-09-01 the
+  //             user had them deleted outright (GLBs, payloads, presets,
+  //             table rows). GATE REF still fails the build if a non-CC-BY
+  //             payload ever lands on this list again.
   //   NO SPEC   draco is Mike Patey's one-off turbine Wilga and nobody has
-  //             published its dimensions, so nothing can hold its scale. It has
-  //             no preset either — see refplane.js.
-  //   ROOM      g115, yak18t, eiii, pa28 are CC-BY and correct and would ship
-  //             tomorrow; there are 3.5 MiB left under GitHub's 100 MiB
-  //             per-file push limit and they want 6.7 MiB between them. THIS IS
-  //             THE ONLY ONE OF THE THREE THAT IS OUR OWN FAULT, and the fix is
-  //             the artifact's size, not the aeroplanes — see G142's last
-  //             section. All sixteen load in dev.html, which references rather
-  //             than inlines, so nothing is lost meanwhile.
+  //             published its dimensions, so nothing can hold its scale. It
+  //             is baked but has no preset either — see refplane.js.
   models: ['pa18_model.js', 'c172_model.js',
     'd112_model.js', 'pio200_model.js', 'c195_model.js',
-    // G142, chosen for what the set did NOT have and for costing least while
-    // doing it: an 18 m motorglider (the aspect-ratio extreme, and the
-    // cheapest payload of the sixteen) and a fabric high-wing on a Rotax (the
-    // closest thing in the set to what the garage actually builds).
-    //
-    // A THIRD ONE FITS AND IS NOT HERE. da40 (1805 KB) would land the artifact
-    // at 99.58 MiB — 0.42 MiB under a limit that FIVE OTHER SESSIONS are
-    // committing towards. A margin that thin is not headroom, it is a trap for
-    // whoever pushes next. Two, and 2.3 MiB of air.
-    'stemme_model.js', 'guepard_model.js'],
+    'stemme_model.js', 'guepard_model.js',
+    // the rest of the CC-BY batch (G142), held back only for ROOM while the
+    // artifact was one file; shipped the day the ceiling died.
+    'da40_model.js', 'g115_model.js', 'yak18t_model.js',
+    'eiii_model.js', 'pa28_model.js'],
   // baked HANGAR PROP packs (generated by tools/prop_prep.py from the declared
   // table in tools/props_table.py - data, not core). One file per editor group;
   // the ORDER is written by the baker into src/props/props_packs.json, so a new
@@ -183,7 +177,10 @@ const MANIFEST = {
     // aa_resolve.js anywhere before app.js (G144): it only publishes a table
     // and a factory at eval, and app.js is the one caller — it makes the pass
     // in its renderer block and hands it the frame at the bottom of the loop.
-    scripts: ['aa_resolve.js',
+    // assets.js FIRST: it only publishes window.ASSET_FETCH at eval — the one
+    // fetch+cache for external media/geo binaries — and everything after it
+    // (props.js's propWarm, app.js's MODEL_LOAD) may ask for it at runtime.
+    scripts: ['assets.js', 'aa_resolve.js',
               'light_rig.js', 'site_tex.js', 'site_ground.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'aeroskin.js', 'hangar.js',
@@ -322,13 +319,28 @@ function buildViewer(coreBody) {
   // preset/config bar. The standalone _cage*.html pages set neither.
   const LAZY = `<script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>`;
 
-  // --- single-file artifact: everything inlined ---
+  // Each ref carries a hash of its file's CONTENT as ?v=. python -m http.server
+  // sends no Cache-Control, so Chrome falls back to HEURISTIC freshness — a
+  // tenth of the file's age — and will happily serve a stale copy of a file you
+  // edited today without ever revalidating, which reads exactly like a bug in
+  // the code you just wrote. Content, not mtime, so a rebuild that changed
+  // nothing leaves the pages byte-identical.
+  const ver = p => { try { return '?v=' + sha(read(p)).slice(0, 8); }
+                     catch (e) { return ''; } };
+  const ref = (dir, sub, f) => `<script src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
+  // the payload refs are the SAME tags in both pages: model and prop payloads
+  // stopped being inlined on 2026-09-01 (the multi-file artifact) and the
+  // committed .js files under src/models/ and src/props/ are served directly.
+  const payloadRefs = MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f))
+    .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f))).join('\n');
+
+  // --- the served page: code inlined, payloads referenced ---
   let art = shell;
   art = fill(art, 'STYLE', `<style>\n${inlineFonts(css)}</style>`);
   art = fill(art, 'BODY', bodyHtml);
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>`);
-  art = fill(art, 'MODELS', models.concat(props).map(m => `<script>\n${m}</script>`).join('\n'));
+  art = fill(art, 'MODELS', payloadRefs);
   art = fill(art, 'RENDER', [LAZY]
     .concat(editor.map(s => `<script>\n${s}</script>`))
     .concat(scripts.slice(0, -1).map(s => `<script>\n${s}</script>`)).join('\n'));
@@ -338,27 +350,20 @@ function buildViewer(coreBody) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
     process.exit(1);
   }
-  if (MANIFEST.props.length && !art.includes('registerPropPack({')) {
-    console.error('POST-BUILD ASSERTION FAILED: artifact lost the prop packs');
-    process.exit(1);
-  }
-  if (!art.includes('MODEL_PA18')) {
-    console.error('POST-BUILD ASSERTION FAILED: artifact lost the model payloads');
-    process.exit(1);
-  }
+  for (const f of MANIFEST.models)
+    if (!art.includes(`src="src/models/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
+      process.exit(1);
+    }
+  for (const f of MANIFEST.props)
+    if (!art.includes(`src="src/props/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
+      process.exit(1);
+    }
   const artFile = path.join(ROOT, 'index.html');
   fs.writeFileSync(artFile, art);
 
   // --- dev page: refs only; JS/CSS edits need just a browser refresh ---
-  // Each ref carries a hash of its file's CONTENT as ?v=. python -m http.server
-  // sends no Cache-Control, so Chrome falls back to HEURISTIC freshness — a
-  // tenth of the file's age — and will happily serve a stale copy of a file you
-  // edited today without ever revalidating, which reads exactly like a bug in
-  // the code you just wrote. Content, not mtime, so a rebuild that changed
-  // nothing leaves dev.html byte-identical.
-  const ver = p => { try { return '?v=' + sha(read(p)).slice(0, 8); }
-                     catch (e) { return ''; } };
-  const ref = (dir, sub, f) => `<script src="${sub}/${f}${ver(path.join(dir, f))}"></script>`;
   let dev = shell;
   dev = fill(dev, 'STYLE', V.styles.map(f =>
     `<link rel="stylesheet" href="src/viewer/${f}${ver(path.join(VIEW_DIR, f))}">`)
@@ -366,8 +371,7 @@ function buildViewer(coreBody) {
   dev = fill(dev, 'BODY', bodyHtml);
   dev = fill(dev, 'VENDOR', `<script src="vendor/three.min.js"></script>`);
   dev = fill(dev, 'CORE', MANIFEST.core.map(f => ref(CORE_DIR, 'src/core', f)).join('\n'));
-  dev = fill(dev, 'MODELS', MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f))
-    .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f))).join('\n'));
+  dev = fill(dev, 'MODELS', payloadRefs);
   dev = fill(dev, 'RENDER', [LAZY]
     .concat(MANIFEST.editor.map(f => ref(__dirname, 'tools', f)))
     .concat(V.scripts.slice(0, -1).map(f => ref(VIEW_DIR, 'src/viewer', f)))

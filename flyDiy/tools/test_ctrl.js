@@ -9,7 +9,11 @@ const { MODEL_PA18 } = require('../src/models/pa18_model.js');
 let ok = true, why = [];
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
 
-const dec = decodeModel(MODEL_PA18);
+// geometry bytes external since G149: the payload names its bin, fs reads it
+const fs = require('fs'), path = require('path');
+const bin = MODEL_PA18.bin ? new Uint8Array(fs.readFileSync(
+  path.join(__dirname, '..', ...MODEL_PA18.bin.split('/')))) : undefined;
+const dec = decodeModel(MODEL_PA18, bin);
 chk(MODEL_PA18.v >= 2 && dec.skin.sid, 'payload not v2 / sid missing');
 const S = MODEL_PA18.surfaces;
 chk(S.length === 7, `expected 7 surfaces, got ${S.length}`);

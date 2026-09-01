@@ -15,6 +15,7 @@ const MIME = {
   '.css': 'text/css', '.json': 'application/json', '.obj': 'text/plain',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon', '.wasm': 'application/wasm',
+  '.woff2': 'font/woff2', '.bin': 'application/octet-stream',
 };
 
 http.createServer((req, res) => {

@@ -16,7 +16,22 @@ const pick = (marker, label) => {
   return b;
 };
 const coreBlock = pick('function makeAutopilot', 'core');
-const modelsBlock = pick('const MODEL_PA18', 'models');
+// Model and prop payloads are <script src> refs since the multi-file artifact
+// (2026-09-01), not inline blocks. The gate still tests the ARTIFACT: it first
+// asserts the artifact references every published payload, then executes
+// exactly those files — the same set the served page would fetch. (Before
+// this, `pick('const MODEL_PA18')` quietly executed ONE payload: each rode in
+// its own <script> block and only pa18's was ever found.)
+const { MANIFEST } = require('./build.js');
+const payloadFiles = MANIFEST.models.map(f => ['src/models', f])
+  .concat(MANIFEST.props.map(f => ['src/props', f]));
+for (const [sub, f] of payloadFiles)
+  if (!html.includes(`src="${sub}/${f}?v=`)) {
+    console.log(`artifact does not reference ${sub}/${f} — the publish list and the page disagree`);
+    console.log('GATE UISMOKE: FAIL'); process.exit(1);
+  }
+const modelsBlock = payloadFiles.map(([sub, f]) =>
+  fs.readFileSync(path.join(__dirname, '..', sub, f), 'utf8')).join('\n');
 const appBlock = pick('function setAircraft', 'app');
 
 // ---- THREE stub: chainable no-ops with just enough shape ----
@@ -231,15 +246,36 @@ const sandbox = {
   editorInit: api => { sandbox.editorApi = api; },
 };
 sandbox.window.document = sandbox.document;
+// THE GEOMETRY IS EXTERNAL (2026-09-01): payloads name .bin files under
+// media/geo/ and the app fetches them through window.ASSET_FETCH. The
+// browser's lives in src/viewer/assets.js (RENDER block, not executed here);
+// this harness answers the same contract with fs, so the aircraft switches
+// below exercise the real decode+skin path against the same bytes the page
+// would fetch.
+sandbox.window.ASSET_FETCH = url => {
+  try {
+    return Promise.resolve(new Uint8Array(fs.readFileSync(
+      path.join(__dirname, '..', ...url.split('?')[0].split('/')))));
+  } catch (e) { return Promise.reject(e); }
+};
 vm.createContext(sandbox);
 
 const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; rafCb = null; cb(); } };
+(async () => {
 try {
   vm.runInContext(coreBlock, sandbox, { filename: 'core.js' });      // physics + codec
   vm.runInContext(modelsBlock, sandbox, { filename: 'models.js' });  // baked payloads
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
+  // the flyables' bins land asynchronously even from fs — wait for both so
+  // the pa18/c172 selections below find a warm decode, not a loading gap
+  if (typeof sandbox.window.MODEL_LOAD === 'function') {
+    if (!(await sandbox.window.MODEL_LOAD('pa18')))
+      throw new Error('pa18 geometry failed to load from its bin');
+    if (!(await sandbox.window.MODEL_LOAD('c172')))
+      throw new Error('c172 geometry failed to load from its bin');
+  }
   if (!handlers['bSkin']) throw new Error('bSkin not wired');
   // drive the loop: HOLDING frames, then press Fly and run 2 s of circuit
   frames(30);
@@ -623,3 +659,4 @@ try {
   console.log('GATE UISMOKE: FAIL');
   process.exit(1);
 }
+})();

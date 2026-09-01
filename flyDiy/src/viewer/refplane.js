@@ -112,10 +112,13 @@ var REF_PRESETS = [
     pub: { span: 10.73, len: 6.88 }, sit: { pitch: 12.09 } },
   { key: 'c172', name: 'Cessna 172', model: 'c172',
     pub: { span: 11.00, len: 8.28 }, sit: { pitch: 0.20 } },
-  // ---- helijah's seven (G138). Sit pitches derived by tools/_ref_sit.js off
-  // each payload's own lower hull, then declared here; GATE REF re-derives
-  // them. Four of the seven park level on a nosewheel and three are
-  // taildraggers, which is the whole reason the sit is computed at all.
+  // ---- helijah's aeroplanes (G138). Sit pitches derived by tools/_ref_sit.js
+  // off each payload's own lower hull, then declared here; GATE REF re-derives
+  // them. Some park level on a nosewheel and some are taildraggers, which is
+  // the whole reason the sit is computed at all.
+  // FOUR ROWS DELETED 2026-09-01 (a22, p68, rv8, sr22): their listings said
+  // "SKETCHFAB Standard", which never permits redistribution, so the user had
+  // their GLBs, payloads and presets removed outright — see ref_table.py.
   { key: 'd112', name: 'Jodel D.112', model: 'd112',
     pub: { span: 8.22, len: 6.50 }, sit: { pitch: 7.72 } },
   { key: 'pio200', name: 'Alpi Pioneer 200', model: 'pio200',
@@ -126,14 +129,6 @@ var REF_PRESETS = [
     sit: { pitch: 0.33 } },
   { key: 'c195', name: 'Cessna 195 Businessliner', model: 'c195',
     pub: { span: 11.02, len: 8.33 }, sit: { pitch: 14.15 } },
-  { key: 'a22', name: 'Aeroprakt A-22 Foxbat', model: 'a22',
-    pub: { span: 10.10, len: 6.30 }, sit: { pitch: 0.03 } },
-  { key: 'p68', name: 'Partenavia P.68', model: 'p68',
-    pub: { span: 12.00, len: 9.55 }, sit: { pitch: 0.06 } },
-  { key: 'rv8', name: "Van's RV-8", model: 'rv8',
-    pub: { span: 7.32, len: 6.40 }, sit: { pitch: 8.62 } },
-  { key: 'sr22', name: 'Cirrus SR22', model: 'sr22',
-    pub: { span: 11.68, len: 7.92 }, sit: { pitch: -0.03 } },
   // ---- the second batch (G142), seven of the user's eight. The eighth is
   // DRACO, and it is baked but has NO PRESET: Mike Patey's turbine Wilga is a
   // one-off with a lengthened nose and a re-spanned wing, and nobody has ever
@@ -393,6 +388,18 @@ function build(key) {
   if (typeof window.MODEL_DECODE !== 'function') return;
   var dec = window.MODEL_DECODE(pre.model);
   var payload = window.MODEL_PAYLOAD(pre.model);
+  // EXTERNAL GEOMETRY (2026-09-01): a payload that names a bin may not have
+  // its bytes yet — decode says null, MODEL_LOAD owns the fetch. Build again
+  // when they land, IF this preset is still the one asked for (the user may
+  // have moved on) and nothing built it meanwhile. A null resolve is a failed
+  // fetch: the aeroplane is absent, exactly as if it had not shipped.
+  if (!dec && payload && payload.bin && typeof window.MODEL_LOAD === 'function') {
+    window.MODEL_LOAD(pre.model).then(function (d2) {
+      if (!d2 || S.preset !== key || built) return;
+      build(key); paintMats(); paintDims();
+    });
+    return;
+  }
   if (!dec || !payload) return;
 
   body = new THREE.Group();

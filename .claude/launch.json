@@ -248,6 +248,15 @@
         "8172"
       ],
       "port": 8172
+    },
+    {
+      "name": "flydiy-media",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8175"
+      ],
+      "port": 8175
     }
   ]
 }

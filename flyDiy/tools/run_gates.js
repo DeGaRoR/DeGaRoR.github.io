@@ -67,6 +67,9 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // the external asset store (2026-09-01): referenced == present both ways,
+  // no base64 creep, and index.html's size budget — mechanical at last
+  { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
   // THE BUILD FILE (G63): save -> load -> editor -> join -> resolved spec.
   // ruling 4 promised this battery a loading gate and it never had one.
   { id: 'BUILD', file: 'test_build.js', tier: 'core' },

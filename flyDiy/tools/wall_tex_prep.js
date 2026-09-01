@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// wall_tex_prep.js — bakes the hangar WALL material options into
-// src/viewer/hangar_walls.js as pre-decoding <img> data URIs.
+// wall_tex_prep.js — bakes the hangar WALL material options: the encoded
+// images land as real files under media/tex/walls/ and
+// src/viewer/hangar_walls.js becomes the slim manifest of pre-loading <img>
+// refs (externalized 2026-09-01 — the data URIs left with the single-file
+// artifact; this one file was 25 MB of the old 98).
 //
 // SOURCE: assets/hangar_walls/<key>/ (Poly Haven CC0, 1k sets; EXR maps
 // converted once with ImageMagick — browsers read no EXR). Every set is
@@ -14,10 +17,12 @@
 // The output is committed, like the model payloads.
 const fs = require('fs');
 const path = require('path');
+const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'assets', 'hangar_walls');
 const OUT = path.join(ROOT, 'src', 'viewer', 'hangar_walls.js');
+const SUB = 'tex/walls';
 
 // display order: metals first (the shed it is), then the masonry
 const SETS = [
@@ -35,27 +40,33 @@ const SETS = [
   ['rawplank', 'raw plank wall'],
 ];
 
-const uri = (k, f, mime) =>
-  `data:${mime};base64,` +
-  fs.readFileSync(path.join(SRC, k, f)).toString('base64');
+const bake = (k, f, ext) =>
+  writeMedia(SUB, `${k}_${f.replace(/\.(jpg|png)$/, '')}`, ext,
+    fs.readFileSync(path.join(SRC, k, f)));
 
 let body = `// GENERATED FILE - DO NOT EDIT. Built by tools/wall_tex_prep.js from
-// assets/hangar_walls/ (Poly Haven CC0). Images start decoding at
-// script eval, ready long before the first garage entry builds the room.
+// assets/hangar_walls/ (Poly Haven CC0). The files live under
+// media/tex/walls/ (hash-in-filename); loading starts at script eval, ahead
+// of the first garage entry building the room — and every consumer waits on
+// img.complete/onload, so a slow network is a late needsUpdate, not a bug.
 const HANGAR_WALL_TILE_M = 2;
 const HANGAR_WALL_SETS = (typeof Image !== 'undefined') ? (() => {
-  const mk = src => { const i = new Image(); i.src = src; return i; };
+  ${BASE_DECL}
+  const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
 `;
 let report = [];
+const emitted = [];
+const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
 for (const [k, name] of SETS) {
-  const d = uri(k, 'diff_1k.jpg', 'image/jpeg');
-  const n = uri(k, 'nor_gl_1k.png', 'image/png');
-  const r = uri(k, 'rough_1k.jpg', 'image/jpeg');
+  const d = bake(k, 'diff_1k.jpg', 'jpg');
+  const n = bake(k, 'nor_gl_1k.png', 'png');
+  const r = bake(k, 'rough_1k.jpg', 'jpg');
+  emitted.push(d, n, r);
   body += `    ${k}: { name: '${name}',\n` +
     `      diff: mk('${d}'),\n      nor: mk('${n}'),\n` +
     `      rough: mk('${r}') },\n`;
-  report.push(`${k} ${((d.length + n.length + r.length) / 1048576).toFixed(1)} MB`);
+  report.push(`${k} ${((sz(d) + sz(n) + sz(r)) / 1048576).toFixed(1)} MB`);
 }
 body += `  };
 })() : null;
@@ -66,5 +77,7 @@ body += `  };
 // its own payload: assets/hangar_sky/ -> tools/sky_prep.py ->
 // tools/sky_tex_prep.js -> src/viewer/hangar_sky.js. A sky is not a wall.
 fs.writeFileSync(OUT, body);
-console.log(`src/viewer/hangar_walls.js (${(body.length / 1048576).toFixed(1)} MB) — ` +
-  report.join(', '));
+const gone = pruneMedia(SUB, emitted);
+console.log(`src/viewer/hangar_walls.js (${(body.length / 1024).toFixed(1)} KB) + ` +
+  `${emitted.length} files in media/${SUB}/ — ` + report.join(', ') +
+  (gone.length ? ` · pruned ${gone.join(', ')}` : ''));

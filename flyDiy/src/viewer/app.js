@@ -985,10 +985,7 @@
   if (typeof MODEL_D112 !== 'undefined') MODELS3D.d112 = MODEL_D112;
   if (typeof MODEL_PIO200 !== 'undefined') MODELS3D.pio200 = MODEL_PIO200;
   if (typeof MODEL_C195 !== 'undefined') MODELS3D.c195 = MODEL_C195;
-  if (typeof MODEL_A22 !== 'undefined') MODELS3D.a22 = MODEL_A22;
-  if (typeof MODEL_P68 !== 'undefined') MODELS3D.p68 = MODEL_P68;
-  if (typeof MODEL_RV8 !== 'undefined') MODELS3D.rv8 = MODEL_RV8;
-  if (typeof MODEL_SR22 !== 'undefined') MODELS3D.sr22 = MODEL_SR22;
+  // a22/p68/rv8/sr22 deleted 2026-09-01 (SKETCHFAB Standard — see ref_table.py)
   // the second batch (G142)
   if (typeof MODEL_DA40 !== 'undefined') MODELS3D.da40 = MODEL_DA40;
   if (typeof MODEL_G115 !== 'undefined') MODELS3D.g115 = MODEL_G115;
@@ -1075,13 +1072,42 @@
   // THAT WANTS AN IMPORTED PAYLOAD'S GEOMETRY ASKS THIS, and it decodes at
   // most once per model for the life of the page.
   const decCache = {};
+  // THE BYTES ARE EXTERNAL NOW (2026-09-01): a payload names its geometry file
+  // (payload.bin, under media/geo/models/) and MODEL_LOAD is the one place
+  // that fetches it. MODEL_DECODE keeps its old synchronous contract — decoded
+  // groups or null — where null now also means "still on the wire": callers
+  // that can wait call MODEL_LOAD and try again when it resolves.
+  const binCache = {}, loadCache = {};
   window.MODEL_DECODE = key => {
     if (decCache[key]) return decCache[key];
     const d = MODELS3D[key];
     if (!d || !d.groups) return null;
-    const out = decodeModel(d);
+    if (d.bin && !binCache[key]) return null;   // not warmed — MODEL_LOAD owns the fetch
+    const out = decodeModel(d, binCache[key]);
     for (const g in d.groups) d.groups[g].b64 = null;
+    delete binCache[key];                        // decoded arrays are the keeper now
     return (decCache[key] = out);
+  };
+  // MODEL_LOAD(key) -> Promise<decoded groups | null>. Warms the bin through
+  // ASSET_FETCH (one request per file, page-lifetime cache there too), then
+  // decodes through the ONE decode above. Null means what it means at
+  // MODEL_DECODE: no such payload, or nothing to fetch it with (the node
+  // gates' sandbox has no ASSET_FETCH, and their answer is fs, not this).
+  window.MODEL_LOAD = key => {
+    if (decCache[key]) return Promise.resolve(decCache[key]);
+    const d = MODELS3D[key];
+    if (!d || !d.groups) return Promise.resolve(null);
+    if (!d.bin) return Promise.resolve(window.MODEL_DECODE(key));
+    if (typeof window.ASSET_FETCH !== 'function') return Promise.resolve(null);
+    if (loadCache[key]) return loadCache[key];
+    return (loadCache[key] = window.ASSET_FETCH(d.bin).then(buf => {
+      binCache[key] = buf;
+      return window.MODEL_DECODE(key);
+    }).catch(e => {
+      if (window.console) console.warn('model ' + key + ' failed to load:',
+                                       e && e.message);
+      return null;
+    }));
   };
   // and the payload itself, for the tables that ride with it (mats, texs, bb)
   window.MODEL_PAYLOAD = key => MODELS3D[key] || null;
@@ -1158,8 +1184,23 @@
     // IMPORTED payloads go through window.MODEL_DECODE (G89), which owns the
     // one decode and the b64 drop; the cage and the generated skin are already
     // decoded groups and never had a b64 to lose.
-    const dec = (data.cage || data.generated) ? data.groups
-      : (window.MODEL_DECODE(key) || decodeModel(data));
+    let dec;
+    if (data.cage || data.generated) dec = data.groups;
+    else {
+      dec = window.MODEL_DECODE(key);
+      if (!dec && data.bin && window.MODEL_LOAD) {
+        // the geometry is still on the wire: fly the truss for now, and when
+        // the bytes land re-enter the same door the dropdown uses — IF this
+        // aeroplane is still the one selected and nothing built it meanwhile.
+        // A null resolve (fetch failed, or a fetchless sandbox) retries
+        // nothing: the aeroplane is absent, not late.
+        window.MODEL_LOAD(key).then(d2 => {
+          if (d2 && curKey === key && !modelCache[key]) setAircraft(key);
+        });
+        return null;
+      }
+      if (!dec) dec = decodeModel(data);
+    }
     // the generated payload asks for a `paint` map; the viewer bakes it (canvas
     // is not available to core). Without garage.js it degrades to flat colour.
     if (data.generated) {
@@ -5468,6 +5509,13 @@
     try { const sel = $('selAc'); if (sel) sel.value = 'gen';
           setAircraft('gen'); } catch (e2) {}
   }
+  // WARM THE FLYABLES' GEOMETRY behind the splash (2026-09-01, external
+  // media). The boot subject is the garage build — procedural, nothing to
+  // fetch — but the PA-18 and the C172 are one dropdown selection away, and
+  // their bins are small; starting them now means the switch usually finds a
+  // warm cache instead of flying the truss for a beat. Fire-and-forget: a
+  // fetchless page (the smoke gate) resolves null and nothing waits.
+  if (window.MODEL_LOAD) { window.MODEL_LOAD('pa18'); window.MODEL_LOAD('c172'); }
   hud();
   loop();
 })();

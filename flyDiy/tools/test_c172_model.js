@@ -16,7 +16,15 @@ const { MODEL_C172 } = require('../src/models/c172_model.js');
 let ok = true, why = [];
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
 
-const dec = decodeModel(MODEL_C172);
+// the geometry bytes are external since 2026-09-01 (G149): the payload names
+// its bin under media/geo/models/ and the browser fetches it; this gate reads
+// the same file with fs — same codec, same slices as the served page
+const fs = require('fs'), path = require('path');
+const bin = MODEL_C172.bin
+  ? new Uint8Array(fs.readFileSync(
+      path.join(__dirname, '..', ...MODEL_C172.bin.split('/'))))
+  : undefined;
+const dec = decodeModel(MODEL_C172, bin);
 const S = MODEL_C172.surfaces;
 
 // ---- structure ------------------------------------------------------------
@@ -262,7 +270,13 @@ for (const name in M) {
   for (const k of ['mr', 'nrm']) if (m[k]) {
     maps++;
     chk(!!T[m[k]], `${name}: ${k} map "${m[k]}" is not in texs`);
-    chk(/^data:image\//.test(T[m[k]] || ''), `${name}: ${k} map is not a data URI`);
+    // external media since G149: a map is a real file under media/tex/, and
+    // the payload's path must resolve on disk exactly as the page would fetch
+    // it (GATE MEDIA holds the store-wide version of this; here it anchors
+    // the c172's own maps)
+    chk(/^media\/tex\//.test(T[m[k]] || '') &&
+        fs.existsSync(path.join(__dirname, '..', ...(T[m[k]] || '').split('/'))),
+        `${name}: ${k} map "${T[m[k]]}" is not a media/tex file on disk`);
   }
   if (m.emis) {
     chk(!!m.tex && !!T[m.tex],

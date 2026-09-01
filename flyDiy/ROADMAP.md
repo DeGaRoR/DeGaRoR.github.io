@@ -1159,6 +1159,13 @@ with a contact sheet. THREE THINGS THIS ENTRY DID NOT ANTICIPATE:
   section: 97% of `index.html` is base64 binary and it is at 96.5 of a hard
   100 MiB. THE ARTIFACT'S SIZE IS NOW ITS OWN OWED CHANTIER and it blocks the
   next feature that needs a few MB, not just this one.
+  **PAID — G149, 2026-09-01.** The artifact went multi-file and every texture
+  and mesh became a real file under `media/` (the user: "3d models and
+  textures should all get out and into their proper external structure").
+  index.html is 3.98 MiB against a mechanical 6 MiB budget (GATE MEDIA), the
+  ceiling is gone, all eleven CC-BY references ship, and the four
+  "SKETCHFAB Standard" imports were deleted outright rather than held. New
+  assets cost their own bytes now, not a slice of a shared ceiling.
 
 **AND EIGHT MORE, ALL CC-BY — G142, 2026-09-01.** Diamond DA40, Grob G115,
 Stemme S6, Super Guepard 912, Yak-18T, PZL Wilga "Draco", Fokker E.III, Piper

@@ -8,7 +8,11 @@ const CFG = { tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 };  // keep in sync wit
 let ok = true, why = [];
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } };
 
-const dec = decodeModel(MODEL_PA18);
+// geometry bytes external since G149: the payload names its bin, fs reads it
+const fs = require('fs'), path = require('path');
+const bin = MODEL_PA18.bin ? new Uint8Array(fs.readFileSync(
+  path.join(__dirname, '..', ...MODEL_PA18.bin.split('/')))) : undefined;
+const dec = decodeModel(MODEL_PA18, bin);
 const def = buildPA18();
 const bind = makeSkinBinding(dec.skin.pos, dec.skin.nv, def, CFG);
 

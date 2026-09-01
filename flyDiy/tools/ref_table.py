@@ -53,11 +53,15 @@ Each row:
 
 LICENCES, and why the column is verbatim rather than tidied.
 helijah's aeroplanes are FlightGear aircraft, GPL-2.0 at source (FGMEMBERS on
-GitHub). What the SKETCHFAB LISTING carries is a separate decision he makes per
-upload, and it is not the same on all seven: three say CC-BY-4.0 and four say
-"SKETCHFAB Standard", which does not permit redistribution. This table records
-what each file actually says, so the question "may this ship?" has an answer
-here rather than an assumption.
+GitHub). What the SKETCHFAB LISTING carries is a separate decision he makes
+per upload. This table records what each file actually says, so the question
+"may this ship?" has an answer here rather than an assumption.
+
+FOUR ROWS WERE DELETED OUTRIGHT on 2026-09-01 (user ruling): a22, p68, rv8
+and sr22 carried "SKETCHFAB Standard", which does not permit redistribution.
+They could never ship, so their GLBs, payloads, presets and these rows are
+gone rather than held back — GATE REF's PUBLISHABLE list still stands guard
+should a non-CC-BY listing ever be imported again.
 """
 
 REF_MODELS = {
@@ -97,56 +101,6 @@ REF_MODELS = {
         axes='xaft', scale=1.0, tex='none',
         note='the big one: 169 k verts, and a taildragger. Radial-engined '
              'cabin monoplane — the shape nothing else in the reference set has.',
-    ),
-
-    # ---- "SKETCHFAB Standard" listings ------------------------------------
-    # NOT redistributable on the strength of the listing alone. They bake and
-    # they stand in the shed locally; whether they ship is the user's call, and
-    # the payload carries its own `lic` so GATE REF can hold the artifact to it
-    # rather than leaving it to whoever next edits build.js.
-    'a22': dict(
-        key='a22',
-        glb='assetsSketchfab/aeroprakt_a22_foxbat.glb',
-        title='Aeroprakt A22 Foxbat',
-        author='helijah (Emmanuel BARANGER)',
-        lic='SKETCHFAB Standard',
-        url='https://sketchfab.com/3d-models/aeroprakt-a22-foxbat-23496a87a16d417caeeae4e3fccda43d',
-        axes='xaft', scale=1.0, tex='none',
-        note='high-wing, tricycle, enormous glazing — the modern microlight '
-             'silhouette.',
-    ),
-    'p68': dict(
-        key='p68',
-        glb='assetsSketchfab/partenavia_p_68.glb',
-        title='Partenavia P.68',
-        author='helijah (Emmanuel BARANGER)',
-        lic='SKETCHFAB Standard',
-        url='https://sketchfab.com/3d-models/partenavia-p-68-93029ea2884e489a8fda5e709373d580',
-        axes='xaft', scale=1.0, tex='none',
-        note='the only TWIN in the set, and the only aeroplane here whose '
-             'engines are not on the nose.',
-    ),
-    'rv8': dict(
-        key='rv8',
-        glb='assetsSketchfab/vans_aircraft_rv-8_tail_gear.glb',
-        title="Van's Aircraft RV-8 (tail gear)",
-        author='helijah (Emmanuel BARANGER)',
-        lic='SKETCHFAB Standard',
-        url='https://sketchfab.com/3d-models/vans-aircraft-rv-8-tail-gear-5352bfd36d5f4525aa2173be53a21402',
-        axes='xaft', scale=1.0, tex='none',
-        note='taildragger, tandem, the homebuilt the garage is closest to '
-             'being able to make.',
-    ),
-    'sr22': dict(
-        key='sr22',
-        glb='assetsSketchfab/cirrus_sr_22.glb',
-        title='Cirrus SR22',
-        author='helijah (Emmanuel BARANGER)',
-        lic='SKETCHFAB Standard',
-        url='https://sketchfab.com/3d-models/cirrus-sr-22-f0f1089f374f4d398f0483403fe6af7a',
-        axes='xaft', scale=1.0, tex='none',
-        note='composite, cantilever, faired fixed gear — the far end of the '
-             'design space from the Cub.',
     ),
 
     # ---- the second batch (G142), all CC-BY-4.0 -----------------------------

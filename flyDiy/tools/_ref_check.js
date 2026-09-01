@@ -96,6 +96,27 @@ function loadPayload(key) {
   return box.M;
 }
 
+// THE BYTES ARE EXTERNAL (2026-09-01): a payload names its bin under
+// media/geo/models/ and decodeModel takes those bytes as its second argument.
+// The browser fetches; this gate reads the same file with fs — same codec,
+// same slices, so the decode verdicts still hold the served thing. Cached per
+// file because the attitude checks decode the same payload several times.
+const binCache = {};
+function binOf(p) {
+  if (!p || !p.bin) return undefined;                 // legacy b64 payloads
+  if (!(p.bin in binCache)) {
+    const f = path.join(ROOT, ...p.bin.split('/'));
+    if (!fs.existsSync(f)) {
+      check(false, `payload names ${p.bin}, which is not on disk — bake and ` +
+            'page disagree about where the geometry lives');
+      return undefined;
+    }
+    binCache[p.bin] = new Uint8Array(fs.readFileSync(f));
+  }
+  return binCache[p.bin];
+}
+const decode = p => decodeModel(p, binOf(p));
+
 // ---------------------------------------------------------------------------
 // DECODE + TRUE SCALE + THE TABLE
 // ---------------------------------------------------------------------------
@@ -132,7 +153,7 @@ for (const pre of R.REF_PRESETS) {
   let dec = null;
   try {
     payloads[pre.model] = loadPayload(pre.model);
-    dec = decodeModel(payloads[pre.model]);
+    dec = decode(payloads[pre.model]);
   }
   catch (e) { check(false, `preset ${pre.key}: decode threw — ${e.message}`); continue; }
 
@@ -252,7 +273,7 @@ function checkAttitude() {
   for (const pre of R.REF_PRESETS) {
     if (!pre.model) continue;
     if (!payloads[pre.model]) continue;
-    const dec = decodeModel(payloads[pre.model]);
+    const dec = decode(payloads[pre.model]);
     const hull = R.refLowerHull(dec);
     if (!check(!!hull && hull.length >= 2,
                `${pre.key}: no lower hull — the sit has nothing to stand on`))
@@ -299,7 +320,7 @@ function checkAttitude() {
   }
   // AND THE PITCH ACTUALLY CHANGES THE DROP. If it did not, every check above
   // would pass on a formula that ignores its own argument.
-  const hullP = R.refLowerHull(decodeModel(payloads.pa18));
+  const hullP = R.refLowerHull(decode(payloads.pa18));
   check(Math.abs(R.refLowestY(hullP, 0) - R.refLowestY(hullP, 12.09)) > 0.05,
     'the ground attitude does not move the lowest point — refLowestY is ' +
     'ignoring its pitch, and the sit is back to dropping an authored box');
@@ -516,7 +537,7 @@ if (process.argv.includes('--selftest')) {
     // The three ways this can rot, each broken here so the checks above are
     // known to be able to go red rather than assumed to be.
     ['a taildragger declared level', () => {
-      const hull = R.refLowerHull(decodeModel(payloads.pa18));
+      const hull = R.refLowerHull(decode(payloads.pa18));
       const stance = pitch => {
         const t = pitch * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
         const lo = R.refLowestY(hull, pitch);
@@ -530,7 +551,7 @@ if (process.argv.includes('--selftest')) {
       R.refSitPitch({ key: 'x' }) === 0 &&
       R.refSitPitch({ key: 'x', sit: {} }) === 0],
     ['a sit that ignores the pitch it is given', () => {
-      const hull = R.refLowerHull(decodeModel(payloads.pa18));
+      const hull = R.refLowerHull(decode(payloads.pa18));
       return Math.abs(R.refLowestY(hull, 0) - R.refLowestY(hull, 12.09)) > 0.05; }],
     ['a hull that is not the lowest boundary', () => {
       // a straight-line hull would make every attitude equally good

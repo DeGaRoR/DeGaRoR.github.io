@@ -16,10 +16,16 @@
 // switched back to, which is a few hundred milliseconds against a mood change
 // that already re-bakes the environment and the floor shadow.
 //
+// EXTERNALIZED 2026-09-01: base.jpg and gain.png land as real files under
+// media/tex/sky/ and HANGAR_SKY_GRADE carries their URLs — the rows and the
+// GLSL stay inline (they are numbers and code, not pictures).
+//
 // Run after `python tools/sky_prep.py`: node tools/sky_tex_prep.js
 // The output is committed, like the model payloads.
 const fs = require('fs');
 const path = require('path');
+const { writeMedia, pruneMedia, BASE_DECL } = require('./_media_lib.js');
+const SUB = 'tex/sky';
 
 const ROOT = path.join(__dirname, '..');
 // THE PAYLOAD IS ONE PICTURE AND A TABLE OF UNIFORMS. A row carries no image
@@ -37,8 +43,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(SRC, 'skies.json'), 'utf8'
 // The key light's intensity ships as `keyI`, not `key`: `key` is the row's own
 // identifier, and an object literal carrying the same name twice keeps only the
 // last one — which silently cost every row its identity the first time round.
-const uri = (f, mime) => `data:${mime || 'image/jpeg'};base64,` +
-  fs.readFileSync(path.join(SRC, f)).toString('base64');
+const bake = (f, ext) => writeMedia(SUB, f.replace(/\.(jpg|png)$/, ''), ext,
+  fs.readFileSync(path.join(SRC, f)));
 const num = n => (Array.isArray(n) ? `[${n.map(x => +x.toFixed(6)).join(', ')}]`
                                    : String(+Number(n).toFixed(6)));
 const NL = '\n';
@@ -65,6 +71,8 @@ for (const s of manifest.skies) {
 // THE ONE PICTURE (lab only): the base panorama, the per-channel gain map that
 // carries the range its JPEG clipped, and the GLSL that turns the two back into
 // radiance and grades it. All three written by `python tools/sky_prep.py --lab`.
+const baseRel = bake('base.jpg', 'jpg');
+const gainRel = bake('gain.png', 'png');
 const runtime = `
 // ---- the runtime grade: ONE panorama, every hour --------------------------
 // base.jpg is the alps display equirect. gain.png is log2(radiance /
@@ -72,12 +80,17 @@ const runtime = `
 // everywhere the base did not clip, which is why it costs a tenth of a
 // megabyte and not eight. Together they put the float radiance back in front
 // of the shader, and every row above is then a set of uniforms, not a picture.
-const HANGAR_SKY_GRADE = {
-  k: ${manifest.baseExposure}, gmax: ${manifest.gmax}, peak: ${manifest.basePeak},
-  glsl: ${JSON.stringify(fs.readFileSync(path.join(SRC, '_grade.glsl'), 'utf8'))},
-  base: '${uri('base.jpg')}',
-  gain: '${uri('gain.png', 'image/png')}',
-};
+// The two files live under media/tex/sky/ (hash-in-filename); gradeTextures
+// hands their URLs straight to new Image(), exactly as it did the data URIs.
+const HANGAR_SKY_GRADE = (() => {
+  ${BASE_DECL}
+  return {
+    k: ${manifest.baseExposure}, gmax: ${manifest.gmax}, peak: ${manifest.basePeak},
+    glsl: ${JSON.stringify(fs.readFileSync(path.join(SRC, '_grade.glsl'), 'utf8'))},
+    base: B + '${baseRel}',
+    gain: B + '${gainRel}',
+  };
+})();
 `;
 
 const head = `// GENERATED FILE - DO NOT EDIT. Built by tools/sky_tex_prep.js
@@ -102,11 +115,8 @@ ${rows}  ];
 })();
 ${runtime}`;
 fs.writeFileSync(OUT, body);
-
-
-// the strip the lab page wears. Deliberately plain and deliberately labelled
-// as a bench: it is not a design for the game, it is a way to see six skies.
-fs.writeFileSync(OUT, body);
+const gone = pruneMedia(SUB, [baseRel, gainRel]);
 console.log(path.relative(ROOT, OUT).split(path.sep).join('/') +
-  ` (${(body.length / 1048576).toFixed(2)} MB) — ` +
-  `${report.length} hours from ONE panorama: ` + report.join(', '));
+  ` (${(body.length / 1024).toFixed(1)} KB) + 2 files in media/${SUB}/ — ` +
+  `${report.length} hours from ONE panorama: ` + report.join(', ') +
+  (gone.length ? ` · pruned ${gone.join(', ')}` : ''));

@@ -54,6 +54,25 @@ for (const f of packs)
   vm.runInContext(fs.readFileSync(path.join(PROPS_DIR, f), 'utf8'), sandbox, { filename: f });
 const REG = CORE.PROP_REG;
 
+// THE BYTES ARE EXTERNAL (2026-09-01): a prop names its bin under media/geo/
+// and the decoders take those bytes as their last argument. The viewer
+// fetches; this gate reads the same file with fs — same codec, same slices.
+// The sandbox has no FLYDIY_ASSET_BASE, so the paths arrive unprefixed and
+// resolve against the repo, which is exactly what is being checked.
+const binCache = {};
+function binOf(p) {
+  if (!p || !p.bin) return undefined;                 // legacy b64 packs
+  if (!(p.bin in binCache)) {
+    const f = path.join(__dirname, '..', ...p.bin.split('/'));
+    if (!fs.existsSync(f)) {
+      fail(`${p.key}: names ${p.bin}, which is not on disk — bake and pack disagree`);
+      return undefined;
+    }
+    binCache[p.bin] = new Uint8Array(fs.readFileSync(f));
+  }
+  return binCache[p.bin];
+}
+
 // ---- 1. the bake carries the whole table, in order --------------------------
 if (REG.order.length !== declared.length)
   fail(`registry holds ${REG.order.length} props, the table declares ${declared.length}`);
@@ -80,7 +99,7 @@ let tris = 0, verts = 0, parts = 0;
 for (const key of REG.order) {
   const p = REG.props[key];
   let dec;
-  try { dec = CORE.decodeProp(p); }
+  try { dec = CORE.decodeProp(p, binOf(p)); }
   catch (e) { fail(`${key}: decode threw ${e.message}`); continue; }
 
   if (!/^[a-z][a-z0-9_]*$/.test(key)) fail(`${key}: key is not lowercase snake`);

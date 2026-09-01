@@ -1,6 +1,6 @@
 # Credits
 
-## Piper PA-18 3D model (`assets/pa18/`, baked into the artifact)
+## Piper PA-18 3D model (`assets/pa18/`, baked and served from media/)
 
 - **Model**: Emmanuel BARANGER (helijah), created for FlightGear
   (Blender 2.77 / GIMP 2.8). Author's site: helijah.free.fr
@@ -17,10 +17,10 @@
   repository at `assets/pa18/` (GPL's source-availability requirement for the
   derived baked payload `src/models/pa18_model.js`).
 
-- The baked payload and the built artifact carry a machine-readable
-  provenance header (written by `tools/model_prep.py`).
+- The baked payload carries a machine-readable provenance header (written by
+  `tools/model_prep.py`); the served pages load that payload verbatim.
 
-## Cessna 172SP 3D model (`assetsSketchfab/`, `assets/c172/`, baked into the artifact)
+## Cessna 172SP 3D model (`assetsSketchfab/`, `assets/c172/`, baked and served from media/)
 
 - **Model**: "FREE Cessna 172SP" by **NLM** (https://sketchfab.com/NLM-Group).
   Source listing:
@@ -42,10 +42,10 @@
   one. The mesh and the textures are otherwise unaltered — no decimation and
   no re-encoding.
 
-## Reference aeroplanes (`assetsSketchfab/`, baked into the artifact)
+## Reference aeroplanes (`assetsSketchfab/`, baked and served from media/)
 
 The garage's REFERENCE PLANE (`src/viewer/refplane.js`) stands a real
-aeroplane beside your build. These fifteen are all by the same modeller as the
+aeroplane beside your build. These eleven are all by the same modeller as the
 PA-18 above, delivered as Sketchfab GLBs and baked to reference-only payloads
 by `python tools/ref_prep.py --all` from the declared table in
 `tools/ref_table.py`. They are **display only** — never flown, never an input
@@ -53,7 +53,7 @@ to the spec, and GATE REF asserts both.
 
 - **Model**: Emmanuel BARANGER (**helijah**, https://sketchfab.com/helijah),
   created for FlightGear.
-- **Licence is NOT the same on all fifteen.** It is recorded here exactly as
+- **Licence is recorded verbatim.** It is recorded here exactly as
   each GLB's own `asset.extras` block declares it, and each baked payload
   carries its own `lic` field so `tools/_ref_check.js` can hold the artifact
   to it:
@@ -74,32 +74,26 @@ to the spec, and GATE REF asserts both.
   | `eiii` | Fokker Eindecker E.III | https://sketchfab.com/3d-models/fokker-eindecker-eiii-bf1ab0a7b7a64f5d9a825ac2fddf35dd |
   | `pa28` | Piper PA-28 "Cadet" | https://sketchfab.com/3d-models/piper-pa-28-cadet-ba310f1e1ba349c7a54ab9db92e48970 |
 
-  Not all eleven ride in the artifact — see `build.js` MANIFEST.models, which
-  is the publish list. They are all committed, all correct, and all one line
-  from shipping; what holds most of them back is the artifact's own size
-  ceiling, not their licence.
+  All eleven ride in the served pages — see `build.js` MANIFEST.models, which
+  is the publish list. The size ceiling that used to hold most of them back
+  died when the artifact went multi-file (2026-09-01).
 
-  **"SKETCHFAB Standard"** — which does **not** permit redistribution. These
-  four bake and stand in the shed locally, but they are not published: they
-  are absent from `build.js` MANIFEST.models, their payloads and GLBs are
-  gitignored, and GATE REF fails the build if one is ever added to the
-  publish list.
-
-  | key | title | listing |
-  |---|---|---|
-  | `a22` | Aeroprakt A22 Foxbat | https://sketchfab.com/3d-models/aeroprakt-a22-foxbat-23496a87a16d417caeeae4e3fccda43d |
-  | `p68` | Partenavia P.68 | https://sketchfab.com/3d-models/partenavia-p-68-93029ea2884e489a8fda5e709373d580 |
-  | `rv8` | Van's Aircraft RV-8 (tail gear) | https://sketchfab.com/3d-models/vans-aircraft-rv-8-tail-gear-5352bfd36d5f4525aa2173be53a21402 |
-  | `sr22` | Cirrus SR 22 | https://sketchfab.com/3d-models/cirrus-sr-22-f0f1089f374f4d398f0483403fe6af7a |
+  **"SKETCHFAB Standard" imports were deleted outright** (2026-09-01, user
+  ruling): four of helijah's listings (`a22` Aeroprakt A22 Foxbat, `p68`
+  Partenavia P.68, `rv8` Van's RV-8, `sr22` Cirrus SR22) carried that licence,
+  which does **not** permit redistribution. They could never ship, so their
+  GLBs, payloads and presets were removed rather than kept local. GATE REF
+  still fails the build if a non-CC-BY payload ever lands on the publish list.
 
   helijah's FlightGear aircraft are GPL-2.0 at source (the FGMEMBERS
   repositories on GitHub); what a given **Sketchfab listing** carries is a
-  separate per-upload choice, and the table above records what these files
-  actually say rather than what the set as a whole is assumed to say.
+  separate per-upload choice, and `tools/ref_table.py` records what each file
+  actually says rather than what the set as a whole is assumed to say.
 
 - **Modifications made**, as CC-BY asks to be indicated: none to the geometry
-  — no decimation, no welding, no parts dropped, and the base-colour textures
-  are embedded byte-for-byte as delivered. The payload is a re-container:
+  — no decimation, no welding, no parts dropped, and where base-colour maps
+  are carried at all (`tex='copy'`) they are carried byte-for-byte as
+  delivered. The payload is a re-container:
   positions quantised to 0.2 mm over the model's own bounding box, triangles
   grouped by the source's own materials (and split where a material exceeds
   the container's 65 535-vertex index limit), and constant metalRough maps
@@ -112,13 +106,13 @@ to the spec, and GATE REF asserts both.
   200, whose published figures disagree with *each other* by more than the
   model differs from any of them, and the Super Guépard, where English
   Wikipedia's 8.5 m span is 15% under both the model and every French source.
-- **One of the fifteen has NO PRESET**: `draco`. Mike Patey's turbine Wilga is
+- **One of the eleven has NO PRESET**: `draco`. Mike Patey's turbine Wilga is
   a one-off with a lengthened nose and a re-spanned wing, and nobody has
   published its dimensions — so nothing can hold its scale, and a reference
   whose scale nothing holds is worse than no reference at all. It is baked and
   credited here; it is not offered as something to measure against.
 
-## Hangar skies and surfaces (`assets/hangar_sky/`, `assets/hangar_walls/`, `assets/concrete_floor_damaged_01/`, baked into the artifact)
+## Hangar skies and surfaces (`assets/hangar_sky/`, `assets/hangar_walls/`, `assets/concrete_floor_damaged_01/`, baked and served from media/)
 
 **Poly Haven, CC0** — no attribution required, recorded here anyway because a
 repository that cannot say where its art came from is a repository that cannot
@@ -149,7 +143,7 @@ Modifications made:
   were converted once to PNG/JPG with ImageMagick — browsers read no EXR — at
   the delivered 1k resolution.
 
-## Airfield ground surfaces (`assets/airfield/`, baked into the artifact)
+## Airfield ground surfaces (`assets/airfield/`, baked and served from media/)
 
 Ten CC0 PBR sets, from two libraries, for the surfaces of the base aerodrome —
 the apron and taxiway, the mown strip, and the field they stand in. They are one
@@ -176,18 +170,18 @@ Modifications made:
   the format puts it; R is ambient occlusion and B is metalness, and both are
   discarded. Nothing is recoloured, sharpened or tiled.
 - **Resampled, and reversibly.** Each set is written twice: a 1k archive and a
-  512 working copy. The artifact carries 512 (4.25 MB of base64 for all ten
-  against 19.6 MB at 1k), because ground read at grazing angles across hundreds
-  of metres does not resolve 1k. Raising a row's `tex` in
-  `tools/site_tex_prep.js` and re-running it restores the full resolution with
-  no re-import — the same budget rule the prop baker uses.
+  512 working copy. The game serves 512 (~3.2 MB of files under
+  `media/tex/site/` for all ten against ~15 MB at 1k), because ground read at
+  grazing angles across hundreds of metres does not resolve 1k. Raising a
+  row's `tex` in `tools/site_tex_prep.js` and re-running it restores the full
+  resolution with no re-import — the same budget rule the prop baker uses.
 - **Normals stay JPEG**, unlike `assets/hangar_walls/`, which keeps PNG. These
   are ground planes, and PNG would cost about half a megabyte a set for a
   difference nothing in this scene can show.
 - **Geometry discarded.** Every Poly Haven set is delivered as a glTF preview
   sphere. Only the maps are imported; the sphere is not.
 
-## Wood detail sheets (`assets/wood/`, baked into the artifact)
+## Wood detail sheets (`assets/wood/`, baked and served from media/)
 
 Four CC0 PBR wood sets for the AEROSKIN material library (G125) — the scanned
 grain the wooden propellers and the wood-construction airframe finishes wear.
@@ -210,12 +204,13 @@ Modifications made:
   recentred on the sheet convention's 0.80 mean — wood grain is colour, not
   height (G68), so the diffuse is the grain signal, and the albedo itself
   stays the player's colour picker, exactly as the material system rules.
-- **Resampled, and reversibly.** 1k archive beside the 512 payload, the same
-  budget rule as every other import; all four sheets cost 0.18 MB of base64.
+- **Resampled, and reversibly.** 1k archive beside the 512 working copy, the
+  same budget rule as every other import; all four sheets cost 0.15 MB of
+  files under `media/tex/wood/`.
 - **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
   only the maps are imported.
 
-## Jodel DR1050 structures (`assets/jodel_structure/`, baked into the artifact)
+## Jodel DR1050 structures (`assets/jodel_structure/`, baked and served from media/)
 
 - **Model**: the author of this repository, in Blender 4.0. A DR1050 fuselage
   structure (spruce formers and longerons, welded steel tube cockpit frame) and
@@ -231,7 +226,7 @@ Modifications made:
   lives in a node graph), so the four material names are mapped to spruce and
   three steels in the baker rather than taken at face value.
 
-## Hangar props (`assets/props/`, baked into the artifact)
+## Hangar props (`assets/props/`, baked and served from media/)
 
 The shed's furniture. Every row of the declared table in `tools/props_table.py`
 names its source folder, and that table's `SOURCES` block is the machine-readable

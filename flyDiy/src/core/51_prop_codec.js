@@ -17,13 +17,27 @@
 //   uint16 uv[2n]  quantised over the PART's own uv range (props whose uv
 //                  wraps past 1.0 are normal — industrial_storage_cart does),
 //   uint16 idx[3t] (nVerts is asserted <= 65536 at bake time).
+//
+// THE BYTES LIVE OUTSIDE THE PACK since 2026-09-01: a part carries `off`/`len`
+// into ONE binary file per prop (prop.bin names it, under media/geo/props/),
+// and the decoders take that file's bytes as their last argument — the viewer
+// fetches through propWarm/ASSET_FETCH (props.js), the gate reads with fs. A
+// part still carrying `b64` decodes as before (selftest fixtures, unbaked
+// trees).
 
-function decodePropPart(bb, part) {
-  const raw = (typeof atob === 'function')
-    ? (() => { const s = atob(part.b64), a = new Uint8Array(s.length);
-               for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; })()
-    : new Uint8Array(Buffer.from(part.b64, 'base64'));
-  const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+function decodePropPart(bb, part, bin) {
+  let dv;
+  if (part.b64) {
+    const raw = (typeof atob === 'function')
+      ? (() => { const s = atob(part.b64), a = new Uint8Array(s.length);
+                 for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; })()
+      : new Uint8Array(Buffer.from(part.b64, 'base64'));
+    dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+  } else {
+    if (!bin) throw new Error('decodePropPart: part "' + part.mat + '" needs ' +
+      'the prop\'s bin bytes and none were passed — propWarm first');
+    dv = new DataView(bin.buffer, bin.byteOffset + part.off, part.len);
+  }
   const nv = dv.getUint32(0, true), nt = dv.getUint32(4, true);
   const [x0, y0, z0, x1, y1, z1] = bb;
   const sx = (x1 - x0) / 65535, sy = (y1 - y0) / 65535, sz = (z1 - z0) / 65535;
@@ -50,9 +64,11 @@ function decodePropPart(bb, part) {
 // prop -> { key, bb, parts:[{mat,nv,nt,pos,nrm,uv,idx}] }. Decoding is per
 // prop, not per pack: the editor shows one at a time and the hangar places a
 // handful, so nothing pays for the props it never puts on the floor.
-function decodeProp(prop) {
+// `bin` is the prop's own binary file's bytes (see the header) — unused when
+// the parts still carry b64.
+function decodeProp(prop, bin) {
   return { key: prop.key, bb: prop.bb,
-           parts: prop.parts.map(p => decodePropPart(prop.bb, p)) };
+           parts: prop.parts.map(p => decodePropPart(prop.bb, p, bin)) };
 }
 
 // ---------------------------------------------------------------------------
